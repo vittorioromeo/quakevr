@@ -2,6 +2,7 @@
 // drawn on its hands. Moved out of vr_hitreact.cpp (see vr_hitreact.hpp); what they share is vr_hitreact_internal.hpp.
 
 #include "vr_hitreact_internal.hpp"
+#include "vr_weaponstudio.hpp" // (its hold preview: the arms solve's notes, read-only)
 #include "vr_tracy.h"
 
 namespace hitreact_detail
@@ -280,7 +281,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     // (vr_agarms_lod: far ones' last solve reused between their turns; exact while reacting to a hit or the studios'
     // subject)
     const bool exact = kicked || hitreact::reacting(e) || posestudio::active() || rigstudio::wantsNotes() ||
-                       poselive::recording(s.ent) || vr_agrunt_ik_debug.value >= 2.f;
+                       weaponstudio::wantsNotes() || poselive::recording(s.ent) || vr_agrunt_ik_debug.value >= 2.f;
     if(!agarms::lodReuse(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, exact, placed))
     {
         QVR_TRACY_SCOPE(tracySolve, "armed pose: arms solve");
@@ -305,7 +306,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         seen->seenHeld2 = placed.held2;
         seen->seenSecond = secondPoint;
     }
-    if(posestudio::active() || rigstudio::wantsNotes())
+    if(posestudio::active() || rigstudio::wantsNotes() || weaponstudio::wantsNotes())
     {
         posestudio::Note n;
         n.ent = s.ent;
@@ -334,6 +335,10 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             posestudio::note(n);
         }
         rigstudio::note(n); // (the Rig Studio's display: its subject's IK targets and grips)
+        if(weaponstudio::wantsNotes())
+        {
+            weaponstudio::note(n); // (the Weapon Studio's hold preview: the same note, kept only for its readout)
+        }
     }
     if(placed.on[0] && hasR && placeable(placed.weapon[0]))
     {

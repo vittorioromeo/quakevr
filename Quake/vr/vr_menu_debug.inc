@@ -186,6 +186,17 @@ za::Vector<Item> pageDebugViews()
                   "forearm bent past its hinge (held within it) and undone, the pose mirrored and undone, saved and read "
                   "back. It WRITES the subject's animation files (vr_rigdata_dir rigstudio_test first keeps them apart); "
                   "the console says how many passed. Flat screen only."),
+        command("Weapon Studio (Flat Screen)", "vr_weaponstudio")
+            .help("vr_weaponstudio: every weapon setting in one window on the desktop screen (the same store the Weapon "
+                  "Offsets and Weapon Weights menus write, so the menus, the config file and the game all see it at "
+                  "once): a slot picker over every weapon in use (its model, what my hands hold, what it copies), the "
+                  "grips and finger bends, where the muzzle sits and where a shot goes, the crosshair, holsters, scale "
+                  "and length, effects, and the weights (mass, damage, hits, throw). Over the game's own view it draws "
+                  "the muzzle, its anchor, the shot line and the sight line with the angle between them: vr_weaponstudio_"
+                  "align both prints it, vr_weaponstudio_align both apply lines the muzzle up with where the gun really "
+                  "aims; the same window shows the weapon held by my hands and by an armed humanoid standing in front of "
+                  "me. vr_weaponstudio_test ends on 'weaponstudio: N passed, M failed'. Flat screen only (start the game "
+                  "with -flatscreenmode); vr_weaponstudio_close closes it, the game is held while it is open."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch (the console; ends on "

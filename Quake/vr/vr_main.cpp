@@ -130,6 +130,7 @@
 #include "vr_rigseq.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_waveeditor.hpp"
+#include "vr_weaponstudio.hpp" // (its own window: vr_weaponstudio.cpp, its keys' page layout: vr_weaponstudio_ui.cpp)
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_gripfit.hpp"
@@ -2106,6 +2107,8 @@ extern "C" void VR_Init()
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     waveeditor::init(); // vr_waveeditor, vr_arena_play (vr_waveeditor.cpp, vr_arenawaves.cpp)
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
+    weaponstudio::init(); // vr_weaponstudio, vr_weaponstudio_open/_close/_slot/_align/_preview/_test (vr_weaponstudio.cpp):
+                          // the keys' window (vr_weaponstudio_ui.cpp); its own pages, no new cvars (the menus' stand-ins)
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     VR_RegisterPackStatus();
     VR_RegisterContinue();
@@ -2331,6 +2334,7 @@ extern "C" void VR_StopDownloads()
 extern "C" void VR_Shutdown()
 {
     waveeditor::shutdown();
+    weaponstudio::shutdown(); // (its window closed, its preview humanoid let go)
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
@@ -2491,6 +2495,7 @@ extern "C" void VR_BeginFrame()
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
         waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
+        weaponstudio::clientFrame(); // vr_weaponstudio: likewise (flat screen: its own window; never with the other two)
     }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
@@ -2506,7 +2511,8 @@ extern "C" void VR_BeginFrame()
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() ? 1 : 0; // (Holster Setup and the wave editor pause it too)
+    // (Holster Setup, the Arena Wave Editor and the Weapon Studio hold the game's time too)
+    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() || weaponstudio::holds() ? 1 : 0;
 }
 
 extern "C" int VR_IsActive()

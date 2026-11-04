@@ -8149,3 +8149,75 @@ open, the panel's target released), then it reopens, adds two waves, clicks Play
 `arenaWaveAt`, `arenaPresetWaves`) and checks `ar_wave` is the wave asked for and the preset is the one playing. It plays in
 vrarena whatever map it began in, and `playOff` at the verdict leaves the next map to what's assigned. The clicks that close
 are followed by steps only an editor still open reaches, which fail, so a missed click ends on a verdict too.
+
+## The Weapon Studio (flat screen only)
+
+`Quake/vr/vr_weaponstudio.cpp`, `vr_weaponstudio_ui.cpp`, `vr_weaponstudio_internal.hpp`: an ImGui developer window for
+every setting the Weapon Offsets and Weapon Weights menus hold, like the Rig Studio and the wave editor. Flat screen
+only (it draws on the flatscreen window, and `open_f` refuses when a headset is up: "weaponstudio: it is flat-screen
+only: start the game with -flatscreenmode"): **`vr_weaponstudio` / `vr_weaponstudio open` on a flatscreen build**. Its pages: Place, Fingers, Muzzle, Two-hand, Hotspots, Stock, Ammo,
+Holster, Effects, Torch, Weights, Blade, Reload, Embed, Model, Other; on top of them a held-weapon readout (the main
+and off hand: what it holds, how far its sight line is from where it shoots, its barrel, its fist on the shipped rig),
+a filter that narrows the key rows to what it matches, and the buttons Align / Preview / Hold / Reset / Copy.
+`vr_weaponstudio [open|close|test|slot [n]|align [hand 0|1|2 [apply]]|preview [kind weapon weapon2]|hold [0|1]|reset
+[slot]|print [slot]|copy [from to]]` is the scripting path, which needs no window.
+
+It is a **consumer of the store the menus already use**, not a new one: every key is `vr_wofs_<key>_<slot+1>` (zero
+padded, as the menus and `ironwail.cfg` write it), written through the same stand-in cvar and read back from it. No new
+cvars, no new data files, nothing in the game's logic.
+
+`align [main|off|both] [apply]` measures the weapon a hand is actually holding (`view::weaponMount`,
+`sightalign::sightLine`, `weapons::shotAngles`) and prints, per hand:
+`weaponstudio align: main hand, slot 1: the sight line is 0.79 deg from where the gun shoots (shot pitch -2.84, shot
+yaw -0.39 would line them up); the muzzle it shoots from is 3.8 cm off that line, 4.2 cm from the model's own muzzle
+(Muzzle X/Y/Z move that one)`; with `apply` it writes **only that slot's Shot Pitch / Shot Yaw** and re-measures:
+`weaponstudio align: slot 1 written: the sight line is now 0.00 deg from where it shoots (lined up)`.
+
+The **preview humanoid** is an armed monster spawned frozen in front of you (the Rig Studio's kind of subject; the test
+places `monster_vr_grunt`), shown with the shipped arms solve's pose so a weapon can be judged as a held prop;
+`vr_weaponstudio preview [kind weapon weapon2]`. While the window holds the game's time (`hold`, on by default: monsters and props stand
+still, the player still walks and looks) its arms never solve, so the pose needs `hold 0`.
+
+`Misc/quakevr/weaponstudio_test.sh <agent>` proves it headless on a flatscreen (three runs, none ends on a timeout,
+every value a run changed is put back): (1) its own test `vr_weaponstudio test` — 22 checks: the window opens and fits
+a 960x540 screen (every widget it clicks is on it, so its Close is reachable), its pages open, a grip spot narrows its
+key rows, the filter shows only the keys it matches, a key written through its stand-in cvar is read back from the
+store, the aligner measures the held weapon, a placed humanoid's pose is waited for on a condition (the pose note from
+`vr_armedgrunt_pose.qc`, not a guessed number of frames), and clicking Close closes the window and hands the game
+back: `weaponstudio: 22 passed, 0 failed`; (2) store parity — `vr_wofs_muzzle_x_02` starts at its default 0.9, is
+changed the way a menu changes it (1.5), is printed back by `vr_weaponstudio print 1` from the same store, and
+`vr_weaponstudio reset 1` puts it back: 4 checks; (3) the aligner on three held weapons (154 shotgun slot 1, 158 rocket
+launcher slot 5, 159 proximity gun slot 10) — measure, `align both apply`, measure again: 0.79 -> 0.00 deg for the
+shotgun, 0.00 -> 0.00 for the other two; that no sight line ends further off, that the one that was off comes onto the
+shot, that all three end under 0.25 deg, and that what it writes is the slot's Shot Pitch / Shot Yaw in the store's own
+cvars: 4 checks. The harness's own verdict: **`weaponstudio: 14 passed, 0 failed`**.
+
+Two measurement bugs this round (both in the tool, neither in the game):
+
+- The cm numbers mixed two frames. `view::ModelSpace` maps a point in the model's **own vertices** (it applies the
+  .mdl's header scale and `scale_origin`), while `view::weaponLocalGeometry` measures the model **drawn at the origin
+  unturned** (that packing already in it): giving it to `ModelSpace::point` applied the packing twice. For the shotgun
+  that was a phantom 10 units — the aligner printed "39.8 cm off the sight line, 39.8 cm from the model's own muzzle"
+  (both from that one distance; the first was even labelled off the sight line while it was muzzle to muzzle). Now the
+  muzzle distances use `view::muzzleWithOffset` with no offset (the model's own muzzle, before Muzzle X/Y/Z) against
+  `mount.muzzle` (the muzzle the game shoots from, the right anchor), both world, and "off that line" is the
+  perpendicular distance from it to the sight line: 3.8 cm off the line, 4.2 cm from the model's own muzzle. The
+  conversion was never the problem (`units::perMetre`: 1 unit = 3.81 cm). Only a point's *difference* survives the
+  mismatch, so the barrel's direction (and the `barrelToShot` readout, which is an angle) stays as it was.
+- `align [hand] apply` wrote Shot Pitch with the wrong sign (it assumed Quake's "down is positive"; `weapons::shotAngles`
+  pitches the shot **up** by Shot Pitch). It offered +2.84 for the shotgun, which took the sight line from 0.79 deg off
+  the shot to 5.68; it now writes -2.84 and the sight line lands on the shot (0.00 deg, "lined up"). The harness's
+  third run is what catches this: the tool's own test only checks the aligner *ran*. That the shipped shotgun defaults
+  (`vr_wofs_shot_pitch_02` -2.193277, `vr_wofs_shot_yaw_02` -0.84292) leave the sight line 0.79 deg off **this mock
+  headset's** hold is a note for the author, not a change: his hand's pose in VR is a different hold, and the aligner's
+  numbers move with it.
+
+Still unproven by hand in the headset (it is a flatscreen tool, so nothing about it has been seen in a headset, and
+none of it has been looked at with real hands): whether the sight line it reports matches what he aims at when he
+ironsights for real (its numbers come from the mock headset's default hand calibration), whether `align apply` writes
+values he likes better than the shipped ones for each weapon, whether the grip-spot and Muzzle sliders feel right to
+drag in the window, and whether the preview humanoid's pose reads as a real two-handed hold. One gap to note: the tool's
+own help says "the window: Debug > Tools > Weapon Studio", but no such row exists yet (`vr_menu.cpp`'s Debug pages have
+no Weapon Studio `command(...)` row, and neither does QC): today the window opens from the console only. The row belongs
+in Debug > Tools (`command("Weapon Studio", "vr_weaponstudio")`) whenever the menu is next touched — it means nothing in
+a headset, where the tool refuses to open.
