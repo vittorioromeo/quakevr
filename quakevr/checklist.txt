@@ -7,6 +7,9 @@
 [Failed: waiting for your answer]
 The shipped shotgun defaults (Shot Pitch -2.193277, Shot Yaw -0.84292) leave its sight line 0.79 deg off where the gun really shoots, measured on the mock headset's hold. Weapon Studio says -2.842429 / -0.386059 would line them up (measured 0.00). Apply it, or judge it against your own hold in the Weapon Studio first?
 
+[0. Newest: the Weapon Studio window (flat screen, -flatscreenmode)]
+Weapon Studio window (Debug > Tools > Weapon Studio): drag its title bar to move it, pull its lower-right corner to resize it, press Escape or click its title-bar X to close it, then open it again — does it come back where and as big as you left it? (it keeps at least 560x360 so its top row and Close stay reachable)
+
 [1. Armed humanoids: fighting them]
 Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it. {test:punch_grunts}
 Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432). {test:agarmor_plates}
