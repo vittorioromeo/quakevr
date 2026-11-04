@@ -112,6 +112,12 @@ struct NewRecoil
 // 2026-10-31; VR_RetiredCvar): its value set on each of the four that split it (kick back, muzzle rise, return time,
 // haptic punch: vr_recoil_2h_*, Key::Recoil2h*). False: not one of them.
 [[nodiscard]] bool retiredTwoHandLine(const char* name, const char* value);
+// A config saved before 222 carries lines for the 16 store keys nothing read and that are now out of the store
+// (vr_wofs_<key>_NN of 2h_fxd_mh_ox/oy/oz, length, 2h_blade, fgr_open, fgr_thumb/index/middle/ring/pinky, fgr_x/y/z,
+// 2h_fgr_open, 2h_fgr_thumb): VR_RetiredCvar drops each quietly, its value setting nothing. False: not one of them;
+// the key's part is matched whole, so a line for a key that only starts with one of these
+// (vr_wofs_fgr_thumb_across_NN, vr_wofs_fgr_bias_thumb_NN) is not taken for a removed one.
+[[nodiscard]] bool removedKeyLine(const char* name);
 
 // For the Weapon Offsets and Weapon Weights menu pages: a slot's cvar for a key, its settings back to their defaults,
 // and its settings printed as vr_weapons.inc lines (to make them the shipped defaults). Each page resets and prints its
@@ -259,8 +265,6 @@ struct HolsteredPose
 [[nodiscard]] Key holsteredKey(HolsterKind kind, int field);
 [[nodiscard]] HolsteredPose holsteredPose(int slot, HolsterKind kind); // zero for no slot
 
-// Keys retired in round 21 (fitted hands: the hand's place and its fingers on the weapon): registered, unused.
-[[nodiscard]] bool retired(Key key);
 
 
 } // namespace qvr::weapons

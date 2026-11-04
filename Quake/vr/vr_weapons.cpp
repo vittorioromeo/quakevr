@@ -1478,40 +1478,34 @@ int ownerSlot(int slot, Key key)
     return slot;
 }
 
-bool retired(Key key)
+bool removedKeyLine(const char* name)
 {
-    switch(key)
+    // 2026-11-04 (the migration to 222): 16 keys nothing reads (round 21's retired ones: the fingers' openness and
+    // offsets, the whole hand's and the helping hand's, the blade's second grip, the length, the fixed main-hand
+    // offset) are out of the store. A config saved while they were registered still carries their lines
+    // (vr_wofs_<key>_NN): VR_RetiredCvar drops them quietly (its 2026-10-30 vr_wofs_zb_* precedent), and its count of
+    // them is the config test's. The name is matched whole and the slot read off its last three characters, so a key
+    // that only starts with one of these (vr_wofs_fgr_thumb_across_NN, vr_wofs_fgr_bias_thumb_NN) is not taken for a
+    // removed one; the removed keys' own lines set nothing, so no value is kept.
+    constexpr const char* removed[] = {"2h_fxd_mh_ox", "2h_fxd_mh_oy", "2h_fxd_mh_oz", "2h_blade", "2h_fgr_open",
+        "2h_fgr_thumb", "fgr_index", "fgr_middle", "fgr_open", "fgr_pinky", "fgr_ring", "fgr_thumb", "fgr_x", "fgr_y",
+        "fgr_z", "length"};
+    constexpr size_t prefix = 8; // "vr_wofs_"
+    const size_t len = strlen(name);
+    if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_", prefix) != 0 || name[len - 3] != '_' ||
+       name[len - 2] < '0' || name[len - 2] > '9' || name[len - 1] < '0' || name[len - 1] > '9')
     {
-        case Key::HandAnchor:
-        case Key::HandOffsetX:
-        case Key::HandOffsetY:
-        case Key::HandOffsetZ:
-        case Key::GunOffsetX:
-        case Key::GunOffsetY:
-        case Key::GunOffsetZ:
-        case Key::Length:
-        case Key::TwoHFixedMainHandOffsetX:
-        case Key::TwoHFixedMainHandOffsetY:
-        case Key::TwoHFixedMainHandOffsetZ:
-        case Key::FingersX:
-        case Key::FingersY:
-        case Key::FingersZ:
-        case Key::FingerOpen:
-        case Key::FingerThumbOpen:
-        case Key::FingerIndexOpen:
-        case Key::FingerMiddleOpen:
-        case Key::FingerRingOpen:
-        case Key::FingerPinkyOpen:
-        case Key::TwoHFingerOpen:
-        case Key::TwoHFingerThumbOpen:
-        case Key::TwoHDisplayMode: // the two-handed grips: hotspots now
-        case Key::TwoHHandAnchor:
-        case Key::TwoHFixedOffsetX:
-        case Key::TwoHFixedOffsetY:
-        case Key::TwoHFixedOffsetZ:
-        case Key::TwoHBladeGrip: return true;
-        default: return false;
+        return false;
     }
+    const size_t keyLen = len - prefix - 3;
+    for(const char* key : removed)
+    {
+        if(strlen(key) == keyLen && !q_strncasecmp(name + prefix, key, keyLen))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
@@ -1567,7 +1561,7 @@ void printSlot(int slot, Part part)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(!retired(static_cast<Key>(key)) && inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string))
+        if(inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string))
         {
             Con_Printf("    %s \"%s\" // was \"%s\"\n", keyNames[key], var.string, var.default_string);
         }
@@ -1731,7 +1725,19 @@ bool inheritable(Key key)
         case Key::WpnTextAnchor:
         case Key::WpnButtonAnchor:
         case Key::GunfxBarrelMask: return false; // (its own model's triangles)
-        default: return !retired(key) && !reloadKey(key); // (a reload key: each gun's own, never a parent's)
+        // The hand's place on the weapon and the helping hand's fixed grip are read from the model this slot draws
+        // (vr_view.cpp's holster grip zone, its secondGrip, vr_view_diag.cpp vr_hotspots_check): a child takes its own.
+        case Key::HandOffsetX:
+        case Key::HandOffsetY:
+        case Key::HandOffsetZ:
+        case Key::GunOffsetX:
+        case Key::GunOffsetY:
+        case Key::GunOffsetZ:
+        case Key::TwoHDisplayMode:
+        case Key::TwoHFixedOffsetX:
+        case Key::TwoHFixedOffsetY:
+        case Key::TwoHFixedOffsetZ: return false; // (the model's own hand's place)
+        default: return !reloadKey(key); // (a reload key: each gun's own, never a parent's)
     }
 }
 

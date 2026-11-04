@@ -103,7 +103,6 @@ const Exact exactNames[] = {
     {"pitch", Group::Placement},
     {"roll", Group::Placement},
     {"scale", Group::Placement},
-    {"length", Group::Placement},
     {"overlap", Group::Placement},
     {"hide_hand", Group::Placement},
     {"anygrip_mode", Group::Placement},
@@ -151,7 +150,7 @@ const char* const onOffNames[] = {"off", "on", nullptr};
        !strcmp(name, "yaw") || !strcmp(name, "roll") || endsWith(name, "_deg"))
         return Kind::Angle;
     if(hasWord(name, "mode") || hasWord(name, "owncol") || endsWith(name, "_type") || endsWith(name, "_style") ||
-       endsWith(name, "_manual") || hasWord(name, "hide") || hasWord(name, "aim2h") || !strcmp(name, "2h_blade") ||
+       endsWith(name, "_manual") || hasWord(name, "hide") || hasWord(name, "aim2h") ||
        !strcmp(name, "embed") || !strcmp(name, "fx_flash") || !strcmp(name, "fx_tracers"))
         return Kind::Choice;
     if(hasWord(name, "curl") || endsWith(name, "_open") || endsWith(name, "_across") || endsWith(name, "overlap") ||

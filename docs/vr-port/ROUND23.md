@@ -8385,3 +8385,38 @@ A stab (`VR_Embed_StabWhy`, shared with bodies, no speed floor beyond the stab's
 - A touch by a blade driven along its line no longer bursts a loose gib (`VR_Skewer_Thrust` in `VR_Gib_Struck`): the sweep's blow judges it.
 - A blade left in a body keeps its gibs (`VR_Skewer_BladeStuck`, riding the blade's frame) until it is out of a body; back in the hand they ride the hand (`VR_Skewer_BladeBack`).
 - Test: `vr_embed_test 21` (`embedskewer: N passed, M failed`), Debug > Tests. It deals its blows straight to `VR_Melee_Deal` (not a mock swing); the other hand closes a real grip (`+graboff`). A grip in reach of several takes the first by edict, not the nearest.
+## The retired weapon-store keys, taken out for good (agent/woretire, 2026-11-04)
+
+Sixteen keys nothing reads are out of vr_weapons.inc: 2h_fxd_mh_ox/_oy/_oz, length, 2h_blade, fgr_open,
+fgr_thumb, fgr_index, fgr_middle, fgr_ring, fgr_pinky, fgr_x, fgr_y, fgr_z, 2h_fgr_open, 2h_fgr_thumb. The store
+goes 368 keys -> 352 (numKeys is Key::Count, weaponKeyCount comes from the enum, so the stand-in array, its
+DataTable and its static_asserts follow it; no surviving key's cvar name changed, and the positional helpers
+hotspotKey and holsteredKey are where they were). Only three of the sixteen held tuned values (2h_fxd_mh_oy,
+2h_blade, fgr_open: 13 slots each); the rest were 0 everywhere. Their 242 lines in quakevr/data/weapons.txt (the
+defaults' and the slot blocks') are out, the file moved aside first (scratch/weapons_before_woretire.txt).
+
+weapons::retired() is gone, with its declaration, the filter it applied to printSlot, its part in inheritable()
+and the Weapon Studio row that printed "retired key (still %.4f)": 28 such rows -> 0, and vr_wofs_dump prints a
+changed live key again. inheritable() names the twelve below as its own (a child takes its own model's hand
+place) instead of reaching the answer through retired().
+
+Twelve keys look retired and are not, and vr_weapons.inc now names who reads each (configVersion 221 -> 222
+only so an old config's lines for the sixteen are dropped quietly; nothing to convert, nothing read their
+values): hand_av (view::anchorPosition and the holster zones' grip sphere, vr_view.cpp -> zones::publishGrip,
+vr_holsterzones.cpp; also vr_hotspots_check), hand_x/_y/_z (that grip sphere, the offset added to the anchor),
+2h_hand_av (view::secondGrip: a Cup hotspot far enough ahead to be a handle of its own; vr_agarms.cpp,
+vr_hitreact.cpp, vr_hitreact_skin.cpp, vr_builtins_held.inc's weapondrawnpose, vr_axestick.cpp,
+vr_dirparryviz.cpp, vr_posestudio.cpp), 2h_dispmd, 2h_fxd_ox/_oy/_oz and gunoff_x/_y/_z (vr_view_diag.cpp
+vr_hotspots_check: the two-handed display mode, the helping hand's fixed grip, the gun's own offset).
+
+An old config's vr_wofs_<key>_NN line for one of the sixteen is dropped by VR_RetiredCvar through
+weapons::removedKeyLine (vr_weapons.cpp): its vr_wofs_ prefix and the slot's two digits read off the end, the
+key's part matched whole, on retiredRecoilLine's exact-segment precedent -- so a line for a key that merely
+starts with a removed name (vr_wofs_fgr_thumb_x_NN, vr_wofs_fgr_bias_thumb_NN, vr_wofs_fgr_thumb_across_NN)
+still sets its key. Measured with one test config (scratch/cfgtest_woretire.cfg: 18 lines for removed keys and
+one for a name that never existed): before, the 18 lines naming keys that were still registered set them with no
+message at all, 1 printed the removed-setting line (vr_wofs_zb_02) and 1 an Unknown command; after, all 19 print
+the removed-setting line, the control is still the one Unknown command, and 0 bad cvar lines both sides. A 221
+config lands on 222. Its own tests are in scratch/results.txt: woretire: 16 passed, 2 failed, those 2 carrying
+the known pre-existing reds (4 ironsight-ease cases in flatkeys, 1 grip case in flatplay); weaponstudio 14/0,
+flatplay 27/1, flatkeys 24/4, eval canary 38/44 with every verdict where it was.
