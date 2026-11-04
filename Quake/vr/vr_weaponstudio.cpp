@@ -543,7 +543,8 @@ void measureHand(const hands::State& s, const int hand)
         q_strlcpy(r.model, modelStem(id->string ? id->string : ""), sizeof(r.model));
     const view::ModelSpace ms{*ve};
     const glm::vec3 muzzle = mount.muzzle; // the muzzle the game shoots from
-    glm::vec3 modelMuzzle{0.f}, barrel{0.f};
+    glm::vec3 modelMuzzle{0.f}, barrel{0.f}, ownMuzzle{0.f};
+    bool ownMuzzleOk = false;
     if(qmodel_t* model = weapons::heldModel(hand))
     {
         glm::vec3 butt{0.f}, second{0.f};
@@ -551,10 +552,22 @@ void measureHand(const hands::State& s, const int hand)
         if(view::weaponLocalGeometry(model, modelMuzzle, butt, second, secondType))
         {
             r.geometry = true;
+            // Only its DIRECTION is sound here: a difference of two points cancels ModelSpace's shift, and the
+            // per-axis header scale that survives is ~1% (a .mdl's own scale). The POSITION is not:
+            // weaponLocalGeometry measures the model drawn at the origin unturned (its header scale and
+            // scale_origin already applied), while view::ModelSpace wants a point in the model's own vertices and
+            // applies that packing itself -- give it the other one and it re-applies it (the shotgun: a phantom
+            // 10 units / 39.8 cm). Muzzle distances therefore use view::muzzleWithOffset, a world anchor like
+            // mount.muzzle: with no offset it is the model's own muzzle, before Muzzle X/Y/Z moved it.
             const glm::vec3 wm = ms.point(modelMuzzle), wb = ms.point(butt);
             barrel = wm - wb;
-            r.realMuzzleCm = toCm(glm::length(wm - muzzle));
+            if(view::muzzleWithOffset(hand, glm::vec3{0.f}, ownMuzzle))
+                ownMuzzleOk = true;
+            else
+                r.geometry = false;
         }
+        if(ownMuzzleOk)
+            r.realMuzzleCm = toCm(glm::length(ownMuzzle - muzzle));
         if(st.showMarkers && r.slot >= 0)
         {
             for(int i = 1; i <= weapons::maxHotspots; i++) // the grip spots as their sliders place them
@@ -589,10 +602,9 @@ void measureHand(const hands::State& s, const int hand)
         return;
     addMarker(muzzle, muzzle, 0.2f, 0.9f, 1.f, true, "muzzle");
     addMarker(muzzle, muzzle + glm::normalize(shot) * 60.f, 1.f, 0.15f, 0.15f, false, "shot");
-    if(r.geometry)
+    if(r.geometry && ownMuzzleOk)
     {
-        const glm::vec3 wm = ms.point(modelMuzzle);
-        addMarker(wm - barrel, wm + barrel, 1.f, 1.f, 1.f, false, "barrel");
+        addMarker(ownMuzzle - barrel, ownMuzzle + barrel, 1.f, 1.f, 1.f, false, "barrel");
     }
     if(r.sights)
     {
@@ -733,14 +745,10 @@ void alignRun(const int hand, const bool apply)
         const view::ModelSpace ms{*ve};
         const glm::vec3 shot = forwardOf(weapons::shotAngles(mount.rot, mount.slot, mount.mirrored));
         const sightalign::SightLine sl = sightalign::sightLine(mount.model);
-        float gap = 0.f;
-        if(qmodel_t* model = weapons::heldModel(h))
-        {
-            glm::vec3 mm{0.f}, butt{0.f}, second{0.f};
-            int secondType = 0;
-            if(view::weaponLocalGeometry(model, mm, butt, second, secondType))
-                gap = toCm(glm::length(ms.point(mm) - mount.muzzle));
-        }
+        // The model's own muzzle (view::muzzleWithOffset with no Muzzle X/Y/Z on it) against the muzzle the game
+        // shoots from: both world anchors, so their distance is the real one (measureHand: the two frames).
+        glm::vec3 own{0.f};
+        const float gap = view::muzzleWithOffset(h, glm::vec3{0.f}, own) ? toCm(glm::length(own - mount.muzzle)) : 0.f;
         if(!sl.valid)
         {
             Con_Printf("weaponstudio align: %s hand, slot %d: this model has no sights to line up; its own muzzle is "
@@ -756,13 +764,14 @@ void alignRun(const int hand, const bool apply)
         const float yawLeft = -za::atan2(glm::dot(axis, aimRight), glm::dot(axis, aimFwd)) * radToDeg;
         const float uz = za::clamp(glm::dot(axis, aimUp), -1.f, 1.f);
         const float upDeg = za::atan2(uz, sqrtf(za::max(0.f, 1.f - uz * uz))) * radToDeg;
-        const float storePitch = -upDeg;                    // Quake's pitch: down is positive
+        const float storePitch = upDeg; // the store's own sign: weapons::shotAngles pitches the shot UP by Shot Pitch
         const float storeYaw = mount.mirrored ? -yawLeft : yawLeft; // as weapons::shotAngles mirrors the off hand's
+        const glm::vec3 d = mount.muzzle - rear; // how far the muzzle sits off the line your sights draw
+        const float offLine = toCm(glm::length(d - axis * glm::dot(d, axis)));
         Con_Printf("weaponstudio align: %s hand, slot %d: the sight line is %.2f deg from where the gun shoots (shot "
-                   "pitch %+.2f, shot yaw %+.2f would line them up); the muzzle it shoots from is %.1f cm off the "
-                   "sight line, %.1f cm from the model's own muzzle\n",
-                   h ? "main" : "off", mount.slot, angleBetweenDeg(axis, shot), storePitch, storeYaw, gap,
-                   st.hand[h].realMuzzleCm);
+                   "pitch %+.2f, shot yaw %+.2f would line them up); the muzzle it shoots from is %.1f cm off that "
+                   "line, %.1f cm from the model's own muzzle (Muzzle X/Y/Z move that one)\n",
+                   h ? "main" : "off", mount.slot, angleBetweenDeg(axis, shot), storePitch, storeYaw, offLine, gap);
         if(!apply)
             continue;
         const detail::Entry* pe = detail::entryOf(weapons::Key::ShotPitch);
