@@ -10,6 +10,7 @@
 QVR_TUNABLE(vr_compat_muzzle, "1") // with another mod's progs, its shots start at the gun, not the player's head
 QVR_TUNABLE(vr_2h_spread_reduction, "0.5")
 QVR_TUNABLE(vr_2h_cup_stock, "1")
+QVR_TUNABLE(vr_weaponstudio_fly_speed, "120") // units a second: the Weapon Studio's camera flown out of his eyes while its window is open (W A S D, Q E; Shift 3x; its orbit and wheel reuse vr_rigstudio_orbit_speed and vr_rigstudio_zoom_speed)
 
 // Carrying and Throwing > Other
 QVR_TUNABLE(vr_throw_peak_span, "0.017")

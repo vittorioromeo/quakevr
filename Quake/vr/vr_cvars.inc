@@ -2949,7 +2949,6 @@ QVR_CVAR(vr_rigstudio_zoom_speed, "0.12", CVAR_ARCHIVE) // the wheel's zoom a st
 QVR_CVAR(vr_rigstudio_handle_size, "90", CVAR_ARCHIVE) // pixels: the transform handles' size
 QVR_CVAR(vr_rigstudio_theme, "0", CVAR_ARCHIVE)       // the studio's colours: 0 dark, 1 light, 2 classic
 QVR_CVAR(vr_rigstudio_fly_speed, "120", CVAR_ARCHIVE) // units a second: the fly camera (W A S D, Q E; Shift 3x; Preferences)
-QVR_CVAR(vr_weaponstudio_fly_speed, "120", CVAR_ARCHIVE) // units a second: the Weapon Studio's camera flown out of his eyes while its window is open (W A S D, Q E; Shift 3x; its own preferences row; its orbit and wheel reuse vr_rigstudio_orbit_speed and vr_rigstudio_zoom_speed)
 QVR_CVAR(vr_rigstudio_onion, "0", CVAR_ARCHIVE)       // the strike timeline's onion skin: ghosts of the act before and after its time
 QVR_CVAR(vr_rigstudio_onion_count, "2", CVAR_ARCHIVE) // ... how many each way (1..6)
 QVR_CVAR(vr_rigstudio_onion_step, "0.06", CVAR_ARCHIVE) // ... seconds between them (the act's own time; 0.01..0.5)

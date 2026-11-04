@@ -20,6 +20,8 @@ namespace qvr::weaponstudio
 // test), vr_weaponstudio_close, vr_weaponstudio_slot, vr_weaponstudio_preview, vr_weaponstudio_align,
 // vr_weaponstudio_test; and Debug > Tools' row.
 void init();
+// SV_SpawnServer (a map or a load), before its edicts: the preview humanoid's record let go, with its edict.
+void beforeLoad();
 void shutdown(); // (VR_Shutdown: the window closed, its preview subject let go)
 
 // Open, and whether the game's physics is held while it is (vr_main.cpp's VR_RuntimeMenuPause).

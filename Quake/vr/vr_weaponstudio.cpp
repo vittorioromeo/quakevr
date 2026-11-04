@@ -85,7 +85,6 @@ const Rule rules[] = {
     {"whole_", Group::Placement, 6},
     {"hand_only_", Group::Placement, 10},
     {"hand_", Group::Placement, 5},
-    {"gunoff_", Group::Placement, 7},
 };
 
 // The keys with no prefix of their own.
@@ -226,12 +225,7 @@ void rangeOf(const Kind kind, const char* name, float& lo, float& hi, float& ste
         lo = -150.f;
         hi = 150.f;
         step = 0.05f;
-        if(!strcmp(name, "length"))
-        {
-            lo = 0.f;
-            hi = 200.f;
-        }
-        else if(endsWith(name, "_bias"))
+        if(endsWith(name, "_bias"))
         {
             lo = -10.f;
             hi = 10.f;
@@ -449,6 +443,14 @@ void clearTouched()
 {
     for(int i = 0; i < weapons::numSlots * numKeys; i++)
         touchedMap[i] = false;
+}
+
+void clearTouched(const int slot)
+{
+    if(slot < 0 || slot >= weapons::numSlots)
+        return;
+    for(int i = 0; i < numKeys; i++)
+        touchedMap[slot * numKeys + i] = false;
 }
 } // namespace detail
 
@@ -674,7 +676,7 @@ void resetToDefaults(const int slot)
     weapons::resetSlotToDefaults(slot);
     Con_Printf("weaponstudio: slot %d reset to its defaults (%d key(s) this window had changed): %s\n", slot, changed,
                before != weapons::settingsGeneration() ? "the game re-read them" : "nothing had changed");
-    detail::clearTouched();
+    detail::clearTouched(slot); // (the other slots' changes are still changes)
 }
 
 void printChanges(const int slot)
@@ -710,15 +712,11 @@ void copyInto(const int from, const int to)
     for(int i = 0; i < detail::tableSize; i++)
     {
         const detail::Entry& e = detail::tableEntries[i];
-        const cvar_t* src = weapons::cvar(from, e.key);
-        if(!src)
-            continue;
-        if(e.kind == detail::Kind::Anchor)
-        {
-            if(detail::writeText(e, to, weapons::anchor(from, e.key)))
-                n++;
-        }
-        else if(detail::writeValue(e, to, src->value))
+        // What a slot could inherit, and no more: its model's ID, its offsets and anchors on that model, its barrel
+        // mask and what it inherits from stay its own (weapons::inheritable). The value is what `from` plays with,
+        // its parent's where it has one.
+        if(weapons::inheritable(e.key) && weapons::cvar(from, e.key) &&
+           detail::writeValue(e, to, weapons::value(from, e.key)))
             n++;
     }
     Con_Printf("weaponstudio: slot %d copied into slot %d (%d keys; slot %d no longer inherits from anywhere)\n", from,
@@ -793,6 +791,12 @@ void alignRun(const int hand, const bool apply)
 void makePreview()
 {
     st.wantMake = false;
+    if(!st.open)
+    {
+        // (Closing the window is what takes it away again: closeStudio has nothing to do on a closed window.)
+        Con_Printf("weaponstudio preview: open its window first (vr_weaponstudio_open)\n");
+        return;
+    }
     if(!sv.active)
     {
         Con_Printf("weaponstudio preview: no map running (a humanoid needs one)\n");
@@ -993,6 +997,12 @@ void testVerdict()
     st.testClosing = false;
     st.clickPhase = 0;
     st.showMarkers = false; // (the test's debug markers are not left over the view once it is done)
+    st.hold = st.testHold;
+    st.winPlaced = st.testWinPlaced;
+    st.winX = st.testWinX;
+    st.winY = st.testWinY;
+    st.winW = st.testWinW;
+    st.winH = st.testWinH;
     testkit::verdict("weaponstudio", st.passed, st.failed);
 }
 
@@ -1171,6 +1181,57 @@ void testFrame()
         check(c && za::fabs(c->value - (was + 1.5f)) < 0.001f, "the store holds what was written");
         check(e && detail::writeValue(*e, slot, was), "and the test puts it back");
         check(detail::touchedCount(slot) >= 1, "the change is marked as changed");
+        // Copy: into this slot from another model's, one that inherits where there is one (its parent's values are what
+        // comes across, its inheriting does not). This slot's own values are kept to be put back after the check.
+        st.testCopyFrom = -1;
+        const char* id = weapons::cvar(slot, weapons::Key::ID)->string;
+        for(int i = 0; i < weapons::slotsUsed(); i++)
+            if(i != slot && validSlot(i) && strcmp(weapons::cvar(i, weapons::Key::ID)->string, id) != 0 &&
+               (st.testCopyFrom < 0 || (weapons::inheritsFrom(st.testCopyFrom) < 0 && weapons::inheritsFrom(i) >= 0)))
+                st.testCopyFrom = i;
+        q_strlcpy(st.testCopyId, id, sizeof(st.testCopyId));
+        for(int i = 0; i < detail::tableSize; i++)
+            if(const cvar_t* k = weapons::cvar(slot, detail::tableEntries[i].key))
+                st.testCopyWas[static_cast<int>(detail::tableEntries[i].key)] = k->value;
+        st.testCopyInherit = weapons::cvar(slot, weapons::Key::InheritFrom)->value;
+        // (Its hand offset, which a copy must leave, and its muzzle, which a copy must overwrite: both made different.)
+        detail::writeValue(*detail::entryOf(weapons::Key::HandOffsetX), slot,
+                           weapons::cvar(slot, weapons::Key::HandOffsetX)->value + 0.25f);
+        detail::writeValue(*e, slot, st.testCopyFrom >= 0 ? weapons::value(st.testCopyFrom, weapons::Key::MuzzleOffsetX) + 3.f : was);
+        st.testCopyHand = weapons::cvar(slot, weapons::Key::HandOffsetX)->value;
+        st.copyFromSlot = st.testCopyFrom;
+        st.testStep = 19;
+        st.testWait = testFrames;
+        click("copy_into");
+        break;
+    }
+    case 19:
+    {
+        const int slot = st.slot;
+        const int from = st.testCopyFrom;
+        check(from >= 0, "another model's slot to copy from");
+        check(!strcmp(weapons::cvar(slot, weapons::Key::ID)->string, st.testCopyId), "a copy keeps the target's model ID");
+        check(za::fabs(weapons::cvar(slot, weapons::Key::HandOffsetX)->value - st.testCopyHand) < 0.001f,
+              "a copy keeps the target's hand offset");
+        check(from >= 0 && za::fabs(weapons::value(slot, weapons::Key::MuzzleOffsetX) -
+                                    weapons::value(from, weapons::Key::MuzzleOffsetX)) < 0.001f,
+              "a copy brings the source's muzzle offset");
+        Con_Printf("weaponstudio test: copied slot %d (inherits from %d) into slot %d, which now inherits from %d\n", from,
+                   weapons::inheritsFrom(from), slot, weapons::inheritsFrom(slot));
+        check(weapons::inheritsFrom(slot) < 0, "a copy leaves the target inheriting from nothing");
+        // Its own values back, then what it inherited from; the marks cleared one slot at a time.
+        for(int i = 0; i < detail::tableSize; i++)
+            if(cvar_t* k = weapons::cvar(slot, detail::tableEntries[i].key);
+               k && detail::tableEntries[i].kind != detail::Kind::Anchor && detail::tableEntries[i].key != weapons::Key::ID)
+                Cvar_SetValueQuick(k, st.testCopyWas[static_cast<int>(detail::tableEntries[i].key)]);
+        Cvar_SetValueQuick(weapons::cvar(slot, weapons::Key::InheritFrom), st.testCopyInherit);
+        if(from >= 0)
+            detail::markTouched(from, weapons::Key::MuzzleOffsetX, weapons::value(from, weapons::Key::MuzzleOffsetX));
+        detail::clearTouched(slot);
+        check(detail::touchedCount(slot) == 0 && (from < 0 || detail::touchedCount(from) >= 1),
+              "clearing one slot's changed marks leaves the other slot's");
+        if(from >= 0)
+            detail::clearTouched(from);
         st.testStep = 7;
         st.testWait = testFrames;
         click("align");
@@ -1221,7 +1282,7 @@ void testFrame()
         break;
     case 10:
         check(!st.preview.made, "the preview humanoid removed");
-        st.hold = true; // (back to the window's own default)
+        st.hold = st.testHold;
         st.testStep = 11;
         st.testWait = 2;
         break;
@@ -1240,6 +1301,7 @@ void testFrame()
             break; // (testClosedFrame prints it and gives the verdict)
         if(st.closeTries < 4)
         {
+            check(false, "Close took its first click");
             st.closeTries++;
             const Spot* s = spotNamed("close");
             Con_Printf("weaponstudio test: still open, clicking Close again (try %d, %s, screen %.0fx%.0f)\n",
@@ -1326,6 +1388,7 @@ void testFrame()
             break;
         if(st.closeTries < 4)
         {
+            checkSched(false, "its title bar's X took its first click");
             st.closeTries++;
             const Spot* s = spotNamed("title_x");
             Con_Printf("wsched test: still open after its title bar X (try %d, %s, its pos %.0f,%.0f size %.0fx%.0f)\n",
@@ -1405,7 +1468,7 @@ void testClosedFrame()
 // are the Rig Studio's -- W A S D forward, left, back and right, Q E down and up, Shift 3x -- and so is the rest of
 // its camera: a middle-drag or an Alt+left drag orbits, the wheel zooms, and the orbiting and zooming speeds are
 // vr_rigstudio_orbit_speed and vr_rigstudio_zoom_speed. Only the flying speed is the Studio's own
-// (vr_weaponstudio_fly_speed, in its preferences row). While the window is open these are his move keys' job -- his
+// (vr_weaponstudio_fly_speed, a tunable). While the window is open these are his move keys' job -- his
 // own walking is paused for those frames (VR_AdjustMove, vr_input.cpp) and comes back with the window, nothing kept.
 //
 // `off` is the default, and what `camera reset` and the window's Close leave behind: while it is off
@@ -1548,7 +1611,7 @@ void camZoom(const float wheel)
     glm::vec3 fwd, right, up;
     basisOf(st.camTurn, fwd, right, up);
     const float step = (camOff() + camZoomStep) * za::clamp(vr_rigstudio_zoom_speed.value, 0.01f, 0.9f) * wheel;
-    st.camPos -= fwd * step;
+    st.camPos += fwd * step; // (wheel up goes in, as the Rig Studio's: vr_rigstudio_view.cpp)
     camKeep();
 }
 
@@ -1731,6 +1794,22 @@ void closeStudio()
 
 namespace
 {
+// Never with the other two desktop tools (vr_main.cpp's client frame runs one): says which one is in the way.
+[[nodiscard]] bool otherToolOpen()
+{
+    if(rigstudio::active())
+    {
+        Con_Printf("weaponstudio: close the Rig Studio first (vr_rigstudio_close)\n");
+        return true;
+    }
+    if(waveeditor::shown() || waveeditor::holds())
+    {
+        Con_Printf("weaponstudio: close the Arena Wave Editor first (vr_waveeditor_close)\n");
+        return true;
+    }
+    return false;
+}
+
 void startTest()
 {
     if(VR_IsActive())
@@ -1738,6 +1817,15 @@ void startTest()
         Con_Printf("weaponstudio: the ImGui test runs on the screen (-flatscreenmode)\n");
         return;
     }
+    if(otherToolOpen())
+        return;
+    // What it moves and lets go of, put back at its end (testVerdict).
+    st.testHold = st.hold;
+    st.testWinPlaced = st.winPlaced;
+    st.testWinX = st.winX;
+    st.testWinY = st.winY;
+    st.testWinW = st.winW;
+    st.testWinH = st.winH;
     if(!st.open)
         openStudio();
     st.testing = true;
@@ -1820,16 +1908,8 @@ void open_f()
         Con_Printf("weaponstudio: it is flat-screen only: start the game with -flatscreenmode\n");
         return;
     }
-    if(rigstudio::active())
-    {
-        Con_Printf("weaponstudio: close the Rig Studio first (vr_rigstudio_close)\n");
+    if(otherToolOpen())
         return;
-    }
-    if(waveeditor::shown() || waveeditor::holds())
-    {
-        Con_Printf("weaponstudio: close the Arena Wave Editor first (vr_waveeditor_close)\n");
-        return;
-    }
     if(!st.open)
         openStudio();
 }
@@ -1932,7 +2012,18 @@ void preview_f()
 void afterWindow(const bool keep)
 {
     if(!keep || st.askClose)
+    {
         closeStudio(); // (after ImGui::End, never from inside the window)
+        // What else was asked in that frame goes with it: "place one" would leave a humanoid no window answers for.
+        st.wantMake = false;
+        st.wantRemove = false;
+        st.wantAlign = false;
+        st.wantReset = false;
+        st.wantPrint = false;
+        st.wantCopy = false;
+        st.wantStopCopy = false;
+        return;
+    }
     if(st.wantCamReset)
     {
         st.wantCamReset = false;
@@ -2044,6 +2135,11 @@ void init()
     Cmd_AddCommand("vr_weaponstudio_align", align_f);
     Cmd_AddCommand("vr_weaponstudio_preview", preview_f);
     Cmd_AddCommand("vr_weaponstudio_test", startTest);
+}
+
+void beforeLoad()
+{
+    st.preview = Preview{}; // (its edict went with the map: that number is someone else's from now on)
 }
 
 void shutdown()

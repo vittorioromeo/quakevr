@@ -32,6 +32,15 @@ check $(grep -q "the window fits the screen: every widget the test clicked was o
 check $(grep -q "still open, clicking Close again" "$log" && echo 0 || echo 1) "its Close took the first click (no retry was needed)"
 check $(grep -q "the game's time let go" "$log" && grep -q "arms solve reported its pose: ok" "$log" && echo 1 || echo 0) "a placed humanoid's pose was read on a condition (the tool let go of the held game and the shipped arms solve reported it)"
 
+# ---- 1b. the preview humanoid's record against a map change, and the console path with the window shut --------------
+# (The same map loaded over it: its edict number is someone else's now, so the close must remove nothing. Then a placing
+# from the console with the window shut, which nothing would ever take away, is refused.)
+logp=$HERE/scratch/ws_preview.log
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1;wait60;god;notarget;vr_weaponstudio open;wait3;vr_weaponstudio preview 0 4;wait3;map e1m1;wait60;vr_weaponstudio close;wait3;vr_weaponstudio preview 0 4;wait3;toggleconsole;quit" -Filter "^weaponstudio" > "$logp" 2>&1
+check $(grep -q "preview: .* placed at" "$logp" && echo 1 || echo 0) "a preview humanoid placed with the window open"
+check $(grep -q "subject [0-9]* removed" "$logp" && echo 0 || echo 1) "after a map load over it, the close removes nothing (its edict number is another's now)"
+check $(grep -q "open its window first" "$logp" && [ "$(grep -c 'placed at' "$logp")" = 1 ] && echo 1 || echo 0) "with the window shut, the console's placing is refused"
+
 # ---- 2. store parity with the Weapon Offsets / Weapon Weights menus ------------------------------------------------
 # (slot 1 is the shotgun; its muzzle point's key is muzzle_x, so the cvar is vr_wofs_muzzle_x_02.)
 log2=$HERE/scratch/ws_store.log

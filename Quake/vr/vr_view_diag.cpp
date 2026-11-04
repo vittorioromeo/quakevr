@@ -1023,79 +1023,6 @@ void hotspotHere_f()
         type, p.x, p.y, p.z);
 }
 
-// vr_hotspots_check: for every slot, the weapon drawn in either hand at a few poses: where its old two-handed grip
-// (the retired foregrip keys, mirrored as the old code did) and its grip hotspot are (they should match), and how far
-// the drawn hand moved (it was at the weapon's hand anchor, round 20; now where the controller is: the weapon's
-// origin).
-void hotspotsCheck_f()
-{
-    float worstGrip = 0.f, worstHand = 0.f, worstMuzzle = 0.f;
-    for(int slot = 0; slot < weapons::numSlots; slot++)
-    {
-        const cvar_t* id = weapons::cvar(slot, Key::ID);
-        qmodel_t* model = id && id->string[0] ? Mod_ForName(id->string, false) : nullptr;
-        if(!model || model->type != mod_alias || slot == weapons::fistSlot())
-        {
-            continue;
-        }
-        float grip = -1.f, hand = 0.f, muzzle = 0.f;
-        for(int pose = 0; pose < 6; pose++)
-        {
-            const bool mirrored = pose & 1;
-            ViewEntity ve;
-            ve.ent.model = model;
-            ve.ent.scale = ENTSCALE_DEFAULT;
-            ve.mirrored = mirrored;
-            const float a = static_cast<float>(pose);
-            ve.ent.origin[0] = 100.f + 7.f * a;
-            ve.ent.origin[1] = -40.f + 3.f * a;
-            ve.ent.origin[2] = 20.f - 5.f * a;
-            ve.ent.angles[0] = -30.f + 17.f * a;
-            ve.ent.angles[1] = 40.f * a;
-            ve.ent.angles[2] = 25.f - 11.f * a;
-            const glm::vec3 origin{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
-            // The old drawn hand: the hand anchor and offset.
-            const glm::vec3 oldHand = anchorPosition(ve, weapons::anchor(slot, Key::HandAnchor),
-                weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ));
-            hand = za::max(hand, glm::distance(oldHand, origin));
-            // The muzzle: round 20 moved the weapon by its GunOffset (world axes, y mirrored); retired, now not.
-            const char* muzzleAnchor = weapons::anchor(slot, Key::MuzzleAnchor);
-            const glm::vec3 muzzleOffset = weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
-            glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
-            if(mirrored)
-            {
-                gunOffset.y = -gunOffset.y;
-            }
-            ViewEntity shifted = ve;
-            for(int i = 0; i < 3; i++)
-            {
-                shifted.ent.origin[i] += gunOffset[i];
-            }
-            muzzle = za::max(muzzle,
-                glm::distance(anchorPosition(shifted, muzzleAnchor, muzzleOffset), anchorPosition(ve, muzzleAnchor, muzzleOffset)));
-            if(weapons::value(slot, Key::TwoHDisplayMode) != 1.f)
-            {
-                continue;
-            }
-            ViewEntity helped = ve;
-            helped.mirrored = !mirrored;
-            const glm::vec3 old = anchorPosition(helped, weapons::anchor(slot, Key::TwoHHandAnchor),
-                weapons::vec(slot, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY, Key::TwoHFixedOffsetZ));
-            const weapons::Hotspot h = weapons::hotspot(slot, 0);
-            const glm::vec3 now{hotspotFrame(ve.ent, mirrored) * glm::vec4{h.pos, 1.f}};
-            grip = za::max(grip, glm::distance(old, now));
-        }
-        worstGrip = za::max(worstGrip, grip);
-        worstHand = za::max(worstHand, hand);
-        worstMuzzle = za::max(worstMuzzle, muzzle);
-        Con_Printf("slot %2d %-22s foregrip: %s   muzzle %.4f   the hand moved %.2f units (%.2f cm)\n", slot, id->string,
-            grip < 0.f ? "none" : va("old and hotspot %.4f units apart", grip), muzzle, hand,
-            hand * 100.f / units::metresToUnits());
-    }
-    Con_Printf("vr_hotspots_check: the most a foregrip moved %.4f units, a muzzle %.4f, the hand %.2f units\n", worstGrip,
-        worstMuzzle, worstHand);
-}
-
 // vr_anchor_where: each hand's weapon as drawn this frame, its anchors (the muzzle, the ammo button and screen with their
 // offsets) and its magazine's and well's places (moved by their mount's anchor), in the world and in the gun's own frame
 // (its drawn matrix undone: what the anchors alone decide, the gun's motion taken out). For comparing builds and checking
@@ -1473,7 +1400,6 @@ void qvr::view::registerDiagCommands()
     Cmd_AddCommand("vr_agrunt_weapon_probe", agruntWeaponProbe_f);
     Cmd_AddCommand("vr_grasp_sweep", graspSweep_f);
     Cmd_AddCommand("vr_model_reload", modelReload_f);
-    Cmd_AddCommand("vr_hotspots_check", hotspotsCheck_f);
     Cmd_AddCommand("vr_anchor_where", anchorWhere_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", hotspotFit_f);

@@ -2323,6 +2323,7 @@ vr_tunables_show_changed|2|Tunables|Show|Advanced VR Options > Debug > Tunables 
 vr_compat_muzzle|2|Tunables|Compat Muzzle|Advanced VR Options > Debug > Tunables > Compat Muzzle
 vr_2h_spread_reduction|2|Tunables|2h Spread Reduction|Advanced VR Options > Debug > Tunables > 2h Spread Reduction
 vr_2h_cup_stock|2|Tunables|2h Cup Stock|Advanced VR Options > Debug > Tunables > 2h Cup Stock
+vr_weaponstudio_fly_speed|2|Tunables|Weapon Studio: Fly Speed|Advanced VR Options > Debug > Tunables > Weapon Studio: Fly Speed
 vr_throw_peak_span|2|Tunables|Throw Peak Span|Advanced VR Options > Debug > Tunables > Throw Peak Span
 vr_throw_ang_threshold|2|Tunables|Throw Ang Threshold|Advanced VR Options > Debug > Tunables > Throw Ang Threshold
 vr_throw_ang_factor|2|Tunables|Throw Ang Factor|Advanced VR Options > Debug > Tunables > Throw Ang Factor
@@ -4322,7 +4323,6 @@ vr_ao_cache|2|Debug - Reports|Keep AO Bakes on Disk|Advanced VR Options > Debug 
 |2|Debug - Reports|Wrists (Bare Forearms)|Advanced VR Options > Debug > Reports > Wrists (Bare Forearms)
 |2|Debug - Reports|Grasp Spheres|Advanced VR Options > Debug > Reports > Grasp Spheres
 |2|Debug - Reports|Grip Frames|Advanced VR Options > Debug > Reports > Grip Frames
-|2|Debug - Reports|Hotspots Check|Advanced VR Options > Debug > Reports > Hotspots Check
 |2|Debug - Reports|Weapon Anchors|Advanced VR Options > Debug > Reports > Weapon Anchors
 |2|Debug - Reports|Sight Lines|Advanced VR Options > Debug > Reports > Sight Lines
 |2|Debug - Reports|Sight Check|Advanced VR Options > Debug > Reports > Sight Check

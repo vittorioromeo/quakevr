@@ -96,6 +96,7 @@ void markTouched(int slot, weapons::Key key, float before);
 [[nodiscard]] float savedValue(int slot, weapons::Key key); // what it held before this window first changed it
 [[nodiscard]] int touchedCount(int slot);
 void clearTouched();
+void clearTouched(int slot);
 } // namespace detail
 
 inline constexpr int maxSpots = 1200;
@@ -180,6 +181,19 @@ struct State
     bool wantPrint{false};
     bool wantCopy{false};
     bool wantStopCopy{false};
+    // The self-test: what it puts back at its end (the hold, the window's place and size), and its copy step's slot
+    // (the source; what the target held; its model's name; the hand offset a copy has to leave).
+    bool testHold{true};
+    bool testWinPlaced{false};
+    float testWinX{0.f};
+    float testWinY{0.f};
+    float testWinW{0.f};
+    float testWinH{0.f};
+    int testCopyFrom{-1};
+    float testCopyWas[static_cast<int>(weapons::Key::Count)]{};
+    float testCopyInherit{0.f};
+    float testCopyHand{0.f};
+    char testCopyId[64]{""};
     bool wantAlign{false};
     bool alignApply{false};
     int alignHand{2}; // 0 off, 1 main, 2 both

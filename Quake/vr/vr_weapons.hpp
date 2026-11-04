@@ -43,7 +43,7 @@ bool setStandIn(cvar_t* var, const char* value);
 // none): the QC's weaponvalue builtin (vr_builtins.cpp).
 [[nodiscard]] int slotForName(const char* name);
 [[nodiscard]] Key keyByName(const char* name);
-[[nodiscard]] const char* keyName(Key key); // ("gunoff_x": weapons.txt's and the stand-ins' name)
+[[nodiscard]] const char* keyName(Key key); // ("muzzle_x": weapons.txt's and the stand-ins' name)
 
 // The slot holding progs/hand.mdl: the empty hand, whose settings also place and scale the
 // hand and finger models.
@@ -112,9 +112,9 @@ struct NewRecoil
 // 2026-10-31; VR_RetiredCvar): its value set on each of the four that split it (kick back, muzzle rise, return time,
 // haptic punch: vr_recoil_2h_*, Key::Recoil2h*). False: not one of them.
 [[nodiscard]] bool retiredTwoHandLine(const char* name, const char* value);
-// A config saved before 222 carries lines for the 16 store keys nothing read and that are now out of the store
+// A config saved before 222 carries lines for the store keys nothing read and that are now out of the store
 // (vr_wofs_<key>_NN of 2h_fxd_mh_ox/oy/oz, length, 2h_blade, fgr_open, fgr_thumb/index/middle/ring/pinky, fgr_x/y/z,
-// 2h_fgr_open, 2h_fgr_thumb): VR_RetiredCvar drops each quietly, its value setting nothing. False: not one of them;
+// 2h_fgr_open, 2h_fgr_thumb, and 2h_dispmd, 2h_fxd_ox/oy/oz, gunoff_x/y/z): VR_RetiredCvar drops each quietly, its value setting nothing. False: not one of them;
 // the key's part is matched whole, so a line for a key that only starts with one of these
 // (vr_wofs_fgr_thumb_across_NN, vr_wofs_fgr_bias_thumb_NN) is not taken for a removed one.
 [[nodiscard]] bool removedKeyLine(const char* name);
