@@ -1623,6 +1623,63 @@ void gridInfo_f()
         }
     }
 
+    // The model looked at (or the nearest), and every probe just over a floor: what a model reads, drawn, against the
+    // floor under it, drawn: is the probes' light on a par with the world's?
+    {
+        const auto drawnFloor = [](const glm::vec3& at) {
+            vec3_t v{at.x, at.y, at.z};
+            lightcache_t cache{};
+            (void)R_LightPoint(v, 0.f, &cache);
+            glm::vec3 light{lightcolor[0], lightcolor[1], lightcolor[2]};
+            lighting::lightCurve(&light.x);
+            return light;
+        };
+        const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+        if(const entity_t* e = gridShowModel(eye, geom::vec(vpn)))
+        {
+            const glm::vec3 p = gridPoint(e, false);
+            const GridSpot spot = gridSpot(p);
+            GridRead read;
+            if(gridRead(spot, gridSeen(spot, p), read, false))
+            {
+                lighting::lightCurve(&read.level.x);
+                const glm::vec3 under = drawnFloor(geom::vec(e->origin));
+                Con_Printf("model light grid: %s reads %.0f %.0f %.0f drawn; the floor under it %.0f %.0f %.0f drawn\n", e->model->name,
+                           read.level.r, read.level.g, read.level.b, under.r, under.g, under.b);
+            }
+        }
+        constexpr float OVER_FLOOR = 64.f;
+        float gridSum = 0.f, floorSum = 0.f;
+        int spots = 0, dimmer = 0, brighter = 0;
+        for(int z = 0; z + 1 < grid.size[2]; z++)
+        {
+            for(int y = 0; y + 1 < grid.size[1]; y++)
+            {
+                for(int x = 0; x + 1 < grid.size[0]; x++)
+                {
+                    const glm::vec3 p = grid.point(x, y, z);
+                    GridRead read;
+                    if((grid.cells[grid.index(x, y, z)] & GRID_FIRST) == GRID_FIRST || worldtrace::line(p, p - glm::vec3{0.f, 0.f, OVER_FLOOR}) >= 1.f ||
+                       !gridRead(GridSpot{x, y, z, glm::vec3{0.f}}, 1u, read, false))
+                    {
+                        continue;
+                    }
+                    lighting::lightCurve(&read.level.x);
+                    const float at = (read.level.r + read.level.g + read.level.b) / 3.f;
+                    const glm::vec3 under = drawnFloor(p);
+                    const float below = (under.r + under.g + under.b) / 3.f;
+                    gridSum += at;
+                    floorSum += below;
+                    spots++;
+                    dimmer += at < below * 0.7f ? 1 : 0;
+                    brighter += at > below * 1.3f ? 1 : 0;
+                }
+            }
+        }
+        Con_Printf("model light grid: at %d probes over a floor, drawn: the probes' mean %.1f, the floors' %.1f; %d probes under 0.7 of their floor, %d over 1.3\n",
+                   spots, gridSum / static_cast<float>(za::max(spots, 1)), floorSum / static_cast<float>(za::max(spots, 1)), dimmer, brighter);
+    }
+
     // Thin walls: at the middle of each cell with something in it, how much light the probes out of sight would add.
     int spots = 0, kept = 0;
     float worst = 0.f;
@@ -2209,7 +2266,8 @@ void gridTest_f()
         check(shown > 0u && shownCoarser > 0u && shownCoarser < shown, "Show Light Probes: fewer crosses at twice the spacing", static_cast<double>(shownCoarser), static_cast<double>(shown));
         GridRead coarseRead;
         const GridSpot spot = gridSpot(spots[0]);
-        check(gridRead(spot, gridSeen(spot, spots[0]), coarseRead), "twice the spacing: a spot still reads", static_cast<double>(coarseRead.level.g), 0.0);
+        const bool coarseReads = gridRead(spot, gridSeen(spot, spots[0]), coarseRead);
+        check(coarseReads, "twice the spacing: a spot still reads", static_cast<double>(coarseRead.level.g), 0.0);
         setKnob(vr_model_light_grid_cell, was);
         (void)ambient::gridOn();
         check(grid.cell == cell && gridHash() == before, "the spacing put back: the same grid", static_cast<double>(grid.cell), static_cast<double>(cell));

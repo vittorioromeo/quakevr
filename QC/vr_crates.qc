@@ -531,6 +531,7 @@ void(entity attacker, float damage) VR_Crate_Pain =
     float k = floor(random() * 3);
     string s = k < 1 ? "vr/crate_hit1.wav" : (k < 2 ? "vr/crate_hit2.wav" : "vr/crate_hit3.wav");
     VR_SoundVaried(self, CHAN_AUTO, s, min(1, 0.55 + damage * 0.03), ATTN_NORM);
+    dprint(sprintf("crate: knock %s\n", s));
 };
 
 // ----------------------------------------------------------------------------
