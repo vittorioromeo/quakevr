@@ -20,6 +20,10 @@
 // hand; what it follows is no pull on the blade (VR_Embed_HoldThink), what it doesn't slides it out, as ever. Standing, walking away
 // drags it (VR_Embed_Drag). Past reach, it comes out. Heavy bodies and bosses have none of it. VR_Embed_TetherShare: your speed.
 
+void(entity p, float xHand, entity w) VR_Skewer_BladeStuck; // (vr_skewer.qc)
+void(entity p, float xHand, entity w) VR_Skewer_BladeBack;
+void(entity p) VR_Skewer_AllOff;
+
 .entity vr_hold_player;   // who holds it (world: nobody)
 .float  vr_hold_hands;    // the hands on it (bits: VR_Embed_Bit)
 .float  vr_hold_handle;   // the hand on it by its handle (a bit; 0: none)
@@ -224,6 +228,7 @@ void(entity e, string xWhy) VR_Embed_Free =
         VR_AxeStick_Free(e, '0 0 0');
         return;
     }
+    VR_Skewer_BladeBack(p, hand, e); // (gibs on it stay on it)
     e.vr_grab_by_handle = TRUE;
     entity was = self;
     wpnthrow_handtouch_impl(hand, e, p, VRGetEntWeaponPtr(p, hand), VRGetEntWeaponFlagsPtr(p, hand)); // (it leaves self the player)
@@ -719,6 +724,36 @@ void(entity p) VR_Embed_Derive =
     p.vr_embed_handle = (p.vr_embed_off.vr_hold_handle & 1) + (p.vr_embed_main.vr_hold_handle & 2);
 };
 
+// Whether a blow of a pointed blade is a stab that goes in, tip first (the blade's line in mh_grip, mh_far; xAt, xDir, xSpeed, xKind as
+// VR_Embed_Blow's; `xLeast` m/s the least): string_null, or why not. A body's (VR_Embed_Blow), a gib's (VR_Skewer_Blow).
+string(entity b, vector xAt, vector xDir, float xSpeed, float xLeast, float xKind) VR_Embed_StabWhy =
+{
+    vector line = b.mh_far - b.mh_grip;
+    float len = vlen(line);
+    vector axis = len > 0.01 ? line * (1 / len) : '0 0 0';
+    float along = normalize(xDir) * axis;
+    // (What strikes: the blow's point; a corpse's has none, where it met it.)
+    float tip = xKind >= 0 ? 1 - b.mh_c_f : (len > 0.01 ? vlen(b.mh_far - xAt) / len : 1);
+    float deg = atan2(sqrt(max(0, 1 - along * along)), along) * (180 / 3.14159265);
+    if(xKind >= 0 && xKind != VR_MKIND_STAB)
+    {
+        return sprintf("the blow read as no stab (kind %g, not %g)", xKind, VR_MKIND_STAB);
+    }
+    if(xSpeed < xLeast)
+    {
+        return sprintf("too slow: %.1f, least %.1f m/s", xSpeed, xLeast);
+    }
+    if(along < cos(cvar_hget(cvarh_vr_embed_stab_angle) * (3.14159265 / 180)))
+    {
+        return sprintf("off its line: %.0f, most %.0f deg", deg, cvar_hget(cvarh_vr_embed_stab_angle));
+    }
+    if(tip > cvar_hget(cvarh_vr_embed_stab_tip) * 0.01)
+    {
+        return sprintf("not by its tip: %.0f, most %.0f%% of the blade", tip * 100, cvar_hget(cvarh_vr_embed_stab_tip));
+    }
+    return string_null;
+};
+
 // A blow of `xHand` being dealt on `m` at `xAt` going along `xDir` (self is the player; xSpeed m/s, the hand's, as the blow's own;
 // xKind its VR_MKIND_*, -1 on a corpse whose blow has none: its line says): whether it may leave the blade in. For VR_Embed_BlowsDone.
 void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow =
@@ -746,25 +781,7 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     string why = string_null;
     if(how == AXESTICK_POINT)
     {
-        // (What strikes: the blow's point; a corpse's has none, where it met it.)
-        float tip = xKind >= 0 ? 1 - b.mh_c_f : (len > 0.01 ? vlen(b.mh_far - xAt) / len : 1);
-        float deg = atan2(sqrt(max(0, 1 - along * along)), along) * (180 / 3.14159265);
-        if(xKind >= 0 && xKind != VR_MKIND_STAB)
-        {
-            why = sprintf("the blow read as no stab (kind %g, not %g)", xKind, VR_MKIND_STAB);
-        }
-        else if(xSpeed < cvar_hget(cvarh_vr_embed_stab_speed))
-        {
-            why = sprintf("too slow: %.1f, least %.1f m/s", xSpeed, cvar_hget(cvarh_vr_embed_stab_speed));
-        }
-        else if(along < cos(cvar_hget(cvarh_vr_embed_stab_angle) * (3.14159265 / 180)))
-        {
-            why = sprintf("off its line: %.0f, most %.0f deg", deg, cvar_hget(cvarh_vr_embed_stab_angle));
-        }
-        else if(tip > cvar_hget(cvarh_vr_embed_stab_tip) * 0.01)
-        {
-            why = sprintf("not by its tip: %.0f, most %.0f%% of the blade", tip * 100, cvar_hget(cvarh_vr_embed_stab_tip));
-        }
+        why = VR_Embed_StabWhy(b, xAt, xDir, xSpeed, cvar_hget(cvarh_vr_embed_stab_speed), xKind);
     }
     else
     {
@@ -838,6 +855,7 @@ void(float xHand) VR_Embed_BlowsDone =
     {
         VR_Embed_TakeHand(w, self, other);
     }
+    VR_Skewer_BladeStuck(self, xHand, w); // (gibs on it stay on it)
     VR_Embed_Stagger(w, m, vr_embed_vel, vlen(vr_embed_vel) / VRMetersToUnits());
 };
 
@@ -856,4 +874,5 @@ void(entity p) VR_Embed_LevelEnd =
         VR_Embed_Free(o, "the level ends");
     }
     self = was;
+    VR_Skewer_AllOff(p);
 };

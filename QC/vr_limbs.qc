@@ -244,7 +244,7 @@ void() VR_Limb_MakeRoom =
     for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
     {
         n++;
-        if(e.carry_player == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
+        if(e.carry_player == world && e.vr_skewer_p == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
         {
             oldest = e;
         }
@@ -257,7 +257,7 @@ void() VR_Limb_MakeRoom =
             oldest = world;
             for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
             {
-                if(e.carry_player == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
+                if(e.carry_player == world && e.vr_skewer_p == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
                 {
                     oldest = e;
                 }

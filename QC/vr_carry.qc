@@ -44,6 +44,7 @@ void(entity xBox) VR_Crate_SlamFrame;            // (vr_crates.qc)
 void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
 .float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
+.entity vr_skewer_p;     // whose blade it is on (vr_skewer.qc; world: none)
 .float vr_gib_made;      // when it became a gib (VR_MakeGibGrabbable; VR_Prop_Flung: harmless a while)
 .entity vr_gib_bornin;   // what it touched while just made, and when last (VR_Prop_Flung: harmless to it until they part)
 .float vr_gib_bornin_t;
@@ -2280,6 +2281,12 @@ void() VR_Gib_Touch =
     }
 };
 
+// Its fade from now, as it first lies about (and comes off a blade: vr_skewer.qc).
+void(entity xGib) VR_Gib_FadeAnew =
+{
+    xGib.nextthink = time + 30 + random() * 15;
+};
+
 void(entity xGib) VR_MakeGibGrabbable =
 {
     if(!cvar_hget(cvarh_vr_grab_gibs) || xGib.model == string_null)
@@ -2311,7 +2318,7 @@ void(entity xGib) VR_MakeGibGrabbable =
     // They lie about longer, to be played with.
     if(xGib.think == SUB_Remove)
     {
-        xGib.nextthink = time + 30 + random() * 15;
+        VR_Gib_FadeAnew(xGib);
     }
 };
 
@@ -3449,8 +3456,13 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
 // of it, nor by either hand just after a two-handed throw (VR_Throw_SparedBlows, VR_Throw_HandMayStrike): a throw's
 // follow-through is not a blow. Its speed is the hand's against the gib's (at most the hand's own): a hand moving along
 // with a gib it just threw, or the other hand alongside, doesn't strike it (NOTES.md vrfiringrange_2026-10-02_15-38-26).
+float(entity p, float xHand) VR_Skewer_Thrust; // (vr_skewer.qc)
 void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
 {
+    if(!xGib.vr_sgib && VR_Skewer_Thrust(xPlayer, xHand))
+    {
+        return; // (a blade driven at it: the blow's to judge, a stab puts it on the blade)
+    }
     vector handVel = VRGetEntHandVel(xPlayer, xHand);
     float speed = min(vlen(handVel), vlen(handVel - xGib.velocity * (1 / VRMetersToUnits())));
     if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !VR_Gib_IsDestroyable(xGib) ||

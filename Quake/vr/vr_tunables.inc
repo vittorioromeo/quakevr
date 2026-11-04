@@ -1831,6 +1831,9 @@ QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least sp
 QVR_TUNABLE(vr_embed_sword_depth_max, "60") // % of the blade in at vr_embed_sword_depth_speed
 QVR_TUNABLE(vr_embed_sword_depth_speed, "8") // m/s
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
+QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
+QVR_TUNABLE(vr_embed_skewer_depth, "8") // units from the tip to the middle of the first gib on it
+QVR_TUNABLE(vr_embed_skewer_gap, "7") // units along the blade between gibs on it
 // Embedded Blades: Axe
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
 QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the blade's plane
