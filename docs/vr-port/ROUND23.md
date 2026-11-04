@@ -8428,3 +8428,18 @@ flatplay 27/1, flatkeys 24/4, eval canary 38/44 with every verdict where it was.
 - Thrown burst: `VR_Skewer_Impact` on each gib's own path, at or above `vr_embed_skewer_throw_burst` (7 m/s), something within its radius ahead. A gib further along than what the blade hit has nothing ahead of it.
 - Swung burst: `VR_Skewer_SwingHit` in `VR_Melee_Deal`, at or above `vr_embed_skewer_swing_burst` (3 m/s), the contact within the gib's radius of its place along the blade. Not a stab, not a blow on a gib.
 - The hand's weight: thinks tally kg, kg m, kg m^2 about the grip into `.vr_skewer_load_*` for `computeLoad`: the masses add, the balance moves, the inertia gains each gib's. `vr_embed_skewer_mass_gib` 0.5, `_head` 1.5; a limb its own `.vr_prop_mass`. Listen server only, as `propMass`.
+
+## Passing a weapon between hands eases across (agent/passblend, 2026-11-04)
+
+His note: a weapon passed from the wielding hand to the empty one appeared in the other hand at once; he asked for a very
+short smooth transition. `vr_drawblend.cpp` already eases draws, holsterings and force grab catches, so a pass is one more
+start of the same blend: `vr_weapon_pass_blend` (tunable, 0.1 s; 0 at once as before), in `vr_gametime` (real time slowed
+by the time scale, as its neighbours), the same ease-out. The start pose is kept in the new hand's frame, so the gun
+follows that hand. Drawn only: the aim, shots, grips and melee use the real hand at once.
+
+A pass is told from the stats: a gun appears in one hand while the other loses that gun in the same update. The view
+places the main hand first, so the other hand may have let go already or be about to: `passedFrom` reads its stat for
+the second case. One gun of a kind in each hand stays no pass; a gun caught or picked up a moment after a drop neither.
+The carried hand-off (`VRHandOffWeapon`) needs none: the gun stays where it is, and carried guns are not `gun` here.
+
+`vr_debug_draw_blend` (Debug > Tests), which TESTING.md still described but the code had lost, prints a hand's blend per frame.

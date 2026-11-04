@@ -618,6 +618,7 @@ QVR_TUNABLE(vr_holster_haptic_time, "0.25") // seconds of the buzz as a hand rea
 QVR_TUNABLE(vr_weapon_throw_velocity_mult, "1.0")
 QVR_TUNABLE(vr_weapon_draw_blend, "0.3") // seconds a gun drawn from a holster takes to ease from its holstered pose into the hand (0 at once; visual only)
 QVR_TUNABLE(vr_weapon_holster_blend, "0.3") // seconds a gun put in a holster takes to ease from the hand into its holstered pose (0 at once)
+QVR_TUNABLE(vr_weapon_pass_blend, "0.1") // seconds a gun passed to the other, empty hand takes to ease from the old hand's hold into the new hand's, following that hand (0 at once; visual only)
 
 // Weapons > Incandescent Blades
 QVR_TUNABLE(vr_hotblade_heat_time, "2") // s the blade must stay in a flame to become incandescent (out of it, the build-up falls off as fast)

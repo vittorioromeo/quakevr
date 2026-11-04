@@ -1,6 +1,7 @@
 // vr_drawblend.cpp -- a gun drawn from a holster eases from its holstered pose into the hand, and one holstered eases
 // from the hand into the holster (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"). A weapon
-// caught from a force grab eases in the same way from where it flew (QVR_SVC_CATCHBLEND, vr_forcegrab_catch_blend).
+// caught from a force grab eases in the same way from where it flew (QVR_SVC_CATCHBLEND, vr_forcegrab_catch_blend), and
+// one passed from the other hand from where that hand held it (the hand switch, vr_weapon_pass_blend).
 //
 // The server swaps the models at once (the hand's STAT_WEAPON / STAT_QVR_WEAPONMODEL2, the holster's
 // STAT_QVR_HOLSTERWEAPONMODEL*): the view sees a gun appear in a hand and, a frame either side, go from a holster (or
@@ -18,6 +19,7 @@
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
 #include "vr_view.hpp"
+#include "vr_view_internal.hpp"
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -170,6 +172,22 @@ HolsterState holsterStates[body::HolsterCount];
     return -1;
 }
 
+// Where the other hand last drew `model` if it let go of it in this very update: `model` has just appeared in `hand`, so
+// it was passed across (the hand switch, QC VRSwitchWeaponHands); null otherwise. Both stats change in one update, but
+// the view places the main hand first: the other hand may have let go already this frame, or be about to (its stat
+// says, its state not yet). Two guns of one kind, one in each hand, stay apart: the other must have lost its own.
+[[nodiscard]] const Pose* passedFrom(int hand, const qmodel_t* model)
+{
+    const int other = hand == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+    const HandState& o = handStates[other];
+    if(o.lostAt == vr_gametime && sameGun(o.lost, model))
+    {
+        return &o.lostPose;
+    }
+    const int stat = other == HAND_MAIN ? int{STAT_WEAPON} : int{STAT_QVR_WEAPONMODEL2};
+    return sameGun(o.model, model) && !sameGun(view_detail::precachedModel(cl.stats[stat]), model) ? &o.drawn : nullptr;
+}
+
 } // namespace
 
 void hand(const hands::State& s, int hand, entity_t& e, bool gun)
@@ -208,6 +226,14 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
                 start(st.blend, from.drawn, poseOf(e), time);
             }
         }
+        const float passTime = vr_weapon_pass_blend.value;
+        if(model && !st.blend.on && passTime > 0.f)
+        {
+            if(const Pose* const from = passedFrom(hand, model))
+            {
+                start(st.blend, *from, poseOf(e), passTime);
+            }
+        }
     }
     st.model = model;
 
@@ -232,6 +258,14 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
         const Pose to = poseOf(e);
         const Pose drawn = blended(to, st.blend, k);
         setPose(e, drawn);
+        if(vr_debug_draw_blend.value != 0.f)
+        {
+            // (Debug > Tests; the first line of a blend is its start: k 1.)
+            const float turnLeft = 2.f * za::acos(za::clamp(za::fabs(glm::dot(drawn.rot, to.rot)), 0.f, 1.f)) * 57.29578f;
+            Con_Printf("draw blend: %s hand k %.3f, %.2f units and %.1f deg left, at %.2f %.2f %.2f, its place %.2f %.2f %.2f\n",
+                hand == HAND_MAIN ? "main" : "off", k, glm::distance(drawn.pos, to.pos), turnLeft, drawn.pos.x, drawn.pos.y,
+                drawn.pos.z, to.pos.x, to.pos.y, to.pos.z);
+        }
     }
     if(model)
     {

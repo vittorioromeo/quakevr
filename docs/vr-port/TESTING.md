@@ -792,11 +792,13 @@ gun, `_22`), `vr_mock_hand main 0.15 1.2 -0.45 0 0 0; vr_mock_hand off 0.074 0.9
 vr_mock_button off grip 1`: `vr_dumpview`'s "main hand: two-handed 1.00, virtual stock 1.00", and `vr_wofs_stock_pitch_22
 10` turns "main hand at ... angles" up 10 (Quake's pitch 10 lower; yaw and roll +10 as they are).
 Draw and holster blend (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
-- **The log:** `vr_debug_draw_blend 1` prints each frame of a blend: the turn and distance left, the start, and the turn
-  without the sign flip.
+- **The log:** `vr_debug_draw_blend 1` (Debug > Tests) prints each frame of a hand's blend: what is left (k, distance, turn),
+  where the gun is drawn and its real place; a blend's first line (k 1) is its start.
 - **Drawing:** draw the shotgun from the right hip with `vr_weapon_grip_mode 0; vr_mock_hand main 0.20 0.95 0.0 70 0
   <roll>; wait30; +grabright; vr_mock_button main grip 1`. A roll near 180 gives a start near 180 degrees.
 - **Holstering:** put it back at the same place with `-grabright; vr_mock_button main grip 0`.
+- **A pass between hands:** `vr_weapon_grip_mode 1; impulse 9; impulse 154`, the hands apart, `vr_test_weaponinst 7; impulse 120`
+  (8 back). `tune vr_weapon_pass_blend <s>` (0: none). Mid-blend the gun is between the hands; moving the hand moves its place.
 - **Pictures:** use a slow blend (`vr_weapon_draw_blend 3`) and `vr_mock_camera 0.75 1.35 -0.55 25 140`.
 - **The config across a killed session**:
   1. Run `vr_bodycal_refit bodycal/<session>.txt; vr_bodycal_apply` with no `quit`. The run times out and is killed.

@@ -621,6 +621,7 @@ QVR_TUNABLE_SLIDER(vr_holster_haptic_time, "Holster Haptic Time", 0.05f, 0.6f, 0
 QVR_TUNABLE_SLIDER(vr_weapon_throw_velocity_mult, "Throw Speed", 0.5f, 3.0f, 0.1f, "%.1fx", 0.5f, 13.0f, "How fast what you throw flies, times your hand's speed.")
 QVR_TUNABLE_SLIDER(vr_weapon_draw_blend, "Draw Blend Time", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 1.0f, "A gun drawn from a holster eases from its holstered pose into your hand over this time, turning the shortest way (0: at once). It fires at once: only its look eases.")
 QVR_TUNABLE_SLIDER(vr_weapon_holster_blend, "Holster Blend Time", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 1.0f, "A gun put in a holster eases from your hand into its holstered pose over this time (0: at once).")
+QVR_TUNABLE_SLIDER(vr_weapon_pass_blend, "Hand Pass Blend Time", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 1.0f, "A gun passed to your other, empty hand eases from where the old hand held it into the new hand over this time, following that hand (0: at once). It fires at once: only its look eases.")
 
 QVR_TUNABLE_GROUP("Weapons > Incandescent Blades")
 QVR_TUNABLE_SLIDER(vr_hotblade_heat_time, "Heating Time", 0.25f, 10.0f, 0.25f, "%.2f s", 0.1f, 30.0f, "How long the blade must stay in the flame. Its glow rises meanwhile and it sizzles; taken out early, it cools back as fast.")
