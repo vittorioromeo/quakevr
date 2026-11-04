@@ -8514,3 +8514,20 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 **Documented red, hidden by nothing:** `flatpose: FAIL near: the gun at the camera is not cut as the desktop's near plane cuts it`
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
+
+## Light probes shown, their spacing live; crates' wood louder (his notes, 2026-11-02)
+
+Debug: Show Light Probes (`vr_model_light_grid_show`) draws the probes within 256 units as crosses in the colour white
+paint has under their light, and lines to the eight the model looked at (or the nearest) reads. Tunable Probe Spacing
+(`vr_model_light_grid_cell`, 48) builds the grid again live. `vr_model_light_grid_info` now prints a model's read against
+the floor under it, and every near-floor probe against its floor. Scene: `vrarena_crate`.
+
+vrarena, drawn light, 128 full: the probes' mean 105 against the floors' 129; 271 of 1222 probes under 0.7 of their floor,
+405 over 1.3. A walk through pools: floor 8..121, grid 44..61 (spacing 24: 35..62, largest step 10.1 down to 2.9; near 24:
+44..58). So neither the scale nor the spacing is off: a probe gathers its whole surroundings, so a model in a pool reads
+about half the floor there and one in the dark reads more than its floor. Raising the intensity would lift the dark
+rooms that are already over. Defaults kept.
+
+Crates: `crate_hit1..3` (new, 0.44-0.50 RMS; the wood_m knock was 0.2, played at 0.4 + damage x 0.04, under the melee
+hit's 0.64) in VR_Crate_Pain; `crate_break1..3` 0.7 s at 0.3 RMS to 1.2 s at 0.5, with boards clattering down (both soft
+clipped, `make_crate_sounds.py`, Python with numpy). AD's func_breakable sounds (`break/*.wav`) aren't in the repo: unchanged.

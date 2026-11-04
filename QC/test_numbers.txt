@@ -360,6 +360,7 @@ vr_burn_test     13       vr_burning_test.qc               (VR_Burn_Ignite)
 vr_burn_test     14       vr_burning_test.qc               (VR_Burn_TestFlamesOff)
 vr_burn_test     15       vr_burning_test.qc               (findflags)
 vr_burn_test     16       vr_burning_test.qc               (launch_spike)
+vr_burn_test     17       vr_burning_test.qc               (VR_Burn_TestCrate)
 
 vr_deadanim_test 1        vr_deadanim.qc                   (VR_DeadAnim_IsDead)
 vr_deadanim_test 2        vr_deadanim.qc                   (ragdollcanstagger)

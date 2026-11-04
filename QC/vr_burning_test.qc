@@ -57,6 +57,12 @@ void(entity p, float xAsk) VR_Burn_TestCrate =
         dprint("burning: test: no crate near\n");
         return;
     }
+    if(xAsk == 17)
+    {
+        dprint(sprintf("burning: test 17: %s knocked\n", best.classname));
+        T_Damage(best, p, p, 5); // (a blow it holds out against: VR_Crate_Pain's sound)
+        return;
+    }
     if(xAsk == 8)
     {
         dprint(sprintf("burning: test 8: %s smashed\n", best.classname));
@@ -324,7 +330,7 @@ void() VR_Burn_TestFrame =
                        m13.health, isragdoll(m13) ? ", a ragdoll" : "", k13, f13));
         return;
     }
-    if(ask == 8 || ask == 9)
+    if(ask == 8 || ask == 9 || ask == 17)
     {
         VR_Burn_TestCrate(p, ask);
         return;
