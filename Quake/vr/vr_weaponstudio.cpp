@@ -940,6 +940,20 @@ void noteSpot(const char* name)
     st.spots.pushBack(sp);
 }
 
+void noteSpotAt(const char* name, const float x, const float y)
+{
+    // (A spot that is not a widget: the window's own frame -- the middle of its title bar, its X, its corner.)
+    if(!st.testing)
+        return;
+    if(st.spots.size() >= st.spots.capacity())
+        return;
+    Spot sp;
+    q_strlcpy(sp.name, name, sizeof(sp.name));
+    sp.x = x;
+    sp.y = y;
+    st.spots.pushBack(sp);
+}
+
 const Spot* spotNamed(const char* name)
 {
     for(const Spot& s : st.spots)
@@ -957,6 +971,16 @@ void check(const bool ok, const char* what)
     Con_Printf("weaponstudio test: %s: %s\n", what, ok ? "ok" : "FAIL");
 }
 
+void checkSched(const bool ok, const char* what)
+{
+    // (The window's own frame -- pos, size, its X -- counted apart: they get their own verdict line.)
+    if(ok)
+        st.schedPassed++;
+    else
+        st.schedFailed++;
+    Con_Printf("wsched test: %s: %s\n", what, ok ? "ok" : "FAIL");
+}
+
 // (The window has to fit the screen it is drawn on: a widget outside it is drawn past its clip, and no click -- the
 // tests' synthetic mouse or a real one -- ever reaches it. Every click the test makes counts here.)
 void checkFits()
@@ -969,17 +993,47 @@ void testVerdict()
     st.testing = false;
     st.testClosing = false;
     st.clickPhase = 0;
+    st.showMarkers = false; // (the test's debug markers are not left over the view once it is done)
     testkit::verdict("weaponstudio", st.passed, st.failed);
+}
+
+void schedVerdict()
+{
+    testkit::verdict("wsched", st.schedPassed, st.schedFailed);
 }
 
 void click(const char* name)
 {
     q_strlcpy(st.clickName, name, sizeof(st.clickName));
+    st.dragging = false;
+    st.clickDX = 0.f;
+    st.clickDY = 0.f;
     st.clickPhase = 1;
+}
+
+// (Held, and walked to (dx,dy) before letting go there: what moving a window or resizing it from a corner takes.)
+void dragSpot(const char* name, const float dx, const float dy)
+{
+    q_strlcpy(st.clickName, name, sizeof(st.clickName));
+    st.dragging = true;
+    st.clickDX = dx;
+    st.clickDY = dy;
+    st.clickPhase = 1;
+}
+
+// (A key, to ImGui: down one frame, up the next. Its window closes on the press.)
+void pressEscape()
+{
+    st.keyPhase = 1;
 }
 
 void feedMock()
 {
+    if(st.keyPhase > 0)
+    {
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, st.keyPhase == 1);
+        st.keyPhase = st.keyPhase == 1 ? 2 : 0;
+    }
     if(st.clickPhase <= 0)
         return;
     if(st.clickPhase == 1)
@@ -1008,14 +1062,39 @@ void feedMock()
         st.clickPhase = 2;
         return;
     }
-    if(st.clickPhase == 2)
+    // This frame's pointer: a click presses on the spot and lets go there; a drag holds the button down and walks to
+    // its delta in two steps, and lets go there.
+    float x = st.clickX;
+    float y = st.clickY;
+    bool down = false;
+    int next = 0;
+    switch(st.clickPhase)
     {
-        imgui::feedMouse(st.clickX, st.clickY, true, 0.f);
-        st.clickPhase = 3;
-        return;
+    case 2:
+        down = true;
+        next = 3; // (a press is only a click once it lets go: phase 3 is the release)
+        break;
+    case 3:
+        if(!st.dragging)
+            break; // (the click: let go on the spot itself)
+        x += st.clickDX * 0.5f;
+        y += st.clickDY * 0.5f;
+        down = true;
+        next = 4;
+        break;
+    case 4:
+        x += st.clickDX;
+        y += st.clickDY;
+        down = true;
+        next = 5;
+        break;
+    default:
+        x += st.clickDX;
+        y += st.clickDY;
+        break; // (5: let go at the end of the drag)
     }
-    imgui::feedMouse(st.clickX, st.clickY, false, 0.f);
-    st.clickPhase = 0;
+    imgui::feedMouse(x, y, down, 0.f);
+    st.clickPhase = next;
 }
 
 constexpr int testFrames = 4; // frames a click is given to land and its widget to answer
@@ -1023,7 +1102,7 @@ constexpr int poseWaitMax = 400; // and the most the hold preview waits for the 
 
 void testFrame()
 {
-    if(!st.testing || st.clickPhase > 0)
+    if(!st.testing || st.clickPhase > 0 || st.keyPhase > 0)
         return;
     if(st.testWait > 0)
     {
@@ -1174,9 +1253,97 @@ void testFrame()
         check(false, "Close gave the game back (its button never took the click)");
         checkFits();
         testVerdict();
+        schedVerdict();
+        break;
+    case 13:
+        // Its own frame next, on the same 960x540 screen. Drag its lower-right corner, and drag it well past the
+        // window's minimum: one drag, and it shows both that the corner took the drag and that it will not shrink
+        // past the size that keeps the top row and the close button reachable.
+        Con_Printf("wsched test: dragging its lower-right corner (at %.0f,%.0f) by -500,-320\n", st.winX + st.winW,
+                   st.winY + st.winH);
+        dragSpot("win_corner", -500.f, -320.f);
+        st.testStep = 14;
+        st.testWait = 3 * testFrames;
+        break;
+    case 14:
+        Con_Printf("wsched test: its size went %.0fx%.0f -> %.0fx%.0f\n", st.schedW, st.schedH, st.winW, st.winH);
+        checkSched(st.winW < st.schedW - 100.f && st.winH < st.schedH - 60.f, "a drag from its corner resizes it");
+        checkSched(st.winW >= winMinW - 4.f && st.winH >= winMinH - 4.f,
+                   "it will not go smaller than its minimum: its top row and its close stay on it");
+        st.schedW = st.winW;
+        st.schedH = st.winH;
+        Con_Printf("wsched test: dragging its title bar (from %.0f,%.0f) by +150,+120\n", st.winX + st.winW * 0.5f,
+                   st.winY);
+        dragSpot("title_bar", 150.f, 120.f);
+        st.testStep = 15;
+        st.testWait = 3 * testFrames;
+        break;
+    case 15:
+        Con_Printf("wsched test: its pos went %.0f,%.0f -> %.0f,%.0f\n", st.schedX, st.schedY, st.winX, st.winY);
+        checkSched(st.winX > st.schedX + 60.f && st.winY > st.schedY + 60.f, "a drag on its title bar moves it");
+        st.schedX = st.winX;
+        st.schedY = st.winY;
+        st.testClosing = true; // (Escape closes it the way its own X does: after its End, never from inside it)
+        pressEscape();
+        st.testStep = 16;
+        st.testWait = 4 * testFrames;
+        break;
+    case 16: // Escape's watchdog, the same shape as Close's
+        if(!st.open)
+            break; // (testClosedFrame prints it and carries on)
+        if(st.closeTries < 3)
+        {
+            st.closeTries++;
+            Con_Printf("wsched test: still open after Escape (try %d; a text box has the keyboard: %s)\n",
+                       st.closeTries, ImGui::GetIO().WantTextInput ? "yes" : "no");
+            pressEscape();
+            st.testWait = 4 * testFrames;
+            break;
+        }
+        checkSched(false, "Escape closes it, with no text box holding the keyboard");
+        checkSched(false, "a reopen puts it back where it was left");
+        checkSched(false, "its title bar's X closes it");
+        testVerdict();
+        schedVerdict();
+        break;
+    case 17:
+        // Opened again after Escape: where he left it, at the size he made it.
+        Con_Printf("wsched test: reopened at %.0f,%.0f %.0fx%.0f (it was left at %.0f,%.0f %.0fx%.0f)\n", st.winX,
+                   st.winY, st.winW, st.winH, st.schedX, st.schedY, st.schedW, st.schedH);
+        checkSched(st.winX > st.schedX - 10.f && st.winX < st.schedX + 10.f && st.winY > st.schedY - 10.f &&
+                       st.winY < st.schedY + 10.f,
+                   "a reopen puts it back where it was left");
+        checkSched(st.winW > st.schedW - 10.f && st.winH > st.schedH - 10.f, "and at the size it was left at");
+        st.testClosing = true;
+        st.closeTries = 1;
+        if(const Spot* s = spotNamed("title_x"))
+            Con_Printf("wsched test: clicking its title bar's X at %.0f,%.0f\n", s->x, s->y);
+        click("title_x");
+        st.testStep = 18;
+        st.testWait = 4 * testFrames;
+        break;
+    case 18: // the title bar X's watchdog
+        if(!st.open)
+            break;
+        if(st.closeTries < 4)
+        {
+            st.closeTries++;
+            const Spot* s = spotNamed("title_x");
+            Con_Printf("wsched test: still open after its title bar X (try %d, %s, its pos %.0f,%.0f size %.0fx%.0f)\n",
+                       st.closeTries, s ? va("at %.0f,%.0f", s->x, s->y) : "no such spot", st.winX, st.winY, st.winW,
+                       st.winH);
+            click("title_x");
+            st.testWait = 4 * testFrames;
+            break;
+        }
+        checkSched(false, "its title bar's X closes it");
+        checkSched(false, "its title bar, its corner and its X were all on the screen");
+        testVerdict();
+        schedVerdict();
         break;
     default:
         testVerdict();
+        schedVerdict();
         break;
     }
 }
@@ -1187,9 +1354,51 @@ void testClosedFrame()
         return;
     if(st.clickPhase > 0)
         return; // (its release is still on its way)
+    if(st.testStep == 12)
+    {
+        check(!st.open && !holds(), "Close gave the game back");
+        checkFits();
+        // The window's own frame is what the rest of the run is about, on this same 960x540 screen: open it again the
+        // way a player does, and carry this test over the reopen.
+        st.clickOffscreen = 0;
+        openStudio();
+        st.testing = true;
+        st.testClosing = false;
+        st.closeTries = 0;
+        st.schedX = st.winX;
+        st.schedY = st.winY;
+        st.schedW = st.winW;
+        st.schedH = st.winH;
+        Con_Printf("wsched test: vr_weaponstudio _open brought it back at %.0f,%.0f %.0fx%.0f\n", st.winX, st.winY,
+                   st.winW, st.winH);
+        st.testStep = 13;
+        st.testWait = 2 * testFrames;
+        return;
+    }
+    if(st.testStep == 16)
+    {
+        checkSched(!st.open && !holds(), "Escape closes it, with no text box holding the keyboard");
+        st.clickOffscreen = 0; // (its own clicks count toward its own reachability check, at the end)
+        openStudio();
+        st.testing = true;
+        st.testClosing = false;
+        st.closeTries = 0;
+        st.testStep = 17;
+        st.testWait = 2 * testFrames;
+        return;
+    }
+    if(st.testStep == 18)
+    {
+        checkSched(!st.open && !holds(), "its title bar's X closes it");
+        checkSched(st.clickOffscreen == 0, "its title bar, its corner and its X were all on the screen");
+        testVerdict();
+        schedVerdict();
+        return;
+    }
     check(!st.open && !holds(), "Close gave the game back");
     checkFits();
     testVerdict();
+    schedVerdict();
 }
 
 // ---- Open, close, the console commands ----------------------------------------------------------------------------
@@ -1225,6 +1434,13 @@ void closeStudio()
     st.open = false;
     st.askClose = false;
     st.clickPhase = 0;
+    if(st.keyPhase > 0)
+    {
+        // (The Escape press we fed and never released: let it go, so ImGui does not keep holding the key down.)
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, false);
+        st.keyPhase = 0;
+    }
+    st.dragging = false;
     st.markers.clear();
     removePreview();
     imgui::want(false);
@@ -1248,7 +1464,11 @@ void startTest()
     st.testWait = 2;
     st.passed = 0;
     st.failed = 0;
+    st.schedPassed = 0;
+    st.schedFailed = 0;
     st.clickPhase = 0;
+    st.keyPhase = 0;
+    st.dragging = false;
     st.testClosing = false;
     st.clickOffscreen = 0;
     st.showMarkers = true;
@@ -1467,7 +1687,7 @@ void clientFrame()
     }
     imgui::setPanel(0, 0, 0, 1.f); // (the screen only: this tool has no headset panel)
     imgui::want(true);
-    if(st.clickPhase > 0)
+    if(st.clickPhase > 0 || st.keyPhase > 0)
         feedMock();
     if(!imgui::beginFrame())
         return;

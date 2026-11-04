@@ -554,14 +554,61 @@ void holdPanel()
 
 // ---- The window ---------------------------------------------------------------------------------------------
 
+// (Its bounds -- winMinW, winMinH -- are in the internal header: the self-test checks them too.)
+
 // (Outside the anonymous namespace above: vr_main.cpp's client frame reaches it through the internal header.)
 bool drawWindow()
 {
     bool askClose = false;
     const ImVec2 ds = ImGui::GetIO().DisplaySize;
-    ImGui::SetNextWindowPos(ImVec2{10.f, 10.f}, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2{za::min(1220.f, ds.x - 20.f), za::min(900.f, ds.y - 20.f)}, ImGuiCond_Always);
-    ImGui::Begin("Weapon Studio", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+    // Its pos and size live in the studio's own state (no cvar, no ImGui ini): applied the frame the window
+    // *appears*, read back at its End. Set-always every frame is what used to snap back every drag and resize.
+    if(!st.winPlaced)
+    {
+        st.winX = 10.f;
+        st.winY = 10.f;
+        st.winW = za::min(1220.f, ds.x - 20.f);
+        st.winH = za::min(900.f, ds.y - 20.f);
+        st.winPlaced = true;
+    }
+    // A reopen puts it back where it was -- and, on a smaller screen, back onto it: some of its title bar stays
+    // on the display, so its X and a drag on it are still within reach.
+    st.winW = za::clamp(st.winW, winMinW, za::max(winMinW, ds.x));
+    st.winH = za::clamp(st.winH, winMinH, za::max(winMinH, ds.y));
+    st.winX = za::clamp(st.winX, 0.f, za::max(0.f, ds.x - 96.f));
+    st.winY = za::clamp(st.winY, 0.f, za::max(0.f, ds.y - 32.f));
+    ImGui::SetNextWindowPos(ImVec2{st.winX, st.winY}, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2{st.winW, st.winH}, ImGuiCond_Appearing);
+    // The size he drags it to is kept between those bounds (ImGui clamps the resize itself, grip and border).
+    ImGui::SetNextWindowSizeConstraints(ImVec2{winMinW, winMinH},
+                                        ImVec2{za::max(winMinW, ds.x), za::max(winMinH, ds.y)});
+
+    // Its title bar carries an X only when Begin is handed the flag, so: the X closes it, and so does Escape --
+    // unless a text box has the keyboard (the filter's box, a key's number keep Escape for themselves).
+    // Movable, resizable and collapsible: no NoMove, NoResize, NoCollapse or NoTitleBar, so its title bar stays
+    // visible with its collapse arrow at the left and its X at the right.
+    bool open = true;
+    ImGui::Begin("Weapon Studio", &open, ImGuiWindowFlags_NoSavedSettings);
+    if(!open)
+        askClose = true; // (closed after ImGui::End, in vr_weaponstudio.cpp -- never from inside the window)
+    if(!askClose && ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !ImGui::GetIO().WantTextInput)
+        askClose = true;
+
+    // Where the window's own frame is, named for the tests' mouse: the middle of its title bar (a drag there moves
+    // it), its X at the right edge, and its lower-right corner (a drag from it resizes it). The X sits at
+    // SizeFull.x - WindowBorderSize - FramePadding.x - FontSize, its box FontSize wide (imgui.cpp's title bar).
+    if(st.testing)
+    {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec2 wp = ImGui::GetWindowPos();
+        const ImVec2 ws = ImGui::GetWindowSize();
+        const float fs = ImGui::GetFontSize();
+        noteSpotAt("title_bar", wp.x + ws.x * 0.5f, wp.y + (fs + style.FramePadding.y * 2.f) * 0.5f);
+        noteSpotAt("title_x", wp.x + ws.x - style.WindowBorderSize - style.FramePadding.x - fs * 0.5f,
+                   wp.y + style.FramePadding.y + fs * 0.5f);
+        noteSpotAt("win_corner", wp.x + ws.x - 4.f, wp.y + ws.y - 4.f);
+    }
 
     const int slot = shownSlot();
     st.slot = slot;
@@ -646,6 +693,16 @@ bool drawWindow()
     ImGui::TextWrapped("every key here is the game's own weapon setting, written through its stand-in cvar: the Weapon "
                        "Offsets and Weapon Weights menus, the config file and the game all see it at once. The menus "
                        "are unchanged and keep working.");
+
+    // Read it back before its End: where it sits now is where a reopen puts it back. A collapsed window's size is
+    // only its title bar, which is not the size to remember -- its pos is.
+    st.winX = ImGui::GetWindowPos().x;
+    st.winY = ImGui::GetWindowPos().y;
+    if(!ImGui::IsWindowCollapsed())
+    {
+        st.winW = ImGui::GetWindowSize().x;
+        st.winH = ImGui::GetWindowSize().y;
+    }
 
     ImGui::End();
     return !askClose;
