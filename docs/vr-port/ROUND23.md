@@ -8384,4 +8384,4 @@ A stab (`VR_Embed_StabWhy`, shared with bodies, no speed floor beyond the stab's
 - Not solid on the blade: sweeps and touches pass it (`VR_Blow_Strikable`, `VR_Melee_BoxTarget`), force grabs too (flag off). Splash can still burst it. Small gibs are never skewered, and a gib held in the other hand keeps today's rule (a stab bursts it).
 - A touch by a blade driven along its line no longer bursts a loose gib (`VR_Skewer_Thrust` in `VR_Gib_Struck`): the sweep's blow judges it.
 - A blade left in a body keeps its gibs (`VR_Skewer_BladeStuck`, riding the blade's frame) until it is out of a body; back in the hand they ride the hand (`VR_Skewer_BladeBack`).
-- Test: `vr_embed_test 21` (`embedskewer: N passed, M failed`), Debug > Tests. The mock can't close a grip on it, so the test calls `VR_Skewer_Take` directly.
+- Test: `vr_embed_test 21` (`embedskewer: N passed, M failed`), Debug > Tests. It deals its blows straight to `VR_Melee_Deal` (not a mock swing); the other hand closes a real grip (`+graboff`). A grip in reach of several takes the first by edict, not the nearest.

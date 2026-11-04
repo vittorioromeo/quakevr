@@ -2180,6 +2180,7 @@ float(entity p) VR_EE_Frame;
 
 // ---- 21: skewering gibs (vr_skewer.qc)
 entity vr_ets_g[4];
+entity vr_ets_r;       // one still on the blade
 float vr_ets_n;
 
 // A loose gib before `p`, as ThrowGib's (still, armed once takedamage).
@@ -2288,25 +2289,33 @@ void() VR_ETS_Step =
         localcmd("+graboff\n");
         VR_ET_To(12);
     }
-    else if(vr_et_s == 12 && g.vr_skewer_p == world)
+    else if(vr_et_s == 12 && VR_Carry_IsHolding(p, cVR_OffHand))
     {
-        VR_Test_Check(g.carry_player == p && VR_Carry_Held(p, cVR_OffHand) == g && g.think == SUB_Remove && g.nextthink > time + 25, "the other hand's grip holds it, its fade anew");
-        VR_ET_To(5);
-    }
-    else if(vr_et_s == 5)
-    {
+        // (Any of them: all are in reach. One only, the rest stay on.)
+        entity held = VR_Carry_Held(p, cVR_OffHand);
+        vr_ets_n = 0;
+        for(i = 0; i < 3; ++i)
+        {
+            if(vr_ets_g[i].vr_skewer_p == p)
+            {
+                vr_ets_n = vr_ets_n + 1;
+                vr_ets_r = vr_ets_g[i];
+            }
+        }
+        VR_Test_Check(held.vr_gib && held.vr_skewer_p == world && held.carry_player == p && held.think == SUB_Remove && held.nextthink > time + 25, "the other hand's grip holds one, its fade anew");
+        VR_Test_Check(vr_ets_n == 2, sprintf("the rest stay on the blade (%g)", vr_ets_n));
         // A weapon's switch: what is on the blade falls.
-        vr_et_at = vr_ets_g[1].origin;
         VR_EH_Give(WID_SHOTGUN, 0);
         VR_ET_To(6);
     }
-    else if(vr_et_s == 6 && vr_ets_g[1].vr_skewer_p == world && vr_ets_g[2].vr_skewer_p == world)
+    else if(vr_et_s == 6 && vr_ets_r.vr_skewer_p == world)
     {
-        VR_Test_Check(vr_ets_g[1].solid == SOLID_NOT_BUT_TOUCHABLE && (vr_ets_g[1].flags & FL_FORCEGRABBABLE) && vr_ets_g[1].think == SUB_Remove && vr_ets_g[1].nextthink > time + 25, sprintf("a switch: off the blade, loose, its fade anew (solid %g, think %g, fade %.1f s)", vr_ets_g[1].solid, vr_ets_g[1].think == SUB_Remove, vr_ets_g[1].nextthink - time));
-        VR_Test_Check(vr_ets_g[1].model != string_null, "and not destroyed");
+        VR_Test_Check(vr_ets_r.solid == SOLID_NOT_BUT_TOUCHABLE && (vr_ets_r.flags & FL_FORCEGRABBABLE) && vr_ets_r.think == SUB_Remove && vr_ets_r.nextthink > time + 25, sprintf("a switch: off the blade, loose, its fade anew (solid %g, think %g, fade %.1f s)", vr_ets_r.solid, vr_ets_r.think == SUB_Remove, vr_ets_r.nextthink - time));
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.model != string_null, "and not destroyed");
+        vr_et_at = vr_ets_r.origin;
         VR_ET_To(7);
     }
-    else if(vr_et_s == 7 && vr_ets_g[1].origin_z < vr_et_at_z - 2)
+    else if(vr_et_s == 7 && vr_ets_r.origin_z < vr_et_at_z - 2)
     {
         VR_Test_Check(TRUE, "and it falls");
         localcmd("-graboff\n");

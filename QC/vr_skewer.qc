@@ -197,14 +197,14 @@ float(entity g, entity p) VR_Skewer_Gripper =
     self = p; // (carryreach: self's hand)
     if(g.vr_skewer_w != world || g.vr_skewer_hand != cVR_MainHand)
     {
-        if(VR_Carry_GripPressed(p, cVR_MainHand) && VR_Hand_Free(p, cVR_MainHand, 0) && carryreach(g, VRGetHandPos(cVR_MainHand), cVR_MainHand))
+        if(VR_Carry_GripPressed(p, cVR_MainHand) && VR_Hand_Free(p, cVR_MainHand, 0) && !VR_Carry_IsHolding(p, cVR_MainHand) && carryreach(g, VRGetHandPos(cVR_MainHand), cVR_MainHand))
         {
             hand = cVR_MainHand;
         }
     }
     if(hand < 0 && (g.vr_skewer_w != world || g.vr_skewer_hand != cVR_OffHand))
     {
-        if(VR_Carry_GripPressed(p, cVR_OffHand) && VR_Hand_Free(p, cVR_OffHand, 0) && carryreach(g, VRGetHandPos(cVR_OffHand), cVR_OffHand))
+        if(VR_Carry_GripPressed(p, cVR_OffHand) && VR_Hand_Free(p, cVR_OffHand, 0) && !VR_Carry_IsHolding(p, cVR_OffHand) && carryreach(g, VRGetHandPos(cVR_OffHand), cVR_OffHand))
         {
             hand = cVR_OffHand;
         }
