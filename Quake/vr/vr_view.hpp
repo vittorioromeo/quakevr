@@ -379,8 +379,6 @@ struct DrawnWeapon
 [[nodiscard]] glm::vec3 heldOutOf(int hand, int ent);
 
 
-// vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
-void hotspotsCheck_f();
 void anchorWhere_f(); // vr_anchor_where
 
 // vr_weapon_hotspot_here <1..4> [<type>] [main|off]: hotspot n of the weapon in the main hand (or the named one) put
@@ -404,7 +402,7 @@ void woundTargets(entity_t* out[3]);
 void dumpView_f();
 
 // The view's debug and test commands (vr_view_diag.cpp: vr_dumpview, vr_grasp_*, vr_ragdoll_hand_probe,
-// vr_model_reload, vr_hotspots_check, vr_anchor_where, vr_weapon_hotspot_here, vr_hotspot_fit), registered (VR_Init).
+// vr_model_reload, vr_anchor_where, vr_weapon_hotspot_here, vr_hotspot_fit), registered (VR_Init).
 void registerDiagCommands();
 
 // vr_pose_check (vr_posing.cpp): the hand holding the weapon now (`weaponTarget`: the weapon hand; else the other hand,

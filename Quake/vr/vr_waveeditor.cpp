@@ -12,6 +12,7 @@
 #include "vr_progs.hpp"
 #include "vr_renderdoc.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_weaponstudio.hpp"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
 
@@ -1443,6 +1444,11 @@ void open_f()
     if(rigstudio::active())
     {
         Con_Printf("waveeditor: close the Rig Studio first (vr_rigstudio_close)\n");
+        return;
+    }
+    if(weaponstudio::active())
+    {
+        Con_Printf("waveeditor: close the Weapon Studio first (vr_weaponstudio_close)\n");
         return;
     }
     if(ed.open)

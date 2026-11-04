@@ -21,7 +21,7 @@ HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 log=${WSCAM_LOG:-$HERE/scratch/wscam_cam.log}
 if [ -z "$WSCAM_LOG" ]; then
     bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script \
-"map e1m1;wait60;god;notarget;developer 1;vr_flatplay_debug 2;vr_weaponstudio_fly_speed 120;impulse 154;wait90;vr_weaponstudio open;wait90;vr_weaponstudio camera print;vr_weaponstudio align both;wait30;+forward;wait120;-forward;vr_weaponstudio camera print;vr_weaponstudio camera 60 0 0;vr_weaponstudio align both;vr_weaponstudio camera 200 0 0;vr_weaponstudio camera drag 60 0;vr_weaponstudio camera 80 40 20;vr_weaponstudio camera reset;wait20;vr_weaponstudio camera print;vr_weaponstudio close;wait60;vr_weaponstudio camera print" \
+"map e1m1;wait60;god;notarget;developer 1;vr_flatplay_debug 2;impulse 154;wait90;vr_weaponstudio open;wait90;vr_weaponstudio camera print;vr_weaponstudio align both;wait30;+forward;wait120;-forward;vr_weaponstudio camera print;vr_weaponstudio camera 60 0 0;vr_weaponstudio align both;vr_weaponstudio camera 200 0 0;vr_weaponstudio camera drag 60 0;vr_weaponstudio camera 80 40 20;vr_weaponstudio camera reset;wait20;vr_weaponstudio camera print;vr_weaponstudio close;wait60;vr_weaponstudio camera print" \
       -Filter '^(weaponstudio|flat)' -QuitOn 'its camera belongs' -Timeout 420 > "$log" 2>&1
 fi
 

@@ -239,7 +239,7 @@ def slot_values(table=WEAPONS, by_enum=False, with_defaults=False):
 
 
 def key_names(table=WEAPONS):
-    """{enum name: the file's name} ("GunOffsetX" -> "gunoff_x")."""
+    """{enum name: the file's name} ("MuzzleOffsetX" -> "muzzle_x")."""
     return dict(read_keys(table))
 
 

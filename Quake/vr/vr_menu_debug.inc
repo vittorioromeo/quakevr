@@ -190,8 +190,8 @@ za::Vector<Item> pageDebugViews()
             .help("vr_weaponstudio: every weapon setting in one window on the desktop screen (the same store the Weapon "
                   "Offsets and Weapon Weights menus write, so the menus, the config file and the game all see it at "
                   "once): a slot picker over every weapon in use (its model, what my hands hold, what it copies), the "
-                  "grips and finger bends, where the muzzle sits and where a shot goes, the crosshair, holsters, scale "
-                  "and length, effects, and the weights (mass, damage, hits, throw). Over the game's own view it draws "
+                  "grips and finger bends, where the muzzle sits and where a shot goes, the crosshair, holsters, scale, "
+                  "effects, and the weights (mass, damage, hits, throw). Over the game's own view it draws "
                   "the muzzle, its anchor, the shot line and the sight line with the angle between them: vr_weaponstudio_"
                   "align both prints it, vr_weaponstudio_align both apply lines the muzzle up with where the gun really "
                   "aims; the same window shows the weapon held by my hands and by an armed humanoid standing in front of "
@@ -852,7 +852,6 @@ za::Vector<Item> pageDebugReports()
         command("Grasp Spheres", "vr_grasp_spheres").help("vr_grasp_spheres: the fingers' and the palm's contact spheres."),
         command("Grip Frames", "vr_grip_frame")
             .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),
-        command("Hotspots Check", "vr_hotspots_check").help("vr_hotspots_check: each weapon's hotspots, checked against its model."),
         command("Weapon Anchors", "vr_anchor_where").help("vr_anchor_where: where the held weapons' anchors are this frame (muzzle, ammo button and screen, magazine and well); vr_anchor_info <model> <anchor> where one binds on its model."),
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),

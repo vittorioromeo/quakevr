@@ -2109,7 +2109,7 @@ extern "C" void VR_Init()
     waveeditor::init(); // vr_waveeditor, vr_arena_play (vr_waveeditor.cpp, vr_arenawaves.cpp)
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
     weaponstudio::init(); // vr_weaponstudio, vr_weaponstudio_open/_close/_slot/_align/_preview/_test (vr_weaponstudio.cpp):
-                          // the keys' window (vr_weaponstudio_ui.cpp); its own pages, no new cvars (the menus' stand-ins)
+                          // the keys' window (vr_weaponstudio_ui.cpp); its own pages over the menus' stand-ins; its camera's fly speed is a tunable
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     VR_RegisterPackStatus();
     VR_RegisterContinue();

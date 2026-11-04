@@ -13,6 +13,7 @@ QVR_TUNABLE_GROUP("Weapons > Other")
 QVR_TUNABLE_SLIDER(vr_compat_muzzle, "Compat Muzzle", 0.0f, 2.0f, 0.1f, "%.1f", 0.0f, 10.0f, "with another mod's progs, its shots start at the gun, not the player's head")
 QVR_TUNABLE_SLIDER(vr_2h_spread_reduction, "2h Spread Reduction", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 5.0f, "")
 QVR_TUNABLE_SLIDER(vr_2h_cup_stock, "2h Cup Stock", 0.0f, 2.0f, 0.1f, "%.1f", 0.0f, 10.0f, "")
+QVR_TUNABLE_SLIDER(vr_weaponstudio_fly_speed, "Weapon Studio: Fly Speed", 5.0f, 600.0f, 5.0f, "%.0f u/s", 1.0f, 2400.0f, "How fast the Weapon Studio's camera flies (W A S D, Q E; Shift is 3x this).")
 
 QVR_TUNABLE_GROUP("Carrying and Throwing > Other")
 QVR_TUNABLE_SLIDER(vr_throw_peak_span, "Throw Peak Span", 0.0f, 0.034f, 0.002f, "%.3f", 0.0f, 0.17f, "")

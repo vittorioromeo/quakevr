@@ -1486,10 +1486,11 @@ bool removedKeyLine(const char* name)
     // (vr_wofs_<key>_NN): VR_RetiredCvar drops them quietly (its 2026-10-30 vr_wofs_zb_* precedent), and its count of
     // them is the config test's. The name is matched whole and the slot read off its last three characters, so a key
     // that only starts with one of these (vr_wofs_fgr_thumb_across_NN, vr_wofs_fgr_bias_thumb_NN) is not taken for a
-    // removed one; the removed keys' own lines set nothing, so no value is kept.
+    // removed one; the removed keys' own lines set nothing, so no value is kept. The same day, his call: the seven only
+    // vr_hotspots_check still read (2h_dispmd, 2h_fxd_ox/oy/oz, gunoff_x/y/z) went with that check.
     constexpr const char* removed[] = {"2h_fxd_mh_ox", "2h_fxd_mh_oy", "2h_fxd_mh_oz", "2h_blade", "2h_fgr_open",
         "2h_fgr_thumb", "fgr_index", "fgr_middle", "fgr_open", "fgr_pinky", "fgr_ring", "fgr_thumb", "fgr_x", "fgr_y",
-        "fgr_z", "length"};
+        "fgr_z", "length", "2h_dispmd", "2h_fxd_ox", "2h_fxd_oy", "2h_fxd_oz", "gunoff_x", "gunoff_y", "gunoff_z"};
     constexpr size_t prefix = 8; // "vr_wofs_"
     const size_t len = strlen(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_", prefix) != 0 || name[len - 3] != '_' ||
@@ -1725,18 +1726,11 @@ bool inheritable(Key key)
         case Key::WpnTextAnchor:
         case Key::WpnButtonAnchor:
         case Key::GunfxBarrelMask: return false; // (its own model's triangles)
-        // The hand's place on the weapon and the helping hand's fixed grip are read from the model this slot draws
-        // (vr_view.cpp's holster grip zone, its secondGrip, vr_view_diag.cpp vr_hotspots_check): a child takes its own.
+        // The hand's place on the weapon is read from the model this slot draws (vr_view.cpp's holster grip zone): a
+        // child takes its own.
         case Key::HandOffsetX:
         case Key::HandOffsetY:
-        case Key::HandOffsetZ:
-        case Key::GunOffsetX:
-        case Key::GunOffsetY:
-        case Key::GunOffsetZ:
-        case Key::TwoHDisplayMode:
-        case Key::TwoHFixedOffsetX:
-        case Key::TwoHFixedOffsetY:
-        case Key::TwoHFixedOffsetZ: return false; // (the model's own hand's place)
+        case Key::HandOffsetZ: return false; // (the model's own hand's place)
         default: return !reloadKey(key); // (a reload key: each gun's own, never a parent's)
     }
 }
