@@ -2244,9 +2244,10 @@ QVR_CYCLE(vr_comfort_preset, "Comfort",
     "to taste (Custom).",
     {0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"})
 QVR_CYCLE(vr_movement_mode, "Move Towards",
-    "Where the moving stick takes you: where you look (Head), or where a hand points. Moving stick's hand: the "
-    "left one, or the right with Swap Stick Functions.",
-    {1.f, "Head"}, {0.f, "Moving stick's hand"}, {2.f, "Left hand"}, {3.f, "Right hand"})
+    "Where the moving stick takes you: where you look (Head), where a hand points, or where your torso faces (Torso: "
+    "guessed from your head and hands, or your hips with body tracking). Moving stick's hand: the left one, or the "
+    "right with Swap Stick Functions.",
+    {1.f, "Head"}, {0.f, "Moving stick's hand"}, {2.f, "Left hand"}, {3.f, "Right hand"}, {4.f, "Torso"})
 QVR_SLIDER(vr_deadzone, "Stick Deadzone", 0.f, 50.f, 5.f, "%.0f%%", noExt,
     "How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
     "touching the stick: worn sticks often need 20-25%.")
@@ -4297,9 +4298,9 @@ QVR_TOGGLE(vr_body_gear_fit, "Gear Fits Your Body",
 
 // vr_menu_settings.inc: pageVrsLocomotion
 QVR_CYCLE(vr_menu_move_towards, "Move Towards",
-    "Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
-    "can walk one way and look another.",
-    {1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"})
+    "Where pushing the stick forward takes you: where you look (Head), where that hand points, or where your "
+    "torso faces (Torso), so you can walk one way and look another.",
+    {1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}, {4.f, "Torso"})
 QVR_TOGGLE(vr_stick_swap, "Swap Stick Functions",
     "Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns.")
 

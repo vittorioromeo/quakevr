@@ -253,6 +253,8 @@ za::Vector<Item> pageDebugViews()
                   "right, up."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
+        command("Print Walking Direction", "vr_move_report")
+            .help("vr_move_report: Move Towards' setting, the yaws of the head, the torso and the hands, and where you are walking."),
         row(opt::vr_debug_body_error),
         row(opt::vr_debug_body_heights),
         command("Mark Body Drift Here", "vr_body_error mark")

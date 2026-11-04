@@ -115,8 +115,8 @@ Notes:
   the shipped calibration (`vr_menu_hands_*` stand for `vr_handcal_x/y/z/roll` with `vr_handcal_off_mirror 1`, and
   `vr_gunangle`/`vr_gunyaw` with `vr_offhandpitch`/`vr_offhandyaw`, each its default plus the row's value). If shots go
   above or below where the gun seems to point, change *Hand Pitch* first. Each hand's own values: Hand/Gun Calibration.
-- **Move Towards:** `vr_movement_mode` 1 the head, 2 the left hand, 3 the right hand; 0 (the moving stick's hand,
-  as before) shows as that hand here.
+- **Move Towards:** `vr_movement_mode` 1 the head, 2 the left hand, 3 the right hand, 4 the torso (guessed from the head
+  and hands, the tracked hips with body tracking); 0 (the moving stick's hand, as before) shows as that hand here.
 - **Vignette:** darkens the view's edges while the sticks move or turn you (a snap turn at once), never for your own
   steps in the room or a teleport (`vr_comfort_vignette`, `vr_comfort_vignette_strength`; off by default).
 - **Reset Position** (`vr_recenter`): puts the body back under your head (where its box fits) and turns the torso to
@@ -389,7 +389,7 @@ built-in ones.
 | `vr_snap_turn` | 0 | degrees per snap turn; 0 is smooth turning |
 | `vr_turn_speed` | 3.25 | smooth turning speed |
 | `vr_enable_joystick_turn` | 1 | 0 turns only in real life |
-| `vr_movement_mode` | 1 | 1 move towards the head, 0 towards the off hand |
+| `vr_movement_mode` | 1 | move towards: 1 the head, 0 the moving stick's hand, 2 the left hand, 3 the right hand, 4 the torso |
 | `vr_deadzone` | 10 | stick deadzone, percent |
 | `cl_alwaysrun`, `cl_forwardspeed`, `cl_movespeedkey` | | run by default, walk speed, run multiplier |
 | `vr_teleport_enabled`, `vr_teleport_range` | 0, 400 | teleport (bind `+teleport`) |

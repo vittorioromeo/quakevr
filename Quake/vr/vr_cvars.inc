@@ -681,7 +681,7 @@ QVR_CVAR(vr_floor_offset, "-22", CVAR_ARCHIVE)
 QVR_CVAR(vr_snap_turn, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_enable_joystick_turn, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_turn_speed, "3.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_movement_mode, "1", CVAR_ARCHIVE)          // the stick moves you where: 1 the head looks; 0 the moving stick's hand points (hands::moveHand), 2 the left hand, 3 the right hand (VR Settings' Move Towards)
+QVR_CVAR(vr_movement_mode, "1", CVAR_ARCHIVE)          // the stick moves you where: 1 the head looks; 0 the moving stick's hand points (hands::moveHand), 2 the left hand, 3 the right hand, 4 the torso faces (hands::State::bodyYaw) (VR Settings' Move Towards)
 QVR_CVAR(vr_hud_scale, "0.05", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_scale, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_speed, "3.2", CVAR_ARCHIVE)          // m/s the striking hand must reach (relative to the head) to hit: a punch, a pommel strike; a weapon's swing 1.25x, a stab 0.75x; twice this is a strength-1 blow (QC vr_melee.qc)
@@ -942,7 +942,7 @@ QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr
 QVR_CVAR(vr_handedness, "0", CVAR_NONE)              // Body and Display's Handedness (likewise): 1 right-handed, 2 left-handed (vr_stick_swap, vr_gadget_arm, vr_flashlight_side together); 0 Custom
 // VR Settings' own rows over other settings (vr_menu.cpp, "Wrappers"): not saved (the settings they set are), shown as
 // those settings are now. Turning: 0 smooth, 1 snap (vr_snap_turn 0, or its angle). Move Towards: 1 the head, 2 the left
-// hand, 3 the right hand (vr_movement_mode; its 0, the moving stick's hand, shown as that hand). Hands: one mirrored hand
+// hand, 3 the right hand, 4 the torso (vr_movement_mode; its 0, the moving stick's hand, shown as that hand). Hands: one mirrored hand
 // calibration for both hands, from the shipped one (0): centimetres forward, inward (towards the other hand) and up, degrees
 // of pitch (up), yaw (inward) and roll (vr_handcal_x/y/z/roll with vr_handcal_off_mirror 1, vr_gunangle/vr_gunyaw and
 // vr_offhandpitch/vr_offhandyaw, each its default plus this; the off hand's yaw the other way).
