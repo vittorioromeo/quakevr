@@ -473,7 +473,11 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // its new range, 0 .. 1.
 // 221: the worn pack's one fit (vr_worn_backpack_x, _y, _z, _scale, _pitch, _yaw, _roll, retired) split per kind: a config line's
 // value goes on each kind's slider once (the death knight's Up with the 6 his pack always sat higher: the look kept).
-constexpr int configVersion = 221;
+// 222: the 16 weapon-store keys nothing reads (vr_wofs_fgr_open/fgr_thumb/index/middle/ring/pinky/fgr_x/_y/_z,
+// 2h_fgr_open, 2h_fgr_thumb, 2h_blade, length, 2h_fxd_mh_ox/_oy/_oz: round 21's fitted hands, vr_grasp.cpp) are out of
+// the store; their stand-ins are gone, so an old config's lines for them are dropped by VR_RetiredCvar (weapons::
+// removedKeyLine) rather than printed as unknown commands. Nothing to convert: nothing read their values.
+constexpr int configVersion = 222;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -1268,6 +1272,12 @@ extern "C" int VR_RetiredCvar(const char* name)
     // 2026-10-30: the weapons' blend towards frame 0 (one hand, two hands: vr_wofs_zb_NN, vr_wofs_zb_2h_NN), which
     // steadied the models' own kick; the kick is taken out now (vr_kickcancel.cpp).
     if(!q_strncasecmp(name, "vr_wofs_zb_", 11))
+    {
+        return 1;
+    }
+    // 2026-11-04 (the migration to 222): the store keys that are gone (their stand-ins with them): a config saved while
+    // they were registered still carries their lines; each is dropped whole, its value setting nothing.
+    if(qvr::weapons::removedKeyLine(name))
     {
         return 1;
     }

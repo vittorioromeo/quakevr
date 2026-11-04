@@ -8375,3 +8375,39 @@ own walking is paused while the window is open and given back exactly when it cl
 - **Floating blade:** VR_AxeStick_Stuck notes the body's model before its blow, so a blow that gibs makes VR_AxeStick_Think drop it at its next think.
 - **Wound:** `vr_embed_wound_blood` 8 spurts/s while a blade is in a living body: the stump fountain's drops (no effect is actually named a blood waterfall).
 - **Tests:** on origin/next 9ffcc29dc, `vr_embed_test 7` with `vr_embed 1` reads 13 passed, 15 failed with or without this branch, and without `vr_embed 1` 9 and 19; `vr_embed_test 1` doesn't stick a thrown sword even in a wall on either. So the checks added here (cases 6 of test 7 and the corpse case of test 1) have not passed yet: **the hold changes are unverified until those are fixed.**
+
+## The retired weapon-store keys, taken out for good (agent/woretire, 2026-11-04)
+
+Sixteen keys nothing reads are out of vr_weapons.inc: 2h_fxd_mh_ox/_oy/_oz, length, 2h_blade, fgr_open,
+fgr_thumb, fgr_index, fgr_middle, fgr_ring, fgr_pinky, fgr_x, fgr_y, fgr_z, 2h_fgr_open, 2h_fgr_thumb. The store
+goes 368 keys -> 352 (numKeys is Key::Count, weaponKeyCount comes from the enum, so the stand-in array, its
+DataTable and its static_asserts follow it; no surviving key's cvar name changed, and the positional helpers
+hotspotKey and holsteredKey are where they were). Only three of the sixteen held tuned values (2h_fxd_mh_oy,
+2h_blade, fgr_open: 13 slots each); the rest were 0 everywhere. Their 242 lines in quakevr/data/weapons.txt (the
+defaults' and the slot blocks') are out, the file moved aside first (scratch/weapons_before_woretire.txt).
+
+weapons::retired() is gone, with its declaration, the filter it applied to printSlot, its part in inheritable()
+and the Weapon Studio row that printed "retired key (still %.4f)": 28 such rows -> 0, and vr_wofs_dump prints a
+changed live key again. inheritable() names the twelve below as its own (a child takes its own model's hand
+place) instead of reaching the answer through retired().
+
+Twelve keys look retired and are not, and vr_weapons.inc now names who reads each (configVersion 221 -> 222
+only so an old config's lines for the sixteen are dropped quietly; nothing to convert, nothing read their
+values): hand_av (view::anchorPosition and the holster zones' grip sphere, vr_view.cpp -> zones::publishGrip,
+vr_holsterzones.cpp; also vr_hotspots_check), hand_x/_y/_z (that grip sphere, the offset added to the anchor),
+2h_hand_av (view::secondGrip: a Cup hotspot far enough ahead to be a handle of its own; vr_agarms.cpp,
+vr_hitreact.cpp, vr_hitreact_skin.cpp, vr_builtins_held.inc's weapondrawnpose, vr_axestick.cpp,
+vr_dirparryviz.cpp, vr_posestudio.cpp), 2h_dispmd, 2h_fxd_ox/_oy/_oz and gunoff_x/_y/_z (vr_view_diag.cpp
+vr_hotspots_check: the two-handed display mode, the helping hand's fixed grip, the gun's own offset).
+
+An old config's vr_wofs_<key>_NN line for one of the sixteen is dropped by VR_RetiredCvar through
+weapons::removedKeyLine (vr_weapons.cpp): its vr_wofs_ prefix and the slot's two digits read off the end, the
+key's part matched whole, on retiredRecoilLine's exact-segment precedent -- so a line for a key that merely
+starts with a removed name (vr_wofs_fgr_thumb_x_NN, vr_wofs_fgr_bias_thumb_NN, vr_wofs_fgr_thumb_across_NN)
+still sets its key. Measured with one test config (scratch/cfgtest_woretire.cfg: 18 lines for removed keys and
+one for a name that never existed): before, the 18 lines naming keys that were still registered set them with no
+message at all, 1 printed the removed-setting line (vr_wofs_zb_02) and 1 an Unknown command; after, all 19 print
+the removed-setting line, the control is still the one Unknown command, and 0 bad cvar lines both sides. A 221
+config lands on 222. Its own tests are in scratch/results.txt: woretire: 16 passed, 2 failed, those 2 carrying
+the known pre-existing reds (4 ironsight-ease cases in flatkeys, 1 grip case in flatplay); weaponstudio 14/0,
+flatplay 27/1, flatkeys 24/4, eval canary 38/44 with every verdict where it was.

@@ -3,15 +3,18 @@
 //   block: every slot's value unless the slot's block has its own; "1 by default" below is that block's). The config
 //   and the console name a slot's value vr_wofs_<key>_NN (NN = slot + 1; vr_weapons.cpp's stand-ins, not cvars); the
 //   named values (vr_weaponvalues.inc: the reload keys of the guns that have them) go by their old cvar names.
+// Twelve keys look retired (they are what rounds 18 to 21 moved into the hotspots and the fitted grasp) but are read:
+// 2h_dispmd, 2h_fxd_ox/_oy/_oz and gunoff_x/_y/_z by vr_hotspots_check (vr_view_diag.cpp: the two-handed display mode,
+// a fixed grip's place, the gun's own offset, each printed per slot); hand_av, hand_x/_y/_z by the holster zones' grip
+// sphere (vr_view.cpp's publishGrip through view::anchorPosition, vr_holsterzones.cpp) and by that same check;
+// 2h_hand_av by view::secondGrip (vr_view.cpp: the helping hand's point on a gun whose Cup hotspot sits far enough
+// ahead to be a handle of its own: vr_agarms.cpp, vr_hitreact_skin.cpp, vr_builtins_held.inc, vr_axestick.cpp).
 
 #ifdef QVR_WEAPON_KEY
 QVR_WEAPON_KEY(TwoHDisplayMode, "2h_dispmd")
 QVR_WEAPON_KEY(TwoHFixedHandPitch, "2h_fxd_hp")
 QVR_WEAPON_KEY(TwoHFixedHandRoll, "2h_fxd_hr")
 QVR_WEAPON_KEY(TwoHFixedHandYaw, "2h_fxd_hy")
-QVR_WEAPON_KEY(TwoHFixedMainHandOffsetX, "2h_fxd_mh_ox")
-QVR_WEAPON_KEY(TwoHFixedMainHandOffsetY, "2h_fxd_mh_oy")
-QVR_WEAPON_KEY(TwoHFixedMainHandOffsetZ, "2h_fxd_mh_oz")
 QVR_WEAPON_KEY(TwoHFixedOffsetX, "2h_fxd_ox")
 QVR_WEAPON_KEY(TwoHFixedOffsetY, "2h_fxd_oy")
 QVR_WEAPON_KEY(TwoHFixedOffsetZ, "2h_fxd_oz")
@@ -33,7 +36,6 @@ QVR_WEAPON_KEY(HandOffsetY, "hand_y")
 QVR_WEAPON_KEY(HandOffsetZ, "hand_z")
 QVR_WEAPON_KEY(HideHand, "hide_hand")
 QVR_WEAPON_KEY(ID, "id")
-QVR_WEAPON_KEY(Length, "length")
 QVR_WEAPON_KEY(MuzzleAnchor, "muzzle_av")
 QVR_WEAPON_KEY(MuzzleOffsetX, "muzzle_x")
 QVR_WEAPON_KEY(MuzzleOffsetY, "muzzle_y")
@@ -62,32 +64,21 @@ QVR_WEAPON_KEY(OffsetX, "x")
 QVR_WEAPON_KEY(OffsetY, "y")
 QVR_WEAPON_KEY(Yaw, "yaw")
 QVR_WEAPON_KEY(OffsetZ, "z")
-// Round 18: a second two-handed grip on the blade (vr_twohand.cpp): where the helping hand may
-// hold it, as a share of the way from the hand to the muzzle point (a sword's tip); 0: none.
-QVR_WEAPON_KEY(TwoHBladeGrip, "2h_blade")
-// Round 20: the fingers closed round the weapon (vr_view.cpp gripLimit): how open they stay, as a
-// share of a full curl (0: the controller's full fist .. 1: open), the whole hand and per finger
-// (added to the hand's; negative: closed further); where the four fingers and the thumb sit on the
-// hand (hand model units, added to vr_fingers_* and vr_finger_thumb_*: +x towards the fingertips,
-// +y the palm's side, +z the index finger's side); the helping hand on the foregrip likewise.
-QVR_WEAPON_KEY(FingerOpen, "fgr_open")
-QVR_WEAPON_KEY(FingerThumbOpen, "fgr_thumb")
-QVR_WEAPON_KEY(FingerIndexOpen, "fgr_index")
-QVR_WEAPON_KEY(FingerMiddleOpen, "fgr_middle")
-QVR_WEAPON_KEY(FingerRingOpen, "fgr_ring")
-QVR_WEAPON_KEY(FingerPinkyOpen, "fgr_pinky")
-QVR_WEAPON_KEY(FingersX, "fgr_x")
-QVR_WEAPON_KEY(FingersY, "fgr_y")
-QVR_WEAPON_KEY(FingersZ, "fgr_z")
+// Round 20: where the thumb sits on the hand (hand model units, added to vr_fingers_* and vr_finger_thumb_*: +x
+// towards the fingertips, +y the palm's side, +z the index finger's side). The openness keys this block also held
+// (fgr_open and the five fingers' own, the helping hand's 2h_fgr_open and 2h_fgr_thumb) and the fingers' shared
+// offsets (fgr_x/_y/_z) are out of the store (2026-11-04, configVersion 222): the fitted grasp (vr_grasp.cpp) curls
+// the fingers to the grip it is holding, with the tweaks below on top, and the helping hand's grip is a hotspot.
+// Round 18's second grip on a blade (2h_blade) is out too: the blade's helping hand holds a hotspot zone (Edit Blade
+// Shape, vr_bladesets.cpp), and vr_twohand.cpp reads that, not a share of the way to the muzzle point.
 QVR_WEAPON_KEY(FingerThumbX, "fgr_thumb_x")
 QVR_WEAPON_KEY(FingerThumbY, "fgr_thumb_y")
 QVR_WEAPON_KEY(FingerThumbZ, "fgr_thumb_z")
-QVR_WEAPON_KEY(TwoHFingerOpen, "2h_fgr_open")
-QVR_WEAPON_KEY(TwoHFingerThumbOpen, "2h_fgr_thumb")
 // Round 21 (fitted hands): the hand is where the controller is and its fingers wrap the weapon (vr_grasp.cpp);
-// these tweak each finger on top of that, as a share of a full curl (negative: more open). The keys the round
-// retired (the hand's anchor and offset on the weapon, the fingers' offsets and openness, the unused ones) stay
-// registered so that saved configs load silently, and do nothing (weapons::retired).
+// these tweak each finger on top of that, as a share of a full curl (negative: more open). What round 21 left
+// unread (the hand's own anchor and offset, the fingers' openness and offsets, the unused ones) is out of the
+// store now, 2026-11-04 and configVersion 222; the twelve it only moved are read, and who reads each is named
+// at the top of this file.
 QVR_WEAPON_KEY(FingerThumbBias, "fgr_bias_thumb")
 QVR_WEAPON_KEY(FingerIndexBias, "fgr_bias_index")
 QVR_WEAPON_KEY(FingerMiddleBias, "fgr_bias_middle")

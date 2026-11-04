@@ -235,16 +235,6 @@ void keyRow(const detail::Entry& e, const int slot)
         ImGui::PopID();
         return;
     }
-    if(weapons::retired(e.key))
-    {
-        // Retired in round 21 (fitted hands): registered, no longer read by the game. Read here, not written.
-        ImGui::TextDisabled("retired key (still %.4f): the game no longer reads it", c->value);
-        ImGui::SameLine();
-        ImGui::TextDisabled("%s", e.name);
-        ImGui::PopID();
-        return;
-    }
-
     if(e.kind == detail::Kind::Anchor)
     {
         if(anchorKeyShown != e.key || anchorSlotShown != slot)
