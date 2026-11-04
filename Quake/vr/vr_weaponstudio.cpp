@@ -801,7 +801,10 @@ void makePreview()
     st.previewKind = za::clamp(st.previewKind, 0, kinds - 1);
     const char* spawn = toolgun::armed::kindSpawn(st.previewKind);
     if(!spawn || !spawn[0])
+    {
+        Con_Printf("weaponstudio preview: the armed humanoid list has no kind %d to place\n", st.previewKind);
         return;
+    }
     int code = st.previewCode;
     int code2 = st.previewCode2;
     if(code2 && !toolgun::armed::pairs(st.previewKind, code, code2))
@@ -827,6 +830,8 @@ void makePreview()
         Con_Printf("weaponstudio preview: %s could not be placed here\n", spawn);
         return;
     }
+    const progs::ServerVm vm; // (the client frame runs with no VM current: NUM_FOR_EDICT and the edict's own fields
+                              // need the server's pushed, the shipped way: vr_rigstudio.cpp's removeSubject)
     e->v.takedamage = 0; // (the Rig Studio's subject: it is looked at, not fought)
     st.preview.made = true;
     st.preview.ent = NUM_FOR_EDICT(e);
@@ -964,6 +969,11 @@ void feedMock()
         if(!s)
         {
             check(false, st.clickName);
+            Con_Printf("weaponstudio test: no widget named \"%s\" (step %d, page %s, %d widgets this frame): ",
+                       st.clickName, st.testStep, detail::groupLabel(st.group), static_cast<int>(st.spots.size()));
+            for(int i = 0; i < static_cast<int>(st.spots.size()); i++)
+                Con_Printf("%s%s", i ? " " : "", st.spots[i].name);
+            Con_Printf("\n");
             st.clickPhase = 0;
             return;
         }
@@ -1029,16 +1039,21 @@ void testFrame()
         check(st.group == Group::Hotspots, "the Hotspots page opens");
         st.testStep = 4;
         st.testWait = testFrames;
-        click("hotspot_3");
+        click("hotspot_3"); // the page's own grip-spot picker
         break;
     case 4:
-        check(st.hotspot == 3, "hotspot 3 selected");
-        st.testStep = 5;
-        st.testWait = 2;
+        check(st.hotspot == 3, "grip spot 3 selected");
+        check(st.rowsShown >= 5 && st.rowsShown < detail::countInGroup(Group::Hotspots),
+              "only that grip spot's keys and the shared ones are shown");
         q_strlcpy(st.filter, "shot", sizeof(st.filter)); // as the window's own filter box holds it
+        st.testStep = 5;
+        st.testWait = testFrames;
+        click("page_muzzle"); // (the filter's own page: shot_pitch and shot_yaw live on the Muzzle page)
         break;
     case 5:
-        check(st.rowsShown >= 1 && st.rowsShown <= 4, "the filter shows only the keys it matches");
+        check(st.group == Group::Muzzle, "the page chosen by the filter's test is the one it was set on");
+        check(st.hotspot == 3, "the grip spot chosen on the Hotspots page is kept");
+        check(st.rowsShown == 2, "the filter shows only the keys it matches (shot_pitch, shot_yaw)");
         q_strlcpy(st.filter, "", sizeof(st.filter));
         st.testStep = 6;
         st.testWait = 2;
@@ -1083,7 +1098,30 @@ void testFrame()
         break;
     case 11:
         st.testClosing = true; // (the window closes only after its own End, never from inside it)
+        st.closeTries = 1;
+        if(const Spot* s = spotNamed("close"))
+            Con_Printf("weaponstudio test: clicking Close at %.0f,%.0f\n", s->x, s->y);
         click("close");
+        st.testStep = 12;
+        st.testWait = 4 * testFrames;
+        break;
+    case 12: // the Close button's watchdog: a window that stays open is the tool's problem, and it is reported rather
+             // than waited on (a test ends by its own verdict, never by the harness's timeout)
+        if(!st.open)
+            break; // (testClosedFrame prints it and gives the verdict)
+        if(st.closeTries < 4)
+        {
+            st.closeTries++;
+            const Spot* s = spotNamed("close");
+            Con_Printf("weaponstudio test: still open, clicking Close again (try %d, %s, screen %.0fx%.0f)\n",
+                       st.closeTries, s ? va("at %.0f,%.0f", s->x, s->y) : "no such widget",
+                       ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y);
+            click("close");
+            st.testWait = 4 * testFrames;
+            break;
+        }
+        check(false, "Close gave the game back (its button never took the click)");
+        testVerdict();
         break;
     default:
         testVerdict();
@@ -1160,7 +1198,8 @@ void startTest()
     st.clickPhase = 0;
     st.testClosing = false;
     st.showMarkers = true;
-    Con_Printf("weaponstudio test: begin (window open, slot %d)\n", st.slot);
+    Con_Printf("weaponstudio test: begin (window open, slot %d, %d keys, page %s)\n", st.slot, detail::tableSize,
+               detail::groupLabel(st.group));
 }
 
 void chooseSlot(const int slot)

@@ -147,6 +147,7 @@ struct Preview
     int code2{0}; // its off hand's (0: none)
     int slot{-1};  // the weapons' slots its guns draw with, from the arms solve's pose note
     int slotL{-1};
+    float yaw{0.f};   // the yaw it is held at (it stands facing the player)
     char pose[64]{""};
     int noteFrame{-1};
 };
@@ -186,6 +187,7 @@ struct State
     bool testClosing{false}; // the last step asked for Close: the verdict comes once the window is closed
     int testStep{0};
     int testWait{0};
+    int closeTries{0}; // (the Close click and its retries: a stuck test still ends with a verdict line)
     int passed{0};
     int failed{0};
     int clickPhase{0};

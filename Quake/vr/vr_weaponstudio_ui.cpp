@@ -31,9 +31,11 @@ namespace qvr::weaponstudio
 namespace
 {
 
-constexpr float sidebarW = 250.f; // the pages' column
+constexpr float pageColW = 186.f; // one page column (the pages' list sits in pageCols of them)
 constexpr float labelW = 216.f;   // where a key's editor starts
-constexpr float panelsH = 300.f;  // the aiming and preview panels kept below the key rows
+constexpr float comboW = 200.f;   // a Combo's width: left to themselves they take the whole row and wrap the line
+constexpr float keyRowsMin = 150.f; // the key rows stay at least this tall, whatever the screen
+constexpr int pageCols = 2;       // 16 pages in one column are taller than a 540-row screen's window
 
 // A page's short name, for its test spot (page_muzzle, page_hotspots, ...).
 const char* const groupTags[] = {"place", "fingers", "muzzle", "2hand", "hotspots", "stock", "ammo", "holster",
@@ -159,6 +161,7 @@ bool wordCombo(const char* label, int& cur, const char* list, const int count, c
         return false;
     }
     int chosen = za::clamp(cur, 0, count - 1);
+    ImGui::SetNextItemWidth(comboW);
     const bool changed = ImGui::Combo(label, &chosen, list, count);
     if(changed)
         cur = chosen;
@@ -261,7 +264,11 @@ void keyRow(const detail::Entry& e, const int slot)
 
 void pagesColumn()
 {
-    ImGui::Dummy(ImVec2{sidebarW, 1.f}); // (the column's width)
+    // (16 pages in one column stand taller than a small screen's window, which pushed the key rows and everything
+    // below it out of the window: in pageCols columns the whole list fits beside the rows).
+    ImGui::Columns(pageCols, "pages", false);
+    for(int c = 0; c < pageCols; c++)
+        ImGui::SetColumnWidth(c, pageColW);
     for(int g = 0; g < static_cast<int>(detail::Group::Count); g++)
     {
         const detail::Group group = static_cast<detail::Group>(g);
@@ -278,7 +285,9 @@ void pagesColumn()
             ImGui::PopStyleColor();
         ImGui::PopID();
         noteSpot(spotBuf);
+        ImGui::NextColumn();
     }
+    ImGui::Columns(1);
 }
 
 // ---- The key rows for the page chosen -----------------------------------------------------------------------------
@@ -361,11 +370,18 @@ void aimPanel()
 {
     ImGui::Separator();
     ImGui::TextUnformatted("Aiming, lined up: your hands, the weapon, its muzzle, its sights, where it shoots");
-    ImGui::Checkbox("show the muzzle, shot line, barrel, sight line and fist over the view", &st.showMarkers);
+    ImGui::Checkbox("markers", &st.showMarkers);
+    if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("show the muzzle, the shot line, the barrel, the sight line and the fist, over the view");
     ImGui::SameLine();
-    ImGui::Checkbox("show the crosshair", &st.showCrosshair);
+    ImGui::Checkbox("crosshair", &st.showCrosshair);
+    if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("show the crosshair the shots are lined up with");
     ImGui::SameLine();
-    ImGui::Checkbox("hold the game while this window is open", &st.hold);
+    ImGui::Checkbox("hold the game", &st.hold);
+    if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("the game's physics is held while this window is open: monsters and props stand still, the "
+                          "player still walks and looks (vr_weaponstudio hold 0 lets them run)");
     noteSpot("hold");
 
     for(int h = 1; h >= 0; h--)
@@ -392,9 +408,9 @@ void aimPanel()
         }
     }
 
-    ImGui::TextUnformatted("The line-up measures a held weapon and prints what would line the sights up with where the "
-                           "gun actually shoots; writing it fills the slot's Shot Pitch and Shot Yaw.");
-    if(btn("line up both hands (measure only)", "align"))
+    ImGui::TextWrapped("The line-up measures a held weapon and prints what would line the sights up with where the gun "
+                       "actually shoots; writing it fills the slot's Shot Pitch and Shot Yaw.");
+    if(btn("line up both hands (measure)", "align"))
     {
         st.wantAlign = true;
         st.alignHand = 2;
@@ -415,14 +431,13 @@ void aimPanel()
         st.alignApply = false;
     }
     ImGui::SameLine();
-    if(btn("line up and write both hands", "align_write"))
+    if(btn("line up and write both", "align_write"))
     {
         st.wantAlign = true;
         st.alignHand = 2;
         st.alignApply = true;
     }
-    ImGui::SameLine();
-    ImGui::TextDisabled("console: vr_weaponstudio_align [0 off | 1 main | 2 both] [apply]");
+    ImGui::TextDisabled("console: vr_weaponstudio_align [main | off | both] [apply]");
 }
 
 // ---- How it is held: your IK, and an armed humanoid ---------------------------------------------------------------
@@ -471,7 +486,6 @@ void holdPanel()
     ImGui::SameLine();
     if(btn("remove it", "preview_remove"))
         st.wantRemove = true;
-    ImGui::SameLine();
     ImGui::TextDisabled("it stands frozen in front of you, facing you, like the Rig Studio's subject");
 
     if(!st.preview.made)
@@ -567,17 +581,20 @@ bool drawWindow()
         st.wantCopy = true;
     }
 
+    // The aiming read-out and the held-weapon panel come first; the pages and the key rows fill what is left. Kept
+    // below the pages' list they stood past the bottom of a small screen's window: their buttons were drawn outside the
+    // window's clip, so a click (the tests' synthetic mouse, or a real one) never reached them.
+    aimPanel();
+    holdPanel();
+    ImGui::Separator();
     ImGui::BeginGroup();
     pagesColumn();
     ImGui::EndGroup();
     ImGui::SameLine();
-    const float rowsH = za::max(140.f, ImGui::GetContentRegionAvail().y - panelsH);
+    const float rowsH = za::max(keyRowsMin, ImGui::GetContentRegionAvail().y);
     if(ImGui::BeginChild("keys", ImVec2{0.f, rowsH}, true))
         keysColumn(slot);
     ImGui::EndChild();
-
-    aimPanel();
-    holdPanel();
 
     ImGui::Separator();
     ImGui::TextDisabled("every key here is the game's own weapon setting: written through its stand-in cvar, so the "
