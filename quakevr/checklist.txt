@@ -46,6 +46,7 @@ The axe goes deeper and takes a real tug to pull out. {test:embed_stab}
 Embedded: the real hand back to the drawn hand moves nothing; a blade 10 cm in needs a 10 cm pull. {test:embed_stab}
 A gibbing throw or stab leaves no floating blade. {test:embed_stab}
 A wound with a blade in it runs blood; sliding the blade makes flesh sounds. {test:embed_stab}
+Kill a grunt messily, then stab its head or a gib tip first: it stays on the blade and rides it through swings, up to 3 spaced along it; the other hand's grip takes one off; switching weapon or throwing the sword drops it, unbroken; a slash or hilt blow on a loose one bursts it. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
