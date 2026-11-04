@@ -1,4 +1,4 @@
-﻿# Flatscreen play (`-flatscreenmode`)
+# Flatscreen play (`-flatscreenmode`)
 
 Quake VR's gameplay played on the desktop screen, with no headset. Everything here is behind the command-line flag
 `-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`) â€” and the flag implies no session
@@ -209,8 +209,8 @@ default), read in the view's own frame and clamped at the read (`poseNum`: -30..
 `vr_flatplay_status` prints the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`,
 `flatcam:`, `flatmove:`).
 
-**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_fwd`, 17), **Flatscreen Gun Down** (`vr_flat_gun_down`, 9), **Flatscreen Gun Out**
-(`vr_flat_gun_out`, 2.5): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
+**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_fwd`, 5), **Flatscreen Gun Down** (`vr_flat_gun_down`, 10), **Flatscreen Gun Out**
+(`vr_flat_gun_out`, 2): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
 Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units
 *away from the body's centre line* â€” the main hand's right, the off hand's left, which is the side `twohand` measures its
 grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how
