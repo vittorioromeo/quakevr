@@ -821,6 +821,11 @@ glm::vec2 screenPlace()
     return screenShift();
 }
 
+float drawnShare(int h)
+{
+    return flatplay::active() && h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+}
+
 bool adsHelper(int h)
 {
     return h == st.helping && st.gripWanted;
@@ -956,9 +961,9 @@ static void check_f()
     float offFar, degFar;
     offTheRay(cam, dir, rear + lineDir * aimFar, offFar, degFar);
     const glm::vec3 toShoulder = flatplay::shoulderOf(s, h) - s.pos[h];
-    Con_Printf("flatsightcheck: %s t %.2f fov %.2f %.2f rear off %.4f front off %.4f far off %.3f (%.4f deg) relief %.2f length %.2f "
-               "rear in hand %.2f %.2f %.2f hand to shoulder %.1f arm %.1f\n",
-        wf.model->name, st.adsT, r_refdef.fov_x, r_refdef.fov_y, offRear, offFront, offFar, degFar,
+    Con_Printf("flatsightcheck: %s t %.2f rear off %.4f front off %.4f far off %.3f (%.4f deg)\n", wf.model->name, st.adsT, offRear,
+        offFront, offFar, degFar);
+    Con_Printf("flatsightpose: relief %.2f length %.2f rear in hand %.2f %.2f %.2f hand to shoulder %.1f arm %.1f\n",
         glm::dot(rear - cam, dir), glm::distance(rear, front), st.sightRear[h].x, st.sightRear[h].y, st.sightRear[h].z,
         glm::length(toShoulder), flatplay::armReach());
 }

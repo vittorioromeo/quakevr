@@ -68,6 +68,9 @@ void noteDrawn(const hands::State& s);
 // decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.
 [[nodiscard]] float adsShare();
 
+// How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
+[[nodiscard]] float drawnShare(int h);
+
 // Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
 [[nodiscard]] bool adsHelper(int h);
 

@@ -4772,6 +4772,9 @@ extern "C" void VR_SetupViewEntities()
         QVR_PROFILE("view shakes");
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
         fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
+        // (Flatscreen play's ironsight: the sights stay on the crosshair's ray, tired or not.)
+        shakePos[hand] *= 1.f - flatsight::drawnShare(hand);
+        shakeAngles[hand] *= 1.f - flatsight::drawnShare(hand);
         glm::vec3 painPos, painAngles;
         painknock::offset(hand, painPos, painAngles);
         shakePos[hand] += painPos;
