@@ -8367,3 +8367,11 @@ own walking is paused while the window is open and given back exactly when it cl
   orbit's and the wheel's speeds are the Rig Studio's two cvars rather than new ones; the Studio's fly row shows only the
   new cvar and says the rest on hover, because its window has to fit the screen it is on; `vr_imgui.cpp` was not touched to
   make a synthetic middle button feedable; and the refusal when its window is closed is a printed line, not an error.
+## Embedded blades: his VR notes of 2026-11-04 (agent/embed5)
+
+- **Hand gap:** `.vr_hold_err` and `.vr_hold_off` start at the real gap between the hand and the drawn hand (e.origin, the handle hand's only; VR_Embed_SetG0). `.vr_hold_slack` and `.vr_hold_offslack` are what is left of that gap: going back to the drawn hand shrinks them and moves nothing; only past them the hand drives the blade (or the off-axis break). Still integrated hand motion, so a body's flinch is no pull. A hand pushed past Most In keeps its excess as a gap (the old clamp is gone).
+- **Pull distance:** any blade, any body, comes out when depth + slide reaches 0. Removed `vr_embed_hold_sword_out`, `vr_embed_hold_axe_travel`, `vr_embed_tug_corpse` and `.vr_hold_pulled`. The stick (2-8 cm) is a lag on top. The code did not contain the 2 cm rule any more (sword_out already 0): what freed a deep blade early in his hands wasn't reproduced; the corpse tug (8 cm) is the one shortcut found.
+- **Sounds:** the flesh clips lost 62 ms of quiet (start of `_out`, end of `_in`; 2 ms fade). Sliding: `vr_embed_slide_sound_cm` 3, `vr_embed_slide_sound_vol` 0.35.
+- **Floating blade:** VR_AxeStick_Stuck notes the body's model before its blow, so a blow that gibs makes VR_AxeStick_Think drop it at its next think.
+- **Wound:** `vr_embed_wound_blood` 8 spurts/s while a blade is in a living body: the stump fountain's drops (no effect is actually named a blood waterfall).
+- **Tests:** on origin/next 9ffcc29dc, `vr_embed_test 7` with `vr_embed 1` reads 13 passed, 15 failed with or without this branch, and without `vr_embed 1` 9 and 19; `vr_embed_test 1` doesn't stick a thrown sword even in a wall on either. So the checks added here (cases 6 of test 7 and the corpse case of test 1) have not passed yet: **the hold changes are unverified until those are fixed.**

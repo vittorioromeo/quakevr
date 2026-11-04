@@ -3851,10 +3851,8 @@ vr_embed_hold_sword_stick_deep|2|Tunables|Sword: Stick, All the Way In|Advanced 
 vr_embed_hold_sword_rate|2|Tunables|Sword: Slide Speed, Barely In|Advanced VR Options > Debug > Tunables > Sword: Slide Speed, Barely In
 vr_embed_hold_sword_rate_deep|2|Tunables|Sword: Slide Speed, All the Way In|Advanced VR Options > Debug > Tunables > Sword: Slide Speed, All the Way In
 vr_embed_hold_sword_most|2|Tunables|Sword: Most In|Advanced VR Options > Debug > Tunables > Sword: Most In
-vr_embed_hold_sword_out|2|Tunables|Sword: Comes Free At|Advanced VR Options > Debug > Tunables > Sword: Comes Free At
 vr_embed_hold_axe_stick|2|Tunables|Axe: Stick|Advanced VR Options > Debug > Tunables > Axe: Stick
 vr_embed_hold_axe_rate|2|Tunables|Axe: Slide Speed|Advanced VR Options > Debug > Tunables > Axe: Slide Speed
-vr_embed_hold_axe_travel|2|Tunables|Axe: Pull to Free|Advanced VR Options > Debug > Tunables > Axe: Pull to Free
 vr_embed_hold_corpse|2|Tunables|Dead Body: Stick|Advanced VR Options > Debug > Tunables > Dead Body: Stick
 vr_embed_hold_break|2|Tunables|Off the Axis: Breaks At|Advanced VR Options > Debug > Tunables > Off the Axis: Breaks At
 vr_embed_hold_reach|2|Tunables|Too Far: Breaks At|Advanced VR Options > Debug > Tunables > Too Far: Breaks At
@@ -3888,7 +3886,6 @@ vr_embed_sword_wall|2|Tunables|Depth in Walls|Advanced VR Options > Debug > Tuna
 vr_embed_sag_stiffness|2|Tunables|Sag: Stiffness|Advanced VR Options > Debug > Tunables > Sag: Stiffness
 vr_embed_sag_damping|2|Tunables|Sag: Damping|Advanced VR Options > Debug > Tunables > Sag: Damping
 vr_embed_sag_most|2|Tunables|Sag: Most|Advanced VR Options > Debug > Tunables > Sag: Most
-vr_embed_tug_corpse|2|Tunables|Tug From a Corpse|Advanced VR Options > Debug > Tunables > Tug From a Corpse
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
