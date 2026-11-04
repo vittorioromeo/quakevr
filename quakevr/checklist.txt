@@ -2,6 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 
+[0. Newest: the Weapon Studio window (flat screen, -flatscreenmode)]
+Weapon Studio window (Debug > Tools > Weapon Studio): drag its title bar to move it, pull its lower-right corner to resize it, press Escape or click its title-bar X to close it, then open it again — does it come back where and as big as you left it? (it keeps at least 560x360 so its top row and Close stay reachable)
+
 [0. Newest: test these first]
 Weapon Studio (flatscreen only): Debug > Tools > Weapon Studio, or `vr_weaponstudio open` — every weapon setting in one window, written through the same store the Weapon Offsets and Weapon Weights menus use (no new settings)
 Weapon Studio, sights: `vr_weaponstudio align both` prints how far a held gun's sight line is from where the gun really shoots; `align both apply` writes its Shot Pitch and Shot Yaw (shotgun measured 0.79 -> 0.00 deg)
