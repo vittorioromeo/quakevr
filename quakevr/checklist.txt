@@ -48,6 +48,7 @@ A gibbing throw or stab leaves no floating blade. {test:embed_stab}
 A wound with a blade in it runs blood; sliding the blade makes flesh sounds. {test:embed_stab}
 Weapon Effects > Blow on the Smoke on, Debug > Show Microphone Level to set Blow Threshold: fire the shotgun, hold the muzzle at your mouth and blow: the wisp goes forward and fades faster; talking quietly or holding it away does nothing.
 Kill a grunt messily, then stab its head or a gib tip first: it rides the blade through swings, up to 3 spaced along it, and the blade feels heavier and tip-heavy. The other hand's grip takes one off. A slash on a loose one bursts it. Drop the sword: the gibs stay on, land with it, ride again when picked up. Throw it hard with the gib end leading at a wall: that gib bursts; a gentle throw doesn't. Swing the blade so the gib's part hits a wall: it bursts; hitting with another part doesn't. Switching weapon drops them unbroken. {test:embed_stab}
+VR Settings > Move Towards: Torso: look or point a hand aside while pushing the stick forward; you keep walking where your torso faces.
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

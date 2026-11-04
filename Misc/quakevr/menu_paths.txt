@@ -4022,6 +4022,7 @@ vr_body_debug|2|Debug - Views|Show Body Skeleton|Advanced VR Options > Debug > V
 vr_body_crouch_preview|2|Debug - Views|Preview Crouch|Advanced VR Options > Debug > Views > Preview Crouch
 |2|Debug - Views|Print Crouched Pose|Advanced VR Options > Debug > Views > Print Crouched Pose
 |2|Debug - Views|Print Torso Direction|Advanced VR Options > Debug > Views > Print Torso Direction
+|2|Debug - Views|Print Walking Direction|Advanced VR Options > Debug > Views > Print Walking Direction
 vr_debug_body_error|2|Debug - Views|Log Body Drift|Advanced VR Options > Debug > Views > Log Body Drift
 vr_debug_body_heights|2|Debug - Views|Log Body Heights|Advanced VR Options > Debug > Views > Log Body Heights
 |2|Debug - Views|Mark Body Drift Here|Advanced VR Options > Debug > Views > Mark Body Drift Here
