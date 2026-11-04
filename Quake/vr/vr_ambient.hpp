@@ -42,4 +42,7 @@ int lightPoint(const glm::vec3& p, lightcache_t& cache);
 [[nodiscard]] bool gridOn();
 [[nodiscard]] bool gridLightAt(const glm::vec3& p, glm::vec3& out, bool* styled = nullptr);
 
+// Show Light Probes (vr_model_light_grid_show): the probes round the head and the eight a model reads, queued as lines.
+void gridDebugDraw(const glm::vec3& head);
+
 } // namespace qvr::ambient

@@ -280,7 +280,8 @@ retextures of id Software's art (`wood1_1`, `crate0_side`...), not ours to put i
 offered separately, as the HQ texture pack release, below). The skins are only matched to them by
 measurement (their mean colour and fine detail; ROUND21.md, "Crates: wood dust, stacks, a grittier texture"). Their sounds
 (`Misc/quakevr/make_crate_sounds.py`): `crate_break1..3.wav` layer two or three of the physics sounds' wood knocks above
-(Kenney's *Impact Sounds*, CC0), pitched down, over synthesised splinter crackle and a thump; `crate_dust1..2.wav` a
+(Kenney's *Impact Sounds*, CC0), pitched down, over synthesised splinter crackle and a thump, then more of them as the
+boards come down; `crate_hit1..3.wav` a heavy knock of the same over a crack and a thump; `crate_dust1..2.wav` a
 light wood knock pitched up, a crackle and a synthesised hiss. Nothing downloaded.
 
 ### HQ texture pack (a separate download, not in the port's files)
