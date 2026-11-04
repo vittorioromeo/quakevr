@@ -2,6 +2,7 @@
 float vr_eh_in0;   // case 6: how far in it was, and the gap to cross, as the pull right out began
 float vr_eh_sounds; // and its slide sounds, its wound's spurts as it was struck
 float vr_eh_spurts;
+float vr_eh_travel; // units of pull so far
 // vr_embed_test.qc -- Embedded blades, stage 1 (ROUND23.md, "Embedded blades"; vr_axestick.qc, vr_axestick.cpp).
 // `vr_embed_test 1` (Debug > Tests > Embedded Blades; god, notarget, map vrtesthall, on your feet in the open): a thrown
 // sword point first, flat and by the hilt at a wall; its sag; at a live body, and it bleeds; the body dying with it in; a
@@ -336,13 +337,39 @@ void() VR_ET_Step =
         else if(vr_et_s == 6 && t > 0.15)
         {
             VR_Test_Check(VR_AxeStick_IsStuck(vr_et_w), "a grip alone doesn't take it");
-            localcmd(sprintf("vr_mock_hand_glide 0.3\nvr_mock_hand_to off %v\n", VRGetEntHandPos(p, h) - vr_et_w.vr_stick_dir * 10)); // (a good pull)
-            vr_et_v = VRGetEntWeapon(p, h);
+            // A gap: pushed 4 units deeper (10 cm), the real hand 6 units deeper than the drawn one; coming back to it moves nothing.
+            vr_et_w.vr_stick_slide = vr_et_w.vr_stick_slide + 4;
+            vr_et_w.vr_hold_err = 6;
+            vr_et_w.vr_hold_slack = 6;
+            vr_et_v2 = vr_et_w.vr_stick_slide;
+            vr_eh_travel = 0;
+            VR_ET_To(16);
+        }
+        else if(vr_et_s == 16 && vr_eh_travel < 6)
+        {
+            // (The hold reads the hand's own motion: its last place moved on, half a unit a frame, out along the axis.)
+            vr_et_w.vr_hold_lastoff = vr_et_w.vr_hold_lastoff + vr_et_w.vr_stick_dir * 0.5;
+            vr_eh_travel = vr_eh_travel + 0.5;
+        }
+        else if(vr_et_s == 16 && t > 0.4)
+        {
+            VR_Test_Check(VR_AxeStick_IsStuck(vr_et_w) && vr_et_w.vr_stick_slide == vr_et_v2, sprintf("the real hand back to the drawn one moves nothing (%.2f to %.2f, gap %.2f)", vr_et_v2, vr_et_w.vr_stick_slide, vr_et_w.vr_hold_slack));
+            vr_eh_in0 = vr_et_w.vr_stick_depth + vr_et_w.vr_stick_slide;
+            vr_eh_travel = 0;
+            vr_eh_sounds = vr_embed_slidesounds;
             VR_ET_To(7);
         }
-        else if(vr_et_s == 7 && (VRGetEntWeapon(p, h) == WID_SWORD || t > 1))
+        else if(vr_et_s == 7 && VRGetEntWeapon(p, h) != WID_SWORD && vr_eh_travel < vr_eh_in0 + 12)
+        {
+            vr_et_w.vr_hold_lastoff = vr_et_w.vr_hold_lastoff + vr_et_w.vr_stick_dir * 0.5;
+            vr_eh_travel = vr_eh_travel + 0.5;
+        }
+        else if(vr_et_s == 7)
         {
             VR_Test_Check(VRGetEntWeapon(p, h) == WID_SWORD, sprintf("pulled: it comes into the hand (holds %g)", VRGetEntWeapon(p, h)));
+            VR_Test_Check(vr_eh_travel >= vr_eh_in0, sprintf("out only after a pull as long as it was in: %.1f units for %.1f", vr_eh_travel, vr_eh_in0));
+            VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding out sounds (%g)", vr_embed_slidesounds - vr_eh_sounds));
+            bprint(sprintf("embedpull: %.1f units in, the hand pulled %.1f, %g sounds\n", vr_eh_in0, vr_eh_travel, vr_embed_slidesounds - vr_eh_sounds));
             localcmd("-graboff\nvr_mock_hand_glide 0\n");
             VR_ET_To(8);
         }

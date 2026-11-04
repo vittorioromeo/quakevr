@@ -251,7 +251,7 @@ void() VR_AxeStick_Think =
     entity h = self.vr_stick_ent;
     // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed.)
     if(!VR_AxeStick_On(self) ||
-       (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null || h.vr_gib)) ||
+       (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
        (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
     {
         VR_AxeStick_Fall(self);
