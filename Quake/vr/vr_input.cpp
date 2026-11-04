@@ -597,6 +597,15 @@ void runHaptics()
     }
 }
 
+// vr_move_report [label]: Move Towards' setting, the yaws (world degrees) of what can steer, and where the player is walking.
+void moveReport_f()
+{
+    const hands::State& s = hands::current();
+    Con_Printf("move report %s: mode %d head %.1f torso %.1f left %.1f right %.1f walk %.1f speed %.0f\n", Cmd_Argv(1),
+               static_cast<int>(vr_movement_mode.value), s.headAngles.y, s.bodyYaw, s.rot[HAND_OFF].y, s.rot[HAND_MAIN].y,
+               glm::degrees(za::atan2(cl.velocity[1], cl.velocity[0])), za::sqrt(cl.velocity[0] * cl.velocity[0] + cl.velocity[1] * cl.velocity[1]));
+}
+
 // Bump when quakevr/vr_bindings.cfg changes in a way existing configs should pick up.
 constexpr int bindingsVersion = 3;
 
@@ -643,7 +652,7 @@ struct StickCase
     bool run;
     bool autorun;
     float curve;
-    int mode{1};  // vr_movement_mode (1 the head steers; 0, 2, 3 a hand)
+    int mode{1};  // vr_movement_mode (1 the head steers; 0, 2, 3 a hand; 4 the torso)
     int where{0}; // 0 on the ground, 1 swimming (the test hall's pool), 2 noclip
 };
 
@@ -1491,6 +1500,7 @@ void init()
     Cmd_AddCommand("vr_stick_curve_test", stickTest_f);
     Cmd_AddCommand("vr_stick_run_test", stickRun_f);
     Cmd_AddCommand("vr_stick_line_test", stickLine_f);
+    Cmd_AddCommand("vr_move_report", moveReport_f);
 }
 
 // 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
@@ -1942,8 +1952,9 @@ bool primaryHeld(int hand)
 // sv_maxspeed (moveSpeed: a full push is the most the server gives; vr_move_autorun eases a walk into a run). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
-// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing what
-// steers (the head in mode 1, else that hand) up or down while pushing forward swims up or down (from the old engine's VR_Move).
+// (hands::moveHand) points, with 2 the left hand, 3 the right hand, with 4 where the torso faces (hands::State::bodyYaw),
+// expressed relative to the head. Either way, pointing what steers up or down while pushing forward swims up or down (from
+// the old engine's VR_Move): that hand, or the head in modes 1 and 4 (the torso's direction is only a yaw).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
     // The Weapon Studio's window owns his move keys while it is open -- W A S D and Q E fly its drawn camera there
@@ -1984,9 +1995,19 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     float side = dir.x;
 
     const int mode = static_cast<int>(vr_movement_mode.value);
-    // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers).
+    // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers; 4: the torso).
+    const bool handSteers = mode != 1 && mode != 4;
     const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
-    if(s.valid && mode != 1)
+    if(s.valid && mode == 4)
+    {
+        glm::vec3 tfwd, tright, tup, vfwd, vright, vup;
+        hands::angleVectors({0.f, s.bodyYaw, 0.f}, tfwd, tright, tup);
+        hands::angleVectors({0.f, s.headAngles.y, 0.f}, vfwd, vright, vup);
+        const glm::vec3 move = dir.y * tfwd + dir.x * tright;
+        fwd = glm::dot(move, vfwd);
+        side = glm::dot(move, vright);
+    }
+    else if(s.valid && handSteers)
     {
         glm::vec3 lfwd, lright, lup;
         hands::angleVectors(s.rot[hand], lfwd, lright, lup);
@@ -2027,8 +2048,8 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
     if(s.valid)
     {
-        // Swimming up or down follows what steers: the head (mode 1) or the steering hand.
-        const glm::vec3 steerFwd = mode == 1 ? hands::forward(s.headAngles) : hands::forward(s.rot[hand]);
+        // Swimming up or down follows what steers: the steering hand, or the head (modes 1 and 4).
+        const glm::vec3 steerFwd = handSteers ? hands::forward(s.rot[hand]) : hands::forward(s.headAngles);
         *upmove += cl_upspeed.value * moveAxes.y * steerFwd.z * speedScale;
     }
 }

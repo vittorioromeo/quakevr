@@ -1417,7 +1417,7 @@ void syncWrappers()
     // Turning Mode: Smooth, Snap, Off (vr_enable_joystick_turn 0: the stick never turns you).
     showWrapper(vr_menu_turning, vr_enable_joystick_turn.value == 0.f ? 2.f : vr_snap_turn.value > 0.f ? 1.f : 0.f);
     const int mode = static_cast<int>(vr_movement_mode.value);
-    showWrapper(vr_menu_move_towards, mode >= 1 && mode <= 3 ? static_cast<float>(mode)
+    showWrapper(vr_menu_move_towards, mode >= 1 && mode <= 4 ? static_cast<float>(mode)
                                       : hands::moveHand() == HAND_OFF ? 2.f : 3.f);
     for(const HandWrapper& w : handWrappers)
     {
@@ -1453,7 +1453,7 @@ void onWrapperSet(cvar_t* var)
     }
     else if(var == &vr_menu_move_towards)
     {
-        Cvar_SetValueQuick(&vr_movement_mode, CLAMP(1.f, var->value, 3.f));
+        Cvar_SetValueQuick(&vr_movement_mode, CLAMP(1.f, var->value, 4.f));
     }
     for(const HandWrapper& w : handWrappers)
     {
