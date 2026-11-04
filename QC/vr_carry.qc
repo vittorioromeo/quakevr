@@ -45,6 +45,36 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
 .float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
 .entity vr_skewer_p;     // whose blade it is on (vr_skewer.qc; world: none)
+.entity vr_skewer_w;     // the blade, a thrown_weapon (world: in the hand)
+.vector vr_skewer_at;    // its middle in that blade's frame (forward, right, up; the engine's sphere for it)
+.vector vr_skewer_lastc; // its middle last frame
+.float  vr_skewer_mass;  // kg (the engine's sphere for it)
+.float  vr_skewer_gen;   // on a thrown_weapon: changes as gibs go on or off it (the engine remakes its body; 0: never had one)
+.vector vr_skewer_sum_off;   // on a player: this frame's gibs on the off hand's blade (kg, kg m, kg m^2 about the grip)
+.vector vr_skewer_sum_main;
+.vector vr_skewer_load_off;  // and last frame's, for the hand's weight (vr_weight.cpp)
+.vector vr_skewer_load_main;
+
+// It is off its blade (or burst).
+void(entity g) VR_Skewer_Gone =
+{
+    if(g.vr_skewer_w.classname == "thrown_weapon")
+    {
+        g.vr_skewer_w.vr_skewer_gen = g.vr_skewer_w.vr_skewer_gen + 1;
+    }
+    g.vr_skewer_w = world;
+    g.vr_skewer_p = world;
+};
+
+// Each player frame (W_Frame): last frame's gibs are the hands' load now.
+void() VR_Skewer_Frame =
+{
+    self.vr_skewer_load_off = self.vr_skewer_sum_off;
+    self.vr_skewer_load_main = self.vr_skewer_sum_main;
+    self.vr_skewer_sum_off = '0 0 0';
+    self.vr_skewer_sum_main = '0 0 0';
+};
+
 .float vr_gib_made;      // when it became a gib (VR_MakeGibGrabbable; VR_Prop_Flung: harmless a while)
 .entity vr_gib_bornin;   // what it touched while just made, and when last (VR_Prop_Flung: harmless to it until they part)
 .float vr_gib_bornin_t;
@@ -3062,6 +3092,10 @@ void(vector org, vector xDir, float size) VR_BloodMist =
 // Bursts in a mist of blood (VR_BloodMist) and is gone, with the gib sound.
 void(entity xGib, vector xDir) VR_Gib_Burst =
 {
+    if(xGib.vr_skewer_p != world)
+    {
+        VR_Skewer_Gone(xGib); // (its think is the burst's from here)
+    }
     vector org = (xGib.absmin + xGib.absmax) * 0.5;
     dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
     float size = max(1, xGib.vr_gib_healthmult);

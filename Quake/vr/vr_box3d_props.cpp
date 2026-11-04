@@ -120,6 +120,40 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((lo + hi) * 0.5f));
     b3CreateHullShape(body, &def, &box.base);
 }
+
+// The gibs on a dropped or thrown blade (QC vr_skewer.qc): a sphere each, solid with it, its mass in the body's (so its centre of mass
+// moves with them). One body rather than a joint per gib: they never move on the blade, and it is remade when one goes on or off.
+void addSkeweredShapes(edict_t* ent, int num, b3BodyId body)
+{
+    const auto& f = fields();
+    if(f.vr_skewer_w < 0 || f.vr_skewer_at < 0 || f.vr_skewer_mass < 0 || fieldFloatOr(ent, f.vr_skewer_gen, 0.f) <= 0.f)
+    {
+        return;
+    }
+    const int self = EDICT_TO_PROG(ent);
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    {
+        edict_t* g = EDICT_NUM(i);
+        if(g->free || fieldInt(g, f.vr_skewer_w) != self)
+        {
+            continue;
+        }
+        // (As QC's VR_Skewer_Radius; forward, right, up to the model's forward, left, up.)
+        const glm::vec3 size = vec(g->v.maxs) - vec(g->v.mins);
+        const float radius = za::max(2.f, (size.x + size.y + size.z) / 6.f) / world->m2u;
+        const glm::vec3 at = fieldVec(g, f.vr_skewer_at);
+        b3ShapeDef def = shapeDef(num, catProp, propMask | catReach);
+        def.density = za::max(fieldFloat(g, f.vr_skewer_mass), 1e-4f) / za::max(4.18879f * radius * radius * radius, 1e-9f);
+        def.baseMaterial.restitution = 0.f;
+        def.baseMaterial.rollingResistance = 0.2f;
+        def.enableContactEvents = false;
+        def.enableHitEvents = false;
+        def.enablePreSolveEvents = true;
+        const b3Sphere sphere{world->toM(glm::vec3{at.x, -at.y, at.z}), radius};
+        b3CreateSphereShape(body, &def, &sphere);
+        Con_DPrintf("box3d: a skewered gib on the thrown blade: its body now %.2f kg\n", b3Body_GetMass(body));
+    }
+}
 } // namespace
 
 [[nodiscard]] bool isRigid(edict_t* ent)
@@ -282,6 +316,10 @@ void freeRetiredHulls()
         if(s.kind == Kind::Prop && s.mag != seatedMagazine(ent, model))
         {
             return true; // (its magazine taken out or put in: vr_reload_mag_collide)
+        }
+        if(s.skewerGen != fieldFloatOr(ent, fields().vr_skewer_gen, 0.f))
+        {
+            return true; // (a gib on it gone or come: addSkeweredShapes)
         }
         // The drawn box and the Mass: made from the settings (a weapon's box: weapons::modelTransform, the world
         // scale, the gun model scale, each weapon's own), which can change while it lies there, and the entity's box
@@ -451,6 +489,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.spins = kind == Kind::Fixture && model &&
               ((model->flags & EF_ROTATE) || fieldFloatOr(ent, fields().vr_pickup_spin, 0.f) != 0.f); // (a weapon pickup drawn as its prop)
     s.massSetting = massSetting(ent, model);
+    s.skewerGen = fieldFloatOr(ent, fields().vr_skewer_gen, 0.f);
     s.massScale = props::massScale(model);
     s.soft = model && isSoft(ent, model);
     s.chunk = isChunk(model);
@@ -513,6 +552,10 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         s.mins = lo;
         s.maxs = hi;
         addPropShapes(ent, num, model, lo, hi, s.body, kind == Kind::Held);
+        if(kind == Kind::Prop)
+        {
+            addSkeweredShapes(ent, num, s.body);
+        }
         break;
     }
     case Kind::Mover:

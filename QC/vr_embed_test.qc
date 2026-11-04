@@ -2181,6 +2181,8 @@ float(entity p) VR_EE_Frame;
 // ---- 21: skewering gibs (vr_skewer.qc)
 entity vr_ets_g[4];
 entity vr_ets_r;       // one still on the blade
+float vr_ets_then;
+float vr_ets_peak;
 float vr_ets_n;
 
 // A loose gib before `p`, as ThrowGib's (still, armed once takedamage).
@@ -2221,6 +2223,28 @@ float(entity p, entity g) VR_ETS_Off =
     vector line = vr_mline_far - vr_mline_grip;
     float back = min(cvar_hget(cvarh_vr_embed_skewer_depth) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap), vlen(line) * 0.85);
     return vlen(g.origin + (g.mins + g.maxs) * 0.5 - (vr_mline_far - normalize(line) * back));
+};
+
+// The sword in the main hand let go of as a throw is: the hand's record in a thrown_weapon.
+entity(entity p, vector xRot, vector xVel) VR_ETS_LetGo =
+{
+    float flags = VRGetEntWeaponFlags(p, cVR_MainHand);
+    entity w = CreateThrownWeapon(p, VRGetEntWeapon(p, cVR_MainHand), flags, VRGetEntWeaponInst(p, cVR_MainHand), VRGetHandPos(cVR_MainHand), xRot, xVel, '0 0 0', FALSE, FALSE, 0);
+    VRSetHandEmpty(p, cVR_MainHand);
+    return w;
+};
+
+// A swing of the main hand with its contact at `xAt`, against the world.
+void(entity p, vector xAt, float xSpeed) VR_ETS_Contact =
+{
+    entity b = VR_Blow(cVR_MainHand);
+    b.mh_c_ent = world;
+    b.mh_c_pos = xAt;
+    b.mh_c_dir = '0 0 -1';
+    b.mh_c_f = 0.5;
+    b.mh_speed = xSpeed;
+    b.mh_kind = VR_MKIND_SLASH;
+    VR_Skewer_SwingHit(cVR_MainHand, b);
 };
 
 void() VR_ETS_Step =
@@ -2269,6 +2293,8 @@ void() VR_ETS_Step =
     }
     else if(vr_et_s == 3 && time > vr_et_t0 && (p.flags & FL_ONGROUND) && p.velocity == '0 0 0') // (the player back on the floor)
     {
+        float kg = 3 * cvar_hget(cvarh_vr_embed_skewer_mass_gib);
+        VR_Test_Check(fabs(p.vr_skewer_load_main_x - kg) < 0.01 && p.vr_skewer_load_main_y > 0 && p.vr_skewer_load_main_z > 0, sprintf("the hand's load: %.2f kg, %.2f kg m, %.3f kg m2 (three gibs: %.2f kg)", p.vr_skewer_load_main_x, p.vr_skewer_load_main_y, p.vr_skewer_load_main_z, kg));
         VR_Test_Check(VR_ETS_Off(p, g) < 2, sprintf("it rides the blade as the hand moves (%.2f units off where it rides)", VR_ETS_Off(p, g)));
         // A slash and a hilt blow on loose ones: burst as ever.
         vr_ets_g[3] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
@@ -2319,6 +2345,110 @@ void() VR_ETS_Step =
     {
         VR_Test_Check(TRUE, "and it falls");
         localcmd("-graboff\n");
+        vr_ets_then = 40;
+        VR_ET_To(30);
+    }
+    // A fresh sword with one gib on it: on to `vr_ets_then`, the gib vr_ets_r.
+    else if(vr_et_s == 30)
+    {
+        VR_EH_Give(WID_SWORD, 0);
+        VR_Blow(cVR_MainHand).mh_far = '0 0 0';
+        VR_ET_To(31);
+    }
+    else if(vr_et_s == 31 && VR_Blow(cVR_MainHand).mh_far != '0 0 0')
+    {
+        makevectors(p.v_angle);
+        vr_ets_r = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
+        VR_ET_To(32);
+    }
+    else if(vr_et_s == 32 && vr_ets_r.takedamage)
+    {
+        VR_ETS_Blow(p, vr_ets_r, VR_MKIND_STAB, 6);
+        VR_Test_Check(vr_ets_r.vr_skewer_p == p, "a fresh one on the blade");
+        VR_ET_To(vr_ets_then);
+    }
+    // Dropped: it stays on, in the blade's body, and lands with it.
+    else if(vr_et_s == 40)
+    {
+        vr_et_at = VRGetHandPos(cVR_MainHand);
+        vr_et_w = VR_ETS_LetGo(p, VRGetHandRot(cVR_MainHand), '0 0 0');
+        VR_ET_To(41);
+    }
+    else if(vr_et_s == 41 && vr_ets_r.vr_skewer_w == vr_et_w && time > vr_et_t0 + 0.05)
+    {
+        float tipOff = vlen(vr_ets_r.vr_skewer_c - weaponmuzzle(vr_et_w));
+        VR_Test_Check(tipOff < 30, sprintf("dropped: on the thrown blade by its tip (%.1f units from it)", tipOff));
+        vr_et_at = vr_et_w.origin;
+        VR_ET_To(42);
+    }
+    else if(vr_et_s == 42 && vr_et_w.origin_z < vr_et_at_z - 4 && vlen(vr_et_w.velocity) < 4)
+    {
+        VR_Test_Check(vr_ets_r.vr_skewer_w == vr_et_w && vr_ets_r.vr_gib && vlen(vr_ets_r.origin - vr_et_w.origin) < 60, sprintf("it lands with the blade (%.1f units from it)", vlen(vr_ets_r.origin - vr_et_w.origin)));
+        // Picked up: it rides the hand again.
+        vr_et_w.vr_grab_by_handle = TRUE;
+        wpnthrow_handtouch_impl(cVR_MainHand, vr_et_w, p, VRGetEntWeaponPtr(p, cVR_MainHand), VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+        self = p;
+        VR_ET_To(43);
+    }
+    else if(vr_et_s == 43 && vr_ets_r.vr_skewer_w == world)
+    {
+        VR_Test_Check(vr_ets_r.vr_skewer_p == p, "picked up: it rides the hand again");
+        VR_ET_To(44);
+    }
+    else if(vr_et_s == 44 && time > vr_et_t0)
+    {
+        VR_Test_Check(VR_ETS_Off(p, vr_ets_r) < 2, sprintf("on its place on the blade (%.2f units off)", VR_ETS_Off(p, vr_ets_r)));
+        // A swing's contact: elsewhere on the blade, too slow at it, then fast at it.
+        entity b4 = VR_Blow(cVR_MainHand);
+        VR_ETS_Contact(p, b4.mh_grip + (b4.mh_far - b4.mh_grip) * 0.1, 8);
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_p == p, "a swing's contact elsewhere on the blade: it stays");
+        VR_ETS_Contact(p, vr_ets_r.vr_skewer_c, 1);
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_p == p, "a contact at it too slow: it stays");
+        VR_ETS_Contact(p, vr_ets_r.vr_skewer_c, 8);
+        VR_Test_Check(!vr_ets_r.vr_gib || vr_ets_r.vr_skewer_p == world, "a swing's contact at it: it bursts");
+        vr_ets_then = 50;
+        VR_ET_To(30);
+    }
+    // Thrown hard side on at a wall: the gib meets it and bursts.
+    else if(vr_et_s == 50)
+    {
+        VR_ET_FaceWall(100);
+        VR_ET_To(51);
+    }
+    else if(vr_et_s == 51 && time > vr_et_t0)
+    {
+        makevectors(p.v_angle);
+        vector fwd1 = v_forward;
+        vr_et_w = VR_ETS_LetGo(p, vectoangles(v_right + v_forward * 0.35), fwd1 * 14 * VRMetersToUnits()); // (its tip end first, not a hilt)
+        VR_ET_To(52);
+    }
+    else if(vr_et_s == 52 && !vr_ets_r.vr_gib)
+    {
+        VR_Test_Check(TRUE, "thrown hard at a wall by the gib: it bursts");
+        vr_ets_then = 60;
+        VR_ET_To(30);
+    }
+    else if(vr_et_s == 52)
+    {
+        vr_ets_peak = max(vr_ets_peak, vr_ets_r.vr_skewer_lastsp); // (for the time out's line)
+    }
+    // Slowly: it doesn't.
+    else if(vr_et_s == 60)
+    {
+        VR_ET_FaceWall(60);
+        VR_ET_To(61);
+    }
+    else if(vr_et_s == 61 && time > vr_et_t0)
+    {
+        makevectors(p.v_angle);
+        vector fwd2 = v_forward;
+        vr_et_at = VRGetHandPos(cVR_MainHand);
+        vr_et_w = VR_ETS_LetGo(p, vectoangles(v_right + v_forward * 0.35), fwd2 * 2 * VRMetersToUnits());
+        VR_ET_To(62);
+    }
+    else if(vr_et_s == 62 && vr_et_w.origin_z < vr_et_at_z - 4 && vlen(vr_et_w.velocity) < 4)
+    {
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_w == vr_et_w, "thrown slowly at the wall: it stays on");
         // vr_embed off: as ever.
         cvar_set("vr_embed", "0");
         VR_EH_Give(WID_SWORD, 0);
@@ -2467,7 +2597,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     {
         if(time - vr_et_t0 > VR_ET_GIVEUP)
         {
-            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            VR_Test_Check(FALSE, sprintf("timed out: state %g (the gib's fastest %.1f m/s, now %v, the blade %v going %v, stuck %g, on %g)", vr_et_s, vr_ets_peak, vr_ets_r.origin, vr_et_w.origin, vr_et_w.velocity, vr_et_w.vr_stick_kind, vr_ets_r.vr_skewer_w == vr_et_w));
             cvar_set("vr_embed", "1");
             VR_Test_Verdict();
             vr_et_on = 0;

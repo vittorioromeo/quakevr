@@ -20,9 +20,7 @@
 // hand; what it follows is no pull on the blade (VR_Embed_HoldThink), what it doesn't slides it out, as ever. Standing, walking away
 // drags it (VR_Embed_Drag). Past reach, it comes out. Heavy bodies and bosses have none of it. VR_Embed_TetherShare: your speed.
 
-void(entity p, float xHand, entity w) VR_Skewer_BladeStuck; // (vr_skewer.qc)
-void(entity p, float xHand, entity w) VR_Skewer_BladeBack;
-void(entity p) VR_Skewer_AllOff;
+void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 
 .entity vr_hold_player;   // who holds it (world: nobody)
 .float  vr_hold_hands;    // the hands on it (bits: VR_Embed_Bit)
@@ -228,7 +226,6 @@ void(entity e, string xWhy) VR_Embed_Free =
         VR_AxeStick_Free(e, '0 0 0');
         return;
     }
-    VR_Skewer_BladeBack(p, hand, e); // (gibs on it stay on it)
     e.vr_grab_by_handle = TRUE;
     entity was = self;
     wpnthrow_handtouch_impl(hand, e, p, VRGetEntWeaponPtr(p, hand), VRGetEntWeaponFlagsPtr(p, hand)); // (it leaves self the player)
@@ -855,7 +852,6 @@ void(float xHand) VR_Embed_BlowsDone =
     {
         VR_Embed_TakeHand(w, self, other);
     }
-    VR_Skewer_BladeStuck(self, xHand, w); // (gibs on it stay on it)
     VR_Embed_Stagger(w, m, vr_embed_vel, vlen(vr_embed_vel) / VRMetersToUnits());
 };
 

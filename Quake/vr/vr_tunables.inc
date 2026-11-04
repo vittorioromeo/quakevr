@@ -1839,6 +1839,10 @@ QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
 QVR_TUNABLE(vr_embed_skewer_depth, "8") // units from the tip to the middle of the first gib on it
 QVR_TUNABLE(vr_embed_skewer_gap, "7") // units along the blade between gibs on it
+QVR_TUNABLE(vr_embed_skewer_throw_burst, "7") // m/s a thrown blade's gib must be going at to burst on what it meets itself
+QVR_TUNABLE(vr_embed_skewer_swing_burst, "3") // m/s a swing must be going at to burst the gib where it hits something
+QVR_TUNABLE(vr_embed_skewer_mass_gib, "0.5") // kg a gib weighs on a blade (a limb: its own mass)
+QVR_TUNABLE(vr_embed_skewer_mass_head, "1.5") // kg a head does
 // Embedded Blades: Axe
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
 QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the blade's plane
