@@ -214,6 +214,15 @@ struct State
     float winY{0.f};
     float winW{0.f};
     float winH{0.f};
+    // The drawn camera, while the window is open (vr_weaponstudio.cpp's camera block). `camOn` false is `off`, the
+    // default: the view stays where the game puts his own eyes and nothing of this runs, so every number the game
+    // measures -- his hands, the markers, the align read-outs, the tests -- stays exactly as it was. Flown out,
+    // `camPos` is where its eye stands and `camTurn` how it looks (pitch, yaw, roll: pitch down is positive), both in
+    // the world. `reset` and the window's Close put it back at his eyes.
+    bool camOn{false};
+    glm::vec3 camPos{0.f};
+    glm::vec3 camTurn{0.f};
+    bool wantCamReset{false}; // the window's "camera back to my eyes", done after its End (as its other buttons)
     // The window-frame checks (drag, resize, its title bar's X, Escape) count here and end with their own verdict.
     int schedPassed{0};
     int schedFailed{0};

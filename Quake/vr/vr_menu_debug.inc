@@ -196,7 +196,10 @@ za::Vector<Item> pageDebugViews()
                   "align both prints it, vr_weaponstudio_align both apply lines the muzzle up with where the gun really "
                   "aims; the same window shows the weapon held by my hands and by an armed humanoid standing in front of "
                   "me. vr_weaponstudio_test ends on 'weaponstudio: N passed, M failed'. Flat screen only (start the game "
-                  "with -flatscreenmode); vr_weaponstudio_close closes it, the game is held while it is open."),
+                  "with -flatscreenmode); vr_weaponstudio_close closes it, the game is held while it is open, and while its window is "
+                   "open W A S D and Q E fly its drawn camera out of my eyes (Shift 3x; a middle-drag or an Alt+left "
+                   "drag orbits it, the wheel zooms) so the weapon and both hands are seen from outside: my own walking "
+                   "is paused for those frames and comes back when the window closes."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch (the console; ends on "
