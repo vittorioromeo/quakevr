@@ -2818,6 +2818,7 @@ vr_holster_haptic_time|2|Tunables|Holster Haptic Time|Advanced VR Options > Debu
 vr_weapon_throw_velocity_mult|2|Tunables|Throw Speed|Advanced VR Options > Debug > Tunables > Throw Speed
 vr_weapon_draw_blend|2|Tunables|Draw Blend Time|Advanced VR Options > Debug > Tunables > Draw Blend Time
 vr_weapon_holster_blend|2|Tunables|Holster Blend Time|Advanced VR Options > Debug > Tunables > Holster Blend Time
+vr_weapon_pass_blend|2|Tunables|Hand Pass Blend Time|Advanced VR Options > Debug > Tunables > Hand Pass Blend Time
 vr_hotblade_heat_time|2|Tunables|Heating Time|Advanced VR Options > Debug > Tunables > Heating Time
 vr_hotblade_damage|2|Tunables|Extra Damage|Advanced VR Options > Debug > Tunables > Extra Damage
 vr_hotblade_light_radius|2|Tunables|Light Reach|Advanced VR Options > Debug > Tunables > Light Reach
@@ -3868,6 +3869,10 @@ vr_embed_enter_time|2|Tunables|Stab: Time Going In|Advanced VR Options > Debug >
 vr_embed_skewer_most|2|Tunables|Skewered Gibs: Most on a Blade|Advanced VR Options > Debug > Tunables > Skewered Gibs: Most on a Blade
 vr_embed_skewer_depth|2|Tunables|Skewered Gibs: From the Tip|Advanced VR Options > Debug > Tunables > Skewered Gibs: From the Tip
 vr_embed_skewer_gap|2|Tunables|Skewered Gibs: Spacing|Advanced VR Options > Debug > Tunables > Skewered Gibs: Spacing
+vr_embed_skewer_throw_burst|2|Tunables|Skewered Gibs: Thrown Burst Speed|Advanced VR Options > Debug > Tunables > Skewered Gibs: Thrown Burst Speed
+vr_embed_skewer_swing_burst|2|Tunables|Skewered Gibs: Swing Burst Speed|Advanced VR Options > Debug > Tunables > Skewered Gibs: Swing Burst Speed
+vr_embed_skewer_mass_gib|2|Tunables|Skewered Gibs: Gib Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Gib Weight
+vr_embed_skewer_mass_head|2|Tunables|Skewered Gibs: Head Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Head Weight
 vr_embed_swing_speed|2|Tunables|Axe Swing: Least Speed|Advanced VR Options > Debug > Tunables > Axe Swing: Least Speed
 vr_embed_swing_angle|2|Tunables|Axe Swing: Most Off Its Plane|Advanced VR Options > Debug > Tunables > Axe Swing: Most Off Its Plane
 vr_embed_axe_depth|2|Tunables|Axe: Depth|Advanced VR Options > Debug > Tunables > Axe: Depth
@@ -4788,6 +4793,7 @@ vr_debug_weaponfx|2|Debug - Tests|Print Weapon Effects|Advanced VR Options > Deb
 vr_autopump_hold|2|Debug - Tests|Hold the Auto Pump|Advanced VR Options > Debug > Tests > Hold the Auto Pump
 vr_weapon_kick_cancel|2|Debug - Tests|Take Out the Models' Own Kick|Advanced VR Options > Debug > Tests > Take Out the Models' Own Kick
 vr_debug_weapon_frame|2|Debug - Tests|Hold the Weapon Frame|Advanced VR Options > Debug > Tests > Hold the Weapon Frame
+vr_debug_draw_blend|2|Debug - Tests|Print the Weapon Blends|Advanced VR Options > Debug > Tests > Print the Weapon Blends
 |2|Debug - Tests|Kick Cancel Test|Advanced VR Options > Debug > Tests > Kick Cancel Test
 vr_test_fling_speed|2|Debug - Tests|Fling Speed|Advanced VR Options > Debug > Tests > Fling Speed
 vr_test_fling_at|2|Debug - Tests|Fling At|Advanced VR Options > Debug > Tests > Fling At

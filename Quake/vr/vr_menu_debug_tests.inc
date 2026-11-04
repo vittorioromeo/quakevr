@@ -1118,6 +1118,7 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_autopump_hold),
         row(opt::vr_weapon_kick_cancel),
         row(opt::vr_debug_weapon_frame),
+        row(opt::vr_debug_draw_blend),
         command("Kick Cancel Test", "vr_kickcancel_test")
             .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "
                   "frame draws it (its parts may move); prints each model's body, parts and kicked frames, and a verdict."),

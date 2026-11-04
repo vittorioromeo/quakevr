@@ -6077,6 +6077,9 @@ QVR_TOGGLE(vr_weapon_kick_cancel, "Take Out the Models' Own Kick",
     "is taken out of their poses (the body exactly still; their pumps, barrels and drums still move; the "
     "grenade launchers wholly still) and the programmatic recoil kicks them instead. Off: the models' own "
     "kick again, to compare.")
+QVR_TOGGLE(vr_debug_draw_blend, "Print the Weapon Blends",
+    "vr_debug_draw_blend: each frame of a hand's weapon blend (a draw, a force grab's catch, a pass between hands) "
+    "printed to the console: what is left of it, where the gun is drawn and its real place.")
 QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 12.f, 1.f, "%.0f", noExt,
     "vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
     "most), to look at a kick with and without the models' own (below 0: as the game steps them).")

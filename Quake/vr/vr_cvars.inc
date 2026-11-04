@@ -1647,6 +1647,7 @@ QVR_CVAR(vr_recoil_2h_kick, "0.4", CVAR_ARCHIVE)   // his values of 2026-10-31 (
 QVR_CVAR(vr_recoil_2h_rise, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_recoil_2h_time, "0.725", CVAR_ARCHIVE)
 QVR_CVAR(vr_recoil_2h_haptic, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_debug_draw_blend, "0", CVAR_NONE)         // debug: 1 each frame of a hand's weapon blend printed (vr_drawblend.cpp; Debug > Tests)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
 QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
