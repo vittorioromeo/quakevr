@@ -17,6 +17,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_rigseq.hpp"
+#include "vr_weaponstudio.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_view.hpp"
 #include "vr_worldtext.hpp"
@@ -461,6 +462,11 @@ void open_f()
     if(VR_IsActive())
     {
         Con_Printf("The Rig Studio is flat-screen only: it does not open in a headset (start the game with -flatscreenmode).\n");
+        return;
+    }
+    if(weaponstudio::active())
+    {
+        Con_Printf("rigstudio: close the Weapon Studio first (vr_weaponstudio_close)\n");
         return;
     }
     if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "here") != 0)

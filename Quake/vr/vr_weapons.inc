@@ -3,21 +3,16 @@
 //   block: every slot's value unless the slot's block has its own; "1 by default" below is that block's). The config
 //   and the console name a slot's value vr_wofs_<key>_NN (NN = slot + 1; vr_weapons.cpp's stand-ins, not cvars); the
 //   named values (vr_weaponvalues.inc: the reload keys of the guns that have them) go by their old cvar names.
-// Twelve keys look retired (they are what rounds 18 to 21 moved into the hotspots and the fitted grasp) but are read:
-// 2h_dispmd, 2h_fxd_ox/_oy/_oz and gunoff_x/_y/_z by vr_hotspots_check (vr_view_diag.cpp: the two-handed display mode,
-// a fixed grip's place, the gun's own offset, each printed per slot); hand_av, hand_x/_y/_z by the holster zones' grip
-// sphere (vr_view.cpp's publishGrip through view::anchorPosition, vr_holsterzones.cpp) and by that same check;
+// Five keys look retired (they are what rounds 18 to 21 moved into the hotspots and the fitted grasp) but are read:
+// hand_av, hand_x/_y/_z by the holster zones' grip sphere (vr_view.cpp's publishGrip through view::anchorPosition,
+// vr_holsterzones.cpp);
 // 2h_hand_av by view::secondGrip (vr_view.cpp: the helping hand's point on a gun whose Cup hotspot sits far enough
 // ahead to be a handle of its own: vr_agarms.cpp, vr_hitreact_skin.cpp, vr_builtins_held.inc, vr_axestick.cpp).
 
 #ifdef QVR_WEAPON_KEY
-QVR_WEAPON_KEY(TwoHDisplayMode, "2h_dispmd")
 QVR_WEAPON_KEY(TwoHFixedHandPitch, "2h_fxd_hp")
 QVR_WEAPON_KEY(TwoHFixedHandRoll, "2h_fxd_hr")
 QVR_WEAPON_KEY(TwoHFixedHandYaw, "2h_fxd_hy")
-QVR_WEAPON_KEY(TwoHFixedOffsetX, "2h_fxd_ox")
-QVR_WEAPON_KEY(TwoHFixedOffsetY, "2h_fxd_oy")
-QVR_WEAPON_KEY(TwoHFixedOffsetZ, "2h_fxd_oz")
 QVR_WEAPON_KEY(TwoHHandAnchor, "2h_hand_av")
 QVR_WEAPON_KEY(TwoHMode, "2h_mode")
 QVR_WEAPON_KEY(TwoHPitch, "2h_pitch")
@@ -27,9 +22,6 @@ QVR_WEAPON_KEY(TwoHOffsetY, "2h_y")
 QVR_WEAPON_KEY(TwoHYaw, "2h_yaw")
 QVR_WEAPON_KEY(TwoHOffsetZ, "2h_z")
 QVR_WEAPON_KEY(CrosshairMode, "ch_mode_z")
-QVR_WEAPON_KEY(GunOffsetX, "gunoff_x")
-QVR_WEAPON_KEY(GunOffsetY, "gunoff_y")
-QVR_WEAPON_KEY(GunOffsetZ, "gunoff_z")
 QVR_WEAPON_KEY(HandAnchor, "hand_av")
 QVR_WEAPON_KEY(HandOffsetX, "hand_x")
 QVR_WEAPON_KEY(HandOffsetY, "hand_y")

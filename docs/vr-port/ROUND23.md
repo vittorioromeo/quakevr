@@ -8443,3 +8443,18 @@ the second case. One gun of a kind in each hand stays no pass; a gun caught or p
 The carried hand-off (`VRHandOffWeapon`) needs none: the gun stays where it is, and carried guns are not `gun` here.
 
 `vr_debug_draw_blend` (Debug > Tests), which TESTING.md still described but the code had lost, prints a hand's blend per frame.
+
+## Weapon Studio review fixes (2026-11-04)
+
+Copy takes only what a slot can inherit (`weapons::inheritable`), with the source's played value, so the target keeps
+its model ID, offsets, anchors, barrel mask and nothing re-sets inherit. The `id` row is disabled text. Wheel up zooms in
+as in the Rig Studio. The preview's record is dropped at `VR_OnSpawnServerBeforeLoad` (`weaponstudio::beforeLoad`, the
+Rig Studio's precedent), so a close after `map` or a load removes nothing; placing one needs the window open. Close and
+"place one" in one frame leave no orphan. Reset clears that slot's changed marks only. Rig Studio, Wave Editor and the
+Studio's `startTest` refuse to open over one another. The self-test puts back the hold and the window's place and size,
+and a Close or X click needing a second try now counts as a failure (no run needed one: nothing swallows the first).
+
+His decisions: `2h_dispmd`, `2h_fxd_ox/_oy/_oz`, `gunoff_x/_y/_z` are out of the store (`removedKeyLine` keeps old
+configs quiet, no config version step: nothing to convert). `vr_hotspots_check` and its Debug > Reports row went with
+them: what stayed was the distance of a hand from an anchor it no longer sits at, round 20's migration long done.
+`vr_weaponstudio_fly_speed` is a tunable (Debug > Tunables > Weapons > Other); the Studio's slider became a text hint.

@@ -370,8 +370,7 @@ and props with `vr_box3d_throw_grace` 0 and 0.2 and lets a gib go on the palm; `
 and its velocity and spin change by the grace's end.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
-prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
-compares every slot's hotspots, muzzle and hand with round 20's placement.
+prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them.
 
 Anchors (ROUND22.md, "Anchors are points on the models' surfaces"): `vr_anchor_where` (Debug > Reports > Weapon Anchors)
 prints the held weapons' muzzle, ammo button and screen, magazine and well, in the world and in the gun's own frame;

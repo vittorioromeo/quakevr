@@ -16,7 +16,7 @@
 // the blade, drawn as the view draws it, lies along that line. No virtual stock.
 //
 // Weapons may have more than one two-handed grip (round 18). A sword has two: the grip below the
-// holding hand (above), and its blade towards the tip (weapon key TwoHBladeGrip, a share of the way
+// holding hand (above), and its blade towards the tip (its Blade hotspot, a share of the way
 // from the hand to the tip): the "half-sword" grip, the blade held across the body with the helping
 // hand on it, like a staff. The helping hand takes the nearest grip in reach (the blade: within 6
 // units of its outer part); with the blade grip the blade lies along the line from the holding hand
@@ -98,14 +98,14 @@ bool cupLineSet[2]{false, false};
 enum GripKind : int
 {
     GRIP_FOREGRIP = 0, // the "fixed" display mode's grip point: a gun's foregrip, a sword's grip below the hand
-    GRIP_BLADE = 1,    // a sword's blade towards its tip (weapon key TwoHBladeGrip): the half-sword grip
+    GRIP_BLADE = 1,    // a sword's blade towards its tip (its Blade hotspot): the half-sword grip
 };
 int grip[2]{GRIP_FOREGRIP, GRIP_FOREGRIP}; // per holding hand: the grip held (or last held, while letting go)
 float gripLength[2]{0.f, 0.f};             // per holding hand: the hand-to-tip length when the blade was taken
 
 constexpr float foregripTake = gripTakeUnits; // units from the grip point to take hold
 constexpr float foregripKeep = 20.f;  // and to keep it
-constexpr float bladeTake = 6.f;      // units from the blade's outer part (TwoHBladeGrip -0.3 .. the tip)
+constexpr float bladeTake = 6.f;      // units from the blade's outer part (its Blade hotspot's range)
 constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
 constexpr float bladeKeepMax = 1.35f; // at most this
 
