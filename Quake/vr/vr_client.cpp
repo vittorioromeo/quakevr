@@ -126,6 +126,7 @@ struct HandButtons
 HandButtons leftButtons, rightButtons;
 bool offhandAttack = false;
 bool offhandAttackImpulse = false; // pressed and released between two moves
+bool moveLmb = false;              // this move's +attack as cl_input.c read it (VR_MoveMainFire), for the off hand's bit
 
 // HAND_OFF is the left controller (vr_backend.hpp).
 [[nodiscard]] HandButtons& handButtons(int hand)
@@ -377,7 +378,10 @@ void setVrBits(VrMove& move, const hands::State& hs)
 // The buttons: the off hand's attack, the tracked hands, busy hands, the face buttons held.
 void setButtons(VrMove& move)
 {
-    if(offhandAttack || offhandAttackImpulse)
+    // Flatscreen play routes the mouse's buttons by what the hands hold (flatplay::routeFire: one weapon, the right
+    // button is the ironsight's and fires nothing).
+    const bool rmb = offhandAttack || offhandAttackImpulse;
+    if(flatplay::active() ? flatplay::routeFire(moveLmb, rmb).fire[HAND_OFF] : rmb)
     {
         move.buttons |= QVR_BUTTON_OFFHANDATTACK;
     }
@@ -834,9 +838,19 @@ bool grabbing(int hand)
     return gripping(hand);
 }
 
+bool offhandButton()
+{
+    return offhandAttack;
+}
+
 bool attacking(int hand)
 {
-    return hand == HAND_MAIN ? (in_attack.state & 1) != 0 : offhandAttack;
+    const bool lmb = (in_attack.state & 1) != 0;
+    if(flatplay::active()) // (the mouse's buttons as flatscreen play routes them)
+    {
+        return flatplay::routeFire(lmb, offhandAttack).fire[hand];
+    }
+    return hand == HAND_MAIN ? lmb : offhandAttack;
 }
 
 const EntityVr* entityVr(int num)
@@ -948,6 +962,16 @@ extern "C" void VR_OnClientClearState()
     view::resetClientState();
     painknock::reset();
     hands::resetClientState();
+}
+
+extern "C" int VR_MoveMainFire(int lmb)
+{
+    moveLmb = lmb != 0;
+    if(!flatplay::active())
+    {
+        return moveLmb ? 1 : 0;
+    }
+    return flatplay::routeFire(moveLmb, offhandAttack || offhandAttackImpulse).fire[HAND_MAIN] ? 1 : 0;
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

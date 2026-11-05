@@ -421,7 +421,7 @@ void CL_SendMove (const usercmd_t *cmd)
 	//
 		bits = 0;
 
-		if ( in_attack.state & 3 )
+		if ( VR_MoveMainFire ((in_attack.state & 3) != 0) ) // QVR: flatscreen play routes the mouse's buttons by what the hands hold
 			bits |= 1;
 		in_attack.state &= ~2;
 

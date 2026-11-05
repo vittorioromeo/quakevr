@@ -82,8 +82,10 @@ console.
 
 | Key | |
 |---|---|
-| mouse LMB | fires the right hand (as in VR); with a weapon a swing strikes with in that hand â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
-| mouse RMB | fires the left hand (as in VR); the same punch with a swinging weapon in the off hand |
+| mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
+| mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) |
+| `Q` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `q`; `""` none). Q was bound to nothing before |
+| `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
 | `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` Ã¢â€ â€™ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
@@ -179,6 +181,21 @@ engine's own `vr_flashlight_toggle`, and in the mode the state the engine saves 
 restored (`restoreState`): a torch put out with `F` stays out, over a level change. A headset game is as it was â€” its
 restored state still forces the head-worn torch lit.
 
+**The status bar (hudstyle 1).** With the modern status bar's centred ammo (`hudstyle 1`) and `vr_flat_hud 1` (the
+default; VR Settings > Locomotion, Desktop Screen Play > Desktop Status Bar) the mode draws its own layout
+(`Sbar_DrawFlatHud`, `Quake/sbar.c`; the numbers from `Quake/vr/vr_flathud.cpp`): the portrait and the health in the
+middle, over the ammo bar (the armour to their left); bullet time's meter over them (cyan ready, dim blue filling, yellow
+running, grey cooling down; drawn while `vr_bullettime_enabled`); and each hand's ammo at its own bottom corner, the left
+hand's at the left edge and the right hand's at the right, with its ammo's picture. A hand's counter is QC's own for
+that hand (`updateAmmoCounter`: the reserve of its gun's ammo, or the clip of a gun whose clip is its only ammo: the
+grunt's shotgun, the enforcer's rifle, AD's guns, the flare gun, the chainsaw's fuel); an empty hand and a weapon with no
+ammo (an axe, a sword, the grapple) show none. `vr_flathud_report` prints both counters, the pools, the bar and the
+canvas. **The wrong count:** the plain status bar's ammo number (`STAT_AMMO`) read the VR progs' main-hand ammo *type*
+(1 with shells, 2 with nails) -- `SV_WriteClientdataToMessage` wrote `.currentammo`, which the VR progs keep as `AID_*` --
+and now reads the main hand's counter (`VR_AmmoStat`, `Quake/vr/vr_server.cpp`), whatever the HUD style. Test:
+`bash Misc/quakevr/flathud_test.sh <agent>` (counts for the shotgun, the revolver, the grunt's shotgun and dual wielding;
+the layout's pieces found in screenshots by `flathud_check.py`).
+
 **The body presses the buttons it walks into.** `Quake/vr/vr_physics.cpp` lets a flatscreen player's body do the hand
 touch it does for an untracked player, whatever `vr_body_interactions` says.
 
@@ -250,7 +267,8 @@ cup hotspot at all has no stance, and its hand hangs: the toolgun and the glowin
 `vr_flatplay_status` prints four `stance` lines: its state, the arm's share, the hotspot in the held hand's frame, and the drawn hand
 there with how far off the hotspot it stands.
 
-The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
+The right mouse button with one weapon held (held, or a click with `vr_flat_aim_mode 1`; the wheel's button no longer does:
+his words 2026-11-05, "no need for dedicated ADS button"), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
 onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
 `VR_FlatAdsFov` where it chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s
 `IN_FovScale`), so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight

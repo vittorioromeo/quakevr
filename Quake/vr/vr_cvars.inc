@@ -3865,6 +3865,10 @@ QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscre
 QVR_CVAR(vr_flat_pitch_up, "85", CVAR_ARCHIVE)          // flatscreen look: how far up the view may look, in degrees from straight ahead (0..90; 90: all the way up, as the plain game's cl_minpitch -90 allowed it). Only the flatscreen view is bounded this way (vr_flatplay.cpp VR_FlatPitchClamp, Quake/cl_main.c): plain and headset play keep cl_maxpitch / cl_minpitch as they were
 QVR_CVAR(vr_flat_pitch_down, "85", CVAR_ARCHIVE)        // the same, looking down (0..90; 90: all the way down, as the plain game's cl_maxpitch 90 allowed it)
 QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_ARCHIVE)        // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
+QVR_CVAR(vr_flat_aim_mode, "0", CVAR_ARCHIVE)           // the right mouse button's ironsight (one weapon held, either hand: vr_flatsight.cpp): 0 held while the button is held, 1 a press turns it on and the next off
+QVR_CVAR(vr_flat_key_swap, "q", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("q", "x", ...; "" none); read from the keyboard's state like E, F and G
+QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
+QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)                // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still

@@ -5921,6 +5921,15 @@ QVR_TOGGLE(vr_xr_skip_incompatible_layers, "Skip Incompatible API Layers",
 QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
     "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
     "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
+QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
+    "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand: the left mouse button fires it "
+    "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
+    "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
+    {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
+    "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
+    "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
+    "the status bar as Ironwail draws it (vr_flat_hud).")
 QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")

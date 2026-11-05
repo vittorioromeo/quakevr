@@ -58,6 +58,7 @@
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
 #include "vr_avatar.hpp"
+#include "vr_client.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
@@ -90,8 +91,8 @@ namespace
 // The state for the session (no function-local statics: CODE_STYLE.md).
 struct Sight
 {
-    bool ads{false};            // the ironsight is asked for (the mouse wheel's button, vr_flat_aim)
-    bool keyWas{false};         // K_MOUSE3 last frame: a press edge
+    bool ads{false};            // the ironsight is asked for (the right mouse button with one weapon held, vr_flat_aim)
+    bool keyWas{false};         // that button, as the ironsight's, last frame: a press edge
     int toggles{0};
 
     double lastTime{-1e9};      // the eases below step once a frame (the pose is made several times a frame)
@@ -571,15 +572,29 @@ void setAds(bool on, const char* by)
     }
 }
 
-// The mouse wheel's button, K_MOUSE3 (keys.h): a press edge read from the keyboard state, like flatplay's E and V, so
-// nothing is rebound and no config changes. The wheel itself (K_MWHEELUP, K_MWHEELDOWN) still cycles the weapons: this
-// is its button, pressed.
+// The right mouse button (+offhandattack, client::offhandButton) with one weapon held, whichever hand holds it
+// (flatplay::routeFire; his words 2026-11-05: "right click holds ADS ... No need for dedicated ADS button"): vr_flat_aim_mode
+// 0 the ironsight while it is held, 1 a press turns it on and the next off. Edges only, so `vr_flat_aim` said on the
+// console stays until the button is used. A weapon in each hand, or none, and the button fires the left hand: the
+// ironsight goes off.
 void pollKey()
 {
-    const bool down = key_dest == key_game && keydown[K_MOUSE3] != 0;
-    if(down && !st.keyWas)
+    const bool aims = flatplay::routeFire(false, false).rmbAims;
+    const bool down = aims && key_dest == key_game && client::offhandButton();
+    if(!aims)
     {
-        setAds(!st.ads, "mouse wheel button");
+        setAds(false, "no lone weapon");
+    }
+    else if(vr_flat_aim_mode.value != 0.f)
+    {
+        if(down && !st.keyWas)
+        {
+            setAds(!st.ads, "right mouse button (toggle)");
+        }
+    }
+    else if(down != st.keyWas)
+    {
+        setAds(down, "right mouse button (held)");
     }
     st.keyWas = down;
 }
@@ -1175,10 +1190,10 @@ float fov(float basefov)
 
 void statusLine()
 {
-    Con_Printf("  ironsight: %s (vr_flat_aim, or the mouse wheel's button; vr_flat_aim_fov %g off the field of view, "
+    Con_Printf("  ironsight: %s (vr_flat_aim, or the right mouse button with one weapon held, vr_flat_aim_mode %g; vr_flat_aim_fov %g off the field of view, "
                "taken over %g s of travel (vr_flat_aim_time); %d toggles this session; solved from the weapon's sight line: "
                "the rear sight vr_flat_ads_relief %g from the eye, the picture at vr_flat_ads_screen_x %g _y %g percent)%s\n",
-        st.ads ? "asked for" : "off", vr_flat_aim_fov.value, vr_flat_aim_time.value, st.toggles,
+        st.ads ? "asked for" : "off", vr_flat_aim_mode.value, vr_flat_aim_fov.value, vr_flat_aim_time.value, st.toggles,
         vr_flat_ads_relief.value, vr_flat_ads_screen_x.value, vr_flat_ads_screen_y.value,
         st.ads && st.holding >= 0 && !sightalign::alignable(st.holding) ? ", no sights on the weapon held" : "");
     if(st.holding >= 0)

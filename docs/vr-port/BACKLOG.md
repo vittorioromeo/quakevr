@@ -34,6 +34,9 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 - **Per-weapon flat-screen pose** (Vittorio, 2026-11-05): an easy way to tweak each weapon's pose in flat-screen; some should be held differently (pistols, rifles, shoulder launchers). Tweaking must keep sight alignment and the ironsight working.
 - **Flat-screen immersive reloading** (Vittorio, 2026-11-05): on by default, from pre-recorded or procedural animation depending on the weapon. To start, make all reloads procedural with simple rules: e.g. the shotgun rolls a bit so the shell port is more accessible, and the off hand goes smoothly back and forth between the ammo pouch and the port until the reload is interrupted or the weapon is full.
 - **Flat-screen hotkeys for VR interactions** (Vittorio, 2026-11-05): support most VR-specific interactions with proper hotkeys: parrying, switching ammo type, throwing, shoving, climbing and so on. Harder ones can stay VR-only. Audit each and propose a solution or suggestion for it.
+- **Flat-screen left-handed mode** (Vittorio, 2026-11-05: "We can add a 'flatscreen lefthanded mode' later"): the mouse's
+  buttons route by what the hands hold (`flatplay::routeFire`: one weapon, LMB fires it and RMB aims; dual wielding, LMB
+  the right hand, RMB the left). A left-handed mode would change that behaviour (e.g. LMB the left hand when dual wielding).
 - **Recording motions for flat-screen** (Vittorio, 2026-11-05): an easy way to record motions in VR for melee attacks and reloading, so they can be used in flat-screen mode as realistic animations.
 - **The graphics on the flat screen** (asked round 20): most features already draw on the desktop; to do: the
   float scene, tone mapping, grades and bloom for the window, and a check of each feature with VR off.
