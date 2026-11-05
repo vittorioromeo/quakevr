@@ -1225,6 +1225,11 @@ float stanceShare(int h)
     return h == st.stanceHand && st.stanceGun ? geom::smooth01(st.stanceT) : 0.f;
 }
 
+float stanceLift(int h)
+{
+    return flatplay::active() && h == st.stanceHand && st.stanceWanted ? geom::smooth01(st.stanceT) : 0.f;
+}
+
 bool adsHelper(int h)
 {
     return h == st.helping && st.gripWanted;
@@ -1362,6 +1367,22 @@ static void check_f()
         return;
     }
     const sightalign::SightLine line = sightalign::sightLine(wf.model);
+    {
+        // Where the weapon is drawn in the camera's frame (forward, right, up; and its pitch on the screen, degrees, up
+        // positive): the hand, the muzzle, the sights. What a gun drawn lower or higher than the others is read from.
+        const glm::vec3 c = geom::vec(r_refdef.vieworg);
+        const glm::mat3 ax = axesOf(geom::vec(r_refdef.viewangles));
+        const auto inView = [&](const glm::vec3& p) { return glm::transpose(ax) * (p - c); };
+        const auto upDeg = [](const glm::vec3& v) { return glm::degrees(std::atan2(v.z, glm::max(v.x, 0.01f))); };
+        const glm::vec3 hand = inView(s.pos[h]);
+        const glm::vec3 muz = s.muzzleValid[h] ? inView(s.muzzle[h]) : hand;
+        const glm::vec3 rear = line.valid ? inView(glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}}) : hand;
+        const glm::vec3 front = line.valid ? inView(glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}}) : muz;
+        Con_Printf("flatgunview: %s t %.2f hand %.2f %.2f %.2f (%.2f deg) muzzle %.2f %.2f %.2f (%.2f deg) rear %.2f %.2f %.2f "
+                   "(%.2f deg) front %.2f %.2f %.2f (%.2f deg)\n",
+            wf.model->name, st.adsT, hand.x, hand.y, hand.z, upDeg(hand), muz.x, muz.y, muz.z, upDeg(muz), rear.x, rear.y, rear.z,
+            upDeg(rear), front.x, front.y, front.z, upDeg(front));
+    }
     if(!line.valid)
     {
         Con_Printf("flatsightcheck: %s no sight line\n", wf.model->name);

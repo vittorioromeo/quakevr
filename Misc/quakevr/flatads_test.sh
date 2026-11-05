@@ -31,4 +31,15 @@ if [[ $SECTIONS == *b* ]]; then
   check $([ "$ok" = "4" ] && echo 1 || echo 0) "fingers: both hands grip the shotgun, hipfire and sighted ($ok of 4 hands closed)"
 fi
 
+if [[ $SECTIONS == *c* ]]; then
+  # c. the grenade and rocket launchers at the others' height: hipfire, level, the muzzle's pitch on the screen and the hand's height
+  #    within 2 degrees and 1.5 units of the shotgun's (they take their two-handed grip for real, and missed the stance's lift).
+  log=$HERE/scratch/flatads_c.log
+  S=""; for i in 4 8 10; do S="$S vr_test_give_wid $i; impulse 149; wait50; vr_flat_sight_check;"; done
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; wait30; $S toggleconsole; quit" -Filter "^flatgunview" -Timeout 60 > "$log" 2>&1
+  grep -a "^flatgunview" "$log" | awk '{ gsub(/[(]/, "", $15); printf "  %s: hand up %s, muzzle %s deg on the screen\n", $2, $8, $15 }'
+  ok=$(grep -a "^flatgunview" "$log" | awk '{ gsub(/[(]/, "", $15); if (NR == 1) { z = $8; d = $15; next } dz = $8 - z; dd = $15 - d; if (dz < 0) dz = -dz; if (dd < 0) dd = -dd; if (dz <= 1.5 && dd <= 2) n++ } END { print n + 0 }')
+  check $([ "$ok" = "2" ] && echo 1 || echo 0) "launchers: the grenade and rocket launchers at the shotgun's height hipfire ($ok of 2)"
+fi
+
 verdict; exit $fail

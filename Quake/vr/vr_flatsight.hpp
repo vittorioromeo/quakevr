@@ -96,6 +96,10 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // for hand `h`'s gun: 0 for anything else.
 [[nodiscard]] float stanceYaw();
 [[nodiscard]] float stanceShare(int h);
+// The same share for any gun in the stance, one the free hand really grips included (the grenade and rocket launchers, the
+// proximity gun, the laser cannon, the Enforcer's rifle: their grips are taken for real, `carry`): the stance's height
+// (vr_flat_stance_up), which stanceShare would otherwise leave those guns 4 units under the others.
+[[nodiscard]] float stanceLift(int h);
 
 // The stance's kind: a pistol's (vr_flat_stance_pistol: both hands in front of him, vr_flat_pistol_*) rather than a long gun's
 // (vr_flat_stance_*: the gun's hand towards the shoulder pocket, by his cheek).
