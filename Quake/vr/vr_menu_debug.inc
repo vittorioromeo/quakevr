@@ -992,6 +992,7 @@ za::Vector<Item> pageDebugTools()
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),
         command("Hand Mesh", "vr_grasp_dump").help("vr_grasp_dump: the main hand as drawn, to grasp_dump.obj (for Blender)."),
         command("Gadget Screen", "vr_gadget_screen_dump").help("vr_gadget_screen_dump: the wrist gadget's screen, to screenshots/gadget_screen.png."),
+        command("Arena Banner", "vr_panelboard_dump").help("vr_panelboard_dump: the Survival Arena banners' image and what it holds, to screenshots/panel_board.png (no image: no banners here, or Arena Banners off)."),
         command("Eye Images (with the UI)", "vr_eyeshot 3").help("vr_eyeshot 3: both eyes as the headset shows them (the HUD panel, the menu), to eyeshots/<map>_<n>_L.png and _R.png."),
         command("Texture Checksums", "imagehash").help("imagehash: every loaded texture's checksum as the GPU holds it, to imagehash.txt, and their sum in the console (two texture packs, or TGA and PNG files, compared)."),
         command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
@@ -1113,6 +1114,9 @@ za::Vector<Item> pageDebugTools()
         command("Lightning into Water", "vr_waterzap_test 1")
             .help("vr_waterzap_test 1: moves you over the widest open water on the map and fires the thunderbolt by the trigger, down into it, "
                   "for a look at the arcs on the surface (2 glancing, 3 Mjolnir on a knight, 4 a shambler's bolt). The test is Misc/quakevr/waterzap_test.sh."),
+        command("Struck by a Bolt from Behind", "vr_shockarcs_test 1")
+            .help("vr_shockarcs_test 1: a shambler's real bolts into you from behind (you turned to look along open space), for a look at the arcs on "
+                  "your arms (2 looking down, 3 crouched a little, 4 the look swinging). The test is Misc/quakevr/sa_shockarcs_test.sh."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
                   "where it strikes; it keeps Quad's arcs crawling over it (Lightning Shock), alive or dead, a ragdoll convulsing, a kill charred."),

@@ -179,6 +179,7 @@ void() VR_TestsFrame =
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_BurnMark_TestFrame(); // VR: lightning's burns on the wall (vr_burnmark_test, vr_burnmark_test.qc)
     VR_WaterZap_TestFrame(); // VR: lightning electrifying water (vr_waterzap_test, vr_waterzap_test.qc)
+    VR_ShockArcs_TestFrame(); // VR: struck by lightning, the arcs on your arms (vr_shockarcs_test, vr_shockarcs_test.qc)
     VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
     VR_ARENA_Test_Frame(); // VR: the Survival Arena's tests (vr_arena_test, vr_arena_test.qc)
     VR_ARENA_PERKS_Test_Frame(); // VR: the Survival Arena's perk tests (vr_arena_perks_test, vr_arena_perks_test.qc)

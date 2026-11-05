@@ -1559,6 +1559,7 @@ float cvarh_vr_shock_hit_test;
 float cvarh_vr_shock_living;
 float cvarh_vr_shock_living_time;
 float cvarh_vr_shock_sound;
+float cvarh_vr_shockarcs_test;
 float cvarh_vr_shot_push;
 float cvarh_vr_shot_push_lightning;
 float cvarh_vr_shot_push_nail;
@@ -3433,6 +3434,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_shock_living = VR_CVar_Make("vr_shock_living");
     cvarh_vr_shock_living_time = VR_CVar_Make("vr_shock_living_time");
     cvarh_vr_shock_sound = VR_CVar_Make("vr_shock_sound");
+    cvarh_vr_shockarcs_test = VR_CVar_Make("vr_shockarcs_test");
     cvarh_vr_shot_push = VR_CVar_Make("vr_shot_push");
     cvarh_vr_shot_push_lightning = VR_CVar_Make("vr_shot_push_lightning");
     cvarh_vr_shot_push_nail = VR_CVar_Make("vr_shot_push_nail");

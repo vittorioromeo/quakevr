@@ -224,7 +224,7 @@ hint Swing at them: ...                             # optional; default the chec
   runall checks the weapons stay in both modes.
 - Armour: `cvar vr_toolgun_armed_armor <1-4>` (green, yellow, red, random; `vr_toolgun_armed_pieces` 0 cuirass and
   helmet, 1 all ten, 2 random) puts the toolgun's Armed Humanoid armour on every armed humanoid the scene places
-  (`spawn "Armed Grunt: ..."` and `spawnarmed` alike; `agarmor_plates`); unset, each wears its own roll as on a map.
+  (`spawn "Armed Grunt: ..."` and `spawnarmed` alike); unset, each wears its own roll as on a map.
   Armed knights need `cvar vr_agknight 1` (`monster_vr_knight`), armed death knights `cvar vr_agdknight 1`
   (`monster_vr_hknight`; weapon 0 is his own sword). A Debug > Tests setup works as a `cmd` (`cmd vr_agarmor_test 6`).
 - No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged; nor
@@ -1446,6 +1446,13 @@ the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the cur
 (svc_skybox) and sky fog (STAT_QVR_ADSKYFOG; then `vr_ad_skyfog_info` prints the client's: `stat 1.3, sky fog drawn
 0.3`). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
+
+Arena banners (panel boards, ROUND24.md "Arena banners: the gadget's layout"): `map vrarena; vr_arena_test 38` with
+`-QuitOn "test 38 over"`: each board's text from the server's list, and the pixels of the image drawn from it on the client
+(`panelboard_read`) in the tile that moved and only there: countdown, perk choice, fight, foes' bar, time, score, off (image
+freed) and on, YOU FELL (red), CLEARED. `vr_panelboard_dump [name]` (Debug, Save to Files, "Arena Banner") prints what the image
+holds and writes it to `screenshots/`. In a real frame: the same pose with `vr_arena_banners 0` and `1`, `vr_eyeshot 1` (flat:
+`vr_enabled 0`, `screenshot png`), and the two images compared: the difference is the boards, cut where a pillar hides them.
 Carried through a level change (2026-10-13): `vr_adgun_drops 0; vr_weapon_grip_mode 1; map ad_dm1; wait60; vr_ad_test 87;
 wait10; changelevel start; wait60; vr_ad_test 88` prints `adgun carry: start: ... PASS` (87 arms the main hand and the
 left shoulder holster; before the fix the engine quit with "SV_ModelIndex: model ...#gun4 not precached").

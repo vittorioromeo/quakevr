@@ -224,6 +224,7 @@ struct Board
                                       // reused by the next map's, and a map's model by another map after a game change)
     double changed{-100.0};           // realtime its text last changed
     bool wanted{false};               // laid out this frame
+    bool panel{false};                // a panel board (worldtext::isPanel): the gadget's image, none of its own
     gfx::Target target;
     int width{0}, height{0};          // its image's virtual screen (font pixels), 0 before it is drawn
     za::String drawn;                // the text in its image
@@ -770,6 +771,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     }
 
     const size_t longest = splitLines(wt.text);
+    b.panel = worldtext::isPanel(wt.text.cStr());
     if(wt.text != b.text)
     {
         b.text = wt.text;
@@ -780,8 +782,11 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     {
         return;
     }
-    b.columns = za::max(b.columns, static_cast<int>(longest));
-    b.rows = za::max(b.rows, static_cast<int>(textLines.size()));
+    if(!b.panel)
+    {
+        b.columns = za::max(b.columns, static_cast<int>(longest));
+        b.rows = za::max(b.rows, static_cast<int>(textLines.size()));
+    }
     b.wanted = true;
 
     vec3_t a{wt.angles.x, wt.angles.y, wt.angles.z}, f, r, u;
@@ -799,9 +804,10 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     const glm::vec3 n = glm::normalize(glm::cross(right, up));
 
     const float charSize = 8.f * wt.scale;
-    const float halfW = charSize * static_cast<float>(b.columns) * 0.5f;
-    const float halfH = charSize * static_cast<float>(b.rows) * 0.5f;
-    const float pad = charSize / 8.f * static_cast<float>(boardPad);
+    // (A panel's image is its whole face: `scale` units a pixel of it, its margins its own.)
+    const float halfW = b.panel ? wt.scale * static_cast<float>(worldtext::panelWidth) * 0.5f : charSize * static_cast<float>(b.columns) * 0.5f;
+    const float halfH = b.panel ? wt.scale * static_cast<float>(worldtext::panelHeight) * 0.5f : charSize * static_cast<float>(b.rows) * 0.5f;
+    const float pad = b.panel ? 0.f : charSize / 8.f * static_cast<float>(boardPad);
     const float bezel = charSize * 0.45f;
     const float depth = charSize * 0.6f;
     const float gap = charSize * 0.04f;
@@ -823,13 +829,15 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     const glm::vec3 tr = c + right * (halfW + pad) + up * (halfH + pad);
     const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
 
-    const glm::vec3 textColor = boardText();
-    if(b.width > 0 && b.target.texture)
+    const glm::vec3 textColor = b.panel ? gadget::panelBoardPhosphor() : boardText();
+    const gfx::Texture image = b.panel ? gadget::panelBoardTexture() : b.width > 0 ? b.target.texture : 0;
+    if(image)
     {
-        // Its own moments (offset by its handle), and a burst as its page turns.
+        // Its own moments (offset by its handle), and a burst as its page turns (not a panel's: its numbers move every
+        // second, and that is no page).
         const float crt = boardCrt();
         const float sinceChange = static_cast<float>(realtime - b.changed);
-        const float turn = sinceChange >= 0.f && sinceChange < 0.3f ? 0.8f * za::sin(sinceChange / 0.3f * 3.14159265f) : 0.f;
+        const float turn = !b.panel && sinceChange >= 0.f && sinceChange < 0.3f ? 0.8f * za::sin(sinceChange / 0.3f * 3.14159265f) : 0.f;
         const float glitch = za::max(gadget::glitch(realtime + 11.3 + 5.9 * static_cast<double>(index)), turn);
         const glm::vec4 phosphor{textColor, 1.f};
         const gfx::Vertex v[4] = {
@@ -837,8 +845,9 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
         const float time = static_cast<float>(za::fmod(realtime, 1000.0));
         screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
             .params = {time, crt, glitch * za::min(crt, 1.f), gadget::textGlow()},
-            .size = {static_cast<float>(b.width), static_cast<float>(b.height), 1.f},
-            .texture = b.target.texture, .board = true});
+            .size = b.panel ? glm::vec3{worldtext::panelWidth, worldtext::panelHeight, 1.f}
+                            : glm::vec3{static_cast<float>(b.width), static_cast<float>(b.height), 1.f},
+            .texture = image, .board = true, .trueColor = b.panel});
     }
     else
     {
@@ -1092,6 +1101,20 @@ void renderBoards()
                 gfx::releaseTarget(b.target);
             }
         }
+    }
+    // The panel boards' one image (the gadget's own drawing), whatever vr_worldtext_crt says: the look is the layout's.
+    bool panelWanted = false;
+    for(const Board& b : boards)
+    {
+        if(b.wanted && b.panel)
+        {
+            gadget::renderPanelBoard(b.text.cStr());
+            panelWanted = true;
+        }
+    }
+    if(!panelWanted)
+    {
+        gadget::releasePanelBoard();
     }
     if(boardCrt() <= 0.f)
     {
@@ -1630,7 +1653,7 @@ extern "C" void VR_DrawSceneOpaque()
         for(size_t i = 0; i < worldTexts.size(); i++)
         {
             const worldtext::WorldText& wt = worldTexts[i];
-            if(boardCrt() > 0.f)
+            if(boardCrt() > 0.f || worldtext::isPanel(wt.text.cStr()))
             {
                 layoutBoard(i, wt);
             }

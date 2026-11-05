@@ -632,6 +632,10 @@ void() cvar_hclear = #0;
 float() worldtext_hmake = #0;
 void(float h, string s) worldtext_hsettext = #0;
 string(float h) worldtext_hgettext = #0; // (what the server's list holds; the tests read it)
+// The tests' look at the panel boards' image (gadget::panelBoardRead): a part of it (the panel's pixels: 250 x 40, y down). what
+// 0 how much is inked, 1 its checksum, 2 1 while there is an image at all, 3 its ink's red over its green; -1 when it doesn't hold
+// `text` yet.
+float(string text, float x, float y, float w, float h, float what) panelboard_read = #0;
 void(float h, vector v) worldtext_hsetpos = #0;
 void(float h, vector v) worldtext_hsetangles = #0;
 float(entity trig, entity who) portal_handles = #0; // QVR: the engine carries this player (or monster: vr_portals_monsters) through the teleporter (vr_portals_walk)
