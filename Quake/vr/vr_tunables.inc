@@ -1939,7 +1939,13 @@ QVR_TUNABLE(vr_embed_hold_axe_stick, "2") // cm before an axe moves
 QVR_TUNABLE(vr_embed_hold_axe_rate, "70") // cm/s an axe slides at most
 QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does
 QVR_TUNABLE(vr_embed_stagger_axe, "0.75") // s an axe's does (times the body's Skewer, by how deep)
-QVR_TUNABLE(vr_embed_hold_axe_tug, "5") // cm the hand pulls on past its depth to tug an axe out of the wound
+QVR_TUNABLE(vr_embed_hold_axe_tug, "20") // cm the hand pulls on past its depth to tug an axe out of the wound (his 2026-11-05: "I like that I have to pull out that much")
+QVR_TUNABLE(vr_embed_hold_axe_tug_speed, "0.8") // m/s the hand's pull out must average over vr_embed_hold_axe_tug_time as it gets there: slower, the hand comes off and the axe stays (0: any)
+QVR_TUNABLE(vr_embed_hold_axe_tug_time, "0.15") // s that average is over (not the last frame alone)
+QVR_TUNABLE(vr_embed_tug_shake, "2.5") // degrees the axe (and the hand on it) shakes at most as the tug nears its distance (0: none)
+QVR_TUNABLE(vr_embed_tug_shake_from, "0.4") // share of the tug distance from which it starts to shake
+QVR_TUNABLE(vr_embed_lean_axe, "6") // degrees an axe held in a body turns with the hand on its handle, any way (0: rigid)
+QVR_TUNABLE(vr_embed_move_axe_lift, "1.2") // times the body's weight an axe in it lifts at least (Skewer 1)
 QVR_TUNABLE(vr_embed_move_axe_force, "300") // N an axe does
 // Embedded Blades: Hold
 QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
@@ -1949,6 +1955,9 @@ QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, bar
 QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
+QVR_TUNABLE(vr_embed_hold_corpse_tug_sword, "0.8") // m/s a pull out of a dead body must average (over vr_embed_hold_axe_tug_time) for a sword to come out 1:1 with the arm; slower, the body comes along (his 2026-11-05, "like the axe"; 0: always 1:1)
+QVR_TUNABLE(vr_embed_hold_corpse_tug_axe, "0.8") // ... an axe (its tug distance still to go)
+QVR_TUNABLE(vr_embed_hold_corpse_slip, "20") // cm past the stick a slower pull's hand may get ahead of a dead body that won't come along before it slips off (the blade stays in)
 QVR_TUNABLE(vr_embed_slide_sound_cm, "3") // cm a blade slides, in or out, between two flesh sounds (0: none)
 QVR_TUNABLE(vr_embed_slide_sound_vol, "0.35") // their volume
 QVR_TUNABLE(vr_embed_slide_blood, "10") // how much blood spurts out of the wound at each of those steps, going in or out (0: none)
@@ -1980,4 +1989,12 @@ QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
+QVR_TUNABLE(vr_embed_move_sword_lift, "0.8") // times the body's weight a sword barely in lifts at least (Skewer 1; its force is the more of that and Moving: Sword's Force)
+QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2") // ... in as far as it goes: a grunt held up over your head
+QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)
+QVR_TUNABLE(vr_embed_free_ease, "0.25") // s the hand and the blade take from where it was in the body to the hand's own place once it comes out
+QVR_TUNABLE(vr_embed_arm_stretch, "1.3") // how far the arm may stretch to a hand held on a blade in a body (vr_body_arm_stretch elsewhere; eased back)
+QVR_TUNABLE(vr_embed_arm_stretch_ease, "0.2") // s it takes to come in and to go back to normal
+QVR_TUNABLE(vr_embed_arm_letgo, "1") // cm past that stretch the drawn hand may be off its arm before the hand lets go of the blade
+QVR_TUNABLE(vr_embed_handle_free, "1") // 1: a handle stuck in the body's model is turned out of it about the wound (checked 4 times a second), so a hand can take it
 QVR_TUNABLE(vr_embed_tether_far, "10") // cm further from a dead body's wound than the hand held it, for that body to count: dragging it

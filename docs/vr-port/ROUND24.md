@@ -514,6 +514,67 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
 
 **Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}
 
+## Embedded blades: his notes of 2026-11-05, firing range (branch `agent/embedb`)
+
+`vr_embed` stays off by default. Numbers: Debug > Tunables > Combat > Embedded Blades (Axe, Moving the Body).
+
+- **Tug (axe):** `vr_embed_hold_axe_tug` 5 -> **20** cm (his setting). And force: the hand's pull out, averaged over
+  `vr_embed_hold_axe_tug_time` 0.15 s (`.vr_hold_tugv`), must be `vr_embed_hold_axe_tug_speed` 0.8 m/s as the distance is met;
+  slower, the hands come off and the axe stays. Nearing it (from `vr_embed_tug_shake_from` 0.4 of the distance) the axe and the hand
+  on it shake (`vr_embed_tug_shake` 2.5 deg, QC's `.vr_stick_shake`, the engine's place) and the buzz rises in pitch and strength.
+- **Out into the hand:** the drawn hand eases from where it was on the blade to its controller over `vr_embed_free_ease` 0.25 s, the
+  weapon with it (vr_view_hands.cpp embedDrawnHand: the blade's entity is gone at once, so the old 0.1 s ease never ran). Letting go
+  eases the same way.
+- **Ghost:** `vr_ghost_hands_ignore_embed` 1 (Player Appearance, "No Ghost on Stuck Blades").
+- **Second hand:** drawn on the weapon's grip hotspot nearest it (every bladed weapon has one: its two-handed place), placed from the
+  blade each frame (groundSpotPose from the handle hand's pose), not where its controller was as it took hold (the 20 cm).
+- **Leeway:** a held blade turns with the handle hand's turn since it took hold, at most `vr_embed_lean_axe` 6 / `vr_embed_lean_sword` 3
+  deg, any axis, about the wound, eased (`.vr_stick_lean`; `.vr_stick_base` keeps the angles easeOnBody eases from).
+- **Arm stretch:** a hand on a blade lets its arm stretch to `vr_embed_arm_stretch` 1.3 (eased in and back over `_ease` 0.2 s); the
+  avatar writes how far the drawn wrist is past it (`.vr_embed_armgap`), and past `vr_embed_arm_letgo` 1 cm more than the least it
+  has been since it took hold, the hand lets go. Only an arm that reached the hand at some point (the tests' mock hands are held
+  beyond any arm, so tests 7/11/13 are untouched by it).
+- **Stuck handles:** `vr_embed_handle_free` 1: a blade in a body no hand holds, 4 times a second, its grip point against the model
+  (hitmodel nearestAny): inside, it is turned about the wound out of it (+1.5 units clear), 15 deg a look, 45 all told (`.vr_stick_freed`).
+- **Lifting:** the spring's force is at least `vr_embed_move_sword_lift` 0.8 to `_deep` 2 (axe `vr_embed_move_axe_lift` 1.2) times the
+  ragdoll's weight (ragdolltug what 15: its parts' mass) under the physics' gravity (sv_gravity / units per metre, about 30 m/s^2: it
+  used 9.81, a third of the weight, and lifted nothing), times Skewer.
+- **A blade in a corpse (his decision on note 10, "Yes, like the axe"; agent embedb2):** the hand's pull out along the blade is averaged
+  for every blade now (`.vr_hold_tugv`, over `vr_embed_hold_axe_tug_time`). In a dead body, a pull at least `vr_embed_hold_corpse_tug_sword`
+  / `_axe` (0.8 m/s each, Debug > Tunables, Dead Body: Sword/Axe Tug Speed; 0: the old 1:1 always) is a tug: the arm's way counts 1:1
+  as before (an axe then still needs its 20 cm). Slower, the body is carried: the spring takes the hand's way along the blade too
+  (xAxial 0) and the blade doesn't slide out; while the spring is short of its most (`.vr_hold_strain` < 0.95) the hand's lead on the wound
+  isn't counted; held back at its most, past `vr_embed_hold_corpse_slip` 20 cm the hand slips off and the blade stays ("the body won't
+  come"). A tug's first moments, still averaging under the speed, carried the body: once it is a tug that way (a leaky sum over the tug
+  time, `.vr_hold_carried`) goes back to the blade, as a tug from its start. Test 24 case 5 (a sword in a corpse lifted 30 units in 2 s)
+  and the new case 7 (an axe in a corpse pulled out 30 units in 1.5 s, 0.63 m/s): rose 53 units, dragged 26.9-28.3, both held.
+- **The regressions this branch brought (agent embedb2):** found by turning each new feature off by its cvars (all off: test 7 76/6,
+  test 11 103/0, as origin/next). (1) The axe tug (20 cm, 0.8 m/s) failed two checks that tested the old numbers: test 7 case 5 "pulled
+  a few cm" pulled 8 cm past the depth (the old 5 + 3), now its tug + 3 cm in 0.2 s; test 11 "tugged out, into the hand" pulled 30 units
+  in 2 s (0.57 m/s, any speed then), now at 1.5 times the tug speed; its message printed "+ 5 + 2", now the cvars. (2) The arm let-go
+  (`vr_embed_arm_letgo`) let go of a second hand as it took hold: the avatar's gap as it took hold was its controller's (in reach), and
+  then drawn on the grip hotspot it was out of reach ("one hand opens: the other holds it still"; test 11's two-hand case 0.9 vs 1.0).
+  Its least gap now counts only from `max(arm_stretch_ease, free_ease) + 0.1` s after taking hold (`.vr_hold_gapat`). (3) The lift
+  floor carries one hand's weak push as far as two (test 11 cases 24/25 tune the sword's force down to 300 N to see the second hand's
+  share): those two cases tune the lift to 0 as well. (4) "Sliding deeper sounds / spurts blood" (test 7 case 6) are not this branch's:
+  seeded, all features off, they fail the same (seeds 1 and 2: 74/8). The push slides the blade under a unit (the old failure "pushed:
+  it slides deeper"), so whether a 3 cm sound step is crossed depends on where the stab's depth fell; unseeded runs differ by start-up.
+- **Flaky, open:** test 24's "out into the hand eased" (case 4, a hard axe tug) reads 2.56 cm in some runs, 3.58 in others (limit 3;
+  the hand itself moves 2.78 cm a frame at 2 m/s), with the corpse rule on or off at the same seed: not this change's, a thin margin.
+- **Skewered gib:** the hand gripping it is drawn on the gib where it took hold (skewerDrawnHand), as a held prop's. Its grab already
+  goes by the fist meeting the drawn model (carryreach -> held::grabTouch, 2 cm slack); without the jointed hand's fist it falls back to
+  the box test, which may be what he saw.
+- **Test:** `vr_embed_test 24` (`embedfeel: N passed, M failed`; now 7 cases, the corpse drag added). Engine numbers through
+  `vr_embed_probe*` cvars. Test 21 gained the gib drawing check.
+- **Before (origin/next) and after (this branch), low-impact runs, `map vrtesthall;wait30;god;notarget;vr_embed_test N`:**
+
+  | test | origin/next | branch as left | after the fixes |
+  |---|---|---|---|
+  | 7 | 75/7 | 72/10 | 67/7 unseeded (case 7's 6 m/s stab didn't stick: "stuck", 8 checks skipped; also with only the leeway on, all else off); 75/7 seeded 1 |
+  | 11 | 103/0 | 101/2 | 103/0 |
+  | 24 | (new) | 19/1 | 20/2 unseeded (eased 3.58; the axe drag 5.2 units, held); 21/1 seeded 1 (eased) |
+  | 1 | 4 failed, no verdict | 4 failed, no verdict | 57/4, with its verdict (the same 4) |
+  | 21 | 39/2 | 40/2 | 40/2 (the same 2) |
 ## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
 
 **Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
