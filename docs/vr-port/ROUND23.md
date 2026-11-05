@@ -8514,3 +8514,27 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 **Documented red, hidden by nothing:** `flatpose: FAIL near: the gun at the camera is not cut as the desktop's near plane cuts it`
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
+
+## Flatscreen: the body, the hold, the walls, the sights (agent/flat3, 2026-11-05)
+
+**The body seen through.** `avatar::solveTorso` puts the neck under the eyes along the head's own axes. In a headset the head nods about the neck, so
+that is right. On the flat screen the eye stays where it is and only turns, so a look down slid the whole body back and up under the eye, and a look up
+slid it forward past the eye: the camera stood in its chest and shoulders. In the mode the neck is now measured with the look's pitch taken out. The head's
+collapse also measured from the unnudged head, so a nudged eye (12 units or more) drew the head's inside: `posed.eyes` carries the nudge.
+
+**The hold** (old to new): `vr_flat_gun_fwd` 5 -> `vr_flat_gun_ahead` 14 (renamed, so his saved `tune vr_flat_gun_fwd "5"` is left out with a console
+line instead of holding the old pose), `vr_flat_gun_down` 10 -> 12, `vr_flat_gun_out` 2 -> 4, `vr_flat_empty_down` 13 -> 15, `vr_flat_support_*` 12 11 5 -> 6 15 6.
+Shoulder to hand 17.7 of the arm's 21.9 units in hipfire (it was about 11). An empty hand at rest hangs from its shoulder, level with the body, fingers
+60 degrees down (`hangPitch`), until it punches, reaches or goes to a grip. The eye's nudges stay 0.
+
+**The sights.** Solved from each gun's sight line (`sightalign::sightLine`), measured off the weapon as drawn in the hand's frame (`noteDrawn`). New:
+`vr_flat_ads_relief` 14 (rear sight to the eye; `reliefFor` goes further out where sights stand far ahead of the hand, the laser cannon's, and nearer where the
+arm cannot reach, a look straight up), `vr_flat_ads_screen_x`, `_y` 0. Retired: `vr_flat_ads_fwd`, `_up`, `_out` and the weapon keys `flat_ads_fwd`, `_up`, `_out`.
+`drawnOffset` applies the solve last, from the frame's camera; the looks and the fatigue shake are spent out over the travel. Moving the picture turns the
+ray itself (`flatsight::rayDir`): crosshair and shot point go with it, the sights stay on it. No sight line (axe, Mjolnir, chainsaw, sword, crowbar, super axe,
+toolgun): no ironsight, as before. Recoil and knocks still move the drawn gun on top, and come back.
+
+**The walls.** `pushBack`, `handpose::gunBack`: the gun's points against the level along a set way, towards the shoulder or along the ray, in the game's pose, so
+the aim and the shots leave from the pushed place. `vr_flat_gun_collide` 1. Models: the headset's `vr_model_collide` already runs here, drawn only.
+
+**Test aid.** `vr_flat_orbit [yaw] [dist] [down]`, the drawn view off him looking back at his own pose and `vr_flat_sight_check`, both in Debug > Reports. `Misc/quakevr/flatsight_test.sh`.
