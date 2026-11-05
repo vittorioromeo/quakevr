@@ -44,6 +44,7 @@ vector vr_np_lasthit, vr_np_lasthitvel; // where it struck, flying how
 float vr_np_lasthitat;  // and when (0 not yet)
 #ifdef QVR_TESTS
 void() VR_NailPistol_TestFrame; // (vr_nailpistol_test.qc)
+void() VR_MagSlide_TestFrame; // (vr_magslide_test.qc)
 #endif
 
 void() VR_NailPistol_Precache =

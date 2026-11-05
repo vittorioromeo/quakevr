@@ -20,6 +20,7 @@ dispatch vr_ad_test QC/vr_ad_bridge_test.qc AD_Test request
 dispatch vr_ad_test QC/vr_ad_test.qc AD_RulesTest request within 10+
 dispatch vr_rv_test QC/vr_revolver_test.qc VR_Revolver_TestFrame req
 dispatch vr_np_test QC/vr_nailpistol_test.qc VR_NailPistol_TestFrame req
+dispatch vr_magslide_test QC/vr_magslide_test.qc VR_MagSlide_TestFrame req
 dispatch vr_flare_test QC/vr_flaregun_test.qc VR_FlareGun_TestFrame req
 dispatch vr_reload_test QC/vr_reload_test.qc VR_Reload_Test step
 dispatch vr_pickup_test QC/vr_pickup_test.qc VR_PickupTest_Frame ask
@@ -200,6 +201,8 @@ vr_flare_test    8        vr_flaregun_test.qc              (VR_FLC_Frame)
 vr_flare_test    9        vr_flaregun_test.qc              (VR_FLT_Scene)
 vr_flare_test    10       vr_flaregun_test.qc              (VR_FLC_Frame: the tops, settled)
 
+vr_magslide_test 1*       vr_magslide_test.qc              (the self-test (its fall-through))
+vr_magslide_test 2        vr_magslide_test.qc              a new magazine seated in the main hand's gun, now (the pictures)
 vr_np_test       1*       vr_nailpistol_test.qc            (the self-test (its fall-through))
 vr_np_test       2        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       3        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)

@@ -2694,6 +2694,17 @@ QVR_CVAR(vr_collect_fx, "1", CVAR_ARCHIVE)            // what a hand puts away a
 QVR_CVAR(vr_collect_fx_time, "0.25", CVAR_ARCHIVE)     // with it: seconds it takes to go in (game time: slowed in bullet time)
 QVR_CVAR(vr_collect_fx_size, "0.2", CVAR_ARCHIVE)      // with it: its size when it is gone (of its own)
 QVR_CVAR(vr_test_collect_chamber_off, "-1", CVAR_NONE) // (tests: vr_revolver_test.qc) set as a shell slid into a heavy revolver's chamber ends: how far its way's end is off the axis of the shell drawn in that chamber (units; 99 not measured)
+QVR_CVAR(vr_test_magslide, "0", CVAR_NONE)            // (tests: vr_magslide_test.qc) 1 the main hand's, 2 the off hand's: a magazine's slide measured as drawn each frame, in the gun's frame, into the next:
+QVR_CVAR(vr_test_magslide_mode, "0", CVAR_NONE)       // what it does now: 0 nothing, 1 seating, 2 sliding out
+QVR_CVAR(vr_test_magslide_frames, "0", CVAR_NONE)     // the frames measured, since the slide began
+QVR_CVAR(vr_test_magslide_first, "0", CVAR_NONE)      // how far out along the well's line on its first frame (world units)
+QVR_CVAR(vr_test_magslide_last, "0", CVAR_NONE)       // on its last
+QVR_CVAR(vr_test_magslide_full, "0", CVAR_NONE)       // its full travel (world units)
+QVR_CVAR(vr_test_magslide_off, "0", CVAR_NONE)        // the most it was off the well's line (world units)
+QVR_CVAR(vr_test_magslide_step, "0", CVAR_NONE)       // the most it moved along the line in a frame (world units)
+QVR_CVAR(vr_test_magslide_x, "0", CVAR_NONE)          // the drawn magazine's middle in the world, on its last frame
+QVR_CVAR(vr_test_magslide_y, "0", CVAR_NONE)
+QVR_CVAR(vr_test_magslide_z, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_collect_fx, "0", CVAR_NONE)         // 1: print each thing put away (its model, from where, the holster's hotspot) and when it is gone in; 2: also each frame's size and distance left
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
@@ -3733,6 +3744,7 @@ QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: C
 QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (9: in the dark), 7 the crates' flare guns planned twice (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_nailslide_debug, "0", CVAR_NONE) // Print: each frame the nail pistol's slide moves, "nailslide: hand H pos P (travel T) back B" (vr_nailslide.cpp; not archived)
+QVR_CVAR(vr_magslide_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: magazines sliding home and out: 1 its self-test (vr_magslide_test.qc), 2 a new magazine seated in the main hand's gun, now
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_np_probe, "0", CVAR_NONE)        // (its self-test sets it: 1, the engine writes what it draws into vr_np_seen_*: vr_nailslide.cpp probe)
 QVR_CVAR(vr_np_seen_screen, "0", CVAR_NONE)  // (written while vr_np_probe: the main hand's ammo screen moved by its slide, model units; vr_nailslide.cpp probe)
@@ -3749,7 +3761,7 @@ QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // Official Campaigns > Bloody Nightma
 // Debug > Cheats and Recording (vr_cheats.cpp, QC vr_cheats.qc; not saved, not in deathmatch):
 QVR_CVAR(vr_cheat_ammo, "0", CVAR_NONE) // infinite ammunition: your shells, nails, rockets and cells (the mission packs' too) kept full, and the magazines in your hands
 QVR_CVAR(vr_freeze_monsters, "0", CVAR_NONE) // the living monsters stand frozen where they are (their thinking and moving skipped; a blow still kills)
-QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp): 1 the wrist gadget (its screen, its messages), 2 your hands and what they hold, 4 your body and holsters (added up: 7 all)
+QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp): 1 the wrist gadget (its screen, its messages), 2 your hands and what they hold, 4 your body and holsters, 8 your hands alone (what they hold still drawn; added up: 7 the first three)
 // Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH.md): monsters Idle, Alert (investigating) or Hostile.
 QVR_CVAR(vr_ai_enhanced, "1", CVAR_ARCHIVE)          // every rule below at once (the umbrella: 0 is Quake's monster AI, at once, mid-map too)
 QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion meter (light, distance, facing, movement, crouching): 0 Quake's instant sight

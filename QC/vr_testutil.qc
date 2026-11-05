@@ -136,6 +136,7 @@ void() VR_TestsFrame =
     VR_AimConeTest_Frame(); // vr_test_aimcone (vr_aimcone_test.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
+    VR_MagSlide_TestFrame(); // vr_magslide_test (vr_magslide_test.qc)
     VR_NailTest_Frame(); // vr_nail_test (vr_nail_test.qc)
     VR_FlareGun_TestFrame(); // vr_flare_test (vr_flaregun_test.qc)
     VR_AmmoColor_TestFrame(); // vr_ammocolor_test (vr_ammocolor_test.qc)
