@@ -254,7 +254,7 @@ The plan's first of three (body-based hand target; stances by weapon come later 
 | 1, 5 | 4.1, -5.5, 0, 5.6, 5.1 | 5.9, -3.5, 1.9, 1.9 | **0.9** |
 | **1, 4 (chosen)** | 3.1, -4.6, 0, 6.9, 4.5 | 4.9, -2.6, 2.8, 1.9 | 1.2 |
 
-No forward offset leaves the eye on the neck's surface on a look up; more up drops it further on a look down. 1, 4 shows as much torso as his 4 (6.9 and 6.8% of the screen), and the sheets agree: `camup4_after.png`, straight down, nearly the same picture, the torso a little nearer. Most move 5.5; the box's side is 16 (11.1 left under the low ceiling and at the wall, 3.85 to the box's top standing, down from 3.97: the eye rises 0.1 at -5). Never in solid, the line from the head clear, in all 560 rows. `vr_flat_cam_up` can go back to 0; his 4 on top of this would add up.
+No forward offset leaves the eye on the neck's surface on a look up; more up drops it further on a look down. 1, 4 shows as much torso as his 4 (6.9 and 6.8% of the screen), and the sheets agree for standing hipfire: `camup4_after.png`, straight down, the same chest band and hand, with the floor nearer and a little less of the shoulders. Crouched in the ironsight they don't: cam_up 4 keeps the gun its size, this has it filling the middle of the screen (below). Most move 5.5; the box's side is 16 (11.1 left under the low ceiling and at the wall, 3.85 to the box's top standing, down from 3.97: the eye rises 0.1 at -5). Never in solid, the line from the head clear, in all 560 rows. `vr_flat_cam_up` can go back to 0; his 4 on top of this would add up.
 
 **Off is off.** `vr_flat_eye_pivot 0` against the sweep run before the pivot's code existed: no column of 350 rows differs at all.
 
@@ -278,5 +278,7 @@ Flat suites, each with the pivot on and off, the same verdicts: flatplay 28/0, f
 - flatsight's read 8 frames after a jump to 85: rear sight 0.44 off the ray with it on, 0.002 off; settled 60 frames later, 0.0003. Inside its half-degree limit. So the sights trail a little on a very fast look down, and are exact once it stops.
 
 To look at: straight down standing, then crouched in the ironsight on a flat floor (the big gun above); a look up with the shotgun crouched (the arm). Set `vr_flat_cam_up` back to 0 first.
+
+The sheets are composed from a run's own frames: run `flatsweep_test.sh` with its sheet argument, as `flatpose_test.sh` clears the folder's pictures (`-Clean`) and a later suite leaves nothing to compose. `flatsweep_sheet.ps1` now stops on a missing frame; it used to save black cells.
 
 Checklist lines: "Flat: look straight down, standing, each weapon: you see your chest from above and no neck stump, as with cam_up 4; cam_up back at 0." "Flat: look level, walk and jump: the same height and feel as before." "Flat: crouched, ironsight, straight down at the floor: is the big gun acceptable until phase 2?"

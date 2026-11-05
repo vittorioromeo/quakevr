@@ -40,6 +40,8 @@ foreach ($r in $rowsWanted) {
         foreach ($l in $looks) {
             $name = "fs_$($r[1])_$($parts[0])_$($c)_$($parts[1])_$l"
             $file = Get-ChildItem $Shots -Filter "$name*.png" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+            # (A suite's run.sh -Clean, flatpose's for one, deletes the folder's pictures, the CSVs staying: no frame is an error, not a black cell.)
+            if (-not $file) { throw "no frame $name in $Shots" }
             if ($file) {
                 $img = [System.Drawing.Image]::FromFile($file.FullName)
                 $g.DrawImage($img, (New-Object System.Drawing.Rectangle(($gutter + $col * $w), $y, ($w - 2), ($h - 2))))
