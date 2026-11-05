@@ -164,6 +164,7 @@ void() VR_TestsFrame =
     VR_FlatKeysTest_Frame(); // VR: the flatscreen keys seen by the game code (vr_flatkeys_test, vr_flatkeys_test.qc)
     VR_FlatItemsTest_Frame(); // VR: pickups in flat-screen play (vr_flatitems_test, vr_flatitems_test.qc)
     VR_FlatGateTest_Frame(); // VR: a flat-screen walk through a teleporter (vr_flatgate_test, vr_flatgate_test.qc)
+    VR_FlatMoveTest_Frame(); // VR: flat-screen crouch speed and swimming (vr_flatmove_test, vr_flatmove_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
     VR_Melee_SweepTestFrame(); // VR: the swept blade's test (vr_melee_sweep_test, vr_melee_sweep_test.qc)
     VR_Limb_TestFrame(); // VR: limb gore's tests (vr_limb_test, vr_limbs_test.qc)
