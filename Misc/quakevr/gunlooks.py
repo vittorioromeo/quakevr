@@ -73,8 +73,12 @@ FLAT_TEXELS = 6        # a face covering this many texels or more must show more
 
 # ----------------------------------------------------------------------------
 # Rivets (model space: x forward, y left, z up): few, in mirrored pairs, where a fastener would be: joining two parts, at
-# a panel's corners and seams, on the gun's own lines. Nothing on the tops (the sights' side), the pump's rings or under
-# the main hand's thumb (behind x 8).
+# a panel's corners and seams, on the gun's own lines. On the tops only where the author marked them, clear of the sights;
+# nothing on the pump's rings or under the main hand's thumb on the sides (behind x 8).
+
+SHOT_TOP_RIVETS = ((17.6, 1.1), (4.4, 1.1))  # x, |y|
+NAIL_TOP_RIVETS = ((7.3, 3.45, 0.12), (2.4, 1.7, 0.19), (-0.6, 1.8, 0.19))  # x, |y|, height
+
 
 def rivets_shot(p):
     # A pair up the receiver's front edge, where it meets the fore-end; and one more in the row of pins along its lower
@@ -83,6 +87,9 @@ def rivets_shot(p):
     for s in (1, -1):
         for x, z in ((17.7, 3.9), (17.7, 2.5), (9.8, 1.7)):
             out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
+        # The author's marks on the receiver's top: a pair where it ends ahead of the sights, a pair behind them.
+        for x, y in SHOT_TOP_RIVETS:
+            out.append(p.stud((x, s * y, 12.0), (0, 0, -1), radius=0.4, height=0.19, material="steel"))
     return out
 
 
@@ -92,6 +99,10 @@ def rivets_nail(p):
     for s in (1, -1):
         for x, z in ((10.4, 1.05), (10.4, -1.05)):
             out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
+        # The author's marks: the two ends of the top bar (its head lower, 0.12: the model's byte box ends just over
+        # the bar as it kicks), and two pairs on the rear body's top edges, either side of the ammo screen and further back.
+        for x, y, h in NAIL_TOP_RIVETS:
+            out.append(p.stud((x, s * y, 12.0), (0, 0, -1), radius=0.4, height=h, material="steel"))
     return out
 
 
