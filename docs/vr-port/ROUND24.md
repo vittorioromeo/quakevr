@@ -207,3 +207,5 @@ The author's notes on the first pass ("the new nailgun is an improvement in some
 - **Check:** `gunlooks_check.py` gains: the bake leaves glowing triangles' texels as they were; the nail muzzles' back faces near black (limit 18 of 255).
 - **Grips:** `vr_still_grip_test`: 4 passed, 0 failed, on e2aa179c0 (no code diffs, no source newer than the exe; an incremental build, not from scratch).
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/gunlooks2/`: `shotgun_three_rows.png`, `nailgun_three_rows.png` (old, first pass, now; flat light), `lit_map.png` (no `r_fullbright`: old, now), `lava_and_pickups.png`.
+
+**Gun looks, fewer rivets (branch `agent/gunlooks3`, the author's "a bit overboard"):** 14 to 6 on the shotgun (a pair up the receiver's front edge at the fore-end, one more in the row of pins along its lower edge), 10 to 4 on the nailgun and lava nailgun (the receiver plate's two front corners); mirrored pairs on the gun's own lines, same size and dark ring; the barrel masks' counts follow (1756, 1008).

@@ -72,23 +72,25 @@ FLAT_TEXELS = 6        # a face covering this many texels or more must show more
 
 
 # ----------------------------------------------------------------------------
-# Rivets (model space: x forward, y left, z up). Shotgun: the sights are at z 6.2-6.5 on y 0 (+-0.6): nothing on the top
-# within 1.2 of it; the main hand's thumb stays behind x 8 on the sides. Nailgun: the receiver's plate.
+# Rivets (model space: x forward, y left, z up): few, in mirrored pairs, where a fastener would be: joining two parts, at
+# a panel's corners and seams, on the gun's own lines. Nothing on the tops (the sights' side), the pump's rings or under
+# the main hand's thumb (behind x 8).
 
 def rivets_shot(p):
+    # A pair up the receiver's front edge, where it meets the fore-end; and one more in the row of pins along its lower
+    # edge (polish_weapons.py's at x 13.2 and 16.6, z 1.7), on their spacing.
     out = []
     for s in (1, -1):
-        for x, z in ((9.2, 4.4), (17.6, 4.3), (9.0, 2.5), (11.2, 2.5), (17.6, 2.5)):
+        for x, z in ((17.7, 3.9), (17.7, 2.5), (9.8, 1.7)):
             out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
-        for x in (6.6, 17.2):
-            out.append(p.stud((x, s * 1.75, 12.0), (0, 0, -1), radius=0.36, height=0.15, material="steel"))
     return out
 
 
 def rivets_nail(p):
+    # The receiver plate's two front corners, at the seam ahead of its two pins (polish_weapons.py's, on its middle line).
     out = []
     for s in (1, -1):
-        for x, z in ((6.5, 1.05), (10.4, 1.05), (6.5, -1.05), (10.4, -1.05), (2.2, 2.75)):
+        for x, z in ((10.4, 1.05), (10.4, -1.05)):
             out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
     return out
 
@@ -975,6 +977,10 @@ def write_subset(src, tris, path):
     m.write(path)
 
 
+def gl_old_triangles(name):
+    return len(mp.Model(os.path.join(SRC, name)).tris)
+
+
 MASK_FILE = os.path.join(HERE, "..", "..", "quakevr", "data", "weapons.txt")
 
 
@@ -993,8 +999,9 @@ def extend_masks(counts):
             head, value, tail = line.split('"')
             n, bits = value.split(":")
             n, want = int(n), counts[current]
-            assert want >= n
-            bits += "A" * ((want + 5) // 6 - len(bits))
+            keep = (want + 5) // 6
+            assert want >= gl_old_triangles(current) and not bits[keep:].strip("A"), "only the rivets' bits may go"
+            bits = bits[:keep] + "A" * (keep - len(bits))
             lines[i] = '%s"%d:%s"%s' % (head, want, bits, tail)
             done += 1
     assert done == len(counts), "%d of %d masks found" % (done, len(counts))

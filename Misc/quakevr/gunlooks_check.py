@@ -44,6 +44,11 @@ FAMILY_MAX = 14.0        # the metal's area-weighted mean colour from the old me
 INTERIOR_MAX = 18.0      # the nail muzzles' interior: almost black
 RUST_MAX = 0.2           # fraction of a model's painted texels in rust colours (warm and clearly lit)
 GUNS = {"v_shot.mdl", "v_nail.mdl", "v_lava.mdl"}
+RIVETS = {"v_shot.mdl": 6, "v_nail.mdl": 4, "v_lava.mdl": 4}
+RIVET_TRIS = 30          # triangles in one rivet's head
+MIRROR_TOL = 0.3         # model units: a rivet and its mirror on the other side
+PUMP_RINGS_X = 18.9      # the shotgun's pump rings start here
+TOP_Z = 5.0              # the shotgun receiver's top, the sights' side: no rivet there
 
 passed = failed = 0
 
@@ -161,9 +166,15 @@ def model_checks(name, spec):
     if spec.get("rivets") and len(new.tris) > o_nt:
         rv = sorted({v for t in range(o_nt, len(new.tris)) for v in new.tris[t][1:]})
         pts = pn[0][rv, :3] * new.scale + new.origin
-        check(len(rv) > 0, "%d rivet vertices appended" % len(rv))
+        n_new = len(new.tris) - o_nt
+        check(n_new == RIVETS[name] * RIVET_TRIS, "%d rivets (%d triangles each)" % (n_new // RIVET_TRIS, RIVET_TRIS))
+        P0 = pn[0][:, :3] * new.scale + new.origin
+        heads = [P0[[v for tr in new.tris[o_nt + k * RIVET_TRIS:o_nt + (k + 1) * RIVET_TRIS] for v in tr[1:]]].mean(0) for k in range(n_new // RIVET_TRIS)]
+        mirrored = all(min(math.hypot(h[0] - o[0], h[2] - o[2]) + abs(h[1] + o[1]) for o in heads) < MIRROR_TOL for h in heads)
+        check(mirrored, "every rivet has its mirror on the other side (within %.2f)" % MIRROR_TOL)
         if name == "v_shot.mdl":
             on_line = np.abs(pts[:, 1]) < SIGHT_CLEAR
+            check(float(pts[:, 0].max()) < PUMP_RINGS_X and float(pts[:, 2].max()) < TOP_Z, "the rivets on the receiver's sides: x at most %.1f (the pump's rings from %.1f), z at most %.1f (its top from %.1f)" % (float(pts[:, 0].max()), PUMP_RINGS_X, float(pts[:, 2].max()), TOP_Z))
             check(not on_line.any(), "the rivets clear of the sight line: |y| at least %.2f (limit %.1f), the sights within 0.6 of it" %
                   (float(np.abs(pts[:, 1]).min()), SIGHT_CLEAR))
     # colour family: the old triangles' mean colours against the new paint under the same triangles
