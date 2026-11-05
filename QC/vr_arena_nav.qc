@@ -19,6 +19,7 @@ float AR_NAV_GIVEUP = 12;   // seconds on one leg (knocked about, or blocked) be
 
 entity ar_nav_first;
 float ar_nav_scanned;
+float ar_nav_pick_far;  // VR_ARENA_NavPick's answer is the flight's far end: the walker is already on it
 
 /*QUAKED info_arena_nav (.8 .5 0) (-8 -8 0) (8 8 16)
 One end of a flight of stairs or a ramp a walking monster can use, on the step or the floor itself. Pairs: the lower end
@@ -62,13 +63,17 @@ entity(float xFeet, float xGoalFeet, vector xGoal) VR_ARENA_NavPick =
         entity e = n.ar_nav_other;
         if(e && fabs(n.origin_z - xFeet) <= AR_NAV_NEAR && (fabs(e.origin_z - xGoalFeet) < off || off > AR_NAV_AWAY))
         {
-            vector d = n.origin - self.origin;
+            // (Partway up a flight, its feet between the two ends: straight on to the end that serves, not back to the
+            // other first. A blow or a chase can leave it on the steps.)
+            float partway = xFeet > min(n.origin_z, e.origin_z) + 8 && xFeet < max(n.origin_z, e.origin_z) - 8;
+            vector d = (partway ? e.origin : n.origin) - self.origin;
             d_z = 0;
-            float cost = vlen(d) + vlen(n.origin - e.origin) + vlen(e.origin - xGoal);
+            float cost = vlen(d) + vlen(e.origin - xGoal) + (partway ? 0 : vlen(n.origin - e.origin));
             if(best == world || cost < bestCost)
             {
-                best = n;
+                best = partway ? e : n;
                 bestCost = cost;
+                ar_nav_pick_far = partway;
             }
         }
         n = n.ar_nav_next;
@@ -121,7 +126,7 @@ entity(float xDist) VR_ARENA_NavStep =
             return world;
         }
         at = VR_ARENA_NavPick(feet, goalFeet, [g.origin_x, g.origin_y, goalFeet]);
-        self.ar_nav_far = 0;
+        self.ar_nav_far = ar_nav_pick_far;
         self.ar_nav_until = time + AR_NAV_GIVEUP;
     }
     self.ar_nav_at = at;

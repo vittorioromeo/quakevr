@@ -8574,3 +8574,13 @@ What's left is the averaging itself: in a bright pool (floor 170..180) the walls
 probe reads 120 (0.7 in lightmap units; about half when drawn, through the curve). The compile's own LIGHTGRID_OCTREE is no
 ready answer: it has no direction and no cosine, and clips at 255 over most of this arena's air (layer means 211..253).
 `vr_physsound.cpp`'s walk has the same box test (not changed: it isn't light).
+
+Results, one seed, on the merged tree (level: feet on his level / there: within a blow; seconds, mean of 8; capped of 8
+at 25 s). Before: grunt up 12.4/13.5 (2), down 23.9/24.2 (7); knight up 10.0/10.8 (2), down 22.6/22.8 (7); ogre up
+10.6/19.6 (1), down 22.4/24.8 (7); dog up 9.3/10.0 (1), down 16.8/20.2 (5). After: grunt up 4.0/5.4 (0), down 4.6/7.8 (0);
+knight up 3.1/4.1 (0), down 3.5/8.2 (1); ogre up 4.7/12.0 (0), down 5.7/13.9 (1); dog up 1.8/2.5 (0), down 1.8/3.0 (0).
+
+Still red in test 36: 2 of 64 trials, a knight and an ogre going down to slot 7. With him right beside a flight's side, a
+foe off that flight can climb back on (the straight line to him crosses the lower steps) and dither there. An ogre's
+"there" is much longer than its "level" because it stops to lob, not because of the way. Not measured: the tower tops
+(flights marked and routed the same way), and waves in a crowd.

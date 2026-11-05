@@ -3561,7 +3561,9 @@ void() VR_AT35_Frame =
 // foe on the dais' top across from him ("down"). The floor's places: 4 off the flights' lines, 4 in the corridors
 // between the dais' diagonal faces and the towers. Each line: when its feet reached his level and when it got within a
 // blow of him; its stalled time (under 8 units in a half-second sample) and its last stall's place. The sums per kind
-// and direction close it; a foe that never got there inside the cap fails it.
+// and direction close it. It fails if any foe never reached his level inside the cap, or never reached him. Known red: a
+// knight and an ogre going down to slot 7 (him right beside a flight's side: off the flight, a foe can climb back on, as
+// the straight line to him crosses its lower steps, and dither there; ROUND23.md).
 // ---------------------------------------------------------------------------
 
 float AT36_KINDS = 4;
@@ -3584,6 +3586,7 @@ float at36_sum_level[8];        // per kind and direction: kind * 2 + dir
 float at36_sum_arrive[8];
 float at36_sum_stall[8];
 float at36_capped[8];
+float at36_nolevel[8];
 
 float(float xKind) VR_AT36_Kind =
 {
@@ -3635,6 +3638,7 @@ void() VR_AT36_Begin =
         at36_sum_arrive[i] = 0;
         at36_sum_stall[i] = 0;
         at36_capped[i] = 0;
+        at36_nolevel[i] = 0;
     }
 }
 
@@ -3682,6 +3686,7 @@ void(float xArrived) VR_AT36_Close =
     at36_sum_arrive[idx] = at36_sum_arrive[idx] + took;
     at36_sum_stall[idx] = at36_sum_stall[idx] + at36_stall;
     if(!xArrived) { at36_capped[idx] = at36_capped[idx] + 1; }
+    if(at36_level < 0) { at36_nolevel[idx] = at36_nolevel[idx] + 1; }
     dprint(sprintf("arenapath: %s %s slot %g size %g: level %.1f there %.1f%s", m.classname, at36_dir ? "down" : "up", at36_slot,
                    m.maxs_x, lev, took, xArrived ? "" : " CAPPED"));
     dprint(sprintf(" stall %.1f last at %v (%s) ended %v\n", at36_stall, at36_stallat,
@@ -3714,7 +3719,8 @@ void() VR_AT36_Frame =
             string way = (i & 1) ? "down" : "up";
             dprint(sprintf("arenapath: SUM %s %s: level %.1f there %.1f stall %.1f capped %g of %g\n", name, way,
                            at36_sum_level[i] / n, at36_sum_arrive[i] / n, at36_sum_stall[i] / n, at36_capped[i], n));
-            VR_AT_Check(at36_capped[i] == 0, sprintf("%s %s: all got there inside %g s (%g did not)", name, way, AT36_CAP, at36_capped[i]));
+            VR_AT_Check(at36_nolevel[i] == 0, sprintf("%s %s: all reached his level inside %g s (%g did not)", name, way, AT36_CAP, at36_nolevel[i]));
+            VR_AT_Check(at36_capped[i] == 0, sprintf("%s %s: all got to him inside %g s (%g did not)", name, way, AT36_CAP, at36_capped[i]));
         }
         VR_AT_End();
         return;
