@@ -317,6 +317,7 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         row(opt::vr_knockdown_getup_speed).developer(),
         header("Debug"),
         row(opt::vr_knockdown_debug),
+        row(opt::vr_knockdown_ledge_show),
     };
 }
 

@@ -496,6 +496,8 @@ QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on o
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
+QVR_TUNABLE(vr_knockdown_ledge_topple, "32") // units: a shove with a ledge this near ahead of its middle topples it over at once (the old launch); further, up to vr_knockdown_ledge_backpedal_reach, it backpedals (his note, 2026-11-05)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_reach, "80") // units: ... with a ledge further than this ahead of its middle, the shove is an ordinary one (no ledge)
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
