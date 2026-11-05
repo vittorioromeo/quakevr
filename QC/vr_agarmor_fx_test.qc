@@ -101,7 +101,9 @@ void(entity e) VR_AFT_RightLegWear =
     string got = "";
     for(i = 7; i <= 9; i = i + 2)
     {
-        vector at = limbpiece(e, i, 14);
+        // (the thigh's plates reach up over the hip since ROUND24's joints: the middle of their outer face, and the hip end,
+        // lie nearer the pelvis's vertices than the thigh's, and read as the torso; the knee end (13) is the thigh's own)
+        vector at = limbpiece(e, i, i == 7 ? 13 : 14);
         float j = VR_Limb_WearPiece(e, at);
         float d0 = (j >= 0) ? e.vr_limb_corpse_dmg[j] : 0;
         float hp0 = e.vr_corpse_hp;
