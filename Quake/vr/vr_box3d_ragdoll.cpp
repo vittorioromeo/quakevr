@@ -1360,7 +1360,7 @@ void driveShove(RagdollBodies& r, float dt)
         const float lean = za::atan2(glm::dot(torso, d.dir), torso.z);
         const float want = za::min(d.rate * t, d.angle);
         const float wantRate = want < d.angle ? d.rate : 0.f;
-        const float cut = (za::clamp(wantRate + 8.f * (want - lean), -d.maxSpin, d.maxSpin) - spin) * g;
+        const float cut = d.carryOnly ? 0.f : (za::clamp(wantRate + 8.f * (want - lean), -d.maxSpin, d.maxSpin) - spin) * g;
         for(int b = 0; b < r.count; b++)
         {
             if(partCut(r, b) || (cut == 0.f && add == glm::vec3{0.f}))

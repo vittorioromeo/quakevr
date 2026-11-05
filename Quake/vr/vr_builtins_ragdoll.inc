@@ -92,6 +92,16 @@ void PF_ragdollguard()
 void PF_ragdollstagger()
 {
     const float* d = G_VECTOR(OFS_PARM1);
+    // (`sure` 2, QC VR_Knockdown_LedgeBackpedal; the builtins' table is full: its backpedal over a ledge,
+    // box3d::ragdollBackpedal: `reach` its carry in units, `far` its first speed in u/s.)
+    if(qcvm->argc > 7 && G_FLOAT(OFS_PARM6) == 2.f)
+    {
+        G_FLOAT(OFS_RETURN) = box3d::ragdollBackpedal(G_EDICT(OFS_PARM0), geom::vec(d), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3),
+                                  G_FLOAT(OFS_PARM4), G_FLOAT(OFS_PARM7))
+                                  ? 1.f
+                                  : 0.f;
+        return;
+    }
     const float recover = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : -1.f;
     const bool sure = qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f;
     const float farther = qcvm->argc > 7 ? G_FLOAT(OFS_PARM7) : 1.f;

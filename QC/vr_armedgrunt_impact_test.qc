@@ -221,8 +221,8 @@ void(entity p) VR_AGIT_FindWall =
 // damaged correctly, but they never drop their weapon"): over the rung tower's edge (a 280-unit drop), the long ledge's (240,
 // into the trench), the block's (96); the tower's with Over a Ledge off (so a stagger goes over it), and with knockdowns off
 // (it slides off on its feet); the block's on its feet (96: under VR_SHOVE_SAFEFALL, unhurt: it keeps it). PASS: its weapon
-// dropped, on landing, not before; the last: kept, and it did fall. The block's knocked down: its ragdoll usually topples on
-// the block's edge and stays up (fell 24-36 units, as measured): kept then, dropped if it does go over.
+// dropped, on landing, not before; the last: kept, and it did fall. The block's knocked down: it backpedals over the
+// edge (VR_Knockdown_LedgeBackpedal) and falls 96 units: dropped by the impact rule alone (vr_agrunt_fall_keep_impact).
 float vr_agit_lc;       // the case
 float vr_agit_lz;       // its height at the shove
 float vr_agit_lowest;   // ... the lowest it got
@@ -323,7 +323,7 @@ void() VR_AGIT_Ledge =
         VR_AGT_Check(sprintf("ledge %s: %s; fell %.0f units, health 2000 to %g; hardest impact %.1f m/s, fell at %.1f m/s, down %g:",
             VR_AGIT_LedgeName(c), vr_agit_drop_at > 0 ? sprintf("dropped at %.2f s", vr_agit_drop_at - vr_agit_t0) : "kept", fell, g.health,
             g.vr_ag_fall_hit / u, g.vr_ag_fall_down / u, g.vr_knockdown),
-            c == 2 ? (vr_agit_drop_at > 0) == (fell >= 64) : ((c == 5 ? vr_agit_drop_at == 0 : vr_agit_drop_at > 0) && fell >= 64));
+            c == 2 ? (vr_agit_drop_at > 0) == (g.vr_ag_fall_hit >= cvar_hget(cvarh_vr_agrunt_fall_keep_impact) * u) : ((c == 5 ? vr_agit_drop_at == 0 : vr_agit_drop_at > 0) && fell >= 64));
         vr_agit_lc = vr_agit_lc + 1;
         vr_agt_step = 0;
         if(vr_agit_lc >= VR_AGIT_LEDGES || cvar_hget(cvarh_scratch1) > 0)
