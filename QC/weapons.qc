@@ -991,6 +991,7 @@ void() HIP_LightningThink =
          WriteVec3(MSG_BROADCAST, trace_endpos);
 
         LightningParticles(org, trace_endpos);
+        VR_LGWater_ZapBelow(trace_endpos); // VR: an arc over water electrifies it
 
          self.nextthink = time + 0.1;
          return;
@@ -1016,6 +1017,7 @@ void() HIP_LightningThink =
    WriteVec3(MSG_BROADCAST, trace_endpos);
 
    LightningParticles(org, trace_endpos);
+   VR_LGWater_Zap(org, trace_endpos); // VR: an arc into water (at what wades there)
 
    vec = normalize(self.enemy.origin - self.owner.origin);
    dot = vec * self.owner.movedir;
@@ -1080,6 +1082,8 @@ void(float xHand) HIP_SpawnMjolnirBase =
    };
 
 float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt;
+vector(vector xFrom, vector xEnd) VR_LGWater_Zap;
+void(vector xAt) VR_LGWater_ZapBelow;
 
 // xAt: where it struck (its head).
 void(float xHand, vector xAt) HIP_FireMjolnirLightning =
@@ -1108,6 +1112,7 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 15);
 
+    VR_LGWater_ZapBelow(xAt); // VR: struck just over water: its surface electrified
     HIP_SpawnMjolnirBase(xHand);
 };
 
@@ -2656,6 +2661,8 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
     e1 = e2 = world;
 
+    VR_LGWater_Zap(p1, p2); // VR: a bolt into water, whoever's, electrifies its surface
+
     // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
@@ -2702,6 +2709,32 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
 };
 
+float(float xContents) VR_LGWater_IsLiquid =
+{
+    return xContents <= CONTENT_WATER && xContents >= CONTENT_LAVA;
+};
+
+// VR: lightning into water electrifies its surface (vr_lg_water; ROUND24.md, "Lightning on water"): the arcs where a bolt
+// from `xFrom` to `xEnd` goes in (or comes out). Only the look: what the water does to those in it is the lightning gun's
+// and Mjolnir's (VR_LGWater_Beam, VR_LGWater_ShockAt). Where it goes in, or `xFrom` if it does not; the trace globals stay.
+vector(vector xFrom, vector xEnd) VR_LGWater_Zap =
+{
+    vector at = liquidentry(xFrom, xEnd);
+    if(at != xFrom && cvar_hget(cvarh_vr_lg_water))
+    {
+        dprint(sprintf("lgwater: electrified at %v\n", at));
+        watershock(QVR_SHOCK_SURFACE, at, max(1, cvar_hget(cvarh_vr_lg_water_radius)), 0.3);
+    }
+    return at;
+};
+
+// A blow's or an arc's end at `xAt`, not a line going in: in a liquid, the surface above it; else one just below it.
+void(vector xAt) VR_LGWater_ZapBelow =
+{
+    float inLiquid = VR_LGWater_IsLiquid(pointcontents(xAt));
+    VR_LGWater_Zap(xAt, xAt + (inLiquid ? '0 0 256' : '0 0 -64'));
+};
+
 // VR: the lightning gun in water (vr_lg_water; ROUND21.md, "Lightning gun in water"). Quake's discharge (every cell at
 // once, 35 each, round you, with the body waist deep) is replaced. Fired with the body waist deep, or the hand or its
 // muzzle in a liquid, it shocks you (vr_lg_water_self_damage): both hands drop what they hold (a weapon falls as a prop,
@@ -2709,11 +2742,6 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 // is in it (vr_lg_water_damage, fading out to vr_lg_water_radius). Fired from the open into water, each bolt electrifies
 // the water round the point it goes in (vr_lg_water_tick_damage, fading out the same way). The engine draws them
 // (watershock(); vr_shock.cpp).
-
-float(float xContents) VR_LGWater_IsLiquid =
-{
-    return xContents <= CONTENT_WATER && xContents >= CONTENT_LAVA;
-};
 
 // Whether `e` is in a liquid: a player by its waterlevel (the feet in it), anything else by the bottom of its box or
 // its middle.
@@ -2809,6 +2837,7 @@ float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt =
     particle2(muzzle, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 24);
     watershock(QVR_SHOCK_SELF, muzzle, radius, 1.2);
     watershock(QVR_SHOCK_BURST, muzzle, radius, 0.6);
+    VR_LGWater_ZapBelow(muzzle); // (and the water's surface over it)
     haptic(cVR_MainHand, 0, 0.6, 120, 1);
     haptic(cVR_OffHand, 0, 0.6, 120, 1);
     self.punchangle_x = -6;
@@ -2830,8 +2859,8 @@ float(float xHand) VR_LGWater_Shock =
     return VR_LGWater_ShockAt(xHand, VRGetMuzzlePos(xHand), 1, IT_LIGHTNING);
 };
 
-// A bolt from the open: if it goes into a liquid between `xMuzzle` and `xEnd`, the water round that point is
-// electrified this bolt. Leaves the trace globals as they were.
+// A bolt from the open: if it goes into a liquid between `xMuzzle` and `xEnd`, what is in the water round that point is
+// shocked this bolt (the arcs on its surface: LightningDamage's VR_LGWater_Zap). Leaves the trace globals as they were.
 void(vector xMuzzle, vector xEnd) VR_LGWater_Beam =
 {
     vector at = liquidentry(xMuzzle, xEnd);
@@ -2845,8 +2874,6 @@ void(vector xMuzzle, vector xEnd) VR_LGWater_Beam =
     float oldFraction = trace_fraction;
 
     float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
-    dprint(sprintf("lgwater: electrified at %v\n", at));
-    watershock(QVR_SHOCK_SURFACE, at, radius, 0.3);
     VR_LGWater_Spread(at, cvar_hget(cvarh_vr_lg_water_tick_damage), radius, world);
 
     trace_endpos = oldEnd;
