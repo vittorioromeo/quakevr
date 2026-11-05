@@ -828,3 +828,8 @@ revolver, the grunt's shotgun's magazine, dual wield) and pixels (`flathud_check
 health, both corners, the left gone after G, the bar cyan then yellow, `vr_flat_hud 0` back to Ironwail's). `flatkeys_test.sh` +8
 cases, every press through `vr_mock_key` (Key_Event and the binds): LMB/RMB with the weapon in the right hand, in the left (after
 Q), dual wield, the toggle mode; `vr_flat_key_swap x`; Q and Z refused in the headset; Z on, a bounce ignored, off.
+`vr_mock_key` now runs a key's bind next (`Cbuf_TailToFront`, `cmd.c`): Key_Event appends it to the command text, which in a
+script put the press, its waits and its release all after the rest of the script. flatplay's melee case gave its two weapons
+in one frame (only the last impulse is sent), so it was the main hand's fist against the off hand's shotgun, which the new
+rule now fires with LMB: the axe goes in a frame earlier (punches 0/0 -> 1/0 -> 1/0). Results: flathud 11/0, flatkeys 37/0,
+flatplay 28/0.

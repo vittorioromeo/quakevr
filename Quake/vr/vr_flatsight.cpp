@@ -575,15 +575,18 @@ void setAds(bool on, const char* by)
 // The right mouse button (+offhandattack, client::offhandButton) with one weapon held, whichever hand holds it
 // (flatplay::routeFire; his words 2026-11-05: "right click holds ADS ... No need for dedicated ADS button"): vr_flat_aim_mode
 // 0 the ironsight while it is held, 1 a press turns it on and the next off. Edges only, so `vr_flat_aim` said on the
-// console stays until the button is used. A weapon in each hand, or none, and the button fires the left hand: the
-// ironsight goes off.
+// console stays until the button is used. A weapon in each hand, or none, and the button fires the left hand: an
+// ironsight the button was holding goes off (the ironsight is refused there anyway: "nothing held one-handed").
 void pollKey()
 {
     const bool aims = flatplay::routeFire(false, false).rmbAims;
     const bool down = aims && key_dest == key_game && client::offhandButton();
     if(!aims)
     {
-        setAds(false, "no lone weapon");
+        if(st.keyWas && vr_flat_aim_mode.value == 0.f)
+        {
+            setAds(false, "right mouse button (no lone weapon)");
+        }
     }
     else if(vr_flat_aim_mode.value != 0.f)
     {
