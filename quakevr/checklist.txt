@@ -43,6 +43,7 @@ Stuck blade on a falling body: your arm stretches a little to keep hold, then yo
 Stuck handles: a handle sunk in a body turns out so you can grab it. {test:embed_stab}
 Skewered gib in the other hand: the hand stays on the gib. {test:embed_stab}
 Stabs (coalesced): a stab or swung axe stays in the body; it slides with your pull and comes out into the hand; a deep stab staggers and moves the body. {test:embed_stab}
+Fast stabs into a grunt stick reliably now (no more misses because the blade stopped a hair short), and a blade still doesn't stick from visibly short {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
