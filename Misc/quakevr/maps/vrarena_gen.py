@@ -8,7 +8,8 @@
 # The arena (VR scale: MAPPING.md's 32.8 units = 1 m; every number below is in units). One sealed octagonal room, no
 # sky, lit here (`_qvr_prelit 1`, like vrtesthall's and vrcalibration's):
 #   - the open floor: an octagon whose straight sides are x, y = +-800 (49 m across) with the corners cut back 200, so
-#     the corners are 1000 out: 75 m of open walking room. The walls are 64 thick, the ceiling is at 384 (11.7 m);
+#     the corners are 1000 out: 75 m of open walking room. The walls are 64 thick, the ceiling is at 576 (17.6 m: raised 50% from 384, the author's
+#     ask, so that the banners sit high and out of the fight's way);
 #   - the central dais: an octagon (sides at 232, corners 268 out -- about 250 across, the brief's ~250), 96 high, with
 #     4 staircases (6 steps each: 16 high, 24 deep) onto its four cardinal faces, and the spawn pad on its top;
 #   - 4 corner towers: 180-square pillars at the four cut corners, 256 high, each climbed by an outer staircase that
@@ -35,7 +36,7 @@
 #     8 on the dais' lamps and 24 on the lit stair risers (a bright face is not a light source: each fixture's light sits
 #     10 units out from its lamp and carries _dirt -1, the house rule for lamps, since -dirt would else put a lamp back
 #     out in front of its own wall), with a soft minimum light so no corner goes black.
-# 290 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
+# 306 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
 # another (the walls' clip stands over their trim on purpose, and cuts nothing), and the shell is closed (qbsp sees no
 # leak). --check verifies the points, the stair steps, that, that no trim stands out past the clip, and that the open ring
 # of the floor (700..1000 out, below 160 high) holds nothing.
@@ -46,8 +47,7 @@
 # the points, the steps, the 48-high covers and the shell are as they were (the covers grew inwards, so their
 # clearance to the staircases is the same), and the new brushes are the room's own trim: 4 to 16 units out of a wall.
 #
-# Entities (point entities for the wave director; none is in quakevr.fgd -- no QuakeC spawn function names them yet,
-# as with vrtesthall's plain info_player_start, so Misc/trenchbroom/fgdgen.py --check stays green):
+# Entities (point entities for the wave director; quakevr.fgd has them from QC's QUAKED notes):
 #   info_player_start   (1)  0 0 120                8 above the 16-high pad on the dais' top (its top face is at 112)
 #   info_arena_spawn   (12)  "kind" 1 = ground level, 2 = high (a drop):
 #                            4 tower tops     402 402 256   and 4 walkway landings 736 +-288 256  -> kind 2
@@ -55,6 +55,9 @@
 #   info_arena_item     (3)  196 196 48, -196 196 48, 196 -196 48 (mid-height at the dais' diagonal faces)
 #   info_arena_nav     (16)  8 pairs, a flight's foot ("target") and its top step ("targetname"): walkers whose foe is on
 #                            another level use them (QC/vr_arena_nav.qc)
+#   info_arena_banner   (4)  the run's numbers, live (QC/vr_arena_banners.qc): one in the middle of each cardinal wall, 34
+#                            out (in front of the uprights' tops), close under the cornice:
+#                            BANNERS below
 import argparse
 import math
 import os
@@ -94,7 +97,7 @@ PRESETS = {
 # without squashing the picture, which is what the crate faces, the dais' fluting and a 32-high coffer frame need.
 IDTEX = dict(floor=("ground1_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 64: id's base floor plates: 49 m of them
              wall=("tech14_1", "world", (0, 1), 1.0, (0.0, 0.0, 96.0)),       # 128: the walls' panels, butted with the
-                                                                              # rail at 96 and the cornice at 352
+                                                                              # rail at 96 and the upper rail at 480
              tower=("tech07_2", "fit", (2, 3), 1.0, (0.0, 0.0, 0.0)),         # 128: the towers' own riveted plates (not the
                                                                               # walls' panels), pinned to each face's own
                                                                               # edges: 2 across a 180 face and 3 up its 256,
@@ -251,15 +254,16 @@ def bind(spec, points):
     return mg.as_texfn(spec)
 
 H, CUT, TH = 800, 200, 64                    # the octagon: sides at +-800, corners cut 200 (1000 out); walls 64 thick
-XOUT, ZH, ZTOP, ZF = H + TH, 384, 448, 0     # the shell: walls 0..384, the floor slab down to -64, the ceiling to 448
+XOUT, ZH, ZTOP, ZF = H + TH, 576, 640, 0     # the shell: walls 0..576, the floor slab down to -64, the ceiling to 640
 DAIS_A, DAIS_C, DAIS_TOP = 232, 96, 96       # the dais: sides at 232, corners 268 out, its top at 96
 TOW_A, TOW_B, WALK_TOP = 312, 492, 256       # the towers: 312..492 in x and y, 256 high; the wall walk at 256
 DECK_X0, DECK_Y = 672, 576                   # the decks: x 672..800, y -576..576, z 192..256 (the bridges 370..434)
 COVER_R, COVER_HALF, COVER_TOP = 512, 48, 48  # the covers: 96 x 96 blocks, 48 high, at radius ~512 (2 crates long, 1 high)
-SKIRT, WAIN, RAIL = 16, 80, 96                # the walls' bands: skirting, wainscot, rail (the panels run 96..352)
-CORN = 368                                    # ... the cornice 352..368, the ceiling's border 368..384
+SKIRT, WAIN, RAIL = 16, 80, 96                # the walls' bands: skirting, wainscot, rail (the panels run 96..480)
+UPPER_RAIL = 496                              # ... an upper rail 480..496 where 3 whole panels end, a plated frieze to 544
+CORN = 560                                    # ... the cornice 544..560, the ceiling's border 560..576
 PIL_W, PIL_D = 16, 8                          # the uprights: 16 wide, 8 out of the wall, from the rail to the cornice
-PIL_TOP = CORN - 16                           # ... stopping exactly where the cornice begins (they meet face to face)
+PIL_TOP = UPPER_RAIL - 16                     # ... stopping exactly where the upper rail begins (they meet face to face)
 LAMP_D, LAMP_Z0, LAMP_Z1 = 8, 272, 304        # their lamps: 32 square, 8 out from the upright, at eye level on the walk
 LAMP_OUT = 10                                 # ... and each lamp's own light, 10 out from the face of it
 LAMP_LIGHT, LAMP_WAIT = "170", "0.55"
@@ -270,6 +274,11 @@ LAMP_KEYS = {"_dirt": "-1"}                 # every fixture's light carries this
 RISER_LIGHT, RISER_WAIT = "110", "0.9"      # a lit riser's own light, 12 in front of its tube (a warm tint, as the tube)
 DAIS_LAMP_X, DAIS_LAMP_Z0 = 72, 56          # the dais' lamps: either side of each flight's top, 32 square, 8 out of the
                                             # dais' face, 56..88 (above a jump from the floor, below the dais' top)
+# The banners (info_arena_banner: the arena's boards, QC/vr_arena_banners.qc): a board's middle and the way it faces. At
+# scale 4.5 (36 a character, 23 across, 2 down, 1.2 round them: 914 by 158 with its bezel) its top is just under the
+# cornice at 544, high over the fight, and it reads across the room (a character is 1.3 deg from 1600 away).
+BANNER_OUT, BANNER_Z, BANNER_SCALE = 34, 464, "4.5"
+BANNERS = [(H - BANNER_OUT, 0, 180), (-(H - BANNER_OUT), 0, 0), (0, H - BANNER_OUT, 270), (0, -(H - BANNER_OUT), 90)]
 COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
 LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)
 CLIP_D = 16                                   # the walls' clip: one flat face this far out, floor to ceiling, in front of
@@ -405,12 +414,14 @@ def geometry(mw):
         shell.append(prism([outer[i], outer[i + 1], far], ZF, ZH, "wall", "wall"))
 
     # ---- the walls dressed in bands, mitred where two sides meet (the calibration room's idioms at the arena's
-    # height): 16 of skirting on the floor, 64 of plated wainscot, 16 of rail, the wall's own panels from 96 to 352,
-    # then 16 of cornice and 16 of border moulding where the ceiling meets the walls. The wall walk at 192..256 passes
+    # height): 16 of skirting on the floor, 64 of plated wainscot, 16 of rail, the wall's own panels from 96 to 480,
+    # 16 of upper rail, 48 of plated frieze, then 16 of cornice and 16 of border moulding where the ceiling meets the walls. The wall walk at 192..256 passes
     # between the rail and the cornice, and nothing here reaches into the walk or the bridges (--check).
     band(shell, oct8, ZF, SKIRT, 8, "strip")
     band(shell, oct8, SKIRT, WAIN, 4, "wainscot")
     band(shell, oct8, WAIN, RAIL, 8, "strip")
+    band(shell, oct8, UPPER_RAIL - 16, UPPER_RAIL, 8, "strip")
+    band(shell, oct8, UPPER_RAIL, CORN - 16, 4, "wainscot")
     band(shell, oct8, CORN - 16, CORN, 8, "strip")
     band(shell, oct8, CORN, ZH, 16, "strip")
     # ... and one clip over all of it, floor to ceiling: the walls' trim was somewhere to stand and to climb (the rail, a
@@ -555,7 +566,7 @@ def geometry(mw):
             coffers.append(cuboid(x + dx0, y + dy0, ZH - COFFER_DROP, x + dx1, y + dy1, ZH, "recess", "frame", "ring"))
         coffers.append(cuboid(x - 64, y - 64, ZH - 16, x + 64, y + 64, ZH, "recess", ("frame", dict(reps=(0, 1))),
                               "lit"))
-        lights.append(((x, y, ZH - 44), "300", "0.47"))
+        lights.append(((x, y, ZH - 44), "305", "0.40"))    # (192 farther from the floor than they first were: a longer reach, not more light: the walls by them stay as they were)
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
         lights.append(((sx * 402, sy * 402, 320), "150", "0.6"))      # over each tower's top
         lights.append(((sx * 736, sy * 288, 320), "110", "0.6"))      # over each walkway landing: the wall lamps
@@ -579,6 +590,8 @@ def geometry(mw):
     ents = [{"classname": "info_player_start", "origin": "0 0 120", "angle": "90"}]
     ents += [{"classname": "info_arena_spawn", "origin": "%d %d %d" % p[:3], "kind": str(p[3])} for p in SPAWNS]
     ents += [{"classname": "info_arena_item", "origin": "%d %d %d" % p} for p in ITEMS]
+    ents += [{"classname": "info_arena_banner", "origin": "%d %d %d" % (x, y, BANNER_Z), "angle": str(a),
+              "worldtext_scale": BANNER_SCALE} for x, y, a in BANNERS]
     for i, (foot, top) in enumerate(FLIGHTS):
         name = "arena_flight_%d" % (i + 1)
         ents.append({"classname": "info_arena_nav", "origin": "%d %d %d" % foot, "target": name})

@@ -2489,7 +2489,7 @@ QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it loo
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
 QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed monster the vr_agrunt_test tests spawn (QC vr_armedmon.qc: 0 grunt, 1 enforcer)
 // Survival Arena (QC/vr_arena.qc): the wave director's knobs.
-QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
+QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (an arena map runs them on its own: arenawaves::isArenaMap)
 QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from a wave clear to the next wave's countdown (by the difficulty)
 QVR_CVAR(vr_arena_countdown_sound, "1", CVAR_ARCHIVE)         // the countdown's beeps' volume (Quake's own menu tick and chime, pitched; 0: silent)
 QVR_CVAR(vr_arena_scatter, "1", CVAR_ARCHIVE)                 // 1: a wave clear's medkits, armour and shards land at random walkable places all over the map, ledges too (QC vr_arena_supply.qc); 0: on the map's info_arena_item points
@@ -2516,6 +2516,7 @@ QVR_CVAR(vr_arena_waves_as_release, "0", CVAR_NONE)            // 1: a developme
 QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
 QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
+QVR_CVAR(vr_arena_banners, "1", CVAR_ARCHIVE)                  // 1: the arena's boards (info_arena_banner: vr_arena_banners.qc) show the run's numbers; 0: they are off
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE)               // ... once this many of its foes are left (up, and still to come)

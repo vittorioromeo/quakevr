@@ -372,7 +372,7 @@ float(float i) VR_ARK_CardPick =
 // now -- only between two waves, where a real one comes.
 void() VR_ARK_DebugOffer =
 {
-    if(!VR_ARK_Running()) { dprint("arena_perks: no Survival Arena run here (map vrarena)\n"); return; }
+    if(!VR_ARK_Running()) { dprint("arena_perks: no Survival Arena run here (not an arena map)\n"); return; }
     if(!VR_ARENA_Between())
     {
         VR_ARENA_PrintAll("ARENA - perk cards come only between two waves\n");
