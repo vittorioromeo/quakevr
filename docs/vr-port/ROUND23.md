@@ -8531,3 +8531,20 @@ rooms that are already over. Defaults kept.
 Crates: `crate_hit1..3` (new, 0.44-0.50 RMS; the wood_m knock was 0.2, played at 0.4 + damage x 0.04, under the melee
 hit's 0.64) in VR_Crate_Pain; `crate_break1..3` 0.7 s at 0.3 RMS to 1.2 s at 0.5, with boards clattering down (both soft
 clipped, `make_crate_sounds.py`, Python with numpy). AD's func_breakable sounds (`break/*.wav`) aren't in the repo: unchanged.
+
+## Light probes read phantom surfaces (dark rows by the towers)
+
+His report: in vrarena by a tower on the outer edge a row of probes, and the models there, far darker than the lit floor.
+Cause: a plain bug in the ray walk. `trace` (vr_ambient.cpp) and `RecursiveLightPoint` (gl_rlight.c) took a surface when
+its texture extents held the crossing, and those are only a box round the surface: the octagon's thin diagonal bands (skirting
+top at z 16, more at 80 and 96) have a box over the whole corner, where the towers stand, of luxels outside the face that
+are dark. So a ray going down from there stopped in mid air on a phantom (lightmap 40, 30 units away, so it weighs much)
+instead of reaching the floor (107..177). Now `R_SurfaceHoldsPoint` also tests the crossing against the surface's edges;
+GRID_CACHE_VERSION 3. Measured in vrarena, the probe at -530.5 -386.5 45.5: level 54 -> 112, drawn 25 -> 120; R_LightPoint on
+the floor under it 39 (14 from z 93.5) -> 103. Over a floor: probes' mean 105 -> 151, floors' 129 -> 170 (the floors were
+wrong too); z 45.5 and 93.5: level / floor at the 10th, 50th and 90th percentile 0.85, 1.00, 1.49, and none under 0.70.
+
+What's left is the averaging itself: in a bright pool (floor 170..180) the walls and ceiling round it are 45..150, so the
+probe reads 120 (0.7 in lightmap units; about half when drawn, through the curve). The compile's own LIGHTGRID_OCTREE is no
+ready answer: it has no direction and no cosine, and clips at 255 over most of this arena's air (layer means 211..253).
+`vr_physsound.cpp`'s walk has the same box test (not changed: it isn't light).
