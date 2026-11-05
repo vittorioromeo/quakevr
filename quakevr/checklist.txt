@@ -13,13 +13,10 @@ Flatscreen ironsight: the ease now ships as you tuned it (vr_flat_aim_fov 40, vr
 Weapon Studio window (Debug > Tools > Weapon Studio): drag its title bar to move it, pull its lower-right corner to resize it, press Escape or click its title-bar X to close it, then open it again — does it come back where and as big as you left it? (it keeps at least 560x360 so its top row and Close stay reachable)
 
 [1. Armed humanoids: fighting them]
-Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it. {test:punch_grunts}
-Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432). {test:agarmor_plates}
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work? {test:vrarena_calm}
 Rig Studio: changing the subject leaves no backpack lying on the floor. {test:agrunt_pose_studio}
 Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship.
 Models near slime and teleporters take a light tint too (e1m1's slime); Slime Light and Teleporter Light set how much (same Tunables page).
-Plain monsters parry by direction: with vr_agknight 0, a knight's chop: sword level across where its blade comes down: sparks, it staggers; upright: the blow lands. Ogre's side swing: upright in its way; its overhead smash: level across. Fiend's claws, shambler's arms: across each as it comes. Dog: low, level across its head.
 A leap landing on you, a fish's bite, a dog's bite or leap, a fiend's leap: a weapon level across in front parries; upright, the blow lands.
 Debug > Show Disarm Volumes near a monster: its blow's line on its weapon or limb (white; a second limb's yellow). Combat > Parry and Bash has no Directional Parry toggle.
 A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance). A directional parry lets nothing through; Debug > Tunables > Combat > Directional Parry has Let Through: Armed Humanoids, Monsters, Timing Window.
@@ -33,17 +30,11 @@ Stab a grunt hard: it staggers about 2.5 s, your hand still on the hilt; a weake
 Stab a grunt deep with two hands: thrown off balance, about 3.5 s of lifting it around; with one hand it stands on about 2.5 s and is less controllable; barely in, weaker. Ogre: a shorter stagger, off balance only by a deep two-handed stab. Shambler, as hard as you can: a moment, standing, no drag, you're slowed, and walking off pulls the blade out. Boss: nothing. {test:embed_stab}
 Walk away holding a blade in a standing grunt: it drags along and you walk at about a third of your speed. If it's blocked, the blade comes out past arm's reach and your speed returns. {test:embed_stab}
 Debug > Embedded Blades: Why: in slow motion, each stab says why it stuck or not, why it came out and how far a miss was off; the no man's grunt sounds when a blade stays in or comes out. {test:embed_stab}
-Weapon Effects > Blow on the Smoke on, Debug > Show Microphone Level to set Blow Threshold: fire the shotgun, hold the muzzle at your mouth and blow: the wisp goes forward and fades faster; talking quietly or holding it away does nothing.
 Kill a grunt messily, then stab its head or a gib tip first: it rides the blade through swings, up to 3 spaced along it, and the blade feels heavier and tip-heavy. The other hand's grip takes one off. A slash on a loose one bursts it. Drop the sword: the gibs stay on, land with it, ride again when picked up. Throw it hard with the gib end leading at a wall: that gib bursts; a gentle throw doesn't. Swing the blade so the gib's part hits a wall: it bursts; hitting with another part doesn't. Switching weapon drops them unbroken. Stab a gib or head: only what the blade goes through goes on and the blade keeps its angle; the other hand slides it along, off the tip, or yanks it free. A gibbing throw or stab leaves no floating blade. {test:embed_stab}
-VR Settings > Move Towards: Torso: look or point a hand aside while pushing the stick forward; you keep walking where your torso faces.
 A wound with a blade in it runs blood: sliding the blade makes flesh sounds and spurts every 3 cm, live or in a corpse; held past 10 s, an unbroken stream follows the body, then stops as the blade leaves or the body dies. {test:embed_stab}
 Weapon Studio: wheel up zooms the camera in, and the id row is plain grey text.
 Weapon Studio: copy another slot into this one, and the model and its hand offset stay.
-Debug > Tunables > Weapons > Other > Weapon Studio: Fly Speed changes the Studio camera's speed.
-Debug > Show Light Probes: do the crosses near you match the floor's brightness, and do the lines to the grunt's 8 probes look right? Try Tunables > Light Grid > Probe Spacing 24 and Probe Intensity: does the grunt look more consistent with the floor? {test:vrarena_crate}
 Hit a crate with the crowbar, then break it: is the wood clearly audible over the weapon's hit, and is the breaking loud with boards clattering down? {test:vrarena_crate}
-In the console, type `vr_throw_gain_lo` and press Tab: it lists as "tunable". `vr_throw_gain_lo 2.5` sets it, and the name alone prints its value and default.
-vrarena, Show Light Probes, by a tower: no dark row low on the wall; a monster there is as lit as the floor. {test:vrarena_crate}
 Survival Arena: stand on the dais, then on the floor: walkers come up and down the stairs to you instead of wandering the edge; they may still dither if you stand right beside a flight's side. {test:arena_run}
 Punch while running at a grunt: it lands easier and slightly harder; a still closed fist run into him lands a weak punch; open hands don't. {test:embed_stab}
 Super nailgun: hold the front grip with your off hand while firing: the hand stays still while the barrel spins (Weapon Offsets > Hotspots > Ignore Animation)
@@ -59,13 +50,11 @@ Armour look, third round: on grunts, knights and your own plates, check that the
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
 Knock a grunt off a ledge: it grabs the lip, hangs, pulls up (or drops). Into the pool: it swims to where it can stand; killed in water: it paddles weakly, then goes limp. {test:ragdoll_behaviours}
-A crowbar on an explosive box now knocks (blunt) instead of clanging: right, or should it clang? {test:props_range}
 
 [4. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 
 [5. Moving, weapons and the world]
-Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way (pulling it in to inspect at speed may eject: raise Eject Push Speed if so); a quick pull back with a shell in the other hand keeps the loaded shells in. See through the empty chambers swung out; shells seat cleanly in them. {test:revolver}
 Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
 
 [6. Dev tools: the Weapon Studio (flat screen only, -flatscreenmode)]
