@@ -722,3 +722,73 @@ health at 100 stay lying; megahealth takes him over 100; a monster's backpack (D
 taken. A dead armed grunt's worn backpack (vr_wornpack.qc) is on the corpse, not an item on the floor: not touched by this.
 A box let go with G at his feet is taken again only if it can be (a held box is one he was full of). Headset: the same walk
 leaves all 13 lying, as before.
+
+## Flat pose, phase 3: stances by weapon, and his notes of 2026-11-05 (branch `agent/flatsolve3`)
+
+Items 1 and 2 of six done; 3 to 6 not started (bob and sway, gun out by pitch, the off hand crouched, sizes). Measured at his
+settings (defaults, `vr_flat_aim_fov 45`; his `tunables.cfg` holds only that line, so none of his saved tunables override a new default).
+
+**1. Stances by weapon.** One-handed (melee, a gun with no hotspot, dual wielding): as before. A long gun: as before, and now:
+- **A pistol** held with the other hand free is held in both hands (`vr_flat_stance_pistol` 1, Free Hands): its own numbers
+  (`vr_flat_pistol_turn` 10 deg, `_back` 2, `_in` 6, `_up` 2: both hands in front of him), the free hand drawn on the revolver's cup
+  as a headset draws a helping hand there; no cheek limit (that is the long gun's).
+- **The ironsight keeps the off hand on**: the torso turns `vr_flat_ads_turn` 15 more and the chest leans `vr_flat_ads_lean` 10 into
+  the gun (the head and the eye stay: `flatsight::stanceLean`, in `solveTorso` only), and the relief comes in as far as the free arm
+  needs to take the hotspot within 0.95 of its reach (`reliefFor`, as it did for a real grip), never nearer than 9.5. Where even that
+  can't (sighted looking up, crouched from -35, standing from -70), the hand **slides down the fore-end** towards the holding hand,
+  at most to 3 ahead of it (`flatsight::lookSlide`, drawn by `vr_view_hands.cpp`; the sweep's new `spot_slide` column: 3.7 at most,
+  crouched at -85). Hipfire the same past 0.88 (crouched, looking up). It stays on the gun; it doesn't let go.
+- The stance's hotspot keep is applied again across the view after the chest, eye and screen limits (they took it out of reach
+  crouched and looking down); the free hand goes off its hotspot from 0.9 of its reach (was 0.78), and sighted from 0.96.
+- The sweep measures the free hand from where the full look draws it (the hotspot's own offsets: the revolver's cup has the hand 4.9
+  off its point) and from the slid place.
+
+Sweep (`flatsweep_test.sh`, his settings): before `384 passed, 19 known failing, 0 failed`; after `398 passed, 5 known failing,
+0 failed` with the new `flatsweep_known.txt`. Off hand on its hotspot (or slid) in all 462 rows that were off; all 16 phase 3
+lines are out, and three of the four phase 2 lines (`jump_gun open/long/crouch/hip` 1.005 against 1.0 stays). Row by row against
+the before run (`scratch/fs3_compare.py`): 10 rows worse past their limits: **arm_surface** crouched, sighted, looking up -75 to -85
+(the free arm on the fore-end passes 0.63 from the eye; was 4.2 with the hand hanging) -- new known lines, open; and one
+`settled` row (low ceiling, crouched, sighted, -55; that list's row moved from 45). Flat suites: flatplay 28/0, (see the report for
+flatpose, flatsight, flatkeys).
+
+**1b. The free arm clears the eye looking up** (his question: tweak the arm, or move the gun forward). The arm, not the gun: the
+sweep's elbows (new `el*`/`wr*` columns, and `vr_flat_sweep <label> ads`: the long gun sighted only) showed the off arm's own pole
+(down by the chest, tucked back) bending the elbow up onto the view's axis, 2.3 ahead of the eye, crouched and sighted at -85.
+`flatsight::elbowPole` turns that arm's pole to the view's down and out (`vr_flat_up_elbow` 1, `vr_flat_up_elbow_out` 0.5;
+smooth from 15 degrees up to 60; the wrist's ease swings it back only by the rest): the elbow goes under the gun, as a support
+elbow does. Least eye-to-arm looking up, before -> after: crouched sighted 0.63 -> 4.06 (low ceiling 4.07, at the wall 3.84),
+standing sighted 1.72 -> 4.03, the pistol crouched 3.11 -> 4.95; level and down unchanged (4.4 to 8.0: they never had it).
+The hand stays on the gun, the gun where it was, so no gun forward was needed (no tunable for it). Sweep: `401 passed, 2 known
+failing, 0 failed`; the 9 `arm_surface` rows pass and their lines are out; row by row against the start, 0 worse.
+
+**4. Gun out by look** (his values as defaults). `gunOutAt`: `vr_flat_gun_out` (1) level, new `vr_flat_gun_out_crouch` (-2) level
+crouched (by how deep; Crouch Gun Out's 2 still on top), going to new `vr_flat_gun_out_down` (-4) and `vr_flat_gun_out_up` (-4) at
+85 along a smoothstep (no corner). Sweep column `gun_out` and check `gun_out`: -4 / 1 / -4 standing, -4 / -2 / -4 crouched at
+-85 / 0 / 85, all rows exact (-45: -1.72 standing, -3.09 crouched). The cost: the long gun in its stance comes in across the
+chest, its stock 1.1 to 2.3 into the torso's capsule hipfire (crouched level, standing at +-40) and the off forearm 1.1 to 1.7
+(`gun_torso`, `fore_torso`, 115 rows past their limits): new known lines, open (a chest clearance for the stock, or his call on
+the long gun's values). Sweep `397 passed, 13 known failing, 0 failed`.
+
+**3. Bob and sway.** The drawn body rides the drawn view's own move off the pose's eye (`flatplay::bodyRide`: the walk's bob, a
+step's easing; `vr_view_body.cpp` poses a copy of the state with its head moved) by new `vr_flat_body_bob` (1), and the drawn hands
+ride the same share (`drawnOffset`'s `to`), all of it sighted (the sights stand on the view). The whole body moves, feet too
+(taking it in the legs by the head height changed the crouch's depth: crouched shoulders moved 2.5 on the screen; now 0.1), so the
+feet may ride a few units off the floor mid-step. Sighted, the sway and the walk's bob are kept at new `vr_flat_ads_sway` and
+`vr_flat_ads_bob` (0.15 each; was none), no breathing. `vr_flat_bob` stays his 0. `flatwalk_test.sh` (12 runs; the probe takes a
+held pitch): shoulders on the screen walking 6.06 (ride off) -> 0.10, crouched 5.94 -> 0.12 with hands 1.2 (the start's sway);
+the off wrist off its rest 2.15 (before) -> 0.46 walking, 0.015 crouched, 0 sighted; sighted bob 0.26 against hipfire's 1.83
+(Walk Bob 1). Verdict `11 passed, 1 failed`: walking looking straight down the off wrist moves 0.543 (limit 0.5) -- item 5, open.
+Sweep unchanged (0 rows worse).
+
+**2. E aims at the crosshair.** `VR_Forcegrab_FlatGrab` searches from his eye along his view (`VR_Forcegrab_FindTargetAlong`),
+not along the free hand (which hangs about 60 down). flatitems' E cases now put the thing on the crosshair's ray, 36 ahead, 50 deg off
+the hanging hand's line (the cone is 15): they pass (flatitems 8/0), so the search is the view's.
+
+**3 (started): the walk probe.** `vr_flat_walk_probe <label> <frames> [shot every N]` and `Misc/quakevr/flatwalk_test.sh`
+(+forward on e1m1's start; the wrist on the arm against the drawn hand in the camera's frame, its most a frame, each hand's and
+shoulder's range on the screen). Before any change (shotgun): the off hand's wrist 2.15 off its rest walking and running
+(the stance's look hand), the main 0.012; the cause found: the drawn hands carry Quake's view bob (`V_CalcBob`, up to 4 up and
+7 down, in `r_refdef.vieworg`) through `drawnOffset`'s camera, the body doesn't (`avatar::pose` stands on `s.head`), so the body
+moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the hands have no move of their own. Planned: the drawn
+body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
+down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).

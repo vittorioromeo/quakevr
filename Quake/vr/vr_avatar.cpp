@@ -12,6 +12,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
@@ -400,10 +401,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
     }
-    // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch).
+    // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch), and leans
+    // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
     if(crouchPose && flatplay::active())
     {
-        const float lean = flatplay::chestPitch(s.headAngles.x);
+        const float lean = flatplay::chestPitch(s.headAngles.x) + (flatplay::onBody() ? flatsight::stanceLean() : 0.f);
         const glm::vec3 chestFromSpine = c.pos - sp.pos;
         const glm::mat3 spineTurn = bodyTurn(b, 0.5f * lean, 0.f, 0.f);
         sp.rot = spineTurn * sp.rot;
@@ -1033,6 +1035,14 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         spreadBy = za::min(1.f, folded * palmDown * spread) * (1.f - tuck * za::max(byFace, pointsUp));
         pole = glm::mix(pole, wings, spreadBy);
     }
+    // Flatscreen play: the free hand on a gun's fore-end, looking up, takes its elbow down under the gun and out at its side
+    // (flatsight::elbowPole), as a person's support elbow goes, not up in front of the eye the arm's own pole turns it to there;
+    // the wrist's ease below swings it back by as little of that share.
+    float flatElbow = 0.f;
+    if(glm::vec3 way; easeWrists && (flatElbow = flatsight::elbowPole(side == 0 ? HAND_OFF : HAND_MAIN, way)) > 0.f)
+    {
+        pole = glm::mix(pole, way * glm::length(pole), flatElbow);
+    }
     glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
@@ -1059,7 +1069,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         swivel = since < 0.0 ? best
                              : glm::mix(lastSwivel[side], best, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
         const glm::vec3 centre = u.pos + axis * glm::dot(elbow - u.pos, axis);
-        const glm::quat q = glm::angleAxis(swivel, axis);
+        const glm::quat q = glm::angleAxis(swivel * (1.f - flatElbow), axis);
         elbow = centre + q * (elbow - centre);
         bend = q * bend;
         lastSwivelTime[side] = now;

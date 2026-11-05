@@ -289,6 +289,14 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     return hip + (ads - hip) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
 }
 
+// The share of the drawn view's own move off the pose's eye (the walk's bob, a step's easing) the drawn body and hands ride together:
+// vr_flat_body_bob, all of it in the ironsight (the sights stand on the view).
+[[nodiscard]] float rideShare()
+{
+    const float share = za::clamp(vr_flat_body_bob.value, 0.f, 1.f);
+    return share + (1.f - share) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
+}
+
 // Whether the drawn view is his own eyes: not a chase view, and not standing further from his own head than keepNear --
 // with the mode's own nudges put back first (see the block above). drawnOffset and crosshairRay both ask this, so the
 // drawn weapon and the shot's crosshair can never be measuring from different cameras.
@@ -451,6 +459,19 @@ constexpr float lookMost = 85.f;      // a look straight down, for the arm's mov
 constexpr float stanceFadeFrom = 10.f; // the look's degrees off level the stance starts fading at, and has gone by
 constexpr float stanceFadeTo = 55.f;
 
+// The held weapon's Gun Out at the look `pitch` (Quake's: positive down): vr_flat_gun_out at a level look (crouched,
+// vr_flat_gun_out_crouch, by how deep), going to vr_flat_gun_out_down looking straight down and vr_flat_gun_out_up straight up
+// along a smooth curve (no corner at level or at the ends): the gun comes in towards the middle looking up or down, as his
+// tuning has it (1 level, -4 at either end, -2 crouched).
+[[nodiscard]] float gunOutAt(float pitch)
+{
+    const float crouched = bodyPose() ? keyState.ratio : 0.f;
+    const float level = poseNum(vr_flat_gun_out) + (poseNum(vr_flat_gun_out_crouch) - poseNum(vr_flat_gun_out)) * crouched;
+    const float end = poseNum(pitch >= 0.f ? vr_flat_gun_out_down : vr_flat_gun_out_up);
+    const float w = geom::smooth01(za::clamp(glm::abs(pitch) / lookMost, 0.f, 1.f));
+    return level + (end - level) * w;
+}
+
 // Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_ahead / _down /
 // _out), the free hand's next to the other hand's gun (vr_flat_support_*), an empty hand's (vr_flat_empty_*). Positive
 // is forward, out at that hand's own side, and down (the z term reads the negative of the cvar, which is why the cvars
@@ -469,9 +490,13 @@ constexpr float stanceFadeTo = 55.f;
                              (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
         // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
         const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
-        return {(poseNum(vr_flat_gun_ahead) - stance * poseNum(vr_flat_stance_back)) * reach,
-            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in) + crouchOut) * reach,
-            -(poseNum(vr_flat_gun_down) - stance * poseNum(vr_flat_stance_up)) * reach};
+        // (A pistol's stance: both hands in front of him, its own numbers. A long gun's: towards the shoulder pocket.)
+        const bool pistol = flatsight::stancePistol();
+        const float back = poseNum(pistol ? vr_flat_pistol_back : vr_flat_stance_back);
+        const float in = poseNum(pistol ? vr_flat_pistol_in : vr_flat_stance_in);
+        const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
+        return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
+            -(poseNum(vr_flat_gun_down) - stance * upBy) * reach};
     }
     if(otherHolds)
     {
@@ -1038,6 +1063,22 @@ bool onBody()
     return active() && bodyPose();
 }
 
+float gunOut(float pitch)
+{
+    return gunOutAt(pitch);
+}
+
+glm::vec3 bodyRide(const hands::State& s)
+{
+    if(!active() || !bodyPose() || !s.valid || !viewIsHisOwn(s))
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    return (cam - (s.head + camShiftWorld(aim))) * rideShare();
+}
+
 glm::vec3 levelHang(const hands::State& s, int h)
 {
     if(!active() || !bodyPose() || fs.hang[h] <= 0.f || !fs.shouldersKnown)
@@ -1094,8 +1135,11 @@ namespace
     // side of the screen and doesn't come across his face.
     glm::vec3 spot;
     const float stance = flatsight::stanceSpot(h, spot);
-    if(stance > 0.f)
-    {
+    const auto keepSpot = [&](bool backAlong) {
+        if(stance <= 0.f)
+        {
+            return;
+        }
         glm::vec3 vf, vr, vu;
         hands::angleVectors(aim, vf, vr, vu);
         // (From its rest shoulder, as the free hand's own need is measured: flatsight's armShare.)
@@ -1109,16 +1153,22 @@ namespace
         {
             p -= acrossWay / across * (across - softBelow(across, keep * acrossKeep, keepEase * span)) * stance;
         }
-        // ... then back along it.
+        // ... then back along it (the first time only: again, after the chest's and the eye's limits, it brought the stock into the
+        // chest on a look up).
+        if(!backAlong)
+        {
+            return;
+        }
         to = p + axes(aim) * spot - otherRoot;
         const float along = glm::dot(to, vf);
         const float across2 = glm::dot(to, to) - along * along;
         const float most = keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f;
         p -= vf * (along - softBelow(along, most, keepEase * span)) * stance;
-    }
+    };
+    keepSpot(true);
 
     // Clear of the chest: ahead of the shoulder, while the hand is below it (a hand over the shoulder has no chest before it).
-    {
+    const auto clearChest = [&]() {
         const glm::vec3 rel = p - root;
         const float ahead = glm::dot(rel, levelFwd);
         const float below = za::clamp(1.f - glm::dot(rel, levelUp) / clearFadeAbove, 0.f, 1.f);
@@ -1127,7 +1177,8 @@ namespace
         {
             p += levelFwd * (softAbove(ahead, keep * below, clearEase) - ahead);
         }
-    }
+    };
+    clearChest();
 
     // Clear of the eye, and of the neck under his head (a look up takes the eye back over it).
     {
@@ -1158,9 +1209,17 @@ namespace
         const float across = glm::length(v - vf * f);
         const float flat = za::clamp(vr_flat_screen_angle.value, 20.f, 85.f);
         const float cheek = za::clamp(vr_flat_screen_angle_stance.value, 20.f, 85.f);
-        const float angle = glm::radians(flat + (cheek - flat) * flatsight::stanceShare(h));
+        const float angle = glm::radians(flat + (cheek - flat) * (flatsight::stancePistol() ? 0.f : flatsight::stanceShare(h)));
         const float low = across / glm::tan(angle);
         p += vf * (softAbove(f, low, screenEase) - f);
+    }
+
+    // The hotspot again: the chest, the eye and the screen push the gun forward and out, and crouched or looking straight down that
+    // took the hotspot out of the free arm's reach (the hand let go). And the chest again after it (it brings the gun back).
+    if(stance > 0.f)
+    {
+        keepSpot(false);
+        clearChest();
     }
 
     // Within its own arm.
@@ -1367,7 +1426,10 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const bool onCam = viewIsHisOwn(s);
     const glm::vec3 from = onCam ? s.head + camShiftWorld(aim) : s.head; // (the pose's hands carry the nudge: poseHands)
-    const glm::vec3 to = onCam ? cam : s.head;
+    const glm::vec3 view = onCam ? cam : s.head;
+    // (The view's own move off the pose's eye -- the walk's bob, a step's easing -- by vr_flat_body_bob's share, as the body rides it:
+    // bodyRide. The sights below stand on the view itself.)
+    const glm::vec3 to = from + (view - from) * rideShare();
     const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
                                       : aim;
 
@@ -1391,9 +1453,13 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     // The step's sway and the walk's bob, in the view's frame.
     const float bob = za::clamp(vr_flat_bob.value, 0.f, 3.f);
     const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
-    const glm::vec3 bobLocal{0.f, bob * (bobSide * feel.amp * za::sin(feel.phase) + breathSide * rest * za::sin(feel.breath * 0.5f)),
-        bob * (bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f + breathUp * rest * za::sin(feel.breath))};
-    const glm::vec3 local = (feel.sway + bobLocal) * looks;
+    const glm::vec3 walkBob{0.f, bob * bobSide * feel.amp * za::sin(feel.phase), bob * bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f};
+    const glm::vec3 breath{0.f, bob * breathSide * rest * za::sin(feel.breath * 0.5f), bob * breathUp * rest * za::sin(feel.breath)};
+    const glm::vec3 local = (feel.sway + walkBob + breath) * looks;
+    // In the ironsight the sway and the walk's bob are kept at vr_flat_ads_sway / vr_flat_ads_bob of themselves (no breathing: at rest
+    // the sights stay exact).
+    const glm::vec3 adsLocal =
+        feel.sway * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
 
     glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
 
@@ -1423,7 +1489,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     // The last word on the ironsight: the sights on the ray of the camera this frame is drawn with, the solve's hand in its
     // frame (it stays within the arm: vr_flatsight.cpp's reliefFor), whatever the frame's bob, kick and nudges did to it.
-    drawn += (to + camAxes * sightHand - drawn) * onSight;
+    drawn += (view + camAxes * (sightHand + adsLocal) - drawn) * onSight;
 
     pos = drawn - s.pos[h];
 
@@ -1447,8 +1513,9 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         angles[i] = za::remainder(drawnRot[i] - s.rot[h][i], 360.f);
     }
     angles.x += looks * bob * breathPitch * rest * za::sin(feel.breath);
-    angles.y += looks * bob * bobYaw * feel.amp * za::sin(feel.phase);
-    angles.z += looks * bob * bobRoll * feel.amp * za::sin(feel.phase);
+    const float bobTurn = looks + onSight * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
+    angles.y += bobTurn * bob * bobYaw * feel.amp * za::sin(feel.phase);
+    angles.z += bobTurn * bob * bobRoll * feel.amp * za::sin(feel.phase);
 
     probeArm(s, h, drawn, drawnRot);
 }

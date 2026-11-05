@@ -2944,6 +2944,11 @@ void setupHand(const hands::State& s, int hand)
     const float lookBlend = realBlend <= 0.f ? flatsight::lookShare(hand) : 0.f;
     glm::vec3 lookPoint{0.f};
     const int lookSpot = lookBlend > 0.f ? view::twoHandSpot(s, other, lookPoint) : -1;
+    if(lookSpot >= 0)
+    {
+        // (Down the fore-end towards the other hand where the arm can't take the hotspot itself: flatsight::lookSlide.)
+        lookPoint -= anglesBasis(s.visualRot[other])[0] * flatsight::lookSlide(hand);
+    }
     const float gripBlend = lookSpot >= 0 ? lookBlend : realBlend;
     const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
     // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).

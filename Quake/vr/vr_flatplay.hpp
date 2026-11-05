@@ -99,6 +99,13 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // The free hand `h` hanging: the move from where it stands to where it would stand off the gun in its other hand had the look been
 // level (what chooses the grip: vr_view_weapon.cpp). 0 outside the mode, with vr_flat_body_pose 0, and for a hand doing anything else.
 [[nodiscard]] glm::vec3 levelHang(const hands::State& s, int h);
+// The held weapon's Gun Out (units before vr_flat_reach) at the look `pitch` (Quake's, positive down), the crouch as it is now:
+// vr_flat_gun_out level, vr_flat_gun_out_crouch crouched, going to vr_flat_gun_out_down / _up along a smooth curve. The sweep's.
+[[nodiscard]] float gunOut(float pitch);
+// The drawn body's move with the drawn view (world units): the view's own move off the pose's eye -- the walk's bob, a step's easing --
+// by vr_flat_body_bob (all of it sighted), which the drawn hands ride too (drawnOffset), so body, arms and hands move as one. 0 outside
+// the mode, off the body pose, and when the drawn view isn't his own eyes.
+[[nodiscard]] glm::vec3 bodyRide(const hands::State& s);
 // The hands stand on the body (vr_flat_body_pose), in the mode.
 [[nodiscard]] bool onBody();
 // How far the chest's share of this look carries his head and neck (vr_flat_eye_lean). In the eye's place already: solveTorso's head.

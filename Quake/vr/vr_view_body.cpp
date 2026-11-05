@@ -3,6 +3,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_agarmor.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 
 namespace view_detail
@@ -46,7 +47,16 @@ void setupBody(const hands::State& s)
             const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
 
             view::ViewEntity& ve = entities.body;
-            const glm::vec3 origin = avatar::pose(s, model, &ve.ent, handPoses, mode >= 3);
+            // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
+            // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
+            // the bob in the legs changed the crouch's depth, and crouched the shoulders moved 2.5 on the screen against 0.1), so the
+            // feet ride the bob too, a few units off the floor at most.
+            hands::State moved = s;
+            if(const glm::vec3 ride = flatplay::bodyRide(s); ride != glm::vec3{0.f})
+            {
+                moved.head += ride;
+            }
+            const glm::vec3 origin = avatar::pose(moved, model, &ve.ent, handPoses, mode >= 3);
             place(ve, model, origin, glm::vec3{0.f}, 0, false);
             showPlayerState(ve, s);
         }

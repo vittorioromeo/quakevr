@@ -1818,6 +1818,9 @@ QVR_TUNABLE(vr_model_light_teleport_range, "256")
 QVR_TUNABLE(vr_flat_gun_ahead, "16.5") // the held weapon, hipfire, at a level look: how far in front of the shoulder the arm hangs from it sits (-30..30 units; 14 off the old anchor)
 QVR_TUNABLE(vr_flat_gun_down, "0") // the held weapon, hipfire, at a level look: how far below that shoulder it sits (-30..30; positive is lower; 12 off the old anchor, which stood 12 higher)
 QVR_TUNABLE(vr_flat_gun_out, "1") // the held weapon, hipfire, at a level look: how far out at the holding hand's own side of that shoulder it sits (-30..30; 4 off the old anchor; negative brings it across)
+QVR_TUNABLE(vr_flat_gun_out_down, "-4") // Gun Out looking straight down (-30..30): from vr_flat_gun_out at a level look along a smooth curve, the gun in towards the middle
+QVR_TUNABLE(vr_flat_gun_out_up, "-4") // Gun Out looking straight up (-30..30), the same
+QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-30..30), by how deep the crouch is; looking up or down goes from it to their own
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
@@ -1835,6 +1838,15 @@ QVR_TUNABLE(vr_flat_stance_turn, "25") // how far the torso turns for it (degree
 QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
+QVR_TUNABLE(vr_flat_stance_pistol, "1") // a pistol (a gun with a two-handed hotspot, its muzzle under 9.5 from the hand) held with the other hand free: held in both hands too, in its own stance below (0: one hand, the other hangs)
+QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
+QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
+QVR_TUNABLE(vr_flat_pistol_in, "6") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
+QVR_TUNABLE(vr_flat_pistol_up, "2") // and this much higher than Gun Down
+QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the torso turns this much further (degrees, 0..30), the free hand's shoulder forward to the gun
+QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
+QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
+QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV
@@ -1891,6 +1903,9 @@ QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the c
 // Flatscreen > Looks
 QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
 QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
+QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
+QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
 QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 

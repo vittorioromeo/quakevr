@@ -114,13 +114,17 @@ struct Sight
     bool stanceGun{false};      // ... and its hand comes in for it: not on a real grip, whose pose stays the game's own
     float stanceT{0.f};         // how far the torso has turned
     float stanceSign{-1.f};     // which way (the free hand's shoulder forward); kept for the way back
+    bool stancePistol{false};   // a pistol's stance, not a long gun's (vr_flat_stance_pistol); kept for the way back
     int stanceHand{-1};         // the hand holding the gun it is for, the same
     bool lookWanted{false};     // the free hand is going to the hotspot
     bool lookFast{false};       // ... or was taken off it by a punch or E: off as fast as a grip's
     bool lookFar{false};        // ... its arm can't reach it, in this pose
     float lookT{0.f};           // how far it has gone
     float lookTarget{1.f};      // how far it goes, its arm's need allowing (hands on the body)
+    float lookSlide{0.f};       // how far down the fore-end from the hotspot it holds, where the arm can't take the hotspot (units)
     int lookHand{-1};           // the hand that is, or was last, on it
+    glm::mat3 lookView{1.f};    // the view's frame (forward, right, up) and pitch as the stance was last decided: elbowPole's
+    float lookPitch{0.f};
     int spot[2]{-1, -1};        // each hand's weapon's two-handed hotspot (view::twoHandSpot), as the hand held it when last drawn
     glm::vec3 spotLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... in that hand's frame
     float armHip{0.f};          // the share of its arm the free hand uses on it: the gun where the hipfire pose has it
@@ -128,6 +132,8 @@ struct Sight
     glm::vec3 drawnLocal{0.f};  // the free hand as drawn last frame, in the held hand's frame (forward, right, up), and how it
     glm::vec3 drawnTurn{0.f};   // is turned there: what the status prints against the hotspot
     bool drawnKnown{false};
+    glm::vec3 spotHandOff{0.f}; // the free hand fully on the hotspot, against the hotspot (its own offsets: noteDrawn), and for which
+    const qmodel_t* spotHandModel{nullptr}; // gun
     glm::vec3 shift{0.f};       // how far the holding hand moved onto the sight's place (world, units)
     float offBefore{0.f};       // its muzzle off the crosshair's ray before the move, and after it (units)
     float offAfter{0.f};
@@ -181,9 +187,18 @@ constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
                                      // eye than this along the line: the rear sight waits further out, the arm is not crushed
 constexpr float lookKeep = 0.98f;    // the free hand goes off the long gun's hotspot past this much of what its arm holds a hand at
-constexpr float lookSoftFrom = 0.78f; // hands on the body: it starts going off here, all of it by lookKeep
+constexpr float lookSoftFrom = 0.9f;  // hands on the body: it starts going off here, all of it by lookKeep (the pose keeps the hotspot
+                                      // within vr_flat_keep_grip, 0.87, so it holds on at any look: phase 3; it was 0.78)
 constexpr float armKeep = 0.97f;     // the sight's hand keeps inside this much of what the arm holds a hand at
+constexpr float spotKeepAds = 0.95f; // sighted in a stance, the gun stands where the free arm reaches its hotspot within this much
+constexpr float lookSoftFromAds = 0.96f; // and the free hand starts going off it past this much, all of it by its whole reach
+constexpr float lookKeepAds = 1.f;
+constexpr float spotKeepHip = 0.88f;  // hipfire, the same: the pose keeps the hotspot within vr_flat_keep_grip (0.87), and past this it slides
+constexpr float spotReliefMin = 9.5f; // sighted, the hotspot brings the rear sight no nearer the eye than this: the slide does the rest
+constexpr float slideKeepAhead = 3.f; // the free hand slid down the fore-end stays this far ahead of the holding hand (units)
 constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
+constexpr float elbowUpFrom = 15.f;  // elbowPole: the free arm's elbow starts going under the gun from this far up (degrees)
+constexpr float elbowUpFull = 60.f;  // and is all the way there by this far up (smooth between)
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
 constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall it meets (1/s: at once, nearly, as vr_model_collide's)
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
@@ -260,14 +275,21 @@ struct Sighted
     const float across2 = glm::dot(c, c) - along * along;
     const float keep = span * armKeep;
     float most = along + (keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f);
-    if(st.pinned && h == st.holding)
+    // The other hand's grip stays in its arm's reach too: the one it holds, or the stance's hotspot it is drawn on (what the torso's
+    // turn and lean leave, the gun comes nearer the eye for: the sights stay on the ray).
+    const bool onGrip = st.pinned && h == st.holding;
+    const bool onSpot = !onGrip && st.stanceGun && h == st.stanceHand && st.spot[h] >= 0 && flatplay::onBody();
+    if(onGrip || onSpot)
     {
-        // The other hand's grip stays in its arm's reach too.
-        const glm::vec3 g = at0.hand + at0.turn * glm::vec3{st.gripFwd, st.gripRight, st.gripUp} - helper;
+        const glm::vec3 local = onGrip ? glm::vec3{st.gripFwd, st.gripRight, st.gripUp} : st.spotLocal[h];
+        const glm::vec3 g = at0.hand + at0.turn * local - helper;
         const float gAlong = -glm::dot(g, d);
         const float gAcross2 = glm::dot(g, g) - gAlong * gAlong;
-        const float gKeep = span * gripKeep;
-        most = za::min(most, gAlong + (gKeep * gKeep > gAcross2 ? za::sqrt(gKeep * gKeep - gAcross2) : 0.f));
+        const float gKeep = span * (onGrip ? gripKeep : spotKeepAds);
+        const float spotMost = gAlong + (gKeep * gKeep > gAcross2 ? za::sqrt(gKeep * gKeep - gAcross2) : 0.f);
+        // (The hotspot brings the gun no nearer than a wall would: a look straight up with a long gun can't have both, and the
+        // hand eases off there.)
+        most = za::min(most, onGrip ? spotMost : za::max(spotMost, spotReliefMin));
     }
     relief = za::min(relief, most);
     return za::max(reliefMin, relief);
@@ -687,31 +709,72 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st.lookT = 0.f; // it took a weapon of its own: that pose is the shots'
         st.lookHand = -1;
     }
-    const bool longGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                         glm::length(st.muzzleLocal[st.holding]) >= longGunMuzzle && st.spot[st.holding] >= 0;
+    // A gun held with the other hand free and a hotspot for it: a long gun's stance, or a pistol's (both hands in front of him). Not
+    // dual wielding (the other hand holds), not a melee weapon (no sight line: aimsAtPoint), not a gun with no hotspot: one hand.
+    const bool twoHandGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
+                            st.spot[st.holding] >= 0;
+    const bool pistol = twoHandGun && glm::length(st.muzzleLocal[st.holding]) < longGunMuzzle;
+    const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
     st.armHip = st.armSight = 0.f;
+    float slide = 0.f;
+    float slideHip = 0.f;
+    // Where the arm can't take the hotspot at `at` (world; `along`: the gun's forward), how far down the fore-end it takes it within
+    // `keep` of its reach: |v - f d| = keep, the nearer root; never nearer the holding hand than slideKeepAhead.
+    const auto slideFor = [&](const glm::vec3& at, const glm::vec3& along, float keepShare) {
+        const glm::vec3 v = at - flatplay::shoulderOf(s, st.helping);
+        const float keep = keepShare * za::max(flatplay::armReach(), 1.f);
+        const float vf = glm::dot(v, along);
+        const float disc = vf * vf - glm::dot(v, v) + keep * keep;
+        return za::clamp(disc > 0.f ? vf - za::sqrt(disc) : vf, 0.f, za::max(0.f, st.spotLocal[st.holding].x - slideKeepAhead));
+    };
     if(longGun)
     {
         const glm::vec3& local = st.spotLocal[st.holding];
-        st.armHip = armShare(s, st.helping, s.pos[st.holding] - st.shift + axesOf(s.rot[st.holding]) * local);
+        const glm::mat3 held = axesOf(s.rot[st.holding]);
+        const glm::vec3 hipAt = s.pos[st.holding] - st.shift + held * local;
+        st.armHip = armShare(s, st.helping, hipAt);
+        // (Hipfire too: crouched and looking up, the pose can't bring the hotspot itself into reach without the stock in his chest.)
+        if(flatplay::onBody() && st.armHip > spotKeepHip)
+        {
+            slideHip = slideFor(hipAt, held[0], spotKeepHip);
+            st.armHip = armShare(s, st.helping, hipAt - held[0] * slideHip);
+        }
         if(sightKnown(st.holding))
         {
             glm::vec3 org, dir;
             flatplay::crosshairRay(s, aim, org, dir);
             const Sighted at = sighted(st.holding, st.relief);
-            st.armSight = armShare(s, st.helping, org + axesOf(aim) * (at.hand + at.turn * local));
+            const glm::mat3 view = axesOf(aim);
+            const glm::vec3 spotAt = org + view * (at.hand + at.turn * local);
+            st.armSight = armShare(s, st.helping, spotAt);
+            // Sighted, where the relief can't come nearer (reliefFor's floor): the free hand down the fore-end, along the gun, to where
+            // its arm takes it within spotKeepAds. |v - f d| = keep, the nearer root; never nearer the holding hand than slideKeepAhead.
+            if(flatplay::onBody() && st.armSight > spotKeepAds)
+            {
+                const glm::vec3 f = view * (at.turn * glm::vec3{1.f, 0.f, 0.f});
+                slide = slideFor(spotAt, f, spotKeepAds);
+                st.armSight = armShare(s, st.helping, spotAt - f * slide);
+            }
         }
+    }
+    if(freshFrame)
+    {
+        const float sighted = za::clamp(st.adsT, 0.f, 1.f);
+        st.lookSlide = slideHip + (slide - slideHip) * sighted;
     }
     if(!freshFrame)
     {
         return;
     }
+    st.lookView = axesOf(aim);
+    st.lookPitch = aim.x;
     const bool on = vr_flat_stance.value != 0.f;
     st.stanceWanted = on && longGun;
     st.stanceGun = st.stanceWanted && !carry;
     if(st.stanceWanted)
     {
         st.stanceHand = st.holding;
+        st.stancePistol = pistol;
         st.stanceSign = st.helping == HAND_OFF ? -1.f : 1.f; // the yaw grows to his left: the left shoulder comes forward by a turn to the right
     }
     // What decides it is what the arm needs where the gun stands, or is going: the sight's place while it is asked for.
@@ -719,7 +782,10 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     st.lookFar = need > lookKeep || (st.lookFar && need > lookKeep - lookBack);
     // Hands on the body: the hand goes off the hotspot as the need grows past lookSoftFrom, all of it by lookKeep, and comes back the
     // same way: a look that takes the hotspot out of reach takes the hand off it over some degrees, not in a frame.
-    const float soft = za::clamp((need - lookSoftFrom) / (lookKeep - lookSoftFrom), 0.f, 1.f);
+    // (Sighted, the gun stands where the arm reaches it nearly straight, along the fore-end: reliefFor's spotKeepAds.)
+    const float softFrom = st.adsWanted ? lookSoftFromAds : lookSoftFrom;
+    const float softTo = st.adsWanted ? lookKeepAds : lookKeep;
+    const float soft = za::clamp((need - softFrom) / (softTo - softFrom), 0.f, 1.f);
     st.lookTarget = flatplay::onBody() ? 1.f - soft * soft * (3.f - 2.f * soft) : 1.f;
     if(flatplay::onBody())
     {
@@ -982,6 +1048,14 @@ void noteDrawn(const hands::State& s)
         const glm::mat3 turn = toHand * axesOf(drawnRot);
         st.drawnLocal = toHand * (drawnPos - s.pos[st.holding]);
         st.drawnTurn = hands::anglesFromVectors(turn[0], turn[2]);
+        // Where the whole look draws it against the hotspot: the hotspot's own hand offsets (Weapon Offsets' hsN_v*, its style; a
+        // pistol's cup has the hand 4.9 off the point), learned while it is fully on. The sweep measures from there.
+        const qmodel_t* m = weapons::heldModel(st.holding);
+        if(st.spot[st.holding] >= 0 && lookShare(st.helping) >= 0.999f && lookSlide(st.helping) <= 0.f)
+        {
+            st.spotHandOff = st.drawnLocal - st.spotLocal[st.holding];
+            st.spotHandModel = m;
+        }
     }
 }
 
@@ -1017,9 +1091,50 @@ float lookShare(int h)
     return flatplay::active() && h == st.lookHand ? geom::smooth01(st.lookT) : 0.f;
 }
 
+float lookSlide(int h)
+{
+    return flatplay::active() && h == st.lookHand ? st.lookSlide : 0.f;
+}
+
+float elbowPole(int h, glm::vec3& way)
+{
+    if(!flatplay::active() || !flatplay::onBody() || h != st.lookHand)
+    {
+        return 0.f;
+    }
+    // (Quake's pitch: negative is up.)
+    const float up = geom::smooth01(za::clamp((-st.lookPitch - elbowUpFrom) / (elbowUpFull - elbowUpFrom), 0.f, 1.f));
+    const float share = za::clamp(vr_flat_up_elbow.value, 0.f, 1.f) * up * lookShare(h);
+    if(share <= 0.f)
+    {
+        return 0.f;
+    }
+    // Down under the gun (the view's down: the gun is on the sight line) and out at the arm's own side (the off hand: the left).
+    const float out = za::clamp(vr_flat_up_elbow_out.value, 0.f, 2.f);
+    const glm::vec3 side = st.lookView[1] * (h == HAND_OFF ? -1.f : 1.f);
+    way = glm::normalize(-st.lookView[2] + side * out);
+    return share;
+}
+
 float stanceYaw()
 {
-    return st.stanceSign * za::clamp(vr_flat_stance_turn.value, 0.f, 45.f) * geom::smooth01(st.stanceT);
+    const float turn = za::clamp(st.stancePistol ? vr_flat_pistol_turn.value : vr_flat_stance_turn.value, 0.f, 45.f);
+    const float sighted = za::clamp(vr_flat_ads_turn.value, 0.f, 30.f) * geom::smooth01(za::clamp(st.adsT, 0.f, 1.f));
+    return st.stanceSign * (turn + sighted) * geom::smooth01(st.stanceT);
+}
+
+bool stancePistol()
+{
+    return st.stancePistol;
+}
+
+float stanceLean()
+{
+    if(!flatplay::active() || !st.stanceGun)
+    {
+        return 0.f;
+    }
+    return za::clamp(vr_flat_ads_lean.value, 0.f, 30.f) * geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)) * geom::smooth01(st.stanceT);
 }
 
 float stanceSpot(int h, glm::vec3& local)
@@ -1211,7 +1326,11 @@ SweepNumbers sweepNumbers(const hands::State& s)
         n.lookFar = st.lookFar;
         n.armHip = st.armHip;
         n.armSight = st.armSight;
-        n.spotOff = st.drawnKnown ? glm::distance(st.drawnLocal, st.spotLocal[st.holding]) : -1.f;
+        const glm::vec3 own = st.spotHandModel == weapons::heldModel(st.holding) ? st.spotHandOff : glm::vec3{0.f};
+        // (Off the place it holds: the hotspot, or down the fore-end from it by the slide.)
+        const glm::vec3 slid{lookSlide(st.helping), 0.f, 0.f};
+        n.spotOff = st.drawnKnown ? glm::distance(st.drawnLocal, st.spotLocal[st.holding] + own - slid) : -1.f;
+        n.spotSlide = lookSlide(st.helping);
     }
     const int g = st.holding >= 0 ? st.holding : HAND_MAIN;
     if(aimsAtPoint(s, g))
