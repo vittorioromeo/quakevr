@@ -1084,6 +1084,66 @@ void ghostClimbTest_f()
     t.verdict(name);
 }
 
+// vr_still_grip_test: every weapon's grip hotspots over every pose of its model (frame by frame, as the firing animation
+// plays): the hand on a still grip (the super nailgun's, hs1_still) follows nothing (the identity), the barrel's spin
+// frames included; any other grip follows the animation as it did (gripMotion is animationMotion's).
+void stillGripTest_f()
+{
+    testkit::Tally t;
+    constexpr const char* name = "vr_still_grip_test";
+    int spots = 0, stillSpots = 0;
+    float stillWorst = 0.f, stillRaw = 0.f;
+    bool others = true;
+    for(int slot = 0; slot < weapons::numSlots; slot++)
+    {
+        const cvar_t* const id = weapons::cvar(slot, Key::ID);
+        qmodel_t* const model = id && id->string && id->string[0] ? viewModel(id->string) : nullptr;
+        if(!model || model->type != mod_alias)
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        for(int i = 0; i < weapons::maxHotspots; i++)
+        {
+            const weapons::Hotspot h = weapons::hotspot(slot, i);
+            if(h.type != weapons::HotspotType::Grip)
+            {
+                continue;
+            }
+            spots++;
+            stillSpots += h.still;
+            view::ViewEntity ve;
+            ve.ent.model = model;
+            ve.ent.scale = ENTSCALE_DEFAULT;
+            const glm::vec3 at{hotspotFrame(ve.ent, false) * glm::vec4{h.pos, 1.f}};
+            for(int f = 0; f < hdr->numframes; f++)
+            {
+                ve.ent.frame = f;
+                ve.ent.currentpose = ve.ent.previouspose = hdr->frames[f].firstpose;
+                const glm::mat4 raw = animationMotion(ve, at), used = gripMotion(ve, h, at);
+                const float rawMoved = glm::distance(glm::vec3{raw * glm::vec4{at, 1.f}}, at);
+                const float usedMoved = glm::distance(glm::vec3{used * glm::vec4{at, 1.f}}, at);
+                if(h.still)
+                {
+                    stillWorst = za::max(stillWorst, usedMoved);
+                    stillRaw = za::max(stillRaw, rawMoved);
+                }
+                else if(used != raw)
+                {
+                    others = false;
+                }
+            }
+        }
+    }
+    Con_Printf("%s: %d grip hotspots, %d still; a still grip's hand moves %.4f (the animation alone would: %.3f)\n", name, spots,
+        stillSpots, stillWorst, stillRaw);
+    t.check(stillSpots >= 1, name, "the super nailgun's grip is a still one");
+    t.check(stillWorst == 0.f, name, va("its hand stays on the grip over every pose (%.4f)", stillWorst));
+    t.check(stillRaw > 0.01f, name, va("the barrel's frames do move the grip's neighbourhood (%.3f), so this tests something", stillRaw));
+    t.check(others, name, "every other grip follows the animation as before");
+    t.verdict(name);
+}
+
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
@@ -1101,6 +1161,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_ghost_recoil_test", ghostRecoilTest_f);
         Cmd_AddCommand("vr_ghost_body_test", ghostBodyTest_f);
         Cmd_AddCommand("vr_ghost_climb_test", ghostClimbTest_f);
+        Cmd_AddCommand("vr_still_grip_test", stillGripTest_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName());
@@ -2438,7 +2499,9 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     {
         pos = glm::mix(pos, s.grip2H[other], gripBlend);
         hide = false;
-        motion = partMotion(animationMotion(entities.weapon[other], s.grip2H[other]), gripBlend, s.grip2H[other]);
+        // (A still grip, weapons::Hotspot::still, ignores the animation: the super nailgun's barrel spins beside it.)
+        motion = heldSpot ? partMotion(gripMotion(entities.weapon[other], heldSpot->def, s.grip2H[other]), gripBlend, s.grip2H[other]) :
+                            partMotion(animationMotion(entities.weapon[other], s.grip2H[other]), gripBlend, s.grip2H[other]);
 
         if(twohand::helping(hand) && otherSlot >= 0)
         {

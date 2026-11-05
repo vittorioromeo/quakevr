@@ -217,6 +217,10 @@ defaults
     hs2_aim2h "0"
     hs3_aim2h "0"
     hs4_aim2h "0"
+    hs1_still "0"
+    hs2_still "0"
+    hs3_still "0"
+    hs4_still "0"
     w_spinalign "1"
     w_throwmin "1"
     w_throwcurve "1"
@@ -838,6 +842,7 @@ weapon 4
     hs1_x "4.5730"
     hs1_y "-4.1911"
     hs1_z "-0.9752"
+    hs1_still "1" // the barrel spins beside the grip: the off hand ignores the animation (vr_view_weapon.cpp animationMotion)
     hol_hip_x "1.6"
     hol_hip_z "-3.2"
     hol_upper_y "3.5"
