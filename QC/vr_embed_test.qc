@@ -1918,7 +1918,8 @@ void() VR_EM_Step =
                 w.vr_stick_slide = max(1, w.vr_stick_bladelen) * cvar_hget(cvarh_vr_embed_hold_sword_most) * 0.01 - w.vr_stick_depth; // (as far as it goes)
             }
             vr_et_at = VR_ET_Chest(m);
-            vr_em_org = c == 9 ? w.vr_stick_dir : VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90);
+            // (An axe's the other way than it swung, where the swing doesn't carry the body.)
+            vr_em_org = c == 9 ? w.vr_stick_dir : VR_AxeStick_Turn(vr_eh_fw, '0 0 1', axe ? -90 : 90);
             vr_eh_for = 0.2;
             VR_EH_HandTo(VRGetHandPos(h) + vr_em_org * pull, vr_eh_for);
             VR_ET_To(11);
@@ -1930,7 +1931,7 @@ void() VR_EM_Step =
             if(c == 6)
             {
                 vr_em_sword = moved;
-                VR_Test_Check(moved > 6, sprintf("a deep sword moved across moves the body (%.1f units)", moved));
+                VR_Test_Check(moved > 3, sprintf("a deep sword moved across moves the body (%.1f units)", moved));
                 VR_Test_Check(w != world, "and it stays in");
             }
             else if(c == 7)
@@ -2429,6 +2430,63 @@ void() VR_EM_Step =
             {
                 VR_Test_Check(vr_embed_last_hold == 0 && !m.vr_knockdown, sprintf("a boss: none (%.2f s)", vr_embed_last_hold));
             }
+            VR_EM_NextCase();
+        }
+        return;
+    }
+    // ---- 30, 31: deep, the hand raised, by the default forces: a grunt comes up on the blade, two hands and one
+    if(c == 30 || c == 31)
+    {
+        if(vr_et_s < 10)
+        {
+            if(vr_et_s == 0)
+            {
+                vr_em_class = "monster_army";
+                localcmd("tune vr_embed_stagger_sword 6\ntune vr_embed_stagger_amount 0.3\n"); // (it stands through the lift: the blade does it)
+            }
+            if(VR_EM_Blow(WID_SWORD, 9, t))
+            {
+                vr_et_w = w;
+                VR_ET_To(10);
+            }
+        }
+        else if(vr_et_s == 10 && (w == world || w.vr_stick_goal == 0))
+        {
+            VR_Test_Check(w != world && m.vr_kd_stagger, sprintf("%s: stuck and staggering (%g, %g)", vr_em_class, w != world, m.vr_kd_stagger));
+            if(w == world)
+            {
+                VR_EM_NextCase();
+                return;
+            }
+            w.vr_stick_slide = 17 - w.vr_stick_depth;
+            if(c == 30)
+            {
+                VR_Embed_TakeHand(w, p, cVR_OffHand);
+            }
+            vr_et_at = VR_ET_Chest(m);
+            vr_eh_for = 0.4;
+            VR_EH_HandTo(VRGetHandPos(h) + '0 0 1' * 16, vr_eh_for);
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && (w == world || t > vr_eh_for + 0.2))
+        {
+            vector chestNow = VR_ET_Chest(m);
+            float rose = chestNow_z - vr_et_at_z;
+            dprint(sprintf("embedmove: %s rose %.1f units of the hand's 16, %.0f N\n", vr_em_class, rose, ragdolltug(m, p, h, 1)));
+            if(c == 30)
+            {
+                vr_em_axe = rose;
+                VR_Test_Check(rose > 8, sprintf("two hands: a grunt comes up on the blade (%.1f units of the hand's 16)", rose));
+            }
+            else
+            {
+                VR_Test_Check(rose > 2, sprintf("one hand: as slowly as this, it comes too (%.1f units against %.1f)", rose, vr_em_axe));
+            }
+            if(w != world && c == 30)
+            {
+                VR_Embed_DropHand(w, cVR_OffHand, "test");
+            }
+            localcmd("tune_reset vr_embed_stagger_sword\n");
             VR_EM_NextCase();
         }
         return;

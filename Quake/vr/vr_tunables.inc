@@ -1854,7 +1854,7 @@ QVR_TUNABLE(vr_embed_hold_axe_rate, "70") // cm/s an axe slides at most
 QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does
 QVR_TUNABLE(vr_embed_stagger_axe, "0.75") // s an axe's does (times the body's Skewer, by how deep)
 QVR_TUNABLE(vr_embed_hold_axe_tug, "5") // cm the hand pulls on past its depth to tug an axe out of the wound
-QVR_TUNABLE(vr_embed_move_axe_force, "400") // N an axe does
+QVR_TUNABLE(vr_embed_move_axe_force, "300") // N an axe does
 // Embedded Blades: Hold
 QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
 QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis before a sword moves, barely in
@@ -1889,8 +1889,8 @@ QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least Skewer (groups.txt) of a st
 QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on the blade
 QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's speed gets for hitting and sticking
 QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
-QVR_TUNABLE(vr_embed_move_sword_force, "400") // N a sword barely in moves a body with at most
-QVR_TUNABLE(vr_embed_move_sword_force_deep, "2200") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
+QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
