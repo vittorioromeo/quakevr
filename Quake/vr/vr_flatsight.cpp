@@ -1160,6 +1160,8 @@ SweepNumbers sweepNumbers(const hands::State& s)
         const glm::vec3 toPoint = glm::normalize(aimTarget(org, dir, point, m) - m);
         n.shotDeg = glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f)));
         n.shotApart = glm::distance(stop, point);
+        n.shotPoint = point;
+        n.shotStop = stop;
     }
     view::WeaponFrame wf;
     if(view::weaponFrame(s, g, wf))

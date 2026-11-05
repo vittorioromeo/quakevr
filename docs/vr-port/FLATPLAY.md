@@ -320,6 +320,29 @@ is read (`flatplay::crosshairRay`: the pose's head, its crouch in it, plus the n
 behind the mouse at the move's pose). A nudged eye used to leave the shot parallel to a crosshair standing beside it: 36 units of
 damage to a knight without the nudges, none with. Now the shot goes through the point: `flatpose_test.sh` section f.
 
+**The neck** (**Eye Turns About The Neck**, `vr_flat_eye_pivot`, 1; **Eye Forward Of The Neck**, `vr_flat_eye_fwd`, 1; **Eye Above The
+Neck**, `vr_flat_eye_up`, 4; 0..8 units; Debug > Tunables > Flatscreen > Eye). The look's pitch turns the eye about a point in his
+neck: eye = neck + the pitch's turn of (forward, up), and the neck is put where a level look's eye comes out where it always
+stood. So nothing changes at a level look, whatever the yaw: no height, no move, no mouse. A look straight down (85) carries the eye
+3.1 forward and 4.6 down, a look straight up 4.9 back and 2.6 down; roll doesn't move it (a strafe's tilt). It goes into the same
+`camShiftWorld` as the nudges, so the view (`VR_FlatViewDrop`), the crosshair's ray, the drawn hands, the pose's hands (they carry it,
+so the gun stays where it is on the screen and the muzzle where the ray is read) and `vr_flat_gun_near`'s measure (the eye's own moves
+are put back first) all read one eye. The body doesn't move: `solveTorso` stands the neck under a level look's eye. His box is 16 from
+its middle to its side: the eye's most is 5.5 at the defaults, and 15.3 at the 8 and 8 `eyeOffMax` allows. `vr_flat_eye_pivot 0` is the eye
+turning about itself, measured the same to the last digit (`flatsweep_test.sh`, ROUND24.md). The numbers were chosen on the sweep's
+rows: see ROUND24.md, "Flat pose, phase 1".
+
+**The pose sweep.** `vr_flat_sweep <label> [open|wall|low|quick] [step]` (Debug > Reports, Flatscreen Pose Sweep; `vr_flatsweep.cpp`) takes
+the look from -85 to 85, standing and crouching, for one weapon of each stance (axe, revolver, shotgun), hipfire and ironsight,
+waiting at each step until the pose has stopped moving, and writes a row a step to `screenshots/flatsweep_<label>.csv`: the screen seen
+through a grid of rays against the drawn body skinned on the CPU (`avatar::posedMesh`: its inside, its collapsed neck and head, the arms
+apart), the eye's distance from the mesh, from his box's sides and whether the level is in the way; the gun, hands and forearms
+in simple torso and head shapes; each arm's share, the wrist's distance from the hand, the off hand's distance from its hotspot; the
+shot's line against the crosshair's point, the sights against the ray; a picture at each end of the look and level.
+`Misc/quakevr/flatsweep_test.sh <agent>` runs it in the open, against a wall and under a low ceiling; `flatsweep_check.py` judges the
+rows and the largest jump between neighbouring pitches, with each failure of today listed in `flatsweep_known.txt` by the phase that
+fixes it and how bad it may be, and prints `flatsweep: N passed, K known failing, M failed`. `flatsweep_sheet.ps1` makes the contact sheet.
+
 `Misc/quakevr/flatpose_test.sh` is the measurement suite: the defaults, a gun pose, the sight's places at a knight on the
 crosshair, the eye's nudges, the nudges held with the crouch keys, and section f: the server's own shot (`vr_debug_shots`' line)
 against the crosshair's point (`flataim:`), for a moved sight, a nudged eye and hipfire, at a knight 64 and 300 away and the

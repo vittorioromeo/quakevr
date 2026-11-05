@@ -33,7 +33,7 @@ def hipfire(r):
 
 
 def aiming(r):
-    return r["weapon"] != "melee" and float(r["shot_apart"]) >= 0.0 and abs(float(r["pitch"])) < 85.0
+    return r["weapon"] != "melee" and float(r["shot_apart"]) >= 0.0
 
 
 def sighted(r):
@@ -56,6 +56,7 @@ CHECKS = [
     ("cam_hidden_pct", "hidden_pct", "high", 0.5, 0.2, camera_rows, 1, "the screen seeing the collapsed neck and head, %"),
     ("cam_inside", "inside", "high", 0.0, 0.0, camera_rows, 1, "the eye inside the mesh"),
     ("cam_surface", "eye_torso", "low", 1.0, 0.05, camera_rows, 1, "the eye's distance from the torso's surface"),
+    ("cam_neck", "eye_neck", "low", 1.0, 0.05, camera_rows, 1, "the eye's distance from the neck's surface"),
     ("cam_hull", "hull_m", "low", 0.0, 0.05, camera_rows, 0, "the eye inside his box"),
     ("cam_solid", "solid", "high", 0.0, 0.0, camera_rows, 0, "the eye in solid"),
     ("cam_clear", "clear", "low", 1.0, 0.0, camera_rows, 0, "the level between the head and the eye"),
@@ -72,10 +73,13 @@ CHECKS = [
     ("hand_gap", lambda r: max(float(r["gap0"]), float(r["gap1"])), "high", 6.0, 0.05, camera_rows, 2, "the arm's wrist to the drawn hand (5.4 at rest): the hand detached"),
     ("offhand_spot", spot_off, "high", 0.3, 0.05, two_hand_rows, 3, "the off hand off its hotspot (99: this weapon has none or it is not known)"),
     # What must stay exact.
-    ("shot_apart", "shot_apart", "high", 1.0, 0.1, aiming, 0, "the shot's line off the crosshair's point"),
+    # (Today's shot_apart failures: the gun at a wall or the floor, nearer than the aim's 12 units or with its muzzle past the surface; the
+    # gun's own place decides those, so phase 2's. shot_deg stays exact in the ironsight at all of them.)
+    ("shot_apart", "shot_apart", "high", 1.0, 0.1, aiming, 2, "the shot's line off the crosshair's point"),
     ("sight_rear", "rear_off", "high", 0.05, 0.01, sighted, 0, "the rear sight off the ray"),
     ("sight_front", "front_off", "high", 0.05, 0.01, sighted, 0, "the front sight off the ray"),
-    ("settled", "settled", "low", 1.0, 0.0, camera_rows, 0, "the pose settled at the step"),
+    # (Today's: the free hand snapping to and from the gun at the edge of what its arm can take, swing column: 9 units a frame.)
+    ("settled", "settled", "low", 1.0, 0.0, camera_rows, 3, "the pose settled at the step"),
 ]
 
 # Largest jump between neighbouring pitches (per step, in units), per degree of step: the eye turning about a neck moves

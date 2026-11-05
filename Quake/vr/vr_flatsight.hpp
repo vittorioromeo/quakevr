@@ -103,6 +103,8 @@ struct SweepNumbers
     float armSight{0.f};
     float shotDeg{-1.f};
     float shotApart{-1.f};
+    glm::vec3 shotPoint{0.f}; // what the crosshair is on, and where the shot's line stops
+    glm::vec3 shotStop{0.f};
     float rearOff{-1.f};
     float frontOff{-1.f};
     float relief{0.f};

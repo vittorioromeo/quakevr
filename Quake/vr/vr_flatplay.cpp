@@ -206,6 +206,7 @@ constexpr float breathPitch = 0.15f;
 constexpr float nearMin = 8.f;    // vr_flat_gun_near / vr_flat_ads_near's range
 constexpr float nearMax = 60.f;
 constexpr float camOffMax = 20.f; // vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_cam_side: how far the eye may be nudged
+constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye off the neck. At 8 and 8 a look up takes it 15.3 back; his box's side is 16
 
 // The flatscreen eye's own nudge, in the view's frame: (forward, the view's right, up). 0 0 0 outside the mode, and 0 0 0
 // at the defaults -- which is why the defaults leave every number the mode measures exactly as they were.
@@ -219,18 +220,38 @@ constexpr float camOffMax = 20.f; // vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_
         za::clamp(vr_flat_cam_up.value, -camOffMax, camOffMax)};
 }
 
-// The same nudge, in the world, along the axes of the view it is drawn with (the drawn view's angles: its own forward,
-// right and up, punch and idle bob included -- "in the view's own frame of reference" is what the eye follows).
+// The neck pivot (vr_flat_eye_pivot): the eye stands off a point in his neck (vr_flat_eye_fwd forward, vr_flat_eye_up up) and the
+// look's pitch turns it about that point, so a look down carries it forward and clear of his chest, and a look up back and
+// down. Against the level look's eye, the place everything else is measured from: nothing at a level look, whatever the yaw
+// (no roll in it: a strafe's tilt of the view doesn't move the eye).
+[[nodiscard]] glm::vec3 neckPivotShift(const glm::vec3& viewAngles)
+{
+    if(!active() || vr_flat_eye_pivot.value == 0.f)
+    {
+        return glm::vec3{0.f, 0.f, 0.f};
+    }
+    const float forward = za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax);
+    const float upward = za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax);
+    glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
+    hands::angleVectors({viewAngles.x, viewAngles.y, 0.f}, pitchedFwd, right, pitchedUp);
+    hands::angleVectors({0.f, viewAngles.y, 0.f}, levelFwd, right, levelUp);
+    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward;
+}
+
+// The eye's whole move in the world: the neck's turn, and the nudge along the axes of the view it is drawn with (the drawn view's
+// angles: its own forward, right and up, punch and idle bob included -- "in the view's own frame of reference" is what the eye
+// follows).
 [[nodiscard]] glm::vec3 camShiftWorld(const glm::vec3& viewAngles)
 {
+    const glm::vec3 pivot = neckPivotShift(viewAngles);
     const glm::vec3 off = camShift();
-    if(off == glm::vec3{0.f, 0.f, 0.f}) // nothing to nudge (the defaults, and outside the mode): the view stays where it is
+    if(off == glm::vec3{0.f, 0.f, 0.f}) // nothing to nudge (the defaults, and outside the mode)
     {
-        return off;
+        return pivot;
     }
     glm::vec3 fwd{}, right{}, up{};
     hands::angleVectors(viewAngles, fwd, right, up);
-    return fwd * off.x + right * off.y + up * off.z;
+    return pivot + fwd * off.x + right * off.y + up * off.z;
 }
 
 // The distance the drawn hands and the crosshair's ray stop counting the drawn view as his own eyes at: vr_flat_gun_near
@@ -1241,9 +1262,10 @@ void printDrawn(const float* origin, const float* angles)
     // vr_server.cpp). His eye's height above that origin is what the mode moves: the crouch's drop and these, nothing else.
     const glm::vec3 off = camShift();
     const glm::vec3 his = geom::vec(cl_entities[cl.viewentity].origin);
-    Con_Printf("flatcam: t %.4f origin %.1f %.1f %.1f eye %.1f above him %.1f nudge %.2f %.2f %.2f keep %.1f\n",
+    const glm::vec3 pivot = neckPivotShift(camAngles);
+    Con_Printf("flatcam: t %.4f origin %.1f %.1f %.1f eye %.1f above him %.1f nudge %.2f %.2f %.2f keep %.1f neck turn %.2f %.2f %.2f\n",
         vr_gametime, his.x, his.y, his.z, r_refdef.vieworg[2], r_refdef.vieworg[2] - his.z,
-        off.x, off.y, off.z, keepNear());
+        off.x, off.y, off.z, keepNear(), pivot.x, pivot.y, pivot.z);
 }
 
 struct ModelFovBatches
@@ -1317,6 +1339,9 @@ void status_f()
                "uses (vr_flat_gun_near %g measures it with these put back): his origin, his collision box and his body are "
                "measured from where he stands.\n",
         eye.x, eye.y, eye.z, za::clamp(vr_flat_gun_near.value, nearMin, nearMax));
+    Con_Printf("  the neck: %s, the eye %g forward and %g up of it (vr_flat_eye_pivot, vr_flat_eye_fwd, vr_flat_eye_up): the look's pitch "
+               "turns the eye about it, at a level look it stands where it always did.\n",
+        vr_flat_eye_pivot.value != 0.f ? "on" : "off", za::clamp(vr_flat_eye_fwd.value, 0.f, eyeOffMax), za::clamp(vr_flat_eye_up.value, 0.f, eyeOffMax));
     if(const float flatNear = VR_FlatNearPlane(); flatNear > 0.f)
     {
         Con_Printf("  near plane: %g units (vr_nearclip), float depth\n", flatNear);

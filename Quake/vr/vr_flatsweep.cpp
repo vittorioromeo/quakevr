@@ -1,8 +1,8 @@
 // vr_flatsweep.cpp -- vr_flat_sweep <label> [open|wall|low|quick] [step]: see vr_flatsweep.hpp. Everything here measures the
 // pose as last drawn; nothing it reads changes the game. Pitches are Quake's: positive looks down.
 //
-// open: every stance, standing and crouching, hipfire and ironsight, where he stands. quick: the long gun's hipfire, standing
-// (for choosing a number). wall: the long gun put against the wall he faces. low: the long gun crouched under the lowest ceiling
+// open: every stance, standing and crouching, hipfire and ironsight, where he stands. quick: the long gun's hipfire standing and
+// the pistol's crouching (for choosing a number). wall: the long gun put against the wall he faces. low: the long gun crouched under the lowest ceiling
 // of the map a crouched box fits under (found by tracing the level).
 //
 // The row's camera numbers come from the drawn body itself, skinned here as the shader does (avatar::posedMesh), with a grid
@@ -76,6 +76,7 @@ constexpr Config lowList[] = {
 };
 constexpr Config quickList[] = {
     {widShotgun, "long", false, false},
+    {widRevolver, "pistol", true, false},
 };
 
 constexpr float pitchEnd = 85.f; // the mode's window at its defaults (vr_flat_pitch_up / _down): as far as he can look
@@ -86,6 +87,7 @@ constexpr int armFrames = 8;     // ... and a weapon's: the impulse arrives thro
 constexpr int giveUpFrames = 500; // the safety net: the row is written unsettled, and the check fails it
 constexpr int gridX = 32;        // rays through the screen
 constexpr int gridY = 18;
+constexpr float rayEdge = 1e-4f;  // a ray along a seam hits one of its triangles (one down the chest's middle missed both)
 constexpr float meshReach = 40.f; // triangles further from the eye than this can't show their inside (and cost time)
 
 enum class Stage
@@ -117,6 +119,8 @@ struct Sweep
     float step{5.f};
     int frames{0};
     int calm{0};
+    float moved{0.f}; // the most anything the row reads moved in the last frame, and the most since the step's 100th frame:
+    float movedMost{0.f}; // what a pose that won't settle swings by
     glm::vec3 last[4]{};
     float lastShares[3]{};
     int rows{0};
@@ -212,13 +216,13 @@ struct Hit
         const float inv = 1.f / det;
         const glm::vec3 o = org - tr.a;
         const float u = glm::dot(o, p) * inv;
-        if(u < 0.f || u > 1.f)
+        if(u < -rayEdge || u > 1.f + rayEdge)
         {
             continue;
         }
         const glm::vec3 q = glm::cross(o, e1);
         const float v = glm::dot(dir, q) * inv;
-        if(v < 0.f || u + v > 1.f)
+        if(v < -rayEdge || u + v > 1.f + rayEdge)
         {
             continue;
         }
@@ -317,7 +321,7 @@ void writeHeader()
     fprintf(sw.out, "label,weapon,crouch,ads,pitch,settled,frames,eye_x,eye_y,eye_z,eye_fwd,eye_up,hull_m,solid,clear,inner_pct,hidden_pct,"
                     "body_pct,arm_inner_pct,arm_pct,eye_torso,eye_neck,eye_arm,inside,arm_inside,gun_torso,gun_head,fore0_torso,fore1_torso,hand0_torso,hand1_torso,hand0_head,"
                     "hand1_head,arm0,arm1,gap0,gap1,holding,has_spot,look_share,look_far,spot_off,arm_hip,arm_sight,shot_deg,shot_apart,"
-                    "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z\n");
+                    "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z,point_x,point_y,point_z,stop_x,stop_y,stop_z,swing\n");
 }
 
 // The row: the pose as last drawn.
@@ -443,14 +447,14 @@ void writeRow(const Config& c, bool settled)
     const flatsight::SweepNumbers n = flatsight::sweepNumbers(s);
     fprintf(sw.out,
         "%s,%s,%d,%d,%.1f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
-        "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+        "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f\n",
         sw.label, c.name, c.crouch ? 1 : 0, c.ads ? 1 : 0, sw.pitch, settled ? 1 : 0, sw.frames, eye.x, eye.y, eye.z, glm::dot(fromHead, yf),
         fromHead.z, hullMargin, solid, clear, 100.f * innerRays / (gridX * gridY), 100.f * hiddenRays / (gridX * gridY),
         100.f * bodyRays / (gridX * gridY), 100.f * armInnerRays / (gridX * gridY), 100.f * armRays / (gridX * gridY), eyeTo[0], eyeTo[1],
         eyeTo[2], inside, armInside, gunTorso, gunHead, foreTorso[0], foreTorso[1], handTorso[0], handTorso[1],
         handHead[0], handHead[1], arm[0], arm[1], gap[0], gap[1], n.holding, n.hasSpot ? 1 : 0, n.lookShare, n.lookFar ? 1 : 0, n.spotOff,
         n.armHip, n.armSight, n.shotDeg, n.shotApart, n.rearOff, n.frontOff, n.relief, n.adsT, gun.x, gun.y, gun.z, hand[0].x, hand[0].y, hand[0].z,
-        hand[1].x, hand[1].y, hand[1].z);
+        hand[1].x, hand[1].y, hand[1].z, n.shotPoint.x, n.shotPoint.y, n.shotPoint.z, n.shotStop.x, n.shotStop.y, n.shotStop.z, sw.movedMost);
     sw.rows++;
     sw.unsettled += settled ? 0 : 1;
 }
@@ -475,6 +479,8 @@ void writeRow(const Config& c, bool settled)
         moved = za::max(moved, d < 0.f ? -d : d);
         sw.lastShares[i] = shares[i];
     }
+    sw.moved = moved;
+    sw.movedMost = sw.frames > 100 ? za::max(sw.movedMost, moved) : 0.f;
     sw.calm = moved < calmMove ? sw.calm + 1 : 0;
     return sw.calm >= calmNeeded;
 }
@@ -544,7 +550,7 @@ void nextStep()
         ceilZ = b.endpos[2];
         return a.fraction < 1.f && b.fraction < 1.f;
     };
-    constexpr float cell = 32.f;
+    constexpr float cell = 16.f;
     for(float x = world->mins[0]; x < world->maxs[0]; x += cell)
     {
         for(float y = world->mins[1]; y < world->maxs[1]; y += cell)
@@ -557,7 +563,7 @@ void nextStep()
                     continue;
                 }
                 const float height = c - f;
-                if(height < 36.f || height > 54.f || height >= gap)
+                if(height < 36.f || height > 64.f || height >= gap)
                 {
                     continue;
                 }
@@ -587,8 +593,10 @@ void place()
     {
         const glm::vec3 start = geom::vec(hisEdict()->v.origin);
         const glm::vec3 fwd = hands::forward({0.f, cl.viewangles[1], 0.f});
-        const trace_t tr = lineTrace(start, start + fwd * 4096.f);
-        const glm::vec3 at = glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]} - fwd * 16.5f;
+        // (At his box's top: at its middle the line stops at a step he can look over.)
+        const glm::vec3 top = start + glm::vec3{0.f, 0.f, 30.f};
+        const trace_t tr = lineTrace(top, top + fwd * 4096.f);
+        const glm::vec3 at = glm::vec3{tr.endpos[0], tr.endpos[1], start.z} - fwd * 16.5f;
         Con_Printf("flatsweep: at the wall, %.1f %.1f %.1f, %.1f from it\n", at.x, at.y, at.z, 16.5f);
         Cbuf_AddText(va("setpos %.1f %.1f %.1f 0 %.1f 0\n", at.x, at.y, at.z, cl.viewangles[1]));
     }
