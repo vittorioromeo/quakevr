@@ -1109,6 +1109,11 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
 QVR_TOGGLE(vr_arena_banners, "Arena Banners",
     "1: the boards high on the arena's walls show the wave, the foes left, the time and the score, live. "
     "0: they are off (vr_arena_banners).")
+QVR_TOGGLE(vr_arena_wrist, "Messages on the Wrist",
+    "1: the arena's messages -- a wave starting and cleared, the countdown, a perk taken, the run's end -- show "
+    "in the wrist gadget's hologram: raise the wrist to read them; one coming while the gadget is out of view "
+    "buzzes its hand. 0: in the middle of your view. Without the gadget's hologram, and on a flat screen, they "
+    "show in view as ever (vr_arena_wrist).")
 QVR_TOGGLE(vr_arena_xray, "Last Foes Through Walls",
     "1: once only a few of a wave are left (Foes Left below, counting those still to come in), each of "
     "them glows red through walls -- an outline you see through the towers, the dais and the walk -- when "

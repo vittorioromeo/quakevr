@@ -73,7 +73,8 @@ enum SvcQuakeVr : int
     QVR_SVC_ARMOR = 38,           // [short entity, -1 all cleared][byte type 0 none, 1 green, 2 yellow, 3 red][short pieces left, bits][short at 2/3 of their pool or under][short at 1/3 or under]: an armed humanoid's armour (QC .vr_ar_type, .vr_ar_mask, .vr_ar_wear; vr_agarmor.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
     QVR_SVC_XRAY = 39,            // [short entity, -1 all cleared][byte 1 marked, 0 not]: one of a Survival Arena wave's last foes, seen through walls (QC .vr_xray; vr_arenaxray.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
     QVR_SVC_BLADEWOUND = 40,      // [short blade][short body][coord3 at][char3 dir*127][byte strength * 100, 0 stopped]: the blood stream of the wound a blade is in runs on (a word every so often, unreliable) or stops (reliable): bloodstream::onBladeWound
-    QVR_SVC_RIGSEQ = 37,       // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
+    QVR_SVC_ARENAMESSAGE = 41,    // QVR_SVC_VIEWMESSAGE's, from the Survival Arena (QC viewmessage's kind 1): on the wrist gadget's hologram with vr_arena_wrist (vr_worldtext.cpp), else as a view message
+    QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
