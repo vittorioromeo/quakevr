@@ -337,6 +337,14 @@ enum class HandPart : unsigned char
 // gadget's screen tap (its striking volume). False when it isn't drawn.
 [[nodiscard]] bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts);
 
+// The two-handed hotspot of `hand`'s weapon a hand free to go anywhere goes to (Weapon Offsets' own, as placed this frame): a
+// grip it aims by if there is one, else a cup; the one furthest along the gun. Its index, its place in `at`; -1: none.
+// (A tracked hand takes the one nearest it instead: chooseGrip.)
+[[nodiscard]] int twoHandSpot(const hands::State& s, int hand, glm::vec3& at);
+
+// Where `hand` was drawn this or last frame, and how turned; false: it wasn't.
+[[nodiscard]] bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the

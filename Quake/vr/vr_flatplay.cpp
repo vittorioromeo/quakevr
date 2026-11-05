@@ -379,7 +379,11 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     const float side = h == HAND_OFF ? -1.f : 1.f;
     if(heldIn(h) >= 0)
     {
-        return {poseNum(vr_flat_gun_ahead) * reach, side * poseNum(vr_flat_gun_out) * reach, -poseNum(vr_flat_gun_down) * reach};
+        // (The stance's own, on a long gun: flatsight::stanceAndLook.)
+        const float stance = flatsight::stanceShare(h);
+        return {(poseNum(vr_flat_gun_ahead) - stance * poseNum(vr_flat_stance_back)) * reach,
+            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in)) * reach,
+            -(poseNum(vr_flat_gun_down) - stance * poseNum(vr_flat_stance_up)) * reach};
     }
     if(otherHolds)
     {
@@ -926,7 +930,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     fs.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
 
-    s.bodyYaw = aim.y; // the flat branch turns the body to the view the same way
+    // The flat branch turns the body to the view the same way; a long gun's stance turns it off the view (the view stays).
+    s.bodyYaw = aim.y + flatsight::stanceYaw();
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 

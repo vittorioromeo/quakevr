@@ -539,7 +539,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     {
         return 0.f;
     }
-    return s.grip2HValid[1 - hand] ? 1.f - za::clamp(twohand::transition(1 - hand), 0.f, 1.f) : 1.f;
+    return s.grip2HValid[1 - hand] ? 1.f - za::clamp(twohand::drawnTransition(1 - hand), 0.f, 1.f) : 1.f;
 }
 
 // A hand holding a round from the ammo pouch: a shell or a magazine (QC vr_reload.qc), as drawn.
@@ -560,7 +560,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
 // vr_view.cpp's pushOut: a free hand brushing the other hand's weapon (vr_hand_collide).
 [[nodiscard]] bool freeHand(const hands::State& s, int hand)
 {
-    const float gripBlend = s.grip2HValid[1 - hand] ? twohand::transition(1 - hand) : 0.f;
+    const float gripBlend = s.grip2HValid[1 - hand] ? twohand::drawnTransition(1 - hand) : 0.f;
     return gripBlend <= 0.f && emptyHand(hand);
 }
 
@@ -579,7 +579,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         }
         if(s.grip2HValid[k])
         {
-            w *= 1.f - za::clamp(twohand::transition(k), 0.f, 1.f);
+            w *= 1.f - za::clamp(twohand::drawnTransition(k), 0.f, 1.f);
             if(emptyHand(j)) // (coming to the grip, and still at it after letting go)
             {
                 const glm::vec3 from = s.grip2HPalm[k] ? hands::palmPoint(s, j) : s.pos[j];

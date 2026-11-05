@@ -76,7 +76,7 @@ namespace
     const bool posingHelper = posing::active() && !posed && posing::session().target == posing::Target::Hotspot;
     // Posing the weapon unsolved (posing::showSolved): the controller's plain curls, no tweaks.
     const bool posingPlain = posed && posing::session().target == posing::Target::Weapon && !posing::showSolved();
-    if(finger == FingerBase || posingHelper || posingPlain || (!posed && twohand::helping(hand)))
+    if(finger == FingerBase || posingHelper || posingPlain || (!posed && twohand::drawnHelping(hand)))
     {
         return 0.f;
     }
@@ -123,7 +123,7 @@ void updateFingerFrames()
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder
-                                              : twohand::helping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
+                                              : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
                                                     holdsBody(hand);
         for(int finger = 0; finger < FingerCount; finger++)
         {

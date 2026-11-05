@@ -174,25 +174,44 @@ takes (`helpKind 1`, the transition in full); it stands 5 units off that hand, 3
 the super shotgun and the nail gun, where a second hand has nowhere to go and carrying one there would only fold the two
 hands onto each other. A weapon whose model has no such hotspot, a grip a second hand cannot reach, and dual wielding keep
 the pose above exactly as it is, and `vr_flatplay_status` prints the measure the choice rests on: "hotspot: 5.0 units from
-the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
+the held hand (fwd -3.2, right 0.4, up -3.8 of it)". That is the hotspot *nearest the hanging hand* (`chooseGrip`, as for a tracked
+hand), which on those guns is the rear Cup: each of them also has a Grip hotspot well ahead of the hand (shotgun fwd 11.6, super
+shotgun 10.1, nail gun 9.2, super nail gun 6.6).
 
-A long gun with no grip to reach still has a place for the free hand: under its barrel, palm up (`restOnBarrel`,
-`vr_flat_rest` 1, `vr_flat_rest_along` 0.66 of the way from the held hand to the muzzle, `vr_flat_rest_below` 1 unit,
-`vr_flat_rest_relief` 14; Debug > Tunables > Flatscreen > Free Hands). No grip: it is placed after `twohand::apply`, so no
-hold, two-handed aim, weight or recoil knows of it, and the view's choice of grip leaves it out (`flatsight::restMoved`: from the
-barrel, the nearest hotspot would be a forward one and the hold would be real). A gun has a barrel when it has a sight line and
-its muzzle stands 9.5 units or more from the hand (`restMinBarrel`; measured: nail gun 10.8, super shotgun 11.4, shotgun 14.0,
-super nail gun 14.9; revolver 8.4, flare gun 4.6, nail pistol 3.9), so the short guns and melee weapons keep the pose above.
+## The stance
 
-The barrel stands past the other arm: from its shoulder the place is 26 to 30 units at the defaults, against the 20.2 the arm
-keeps (`armReach`, `gripKeep`). So in hipfire the gun comes in for it, 7 to 9.6 units, as a gun held in two hands comes in for
-its grip (`comeInForRest`, up to `restPullMost`, 12: past that the arm can't reach). That moves the muzzle the shots leave from;
-they still go through the crosshair's point. In the ironsight the same reach would take the eye relief from 14 to about 7, the
-gun twice the size on the screen and the super nail gun's sights 1.13 units off the ray, so the rear sight only comes as near
-as `vr_flat_rest_relief`, and at its default the hand goes back to hanging while sighted.
+A long gun (a sight line, its muzzle 9.5 units or more from the hand: `longGunMuzzle`) with a two-handed hotspot held with the other
+hand free takes a stance (`stanceAndLook`, `vr_flat_stance` 1; Debug > Tunables > Flatscreen > Free Hands):
 
-It is eased both ways over about 0.4 s, which also keeps the hand under a punch's speed, and goes back to the hanging pose when
-the arm can't reach, a punch or E takes the hand, or the gun goes. `vr_flatplay_status` prints a `barrel rest:` line.
+- **The torso turns**, the free hand's shoulder forward (`vr_flat_stance_turn`, 25 degrees of `s.bodyYaw`, eased over about 0.4 s).
+  The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest.
+- **The gun's hand comes up towards the shoulder pocket** (`vr_flat_stance_back` 10, `_in` 2, `_up` 4, taken off Gun Forward, Gun Out
+  and Gun Down). That is all that moves the gun, and it is the pose's: the shots are solved from wherever the muzzle stands, as ever.
+- **The free hand is drawn on the weapon's own hotspot**: place, turn, fingers and offsets all come from Weapon Offsets through the
+  same code that draws a helping hand in a headset (`steadyOther`, `heldBy`: `2h_fxd_*`, `hsN_pitch/yaw/roll`, `hsN_v*`, the style,
+  overlap and curls), so editing the hotspot moves the flat hand. Nothing in this mode decides a place or a turn for it. Which
+  hotspot: `view::twoHandSpot`, a free hand having no place of its own to choose by: the grip furthest along the gun (a Cup with
+  Two-Handed Aim counts as a grip), else a cup.
+- **It is a look, no grip.** The game's hand stays in the hanging pose: `twohand::helping`, `transition`, the aim, weight, recoil and
+  punches don't know of it, and `chooseGrip` still chooses from the hanging hand. What draws a hand reads `twohand::drawnTransition`
+  and `drawnHelping` (`flatsight::lookShare` on top of the real ones). A gun whose nearest grip the arm can take for real (the
+  grenade launcher, proximity gun, rocket launcher, lightning gun, laser cannon, Enforcer's rifle) keeps its real grip as before,
+  with the stance on top.
+- **An arm that can't reach eases back to hanging** with no gun moved (`lookFar`: past 0.92 of `armReach` from the shoulder the body
+  poses, `avatar::skeleton`; hand back on under 0.89). A punch or E takes the hand off as fast as a grip's (`gripEase`). With the gun
+  gone it eases off its last place (`lookLast`).
+
+Why the earlier barrel rest looked wrong (`vr_flat_rest`, retired with its numbers; old lines are dropped by `VR_RetiredCvar`): it made
+up its own point on the barrel (a share of the way to the muzzle) and its own turn (palm to the gun's up), and never read the
+hotspot's data, so its hand angle could not have been VR's; and it pulled the gun in 7 to 9.6 units so the arm could reach.
+
+Arm used, off shoulder to hotspot, share of `armReach` (21.9), measured with `Misc/quakevr/flatstance_test.sh` (hipfire on the
+hanging-hand hotspot's guns; 0.92 is the most it keeps): shotgun 1.31 at the view-facing hipfire pose, about 0.90 in the stance;
+in the ironsight at the default eye relief 14 all of them are out of reach (shotgun 1.27, super shotgun 1.15, nail gun 1.30, super
+nail gun 1.21), so the hand hangs while sighted; the solve is exact as ever, and the relief is not given up for a look.
+
+`vr_flatplay_status` prints four `stance` lines: its state, the arm's share, the hotspot in the held hand's frame, and the drawn hand
+there with how far off the hotspot it stands.
 
 The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
 onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
