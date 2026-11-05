@@ -148,13 +148,29 @@ number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off 
 follows the view. The pose's head goes over the move wire as any other head does, and the game's own crouching does the
 rest: `hull::updateCrouch` (`Quake/vr/vr_hull.cpp`) chooses a crouched box for the eyes' new height (36 at the default 18,
 out of `vr_crouch_height` and `vr_crouch_step`), the CROUCHED bit (23 of `vrBits0`) arrives as it does for a headset player
-who crouches, and `crouchSpeedMax` slows him as it slows him there. What the server asks is the move's own word, per client
+who crouches, and `crouchSpeedMax` slows him by the headset's rule and tunables (`vr_crouch_speed`,
+`vr_crouch_speed_scale`: running, 240 of 320 crouched, as a headset player's full stick). Only how crouched he is comes from
+the key, not his eyes: a flat-screen player's eyes stand at Quake's viewheight, under the tallest crouched box's top, so
+read as the headset's are they slowed him standing too (260 of 320, crouched 240: "crouch speed seems the same as standing
+speed"). `updateCrouch` keeps per client whether he is flat-screen and his key's word (`crouchFlat`, `crouchFlatHeld`), and
+the slowing's share eases to all or none of it over the headset's 0.25 s. `Misc/quakevr/flatmove_test.sh`, crouch. What the server asks is the move's own word, per client
 (`protocol::moveFlatCrouchBit`, bit 14 of `vrBits0`, set while his eased crouch is above 0), never the host's keys, and it
 needs no protocol step: nothing else ever set that bit of the wire, a client that does not set it reads as not crouching by
 it, and a demo records the server's messages, not moves. Nothing is added to the move wire, and nothing new
 collides: a crouch is not a jump. `.vr_stand` â€” how upright the game thinks he is, read by `QC/vr_kdtrig.qc` â€” is worked out
 from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
 computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
+
+**Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
+looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge
+with room over it lifts him out (Quake's jump out of the water, `WaterJumpTry`). The headset's swimming is the hands': its
+stick slowed to `vr_swim_stick_speed` (0.25), the strokes, the glide, and a way out by gripping the edge (`vr_water_jump`
+0). `swimmer()` (`Quake/vr/vr_physics_water.cpp`) answers no swimmer for a flat-screen player (`.vr_flatscreen`), so
+`VR_WaterStickScale` leaves his keys whole (wading too) and `VR_AfterWaterMove` adds no strokes and no glide, and
+`CheckWaterJump` (QC `client.qc`) takes Quake's water jump for him whatever `vr_water_jump` says (he has no hands to climb
+out with). Before, looking 60 degrees up he rose 23 units in half a second (78 now), and a pool's edge never let him out.
+`Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
+(Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
 `Quake/default_cfg.h` and, saved, in `ironwail.cfg` (`bind "CTRL" "+attack"`). The mode needs that same key for the

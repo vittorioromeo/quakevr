@@ -792,3 +792,22 @@ shoulder's range on the screen). Before any change (shotgun): the off hand's wri
 moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the hands have no move of their own. Planned: the drawn
 body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
 down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).
+
+## Flat-screen: crouch speed and swimming (agent/flatmove, 2026-11-05)
+
+His flat-screen notes: crouching ran as fast as standing, and swimming should be Quake's, with the jump out of the water.
+
+- **Crouch speed.** The headset's rule and tunables (`vr_crouch_speed`, `vr_crouch_speed_scale`) were already applied, but by
+  the eyes' height: a flat-screen player's eyes stand at Quake's viewheight, under the tallest crouched box's top, so he was
+  slowed standing too (260 of 320) and crouched barely more (240). How crouched he is now comes from his crouch key
+  (`crouchFlat`/`crouchFlatHeld` in `vr_hull.cpp`, from `updateCrouch`'s `flatscreenCrouch`): 320 standing, 240 crouched, the
+  headset's 0.75. Walking (`cl_alwaysrun 0`, 200) stays 200 crouched, as a headset's half stick does: the rule is a cap.
+- **Swimming.** `swimmer()` (`vr_physics_water.cpp`) answers none for a flat-screen player: his keys keep Quake's water speed
+  where he looks (no 0.25 stick, no strokes from his posed hands, no glide), and `CheckWaterJump` (QC) takes Quake's water
+  jump for him whatever `vr_water_jump` says. Headset swimming untouched (the same mock swim rises 38.1 before and after).
+- **Test:** `Misc/quakevr/flatmove_test.sh` (`vr_flatmove_test` 1/2/3; test aids 8/9 find deep water and water-jump ledges;
+  Debug > Tests > Flat Move: Speed, Flat Ledges). Before: 1 passed, 6 failed (standing 260.3; looking up rose 23.3, down
+  28.8; at the start map's pool edge it timed out). After: 7 passed (320/240, the headset's 320/240; up 77.6, down 81.7,
+  jump 48.6; lifted out onto the ledge). Jump-to-rise already worked before (48.6 both).
+- **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
+  at a low pool edge (the start map's pool) to be lifted out.

@@ -551,6 +551,8 @@ Config version 129 (his bash, shove and parry values compiled in): `bash Misc/qu
 Flatscreen play (FLATPLAY.md): `bash Misc/quakevr/flatplay_test.sh <agent>`: the hands locked to the view (sway, bob and
 turn lag 0: the drawn weapon within 0.05 units and degrees of its still place strafing and turning), their looks bounded
 and settling, the shots on the crosshair (`Misc/quakevr/flatplay_lock.py`), the mode per player (`reload: the player reloads ...`).
+`bash Misc/quakevr/flatmove_test.sh <agent>`: the flat-screen crouch's slowing against the headset's, Quake's swimming by look
+and jump in e1m4's deep water, and the water jump out of the start map's pool (`vr_flatmove_test`; FLATPLAY.md, "Swimming").
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
