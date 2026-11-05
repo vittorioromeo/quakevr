@@ -445,6 +445,10 @@
 "	out_morph = inst.Ambient[2].w; // QVR\n" \
 "	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n" \
 "	out_morphpos = vec4(lerpedPos, 0.0); // QVR: the pose's space (Morph scales it to the model's units)\n" \
+"#if POSEVERTTYPE == 1\n" \
+"	if (inst.Ambient[2].w != 0.0) // QVR: a skeletal model morphing (your armour's plates): its rest pose, so the noise rides it\n" \
+"		out_morphpos.xyz = bind_pos;\n" \
+"#endif\n" \
 "	if (inst.Barrel.x > 0.5) // QVR: a hot gun barrel's glow ramp (vr/vr_hotblade.cpp barrelInstance) along its rest pose: the firing frames move the metal, the glow stays on it\n" \
 "	{\n" \
 "#if POSEVERTTYPE == 0\n" \

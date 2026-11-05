@@ -619,7 +619,8 @@ extern "C" void VR_AliasMorph(const entity_t* e, const void* aliashdr, float amb
 {
     const view::ViewEntity* ve = view::find(e);
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    if(!ve || ve->morph == 0.f || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    // (the player's armour plates too, skeletal, their noise in their rest pose: Entities::plate, vr_view_body.cpp)
+    if(!ve || ve->morph == 0.f || (hdr->poseverttype != aliashdr_t::PV_QUAKE1 && hdr->poseverttype != aliashdr_t::PV_IQM))
     {
         return;
     }

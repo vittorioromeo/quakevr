@@ -24,6 +24,7 @@ dispatch vr_flare_test QC/vr_flaregun_test.qc VR_FlareGun_TestFrame req
 dispatch vr_reload_test QC/vr_reload_test.qc VR_Reload_Test step
 dispatch vr_pickup_test QC/vr_pickup_test.qc VR_PickupTest_Frame ask
 dispatch vr_embed_test QC/vr_embed_test.qc VR_Embed_TestFrame ask
+dispatch vr_pp_test QC/vr_playerplates_test.qc VR_PP_TestFrame ask
 
 vr_embed_test    1        vr_embed_test.qc                 embedded blades: thrown swords, sag, bodies, cuts, plates, vr_embed 0
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
@@ -619,3 +620,13 @@ vr_smallgibs_test 28       vr_smallgibs_test.qc             (VR_SmallGib_TestStr
 vr_smallgibs_test 29       vr_smallgibs_test.qc             (AD_BuiltinsTest: the other builtins AD imports by name, vr_ad_test.qc)
 
 vr_stealth_test  1+       vr_stealth_test.qc               (findflags)
+
+vr_pp_test       1        vr_playerplates_test.qc          the player armour plates: counts, hits, morphs, damage, helmet
+vr_pp_test       2        vr_playerplates_test.qc          a save keeps the very pieces (then 20, 21)
+vr_pp_test       20       vr_playerplates_test.qc          (2: after the save)
+vr_pp_test       21       vr_playerplates_test.qc          (2: after the load)
+vr_pp_test       3        vr_playerplates_test.qc          a level change keeps them (then 30)
+vr_pp_test       30       vr_playerplates_test.qc          (3: on the next level)
+vr_pp_test       5-7      vr_playerplates_test.qc          full, half, torso only: to look at
+vr_pp_test       8        vr_playerplates_test.qc          the picture sheet
+vr_pp_test       9        vr_playerplates_test.qc          full red from the eyes, looking down

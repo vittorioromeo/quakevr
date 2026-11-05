@@ -273,6 +273,19 @@ string(string base, float i) VR_AgArmor_ModelOf =
         if(i == 8) return "progs/vrhknight.mdl#plate8";
         return "progs/vrhknight.mdl#plate9";
     }
+    if(base == "progs/vrbody.mdl") // (the player's plates' debris, whatever build is drawn: vr_playerplates.qc)
+    {
+        if(i == 0) return "progs/vrbody.mdl#plate0";
+        if(i == 1) return "progs/vrbody.mdl#plate1";
+        if(i == 2) return "progs/vrbody.mdl#plate2";
+        if(i == 3) return "progs/vrbody.mdl#plate3";
+        if(i == 4) return "progs/vrbody.mdl#plate4";
+        if(i == 5) return "progs/vrbody.mdl#plate5";
+        if(i == 6) return "progs/vrbody.mdl#plate6";
+        if(i == 7) return "progs/vrbody.mdl#plate7";
+        if(i == 8) return "progs/vrbody.mdl#plate8";
+        return "progs/vrbody.mdl#plate9";
+    }
     if(base != "progs/vrgrunt.mdl") return "";
     if(i == 0) return "progs/vrgrunt.mdl#plate0";
     if(i == 1) return "progs/vrgrunt.mdl#plate1";
@@ -356,9 +369,8 @@ void(entity h) VR_AgArmor_DebrisGrabbed =
 
 // Piece `i` of `e` off as debris at `at`, turned `ang`, flying `vel`: a physics prop of its own model, taken in a hand
 // to be thrown about (its fade put off), never force-grabbed, worn or put away.
-entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt =
+entity(string m, float type, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisOf =
 {
-    string m = VR_AgArmor_Model(e, i);
     if(m == "" || at == '0 0 0')
     {
         return world; // (no rig, no shell)
@@ -367,7 +379,7 @@ entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt
     entity h = spawn();
     h.classname = "vr_ar_debris";
     setmodel(h, m);
-    h.skin = max(0, e.vr_ar_type - 1) + 6; // (battered and scorched: make_agarmor.py's last three)
+    h.skin = max(0, type - 1) + 6; // (battered and scorched: make_agarmor.py's last three)
     setorigin(h, at);
     h.angles = ang;
     h.movetype = MOVETYPE_BOUNCE;
@@ -393,6 +405,11 @@ entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt
     h.nextthink = time + VR_AgArmor_DebrisTime();
     vr_ar_debris_made = vr_ar_debris_made + 1;
     return h;
+};
+
+entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt =
+{
+    return VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
 };
 
 // Piece `i` of `e` falls off as debris where it is: out from the body and up.

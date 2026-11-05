@@ -1801,11 +1801,25 @@ bool shoulder(int side, Shoulder& out)
     return true;
 }
 
+const entity_t* posedEntity()
+{
+    return posed.ent;
+}
+
+const float* skinWithHead()
+{
+    return posed.ent ? posed.shadowSkin.data() : nullptr;
+}
+
 float modelScale(const entity_t* e)
 {
     if(const entity_t* source = view::cloneSource(e))
     {
         e = source; // (the body's mirror image: vr_bodyclone.cpp)
+    }
+    if(e && qvr::view::plateBonePoses(e, nullptr, qvr::view::PlatePass::View))
+    {
+        return posed.ent ? posed.scale : 0.f; // (the armour's plates on it)
     }
     return e && e == posed.ent ? posed.scale : 0.f;
 }
@@ -1837,6 +1851,10 @@ float personStep(float speed)
 extern "C" int VR_AliasShadowBonePoses(const entity_t* e, const float** matrices)
 {
     using namespace qvr::avatar;
+    if(const int plates = qvr::view::plateBonePoses(e, matrices, qvr::view::PlatePass::Shadow))
+    {
+        return plates; // the player's armour plates (vr_view_body.cpp)
+    }
     const int count = VR_AliasBonePoses(e, matrices);
     if(count && matrices && e && e == posed.ent && posed.shadowHead)
     {
@@ -1851,6 +1869,10 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     if(const int armour = qvr::agarmor::bonePoses(e, matrices))
     {
         return armour; // an armed humanoid's armour: its body's bones as drawn (vr_agarmor.cpp)
+    }
+    if(const int plates = qvr::view::plateBonePoses(e, matrices, qvr::view::PlatePass::View))
+    {
+        return plates; // the player's armour plates: the body's bones (vr_view_body.cpp)
     }
     if(const int hand = qvr::view::handBonePoses(e, matrices))
     {
@@ -1868,6 +1890,10 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     {
         // The body's mirror image (vr_bodyclone.cpp): its source's bones, the body's with its head (it is seen from
         // outside).
+        if(const int plates = qvr::view::plateBonePoses(source, matrices, qvr::view::PlatePass::Clone))
+        {
+            return plates;
+        }
         const int count = VR_AliasBonePoses(source, matrices);
         if(count && matrices && source == posed.ent)
         {

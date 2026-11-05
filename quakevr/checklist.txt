@@ -54,6 +54,7 @@ Shove grunts towards a ledge, one hand, two hands and running: they stumble back
 Magnetic holster chain: draw a holstered gun and swing it hard back and forth: the links stay evenly spaced and don't bunch at the weapon; a slow swing hangs and sways as before
 Shotgun and nailgun looks: hold each under real light: wood grain, rust and rivets read well, sights glow as before and aren't crowded by rivets; nail tubes not too pale or black; lava nailgun and floor pickups match
 Ammo boxes: a nail pistol now turns up on nail boxes on any map (rare); the heavy revolver turns up on shell boxes only after you hold the super shotgun or a revolver
+Armour shows as plates on your body: hits shed limbs first (nearest the hit), the torso last; pickups dissolve them back; your hands and wrist gadget stay clear, no helmet in view {test:player_plates}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
