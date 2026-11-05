@@ -545,6 +545,13 @@ za::Vector<Item> pageDebugTests()
         command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
             .help("An enforcer has a lift zone on the pack in its model, whatever it holds; nothing takes "
                   "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
+        command("Your Armour Plates: the Test", "vr_pp_test 1")
+            .help("vr_pp_test 1 (no god): the pieces against the armour for each tier, hits from each side, a shard, new armour and "
+                  "an upgrade through the morph, the damage the same on and off, the helmet from the eyes. Ends on \"pptest: N passed, M failed\". "
+                  "vr_player_plates_info prints what's drawn."),
+        command("Your Armour Plates: Full", "vr_pp_test 5").help("Red armour at its most (vr_pp_test 5): every plate. See it in a mirror: a Body page's clone, or vr_mock_camera."),
+        command("Your Armour Plates: Half", "vr_pp_test 6").help("Red armour at half (vr_pp_test 6): five pieces, restored in order or shed by a hit."),
+        command("Your Armour Plates: Torso Only", "vr_pp_test 7").help("Red armour at 1 (vr_pp_test 7): the cuirass alone."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")

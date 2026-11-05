@@ -2047,6 +2047,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         targ.dmg_take = targ.dmg_take + take;
         targ.dmg_save = targ.dmg_save + save;
         targ.dmg_inflictor = inflictor;
+        if(inflictor != world) // (for the armour's plates to shed the piece nearest the hit: vr_playerplates.qc)
+        {
+            targ.vr_pp_hit = (inflictor.absmin + inflictor.absmax) * 0.5;
+            targ.vr_pp_hit_time = time;
+        }
     }
 
     // figure momentum add

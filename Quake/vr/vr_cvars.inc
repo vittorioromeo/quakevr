@@ -1532,6 +1532,9 @@ QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand
 QVR_CVAR(vr_body_leg_fit, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_gear_fit, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_belt_up, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_player_plates, "1", CVAR_ARCHIVE)         // the armour you wear drawn as plates on your body, shed as it wears down and put back by pickups (a look alone: damage as ever; QC vr_playerplates.qc, vr_view_body.cpp); 0 off
+QVR_CVAR(vr_player_plates_morph_time, "0.6", CVAR_ARCHIVE) // a plate gained comes in over this many seconds, as a gun's other ammo's model does (vr_weapon_morph_time's dissolve; 0 at once)
+QVR_CVAR(vr_pp_test, "0", CVAR_NONE)                  // the player's plates' test (QC/vr_playerplates_test.qc): 1 counts, hits, morphs, damage, helmet; 2 and 3 a save and a level change kept; 5-7 full, half and torso only, for the eyes
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
 QVR_CVAR(vr_body_pauldron_size, "1", CVAR_ARCHIVE)    // their size (scaled with the build too)
