@@ -3824,9 +3824,10 @@ vr_model_light_slime|2|Tunables|Slime Light|Advanced VR Options > Debug > Tunabl
 vr_model_light_slime_range|2|Tunables|Slime Light Range|Advanced VR Options > Debug > Tunables > Slime Light Range
 vr_model_light_teleport|2|Tunables|Teleporter Light|Advanced VR Options > Debug > Tunables > Teleporter Light
 vr_model_light_teleport_range|2|Tunables|Teleporter Light Range|Advanced VR Options > Debug > Tunables > Teleporter Light Range
-vr_flat_gun_fwd|2|Tunables|Gun Forward|Advanced VR Options > Debug > Tunables > Gun Forward
+vr_flat_gun_ahead|2|Tunables|Gun Forward|Advanced VR Options > Debug > Tunables > Gun Forward
 vr_flat_gun_down|2|Tunables|Gun Down|Advanced VR Options > Debug > Tunables > Gun Down
 vr_flat_gun_out|2|Tunables|Gun Out|Advanced VR Options > Debug > Tunables > Gun Out
+vr_flat_gun_collide|2|Tunables|Gun Against Walls|Advanced VR Options > Debug > Tunables > Gun Against Walls
 vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug > Tunables > Gun With The Crosshair
 vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
 vr_flat_pose_pitch|2|Tunables|Hand Pitch|Advanced VR Options > Debug > Tunables > Hand Pitch
@@ -3837,9 +3838,9 @@ vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunabl
 vr_flat_support_fwd|2|Tunables|Both Hands Forward|Advanced VR Options > Debug > Tunables > Both Hands Forward
 vr_flat_support_down|2|Tunables|Both Hands Down|Advanced VR Options > Debug > Tunables > Both Hands Down
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
-vr_flat_ads_fwd|2|Tunables|Ironsight Forward|Advanced VR Options > Debug > Tunables > Ironsight Forward
-vr_flat_ads_up|2|Tunables|Ironsight Up|Advanced VR Options > Debug > Tunables > Ironsight Up
-vr_flat_ads_out|2|Tunables|Ironsight Out|Advanced VR Options > Debug > Tunables > Ironsight Out
+vr_flat_ads_relief|2|Tunables|Ironsight Eye Relief|Advanced VR Options > Debug > Tunables > Ironsight Eye Relief
+vr_flat_ads_screen_x|2|Tunables|Ironsight Picture Right|Advanced VR Options > Debug > Tunables > Ironsight Picture Right
+vr_flat_ads_screen_y|2|Tunables|Ironsight Picture Up|Advanced VR Options > Debug > Tunables > Ironsight Picture Up
 vr_flat_ads_near|2|Tunables|Ironsight With The Crosshair|Advanced VR Options > Debug > Tunables > Ironsight With The Crosshair
 vr_flat_aim_fov|2|Tunables|Ironsight Field of View|Advanced VR Options > Debug > Tunables > Ironsight Field of View
 vr_flat_aim_time|2|Tunables|Ironsight Time|Advanced VR Options > Debug > Tunables > Ironsight Time

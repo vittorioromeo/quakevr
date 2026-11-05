@@ -901,6 +901,7 @@ void V_CalcRefdef (void)
 	VR_RagtoolView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the ragdoll tool's orbit camera
 	VR_RigStudioView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the Rig Studio's camera (vr/vr_rigstudio.cpp)
 	VR_FlatViewDrop (r_refdef.vieworg, r_refdef.viewangles); // QVR: a flatscreen player holding his crouch (Left Ctrl) sees from lower, and from where vr_flat_cam_fwd / _up / _side put his eye in this view's own frame (vr/vr_flatplay.cpp)
+	VR_FlatOrbitView (r_refdef.vieworg, r_refdef.viewangles); // QVR: vr_flat_orbit, a test aid: looking back at his own pose
 	VR_WeaponStudioView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the Weapon Studio's camera, flown out of his eyes while its window is open and its camera is on (vr/vr_weaponstudio.cpp); while it is off -- the default -- the view above is left as it is
 }
 

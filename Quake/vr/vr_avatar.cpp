@@ -10,6 +10,7 @@
 #include "vr_playersteps.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
@@ -278,7 +279,15 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
 
     glm::vec3 hf, hr, hu;
     hands::angleVectors(s.headAngles, hf, hr, hu);
-    const glm::vec3 standingTop = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
+    // Flatscreen play: a pitch of the view turns the eye about itself: the eye stays where it is and the head does not nod, so
+    // the neck under it is measured as with a level look (with the look's pitch, the whole body slid back and up under a look
+    // down and forward past the eye under a look up: the camera inside its chest and shoulders).
+    glm::vec3 nf = hf, nr = hr, nu = hu;
+    if(flatplay::active())
+    {
+        hands::angleVectors({0.f, s.headAngles.y, 0.f}, nf, nr, nu);
+    }
+    const glm::vec3 standingTop = s.head - (nf * vr_body_eye_forward.value + nu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
 
@@ -328,7 +337,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // a little more, which the pose below follows).
     b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) : 0.f;
     const float w = b.crouchPose;
-    const glm::vec3 top = standingTop - (hf * vr_body_crouch_eye_forward.value + hu * vr_body_crouch_eye_up.value) * (w * b.m2w);
+    const glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
     const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
@@ -1627,7 +1636,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             memcpy(shadow, &posed.skin[i * 12], 12 * sizeof(float));
         }
     }
-    posed.eyes = s.head;
+    posed.eyes = s.head + flatplay::eyeNudge(s.headAngles); // (the flatscreen eye, nudged: its inside is hidden from there too)
     posed.m2w = b.m2w;
 
     posed.ent = ent;

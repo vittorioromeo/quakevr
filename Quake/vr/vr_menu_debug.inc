@@ -737,6 +737,13 @@ za::Vector<Item> pageDebugReports()
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
         row(opt::vr_flatplay_debug),
+        command("Flatscreen Look At Yourself", "vr_flat_orbit -60 44")
+            .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "
+                  "the gun, the sights. The hands and the shots are as he plays them. Flatscreen play only."),
+        command("Flatscreen Back In His Eyes", "vr_flat_orbit").help("The view back in his eyes (`vr_flat_orbit` with no arguments)."),
+        command("Flatscreen Sight Check", "vr_flat_sight_check")
+            .help("The held gun's sight line as last drawn, against the view: how far each sight stands off the ray through the "
+                  "crosshair, near and far, printed to the console. Flatscreen play only."),
         command("Flatscreen Punch", "vr_flat_punch")
             .help("A punch with the main hand (`vr_flat_punch off` for the off hand): the same motion the fire button of a "
                   "hand holding a swinging weapon makes, and V's punch. Flatscreen play only."),

@@ -79,7 +79,6 @@ const Rule rules[] = {
     {"fgr_", Group::Fingers, 4},
     {"muzzle_", Group::Muzzle, 7},
     {"shot_", Group::Muzzle, 5},
-    {"flat_ads_", Group::Muzzle, 9},
     {"ch_", Group::Muzzle, 3},
     {"fx_", Group::Effects, 3},
     {"whole_", Group::Placement, 6},

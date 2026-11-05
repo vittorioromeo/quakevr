@@ -1239,7 +1239,11 @@ static void SCR_DrawCrosshair (void)
 		return;
 
 	GL_SetCanvas (CANVAS_CROSSHAIR);
-	Draw_Character(-4, -4, crosshair_char);
+	// QVR: the flatscreen ironsight's picture moved on the screen takes the crosshair with it (0 0 outside it).
+	float shiftx, shifty;
+	VR_FlatCrosshairShift (&shiftx, &shifty);
+	const float canvas = vid.guiheight / CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
+	Draw_Character(-4 + (int)(shiftx * canvas), -4 + (int)(shifty * canvas), crosshair_char);
 }
 
 typedef struct

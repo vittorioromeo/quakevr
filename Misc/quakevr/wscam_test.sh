@@ -135,7 +135,7 @@ check $([ -n "$(v cam1_fly)" ] && far "$(v cam1_fly)" 120 0.001 && echo 1 || ech
 check $(far "$(v cam2_hx)" "$(v cam1_hx)" 0.1 && far "$(v cam2_hy)" "$(v cam1_hy)" 0.1 && far "$(v cam2_hz)" "$(v cam1_hz)" 0.1 && echo 1 || echo 0) "he did not move while its window was open: his head stood at $(v cam1_hx) $(v cam1_hy) $(v cam1_hz) and still stood at $(v cam2_hx) $(v cam2_hy) $(v cam2_hz) through the fly"
 # flatview measures the drawn weapon in the frame of the eye it is drawn for. Out past the mode's keep-near distance
 # (vr_flat_gun_near) the weapon stays with the body, so a flown-out eye finds it behind it instead of in front of it.
-check $([ -n "$(v fv1_x)" ] && far "$(v fv1_x)" 4 1 && echo 1 || echo 0) "before the fly the held weapon hangs $(v fv1_x) units ahead of the eye it is drawn for, as the shipped pose puts it (flatview, vr_flat_gun_fwd 5 with the eye's nudges at 0)"
+check $([ -n "$(v fv1_x)" ] && far "$(v fv1_x)" 4 1 && echo 1 || echo 0) "before the fly the held weapon hangs $(v fv1_x) units ahead of the eye it is drawn for, as the shipped pose puts it (flatview, vr_flat_gun_ahead 5 with the eye's nudges at 0)"
 check $([ -n "$(v fv2_x)" ] && awk -v a="$(v fv1_x)" -v b="$(v fv2_x)" 'BEGIN { exit (b < a - 40) ? 0 : 1 }' && echo 1 || echo 0) "flown out, that same weapon is $(v fv2_x) units from the eye: it stayed with the body while the view moved away from it"
 
 # ---- 3. the hands stay on the body's arms while the view is flown out (the mode's own probes) -----------------

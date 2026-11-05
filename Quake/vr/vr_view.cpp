@@ -4773,6 +4773,9 @@ extern "C" void VR_SetupViewEntities()
         QVR_PROFILE("view shakes");
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
         fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
+        // (Flatscreen play's ironsight: the sights stay on the crosshair's ray, tired or not.)
+        shakePos[hand] *= 1.f - flatsight::drawnShare(hand);
+        shakeAngles[hand] *= 1.f - flatsight::drawnShare(hand);
         glm::vec3 painPos, painAngles;
         painknock::offset(hand, painPos, painAngles);
         shakePos[hand] += painPos;
@@ -5000,6 +5003,7 @@ extern "C" void VR_SetupViewEntities()
         QVR_PROFILE("view model collide end");
         const entity_t* const drawnWeapons[2]{&entities.weapon[HAND_OFF].ent, &entities.weapon[HAND_MAIN].ent};
         const bool drawnMirrored[2]{entities.weapon[HAND_OFF].mirrored, entities.weapon[HAND_MAIN].mirrored};
+        flatsight::noteDrawn(s); // (flatscreen play: the sight lines as the hands hold them; the hands still as drawn)
         modelcollide::endView(s, drawnWeapons, drawnMirrored); // the game reads the tracked hands and muzzles
     }
     for(int hand = 0; hand < 2; hand++)

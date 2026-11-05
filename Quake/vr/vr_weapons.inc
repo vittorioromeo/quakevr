@@ -505,11 +505,6 @@ QVR_WEAPON_KEY(EmbedHeadZ, "em_head_z")
 QVR_WEAPON_KEY(EmbedButtX, "em_butt_x")
 QVR_WEAPON_KEY(EmbedButtY, "em_butt_y")
 QVR_WEAPON_KEY(EmbedButtZ, "em_butt_z")
-// Flatscreen play (vr_flatsight.cpp): this weapon's ironsight place, added to vr_flat_ads_fwd / _up / _out (units in the
-// view's frame: forward, up, out at the holding hand's side): what brings its sights to the crosshair.
-QVR_WEAPON_KEY(FlatAdsFwd, "flat_ads_fwd")
-QVR_WEAPON_KEY(FlatAdsUp, "flat_ads_up")
-QVR_WEAPON_KEY(FlatAdsOut, "flat_ads_out")
 #endif
 
 
