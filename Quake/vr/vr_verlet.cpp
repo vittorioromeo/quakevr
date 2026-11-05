@@ -51,6 +51,62 @@ void holdLengths(glm::vec3* p, const char* pinned, za::SizeT n, const float* res
     }
 }
 
+namespace
+{
+
+// `q` moved along the line from `at` to within lo .. hi of `at`, `prevQ` with it (the move gives it no speed). `fallback`:
+// the way to go when the two are on the same spot. False when it was within them.
+bool keepWithin(const glm::vec3& at, glm::vec3& q, glm::vec3& prevQ, float lo, float hi, const glm::vec3& fallback)
+{
+    const glm::vec3 d = q - at;
+    const float len = glm::length(d);
+    if(len >= lo && len <= hi)
+    {
+        return false;
+    }
+    const glm::vec3 next = at + (len > 1e-4f ? d / len : fallback) * za::clamp(len, lo, hi);
+    prevQ += next - q;
+    q = next;
+    return true;
+}
+
+} // namespace
+
+void limitPieces(glm::vec3* p, glm::vec3* prev, const char* pinned, za::SizeT n, const float* rest, float share, int rounds)
+{
+    if(n < 3)
+    {
+        return;
+    }
+    const glm::vec3 chord = p[n - 1] - p[0];
+    const float chordLen = glm::length(chord);
+    const glm::vec3 way = chordLen > 1e-4f ? chord / chordLen : glm::vec3{0.f, 0.f, -1.f};
+    for(int round = 0; round < rounds; round++)
+    {
+        bool moved = false;
+        // (From the last point back, then from the first on: each pass moves only the point it comes to, so a limit an
+        // end's move broke is passed along the chain in one go.)
+        for(za::SizeT j = n - 1; j > 0; j--)
+        {
+            if(!pinned[j - 1])
+            {
+                moved = keepWithin(p[j], p[j - 1], prev[j - 1], rest[j - 1] * (1.f - share), rest[j - 1] * (1.f + share), -way) || moved;
+            }
+        }
+        for(za::SizeT j = 0; j + 1 < n; j++)
+        {
+            if(!pinned[j + 1])
+            {
+                moved = keepWithin(p[j], p[j + 1], prev[j + 1], rest[j] * (1.f - share), rest[j] * (1.f + share), way) || moved;
+            }
+        }
+        if(!moved)
+        {
+            return;
+        }
+    }
+}
+
 void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* pinned, za::SizeT n, float rad, float slide,
     int* traces, char* touching)
 {

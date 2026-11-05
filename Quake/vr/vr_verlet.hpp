@@ -23,6 +23,12 @@ void fall(glm::vec3* p, glm::vec3* prev, const char* pinned, za::SizeT n, float 
 // correction made a pass.
 void holdLengths(glm::vec3* p, const char* pinned, za::SizeT n, const float* rest, int iterations, float stiffness);
 
+// Each piece kept within `share` of `rest[j]` (longer or shorter), for a pinned end moving a piece's length a frame, which
+// holdLengths' pulls can't answer: nothing pushes the next point away, so the end runs into it and the pieces bunch.
+// `rounds` of a pass from the last point back and one from the first on, each point moved to its neighbour's limit
+// only (prev with it: no speed from the move), so a chain within its limits doesn't move at all.
+void limitPieces(glm::vec3* p, glm::vec3* prev, const char* pinned, za::SizeT n, const float* rest, float share, int rounds);
+
 // The world: each free point traced from where it was before this step (`from`: stopped on what it meets, the rest of
 // its move slid along it; its speed into it gone, `slide` of its speed along it kept; held `rad` units off a floor it
 // lies on), then each piece (one through the world: its free ends pushed out past where it met it). `traces`, when
