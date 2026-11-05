@@ -561,6 +561,16 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   it slides deeper"), so whether a 3 cm sound step is crossed depends on where the stab's depth fell; unseeded runs differ by start-up.
 - **Flaky, open:** test 24's "out into the hand eased" (case 4, a hard axe tug) reads 2.56 cm in some runs, 3.58 in others (limit 3;
   the hand itself moves 2.78 cm a frame at 2 m/s), with the corpse rule on or off at the same seed: not this change's, a thin margin.
+- **Test 7 case 7's stab that didn't stick (agent stabstick):** not the leeway. The failing stab never made a blade: VR_Embed_Try
+  said "not yet, the blade as drawn 1.3 (another run 1.4) cm off its model" and the 0.12 s wait ran out (`embedhold: blow at
+  monster_army not stuck: the blade 1.3 cm off its model`). The leeway only turns a blade already stuck and held. vr_model_collide
+  holds a drawn weapon 0.3 units (about 0.94 cm) off a body, and `vr_embed_touch` 1.2 cm left a quarter of a centimetre over that:
+  held stabs that stuck measured 0.7-1.2 cm off (median 0.8, p90 1.1) with the leeway on or off, the same; let through, the tail goes
+  to 1.5. So **`vr_embed_touch` 1.2 -> 1.8 cm**. Unseeded test 7 runs: leeway on, touch 1.2: 4 of about 52 failed this way (1.3,
+  1.4, 1.3, 1.3 cm); leeway 0: 0 of 30 (a 3-7% chance at the same rate, and the gap spread is identical, so I read it as luck);
+  touch 1.6/1.8: 0 of 50. Open: at 1.6/1.8, case 21 (the body taken away; its grunt is not held still) landed 10-25 cm short 3 times
+  in 50 ("stuck", 2 skipped), never in about 82 runs at 1.2: maybe a knock-on, not understood. Test 11 103/0; test 24 at 1.8: 22/0
+  three times, 21/1 twice (eased; the corpse lift), at 1.2 the same kind (the corpse drag, the corpse lift).
 - **Skewered gib:** the hand gripping it is drawn on the gib where it took hold (skewerDrawnHand), as a held prop's. Its grab already
   goes by the fist meeting the drawn model (carryreach -> held::grabTouch, 2 cm slack); without the jointed hand's fist it falls back to
   the box test, which may be what he saw.

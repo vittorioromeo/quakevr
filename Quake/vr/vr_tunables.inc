@@ -1957,7 +1957,7 @@ QVR_TUNABLE(vr_embed_slide_blood, "10") // how much blood spurts out of the woun
 QVR_TUNABLE(vr_embed_wound_stream, "1") // how hard the blood stream (vr_bloodstream.cpp) of a wound with a blade in a living body pours, unending until the blade is out (0: none)
 QVR_TUNABLE(vr_embed_hold_break, "45") // cm the hand may go off the axis before the blade comes free
 QVR_TUNABLE(vr_embed_hold_yank, "6") // m/s across the axis it must also go at in a ragdoll: else it moves the body
-QVR_TUNABLE(vr_embed_touch, "1.2") // cm the blade as drawn may be off the drawn model and still go in (vr_model_collide holds it 1 off)
+QVR_TUNABLE(vr_embed_touch, "1.8") // cm the blade as drawn may be off the drawn model and still go in (vr_model_collide holds it 1 off; held stabs measured 0.7-1.5: 1.2 failed some 1 in 12)
 QVR_TUNABLE(vr_embed_touch_wait, "0.12") // s after a blow that landed short the blade may still come to touch and stay in
 QVR_TUNABLE(vr_embed_hold_reach, "90.5") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
 QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)
