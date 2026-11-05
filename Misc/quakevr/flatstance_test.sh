@@ -6,7 +6,7 @@
 #   b. a hotspot edited in Weapon Offsets moves the drawn hand by as much, and turns it;
 #   c. vr_flat_stance 0: the torso faces the view, the hand hangs;
 #   d. the rest's old lines are quiet;
-#   e. the free hand on the look still punches: a knight at 24 takes it, from the shotgun's stance.
+#   e. the free hand on the look punches as it does without it: a knight at 24, from the shotgun.
 # Fast mode: each run ends with its own script. Prints `flatstance: N passed, M failed` (qvrtest.sh's verdict).
 AGENT=${1:-flatstance}
 source "$(dirname "$0")/qvrtest.sh"
@@ -50,10 +50,13 @@ grep -a "^  stance:" "$log" | cut -c1-170 | sed 's/^/ /'
 check $(grep -a "^  stance:" "$log" | grep -a -q -E "off, torso -?0.0 deg, free hand hanging, share 0.00" && echo 1 || echo 0) "vr_flat_stance 0: torso on the view, the hand hanging"
 check $(grep -a -q "Unknown" "$log" && echo 0 || echo 1) "vr_flat_rest's old lines are quiet"
 
-# e. A punch of the free hand, off the shotgun's hotspot.
-log=$HERE/scratch/flatstance_e.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; impulse 154; wait90; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; vr_flat_punch off; wait27; vr_test_hurt 1; wait5; toggleconsole; quit" -Filter "test hurt:" -Timeout 60 > "$log" 2>&1
-gap=$(grep -a "test hurt:" "$log" | awk 'NR == 1 { a = $NF } NR == 2 { for (i = 1; i <= NF; i++) if ($i == "health") b = $(i+1) + 0 } END { print a - b }')
-echo "  the free hand's punch from the stance took ${gap:-0} from the knight"
-check $(awk -v g="${gap:-0}" 'BEGIN { exit !(g > 0) }' && echo 1 || echo 0) "the free hand's punch off the look lands"
+# e. A punch of the free hand off the shotgun's hotspot, in flatplay_test.sh's scene: as it is with the stance off (the look changes no blow).
+PUNCH() {
+  log=$HERE/scratch/flatstance_e$1.log
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; $2 impulse 154; wait90; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; vr_flat_punch off; wait27; vr_test_hurt 1; wait5; toggleconsole; quit" -Filter "test hurt:" -Timeout 60 > "$log" 2>&1
+  grep -a "test hurt:" "$log" | awk 'NR == 1 { a = $NF } NR == 2 { for (i = 1; i <= NF; i++) if ($i == "health") b = $(i+1) + 0 } END { print a - b }'
+}
+on=$(PUNCH on ""); off=$(PUNCH off "tune vr_flat_stance 0;")
+echo "  the free hand's punch from the shotgun took ${on:-none} with the stance, ${off:-none} without it"
+check $([ -n "$on" ] && [ "$on" = "$off" ] && echo 1 || echo 0) "the free hand's punch off the look does what it does with the stance off"
 verdict; exit $fail
