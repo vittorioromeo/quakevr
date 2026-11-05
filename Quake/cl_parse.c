@@ -1211,8 +1211,13 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_setangle:
+			{
+			vec3_t viewBefore; // QVR: a flat-screen walk through a teleporter goes on from it (VR_FlatPortalAngle)
+			VectorCopy (cl.viewangles, viewBefore);
 			for (i=0 ; i<3 ; i++)
 				cl.viewangles[i] = MSG_ReadAngle (cl.protocolflags);
+			VR_FlatPortalAngle (viewBefore, cl.viewangles); // QVR
+			}
 			cl.fixangle = true;
 			VR_OnSetAngle (cl.viewangles[YAW]); // QVR: turn the play space to face this way
 			break;

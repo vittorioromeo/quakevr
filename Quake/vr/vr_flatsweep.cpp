@@ -296,7 +296,7 @@ struct Shapes
     }
     const glm::vec3 centre = eye - fwd * (0.09f * k);
     out.head = {centre, centre, 0.095f * k};
-    const glm::vec3 top = s.head - glm::vec3{0.f, 0.f, vr_body_eye_up.value * k};
+    const glm::vec3 top = s.head + flatplay::headLean(s.headAngles) - glm::vec3{0.f, 0.f, vr_body_eye_up.value * k};
     out.neck = {top - glm::vec3{0.f, 0.f, 0.09f * k}, top, 0.05f * build.torso * k};
     return out;
 }
@@ -321,7 +321,8 @@ void writeHeader()
     fprintf(sw.out, "label,weapon,crouch,ads,pitch,settled,frames,eye_x,eye_y,eye_z,eye_fwd,eye_up,hull_m,solid,clear,inner_pct,hidden_pct,"
                     "body_pct,arm_inner_pct,arm_pct,eye_torso,eye_neck,eye_arm,inside,arm_inside,gun_torso,gun_head,fore0_torso,fore1_torso,hand0_torso,hand1_torso,hand0_head,"
                     "hand1_head,arm0,arm1,gap0,gap1,holding,has_spot,look_share,look_far,spot_off,arm_hip,arm_sight,shot_deg,shot_apart,"
-                    "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z,point_x,point_y,point_z,stop_x,stop_y,stop_z,swing\n");
+                    "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z,point_x,point_y,point_z,stop_x,stop_y,stop_z,swing,"
+                    "yaw,sh0_x,sh0_y,sh0_z,sh1_x,sh1_y,sh1_z,an0_x,an0_y,an0_z,an1_x,an1_y,an1_z\n");
 }
 
 // The row: the pose as last drawn.
@@ -445,16 +446,20 @@ void writeRow(const Config& c, bool settled)
     }
 
     const flatsight::SweepNumbers n = flatsight::sweepNumbers(s);
+    const glm::vec3 anchor[2]{flatplay::shoulderOf(s, 0), flatplay::shoulderOf(s, 1)}; // the shoulder the pose stands on (k.shoulder: the one the arm hangs from)
     fprintf(sw.out,
         "%s,%s,%d,%d,%.1f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
-        "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f\n",
+        "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,"
+        "%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
         sw.label, c.name, c.crouch ? 1 : 0, c.ads ? 1 : 0, sw.pitch, settled ? 1 : 0, sw.frames, eye.x, eye.y, eye.z, glm::dot(fromHead, yf),
         fromHead.z, hullMargin, solid, clear, 100.f * innerRays / (gridX * gridY), 100.f * hiddenRays / (gridX * gridY),
         100.f * bodyRays / (gridX * gridY), 100.f * armInnerRays / (gridX * gridY), 100.f * armRays / (gridX * gridY), eyeTo[0], eyeTo[1],
         eyeTo[2], inside, armInside, gunTorso, gunHead, foreTorso[0], foreTorso[1], handTorso[0], handTorso[1],
         handHead[0], handHead[1], arm[0], arm[1], gap[0], gap[1], n.holding, n.hasSpot ? 1 : 0, n.lookShare, n.lookFar ? 1 : 0, n.spotOff,
         n.armHip, n.armSight, n.shotDeg, n.shotApart, n.rearOff, n.frontOff, n.relief, n.adsT, gun.x, gun.y, gun.z, hand[0].x, hand[0].y, hand[0].z,
-        hand[1].x, hand[1].y, hand[1].z, n.shotPoint.x, n.shotPoint.y, n.shotPoint.z, n.shotStop.x, n.shotStop.y, n.shotStop.z, sw.movedMost);
+        hand[1].x, hand[1].y, hand[1].z, n.shotPoint.x, n.shotPoint.y, n.shotPoint.z, n.shotStop.x, n.shotStop.y, n.shotStop.z, sw.movedMost,
+        r_refdef.viewangles[1], k.shoulder[0].x, k.shoulder[0].y, k.shoulder[0].z, k.shoulder[1].x, k.shoulder[1].y, k.shoulder[1].z, anchor[0].x, anchor[0].y,
+        anchor[0].z, anchor[1].x, anchor[1].y, anchor[1].z);
     sw.rows++;
     sw.unsettled += settled ? 0 : 1;
 }

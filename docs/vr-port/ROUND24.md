@@ -374,6 +374,78 @@ To look at: straight down standing, then crouched in the ironsight on a flat flo
 The sheets are composed from a run's own frames: run `flatsweep_test.sh` with its sheet argument, as `flatpose_test.sh` clears the folder's pictures (`-Clean`) and a later suite leaves nothing to compose. `flatsweep_sheet.ps1` now stops on a missing frame; it used to save black cells.
 
 Checklist lines: "Flat: look straight down, standing, each weapon: you see your chest from above and no neck stump, as with cam_up 4; cam_up back at 0." "Flat: look level, walk and jump: the same height and feel as before." "Flat: crouched, ironsight, straight down at the floor: is the big gun acceptable until phase 2?"
+## Flat pose, phase 2: the hands on the body (branch `agent/flatpose2`)
+
+Phase 2 of the three (stances by weapon type are not started). Docs: FLATPLAY.md, "The hands stand on the body". His notes on phase 1:
+straight down the gun went through his body; straight up the arms stayed out in front instead of over the shoulders; crouched, the
+gun went into the camera; the ironsights were fine.
+
+**What was wrong, measured.** The pose stood on `hands::bodyAnchor` with `vr_shoulder_offset`: 4.7 units *above* the eye and 12 above
+the shoulder the arm hangs from, and crouched 5.6 higher still against the eye and 8.6 further back (it tips back with the crouch).
+So at a level look the gun sat at real shoulder height; turning that offset with the view put it behind the chest looking down
+and far out in front looking up; crouched, the long gun's hand ended up 5 behind the eye (-5.4, -0.5, 2.3 forward, right, up of
+it: the coordinator's thunderbolt numbers were the same), with the free arm across the screen.
+
+**The solve** (`vr_flat_body_pose` 1, Debug > Tunables > Flatscreen > Body Pose; 0 puts the old pose back, off the old anchor):
+- The hand stands off the shoulder the arm hangs from (`avatar::restShoulders`, the clavicle at rest: `clavicleRest`, shared with
+  `solveArm`). Gun Forward / Down / Out and the free hands' numbers were rebased onto it: 14 / 12 / 4 -> 16.5 / 0 / 1 (empty 7.5 / 1 / 4,
+  support 8.5 / 3 / 3), so a level look stands where it did, within half a unit.
+- The arm turns about its shoulder with a share of the look (0.7 down, 0.85 up), out at its side looking down (3) and up (2.5).
+- The chest takes 0.3 of a look down and 0.2 of a look up (half of it in the spine), and carries the head with it (`vr_flat_eye_lean`
+  12: the eye goes 3.1 further forward at 85 down; without it the neck's stump came into the view again, 3.47% of the screen).
+- The crouch puts the shoulders 3 further under the eye and 2 forward (the forward part fades with a look down), takes 0.6 of the
+  stance's pull, and puts the gun 2 further out.
+- Smooth limits, each eased in (no corner at any look): the stance's hotspot within the free arm (0.87, across the view then along
+  it), clear of the chest (4 ahead of the shoulder below it), of the eye and the neck under it (3.5), on the screen (55 degrees, 75
+  for the long gun's hand by his cheek), within the arm (0.92).
+- View-fixed tweaks on top, `vr_flat_gun_view_fwd/_right/_up`, 0. The eye's own nudges carry the hands as ever; the neck's turn no
+  longer does (it moves the eye off a body that stays).
+
+**Three things the sweep found on the way.**
+- *The shot near a surface.* With what the crosshair is on nearer than 12 past the muzzle the gun pointed along the ray from where
+  it stood: the shot landed as far off the point as the muzzle stood off the ray (15.6 for the crouched pistol at 85; 9.9 at the
+  wall). And a ledge the ray clears but the muzzle's line doesn't sent it 500 units away (e1m1). Now the shot's start eases onto the
+  ray between 24 and 12 ahead, and goes from the ray with anything in the way (`shotFrom`; `keepMuzzle` hands it on): nothing drawn
+  moves, the gun turns at most as far as 24 ahead allows. Every `shot_apart` row passes, the worst 0.03.
+- *The shotgun's free hand never settled about a level look* (phase 1's "snap at pitch 10"): the cup was chosen, the stance brought
+  the gun back, then the grip ahead was nearer, a real grip took the stance off, the gun went out, the cup was nearer... The grip is
+  now chosen from where the free hand hangs off the gun without the stance at a level look (`flatplay::levelHang`), which no look
+  changes; the shotgun keeps its cup and its look, as at the level look before.
+- *The free hand let go in a frame.* Its need was measured from the shoulder it is posed on, which swings to its own hand: lower
+  with the hand on the hotspot than off it. Now from the rest shoulder (hands on the body), and it eases off the hotspot from 0.78
+  to 0.98 of the arm instead of switching at 0.92.
+
+**Against walls.** A hipfire gun goes back no nearer its shoulder than 9 (was 6: the long gun's stock went into his chest at the
+wall, 3.3 deep); an ironsight's rear sight no nearer the eye than `vr_flat_ads_wall_keep` 8 (was 3): the crouched gun at the floor
+no longer fills the screen, its end goes into the floor and is hidden there. The sights stay exact (every row under 0.05).
+
+**The sweep** (`flatsweep_test.sh`, the defaults; his settings, `vr_flat_aim_fov 45`, read the same): `flatsweep: 384 passed, 19 known failing,
+0 failed` with the new list, against 322 / 81 before. Of the 65 phase 2 lines, 61 pass and are out. Left, by phase:
+- 2: the long gun's free hand easing off its hotspot crouched, low ceiling and wall: 1.75 and 1.23 units a degree (were 3.90, 3.81;
+  open floor and standing pass now). The gun crouched at 45 down: 1.008 units a degree against a limit of 1 (new: the arm's turn,
+  the crouch's gun out and the hotspot's limit all move it there).
+- 3: the off hand off its hotspot (all of them; a revolver has none to be on), and one row at 45 under e1m1's low ceiling,
+  crouched in the ironsight, that doesn't settle within the sweep's wait (swing 0.01).
+
+**Row by row** against the `before` rows at his settings (`scratch/fp2_compare.py`: each pitch of each stance and place, each check,
+worse by more than the check's noise and past its limit): none but the phase 3 ones: `offhand_spot`, 213 rows (the hanging hand
+stands elsewhere now, 3.6 further off its hotspot at worst: 34.5 against 30.8, crouched in the ironsight at -85), and `settled`, 2.
+Worse but inside their limits, as you'd expect when the hands move: the eye's distance to the torso and neck (84, 45 rows), the
+gun, hands and forearms nearer the body shapes (250 rows of gun in torso, all at least 0.5 clear), the arm's share (309: the hands
+are further from the shoulders they hang from, all under 1).
+
+**The sheets**, `C:/OHWorkspace/qvr-kit/scratch/flatpose2/before.png` and `after.png` (the run's own frames, `vr_flat_aim_fov 45`): stand down,
+the chest from above with the gun out in front of it at the right and the free hand at the left, nothing through the body;
+stand up, the axe and the pistol held up over the right shoulder, the shotgun from the right corner; crouch level, the shotgun at
+the lower right where the inside of his arm filled the screen before; crouch down, the pistol beside his chest at its size,
+where its ironsight filled the screen; the long gun's ironsight crouched at the floor is still large (its end goes into the floor
+at 8 from the eye).
+
+Flat suites: flatplay 28/0, flatpose 21/0, flatkeys 28/0, flatsight 11/1. The one: the moved picture (`vr_flat_ads_screen_x 5`, `_y -8`), whose sights lie on the moved ray to 0.0003 units, reads 0.028 degrees on its far-along measure against a 0.02 limit; with `vr_flat_body_pose 0` 0.0000. Not found yet: the look is level there, so neither the chest nor the arm's turn moves; the sight's solve is the eye's and unchanged. Open.
+
+To look at: straight down and straight up standing with each weapon; crouched with the shotgun at a level look, then up and down;
+the ironsight crouched at the floor.
+
 ## Magazines sliding home and out (branch `agent/magslide`)
 
 His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail
@@ -459,3 +531,89 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   the box test, which may be what he saw.
 - **Test:** `vr_embed_test 24` (`embedfeel: N passed, M failed`): 19 passed, 1 failed (the lift). Engine numbers through
   `vr_embed_probe*` cvars. Test 21 gained the gib drawing check.
+## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
+
+**Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
+The nailguns' firing frames (1..8) each push one barrel forward (v_nail/v_lava: the right barrel on odd frames, the left on even;
+v_nail2/v_lava2: one of the four in turn, frames 1/5, 2/6, 3/7, 4/8), found from the models' poses. `vr_gunfx.cpp` firingBarrels:
+each barrel's bore end as the middle of two opposite points of its front ring (anchors, so they follow the drawn, blended pose); the
+shot's sparks, frontal smoke cone and flash glow now leave that barrel (`emit`); frame 0 (an armed grunt's gun, not animated) keeps
+the muzzle as set. The wisps were per barrel already, untouched. The off hand's gun is drawn mirrored, so its frame's barrel is on
+the other side: QC `player_nail_BaseImpl` now flips the nail's side (and the QC smoke puff's) for the off hand, so nail and sparks
+agree. Debug: `vr_debug_gunfx 1` prints "gunfx barrel who .. frame .. barrel .. side .. up .."; with developer 1, "nailside" a nail.
+Test: `python scratch/nb_muzzle_test.py <agent>` (both hands, nailgun and super nailgun, 11 shots each): 13 passed, 0 failed; the
+nailgun's barrels 1.98..2.01 units off the muzzle, the main hand's odd frames on its right, the off hand's on its left, 11 of 11
+nails on the sparks' side in each hand. Pixels (looking down on the gun, r_dynamic 0): the first shot's spark pixels 493 of 534
+right of the middle, the second's 823 of 933 left. Note: the model's own flame for a frame grows in over its 0.1 s blend, so for an
+instant after a shot the previous barrel's flame still shows while the sparks leave the new one.
+
+**Crate sounds.** "Very quiet, very hard to hear": the knock (`VR_Crate_Pain`) and the break (the crate's and the tutorial's) now
+play louder than full volume (SND_LOUD): tunables `vr_crate_hit_volume` 2.5 and `vr_crate_break_volume` 2 (Debug > Tunables, Knock
+Volume and Break Volume; up to 4). Test: `bash scratch/nb_crate_test.sh <agent>` (vrarena_crate, shotgun knocks then a rocket):
+knocks at 1.68 and 1.98 (volume bytes 427, 503), breaks at 2.0 (510): 3 passed.
+
+**Ledge shove zones.** "Close to the ledge it should topple as before... another distance from which it backpedals a little"; "I
+can shove an enemy from very far away and it backpedals for an entire second". `VR_Knockdown_Ledge` keeps the edge's distance from
+the monster's middle (`vr_kd_ledge_edge`); `VR_Knockdown_Try`: within `vr_knockdown_ledge_topple` (32: its front about at the lip)
+the old launch over it; within `vr_knockdown_ledge_backpedal_reach` (80: two or three steps) the backpedal; further an ordinary
+shove (no ledge). With the backpedal off, as before. The defaults are mine, his to tune (Debug > Tunables, Ledge Shove: Topple
+Within, Backpedal Within). **Debug > Show Ledge Shove Zones** (`vr_knockdown_ledge_show`, also on Combat > Knockdowns' Debug;
+`vr_ledgeshow.cpp`): a line from your feet ahead along the floor to the first ledge, red within Topple Within of the edge, yellow
+within Backpedal Within, grey further, a white tick at the edge; scene lines, so the flat view shows it too (checked in both); a
+console line gives the distances when they change. Test 210 (`sv_random_seed 1;map vrclimb;wait30;god;vr_agrunt_test 210`, QuitOn
+"test 210 over") now has 12 cells: 48 and 72 a strength (backpedals), 24 (topples), 128 (too far), and checks each shove's zone:
+8 passed, 0 failed; zones 72 of 72; over 50 of 54 (the four misses are topples from 24 lying across the lip at two spots, as the
+old launch did); backpedal lip speeds 79, 141, 230 u/s; the 18 too-far shoves all stayed up. Not done: the line ignores the
+shove's own reach (a weak shove from the yellow may not reach the edge) and a crack too narrow to fall through.
+
+**Grab ease.** "Grab a falling magazine, the hand 19 degrees off: it snaps at once... a split second's transition." `vr_held.cpp`
+holdFrame: a prop just taken in one hand is drawn from where its last message before the take had it (the server puts it in the
+hand at once) onto its place in the hand over `vr_carry_grab_ease` (0.12 s, smoothstep; 0: at once), the two-hand let-go's ease
+reused; drawn only, the physics body is in the hand from the start. Test: `bash scratch/nb_grabease_test.sh <agent>` (a brick, In
+the Palm, taken off the floor with the hand turned): eased from 2.7 units and 32.9 degrees; none with the ease at 0: 2 passed.
+## Flat-screen: the assertion, walking over armour, the view through teleporters (agent/flatfix, 2026-11-05)
+
+No checklist lines (flat-screen rule). FLATPLAY.md has the behaviour ("Pickups", "The console's give", "Teleporters").
+
+**1. The assertion ("I grabbed armor in my left hand with a shotgun in my right hand... shooting").** Not the armour. Through
+the real path (map spawn function, E, 2, +attack, RMB too; his config and the test baseline, ironsight on, grunts firing,
+armour, key, suit, rune, shells, health) a held pickup never reaches it: the hand holding it is a fist, ammo id 0, and every
+reader guards that. The one route found to that line from a shot: the engine's `give` wrote a count into `.currentammo`, the
+main hand's ammo id; with the shotgun (weapon 4 = `IT_NAILGUN`) `give n 40` leaves 40 (`give_flat`: 3 assertions in 3 shots,
+as his line). That reaches a shot only with no magazine: every flat-screen shot. The headset run of the same give and shot showed no
+assertion before or after the fix (its magazine takes the shot); the corrupted field is shared, the fix is the engine's,
+and another counter update there (an ammo pickup after a give) is untested. **Not proved that his session used give**: Debug > Tests' "Shotgun in the Off
+Hand" and its kin do (`give s 40`), and so does the console. If it comes back with no give, the assertion's stack is wanted.
+
+**2. Walking over armour.** `VRHandsTracked` answers yes for a flat-screen player, so the "walking does not take it" rule
+meant for tracked hands caught him. What the walk does now, each by `vr_flatitems_test 2`: armour (all three), keys, biosuit,
+rune, super shotgun, quad, pentagram, ring taken (weapons and powerups had no gap: they were taken before too). Ammo and
+health boxes are not taken by walking (rigid boxes; E takes them): listed, not changed, his call. E on armour or a key now
+takes it at once as E on a box does.
+
+**3. The view through a teleporter.** See FLATPLAY.md. Measured (`flatgate_test.sh`): pitch through a gate 25, -20, 30, -40
+kept exactly (it was reset to 0); yaw turned by the gate's 0, 90 and 135 alone, off by 0.00; walking on the way he looks, off
+by 1 degree or less; a turning view through a 90 gate: the step off by 0.005 degrees. The gun's largest step in the camera's
+frame at a crossing was 708 units (a blink), now 0.1 at a fresh gate; up to 9.5 for a frame while the walk's sway still runs,
+gone in 0.15 s.
+
+Failing before, passing after (the fixes taken out of a build of this branch, the tests kept): give and a shot, 1
+assertion; every armour, key, suit and rune walked over left lying, E on better armour not worn; the pitch reset at all
+four gates, the gun 714 units off for a frame. With the fixes: flatitems_sh 8/8, flatgate_sh 5/5; flatplay 28/28, flatpose
+21/21, flatsight 12/12, flatkeys 28/28, turned_exit 2/2; teleporter cross, edges, selfhit and unstick print as before
+(headset runs: none of the changes is reached there).
+
+Noticed, not changed: E searches along the free hand (`VR_Forcegrab_FindTarget`), and an empty hand hangs 60 degrees down, so
+at a level view E does not look where the crosshair is; FLATPLAY.md says it does.
+
+## Flat-screen: walking over boxes too (agent/flatfix2, 2026-11-05)
+
+His answer to the list above: "Yes, walk over all". Ammo, health, megahealth and backpacks are taken by walking over them in
+flat-screen play; E still takes them. Why they were not: a box rests by its drawn shape and its small box sits under the
+floor's plane (on e1m1 its top 10 units below his feet), so Quake's overlap never met it; the engine now touches a
+flat-screen player's pickup box (an FL_ITEM with VR_Carry_Setup's hand touch) up to 18 units under his feet, with only the
+pickup's own touch (`flatPickupUnderFeet`). The box rules stand, checked by `vr_flatitems_test 2`: shells when full and
+health at 100 stay lying; megahealth takes him over 100; a monster's backpack (DropBackpack, the armed grunts' drop too) is
+taken. A dead armed grunt's worn backpack (vr_wornpack.qc) is on the corpse, not an item on the floor: not touched by this.
+A box let go with G at his feet is taken again only if it can be (a held box is one he was full of). Headset: the same walk
+leaves all 13 lying, as before.

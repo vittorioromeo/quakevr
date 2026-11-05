@@ -669,6 +669,8 @@ float(entity e) VR_Knockdown_Drown =
 
 float VR_KD_LEDGE_STEP = 8;   // units between the points along its way where the ground under it is looked for
 float vr_kd_ledge_past;        // VR_Knockdown_Ledge's last edge found: units along the shove to past it (its half width on)
+float vr_kd_ledge_edge;        // ... and to the edge itself (from its middle; to the nearest VR_KD_LEDGE_STEP)
+float vr_kd_ledge_zone;        // VR_Knockdown_Try's last: 0 no ledge, 1 toppled over it at once, 2 a backpedal to it, 3 too far (tests)
 
 // How far the shove that just landed on `e` (its velocity VR_Push's: along the shove, and the hop) carries it standing:
 // the hop (2 x up / gravity in the air, at its speed), then the slide (speed^2 / 2 VR_SHOVE_FRICTION; none under
@@ -750,6 +752,7 @@ float(entity e) VR_Knockdown_Ledge =
         if(!trace_startsolid && trace_fraction == 1)
         {
             vr_kd_ledge_past = d + half;
+            vr_kd_ledge_edge = d;
             if(cvar_hget(cvarh_vr_knockdown_debug))
             {
                 dprint(sprintf("knockdown ledge: %s: an edge %.0f units ahead (reach %.0f, clear %.0f), a drop of %g or more\n",
@@ -884,12 +887,41 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all (a tough
     // group's: by its Knockdown Chance).
     float ledge = chance > 0 && VR_Knockdown_Ledge(e) && VR_KD_SureRoll(e);
+    // How near the edge (his note, 2026-11-05; Debug > Show Ledge Shove Zones draws them): within
+    // vr_knockdown_ledge_topple of its middle toppled over at once (the launch below); within _backpedal_reach a backpedal
+    // to it; further an ordinary shove (no ledge). (With the backpedal off: every ledge found launches, as before.)
+    vr_kd_ledge_zone = ledge ? 1 : 0;
+    float backpedal = ledge && cvar_hget(cvarh_vr_knockdown_ledge_backpedal) && ragdollcanstagger(e);
+    if(ledge && cvar_hget(cvarh_vr_knockdown_ledge_backpedal))
+    {
+        float topple = max(0, cvar_hget(cvarh_vr_knockdown_ledge_topple));
+        float far = max(topple, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_reach));
+        if(vr_kd_ledge_edge <= topple)
+        {
+            backpedal = FALSE;
+        }
+        else if(vr_kd_ledge_edge > far)
+        {
+            ledge = FALSE;
+            vr_kd_ledge_zone = 3;
+            backpedal = FALSE;
+        }
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("knockdown ledge: %s: the edge %.0f units on: %s\n", e.classname, vr_kd_ledge_edge,
+                !ledge ? "too far, an ordinary shove" : backpedal ? "a backpedal" : "toppled over at once"));
+        }
+    }
+    if(backpedal)
+    {
+        vr_kd_ledge_zone = 2;
+    }
     // Unaware of the shover or shoved from behind (vr_knockdown_surprise; VR_Bash_Hit took it): down for sure (a stagger
     // that gives way after its steps), if this shove could knock it down at all (likewise).
     float surprise = (chance > 0 && VR_KD_SureRoll(e)) ? vr_kd_surprise : 0;
     float roll = random();
     // Over a ledge: on its feet to the edge, and over it (one that can't stagger: launched past it, below).
-    if(ledge && ragdollcanstagger(e) && cvar_hget(cvarh_vr_knockdown_ledge_backpedal))
+    if(backpedal)
     {
         return VR_Knockdown_LedgeBackpedal(e, xForward, xPush);
     }

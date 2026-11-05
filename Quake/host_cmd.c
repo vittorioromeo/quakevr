@@ -3619,6 +3619,13 @@ static void Host_Give_f (void)
 		//johnfitz
 	}
 
+	// QVR: not with the VR progs. Their .currentammo is the main hand's ammo id (AID_*, W_SetCurrentAmmoFor), the count on
+	// the status bar is .ammocounter, and .weapon is a weapon id, not an IT_ bit (the shotgun, 4, is IT_NAILGUN): this
+	// switch left a count where the game keeps an id, and the next shot that updates the counters (one with no magazine:
+	// all of them in flat-screen play) asked for "ammo id 40" (VR_AmmoUtil_GetAmmoCountByAmmoId's assertion).
+	if (GetEdictFieldValueByName (sv_player, "ammocounter"))
+		return;
+
 	//johnfitz -- update currentammo to match new ammo (so statusbar updates correctly)
 	switch ((int)(sv_player->v.weapon))
 	{

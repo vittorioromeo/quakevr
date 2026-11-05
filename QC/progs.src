@@ -172,6 +172,8 @@ vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc
 vr_crouch_test.qc
 vr_flatkeys_test.qc
+vr_flatitems_test.qc
+vr_flatgate_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc

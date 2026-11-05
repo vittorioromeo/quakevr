@@ -9,6 +9,7 @@
 #include "vr_holsterzones.hpp"
 #include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_ledgeshow.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_hotblade.hpp"
@@ -5058,6 +5059,7 @@ extern "C" void VR_SetupViewEntities()
         hitmodel::zonesDraw(); // vr_debug_hitzones
         agarmor::debugDraw();  // vr_agarmor_debug
         disarmviz::draw(s.head); // vr_debug_disarm
+        ledgeshow::draw(s.headAngles[YAW]); // vr_knockdown_ledge_show
         dirparryviz::draw(s.head); // vr_dirparry_debug
         rope::debugDraw();     // vr_debug_rope
         axestick::debugDraw(s.head, s.headAngles); // vr_debug_embed

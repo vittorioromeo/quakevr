@@ -754,6 +754,11 @@ QVR_SLIDER(vr_knockdown_getup_force, "Forced Get-Up", 0.f, 10.f, 0.5f, "%.1f s",
 QVR_SLIDER(vr_knockdown_blend, "Blend", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
     "How long the body takes to blend from how it lies into its get-up animation.")
 QVR_SLIDER(vr_knockdown_getup_speed, "Get-Up Speed", 0.25f, 3.f, 0.05f, "%.2fx", ext(0.1f, 10.f), "How fast its get-up animation plays.")
+QVR_TOGGLE(vr_knockdown_ledge_show, "Show Ledge Shove Zones",
+    "A line from your feet straight ahead along the floor to the first ledge: red where a monster you shove on topples "
+    "over it at once, yellow where it backpedals to the lip and folds over, grey where the ledge plays no part; a white "
+    "tick at the edge. The shove must reach the edge too (a weak one from the yellow may not). Distances: Debug > "
+    "Tunables, Ledge Shove: Topple Within and Backpedal Within.")
 QVR_CYCLE(vr_knockdown_debug, "Print Rolls",
     "Prints each shove's chance and roll, and each get-up (developer 1). And Get-Ups' Motion: a line per get-up "
     "of how it is drawn (how fast it moves, its biggest jump, the frames that go back on the one before: a "

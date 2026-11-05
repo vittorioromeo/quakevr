@@ -2074,6 +2074,8 @@ QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the pr
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
+QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
+QVR_CVAR(vr_flatgate_test, "0", CVAR_NONE)               // -flatscreenmode only: a walk through a teleporter on vrteleporters: the view goes on as it was (vr_flatgate_test.qc; Debug > Tests > Flat Gate)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
 QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay
@@ -2873,6 +2875,7 @@ QVR_CVAR(vr_knockdown_shove_ledge_over, "0.45", CVAR_ARCHIVE) // shoved over a l
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down or staggering, held as in its rest pose by the hand that holds it there (0: it falls loose)
 QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
+QVR_CVAR(vr_knockdown_ledge_show, "0", CVAR_NONE)       // debug: Show Ledge Shove Zones: a line from your feet ahead along the floor to the first ledge, red where a monster shoved on topples over it at once, yellow where it backpedals to it (vr_ledgeshow.cpp)
 QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
 
 QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE)       // share of the death animation's motion its parts start with (0: still)
