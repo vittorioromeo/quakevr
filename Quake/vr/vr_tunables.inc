@@ -1847,6 +1847,9 @@ QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole 
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
 // Flatscreen > Eye
+QVR_TUNABLE(vr_flat_eye_pivot, "1") // 1: the flatscreen look's pitch turns the eye about a point in his neck, as a head does (a look down carries it forward, clear of his chest; a level look's eye is where it always was); 0: the eye turns about itself
+QVR_TUNABLE(vr_flat_eye_fwd, "1") // the eye off that point, forward at a level look (0..8 units)
+QVR_TUNABLE(vr_flat_eye_up, "4") // the same, up (0..8 units)
 QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
 QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)

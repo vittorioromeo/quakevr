@@ -4,6 +4,19 @@ A per-feature reference: current behaviour only. Earlier work: `ROUND23.md` (1.1
 read it whole), `ROUND22.md` (1.0.1 to beta4). Add new work as a short section per feature, or fold it into its section: what it does,
 settings and defaults, files, tests, open issues. Keep sections short: this file is meant to stay small.
 
+## The armour's look (branch `agent/armorlook`)
+
+Player and armed humanoids alike, in the shared generator; his mockup (too clean and cartoon-saturated before; shards, grime, less red).
+
+- **Shapes** (third round, his notes: "bulky and pillowy", no layering): `vr_agarmor.cpp` `planGrid`, `fillRadii`, `addPlate`, `platesOf`: a piece is a regular grid of plates, 8 columns on the cuirass with a seam down the front and back, 6 on a limb with a plate facing front, in short straight rows. Each ring's radii are the skin's own, by rays out from the ring's middle at that height (`skinAlong`), raised only so a flat plate's chord clears the skin and the region's vertices (each corner at most `plateRidge` 1.1 over its ray), `plateFit` 0.12 units off: so rows follow the body's outline, narrow at waist, ankle and joints. Each plate is a shingle: its top lies on its foot under the row above, its lower edge stands `plateStep` 0.62 proud and laps `plateLap` 0.34 over the row below, a real step and shadow at every row. Feet share the grid's corners, weights included, so nothing shows between plates of a piece in any pose. A knee's plate on each thigh's end, an elbow's on each upper arm's. Mirrored: the cuirass's columns about its centre line (half way where a rest pose leans), a limb and its mirror image where the two are alike; a humanoid whose limbs differ keeps each its own fit. Covered too: the clavicles' skin, a closing row round the neck (`closeYoke`), a little over the joints, down to the belt. The bracer stays the forearm's elbow half (the wrist gadget). The helmet keeps its shape, new paint.
+- **Paint:** `make_agarmor.py`, from noise and shapes alone, in the game's palette at the skin's own 256 x 128 (the full-colour PNGs are gone: an 8-bit skin needs no pull to the palette, and the debris is the same skin): `vragarmor.mdl` nine skins, `vragarmor.mdl_0_norm.png` the relief (rivets, dents, scratches, plate edges). A plate maps onto one of 30 tiles: its own tone, worn steel on its bevel in broken lengths, the shadow under the lip above and in its corners, rust as an accent, rivets at its corners, stronger than before. Each tier keeps to its own palette colours (`TIER_COLOURS`): green the sage row (no true green in the palette), yellow the tan row, red the pure reds and a little of the browns.
+- **Triangles:** limit 3400 a body (`vr_agarmor_look_check`). Player 2 728 on every build (default bare forearms 23 016 originally), grunt 3 256 (3 436), enforcer 2 776, knight 3 256, death knight 2 824. Traded for the shorter rows: a plate is 12 triangles, down from 20: no top edge to bevel or side there (it's under the lip), side bevels and seams triangles.
+- **Hues:** the plates' mean hues in the check, tiles within 14 degrees of each other. **The checker on plate faces** isn't the skin: it's `vr_retrolight_model_dither` (0.25, every model's ordered dither between light levels, skin texels; gone with it at 0). A global look setting, left as it is.
+- **Checks:** `vr_agarmor_look_check` (Debug > Tests; `agarmor look: N passed, M failed`), every wearer and build: same seed same hash, another seed another; within budget; every piece has plates; left against right (mean nearest mirrored outer vertex, at most 0.25 units on the player, 4 on a humanoid's own limbs, whose rest poses and meshes differ); each interior ring's width against the skin's slice at that height (at most 5.5 units wider on the player, 7.5 on a humanoid's few edges; a death knight's upper arms not measured: his shoulder shells); each piece's thinnest-to-thickest ring against the body's (within 0.25, a humanoid's 0.45); the step at every row at least 0.25 units; rays out from each covered piece's skin hitting a plate, at least 85% at rest and 80% with knees and elbows bent, the thighs and arms forward and the spine leaning (a death knight's bent 60%: his shells stay on his clavicles; a limb's skin facing along it not counted); tier hues at least 30 degrees apart, one tier's tiles at most 14, red's saturation 0.35 .. 0.82. `vr_agarmor_check` still applies. `vr_pp_test 10` the tiers' shots where you stand; 11 every wearer and build; 12 bent, front and side. Scene: `armor_look`.
+- **Painted body skin:** not retired; the cuirass's last row reaches the belt so it doesn't show at the waist.
+- **Performance:** like for like on one tree (`origin/next`'s armour files and skins swapped in, then this branch's; `--lto`, `bench.sh`, exclusive, 2048 eyes, 90 Hz paced, every armed humanoid in full red: `scratch/al_bench.cfg`; medians of 3 reps, ms, original -> this): `play_e1m1_fight` CPU 3.26 -> 3.24, GPU 3D 2.03 -> 1.98; `crowd32_armed` CPU 4.53 -> 4.39, GPU 3D 2.90 -> 2.79. Within noise (one scene's reps spread up to 0.45 CPU, 0.42 GPU): no worse. One crowd rep (34 hitches over 33 ms) was set aside and the scene rerun; it didn't come back, its cause not found.
+- **The dark things on the player's chest:** his two chest holsters (`vr_dumpview`: `legholster` at the chest, both sides) and the torch: worn on the skin, they show at the plates. The first rounds' two square patches are gone with the fit.
+- **Open:** green is the palette's sage, as the original (no true green there). The death knight's shoulders read as a wide cape (his pauldron shells). `vr_agarmor_test 5` read 23/24 on some runs before this round, its check never caught: five in a row, two ways in, read 24/24 on the final build.
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -298,6 +311,54 @@ hunting, 52 away takes it (downtime not firing 1.9 s); taken away on the way, it
 Note: a freed entity keeps its `classname`, so a weapon taken by another grunt is only dropped from a trip by the "no nearer" check.
 **Gun looks, the author's marked rivets (branch `agent/gunlooks4`):** on the tops as he dotted them: the shotgun 4 more (6 to 10: a pair where the receiver's top ends ahead of the sights, a pair behind them), the nailgun and lava nailgun 6 more (4 to 10: the top bar's ends, two pairs on the rear body's top edges); the top bar's head 0.12 high (the model's byte box ends just over the bar as it kicks) and riding the bar, a part that already moved; the check now wants them clear of the sights and their lines of sight; barrel masks 1876, 1188.
 
+## Flat pose, phase 1: the sweep and the neck (branch `agent/flatsolve1`)
+
+The plan's first of three (body-based hand target; stances by weapon come later and are not started). Docs: FLATPLAY.md, "His eye", "The neck", "The pose sweep".
+
+**The sweep.** `vr_flat_sweep` (Debug > Reports) and `Misc/quakevr/flatsweep_test.sh`: -85 to 85 degrees in 5s, standing and crouching, axe, revolver, shotgun, hipfire and ironsight; three places (vrtesthall's open floor; his box against its far wall; e1m1 under the lowest ceiling a grid of traces finds, 47.9 over the floor). 560 rows, each written when the pose has stopped moving, 2-3 minutes a pass. `flatsweep_check.py` against `flatsweep_known.txt`: `flatsweep: 322 passed, 81 known failing, 0 failed` (65 lines for phase 2, 16 for phase 3). With the pivot off the same list fails 54 (23 rows not on it, the 4 camera rows among them; 31 worse than it says). The limits were not moved to pass.
+
+**The number that says what he saw.** The screen's share first seeing a triangle of the collapsed neck and head (a grid of rays against the drawn body skinned on the CPU): 2.26-2.43% straight down standing, 0.35% at 75, 0 from 70 up. His `vr_flat_cam_up 4`: 0. That is the eye right above the neck's stump, 3.4 from it. The inside of the torso itself barely shows (0.17%), so "inner geometry" is mostly the stump. Seam leaks read 0.17-0.35% in places: the limit is 0.5%.
+
+**The offsets**, long gun standing, then the crouched pistol's neck (the tightest):
+
+| forward, up | at 85: forward, up, hidden %, body %, torso | at -85: back, up, torso, neck | crouched -85: neck |
+|---|---|---|---|
+| eye about itself | 0, 0, 2.43, 20.7, 6.1 | 0, 0, 6.0, 3.4 | 3.4 |
+| `vr_flat_cam_up 4` (his) | 4.0, +0.4, 0, 6.8, 8.5 | 4.0, +0.4, 5.8, 3.2 | |
+| 0, 4 | 4.0, -3.6, 0, 5.6, 5.8 | 4.0, -3.6, 1.8, **0.6** | |
+| 0, 6 | 6.0, -5.4, 0, 4.5, 6.9 | 5.9, -5.4, **0.2**, **0.2** | |
+| 2.5, 7 | 4.7, -8.8, 0, 5.6, 5.1 | 9.2, -3.9, 2.9, 2.9 | |
+| 1, 5 | 4.1, -5.5, 0, 5.6, 5.1 | 5.9, -3.5, 1.9, 1.9 | **0.9** |
+| **1, 4 (chosen)** | 3.1, -4.6, 0, 6.9, 4.5 | 4.9, -2.6, 2.8, 1.9 | 1.2 |
+
+No forward offset leaves the eye on the neck's surface on a look up; more up drops it further on a look down. 1, 4 shows as much torso as his 4 (6.9 and 6.8% of the screen), and the sheets agree for standing hipfire: `camup4_after.png`, straight down, the same chest band and hand, with the floor nearer and a little less of the shoulders. Crouched in the ironsight they don't: cam_up 4 keeps the gun its size, this has it filling the middle of the screen (below). Most move 5.5; the box's side is 16 (11.1 left under the low ceiling and at the wall, 3.85 to the box's top standing, down from 3.97: the eye rises 0.1 at -5). Never in solid, the line from the head clear, in all 560 rows. `vr_flat_cam_up` can go back to 0; his 4 on top of this would add up.
+
+**Off is off.** `vr_flat_eye_pivot 0` against the sweep run before the pivot's code existed: no column of 350 rows differs at all.
+
+**Better with it on** (off -> on, worst): gun in torso, long hip standing 3.19 -> 2.30, the pistol's ironsight 2.45 -> -0.19; hand in torso 12 -> 7 stances failing; an arm's inside on the screen 9 -> 3.
+
+**Worse with it on, known and listed:**
+- The free arm through the eye, the long gun's crouched hipfire: the whole screen at -60 and -55 with the pivot off, at -75 to -50 and -20 with it on (the eye goes back towards the shoulder the stance brings forward). The check reads the worst, the same 100%, so it doesn't show this: it is the one to fix first in phase 2.
+- The look straight down crouched, on a flat floor: the eye is 4.6 nearer it, so the gun meets it sooner. The ironsight's relief is pushed from 8.5-8.9 to 3 (pistol), 10.4 to 4.6 (long gun): the gun looks big on `before_after.png`, crouch down. The sights stay exact. The crouched pistol's hipfire at 80-85: the shot lands 15.6 off the crosshair's point (the aim's 12-unit near limit; `shot_deg` 0): was 0. Phase 2 sets the gun's height from the shoulders and is where this belongs.
+- Crouched hipfire, the forearm and hand in the torso a little deeper: melee forearm 1.13 -> 2.50 at 35, pistol hand 1.58 -> 1.82 at 55 (the hands carry the eye's move down so the gun stays on the screen).
+- The long gun's ironsight standing has no free hand on the hotspot at 75-85 any more (it was there; the arm can't reach the sight's new place). Off by the same most: 34.5.
+- The free hand's snap (below) in the wall's ironsight rows at 25-40: not the pivot, the same with it off and the eye nudged the same way (`vr_flat_cam_fwd 1.9`, `_up -1`: 9.5 units a frame); `vr_model_collide`, `vr_body_collide` and `vr_hand_collide` off change nothing.
+
+**What it says about phases 2 and 3** (after the pivot):
+- Looking down, in the body: gun in torso up to 3.28 (long, crouched), 2.30 standing; hand 4.67; forearm 4.61. Still fully a phase 2 matter; the hip and shoulder never move.
+- Crouched too close: the free arm goes through the eye on the long gun, crouched hipfire: the whole screen is the inside of his arm at -75 to -50 and at -20, the eye within 0.6 of its surface from -85 to 10. Gun in head 3.40 at 10, hand in head 1.63 at 15. This is the worst row, and the 2H stance is why.
+- The 2H hand: on the shotgun's hotspot hipfire from -5 to 85 standing, -20 to 85 crouched, 28.6 off it above that, moved 3.1-3.8 units a degree where it lets go. Ironsight: crouched 60 to 85, else off by up to 34.5. A revolver has no hand on it at any pitch (19.9-27.4 off): his "pistols should be held with two hands".
+- A snap: at pitch 10 standing (11-17 crouched) on the long gun's hipfire the free hand doesn't settle: 2.05 units a frame, the same with the pivot off. It sits where the look lets go and the real grip takes over.
+
+Flat suites, each with the pivot on and off, the same verdicts: flatplay 28/0, flatpose 21/0, flatsight 12/0, flatkeys 28/0; none re-based. Two things on the way:
+- flatpose failed one line once with the pivot on (`the eye nudged, a knight 300 away`: the crosshair on something 0 away, the eye nudged 12 forward), in a low-impact run beside his game. It passed on the rerun in a normal run (271 away), and the knight's distance on that line moves between runs anyway (28, 42, 43 on eye-near). Not explained; the line is a level look, where the pivot moves nothing.
+- flatsight's read 8 frames after a jump to 85: rear sight 0.44 off the ray with it on, 0.002 off; settled 60 frames later, 0.0003. Inside its half-degree limit. So the sights trail a little on a very fast look down, and are exact once it stops.
+
+To look at: straight down standing, then crouched in the ironsight on a flat floor (the big gun above); a look up with the shotgun crouched (the arm). Set `vr_flat_cam_up` back to 0 first.
+
+The sheets are composed from a run's own frames: run `flatsweep_test.sh` with its sheet argument, as `flatpose_test.sh` clears the folder's pictures (`-Clean`) and a later suite leaves nothing to compose. `flatsweep_sheet.ps1` now stops on a missing frame; it used to save black cells.
+
+Checklist lines: "Flat: look straight down, standing, each weapon: you see your chest from above and no neck stump, as with cam_up 4; cam_up back at 0." "Flat: look level, walk and jump: the same height and feel as before." "Flat: crouched, ironsight, straight down at the floor: is the big gun acceptable until phase 2?"
 ## Magazines sliding home and out (branch `agent/magslide`)
 
 His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail

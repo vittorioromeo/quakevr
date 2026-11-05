@@ -6,9 +6,9 @@
 // The shells: Mod_LoadModel of "<model>#armor" (VR_SyntheticModel) makes a skeletal model of the .mdl's rest pose's
 // triangles of each piece (the cuirass: the spine's and chest's skin weights; the helmet: the head's, above the brow),
 // clipped where their weight crosses 0.5, subdivided, smoothed (Taubin; the edge along itself), never inside the body
-// where it was, pushed out along their normals by a gap and a plate's thickness, two-sided with a rim; each vertex
-// weighted like the body under it. Textures: quakevr/progs/vragarmor.mdl's skins (0 green, 1 yellow, 2 red; made by
-// Misc/quakevr/make_agarmor.py from the player's armour painter). Every piece's bones are its own slots of the model's
+// where it was: that surface is where its plates go (platesOf; ROUND24.md, "The armour's look"): rows of separate bevelled
+// slabs, each riding the weights under its middle. Textures: quakevr/progs/vragarmor.mdl's skins and their full-colour
+// .png (0 green, 1 yellow, 2 red; made by Misc/quakevr/make_agarmor.py). Every piece's bones are its own slots of the model's
 // bone list, so a piece is hidden by collapsing its slots (the body's `hidden` bones' way): one draw per armoured body.
 //
 // Drawn: every body drawn on its authored rig ("<model>#rig2", live, a ragdoll or the Rig Studio's subject) of a model

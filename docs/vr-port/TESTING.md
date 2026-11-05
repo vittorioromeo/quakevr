@@ -224,7 +224,7 @@ hint Swing at them: ...                             # optional; default the chec
   runall checks the weapons stay in both modes.
 - Armour: `cvar vr_toolgun_armed_armor <1-4>` (green, yellow, red, random; `vr_toolgun_armed_pieces` 0 cuirass and
   helmet, 1 all ten, 2 random) puts the toolgun's Armed Humanoid armour on every armed humanoid the scene places
-  (`spawn "Armed Grunt: ..."` and `spawnarmed` alike; `agarmor_plates`); unset, each wears its own roll as on a map.
+  (`spawn "Armed Grunt: ..."` and `spawnarmed` alike); unset, each wears its own roll as on a map.
   Armed knights need `cvar vr_agknight 1` (`monster_vr_knight`), armed death knights `cvar vr_agdknight 1`
   (`monster_vr_hknight`; weapon 0 is his own sword). A Debug > Tests setup works as a `cmd` (`cmd vr_agarmor_test 6`).
 - No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged; nor

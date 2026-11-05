@@ -444,8 +444,9 @@ void checkModel(const char* modelName, int randoms, int& passed, int& failed)
     }
     Con_Printf("agarmor check: at rest %d of %d plate vertices inside the body (hidden by it), body in plate at most %.2f deep\n", restPlate,
         outer, static_cast<double>(restDeepest));
-    verdict(restDeepest < za::max(vr_agarmor_thick.value, 0.05f) && restPlate * 5 < outer,
-        "the rest pose: no body vertex through a plate's thickness, under a fifth of the plates hidden in the body (under the pads and arms)");
+    // (deep within a plate's slab is under it, not through it; a slab on a slanting part of the grid, the yoke's, is deep)
+    verdict(restDeepest < za::max(vr_agarmor_thick.value, 0.05f) * 2.5f && restPlate * 5 < outer,
+        "the rest pose: no body vertex past a plate's slab, under a fifth of the plates hidden in the body (under the pads and arms)");
     // Every joint near the pieces through its limits: a ball's swing ends and diagonals, its twist's ends; a hinge's ends.
     const char* swept[] = {"spine", "chest", "neck", "head", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "thigh_l", "thigh_r"};
     Tally sweeps;
@@ -549,6 +550,473 @@ void check_f()
         checkModel(Cmd_Argv(1), randoms, passed, failed);
     }
     qvr::testkit::verdict("agarmor check", passed, failed);
+}
+
+namespace
+{
+
+// The bones' motions for a pose: the rest pose (`bent` false), or knees and elbows well bent, the thighs and upper arms forward,
+// the spine leaning: a body at work. Any wearer or body build, by its bones' names; each bone about its pivot under its parent.
+struct LookPose
+{
+    glm::mat4 m[rig2::maxBones];
+    bool done[rig2::maxBones]{};
+};
+
+[[nodiscard]] float lookBend(const char* name)
+{
+    constexpr struct
+    {
+        const char* name;
+        float degrees;
+    } bends[] = {{"forearm", -75.f}, {"shin", 70.f}, {"thigh", -40.f}, {"upperarm", -30.f}, {"spine", -12.f}, {"chest", -10.f}};
+    for(const auto& b : bends)
+    {
+        if(!strncmp(name, b.name, strlen(b.name)))
+        {
+            return b.degrees;
+        }
+    }
+    return 0.f;
+}
+
+void lookPoseBone(const rig2::Rig& rig, int b, bool bent, LookPose& pose)
+{
+    if(pose.done[b])
+    {
+        return;
+    }
+    pose.done[b] = true;
+    const int parent = rig.bones[b].parent;
+    glm::mat4 up{1.f};
+    if(parent >= 0 && parent < rig.numBones)
+    {
+        lookPoseBone(rig, parent, bent, pose);
+        up = pose.m[parent];
+    }
+    const float deg = bent ? lookBend(rig.bones[b].name) : 0.f;
+    const float a = glm::radians(deg);
+    glm::mat4 turn{1.f};
+    turn[0][0] = za::cos(a);
+    turn[0][2] = -za::sin(a);
+    turn[2][0] = za::sin(a);
+    turn[2][2] = za::cos(a);
+    glm::mat4 toPivot{1.f}, fromPivot{1.f};
+    toPivot[3] = glm::vec4{-rig.bones[b].pivot, 1.f};
+    fromPivot[3] = glm::vec4{rig.bones[b].pivot, 1.f};
+    pose.m[b] = up * fromPivot * turn * toPivot;
+}
+
+[[nodiscard]] glm::vec3 lookSkin(const LookPose& pose, const W& w, const glm::vec3& p, float pointW)
+{
+    glm::vec3 out{0.f};
+    for(int b = 0; b < rig2::maxBones; b++)
+    {
+        out += w.w[b] > 0.f ? glm::vec3{pose.m[b] * glm::vec4{p, pointW}} * w.w[b] : glm::vec3{0.f};
+    }
+    return out;
+}
+
+[[nodiscard]] bool rayHitsTri(const glm::vec3& o, const glm::vec3& d, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float reach)
+{
+    const glm::vec3 e1 = b - a, e2 = c - a, pv = glm::cross(d, e2);
+    const float det = glm::dot(e1, pv);
+    if(za::abs(det) < 1e-7f)
+    {
+        return false;
+    }
+    const glm::vec3 tv = o - a, qv = glm::cross(tv, e1);
+    const float u = glm::dot(tv, pv) / det, v = glm::dot(d, qv) / det, t = glm::dot(e2, qv) / det;
+    return u >= -1e-3f && v >= -1e-3f && u + v <= 1.001f && t > 0.f && t < reach;
+}
+
+// How much of a piece's skin is under its plates in a pose: rays out from each of its vertices along its normal, hitting any plate
+// within `reach` units. The share per piece.
+void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut, float* share)
+{
+    constexpr float reach = 9.f;
+    LookPose pose;
+    for(glm::mat4& m : pose.m)
+    {
+        m = glm::mat4{1.f};
+    }
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        lookPoseBone(rig, b, bent, pose);
+    }
+    za::Vector<glm::vec3> posed(s.verts.size(), glm::vec3{0.f});
+    for(int v = 0; v < count(s.verts); v++)
+    {
+        at(posed, v) = lookSkin(pose, at(s.verts, v).w, at(s.verts, v).p, 1.f);
+    }
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const uint32_t bones = pieceRegionBones(rig, piece);
+        int total = 0, covered = 0;
+        for(int v = 0; piece != Helmet && v < count(s.body.p); v++)
+        {
+            const W& w = at(s.body.w, v);
+            float region = 0.f;
+            for(int b = 0; b < rig2::maxBones; b++)
+            {
+                region += ((bones >> static_cast<unsigned>(b)) & 1u) ? w.w[b] : 0.f;
+            }
+            if(region < 0.6f || (piece == Cuirass && at(s.body.p, v).x < backCut))
+            {
+                continue;
+            }
+            // (a limb's skin facing along it, into its open ends: a boot's sole, a shoulder's top, not what plates round it cover)
+            if(piece != Cuirass)
+            {
+                glm::vec3 oa, ua, fa, la;
+                pieceAxes(rig, piece, oa, ua, fa, la);
+                if(za::abs(glm::dot(at(s.body.n, v), ua)) > 0.7f)
+                {
+                    continue;
+                }
+            }
+            total++;
+            const glm::vec3 o = lookSkin(pose, w, at(s.body.p, v), 1.f);
+            const glm::vec3 d = geom::safeNormalize(lookSkin(pose, w, at(s.body.n, v), 0.f), glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
+            bool hit = false;
+            for(int k = 0; k + 2 < count(s.tris) && !hit; k += 3)
+            {
+                hit = rayHitsTri(o, d, at(posed, at(s.tris, k)), at(posed, at(s.tris, k + 1)), at(posed, at(s.tris, k + 2)), reach);
+            }
+            covered += hit ? 1 : 0;
+        }
+        share[piece] = total ? static_cast<float>(covered) / static_cast<float>(total) : 1.f;
+    }
+}
+
+// How the plates follow the body at rest, piece by piece: per row, the plates' width across (the piece's side axis, its middle band)
+// against the skin's at the same height, the most by which they exceed it, and how far the thinnest ring's width over the thickest
+// is the body's; the least step from a plate's lower edge down to the top of the row beneath, along the way out.
+struct LookFit
+{
+    float widthOver{0.f};     // units: the plates' width past the skin's, the worst row
+    int widthPiece{0}, taperPiece{0};
+    float taperOff{0.f};      // the plates' thinnest-to-thickest row width ratio less the body's, the worst piece
+    float taperBody{1.f}, taperPlates{1.f}; // of the piece with the most taper
+    float step{1e9f};         // units
+    float standoff{0.f};      // units: the mean of the plates' feet off the skin (half the width over, per side), all rows
+};
+
+void lookFit(const Shell& s, const rig2::Rig& rig, bool skipUpperArms, LookFit& fit)
+{
+    int firstVert = 0;
+    float standoffSum = 0.f;
+    int standoffN = 0;
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const PlateGrid& g = s.tubes[piece].grid;
+        const int plates = s.pieceVerts[piece] / plateVerts;
+        if(piece != Helmet && g.rows)
+        {
+            const uint32_t bones = pieceRegionBones(rig, piece);
+            const PlateTube& tube = s.tubes[piece];
+            const int rowFirst = g.yoke > 0.f ? 1 : 0;
+            float thinB = 1e9f, thickB = 0.f, thinP = 1e9f, thickP = 0.f;
+            // (not the end rings: they lie past the region's edge, where the skin's slice is a sliver or nothing)
+            const bool skip = skipUpperArms && (piece == PauldronL || piece == PauldronR);
+            for(int r = rowFirst + 1; r < g.rows && !skip; r++)
+            {
+                // Ring r: the skin's slice through it (the piece's triangles' edges crossing its plane), against the plates' feet on it.
+                const float h = g.hAt(r);
+                float bLo = 1e9f, bHi = -1e9f, pLo = 1e9f, pHi = -1e9f;
+                for(int k = 0; k + 2 < count(s.body.tris); k += 3)
+                {
+                    float region = 0.f;
+                    for(int e = 0; e < 3; e++)
+                    {
+                        for(int b = 0; b < rig2::maxBones; b++)
+                        {
+                            region += ((bones >> static_cast<unsigned>(b)) & 1u) ? at(s.body.w, at(s.body.tris, k + e)).w[b] / 3.f : 0.f;
+                        }
+                    }
+                    if(region < 0.5f)
+                    {
+                        continue;
+                    }
+                    for(int e = 0; e < 3; e++)
+                    {
+                        const glm::vec3 p0 = at(s.body.p, at(s.body.tris, k + e)) - tube.origin, p1 = at(s.body.p, at(s.body.tris, k + (e + 1) % 3)) - tube.origin;
+                        const float a0 = glm::dot(p0, tube.up) - h, a1 = glm::dot(p1, tube.up) - h;
+                        if((a0 < 0.f) != (a1 < 0.f))
+                        {
+                            const float across = glm::dot(p0 + (p1 - p0) * (a0 / (a0 - a1)), tube.left);
+                            bLo = za::min(bLo, across);
+                            bHi = za::max(bHi, across);
+                        }
+                    }
+                }
+                // (each plate's foot: its underside, the last four of its vertices)
+                for(int p = 0; p < za::min(plates, g.rows * g.cols); p++)
+                {
+                    const int base = firstVert + p * plateVerts + plateVerts - 4;
+                    for(int c = 0; c < 4; c++)
+                    {
+                        const glm::vec3 q = at(s.verts, base + c).p - tube.origin;
+                        if(za::abs(glm::dot(q, tube.up) - h) < 0.02f)
+                        {
+                            const float across = glm::dot(q, tube.left);
+                            pLo = za::min(pLo, across);
+                            pHi = za::max(pHi, across);
+                        }
+                    }
+                }
+                if(bLo < bHi && pLo < pHi)
+                {
+                    const float over = (pHi - pLo) - (bHi - bLo);
+                    fit.widthPiece = over > fit.widthOver ? piece : fit.widthPiece;
+                    fit.widthOver = za::max(fit.widthOver, over);
+                    standoffSum += over * 0.5f;
+                    standoffN++;
+                    thinB = za::min(thinB, bHi - bLo);
+                    thickB = za::max(thickB, bHi - bLo);
+                    thinP = za::min(thinP, pHi - pLo);
+                    thickP = za::max(thickP, pHi - pLo);
+                }
+            }
+            if(thickB > 0.f && thickP > 0.f)
+            {
+                const float tb = thinB / thickB, tp = thinP / thickP;
+                if(za::abs(tp - tb) > fit.taperOff)
+                {
+                    fit.taperOff = za::abs(tp - tb);
+                    fit.taperPiece = piece;
+                    fit.taperBody = tb;
+                    fit.taperPlates = tp;
+                }
+            }
+            // The steps: a plate's lower edge's middle (its face's corners 2, 3) over the next row's top (0, 1), the same column.
+            if(plates >= g.rows * g.cols)
+            {
+                for(int r = 0; r + 1 < g.rows; r++)
+                {
+                    for(int c = 0; c < g.cols; c++)
+                    {
+                        const int upper = firstVert + (r * g.cols + c) * plateVerts, lower = firstVert + ((r + 1) * g.cols + c) * plateVerts;
+                        const glm::vec3 lip = (at(s.verts, upper + 2).p + at(s.verts, upper + 3).p) * 0.5f, top = (at(s.verts, lower).p + at(s.verts, lower + 1).p) * 0.5f;
+                        // (along the way out from the piece's axis there)
+                        const glm::vec2 mid = at(g.axis, r + 1);
+                        const glm::vec3 q = top - tube.origin - tube.fwd * mid.x - tube.left * mid.y;
+                        const glm::vec3 radial = geom::safeNormalize(q - tube.up * glm::dot(q, tube.up), tube.fwd, 1e-6f);
+                        fit.step = za::min(fit.step, glm::dot(lip - top, radial));
+                    }
+                }
+            }
+        }
+        firstVert += s.pieceVerts[piece];
+    }
+    fit.standoff = standoffSum / static_cast<float>(za::max(standoffN, 1));
+}
+
+// Left against right, at rest: each outer vertex of `a`, mirrored, against the nearest of `b`'s (world mirrored about y 0 if `up` is
+// null; else in the pieces' own frames, each limb's rest pose its own). The mean distance.
+[[nodiscard]] float lookMirror(const Shell& s, const rig2::Rig& rig, int a, int b, bool local)
+{
+    glm::vec3 oa{0.f}, ob{0.f}, ua{0.f, 0.f, 1.f}, ub{0.f, 0.f, 1.f}, fa{1.f, 0.f, 0.f}, fb{1.f, 0.f, 0.f}, la{0.f, 1.f, 0.f}, lb{0.f, 1.f, 0.f};
+    if(local)
+    {
+        pieceAxes(rig, a, oa, ua, fa, la);
+        pieceAxes(rig, b, ob, ub, fb, lb);
+    }
+    float sum = 0.f;
+    int n = 0;
+    for(const Vert& v : s.verts)
+    {
+        if(v.piece != a || v.layer != 0)
+        {
+            continue;
+        }
+        const glm::vec3 q = v.p - oa;
+        const glm::vec3 want{glm::dot(q, fa), -glm::dot(q, la), glm::dot(q, ua)};
+        float best = 1e9f;
+        for(const Vert& u : s.verts)
+        {
+            if(u.piece == b && u.layer == 0)
+            {
+                const glm::vec3 r = u.p - ob;
+                best = za::min(best, glm::distance(want, glm::vec3{glm::dot(r, fb), glm::dot(r, lb), glm::dot(r, ub)}));
+            }
+        }
+        sum += best;
+        n++;
+    }
+    return sum / static_cast<float>(za::max(n, 1));
+}
+
+} // namespace
+
+// vr_agarmor_look_check: the plates' generator on every wearer and body build: the same seed the same armour, another seed
+// another; every piece there; each body's triangles within the budget; left and right each other's mirror image; each covered
+// piece's skin under its plates, at rest and bent. The paint: the three tiers' hues apart (the plates' mean colour, full-colour
+// skins), red still red and held back, each tier's plates one hue. Ends on "agarmor look: N passed, M failed".
+void lookCheck_f()
+{
+    constexpr int triBudget = 3400;   // a body's whole set (the player's default was 23 000, a grunt's 3 436)
+    constexpr float hueApart = 30.f;  // degrees between any two tiers' means
+    constexpr float redSatMost = 0.82f, redSatLeast = 0.35f;
+    constexpr float mirrorMost = 0.25f;  // units: left against right, the plates' outer vertices (the player's symmetric body)
+    constexpr float mirrorMostAuthored = 4.f; // (a humanoid's: its two arms' rest poses and meshes differ)
+    constexpr float coverRest = 0.85f, coverBent = 0.8f; // a covered piece's skin under plates: rays out from its vertices
+    constexpr float tileHueMost = 14.f;  // degrees: one tier's tiles, most apart
+    constexpr float widthOverMost = 5.5f; // units: a row of plates' width past the skin's at that height (the player's)
+    constexpr float widthOverMostAuthored = 7.5f; // (a low-poly humanoid's: a slice's few edges)
+    constexpr float taperOffMost = 0.25f; // a piece's thinnest-to-thickest row, the plates' against the skin's (the player's)
+    constexpr float taperOffMostAuthored = 0.45f;
+    constexpr float stepLeast = 0.25f;    // units: a plate's lower edge above the top of the row beneath
+    constexpr const char* all[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl", "progs/vrknight.mdl", "progs/vrhknight.mdl", "progs/vrbody.mdl",
+        "progs/vrbody_bare.mdl", "progs/vrbody_lean.mdl", "progs/vrbody_lean_bare.mdl", "progs/vrbody_brawny.mdl", "progs/vrbody_brawny_bare.mdl",
+        "progs/vrbody_fem.mdl", "progs/vrbody_fem_bare.mdl"};
+    int passed = 0, failed = 0;
+    const auto check = [&](bool ok, const char* what) {
+        Con_Printf("agarmor look: %s: %s\n", ok ? "PASS" : "FAIL", what);
+        (ok ? passed : failed)++;
+    };
+    const float seed = vr_agarmor_seed.value;
+    for(const char* m : all)
+    {
+        qmodel_t* src = Mod_ForName(m, false);
+        Shell* sp = src ? shellFor(src) : nullptr;
+        if(!sp)
+        {
+            check(false, va("%s: no plates", m));
+            continue;
+        }
+        Shell again;
+        again.model = sp->model;
+        (void)buildShell(src, again);
+        Cvar_SetValueQuick(&vr_agarmor_seed, seed + 1.f);
+        Shell other;
+        other.model = sp->model;
+        (void)buildShell(src, other);
+        Cvar_SetValueQuick(&vr_agarmor_seed, seed);
+        const int tris = count(sp->tris) / 3;
+        check(again.hash == sp->hash && sp->hash != 0u && other.hash != sp->hash, va("%s: the same seed the same plates, another seed others (%08x %08x %08x)", m, sp->hash, again.hash, other.hash));
+        check(tris <= triBudget, va("%s: %d triangles (budget %d; cuirass %d, helmet %d, thigh %d, shin %d, upper arm %d, forearm %d)", m, tris, triBudget, sp->pieceTris[Cuirass],
+            sp->pieceTris[Helmet], sp->pieceTris[ThighL], sp->pieceTris[ShinL], sp->pieceTris[PauldronL], sp->pieceTris[BracerL]));
+        bool every = true;
+        for(int p = 0; p < NumPieces; p++)
+        {
+            every = every && sp->pieceTris[p] > 0;
+        }
+        check(every, va("%s: every piece has plates", m));
+        // Left against right.
+        const rig2::Rig* rig = rigOfShell(src);
+        const bool player = !strncmp(m, "progs/vrbody", 12);
+        const float widthLimit = player ? widthOverMost : widthOverMostAuthored, taperLimit = player ? taperOffMost : taperOffMostAuthored;
+        float worst = lookMirror(*sp, *rig, Cuirass, Cuirass, !player);
+        for(int p = PauldronL; p + 1 < NumPieces; p += 2)
+        {
+            worst = za::max(worst, lookMirror(*sp, *rig, p, p + 1, !player));
+        }
+        // (a humanoid's limbs each fit their own limb and rest pose: their cuirass is the mirrored part; 0 limit for the player's own mesh)
+        const float mirrorLimit = player ? mirrorMost : mirrorMostAuthored;
+        check(worst <= mirrorLimit, va("%s: left and right mirror each other: %.3f units at worst, %.2f the limit (%s)", m, static_cast<double>(worst), static_cast<double>(mirrorLimit),
+            player ? "as it stands" : "its limbs in their own frames, their rest poses differ"));
+        // The fit: the plates' width against the skin's, row by row; the taper; the step down each row.
+        LookFit fit;
+        lookFit(*sp, *rig, strstr(m, "hknight") != nullptr, fit); // (a death knight's upper arms: its shoulder shells, not its upper arm's skin, are what they cover)
+        check(fit.widthOver <= widthLimit, va("%s: each row follows the body: at most %.2f units wider than the skin (%s; limit %.2f), %.2f on each side on average", m, static_cast<double>(fit.widthOver), pieceNames[fit.widthPiece], static_cast<double>(widthLimit), static_cast<double>(fit.standoff)));
+        check(fit.taperOff <= taperLimit, va("%s: the tapers the body's: thinnest to thickest row off by %.2f at worst (%s; limit %.2f; plates %.2f, body %.2f)", m, static_cast<double>(fit.taperOff), pieceNames[fit.taperPiece], static_cast<double>(taperLimit), static_cast<double>(fit.taperPlates), static_cast<double>(fit.taperBody)));
+        check(fit.step >= stepLeast, va("%s: a real step at every row: %.2f units at least (limit %.2f)", m, static_cast<double>(fit.step), static_cast<double>(stepLeast)));
+        // The skin under the plates.
+        float rest[NumPieces], bent[NumPieces];
+        const float cut = strstr(m, "enforcer") ? -9.f : -1e9f;
+        lookCoverage(*sp, *rig, false, cut, rest);
+        lookCoverage(*sp, *rig, true, cut, bent);
+        float restLeast = 1.f, bentLeast = 1.f;
+        for(int p = 0; p < NumPieces; p++)
+        {
+            restLeast = za::min(restLeast, rest[p]);
+            bentLeast = za::min(bentLeast, bent[p]);
+        }
+        Con_Printf("agarmor look: %s: covered at rest / bent: cuirass %.2f %.2f, upper arm %.2f %.2f, forearm %.2f %.2f, thigh %.2f %.2f, shin %.2f %.2f\n", m,
+            static_cast<double>(rest[Cuirass]), static_cast<double>(bent[Cuirass]), static_cast<double>(za::min(rest[PauldronL], rest[PauldronR])), static_cast<double>(za::min(bent[PauldronL], bent[PauldronR])),
+            static_cast<double>(za::min(rest[BracerL], rest[BracerR])), static_cast<double>(za::min(bent[BracerL], bent[BracerR])), static_cast<double>(za::min(rest[ThighL], rest[ThighR])),
+            static_cast<double>(za::min(bent[ThighL], bent[ThighR])), static_cast<double>(za::min(rest[ShinL], rest[ShinR])), static_cast<double>(za::min(bent[ShinL], bent[ShinR])));
+        check(restLeast >= coverRest, va("%s: no body showing at rest: at least %.0f%% of each covered piece's skin under plates (%.0f%%)", m, static_cast<double>(coverRest * 100.f), static_cast<double>(restLeast * 100.f)));
+        // (a death knight's upper arms: his shoulder shells stay on his clavicles, his arm bends out from under them)
+        const float bentLimit = strstr(m, "hknight") ? 0.6f : coverBent;
+        check(bentLeast >= bentLimit, va("%s: bent: at least %.0f%% (%.0f%%)", m, static_cast<double>(bentLimit * 100.f), static_cast<double>(bentLeast * 100.f)));
+    }
+    float hue[3]{}, sat[3]{};
+    for(int t = 0; t < 3; t++)
+    {
+        // (the 8-bit skin's texels in full colour, in the skin model's hunk copy)
+        qmodel_t* skins = Mod_ForName("progs/vragarmor.mdl", false);
+        const auto* kh = skins && skins->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(skins)) : nullptr;
+        const int w = kh ? kh->skinwidth : 0, h = kh ? kh->skinheight : 0;
+        const byte* indexed = kh ? reinterpret_cast<const byte*>(kh) + kh->texels[t] : nullptr;
+        za::Vector<byte> rgba(static_cast<za::SizeT>(za::max(w * h, 1) * 4), byte{0});
+        for(int i = 0; indexed && i < w * h; i++)
+        {
+            memcpy(&rgba[static_cast<za::SizeT>(i * 4)], &d_8to24table[indexed[i]], 4);
+        }
+        const byte* px = indexed ? rgba.data() : nullptr;
+        const enum srcformat fmt = SRC_RGBA;
+        double sum[3]{0.0, 0.0, 0.0};
+        const int xEnd = w * 160 / 256; // (the plates' block: make_agarmor.py)
+        for(int y = 0; px && fmt == SRC_RGBA && y < h; y++)
+        {
+            for(int x = 0; x < xEnd; x++)
+            {
+                for(int c = 0; c < 3; c++)
+                {
+                    sum[c] += static_cast<double>(px[(y * w + x) * 4 + c]);
+                }
+            }
+        }
+        const double n = za::max(static_cast<double>(xEnd) * static_cast<double>(h), 1.0);
+        const float r = static_cast<float>(sum[0] / n), g = static_cast<float>(sum[1] / n), b = static_cast<float>(sum[2] / n);
+        const float hi = za::max(r, za::max(g, b)), lo = za::min(r, za::min(g, b));
+        const float d = za::max(hi - lo, 1e-3f);
+        hue[t] = 60.f * (hi == r ? (g - b) / d : hi == g ? 2.f + (b - r) / d : 4.f + (r - g) / d);
+        hue[t] = hue[t] < 0.f ? hue[t] + 360.f : hue[t];
+        sat[t] = d / za::max(hi, 1e-3f);
+        Con_Printf("agarmor look: tier %d: mean %.0f %.0f %.0f, hue %.0f, saturation %.2f\n", t + 1, static_cast<double>(r), static_cast<double>(g), static_cast<double>(b),
+            static_cast<double>(hue[t]), static_cast<double>(sat[t]));
+        // Each tile's own hue: a tier's plates one colour, whatever their tone and wear.
+        float tileLo = 1e9f, tileHi = -1e9f;
+        for(int ty = 0; px && fmt == SRC_RGBA && ty < 6; ty++)
+        {
+            for(int tx = 0; tx < 5; tx++)
+            {
+                double tile[3]{0.0, 0.0, 0.0};
+                const int x0 = xEnd * tx / 5, x1 = xEnd * (tx + 1) / 5, y0 = h * ty / 6, y1 = h * (ty + 1) / 6;
+                for(int y = y0; y < y1; y++)
+                {
+                    for(int x = x0; x < x1; x++)
+                    {
+                        for(int c = 0; c < 3; c++)
+                        {
+                            tile[c] += static_cast<double>(px[(y * w + x) * 4 + c]);
+                        }
+                    }
+                }
+                const float tr = static_cast<float>(tile[0]), tg = static_cast<float>(tile[1]), tb = static_cast<float>(tile[2]);
+                const float thi = za::max(tr, za::max(tg, tb)), tlo = za::min(tr, za::min(tg, tb));
+                const float td = za::max(thi - tlo, 1e-3f);
+                float th = 60.f * (thi == tr ? (tg - tb) / td : thi == tg ? 2.f + (tb - tr) / td : 4.f + (tr - tg) / td);
+                th = th < -60.f ? th + 360.f : th;
+                tileLo = za::min(tileLo, th);
+                tileHi = za::max(tileHi, th);
+            }
+        }
+        check(tileHi - tileLo <= tileHueMost, va("tier %d: its plates one hue: %.0f degrees apart at most (limit %.0f)", t + 1, static_cast<double>(tileHi - tileLo), static_cast<double>(tileHueMost)));
+    }
+    const auto apart = [&](int a, int b) {
+        const float x = za::abs(hue[a] - hue[b]);
+        return za::min(x, 360.f - x);
+    };
+    check(apart(0, 1) >= hueApart && apart(1, 2) >= hueApart && apart(0, 2) >= hueApart,
+        va("the tiers' hues apart by %.0f degrees at least (green-yellow %.0f, yellow-red %.0f, green-red %.0f)", static_cast<double>(hueApart), static_cast<double>(apart(0, 1)),
+            static_cast<double>(apart(1, 2)), static_cast<double>(apart(0, 2))));
+    check(sat[2] <= redSatMost && sat[2] >= redSatLeast, va("red held back, still red: saturation %.2f within %.2f .. %.2f", static_cast<double>(sat[2]), static_cast<double>(redSatLeast), static_cast<double>(redSatMost)));
+    check(sat[2] >= sat[1] * 0.5f && sat[2] >= sat[0] * 0.5f, "red not washed out against the others");
+    qvr::testkit::verdict("agarmor look", passed, failed);
 }
 
 } // namespace detail
