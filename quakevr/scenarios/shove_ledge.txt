@@ -1,0 +1,12 @@
+# shove_ledge: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The long ledge of vrclimb, its lip
+# 204 units ahead of you and a 240-unit drop past it (ROUND24.md, "Shoves off ledges"); grunts between you and it, near
+# the lip and farther off.
+title Shoves off a ledge: grunts between you and the lip (god)
+map vrclimb
+start 300 400 72 180
+god
+spawn "Grunt" 160 -80
+spawn "Armed Grunt: Shotgun" 110 0
+spawn "Grunt" 60 80
+spawn "Armed Grunt: Axe" 150 160
+hint Walk up and shove them towards the lip, one hand, two hands and running: they should stumble back on their feet and tip over, each a little differently.

@@ -3441,6 +3441,8 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 {
 
 	unsigned int		md5_path_id;
+	if (strchr (mod->name, '#')) // QVR: a model made from another's file ("progs/vrbody.mdl#plate0": VR_DerivedModelFile) has no companion of its base's
+		return false;
 	COM_StripExtension (mod->name, path, MAX_QPATH);
 	COM_AddExtension (path, ".md5mesh", MAX_QPATH);
 

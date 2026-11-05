@@ -146,6 +146,7 @@ void() VR_TestsFrame =
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
     VR_Embed_TestFrame(); // VR: embedded blades (vr_embed_test, vr_embed_test.qc)
+    VR_PP_TestFrame(); // VR: the armour plates on the player (vr_pp_test, vr_playerplates_test.qc)
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
     VR_PropImp_TestFrame(); // VR: the props' impact rule (vr_prop_impact_test, vr_propimpact_test.qc)

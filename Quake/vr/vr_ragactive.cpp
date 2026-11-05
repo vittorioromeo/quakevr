@@ -788,6 +788,7 @@ constexpr float staggerPlant = 0.6f;     // a planted leg's reach to where its f
 constexpr float staggerReachStep = 0.45f; // of a leg's length: a planted foot this far (level) from its hip steps
 constexpr float staggerHoldReach = 0.97f; // of a leg's length: a planted foot within this of its hip is held (no glide)
 constexpr float staggerHoldTime = 0.03f;  // s: its level motion worked off over
+constexpr float staggerLeftBehind = 0.15f; // of a leg's length: a backpedal over a ledge's foot this far behind its hip slides
 constexpr float staggerWheel = 1.7f;     // Hz: its arms wheeling for its balance (the other arm's a little quicker)
 constexpr float staggerUpright = 8.f;    // rad/s per radian its pelvis is pitched off its stance's, steady (turnWhole)
 constexpr float staggerUprightMost = 4.f; // rad/s
@@ -933,6 +934,31 @@ void staggerBase(StaggerWork& w, State& s, const Parts& p)
     g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));    g.leanMost = za::max(g.leanMost, g.lean);
 }
 
+// The farthest point on the way from `from` to `to` (level) with the floor still under it, about as high as under `from`
+// (half a leg `len`, stairs' steps): `from` itself if the floor ends at once.
+[[nodiscard]] glm::vec3 lastOnFloor(const Context& c, const glm::vec3& from, const glm::vec3& to, float len)
+{
+    if(!c.floorBelow)
+    {
+        return to;
+    }
+    constexpr int samples = 8;
+    const float base = floorAt(c, from, len, from.z);
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    glm::vec3 last = from;
+    for(int k = 1; k <= samples; k++)
+    {
+        const glm::vec3 q = glm::mix(from, to, static_cast<float>(k) / static_cast<float>(samples));
+        const float f = c.floorBelow(q + up * len, len * 3.f);
+        if(f < -1e29f || za::abs(f - base) > 0.5f * len)
+        {
+            return last;
+        }
+        last = q;
+    }
+    return to;
+}
+
 // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
 // (A step or a crate under its pelvis, higher than its feet, is not its floor: else, stepping back off it on level
 // ground read as a drop, "no floor under it", and a sag.)
@@ -974,7 +1000,8 @@ bool staggerOutcome(StaggerWork& w, State& s, const Parts& p, const Context& c, 
         // a base: its level motion times the square root of its height over g, ahead of it).
         // (Beaten, its steps taken: no more, it gives way below. Steady, its backpedal's steps taken and still leaning: a
         // few more to catch itself.)
-        const int stepsCap = g.giveAfter >= 0 ? g.giveAfter : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0);
+        // (A backpedal over a ledge: as many as its way takes.)
+        const int stepsCap = g.ledge ? 1000 : g.giveAfter >= 0 ? g.giveAfter : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0);
         if(g.stepLeg < 0 && g.steps < stepsCap)
         {
             const float h = za::max(com.z - footZ, 0.1f);
@@ -1026,12 +1053,21 @@ bool staggerOutcome(StaggerWork& w, State& s, const Parts& p, const Context& c, 
                 }
                 // (As high over the floor there as it is here: a foot's end may lie below its sole, the ogre's 8 units.)
                 const glm::vec3 from = g.planted[i];
+                // (A backpedal over a ledge: its foot down on the floor, at most to the lip, never on air; its pelvis goes
+                // on over its heels. One already at the lip stays.)
+                const glm::vec3 flat{to.x, to.y, from.z};
+                const glm::vec3 reached = g.ledge ? lastOnFloor(c, from, flat, len) : flat;
+                to.x = reached.x;
+                to.y = reached.y;
                 to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
-                g.stepLeg = best;
-                g.stepFrom = c.now;
-                g.stepTime = stepTime;
-                g.stepA = g.planted[i];
-                g.stepB = to;
+                if(!g.ledge || glm::length(level(to - from)) > 0.1f * len)
+                {
+                    g.stepLeg = best;
+                    g.stepFrom = c.now;
+                    g.stepTime = stepTime;
+                    g.stepA = g.planted[i];
+                    g.stepB = to;
+                }
             }
         }
         const float limit = za::clamp(vr_ragdoll_active_stagger_lean.value, 5.f, 80.f);
@@ -1239,7 +1275,9 @@ void staggerFeet(StaggerWork& w, State& s, const Parts& p, const Context& c)
             const float len = limbLength(s, p, leg);
             const glm::vec3 hip = worldPoint(p, up0, p.rig->bones[up0].pivot);
             const glm::vec3 end = limbEnd(s, p, leg);
-            if(glm::length(g.footAt[i] - hip) < staggerHoldReach * len && end.z - g.footAt[i].z < 0.08f * len)
+            // (A backpedal over a ledge: not one its hip has left behind: it would hold its pelvis back and sit it down.)
+            const bool left = g.ledge && glm::dot(level(end - hip), g.dir) < -staggerLeftBehind * len;
+            if(!left && glm::length(g.footAt[i] - hip) < staggerHoldReach * len && end.z - g.footAt[i].z < 0.08f * len)
             {
                 const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[lo]));
                 const float k = 1.f - za::exp(-c.dt / staggerHoldTime);
@@ -3106,8 +3144,9 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     g.travel = za::max(info.travel, 0.f);
     // (Its travel slowing to none over its backpedal: 1 m over 0.7 s, 3.5 m (a grunt's slide) over 1.45 s, its first
     // speed 4.8 m/s.)
-    g.time = za::clamp(0.4f + 0.3f * g.travel, 0.3f, 1.6f);
-    g.stepsMost = za::clamp(static_cast<int>(vr_ragdoll_active_stagger_steps.value + 0.5f), 1, 10);
+    g.time = info.time > 0.f ? info.time : za::clamp(0.4f + 0.3f * g.travel, 0.3f, 1.6f);
+    g.ledge = info.ledge;
+    g.stepsMost = info.ledge ? 10 : za::clamp(static_cast<int>(vr_ragdoll_active_stagger_steps.value + 0.5f), 1, 10);
     // Beaten (its roll under its chance): it backpedals 3 or 4 steps (4 nearer the edge), then gives way.
     g.giveAfter = g.balance < 0.5f ? za::min(3 + static_cast<int>(g.balance * 4.f), g.stepsMost) : -1;
     g.recoverAt = info.recoverAt;
@@ -3128,7 +3167,8 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     s.support = Fade{0.3f + 0.65f * hold, 0.3f + 0.65f * hold, 0.f, 0.f};
     s.pin.force = za::max(vr_ragdoll_active_stagger_pin.value, 0.f) * (0.1f + 0.9f * hold);
     s.pin.fade = Fade{1.f, 1.f, 0.f, 0.f};
-    s.pin.hertz = 5.f;
+    // (A backpedal over a ledge goes on longer than its legs alone hold it up: stiffer, or it sits down on its way.)
+    s.pin.hertz = info.ledge ? za::clamp(vr_knockdown_ledge_backpedal_hertz.value, 1.f, 30.f) : 5.f;
     s.pin.offset = glm::vec3{0.f};
     // Where it stands: its pelvis over its feet (each foot's place and its stance from its middle, level).
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));

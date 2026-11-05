@@ -167,6 +167,7 @@ void() SetChangeParms =
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
     parm40 = self.weaponclipsize2;
     parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
+    parm75 = self.vr_pp_mask; // (the armour plates shown: which ones, kept from level to level: vr_playerplates.qc)
 };
 
 void() OnSpawnServerBeforeLoad =
@@ -329,6 +330,7 @@ void() SetNewParms =
     parm50 = 0;
     parm73 = 0; // (no magnetic holster bindings)
     parm74 = 0; // (bullet time's meter full)
+    parm75 = 0; // (no armour plates)
 };
 
 void() DecodeLevelParms =
@@ -433,6 +435,7 @@ void() DecodeLevelParms =
     self.vr_saw_cord_pulled = parm50 >= VR_PARM50_SAW_CORD_PULLED;
     self.vr_flashlight_state = parm50 - (self.vr_saw_cord_pulled ? VR_PARM50_SAW_CORD_PULLED : 0);
     self.vr_bullettime_spent = parm74;
+    self.vr_pp_mask = parm75;
     MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
     self.max_health = VR_MaxHealth(self); // (with them: upstream sets it here)
     if(MG3_Campaign() && self.health > self.max_health) { self.health = self.max_health; }
@@ -2168,6 +2171,8 @@ Called every frame after physics are run
 */
 void() PlayerPostThink =
 {
+    VR_PP_Frame(self); // QVR: the armour's plates follow what is left of it (vr_playerplates.qc; bots too)
+
     // FRIKBOT
     if(BotPostFrame())
         return;

@@ -807,6 +807,47 @@ mem::Cache<HandPartsCache> handPartsCache{"view hand parts", mem::GameDirChange 
 
 } // namespace
 
+int twoHandSpot(const hands::State& s, int hand, glm::vec3& at)
+{
+    const glm::vec3 fwd = hands::forward(s.rot[hand]);
+    int best = -1;
+    bool bestAims = false;
+    float bestAlong = 0.f;
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        const WorldHotspot& w = worldHotspots[hand][i];
+        if(!weapons::isGripType(w.type) || i == magSpot[hand])
+        {
+            continue;
+        }
+        const bool aims = w.type == weapons::HotspotType::Grip || w.def.cupAim;
+        const float along = glm::dot(w.pos - s.pos[hand], fwd);
+        if(best < 0 || (aims && !bestAims) || (aims == bestAims && along > bestAlong))
+        {
+            best = i;
+            bestAims = aims;
+            bestAlong = along;
+        }
+    }
+    if(best >= 0)
+    {
+        at = worldHotspots[hand][best].pos;
+    }
+    return best;
+}
+
+bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)
+{
+    const GhostDrawn& d = ghostDrawn[hand];
+    if(host_framecount - d.frame > 1)
+    {
+        return false;
+    }
+    pos = d.pos;
+    rot = d.rot;
+    return true;
+}
+
 bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts)
 {
     out.clear();

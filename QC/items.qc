@@ -84,6 +84,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
     if(ent.classname == ITEM_NAME_SHELLS)
     {
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        if(!TryAmmoBoxDropRule(ent, entPlayer, WID_REVOLVER, 0.10, AMMOBOX_RULE_SSG_OR_SELF)) // (later in the game: the super shotgun first)
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SHOTGUN, 0.5))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_SHOTGUN, 0.7))
         { /* Intentionally empty. */ }
@@ -93,6 +94,7 @@ void(entity ent, entity entPlayer) SpawnAmmoBoxWeaponsImpl =
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_NAILGUN, 0.4))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_SUPER_NAILGUN, 0.5))
         if(!TryAmmoBoxDrop(ent, entPlayer, WID_AXE, 0.2))
+        if(!TryAmmoBoxDropRule(ent, entPlayer, WID_NAILPISTOL, 0.15, AMMOBOX_RULE_ANYONE)) // (weak: any map)
         { /* Intentionally empty. */ }
     }
     else if(ent.classname == ITEM_NAME_ROCKETS || ent.classname == ITEM_NAME_MULTI_ROCKETS)

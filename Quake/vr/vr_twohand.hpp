@@ -15,6 +15,11 @@ void apply(hands::State& s);
 
 // How far into a two-handed grip `hand` (holding the weapon) is, 0..1.
 [[nodiscard]] float transition(int hand);
+// The same as the drawn hands go by it: flatscreen play's stance draws the free hand on a long gun's hotspot with no grip
+// (flatsight::lookShare), and what draws a hand on a grip reads that as a grip. The game's own rules read transition.
+[[nodiscard]] float drawnTransition(int hand);
+// And `hand` as helping, the same way (its fingers close as on a grip).
+[[nodiscard]] bool drawnHelping(int hand);
 
 // How far the virtual stock steadies the two-handed aim of the weapon in `hand` (vr_2h_mode 2, the hand at the shoulder),
 // 0..1: its weapon's Stock Pitch, Yaw and Roll turn the aim this much.

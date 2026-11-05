@@ -76,7 +76,7 @@ namespace
     const bool posingHelper = posing::active() && !posed && posing::session().target == posing::Target::Hotspot;
     // Posing the weapon unsolved (posing::showSolved): the controller's plain curls, no tweaks.
     const bool posingPlain = posed && posing::session().target == posing::Target::Weapon && !posing::showSolved();
-    if(finger == FingerBase || posingHelper || posingPlain || (!posed && twohand::helping(hand)))
+    if(finger == FingerBase || posingHelper || posingPlain || (!posed && twohand::drawnHelping(hand)))
     {
         return 0.f;
     }
@@ -123,7 +123,7 @@ void updateFingerFrames()
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder
-                                              : twohand::helping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
+                                              : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
                                                     holdsBody(hand);
         for(int finger = 0; finger < FingerCount; finger++)
         {
@@ -423,7 +423,7 @@ int ammoPouchItems = 0;       // the rounds placed in it (setupAmmoPouchItems: e
     {
         return true;
     }
-    return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
+    return (hide & 4) && (&ve == &entities.body || among(entities.plate) || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
                              &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.ammoPouchItem) ||
                              among(entities.holsterMag) || among(entities.holsterWell) ||
@@ -3410,7 +3410,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(hand, VR_DRAW_HANDS), QVR_DRAW_RANGE(holster, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(holsterSlot, VR_DRAW_HOLSTERED),
         QVR_DRAW_RANGE(holsterButton, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldButton, VR_DRAW_LYING),
         QVR_DRAW_RANGE(holsterFrontButton, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldFrontButton, VR_DRAW_LYING),
-        QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
+        QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(plate, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
         QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
         QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchItem, VR_DRAW_WORN),
         QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
@@ -4933,6 +4933,7 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view body");
         setupBody(s);
+        setupPlates(); // the armour's plates on it (vr_player_plates)
     }
     {
         QVR_PROFILE("view powerups pauldrons");

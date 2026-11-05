@@ -483,6 +483,18 @@ QVR_TUNABLE(vr_ragdoll_active_stagger_blend, "0.2") // s: recovered, its ragdoll
 QVR_TUNABLE(vr_ragdoll_active_stagger_settle, "1") // m/s: its backpedal near done (its pin's carry 90% over), slower than this, steady and not mid-step: it has recovered (0.4, from 0.2 s past its carry, before: it froze a moment at its end)
 QVR_TUNABLE(vr_ragdoll_active_stagger_settle_time, "0.35") // s: still up this long past its carry, it has recovered however it moves (1.2 before)
 QVR_TUNABLE(vr_ragdoll_active_stagger_drop, "20") // units: the floor under its pelvis this much lower than where it stood (stepped off a ledge, the top of stairs) a moment: it falls, sure-footed or not (no backpedalling on air); 0: never
+QVR_TUNABLE(vr_knockdown_ledge_backpedal, "1") // a shove over a ledge makes one that can stagger backpedal on its feet to the edge and fall over it (VR_Knockdown_LedgeBackpedal); 0: launched whole past the edge (vr_knockdown_shove_ledge_*), as those that can't stagger are
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_speed, "0.4") // its first speed, times the shove's own speed (vr_push's, a running shove's, its weight's)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_least, "70") // u/s: its first speed at least
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_most, "300") // u/s: its first speed at most (its legs keep up to about this)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_push, "0.35") // the shove's push on its top, times this (more: it leans back further and sags)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_hertz, "10") // its pelvis's pin, its stiffness (a stagger's 5): less sits it down on a long way back
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_tip, "100") // u/s: gone over the lip, carried on at the speed it has, at least this
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on or until it has dropped
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
 QVR_TUNABLE(vr_ragdoll_active_getup_pace, "0.8") // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
@@ -1797,11 +1809,12 @@ QVR_TUNABLE(vr_flat_empty_down, "13") // an empty hand: how far below its should
 QVR_TUNABLE(vr_flat_empty_out, "7") // an empty hand: how far out at its own side it hangs (-30..30; 7 as before)
 QVR_TUNABLE(vr_flat_support_fwd, "6") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 before: it hangs at his side now). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
 QVR_TUNABLE(vr_flat_support_down, "15") // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 before)
+QVR_TUNABLE(vr_flat_stance, "1") // a long gun with a two-handed hotspot (Weapon Offsets): the torso turns, the free hand's shoulder forward, and the free hand is drawn on that hotspot with its pose, as a look: no grip, two-handed aim, recoil or weight (vr_flatsight.cpp stanceAndLook; 0: the hand hangs, the torso faces the view)
+QVR_TUNABLE(vr_flat_stance_turn, "25") // how far the torso turns for it (degrees, 0..45); the view doesn't turn
+QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
+QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
+QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_support_out, "6") // the same free hand: how far out at its own side (-30..30; 5 before)
-QVR_TUNABLE(vr_flat_rest, "1") // the free hand rests on a long one-handed gun's barrel, palm up, as a look only: no grip, no two-handed aim, recoil or weight (vr_flatsight.cpp restOnBarrel; 0: it stays in the pose above)
-QVR_TUNABLE(vr_flat_rest_along, "0.66") // where on the barrel: the share of the way from the held hand to the muzzle (0.2..1)
-QVR_TUNABLE(vr_flat_rest_below, "1") // how far under that line the palm stands (units, along the gun's up)
-QVR_TUNABLE(vr_flat_rest_relief, "14") // in the ironsight: the nearest the rear sight may come to the eye so the arm reaches the barrel (3..30). At vr_flat_ads_relief's 14 the sight's picture is untouched and the arm can't reach (26 units against 20): the hand hangs while sighted. 7 reaches, with the gun twice the size and the super nail gun's sights 1.1 units off the ray
 
 // Flatscreen > Ironsight
 QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line

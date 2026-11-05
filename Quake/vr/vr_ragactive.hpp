@@ -413,6 +413,7 @@ struct Stagger
     int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
     float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
     bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
+    bool ledge{false};      // a backpedal over a ledge (ragdollBackpedal): gone over, it is carried on past the lip
     // A tug-of-war over its weapon (box3d ragdollTug; QC vr_armedgrunt_play.qc): standing its ground, the arm `tugArm`
     // (Limb; -1 none) pulling its hand (a player's hand holds its weapon) in before its chest at `tugStrength` (a reach's
     // strength, 0..3), the other hand reaching for it too.
@@ -735,6 +736,8 @@ struct StaggerInfo
     int first{-1}, last{-1};
     float recoverAt{-1.f}; // (Stagger's)
     bool sure{false};
+    float time{-1.f};      // s: its carry slows to none over this (a ledge's: from its first speed); else by its travel
+    bool ledge{false};     // a backpedal over a ledge (ragdollBackpedal): its steps as many as its way takes
 };
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now);
 

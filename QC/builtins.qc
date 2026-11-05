@@ -427,7 +427,8 @@ float(entity e, float begin) ragdolldrown = #0;
 float(entity e, vector at, float hold) ragdollguard = #0;
 // (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
 // it never goes over by itself, level ground; `far`: its travel's limit (4 m) times this, at least 1: a two-hand or a
-// running shove's, VR_Bash_Hit.)
+// running shove's, VR_Bash_Hit. `sure` 2: a backpedal over a ledge, VR_Knockdown_LedgeBackpedal: `reach` its carry in
+// units, `far` its first speed in u/s, slowing evenly; it goes over where the floor ends, not before.)
 float(entity e, vector dir, float push, float balance, float reach, optional float recover, optional float sure,
       optional float far) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
