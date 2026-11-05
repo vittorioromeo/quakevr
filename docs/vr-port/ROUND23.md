@@ -1,5 +1,7 @@
 # Round 23: after 1.1.0-beta4
 
+**Closed 2026-11-05: new work goes in `ROUND24.md`.** Sections here stay valid until a later round changes them.
+
 A per-feature reference (condensed from the per-worker notes; current behaviour only). Round 22 (`ROUND22.md`) covers
 1.0.1 to 1.1.0-beta4. Add new work as a section per feature (or fold it into its feature's section): what it does,
 settings and defaults, files, tests, open issues. Run tests with `bash C:/OHWorkspace/qvr-kit/run.sh <name> -Filter
