@@ -1,9 +1,0 @@
-# crate_close_grip: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A crate to hold in both hands,
-# close together (ROUND24.md, "Close two-hand grips"; Misc/quakevr/crate_grip_test.sh).
-title Crates: both hands close together on one
-map vrtesthall
-god
-notarget
-spawn "Wooden Crate" 40 -24
-spawn "Wooden Crate" 40 24
-hint Grip a crate with one hand, then the other hand right beside it, even pushed in a little: both hands stay where they gripped, the crate does not swing or jump. Then the same with the hands far apart.
