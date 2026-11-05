@@ -362,6 +362,8 @@ QVR_TUNABLE_SLIDER(vr_carry_slam_window, "Slam: Time to Swing", 0.2f, 3.0f, 0.1f
 QVR_TUNABLE_SLIDER(vr_carry_slam_damage, "Slam: Damage", 0.0f, 5.0f, 0.1f, "x%.1f", 0.0f, 5.0f, "What it is slammed onto takes this times a punch with it in hand (more the faster, up to twice).")
 QVR_TUNABLE_SLIDER(vr_crate_slam_throw_damage, "Thrown Down: Damage", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Let go of from over your head, its first hard landing takes this share of its full health (0.55: two such throws break it).")
 QVR_TUNABLE_SLIDER(vr_crate_slam_throw_speed, "Thrown Down: Landing Speed", 0.0f, 10.0f, 0.5f, "%.1f m/s", 0.0f, 10.0f, "... a landing at least this fast.")
+QVR_TUNABLE_SLIDER(vr_crate_hit_volume, "Knock Volume", 0.0f, 4.0f, 0.1f, "%.1fx", 0.0f, 4.0f, "A crate knocked, not broken (a blow, a shot, a hard landing): its crack of wood times this. Over 1 is louder than full volume (1: as before).")
+QVR_TUNABLE_SLIDER(vr_crate_break_volume, "Break Volume", 0.0f, 4.0f, 0.1f, "%.1fx", 0.0f, 4.0f, "A crate breaking, boards clattering down: its sound times this. Over 1 is louder than full volume (1: as before).")
 QVR_TUNABLE_SLIDER(vr_crate_pieces, "Pieces", 0.0f, 16.0f, 1.0f, "%.0f", 0.0f, 40.0f, "How many boards and splinters a small crate breaks into (a large one more). Light: they barely get in your way, and turn to dust when hit.")
 QVR_TUNABLE_SLIDER(vr_crate_piece_max, "Most Pieces", 0.0f, 128.0f, 4.0f, "%.0f", 0.0f, 512.0f, "Most pieces lying about at once: past it, the oldest turn to dust.")
 QVR_TUNABLE_SLIDER(vr_crate_piece_time, "Pieces Last", 0.0f, 120.0f, 5.0f, "%.0f s", 0.0f, 3600.0f, "How long a piece lies about before it fades away (0: for ever). One in your hand stays.")

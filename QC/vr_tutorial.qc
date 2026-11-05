@@ -360,7 +360,8 @@ void() func_vr_target_die =
     activator = damage_attacker;
     SUB_UseTargets();
     float k = floor(random() * 3);
-    sound(self, CHAN_AUTO, k < 1 ? "vr/crate_break1.wav" : (k < 2 ? "vr/crate_break2.wav" : "vr/crate_break3.wav"), 1,
+    sound(self, CHAN_AUTO, k < 1 ? "vr/crate_break1.wav" : (k < 2 ? "vr/crate_break2.wav" : "vr/crate_break3.wav"),
+          VR_Crate_Volume(1, cvar_hget(cvarh_vr_crate_break_volume)),
           ATTN_NORM);
     particle2(mid, dir, QVR_PARTICLE_PRESET_WOODDUST, 24);
     self.takedamage = DAMAGE_NO;

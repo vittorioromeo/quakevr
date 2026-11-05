@@ -359,6 +359,8 @@ QVR_TUNABLE(vr_carry_slam_window, "1") // s after it was last over the head a sw
 QVR_TUNABLE(vr_carry_slam_damage, "2") // what it is swung onto takes this times a punch with it in hand (times its speed over the least, at most twice)
 QVR_TUNABLE(vr_crate_slam_throw_damage, "0.55") // let go of from over the head, its first hard landing takes this share of its full health (0.55: two such throws break it)
 QVR_TUNABLE(vr_crate_slam_throw_speed, "3") // m/s: ... a landing at least this fast
+QVR_TUNABLE(vr_crate_hit_volume, "2.5") // a crate knocked (hit, not broken): its crack of wood times this (1: as before, 2026-11-02; up to 4, over full: SND_LOUD)
+QVR_TUNABLE(vr_crate_break_volume, "2") // a crate breaking: its sound times this (1: as before; up to 4)
 QVR_TUNABLE(vr_crate_pieces, "12") // pieces a small crate breaks into (a large one more, by its size)
 QVR_TUNABLE(vr_crate_piece_max, "48") // most pieces lying about at once (the oldest turn to dust)
 QVR_TUNABLE(vr_crate_piece_time, "60") // s a piece lies about before it fades away (0: for ever)
