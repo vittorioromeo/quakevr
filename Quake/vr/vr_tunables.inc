@@ -1797,6 +1797,10 @@ QVR_TUNABLE(vr_flat_empty_out, "7") // an empty hand: how far out at its own sid
 QVR_TUNABLE(vr_flat_support_fwd, "6") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 before: it hangs at his side now). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
 QVR_TUNABLE(vr_flat_support_down, "15") // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 before)
 QVR_TUNABLE(vr_flat_support_out, "6") // the same free hand: how far out at its own side (-30..30; 5 before)
+QVR_TUNABLE(vr_flat_rest, "1") // the free hand rests on a long one-handed gun's barrel, palm up, as a look only: no grip, no two-handed aim, recoil or weight (vr_flatsight.cpp restOnBarrel; 0: it stays in the pose above)
+QVR_TUNABLE(vr_flat_rest_along, "0.66") // where on the barrel: the share of the way from the held hand to the muzzle (0.2..1)
+QVR_TUNABLE(vr_flat_rest_below, "1") // how far under that line the palm stands (units, along the gun's up)
+QVR_TUNABLE(vr_flat_rest_relief, "14") // in the ironsight: the nearest the rear sight may come to the eye so the arm reaches the barrel (3..30). At vr_flat_ads_relief's 14 the sight's picture is untouched and the arm can't reach (26 units against 20): the hand hangs while sighted. 7 reaches, with the gun twice the size and the super nail gun's sights 1.1 units off the ray
 
 // Flatscreen > Ironsight
 QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line

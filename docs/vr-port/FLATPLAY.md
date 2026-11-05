@@ -176,6 +176,24 @@ hands onto each other. A weapon whose model has no such hotspot, a grip a second
 the pose above exactly as it is, and `vr_flatplay_status` prints the measure the choice rests on: "hotspot: 5.0 units from
 the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
 
+A long gun with no grip to reach still has a place for the free hand: under its barrel, palm up (`restOnBarrel`,
+`vr_flat_rest` 1, `vr_flat_rest_along` 0.66 of the way from the held hand to the muzzle, `vr_flat_rest_below` 1 unit,
+`vr_flat_rest_relief` 14; Debug > Tunables > Flatscreen > Free Hands). No grip: it is placed after `twohand::apply`, so no
+hold, two-handed aim, weight or recoil knows of it, and the view's choice of grip leaves it out (`flatsight::restMoved`: from the
+barrel, the nearest hotspot would be a forward one and the hold would be real). A gun has a barrel when it has a sight line and
+its muzzle stands 9.5 units or more from the hand (`restMinBarrel`; measured: nail gun 10.8, super shotgun 11.4, shotgun 14.0,
+super nail gun 14.9; revolver 8.4, flare gun 4.6, nail pistol 3.9), so the short guns and melee weapons keep the pose above.
+
+The barrel stands past the other arm: from its shoulder the place is 26 to 30 units at the defaults, against the 20.2 the arm
+keeps (`armReach`, `gripKeep`). So in hipfire the gun comes in for it, 7 to 9.6 units, as a gun held in two hands comes in for
+its grip (`comeInForRest`, up to `restPullMost`, 12: past that the arm can't reach). That moves the muzzle the shots leave from;
+they still go through the crosshair's point. In the ironsight the same reach would take the eye relief from 14 to about 7, the
+gun twice the size on the screen and the super nail gun's sights 1.13 units off the ray, so the rear sight only comes as near
+as `vr_flat_rest_relief`, and at its default the hand goes back to hanging while sighted.
+
+It is eased both ways over about 0.4 s, which also keeps the hand under a punch's speed, and goes back to the hanging pose when
+the arm can't reach, a punch or E takes the hand, or the gun goes. `vr_flatplay_status` prints a `barrel rest:` line.
+
 The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
 onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
 `VR_FlatAdsFov` where it chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s
