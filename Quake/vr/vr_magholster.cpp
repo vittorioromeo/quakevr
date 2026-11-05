@@ -18,11 +18,13 @@
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 
 namespace qvr::magholster
@@ -37,6 +39,7 @@ constexpr float tetherSlack = 0.01f;   // the tether's length over the straight 
 constexpr float tetherExtra = 0.12f;   // metres more close by (its sag in a hand), none from tetherTautAt on
 constexpr float tetherTautAt = 2.f;    // metres
 constexpr float mostLinks = 600.f;     // a tether's links grow when this many (vr_coil.cpp: 640) would not reach
+constexpr int limitRounds = 3;        // verlet::limitPieces' rounds a step (vr_magholster_chain_limit)
 constexpr int minTetherPieces = 10;    // the simulated tether's fewest pieces (vr_coil.cpp's chain: 12 springs)
 const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f});
 const glm::vec3 down{0.f, 0.f, -1.f};
@@ -90,6 +93,7 @@ struct TetherSim
     glm::vec3 lastSpaceOrigin{0.f}; // the play space last step (hands::State::spaceOrigin, turnYaw): the stick's moves
     float lastSpaceYaw{0.f};
     za::Vector<char> touching;      // each point left lying on or stopped by the world last step (not carried)
+    float length{0.f};               // its length this step, units
     za::Vector<glm::vec3> logged[2]; // vr_magholster_chain_log: its points in the play space the last two steps
     int loggedSteps{0};
     int traces{0};                 // the last step's world traces
@@ -125,8 +129,9 @@ struct MagScratch
     za::Vector<glm::vec3> from;          // the tether's points before its step (stepTether)
     za::Vector<glm::vec3> resampled;
     za::Vector<char> pinned;
+    za::Vector<char> held; // pinned, or lying on the world (vr_magholster_chain_limit leaves those to the collision)
     za::Vector<float> rests;
-    auto members() { return qvr::mem::list(rings, tail, from, resampled, pinned, rests); }
+    auto members() { return qvr::mem::list(rings, tail, from, resampled, pinned, held, rests); }
 };
 mem::Scratch<MagScratch> scratch{"magholster"};
 
@@ -304,7 +309,7 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
 // The tether's chain of points stepped for this frame, `length` units long from `c.home`
 // to `c.gun`: its points vr_magholster_chain_spacing apart (a long one's farther: vr_magholster_chain_points at most;
 // resampled, its shape kept, as their number changes), carried by the body's movement near the holster
-// (vr_magholster_chain_carry), falling, slowed by the air (_drag), held to their spacing (_iterations, _stiffness) and
+// (vr_magholster_chain_carry), falling, slowed by the air (_drag), held to their spacing (_iterations, _stiffness, _limit) and
 // out of the world (_collide, _radius, _slide): vr_verlet.hpp, the grappling hook rope's steps. Afresh (straight) when
 // first seen, after a pause, or when an end jumps.
 // vr_magholster_chain_log: the simulated tether's points in the play space (what you see of it as you walk and turn
@@ -343,11 +348,65 @@ void logSway(Slot& c, const hands::State& s)
     t.logged[1] = t.logged[0];
     t.logged[0] = local;
     t.loggedSteps++;
+    // (And its pieces: the longest and shortest off their length, %, the middle point's sag under the line between the
+    // ends, its length, mm; magchain_stretch_test.sh.)
+    float longest = 0.f, shortest = 1e9f, total = 0.f;
+    bool finite = true;
+    for(za::SizeT i = 0; i + 1 < n; i++)
+    {
+        const float d = glm::distance(t.p[i], t.p[i + 1]);
+        longest = za::max(longest, d);
+        shortest = za::min(shortest, d);
+        total += d;
+        finite = finite && ZA_ISFINITE(d);
+    }
+    const float rest = t.length / static_cast<float>(n - 1);
+    const glm::vec3 chordMid = 0.5f * (t.p[0] + t.p[n - 1]);
+    Con_Printf("magpiece %d stretch %.1f squeeze %.1f sag %.1f rest %.1f total %.1f length %.1f home %.1f gun %.1f finite %d\n",
+        static_cast<int>(&c - slots), 100.f * (longest - rest) / rest, 100.f * (rest - shortest) / rest,
+        (chordMid.z - t.p[n / 2].z) * mm, rest * mm, total * mm, t.length * mm, glm::distance(t.p[0], t.p[1]) * mm,
+        glm::distance(t.p[n - 2], t.p[n - 1]) * mm, finite ? 1 : 0);
+}
+
+// A tether started afresh: its `length` hung under the line between its ends in a parabola (with its slack: drawn straight,
+// its pieces are all that much too short, and nothing can bend them out of the line), its points even along it, and
+// stopped by the world below that line.
+void hangAfresh(za::Vector<glm::vec3>& out, const Slot& c, float length, int pieces)
+{
+    const glm::vec3 chord = c.gun - c.home;
+    const float d = glm::length(chord);
+    const float slack = za::max(length - d, 0.f);
+    // (Under it, square to it: sideways for a line straight up and down.)
+    const glm::vec3 way = d > 1e-3f ? chord / d : glm::vec3{0.f, 0.f, -1.f};
+    glm::vec3 sag = glm::vec3{0.f, 0.f, -1.f} - way * -way.z;
+    sag = glm::length(sag) > 1e-3f ? glm::normalize(sag) : glm::vec3{1.f, 0.f, 0.f};
+    // (Its depth: 3 d s / 8 is the parabola's for a little slack s, s / 2 a line folded in half.)
+    const float depth = za::sqrt(0.375f * d * slack + 0.25f * slack * slack);
+    za::Vector<glm::vec3>& curve = scratch.resampled;
+    curve.clear();
+    const int steps = pieces * 4;
+    for(int i = 0; i <= steps; i++)
+    {
+        const float f = static_cast<float>(i) / static_cast<float>(steps);
+        curve.pushBack(c.home + chord * f + sag * (depth * 4.f * f * (1.f - f)));
+    }
+    out.clear();
+    verlet::resample(curve.data(), steps + 1, pieces, out);
+    for(za::SizeT i = 1; i + 1 < out.size(); i++)
+    {
+        const glm::vec3 on = c.home + chord * (static_cast<float>(i) / static_cast<float>(pieces));
+        const trace_t tr = worldtrace::world(on, out[i]);
+        if(tr.fraction < 1.f)
+        {
+            out[i] = tr.startsolid ? on : glm::mix(on, out[i], za::max(0.f, tr.fraction - 0.02f));
+        }
+    }
 }
 
 void stepTether(Slot& c, float length, const hands::State& s)
 {
     TetherSim& t = c.sim;
+    t.length = length;
     const double started = Sys_DoubleTime();
     const float m2u = units::metresToUnits();
     const int most = za::clamp(static_cast<int>(vr_magholster_chain_points.value), 4, 256);
@@ -360,11 +419,7 @@ void stepTether(Slot& c, float length, const hands::State& s)
                        glm::distance(t.p[0], c.home) > 1.5f * m2u || glm::distance(t.p.back(), c.gun) > 1.5f * m2u;
     if(fresh)
     {
-        t.p.clear();
-        for(za::SizeT i = 0; i < n; i++)
-        {
-            t.p.pushBack(glm::mix(c.home, c.gun, static_cast<float>(i) / static_cast<float>(pieces)));
-        }
+        hangAfresh(t.p, c, length, pieces);
         t.prev = t.p;
         t.lastDt = 0.f;
         t.lastHome = c.home;
@@ -440,6 +495,20 @@ void stepTether(Slot& c, float length, const hands::State& s)
     rests.resize(n, length / static_cast<float>(pieces));
     verlet::holdLengths(t.p.data(), pinned.data(), n, rests.data(), za::clamp(static_cast<int>(vr_magholster_chain_iterations.value), 1, 64),
         za::clamp(vr_magholster_chain_stiffness.value, 0.05f, 1.f));
+    if(vr_magholster_chain_limit.value > 0.f)
+    {
+        // (Not the points on the world: wrapped round a corner, longer than its length, the limit would pull the free ones
+        // on while the collision stops the others, and one piece at the corner takes up the lot: 122 % instead of 43 %.)
+        za::Vector<char>& held = scratch.held;
+        held.clear();
+        held.resize(n, 0);
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            held[i] = pinned[i] || t.touching[i];
+        }
+        verlet::limitPieces(t.p.data(), t.prev.data(), held.data(), n, rests.data(), za::clamp(vr_magholster_chain_limit.value, 0.01f, 0.9f),
+            limitRounds);
+    }
     if(vr_magholster_chain_collide.value != 0.f)
     {
         verlet::collide(t.p.data(), t.prev.data(), from.data(), pinned.data(), n, za::clamp(vr_magholster_chain_radius.value, 0.05f, 8.f),
