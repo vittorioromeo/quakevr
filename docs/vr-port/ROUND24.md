@@ -68,6 +68,44 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/armorjoints/` (`vr_pp_test 13` in vrtesthall): the grunt front and back, an elbow and a knee
   close to, each part of a limb alone, yours bent; `sheet_before.png`, `sheet_after.png`.
 
+## Armour round four's loose ends (branch `agent/armorcheck`)
+
+- **The tests that timed out with nothing printed** (`vr_agarmor_test 1`, `5`, `7`, `vr_pp_test 2`, `3`): two causes, both
+  there before round four. (1) A script `map x; vr_agarmor_test n` (no wait between) asks in the level's first frames, before
+  the player is in: the request was taken (the cvar set back to 0) and dropped, so nothing ran (`vr_pp_test`: run with no
+  player). Now `VR_AgArmor_TestFrame` and `VR_PP_TestFrame` keep the request until a player is there. (2) `vr_agarmor_test 5`
+  printed through dprint: without `developer 1` not even its verdict showed. Now broadcast (`VR_TEST_LOUD`) like the others.
+  With `wait30` and `developer 1` every one ran on both builds. Now, no waits, every one ends in about 10 s on its verdict.
+- **Results, now (before round four, d81eb28fa):** `vr_agarmor_test 1` 26/0 on e1m1 and vrtesthall (26/0); `5` 24/0 on both
+  (e1m1 23/1, its old flaky "dead ragdoll: 23 of 24 points read as their own piece"; vrtesthall 24/0); `7` 14/0 (14/0);
+  `vr_pp_test 2` 5/0, `3` 5/0 (5/0, 5/0).
+- **`vr_agarmor_test 5` on round four's build read 23/24 on both maps, every run:** "the corpse's right thigh and shin worn as
+  their own pieces": the thigh's plates now reach up over the hip, and the middle of their outer face (limbpiece 14) lies
+  nearer the pelvis's vertices than the thigh's (`limbAt`: the nearest bone vertex), so a hit there wears the torso. The
+  test strikes the thigh at its plates' knee end (limbpiece 13: joint 17). In play: a hit on the upper half of a thigh plate
+  wears a corpse's torso, not its leg (left as is).
+- **The skins from the real generator:** Blender 5.2's bundled Python has numpy 2.3.4 (4.0's 1.23.5; the plain Pythons none).
+  Proof it matches: the pre-round-four `make_agarmor.py` under it gives the pre-round-four files byte for byte. The current one
+  differs from the stand-in's: 200-240 texels a skin, all in the joint block; the relief's heights all over the atlas (the old
+  helmet brackets' block held the deepest texels, so with it gone every plate's height stretches: new = 1.083 x old - 21,
+  within 1.2). Committed. Run it as `"C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe"
+  Misc/quakevr/make_agarmor.py`.
+- **The death knight's 240 more triangles, timed:** bench `armour_dknights16` (new: 16 armed death knights in full yellow,
+  standing in view, vrtesthall), LTO, exclusive, 90 Hz, 5 reps each, d81eb28fa against 6afe7541d: CPU busy 2.006 -> 2.042 ms
+  (+1.8%), GPU eyes 1.831 -> 1.901 ms (+3.8%). Rep to rep: CPU 1.95 .. 2.02 old, 1.94 .. 2.30 new (two reps with hitches);
+  GPU 1.83 .. 2.00 old, 1.83 .. 2.06 new. Inside the noise; at most 0.07 ms for 16 of them.
+- **The loosened checks, each broken on purpose once:**
+  - The look check's death knight rest limit (0.8): his least at rest is his shin, 0.82, not the elbows the note named (his
+    arms 1.00). With the elbow's and knee's plates 6 units short of the joint his upper arm reads 0.38: caught. On the grunt,
+    enforcer and knight the same break isn't (the sleeve lengthens and covers the gap: no body shows); the player's bodies are.
+  - Pieces under 8 vertices not measured: with every piece measured the one that fails is the death knight's upper arm, 0.75
+    (3 of 4) at rest; his thigh (2) reads 1.00. Everything else is measured as before: the breaks above and below caught on
+    every wearer.
+  - `vr_agarmor_check` leaving the sleeves out: plate triangles dropped (one in 53) -> 101-120 open edges, "each shell
+    closed" FAIL on all four; the plates' feet 2 units inside the skin -> "the rest pose" FAIL on all four. The sleeves sunk
+    1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
+    wearer (24 failures): the look check is what guards the sleeves.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,

@@ -716,7 +716,7 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
                     static_cast<double>(tb.grid.hBottom), static_cast<double>(tb.grid.sleeveEnd), static_cast<double>(glm::length(q - tb.up * glm::dot(q, tb.up))), rig.bones[hb].name, static_cast<double>(w.w[hb]), static_cast<double>(glm::dot(at(s.body.n, v), tb.up)));
             }
         }
-        // (a few vertices' share says nothing: a death knight's thigh under his skirt has two)
+        // (a few vertices' share says nothing: a death knight's upper arm measures under 8, 3 of 4 covered; his thigh under his skirt two)
         share[piece] = total >= lookFewest ? static_cast<float>(covered) / static_cast<float>(total) : 1.f;
     }
 }
@@ -971,7 +971,7 @@ void lookCheck_f()
             static_cast<double>(rest[Cuirass]), static_cast<double>(bent[Cuirass]), static_cast<double>(za::min(rest[PauldronL], rest[PauldronR])), static_cast<double>(za::min(bent[PauldronL], bent[PauldronR])),
             static_cast<double>(za::min(rest[BracerL], rest[BracerR])), static_cast<double>(za::min(bent[BracerL], bent[BracerR])), static_cast<double>(za::min(rest[ThighL], rest[ThighR])),
             static_cast<double>(za::min(bent[ThighL], bent[ThighR])), static_cast<double>(za::min(rest[ShinL], rest[ShinR])), static_cast<double>(za::min(bent[ShinL], bent[ShinR])));
-        // (a death knight's elbows: their points stand past the sleeves, which hug the skin)
+        // (a death knight's shins: 82% at rest, their skin past the sleeves, which hug it; ROUND24.md, "Armour round four's loose ends")
         const float restLimit = strstr(m, "hknight") ? 0.8f : coverRest;
         check(restLeast >= restLimit, va("%s: no body showing at rest: at least %.0f%% of each covered piece's skin under plates (%.0f%%)", m, static_cast<double>(restLimit * 100.f), static_cast<double>(restLeast * 100.f)));
         // (a death knight's upper arms: his shoulder shells stay on his clavicles, his arm bends out from under them)
