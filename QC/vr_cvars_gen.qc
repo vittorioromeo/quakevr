@@ -500,6 +500,7 @@ float cvarh_vr_burn_test;
 float cvarh_vr_burn_time;
 float cvarh_vr_burn_touch;
 float cvarh_vr_burn_water_douse;
+float cvarh_vr_burnmark_test;
 float cvarh_vr_button_prop;
 float cvarh_vr_button_prop_reach;
 float cvarh_vr_button_throw;
@@ -2350,6 +2351,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_burn_time = VR_CVar_Make("vr_burn_time");
     cvarh_vr_burn_touch = VR_CVar_Make("vr_burn_touch");
     cvarh_vr_burn_water_douse = VR_CVar_Make("vr_burn_water_douse");
+    cvarh_vr_burnmark_test = VR_CVar_Make("vr_burnmark_test");
     cvarh_vr_button_prop = VR_CVar_Make("vr_button_prop");
     cvarh_vr_button_prop_reach = VR_CVar_Make("vr_button_prop_reach");
     cvarh_vr_button_throw = VR_CVar_Make("vr_button_throw");

@@ -649,6 +649,9 @@ QVR_TUNABLE(vr_lg_water_damage, "60") // its damage to what else is in the water
 QVR_TUNABLE(vr_lg_water_radius, "300") // how far through the water it (and the electrified water) reaches, units
 QVR_TUNABLE(vr_lg_water_falloff, "1") // how it fades out to the radius: the power of the share of the radius left (1 evenly, 2 sooner, 0 not at all)
 QVR_TUNABLE(vr_lg_water_tick_damage, "10") // each bolt into water from the open: damage at the point it goes in (fading out the same way)
+QVR_TUNABLE(vr_lightning_burn_size, "20") // the lasting burn where lightning strikes a surface: units across (0 none)
+QVR_TUNABLE(vr_lightning_burn_gap, "0.25") // at most one burn this often, seconds (a held beam: a bolt every 0.1 s)
+QVR_TUNABLE(vr_lightning_burn_stack, "3") // burns on one spot among the last 24; more only as the beam moves on
 QVR_TUNABLE(vr_lg_water_arcs, "1") // electrified water's arcs: their width (0 none, the light stays)
 QVR_TUNABLE(vr_lg_water_flash, "1") // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 
