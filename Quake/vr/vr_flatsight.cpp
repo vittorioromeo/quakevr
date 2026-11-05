@@ -1124,6 +1124,11 @@ float drawnSight(int h, glm::vec3& hand, glm::mat3& turn)
     return za::clamp(st.adsT, 0.f, 1.f);
 }
 
+float crosshairFade()
+{
+    return flatplay::active() ? 1.f - geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)) : 1.f;
+}
+
 void keepRecoil(glm::vec3& pos, glm::vec3& angles)
 {
     if(!flatplay::active())
@@ -1407,6 +1412,7 @@ static void check_f()
                    "(%.2f deg) front %.2f %.2f %.2f (%.2f deg)\n",
             wf.model->name, st.adsT, hand.x, hand.y, hand.z, upDeg(hand), muz.x, muz.y, muz.z, upDeg(muz), rear.x, rear.y, rear.z,
             upDeg(rear), front.x, front.y, front.z, upDeg(front));
+        Con_Printf("flatcrosshair: %.3f\n", crosshairFade());
     }
     if(!line.valid)
     {
@@ -1496,6 +1502,11 @@ extern "C" float VR_FlatAdsFov(float basefov)
 
 // gl_screen.c (SCR_DrawCrosshair, vr_api.h): where the crosshair stands off the screen's centre, as fractions of the screen's
 // height, x to the right and y down: the ironsight's picture moved (vr_flat_ads_screen_x / _y). 0 0 outside the mode.
+extern "C" float VR_FlatCrosshairAlpha(void)
+{
+    return qvr::flatsight::crosshairFade();
+}
+
 extern "C" void VR_FlatCrosshairShift(float* x, float* y)
 {
     const glm::vec2 shift = qvr::flatsight::screenPlace();

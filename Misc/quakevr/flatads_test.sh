@@ -61,4 +61,19 @@ if [[ $SECTIONS == *d* ]]; then
   check $([ "${r##*| }" = "4" ] && echo 1 || echo 0) "fov: his look kept at fov 95 (50 deg, relief 4); zoom and sight picture kept at fov 70 and 110 and with a model fov"
 fi
 
+if [[ $SECTIONS == *e* ]]; then
+  # e. the crosshairs fade with the ironsight: the 2D crosshair and vr_crosshair's dot drawn hipfire (the middle of the screen
+  #    differs with them on and off), gone sighted (no pixel differs); the fade read part way (4 frames into the 11-frame travel),
+  #    at its end, and back after release.
+  log=$HERE/scratch/flatads_e.log
+  ON="crosshair 1; vr_crosshair 1; wait2; screenshot; crosshair 0; vr_crosshair 0; wait2; screenshot; crosshair 1; vr_crosshair 1; wait2; screenshot;"
+  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Script "$P; vr_flat_bob 0; impulse 154; wait40; $ON vr_flat_aim 1; wait4; vr_flat_sight_check; wait40; vr_flat_sight_check; $ON vr_flat_aim 0; wait40; vr_flat_sight_check; toggleconsole; quit" -Filter "^flatcrosshair" -Out flatads_e.png -Timeout 60 > "$log" 2>&1
+  fades=$(grep -a "^flatcrosshair" "$log" | awk '{ printf "%s ", $2 }')
+  shots=$(grep -a "full size in" "$log" | sed 's/.*full size in //' | tr -d '\r' | tail -1)
+  px=$(python "$HERE/flatads_xhair.py" "$shots")
+  echo "  fade part way, sighted, released: $fades; $px"
+  check $(awk -v f="$fades" 'BEGIN { split(f, a, " "); exit !(a[1] > 0.05 && a[1] < 0.95 && a[2] == 0 && a[3] == 1) }' && echo 1 || echo 0) "crosshair: fades over the ironsight's travel, gone sighted, back on release ($fades)"
+  check $(awk -v s="$px" 'BEGIN { split(s, a, " "); exit !(a[3] > a[5] + 50 && a[7] <= a[9] + 10) }' && echo 1 || echo 0) "crosshair: drawn hipfire, no pixel of it sighted (past the scene's own frame-to-frame change)"
+fi
+
 verdict; exit $fail

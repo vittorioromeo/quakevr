@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
@@ -49,7 +50,8 @@ void queue(const hands::State& s)
 {
     const int mode = static_cast<int>(vr_crosshair.value);
     const float size = CLAMP(0.f, vr_crosshair_size.value, 32.f);
-    const float alpha = CLAMP(0.f, vr_crosshair_alpha.value, 1.f);
+    // (Flatscreen play's ironsight fades it out over its own travel, and back in on release: flatsight::crosshairFade.)
+    const float alpha = CLAMP(0.f, vr_crosshair_alpha.value, 1.f) * flatsight::crosshairFade();
     if(mode == NONE || size <= 0.f || alpha <= 0.f || !s.valid)
     {
         return;

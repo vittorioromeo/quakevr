@@ -75,6 +75,10 @@ void noteDrawn(const hands::State& s);
 // has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.
 void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 
+// The crosshairs' opacity (the 2D one, gl_screen.c through VR_FlatCrosshairAlpha, and vr_crosshair's dot and lasers): 1, faded
+// to 0 as the ironsight comes up (adsShare, smoothed: its own travel, vr_flat_aim_time) and back in on release. 1 outside the mode.
+[[nodiscard]] float crosshairFade();
+
 // Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
 [[nodiscard]] bool adsHelper(int h);
 
