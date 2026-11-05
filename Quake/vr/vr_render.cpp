@@ -268,6 +268,10 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 extern "C" void VR_FlatModelFovNumbers(float out[3], int shadowpass)
 {
     const glm::vec3 numbers = shadowpass ? glm::vec3{0.f} : flatplay::modelFov().numbers;
+    if(numbers.x > 0.f)
+    {
+        flatplay::noteModelFovBatch();
+    }
     out[0] = numbers.x;
     out[1] = numbers.y;
     out[2] = numbers.z;

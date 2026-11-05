@@ -79,6 +79,7 @@ za::SizeT queuedCount = 0;
 }
 za::Vector<gfx::Vertex> vertices; // glyphs
 za::Vector<gfx::Vertex> screenGlyphs; // the ammo screens' whitened glyphs without the CRT look (in the brightened font)
+za::Vector<gfx::Vertex> screenPanels; // an ammo screen's bezel and face: on a gun or a pouch (the flatscreen model FOV)
 za::Vector<gfx::Vertex> panels;   // screens behind them
 za::Vector<gfx::Vertex> floating; // floating texts (blended: they fade)
 za::Vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
@@ -86,6 +87,7 @@ za::Vector<gfx::Vertex> logText;  // and its text
 za::Vector<gfx::Vertex> wristLogText; // the wrist log's text (the gadget's font: fontstyle::Surface::Gadget)
 za::Vector<gfx::Vertex> screenInkGlyphs; // the ammo screens' glyphs in the screen's ink (not whitened; the ammo screens' font)
 za::Vector<gfx::Vertex> glows;    // the screens' soft glows (added)
+za::Vector<gfx::Vertex> screenGlows; // those on him: an ammo screen's, the wrist gadget's (the flatscreen model FOV)
 // The ammo screens as small CRTs (vr_weapon_screen_crt): each screen text's image (its face and
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
 // in the eyes the next frame through Shade::Screen, like the wrist gadget's.
@@ -124,6 +126,7 @@ struct ScreenQuad
     glm::vec4 params;
     glm::vec3 size;
     gfx::Texture texture;
+    bool board{false}; // a map's board: stands in the world
     bool trueColor{false}; // its text whitened (vr_ammo_screen_text_white): the image in its own colours
 };
 za::Vector<ScreenQuad> screenQuads;
@@ -494,16 +497,16 @@ void glow(const gadget::Glow& g, za::Vector<gfx::Vertex>& out = glows)
 // A box centred on `c`, half extents `hr` along `right`, `hu` along `up`, `hn` along `n`; its
 // faces shaded a little by which way they face, so that it reads as a solid.
 void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const glm::vec3& n, float hr, float hu, float hn,
-    const glm::vec3& color)
+    const glm::vec3& color, za::Vector<gfx::Vertex>& out = panels)
 {
     const glm::vec3 r = right * hr, u = up * hu, f = n * hn;
     const auto shade = [&](float k) { return glm::vec4{color * k, 1.f}; };
-    quad(c + f - r - u, c + f + r - u, c + f + r + u, c + f - r + u, shade(1.f));   // front
-    quad(c - f - r - u, c - f - r + u, c - f + r + u, c - f + r - u, shade(0.6f));  // back
-    quad(c - r - u - f, c - r - u + f, c - r + u + f, c - r + u - f, shade(0.75f)); // left
-    quad(c + r - u - f, c + r + u - f, c + r + u + f, c + r - u + f, shade(0.75f)); // right
-    quad(c - u - r - f, c - u + r - f, c - u + r + f, c - u - r + f, shade(0.65f)); // bottom
-    quad(c + u - r - f, c + u - r + f, c + u + r + f, c + u + r - f, shade(0.9f));  // top
+    quad(c + f - r - u, c + f + r - u, c + f + r + u, c + f - r + u, shade(1.f), out);   // front
+    quad(c - f - r - u, c - f - r + u, c - f + r + u, c - f + r - u, shade(0.6f), out);  // back
+    quad(c - r - u - f, c - r - u + f, c - r + u + f, c - r + u - f, shade(0.75f), out); // left
+    quad(c + r - u - f, c + r + u - f, c + r + u + f, c + r - u + f, shade(0.75f), out); // right
+    quad(c - u - r - f, c - u + r - f, c - u + r + f, c - u - r + f, shade(0.65f), out); // bottom
+    quad(c + u - r - f, c + u - r + f, c + u + r + f, c + u + r - f, shade(0.9f), out);  // top
 }
 
 // Characters a line of `length` is moved in by, of the longest `longest`.
@@ -685,7 +688,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const float gap = charSize * 0.04f;
 
         box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
-            glm::vec3{0.13f, 0.13f, 0.14f});
+            glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
         const glm::vec3 c = pos - n * gap;
         const glm::vec3 bl = c - right * (halfW + pad) - up * (halfH + pad);
         const glm::vec3 br = c + right * (halfW + pad) - up * (halfH + pad);
@@ -721,7 +724,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         }
         else
         {
-            quad(bl, br, tr, tl, glm::vec4{tint ? tintedFace(*tint) : screenFace(), 1.f});
+            quad(bl, br, tr, tl, glm::vec4{tint ? tintedFace(*tint) : screenFace(), 1.f}, screenPanels);
         }
 
         // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face (dimmed: the gear lights).
@@ -729,7 +732,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         if(k > 0.f && bright > 0.f)
         {
             glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},
-                .spread = bezel + charSize * 0.6f, .color = glm::vec4{glm::vec3{textColor}, 0.22f * k}});
+                .spread = bezel + charSize * 0.6f, .color = glm::vec4{glm::vec3{textColor}, 0.22f * k}}, screenGlows);
         }
     }
 
@@ -835,7 +838,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
         screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
             .params = {time, crt, glitch * za::min(crt, 1.f), gadget::textGlow()},
             .size = {static_cast<float>(b.width), static_cast<float>(b.height), 1.f},
-            .texture = b.target.texture});
+            .texture = b.target.texture, .board = true});
     }
     else
     {
@@ -1128,7 +1131,7 @@ void drawTranslucent()
 {
     gadget::drawHologram(); // the wrist gadget's game messages (vr_gadget.cpp)
     if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
-        (floating.empty() && glows.empty()))
+        (floating.empty() && glows.empty() && screenGlows.empty()))
     {
         return;
     }
@@ -1137,6 +1140,11 @@ void drawTranslucent()
     {
         gfx::draw(glows, viewProjection,
             {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false});
+    }
+    if(!screenGlows.empty())
+    {
+        gfx::draw(screenGlows, viewProjection,
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false, .flatModelFov = true});
     }
     if(!floating.empty())
     {
@@ -1601,6 +1609,8 @@ extern "C" void VR_DrawSceneOpaque()
         screenGlyphs.clear();
         screenInkGlyphs.clear();
         panels.clear();
+        screenPanels.clear();
+        screenGlows.clear();
         floating.clear();
         backings.clear();
         logText.clear();
@@ -1610,7 +1620,7 @@ extern "C" void VR_DrawSceneOpaque()
         screenCount = 0;
         if(gadget::screenGlow(gadgetGlow))
         {
-            glow(gadgetGlow);
+            glow(gadgetGlow, screenGlows);
         }
         for(Board& b : boards)
         {
@@ -1665,6 +1675,8 @@ extern "C" void VR_DrawSceneOpaque()
     const glm::mat4 viewProjection = gfx::sceneViewProjection();
     gfx::draw(panels, viewProjection,
         {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true});
+    gfx::draw(screenPanels, viewProjection,
+        {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true, .flatModelFov = true});
     {
         const fontstyle::Use font{fontstyle::Surface::World};
         gfx::draw(vertices, viewProjection,
@@ -1690,7 +1702,7 @@ extern "C" void VR_DrawSceneOpaque()
     {
         gfx::draw(q.vertices, viewProjection,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-                .params = q.params, .screen = q.size, .trueColor = q.trueColor, .flatModelFov = true},
+                .params = q.params, .screen = q.size, .trueColor = q.trueColor, .flatModelFov = !q.board},
             q.texture);
     }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no

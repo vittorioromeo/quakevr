@@ -69,6 +69,9 @@ struct ModelFov
     glm::vec3 numbers{0.f};
 };
 [[nodiscard]] ModelFov modelFov();
+// r_alias.c's flushes in the view (not a shadow map's), counted for vr_flatplay_status with those inside a headset's eye:
+// temporal AA collects motion only there (vr_temporal.cpp), and the model FOV does not scale what it collects.
+void noteModelFovBatch();
 [[nodiscard]] float crouchDrop();
 
 // The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
