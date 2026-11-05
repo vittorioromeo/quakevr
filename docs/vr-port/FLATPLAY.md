@@ -184,10 +184,10 @@ A long gun (a sight line, its muzzle 9.5 units or more from the hand: `longGunMu
 hand free takes a stance (`stanceAndLook`, `vr_flat_stance` 1; Debug > Tunables > Flatscreen > Free Hands):
 
 - **The torso turns**, the free hand's shoulder forward (`vr_flat_stance_turn`, 25 degrees of `s.bodyYaw`, eased over about 0.4 s).
-  The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest. It is the
-  drawn body's: the game's hands are posed from the anchor facing the view, so a punch lands where it would without the stance.
+  The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest.
 - **The gun's hand comes up towards the shoulder pocket** (`vr_flat_stance_back` 10, `_in` 2, `_up` 4, taken off Gun Forward, Gun Out
   and Gun Down). That is all that moves the gun, and it is the pose's: the shots are solved from wherever the muzzle stands, as ever.
+  Not on a real grip: pulled in, that gun stood in the way of the free hand's punch at a knight 24 away (`flatplay_test.sh`).
 - **The free hand is drawn on the weapon's own hotspot**: place, turn, fingers and offsets all come from Weapon Offsets through the
   same code that draws a helping hand in a headset (`steadyOther`, `heldBy`: `2h_fxd_*`, `hsN_pitch/yaw/roll`, `hsN_v*`, the style,
   overlap and curls), so editing the hotspot moves the flat hand. Nothing in this mode decides a place or a turn for it. Which

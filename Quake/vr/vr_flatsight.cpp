@@ -111,6 +111,7 @@ struct Sight
     // The stance (vr_flat_stance; stanceAndLook): a long gun with a two-handed hotspot turns the torso, and the free hand's
     // drawn place and turn are the hotspot's (a look: its game hand stays where the pose has it).
     bool stanceWanted{false};   // this frame's gun is such a gun
+    bool stanceGun{false};      // ... and its hand comes in for it: not on a real grip, whose pose stays the game's own
     float stanceT{0.f};         // how far the torso has turned
     float stanceSign{-1.f};     // which way (the free hand's shoulder forward); kept for the way back
     int stanceHand{-1};         // the hand holding the gun it is for, the same
@@ -666,6 +667,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
     const bool on = vr_flat_stance.value != 0.f;
     st.stanceWanted = on && longGun;
+    st.stanceGun = st.stanceWanted && !carry;
     if(st.stanceWanted)
     {
         st.stanceHand = st.holding;
@@ -704,7 +706,7 @@ void frame()
         st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
         st.pinned = st.atGrip = st.armed = false;
         st.lookT = st.stanceT = 0.f;
-        st.lookWanted = st.lookFar = st.lookFast = st.stanceWanted = st.drawnKnown = false;
+        st.lookWanted = st.lookFar = st.lookFast = st.stanceWanted = st.stanceGun = st.drawnKnown = false;
         st.lookHand = st.stanceHand = -1;
         st.spot[0] = st.spot[1] = -1;
         st.edgeFrame = -1;
@@ -968,7 +970,7 @@ float stanceYaw()
 
 float stanceShare(int h)
 {
-    return h == st.stanceHand ? geom::smooth01(st.stanceT) : 0.f;
+    return h == st.stanceHand && st.stanceGun ? geom::smooth01(st.stanceT) : 0.f;
 }
 
 bool adsHelper(int h)
