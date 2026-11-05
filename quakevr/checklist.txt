@@ -20,53 +20,30 @@ Rig Studio: changing the subject leaves no backpack lying on the floor. {test:ag
 Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship.
 Models near slime and teleporters take a light tint too (e1m1's slime); Slime Light and Teleporter Light set how much (same Tunables page).
 Plain monsters parry by direction: with vr_agknight 0, a knight's chop: sword level across where its blade comes down: sparks, it staggers; upright: the blow lands. Ogre's side swing: upright in its way; its overhead smash: level across. Fiend's claws, shambler's arms: across each as it comes. Dog: low, level across its head.
-A leap landing on you, a fish's bite: a weapon level across in front parries, as before.
+A leap landing on you, a fish's bite, a dog's bite or leap, a fiend's leap: a weapon level across in front parries; upright, the blow lands.
 Debug > Show Disarm Volumes near a monster: its blow's line on its weapon or limb (white; a second limb's yellow). Combat > Parry and Bash has no Directional Parry toggle.
-A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
-A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
-A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
-Throw a sword into a grunt: it bleeds; kill it and the blade stays in the corpse, riding the body. {test:embed_throw}
-Grip a blade in a corpse: it only comes out once you pull about 8 cm; letting go leaves it in. {test:embed_throw}
-Gib the body or cut off the limb with a blade in it: the blade falls. {test:embed_throw}
-Combat > Embedded Blades: turn Embedded Blades off and only axes stick, falling out when the body dies. {test:embed_throw}
-Stab a grunt hard, tip first: the sword stays in, your hand on the hilt. A slow stab or one off the blade's line doesn't stick. {test:embed_stab}
-Push it deeper or pull it a little: it slides along its axis, harder the deeper it is. Pull right out: a small spurt, in your hand, no second hit. {test:embed_stab}
-Pull hard to the side: it comes free into your hand. {test:embed_stab}
+A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance). A directional parry lets nothing through; Debug > Tunables > Combat > Directional Parry has Let Through: Armed Humanoids, Monsters, Timing Window.
+Throw a sword into a grunt: it bleeds; kill it and the blade stays in the corpse, riding the body. Gib the body or cut off the limb with a blade in it: the blade falls. Combat > Embedded Blades off: only axes stick, falling out when the body dies. {test:embed_throw}
+Stab a grunt hard, tip first: the sword stays in, your hand on the hilt, no instant second hit. A slow stab or one off the blade's line doesn't stick; neither does a blow that misses by a few cm (it hits but doesn't stay). Hold a blade still and run into a grunt: it stabs and stays; backing away or passing by adds nothing. {test:embed_stab}
+Swing the axe hard, edge first: it sticks, goes deeper than the sword, and comes out only when you pull past its depth plus about 5 cm, with a rising buzz. Driven head first along its handle it doesn't stick. {test:embed_stab}
+Pull a stuck blade: along its axis it slides (harder the deeper it is), the blade comes out 1:1 with a small spurt and the body stays; pull hard to the side and it comes free into your hand; across it or pushed in past its depth, the body moves, and only a fast yank tears it out. Slowly pulling or pushing in a staggering body drags the whole body, more when the blade is deep. {test:embed_stab}
 Open your hand: the sword stays in the body, bleeding, not thrown. Grip it: back on the same axis. Force grab from afar: it tugs out and flies to you. {test:embed_stab}
-Swing the axe hard, edge first: it sticks, and comes out after a short 5 cm pull. An axe driven head first along its handle doesn't stick. {test:embed_stab}
-Kill or gib the grunt with the sword held: dead, you still hold it and a light tug takes it; gibbed, it's back in your hand. {test:embed_stab}
-Stab a grunt hard: it staggers about 0.6 s, your hand still on the hilt. A weaker stab stays in with no stagger, and it keeps attacking. {test:embed_stab}
-While it staggers, pull or push the sword slowly: the whole body comes with it, more when the blade is deep. Yank hard and the blade comes out. {test:embed_stab}
-Swing the axe very hard: a short stagger, and pulling barely moves the body before the axe comes out. {test:embed_stab}
+Kill the grunt with the sword held: dead, you still hold it, no slowdown standing over it, and an arm's tug takes the blade out; gibbed, it's back in your hand. Knock it down with the sword held: it hangs on the blade and you still hold it. {test:embed_stab}
+Stab a grunt hard: it staggers about 2.5 s, your hand still on the hilt; a weaker stab stays in with no stagger and it keeps attacking. Swing the axe very hard: a short stagger of about 0.75 s, and pulling barely moves the body before the axe comes out. {test:embed_stab}
+Stab a grunt deep with two hands: thrown off balance, about 3.5 s of lifting it around; with one hand it stands on about 2.5 s and is less controllable; barely in, weaker. Ogre: a shorter stagger, off balance only by a deep two-handed stab. Shambler, as hard as you can: a moment, standing, no drag, you're slowed, and walking off pulls the blade out. Boss: nothing. {test:embed_stab}
 Walk away holding a blade in a standing grunt: it drags along and you walk at about a third of your speed. If it's blocked, the blade comes out past arm's reach and your speed returns. {test:embed_stab}
-Knock the grunt down with the sword held: it hangs on the blade and you still hold it. {test:embed_stab}
-Kill it with the sword held: no slowdown standing over it, slowed only while walking off with it, and an arm's tug takes the blade out. {test:embed_stab}
-Stab the Shambler as hard as you can: no stagger, no drag, you're slowed, and walking off pulls the blade out. {test:embed_stab}
-Debug > Embedded Blades: Why: in slow motion, each stab says why it stuck or not and why it came out. {test:embed_stab}
-No man's grunt when a blade stays in or comes out. {test:embed_stab}
-The axe goes deeper and takes a real tug to pull out. {test:embed_stab}
-Embedded: the real hand back to the drawn hand moves nothing; a blade 10 cm in needs a 10 cm pull. {test:embed_stab}
-A gibbing throw or stab leaves no floating blade. {test:embed_stab}
-A wound with a blade in it runs blood; sliding the blade makes flesh sounds. {test:embed_stab}
+Debug > Embedded Blades: Why: in slow motion, each stab says why it stuck or not, why it came out and how far a miss was off; the no man's grunt sounds when a blade stays in or comes out. {test:embed_stab}
 Weapon Effects > Blow on the Smoke on, Debug > Show Microphone Level to set Blow Threshold: fire the shotgun, hold the muzzle at your mouth and blow: the wisp goes forward and fades faster; talking quietly or holding it away does nothing.
-Kill a grunt messily, then stab its head or a gib tip first: it rides the blade through swings, up to 3 spaced along it, and the blade feels heavier and tip-heavy. The other hand's grip takes one off. A slash on a loose one bursts it. Drop the sword: the gibs stay on, land with it, ride again when picked up. Throw it hard with the gib end leading at a wall: that gib bursts; a gentle throw doesn't. Swing the blade so the gib's part hits a wall: it bursts; hitting with another part doesn't. Switching weapon drops them unbroken. {test:embed_stab}
+Kill a grunt messily, then stab its head or a gib tip first: it rides the blade through swings, up to 3 spaced along it, and the blade feels heavier and tip-heavy. The other hand's grip takes one off. A slash on a loose one bursts it. Drop the sword: the gibs stay on, land with it, ride again when picked up. Throw it hard with the gib end leading at a wall: that gib bursts; a gentle throw doesn't. Swing the blade so the gib's part hits a wall: it bursts; hitting with another part doesn't. Switching weapon drops them unbroken. Stab a gib or head: only what the blade goes through goes on and the blade keeps its angle; the other hand slides it along, off the tip, or yanks it free. A gibbing throw or stab leaves no floating blade. {test:embed_stab}
 VR Settings > Move Towards: Torso: look or point a hand aside while pushing the stick forward; you keep walking where your torso faces.
+A wound with a blade in it runs blood: sliding the blade makes flesh sounds and spurts every 3 cm, live or in a corpse; held past 10 s, an unbroken stream follows the body, then stops as the blade leaves or the body dies. {test:embed_stab}
 Weapon Studio: wheel up zooms the camera in, and the id row is plain grey text.
 Weapon Studio: copy another slot into this one, and the model and its hand offset stay.
 Debug > Tunables > Weapons > Other > Weapon Studio: Fly Speed changes the Studio camera's speed.
-Stab and hold a grunt past 10 s: an unbroken stream from the wound follows the body, then stops as the blade leaves or the body dies. {test:embed_stab}
-Slide a blade in and out, live and in a corpse: blood spurts every 3 cm. {test:embed_stab}
 Debug > Show Light Probes: do the crosses near you match the floor's brightness, and do the lines to the grunt's 8 probes look right? Try Tunables > Light Grid > Probe Spacing 24 and Probe Intensity: does the grunt look more consistent with the floor? {test:vrarena_crate}
 Hit a crate with the crowbar, then break it: is the wood clearly audible over the weapon's hit, and is the breaking loud with boards clattering down? {test:vrarena_crate}
 In the console, type `vr_throw_gain_lo` and press Tab: it lists as "tunable". `vr_throw_gain_lo 2.5` sets it, and the name alone prints its value and default.
 vrarena, Show Light Probes, by a tower: no dark row low on the wall; a monster there is as lit as the floor. {test:vrarena_crate}
-The blade only goes in when it visibly touches the body; a blow that misses by a few cm hits but doesn't stay, and Debug > Embedded Blades says how far off. {test:embed_stab}
-Swing the axe edge first: it stays in; pull past its depth plus about 5 cm, with a rising buzz, and it tugs out. Driven head first along the handle, it doesn't stick. {test:embed_stab}
-Hold a blade still and run into a grunt: it stabs and stays; backing away or passing by adds nothing. {test:embed_stab}
-In a staggering or downed body, pull along the blade: the blade comes out 1:1 and the body stays; move across or push in past its depth: the body moves, and only a fast yank tears it out. {test:embed_stab}
-Stab a grunt deep with two hands: thrown off balance, about 3.5 s of lifting it around; with one hand it stands on about 2.5 s and is less controllable; barely in, weaker. {test:embed_stab}
-Ogre: a shorter stagger, off balance only by a deep two-handed stab. Shambler: a moment, standing. Boss: nothing. {test:embed_stab}
-Stab a gib or head: only what the blade goes through goes on, and the blade keeps its angle. Other hand: slide it along, off the tip or yank it free. Swing it into a wall: it bursts; a gentle touch doesn't. {test:embed_stab}
 Survival Arena: stand on the dais, then on the floor: walkers come up and down the stairs to you instead of wandering the edge; they may still dither if you stand right beside a flight's side. {test:arena_run}
 
 [3. Bodies: grabbing, throwing, hits]
