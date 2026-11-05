@@ -54,6 +54,18 @@ void renderScreen();
 // changes: vr_fontstyle_live_test).
 [[nodiscard]] int imageDrawCount();
 
+// Panel boards (worldtext::isPanel: the Survival Arena's banners): a map's board laid out by this screen's code, in its
+// palette, font and pictures. One image for all of them, as they all say the same: drawn at the end of the 2D pass when
+// its text or look changes (text3d::renderScreens), in the world by vr_text3d's boards through Shade::Screen.
+void renderPanelBoard(const char* text);
+void releasePanelBoard(); // (no board wants it: its image freed)
+[[nodiscard]] unsigned panelBoardTexture(); // 0: none yet
+[[nodiscard]] glm::vec3 panelBoardPhosphor(); // the screen's colour at full strength, for the board's glow and the static
+// The tests' look at the image (QC panelboard_read), a part of it in the panel's pixels. `what` 0: how much of it is inked
+// (0..1); 1: its checksum (24 bits); 2: 1 while there is an image at all (any text, no part); 3: its ink's red over its
+// green (0..1). -1 when the image doesn't hold `text` (yet: it is drawn in a frame or two).
+[[nodiscard]] float panelBoardRead(const char* text, float x, float y, float w, float h, int what);
+
 // How much a CRT screen glitches at `time` (0..1, the CRT look's): now and then a short burst.
 // The ammo screens' offset their time, so that they glitch at other moments.
 [[nodiscard]] float glitch(double time);

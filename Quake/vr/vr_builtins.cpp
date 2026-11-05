@@ -54,6 +54,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tips.hpp"
+#include "vr_gadget.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
@@ -559,6 +560,13 @@ void PF_worldtext_hgettext()
     G_INT(OFS_RETURN) = PR_SetEngineString(worldtext::serverTextList()[static_cast<za::SizeT>(worldTextHandle())].text.cStr());
 }
 
+// float panelboard_read(string text, float x, float y, float w, float h, float what): gadget::panelBoardRead (the tests').
+void PF_panelboard_read()
+{
+    G_FLOAT(OFS_RETURN) = gadget::panelBoardRead(G_STRING(OFS_PARM0), G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3),
+        G_FLOAT(OFS_PARM4), static_cast<int>(G_FLOAT(OFS_PARM5)));
+}
+
 void PF_worldtext_hsetpos()
 {
     worldtext::serverSetPos(worldTextHandle(), vecParm1());
@@ -898,6 +906,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"worldtext_hmake", PF_worldtext_hmake},
     {"worldtext_hsettext", PF_worldtext_hsettext},
     {"worldtext_hgettext", PF_worldtext_hgettext},
+    {"panelboard_read", PF_panelboard_read},
     {"worldtext_hsetpos", PF_worldtext_hsetpos},
     {"worldtext_hsetangles", PF_worldtext_hsetangles},
     {"portal_handles", PF_portal_handles},
