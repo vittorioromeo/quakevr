@@ -39,8 +39,8 @@ struct Hold
     glm::vec3 axis{1.f, 0.f, 0.f}; // from the off hand's grip to the main hand's, in the object's frame (unit)
     float span{0.f};               // the grips' distance (world units)
     // Where each hand holds it from, off its controller, in the controller's frame (world units): a hand that took it
-    // drawn held out of it at its surface while the real hand was in it (vr_hand_collide_props_keep_out) keeps that
-    // reach, so the grip stays at the surface; zero otherwise.
+    // drawn held out of it at its surface while the real hand was in it (vr_hand_collide_props_keep_out), or whose grip
+    // the grip fit moved out of it, keeps that reach, so the grip stays at the surface; zero otherwise.
     glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
@@ -89,6 +89,7 @@ inline constexpr float dragGruntKg = 80.f; // a grunt's (VR_Grapple_MonsterMass'
 [[nodiscard]] DragLoad dragLoad(edict_t* player);
 void loadTest_f();
 void dragTest_f(); // vr_carry_drag_test (vr_carry2h.cpp)
+void gripTest_f(); // vr_carry2h_grip_test (vr_carry2h.cpp)
 
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
 // thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test. Or, the hand that

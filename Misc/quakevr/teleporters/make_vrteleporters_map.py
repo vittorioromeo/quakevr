@@ -313,6 +313,27 @@ ent("func_worldtext_banner", origin=f"{mid[0] + 3} {mid[1] + 3} {DZ + 20}", angl
     worldtext_scale="0.4", worldtext="45-DEGREE WALL\nout of the next room's south wall")
 TESTS.append(("turn45", lambda back=64: f"{mid[0] + round(back / 1.4142)} {mid[1] + round(back / 1.4142)} 24 0 225 0", us.stand))
 
+# Narrow exits of a gate turned 45 degrees (ROUND24.md, "A turned teleporter's exit"; turned_exit_test.sh): room D (west
+# of T, by a corridor from T's west wall), two gates in its west wall (yaw 180), each leading out at yaw 45 into a
+# free-standing corridor along (1, 1): its walls are x - y = K +- HALF. The player's 16-unit box carried through is 16 wide
+# turned with the gate (32 across the corridor if its turned bound is used), and 22.6 across it once he is there, axial.
+# HALF 20 (28.3 wide): he fits. HALF 10 (14.1 wide): he does not, and the gate must stop him.
+D45 = Room("d45", -2368, 256, -1792, 768)
+c_t_d = Room("c_t_d", -1776, 640, -1616, 720, z1=160)
+T.door("w", 640, 720); c_t_d.door("e", 640, 720); c_t_d.door("w", 640, 720); D45.door("e", 640, 720)
+def narrow_exit(name, label, gate_y, dest, half):
+    g = Gate(D45, "w", gate_y, 48, 96, label=label)
+    k, c = dest[0] - dest[1], dest[0] + dest[1]
+    for lo, hi in ((k + half, k + half + 24), (k - half - 24, k - half)):
+        WORLD.append(brush([([lo, 0, 0], [-1, 1, 0], T_WALL), ([hi, 0, 0], [1, -1, 0], T_WALL),
+                            ([c - 48, 0, 0], [-1, -1, 0], T_WALL), ([c + 160, 0, 0], [1, 1, 0], T_WALL),
+                            ([0, 0, 0], [0, 0, -1], T_WALL), ([0, 0, 128], [0, 0, 1], T_WALL)]))
+    ent("info_teleport_destination", origin=f"{dest[0]} {dest[1]} 1", angle="45", targetname="to_" + name)
+    g.build("to_" + name)
+    TESTS.append((name, g.stand, lambda back=64: f"{dest[0]} {dest[1]} 24 0 45 0"))
+narrow_exit("turned_fits", "NARROW EXIT, 45 degrees\nthe body fits", 368, (-2080, 400), 20)
+narrow_exit("turned_blocked", "TOO NARROW, 45 degrees\nthe gate stops you", 640, (-2080, 640), 10)
+
 # Heights and water. A platform (top 128) in LV's north-west, stairs up its south side; the west wall's floor-level
 # gate comes out of the gate over the platform, and back.
 WORLD.append(box(-512, -768, 0, -192, -448, 128, T_WALL, T_FLOOR))

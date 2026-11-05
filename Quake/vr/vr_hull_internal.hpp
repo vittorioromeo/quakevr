@@ -287,8 +287,17 @@ trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::ve
 void build(Brushes& b, qmodel_t* world, za::U64 key);
 void cutBack(Brushes& b);
 void cutBack(Tree& t);
+// A box turned about its middle (a body carried through a gate turned by an angle that isn't a right angle): its axes in
+// the world (columns) and its half size along them. A sweep then takes mins..maxs as the box's bound, for finding what
+// is near, and meets what is near with the box itself.
+struct BoxTurn
+{
+    glm::dmat3 axes;
+    glm::dvec3 half;
+};
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0, const float* halfspace = nullptr);
+    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0, const float* halfspace = nullptr,
+    const BoxTurn* turn = nullptr);
 Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext);
 bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const glm::dvec3& ext);
 double support(const Plane& p, const glm::dvec3& ext);
