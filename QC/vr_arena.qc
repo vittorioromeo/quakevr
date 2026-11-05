@@ -7,12 +7,12 @@
 // waves. The player starts at their fists and climbs the ladder on the guns their enemies carried (the game's
 // own enemy drops: vr_enemy_drops).
 //
-// Off by default: none of this runs unless the map is "vrarena" or vr_arena is set. A wave's foes are marked
+// Off by default: none of this runs unless the map is an arena map (isarenamap) or vr_arena is set. A wave's foes are marked
 // with .ar_slot (their wave's number, flipped negative once they fall), so the director never has to guess who
 // of the map's monsters is its own.
 //
 // The knobs (Quake/vr/vr_cvars.inc; read here with plain cvar()):
-//   vr_arena              0    the arena runs even in a map that is not "vrarena"
+//   vr_arena              0    the arena runs even in a map that is not an arena map
 //   vr_arena_wave_rest    5    seconds of rest from a wave clear (and from the run's start) to the next wave's
 //                             countdown (at Normal skill: a harder skill rests less)
 //   vr_arena_countdown    5    seconds the next wave counts down in the middle of the view ("Wave 7 in 5..."; a
@@ -184,6 +184,9 @@ entity ar_fallen;          // the last player the arena saw fall (its message's 
 
 float ar_wave;             // the wave in the field (0: none yet)
 float ar_score;            // the run's score
+float ar_foes_left;        // this wave's foes up and still to come, as of the director's last beat (the banners)
+float ar_run_at;           // the time the run's first wave began (0: none yet; the banners' clock)
+float ar_run_end;          // the time it ended (0: still on)
 float ar_kills;            // the run's kills
 float ar_wave_kills;       // this wave's kills
 float ar_plan_n;           // this wave's planned foes
@@ -264,6 +267,7 @@ void() VR_ARENA_SupplyFrame;
 void() VR_ARENA_SupplyReset;
 void() VR_ARK_Frame;
 void() VR_ARK_HoldThink;
+void() VR_ARENA_BannerFrame;
 
 // ---------------------------------------------------------------------------
 // The knobs, and the small maths they need
@@ -271,7 +275,7 @@ void() VR_ARK_HoldThink;
 
 float() VR_ARENA_On =
 {
-    if(mapname == "vrarena") { return TRUE; }
+    if(isarenamap(mapname)) { return TRUE; }
     if(!ar_listed_asked)
     {
         ar_listed_asked = 1;
@@ -2189,6 +2193,8 @@ void() VR_ARENA_WaveStart =
 {
     ar_wave = ar_wave + 1;
     VR_ARENA_Plan(ar_wave);
+    ar_foes_left = ar_plan_n;
+    if(ar_run_at <= 0) { ar_run_at = time; }
 
     ar_plan_left = ar_plan_n;
     ar_plan_live = 0;
@@ -2357,6 +2363,7 @@ void() VR_ARENA_CountStart =
 void() VR_ARENA_ManagerThink =
 {
     float alive = VR_ARENA_CountAlive();
+    ar_foes_left = ar_plan_left + alive;
     if(alive > ar_alive_peak) { ar_alive_peak = alive; }
 
     // The players, all of them down: their score stays, a fresh wave 1 comes (as the Machine Games' horde does).
@@ -2491,6 +2498,9 @@ void() VR_ARENA_WorldSpawn =
     ar_serverflags0 = serverflags;
 
     ar_wave = 0;
+    ar_foes_left = 0;
+    ar_run_at = 0;
+    ar_run_end = 0;
     ar_score = 0;
     ar_kills = 0;
     ar_wave_kills = 0;
@@ -2572,6 +2582,7 @@ void() VR_ARENA_Frame =
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
     VR_ARENA_SupplyFrame(); // QVR: the map's walkable places found; a supplies line said again after the perk cards
     VR_ARENA_Leftovers(); // (the cleanup: bodies and drops whose time has come fade out)
+    VR_ARENA_BannerFrame(); // (the map's boards: vr_arena_banners.qc)
 }
 
 // ---------------------------------------------------------------------------

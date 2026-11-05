@@ -826,7 +826,7 @@ za::Vector<Item> pageCombat()
             .help("How armed grunts and enforcers fight: aggressiveness, accuracy, reaction time, fire rate, retreat, "
                   "weapon search, and how much the skill level changes them (Difficulty Impact)."),
         open("Survival Arena", pageIndex(pageArena))
-            .help("The map vrarena's waves: how big they are, how many foes are up at once, their boss waves, what a "
+            .help("The arena maps' waves: how big they are, how many foes are up at once, their boss waves, what a "
                   "wave clear drops and pays, the perks a boss clear offers, and how far the game's difficulty (Skill) "
                   "moves all of it."),
         open("Enemy Melee", pageIndex(pageEnemyMelee))

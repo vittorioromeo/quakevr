@@ -220,6 +220,8 @@ float(entity player, float hand) weaponanygrip = #0;
 float(float skill) arenawavesload = #0;
 string(float wave, float entry, float field) arenawavesfield = #0;
 void(string s) arenawavesreport = #0;
+// Whether a map is an arena map (the engine's one list: arenawaves::arenaMaps).
+float(string map) isarenamap = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
 // `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn
@@ -629,6 +631,7 @@ void() cvar_hclear = #0;
 
 float() worldtext_hmake = #0;
 void(float h, string s) worldtext_hsettext = #0;
+string(float h) worldtext_hgettext = #0; // (what the server's list holds; the tests read it)
 void(float h, vector v) worldtext_hsetpos = #0;
 void(float h, vector v) worldtext_hsetangles = #0;
 float(entity trig, entity who) portal_handles = #0; // QVR: the engine carries this player (or monster: vr_portals_monsters) through the teleporter (vr_portals_walk)

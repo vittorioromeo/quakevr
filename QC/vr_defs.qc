@@ -382,7 +382,7 @@ float QVR_PARTICLE_PRESET_TANKCLOUD      = 27; // count big puffs of the poison 
 //
 // ----------------------------------------------------------------------------
 // Survival Arena (vr_arena.qc): the wave director's hooks. world.qc's worldspawn and StartFrame call the first
-// two, combat.qc's monster_die the third. None of them does anything unless the map is "vrarena" or vr_arena is
+// two, combat.qc's monster_die the third. None of them does anything unless the map is an arena map or vr_arena is
 // set; the tests' beat (VR_ARENA_Test_Frame) is declared in world.qc, under QVR_TESTS.
 // ----------------------------------------------------------------------------
 

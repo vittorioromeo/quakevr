@@ -193,6 +193,16 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Verified:** `gunlooks_check: 68 passed, 0 failed` (faces of 0.5+ square units and 6+ texels wide: shotgun 4.8-6.5 texels a unit, limits 3.9-7.5, stretch at most 1.28, limit 1.7; none of 934 faces of 8+ texels in one colour; moving places none new: 55 parts' vertices on the shotgun as before; nail 232 places as before, more vertices only as copies). `autopump_test.sh`: 7 passed, 7 failed, the same seven on the old models (shell timing; not from this). `vr_menu_path_check` not touched.
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/gunlooks/shotgun_before_after.png`, `nailgun_before_after.png` (`r_fullbright 1` for neutral light).
 
+## Flatscreen model FOV (agent/flatfov)
+
+- **Settings:** `vr_flat_model_fov` (default 0, off), `_near` 18, `_far` 35, under Debug > Tunables > Flatscreen > Model FOV. `flatplay::modelFov`, shader `FlatFovPoint` (`vr_flatfov_glsl.h`). `vr_flatplay_status` prints the scale, each part's distance from the eye and the batch counts.
+- **Near and far are measured** (`vr_flatplay_status`, shotgun, standing, e1m1): elbows to 16.5, hipfire muzzle to 17.5, hips 22.3, knees 34.7, ankles 47.1, toes 48.1. A sighted muzzle is at 26 but on the axis, where the scale moves nothing. Other guns were not measured.
+- **Alias shader:** the point is chosen before the one multiply; light tiles, fog and shadows keep the true place. `Motion.z` marks the instance, `VR_FlatModelFovEntity` picks hands, body, held, holstered, worn, casings and the held prop. Shadow maps never (`aliasdepth`).
+- **Temporal AA does not run here:** with `vr_taa 1`, 0 of 200 batches were inside a headset's eye, and motion is collected only there.
+- **Mapped:** muzzle flash, casings, attachments, wounds, hot barrels (the alias path); tracers, wisps, the flashlight's lens and cone, the gadget, ammo screens with their bezels and glows, lines (laser, arcs), cords and hoses, all particles (by distance: a particle has no owner).
+- **Not mapped:** bullet-time trails, ropes, lying particles, non-screen `text3d::queue` text (only with `vr_weapon_screen` 0). Decals and outlines never land on his own models.
+- **Off against before:** not bit-identical between runs on either build. Base against itself: up to 767 pixels, max 29, on the gun's edges; base against off: up to 597, max 29, same place. The wall scene: 0 and 1 pixels.
+- **Side effects to judge:** a model FOV wider than the sight's world FOV shrinks the sight picture (0.91 at 75, 0.70 at 90, world 110). Looking down, the near body moves out further than what is behind it, so his floor shadow and a holstered gun show.
 ## Shotgun and nailgun looks, second pass (branch `agent/gunlooks2`)
 
 The author's notes on the first pass ("the new nailgun is an improvement in some areas, but large downgrade in other areas"). The first pass kept one mean colour per triangle and repainted everything from one metal recipe, which lost the guns' materials and their painted detail.
@@ -210,6 +220,38 @@ The author's notes on the first pass ("the new nailgun is an improvement in some
 
 **Gun looks, fewer rivets (branch `agent/gunlooks3`, the author's "a bit overboard"):** 14 to 6 on the shotgun (a pair up the receiver's front edge at the fore-end, one more in the row of pins along its lower edge), 10 to 4 on the nailgun and lava nailgun (the receiver plate's two front corners); mirrored pairs on the gun's own lines, same size and dark ring; the barrel masks' counts follow (1756, 1008).
 
+## Survival Arena: banners, and "any arena map" (branch `agent/arenabanners`)
+
+The author's ask: live text banners close to the arena's ceiling (foes left, wave, time, score), in the wrist gadget's and text boards' style, reusable for future arena maps, and nothing hardcoded on `vrarena`. Having seen a first version: the ceiling 40-60% higher and the banners close to it, "so that they are less distracting in general".
+
+- **The arena map check:** `arenaMapNames` in `Quake/vr/vr_arenawaves.cpp` is the one list (holds `vrarena`). C++: `arenawaves::isArenaMap`, `arenaMaps`, `defaultArenaMap`. QC: builtin `isarenamap(string)`, used by `VR_ARENA_On`. A map named only in `assign.cfg`, or `vr_arena 1`, still runs the waves as before. Moved onto it: `vr_arena_play`'s default map, the wave editor's default map, map list and open, test 11's and 34's checks. Menu and cvar help now say "an arena map". Steps for a new one: MAPPING.md, "Adding an arena map".
+- **What stays literal:** the menu's `command("Survival Arena", "map vrarena")` (a destination, a `const char*` the row keeps, not a check); `vrarena_gen.py`'s `MAPNAME`; the waves' self-test fixtures in `vr_arenawaves.cpp`; test scripts, scenarios and the benchmark (each names the map it runs on); comments saying where a number was measured or which map a test wants.
+- **The banners:** `QC/vr_arena_banners.qc`, entity `info_arena_banner` (origin the face's middle, `angle`, `worldtext_scale`), so a new arena gets them by placing entities; no coordinates in code. They are ordinary world text boards (the engine's CRT boards, `vr_text3d.cpp`), no second text system. With no arena running in the map (`ar_mgr`) the entity removes itself and makes no board. Text, two lines of one width: `WAVE   6  FOES LEFT   7` / `TIME 00:02 SCORE      0`. `BOSS` for `WAVE` on a boss wave; between waves the right says `WAVE 7 IN  5`, `CHOOSE A PERK` under the cards, `YOU FELL` or `CLEARED` at the end. Clock: from the run's first wave to its end. Foes left: `ar_foes_left`, set on the director's beat (a fall wakes it within 0.05 s). A board is only sent a new text when a number moved (about once a second); the compare values are `nosave`, so a load, which starts boards empty, writes them on its first frame.
+- **Setting:** `vr_arena_banners` 1 (Combat > Survival Arena, "Arena Banners"): 0 empties the boards. New test builtin `worldtext_hgettext`.
+- **The map:** the ceiling goes from 384 to 576 (+50%; 11.7 m to 17.6 m). Walls: the panels run 96..480 (3 whole tiles), upper rail 480..496, a new plated frieze 496..544, cornice 544..560, border 560..576; uprights stop at the upper rail, their lamps stay at 272..304. 306 brushes (was 290: the rail and frieze's 16); no spawn, item, flight, step, deck or tower moved. 4 boards, the middle of each cardinal wall, 34 out, z 464, scale 4.5 (914 x 158): top 543, just under the cornice. Coffer lights moved up with the ceiling, 300/0.47 to 305/0.40 (a longer reach; 350/0.47 matched the floor too, but washed out the walls beside them). Floor brightness in the same two window shots: 45.9 before, 44.5 now; the middle band 40.7 and 37.0. `vrarena_gen.py --check --compile --preset final --holes 400128`: 0 bad steps, 0 holes, 0 trim past the clip.
+- **Tests:** `vr_arena_test 38`: `map vrarena`: 18 passed, 0 failed (check accepts `vrarena`, refuses `e1m1` and no name; each board's text read back from the server's list against the expected text: before the run, countdown falling, foes left falling, score rising, time running, off and on, wave changing); the same 18/0 after a save and a load. `map e1m1`: 8 passed, 0 failed (no arena, a placed banner removed, the map's text list empty). Existing, at the final height, all 0 failed: tests 4 (8), 7 (19), 9 (37), 11 (25, vrtesthall), 13 (12), 14 (9), 15 (130), 16 (9), 17 (24), 18 (4), 19 (7), 36 (16: the walkers' routes), `vr_arena_waves_test` 23, `vr_waveeditor_test` 28. Test 34 not run.
+- **Frame cost: partly measured.** An LTO `--exclusive` run, floor view with 3 boards in sight, 500 frames, with the ceiling at the interim 512 and the same 4 boards: banners off 0.624 and 0.610 ms CPU, 0.612 and 0.625 ms GPU; on 0.643 ms CPU, 0.659 ms GPU, draw calls 142 to 152. About +0.03 ms CPU and +0.04 ms GPU, from one "on" sample. Not repeated at 576: timed runs are refused while the author's game runs. Worth repeating (`scratch/ab_time2.sh` in the worktree has the runs).
+- **Images:** `C:/OHWorkspace/qvr-kit/scratch/arenabanners/`: `final_floor_south_looking_north.png`, `final_floor_corner_across_room.png`, `final_dais.png` (1024 eyes, by the script's `vr_mock_eye_size` in a low-impact run), `final_window_view_flat.png`, `ab_before.png` (the old room).
+## Lightning burn marks
+
+His note: thunderbolt and Shambler bolts should leave permanent burns on what they hit, like the flamethrower's; "might already
+have been done". Half was: the thunderbolt's `particle2(boltEnd, LIGHTNING)` already laid a small round scorch (8-14 units, 222
+dark pixels flat) that baked and survived a load. A Shambler's bolt sent no effect, so it left nothing.
+
+**Now.** `VR_Lightning_Burn` (weapons.qc) from `LightningDamage` and `ad_LightningDamage`, so every bolt: shamblers, traps, AD's.
+`lightningBurn` (vr_decals.cpp, `Preset::Lightning`): a ragged scorch baked at once (`MarkOptions::bakeNow`, the flamethrowers'
+path), none in a liquid or on the sky. Tunables (Debug > Tunables): `vr_lightning_burn_size` 20 units (0 none),
+`vr_lightning_burn_gap` 0.25 s, `vr_lightning_burn_stack` 3 on a spot among the last 24. Mjolnir's strikes and the other senders
+of that preset get the same mark.
+
+**Test.** `bash Misc/quakevr/burnmark_test.sh <agent> <outdir>` (`QC/vr_burnmark_test.qc`): the thunderbolt by `+attack`, a
+shambler's `CastLightning` on a bare entity, flat and mock, `r_drawentities 0`, vrtesthall's south wall. Pictures before, 300
+frames after the bolts, and after a save and a load; PASS at 60 pixels darker by over 18. `burnmark: 4 passed, 0 failed`. Next:
+the Shambler's cases 0 dark pixels (FAIL), the thunderbolt's pass (flat 222, mock 667). Now flat 566 and 948, mock 2534 and 2303,
+the same after a load. Held six seconds on one spot: 3 stamps, as at one second. Into the pool and at the sky: 0 stamps, 0 scorch.
+
+**Open.** The same held beam lays a chip per `SPARKS` puff: 36 live chips in those six seconds. It was so before and is not
+limited here; if they bake they count against the stamps.
 ## Pick Up a Second, smarter (branch `agent/ag2ndweapon`)
 
 `vr_agrunt_dual_pickup` stays 0. With it on, going for a second weapon now has to be cheap (`VR_AG_SecondOk`, `QC/vr_armedgrunt.qc`;

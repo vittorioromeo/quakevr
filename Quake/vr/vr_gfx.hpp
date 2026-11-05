@@ -81,6 +81,9 @@ struct State
     // others: the first drawn). The stencil's top bit (vr_gfx_gl.cpp onceStencilBit), left clear; then the same
     // vertices again, unmarking. Triangle lists through draw() only.
     bool once{false};
+    // Flatscreen play's model FOV (flatplay::modelFov): what is drawn on or leaves the player's own models, so it stays on
+    // them. Nothing outside the mode, or with it off.
+    bool flatModelFov{false};
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's

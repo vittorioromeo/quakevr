@@ -156,6 +156,7 @@ vr_hotblade_test.qc
 vr_shock.qc
 vr_shock_test.qc
 vr_waterzap_test.qc
+vr_burnmark_test.qc
 // Every hit dents: the damage paths' wound events (vr_dents_test, Debug > Gore Tests).
 vr_dents_test.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
@@ -542,6 +543,7 @@ vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
 vr_arena.qc
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
 vr_arena_supply.qc // Survival Arena: where a wave clear's supplies land (the map's walkable places, at random)
+vr_arena_banners.qc // Survival Arena: the run's numbers on the map's boards (info_arena_banner)
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc

@@ -1347,14 +1347,14 @@ void drawScreen()
         gfx::draw(quad, gfx::sceneViewProjection(),
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
                 .params = {time, dk, za::min(g, tap), 0.f},
-                .screen = {200.f * size.x / size.y, 200.f, 1.f}, .trueColor = true},
+                .screen = {200.f * size.x / size.y, 200.f, 1.f}, .trueColor = true, .flatModelFov = true},
             doomTexture);
         return;
     }
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, g, textGlow()},
-            .screen = {width, height, 0.5f}, .trueColor = true},
+            .screen = {width, height, 0.5f}, .trueColor = true, .flatModelFov = true},
         target.texture);
 }
 
@@ -1500,12 +1500,12 @@ void drawHologram()
     {
         gfx::draw(holo.beam, viewProjection,
             {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false,
-                .params = {holo.params.x, holo.params.y, 0.f, 1.f}});
+                .params = {holo.params.x, holo.params.y, 0.f, 1.f}, .flatModelFov = true});
     }
     // Not depth tested: over the other hand, as the log.
     gfx::draw(holo.text, viewProjection,
         {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-            .params = holo.params, .screen = {holoWidth, holoHeight, 0.5f}},
+            .params = holo.params, .screen = {holoWidth, holoHeight, 0.5f}, .flatModelFov = true},
         holoTarget.texture);
 }
 

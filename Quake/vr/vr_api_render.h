@@ -223,6 +223,9 @@ void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 int VR_AliasShadowBonePoses (const struct entity_s *e, const float **matrices); // as VR_AliasBonePoses, for the shadow maps: your body with its head (vr_shadow_head)
+void VR_FlatModelFovNumbers (float out[3], int shadowpass); // r_alias.c: flatscreen play's model FOV: scale (0 none), near, far (vr_flatplay.cpp modelFov)
+int VR_FlatModelFovEntity (const struct entity_s *e); // r_alias.c: e is the player's own and drawn at the model FOV
+int VR_FlatModelFovUncull (const struct entity_s *e); // r_alias.c: e is, and the scale draws it inwards: its true place outside the view says nothing
 int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
 int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Hands hand: its depth drawn first, then only its nearest surface blended
 int VR_OITLazyClear (void); // gl_rmain.c: the OIT targets cleared at a view's first translucent draw, none and no resolve without one (vr_oit_lazy_clear)

@@ -649,6 +649,9 @@ QVR_TUNABLE(vr_lg_water_damage, "60") // its damage to what else is in the water
 QVR_TUNABLE(vr_lg_water_radius, "300") // how far through the water it (and the electrified water) reaches, units
 QVR_TUNABLE(vr_lg_water_falloff, "1") // how it fades out to the radius: the power of the share of the radius left (1 evenly, 2 sooner, 0 not at all)
 QVR_TUNABLE(vr_lg_water_tick_damage, "10") // each bolt into water from the open: damage at the point it goes in (fading out the same way)
+QVR_TUNABLE(vr_lightning_burn_size, "20") // the lasting burn where lightning strikes a surface: units across (0 none)
+QVR_TUNABLE(vr_lightning_burn_gap, "0.25") // at most one burn this often, seconds (a held beam: a bolt every 0.1 s)
+QVR_TUNABLE(vr_lightning_burn_stack, "3") // burns on one spot among the last 24; more only as the beam moves on
 QVR_TUNABLE(vr_lg_water_arcs, "1") // electrified water's arcs: their width (0 none, the light stays)
 QVR_TUNABLE(vr_lg_water_flash, "1") // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 
@@ -1826,6 +1829,11 @@ QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this muc
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_support_out, "6") // the same free hand: how far out at its own side (-30..30; 5 before)
+
+// Flatscreen > Model FOV
+QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
+QVR_TUNABLE(vr_flat_model_fov_near, "18") // the model FOV in full up to this far from the eye (units): past the elbows (16.5) and a hipfire muzzle (17.5), short of the hips (22)
+QVR_TUNABLE(vr_flat_model_fov_far, "35") // and none past this far (units): the knees (35), so the shins and feet (47) stay on the floor
 
 // Flatscreen > Ironsight
 QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
