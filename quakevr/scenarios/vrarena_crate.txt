@@ -1,0 +1,11 @@
+# vrarena_crate: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A calm grunt and crates on the arena's floor, a crowbar in hand: their light beside the floor's (Debug: Show Light Probes), and the crates' wood when hit and broken.
+title vrarena, a calm grunt and crates: their light against the floor's, and the crates' wood sounds
+map vrarena
+start 0 0 120 45
+god
+notarget
+cvar vr_arena 0
+give "Crowbar" main
+spawn "Armed Grunt: Shotgun" 70 0
+spawn "Wooden Crate" 40 -50
+spawn "Wooden Crate" 40 50

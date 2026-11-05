@@ -56,6 +56,10 @@ Weapon Studio: copy another slot into this one, and the model and its hand offse
 Debug > Tunables > Weapons > Other > Weapon Studio: Fly Speed changes the Studio camera's speed.
 Stab and hold a grunt past 10 s: an unbroken stream from the wound follows the body, then stops as the blade leaves or the body dies. {test:embed_stab}
 Slide a blade in and out, live and in a corpse: blood spurts every 3 cm. {test:embed_stab}
+Debug > Show Light Probes: do the crosses near you match the floor's brightness, and do the lines to the grunt's 8 probes look right? Try Tunables > Light Grid > Probe Spacing 24 and Probe Intensity: does the grunt look more consistent with the floor? {test:vrarena_crate}
+Hit a crate with the crowbar, then break it: is the wood clearly audible over the weapon's hit, and is the breaking loud with boards clattering down? {test:vrarena_crate}
+In the console, type `vr_throw_gain_lo` and press Tab: it lists as "tunable". `vr_throw_gain_lo 2.5` sets it, and the name alone prints its value and default.
+vrarena, Show Light Probes, by a tower: no dark row low on the wall; a monster there is as lit as the floor. {test:vrarena_crate}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

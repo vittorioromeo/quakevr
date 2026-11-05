@@ -3,7 +3,11 @@
 # from the physics sounds' wood knocks (quakevr/sound/vr/phys/wood_*.wav: Kenney's Impact Sounds, CC0; CREDITS.md)
 # and synthesised splintering:
 #   quakevr/sound/vr/crate_break1..3.wav   a crate breaking: two or three heavy wood knocks a few milliseconds apart,
-#                                          pitched down a little, over a crackle of splinters and a low thump
+#                                          pitched down a little, over a crackle of splinters and a low thump, then its
+#                                          boards clattering down; pushed hot (his note, 2026-11-02: the melee hit's own
+#                                          sound, some 0.6 RMS, buried it at 0.3)
+#   quakevr/sound/vr/crate_hit1..3.wav     a blow on a crate that holds: a heavy knock pitched down, a crack and a thump,
+#                                          pushed as hot (the plain wood_m knock has 0.2 RMS)
 #   quakevr/sound/vr/crate_dust1..2.wav    a piece bursting into dust: a light knock pitched up, a short crackle and the
 #                                          hiss of the dust
 # 22050 Hz, mono, 16 bit, as the physics sounds. Deterministic (fixed seeds).
@@ -83,6 +87,12 @@ def normalise(x, peak=0.9):
     return x * (peak / m) if m > 0 else x
 
 
+def hot(x, drive, peak=0.97):
+    """Soft-clipped: louder for the same peak, as a sample's volume can't go over 1."""
+    x = x / max(np.max(np.abs(x)), 1e-6)
+    return np.tanh(x * drive) / np.tanh(drive) * peak
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
@@ -95,7 +105,7 @@ def main():
 
     for k in range(3):
         rng = np.random.default_rng(900 + k)
-        out = np.zeros(int(0.7 * RATE))
+        out = np.zeros(int(1.2 * RATE))
         # The knocks: the boards giving way one after another.
         picks = rng.permutation(4)[:2 + (k != 1)]
         t = 0.0
@@ -104,13 +114,32 @@ def main():
             place(out, resample(src, rng.uniform(1.05, 1.25)) * (1.0 if j == 0 else 0.7), t)
             t += rng.uniform(0.018, 0.05)
         # The splinters, and a low thump under the first knock.
-        place(out, crackle(rng, 0.35, 70, 0.45), 0.0)
-        thump = np.sin(2 * np.pi * np.cumsum(np.linspace(95, 55, int(0.12 * RATE))) / RATE)
-        thump *= np.exp(-np.arange(len(thump)) / (0.035 * RATE))
-        place(out, thump * 0.5, 0.0)
+        place(out, crackle(rng, 0.45, 110, 0.8), 0.0)
+        thump = np.sin(2 * np.pi * np.cumsum(np.linspace(95, 50, int(0.2 * RATE))) / RATE)
+        thump *= np.exp(-np.arange(len(thump)) / (0.06 * RATE))
+        place(out, thump * 0.9, 0.0)
+        # The boards coming down, each lighter and later than the last.
+        t = rng.uniform(0.16, 0.22)
+        for j in range(6):
+            src = (medium if j < 2 else light)[rng.integers(4)]
+            place(out, resample(src, rng.uniform(0.85, 1.2)) * 0.75 * 0.8 ** j, t)
+            t += rng.uniform(0.07, 0.17)
         fade = np.ones(len(out))
-        fade[-int(0.1 * RATE):] = np.linspace(1, 0, int(0.1 * RATE))
-        write(os.path.join(out_dir, "crate_break%d.wav" % (k + 1)), normalise(out * fade))
+        fade[-int(0.15 * RATE):] = np.linspace(1, 0, int(0.15 * RATE))
+        write(os.path.join(out_dir, "crate_break%d.wav" % (k + 1)), hot(out * fade, 2.6))
+
+    for k in range(3):
+        rng = np.random.default_rng(970 + k)
+        out = np.zeros(int(0.4 * RATE))
+        place(out, resample(heavy[k], rng.uniform(1.1, 1.25)), 0.0)
+        place(out, resample(medium[k], rng.uniform(0.95, 1.1)) * 0.6, rng.uniform(0.006, 0.014))
+        place(out, crackle(rng, 0.08, 16, 0.5), 0.0)
+        thump = np.sin(2 * np.pi * np.cumsum(np.linspace(120, 70, int(0.1 * RATE))) / RATE)
+        thump *= np.exp(-np.arange(len(thump)) / (0.03 * RATE))
+        place(out, thump * 0.55, 0.0)
+        fade = np.ones(len(out))
+        fade[-int(0.08 * RATE):] = np.linspace(1, 0, int(0.08 * RATE))
+        write(os.path.join(out_dir, "crate_hit%d.wav" % (k + 1)), hot(out * fade, 2.4))
 
     for k in range(2):
         rng = np.random.default_rng(950 + k)
@@ -124,7 +153,7 @@ def main():
         fade = np.ones(len(out))
         fade[-int(0.08 * RATE):] = np.linspace(1, 0, int(0.08 * RATE))
         write(os.path.join(out_dir, "crate_dust%d.wav" % (k + 1)), normalise(out * fade, 0.7))
-    print("crate_break1..3.wav, crate_dust1..2.wav -> " + out_dir)
+    print("crate_break1..3.wav, crate_hit1..3.wav, crate_dust1..2.wav -> " + out_dir)
 
 
 if __name__ == "__main__":

@@ -1770,6 +1770,7 @@ QVR_TUNABLE(vr_gore_sound_vol_drip, "0.35") // drops of blood hitting the floor:
 
 // Graphics > Models and Effects > Light Grid (vr_ambient.cpp, "The light grid")
 QVR_TUNABLE(vr_model_light_grid_intensity, "1") // the probes' light on models and what's drawn beside them, times this
+QVR_TUNABLE(vr_model_light_grid_cell, "48") // the probes' spacing, in world units (16..256; a change builds the map's grid again; a huge map's doubles until it fits)
 QVR_TUNABLE(vr_model_light_grid_near, "64") // each surface's say over a probe is over its distance + this: less, the nearest surfaces count more (a change builds the map's grid again)
 QVR_TUNABLE(vr_model_light_grid_mix, "0.5") // 0: only the map's lights' directional shading on models, 0.5: half of it under the light around them, 1: only the light around them
 QVR_TUNABLE(vr_model_light_lava, "1") // how much lava lights models and what's drawn beside them, in its colour (0: none)

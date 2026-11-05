@@ -1772,6 +1772,7 @@ QVR_TUNABLE_SLIDER(vr_gore_sound_vol_drip, "Gore Sounds: Drips", 0.0f, 1.0f, 0.0
 
 QVR_TUNABLE_GROUP("Graphics > Models and Effects > Light Grid")
 QVR_TUNABLE_SLIDER(vr_model_light_grid_intensity, "Probe Intensity", 0.0f, 3.0f, 0.05f, "%.2f", 0.0f, 10.0f, "How bright the light around models makes them, and the coils, ropes, blood, impacts and smoke beside them.")
+QVR_TUNABLE_SLIDER(vr_model_light_grid_cell, "Probe Spacing", 16.0f, 128.0f, 8.0f, "%.0f", 16.0f, 256.0f, "How far apart the light probes are, in world units. Less: models follow the light's edges more closely, but more memory and a longer build. A change builds the map's light probes again, a moment's pause on a big map, several at 16.")
 QVR_TUNABLE_SLIDER(vr_model_light_grid_near, "Near Surfaces Weigh", 8.0f, 256.0f, 8.0f, "%.0f", 1.0f, 1024.0f, "Less: the surfaces nearest a model decide its light (a lamp's pool beside it lights it). More: everything in sight counts alike. A change builds the map's light probes again, a moment's pause on a big map.")
 QVR_TUNABLE_SLIDER(vr_model_light_grid_mix, "Ambient or Directional", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "How models are shaded round their sides. Less: more by the map's lights' direction. More: by the light of the surroundings.")
 QVR_TUNABLE_SLIDER(vr_model_light_lava, "Lava Light", 0.0f, 4.0f, 0.05f, "%.2f", 0.0f, 20.0f, "How much lava lights models beside it, in its colour, unless a wall is in the way. 0: only the baked light.")

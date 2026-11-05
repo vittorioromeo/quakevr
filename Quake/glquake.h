@@ -587,6 +587,7 @@ void GLMesh_DeleteVertexBuffers (void);
 void GLMesh_DeleteVertexBuffer (qmodel_t *m); // QVR: one model's (Mod_ReloadAliasModel)
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache);
+qboolean R_SurfaceHoldsPoint (const msurface_t *surf, const float *p);
 
 #define WORLDSHADER_SOLID		0
 #define WORLDSHADER_ALPHATEST	1
