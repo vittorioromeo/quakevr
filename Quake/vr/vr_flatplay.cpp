@@ -89,6 +89,8 @@ struct FlatState
     // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
+    glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
+    bool shouldersKnown{false};
     bool localSeen[2]{false, false};
     double lastTime{-1e9};
 
@@ -209,6 +211,7 @@ constexpr float breathPitch = 0.15f;
 constexpr float nearMin = 8.f;    // vr_flat_gun_near / vr_flat_ads_near's range
 constexpr float nearMax = 60.f;
 constexpr float camOffMax = 20.f; // vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_cam_side: how far the eye may be nudged
+constexpr float eyeLeanMax = 30.f; // vr_flat_eye_lean's most: the chest's share of a look at 0.5 and this much of a lever carries the eye 13 at 85 (his box's side is 16)
 constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye off the neck. At 8 and 8 a look up takes it 15.3 back; his box's side is 16
 
 // The flatscreen eye's own nudge, in the view's frame: (forward, the view's right, up). 0 0 0 outside the mode, and 0 0 0
@@ -221,6 +224,17 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     }
     return {za::clamp(vr_flat_cam_fwd.value, -camOffMax, camOffMax), za::clamp(vr_flat_cam_side.value, -camOffMax, camOffMax),
         za::clamp(vr_flat_cam_up.value, -camOffMax, camOffMax)};
+}
+
+// How far the chest's share of the look carries the neck, and the head on it, off where a level look has them: a turn about the
+// spine (vr_flat_eye_lean: how far under the neck it stands; flatplay::chestPitch, the chest's own turn, in solveTorso).
+[[nodiscard]] glm::vec3 chestCarry(const glm::vec3& viewAngles)
+{
+    const float lean = glm::radians(chestPitch(viewAngles.x));
+    glm::vec3 levelFwd{}, right{}, levelUp{};
+    hands::angleVectors({0.f, viewAngles.y, 0.f}, levelFwd, right, levelUp);
+    const float lever = za::clamp(vr_flat_eye_lean.value, 0.f, eyeLeanMax);
+    return (levelFwd * za::sin(lean) + levelUp * (za::cos(lean) - 1.f)) * lever;
 }
 
 // The neck pivot (vr_flat_eye_pivot): the eye stands off a point in his neck (vr_flat_eye_fwd forward, vr_flat_eye_up up) and the
@@ -238,7 +252,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     glm::vec3 pitchedFwd{}, levelFwd{}, right{}, pitchedUp{}, levelUp{};
     hands::angleVectors({viewAngles.x, viewAngles.y, 0.f}, pitchedFwd, right, pitchedUp);
     hands::angleVectors({0.f, viewAngles.y, 0.f}, levelFwd, right, levelUp);
-    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward;
+    return (pitchedFwd - levelFwd) * forward + (pitchedUp - levelUp) * upward + chestCarry(viewAngles);
 }
 
 // The eye's whole move in the world: the neck's turn, and the nudge along the axes of the view it is drawn with (the drawn view's
@@ -255,6 +269,15 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     glm::vec3 fwd{}, right{}, up{};
     hands::angleVectors(viewAngles, fwd, right, up);
     return pivot + fwd * off.x + right * off.y + up * off.z;
+}
+
+// The nudge alone, in the world: what a pose standing on the body carries (the neck's turn moves the eye off the body, not the hands).
+[[nodiscard]] glm::vec3 camNudgeWorld(const glm::vec3& viewAngles)
+{
+    const glm::vec3 off = camShift();
+    glm::vec3 fwd{}, right{}, up{};
+    hands::angleVectors(viewAngles, fwd, right, up);
+    return fwd * off.x + right * off.y + up * off.z;
 }
 
 // The distance the drawn hands and the crosshair's ray stop counting the drawn view as his own eyes at: vr_flat_gun_near
@@ -353,9 +376,24 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     return u * u * (3.f - 2.f * u);
 }
 
-// Where a shoulder is (the drawn body's).
+[[nodiscard]] bool bodyPose()
+{
+    return vr_flat_body_pose.value != 0.f;
+}
+
+// The old pose's anchor against the body's real shoulder at a level look, standing: vr_flat_gun_*, _empty_*, _support_* are measured
+// from the real one, in the view's frame (forward, out at the hand's side, up), so with vr_flat_body_pose 0 they come back off the
+// anchor by this. And a punch keeps the old anchor's numbers: where it winds up and how far it throws (punchSwing) were tuned on them.
+constexpr glm::vec3 anchorFromShoulder{2.5f, -3.f, 12.f};
+
+// Where a shoulder is: the joint the arm hangs from, before the hand lifts it (avatar::restShoulders: his crouch, the stance's
+// turn and the chest's share in it), kept by poseHands; with vr_flat_body_pose 0 the old anchor (hands::bodyAnchor).
 [[nodiscard]] glm::vec3 shoulder(const hands::State& s, int h)
 {
+    if(bodyPose() && fs.shouldersKnown)
+    {
+        return fs.shoulders[h];
+    }
     const glm::vec3 off{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
     return h == HAND_OFF ? hands::bodyAnchor(s, {off.x, -off.y, off.z}) : hands::bodyAnchor(s, off); // mirrored across the body's centre line: only the side changes (as vr_body.cpp's and vr_twohand.cpp's shoulders)
 }
@@ -398,20 +436,41 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     return bones * za::max(1.f, vr_body_arm_stretch.value) + za::max(0.f, vr_body_shoulder_reach.value) * m2w;
 }
 
+// The body pose's limits, the part of them that is shape and not taste.
+constexpr float poseTweakMax = 10.f;  // the body pose's tweaks in units (vr_flat_arm_out_down, vr_flat_crouch_shoulder_*)
+constexpr float clearMost = 15.f;     // vr_flat_clear_chest, vr_flat_clear_eye
+constexpr float clearEase = 3.f;      // the chest's limit eases in over this much above it, units
+constexpr float clearFadeAbove = 6.f; // a hand this far over its shoulder has no chest to clear
+constexpr float eyeEase = 1.5f;       // the eye's limit, the same
+constexpr float neckLength = 0.09f;   // the neck under the top of it, metres of the body (vr_flatsweep's shape)
+constexpr float screenEase = 2.f;     // the screen's limit, the same
+constexpr float keepEase = 0.1f;      // the arm limits, the same, as a share of the arm
+constexpr float acrossKeep = 0.8f;    // the stance's hotspot keeps across the view within this much of what the free arm keeps it at
+constexpr float lookMost = 85.f;      // a look straight down, for the arm's move out
+
+constexpr float stanceFadeFrom = 10.f; // the look's degrees off level the stance starts fading at, and has gone by
+constexpr float stanceFadeTo = 55.f;
+
 // Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_ahead / _down /
 // _out), the free hand's next to the other hand's gun (vr_flat_support_*), an empty hand's (vr_flat_empty_*). Positive
 // is forward, out at that hand's own side, and down (the z term reads the negative of the cvar, which is why the cvars
 // read "how far below": a bigger number is a lower hand, as it was when these were the constants). vr_flat_reach
 // multiplies the whole thing, as it did before.
-[[nodiscard]] glm::vec3 targetOffset(int h, float reach, bool otherHolds)
+[[nodiscard]] glm::vec3 targetOffset(int h, float reach, bool otherHolds, float pitch, float stanceAsked = -1.f)
 {
     const float side = h == HAND_OFF ? -1.f : 1.f;
     if(heldIn(h) >= 0)
     {
-        // (The stance's own, on a long gun: flatsight::stanceAndLook.)
-        const float stance = flatsight::stanceShare(h);
+        // (The stance's own, on a long gun: flatsight::stanceAndLook. A level look's: a look up or down takes it off, and so does
+        // some of it a crouch, whose trunk leans into the gun.)
+        const float away = bodyPose() ? za::clamp((glm::abs(pitch) - stanceFadeFrom) / (stanceFadeTo - stanceFadeFrom), 0.f, 1.f) : 0.f;
+        const float crouched = bodyPose() ? keyState.ratio * za::clamp(vr_flat_stance_fade_crouch.value, 0.f, 1.f) : 0.f;
+        const float stance = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceShare(h)) * (1.f - crouched) *
+                             (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
+        // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
+        const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
         return {(poseNum(vr_flat_gun_ahead) - stance * poseNum(vr_flat_stance_back)) * reach,
-            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in)) * reach,
+            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in) + crouchOut) * reach,
             -(poseNum(vr_flat_gun_down) - stance * poseNum(vr_flat_stance_up)) * reach};
     }
     if(otherHolds)
@@ -953,6 +1012,171 @@ void frame()
     pollKeysFlat();
 }
 
+float chestPitch(float pitch)
+{
+    if(!bodyPose())
+    {
+        return 0.f;
+    }
+    return pitch * za::clamp(pitch > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f);
+}
+
+glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch)
+{
+    if(!active() || !bodyPose())
+    {
+        return glm::vec3{0.f};
+    }
+    // (Forward fades with a look down: under that look the neck would come into the view.)
+    const float down = za::clamp(pitch / lookMost, 0.f, 1.f);
+    return levelFwd * (za::clamp(vr_flat_crouch_shoulder_fwd.value, -poseTweakMax, poseTweakMax) * (1.f - down)) -
+           glm::vec3{0.f, 0.f, za::clamp(vr_flat_crouch_shoulder_down.value, -poseTweakMax, poseTweakMax)};
+}
+
+bool onBody()
+{
+    return active() && bodyPose();
+}
+
+glm::vec3 levelHang(const hands::State& s, int h)
+{
+    if(!active() || !bodyPose() || fs.hang[h] <= 0.f || !fs.shouldersKnown)
+    {
+        return glm::vec3{0.f};
+    }
+    const int held = 1 - h;
+    const glm::vec3 aim{0.f, s.headAngles.y, 0.f};
+    const glm::mat3 level = axes(aim);
+    const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
+    const glm::vec3 restFree = targetOffset(h, reach, true, 0.f);
+    // (Without the stance: the stance follows from the choice, so it can't move what chooses. It did: a shotgun's cup chosen, the stance
+    // brought the gun back, the grip ahead was nearer, a real grip took the stance off, the gun went out, the cup was nearer.)
+    const glm::vec3 restHeld = targetOffset(held, reach, false, 0.f, 0.f);
+    const glm::vec3 apart = fs.shoulders[h] - fs.shoulders[held] + level * (restFree - restHeld);
+    const glm::mat3 toGun = axes(s.rot[held]) * glm::transpose(level);
+    return s.pos[held] + toGun * apart - s.pos[h];
+}
+
+namespace
+{
+
+// x, kept above `low` without a corner: x itself from low + width up, nearing low below it.
+[[nodiscard]] float softAbove(float x, float low, float width)
+{
+    return x >= low + width ? x : low + width * za::exp((x - low - width) / width);
+}
+
+[[nodiscard]] float softBelow(float x, float high, float width)
+{
+    return -softAbove(-x, -high, width);
+}
+
+// The hand on the body (vr_flat_body_pose): where it stands for this look, from its shoulder. `local` is its pose at a level look,
+// off its shoulder (forward, right, up: targetOffset). The arm turns about the shoulder by its share of the look, then the limits,
+// each eased in so no look shows a corner: its hotspot within the free arm (the stance's), clear of the chest, clear of the eye, on
+// the screen, within its own arm.
+[[nodiscard]] glm::vec3 handOnBody(const hands::State& s, int h, const glm::vec3& aim, const glm::vec3& local, const glm::vec3& eye)
+{
+    glm::vec3 levelFwd, levelRight, levelUp;
+    hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const glm::vec3 root = shoulder(s, h);
+    const float span = armSpan();
+
+    const float turn = glm::radians(-aim.x * za::clamp(aim.x > 0.f ? vr_flat_arm_down.value : vr_flat_arm_up.value, 0.f, 1.5f));
+    const float c = za::cos(turn), sn = za::sin(turn);
+    const float lookOut = za::clamp(glm::abs(aim.x) / lookMost, 0.f, 1.f);
+    const float armOut = za::clamp(aim.x > 0.f ? vr_flat_arm_out_down.value : vr_flat_arm_out_up.value, -poseTweakMax, poseTweakMax);
+    glm::vec3 off{local.x * c - local.z * sn, local.y + side * armOut * lookOut * lookOut * (3.f - 2.f * lookOut), local.x * sn + local.z * c};
+    glm::vec3 p = root + levelFwd * off.x + levelRight * off.y + levelUp * off.z;
+
+    // The stance: the hotspot the free hand is drawn on stays in that arm's reach, the gun drawn back along the view, so it keeps its
+    // side of the screen and doesn't come across his face.
+    glm::vec3 spot;
+    const float stance = flatsight::stanceSpot(h, spot);
+    if(stance > 0.f)
+    {
+        glm::vec3 vf, vr, vu;
+        hands::angleVectors(aim, vf, vr, vu);
+        // (From its rest shoulder, as the free hand's own need is measured: flatsight's armShare.)
+        const glm::vec3 otherRoot = shoulder(s, 1 - h);
+        const float keep = span * za::clamp(vr_flat_keep_grip.value, 0.3f, 1.5f);
+        // Across the view first, as far as keeps the most of the way back along it (the gun out at its side by the crouch, say)...
+        glm::vec3 to = p + axes(aim) * spot - otherRoot;
+        const glm::vec3 acrossWay = to - vf * glm::dot(to, vf);
+        const float across = glm::length(acrossWay);
+        if(across > 1e-3f)
+        {
+            p -= acrossWay / across * (across - softBelow(across, keep * acrossKeep, keepEase * span)) * stance;
+        }
+        // ... then back along it.
+        to = p + axes(aim) * spot - otherRoot;
+        const float along = glm::dot(to, vf);
+        const float across2 = glm::dot(to, to) - along * along;
+        const float most = keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f;
+        p -= vf * (along - softBelow(along, most, keepEase * span)) * stance;
+    }
+
+    // Clear of the chest: ahead of the shoulder, while the hand is below it (a hand over the shoulder has no chest before it).
+    {
+        const glm::vec3 rel = p - root;
+        const float ahead = glm::dot(rel, levelFwd);
+        const float below = za::clamp(1.f - glm::dot(rel, levelUp) / clearFadeAbove, 0.f, 1.f);
+        const float keep = za::clamp(vr_flat_clear_chest.value, 0.f, clearMost);
+        if(below > 0.f)
+        {
+            p += levelFwd * (softAbove(ahead, keep * below, clearEase) - ahead);
+        }
+    }
+
+    // Clear of the eye, and of the neck under his head (a look up takes the eye back over it).
+    {
+        const float keep = za::clamp(vr_flat_clear_eye.value, 0.f, clearMost);
+        const glm::vec3 v = p - eye;
+        const float d = glm::length(v);
+        if(d > 1e-3f)
+        {
+            p = eye + v / d * softAbove(d, keep, eyeEase);
+        }
+        const float m2w = units::metresToUnits() * units::bodyScale();
+        const glm::vec3 neckTop = s.head + headLean(aim) - levelUp * (vr_body_eye_up.value * m2w);
+        const float z = za::clamp(glm::dot(neckTop - p, levelUp), 0.f, neckLength * m2w);
+        const glm::vec3 fromNeck = p - (neckTop - levelUp * z);
+        const float dn = glm::length(fromNeck);
+        if(dn > 1e-3f)
+        {
+            p += fromNeck / dn * (softAbove(dn, keep, eyeEase) - dn);
+        }
+    }
+
+    // On the screen: forward enough along the view for how far it stands off the view's middle.
+    {
+        glm::vec3 vf, vr, vu;
+        hands::angleVectors(aim, vf, vr, vu);
+        const glm::vec3 v = p - eye;
+        const float f = glm::dot(v, vf);
+        const float across = glm::length(v - vf * f);
+        const float flat = za::clamp(vr_flat_screen_angle.value, 20.f, 85.f);
+        const float cheek = za::clamp(vr_flat_screen_angle_stance.value, 20.f, 85.f);
+        const float angle = glm::radians(flat + (cheek - flat) * flatsight::stanceShare(h));
+        const float low = across / glm::tan(angle);
+        p += vf * (softAbove(f, low, screenEase) - f);
+    }
+
+    // Within its own arm.
+    {
+        const glm::vec3 v = p - root;
+        const float d = glm::length(v);
+        if(d > 1e-3f)
+        {
+            p = root + v / d * softBelow(d, span * za::clamp(vr_flat_keep_arm.value, 0.3f, 1.f), keepEase * span);
+        }
+    }
+    return p;
+}
+
+} // namespace
+
 void poseHands(hands::State& s, const glm::vec3& aim)
 {
     // Made at the frame's start, again for the move and again for the view (hands::relatch): the same frame's poses
@@ -965,6 +1189,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     s.bodyYaw = aim.y + flatsight::stanceYaw();
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
+
+    // The arms' joints as the body stands this frame: the chest's share and the crouch in them, the stance's turn just made.
+    const bool onBody = bodyPose();
+    fs.shouldersKnown = onBody;
+    if(onBody)
+    {
+        avatar::restShoulders(s, fs.shoulders);
+    }
 
     // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
     // The anchor the flat hands are built on does not tip with the head (hands::bodyAnchor, vr_hands.cpp) while the body
@@ -982,13 +1214,18 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     // The eye's nudge (vr_flat_cam_*) carries the hands: the drawn hands stay where they are on the screen, and these are
     // the drawn hands, so the muzzle the shots go from is the one he sees, and it stands where the crosshair's ray is read.
-    const glm::vec3 nudge = viewIsHisOwn(s) ? camShiftWorld(aim) : glm::vec3{0.f};
+    // (On the body: the nudge alone. The neck's turn moves the eye off a body that stays, and the hands are on the body.)
+    const bool ownView = viewIsHisOwn(s);
+    const glm::vec3 nudge = ownView ? (onBody ? camNudgeWorld(aim) : camShiftWorld(aim)) : glm::vec3{0.f};
+    const glm::vec3 eye = ownView ? s.head + camShiftWorld(aim) : s.head;
+    glm::vec3 viewFwd, viewRight, viewUp;
+    hands::angleVectors(aim, viewFwd, viewRight, viewUp);
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
         // turn's lag) are the drawn hands' only (drawnOffset): the game's hands, and the shots, stay on the crosshair.
-        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds) +
+        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds, aim.x) +
             (h == HAND_OFF ? grabOffset() : glm::vec3{0.f});
         if(!fs.localSeen[h])
         {
@@ -1003,8 +1240,25 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // rules ask the striking hand for vr_melee_speed (3.2 m/s, a weapon's swing 1.25 times that, twice that for a
         // full blow): eased toward the punch's own target at handEase the hand never gets there, and the punch lands as
         // a shove with no blow in it. Where a hand sits and what E reaches for are eased, as they were.
-        const glm::vec3 off = fs.local[h] + (punchSwing(h, rest) - rest);
-        s.pos[h] = shoulder(s, h) + nudge + fwd * off.x + right * off.y + up * off.z;
+        const float sideOf = h == HAND_OFF ? -1.f : 1.f;
+        const glm::vec3 fromAnchor{anchorFromShoulder.x, anchorFromShoulder.y * sideOf, anchorFromShoulder.z};
+        const glm::vec3 restOld = rest - fromAnchor; // the numbers off the old anchor: the punch's, and vr_flat_body_pose 0's
+        const glm::vec3 swing = punchSwing(h, restOld) - restOld;
+        const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
+        if(onBody)
+        {
+            s.pos[h] = handOnBody(s, h, aim, fs.local[h], eye) + nudge + fwd * swing.x + right * swing.y + up * swing.z;
+            if(heldIn(h) >= 0)
+            {
+                s.pos[h] += viewFwd * za::clamp(vr_flat_gun_view_fwd.value, -poseTweakMax, poseTweakMax) +
+                            viewRight * za::clamp(vr_flat_gun_view_right.value, -poseTweakMax, poseTweakMax) +
+                            viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
+            }
+        }
+        else
+        {
+            s.pos[h] = shoulder(s, h) + nudge + fwd * off.x + right * off.y + up * off.z;
+        }
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
 
@@ -1219,6 +1473,11 @@ glm::vec3 shoulderOf(const hands::State& s, int h)
 float armReach()
 {
     return armSpan();
+}
+
+glm::vec3 headLean(const glm::vec3& aim)
+{
+    return active() && vr_flat_eye_pivot.value != 0.f ? chestCarry(aim) : glm::vec3{0.f};
 }
 
 glm::vec3 eyeNudge(const glm::vec3& aim)

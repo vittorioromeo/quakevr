@@ -92,6 +92,10 @@ void statusLine();
 
 // vr_flat_sweep's row (vr_flatsweep.cpp): the free hand against the hotspot, the shot against the crosshair's point, the sights
 // against the ray. -1: doesn't apply to what is held.
+// The stance's gun hand `h`: the hotspot the free hand is drawn on, in that hand's frame, and how far into the stance it is (0: no
+// stance on this hand, `local` not set).
+[[nodiscard]] float stanceSpot(int h, glm::vec3& local);
+
 struct SweepNumbers
 {
     int holding{-1};

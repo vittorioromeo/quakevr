@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_nailslide.hpp"
 
@@ -1028,7 +1029,8 @@ void chooseGrip(const WeaponFrame& wf)
                 // A cup is where the helping hand's palm goes: taken by the palm (round 21, third pass).
                 // (As tracked: the hands drawn out of each other and the body, vr_body_collide, choose as without it.)
                 const WorldHotspot& w = worldHotspots[hand][i];
-                const glm::vec3 from = w.type == weapons::HotspotType::Cup ? hands::palmPoint(s, 1 - hand) : s.pos[1 - hand];
+                // (Flatscreen play: from where that hand hangs off the gun at a level look: no look changes which grip it is.)
+                const glm::vec3 from = (w.type == weapons::HotspotType::Cup ? hands::palmPoint(s, 1 - hand) : s.pos[1 - hand]) + flatplay::levelHang(s, 1 - hand);
                 // (The magazine: its box's surface, wherever along it.)
                 const float d = i == magSpot[hand]
                                     ? boxDistance(s.magBox[hand], from - selfcollide::drawnOffset(1 - hand) + selfcollide::drawnOffset(hand))

@@ -353,12 +353,15 @@ QVR_TUNABLE(vr_crates_margin, "56") // units from any other entity (doors, lifts
 QVR_TUNABLE(vr_crates_seed, "0") // mixed with the map's name: another layout (the same each load)
 QVR_TUNABLE(vr_crate_impact, "16") // m/s: a crate hitting something this hard breaks (less: damaged from 70% of it); 0: never
 QVR_TUNABLE(vr_crate_piece_impact, "8") // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
+QVR_TUNABLE(vr_carry_grab_ease, "0.12") // s: a prop just taken in one hand is drawn from where it was onto its grip's place over this (a Fixed or In the Palm grip turns and moves it there; 0: at once)
 QVR_TUNABLE(vr_carry_slam_height, "10") // cm: the hands' middle at least this far over the eyes is over the head
 QVR_TUNABLE(vr_carry_slam_speed, "3") // m/s: the hands swung down at least this fast (mostly downwards) break it on what they meet
 QVR_TUNABLE(vr_carry_slam_window, "1") // s after it was last over the head a swing down still counts
 QVR_TUNABLE(vr_carry_slam_damage, "2") // what it is swung onto takes this times a punch with it in hand (times its speed over the least, at most twice)
 QVR_TUNABLE(vr_crate_slam_throw_damage, "0.55") // let go of from over the head, its first hard landing takes this share of its full health (0.55: two such throws break it)
 QVR_TUNABLE(vr_crate_slam_throw_speed, "3") // m/s: ... a landing at least this fast
+QVR_TUNABLE(vr_crate_hit_volume, "2.5") // a crate knocked (hit, not broken): its crack of wood times this (1: as before, 2026-11-02; up to 4, over full: SND_LOUD)
+QVR_TUNABLE(vr_crate_break_volume, "2") // a crate breaking: its sound times this (1: as before; up to 4)
 QVR_TUNABLE(vr_crate_pieces, "12") // pieces a small crate breaks into (a large one more, by its size)
 QVR_TUNABLE(vr_crate_piece_max, "48") // most pieces lying about at once (the oldest turn to dust)
 QVR_TUNABLE(vr_crate_piece_time, "60") // s a piece lies about before it fades away (0: for ever)
@@ -494,6 +497,8 @@ QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on o
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
+QVR_TUNABLE(vr_knockdown_ledge_topple, "32") // units: a shove with a ledge this near ahead of its middle topples it over at once (the old launch); further, up to vr_knockdown_ledge_backpedal_reach, it backpedals (his note, 2026-11-05)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_reach, "80") // units: ... with a ledge further than this ahead of its middle, the shove is an ordinary one (no ledge)
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
@@ -1810,9 +1815,9 @@ QVR_TUNABLE(vr_model_light_teleport, "0.35") // ... teleporters
 QVR_TUNABLE(vr_model_light_teleport_range, "256")
 
 // Flatscreen > Held Weapon
-QVR_TUNABLE(vr_flat_gun_ahead, "14") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units): out where a person holds one, the elbow bent, not crushed against the torso (2026-11-05; vr_flat_gun_fwd 5 before, renamed so a saved 5 does not hold it)
-QVR_TUNABLE(vr_flat_gun_down, "12") // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 10 before)
-QVR_TUNABLE(vr_flat_gun_out, "4") // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2 before; negative brings it across the centre line)
+QVR_TUNABLE(vr_flat_gun_ahead, "16.5") // the held weapon, hipfire, at a level look: how far in front of the shoulder the arm hangs from it sits (-30..30 units; 14 off the old anchor)
+QVR_TUNABLE(vr_flat_gun_down, "0") // the held weapon, hipfire, at a level look: how far below that shoulder it sits (-30..30; positive is lower; 12 off the old anchor, which stood 12 higher)
+QVR_TUNABLE(vr_flat_gun_out, "1") // the held weapon, hipfire, at a level look: how far out at the holding hand's own side of that shoulder it sits (-30..30; 4 off the old anchor; negative brings it across)
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
@@ -1820,17 +1825,17 @@ QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up an
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
 // Flatscreen > Free Hands
-QVR_TUNABLE(vr_flat_empty_fwd, "5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 as before)
-QVR_TUNABLE(vr_flat_empty_down, "13") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 as before)
-QVR_TUNABLE(vr_flat_empty_out, "7") // an empty hand: how far out at its own side it hangs (-30..30; 7 as before)
-QVR_TUNABLE(vr_flat_support_fwd, "6") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 before: it hangs at his side now). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
-QVR_TUNABLE(vr_flat_support_down, "15") // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 before)
+QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
+QVR_TUNABLE(vr_flat_empty_down, "1") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 off the old anchor)
+QVR_TUNABLE(vr_flat_empty_out, "4") // an empty hand: how far out at its own side it hangs (-30..30; 7 off the old anchor)
+QVR_TUNABLE(vr_flat_support_fwd, "8.5") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 6 off the old anchor)
+QVR_TUNABLE(vr_flat_support_down, "3") // the same free hand: how far below its shoulder (-30..30; positive is lower; 15 off the old anchor)
 QVR_TUNABLE(vr_flat_stance, "1") // a long gun with a two-handed hotspot (Weapon Offsets): the torso turns, the free hand's shoulder forward, and the free hand is drawn on that hotspot with its pose, as a look: no grip, two-handed aim, recoil or weight (vr_flatsight.cpp stanceAndLook; 0: the hand hangs, the torso faces the view)
 QVR_TUNABLE(vr_flat_stance_turn, "25") // how far the torso turns for it (degrees, 0..45); the view doesn't turn
 QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
-QVR_TUNABLE(vr_flat_support_out, "6") // the same free hand: how far out at its own side (-30..30; 5 before)
+QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
@@ -1839,6 +1844,7 @@ QVR_TUNABLE(vr_flat_model_fov_far, "35") // and none past this far (units): the 
 
 // Flatscreen > Ironsight
 QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
+QVR_TUNABLE(vr_flat_ads_wall_keep, "8") // the ironsight: a wall or the floor pushes the rear sight no nearer the eye than this (3..30 units); past it the gun's end enters the surface and is hidden there, and no gun looms
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
 QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
@@ -1850,9 +1856,33 @@ QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what t
 QVR_TUNABLE(vr_flat_eye_pivot, "1") // 1: the flatscreen look's pitch turns the eye about a point in his neck, as a head does (a look down carries it forward, clear of his chest; a level look's eye is where it always was); 0: the eye turns about itself
 QVR_TUNABLE(vr_flat_eye_fwd, "1") // the eye off that point, forward at a level look (0..8 units)
 QVR_TUNABLE(vr_flat_eye_up, "4") // the same, up (0..8 units)
+QVR_TUNABLE(vr_flat_eye_lean, "12") // the chest's share of a look carries the head with it, about a point in the spine this far under the neck (0..30 units; with vr_flat_body_pose)
 QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
 QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
+
+// Flatscreen > Body Pose
+QVR_TUNABLE(vr_flat_body_pose, "1") // 1: the hands stand on the body: on the shoulders the arms hang from, the chest takes a share of the look, the crouch lowers the shoulders, with limits (0: the view-fixed pose before it)
+QVR_TUNABLE(vr_flat_chest_down, "0.3") // the chest's share of a look down (0..1): 0.3 of 85 degrees bends it 25
+QVR_TUNABLE(vr_flat_chest_up, "0.2") // the chest's share of a look up (0..1)
+QVR_TUNABLE(vr_flat_arm_down, "0.7") // the arm's share of a look down, about its shoulder (0..1.5)
+QVR_TUNABLE(vr_flat_arm_up, "0.85") // the arm's share of a look up, about its shoulder (0..1.5): lifts the hand over the shoulder
+QVR_TUNABLE(vr_flat_arm_out_down, "3") // a look straight down carries the hand this far out at its own side, past the chest (-10..10 units)
+QVR_TUNABLE(vr_flat_arm_out_up, "2.5") // and a look straight up, this far (-10..10 units)
+QVR_TUNABLE(vr_flat_stance_fade, "0.9") // how much of the stance's pull towards the shoulder a look up or down takes off (0..1)
+QVR_TUNABLE(vr_flat_stance_fade_crouch, "0.6") // and how much a full crouch takes off (0..1)
+QVR_TUNABLE(vr_flat_crouch_shoulder_down, "3") // the crouch: his shoulders this much further under the eye than a standing body's (-10..10 units)
+QVR_TUNABLE(vr_flat_crouch_gun_out, "2") // the crouch: a held weapon's hand this much further out at its side, the stock off the chest the crouch leans forward (-10..10 units)
+QVR_TUNABLE(vr_flat_crouch_shoulder_fwd, "2") // the crouch: his shoulders this much further forward under the eye (-10..10 units)
+QVR_TUNABLE(vr_flat_clear_chest, "4") // a hand keeps this far ahead of its shoulder when it is below the shoulder: clear of the chest (0..15 units, eased in over the next 3)
+QVR_TUNABLE(vr_flat_clear_eye, "3.5") // a hand keeps this far from the eye (0..15 units, eased in over the next 2)
+QVR_TUNABLE(vr_flat_keep_arm, "0.92") // a hand keeps within this share of what its arm reaches, eased in over the last 0.1 (0.3..1)
+QVR_TUNABLE(vr_flat_keep_grip, "0.87") // a long gun's hand keeps its hotspot within this share of the free arm's reach, eased in over the last 0.1 (0.3..1.5)
+QVR_TUNABLE(vr_flat_screen_angle, "55") // a hand keeps within this angle off the middle of the view (20..85 degrees): on the screen
+QVR_TUNABLE(vr_flat_screen_angle_stance, "75") // the same, for a long gun's hand in the stance: by his cheek, the gun comes up out of the corner
+QVR_TUNABLE(vr_flat_gun_view_fwd, "0") // on top of all that, a held weapon's hand moved along the view (-10..10 units): fixed to the view at any look
+QVR_TUNABLE(vr_flat_gun_view_right, "0") // the same, to the view's right
+QVR_TUNABLE(vr_flat_gun_view_up, "0") // the same, the view's up
 
 // Flatscreen > Crouch
 QVR_TUNABLE(vr_flat_crouch_time, "0.25") // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)

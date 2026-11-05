@@ -34,6 +34,9 @@ struct Torso
 // The spine's pose from the head alone (usable before the hands are placed). `crouchPose`: with the crouched pose's
 // offsets (vr_body_crouch_*) as deep as the body crouches; off for a reference pose (standing(), the calibration's).
 [[nodiscard]] Torso torso(const hands::State& s, bool crouchPose = true);
+// Where each arm's shoulder joint stands from the head alone, before a hand lifts it (usable before the hands are placed: the
+// flatscreen pose stands the hands on these). out[side]: 0 the off hand's, 1 the main hand's, as Skeleton::shoulder.
+void restShoulders(const hands::State& s, glm::vec3 out[2]);
 
 // The crouched pose's share (vr_body_crouch_*; ROUND21.md, "Crouched pose"): vr_body_crouch_pose_strength times the
 // crouch's depth (0 standing, 1 the pelvis at squatting height; vr_body_crouch_preview, 0..1, instead) to the power

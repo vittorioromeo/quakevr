@@ -110,6 +110,7 @@ za::Vector<Item> pageDebugViews()
                   "what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
         row(opt::vr_debug_hitzones),
         row(opt::vr_debug_disarm),
+        row(opt::vr_knockdown_ledge_show),
         toggle("Show Directional Parry", vr_dirparry_debug)
             .help("vr_dirparry_debug: the directional parry's reading of each armed humanoid's swing (its blade, its "
                   "way, your parry line, the ideal, the score vs threshold, the angle, the contact distance), coloured "
