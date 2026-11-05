@@ -40,6 +40,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
 #include "vr_main.hpp"
@@ -1158,6 +1159,16 @@ bool aiming()
 float transition(int hand)
 {
     return aimTransition[hand];
+}
+
+float drawnTransition(int hand)
+{
+    return za::max(aimTransition[hand], flatsight::lookShare(1 - hand));
+}
+
+bool drawnHelping(int hand)
+{
+    return helpingHand[hand] || flatsight::lookShare(hand) > 0.f;
 }
 
 float stock(int hand)

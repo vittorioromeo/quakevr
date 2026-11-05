@@ -337,6 +337,14 @@ enum class HandPart : unsigned char
 // gadget's screen tap (its striking volume). False when it isn't drawn.
 [[nodiscard]] bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts);
 
+// The two-handed hotspot of `hand`'s weapon a hand free to go anywhere goes to (Weapon Offsets' own, as placed this frame): a
+// grip it aims by if there is one, else a cup; the one furthest along the gun. Its index, its place in `at`; -1: none.
+// (A tracked hand takes the one nearest it instead: chooseGrip.)
+[[nodiscard]] int twoHandSpot(const hands::State& s, int hand, glm::vec3& at);
+
+// Where `hand` was drawn this or last frame, and how turned; false: it wasn't.
+[[nodiscard]] bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the
@@ -398,6 +406,24 @@ void woundTargets(entity_t* out[3]);
 
 // The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
+// The armour's plates on your body (vr_player_plates; vr_view_body.cpp setupPlates): `e`'s bones if it is one of their
+// entities (0: not), the body's as this pass draws them, a hidden piece's collapsed, the helmet only where the head is
+// drawn (View: as VR_AliasBonePoses has the body; Shadow: as the shadow maps have it; Clone: its mirror image, with its head).
+enum class PlatePass : int
+{
+    View,
+    Shadow,
+    Clone,
+};
+[[nodiscard]] int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass);
+// A new level or a load's armour coming (agarmor::parseEvent): the next word on the plates taken as it comes, no morph.
+void platesResync();
+// vr_player_plates_info: what's drawn this frame.
+void platesInfo_f();
+// The tests (ragdollbone's QVR_ARMOR_CLIENT, `what`): 10 the settled pieces drawn, 11 those coming in, 12 those going out, 13
+// the newest morph coming in's progress (per mille; 0 none), 14 morphs begun so far, 15 the pieces drawn from the eyes last
+// frame (a view without the head), 16 those drawn with the head, 17 the plates' slots (0: no shell), 18 the settled ones' colour.
+[[nodiscard]] int platesState(int what);
 
 void dumpView_f();
 

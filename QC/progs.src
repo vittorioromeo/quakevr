@@ -123,6 +123,7 @@ vr_decap_test.qc
 vr_limbs.qc
 // Armour for armed humanoids (after vr_limbs.qc, vr_decap.qc: their cut and pop globals; vr_armedgrunt_defs.qc has its fields).
 vr_agarmor.qc
+vr_playerplates.qc
 // Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
 vr_teeth.qc
 vr_limbs_test.qc
@@ -163,6 +164,7 @@ vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_agarmor_test.qc
 vr_embed_test.qc
+vr_playerplates_test.qc
 vr_embed_edge_test.qc
 vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc

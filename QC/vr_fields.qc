@@ -12,6 +12,13 @@
 .float vr_saw_cord_pulled; // the player has pulled a chainsaw's cord (set by the engine: vr_chainsaw.cpp, the cord's hint
                            // stops: vr_chainsaw_cord_hint 1), saved and carried by parm50's bit 19
 .float vr_bullettime_spent; // bullet time's meter used up (0: full, 1: empty; kept by the engine: vr_bullettime.cpp), saved and carried by parm74
+// The player's armour plates, a look alone (vr_playerplates.qc): never read for damage. Saved; the mask carried by parm75.
+.float vr_pp_type;      // their colour: 0 none, 1 green, 2 yellow, 3 red
+.float vr_pp_mask;      // the pieces shown (VR_AgArmor_Bit)
+.vector vr_pp_hit;      // where the last hit that reached the armour came from (T_Damage)
+.float vr_pp_hit_time;  // ... and when
+void(entity p) VR_PP_Frame;
+void() VR_PP_Precache;
 .float vr_bullettime_earned; // the damage the player dealt living monsters since the engine last took it (VR_BulletTime_Earn, combat.qc)
 float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state takes bits 0..18)
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)

@@ -98,6 +98,15 @@ void relink();
 [[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
 // The body an armour entity is drawn on (nullptr: not one).
 [[nodiscard]] const struct entity_s* sourceOf(const struct entity_s* e);
+// ---- The player's plates (vr_player_plates; ROUND24.md, "The player's armour plates") ----
+// The same generator on the player's body (progs/vrbody*: its own bones taken for a rig, the plates skinned on them, so they
+// follow its IK); a look alone (QC vr_playerplates.qc keeps .vr_pp_type and .vr_pp_mask by .armorvalue, sent as above; the
+// view's Entities::plate draw them and morph new ones in). The armour model over `body` ("<body>#armor", made when first
+// asked; null: no shell).
+[[nodiscard]] qmodel_t* playerArmorModel(qmodel_t* body);
+// That model's bone slots: each one's bone (the body model's bone order) and piece. False: no shell yet.
+[[nodiscard]] bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, const int*& slotPiece);
+
 // Entity `num`'s armour: type 0 none, 1 green, 2 yellow, 3 red; `pieces` a mask of Piece bits; -1: vr_agarmor's again.
 void setWorn(int num, int type, int pieces);
 // A live game's monster `num` given armour `type` (0 none) on `pieces`, each pool full (QC VR_AgArmor_SetCmd; the server's

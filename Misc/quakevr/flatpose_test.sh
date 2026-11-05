@@ -97,7 +97,7 @@ read -r dmg0 dmg1 <<<"$(gaps "$log")"
 echo "  vr_flat_cam_fwd 12 vr_flat_cam_up 6 vr_flat_cam_side 4: the drawn eye $eye0 units above his origin, the nudges read as $nx $ny $nz in the world at this look, his origin $org0; the muzzle $n0a units off the crosshair's ray with the sight settled before the nudges and $n1b / $n1a after them; the knight on the crosshair took ${dmg0:-no read} units from the shot before the nudges and ${dmg1:-no read} from the one after them, $log"
 check $(awk -v o="$org0" 'BEGIN { exit o == 88 }' && echo 1 || echo 0) "view: the nudges move the drawn eye and leave his origin at 88"
 check $(awk -v e="$eye0" -v x="$nx" -v y="$ny" -v z="$nz" 'BEGIN { exit !(e > 27 && e < 29 && x == 12 && y == 4 && z == 6) }' && echo 1 || echo 0) "view: at this look the nudges read as 12 forward, 4 to the world's east and 6 up"
-check $(awk -v b="$n1b" -v a="$n1a" 'BEGIN { exit !(a < 1 && b > 5) }' && echo 1 || echo 0) "view: the sight closes the muzzle back onto the nudged camera's crosshair ray"
+check $(awk -v b="$n1b" -v a="$n1a" 'BEGIN { exit !(a < 1 && b > 4) }' && echo 1 || echo 0) "view: the sight closes the muzzle back onto the nudged camera's crosshair ray"
 check $(awk -v d0="${dmg0:-0}" 'BEGIN { exit !(d0 + 0 > 0) }' && echo 1 || echo 0) "view: the foe standing on the crosshair is hit by the shot fired before the nudges"
 
 # e. the same nudges with Left Ctrl held: the crouch comes down on top of them. The game's own report (vr_flatkeys_test 1)

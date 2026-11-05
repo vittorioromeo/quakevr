@@ -4504,6 +4504,11 @@ QVR_SLIDER(vr_nail_lightness, "Nail Lightness", 0.f, 1.f, 0.05f, "%.2f", noExt,
 QVR_SLIDER(vr_nail_gloss, "Nail Gloss", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
     "mirrored in it.")
+QVR_TOGGLE(vr_player_plates, "Armour Plates",
+    "The armour you wear drawn as plates on your body: they fall off as it wears down, the torso's last, and pickups "
+    "put them back. Only a look: the armour protects you the same.")
+QVR_SLIDER(vr_player_plates_morph_time, "Plates Appear Over", 0.f, 2.f, 0.1f, "%.1f s", noExt,
+    "A new plate dissolves in over this long, as a gun's other ammo does. 0: at once.")
 QVR_TOGGLE(vr_body_pauldrons, "Pauldrons",
     "Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears.")
 QVR_CYCLE(vr_body_pauldron_style, "Pauldron Style",
