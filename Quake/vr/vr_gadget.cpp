@@ -1216,6 +1216,52 @@ bool notice(za::StringView text, float seconds)
     return true;
 }
 
+bool arenaMessage(za::StringView text, float seconds)
+{
+    if(!hologramOn())
+    {
+        return false;
+    }
+    HoloMessage m;
+    makeMessage(text, m);
+    m.start = m.appeared = realtime;
+    m.life = za::max(seconds, 1.f); // (not a notification: of the moment, never held)
+    m.arena = true;
+    m.generation = worldGeneration();
+    // In place of the arena's last one: still up, the new one doesn't grow in again (the countdown's seconds).
+    bool replaced = false;
+    for(const HoloMessage& e : queue)
+    {
+        if(e.arena && alive(e))
+        {
+            replaced = true;
+            m.appeared = e.appeared;
+            m.seen = e.seen;
+        }
+    }
+    za::vectorEraseIf(queue, [](const HoloMessage& e) { return e.arena; });
+    m.id = nextId++;
+    arenaWrist.sent = text;
+    arenaWrist.id = m.id;
+    arenaWrist.frames = 0;
+    arenaWrist.taken++;
+    Con_DPrintf("gadget: arena message (%.1f s%s) \"%s\"\n", m.life, replaced ? ", in place of the last" : "", m.text.cStr());
+    if(!replaced && !gadgetInView())
+    {
+        buzz(); // out of view: look at the wrist
+        arenaWrist.buzzes++;
+    }
+    if(m.rows > 0)
+    {
+        queue.pushBack(ZA_MOVE(m));
+        if(queue.size() > 16)
+        {
+            queue.erase(queue.begin());
+        }
+    }
+    return true;
+}
+
 bool testMessage()
 {
     if(!hologramOn())
@@ -1414,8 +1460,61 @@ glm::vec3 panelBoardPhosphor()
     return glm::vec3{panelBoardPalette().text};
 }
 
+namespace
+{
+// panelBoardRead's 4..8: the arena's messages on the wrist (vr_gadget.hpp).
+[[nodiscard]] float readArenaWrist(const char* text, int what)
+{
+    switch(what)
+    {
+        case 6: return static_cast<float>(arenaWrist.taken);
+        case 7: return static_cast<float>(worldtext::arenaInViewCount());
+        case 8: return static_cast<float>(arenaWrist.buzzes);
+        default: break;
+    }
+    auto it = za::findIf(queue.begin(), queue.end(), [](const HoloMessage& m) { return m.id == arenaWrist.id && alive(m); });
+    if(arenaWrist.id == 0 || (text[0] != '\0' && arenaWrist.sent != text) || it == queue.end())
+    {
+        return -1.f;
+    }
+    if(what == 5)
+    {
+        return static_cast<float>(arenaWrist.frames);
+    }
+    // 4: its block in the image (white on black).
+    auto block = za::findIf(holoDrawn.begin(), holoDrawn.end(), [&](const HoloBlock& b) { return b.text == it->text; });
+    if(block == holoDrawn.end() || !holoTarget.framebuffer)
+    {
+        return -1.f;
+    }
+    const int width = holoTarget.width, height = holoTarget.height;
+    const int y0 = CLAMP(0, static_cast<int>(block->v0 * static_cast<float>(height)), height);
+    const int y1 = CLAMP(0, static_cast<int>(block->v1 * static_cast<float>(height)), height);
+    if(y1 <= y0)
+    {
+        return -1.f;
+    }
+    za::Vector<byte> rgba(static_cast<za::SizeT>(width) * (y1 - y0) * 4);
+    GLint previous = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, holoTarget.framebuffer);
+    glReadPixels(0, y0, width, y1 - y0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
+    za::SizeT inked = 0;
+    for(za::SizeT p = 0; p < rgba.size(); p += 4)
+    {
+        inked += za::max(rgba[p], za::max(rgba[p + 1], rgba[p + 2])) > 51 ? 1u : 0u;
+    }
+    return static_cast<float>(inked) / static_cast<float>(rgba.size() / 4);
+}
+} // namespace
+
 float panelBoardRead(const char* text, float x, float y, float w, float h, int what)
 {
+    if(what >= 4)
+    {
+        return readArenaWrist(text, what);
+    }
     return readPanelBoard(text, x, y, w, h, what);
 }
 
@@ -1628,6 +1727,7 @@ void gadgetInfo_f()
     const glm::mat3& a = current.axes;
     Con_Printf("gadget: origin %.3f %.3f %.3f right %.4f %.4f %.4f up %.4f %.4f %.4f out %.4f %.4f %.4f\n", o.x, o.y, o.z,
         a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z);
+    Con_Printf("gadget: in view %.2f (the hologram's: %s)\n", holo.shown, gadgetInView() ? "seen" : "not seen");
     for(const HoloMessage& m : queue) // (the hologram's messages up now: tests)
     {
         if(alive(m))
