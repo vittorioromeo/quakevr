@@ -2595,6 +2595,7 @@ void drawLens()
     state.blend = gfx::Blend::Premultiplied;
     state.depthTest = true;
     state.depthWrite = false;
+    state.flatModelFov = true;
     gfx::draw(fan, gfx::sceneViewProjection(), state);
 }
 
@@ -2670,6 +2671,7 @@ void drawTranslucent()
     state.blend = gfx::Blend::Premultiplied;
     state.depthTest = true;
     state.depthWrite = false;
+    state.flatModelFov = true;
     gfx::draw(triangles, gfx::sceneViewProjection(), state);
 }
 

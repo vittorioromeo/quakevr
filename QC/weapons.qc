@@ -1083,6 +1083,7 @@ void(float xHand) HIP_SpawnMjolnirBase =
 
 float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt;
 vector(vector xFrom, vector xEnd) VR_LGWater_Zap;
+void(vector xFrom, vector xEnd) VR_Lightning_Burn;
 void(vector xAt) VR_LGWater_ZapBelow;
 
 // xAt: where it struck (its head).
@@ -2662,6 +2663,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     e1 = e2 = world;
 
     VR_LGWater_Zap(p1, p2); // VR: a bolt into water, whoever's, electrifies its surface
+    VR_Lightning_Burn(p1, p2); // VR: and on a surface leaves a lasting burn
 
     // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits),
@@ -2729,6 +2731,24 @@ vector(vector xFrom, vector xEnd) VR_LGWater_Zap =
 };
 
 // A blow's or an arc's end at `xAt`, not a line going in: in a liquid, the surface above it; else one just below it.
+// A bolt reaching a surface at the end of `xFrom` -> `xEnd` (a little on from it: `xEnd` may stop on it): a lasting burn there
+// (vr_decals.cpp lightningBurn; count 0: no puff of its own). The trace globals stay.
+void(vector xFrom, vector xEnd) VR_Lightning_Burn =
+{
+    vector oldEnd = trace_endpos;
+    entity oldEnt = trace_ent;
+    float oldFraction = trace_fraction;
+    vector along = normalize(xEnd - xFrom);
+    traceline(xFrom, xEnd + along * 8, TRUE, self);
+    if(trace_fraction < 1 && !trace_startsolid)
+    {
+        particle2(trace_endpos, along * 2, QVR_PARTICLE_PRESET_LIGHTNING, 0);
+    }
+    trace_endpos = oldEnd;
+    trace_ent = oldEnt;
+    trace_fraction = oldFraction;
+};
+
 void(vector xAt) VR_LGWater_ZapBelow =
 {
     float inLiquid = VR_LGWater_IsLiquid(pointcontents(xAt));

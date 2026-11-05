@@ -86,7 +86,7 @@ struct ibuf_s {
 		float	_pad;
 		vec4_t	fog;
 		float	dither;
-		float	_padding[3];
+		float	flatfov[3]; // QVR: the shader's FlatFovScale, FlatFovNear, FlatFovFar (VR_FlatModelFovNumbers)
 	} global;
 	aliasinstance_t inst[MAX_ALIAS_INSTANCES];
 } ibuf;
@@ -795,6 +795,7 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	memcpy (ibuf.global.matviewproj, r_matviewproj, sizeof (r_matviewproj));
 	memcpy (ibuf.global.eyepos, r_refdef.vieworg, sizeof (r_refdef.vieworg));
+	VR_FlatModelFovNumbers (ibuf.global.flatfov, aliasdepth); // QVR: flatscreen play's model FOV (never a shadow map's)
 	memcpy (ibuf.global.fog, r_framedata.fogdata, 3 * sizeof (float));
 	ibuf.global.fog[3] =
 		gl_overbright_models.value ?
@@ -1693,7 +1694,7 @@ cull:
 		if (portal_split)
 			;
 		else if (!posed)
-			culled = !aliasfaces && R_CullModelForEntity (e); // (layered: the caller culled it by face)
+			culled = !aliasfaces && !VR_FlatModelFovUncull (e) && R_CullModelForEntity (e); // (layered: the caller culled it by face)
 		else if ((cullmode = VR_AliasCullPosedOn (e, mode == ALIAS_DEPTH)) && R_AliasPosedBox (e, paliashdr, model_matrix, pmins, pmaxs, cached, cachehit))
 		{
 			unsigned char before = facemask;
@@ -1703,7 +1704,7 @@ cull:
 				culled = tested - R_AliasFaceCount (facemask);
 			}
 			else
-				culled = R_CullBox (pmins, pmaxs);
+				culled = !VR_FlatModelFovUncull (e) && R_CullBox (pmins, pmaxs);
 			if (cullmode == 2 && culled)
 				wrong = R_AliasPosedWrong (e, paliashdr, model_matrix, (unsigned char) (before & ~facemask));
 		}
@@ -1711,7 +1712,7 @@ cull:
 		if (culled == tested)
 			return;
 	}
-	else if (!portal_split && !posed && !aliasfaces && R_CullModelForEntity(e))
+	else if (!portal_split && !posed && !aliasfaces && !VR_FlatModelFovUncull (e) && R_CullModelForEntity(e))
 		return;
 
 	//
@@ -1910,6 +1911,7 @@ cull:
 	}
 instanced:
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias motion", VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion)); // QVR: its previous frame's positions
+	instance->motion[2] = mode == ALIAS_STANDARD && VR_FlatModelFovEntity (e); // QVR: flatscreen play's model FOV
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)

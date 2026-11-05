@@ -2833,6 +2833,9 @@ vr_lg_water_damage|2|Tunables|Shock Damage to Others|Advanced VR Options > Debug
 vr_lg_water_radius|2|Tunables|Reach|Advanced VR Options > Debug > Tunables > Reach
 vr_lg_water_falloff|2|Tunables|Falloff|Advanced VR Options > Debug > Tunables > Falloff
 vr_lg_water_tick_damage|2|Tunables|Electrified Water Damage|Advanced VR Options > Debug > Tunables > Electrified Water Damage
+vr_lightning_burn_size|2|Tunables|Lightning Burn Size|Advanced VR Options > Debug > Tunables > Lightning Burn Size
+vr_lightning_burn_gap|2|Tunables|Lightning Burn Gap|Advanced VR Options > Debug > Tunables > Lightning Burn Gap
+vr_lightning_burn_stack|2|Tunables|Lightning Burns a Spot|Advanced VR Options > Debug > Tunables > Lightning Burns a Spot
 vr_lg_water_arcs|2|Tunables|Electrified Water Arcs|Advanced VR Options > Debug > Tunables > Electrified Water Arcs
 vr_lg_water_flash|2|Tunables|Shock Flash|Advanced VR Options > Debug > Tunables > Shock Flash
 vr_ammo_pouch_counter_x|2|Tunables|Counter X|Advanced VR Options > Debug > Tunables > Counter X

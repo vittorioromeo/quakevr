@@ -44,11 +44,14 @@ FAMILY_MAX = 14.0        # the metal's area-weighted mean colour from the old me
 INTERIOR_MAX = 18.0      # the nail muzzles' interior: almost black
 RUST_MAX = 0.2           # fraction of a model's painted texels in rust colours (warm and clearly lit)
 GUNS = {"v_shot.mdl", "v_nail.mdl", "v_lava.mdl"}
-RIVETS = {"v_shot.mdl": 6, "v_nail.mdl": 4, "v_lava.mdl": 4}
+RIVETS = {"v_shot.mdl": 10, "v_nail.mdl": 10, "v_lava.mdl": 10}
 RIVET_TRIS = 30          # triangles in one rivet's head
 MIRROR_TOL = 0.3         # model units: a rivet and its mirror on the other side
 PUMP_RINGS_X = 18.9      # the shotgun's pump rings start here
-TOP_Z = 5.0              # the shotgun receiver's top, the sights' side: no rivet there
+SIGHT_GAP = 0.5          # a rivet's head at least this far from any glowing sight point
+HIDE_GAP = 0.1           # and from the line of sight to one (from an eye on the sight line and above it, as in the aiming view)
+RIDE_STEPS = 3.0         # a rivet riding a moving part: its motion from that part's nearest vertex's, in byte steps
+EYE_BACK = 14.0          # the eye this far behind the rear sights
 
 passed = failed = 0
 
@@ -174,9 +177,27 @@ def model_checks(name, spec):
         check(mirrored, "every rivet has its mirror on the other side (within %.2f)" % MIRROR_TOL)
         if name == "v_shot.mdl":
             on_line = np.abs(pts[:, 1]) < SIGHT_CLEAR
-            check(float(pts[:, 0].max()) < PUMP_RINGS_X and float(pts[:, 2].max()) < TOP_Z, "the rivets on the receiver's sides: x at most %.1f (the pump's rings from %.1f), z at most %.1f (its top from %.1f)" % (float(pts[:, 0].max()), PUMP_RINGS_X, float(pts[:, 2].max()), TOP_Z))
-            check(not on_line.any(), "the rivets clear of the sight line: |y| at least %.2f (limit %.1f), the sights within 0.6 of it" %
-                  (float(np.abs(pts[:, 1]).min()), SIGHT_CLEAR))
+            check(float(pts[:, 0].max()) < PUMP_RINGS_X, "the rivets clear of the pump's rings: x at most %.1f (they start at %.1f)" % (float(pts[:, 0].max()), PUMP_RINGS_X))
+            glow = []
+            for t in data["kept"]:
+                xs, ys, v = gl.tri_cover(old, old.tris[t], so)
+                if F.area[t] > 1e-3 and (v >= mp.FULLBRIGHT).mean() > 0.5:
+                    glow.append(P0[list(new.tris[t][1:])])
+            glow = np.concatenate(glow)
+            near = float(min(np.linalg.norm(glow - h, axis=1).min() for h in pts))
+            check(near >= SIGHT_GAP, "the rivets don't touch the sights: nearest %.2f (limit %.2f)" % (near, SIGHT_GAP))
+            rear = glow[glow[:, 0] < 15]
+            front = glow[glow[:, 0] >= 15]
+            r0, f0 = rear.mean(0), front.mean(0)
+            slope = (r0[2] - f0[2]) / (f0[0] - r0[0])
+            hide = 9e9
+            for lift in (0.0, 1.0, 2.0):
+                eye = np.array([r0[0] - EYE_BACK, 0.0, r0[2] + slope * EYE_BACK + lift])
+                seg = glow - eye
+                for pt in pts:
+                    tt = np.clip(((pt - eye) @ seg.T) / (seg * seg).sum(1), 0.0, 1.0)
+                    hide = min(hide, float(np.linalg.norm(eye + tt[:, None] * seg - pt, axis=1).min()))
+            check(hide >= HIDE_GAP, "the rivets don't hide the sights: nearest to a line of sight %.2f (limit %.2f)" % (hide, HIDE_GAP))
     # colour family: the old triangles' mean colours against the new paint under the same triangles
     means = np.array(data["means"], float)
     a_old, a_new = np.zeros(3), np.zeros(3)
@@ -285,8 +306,25 @@ def kick_checks(log):
         was_set = {tuple(p) for p in was}
         now_set = {tuple(p) for p in places.get(model, [])}
         new = now_set - was_set
-        check(model in places and not new, "%s: %d places moving (%d before), none new%s" %
-              (model, len(now_set), len(was_set), (" (new: %s)" % sorted(new)[:6]) if new else ""))
+        # A rivet on a part that already moves (the nailgun's barrels and top bar) moves with it: not a new moving part.
+        riding = 0
+        if new and model in gl.SPECS:
+            m, o = mp.Model(os.path.join(gl.PROGS, model)), mp.Model(os.path.join(gl.SRC, model))
+            n_old = len(o.tris)
+            rivet_v = sorted({v for tr in m.tris[n_old:] for v in tr[1:]})
+            poses = [np.frombuffer(bytes(m.pose_bytes(i)), np.uint8).reshape(-1, 4)[:, :3] * m.scale + m.origin for i in range(m.num_poses())]
+            moving = [v for v in range(len(o.st)) if tuple(round(float(x), 1) for x in poses[0][v]) in was_set]
+            for v in rivet_v:
+                if tuple(round(float(x), 1) for x in poses[0][v]) not in new:
+                    continue
+                near = moving[int(np.argmin(np.linalg.norm(poses[0][moving] - poses[0][v], axis=1)))]
+                drift = max(float(np.abs((poses[i][v] - poses[0][v]) - (poses[i][near] - poses[0][near])).max()) for i in range(len(poses)))
+                if drift <= RIDE_STEPS * float(m.scale.max()):
+                    now = tuple(round(float(x), 1) for x in poses[0][v])
+                    new = new - {now}
+                    riding += 1
+        check(model in places and not new, "%s: %d places moving (%d before), none new%s%s" %
+              (model, len(now_set), len(was_set), (", %d rivet points riding a moving part" % riding) if riding else "", (" (new: %s)" % sorted(new)[:6]) if new else ""))
 
 
 def main():

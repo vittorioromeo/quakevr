@@ -5,6 +5,8 @@
 
 #include "vr_glutil.hpp"
 #include "vr_gfx.hpp"
+#include "vr_flatfov_glsl.h"
+#include "vr_flatplay.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_retro.h"
@@ -47,6 +49,7 @@ namespace
 
 constexpr const char* vertexShader = R"(#version 430
 layout(location = 0) uniform mat4 MVP;
+)" QVR_FLATFOV_GFX_GLSL R"(
 layout(location = 0) in vec3 Pos;
 layout(location = 1) in vec2 UV;
 layout(location = 2) in vec4 Color;
@@ -62,7 +65,7 @@ void main()
     color = Color;
     soft = Soft;
     worldPos = Pos;
-    gl_Position = MVP * vec4(Pos, 1.0);
+    gl_Position = MVP * vec4(FlatFovDrawn(Pos), 1.0);
     viewDepth = gl_Position.w; // the distance along the view (a perspective projection's w)
 }
 )";
@@ -474,6 +477,7 @@ bool programFailed[shadeCount][2][2]{};
 // attributes), the same arithmetic as the CPU's quads were made with (vr_particles.cpp, before round 21).
 constexpr const char* particleVertexShader = R"(#version 430
 layout(location = 0) uniform mat4 MVP;
+)" QVR_FLATFOV_GFX_GLSL R"(
 layout(location = 5) uniform vec3 Eye;
 layout(location = 6) uniform vec3 Right;
 layout(location = 7) uniform vec3 Up;
@@ -681,7 +685,7 @@ void main()
     color = tint;
     soft = p.csSoft.z;
     worldPos = pos;
-    gl_Position = MVP * vec4(pos, 1.0);
+    gl_Position = MVP * vec4(FlatFovDrawn(pos), 1.0);
     viewDepth = gl_Position.w;
 }
 )";
@@ -845,6 +849,7 @@ void main()
 // frame's records (no vertex attributes), lit per vertex.
 constexpr const char* tubeVertexShader = R"(#version 430
 layout(location = 0) uniform mat4 MVP;
+)" QVR_FLATFOV_GFX_GLSL R"(
 layout(location = 5) uniform vec3 Eye;
 layout(location = 6) uniform vec3 Albedo;
 layout(location = 7) uniform vec3 Key;
@@ -899,7 +904,7 @@ void main()
     color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), Alpha);
     uv = vec2(0.0);
     soft = 0.0;
-    gl_Position = MVP * vec4(pos, 1.0);
+    gl_Position = MVP * vec4(FlatFovDrawn(pos), 1.0);
     viewDepth = gl_Position.w;
 }
 )";
@@ -1086,6 +1091,19 @@ namespace
 {
 
 // The program and state for `state`, its uniforms and textures set; false if there is no program.
+// The bound program's model FOV uniforms (QVR_FLATFOV_GFX_GLSL); outside flatscreen play they stay as linked, all zero.
+void flatFovUniforms(bool on)
+{
+    if(!flatplay::active())
+    {
+        return;
+    }
+    const flatplay::ModelFov f = flatplay::modelFov();
+    GL_Uniform3fFunc(94, f.eye.x, f.eye.y, f.eye.z);
+    GL_Uniform3fFunc(95, f.axis.x, f.axis.y, f.axis.z);
+    GL_Uniform3fFunc(96, on ? f.numbers.x : 0.f, f.numbers.y, f.numbers.z);
+}
+
 [[nodiscard]] bool beginDraw(const glm::mat4& mvp, const State& state, Texture texture)
 {
     const bool retro = state.retro > 0 && state.shade == Shade::Texture;
@@ -1107,6 +1125,7 @@ namespace
     }
 
     GL_UseProgram(program);
+    flatFovUniforms(state.flatModelFov);
     GL_SetState(flags);
     if(state.blend == Blend::Premultiplied)
     {
@@ -1608,6 +1627,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
 {
     checkUploadFrame("particles", batch.serial);
     GL_UseProgram(program);
+    flatFovUniforms(true); // (by distance: near the eye they are the guns')
     const unsigned stateMask = GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE;
     GL_SetState(stateMask);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
@@ -1893,6 +1913,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     }
     const double firstStart = tubeFirstDrawn ? 0.0 : Sys_DoubleTime(); // (developer 1: the first draw's CPU time)
     GL_UseProgram(tubeProgram);
+    flatFovUniforms(true); // (the cords and hoses on him and his guns)
     const bool blended = alpha < 1.f;
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | (blended ? GLS_BLEND_ALPHA | GLS_NO_ZWRITE : GLS_BLEND_OPAQUE));
     GL_Uniform1fFunc(11, za::clamp(alpha, 0.f, 1.f));
