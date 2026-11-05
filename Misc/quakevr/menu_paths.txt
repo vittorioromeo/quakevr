@@ -3815,6 +3815,7 @@ vr_gore_sound_vol_slap|2|Tunables|Gore Sounds: Slaps|Advanced VR Options > Debug
 vr_gore_sound_vol_choke|2|Tunables|Gore Sounds: Chokes Volume|Advanced VR Options > Debug > Tunables > Gore Sounds: Chokes Volume
 vr_gore_sound_vol_drip|2|Tunables|Gore Sounds: Drips|Advanced VR Options > Debug > Tunables > Gore Sounds: Drips
 vr_model_light_grid_intensity|2|Tunables|Probe Intensity|Advanced VR Options > Debug > Tunables > Probe Intensity
+vr_model_light_grid_cell|2|Tunables|Probe Spacing|Advanced VR Options > Debug > Tunables > Probe Spacing
 vr_model_light_grid_near|2|Tunables|Near Surfaces Weigh|Advanced VR Options > Debug > Tunables > Near Surfaces Weigh
 vr_model_light_grid_mix|2|Tunables|Ambient or Directional|Advanced VR Options > Debug > Tunables > Ambient or Directional
 vr_model_light_lava|2|Tunables|Lava Light|Advanced VR Options > Debug > Tunables > Lava Light
@@ -3886,6 +3887,7 @@ vr_embed_hold_axe_stick|2|Tunables|Axe: Stick|Advanced VR Options > Debug > Tuna
 vr_embed_hold_axe_rate|2|Tunables|Axe: Slide Speed|Advanced VR Options > Debug > Tunables > Axe: Slide Speed
 vr_embed_stagger_axe_speed|2|Tunables|Stagger: Axe's Least Speed|Advanced VR Options > Debug > Tunables > Stagger: Axe's Least Speed
 vr_embed_stagger_axe|2|Tunables|Stagger: Axe's Time|Advanced VR Options > Debug > Tunables > Stagger: Axe's Time
+vr_embed_hold_axe_tug|2|Tunables|Axe: Tug Out|Advanced VR Options > Debug > Tunables > Axe: Tug Out
 vr_embed_move_axe_force|2|Tunables|Moving: Axe's Force|Advanced VR Options > Debug > Tunables > Moving: Axe's Force
 vr_embed_hold_follow|2|Tunables|Hold: Follow|Advanced VR Options > Debug > Tunables > Hold: Follow
 vr_embed_hold_sword_stick|2|Tunables|Sword: Stick, Barely In|Advanced VR Options > Debug > Tunables > Sword: Stick, Barely In
@@ -3899,6 +3901,9 @@ vr_embed_slide_sound_vol|2|Tunables|Slide Sound: Volume|Advanced VR Options > De
 vr_embed_slide_blood|2|Tunables|Slide Blood: Amount|Advanced VR Options > Debug > Tunables > Slide Blood: Amount
 vr_embed_wound_stream|2|Tunables|Wound Stream: Strength|Advanced VR Options > Debug > Tunables > Wound Stream: Strength
 vr_embed_hold_break|2|Tunables|Off the Axis: Breaks At|Advanced VR Options > Debug > Tunables > Off the Axis: Breaks At
+vr_embed_hold_yank|2|Tunables|Off the Axis: Yank In a Ragdoll|Advanced VR Options > Debug > Tunables > Off the Axis: Yank In a Ragdoll
+vr_embed_touch|2|Tunables|Touch: Most Off the Model|Advanced VR Options > Debug > Tunables > Touch: Most Off the Model
+vr_embed_touch_wait|2|Tunables|Touch: Wait|Advanced VR Options > Debug > Tunables > Touch: Wait
 vr_embed_hold_reach|2|Tunables|Too Far: Breaks At|Advanced VR Options > Debug > Tunables > Too Far: Breaks At
 vr_embed_hold_reach_corpse|2|Tunables|Too Far: In a Dead Body|Advanced VR Options > Debug > Tunables > Too Far: In a Dead Body
 vr_embed_hold_reach_down|2|Tunables|Reach: Knocked Down|Advanced VR Options > Debug > Tunables > Reach: Knocked Down
@@ -3907,9 +3912,15 @@ vr_embed_limb_follow|2|Tunables|Arms and Legs: Follow|Advanced VR Options > Debu
 vr_embed_torso_follow|2|Tunables|Torso and Head: Follow|Advanced VR Options > Debug > Tunables > Torso and Head: Follow
 vr_embed_stagger_sword_speed|2|Tunables|Stagger: Sword's Least Speed|Advanced VR Options > Debug > Tunables > Stagger: Sword's Least Speed
 vr_embed_stagger_sword|2|Tunables|Stagger: Sword's Time|Advanced VR Options > Debug > Tunables > Stagger: Sword's Time
+vr_embed_stagger_amount|2|Tunables|Stagger: Amount|Advanced VR Options > Debug > Tunables > Stagger: Amount
+vr_embed_stagger_twohand|2|Tunables|Stagger: Two Hands|Advanced VR Options > Debug > Tunables > Stagger: Two Hands
+vr_embed_stagger_topple|2|Tunables|Stagger: Falls From|Advanced VR Options > Debug > Tunables > Stagger: Falls From
 vr_embed_stagger_shallow|2|Tunables|Stagger: Barely In|Advanced VR Options > Debug > Tunables > Stagger: Barely In
 vr_embed_stagger_push|2|Tunables|Stagger: Push|Advanced VR Options > Debug > Tunables > Stagger: Push
 vr_embed_light_hold|2|Tunables|Light: Least Hold|Advanced VR Options > Debug > Tunables > Light: Least Hold
+vr_embed_move_twohand|2|Tunables|Moving: Two Hands|Advanced VR Options > Debug > Tunables > Moving: Two Hands
+vr_melee_body_speed|2|Tunables|Melee: Body Speed, To Hit|Advanced VR Options > Debug > Tunables > Melee: Body Speed, To Hit
+vr_melee_body_damage|2|Tunables|Melee: Body Speed, Damage|Advanced VR Options > Debug > Tunables > Melee: Body Speed, Damage
 vr_embed_move_sword_force|2|Tunables|Moving: Sword's Force|Advanced VR Options > Debug > Tunables > Moving: Sword's Force
 vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Force, Deep
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
@@ -4171,6 +4182,7 @@ vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Opti
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared
 vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advanced VR Options > Debug > Profiling and Memory > Keep Light Casters
 |2|Debug - Profiling and Memory|Check Kept Light Casters|Advanced VR Options > Debug > Profiling and Memory > Check Kept Light Casters
+vr_model_light_grid_show|2|Debug - Profiling and Memory|Show Light Probes|Advanced VR Options > Debug > Profiling and Memory > Show Light Probes
 |2|Debug - Profiling and Memory|Model Light Grid Info|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Info
 |2|Debug - Profiling and Memory|Model Light Grid Test|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Test
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light Caster Stats
@@ -4815,6 +4827,7 @@ vr_test_throw_up_speed|2|Debug - Tests|Throw Up Speed|Advanced VR Options > Debu
 vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Options > Debug > Tests > Throw Up From Your Body
 |2|Debug - Tests|Throw the Nearest Prop Up|Advanced VR Options > Debug > Tests > Throw the Nearest Prop Up
 |2|Debug - Tests|Embedded Blades Check|Advanced VR Options > Debug > Tests > Embedded Blades Check
+|2|Debug - Tests|Wound Stream Check|Advanced VR Options > Debug > Tests > Wound Stream Check
 |2|Debug - Tests|Held Stabs and Swung Axes Check|Advanced VR Options > Debug > Tests > Held Stabs and Swung Axes Check
 |2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
@@ -5758,6 +5771,7 @@ vr_mgrp_army_struggle_strength|1|Monster Groups - Grunts|Struggle Strength|Advan
 vr_mgrp_army_struggle_speed|1|Monster Groups - Grunts|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Grunts > Struggle Speed
 vr_mgrp_army_struggle_arms|1|Monster Groups - Grunts|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Grunts > Struggle Arm Drive
 vr_mgrp_army_struggle_hurt|1|Monster Groups - Grunts|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Grunts > Struggle Weaker When Hurt
+vr_mgrp_army_skewer|1|Monster Groups - Grunts|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Grunts > Blade: Skewer
 |1|Monster Groups - Grunts|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Grunts > Struggle Profiles
 |1|Monster Groups - Grunts|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Grunts > List Every Monster's Group
 |1|Monster Groups - Grunts|Reset This Page|Advanced VR Options > Combat > Monster Groups > Grunts > Reset This Page
@@ -5794,6 +5808,7 @@ vr_mgrp_enforcer_struggle_strength|1|Monster Groups - Enforcers|Struggle Strengt
 vr_mgrp_enforcer_struggle_speed|1|Monster Groups - Enforcers|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Enforcers > Struggle Speed
 vr_mgrp_enforcer_struggle_arms|1|Monster Groups - Enforcers|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Enforcers > Struggle Arm Drive
 vr_mgrp_enforcer_struggle_hurt|1|Monster Groups - Enforcers|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Enforcers > Struggle Weaker When Hurt
+vr_mgrp_enforcer_skewer|1|Monster Groups - Enforcers|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Enforcers > Blade: Skewer
 |1|Monster Groups - Enforcers|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Enforcers > Struggle Profiles
 |1|Monster Groups - Enforcers|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Enforcers > List Every Monster's Group
 |1|Monster Groups - Enforcers|Reset This Page|Advanced VR Options > Combat > Monster Groups > Enforcers > Reset This Page
@@ -5830,6 +5845,7 @@ vr_mgrp_knight_struggle_strength|1|Monster Groups - Knights|Struggle Strength|Ad
 vr_mgrp_knight_struggle_speed|1|Monster Groups - Knights|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Knights > Struggle Speed
 vr_mgrp_knight_struggle_arms|1|Monster Groups - Knights|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Knights > Struggle Arm Drive
 vr_mgrp_knight_struggle_hurt|1|Monster Groups - Knights|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Knights > Struggle Weaker When Hurt
+vr_mgrp_knight_skewer|1|Monster Groups - Knights|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Knights > Blade: Skewer
 |1|Monster Groups - Knights|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Knights > Struggle Profiles
 |1|Monster Groups - Knights|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Knights > List Every Monster's Group
 |1|Monster Groups - Knights|Reset This Page|Advanced VR Options > Combat > Monster Groups > Knights > Reset This Page
@@ -5866,6 +5882,7 @@ vr_mgrp_hknight_struggle_strength|1|Monster Groups - Death Knights|Struggle Stre
 vr_mgrp_hknight_struggle_speed|1|Monster Groups - Death Knights|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Death Knights > Struggle Speed
 vr_mgrp_hknight_struggle_arms|1|Monster Groups - Death Knights|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Death Knights > Struggle Arm Drive
 vr_mgrp_hknight_struggle_hurt|1|Monster Groups - Death Knights|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Death Knights > Struggle Weaker When Hurt
+vr_mgrp_hknight_skewer|1|Monster Groups - Death Knights|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Death Knights > Blade: Skewer
 |1|Monster Groups - Death Knights|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Death Knights > Struggle Profiles
 |1|Monster Groups - Death Knights|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Death Knights > List Every Monster's Group
 |1|Monster Groups - Death Knights|Reset This Page|Advanced VR Options > Combat > Monster Groups > Death Knights > Reset This Page
@@ -5902,6 +5919,7 @@ vr_mgrp_miniboss_struggle_strength|1|Monster Groups - Mini Bosses|Struggle Stren
 vr_mgrp_miniboss_struggle_speed|1|Monster Groups - Mini Bosses|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Struggle Speed
 vr_mgrp_miniboss_struggle_arms|1|Monster Groups - Mini Bosses|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Struggle Arm Drive
 vr_mgrp_miniboss_struggle_hurt|1|Monster Groups - Mini Bosses|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Struggle Weaker When Hurt
+vr_mgrp_miniboss_skewer|1|Monster Groups - Mini Bosses|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Blade: Skewer
 |1|Monster Groups - Mini Bosses|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Struggle Profiles
 |1|Monster Groups - Mini Bosses|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Mini Bosses > List Every Monster's Group
 |1|Monster Groups - Mini Bosses|Reset This Page|Advanced VR Options > Combat > Monster Groups > Mini Bosses > Reset This Page
@@ -5938,6 +5956,7 @@ vr_mgrp_eliteknight_struggle_strength|1|Monster Groups - Elite Knights|Struggle 
 vr_mgrp_eliteknight_struggle_speed|1|Monster Groups - Elite Knights|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Elite Knights > Struggle Speed
 vr_mgrp_eliteknight_struggle_arms|1|Monster Groups - Elite Knights|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Elite Knights > Struggle Arm Drive
 vr_mgrp_eliteknight_struggle_hurt|1|Monster Groups - Elite Knights|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Elite Knights > Struggle Weaker When Hurt
+vr_mgrp_eliteknight_skewer|1|Monster Groups - Elite Knights|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Elite Knights > Blade: Skewer
 |1|Monster Groups - Elite Knights|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Elite Knights > Struggle Profiles
 |1|Monster Groups - Elite Knights|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Elite Knights > List Every Monster's Group
 |1|Monster Groups - Elite Knights|Reset This Page|Advanced VR Options > Combat > Monster Groups > Elite Knights > Reset This Page
@@ -5974,6 +5993,7 @@ vr_mgrp_ogre_struggle_strength|1|Monster Groups - Ogres|Struggle Strength|Advanc
 vr_mgrp_ogre_struggle_speed|1|Monster Groups - Ogres|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Ogres > Struggle Speed
 vr_mgrp_ogre_struggle_arms|1|Monster Groups - Ogres|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Ogres > Struggle Arm Drive
 vr_mgrp_ogre_struggle_hurt|1|Monster Groups - Ogres|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Ogres > Struggle Weaker When Hurt
+vr_mgrp_ogre_skewer|1|Monster Groups - Ogres|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Ogres > Blade: Skewer
 |1|Monster Groups - Ogres|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Ogres > List Every Monster's Group
 |1|Monster Groups - Ogres|Reset This Page|Advanced VR Options > Combat > Monster Groups > Ogres > Reset This Page
 @page|1|Monster Groups - Zombies||Advanced VR Options > Combat > Monster Groups > Zombies
@@ -6009,6 +6029,7 @@ vr_mgrp_zombie_struggle_strength|1|Monster Groups - Zombies|Struggle Strength|Ad
 vr_mgrp_zombie_struggle_speed|1|Monster Groups - Zombies|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Zombies > Struggle Speed
 vr_mgrp_zombie_struggle_arms|1|Monster Groups - Zombies|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Zombies > Struggle Arm Drive
 vr_mgrp_zombie_struggle_hurt|1|Monster Groups - Zombies|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Zombies > Struggle Weaker When Hurt
+vr_mgrp_zombie_skewer|1|Monster Groups - Zombies|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Zombies > Blade: Skewer
 |1|Monster Groups - Zombies|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Zombies > Struggle Profiles
 |1|Monster Groups - Zombies|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Zombies > List Every Monster's Group
 |1|Monster Groups - Zombies|Reset This Page|Advanced VR Options > Combat > Monster Groups > Zombies > Reset This Page
@@ -6045,6 +6066,7 @@ vr_mgrp_mummy_struggle_strength|1|Monster Groups - Mummies|Struggle Strength|Adv
 vr_mgrp_mummy_struggle_speed|1|Monster Groups - Mummies|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Mummies > Struggle Speed
 vr_mgrp_mummy_struggle_arms|1|Monster Groups - Mummies|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Mummies > Struggle Arm Drive
 vr_mgrp_mummy_struggle_hurt|1|Monster Groups - Mummies|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Mummies > Struggle Weaker When Hurt
+vr_mgrp_mummy_skewer|1|Monster Groups - Mummies|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Mummies > Blade: Skewer
 |1|Monster Groups - Mummies|Struggle Profiles|Advanced VR Options > Combat > Monster Groups > Mummies > Struggle Profiles
 |1|Monster Groups - Mummies|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Mummies > List Every Monster's Group
 |1|Monster Groups - Mummies|Reset This Page|Advanced VR Options > Combat > Monster Groups > Mummies > Reset This Page
@@ -6081,6 +6103,7 @@ vr_mgrp_dog_struggle_strength|1|Monster Groups - Rottweilers|Struggle Strength|A
 vr_mgrp_dog_struggle_speed|1|Monster Groups - Rottweilers|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Rottweilers > Struggle Speed
 vr_mgrp_dog_struggle_arms|1|Monster Groups - Rottweilers|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Rottweilers > Struggle Arm Drive
 vr_mgrp_dog_struggle_hurt|1|Monster Groups - Rottweilers|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Rottweilers > Struggle Weaker When Hurt
+vr_mgrp_dog_skewer|1|Monster Groups - Rottweilers|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Rottweilers > Blade: Skewer
 |1|Monster Groups - Rottweilers|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Rottweilers > List Every Monster's Group
 |1|Monster Groups - Rottweilers|Reset This Page|Advanced VR Options > Combat > Monster Groups > Rottweilers > Reset This Page
 @page|1|Monster Groups - Fiends||Advanced VR Options > Combat > Monster Groups > Fiends
@@ -6116,6 +6139,7 @@ vr_mgrp_demon_struggle_strength|1|Monster Groups - Fiends|Struggle Strength|Adva
 vr_mgrp_demon_struggle_speed|1|Monster Groups - Fiends|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Fiends > Struggle Speed
 vr_mgrp_demon_struggle_arms|1|Monster Groups - Fiends|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Fiends > Struggle Arm Drive
 vr_mgrp_demon_struggle_hurt|1|Monster Groups - Fiends|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Fiends > Struggle Weaker When Hurt
+vr_mgrp_demon_skewer|1|Monster Groups - Fiends|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Fiends > Blade: Skewer
 |1|Monster Groups - Fiends|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Fiends > List Every Monster's Group
 |1|Monster Groups - Fiends|Reset This Page|Advanced VR Options > Combat > Monster Groups > Fiends > Reset This Page
 @page|1|Monster Groups - Shamblers||Advanced VR Options > Combat > Monster Groups > Shamblers
@@ -6151,6 +6175,7 @@ vr_mgrp_shambler_struggle_strength|1|Monster Groups - Shamblers|Struggle Strengt
 vr_mgrp_shambler_struggle_speed|1|Monster Groups - Shamblers|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Shamblers > Struggle Speed
 vr_mgrp_shambler_struggle_arms|1|Monster Groups - Shamblers|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Shamblers > Struggle Arm Drive
 vr_mgrp_shambler_struggle_hurt|1|Monster Groups - Shamblers|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Shamblers > Struggle Weaker When Hurt
+vr_mgrp_shambler_skewer|1|Monster Groups - Shamblers|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Shamblers > Blade: Skewer
 |1|Monster Groups - Shamblers|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Shamblers > List Every Monster's Group
 |1|Monster Groups - Shamblers|Reset This Page|Advanced VR Options > Combat > Monster Groups > Shamblers > Reset This Page
 @page|1|Monster Groups - Gremlins||Advanced VR Options > Combat > Monster Groups > Gremlins
@@ -6186,6 +6211,7 @@ vr_mgrp_gremlin_struggle_strength|1|Monster Groups - Gremlins|Struggle Strength|
 vr_mgrp_gremlin_struggle_speed|1|Monster Groups - Gremlins|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Gremlins > Struggle Speed
 vr_mgrp_gremlin_struggle_arms|1|Monster Groups - Gremlins|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Gremlins > Struggle Arm Drive
 vr_mgrp_gremlin_struggle_hurt|1|Monster Groups - Gremlins|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Gremlins > Struggle Weaker When Hurt
+vr_mgrp_gremlin_skewer|1|Monster Groups - Gremlins|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Gremlins > Blade: Skewer
 |1|Monster Groups - Gremlins|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Gremlins > List Every Monster's Group
 |1|Monster Groups - Gremlins|Reset This Page|Advanced VR Options > Combat > Monster Groups > Gremlins > Reset This Page
 @page|1|Monster Groups - Skull Wizards||Advanced VR Options > Combat > Monster Groups > Skull Wizards
@@ -6221,6 +6247,7 @@ vr_mgrp_skullwiz_struggle_strength|1|Monster Groups - Skull Wizards|Struggle Str
 vr_mgrp_skullwiz_struggle_speed|1|Monster Groups - Skull Wizards|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Skull Wizards > Struggle Speed
 vr_mgrp_skullwiz_struggle_arms|1|Monster Groups - Skull Wizards|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Skull Wizards > Struggle Arm Drive
 vr_mgrp_skullwiz_struggle_hurt|1|Monster Groups - Skull Wizards|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Skull Wizards > Struggle Weaker When Hurt
+vr_mgrp_skullwiz_skewer|1|Monster Groups - Skull Wizards|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Skull Wizards > Blade: Skewer
 |1|Monster Groups - Skull Wizards|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Skull Wizards > List Every Monster's Group
 |1|Monster Groups - Skull Wizards|Reset This Page|Advanced VR Options > Combat > Monster Groups > Skull Wizards > Reset This Page
 @page|1|Monster Groups - Spiders and Crawlers||Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers
@@ -6256,6 +6283,7 @@ vr_mgrp_crawler_struggle_strength|1|Monster Groups - Spiders and Crawlers|Strugg
 vr_mgrp_crawler_struggle_speed|1|Monster Groups - Spiders and Crawlers|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > Struggle Speed
 vr_mgrp_crawler_struggle_arms|1|Monster Groups - Spiders and Crawlers|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > Struggle Arm Drive
 vr_mgrp_crawler_struggle_hurt|1|Monster Groups - Spiders and Crawlers|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > Struggle Weaker When Hurt
+vr_mgrp_crawler_skewer|1|Monster Groups - Spiders and Crawlers|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > Blade: Skewer
 |1|Monster Groups - Spiders and Crawlers|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > List Every Monster's Group
 |1|Monster Groups - Spiders and Crawlers|Reset This Page|Advanced VR Options > Combat > Monster Groups > Spiders and Crawlers > Reset This Page
 @page|1|Monster Groups - Giants||Advanced VR Options > Combat > Monster Groups > Giants
@@ -6291,6 +6319,7 @@ vr_mgrp_giant_struggle_strength|1|Monster Groups - Giants|Struggle Strength|Adva
 vr_mgrp_giant_struggle_speed|1|Monster Groups - Giants|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Giants > Struggle Speed
 vr_mgrp_giant_struggle_arms|1|Monster Groups - Giants|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Giants > Struggle Arm Drive
 vr_mgrp_giant_struggle_hurt|1|Monster Groups - Giants|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Giants > Struggle Weaker When Hurt
+vr_mgrp_giant_skewer|1|Monster Groups - Giants|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Giants > Blade: Skewer
 |1|Monster Groups - Giants|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Giants > List Every Monster's Group
 |1|Monster Groups - Giants|Reset This Page|Advanced VR Options > Combat > Monster Groups > Giants > Reset This Page
 @page|1|Monster Groups - Scrags and Gargoyles||Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles
@@ -6326,6 +6355,7 @@ vr_mgrp_wizard_struggle_strength|1|Monster Groups - Scrags and Gargoyles|Struggl
 vr_mgrp_wizard_struggle_speed|1|Monster Groups - Scrags and Gargoyles|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > Struggle Speed
 vr_mgrp_wizard_struggle_arms|1|Monster Groups - Scrags and Gargoyles|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > Struggle Arm Drive
 vr_mgrp_wizard_struggle_hurt|1|Monster Groups - Scrags and Gargoyles|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > Struggle Weaker When Hurt
+vr_mgrp_wizard_skewer|1|Monster Groups - Scrags and Gargoyles|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > Blade: Skewer
 |1|Monster Groups - Scrags and Gargoyles|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > List Every Monster's Group
 |1|Monster Groups - Scrags and Gargoyles|Reset This Page|Advanced VR Options > Combat > Monster Groups > Scrags and Gargoyles > Reset This Page
 @page|1|Monster Groups - Vores||Advanced VR Options > Combat > Monster Groups > Vores
@@ -6361,6 +6391,7 @@ vr_mgrp_shalrath_struggle_strength|1|Monster Groups - Vores|Struggle Strength|Ad
 vr_mgrp_shalrath_struggle_speed|1|Monster Groups - Vores|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Vores > Struggle Speed
 vr_mgrp_shalrath_struggle_arms|1|Monster Groups - Vores|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Vores > Struggle Arm Drive
 vr_mgrp_shalrath_struggle_hurt|1|Monster Groups - Vores|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Vores > Struggle Weaker When Hurt
+vr_mgrp_shalrath_skewer|1|Monster Groups - Vores|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Vores > Blade: Skewer
 |1|Monster Groups - Vores|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Vores > List Every Monster's Group
 |1|Monster Groups - Vores|Reset This Page|Advanced VR Options > Combat > Monster Groups > Vores > Reset This Page
 @page|1|Monster Groups - Spawns||Advanced VR Options > Combat > Monster Groups > Spawns
@@ -6396,6 +6427,7 @@ vr_mgrp_tarbaby_struggle_strength|1|Monster Groups - Spawns|Struggle Strength|Ad
 vr_mgrp_tarbaby_struggle_speed|1|Monster Groups - Spawns|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Spawns > Struggle Speed
 vr_mgrp_tarbaby_struggle_arms|1|Monster Groups - Spawns|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Spawns > Struggle Arm Drive
 vr_mgrp_tarbaby_struggle_hurt|1|Monster Groups - Spawns|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Spawns > Struggle Weaker When Hurt
+vr_mgrp_tarbaby_skewer|1|Monster Groups - Spawns|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Spawns > Blade: Skewer
 |1|Monster Groups - Spawns|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Spawns > List Every Monster's Group
 |1|Monster Groups - Spawns|Reset This Page|Advanced VR Options > Combat > Monster Groups > Spawns > Reset This Page
 @page|1|Monster Groups - Fish and Eels||Advanced VR Options > Combat > Monster Groups > Fish and Eels
@@ -6431,6 +6463,7 @@ vr_mgrp_fish_struggle_strength|1|Monster Groups - Fish and Eels|Struggle Strengt
 vr_mgrp_fish_struggle_speed|1|Monster Groups - Fish and Eels|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Fish and Eels > Struggle Speed
 vr_mgrp_fish_struggle_arms|1|Monster Groups - Fish and Eels|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Fish and Eels > Struggle Arm Drive
 vr_mgrp_fish_struggle_hurt|1|Monster Groups - Fish and Eels|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Fish and Eels > Struggle Weaker When Hurt
+vr_mgrp_fish_skewer|1|Monster Groups - Fish and Eels|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Fish and Eels > Blade: Skewer
 |1|Monster Groups - Fish and Eels|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Fish and Eels > List Every Monster's Group
 |1|Monster Groups - Fish and Eels|Reset This Page|Advanced VR Options > Combat > Monster Groups > Fish and Eels > Reset This Page
 @page|1|Monster Groups - Wraiths and Floaters||Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters
@@ -6466,6 +6499,7 @@ vr_mgrp_floater_struggle_strength|1|Monster Groups - Wraiths and Floaters|Strugg
 vr_mgrp_floater_struggle_speed|1|Monster Groups - Wraiths and Floaters|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > Struggle Speed
 vr_mgrp_floater_struggle_arms|1|Monster Groups - Wraiths and Floaters|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > Struggle Arm Drive
 vr_mgrp_floater_struggle_hurt|1|Monster Groups - Wraiths and Floaters|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > Struggle Weaker When Hurt
+vr_mgrp_floater_skewer|1|Monster Groups - Wraiths and Floaters|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > Blade: Skewer
 |1|Monster Groups - Wraiths and Floaters|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > List Every Monster's Group
 |1|Monster Groups - Wraiths and Floaters|Reset This Page|Advanced VR Options > Combat > Monster Groups > Wraiths and Floaters > Reset This Page
 @page|1|Monster Groups - Machines||Advanced VR Options > Combat > Monster Groups > Machines
@@ -6501,6 +6535,7 @@ vr_mgrp_machine_struggle_strength|1|Monster Groups - Machines|Struggle Strength|
 vr_mgrp_machine_struggle_speed|1|Monster Groups - Machines|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Machines > Struggle Speed
 vr_mgrp_machine_struggle_arms|1|Monster Groups - Machines|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Machines > Struggle Arm Drive
 vr_mgrp_machine_struggle_hurt|1|Monster Groups - Machines|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Machines > Struggle Weaker When Hurt
+vr_mgrp_machine_skewer|1|Monster Groups - Machines|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Machines > Blade: Skewer
 |1|Monster Groups - Machines|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Machines > List Every Monster's Group
 |1|Monster Groups - Machines|Reset This Page|Advanced VR Options > Combat > Monster Groups > Machines > Reset This Page
 @page|1|Monster Groups - Bosses||Advanced VR Options > Combat > Monster Groups > Bosses
@@ -6536,6 +6571,7 @@ vr_mgrp_boss_struggle_strength|1|Monster Groups - Bosses|Struggle Strength|Advan
 vr_mgrp_boss_struggle_speed|1|Monster Groups - Bosses|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Bosses > Struggle Speed
 vr_mgrp_boss_struggle_arms|1|Monster Groups - Bosses|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Bosses > Struggle Arm Drive
 vr_mgrp_boss_struggle_hurt|1|Monster Groups - Bosses|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Bosses > Struggle Weaker When Hurt
+vr_mgrp_boss_skewer|1|Monster Groups - Bosses|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Bosses > Blade: Skewer
 |1|Monster Groups - Bosses|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Bosses > List Every Monster's Group
 |1|Monster Groups - Bosses|Reset This Page|Advanced VR Options > Combat > Monster Groups > Bosses > Reset This Page
 @page|1|Monster Groups - Others||Advanced VR Options > Combat > Monster Groups > Others
@@ -6571,6 +6607,7 @@ vr_mgrp_other_struggle_strength|1|Monster Groups - Others|Struggle Strength|Adva
 vr_mgrp_other_struggle_speed|1|Monster Groups - Others|Struggle Speed|Advanced VR Options > Combat > Monster Groups > Others > Struggle Speed
 vr_mgrp_other_struggle_arms|1|Monster Groups - Others|Struggle Arm Drive|Advanced VR Options > Combat > Monster Groups > Others > Struggle Arm Drive
 vr_mgrp_other_struggle_hurt|1|Monster Groups - Others|Struggle Weaker When Hurt|Advanced VR Options > Combat > Monster Groups > Others > Struggle Weaker When Hurt
+vr_mgrp_other_skewer|1|Monster Groups - Others|Blade: Skewer|Advanced VR Options > Combat > Monster Groups > Others > Blade: Skewer
 |1|Monster Groups - Others|List Every Monster's Group|Advanced VR Options > Combat > Monster Groups > Others > List Every Monster's Group
 |1|Monster Groups - Others|Reset This Page|Advanced VR Options > Combat > Monster Groups > Others > Reset This Page
 @page|1|Monster Groups - Ragdoll Triggers||Advanced VR Options > Combat > Monster Groups > Ragdoll Triggers
@@ -7249,6 +7286,32 @@ vr_mgrp_machine_struggle_hurt|1|Monster Groups - Struggle Weaker When Hurt|Machi
 vr_mgrp_boss_struggle_hurt|1|Monster Groups - Struggle Weaker When Hurt|Bosses|Advanced VR Options > Combat > Monster Groups > Struggle Weaker When Hurt > Bosses
 vr_mgrp_other_struggle_hurt|1|Monster Groups - Struggle Weaker When Hurt|Others|Advanced VR Options > Combat > Monster Groups > Struggle Weaker When Hurt > Others
 |1|Monster Groups - Struggle Weaker When Hurt|Reset This Page|Advanced VR Options > Combat > Monster Groups > Struggle Weaker When Hurt > Reset This Page
+@page|1|Monster Groups - Blade: Skewer||Advanced VR Options > Combat > Monster Groups > Blade: Skewer
+vr_mgrp_army_skewer|1|Monster Groups - Blade: Skewer|Grunts|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Grunts
+vr_mgrp_enforcer_skewer|1|Monster Groups - Blade: Skewer|Enforcers|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Enforcers
+vr_mgrp_knight_skewer|1|Monster Groups - Blade: Skewer|Knights|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Knights
+vr_mgrp_hknight_skewer|1|Monster Groups - Blade: Skewer|Death Knights|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Death Knights
+vr_mgrp_miniboss_skewer|1|Monster Groups - Blade: Skewer|Mini Bosses|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Mini Bosses
+vr_mgrp_eliteknight_skewer|1|Monster Groups - Blade: Skewer|Elite Knights|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Elite Knights
+vr_mgrp_ogre_skewer|1|Monster Groups - Blade: Skewer|Ogres|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Ogres
+vr_mgrp_zombie_skewer|1|Monster Groups - Blade: Skewer|Zombies|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Zombies
+vr_mgrp_mummy_skewer|1|Monster Groups - Blade: Skewer|Mummies|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Mummies
+vr_mgrp_dog_skewer|1|Monster Groups - Blade: Skewer|Rottweilers|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Rottweilers
+vr_mgrp_demon_skewer|1|Monster Groups - Blade: Skewer|Fiends|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Fiends
+vr_mgrp_shambler_skewer|1|Monster Groups - Blade: Skewer|Shamblers|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Shamblers
+vr_mgrp_gremlin_skewer|1|Monster Groups - Blade: Skewer|Gremlins|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Gremlins
+vr_mgrp_skullwiz_skewer|1|Monster Groups - Blade: Skewer|Skull Wizards|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Skull Wizards
+vr_mgrp_crawler_skewer|1|Monster Groups - Blade: Skewer|Spiders and Crawlers|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Spiders and Crawlers
+vr_mgrp_giant_skewer|1|Monster Groups - Blade: Skewer|Giants|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Giants
+vr_mgrp_wizard_skewer|1|Monster Groups - Blade: Skewer|Scrags and Gargoyles|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Scrags and Gargoyles
+vr_mgrp_shalrath_skewer|1|Monster Groups - Blade: Skewer|Vores|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Vores
+vr_mgrp_tarbaby_skewer|1|Monster Groups - Blade: Skewer|Spawns|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Spawns
+vr_mgrp_fish_skewer|1|Monster Groups - Blade: Skewer|Fish and Eels|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Fish and Eels
+vr_mgrp_floater_skewer|1|Monster Groups - Blade: Skewer|Wraiths and Floaters|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Wraiths and Floaters
+vr_mgrp_machine_skewer|1|Monster Groups - Blade: Skewer|Machines|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Machines
+vr_mgrp_boss_skewer|1|Monster Groups - Blade: Skewer|Bosses|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Bosses
+vr_mgrp_other_skewer|1|Monster Groups - Blade: Skewer|Others|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Others
+|1|Monster Groups - Blade: Skewer|Reset This Page|Advanced VR Options > Combat > Monster Groups > Blade: Skewer > Reset This Page
 @page|1|Fire Particles||Advanced VR Options > Combat > Burning > Fire Particles
 vr_fire_particles|1|Fire Particles|Fire Model Particles|Advanced VR Options > Combat > Burning > Fire Particles > Fire Model Particles
 vr_flame_wobble|1|Fire Particles|Hands Stir Flames|Advanced VR Options > Combat > Burning > Fire Particles > Hands Stir Flames

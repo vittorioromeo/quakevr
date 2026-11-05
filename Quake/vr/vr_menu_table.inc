@@ -422,6 +422,7 @@ inline constexpr Page pages[] = {
     {"Monster Groups - Struggle Speed", pageMonsterParam<29>, pageMonsterGroups},
     {"Monster Groups - Struggle Arm Drive", pageMonsterParam<30>, pageMonsterGroups},
     {"Monster Groups - Struggle Weaker When Hurt", pageMonsterParam<31>, pageMonsterGroups},
+    {"Monster Groups - Blade: Skewer", pageMonsterParam<32>, pageMonsterGroups},
     {"Monster Health", pageMonsterHealth, pageCombat}, // (vr_menu_mgroups.inc)
     {"Ragdoll Tool", pageRagtool, pageDebug}, // (vr_menu_ragtool.inc; vr_ragtool.cpp)
     {"Ragdoll Tool - Motors", pageRagtoolParams<0>, pageRagtool},

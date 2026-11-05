@@ -14,11 +14,16 @@
 // fine. Going back to the drawn hand does nothing (.vr_hold_slack, .vr_hold_offslack: what is left of it); past it, the hand drives. For stage 3 (moving the body, stagger, the speed penalty): VR_Embed_HoldThink has them,
 // `far` (how much further the hand is from the wound than it held it from) and the depth; everything about the hold is on the blade.
 //
-// Moving the body (ROUND23.md, "Embedded blades, stage 3"). A light body (VR_Embed_Light: Holding Enemies' one hand's hold on it, its
-// monster group's Hold or by its size) struck hard staggers (VR_Embed_Stagger). Any ragdoll of it (staggering, knocked down, dead) is
-// held by the limb the blade is in (VR_Embed_Spring: a spring from the hand, stronger the deeper; ragdolltug 12), so it follows the
-// hand; what it follows is no pull on the blade (VR_Embed_HoldThink), what it doesn't slides it out, as ever. Standing, walking away
-// drags it (VR_Embed_Drag). Past reach, it comes out. Heavy bodies and bosses have none of it. VR_Embed_TetherShare: your speed.
+// Moving the body (ROUND23.md, "Embedded blades, his sixth test"). How far a blade throws a body about is its monster group's Skewer
+// (groups.txt; VR_Embed_Skewer): a stab hard enough staggers it (VR_Embed_Stagger: how long, how far off balance, by it, how deep, one hand
+// or two). Any ragdoll of it (staggering, knocked down, dead) is held by the limb the blade is in (VR_Embed_Spring: a spring from the hand,
+// stronger the deeper, with two hands, the more Skewer; ragdolltug 12). The hand's motion along the blade outwards pulls the blade out, one
+// to one, and leaves the body (the spring's target, VR_Embed_AxialOf); across the blade, or pushed in past how deep it goes, it moves the
+// body. In a ragdoll, off the axis it only comes free by a yank (vr_embed_hold_yank). Standing, walking away drags it, from
+// vr_embed_light_hold's Skewer up (VR_Embed_Drag). Past reach, it comes out. VR_Embed_TetherShare: your speed.
+//
+// It goes in only where the blade as drawn truly meets the drawn model (the engine's bladeMeets). A blow lands by the melee's sweep, which
+// has width: landed short, the blade may still come to touch it for a moment (VR_Embed_WaitFrame).
 
 void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 
@@ -46,6 +51,17 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .vector vr_hold_lastorg;  // where its holder stood, last frame
 .vector vr_hold_lasthost; // where its body stood, last frame
 .float  vr_hold_tether;   // in a dead body: it is being dragged (VR_Embed_TetherShare)
+.float  vr_hold_axial;    // the hand's motion along the blade since its spring began that isn't the body's (units, deeper positive)
+.entity vr_embed_wait_off;   // on a player: the body a blow of this hand landed short of (VR_Embed_WaitFrame)
+.entity vr_embed_wait_main;
+.float  vr_embed_waitto_off; // and until when
+.float  vr_embed_waitto_main;
+.vector vr_embed_waitat_off; // where it landed
+.vector vr_embed_waitat_main;
+.vector vr_embed_waitvel_off; // at what speed
+.vector vr_embed_waitvel_main;
+.float  vr_embed_waitmdl_off; // its model then
+.float  vr_embed_waitmdl_main;
 .float  vr_embed_quiet_off;  // on a player: the hand strikes nothing until then (it just came out)
 .float  vr_embed_quiet_main;
 
@@ -60,6 +76,9 @@ float  vr_embed_hostmodel;
 vector vr_embed_at;
 vector vr_embed_vel;
 float  vr_embed_stabbing;  // inside embedstick: VR_AxeStick_Stuck's blow is dealt already, no thrown axe's cut or highlight
+float  vr_embed_gap;       // VR_Embed_Try's -1: units the blade was off the model
+float  vr_embed_last_hold;   // (for the test: the last stagger's time)
+float  vr_embed_last_amount; // (and its amount)
 
 float(float xHand) VR_Embed_Bit =
 {
@@ -361,15 +380,21 @@ float(entity m, float xHand, float xUnused) VR_FoeGrab_Strength;
 float(entity e) VR_IsDummy;
 float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagger;
 
-// Whether a blade can move the body `m`: Holding Enemies' one hand's hold on it (its monster group's Hold in groups.txt, else by its
-// size) is enough. Heavy ones and bosses (their group's Hold 0) never stagger, nor are moved or dragged by one.
-float(entity m) VR_Embed_Light =
+// How far a blade stuck in `m` throws it about, 0..1: its monster group's Skewer (groups.txt). 0: never.
+float(entity m) VR_Embed_Skewer =
 {
     if(m == world || (m.flags & (FL_FLY | FL_SWIM)) || (VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored)))
     {
-        return FALSE;
+        return 0;
     }
-    return VR_FoeGrab_Strength(m, 0, 0) >= cvar_hget(cvarh_vr_embed_light_hold);
+    return max(0, min(1, monstergroupget(m, MGP_SKEWER)));
+};
+
+// Whether walking away from a standing `m` with a blade in it drags it.
+float(entity m) VR_Embed_Light =
+{
+    float s = VR_Embed_Skewer(m);
+    return s > 0 && s >= cvar_hget(cvarh_vr_embed_light_hold);
 };
 
 // How far a blow of `xSpeed` m/s took it in, of as far as one goes (0..1). A sword: a stab's depth (going on to it). An axe's depth goes
@@ -384,41 +409,60 @@ float(entity e, float xSpeed) VR_Embed_DepthShare =
     return max(0.5, min(1, xSpeed / max(0.1, 2 * cvar_hget(cvarh_vr_embed_swing_speed))));
 };
 
-// The blow that left `e` in `m` went at `xSpeed` m/s: strong enough, a light living body staggers (a sword for longer than an axe,
-// both longer the deeper), up again by itself. The usual stagger's: its AI stops, it stands on, sure footed.
+// The blow that left `e` in `m` went at `xSpeed` m/s: strong enough, it staggers, up again by itself: for how long and how far off balance
+// by the blade (a sword's longer than an axe's), how deep, with two hands, and its Skewer (groups.txt): a grunt thrown off balance by a deep
+// stab, an ogre a little, a Shambler a moment, standing on, a boss not at all. What has no ragdoll to stagger stops a moment instead.
 void(entity e, entity m, vector xDir, float xSpeed) VR_Embed_Stagger =
 {
     float point = e.vr_stick_embed == AXESTICK_POINT;
     float least = point ? cvar_hget(cvarh_vr_embed_stagger_sword_speed) : cvar_hget(cvarh_vr_embed_stagger_axe_speed);
     float how = point ? cvar_hget(cvarh_vr_embed_stagger_sword) : cvar_hget(cvarh_vr_embed_stagger_axe);
-    float can = m.health > 0 && !m.vr_knockdown && !m.vr_corpse && !m.vr_corpse_dying && m.vr_kd_chance_h && (m.flags & FL_MONSTER) &&
-                cvar_hget(cvarh_vr_knockdown) && m.solid != SOLID_BSP && VR_Embed_Light(m) && canragdoll(m) && ragdollcanstagger(m);
-    if(can && xSpeed >= least && how > 0)
+    float skewer = VR_Embed_Skewer(m);
+    float alive = m.health > 0 && !m.vr_knockdown && !m.vr_corpse && !m.vr_corpse_dying && (m.flags & FL_MONSTER) && m.solid != SOLID_BSP;
+    if(!alive || skewer <= 0 || xSpeed < least || how <= 0)
     {
-        float low = max(0, min(1, cvar_hget(cvarh_vr_embed_stagger_shallow)));
-        float hold = how * (low + (1 - low) * VR_Embed_DepthShare(e, xSpeed));
-        xDir_z = 0;
+        VR_Embed_Say(sprintf("no stagger of %s: %.1f m/s of %.1f, skewer %.2f, alive %g", m.classname, xSpeed, least, skewer, alive));
+        return;
+    }
+    float low = max(0, min(1, cvar_hget(cvarh_vr_embed_stagger_shallow)));
+    float deep = low + (1 - low) * VR_Embed_DepthShare(e, xSpeed);
+    float hands = e.vr_hold_hands == 3 ? max(1, cvar_hget(cvarh_vr_embed_stagger_twohand)) : 1;
+    float hold = how * skewer * deep * hands;
+    float amount = max(0, cvar_hget(cvarh_vr_embed_stagger_amount)) * skewer * deep * hands;
+    float ragdoll = m.vr_kd_chance_h && cvar_hget(cvarh_vr_knockdown) && canragdoll(m) && ragdollcanstagger(m);
+    float did = FALSE;
+    vr_embed_last_hold = hold;
+    vr_embed_last_amount = amount;
+    if(ragdoll)
+    {
+        vector flat = xDir;
+        flat_z = 0;
+        float sure = amount < cvar_hget(cvarh_vr_embed_stagger_topple);
         vr_kd_stagger_recover = hold;
-        vr_kd_stagger_sure = TRUE;
-        float did = VR_Knockdown_Stagger(m, normalize(xDir), max(0, cvar_hget(cvarh_vr_embed_stagger_push)), 1);
+        vr_kd_stagger_sure = sure;
+        did = VR_Knockdown_Stagger(m, normalize(flat), max(0, cvar_hget(cvarh_vr_embed_stagger_push)) * min(2, amount), sure ? 1 : max(0, 1 - amount));
         vr_kd_stagger_recover = 0;
         vr_kd_stagger_sure = FALSE;
-        if(cvar_hget(cvarh_vr_debug_axestick))
-        {
-            dprint(sprintf("embedhold: %s %s %s, %.1f m/s: %.2f s\n", e.netname, did ? "staggers" : "can't stagger", m.classname, xSpeed, hold));
-        }
     }
-    else if(cvar_hget(cvarh_vr_debug_axestick))
+    else
     {
-        dprint(sprintf("embedhold: %s doesn't stagger %s: %.1f m/s of %.1f, can %g\n", e.netname, m.classname, xSpeed, least, can));
+        m.nextthink = max(m.nextthink, time + hold);
+    }
+    string text = strcat(sprintf("%s %s %s, %.1f m/s", e.netname, ragdoll ? (did ? "staggers" : "can't stagger") : "stops", m.classname, xSpeed),
+        sprintf(": %.2f s, amount %.2f (skewer %.2f, %g hands)", hold, amount, skewer, e.vr_hold_hands == 3 ? 2 : 1));
+    VR_Embed_Say(text);
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("embedhold: %s\n", text));
     }
 };
 
-// A light body with a ragdoll (staggering, knocked down, dead) held by the limb the blade went into, by a spring from the hand on
-// its handle. TRUE: it is. FALSE: it stands, or is heavy.
-float(entity e, entity p, entity h, float xIn) VR_Embed_Spring =
+// A ragdoll of the body `h` (staggering, knocked down, dead) held by the limb the blade went into, by a spring from the hand on its
+// handle, to where the hand is less `xAxial`'s worth along the blade: that's the blade's own. TRUE: it is. FALSE: it stands, or won't.
+float(entity e, entity p, entity h, float xIn, float xAxial) VR_Embed_Spring =
 {
-    if(!VR_Embed_Light(h))
+    float skewer = VR_Embed_Skewer(h);
+    if(skewer <= 0)
     {
         return FALSE;
     }
@@ -429,14 +473,18 @@ float(entity e, entity p, entity h, float xIn) VR_Embed_Spring =
         float a = cvar_hget(cvarh_vr_embed_move_sword_force);
         force = a + (cvar_hget(cvarh_vr_embed_move_sword_force_deep) - a) * xIn;
     }
+    force = force * skewer * (e.vr_hold_hands == 3 ? max(1, cvar_hget(cvarh_vr_embed_move_twohand)) : 1);
     if(ragdolltug(h, p, hand, 1) >= 0)
     {
+        e.vr_hold_axial = e.vr_hold_axial + xAxial;
+        ragdolltug(h, p, hand, 14, e.vr_stick_dir * -e.vr_hold_axial);
         return ragdolltug(h, p, hand, 13, '0 0 0', 0, force) > 0;
     }
+    e.vr_hold_axial = 0;
     return ragdolltug(h, p, hand, 12, e.vr_stick_at, 0, force) > 0;
 };
 
-// A light body standing, its holder's walk `xWalk` this frame: going away from it, past the slack, it comes along, as a monster steps
+// A body standing, light enough, its holder's walk `xWalk` this frame: going away from it, past the slack, it comes along, as a monster steps
 // (no further off a ledge than it would walk; blocked, the hand gets `far` and the blade comes out).
 void(entity e, entity h, vector xHand, float xFar, vector xWalk) VR_Embed_Drag =
 {
@@ -634,9 +682,18 @@ float() VR_Embed_HoldThink =
     {
         dprint(sprintf("embedhold: %s along %.1f off %.1f units, %.1f further, %.1f in; this frame the hand %.1f, it %.1f along it\n", e.netname, along, off, far, e.vr_stick_depth + e.vr_stick_slide, moved3 * dir, wound * dir));
     }
-    if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm)
+    // Moving the body, by the limb it is in, what is along the blade left out while it can slide in or out (how far it goes: a sword up to
+    // its Most In, an axe no deeper than it went).
+    float point = e.vr_stick_embed == AXESTICK_POINT;
+    float inShare = VR_Embed_InShare(e);
+    float deepest = point ? max(1, e.vr_stick_bladelen) * max(0, cvar_hget(cvarh_vr_embed_hold_sword_most)) * 0.01 - e.vr_stick_depth : 0;
+    float armAlong = (moved3 - walk) * dir;
+    float sprung = VR_Embed_Spring(e, p, h, inShare, (armAlong < 0 || e.vr_stick_slide < deepest - 0.01) ? armAlong : 0);
+    // Off the axis: a ragdoll comes along; only a yank tears it out of one. What stands can't: the hand's gone too far.
+    float across = armLen / max(0.001, dt) / VRMetersToUnits();
+    if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm && (!sprung || across >= cvar_hget(cvarh_vr_embed_hold_yank)))
     {
-        VR_Embed_Free(e, VR_Embed_Why("off its axis", off / cm, cvar_hget(cvarh_vr_embed_hold_break), "cm"));
+        VR_Embed_Free(e, VR_Embed_Why(sprung ? "yanked off its axis" : "off its axis", off / cm, cvar_hget(cvarh_vr_embed_hold_break), "cm"));
         return TRUE;
     }
     // (A body dying or knocked down falls away from the hand: the hold goes on, further.)
@@ -652,11 +709,9 @@ float() VR_Embed_HoldThink =
 
     // The resistance: a stick, then a slide at most so fast, both by how deep (a dead body: less).
     float corpse = h.health <= 0;
-    float point = e.vr_stick_embed == AXESTICK_POINT;
-    float inShare = VR_Embed_InShare(e);
 
-    // Moving the body: by the limb it is in, or, standing, dragged along as you walk.
-    if(!VR_Embed_Spring(e, p, h, inShare))
+    // Standing, dragged along as you walk.
+    if(!sprung)
     {
         VR_Embed_Drag(e, h, atHandNow, far, walk);
     }
@@ -676,13 +731,14 @@ float() VR_Embed_HoldThink =
     float rate = VR_Embed_Rate(e, inShare, corpse) * cm;
     e.vr_hold_stick = stick / cm;
     float over = fabs(along) - stick;
+    // An axe's tug: barely in, it stays until the hand has pulled on past its depth by this.
+    float tug = point ? 0 : max(0, cvar_hget(cvarh_vr_embed_hold_axe_tug)) * cm;
+    float least = tug > 0 ? min(0, 1 - e.vr_stick_depth) : -1000000;
     if(over > 0)
     {
         float move = min(over * max(0, cvar_hget(cvarh_vr_embed_hold_follow)), rate) * dt * (along > 0 ? 1 : -1);
-        // (How far it goes: a sword up to its Most In, an axe no deeper than it went.)
-        float deepest = point ? max(1, e.vr_stick_bladelen) * max(0, cvar_hget(cvarh_vr_embed_hold_sword_most)) * 0.01 - e.vr_stick_depth : 0;
         float was = e.vr_stick_slide;
-        e.vr_stick_slide = min(deepest, e.vr_stick_slide + move);
+        e.vr_stick_slide = max(least, min(deepest, e.vr_stick_slide + move));
         float moved = e.vr_stick_slide - was;
         e.vr_hold_err = e.vr_hold_err - moved;
         // (Stopped by how far it goes, the hand past it is a gap as any other: coming back to the drawn hand does nothing.)
@@ -712,8 +768,25 @@ float() VR_Embed_HoldThink =
         }
     }
 
-    // Out only once all of it has travelled out, any blade, any body: the hand's pull and the blade's way are one to one.
-    if(e.vr_stick_depth + e.vr_stick_slide <= 0)
+    // Out only once all of it has travelled out, any blade, any body: the hand's pull and the blade's way are one to one. An axe's: and tugged.
+    if(tug > 0)
+    {
+        float tugged2 = -(e.vr_hold_err - e.vr_hold_slack) - stick;
+        if(e.vr_stick_slide <= least + 0.01 && tugged2 > 0)
+        {
+            if(tugged2 >= tug)
+            {
+                VR_Embed_Free(e, VR_Embed_Why("tugged out", tugged2 / cm, tug / cm, "cm"));
+                return TRUE;
+            }
+            if(time >= e.vr_hold_buzz)
+            {
+                e.vr_hold_buzz = time + 0.06;
+                VR_Embed_Haptic(p, (e.vr_hold_hands & 2) ? cVR_MainHand : cVR_OffHand, 0.05, 60, 0.3 + 0.5 * tugged2 / tug);
+            }
+        }
+    }
+    else if(e.vr_stick_depth + e.vr_stick_slide <= 0)
     {
         VR_Embed_Free(e, VR_Embed_Why("pulled out: slid", -e.vr_stick_slide / cm, e.vr_stick_depth / cm, "cm"));
         return TRUE;
@@ -807,7 +880,7 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     }
     if(cvar_hget(cvarh_vr_debug_embed))
     {
-        embedsay(why == string_null ? sprintf("blow at %s may stay in: %.1f m/s, along %.2f, point %.2f", m.classname, xSpeed, along, b.mh_c_f) : sprintf("blow at %s NOT STUCK: %s", m.classname, why));
+        embedsay(why == string_null ? sprintf("blow at %s may stay in: %.1f m/s (your body %.1f), along %.2f, point %.2f", m.classname, xSpeed, b.mh_bodyspeed, along, b.mh_c_f) : sprintf("blow at %s NOT STUCK: %s (your body %.1f m/s)", m.classname, why, b.mh_bodyspeed));
     }
     if(why != string_null)
     {
@@ -819,15 +892,14 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     vr_embed_vel = normalize(xDir) * xSpeed * VRMetersToUnits();
 };
 
-// The blows of `xHand` this frame dealt: one that may stay in, on a body still there: the hand's weapon is the blade stuck in it
-// now, the hand on it (and the other hand, if it helps hold it).
-void(float xHand) VR_Embed_BlowsDone =
+// The hand's weapon the blade stuck in `m` now, if it is still there and the blade touches it, the hand on it (and the other hand, if it
+// helps hold it): 1 it is; 0 it won't; -1 not yet: the blade as drawn is `vr_embed_gap` units off its drawn model.
+float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try =
 {
-    entity m = vr_embed_host;
-    vr_embed_host = world;
-    if(m == world || m.vr_gib || m.modelindex != vr_embed_hostmodel || m.model == string_null || VRIsHandWeaponless(self, xHand))
+    if(m.vr_gib || m.modelindex != xModel || m.model == string_null || VRIsHandWeaponless(self, xHand))
     {
-        return;
+        VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));
+        return 0;
     }
     float wid = VRGetEntWeapon(self, xHand);
     float flags = VRGetEntWeaponFlags(self, xHand);
@@ -839,18 +911,19 @@ void(float xHand) VR_Embed_BlowsDone =
         '0 0 0', '0 0 0', FALSE, FALSE, 0);
     if(w == world)
     {
-        return;
+        return 0;
     }
     w.vr_wpn_from = self; // (taken back: a regrip, not a pickup)
     w.throwhit = QVR_THROWHIT_HIT; // (its blow is dealt)
     w.throwdmgspeed = VR_Throw_DmgSpeed();
     vr_embed_stabbing = TRUE;
-    float stuck = embedstick(w, m, vr_embed_at, vr_embed_vel, xHand);
+    float stuck = embedstick(w, m, xAt, xVel, xHand);
     vr_embed_stabbing = FALSE;
-    if(!stuck)
+    if(stuck <= 0)
     {
+        vr_embed_gap = w.vr_stick_depth;
         remove(w); // (the weapon's record is the hand's still)
-        return;
+        return stuck;
     }
     VRSetHandEmpty(self, xHand);
     VRHandStopFiring(self, xHand);
@@ -860,7 +933,73 @@ void(float xHand) VR_Embed_BlowsDone =
     {
         VR_Embed_TakeHand(w, self, other);
     }
-    VR_Embed_Stagger(w, m, vr_embed_vel, vlen(vr_embed_vel) / VRMetersToUnits());
+    VR_Embed_Stagger(w, m, xVel, vlen(xVel) / VRMetersToUnits());
+    return 1;
+};
+
+// The blows of `xHand` this frame dealt: one that may stay in stays in. Landed short (the sweep's width), it may yet, for a moment.
+void(float xHand) VR_Embed_BlowsDone =
+{
+    entity m = vr_embed_host;
+    vr_embed_host = world;
+    if(m == world)
+    {
+        return;
+    }
+    if(VR_Embed_Try(xHand, m, vr_embed_hostmodel, vr_embed_at, vr_embed_vel) < 0)
+    {
+        float until = time + max(0, cvar_hget(cvarh_vr_embed_touch_wait));
+        if(xHand == cVR_MainHand)
+        {
+            self.vr_embed_wait_main = m;
+            self.vr_embed_waitto_main = until;
+            self.vr_embed_waitat_main = vr_embed_at;
+            self.vr_embed_waitvel_main = vr_embed_vel;
+            self.vr_embed_waitmdl_main = vr_embed_hostmodel;
+        }
+        else
+        {
+            self.vr_embed_wait_off = m;
+            self.vr_embed_waitto_off = until;
+            self.vr_embed_waitat_off = vr_embed_at;
+            self.vr_embed_waitvel_off = vr_embed_vel;
+            self.vr_embed_waitmdl_off = vr_embed_hostmodel;
+        }
+    }
+};
+
+// Each frame of `xHand` (self the player): a blow that landed short of its body: the blade touches it now, or no longer may.
+void(float xHand) VR_Embed_WaitFrame =
+{
+    float main = xHand == cVR_MainHand;
+    entity m = main ? self.vr_embed_wait_main : self.vr_embed_wait_off;
+    if(m == world)
+    {
+        return;
+    }
+    float r = cvar_hget(cvarh_vr_embed) ? VR_Embed_Try(xHand, m, main ? self.vr_embed_waitmdl_main : self.vr_embed_waitmdl_off, main ? self.vr_embed_waitat_main : self.vr_embed_waitat_off,
+        main ? self.vr_embed_waitvel_main : self.vr_embed_waitvel_off) : 0;
+    if(r < 0 && time < (main ? self.vr_embed_waitto_main : self.vr_embed_waitto_off))
+    {
+        return;
+    }
+    if(r < 0)
+    {
+        float cmOff = vr_embed_gap / (0.01 * VRMetersToUnits());
+        VR_Embed_Say(sprintf("blow at %s NOT STUCK: the blade never touched its model: %.1f cm off, most %.1f", m.classname, cmOff, cvar_hget(cvarh_vr_embed_touch)));
+        if(cvar_hget(cvarh_vr_debug_axestick))
+        {
+            dprint(sprintf("embedhold: blow at %s not stuck: the blade %.1f cm off its model\n", m.classname, cmOff));
+        }
+    }
+    if(main)
+    {
+        self.vr_embed_wait_main = world;
+    }
+    else
+    {
+        self.vr_embed_wait_off = world;
+    }
 };
 
 // The player leaves the level (SetChangeParms): his hands have their blades back, nothing stuck. No spurt to speak of: the level goes.

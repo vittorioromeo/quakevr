@@ -467,6 +467,11 @@ float(float xThing) VR_Melee_PommelWeight =
     return 1;
 };
 
+// Your body's speed towards what a melee weapon strikes (VR_Melee_DecideOn): added to the hand's in VR_Melee_Decide (m/s, as the blow's
+// velocities are): for landing and sticking vr_mbody_hit (vr_melee_body_speed), for its damage vr_mbody_dmg (vr_melee_body_damage).
+vector vr_mbody_hit;
+vector vr_mbody_dmg;
+
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
 float vr_msw_decide; // (the multi-target test, vr_melee_sweep_test 6: every blow lands, a cut at this strength)
@@ -597,6 +602,8 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         return FALSE;
     }
+    // (Carried in by your body more than swung: no arm's run-up, wrist or wiggle to ask of it.)
+    float bodyDriven = vr_mbody_hit != '0 0 0' && vlen(vr_mbody_hit) >= 0.5 * speed;
     // Heavy handling: a heavy weapon in both hands is swung slower than a light one (its weight), so its blows need less
     // speed (mh_lenient: VR_Heavy_SpeedFactor); one slower than a light weapon's blow strikes only as a deliberate swing,
     // a smooth arc of its far end (meleearc: a steady way, at least vr_heavy_swing_arc m over vr_heavy_swing_time s), not
@@ -622,6 +629,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             deliberate = TRUE;
         }
     }
+    if(bodyDriven)
+    {
+        deliberate = TRUE;
+    }
     float how = VR_MHOW_OTHER;
     if(b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST)
     {
@@ -635,7 +646,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         }
     }
     // Not drawn back: a blade, a head or a fist going back towards the hand (after a blow, still touching).
-    if((xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST) && VR_Melee_PulledBack(b))
+    if((xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST) && !bodyDriven && VR_Melee_PulledBack(b))
     {
         if(cvar_hget(cvarh_developer) >= 2)
         {
@@ -651,7 +662,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         return FALSE;
     }
     // And the hand itself moved, not only turned in place (a wiggle flicks the grip and the tip fast).
-    if(!VR_Melee_WristMoved(b, how))
+    if(!bodyDriven && !VR_Melee_WristMoved(b, how))
     {
         return FALSE;
     }
@@ -687,6 +698,16 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         sspeed = vfar;
         sneed = need * (kind == VR_MKIND_STAB ? VR_MELEE_TIP_STAB : VR_MELEE_TIP_SLASH);
     }
+    // (Your body's share counts by its own measure for the damage.)
+    if(vr_mbody_hit != '0 0 0')
+    {
+        vector swung = (xKind == VR_MPT_EDGE || xKind == VR_MPT_BLUNT || xKind == VR_MPT_FIST) ? b.mh_vgrip : vp;
+        if(sspeed == vfar && sspeed != speed)
+        {
+            swung = b.mh_vfar;
+        }
+        sspeed = vlen(swung - vr_mbody_hit + vr_mbody_dmg);
+    }
     sspeed = sspeed * VR_MELEE_STRENGTH_SPEED;
     float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (sspeed - sneed) / (sneed * (VR_MELEE_GOOD - 1)) *
               (b.mh_curve > 0 ? b.mh_curve : 1);
@@ -711,6 +732,40 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     b.mh_strength = b.mh_core * weight;
     b.mh_way = VR_Melee_Way(b, way, b.mh_thing);
     return TRUE;
+};
+
+// VR_Melee_Decide of a blow on `xThing` at `xAt` (not a wall): your body going towards it adds to it, for a melee weapon, not a gun or a fist
+// (running with one held out into something is no bash, no punch). Only that way: what you go past or away from gets nothing.
+float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) VR_Melee_DecideOn =
+{
+    float toward = 0;
+    if(xThing != world && b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST && b.mh_thing != VR_MTHING_NONE)
+    {
+        vector to = normalize(xAt - self.origin);
+        // (The blow's are the hand's real m/s; in bullet time your body goes slower, really.)
+        toward = (self.velocity * to) / VRMetersToUnits() * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1);
+    }
+    if(toward <= 0)
+    {
+        b.mh_bodyspeed = 0;
+        return VR_Melee_Decide(xHand, b, xI, xKind);
+    }
+    vector play = VR_Blow_ToPlaySpace(normalize(xAt - self.origin)) * toward;
+    vector add = play * max(0, cvar_hget(cvarh_vr_melee_body_speed));
+    vector gnear = b.mh_vnear, ggrip = b.mh_vgrip, gfar = b.mh_vfar;
+    vr_mbody_hit = add;
+    vr_mbody_dmg = play * max(0, cvar_hget(cvarh_vr_melee_body_damage));
+    b.mh_vnear = gnear + add;
+    b.mh_vgrip = ggrip + add;
+    b.mh_vfar = gfar + add;
+    b.mh_bodyspeed = toward;
+    float did = VR_Melee_Decide(xHand, b, xI, xKind);
+    b.mh_vnear = gnear;
+    b.mh_vgrip = ggrip;
+    b.mh_vfar = gfar;
+    vr_mbody_hit = '0 0 0';
+    vr_mbody_dmg = '0 0 0';
+    return did;
 };
 
 // Whether the blow just decided (VR_Melee_Decide) lands on `xEnt`: a slap only on something that takes damage, not on a
@@ -1695,7 +1750,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     // The striking part first. The pommel's touch waits VR_Melee_PommelWait for the blade proper to reach the
     // same thing: then the blow is the blade's (a cut whose hands arrive first); else it lands as the pommel strike it
     // was.
-    if(edgeI >= 0 && VR_Melee_Decide(xHand, b, edgeI, vr_mpt_kind[edgeI]) && VR_Melee_SlapLands(b, edgeEnt))
+    if(edgeI >= 0 && VR_Melee_DecideOn(xHand, b, edgeI, vr_mpt_kind[edgeI], edgeEnt, edgeAt) && VR_Melee_SlapLands(b, edgeEnt))
     {
         if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || vr_mpt_f[edgeI] >= VR_MELEE_BLADE_FROM)
         {
@@ -1707,7 +1762,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
             return TRUE;
         }
     }
-    if(hiltI >= 0 && b.mh_pend_ent == world && VR_Melee_Decide(xHand, b, hiltI, vr_mpt_kind[hiltI]))
+    if(hiltI >= 0 && b.mh_pend_ent == world && VR_Melee_DecideOn(xHand, b, hiltI, vr_mpt_kind[hiltI], hiltEnt, hiltAt))
     {
         b.mh_c_ent = hiltEnt;
         b.mh_c_pos = hiltAt;

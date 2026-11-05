@@ -84,6 +84,16 @@ extern "C" int VR_TunablesWrite(void)
     return 1; // (no tunables.cfg in a release)
 }
 
+extern "C" int VR_TunableCommand(void)
+{
+    return 0; // (a release's constants are constants: no console name)
+}
+
+extern "C" void VR_TunableTabList(const char* partial)
+{
+    (void)partial;
+}
+
 #else // development build: live tuning
 
 Tunable tunables[tunableCount] = {
@@ -725,6 +735,32 @@ extern "C" int VR_TunableSetVar(cvar_t* var, const char* value)
     }
     tunableSet(static_cast<int>(var - tunableStandIns), value);
     return 1;
+}
+
+// A bare tunable name typed in the console ("vr_x 0.2" sets, "vr_x" shows), after cvars and commands missed it.
+extern "C" int VR_TunableCommand(void)
+{
+    using namespace qvr;
+    if(tunableIndex(Cmd_Argv(0)) < 0)
+    {
+        return 0;
+    }
+    const char* rest = Cmd_Argc() > 1 ? Cmd_Args() : "";
+    Cmd_ExecuteString(va("tune %s %s", Cmd_Argv(0), rest), src_command);
+    return 1;
+}
+
+// BuildTabList: the tunables among the cvars and commands.
+extern "C" void VR_TunableTabList(const char* partial)
+{
+    using namespace qvr;
+    for(int id = 0; id < tunableCount; id++)
+    {
+        if(q_strcasestr(tunables[id].name, partial))
+        {
+            Con_AddToTabList(tunables[id].name, partial, overrides[id] ? "changed" : "tunable");
+        }
+    }
 }
 
 #endif

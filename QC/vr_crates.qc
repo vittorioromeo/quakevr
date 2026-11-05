@@ -51,6 +51,9 @@ void() VR_Crates_Precache =
     precache_sound("vr/crate_break1.wav");
     precache_sound("vr/crate_break2.wav");
     precache_sound("vr/crate_break3.wav");
+    precache_sound("vr/crate_hit1.wav");
+    precache_sound("vr/crate_hit2.wav");
+    precache_sound("vr/crate_hit3.wav");
     precache_sound("vr/crate_dust1.wav");
     precache_sound("vr/crate_dust2.wav");
     precache_sound("vr/phys/wood_m1.wav");
@@ -516,7 +519,7 @@ void(float xSpeed) VR_Crate_Impact =
         other == world ? "the level" : other.classname, xSpeed), world);
 };
 
-// Hurt, not broken: a knock of wood, at most every 0.1 s.
+// Hurt, not broken: a crack of wood, as hot as the melee hit's own sound (his note, 2026-11-02), at most every 0.1 s.
 void(entity attacker, float damage) VR_Crate_Pain =
 {
     dprint(sprintf("crate at %v: hit by %s for %.1f, %.1f left\n", self.origin, attacker.classname, damage, self.health));
@@ -525,9 +528,10 @@ void(entity attacker, float damage) VR_Crate_Pain =
         return;
     }
     self.vr_crate_hittime = time;
-    float k = floor(random() * 4);
-    string s = k < 1 ? "vr/phys/wood_m1.wav" : (k < 2 ? "vr/phys/wood_m2.wav" : (k < 3 ? "vr/phys/wood_m3.wav" : "vr/phys/wood_m4.wav"));
-    sound(self, CHAN_AUTO, s, min(1, 0.4 + damage * 0.04), ATTN_NORM);
+    float k = floor(random() * 3);
+    string s = k < 1 ? "vr/crate_hit1.wav" : (k < 2 ? "vr/crate_hit2.wav" : "vr/crate_hit3.wav");
+    VR_SoundVaried(self, CHAN_AUTO, s, min(1, 0.55 + damage * 0.03), ATTN_NORM);
+    dprint(sprintf("crate: knock %s\n", s));
 };
 
 // ----------------------------------------------------------------------------

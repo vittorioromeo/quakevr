@@ -8524,3 +8524,49 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 **Documented red, hidden by nothing:** `flatpose: FAIL near: the gun at the camera is not cut as the desktop's near plane cuts it`
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
+
+## Embedded blades, his sixth test (branch `agent/embed6`, brief embed6)
+
+His VR test of embedded blades, five points. `vr_embed` is still off by default ("off for 1.1"); he has it on. **Tests 1, 7, 11 failed on next mostly because of that:** with it off nothing sticks. Every `vr_embed_test` now turns it on (thrown swords do stick in test 1 then).
+
+- **Precision.** `stickHeld` took the nearest point of the model to where the blow landed, up to 32 units (about 1 m) away, and slid the blade along its own axis only, so it stayed beside the body at whatever gap it had: the gap he saw. The blow's place comes from the melee sweep, which has width and a tolerance. Now `bladeMeets`: the cutting line as drawn (a sword's blade, an axe's edge) crosses or is in the drawn model, or crossed it this frame, or is within `vr_embed_touch` 1.2 cm (`vr_model_collide` holds a drawn weapon 0.3 units, about 1 cm, off a surface; at 0 only blades that pass the stop would go in). The blade's placed through that point. A blow that landed short keeps trying for `vr_embed_touch_wait` 0.12 s as the blade comes on (`VR_Embed_WaitFrame`), then says why on the debug panel. Thrown blades already moved their struck point onto the surface: unchanged.
+- **The axe.** A held axe's `.vr_stick_depth` was 0, so the 1:1 rule (`depth + slide <= 0`: out) freed it on the first think: "comes free: pulled out: slid, 0.0 units in". It stuck for one frame in every swing. Now its depth is stored. `vr_embed_hold_axe_tug` 5 cm: the axe stays a unit in while the hand pulls on, with a rising buzz, then comes out. Swords unchanged.
+- **Your body's speed.** `VR_Melee_DecideOn`: your velocity towards the point struck (only that component, only when positive) adds to the blow, `vr_melee_body_speed` 1.0 for landing and sticking, `vr_melee_body_damage` 0.25 for damage. Melee weapons only: guns and fists left out (running with one held out would bash and punch), and walls (`VR_Melee_WallDecide` doesn't go through it). A blow at least half carried by the body skips the arm's run-up, wrist and wiggle checks. Corpses likewise (`VR_Corpse_StrikeFrame`). Velocity only: roomscale walking isn't counted. With no velocity nothing changes (`toward <= 0` is the old path).
+- **Controlling the ragdoll.** The spring pulled to the hand in every direction, so a pull along the blade both slid it and dragged the limb. Now its target is the hand less `.vr_hold_axial` (`ragdolltug` what 14): the arm's motion along the blade outwards, or inwards while the blade can still go deeper, is the blade's. Across, or pushed in past how deep it goes, moves the body. Walking isn't left out: it still drags. In a ragdoll, off the axis it only comes free past Breaks At and moving at `vr_embed_hold_yank` 6 m/s. A body that stands still breaks at 45 cm.
+- **Stagger by the body.** New `skewer` key in groups.txt (0..1, row "Blade: Skewer" per group; Combat > Embedded Blades has a link), replacing the "heavy never staggers" rule (`VR_Embed_Light` is only "dragged standing" now): grunt, enforcer, zombie, dog, gremlin 1; mummy 0.9; knight, skull wizard, spider, scrag, spawn 0.8; death and elite knights 0.5; ogre, fiend 0.4; vore 0.25; mini boss 0.2; machine 0.1; Shambler 0.08; giant 0.05; boss 0. Time = `vr_embed_stagger_sword` 2.5 s (axe 0.75) x skewer x depth share x two hands (`vr_embed_stagger_twohand` 1.5). Amount = `vr_embed_stagger_amount` 1 x the same; at `vr_embed_stagger_topple` 0.55 and up it isn't sure footed and may fall. What has no ragdoll to stagger stops its think instead. Moving force x skewer x `vr_embed_move_twohand` 2.5; `vr_embed_move_sword_force` 200, `_deep` 900 (were 400, 2200: at 2200 one hand had nothing left for two to add), axe 300.
+
+Test `vr_embed_test 11` (`embedmove: N passed, M failed`), new cases 19-31. Body classes there are a grunt's body reclassed: the group's numbers are real, the mass isn't, so a real ogre's or Shambler's feel wasn't measured. Test 7 still has failures of its own, mostly numbers he has changed since it was written (least speed 2.5, break 45, the 1:1 pull) plus two whose hand stops short of the body, which the touch rule now refuses; test 1 doesn't reach its verdict in 200 s.
+
+## Light probes shown, their spacing live; crates' wood louder (his notes, 2026-11-02)
+
+Debug: Show Light Probes (`vr_model_light_grid_show`) draws the probes within 256 units as crosses in the colour white
+paint has under their light, and lines to the eight the model looked at (or the nearest) reads. Tunable Probe Spacing
+(`vr_model_light_grid_cell`, 48) builds the grid again live. `vr_model_light_grid_info` now prints a model's read against
+the floor under it, and every near-floor probe against its floor. Scene: `vrarena_crate`.
+
+vrarena, drawn light, 128 full: the probes' mean 105 against the floors' 129; 271 of 1222 probes under 0.7 of their floor,
+405 over 1.3. A walk through pools: floor 8..121, grid 44..61 (spacing 24: 35..62, largest step 10.1 down to 2.9; near 24:
+44..58). So neither the scale nor the spacing is off: a probe gathers its whole surroundings, so a model in a pool reads
+about half the floor there and one in the dark reads more than its floor. Raising the intensity would lift the dark
+rooms that are already over. Defaults kept.
+
+Crates: `crate_hit1..3` (new, 0.44-0.50 RMS; the wood_m knock was 0.2, played at 0.4 + damage x 0.04, under the melee
+hit's 0.64) in VR_Crate_Pain; `crate_break1..3` 0.7 s at 0.3 RMS to 1.2 s at 0.5, with boards clattering down (both soft
+clipped, `make_crate_sounds.py`, Python with numpy). AD's func_breakable sounds (`break/*.wav`) aren't in the repo: unchanged.
+
+## Light probes read phantom surfaces (dark rows by the towers)
+
+His report: in vrarena by a tower on the outer edge a row of probes, and the models there, far darker than the lit floor.
+Cause: a plain bug in the ray walk. `trace` (vr_ambient.cpp) and `RecursiveLightPoint` (gl_rlight.c) took a surface when
+its texture extents held the crossing, and those are only a box round the surface: the octagon's thin diagonal bands (skirting
+top at z 16, more at 80 and 96) have a box over the whole corner, where the towers stand, of luxels outside the face that
+are dark. So a ray going down from there stopped in mid air on a phantom (lightmap 40, 30 units away, so it weighs much)
+instead of reaching the floor (107..177). Now `R_SurfaceHoldsPoint` also tests the crossing against the surface's edges;
+GRID_CACHE_VERSION 3. Measured in vrarena, the probe at -530.5 -386.5 45.5: level 54 -> 112, drawn 25 -> 120; R_LightPoint on
+the floor under it 39 (14 from z 93.5) -> 103. Over a floor: probes' mean 105 -> 151, floors' 129 -> 170 (the floors were
+wrong too); z 45.5 and 93.5: level / floor at the 10th, 50th and 90th percentile 0.85, 1.00, 1.49, and none under 0.70.
+
+What's left is the averaging itself: in a bright pool (floor 170..180) the walls and ceiling round it are 45..150, so the
+probe reads 120 (0.7 in lightmap units; about half when drawn, through the curve). The compile's own LIGHTGRID_OCTREE is no
+ready answer: it has no direction and no cosine, and clips at 255 over most of this arena's air (layer means 211..253).
+`vr_physsound.cpp`'s walk has the same box test (not changed: it isn't light).

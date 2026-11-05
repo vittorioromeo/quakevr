@@ -42,7 +42,7 @@ void say(const char* fmt, ...);
 // put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
 // local one: where QC put it), its checks made (an axe's edge first, not its side; a plate: its spark): stuck, by its point
 // or its edge, with QC's VR_AxeStick_Stuck called. False: no, QC removes it and the hand keeps its weapon.
-[[nodiscard]] bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3& vel, int hand);
+[[nodiscard]] int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3& vel, int hand);
 
 // Server: the player's hands' blades as stats (STAT_QVR_EMBEDOFF, STAT_QVR_EMBEDMAIN).
 void calcStats(edict_t* player, int* statsi);

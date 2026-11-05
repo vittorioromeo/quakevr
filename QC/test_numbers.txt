@@ -35,7 +35,7 @@ vr_embed_test    7        vr_embed_test.qc                 held stabs and swung 
 vr_embed_test    8        vr_embed_test.qc                 the pictures' scene: a stab held
 vr_embed_test    9        vr_embed_test.qc                 the pictures' scene: that stab let go of
 vr_embed_test    10       vr_embed_test.qc                 the pictures' scene: its end
-vr_embed_test    11       vr_embed_test.qc                 moving the body: stagger, pull, knocked down, drag, past reach, your speed, heavy, boss
+vr_embed_test    11       vr_embed_test.qc                 touching the model, the axe's tug, running stabs, moving the body by hand and hands, stagger by body: stagger, pull, knocked down, drag, past reach, your speed, heavy, boss
 vr_embed_test    12       vr_embed_test.qc                 the pictures' scene: a body being moved
 vr_embed_test    13       vr_embed_edge_test.qc            the edges: vr_embed off, teleporters, armed enemies, a body going, two hands, knockdowns, the other hand, bullet time
 vr_embed_test    14       vr_embed_edge_test.qc            the save's scene: a stab held
@@ -360,6 +360,7 @@ vr_burn_test     13       vr_burning_test.qc               (VR_Burn_Ignite)
 vr_burn_test     14       vr_burning_test.qc               (VR_Burn_TestFlamesOff)
 vr_burn_test     15       vr_burning_test.qc               (findflags)
 vr_burn_test     16       vr_burning_test.qc               (launch_spike)
+vr_burn_test     17       vr_burning_test.qc               (VR_Burn_TestCrate)
 
 vr_deadanim_test 1        vr_deadanim.qc                   (VR_DeadAnim_IsDead)
 vr_deadanim_test 2        vr_deadanim.qc                   (ragdollcanstagger)
