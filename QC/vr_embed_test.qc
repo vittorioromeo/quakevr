@@ -2491,6 +2491,57 @@ void() VR_EM_Step =
         }
         return;
     }
+    // ---- 32: a closed fist held still, run into a grunt: a punch by your speed, its damage by less. 33: with
+    // vr_melee_body_speed 0, nothing. 34: an open hand, nothing (no slap)
+    if(c >= 32 && c <= 34)
+    {
+        if(vr_et_s == 0)
+        {
+            localcmd(c == 33 ? "tune vr_melee_body_speed 0\n" : "tune_reset vr_melee_body_speed\n");
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            vr_et_m = VR_ET_Grunt(110);
+            localcmd(c == 34 ? "-grabmain\n" : "+grabmain\n");
+            VR_ET_To(1);
+        }
+        else if(vr_et_s == 1 && t > 0.1 && (c == 34 || VR_HandGrabUtil_IsHandGrabbing(p, h)))
+        {
+            vector toChest = VR_ET_Chest(m) - p.origin;
+            float chestUp = toChest_z;
+            toChest_z = 0;
+            vr_eh_fw = normalize(toChest);
+            vr_em_org = vr_eh_fw * 30 + '0 0 1' * chestUp; // (where the hand stays, from you: it reaches the grunt before you do)
+            VR_EH_HandTo(p.origin + vr_em_org, 0);
+            VR_ET_To(2);
+        }
+        else if(vr_et_s == 2 && t > 0.15)
+        {
+            vr_et_v = m.health;
+            VR_Blow(h).mh_bodyspeed = 0;
+            VR_EM_Walk(vr_eh_fw);
+            VR_ET_To(3);
+        }
+        else if(vr_et_s == 3)
+        {
+            VR_EH_HandTo(p.origin + vr_em_org, 0); // (it goes with you: no swing)
+            if(m.health < vr_et_v || t > 1.2)
+            {
+                entity bl = VR_Blow(h);
+                if(c == 32)
+                {
+                    VR_Test_Check(m.health < vr_et_v && bl.mh_kind == VR_MKIND_PUNCH, sprintf("a closed fist held still, run into it, punches (body %.1f m/s, hand %.1f m/s, %g of %g)", bl.mh_bodyspeed, vlen(bl.mh_vgrip), m.health, vr_et_v));
+                    VR_Test_Check(bl.mh_bodyspeed > 0 && bl.mh_dmgspeed < bl.mh_speed * 0.6, sprintf("its damage by less: %.1f m/s of its %.1f", bl.mh_dmgspeed, bl.mh_speed));
+                }
+                else
+                {
+                    VR_Test_Check(m.health == vr_et_v, sprintf("%s: nothing (%g of %g)", c == 33 ? "vr_melee_body_speed 0" : "an open hand", m.health, vr_et_v));
+                    localcmd("tune_reset vr_melee_body_speed\n");
+                }
+                VR_EM_NextCase();
+            }
+        }
+        return;
+    }
     vr_et_up = 0;
     vr_eh_ahead = 0;
     localcmd("tune_reset vr_embed_stagger_axe_speed\ntune_reset vr_embed_stagger_push\ntune_reset vr_embed_stagger_sword\ntune_reset vr_embed_stagger_axe\ntune_reset vr_embed_stagger_amount\n");
@@ -3225,7 +3276,7 @@ void() VR_Embed_TestFrame =
             vr_et_case = 0;
             VR_ET_To(0);
         }
-        if(ask == 11)
+        if(ask == 11 || ask == 23) // (23: its last cases alone, the fist run into a grunt)
         {
             VR_Test_BeginFlags("embedmove", VR_TEST_LOUD);
 cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stagger here)
@@ -3239,7 +3290,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             // (Short sure-footed staggers in the first cases, by these; the cases by each kind of body take the defaults.)
             localcmd("tune vr_embed_stagger_axe_speed 8\ntune vr_embed_stagger_push 0\ntune vr_embed_stagger_sword 0.6\ntune vr_embed_stagger_axe 0.3\ntune vr_embed_stagger_amount 0.3\n");
             vr_et_on = 11;
-            vr_et_case = 0;
+            vr_et_case = ask == 23 ? 32 : 0;
             VR_ET_To(0);
         }
         if(ask == 12)
