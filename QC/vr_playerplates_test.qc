@@ -469,7 +469,7 @@ entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWea
 
 void(entity p) VR_PPT_Look =
 {
-    float n = vr_ppt_on == 10 ? 7 : 12;
+    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : 12;
     float k = vr_ppt_shot;
     // (they stand where they were put, whatever their AI wants: the same picture every run)
     if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
@@ -496,6 +496,17 @@ void(entity p) VR_PPT_Look =
                 vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 1, -60, 262);
                 vr_ppt_g1 = VR_PPT_LookWearer(p, 0, 2, 0, 262);
                 vr_ppt_g2 = VR_PPT_LookWearer(p, 0, 3, 60, 262);
+            }
+        }
+        else if(vr_ppt_on == 12)
+        {
+            // (bent: your hands in at the chest, your head down, knees and elbows showing; a grunt on the move; front, then side, yellow)
+            VR_PPT_Set(p, k < 2 ? 2 : 0, k < 2 ? 150 : 0);
+            localcmd("vr_mock_hand main 0.18 1.0 -0.25 0 0 0;vr_mock_hand off -0.18 1.0 -0.25 0 0 0;vr_mock_hand head 0 1.15 0.1\n");
+            localcmd(k == 0 ? "vr_mock_camera 0 0.8 -1.8 0 180\n" : k == 1 ? "vr_mock_camera 1.8 0.8 0 0 90\n" : k == 2 ? "vr_mock_camera 0 0.95 -0.9 0 0\n" : "vr_mock_camera 2.0 0.95 -3.3 0 90\n");
+            if(k >= 2)
+            {
+                vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 2, 0, 100);
             }
         }
         else if(k < 8)
@@ -596,7 +607,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9 || ask == 10 || ask == 11)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -611,7 +622,7 @@ void() VR_PP_TestFrame =
     {
         VR_PPT_Main(p);
     }
-    else if(vr_ppt_on == 10 || vr_ppt_on == 11)
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12)
     {
         VR_PPT_Look(p);
     }

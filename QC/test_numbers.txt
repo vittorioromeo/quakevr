@@ -633,3 +633,4 @@ vr_pp_test       8        vr_playerplates_test.qc          the picture sheet
 vr_pp_test       9        vr_playerplates_test.qc          full red from the eyes, looking down
 vr_pp_test       10       vr_playerplates_test.qc          the armour look sheet: three tiers on you and a grunt, the far shot
 vr_pp_test       11       vr_playerplates_test.qc          every wearer and body build in red, for the fit
+vr_pp_test       12       vr_playerplates_test.qc          bent: you and a grunt, front and side, for the fit at the joints

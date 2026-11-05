@@ -1065,7 +1065,7 @@
   "by": "make_teeth.py"
  },
  "quakevr/progs/vragarmor.mdl": {
-  "sha256": "111a7361f38c03aa27af9f6c4ebe65b8172bb1a60ff7fc559b071f3d645b1d9e",
+  "sha256": "0c71e3018357f772202cd48d56ae8b2f645926862f431f1b620bb43c8c249832",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_0.png": {
@@ -1073,7 +1073,7 @@
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_0_norm.png": {
-  "sha256": "9ac7b00713bb3317287b75f49b7a2abcf3d9a6f936825655d66a23c485903c90",
+  "sha256": "f1d70d734b7bb93b317f92f0c4332f2492236c35cde71cd84909bb20c5fde47a",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_1.png": {

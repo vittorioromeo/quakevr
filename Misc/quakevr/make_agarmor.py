@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # make_agarmor.py -- the skins of the armour plates, armed humanoids' and the player's alike (Quake/vr/vr_agarmor.cpp;
 # ROUND22.md, "Armour for armed humanoids, P0"; ROUND24.md, "The armour's look"): quakevr/progs/vragarmor.mdl, a
-# placeholder quad carrying nine skins, type - 1 + 3 x wear (0 green, 1 yellow, 2 red; wear 0 whole, 1 dented and
-# scratched, 2 battered, chipped and scorched); vragarmor.mdl_<n>.png, the same in full colour at twice the size (what's
-# drawn: VR_ExternalSkin; the .mdl's own 8-bit copies stay for a broken plate's debris and any 8-bit look); and
-# vragarmor.mdl_0_norm.png, the relief (rivets, pits, scratches, the plates' edges; heights in its alpha) of them all.
+# placeholder quad carrying nine skins in the game's palette, type - 1 + 3 x wear (0 green, 1 yellow, 2 red; wear 0 whole, 1 dented and
+# scratched, 2 battered, chipped and scorched), a broken plate's debris the same; and vragarmor.mdl_0_norm.png, the relief (rivets,
+# pits, scratches, the plates' edges; heights in its alpha) of them all. In the palette, each texel its own colour: vr_retro has nothing
+# to pull or dither (its ordered dither's checker on a full-colour skin's in-between colours), the grain the paint's own.
 #
 # All painted here from nothing but noise and shapes. The plates' shapes are not made here: the engine cuts them from
 # the wearer's own body when it loads "<model>#armor" (vr_agarmor.cpp platesOf) and maps each onto one TILE of this atlas.
@@ -53,15 +53,18 @@ BLOCKS = {
     "inner": (160, 96, 208, 128),
     "rim": (208, 96, 256, 128),
 }
-TILES_X, TILES_Y = 5, 4  # (vr_agarmor.cpp plateTilesX, plateTilesY)
-BEVEL = 0.1              # (vr_agarmor.cpp plateBevelUv)
+TILES_X, TILES_Y = 5, 6  # (vr_agarmor.cpp plateTilesX, plateTilesY)
+BEVEL = 0.12             # (vr_agarmor.cpp plateBevelUv)
+# What each tier's skin may use of the palette: its own family, so a shade or a stain never turns another colour.
+GREYS, BROWNS = list(range(0, 13)), list(range(16, 23))  # (no white; the dark browns: rust, grime, leather)
+TIER_COLOURS = {1: list(range(176, 192)) + GREYS + BROWNS, 2: list(range(16, 32)) + list(range(198, 208)) + GREYS, 3: list(range(64, 80)) + list(range(96, 104)) + GREYS + BROWNS}
 
 # The paint, full colour. Not the old ramps' pure hues: a dull painted metal, red the most held back, and still three hues
 # told apart in the dark (the generator check: vr_agarmor_look_check's hue distance). sRGB, 0..255. vr_retro pulls what's
 # drawn to Quake's palette, which has no true green and few dull reds: each tier stays near one family so it doesn't jump between
 # them: green the palette's sage row (176-191; a little more red and it's the olive row, as a shade or a stain), yellow its
 # tan row, red between its pure reds and its browns.
-PAINT = {1: (68, 94, 72), 2: (146, 122, 52), 3: (118, 28, 26)}
+PAINT = {1: (64, 88, 48), 2: (152, 136, 44), 3: (118, 26, 26)}
 STEEL = (120, 116, 108)   # the bare metal at worn edges
 RUST = {1: (58, 62, 48), 2: (104, 80, 36), 3: (88, 40, 28)}  # (each near its own hue: an accent, and no tier's plates turn another's colour)
 GRIME = (26, 22, 18)
@@ -190,7 +193,7 @@ def paint_tiles(lay):
             warm = rng.uniform(-0.012, 0.012)
             lay.tone[ys, xs] = (tone * (1 + warm), tone, tone * (1 - warm))
             # A slope down the plate: its top under the plate above (dark), its bottom lip catching the light.
-            lay.shade[ys, xs] = 0.86 + 0.26 * v - 0.3 * smooth(0.26, 0.0, v)
+            lay.shade[ys, xs] = 0.9 + 0.22 * v - 0.62 * smooth(0.34, 0.0, v)  # (the top in the shadow of the lip above)
             # The corners darker (the plates' overlaps), the bevel's own shade from the geometry.
             corner = np.minimum(np.hypot(u, v), np.minimum(np.hypot(1 - u, v), np.minimum(np.hypot(u, 1 - v), np.hypot(1 - u, 1 - v))))
             lay.shade[ys, xs] *= 1.0 - 0.34 * smooth(0.26, 0.06, corner)
@@ -204,7 +207,7 @@ def paint_tiles(lay):
             # The dirt: near its edges inside the bevel, thicker in the low corners, out of the rain's way under its top.
             lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.46 * smooth(BEVEL * 2.4, BEVEL * 1.1, e) * (e > BEVEL * 0.7))
             lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.52 * smooth(0.42, 0.1, corner))
-            lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.5 * smooth(0.2, 0.05, v))
+            lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.75 * smooth(0.26, 0.02, v))
             # The rust's reach: along its edges, a low corner; a patch on some plates.
             r = 0.55 * smooth(BEVEL * 2.8, BEVEL * 0.8, e) + 0.5 * smooth(0.5, 0.15, np.hypot(1 - v, np.minimum(u, 1 - u)))
             if rng.uniform() < 0.5:
@@ -222,7 +225,7 @@ def paint_tiles(lay):
             if kind == 2:
                 spots += [(inset_x, 0.5), (1 - inset_x, 0.5)]
             for su, sv in spots:
-                paint_rivet(lay, ax + su * tw, ay + sv * th, 2.1)
+                paint_rivet(lay, ax + su * tw, ay + sv * th, 2.6)
 
 
 def helmet_shade(a, b):
@@ -354,7 +357,7 @@ def paint(lay, armor, level):
     base = np.asarray(PAINT[armor], dtype=float)
     img = base[None, None] * lay.tone
     # The paint's own mottling and fine grain.
-    img = img * (0.84 + 0.32 * lay.mottle)[..., None] * (0.94 + 0.12 * lay.grain)[..., None]
+    img = img * (0.92 + 0.16 * lay.mottle)[..., None] * (0.94 + 0.12 * lay.grain)[..., None]
     img = img * np.clip(lay.shade, 0.0, 1.5)[..., None]
     wear = level * 0.22
     # Rust: an accent. Its reach by the plate, its shape by noise, a tier's own share of the paint.
@@ -375,7 +378,7 @@ def paint(lay, armor, level):
     # Rivets: dull metal, lit from above (the relief too).
     riv = np.clip(lay.rivet * 2.0, 0.0, 1.0)
     lit = 0.55 + 0.5 * lay.rivet
-    img = img * (1 - riv[..., None]) + np.asarray((122, 116, 104), dtype=float)[None, None] * (lit * riv)[..., None]
+    img = img * (1 - riv[..., None]) + np.asarray((172, 164, 146), dtype=float)[None, None] * (lit * riv)[..., None]
     # Fine specks.
     img = img * (0.96 + 0.08 * lay.fine)[..., None]
     if level >= 1:
@@ -400,13 +403,13 @@ def relief(lay):
     """The normal map (+x right, +y up the texture as bake_normals.py's) with the heights in its alpha, 255 the surface."""
     h = lay.height.copy()
     # pits where rust lives, the rivets' domes, the scratches' grooves
-    h -= 0.1 * smooth(0.45, 0.85, lay.rust * 0.62 + lay.rustmask * 0.75) * lay.pits
-    h -= 0.015 * lay.pits
+    # (no texel-fine noise here: lit by the normal map at a texel a pixel it read as a woven mesh over the plates)
+    h -= 0.12 * smooth(0.45, 0.85, lay.rust * 0.62 + lay.rustmask * 0.75) * lay.blotch
     h -= 0.12 * lay.scratch
-    h += 0.7 * lay.rivet
+    h += 1.3 * lay.rivet
     h = h * (1 - lay.nopaint) + (0.75 + 0.25 * lay.grain) * lay.nopaint
     # (texels to slope: a texel of this atlas is about 0.15 model units on a plate; heights' 1 about 0.3 units)
-    k = 2.0
+    k = 3.0
     gx = (np.roll(h, -1, 1) - np.roll(h, 1, 1)) * 0.5 * k
     gy = (np.roll(h, -1, 0) - np.roll(h, 1, 0)) * 0.5 * k
     n = np.stack((-gx, gy, np.ones_like(h)), axis=2)
@@ -432,16 +435,24 @@ def write_png(path, arr):
         f.write(chunk(b"IEND", b""))
 
 
-def to_palette(img):
-    """The skin in 8 bits, for the .mdl: each 2 x 2 texels' mean, the nearest non-fullbright colour of the game's palette
-    as its own values: the palette's table, no texture data."""
-    pal = np.asarray(palette(), dtype=float)[:224]
+def to_palette(img, armor):
+    """The skin in 8 bits, the game's own size: each 2 x 2 texels' mean, a little irregular noise (the paint's grain, never a
+    regular dither), the nearest colour of the tier's rows of the palette; leather and grime may use the browns and greys."""
+    pal = np.asarray(palette(), dtype=float)
+    allowed = sorted(set(TIER_COLOURS[armor]))
+    table = pal[allowed]
     small = img.reshape(SKIN_H, SCALE, SKIN_W, SCALE, 3).mean(axis=(1, 3))
-    # (weighted towards keeping hue: a colour's distance, with its red-green share counted double)
+    # (red between its pure and its brown rows, an irregular grain of the two its dull colour; the others a row each, a little noise)
+    amount = {1: 2.0, 2: 2.0, 3: 9.0}[armor]
+    grain = (0.25 * noise_grid(SKIN_W, SKIN_H, 3, 410 + armor) + 0.75 * white(SKIN_W, SKIN_H, 400 + armor) - 0.5)[..., None] * np.asarray((1.0, 1.0, 1.0)) * amount
+    small = small + grain
     idx = np.zeros((SKIN_H, SKIN_W), dtype=np.uint8)
+    allowed = np.asarray(allowed)
     for y in range(SKIN_H):
-        d = ((small[y][:, None, :] - pal[None, :, :]) ** 2).sum(axis=2)
-        idx[y] = d.argmin(axis=1)
+        # (hue counts for more than brightness: the distance on the colour's red-green and green-blue differences too)
+        diff = small[y][:, None, :] - table[None, :, :]
+        d = (diff ** 2).sum(axis=2) + 1.5 * ((diff[:, :, 0] - diff[:, :, 1]) ** 2 + (diff[:, :, 1] - diff[:, :, 2]) ** 2)
+        idx[y] = allowed[d.argmin(axis=1)]
     return idx.tobytes()
 
 
@@ -461,19 +472,17 @@ def main():
     lay = build()
     # Nine skins: type - 1 + 3 x wear (0 whole, 1 at two thirds of its pool, 2 at a third: vr_agarmor.cpp relink).
     images = [paint(lay, armor, level) for level in (0, 1, 2) for armor in (1, 2, 3)]
-    skins = [to_palette(img) for img in images]
+    armors = [armor for level in (0, 1, 2) for armor in (1, 2, 3)]
+    skins = [to_palette(img, armor) for img, armor in zip(images, armors)]
     mesh = mdlgen.Mesh(SKIN_W, SKIN_H, REGIONS)
     mesh.box((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), "whole")  # (a placeholder: only the skins are used)
     path = os.path.join(out, "vragarmor.mdl")
-    paths = [path] + [os.path.join(out, "vragarmor.mdl_%d.png" % i) for i in range(len(images))]
-    paths.append(os.path.join(out, "vragarmor.mdl_0_norm.png"))
+    paths = [path, os.path.join(out, "vragarmor.mdl_0_norm.png")]
     guard = genguard.Guard("make_agarmor.py", paths)
     mdlgen.write_mdl(path, mesh, skins, "vragarmor")
-    for i, img in enumerate(images):
-        write_png(os.path.join(out, "vragarmor.mdl_%d.png" % i), img)
     write_png(os.path.join(out, "vragarmor.mdl_0_norm.png"), relief(lay))
     guard.finish()
-    print("vragarmor.mdl: %dx%d, %d skins, full colour %dx%d -> %s" % (SKIN_W, SKIN_H, len(skins), W, H, os.path.normpath(path)))
+    print("vragarmor.mdl: %dx%d, %d skins -> %s" % (SKIN_W, SKIN_H, len(skins), os.path.normpath(path)))
 
 
 if __name__ == "__main__":

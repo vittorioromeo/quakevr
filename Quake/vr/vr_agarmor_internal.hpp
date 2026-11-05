@@ -129,6 +129,8 @@ struct Vert
     int piece{0}, layer{0}; // layer: 0 outer, 1 inner, 2 rim
 };
 
+inline constexpr int plateVerts = 28; // a plate's vertices (vr_agarmor.cpp addPlate): the face's four first, in corner order
+
 // A piece's grid: rings up its axis (hAt), columns round it (azOf: mirrored about its front), a radius at every corner.
 struct PlateGrid
 {
