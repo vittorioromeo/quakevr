@@ -22,6 +22,7 @@
 #include "vr_nailslide.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_crosshair.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
@@ -5320,6 +5321,11 @@ extern "C" void VR_SetupViewEntities()
             const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
             bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
         }
+    }
+
+    if(flatplay::active() && !stereo::isRenderingEye())
+    {
+        crosshair::queueFlat(s); // flatscreen play: the headset's crosshair (vr_crosshair), the weapons as just placed
     }
 
     {

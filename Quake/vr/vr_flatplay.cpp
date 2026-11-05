@@ -32,6 +32,7 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
+#include "vr_deathview.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -1776,6 +1777,23 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+}
+
+// V_CalcRefdef, after VR_FlatViewDrop: dead, the view in the ragdoll's head as the headset's is (vr_death_view 2 or Vomit
+// Mode; vr_deathview.cpp). Not in a chase view.
+extern "C" void VR_FlatDeathView(float* vieworg, float* viewangles)
+{
+    if(!qvr::flatplay::active() || chase_active.value)
+    {
+        return;
+    }
+    glm::vec3 origin = qvr::geom::vec(vieworg), angles = qvr::geom::vec(viewangles);
+    qvr::deathview::flatView(origin, angles);
+    for(int i = 0; i < 3; i++)
+    {
+        vieworg[i] = origin[i];
+        viewangles[i] = angles[i];
+    }
 }
 
 // svc_setangle (cl_parse.c, before VR_OnSetAngle takes the same message): the angle of a walk through a seamless teleporter
