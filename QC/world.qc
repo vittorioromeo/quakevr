@@ -581,7 +581,7 @@ void() worldspawn =
 
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 
-    VR_ARENA_WorldSpawn(); // QVR: Survival Arena's wave director (vr_arena.qc; nothing runs unless the map is "vrarena" or vr_arena is set)
+    VR_ARENA_WorldSpawn(); // QVR: Survival Arena's wave director (vr_arena.qc; nothing runs unless the map is an arena map or vr_arena is set)
 };
 
 #ifdef QVR_TESTS

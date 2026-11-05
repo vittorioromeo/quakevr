@@ -896,6 +896,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
     stat(STAT_QVR_HOTBLADE, f.vr_hot_hud); // incandescent blades' glow (vr_meleehud.cpp)
     stat(STAT_QVR_HOTBLADEHOLSTER, f.vr_hot_hud2);
+    stat(STAT_QVR_MAGOUT, f.vr_mag_out); // the magazines sliding out of the guns in the hands (vr_view.cpp magSlideStep)
     stat(STAT_QVR_REVOLVER, f.vr_rv_hud); // the heavy revolvers in the hands (vr_view.cpp setupRevolverParts)
     stat(STAT_QVR_REVOLVER2, f.vr_rv_hud2);
     stat(STAT_QVR_REVOLVERCYL, f.vr_rv_cyl);

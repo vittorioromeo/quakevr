@@ -4,6 +4,19 @@ A per-feature reference: current behaviour only. Earlier work: `ROUND23.md` (1.1
 read it whole), `ROUND22.md` (1.0.1 to beta4). Add new work as a short section per feature, or fold it into its section: what it does,
 settings and defaults, files, tests, open issues. Keep sections short: this file is meant to stay small.
 
+## The armour's look (branch `agent/armorlook`)
+
+Player and armed humanoids alike, in the shared generator; his mockup (too clean and cartoon-saturated before; shards, grime, less red).
+
+- **Shapes** (third round, his notes: "bulky and pillowy", no layering): `vr_agarmor.cpp` `planGrid`, `fillRadii`, `addPlate`, `platesOf`: a piece is a regular grid of plates, 8 columns on the cuirass with a seam down the front and back, 6 on a limb with a plate facing front, in short straight rows. Each ring's radii are the skin's own, by rays out from the ring's middle at that height (`skinAlong`), raised only so a flat plate's chord clears the skin and the region's vertices (each corner at most `plateRidge` 1.1 over its ray), `plateFit` 0.12 units off: so rows follow the body's outline, narrow at waist, ankle and joints. Each plate is a shingle: its top lies on its foot under the row above, its lower edge stands `plateStep` 0.62 proud and laps `plateLap` 0.34 over the row below, a real step and shadow at every row. Feet share the grid's corners, weights included, so nothing shows between plates of a piece in any pose. A knee's plate on each thigh's end, an elbow's on each upper arm's. Mirrored: the cuirass's columns about its centre line (half way where a rest pose leans), a limb and its mirror image where the two are alike; a humanoid whose limbs differ keeps each its own fit. Covered too: the clavicles' skin, a closing row round the neck (`closeYoke`), a little over the joints, down to the belt. The bracer stays the forearm's elbow half (the wrist gadget). The helmet keeps its shape, new paint.
+- **Paint:** `make_agarmor.py`, from noise and shapes alone, in the game's palette at the skin's own 256 x 128 (the full-colour PNGs are gone: an 8-bit skin needs no pull to the palette, and the debris is the same skin): `vragarmor.mdl` nine skins, `vragarmor.mdl_0_norm.png` the relief (rivets, dents, scratches, plate edges). A plate maps onto one of 30 tiles: its own tone, worn steel on its bevel in broken lengths, the shadow under the lip above and in its corners, rust as an accent, rivets at its corners, stronger than before. Each tier keeps to its own palette colours (`TIER_COLOURS`): green the sage row (no true green in the palette), yellow the tan row, red the pure reds and a little of the browns.
+- **Triangles:** limit 3400 a body (`vr_agarmor_look_check`). Player 2 728 on every build (default bare forearms 23 016 originally), grunt 3 256 (3 436), enforcer 2 776, knight 3 256, death knight 2 824. Traded for the shorter rows: a plate is 12 triangles, down from 20: no top edge to bevel or side there (it's under the lip), side bevels and seams triangles.
+- **Hues:** the plates' mean hues in the check, tiles within 14 degrees of each other. **The checker on plate faces** isn't the skin: it's `vr_retrolight_model_dither` (0.25, every model's ordered dither between light levels, skin texels; gone with it at 0). A global look setting, left as it is.
+- **Checks:** `vr_agarmor_look_check` (Debug > Tests; `agarmor look: N passed, M failed`), every wearer and build: same seed same hash, another seed another; within budget; every piece has plates; left against right (mean nearest mirrored outer vertex, at most 0.25 units on the player, 4 on a humanoid's own limbs, whose rest poses and meshes differ); each interior ring's width against the skin's slice at that height (at most 5.5 units wider on the player, 7.5 on a humanoid's few edges; a death knight's upper arms not measured: his shoulder shells); each piece's thinnest-to-thickest ring against the body's (within 0.25, a humanoid's 0.45); the step at every row at least 0.25 units; rays out from each covered piece's skin hitting a plate, at least 85% at rest and 80% with knees and elbows bent, the thighs and arms forward and the spine leaning (a death knight's bent 60%: his shells stay on his clavicles; a limb's skin facing along it not counted); tier hues at least 30 degrees apart, one tier's tiles at most 14, red's saturation 0.35 .. 0.82. `vr_agarmor_check` still applies. `vr_pp_test 10` the tiers' shots where you stand; 11 every wearer and build; 12 bent, front and side. Scene: `armor_look`.
+- **Painted body skin:** not retired; the cuirass's last row reaches the belt so it doesn't show at the waist.
+- **Performance:** like for like on one tree (`origin/next`'s armour files and skins swapped in, then this branch's; `--lto`, `bench.sh`, exclusive, 2048 eyes, 90 Hz paced, every armed humanoid in full red: `scratch/al_bench.cfg`; medians of 3 reps, ms, original -> this): `play_e1m1_fight` CPU 3.26 -> 3.24, GPU 3D 2.03 -> 1.98; `crowd32_armed` CPU 4.53 -> 4.39, GPU 3D 2.90 -> 2.79. Within noise (one scene's reps spread up to 0.45 CPU, 0.42 GPU): no worse. One crowd rep (34 hitches over 33 ms) was set aside and the scene rerun; it didn't come back, its cause not found.
+- **The dark things on the player's chest:** his two chest holsters (`vr_dumpview`: `legholster` at the chest, both sides) and the torch: worn on the skin, they show at the plates. The first rounds' two square patches are gone with the fit.
+- **Open:** green is the palette's sage, as the original (no true green there). The death knight's shoulders read as a wide cape (his pauldron shells). `vr_agarmor_test 5` read 23/24 on some runs before this round, its check never caught: five in a row, two ways in, read 24/24 on the final build.
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -220,6 +233,38 @@ The author's notes on the first pass ("the new nailgun is an improvement in some
 
 **Gun looks, fewer rivets (branch `agent/gunlooks3`, the author's "a bit overboard"):** 14 to 6 on the shotgun (a pair up the receiver's front edge at the fore-end, one more in the row of pins along its lower edge), 10 to 4 on the nailgun and lava nailgun (the receiver plate's two front corners); mirrored pairs on the gun's own lines, same size and dark ring; the barrel masks' counts follow (1756, 1008).
 
+## Survival Arena: banners, and "any arena map" (branch `agent/arenabanners`)
+
+The author's ask: live text banners close to the arena's ceiling (foes left, wave, time, score), in the wrist gadget's and text boards' style, reusable for future arena maps, and nothing hardcoded on `vrarena`. Having seen a first version: the ceiling 40-60% higher and the banners close to it, "so that they are less distracting in general".
+
+- **The arena map check:** `arenaMapNames` in `Quake/vr/vr_arenawaves.cpp` is the one list (holds `vrarena`). C++: `arenawaves::isArenaMap`, `arenaMaps`, `defaultArenaMap`. QC: builtin `isarenamap(string)`, used by `VR_ARENA_On`. A map named only in `assign.cfg`, or `vr_arena 1`, still runs the waves as before. Moved onto it: `vr_arena_play`'s default map, the wave editor's default map, map list and open, test 11's and 34's checks. Menu and cvar help now say "an arena map". Steps for a new one: MAPPING.md, "Adding an arena map".
+- **What stays literal:** the menu's `command("Survival Arena", "map vrarena")` (a destination, a `const char*` the row keeps, not a check); `vrarena_gen.py`'s `MAPNAME`; the waves' self-test fixtures in `vr_arenawaves.cpp`; test scripts, scenarios and the benchmark (each names the map it runs on); comments saying where a number was measured or which map a test wants.
+- **The banners:** `QC/vr_arena_banners.qc`, entity `info_arena_banner` (origin the face's middle, `angle`, `worldtext_scale`), so a new arena gets them by placing entities; no coordinates in code. They are ordinary world text boards (the engine's CRT boards, `vr_text3d.cpp`), no second text system. With no arena running in the map (`ar_mgr`) the entity removes itself and makes no board. Text, two lines of one width: `WAVE   6  FOES LEFT   7` / `TIME 00:02 SCORE      0`. `BOSS` for `WAVE` on a boss wave; between waves the right says `WAVE 7 IN  5`, `CHOOSE A PERK` under the cards, `YOU FELL` or `CLEARED` at the end. Clock: from the run's first wave to its end. Foes left: `ar_foes_left`, set on the director's beat (a fall wakes it within 0.05 s). A board is only sent a new text when a number moved (about once a second); the compare values are `nosave`, so a load, which starts boards empty, writes them on its first frame.
+- **Setting:** `vr_arena_banners` 1 (Combat > Survival Arena, "Arena Banners"): 0 empties the boards. New test builtin `worldtext_hgettext`.
+- **The map:** the ceiling goes from 384 to 576 (+50%; 11.7 m to 17.6 m). Walls: the panels run 96..480 (3 whole tiles), upper rail 480..496, a new plated frieze 496..544, cornice 544..560, border 560..576; uprights stop at the upper rail, their lamps stay at 272..304. 306 brushes (was 290: the rail and frieze's 16); no spawn, item, flight, step, deck or tower moved. 4 boards, the middle of each cardinal wall, 34 out, z 464, scale 4.5 (914 x 158): top 543, just under the cornice. Coffer lights moved up with the ceiling, 300/0.47 to 305/0.40 (a longer reach; 350/0.47 matched the floor too, but washed out the walls beside them). Floor brightness in the same two window shots: 45.9 before, 44.5 now; the middle band 40.7 and 37.0. `vrarena_gen.py --check --compile --preset final --holes 400128`: 0 bad steps, 0 holes, 0 trim past the clip.
+- **Tests:** `vr_arena_test 38`: `map vrarena`: 18 passed, 0 failed (check accepts `vrarena`, refuses `e1m1` and no name; each board's text read back from the server's list against the expected text: before the run, countdown falling, foes left falling, score rising, time running, off and on, wave changing); the same 18/0 after a save and a load. `map e1m1`: 8 passed, 0 failed (no arena, a placed banner removed, the map's text list empty). Existing, at the final height, all 0 failed: tests 4 (8), 7 (19), 9 (37), 11 (25, vrtesthall), 13 (12), 14 (9), 15 (130), 16 (9), 17 (24), 18 (4), 19 (7), 36 (16: the walkers' routes), `vr_arena_waves_test` 23, `vr_waveeditor_test` 28. Test 34 not run.
+- **Frame cost: partly measured.** An LTO `--exclusive` run, floor view with 3 boards in sight, 500 frames, with the ceiling at the interim 512 and the same 4 boards: banners off 0.624 and 0.610 ms CPU, 0.612 and 0.625 ms GPU; on 0.643 ms CPU, 0.659 ms GPU, draw calls 142 to 152. About +0.03 ms CPU and +0.04 ms GPU, from one "on" sample. Not repeated at 576: timed runs are refused while the author's game runs. Worth repeating (`scratch/ab_time2.sh` in the worktree has the runs).
+- **Images:** `C:/OHWorkspace/qvr-kit/scratch/arenabanners/`: `final_floor_south_looking_north.png`, `final_floor_corner_across_room.png`, `final_dais.png` (1024 eyes, by the script's `vr_mock_eye_size` in a low-impact run), `final_window_view_flat.png`, `ab_before.png` (the old room).
+## Lightning burn marks
+
+His note: thunderbolt and Shambler bolts should leave permanent burns on what they hit, like the flamethrower's; "might already
+have been done". Half was: the thunderbolt's `particle2(boltEnd, LIGHTNING)` already laid a small round scorch (8-14 units, 222
+dark pixels flat) that baked and survived a load. A Shambler's bolt sent no effect, so it left nothing.
+
+**Now.** `VR_Lightning_Burn` (weapons.qc) from `LightningDamage` and `ad_LightningDamage`, so every bolt: shamblers, traps, AD's.
+`lightningBurn` (vr_decals.cpp, `Preset::Lightning`): a ragged scorch baked at once (`MarkOptions::bakeNow`, the flamethrowers'
+path), none in a liquid or on the sky. Tunables (Debug > Tunables): `vr_lightning_burn_size` 20 units (0 none),
+`vr_lightning_burn_gap` 0.25 s, `vr_lightning_burn_stack` 3 on a spot among the last 24. Mjolnir's strikes and the other senders
+of that preset get the same mark.
+
+**Test.** `bash Misc/quakevr/burnmark_test.sh <agent> <outdir>` (`QC/vr_burnmark_test.qc`): the thunderbolt by `+attack`, a
+shambler's `CastLightning` on a bare entity, flat and mock, `r_drawentities 0`, vrtesthall's south wall. Pictures before, 300
+frames after the bolts, and after a save and a load; PASS at 60 pixels darker by over 18. `burnmark: 4 passed, 0 failed`. Next:
+the Shambler's cases 0 dark pixels (FAIL), the thunderbolt's pass (flat 222, mock 667). Now flat 566 and 948, mock 2534 and 2303,
+the same after a load. Held six seconds on one spot: 3 stamps, as at one second. Into the pool and at the sky: 0 stamps, 0 scorch.
+
+**Open.** The same held beam lays a chip per `SPARKS` puff: 36 live chips in those six seconds. It was so before and is not
+limited here; if they bake they count against the stamps.
 ## Pick Up a Second, smarter (branch `agent/ag2ndweapon`)
 
 `vr_agrunt_dual_pickup` stays 0. With it on, going for a second weapon now has to be cheap (`VR_AG_SecondOk`, `QC/vr_armedgrunt.qc`;
@@ -282,3 +327,56 @@ To look at: straight down standing, then crouched in the ironsight on a flat flo
 The sheets are composed from a run's own frames: run `flatsweep_test.sh` with its sheet argument, as `flatpose_test.sh` clears the folder's pictures (`-Clean`) and a later suite leaves nothing to compose. `flatsweep_sheet.ps1` now stops on a missing frame; it used to save black cells.
 
 Checklist lines: "Flat: look straight down, standing, each weapon: you see your chest from above and no neck stump, as with cam_up 4; cam_up back at 0." "Flat: look level, walk and jump: the same height and feel as before." "Flat: crouched, ironsight, straight down at the floor: is the big gun acceptable until phase 2?"
+## Magazines sliding home and out (branch `agent/magslide`)
+
+His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail
+pistol's, which goes fully inside the handle, also in reverse for the ejection, then dropped with the hand's velocity but
+mostly popping outward; tunables for the times and speeds.
+
+**Seat (every magazine gun in a hand).** Drawn only; the count, sound and flag land when they always did. The client
+(`vr_view.cpp` `MagSlide`, `magSlideStep`) sees the gun's magazine come in with the same gun (`STAT_QVR_WEAPONUID` and its
+model) and draws it from `vr_nailpistol_mag_travel` (5.25 model units: the grip's bottom, its load point) or
+`vr_reload_mag_seat_travel` (1.5) out, easing to a stop at home, over `vr_nailpistol_mag_seat_time` (0.12) or
+`vr_reload_mag_seat_time` (0.07). A lying gun's magazine seats at once, as before.
+
+**The slide is worked out in `setMagazine`**, in the gun's model space, through the gun as drawn that frame
+(`gunSpace.point(seat + axis * slide) - gunSpace.point(seat)`): no state in the world, so no lag however the gun moves, and
+the off hand's mirroring and the weapon's scale come with it. The axis (`magOutAxis`): the nail pistol's from home to its
+load point (the grip's 12 degree lean); the others' from the seat to the magazine's middle.
+
+**Eject (the nail pistol's button only: `VR_Reload_MagOutStart`, `vr_reload.qc`).** The clip, the no-magazine flag, the
+sound and the haptic at the press, as before. The rounds wait on the player (`.vr_mag_out*`), `STAT_QVR_MAGOUT` says to
+draw it sliding out (`entities.magOut`: a separate entity, so that everything treating `entities.mag` as seated, the
+collisions, the hand's wrap, stays right) over `vr_nailpistol_mag_eject_time` (0.14), from rest, gathering speed. Its box
+is still sent, slid with it (no grip or hotspot on it), and `VR_Reload_MagOutRelease` makes the round there, with
+`vr_nailpistol_mag_eject_speed` (120 u/s) along the way out plus `vr_nailpistol_mag_eject_hand` (0.6) of the hand's velocity,
+at most 0.45 of the pop (so outward wins whichever way the hand goes). The client reaches full travel a frame before the
+server lets go, and holds there if the server is later. The stat clears in the update that has the round: no gap, no
+overlap, and it cannot stick.
+
+**Relation to `vr_nailpistol_slide_delay` (0.175):** none in the code: the rack still waits that long from the seat, which
+lands at the same moment. The seat's 0.12 is under it, so the magazine is home first; a longer seat time would rack before
+it arrives (said in the row's help). The rack's timing is unchanged.
+
+**Interrupted:** the gun leaving the hand (`.vr_mag_out_inst*` differs), the player dead, a new magazine seated: free there
+and then (`VR_Reload_MagOutFrame`, `VR_Reload_SeatMagInto`). Other ejects (a knock, a pull with `vr_nailpistol_mag_pull`, the
+ammo changing) stay immediate, as does every other gun's button.
+
+**Test:** `vr_magslide_test 1` (`vr_magslide_test.qc`; Debug > Tests > Nail Pistol) on any map: `run.sh <name> -Script
+"developer 1;map e1m1;wait60;vr_magslide_test 1" -QuitOn "^magslide: [0-9]+ passed"`: 63 passed, 0 failed. The engine measures
+the drawn magazine in the gun's frame each frame (`vr_test_magslide*`), the gun turning 3-4 degrees a frame on all axes, in
+each hand: 0.000 units off the line (limit 0.02); seat from full (2.65 world units) to 0, at most 0.58 a frame (limit 0.77);
+out from 0 to full, at most 0.55 a frame (limit 0.73); the loose one 0.07 units from the magazine last drawn, 0.96 with the
+hand moving at 69 u/s (limit 1.5); the pop 120 u/s, 130 along the grip with 41 from the hand (inherited to 0.0 u/s); against
+a fast hand 66 along the grip to the hand's 54. Nailgun: 0.81 to 0 units in 7 frames; its button free at once. Times 0: no slide.
+Also `vr_np_test 1` 39 passed, 0 failed; `vr_reload_test 9` 77 passed, 0 failed. Not run: `reload_test.sh`, the mock suite (no
+`--only`; it never ejects a nail pistol).
+
+**Pictures** (`C:/OHWorkspace/qvr-kit/scratch/magslide/`: `side_crop`, `inner_crop`, `tilted_crop`, eject then seat, and
+`handoff`): the magazine stays in line with the grip from each side and tilted, the foot plate leaves flush and comes back flush, nothing
+pokes through the grip, the loose one carries on as it sat. They use the new `vr_shot_hide` bit 8: the hands hidden, what they
+hold still drawn (the hand wraps the grip otherwise). Low-impact runs, so low-res. One or two of the runs' screenshots show the head's
+view for a single frame at a random moment, the magazine's state unconnected (a run without the button is clean, a repeat of the same
+run has it elsewhere or not at all): it looks like the low-impact screenshot's readback, not the game; worth a look only if it shows in VR.
+
+**Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}

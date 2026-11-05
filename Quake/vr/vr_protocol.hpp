@@ -186,6 +186,9 @@ enum Stat : int
     // hand is drawn on it (vr_view_hands.cpp embedDrawnHand).
     STAT_QVR_EMBEDOFF = STAT_QVR_HOLSTERCLIPSIZE0 + 6,
     STAT_QVR_EMBEDMAIN,
+    // The hands whose gun's magazine is sliding out (QC .vr_mag_out, vr_reload.qc VR_Reload_MagOutStart; vr_view.cpp
+    // magSlideStep): bit 0 the off hand, 1 the main. Cleared in the update that has the magazine loose.
+    STAT_QVR_MAGOUT,
     STAT_QVR_END
 
 };

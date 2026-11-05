@@ -94,7 +94,7 @@ struct Editor
     bool dirty{false};
     int wave{0};
     int entry{0};
-    char map[64]{"vrarena"};
+    char map[64]{};
     int playWave{1};
     char status[256]{};
     char saveName[49]{};
@@ -959,13 +959,16 @@ void assignBar()
         {
             setText(ed.map, sv.name);
         }
-        if(strcmp(sv.active ? sv.name : "", "vrarena") != 0 && pickItem("Map", "vrarena", !strcmp(ed.map, "vrarena")))
+        for(const char* arena : aw::arenaMaps())
         {
-            setText(ed.map, "vrarena");
+            if(strcmp(sv.active ? sv.name : "", arena) != 0 && pickItem("Map", arena, !strcmp(ed.map, arena)))
+            {
+                setText(ed.map, arena);
+            }
         }
         for(const za::String& m : ed.assignMaps)
         {
-            if(strcmp(m.cStr(), "vrarena") != 0 && strcmp(m.cStr(), sv.active ? sv.name : "") != 0 && pickItem("Map", m.cStr(), !strcmp(ed.map, m.cStr())))
+            if(!aw::isArenaMap(m.cStr()) && strcmp(m.cStr(), sv.active ? sv.name : "") != 0 && pickItem("Map", m.cStr(), !strcmp(ed.map, m.cStr())))
             {
                 setText(ed.map, m.cStr());
             }
@@ -1387,7 +1390,7 @@ void testFrame()
     case 31: check(false, "Close: the editor stayed open"); testVerdict(); break;
     case 32: click("Add Wave"); break;
     case 33: click("Add Wave"); break;
-    case 34: check(ed.preset.waves.size() == 3, "three waves to play"); setText(ed.map, "vrarena"); ed.playWave = 1; clickToClose("Play", 1, 36); break;
+    case 34: check(ed.preset.waves.size() == 3, "three waves to play"); setText(ed.map, aw::defaultArenaMap()); ed.playWave = 1; clickToClose("Play", 1, 36); break;
     case 35: check(false, "Play from wave 1: the editor stayed open"); testVerdict(); break;
     case 36: click("Play from wave"); break;
     case 37:
@@ -1459,9 +1462,13 @@ void open_f()
     {
         newPreset();
     }
+    if(!ed.map[0])
+    {
+        setText(ed.map, aw::defaultArenaMap());
+    }
     if(!sv.active)
     {
-        Cbuf_InsertText("map vrarena\n"); // (the game's lists come with a map)
+        Cbuf_InsertText(va("map %s\n", aw::defaultArenaMap())); // (the game's lists come with a map)
     }
     else
     {

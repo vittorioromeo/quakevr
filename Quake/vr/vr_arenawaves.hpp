@@ -32,6 +32,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 namespace qvr::arenawaves
 {
@@ -96,6 +97,13 @@ bool removeFile(const char* name);
 [[nodiscard]] za::String assigned(const char* map, int skill);
 void setAssigned(const char* map, int skill, const char* name);
 [[nodiscard]] bool mapListed(const char* map);
+
+// The arena maps: the one place that names them (QC asks through isarenamap; a map listed in assign.cfg runs the arena
+// too, mapListed). A new arena map is a new line in arenaMaps (vr_arenawaves.cpp), and its info_arena_* entities.
+[[nodiscard]] bool isArenaMap(const char* map);
+[[nodiscard]] za::Span<const char* const> arenaMaps();
+// The arena to go to when none is named (the menu's Survival Arena, the editor's Play): the list's first.
+[[nodiscard]] const char* defaultArenaMap();
 [[nodiscard]] za::Vector<za::String> listedMaps();
 
 // The editor's Play: `p` plays in `map` from wave `wave` (the arena's jump) until another map loads or playOff.
@@ -108,8 +116,9 @@ void playOff();
 
 void registerCommands();
 
-// QC's: arenawavesload, arenawavesfield, arenawavesreport (vr_builtins.cpp's table).
+// QC's: arenawavesload, arenawavesfield, arenawavesreport, isarenamap (vr_builtins.cpp's table).
 void pfLoad();
+void pfIsArenaMap();
 void pfField();
 void pfReport();
 

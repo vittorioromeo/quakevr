@@ -1065,7 +1065,47 @@
   "by": "make_teeth.py"
  },
  "quakevr/progs/vragarmor.mdl": {
-  "sha256": "e82b01284baa9abb43eae468003a791de74c659eebcba683d05ccc241529aa16",
+  "sha256": "0c71e3018357f772202cd48d56ae8b2f645926862f431f1b620bb43c8c249832",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_0.png": {
+  "sha256": "586b904949906b80d530f71dd86098bce74fb303f3b4447149cd1be63263226c",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_0_norm.png": {
+  "sha256": "f1d70d734b7bb93b317f92f0c4332f2492236c35cde71cd84909bb20c5fde47a",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_1.png": {
+  "sha256": "15cf08d39cfdfe250742773283bd64d229507d55296a3d09e3a41f58e9e7f907",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_2.png": {
+  "sha256": "ffd73f413e8e8164e5072c0907e4ae7b166923ec48000e3671ab888d3ca1d79d",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_3.png": {
+  "sha256": "5381bb26ca382a520c6cef0c72af41b6752e4909708f6a5babc93ba12adf07f5",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_4.png": {
+  "sha256": "5f8fb78a554540651ca14e3ce32b88099bcab9d6c5be4c48f9e760d49bf28f2d",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_5.png": {
+  "sha256": "72a0a29894164fa6e0988a7ab899db0adea3b8a0a1019e2262f1f002e22eec15",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_6.png": {
+  "sha256": "059a0057cda397a69d585b81b5932c76888c4a956c645b09d688be493f0ac246",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_7.png": {
+  "sha256": "15302513b2c400652d1aa6536072fb724d65dd0cb1fb04bd27314cef524a0ea2",
+  "by": "make_agarmor.py"
+ },
+ "quakevr/progs/vragarmor.mdl_8.png": {
+  "sha256": "2cce2e31493c913eab7d1a96ca86ddbbe833e648f1d13c8d35d968c3db2dfc84",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vrbody.md5anim": {
@@ -1711,6 +1751,50 @@
  "quakevr/textures/vr/detail_wood.png": {
   "sha256": "256de31228fc61ec99437e58724613aa53853b8b6d3f8fb66f4e83f13b1a8fcb",
   "by": "make_detail.py"
+ },
+ "scratch/al_out/vragarmor.mdl": {
+  "sha256": "c1ddbaadcb8cc7b177aeed58f402fd95edb241eb29a664ed06d90672df15dc89",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_0.png": {
+  "sha256": "9c2d9a129478fb8610854c81ab5402e5089a91da4a0b37a7b334e7db83bdf97d",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_0_norm.png": {
+  "sha256": "ea04ce29735601d4b990fd514c9f253da7d99dbfd68c2a7f4d01b74f5e2d0162",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_1.png": {
+  "sha256": "c415b508903ee09c9202d34be11f89d00731bb1628b14210d41a24095d4f2ed5",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_2.png": {
+  "sha256": "44d23dbb4bfb93d669062b0ef11cf949213f620b35e6166e781f27eee0583b16",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_3.png": {
+  "sha256": "c30c4de09efbaf1b06b5009753d4e77ef53516e42e895382da47f649e440ee10",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_4.png": {
+  "sha256": "c84532b69b2edbbafcc027ae63cb2b9e8989e4bbe69bc6d30330f50145a7c05a",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_5.png": {
+  "sha256": "140f98b7c377302151da70ee4cfc384b859a3533b46c74b6746acb9cbd5ecd9e",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_6.png": {
+  "sha256": "8ca2729ac001cfbf4dd5494f313d1af69625feff8b3616996d4396442418977b",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_7.png": {
+  "sha256": "3cc6a1b47ebdca03791b8e41f1dc1b60092156e0845fca7f2393ce4eff57cc69",
+  "by": "make_agarmor.py"
+ },
+ "scratch/al_out/vragarmor.mdl_8.png": {
+  "sha256": "9542772a123bd9d929df9a7980023abd5fcca6ed87f798431d42934f89709c03",
+  "by": "make_agarmor.py"
  },
  "scratch/gore_out/choke1.wav": {
   "sha256": "02821837226cbc148d55c939b11656f0312efd6837af77cbca766d8f0e22c982",

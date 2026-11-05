@@ -521,6 +521,7 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armour Plates: Generator Check", "vr_agarmor_look_check").help("Every wearer and body build: the same seed the same plates, triangles within the budget; the tiers' hues apart (vr_agarmor_look_check; ends on \"agarmor look: N passed, M failed\"). vr_agarmor_seed 1; vr_agarmor_rebuild shows other plates."),
         command("Death Knight's Gun and Casts", "vr_agtune_test 3")
             .help("vr_agtune_test 3 (vrtesthall): an armed death knight with a shotgun hunts you for two minutes of game "
                   "time: his casts against his gun's attacks at Gun Cast Cooldown, printed at the end."),
@@ -1006,6 +1007,10 @@ za::Vector<Item> pageDebugTests()
         command("Empty Nail Pistols: Holstered and Lying", "vr_np_test 6")
             .help("An empty nail pistol in the right hip holster and a loaded one in the right upper; an empty and a "
                   "loaded one lying ahead of you: the empty ones' slides drawn locked back, as in a hand."),
+        command("Seat a Magazine in the Nail Pistol", "vr_magslide_test 2")
+            .help("A full magazine seated in the gun in your main hand, now: watch it slide home up the grip (its eject button slides it out again)."),
+        command("Magazine Slide Self-Test", "vr_magslide_test 1")
+            .help("Headless checks: magazines stay on the well's line as the gun turns, reach home and fully out, pop out with the hand's velocity; interrupted slides leave nothing stuck."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         command("Hang Nails Before Your Eyes", "vr_nail_test 2")
