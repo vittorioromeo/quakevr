@@ -128,7 +128,12 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
     return FALSE;
 }
 
-float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
+// The ammo boxes' own ownership rules (SpawnAmmoBoxWeaponsImpl, items.qc), over VR_WeaponUtil_EntIsEligibleForWeapon, which
+// monster drops and armed replacements share and which stays as it is. Out of a Survival Arena run only: a run's loot
+// is the pack's (VR_ARK_Running), whatever the rule.
+// (AMMOBOX_RULE_*: vr_defs.qc.)
+
+float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance, float xRule) TryAmmoBoxDropRule =
 {
     if(!VR_Pack_WeaponAvailable(xWeapon)) { return FALSE; }
 
@@ -140,6 +145,16 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     // (| of two truth values, 0 or 1.)
     float eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
                      (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
+
+    if(!VR_ARK_Running())
+    {
+        if(xRule == AMMOBOX_RULE_ANYONE) { eligible = TRUE; }
+        if(xRule == AMMOBOX_RULE_SSG_OR_SELF && VR_WeaponUtil_Impl_GetAmmoBoxDrops() != QVR_AMMOBOXDROPS_ALWAYS)
+        {
+            eligible = VR_WeaponUtil_EntHasWeapon(entPlayer, WID_SUPER_SHOTGUN) |
+                       VR_WeaponUtil_EntHasWeapon(entPlayer, xWeapon);
+        }
+    }
 
     float roll = random(); // (the chance multiplier is ShouldDrop*'s, applied once)
 
@@ -154,6 +169,11 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     }
 
     return FALSE;
+}
+
+float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
+{
+    return TryAmmoBoxDropRule(entAmmoBox, entPlayer, xWeapon, xChance, AMMOBOX_RULE_OWNED);
 }
 
 // The weapon table: one row per weapon id, WID_FIST .. WID_LAST in order (Quake/vr/vr_weapon_ids.h; a new weapon is a

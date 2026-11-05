@@ -292,6 +292,11 @@ float QVR_AMMOBOXDROPS_WHENELIGIBLE = 0;
 float QVR_AMMOBOXDROPS_ALWAYS = 1;
 float QVR_AMMOBOXDROPS_DISABLE = 2;
 
+// The ammo boxes' own ownership rules for a weapon beside a box (TryAmmoBoxDropRule, vr_weaponutil.qc).
+#define AMMOBOX_RULE_OWNED       0 // the shared rule: owned (the axe and shotgun always)
+#define AMMOBOX_RULE_ANYONE      1 // no ownership gate (the nail pistol: weak enough for any map)
+#define AMMOBOX_RULE_SSG_OR_SELF 2 // only with the super shotgun, or the same weapon already (the heavy revolver)
+
 //
 //
 //

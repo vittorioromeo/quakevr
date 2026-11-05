@@ -3777,6 +3777,124 @@ float(entity e, float xRow) VR_Infect_TestOne =
     return ok;
 }
 
+// ---------------------------------------------------------------------------
+// Test 37: the weapons that appear by ammo boxes (items.qc SpawnAmmoBoxWeaponsImpl): the nail pistol on nail boxes (any
+// player), the heavy revolver on shell boxes (only with the super shotgun or a revolver). Any open map off the arena
+// (e1m1). Each row rolls AT37_BOXES real boxes through SpawnAmmoBoxWeaponsImpl and counts what lies above them.
+// ---------------------------------------------------------------------------
+
+float AT37_BOXES = 6000;
+float AT37_BATCH = 500;
+float AT37_ROWS = 8;
+float AT37_TOL = 0.009;     // absolute: ~3 sigma at the largest expected rate
+float at37_row;
+float at37_done;            // boxes rolled in this row
+float at37_np;              // nail pistols seen in this row
+float at37_rv;              // heavy revolvers seen
+float at37_save_mode;
+float at37_had;             // the player's weapons before (bits: ssg, rev, ng, sng)
+entity at37_box;
+float at37_exp_np;
+float at37_exp_rv;
+string at37_name;
+
+void(entity p, float ssg, float rev, float ng, float sng) VR_AT37_Hold =
+{
+    if(ssg) { VR_WeaponUtil_EntAddWeapon(p, WID_SUPER_SHOTGUN); } else { VR_WeaponUtil_EntDelWeapon(p, WID_SUPER_SHOTGUN); }
+    if(rev) { VR_WeaponUtil_EntAddWeapon(p, WID_REVOLVER); } else { VR_WeaponUtil_EntDelWeapon(p, WID_REVOLVER); }
+    if(ng)  { VR_WeaponUtil_EntAddWeapon(p, WID_NAILGUN); } else { VR_WeaponUtil_EntDelWeapon(p, WID_NAILGUN); }
+    if(sng) { VR_WeaponUtil_EntAddWeapon(p, WID_SUPER_NAILGUN); } else { VR_WeaponUtil_EntDelWeapon(p, WID_SUPER_NAILGUN); }
+}
+
+// A row: the box (nails or shells), the guns held, the drop mode, the rates it must show (the expected shares of boxes).
+void(entity p) VR_AT37_Row =
+{
+    float mode = QVR_AMMOBOXDROPS_WHENELIGIBLE;
+    string cls = ITEM_NAME_SPIKES;
+    at37_exp_np = 0;
+    at37_exp_rv = 0;
+    if(at37_row == 0) { at37_name = "nail box, no nail weapon"; VR_AT37_Hold(p, 0, 0, 0, 0); at37_exp_np = 0.054; }
+    if(at37_row == 1) { at37_name = "nail box, nailgun"; VR_AT37_Hold(p, 0, 0, 1, 0); at37_exp_np = 0.0324; }
+    if(at37_row == 2) { at37_name = "nail box, nailgun and super nailgun"; VR_AT37_Hold(p, 0, 0, 1, 1); at37_exp_np = 0.0162; }
+    if(at37_row == 3) { at37_name = "shell box, no super shotgun, no revolver"; cls = ITEM_NAME_SHELLS; VR_AT37_Hold(p, 0, 0, 0, 0); }
+    if(at37_row == 4) { at37_name = "shell box, super shotgun"; cls = ITEM_NAME_SHELLS; VR_AT37_Hold(p, 1, 0, 0, 0); at37_exp_rv = 0.036; }
+    if(at37_row == 5) { at37_name = "shell box, a revolver only"; cls = ITEM_NAME_SHELLS; VR_AT37_Hold(p, 0, 1, 0, 0); at37_exp_rv = 0.036; }
+    if(at37_row == 6) { at37_name = "nail box, drops disabled"; mode = QVR_AMMOBOXDROPS_DISABLE; VR_AT37_Hold(p, 1, 1, 0, 0); }
+    if(at37_row == 7) { at37_name = "shell box, always, nothing held"; cls = ITEM_NAME_SHELLS; mode = QVR_AMMOBOXDROPS_ALWAYS; VR_AT37_Hold(p, 0, 0, 0, 0); at37_exp_rv = 0.036; }
+    cvar_set("vr_ammobox_drops", ftos(mode));
+    at37_done = 0;
+    at37_np = 0;
+    at37_rv = 0;
+    at37_box.classname = cls;
+}
+
+void() VR_AT37_Begin =
+{
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "test 37 needs a player"); VR_AT_End(); return; }
+    if(VR_ARK_Running()) { VR_AT_Check(FALSE, "test 37 runs off the arena (map e1m1)"); VR_AT_End(); return; }
+    vr_test_flags = VR_TEST_LOUD | VR_TEST_QUIET; // (broadcast: the verdict is seen with developer 0, for -QuitOn)
+    at37_save_mode = cvar_hget(cvarh_vr_ammobox_drops);
+    VR_AT_Check(cvar_hget(cvarh_vr_ammobox_drops_chance_mult) == 1, "the ammo box chance multiplier is at its default 1 (a tunable)");
+    at37_had = VR_WeaponUtil_EntHasWeapon(p, WID_SUPER_SHOTGUN) + 2 * VR_WeaponUtil_EntHasWeapon(p, WID_REVOLVER) +
+               4 * VR_WeaponUtil_EntHasWeapon(p, WID_NAILGUN) + 8 * VR_WeaponUtil_EntHasWeapon(p, WID_SUPER_NAILGUN);
+    at37_box = spawn();
+    setorigin(at37_box, p.origin + '0 0 4096');
+    at37_row = 0;
+    vr_at_until = time + 120;
+    VR_AT37_Row(p);
+}
+
+void() VR_AT37_Finish =
+{
+    entity p = VR_PlayerAlive();
+    if(p)
+    {
+        VR_AT37_Hold(p, at37_had & 1, (at37_had & 2) != 0, (at37_had & 4) != 0, (at37_had & 8) != 0);
+    }
+    remove(at37_box);
+    cvar_set("vr_ammobox_drops", ftos(at37_save_mode));
+    VR_AT_End();
+}
+
+void() VR_AT37_Frame =
+{
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "test 37 lost its player"); VR_AT37_Finish(); return; }
+
+    float i;
+    for(i = 0; i < AT37_BATCH; i++) { SpawnAmmoBoxWeaponsImpl(at37_box, p); }
+    at37_done = at37_done + AT37_BATCH;
+
+    // What lies far above the player is this test's: counted and taken back.
+    entity e = find(world, classname, "thrown_weapon");
+    while(e)
+    {
+        entity nx = find(e, classname, "thrown_weapon");
+        if(e.origin_z > p.origin_z + 3000)
+        {
+            if(e.weapon == WID_NAILPISTOL) { at37_np = at37_np + 1; }
+            if(e.weapon == WID_REVOLVER)   { at37_rv = at37_rv + 1; }
+            remove(e);
+        }
+        e = nx;
+    }
+
+    if(at37_done < AT37_BOXES) { return; }
+
+    bprint(sprintf("arena37: row %g (%s): %g boxes, %g nail pistols, %g revolvers\n", at37_row, at37_name, at37_done, at37_np, at37_rv));
+    float rnp = at37_np / at37_done;
+    float rrv = at37_rv / at37_done;
+    if(at37_exp_np == 0) { VR_AT_Check(at37_np == 0, sprintf("%s: no nail pistol (%g)", at37_name, at37_np)); }
+    else { VR_AT_Check(fabs(rnp - at37_exp_np) <= AT37_TOL, sprintf("%s: nail pistol %g in %g boxes (expected %g)", at37_name, at37_np, at37_done, at37_exp_np * at37_done)); }
+    if(at37_exp_rv == 0) { VR_AT_Check(at37_rv == 0, sprintf("%s: no revolver (%g)", at37_name, at37_rv)); }
+    else { VR_AT_Check(fabs(rrv - at37_exp_rv) <= AT37_TOL, sprintf("%s: revolver %g in %g boxes (expected %g)", at37_name, at37_rv, at37_done, at37_exp_rv * at37_done)); }
+
+    at37_row = at37_row + 1;
+    if(at37_row >= AT37_ROWS) { VR_AT37_Finish(); return; }
+    VR_AT37_Row(p);
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar_hget(cvarh_vr_arena_test);
@@ -3830,6 +3948,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 34) { VR_AT34_Run(); VR_AT_End(); return; }
         if(c == 35) { VR_AT35_Begin(); return; }
         if(c == 36) { VR_AT36_Begin(); return; }
+        if(c == 37) { VR_AT37_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3866,5 +3985,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 32) { VR_AT32_Frame(); return; }
     if(vr_at_case == 35) { VR_AT35_Frame(); return; }
     if(vr_at_case == 36) { VR_AT36_Frame(); return; }
+    if(vr_at_case == 37) { VR_AT37_Frame(); return; }
 }
 #endif
