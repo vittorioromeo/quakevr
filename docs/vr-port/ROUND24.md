@@ -700,6 +700,14 @@ standing sighted 1.72 -> 4.03, the pistol crouched 3.11 -> 4.95; level and down 
 The hand stays on the gun, the gun where it was, so no gun forward was needed (no tunable for it). Sweep: `401 passed, 2 known
 failing, 0 failed`; the 9 `arm_surface` rows pass and their lines are out; row by row against the start, 0 worse.
 
+**4. Gun out by look** (his values as defaults). `gunOutAt`: `vr_flat_gun_out` (1) level, new `vr_flat_gun_out_crouch` (-2) level
+crouched (by how deep; Crouch Gun Out's 2 still on top), going to new `vr_flat_gun_out_down` (-4) and `vr_flat_gun_out_up` (-4) at
+85 along a smoothstep (no corner). Sweep column `gun_out` and check `gun_out`: -4 / 1 / -4 standing, -4 / -2 / -4 crouched at
+-85 / 0 / 85, all rows exact (-45: -1.72 standing, -3.09 crouched). The cost: the long gun in its stance comes in across the
+chest, its stock 1.1 to 2.3 into the torso's capsule hipfire (crouched level, standing at +-40) and the off forearm 1.1 to 1.7
+(`gun_torso`, `fore_torso`, 115 rows past their limits): new known lines, open (a chest clearance for the stock, or his call on
+the long gun's values). Sweep `397 passed, 13 known failing, 0 failed`.
+
 **2. E aims at the crosshair.** `VR_Forcegrab_FlatGrab` searches from his eye along his view (`VR_Forcegrab_FindTargetAlong`),
 not along the free hand (which hangs about 60 down). flatitems' E cases now put the thing on the crosshair's ray, 36 ahead, 50 deg off
 the hanging hand's line (the cone is 15): they pass (flatitems 8/0), so the search is the view's.

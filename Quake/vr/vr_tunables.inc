@@ -1818,6 +1818,9 @@ QVR_TUNABLE(vr_model_light_teleport_range, "256")
 QVR_TUNABLE(vr_flat_gun_ahead, "16.5") // the held weapon, hipfire, at a level look: how far in front of the shoulder the arm hangs from it sits (-30..30 units; 14 off the old anchor)
 QVR_TUNABLE(vr_flat_gun_down, "0") // the held weapon, hipfire, at a level look: how far below that shoulder it sits (-30..30; positive is lower; 12 off the old anchor, which stood 12 higher)
 QVR_TUNABLE(vr_flat_gun_out, "1") // the held weapon, hipfire, at a level look: how far out at the holding hand's own side of that shoulder it sits (-30..30; 4 off the old anchor; negative brings it across)
+QVR_TUNABLE(vr_flat_gun_out_down, "-4") // Gun Out looking straight down (-30..30): from vr_flat_gun_out at a level look along a smooth curve, the gun in towards the middle
+QVR_TUNABLE(vr_flat_gun_out_up, "-4") // Gun Out looking straight up (-30..30), the same
+QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-30..30), by how deep the crouch is; looking up or down goes from it to their own
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size

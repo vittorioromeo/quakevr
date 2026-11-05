@@ -50,6 +50,13 @@ def spot_off(r):
     return float(r["spot_off"])
 
 
+# His Gun Out (2026-11-05): -4 looking straight down and straight up, 1 level, -2 crouched level; the curve between is the code's.
+GUN_OUT_HIS = {(-85.0, "0"): -4.0, (0.0, "0"): 1.0, (85.0, "0"): -4.0, (-85.0, "1"): -4.0, (0.0, "1"): -2.0, (85.0, "1"): -4.0}
+def gun_out_off(r):
+    want = GUN_OUT_HIS.get((float(r["pitch"]), r["crouch"]))
+    if want is None or r.get("gun_out") in (None, ""):
+        return 0.0
+    return abs(float(r["gun_out"]) - want)
 CHECKS = [
     # The camera in the body (the neck pivot).
     ("cam_inner_pct", "inner_pct", "high", 0.5, 0.2, camera_rows, 1, "the screen seeing the body's inside (first surface from behind), %"),
@@ -71,6 +78,7 @@ CHECKS = [
     ("hand_head", lambda r: max(float(r["hand0_head"]), float(r["hand1_head"])), "high", 0.5, 0.05, camera_rows, 2, "a hand in the head and neck, depth"),
     ("arm_reach", lambda r: max(float(r["arm0"]), float(r["arm1"])), "high", 1.0, 0.01, camera_rows, 2, "shoulder to drawn hand, share of the arm"),
     ("hand_gap", lambda r: max(float(r["gap0"]), float(r["gap1"])), "high", 6.0, 0.05, camera_rows, 2, "the arm's wrist to the drawn hand (5.4 at rest): the hand detached"),
+    ("gun_out", gun_out_off, "high", 0.01, 0.0, lambda r: two_hand_rows(r) and hipfire(r), 0, "Gun Out off his values at -85, 0, 85 and crouched (vr_flat_gun_out*)"),
     ("offhand_spot", spot_off, "high", 0.3, 0.05, two_hand_rows, 3, "the off hand off its hotspot (99: this weapon has none or it is not known)"),
     # What must stay exact.
     # (Today's shot_apart failures: the gun at a wall or the floor, nearer than the aim's 12 units or with its muzzle past the surface; the

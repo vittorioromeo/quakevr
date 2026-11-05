@@ -451,6 +451,19 @@ constexpr float lookMost = 85.f;      // a look straight down, for the arm's mov
 constexpr float stanceFadeFrom = 10.f; // the look's degrees off level the stance starts fading at, and has gone by
 constexpr float stanceFadeTo = 55.f;
 
+// The held weapon's Gun Out at the look `pitch` (Quake's: positive down): vr_flat_gun_out at a level look (crouched,
+// vr_flat_gun_out_crouch, by how deep), going to vr_flat_gun_out_down looking straight down and vr_flat_gun_out_up straight up
+// along a smooth curve (no corner at level or at the ends): the gun comes in towards the middle looking up or down, as his
+// tuning has it (1 level, -4 at either end, -2 crouched).
+[[nodiscard]] float gunOutAt(float pitch)
+{
+    const float crouched = bodyPose() ? keyState.ratio : 0.f;
+    const float level = poseNum(vr_flat_gun_out) + (poseNum(vr_flat_gun_out_crouch) - poseNum(vr_flat_gun_out)) * crouched;
+    const float end = poseNum(pitch >= 0.f ? vr_flat_gun_out_down : vr_flat_gun_out_up);
+    const float w = geom::smooth01(za::clamp(glm::abs(pitch) / lookMost, 0.f, 1.f));
+    return level + (end - level) * w;
+}
+
 // Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_ahead / _down /
 // _out), the free hand's next to the other hand's gun (vr_flat_support_*), an empty hand's (vr_flat_empty_*). Positive
 // is forward, out at that hand's own side, and down (the z term reads the negative of the cvar, which is why the cvars
@@ -474,7 +487,7 @@ constexpr float stanceFadeTo = 55.f;
         const float back = poseNum(pistol ? vr_flat_pistol_back : vr_flat_stance_back);
         const float in = poseNum(pistol ? vr_flat_pistol_in : vr_flat_stance_in);
         const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
-        return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (poseNum(vr_flat_gun_out) - stance * in + crouchOut) * reach,
+        return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
             -(poseNum(vr_flat_gun_down) - stance * upBy) * reach};
     }
     if(otherHolds)
@@ -1040,6 +1053,11 @@ glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch)
 bool onBody()
 {
     return active() && bodyPose();
+}
+
+float gunOut(float pitch)
+{
+    return gunOutAt(pitch);
 }
 
 glm::vec3 levelHang(const hands::State& s, int h)
