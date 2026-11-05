@@ -89,24 +89,36 @@ pelvis, keeping what is left of the shove. Shoves away from a ledge, those that 
   (`vr_ragdoll_active_pullup`) may still catch a slow one at the lip, as it could before.
 ## Lightning on water
 
-His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface; "used to work".
+His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface. After the first fix,
+in flat-screen on vrfiringrange and vrstart: still no arcs on the surface.
 
-**What the history says.** No commit broke it. `git log -S QVR_SHOCK_SURFACE` and `-S VR_LGWater_Beam` have one hit,
-`35f25522f` (2026-09-30), and nothing since removed a call: the surface's arcs only ever came from the thunderbolt, fired
-from the open. Mjolnir's water code (`7ab734e25`) was only the shock (self, burst), the Shambler never had any. The
-thunderbolt's own path still works on the old code: fired by `W_FireLightning` the client draws the surface (test below;
-the old code: 1 passed, 3 failed). It was never seen for a bolt that shocks you (hand, muzzle or waist in water): burst only.
+**Why.** Two gaps. First, only the thunderbolt ever had surface arcs (`git log -S QVR_SHOCK_SURFACE`: one hit, `35f25522f`);
+Mjolnir and the Shambler never did, and no commit removed anything. Second, the one he saw: `drawSurface` queued its arcs with
+`lines::line`, which only `stereo::drawUi` draws, the headset's UI pass. A flat screen sends and receives the effect and queues
+its lines every frame, and nothing draws them. The first fix's test counted `drawSurface` calls in the mock headset, so it passed.
 
-**Now.** `VR_LGWater_Zap(from, end)` (weapons.qc; `vr_lg_water`, off with it): the look only, where the line crosses a
-liquid's surface. `LightningDamage` and AD's `ad_LightningDamage` call it, so every bolt has it: thunderbolt, Shambler, Super
-Shambler, Death Lord, traps. `VR_LGWater_ZapBelow(at)` is for a point: in a liquid the surface above it, else within 64 below:
-Mjolnir's blow, its arcs wandering over water, and any shock (`VR_LGWater_ShockAt`, also the thunderbolt's). Damage through
-the water is unchanged: still only the thunderbolt's (`VR_LGWater_Beam`) and the shock's, a monster's bolt is only the look.
-Not done: a hammer slapping the surface with nothing solid is still no blow (melee traces ignore water).
+**Now.** `VR_LGWater_Zap(from, end)` (weapons.qc; off with `vr_lg_water 0`) from `LightningDamage` and `ad_LightningDamage`, so
+every bolt; `VR_LGWater_ZapBelow(at)` for Mjolnir's blow and arcs and any shock. Only the look: damage through the water is still
+only the thunderbolt's and the shock's. The surface's arcs and the shock's burst now go through `lines::sceneLine`, the scene's
+translucent pass, as a beam's arcs: both flat and headset, hidden by walls. Above the waves (`vr_water_waves`); wider further off
+(from 200 units, up to 3x); arches leaping off the water, since flat arcs close to a line at a glancing angle; thinner within 96
+units of the eye, or a ribbon by the camera fills the view. `vr_lg_water_arcs` 1 (tunable, Debug > Tunables > Electrified Water
+Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs on your own arms and in
+front of your eyes (other `lines::line` users, not touched). A hammer slapping the surface with nothing solid is still no blow.
 
-**Test.** `vr_waterzap_test 1` (Debug > Tools > Test Effects > Lightning into Water; `vr_shock.cpp` counts the surface's
-drawn frames, QC `watershockdrawn`): `waterzap: 4 passed, 0 failed` on vrfiringrange, e1m3, e1m7, e2m3, e3m4, e4m3, and with
-`-RealTime` on vrfiringrange. Checklist scene: `water_lightning`.
+**Test.** `bash Misc/quakevr/waterzap_test.sh <agent> <outdir>`: pictures, not a counter. Each case (`QC/vr_waterzap_test.qc`:
+thunderbolt by `+attack` steep and glancing, Mjolnir swung onto a knight over the water, a shambler's bolt by `CastLightning` on a
+bare entity) on vrfiringrange and vrstart, `-flatscreenmode` and mock, twice: `vr_lg_water_arcs` 1 and 0, the screenshot 12 frames
+after the client first draws the effect. PASS: at least 2000 pixels brighter and bluer by over 40 (`waterzap_diff.py`, no image
+libraries; `<tag>.png` is both frames and the changed pixels). Two runs differ a little anyway (a bolt's model, particles: at most
+1656 blue pixels on next's flat frames, with Mjolnir's beams and knight not drawn: `r_drawentities 0` for that case).
+On next's drawing: flat 0 of 8 (blue 0..1573), mock 8 of 8 (the UI pass draws them there). With the fix: 16 of 16 (flat 2966..43965,
+mock 24869..105174), and flat with `r_oit 0; r_wateralpha 1` 25720 and 3466: not hidden by water that writes depth.
+
+**Test trap.** A QC `localcmd` lands behind whatever the script's buffer still holds, so behind a `wait100000` it never runs: end
+the script at the test's command and let `-QuitOn` stop it. That is why the first test's trigger "did not fire". And a frame takes
+one impulse: `impulse 9; wait5; impulse 161`, `vr_weapon_grip_mode 1`.
+
 ## Close two-hand grips: both hands stay where they gripped (branch `agent/cratebound`)
 
 The grip fit of the second hand (`vr_carry2h.cpp`, `fitGrip`) moved its grip out of the prop but left the hand behind: the
@@ -189,3 +201,17 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Alias shader:** after the light tiles' coordinate, so light, fog and shadows keep the true place; `Motion.z` marks the instance, `VR_FlatModelFovEntity` picks hands, body, held, holstered, worn, casings and the held prop. Shadow maps never (`aliasdepth`). Temporal AA is not warped: it only runs in a headset's eyes.
 - **Mapped:** muzzle flash, casings, attachments, wounds and hot barrels (all the alias path); tracers, wisps, the flashlight's lens and cone, gadget and ammo screens, lines (laser, arcs), cords and hoses, all particles (by distance: no owner on a particle).
 - **Not mapped:** bullet-time trails, ropes, text queued by `text3d::queue` (idle ammo counter, pouch count: queued before the frame's view is set), lying particles. Decals and outlines never land on his own models.
+## Shotgun and nailgun looks, second pass (branch `agent/gunlooks2`)
+
+The author's notes on the first pass ("the new nailgun is an improvement in some areas, but large downgrade in other areas"). The first pass kept one mean colour per triangle and repainted everything from one metal recipe, which lost the guns' materials and their painted detail.
+
+- **Now:** each texel starts from the old skin at the surface point it shows (`src_models/gunlooks/` keeps the models with their paint; the re-mapped charts stay): materials, the hex rings, their centre holes, the muzzles' grates and dark interiors, the pump's ridges come back as they were. A face the old map folded nearly to a line (over 30:1) takes its mean colour instead. On top: slight tone and grit, worn edges, rust, then a baked occlusion. This replaces round 24's first brief's "no old paint": the notes ask for it; it is the same paint the shipped models always had.
+- **Pump:** wood's tone follows each face's old brightness (rings light, the fore-end under them dark), edges lit. **Aiming view's bright facets:** gone. Not the normal map (the same with `vr_normalmap_authored 0`): they were the first pass's paint lightness differing per chart and worn lines on the receiver's shallow folds and T-junctions; the old paint's smooth highlight is back, only creases over 35 degrees wear (`CREASE_COS`), open edges none, and slivers take the paint of the wider face beside them. A thin dark crease line and a small lighter wedge remain behind the sights, cause not found.
+- **Occlusion** (`bake_ao`): 20 cosine rays from each texel against the model's own triangles within 3 units, darkening at most 60% (`AO_STRENGTH`); fullbright texels and the triangles that stay are never touched.
+- **Rivets:** 0.4 across and 0.19 high (were 0.34, 0.14), a lighter steel, a dark ring on what they sit on; same places.
+- **Colour:** metal's mean warmer by about 4 (red minus blue) and blotch noise cut to a third. Rust a dark saturated red-brown whose brightness follows the metal under it (at most 1.9 times, plus a little): the lit-map render showed pale dashes and dots on the near-black receiver that flat light hid; making the scratches and scuffs much fainter is what removed most of them (a few remain near the loading port under a strong light). The palette now also has the old paint's dark olives and reds; colours are matched one hue at a time (mixed hues read as a blue-and-brown camouflage).
+- **Tubes:** `TUBE_LIFT` 1.25 (2.4 in the first pass): they are near black under flat light, as in the old model, but not under the map's light. The first pass's flutes and panel lines are gone: the old paint's vents are back.
+- **Relief:** the heights softened and lower, the old paint's lines and grain only, no rust bumps. The fine scale-like pattern seen under strong light is in the old model too.
+- **Check:** `gunlooks_check.py` gains: the bake leaves glowing triangles' texels as they were; the nail muzzles' back faces near black (limit 18 of 255).
+- **Grips:** `vr_still_grip_test`: 4 passed, 0 failed, on e2aa179c0 (no code diffs, no source newer than the exe; an incremental build, not from scratch).
+- **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/gunlooks2/`: `shotgun_three_rows.png`, `nailgun_three_rows.png` (old, first pass, now; flat light), `lit_map.png` (no `r_fullbright`: old, now), `lava_and_pickups.png`.
