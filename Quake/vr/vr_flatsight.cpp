@@ -133,6 +133,7 @@ struct Sight
     float offAsked{0.f};        // ... which the sight's place asks to be this (the bore under the sights, the travel's share)
     glm::vec3 muzzleLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each muzzle in its hand's frame (forward, right, up), as
     bool muzzleKnown[2]{false, false};                        // the view last placed it (notePlaced)
+    bool aimBlocked[2]{false, false};                         // something lies between the muzzle and what the crosshair is on (aimAtPoint)
     float sightAngle{0.f};      // the same offset as an angle, at the muzzle's own distance (degrees)
 
     // The sight line as each hand held it when last drawn, in that hand's frame (noteDrawn): what the ironsight is solved
@@ -166,22 +167,25 @@ constexpr float lookEase = 2.5f;      // how fast the free hand travels onto a l
 constexpr float stanceEase = 2.5f;    // and how fast the torso turns, the same
 constexpr float longGunMuzzle = 9.5f; // a gun's muzzle this far from the hand holding it (units) makes it a long gun.
                                       // Measured: revolver 8.4, nail pistol 3.9; nail gun 10.8, super shotgun 11.4, shotgun 14.0
-constexpr float lookBack = 0.03f;     // the free hand goes back on the hotspot under gripKeep less this share of the arm
+constexpr float lookBack = 0.03f;     // the free hand goes back on the hotspot under lookKeep less this share of the arm
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
 constexpr float aimFar = 4096.f;     // nothing on the crosshair's ray: the gun points this far along it
 constexpr float aimMinAhead = 12.f;  // what the crosshair is on nearer than this past the muzzle, along the ray: not pointed at
+constexpr float aimFullAhead = 24.f; // and from this far on the muzzle's own place is the shot's; between, its start eases onto the ray
+constexpr float aimBlockedBy = 1.f;  // the muzzle's line stopping this far short of what the crosshair is on: blocked
 constexpr int aimSteps = 8;          // the turn moves the muzzle the aim is measured from: each pass closes most of what is left
 constexpr float reliefMin = 3.f;     // vr_flat_ads_relief's range, and the nearest a wall pushes the rear sight to the eye
 constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
                                      // eye than this along the line: the rear sight waits further out, the arm is not crushed
+constexpr float lookKeep = 0.95f;    // the free hand goes off the long gun's hotspot past this much of what its arm holds a hand at
 constexpr float armKeep = 0.97f;     // the sight's hand keeps inside this much of what the arm holds a hand at
 constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
 constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall it meets (1/s: at once, nearly, as vr_model_collide's)
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
-constexpr float backKeepArm = 6.f;   // the hand goes back no nearer its shoulder than this (the arm folded; past it the gun enters the wall)
+constexpr float backKeepArm = 9.f;   // the hand goes back no nearer its shoulder than this (the arm bent, the stock out of his chest; past it the gun enters the wall)
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -290,14 +294,6 @@ struct Sighted
     return s.pos[h] + fwd * l.x + right * l.y + up * l.z;
 }
 
-void keepMuzzle(hands::State& s, int h)
-{
-    if(s.muzzleValid[h] && st.muzzleKnown[h])
-    {
-        s.muzzle[h] = muzzleNow(s, h) - (s.pos[h] - s.placedFrom[h]);
-    }
-}
-
 // A line from `a` towards `b`, as a shot's goes (QC FireBulletsImpl: monsters' models, gibs and heads; him and what he owns
 // left out): where it first stops. `b` when it stops nowhere, or with no world to trace (not hosting).
 [[nodiscard]] glm::vec3 lineStop(const glm::vec3& a, const glm::vec3& b)
@@ -314,17 +310,50 @@ void keepMuzzle(hands::State& s, int h)
     return lineStop(org, org + dir * aimFar);
 }
 
-// That point as a muzzle at `m` is aimed at it: at it, unless it stands nearer than aimMinAhead past the muzzle along the
-// ray or behind it (a wall in his face, a monster the gun is inside), where the gun points along the ray instead.
-[[nodiscard]] glm::vec3 aimTarget(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& point, const glm::vec3& m)
+// Where the shot from a muzzle at `m` starts. Its own place, with what the crosshair is on far enough past it. Nearer (a wall in his
+// face, the floor at his feet, a monster the gun is inside, the muzzle past the surface), or with something in the way (a ledge the
+// ray clears and the muzzle's line doesn't), it eases onto the ray, level with the muzzle, nearer than aimMinAhead all the way.
+// Only the shot's start: nothing drawn moves. So the shot lands on the crosshair's point at any range, and the gun never has to
+// turn hard to get there.
+[[nodiscard]] glm::vec3 shotFrom(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& point, const glm::vec3& m, bool blocked)
 {
-    return glm::dot(point - org, dir) < glm::dot(m - org, dir) + aimMinAhead ? org + dir * aimFar : point;
+    const float along = glm::dot(m - org, dir);
+    const float u = za::clamp((glm::dot(point - org, dir) - along - aimMinAhead) / (aimFullAhead - aimMinAhead), 0.f, 1.f);
+    const float onRay = blocked ? 1.f : 1.f - u * u * (3.f - 2.f * u);
+    return m + (org + dir * za::max(along, 0.f) - m) * onRay;
+}
+
+// The way the gun points, its shot starting at `from`: at the point, or along the ray where that start is on the ray.
+[[nodiscard]] glm::vec3 aimWay(const glm::vec3& dir, const glm::vec3& point, const glm::vec3& from, bool blocked)
+{
+    return blocked || glm::dot(point - from, dir) < aimMinAhead ? dir : glm::normalize(point - from);
 }
 
 // A gun that aims at that point: a hand holding a weapon with a sight line, whose muzzle the view has placed.
 [[nodiscard]] bool aimsAtPoint(const hands::State& s, int h)
 {
     return flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] && sightalign::alignable(h);
+}
+
+// The muzzle the shot is handed (shotFrom).
+[[nodiscard]] glm::vec3 shotMuzzle(const hands::State& s, int h, const glm::vec3& aim, const glm::vec3& point)
+{
+    const glm::vec3 m = muzzleNow(s, h);
+    if(vr_flat_aim_point.value == 0.f || !aimsAtPoint(s, h))
+    {
+        return m;
+    }
+    glm::vec3 org, dir;
+    flatplay::crosshairRay(s, aim, org, dir);
+    return shotFrom(org, dir, point, m, st.aimBlocked[h]);
+}
+
+void keepMuzzle(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& point)
+{
+    if(s.muzzleValid[h] && st.muzzleKnown[h])
+    {
+        s.muzzle[h] = shotMuzzle(s, h, aim, point) - (s.pos[h] - s.placedFrom[h]);
+    }
 }
 
 // A hand with nothing in it: no weapon but the fist, no gun, prop or foe it carries.
@@ -355,10 +384,11 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
         // turn takes it.
         const bool onSight = h == st.holding && st.adsT > 0.f;
         const glm::vec3 place = onSight ? st.sightMuzzle : muzzleNow(s, h);
+        st.aimBlocked[h] = glm::distance(lineStop(place, point), point) > aimBlockedBy;
         for(int i = 0; i < aimSteps; i++)
         {
             const glm::vec3 m = muzzleNow(s, h);
-            const glm::vec3 want = glm::normalize(aimTarget(org, dir, point, m) - m);
+            const glm::vec3 want = aimWay(dir, point, shotFrom(org, dir, point, m, st.aimBlocked[h]), st.aimBlocked[h]);
             const glm::vec3 side = glm::cross(want, viewUp);
             const glm::vec3 wantUp = glm::length(side) > 1e-4f ? glm::normalize(glm::cross(side, want)) : viewUp;
             s.rot[h] = flatplay::aimRotAt(hands::anglesFromVectors(want, wantUp), h);
@@ -459,7 +489,7 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         // As far as the arm folds in hipfire, as far as the rear sight comes to the eye in the sight.
         const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
         const float hipMost = za::max(0.f, glm::distance(hand, shoulder) - backKeepArm);
-        const float sightMost = za::max(0.f, st.relief - reliefMin);
+        const float sightMost = za::max(0.f, st.relief - za::clamp(vr_flat_ads_wall_keep.value, reliefMin, reliefMax));
         const float most = hipMost + (sightMost - hipMost) * sight;
         if(!flatplay::punching(h))
         {
@@ -675,7 +705,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
     // What decides it is what the arm needs where the gun stands, or is going: the sight's place while it is asked for.
     const float need = st.adsWanted ? st.armSight : st.armHip;
-    st.lookFar = need > gripKeep || (st.lookFar && need > gripKeep - lookBack);
+    st.lookFar = need > lookKeep || (st.lookFar && need > lookKeep - lookBack);
     const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
     st.lookFast = longGun && (reaching || flatplay::punching(st.helping));
     st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
@@ -864,9 +894,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
 
     // The muzzle may have moved through the frame's other poses' turns: this is the pose's, handed on to the shot.
     aimAtPoint(s, aim);
+    const glm::vec3 shotPoint = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        keepMuzzle(s, h);
+        keepMuzzle(s, h, aim, shotPoint);
     }
 
     // Last, on the gun as this pose leaves it: the stance, and the free hand on the gun's hotspot, measure and move nothing above.
@@ -968,6 +999,16 @@ float stanceYaw()
     return st.stanceSign * za::clamp(vr_flat_stance_turn.value, 0.f, 45.f) * geom::smooth01(st.stanceT);
 }
 
+float stanceSpot(int h, glm::vec3& local)
+{
+    if(h != st.stanceHand || !st.stanceGun || st.spot[h] < 0)
+    {
+        return 0.f;
+    }
+    local = st.spotLocal[h];
+    return stanceShare(h);
+}
+
 float stanceShare(int h)
 {
     return h == st.stanceHand && st.stanceGun ? geom::smooth01(st.stanceT) : 0.f;
@@ -1023,8 +1064,9 @@ void statusLine()
             // The stance, and the free hand on the weapon's own hotspot (stanceAndLook: no grip).
             const glm::vec3& l = st.spotLocal[st.holding];
             const glm::vec3 d = st.drawnKnown ? st.drawnLocal - l : glm::vec3{0.f};
-            Con_Printf("  stance: %s, torso %.1f deg, free hand %s, share %.2f\n", st.stanceWanted ? "on" : "off", stanceYaw(),
-                st.lookWanted ? "going on it" : twohand::helping(st.helping) ? "holding its grip" : "hanging", lookShare(st.helping));
+            Con_Printf("  stance: %s, torso %.1f deg, free hand %s, share %.2f (gun %d far %d fast %d grip wanted %d, %.2f)\n", st.stanceWanted ? "on" : "off", stanceYaw(),
+                st.lookWanted ? "going on it" : twohand::helping(st.helping) ? "holding its grip" : "hanging", lookShare(st.helping),
+                st.stanceGun ? 1 : 0, st.lookFar ? 1 : 0, st.lookFast ? 1 : 0, st.gripWanted ? 1 : 0, st.gripT);
             Con_Printf("  stance arm: hipfire %.2f sight %.2f of %.1f, keeps %.2f%s\n", st.armHip, st.armSight, flatplay::armReach(),
                 gripKeep, st.lookFar ? ", out of reach" : "");
             Con_Printf("  stance spot: hs%d fwd %.2f right %.2f up %.2f relief %.1f\n", st.spot[st.holding] + 1, l.x, l.y, l.z, st.relief);
@@ -1073,8 +1115,9 @@ void print(const hands::State& s)
         }
         const glm::vec3 m = muzzleNow(s, g);
         const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[g], flatplay::heldIn(g), g == HAND_OFF));
-        const glm::vec3 stop = lineStop(m - shot * glm::distance(m, s.pos[g]), m + shot * aimFar);
-        const glm::vec3 toPoint = glm::normalize(aimTarget(org, dir, point, m) - m);
+        const glm::vec3 from = shotFrom(org, dir, point, m, st.aimBlocked[g]);
+        const glm::vec3 stop = lineStop(from - shot * glm::distance(m, s.pos[g]), from + shot * aimFar);
+        const glm::vec3 toPoint = aimWay(dir, point, from, st.aimBlocked[g]);
         Con_Printf("flataim: %s off its point %.4f deg away %.1f apart %.2f at %.2f %.2f %.2f\n", g == HAND_MAIN ? "main" : "off",
             glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f))), glm::distance(org, point),
             glm::distance(stop, point), point.x, point.y, point.z);
@@ -1156,8 +1199,9 @@ SweepNumbers sweepNumbers(const hands::State& s)
         const glm::vec3 point = crosshairPoint(s, viewAim);
         const glm::vec3 m = muzzleNow(s, g);
         const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[g], flatplay::heldIn(g), g == HAND_OFF));
-        const glm::vec3 stop = lineStop(m - shot * glm::distance(m, s.pos[g]), m + shot * aimFar);
-        const glm::vec3 toPoint = glm::normalize(aimTarget(org, dir, point, m) - m);
+        const glm::vec3 from = shotMuzzle(s, g, viewAim, point); // (what the shot is handed: keepMuzzle)
+        const glm::vec3 stop = lineStop(from - shot * glm::distance(m, s.pos[g]), from + shot * aimFar);
+        const glm::vec3 toPoint = aimWay(dir, point, from, st.aimBlocked[g]);
         n.shotDeg = glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f)));
         n.shotApart = glm::distance(stop, point);
         n.shotPoint = point;

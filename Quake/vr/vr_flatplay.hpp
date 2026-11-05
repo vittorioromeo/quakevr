@@ -87,9 +87,20 @@ void noteModelFovBatch();
 void keysForConfigWrite();
 
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
-// view's frame held to vr_flat_pose_pitch, each hand's punch a swing of that arm about its shoulder (punchSwing). The
+// body's frame off the shoulders the arms hang from (handOnBody, vr_flat_body_pose; 0: the view's frame held to vr_flat_pose_pitch), each hand's punch a swing of that arm about its shoulder (punchSwing). The
 // straight out-in-front pose stands when the mode is off.
 void poseHands(hands::State& s, const glm::vec3& aim);
+
+// The body pose's two asks of the avatar (vr_avatar.cpp solveTorso), both nothing with vr_flat_body_pose 0: how far the chest
+// bends for this look's pitch (degrees, + forward: vr_flat_chest_down, _up), and the neck's move off the eye a full crouch
+// makes, `levelFwd` being the level look's forward (world units: vr_flat_crouch_shoulder_down, _fwd).
+[[nodiscard]] float chestPitch(float pitch);
+[[nodiscard]] glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch);
+// The free hand `h` hanging: the move from where it stands to where it would stand off the gun in its other hand had the look been
+// level (what chooses the grip: vr_view_weapon.cpp). 0 outside the mode, with vr_flat_body_pose 0, and for a hand doing anything else.
+[[nodiscard]] glm::vec3 levelHang(const hands::State& s, int h);
+// How far the chest's share of this look carries his head and neck (vr_flat_eye_lean). In the eye's place already: solveTorso's head.
+[[nodiscard]] glm::vec3 headLean(const glm::vec3& aim);
 
 // The drawn hand's looks (vr_view.cpp VR_SetupViewEntities, as a shake: the game's hands and the shots don't move): kept
 // on the drawn view (its bob, roll and kick), with the step's sway (vr_flat_sway), the walk's bob (vr_flat_bob) and the
