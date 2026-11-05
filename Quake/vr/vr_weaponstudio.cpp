@@ -133,7 +133,7 @@ const char* const onOffNames[] = {"off", "on", nullptr};
         return hideNames;
     if(endsWith(name, "_type"))
         return hotspotTypeNames;
-    if(endsWith(name, "_aim2h") || endsWith(name, "_sticky") || endsWith(name, "_manual"))
+    if(endsWith(name, "_aim2h") || endsWith(name, "_still") || endsWith(name, "_sticky") || endsWith(name, "_manual"))
         return onOffNames;
     return nullptr;
 }
@@ -148,7 +148,7 @@ const char* const onOffNames[] = {"off", "on", nullptr};
        !strcmp(name, "yaw") || !strcmp(name, "roll") || endsWith(name, "_deg"))
         return Kind::Angle;
     if(hasWord(name, "mode") || hasWord(name, "owncol") || endsWith(name, "_type") || endsWith(name, "_style") ||
-       endsWith(name, "_manual") || hasWord(name, "hide") || hasWord(name, "aim2h") ||
+       endsWith(name, "_manual") || hasWord(name, "hide") || hasWord(name, "aim2h") || endsWith(name, "_still") ||
        !strcmp(name, "embed") || !strcmp(name, "fx_flash") || !strcmp(name, "fx_tracers"))
         return Kind::Choice;
     if(hasWord(name, "curl") || endsWith(name, "_open") || endsWith(name, "_across") || endsWith(name, "overlap") ||

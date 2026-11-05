@@ -280,6 +280,13 @@ QVR_WEAPON_KEY(Hotspot1CupAim, "hs1_aim2h")
 QVR_WEAPON_KEY(Hotspot2CupAim, "hs2_aim2h")
 QVR_WEAPON_KEY(Hotspot3CupAim, "hs3_aim2h")
 QVR_WEAPON_KEY(Hotspot4CupAim, "hs4_aim2h")
+// A grip that holds still (Hotspot field 25: weapons::Hotspot::still; 0 by default, the super nailgun's hotspot 1 on): the
+// hand on it ignores the firing animation (vr_view_weapon.cpp animationMotion), as if the model stayed at frame 0 there:
+// else a spinning barrel near the grip turns the hand with it.
+QVR_WEAPON_KEY(Hotspot1Still, "hs1_still")
+QVR_WEAPON_KEY(Hotspot2Still, "hs2_still")
+QVR_WEAPON_KEY(Hotspot3Still, "hs3_still")
+QVR_WEAPON_KEY(Hotspot4Still, "hs4_still")
 // Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
 // (vr_throw_spin_align) for the weapon thrown (Weapon Weights; 1 by default: weapons.txt's defaults).
 QVR_WEAPON_KEY(SpinAlign, "w_spinalign")

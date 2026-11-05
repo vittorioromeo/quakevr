@@ -515,6 +515,11 @@ namespace
     return basisAngles(w * glm::transpose(w0) * anglesBasis(handAt0));
 }
 
+glm::mat4 gripMotion(const view::ViewEntity& ve, const weapons::Hotspot& spot, const glm::vec3& at)
+{
+    return spot.still ? glm::mat4{1.f} : animationMotion(ve, at);
+}
+
 // The firing animation's move of a drawn weapon at the world point `at`: the rigid motion (least squares: Kabsch, by
 // a polar decomposition) of the model's vertices round `at`, weighted by their distance beyond the nearest one's
 // (over 7 cm), from its rest pose (frame 0) to the pose drawn this frame, as a world transform. A hand holding the
