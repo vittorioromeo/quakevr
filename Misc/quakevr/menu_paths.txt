@@ -3815,6 +3815,7 @@ vr_gore_sound_vol_slap|2|Tunables|Gore Sounds: Slaps|Advanced VR Options > Debug
 vr_gore_sound_vol_choke|2|Tunables|Gore Sounds: Chokes Volume|Advanced VR Options > Debug > Tunables > Gore Sounds: Chokes Volume
 vr_gore_sound_vol_drip|2|Tunables|Gore Sounds: Drips|Advanced VR Options > Debug > Tunables > Gore Sounds: Drips
 vr_model_light_grid_intensity|2|Tunables|Probe Intensity|Advanced VR Options > Debug > Tunables > Probe Intensity
+vr_model_light_grid_cell|2|Tunables|Probe Spacing|Advanced VR Options > Debug > Tunables > Probe Spacing
 vr_model_light_grid_near|2|Tunables|Near Surfaces Weigh|Advanced VR Options > Debug > Tunables > Near Surfaces Weigh
 vr_model_light_grid_mix|2|Tunables|Ambient or Directional|Advanced VR Options > Debug > Tunables > Ambient or Directional
 vr_model_light_lava|2|Tunables|Lava Light|Advanced VR Options > Debug > Tunables > Lava Light
@@ -4176,6 +4177,7 @@ vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Opti
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared
 vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advanced VR Options > Debug > Profiling and Memory > Keep Light Casters
 |2|Debug - Profiling and Memory|Check Kept Light Casters|Advanced VR Options > Debug > Profiling and Memory > Check Kept Light Casters
+vr_model_light_grid_show|2|Debug - Profiling and Memory|Show Light Probes|Advanced VR Options > Debug > Profiling and Memory > Show Light Probes
 |2|Debug - Profiling and Memory|Model Light Grid Info|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Info
 |2|Debug - Profiling and Memory|Model Light Grid Test|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Test
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light Caster Stats
