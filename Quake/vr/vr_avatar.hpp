@@ -34,6 +34,9 @@ struct Torso
 // The spine's pose from the head alone (usable before the hands are placed). `crouchPose`: with the crouched pose's
 // offsets (vr_body_crouch_*) as deep as the body crouches; off for a reference pose (standing(), the calibration's).
 [[nodiscard]] Torso torso(const hands::State& s, bool crouchPose = true);
+// Where each arm's shoulder joint stands from the head alone, before a hand lifts it (usable before the hands are placed: the
+// flatscreen pose stands the hands on these). out[side]: 0 the off hand's, 1 the main hand's, as Skeleton::shoulder.
+void restShoulders(const hands::State& s, glm::vec3 out[2]);
 
 // The crouched pose's share (vr_body_crouch_*; ROUND21.md, "Crouched pose"): vr_body_crouch_pose_strength times the
 // crouch's depth (0 standing, 1 the pelvis at squatting height; vr_body_crouch_preview, 0..1, instead) to the power
@@ -153,6 +156,11 @@ struct ForearmFrame
     float length{0.f}; // the forearm's, elbow to wrist (world units)
 };
 [[nodiscard]] bool forearmFrame(int hand, float along, ForearmFrame& out);
+
+// A hand drawn on a blade stuck in a body (STAT_QVR_EMBED*): its arm may stretch to vr_embed_arm_stretch (eased in and back over
+// vr_embed_arm_stretch_ease); how far (cm) the drawn wrist is past that, as last solved (0: within it, or no blade). QC lets go past
+// vr_embed_arm_letgo (.vr_embed_armgap).
+[[nodiscard]] float embedArmGapCm(int hand);
 
 // A body build's proportions (vr_body_build: 0 lean, 1 athletic, 2 brawny, 3 feminine; make_vrbody.py's BUILDS), for
 // what is fitted to the body: the factors are 1 for the athletic build, and multiply the engine's athletic numbers.

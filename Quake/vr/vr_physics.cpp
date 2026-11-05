@@ -738,6 +738,28 @@ void weaponTouches(edict_t* ent)
     }
 }
 
+// Flat-screen play (his own: .vr_flatscreen): a pickup box lying under his feet is walked over and taken (his words
+// 2026-11-05: "walk over all"). An ammo box, a health box or a backpack (an item with VR_Carry_Setup's hand touch) rests by
+// its drawn shape, and its small box sits below the floor's plane, under the bottom of his (measured on e1m1: its top 10
+// units under his feet): Quake's overlap never met it. Under him, within flatFeetReach below his feet, it is touched as a
+// pickup he overlaps would be: its own rules decide (full up of it: it stays). A headset player never: his hands take boxes.
+constexpr float flatFeetReach = 18.f;
+
+[[nodiscard]] bool flatPickupUnderFeet(edict_t* ent, edict_t* target)
+{
+    if(target->free || !isClient(ent) || fieldFloatOr(ent, f().vr_flatscreen, 0.f) == 0.f ||
+       !(static_cast<int>(target->v.flags) & FL_ITEM) || !carried(target) || solidOf(target) == SOLID_NOT)
+    {
+        return false;
+    }
+    const float* a0 = ent->v.absmin;
+    const float* a1 = ent->v.absmax;
+    const float* b0 = target->v.absmin;
+    const float* b1 = target->v.absmax;
+    return a0[0] <= b1[0] && b0[0] <= a1[0] && a0[1] <= b1[1] && b0[1] <= a1[1] && b1[2] >= a0[2] - flatFeetReach &&
+           b0[2] <= a1[2];
+}
+
 [[nodiscard]] bool canBeTouched(edict_t* target)
 {
     return (target->v.touch || fieldFunc(target, f().handtouch)) &&
@@ -831,6 +853,11 @@ void touch(edict_t* ent, edict_t* target)
     if(VR_AD_PelletsPass(ent, target)) return; // AD support: overlapping pellets never consume one another
     if(!absBoxesOverlap(ent, target))
     {
+        if(flatPickupUnderFeet(ent, target)) // (walked over, its box under the floor: only the pickup's own touch)
+        {
+            setHandtouchParams(HAND_FAKE, ent, target);
+            callField(target, ent, fieldFunc(target, f().handtouch));
+        }
         return;
     }
     // A nail and a backpack lying loose: met in the nail's own move at the backpack's drawn box (VR_ItemShotClip), not here,
@@ -1268,11 +1295,17 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     if(zone) VR_TracyBeginLoc(zone);
 #endif
     const int mark = Hunk_LowMark();
-    const int space = qcvm->num_edicts * 3;
+    const int space = qcvm->num_edicts * 4; // (his body, his feet in flat-screen play, two hands: each query adds its finds)
     edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
     int found = 0;
 
     SV_AreaEdictsUnordered(ent->v.absmin, ent->v.absmax, list, &found, space);
+    if(client && fieldFloatOr(ent, f().vr_flatscreen, 0.f) != 0.f)
+    {
+        // (and what lies under his feet: flatPickupUnderFeet)
+        const float lo[3] = {ent->v.absmin[0], ent->v.absmin[1], ent->v.absmin[2] - flatFeetReach};
+        SV_AreaEdictsUnordered(lo, ent->v.absmax, list, &found, space);
+    }
     if(client)
     {
         // handsReach's, and a weapon's length more: a weapon's drawn shape reaches that far from its box.
@@ -1297,7 +1330,7 @@ extern "C" int VR_TouchLinks(edict_t* ent)
             continue;
         }
 
-        if(absBoxesOverlap(ent, target) || (client && handsReach(ent, target)))
+        if(absBoxesOverlap(ent, target) || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
         {
             list[count++] = target;
         }

@@ -265,8 +265,8 @@ Used as a helpful aim target for rockets."
 ]
 
 @PointClass color(0 204 204) size(-16 -16 -16, 16 16 16) =
-	info_arena_banner : "A Survival Arena board: the run's wave, foes left, time and score, live, while the arena runs in this map. The origin is the middle of the board's face (its depth goes behind it: keep 0.7 of a character clear). 'angle' the way it faces.
-'worldtext_scale': its size, 8 units a character at 1. It is 23 characters across and 2 down, with 1.2 characters round them. With no arena running here it does nothing."
+	info_arena_banner : "A Survival Arena board: the run's wave, foes left, time and score, live, while the arena runs in this map. The origin is the middle of the board's face (its depth goes behind it: keep 5.6 x its scale clear). 'angle' the way it faces.
+'worldtext_scale': units a pixel of its 250 x 40 face (default 2.2: 550 by 88, with its bezel 566 by 104). With no arena running here it does nothing."
 [
 ]
 

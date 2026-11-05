@@ -28,6 +28,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_axestick.hpp"
+#include "vr_avatar.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_lines.hpp"
@@ -838,13 +839,76 @@ void stepSag(edict_t* ent, const Blade& blade, const glm::vec3& origin, const gl
     setFieldFloat(ent, f.vr_stick_sagv, rate);
 }
 
+// A hand's turn as Quake's view angles say it (AngleVectors): x forward, y left, z up.
+[[nodiscard]] glm::mat3 viewTurn(const glm::vec3& a)
+{
+    vec3_t in{a.x, a.y, a.z}, fw, rt, up;
+    AngleVectors(in, fw, rt, up);
+    return glm::mat3{vec(fw), -vec(rt), vec(up)};
+}
+
+// The turn about `axisDeg`'s way by its length in degrees.
+[[nodiscard]] glm::mat3 turnOf(const glm::vec3& axisDeg)
+{
+    const float deg = glm::length(axisDeg);
+    return deg > 1e-4f ? glm::mat3_cast(glm::angleAxis(glm::radians(deg), axisDeg / deg)) : glm::mat3{1.f};
+}
+
+// A blade held in a body: how far its holder's hand on its handle has turned since it took hold, at most its leeway
+// (vr_embed_lean_sword, vr_embed_lean_axe; his note 2026-11-05: "a little bit of leeway, maybe just a few degrees... on
+// any axis"): the world's axis times degrees. Nothing held, nothing.
+[[nodiscard]] glm::vec3 leanWanted(edict_t* ent, const Blade& blade)
+{
+    const FieldOffsets& f = fields();
+    const int handle = static_cast<int>(fieldFloatOr(ent, f.vr_hold_handle, 0.f));
+    if(!vr_embed.value || f.vr_hold_player < 0 || f.vr_hold_rot0 < 0 || f.handrot < 0 || f.offhandrot < 0 || (handle != 1 && handle != 2))
+    {
+        return glm::vec3{0.f};
+    }
+    edict_t* holder = PROG_TO_EDICT(fieldInt(ent, f.vr_hold_player));
+    if(holder == qcvm->edicts || holder->free)
+    {
+        return glm::vec3{0.f};
+    }
+    const float most = za::max(0.f, blade.how == howPoint ? vr_embed_lean_sword.value : vr_embed_lean_axe.value);
+    if(most <= 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::mat3 now = viewTurn(fieldVec(holder, handle == 2 ? f.handrot : f.offhandrot));
+    glm::quat q = glm::normalize(glm::quat_cast(now * glm::transpose(viewTurn(fieldVec(ent, f.vr_hold_rot0)))));
+    if(q.w < 0.f)
+    {
+        q = -q;
+    }
+    const float deg = glm::degrees(glm::angle(q));
+    return deg > 1e-3f ? glm::axis(q) * za::min(deg, most) : glm::vec3{0.f};
+}
+
 // The blade in what it is in: its pose there (the frame's), the blade's edge (or where its point went in) and facing in the
-// world.
+// world. Its holder's leeway (.vr_stick_lean, eased: serverFrame) and a tug's shake (.vr_stick_shake, QC's) turn it about where
+// it went in, the hand on its handle with it; .vr_stick_base keeps its angles without them (easeOnBody's).
 void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm::mat3& axes)
 {
     const FieldOffsets& f = fields();
     glm::vec3 o = origin;
     glm::mat3 r = axes;
+    if(f.vr_stick_base >= 0)
+    {
+        vec3_t base;
+        held::anglesFromAxes(axes, base, false);
+        setFieldVec(ent, f.vr_stick_base, vec(base));
+    }
+    glm::mat3 extra = f.vr_stick_lean >= 0 ? turnOf(fieldVec(ent, f.vr_stick_lean)) : glm::mat3{1.f};
+    if(const float shake = fieldFloatOr(ent, f.vr_stick_shake, 0.f); shake > 0.f && vr_embed_tug_shake.value > 0.f)
+    {
+        // (Three sines out of step: a tremble, not a swing. About the blade's own axes.)
+        const float t = static_cast<float>(qcvm->time) * 6.2831853f;
+        const float amp = vr_embed_tug_shake.value * shake * shake;
+        const glm::vec3 local{za::sin(t * 13.f) * 0.5f, za::sin(t * 17.f + 1.3f), za::sin(t * 11.f + 2.1f)};
+        extra = turnOf(axes * (local * amp)) * extra;
+    }
+    const bool turned = extra != glm::mat3{1.f};
     const float wiggle = fieldFloatOr(ent, f.vr_stick_wiggle, 0.f);
     const float slide = fieldFloatOr(ent, f.vr_stick_slide, 0.f);
     if(blade.how == howPoint)
@@ -865,6 +929,10 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
         {
             turnAbout(glm::mat3_cast(glm::angleAxis(glm::radians(wiggle), glm::normalize(r[1]))));
         }
+        if(turned)
+        {
+            turnAbout(extra);
+        }
         setPose(ent, o, r, pivot, r * l.along);
         return;
     }
@@ -879,7 +947,13 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
         r = turn * r;
         o = pivot + turn * (o - pivot);
     }
-    setPose(ent, o, r, wiggle != 0.f ? o + r * e.mid : wound, r * e.out);
+    if(turned)
+    {
+        const glm::vec3 pivot = o + r * e.mid;
+        r = extra * r;
+        o = pivot + extra * (o - pivot);
+    }
+    setPose(ent, o, r, wiggle != 0.f || turned ? o + r * e.mid : wound, r * e.out);
 }
 
 // Where a blade went in, in its own axes from its origin (not slid: as it stuck; a sword's where its depth says, an edge's middle).
@@ -905,7 +979,11 @@ void easeOnBody(edict_t* ent, const Blade& blade, glm::vec3& origin, glm::mat3& 
     }
     const glm::vec3 local = woundLocal(ent, blade);
     const glm::vec3 wound = origin + axes * local;
-    const glm::quat from = glm::quat_cast(held::axesFromAngles(ent->v.angles, false));
+    // (From its angles without the hand's leeway or the tug's shake: place's .vr_stick_base.)
+    const FieldOffsets& f = fields();
+    const glm::vec3 base = f.vr_stick_base >= 0 ? fieldVec(ent, f.vr_stick_base) : vec(ent->v.angles);
+    const float ba[3]{base.x, base.y, base.z};
+    const glm::quat from = glm::quat_cast(held::axesFromAngles(ba, false));
     const glm::quat to = glm::quat_cast(axes);
     axes = glm::mat3_cast(glm::slerp(from, to, 1.f - za::exp(-za::min(dt, 0.05f) * follow)));
     origin = wound - axes * local;
@@ -938,6 +1016,60 @@ void easeOnBody(edict_t* ent, const Blade& blade, glm::vec3& origin, glm::mat3& 
     return stops;
 }
 
+constexpr double handleCheckEvery = 0.25; // s between two looks at a free blade's handle in its body (vr_embed_handle_free)
+constexpr float leanEase = 20.f;          // 1/s: how fast a held blade's leeway follows the hand (and settles back)
+constexpr float handleClear = 1.5f;       // units a handle turned out of the body is left clear of its surface
+constexpr float handleTurnStep = 15.f;    // degrees it is turned at most at one look
+constexpr float handleTurnMost = 45.f;    // degrees all told
+
+// A blade in a body's model that no hand holds, its handle (where the hand takes it) in the model as drawn now (a flinch, an arm
+// across it; his note 2026-11-05: "sometimes the handle of the axe or the sword gets stuck into the enemy geometry"): turned out of it
+// about the wound, as little as it takes, at most handleTurnStep a look and handleTurnMost all told, so that a hand can take it. Cheap:
+// one nearest-point look a quarter second per blade (`point`, `axes`: its frame; `stuckAt`, `stuckAxes`: its pose there, changed).
+void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3& point, const glm::mat3& axes, glm::vec3& stuckAt,
+    glm::mat3& stuckAxes)
+{
+    const FieldOffsets& f = fields();
+    const float freed = fieldFloatOr(ent, f.vr_stick_freed, 0.f);
+    if(freed >= handleTurnMost)
+    {
+        return;
+    }
+    const glm::vec3 pivot = stuckAt + stuckAxes * woundLocal(ent, blade);
+    // (Where the hand takes it as drawn: slid along its line, or its edge's facing, as place puts it.)
+    const float slide = fieldFloatOr(ent, f.vr_stick_slide, 0.f);
+    const glm::vec3 way = blade.how == howPoint ? pointLine(ent, blade).along :
+                                                  drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1)).out;
+    const glm::vec3 grip = stuckAt + stuckAxes * (held::drawnModelPoint(ent, blade.hand) + way * slide);
+    hitmodel::Hit hit;
+    float away = 0.f;
+    if(!hitmodel::nearestAny(host, grip, hit, away) || hit.tri < 0)
+    {
+        return;
+    }
+    const float in = -glm::dot(grip - hit.surface, hit.normal); // (> 0: inside)
+    const glm::vec3 lever = grip - pivot;
+    const float length = glm::length(lever);
+    const glm::vec3 across = glm::cross(lever, hit.normal);
+    if(in <= 0.f || length < 2.f || glm::length(across) < 1e-3f)
+    {
+        return;
+    }
+    const float deg = za::min(za::min(handleTurnStep, handleTurnMost - freed),
+        glm::degrees(za::asin(za::clamp((in + handleClear) / length, 0.f, 1.f))));
+    const glm::mat3 turn = glm::mat3_cast(glm::angleAxis(glm::radians(deg), glm::normalize(across))); // (the lever towards the normal)
+    stuckAxes = turn * stuckAxes;
+    stuckAt = pivot + turn * (stuckAt - pivot);
+    const glm::mat3 inv = glm::transpose(axes);
+    vec3_t localAngles;
+    held::anglesFromAxes(inv * stuckAxes, localAngles, true);
+    setFieldVec(ent, f.vr_stick_ofs, inv * (stuckAt - point));
+    setFieldVec(ent, f.vr_stick_ang, vec(localAngles));
+    setFieldFloat(ent, f.vr_stick_freed, freed + deg);
+    reason(ent, "its handle was %.1f units in %s: turned %.1f deg out about the wound (%.1f all told)", in, PR_GetString(host->v.classname),
+        deg, freed + deg);
+}
+
 // Stuck: `ent`'s pose in what it is in (`best`'s), for the frames to come. False: no frame there.
 [[nodiscard]] bool keepPose(edict_t* ent, const Blade& blade, const Strike& best, int bit, const glm::vec3& stuckOrigin,
     const glm::mat3& stuckAxes, float depth, const glm::vec3& pointVel)
@@ -963,6 +1095,9 @@ void easeOnBody(edict_t* ent, const Blade& blade, glm::vec3& origin, glm::mat3& 
     setFieldFloat(ent, f.vr_stick_depth, depth);
     setFieldFloat(ent, f.vr_stick_sag, 0.f);
     setFieldFloat(ent, f.vr_stick_sagv, 0.f);
+    setFieldVec(ent, f.vr_stick_lean, glm::vec3{0.f});
+    setFieldFloat(ent, f.vr_stick_freecheck, 0.f);
+    setFieldFloat(ent, f.vr_stick_freed, 0.f);
     store(pointVel, ent->v.velocity); // (the throw's, for QC's blow)
     place(ent, blade, stuckOrigin, stuckAxes);
 
@@ -1595,6 +1730,11 @@ void calcStats(edict_t* player, int* statsi)
         }
         statsi[h ? STAT_QVR_EMBEDMAIN : STAT_QVR_EMBEDOFF] = stat;
     }
+    // (The local player's arms, as the avatar solved them: how far each hand drawn on a blade is past its stretched arm. QC lets go.)
+    if(f.vr_embed_armgap >= 0 && player == progs::localPlayer())
+    {
+        setFieldVec(player, f.vr_embed_armgap, glm::vec3{avatar::embedArmGapCm(HAND_OFF), avatar::embedArmGapCm(HAND_MAIN), 0.f});
+    }
 }
 
 void serverFrame()
@@ -1629,6 +1769,21 @@ void serverFrame()
         if(blade->how == howPoint && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Level)
         {
             stepSag(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));
+        }
+        const int kind = static_cast<int>(fieldFloat(ent, f.vr_stick_kind));
+        if(vr_embed.value && vr_embed_handle_free.value && kind == Model && f.vr_stick_freecheck >= 0 &&
+           fieldFloatOr(ent, f.vr_hold_hands, 0.f) == 0.f && qcvm->time >= fieldFloat(ent, f.vr_stick_freecheck) + handleCheckEvery)
+        {
+            setFieldFloat(ent, f.vr_stick_freecheck, static_cast<float>(qcvm->time));
+            freeHandle(ent, *blade, host, point, axes, stuckAt, stuckAxes);
+        }
+        if(f.vr_stick_lean >= 0)
+        {
+            // The holder's leeway, eased (a hand let go: it settles back).
+            glm::vec3 lean = fieldVec(ent, f.vr_stick_lean);
+            const glm::vec3 want = kind == Model || kind == MonsterBox ? leanWanted(ent, *blade) : glm::vec3{0.f};
+            lean += (want - lean) * (1.f - za::exp(-za::min(static_cast<float>(host_frametime), 0.1f) * leanEase));
+            setFieldVec(ent, f.vr_stick_lean, glm::length(lean) < 1e-3f ? glm::vec3{0.f} : lean);
         }
         place(ent, *blade, stuckAt, stuckAxes);
     });

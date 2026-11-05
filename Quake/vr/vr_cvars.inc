@@ -1110,6 +1110,14 @@ QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
+QVR_CVAR(vr_ghost_hands_ignore_embed, "1", CVAR_ARCHIVE)   // 1: no ghost for a hand holding a blade stuck in a body (drawn on it); 0: it shows
+QVR_CVAR(vr_embed_probe, "", CVAR_NONE)               // vr_embed_test 24: "reset" starts the engine's numbers below (then "on"); empty: none kept
+QVR_CVAR(vr_embed_probe_step, "0", CVAR_NONE)          // cm the most the drawn hand's offset from its controller changed in a frame coming off a blade
+QVR_CVAR(vr_embed_probe_spot, "-1", CVAR_NONE)         // cm a helping hand on a blade is drawn from its grip hotspot's point (last frame)
+QVR_CVAR(vr_embed_probe_ghost, "0", CVAR_NONE)         // the most ghost opacity drawn for a hand on a blade
+QVR_CVAR(vr_embed_probe_gib, "-1", CVAR_NONE)          // cm the most a hand holding a skewered gib was drawn from where it took hold of it
+QVR_CVAR(vr_embed_probe_gibctl, "-1", CVAR_NONE)       // cm the most its controller was from there
+QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was drawn on a blade
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
@@ -2066,6 +2074,8 @@ QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the pr
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
+QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
+QVR_CVAR(vr_flatgate_test, "0", CVAR_NONE)               // -flatscreenmode only: a walk through a teleporter on vrteleporters: the view goes on as it was (vr_flatgate_test.qc; Debug > Tests > Flat Gate)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
 QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay
@@ -2865,6 +2875,7 @@ QVR_CVAR(vr_knockdown_shove_ledge_over, "0.45", CVAR_ARCHIVE) // shoved over a l
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down or staggering, held as in its rest pose by the hand that holds it there (0: it falls loose)
 QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
+QVR_CVAR(vr_knockdown_ledge_show, "0", CVAR_NONE)       // debug: Show Ledge Shove Zones: a line from your feet ahead along the floor to the first ledge, red where a monster shoved on topples over it at once, yellow where it backpedals to it (vr_ledgeshow.cpp)
 QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
 
 QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE)       // share of the death animation's motion its parts start with (0: still)
@@ -3066,6 +3077,7 @@ QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of th
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_burnmark_test, "0", CVAR_NONE)           // the stage of the test of lightning's burns on a wall: 1 a thunderbolt, 2 a shambler's bolts (vr_burnmark_test.qc; Misc/quakevr/burnmark_test.sh)
 QVR_CVAR(vr_waterzap_test, "0", CVAR_NONE)           // lightning fired into water from each source, the surface's effect asserted (vr_waterzap_test.qc; map vrfiringrange; Debug > Tools > Test Effects)
+QVR_CVAR(vr_shockarcs_test, "0", CVAR_NONE)         // struck by a shambler's bolts from behind, for the arcs on your arms (vr_shockarcs_test.qc; Debug > Tools > Test Effects; the test is Misc/quakevr/sa_shockarcs_test.sh)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_dents_test, "0", CVAR_NONE)              // the QC strikes the nearest monster or corpse as one damage path does (1 a thrown brick, 2 a hand's blow, 3 a pommel strike, 4 a sword by its blade pommel first into a corpse, 5 by its handle, 6 five shotgun pellets: their wounds alone), once; prints the wound it sent (vr_dents_test.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off

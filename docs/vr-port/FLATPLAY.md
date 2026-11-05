@@ -112,6 +112,35 @@ menu's Item Pickup Mode; for a player in the mode it counts as at least 1 â€�
 (backpacks are mode 2's) â€” whatever he has saved, since there is no hand-to-hand step on the screen to confirm a pickup. The
 cvar itself is never written, so a headset player on the same save keeps what he set.
 
+**Pickups: walked over, or taken with `E`.** A flat-screen player has no torso to let armour go over and no holster to reach
+for, so what those gestures take goes on by touch (`VR_PickupObj_Handtouch`, `QC/items.qc`: the headset's "walking over it
+does not take it" asks `VR_FlatPlay` as well as `VRHandsTracked`, because the client marks his posed hands tracked). Walked
+over, armour, keys, the biosuit and the wetsuit, runes, powerups and weapons are taken, under their own rules (`armor_touch`:
+only better than what he wears). `E` on any of them is taken at once too, as a box is (`VR_Carry_AutoCollect`). What cannot
+be taken (armour no better than his, a box when full) stays in the hand; `G` lets it go, and a shot from the other hand is
+not affected. Ammo and health boxes and backpacks are walked over too (his words 2026-11-05: "walk over all"): a box rests
+by its drawn shape with its small box below the floor's plane, under his feet, so the engine touches a flat-screen player's
+pickup box up to 18 units under them (`flatPickupUnderFeet`, `Quake/vr/vr_physics.cpp`). The box's own rules decide: full
+shells or full health, it stays; megahealth over 100; a monster's backpack (the armed grunts' too). Test: `bash Misc/quakevr/flatitems_test.sh <agent>` (`vr_flatitems_test 1..5`, Debug > Tests > Flat Items);
+`vr_flatitems_test 4` is the plates before and after from the front (`vr_flat_orbit 180 70`).
+
+**The console's `give` keeps the ammo id.** `Host_Give_f` (`Quake/host_cmd.c`) ends by writing the new ammo *count* into
+`.currentammo` for the classic status bar, by `.weapon` taken as an `IT_` bit. In the VR progs `.currentammo` is the main
+hand's ammo *id* (`AID_*`) and `.weapon` a weapon id (the shotgun, 4, is `IT_NAILGUN`), so `give n 40` with the shotgun in
+hand left "ammo id 40", and the next shot that updates the counters asked for it:
+`VR_AmmoUtil_GetAmmoCountByAmmoId`'s assertion. A shot updates the counters when the gun has no magazine: every shot in
+flat-screen play (in a headset the magazine takes the shot; an ammo pickup after a give would still update them). The switch is skipped for the VR progs (the field `ammocounter`).
+
+**Teleporters.** Walking through a seamless teleporter (`crossPlayer`, `Quake/vr/vr_portals_gates.cpp`) the server sends an
+angle: its pitch level, its yaw from a move a tick old. A headset's view is its own and only the play space turns by it; a
+flat-screen player's view *is* that angle, so his look was reset at every gate. Now his client goes on from the view it has,
+turned by the gate alone (`VR_FlatPortalAngle`, called from `svc_setangle` in `Quake/cl_parse.c`), and for a client on
+another machine the server sends a flat-screen player's own pitch. The turn is not his, so neither the turn's lag nor the
+sway's velocity kick takes it. The arm's hold (`vr_flat_arm_hold`) uses the pose's shoulder in the frame the body jumped: the
+shoulder as last drawn was still in the room he left, and it held the gun there for that frame (708 units off, a blink). A
+plain teleporter (`vr_portals_walk 0`, a map's non-seamless one), a level's start and a respawn have no crossing and are set
+as sent. Test: `bash Misc/quakevr/flatgate_test.sh <agent>` (`vr_flatgate_test 1..3`, Debug > Tests > Flat Gate).
+
 **Crouching (Left Ctrl).** `pollKeysFlat` (`Quake/vr/vr_flatplay.cpp`) reads Left Ctrl with `E`, `F` and `G` and eases one
 number from 0 to 1 over `vr_flat_crouch_time`; `+flatcrouch` and `-flatcrouch` hold and release it from the console. That
 number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off `r_refdef.vieworg` (`Quake/view.c`), and
@@ -186,7 +215,7 @@ hand free takes a stance (`stanceAndLook`, `vr_flat_stance` 1; Debug > Tunables 
 - **The torso turns**, the free hand's shoulder forward (`vr_flat_stance_turn`, 25 degrees of `s.bodyYaw`, eased over about 0.4 s).
   The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest.
 - **The gun's hand comes up towards the shoulder pocket** (`vr_flat_stance_back` 10, `_in` 2, `_up` 4, taken off Gun Forward, Gun Out
-  and Gun Down). That is all that moves the gun, and it is the pose's: the shots are solved from wherever the muzzle stands, as ever.
+  and Gun Down; a level look's, a look up or down takes off `vr_flat_stance_fade` of it, 0.9, from 10 to 55 degrees). That is all that moves the gun, and it is the pose's: the shots are solved from wherever the muzzle stands, as ever.
   Not on a real grip: with that gun pulled in, the free hand's punch missed a knight 24 away (`flatplay_test.sh`; why is not known).
 - **The free hand is drawn on the weapon's own hotspot**: place, turn, fingers and offsets all come from Weapon Offsets through the
   same code that draws a helping hand in a headset (`steadyOther`, `heldBy`: `2h_fxd_*`, `hsN_pitch/yaw/roll`, `hsN_v*`, the style,
@@ -249,16 +278,24 @@ default), read in the view's own frame and clamped at the read (`poseNum`: -30..
 `vr_flatplay_status` prints the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`,
 `flatcam:`, `flatmove:`).
 
-**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_ahead`, 14), **Flatscreen Gun Down** (`vr_flat_gun_down`, 12), **Flatscreen Gun Out**
-(`vr_flat_gun_out`, 4): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
-Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units
-*away from the body's centre line* â€” the main hand's right, the off hand's left, which is the side `twohand` measures its
-grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how
-far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the
-view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
+**The hands stand on the body** (**Hands Stand On The Body**, `vr_flat_body_pose`, 1; Debug > Tunables > Flatscreen > Body Pose; 0: the view-fixed pose before it, off the old anchor; ROUND24.md, "Flat pose, phase 2"). A hand's place is worked out from the joint its arm hangs from (`avatar::restShoulders`: the chest's bones, the crouch, the stance's turn; before the hand itself lifts the collarbone), in `handOnBody`, in this order:
 
-**The empty hand** (`vr_flat_empty_fwd` 5, `vr_flat_empty_down` 13, `vr_flat_empty_out` 7) hangs at its side, and **the
-free hand's rest** beside him while the other hand has a gun (`vr_flat_support_fwd` 6, `vr_flat_support_down` 15, `vr_flat_support_out` 6)
+1. **The arm turns about the shoulder** by a share of the look (**Arm Share, Down**, `vr_flat_arm_down`, 0.7; **Arm Share, Up**, `vr_flat_arm_up`, 0.85), the hand's level place swung in the body's forward and up. So a look up holds the hand over the shoulder and a look down in front of the chest. `vr_flat_arm_out_down` (3) and `_up` (2.5) carry it out at its side at the ends of the look. Crouched, a held weapon goes 2 further out (`vr_flat_crouch_gun_out`) and the stance's pull is 0.6 less (`vr_flat_stance_fade_crouch`).
+2. **Its limits**, each eased in, so that no look shows a corner (`softAbove`): the stance's hotspot within the free arm (`vr_flat_keep_grip`, 0.87 of its reach from its rest shoulder: across the view first, then back along it); **Clear Of The Chest** (`vr_flat_clear_chest`, 4 ahead of the shoulder, gone when the hand is 6 over it); **Clear Of The Eye** (`vr_flat_clear_eye`, 3.5); **On The Screen** (`vr_flat_screen_angle`, 55 degrees off the view's middle; `_stance` 75, the long gun's hand by his cheek); **Within The Arm** (`vr_flat_keep_arm`, 0.92).
+3. **The view-fixed tweaks on top** (`vr_flat_gun_view_fwd`, `_right`, `_up`, 0, held weapons only), and the eye's nudges (`vr_flat_cam_*`), which carry the hands as ever. The neck's turn doesn't: it moves the eye off a body that stays.
+
+The body takes part. **The chest takes a share of the look** (**Chest Share**, `vr_flat_chest_down` 0.3, `vr_flat_chest_up` 0.2; half of that in the spine: `flatplay::chestPitch`, `solveTorso`), and **the crouch lowers the shoulders** under the eye (`vr_flat_crouch_shoulder_down`, `_fwd`: `flatplay::crouchNeck`, as deep as the body crouches). The eye stays where it stood: the neck, collapsed and never drawn, spans what's left.
+
+The ironsight's solve is unchanged and still from the eye: only the shoulder it keeps the arm in reach of (`reliefFor`) is the body's now. A wall or the floor pushes the rear sight no nearer the eye than `vr_flat_ads_wall_keep` (8; it was 3, and a crouched gun at the floor filled the screen). The chest carries the head with it (`vr_flat_eye_lean`, 12, Flatscreen > Eye): the eye goes with the neck.
+
+Which grip the free hand takes is chosen from where it would hang off the gun at a level look, without the stance (`levelHang`), so no look changes it; and the stance's free hand goes off its hotspot over a share of its arm (0.78 to 0.98 of its reach from the rest shoulder), not at one.
+
+**The shot near a surface.** What the crosshair is on nearer than 12 past the muzzle isn't pointed at (the aim's limit, below). The gun points along the ray, and the shot is handed the point of the ray level with the muzzle (`shotMuzzle`, `keepMuzzle`), so it lands on the crosshair's point at a wall, on the floor and with the muzzle past the surface. Nothing drawn moves.
+
+**The held weapon** -- **Gun Forward** (`vr_flat_gun_ahead`, 16.5), **Gun Down** (`vr_flat_gun_down`, 0), **Gun Out** (`vr_flat_gun_out`, 1): where the hand stands off its shoulder at a level look: the real shoulder's, which stands 12 lower than the old anchor these were once measured from (14, 12, 4; the level pose is where it was, within half a unit). Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units *away from the body's centre line* -- the main hand's right, the off hand's left, which is the side `twohand` measures its grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
+
+**The empty hand** (`vr_flat_empty_fwd` 7.5, `vr_flat_empty_down` 1, `vr_flat_empty_out` 4) hangs at its side, and **the
+free hand's rest** beside him while the other hand has a gun (`vr_flat_support_fwd` 8.5, `vr_flat_support_down` 3, `vr_flat_support_out` 3)
 is where it waits before a grip takes it. Neither is a look bolted on: the empty hand still travels onto the held weapon's
 two-hand hotspot (`pinToGrip`, `helpKind 1`) and `twohand::apply` still runs over the pose, so the two-handed grip, its
 `helpKind` and its transition are the game's own whatever these are set to.

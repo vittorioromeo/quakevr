@@ -754,6 +754,11 @@ QVR_SLIDER(vr_knockdown_getup_force, "Forced Get-Up", 0.f, 10.f, 0.5f, "%.1f s",
 QVR_SLIDER(vr_knockdown_blend, "Blend", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
     "How long the body takes to blend from how it lies into its get-up animation.")
 QVR_SLIDER(vr_knockdown_getup_speed, "Get-Up Speed", 0.25f, 3.f, 0.05f, "%.2fx", ext(0.1f, 10.f), "How fast its get-up animation plays.")
+QVR_TOGGLE(vr_knockdown_ledge_show, "Show Ledge Shove Zones",
+    "A line from your feet straight ahead along the floor to the first ledge: red where a monster you shove on topples "
+    "over it at once, yellow where it backpedals to the lip and folds over, grey where the ledge plays no part; a white "
+    "tick at the edge. The shove must reach the edge too (a weak one from the yellow may not). Distances: Debug > "
+    "Tunables, Ledge Shove: Topple Within and Backpedal Within.")
 QVR_CYCLE(vr_knockdown_debug, "Print Rolls",
     "Prints each shove's chance and roll, and each get-up (developer 1). And Get-Ups' Motion: a line per get-up "
     "of how it is drawn (how fast it moves, its biggest jump, the frames that go back on the one before: a "
@@ -4543,6 +4548,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
     "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
     "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
     "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
+QVR_TOGGLE(vr_ghost_hands_ignore_embed, "No Ghost on Stuck Blades",
+    "On: a hand holding a blade stuck in a body shows no ghost, only the hand drawn on the blade. Off: it shows "
+    "(vr_ghost_hands_ignore_embed).")
 QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
     "On: no ghost while either hand is on a hold, only the hands drawn on the ledge. Off: climbing shows it too "
     "(vr_ghost_hands_ignore_climb).")

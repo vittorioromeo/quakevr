@@ -965,6 +965,12 @@ void portalCrossing(float yawDegrees)
     portalJumpTime = cl.time;
 }
 
+bool portalAnglePending(float& yawDegrees)
+{
+    yawDegrees = portalJumpYaw;
+    return portalJumpPending && !portalAngleTaken;
+}
+
 void setServerYaw(float yaw)
 {
     if(portalJumpPending && !portalAngleTaken)

@@ -1618,8 +1618,11 @@ struct Held
     glm::mat3 lastRot{1.f};
     unsigned generation{0}; // props::settingsGeneration() its place is for
     // Held in both hands until now (leaveBoth): drawn eased from where both had it (fromPos, fromRot: world) onto its
-    // place in this hand, as the hand eases off its grip onto the controller (handEaseTime).
+    // place in this hand, as the hand eases off its grip onto the controller (handEaseTime, fromTime). Or just taken
+    // (holdFrame): from where it was drawn in the world onto its grip's place (vr_carry_grab_ease: a Fixed or In the
+    // Palm grip turned it there at once, his note 2026-11-05).
     double fromSince{-1.0};
+    double fromTime{0.0};
     bool fromStarted{false};
     glm::vec3 fromPos{0.f};
     glm::quat fromRot{1.f, 0.f, 0.f, 0.f};
@@ -1982,6 +1985,17 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     if(!hd.placed)
     {
         hd.since = cl.time;
+        // Just taken (not from the other hand: leaveBoth set its own): drawn from where it was in the world onto its
+        // place in the hand over vr_carry_grab_ease s (its grip may turn and move it there: Fixed, In the Palm).
+        if(hd.fromSince < 0.0 && vr_carry_grab_ease.value > 0.f && e.model)
+        {
+            hd.fromSince = cl.time;
+            hd.fromTime = vr_carry_grab_ease.value;
+            hd.fromStarted = false;
+            // (the server put it in the hand at once: its last message before that has where it was)
+            hd.fromPos = glm::vec3{e.msg_origins[1][0], e.msg_origins[1][1], e.msg_origins[1][2]};
+            hd.fromRot = glm::quat_cast(held::axesFromAngles(e.msg_angles[1], brush));
+        }
     }
     if(!hd.placed || cl.time - hd.since < placeTime)
     {
@@ -2038,14 +2052,24 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
             hd.fromStarted = true;
             hd.fromOffset = hd.fromPos - hd.lastPos;
             hd.fromTurn = glm::normalize(hd.fromRot * glm::inverse(glm::quat_cast(hd.lastRot)));
+            if(hd.fromTurn.w < 0.f)
+            {
+                hd.fromTurn = -hd.fromTurn; // (the short way round)
+            }
+            if(developer.value || vr_debug_carry.value)
+            {
+                Con_Printf("held: %d eased into the %s hand over %.2f s from %.1f units and %.1f degrees off its place\n", hd.ent,
+                    h == 1 ? "main" : "off", hd.fromTime, glm::length(hd.fromOffset),
+                    glm::degrees(2.f * za::acos(za::min(hd.fromTurn.w, 1.f))));
+            }
         }
-        if(t < 0.0 || t >= handEaseTime || glm::length(hd.fromOffset) > 64.f)
+        if(t < 0.0 || t >= hd.fromTime || glm::length(hd.fromOffset) > 64.f)
         {
             hd.fromSince = -1.0;
         }
         else
         {
-            float w = 1.f - static_cast<float>(t / handEaseTime);
+            float w = 1.f - static_cast<float>(t / hd.fromTime);
             w = w * w * (3.f - 2.f * w); // as the hand eases (drawnHand)
             hd.lastPos += hd.fromOffset * w;
             hd.lastRot = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, hd.fromTurn, w)) * hd.lastRot;
@@ -2350,6 +2374,7 @@ void leaveBoth()
             hd.placed = true;
             hd.since = cl.time;
             hd.fromSince = cl.time;
+            hd.fromTime = handEaseTime;
             hd.fromStarted = false;
             hd.fromPos = both.object.pos;
             hd.fromRot = both.object.rot;

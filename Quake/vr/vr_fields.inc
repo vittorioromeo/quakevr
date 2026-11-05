@@ -127,6 +127,12 @@ QVR_FIELD(vr_stick_slide)  // QC's: units it has slid along its axis since it st
 QVR_FIELD(vr_stick_goal)   // a held stab's: the depth (units from the tip) it goes on to as it enters (0: there)
 QVR_FIELD(vr_stick_bladelen) // a held stab's: the blade's length (units)
 QVR_FIELD(vr_stick_loose)  // QC's: in an arm or a leg: its turn follows the limb's eased (vr_embed_limb_follow), not rigidly
+QVR_FIELD(vr_stick_base)  // the engine's: its angles before the hand's leeway and the tug's shake (what easeOnBody eases from)
+QVR_FIELD(vr_stick_lean)  // the engine's: the leeway's turn now (axis times degrees, eased)
+QVR_FIELD(vr_stick_shake) // QC's: how near the tug is to tugging it out (0..1: the shake, vr_embed_tug_shake)
+QVR_FIELD(vr_stick_freecheck) // the engine's: when its handle was last checked for being in the body (vr_embed_handle_free)
+QVR_FIELD(vr_stick_freed) // the engine's: degrees its handle was turned out of the body, all told (for the test)
+QVR_FIELD(vr_hold_rot0)   // QC's: the handle hand's angles as it took hold (the leeway is from them)
 QVR_FIELD(vr_hold_player) // QC's (vr_embedhold.qc): who holds a blade stuck in a body, for the debug view
 QVR_FIELD(vr_hold_hands)  // the hands on it (bits: 1 the off hand, 2 the main)
 QVR_FIELD(vr_hold_handle) // the hand on it by its handle: the spring's
@@ -137,6 +143,7 @@ QVR_FIELD(vr_hold_farmost)
 QVR_FIELD(vr_hold_stick)  // QC's: cm the hand moves before it does, now
 QVR_FIELD(vr_embed_off)    // on a player: the blade its off hand holds in a body (VR_HOLD_EMBED: QC, world none)
 QVR_FIELD(vr_embed_main)   // the main hand's
+QVR_FIELD(vr_embed_armgap) // on a player, the engine's: cm each hand drawn on a blade is past its stretched arm (x the off hand, y the main)
 QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)
 
 // Model transforms (networked as entity update extras).

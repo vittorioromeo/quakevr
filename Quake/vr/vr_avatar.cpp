@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
+#include "vr_protocol.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_playersteps.hpp"
 #include "vr_selfcollide.hpp"
@@ -337,7 +338,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // a little more, which the pose below follows).
     b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) : 0.f;
     const float w = b.crouchPose;
-    const glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
+    glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
+    // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
+    top += flatplay::crouchNeck(nf, s.headAngles.x) * w;
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
     const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
@@ -397,6 +400,16 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
     }
+    // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch).
+    if(crouchPose && flatplay::active())
+    {
+        const float lean = flatplay::chestPitch(s.headAngles.x);
+        const glm::vec3 chestFromSpine = c.pos - sp.pos;
+        const glm::mat3 spineTurn = bodyTurn(b, 0.5f * lean, 0.f, 0.f);
+        sp.rot = spineTurn * sp.rot;
+        c.pos = sp.pos + spineTurn * chestFromSpine;
+        c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
+    }
     // The tracked chest's twist from the hips (the hips face bodyYaw: bodytrack::bodyYaw), half in the spine.
     if(tracked.weight > 0.f && tracked.twist != 0.f)
     {
@@ -434,12 +447,13 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     Bone& n = b.bones[Neck];
     n = Bone{};
     n.pos = childPos(b, Neck);
-    n.rot = basis(top - n.pos, turn * b.fwd);
+    const glm::vec3 headAt = top + flatplay::headLean(s.headAngles); // (flatscreen play: the chest's share of the look carries the head)
+    n.rot = basis(headAt - n.pos, turn * b.fwd);
     n.size = COLLAPSED;
 
     Bone& h = b.bones[Head];
     h = Bone{};
-    h.pos = top;
+    h.pos = headAt;
     h.rot = basis(hu, hf);
     h.size = COLLAPSED;
 }
@@ -800,8 +814,27 @@ struct ArmEase
     float out[2]{0.f, 0.f};            // the elbow's swing out of the torso
     double outTime[2]{-1.0, -1.0};
     float twist[2]{0.f, 0.f};          // the forearm's twist (kept continuous past a half turn)
+    float embed[2]{0.f, 0.f};          // 0..1: the hand on a blade in a body, its arm's stretch eased in (vr_embed_arm_stretch)
+    double embedTime[2]{-1.0, -1.0};   // when it was last eased
+    float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
 };
 ArmEase armEase;
+
+// The stretch the arm of `side` may take now (vr_body_arm_stretch, or towards vr_embed_arm_stretch while its hand is on a blade in a body:
+// his note 2026-11-05, "a little bit of IK stretch like we did for the enemies"), eased in and back (once a frame of game time).
+[[nodiscard]] float armStretchNow(int side)
+{
+    const bool onBlade = cl.stats[side == 1 ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+    float& w = armEase.embed[side];
+    double& at = armEase.embedTime[side];
+    const float dt = at >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - at, 0.1)) : 0.f;
+    at = vr_gametime;
+    const float ease = za::max(vr_embed_arm_stretch_ease.value, 0.001f);
+    w = onBlade ? za::min(1.f, w + dt / ease) : za::max(0.f, w - dt / ease);
+    const float normal = za::max(1.f, vr_body_arm_stretch.value);
+    const float smooth = w * w * (3.f - 2.f * w);
+    return glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+}
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
 // tracked shoulder, and it and each arm bone keep within 1 / vr_bodytrack_arm_fit_stretch to vr_bodytrack_arm_fit_stretch
@@ -813,9 +846,46 @@ constexpr float trackedShoulderTurn = 60.f;
     return CLAMP(1.f, vr_bodytrack_arm_fit_stretch.value, 3.f);
 }
 
-void solveArm(Body& b, int side, const HandPose& handPose)
+// A clavicle before the hand turns it: where its joint stands and its rest turn (the chest's, the shoulders' own offset, the
+// crouched pose's). solveArm goes on from here; restShoulders reads the arm's joint off it.
+struct ClavicleRest
+{
+    glm::vec3 pos{0.f};
+    glm::mat3 rot{1.f};
+    glm::vec3 lateral{0.f};
+};
+
+[[nodiscard]] ClavicleRest clavicleRest(const Body& b, int clav)
 {
     const Bind& bd = bind();
+    const Bone& chest = b.bones[Chest];
+    const glm::vec3 cUp = chest.rot[0];
+    const glm::vec3 cFwd = chest.rot[2];
+    ClavicleRest out;
+    out.rot = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
+    out.lateral = out.rot[0];
+    // The shoulders' own offset from the chest (bodycal::shoulderOffset: measured, or the default body's, and the
+    // tweaks): back, up, and outwards along the clavicle, in metres.
+    // Crouched (vr_body_crouch_shoulders_*): further back, up and out, and the collarbone swung back and up about the
+    // base of the neck, as deep as the crouch (Body::crouchPose).
+    const float crouched = b.crouchPose;
+    const glm::vec3 so = bodycal::shoulderOffset() + glm::vec3{vr_body_crouch_shoulders_back.value,
+                                                         vr_body_crouch_shoulders_up.value, vr_body_crouch_shoulders_out.value} *
+                                                         crouched;
+    out.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + out.lateral * so.z) * b.m2w;
+    if(crouched != 0.f && (vr_body_crouch_shoulders_swing.value != 0.f || vr_body_crouch_shoulders_shrug.value != 0.f))
+    {
+        const glm::vec3 swingAxis = safeNormalize(glm::cross(out.lateral, -cFwd), cUp);
+        const glm::vec3 shrugAxis = safeNormalize(glm::cross(out.lateral, cUp), cFwd);
+        out.rot = glm::mat3_cast(glm::angleAxis(glm::radians(vr_body_crouch_shoulders_shrug.value * crouched), shrugAxis) *
+                                 glm::angleAxis(glm::radians(vr_body_crouch_shoulders_swing.value * crouched), swingAxis)) *
+                  out.rot;
+    }
+    return out;
+}
+
+void solveArm(Body& b, int side, const HandPose& handPose)
+{
     const int clav = side == 0 ? ClavicleL : ClavicleR;
     const int upper = clav + 1;
     const int fore = clav + 2;
@@ -831,25 +901,11 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // forward (the clavicle turns about the base of the neck).
     Bone& c = b.bones[clav];
     c = Bone{};
-    glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
-    const glm::vec3 lateral = rest[0];
-    // The shoulders' own offset from the chest (bodycal::shoulderOffset: measured, or the default body's, and the
-    // tweaks): back, up, and outwards along the clavicle, in metres.
-    // Crouched (vr_body_crouch_shoulders_*): further back, up and out, and the collarbone swung back and up about the
-    // base of the neck, as deep as the crouch (Body::crouchPose).
     const float crouched = b.crouchPose;
-    const glm::vec3 so = bodycal::shoulderOffset() + glm::vec3{vr_body_crouch_shoulders_back.value,
-                                                         vr_body_crouch_shoulders_up.value, vr_body_crouch_shoulders_out.value} *
-                                                         crouched;
-    c.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + lateral * so.z) * b.m2w;
-    if(crouched != 0.f && (vr_body_crouch_shoulders_swing.value != 0.f || vr_body_crouch_shoulders_shrug.value != 0.f))
-    {
-        const glm::vec3 swingAxis = safeNormalize(glm::cross(lateral, -cFwd), cUp);
-        const glm::vec3 shrugAxis = safeNormalize(glm::cross(lateral, cUp), cFwd);
-        rest = glm::mat3_cast(glm::angleAxis(glm::radians(vr_body_crouch_shoulders_shrug.value * crouched), shrugAxis) *
-                              glm::angleAxis(glm::radians(vr_body_crouch_shoulders_swing.value * crouched), swingAxis)) *
-               rest;
-    }
+    const ClavicleRest clavRest = clavicleRest(b, clav);
+    const glm::mat3& rest = clavRest.rot;
+    const glm::vec3& lateral = clavRest.lateral;
+    c.pos = clavRest.pos;
 
     const ArmLengths lengths = armLengths(b.m2w);
     const float armLen =
@@ -905,7 +961,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float a = lengths.upper;
     float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
-    const float maxStretch = za::max(1.f, vr_body_arm_stretch.value);
+    const float maxStretch = armStretchNow(side);
     const auto reachOut = [&] {
         if(const float excess = d - (a + l); excess > 0.f)
         {
@@ -925,6 +981,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         reachOut();
     }
+    // (Always: QC measures from what it was as the hand took hold, the stretch not yet eased in.)
+    armEase.embedGapCm[side] = za::max(0.f, d - (a + l)) / b.m2w * 100.f;
 
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
     // the forearm that the rest of the pole gives. Bending the wrist (the hand tilted along the forearm: deviation, or
@@ -1328,6 +1386,18 @@ Torso torso(const hands::State& s, bool crouchPose)
     Body b;
     solveTorso(s, b, 0.f, crouchPose);
     return {{b.bones[Pelvis].pos, b.bones[Pelvis].rot}, {b.bones[Chest].pos, b.bones[Chest].rot}, b.crouchPose};
+}
+
+void restShoulders(const hands::State& s, glm::vec3 out[2])
+{
+    Body b;
+    solveTorso(s, b);
+    for(int side = 0; side < 2; side++)
+    {
+        const int clav = side == 0 ? ClavicleL : ClavicleR;
+        const ClavicleRest c = clavicleRest(b, clav);
+        out[side] = c.pos + c.rot * (localOffset(clav + 1) * b.m2w);
+    }
 }
 
 float crouchPoseWeight(float depth)
@@ -1755,6 +1825,11 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
     wrist = posed.wrist[hand];
     direction = posed.forearm[hand];
     return true;
+}
+
+float embedArmGapCm(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
 }
 
 bool forearmFrame(int hand, float along, ForearmFrame& out)
