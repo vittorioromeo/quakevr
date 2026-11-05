@@ -136,12 +136,12 @@ void drawQueued(const glm::vec3& eye, bool scene)
     if(!vertices[0].empty())
     {
         gfx::draw(vertices[0], viewProjection,
-            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false});
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false, .flatModelFov = true}); // (the laser, a gun's arcs)
     }
     if(!vertices[1].empty())
     {
         gfx::draw(vertices[1], viewProjection,
-            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = scene, .depthWrite = false});
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = scene, .depthWrite = false, .flatModelFov = true});
     }
 }
 

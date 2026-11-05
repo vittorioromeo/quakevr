@@ -1395,7 +1395,7 @@ NOISE_FUNCTIONS
 "	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
 "	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
 "	vec4	Barrel; // QVR: a hot gun barrel's glow (vr/vr_hotblade.cpp barrelInstance): x 1 (no mask) or 2 + its mask's first word in BarrelMasks (0: not a barrel), yz its ramp along the rest pose's x (x * y + z), w 1: the mask shown flat (painted)\n"\
-"	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
+"	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none), z 1: one of the player's own, drawn at the flatscreen model FOV\n"\
 "};\n"\
 "\n"\
 QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
@@ -1410,6 +1410,9 @@ QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
 "#endif\n"\
 "	vec4	Fog;\n"\
 "	float	ScreenDither;\n"\
+"	float	FlatFovScale; // QVR: flatscreen play's model FOV (vr/vr_flatplay.cpp modelFov): x and y's scale round the view axis, 0 none\n"\
+"	float	FlatFovNear;\n"\
+"	float	FlatFovFar;\n"\
 "	InstanceData instances[];\n"\
 "};\n"\
 
@@ -1513,6 +1516,7 @@ ALIAS_INSTANCE_BUFFER
 "\n"
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
 QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
+QVR_FLATFOV_POINT_GLSL // QVR: flatscreen play's model FOV (vr/vr_flatfov_glsl.h)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1568,7 +1572,8 @@ QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where 
 "	gl_Position = FaceViewProj[face] * vec4(lerpedVert, 1.0);\n"
 "	gl_ViewportIndex = int(face);\n"
 "#else\n"
-"	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
+"	bool flatfov = inst.Motion.z != 0 && FlatFovScale > 0.0; // QVR: flatscreen play's model FOV: only where it is drawn; its light, fog and motion keep the true place\n"
+"	gl_Position = ViewProj * vec4(flatfov ? FlatFovPoint(lerpedVert, EyePos, vec3(ViewProj[0][3], ViewProj[1][3], ViewProj[2][3]), vec3(FlatFovScale, FlatFovNear, FlatFovFar)) : lerpedVert, 1.0);\n"
 "#endif\n"
 "	out_prevclip = vec4(0.0); // QVR: temporal AA (vr/vr_temporal.cpp): where this vertex was drawn a frame ago\n"
 "#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT)\n"
@@ -1580,7 +1585,12 @@ QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where 
 "	out_pos = lerpedVert - EyePos;\n"
 "	out_nor = mat3(worldmatrix) * mix(pose1.nor, pose2.nor, inst.Blend); // QVR\n"
 "	out_depth = gl_Position.w; // QVR\n"
-"	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(" QS_STRINGIFY (LIGHT_TILES_X) ", " QS_STRINGIFY (LIGHT_TILES_Y) "); // QVR\n"
+"	vec4 lightclip = gl_Position; // QVR: the light tiles are read at its true place\n"
+"#ifndef LAYERED\n"
+"	if (flatfov)\n"
+"		lightclip = ViewProj * vec4(lerpedVert, 1.0);\n"
+"#endif\n"
+"	out_coord = (lightclip.xy / lightclip.w * 0.5 + 0.5) * vec2(" QS_STRINGIFY (LIGHT_TILES_X) ", " QS_STRINGIFY (LIGHT_TILES_Y) "); // QVR\n"
 "	// transform world X and Z axes to local space\n"
 "	mat3 orientation = mat3(normalize(worldmatrix[0].xyz), normalize(worldmatrix[1].xyz), normalize(worldmatrix[2].xyz));\n"
 "	orientation = transpose(orientation);\n"
