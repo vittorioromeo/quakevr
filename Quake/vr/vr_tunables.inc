@@ -1791,7 +1791,7 @@ QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm'
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 as before)
-QVR_TUNABLE(vr_flat_empty_down, "15") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 before)
+QVR_TUNABLE(vr_flat_empty_down, "13") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 as before)
 QVR_TUNABLE(vr_flat_empty_out, "7") // an empty hand: how far out at its own side it hangs (-30..30; 7 as before)
 QVR_TUNABLE(vr_flat_support_fwd, "6") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 before: it hangs at his side now). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
 QVR_TUNABLE(vr_flat_support_down, "15") // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 before)

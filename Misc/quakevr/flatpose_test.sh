@@ -154,7 +154,7 @@ check $(gate 9 500 0) "point: hipfire, the far wall: the same"
 read -r coff caway con <<<"$(pointline 10)"
 check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes ${coff:-?} units off the crosshair's point"
 
-# g. The near plane at a gun held at the camera: a close hipfire pose pinned here ($CLOSE) -- the case came from the pose his
+# g. The near plane at a gun held at the camera: the sight at its nearest eye relief, pinned here ($CLOSE) -- the case came from the pose his
 # 2026-11-03 tuning shipped (vr_flat_gun_ahead 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn
 # eye). His 2026-11-04 tuning ships gun_fwd 5 with no nudge, and that pose leaves the gun well out from the eye: the case
 # keeps its own numbers rather than following the defaults, because what it measures is a gun standing at the near plane.
@@ -162,8 +162,8 @@ check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo
 # one with vr_nearclip 4 and vr_nearclip_held 0, the desktop's plane this mode drew at. Without the mode's near plane
 # (VR_FlatNearPlane) vr_nearclip does nothing here: the third frame reads as the first and the check fails.
 log=$HERE/scratch/pose_near.log
-CLOSE="tune vr_flat_gun_ahead 0; tune vr_flat_gun_down -4; tune vr_flat_gun_out -7; tune vr_flat_cam_fwd 3.5; tune vr_flat_cam_up 3.5; tune vr_flat_bob 0"
-bash $KIT/run.sh $AGENT -Low -Clean -ExtraArgs "-flatscreenmode" -Script "$P; wait60; $CLOSE; wait40; vr_flatplay_status; screenshot; wait2; screenshot; vr_nearclip 4; vr_nearclip_held 0; wait2; screenshot; toggleconsole; quit" -Full -Filter "near plane" > "$log" 2>&1
+CLOSE="tune vr_flat_ads_relief 3; tune vr_flat_aim_fov 40; tune vr_flat_aim_time 0.15; tune vr_flat_cam_fwd 3.5; tune vr_flat_cam_up 3.5; tune vr_flat_bob 0"
+bash $KIT/run.sh $AGENT -Low -Clean -ExtraArgs "-flatscreenmode" -Script "$P; wait60; $CLOSE; vr_flat_aim 1; wait40; vr_flatplay_status; screenshot; wait2; screenshot; vr_nearclip 4; vr_nearclip_held 0; wait2; screenshot; toggleconsole; quit" -Full -Filter "near plane" > "$log" 2>&1
 SHOTS="$KIT/bases/$AGENT/qbase/quakevr/screenshots"
 mapfile -t near < <(ls -tr "$SHOTS"/*.png | tail -3)
 mad() { python "$HERE/pixdiff_ab.py" "$1" "$2" | grep -a -o "per channel [0-9.]*" | awk '{ print $3 }'; }

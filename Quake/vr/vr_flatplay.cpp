@@ -296,6 +296,8 @@ constexpr float grabReach = 12.f;
 // Easing from one pose to the next (a weapon taken, a punch, a reach), in the view's frame.
 constexpr float handEase = 15.f;
 constexpr float hangPitch = 60.f; // an empty hand at rest: its fingers this far below level (degrees)
+constexpr float guardFwd = 12.f;  // the guard a free hand beside a gun punches from (punchSwing): forward of its shoulder,
+constexpr float guardDown = 11.f; // and below it, before the reach
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
 constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
@@ -425,7 +427,10 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
         return rest;
     }
     const float span = za::max(4.f, armSpan());
-    const glm::vec2 plane{rest.x, rest.z};                                     // the punch's plane: the view's forward, its up and down
+    // A free hand beside a gun hangs low: its punch is measured from where a guard stands, not thrown at the floor.
+    const float guardReach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
+    const bool guards = heldIn(h) < 0 && heldIn(1 - h) >= 0;
+    const glm::vec2 plane = guards ? glm::vec2{guardFwd * guardReach, -guardDown * guardReach} : glm::vec2{rest.x, rest.z}; // the punch's plane: the view's forward, its up and down
     const float r0 = za::max(0.5f, glm::length(plane));
     const float wound_share = za::min(r0, punchFold) / r0;                     // folded along its own line, to punchFold out
     const glm::vec3 wound{plane.x * wound_share, rest.y, plane.y * wound_share - punchWindBack};
@@ -971,7 +976,11 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
         const bool hangs = heldIn(h) < 0 && !punching(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
                            !(flatsight::adsHelper(h));
-        if(dt > 0.0)
+        if(heldIn(h) >= 0)
+        {
+            fs.hang[h] = 0.f; // (a weapon's shots go along the crosshair from the frame it is taken)
+        }
+        else if(dt > 0.0)
         {
             fs.hang[h] += ((hangs ? 1.f : 0.f) - fs.hang[h]) * ease(handEase, static_cast<float>(dt));
         }

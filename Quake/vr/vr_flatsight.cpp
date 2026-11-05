@@ -152,6 +152,7 @@ constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
                                      // eye than this along the line: the rear sight waits further out, the arm is not crushed
 constexpr float armKeep = 0.97f;     // the sight's hand keeps inside this much of what the arm holds a hand at
+constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
 constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall it meets (1/s: at once, nearly, as vr_model_collide's)
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
@@ -217,17 +218,26 @@ struct Sighted
 
 // The eye relief for this pose, the hand's shoulder being `shoulder` in the view's frame: vr_flat_ads_relief, further out
 // where the sights stand far ahead of the hand, nearer where the arm cannot hold the hand that far out (a look straight up).
-[[nodiscard]] float reliefFor(int h, const glm::vec3& shoulder, float span)
+[[nodiscard]] float reliefFor(int h, const glm::vec3& shoulder, const glm::vec3& helper, float span)
 {
     const Sighted at0 = sighted(h, 0.f);
     const glm::vec3 d = sightDir();
     float relief = za::clamp(vr_flat_ads_relief.value, reliefMin, reliefMax);
-    relief = za::max(relief, handNearEye - glm::dot(at0.hand, d));
+    relief = za::max(relief, za::min(handNearEye, relief - reliefMin) - glm::dot(at0.hand, d)); // (a relief asked at its nearest is that near)
     const glm::vec3 c = at0.hand - shoulder;
     const float along = -glm::dot(c, d);
     const float across2 = glm::dot(c, c) - along * along;
     const float keep = span * armKeep;
-    const float most = along + (keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f);
+    float most = along + (keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f);
+    if(st.pinned && h == st.holding)
+    {
+        // The other hand's grip stays in its arm's reach too.
+        const glm::vec3 g = at0.hand + at0.turn * glm::vec3{st.gripFwd, st.gripRight, st.gripUp} - helper;
+        const float gAlong = -glm::dot(g, d);
+        const float gAcross2 = glm::dot(g, g) - gAlong * gAlong;
+        const float gKeep = span * gripKeep;
+        most = za::min(most, gAlong + (gKeep * gKeep > gAcross2 ? za::sqrt(gKeep * gKeep - gAcross2) : 0.f));
+    }
     return za::max(reliefMin, za::min(relief, most));
 }
 
@@ -517,6 +527,14 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     {
         return;
     }
+    // A gun held in two hands comes in to where the other arm reaches its grip: across the chest, and nearer.
+    const glm::vec3 home = flatplay::shoulderOf(s, st.helping);
+    const glm::vec3 far = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]) - home;
+    const float past = glm::length(far) - flatplay::armReach() * gripKeep;
+    if(past > 0.f)
+    {
+        s.pos[st.holding] -= far * (past / glm::length(far) * st.gripT);
+    }
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]);
     const glm::vec3 out = st.helping == HAND_OFF ? reach * st.gripT : glm::vec3{0.f}; // E still reaches out with it
@@ -552,7 +570,8 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
         return;
     }
     const glm::mat3 view = axesOf(aim);
-    st.relief = reliefFor(st.holding, glm::transpose(view) * (flatplay::shoulderOf(s, st.holding) - org), flatplay::armReach());
+    const glm::vec3 helper = st.helping >= 0 ? glm::transpose(view) * (flatplay::shoulderOf(s, st.helping) - org) : glm::vec3{0.f};
+    st.relief = reliefFor(st.holding, glm::transpose(view) * (flatplay::shoulderOf(s, st.holding) - org), helper, flatplay::armReach());
     if(st.adsT <= 0.f)
     {
         return;

@@ -217,7 +217,7 @@ grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscree
 far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the
 view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
 
-**The empty hand** (`vr_flat_empty_fwd` 5, `vr_flat_empty_down` 15, `vr_flat_empty_out` 7) hangs at its side, and **the
+**The empty hand** (`vr_flat_empty_fwd` 5, `vr_flat_empty_down` 13, `vr_flat_empty_out` 7) hangs at its side, and **the
 free hand's rest** beside him while the other hand has a gun (`vr_flat_support_fwd` 6, `vr_flat_support_down` 15, `vr_flat_support_out` 6)
 is where it waits before a grip takes it. Neither is a look bolted on: the empty hand still travels onto the held weapon's
 two-hand hotspot (`pinToGrip`, `helpKind 1`) and `twohand::apply` still runs over the pose, so the two-handed grip, its
@@ -263,7 +263,7 @@ sight's travel has gone. `vr_flat_sight_check` (Debug > Reports) measures the we
 
 **Against the walls** (**Gun Against Walls**, `vr_flat_gun_collide`, on). A held weapon goes back along the way into the body until
 it is out of the level (`pushBack`; `handpose::gunBack`, the headset's stop's points, traces and margin): towards its shoulder in
-hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded, or the rear sight at 3 units from
+hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded, or the rear sight 3 units from
 the eye: past that, the gun's end enters the wall and the depth buffer hides it there, as it does past `vr_gun_wall_max` in a
 headset. A wall met pushes it back at once, nearly; cleared, it comes out over a moment. It is the game's pose that moves, so the
 gun aims from where it is pushed to and the shots leave from there. A blow is left alone: a hand throwing a punch is not stopped.

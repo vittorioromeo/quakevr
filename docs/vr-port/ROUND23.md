@@ -8523,16 +8523,18 @@ slid it forward past the eye: the camera stood in its chest and shoulders. In th
 collapse also measured from the unnudged head, so a nudged eye (12 units or more) drew the head's inside: `posed.eyes` carries the nudge.
 
 **The hold** (old to new): `vr_flat_gun_fwd` 5 -> `vr_flat_gun_ahead` 14 (renamed, so his saved `tune vr_flat_gun_fwd "5"` is left out with a console
-line instead of holding the old pose), `vr_flat_gun_down` 10 -> 12, `vr_flat_gun_out` 2 -> 4, `vr_flat_empty_down` 13 -> 15, `vr_flat_support_*` 12 11 5 -> 6 15 6.
+line instead of holding the old pose), `vr_flat_gun_down` 10 -> 12, `vr_flat_gun_out` 2 -> 4, `vr_flat_support_*` 12 11 5 -> 6 15 6.
 Shoulder to hand 17.7 of the arm's 21.9 units in hipfire (it was about 11). An empty hand at rest hangs from its shoulder, level with the body, fingers
-60 degrees down (`hangPitch`), until it punches, reaches or goes to a grip. The eye's nudges stay 0.
+60 degrees down (`hangPitch`), until it punches, reaches or goes to a grip; beside a gun it punches from a guard (`guardFwd`, `guardDown`: the old rest), so the blow is the one it was. A gun held in two hands (the launcher, the proximity gun) comes in across the chest until the other arm reaches its grip (`gripKeep`), in hipfire and through the eye relief (the launcher's sight stands nearer the eye than 14). The eye's nudges stay 0.
 
 **The sights.** Solved from each gun's sight line (`sightalign::sightLine`), measured off the weapon as drawn in the hand's frame (`noteDrawn`). New:
 `vr_flat_ads_relief` 14 (rear sight to the eye; `reliefFor` goes further out where sights stand far ahead of the hand, the laser cannon's, and nearer where the
 arm cannot reach, a look straight up), `vr_flat_ads_screen_x`, `_y` 0. Retired: `vr_flat_ads_fwd`, `_up`, `_out` and the weapon keys `flat_ads_fwd`, `_up`, `_out`.
 `drawnOffset` applies the solve last, from the frame's camera; the looks and the fatigue shake are spent out over the travel. Moving the picture turns the
 ray itself (`flatsight::rayDir`): crosshair and shot point go with it, the sights stay on it. No sight line (axe, Mjolnir, chainsaw, sword, crowbar, super axe,
-toolgun): no ironsight, as before. Recoil and knocks still move the drawn gun on top, and come back.
+toolgun): no ironsight, as before. Recoil and knocks still move the drawn gun on top, and come back. Near straight up or down the sights are up to 0.4 degrees off (seen 0.06 and 0.4 at 85 degrees; 0.03 at 75, none at 60), not explained: the likeliest cause is Euler angles near the pole, not measured.
+
+**Headset.** Every new path asks `flatplay::active()`. Mock eyeshots could not prove it: two runs of one build already differ by 50 to 2200 pixels (around the weapon and the screen's middle, laser crosshair and particles off or on), and origin/next against this differs in the same places, 37 to 1064 pixels.
 
 **The walls.** `pushBack`, `handpose::gunBack`: the gun's points against the level along a set way, towards the shoulder or along the ray, in the game's pose, so
 the aim and the shots leave from the pushed place. `vr_flat_gun_collide` 1. Models: the headset's `vr_model_collide` already runs here, drawn only.
