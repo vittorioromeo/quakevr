@@ -118,6 +118,8 @@ vr_nail_saturation|0|VR Settings - Player Appearance|Nail Saturation|VR Settings
 vr_nail_lightness|0|VR Settings - Player Appearance|Nail Lightness|VR Settings > Player Appearance > Nail Lightness
 vr_nail_gloss|0|VR Settings - Player Appearance|Nail Gloss|VR Settings > Player Appearance > Nail Gloss
 |0|VR Settings - Player Appearance|Randomize|VR Settings > Player Appearance > Randomize
+vr_player_plates|0|VR Settings - Player Appearance|Armour Plates|VR Settings > Player Appearance > Armour Plates
+vr_player_plates_morph_time|0|VR Settings - Player Appearance|Plates Appear Over|VR Settings > Player Appearance > Plates Appear Over
 vr_body_pauldrons|0|VR Settings - Player Appearance|Pauldrons|VR Settings > Player Appearance > Pauldrons
 vr_body_pauldron_style|0|VR Settings - Player Appearance|Pauldron Style|VR Settings > Player Appearance > Pauldron Style
 vr_body_pauldron_size|0|VR Settings - Player Appearance|Pauldron Size|VR Settings > Player Appearance > Pauldron Size
@@ -1055,6 +1057,7 @@ vr_arena_medkits_after|1|Survival Arena|Medkits|Advanced VR Options > Combat > S
 vr_arena_armor_every|1|Survival Arena|An Armour Every|Advanced VR Options > Combat > Survival Arena > An Armour Every
 vr_arena_shards|1|Survival Arena|Armour Shards|Advanced VR Options > Combat > Survival Arena > Armour Shards
 vr_arena_scatter|1|Survival Arena|Supplies Anywhere|Advanced VR Options > Combat > Survival Arena > Supplies Anywhere
+vr_arena_nav|1|Survival Arena|Foes Use The Stairs|Advanced VR Options > Combat > Survival Arena > Foes Use The Stairs
 vr_arena_score_kill|1|Survival Arena|Score For A Kill|Advanced VR Options > Combat > Survival Arena > Score For A Kill
 vr_arena_xray|1|Survival Arena|Last Foes Through Walls|Advanced VR Options > Combat > Survival Arena > Last Foes Through Walls
 vr_arena_xray_left|1|Survival Arena|Foes Left|Advanced VR Options > Combat > Survival Arena > Foes Left
@@ -1816,6 +1819,7 @@ vr_magholster_chain_collide|1|Immersion|Chain Collision|Advanced VR Options > We
 vr_magholster_chain_spacing|1|Immersion|Chain Point Spacing|Advanced VR Options > Weapons > Immersion > Chain Point Spacing
 vr_magholster_chain_points|1|Immersion|Chain Most Points|Advanced VR Options > Weapons > Immersion > Chain Most Points
 vr_magholster_chain_iterations|1|Immersion|Chain Iterations|Advanced VR Options > Weapons > Immersion > Chain Iterations
+vr_magholster_chain_limit|1|Immersion|Chain Piece Limit|Advanced VR Options > Weapons > Immersion > Chain Piece Limit
 vr_magholster_chain_stiffness|1|Immersion|Chain Stiffness|Advanced VR Options > Weapons > Immersion > Chain Stiffness
 vr_magholster_chain_radius|1|Immersion|Chain Thickness|Advanced VR Options > Weapons > Immersion > Chain Thickness
 vr_magholster_chain_drag|1|Immersion|Chain Air Drag|Advanced VR Options > Weapons > Immersion > Chain Air Drag
@@ -2701,6 +2705,18 @@ vr_ragdoll_active_stagger_blend|2|Tunables|Stagger Recovery Blend|Advanced VR Op
 vr_ragdoll_active_stagger_settle|2|Tunables|Stagger Settles Below|Advanced VR Options > Debug > Tunables > Stagger Settles Below
 vr_ragdoll_active_stagger_settle_time|2|Tunables|Stagger Settle at Most|Advanced VR Options > Debug > Tunables > Stagger Settle at Most
 vr_ragdoll_active_stagger_drop|2|Tunables|Stagger Drop Falls|Advanced VR Options > Debug > Tunables > Stagger Drop Falls
+vr_knockdown_ledge_backpedal|2|Tunables|Ledge Shove: Backpedal|Advanced VR Options > Debug > Tunables > Ledge Shove: Backpedal
+vr_knockdown_ledge_backpedal_speed|2|Tunables|Ledge Shove: Speed|Advanced VR Options > Debug > Tunables > Ledge Shove: Speed
+vr_knockdown_ledge_backpedal_least|2|Tunables|Ledge Shove: Least Speed|Advanced VR Options > Debug > Tunables > Ledge Shove: Least Speed
+vr_knockdown_ledge_backpedal_most|2|Tunables|Ledge Shove: Most Speed|Advanced VR Options > Debug > Tunables > Ledge Shove: Most Speed
+vr_knockdown_ledge_backpedal_push|2|Tunables|Ledge Shove: Top Push|Advanced VR Options > Debug > Tunables > Ledge Shove: Top Push
+vr_knockdown_ledge_backpedal_hertz|2|Tunables|Ledge Shove: Pelvis Stiffness|Advanced VR Options > Debug > Tunables > Ledge Shove: Pelvis Stiffness
+vr_knockdown_ledge_backpedal_tip|2|Tunables|Ledge Shove: Tip Over Speed|Advanced VR Options > Debug > Tunables > Ledge Shove: Tip Over Speed
+vr_knockdown_ledge_backpedal_past|2|Tunables|Ledge Shove: Carried Past|Advanced VR Options > Debug > Tunables > Ledge Shove: Carried Past
+vr_knockdown_ledge_backpedal_vary|2|Tunables|Ledge Shove: Variation|Advanced VR Options > Debug > Tunables > Ledge Shove: Variation
+vr_knockdown_ledge_backpedal_carry|2|Tunables|Ledge Shove: Past the Edge|Advanced VR Options > Debug > Tunables > Ledge Shove: Past the Edge
+vr_knockdown_ledge_backpedal_balance|2|Tunables|Ledge Shove: Balance|Advanced VR Options > Debug > Tunables > Ledge Shove: Balance
+vr_knockdown_ledge_backpedal_yaw|2|Tunables|Ledge Shove: Way Off|Advanced VR Options > Debug > Tunables > Ledge Shove: Way Off
 vr_ragdoll_active_getup_pin|2|Tunables|Get-Up Lift|Advanced VR Options > Debug > Tunables > Get-Up Lift
 vr_ragdoll_active_getup_blend|2|Tunables|Get-Up Blend|Advanced VR Options > Debug > Tunables > Get-Up Blend
 vr_ragdoll_active_getup_pace|2|Tunables|Get-Up Pace|Advanced VR Options > Debug > Tunables > Get-Up Pace
@@ -2833,6 +2849,9 @@ vr_lg_water_damage|2|Tunables|Shock Damage to Others|Advanced VR Options > Debug
 vr_lg_water_radius|2|Tunables|Reach|Advanced VR Options > Debug > Tunables > Reach
 vr_lg_water_falloff|2|Tunables|Falloff|Advanced VR Options > Debug > Tunables > Falloff
 vr_lg_water_tick_damage|2|Tunables|Electrified Water Damage|Advanced VR Options > Debug > Tunables > Electrified Water Damage
+vr_lightning_burn_size|2|Tunables|Lightning Burn Size|Advanced VR Options > Debug > Tunables > Lightning Burn Size
+vr_lightning_burn_gap|2|Tunables|Lightning Burn Gap|Advanced VR Options > Debug > Tunables > Lightning Burn Gap
+vr_lightning_burn_stack|2|Tunables|Lightning Burns a Spot|Advanced VR Options > Debug > Tunables > Lightning Burns a Spot
 vr_lg_water_arcs|2|Tunables|Electrified Water Arcs|Advanced VR Options > Debug > Tunables > Electrified Water Arcs
 vr_lg_water_flash|2|Tunables|Shock Flash|Advanced VR Options > Debug > Tunables > Shock Flash
 vr_ammo_pouch_counter_x|2|Tunables|Counter X|Advanced VR Options > Debug > Tunables > Counter X
@@ -3076,6 +3095,10 @@ vr_agrunt_parry_count|2|Tunables|Parry: Parries Before Disarm|Advanced VR Option
 vr_agrunt_parry_recover|2|Tunables|Parry: Recovery|Advanced VR Options > Debug > Tunables > Parry: Recovery
 vr_agrunt_seek_timeout|2|Tunables|Gives Up on a Weapon After|Advanced VR Options > Debug > Tunables > Gives Up on a Weapon After
 vr_agrunt_seek_shun|2|Tunables|Leaves It Alone For|Advanced VR Options > Debug > Tunables > Leaves It Alone For
+vr_agrunt_second_range|2|Tunables|Second Weapon Range (Idle)|Advanced VR Options > Debug > Tunables > Second Weapon Range (Idle)
+vr_agrunt_second_time|2|Tunables|Second Weapon Trip (Idle)|Advanced VR Options > Debug > Tunables > Second Weapon Trip (Idle)
+vr_agrunt_second_combat_range|2|Tunables|Second Weapon Range (Fight)|Advanced VR Options > Debug > Tunables > Second Weapon Range (Fight)
+vr_agrunt_second_combat_time|2|Tunables|Second Weapon Trip (Fight)|Advanced VR Options > Debug > Tunables > Second Weapon Trip (Fight)
 vr_agrunt_friendly_giveup|2|Tunables|Gives Up After|Advanced VR Options > Debug > Tunables > Gives Up After
 vr_agrunt_saw_start|2|Tunables|Chainsaw Thrust From|Advanced VR Options > Debug > Tunables > Chainsaw Thrust From
 vr_agrunt_aim_exposed_hold|2|Tunables|Keep Aim On a Part|Advanced VR Options > Debug > Tunables > Keep Aim On a Part
@@ -3566,6 +3589,13 @@ vr_flare_light|2|Tunables|Flare Light Size|Advanced VR Options > Debug > Tunable
 vr_flare_sparks|2|Tunables|Flare Sparks|Advanced VR Options > Debug > Tunables > Flare Sparks
 vr_nailpistol_mag|2|Tunables|Nail Pistol Magazine|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine
 vr_nailpistol_slide_cycle|2|Tunables|Nail Pistol Slide Cycle|Advanced VR Options > Debug > Tunables > Nail Pistol Slide Cycle
+vr_nailpistol_mag_travel|2|Tunables|Nail Pistol Magazine Slide|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine Slide
+vr_nailpistol_mag_seat_time|2|Tunables|Nail Pistol Magazine Seat Time|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine Seat Time
+vr_nailpistol_mag_eject_time|2|Tunables|Nail Pistol Magazine Eject Time|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine Eject Time
+vr_nailpistol_mag_eject_speed|2|Tunables|Nail Pistol Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine Eject Speed
+vr_nailpistol_mag_eject_hand|2|Tunables|Nail Pistol Magazine Eject Hand|Advanced VR Options > Debug > Tunables > Nail Pistol Magazine Eject Hand
+vr_reload_mag_seat_time|2|Tunables|Magazine Seat Time|Advanced VR Options > Debug > Tunables > Magazine Seat Time
+vr_reload_mag_seat_travel|2|Tunables|Magazine Seat Slide|Advanced VR Options > Debug > Tunables > Magazine Seat Slide
 vr_nailpistol_slide_delay|2|Tunables|Nail Pistol Rack Delay|Advanced VR Options > Debug > Tunables > Nail Pistol Rack Delay
 vr_dmg_revolver|2|Tunables|Heavy Revolver|Advanced VR Options > Debug > Tunables > Heavy Revolver
 vr_revolver_dmg_random|2|Tunables|Heavy Revolver Random|Advanced VR Options > Debug > Tunables > Heavy Revolver Random
@@ -3838,6 +3868,11 @@ vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tuna
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
 vr_flat_support_fwd|2|Tunables|Both Hands Forward|Advanced VR Options > Debug > Tunables > Both Hands Forward
 vr_flat_support_down|2|Tunables|Both Hands Down|Advanced VR Options > Debug > Tunables > Both Hands Down
+vr_flat_stance|2|Tunables|Two-Handed Stance|Advanced VR Options > Debug > Tunables > Two-Handed Stance
+vr_flat_stance_turn|2|Tunables|Stance Torso Turn|Advanced VR Options > Debug > Tunables > Stance Torso Turn
+vr_flat_stance_back|2|Tunables|Stance Gun Back|Advanced VR Options > Debug > Tunables > Stance Gun Back
+vr_flat_stance_in|2|Tunables|Stance Gun In|Advanced VR Options > Debug > Tunables > Stance Gun In
+vr_flat_stance_up|2|Tunables|Stance Gun Up|Advanced VR Options > Debug > Tunables > Stance Gun Up
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
 vr_flat_ads_relief|2|Tunables|Ironsight Eye Relief|Advanced VR Options > Debug > Tunables > Ironsight Eye Relief
 vr_flat_ads_screen_x|2|Tunables|Ironsight Picture Right|Advanced VR Options > Debug > Tunables > Ironsight Picture Right
@@ -4266,6 +4301,9 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
+|2|Debug - Reports|Flatscreen Look At Yourself|Advanced VR Options > Debug > Reports > Flatscreen Look At Yourself
+|2|Debug - Reports|Flatscreen Back In His Eyes|Advanced VR Options > Debug > Reports > Flatscreen Back In His Eyes
+|2|Debug - Reports|Flatscreen Sight Check|Advanced VR Options > Debug > Reports > Flatscreen Sight Check
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text
@@ -4491,6 +4529,7 @@ vr_gadget_test_state|2|Debug - Tools|Gadget Screen Readings|Advanced VR Options 
 |2|Debug - Tools|Pentagram On You|Advanced VR Options > Debug > Tools > Pentagram On You
 |2|Debug - Tools|Biosuit On You|Advanced VR Options > Debug > Tools > Biosuit On You
 |2|Debug - Tools|Electrified Water|Advanced VR Options > Debug > Tools > Electrified Water
+|2|Debug - Tools|Lightning into Water|Advanced VR Options > Debug > Tools > Lightning into Water
 |2|Debug - Tools|Lightning Bolt at the Nearest|Advanced VR Options > Debug > Tools > Lightning Bolt at the Nearest
 |2|Debug - Tools|Lightning Kill the Nearest|Advanced VR Options > Debug > Tools > Lightning Kill the Nearest
 |2|Debug - Tools|Throw a Brick at the Nearest|Advanced VR Options > Debug > Tools > Throw a Brick at the Nearest
@@ -4602,6 +4641,10 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Death Knights Wearing Packs There|Advanced VR Options > Debug > Tests > Death Knights Wearing Packs There
 |2|Debug - Tests|Worn Backpacks: Pulling Lifts|Advanced VR Options > Debug > Tests > Worn Backpacks: Pulling Lifts
 |2|Debug - Tests|Enforcer's Lift Zone|Advanced VR Options > Debug > Tests > Enforcer's Lift Zone
+|2|Debug - Tests|Your Armour Plates: the Test|Advanced VR Options > Debug > Tests > Your Armour Plates: the Test
+|2|Debug - Tests|Your Armour Plates: Full|Advanced VR Options > Debug > Tests > Your Armour Plates: Full
+|2|Debug - Tests|Your Armour Plates: Half|Advanced VR Options > Debug > Tests > Your Armour Plates: Half
+|2|Debug - Tests|Your Armour Plates: Torso Only|Advanced VR Options > Debug > Tests > Your Armour Plates: Torso Only
 |2|Debug - Tests|Armoured Enforcers There|Advanced VR Options > Debug > Tests > Armoured Enforcers There
 |2|Debug - Tests|Armour Damage Marks There|Advanced VR Options > Debug > Tests > Armour Damage Marks There
 |2|Debug - Tests|Helmets There: Grunt and Enforcer|Advanced VR Options > Debug > Tests > Helmets There: Grunt and Enforcer
@@ -4764,6 +4807,8 @@ vr_climb_prop_mass|2|Debug - Tests|Props Hold Like the Level From|Advanced VR Op
 |2|Debug - Tests|Nail Pistols in Both Hands|Advanced VR Options > Debug > Tests > Nail Pistols in Both Hands
 |2|Debug - Tests|Nail Pistols in the Holsters|Advanced VR Options > Debug > Tests > Nail Pistols in the Holsters
 |2|Debug - Tests|Empty Nail Pistols: Holstered and Lying|Advanced VR Options > Debug > Tests > Empty Nail Pistols: Holstered and Lying
+|2|Debug - Tests|Seat a Magazine in the Nail Pistol|Advanced VR Options > Debug > Tests > Seat a Magazine in the Nail Pistol
+|2|Debug - Tests|Magazine Slide Self-Test|Advanced VR Options > Debug > Tests > Magazine Slide Self-Test
 |2|Debug - Tests|Nail Pistol Self-Test|Advanced VR Options > Debug > Tests > Nail Pistol Self-Test
 |2|Debug - Tests|Hang Nails Before Your Eyes|Advanced VR Options > Debug > Tests > Hang Nails Before Your Eyes
 |2|Debug - Tests|Nail Speed and Size Test|Advanced VR Options > Debug > Tests > Nail Speed and Size Test

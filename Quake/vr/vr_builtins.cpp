@@ -554,6 +554,11 @@ void PF_worldtext_hsettext()
     worldtext::serverSetText(worldTextHandle(), G_STRING(OFS_PARM1));
 }
 
+void PF_worldtext_hgettext()
+{
+    G_INT(OFS_RETURN) = PR_SetEngineString(worldtext::serverTextList()[static_cast<za::SizeT>(worldTextHandle())].text.cStr());
+}
+
 void PF_worldtext_hsetpos()
 {
     worldtext::serverSetPos(worldTextHandle(), vecParm1());
@@ -800,6 +805,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},
+    {"isarenamap", arenawaves::pfIsArenaMap},
     {"agposekey", PF_agposekey},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},
@@ -891,6 +897,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"cvar_hclear", PF_cvar_hclear},
     {"worldtext_hmake", PF_worldtext_hmake},
     {"worldtext_hsettext", PF_worldtext_hsettext},
+    {"worldtext_hgettext", PF_worldtext_hgettext},
     {"worldtext_hsetpos", PF_worldtext_hsetpos},
     {"worldtext_hsetangles", PF_worldtext_hsetangles},
     {"portal_handles", PF_portal_handles},

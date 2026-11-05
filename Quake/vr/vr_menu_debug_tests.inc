@@ -1007,6 +1007,10 @@ za::Vector<Item> pageDebugTests()
         command("Empty Nail Pistols: Holstered and Lying", "vr_np_test 6")
             .help("An empty nail pistol in the right hip holster and a loaded one in the right upper; an empty and a "
                   "loaded one lying ahead of you: the empty ones' slides drawn locked back, as in a hand."),
+        command("Seat a Magazine in the Nail Pistol", "vr_magslide_test 2")
+            .help("A full magazine seated in the gun in your main hand, now: watch it slide home up the grip (its eject button slides it out again)."),
+        command("Magazine Slide Self-Test", "vr_magslide_test 1")
+            .help("Headless checks: magazines stay on the well's line as the gun turns, reach home and fully out, pop out with the hand's velocity; interrupted slides leave nothing stuck."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         command("Hang Nails Before Your Eyes", "vr_nail_test 2")

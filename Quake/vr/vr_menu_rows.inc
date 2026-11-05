@@ -1013,7 +1013,7 @@ QVR_CYCLE_BYNAME(skill, "Skill",
     "Cheats).",
     {0.f, "Easy"}, {1.f, "Normal"}, {2.f, "Hard"}, {3.f, "Nightmare"})
 QVR_TOGGLE(vr_arena, "Arena In Any Map",
-    "1: the waves run in this map too, off its info_arena_spawn and info_arena_item spots; the map vrarena "
+    "1: the waves run in this map too, off its info_arena_spawn and info_arena_item spots; an arena map "
     "runs them without it (vr_arena).")
 QVR_SLIDER(vr_arena_wave_rest, "Rest Between Waves", 1.f, 60.f, 0.5f, "%.1f s", noExt,
     "From a wave cleared to the next wave's countdown: this many seconds at Normal (by Difficulty Impact "
@@ -1101,6 +1101,9 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
     "1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
     "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
     "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks).")
+QVR_TOGGLE(vr_arena_banners, "Arena Banners",
+    "1: the boards high on the arena's walls show the wave, the foes left, the time and the score, live. "
+    "0: they are off (vr_arena_banners).")
 QVR_TOGGLE(vr_arena_xray, "Last Foes Through Walls",
     "1: once only a few of a wave are left (Foes Left below, counting those still to come in), each of "
     "them glows red through walls -- an outline you see through the towers, the dais and the walk -- when "

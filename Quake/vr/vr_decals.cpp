@@ -1724,6 +1724,58 @@ int flameHitNext = 0;
     return n;
 }
 
+// Lightning striking a surface: a lasting burn, as the flamethrowers' (a ragged patch baked at once: ROUND24.md, "Lightning burn
+// marks"). A bolt held on a spot marks vr_lightning_burn_stack times there and no more, one every vr_lightning_burn_gap s at
+// most, so a held beam doesn't fill the permanent layer. None in a liquid (under water), none on the sky.
+double nextBurn = 0.0;
+constexpr int burnRing = 24;
+glm::vec3 burnHits[burnRing]{glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}};
+int burnNext = 0;
+
+[[nodiscard]] int worldContents(const glm::vec3& p)
+{
+    vec3_t q{p.x, p.y, p.z};
+    return Mod_PointInLeaf(q, cl.worldmodel)->contents;
+}
+
+void lightningBurn(const glm::vec3& org, const glm::vec3& along)
+{
+    const float wide = vr_lightning_burn_size.value;
+    if(wide <= 0.f || (cl.time < nextBurn && cl.time >= nextBurn - 1.0) || worldtrace::isLiquid(worldContents(org)))
+    {
+        return;
+    }
+    glm::vec3 where, normal;
+    if(!nearest(org, 12.f, along, where, normal) || worldContents(where - normal * 2.f) == CONTENTS_SKY)
+    {
+        return;
+    }
+    const float size = wide * random(0.8f, 1.25f);
+    int stacked = 0;
+    for(const glm::vec3& p : burnHits)
+    {
+        stacked += glm::distance(p, where) < size * 0.4f ? 1 : 0;
+    }
+    if(stacked >= static_cast<int>(vr_lightning_burn_stack.value) || (!permdecals::on() && liveScorchesAt(where, normal, size * 0.5f) >= 3))
+    {
+        return;
+    }
+    nextBurn = cl.time + za::max(0.f, vr_lightning_burn_gap.value);
+    burnHits[burnNext] = where;
+    burnNext = (burnNext + 1) % burnRing;
+    const glm::vec3 t1 = glm::normalize(glm::cross(normal, glm::abs(normal.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+    const glm::vec3 t2 = glm::cross(normal, t1);
+    const float a = random(0.f, 6.2831853f);
+    MarkOptions o;
+    o.bakeNow = true;
+    o.along = t1 * za::cos(a + 1.3f) + t2 * za::sin(a + 1.3f);
+    o.aspect = random(1.f, 1.6f);
+    add(Scorch, where + (t1 * za::cos(a) + t2 * za::sin(a)) * (size * random(0.f, 0.3f)), normal, size, o);
+}
+
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
 {
     using particles::Preset;
@@ -1757,7 +1809,7 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
             impactAt(Impact::Blow, org, dir);
             break;
         case Preset::Explosion: impactAt(Impact::Blast, org, glm::vec3{0.f}); break;
-        case Preset::Lightning:
+        case Preset::Lightning: lightningBurn(org, -back); break;
         case Preset::LavaSpike:
             if(nearest(org, 10.f, back, where, normal))
             {

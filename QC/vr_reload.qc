@@ -871,6 +871,17 @@ vector(entity p, float xHand) VR_Reload_MagOutWay =
     return -v_up;
 };
 
+// The magazine `r` out of the gun in `xHand` of `p`, flying free at `xVel` (units/s).
+void(entity p, float xHand, entity r, vector xVel) VR_Reload_MagFly =
+{
+    r.velocity = xVel;
+    r.vr_ammo_ejected_by = p; // (falling into his pouch, it's collected: VR_Reload_PouchCatchFrame)
+    r.vr_ammo_ejected_hand = xHand;
+    VR_Reload_MarkFresh(r, p); // (not back in by contact until it has left the wells: VR_Reload_LooseFrame)
+    r.avelocity = '0 0 1' * (crandom() * 200) + '1 0 0' * (crandom() * 300);
+    r.flags = r.flags - (r.flags & FL_ONGROUND);
+};
+
 // The gun in `xHand` of `p` (a magazine gun, one in) lets its magazine go: a round of what it held, where its well is
 // (the gun's angles), flying at `xVel` (units/s); the gun empty, no magazine (QVR_WPNFLAG_NOMAG). `xInto`: a hand of `p`
 // that takes it at once (the pull), -1 none. The magazine.
@@ -905,12 +916,7 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
     }
     else
     {
-        r.velocity = xVel;
-        r.vr_ammo_ejected_by = p; // (falling into his pouch, it's collected: VR_Reload_PouchCatchFrame)
-        r.vr_ammo_ejected_hand = xHand;
-        VR_Reload_MarkFresh(r, p); // (not back in by contact until it has left the wells: VR_Reload_LooseFrame)
-        r.avelocity = '0 0 1' * (crandom() * 200) + '1 0 0' * (crandom() * 300);
-        r.flags = r.flags - (r.flags & FL_ONGROUND);
+        VR_Reload_MagFly(p, xHand, r, xVel);
     }
     string how = "";
     if(VR_Reload_HasMagBox(p, xHand) && cvar_hget(cvarh_vr_reload_debug) >= 1)
@@ -939,12 +945,148 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
     return r;
 };
 
+// ----------------------------------------------------------------------------
+// The nail pistol's magazine sliding out of the grip (its eject button; ROUND24.md, "Magazines sliding home and out")
+//
+// Out of the gun's count at once (the clip, the flag, the sound: as ever), but the magazine only goes free after
+// vr_nailpistol_mag_eject_time: meanwhile it is rounds held here, and each client draws it sliding out of the gun in that
+// hand, through the gun as drawn that frame (STAT_QVR_MAGOUT; vr_view.cpp MagSlide, its box sent slid). Then a round at
+// that box: its velocity out along the grip's line at vr_nailpistol_mag_eject_speed plus vr_nailpistol_mag_eject_hand of
+// the hand's. The gun gone from the hand, the player dead, a new magazine seated: let go there and then.
+
+.float vr_mag_out;        // the hands whose gun's magazine is sliding out (1 off, 2 main: STAT_QVR_MAGOUT)
+.float vr_mag_out_at0;    // the off hand's: when it goes free,
+.float vr_mag_out_at1;    // the main hand's
+.float vr_mag_out_n0;     // the rounds in it,
+.float vr_mag_out_n1;
+.float vr_mag_out_aid0;   // its ammo (AID_*),
+.float vr_mag_out_aid1;
+.entity vr_mag_out_inst0; // the gun's record
+.entity vr_mag_out_inst1;
+float vr_reload_out_hand_most = 0.45; // of the pop: the most the hand's velocity adds (still mostly outward, even against it)
+entity vr_reload_out_r;       // (the tests': the last one let go, its way out, the velocity given, the hand's velocity)
+vector vr_reload_out_at;
+vector vr_reload_out_way;
+vector vr_reload_out_vel;
+vector vr_reload_out_hand;
+
+// What it flies at, out along `xOut` (unit), from the gun in `xHand` of `p`.
+vector(entity p, float xHand, vector xOut) VR_Reload_MagOutVel =
+{
+    float pop = max(0, cvar_hget(cvarh_vr_nailpistol_mag_eject_speed));
+    vector hand = VRGetEntHandVel(p, xHand) * VRMetersToUnits() * max(0, cvar_hget(cvarh_vr_nailpistol_mag_eject_hand));
+    float most = pop * vr_reload_out_hand_most;
+    if(vlen(hand) > most)
+    {
+        hand = normalize(hand) * most;
+    }
+    return xOut * pop + hand;
+};
+
+// The magazine sliding out of the gun in `xHand` of `p` goes free (none: nothing).
+void(entity p, float xHand, string xHow) VR_Reload_MagOutRelease =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    if(!(p.vr_mag_out & bit))
+    {
+        return;
+    }
+    p.vr_mag_out = p.vr_mag_out - bit;
+    // (The gun still there, its box says where it has slid to; else from the hand.)
+    vector at = VRGetEntHandPos(p, xHand);
+    vector as = VRGetEntHandRot(p, xHand);
+    makevectors(as);
+    vector way = -v_up;
+    if(VRGetEntWeaponInst(p, xHand) == VR_HAND_FIELD(p, xHand, vr_mag_out_inst1, vr_mag_out_inst0) &&
+       VR_Reload_HasMagBox(p, xHand) && vlen(VR_Reload_MagBoxPos(p, xHand) - at) <= 64)
+    {
+        at = VR_Reload_MagBoxPos(p, xHand);
+        as = VR_Reload_SeatedMagAngles(p, xHand);
+        way = -normalize(VR_Reload_MagBoxUp(p, xHand));
+    }
+    entity r = VR_Reload_MakeRound(WID_NAILPISTOL, VR_HAND_FIELD(p, xHand, vr_mag_out_aid1, vr_mag_out_aid0),
+        VR_HAND_FIELD(p, xHand, vr_mag_out_n1, vr_mag_out_n0), at, as);
+    vector vel = VR_Reload_MagOutVel(p, xHand, way);
+    VR_Reload_MagFly(p, xHand, r, vel);
+    vr_reload_out_r = r;
+    vr_reload_out_at = at;
+    vr_reload_out_way = way;
+    vr_reload_out_vel = vel;
+    vr_reload_out_hand = VRGetEntHandVel(p, xHand) * VRMetersToUnits();
+    VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s): out along its way at %.0f u/s, %.0f u/s in all", VR_Reload_Desc(r), xHand,
+        xHow, vel * way, vlen(vel)));
+    VR_Reload_CellSpent(r);
+};
+
+// Its eject button: out of the gun's count now, sliding out of the grip (vr_nailpistol_mag_eject_time 0: free at once).
+void(entity p, float xHand, string xHow) VR_Reload_MagOutStart =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    float f = VRGetEntWeaponFlags(p, xHand);
+    float n = VRGetEntWeaponClip(p, xHand);
+    float aid = WeaponIdToAmmoId(VRGetEntWeapon(p, xHand), f);
+    float at = time + max(0, cvar_hget(cvarh_vr_nailpistol_mag_eject_time));
+    if(xHand == cVR_MainHand)
+    {
+        p.vr_mag_out_at1 = at;
+        p.vr_mag_out_n1 = n;
+        p.vr_mag_out_aid1 = aid;
+        p.vr_mag_out_inst1 = VRGetEntWeaponInst(p, xHand);
+    }
+    else
+    {
+        p.vr_mag_out_at0 = at;
+        p.vr_mag_out_n0 = n;
+        p.vr_mag_out_aid0 = aid;
+        p.vr_mag_out_inst0 = VRGetEntWeaponInst(p, xHand);
+    }
+    p.vr_mag_out = p.vr_mag_out | bit;
+    VRSetEntWeaponClip(p, xHand, 0);
+    VRSetEntWeaponFlags(p, xHand, f | QVR_WPNFLAG_NOMAG);
+    VR_Reload_AmmoChanged(p);
+    VR_Reload_Sound(p, VRGetGunChannel(xHand), "vr/reload_mag_out.wav", 1);
+    VR_Reload_Haptic(p, xHand, 0.06, 120, 0.7);
+    if(at <= time)
+    {
+        VR_Reload_MagOutRelease(p, xHand, xHow);
+    }
+};
+
+// Every frame, self: those whose time has come go free; so do those whose gun has left the hand or whose player has died.
+void() VR_Reload_MagOutFrame =
+{
+    if(!self.vr_mag_out)
+    {
+        return;
+    }
+    for(float h = 0; h < 2; h++)
+    {
+        float hand = h ? cVR_OffHand : cVR_MainHand;
+        if(self.vr_mag_out & (hand == cVR_MainHand ? 2 : 1))
+        {
+            if(self.health <= 0 || !self.ishuman)
+            {
+                VR_Reload_MagOutRelease(self, hand, "its player dead");
+            }
+            else if(VRGetEntWeaponInst(self, hand) != VR_HAND_FIELD(self, hand, vr_mag_out_inst1, vr_mag_out_inst0))
+            {
+                VR_Reload_MagOutRelease(self, hand, "its gun gone from the hand");
+            }
+            else if(time >= VR_HAND_FIELD(self, hand, vr_mag_out_at1, vr_mag_out_at0))
+            {
+                VR_Reload_MagOutRelease(self, hand, "the button");
+            }
+        }
+    }
+};
+
 // The magazine `r` seats in the gun in `xGunHand` of self (which has none): the gun's magazine its rounds, the magazine
 // gone (from the other hand, `xHeld`; else a loose one: VR_Reload_LooseFrame).
 void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
 {
     float gunHand = xGunHand;
     float xHand = VRGetOtherHand(gunHand);
+    VR_Reload_MagOutRelease(self, gunHand, "a new one seated"); // (the last one still sliding out: gone first)
     // (AD support: a fuller cell than the Plasma Gun holds, a thunderbolt's: it takes its own, the rest back to the pouch.)
     float over = r.vr_ammo_count - VR_ClipSizeIn(self, gunHand);
     if(over > 0)
@@ -1204,6 +1346,7 @@ float() VR_Reload_PouchNearHand;
 // (the lightning gun's), the cord plugged into one.
 void() VR_Reload_PlayerFrame =
 {
+    VR_Reload_MagOutFrame();
     float corded = FALSE;
     if(self.ishuman && VR_Reload_Immersive())
     {
@@ -1599,11 +1742,19 @@ void(float xHand) VR_Reload_MagFrame =
     if(sec && !secWas && cvar_hget(cvarh_vr_reload_eject_button) && VR_Reload_MagIn(self, xHand))
     {
         // Out of its well, falling with the hand's own speed and a little push the way the well faces (the nailgun's and
-        // the thunderbolt's down under the gun, the super nailgun's out of its side and a little down; never up).
-        vector out = VR_Reload_MagOutWay(self, xHand);
-        out_z = min(-0.35, out_z);
-        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() + normalize(out) * 40, -1,
-            "the button");
+        // the thunderbolt's down under the gun, the super nailgun's out of its side and a little down; never up). The
+        // nail pistol's slides out of the grip first, then pops on out (the way the grip points).
+        if(VRGetEntWeapon(self, xHand) == WID_NAILPISTOL)
+        {
+            VR_Reload_MagOutStart(self, xHand, "the button");
+        }
+        else
+        {
+            vector out = VR_Reload_MagOutWay(self, xHand);
+            out_z = min(-0.35, out_z);
+            VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() + normalize(out) * 40, -1,
+                "the button");
+        }
     }
     VR_Reload_HitFrame(xHand);
 

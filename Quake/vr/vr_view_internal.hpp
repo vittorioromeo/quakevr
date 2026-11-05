@@ -291,7 +291,39 @@ struct MagShapeCache
 inline mem::Cache<MagShapeCache> magShapeCache{"magazine shapes", mem::GameDirChange | mem::ModelReload};
 [[nodiscard]] float boxDistance(const glm::vec3 (&box)[4], const glm::vec3& p);
 [[nodiscard]] const MagMount* magMountFor(const qmodel_t* gun);
+[[nodiscard]] glm::vec3 magShapeCentre(const MagMount& mount); // its box's middle (the round's origin as it comes out)
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
+
+// A magazine drawn sliding along its well's line in the gun in a hand (ROUND24.md, "Magazines sliding home and out"): only the
+// drawing, stepped by game time and worked out from the gun as drawn each frame (setMagazine), so it is right however the
+// gun moves. Seating: the gun's magazine in, without its gun changing (WEAPONUID): from vr_nailpistol_mag_travel out (the
+// nail pistol's) or vr_reload_mag_seat_travel out, home. Sliding out: while the server says (STAT_QVR_MAGOUT).
+struct MagSlide
+{
+    enum class Mode
+    {
+        None,
+        Seat,
+        Out
+    };
+    Mode mode{Mode::None};
+    double start{0.0};            // vr_gametime it began
+    double time{-1.0};            // vr_gametime of the last step
+    float dt{0.f};                // its game time
+    int frame{-1};                // host_framecount of the last step
+    int uid{0};                   // the gun's id, last step
+    const qmodel_t* gun{nullptr}; // its model
+    bool noMag{false};            // its magazine out, last step
+    int rounds{2};                // what its magazine held as it last sat in the gun (drawn sliding out: its top nails)
+};
+inline MagSlide magSlides[2];
+void magSlideStep(int hand, const qmodel_t* gun); // once a frame (the first call); its gun as drawn
+[[nodiscard]] glm::vec3 magOutAxis(const MagMount& mount);           // the well's line outward, in the gun's model space
+[[nodiscard]] float magSlideTravel(int hand, const MagMount& mount); // how far out along it now (model units)
+[[nodiscard]] inline bool magSlidingOut(int hand)
+{
+    return magSlides[hand].mode == MagSlide::Mode::Out;
+}
 
 struct SsgDrawn
 {
@@ -344,6 +376,7 @@ struct Entities
     view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
     view::ViewEntity ammoPouchItem[pouchitems::most]; // and the rounds in it (setupAmmoPouchItems; vr_pouchitems.cpp)
     view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
+    view::ViewEntity magOut[2];                    // one sliding out of them (not seated, not solid: MagSlide),
     view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
     view::ViewEntity worldMag[maxWorldWeapons];    // and in the ones lying nearest (setupWorldWeapons' nearest)
     view::ViewEntity well[2];                      // the magazine guns' wells (receivers): in the hands,
@@ -415,7 +448,7 @@ template <typename F>
 decltype(auto) Entities::members(F&& f)
 {
     return f(weapon, weaponMorph, hand, holster, holsterSlot, body, plate, zip(pauldron, pauldronArm), gadget, gadgetStrap,
-        flashlight, pouch, ammoPouch, ammoPouchItem, mag, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
+        flashlight, pouch, ammoPouch, ammoPouchItem, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
         holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt);

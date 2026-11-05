@@ -748,6 +748,7 @@ void ikStretchReset()
         row(opt::vr_arena_scatter),
         row(opt::vr_arena_nav),
         row(opt::vr_arena_score_kill),
+        row(opt::vr_arena_banners),
         header("The Last Foes"),
         row(opt::vr_arena_xray),
         row(opt::vr_arena_xray_left),
