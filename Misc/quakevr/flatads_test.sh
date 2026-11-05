@@ -42,4 +42,23 @@ if [[ $SECTIONS == *c* ]]; then
   check $([ "$ok" = "2" ] && echo 1 || echo 0) "launchers: the grenade and rocket launchers at the shotgun's height hipfire ($ok of 2)"
 fi
 
+if [[ $SECTIONS == *d* ]]; then
+  # d. the ironsight's zoom and relief follow the fov: at his settings (fov 95, vr_flat_aim_fov 45, relief 4) the view is 50 and
+  #    the relief 4 as before; at fov 70 and 110 the same magnification (tangents, 2.340) and the same sight picture
+  #    (relief * tan(half the sighted fov) = 4 tan 25); vr_flat_model_fov 70 at fov 95 with relief 14: 14 tan 25 / tan 35 = 9.32.
+  log=$HERE/scratch/flatads_d.log
+  ONE() { echo "$1; wait5; vr_flat_aim 1; wait40; vr_flat_sight_check; vr_flat_aim 0; wait30;"; }
+  H="tune vr_flat_aim_fov 45; tune vr_flat_ads_relief 4"
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; impulse 154; wait30; $H; $(ONE 'fov 95') $(ONE 'fov 70') $(ONE 'fov 110') $(ONE 'fov 95; tune vr_flat_ads_relief 14; tune vr_flat_model_fov 70') tune_reset; fov 90; toggleconsole; quit" -Filter "^flatsightpose" -Timeout 90 > "$log" 2>&1
+  grep -a "^flatsightpose" "$log" | awk '{ printf "  fov %s of %s: relief %s (scale %s)\n", $19, $21, $3, $NF }'
+  r=$(grep -a "^flatsightpose" "$log" | awk 'function t(d) { return sin(d * 3.14159265 / 360) / cos(d * 3.14159265 / 360) }
+    { n++; f = $19; b = $21; rel = $3; mag = t(b) / t(f); want = (n == 4) ? 14 * t(50) / t(70) : 4 * t(50) / t(f)
+      okm = (mag > 2.340 * 0.99 && mag < 2.340 * 1.01); okr = (rel > want * 0.98 && rel < want * 1.02)
+      if (n == 1 && (f < 49.95 || f > 50.05 || rel < 3.95 || rel > 4.05)) okr = 0
+      if (okm && okr) good++; printf "%s mag %.3f relief %.2f want %.2f; ", n, mag, rel, want }
+    END { printf "| %d", good + 0 }')
+  echo "  $r"
+  check $([ "${r##*| }" = "4" ] && echo 1 || echo 0) "fov: his look kept at fov 95 (50 deg, relief 4); zoom and sight picture kept at fov 70 and 110 and with a model fov"
+fi
+
 verdict; exit $fail

@@ -166,6 +166,7 @@ struct Sight
     float gripUp{0.f};
 
     float fovNarrow{0.f};       // the field of view the ironsight is narrowing by this frame (gl_screen.c reads it)
+    float baseFov{90.f};        // the view's own field of view before the ironsight's narrowing (fov's last call)
     glm::vec3 sightMuzzle{0.f}; // where the sight's place has the muzzle, this pose (world; the travel's share of it)
 };
 
@@ -184,6 +185,7 @@ constexpr float aimMinAhead = 12.f;  // what the crosshair is on nearer than thi
 constexpr float aimFullAhead = 24.f; // and from this far on the muzzle's own place is the shot's; between, its start eases onto the ray
 constexpr float aimBlockedBy = 1.f;  // the muzzle's line stopping this far short of what the crosshair is on: blocked
 constexpr int aimSteps = 8;          // the turn moves the muzzle the aim is measured from: each pass closes most of what is left
+constexpr float minFov = 20.f;      // the ironsight never takes a view under this field of view (degrees)
 constexpr float reliefMin = 3.f;     // vr_flat_ads_relief's range, and the nearest a wall pushes the rear sight to the eye
 constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
@@ -238,7 +240,7 @@ constexpr float backKeepArm = 9.f;   // the hand goes back no nearer its shoulde
     {
         return {1.f, 0.f, 0.f};
     }
-    const float t = za::tan(glm::radians(za::clamp(r_refdef.fov_y, 1.f, 170.f) * 0.5f));
+    const float t = std::tan(glm::radians(za::clamp(r_refdef.fov_y, 1.f, 170.f) * 0.5f));
     return glm::normalize(glm::vec3{1.f, shift.x * 0.02f * t, shift.y * 0.02f * t});
 }
 
@@ -268,11 +270,12 @@ struct Sighted
 
 // The eye relief for this pose, the hand's shoulder being `shoulder` in the view's frame: vr_flat_ads_relief, further out
 // where the sights stand far ahead of the hand, nearer where the arm cannot hold the hand that far out (a look straight up).
+[[nodiscard]] float reliefScale();
 [[nodiscard]] float reliefFor(int h, const glm::vec3& shoulder, const glm::vec3& helper, float span)
 {
     const Sighted at0 = sighted(h, 0.f);
     const glm::vec3 d = sightDir();
-    float relief = za::clamp(vr_flat_ads_relief.value, reliefMin, reliefMax);
+    float relief = za::clamp(za::clamp(vr_flat_ads_relief.value, reliefMin, reliefMax) * reliefScale(), reliefMin, reliefMax);
     relief = za::max(relief, za::min(handNearEye, relief - reliefMin) - glm::dot(at0.hand, d)); // (a relief asked at its nearest is that near)
     const glm::vec3 c = at0.hand - shoulder;
     const float along = -glm::dot(c, d);
@@ -549,6 +552,16 @@ void pushBack(hands::State& s, const glm::vec3& aim)
 // has travelled onto the crosshair (st.adsT, over vr_flat_aim_time) -- so the view closes over those same seconds and
 // opens back off them, whatever the toggle says meanwhile, and nothing is taken outside flatscreen play or once the
 // travel is back to nothing.
+// vr_flat_aim_fov's degrees are counted at vr_flat_aim_fov_ref: the ironsight's field of view for a view of `base` is the same
+// magnification of it (the tangents of the half-angles in the same ratio), so a change of fov keeps the zoom.
+[[nodiscard]] float adsFovFor(float base)
+{
+    const float ref = za::clamp(vr_flat_aim_fov_ref.value, 60.f, 130.f);
+    const float at = za::max(minFov, ref - za::clamp(vr_flat_aim_fov.value, 0.f, 75.f));
+    const float zoom = std::tan(glm::radians(ref * 0.5f)) / std::tan(glm::radians(at * 0.5f));
+    return za::max(minFov, 2.f * glm::degrees(std::atan(std::tan(glm::radians(za::clamp(base, 1.f, 170.f) * 0.5f)) / zoom)));
+}
+
 [[nodiscard]] float fovNarrowNow()
 {
     const float done = za::clamp(st.adsT, 0.f, 1.f);
@@ -556,7 +569,18 @@ void pushBack(hands::State& s, const glm::vec3& aim)
     {
         return 0.f;
     }
-    return za::clamp(vr_flat_aim_fov.value, 0.f, 45.f) * done;
+    return za::max(0.f, st.baseFov - adsFovFor(st.baseFov)) * done;
+}
+
+// vr_flat_ads_relief is the relief at vr_flat_aim_fov_ref with no model fov: the sight picture's size on the screen goes as
+// 1 / (relief * tan(half the field of view the gun is drawn at)), so the relief is scaled to keep that size for this view's
+// sighted field of view, or vr_flat_model_fov's where that draws the player's own models.
+[[nodiscard]] float reliefScale()
+{
+    const float ref = za::clamp(vr_flat_aim_fov_ref.value, 60.f, 130.f);
+    const float refDrawn = za::max(minFov, ref - za::clamp(vr_flat_aim_fov.value, 0.f, 75.f));
+    const float drawn = vr_flat_model_fov.value > 0.f ? za::clamp(vr_flat_model_fov.value, 10.f, 170.f) : adsFovFor(st.baseFov);
+    return std::tan(glm::radians(refDrawn * 0.5f)) / std::tan(glm::radians(drawn * 0.5f));
 }
 
 void setAds(bool on, const char* by)
@@ -1247,8 +1271,9 @@ float fov(float basefov)
 {
     // The eased share, not the toggle (fovNarrowNow): the view closes and opens with the weapon. A base field of view
     // is never taken under 20 degrees, where the engine's own view stops making sense.
+    st.baseFov = basefov;
     const float narrow = fovNarrowNow();
-    return narrow > 0.f ? za::max(20.f, basefov - narrow) : basefov;
+    return narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
 }
 
 void statusLine()
@@ -1402,9 +1427,10 @@ static void check_f()
     const glm::vec3 toShoulder = flatplay::shoulderOf(s, h) - s.pos[h];
     Con_Printf("flatsightcheck: %s t %.2f rear off %.4f front off %.4f far off %.3f (%.4f deg)\n", wf.model->name, st.adsT, offRear,
         offFront, offFar, degFar);
-    Con_Printf("flatsightpose: relief %.2f length %.2f rear in hand %.2f %.2f %.2f hand to shoulder %.1f arm %.1f\n",
+    Con_Printf("flatsightpose: relief %.2f length %.2f rear in hand %.2f %.2f %.2f hand to shoulder %.1f arm %.1f "
+               "fov %.2f of %.2f relief scale %.4f\n",
         glm::dot(rear - cam, dir), glm::distance(rear, front), st.sightRear[h].x, st.sightRear[h].y, st.sightRear[h].z,
-        glm::length(toShoulder), flatplay::armReach());
+        glm::length(toShoulder), flatplay::armReach(), r_refdef.basefov, st.baseFov, reliefScale());
 }
 
 SweepNumbers sweepNumbers(const hands::State& s)

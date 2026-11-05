@@ -1856,12 +1856,13 @@ QVR_TUNABLE(vr_flat_model_fov_near, "18") // the model FOV in full up to this fa
 QVR_TUNABLE(vr_flat_model_fov_far, "35") // and none past this far (units): the knees (35), so the shins and feet (47) stay on the floor
 
 // Flatscreen > Ironsight
-QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
+QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value), as it is at fov vr_flat_aim_fov_ref with no model fov: another fov or vr_flat_model_fov scales it so the sight picture keeps its size (flatsight::reliefScale). vr_flatsight.cpp solves the hand from the weapon's sight line
 QVR_TUNABLE(vr_flat_ads_wall_keep, "8") // the ironsight: a wall or the floor pushes the rear sight no nearer the eye than this (3..30 units); past it the gun's end enters the surface and is hidden there, and no gun looms
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
 QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov_ref, "95") // the fov vr_flat_aim_fov's degrees and vr_flat_ads_relief's units are counted at (60..130; 95: his; at fov 90 vr_flat_aim_fov 12/30/45 take 11.9/29.5/43.7 off)
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
