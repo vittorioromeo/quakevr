@@ -89,24 +89,36 @@ pelvis, keeping what is left of the shove. Shoves away from a ledge, those that 
   (`vr_ragdoll_active_pullup`) may still catch a slow one at the lip, as it could before.
 ## Lightning on water
 
-His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface; "used to work".
+His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface. After the first fix,
+in flat-screen on vrfiringrange and vrstart: still no arcs on the surface.
 
-**What the history says.** No commit broke it. `git log -S QVR_SHOCK_SURFACE` and `-S VR_LGWater_Beam` have one hit,
-`35f25522f` (2026-09-30), and nothing since removed a call: the surface's arcs only ever came from the thunderbolt, fired
-from the open. Mjolnir's water code (`7ab734e25`) was only the shock (self, burst), the Shambler never had any. The
-thunderbolt's own path still works on the old code: fired by `W_FireLightning` the client draws the surface (test below;
-the old code: 1 passed, 3 failed). It was never seen for a bolt that shocks you (hand, muzzle or waist in water): burst only.
+**Why.** Two gaps. First, only the thunderbolt ever had surface arcs (`git log -S QVR_SHOCK_SURFACE`: one hit, `35f25522f`);
+Mjolnir and the Shambler never did, and no commit removed anything. Second, the one he saw: `drawSurface` queued its arcs with
+`lines::line`, which only `stereo::drawUi` draws, the headset's UI pass. A flat screen sends and receives the effect and queues
+its lines every frame, and nothing draws them. The first fix's test counted `drawSurface` calls in the mock headset, so it passed.
 
-**Now.** `VR_LGWater_Zap(from, end)` (weapons.qc; `vr_lg_water`, off with it): the look only, where the line crosses a
-liquid's surface. `LightningDamage` and AD's `ad_LightningDamage` call it, so every bolt has it: thunderbolt, Shambler, Super
-Shambler, Death Lord, traps. `VR_LGWater_ZapBelow(at)` is for a point: in a liquid the surface above it, else within 64 below:
-Mjolnir's blow, its arcs wandering over water, and any shock (`VR_LGWater_ShockAt`, also the thunderbolt's). Damage through
-the water is unchanged: still only the thunderbolt's (`VR_LGWater_Beam`) and the shock's, a monster's bolt is only the look.
-Not done: a hammer slapping the surface with nothing solid is still no blow (melee traces ignore water).
+**Now.** `VR_LGWater_Zap(from, end)` (weapons.qc; off with `vr_lg_water 0`) from `LightningDamage` and `ad_LightningDamage`, so
+every bolt; `VR_LGWater_ZapBelow(at)` for Mjolnir's blow and arcs and any shock. Only the look: damage through the water is still
+only the thunderbolt's and the shock's. The surface's arcs and the shock's burst now go through `lines::sceneLine`, the scene's
+translucent pass, as a beam's arcs: both flat and headset, hidden by walls. Above the waves (`vr_water_waves`); wider further off
+(from 200 units, up to 3x); arches leaping off the water, since flat arcs close to a line at a glancing angle; thinner within 96
+units of the eye, or a ribbon by the camera fills the view. `vr_lg_water_arcs` 1 (tunable, Debug > Tunables > Electrified Water
+Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs on your own arms and in
+front of your eyes (other `lines::line` users, not touched). A hammer slapping the surface with nothing solid is still no blow.
 
-**Test.** `vr_waterzap_test 1` (Debug > Tools > Test Effects > Lightning into Water; `vr_shock.cpp` counts the surface's
-drawn frames, QC `watershockdrawn`): `waterzap: 4 passed, 0 failed` on vrfiringrange, e1m3, e1m7, e2m3, e3m4, e4m3, and with
-`-RealTime` on vrfiringrange. Checklist scene: `water_lightning`.
+**Test.** `bash Misc/quakevr/waterzap_test.sh <agent> <outdir>`: pictures, not a counter. Each case (`QC/vr_waterzap_test.qc`:
+thunderbolt by `+attack` steep and glancing, Mjolnir swung onto a knight over the water, a shambler's bolt by `CastLightning` on a
+bare entity) on vrfiringrange and vrstart, `-flatscreenmode` and mock, twice: `vr_lg_water_arcs` 1 and 0, the screenshot 12 frames
+after the client first draws the effect. PASS: at least 2000 pixels brighter and bluer by over 40 (`waterzap_diff.py`, no image
+libraries; `<tag>.png` is both frames and the changed pixels). Two runs differ a little anyway (a bolt's model, particles: at most
+1656 blue pixels on next's flat frames, with Mjolnir's beams and knight not drawn: `r_drawentities 0` for that case).
+On next's drawing: flat 0 of 8 (blue 0..1573), mock 8 of 8 (the UI pass draws them there). With the fix: 16 of 16 (flat 2966..43965,
+mock 24869..105174), and flat with `r_oit 0; r_wateralpha 1` 25720 and 3466: not hidden by water that writes depth.
+
+**Test trap.** A QC `localcmd` lands behind whatever the script's buffer still holds, so behind a `wait100000` it never runs: end
+the script at the test's command and let `-QuitOn` stop it. That is why the first test's trigger "did not fire". And a frame takes
+one impulse: `impulse 9; wait5; impulse 161`, `vr_weapon_grip_mode 1`.
+
 ## Close two-hand grips: both hands stay where they gripped (branch `agent/cratebound`)
 
 The grip fit of the second hand (`vr_carry2h.cpp`, `fitGrip`) moved its grip out of the prop but left the hand behind: the

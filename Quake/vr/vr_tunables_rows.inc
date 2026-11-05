@@ -652,6 +652,7 @@ QVR_TUNABLE_SLIDER(vr_lg_water_damage, "Shock Damage to Others", 0.0f, 200.0f, 5
 QVR_TUNABLE_SLIDER(vr_lg_water_radius, "Reach", 32.0f, 1024.0f, 16.0f, "%.0f units", 8.0f, 4096.0f, "How far through the water the shock, and the electrified water, reach.")
 QVR_TUNABLE_SLIDER(vr_lg_water_falloff, "Falloff", 0.0f, 4.0f, 0.25f, "%.2f", 0.0f, 20.0f, "How the damage fades with distance: 1 evenly to nothing at the reach, 2 and more sooner, 0 not at all.")
 QVR_TUNABLE_SLIDER(vr_lg_water_tick_damage, "Electrified Water Damage", 0.0f, 50.0f, 1.0f, "%.0f", 0.0f, 300.0f, "Each bolt fired into water from outside (ten a second): damage where it goes in, fading out the same way.")
+QVR_TUNABLE_SLIDER(vr_lg_water_arcs, "Electrified Water Arcs", 0.0f, 3.0f, 0.1f, "%.1f", 0.0f, 3.0f, "The arcs on a liquid's surface where lightning goes in: how wide. 0 none (the blue light stays).")
 QVR_TUNABLE_SLIDER(vr_lg_water_flash, "Shock Flash", 0.0f, 1.0f, 0.1f, "%.1f", 0.0f, 1.0f, "The shock's blue flash over the view and the arcs in front of your eyes (the arcs on your arms and body stay).")
 
 QVR_TUNABLE_GROUP("Weapons > Reloading")
