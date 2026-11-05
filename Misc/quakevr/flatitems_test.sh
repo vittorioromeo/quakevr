@@ -5,8 +5,8 @@
 #   give    armour in the left hand, the shotgun from 2, `give n 40`, the shot: the ammo id stays an id, no assertion
 #   headset the same give and shot in a headset game (vr_reload_mode 0): no assertion; it showed none before the fix either
 #           (the magazine takes the shot), so it guards against a regression only
-#   walk    armour, keys, the suit, a rune, powerups and a weapon walked over: taken; armour puts the plates on (ammo and
-#           health boxes: printed, not checked: FLATPLAY.md, "Pickups")
+#   walk    every kind walked over is taken (armour, keys, the suit, a rune, powerups, a weapon, ammo, health, megahealth,
+#           a monster's backpack), a box of what he is full of is left lying; armour puts the plates on
 #   better  E on armour better than his: on him at once, nothing left in a hand, the plates on
 #   vrwalk  headset: walking over armour still leaves it lying (his rule unchanged)
 # Prints PASS/FAIL, exits 1 on a failure; ends with `flatitems_sh: N passed, M failed`.
@@ -40,7 +40,6 @@ check $(noassert fi_headset) "headset, no magazine: give and a shot: no assertio
 run fi_walk flat "$P; vr_flatitems_test 2" "$V"
 grep -a "FAIL" "$S/fi_walk.log" | cut -c1-140
 expect_verdict "$(cat "$S/fi_walk.log")" "flatitems" "each kind of pickup walked over"
-grep -a "(a box)" "$S/fi_walk.log" | cut -c1-90
 
 run fi_better flat "$P; vr_flatitems_test 3" "$V"
 grep -a "FAIL" "$S/fi_better.log" | cut -c1-140
@@ -49,7 +48,7 @@ expect_verdict "$(cat "$S/fi_better.log")" "flatitems" "E on better armour"
 # The headset's rule stands: armour stays until a hand takes it (the same walk: test 2 in a headset game; every armour and
 # key FAILs there by design, what is checked is that they are left).
 run fi_vrwalk vr "$P; vr_body_interactions 0; vr_flatitems_test 2" "$V"
-left=$(grep -ac "walked over the .*armour: taken 0\|walked over the .*key: taken 0\|walked over the biosuit: taken 0" "$S/fi_vrwalk.log")
-check $([ "$left" = 6 ] && echo 1 || echo 0) "headset: armour, keys and the suit walked over are left lying, as they were (left: $left of 6)"
+left=$(grep -ac "walked over the .*armour: taken 0\|walked over the .*key: taken 0\|walked over the biosuit: taken 0\|walked over the \(shells\|health\|rockets\|cells\|nails\|megahealth\|backpack\): taken 0" "$S/fi_vrwalk.log")
+check $([ "$left" = 13 ] && echo 1 || echo 0) "headset: armour, keys, the suit and the boxes walked over are left lying, as they were (left: $left of 13)"
 
 verdict; exit $fail
