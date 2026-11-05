@@ -1138,7 +1138,9 @@ qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 // check cvars
 	if (!Cvar_Command ())
 	{
-		if (VR_RetiredCvar (Cmd_Argv(0)))
+		if (VR_TunableCommand ())
+			;
+		else if (VR_RetiredCvar (Cmd_Argv(0)))
 			Con_DPrintf ("\"%s\": a removed Quake VR setting, ignored\n", Cmd_Argv(0)); // QVR: a stale config line (vr_cvars.cpp retiredCvars)
 		else if (in_cfg_exec)
 			Con_Printf ("Unknown command \"%s\"\n", Cmd_Argv(0));
