@@ -1386,7 +1386,11 @@ Key hotspotKey(int index, int field)
     {
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Sticky) + index);
     }
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1CupAim) + index);
+    if(field < 25)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1CupAim) + index);
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Still) + index);
 }
 
 float bladeFrom(const Hotspot& h)
@@ -1428,6 +1432,7 @@ Hotspot hotspot(int slot, int index)
     h.thumbAcross = value(slot, hotspotKey(index, 22));
     h.sticky = value(slot, hotspotKey(index, 23));
     h.cupAim = value(slot, hotspotKey(index, 24)) >= 0.5f;
+    h.still = value(slot, hotspotKey(index, 25)) >= 0.5f;
     return h;
 }
 
@@ -1462,6 +1467,7 @@ void setHotspot(int slot, int index, const Hotspot& h)
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 22)), h.thumbAcross);
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 23)), h.sticky);
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 24)), h.cupAim ? 1.f : 0.f);
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 25)), h.still ? 1.f : 0.f);
 }
 
 int ownerSlot(int slot, Key key)

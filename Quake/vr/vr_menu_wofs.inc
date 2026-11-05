@@ -740,6 +740,13 @@ za::Vector<Item> pageWofsTwoHanded()
                   "Aiming Threshold) and past the muzzle before it lets go; times Aiming: 2H Grip Stickiness too, more "
                   "while swinging. For heavy weapons swung with two hands.")
     );
+    if(h.type == weapons::HotspotType::Grip)
+    {
+        list.pushBack(cycle("Ignore Animation", hk(25), {{0.f, "Off"}, {1.f, "On"}})
+                           .help("On: the hand on this grip stays where the grip is, ignoring the weapon's firing "
+                                 "animation (frame 0 assumed): for a grip beside a barrel that spins. Off: it moves "
+                                 "with the parts the animation moves, a pump or a slide."));
+    }
     if(h.type == weapons::HotspotType::Cup)
     {
         list.pushBack(cycle("Two-Handed Aim", hk(24), {{0.f, "Off"}, {1.f, "On"}})
