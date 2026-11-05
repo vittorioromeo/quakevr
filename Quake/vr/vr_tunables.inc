@@ -1898,7 +1898,7 @@ QVR_TUNABLE(vr_embed_stagger_shallow, "0.5") // times that barely in
 QVR_TUNABLE(vr_embed_stagger_push, "0.3") // the stagger's push along the blow (a shove of two hands: 1)
 QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least Skewer (groups.txt) of a standing body for walking away to drag it
 QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on the blade
-QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's speed gets for hitting and sticking
+QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's or a punch's speed gets for hitting and sticking
 QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
 QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
 QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes

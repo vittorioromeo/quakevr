@@ -1338,9 +1338,9 @@ void(float xHand) VR_Corpse_StrikeFrame =
     // A blow's speed first: most frames the hand is slower.
     vector vel = VRGetHandVel(xHand);
     float speed = vlen(vel);
-    // (A melee weapon: your body carries it in too, below. As VR_Melee_DecideOn.)
+    // (A melee weapon or a punch: your body carries it in too, below. As VR_Melee_DecideOn.)
     float thing = VR_Melee_Thing(self, xHand);
-    float bodyHit = (thing == VR_MTHING_GUN || thing == VR_MTHING_FIST) ? 0 : max(0, cvar_hget(cvarh_vr_melee_body_speed));
+    float bodyHit = VR_Melee_BodyCarries(xHand, thing) ? max(0, cvar_hget(cvarh_vr_melee_body_speed)) : 0;
     vector bodyV = self.velocity * (1 / VRMetersToUnits());
     float least = max(0.1, cvar_hget(cvarh_vr_melee_speed));
     if(speed + vlen(bodyV) * bodyHit < least)

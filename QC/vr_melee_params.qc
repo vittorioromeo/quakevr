@@ -1293,6 +1293,18 @@ float(float xHand) VR_Melee_ClosedFist =
     return VRIsEntHandGrabbingBit(self, xHand) || VR_Melee_HoldsTorch(self, xHand);
 };
 
+// Whether your body's speed adds to the blow of `xHand` of `self`, holding `xThing` (vr_melee_body_speed, vr_melee_body_damage):
+// a melee weapon's and a punch's. Not a gun's (running with one held out into something is no bash), nor an open hand's (a
+// slap is swung across; running with the hands open is no slap).
+float(float xHand, float xThing) VR_Melee_BodyCarries =
+{
+    if(xThing == VR_MTHING_FIST)
+    {
+        return VR_Melee_ClosedFist(xHand);
+    }
+    return xThing != VR_MTHING_GUN && xThing != VR_MTHING_NONE;
+};
+
 // Whether `xHand` of `self` is an open hand: empty, the grip not held, not holding the flashlight, not steadying the
 // other's weapon, not carrying or climbing.
 float(float xHand) VR_Melee_OpenHand =
