@@ -184,6 +184,7 @@ void(entity shooter, float hand, vector from, vector to) tracer = #0;
 // over the view, arcs over the hands, arms and body, for `duration` s), QVR_SHOCK_SURFACE arcs on a liquid's surface round
 // `org` (every client), QVR_SHOCK_BURST arcs out from `org` in a liquid. `radius`: how far the shock reaches.
 void(float kind, vector org, float radius, float duration) watershock = #0;
+float() watershockdrawn = #0; // how many times this client has drawn QVR_SHOCK_SURFACE so far, a frame each (vr_waterzap_test)
 float QVR_SHOCK_SELF = 0;
 float QVR_SHOCK_SURFACE = 1;
 float QVR_SHOCK_BURST = 2;
@@ -426,7 +427,8 @@ float(entity e, float begin) ragdolldrown = #0;
 float(entity e, vector at, float hold) ragdollguard = #0;
 // (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
 // it never goes over by itself, level ground; `far`: its travel's limit (4 m) times this, at least 1: a two-hand or a
-// running shove's, VR_Bash_Hit.)
+// running shove's, VR_Bash_Hit. `sure` 2: a backpedal over a ledge, VR_Knockdown_LedgeBackpedal: `reach` its carry in
+// units, `far` its first speed in u/s, slowing evenly; it goes over where the floor ends, not before.)
 float(entity e, vector dir, float push, float balance, float reach, optional float recover, optional float sure,
       optional float far) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;

@@ -596,6 +596,8 @@ void(vector ad_lstart, vector ad_lfinish, entity ad_lsource, float ad_ldamage) a
 	ad_lighthit = ad_FALSE;
 	ad_loffset = 8;
 
+	VR_LGWater_Zap(ad_lstart, ad_lfinish); // QVR: a bolt into water electrifies its surface (weapons.qc)
+
 	// Traceline 1 - Direct single line from source to target
 	traceline (ad_lstart, ad_lfinish, ad_FALSE, ad_lsource);
 	if (trace_ent.takedamage > ad_DAMAGE_NO) ad_lighthit = ad_TRUE;

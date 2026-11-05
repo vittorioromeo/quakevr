@@ -48,6 +48,11 @@ Survival Arena: stand on the dais, then on the floor: walkers come up and down t
 Punch while running at a grunt: it lands easier and slightly harder; a still closed fist run into him lands a weak punch; open hands don't. {test:embed_stab}
 Super nailgun: hold the front grip with your off hand while firing: the hand stays still while the barrel spins (Weapon Offsets > Hotspots > Ignore Animation)
 Shotgun: fire and watch the stock: nothing wobbles at its top corner any more
+Crates: hold one with both hands close together, even pushed in a little: both hands stay where they gripped and the crate doesn't swing or jump {test:crate_close_grip}
+Lightning into water electrifies the surface: thunderbolt down into the pool, Mjolnir on the rim, then jump in and let the Shambler strike you: blue arcs on the water each time {test:water_lightning}
+Shove grunts towards a ledge, one hand, two hands and running: they stumble back on their feet at a speed that follows the shove and tip over the lip, each a little differently, no flying off {test:shove_ledge}
+Magnetic holster chain: draw a holstered gun and swing it hard back and forth: the links stay evenly spaced and don't bunch at the weapon; a slow swing hangs and sways as before
+Shotgun and nailgun looks: hold each under real light: wood grain, rust and rivets read well, sights glow as before and aren't crowded by rivets; nail tubes not too pale or black; lava nailgun and floor pickups match
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

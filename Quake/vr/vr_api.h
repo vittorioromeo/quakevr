@@ -457,7 +457,7 @@ float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
 int VR_PortalBodyMove(struct edict_s* ent, const float* start, const float* mins, const float* maxs,
     const float* end, int type, trace_t* trace);
 int VR_HullClipPortal(struct edict_s* ent, const float* start, const float* mins, const float* maxs,
-    const float* end, const float* plane, trace_t* trace);
+    const float* end, const float* plane, const float* turned, trace_t* trace);
 // A player narrower than hull 1 against BSP models (vr_hull_width; vr_hull.cpp, docs/vr-port/HULLS.md).
 int VR_HullMoveBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if its BSP clips use this box
 int VR_HullOverDropoff (struct edict_s *ent, const float *origin, const float *vel, float speed); // SV_UserFriction's ledge test: nonzero if the floor drops away ahead (vr_hull_edge_probe: from the narrow box's leading edge; a point in solid has floor)
