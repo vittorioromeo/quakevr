@@ -8525,6 +8525,20 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
 
+## Arena: foes use the stairs (2026-11-05)
+
+His report: monsters have trouble going up and down the arena's stairs, which makes them less effective.
+
+Measured with `vr_arena_test 36` (`Misc/quakevr/arenapath_test.sh`: one foe at a time, 8 places, a 25 s cap). Foes walk,
+they are rarely stuck, and the stairs' rise is fine (16 high, 24 deep, 0 bad steps). The two causes are in the AI:
+Quake's `movetogoal` heads straight at the goal and a walker never steps off a ledge, so it wanders along the dais' edge
+until chance finds a flight (down: 26 of 32 trials hit the cap); and the dais' own edge hides the player from the stairs'
+foot, so `VR_Stealth_Lose` sent the foe off to search the floor.
+
+The fix: `info_arena_nav` pairs (a flight's foot and top step, written by `flight()` in `vrarena_gen.py`),
+`QC/vr_arena_nav.qc` routing a walker through the best flight when its foe's feet are on another level, and no Alert on
+such a map (`vr_arena_nav`, default 1, on the arena's settings page). A map without the points runs none of it. Wider
+stairs were not tried: the stalls are not on the stairs.
 ## Embedded blades, his sixth test (branch `agent/embed6`, brief embed6)
 
 His VR test of embedded blades, five points. `vr_embed` is still off by default ("off for 1.1"); he has it on. **Tests 1, 7, 11 failed on next mostly because of that:** with it off nothing sticks. Every `vr_embed_test` now turns it on (thrown swords do stick in test 1 then).
@@ -8570,3 +8584,13 @@ What's left is the averaging itself: in a bright pool (floor 170..180) the walls
 probe reads 120 (0.7 in lightmap units; about half when drawn, through the curve). The compile's own LIGHTGRID_OCTREE is no
 ready answer: it has no direction and no cosine, and clips at 255 over most of this arena's air (layer means 211..253).
 `vr_physsound.cpp`'s walk has the same box test (not changed: it isn't light).
+
+Results, one seed, on the merged tree (level: feet on his level / there: within a blow; seconds, mean of 8; capped of 8
+at 25 s). Before: grunt up 12.4/13.5 (2), down 23.9/24.2 (7); knight up 10.0/10.8 (2), down 22.6/22.8 (7); ogre up
+10.6/19.6 (1), down 22.4/24.8 (7); dog up 9.3/10.0 (1), down 16.8/20.2 (5). After: grunt up 4.0/5.4 (0), down 4.6/7.8 (0);
+knight up 3.1/4.1 (0), down 3.5/8.2 (1); ogre up 4.7/12.0 (0), down 5.7/13.9 (1); dog up 1.8/2.5 (0), down 1.8/3.0 (0).
+
+Still red in test 36: 2 of 64 trials, a knight and an ogre going down to slot 7. With him right beside a flight's side, a
+foe off that flight can climb back on (the straight line to him crosses the lower steps) and dither there. An ogre's
+"there" is much longer than its "level" because it stops to lob, not because of the way. Not measured: the tower tops
+(flights marked and routed the same way), and waves in a crowd.

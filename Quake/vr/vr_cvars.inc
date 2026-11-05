@@ -2490,6 +2490,7 @@ QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves r
 QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from a wave clear to the next wave's countdown (by the difficulty)
 QVR_CVAR(vr_arena_countdown_sound, "1", CVAR_ARCHIVE)         // the countdown's beeps' volume (Quake's own menu tick and chime, pitched; 0: silent)
 QVR_CVAR(vr_arena_scatter, "1", CVAR_ARCHIVE)                 // 1: a wave clear's medkits, armour and shards land at random walkable places all over the map, ledges too (QC vr_arena_supply.qc); 0: on the map's info_arena_item points
+QVR_CVAR(vr_arena_nav, "1", CVAR_ARCHIVE)                     // 1: a walker whose foe is on another level walks through the map's info_arena_nav stairs (vr_arena_nav.qc); 0: Quake's chase, which finds them by chance. Maps without them: no effect
 QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                  // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
 QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
 QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty

@@ -421,6 +421,7 @@ float cvarh_vr_arena_gun_max;
 float cvarh_vr_arena_item_waves;
 float cvarh_vr_arena_max_alive;
 float cvarh_vr_arena_medkits_after;
+float cvarh_vr_arena_nav;
 float cvarh_vr_arena_perk_count;
 float cvarh_vr_arena_perks;
 float cvarh_vr_arena_perks_test;
@@ -2257,6 +2258,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_arena_item_waves = VR_CVar_Make("vr_arena_item_waves");
     cvarh_vr_arena_max_alive = VR_CVar_Make("vr_arena_max_alive");
     cvarh_vr_arena_medkits_after = VR_CVar_Make("vr_arena_medkits_after");
+    cvarh_vr_arena_nav = VR_CVar_Make("vr_arena_nav");
     cvarh_vr_arena_perk_count = VR_CVar_Make("vr_arena_perk_count");
     cvarh_vr_arena_perks = VR_CVar_Make("vr_arena_perks");
     cvarh_vr_arena_perks_test = VR_CVar_Make("vr_arena_perks_test");
