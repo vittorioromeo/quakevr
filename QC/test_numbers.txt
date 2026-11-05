@@ -638,6 +638,8 @@ vr_pp_test       3        vr_playerplates_test.qc          a level change keeps 
 vr_pp_test       30       vr_playerplates_test.qc          (3: on the next level)
 vr_pp_test       5-7      vr_playerplates_test.qc          full, half, torso only: to look at
 vr_pp_test       8        vr_playerplates_test.qc          the picture sheet
+vr_pp_test       13       vr_playerplates_test.qc          the joints' sheet: a grunt whole, an elbow and a knee close to, each part of a limb alone; yours bent
+vr_pp_test       14       vr_playerplates_test.qc          the body against the plates in live poses (vr_agarmor_pop_sample, _report)
 vr_pp_test       9        vr_playerplates_test.qc          full red from the eyes, looking down
 vr_shockarcs_test 1 vr_shockarcs_test.qc struck by a bolt from behind, looking level: the arcs on the arms (sa_shockarcs_test.sh)
 vr_shockarcs_test 2 vr_shockarcs_test.qc the same, looking down

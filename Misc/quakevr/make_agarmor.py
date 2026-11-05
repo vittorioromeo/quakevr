@@ -17,7 +17,8 @@
 #            and rows' places are HELM_U and HELM_V (vr_agarmor.cpp's helmU and helmV: keep them alike)
 #   cap     (160, 64)-(192, 96): the helmet's flat top seen from above, the front at +a
 #   lining  (192, 64)-(224, 96): the helmet's open edges (round the face, under the guards): b 0 outer .. 1 inner
-#   bracket (224, 64)-(256, 96): the small block on each side of the helmet: its outer face the whole block
+#   joint   (224, 64)-(256, 96): an elbow's or a knee's sleeve (vr_agarmor.cpp `sleeveOf`): leather bellows, a round it, b down
+#            to the joint
 #   inner   (160, 96)-(208, 128): the padding inside (dark leather)
 #   rim     (208, 96)-(256, 128): the plates' sides, down into the gaps: b 0 the outer edge .. 1 the inner (grime)
 # (Texels of the 256 x 128 skin; the full-colour skins and relief are SCALE times that.)
@@ -49,7 +50,7 @@ BLOCKS = {
     "helmet": (160, 0, 256, 64),
     "cap": (160, 64, 192, 96),
     "lining": (192, 64, 224, 96),
-    "bracket": (224, 64, 256, 96),
+    "joint": (224, 64, 256, 96),
     "inner": (160, 96, 208, 128),
     "rim": (208, 96, 256, 128),
 }
@@ -297,14 +298,6 @@ def paint_helmet(lay):
     dent = smooth(0.2, 0.0, np.hypot(aa + 0.3, bb - 0.25))
     lay.height[ys, xs] -= 0.4 * dent
     lay.rust[ys, xs] = 0.3
-    x0, y0, x1, y1 = box_of("bracket")
-    ys, xs = np.mgrid[y0:y1, x0:x1]
-    aa, bb = (xs + 0.5 - x0) / (x1 - x0), (ys + 0.5 - y0) / (y1 - y0)
-    e = np.minimum(np.minimum(aa, 1 - aa), np.minimum(bb, 1 - bb))
-    slot = (aa > 0.3) & (aa < 0.7) & (bb > 0.28) & (bb < 0.72)
-    lay.shade[ys, xs] = np.where(e < 0.08, np.where((aa > 0.92) | (bb > 0.92), 0.5, 1.15), np.where(slot, np.where(bb > 0.36, 0.08, 0.7), 0.95))
-    lay.edge[ys, xs] = 0.6 * (e < 0.08)
-    lay.height[ys, xs] = np.where(slot, 0.2, 1.0)
 
 
 def paint_leather_and_gaps(lay):
@@ -316,6 +309,16 @@ def paint_leather_and_gaps(lay):
     lay.nopaint[ys, xs] = 1.0
     lay.leather[ys, xs] = np.asarray(LEATHER_DARK, dtype=float)[None, None] * (0.55 + 0.4 * quilt)[..., None] * (0.8 + 0.4 * lay.grain[ys, xs])[..., None]
     lay.height[ys, xs] = 0.7 + 0.3 * quilt
+    # An elbow's or a knee's sleeve: dark leather bellows, folds round the joint (lit on their tops, near black in their creases),
+    # stitched along each fold: not a plate, the joint plain to see.
+    x0, y0, x1, y1 = box_of("joint")
+    ys, xs = np.mgrid[y0:y1, x0:x1]
+    aa, bb = (xs + 0.5 - x0) / (x1 - x0), (ys + 0.5 - y0) / (y1 - y0)
+    fold = 0.5 - 0.5 * np.cos(2 * np.pi * ((bb * 4.0) % 1.0))
+    stitch = ((np.abs(((bb * 4.0) % 1.0) - 0.5) < 0.06) & (((aa * 24.0) % 1.0) < 0.5)).astype(float)
+    lay.nopaint[ys, xs] = 1.0
+    lay.leather[ys, xs] = np.asarray(LEATHER_DARK, dtype=float)[None, None] * (0.25 + 0.95 * fold + 0.35 * stitch)[..., None] * (0.85 + 0.3 * lay.grain[ys, xs])[..., None]
+    lay.height[ys, xs] = 0.35 + 0.65 * fold
     # The helmet's lining: dark brown leather, its outer edge lighter.
     x0, y0, x1, y1 = box_of("lining")
     ys, xs = np.mgrid[y0:y1, x0:x1]

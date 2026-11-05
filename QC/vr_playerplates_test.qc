@@ -509,6 +509,33 @@ void(entity p) VR_PPT_Look =
                 vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 2, 0, 100);
             }
         }
+        else if(vr_ppt_on == 13)
+        {
+            // (the joints: a grunt, green as in his pictures: whole, front and back; an elbow and a knee close to; then each part of a limb
+            // worn alone; then yours, bent, from the front and the side)
+            VR_PPT_Set(p, k >= 10 ? 2 : 0, k >= 10 ? 150 : 0);
+            localcmd("vr_mock_hand main 0.18 1.0 -0.25 0 0 0;vr_mock_hand off -0.18 1.0 -0.25 0 0 0;vr_mock_hand head 0 1.15 0.1\n");
+            if(k == 10) { localcmd("vr_mock_camera 0 0.8 -1.3 0 180\n"); }
+            else if(k == 11) { localcmd("vr_mock_camera 0.8 0.5 -0.5 0 110\n"); }
+            else if(k < 2) { localcmd("vr_mock_camera 0 0.8 -1.3 0 0\n"); }
+            else if(k == 2 || k == 4 || k == 5) { localcmd("vr_mock_camera 0.3 0.95 -1.85 0 0\n"); }
+            else { localcmd("vr_mock_camera 0.2 0.4 -1.75 0 0\n"); }
+            if(k < 10)
+            {
+                float mask = 1023;
+                if(k == 4 || k == 6) { mask = 12; }
+                if(k == 5 || k == 7) { mask = 48; }
+                if(k == 8) { mask = 192; }
+                if(k == 9) { mask = 768; }
+                vr_ppt_g0 = VR_ART_SpawnKind(p, 0, 0, 100);
+                VR_AgArmor_Give(vr_ppt_g0, 1, mask);
+                if(k == 1)
+                {
+                    vr_ppt_g0.angles_y = vr_ppt_g0.angles_y + 180;
+                    vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
+                }
+            }
+        }
         else if(k < 8)
         {
             // (each kind, facing you, then turned away)
@@ -548,6 +575,42 @@ void(entity p) VR_PPT_Look =
             bprint("ppshot: done\n");
             vr_ppt_on = 0;
         }
+    }
+};
+
+// vr_pp_test 14: each kind in all its plates, coming for you (god mode first) where they stand: the body against the plates in the poses
+// they're drawn in (vr_agarmor_pop_sample, a sample every 6 frames, 80 of them), then the sums (`agpop: live report done`).
+float vr_ppt_samples;
+void(entity p) VR_PPT_Live =
+{
+    if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
+    if(vr_ppt_g1) { setorigin(vr_ppt_g1, [vr_ppt_at1_x, vr_ppt_at1_y, vr_ppt_g1.origin_z]); }
+    if(vr_ppt_g2) { setorigin(vr_ppt_g2, [vr_ppt_at2_x, vr_ppt_at2_y, vr_ppt_g2.origin_z]); }
+    if(vr_ppt_wait > 0)
+    {
+        vr_ppt_wait = vr_ppt_wait - 1;
+        return;
+    }
+    if(vr_ppt_s == 0)
+    {
+        vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 1, -80, 200);
+        vr_ppt_g1 = VR_PPT_LookWearer(p, 1, 1, 0, 200);
+        vr_ppt_g2 = VR_PPT_LookWearer(p, 3, 1, 80, 200);
+        vr_ppt_at0 = vr_ppt_g0.origin;
+        vr_ppt_at1 = vr_ppt_g1.origin;
+        vr_ppt_at2 = vr_ppt_g2.origin;
+        vr_ppt_samples = 0;
+        VR_PPT_To(1, 72);
+        return;
+    }
+    localcmd("vr_agarmor_pop_sample\n");
+    vr_ppt_samples = vr_ppt_samples + 1;
+    VR_PPT_To(1, 6);
+    if(vr_ppt_samples >= 80)
+    {
+        VR_PPT_LookClean();
+        localcmd("vr_agarmor_pop_report\n");
+        vr_ppt_on = 0;
     }
 };
 
@@ -607,7 +670,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -622,7 +685,11 @@ void() VR_PP_TestFrame =
     {
         VR_PPT_Main(p);
     }
-    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12)
+    else if(vr_ppt_on == 14)
+    {
+        VR_PPT_Live(p);
+    }
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13)
     {
         VR_PPT_Look(p);
     }
