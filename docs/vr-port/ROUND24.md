@@ -210,4 +210,16 @@ The author's notes on the first pass ("the new nailgun is an improvement in some
 
 **Gun looks, fewer rivets (branch `agent/gunlooks3`, the author's "a bit overboard"):** 14 to 6 on the shotgun (a pair up the receiver's front edge at the fore-end, one more in the row of pins along its lower edge), 10 to 4 on the nailgun and lava nailgun (the receiver plate's two front corners); mirrored pairs on the gun's own lines, same size and dark ring; the barrel masks' counts follow (1756, 1008).
 
+## Pick Up a Second, smarter (branch `agent/ag2ndweapon`)
+
+`vr_agrunt_dual_pickup` stays 0. With it on, going for a second weapon now has to be cheap (`VR_AG_SecondOk`, `QC/vr_armedgrunt.qc`;
+used when picking the weapon and every frame of the trip). Tunables (`vr_tunables.inc`, Debug > Tunables): `vr_agrunt_second_range` 160 and
+`_second_time` 4 s out of a fight; `vr_agrunt_second_combat_range` 72 and `_second_combat_time` 2 s with a live target in sight, and then
+only a weapon the target can see from where it lies (the trip keeps it shooting). The trip is estimated as distance / 150 u/s + 1.3 s of
+reaching down; time already spent on the way counts, so a trip that drags past the limit (or a target that comes into sight) is given up
+(shunned `vr_agrunt_seek_shun`) and it goes back to shooting. A weapon taken away by someone else clears the trip as before.
+A dual wielder recovering a lost weapon (`vr_ag_dual`) is the same function but skips all of this: unchanged.
+Test 211 (`vr_agrunt_test 211`, `map vrtesthall`): idle 120 away takes it (1.9 s); idle 300 away leaves it; hunting, 110 away leaves it;
+hunting, 52 away takes it (downtime not firing 1.9 s); taken away on the way, it gives up. 5/5; test 42 still 20/20.
+Note: a freed entity keeps its `classname`, so a weapon taken by another grunt is only dropped from a trip by the "no nearer" check.
 **Gun looks, the author's marked rivets (branch `agent/gunlooks4`):** on the tops as he dotted them: the shotgun 4 more (6 to 10: a pair where the receiver's top ends ahead of the sights, a pair behind them), the nailgun and lava nailgun 6 more (4 to 10: the top bar's ends, two pairs on the rear body's top edges); the top bar's head 0.12 high (the model's byte box ends just over the bar as it kicks) and riding the bar, a part that already moved; the check now wants them clear of the sights and their lines of sight; barrel masks 1876, 1188.
