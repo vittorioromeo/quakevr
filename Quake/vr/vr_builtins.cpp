@@ -933,6 +933,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
+    {"watershockdrawn", PF_watershockdrawn},
     {"playershock", PF_playershock},
     {"viewmessage", PF_viewmessage},
     {"navplace", PF_navplace},

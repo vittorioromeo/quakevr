@@ -430,3 +430,9 @@ void PF_watershock()
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
         G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3));
 }
+
+// float watershockdrawn(): how many times this client has drawn electrified water so far, a frame each (vr_waterzap_test).
+void PF_watershockdrawn()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(shock::surfaceDrawCount());
+}

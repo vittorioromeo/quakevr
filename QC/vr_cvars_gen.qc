@@ -1806,6 +1806,7 @@ float cvarh_vr_walltorch_reach;
 float cvarh_vr_walltorch_relight;
 float cvarh_vr_walltorch_shot;
 float cvarh_vr_water_jump;
+float cvarh_vr_waterzap_test;
 float cvarh_vr_weapon_catch_window;
 float cvarh_vr_weapon_cycle_mode;
 float cvarh_vr_weapon_grip_mode;
@@ -3652,6 +3653,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_walltorch_relight = VR_CVar_Make("vr_walltorch_relight");
     cvarh_vr_walltorch_shot = VR_CVar_Make("vr_walltorch_shot");
     cvarh_vr_water_jump = VR_CVar_Make("vr_water_jump");
+    cvarh_vr_waterzap_test = VR_CVar_Make("vr_waterzap_test");
     cvarh_vr_weapon_catch_window = VR_CVar_Make("vr_weapon_catch_window");
     cvarh_vr_weapon_cycle_mode = VR_CVar_Make("vr_weapon_cycle_mode");
     cvarh_vr_weapon_grip_mode = VR_CVar_Make("vr_weapon_grip_mode");

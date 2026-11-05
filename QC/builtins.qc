@@ -184,6 +184,7 @@ void(entity shooter, float hand, vector from, vector to) tracer = #0;
 // over the view, arcs over the hands, arms and body, for `duration` s), QVR_SHOCK_SURFACE arcs on a liquid's surface round
 // `org` (every client), QVR_SHOCK_BURST arcs out from `org` in a liquid. `radius`: how far the shock reaches.
 void(float kind, vector org, float radius, float duration) watershock = #0;
+float() watershockdrawn = #0; // how many times this client has drawn QVR_SHOCK_SURFACE so far, a frame each (vr_waterzap_test)
 float QVR_SHOCK_SELF = 0;
 float QVR_SHOCK_SURFACE = 1;
 float QVR_SHOCK_BURST = 2;

@@ -90,6 +90,9 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 trace_t SV_MovePortalHalf (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
     edict_t *passedict, const float plane[4]);
+// QVR: and a box turned about the middle of mins..maxs (its bound): turned, 9 floats its axes (columns), 3 its half size.
+trace_t SV_MovePortalTurned (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
+	edict_t *passedict, const float plane[4], const float turned[12]);
 
 qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
 

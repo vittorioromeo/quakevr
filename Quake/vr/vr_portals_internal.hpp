@@ -192,6 +192,12 @@ namespace qvr::portals
 
 // vr_portals_gates.cpp
 void stuck_f();
+void turnedTest_f(); // vr_portals_turned_test (vr_portals_gates.cpp)
+// The part of a box (lo..hi, about from) carried through gate `sd` that is past the destination's plane, moved in the room
+// the gate leads to: the box turned with the gate, not its turned bound (which for 45 degrees is 41% wider each way, and
+// could not fit a narrow exit the body fits).
+[[nodiscard]] trace_t destHalf(const detail::Side& sd, const glm::vec3& from, const glm::vec3& to, const float* lo, const float* hi, int type,
+    edict_t* ent, const float* plane);
 glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction);
 int aiGateCount();
 int aiGateFlags(int gate);
