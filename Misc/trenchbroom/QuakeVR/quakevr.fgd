@@ -264,6 +264,12 @@ Used as a helpful aim target for rockets."
 	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
 ]
 
+@PointClass color(0 204 204) size(-16 -16 -16, 16 16 16) =
+	info_arena_banner : "A Survival Arena board: the run's wave, foes left, time and score, live, while the arena runs in this map. The origin is the middle of the board's face (its depth goes behind it: keep 0.7 of a character clear). 'angle' the way it faces.
+'worldtext_scale': its size, 8 units a character at 1. It is 23 characters across and 2 down, with 1.2 characters round them. With no arena running here it does nothing."
+[
+]
+
 @PointClass color(0 204 128) size(-16 -16 0, 16 16 32) =
 	info_arena_item : "Where a wave clear's medkit or armour lands, round robin over the map's item points. With none in the map, the drops land in a ring 220 units off the player instead."
 [

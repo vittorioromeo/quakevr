@@ -93,7 +93,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
-        header("Survival Arena (map vrarena)"),
+        header("Survival Arena (an arena map)"),
         command("Arena Wave Editor", "vr_waveeditor")
             .help("The waves made to order, saved as presets, one chosen per map and difficulty (also Debug > Tools)."),
         command("Offer Perk Cards Now", "vr_arena_cards_offer")

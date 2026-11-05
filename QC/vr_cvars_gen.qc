@@ -406,6 +406,7 @@ float cvarh_vr_arena;
 float cvarh_vr_arena_alive_grow;
 float cvarh_vr_arena_alive_max;
 float cvarh_vr_arena_armor_every;
+float cvarh_vr_arena_banners;
 float cvarh_vr_arena_boss_every;
 float cvarh_vr_arena_boss_health;
 float cvarh_vr_arena_burst;
@@ -2256,6 +2257,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_arena_alive_grow = VR_CVar_Make("vr_arena_alive_grow");
     cvarh_vr_arena_alive_max = VR_CVar_Make("vr_arena_alive_max");
     cvarh_vr_arena_armor_every = VR_CVar_Make("vr_arena_armor_every");
+    cvarh_vr_arena_banners = VR_CVar_Make("vr_arena_banners");
     cvarh_vr_arena_boss_every = VR_CVar_Make("vr_arena_boss_every");
     cvarh_vr_arena_boss_health = VR_CVar_Make("vr_arena_boss_health");
     cvarh_vr_arena_burst = VR_CVar_Make("vr_arena_burst");

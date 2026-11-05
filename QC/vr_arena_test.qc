@@ -51,6 +51,8 @@
 // - 17 (vrarena): the walls are flat: a player's box and an ogre's stop 16 out of each wall at every height, a shot meets
 //   the trim itself.
 // - 18 (vrarena; run it fresh, after `restart fresh` and after a load): a run starts with no ammunition, fists in hand.
+// - 38 (vrarena, and e1m1 for the half off the arena): the arena map check and the banners (vr_arena_banners.qc): a board's
+//   text follows a scripted wave (foes left falls, the score rises, the wave changes, the time runs), off it empties them.
 // - 19 (vrarena): the waves still arm an empty player: wave 1 comes by itself and a fallen foe's pack gives ammunition.
 
 // ---------------------------------------------------------------------------
@@ -109,7 +111,8 @@ vr_at_cvar VR_AT_CVARS[] =
     { "vr_arena_shards", "2" },
     { "vr_arena_xray", "1" },     // (test 16: the last foes seen through walls)
     { "vr_arena_xray_left", "2" },
-    { "vr_arena_xray_distance", "600" }
+    { "vr_arena_xray_distance", "600" },
+    { "vr_arena_banners", "1" }   // (test 38: the banners)
 };
 float VR_AT_NCVARS = 33;
 
@@ -2375,12 +2378,12 @@ void(entity p) VR_AT11_Drops =
                 "vr_enemy_drops never: not in a run either");
     cvar_set("vr_enemy_drops", ftos(QVR_ENEMYDROPS_WHENELIGIBLE));
 
-    // And off the run the gate is the player's own guns, as ever. (vrarena's name alone keeps its run on, so this
+    // And off the run the gate is the player's own guns, as ever. (an arena map's name alone keeps its run on, so this
     // half is run on a map where the cvar is the only thing saying "arena".)
     cvar_set("vr_arena", "0");
     if(VR_ARK_Running())
     {
-        VR_AT_Check(FALSE, "test 11 needs a map that is not vrarena: its name alone keeps the run on");
+        VR_AT_Check(FALSE, "test 11 needs a map that is not an arena map: its name alone keeps the run on");
     }
     else
     {
@@ -3423,7 +3426,7 @@ void() VR_AT33_Run =
 
 void() VR_AT34_Run =
 {
-    VR_AT_Check(mapname != "vrarena" && ar_mgr != world, sprintf("%s runs the arena: its name is assigned", mapname));
+    VR_AT_Check(!isarenamap(mapname) && ar_mgr != world, sprintf("%s runs the arena: its name is assigned", mapname));
     VR_AT_Check(ar_preset_n == 1, sprintf("its preset loaded (%g waves)", ar_preset_n));
     VR_ARENA_Plan(1);
     VR_AT_Check(ar_plan_n == 3 && ar_plan_kind[2] == AR_SP_ZOMBIE, "its first wave as written");
@@ -3828,6 +3831,159 @@ void(entity p) VR_AT37_Row =
     at37_box.classname = cls;
 }
 
+// ---------------------------------------------------------------------------
+// Test 38: the arena map check, and the banners following a scripted wave (vr_arena_banners.qc). On an arena map: the
+// map's boards hold the very text expected at each step (read back from the server's list). Off the arena (e1m1): the
+// check refuses it, a banner placed there makes no board and the map's list of texts stays empty.
+// ---------------------------------------------------------------------------
+
+float vr_at38_state;
+float vr_at38_at;
+float vr_at38_wave;
+float vr_at38_left;
+float vr_at38_score;
+float vr_at38_secs;
+
+// A board's text, each of them holding the same.
+string() VR_AT38_Board =
+{
+    entity e = find(world, classname, "info_arena_banner");
+    if(!e) { return "(no board)"; }
+    string text = worldtext_hgettext(e.ar_banner_h);
+    entity o = find(e, classname, "info_arena_banner");
+    while(o)
+    {
+        if(worldtext_hgettext(o.ar_banner_h) != text) { return "(boards differ)"; }
+        o = find(o, classname, "info_arena_banner");
+    }
+    return text;
+}
+
+// The text expected in a wave's fight, by the board's own columns.
+string(string xHead, float xWave, float xLeft, float xSecs, float xScore) VR_AT38_Fight =
+{
+    float m = floor(xSecs / 60);
+    return sprintf("%s %3.0f  FOES LEFT %3.0f\nTIME %02.0f:%02.0f SCORE %6.0f", xHead, xWave, xLeft, m, xSecs - m * 60, xScore);
+}
+
+void() VR_AT38_Begin =
+{
+    VR_AT_Check(isarenamap("vrarena"), "isarenamap takes vrarena");
+    VR_AT_Check(!isarenamap("e1m1"), "isarenamap refuses e1m1");
+    VR_AT_Check(!isarenamap(""), "isarenamap refuses no name");
+
+    if(mapname == "e1m1")
+    {
+        VR_AT_Check(!ar_mgr, "no arena runs in e1m1");
+        VR_AT_Check(!VR_ARENA_On(), "VR_ARENA_On refuses e1m1");
+        entity oself = self;
+        self = spawn();
+        self.classname = "info_arena_banner";
+        info_arena_banner();
+        self = oself;
+        VR_AT_Check(ar_banner_n == 0, sprintf("a banner placed off the arena is no board (%g)", ar_banner_n));
+        VR_AT_Check(!find(world, classname, "info_arena_banner"), "and it is gone");
+        float next = worldtext_hmake();
+        VR_AT_Check(next == 0, sprintf("the map's list of texts is empty: nothing to draw (next handle %g)", next));
+        VR_AT_End();
+        return;
+    }
+
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 38 needs an arena map"); VR_AT_End(); return; }
+    VR_AT_Check(isarenamap(mapname), sprintf("%s is an arena map", mapname));
+    VR_AT_Check(VR_ARENA_On(), "VR_ARENA_On takes it");
+    VR_AT_Check(ar_banner_n >= 1, sprintf("the map places banners (%g)", ar_banner_n));
+    cvar_set("vr_arena_alive_max", "8");
+    cvar_set("vr_arena_burst", "8");
+    vr_at38_state = 0;
+    vr_at38_at = time;
+    vr_at_until = time + 120;
+}
+
+void() VR_AT38_Frame =
+{
+    string want;
+    if(vr_at38_state == 0) // (the board before the run: the wave's still to come, the clock not started)
+    {
+        if(!VR_ARENA_Between() || ar_bn_on == 0) { return; }
+        float next = VR_ARENA_BannerValue(AR_BANNER_RIGHT_NEXT);
+        want = sprintf("WAVE   -  %13s\nTIME 00:00 SCORE %6.0f", sprintf("WAVE 1 IN %2.0f", next), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("before the run: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(next >= 1, sprintf("the next wave's seconds (%g)", next));
+        vr_at38_left = next;
+        vr_at38_state = 1;
+        return;
+    }
+    if(vr_at38_state == 1) // (the countdown falls)
+    {
+        if(VR_ARENA_BannerValue(AR_BANNER_RIGHT_NEXT) >= vr_at38_left) { return; }
+        VR_AT_Check(VR_AT38_Board() == sprintf("WAVE   -  %13s\nTIME 00:00 SCORE %6.0f", sprintf("WAVE 1 IN %2.0f", vr_at38_left - 1), ar_score),
+                    sprintf("the countdown falls: [%s]", VR_AT38_Board()));
+        VR_ARENA_FastForward(6); // (a plain wave, with a few foes)
+        vr_at38_wave = 6;
+        vr_at38_state = 2;
+        return;
+    }
+    if(ar_wave != vr_at38_wave || VR_ARENA_Between()) { return; }
+    if(vr_at38_state == 2) // (the wave is on: it is all up there, the clock started with it)
+    {
+        if(VR_ARENA_CountAlive() < 1) { return; }
+        VR_AT_Check(ar_foes_left == ar_plan_n, sprintf("all its foes are left (%g of %g)", ar_foes_left, ar_plan_n));
+        want = VR_AT38_Fight("WAVE", ar_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("wave on: [%s], wanted [%s]", VR_AT38_Board(), want));
+        vr_at38_left = ar_plan_n;
+        vr_at38_score = ar_score;
+        vr_at38_secs = VR_ARENA_BannerSeconds();
+        VR_AT_KillOne(ar_wave);
+        vr_at38_at = time;
+        vr_at38_state = 3;
+        return;
+    }
+    if(vr_at38_state == 3) // (a foe down: within the director's beat, the board says so)
+    {
+        if(time < vr_at38_at + 0.2) { return; } // (a fall wakes the director within 0.05 s)
+        VR_AT_Check(ar_foes_left == vr_at38_left - 1, sprintf("foes left falls (%g from %g)", ar_foes_left, vr_at38_left));
+        VR_AT_Check(ar_score > vr_at38_score, sprintf("the score rises (%g from %g)", ar_score, vr_at38_score));
+        want = VR_AT38_Fight("WAVE", ar_wave, vr_at38_left - 1, VR_ARENA_BannerSeconds(), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("a foe down: [%s], wanted [%s]", VR_AT38_Board(), want));
+        vr_at38_at = time;
+        vr_at38_state = 4;
+        return;
+    }
+    if(vr_at38_state == 4) // (the time runs on, two whole seconds)
+    {
+        if(VR_ARENA_BannerSeconds() < vr_at38_secs + 2) { return; }
+        want = VR_AT38_Fight("WAVE", ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("time runs: [%s], wanted [%s]", VR_AT38_Board(), want));
+        cvar_set("vr_arena_banners", "0");
+        vr_at38_state = 5;
+        return;
+    }
+    if(vr_at38_state == 5) // (off: the boards are empty; on: back at once)
+    {
+        VR_AT_Check(VR_AT38_Board() == "", sprintf("off: the boards are empty: [%s]", VR_AT38_Board()));
+        cvar_set("vr_arena_banners", "1");
+        vr_at38_state = 6;
+        return;
+    }
+    if(vr_at38_state == 6)
+    {
+        want = VR_AT38_Fight("WAVE", ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("on again: [%s], wanted [%s]", VR_AT38_Board(), want));
+        vr_at38_wave = ar_wave + 1;
+        VR_ARENA_FastForward(vr_at38_wave); // (the wave changes)
+        vr_at38_state = 7;
+        return;
+    }
+    if(vr_at38_state == 7)
+    {
+        if(time < ar_wave_at + 0.1) { return; }
+        want = VR_AT38_Fight(VR_ARENA_IsBossWave(ar_wave) ? "BOSS" : "WAVE", vr_at38_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("the wave changes: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_End();
+    }
+}
+
 void() VR_AT37_Begin =
 {
     entity p = VR_PlayerAlive();
@@ -3949,6 +4105,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 35) { VR_AT35_Begin(); return; }
         if(c == 36) { VR_AT36_Begin(); return; }
         if(c == 37) { VR_AT37_Begin(); return; }
+        if(c == 38) { VR_AT38_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3986,5 +4143,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 35) { VR_AT35_Frame(); return; }
     if(vr_at_case == 36) { VR_AT36_Frame(); return; }
     if(vr_at_case == 37) { VR_AT37_Frame(); return; }
+    if(vr_at_case == 38) { VR_AT38_Frame(); return; }
 }
 #endif

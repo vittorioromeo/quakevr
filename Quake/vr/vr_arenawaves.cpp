@@ -468,7 +468,7 @@ struct AssignLine
 // ---- Commands ------------------------------------------------------------------------------------------------------
 
 // vr_arena_play <preset | default> [wave] [map]: the preset (a saved one) plays from that wave in this arena map, or in
-// `map` (vrarena when this one isn't an arena): Debug > Tools > Arena Wave Editor's Play, from the console.
+// `map` (the first arena map when this one isn't an arena): Debug > Tools > Arena Wave Editor's Play, from the console.
 void play_f()
 {
     if(Cmd_Argc() < 2)
@@ -490,7 +490,7 @@ void play_f()
     {
         return;
     }
-    const char* map = Cmd_Argc() > 3 ? Cmd_Argv(3) : (sv.active && (vr_arena.value != 0.f || mapListed(sv.name) || !strcmp(sv.name, "vrarena"))) ? sv.name : "vrarena";
+    const char* map = Cmd_Argc() > 3 ? Cmd_Argv(3) : (sv.active && (vr_arena.value != 0.f || mapListed(sv.name) || isArenaMap(sv.name))) ? sv.name : defaultArenaMap();
     play(map, Cmd_Argv(1), p, Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0);
 }
 
@@ -957,6 +957,31 @@ void setAssigned(const char* map, int skill, const char* nameOrNone)
     writeAll((dir + "/" + assignFile).cStr(), out);
 }
 
+// The arena maps (the header's note).
+static constexpr const char* arenaMapNames[] = {"vrarena"};
+
+bool isArenaMap(const char* map)
+{
+    for(const char* name : arenaMapNames)
+    {
+        if(!strcmp(name, map))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+za::Span<const char* const> arenaMaps()
+{
+    return {arenaMapNames, sizeof(arenaMapNames) / sizeof(arenaMapNames[0])};
+}
+
+const char* defaultArenaMap()
+{
+    return arenaMapNames[0];
+}
+
 bool mapListed(const char* map)
 {
     for(const AssignLine& a : readAssign())
@@ -1035,6 +1060,11 @@ void pfLoad()
 {
     const int skill = za::clamp(static_cast<int>(G_FLOAT(OFS_PARM0)), 0, skillCount - 1);
     G_FLOAT(OFS_RETURN) = startPreset(skill) ? static_cast<float>(run.preset.waves.size()) : 0.f;
+}
+
+void pfIsArenaMap()
+{
+    G_FLOAT(OFS_RETURN) = isArenaMap(G_STRING(OFS_PARM0)) ? 1.f : 0.f;
 }
 
 void pfField()
