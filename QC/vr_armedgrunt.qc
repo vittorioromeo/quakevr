@@ -2593,6 +2593,43 @@ float(entity g) VR_AG_Taking =
 // Its AI
 // ----------------------------------------------------------------------------
 
+// Pick Up a Second (vr_agrunt_dual_pickup; not a dual wielder's recovery of a lost weapon, which is as it was): whether
+// the trip to `w` is worth its downtime. Out of a fight vr_agrunt_second_range / _time; with a target in sight the
+// shorter vr_agrunt_second_combat_range / _time, and only a weapon the target can see from where it lies (the trip keeps
+// it shooting). The trip's time: the walk at VR_AG_SECOND_SPEED and the reach down (VR_AG_SECOND_TAKE).
+float VR_AG_SECOND_SPEED = 150; // u/s a walk to it is estimated at
+float VR_AG_SECOND_TAKE = 1.3;  // s reaching down and standing up
+float(entity g, entity w) VR_AG_SecondOk =
+{
+    if(!g.vr_ag_prop || g.vr_ag_dual)
+    {
+        return TRUE;
+    }
+    float range = cvar_hget(cvarh_vr_agrunt_second_range);
+    float tmax = cvar_hget(cvarh_vr_agrunt_second_time);
+    if(g.enemy && g.enemy.health > 0)
+    {
+        entity oldself = self;
+        self = g;
+        traceline(g.origin + g.view_ofs, VR_AI_Origin(g.enemy) + g.enemy.view_ofs, FALSE, g);
+        float sees = trace_ent == g.enemy;
+        self = oldself;
+        if(sees)
+        {
+            range = min(range, cvar_hget(cvarh_vr_agrunt_second_combat_range));
+            tmax = min(tmax, cvar_hget(cvarh_vr_agrunt_second_combat_time));
+            traceline(w.origin + '0 0 24', VR_AI_Origin(g.enemy) + g.enemy.view_ofs, TRUE, w);
+            if(trace_fraction < 1 && trace_ent != g.enemy)
+            {
+                return FALSE; // (it would lose sight of its target there)
+            }
+        }
+    }
+    float d = vlen(w.origin - g.origin);
+    float spent = g.vr_ag_seek == w ? time - g.vr_ag_seek_since : 0; // (already on its way: that counts)
+    return d <= range && spent + d / VR_AG_SECOND_SPEED + VR_AG_SECOND_TAKE <= tmax;
+};
+
 // A weapon lying about it would go for: usable, not spent, not in a hand or flying, within vr_agrunt_rearm_range and in
 // sight, and its target (if any) not nearer to it than it is. world: none.
 entity() VR_AG_FindWeapon =
@@ -2615,7 +2652,8 @@ entity() VR_AG_FindWeapon =
            !VR_AxeStick_Kept(e) && // (stuck in a wall or a body: vr_axestick.qc)
            VR_AM_Takes(self, e.weapon) && // (a map's sword knight no gun, vr_agknight_ranged_pickup 0)
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
-           (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
+           (!self.vr_ag_prop || (VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags) && // (armed: its pair's second only)
+                                 VR_AG_SecondOk(self, e)))) // (and a near one, a short trip: vr_agrunt_second_*)
         {
             float d = vlen(e.origin - self.origin);
             float safe = TRUE;
@@ -2656,6 +2694,16 @@ float() VR_AG_Seeking =
         return FALSE;
     }
     entity w = self.vr_ag_seek;
+    if(w && self.vr_ag_prop && !self.vr_ag_dual && !VR_AG_SecondOk(self, w) && vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH)
+    {
+        // (the trip costs too much now: its target came in sight, or it is taking too long)
+        self.vr_ag_shun = w;
+        self.vr_ag_shun_until = time + cvar_hget(cvarh_vr_agrunt_seek_shun);
+        VR_AG_Log(sprintf("gave up on %s (not worth the trip)", w.netname));
+        self.vr_ag_seek = world;
+        self.vr_ag_seek_next = time + 0.5;
+        w = world;
+    }
     if(w && (w.classname != "thrown_weapon" || VR_EnemyWeapons_Spared(w) || w.vr_drop_fade || VR_AxeStick_Kept(w)))
     {
         self.vr_ag_seek = world; // (taken by someone else, flying, or fading past the cap)

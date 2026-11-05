@@ -1613,6 +1613,7 @@ void() VR_AGTest_Frame =
     else if(t == 210) { VR_LST_Frame(); } // (humanoids shoved off a ledge: vr_ledgeshove_test.qc)
     else if(t == 201) { VR_AGTest_DualSpawns(); } // (dual wielders' both guns drawn, 30 spawns)
     else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
+    else if(t == 211) { VR_AGSN_Frame(); } // (Pick Up a Second, smarter: vr_armedgrunt_second_test.qc)
     else if(t == 203) { VR_AGDD_Frame(); } // (a dual wielder disarmed of its off hand's: vr_armedgrunt_dualdisarm_test.qc)
     else if(t == 209) { VR_AGGT_Frame(t); } // (the grab table in bullet time: vr_armedgrunt_grab_test.qc)
     else if(t == 204) { VR_OGFT_Frame(); } // (ogres behind a friend: vr_ogre_friends_test.qc)

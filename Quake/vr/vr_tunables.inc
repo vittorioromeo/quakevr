@@ -930,6 +930,10 @@ QVR_TUNABLE(vr_agrunt_parry_count, "2") // its stamina: the parry that spends it
 QVR_TUNABLE(vr_agrunt_parry_recover, "0.35") // stamina it recovers a second
 QVR_TUNABLE(vr_agrunt_seek_timeout, "6") // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_TUNABLE(vr_agrunt_seek_shun, "20") // s it leaves a weapon it gave up on before trying it again
+QVR_TUNABLE(vr_agrunt_second_range, "160") // units: with Pick Up a Second, out of a fight it goes for a second weapon only this near (its own lost one: vr_agrunt_rearm_range)
+QVR_TUNABLE(vr_agrunt_second_time, "4") // s: ... and only if the trip (walk and reaching down) is estimated at no more than this, and it gives up on it past this
+QVR_TUNABLE(vr_agrunt_second_combat_range, "72") // units: with a target in sight it goes for a second weapon only this near (and only one in the target's sight, so it keeps shooting)
+QVR_TUNABLE(vr_agrunt_second_combat_time, "2") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
 QVR_TUNABLE(vr_agrunt_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
 QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the part it picked while that part stays reachable (then the best reachable one again: the chest first)
