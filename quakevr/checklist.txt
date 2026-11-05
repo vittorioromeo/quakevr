@@ -46,6 +46,9 @@ In the console, type `vr_throw_gain_lo` and press Tab: it lists as "tunable". `v
 vrarena, Show Light Probes, by a tower: no dark row low on the wall; a monster there is as lit as the floor. {test:vrarena_crate}
 Survival Arena: stand on the dais, then on the floor: walkers come up and down the stairs to you instead of wandering the edge; they may still dither if you stand right beside a flight's side. {test:arena_run}
 Punch while running at a grunt: it lands easier and slightly harder; a still closed fist run into him lands a weak punch; open hands don't. {test:embed_stab}
+Super nailgun: hold the front grip with your off hand while firing: the hand stays still while the barrel spins (Weapon Offsets > Hotspots > Ignore Animation)
+Shotgun: fire and watch the stock: nothing wobbles at its top corner any more
+Crates: hold one with both hands close together, even pushed in a little: both hands stay where they gripped and the crate doesn't swing or jump {test:crate_close_grip}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
