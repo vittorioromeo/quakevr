@@ -467,7 +467,7 @@ float(float xThing) VR_Melee_PommelWeight =
     return 1;
 };
 
-// Your body's speed towards what a melee weapon strikes (VR_Melee_DecideOn): added to the hand's in VR_Melee_Decide (m/s, as the blow's
+// Your body's speed towards what a melee weapon or a punch strikes (VR_Melee_DecideOn): added to the hand's in VR_Melee_Decide (m/s, as the blow's
 // velocities are): for landing and sticking vr_mbody_hit (vr_melee_body_speed), for its damage vr_mbody_dmg (vr_melee_body_damage).
 vector vr_mbody_hit;
 vector vr_mbody_dmg;
@@ -734,12 +734,12 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     return TRUE;
 };
 
-// VR_Melee_Decide of a blow on `xThing` at `xAt` (not a wall): your body going towards it adds to it, for a melee weapon, not a gun or a fist
-// (running with one held out into something is no bash, no punch). Only that way: what you go past or away from gets nothing.
+// VR_Melee_Decide of a blow on `xThing` at `xAt` (not a wall): your body going towards it adds to it (VR_Melee_BodyCarries: a melee
+// weapon, a punch). Only that way: what you go past or away from gets nothing.
 float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) VR_Melee_DecideOn =
 {
     float toward = 0;
-    if(xThing != world && b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST && b.mh_thing != VR_MTHING_NONE)
+    if(xThing != world && VR_Melee_BodyCarries(xHand, b.mh_thing))
     {
         vector to = normalize(xAt - self.origin);
         // (The blow's are the hand's real m/s; in bullet time your body goes slower, really.)
