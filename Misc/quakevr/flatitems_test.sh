@@ -3,7 +3,8 @@
 # paths: the map's spawn functions, E (impulse 46), +attack, +forward. QC side: vr_flatitems_test.qc.
 #   hold    what stays in the off hand with the shotgun fired through it: no assertion, the shot goes, the hand keeps it
 #   give    armour in the left hand, the shotgun from 2, `give n 40`, the shot: the ammo id stays an id, no assertion
-#   headset the same give and shot in a headset game with no magazine (vr_reload_mode 0): the engine's bug is shared
+#   headset the same give and shot in a headset game (vr_reload_mode 0): no assertion; it showed none before the fix either
+#           (the magazine takes the shot), so it guards against a regression only
 #   walk    armour, keys, the suit, a rune, powerups and a weapon walked over: taken; armour puts the plates on (ammo and
 #           health boxes: printed, not checked: FLATPLAY.md, "Pickups")
 #   better  E on armour better than his: on him at once, nothing left in a hand, the plates on

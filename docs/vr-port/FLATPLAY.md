@@ -127,7 +127,7 @@ taken. Test: `bash Misc/quakevr/flatitems_test.sh <agent>` (`vr_flatitems_test 1
 hand's ammo *id* (`AID_*`) and `.weapon` a weapon id (the shotgun, 4, is `IT_NAILGUN`), so `give n 40` with the shotgun in
 hand left "ammo id 40", and the next shot that updates the counters asked for it:
 `VR_AmmoUtil_GetAmmoCountByAmmoId`'s assertion. A shot updates the counters when the gun has no magazine: every shot in
-flat-screen play, and a headset's with `vr_reload_mode 0`. The switch is skipped for the VR progs (the field `ammocounter`).
+flat-screen play (in a headset the magazine takes the shot; an ammo pickup after a give would still update them). The switch is skipped for the VR progs (the field `ammocounter`).
 
 **Teleporters.** Walking through a seamless teleporter (`crossPlayer`, `Quake/vr/vr_portals_gates.cpp`) the server sends an
 angle: its pitch level, its yaw from a move a tick old. A headset's view is its own and only the play space turns by it; a
