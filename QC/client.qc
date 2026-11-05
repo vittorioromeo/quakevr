@@ -1772,8 +1772,9 @@ void() CheckWaterJump =
     makevectors(self.angles);
     v_forward_z = 0;
     // Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no
-    // way out of a pool whose sides are higher than a stroke lifts him).
-    if(self.ishuman && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb))
+    // way out of a pool whose sides are higher than a stroke lifts him). A flat-screen player has no hands to climb
+    // with: Quake's own jump out lifts him, whatever the setting (docs/vr-port/FLATPLAY.md, "Swimming").
+    if(self.ishuman && !VR_FlatPlay(self) && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb))
     {
         if(!VR_WaterClimb_HandPull(cVR_MainHand))
         {

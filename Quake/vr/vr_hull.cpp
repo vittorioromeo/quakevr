@@ -3218,6 +3218,11 @@ constexpr float crouchSpeedEaseTime = 0.25f;
 constexpr float crouchSpeedQuiet = 0.9f;
 float crouchEye[crouchSlots]{};
 float crouchSlowShare[crouchSlots]{};
+// A flat-screen player (-flatscreenmode: .vr_flatscreen) stands with his eyes at Quake's viewheight, under the tallest
+// crouched box's top, so his eyes cannot say how crouched he is (they slowed him standing: 260 of 320, crouched 240): his
+// crouch key does (updateCrouch's flatscreenCrouch: Left Ctrl held, or its eased crouch still easing back up).
+bool crouchFlat[crouchSlots]{};
+bool crouchFlatHeld[crouchSlots]{};
 
 bool crouchOn()
 {
@@ -4442,6 +4447,8 @@ void beforeLoad()
         crouchBox[i] = 0.f; // (each map starts standing)
         crouchEye[i] = 0.f;
         crouchSlowShare[i] = 0.f;
+        crouchFlat[i] = false;
+        crouchFlatHeld[i] = false;
     }
     qmodel_t* world = sv.worldmodel;
     if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
@@ -4876,6 +4883,9 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
         return;
     }
     crouchEye[num] = (ent->free || head == glm::vec3{0.f}) ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    const bool flatscreen = !ent->free && progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f;
+    crouchFlat[num] = flatscreen;
+    crouchFlatHeld[num] = flatscreen && flatscreenCrouch;
     float& c = crouchBox[num];
     if(!crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
     {
@@ -4889,7 +4899,6 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     // it instead (flatscreenCrouch, from vr_flatplay.cpp's eased crouchRatio, which is easing back up for
     // vr_flat_crouch_time after the key is let go and 0 standing), and he is asked the way a headset player is:
     // standing first, and the tallest crouched box that fits where he is when standing does not.
-    const bool flatscreen = progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f;
     if(flatscreen && !flatscreenCrouch)
     {
         if(boxFitsAt(ent, num, 0.f))
@@ -4959,8 +4968,13 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
         return maxspeed;
     }
     // The share his eyes ask for: none over the tallest crouched box's top, all crouchSpeedBand units under it.
+    // A flat-screen player's: all while his crouch key holds him down, none standing (crouchFlat).
     float want = 0.f;
-    if(vr_crouch_speed.value != 0.f && crouchEye[num] > 0.f)
+    if(vr_crouch_speed.value != 0.f && crouchFlat[num])
+    {
+        want = crouchFlatHeld[num] ? 1.f : 0.f;
+    }
+    else if(vr_crouch_speed.value != 0.f && crouchEye[num] > 0.f)
     {
         float levels[maxCrouchLevels];
         const float top = levels[crouchLevels(sv.worldmodel, levels) - 1];
