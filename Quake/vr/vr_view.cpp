@@ -120,7 +120,13 @@ void updateFingerFrames()
     for(int hand = 0; hand < 2; hand++)
     {
         const bool holder = posingHotspot && hand == posing::session().weaponHand;
-        const HandInput& in = holder ? holding : input.hands[hand];
+        // Flatscreen play has no controller to squeeze: a hand holding a weapon (one or two hands), or drawn on its
+        // two-handed hotspot (the stance's and the ironsight's look hand), grips as a headset's does with its grip
+        // pressed and the index finger resting on the trigger (on the fore-end, the helper's index closes with the grip).
+        const int flatSlot = flatplay::active() ? weapons::heldSlot(hand) : -1;
+        const bool flatGrips =
+            flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand));
+        const HandInput& in = holder || flatGrips ? holding : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder

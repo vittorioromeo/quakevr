@@ -20,4 +20,15 @@ if [[ $SECTIONS == *a* ]]; then
   check $(awk -v hp="${hp:-0}" -v ha="${ha:-0}" -v ap="${ap:-9}" -v aa="${aa:-9}" 'BEGIN { exit !(hp > 0 && ha > 0 && ap / hp > 0.30 && ap / hp < 0.40 && aa / ha > 0.30 && aa / ha < 0.40) }' && echo 1 || echo 0) "recoil: sighted it kicks 0.35 of that ($ap u, $aa deg)"
 fi
 
+if [[ $SECTIONS == *b* ]]; then
+  # b. the fingers: the holding hand grips (middle, ring, pinky closed: 5; the index on the trigger: 2.5), hipfire and sighted,
+  #    and the free hand on the two-handed hotspot grips too (index closed with the grip).
+  log=$HERE/scratch/flatads_b.log
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; impulse 154; wait60; vr_dumpview; vr_flat_aim 1; wait60; vr_dumpview; vr_flat_aim 0; wait30; toggleconsole; quit" -Filter "hand: trigger" -Timeout 60 > "$log" 2>&1
+  grep -a "hand: trigger" "$log" | sed 's/^/  /'
+  # Middle, ring and pinky (fields 12-14) and the index (11) per line: main hipfire, off hipfire, main sighted, off sighted.
+  ok=$(grep -a "hand: trigger" "$log" | awk '{ if ($12 >= 4.9 && $13 >= 4.9 && $14 >= 4.9 && $11 >= 2.4) n++ } END { print n + 0 }')
+  check $([ "$ok" = "4" ] && echo 1 || echo 0) "fingers: both hands grip the shotgun, hipfire and sighted ($ok of 4 hands closed)"
+fi
+
 verdict; exit $fail
