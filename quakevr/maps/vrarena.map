@@ -2981,30 +2981,30 @@
 // entity 36
 {
 "classname" "info_arena_banner"
-"origin" "766 0 464"
+"origin" "766 0 491"
 "angle" "180"
-"worldtext_scale" "4.5"
+"worldtext_scale" "2.2"
 }
 // entity 37
 {
 "classname" "info_arena_banner"
-"origin" "-766 0 464"
+"origin" "-766 0 491"
 "angle" "0"
-"worldtext_scale" "4.5"
+"worldtext_scale" "2.2"
 }
 // entity 38
 {
 "classname" "info_arena_banner"
-"origin" "0 766 464"
+"origin" "0 766 491"
 "angle" "270"
-"worldtext_scale" "4.5"
+"worldtext_scale" "2.2"
 }
 // entity 39
 {
 "classname" "info_arena_banner"
-"origin" "0 -766 464"
+"origin" "0 -766 491"
 "angle" "90"
-"worldtext_scale" "4.5"
+"worldtext_scale" "2.2"
 }
 // entity 40
 {

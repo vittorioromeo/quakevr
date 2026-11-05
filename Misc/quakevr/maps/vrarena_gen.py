@@ -275,9 +275,10 @@ RISER_LIGHT, RISER_WAIT = "110", "0.9"      # a lit riser's own light, 12 in fro
 DAIS_LAMP_X, DAIS_LAMP_Z0 = 72, 56          # the dais' lamps: either side of each flight's top, 32 square, 8 out of the
                                             # dais' face, 56..88 (above a jump from the floor, below the dais' top)
 # The banners (info_arena_banner: the arena's boards, QC/vr_arena_banners.qc): a board's middle and the way it faces. At
-# scale 4.5 (36 a character, 23 across, 2 down, 1.2 round them: 914 by 158 with its bezel) its top is just under the
-# cornice at 544, high over the fight, and it reads across the room (a character is 1.3 deg from 1600 away).
-BANNER_OUT, BANNER_Z, BANNER_SCALE = 34, 464, "4.5"
+# scale 2.2 (units a pixel of its 250 x 40 face: 566 by 104 with its bezel, about 35% under the first ones' 914 by 158)
+# its top is just under the cornice at 544, high over the fight, and it reads across the room (a big digit, 53 units, is
+# 1.8 deg from 1700 away).
+BANNER_OUT, BANNER_Z, BANNER_SCALE = 34, 491, "2.2"
 BANNERS = [(H - BANNER_OUT, 0, 180), (-(H - BANNER_OUT), 0, 0), (0, H - BANNER_OUT, 270), (0, -(H - BANNER_OUT), 90)]
 COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
 LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)

@@ -373,8 +373,17 @@ const za::Vector<WorldText>& serverTextList()
     return serverTexts;
 }
 
+bool isPanel(const char* text)
+{
+    return !strncmp(text, "{arena:", 7);
+}
+
 glm::vec2 halfSize(const WorldText& t)
 {
+    if(isPanel(t.text.cStr()))
+    {
+        return glm::vec2{static_cast<float>(panelWidth), static_cast<float>(panelHeight)} * (t.scale * 0.5f);
+    }
     int longest = 0, line = 0, lines = 1;
     for(const char* c = t.text.cStr(); *c; c++)
     {
