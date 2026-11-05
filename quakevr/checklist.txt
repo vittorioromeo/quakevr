@@ -59,6 +59,7 @@ Shotgun and nailgun looks, second pass: under real light check the shotgun's aim
 Gun rivets: fewer now (shotgun 6, nailguns 4), at seams and plate corners, clear of the sights and your hands
 Armed Grunts, Pick Up a Second on: a grunt with one gun and a second lying close takes it when idle, ignores one 3 m or more away, and mid-fight only takes one at its feet, with a short pause, then goes back to shooting
 Hold the Thunderbolt on a wall, then let a Shambler's bolts hit one: each leaves a ragged black burn that stays after the beam stops and after a save and load, and no burn on water or sky {test:water_lightning}
+Nail pistol magazine: the button slides it smoothly out of the grip, then it pops outward with some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning {test:nailpistol}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
