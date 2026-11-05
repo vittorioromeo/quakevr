@@ -67,6 +67,9 @@ void projectileArcs(int ent, const glm::vec3& at, const glm::vec3& along);
 // Forgets them all (a new map, a disconnect).
 void clear();
 
+// How many times electrified water (KindSurface) has been drawn so far, a frame each (QC watershockdrawn).
+[[nodiscard]] int surfaceDrawCount();
+
 // vr_shock_test <0 self | 1 surface | 2 burst> [radius] [duration]: the effect as the QC would send it, in front of
 // the player (the surface's: on the liquid below the point 128 units ahead, if any).
 void registerCommands();

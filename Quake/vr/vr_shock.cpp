@@ -98,6 +98,7 @@ struct Struck
 };
 Struck struck;
 
+int surfaceDraws = 0; // electrified water's effects drawn so far, a frame each (QC watershockdrawn: vr_waterzap_test)
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
 double gunBuzzAt[2]{0.0, 0.0}; // a crackling gun's hand: when its next buzz is due (frame: gunShake)
 int gunBuzzes[2]{0, 0};        // and the buzzes sent so far (vr_shock_info)
@@ -219,6 +220,7 @@ void drawSurface(int index, const Effect& e, Random& rnd)
     {
         return;
     }
+    surfaceDraws++;
     const float reach = za::clamp(e.radius * 0.45f, 24.f, 160.f);
     const glm::vec3 o = e.org + glm::vec3{0.f, 0.f, 0.75f};
     for(int bolt = 0; bolt < 9; bolt++)
@@ -1340,6 +1342,11 @@ void info_f()
     }
     Con_Printf("bodyshock: active=%d\n", active);
     measureNext = true; // (the next frame's arcs: bodyshock-arcs)
+}
+
+int surfaceDrawCount()
+{
+    return surfaceDraws;
 }
 
 void registerCommands()

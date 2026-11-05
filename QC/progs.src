@@ -154,6 +154,7 @@ vr_hotblade.qc
 vr_hotblade_test.qc
 vr_shock.qc
 vr_shock_test.qc
+vr_waterzap_test.qc
 // Every hit dents: the damage paths' wound events (vr_dents_test, Debug > Gore Tests).
 vr_dents_test.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).

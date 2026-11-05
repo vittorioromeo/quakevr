@@ -49,6 +49,7 @@ Punch while running at a grunt: it lands easier and slightly harder; a still clo
 Super nailgun: hold the front grip with your off hand while firing: the hand stays still while the barrel spins (Weapon Offsets > Hotspots > Ignore Animation)
 Shotgun: fire and watch the stock: nothing wobbles at its top corner any more
 Crates: hold one with both hands close together, even pushed in a little: both hands stay where they gripped and the crate doesn't swing or jump {test:crate_close_grip}
+Lightning into water electrifies the surface: thunderbolt down into the pool, Mjolnir on the rim, then jump in and let the Shambler strike you: blue arcs on the water each time {test:water_lightning}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
