@@ -322,7 +322,7 @@ void writeHeader()
                     "body_pct,arm_inner_pct,arm_pct,eye_torso,eye_neck,eye_arm,inside,arm_inside,gun_torso,gun_head,fore0_torso,fore1_torso,hand0_torso,hand1_torso,hand0_head,"
                     "hand1_head,arm0,arm1,gap0,gap1,holding,has_spot,look_share,look_far,spot_off,arm_hip,arm_sight,shot_deg,shot_apart,"
                     "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z,point_x,point_y,point_z,stop_x,stop_y,stop_z,swing,"
-                    "yaw,sh0_x,sh0_y,sh0_z,sh1_x,sh1_y,sh1_z,an0_x,an0_y,an0_z,an1_x,an1_y,an1_z\n");
+                    "yaw,sh0_x,sh0_y,sh0_z,sh1_x,sh1_y,sh1_z,an0_x,an0_y,an0_z,an1_x,an1_y,an1_z,spot_slide\n");
 }
 
 // The row: the pose as last drawn.
@@ -450,7 +450,7 @@ void writeRow(const Config& c, bool settled)
     fprintf(sw.out,
         "%s,%s,%d,%d,%.1f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
         "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,"
-        "%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+        "%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
         sw.label, c.name, c.crouch ? 1 : 0, c.ads ? 1 : 0, sw.pitch, settled ? 1 : 0, sw.frames, eye.x, eye.y, eye.z, glm::dot(fromHead, yf),
         fromHead.z, hullMargin, solid, clear, 100.f * innerRays / (gridX * gridY), 100.f * hiddenRays / (gridX * gridY),
         100.f * bodyRays / (gridX * gridY), 100.f * armInnerRays / (gridX * gridY), 100.f * armRays / (gridX * gridY), eyeTo[0], eyeTo[1],
@@ -459,7 +459,7 @@ void writeRow(const Config& c, bool settled)
         n.armHip, n.armSight, n.shotDeg, n.shotApart, n.rearOff, n.frontOff, n.relief, n.adsT, gun.x, gun.y, gun.z, hand[0].x, hand[0].y, hand[0].z,
         hand[1].x, hand[1].y, hand[1].z, n.shotPoint.x, n.shotPoint.y, n.shotPoint.z, n.shotStop.x, n.shotStop.y, n.shotStop.z, sw.movedMost,
         r_refdef.viewangles[1], k.shoulder[0].x, k.shoulder[0].y, k.shoulder[0].z, k.shoulder[1].x, k.shoulder[1].y, k.shoulder[1].z, anchor[0].x, anchor[0].y,
-        anchor[0].z, anchor[1].x, anchor[1].y, anchor[1].z);
+        anchor[0].z, anchor[1].x, anchor[1].y, anchor[1].z, n.spotSlide);
     sw.rows++;
     sw.unsettled += settled ? 0 : 1;
 }
@@ -672,15 +672,141 @@ void sweep_f()
     sw.stage = Stage::Place;
 }
 
+// vr_flat_walk_probe <label> <frames> [shot every N frames]: the drawn hands, arms and body while he walks (the script holds
+// +forward; FLATPLAY.md, "Bob and sway"). In the camera's frame: each hand's wrist on its arm against the hand (how far it moves off
+// where it stood at rest: the hand detached from the forearm; and its largest move in a frame), each hand's range on the screen
+// (the bob and sway he sees) and each shoulder's. Rest first (restFrames, the arm's place), then the move's settle, then the
+// frames asked for; one verdict line, `flatwalk: <label> done ...`.
+constexpr int walkRestFrames = 6;
+constexpr int walkSettleFrames = 36; // half a second: the bob's size eases in with the speed (flatplay's bobEase)
+
+struct Walk
+{
+    bool on{false};
+    char label[48]{};
+    int frames{0};
+    int want{0};
+    int shotEvery{0};
+    int shots{0};
+    glm::vec3 restRel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 lastRel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool haveLast[2]{false, false};
+    float gapMost[2]{0.f, 0.f};
+    float jumpMost[2]{0.f, 0.f};
+    glm::vec3 handLo[2], handHi[2], shLo[2], shHi[2];
+    float speedSum{0.f};
+    int measured{0};
+};
+
+Walk wk;
+
+void walk_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_flat_walk_probe <label> <frames> [shot every N frames]\n");
+        return;
+    }
+    wk = Walk{};
+    q_strlcpy(wk.label, Cmd_Argv(1), sizeof(wk.label));
+    wk.want = za::clamp(Q_atoi(Cmd_Argv(2)), 10, 2000);
+    wk.shotEvery = Cmd_Argc() > 3 ? za::max(0, Q_atoi(Cmd_Argv(3))) : 0;
+    wk.on = true;
+}
+
+void walkFrame()
+{
+    if(!wk.on)
+    {
+        return;
+    }
+    avatar::Skeleton k;
+    const glm::vec3 cam = geom::vec(r_refdef.vieworg);
+    glm::vec3 cf, cr, cu;
+    hands::angleVectors(geom::vec(r_refdef.viewangles), cf, cr, cu);
+    const glm::mat3 toCam = glm::transpose(glm::mat3{cf, cr, cu});
+    if(!flatplay::active() || !avatar::skeleton(k))
+    {
+        Con_Printf("flatwalk: %s FAIL no body drawn\n", wk.label);
+        wk.on = false;
+        return;
+    }
+    const int f = wk.frames++;
+    const bool measuring = f >= walkRestFrames + walkSettleFrames;
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        glm::vec3 pos, rot;
+        if(!view::drawnHandPose(h, pos, rot))
+        {
+            continue;
+        }
+        const glm::vec3 rel = toCam * (k.wrist[h] - pos);
+        if(f < walkRestFrames)
+        {
+            wk.restRel[h] = rel; // (standing: the last of these frames is the rest)
+            continue;
+        }
+        if(!measuring)
+        {
+            wk.lastRel[h] = rel;
+            wk.haveLast[h] = true;
+            continue;
+        }
+        wk.gapMost[h] = za::max(wk.gapMost[h], glm::distance(rel, wk.restRel[h]));
+        if(wk.haveLast[h])
+        {
+            wk.jumpMost[h] = za::max(wk.jumpMost[h], glm::distance(rel, wk.lastRel[h]));
+        }
+        wk.lastRel[h] = rel;
+        wk.haveLast[h] = true;
+        const glm::vec3 hc = toCam * (pos - cam), sc = toCam * (k.shoulder[h] - cam);
+        if(wk.measured == 0)
+        {
+            wk.handLo[h] = wk.handHi[h] = hc;
+            wk.shLo[h] = wk.shHi[h] = sc;
+        }
+        wk.handLo[h] = glm::min(wk.handLo[h], hc);
+        wk.handHi[h] = glm::max(wk.handHi[h], hc);
+        wk.shLo[h] = glm::min(wk.shLo[h], sc);
+        wk.shHi[h] = glm::max(wk.shHi[h], sc);
+    }
+    if(f == walkRestFrames)
+    {
+        Cbuf_AddText("+forward\n");
+    }
+    if(measuring)
+    {
+        wk.speedSum += glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
+        wk.measured++;
+        if(wk.shotEvery > 0 && wk.measured % wk.shotEvery == 1 && wk.shots < 8)
+        {
+            Cbuf_AddText(va("cl_screenshotname \"screenshots/fw_%s_%d\"; screenshot\n", wk.label, wk.shots++));
+        }
+    }
+    if(wk.measured >= wk.want)
+    {
+        Cbuf_AddText("-forward\n");
+        const auto span = [](const glm::vec3& lo, const glm::vec3& hi) { return glm::length(hi - lo); };
+        // (Short: the console wraps a long line in the log. Off hand, main hand; units.)
+        Con_Printf("flatwalk: %s done %d speed %.0f wrist %.3f %.3f jump %.3f %.3f hand %.2f %.2f shoulder %.2f %.2f\n",
+            wk.label, wk.measured, wk.speedSum / static_cast<float>(wk.measured), wk.gapMost[0], wk.gapMost[1], wk.jumpMost[0],
+            wk.jumpMost[1], span(wk.handLo[0], wk.handHi[0]), span(wk.handLo[1], wk.handHi[1]), span(wk.shLo[0], wk.shHi[0]),
+            span(wk.shLo[1], wk.shHi[1]));
+        wk.on = false;
+    }
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_flat_sweep", sweep_f);
+    Cmd_AddCommand("vr_flat_walk_probe", walk_f);
 }
 
 void frame()
 {
+    walkFrame();
     if(sw.stage == Stage::Idle)
     {
         return;

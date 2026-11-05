@@ -469,9 +469,13 @@ constexpr float stanceFadeTo = 55.f;
                              (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
         // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
         const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
-        return {(poseNum(vr_flat_gun_ahead) - stance * poseNum(vr_flat_stance_back)) * reach,
-            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in) + crouchOut) * reach,
-            -(poseNum(vr_flat_gun_down) - stance * poseNum(vr_flat_stance_up)) * reach};
+        // (A pistol's stance: both hands in front of him, its own numbers. A long gun's: towards the shoulder pocket.)
+        const bool pistol = flatsight::stancePistol();
+        const float back = poseNum(pistol ? vr_flat_pistol_back : vr_flat_stance_back);
+        const float in = poseNum(pistol ? vr_flat_pistol_in : vr_flat_stance_in);
+        const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
+        return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (poseNum(vr_flat_gun_out) - stance * in + crouchOut) * reach,
+            -(poseNum(vr_flat_gun_down) - stance * upBy) * reach};
     }
     if(otherHolds)
     {
@@ -1094,8 +1098,11 @@ namespace
     // side of the screen and doesn't come across his face.
     glm::vec3 spot;
     const float stance = flatsight::stanceSpot(h, spot);
-    if(stance > 0.f)
-    {
+    const auto keepSpot = [&](bool backAlong) {
+        if(stance <= 0.f)
+        {
+            return;
+        }
         glm::vec3 vf, vr, vu;
         hands::angleVectors(aim, vf, vr, vu);
         // (From its rest shoulder, as the free hand's own need is measured: flatsight's armShare.)
@@ -1109,16 +1116,22 @@ namespace
         {
             p -= acrossWay / across * (across - softBelow(across, keep * acrossKeep, keepEase * span)) * stance;
         }
-        // ... then back along it.
+        // ... then back along it (the first time only: again, after the chest's and the eye's limits, it brought the stock into the
+        // chest on a look up).
+        if(!backAlong)
+        {
+            return;
+        }
         to = p + axes(aim) * spot - otherRoot;
         const float along = glm::dot(to, vf);
         const float across2 = glm::dot(to, to) - along * along;
         const float most = keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f;
         p -= vf * (along - softBelow(along, most, keepEase * span)) * stance;
-    }
+    };
+    keepSpot(true);
 
     // Clear of the chest: ahead of the shoulder, while the hand is below it (a hand over the shoulder has no chest before it).
-    {
+    const auto clearChest = [&]() {
         const glm::vec3 rel = p - root;
         const float ahead = glm::dot(rel, levelFwd);
         const float below = za::clamp(1.f - glm::dot(rel, levelUp) / clearFadeAbove, 0.f, 1.f);
@@ -1127,7 +1140,8 @@ namespace
         {
             p += levelFwd * (softAbove(ahead, keep * below, clearEase) - ahead);
         }
-    }
+    };
+    clearChest();
 
     // Clear of the eye, and of the neck under his head (a look up takes the eye back over it).
     {
@@ -1158,9 +1172,17 @@ namespace
         const float across = glm::length(v - vf * f);
         const float flat = za::clamp(vr_flat_screen_angle.value, 20.f, 85.f);
         const float cheek = za::clamp(vr_flat_screen_angle_stance.value, 20.f, 85.f);
-        const float angle = glm::radians(flat + (cheek - flat) * flatsight::stanceShare(h));
+        const float angle = glm::radians(flat + (cheek - flat) * (flatsight::stancePistol() ? 0.f : flatsight::stanceShare(h)));
         const float low = across / glm::tan(angle);
         p += vf * (softAbove(f, low, screenEase) - f);
+    }
+
+    // The hotspot again: the chest, the eye and the screen push the gun forward and out, and crouched or looking straight down that
+    // took the hotspot out of the free arm's reach (the hand let go). And the chest again after it (it brings the gun back).
+    if(stance > 0.f)
+    {
+        keepSpot(false);
+        clearChest();
     }
 
     // Within its own arm.

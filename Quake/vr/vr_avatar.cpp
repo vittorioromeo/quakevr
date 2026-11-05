@@ -11,6 +11,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
@@ -399,10 +400,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
     }
-    // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch).
+    // Flatscreen play: the chest takes a share of the look's pitch, half of it in the spine below (flatplay::chestPitch), and leans
+    // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
     if(crouchPose && flatplay::active())
     {
-        const float lean = flatplay::chestPitch(s.headAngles.x);
+        const float lean = flatplay::chestPitch(s.headAngles.x) + (flatplay::onBody() ? flatsight::stanceLean() : 0.f);
         const glm::vec3 chestFromSpine = c.pos - sp.pos;
         const glm::mat3 spineTurn = bodyTurn(b, 0.5f * lean, 0.f, 0.f);
         sp.rot = spineTurn * sp.rot;

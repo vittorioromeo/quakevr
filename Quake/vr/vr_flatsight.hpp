@@ -78,10 +78,23 @@ void noteDrawn(const hands::State& s);
 // draws it there with the pose a helping hand has there (no grip: twohand::drawnTransition). 0 in a headset.
 [[nodiscard]] float lookShare(int h);
 
+// How far down the fore-end, towards the holding hand, the free hand `h` holds instead of on the hotspot itself (units along the
+// held hand's forward): where its arm can't take the hotspot (sighted with a long gun, looking up), it slides along the gun and
+// stays on it rather than letting go. 0 elsewhere.
+[[nodiscard]] float lookSlide(int h);
+
 // How far the torso is turned for a long gun, degrees of yaw (the free hand's shoulder forward), and the share of that turn
 // for hand `h`'s gun: 0 for anything else.
 [[nodiscard]] float stanceYaw();
 [[nodiscard]] float stanceShare(int h);
+
+// The stance's kind: a pistol's (vr_flat_stance_pistol: both hands in front of him, vr_flat_pistol_*) rather than a long gun's
+// (vr_flat_stance_*: the gun's hand towards the shoulder pocket, by his cheek).
+[[nodiscard]] bool stancePistol();
+
+// The chest's lean forward into the gun, degrees: the ironsight's travel in a two-handed stance (vr_flat_ads_lean). The head and
+// the eye stay; avatar::solveTorso adds it to the chest's share of the look.
+[[nodiscard]] float stanceLean();
 
 // The field of view to render with: `basefov`, narrowed by vr_flat_aim_fov while the ironsight is on. Outside the
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).
@@ -103,6 +116,7 @@ struct SweepNumbers
     float lookShare{0.f};
     bool lookFar{false};
     float spotOff{-1.f};
+    float spotSlide{0.f}; // how far down the fore-end the free hand holds (lookSlide)
     float armHip{0.f};
     float armSight{0.f};
     float shotDeg{-1.f};

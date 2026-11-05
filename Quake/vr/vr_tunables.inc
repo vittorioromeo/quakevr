@@ -1835,6 +1835,13 @@ QVR_TUNABLE(vr_flat_stance_turn, "25") // how far the torso turns for it (degree
 QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
+QVR_TUNABLE(vr_flat_stance_pistol, "1") // a pistol (a gun with a two-handed hotspot, its muzzle under 9.5 from the hand) held with the other hand free: held in both hands too, in its own stance below (0: one hand, the other hangs)
+QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
+QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
+QVR_TUNABLE(vr_flat_pistol_in, "6") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
+QVR_TUNABLE(vr_flat_pistol_up, "2") // and this much higher than Gun Down
+QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the torso turns this much further (degrees, 0..30), the free hand's shoulder forward to the gun
+QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV
