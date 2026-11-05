@@ -483,6 +483,18 @@ QVR_TUNABLE(vr_ragdoll_active_stagger_blend, "0.2") // s: recovered, its ragdoll
 QVR_TUNABLE(vr_ragdoll_active_stagger_settle, "1") // m/s: its backpedal near done (its pin's carry 90% over), slower than this, steady and not mid-step: it has recovered (0.4, from 0.2 s past its carry, before: it froze a moment at its end)
 QVR_TUNABLE(vr_ragdoll_active_stagger_settle_time, "0.35") // s: still up this long past its carry, it has recovered however it moves (1.2 before)
 QVR_TUNABLE(vr_ragdoll_active_stagger_drop, "20") // units: the floor under its pelvis this much lower than where it stood (stepped off a ledge, the top of stairs) a moment: it falls, sure-footed or not (no backpedalling on air); 0: never
+QVR_TUNABLE(vr_knockdown_ledge_backpedal, "1") // a shove over a ledge makes one that can stagger backpedal on its feet to the edge and fall over it (VR_Knockdown_LedgeBackpedal); 0: launched whole past the edge (vr_knockdown_shove_ledge_*), as those that can't stagger are
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_speed, "0.4") // its first speed, times the shove's own speed (vr_push's, a running shove's, its weight's)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_least, "70") // u/s: its first speed at least
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_most, "300") // u/s: its first speed at most (its legs keep up to about this)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_push, "0.35") // the shove's push on its top, times this (more: it leans back further and sags)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_hertz, "10") // its pelvis's pin, its stiffness (a stagger's 5): less sits it down on a long way back
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_tip, "100") // u/s: gone over the lip, carried on at the speed it has, at least this
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on or until it has dropped
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
 QVR_TUNABLE(vr_ragdoll_active_getup_pace, "0.8") // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)

@@ -3480,6 +3480,7 @@ QVR_CVAR(vr_magholster_chain_lod, "5", CVAR_ARCHIVE)        // metres along the 
 QVR_CVAR(vr_magholster_chain_spacing, "0.25", CVAR_ARCHIVE) // metres between its points (finer: truer on edges and the floor, more work; a long tether's farther apart: vr_magholster_chain_points at most)
 QVR_CVAR(vr_magholster_chain_points, "40", CVAR_ARCHIVE)    // the most pieces it has (4 .. 256)
 QVR_CVAR(vr_magholster_chain_iterations, "12", CVAR_ARCHIVE) // passes a frame holding its pieces to their length (more: less stretch, more work; 1 .. 64)
+QVR_CVAR(vr_magholster_chain_limit, "0.1", CVAR_ARCHIVE)    // each piece kept within this share of its length, however fast the hand moves (0: off; 0.01 .. 0.9)
 QVR_CVAR(vr_magholster_chain_stiffness, "1", CVAR_ARCHIVE)  // the share of a piece's stretch each pass takes out (0.05 .. 1; lower: stretchier, softer)
 QVR_CVAR(vr_magholster_chain_collide, "1", CVAR_ARCHIVE)    // 1: its points and pieces kept out of the world (traced); 0: through it (cheaper)
 QVR_CVAR(vr_magholster_chain_radius, "0.75", CVAR_ARCHIVE)  // units its points keep off what they lie on

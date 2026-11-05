@@ -813,6 +813,77 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     return true;
 }
 
+// A backpedal over a ledge (ragdollBackpedal) gone over the lip, its feet on the floor behind it and its pelvis on air:
+// its middle kept going at the speed it has (at least vr_knockdown_ledge_backpedal_tip) until
+// vr_knockdown_ledge_backpedal_past units on or it has dropped (a slow one sat on the lip otherwise). Its turn its own.
+static void carryOverLip(RagdollBodies& r, edict_t* ent)
+{
+    const ragactive::Stagger& g = r.active.stagger;
+    float mass = 0.f;
+    glm::vec3 com{0.f}, vel{0.f};
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const float m = b3Body_GetMass(body);
+        mass += m;
+        com += glmv(b3Body_GetWorldCenter(body)) * m;
+        vel += glmv(b3Body_GetLinearVelocity(body)) * m;
+    }
+    if(mass <= 0.f)
+    {
+        return;
+    }
+    RagdollBodies::ShoveDrive& d = r.shove;
+    d = RagdollBodies::ShoveDrive{};
+    d.on = true;
+    d.ledge = true;
+    d.carryOnly = true;
+    d.start = qcvm->time;
+    d.dir = g.dir;
+    d.speed = za::max(glm::dot(vel / mass, g.dir), za::max(vr_knockdown_ledge_backpedal_tip.value, 0.f) / world->m2u);
+    d.reach = za::max(vr_knockdown_ledge_backpedal_past.value, 0.f) / world->m2u;
+    d.from = com / mass;
+    d.floor = g.pelvis0.z - g.overFloor;
+    d.maxSpin = 0.1f;
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("stagger: %d %s carried over the lip at %.0f u/s for %.0f units\n", r.num, PR_GetString(ent->v.classname),
+            d.speed * world->m2u, d.reach * world->m2u);
+    }
+}
+
+bool ragdollBackpedal(edict_t* ent, const glm::vec3& dir, float push, float balance, float carry, float speed)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !ragdollCanStagger(ent) || carry <= 0.f || speed <= 0.f)
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    beginLiving(r, ent);
+    ragactive::StaggerInfo si;
+    si.dir = dir;
+    si.travel = carry / world->m2u;
+    si.time = 2.f * carry / speed; // (slowing evenly to none: its first speed twice the mean)
+    si.ledge = true;
+    si.sure = true; // (it goes over at the edge, not before: staggerOutcome's "no floor under it")
+    si.push = push;
+    si.balance = balance;
+    si.first = si.last = 0;
+    ragactive::beginStagger(r.active, activeParts(r), si, qcvm->time);
+    r.staggerStuck = -1.0;
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("stagger: %d %s backpedals to a ledge (push %.2f, balance %.2f): %.0f units from %.0f u/s over %.2f s\n",
+            r.num, PR_GetString(ent->v.classname), push, balance, carry, speed, si.time);
+    }
+    return true;
+}
+
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
@@ -831,6 +902,11 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
     }
     if(!a.on || !a.stagger.on || a.stagger.outcome == ragactive::Outcome::Fell)
     {
+        if(a.stagger.ledge && a.stagger.outcome == ragactive::Outcome::Fell)
+        {
+            a.stagger.ledge = false;
+            carryOverLip(r, ent);
+        }
         return 0;
     }
     if(a.stagger.outcome == ragactive::Outcome::Going)

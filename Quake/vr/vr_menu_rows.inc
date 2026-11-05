@@ -2636,6 +2636,9 @@ QVR_SLIDER(vr_magholster_chain_spacing, "Chain Point Spacing", 0.05f, 1.f, 0.05f
 QVR_SLIDER(vr_magholster_chain_points, "Chain Most Points", 4.f, 128.f, 4.f, "%.0f", ext(4.f, 256.f), "The most pieces the chain has, however long.")
 QVR_SLIDER(vr_magholster_chain_iterations, "Chain Iterations", 1.f, 32.f, 1.f, "%.0f", ext(1.f, 64.f),
     "Passes a frame holding the pieces to their length (more: less stretch, more work).")
+QVR_SLIDER(vr_magholster_chain_limit, "Chain Piece Limit", 0.f, 0.5f, 0.01f, "%.2f", ext(0.f, 0.9f),
+    "The share of its length a piece of the chain may be off it, however fast you swing (lower: the links stay "
+    "evener; 0: off, a fast swing bunches them up by the weapon).")
 QVR_SLIDER(vr_magholster_chain_stiffness, "Chain Stiffness", 0.05f, 1.f, 0.05f, "%.2f", noExt,
     "The share of each piece's stretch a pass takes out (lower: stretchier, softer).")
 QVR_SLIDER(vr_magholster_chain_radius, "Chain Thickness", 0.05f, 4.f, 0.05f, "%.2f", ext(0.05f, 8.f), "Units the chain's points keep off what they lie on.")

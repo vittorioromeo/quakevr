@@ -1,4 +1,4 @@
-"""Makes the shotgun's three stray stock-corner vertices follow the gun's rigid kick.
+"""Makes the shotgun's stray stock-corner vertices (three each side) follow the gun's rigid kick.
 
     python Misc/quakevr/fix_shot_stock_corner.py [quakevr/progs]    (in place; idempotent)
 
@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mdl_motion as M
 
-CORNER = (4.04, -1.8, 5.68)
+CORNERS = ((4.04, -1.8, 5.68), (4.04, 1.75, 5.68))  # (the other side's, just inside the cancel's limit, round 24)
 
 
 def pose_offsets(d):
@@ -73,7 +73,7 @@ def fix(path):
     origin = struct.unpack_from("<3f", d, 20)
     rest = poses[0]
     nv = len(rest)
-    corner = [v for v in range(nv) if math.dist(rest[v], CORNER) < 0.1]
+    corner = [v for v in range(nv) if any(math.dist(rest[v], c) < 0.15 for c in CORNERS)]
     # the body: the gun's rear half, not the flash, not the corner itself
     body = [v for v in range(nv) if rest[v][0] < 30 and v not in corner]
     offs = pose_offsets(d)
@@ -100,4 +100,5 @@ def fix(path):
 if __name__ == "__main__":
     base = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "progs")
     for f in ("v_shot.mdl", "vr_pumpbody_on_v_shot.mdl"):
-        fix(os.path.join(base, f))
+        if os.path.exists(os.path.join(base, f)):  # (gunlooks.py's input has the gun alone)
+            fix(os.path.join(base, f))
