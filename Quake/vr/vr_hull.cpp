@@ -793,6 +793,8 @@ struct Sweep
     za::SizeT base = 0; // the model's leaves in leafBrush (SubModel::base)
     const float* halfspace = nullptr; // portal body portion: dot(normal, point) >= distance, in model space
     const Plane* boxPlanes = nullptr; // a solid entity's six planes
+    const BoxTurn* turn = nullptr;    // the box is turned (portal body portion only); ext: its bound's half size
+    Plane hitFace{};                  // hitPlane when it is a turned box's own face (clipToTurnedFaces)
 };
 
 // Minimum projection of the box portion on this side of a portal. Its vertices are retained box corners and
@@ -806,7 +808,8 @@ double halfDistance(const Sweep& s, const Plane& p, const glm::dvec3& centre)
     double d[8], result = 1e30;
     for(int c = 0; c < 8; c++)
     {
-        v[c] = centre + s.ext * glm::dvec3{(c & 1) ? 1.0 : -1.0, (c & 2) ? 1.0 : -1.0, (c & 4) ? 1.0 : -1.0};
+        const glm::dvec3 sign{(c & 1) ? 1.0 : -1.0, (c & 2) ? 1.0 : -1.0, (c & 4) ? 1.0 : -1.0};
+        v[c] = centre + (s.turn ? s.turn->axes * (s.turn->half * sign) : s.ext * sign);
         d[c] = glm::dot(gate, v[c]) - s.halfspace[3];
         if(d[c] >= -1e-6) { result = za::min(result, glm::dot(n, v[c]) - p.dist); }
     }
@@ -837,6 +840,92 @@ double support(const Plane& p, const glm::dvec3& ext)
 } // namespace detail
 namespace
 {
+
+// A turned box's own faces against a brush, as clipToBrush's loop meets the brush's faces (the same rules): the brush's
+// faces and bevels are square to the world and to its own slants, so past its edges they stand out further than it does
+// for a box turned another way, and a box's face can be all that keeps it off a brush's corner. Each face's plane is
+// the brush's furthest corner along it; the corners are its planes' meeting points. (Not the edges' cross products: for a
+// sloped edge the box stays that bit off it, never into it.) Returns false if the sweep misses the brush.
+QVR_NOINLINE bool clipToTurnedFaces(Sweep& s, const Brush& br, double& enter, double& leave, bool& hit, bool& startout, bool& getout)
+{
+    constexpr za::SizeT mostCorners = 96;
+    glm::dvec3 corners[mostCorners];
+    za::SizeT count = 0;
+    const Plane* planes = s.boxPlanes ? s.boxPlanes + br.first : s.b->planes.data() + br.first;
+    for(za::U32 i = 0; i < br.count; ++i)
+    {
+        const glm::dvec3 a{planes[i].normal};
+        for(za::U32 j = i + 1; j < br.count; ++j)
+        {
+            const glm::dvec3 b{planes[j].normal};
+            const glm::dvec3 ab = glm::cross(a, b);
+            for(za::U32 k = j + 1; k < br.count; ++k)
+            {
+                const glm::dvec3 c{planes[k].normal};
+                const double det = glm::dot(ab, c);
+                if(za::abs(det) < 1e-6)
+                {
+                    continue;
+                }
+                const glm::dvec3 p = (glm::cross(b, c) * static_cast<double>(planes[i].dist) +
+                    glm::cross(c, a) * static_cast<double>(planes[j].dist) + ab * static_cast<double>(planes[k].dist)) / det;
+                bool inside = true;
+                for(za::U32 m = 0; m < br.count && inside; ++m)
+                {
+                    inside = glm::dot(p, glm::dvec3{planes[m].normal}) - planes[m].dist <= 0.01;
+                }
+                if(inside)
+                {
+                    if(count == mostCorners)
+                    {
+                        return true; // (no such brush met yet: as if the box's faces said nothing)
+                    }
+                    corners[count++] = p;
+                }
+            }
+        }
+    }
+    if(count == 0)
+    {
+        return true;
+    }
+    for(int face = 0; face < 6; ++face)
+    {
+        const glm::dvec3 n = s.turn->axes[face / 2] * ((face & 1) ? -1.0 : 1.0);
+        double dist = -1e30;
+        for(za::SizeT i = 0; i < count; ++i)
+        {
+            dist = za::max(dist, glm::dot(corners[i], n));
+        }
+        const Plane q{glm::vec3{n}, static_cast<float>(dist), 1.f};
+        const double d1 = halfDistance(s, q, s.start), d2 = halfDistance(s, q, s.end);
+        getout = getout || d2 >= 0.0;
+        startout = startout || d1 >= 0.0;
+        if(d1 >= 0.0 && d2 >= 0.0)
+        {
+            return false;
+        }
+        if(d1 < 0.0 && d2 < 0.0)
+        {
+            continue;
+        }
+        if(d1 >= 0.0)
+        {
+            const double f = za::max(0.0, (d1 - distEpsilon) / (d1 - d2));
+            if(f > enter)
+            {
+                enter = f;
+                s.hitFace = q;
+                hit = true;
+            }
+        }
+        else
+        {
+            leave = za::min(leave, (d1 + distEpsilon) / (d1 - d2));
+        }
+    }
+    return true;
+}
 
 void clipToBrush(Sweep& s, const Brush& br)
 {
@@ -879,6 +968,24 @@ void clipToBrush(Sweep& s, const Brush& br)
         else // leaving
         {
             leave = za::min(leave, (d1 + distEpsilon) / (d1 - d2));
+        }
+    }
+    if(s.turn && !br.clip)
+    {
+        const Plane savedFace = s.hitFace;
+        bool face = false;
+        if(!clipToTurnedFaces(s, br, enter, leave, face, startout, getout))
+        {
+            s.hitFace = savedFace;
+            return;
+        }
+        if(face)
+        {
+            if(!startout || enter >= leave || enter >= s.fraction)
+            {
+                s.hitFace = savedFace; // (not this brush's hit: the plane a nearer one's may be on stays)
+            }
+            clip = &s.hitFace;
         }
     }
     if(!startout)
@@ -1352,7 +1459,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
 namespace detail
 {
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base, const float* halfspace)
+    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base, const float* halfspace, const BoxTurn* turn)
 {
     Result r{};
     trace_t& tr = r.trace;
@@ -1365,6 +1472,7 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
         glm::max(start, end) + c + 1.f};
     s.base = base;
     s.halfspace = halfspace;
+    s.turn = turn;
     if(head >= 0)
     {
         if(start == end && !halfspace)
@@ -1382,7 +1490,7 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     r.brushTests = s.brushTests;
     // Quake's allsolid: the whole move in solid; its trace then keeps fraction 1 and the end (SV_RecursiveHullCheck).
     const bool endsolid = s.startsolid && s.getout && (halfspace
-        ? boxTrace(b, hull0, head, end, mins, maxs, end, base, halfspace).trace.startsolid
+        ? boxTrace(b, hull0, head, end, mins, maxs, end, base, halfspace, turn).trace.startsolid
         : boxInSolid(b, hull0, head, s.end, s.ext, true, base));
     const bool allsolid = s.startsolid && (!s.getout || endsolid);
     tr.startsolid = s.startsolid;
@@ -1400,7 +1508,11 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     if(s.hitPlane)
     {
         VectorCopy(s.hitPlane->normal, tr.plane.normal);
-        tr.plane.dist = static_cast<float>(s.hitPlane->dist + support(*s.hitPlane, s.ext));
+        const glm::dvec3 n{s.hitPlane->normal};
+        tr.plane.dist = static_cast<float>(s.hitPlane->dist +
+            (turn ? za::abs(glm::dot(n, turn->axes[0])) * turn->half.x + za::abs(glm::dot(n, turn->axes[1])) * turn->half.y +
+                        za::abs(glm::dot(n, turn->axes[2])) * turn->half.z
+                  : support(*s.hitPlane, s.ext)));
     }
     return r;
 }
@@ -4627,8 +4739,9 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
 }
 
 // A clipped box changes topology only when a corner crosses the portal. Trace each linear interval.
+// `turned` (or null): the box is turned about the middle of mins..maxs (its bound): 9 floats its axes (columns), 3 its half size.
 bool clipPortal(const edict_t* ent, const float* start, const float* mins, const float* maxs, const float* end,
-                const float* plane, trace_t& trace)
+                const float* plane, const float* turned, trace_t& trace)
 {
     const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     const glm::vec3 a{start[0], start[1], start[2]}, b{end[0], end[1], end[2]};
@@ -4642,12 +4755,26 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
     {
         for(int c = 0; c < 8; c++)
         {
-            const glm::vec3 corner{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
+            glm::vec3 corner{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
+            if(turned)
+            {
+                corner = (lo + hi) * 0.5f + glm::vec3{turned[0], turned[1], turned[2]} * ((c & 1) ? turned[9] : -turned[9]) +
+                         glm::vec3{turned[3], turned[4], turned[5]} * ((c & 2) ? turned[10] : -turned[10]) +
+                         glm::vec3{turned[6], turned[7], turned[8]} * ((c & 4) ? turned[11] : -turned[11]);
+            }
             const float t = (plane[3] - glm::dot(n, a + corner)) / travel;
             if(t > 0.f && t < 1.f) { cuts[count++] = t; }
         }
     }
     za::quickSort(cuts, cuts + count);
+    BoxTurn boxTurn{};
+    if(turned)
+    {
+        boxTurn.axes = glm::dmat3{glm::dvec3{turned[0], turned[1], turned[2]}, glm::dvec3{turned[3], turned[4], turned[5]},
+            glm::dvec3{turned[6], turned[7], turned[8]}};
+        boxTurn.half = glm::dvec3{turned[9], turned[10], turned[11]};
+    }
+    const BoxTurn* const turn = turned ? &boxTurn : nullptr;
     const int index = static_cast<int>(ent->v.modelindex);
     qmodel_t* model =
         static_cast<int>(ent->v.solid) == SOLID_BSP && index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
@@ -4677,7 +4804,7 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
         if(model)
         {
             const SubModel& sm = built.subs[static_cast<za::SizeT>(sub)];
-            tr = boxTrace(built, model->hulls[0], sm.head, from - origin, lo, hi, to - origin, sm.base, localPlane)
+            tr = boxTrace(built, model->hulls[0], sm.head, from - origin, lo, hi, to - origin, sm.base, localPlane, turn)
                      .trace;
         }
         else
@@ -4691,6 +4818,7 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
             sweep.sweepMaxs = glm::max(from, to) + hi + 1.f;
             sweep.halfspace = plane;
             sweep.boxPlanes = box;
+            sweep.turn = turn;
             clipToBrush(sweep, br);
             tr.startsolid = sweep.startsolid;
             tr.allsolid = sweep.startsolid && !sweep.getout;
@@ -4923,7 +5051,7 @@ extern "C" int VR_HullHitBox(edict_t* touch, float* boxmins, float* boxmaxs, int
 }
 
 extern "C" int VR_HullClipPortal(edict_t* ent, const float* start, const float* mins, const float* maxs,
-    const float* end, const float* plane, trace_t* trace)
+    const float* end, const float* plane, const float* turned, trace_t* trace)
 {
-    return qvr::hull::clipPortal(ent,start,mins,maxs,end,plane,*trace);
+    return qvr::hull::clipPortal(ent,start,mins,maxs,end,plane,turned,*trace);
 }
