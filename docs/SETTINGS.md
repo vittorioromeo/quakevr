@@ -451,7 +451,7 @@ built-in ones.
 | `vr_posestudio_live_warm` | 0.4 | Live, paused: seconds of the tape played again before the frame with your edit (so the arms' easing sees it as in a fight) |
 
 **Setting armed humanoids' grips by hand (the Pose Studio).** VR Settings > Combat > Armed Grunts > Grip Editor > Drag
-Mode (or the Debug menu's Pose Studio, or `vr_posestudio`; the scenario `agrunt_pose_studio` sets up a row to try). The armed
+Mode (or the Debug menu's Pose Studio, or `vr_posestudio`). The armed
 grunts and enforcers hold still. Walk up to one: its weapon gets a blue wire box, its hands orange ones, its elbows
 violet ones, its chest a faint green one (a white dot is where each of your controllers takes things: your drawn hand
 stays outside its body). Put a controller in a box (it turns yellow, a tick) and hold the grip: the box turns green and

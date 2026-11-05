@@ -656,6 +656,8 @@ QVR_TUNABLE_SLIDER(vr_lightning_burn_size, "Lightning Burn Size", 0.0f, 48.0f, 1
 QVR_TUNABLE_SLIDER(vr_lightning_burn_gap, "Lightning Burn Gap", 0.0f, 2.0f, 0.05f, "%.2f", 0.0f, 2.0f, "At most one lightning burn this often, seconds: a held beam strikes ten times a second.")
 QVR_TUNABLE_SLIDER(vr_lightning_burn_stack, "Lightning Burns a Spot", 1.0f, 12.0f, 1.0f, "%.0f", 1.0f, 12.0f, "Burns on one spot among the last 24: a beam held there marks no more until it moves on.")
 QVR_TUNABLE_SLIDER(vr_lg_water_arcs, "Electrified Water Arcs", 0.0f, 3.0f, 0.1f, "%.1f", 0.0f, 3.0f, "The arcs on a liquid's surface where lightning goes in: how wide. 0 none (the blue light stays).")
+QVR_TUNABLE_SLIDER(vr_shock_self_flat_arcs, "Arcs on You: Flat Screen", 0.0f, 6.0f, 0.5f, "%.1fx", 0.0f, 6.0f, "Struck by lightning, on a flat screen: how many more arcs on your hands and forearms than a headset has. 0 none.")
+QVR_TUNABLE_SLIDER(vr_shock_self_flat_hand, "Arcs on You: Flat Hand Length", 0.0f, 0.3f, 0.01f, "%.2f m", 0.0f, 0.3f, "Struck by lightning, on a flat screen: how far the arcs on a hand reach on from its wrist.")
 QVR_TUNABLE_SLIDER(vr_lg_water_flash, "Shock Flash", 0.0f, 1.0f, 0.1f, "%.1f", 0.0f, 1.0f, "The shock's blue flash over the view and the arcs in front of your eyes (the arcs on your arms and body stay).")
 
 QVR_TUNABLE_GROUP("Weapons > Reloading")
