@@ -840,6 +840,46 @@ moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the 
 body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
 down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).
 
+## Flat-screen controls and status bar: his notes of 2026-11-05 (branch `agent/flatcontrols`)
+
+**1. The mouse by what the hands hold.** `flatplay::routeFire` (`vr_flatplay.cpp`): with one weapon held, in either hand, LMB
+(+attack) fires it and RMB (+offhandattack) is the ironsight and fires nothing; with a weapon in each hand, or none, LMB the
+right hand and RMB the left, as before. Routed where the move is built (`VR_MoveMainFire` in `cl_input.c`'s attack bit,
+`setButtons`' off-hand bit) and in `client::attacking` (the punches, AD's guns' spin), so a rebound button routes the same.
+The ironsight: `vr_flat_aim_mode` (0 hold, the default; 1 toggle; VR Settings > Locomotion > Desktop Screen Play > Right Click
+Ironsight), edges only, so `vr_flat_aim` on the console stays until the button is used. The wheel's button (`K_MOUSE3`) no
+longer aims ("no need for dedicated ADS button"). The left-handed mode is in BACKLOG.md (3).
+
+**2. Q swaps the hands.** `impulse 48` → `VR_FlatSwapHands` (`QC/vr_wpnholster.qc`): weapons, their records (magazine, id),
+flags (the foregrip-carried bit off) and next-shot times change hands; a carried box or prop blocks it (G lets it go). The key is
+`vr_flat_key_swap` (a bind name, `q`). **Q and Z were bound to nothing** (`quakevr/default.cfg`, his `ironwail.cfg`): nothing
+moved.
+
+**3. Z: bullet time.** `bullettime::keyPress` (the stick press's rules: `vr_bullettime_enabled`, single player, then the tap's
+`trigger`: the bounce guard, the meter, the cooldown, the sounds). Key `vr_flat_key_bullettime` (`z`). Its meter is the status
+bar's bar (4).
+
+**4. The status bar.** *Why the held count was wrong:* the classic client data message (`SV_WriteClientdataToMessage`) wrote
+`.currentammo` as the ammo count, and the VR progs keep the main hand's ammo **type** there (`AID_*`): the bar read 1 with the
+shotgun and 17 shells, 2 with the nail gun. `VR_CalcStats` already sent the counter, but only the custom-stats path reads it.
+`VR_AmmoStat` (`vr_server.cpp`) now writes the main hand's counter (every HUD style). The per-hand counters
+(`STAT_QVR_AMMOCOUNTER`/`2`, QC's `updateAmmoCounter`) were right: probe shotgun 17 → 15 shells, revolver 15 → 14, the grunt's
+shotgun its magazine 30 → 24, dual wield each its own. *The layout* (`hudstyle 1`, `vr_flat_hud 1`; `Sbar_DrawFlatHud`,
+`Quake/sbar.c`, numbers from `Quake/vr/vr_flathud.cpp`): portrait and health centred over the ammo bar (armour to their left),
+bullet time's bar over them (cyan ready, dim blue filling, yellow running, grey cooling), each hand's ammo at its own bottom
+corner with its ammo picture; an empty hand or an ammo-less weapon shows none. `vr_flathud_report` (Debug > Reports > Flatscreen
+Play) prints both counters, the pools, STAT_AMMO, the bar and the canvas.
+
+**Tests.** `flathud_test.sh` (new, 11 checks): counts (shotgun before/after firing, STAT_AMMO = the main hand's count, the
+revolver, the grunt's shotgun's magazine, dual wield) and pixels (`flathud_check.py`, against the same frame at viewsize 120: face,
+health, both corners, the left gone after G, the bar cyan then yellow, `vr_flat_hud 0` back to Ironwail's). `flatkeys_test.sh` +8
+cases, every press through `vr_mock_key` (Key_Event and the binds): LMB/RMB with the weapon in the right hand, in the left (after
+Q), dual wield, the toggle mode; `vr_flat_key_swap x`; Q and Z refused in the headset; Z on, a bounce ignored, off.
+`vr_mock_key` now runs a key's bind next (`Cbuf_TailToFront`, `cmd.c`): Key_Event appends it to the command text, which in a
+script put the press, its waits and its release all after the rest of the script. flatplay's melee case gave its two weapons
+in one frame (only the last impulse is sent), so it was the main hand's fist against the off hand's shotgun, which the new
+rule now fires with LMB: the axe goes in a frame earlier (punches 0/0 -> 1/0 -> 1/0). Results: flathud 11/0, flatkeys 37/0,
+flatplay 28/0.
 ## Flatscreen: the headset's crosshair, the death view, the armour from the eyes (branch `agent/flatvisuals`, 2026-11-06)
 
 His notes of 2026-11-05.

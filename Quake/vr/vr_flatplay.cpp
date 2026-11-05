@@ -30,9 +30,11 @@
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_avatar.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
 #include "vr_deathview.hpp"
+#include "vr_flathud.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -61,6 +63,7 @@
 #include <math.h>
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
+extern "C" int Key_StringToKeynum(const char* str); // keys.c: a key's number from its bind name (vr_flat_key_swap, ...)
 
 namespace qvr::flatplay
 {
@@ -136,6 +139,8 @@ struct FlatKeys
     bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
     bool keyFlash{false};   // F, last frame
     bool keyDrop{false};    // G, last frame
+    bool keySwap{false};    // Q (vr_flat_key_swap), last frame
+    bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
 
     float ratio{0.f};       // the crouch's share now: 0 standing .. 1 crouched, eased at vr_flat_crouch_time each way
@@ -144,6 +149,8 @@ struct FlatKeys
     int crouches{0};        // vr_flatplay_status's counts: a crouch hold started
     int toggles{0};         // F: the flashlight switched
     int drops{0};           // G: impulse 47 sent (QC drops what the hand holds)
+    int swaps{0};           // Q: impulse 48 sent (QC swaps what the hands hold)
+    int times{0};           // Z: bullet time asked to start or stop
 };
 
 FlatKeys keyState;
@@ -723,9 +730,38 @@ void pollKeysFlat()
             Con_Printf("flatplay: G: drop\n");
         }
     }
+    // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and G.
+    const int swapKey = Key_StringToKeynum(vr_flat_key_swap.string);
+    const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
+    const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && keydown[swapKey] != 0;
+    const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
+    if(swap && !keyState.keySwap)
+    {
+        keyState.swaps++;
+        // The same InsertText as F and G: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
+        // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
+        Cbuf_InsertText("impulse 48\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: swap hands\n", vr_flat_key_swap.string);
+        }
+    }
+    if(slow && !keyState.keyTime)
+    {
+        keyState.times++;
+        // Bullet time's own press (vr_bullettime.cpp keyPress): the rules of the gadget's tap and of the stick press --
+        // the meter, the cooldown, the bounce guard -- with nothing of the flatscreen's own.
+        bullettime::keyPress("flatscreen key");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: bullet time\n", vr_flat_key_bullettime.string);
+        }
+    }
     keyState.keyCtrl = ctrl;
     keyState.keyFlash = flash;
     keyState.keyDrop = drop;
+    keyState.keySwap = swap;
+    keyState.keyTime = slow;
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     double dt = keyState.lastTime > -1e8 ? vr_gametime - keyState.lastTime : 0.0;
@@ -895,6 +931,28 @@ int heldIn(int h)
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
 
+int loneWeaponHand()
+{
+    const bool off = heldIn(HAND_OFF) >= 0;
+    const bool main = heldIn(HAND_MAIN) >= 0;
+    return off == main ? -1 : main ? HAND_MAIN : HAND_OFF;
+}
+
+FireRoute routeFire(bool lmb, bool rmb)
+{
+    FireRoute r;
+    const int lone = loneWeaponHand();
+    if(lone >= 0)
+    {
+        r.fire[lone] = lmb;
+        r.rmbAims = true;
+        return r;
+    }
+    r.fire[HAND_MAIN] = lmb;
+    r.fire[HAND_OFF] = rmb;
+    return r;
+}
+
 float poseNum(const Tunable& c)
 {
     return za::clamp(c.value, -30.f, 30.f);
@@ -986,6 +1044,7 @@ void init()
     Cmd_AddCommand("vr_flat_punch", punch_f);
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
+    flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -1004,7 +1063,9 @@ void frame()
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
                    "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
-                   "switches the flashlight, G drops what a hand holds. vr_flatplay_status says what the mode is doing.\n");
+                   "switches the flashlight, G drops what a hand holds, Q swaps the hands, Z starts bullet time. With one weapon "
+                   "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
+                   "the mode is doing.\n");
     }
     if(!on && fs.wasOn)
     {
@@ -1787,6 +1848,14 @@ void status_f()
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
+    const int lone = loneWeaponHand();
+    Con_Printf("  The mouse: %s (one weapon held, either hand: LMB fires it, RMB the ironsight, vr_flat_aim_mode %g %s; "
+               "else LMB the right hand, RMB the left). %s pressed %d times (vr_flat_key_swap: the hands swapped), %s %d "
+               "(vr_flat_key_bullettime: bullet time).\n",
+        lone < 0 ? "LMB the right hand, RMB the left" : lone == HAND_MAIN ? "LMB the right hand's weapon, RMB aims"
+                                                                           : "LMB the left hand's weapon, RMB aims",
+        vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState.swaps,
+        vr_flat_key_bullettime.string, keyState.times);
     Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
                "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way. Ctrl is "
                "bound to `%s` now (vr_flat_crouch_fire %g: 0 the mode holds +flatcrouch, so the crouch key fires nothing, "

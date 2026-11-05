@@ -200,6 +200,38 @@ void Cbuf_AddTextLen (const char *text, int l)
 
 /*
 ============
+Cbuf_Pending, Cbuf_TailToFront -- QVR
+
+The text still to run (its length), and the last `bytes` of it moved to run next: vr_mock_key's key press (Key_Event adds
+a bound command at the end) runs its bind before the rest of a script already queued, as a real key's runs between two
+frames.
+============
+*/
+int Cbuf_Pending (void)
+{
+	return cmd_text.cursize - cbuf_start;
+}
+
+void Cbuf_TailToFront (int bytes)
+{
+	char *tail;
+
+	if (bytes <= 0 || bytes > cmd_text.cursize - cbuf_start)
+		return;
+	tail = (char *) VR_HeapMalloc (bytes + 1);
+	if (!tail)
+		return;
+	memcpy (tail, cmd_text.data + cmd_text.cursize - bytes, bytes);
+	tail[bytes] = 0;
+	cmd_text.cursize -= bytes;
+	if (tail[bytes - 1] == '\n')
+		tail[bytes - 1] = 0; // (InsertText adds its own)
+	Cbuf_InsertText (tail);
+	VR_HeapFree (tail);
+}
+
+/*
+============
 Cbuf_InsertText
 
 Adds command text immediately after the current command
