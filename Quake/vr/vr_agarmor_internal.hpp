@@ -139,6 +139,7 @@ struct PlateGrid
     float hTop{0.f}, hBottom{0.f};
     float spike{1.4f};    // a corner's radius at most, of the piece's middle one
     float yoke{0.f};      // the cuirass's first row: this much above the rest, closing in on the neck
+    float sleeveEnd{0.f}; // a limb's part: its joint's sleeve's far end (the joint, or past it as far as its region goes)
     za::Vector<glm::vec2> axis; // per ring: the middle of the piece there, in (fwd, left)
     za::Vector<float> radius;   // per ring x column
     [[nodiscard]] float hAt(int ring) const
@@ -210,5 +211,12 @@ void pieceAxes(const rig2::Rig& rig, int piece, glm::vec3& origin, glm::vec3& up
 // vr_agarmor_check.cpp: the vr_agarmor_check command.
 void check_f();
 void lookCheck_f(); // vr_agarmor_look_check: the plates' generator and paint
+void popCheck_f();  // vr_agarmor_pop_check [model]: the body against the plates, by region, pose and pieces worn
+void popSample_f(); // vr_agarmor_pop_sample: the armoured bodies as drawn now, added to the sums
+void popReport_f(); // vr_agarmor_pop_report: the sums, and started again
+
+// vr_agarmor.cpp: the armoured bodies drawn this frame, for the sampler.
+[[nodiscard]] int wornCount();
+[[nodiscard]] const Shell* wornAt(int k, int& entnum);
 
 } // namespace qvr::agarmor::detail
