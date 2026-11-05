@@ -1860,11 +1860,12 @@ QVR_TUNABLE(vr_flat_chest_down, "0.3") // the chest's share of a look down (0..1
 QVR_TUNABLE(vr_flat_chest_up, "0.2") // the chest's share of a look up (0..1)
 QVR_TUNABLE(vr_flat_arm_down, "0.7") // the arm's share of a look down, about its shoulder (0..1.5)
 QVR_TUNABLE(vr_flat_arm_up, "0.85") // the arm's share of a look up, about its shoulder (0..1.5): lifts the hand over the shoulder
-QVR_TUNABLE(vr_flat_arm_out_down, "4") // a look straight down carries the hand this far out at its own side, past the chest (-10..10 units)
+QVR_TUNABLE(vr_flat_arm_out_down, "3") // a look straight down carries the hand this far out at its own side, past the chest (-10..10 units)
 QVR_TUNABLE(vr_flat_arm_out_up, "2.5") // and a look straight up, this far (-10..10 units)
 QVR_TUNABLE(vr_flat_stance_fade, "0.9") // how much of the stance's pull towards the shoulder a look up or down takes off (0..1)
 QVR_TUNABLE(vr_flat_stance_fade_crouch, "0.6") // and how much a full crouch takes off (0..1)
 QVR_TUNABLE(vr_flat_crouch_shoulder_down, "3") // the crouch: his shoulders this much further under the eye than a standing body's (-10..10 units)
+QVR_TUNABLE(vr_flat_crouch_gun_out, "2") // the crouch: a held weapon's hand this much further out at its side, the stock off the chest the crouch leans forward (-10..10 units)
 QVR_TUNABLE(vr_flat_crouch_shoulder_fwd, "2") // the crouch: his shoulders this much further forward under the eye (-10..10 units)
 QVR_TUNABLE(vr_flat_clear_chest, "4") // a hand keeps this far ahead of its shoulder when it is below the shoulder: clear of the chest (0..15 units, eased in over the next 3)
 QVR_TUNABLE(vr_flat_clear_eye, "3.5") // a hand keeps this far from the eye (0..15 units, eased in over the next 2)

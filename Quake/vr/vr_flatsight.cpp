@@ -119,6 +119,7 @@ struct Sight
     bool lookFast{false};       // ... or was taken off it by a punch or E: off as fast as a grip's
     bool lookFar{false};        // ... its arm can't reach it, in this pose
     float lookT{0.f};           // how far it has gone
+    float lookTarget{1.f};      // how far it goes, its arm's need allowing (hands on the body)
     int lookHand{-1};           // the hand that is, or was last, on it
     int spot[2]{-1, -1};        // each hand's weapon's two-handed hotspot (view::twoHandSpot), as the hand held it when last drawn
     glm::vec3 spotLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... in that hand's frame
@@ -179,7 +180,8 @@ constexpr float reliefMin = 3.f;     // vr_flat_ads_relief's range, and the near
 constexpr float reliefMax = 30.f;
 constexpr float handNearEye = 7.f;   // the hand on a gun whose sights stand far ahead of it (the laser cannon's) is no nearer the
                                      // eye than this along the line: the rear sight waits further out, the arm is not crushed
-constexpr float lookKeep = 0.95f;    // the free hand goes off the long gun's hotspot past this much of what its arm holds a hand at
+constexpr float lookKeep = 0.98f;    // the free hand goes off the long gun's hotspot past this much of what its arm holds a hand at
+constexpr float lookSoftFrom = 0.78f; // hands on the body: it starts going off here, all of it by lookKeep
 constexpr float armKeep = 0.97f;     // the sight's hand keeps inside this much of what the arm holds a hand at
 constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
@@ -659,8 +661,10 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
 // The share of its arm the free hand `helper` uses on the world point `at`: from the shoulder the body poses that arm on.
 [[nodiscard]] float armShare(const hands::State& s, int helper, const glm::vec3& at)
 {
+    // (Hands on the body: from the rest shoulder, which the free hand's own place doesn't move. The posed one swings to its hand, so
+    // the need read lower with the hand on the hotspot than off it, and the hand snapped between the two.)
     avatar::Skeleton k;
-    const glm::vec3 root = avatar::skeleton(k) ? k.shoulder[helper] : flatplay::shoulderOf(s, helper);
+    const glm::vec3 root = !flatplay::onBody() && avatar::skeleton(k) ? k.shoulder[helper] : flatplay::shoulderOf(s, helper);
     return glm::distance(root, at) / za::max(flatplay::armReach(), 1.f);
 }
 
@@ -706,6 +710,14 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // What decides it is what the arm needs where the gun stands, or is going: the sight's place while it is asked for.
     const float need = st.adsWanted ? st.armSight : st.armHip;
     st.lookFar = need > lookKeep || (st.lookFar && need > lookKeep - lookBack);
+    // Hands on the body: the hand goes off the hotspot as the need grows past lookSoftFrom, all of it by lookKeep, and comes back the
+    // same way: a look that takes the hotspot out of reach takes the hand off it over some degrees, not in a frame.
+    const float soft = za::clamp((need - lookSoftFrom) / (lookKeep - lookSoftFrom), 0.f, 1.f);
+    st.lookTarget = flatplay::onBody() ? 1.f - soft * soft * (3.f - 2.f * soft) : 1.f;
+    if(flatplay::onBody())
+    {
+        st.lookFar = soft >= 1.f;
+    }
     const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
     st.lookFast = longGun && (reaching || flatplay::punching(st.helping));
     st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
@@ -759,7 +771,11 @@ void frame()
     const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(t - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = t;
     st.gripT = za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
-    st.lookT = za::clamp(st.lookT + (st.lookWanted ? ease(lookEase, dt) : -ease(st.lookFast ? gripEase : lookEase, dt)), 0.f, 1.f);
+    {
+        const float to = st.lookWanted ? st.lookTarget : 0.f;
+        const float step = ease(st.lookFast ? gripEase : lookEase, dt);
+        st.lookT = za::clamp(st.lookT + za::clamp(to - st.lookT, -step, step), 0.f, 1.f);
+    }
     st.stanceT = za::clamp(st.stanceT + (st.stanceWanted ? 1.f : -1.f) * ease(stanceEase, dt), 0.f, 1.f);
     // The ironsight's travel is spent at a steady rate, so it is over in the cvar's own seconds; 0 asks for the whole
     // of it this frame. The weapon's shift onto the crosshair (apply) and the field of view go by the same fraction.

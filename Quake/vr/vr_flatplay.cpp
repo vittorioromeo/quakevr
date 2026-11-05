@@ -442,6 +442,7 @@ constexpr float eyeEase = 1.5f;       // the eye's limit, the same
 constexpr float neckLength = 0.09f;   // the neck under the top of it, metres of the body (vr_flatsweep's shape)
 constexpr float screenEase = 2.f;     // the screen's limit, the same
 constexpr float keepEase = 0.1f;      // the arm limits, the same, as a share of the arm
+constexpr float acrossKeep = 0.8f;    // the stance's hotspot keeps across the view within this much of what the free arm keeps it at
 constexpr float lookMost = 85.f;      // a look straight down, for the arm's move out
 
 constexpr float stanceFadeFrom = 10.f; // the look's degrees off level the stance starts fading at, and has gone by
@@ -463,8 +464,10 @@ constexpr float stanceFadeTo = 55.f;
         const float crouched = bodyPose() ? keyState.ratio * za::clamp(vr_flat_stance_fade_crouch.value, 0.f, 1.f) : 0.f;
         const float stance = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceShare(h)) * (1.f - crouched) *
                              (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
+        // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
+        const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
         return {(poseNum(vr_flat_gun_ahead) - stance * poseNum(vr_flat_stance_back)) * reach,
-            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in)) * reach,
+            side * (poseNum(vr_flat_gun_out) - stance * poseNum(vr_flat_stance_in) + crouchOut) * reach,
             -(poseNum(vr_flat_gun_down) - stance * poseNum(vr_flat_stance_up)) * reach};
     }
     if(otherHolds)
@@ -1027,6 +1030,11 @@ glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch)
            glm::vec3{0.f, 0.f, za::clamp(vr_flat_crouch_shoulder_down.value, -poseTweakMax, poseTweakMax)};
 }
 
+bool onBody()
+{
+    return active() && bodyPose();
+}
+
 glm::vec3 levelHang(const hands::State& s, int h)
 {
     if(!active() || !bodyPose() || fs.hang[h] <= 0.f || !fs.shouldersKnown)
@@ -1087,14 +1095,21 @@ namespace
     {
         glm::vec3 vf, vr, vu;
         hands::angleVectors(aim, vf, vr, vu);
-        // (From the shoulder that arm is posed on, as the free hand's own reach is measured: flatsight's armShare. The crouch moves
-        // it off the rest shoulder.)
-        avatar::Skeleton k;
-        const glm::vec3 otherRoot = avatar::skeleton(k) ? k.shoulder[1 - h] : shoulder(s, 1 - h);
-        const glm::vec3 to = p + axes(aim) * spot - otherRoot;
+        // (From its rest shoulder, as the free hand's own need is measured: flatsight's armShare.)
+        const glm::vec3 otherRoot = shoulder(s, 1 - h);
+        const float keep = span * za::clamp(vr_flat_keep_grip.value, 0.3f, 1.5f);
+        // Across the view first, as far as keeps the most of the way back along it (the gun out at its side by the crouch, say)...
+        glm::vec3 to = p + axes(aim) * spot - otherRoot;
+        const glm::vec3 acrossWay = to - vf * glm::dot(to, vf);
+        const float across = glm::length(acrossWay);
+        if(across > 1e-3f)
+        {
+            p -= acrossWay / across * (across - softBelow(across, keep * acrossKeep, keepEase * span)) * stance;
+        }
+        // ... then back along it.
+        to = p + axes(aim) * spot - otherRoot;
         const float along = glm::dot(to, vf);
         const float across2 = glm::dot(to, to) - along * along;
-        const float keep = span * za::clamp(vr_flat_keep_grip.value, 0.3f, 1.5f);
         const float most = keep * keep > across2 ? za::sqrt(keep * keep - across2) : 0.f;
         p -= vf * (along - softBelow(along, most, keepEase * span)) * stance;
     }

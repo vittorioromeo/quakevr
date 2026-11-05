@@ -327,6 +327,78 @@ To look at: straight down standing, then crouched in the ironsight on a flat flo
 The sheets are composed from a run's own frames: run `flatsweep_test.sh` with its sheet argument, as `flatpose_test.sh` clears the folder's pictures (`-Clean`) and a later suite leaves nothing to compose. `flatsweep_sheet.ps1` now stops on a missing frame; it used to save black cells.
 
 Checklist lines: "Flat: look straight down, standing, each weapon: you see your chest from above and no neck stump, as with cam_up 4; cam_up back at 0." "Flat: look level, walk and jump: the same height and feel as before." "Flat: crouched, ironsight, straight down at the floor: is the big gun acceptable until phase 2?"
+## Flat pose, phase 2: the hands on the body (branch `agent/flatpose2`)
+
+Phase 2 of the three (stances by weapon type are not started). Docs: FLATPLAY.md, "The hands stand on the body". His notes on phase 1:
+straight down the gun went through his body; straight up the arms stayed out in front instead of over the shoulders; crouched, the
+gun went into the camera; the ironsights were fine.
+
+**What was wrong, measured.** The pose stood on `hands::bodyAnchor` with `vr_shoulder_offset`: 4.7 units *above* the eye and 12 above
+the shoulder the arm hangs from, and crouched 5.6 higher still against the eye and 8.6 further back (it tips back with the crouch).
+So at a level look the gun sat at real shoulder height; turning that offset with the view put it behind the chest looking down
+and far out in front looking up; crouched, the long gun's hand ended up 5 behind the eye (-5.4, -0.5, 2.3 forward, right, up of
+it: the coordinator's thunderbolt numbers were the same), with the free arm across the screen.
+
+**The solve** (`vr_flat_body_pose` 1, Debug > Tunables > Flatscreen > Body Pose; 0 puts the old pose back, off the old anchor):
+- The hand stands off the shoulder the arm hangs from (`avatar::restShoulders`, the clavicle at rest: `clavicleRest`, shared with
+  `solveArm`). Gun Forward / Down / Out and the free hands' numbers were rebased onto it: 14 / 12 / 4 -> 16.5 / 0 / 1 (empty 7.5 / 1 / 4,
+  support 8.5 / 3 / 3), so a level look stands where it did, within half a unit.
+- The arm turns about its shoulder with a share of the look (0.7 down, 0.85 up), out at its side looking down (3) and up (2.5).
+- The chest takes 0.3 of a look down and 0.2 of a look up (half of it in the spine), and carries the head with it (`vr_flat_eye_lean`
+  12: the eye goes 3.1 further forward at 85 down; without it the neck's stump came into the view again, 3.47% of the screen).
+- The crouch puts the shoulders 3 further under the eye and 2 forward (the forward part fades with a look down), takes 0.6 of the
+  stance's pull, and puts the gun 2 further out.
+- Smooth limits, each eased in (no corner at any look): the stance's hotspot within the free arm (0.87, across the view then along
+  it), clear of the chest (4 ahead of the shoulder below it), of the eye and the neck under it (3.5), on the screen (55 degrees, 75
+  for the long gun's hand by his cheek), within the arm (0.92).
+- View-fixed tweaks on top, `vr_flat_gun_view_fwd/_right/_up`, 0. The eye's own nudges carry the hands as ever; the neck's turn no
+  longer does (it moves the eye off a body that stays).
+
+**Three things the sweep found on the way.**
+- *The shot near a surface.* With what the crosshair is on nearer than 12 past the muzzle the gun pointed along the ray from where
+  it stood: the shot landed as far off the point as the muzzle stood off the ray (15.6 for the crouched pistol at 85; 9.9 at the
+  wall). And a ledge the ray clears but the muzzle's line doesn't sent it 500 units away (e1m1). Now the shot's start eases onto the
+  ray between 24 and 12 ahead, and goes from the ray with anything in the way (`shotFrom`; `keepMuzzle` hands it on): nothing drawn
+  moves, the gun turns at most as far as 24 ahead allows. Every `shot_apart` row passes, the worst 0.03.
+- *The shotgun's free hand never settled about a level look* (phase 1's "snap at pitch 10"): the cup was chosen, the stance brought
+  the gun back, then the grip ahead was nearer, a real grip took the stance off, the gun went out, the cup was nearer... The grip is
+  now chosen from where the free hand hangs off the gun without the stance at a level look (`flatplay::levelHang`), which no look
+  changes; the shotgun keeps its cup and its look, as at the level look before.
+- *The free hand let go in a frame.* Its need was measured from the shoulder it is posed on, which swings to its own hand: lower
+  with the hand on the hotspot than off it. Now from the rest shoulder (hands on the body), and it eases off the hotspot from 0.78
+  to 0.98 of the arm instead of switching at 0.92.
+
+**Against walls.** A hipfire gun goes back no nearer its shoulder than 9 (was 6: the long gun's stock went into his chest at the
+wall, 3.3 deep); an ironsight's rear sight no nearer the eye than `vr_flat_ads_wall_keep` 8 (was 3): the crouched gun at the floor
+no longer fills the screen, its end goes into the floor and is hidden there. The sights stay exact (every row under 0.05).
+
+**The sweep** (`flatsweep_test.sh`, the defaults; his settings, `vr_flat_aim_fov 45`, read the same): `flatsweep: 384 passed, 19 known failing,
+0 failed` with the new list, against 322 / 81 before. Of the 65 phase 2 lines, 61 pass and are out. Left, by phase:
+- 2: the long gun's free hand easing off its hotspot crouched, low ceiling and wall: 1.75 and 1.23 units a degree (were 3.90, 3.81;
+  open floor and standing pass now). The gun crouched at 45 down: 1.008 units a degree against a limit of 1 (new: the arm's turn,
+  the crouch's gun out and the hotspot's limit all move it there).
+- 3: the off hand off its hotspot (all of them; a revolver has none to be on), and one row at 45 under e1m1's low ceiling,
+  crouched in the ironsight, that doesn't settle within the sweep's wait (swing 0.01).
+
+**Row by row** against the `before` rows at his settings (`scratch/fp2_compare.py`: each pitch of each stance and place, each check,
+worse by more than the check's noise and past its limit): none but the phase 3 ones: `offhand_spot`, 213 rows (the hanging hand
+stands elsewhere now, 3.6 further off its hotspot at worst: 34.5 against 30.8, crouched in the ironsight at -85), and `settled`, 2.
+Worse but inside their limits, as you'd expect when the hands move: the eye's distance to the torso and neck (84, 45 rows), the
+gun, hands and forearms nearer the body shapes (250 rows of gun in torso, all at least 0.5 clear), the arm's share (309: the hands
+are further from the shoulders they hang from, all under 1).
+
+**The sheets**, `C:/OHWorkspace/qvr-kit/scratch/flatpose2/before.png` and `after.png` (the run's own frames, `vr_flat_aim_fov 45`): stand down,
+the chest from above with the gun out in front of it at the right and the free hand at the left, nothing through the body;
+stand up, the axe and the pistol held up over the right shoulder, the shotgun from the right corner; crouch level, the shotgun at
+the lower right where the inside of his arm filled the screen before; crouch down, the pistol beside his chest at its size,
+where its ironsight filled the screen; the long gun's ironsight crouched at the floor is still large (its end goes into the floor
+at 8 from the eye).
+
+Flat suites: flatplay 28/0, flatpose 21/0, flatkeys 28/0, flatsight 11/1. The one: the moved picture (`vr_flat_ads_screen_x 5`, `_y -8`), whose sights lie on the moved ray to 0.0003 units, reads 0.028 degrees on its far-along measure against a 0.02 limit; with `vr_flat_body_pose 0` 0.0000. Not found yet: the look is level there, so neither the chest nor the arm's turn moves; the sight's solve is the eye's and unchanged. Open.
+
+To look at: straight down and straight up standing with each weapon; crouched with the shotgun at a level look, then up and down;
+the ironsight crouched at the floor.
+
 ## Magazines sliding home and out (branch `agent/magslide`)
 
 His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail

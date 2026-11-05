@@ -1861,6 +1861,7 @@ QVR_TUNABLE_SLIDER(vr_flat_arm_out_up, "Arm Out, Up", -10.f, 10.f, 0.5f, "%.1f u
 QVR_TUNABLE_SLIDER(vr_flat_stance_fade, "Stance Fades With The Look", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "How much of the stance's pull towards the shoulder a look up or down takes off: it is a level look's pose.")
 QVR_TUNABLE_SLIDER(vr_flat_stance_fade_crouch, "Stance Fades With The Crouch", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "How much of the stance's pull towards the shoulder a full crouch takes off: his trunk leans into the gun.")
 QVR_TUNABLE_SLIDER(vr_flat_crouch_shoulder_down, "Crouch: Shoulders Down", -10.f, 10.f, 0.5f, "%.1f units", -10.f, 10.f, "How much further under the eye a crouch puts his shoulders, as deep as the crouch.")
+QVR_TUNABLE_SLIDER(vr_flat_crouch_gun_out, "Crouch: Gun Out", -10.f, 10.f, 0.5f, "%.1f units", -10.f, 10.f, "How much further out at its side a crouch puts a held weapon's hand, its stock off the chest the crouch leans forward.")
 QVR_TUNABLE_SLIDER(vr_flat_crouch_shoulder_fwd, "Crouch: Shoulders Forward", -10.f, 10.f, 0.5f, "%.1f units", -10.f, 10.f, "How much further forward under the eye a crouch puts his shoulders, as deep as the crouch.")
 QVR_TUNABLE_SLIDER(vr_flat_clear_chest, "Clear Of The Chest", 0.f, 15.f, 0.5f, "%.1f units", 0.f, 15.f, "How far ahead of its shoulder a hand keeps while it is below the shoulder, eased in over the next 3 units.")
 QVR_TUNABLE_SLIDER(vr_flat_clear_eye, "Clear Of The Eye", 0.f, 15.f, 0.5f, "%.1f units", 0.f, 15.f, "How far from the eye a hand keeps, eased in over the next 2 units.")
