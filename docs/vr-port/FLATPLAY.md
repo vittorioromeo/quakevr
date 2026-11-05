@@ -150,13 +150,29 @@ number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off 
 follows the view. The pose's head goes over the move wire as any other head does, and the game's own crouching does the
 rest: `hull::updateCrouch` (`Quake/vr/vr_hull.cpp`) chooses a crouched box for the eyes' new height (36 at the default 18,
 out of `vr_crouch_height` and `vr_crouch_step`), the CROUCHED bit (23 of `vrBits0`) arrives as it does for a headset player
-who crouches, and `crouchSpeedMax` slows him as it slows him there. What the server asks is the move's own word, per client
+who crouches, and `crouchSpeedMax` slows him by the headset's rule and tunables (`vr_crouch_speed`,
+`vr_crouch_speed_scale`: running, 240 of 320 crouched, as a headset player's full stick). Only how crouched he is comes from
+the key, not his eyes: a flat-screen player's eyes stand at Quake's viewheight, under the tallest crouched box's top, so
+read as the headset's are they slowed him standing too (260 of 320, crouched 240: "crouch speed seems the same as standing
+speed"). `updateCrouch` keeps per client whether he is flat-screen and his key's word (`crouchFlat`, `crouchFlatHeld`), and
+the slowing's share eases to all or none of it over the headset's 0.25 s. `Misc/quakevr/flatmove_test.sh`, crouch. What the server asks is the move's own word, per client
 (`protocol::moveFlatCrouchBit`, bit 14 of `vrBits0`, set while his eased crouch is above 0), never the host's keys, and it
 needs no protocol step: nothing else ever set that bit of the wire, a client that does not set it reads as not crouching by
 it, and a demo records the server's messages, not moves. Nothing is added to the move wire, and nothing new
 collides: a crouch is not a jump. `.vr_stand` â€” how upright the game thinks he is, read by `QC/vr_kdtrig.qc` â€” is worked out
 from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
 computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
+
+**Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
+looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge
+with room over it lifts him out (Quake's jump out of the water, `WaterJumpTry`). The headset's swimming is the hands': its
+stick slowed to `vr_swim_stick_speed` (0.25), the strokes, the glide, and a way out by gripping the edge (`vr_water_jump`
+0). `swimmer()` (`Quake/vr/vr_physics_water.cpp`) answers no swimmer for a flat-screen player (`.vr_flatscreen`), so
+`VR_WaterStickScale` leaves his keys whole (wading too) and `VR_AfterWaterMove` adds no strokes and no glide, and
+`CheckWaterJump` (QC `client.qc`) takes Quake's water jump for him whatever `vr_water_jump` says (he has no hands to climb
+out with). Before, looking 60 degrees up he rose 23 units in half a second (78 now), and a pool's edge never let him out.
+`Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
+(Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
 `Quake/default_cfg.h` and, saved, in `ironwail.cfg` (`bind "CTRL" "+attack"`). The mode needs that same key for the
@@ -304,7 +320,7 @@ default), read in the view's own frame and clamped at the read (`poseNum`: -30..
 **The hands stand on the body** (**Hands Stand On The Body**, `vr_flat_body_pose`, 1; Debug > Tunables > Flatscreen > Body Pose; 0: the view-fixed pose before it, off the old anchor; ROUND24.md, "Flat pose, phase 2"). A hand's place is worked out from the joint its arm hangs from (`avatar::restShoulders`: the chest's bones, the crouch, the stance's turn; before the hand itself lifts the collarbone), in `handOnBody`, in this order:
 
 1. **The arm turns about the shoulder** by a share of the look (**Arm Share, Down**, `vr_flat_arm_down`, 0.7; **Arm Share, Up**, `vr_flat_arm_up`, 0.85), the hand's level place swung in the body's forward and up. So a look up holds the hand over the shoulder and a look down in front of the chest. `vr_flat_arm_out_down` (3) and `_up` (2.5) carry it out at its side at the ends of the look. Crouched, a held weapon goes 2 further out (`vr_flat_crouch_gun_out`) and the stance's pull is 0.6 less (`vr_flat_stance_fade_crouch`).
-2. **Its limits**, each eased in, so that no look shows a corner (`softAbove`): the stance's hotspot within the free arm (`vr_flat_keep_grip`, 0.87 of its reach from its rest shoulder: across the view first, then back along it); **Clear Of The Chest** (`vr_flat_clear_chest`, 4 ahead of the shoulder, gone when the hand is 6 over it); **Clear Of The Eye** (`vr_flat_clear_eye`, 3.5); **On The Screen** (`vr_flat_screen_angle`, 55 degrees off the view's middle; `_stance` 75, the long gun's hand by his cheek); **Within The Arm** (`vr_flat_keep_arm`, 0.92).
+2. **Its limits**, each eased in, so that no look shows a corner (`softAbove`): the stance's hotspot within the free arm (`vr_flat_keep_grip`, 0.87 of its reach from its rest shoulder: across the view first, then back along it); **Clear Of The Chest** (`vr_flat_clear_chest`, 4 ahead of the shoulder, gone when the hand is 6 over it); **Clear Of The Eye** (`vr_flat_clear_eye`, 3.5); **On The Screen** (`vr_flat_screen_angle`, 55 degrees off the view's middle; `_stance` 75, the long gun's hand by his cheek); **Within The Arm** (`vr_flat_keep_arm`, 0.92); last, **Stock Clear Of The Torso** (`vr_flat_clear_stock`, 1: the held weapon's rear kept that far out of the torso's capsules, the gun forward along the view; a wall's push back stops there too, and the gun hand's elbow goes out at its side while a wall pushes the gun back, `vr_flat_wall_elbow`, 1).
 3. **The view-fixed tweaks on top** (`vr_flat_gun_view_fwd`, `_right`, `_up`, 0, held weapons only), and the eye's nudges (`vr_flat_cam_*`), which carry the hands as ever. The neck's turn doesn't: it moves the eye off a body that stays.
 
 The body takes part. **The chest takes a share of the look** (**Chest Share**, `vr_flat_chest_down` 0.3, `vr_flat_chest_up` 0.2; half of that in the spine: `flatplay::chestPitch`, `solveTorso`), and **the crouch lowers the shoulders** under the eye (`vr_flat_crouch_shoulder_down`, `_fwd`: `flatplay::crouchNeck`, as deep as the body crouches). The eye stays where it stood: the neck, collapsed and never drawn, spans what's left.

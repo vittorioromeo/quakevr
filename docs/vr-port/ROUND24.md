@@ -68,6 +68,44 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/armorjoints/` (`vr_pp_test 13` in vrtesthall): the grunt front and back, an elbow and a knee
   close to, each part of a limb alone, yours bent; `sheet_before.png`, `sheet_after.png`.
 
+## Armour round four's loose ends (branch `agent/armorcheck`)
+
+- **The tests that timed out with nothing printed** (`vr_agarmor_test 1`, `5`, `7`, `vr_pp_test 2`, `3`): two causes, both
+  there before round four. (1) A script `map x; vr_agarmor_test n` (no wait between) asks in the level's first frames, before
+  the player is in: the request was taken (the cvar set back to 0) and dropped, so nothing ran (`vr_pp_test`: run with no
+  player). Now `VR_AgArmor_TestFrame` and `VR_PP_TestFrame` keep the request until a player is there. (2) `vr_agarmor_test 5`
+  printed through dprint: without `developer 1` not even its verdict showed. Now broadcast (`VR_TEST_LOUD`) like the others.
+  With `wait30` and `developer 1` every one ran on both builds. Now, no waits, every one ends in about 10 s on its verdict.
+- **Results, now (before round four, d81eb28fa):** `vr_agarmor_test 1` 26/0 on e1m1 and vrtesthall (26/0); `5` 24/0 on both
+  (e1m1 23/1, its old flaky "dead ragdoll: 23 of 24 points read as their own piece"; vrtesthall 24/0); `7` 14/0 (14/0);
+  `vr_pp_test 2` 5/0, `3` 5/0 (5/0, 5/0).
+- **`vr_agarmor_test 5` on round four's build read 23/24 on both maps, every run:** "the corpse's right thigh and shin worn as
+  their own pieces": the thigh's plates now reach up over the hip, and the middle of their outer face (limbpiece 14) lies
+  nearer the pelvis's vertices than the thigh's (`limbAt`: the nearest bone vertex), so a hit there wears the torso. The
+  test strikes the thigh at its plates' knee end (limbpiece 13: joint 17). In play: a hit on the upper half of a thigh plate
+  wears a corpse's torso, not its leg (left as is).
+- **The skins from the real generator:** Blender 5.2's bundled Python has numpy 2.3.4 (4.0's 1.23.5; the plain Pythons none).
+  Proof it matches: the pre-round-four `make_agarmor.py` under it gives the pre-round-four files byte for byte. The current one
+  differs from the stand-in's: 200-240 texels a skin, all in the joint block; the relief's heights all over the atlas (the old
+  helmet brackets' block held the deepest texels, so with it gone every plate's height stretches: new = 1.083 x old - 21,
+  within 1.2). Committed. Run it as `"C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe"
+  Misc/quakevr/make_agarmor.py`.
+- **The death knight's 240 more triangles, timed:** bench `armour_dknights16` (new: 16 armed death knights in full yellow,
+  standing in view, vrtesthall), LTO, exclusive, 90 Hz, 5 reps each, d81eb28fa against 6afe7541d: CPU busy 2.006 -> 2.042 ms
+  (+1.8%), GPU eyes 1.831 -> 1.901 ms (+3.8%). Rep to rep: CPU 1.95 .. 2.02 old, 1.94 .. 2.30 new (two reps with hitches);
+  GPU 1.83 .. 2.00 old, 1.83 .. 2.06 new. Inside the noise; at most 0.07 ms for 16 of them.
+- **The loosened checks, each broken on purpose once:**
+  - The look check's death knight rest limit (0.8): his least at rest is his shin, 0.82, not the elbows the note named (his
+    arms 1.00). With the elbow's and knee's plates 6 units short of the joint his upper arm reads 0.38: caught. On the grunt,
+    enforcer and knight the same break isn't (the sleeve lengthens and covers the gap: no body shows); the player's bodies are.
+  - Pieces under 8 vertices not measured: with every piece measured the one that fails is the death knight's upper arm, 0.75
+    (3 of 4) at rest; his thigh (2) reads 1.00. Everything else is measured as before: the breaks above and below caught on
+    every wearer.
+  - `vr_agarmor_check` leaving the sleeves out: plate triangles dropped (one in 53) -> 101-120 open edges, "each shell
+    closed" FAIL on all four; the plates' feet 2 units inside the skin -> "the rest pose" FAIL on all four. The sleeves sunk
+    1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
+    wearer (24 failures): the look check is what guards the sleeves.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -299,6 +337,15 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Not mapped:** bullet-time trails, ropes, lying particles, non-screen `text3d::queue` text (only with `vr_weapon_screen` 0). Decals and outlines never land on his own models.
 - **Off against before:** not bit-identical between runs on either build. Base against itself: up to 767 pixels, max 29, on the gun's edges; base against off: up to 597, max 29, same place. The wall scene: 0 and 1 pixels.
 - **Side effects to judge:** a model FOV wider than the sight's world FOV shrinks the sight picture (0.91 at 75, 0.70 at 90, world 110). Looking down, the near body moves out further than what is behind it, so his floor shadow and a holstered gun show.
+
+### Model FOV, second pass (agent/flatvm)
+
+His notes at fov 70: the heavy revolver stayed at model FOV 70; with a model FOV above the world's, a horizontal line with the viewmodel darker below it, every weapon.
+
+- **Revolver:** in a hand it is drawn as its parts (`rvFrame`, `rvCrane`, `rvCyl`, `rvShell`: setupRevolverParts), and `view::drawGroup` had no range for them: VR_DRAW_OTHER, so `VR_FlatModelFovEntity` left them at the world's FOV (the hand under it shrank). Now VR_DRAW_HELD; a `static_assert` checks the ranges count every member of `Entities`.
+- **Dark line:** the alias shader reads the light tiles at a part's true place (as it should), but a model FOV wider than the world's draws on the screen parts whose true place is off it: the tile coordinate is out of range, and an out-of-range `imageLoad` reads no lights. The line is where the true place leaves the screen (at s = tan(fov/2) / tan(model fov/2) of the way to the edge). `ModelDynamicLights` (vr_glsl_alias.h) now takes every light off the tiles, each tested by its reach as before: exact, and only those pixels pay.
+- **Test:** `bash Misc/quakevr/flatfov_test.sh <agent> [label] [wids]` (flatfov_check.py): fov 70, the world hidden, `_near` 200 / `_far` 201 so the model-FOV-M frame is the 70 frame shrunk round the middle; 21 weapons (1-18, 29-31) at 70, 90, 110, the chest flashlight on and off. Size: IoU against the shrunk 70 frame, at least 0.80 (revolver before 0.575 / 0.393, after 0.91 / 0.87; the lowest 0.85, the nail pistol at 110). Light: the share of lit pixels past the line against inside, at least a quarter (before: 0.000-0.003 lit past the line on every judged weapon, 0.6-1.0 inside; after 0.50-1.00 past it). Before 42 passed, 38 failed; after 80 passed, 0 failed. The nailgun (inside barely lit) and crowbar (too few pixels) are not judged for light.
+- **Suites:** flatsweep 397 passed, 13 known, 0 failed; flatplay_test.sh 31 PASS, 0 FAIL (exit 0).
 ## Shotgun and nailgun looks, second pass (branch `agent/gunlooks2`)
 
 The author's notes on the first pass ("the new nailgun is an improvement in some areas, but large downgrade in other areas"). The first pass kept one mean colour per triangle and repainted everything from one metal recipe, which lost the guns' materials and their painted detail.
@@ -833,3 +880,88 @@ script put the press, its waits and its release all after the rest of the script
 in one frame (only the last impulse is sent), so it was the main hand's fist against the off hand's shotgun, which the new
 rule now fires with LMB: the axe goes in a frame earlier (punches 0/0 -> 1/0 -> 1/0). Results: flathud 11/0, flatkeys 37/0,
 flatplay 28/0.
+## Flatscreen: the headset's crosshair, the death view, the armour from the eyes (branch `agent/flatvisuals`, 2026-11-06)
+
+His notes of 2026-11-05.
+
+- **Crosshair** (`vr_crosshair.cpp` `queueFlat`, from `VR_SetupViewEntities` once a frame in flatscreen play): the same modes and
+  settings as the headset (`vr_crosshair` 0 off, 1 dot, 2 laser, 3 soft laser; `_size`, `_alpha`, `_hue`, `_depth`,
+  `vr_crosshairy`). Where it lands is the game's: the trace from the game's muzzle along `weapons::shotAngles`; the laser starts
+  at the gun as drawn (its muzzle anchor on the drawn weapon: the sway, the bob and the sights move it). Drawn in the scene's
+  translucent pass over what is there (`lines::sceneOverLine`, new `lines::sceneOverPoint`): the headset draws it in the UI
+  pass, over everything, which flatscreen never draws; at the model FOV as the tracers are (near end with the gun). **With the
+  flat crosshair:** independent, both drawn when both are on (`crosshair` the 2D mark in the screen's middle, `vr_crosshair`
+  the 3D dot or laser where the gun's shots go; with the gun on the crosshair's ray the dot sits on the mark). His config has
+  `crosshair 0`, `vr_crosshair 1`: he now gets the dot in flatscreen too.
+- **Death view** (`deathview::flatView`, `VR_FlatDeathView` in `V_CalcRefdef` after `VR_FlatViewDrop`; not in a chase view):
+  `vr_death_view 2` (default) puts the flat camera in the ragdoll's head as the headset's: its place smoothed
+  (`vr_death_view_smooth`), its yaw turn (`vr_death_view_turn`) added to the mouse's look, Quake's dead roll (80) gone, out to
+  Quake's view while a menu or the console is open (`vr_death_view_menu_time`); Vomit Mode: the head's own turn, the mouse's look
+  on top. The hands and gear are hidden and the body's head too, as in the headset (the state is the same). 0 and 1: Quake's
+  view on the floor, as before.
+- **Test:** `Misc/quakevr/flatvisuals_test.sh <agent>` (+ `flatvisuals_check.py`): shotgun in hand, red, the flat crosshair
+  off; each mode's red pixels against mode 0 (dot 6 px centred at 480 269 of 480 270; laser 330 px from the gun at the low right
+  to the middle; soft laser 21 px), then `impulse 195`: `vr_death_view_status` immersive, the camera 0.8 from the head's eyes,
+  roll 0; vr_death_view 1 after: 25.5% of the pixels differ. `flatvisuals: 6 passed, 0 failed`.
+- **Armour from the eyes, not fixed (his call):** the plates are drawn from the flat eye (`vr_player_plates_info`: 1021 pieces
+  "drawn from the eyes", the helmet left out as it should be) and the forearm's bracer is the elbow half, off the screen in
+  flatscreen. The chest and legs don't show because **the body's own torso doesn't**: looking down, `vr_flat_chest_down` (0.3:
+  the chest's share of the look) bends the chest forward round the eye, which then sits inside the torso, whose faces are
+  culled from inside. Measured looking down about 60 degrees, the world hidden: default, no chest at all (only the pouch and the
+  gun); `vr_flat_chest_down 0.15` the chest's plates and the shoulders show; `0` the chest, the shoulders' and the arms' plates,
+  at both 60 and 85 degrees; the eye pulled back (`vr_flat_cam_fwd -20`) shows the plated chest too; `vr_flat_eye_lean` 24 or
+  30 shows less; `vr_flat_eye_pivot 0` puts the eye inside the shoulders. The orbit view saw them because its eye is outside
+  the body. Left at 0.3: the share also moves his hands and gun when he looks down (`flatpose`/`flatstance` tuning). Options:
+  a lower `vr_flat_chest_down` (0.15 or 0), or keep the bend and carry the eye clear of the bent chest.
+## Flat pose: the stock out of the chest; sizes and the walking wrist measured (branch `agent/flatsolve5`)
+
+**The stance's torso turn was never drawn.** `flatplay::poseHands` sets `s.bodyYaw` to the view's plus `flatsight::stanceYaw()`
+(25 hipfire, 40 sighted), and `hands::update` then reset it to the view's (`vr_hands.cpp`, flat branch), so the hands stood on the
+shoulders of a turned body (`avatar::restShoulders`) while the drawn arms hung from an unturned one (the sweep's `sh*` against `an*`:
+the gun's shoulder 2.3 apart crouched). Kept now: the drawn shoulders match the pose's within 0.3. Most of the stock and forearm
+depth was that: the gun placed for a turned chest, drawn in front of a square one. The gun's place on the screen is unchanged
+(the hands were already placed on the turned shoulders); the body under them now turns as FLATPLAY.md says.
+
+**Stock Clear Of The Torso** (`vr_flat_clear_stock`, 1 unit; Debug > Tunables > Flatscreen): the last of `handOnBody`'s limits.
+The held weapon's rear (its model's back end, as last drawn, in the view's frame: `flatsight::stockOff`) is kept 1 out of the
+torso's four capsules (the sweep's and `vr_selfcollide`'s), the gun going forward along the view as far as that takes (eased over
+1.5): his Gun Out values keep their place across the screen. A wall's push back (`flatsight::pushBack`) stops where the stock would
+go in (`flatplay::stockBackMost`), and the gun hand's elbow goes out at its side and a little down while a wall pushes the gun back
+(`vr_flat_wall_elbow`, 1; all the way out at 3 units back): sighted at the wall with the body turned 40, its forearm went 2.5 into
+the chest.
+
+Sweep (his defaults), before `397 passed, 13 known failing, 0 failed`, after `407 passed, 3 known failing, 0 failed`: the 10
+`gun_torso`/`fore_torso` lines pass and are out (worst now: gun 0.37 crouched at the wall, -0.6 elsewhere; forearms 0.91).
+Row by row against origin/next (`scratch/fs5_compare.py`): 0 rows worse past a limit; rows worse within their limits come from the
+turned body (eye to chest surface, arm surface, hand depths), all still passing. Sheets: `qvr-kit/scratch/flatsolve5/sheet_before.png`,
+`sheet_after.png`: the same guns in the same places; the long gun crouched level sits a little further forward.
+
+**Sizes (measured, not changed).** Level hipfire standing, from the sweep's rows: the holding hand's distance from the eye is
+melee 16.0, pistol (two hands) 11.6, long gun 5.6 (its hand at the cheek, the stance's shoulder pocket); the muzzle 19.8 / 19.6 /
+24.7; the weapon's span on the screen (muzzle to grip, at the eye) 20.7 / 8.5 / 48.2 degrees. So a long gun's hand is drawn about
+2x a pistol's and 3x a melee hand's: that is the "much bigger". Proposed rule (his call before applying): the holding hand at one
+distance from the eye at level hipfire for every kind, about 10 (the long gun's stance back less, the melee and pistol poses nearer),
+so the size differences left are the weapons' own. Dual pistols are not in the sweep yet (a `dual` sweep stance would measure them).
+
+**The walking wrist (open).** `flatwalk_test.sh` unchanged by this branch: 11 passed, 1 failed (`walk_down`: the off wrist 0.543
+against 0.5; level 0.46). The off arm is not near its reach there (0.85 of it). The measure is the wrist against the drawn hand in
+the camera's frame, 5.1 apart: 0.5 is about 5.5 degrees of the free hand turning against the camera, which the main hand doesn't
+(0.012), so the look hand's own turn while walking (`vr_view_hands.cpp`'s `steadyOther` on the hotspot) is the next place to look.
+## Flat-screen: crouch speed and swimming (agent/flatmove, 2026-11-05)
+
+His flat-screen notes: crouching ran as fast as standing, and swimming should be Quake's, with the jump out of the water.
+
+- **Crouch speed.** The headset's rule and tunables (`vr_crouch_speed`, `vr_crouch_speed_scale`) were already applied, but by
+  the eyes' height: a flat-screen player's eyes stand at Quake's viewheight, under the tallest crouched box's top, so he was
+  slowed standing too (260 of 320) and crouched barely more (240). How crouched he is now comes from his crouch key
+  (`crouchFlat`/`crouchFlatHeld` in `vr_hull.cpp`, from `updateCrouch`'s `flatscreenCrouch`): 320 standing, 240 crouched, the
+  headset's 0.75. Walking (`cl_alwaysrun 0`, 200) stays 200 crouched, as a headset's half stick does: the rule is a cap.
+- **Swimming.** `swimmer()` (`vr_physics_water.cpp`) answers none for a flat-screen player: his keys keep Quake's water speed
+  where he looks (no 0.25 stick, no strokes from his posed hands, no glide), and `CheckWaterJump` (QC) takes Quake's water
+  jump for him whatever `vr_water_jump` says. Headset swimming untouched (the same mock swim rises 38.1 before and after).
+- **Test:** `Misc/quakevr/flatmove_test.sh` (`vr_flatmove_test` 1/2/3; test aids 8/9 find deep water and water-jump ledges;
+  Debug > Tests > Flat Move: Speed, Flat Ledges). Before: 1 passed, 6 failed (standing 260.3; looking up rose 23.3, down
+  28.8; at the start map's pool edge it timed out). After: 7 passed (320/240, the headset's 320/240; up 77.6, down 81.7,
+  jump 48.6; lifted out onto the ledge). Jump-to-rise already worked before (48.6 both).
+- **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
+  at a low pool edge (the start map's pool) to be lifted out.

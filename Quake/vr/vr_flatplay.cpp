@@ -33,6 +33,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
+#include "vr_deathview.hpp"
 #include "vr_flathud.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
@@ -1173,11 +1174,60 @@ namespace
     return -softAbove(-x, -high, width);
 }
 
+constexpr float stockMost = 6.f;     // vr_flat_clear_stock's limit
+constexpr float stockEase = 1.5f;    // ... eased in over this much above it
+constexpr float stockPushMost = 12.f; // the farthest forward it takes the gun, units
+
+struct TorsoCaps
+{
+    glm::vec3 a[4], b[4];
+    float r[4];
+};
+
+// The torso's four capsules, as vr_selfcollide's sceneFor and vr_flatsweep's bodyShapes make them (the chest's two, the pelvis's two).
+[[nodiscard]] TorsoCaps torsoCaps(const hands::State& s)
+{
+    const avatar::BuildShape& build = avatar::buildShape(avatar::bodyBuild());
+    const avatar::Torso t = avatar::torso(s);
+    const float k = units::metresToUnits() * units::bodyScale();
+    TorsoCaps out;
+    int n = 0;
+    for(const float side : {-1.f, 1.f})
+    {
+        const glm::vec3 cs = t.chest.rot[1] * (side * 0.058f * build.torso * build.capSide * k) - t.chest.rot[2] * (0.01f * k);
+        out.a[n] = t.chest.pos + t.chest.rot[0] * (-0.06f * k) + cs;
+        out.b[n] = t.chest.pos + t.chest.rot[0] * (0.09f * k) + cs;
+        out.r[n++] = 0.125f * build.torso * k;
+        const glm::vec3 ps = t.pelvis.rot[1] * (side * 0.055f * k) - t.pelvis.rot[2] * (0.01f * k);
+        out.a[n] = t.pelvis.pos + ps;
+        out.b[n] = t.pelvis.pos + t.pelvis.rot[0] * (0.12f * k) + ps;
+        out.r[n++] = 0.11f * k;
+    }
+    return out;
+}
+
+// How far the segment from `rear` to `grip` stays outside the torso's capsules (negative: inside), sampled along it.
+[[nodiscard]] float torsoClearance(const TorsoCaps& t, const glm::vec3& rear, const glm::vec3& grip)
+{
+    float least = 1e9f;
+    constexpr int samples = 9;
+    for(int i = 0; i < samples; i++)
+    {
+        const glm::vec3 p = glm::mix(rear, grip, static_cast<float>(i) / (samples - 1));
+        for(int c = 0; c < 4; c++)
+        {
+            least = za::min(least, geom::segmentDistance(p, t.a[c], t.b[c]) - t.r[c]);
+        }
+    }
+    return least;
+}
+
 // The hand on the body (vr_flat_body_pose): where it stands for this look, from its shoulder. `local` is its pose at a level look,
 // off its shoulder (forward, right, up: targetOffset). The arm turns about the shoulder by its share of the look, then the limits,
 // each eased in so no look shows a corner: its hotspot within the free arm (the stance's), clear of the chest, clear of the eye, on
 // the screen, within its own arm.
-[[nodiscard]] glm::vec3 handOnBody(const hands::State& s, int h, const glm::vec3& aim, const glm::vec3& local, const glm::vec3& eye)
+[[nodiscard]] glm::vec3 handOnBody(
+    const hands::State& s, int h, const glm::vec3& aim, const glm::vec3& local, const glm::vec3& eye, const glm::vec3& carry)
 {
     glm::vec3 levelFwd, levelRight, levelUp;
     hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
@@ -1292,10 +1342,61 @@ namespace
             p = root + v / d * softBelow(d, span * za::clamp(vr_flat_keep_arm.value, 0.3f, 1.f), keepEase * span);
         }
     }
+
+    // The stock out of the torso: Gun Out by look brings a long gun in across the chest (his -4 looking up and down, -2 crouched), and
+    // its rear went into the torso. The gun goes forward along the view as far as keeps its rear vr_flat_clear_stock out, so it keeps
+    // its place across the screen (his look) and only comes a little forward: the stock rests against the chest.
+    glm::vec3 stock;
+    const float stockKeep = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
+    if(stockKeep > 0.f && heldIn(h) >= 0 && flatsight::stockOff(h, stock))
+    {
+        const glm::mat3 view = axes(aim);
+        const glm::vec3 back = view * stock;
+        const TorsoCaps caps = torsoCaps(s);
+        const float before = torsoClearance(caps, p + carry + back, p + carry);
+        const float want = softAbove(before, stockKeep, stockEase);
+        if(want > before + 1e-4f)
+        {
+            float lo = 0.f, hi = stockPushMost;
+            for(int i = 0; i < 12; i++)
+            {
+                const float mid = 0.5f * (lo + hi);
+                const glm::vec3 q = p + carry + view[0] * mid;
+                (torsoClearance(caps, q + back, q) >= want ? hi : lo) = mid;
+            }
+            p += view[0] * hi;
+        }
+    }
     return p;
 }
 
 } // namespace
+
+float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most)
+{
+    glm::vec3 stock;
+    const float keep = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
+    if(most <= 0.f || keep <= 0.f || !active() || !bodyPose() || heldIn(h) < 0 || !flatsight::stockOff(h, stock))
+    {
+        return most;
+    }
+    const glm::vec3 back = axes(geom::vec(cl.viewangles)) * stock;
+    const TorsoCaps caps = torsoCaps(s);
+    const float want = za::min(keep, torsoClearance(caps, s.pos[h] + back, s.pos[h]));
+    const glm::vec3 far = s.pos[h] + way * most;
+    if(torsoClearance(caps, far + back, far) >= want)
+    {
+        return most;
+    }
+    float lo = 0.f, hi = most;
+    for(int i = 0; i < 12; i++)
+    {
+        const float mid = 0.5f * (lo + hi);
+        const glm::vec3 q = s.pos[h] + way * mid;
+        (torsoClearance(caps, q + back, q) >= want ? lo : hi) = mid;
+    }
+    return lo;
+}
 
 void poseHands(hands::State& s, const glm::vec3& aim)
 {
@@ -1367,13 +1468,12 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
         if(onBody)
         {
-            s.pos[h] = handOnBody(s, h, aim, fs.local[h], eye) + nudge + fwd * swing.x + right * swing.y + up * swing.z;
-            if(heldIn(h) >= 0)
-            {
-                s.pos[h] += viewFwd * za::clamp(vr_flat_gun_view_fwd.value, -poseTweakMax, poseTweakMax) +
-                            viewRight * za::clamp(vr_flat_gun_view_right.value, -poseTweakMax, poseTweakMax) +
-                            viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
-            }
+            const glm::vec3 gunView = heldIn(h) < 0 ? glm::vec3{0.f}
+                                                    : viewFwd * za::clamp(vr_flat_gun_view_fwd.value, -poseTweakMax, poseTweakMax) +
+                                                          viewRight * za::clamp(vr_flat_gun_view_right.value, -poseTweakMax, poseTweakMax) +
+                                                          viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
+            // (The nudge and the gun's own view offsets carry the hand after the body's limits: the stock's is measured with them.)
+            s.pos[h] = handOnBody(s, h, aim, fs.local[h], eye, nudge + gunView) + nudge + gunView + fwd * swing.x + right * swing.y + up * swing.z;
         }
         else
         {
@@ -1845,6 +1945,23 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+}
+
+// V_CalcRefdef, after VR_FlatViewDrop: dead, the view in the ragdoll's head as the headset's is (vr_death_view 2 or Vomit
+// Mode; vr_deathview.cpp). Not in a chase view.
+extern "C" void VR_FlatDeathView(float* vieworg, float* viewangles)
+{
+    if(!qvr::flatplay::active() || chase_active.value)
+    {
+        return;
+    }
+    glm::vec3 origin = qvr::geom::vec(vieworg), angles = qvr::geom::vec(viewangles);
+    qvr::deathview::flatView(origin, angles);
+    for(int i = 0; i < 3; i++)
+    {
+        vieworg[i] = origin[i];
+        viewangles[i] = angles[i];
+    }
 }
 
 // svc_setangle (cl_parse.c, before VR_OnSetAngle takes the same message): the angle of a walk through a seamless teleporter

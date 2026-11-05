@@ -1,0 +1,25 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+# 16 armed death knights in full yellow armour (vr_agarmor 2: every piece, sleeves at the elbows and knees), standing in
+# view: the armour shells' skinning and drawing on the wearer with the most triangles (ROUND24.md, "The armour's joints").
+title Benchmark: 16 armed death knights in full armour
+map vrtesthall
+god
+notarget
+cvar vr_agdknight 1
+cvar vr_agarmor 2
+spawnarmed monster_vr_hknight 0 0 260 -210
+spawnarmed monster_vr_hknight 0 0 260 -150
+spawnarmed monster_vr_hknight 0 0 260 -90
+spawnarmed monster_vr_hknight 0 0 260 -30
+spawnarmed monster_vr_hknight 0 0 260 30
+spawnarmed monster_vr_hknight 0 0 260 90
+spawnarmed monster_vr_hknight 0 0 260 150
+spawnarmed monster_vr_hknight 0 0 260 210
+spawnarmed monster_vr_hknight 0 0 350 -210
+spawnarmed monster_vr_hknight 0 0 350 -150
+spawnarmed monster_vr_hknight 0 0 350 -90
+spawnarmed monster_vr_hknight 0 0 350 -30
+spawnarmed monster_vr_hknight 0 0 350 30
+spawnarmed monster_vr_hknight 0 0 350 90
+spawnarmed monster_vr_hknight 0 0 350 150
+spawnarmed monster_vr_hknight 0 0 350 210

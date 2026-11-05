@@ -149,7 +149,9 @@ struct Sight
     glm::vec3 sightRear[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 sightFront[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     const qmodel_t* sightModel[2]{nullptr, nullptr};
-    float relief{0.f};          // this pose's eye relief: vr_flat_ads_relief, as far as the arm allows (reliefFor)
+    glm::vec3 stock[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the weapon's rear off its hand, in the view's frame (stockOff)
+    const qmodel_t* stockModel[2]{nullptr, nullptr};
+    float relief{0.f};         // this pose's eye relief: vr_flat_ads_relief, as far as the arm allows (reliefFor)
 
     float backNeed[2]{0.f, 0.f}; // how far each hand's weapon must go back to be out of the walls, this pose's measure
     float back[2]{0.f, 0.f};     // and how far it is back, eased once a frame (pushBack)
@@ -200,6 +202,8 @@ constexpr float slideKeepAhead = 3.f; // the free hand slid down the fore-end st
 constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
 constexpr float elbowUpFrom = 15.f;  // elbowPole: the free arm's elbow starts going under the gun from this far up (degrees)
 constexpr float elbowUpFull = 60.f;  // and is all the way there by this far up (smooth between)
+constexpr float wallElbowFull = 3.f; // elbowPole: the gun hand's elbow is all the way out with its gun this far back off a wall (units)
+constexpr float wallElbowDown = 0.5f; // and goes this far down per its way out
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
 constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall it meets (1/s: at once, nearly, as vr_model_collide's)
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
@@ -522,7 +526,8 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
         const float hipMost = za::max(0.f, glm::distance(hand, shoulder) - backKeepArm);
         const float sightMost = za::max(0.f, st.relief - za::clamp(vr_flat_ads_wall_keep.value, reliefMin, reliefMax));
-        const float most = hipMost + (sightMost - hipMost) * sight;
+        // (Never so far its stock goes into the chest: crouched at a wall it did, 2.3 deep.)
+        const float most = flatplay::stockBackMost(s, h, glm::normalize(view * way), hipMost + (sightMost - hipMost) * sight);
         if(!flatplay::punching(h))
         {
             st.backNeed[h] = handpose::gunBack(h, s.head, s.pos[h], s.rot[h], muzzleNow(s, h) - s.pos[h], view * way, most);
@@ -1043,9 +1048,16 @@ void noteDrawn(const hands::State& s)
         st.spotLocal[h] = glm::transpose(axesOf(s.visualRot[h])) * (at - s.pos[h]);
         view::WeaponFrame wf;
         st.sightModel[h] = nullptr;
-        if(!view::weaponFrame(s, h, wf))
+        st.stockModel[h] = nullptr;
+        if(!view::weaponFrame(s, h, wf) || !wf.model)
         {
             continue;
+        }
+        {
+            const float cy = 0.5f * (wf.model->mins[1] + wf.model->maxs[1]), cz = 0.5f * (wf.model->mins[2] + wf.model->maxs[2]);
+            const glm::vec3 rear{wf.modelToWorld * glm::vec4{wf.model->mins[0], cy, cz, 1.f}};
+            st.stock[h] = glm::transpose(axesOf(geom::vec(cl.viewangles))) * (rear - s.pos[h]);
+            st.stockModel[h] = wf.model;
         }
         const sightalign::SightLine line = sightalign::sightLine(wf.model);
         if(!line.valid)
@@ -1116,7 +1128,23 @@ float lookSlide(int h)
 
 float elbowPole(int h, glm::vec3& way)
 {
-    if(!flatplay::active() || !flatplay::onBody() || h != st.lookHand)
+    if(!flatplay::active() || !flatplay::onBody())
+    {
+        return 0.f;
+    }
+    // The gun's own hand, its gun pushed back by a wall into the turned chest: its elbow out at its side and a little down, so the
+    // forearm comes across in front of the chest, not into it (vr_flat_wall_elbow).
+    if(h == st.stanceHand && h != st.lookHand)
+    {
+        const float wall = za::clamp(vr_flat_wall_elbow.value, 0.f, 1.f) * geom::smooth01(za::clamp(st.back[h] / wallElbowFull, 0.f, 1.f));
+        if(wall <= 0.f)
+        {
+            return 0.f;
+        }
+        way = glm::normalize(st.lookView[1] * (h == HAND_OFF ? -1.f : 1.f) - st.lookView[2] * wallElbowDown);
+        return wall;
+    }
+    if(h != st.lookHand)
     {
         return 0.f;
     }
@@ -1163,6 +1191,16 @@ float stanceSpot(int h, glm::vec3& local)
     }
     local = st.spotLocal[h];
     return stanceShare(h);
+}
+
+bool stockOff(int h, glm::vec3& local)
+{
+    if(h < 0 || h >= HAND_COUNT || !st.stockModel[h] || st.stockModel[h] != weapons::heldModel(h))
+    {
+        return false;
+    }
+    local = st.stock[h];
+    return true;
 }
 
 float stanceShare(int h)

@@ -708,7 +708,10 @@ SPECULAR_AA_FUNCTIONS
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
 "	cluster_coord.y = int(floor(in_coord.y));\n" \
 "	cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0); /* nearer than the first slice (a held gun): in it */\n" \
-"	uvec2 clusterdata = QVR_LOAD_CLUSTER(cluster_coord).xy;\n" \
+"	/* off the light tiles (flatscreen play's model FOV: a part drawn on the screen whose true place, which is lit, is off */ \n" \
+"	/* it; an out-of-range load reads no lights: the part went dark below a line): every light, each tested by its reach */ \n" \
+"	bool offtiles = any(lessThan(cluster_coord.xy, ivec2(0))) || any(greaterThanEqual(cluster_coord.xy, ivec2(" QS_STRINGIFY (LIGHT_TILES_X) ", " QS_STRINGIFY (LIGHT_TILES_Y) ")));\n" \
+"	uvec2 clusterdata = offtiles ? uvec2(NumLights >= 32u ? ~0u : (1u << NumLights) - 1u, NumLights >= 64u ? ~0u : NumLights > 32u ? (1u << (NumLights - 32u)) - 1u : 0u) : QVR_LOAD_CLUSTER(cluster_coord).xy;\n" \
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n" \
 "		return vec3(0.);\n" \
 "	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \
