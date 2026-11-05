@@ -1897,6 +1897,9 @@ QVR_TUNABLE_SLIDER(vr_flat_crouch_drop, "Crouch Drop", 0.f, 40.f, 1.f, "%.0f uni
 QVR_TUNABLE_GROUP("Flatscreen > Looks")
 QVR_TUNABLE_SLIDER(vr_flat_sway, "Move Sway", 0.f, 3.f, 0.05f, "%.2f", 0.f, 3.f, "How much the flatscreen hands lag and settle as you start, stop, jump and land (0: none). Looks only: the shots go along the crosshair.")
 QVR_TUNABLE_SLIDER(vr_flat_bob, "Walk Bob", 0.f, 3.f, 0.05f, "%.2f", 0.f, 3.f, "How much the flatscreen hands bob as you walk (with your speed) and breathe at rest (0: none). Looks only.")
+QVR_TUNABLE_SLIDER(vr_flat_body_bob, "Body Rides View Bob", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "The drawn body, arms and hands ride this share of the view's own bob and step together: 1 keeps them on the view, less lets them move on the screen as one; sighted, all of it (vr_flat_body_bob).")
+QVR_TUNABLE_SLIDER(vr_flat_ads_sway, "Ironsight Sway", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Aiming down the sights, the hands' sway as he starts, stops, jumps and lands is kept at this share (vr_flat_ads_sway; 0: none).")
+QVR_TUNABLE_SLIDER(vr_flat_ads_bob, "Ironsight Bob", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Aiming down the sights, the walk's bob of the hands (Walk Bob) is kept at this share; no breathing, so at rest the sights stay exact (vr_flat_ads_bob).")
 QVR_TUNABLE_SLIDER(vr_flat_turnlag, "Turn Lag", 0.f, 3.f, 0.05f, "%.2f", 0.f, 3.f, "How much the flatscreen hands trail a turn before catching up, as in modern shooters (0: locked to the view). Looks only: the shots go along the crosshair.")
 QVR_TUNABLE_SLIDER(vr_flat_turnlag_speed, "Turn Lag Recovery", 0.1f, 5.f, 0.05f, "%.2fx", 0.1f, 5.f, "How fast the flatscreen hands catch up with a turn: higher, quicker and less lag.")
 

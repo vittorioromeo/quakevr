@@ -699,6 +699,8 @@ struct Walk
     int want{0};
     int shotEvery{0};
     int shots{0};
+    bool holdPitch{false}; // the look held at `pitch` each frame (the 4th argument)
+    float pitch{0.f};
     glm::vec3 restRel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 lastRel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     bool haveLast[2]{false, false};
@@ -715,13 +717,15 @@ void walk_f()
 {
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("vr_flat_walk_probe <label> <frames> [shot every N frames]\n");
+        Con_Printf("vr_flat_walk_probe <label> <frames> [shot every N frames] [pitch held]\n");
         return;
     }
     wk = Walk{};
     q_strlcpy(wk.label, Cmd_Argv(1), sizeof(wk.label));
     wk.want = za::clamp(Q_atoi(Cmd_Argv(2)), 10, 2000);
     wk.shotEvery = Cmd_Argc() > 3 ? za::max(0, Q_atoi(Cmd_Argv(3))) : 0;
+    wk.holdPitch = Cmd_Argc() > 4;
+    wk.pitch = wk.holdPitch ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), -85.f, 85.f) : 0.f;
     wk.on = true;
 }
 
@@ -741,6 +745,10 @@ void walkFrame()
         Con_Printf("flatwalk: %s FAIL no body drawn\n", wk.label);
         wk.on = false;
         return;
+    }
+    if(wk.holdPitch)
+    {
+        cl.viewangles[0] = wk.pitch;
     }
     const int f = wk.frames++;
     const bool measuring = f >= walkRestFrames + walkSettleFrames;

@@ -708,6 +708,17 @@ chest, its stock 1.1 to 2.3 into the torso's capsule hipfire (crouched level, st
 (`gun_torso`, `fore_torso`, 115 rows past their limits): new known lines, open (a chest clearance for the stock, or his call on
 the long gun's values). Sweep `397 passed, 13 known failing, 0 failed`.
 
+**3. Bob and sway.** The drawn body rides the drawn view's own move off the pose's eye (`flatplay::bodyRide`: the walk's bob, a
+step's easing; `vr_view_body.cpp` poses a copy of the state with its head moved) by new `vr_flat_body_bob` (1), and the drawn hands
+ride the same share (`drawnOffset`'s `to`), all of it sighted (the sights stand on the view). The whole body moves, feet too
+(taking it in the legs by the head height changed the crouch's depth: crouched shoulders moved 2.5 on the screen; now 0.1), so the
+feet may ride a few units off the floor mid-step. Sighted, the sway and the walk's bob are kept at new `vr_flat_ads_sway` and
+`vr_flat_ads_bob` (0.15 each; was none), no breathing. `vr_flat_bob` stays his 0. `flatwalk_test.sh` (12 runs; the probe takes a
+held pitch): shoulders on the screen walking 6.06 (ride off) -> 0.10, crouched 5.94 -> 0.12 with hands 1.2 (the start's sway);
+the off wrist off its rest 2.15 (before) -> 0.46 walking, 0.015 crouched, 0 sighted; sighted bob 0.26 against hipfire's 1.83
+(Walk Bob 1). Verdict `11 passed, 1 failed`: walking looking straight down the off wrist moves 0.543 (limit 0.5) -- item 5, open.
+Sweep unchanged (0 rows worse).
+
 **2. E aims at the crosshair.** `VR_Forcegrab_FlatGrab` searches from his eye along his view (`VR_Forcegrab_FindTargetAlong`),
 not along the free hand (which hangs about 60 down). flatitems' E cases now put the thing on the crosshair's ray, 36 ahead, 50 deg off
 the hanging hand's line (the cone is 15): they pass (flatitems 8/0), so the search is the view's.

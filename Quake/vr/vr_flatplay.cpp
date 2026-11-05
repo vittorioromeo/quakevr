@@ -289,6 +289,14 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     return hip + (ads - hip) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
 }
 
+// The share of the drawn view's own move off the pose's eye (the walk's bob, a step's easing) the drawn body and hands ride together:
+// vr_flat_body_bob, all of it in the ironsight (the sights stand on the view).
+[[nodiscard]] float rideShare()
+{
+    const float share = za::clamp(vr_flat_body_bob.value, 0.f, 1.f);
+    return share + (1.f - share) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
+}
+
 // Whether the drawn view is his own eyes: not a chase view, and not standing further from his own head than keepNear --
 // with the mode's own nudges put back first (see the block above). drawnOffset and crosshairRay both ask this, so the
 // drawn weapon and the shot's crosshair can never be measuring from different cameras.
@@ -1060,6 +1068,17 @@ float gunOut(float pitch)
     return gunOutAt(pitch);
 }
 
+glm::vec3 bodyRide(const hands::State& s)
+{
+    if(!active() || !bodyPose() || !s.valid || !viewIsHisOwn(s))
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    return (cam - (s.head + camShiftWorld(aim))) * rideShare();
+}
+
 glm::vec3 levelHang(const hands::State& s, int h)
 {
     if(!active() || !bodyPose() || fs.hang[h] <= 0.f || !fs.shouldersKnown)
@@ -1407,7 +1426,10 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const bool onCam = viewIsHisOwn(s);
     const glm::vec3 from = onCam ? s.head + camShiftWorld(aim) : s.head; // (the pose's hands carry the nudge: poseHands)
-    const glm::vec3 to = onCam ? cam : s.head;
+    const glm::vec3 view = onCam ? cam : s.head;
+    // (The view's own move off the pose's eye -- the walk's bob, a step's easing -- by vr_flat_body_bob's share, as the body rides it:
+    // bodyRide. The sights below stand on the view itself.)
+    const glm::vec3 to = from + (view - from) * rideShare();
     const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
                                       : aim;
 
@@ -1431,9 +1453,13 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     // The step's sway and the walk's bob, in the view's frame.
     const float bob = za::clamp(vr_flat_bob.value, 0.f, 3.f);
     const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
-    const glm::vec3 bobLocal{0.f, bob * (bobSide * feel.amp * za::sin(feel.phase) + breathSide * rest * za::sin(feel.breath * 0.5f)),
-        bob * (bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f + breathUp * rest * za::sin(feel.breath))};
-    const glm::vec3 local = (feel.sway + bobLocal) * looks;
+    const glm::vec3 walkBob{0.f, bob * bobSide * feel.amp * za::sin(feel.phase), bob * bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f};
+    const glm::vec3 breath{0.f, bob * breathSide * rest * za::sin(feel.breath * 0.5f), bob * breathUp * rest * za::sin(feel.breath)};
+    const glm::vec3 local = (feel.sway + walkBob + breath) * looks;
+    // In the ironsight the sway and the walk's bob are kept at vr_flat_ads_sway / vr_flat_ads_bob of themselves (no breathing: at rest
+    // the sights stay exact).
+    const glm::vec3 adsLocal =
+        feel.sway * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
 
     glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
 
@@ -1463,7 +1489,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     // The last word on the ironsight: the sights on the ray of the camera this frame is drawn with, the solve's hand in its
     // frame (it stays within the arm: vr_flatsight.cpp's reliefFor), whatever the frame's bob, kick and nudges did to it.
-    drawn += (to + camAxes * sightHand - drawn) * onSight;
+    drawn += (view + camAxes * (sightHand + adsLocal) - drawn) * onSight;
 
     pos = drawn - s.pos[h];
 
@@ -1487,8 +1513,9 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         angles[i] = za::remainder(drawnRot[i] - s.rot[h][i], 360.f);
     }
     angles.x += looks * bob * breathPitch * rest * za::sin(feel.breath);
-    angles.y += looks * bob * bobYaw * feel.amp * za::sin(feel.phase);
-    angles.z += looks * bob * bobRoll * feel.amp * za::sin(feel.phase);
+    const float bobTurn = looks + onSight * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
+    angles.y += bobTurn * bob * bobYaw * feel.amp * za::sin(feel.phase);
+    angles.z += bobTurn * bob * bobRoll * feel.amp * za::sin(feel.phase);
 
     probeArm(s, h, drawn, drawnRot);
 }

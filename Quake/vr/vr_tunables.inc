@@ -1903,6 +1903,9 @@ QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the c
 // Flatscreen > Looks
 QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
 QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
+QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
+QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
 QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 
