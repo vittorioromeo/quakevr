@@ -328,7 +328,7 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
 [[nodiscard]] glm::vec3 shoulder(const hands::State& s, int h)
 {
     const glm::vec3 off{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
-    return h == HAND_OFF ? hands::bodyAnchor(s, {-off.x, -off.y, off.z}) : hands::bodyAnchor(s, off);
+    return h == HAND_OFF ? hands::bodyAnchor(s, {off.x, -off.y, off.z}) : hands::bodyAnchor(s, off); // mirrored across the body's centre line: only the side changes (as vr_body.cpp's and vr_twohand.cpp's shoulders)
 }
 
 // The weapon id `h` holds (STAT_QVR_WEAPON / STAT_QVR_WEAPON2: the ids the game code and the engine share,
