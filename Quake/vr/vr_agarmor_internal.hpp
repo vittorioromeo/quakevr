@@ -172,6 +172,12 @@ struct PlateTube
     glm::vec3 origin{0.f}, up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f}, left{0.f, 1.f, 0.f};
     float length{0.f};
     int bone{-1}; // a limb's own bone
+    // (its frame as a model of its own, made when first asked: vr_agarmor.cpp plateFrameOf)
+    mutable bool frameKnown{false}, frameOk{false};
+    mutable int frameAnchor[3]{-1, -1, -1};
+    mutable int frameBone{-1};
+    mutable glm::vec3 frameMid{0.f};
+    mutable glm::mat3 frameRest{1.f};
 };
 
 struct Shell

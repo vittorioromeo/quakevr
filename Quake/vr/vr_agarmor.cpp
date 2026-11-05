@@ -1792,6 +1792,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         const PieceFrame& f = frames[piece];
         const int firstVert = count(s.verts), firstTri = count(s.tris);
+        s.tubes[piece] = PlateTube{};
         s.tubes[piece].grid = grids[piece];
         s.tubes[piece].origin = f.origin;
         s.tubes[piece].up = f.up;
@@ -2517,7 +2518,38 @@ struct PlateFrame
 
 [[nodiscard]] PlateFrame frameOnBone(const Shell& s, int bone, PlateFrame pf);
 
+[[nodiscard]] PlateFrame plateFrameMade(const Shell& s, int piece);
+
+// A piece's frame: made once for its shell (each hit asks for all of them, each a walk over the body's vertices).
 [[nodiscard]] PlateFrame plateFrameOf(const Shell& s, int piece)
+{
+    const PlateTube& tube = s.tubes[piece];
+    if(!tube.frameKnown)
+    {
+        const PlateFrame pf = plateFrameMade(s, piece);
+        tube.frameKnown = true;
+        tube.frameOk = pf.ok;
+        tube.frameBone = pf.bone;
+        tube.frameMid = pf.mid;
+        tube.frameRest = pf.rest;
+        for(int i = 0; i < 3; i++)
+        {
+            tube.frameAnchor[i] = pf.anchor[i];
+        }
+    }
+    PlateFrame pf;
+    pf.ok = tube.frameOk;
+    pf.bone = tube.frameBone;
+    pf.mid = tube.frameMid;
+    pf.rest = tube.frameRest;
+    for(int i = 0; i < 3; i++)
+    {
+        pf.anchor[i] = tube.frameAnchor[i];
+    }
+    return pf;
+}
+
+[[nodiscard]] PlateFrame plateFrameMade(const Shell& s, int piece)
 {
     PlateFrame pf;
     int n = 0;
