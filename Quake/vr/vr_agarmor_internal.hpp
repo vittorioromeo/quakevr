@@ -129,8 +129,54 @@ struct Vert
     int piece{0}, layer{0}; // layer: 0 outer, 1 inner, 2 rim
 };
 
+// A piece's grid: rings up its axis (hAt), columns round it (azOf: mirrored about its front), a radius at every corner.
+struct PlateGrid
+{
+    int rows{0}, cols{0};
+    bool centred{false};  // a seam at the front (the cuirass); else a plate facing front
+    float hTop{0.f}, hBottom{0.f};
+    float spike{1.4f};    // a corner's radius at most, of the piece's middle one
+    float yoke{0.f};      // the cuirass's first row: this much above the rest, closing in on the neck
+    za::Vector<glm::vec2> axis; // per ring: the middle of the piece there, in (fwd, left)
+    za::Vector<float> radius;   // per ring x column
+    [[nodiscard]] float hAt(int ring) const
+    {
+        if(yoke > 0.f)
+        {
+            return ring == 0 ? hTop + yoke : hTop + (hBottom - hTop) * static_cast<float>(ring - 1) / static_cast<float>(rows - 1);
+        }
+        return hTop + (hBottom - hTop) * static_cast<float>(ring) / static_cast<float>(rows);
+    }
+    [[nodiscard]] float azOf(int col) const
+    {
+        return (static_cast<float>(col) + (centred ? 0.f : 0.5f)) * 6.2831853f / static_cast<float>(cols);
+    }
+    [[nodiscard]] int mirrorOf(int col) const
+    {
+        return centred ? (cols - col) % cols : cols - 1 - col;
+    }
+    [[nodiscard]] float& at2(int ring, int col)
+    {
+        return radius[static_cast<za::SizeT>(ring * cols + ((col % cols) + cols) % cols)];
+    }
+    [[nodiscard]] float at2(int ring, int col) const
+    {
+        return radius[static_cast<za::SizeT>(ring * cols + ((col % cols) + cols) % cols)];
+    }
+};
+
+// A piece's grid where it stands: the plates' places, for what's inside them (vr_agarmor.cpp tubeAround).
+struct PlateTube
+{
+    PlateGrid grid;
+    glm::vec3 origin{0.f}, up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f}, left{0.f, 1.f, 0.f};
+    float length{0.f};
+    int bone{-1}; // a limb's own bone
+};
+
 struct Shell
 {
+    PlateTube tubes[NumPieces];
     za::String model;
     int generation{-1};
     bool ok{false};
@@ -148,6 +194,10 @@ struct Shell
 // vr_agarmor.cpp: a model's shell made (again), and the one for a model (made when first asked; null: none).
 bool buildShell(qmodel_t* src, Shell& s);
 [[nodiscard]] Shell* shellFor(qmodel_t* src);
+// The rig a shell is made on (the player's bones or the authored rig), a piece's region's bones and its frame (origin, up, fwd, left).
+[[nodiscard]] const rig2::Rig* rigOfShell(qmodel_t* src);
+[[nodiscard]] uint32_t pieceRegionBones(const rig2::Rig& rig, int piece);
+void pieceAxes(const rig2::Rig& rig, int piece, glm::vec3& origin, glm::vec3& up, glm::vec3& fwd, glm::vec3& left);
 
 // vr_agarmor_check.cpp: the vr_agarmor_check command.
 void check_f();

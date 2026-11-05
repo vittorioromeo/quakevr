@@ -1065,47 +1065,47 @@
   "by": "make_teeth.py"
  },
  "quakevr/progs/vragarmor.mdl": {
-  "sha256": "89945bbc7469d2b4ada5a1fee00ea83d65ff3927b205ac04178554da3f054390",
+  "sha256": "111a7361f38c03aa27af9f6c4ebe65b8172bb1a60ff7fc559b071f3d645b1d9e",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_0.png": {
-  "sha256": "5aea35fd24c8b2e8db80e85824717e9924abe56e718e732b171d2e7686003c9e",
+  "sha256": "586b904949906b80d530f71dd86098bce74fb303f3b4447149cd1be63263226c",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_0_norm.png": {
-  "sha256": "e8c4fc8f55fd2a3853109bdd723dea5c6c3a4e95d255df5a0f929abc85dbc22d",
+  "sha256": "9ac7b00713bb3317287b75f49b7a2abcf3d9a6f936825655d66a23c485903c90",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_1.png": {
-  "sha256": "413f6c234043b661b2d3e709b43cc2a189f98ae8711d9cc92acdd71df8767f34",
+  "sha256": "15cf08d39cfdfe250742773283bd64d229507d55296a3d09e3a41f58e9e7f907",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_2.png": {
-  "sha256": "cef0e1ab282fa27c6335868a418147220bcfd7a5b074e67178215205bae27c08",
+  "sha256": "ffd73f413e8e8164e5072c0907e4ae7b166923ec48000e3671ab888d3ca1d79d",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_3.png": {
-  "sha256": "c727456be5637fb1847983dac3b0f94a49be168b40077e10b213f34d293773c5",
+  "sha256": "5381bb26ca382a520c6cef0c72af41b6752e4909708f6a5babc93ba12adf07f5",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_4.png": {
-  "sha256": "6103bd898c827776cf5921fe4b067ae2240c7c89641a6ad5756cd9c349642411",
+  "sha256": "5f8fb78a554540651ca14e3ce32b88099bcab9d6c5be4c48f9e760d49bf28f2d",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_5.png": {
-  "sha256": "af10e82c74ffcc8adb53bbf2d5e5bd6ae7808673ee0e86fd4a29ecb49b5e8a00",
+  "sha256": "72a0a29894164fa6e0988a7ab899db0adea3b8a0a1019e2262f1f002e22eec15",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_6.png": {
-  "sha256": "5d0f06fdfcab647654e9336f793a2a9e5612f15ef8e5728a5acbfefbf2994743",
+  "sha256": "059a0057cda397a69d585b81b5932c76888c4a956c645b09d688be493f0ac246",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_7.png": {
-  "sha256": "d44fe7edd1245e26e5c24175fc5ac6469da9d340e99be39c1cf12bd7302e8071",
+  "sha256": "15302513b2c400652d1aa6536072fb724d65dd0cb1fb04bd27314cef524a0ea2",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vragarmor.mdl_8.png": {
-  "sha256": "e3c6ce8dad8f8699ad7d290c316d06a69938192bdbe4780ab4a9bb154972c11d",
+  "sha256": "2cce2e31493c913eab7d1a96ca86ddbbe833e648f1d13c8d35d968c3db2dfc84",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vrbody.md5anim": {

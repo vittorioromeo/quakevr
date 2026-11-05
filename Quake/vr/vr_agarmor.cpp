@@ -422,7 +422,7 @@ struct PieceFrame
     };
     if(piece == Cuirass)
     {
-        f.bones = bit("spine") | bit("chest");
+        f.bones = bit("spine") | bit("chest") | (rig2::boneByName(rig, "clavicle_l") >= 0 ? bit("clavicle_l") : 0u) | (rig2::boneByName(rig, "clavicle_r") >= 0 ? bit("clavicle_r") : 0u);
         const int s = rig2::boneByName(rig, "spine"), c = rig2::boneByName(rig, "chest");
         f.ok = s >= 0 && c >= 0;
         if(f.ok)
@@ -862,19 +862,25 @@ void addTri(Shell& s, int a, int b, int c)
 }
 
 // ---- The plates (ROUND24.md, "The armour's look") ----
-// A piece is not one smooth skin but rows of separate plates, rectangles and trapezoids: each a small closed slab with a
-// bevel, the row above lapping over the row below, small gaps between neighbours, a little seeded variation in size and tilt (the
-// same wearer and vr_agarmor_seed: the same plates). Their places come from the piece's own surface (its region of the body,
-// smoothed: Local), rays out from its axis: the rows along its frame's up, the columns round it. Each plate rides rigidly on the
-// weights of the body under its middle, so it slides over its neighbours as the body bends rather than shearing. Every plate is
-// 20 triangles and one tile of the skin (make_agarmor.py), the detail in the paint and the relief, not the mesh.
+// A piece is an organised set of plates: straight rows round its axis, in columns mirrored left and right about the body's
+// centre line (a seam down the middle of the chest), the left and right limbs each other's mirror image. The plates' feet share
+// the grid's corners, so nothing shows between them, in any pose: a corner's weights are the same for every plate meeting
+// there. Above their feet the plates are slabs drawn apart by a thin dark seam, bevelled, each row's lower edge standing out
+// a little and lapping over the row below. The grid's radii enclose the piece's surface: every vertex of its region is under
+// the chord of its cell. Every plate is 20 triangles and one tile of the skin (make_agarmor.py): the detail is in the paint and the
+// relief. vr_agarmor_seed only picks the tiles and the very slight differences in how far each stands out.
 constexpr int plateTilesX = 5, plateTilesY = 4; // (make_agarmor.py's TILES_X, TILES_Y)
 constexpr float plateBevelUv = 0.1f;            // (its BEVEL)
-constexpr float plateGap = 0.22f;               // units between neighbours in a row
-constexpr float plateLap = 0.9f;                // how far a plate's lower edge reaches past its row, over the row below
-constexpr float plateLift = 0.34f;              // how much further out a plate's lower edge stands than its top
-constexpr float plateBevelWide = 0.34f, plateBevelHigh = 0.13f;
-constexpr float plateWideTorso = 4.6f, plateHighTorso = 3.3f, plateWideLimb = 4.0f, plateHighLimb = 4.8f; // wanted sizes (units)
+constexpr float plateSeam = 0.1f;               // units each side of a seam between neighbours in a row
+constexpr float plateFootApart = 0.003f;        // the feet's corners off the grid's: each slab closed by itself, nothing to see between
+constexpr float plateLap = 0.24f;               // how far a plate's lower edge reaches past its row, over the row below
+constexpr float plateLip = 0.26f;               // how much further out a plate's lower edge stands than its top
+constexpr float plateBevelWide = 0.32f, plateBevelHigh = 0.13f;
+constexpr float plateHighTorso = 3.4f, plateHighLimb = 4.6f; // wanted rows' heights (units)
+constexpr float plateYoke = 1.4f;               // the cuirass's first row's height over its region's top
+constexpr float plateWaist = 1.8f;              // the cuirass past its region's lower edge
+constexpr float plateJointReach = 0.25f;         // a limb's plates past its region's ends, over the joint (units)
+constexpr int plateMostRowsTorso = 5, plateMostRowsThigh = 3, plateMostRowsLimb = 2; // (with 8 and 6 columns: within the budget)
 
 [[nodiscard]] float plateRand(uint32_t seed, int a, int b, int c)
 {
@@ -898,85 +904,213 @@ constexpr float plateWideTorso = 4.6f, plateHighTorso = 3.3f, plateWideLimb = 4.
     return h;
 }
 
-// The outermost crossing of the piece's surface along o + t d (t > 0): its t and that place's weights.
-[[nodiscard]] bool surfaceAlong(const Local& L, const glm::vec3& o, const glm::vec3& d, float& t, W* w)
+// The grid's shape from the piece's extent: its rows and columns, its rings' middles.
+void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
 {
-    bool found = false;
-    t = 0.f;
-    int tri = -1;
-    float bu = 0.f, bv = 0.f;
-    for(int k = 0; k + 2 < count(L.tris); k += 3)
-    {
-        const glm::vec3& a = at(L.p, at(L.tris, k));
-        const glm::vec3 e1 = at(L.p, at(L.tris, k + 1)) - a, e2 = at(L.p, at(L.tris, k + 2)) - a;
-        const glm::vec3 pv = glm::cross(d, e2);
-        const float det = glm::dot(e1, pv);
-        if(za::abs(det) < 1e-7f)
-        {
-            continue;
-        }
-        const glm::vec3 tv = o - a;
-        const float u = glm::dot(tv, pv) / det;
-        const glm::vec3 qv = glm::cross(tv, e1);
-        const float v = glm::dot(d, qv) / det;
-        const float x = glm::dot(e2, qv) / det;
-        if(u >= -1e-3f && v >= -1e-3f && u + v <= 1.001f && x > 0.f && x > t)
-        {
-            t = x;
-            tri = k;
-            bu = u;
-            bv = v;
-            found = true;
-        }
-    }
-    if(found && w)
-    {
-        const W mixed = mixW(at(L.w, at(L.tris, tri)), at(L.w, at(L.tris, tri + 1)), bu / za::max(bu + (1.f - bu - bv), 1e-4f));
-        *w = mixW(mixed, at(L.w, at(L.tris, tri + 2)), bv);
-    }
-    return found;
-}
-
-// The middle of the piece's surface round its axis at height `h`, in (fwd, left): its bounds' middle within `band` of it.
-[[nodiscard]] glm::vec2 plateAxisAt(const Local& L, const PieceFrame& f, float h, float band)
-{
+    const bool torso = piece == Cuirass;
+    float hLo = 1e9f, hHi = -1e9f;
     glm::vec2 lo{1e9f}, hi{-1e9f};
-    for(int v = 0; v < count(L.p); v++)
+    for(const glm::vec3& p : L.orig)
     {
-        const glm::vec3 q = at(L.p, v) - f.origin;
-        if(za::abs(glm::dot(q, f.up) - h) <= band)
-        {
-            const glm::vec2 c{glm::dot(q, f.fwd), glm::dot(q, f.left)};
-            lo = glm::min(lo, c);
-            hi = glm::max(hi, c);
-        }
+        const glm::vec3 q = p - f.origin;
+        hLo = za::min(hLo, glm::dot(q, f.up));
+        hHi = za::max(hHi, glm::dot(q, f.up));
+        lo = glm::min(lo, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
+        hi = glm::max(hi, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
     }
-    return lo.x <= hi.x ? (lo + hi) * 0.5f : glm::vec2{0.f};
+    const float reach = torso ? 0.f : plateJointReach;
+    g.centred = torso;
+    g.hTop = torso ? hHi : hLo - reach;
+    g.hBottom = torso ? hLo - plateWaist : hHi + reach; // (the cuirass down to the belt: the skin's painted armour goes that far)
+    const float tall = za::abs(g.hBottom - g.hTop);
+    const float wide = (hi.x - lo.x + hi.y - lo.y) * 0.5f;
+    g.rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : plateHighLimb) + 0.5f), 2, torso ? plateMostRowsTorso : piece == ThighL || piece == ThighR ? plateMostRowsThigh : plateMostRowsLimb);
+    g.rows += torso ? 1 : 0;
+    g.yoke = torso ? plateYoke : 0.f;
+    g.spike = torso ? 1.38f : piece == PauldronL || piece == PauldronR ? 1.7f : 1.4f; // (the cuirass: its shoulders' tips are the upper arms'; those, round the shoulders)
+    g.cols = torso ? 8 : 6;
+    (void)wide;
+    g.axis.clear();
+    g.axis.resize(static_cast<za::SizeT>(g.rows + 1), glm::vec2{0.f});
+    const float band = za::max(tall / static_cast<float>(g.rows) * 0.6f, 1.f);
+    for(int ring = 0; ring <= g.rows; ring++)
+    {
+        glm::vec2 bl{1e9f}, bh{-1e9f};
+        for(const glm::vec3& p : L.orig)
+        {
+            const glm::vec3 q = p - f.origin;
+            if(za::abs(glm::dot(q, f.up) - g.hAt(ring)) <= band)
+            {
+                bl = glm::min(bl, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
+                bh = glm::max(bh, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
+            }
+        }
+        at(g.axis, ring) = bl.x <= bh.x ? (bl + bh) * 0.5f : (lo + hi) * 0.5f;
+        // (the torso's middle on the body's centre line: its seam)
+        at(g.axis, ring).y = torso ? 0.f : at(g.axis, ring).y;
+    }
+    g.radius.clear();
+    g.radius.resize(static_cast<za::SizeT>((g.rows + 1) * g.cols), 0.f);
 }
 
-// One plate from its four corners on the surface (0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left, seen from outside),
-// `out` the way out from the body, `standOff` how far from the surface the plate's underside is at each corner.
-void addPlate(Shell& s, const glm::vec3* corners, const float* standOff, const glm::vec3& out, const W& w, int piece, int tile, bool flipU, float thick)
+// The radii: the least that has every vertex of the region under the chord of its cell (each spike held to a share of the ring's
+// middle radius), a corner nothing reached filled from its neighbours.
+void fillRadii(const Local& L, const za::Vector<glm::vec3>& also, const PieceFrame& f, PlateGrid& g)
+{
+    const float colWide = 2.f * pi / static_cast<float>(g.cols);
+    const int firstRow = g.yoke > 0.f ? 1 : 0; // (the yoke's row holds no vertex: it closes the top)
+    const float rowHigh = g.hAt(firstRow + 1) - g.hAt(firstRow);
+    const float chord = za::max(za::cos(colWide * 0.5f), 0.3f);
+    const auto apply = [&](const glm::vec3& p, bool raise) {
+        const glm::vec3 q = p - f.origin;
+        const float h = glm::dot(q, f.up);
+        const float rowF = za::clamp(static_cast<float>(firstRow) + (h - g.hTop) / rowHigh, static_cast<float>(firstRow), static_cast<float>(g.rows) - 1e-3f);
+        const int row = static_cast<int>(rowF);
+        const float t = rowF - static_cast<float>(row);
+        const glm::vec2 c = at(g.axis, row) + (at(g.axis, row + 1) - at(g.axis, row)) * t;
+        const glm::vec2 rel = glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)} - c;
+        const float rad = glm::length(rel);
+        float az = za::atan2(rel.y, rel.x) - g.azOf(0);
+        az = az < 0.f ? az + 2.f * pi : az;
+        const float colF = za::min(az / colWide, static_cast<float>(g.cols) - 1e-3f);
+        const int col = static_cast<int>(colF);
+        const float s = colF - static_cast<float>(col);
+        const float need = rad * za::cos((s - 0.5f) * colWide) / chord;
+        if(!raise)
+        {
+            return need;
+        }
+        const float have = (g.at2(row, col) * (1.f - s) + g.at2(row, col + 1) * s) * (1.f - t) + (g.at2(row + 1, col) * (1.f - s) + g.at2(row + 1, col + 1) * s) * t;
+        const float lack = need - have;
+        if(lack > 0.f)
+        {
+            // (just enough: the corners by their shares of this place)
+            const float w00 = (1.f - t) * (1.f - s), w01 = (1.f - t) * s, w10 = t * (1.f - s), w11 = t * s;
+            const float k = lack / za::max(w00 * w00 + w01 * w01 + w10 * w10 + w11 * w11, 1e-3f);
+            g.at2(row, col) += k * w00;
+            g.at2(row, col + 1) += k * w01;
+            g.at2(row + 1, col) += k * w10;
+            g.at2(row + 1, col + 1) += k * w11;
+        }
+        return need;
+    };
+    // (the ring's middle: what a spike is held to)
+    float sum = 0.f;
+    for(const glm::vec3& p : L.orig)
+    {
+        sum += apply(p, false);
+    }
+    const float mean = sum / static_cast<float>(za::max(count(L.orig), 1));
+    for(int pass = 0; pass < 4; pass++)
+    {
+        for(const glm::vec3& p : L.orig)
+        {
+            (void)apply(p, true);
+        }
+        for(const glm::vec3& p : also)
+        {
+            (void)apply(p, true);
+        }
+    }
+    const float most = mean * g.spike;
+    for(float& r : g.radius)
+    {
+        r = za::min(r, most);
+    }
+    // (corners nothing reached: from the ones next to them, up and down the piece first)
+    for(int pass = 0; pass < g.rows + g.cols; pass++)
+    {
+        for(int ring = 0; ring <= g.rows; ring++)
+        {
+            for(int col = 0; col < g.cols; col++)
+            {
+                if(g.at2(ring, col) > 0.01f)
+                {
+                    continue;
+                }
+                const float up = ring > 0 ? g.at2(ring - 1, col) : 0.f, down = ring < g.rows ? g.at2(ring + 1, col) : 0.f;
+                const float side0 = g.at2(ring, col - 1), side1 = g.at2(ring, col + 1);
+                g.at2(ring, col) = za::max(up, down) > 0.01f ? za::max(up, down) : za::max(side0, side1);
+            }
+        }
+    }
+    for(float& r : g.radius)
+    {
+        r = r > 0.01f ? r : mean;
+    }
+}
+
+// The yoke's top ring: round the neck (the body's neck where it comes through; its radius from the skin weighing on the neck).
+void closeYoke(const Body& b, const rig2::Rig& rig, const PieceFrame& f, PlateGrid& g)
+{
+    const int neck = rig2::boneByName(rig, "neck");
+    const glm::vec2 c = at(g.axis, 0);
+    float sum = 0.f;
+    int n = 0;
+    for(int v = 0; neck >= 0 && v < count(b.p); v++)
+    {
+        if(at(b.w, v).w[neck] > 0.4f)
+        {
+            const glm::vec3 q = at(b.p, v) - f.origin;
+            sum += glm::length(glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)} - c);
+            n++;
+        }
+    }
+    float ring = 0.f;
+    for(int col = 0; col < g.cols; col++)
+    {
+        ring += g.at2(1, col) / static_cast<float>(g.cols);
+    }
+    const float neckRadius = n ? sum / static_cast<float>(n) * 1.2f : ring * 0.5f;
+    for(int col = 0; col < g.cols; col++)
+    {
+        g.at2(0, col) = za::min(neckRadius / za::cos(pi / static_cast<float>(g.cols)), g.at2(1, col));
+    }
+}
+
+// Each column as wide as its mirror image's: the body's small differences left and right don't show.
+void mirrorRadii(PlateGrid& a, PlateGrid& b)
+{
+    for(int ring = 0; ring <= a.rows; ring++)
+    {
+        for(int col = 0; col < a.cols; col++)
+        {
+            const float most = za::max(a.at2(ring, col), b.at2(ring, b.mirrorOf(col)));
+            a.at2(ring, col) = most;
+            b.at2(ring, b.mirrorOf(col)) = most;
+        }
+    }
+}
+
+// One plate: its foot on the grid's corners (0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left, seen from outside), `outward`
+// each corner's way out, `w` each corner's weights.
+void addPlate(Shell& s, const glm::vec3* corners, const glm::vec3* outward, const W* w, const glm::vec3& out, float lipBy, int piece, int tile, bool flipU, float thick)
 {
     glm::vec3 n = geom::safeNormalize(glm::cross(corners[2] - corners[0], corners[3] - corners[1]), out, 1e-6f);
     const bool reversed = glm::dot(n, out) < 0.f;
     n = reversed ? -n : n;
+    glm::vec3 across = geom::safeNormalize((corners[1] - corners[0]) + (corners[2] - corners[3]), glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
+    const glm::vec3 down = geom::safeNormalize((corners[3] - corners[0]) + (corners[2] - corners[1]), glm::vec3{0.f, 0.f, -1.f}, 1e-6f);
     // (each ring counter-clockwise seen from outside)
     const int order[4] = {reversed ? 1 : 0, reversed ? 0 : 1, reversed ? 3 : 2, reversed ? 2 : 3};
-    glm::vec3 foot[4], edge[4], face[4], outward[4];
+    glm::vec3 foot[4], edge[4], face[4], sideways[4];
     glm::vec3 mid{0.f};
     for(int i = 0; i < 4; i++)
     {
-        foot[i] = corners[order[i]] + n * standOff[order[i]];
-        edge[i] = foot[i] + n * za::max(thick - plateBevelHigh, 0.02f);
+        const int c = order[i];
+        const bool lower = c == 2 || c == 3;
+        foot[i] = corners[c] + across * (c == 0 || c == 3 ? plateFootApart : -plateFootApart) + down * (c == 2 || c == 3 ? -plateFootApart : plateFootApart);
+        edge[i] = corners[c] + outward[c] * (za::max(thick - plateBevelHigh, 0.02f) + (lower ? plateLip + lipBy : 0.f));
+        edge[i] += across * (c == 0 || c == 3 ? plateSeam : -plateSeam);
+        edge[i] += down * (lower ? plateLap : plateSeam * 0.5f);
         mid += edge[i] * 0.25f;
     }
     for(int i = 0; i < 4; i++)
     {
         const glm::vec3 in = mid - edge[i];
         const float len = glm::length(in);
-        face[i] = edge[i] + n * plateBevelHigh + in * za::min(plateBevelWide / za::max(len, 1e-3f), 0.4f);
-        outward[i] = geom::safeNormalize(-in, n, 1e-6f);
+        face[i] = edge[i] + n * plateBevelHigh + in * za::min(plateBevelWide / za::max(len, 1e-3f), 0.35f);
+        sideways[i] = geom::safeNormalize(-in, n, 1e-6f);
     }
     // The tile: its top the plate's top. (A corner's place on it: order's.)
     const float tx = cuirassBlock.x0 + static_cast<float>(tile % plateTilesX) * (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX);
@@ -988,12 +1122,12 @@ void addPlate(Shell& s, const glm::vec3* corners, const float* standOff, const g
         const float us = (flipU ? 1.f - u : u) * (1.f - 2.f * inset) + inset;
         return glm::vec2{tx + (0.25f + us * (tw - 0.5f)), ty + (0.25f + (v * (1.f - 2.f * inset) + inset) * (th - 0.5f))};
     };
-    const auto put = [&](const glm::vec3& p, const glm::vec3& nrm, const glm::vec2& st, int layer) {
+    const auto put = [&](const glm::vec3& p, const glm::vec3& nrm, const glm::vec2& st, int layer, int i) {
         Vert o;
         o.p = p;
         o.n = nrm;
         o.st = st;
-        o.w = w;
+        o.w = w[order[i]];
         o.piece = piece;
         o.layer = layer;
         s.verts.pushBack(o);
@@ -1002,19 +1136,19 @@ void addPlate(Shell& s, const glm::vec3* corners, const float* standOff, const g
     int f[4], be[4], bf[4], se[4], sf[4], in[4];
     for(int i = 0; i < 4; i++)
     {
-        f[i] = put(face[i], n, tileAt(i, plateBevelUv), 0);
+        f[i] = put(face[i], n, tileAt(i, plateBevelUv), 0, i);
     }
     for(int i = 0; i < 4; i++)
     {
-        be[i] = put(edge[i], geom::safeNormalize(n + outward[i] * 1.1f, n, 1e-6f), tileAt(i, 0.f), 0);
-        bf[i] = put(face[i], geom::safeNormalize(n * 1.6f + outward[i], n, 1e-6f), tileAt(i, plateBevelUv), 0);
+        be[i] = put(edge[i], geom::safeNormalize(n + sideways[i] * 1.1f, n, 1e-6f), tileAt(i, 0.f), 0, i);
+        bf[i] = put(face[i], geom::safeNormalize(n * 1.6f + sideways[i], n, 1e-6f), tileAt(i, plateBevelUv), 0, i);
     }
     for(int i = 0; i < 4; i++)
     {
-        const float across = i == 0 || i == 3 ? 0.2f : 0.8f;
-        se[i] = put(edge[i], outward[i], toBlock(rimBlock, across, 0.1f), 2);
-        sf[i] = put(foot[i], outward[i], toBlock(rimBlock, across, 0.9f), 2);
-        in[i] = put(foot[i], -n, toBlock(innerBlock, across, i < 2 ? 0.2f : 0.8f), 1);
+        const float acrossUv = i == 0 || i == 3 ? 0.2f : 0.8f;
+        se[i] = put(edge[i], sideways[i], toBlock(rimBlock, acrossUv, 0.1f), 2, i);
+        sf[i] = put(foot[i], sideways[i], toBlock(rimBlock, acrossUv, 0.9f), 2, i);
+        in[i] = put(foot[i], -n, toBlock(innerBlock, acrossUv, i < 2 ? 0.2f : 0.8f), 1, i);
     }
     addTri(s, f[0], f[1], f[2]);
     addTri(s, f[0], f[2], f[3]);
@@ -1030,242 +1164,76 @@ void addPlate(Shell& s, const glm::vec3* corners, const float* standOff, const g
     }
 }
 
-// Whether `p` is inside the body at rest (its winding number).
-[[nodiscard]] bool insideBody(const Body& b, const glm::vec3& p)
+// The weights at a place: its region's vertices near it, blended by nearness.
+[[nodiscard]] W plateWeights(const Local& L, const glm::vec3& at0)
 {
-    float solid = 0.f;
-    for(int k = 0; k + 2 < count(b.tris); k += 3)
+    W w;
+    float total = 0.f;
+    float nearest = 1e9f;
+    for(const glm::vec3& p : L.orig)
     {
-        const glm::vec3 x = at(b.p, at(b.tris, k)) - p, y = at(b.p, at(b.tris, k + 1)) - p, z = at(b.p, at(b.tris, k + 2)) - p;
-        const float lx = glm::length(x), ly = glm::length(y), lz = glm::length(z);
-        solid += za::atan2(glm::dot(x, glm::cross(y, z)), lx * ly * lz + glm::dot(x, y) * lz + glm::dot(y, z) * lx + glm::dot(z, x) * ly);
+        nearest = za::min(nearest, glm::distance(p, at0));
     }
-    return solid / (2.f * pi) > 0.5f;
+    const float reach = nearest + 1.5f;
+    for(int v = 0; v < count(L.orig); v++)
+    {
+        const float d = glm::distance(at(L.orig, v), at0);
+        if(d > reach)
+        {
+            continue;
+        }
+        const float k = 1.f / (0.25f + d * d);
+        for(int b = 0; b < rig2::maxBones; b++)
+        {
+            w.w[b] += at(L.w, v).w[b] * k;
+        }
+        total += k;
+    }
+    for(int b = 0; b < rig2::maxBones; b++)
+    {
+        w.w[b] /= za::max(total, 1e-6f);
+    }
+    return w;
 }
 
-// The piece's plates (the cuirass, a limb's), from its surface.
-void platesOf(Shell& s, Local& L, const PieceFrame& f, int piece, uint32_t seed)
+// The piece's plates from its grid.
+void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g, int piece, uint32_t seed)
 {
     const float gap = za::max(vr_agarmor_gap.value, 0.f), thick = za::max(vr_agarmor_thick.value, 0.05f);
-    const int firstVert = count(s.verts);
-    const int nv = count(L.p);
-    za::Vector<glm::vec3> n;
-    normalsOf(L.p, L.tris, n);
-    // Never under the body where it was (smoothing shrinks the convex parts): pushed out along its normal.
-    for(int v = 0; v < nv; v++)
-    {
-        const float d = glm::dot(at(L.orig, v) - at(L.p, v), at(n, v));
-        at(L.p, v) += d > 0.f ? at(n, v) * d : glm::vec3{0.f};
-    }
-    float hLo = 1e9f, hHi = -1e9f;
-    glm::vec2 lo{1e9f}, hi{-1e9f};
-    for(int v = 0; v < nv; v++)
-    {
-        const glm::vec3 q = at(L.p, v) - f.origin;
-        const float h = glm::dot(q, f.up);
-        hLo = za::min(hLo, h);
-        hHi = za::max(hHi, h);
-        const glm::vec2 c{glm::dot(q, f.fwd), glm::dot(q, f.left)};
-        lo = glm::min(lo, c);
-        hi = glm::max(hi, c);
-    }
-    const bool torso = piece == Cuirass;
-    const float tall = hHi - hLo;
-    const glm::vec2 wide = hi - lo;
-    const float round = pi * 0.5f * (wide.x + wide.y); // (about its way round)
-    const int rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : plateHighLimb) + 0.5f), torso ? 3 : 2, torso ? 6 : 4);
-    const int cols = za::clamp(static_cast<int>(round / (torso ? plateWideTorso : plateWideLimb) + 0.5f), torso ? 6 : 5, torso ? 10 : 6);
-    // Rows from the top: the cuirass's up its frame's up; a limb's frame runs down the limb.
-    const float hTop = torso ? hHi : hLo, hBottom = torso ? hLo : hHi;
-    const float rowDir = hBottom > hTop ? 1.f : -1.f;
-    za::Vector<float> rowAt(static_cast<za::SizeT>(rows + 1), 0.f);
-    for(int r = 0; r <= rows; r++)
-    {
-        const float jitter = r > 0 && r < rows ? (plateRand(seed, piece, r, 1) - 0.5f) * 0.22f : 0.f;
-        at(rowAt, r) = hTop + (hBottom - hTop) * (static_cast<float>(r) + jitter) / static_cast<float>(rows);
-    }
-    const float band = za::max(za::abs(hBottom - hTop) / static_cast<float>(rows) * 0.6f, 1.f);
-    za::Vector<glm::vec2> axis(static_cast<za::SizeT>(rows + 1), glm::vec2{0.f});
-    for(int r = 0; r <= rows; r++)
-    {
-        at(axis, r) = plateAxisAt(L, f, at(rowAt, r), band);
-    }
-    const float colWide = 2.f * pi / static_cast<float>(cols);
-    const float eps = za::abs(hBottom - hTop) * 0.01f;
     const auto dirOf = [&](float az) { return f.fwd * za::cos(az) + f.left * za::sin(az); };
-    for(int r = 0; r < rows; r++)
+    const auto cornerAt = [&](int ring, int col) {
+        const glm::vec2 c = at(g.axis, ring);
+        return f.origin + f.up * g.hAt(ring) + f.fwd * c.x + f.left * c.y + dirOf(g.azOf(col)) * (g.at2(ring, col) + gap);
+    };
+    za::Vector<W> weights(static_cast<za::SizeT>((g.rows + 1) * g.cols));
+    for(int ring = 0; ring <= g.rows; ring++)
     {
-        const float az0 = (r & 1) ? colWide * 0.5f : 0.f;
-        // (a row's top and bottom edges each at their heights; the bottom's past the row by its lap, over the next)
-        const float hA = at(rowAt, r) + rowDir * (r == 0 ? eps : 0.f);
-        // (the cuirass's last row down over the waist, to the belt: the skin's painted armour is under it)
-        const float lap = r + 1 < rows ? plateLap : torso ? plateLap * 2.f : -eps;
-        const float hB = at(rowAt, r + 1) + rowDir * lap;
-        const float rowT = (hB - at(rowAt, r)) / za::max(za::abs(at(rowAt, r + 1) - at(rowAt, r)), 1e-3f) * rowDir;
-        const glm::vec2 cA = at(axis, r);
-        const glm::vec2 cB = glm::mix(at(axis, r), at(axis, r + 1), za::clamp(rowT, 0.f, 1.2f));
-        const auto start = [&](float h, const glm::vec2& c) { return f.origin + f.up * h + f.fwd * c.x + f.left * c.y; };
-        for(int c = 0; c < cols; c++)
+        for(int col = 0; col < g.cols; col++)
         {
-            // Each edge between neighbours leans a little: the plates' trapezoids.
-            const auto edgeAz = [&](int k, int atBottom) {
-                return az0 + colWide * (static_cast<float>(k) + (plateRand(seed, 1000 + piece * 16 + r, ((k % cols) + cols) % cols, atBottom) - 0.5f) * 0.26f);
-            };
-            const float az[4] = {edgeAz(c, 0), edgeAz(c + 1, 0), edgeAz(c + 1, 1), edgeAz(c, 1)};
-            const float hs[4] = {hA, hA, hB, hB};
-            const glm::vec2 cs[4] = {cA, cA, cB, cB};
-            float t[4];
-            bool hit[4];
-            int hits = 0;
-            float sum = 0.f;
-            const float azMid = (az[0] + az[1] + az[2] + az[3]) * 0.25f;
-            const float hMid = (hA + hB) * 0.5f;
-            const glm::vec2 cMid = (cA + cB) * 0.5f;
-            for(int i = 0; i < 4; i++)
-            {
-                // (a corner just past the region's wavy edge: how far out the surface is a little way in, towards the plate's middle)
-                hit[i] = false;
-                for(const float back : {0.f, 0.35f, 0.7f})
-                {
-                    hit[i] = hit[i] || surfaceAlong(L, start(hs[i] + (hMid - hs[i]) * back, cs[i] + (cMid - cs[i]) * back), dirOf(az[i]), t[i], nullptr);
-                }
-                hits += hit[i] ? 1 : 0;
-                sum += hit[i] ? t[i] : 0.f;
-            }
-            W w;
-            float tMid = 0.f;
-            const bool midHit = surfaceAlong(L, start(hMid, cMid), dirOf(azMid), tMid, &w);
-            if(!(midHit ? hits >= 2 : hits >= 3))
-            {
-                continue; // (past the region's edge: an arm hole, an enforcer's back)
-            }
-            if(!midHit)
-            {
-                tMid = sum / static_cast<float>(hits);
-                const int any = hit[0] ? 0 : hit[1] ? 1 : hit[2] ? 2 : 3;
-                float unused = 0.f;
-                (void)surfaceAlong(L, start(hs[any], cs[any]), dirOf(az[any]), unused, &w);
-            }
-            glm::vec3 corner[4];
-            for(int i = 0; i < 4; i++)
-            {
-                corner[i] = start(hs[i], cs[i]) + dirOf(az[i]) * (hit[i] ? t[i] : tMid);
-            }
-            // Standing off the surface: over its bulge (a plate is flat, the body under it isn't), the lower edge out over
-            // the row below, and each a little tilted its own way.
-            const glm::vec3 midOnBody = start(hMid, cMid) + dirOf(azMid) * tMid;
+            at(weights, ring * g.cols + col) = plateWeights(L, cornerAt(ring, col));
+        }
+    }
+    for(int r = 0; r < g.rows; r++)
+    {
+        for(int c = 0; c < g.cols; c++)
+        {
+            const int c1 = (c + 1) % g.cols;
+            const glm::vec3 corner[4] = {cornerAt(r, c), cornerAt(r, c1), cornerAt(r + 1, c1), cornerAt(r + 1, c)};
+            const glm::vec3 outward[4] = {dirOf(g.azOf(c)), dirOf(g.azOf(c1)), dirOf(g.azOf(c1)), dirOf(g.azOf(c))};
+            const W w[4] = {at(weights, r * g.cols + c), at(weights, r * g.cols + c1), at(weights, (r + 1) * g.cols + c1), at(weights, (r + 1) * g.cols + c)};
+            const float azMid = g.azOf(c) + za::atan2(za::sin(g.azOf(c1) - g.azOf(c)), za::cos(g.azOf(c1) - g.azOf(c))) * 0.5f;
             const glm::vec3 centre = (corner[0] + corner[1] + corner[2] + corner[3]) * 0.25f;
-            const glm::vec3 out = geom::safeNormalize(midOnBody - start(hMid, cMid), f.fwd, 1e-6f);
-            glm::vec3 nrm = geom::safeNormalize(glm::cross(corner[2] - corner[0], corner[3] - corner[1]), out, 1e-6f);
-            nrm = glm::dot(nrm, out) < 0.f ? -nrm : nrm;
-            const float bulge = za::clamp(glm::dot(midOnBody - centre, nrm), 0.f, 1.6f);
-            const float tiltA = (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.2f;
-            const float tiltB = (plateRand(seed, 3000 + piece * 16 + r, c, 1) - 0.5f) * 0.2f;
-            // The gaps: each edge drawn in from its neighbours', and out again by how far the plate stands off: flat plates lifted
-            // off a round body part company.
-            const float apart = (gap + bulge + thick * 0.5f) * za::min(za::sin(colWide * 0.5f) / za::cos(colWide * 0.5f), 0.8f) * 0.6f;
-            const auto drawIn = [](glm::vec3& a, glm::vec3& b, float by) {
-                const glm::vec3 d = b - a;
-                const float k = za::clamp(by / za::max(glm::length(d), 1e-3f), -0.3f, 0.3f);
-                a += d * k;
-                b -= d * k;
-            };
-            drawIn(corner[0], corner[1], plateGap * 0.5f - apart);
-            drawIn(corner[3], corner[2], plateGap * 0.5f - apart);
-            const float lift = r + 1 < rows ? plateLift : plateLift * 0.5f;
-            // Out over the piece's own skin under it, whatever pokes past the plane (a ridge the rays between corners missed).
-            float ridge = 0.f;
-            const glm::vec3 plane = centre + nrm * (gap + bulge);
-            for(int v = 0; v < count(s.body.p); v++)
-            {
-                float region = 0.f;
-                const W& bw = at(s.body.w, v);
-                for(int b = 0; b < rig2::maxBones; b++)
-                {
-                    region += ((f.bones >> static_cast<unsigned>(b)) & 1u) ? bw.w[b] : 0.f;
-                }
-                region = f.over && at(*f.over, v) ? 1.f : region;
-                const glm::vec3& bp = at(s.body.p, v);
-                const float above = glm::dot(bp - plane, nrm);
-                if(region < 0.25f || above <= ridge)
-                {
-                    continue;
-                }
-                bool within = true;
-                for(int i = 0; i < 4 && within; i++)
-                {
-                    const glm::vec3 edgeIn = glm::cross(nrm, corner[(i + 1) % 4] - corner[i]);
-                    const float side0 = glm::dot(centre - corner[i], edgeIn);
-                    within = glm::dot(bp - corner[i], edgeIn) * side0 >= 0.f;
-                }
-                ridge = within ? above : ridge;
-            }
-            const float over = bulge + za::min(ridge, 1.2f);
-            const float standOff[4] = {gap + over + tiltA, gap + over - tiltA, gap + over + lift + tiltB, gap + over + lift - tiltB};
-            // (inside the body at rest, under an arm or a pack: a plate nobody sees)
-            if(!isPlayerBody(s.model.cStr()) && insideBody(s.body, midOnBody + out * (gap + bulge + lift + thick)))
+            // (behind where a wearer's cuirass stops: an enforcer's pack)
+            if(glm::dot(centre, glm::vec3{1.f, 0.f, 0.f}) < f.backCut)
             {
                 continue;
             }
+            const float lipBy = (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.05f;
             const int tile = static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(plateTilesX * plateTilesY)) % (plateTilesX * plateTilesY);
-            addPlate(s, corner, standOff, out, w, piece, tile, plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f, thick);
+            addPlate(s, corner, outward, w, dirOf(azMid), lipBy, piece, tile, plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f, thick);
         }
     }
     s.pieceOpen[piece] = 0;
-    if(count(s.verts) > firstVert)
-    {
-        return;
-    }
-    // Not round its axis at all (a one-sided patch: an armed enforcer's right forearm, mostly its gun's): a grid over it from outside,
-    // along its own mean normal. A piece always has plates (its debris model is precached by name).
-    glm::vec3 facing{0.f}, mid{0.f};
-    normalsOf(L.p, L.tris, n);
-    for(int v = 0; v < nv; v++)
-    {
-        facing += at(n, v);
-        mid += at(L.p, v) / static_cast<float>(nv);
-    }
-    facing = geom::safeNormalize(facing, f.fwd, 1e-6f);
-    const glm::vec3 side = geom::safeNormalize(glm::cross(f.up, facing), f.left, 1e-6f);
-    const glm::vec3 along = glm::cross(facing, side);
-    float aLo = 1e9f, aHi = -1e9f, sLo = 1e9f, sHi = -1e9f, reach = 1.f;
-    for(int v = 0; v < nv; v++)
-    {
-        const glm::vec3 q = at(L.p, v) - mid;
-        aLo = za::min(aLo, glm::dot(q, along));
-        aHi = za::max(aHi, glm::dot(q, along));
-        sLo = za::min(sLo, glm::dot(q, side));
-        sHi = za::max(sHi, glm::dot(q, side));
-        reach = za::max(reach, glm::length(q));
-    }
-    const int gridA = za::clamp(static_cast<int>((aHi - aLo) / plateHighLimb + 0.5f), 1, 3), gridS = za::clamp(static_cast<int>((sHi - sLo) / plateWideLimb + 0.5f), 1, 3);
-    for(int ga = 0; ga < gridA; ga++)
-    {
-        for(int gs = 0; gs < gridS; gs++)
-        {
-            const float a0 = aLo + (aHi - aLo) * static_cast<float>(ga) / static_cast<float>(gridA), a1 = aLo + (aHi - aLo) * static_cast<float>(ga + 1) / static_cast<float>(gridA);
-            const float s0 = sLo + (sHi - sLo) * static_cast<float>(gs) / static_cast<float>(gridS), s1 = sLo + (sHi - sLo) * static_cast<float>(gs + 1) / static_cast<float>(gridS);
-            const glm::vec3 from = mid - facing * (reach * 2.f + 4.f);
-            const auto over = [&](float a, float b) { return from + along * a + side * b; };
-            W w;
-            float depth = 0.f;
-            bool got = surfaceAlong(L, over((a0 + a1) * 0.5f, (s0 + s1) * 0.5f), facing, depth, &w);
-            if(!got)
-            {
-                // (the nearest vertex's weights and depth: its bounds are the surface's, some part of it is here)
-                w = at(L.w, 0);
-                depth = reach * 2.f + 4.f;
-            }
-            glm::vec3 corner[4] = {over(a1, s0), over(a1, s1), over(a0, s1), over(a0, s0)};
-            for(glm::vec3& c : corner)
-            {
-                float t = 0.f;
-                c += facing * (surfaceAlong(L, c, facing, t, nullptr) ? t : depth);
-            }
-            const float standOff[4] = {gap, gap, gap + plateLift * 0.5f, gap + plateLift * 0.5f};
-            addPlate(s, corner, standOff, facing, w, piece, (ga * 7 + gs * 3 + piece) % (plateTilesX * plateTilesY), false, thick);
-        }
-    }
 }
 
 // ---- The helmet: the Ranger's (the player's face in the status bar), built round the head ----
@@ -1678,6 +1646,25 @@ void topFour(W& w)
 namespace detail
 {
 
+const rig2::Rig* rigOfShell(qmodel_t* src)
+{
+    return src ? rigOf(src) : nullptr;
+}
+
+uint32_t pieceRegionBones(const rig2::Rig& rig, int piece)
+{
+    return frameOf(rig, piece).bones;
+}
+
+void pieceAxes(const rig2::Rig& rig, int piece, glm::vec3& origin, glm::vec3& up, glm::vec3& fwd, glm::vec3& left)
+{
+    const PieceFrame f = frameOf(rig, piece);
+    origin = f.origin;
+    up = f.up;
+    fwd = f.fwd;
+    left = f.left;
+}
+
 bool buildShell(qmodel_t* src, Shell& s)
 {
     const double t0 = Sys_DoubleTime();
@@ -1694,25 +1681,24 @@ bool buildShell(qmodel_t* src, Shell& s)
         return false;
     }
     s.generation = rig->generation;
+    Local locals[NumPieces];
+    PieceFrame frames[NumPieces];
+    za::Vector<uint8_t> overs[NumPieces];
+    PlateGrid grids[NumPieces];
     for(int piece = 0; piece < NumPieces; piece++)
     {
-        PieceFrame f = frameOf(*rig, piece);
+        PieceFrame& f = frames[piece];
+        f = frameOf(*rig, piece);
         f.backCut = backCutOf(src->name, piece);
         f.cut = regionCut(s.body.w, f.bones);
-        za::Vector<uint8_t> over;
         if(f.ok && (piece == PauldronL || piece == PauldronR))
         {
-            girdleShells(s.body, *rig, rig2::boneByName(*rig, limbBone[piece]), over);
-            f.over = &over;
+            girdleShells(s.body, *rig, rig2::boneByName(*rig, limbBone[piece]), overs[piece]);
+            f.over = &overs[piece];
         }
-        const int firstVert = count(s.verts), firstTri = count(s.tris);
-        if(f.ok && piece == Helmet)
+        if(f.ok && piece != Helmet)
         {
-            helmetOf(s, s.body, f, rig2::boneByName(*rig, "head"), wearerOf(src->name));
-        }
-        else if(f.ok)
-        {
-            Local L;
+            Local& L = locals[piece];
             clipPiece(s.body, f, L);
             // (a limb's plate is small: not subdivided, a quarter of the triangles)
             for(int i = 0; i < (limbBone[piece] ? 0 : za::clamp(static_cast<int>(vr_agarmor_subdiv.value), 0, 2)); i++)
@@ -1722,8 +1708,104 @@ bool buildShell(qmodel_t* src, Shell& s)
             smooth(L, za::clamp(static_cast<int>(vr_agarmor_smooth.value), 0, 50));
             if(!L.tris.empty())
             {
-                platesOf(s, L, f, piece, plateSeed(src->name));
+                planGrid(L, f, piece, grids[piece]);
             }
+        }
+    }
+    // The left and right limbs: each other's mirror image (the same rows and columns, their middles and radii alike).
+    for(int piece = PauldronL; piece + 1 < NumPieces; piece += 2)
+    {
+        PlateGrid& a = grids[piece];
+        PlateGrid& b = grids[piece + 1];
+        if(a.rows && b.rows && (a.rows != b.rows || a.cols != b.cols))
+        {
+            const int rows = za::max(a.rows, b.rows), cols = za::max(a.cols, b.cols);
+            for(PlateGrid* g : {&a, &b})
+            {
+                const int have = g->rows;
+                za::Vector<glm::vec2> axis(static_cast<za::SizeT>(rows + 1), glm::vec2{0.f});
+                for(int ring = 0; ring <= rows; ring++)
+                {
+                    const float x = static_cast<float>(ring) * static_cast<float>(have) / static_cast<float>(rows);
+                    const int low = za::min(static_cast<int>(x), have - 1);
+                    at(axis, ring) = at(g->axis, low) + (at(g->axis, low + 1) - at(g->axis, low)) * (x - static_cast<float>(low));
+                }
+                g->axis = axis;
+                g->rows = rows;
+                g->cols = cols;
+                g->radius.clear();
+                g->radius.resize(static_cast<za::SizeT>((rows + 1) * cols), 0.f);
+            }
+        }
+        if(a.rows && b.rows)
+        {
+            // (the same rows at the same places on each: both extents)
+            a.hTop = b.hTop = za::min(a.hTop, b.hTop);
+            a.hBottom = b.hBottom = za::max(a.hBottom, b.hBottom);
+            for(int ring = 0; ring <= a.rows; ring++)
+            {
+                const glm::vec2 mean = (at(a.axis, ring) + glm::vec2{at(b.axis, ring).x, -at(b.axis, ring).y}) * 0.5f;
+                at(a.axis, ring) = mean;
+                at(b.axis, ring) = glm::vec2{mean.x, -mean.y};
+            }
+        }
+    }
+    // What's on the torso past the cuirass's region, the plates over it too: a pouch or a strap on the mesh weighing on the pelvis.
+    za::Vector<glm::vec3> onTorso;
+    const int pelvis = rig2::boneByName(*rig, "pelvis");
+    if(pelvis >= 0 && grids[Cuirass].rows)
+    {
+        const PieceFrame& f = frames[Cuirass];
+        const PlateGrid& g = grids[Cuirass];
+        for(int v = 0; v < count(s.body.p); v++)
+        {
+            const glm::vec3& p = at(s.body.p, v);
+            const float h = glm::dot(p - f.origin, f.up);
+            const int bone = heaviest(at(s.body.w, v));
+            if(p.x >= f.backCut && h >= g.hBottom && h <= g.hTop && (bone == pelvis || ((f.bones >> static_cast<unsigned>(bone)) & 1u)))
+            {
+                onTorso.pushBack(p);
+            }
+        }
+    }
+    const za::Vector<glm::vec3> nothing;
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        if(grids[piece].rows)
+        {
+            fillRadii(locals[piece], piece == Cuirass ? onTorso : nothing, frames[piece], grids[piece]);
+        }
+    }
+    if(grids[Cuirass].rows)
+    {
+        closeYoke(s.body, *rig, frames[Cuirass], grids[Cuirass]);
+        mirrorRadii(grids[Cuirass], grids[Cuirass]);
+    }
+    for(int piece = PauldronL; piece + 1 < NumPieces; piece += 2)
+    {
+        if(grids[piece].rows && grids[piece + 1].rows)
+        {
+            mirrorRadii(grids[piece], grids[piece + 1]);
+        }
+    }
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const PieceFrame& f = frames[piece];
+        const int firstVert = count(s.verts), firstTri = count(s.tris);
+        s.tubes[piece].grid = grids[piece];
+        s.tubes[piece].origin = f.origin;
+        s.tubes[piece].up = f.up;
+        s.tubes[piece].fwd = f.fwd;
+        s.tubes[piece].left = f.left;
+        s.tubes[piece].length = f.length;
+        s.tubes[piece].bone = limbBone[piece] ? rig2::boneByName(*rig, limbBone[piece]) : -1;
+        if(f.ok && piece == Helmet)
+        {
+            helmetOf(s, s.body, f, rig2::boneByName(*rig, "head"), wearerOf(src->name));
+        }
+        else if(grids[piece].rows)
+        {
+            platesOf(s, locals[piece], f, grids[piece], piece, plateSeed(src->name));
         }
         s.pieceVerts[piece] = count(s.verts) - firstVert;
         s.pieceTris[piece] = (count(s.tris) - firstTri) / 3;
@@ -2458,7 +2540,28 @@ struct PlateFrame
             sum.w[i] += v.w.w[i];
         }
     }
-    return frameOnBone(s, heaviest(sum), pf);
+    // (its middle: of the plates on that bone, not what laps onto its neighbours: the cuirass's, down from the clavicles and the neck)
+    // (a limb's: its own bone, whatever else its plates weigh on: a knight's sword arm, hardly on its upper arm)
+    const int bone = s.tubes[piece].bone >= 0 ? s.tubes[piece].bone : heaviest(sum);
+    glm::vec3 onBone{0.f};
+    int m = 0;
+    for(const Vert& v : s.verts)
+    {
+        if(v.piece == piece && heaviest(v.w) == bone)
+        {
+            onBone += v.p;
+            m++;
+        }
+    }
+    pf.mid = m ? onBone / static_cast<float>(m) : pf.mid;
+    if(piece == Cuirass && s.tubes[piece].grid.rows)
+    {
+        // (the cuirass's: half way up the spine and chest, round its axis there)
+        const PlateTube& tube = s.tubes[piece];
+        const glm::vec2 c = at(tube.grid.axis, tube.grid.rows / 2);
+        pf.mid = tube.origin + tube.up * (tube.length * 0.5f) + tube.fwd * c.x + tube.left * c.y;
+    }
+    return frameOnBone(s, bone, pf);
 }
 
 // `pf` (its middle set) anchored on `bone`: three of the body's vertices weighing mostly on it, the one nearest the middle
@@ -2699,7 +2802,7 @@ int clientState(int num, int what)
 // The plate nearest world point `p` on `ent` (each plate's own frame as drawn: the point taken back to its rest pose),
 // within `reach` units; -1 none. What a hit there strikes: the ragdoll rig's nearest vertex (pieceOfBone) read a thigh
 // plate's lower half as the shin's (the shin's vertices lie nearer the knee's skin than the thigh's do).
-int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& dist)
+int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& dist, int prefer = -1)
 {
     bool ok[NumPieces]{};
     glm::vec3 rest[NumPieces]{};
@@ -2728,8 +2831,9 @@ int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& 
         }
         const glm::vec3& q = rest[v0.piece];
         const glm::vec3 n = nearestOnTri(q, v0.p, at(s.verts, at(s.tris, t + 1)).p, at(s.verts, at(s.tris, t + 2)).p);
-        const float d = glm::distance(q, n);
-        best = d < bestD ? v0.piece : best;
+        // (`prefer`, the bone's own piece, wins where two plates meet at a joint)
+        const float d = za::max(glm::distance(q, n) - (v0.piece == prefer ? 0.02f : 0.f), 0.f);
+        best = d < bestD || (d == bestD && v0.piece == prefer) ? v0.piece : best;
         bestD = za::min(d, bestD);
     }
     dist = bestD;
@@ -2942,19 +3046,72 @@ void debugDraw()
     }
 }
 
+// The limb whose plates enclose `p` as `ent` is drawn (-1 none): by each piece's grid, its point taken back to the rest pose by
+// that plate's frame. Plates stand off a limb, round it: a hit inside them is theirs, whatever bone is nearest.
+[[nodiscard]] int tubeAround(edict_t* ent, const Shell& s, const float* p, int only = -1, float within = 1.f)
+{
+    for(int piece = only >= 0 ? only : static_cast<int>(PauldronL); piece < (only >= 0 ? only + 1 : static_cast<int>(NumPieces)); piece++)
+    {
+        const PlateTube& tube = s.tubes[piece];
+        const PlateFrame pf = tube.grid.rows ? plateFrameOf(s, piece) : PlateFrame{};
+        if(!pf.ok)
+        {
+            continue;
+        }
+        glm::vec3 posed[3];
+        posedAnchors(ent, s, pf, posed);
+        const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+        const glm::vec3 q = at(s.body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (geom::vec(p) - posed[0]) - tube.origin;
+        const PlateGrid& g = tube.grid;
+        const float h = glm::dot(q, tube.up);
+        const float rowF = (h - g.hAt(0)) / (g.hAt(1) - g.hAt(0));
+        if(rowF < 0.f || rowF >= static_cast<float>(g.rows))
+        {
+            continue;
+        }
+        const int row = static_cast<int>(rowF);
+        const glm::vec2 c = at(g.axis, row) + (at(g.axis, row + 1) - at(g.axis, row)) * (rowF - static_cast<float>(row));
+        const glm::vec2 rel = glm::vec2{glm::dot(q, tube.fwd), glm::dot(q, tube.left)} - c;
+        float az = za::atan2(rel.y, rel.x) - g.azOf(0);
+        az = az < 0.f ? az + 2.f * pi : az;
+        const int col = za::min(static_cast<int>(az / (2.f * pi) * static_cast<float>(g.cols)), g.cols - 1);
+        if(glm::length(rel) <= za::max(g.at2(row, col), g.at2(row + 1, col)) * within)
+        {
+            return piece;
+        }
+    }
+    return -1;
+}
+
 int pieceAt(edict_t* ent, const float* p)
 {
     int piece = pieceOfBone(ent, p);
-    // (on a limb, or off every piece's bone: the limb plate struck, the nearest within a plate's reach of the skin
-    // under it; the cuirass's and the helmet's hits stay their bones')
     const char* plateBase = baseOf(ent);
     const Shell* ps = plateBase ? serverShell(plateBase) : nullptr;
     const float reach = za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 1.5f;
     float d = reach;
-    const int nearPlate = ps ? plateNear(ent, *ps, p, reach, d) : -1;
-    // (and on a limb plate itself, or just under it: that plate, whatever bone is nearest: a ragdoll's arm on its chest)
-    const bool onPlate = d <= za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 0.25f;
-    piece = nearPlate >= 0 && limbBone[nearPlate] && (piece < 0 || limbBone[piece] || onPlate) ? nearPlate : piece;
+    const int nearPlate = ps ? plateNear(ent, *ps, p, reach, d, piece) : -1;
+    if(nearPlate >= 0 && limbBone[nearPlate] && d <= 0.3f)
+    {
+        piece = nearPlate; // (on a limb's plate itself)
+    }
+    else if(ps && piece >= PauldronL && tubeAround(ent, *ps, p, piece) == piece)
+    {
+        // (a limb's bone and inside its plates: that limb's, whatever other plate is nearer: a knight's forearm folded over his
+        // upper arm)
+    }
+    else
+    {
+        const int core = ps && piece != Helmet ? tubeAround(ent, *ps, p, -1, 0.8f) : -1; // (well inside a limb's plates, whatever the bone)
+        // (on a limb, or off every piece's bone: the limb plate struck, the nearest within a plate's reach of the skin
+        // under it; the cuirass's and the helmet's hits stay their bones')
+        // (and on a limb plate itself, or just under it: that plate, whatever bone is nearest: a ragdoll's arm on its chest)
+        const bool onPlate = d <= za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 0.25f;
+        piece = core >= 0 ? core : nearPlate >= 0 && limbBone[nearPlate] && (piece < 0 || limbBone[piece] || onPlate) ? nearPlate : piece;
+        // (inside a limb's plates, round it, or the cuirass's near its arm: that limb's; the head's stay the helmet's)
+        const int around = ps && core < 0 && piece != Helmet && !(onPlate && nearPlate >= 0 && limbBone[nearPlate]) ? tubeAround(ent, *ps, p) : -1;
+        piece = around >= 0 ? around : piece;
+    }
     // (behind the cuirass's back cut, its own: the enforcer's power pack; the point taken back to the rest pose by the
     // cuirass's frame as drawn)
     const char* base = piece == Cuirass ? baseOf(ent) : nullptr;
@@ -3066,8 +3223,11 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
             // that length, anywhere around it, up to its long edge)
             glm::vec3 centroid{0.f};
             int n = 0;
-            for(const Vert& v : s->verts)
+            int firstOf = -1;
+            for(int vi = 0; vi < count(s->verts); vi++)
             {
+                const Vert& v = at(s->verts, vi);
+                firstOf = firstOf < 0 && v.piece == piece ? vi : firstOf;
                 centroid += v.piece == piece && v.layer == 0 ? v.p : glm::vec3{0.f};
                 n += v.piece == piece && v.layer == 0 ? 1 : 0;
             }
@@ -3079,6 +3239,20 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
                 const float d = glm::distance(v.p, aim);
                 restP = v.piece == piece && v.layer == 0 && d < best ? v.p : restP;
                 best = v.piece == piece && v.layer == 0 && d < best ? d : best;
+            }
+            // (a limb's or the cuirass's: the middle of that plate's face, 24 vertices a plate, its face's first: nothing shared there)
+            if(piece != Helmet && firstOf >= 0)
+            {
+                best = 1e9f;
+                int plateFirst = firstOf;
+                for(int vi = firstOf; vi + 3 < count(s->verts) && at(s->verts, vi).piece == piece; vi += 24)
+                {
+                    const glm::vec3 faceMid = (at(s->verts, vi).p + at(s->verts, vi + 1).p + at(s->verts, vi + 2).p + at(s->verts, vi + 3).p) * 0.25f;
+                    const float d = glm::distance(faceMid, restP);
+                    plateFirst = d < best ? vi : plateFirst;
+                    best = za::min(best, d);
+                }
+                restP = (at(s->verts, plateFirst).p + at(s->verts, plateFirst + 1).p + at(s->verts, plateFirst + 2).p) / 3.f; // (exactly on one of its face's triangles)
             }
         }
         if(what == 5)

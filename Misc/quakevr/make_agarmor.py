@@ -57,12 +57,15 @@ TILES_X, TILES_Y = 5, 4  # (vr_agarmor.cpp plateTilesX, plateTilesY)
 BEVEL = 0.1              # (vr_agarmor.cpp plateBevelUv)
 
 # The paint, full colour. Not the old ramps' pure hues: a dull painted metal, red the most held back, and still three hues
-# told apart in the dark (the generator check: vr_agarmor_look_check's hue distance). sRGB, 0..255.
-PAINT = {1: (64, 88, 48), 2: (130, 108, 42), 3: (108, 30, 28)}
+# told apart in the dark (the generator check: vr_agarmor_look_check's hue distance). sRGB, 0..255. vr_retro pulls what's
+# drawn to Quake's palette, which has no true green and few dull reds: each tier stays near one family so it doesn't jump between
+# them: green the palette's sage row (176-191; a little more red and it's the olive row, as a shade or a stain), yellow its
+# tan row, red between its pure reds and its browns.
+PAINT = {1: (68, 94, 72), 2: (146, 122, 52), 3: (118, 28, 26)}
 STEEL = (120, 116, 108)   # the bare metal at worn edges
-RUST = {1: (72, 60, 36), 2: (88, 58, 32), 3: (78, 46, 32)}  # (each near its own hue: an accent, never the whole plate)
+RUST = {1: (58, 62, 48), 2: (104, 80, 36), 3: (88, 40, 28)}  # (each near its own hue: an accent, and no tier's plates turn another's colour)
 GRIME = (26, 22, 18)
-RUST_SHARE = {1: 0.35, 2: 0.45, 3: 0.5}  # how far a patch of rust goes over the paint
+RUST_SHARE = {1: 0.35, 2: 0.4, 3: 0.45}  # how far a patch of rust goes over the paint
 LEATHER_DARK = (46, 40, 26)
 LEATHER_BROWN = (62, 42, 26)
 
@@ -183,8 +186,8 @@ def paint_tiles(lay):
             u, v = (xs + 0.5 - ax) / tw, (ys + 0.5 - ay) / th
             e = np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v))  # 0 the tile's edge
             # The plate's own tone: darker or lighter, a little warmer or cooler.
-            tone = rng.uniform(0.8, 1.06)
-            warm = rng.uniform(-0.04, 0.04)
+            tone = rng.uniform(0.88, 1.04)
+            warm = rng.uniform(-0.012, 0.012)
             lay.tone[ys, xs] = (tone * (1 + warm), tone, tone * (1 - warm))
             # A slope down the plate: its top under the plate above (dark), its bottom lip catching the light.
             lay.shade[ys, xs] = 0.86 + 0.26 * v - 0.3 * smooth(0.26, 0.0, v)
@@ -211,7 +214,7 @@ def paint_tiles(lay):
             # The bevel's height: down to the tile's edge (the geometry's bevel a little further).
             lay.height[ys, xs] -= 0.5 * smooth(BEVEL * 1.5, BEVEL * 0.4, e)
             # Rivets: at the corners, some with more along the top or the sides.
-            inset_x, inset_y = 0.17, 0.2
+            inset_x, inset_y = 0.17, 0.19  # (at each plate's corners, just inside its bevel)
             spots = [(inset_x, inset_y), (1 - inset_x, inset_y), (inset_x, 1 - inset_y), (1 - inset_x, 1 - inset_y)]
             kind = rng.randint(0, 3)
             if kind == 1:
@@ -219,8 +222,7 @@ def paint_tiles(lay):
             if kind == 2:
                 spots += [(inset_x, 0.5), (1 - inset_x, 0.5)]
             for su, sv in spots:
-                if rng.uniform() < 0.92:  # (one lost, now and then)
-                    paint_rivet(lay, ax + su * tw + rng.uniform(-0.8, 0.8), ay + sv * th + rng.uniform(-0.8, 0.8), 1.9)
+                paint_rivet(lay, ax + su * tw, ay + sv * th, 2.1)
 
 
 def helmet_shade(a, b):
@@ -352,11 +354,11 @@ def paint(lay, armor, level):
     base = np.asarray(PAINT[armor], dtype=float)
     img = base[None, None] * lay.tone
     # The paint's own mottling and fine grain.
-    img = img * (0.72 + 0.56 * lay.mottle)[..., None] * (0.88 + 0.24 * lay.grain)[..., None]
+    img = img * (0.84 + 0.32 * lay.mottle)[..., None] * (0.94 + 0.12 * lay.grain)[..., None]
     img = img * np.clip(lay.shade, 0.0, 1.5)[..., None]
     wear = level * 0.22
     # Rust: an accent. Its reach by the plate, its shape by noise, a tier's own share of the paint.
-    rust = smooth(0.59 - wear, 0.76 - wear, lay.rust * 0.62 + lay.rustmask * 0.75)
+    rust = smooth(0.57 - wear, 0.74 - wear, lay.rust * 0.62 + lay.rustmask * 0.75)
     rust = rust * (0.7 + 0.3 * lay.pits)
     rust_col = np.asarray(RUST[armor], dtype=float)[None, None] * (0.6 + 0.8 * lay.pits)[..., None]
     img = img * (1 - (rust * RUST_SHARE[armor])[..., None]) + rust_col * (rust * RUST_SHARE[armor])[..., None]
@@ -366,14 +368,16 @@ def paint(lay, armor, level):
     # The worn metal on the edges and scratches: bare steel where the paint's gone, in broken lengths.
     steel_mask = np.clip(0.8 * lay.edge * smooth(0.40 - wear, 0.62 - wear, lay.pits * 0.5 + lay.blotch * 0.5), 0.0, 1.0)
     steel_mask = np.maximum(steel_mask, 0.7 * lay.scratch * (lay.mottle > 0.42 - wear))
-    steel = np.asarray(STEEL, dtype=float)[None, None] * (0.62 + 0.5 * lay.pits)[..., None]
+    # (steel with the paint's stain left on it: no other hue at the plates' edges)
+    stained = np.asarray(STEEL, dtype=float) * 0.6 + base * 0.55
+    steel = stained[None, None] * (0.62 + 0.5 * lay.pits)[..., None]
     img = img * (1 - steel_mask[..., None]) + steel * steel_mask[..., None]
     # Rivets: dull metal, lit from above (the relief too).
     riv = np.clip(lay.rivet * 2.0, 0.0, 1.0)
     lit = 0.55 + 0.5 * lay.rivet
     img = img * (1 - riv[..., None]) + np.asarray((122, 116, 104), dtype=float)[None, None] * (lit * riv)[..., None]
     # Fine specks.
-    img = img * (0.93 + 0.14 * lay.fine)[..., None]
+    img = img * (0.96 + 0.08 * lay.fine)[..., None]
     if level >= 1:
         dshade, _ = lay.dents[level]
         img = img * np.clip(1.0 + dshade, 0.3, 1.5)[..., None]
@@ -397,7 +401,7 @@ def relief(lay):
     h = lay.height.copy()
     # pits where rust lives, the rivets' domes, the scratches' grooves
     h -= 0.1 * smooth(0.45, 0.85, lay.rust * 0.62 + lay.rustmask * 0.75) * lay.pits
-    h -= 0.03 * lay.pits
+    h -= 0.015 * lay.pits
     h -= 0.12 * lay.scratch
     h += 0.7 * lay.rivet
     h = h * (1 - lay.nopaint) + (0.75 + 0.25 * lay.grain) * lay.nopaint
