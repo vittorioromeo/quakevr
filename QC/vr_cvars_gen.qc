@@ -881,6 +881,8 @@ float cvarh_vr_flaregun_cooldown;
 float cvarh_vr_flaregun_gravity;
 float cvarh_vr_flaregun_speed;
 float cvarh_vr_flaregun_volume;
+float cvarh_vr_flatgate_test;
+float cvarh_vr_flatitems_test;
 float cvarh_vr_flatkeys_test;
 float cvarh_vr_foegrab_by_mass;
 float cvarh_vr_foegrab_lift_time;
@@ -2754,6 +2756,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flaregun_gravity = VR_CVar_Make("vr_flaregun_gravity");
     cvarh_vr_flaregun_speed = VR_CVar_Make("vr_flaregun_speed");
     cvarh_vr_flaregun_volume = VR_CVar_Make("vr_flaregun_volume");
+    cvarh_vr_flatgate_test = VR_CVar_Make("vr_flatgate_test");
+    cvarh_vr_flatitems_test = VR_CVar_Make("vr_flatitems_test");
     cvarh_vr_flatkeys_test = VR_CVar_Make("vr_flatkeys_test");
     cvarh_vr_foegrab_by_mass = VR_CVar_Make("vr_foegrab_by_mass");
     cvarh_vr_foegrab_lift_time = VR_CVar_Make("vr_foegrab_lift_time");
