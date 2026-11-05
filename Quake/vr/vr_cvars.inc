@@ -1110,6 +1110,14 @@ QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
+QVR_CVAR(vr_ghost_hands_ignore_embed, "1", CVAR_ARCHIVE)   // 1: no ghost for a hand holding a blade stuck in a body (drawn on it); 0: it shows
+QVR_CVAR(vr_embed_probe, "", CVAR_NONE)               // vr_embed_test 24: "reset" starts the engine's numbers below (then "on"); empty: none kept
+QVR_CVAR(vr_embed_probe_step, "0", CVAR_NONE)          // cm the most the drawn hand's offset from its controller changed in a frame coming off a blade
+QVR_CVAR(vr_embed_probe_spot, "-1", CVAR_NONE)         // cm a helping hand on a blade is drawn from its grip hotspot's point (last frame)
+QVR_CVAR(vr_embed_probe_ghost, "0", CVAR_NONE)         // the most ghost opacity drawn for a hand on a blade
+QVR_CVAR(vr_embed_probe_gib, "-1", CVAR_NONE)          // cm the most a hand holding a skewered gib was drawn from where it took hold of it
+QVR_CVAR(vr_embed_probe_gibctl, "-1", CVAR_NONE)       // cm the most its controller was from there
+QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was drawn on a blade
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)

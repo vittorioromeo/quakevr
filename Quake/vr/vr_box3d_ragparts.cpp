@@ -837,6 +837,19 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return 1.f;
     }
+    if(what == 15)
+    {
+        // Its ragdoll's mass (kg; 0: none): what a blade in it lifts (QC VR_Embed_Spring, vr_embed_move_*_lift).
+        float kg = 0.f;
+        for(int b = 0; r && b < r->count; b++)
+        {
+            if(!partCut(*r, b))
+            {
+                kg += b3Body_GetMass(r->body[static_cast<za::SizeT>(b)]);
+            }
+        }
+        return kg;
+    }
     if(what == 12)
     {
         // A blade stuck in it (QC vr_embedhold.qc; any ragdoll of it, alive or dead): the hand holds the limb nearest `grip`

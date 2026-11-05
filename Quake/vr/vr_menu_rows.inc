@@ -4543,6 +4543,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
     "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
     "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
     "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
+QVR_TOGGLE(vr_ghost_hands_ignore_embed, "No Ghost on Stuck Blades",
+    "On: a hand holding a blade stuck in a body shows no ghost, only the hand drawn on the blade. Off: it shows "
+    "(vr_ghost_hands_ignore_embed).")
 QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
     "On: no ghost while either hand is on a hold, only the hands drawn on the ledge. Off: climbing shows it too "
     "(vr_ghost_hands_ignore_climb).")

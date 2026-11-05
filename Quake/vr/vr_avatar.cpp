@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
+#include "vr_protocol.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_playersteps.hpp"
 #include "vr_selfcollide.hpp"
@@ -800,8 +801,27 @@ struct ArmEase
     float out[2]{0.f, 0.f};            // the elbow's swing out of the torso
     double outTime[2]{-1.0, -1.0};
     float twist[2]{0.f, 0.f};          // the forearm's twist (kept continuous past a half turn)
+    float embed[2]{0.f, 0.f};          // 0..1: the hand on a blade in a body, its arm's stretch eased in (vr_embed_arm_stretch)
+    double embedTime[2]{-1.0, -1.0};   // when it was last eased
+    float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
 };
 ArmEase armEase;
+
+// The stretch the arm of `side` may take now (vr_body_arm_stretch, or towards vr_embed_arm_stretch while its hand is on a blade in a body:
+// his note 2026-11-05, "a little bit of IK stretch like we did for the enemies"), eased in and back (once a frame of game time).
+[[nodiscard]] float armStretchNow(int side)
+{
+    const bool onBlade = cl.stats[side == 1 ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+    float& w = armEase.embed[side];
+    double& at = armEase.embedTime[side];
+    const float dt = at >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - at, 0.1)) : 0.f;
+    at = vr_gametime;
+    const float ease = za::max(vr_embed_arm_stretch_ease.value, 0.001f);
+    w = onBlade ? za::min(1.f, w + dt / ease) : za::max(0.f, w - dt / ease);
+    const float normal = za::max(1.f, vr_body_arm_stretch.value);
+    const float smooth = w * w * (3.f - 2.f * w);
+    return glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+}
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
 // tracked shoulder, and it and each arm bone keep within 1 / vr_bodytrack_arm_fit_stretch to vr_bodytrack_arm_fit_stretch
@@ -905,7 +925,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float a = lengths.upper;
     float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
-    const float maxStretch = za::max(1.f, vr_body_arm_stretch.value);
+    const float maxStretch = armStretchNow(side);
     const auto reachOut = [&] {
         if(const float excess = d - (a + l); excess > 0.f)
         {
@@ -925,6 +945,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         reachOut();
     }
+    // (Always: QC measures from what it was as the hand took hold, the stretch not yet eased in.)
+    armEase.embedGapCm[side] = za::max(0.f, d - (a + l)) / b.m2w * 100.f;
 
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
     // the forearm that the rest of the pole gives. Bending the wrist (the hand tilted along the forearm: deviation, or
@@ -1755,6 +1777,11 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
     wrist = posed.wrist[hand];
     direction = posed.forearm[hand];
     return true;
+}
+
+float embedArmGapCm(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
 }
 
 bool forearmFrame(int hand, float along, ForearmFrame& out)

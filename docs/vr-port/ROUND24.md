@@ -427,3 +427,35 @@ view for a single frame at a random moment, the magazine's state unconnected (a 
 run has it elsewhere or not at all): it looks like the low-impact screenshot's readback, not the game; worth a look only if it shows in VR.
 
 **Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}
+
+## Embedded blades: his notes of 2026-11-05, firing range (branch `agent/embedb`)
+
+`vr_embed` stays off by default. Numbers: Debug > Tunables > Combat > Embedded Blades (Axe, Moving the Body).
+
+- **Tug (axe):** `vr_embed_hold_axe_tug` 5 -> **20** cm (his setting). And force: the hand's pull out, averaged over
+  `vr_embed_hold_axe_tug_time` 0.15 s (`.vr_hold_tugv`), must be `vr_embed_hold_axe_tug_speed` 0.8 m/s as the distance is met;
+  slower, the hands come off and the axe stays. Nearing it (from `vr_embed_tug_shake_from` 0.4 of the distance) the axe and the hand
+  on it shake (`vr_embed_tug_shake` 2.5 deg, QC's `.vr_stick_shake`, the engine's place) and the buzz rises in pitch and strength.
+- **Out into the hand:** the drawn hand eases from where it was on the blade to its controller over `vr_embed_free_ease` 0.25 s, the
+  weapon with it (vr_view_hands.cpp embedDrawnHand: the blade's entity is gone at once, so the old 0.1 s ease never ran). Letting go
+  eases the same way.
+- **Ghost:** `vr_ghost_hands_ignore_embed` 1 (Player Appearance, "No Ghost on Stuck Blades").
+- **Second hand:** drawn on the weapon's grip hotspot nearest it (every bladed weapon has one: its two-handed place), placed from the
+  blade each frame (groundSpotPose from the handle hand's pose), not where its controller was as it took hold (the 20 cm).
+- **Leeway:** a held blade turns with the handle hand's turn since it took hold, at most `vr_embed_lean_axe` 6 / `vr_embed_lean_sword` 3
+  deg, any axis, about the wound, eased (`.vr_stick_lean`; `.vr_stick_base` keeps the angles easeOnBody eases from).
+- **Arm stretch:** a hand on a blade lets its arm stretch to `vr_embed_arm_stretch` 1.3 (eased in and back over `_ease` 0.2 s); the
+  avatar writes how far the drawn wrist is past it (`.vr_embed_armgap`), and past `vr_embed_arm_letgo` 1 cm more than the least it
+  has been since it took hold, the hand lets go. Only an arm that reached the hand at some point (the tests' mock hands are held
+  beyond any arm, so tests 7/11/13 are untouched by it).
+- **Stuck handles:** `vr_embed_handle_free` 1: a blade in a body no hand holds, 4 times a second, its grip point against the model
+  (hitmodel nearestAny): inside, it is turned about the wound out of it (+1.5 units clear), 15 deg a look, 45 all told (`.vr_stick_freed`).
+- **Lifting:** the spring's force is at least `vr_embed_move_sword_lift` 0.8 to `_deep` 2 (axe `vr_embed_move_axe_lift` 1.2) times the
+  ragdoll's weight (ragdolltug what 15: its parts' mass), times Skewer. **Unverified:** test 24's lift case fails: a dead body's blade
+  comes out first ("pulled out: slid": the corpse rule counts the arm's motion along the blade 1:1), so lifting a corpse on a sword
+  needs that rule looked at (his call: should a deep blade in a corpse hold against a lift?).
+- **Skewered gib:** the hand gripping it is drawn on the gib where it took hold (skewerDrawnHand), as a held prop's. Its grab already
+  goes by the fist meeting the drawn model (carryreach -> held::grabTouch, 2 cm slack); without the jointed hand's fist it falls back to
+  the box test, which may be what he saw.
+- **Test:** `vr_embed_test 24` (`embedfeel: N passed, M failed`): 19 passed, 1 failed (the lift). Engine numbers through
+  `vr_embed_probe*` cvars. Test 21 gained the gib drawing check.

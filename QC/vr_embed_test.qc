@@ -3120,8 +3120,11 @@ void() VR_ETS_Step =
     {
         VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_STAB, 30);
         VR_Test_Check(vr_ets_g[3].vr_skewer_p == world, "vr_embed off: a stab skewers nothing");
+        // (The other hand's grip on a gib: drawn on the gib where it took hold, its controller off it. The engine's vr_embed_probe_gib*.)
+        VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_gibctl) > 0.5 && cvar_hget(cvarh_vr_embed_probe_gib) < 0.25,
+            sprintf("the hand on a skewered gib is drawn on it: %.2f cm off where it took hold (its controller up to %.1f)", cvar_hget(cvarh_vr_embed_probe_gib), cvar_hget(cvarh_vr_embed_probe_gibctl)));
         cvar_set("vr_embed", "1");
-        localcmd("-grabmain\n");
+        localcmd("-grabmain\nvr_embed_probe \"\"\n");
         VR_Test_Verdict();
         vr_et_on = 0;
     }
@@ -3214,6 +3217,243 @@ void() VR_ETW_Step =
     }
 };
 
+// ---- vr_embed_test 24 (embedfeel): his notes of 2026-11-05 on the firing range, each by the mock hand's real blow and hold: the axe's tug
+// (20 cm, a gentle one leaves it, a hard one takes it, it shakes nearing it), the hand's way back into the hand eased (the engine's
+// vr_embed_probe_step), the leeway of an axe and a sword, no ghost on a blade, the second hand on the grip hotspot, the arm's stretch
+// letting go, a skewered corpse lifted, a handle in the body turned out. Ends `embedfeel: N passed, M failed`.
+float vr_ef_max;    // the case's most of something
+vector vr_ef_at;    // and a place kept
+vector vr_ef_hand;
+
+void(entity w, float xBack, float xFor) VR_EF_Pull =
+{
+    vr_ef_hand = VRGetHandPos(cVR_MainHand) - w.vr_stick_dir * xBack;
+    VR_EH_HandTo(vr_ef_hand, xFor);
+};
+
+void() VR_EF_Step =
+{
+    entity p = self;
+    float t = time - vr_et_t0;
+    float cm = 0.01 * VRMetersToUnits();
+    entity w = VR_EH_Blade();
+    if(vr_et_m != world && vr_et_m.health > 0)
+    {
+        vr_et_m.nextthink = time + 0.5;
+        vr_et_m.velocity = '0 0 0';
+    }
+    if(vr_et_case == 0)
+    {
+        VR_Test_Check(cvar_hget(cvarh_vr_embed_hold_axe_tug) == 20, sprintf("the axe's tug out is 20 cm by default (%g)", cvar_hget(cvarh_vr_embed_hold_axe_tug)));
+        VR_Test_Check(cvar_hget(cvarh_vr_ghost_hands_ignore_embed) == 1, "no ghost on stuck blades is on by default");
+        VR_EH_NextCase();
+        return;
+    }
+    // 1: a gentle tug past the distance: the hand comes off, the axe stays in; it shook nearing it. 2: a hard one: in the hand, eased.
+    if(vr_et_case == 3 || vr_et_case == 4)
+    {
+        if(vr_et_s < 10)
+        {
+            if(VR_EH_Blow(WID_AXE, 7, 0, TRUE, t))
+            {
+                VR_Test_Check(w != world, sprintf("case %g: the axe stays in", vr_et_case));
+                if(w == world)
+                {
+                    VR_EH_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                vr_ef_max = 0;
+                cvar_set("vr_embed_probe", "reset");
+                vr_ef_hand = VRGetHandPos(cVR_MainHand);
+                vr_ef_at = vr_ef_hand - w.vr_stick_dir * (w.vr_stick_depth + cvar_hget(cvarh_vr_embed_hold_axe_stick) * cm + 30 * cm);
+                localcmd("vr_mock_hand_glide 0\n");
+                VR_ET_To(10);
+            }
+            return;
+        }
+        vr_ef_max = max(vr_ef_max, vr_et_w.vr_stick_shake);
+        if(vr_et_s == 10 && vlen(vr_ef_at - vr_ef_hand) > 0.01)
+        {
+            // (0.3 m/s gentle, 2 m/s hard: a step a frame, game time.)
+            float step = (vr_et_case == 3 ? 0.3 : 2) * VRMetersToUnits() * frametime;
+            vr_ef_hand = vr_ef_hand + normalize(vr_ef_at - vr_ef_hand) * min(step, vlen(vr_ef_at - vr_ef_hand));
+            localcmd(sprintf("vr_mock_hand_to main %v\n", vr_ef_hand));
+        }
+        if(vr_et_s == 10 && (VR_EH_Blade() == world || t > 4))
+        {
+            if(vr_et_case == 3)
+            {
+                VR_Test_Check(VR_EH_Blade() == world && VR_AxeStick_IsStuck(vr_et_w) && VRGetEntWeapon(p, cVR_MainHand) != WID_AXE,
+                    sprintf("a gentle tug (%.2f m/s) past the distance: the hand comes off, the axe stays (stuck %g, holds %g)", vr_et_w.vr_hold_tugv, VR_AxeStick_IsStuck(vr_et_w), VRGetEntWeapon(p, cVR_MainHand)));
+                VR_Test_Check(vr_ef_max > 0.3, sprintf("it shook nearing the tug (most %.2f)", vr_ef_max));
+                VR_EH_NextCase();
+                return;
+            }
+            VR_Test_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_AXE, sprintf("a hard tug: in the hand (holds %g)", VRGetEntWeapon(p, cVR_MainHand)));
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && t > 0.5)
+        {
+            VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_on) > 0 && cvar_hget(cvarh_vr_embed_probe_step) < 3,
+                sprintf("out into the hand eased: the drawn hand's offset moves %.2f cm a frame at most (under 3; %g frames on it)", cvar_hget(cvarh_vr_embed_probe_step), cvar_hget(cvarh_vr_embed_probe_on)));
+            VR_EH_NextCase();
+        }
+        return;
+    }
+    // 3: an axe's leeway, 4: a sword's (then no ghost on it, the second hand on its grip, the arm's stretch).
+    if(vr_et_case == 1 || vr_et_case == 2)
+    {
+        float axe = vr_et_case == 2;
+        if(vr_et_s < 10)
+        {
+            if(VR_EH_Blow(axe ? WID_AXE : WID_SWORD, axe ? 7 : 6, 0, axe, t))
+            {
+                VR_Test_Check(w != world, sprintf("case %g: it stays in", vr_et_case));
+                if(w == world)
+                {
+                    VR_EH_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                VR_ET_To(20);
+            }
+            return;
+        }
+        if(vr_et_s == 20 && vr_et_w.vr_stick_goal == 0 && t > 0.2)
+        {
+            localcmd(sprintf("vr_mock_hand_aim main %v\n", VRGetHandPos(cVR_MainHand) + VR_AxeStick_Turn(vr_eh_aim, '0 0 1', 25) * 8000));
+            VR_ET_To(10);
+        }
+        float most = axe ? cvar_hget(cvarh_vr_embed_lean_axe) : cvar_hget(cvarh_vr_embed_lean_sword);
+        if(vr_et_s == 10 && t > 0.5)
+        {
+            float lean = vlen(vr_et_w.vr_stick_lean);
+            VR_Test_Check(w == vr_et_w && lean > most * 0.7 && lean <= most + 0.01,
+                sprintf("%s turns with the hand by its leeway: %.1f deg of %.1f (the hand turned 25)", axe ? "an axe" : "a sword", lean, most));
+            if(axe)
+            {
+                VR_EH_NextCase();
+                return;
+            }
+            localcmd("vr_ghost_hands 1\nvr_ghost_hands_fade_from 0\nvr_ghost_hands_fade_range 0.1\n");
+            VR_EH_HandTo(VRGetHandPos(cVR_MainHand) + VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90) * 3, 0);
+            cvar_set("vr_embed_probe", "reset");
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && t > 0.3)
+        {
+            VR_Test_Check(w == vr_et_w && cvar_hget(cvarh_vr_embed_probe_ghost) < 0.02, sprintf("on a blade, off its controller: no ghost (%.3f)", cvar_hget(cvarh_vr_embed_probe_ghost)));
+            cvar_set("vr_ghost_hands_ignore_embed", "0");
+            cvar_set("vr_embed_probe", "reset");
+            VR_ET_To(12);
+        }
+        else if(vr_et_s == 12 && t > 0.3)
+        {
+            VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_ghost) >= 0.02, sprintf("No Ghost on Stuck Blades off: it shows (%.3f)", cvar_hget(cvarh_vr_embed_probe_ghost)));
+            localcmd("vr_ghost_hands_ignore_embed 1\nvr_ghost_hands 0\n");
+            // The other hand takes it 20 cm off its grip: drawn on the weapon's grip hotspot, not where the controller is.
+            vr_ef_hand = VRGetEntHandPos(p, cVR_MainHand) + VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90) * 20 * cm;
+            localcmd(sprintf("vr_mock_hand_to off %v\n", vr_ef_hand));
+            VR_ET_To(13);
+        }
+        else if(vr_et_s == 13 && t > 0.2)
+        {
+            VR_Embed_TakeHand(vr_et_w, p, cVR_OffHand);
+            cvar_set("vr_embed_probe", "reset");
+            VR_ET_To(14);
+        }
+        else if(vr_et_s == 14 && t > 0.3)
+        {
+            VR_Test_Check(vr_et_w.vr_hold_hands == 3 && cvar_hget(cvarh_vr_embed_probe_spot) >= 0 && cvar_hget(cvarh_vr_embed_probe_spot) < 6,
+                sprintf("the second hand 20 cm off is drawn on its grip hotspot: %.1f cm from it (hands %g)", cvar_hget(cvarh_vr_embed_probe_spot), vr_et_w.vr_hold_hands));
+            VR_Embed_DropHand(vr_et_w, cVR_OffHand, "test");
+            // You step back with the hand: the drawn hand stays on the blade, the arm can't reach it.
+            setorigin(p, p.origin - vr_eh_fw * 26);
+            VR_EH_HandTo(VRGetHandPos(cVR_MainHand) - vr_eh_fw * 26, 0);
+            vr_ef_max = 0;
+            VR_ET_To(15);
+        }
+        else if(vr_et_s == 15)
+        {
+            vr_ef_max = max(vr_ef_max, p.vr_embed_armgap_y);
+            if(VR_EH_Blade() == world || t > 1)
+            {
+                VR_Test_Check(VR_EH_Blade() == world && vr_ef_max > cvar_hget(cvarh_vr_embed_arm_letgo),
+                    sprintf("past the arm's stretch it lets go: %.1f cm past it (Let Go Past %.1f), let go %g", vr_ef_max, cvar_hget(cvarh_vr_embed_arm_letgo), VR_EH_Blade() == world));
+                VR_EH_NextCase();
+            }
+        }
+        return;
+    }
+    // 5: a sword deep in a body that dies: its ragdoll lifted by the hand.
+    if(vr_et_case == 5)
+    {
+        if(vr_et_s < 10)
+        {
+            if(VR_EH_Blow(WID_SWORD, 7, 0, FALSE, t))
+            {
+                VR_Test_Check(w != world, "case 5: it stays in");
+                if(w == world)
+                {
+                    VR_EH_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                vr_et_m.health = 1;
+                T_Damage(vr_et_m, p, p, 2);
+                VR_ET_To(10);
+            }
+            return;
+        }
+        if(vr_et_s == 10 && t > 1)
+        {
+            vr_ef_at = vr_et_w.vr_stick_at;
+            vr_ef_max = ragdolltug(vr_et_m, p, cVR_MainHand, 15);
+            VR_EH_HandTo(VRGetHandPos(cVR_MainHand) + '0 0 30', 0.8);
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && (w == world || t > 1.6))
+        {
+            float rose = vr_et_w.vr_stick_at_z - vr_ef_at_z;
+            VR_Test_Check(w != world && vr_ef_max > 0 && rose >= 15,
+                sprintf("a dead body on a sword (%.0f kg) lifted with the hand: the wound rose %.1f of 30 units (held %g)", vr_ef_max, rose, w != world));
+            VR_EH_NextCase();
+        }
+        return;
+    }
+    // 6: a handle pushed into the body, let go of: turned out of it.
+    if(vr_et_case == 6)
+    {
+        if(vr_et_s < 10)
+        {
+            if(VR_EH_Blow(WID_SWORD, 6, 0, FALSE, t))
+            {
+                VR_Test_Check(w != world, "case 6: it stays in");
+                if(w == world)
+                {
+                    VR_EH_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                VR_Embed_DropHands(w, "test");
+                w.vr_stick_slide = w.vr_stick_bladelen - w.vr_stick_depth + 10;
+                VR_ET_To(10);
+            }
+            return;
+        }
+        if(vr_et_s == 10 && t > 1)
+        {
+            VR_Test_Check(vr_et_w.vr_stick_freed > 0, sprintf("its handle in the body is turned out of it (%.1f deg)", vr_et_w.vr_stick_freed));
+            VR_EH_NextCase();
+        }
+        return;
+    }
+    localcmd("vr_embed_probe \"\"\n");
+    VR_Test_Verdict();
+    vr_et_on = 0;
+};
+
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
@@ -3227,6 +3467,7 @@ void() VR_Embed_TestFrame =
         if(ask == 21)
         {
             VR_Test_BeginFlags("embedskewer", VR_TEST_LOUD);
+            cvar_set("vr_embed_probe", "reset");
             vr_et_on = 21;
             VR_ET_To(0);
         }
@@ -3293,6 +3534,16 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             vr_et_case = ask == 23 ? 32 : 0;
             VR_ET_To(0);
         }
+        if(ask == 24)
+        {
+            VR_Test_BeginFlags("embedfeel", VR_TEST_LOUD);
+            cvar_set("vr_knockdown", "0"); // (as test 7: a blow's chance of one takes the body from the hand)
+            vr_eh_home = VR_Player().origin;
+            localcmd("vr_mock_hand_to_absolute 1\n");
+            vr_et_on = 24;
+            vr_et_case = 0;
+            VR_ET_To(0);
+        }
         if(ask == 12)
         {
             cvar_set("vr_hit_stagger", "0");
@@ -3355,6 +3606,9 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
         if(time - vr_et_t0 > VR_ET_GIVEUP)
         {
             VR_Test_Check(FALSE, sprintf("timed out: state %g (the gib's fastest %.1f m/s, now %v, the blade %v going %v, stuck %g, on %g)", vr_et_s, vr_ets_peak, vr_ets_r.origin, vr_et_w.origin, vr_et_w.velocity, vr_et_w.vr_stick_kind, vr_ets_r.vr_skewer_w == vr_et_w));
+            VR_Test_Check(cvar_hget(cvarh_vr_embed_probe_gibctl) > 0.5 && cvar_hget(cvarh_vr_embed_probe_gib) < 0.25,
+                sprintf("the hand on a skewered gib is drawn on it: %.2f cm off where it took hold (its controller up to %.1f)", cvar_hget(cvarh_vr_embed_probe_gib), cvar_hget(cvarh_vr_embed_probe_gibctl)));
+            localcmd("vr_embed_probe \"\"\n");
             cvar_set("vr_embed", "1");
             VR_Test_Verdict();
             vr_et_on = 0;
@@ -3390,6 +3644,16 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_EH_NextCase();
         }
         VR_EH_Step();
+    }
+    else if(vr_et_on == 24)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: case %g state %g", vr_et_case, vr_et_s));
+            cvar_set("vr_embed", "1");
+            VR_EH_NextCase();
+        }
+        VR_EF_Step();
     }
     else if(vr_et_on == 8)
     {
