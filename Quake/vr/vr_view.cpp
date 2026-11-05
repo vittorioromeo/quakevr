@@ -3577,10 +3577,22 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
         QVR_DRAW_RANGE(ssgBarrels, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterSsgFrame, VR_DRAW_HOLSTERED),
         QVR_DRAW_RANGE(holsterSsgBarrels, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldSsgFrame, VR_DRAW_LYING),
-        QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(rvFrame, VR_DRAW_HELD), QVR_DRAW_RANGE(rvCrane, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(rvCyl, VR_DRAW_HELD), QVR_DRAW_RANGE(rvShell, VR_DRAW_HELD), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
         QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(ghostHand, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
         QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD)};
 #undef QVR_DRAW_RANGE
+    // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
+    static_assert(
+        [] {
+            size_t total = 0;
+            for(const Range& r : ranges)
+            {
+                total += r.count;
+            }
+            return total;
+        }() == sizeof(Entities) / sizeof(ViewEntity),
+        "drawGroup: a member of Entities has no draw group");
     const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
     for(const Range& r : ranges)
     {
