@@ -414,7 +414,14 @@ void offTheRay(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& p, f
     const glm::vec3 d = p - org;
     const float len = glm::length(d);
     units = len > 1e-6f ? glm::length(d - dir * glm::dot(d, dir)) : 0.f;
-    degrees = len > 1.f ? glm::degrees(za::acos(za::clamp(glm::dot(d, dir) / len, -1.f, 1.f))) : 0.f;
+    // (From the across and along parts: acos of a cosine near 1 reads only in float's steps, 0.0198 and 0.028 degrees the first.)
+    degrees = len > 1.f ? glm::degrees(za::atan2(units, glm::dot(d, dir))) : 0.f;
+}
+
+// The angle between two unit ways, the same way (flataim's, the sweep's shot_deg).
+[[nodiscard]] float degreesApart(const glm::vec3& a, const glm::vec3& b)
+{
+    return glm::degrees(za::atan2(glm::length(glm::cross(a, b)), glm::dot(a, b)));
 }
 
 // The grip's case: one hand holds a weapon and the other is empty; both -1 otherwise.
@@ -1135,7 +1142,7 @@ void print(const hands::State& s)
         const glm::vec3 stop = lineStop(from - shot * glm::distance(m, s.pos[g]), from + shot * aimFar);
         const glm::vec3 toPoint = aimWay(dir, point, from, st.aimBlocked[g]);
         Con_Printf("flataim: %s off its point %.4f deg away %.1f apart %.2f at %.2f %.2f %.2f\n", g == HAND_MAIN ? "main" : "off",
-            glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f))), glm::distance(org, point),
+            degreesApart(shot, toPoint), glm::distance(org, point),
             glm::distance(stop, point), point.x, point.y, point.z);
     }
 
@@ -1218,7 +1225,7 @@ SweepNumbers sweepNumbers(const hands::State& s)
         const glm::vec3 from = shotMuzzle(s, g, viewAim, point); // (what the shot is handed: keepMuzzle)
         const glm::vec3 stop = lineStop(from - shot * glm::distance(m, s.pos[g]), from + shot * aimFar);
         const glm::vec3 toPoint = aimWay(dir, point, from, st.aimBlocked[g]);
-        n.shotDeg = glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f)));
+        n.shotDeg = degreesApart(shot, toPoint);
         n.shotApart = glm::distance(stop, point);
         n.shotPoint = point;
         n.shotStop = stop;
