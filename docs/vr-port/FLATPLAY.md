@@ -184,7 +184,8 @@ A long gun (a sight line, its muzzle 9.5 units or more from the hand: `longGunMu
 hand free takes a stance (`stanceAndLook`, `vr_flat_stance` 1; Debug > Tunables > Flatscreen > Free Hands):
 
 - **The torso turns**, the free hand's shoulder forward (`vr_flat_stance_turn`, 25 degrees of `s.bodyYaw`, eased over about 0.4 s).
-  The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest.
+  The view doesn't turn. With the main hand holding, that is a turn to his right: the gun then lies across his chest. It is the
+  drawn body's: the game's hands are posed from the anchor facing the view, so a punch lands where it would without the stance.
 - **The gun's hand comes up towards the shoulder pocket** (`vr_flat_stance_back` 10, `_in` 2, `_up` 4, taken off Gun Forward, Gun Out
   and Gun Down). That is all that moves the gun, and it is the pose's: the shots are solved from wherever the muzzle stands, as ever.
 - **The free hand is drawn on the weapon's own hotspot**: place, turn, fingers and offsets all come from Weapon Offsets through the
@@ -208,7 +209,7 @@ hotspot's data, so its hand angle could not have been VR's; and it pulled the gu
 Arm used, off shoulder to hotspot, as a share of `armReach` (21.9; 0.92 is the most it keeps), read from `vr_flatplay_status` by
 `Misc/quakevr/flatstance_test.sh`: on the shotgun, 1.31 with the torso turned and the gun's hand at Gun Forward, Out and Down, and
 0.83 in the stance (super shotgun 0.77, nail gun 0.76, super nail gun 0.70, grunt gun 0.69). In the ironsight at the default eye
-relief 14 those guns are out of reach (shotgun 1.27, super shotgun 1.15, nail gun 1.30, super nail gun 1.21, grunt gun 0.97), so the
+relief 14 those guns are out of reach (shotgun 1.27, super shotgun 1.15, nail gun 1.30, super nail gun 1.21, grunt gun 1.32), so the
 hand hangs while sighted; the solve is exact as ever, and the relief is not given up for a look. A weapon whose data has no grip or
 cup hotspot at all has no stance, and its hand hangs: the toolgun and the glowing hammer's model.
 

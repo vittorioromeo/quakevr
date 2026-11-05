@@ -930,8 +930,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     fs.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
 
-    // The flat branch turns the body to the view the same way; a long gun's stance turns it off the view (the view stays).
-    s.bodyYaw = aim.y + flatsight::stanceYaw();
+    s.bodyYaw = aim.y; // the flat branch turns the body to the view the same way
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
@@ -1003,6 +1002,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
     flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z);
+
+    // A long gun's stance turns the drawn body off the view (the view stays). Only now: the game's hands, their punches among them,
+    // are posed from the shoulders' anchor facing the view, so the turn is no part of where a blow lands.
+    s.bodyYaw = aim.y + flatsight::stanceYaw();
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
