@@ -858,6 +858,7 @@ float cvarh_vr_enemy_melee_arc_show;
 float cvarh_vr_enemy_melee_arc_size;
 float cvarh_vr_enemy_melee_arc_wide;
 float cvarh_vr_enemy_melee_kind;
+float cvarh_vr_enemy_melee_kind_shove;
 float cvarh_vr_enemy_melee_reach_size;
 float cvarh_vr_enemy_melee_space;
 float cvarh_vr_enemy_melee_turn;
@@ -2760,6 +2761,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_enemy_melee_arc_size = VR_CVar_Make("vr_enemy_melee_arc_size");
     cvarh_vr_enemy_melee_arc_wide = VR_CVar_Make("vr_enemy_melee_arc_wide");
     cvarh_vr_enemy_melee_kind = VR_CVar_Make("vr_enemy_melee_kind");
+    cvarh_vr_enemy_melee_kind_shove = VR_CVar_Make("vr_enemy_melee_kind_shove");
     cvarh_vr_enemy_melee_reach_size = VR_CVar_Make("vr_enemy_melee_reach_size");
     cvarh_vr_enemy_melee_space = VR_CVar_Make("vr_enemy_melee_space");
     cvarh_vr_enemy_melee_turn = VR_CVar_Make("vr_enemy_melee_turn");

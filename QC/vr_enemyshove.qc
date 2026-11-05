@@ -241,12 +241,23 @@ void() VR_EnemyShove_Hit =
     vector to = p.origin - self.origin;
     float up = to_z;
     to_z = 0;
-    makevectors('0 1 0' * self.angles_y);
-    if(vlen(to) > VR_EnemyShove_Reach(self) + 16 || fabs(up) > VR_ESHOVE_HEIGHT ||
-       v_forward * normalize(to) < 0.5)
+    // Its cone: the shared melee arc's for its size, the shove's kind (fight.qc VR_MeleeArc_ShoveAngle: 60 by default).
+    float off = anglemod(vectoyaw(to) - self.angles_y);
+    off = off > 180 ? 360 - off : off;
+    float cone = VR_MeleeArc_ShoveAngle();
+    float reach = VR_EnemyShove_Reach(self) + 16;
+    self.vr_melee_blow_reach = reach;
+    self.vr_melee_blow_time = time;
+    float lands = vlen(to) <= reach && fabs(up) <= VR_ESHOVE_HEIGHT && off <= cone;
+    if(cvar_hget(cvarh_vr_enemy_melee_arc_debug))
     {
-        dprint(sprintf("enemy shove: %s missed (the player %.0f units away, facing %.2f)\n", self.classname, vlen(to),
-            v_forward * normalize(to)));
+        bprint(sprintf("meleearc: %s shove %.0f deg off (cone %.0f, %.0f units, reach %.0f): %s\n", self.classname, off,
+            cone, vlen(to), reach, lands ? "lands" : "misses"));
+    }
+    if(!lands)
+    {
+        dprint(sprintf("enemy shove: %s missed (the player %.0f units away, %.0f deg off)\n", self.classname, vlen(to),
+            off));
         return;
     }
 

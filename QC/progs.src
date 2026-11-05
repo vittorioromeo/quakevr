@@ -540,6 +540,7 @@ vr_ownclash.qc // weapon clash: your own two weapons meeting; the weapon-on-weap
 vr_armedgrunt_parry.qc
 vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agrunt_preparry, vr_agrunt_windup_parry)
 vr_dirparry.qc // the directional parry: a blow's line, your weapon held across it
+vr_meleerules.qc // enemy melee's rules: each blow's rule for Show Melee Arcs, an armed humanoid's blow (after the monsters)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
 vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
