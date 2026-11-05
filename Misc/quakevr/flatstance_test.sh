@@ -12,8 +12,10 @@ source "$(dirname "$0")/qvrtest.sh"
 export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
-# wait60: the hand's ease (about 0.4 s of 1/72 s frames, 29 frames) and the sight's travel (18) are both over.
-GUN() { echo "vr_flat_aim 0; wait3; vr_test_give_wid $1; impulse 149; wait60; echo gun $1 hipfire; vr_flatplay_status; vr_flat_aim 1; wait60; echo gun $1 sight; vr_flatplay_status;"; }
+# wait90: the torso's ease and the gun's come first (29 frames, about 0.4 s of 1/72 s frames: the arm only reaches once they have),
+# then the free hand's (29), then a margin: read earlier, the hand is still 0.07 units short with its share printing as 1.00.
+# wait60 for the sight: its travel is 18 frames, and the hand's way back 29.
+GUN() { echo "vr_flat_aim 0; wait3; vr_test_give_wid $1; impulse 149; wait90; echo gun $1 hipfire; vr_flatplay_status; vr_flat_aim 1; wait60; echo gun $1 sight; vr_flatplay_status;"; }
 
 # a. Every weapon: which have a hotspot, how much of the arm it takes.
 ALL=""
@@ -37,7 +39,7 @@ read -r s0 s1 s2 <<<"$(grep -a "^  stance spot" "$log" | awk '{ for (i = 1; i <=
 read -r m0 m1 m2 <<<"$(grep -a "^  stance hand" "$log" | awk '{ for (i = 1; i <= NF; i++) if ($i == "fwd") { printf "%s ", $(i+1) } }')"
 read -r a0 a1 a2 <<<"$(grep -a "^  stance hand" "$log" | awk '{ for (i = 1; i <= NF; i++) if ($i == "turned") { printf "%s ", $(i+1) } }')"
 echo "  the hotspot forward of the held hand: $s0 to $s1 (the weapon's scale); the drawn hand: $m0 to $m1; pitched: $a0 to $a2"
-check $(awk -v a="$m0" -v b="$m1" -v c="$s0" -v d="$s1" 'BEGIN { e = (b - a) - (d - c); exit !(d - c > 1 && e > -0.05 && e < 0.05) }' && echo 1 || echo 0) "Weapon Offsets' hotspot moved: the flat hand moved as far"
+check $(awk -v a="$m0" -v b="$m1" -v c="$s0" -v d="$s1" 'BEGIN { m = d - c; e = (b - a) - m; if (m < 0) m = -m; exit !(m > 1 && e > -0.05 && e < 0.05) }' && echo 1 || echo 0) "Weapon Offsets' hotspot moved: the flat hand moved as far"
 check $(awk -v a="$a0" -v b="$a2" 'BEGIN { d = b - a; if (d < 0) d = -d; exit !(d > 5) }' && echo 1 || echo 0) "Weapon Offsets' hotspot turned: the flat hand turned"
 
 # c. Off: the torso faces the view, the hand hangs. d. The old lines say nothing.

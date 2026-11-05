@@ -205,10 +205,12 @@ Why the earlier barrel rest looked wrong (`vr_flat_rest`, retired with its numbe
 up its own point on the barrel (a share of the way to the muzzle) and its own turn (palm to the gun's up), and never read the
 hotspot's data, so its hand angle could not have been VR's; and it pulled the gun in 7 to 9.6 units so the arm could reach.
 
-Arm used, off shoulder to hotspot, share of `armReach` (21.9), measured with `Misc/quakevr/flatstance_test.sh` (hipfire on the
-hanging-hand hotspot's guns; 0.92 is the most it keeps): shotgun 1.31 at the view-facing hipfire pose, about 0.90 in the stance;
-in the ironsight at the default eye relief 14 all of them are out of reach (shotgun 1.27, super shotgun 1.15, nail gun 1.30, super
-nail gun 1.21), so the hand hangs while sighted; the solve is exact as ever, and the relief is not given up for a look.
+Arm used, off shoulder to hotspot, as a share of `armReach` (21.9; 0.92 is the most it keeps), read from `vr_flatplay_status` by
+`Misc/quakevr/flatstance_test.sh`: on the shotgun, 1.31 with the torso turned and the gun's hand at Gun Forward, Out and Down, and
+0.83 in the stance (super shotgun 0.77, nail gun 0.76, super nail gun 0.70, grunt gun 0.69). In the ironsight at the default eye
+relief 14 those guns are out of reach (shotgun 1.27, super shotgun 1.15, nail gun 1.30, super nail gun 1.21, grunt gun 0.97), so the
+hand hangs while sighted; the solve is exact as ever, and the relief is not given up for a look. A weapon whose data has no grip or
+cup hotspot at all has no stance, and its hand hangs: the toolgun and the glowing hammer's model.
 
 `vr_flatplay_status` prints four `stance` lines: its state, the arm's share, the hotspot in the held hand's frame, and the drawn hand
 there with how far off the hotspot it stands.
