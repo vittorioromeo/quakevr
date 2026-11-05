@@ -446,6 +446,20 @@ Flat suites: flatplay 28/0, flatpose 21/0, flatkeys 28/0, flatsight 11/1. The on
 To look at: straight down and straight up standing with each weapon; crouched with the shotgun at a level look, then up and down;
 the ironsight crouched at the floor.
 
+**Follow-up (branch `agent/flatpose2b`): flatsight's "picture moved" row.** Not the pose: the measure. `offTheRay`'s angle was
+`acos(dot / len)` in floats, and a cosine that near 1 only comes in float's steps: 0, 0.0198, 0.028 degrees, ... The sight line stood 0.079
+units off the ray 4096 along, 0.0011 degrees, and read 0.028 or 0 by how its cosine rounded (so 0 with the body pose off, by luck). Now
+`atan2(across, along)`, and `degreesApart` for flataim's and the sweep's shot angle, which had the same steps (flataim's 0.0198 jitter).
+The limit is unchanged: flatsight 12/0, the row 0.0011 degrees, the shot 0.0000.
+
+With `vr_flat_body_pose 0` (built in as the default for the run): flatplay 28/0, flatsight 12/0, flatkeys 28/0, flatpose 20/1. The one
+is the control (`vr_flat_aim_point 0` with the picture moved: the shot must pass more than 8 off the point): 5.13 with the knight 40
+away, against 9.23 at 60 in the run with the pose on. The miss grows with the range (0.13 and 0.15 a unit), and the knight stands
+at a different range from run to run (phase 1 saw 28, 42, 43), so it reads as the range, not the pose; not re-run. Off is the old pose, not the whole of before: the shot's
+start on the ray near a surface, the gun's stops against walls (9 from the shoulder, the sight 8 from the eye) and the measures above
+apply either way; the grip's choice from the level hang, the eye's lean with the chest and the free hand's eased letting go are the body
+pose's only.
+
 ## Magazines sliding home and out (branch `agent/magslide`)
 
 His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail
