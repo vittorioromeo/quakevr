@@ -54,6 +54,7 @@ Ammo boxes: a nail pistol now turns up on nail boxes on any map (rare); the heav
 Armour shows as plates on your body: hits shed limbs first (nearest the hit), the torso last; pickups dissolve them back; your hands and wrist gadget stay clear, no helmet in view {test:player_plates}
 Armed Grunts, Pick Up a Second on: a grunt with one gun and a second lying close takes it when idle, ignores one 3 m or more away, and mid-fight only takes one at its feet, with a short pause, then goes back to shooting
 Nail pistol magazine: the button slides it smoothly out of the grip, then it pops outward with some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning {test:nailpistol}
+Armour look, third round: on grunts, knights and your own plates, check that the plates fit the body and taper at wrist, waist and ankle, overlap in layers with clear bevels and rivets, and that the red isn't too bright
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
