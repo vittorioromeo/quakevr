@@ -210,6 +210,7 @@ QVR_FIELD(vr_carry_items) // the hands carrying a thing to put away (vr_carry.qc
 QVR_FIELD(carry_teleported) // until then what the hands carry follows them from the player (vr_carry.qc VR_Carry_FollowTeleported): set by the VR teleport
 QVR_FIELD(vr_hot_hud)   // the hands' incandescent blades' glow (vr_hotblade.qc VR_HotBlade_Hud; STAT_QVR_HOTBLADE: vr_meleehud.cpp)
 QVR_FIELD(vr_hot_hud2)  // the holsters' (STAT_QVR_HOTBLADEHOLSTER)
+QVR_FIELD(vr_mag_out)   // the hands whose gun's magazine is sliding out: 1 off, 2 main (QC vr_reload.qc; STAT_QVR_MAGOUT: vr_view.cpp magSlideStep)
 QVR_FIELD(vr_rv_hud)    // the heavy revolver in the main hand: its chambers, swung out, the rod, the chamber under the hammer (QC vr_revolver.qc; STAT_QVR_REVOLVER: vr_view.cpp setupRevolverParts)
 QVR_FIELD(vr_rv_hud2)   // the off hand's (STAT_QVR_REVOLVER2)
 QVR_FIELD(vr_rv_cyl)    // its cylinder's turn, degrees (STAT_QVR_REVOLVERCYL)

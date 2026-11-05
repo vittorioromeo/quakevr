@@ -1503,6 +1503,13 @@ QVR_TUNABLE(vr_flare_light, "1") // their lights' size and brightness (0: none)
 QVR_TUNABLE(vr_flare_sparks, "1") // their sparks and smoke (0: none)
 QVR_TUNABLE(vr_nailpistol_mag, "12") // the rounds its magazine holds (a nail each)
 QVR_TUNABLE(vr_nailpistol_slide_cycle, "0.14") // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
+QVR_TUNABLE(vr_nailpistol_mag_travel, "5.25") // model units its magazine slides up the grip, seating and ejecting (5.25: from the grip's bottom, its load point, to home)
+QVR_TUNABLE(vr_nailpistol_mag_seat_time, "0.12") // s its magazine is drawn sliding home up the grip once seated (0: at once; drawn only: loaded at once); keep it under vr_nailpistol_slide_delay, so that it is home before the rack
+QVR_TUNABLE(vr_nailpistol_mag_eject_time, "0.14") // s its magazine slides out of the grip on the eject button before it drops (0: drops at once; out of the gun's count at once)
+QVR_TUNABLE(vr_nailpistol_mag_eject_speed, "120") // u/s it then pops on out of the grip, along the grip's line
+QVR_TUNABLE(vr_nailpistol_mag_eject_hand, "0.6") // and the share of the holding hand's velocity it takes with it (never more than 0.45 of the pop: mostly outward)
+QVR_TUNABLE(vr_reload_mag_seat_time, "0.07") // s the other magazine guns' magazine is drawn sliding the last bit home once seated (0: at once; drawn only: loaded at once)
+QVR_TUNABLE(vr_reload_mag_seat_travel, "1.5") // and how far, model units along the well's line
 QVR_TUNABLE(vr_nailpistol_slide_delay, "0.175") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)

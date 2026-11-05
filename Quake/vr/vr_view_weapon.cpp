@@ -74,6 +74,12 @@ namespace
 }
 } // namespace
 
+glm::vec3 magShapeCentre(const MagMount& mount)
+{
+    MagShape shape;
+    return magazineShape(mount, viewModel(mount.model), shape) ? shape.centre : mount.centre;
+}
+
 void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const glm::vec3& angles,
     int frame, bool mirrored)
 {
@@ -696,7 +702,10 @@ void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t
 {
     s.magBoxValid[hand] = false;
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-    const MagMount* mount = !floating && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && !(flags & weaponFlagNoMag)
+    magSlideStep(hand, model);
+    // (One sliding out: its box still sent, slid with it, for where the server lets it go; no grip nor collision on it.)
+    const bool sliding = magSlidingOut(hand);
+    const MagMount* mount = !floating && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && (!(flags & weaponFlagNoMag) || sliding)
                                 ? magMountFor(model)
                                 : nullptr;
     MagShape shape;
@@ -705,12 +714,17 @@ void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t
         return;
     }
     glm::vec3(&box)[4] = s.magBox[hand];
-    box[0] = view::modelPoint(ve, shape.centre);
+    const glm::vec3 centre = shape.centre + (sliding ? magOutAxis(*mount) * magSlideTravel(hand, *mount) : glm::vec3{0.f});
+    box[0] = view::modelPoint(ve, centre);
     for(int i = 0; i < 3; i++)
     {
-        box[i + 1] = view::modelPoint(ve, shape.centre + shape.axis[i] * shape.half[i]) - box[0];
+        box[i + 1] = view::modelPoint(ve, centre + shape.axis[i] * shape.half[i]) - box[0];
     }
     s.magBoxValid[hand] = true;
+    if(sliding)
+    {
+        return;
+    }
     // For its collision (view::DrawnWeapon::mag): the magazine and its box in the hand's frame, as the gun drawn this frame.
     view::DrawnWeapon& d = drawnWeapons[hand];
     if(d.model == ve.ent.model && d.when == vr_gametime && vr_reload_mag_collide.value)
@@ -751,7 +765,7 @@ void magazineHand(hands::State& s, int hand, bool carried)
 {
     const int other = 1 - hand;
     bool on = false;
-    if(s.magBoxValid[hand] && held::handEmpty(other) && !twohand::carrying(other) && !flashlight::holds(other))
+    if(s.magBoxValid[hand] && !magSlidingOut(hand) && held::handEmpty(other) && !twohand::carrying(other) && !flashlight::holds(other))
     {
         // (As tracked: the drawn hand and gun are held out of each other, vr_body_collide.)
         const float d = boxDistance(s.magBox[hand], s.pos[other] - selfcollide::drawnOffset(other) + selfcollide::drawnOffset(hand));
@@ -886,7 +900,7 @@ void magazineSpot(const WeaponFrame& wf)
     const int slot = wf.slot;
     const bool carried = wf.carried;
     magSpot[hand] = -1;
-    if(s.magBoxValid[hand] && !carried && model && slot >= 0)
+    if(s.magBoxValid[hand] && !magSlidingOut(hand) && !carried && model && slot >= 0)
     {
         for(int i = 0; i < weapons::maxHotspots && magSpot[hand] < 0; i++)
         {

@@ -223,3 +223,57 @@ Test 211 (`vr_agrunt_test 211`, `map vrtesthall`): idle 120 away takes it (1.9 s
 hunting, 52 away takes it (downtime not firing 1.9 s); taken away on the way, it gives up. 5/5; test 42 still 20/20.
 Note: a freed entity keeps its `classname`, so a weapon taken by another grunt is only dropped from a trip by the "no nearer" check.
 **Gun looks, the author's marked rivets (branch `agent/gunlooks4`):** on the tops as he dotted them: the shotgun 4 more (6 to 10: a pair where the receiver's top ends ahead of the sights, a pair behind them), the nailgun and lava nailgun 6 more (4 to 10: the top bar's ends, two pairs on the rear body's top edges); the top bar's head 0.12 high (the model's byte box ends just over the bar as it kicks) and riding the bar, a part that already moved; the check now wants them clear of the sights and their lines of sight; barrel masks 1876, 1188.
+
+## Magazines sliding home and out (branch `agent/magslide`)
+
+His note: a seated magazine should slide the last bit home, right from every direction and with the gun tilting; the nail
+pistol's, which goes fully inside the handle, also in reverse for the ejection, then dropped with the hand's velocity but
+mostly popping outward; tunables for the times and speeds.
+
+**Seat (every magazine gun in a hand).** Drawn only; the count, sound and flag land when they always did. The client
+(`vr_view.cpp` `MagSlide`, `magSlideStep`) sees the gun's magazine come in with the same gun (`STAT_QVR_WEAPONUID` and its
+model) and draws it from `vr_nailpistol_mag_travel` (5.25 model units: the grip's bottom, its load point) or
+`vr_reload_mag_seat_travel` (1.5) out, easing to a stop at home, over `vr_nailpistol_mag_seat_time` (0.12) or
+`vr_reload_mag_seat_time` (0.07). A lying gun's magazine seats at once, as before.
+
+**The slide is worked out in `setMagazine`**, in the gun's model space, through the gun as drawn that frame
+(`gunSpace.point(seat + axis * slide) - gunSpace.point(seat)`): no state in the world, so no lag however the gun moves, and
+the off hand's mirroring and the weapon's scale come with it. The axis (`magOutAxis`): the nail pistol's from home to its
+load point (the grip's 12 degree lean); the others' from the seat to the magazine's middle.
+
+**Eject (the nail pistol's button only: `VR_Reload_MagOutStart`, `vr_reload.qc`).** The clip, the no-magazine flag, the
+sound and the haptic at the press, as before. The rounds wait on the player (`.vr_mag_out*`), `STAT_QVR_MAGOUT` says to
+draw it sliding out (`entities.magOut`: a separate entity, so that everything treating `entities.mag` as seated, the
+collisions, the hand's wrap, stays right) over `vr_nailpistol_mag_eject_time` (0.14), from rest, gathering speed. Its box
+is still sent, slid with it (no grip or hotspot on it), and `VR_Reload_MagOutRelease` makes the round there, with
+`vr_nailpistol_mag_eject_speed` (120 u/s) along the way out plus `vr_nailpistol_mag_eject_hand` (0.6) of the hand's velocity,
+at most 0.45 of the pop (so outward wins whichever way the hand goes). The client reaches full travel a frame before the
+server lets go, and holds there if the server is later. The stat clears in the update that has the round: no gap, no
+overlap, and it cannot stick.
+
+**Relation to `vr_nailpistol_slide_delay` (0.175):** none in the code: the rack still waits that long from the seat, which
+lands at the same moment. The seat's 0.12 is under it, so the magazine is home first; a longer seat time would rack before
+it arrives (said in the row's help). The rack's timing is unchanged.
+
+**Interrupted:** the gun leaving the hand (`.vr_mag_out_inst*` differs), the player dead, a new magazine seated: free there
+and then (`VR_Reload_MagOutFrame`, `VR_Reload_SeatMagInto`). Other ejects (a knock, a pull with `vr_nailpistol_mag_pull`, the
+ammo changing) stay immediate, as does every other gun's button.
+
+**Test:** `vr_magslide_test 1` (`vr_magslide_test.qc`; Debug > Tests > Nail Pistol) on any map: `run.sh <name> -Script
+"developer 1;map e1m1;wait60;vr_magslide_test 1" -QuitOn "^magslide: [0-9]+ passed"`: 63 passed, 0 failed. The engine measures
+the drawn magazine in the gun's frame each frame (`vr_test_magslide*`), the gun turning 3-4 degrees a frame on all axes, in
+each hand: 0.000 units off the line (limit 0.02); seat from full (2.65 world units) to 0, at most 0.58 a frame (limit 0.77);
+out from 0 to full, at most 0.55 a frame (limit 0.73); the loose one 0.07 units from the magazine last drawn, 0.96 with the
+hand moving at 69 u/s (limit 1.5); the pop 120 u/s, 130 along the grip with 41 from the hand (inherited to 0.0 u/s); against
+a fast hand 66 along the grip to the hand's 54. Nailgun: 0.81 to 0 units in 7 frames; its button free at once. Times 0: no slide.
+Also `vr_np_test 1` 39 passed, 0 failed; `vr_reload_test 9` 77 passed, 0 failed. Not run: `reload_test.sh`, the mock suite (no
+`--only`; it never ejects a nail pistol).
+
+**Pictures** (`C:/OHWorkspace/qvr-kit/scratch/magslide/`: `side_crop`, `inner_crop`, `tilted_crop`, eject then seat, and
+`handoff`): the magazine stays in line with the grip from each side and tilted, the foot plate leaves flush and comes back flush, nothing
+pokes through the grip, the loose one carries on as it sat. They use the new `vr_shot_hide` bit 8: the hands hidden, what they
+hold still drawn (the hand wraps the grip otherwise). Low-impact runs, so low-res. One or two of the runs' screenshots show the head's
+view for a single frame at a random moment, the magazine's state unconnected (a run without the button is clean, a repeat of the same
+run has it elsewhere or not at all): it looks like the low-impact screenshot's readback, not the game; worth a look only if it shows in VR.
+
+**Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}

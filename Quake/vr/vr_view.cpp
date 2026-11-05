@@ -201,6 +201,94 @@ constexpr MagMount magMounts[] = {
     }
     return glm::distance(p, nearest);
 }
+// The way out of a gun's well (along the magazine's length; the nail pistol's, the grip's lean: from home to its load point).
+[[nodiscard]] glm::vec3 magOutAxis(const MagMount& mount)
+{
+    if(mount.kind == 3)
+    {
+        for(const LoadPort& port : loadPorts)
+        {
+            if(port.model == mount.gun)
+            {
+                return glm::normalize(port.point - mount.seat);
+            }
+        }
+    }
+    return glm::normalize(mount.centre - mount.seat);
+}
+
+[[nodiscard]] float magSlideTravel(int hand, const MagMount& mount)
+{
+    const MagSlide& st = magSlides[hand];
+    if(st.mode == MagSlide::Mode::None)
+    {
+        return 0.f;
+    }
+    const bool pistol = mount.kind == 3;
+    const float travel = za::max(pistol ? vr_nailpistol_mag_travel.value : vr_reload_mag_seat_travel.value, 0.f);
+    const float elapsed = static_cast<float>(vr_gametime - st.start);
+    if(st.mode == MagSlide::Mode::Seat)
+    {
+        // Pushed in: at its fastest as it starts, easing to a stop at home.
+        const float span = pistol ? vr_nailpistol_mag_seat_time.value : vr_reload_mag_seat_time.value;
+        const float left = 1.f - za::clamp(elapsed / za::max(span, 0.001f), 0.f, 1.f);
+        return travel * left * left;
+    }
+    // Out from rest, gathering speed: the pop goes on from it. Full a frame before the server lets it go (its box, last
+    // frame's, is where the loose one starts: magazineBox), and it waits there if the server is later.
+    const float eject = vr_nailpistol_mag_eject_time.value;
+    const float span = za::max(eject - st.dt, eject * 0.25f);
+    const float gone = za::clamp(elapsed / za::max(span, 0.001f), 0.f, 1.f);
+    return travel * gone * gone;
+}
+
+void magSlideStep(int hand, const qmodel_t* gun)
+{
+    MagSlide& st = magSlides[hand];
+    if(st.frame == host_framecount)
+    {
+        return;
+    }
+    st.frame = host_framecount;
+    st.dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
+    st.time = vr_gametime;
+    const bool main = hand == HAND_MAIN;
+    const bool noMag = (cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2] & weaponFlagNoMag) != 0;
+    const int uid = cl.stats[main ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2];
+    const bool out = (cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) != 0;
+    const MagMount* const mount = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 ? magMountFor(gun) : nullptr;
+    const bool sameGun = st.uid == uid && st.gun == gun;
+    const float seat = !mount ? 0.f : mount->kind == 3 ? vr_nailpistol_mag_seat_time.value : vr_reload_mag_seat_time.value;
+    if(out && mount)
+    {
+        if(st.mode != MagSlide::Mode::Out)
+        {
+            st.mode = MagSlide::Mode::Out;
+            st.start = vr_gametime;
+        }
+    }
+    else if(st.mode == MagSlide::Mode::Out)
+    {
+        st.mode = MagSlide::Mode::None; // (loose now, or the gun gone)
+    }
+    if(!out && mount && sameGun && st.noMag && !noMag && seat > 0.f)
+    {
+        st.mode = MagSlide::Mode::Seat;
+        st.start = vr_gametime;
+    }
+    else if(st.mode == MagSlide::Mode::Seat && (noMag || !sameGun || !mount || vr_gametime - st.start >= seat))
+    {
+        st.mode = MagSlide::Mode::None;
+    }
+    if(!noMag)
+    {
+        st.rounds = cl.stats[main ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+    }
+    st.noMag = noMag;
+    st.uid = uid;
+    st.gun = gun;
+}
+
 [[nodiscard]] const MagMount* magMountFor(const qmodel_t* gun)
 {
     if(!gun || gun->type != mod_alias)
@@ -415,10 +503,14 @@ int ammoPouchItems = 0;       // the rounds placed in it (setupAmmoPouchItems: e
         }
         return false;
     };
+    if((hide & 8) && among(entities.hand))
+    {
+        return true; // (the hands alone: what they hold still drawn)
+    }
     if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand) ||
                          among(entities.button) || among(entities.frontButton) ||
                          among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
-                         among(entities.mag) || among(entities.well) || among(entities.pumpBody) ||
+                         among(entities.mag) || among(entities.magOut) || among(entities.well) || among(entities.pumpBody) ||
                          among(entities.pump) || among(entities.ssgFrame) || among(entities.ssgBarrels)))
     {
         return true;
@@ -1840,8 +1932,9 @@ void setupPouch(const hands::State& s)
 
 // The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in; `rounds`: what it holds,
 // for its top nails: magFrame; a lying gun's unknown, full): its attached model, the gun's place, turn, mirroring, scale
-// and light, moved with the gun's body by the firing animation (magMounts).
-void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false, int rounds = 2)
+// and light, moved with the gun's body by the firing animation (magMounts). `slide`: this far out along its well's line
+// (model units; MagSlide), through the gun as drawn: right however the gun moves or tilts, the frame it does.
+void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false, int rounds = 2, float slide = 0.f)
 {
     const MagMount* mount = show && gun.visible ? magMountFor(gun.ent.model) : nullptr;
     const char* const name = mount ? (well ? mount->well : mount->model) : nullptr; // (a well: none, the nail pistol's)
@@ -1870,9 +1963,11 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     // which the magazine's model doesn't share with the gun's: the point that is the gun's model-space origin drawn where
     // the gun draws it (the rest follows: the two differ by a move only).
     const glm::vec3 corner = gunSpace.point(glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
+    const glm::vec3 slid = slide != 0.f ? gunSpace.point(mount->seat + magOutAxis(*mount) * slide) - gunSpace.point(mount->seat)
+                                        : glm::vec3{0.f};
     for(int i = 0; i < 3; i++)
     {
-        mag.ent.origin[i] += kick[i] + corner[i];
+        mag.ent.origin[i] += kick[i] + corner[i] + slid[i];
     }
     if(!well)
     {
@@ -2176,6 +2271,59 @@ void setupRevolverParts()
     return false;
 }
 
+// vr_test_magslide: the slide of the magazine in the gun in that hand as drawn now, in the gun's own frame.
+MagSlide::Mode magProbeMode = MagSlide::Mode::None;
+float magProbeLast = 0.f;
+void magSlideProbe()
+{
+    const int hand = vr_test_magslide.value == 2.f ? HAND_OFF : HAND_MAIN;
+    const view::ViewEntity& gun = entities.weapon[hand];
+    const MagMount* const mount = magMountFor(gun.ent.model);
+    const MagSlide::Mode mode = magSlides[hand].mode;
+    Cvar_SetValueQuick(&vr_test_magslide_mode, mode == MagSlide::Mode::Seat ? 1.f : mode == MagSlide::Mode::Out ? 2.f : 0.f);
+    if(!mount || !gun.visible)
+    {
+        magProbeMode = MagSlide::Mode::None;
+        return;
+    }
+    // (A seat's last frame is the one drawn home with the slide over; out, its last one still sliding.)
+    const bool measuring = mode != MagSlide::Mode::None || magProbeMode == MagSlide::Mode::Seat;
+    const view::ViewEntity& mag = mode == MagSlide::Mode::Out ? entities.magOut[hand] : entities.mag[hand];
+    if(!measuring || !mag.visible)
+    {
+        magProbeMode = mode;
+        return;
+    }
+    const view::ModelSpace gunSpace{gun};
+    const glm::vec3 home = gunSpace.point(mount->seat);
+    const glm::vec3 way = gunSpace.point(mount->seat + magOutAxis(*mount)) - home;
+    const float unit = glm::length(way);
+    const glm::vec3 axis = way / unit;
+    const glm::vec3 from = view::modelPoint(mag, mount->seat) - home;
+    const float along = glm::dot(from, axis);
+    const float off = glm::length(from - axis * along);
+    if(mode != MagSlide::Mode::None && magProbeMode != mode)
+    {
+        const bool pistol = mount->kind == 3;
+        Cvar_SetValueQuick(&vr_test_magslide_frames, 0.f);
+        Cvar_SetValueQuick(&vr_test_magslide_first, along);
+        Cvar_SetValueQuick(&vr_test_magslide_off, 0.f);
+        Cvar_SetValueQuick(&vr_test_magslide_step, 0.f);
+        Cvar_SetValueQuick(&vr_test_magslide_full, unit * (pistol ? vr_nailpistol_mag_travel.value : vr_reload_mag_seat_travel.value));
+        magProbeLast = along;
+    }
+    Cvar_SetValueQuick(&vr_test_magslide_frames, vr_test_magslide_frames.value + 1.f);
+    Cvar_SetValueQuick(&vr_test_magslide_last, along);
+    Cvar_SetValueQuick(&vr_test_magslide_off, za::max(vr_test_magslide_off.value, off));
+    Cvar_SetValueQuick(&vr_test_magslide_step, za::max(vr_test_magslide_step.value, glm::abs(along - magProbeLast)));
+    const glm::vec3 middle = view::modelPoint(mag, magShapeCentre(*mount));
+    Cvar_SetValueQuick(&vr_test_magslide_x, middle.x);
+    Cvar_SetValueQuick(&vr_test_magslide_y, middle.y);
+    Cvar_SetValueQuick(&vr_test_magslide_z, middle.z);
+    magProbeLast = along;
+    magProbeMode = mode;
+}
+
 // The magazines in the guns in the hands (as setupMagazines): placed right after the guns (a hand holding one wraps it),
 // and again with the rest.
 void setupHeldMagazines()
@@ -2185,7 +2333,13 @@ void setupHeldMagazines()
     {
         const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
         const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
-        setMagazine(entities.mag[hand], entities.weapon[hand], on && !(flags & weaponFlagNoMag), false, clip);
+        const view::ViewEntity& gun = entities.weapon[hand];
+        magSlideStep(hand, gun.ent.model);
+        const MagMount* const mount = magMountFor(gun.ent.model);
+        const float slide = mount ? magSlideTravel(hand, *mount) : 0.f;
+        const bool out = magSlidingOut(hand);
+        setMagazine(entities.mag[hand], gun, on && !(flags & weaponFlagNoMag), false, clip, out ? 0.f : slide);
+        setMagazine(entities.magOut[hand], gun, on && out, false, magSlides[hand].rounds, out ? slide : 0.f);
         setMagazine(entities.well[hand], entities.weapon[hand], on, true);
     }
 }
@@ -2209,6 +2363,10 @@ void setupMagazines()
         }
     }
     setupHeldMagazines();
+    if(vr_test_magslide.value != 0.f)
+    {
+        magSlideProbe();
+    }
     for(int h = 0; h < HolsterCount; h++)
     {
         const int flags = holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0);
@@ -3413,7 +3571,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(plate, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
         QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
         QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchItem, VR_DRAW_WORN),
-        QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(magOut, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
         QVR_DRAW_RANGE(well, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterWell, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldWell, VR_DRAW_LYING),
         QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
         QVR_DRAW_RANGE(ssgBarrels, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterSsgFrame, VR_DRAW_HOLSTERED),
