@@ -462,3 +462,15 @@ four gates, the gun 714 units off for a frame. With the fixes: flatitems_sh 8/8,
 
 Noticed, not changed: E searches along the free hand (`VR_Forcegrab_FindTarget`), and an empty hand hangs 60 degrees down, so
 at a level view E does not look where the crosshair is; FLATPLAY.md says it does.
+
+## Flat-screen: walking over boxes too (agent/flatfix2, 2026-11-05)
+
+His answer to the list above: "Yes, walk over all". Ammo, health, megahealth and backpacks are taken by walking over them in
+flat-screen play; E still takes them. Why they were not: a box rests by its drawn shape and its small box sits under the
+floor's plane (on e1m1 its top 10 units below his feet), so Quake's overlap never met it; the engine now touches a
+flat-screen player's pickup box (an FL_ITEM with VR_Carry_Setup's hand touch) up to 18 units under his feet, with only the
+pickup's own touch (`flatPickupUnderFeet`). The box rules stand, checked by `vr_flatitems_test 2`: shells when full and
+health at 100 stay lying; megahealth takes him over 100; a monster's backpack (DropBackpack, the armed grunts' drop too) is
+taken. A dead armed grunt's worn backpack (vr_wornpack.qc) is on the corpse, not an item on the floor: not touched by this.
+A box let go with G at his feet is taken again only if it can be (a held box is one he was full of). Headset: the same walk
+leaves all 13 lying, as before.

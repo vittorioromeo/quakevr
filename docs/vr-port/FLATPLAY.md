@@ -118,8 +118,10 @@ does not take it" asks `VR_FlatPlay` as well as `VRHandsTracked`, because the cl
 over, armour, keys, the biosuit and the wetsuit, runes, powerups and weapons are taken, under their own rules (`armor_touch`:
 only better than what he wears). `E` on any of them is taken at once too, as a box is (`VR_Carry_AutoCollect`). What cannot
 be taken (armour no better than his, a box when full) stays in the hand; `G` lets it go, and a shot from the other hand is
-not affected. Ammo and health boxes are not taken by walking over them: they lie as rigid boxes and `E` is how they are
-taken. Test: `bash Misc/quakevr/flatitems_test.sh <agent>` (`vr_flatitems_test 1..5`, Debug > Tests > Flat Items);
+not affected. Ammo and health boxes and backpacks are walked over too (his words 2026-11-05: "walk over all"): a box rests
+by its drawn shape with its small box below the floor's plane, under his feet, so the engine touches a flat-screen player's
+pickup box up to 18 units under them (`flatPickupUnderFeet`, `Quake/vr/vr_physics.cpp`). The box's own rules decide: full
+shells or full health, it stays; megahealth over 100; a monster's backpack (the armed grunts' too). Test: `bash Misc/quakevr/flatitems_test.sh <agent>` (`vr_flatitems_test 1..5`, Debug > Tests > Flat Items);
 `vr_flatitems_test 4` is the plates before and after from the front (`vr_flat_orbit 180 70`).
 
 **The console's `give` keeps the ammo id.** `Host_Give_f` (`Quake/host_cmd.c`) ends by writing the new ammo *count* into
