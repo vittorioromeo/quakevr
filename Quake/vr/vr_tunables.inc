@@ -1948,6 +1948,9 @@ QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, bar
 QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
+QVR_TUNABLE(vr_embed_hold_corpse_tug_sword, "0.8") // m/s a pull out of a dead body must average (over vr_embed_hold_axe_tug_time) for a sword to come out 1:1 with the arm; slower, the body comes along (his 2026-11-05, "like the axe"; 0: always 1:1)
+QVR_TUNABLE(vr_embed_hold_corpse_tug_axe, "0.8") // ... an axe (its tug distance still to go)
+QVR_TUNABLE(vr_embed_hold_corpse_slip, "20") // cm past the stick a slower pull's hand may get ahead of a dead body that won't come along before it slips off (the blade stays in)
 QVR_TUNABLE(vr_embed_slide_sound_cm, "3") // cm a blade slides, in or out, between two flesh sounds (0: none)
 QVR_TUNABLE(vr_embed_slide_sound_vol, "0.35") // their volume
 QVR_TUNABLE(vr_embed_slide_blood, "10") // how much blood spurts out of the wound at each of those steps, going in or out (0: none)

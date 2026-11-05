@@ -1111,7 +1111,9 @@ void() VR_EH_Step =
         else if(vr_et_s == 10 && t > 0.2)
         {
             VR_Test_Check(vr_et_w.vr_stick_slide == vr_et_v, sprintf("half a cm doesn't move it (slid %.2f to %.2f)", vr_et_v, vr_et_w.vr_stick_slide));
-            VR_EH_HandTo(vr_et_at - vr_et_w.vr_stick_dir * (max(0, vr_et_w.vr_hold_err) + (vr_et_w.vr_stick_depth + vr_et_w.vr_stick_slide) + 8 * 0.01 * VRMetersToUnits()), 0.2);
+            // (Past its depth by its tug and 3 cm, as fast as that takes in 0.2 s: well over its tug's speed. His rule of 2026-11-05: 20 cm
+            // and a firm pull; it was 5 cm, any speed, so this pulled 8.)
+            VR_EH_HandTo(vr_et_at - vr_et_w.vr_stick_dir * (max(0, vr_et_w.vr_hold_err) + (vr_et_w.vr_stick_depth + vr_et_w.vr_stick_slide) + (max(0, cvar_hget(cvarh_vr_embed_hold_axe_tug)) + 3) * 0.01 * VRMetersToUnits()), 0.2);
             VR_ET_To(11);
         }
         else if(vr_et_s == 11 && (w == world || t > 1))
@@ -2244,7 +2246,8 @@ void() VR_EM_Step =
             vr_et_v2 = max(0, w.vr_hold_err - w.vr_hold_slack) + max(0, w.vr_hold_slack); // (the real hand past the drawn one: coming back to it does nothing)
             vr_et_at = VRGetHandPos(h);
             vr_em_org = w.vr_stick_dir;
-            vr_eh_for = 2;
+            // (At 1.5 times the axe's tug speed: his rule of 2026-11-05, a firm pull; it was 2 s for the 30 units, 0.57 m/s, any speed then.)
+            vr_eh_for = max(0.2, (30 + vr_et_v2) / VRMetersToUnits() / (1.5 * max(0.1, cvar_hget(cvarh_vr_embed_hold_axe_tug_speed))));
             VR_EH_HandTo(vr_et_at - vr_em_org * (30 + vr_et_v2), vr_eh_for);
             VR_ET_To(11);
         }
@@ -2256,7 +2259,7 @@ void() VR_EM_Step =
             float wants = (vr_et_v - 1 + vr_et_v2) / aCm + cvar_hget(cvarh_vr_embed_hold_axe_tug) + cvar_hget(cvarh_vr_embed_hold_axe_stick);
             VR_Test_Check(w == world && VRGetEntWeapon(p, h) == WID_AXE, sprintf("tugged out, into the hand (held %g)", w != world));
             localcmd("tune vr_embed_stagger_axe_speed 8\n");
-            VR_Test_Check(pulled >= wants - 1.5 && pulled <= wants + 8, sprintf("after its depth and its tug: %.1f cm: %.1f in + 5 + 2, from %.1f past the drawn hand", pulled, vr_et_v / aCm, vr_et_v2 / aCm));
+            VR_Test_Check(pulled >= wants - 1.5 && pulled <= wants + 8, sprintf("after its depth and its tug: %.1f cm: %.1f in + %g + %g, from %.1f past the drawn hand", pulled, vr_et_v / aCm, cvar_hget(cvarh_vr_embed_hold_axe_tug), cvar_hget(cvarh_vr_embed_hold_axe_stick), vr_et_v2 / aCm));
             VR_EM_NextCase();
         }
         return;
@@ -2330,7 +2333,9 @@ void() VR_EM_Step =
             if(vr_et_s == 0)
             {
                 // (23: a stagger that outlasts the pull: its getting up isn't the pull's doing.)
-                localcmd(c == 23 ? "tune_reset vr_embed_move_sword_force_deep\ntune vr_embed_stagger_sword 3\n" : "tune vr_embed_move_sword_force_deep 300\ntune vr_embed_stagger_sword 0.6\n");
+                // (24, 25: a weak force, so the second hand's share shows; the lift's floor, its weight held up (test 24's case 5), off
+                // with it: it would carry both alike.)
+                localcmd(c == 23 ? "tune_reset vr_embed_move_sword_force_deep\ntune vr_embed_stagger_sword 3\n" : "tune vr_embed_move_sword_force_deep 300\ntune vr_embed_stagger_sword 0.6\ntune vr_embed_move_sword_lift 0\ntune vr_embed_move_sword_lift_deep 0\n");
             }
             if(VR_EM_Blow(WID_SWORD, 9, t))
             {
@@ -2377,7 +2382,7 @@ void() VR_EM_Step =
             {
                 VR_Test_Check(bodyWent > vr_em_shallow * 1.2, sprintf("two hands move it further (%.1f units against %.1f)", bodyWent, vr_em_shallow));
                 VR_Embed_DropHand(w, cVR_OffHand, "test");
-                localcmd("tune_reset vr_embed_move_sword_force_deep\n");
+                localcmd("tune_reset vr_embed_move_sword_force_deep\ntune_reset vr_embed_move_sword_lift\ntune_reset vr_embed_move_sword_lift_deep\n");
             }
             VR_ET_To(12);
         }
@@ -3410,14 +3415,18 @@ void() VR_EF_Step =
         {
             vr_ef_at = vr_et_w.vr_stick_at;
             vr_ef_max = ragdolltug(vr_et_m, p, cVR_MainHand, 15);
-            VR_EH_HandTo(VRGetHandPos(cVR_MainHand) + '0 0 30', 0.8);
+            // (A slow lift, 30 units in 2 s, 0.57 m/s: under the sword's Dead Body Tug Speed, the body comes; his decision 2026-11-05.
+            // The mock hand goes higher than the mock body's arm reaches: its let-go, case 1's, off for it.)
+            localcmd("tune vr_embed_arm_letgo 1000\n");
+            VR_EH_HandTo(VRGetHandPos(cVR_MainHand) + '0 0 30', 2);
             VR_ET_To(11);
         }
-        else if(vr_et_s == 11 && (w == world || t > 1.6))
+        else if(vr_et_s == 11 && (w == world || t > 2.8))
         {
             float rose = vr_et_w.vr_stick_at_z - vr_ef_at_z;
             VR_Test_Check(w != world && vr_ef_max > 0 && rose >= 15,
                 sprintf("a dead body on a sword (%.0f kg) lifted with the hand: the wound rose %.1f of 30 units (held %g)", vr_ef_max, rose, w != world));
+            localcmd("tune_reset vr_embed_arm_letgo\n");
             VR_EH_NextCase();
         }
         return;
@@ -3445,6 +3454,43 @@ void() VR_EF_Step =
         if(vr_et_s == 10 && t > 1)
         {
             VR_Test_Check(vr_et_w.vr_stick_freed > 0, sprintf("its handle in the body is turned out of it (%.1f deg)", vr_et_w.vr_stick_freed));
+            VR_EH_NextCase();
+        }
+        return;
+    }
+    // 7: an axe in a body that dies: a slow pull out along it drags the corpse (his decision 2026-11-05, "like the axe": only a firm tug
+    // takes a blade out of a dead body).
+    if(vr_et_case == 7)
+    {
+        if(vr_et_s < 10)
+        {
+            if(VR_EH_Blow(WID_AXE, 11, 0, TRUE, t))
+            {
+                VR_Test_Check(w != world, "case 7: the axe stays in");
+                if(w == world)
+                {
+                    VR_EH_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                vr_et_m.health = 1;
+                T_Damage(vr_et_m, p, p, 2);
+                VR_ET_To(10);
+            }
+            return;
+        }
+        if(vr_et_s == 10 && t > 1)
+        {
+            vr_ef_at = vr_et_w.vr_stick_at;
+            vr_ef_max = 30 / VRMetersToUnits() / 1.5; // (m/s: 30 units in 1.5 s, under the axe's corpse tug speed)
+            VR_EF_Pull(vr_et_w, 30, 1.5);
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && (w == world || t > 1.7))
+        {
+            float went = vlen(vr_et_w.vr_stick_at - vr_ef_at);
+            VR_Test_Check(w != world && went >= 12,
+                sprintf("a dead body on an axe pulled slowly (%.2f m/s, Tug Speed %g): dragged %.1f of 30 units (held %g)", vr_ef_max, cvar_hget(cvarh_vr_embed_hold_corpse_tug_axe), went, w != world));
             VR_EH_NextCase();
         }
         return;
