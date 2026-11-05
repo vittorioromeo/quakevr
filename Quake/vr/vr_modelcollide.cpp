@@ -16,6 +16,7 @@
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_twohand.hpp"
@@ -471,6 +472,11 @@ za::Vector<double> restSeen; // by entity: vr_gametime it last lay on a hand
     {
         edict_t* ed = EDICT_NUM(num);
         if(ed->free)
+        {
+            return Kind::None;
+        }
+        // On a blade (QC vr_skewer.qc): it rides it, in nothing's way, its own blade's least of all.
+        if(const int on = progs::fields().vr_skewer_p; on >= 0 && progs::fieldInt(ed, on) != 0)
         {
             return Kind::None;
         }

@@ -1,9 +1,10 @@
 // vr_skewer.qc -- Skewering gibs (vr_embed; ROUND23.md, "Skewering gibs"; Combat > Embedded Blades).
 //
-// A stab (VR_Embed_StabWhy, tip first) by a pointed blade in the hand on a loose gib, severed head or limb: it takes no blow and
-// goes on the blade, centred on its line, vr_embed_skewer_depth back from the tip and vr_embed_skewer_gap apart, up to
-// vr_embed_skewer_most on a blade. Any other blow bursts it as ever (VR_Melee_Deal, VR_Gib_Blow). On the blade it is not solid, so
-// blows, touches and force grabs pass it; a shot's or a blast's damage still reaches it (it isn't in the shots' traces).
+// A stab (VR_Embed_StabWhy, tip first) by a pointed blade in the hand on a loose gib, severed head or limb whose model its line truly
+// goes through (VR_Skewer_Through: the sweep's wider reach only finds it): it takes no blow and goes on the blade, centred on its line,
+// vr_embed_skewer_depth back from the tip and vr_embed_skewer_gap apart, up to vr_embed_skewer_most on a blade. A stab beside it leaves it
+// be; any other blow bursts it as ever (VR_Melee_Deal, VR_Gib_Blow). On the blade it is not solid, so blows, touches, force grabs and the
+// drawn hands' collision (vr_modelcollide.cpp) pass it; a shot's or a blast's damage still reaches it (it isn't in the shots' traces).
 //
 // The gib drives itself (its think each frame), so nothing about it can dangle: burst, it is simply gone. Its own think waits in
 // .vr_skewer_think and comes back as it comes off (a fade starts over: VR_Gib_FadeAnew).
@@ -12,13 +13,16 @@
 // left in a body, the thrown_weapon of that record (.vr_skewer_w), whose rigid body has a sphere for it (the engine's
 // addSkeweredShapes, remade when .vr_skewer_gen changes); picked up, whichever hand has it. No joint: it is one more shape of one body,
 // so its mass and centre of mass come with it. It comes off (VR_Skewer_Off, falling) when the blade is nowhere (holstered, switched,
-// gone), its holder is dead, vr_embed is off, the level ends; a free hand's grip takes it (VR_Skewer_Take).
+// gone), its holder is dead, vr_embed is off, the level ends. A free hand's grip holds it (VR_Skewer_Grip) and it goes only along the blade
+// with that hand: stopped at the hilt end and by the next gib along, off the tip end when clear of it, or torn off by a tug across the
+// line (vr_embed_skewer_tug_speed, _tug_stretch); then it is a prop in that hand (VR_Skewer_Take).
 //
-// Bursts: on a blade flying fast enough, a gib that itself meets what is ahead of it (VR_Skewer_Impact, vr_embed_skewer_throw_burst); on a
-// blade in the hand, a swing fast enough whose contact falls at that gib's place along it (VR_Skewer_SwingHit, vr_embed_skewer_swing_burst).
+// Bursts: a gib that itself, going fast enough, meets what is ahead of it (VR_Skewer_Impact: on a flying blade vr_embed_skewer_throw_burst;
+// in the hand vr_embed_skewer_swing_burst, not along the blade's line: the tip gets there first); in the hand also a swing that fast whose
+// blow lands by its place along the blade (VR_Skewer_SwingHit, vr_embed_skewer_swing_reach).
 //
 // In the hand it weighs: each frame's gibs add up in the player's .vr_skewer_load_* (kg, kg m, kg m^2 about the grip: VR_Skewer_Frame),
-// for the hand's weight (vr_weight.cpp computeLoad). Its mass: its own .vr_prop_mass (a limb's), else vr_embed_skewer_mass_head or _gib.
+// for the hand's weight (vr_weight.cpp computeLoad). Its mass: VR_Skewer_Mass, by kind and size.
 
 .float  vr_skewer_hand;    // the hand holding the blade
 .float  vr_skewer_slot;    // its place along the blade, 0 nearest the tip
@@ -32,8 +36,19 @@
 .float  vr_skewer_lastt;   // when it was placed last
 .void() vr_skewer_think;   // its own think, waiting
 .float  vr_skewer_next;    // s left of it when it went on (0: it had none)
+.float  vr_skewer_shift;   // units it has been slid towards the hilt from its place
+.float  vr_skewer_grip;    // the other hand holding it, + 1 (0: none)
+.float  vr_skewer_gripat;  // that hand's hold: how far further from the tip the gib is than the hand
+.float  vr_skewer_gripoff; // and how far the hand was from the line as it took hold
+.float  vr_skewer_gentle;  // its blade let go of and not yet gone across at half vr_embed_skewer_throw_burst: dropped, its landing (7 to 11 m/s, a fall) doesn't burst it
 
-vector vr_skewer_o; // VR_Skewer_Basis: the frame's origin
+vector vr_skewer_o;   // VR_Skewer_Basis: the frame's origin
+vector vr_skewer_tip; // VR_Skewer_Line: the blade's tip
+vector vr_skewer_way; // and the way along it to the tip
+float VR_SKEWER_YANK_FROM = 5; // cm from the line, or half the stretch that tears it off, before a fast move away is a yank (not a hand closing on it as it arrives, nor pushed off the blade)
+float VR_SKEWER_JUMP = 64; // units in a frame: no move at all, a teleport (VR_Skewer_Impact)
+float VR_SKEWER_SNAP = 30; // m/s in the hand: no swing's speed, a hand a wall held off and let go of: the speed before it counts (VR_Skewer_Impact)
+float VR_SKEWER_THRUST = 0.7; // cosine of a move along the blade's line (VR_Skewer_Thrust, VR_Skewer_Impact)
 
 // `d` in the basis of v_forward, v_right, v_up...
 vector(vector d) VR_Skewer_ToBasis =
@@ -70,16 +85,6 @@ float(entity p, float xHand) VR_Skewer_HasBlade =
            weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), "embed") == AXESTICK_POINT;
 };
 
-// Its weight, kg.
-float(entity g) VR_Skewer_Mass =
-{
-    if(g.vr_prop_mass > 0)
-    {
-        return g.vr_prop_mass;
-    }
-    return max(0, cvar_hget(g.vr_gib_healthmult >= 1.5 ? cvarh_vr_embed_skewer_mass_head : cvarh_vr_embed_skewer_mass_gib));
-};
-
 // How wide it is, units (as the engine's sphere for it).
 float(entity g) VR_Skewer_Radius =
 {
@@ -87,10 +92,32 @@ float(entity g) VR_Skewer_Radius =
     return max(2, (size_x + size_y + size_z) / 6);
 };
 
-// How far from the tip its middle sits on a blade whose line is `xLen` long.
+float VR_SKEWER_MIDDLING = 5; // units: the radius of a gib or limb of the middling size, the weights' (VR_Skewer_Mass)
+
+// Its weight, kg: a head's; a gib's or a limb's by its size.
+float(entity g) VR_Skewer_Mass =
+{
+    if(g.vr_gib_healthmult >= 1.5)
+    {
+        return max(0, cvar_hget(cvarh_vr_embed_skewer_mass_head));
+    }
+    // (A limb's .vr_prop_mass, its share of the body it came from, is for holding it: a soldier's leg 12 kg on a blade.)
+    return max(0, cvar_hget(g.vr_prop_mass > 0 ? cvarh_vr_embed_skewer_mass_limb : cvarh_vr_embed_skewer_mass_gib)) *
+           min(1.5, max(0.5, VR_Skewer_Radius(g) / VR_SKEWER_MIDDLING));
+};
+
+float VR_SKEWER_HILT = 0.85; // the share of the blade's line from the tip that a gib can go along it, at most
+
+// How far from the tip its place along the blade is, not slid.
+float(entity g) VR_Skewer_Place0 =
+{
+    return cvar_hget(cvarh_vr_embed_skewer_depth) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap);
+};
+
+// How far from the tip its middle sits on a blade whose line is `xLen` long (under 0: past it, coming off).
 float(entity g, float xLen) VR_Skewer_Back =
 {
-    return min(cvar_hget(cvarh_vr_embed_skewer_depth) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap), xLen * 0.85);
+    return min(VR_Skewer_Place0(g) + g.vr_skewer_shift, xLen * VR_SKEWER_HILT);
 };
 
 // The frame `g` rides: v_forward, v_right, v_up and vr_skewer_o.
@@ -108,6 +135,33 @@ void(entity g) VR_Skewer_Basis =
         makevectors(VRGetEntHandRot(g.vr_skewer_p, g.vr_skewer_hand));
         vr_skewer_o = VRGetEntHandPos(g.vr_skewer_p, g.vr_skewer_hand);
     }
+};
+
+// The blade it rides: vr_skewer_tip, vr_skewer_way and how long its line is (0: it has none now). Leaves the v_ vectors anyhow.
+float(entity g) VR_Skewer_Line =
+{
+    entity w = g.vr_skewer_w;
+    if(w != world)
+    {
+        VR_Skewer_Basis(g);
+        vr_skewer_way = VR_Skewer_FromBasis(g.vr_skewer_axis);
+        vr_skewer_tip = weaponmuzzle(w);
+        return vlen(vr_skewer_tip - w.origin);
+    }
+    if(!VR_Melee_Line(g.vr_skewer_p, g.vr_skewer_hand, VR_Melee_Thing(g.vr_skewer_p, g.vr_skewer_hand)))
+    {
+        return 0;
+    }
+    vr_skewer_tip = vr_mline_far;
+    vr_skewer_way = normalize(vr_mline_far - vr_mline_grip);
+    return vlen(vr_mline_far - vr_mline_grip);
+};
+
+// On a thrown blade, its place in the blade's frame from its place along the line (VR_Skewer_Line's).
+void(entity g, float xLen) VR_Skewer_SetAt =
+{
+    VR_Skewer_Basis(g);
+    g.vr_skewer_at = VR_Skewer_ToBasis(vr_skewer_tip - vr_skewer_way * VR_Skewer_Back(g, xLen) - g.vr_skewer_w.origin);
 };
 
 // Placed: its middle on the blade's line in the hand, at its place in the frame of a thrown blade. FALSE: no line to ride.
@@ -223,12 +277,9 @@ float(entity g) VR_Skewer_Find =
             // Let go of: on it as on the hand (it starts in the hand's pose), its place from the blade's own tip.
             g.vr_skewer_w = e;
             e.vr_skewer_gen = e.vr_skewer_gen + 1;
-            VR_Skewer_Basis(g);
-            vector axis = VR_Skewer_FromBasis(g.vr_skewer_axis);
-            vector tip = weaponmuzzle(e);
-            float len = vlen(tip - e.origin);
-            g.vr_skewer_at = VR_Skewer_ToBasis(tip - axis * VR_Skewer_Back(g, len) - e.origin);
+            VR_Skewer_SetAt(g, VR_Skewer_Line(g));
             g.vr_skewer_lastt = 0;
+            g.vr_skewer_gentle = TRUE; // (until its way across says it was thrown: VR_Skewer_Impact)
             return TRUE;
         }
     }
@@ -240,6 +291,8 @@ float(entity g) VR_Skewer_Find =
             VR_Skewer_Gone(g); // (off the thrown one)
             g.vr_skewer_p = e;
             g.vr_skewer_hand = h;
+            g.vr_skewer_lastt = 0;
+            g.vr_skewer_grip = 0;
             return TRUE;
         }
     }
@@ -270,15 +323,134 @@ float(entity g, entity p) VR_Skewer_Gripper =
     return hand;
 };
 
-// On a thrown blade: going fast enough, or just stopped from it, with something right ahead of it: it meets it and bursts (TRUE).
-// Measured on its own place, so a gib further along than what the blade hit has nothing ahead of it.
+// The gib on `p`'s blades nearest `xHand`, or the one that hand holds already: a grip takes one.
+entity(entity p, float xHand) VR_Skewer_ForGrip =
+{
+    entity best = world;
+    float bestD = 0;
+    vector at = VRGetEntHandPos(p, xHand);
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.vr_skewer_p == p)
+        {
+            if(e.vr_skewer_grip == xHand + 1)
+            {
+                return e;
+            }
+            float d = vlen(e.vr_skewer_c - at);
+            if(best == world || d < bestD)
+            {
+                best = e;
+                bestD = d;
+            }
+        }
+    }
+    return best;
+};
+
+// A grip that let go of it, on a thrown blade: its sphere where it was slid to (the engine's addSkeweredShapes).
+void(entity g) VR_Skewer_GripEnd =
+{
+    g.vr_skewer_grip = 0;
+    if(g.vr_skewer_w != world)
+    {
+        g.vr_skewer_w.vr_skewer_gen = g.vr_skewer_w.vr_skewer_gen + 1;
+    }
+};
+
+// The other hand on it. A grip within reach takes hold; from there it goes only along the blade with the hand, stopped at the hilt end and
+// by the next gib along, until it is clear of the tip; or a tug across the line tears it off. TRUE: off, in that hand.
+float(entity g) VR_Skewer_Grip =
+{
+    entity p = g.vr_skewer_p;
+    float h = g.vr_skewer_grip - 1;
+    float len;
+    vector d;
+    float along;
+    if(h < 0)
+    {
+        h = VR_Skewer_Gripper(g, p);
+        len = ((h >= 0) && (VR_Skewer_ForGrip(p, h) == g)) ? VR_Skewer_Line(g) : 0;
+        if(len > 0)
+        {
+            d = VRGetEntHandPos(p, h) - vr_skewer_tip;
+            along = -(d * vr_skewer_way);
+            g.vr_skewer_grip = h + 1;
+            g.vr_skewer_gripat = VR_Skewer_Back(g, len) - along;
+            g.vr_skewer_gripoff = vlen(d + vr_skewer_way * along);
+            VRMeleeHapticByHand(h);
+            dprint(sprintf("skewer: %s held by hand %g\n", g.classname, h));
+        }
+        return FALSE;
+    }
+    len = VR_Skewer_Line(g);
+    if(!len || !VR_HandGrabUtil_IsHandGrabbing(p, h) || !VR_Hand_Free(p, h, 0) || VR_Carry_IsHolding(p, h))
+    {
+        VR_Skewer_GripEnd(g);
+        return FALSE;
+    }
+    // A tug across the line: how far the hand has gone from it, how fast it goes from it (the hand's own, not the blade's move).
+    d = VRGetEntHandPos(p, h) - vr_skewer_tip;
+    along = -(d * vr_skewer_way);
+    vector across = d + vr_skewer_way * along;
+    vector rel = VRGetEntHandVel(p, h) - (g.vr_skewer_w != world ? g.vr_skewer_w.velocity * (1 / VRMetersToUnits()) : VRGetEntHandVel(p, g.vr_skewer_hand));
+    rel = rel - vr_skewer_way * (rel * vr_skewer_way);
+    float yank = vlen(across) > 1 ? rel * normalize(across) : vlen(rel);
+    float stretch = (vlen(across) - g.vr_skewer_gripoff) * (100 / VRMetersToUnits());
+    float tugSpeed = cvar_hget(cvarh_vr_embed_skewer_tug_speed);
+    float tugStretch = cvar_hget(cvarh_vr_embed_skewer_tug_stretch);
+    if((tugSpeed > 0 && yank >= tugSpeed && stretch >= max(VR_SKEWER_YANK_FROM, tugStretch * 0.5)) || (tugStretch > 0 && stretch >= tugStretch))
+    {
+        dprint(sprintf("skewer: %s tugged off: %.1f m/s, %.0f cm\n", g.classname, yank, stretch));
+        VR_Skewer_Take(g, p, h);
+        return TRUE;
+    }
+    // Along it, as far as the hilt end and the next gib along let it.
+    float want = min(along + g.vr_skewer_gripat, len * VR_SKEWER_HILT);
+    float now = VR_Skewer_Back(g, len);
+    float gap = cvar_hget(cvarh_vr_embed_skewer_gap);
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e != g && e.vr_skewer_p == p && e.vr_skewer_inst == g.vr_skewer_inst)
+        {
+            float place = VR_Skewer_Back(e, len);
+            if(place < now && want < place + gap)
+            {
+                want = min(now, place + gap);
+            }
+            else if(place >= now && want > place - gap)
+            {
+                want = max(now, place - gap);
+            }
+        }
+    }
+    g.vr_skewer_shift = want - VR_Skewer_Place0(g);
+    if(want <= -VR_Skewer_Radius(g))
+    {
+        dprint(sprintf("skewer: %s slid off the tip\n", g.classname));
+        VR_Skewer_Take(g, p, h);
+        return TRUE;
+    }
+    if(g.vr_skewer_w != world)
+    {
+        VR_Skewer_SetAt(g, len);
+    }
+    return FALSE;
+};
+
+// Going fast enough, or just stopped from it, with something right ahead of it: it meets it and bursts (TRUE). On a thrown blade fast
+// by vr_embed_skewer_throw_burst; in the hand by vr_embed_skewer_swing_burst, the hand's own move (not the player's walk) and not along the
+// blade's line (a thrust's tip meets things first). Measured on its own place, so a gib further along than what the blade hit has
+// nothing ahead of it.
 float(entity g) VR_Skewer_Impact =
 {
+    entity w = g.vr_skewer_w;
+    entity p = g.vr_skewer_p;
     float dt = time - g.vr_skewer_lastt;
     vector v = g.vr_skewer_c - g.vr_skewer_lastc;
     vector lastv = g.vr_skewer_lastv;
     float lastsp = g.vr_skewer_lastsp;
-    float first = ((!g.vr_skewer_lastt) || (dt <= 0));
+    float first = ((!g.vr_skewer_lastt) || (dt <= 0) || (vlen(v) > VR_SKEWER_JUMP));
     vector from = g.vr_skewer_lastc;
     g.vr_skewer_lastt = time;
     g.vr_skewer_lastc = g.vr_skewer_c;
@@ -288,15 +460,34 @@ float(entity g) VR_Skewer_Impact =
         g.vr_skewer_lastv = '0 0 0';
         return FALSE;
     }
-    float sp = vlen(v) * (1 / dt) * (1 / VRMetersToUnits());
+    vector own = w != world ? v : v - p.velocity * dt;
+    float sp = vlen(own) * (1 / dt) * (1 / VRMetersToUnits());
+    vector across = own;
+    across_z = 0;
+    if(w != world && vlen(across) * (1 / dt) * (1 / VRMetersToUnits()) >= 0.5 * cvar_hget(cvarh_vr_embed_skewer_throw_burst))
+    {
+        g.vr_skewer_gentle = FALSE;
+    }
+    if(w == world && sp > VR_SKEWER_SNAP)
+    {
+        sp = 0;
+    }
     g.vr_skewer_lastsp = sp;
     g.vr_skewer_lastv = v;
-    if(max(sp, lastsp) < cvar_hget(cvarh_vr_embed_skewer_throw_burst))
+    if(max(sp, lastsp) < cvar_hget(w != world ? cvarh_vr_embed_skewer_throw_burst : cvarh_vr_embed_skewer_swing_burst) || (w != world && g.vr_skewer_gentle))
     {
         return FALSE;
     }
+    entity ignore = w != world ? w : p;
+    if(w == world)
+    {
+        VR_Skewer_Line(g);
+        if(normalize(own) * vr_skewer_way >= VR_SKEWER_THRUST)
+        {
+            return FALSE;
+        }
+    }
     float reach = VR_Skewer_Radius(g) + 2;
-    entity w = g.vr_skewer_w;
     vector dir = v;
     if(sp < lastsp)
     {
@@ -307,21 +498,25 @@ float(entity g) VR_Skewer_Impact =
     if(vLen > 0.01)
     {
         vector ahead = normalize(v) * reach;
-        traceline(from, g.vr_skewer_c + ahead, FALSE, w);
-        hit = ((trace_fraction < 1) && (trace_ent != g.vr_skewer_p));
+        traceline(from, g.vr_skewer_c + ahead, MOVE_HITMODEL_MELEE, ignore);
+        hit = ((trace_fraction < 1) && (trace_ent != p) && (trace_ent.carry_player != p || trace_ent == world));
     }
     if((!hit) && (vlen(lastv) > 0.01))
     {
         // (A bounce this frame turned its way: what it was going at.)
         vector ahead2 = normalize(lastv) * reach;
-        traceline(g.vr_skewer_c, g.vr_skewer_c + ahead2, FALSE, w);
-        hit = ((trace_fraction < 1) && (trace_ent != g.vr_skewer_p));
+        traceline(g.vr_skewer_c, g.vr_skewer_c + ahead2, MOVE_HITMODEL_MELEE, ignore);
+        hit = ((trace_fraction < 1) && (trace_ent != p) && (trace_ent.carry_player != p || trace_ent == world));
     }
     if(!hit)
     {
         return FALSE;
     }
-    dprint(sprintf("skewer: %s bursts on its blade's impact at %.1f m/s\n", g.classname, max(sp, lastsp)));
+    dprint(sprintf("skewer: %s bursts on what it met at %.1f m/s\n", g.classname, max(sp, lastsp)));
+    if(w == world)
+    {
+        VRMeleeHapticByHand(g.vr_skewer_hand);
+    }
     VR_Gib_Burst(g, normalize(dir));
     return TRUE;
 };
@@ -354,10 +549,8 @@ void() VR_Skewer_Think =
         VR_Skewer_Off(g);
         return;
     }
-    float h = VR_Skewer_Gripper(g, g.vr_skewer_p);
-    if(h >= 0)
+    if(VR_Skewer_Grip(g))
     {
-        VR_Skewer_Take(g, g.vr_skewer_p, h);
         return;
     }
     if(!VR_Skewer_Place(g))
@@ -365,11 +558,7 @@ void() VR_Skewer_Think =
         VR_Skewer_Off(g);
         return;
     }
-    if(g.vr_skewer_w != world)
-    {
-        VR_Skewer_Impact(g);
-    }
-    else
+    if(!VR_Skewer_Impact(g) && g.vr_skewer_w == world)
     {
         VR_Skewer_Tally(g);
     }
@@ -397,11 +586,67 @@ float(entity p, float xHand) VR_Skewer_FreeSlot =
     return -1;
 };
 
+// Whether a touch of `xHand` of `p` is a blade driven along its line (VR_Gib_Struck): the blow's to judge (VR_Skewer_Blow), not the touch's.
+float(entity p, float xHand) VR_Skewer_Thrust =
+{
+    if(!cvar_hget(cvarh_vr_embed) || !cvar_hget(cvarh_vr_embed_skewer_most) || !VR_Skewer_HasBlade(p, xHand) ||
+       !VR_Melee_Line(p, xHand, VR_Melee_Thing(p, xHand)))
+    {
+        return FALSE;
+    }
+    return normalize(VRGetEntHandVel(p, xHand)) * normalize(vr_mline_far - vr_mline_grip) >= VR_SKEWER_THRUST;
+};
+
+// Whether the blade of the blow `b` truly goes through `g`: its line, tip a touch on, vr_embed_skewer_thick thick, against its model as
+// drawn (no shape of its own: its box).
+float(entity b, entity g) VR_Skewer_Through =
+{
+    vector far = b.mh_far + normalize(b.mh_far - b.mh_grip) * 2;
+    float thick = max(0, cvar_hget(cvarh_vr_embed_skewer_thick));
+    float t = hitmodel_any(g, b.mh_grip, far, thick);
+    if(t == -2)
+    {
+        vector pad = '1 1 1' * thick;
+        t = VR_SegmentBox(b.mh_grip, far, g.origin + g.mins - pad, g.origin + g.maxs + pad);
+    }
+    return t >= 0;
+};
+
+// Whether `xHand` of `p` may skewer `g`: a pointed blade, a loose gib not held.
+float(entity p, float xHand, entity g) VR_Skewer_Can =
+{
+    // (A head's .gorging is set for life: the gremlins' mark of what they've done with, not a gremlin at it.)
+    return cvar_hget(cvarh_vr_embed) && cvar_hget(cvarh_vr_embed_skewer_most) > 0 && p.ishuman && !g.vr_sgib && g.carry_player == world &&
+           g.vr_skewer_p == world && VR_Skewer_HasBlade(p, xHand);
+};
+
+// The blow of `xHand` of self being dealt (VR_Melee_Deal) is a stab that goes by the loose gib the sweep's wider reach found: no blow at all.
+float(float xHand, entity b) VR_Skewer_GoesBy =
+{
+    entity g = b.mh_c_ent;
+    if(!g.vr_gib || !VR_Skewer_Can(self, xHand, g) || VR_Embed_StabWhy(b, b.mh_c_pos, b.mh_c_dir, b.mh_speed, 0, b.mh_kind) != string_null ||
+       VR_Skewer_Through(b, g))
+    {
+        return FALSE;
+    }
+    if(cvar_hget(cvarh_vr_debug_embed))
+    {
+        embedsay(sprintf("%s NOT SKEWERED: the blade's line goes by it", g.classname));
+    }
+    return TRUE;
+};
+
+// A sweep's thing: a blade thrust along its line finds no loose gib its line doesn't go through (VR_Melee_Sweep: it isn't what it is aimed
+// at, and mustn't take the blow from one that is).
+float(float xHand, entity b, entity e) VR_Skewer_SweepPasses =
+{
+    return e.vr_gib && VR_Skewer_Can(self, xHand, e) && VR_Skewer_Thrust(self, xHand) && !VR_Skewer_Through(b, e);
+};
+
 // The blow of `xHand` of self on the loose gib `g` (VR_Melee_Deal). TRUE: a stab that put it on the blade (no other blow).
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow =
 {
-    if(!cvar_hget(cvarh_vr_embed) || !self.ishuman || g.vr_sgib || g.gorging || g.carry_player != world || g.vr_skewer_p != world ||
-       !VR_Skewer_HasBlade(self, xHand))
+    if(!VR_Skewer_Can(self, xHand, g))
     {
         return FALSE;
     }
@@ -420,6 +665,9 @@ float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, fl
     g.vr_skewer_p = self;
     g.vr_skewer_hand = xHand;
     g.vr_skewer_slot = slot;
+    g.vr_skewer_shift = 0;
+    g.vr_skewer_grip = 0;
+    g.vr_skewer_lastt = 0;
     g.vr_skewer_inst = VRGetEntWeaponInst(self, xHand);
     g.vr_skewer_w = world;
     g.vr_skewer_mass = VR_Skewer_Mass(g);
@@ -450,37 +698,26 @@ float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, fl
     return TRUE;
 };
 
-// A blow of `xHand` of self being dealt (VR_Melee_Deal), not a stab, not on a gib: fast enough, its contact (mh_c_pos) at a gib's place
-// along the blade bursts that one.
+// A blow of `xHand` of self being dealt (VR_Melee_Deal), not a stab, not on a gib: fast enough, its contact (mh_c_pos) by a gib's place
+// along the blade (a tip's blow reaches the first gib: vr_embed_skewer_swing_reach past its width) bursts that one.
 void(float xHand, entity b) VR_Skewer_SwingHit =
 {
-    vector load = xHand == cVR_MainHand ? self.vr_skewer_load_main : self.vr_skewer_load_off;
-    if(!load_x || b.mh_c_ent.vr_gib || b.mh_kind == VR_MKIND_STAB || b.mh_c_pos == '0 0 0' || b.mh_speed < cvar_hget(cvarh_vr_embed_skewer_swing_burst))
+    if(b.mh_c_ent.vr_gib || b.mh_kind == VR_MKIND_STAB || b.mh_c_pos == '0 0 0' || b.mh_speed < cvar_hget(cvarh_vr_embed_skewer_swing_burst))
     {
         return;
     }
     vector line = b.mh_far - b.mh_grip;
     float at = (b.mh_far - b.mh_c_pos) * normalize(line); // (from the tip)
+    float reach = cvar_hget(cvarh_vr_embed_skewer_swing_reach);
     for(entity e = nextent(world); e; e = nextent(e))
     {
         if(e.vr_skewer_p == self && e.vr_skewer_w == world && e.vr_skewer_hand == xHand &&
-           fabs(at - VR_Skewer_Back(e, vlen(line))) <= VR_Skewer_Radius(e))
+           fabs(at - VR_Skewer_Back(e, vlen(line))) <= VR_Skewer_Radius(e) + reach)
         {
             dprint(sprintf("skewer: %s bursts: the swing's contact at it, %.1f m/s\n", e.classname, b.mh_speed));
             VR_Gib_Burst(e, b.mh_c_dir);
         }
     }
-};
-
-// Whether a touch of `xHand` of `p` is a blade driven along its line (VR_Gib_Struck): the blow's to judge (VR_Skewer_Blow), not the touch's.
-float(entity p, float xHand) VR_Skewer_Thrust =
-{
-    if(!cvar_hget(cvarh_vr_embed) || !cvar_hget(cvarh_vr_embed_skewer_most) || !VR_Skewer_HasBlade(p, xHand) ||
-       !VR_Melee_Line(p, xHand, VR_Melee_Thing(p, xHand)))
-    {
-        return FALSE;
-    }
-    return normalize(VRGetEntHandVel(p, xHand)) * normalize(vr_mline_far - vr_mline_grip) >= 0.7;
 };
 
 // The level ends (VR_Embed_LevelEnd): all off.

@@ -251,7 +251,9 @@ QVR_FIELD(vr_flail_offhead) // ... the off hand's
 QVR_FIELD(vr_flail_offheadvel)
 QVR_FIELD(vr_flail_taken) // ... QC: when the main hand took a flail lying about with its head (vr_flail_head its place then): the hand's head made there (vr_box3d_flail.cpp make)
 QVR_FIELD(vr_flail_offtaken)
-QVR_FIELD(vr_skewer_w) // a gib on a thrown blade (QC vr_skewer.qc)
+QVR_FIELD(vr_skewer_p) // a gib on a blade: whose (QC vr_skewer.qc; 0: none)
+QVR_FIELD(vr_skewer_grip) // the hand holding it on the blade, + 1 (0: none)
+QVR_FIELD(vr_skewer_w) // a gib on a thrown blade
 QVR_FIELD(vr_skewer_at) // its middle in the blade's frame
 QVR_FIELD(vr_skewer_mass) // its kg
 QVR_FIELD(vr_skewer_gen) // on the blade: changes as gibs go on or off it
