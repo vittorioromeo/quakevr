@@ -22,6 +22,7 @@ struct Line
     bool point;
     bool additive{false};
     bool scene{false}; // depth-tested, in the scene's translucent pass (drawInScene)
+    bool over{false};  // of the scene's: not depth-tested (sceneOverLine)
 };
 
 za::Vector<Line> queue;
@@ -72,6 +73,11 @@ void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::v
     queue.pushBack({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true, true});
 }
 
+void sceneOverLine(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
+{
+    queue.pushBack({a, b, width, colorA, colorB, false, false, true, true});
+}
+
 void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec4& color, bool xray)
 {
     auto& out = surfaces[xray];
@@ -83,11 +89,12 @@ void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const 
 namespace
 {
 
-// The queue's lines of the scene's (or not) into `vertices`, facing `eye`, and drawn: depth-tested in the scene.
-void drawQueued(const glm::vec3& eye, bool scene)
+// The queue's lines of the scene's (or not) into `vertices`, facing `eye`, and drawn: depth-tested in the scene, but
+// those `over` it.
+void drawQueued(const glm::vec3& eye, bool scene, bool over = false)
 {
     const auto& surface = surfaces[!scene];
-    if(!surface.empty())
+    if(!surface.empty() && !over)
     {
         gfx::draw(surface, gfx::sceneViewProjection(),
             {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false});
@@ -96,7 +103,7 @@ void drawQueued(const glm::vec3& eye, bool scene)
     vertices[1].clear();
     for(const Line& l : queue)
     {
-        if(l.scene != scene)
+        if(l.scene != scene || l.over != over)
         {
             continue;
         }
@@ -136,12 +143,12 @@ void drawQueued(const glm::vec3& eye, bool scene)
     if(!vertices[0].empty())
     {
         gfx::draw(vertices[0], viewProjection,
-            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false, .flatModelFov = true}); // (the laser, a gun's arcs)
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = scene && !over, .depthWrite = false, .flatModelFov = true}); // (the laser, a gun's arcs)
     }
     if(!vertices[1].empty())
     {
         gfx::draw(vertices[1], viewProjection,
-            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = scene, .depthWrite = false, .flatModelFov = true});
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = scene && !over, .depthWrite = false, .flatModelFov = true});
     }
 }
 
@@ -167,6 +174,7 @@ void drawInScene()
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
     drawQueued(eye, true);
+    drawQueued(eye, true, true);
 }
 
 void clear()

@@ -156,6 +156,7 @@ vr_hotblade_test.qc
 vr_shock.qc
 vr_shock_test.qc
 vr_waterzap_test.qc
+vr_shockarcs_test.qc
 vr_burnmark_test.qc
 // Every hit dents: the damage paths' wound events (vr_dents_test, Debug > Gore Tests).
 vr_dents_test.qc
@@ -171,6 +172,8 @@ vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc
 vr_crouch_test.qc
 vr_flatkeys_test.qc
+vr_flatitems_test.qc
+vr_flatgate_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc
 world.qc

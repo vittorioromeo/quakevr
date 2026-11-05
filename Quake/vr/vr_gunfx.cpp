@@ -697,9 +697,74 @@ void report(int wid, Kind kind, int shooter, float budget, const Counts& c)
     }
 }
 
-Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int slot)
+// The nailguns fire out of one barrel at a time, as their firing frames show it (1..8: that barrel pushed forward;
+// QC player_nail1/2's nails alternate the same way): each barrel's bore end as two opposite points of its front ring
+// (anchors, so they follow the drawn, blended pose; their middle the bore's centre), and the barrel of each frame.
+// Frame 0 (at rest, or a gun not animated: an armed grunt's) has none: the muzzle as set. Found from the models' poses
+// (scratch nb_mdl4.py's way: each frame's barrel furthest forward).
+struct FiringBarrels
+{
+    const char* name;
+    const char* ring[4][2];
+    int barrelOfFrame[8]; // frames 1..8
+};
+constexpr FiringBarrels firingBarrels[] = {
+    {"progs/v_nail.mdl",
+        {{"20.2100 -1.4772 5.5708", "20.2100 -5.8467 2.1119"}, {"20.2100 6.0067 2.1119", "20.2100 1.5442 5.5708"}},
+        {0, 1, 0, 1, 0, 1, 0, 1}},
+    {"progs/v_lava.mdl",
+        {{"20.2100 -1.4772 5.5708", "20.2100 -5.8467 2.1119"}, {"20.2100 6.0067 2.1119", "20.2100 1.5442 5.5708"}},
+        {0, 1, 0, 1, 0, 1, 0, 1}},
+    {"progs/v_nail2.mdl",
+        {{"40.0791 -4.6469 -3.5170", "40.0791 -4.6469 1.6650"}, {"40.0791 2.4535 3.6241", "40.0791 -2.6182 3.6241"},
+            {"40.0791 4.5418 -3.5170", "40.0791 4.5418 1.6650"}, {"40.0791 1.0215 -3.2011", "40.0791 -1.2459 -7.8143"}},
+        {0, 1, 2, 3, 0, 1, 2, 3}},
+    {"progs/v_lava2.mdl",
+        {{"39.8517 -4.6650 -3.5270", "39.8517 -4.6650 1.6754"}, {"39.8517 2.4634 3.6422", "39.8517 -2.6283 3.6422"},
+            {"39.8517 4.5599 -3.5270", "39.8517 4.5599 1.6754"}, {"39.8517 1.0257 -3.2098", "39.8517 -1.2506 -7.8412"}},
+        {0, 1, 2, 3, 0, 1, 2, 3}},
+};
+
+// The barrel gun `m` fires out of on its drawn frame (firingBarrels): its bore end in `at`, its number returned; -1
+// none (another gun, frame 0, no drawn gun).
+int firingBarrel(const Muzzle& m, glm::vec3& at)
+{
+    const view::ViewEntity* ve = m.view ? m.view : m.gun ? view::find(m.gun) : nullptr;
+    if(!ve || !ve->ent.model || ve->ent.model->type != mod_alias || ve->ent.frame < 1 || ve->ent.frame > 8)
+    {
+        return -1;
+    }
+    const char* name = ve->ent.model->name;
+    const char* hash = strchr(name, '#');
+    const size_t len = hash ? static_cast<size_t>(hash - name) : strlen(name);
+    for(const FiringBarrels& g : firingBarrels)
+    {
+        if(strlen(g.name) == len && strncmp(g.name, name, len) == 0)
+        {
+            const int b = g.barrelOfFrame[ve->ent.frame - 1];
+            at = 0.5f * (view::anchorPosition(*ve, g.ring[b][0], glm::vec3{0.f}) +
+                            view::anchorPosition(*ve, g.ring[b][1], glm::vec3{0.f}));
+            return b;
+        }
+    }
+    return -1;
+}
+
+Counts emit(int wid, const Muzzle& gunMuzzle, int shooter, bool adBurst, bool ports, int slot)
 {
     Counts c;
+    // A nailgun's sparks, smoke and flash out of the barrel that fires (firingBarrels); the rest from its muzzle.
+    Muzzle m = gunMuzzle;
+    const glm::vec3 setMuzzle = m.at;
+    const int barrel = firingBarrel(m, m.at);
+    if(vr_debug_gunfx.value && barrel >= 0)
+    {
+        // (its side: + the gun's right as drawn, from the muzzle as set; up: + above it)
+        const glm::vec3 gunRight = glm::normalize(glm::cross(m.fwd, m.up) + glm::vec3{1e-6f});
+        const glm::vec3 d = m.at - setMuzzle;
+        Con_Printf("gunfx barrel who %d wid %d frame %d barrel %d side %.2f up %.2f fwd %.2f\n", shooter, wid,
+            m.view ? m.view->ent.frame : -1, barrel, glm::dot(d, gunRight), glm::dot(d, m.up), glm::dot(d, m.fwd));
+    }
     const Kind kind = kindOf(wid);
     const Tune tune = tuneFor(slot >= 0 ? slot : slotOf(wid, nullptr));
     const Look& look = looks[static_cast<int>(kind)];

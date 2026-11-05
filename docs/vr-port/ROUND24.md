@@ -100,6 +100,38 @@ pelvis, keeping what is left of the shove. Shoves away from a ledge, those that 
   its weapon by the impact rule alone (`vr_agrunt_fall_keep_impact`), and the test checks that.
 - **Open**: the look is for him to judge in VR (the far backpedals' sliding back foot above all). A tall drop's ledge grab
   (`vr_ragdoll_active_pullup`) may still catch a slow one at the lip, as it could before.
+## The arcs on your arms on a flat screen
+
+His note: struck by lightning, the arcs on the player's own arms never show in flat-screen.
+
+**Why.** Three things, each hiding them on its own. `drawStruck` and `armArcs` queue them with `lines::line`, drawn only by
+`stereo::drawUi`, the headset's UI pass: on next's drawing `vr_shock_self_info` says 17 arcs and the frame has 0 blue pixels. Moved to
+the scene pass (`lines::sceneLine`, the water's fix), the gun held then hides nearly all of them: 0, 291, 0 and 76 pixels in the four
+cases' frames. And `ViewKeep`, a headset's comfort, dims them below the test's threshold on hands this close to the eye (whole
+frames at 0); the hand's arcs also reached to `s.pos`, about 10 units from where the stance's free hand is drawn.
+
+**Now.** Flatscreen play only (`flatplay::active`; a headset takes the old branch everywhere, with the same random numbers):
+`lines::sceneOverLine`, in the scene's translucent pass with no depth test, what "drawn over all" is in a headset; no `ViewKeep` on
+them; the hand's arcs reach on from the wrist the body draws. Tunables (Debug > Tunables): `vr_shock_self_flat_arcs` 3 (more on the
+hands and forearms: a flat view shows one hand and little arm), `vr_shock_self_flat_hand` 0.14 m. `armArcs` is shared, so the shock
+in water and Quad's arcs show on a flat screen too. Still not drawn flat: `drawSelf`'s arcs round the body and in front of the eyes.
+
+**Test.** `bash Misc/quakevr/sa_shockarcs_test.sh <agent> <outdir>`, ends `shockarcs: <n> passed, <m> failed`: pictures through a
+shambler's real bolts from behind (`CastLightning`, `QC/vr_shockarcs_test.qc`), on and off (`vr_shock_self_time` 0.8 and 0, the blue
+light off in both), five frames each, as the arcs are reshaped every frame. Lower blue pixels, vrfiringrange: level 5870 4272 2430
+4224 10029; looking down 3690 3154 2995 1779 9360; crouched a little 11596 8874 933 23166 20252; the look still swinging 3846 2565
+1943 1963 8584. The same stage with the flat draw off: 0 in all ten frames of two cases. Looked at: on the hand and the gun in each
+of the four, mid swing too. The main hand in the view (forward, right, up) moves little as the look goes: 2.7 3.2 -3.2 level, 4.8 5.2
+-4.4 at 35 down, 4.2 6.4 -5.5 at 50. The mock headset: `SA_EXTRA="vr_mock_look 50 0;" ... --modes mock --cases 1`, 5 of 5 lit (looking
+level its hands are below the view). The shock in water by `vr_shock_test 0`, flat, flash off: 5525. `waterzap_test.sh` flat and mock,
+cases 1 and 4: 4 of 4. The arcs near the eye are wide (a line's width is in world units): a broad smear at the shallow crouch's elbow.
+Pixels and frames from the arcs over the scene on were taken low-impact, his game running.
+
+**Open: the full flat crouch.** With a weapon held, `+flatcrouch` at the default drop (18) puts the gun and the hands behind the eye
+and a huge arm across the view, with no arcs on it (0 pixels in five frames): main hand 2.7 3.2 -3.2 standing, -5.1 -0.5 2.3 crouched;
+`vr_flat_stance 0` gives 4.4 5.8 -1.7, so the stance's pull back and the crouch add up. `vr_flat_arm_hold 0` changes nothing. This
+fix doesn't touch the pose, seen with the thunderbolt only. So the test's crouch case uses `vr_flat_crouch_drop` 8.
+
 ## Lightning on water
 
 His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface. After the first fix,
@@ -116,8 +148,8 @@ only the thunderbolt's and the shock's. The surface's arcs and the shock's burst
 translucent pass, as a beam's arcs: both flat and headset, hidden by walls. Above the waves (`vr_water_waves`); wider further off
 (from 200 units, up to 3x); arches leaping off the water, since flat arcs close to a line at a glancing angle; thinner within 96
 units of the eye, or a ribbon by the camera fills the view. `vr_lg_water_arcs` 1 (tunable, Debug > Tunables > Electrified Water
-Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs on your own arms and in
-front of your eyes (other `lines::line` users, not touched). A hammer slapping the surface with nothing solid is still no blow.
+Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs in front of your eyes and
+round the body (`drawSelf`, other `lines::line` users; the arms' were fixed after: "The arcs on your arms on a flat screen"). A hammer slapping the surface with nothing solid is still no blow.
 
 **Test.** `bash Misc/quakevr/waterzap_test.sh <agent> <outdir>`: pictures, not a counter. Each case (`QC/vr_waterzap_test.qc`:
 thunderbolt by `+attack` steep and glancing, Mjolnir swung onto a knight over the water, a shambler's bolt by `CastLightning` on a
@@ -245,6 +277,21 @@ The author's ask: live text banners close to the arena's ceiling (foes left, wav
 - **Tests:** `vr_arena_test 38`: `map vrarena`: 18 passed, 0 failed (check accepts `vrarena`, refuses `e1m1` and no name; each board's text read back from the server's list against the expected text: before the run, countdown falling, foes left falling, score rising, time running, off and on, wave changing); the same 18/0 after a save and a load. `map e1m1`: 8 passed, 0 failed (no arena, a placed banner removed, the map's text list empty). Existing, at the final height, all 0 failed: tests 4 (8), 7 (19), 9 (37), 11 (25, vrtesthall), 13 (12), 14 (9), 15 (130), 16 (9), 17 (24), 18 (4), 19 (7), 36 (16: the walkers' routes), `vr_arena_waves_test` 23, `vr_waveeditor_test` 28. Test 34 not run.
 - **Frame cost: partly measured.** An LTO `--exclusive` run, floor view with 3 boards in sight, 500 frames, with the ceiling at the interim 512 and the same 4 boards: banners off 0.624 and 0.610 ms CPU, 0.612 and 0.625 ms GPU; on 0.643 ms CPU, 0.659 ms GPU, draw calls 142 to 152. About +0.03 ms CPU and +0.04 ms GPU, from one "on" sample. Not repeated at 576: timed runs are refused while the author's game runs. Worth repeating (`scratch/ab_time2.sh` in the worktree has the runs).
 - **Images:** `C:/OHWorkspace/qvr-kit/scratch/arenabanners/`: `final_floor_south_looking_north.png`, `final_floor_corner_across_room.png`, `final_dais.png` (1024 eyes, by the script's `vr_mock_eye_size` in a low-impact run), `final_window_view_flat.png`, `ab_before.png` (the old room).
+
+## Arena banners: the gadget's layout (branch `agent/banners2`)
+
+The author, having seen the text boards: "too big, please reduce their size by roughly ~35% and keep them close to the ceiling"; "the internal layout ... is not easily readable ... Can you use the same system as the wrist gadget HUD to provide nicer layouting even in world banners?"
+
+- **It could:** the gadget's screen is a 2D layout drawn into an offscreen target (`gfx::begin2D`, `drawText`, the status bar's numbers, `fill`), then a quad through `Shade::Screen`; the map's boards were already an offscreen image on such a quad, depth tested in the world. So a board only needed a different image.
+- **Panel boards:** a world text whose text starts `{arena:` is not shown as text (`worldtext::isPanel`). The QC writes `{arena:wave boss show value total seconds score}` when a number moves; it travels, replays to a spawning client, goes into a demo and survives a load as any world text. `Quake/vr/vr_gadget_panel.inc` (part of `vr_gadget.cpp`, beside the hologram and the frame rate) lays it out with the gadget's own `paletteAt` (not dimmed with the gear lights), `drawText`, `numberRun` (split out of `number`; also narrows, and takes the new `num_colon`) and `meterFrame`: no copy of any of them. One image for all the boards, as they all say the same, 1500 x 240, redrawn when the text or the look changes (about once a second), freed when no board wants it. `vr_text3d.cpp`'s boards keep their box, glow, cull and CRT (`vr_worldtext_crt`, which no longer turns these into plain text); a panel board has no page-turn glitch, which the text boards fired on every text change, so 0.3 s of every second of the old banners was a glitch.
+- **The layout** (250 x 40, the gadget's 8-pixel labels and 24-pixel numbers): `WAVE` big number | `FOES LEFT` big number with a bar of what's left | `TIME` and `SCORE` in 15-pixel numbers, one over the other, narrowed only if the score needs it. `BOSS` in the warning's red on a boss wave. Between waves the middle says `NEXT WAVE` and its seconds (red for the last 3), or `CHOOSE A` `PERK`; `--` before the first wave. At the end the wave's tile and the middle give way to `YOU FELL` (red, red frame) or `CLEARED` under `WAVE n`. Colours: the gadget's, so the player's hue (`vr_gadget_screen_hue`), not `vr_worldtext_hue`.
+- **Size:** `worldtext_scale` is now units a pixel of the face, default 2.2: 550 x 88, 566 x 104 with its bezel (was 914 x 158: 38% and 34% smaller). A big number is 53 units. `BANNER_Z` 464 to 491: the top at 543, still just under the cornice at 544. Map rebuilt: `vrarena_gen.py --check --compile --preset final --holes 400128`: 0 holes.
+- **Tests:** `vr_arena_test 38` now also reads the client's image (new test builtin `panelboard_read`, answering only once that image holds the board's text, so it has come through the real message and draw): the tile that moved changes and the others don't, at the countdown, perk choice (the director really held), fight, foe down (bar falls), time, off (image freed) and on, wave change, `YOU FELL` (red), `CLEARED`. `map vrarena`: 46 passed, 0 failed; the same after a save and a load; `map e1m1`: 8 passed, 0 failed. It now ends on its verdict line (`-QuitOn "test 38 over"`). Test 34 (`vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture; skill 1; vr_arena_assign e1m1 1 fixture_othermap; map e1m1; developer 1; vr_arena_test 34`), not run since its check line changed: 3 passed, 0 failed.
+- **A real frame, banners off against on:** headset, 720 eyes, from the floor: 3707 pixels differ, in the north board and the side boards; from behind a tower the two middle columns of eight stay 0 (depth correct); `vr_worldtext_crt 0`: the same 3712; flat (`vr_enabled 0`, 960 x 540): the board's two columns 1777 and 1787 pixels (the rest is the view weapon's bob). Flat draws the image from `VR_End2D`'s `text3d::renderScreens`, the existing path for boards. Not the UI line pass of the earlier bug.
+- **Debug:** `vr_panelboard_dump [name]` (Debug, Save to Files, "Arena Banner").
+- **Frame cost, measured:** LTO, `--exclusive`, real clock (frame times are what is measured), 2048 eyes, paced at 90 Hz, 3 boards in sight from the floor; off and on alternating in one session, 8 pairs of 450 frames, each pair compared (on minus off, the noise limit twice the standard error): GPU (eyes) +0.001 ms, +-0.009; CPU busy +0.031 ms, +-0.125, so no CPU cost could be told from the noise, and about 0.15 ms is the most the run allows; draw calls +10 (+-1.2). The noise on CPU is that wave 1 came during the windows (`vr_arena_wave_rest 99999` did not hold it), with 2 foes up: the image was redrawn once a second, 67 draws in all, as in a fight. Off to on, not old to new: the old boards' cost was only ever measured once (above).
+- **Images:** `C:/OHWorkspace/qvr-kit/scratch/banners2/` (2048 eyes, the game closed): `floor_south_looking_north.png`, `corner_across_room.png`, `perk_choice_floor.png`, `flat_window_view.png`, and the image itself, `panel_image_fight.png`, `panel_image_perk.png`.
+
 ## Lightning burn marks
 
 His note: thunderbolt and Shambler bolts should leave permanent burns on what they hit, like the flamethrower's; "might already
@@ -452,3 +499,78 @@ view for a single frame at a random moment, the magazine's state unconnected (a 
 run has it elsewhere or not at all): it looks like the low-impact screenshot's readback, not the game; worth a look only if it shows in VR.
 
 **Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}
+
+## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
+
+**Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
+The nailguns' firing frames (1..8) each push one barrel forward (v_nail/v_lava: the right barrel on odd frames, the left on even;
+v_nail2/v_lava2: one of the four in turn, frames 1/5, 2/6, 3/7, 4/8), found from the models' poses. `vr_gunfx.cpp` firingBarrels:
+each barrel's bore end as the middle of two opposite points of its front ring (anchors, so they follow the drawn, blended pose); the
+shot's sparks, frontal smoke cone and flash glow now leave that barrel (`emit`); frame 0 (an armed grunt's gun, not animated) keeps
+the muzzle as set. The wisps were per barrel already, untouched. The off hand's gun is drawn mirrored, so its frame's barrel is on
+the other side: QC `player_nail_BaseImpl` now flips the nail's side (and the QC smoke puff's) for the off hand, so nail and sparks
+agree. Debug: `vr_debug_gunfx 1` prints "gunfx barrel who .. frame .. barrel .. side .. up .."; with developer 1, "nailside" a nail.
+Test: `python scratch/nb_muzzle_test.py <agent>` (both hands, nailgun and super nailgun, 11 shots each): 13 passed, 0 failed; the
+nailgun's barrels 1.98..2.01 units off the muzzle, the main hand's odd frames on its right, the off hand's on its left, 11 of 11
+nails on the sparks' side in each hand. Pixels (looking down on the gun, r_dynamic 0): the first shot's spark pixels 493 of 534
+right of the middle, the second's 823 of 933 left. Note: the model's own flame for a frame grows in over its 0.1 s blend, so for an
+instant after a shot the previous barrel's flame still shows while the sparks leave the new one.
+
+**Crate sounds.** "Very quiet, very hard to hear": the knock (`VR_Crate_Pain`) and the break (the crate's and the tutorial's) now
+play louder than full volume (SND_LOUD): tunables `vr_crate_hit_volume` 2.5 and `vr_crate_break_volume` 2 (Debug > Tunables, Knock
+Volume and Break Volume; up to 4). Test: `bash scratch/nb_crate_test.sh <agent>` (vrarena_crate, shotgun knocks then a rocket):
+knocks at 1.68 and 1.98 (volume bytes 427, 503), breaks at 2.0 (510): 3 passed.
+
+**Ledge shove zones.** "Close to the ledge it should topple as before... another distance from which it backpedals a little"; "I
+can shove an enemy from very far away and it backpedals for an entire second". `VR_Knockdown_Ledge` keeps the edge's distance from
+the monster's middle (`vr_kd_ledge_edge`); `VR_Knockdown_Try`: within `vr_knockdown_ledge_topple` (32: its front about at the lip)
+the old launch over it; within `vr_knockdown_ledge_backpedal_reach` (80: two or three steps) the backpedal; further an ordinary
+shove (no ledge). With the backpedal off, as before. The defaults are mine, his to tune (Debug > Tunables, Ledge Shove: Topple
+Within, Backpedal Within). **Debug > Show Ledge Shove Zones** (`vr_knockdown_ledge_show`, also on Combat > Knockdowns' Debug;
+`vr_ledgeshow.cpp`): a line from your feet ahead along the floor to the first ledge, red within Topple Within of the edge, yellow
+within Backpedal Within, grey further, a white tick at the edge; scene lines, so the flat view shows it too (checked in both); a
+console line gives the distances when they change. Test 210 (`sv_random_seed 1;map vrclimb;wait30;god;vr_agrunt_test 210`, QuitOn
+"test 210 over") now has 12 cells: 48 and 72 a strength (backpedals), 24 (topples), 128 (too far), and checks each shove's zone:
+8 passed, 0 failed; zones 72 of 72; over 50 of 54 (the four misses are topples from 24 lying across the lip at two spots, as the
+old launch did); backpedal lip speeds 79, 141, 230 u/s; the 18 too-far shoves all stayed up. Not done: the line ignores the
+shove's own reach (a weak shove from the yellow may not reach the edge) and a crack too narrow to fall through.
+
+**Grab ease.** "Grab a falling magazine, the hand 19 degrees off: it snaps at once... a split second's transition." `vr_held.cpp`
+holdFrame: a prop just taken in one hand is drawn from where its last message before the take had it (the server puts it in the
+hand at once) onto its place in the hand over `vr_carry_grab_ease` (0.12 s, smoothstep; 0: at once), the two-hand let-go's ease
+reused; drawn only, the physics body is in the hand from the start. Test: `bash scratch/nb_grabease_test.sh <agent>` (a brick, In
+the Palm, taken off the floor with the hand turned): eased from 2.7 units and 32.9 degrees; none with the ease at 0: 2 passed.
+## Flat-screen: the assertion, walking over armour, the view through teleporters (agent/flatfix, 2026-11-05)
+
+No checklist lines (flat-screen rule). FLATPLAY.md has the behaviour ("Pickups", "The console's give", "Teleporters").
+
+**1. The assertion ("I grabbed armor in my left hand with a shotgun in my right hand... shooting").** Not the armour. Through
+the real path (map spawn function, E, 2, +attack, RMB too; his config and the test baseline, ironsight on, grunts firing,
+armour, key, suit, rune, shells, health) a held pickup never reaches it: the hand holding it is a fist, ammo id 0, and every
+reader guards that. The one route found to that line from a shot: the engine's `give` wrote a count into `.currentammo`, the
+main hand's ammo id; with the shotgun (weapon 4 = `IT_NAILGUN`) `give n 40` leaves 40 (`give_flat`: 3 assertions in 3 shots,
+as his line). That reaches a shot only with no magazine: every flat-screen shot. The headset run of the same give and shot showed no
+assertion before or after the fix (its magazine takes the shot); the corrupted field is shared, the fix is the engine's,
+and another counter update there (an ammo pickup after a give) is untested. **Not proved that his session used give**: Debug > Tests' "Shotgun in the Off
+Hand" and its kin do (`give s 40`), and so does the console. If it comes back with no give, the assertion's stack is wanted.
+
+**2. Walking over armour.** `VRHandsTracked` answers yes for a flat-screen player, so the "walking does not take it" rule
+meant for tracked hands caught him. What the walk does now, each by `vr_flatitems_test 2`: armour (all three), keys, biosuit,
+rune, super shotgun, quad, pentagram, ring taken (weapons and powerups had no gap: they were taken before too). Ammo and
+health boxes are not taken by walking (rigid boxes; E takes them): listed, not changed, his call. E on armour or a key now
+takes it at once as E on a box does.
+
+**3. The view through a teleporter.** See FLATPLAY.md. Measured (`flatgate_test.sh`): pitch through a gate 25, -20, 30, -40
+kept exactly (it was reset to 0); yaw turned by the gate's 0, 90 and 135 alone, off by 0.00; walking on the way he looks, off
+by 1 degree or less; a turning view through a 90 gate: the step off by 0.005 degrees. The gun's largest step in the camera's
+frame at a crossing was 708 units (a blink), now 0.1 at a fresh gate; up to 9.5 for a frame while the walk's sway still runs,
+gone in 0.15 s.
+
+Failing before, passing after (the fixes taken out of a build of this branch, the tests kept): give and a shot, 1
+assertion; every armour, key, suit and rune walked over left lying, E on better armour not worn; the pitch reset at all
+four gates, the gun 714 units off for a frame. With the fixes: flatitems_sh 8/8, flatgate_sh 5/5; flatplay 28/28, flatpose
+21/21, flatsight 12/12, flatkeys 28/28, turned_exit 2/2; teleporter cross, edges, selfhit and unstick print as before
+(headset runs: none of the changes is reached there).
+
+Noticed, not changed: E searches along the free hand (`VR_Forcegrab_FindTarget`), and an empty hand hangs 60 degrees down, so
+at a level view E does not look where the crosshair is; FLATPLAY.md says it does.

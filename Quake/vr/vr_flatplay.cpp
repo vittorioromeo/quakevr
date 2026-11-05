@@ -111,6 +111,7 @@ struct Feel
     double lastTime{-1e9};
     bool seen{false};
     glm::vec2 view{0.f};         // the view's pitch and yaw, last frame
+    double noKickUntil{-1.0};    // a gate's turn of his velocity is no change of it, until this time (cl.time)
     glm::vec2 lag{0.f};          // the turn's lag (degrees, before vr_flat_turnlag) and its rate: a critically damped
     glm::vec2 lagRate{0.f};      // spring pulling the hands back onto the view
     glm::vec3 vel{0.f};          // the player's velocity last frame (world)
@@ -171,6 +172,8 @@ CtrlBind ctrlBind;
 constexpr float lagStiffness = 18.f;
 constexpr float lagShown = 0.12f;
 constexpr float maxLagDeg = 4.f;
+constexpr double portalNoKickTime = 0.05; // s: a tick and a little: the velocity the client lerps across a gate
+constexpr float bodyJumpedOver = 64.f; // the body as drawn this far from the pose's: a jump of the player, not a pose (units)
 constexpr float lagSnapDeg = 45.f; // a view turned more than this in a frame was set (a teleporter, a respawn): no lag
 
 // The drawn gun's turn onto what the crosshair is on (flatsight: a gun points from its muzzle at that point). The game's
@@ -818,7 +821,7 @@ void stepFeel()
     }
 
     // The step's sway: the change of velocity, in the view's frame (level), kicks the hands the other way.
-    const glm::vec3 dv = vel - feel.vel;
+    const glm::vec3 dv = t < feel.noKickUntil ? glm::vec3{0.f} : vel - feel.vel; // (a gate turned it: VR_FlatPortalAngle)
     feel.vel = vel;
     const float sway = za::clamp(vr_flat_sway.value, 0.f, 3.f);
     if(sway > 0.f)
@@ -1403,8 +1406,12 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float hold = za::clamp(vr_flat_arm_hold.value, 0.f, 2.f);
     if(hold > 0.f)
     {
+        // (The body as last drawn: a frame old. A jump of the player, a teleporter, a respawn, leaves that shoulder in the
+        // old place for the frame the jump arrives in: the arm there would hold the gun in the room he just left, a blink
+        // of the gun off the screen at every gate. The pose's own shoulder, that frame.)
         avatar::Skeleton k;
-        const glm::vec3 root = avatar::skeleton(k) ? k.shoulder[h] : shoulder(s, h);
+        const glm::vec3 poseRoot = shoulder(s, h);
+        const glm::vec3 root = avatar::skeleton(k) && glm::distance(k.shoulder[h], poseRoot) < bodyJumpedOver ? k.shoulder[h] : poseRoot;
         const float span = armSpan() * hold;
         const glm::vec3 reachOut = drawn - root;
         const float d = glm::length(reachOut);
@@ -1702,6 +1709,26 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+}
+
+// svc_setangle (cl_parse.c, before VR_OnSetAngle takes the same message): the angle of a walk through a seamless teleporter
+// (hands::portalCrossing). A headset's view is its own and only the play space turns; a flat-screen player's view IS this
+// angle, and the server's has the pitch level and the yaw of a move a tick old: the look jumped at every gate. His view goes
+// on from what it was, turned by the gate alone. The turn is not his, so the turn's lag does not take it either: the drawn
+// gun stays where it was in the view. A plain teleporter, a level's start and a respawn have no crossing: set as sent.
+extern "C" void VR_FlatPortalAngle(const float* before, float* angles)
+{
+    float turn = 0.f;
+    if(!qvr::flatplay::active() || !qvr::hands::portalAnglePending(turn))
+    {
+        return;
+    }
+    angles[PITCH] = before[PITCH];
+    angles[YAW] = za::remainder(before[YAW] + turn, 360.f);
+    angles[ROLL] = before[ROLL];
+    // (His velocity is turned with him, over a tick as the client lerps it: no kick of the sway from that either.)
+    qvr::flatplay::feel.view.y = za::remainder(qvr::flatplay::feel.view.y + turn, 360.f);
+    qvr::flatplay::feel.noKickUntil = vr_gametime + qvr::flatplay::portalNoKickTime;
 }
 
 // V_CalcRefdef, after it: vr_flat_orbit's camera, off him: looking at his own pose from `yaw` degrees round the view, `dist`

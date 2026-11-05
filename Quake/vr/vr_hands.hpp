@@ -164,6 +164,9 @@ void setServerYaw(float yaw);
 // The local player is walking through a teleporter (vr_portals.cpp): its view angle and body jump about to come are a
 // turn by `yawDegrees` about the gate (the play space, the lean and the stairs' easing kept through), not a teleport's.
 void portalCrossing(float yawDegrees);
+// A walk through a teleporter's angle has not come from the server yet (the message setServerYaw is about to take), and
+// the gate's turn (flat-screen play: vr_flatplay.cpp keeps the view going on as it was).
+[[nodiscard]] bool portalAnglePending(float& yawDegrees);
 
 // Turns the play space (thumbstick turning), in degrees, positive to the left.
 void addTurn(float degrees);

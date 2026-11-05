@@ -32,6 +32,7 @@
 #include "vr_protocol.hpp"
 #include "vr_relight.hpp"
 #include "vr_text3d.hpp"
+#include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
@@ -118,7 +119,8 @@ enum PicId : int
     PicSigil = 29,       // sb_sigil1 .. 4
     PicAdArtifact = 33,  // AD support: Arcane Dimensions' artifact icons, its own files (STAT_QVR_ADHUD's bits 0-5)
     PicAdKey = 39,       // AD support: its custom keys' icons, by HUD skin (adib_ckey1 .. 14)
-    PicCount = 53
+    PicNumColon = 53,    // num_colon
+    PicCount = 54
 };
 
 constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
@@ -128,7 +130,7 @@ constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", 
     "gfx/adib_lshield.lmp", "gfx/adib_atank.lmp", "gfx/adib_bbelt.lmp", "gfx/adib_jboots.lmp", "gfx/adib_sharp.lmp",
     "gfx/adib_nailp.lmp", "gfx/adib_ckey1.lmp", "gfx/adib_ckey2.lmp", "gfx/adib_ckey3.lmp", "gfx/adib_ckey4.lmp",
     "gfx/adib_ckey5.lmp", "gfx/adib_ckey6.lmp", "gfx/adib_ckey7.lmp", "gfx/adib_ckey8.lmp", "gfx/adib_ckey9.lmp",
-    "gfx/adib_ckey10.lmp", "gfx/adib_ckey11.lmp", "gfx/adib_ckey12.lmp", "gfx/adib_ckey13.lmp", "gfx/adib_ckey14.lmp"};
+    "gfx/adib_ckey10.lmp", "gfx/adib_ckey11.lmp", "gfx/adib_ckey12.lmp", "gfx/adib_ckey13.lmp", "gfx/adib_ckey14.lmp", "num_colon"};
 
 // The grey pictures (made from the game's gfx.wad when first drawn; again after a game change: onGameDirChanged).
 struct GreyPics
@@ -292,10 +294,9 @@ struct Palette
     glm::vec3 shadow; // the outline round labels and values
 };
 
-[[nodiscard]] Palette palette()
+[[nodiscard]] Palette paletteAt(float bright)
 {
     const cvar_t& own = vr_gadget_screen_hue;
-    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen(); // (dimmed: the gear lights)
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
     const float whiteness = CLAMP(0.f, vr_gadget_screen_text_white.value, 1.f);
     const auto cap = [](const glm::vec3& c) { return glm::min(c, glm::vec3{1.f}); };
@@ -310,6 +311,11 @@ struct Palette
     p.warn = cap(glm::vec3{1.f, 0.42f, 0.36f} * bright);
     p.shadow = p.background * 0.2f;
     return p;
+}
+
+[[nodiscard]] Palette palette()
+{
+    return paletteAt(CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen()); // (dimmed: the gear lights)
 }
 
 using gfx::draw2D::fill;
@@ -342,16 +348,15 @@ void drawText(float x, float y, float size, const char* str, const glm::vec3& rg
     useBrightFont(false);
 }
 
-// A grey picture in `rgb`, `scale`d, over the same outline (the game's own when it has no grey one).
-void drawPic(float x, float y, int id, float scale, const glm::vec3& rgb, const Palette& pal)
+// A grey picture in `rgb`, `w` by `h`, over the same outline (the game's own when it has no grey one, at w / `natural`).
+void drawPicSized(float x, float y, int id, float w, float h, float natural, const glm::vec3& rgb, const Palette& pal)
 {
     qpic_t* p = greyPic(id);
     if(!p)
     {
-        gfx::draw2D::pic(x, y, picNames[id], scale);
+        gfx::draw2D::pic(x, y, picNames[id], w / natural);
         return;
     }
-    const float w = static_cast<float>(p->width) * scale, h = static_cast<float>(p->height) * scale;
     constexpr float o = 0.5f;
     static constexpr float offsets[4][2] = {{-o, 0.f}, {o, 0.f}, {0.f, -o}, {0.f, o}};
     const float shadow[3] = {pal.shadow.r, pal.shadow.g, pal.shadow.b};
@@ -363,18 +368,37 @@ void drawPic(float x, float y, int id, float scale, const glm::vec3& rgb, const 
     Draw_SubPic(x, y, w, h, p, 0.f, 0.f, 1.f, 1.f, c, 1.f);
 }
 
+// A grey picture in `rgb`, `scale`d.
+void drawPic(float x, float y, int id, float scale, const glm::vec3& rgb, const Palette& pal)
+{
+    const qpic_t* p = greyPic(id);
+    const float size = p ? static_cast<float>(p->width) : 1.f, tall = p ? static_cast<float>(p->height) : 1.f;
+    drawPicSized(x, y, id, size * scale, tall * scale, size, rgb, pal);
+}
+
+// The status bar's numbers (digits, '-' and ':' in a run), `w` across each (a ':' half that) and `h` high from (x, y).
+void numberRun(float x, float y, const char* str, float w, float h, const glm::vec3& rgb, const Palette& pal)
+{
+    for(const char* c = str; *c; c++)
+    {
+        if(*c == ':') // (its picture is as wide as a digit's, the colon in its middle)
+        {
+            drawPicSized(x - w * 0.25f, y, PicNumColon, w, h, 24.f, rgb, pal);
+            x += w * 0.5f;
+            continue;
+        }
+        drawPicSized(x, y, *c == '-' ? PicNumMinus : PicNum0 + (*c - '0'), w, h, 24.f, rgb, pal);
+        x += w;
+    }
+}
+
 // Big numbers (the status bar's), right-aligned in `digits` places of 24 x 24 (scaled).
 void number(float x, float y, int value, int digits, const glm::vec3& rgb, float scale, const Palette& pal)
 {
     char str[16];
     q_snprintf(str, sizeof(str), "%d", CLAMP(-99, value, 999));
     const int length = static_cast<int>(strlen(str));
-    x += static_cast<float>(digits - length) * 24.f * scale;
-    for(const char* c = str; *c; c++)
-    {
-        drawPic(x, y, *c == '-' ? PicNumMinus : PicNum0 + (*c - '0'), scale, rgb, pal);
-        x += 24.f * scale;
-    }
+    numberRun(x + static_cast<float>(digits - length) * 24.f * scale, y, str, 24.f * scale, 24.f * scale, rgb, pal);
 }
 
 // What the screen shows: the client's state, or made-up readings (vr_gadget_test_state).
@@ -1026,10 +1050,12 @@ int imageDraws = 0; // the hologram's and the frame rate's images drawn so far (
 
 #include "vr_gadget_holo.inc"
 #include "vr_gadget_fps.inc"
+#include "vr_gadget_panel.inc" // panel boards: the arena's banners
 
 void messageTest_f();
 void gadgetInfo_f();
 void screenDump_f();
+void panelBoardDump_f();
 
 // A centre print as a message (VR_GameCenterPrint, the test).
 void centrePrint(za::StringView text)
@@ -1247,6 +1273,7 @@ void screenRect(glm::vec3& corner, glm::vec2& size)
 namespace
 {
 bool testCommandsRegistered = false; // (vr_message_test, vr_gadget_info: registered on the first call)
+bool panelCommandRegistered = false; // (vr_panelboard_dump)
 } // namespace
 
 void onGameDirChanged()
@@ -1356,6 +1383,40 @@ void drawScreen()
             .params = {time, k, g, textGlow()},
             .screen = {width, height, 0.5f}, .trueColor = true, .flatModelFov = true},
         target.texture);
+}
+
+void renderPanelBoard(const char* text)
+{
+    drawPanelBoard(text);
+}
+
+void releasePanelBoard()
+{
+    if(!panelCommandRegistered) // (a test command: the module has no init hook here, and this is called each frame off the arena)
+    {
+        panelCommandRegistered = true;
+        Cmd_AddCommand("vr_panelboard_dump", panelBoardDump_f);
+    }
+    if(panelBoard.target.texture)
+    {
+        gfx::releaseTarget(panelBoard.target);
+    }
+    panelBoard.width = 0;
+}
+
+unsigned panelBoardTexture()
+{
+    return panelBoard.width > 0 ? panelBoard.target.texture : 0;
+}
+
+glm::vec3 panelBoardPhosphor()
+{
+    return glm::vec3{panelBoardPalette().text};
+}
+
+float panelBoardRead(const char* text, float x, float y, float w, float h, int what)
+{
+    return readPanelBoard(text, x, y, w, h, what);
 }
 
 float textGlow()
@@ -1578,13 +1639,11 @@ void gadgetInfo_f()
 }
 
 // vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
-void screenDump_f()
+void dumpTarget(const gfx::Target& target, const char* command, const char* fallbackName)
 {
-    // (Doom's picture and its touch controls while Doom shows: vr_doom.)
-    const gfx::Target& target = doom::onGadget() && doom::gadgetTexture() ? doom::screenTarget() : gadget::target;
     if(!target.texture || !target.framebuffer)
     {
-        Con_Printf("vr_gadget_screen_dump: no screen yet\n");
+        Con_Printf("%s: no screen yet\n", command);
         return;
     }
     const int w = target.width, h = target.height;
@@ -1603,12 +1662,25 @@ void screenDump_f()
         }
     }
     char name[MAX_OSPATH];
-    q_snprintf(name, sizeof(name), "screenshots/%s.png", Cmd_Argc() > 1 ? Cmd_Argv(1) : "gadget_screen");
+    q_snprintf(name, sizeof(name), "screenshots/%s.png", Cmd_Argc() > 1 ? Cmd_Argv(1) : fallbackName);
     Sys_mkdir(va("%s/screenshots", com_gamedir));
     if(Image_WritePNG(name, rgb.data(), w, h, 24, false))
     {
-        Con_Printf("vr_gadget_screen_dump: %s (%dx%d)\n", name, w, h);
+        Con_Printf("%s: %s (%dx%d)\n", command, name, w, h);
     }
+}
+
+void screenDump_f()
+{
+    // (Doom's picture and its touch controls while Doom shows: vr_doom.)
+    dumpTarget(doom::onGadget() && doom::gadgetTexture() ? doom::screenTarget() : gadget::target, "vr_gadget_screen_dump", "gadget_screen");
+}
+
+// vr_panelboard_dump [name]: the panel boards' image (the arena's banners) as vr_gadget_screen_dump, and what it holds.
+void panelBoardDump_f()
+{
+    Con_Printf("panel board: [%s], %d draws, %dx%d\n", panelBoard.drawn.cStr(), panelBoard.draws, panelBoard.target.width, panelBoard.target.height);
+    dumpTarget(panelBoard.target, "vr_panelboard_dump", "panel_board");
 }
 
 } // namespace

@@ -382,6 +382,16 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
     }
 
     SuperDamageSound();
+    // The off hand's gun is drawn mirrored: its frame's barrel (the one pushed forward, where vr_gunfx.cpp's sparks
+    // leave) on the other side, so its nail too.
+    if(xHand == cVR_OffHand)
+    {
+        xOffset = -xOffset;
+    }
+    if(cvar_hget(cvarh_vr_debug_gunfx))
+    {
+        dprint(sprintf("nailside hand %g frame %g ox %g\n", xHand, VRGetWeaponFrame(xHand), xOffset));
+    }
     xFireFn(xHand, xOffset);
     VRSetAttackFinished(xHand, time + 0.2);
 }

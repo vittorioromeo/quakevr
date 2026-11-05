@@ -246,7 +246,8 @@ map entity's prefix (`info_`, `item_`, `weapon_`, `monster_`, `func_`, `trigger_
    editor's assignments, or with `vr_arena 1`, runs the waves too.
 2. Place its points: `info_arena_spawn`, `info_arena_item`, `info_arena_nav`.
 3. Place its boards: `info_arena_banner` (origin the middle of the face, `angle` the way it faces, `worldtext_scale`:
-   23 characters across, 2 down, 1.2 characters round them, 0.7 of a character deep). They need nothing else.
+   units a pixel of its 250 x 40 face, default 2.2: 550 x 88, 566 x 104 with its bezel, 5.6 x the scale deep). They need
+   nothing else: the engine lays their numbers out with the wrist gadget's screen code (`vr_gadget_panel.inc`).
 4. A menu row for it, beside Survival Arena's in `pagePlay()`, if players should reach it from there.
 
 ## vrstart: the island hub (a generated map)

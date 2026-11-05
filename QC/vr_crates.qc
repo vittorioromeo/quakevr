@@ -519,7 +519,15 @@ void(float xSpeed) VR_Crate_Impact =
         other == world ? "the level" : other.classname, xSpeed), world);
 };
 
-// Hurt, not broken: a crack of wood, as hot as the melee hit's own sound (his note, 2026-11-02), at most every 0.1 s.
+// A crate's sound's volume: `xBase` times the tunable `xTimes` (vr_crate_hit_volume, vr_crate_break_volume: over 1
+// louder than full, sv_main.c's SND_LOUD, up to 4).
+float(float xBase, float xTimes) VR_Crate_Volume =
+{
+    return min(max(xBase * xTimes, 0), 4);
+};
+
+// Hurt, not broken: a crack of wood, as hot as the melee hit's own sound (his note, 2026-11-02), at most every 0.1 s;
+// louder than full by vr_crate_hit_volume (his note, 2026-11-05: still too quiet).
 void(entity attacker, float damage) VR_Crate_Pain =
 {
     dprint(sprintf("crate at %v: hit by %s for %.1f, %.1f left\n", self.origin, attacker.classname, damage, self.health));
@@ -530,8 +538,9 @@ void(entity attacker, float damage) VR_Crate_Pain =
     self.vr_crate_hittime = time;
     float k = floor(random() * 3);
     string s = k < 1 ? "vr/crate_hit1.wav" : (k < 2 ? "vr/crate_hit2.wav" : "vr/crate_hit3.wav");
-    VR_SoundVaried(self, CHAN_AUTO, s, min(1, 0.55 + damage * 0.03), ATTN_NORM);
-    dprint(sprintf("crate: knock %s\n", s));
+    float v = VR_Crate_Volume(min(1, 0.55 + damage * 0.03), cvar_hget(cvarh_vr_crate_hit_volume));
+    VR_SoundVaried(self, CHAN_AUTO, s, v, ATTN_NORM);
+    dprint(sprintf("crate: knock %s volume %.2f\n", s, v));
 };
 
 // ----------------------------------------------------------------------------
@@ -978,7 +987,9 @@ void() VR_Crate_Break =
     dprint(sprintf("crate: breaks at %v (by %s)\n", mid, damage_inflictor.classname));
     VR_Carry_Forget(crate); // (broken in a hand)
     float k = floor(random() * 3);
-    sound(crate, CHAN_AUTO, k < 1 ? "vr/crate_break1.wav" : (k < 2 ? "vr/crate_break2.wav" : "vr/crate_break3.wav"), 1, ATTN_NORM);
+    sound(crate, CHAN_AUTO, k < 1 ? "vr/crate_break1.wav" : (k < 2 ? "vr/crate_break2.wav" : "vr/crate_break3.wav"),
+          VR_Crate_Volume(1, cvar_hget(cvarh_vr_crate_break_volume)), ATTN_NORM);
+    dprint(sprintf("crate: break sound volume %.2f\n", VR_Crate_Volume(1, cvar_hget(cvarh_vr_crate_break_volume))));
     particle2(mid, dir, QVR_PARTICLE_PRESET_WOODDUST, crate.vr_cratekind == 2 ? 45 : 30);
 
     // Gone first (not solid, no body): the pieces and what it held come out where it was.
