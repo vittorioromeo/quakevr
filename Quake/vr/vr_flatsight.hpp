@@ -71,6 +71,10 @@ void noteDrawn(const hands::State& s);
 // How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
 [[nodiscard]] float drawnShare(int h);
 
+// A shot's drawn recoil of a hand (weaponfx::recoilOffset), kept at vr_flat_ads_recoil of itself as far as the ironsight
+// has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.
+void keepRecoil(glm::vec3& pos, glm::vec3& angles);
+
 // Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
 [[nodiscard]] bool adsHelper(int h);
 

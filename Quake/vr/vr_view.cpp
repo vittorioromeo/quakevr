@@ -4954,6 +4954,8 @@ extern "C" void VR_SetupViewEntities()
         // A shot's programmatic recoil (vr_weaponfx.cpp), the same way.
         glm::vec3 recoilPos, recoilAngles;
         weaponfx::recoilOffset(hand, s.visualRot[hand], recoilPos, recoilAngles);
+        // (Flatscreen play's ironsight keeps vr_flat_ads_recoil of it, by how far the gun has come up to the eye.)
+        flatsight::keepRecoil(recoilPos, recoilAngles);
         shakePos[hand] += recoilPos;
         shakeAngles[hand] += recoilAngles;
         // A running chainsaw's engine (vr_chainsaw.cpp), the same way.

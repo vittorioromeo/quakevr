@@ -1,0 +1,23 @@
+#!/bin/bash
+# flatads_test.sh <agent> -- flatscreen ironsight items of 2026-11-05 (docs/vr-port/ROUND24.md, "Flat pose: grips, ADS recoil,
+# the sights", agent/flatsolve6). Fast mode; each run ends with its own script.
+#   a. recoil: a shotgun shot hipfire, then sighted: the drawn recoil sighted is vr_flat_ads_recoil (0.35) of hipfire's.
+AGENT=${1:-pickup}
+source "$(dirname "$0")/qvrtest.sh"
+export QVR_AUTHOR_WAIT_ALWAYS=1
+HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
+P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
+SECTIONS=${SECTIONS:-a}
+
+if [[ $SECTIONS == *a* ]]; then
+  log=$HERE/scratch/flatads_a.log
+  SHOT="vr_flat_recoil_probe; +attack; wait4; -attack; wait50; vr_flat_recoil_probe;"
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; impulse 154; wait40; $SHOT vr_flat_aim 1; wait60; $SHOT vr_flat_aim 0; wait30; toggleconsole; quit" -Filter "^flatrecoil" -Timeout 60 > "$log" 2>&1
+  hip=$(grep -a "^flatrecoil" "$log" | sed -n 2p); ads=$(grep -a "^flatrecoil" "$log" | sed -n 4p)
+  echo "  hipfire: $hip"; echo "  sighted: $ads"
+  hp=$(awk '{ print $3 }' <<<"$hip"); ha=$(awk '{ print $5 }' <<<"$hip"); ap=$(awk '{ print $8 }' <<<"$ads"); aa=$(awk '{ print $10 }' <<<"$ads")
+  check $(awk -v p="${hp:-0}" -v a="${ha:-0}" 'BEGIN { exit !(p > 0.1 && a > 0.1) }' && echo 1 || echo 0) "recoil: a hipfire shot kicks the drawn gun ($hp u, $ha deg)"
+  check $(awk -v hp="${hp:-0}" -v ha="${ha:-0}" -v ap="${ap:-9}" -v aa="${aa:-9}" 'BEGIN { exit !(hp > 0 && ha > 0 && ap / hp > 0.30 && ap / hp < 0.40 && aa / ha > 0.30 && aa / ha < 0.40) }' && echo 1 || echo 0) "recoil: sighted it kicks 0.35 of that ($ap u, $aa deg)"
+fi
+
+verdict; exit $fail

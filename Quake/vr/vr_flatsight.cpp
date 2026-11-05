@@ -805,12 +805,29 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
 }
 
+// vr_flat_recoil_probe: the most a shot's recoil moved the drawn weapons since the last print, before and after the
+// ironsight's share (keepRecoil), and the share the last frame kept. The test fires hipfire, then sighted, and compares.
+struct RecoilProbe
+{
+    float rawPos{0.f}, rawAngles{0.f}, drawnPos{0.f}, drawnAngles{0.f}, share{1.f};
+};
+RecoilProbe recoilProbe;
+
+void recoilProbe_f()
+{
+    const RecoilProbe& p = recoilProbe;
+    Con_Printf("flatrecoil: raw %.4f u %.4f deg drawn %.4f u %.4f deg share %.3f (vr_flat_ads_recoil %g, ads %.3f)\n", p.rawPos,
+        p.rawAngles, p.drawnPos, p.drawnAngles, p.share, vr_flat_ads_recoil.value, za::clamp(st.adsT, 0.f, 1.f));
+    recoilProbe = RecoilProbe{};
+}
+
 } // namespace
 
 static void check_f();
 
 void init()
 {
+    Cmd_AddCommand("vr_flat_recoil_probe", recoilProbe_f);
     Cmd_AddCommand("vr_flat_aim", aim_f);
     Cmd_AddCommand("vr_flat_sight_check", check_f);
 }
@@ -1081,6 +1098,24 @@ float drawnSight(int h, glm::vec3& hand, glm::mat3& turn)
     turn = at.turn;
     hand = at.hand + st.backWay[h] * st.back[h];
     return za::clamp(st.adsT, 0.f, 1.f);
+}
+
+void keepRecoil(glm::vec3& pos, glm::vec3& angles)
+{
+    if(!flatplay::active())
+    {
+        return;
+    }
+    const float share =
+        glm::mix(1.f, za::clamp(vr_flat_ads_recoil.value, 0.f, 1.f), geom::smooth01(za::clamp(st.adsT, 0.f, 1.f)));
+    RecoilProbe& p = recoilProbe;
+    p.rawPos = glm::max(p.rawPos, glm::length(pos));
+    p.rawAngles = glm::max(p.rawAngles, glm::length(angles));
+    pos *= share;
+    angles *= share;
+    p.drawnPos = glm::max(p.drawnPos, glm::length(pos));
+    p.drawnAngles = glm::max(p.drawnAngles, glm::length(angles));
+    p.share = share;
 }
 
 glm::vec3 rayDir(const glm::vec3& aim)
