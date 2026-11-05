@@ -353,12 +353,15 @@ QVR_TUNABLE(vr_crates_margin, "56") // units from any other entity (doors, lifts
 QVR_TUNABLE(vr_crates_seed, "0") // mixed with the map's name: another layout (the same each load)
 QVR_TUNABLE(vr_crate_impact, "16") // m/s: a crate hitting something this hard breaks (less: damaged from 70% of it); 0: never
 QVR_TUNABLE(vr_crate_piece_impact, "8") // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
+QVR_TUNABLE(vr_carry_grab_ease, "0.12") // s: a prop just taken in one hand is drawn from where it was onto its grip's place over this (a Fixed or In the Palm grip turns and moves it there; 0: at once)
 QVR_TUNABLE(vr_carry_slam_height, "10") // cm: the hands' middle at least this far over the eyes is over the head
 QVR_TUNABLE(vr_carry_slam_speed, "3") // m/s: the hands swung down at least this fast (mostly downwards) break it on what they meet
 QVR_TUNABLE(vr_carry_slam_window, "1") // s after it was last over the head a swing down still counts
 QVR_TUNABLE(vr_carry_slam_damage, "2") // what it is swung onto takes this times a punch with it in hand (times its speed over the least, at most twice)
 QVR_TUNABLE(vr_crate_slam_throw_damage, "0.55") // let go of from over the head, its first hard landing takes this share of its full health (0.55: two such throws break it)
 QVR_TUNABLE(vr_crate_slam_throw_speed, "3") // m/s: ... a landing at least this fast
+QVR_TUNABLE(vr_crate_hit_volume, "2.5") // a crate knocked (hit, not broken): its crack of wood times this (1: as before, 2026-11-02; up to 4, over full: SND_LOUD)
+QVR_TUNABLE(vr_crate_break_volume, "2") // a crate breaking: its sound times this (1: as before; up to 4)
 QVR_TUNABLE(vr_crate_pieces, "12") // pieces a small crate breaks into (a large one more, by its size)
 QVR_TUNABLE(vr_crate_piece_max, "48") // most pieces lying about at once (the oldest turn to dust)
 QVR_TUNABLE(vr_crate_piece_time, "60") // s a piece lies about before it fades away (0: for ever)
@@ -494,6 +497,8 @@ QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on o
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
+QVR_TUNABLE(vr_knockdown_ledge_topple, "32") // units: a shove with a ledge this near ahead of its middle topples it over at once (the old launch); further, up to vr_knockdown_ledge_backpedal_reach, it backpedals (his note, 2026-11-05)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_reach, "80") // units: ... with a ledge further than this ahead of its middle, the shove is an ordinary one (no ledge)
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
