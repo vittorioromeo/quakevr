@@ -644,6 +644,28 @@ void dragTest_f()
     dragTally.check(d.bodies == 0 && d.cut == 0.f && scale == load, name, va("%s: nothing held, not slowed", label));
 }
 
+bool reachesSkewered(int hand)
+{
+    const int on = progs::fields().vr_skewer_p;
+    const int grip = progs::fields().vr_skewer_grip;
+    edict_t* const player = progs::localPlayer();
+    if(on < 0 || !player)
+    {
+        return false;
+    }
+    const progs::ServerVm vm;
+    const int mine = EDICT_TO_PROG(player);
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* const e = EDICT_NUM(i);
+        if(!e->free && progs::fieldInt(e, on) == mine && (progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1) || reaches(e, player, hand)))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool reaches(edict_t* ent, edict_t* player, int hand)
 {
     // What the other hand holds: a little farther than a thing lying about (vr_carry_two_hands_reach), so that the hand that

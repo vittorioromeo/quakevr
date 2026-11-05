@@ -1842,9 +1842,14 @@ QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth
 QVR_TUNABLE(vr_embed_skewer_most, "3") // gibs a stab may skewer on a blade at once (0: none, a stab bursts them as any blow; QC/vr_skewer.qc)
 QVR_TUNABLE(vr_embed_skewer_depth, "8") // units from the tip to the middle of the first gib on it
 QVR_TUNABLE(vr_embed_skewer_gap, "7") // units along the blade between gibs on it
-QVR_TUNABLE(vr_embed_skewer_throw_burst, "7") // m/s a thrown blade's gib must be going at to burst on what it meets itself
+QVR_TUNABLE(vr_embed_skewer_throw_burst, "7") // m/s a thrown blade's gib must be going at to burst on what it meets itself (its fall not counted)
 QVR_TUNABLE(vr_embed_skewer_swing_burst, "3") // m/s a swing must be going at to burst the gib where it hits something
-QVR_TUNABLE(vr_embed_skewer_mass_gib, "0.5") // kg a gib weighs on a blade (a limb: its own mass)
+QVR_TUNABLE(vr_embed_skewer_swing_reach, "6") // units past a gib's own width along the blade a swing's contact still bursts it
+QVR_TUNABLE(vr_embed_skewer_thick, "1.5") // units: how thick the blade's line is for what a stab skewers (only what it truly goes through)
+QVR_TUNABLE(vr_embed_skewer_tug_speed, "4") // m/s the other hand must yank a gib off the blade's line to tear it off (0: never)
+QVR_TUNABLE(vr_embed_skewer_tug_stretch, "30") // cm the other hand must pull away from the blade's line to tear it off (0: never)
+QVR_TUNABLE(vr_embed_skewer_mass_gib, "1.2") // kg a gib of a middling size weighs on a blade (a torso's piece)
+QVR_TUNABLE(vr_embed_skewer_mass_limb, "0.6") // kg a limb of a middling size does (by size, not its share of the body: a soldier's leg was 12 kg)
 QVR_TUNABLE(vr_embed_skewer_mass_head, "1.5") // kg a head does
 // Embedded Blades: Axe
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at

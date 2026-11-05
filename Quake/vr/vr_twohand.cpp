@@ -331,8 +331,8 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
     // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
-    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping);
     const bool wasHeld = shouldAim[holding];
+    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping) && (wasHeld || !carry2h::reachesSkewered(helping));
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
     // line from the helping hand through the holding hand. Unlike a gun's, it holds when the blade
@@ -643,7 +643,7 @@ bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int ho
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || shouldAim[holding] || aimTransition[holding] > 0.f ||
         !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !candidate(helping) ||
-        !freshGrab(helping))
+        !freshGrab(helping) || carry2h::reachesSkewered(helping))
     {
         return false;
     }
