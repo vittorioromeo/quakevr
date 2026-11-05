@@ -8,6 +8,8 @@
 #include "vr_agarmor_internal.hpp"
 
 #include "vr_api.h"
+#include "vr_avatar.hpp"
+#include "vr_view.hpp"
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -91,7 +93,11 @@ struct Wearer
 // out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
     {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f},
-    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.42f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.37f, 0.44f}}};
+    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.42f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.37f, 0.44f}},
+    // The player's own body, each build (vr_player_plates; vr_agarmor.hpp, "The player's plates"): the same plates, on its IK.
+    {"progs/vrbody.mdl", -1e9f}, {"progs/vrbody_bare.mdl", -1e9f}, {"progs/vrbody_lean.mdl", -1e9f},
+    {"progs/vrbody_lean_bare.mdl", -1e9f}, {"progs/vrbody_brawny.mdl", -1e9f}, {"progs/vrbody_brawny_bare.mdl", -1e9f},
+    {"progs/vrbody_fem.mdl", -1e9f}, {"progs/vrbody_fem_bare.mdl", -1e9f}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -215,6 +221,161 @@ bool buildBody(qmodel_t* src, const aliashdr_t* sh, const rig2::Rig& rig, Body& 
     return !b.tris.empty();
 }
 
+// ---- The player's body: a skeletal model, not a .mdl on an authored rig: its own bones taken for one ----
+constexpr int maxPlayerRigs = 8; // (the builds, bare and not)
+rig2::Rig playerRigs[maxPlayerRigs];
+int numPlayerRigs = 0;
+
+[[nodiscard]] bool isPlayerBody(const char* name)
+{
+    return name && !strncmp(name, "progs/vrbody", 12) && !strchr(name, '#');
+}
+
+// The bones of `src` by the names frameOf looks for (the calves its "shin"s), in the model's own order: the skinning
+// matrices' (avatar::skinWithHead). The rig's weights stay empty: buildSkeletalBody reads the mesh's.
+[[nodiscard]] const rig2::Rig* playerRig(qmodel_t* src)
+{
+    for(int i = 0; i < numPlayerRigs; i++)
+    {
+        if(!strcmp(playerRigs[i].model.cStr(), src->name))
+        {
+            return &playerRigs[i];
+        }
+    }
+    const auto* sh = src->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : nullptr;
+    if(!sh || sh->poseverttype != aliashdr_t::PV_IQM || sh->numbones > rig2::maxBones || numPlayerRigs >= maxPlayerRigs)
+    {
+        return nullptr;
+    }
+    rig2::Rig& r = playerRigs[numPlayerRigs++];
+    r.model = za::String{src->name};
+    r.numBones = sh->numbones;
+    const auto* infos = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(sh) + sh->boneinfo);
+    for(int b = 0; b < sh->numbones; b++)
+    {
+        const char* name = infos[b].name;
+        q_strlcpy(r.bones[b].name, !strcmp(name, "calf_l") ? "shin_l" : !strcmp(name, "calf_r") ? "shin_r" : name, sizeof(r.bones[b].name));
+        r.bones[b].parent = infos[b].parent;
+        const float* m = infos[b].inverse.mat; // [R^T | -R^T p]
+        const glm::vec3 t{m[3], m[7], m[11]};
+        r.bones[b].pivot = {-(m[0] * t.x + m[4] * t.y + m[8] * t.z), -(m[1] * t.x + m[5] * t.y + m[9] * t.z),
+            -(m[2] * t.x + m[6] * t.y + m[10] * t.z)};
+        r.bones[b].end = r.bones[b].pivot + glm::vec3{0.f, 0.f, 1.f};
+    }
+    constexpr const char* links[][2] = {{"spine", "chest"}, {"chest", "neck"}, {"neck", "head"}, {"upperarm_l", "forearm_l"},
+        {"upperarm_r", "forearm_r"}, {"forearm_l", "hand_l"}, {"forearm_r", "hand_r"}, {"thigh_l", "shin_l"}, {"thigh_r", "shin_r"},
+        {"shin_l", "foot_l"}, {"shin_r", "foot_r"}};
+    for(const auto& link : links)
+    {
+        const int a = rig2::boneByName(r, link[0]), b = rig2::boneByName(r, link[1]);
+        if(a >= 0 && b >= 0)
+        {
+            r.bones[a].end = r.bones[b].pivot;
+        }
+    }
+    // (the head's end: its crown, straight up from its pivot)
+    const int head = rig2::boneByName(r, "head");
+    const auto* verts = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes);
+    float crown = head >= 0 ? r.bones[head].pivot.z : 0.f;
+    for(int v = 0; head >= 0 && v < sh->numverts_vbo; v++)
+    {
+        for(int k = 0; k < 4; k++)
+        {
+            crown = verts[v].idx[k] == head && verts[v].weight[k] > 127 ? za::max(crown, verts[v].xyz[2]) : crown;
+        }
+    }
+    if(head >= 0)
+    {
+        r.bones[head].end = {r.bones[head].pivot.x, r.bones[head].pivot.y, crown};
+    }
+    return &r;
+}
+
+[[nodiscard]] const rig2::Rig* rigOf(qmodel_t* src)
+{
+    return isPlayerBody(src->name) ? playerRig(src) : rig2::rigFor(src);
+}
+
+// A skeletal body's rest pose as buildBody makes a .mdl's: welded, wound outward, its weights the mesh's own.
+bool buildSkeletalBody(const aliashdr_t* sh, const rig2::Rig& rig, Body& b)
+{
+    b = Body{};
+    const int nm = sh->numverts_vbo;
+    if(nm <= 0 || sh->numindexes <= 0)
+    {
+        return false;
+    }
+    const auto* verts = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(sh) + sh->indexes);
+    b.mdlRest.resize(static_cast<za::SizeT>(nm), glm::vec3{0.f});
+    b.weld.resize(static_cast<za::SizeT>(nm), 0);
+    for(int mv = 0; mv < nm; mv++)
+    {
+        const glm::vec3 p{verts[mv].xyz[0], verts[mv].xyz[1], verts[mv].xyz[2]};
+        at(b.mdlRest, mv) = p;
+        int found = -1;
+        for(int k = 0; k < count(b.rep) && found < 0; k++)
+        {
+            found = glm::length(at(b.p, k) - p) < 1e-3f ? k : -1;
+        }
+        if(found < 0)
+        {
+            found = count(b.rep);
+            b.rep.pushBack(mv);
+            b.p.pushBack(p);
+            W w;
+            float sum = 0.f;
+            for(int i = 0; i < 4; i++)
+            {
+                const float x = static_cast<float>(verts[mv].weight[i]) / 255.f;
+                w.w[za::clamp(static_cast<int>(verts[mv].idx[i]), 0, rig2::maxBones - 1)] += x;
+                sum += x;
+            }
+            if(sum <= 0.f)
+            {
+                w.w[0] = 1.f;
+            }
+            b.w.pushBack(w);
+        }
+        at(b.weld, mv) = found;
+    }
+    // Which way it is wound: each triangle against the way out from its bone. (Not the volume round the origin as buildBody's:
+    // this mesh is open at its seams, and that came out the wrong way, the plates inside the body.)
+    double outward = 0.0;
+    for(int i = 0; i + 2 < sh->numindexes; i += 3)
+    {
+        const int t[3] = {at(b.weld, za::clamp(static_cast<int>(idx[i]), 0, nm - 1)),
+            at(b.weld, za::clamp(static_cast<int>(idx[i + 1]), 0, nm - 1)), at(b.weld, za::clamp(static_cast<int>(idx[i + 2]), 0, nm - 1))};
+        if(t[0] == t[1] || t[1] == t[2] || t[0] == t[2])
+        {
+            continue;
+        }
+        const glm::vec3 &pa = at(b.p, t[0]), &pb = at(b.p, t[1]), &pc = at(b.p, t[2]);
+        const glm::vec3 area = glm::cross(pb - pa, pc - pa);
+        if(glm::length(area) < 1e-6f)
+        {
+            continue;
+        }
+        const rig2::Bone& bone = rig.bones[za::clamp(heaviest(at(b.w, t[0])), 0, rig.numBones - 1)];
+        const glm::vec3 axis = bone.end - bone.pivot, mid = (pa + pb + pc) / 3.f;
+        const float along = za::clamp(glm::dot(mid - bone.pivot, axis) / za::max(glm::dot(axis, axis), 1e-6f), 0.f, 1.f);
+        outward += static_cast<double>(glm::dot(area, mid - (bone.pivot + axis * along)));
+        for(int k : t)
+        {
+            b.tris.pushBack(k);
+        }
+    }
+    b.nativeFlip = outward < 0.0;
+    for(int i = 0; b.nativeFlip && i + 2 < count(b.tris); i += 3)
+    {
+        const int x = at(b.tris, i + 1);
+        at(b.tris, i + 1) = at(b.tris, i + 2);
+        at(b.tris, i + 2) = x;
+    }
+    normalsOf(b.p, b.tris, b.n);
+    return !b.tris.empty();
+}
+
 // ---- A piece: where it is on the body ----
 struct PieceFrame
 {
@@ -275,6 +436,13 @@ struct PieceFrame
     {
         // A limb: round its bone, up it from its pivot (the texture's rows run down it).
         f.bones = bit(limbBone[piece]);
+        // (the player's forearm hangs on its twist joints. The bracer on the elbow's half alone: its wrist's half is the wrist
+        // gadget's and its straps', and the hand and what it holds stay clear)
+        if(piece == BracerL || piece == BracerR)
+        {
+            const char* twist = piece == BracerL ? "foretwist1_l" : "foretwist1_r";
+            f.bones |= rig2::boneByName(rig, twist) >= 0 ? bit(twist) : 0u;
+        }
         const int b = rig2::boneByName(rig, limbBone[piece]);
         f.ok = b >= 0;
         if(f.ok)
@@ -1232,13 +1400,15 @@ namespace detail
 bool buildShell(qmodel_t* src, Shell& s)
 {
     const double t0 = Sys_DoubleTime();
-    const rig2::Rig* rig = rig2::rigFor(src);
+    const rig2::Rig* rig = src ? rigOf(src) : nullptr;
     const auto* sh = src && src->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : nullptr;
     s.verts.clear();
     s.tris.clear();
     s.ok = false;
     s.numSlots = 0;
-    if(!rig || !sh || sh->poseverttype != aliashdr_t::PV_QUAKE1 || !buildBody(src, sh, *rig, s.body))
+    const bool skeletal = rig && sh && isPlayerBody(src->name) && sh->poseverttype == aliashdr_t::PV_IQM;
+    if(!rig || !sh || (!skeletal && sh->poseverttype != aliashdr_t::PV_QUAKE1) ||
+       !(skeletal ? buildSkeletalBody(sh, *rig, s.body) : buildBody(src, sh, *rig, s.body)))
     {
         return false;
     }
@@ -1362,7 +1532,7 @@ namespace detail
 
 [[nodiscard]] Shell* shellFor(qmodel_t* src)
 {
-    const rig2::Rig* rig = src ? rig2::rigFor(src) : nullptr;
+    const rig2::Rig* rig = src ? rigOf(src) : nullptr;
     if(!rig)
     {
         return nullptr;
@@ -1416,10 +1586,11 @@ namespace
     k.skinned = skinned;
     q_strlcpy(k.name, skinned->name, sizeof(k.name));
     const size_t len = strlen(skinned->name), suffix = strlen(rigSuffix);
-    if(len > suffix && !strcmp(skinned->name + len - suffix, rigSuffix))
+    const bool rigged = len > suffix && !strcmp(skinned->name + len - suffix, rigSuffix);
+    if(rigged || isPlayerBody(skinned->name)) // (the player's body is drawn under its own name)
     {
         char base[MAX_QPATH];
-        q_strlcpy(base, skinned->name, za::min(sizeof(base), len - suffix + 1));
+        q_strlcpy(base, skinned->name, za::min(sizeof(base), (rigged ? len - suffix : len) + 1));
         if(isWearer(base))
         {
             char name[MAX_QPATH];
@@ -1521,8 +1692,23 @@ void info_f()
             count(s->body.tris) / 3);
         for(int p = 0; p < NumPieces; p++)
         {
-            Con_Printf("agarmor:   %s: %d vertices, %d triangles, %d rim edges\n", pieceNames[p], s->pieceVerts[p], s->pieceTris[p],
-                s->pieceOpen[p]);
+            // (how far out its outer face is against its inner face from their middle, on average: above 0, outside it)
+            glm::vec3 mid{0.f};
+            int n[2]{0, 0};
+            for(const Vert& v : s->verts)
+            {
+                mid += v.piece == p && v.layer == 1 ? v.p : glm::vec3{0.f};
+                n[0] += v.piece == p && v.layer == 0 ? 1 : 0;
+                n[1] += v.piece == p && v.layer == 1 ? 1 : 0;
+            }
+            mid /= static_cast<float>(za::max(n[1], 1));
+            float out[2]{0.f, 0.f};
+            for(const Vert& v : s->verts)
+            {
+                out[v.layer == 1 ? 1 : 0] += v.piece == p && v.layer < 2 ? glm::distance(v.p, mid) : 0.f;
+            }
+            Con_Printf("agarmor:   %s: %d vertices, %d triangles, %d rim edges, outer face out from inner %.2f (flip %d)\n", pieceNames[p], s->pieceVerts[p], s->pieceTris[p],
+                s->pieceOpen[p], static_cast<double>(out[0] / static_cast<float>(za::max(n[0], 1)) - out[1] / static_cast<float>(za::max(n[1], 1))), s->body.nativeFlip ? 1 : 0);
         }
         Con_Printf("agarmor:   helmet fit: %s\n", s->helmFit);
     }
@@ -1680,6 +1866,12 @@ bool makeModel(qmodel_t* mod)
     }
     const int numVerts = count(s->verts), numIndexes = count(s->tris), numBones = s->numSlots;
 
+    // (the skins' model as it is now: the hunk growing below may evict it from the cache and clear its memory, as a big model's
+    // did: no skins, its plates not drawn)
+    aliashdr_t skinHdr;
+    memcpy(&skinHdr, kh, sizeof(aliashdr_t));
+    kh = &skinHdr;
+
     const int start = Hunk_LowMark();
     auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(sizeof(aliashdr_t))));
     auto* bones = static_cast<boneinfo_t*>(Hunk_Alloc(static_cast<int>(sizeof(boneinfo_t)) * numBones));
@@ -1712,7 +1904,7 @@ bool makeModel(qmodel_t* mod)
     memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
     memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
     memcpy(hdr->texels, kh->texels, sizeof(hdr->texels));
-    const rig2::Rig* rig = rig2::rigFor(src);
+    const rig2::Rig* rig = rigOf(src);
     for(int b = 0; b < numBones; b++)
     {
         q_snprintf(bones[b].name, sizeof(bones[b].name), "%s:%s", pieceNames[s->slotPiece[b]],
@@ -1790,8 +1982,9 @@ bool makeModel(qmodel_t* mod)
     mod->path_id = src->path_id;
     for(int i = 0; i < 3; i++)
     {
-        mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -64.f;
-        mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = 64.f;
+        const float box = isPlayerBody(src->name) ? 128.f : 64.f; // (the player's: reaching out from where it stands)
+        mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -box;
+        mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = box;
     }
     const int total = Hunk_LowMark() - start;
     Cache_Alloc(&mod->cache, total, mod->name);
@@ -1911,12 +2104,17 @@ namespace
 {
 za::Vector<uint32_t> sent; // per entity: what the clients were last told (packState)
 
-[[nodiscard]] uint32_t stateOf(edict_t* e)
+[[nodiscard]] uint32_t stateOf(edict_t* e, bool player)
 {
     const progs::FieldOffsets& f = progs::fields();
     if(e->free || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
     {
         return 0u;
+    }
+    if(player) // (the player's plates are a look alone: fields of their own, never what combat.qc reads for a wearer)
+    {
+        return f.vr_pp_type < 0 || f.vr_pp_mask < 0 ? 0u :
+            packState(za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_pp_type)), 0, 3), static_cast<int>(progs::fieldFloat(e, f.vr_pp_mask)) & allPieces, 0);
     }
     const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
     const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allPieces;
@@ -1941,6 +2139,7 @@ void writeState(sizebuf_t* msg, int num, uint32_t state)
 struct PlateFrame
 {
     int anchor[3]{-1, -1, -1}; // .mdl vertices
+    int bone{-1};              // the bone they weigh on
     glm::vec3 mid{0.f};
     glm::mat3 rest{1.f};
     bool ok{false};
@@ -1987,6 +2186,7 @@ struct PlateFrame
 {
     const Body& b = s.body;
     const float cut = regionCut(b.w, 1u << static_cast<unsigned>(bone));
+    pf.bone = bone;
     int a = -1, c = -1, d = -1;
     float best = 1e9f;
     for(int v = 0; v < count(b.p); v++)
@@ -2065,9 +2265,9 @@ void serverFrame()
     {
         sent.resize(static_cast<za::SizeT>(n), 0u);
     }
-    for(int i = svs.maxclients + 1; i < count(sent); i++)
+    for(int i = 1; i < count(sent); i++)
     {
-        const uint32_t now = i < n ? stateOf(EDICT_NUM(i)) : 0u;
+        const uint32_t now = i < n ? stateOf(EDICT_NUM(i), i <= svs.maxclients) : 0u;
         if(now != at(sent, i) && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
         {
             writeState(&sv.reliable_datagram, i, now);
@@ -2085,9 +2285,9 @@ void serverWriteAll(sizebuf_t* msg)
     }
     writeState(msg, -1, 0u);
     sent.resize(static_cast<za::SizeT>(sv.qcvm.num_edicts), 0u);
-    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
-        at(sent, i) = stateOf(EDICT_NUM(i));
+        at(sent, i) = stateOf(EDICT_NUM(i), i <= svs.maxclients);
         if(at(sent, i) && msg->cursize + 16 < msg->maxsize)
         {
             writeState(msg, i, at(sent, i));
@@ -2106,6 +2306,7 @@ void parseEvent()
     {
         served.clear();
         numServed = 0;
+        view::platesResync(); // (a new level or a load: the player's plates as they come, no morph)
         return;
     }
     if(num >= count(served))
@@ -2162,6 +2363,10 @@ void posedAnchors(edict_t* ent, const Shell& s, const PlateFrame& pf, glm::vec3*
 
 int clientState(int num, int what)
 {
+    if(what >= 10)
+    {
+        return view::platesState(what); // the player's plates as drawn (the tests)
+    }
     if(num < 0 || num >= count(served) || at(served, num) == 0u)
     {
         return -1;
@@ -2514,6 +2719,36 @@ uint32_t pieceBones(edict_t* ent, int piece)
 void plateWhere(edict_t* ent, int piece, int what, float* out)
 {
     out[0] = out[1] = out[2] = 0.f;
+    const int num = ent ? NUM_FOR_EDICT(ent) : 0;
+    if(num >= 1 && num <= svs.maxclients)
+    {
+        // The player's plate: this machine's own player, as its body is drawn (another's: nowhere; QC does without).
+        const entity_t* body = num == cl.viewentity ? avatar::posedEntity() : nullptr;
+        const float* skin = body ? avatar::skinWithHead() : nullptr;
+        const Shell* mine = skin && piece >= 0 && piece < NumPieces ? shellFor(body->model) : nullptr;
+        const PlateFrame pf = mine ? plateFrameOf(*mine, piece) : PlateFrame{};
+        if(!pf.ok || pf.bone < 0)
+        {
+            return;
+        }
+        const float* m = skin + pf.bone * 12;
+        if(what == 0)
+        {
+            const float k = avatar::modelScale(body); // (the skinning matrices stop short of the body's scale)
+            for(int i = 0; i < 3; i++)
+            {
+                out[i] = body->origin[i] + k * (m[i * 4] * pf.mid.x + m[i * 4 + 1] * pf.mid.y + m[i * 4 + 2] * pf.mid.z + m[i * 4 + 3]);
+            }
+        }
+        else if(what == 1)
+        {
+            const glm::mat3 rot{geom::safeNormalize(glm::vec3{m[0], m[4], m[8]}, glm::vec3{1.f, 0.f, 0.f}, 1e-6f),
+                geom::safeNormalize(glm::vec3{m[1], m[5], m[9]}, glm::vec3{0.f, 1.f, 0.f}, 1e-6f),
+                geom::safeNormalize(glm::vec3{m[2], m[6], m[10]}, glm::vec3{0.f, 0.f, 1.f}, 1e-6f)};
+            held::anglesFromAxes(rot * pf.rest, out, false);
+        }
+        return;
+    }
     const Shell* s = serverShell(baseOf(ent));
     if(!s || piece < 0 || piece >= NumPieces)
     {
@@ -2766,6 +3001,25 @@ bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid,
     return true;
 }
 
+qmodel_t* playerArmorModel(qmodel_t* body)
+{
+    return body && isPlayerBody(body->name) ? armorFor(body) : nullptr;
+}
+
+bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, const int*& slotPiece)
+{
+    const int i = body ? shellNamed(body->name) : -1;
+    if(i < 0)
+    {
+        return false;
+    }
+    const Shell& s = at(shells, i);
+    numSlots = s.numSlots;
+    slotBone = s.slotBone;
+    slotPiece = s.slotPiece;
+    return numSlots > 0;
+}
+
 unsigned char* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* hash = strstr(name, "#plate");
@@ -2899,6 +3153,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
 void init()
 {
     Cmd_AddCommand("vr_agarmor_info", info_f);
+    Cmd_AddCommand("vr_player_plates_info", view::platesInfo_f);
     Cmd_AddCommand("vr_agarmor_rebuild", rebuild_f);
     Cmd_AddCommand("vr_agarmor_set", set_f);
     Cmd_AddCommand("vr_agarmor_check", check_f);

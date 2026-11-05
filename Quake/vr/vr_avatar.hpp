@@ -223,6 +223,10 @@ void hide();
 
 // World units per model unit of the posed entity (0 for any other entity).
 [[nodiscard]] float modelScale(const entity_t* e);
+// The body being drawn (null: none this frame), and its skinning matrices with the head as the model has it (model bone
+// order; world = its origin + these; null: none). What's on it in the world: the plates' debris (agarmor::plateWhere).
+[[nodiscard]] const entity_t* posedEntity();
+[[nodiscard]] const float* skinWithHead();
 
 // The walk as the legs draw it now (vr_playersteps.cpp).
 struct WalkState

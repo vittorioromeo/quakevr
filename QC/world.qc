@@ -266,6 +266,7 @@ void() VR_World_Precache =
     VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)
     VR_AGR_Precache(); // VR: armed humanoid replacements' bodies and weapons, when on (vr_armedrepl.qc)
     VR_AGR_PrecacheArmour(); // VR: the armed kinds' armour debris models and break sounds (vr_armedrepl.qc)
+    VR_PP_Precache(); // VR: and the player's (vr_playerplates.qc)
 };
 
 /*QUAKED worldspawn (0 0 0) ?

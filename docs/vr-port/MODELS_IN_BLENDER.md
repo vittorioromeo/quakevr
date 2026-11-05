@@ -374,6 +374,7 @@ The generators in `Misc/quakevr` make the shipped models:
 |---|---|
 | `make_vrbody.py` | the three builds and the 16 skins |
 | `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons |
+| `gunlooks.py` (after `polish_weapons.py`: `--capture`, then it, then `bake_normals.py`) | the shotgun's and nailguns' skins and rivets, `g_shot0.mdl`, `g_nail.mdl` |
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
 | `make_flashlight.py` | `vrflashlight.mdl`, its full-colour skin (`vrflashlight.mdl_0.png`) and its sounds; then `bake_normals.py vrflashlight.mdl` |

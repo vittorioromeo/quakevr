@@ -617,6 +617,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "shape (feminine with the feminine body, else one time in ten) and the voice (feminine nine times in "
                   "ten with the feminine body, else one time in ten). Nothing else changes. Press again for "
                   "another (vr_appearance_random)."),
+        header("Armour Plates"),
+        row(opt::vr_player_plates),
+        row(opt::vr_player_plates_morph_time),
         header("Pauldrons"),
         row(opt::vr_body_pauldrons),
         row(opt::vr_body_pauldron_style),

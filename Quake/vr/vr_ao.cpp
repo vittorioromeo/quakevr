@@ -516,7 +516,7 @@ void addAlias(const entity_t* e, float strength, float reach)
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     if(!source && VR_AliasBonePoses(e, nullptr))
     {
-        if(!view::handBonePoses(e, nullptr)) // the jointed hands: the body's shapes stand for them
+        if(!view::handBonePoses(e, nullptr) && !view::plateBonePoses(e, nullptr, view::PlatePass::View)) // the jointed hands, the armour's plates: the body's shapes stand for them
         {
             addBody(e, hdr, strength, reach);
         }

@@ -206,6 +206,7 @@ float parm71;
 float parm72;
 float parm73; // the magnetic holsters' bindings (vr_magholster.qc VR_MagHolster_EncodeParms)
 float parm74; // bullet time's meter used up (.vr_bullettime_spent: client.qc SetChangeParms)
+float parm75; // the armour plates shown (.vr_pp_mask: client.qc SetChangeParms; vr_playerplates.qc)
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

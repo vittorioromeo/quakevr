@@ -320,6 +320,8 @@ float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags);
 [[nodiscard]] glm::vec3 ssgTurnWorld(const view::ViewEntity& gun, const glm::vec3& w, float deg);
 [[nodiscard]] glm::mat3 ssgWorldTurn(const view::ViewEntity& gun, float deg);
 
+inline constexpr int plateEntities = 5;
+
 struct Entities
 {
     view::ViewEntity weapon[2];
@@ -332,6 +334,7 @@ struct Entities
     view::ViewEntity holsterFrontButton[HolsterCount]; // and the grappling guns' front buttons there
     view::ViewEntity worldFrontButton[maxWorldWeapons];
     view::ViewEntity body;
+    view::ViewEntity plate[plateEntities]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (setupPlates)
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
@@ -411,7 +414,7 @@ struct CountEntityBytes
 template <typename F>
 decltype(auto) Entities::members(F&& f)
 {
-    return f(weapon, weaponMorph, hand, holster, holsterSlot, body, zip(pauldron, pauldronArm), gadget, gadgetStrap,
+    return f(weapon, weaponMorph, hand, holster, holsterSlot, body, plate, zip(pauldron, pauldronArm), gadget, gadgetStrap,
         flashlight, pouch, ammoPouch, ammoPouchItem, mag, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
@@ -932,6 +935,7 @@ inline ButtonState frontButtonStates[2];
 [[nodiscard]] glm::vec3 buttonFace(const view::ViewEntity& button);
 void setupBody(const hands::State& s);
 void dripBlood(const hands::State& s);
+void setupPlates();
 void setupPauldrons();
 void pressWeaponButtons(const hands::State& s);
 void setupButton(int hand);
