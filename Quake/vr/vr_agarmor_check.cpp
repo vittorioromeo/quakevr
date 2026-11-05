@@ -551,6 +551,93 @@ void check_f()
     qvr::testkit::verdict("agarmor check", passed, failed);
 }
 
+// vr_agarmor_look_check: the plates' generator on every wearer and body build: the same seed the same armour, another seed
+// another; every piece there; each body's triangles within the budget. The paint: the three tiers' hues apart (the plates'
+// mean colour, full-colour skins), red still red and held back. Ends on "agarmor look: N passed, M failed".
+void lookCheck_f()
+{
+    constexpr int triBudget = 3400;   // a body's whole set (the player's default was 23 000, a grunt's 3 436)
+    constexpr float hueApart = 30.f;  // degrees between any two tiers' means
+    constexpr float redSatMost = 0.72f, redSatLeast = 0.35f;
+    constexpr const char* all[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl", "progs/vrknight.mdl", "progs/vrhknight.mdl", "progs/vrbody.mdl",
+        "progs/vrbody_bare.mdl", "progs/vrbody_lean.mdl", "progs/vrbody_lean_bare.mdl", "progs/vrbody_brawny.mdl", "progs/vrbody_brawny_bare.mdl",
+        "progs/vrbody_fem.mdl", "progs/vrbody_fem_bare.mdl"};
+    int passed = 0, failed = 0;
+    const auto check = [&](bool ok, const char* what) {
+        Con_Printf("agarmor look: %s: %s\n", ok ? "PASS" : "FAIL", what);
+        (ok ? passed : failed)++;
+    };
+    const float seed = vr_agarmor_seed.value;
+    for(const char* m : all)
+    {
+        qmodel_t* src = Mod_ForName(m, false);
+        Shell* sp = src ? shellFor(src) : nullptr;
+        if(!sp)
+        {
+            check(false, va("%s: no plates", m));
+            continue;
+        }
+        Shell again;
+        again.model = sp->model;
+        (void)buildShell(src, again);
+        Cvar_SetValueQuick(&vr_agarmor_seed, seed + 1.f);
+        Shell other;
+        other.model = sp->model;
+        (void)buildShell(src, other);
+        Cvar_SetValueQuick(&vr_agarmor_seed, seed);
+        const int tris = count(sp->tris) / 3;
+        check(again.hash == sp->hash && sp->hash != 0u && other.hash != sp->hash, va("%s: the same seed the same plates, another seed others (%08x %08x %08x)", m, sp->hash, again.hash, other.hash));
+        check(tris <= triBudget, va("%s: %d triangles (budget %d; cuirass %d, helmet %d, thigh %d, shin %d, upper arm %d, forearm %d)", m, tris, triBudget, sp->pieceTris[Cuirass],
+            sp->pieceTris[Helmet], sp->pieceTris[ThighL], sp->pieceTris[ShinL], sp->pieceTris[PauldronL], sp->pieceTris[BracerL]));
+        bool every = true;
+        for(int p = 0; p < NumPieces; p++)
+        {
+            every = every && sp->pieceTris[p] > 0;
+        }
+        check(every, va("%s: every piece has plates", m));
+    }
+    float hue[3]{}, sat[3]{};
+    for(int t = 0; t < 3; t++)
+    {
+        const int mark = Hunk_LowMark();
+        int w = 0, h = 0;
+        enum srcformat fmt = SRC_RGBA;
+        const byte* px = Image_LoadImage(va("progs/vragarmor.mdl_%d", t), &w, &h, &fmt);
+        double sum[3]{0.0, 0.0, 0.0};
+        const int xEnd = w * 160 / 256; // (the plates' block: make_agarmor.py)
+        for(int y = 0; px && fmt == SRC_RGBA && y < h; y++)
+        {
+            for(int x = 0; x < xEnd; x++)
+            {
+                for(int c = 0; c < 3; c++)
+                {
+                    sum[c] += static_cast<double>(px[(y * w + x) * 4 + c]);
+                }
+            }
+        }
+        const double n = za::max(static_cast<double>(xEnd) * static_cast<double>(h), 1.0);
+        const float r = static_cast<float>(sum[0] / n), g = static_cast<float>(sum[1] / n), b = static_cast<float>(sum[2] / n);
+        const float hi = za::max(r, za::max(g, b)), lo = za::min(r, za::min(g, b));
+        const float d = za::max(hi - lo, 1e-3f);
+        hue[t] = 60.f * (hi == r ? (g - b) / d : hi == g ? 2.f + (b - r) / d : 4.f + (r - g) / d);
+        hue[t] = hue[t] < 0.f ? hue[t] + 360.f : hue[t];
+        sat[t] = d / za::max(hi, 1e-3f);
+        Con_Printf("agarmor look: tier %d: mean %.0f %.0f %.0f, hue %.0f, saturation %.2f\n", t + 1, static_cast<double>(r), static_cast<double>(g), static_cast<double>(b),
+            static_cast<double>(hue[t]), static_cast<double>(sat[t]));
+        Hunk_FreeToLowMark(mark);
+    }
+    const auto apart = [&](int a, int b) {
+        const float x = za::abs(hue[a] - hue[b]);
+        return za::min(x, 360.f - x);
+    };
+    check(apart(0, 1) >= hueApart && apart(1, 2) >= hueApart && apart(0, 2) >= hueApart,
+        va("the tiers' hues apart by %.0f degrees at least (green-yellow %.0f, yellow-red %.0f, green-red %.0f)", static_cast<double>(hueApart), static_cast<double>(apart(0, 1)),
+            static_cast<double>(apart(1, 2)), static_cast<double>(apart(0, 2))));
+    check(sat[2] <= redSatMost && sat[2] >= redSatLeast, va("red held back, still red: saturation %.2f within %.2f .. %.2f", static_cast<double>(sat[2]), static_cast<double>(redSatLeast), static_cast<double>(redSatMost)));
+    check(sat[2] >= sat[1] * 0.5f && sat[2] >= sat[0] * 0.5f, "red not washed out against the others");
+    qvr::testkit::verdict("agarmor look", passed, failed);
+}
+
 } // namespace detail
 
 } // namespace qvr::agarmor

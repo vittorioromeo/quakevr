@@ -2888,6 +2888,7 @@ QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates'
 QVR_CVAR(vr_agarmor_helmet_gap, "0.15", CVAR_NONE)    // vr_agarmor: the helmet's gap off the head (units; rigid on the head bone, so closer than the body's plates; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_helmet_thick, "0.45", CVAR_NONE)  // vr_agarmor: the helmet's thickness (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_seed, "0", CVAR_NONE)            // vr_agarmor: the plates' variation (their sizes, tilts, tiles; the same seed, the same armour; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_rule, "1", CVAR_ARCHIVE)          // armour on armed humanoids (vr_agarmor.qc; Combat > Armed Grunts > Armour): 0 the player's rule (a plate saves its type's share of a hit, 30/60/80%, from its pool), 1 a plate stops the whole hit until its pool is gone

@@ -151,5 +151,6 @@ bool buildShell(qmodel_t* src, Shell& s);
 
 // vr_agarmor_check.cpp: the vr_agarmor_check command.
 void check_f();
+void lookCheck_f(); // vr_agarmor_look_check: the plates' generator and paint
 
 } // namespace qvr::agarmor::detail

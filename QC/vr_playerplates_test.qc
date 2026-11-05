@@ -444,6 +444,102 @@ void(entity p) VR_PPT_Shots =
     }
 };
 
+// vr_pp_test 10: the look's sheet where you stand (in a dark place: `notarget` first): the three tiers on you (from the front) and
+// on an armed grunt ahead, then a grunt of each tier 10 m away, a screenshot each (`ppshot: done`). vr_pp_test 11: every
+// wearer in red, front and back, then each body build (vr_body_build), for the fit.
+entity vr_ppt_g0, vr_ppt_g1, vr_ppt_g2;
+vector vr_ppt_at0, vr_ppt_at1, vr_ppt_at2;
+
+void() VR_PPT_LookClean =
+{
+    if(vr_ppt_g0) { remove(vr_ppt_g0); }
+    if(vr_ppt_g1) { remove(vr_ppt_g1); }
+    if(vr_ppt_g2) { remove(vr_ppt_g2); }
+    vr_ppt_g0 = world;
+    vr_ppt_g1 = world;
+    vr_ppt_g2 = world;
+};
+
+entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWearer =
+{
+    entity g = VR_ART_SpawnKind(p, side, kind, ahead);
+    VR_AgArmor_Give(g, type, 1023);
+    return g;
+};
+
+void(entity p) VR_PPT_Look =
+{
+    float n = vr_ppt_on == 10 ? 7 : 12;
+    float k = vr_ppt_shot;
+    // (they stand where they were put, whatever their AI wants: the same picture every run)
+    if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
+    if(vr_ppt_g1) { setorigin(vr_ppt_g1, [vr_ppt_at1_x, vr_ppt_at1_y, vr_ppt_g1.origin_z]); }
+    if(vr_ppt_g2) { setorigin(vr_ppt_g2, [vr_ppt_at2_x, vr_ppt_at2_y, vr_ppt_g2.origin_z]); }
+    if(vr_ppt_wait > 0)
+    {
+        vr_ppt_wait = vr_ppt_wait - 1;
+        return;
+    }
+    if(vr_ppt_s == 0)
+    {
+        VR_PPT_LookClean();
+        if(vr_ppt_on == 10)
+        {
+            VR_PPT_Set(p, k < 3 ? k + 1 : 0, k < 3 ? 50 + 50 * (k + 1) : 0);
+            localcmd(k < 3 ? "vr_mock_camera 0 0.95 -1.95 0 180\n" : k < 6 ? "vr_mock_camera 0 0.95 -0.9 0 0\n" : "vr_mock_camera\n");
+            if(k >= 3 && k < 6)
+            {
+                vr_ppt_g0 = VR_PPT_LookWearer(p, 0, k - 2, 0, 100);
+            }
+            if(k == 6)
+            {
+                vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 1, -60, 262);
+                vr_ppt_g1 = VR_PPT_LookWearer(p, 0, 2, 0, 262);
+                vr_ppt_g2 = VR_PPT_LookWearer(p, 0, 3, 60, 262);
+            }
+        }
+        else if(k < 8)
+        {
+            // (each kind, facing you, then turned away)
+            VR_PPT_Set(p, 0, 0);
+            localcmd("vr_mock_camera 0 0.95 -0.9 0 0\n");
+            vr_ppt_g0 = VR_PPT_LookWearer(p, floor(k / 2), 3, 0, 100);
+            if(k % 2)
+            {
+                vr_ppt_g0.angles_y = vr_ppt_g0.angles_y + 180;
+                vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
+            }
+        }
+        else
+        {
+            VR_PPT_Set(p, 3, 200);
+            localcmd(sprintf("vr_body_build %g; vr_mock_camera 0.9 0.95 -1.1 0 140\n", k - 8));
+        }
+        vr_ppt_at0 = vr_ppt_g0.origin;
+        vr_ppt_at1 = vr_ppt_g1.origin;
+        vr_ppt_at2 = vr_ppt_g2.origin;
+        VR_PPT_To(1, rint(1.3 * 72));
+    }
+    else if(vr_ppt_s == 1)
+    {
+        localcmd("screenshot\n");
+        VR_PPT_To(2, 4);
+    }
+    else if(vr_ppt_s == 2)
+    {
+        vr_ppt_shot = vr_ppt_shot + 1;
+        VR_PPT_To(0, 0);
+        if(vr_ppt_shot >= n)
+        {
+            VR_PPT_LookClean();
+            VR_PPT_Set(p, 0, 0);
+            localcmd("vr_mock_camera\n");
+            bprint("ppshot: done\n");
+            vr_ppt_on = 0;
+        }
+    }
+};
+
 void() VR_PP_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_pp_test);
@@ -500,7 +596,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -514,6 +610,10 @@ void() VR_PP_TestFrame =
     if(vr_ppt_on == 1)
     {
         VR_PPT_Main(p);
+    }
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11)
+    {
+        VR_PPT_Look(p);
     }
     else if(vr_ppt_on == 8 || vr_ppt_on == 9)
     {
