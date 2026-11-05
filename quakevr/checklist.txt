@@ -60,6 +60,12 @@ Debug > Show Light Probes: do the crosses near you match the floor's brightness,
 Hit a crate with the crowbar, then break it: is the wood clearly audible over the weapon's hit, and is the breaking loud with boards clattering down? {test:vrarena_crate}
 In the console, type `vr_throw_gain_lo` and press Tab: it lists as "tunable". `vr_throw_gain_lo 2.5` sets it, and the name alone prints its value and default.
 vrarena, Show Light Probes, by a tower: no dark row low on the wall; a monster there is as lit as the floor. {test:vrarena_crate}
+The blade only goes in when it visibly touches the body; a blow that misses by a few cm hits but doesn't stay, and Debug > Embedded Blades says how far off. {test:embed_stab}
+Swing the axe edge first: it stays in; pull past its depth plus about 5 cm, with a rising buzz, and it tugs out. Driven head first along the handle, it doesn't stick. {test:embed_stab}
+Hold a blade still and run into a grunt: it stabs and stays; backing away or passing by adds nothing. {test:embed_stab}
+In a staggering or downed body, pull along the blade: the blade comes out 1:1 and the body stays; move across or push in past its depth: the body moves, and only a fast yank tears it out. {test:embed_stab}
+Stab a grunt deep with two hands: thrown off balance, about 3.5 s of lifting it around; with one hand it stands on about 2.5 s and is less controllable; barely in, weaker. {test:embed_stab}
+Ogre: a shorter stagger, off balance only by a deep two-handed stab. Shambler: a moment, standing. Boss: nothing. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
