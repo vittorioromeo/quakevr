@@ -17,6 +17,57 @@ Player and armed humanoids alike, in the shared generator; his mockup (too clean
 - **Performance:** like for like on one tree (`origin/next`'s armour files and skins swapped in, then this branch's; `--lto`, `bench.sh`, exclusive, 2048 eyes, 90 Hz paced, every armed humanoid in full red: `scratch/al_bench.cfg`; medians of 3 reps, ms, original -> this): `play_e1m1_fight` CPU 3.26 -> 3.24, GPU 3D 2.03 -> 1.98; `crowd32_armed` CPU 4.53 -> 4.39, GPU 3D 2.90 -> 2.79. Within noise (one scene's reps spread up to 0.45 CPU, 0.42 GPU): no worse. One crowd rep (34 hitches over 33 ms) was set aside and the scene rerun; it didn't come back, its cause not found.
 - **The dark things on the player's chest:** his two chest holsters (`vr_dumpview`: `legholster` at the chest, both sides) and the torch: worn on the skin, they show at the plates. The first rounds' two square patches are gone with the fit.
 - **Open:** green is the palette's sage, as the original (no true green there). The death knight's shoulders read as a wide cape (his pauldron shells). `vr_agarmor_test 5` read 23/24 on some runs before this round, its check never caught: five in a row, two ways in, read 24/24 on the final build.
+## The armour's joints (branch `agent/armorjoints`)
+
+His notes (2026-11-05, screenshots `vrtesthall_2026-11-05_18-47-04` .. `19-22-04`): grunts' skin through the armour at the shoulder,
+the left pec and the leg; the leg's plates mostly inside it; a lone plate floating at each elbow; a part of a limb worn alone has the
+next part come out of it oddly; your own plates good, but the elbows' and knees' plates float. Files: `vr_agarmor.cpp` (`planGrid`,
+`fillRadii`, `sleeveOf`, `bodyExit`), `vr_agarmor_check.cpp` (`vr_agarmor_pop_check`, `_pop_sample`, `_pop_report`, `lookCoverage`),
+`make_agarmor.py` (the joint block), `QC/vr_playerplates_test.qc` (`vr_pp_test 13`, `14`).
+
+- **The joints bare of plates, a leather sleeve over them:** the elbow's and knee's own plates are gone (they floated). The upper arm's
+  plates end 1.6 units short of the elbow, the thigh's 2.0 short of the knee; the forearm's start 0.9 past the elbow, the shin's 1.2
+  past the knee. Between, each part carries a sleeve of dark leather bellows (`sleeveOf`: 4 rings, 36 triangles): from under its last
+  row of plates to the joint (or past it as far as its region goes, at most 0.8 under the next part's plates), 0.22 units off the skin
+  (the lower part's 0.34, over the upper's where both are worn), each vertex weighted as the skin under it is (the skin triangle the
+  ray leaves through), so it bends as the joint does. Its corners clear the skin between them and the skin's vertices between its rings
+  (by at most 0.8 units each; past that a knee's point shows). A part worn alone ends at its joint, the next part's skin carrying on.
+- **The fringe:** the body's vertices weighing on a piece's bones less than its region's cut but at least 0.2 (a deltoid between the
+  cuirass and an upper arm, a buttock over a thigh) push its plates out over them, if a plate needn't swell more than `plateRidge`
+  (1.1) for them; else they're left to show (a little overlap rather than a bulky plate).
+- **Paint:** the joint block (224, 64)-(256, 96) of the atlas (the old helmet brackets', unused): dark leather folds round the joint,
+  stitched on each fold. No numpy on this machine for `make_agarmor.py` (updated to paint it): `scratch/aj_paint_joint.py` painted the
+  same block into the nine 8-bit skins and copied the inner block's leather relief, `generated.json` updated. Rerun the generator
+  where numpy is to make it its own.
+- **Triangles:** grunt 3 256 -> 2 920, enforcer 2 776 -> 2 728, knight 3 256 -> 3 064, death knight 2 824 -> 3 064, player 2 728 -> 2 680
+  (the caps out, fewer rows on the limbs, 36 a sleeve). No timing taken: no wearer rose more than 5% but the death knight (+8.5%, 240
+  triangles, under the budget).
+- **The measure, `vr_agarmor_pop_check [model] [pose mask]`** (Debug > Tests: Pop-through Check): the poses rest, elbows bent 45/90/130,
+  knees 45/90/130, arms up, a crouch, against ten sets of pieces (all, the cuirass, upper arms, forearms, both with the cuirass, the
+  arms, thighs, shins, the legs). Per body region: *through*, a vertex outside every worn surface over it, a worn plate or sleeve behind
+  it reached inside the body; *cross*, the skin's edges through a worn outer surface; plates whose face's middle is inside the body;
+  plates off their neighbours (a check: none); the plates' bulk, their faces' mean distance off the skin (a check: 3.2 at most).
+  `vr_pp_test 14` the same in the poses the armed grunts are drawn in (79 samples, three kinds coming for you).
+- **Numbers, grunt, summed over the 9 poses (before -> after):** all worn: torso 74 -> 56, upper arm 15 -> 13, forearm 1 -> 0, thigh
+  23 -> 16, shin 14 -> 14, other (neck, hands, feet) 110 -> 95. Thighs alone: shin through them 60 -> 5. Shins alone: thigh through
+  them 35 -> 12. Upper arms alone: forearm through them 23 -> 15, torso 76 -> 63. Forearms alone: upper arm 42 -> 26. Plates off their
+  neighbours: 4 -> 0 (the caps) on every wearer. Live, 79 drawn poses: thighs alone, shin through 554 -> 105; shins alone, thigh 333 ->
+  60; forearms alone, upper arm 252 -> 174; all worn, upper arm 309 -> 167, forearm 32 -> 3; thigh plates inside the leg 25% -> 29% (fewer
+  of them, the rest at the hip). Worse: all worn live, the shin's own skin through its sleeve 162 -> 186, the upper arm's 88 -> 153 (a
+  low-poly knee and elbow past their sleeves in a stride).
+- **Player (`vrbody_bare`), all worn:** torso 510 -> 135, upper arm 272 -> 100, forearm 51 -> 118 (the elbow's crease at 90 and 130 degrees
+  through the sleeve, which hugs the skin where the plates stood off it). Forearms alone: forearm 78 -> 158.
+- **Bulk (faces off the skin, mean):** grunt torso 1.28 -> 1.33, upper arm 1.88 -> 1.89, forearm 1.02 -> 0.88, thigh 2.70 -> 2.94 (its bulky
+  half left, the knee's rows gone), shin 1.40 -> 1.43; the player's within 0.05 of before.
+- **The look check's coverage** counts a limb's skin only as far as its sleeve goes (past it, the next part's, whatever the weights
+  say) and leaves out a piece with fewer than 8 vertices (a death knight's thigh under his skirt has two); the death knight's at rest
+  0.8 (his elbows' points past the sleeves).
+- **Not fixed:** the grunt's jaw through the cuirass's collar at rest (by up to 2.8 units: the head bends down into it); the cuirass's
+  side over the arms where the arms hang against the chest; a fit of the yoke over the shoulders' tops was tried and changed nothing
+  (taken out).
+- **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/armorjoints/` (`vr_pp_test 13` in vrtesthall): the grunt front and back, an elbow and a knee
+  close to, each part of a limb alone, yours bent; `sheet_before.png`, `sheet_after.png`.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
