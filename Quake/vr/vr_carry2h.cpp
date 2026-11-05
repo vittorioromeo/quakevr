@@ -178,6 +178,44 @@ struct LetGo
 };
 ankerl::unordered_dense::map<int, LetGo> letGo;
 
+// vr_carry2h_grip_test: how far each hand has been off its grip, and the prop off its place, since "sample".
+struct GripSample
+{
+    bool on{false};
+    int frames{0};
+    float most[2]{0.f, 0.f}; // each hand off its grip (world units)
+    float moved{0.f};        // the prop off its first place (world units)
+    float turned{0.f};       // ... and first turn (degrees)
+    float handsMoved{0.f};   // the controllers off their first places (world units): what the prop's own move follows
+    Frame first{};
+    glm::vec3 firstHands[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+};
+GripSample gripSample;
+testkit::Tally gripTally;
+
+void sampleGrips(const Hold& hold, const Frame& object, const Frame hands[2])
+{
+    if(!gripSample.on)
+    {
+        return;
+    }
+    if(gripSample.frames++ == 0)
+    {
+        gripSample.first = object;
+        gripSample.firstHands[0] = hands[0].pos;
+        gripSample.firstHands[1] = hands[1].pos;
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        const float off = glm::distance(reached(hold, hands[h], h).pos, onGrip(hold, object, h).pos);
+        gripSample.most[h] = za::fmax(gripSample.most[h], off);
+        gripSample.handsMoved = za::fmax(gripSample.handsMoved, glm::distance(hands[h].pos, gripSample.firstHands[h]));
+    }
+    gripSample.moved = za::fmax(gripSample.moved, glm::distance(object.pos, gripSample.first.pos));
+    const float dot = za::fabs(glm::dot(object.rot, gripSample.first.rot));
+    gripSample.turned = za::fmax(gripSample.turned, glm::degrees(2.f * acosf(za::min(dot, 1.f))));
+}
+
 [[nodiscard]] bool brushModel(edict_t* ent)
 {
     const int index = static_cast<int>(ent->v.modelindex);
@@ -222,8 +260,11 @@ static Frame foldedHand(edict_t* player, int hand)
 
 // The grip fit (vr_gripfit.hpp) of the hand that has just taken hold of what the other holds (the other's was fitted as
 // it took it, or is its grip's own place): its grip on it moved out of it if the hand sinks in too deep (the drawn hand is
-// held on its grip), the line between the grips with it.
-static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& object, const Frame hands[2])
+// held on its grip), the line between the grips with it. The hand then holds it from there (its reach, as a hand held out
+// of it does): a grip moved with the hand left behind put the hands' line off the grips' (a phantom turn, the shorter the
+// line the more) and the grips' middle off the hands' (each hand off its grip by half the move), so the hand that already
+// held it was pulled along.
+static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& object, const Frame hands[2], glm::vec3 reach[2])
 {
     const int num = NUM_FOR_EDICT(ent);
     const int first = grip::serverHand(num);
@@ -243,6 +284,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
                move))
         {
             hold.grip[i] += move;
+            reach[i] += glm::inverse(hands[i].rot) * (object.rot * move);
             moved = true;
         }
     }
@@ -302,7 +344,7 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
         hold = record({origin, fromAngles(ent->v.angles, brush)}, hands);
         if(grab)
         {
-            fitGrip(ent, player, hold, {origin, fromAngles(ent->v.angles, brush)}, hands);
+            fitGrip(ent, player, hold, {origin, fromAngles(ent->v.angles, brush)}, hands, reach);
         }
         hold.reach[0] = reach[0];
         hold.reach[1] = reach[1];
@@ -312,6 +354,7 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     }
     Frame object = solve(it->second, hands);
     const bool blocked = clear(num, {origin, fromAngles(ent->v.angles, brush)}, object);
+    sampleGrips(it->second, object, hands);
     toAngles(object.rot, ent->v.angles, brush);
     Watch& w = watches[num];
     if(blocked)
@@ -599,6 +642,86 @@ void loadTest_f()
         }
         Con_Printf("carryloadtest: %d solid props, torso overlap physical %.4f drawn %.4f units, same prop in both hands scale %.3f\n",
             count, physical, drawn, bothScale);
+    }
+}
+
+// vr_carry2h_grip_test start | sample | check <label> <most cm> <least frames> | end (Misc/quakevr/crate_grip_test.sh):
+// "sample" starts measuring, every server frame of what is held in both hands, how far each hand (from its reach) is off
+// its grip; "check" says so and fails past <most cm>, or on fewer frames than asked. "end" prints
+// "vr_carry2h_grip_test: N passed, M failed".
+void gripTest_f()
+{
+    constexpr const char* name = "vr_carry2h_grip_test";
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        gripTally.reset();
+        gripSample = GripSample{};
+    }
+    else if(!strcmp(step, "hand") && Cmd_Argc() > 5)
+    {
+        // hand <main|off> <x> <y> <z>: that hand put at a point in the frame of the crate nearest the main hand.
+        edict_t* const player = sv.active ? progs::localPlayer() : nullptr;
+        if(!player)
+        {
+            return;
+        }
+        const progs::ServerVm vm;
+        const glm::vec3 from = foldedHand(player, 1).pos;
+        edict_t* crate = nullptr;
+        float best = 1e9f;
+        for(int i = 1; i < qcvm->num_edicts; i++)
+        {
+            edict_t* e = EDICT_NUM(i);
+            const float d = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? 1e9f : glm::distance(geom::vec(e->v.origin), from);
+            if(d < best)
+            {
+                best = d;
+                crate = e;
+            }
+        }
+        if(!crate)
+        {
+            gripTally.check(false, name, "no crate");
+            return;
+        }
+        const Frame object{geom::vec(crate->v.origin), fromAngles(crate->v.angles, false)};
+        const glm::vec3 local{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
+        const glm::vec3 at = object.pos + object.rot * local;
+        const glm::vec3 main = glm::inverse(object.rot) * (from - object.pos);
+        Con_Printf("%s: main hand at %.1f %.1f %.1f in the crate (half %.1f %.1f %.1f)\n", name, static_cast<double>(main.x),
+            static_cast<double>(main.y), static_cast<double>(main.z), static_cast<double>(crate->v.maxs[0]),
+            static_cast<double>(crate->v.maxs[1]), static_cast<double>(crate->v.maxs[2]));
+        Cbuf_InsertText(va("vr_mock_hand_to %s %f %f %f\n", Cmd_Argv(2), static_cast<double>(at.x), static_cast<double>(at.y),
+            static_cast<double>(at.z)));
+    }
+    else if(!strcmp(step, "sample"))
+    {
+        gripSample = GripSample{};
+        gripSample.on = true;
+    }
+    else if(!strcmp(step, "check") && Cmd_Argc() > 4)
+    {
+        const float m2u = units::metresToUnits();
+        const float cm[3]{gripSample.most[0] / m2u * 100.f, gripSample.most[1] / m2u * 100.f, gripSample.moved / m2u * 100.f};
+        float span = 0.f;
+        for(const auto& kv : holds)
+        {
+            span = kv.second.span;
+        }
+        const float limit = Q_atof(Cmd_Argv(3));
+        const int frames = Q_atoi(Cmd_Argv(4));
+        Con_Printf("%s: %s: grips %.1f cm apart, off hand %.2f cm, main hand %.2f cm off its grip, prop moved %.2f cm, turned %.2f deg (the hands moved %.2f cm), %d frames\n",
+            name, Cmd_Argv(2), static_cast<double>(span / m2u * 100.f), static_cast<double>(cm[0]), static_cast<double>(cm[1]),
+            static_cast<double>(cm[2]), static_cast<double>(gripSample.turned),
+            static_cast<double>(gripSample.handsMoved / m2u * 100.f), gripSample.frames);
+        gripTally.check(gripSample.frames >= frames, name, va("%s: %d frames, want %d", Cmd_Argv(2), gripSample.frames, frames));
+        gripTally.check(cm[0] <= limit && cm[1] <= limit, name, va("%s: a hand off its grip past %.1f cm", Cmd_Argv(2), static_cast<double>(limit)));
+        gripSample.on = false;
+    }
+    else if(!strcmp(step, "end"))
+    {
+        gripTally.verdict(name);
     }
 }
 

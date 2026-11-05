@@ -1497,6 +1497,7 @@ void rebuild_f() { if(sv.active) { build(); } }
 void registerCommands()
 {
     Cmd_AddCommand("vr_portals_rebuild", rebuild_f);
+    Cmd_AddCommand("vr_portals_turned_test", turnedTest_f);
     Cmd_AddCommand("vr_portals_info", info_f);
     Cmd_AddCommand("vr_portals_view", viewInfo_f);
     Cmd_AddCommand("vr_portals_lightviews", lightViews_f);
@@ -1913,16 +1914,8 @@ extern "C" int VR_PortalReachMove(edict_t* player, const float* start, const flo
     vec3_t sa, slo, shi, sb;
     VectorCopy(start, sa); VectorCopy(mins, slo); VectorCopy(maxs, shi); VectorCopy(end, sb);
     trace_t here = SV_MovePortalHalf(sa, slo, shi, sb, type, player, plane);
-    const glm::vec3 da = carried(sd, a), db = carried(sd, b);
-    glm::vec3 dlo{1e9f}, dhi{-1e9f};
-    for(int c = 0; c < 8; c++)
-    {
-        const glm::vec3 p = sd.turn * glm::vec3{(c & 1) ? maxs[0] : mins[0], (c & 2) ? maxs[1] : mins[1], (c & 4) ? maxs[2] : mins[2]};
-        dlo = glm::min(dlo, p); dhi = glm::max(dhi, p);
-    }
     const float destPlane[4]{exit.normal.x, exit.normal.y, exit.normal.z, exit.dist};
-    vec3_t from{da.x, da.y, da.z}, to{db.x, db.y, db.z};
-    trace_t there = SV_MovePortalHalf(from, &dlo.x, &dhi.x, to, type, player, destPlane);
+    trace_t there = destHalf(sd, carried(sd, a), carried(sd, b), mins, maxs, type, player, destPlane);
     const bool destHit = there.startsolid || (!here.startsolid && there.fraction < here.fraction);
     *result = destHit ? there : here;
     result->startsolid = here.startsolid || there.startsolid;
