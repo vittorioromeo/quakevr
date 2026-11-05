@@ -880,7 +880,10 @@ normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` wri
   9-14 of the gun and of both parts. In the game: the skin shows, `vr_debug_weapon_frame` 11 and 13 draw the new pose
   (17694 and 19808 pixels changed against frame 0, 36 for frame 0 against itself); the shot, the auto pump stroke and
   the shell eject as before (start 0.18 s after the shot, back 2.50 units, home on time); `vr_weaponstudio_align`: the
-  sight line 0.80 deg from where it shoots, as shipped; flat ironsight `vr_flat_sight_check` 0.0005 deg.
+  sight line 0.80 deg from where it shoots, as shipped; flat ironsight `vr_flat_sight_check` 0.0005 deg; reload_test.sh
+  114 passed, 1 failed: "the shotgun's sights keep their colour as it pumps" counts red pixels round the sights, and
+  the test edit had painted the gun red (657 red against 105 sight pixels). The untouched export then put the shipped
+  files back (git clean) and gave the same numbers.
 - **Appended frames' normals** are frame 0's turned with their piece (a rigid fit per connected piece), so the shading
   the model was made with comes along; unmoved pieces keep frame 0's bytes.
 - **Hold the Weapon Frame** (Debug; `vr_debug_weapon_frame`) goes up to 31, for frames an action added.
