@@ -801,3 +801,37 @@ shoulder's range on the screen). Before any change (shotgun): the off hand's wri
 moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the hands have no move of their own. Planned: the drawn
 body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
 down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).
+
+## Flatscreen: the headset's crosshair, the death view, the armour from the eyes (branch `agent/flatvisuals`, 2026-11-06)
+
+His notes of 2026-11-05.
+
+- **Crosshair** (`vr_crosshair.cpp` `queueFlat`, from `VR_SetupViewEntities` once a frame in flatscreen play): the same modes and
+  settings as the headset (`vr_crosshair` 0 off, 1 dot, 2 laser, 3 soft laser; `_size`, `_alpha`, `_hue`, `_depth`,
+  `vr_crosshairy`). Where it lands is the game's: the trace from the game's muzzle along `weapons::shotAngles`; the laser starts
+  at the gun as drawn (its muzzle anchor on the drawn weapon: the sway, the bob and the sights move it). Drawn in the scene's
+  translucent pass over what is there (`lines::sceneOverLine`, new `lines::sceneOverPoint`): the headset draws it in the UI
+  pass, over everything, which flatscreen never draws; at the model FOV as the tracers are (near end with the gun). **With the
+  flat crosshair:** independent, both drawn when both are on (`crosshair` the 2D mark in the screen's middle, `vr_crosshair`
+  the 3D dot or laser where the gun's shots go; with the gun on the crosshair's ray the dot sits on the mark). His config has
+  `crosshair 0`, `vr_crosshair 1`: he now gets the dot in flatscreen too.
+- **Death view** (`deathview::flatView`, `VR_FlatDeathView` in `V_CalcRefdef` after `VR_FlatViewDrop`; not in a chase view):
+  `vr_death_view 2` (default) puts the flat camera in the ragdoll's head as the headset's: its place smoothed
+  (`vr_death_view_smooth`), its yaw turn (`vr_death_view_turn`) added to the mouse's look, Quake's dead roll (80) gone, out to
+  Quake's view while a menu or the console is open (`vr_death_view_menu_time`); Vomit Mode: the head's own turn, the mouse's look
+  on top. The hands and gear are hidden and the body's head too, as in the headset (the state is the same). 0 and 1: Quake's
+  view on the floor, as before.
+- **Test:** `Misc/quakevr/flatvisuals_test.sh <agent>` (+ `flatvisuals_check.py`): shotgun in hand, red, the flat crosshair
+  off; each mode's red pixels against mode 0 (dot 6 px centred at 480 269 of 480 270; laser 330 px from the gun at the low right
+  to the middle; soft laser 21 px), then `impulse 195`: `vr_death_view_status` immersive, the camera 0.8 from the head's eyes,
+  roll 0; vr_death_view 1 after: 25.5% of the pixels differ. `flatvisuals: 6 passed, 0 failed`.
+- **Armour from the eyes, not fixed (his call):** the plates are drawn from the flat eye (`vr_player_plates_info`: 1021 pieces
+  "drawn from the eyes", the helmet left out as it should be) and the forearm's bracer is the elbow half, off the screen in
+  flatscreen. The chest and legs don't show because **the body's own torso doesn't**: looking down, `vr_flat_chest_down` (0.3:
+  the chest's share of the look) bends the chest forward round the eye, which then sits inside the torso, whose faces are
+  culled from inside. Measured looking down about 60 degrees, the world hidden: default, no chest at all (only the pouch and the
+  gun); `vr_flat_chest_down 0.15` the chest's plates and the shoulders show; `0` the chest, the shoulders' and the arms' plates,
+  at both 60 and 85 degrees; the eye pulled back (`vr_flat_cam_fwd -20`) shows the plated chest too; `vr_flat_eye_lean` 24 or
+  30 shows less; `vr_flat_eye_pivot 0` puts the eye inside the shoulders. The orbit view saw them because its eye is outside
+  the body. Left at 0.3: the share also moves his hands and gun when he looks down (`flatpose`/`flatstance` tuning). Options:
+  a lower `vr_flat_chest_down` (0.15 or 0), or keep the bend and carry the eye clear of the bent chest.
