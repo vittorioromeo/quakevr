@@ -793,6 +793,61 @@ float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagg
     return TRUE;
 };
 
+// `e` (its push just landed: VR_Push), shoved over a ledge (VR_Knockdown_Ledge found one) and able to stagger: no launch
+// past the edge. It backpedals on its feet along the shove (the engine's stagger, its steps as many as the way takes) and
+// falls where the floor ends under its pelvis, its speed there what is left of the shove's.
+// - Its first speed: the shove's own (VR_Push's, so a running or a heavy one's) times vr_knockdown_ledge_backpedal_speed,
+//   varied by _vary, between _least and _most.
+// - How far it would go: as far as the shove carries one standing, varied by _vary, and at least the way to past the
+//   edge times _carry (and up to _vary more): its speed slows evenly over that, so the lesser the shove, the slower it
+//   goes over the lip.
+// - Its way a little off the shove's (_yaw) and its balance by chance (_balance), so no two are alike; the shove's push on
+//   its top times _push.
+// FALSE: no room or no ragdoll (it stands as it was); or it can't stagger after all (the caller's launch).
+float(entity e, vector xForward, float xPush) VR_Knockdown_LedgeBackpedal =
+{
+    if(!VR_Knockdown_MakeRoom(e))
+    {
+        return FALSE;
+    }
+    vector pushed = e.velocity;
+    pushed_z = 0;
+    float vary = max(0, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_vary));
+    float speed = vlen(pushed) * max(0, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_speed)) * (1 + vary * (2 * random() - 1));
+    speed = min(max(1, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_most)), max(cvar_hget(cvarh_vr_knockdown_ledge_backpedal_least), speed));
+    float carry = VR_Shove_Reach(e) * (1 + vary * (2 * random() - 1)); // (before its launch is cut: the shove's own)
+    carry = max(carry, vr_kd_ledge_past * max(1, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_carry)) * (1 + vary * random()));
+    float off = cvar_hget(cvarh_vr_knockdown_ledge_backpedal_yaw) * (2 * random() - 1);
+    float lowest = min(1, max(0, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_balance)));
+    float balance = lowest + (1 - lowest) * random();
+    vector forward = xForward;
+    forward_z = 0;
+    forward = normalize(forward);
+    vector across = '0 0 0';
+    across_x = 0 - forward_y;
+    across_y = forward_x;
+    vector way = normalize(forward + across * (off * (3.14159 / 180))); // (a small angle)
+    if(!VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    if(!ragdollstagger(e, way, xPush * max(0, cvar_hget(cvarh_vr_knockdown_ledge_backpedal_push)), balance, carry, 0, 2, speed))
+    {
+        ragdollshovetopple(e, xForward, xPush, TRUE, vr_kd_ledge_past);
+        return TRUE;
+    }
+    e.vr_kd_stagger = 1;
+    e.vr_kd_balance = balance;
+    e.vr_kd_dir = way;
+    e.nextthink = time + 0.05;
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown ledge: %s backpedals %.0f units from %.0f u/s (the edge's far side %.0f on), balance %.2f, %.1f deg off\n",
+            e.classname, carry, speed, vr_kd_ledge_past, balance, off));
+    }
+    return TRUE;
+};
+
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
 // (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (VR_Shove_HandsPush: two hands 1, one 0.7, a counter more,
 // tired less): down, its ragdoll is carried on along xForward and topples over its feet (ragdollshovetopple:
@@ -833,6 +888,11 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     // that gives way after its steps), if this shove could knock it down at all (likewise).
     float surprise = (chance > 0 && VR_KD_SureRoll(e)) ? vr_kd_surprise : 0;
     float roll = random();
+    // Over a ledge: on its feet to the edge, and over it (one that can't stagger: launched past it, below).
+    if(ledge && ragdollcanstagger(e) && cvar_hget(cvarh_vr_knockdown_ledge_backpedal))
+    {
+        return VR_Knockdown_LedgeBackpedal(e, xForward, xPush);
+    }
     // A stagger (vr_ragdoll_active_stagger; not over a ledge): every shove that could knock it down makes it stagger as a
     // ragdoll, its balance by the roll against the chance (below it: likely to go over), the shove's push on it; it falls
     // (down, as below) or recovers (VR_Knockdown_Think: back on its feet, fighting).

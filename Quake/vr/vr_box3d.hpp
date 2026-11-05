@@ -335,6 +335,10 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
 // `farther`: its travel's limit (4 m) times this (at least 1; a two-hand shove's hands, a running shove: QC VR_Bash_Hit).
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
     bool sure = false, float farther = 1.f);
+// A shove over a ledge (QC VR_Knockdown_LedgeBackpedal): a stagger that backpedals `carry` units along `dir`, at `speed`
+// u/s at first and slowing evenly, on its feet until the floor is gone from under its pelvis; it never goes over before
+// that. False: it can't.
+bool ragdollBackpedal(edict_t* ent, const glm::vec3& dir, float push, float balance, float carry, float speed);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
