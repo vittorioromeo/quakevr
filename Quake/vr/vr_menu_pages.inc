@@ -533,6 +533,7 @@ void resetHandMoves()
         row(opt::vr_magholster_chain_spacing),
         row(opt::vr_magholster_chain_points),
         row(opt::vr_magholster_chain_iterations),
+        row(opt::vr_magholster_chain_limit),
         row(opt::vr_magholster_chain_stiffness),
         row(opt::vr_magholster_chain_radius),
         row(opt::vr_magholster_chain_drag),

@@ -315,6 +315,7 @@ struct RagdollBodies
     {
         bool on{false};
         bool ledge{false};      // over a ledge: only kept going at `speed` until it has gone `reach` (past the edge)
+        bool carryOnly{false};  // ... and no turn: a backpedal gone over the lip (ragdollStaggered), its fall its own
         double start{0.0};
         glm::vec3 dir{0.f};     // level, along the shove
         float speed{0.f};       // m/s: its travel's speed at the start, slowing evenly (decel) to none

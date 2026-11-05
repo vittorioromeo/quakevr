@@ -13,6 +13,62 @@ Details and measures: FLATPLAY.md, "The stance". Files: `vr_flatsight.cpp` (`sta
 (`setupHand`, `steadyOther`), `vr_view_diag.cpp` (`twoHandSpot`), `vr_twohand.cpp` (`drawnTransition`, `drawnHelping`). Test:
 `Misc/quakevr/flatstance_test.sh`, including that editing a hotspot moves and turns the flat hand. Open: in the ironsight at eye relief
 14 the arm can't reach the hotspot on the guns without a real grip, so the hand hangs there.
+## Magnetic holster chain on fast swings
+
+The backlog's "worst piece 78 %" was a squeeze, not a stretch: on the fast swing the longest piece was 15.7 % over, the
+shortest 78 % under. A hand at 5-8 m/s moves the pinned end most of a piece's length a frame, and the pull-only
+`holdLengths` has nothing to push the next point away, so the end runs into it and the pieces bunch (why more iterations
+never helped). Second cause: the drawn gun's weight spring snaps back (`vr_weight_spring_snap`), a 60 cm jump in a frame,
+and the tether's jump check restarted it dead straight, each piece 12 % short at 65 cm (more closer in) with nothing to
+bend them out of the line.
+
+- `verlet::limitPieces` (`vr_verlet.cpp`): after `holdLengths`, each piece kept within `vr_magholster_chain_limit` (0.1,
+  0: off; Immersion > Magnetic Holsters > Chain Physics, "Chain Piece Limit"). Up to 3 rounds of a pass from the weapon
+  back and one from the holster on, each point moved only to its neighbour's limit, `prev` with it (no speed from it, so
+  no energy in); it stops at the first round that moves nothing. A chain within its limits is not touched. Points lying
+  on the world are left to the collision (limited too, the corner case's worst piece went from 43 % to 122 %). The tether
+  only: the grappling rope and the AD hose are unchanged.
+- `hangAfresh` (`vr_magholster.cpp`): a tether started afresh hangs in a parabola of its length, its points even along it,
+  stopped by the world below the line.
+
+Test: `Misc/quakevr/magchain_stretch_test.sh <agent>` (`RATE=72` for 72 Hz): slow, fast and whipped moves, the limit off
+then on, verdict `magchain_stretch: ... PASS`. `vr_magholster_chain_log` also prints a `magpiece` line per step (stretch,
+squeeze, sag). Worst piece on fast swings, limit off / on: 78.0 / 10.0 % at 90 Hz, 78.1 / 10.0 % at 72 Hz (78.0 before any
+change too); the slow swing's sag differs by 0.0 mm at both; jerk p95 31 / 30 mm; 0 not finite. The tether's step 0.009 ms
+either way (no-LTO exe, ratio only). `magchain_test.sh`: fast tether 78 -> 10 %, slow 2.5 % and fast jerk p95 27.7 mm as
+before; jerk max 220 -> 300 mm, on the gun's snap frame. `magchain_sim_test.sh`: 0 pieces through the world; worst piece
+the same with the limit on and off: corner 43 %, floor 94 % (a chain lying on the world, not limited).
+
+Open: the lanyard is a spring cord, not this chain: 16.7 % on the same fast swing, untouched. A chain dragged along the
+world on a fast swing is not limited where it touches.
+## Shoves off ledges: a backpedal, not a launch
+
+His words: "Shoves off ledges look too perfect: whatever the force, humanoids get exactly the force that makes them fall,
+every time." A shove with a ledge in its reach (`VR_Knockdown_Ledge`, unchanged) on one that can stagger now goes through
+`VR_Knockdown_LedgeBackpedal` (vr_knockdown.qc): the engine's stagger in a ledge mode (`ragdollstagger`'s `sure` 2, the
+builtins' table being full; `box3d::ragdollBackpedal`). It backs up on its feet and tips over where the floor ends under its
+pelvis, keeping what is left of the shove. Shoves away from a ledge, those that can't stagger (launched as before,
+`vr_knockdown_shove_ledge_*`) and hits by a ledge (`vr_kdtrig.qc`'s Over a Ledge) don't change.
+
+- **Tunables** (Debug > Tunables, `vr_knockdown_ledge_backpedal*`): on/off 1 (0: the old launch); `_speed` 0.4 of the shove's
+  own speed for its first speed, between `_least` 70 and `_most` 300 u/s; `_vary` 0.2 on that and on how far it would go;
+  `_carry` 2, how far it would go at least, times the way to past the edge (it slows evenly over that); `_balance` 0.7 to 1
+  by chance; `_yaw` 6 degrees off the shove by chance; `_push` 0.35 of the shove's push on its top; `_hertz` 10, its pelvis's
+  pin (a stagger's 5); `_tip` 100 u/s and `_past` 32 units, carried on past the lip so a slow one doesn't sit on it.
+- **Ledge mode in the stagger** (vr_ragactive.cpp, `Stagger::ledge`): its steps uncounted; `sure`, so only the floor's end
+  takes it over; a foot steps at most to the lip (`lastOnFloor`), never onto air; a foot its hip has left behind slides
+  rather than holding (held, it swung the pelvis down and sat the body down about 100 units in, for good).
+- **Test**: `sv_random_seed <n>;map vrclimb;wait30;god;vr_agrunt_test 210`, `-QuitOn "test 210 over"`
+  (QC/vr_ledgeshove_test.qc): real shoves of a grunt, its back to the long ledge's lip; one hand, two hands, two hands running,
+  each from 48 units and from far, 6 trials each; then 6 away from the lip. Measured over seeds 1-4: 144 of 144 over; on its feet 98-99% of the way
+  to the lip (one and two hands), 81-89% (running); lip speeds from 48 units: one hand 73-85 u/s (59 to 90), two hands
+  133-156 (120 to 176), running 224-239 (193 to 267). Scene: `{test:shove_ledge}`.
+  The old launch for comparison (`tune vr_knockdown_ledge_backpedal 0`): lip speeds 234, 378, 557 u/s, each within 3 u/s of
+  the shove's own speed; 34 of 36 over.
+- `vr_agrunt_test 202` (ledges, vrclimb): the block's case now goes over every time, on a lesser landing: it keeps or drops
+  its weapon by the impact rule alone (`vr_agrunt_fall_keep_impact`), and the test checks that.
+- **Open**: the look is for him to judge in VR (the far backpedals' sliding back foot above all). A tall drop's ledge grab
+  (`vr_ragdoll_active_pullup`) may still catch a slow one at the lip, as it could before.
 ## Lightning on water
 
 His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface; "used to work".
