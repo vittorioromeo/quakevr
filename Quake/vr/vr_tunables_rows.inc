@@ -356,6 +356,7 @@ QVR_TUNABLE_SLIDER(vr_crates_margin, "Away From Things", 24.0f, 256.0f, 8.0f, "%
 QVR_TUNABLE_SLIDER(vr_crates_seed, "Layout", 0.0f, 50.0f, 1.0f, "%.0f", 0.0f, 100000.0f, "Another number, another layout: each is the same at every load. Next map.")
 QVR_TUNABLE_SLIDER(vr_crate_impact, "Breaks On Impact", 0.0f, 30.0f, 1.0f, "%.0f m/s", 0.0f, 100.0f, "A crate hitting something this hard breaks (dropped from about 85 units); from 70% of it, it is damaged. Things thrown at it damage it as they do monsters. 0: impacts never break them.")
 QVR_TUNABLE_SLIDER(vr_crate_piece_impact, "Thrown Pieces Burst", 0.0f, 20.0f, 0.5f, "%.1f m/s", 0.0f, 60.0f, "A crate's piece you throw that hits something this hard bursts; from half, it is worn. 0: never.")
+QVR_TUNABLE_SLIDER(vr_carry_grab_ease, "Grab: Ease Into the Hand", 0.0f, 0.4f, 0.02f, "%.2f s", 0.0f, 2.0f, "A prop you take in one hand is drawn from where it was onto its place in your hand over this (a Fixed or In the Palm grip turns and moves it there). 0: at once.")
 QVR_TUNABLE_SLIDER(vr_carry_slam_height, "Slam: Over the Head", -20.0f, 40.0f, 1.0f, "%.0f cm", -100.0f, 100.0f, "How far over your eyes your hands must be for it to count as over your head.")
 QVR_TUNABLE_SLIDER(vr_carry_slam_speed, "Slam: Swing Speed", 1.0f, 8.0f, 0.25f, "%.2f m/s", 1.0f, 8.0f, "How fast your hands must swing it down for it to break on what it meets.")
 QVR_TUNABLE_SLIDER(vr_carry_slam_window, "Slam: Time to Swing", 0.2f, 3.0f, 0.1f, "%.1f s", 0.2f, 3.0f, "How long after it was over your head a swing down still counts.")

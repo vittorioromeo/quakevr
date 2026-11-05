@@ -353,6 +353,7 @@ QVR_TUNABLE(vr_crates_margin, "56") // units from any other entity (doors, lifts
 QVR_TUNABLE(vr_crates_seed, "0") // mixed with the map's name: another layout (the same each load)
 QVR_TUNABLE(vr_crate_impact, "16") // m/s: a crate hitting something this hard breaks (less: damaged from 70% of it); 0: never
 QVR_TUNABLE(vr_crate_piece_impact, "8") // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
+QVR_TUNABLE(vr_carry_grab_ease, "0.12") // s: a prop just taken in one hand is drawn from where it was onto its grip's place over this (a Fixed or In the Palm grip turns and moves it there; 0: at once)
 QVR_TUNABLE(vr_carry_slam_height, "10") // cm: the hands' middle at least this far over the eyes is over the head
 QVR_TUNABLE(vr_carry_slam_speed, "3") // m/s: the hands swung down at least this fast (mostly downwards) break it on what they meet
 QVR_TUNABLE(vr_carry_slam_window, "1") // s after it was last over the head a swing down still counts
