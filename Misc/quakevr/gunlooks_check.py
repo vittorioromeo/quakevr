@@ -41,6 +41,7 @@ COLOUR_TEXELS = 8        # a face covering this many texels or more...
 COLOUR_MIN = 2           # ...shows at least this many different palette indices (no solid colours)
 SIGHT_CLEAR = 1.0        # no rivet point within this (y) of the sight line (y 0)
 FAMILY_MAX = 14.0        # the metal's area-weighted mean colour from the old mean, largest channel change... (0-255; upward lift apart)
+INTERIOR_MAX = 18.0      # the nail muzzles' interior: almost black
 RUST_MAX = 0.2           # fraction of a model's painted texels in rust colours (warm and clearly lit)
 GUNS = {"v_shot.mdl", "v_nail.mdl", "v_lava.mdl"}
 
@@ -192,6 +193,22 @@ def model_checks(name, spec):
         check(abs(shift_warm) <= FAMILY_MAX and rust <= RUST_MAX or spec.get("glow_transfer"),
               "metal: mean colour %s -> %s (warmth change %+.1f, limit %.0f), rust colours on %.0f%% (limit %.0f%%)" %
               (np.round(a_old).astype(int).tolist(), np.round(a_new).astype(int).tolist(), shift_warm, FAMILY_MAX, 100 * rust, 100 * RUST_MAX))
+    # the bake leaves the sights alone (they are protected from it, as from the rest of the paint)
+    sight = [t for t in data["kept"] if (gl.tri_cover(old, old.tris[t], so)[2] >= mp.FULLBRIGHT).any()]
+    same = all((sn[ys, xs] == so[ys, xs]).all() for ys, xs in ((gl.tri_cover(old, old.tris[t], so)[1], gl.tri_cover(old, old.tris[t], so)[0]) for t in sight))
+    check(same, "the occlusion bake and the paint leave the %d glowing triangles' texels as they were" % len(sight))
+    # the nailgun's muzzle interiors: their back walls almost black
+    if name in ("v_nail.mdl",):
+        lums, n = [], 0
+        for t, tri in enumerate(new.tris[:o_nt]):
+            cen = F.P[list(tri[1:])].mean(0)
+            if t in kept or F.area[t] < 0.5 or F.n[t][0] < 0.7 or not (16.5 < cen[0] < 19.5 and abs(abs(cen[1]) - 3.75) < 1.6 and 2.6 < cen[2] < 5.1):
+                continue
+            xs, ys, *_ = gl.raster_tri(mp.tri_uv(new, tri), 0.0)
+            lums.append(gl.PAL[sn[ys, xs]] @ np.array([0.3, 0.59, 0.11]))
+            n += 1
+        mean = float(np.concatenate(lums).mean()) if lums else 999.0
+        check(n > 0 and mean <= INTERIOR_MAX, "the muzzle interiors' %d back faces: mean brightness %.1f (limit %.0f of 255)" % (n, mean, INTERIOR_MAX))
     # the barrel mask
     if name in GUNS:
         text = open(gl.MASK_FILE).read()

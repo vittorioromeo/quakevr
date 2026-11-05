@@ -9,10 +9,10 @@
 # and    python Misc/quakevr/gunlooks_check.py                                       (the verdict line)
 # Rerun after polish_weapons.py or anything else that rewrites these models (--capture first, on what they rewrote).
 #
-# Inputs (src_models/gunlooks/): each model as polish_weapons.py and fix_shot_stock_corner.py left it, its skin blanked
-# but for the fullbright texels (sights, flashes, the lava's glow) and whatever the triangles that stay as they are use;
-# its .json holds each old triangle's mean colour (the colour family; the only thing taken from the old paint) and, for
-# the shotgun, which triangles are the pump's. So no old paint is copied into the new art: rerunning gives the same files.
+# Inputs (src_models/gunlooks/): each model as polish_weapons.py and fix_shot_stock_corner.py left it, paint and all: its
+# old skin is the reference (round 24's second pass, the author's notes: its materials, rings, grates, holes and dark
+# interiors are the gun's look); its .json holds which triangles stay as they are, each old triangle's mean colour and,
+# for the shotgun, which triangles are the pump's. Rerunning gives the same files.
 #
 # What stays: the header (scale, origin), every old vertex's bytes in every pose at its index, every old triangle in its
 # order, on the same points (a corner may be a coincident copy appended at the end, as reuv_weapons.py's), the frames,
@@ -24,10 +24,12 @@
 #   clear of where the hands hold the gun; never on the pump's rings, so its part files only gain them in the body.
 # - Skin coordinates: every face but those re-mapped into charts of one facing (CHART_ANGLE) at one density (spec "D",
 #   texels per model unit), laid in free texels: nothing stretched, every texel chunky and the same size.
-# - The paint, per texel, from the surface point it shows (a solid texture in model space, continuous over seams):
-#   metal: the part's old mean colour lifted off black, clouds, brushing, grit, worn convex edges, grime in the creases,
-#   an inset panel line on big faces, patches of rust (spec "rust": the fraction of the surface), stains under rivets;
-#   wood: rings and fibres along the part's length, pores, lighter worn edges. Palette only, never a fullbright index.
+# - The paint, per texel: the old skin at the surface point it shows (its colour, so its materials and painted detail; a
+#   face the old map stretched beyond OLD_RATIO takes its mean colour instead), kept off pure black (DARK_LIFT), then on top,
+#   from that surface point in model space (continuous over seams): slight tone, brushing and grit, worn convex edges, rust patches
+#   (spec "rust": the fraction of the surface) and stains under rivets, and last a baked ambient occlusion (bake_ao: rays
+#   from each texel against the model's own triangles, AO_STRENGTH at most). Wood: rings and fibres along the part's
+#   length, its tone the old paint's. Palette only, never a fullbright index.
 # - Corners left with a vertex normal pointing away from every face they serve: a copy with those faces' normal.
 # - The barrel masks in weapons.txt: their triangle count, the new triangles not the barrel's.
 # - The relief: this script's heights (src_models/gunlooks/<model>.relief.npz), read by the bake (normaltiles.py).
@@ -54,13 +56,19 @@ FB_SMALL = 0.2         # ...or it is smaller than this (square units) and covers
 CHART_ANGLE = 38.0     # degrees: a chart's faces within this of its first face
 NEIGHBOUR_ANGLE = 30.0  # and of the face they are reached from
 CHART_MARGIN = 1       # texels of gutter round a chart (filled from it)
-# The palette the paint may use: the greys, browns, blue-greys, the rusts and tans.
-CANDIDATES = np.array(list(range(1, 48)) + list(range(80, 128)) + list(range(160, 176)))
-RIVET_BASE = np.array([54.0, 53.0, 56.0])
-CREASE_COS = 0.93      # faces meeting flatter than this (22 degrees) have no worn edge between them
-TUBE_LIFT = 2.4
+# The palette the paint may use: the greys, browns, blue-greys, the old paint's dark olives and reds, the rusts and tans.
+CANDIDATES = np.array(list(range(1, 72)) + list(range(80, 128)) + list(range(160, 192)))
+RIVET_BASE = np.array([48.0, 47.0, 46.0])
+CREASE_COS = 0.82      # faces meeting flatter than this (35 degrees) have no worn edge between them
+TUBE_LIFT = 1.25
+SLIVER_TEXELS = 2.0    # a face narrower than this many texels is a sliver
+OLD_RATIO = 30.0       # a face the old skin was stretched over more than this takes its mean colour, not the streaks
+DARK_LIFT = 4.0        # the old paint's colours all lifted by this (0-255): off pure black, its dark detail (grates, slots) kept
+AO_STRENGTH = 0.6      # the baked occlusion darkens by this much at most
+AO_RANGE = 3.0         # model units: what is further off occludes nothing
+AO_RAYS = 20
+WARM = np.array([1.04, 1.0, 0.95])  # the metal a little warmer than the old paint's blue-black
 FLAT_TEXELS = 6        # a face covering this many texels or more must show more than one palette index
-METAL_MIN = 25.0       # the plain metal's brightness at least (0-255): no near-black faces
 
 
 # ----------------------------------------------------------------------------
@@ -71,9 +79,9 @@ def rivets_shot(p):
     out = []
     for s in (1, -1):
         for x, z in ((9.2, 4.4), (17.6, 4.3), (9.0, 2.5), (11.2, 2.5), (17.6, 2.5)):
-            out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.34, height=0.14, material="steel"))
+            out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
         for x in (6.6, 17.2):
-            out.append(p.stud((x, s * 1.75, 12.0), (0, 0, -1), radius=0.32, height=0.12, material="steel"))
+            out.append(p.stud((x, s * 1.75, 12.0), (0, 0, -1), radius=0.36, height=0.15, material="steel"))
     return out
 
 
@@ -81,28 +89,18 @@ def rivets_nail(p):
     out = []
     for s in (1, -1):
         for x, z in ((6.5, 1.05), (10.4, 1.05), (6.5, -1.05), (10.4, -1.05), (2.2, 2.75)):
-            out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.34, height=0.14, material="steel"))
+            out.append(p.stud((x, s * 12.0, z), (0, -s, 0), radius=0.4, height=0.19, material="steel"))
     return out
 
 
-# The nailgun's barrels: flutes along the tubes, rings cut round their ends. The engine draws the tubes about three times
-# darker than the plate beside them, whatever their normals (near black in the old skin too): painted lighter to match.
+# The nailgun's tubes draw much darker than the plate beside them under flat light, whatever their normals (near black
+# in the old skin too), though not under the map's light: the tubes alone a little lighter (not the rings at their ends).
 def detail_nail(P, N, metal):
     mult = np.ones(len(P))
-    height = np.zeros(len(P))
     for yc in (3.8, -3.8):
-        y, z = P[:, 1] - yc, P[:, 2] - 3.8
-        r = np.hypot(y, z)
-        on = metal & (r < 2.35) & (P[:, 0] > 5.9) & (P[:, 0] < 15.2)
-        a = np.arctan2(z, y)
-        flute = np.abs(np.sin(3.0 * a)) < 0.1
-        mid = (P[:, 0] > 7.6) & (P[:, 0] < 13.4)
-        ring = (np.abs(P[:, 0] - 6.9) < 0.13) | (np.abs(P[:, 0] - 14.1) < 0.13)
-        mult[on] *= TUBE_LIFT
-        k = on & ((flute & mid) | ring)
-        mult[k] *= 0.72
-        height[k] -= 0.05
-    return mult, height
+        r = np.hypot(P[:, 1] - yc, P[:, 2] - 3.8)
+        mult[metal & (r < 2.35) & (P[:, 0] > 6.2) & (P[:, 0] < 14.6)] *= TUBE_LIFT
+    return mult
 
 
 # Wood: boxes in model space (x0 x1 y0 y1 z0 z1), each with the part's length (the grain) and its centre line's point.
@@ -245,7 +243,6 @@ def capture(name):
     m = mp.Model(path)
     spec = SPECS[name]
     skin = np.frombuffer(bytes(m.skin()), np.uint8).reshape(m.sh, m.sw)
-    keep = np.zeros(skin.shape, bool)
     means, kept = [], []
     for t, tri in enumerate(m.tris):
         xs, ys, vals = tri_cover(m, tri, skin)
@@ -256,15 +253,6 @@ def capture(name):
         stay = frac >= FB_KEEP or (fb.any() and big < FB_SMALL) or a0 < 1e-3
         if stay:
             kept.append(t)
-            if big >= 1e-3:
-                keep[ys, xs] = True
-    # A texel of gutter round what stays, and every fullbright texel, sight or not, where it is.
-    ring = keep.copy()
-    for ax, d in ((0, 1), (0, -1), (1, 1), (1, -1)):
-        ring |= np.roll(keep, d, axis=ax)
-    ring |= skin >= mp.FULLBRIGHT
-    base = np.where(ring, skin, 0).astype(np.uint8)
-    m.skins[0][2][0][:] = base.tobytes()
     data = dict(means=means, kept=kept)
     if spec.get("parts"):
         whole = mp.Model(path)
@@ -273,7 +261,7 @@ def capture(name):
     m.write(os.path.join(SRC, name))
     with open(os.path.join(SRC, name + ".json"), "w") as f:
         json.dump(data, f, separators=(",", ":"))
-    print("%s: captured, %d triangles stay as they are, %d texels kept of %d" % (name, len(kept), int(ring.sum()), ring.size))
+    print("%s: captured, %d triangles stay as they are" % (name, len(kept)))
 
 
 # ----------------------------------------------------------------------------
@@ -459,8 +447,7 @@ def creases(F, chart):
             others = [o for o in who if o != t]
             a, b = F.P[tv[i]], F.P[tv[(i + 1) % 3]]
             if not others:
-                cx.append((a, b))  # an open edge: a part's rim
-                continue
+                continue  # an open edge: mostly a T-junction across a flat panel, whose worn line would look wrong
             if any(o in inside for o in others):
                 continue
             o = others[0]
@@ -474,15 +461,60 @@ def creases(F, chart):
     return cx, cc
 
 
-def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, protected, seed):
-    """Fills the skin: returns (palette indices H x W, heights in model units H x W). `glow(tri, w, corners)` gives old
-    indices for glow transfer, or None."""
+def bake_ao(F, occluders, P, N, c_of, seed):
+    """Each point's occlusion, 0 open .. 1 closed in: AO_RAYS cosine-weighted rays, turned at random about the normal per
+    point, against the triangles `occluders` within AO_RANGE of its chart; a hit counts the more the nearer."""
+    tris = F.P[F.tri[occluders]]
+    lo, hi = tris.min(1), tris.max(1)
+    golden = math.pi * (3.0 - math.sqrt(5.0))
+    ks = (np.arange(AO_RAYS) + 0.5) / AO_RAYS
+    rad, phi = np.sqrt(ks), golden * np.arange(AO_RAYS)
+    out = np.zeros(len(P))
+    jitter = hash3(np.arange(len(P)), np.zeros(len(P), np.int64), np.zeros(len(P), np.int64), seed + 40) * 2 * math.pi
+    a = np.where(np.abs(N[:, 2:3]) < 0.9, np.array([[0.0, 0.0, 1.0]]), np.array([[1.0, 0.0, 0.0]]))
+    e1 = np.cross(N, a)
+    e1 /= np.maximum(np.linalg.norm(e1, axis=1, keepdims=True), 1e-9)
+    e2 = np.cross(N, e1)
+    order = np.argsort(c_of, kind="stable")
+    starts = np.flatnonzero(np.r_[True, c_of[order][1:] != c_of[order][:-1]])
+    for g0, g1 in zip(starts, np.r_[starts[1:], len(order)]):
+        for i0 in range(g0, g1, 128):
+            ids = order[i0:min(i0 + 128, g1)]
+            box0, box1 = P[ids].min(0) - AO_RANGE, P[ids].max(0) + AO_RANGE
+            near = np.nonzero(((hi >= box0) & (lo <= box1)).all(1))[0]
+            if not len(near):
+                continue
+            A, B, C = tris[near, 0], tris[near, 1], tris[near, 2]
+            E1, E2 = B - A, C - A
+            ang = phi[None] + jitter[ids, None]
+            z = np.sqrt(1.0 - ks)[None, :, None]
+            d = (rad * np.cos(ang))[..., None] * e1[ids, None] + (rad * np.sin(ang))[..., None] * e2[ids, None] + z * N[ids, None]
+            o = P[ids, None] + 0.03 * N[ids, None]
+            d, o = d.reshape(-1, 3), np.broadcast_to(o, d.shape).reshape(-1, 3)
+            pv = np.cross(d[:, None], E2[None])
+            det = (pv * E1[None]).sum(2)
+            det = np.where(np.abs(det) < 1e-9, 1e-9, det)
+            tv = o[:, None] - A[None]
+            u = (tv * pv).sum(2) / det
+            qv = np.cross(tv, E1[None])
+            v = (qv * d[:, None]).sum(2) / det
+            t = (qv * E2[None]).sum(2) / det
+            ok = (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0.03) & (t < AO_RANGE)
+            t = np.where(ok, t, AO_RANGE)
+            w = 1.0 - t.min(1) / AO_RANGE
+            out[ids] = w.reshape(len(ids), AO_RAYS).mean(1)
+    return out
+
+
+def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, old, protected, seed):
+    """Fills the skin: returns (palette indices H x W, heights in model units H x W). `old`: old_of(tri, weights) the old
+    paint's indices at those points (-1: none), old_ratio per triangle, means per triangle, occluders."""
     H, W = m.sh, m.sw
     tid = -np.ones((H, W), int)
     cid = -np.ones((H, W), int)
     Pm, Nm = np.zeros((H, W, 3)), np.zeros((H, W, 3))
     Dcx, Dcc = np.full((H, W), 9.0), np.full((H, W), 9.0)
-    glowm = np.zeros((H, W), np.int16) - 1
+    oldm = np.zeros((H, W), np.int16) - 1
     for ci, chart in enumerate(charts):
         lanes = []
         for t in chart:
@@ -500,8 +532,7 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
             cid[ys, xs] = ci
             Pm[ys, xs] = wv @ corners
             Nm[ys, xs] = wv @ ns
-            if glow is not None:
-                glowm[ys, xs] = glow(t, wv)
+            oldm[ys, xs] = old["old_of"](t, wv)
             lanes.append((xs, ys))
         xs = np.concatenate([a for a, _ in lanes])
         ys = np.concatenate([b for _, b in lanes])
@@ -534,7 +565,7 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
             tid[ys, xs], cid[ys, xs] = tid[yo, xo], cid[yo, xo]
             Pm[ys, xs], Nm[ys, xs] = Pm[yo, xo], Nm[yo, xo]
             Dcx[ys, xs], Dcc[ys, xs] = Dcx[yo, xo], Dcc[yo, xo]
-            glowm[ys, xs] = -1
+            oldm[ys, xs] = oldm[yo, xo]
             empty = tid < 0
 
     ys, xs = np.nonzero(tid >= 0)
@@ -550,50 +581,74 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
     height = np.zeros(len(P))
     r1, r2, r3 = texel_rand(xs, ys, seed + 1), texel_rand(xs, ys, seed + 2), texel_rand(xs, ys, seed + 3)
 
+    # -- what the old paint shows there
+    old_idx = oldm[ys, xs].astype(int)
+    src = PAL[np.clip(old_idx, 0, 255)]
+    no_paint = (old_idx < 0) | (old_idx >= mp.FULLBRIGHT) | (old["ratio"][t_of] > OLD_RATIO)
+    src[no_paint] = old["means"][t_of[no_paint]]
+    # A sliver's few texels show a line of the old skin, often the dark round an island: a dark seam on the part. They take
+    # the nearest wider face's paint in their chart.
+    edges = F.P[F.tri[:, [1, 2, 0]]] - F.P[F.tri]
+    longest = np.maximum(np.linalg.norm(edges, axis=2).max(1), 1e-6)
+    wide = 2.0 * F.area / longest * spec["D"] >= SLIVER_TEXELS
+    thin = ~wide[t_of]
+    for ci in np.unique(c_of[thin]):
+        here = np.nonzero(c_of == ci)[0]
+        donors = here[wide[t_of[here]]]
+        if not len(donors):
+            continue
+        for i in here[thin[here]]:
+            j = donors[np.argmin((xs[donors] - xs[i]) ** 2 + (ys[donors] - ys[i]) ** 2)]
+            src[i] = src[j]
+    occl = bake_ao(F, old["occluders"], P, N, c_of, seed)
+
     # -- metal, steel, rivets
     me = kind != 1
     pm = P[me]
     nz = N[me, 2]
-    base_m = base[me]
-    tone = 0.84 + 0.24 * (nz * 0.5 + 0.5) + 0.14 * np.maximum(nz, 0.0) ** 6
+    src_m = src[me]
+    lum_m = src_m @ np.array([0.3, 0.59, 0.11])
     cloud = fbm(pm * 0.24, 3, seed + 10) - 0.5
     mid = fbm(pm * 0.95, 2, seed + 11) - 0.5
     brush = fbm(pm * np.array([0.12, 2.3, 2.3]), 2, seed + 12) - 0.5
     grit = r1[me] - 0.5
     steelish = kind[me] == 2
-    amp = np.where(steelish, 0.65, 1.0)
-    c = base_m * (tone * (1 + amp * (0.55 * cloud + 0.3 * mid + 0.3 * brush + 0.24 * grit)))[:, None]
+    c = src_m.copy()
+    c += DARK_LIFT * np.array([1.0, 0.98, 0.94])
+    c *= (1 + 0.2 * cloud + 0.16 * mid + 0.2 * brush + 0.16 * grit)[:, None]
+    c += (3.5 * grit)[:, None]
+    c *= WARM
+    if spec.get("detail"):
+        c *= spec["detail"](P, N, kind == 0)[me][:, None]
     # Dark pits, and fine scratches along the part.
     pits = r2[me] > 0.965
-    c[pits] *= 0.68
+    c[pits] *= 0.72
     sc = fbm(pm * np.array([0.05, 6.5, 6.5]), 2, seed + 13)
     sc_on = fbm(pm * 0.3, 2, seed + 14)
     scratch = (np.abs(sc - 0.5) < 0.008) & (sc_on > 0.6)
-    c[scratch] += np.array([11.0, 11.0, 12.0])
-    h = 0.03 * (mid + 0.5 * grit)
+    c[scratch] += np.array([4.0, 4.0, 4.0])  # (faint: on near-black metal more reads as pale dashes under a strong light)
+    # The relief: the painted detail's lines (lighter or darker than the part round them), grain, scratches. (Not the
+    # rust: under a strong light its texel-sized bumps glinted as pale specks.)
+    cm = c_of[me]
+    n_of = np.maximum(np.bincount(cm, minlength=len(charts)), 1)
+    chart_lum = np.bincount(cm, lum_m, minlength=len(charts)) / n_of
+    h = 0.035 * np.clip((lum_m - chart_lum[cm]) / 40.0, -1.0, 1.0) + 0.012 * mid
     h[scratch] -= 0.015
-    # Convex edges worn to the steel, a little further scuffed; creases grimy.
+    # Convex edges worn lighter, broken here and there: the shapes' outlines.
     d_x, d_c = dcx[me], dcc[me]
-    worn = np.array([84.0, 84.0, 88.0])
     wn = fbm(pm * 3.1, 2, seed + 15)
-    w1 = smooth(0.2, 0.03, d_x) * smooth(0.35, 0.62, wn) * 0.5
-    w2 = smooth(0.6, 0.2, d_x) * (r3[me] > 0.82) * 0.16
-    c = mix(c, worn * (0.72 + 0.5 * r2[me])[:, None], np.maximum(w1, w2))
-    c *= (1 - 0.42 * smooth(0.5, 0.0, d_c))[:, None]
-    # An inset panel line on big faces of the guns' plain metal.
-    big = (spec["chart_area"][c_of[me]] >= 6.0) & (kind[me] == 0)
-    groove = big & (np.abs(d_x - 0.62) < 0.1)
-    lip = big & (d_x > 0.72) & (d_x < 0.86)
-    c[groove] *= 0.74
-    c[lip] *= 1.08
-    h[groove] -= 0.05
+    worn = c * 1.5 + np.array([22.0, 21.0, 20.0])
+    worn[kind[me] == 3] = c[kind[me] == 3] * 1.35 + 8.0  # (a rivet's small facets would be all edge)
+    w1 = smooth(0.2, 0.03, d_x) * (0.4 + 0.6 * smooth(0.3, 0.6, wn)) * 0.68
+    w2 = smooth(0.6, 0.2, d_x) * (r3[me] > 0.82) * 0.07
+    c = mix(c, worn, np.maximum(w1, w2))
     # Rust: patches where the noise, the edges, the creases, the undersides and the rivets' runs say so.
     run = np.zeros(len(pm))
     ring = np.zeros(len(pm))
     for (rp, rn) in rivets:
         q = pm - rp
         d = np.linalg.norm(q, axis=1)
-        ring = np.maximum(ring, smooth(0.7, 0.3, d))
+        ring = np.maximum(ring, smooth(0.78, 0.46, d))
         lat = np.hypot(q[:, 0], q[:, 1])
         down = -q[:, 2]
         run = np.maximum(run, np.exp(-(lat / 0.22) ** 2) * smooth(1.7, 0.1, down) * (down > -0.2))
@@ -602,27 +657,29 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
     field = field - 0.1 * steelish
     # Each texel's surface area is the same: the threshold is the coverage's quantile.
     th = np.quantile(field, 1.0 - spec["rust"])
-    rmask = smooth(th - 0.015, th + 0.075, field)
+    rmask = smooth(th - 0.015, th + 0.06, field)
     rn = fbm(pm * 2.6, 3, seed + 17)
-    rc = mix(np.array([44.0, 28.0, 18.0]), np.array([80.0, 48.0, 26.0]), smooth(0.3, 0.7, rn))
-    rc[r2[me] > 0.9] = np.array([104.0, 63.0, 33.0])
-    alpha = rmask * (0.45 + 0.5 * rn)
+    # (A dark, saturated rust: under real light a lighter one read as a pale camouflage on the dark metal.)
+    rc = mix(np.array([42.0, 23.0, 13.0]), np.array([72.0, 38.0, 20.0]), smooth(0.3, 0.7, rn))
+    rc[r2[me] > 0.95] = np.array([88.0, 48.0, 25.0])
+    # Its brightness tied to the metal under it: on near-black metal a fixed one is several times brighter, pale specks
+    # under a strong light.
+    rlum = rc @ np.array([0.3, 0.59, 0.11])
+    rc = rc * (np.minimum(rlum, 1.9 * (c @ np.array([0.3, 0.59, 0.11])) + 10.0) / np.maximum(rlum, 1.0))[:, None]
+    alpha = rmask * (0.68 + 0.32 * rn)
     # Freckles round the patches.
-    fr = (field > th - 0.09) & (r3[me] > 0.93)
-    alpha = np.where(fr, np.maximum(alpha, 0.65), alpha)
+    fr = (field > th - 0.06) & (r3[me] > 0.96)
+    alpha = np.where(fr, np.maximum(alpha, 0.45), alpha)
     alpha = np.where(steelish, alpha * 0.7, alpha)
+    alpha = alpha * (1 - 0.65 * smooth(36.0, 60.0, lum_m))  # bright old metal (the rings, the rods) stays metal
+    alpha = alpha * (0.55 + 0.45 * smooth(8.0, 28.0, lum_m))  # and the darkest parts stay dark
     c = mix(c, rc, alpha)
-    h += alpha * 0.06 * (rn - 0.35)
-    if spec.get("detail"):
-        k = np.zeros(len(P), bool)
-        k[me] = kind[me] == 0
-        mult, dh = spec["detail"](P, N, kind == 0)
-        c *= mult[me][:, None]
-        h += dh[me]
+    # A dark ring round each rivet, on what it sits on: it stands out, and its own head stays lit.
+    c[kind[me] != 3] *= (1 - 0.34 * ring[kind[me] != 3])[:, None]
     rgb[me] = c
     height[me] = h
 
-    # -- wood
+    # -- wood: its tone the old paint's, the ridges' contrast with it
     wo = kind == 1
     if wo.any():
         ids = np.nonzero(wo)[0]
@@ -645,15 +702,17 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
             dark, midc, light = np.array([34.0, 20.0, 11.0]), np.array([78.0, 46.0, 23.0]), np.array([118.0, 78.0, 41.0])
             cw = np.where((ramp < 0.5)[:, None], mix(dark, midc, ramp * 2), mix(midc, light, ramp * 2 - 1))
             lum = base[sel] @ np.array([0.3, 0.59, 0.11])
-            cw = cw * np.clip(lum / 58.0, 0.5, 0.95)[:, None]
+            cw = cw * np.clip(lum / 40.0, 0.3, 1.2)[:, None]
+            # the painted lines and shadows on it
+            cw = cw * np.clip((src[sel] @ np.array([0.3, 0.59, 0.11])) / np.maximum(lum, 8.0), 0.55, 1.3)[:, None]
             pores = texel_rand(np.floor(al * 1.1).astype(np.int64), np.round(a * 6 + b * 6 * 1.7).astype(np.int64), seed + 22) > 0.85
             cw[pores] *= 0.7
-            nzw = N[sel, 2]
-            cw *= (0.86 + 0.26 * (nzw * 0.5 + 0.5))[:, None]
-            cw *= (1 + 0.32 * smooth(0.3, 0.05, dcx[sel]) * (0.3 + r2[sel]))[:, None]
-            cw *= (1 - 0.45 * smooth(0.5, 0.0, dcc[sel]))[:, None]
+            cw *= (1 + 0.55 * smooth(0.25, 0.04, dcx[sel]) * (0.5 + 0.5 * r2[sel]))[:, None]
             rgb[sel] = cw
-            height[sel] = -0.05 * (1 - late) - 0.035 * pores + 0.03 * fibres
+            height[sel] = -0.03 * (1 - late) - 0.02 * pores + 0.015 * fibres
+
+    # -- the geometry's own corners and hollows
+    rgb *= (1 - AO_STRENGTH * np.clip(occl * 1.5, 0.0, 1.0) ** 1.2)[:, None]
 
     # -- to the palette: the nearest colour, its brightness ordered-dithered (the chunky look)
     bayer = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.47
@@ -664,16 +723,22 @@ def paint(m, F, spec, charts, corner_st, mat, region, chart_base, rivets, glow, 
     for i0 in range(0, len(rgb), 20000):
         q = rgb[i0:i0 + 20000]
         gq = q - q.mean(1, keepdims=True)
-        dist = ((q[:, None, :] - cand[None]) ** 2).sum(2) + 0.8 * ((gq[:, None, :] - gc[None]) ** 2).sum(2)
+        dist = ((q[:, None, :] - cand[None]) ** 2).sum(2) + 3.0 * ((gq[:, None, :] - gc[None]) ** 2).sum(2)
         out[i0:i0 + 20000] = CANDIDATES[np.argmin(dist, 1)]
-    if glow is not None:
-        g = glowm[ys, xs]
-        out = np.where(g >= mp.FULLBRIGHT, g, out).astype(np.uint8)
+    if spec.get("glow_transfer"):
+        out = np.where(old_idx >= mp.FULLBRIGHT, old_idx, out).astype(np.uint8)
     skin = np.zeros((H, W), np.uint8)
     hh = np.zeros((H, W))
     skin[ys, xs] = out
     hh[ys, xs] = height
-    return skin, hh, dict(th=float(th), rust=float((alpha > 0.3).mean()))
+    # The heights a little soft: a texel's dither is no shape (under real light it read as snake skin).
+    valid = (tid >= 0).astype(float)
+    num, den = hh * valid, valid.copy()
+    for ax, d in ((0, 1), (0, -1), (1, 1), (1, -1)):
+        num = num + 0.5 * np.roll(hh * valid, d, axis=ax)
+        den = den + 0.5 * np.roll(valid, d, axis=ax)
+    hh = np.where(tid >= 0, num / np.maximum(den, 1e-6), 0.0)
+    return skin, hh, dict(th=float(th), rust=float((alpha > 0.3).mean()), ao=float(occl.mean()))
 
 
 # ----------------------------------------------------------------------------
@@ -721,9 +786,17 @@ def build(name, out_dir, tmp_dir):
         rivets = [(np.array(a, float), np.array(b, float)) for a, b in spec["rivets"](p)]
     p.finish(tmp)
     m = mp.Model(tmp)
-    # The input's own skin texels are the protected ones, as they were.
+    # Protected: every fullbright texel, and what the triangles that stay use, a texel of gutter round them.
     base_skin = np.frombuffer(bytes(base.skin()), np.uint8).reshape(old_h, old_w)
-    protected_old = base_skin != 0
+    keep = np.zeros(base_skin.shape, bool)
+    for t in kept:
+        if pose_areas(base, base.tris[t])[1] >= 1e-3:
+            xs, ys, _ = tri_cover(base, base.tris[t], base_skin)
+            keep[ys, xs] = True
+    protected_old = keep.copy()
+    for ax, d in ((0, 1), (0, -1), (1, 1), (1, -1)):
+        protected_old |= np.roll(keep, d, axis=ax)
+    protected_old |= base_skin >= mp.FULLBRIGHT
     F = Faces(m)
     mat, region = materials(m, F, spec, means, old_nt)
     kept_set = set(kept)
@@ -732,17 +805,28 @@ def build(name, out_dir, tmp_dir):
     faces_set = set(faces)
     stays = [t for t in range(len(m.tris)) if t not in faces_set]
 
-    # What the old UVs give for the glow transfer, before they change.
-    glow = None
-    if spec.get("glow_transfer"):
-        old_uv = {t: mp.tri_uv(base, base.tris[t]) for t in faces if t < old_nt}
+    # What the old skin shows on each face, read through the old UVs, before they change; how stretched that was.
+    old_uv = {t: mp.tri_uv(base, base.tris[t]) for t in faces if t < old_nt}
+    old_ratio = np.zeros(len(m.tris))
+    for t, uv in old_uv.items():
+        A = F.P[F.tri[t]]
+        e1, e2 = A[1] - A[0], A[2] - A[0]
+        u = e1 / max(np.linalg.norm(e1), 1e-9)
+        n = np.cross(e1, e2)
+        ln = np.linalg.norm(n)
+        if ln < 1e-9:
+            continue
+        v = np.cross(n / ln, u)
+        M = np.array([[e1 @ u, e2 @ u], [e1 @ v, e2 @ v]])
+        sv = np.linalg.svd(np.array([uv[1] - uv[0], uv[2] - uv[0]]).T @ np.linalg.inv(M), compute_uv=False)
+        old_ratio[t] = sv[0] / max(sv[1], 1e-3)
 
-        def glow(t, wv):
-            if t not in old_uv:
-                return np.full(len(wv), -1, np.int16)
-            q = wv @ old_uv[t]
-            x, y = q[:, 0].astype(int) % old_w, np.clip(q[:, 1].astype(int), 0, old_h - 1)
-            return base_skin[y, x].astype(np.int16)
+    def old_of(t, wv):
+        if t not in old_uv:
+            return np.full(len(wv), -1, np.int16)
+        q = wv @ old_uv[t]
+        x, y = q[:, 0].astype(int) % old_w, np.clip(q[:, 1].astype(int), 0, old_h - 1)
+        return base_skin[y, x].astype(np.int16)
 
     # Triangles that stay: their texels explicit (the skin's width changes what an onseam vertex means).
     claimed = {}
@@ -833,56 +917,20 @@ def build(name, out_dir, tmp_dir):
     # Skin rows and the mean colours of each chart
     means_all = np.array(list(means) + [RIVET_BASE.tolist()] * (len(m.tris) - old_nt), float)
     chart_base = np.zeros((len(charts), 3))
-    chart_area = np.zeros(len(charts))
-    family = np.array([27.0, 27.0, 32.0])
-    # Charts of one kind that meet are one part: its colour mostly theirs together, or a shallow fold between two charts
-    # shows as a step. (Metal only: the wood's rings keep their own tone against the fore-end under them.)
-    of_chart = {t: ci for ci, chart in enumerate(charts) for t in chart}
-    parent = list(range(len(charts)))
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for t, ci in of_chart.items():
-        for o in F.neighbours(t):
-            cj = of_chart.get(o)
-            if cj is not None and mat[t] == mat[o]:
-                parent[find(ci)] = find(cj)
-    totals = {}
     for ci, chart in enumerate(charts):
         ids = np.array(chart)
         a = F.area[ids] + 1e-6
-        c = (means_all[ids] * a[:, None]).sum(0)
-        chart_area[ci] = a.sum()
-        chart_base[ci] = c / a.sum()
-        tot = totals.setdefault(find(ci), [np.zeros(3), 0.0])
-        tot[0] += c
-        tot[1] += a.sum()
-    for ci, chart in enumerate(charts):
-        c = chart_base[ci]
-        if mat[chart[0]] == 0:
-            tot = totals[find(ci)]
-            c = 0.25 * c + 0.75 * tot[0] / tot[1]
-            # Off the black, the hue kept: halfway to the guns' blue-black where darker than it, never under METAL_MIN.
-            lum = c @ (0.3, 0.59, 0.11)
-            if lum < 42.0:
-                c = 0.5 * c + 0.5 * family
-            lum = c @ (0.3, 0.59, 0.11)
-            if lum < METAL_MIN:
-                c = c * (METAL_MIN / max(lum, 1.0))
-        chart_base[ci] = c
-    spec["chart_area"] = chart_area
+        chart_base[ci] = (means_all[ids] * a[:, None]).sum(0) / a.sum()
     # The protected mask at the final size.
     protected = np.zeros((m.sh, m.sw), bool)
     protected[:old_h, :old_w] = protected_old
     F2 = F  # (geometry as loaded: corners addressed by the triangles' old vertices)
-    skin, heights, stat = paint(m, F2, spec, charts, corner_st, mat, region, chart_base, rivets, glow, protected, spec["seed"])
+    occluders = np.array([t for t in range(len(m.tris)) if t not in kept_set and F.area[t] >= 0.01])
+    old = dict(old_of=old_of, ratio=old_ratio, means=means_all, occluders=occluders)
+    skin, heights, stat = paint(m, F2, spec, charts, corner_st, mat, region, chart_base, rivets, old, protected, spec["seed"])
     # The final skin: the input's protected texels, the paint over the rest.
     final = np.zeros((m.sh, m.sw), np.uint8)
-    final[:old_h, :old_w] = base_skin
+    final[protected] = np.pad(base_skin, ((0, m.sh - old_h), (0, m.sw - old_w)))[protected]
     final[~protected] = skin[~protected]
     # A face that came out in one palette index (the dark colours are far apart) is dithered with the nearest other.
     flat = 0
@@ -902,8 +950,8 @@ def build(name, out_dir, tmp_dir):
     if spec.get("relief"):
         np.savez_compressed(os.path.join(SRC, name + ".relief.npz"), h=np.round(heights / 0.002).astype(np.int16),
                             density=np.array(spec["D"]))
-    print("%s: %d new triangles (%d rivets), %d charts, %d vertex copies, skin %dx%d, %d vertices; rust %.0f%%, %d faces broken up, %d normals turned" %
-          (name, len(m.tris) - old_nt, len(rivets), len(charts), copies, m.sw, m.sh, len(m.st), 100 * stat["rust"], flat, turned))
+    print("%s: %d new triangles (%d rivets), %d charts, %d vertex copies, skin %dx%d, %d vertices; rust %.0f%%, mean occlusion %.2f, %d faces broken up, %d normals turned" %
+          (name, len(m.tris) - old_nt, len(rivets), len(charts), copies, m.sw, m.sh, len(m.st), 100 * stat["rust"], stat["ao"], flat, turned))
     for pn, tris in parts.items():
         # The part files: their triangles, plus the rivets in the body.
         tt = list(tris)
