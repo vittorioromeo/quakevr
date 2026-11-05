@@ -184,6 +184,20 @@ def tri_texels(m, tri):
     return out
 
 
+WEAPONS_TXT = os.path.join(HERE, "..", "..", "quakevr", "data", "weapons.txt")
+
+
+def weapon_key(model, key):
+    """A weapon's default for `key` (a point anchor) from quakevr/data/weapons.txt: its block found by `id "<model>"`.
+    The anchor defaults used to be QVR_WEAPON_DEFAULTs in vr_weapons.inc (what anchors.collect() reads); they live in
+    weapons.txt now, which is where this takes the shotgun's two-handed grip point."""
+    text = open(WEAPONS_TXT, encoding="utf-8").read()
+    for block in re.findall(r"^weapon \d+\n\{\n(.*?)^\}", text, re.S | re.M):
+        if re.search(r'^\s+id "%s"' % re.escape(model), block, re.M):
+            return re.search(r'^\s+%s "([^"]*)"' % re.escape(key), block, re.M).group(1)
+    raise KeyError((model, key))
+
+
 def split_auto_pump(p, path):
     """After the polish: the first ring taken out of v_shot.mdl (its vertices collapsed onto one: its triangles
     vanish, the vertex and triangle orders stay, and no anchor is on them); the other three given their own copy of their
@@ -204,7 +218,7 @@ def split_auto_pump(p, path):
     # two-handed grip's anchor is on).
     ring_texels = set()
     other_texels = set()
-    grip = next(t for w, model, t in anchors.collect() if model == "progs/v_shot.mdl" and w.endswith(" TwoHHandAnchor"))
+    grip = weapon_key("progs/v_shot.mdl", "2h_hand_av")
     body = mesh.piece[min(anchors.anchor_vertices(mp.Model(path), [grip]))]
     for t in range(p.m.old_nt):
         if ring[t] >= 0:
