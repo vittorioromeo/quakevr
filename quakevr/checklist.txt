@@ -34,6 +34,15 @@ Fire the nailgun and the super nailgun in each hand: the sparks, smoke and flash
 Hit a crate with the crowbar, then break it: the knock and the break are now clearly loud (2.5x and 2x over full; Debug > Tunables, Knock Volume and Break Volume) {test:vrarena_crate}
 Shove grunts towards a ledge with Debug > Show Ledge Shove Zones on: right at the lip (red) they topple straight over, from the yellow they backpedal a few steps and fold over, from the grey the ledge plays no part; the line shows in flat-screen too (Debug > Tunables, Ledge Shove: Topple Within 32, Backpedal Within 80) {test:shove_ledge}
 Grab a rock or a falling magazine with your hand turned well off it: it eases into your palm over a split second instead of snapping (Debug > Tunables, Grab: Ease Into the Hand, 0.12 s)
+Embedded axe tug: a slow pull past 20 cm leaves the axe in and your hand comes off; a firm pull takes it; the axe and your hand shake and the buzz rises as you near it. {test:embed_stab}
+Embedded blade out into the hand: hand and blade glide back to your hand, no jump. {test:embed_stab}
+Embedded blade held: no ghost hand (Player Appearance > No Ghost on Stuck Blades). {test:embed_stab}
+Two hands on a stuck sword or axe: the second hand sits on the weapon's two-handed grip, and stays there while it's in. {test:embed_stab}
+Stuck blade leeway: turning your hand turns an axe a few degrees, a sword less. {test:embed_stab}
+Stuck blade on a falling body: your arm stretches a little to keep hold, then you let go; it eases back. {test:embed_stab}
+Stuck handles: a handle sunk in a body turns out so you can grab it. {test:embed_stab}
+Skewered gib in the other hand: the hand stays on the gib. {test:embed_stab}
+Stabs (coalesced): a stab or swung axe stays in the body; it slides with your pull and comes out into the hand; a deep stab staggers and moves the body. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
