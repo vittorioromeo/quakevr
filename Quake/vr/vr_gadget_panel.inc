@@ -35,8 +35,7 @@ struct PanelBoard
 };
 PanelBoard panelBoard;
 
-constexpr int panelTexels = 6; // an image's pixels a panel pixel: a board's digit is 53 units, sharp from across the room or the towers'
-                               // tops
+constexpr int panelTexels = 6; // an image's pixels a panel pixel: a board's digit is 53 units, sharp from across the room or a tower's top
 
 constexpr float panelLabelY = 2.f;
 constexpr float panelBigY = 11.f; // (the big numbers: 24 x 24, as the gadget's tiles')

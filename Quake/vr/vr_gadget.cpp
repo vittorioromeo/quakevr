@@ -1273,7 +1273,7 @@ void screenRect(glm::vec3& corner, glm::vec2& size)
 namespace
 {
 bool testCommandsRegistered = false; // (vr_message_test, vr_gadget_info: registered on the first call)
-bool panelCommandRegistered = false; // (vr_panelboard_dump: with the panel's first draw)
+bool panelCommandRegistered = false; // (vr_panelboard_dump)
 } // namespace
 
 void onGameDirChanged()
@@ -1387,16 +1387,16 @@ void drawScreen()
 
 void renderPanelBoard(const char* text)
 {
-    if(!panelCommandRegistered) // (a test command: the module has no init hook here)
-    {
-        panelCommandRegistered = true;
-        Cmd_AddCommand("vr_panelboard_dump", panelBoardDump_f);
-    }
     drawPanelBoard(text);
 }
 
 void releasePanelBoard()
 {
+    if(!panelCommandRegistered) // (a test command: the module has no init hook here, and this is called each frame off the arena)
+    {
+        panelCommandRegistered = true;
+        Cmd_AddCommand("vr_panelboard_dump", panelBoardDump_f);
+    }
     if(panelBoard.target.texture)
     {
         gfx::releaseTarget(panelBoard.target);
