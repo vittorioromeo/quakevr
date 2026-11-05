@@ -566,6 +566,7 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
 vr_ledgeshove_test.qc
 vr_armedgrunt_dualdisarm_test.qc
+vr_armedgrunt_second_test.qc
 vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
