@@ -207,10 +207,12 @@ void PF_playershock()
     server::sendShock(G_EDICT(OFS_PARM0), shock::KindSelfHit, G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM1), 0.f);
 }
 
-// viewmessage(player, text, seconds): `text` in the middle of `player`'s view for `seconds` (vr_server.hpp).
+// viewmessage(player, text, seconds, optional kind): `text` in the middle of `player`'s view for `seconds`; kind 1: the
+// Survival Arena's (the wrist gadget's with vr_arena_wrist) (vr_server.hpp).
 void PF_viewmessage()
 {
-    server::sendViewMessage(G_EDICT(OFS_PARM0), G_STRING(OFS_PARM1), G_FLOAT(OFS_PARM2));
+    const bool arena = qcvm->argc > 3 && G_FLOAT(OFS_PARM3) == 1.f;
+    server::sendViewMessage(G_EDICT(OFS_PARM0), G_STRING(OFS_PARM1), G_FLOAT(OFS_PARM2), arena);
 }
 
 // ----------------------------------------------------------------------------

@@ -357,13 +357,16 @@ float(float i) VR_ARK_CardPick =
     VR_ARK_Take(bit);
     VR_ARK_CloseOffer();
 
+    // The arena's line (its readout: the wrist, or the view), what the perk does under it for the one who took it.
     entity p = VR_PlayerAlive();
-    if(p != world)
+    entity o = VR_Player();
+    while(o)
     {
-        centerprint(p, sprintf("%s\n%s\n", name, VR_ARK_What(bit)));
-        stuffcmd(p, "bf\n"); // (the same little haptic the shipped pickups give)
+        if(o == p) { VR_ARENA_Show(o, sprintf("ARENA - %s taken\n\n%s\n", name, VR_ARK_What(bit)), AR_SAY); }
+        else { VR_ARENA_Show(o, sprintf("ARENA - %s taken\n", name), AR_SAY); }
+        o = VR_NextPlayer(o);
     }
-    VR_ARENA_PrintAll(sprintf("ARENA - %s taken\n", name));
+    if(p != world) { stuffcmd(p, "bf\n"); } // (the same little haptic the shipped pickups give)
     dprint(sprintf("arena_perks: %s chosen (card %g of %g, %g perks)\n", name, i + 1, ark_offer_n, VR_ARK_CountTaken()));
     return 1;
 }

@@ -2528,6 +2528,7 @@ QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave
 QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
 QVR_CVAR(vr_arena_banners, "1", CVAR_ARCHIVE)                  // 1: the arena's boards (info_arena_banner: vr_arena_banners.qc) show the run's numbers; 0: they are off
+QVR_CVAR(vr_arena_wrist, "1", CVAR_ARCHIVE)                    // 1: in the headset the arena's messages (a wave's start and clear, the countdown, a perk taken, the run's end) show in the wrist gadget's hologram, one at a time, a buzz of its hand when one comes out of view (gadget::arenaMessage; in view when there is no hologram); 0: in the middle of the view. A flat screen: a centre print either way
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE)               // ... once this many of its foes are left (up, and still to come)

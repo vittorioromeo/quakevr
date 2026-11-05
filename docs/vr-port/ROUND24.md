@@ -965,3 +965,33 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
   jump 48.6; lifted out onto the ledge). Jump-to-rise already worked before (48.6 both).
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
+
+## Survival Arena: its messages on the wrist gadget (agent/arenawrist, 2026-11-06)
+
+His words: now that the arena has banners, move the arena's text from the centre of the view to the wrist gadget, as an
+option, on by default.
+
+- **What moved:** every arena message (QC `VR_ARENA_Show` / `ShowAll`: the welcome, the countdown, a wave's start, a boss
+  coming, a wave's clear with its supplies, a perk taken, Quartermaster, the run's end: fell / cleared) now goes out as
+  `viewmessage(p, text, secs, 1)` (new optional `kind`; the builtins' table is full) = new `QVR_SVC_ARENAMESSAGE` (41,
+  the view message's payload). The client (`worldtext::clientParseViewMessage(arena)`) hands it to
+  `gadget::arenaMessage` with `vr_arena_wrist 1` (new, archived, default 1; Combat > Survival Arena > Messages on the
+  Wrist): the gadget's own message hologram (the one the game's centre prints already use), one arena message at a time
+  (the next replaces it in place: the countdown's seconds don't stack or regrow), for its seconds, never held. The perk's
+  separate centre print (its name and what it does) is folded into the arena's own line for the picker
+  (`ARENA - X taken` + blank line + what it does), so no arena text goes through `centerprint` any more.
+- **Out of view:** a message arriving while the gadget isn't facing you (and no arena message is still up) buzzes the
+  gadget's hand once (the watch buzz the hologram's notifications use); it shows as soon as you raise the wrist while it
+  lasts. Messages are not held until seen (they are of the moment): the banners keep the wave, foes, time, score,
+  NEXT WAVE / CHOOSE A PERK and YOU FELL / CLEARED; the perk cards are untouched (they stay in front of you).
+- **Fallbacks:** no hologram (HUD not the gadget, `vr_messages_hologram 0`, recording mode) = in view as before; `0` = in
+  the middle of the view as before; flat screen = the centre print either way (checked: `vr_enabled 0` logs `centre print`).
+- **Test aids:** `panelboard_read` `what` 4..8 read the wrist's arena messages (ink of the last one's block in the
+  hologram image, its frames shown facing the eyes, counts taken / shown in view / buzzes); `vr_gadget_info` also prints
+  how much the gadget is in view.
+- **Test:** `vr_arena_test 39` (`developer 1;map vrarena;wait5;god;vr_arena_test 39`, `-QuitOn "arena: test [0-9]+ over"`):
+  the director's countdown, wave 1, its clear (gadget turned away: 1 buzz, 0 frames for half a second, then raised: shown),
+  a perk taken, a fall, each on the wrist (ink 0.023..0.092, 3 frames) with none in view; off: the next ones in view, none
+  on the wrist. 13 passed, 0 failed. Tests 38 (46/0), 37 (17/0), 34 (3/0) pass.
+- **To try (VR):** in vrarena, raise the wrist during the countdown and at a wave's start and clear; keep it down at a
+  clear (one buzz) then raise it; take a perk; set Messages on the Wrist off and see them in the view again.
