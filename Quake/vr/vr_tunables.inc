@@ -653,6 +653,8 @@ QVR_TUNABLE(vr_lightning_burn_size, "20") // the lasting burn where lightning st
 QVR_TUNABLE(vr_lightning_burn_gap, "0.25") // at most one burn this often, seconds (a held beam: a bolt every 0.1 s)
 QVR_TUNABLE(vr_lightning_burn_stack, "3") // burns on one spot among the last 24; more only as the beam moves on
 QVR_TUNABLE(vr_lg_water_arcs, "1") // electrified water's arcs: their width (0 none, the light stays)
+QVR_TUNABLE(vr_shock_self_flat_arcs, "3") // struck by lightning, on a flat screen: how many more arcs on your hands and forearms, x (a flat view shows one hand and little arm; a headset's number is left alone)
+QVR_TUNABLE(vr_shock_self_flat_hand, "0.14") // on a flat screen: how far the arcs on a hand reach on from its drawn wrist, metres (the free hand is drawn away from where it is tracked)
 QVR_TUNABLE(vr_lg_water_flash, "1") // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 
 // Weapons > Reloading

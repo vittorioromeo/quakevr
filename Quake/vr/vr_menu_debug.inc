@@ -1109,6 +1109,9 @@ za::Vector<Item> pageDebugTools()
         command("Lightning into Water", "vr_waterzap_test 1")
             .help("vr_waterzap_test 1: moves you over the widest open water on the map and fires the thunderbolt by the trigger, down into it, "
                   "for a look at the arcs on the surface (2 glancing, 3 Mjolnir on a knight, 4 a shambler's bolt). The test is Misc/quakevr/waterzap_test.sh."),
+        command("Struck by a Bolt from Behind", "vr_shockarcs_test 1")
+            .help("vr_shockarcs_test 1: a shambler's real bolts into you from behind (you turned to look along open space), for a look at the arcs on "
+                  "your arms (2 looking down, 3 crouched a little, 4 the look swinging). The test is Misc/quakevr/sa_shockarcs_test.sh."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
                   "where it strikes; it keeps Quad's arcs crawling over it (Lightning Shock), alive or dead, a ragdoll convulsing, a kill charred."),

@@ -14,6 +14,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_backend.hpp"
@@ -95,9 +96,12 @@ struct Struck
     int hands{0}, forearms{0}, upperArms{0}, torso{0}, legs{0};
     int kept{0};       // arcs not drawn: in front of the eyes (ViewKeep)
     bool body{false};  // on the drawn body's joints (else round the hands and where the chest would be)
+    glm::vec3 seen[2]{glm::vec3{0.f}, glm::vec3{0.f}};     // each hand's wrist: forward, right, up of the drawn view (vr_shock_self_info)
+    glm::vec3 seenHand[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and the hand, the same way
 };
 Struck struck;
 
+bool arcOverScene = false; // while drawing the arcs on your own hands and arms in flatscreen play (arc, ownArmArcs)
 const glm::vec3* arcEye = nullptr; // while drawing electrified water: arcs near this eye are thinned (arc)
 constexpr float arcEyeClear = 96.f; // units from the eye inside which they thin out
 int surfaceDraws = 0; // electrified water's effects drawn so far, a frame each (QC watershockdrawn: vr_waterzap_test)
@@ -151,7 +155,7 @@ struct Random
 void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float jitter, float fade, bool flat = false,
     float width = 1.f, bool lit = false, bool scene = false)
 {
-    const auto line = scene ? lines::sceneLine : lines::line;
+    const auto line = arcOverScene ? lines::sceneOverLine : scene ? lines::sceneLine : lines::line;
     const auto glowLine = scene ? lines::sceneGlow : lines::glow;
     const float bright = (0.6f + 0.4f * rnd()) * fade;
     const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f * bright};
@@ -189,6 +193,21 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
         }
         a = b;
     }
+}
+
+// The arcs on your own hands and forearms are drawn over all: the arms and the weapon held don't hide them. A headset does that
+// in its UI pass (lines::line, stereo::drawUi); flatscreen play has no such pass, they would be queued and never drawn, so there
+// they go over the scene instead (lines::sceneOverLine; ROUND24.md, "The arcs on your arms on a flat screen").
+void ownArmArcs(bool on)
+{
+    arcOverScene = on && flatplay::active();
+}
+
+// Where the arcs on a hand reach to: `past` beyond the tracked hand. Flatscreen play draws a hand away from s.pos (the stance's
+// free hand, on the gun: vr_flatplay.cpp), so there, on from the wrist the body draws (or from s.pos, with no body).
+[[nodiscard]] glm::vec3 ownFingers(const hands::State& s, int hand, const glm::vec3& wrist, const glm::vec3& dir, float past, float m2w)
+{
+    return flatplay::active() ? wrist + dir * (vr_shock_self_flat_hand.value * m2w) : s.pos[hand] + hands::forward(s.rot[hand]) * past;
 }
 
 [[nodiscard]] float effectFade(double start, double until)
@@ -780,7 +799,7 @@ int limbArcs(Random& rnd, const ViewKeep& keep, const glm::vec3& a, const glm::v
         const glm::vec3 from = p + out * (reach * (1.05f + 0.2f * rnd()));
         const glm::vec3 dir = glm::normalize(rnd.dir() + out * 0.6f + along * ((rnd() - 0.5f) * 1.5f));
         const glm::vec3 to = from + dir * ((0.04f + 0.06f * rnd()) * m2w);
-        const float shown = keep(from, to);
+        const float shown = arcOverScene ? 1.f : keep(from, to); // (a flat screen has no eyes to keep them off)
         if(shown <= 0.f)
         {
             kept++;
@@ -832,15 +851,26 @@ void drawStruck(const hands::State& s, unsigned seed)
             dir = glm::normalize(d);
         }
         const glm::vec3 elbow = struck.body ? sk.elbow[hand] : wrist - dir * (0.26f * m2w);
-        const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.09f * m2w);
-        struck.hands += limbArcs(rnd, keep, wrist, fingers, 0.03f * m2w, count(3.f), fade, false, struck.kept);
-        struck.forearms += limbArcs(rnd, keep, elbow, wrist, 0.04f * m2w, count(4.f), fade, false, struck.kept);
+        const glm::vec3 fingers = ownFingers(s, hand, wrist, dir, 0.09f * m2w, m2w);
+        ownArmArcs(true);
+        {
+            glm::vec3 viewFwd, viewRight, viewUp;
+            hands::angleVectors(geom::vec(r_refdef.viewangles), viewFwd, viewRight, viewUp);
+            const glm::vec3 d = wrist - geom::vec(r_refdef.vieworg);
+            struck.seen[hand] = {glm::dot(d, viewFwd), glm::dot(d, viewRight), glm::dot(d, viewUp)};
+            const glm::vec3 dh = s.pos[hand] - geom::vec(r_refdef.vieworg);
+            struck.seenHand[hand] = {glm::dot(dh, viewFwd), glm::dot(dh, viewRight), glm::dot(dh, viewUp)};
+        }
+        // (A flat screen shows one hand and little arm, at most: more on them. A headset's number as it was.)
+        const float armMore = flatplay::active() ? za::max(0.f, vr_shock_self_flat_arcs.value) : 1.f;
+        struck.hands += limbArcs(rnd, keep, wrist, fingers, 0.03f * m2w, count(3.f * armMore), fade, false, struck.kept);
+        struck.forearms += limbArcs(rnd, keep, elbow, wrist, 0.04f * m2w, count(4.f * armMore), fade, false, struck.kept);
         if(rnd() < 0.35f * struck.power * k)
         {
             // A longer one jumping between the fingers and the elbow (as Quad's).
             const glm::vec3 a = fingers + rnd.dir() * (0.02f * m2w);
             const glm::vec3 b = glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rnd.dir() * (0.04f * m2w);
-            if(const float shown = keep(a, b); shown > 0.f)
+            if(const float shown = arcOverScene ? 1.f : keep(a, b); shown > 0.f)
             {
                 arc(rnd, a, b, 8, 0.02f * m2w, fade * shown);
                 struck.forearms++;
@@ -850,6 +880,7 @@ void drawStruck(const hands::State& s, unsigned seed)
                 struck.kept++;
             }
         }
+        ownArmArcs(false);
         if(struck.body)
         {
             struck.upperArms += limbArcs(rnd, keep, sk.shoulder[hand], sk.elbow[hand], 0.05f * m2w, count(2.f), fade, true,
@@ -951,6 +982,11 @@ void selfInfo_f()
                "damage=%.0f power=%.2f remaining=%.2f\n",
         total, struck.hands, struck.forearms, struck.upperArms, struck.torso, struck.legs, struck.kept, struck.body ? 1 : 0,
         struck.bolts, struck.damage, struck.power, za::max(0.0, struck.until - cl.time));
+    // (Forward, right and up of the drawn view: where the arcs are anchored.)
+    Con_Printf("selfshock: wrist off %.1f %.1f %.1f main %.1f %.1f %.1f\n", struck.seen[HAND_OFF].x, struck.seen[HAND_OFF].y,
+        struck.seen[HAND_OFF].z, struck.seen[HAND_MAIN].x, struck.seen[HAND_MAIN].y, struck.seen[HAND_MAIN].z);
+    Con_Printf("selfshock: hand off %.1f %.1f %.1f main %.1f %.1f %.1f\n", struck.seenHand[HAND_OFF].x, struck.seenHand[HAND_OFF].y,
+        struck.seenHand[HAND_OFF].z, struck.seenHand[HAND_MAIN].x, struck.seenHand[HAND_MAIN].y, struck.seenHand[HAND_MAIN].z);
 }
 
 void add(int kind, const glm::vec3& org, float radius, float duration)
@@ -1085,6 +1121,7 @@ void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
 {
     Random rnd{seed};
     const float m2w = units::metresToUnits() * units::bodyScale();
+    ownArmArcs(true);
     for(int hand = 0; hand < 2; hand++)
     {
         glm::vec3 wrist = s.pos[hand];
@@ -1095,7 +1132,7 @@ void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
             dir = glm::normalize(d);
         }
         const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
-        const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.05f * m2w);
+        const glm::vec3 fingers = ownFingers(s, hand, wrist, dir, 0.05f * m2w, m2w);
 
         for(int bolt = 0; bolt < bolts; bolt++)
         {
@@ -1114,6 +1151,7 @@ void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
                 8, 0.02f * m2w, 1.f);
         }
     }
+    ownArmArcs(false);
 }
 
 void parse()
