@@ -98,6 +98,8 @@ struct Struck
 };
 Struck struck;
 
+const glm::vec3* arcEye = nullptr; // while drawing electrified water: arcs near this eye are thinned (arc)
+constexpr float arcEyeClear = 96.f; // units from the eye inside which they thin out
 int surfaceDraws = 0; // electrified water's effects drawn so far, a frame each (QC watershockdrawn: vr_waterzap_test)
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
 double gunBuzzAt[2]{0.0, 0.0}; // a crackling gun's hand: when its next buzz is due (frame: gunShake)
@@ -173,13 +175,14 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
                 b += rnd.dir() * jitter;
             }
         }
+        const float w = arcEye ? width * za::clamp(glm::distance((a + b) * 0.5f, *arcEye) / arcEyeClear, 0.08f, 1.f) : width;
         if(lit)
         {
             const glm::vec4 halo{0.25f * bright, 0.4f * bright, 0.9f * bright, 1.f};
-            glowLine(a, b, 1.2f * width, halo, halo);
+            glowLine(a, b, 1.2f * w, halo, halo);
         }
-        line(a, b, 0.6f * width, glow, glow);
-        line(a, b, 0.15f * width, core, core);
+        line(a, b, 0.6f * w, glow, glow);
+        line(a, b, 0.15f * w, core, core);
         if(arcRecord)
         {
             arcRecord->pushBack(b);
@@ -212,7 +215,11 @@ void light(int index, const glm::vec3& at, float radius, float fade, Random& rnd
     dl->color[2] = 1.f;
 }
 
-// Arcs over a liquid's surface: out from the point the beam goes in, branching, and a few crawling further out.
+constexpr float surfaceWideFrom = 200.f; // units off from the eye where electrified water's arcs start to widen
+
+// Arcs over a liquid's surface: out from the point the beam goes in, branching, and a few crawling further out. In the
+// scene's translucent pass (lines::sceneLine), as a beam's arcs: the view's other lines are the headset's UI pass only, so
+// a flat screen never drew them (ROUND24.md, "Lightning on water"). Above the waves (vr_water_waves), or they cut them.
 void drawSurface(int index, const Effect& e, Random& rnd)
 {
     const float fade = effectFade(e.start, e.until);
@@ -222,7 +229,16 @@ void drawSurface(int index, const Effect& e, Random& rnd)
     }
     surfaceDraws++;
     const float reach = za::clamp(e.radius * 0.45f, 24.f, 160.f);
-    const glm::vec3 o = e.org + glm::vec3{0.f, 0.f, 0.75f};
+    if(vr_lg_water_arcs.value <= 0.f)
+    {
+        light(index, e.org, za::clamp(e.radius, 100.f, 300.f), fade, rnd);
+        return;
+    }
+    const glm::vec3 o = e.org + glm::vec3{0.f, 0.f, 0.75f + za::max(0.f, vr_water_waves.value)};
+    // Wider further off, to stay noticeable (a line's width is in world units).
+    const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+    const float farther = za::clamp(glm::distance(e.org, eye) / surfaceWideFrom, 1.f, 3.f) * vr_lg_water_arcs.value;
+    arcEye = &eye;
     for(int bolt = 0; bolt < 9; bolt++)
     {
         if(rnd() < 0.25f)
@@ -233,12 +249,12 @@ void drawSurface(int index, const Effect& e, Random& rnd)
         const float len = reach * (0.3f + 0.7f * rnd());
         const glm::vec3 end = o + dir * len;
         const int segments = za::clamp(static_cast<int>(len / 10.f), 4, 14);
-        arc(rnd, o, end, segments, za::max(3.f, len * 0.12f), fade, true, 2.5f, true);
+        arc(rnd, o, end, segments, za::max(3.f, len * 0.12f), fade, true, 2.5f * farther, true, true);
         if(rnd() < 0.6f)
         {
             const glm::vec3 from = glm::mix(o, end, 0.3f + 0.5f * rnd());
             const glm::vec3 branch = glm::normalize(dir + rnd.flatDir() * 0.9f);
-            arc(rnd, from, from + branch * (len * (0.2f + 0.3f * rnd())), 4, len * 0.08f, fade * 0.8f, true, 2.f, true);
+            arc(rnd, from, from + branch * (len * (0.2f + 0.3f * rnd())), 4, len * 0.08f, fade * 0.8f, true, 2.f * farther, true, true);
         }
     }
     for(int spark = 0; spark < 6; spark++) // loose sparks crawling over the water further out
@@ -248,8 +264,22 @@ void drawSurface(int index, const Effect& e, Random& rnd)
             continue;
         }
         const glm::vec3 at = o + rnd.flatDir() * (reach * (0.5f + 0.7f * rnd()));
-        arc(rnd, at, at + rnd.flatDir() * (6.f + 10.f * rnd()), 3, 3.f, fade * 0.7f, true, 1.6f, true);
+        arc(rnd, at, at + rnd.flatDir() * (6.f + 10.f * rnd()), 3, 3.f, fade * 0.7f, true, 1.6f * farther, true, true);
     }
+    // Arches leaping off the water: flat arcs close to a line seen at a glancing angle, these stand up from it.
+    for(int leap = 0; leap < 7; leap++)
+    {
+        if(rnd() < 0.2f)
+        {
+            continue;
+        }
+        const glm::vec3 from = o + rnd.flatDir() * (reach * 0.8f * rnd());
+        const glm::vec3 to = from + rnd.flatDir() * (reach * (0.15f + 0.3f * rnd()));
+        const glm::vec3 apex = glm::mix(from, to, 0.5f) + glm::vec3{0.f, 0.f, reach * (0.12f + 0.25f * rnd())};
+        arc(rnd, from, apex, 4, 3.f, fade, false, 2.f * farther, true, true);
+        arc(rnd, apex, to, 4, 3.f, fade, false, 2.f * farther, true, true);
+    }
+    arcEye = nullptr;
     light(index, e.org, za::clamp(e.radius, 100.f, 300.f), fade, rnd);
 }
 
@@ -611,7 +641,7 @@ void drawBurst(int index, const Effect& e, Random& rnd)
         }
         const float len = reach * (0.3f + 0.7f * rnd());
         arc(rnd, e.org, e.org + rnd.dir() * len, za::clamp(static_cast<int>(len / 10.f), 4, 10), len * 0.1f, fade, false,
-            2.5f, true);
+            2.5f, true, true);
     }
     light(index, e.org, za::clamp(e.radius, 120.f, 320.f), fade, rnd);
 }
