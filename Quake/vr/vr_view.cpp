@@ -3,6 +3,7 @@
 #include "vr_view_internal.hpp"
 #include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
 #include "vr_agarmor.hpp"
+#include "vr_ambient.hpp"
 #include "vr_axestick.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
@@ -4892,6 +4893,7 @@ extern "C" void VR_SetupViewEntities()
         ragtool::draw(); // the ragdoll tool's subject: its skeleton, limits, targets, contacts, balance
         ledges::debugDraw(); // vr_debug_ledges
         hitmodel::debugDraw(); // vr_debug_hits
+        ambient::gridDebugDraw(s.head); // vr_model_light_grid_show
         hitmodel::zonesDraw(); // vr_debug_hitzones
         agarmor::debugDraw();  // vr_agarmor_debug
         disarmviz::draw(s.head); // vr_debug_disarm

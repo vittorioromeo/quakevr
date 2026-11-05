@@ -962,7 +962,7 @@ za::Vector<Item> pageMonsterHitbox()
 // ----------------------------------------------------------------------------
 
 // (The pages: pages[] and their builders, vr_menu_table.inc.)
-static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 33, "a Monster Groups page for each trigger and action (the rows above)");
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
 const PageRef vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsHolsters,

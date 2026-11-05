@@ -5424,6 +5424,10 @@ QVR_CYCLE(vr_debug_model_collide, "Show Model Collisions",
     "Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
     "green or red as drawn) and the push (yellow).",
     {0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"})
+QVR_TOGGLE(vr_model_light_grid_show, "Show Light Probes",
+    "The model light grid's probes near you as crosses, each the colour white paint has under its light (full light is "
+    "white): compare them with the floor beside them. The model you look at, or else the nearest: lines to the eight "
+    "probes it reads, as thick as each one's say (thin and red: out of its sight), and a dot in the colour it reads.")
 QVR_TOGGLE(vr_foveated_debug, "Show Foveation",
     "The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
     "sharp circle (cyan).")

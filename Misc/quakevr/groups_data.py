@@ -34,7 +34,7 @@ INC = os.path.join(ROOT, "Quake", "vr", "vr_mgroups.inc")
 KEYS = ["kdtrig", "resist", "ledge", "stairs", "slope", "shotgun", "wounded", "blow", "blast", "thrown", "tackle",
         "shove", "push", "stagger", "sweep", "leggrab", "lift", "necksnap", "manhandle", "throw", "hold", "poise",
         "health", "kdscale", "downtime", "getup", "snapkills", "struggle", "struggle_strength", "struggle_speed",
-        "struggle_arms", "struggle_hurt"]
+        "struggle_arms", "struggle_hurt", "skewer"]
 
 # A key's value for a group whose block leaves it out (groups.txt's defaults block, as convert writes it).
 DEFAULTS = {k: "1" for k in KEYS}

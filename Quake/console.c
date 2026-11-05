@@ -2098,6 +2098,8 @@ static void BuildTabList (const char *partial)
 	for (alias=cmd_alias ; alias ; alias=alias->next)
 		if (q_strcasestr (alias->name, partial))
 			Con_AddToTabList (alias->name, partial, "alias");
+
+	VR_TunableTabList (partial); // QVR: tuning constants typed bare
 }
 
 /*

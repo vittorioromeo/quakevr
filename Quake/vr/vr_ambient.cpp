@@ -9,6 +9,7 @@
 #include <string.h>
 #include "vr_jobs.hpp"
 #include "vr_lighting.hpp"
+#include "vr_lines.hpp"
 #include "vr_profile.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
@@ -147,8 +148,9 @@ glm::vec3 lightmapAt(const msurface_t* surf, int ds, int dt)
 }
 
 // RecursiveLightPoint (gl_rlight.c) along any ray: the first world surface the ray crosses that
-// faces it, where its texture's extents hold the crossing. Liquids other than `stopAt`'s are seen
-// through (the floor under them is lit); surfaces without a lightmap are passed.
+// faces it, where the crossing is on the surface (its texture's extents are only the box round it: a thin diagonal band's
+// box is half a room, of luxels outside it that are dark). Liquids other than `stopAt`'s are seen through (the floor under
+// them is lit); surfaces without a lightmap are passed.
 bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm::vec3& end, Hit& hit, int stopAt = SURF_DRAWLAVA)
 {
     while(node->contents >= 0)
@@ -203,7 +205,7 @@ bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm
             }
             ds -= surf->texturemins[0];
             dt -= surf->texturemins[1];
-            if(ds > surf->extents[0] || dt > surf->extents[1])
+            if(ds > surf->extents[0] || dt > surf->extents[1] || !R_SurfaceHoldsPoint(surf, &mid.x))
             {
                 continue;
             }
@@ -497,16 +499,17 @@ void setOff(float out[6][4])
 }
 
 // ------------------------------------------------------------------------------------------------
-// The light grid (vr_model_light_grid; the models' brightness and the cube): probes in the open, every GRID_CELL units
+// The light grid (vr_model_light_grid; the models' brightness and the cube): probes in the open, every
+// vr_model_light_grid_cell units
 // over the map, each gathering the same rays as above at the map's load (the light of every surface round it, whatever
 // its side) and keeping one set of values per light style, so that flickering and switched lights still move on models.
 // A model reads the eight probes round it, each frame, with no rays: blended by distance, so nothing pops; a probe in a
 // wall, or one the model can't see (the next room's, through a thin wall), left out and the rest weighted up. What's drawn
 // beside a model reads the same probes (ambient::lightPoint; the particles, gridLightOf). Lit liquids: below, "GLOW".
 // The knobs, tuning constants (tune; Debug > Tunables > Graphics > Models and Effects > Light Grid): vr_model_light_grid_intensity, _mix, the liquids' strengths and
-// ranges are read at each read; vr_model_light_grid_near is in the probes' values, and a change builds the grid again.
+// ranges are read at each read; vr_model_light_grid_near is in the probes' values and vr_model_light_grid_cell is their
+// spacing: a change of either builds the grid again. Show Light Probes (vr_model_light_grid_show): gridShow, below.
 
-constexpr float GRID_CELL = 48.f;
 constexpr za::SizeT GRID_MAX_CELLS = 32u * 1024u * 1024u; // a larger map's cells are made twice the size until it fits
 
 // The rays are gathered as a power mean with the default vr_light_contrast's power, not plain averages: the world is
@@ -514,7 +517,7 @@ constexpr za::SizeT GRID_MAX_CELLS = 32u * 1024u * 1024u; // a larger map's cell
 // up. Uniform surroundings come out exactly as their light.
 constexpr float GRID_POWER = 2.5f;
 
-constexpr unsigned GRID_CACHE_VERSION = 2u;         // a build's: bumped when gridProbe's values change
+constexpr unsigned GRID_CACHE_VERSION = 3u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
@@ -600,7 +603,8 @@ struct Grid
     const qmodel_t* world{nullptr};
     int generation{-1};
     glm::vec3 origin{0.f};
-    float cell{GRID_CELL};
+    float cell{48.f};                                                    // what it was built with (doubled for a huge map)
+    float cellSetting{48.f};                                             // vr_model_light_grid_cell when it was built
     int size[3]{0, 0, 0};
     za::Vector<unsigned> cells;
     za::Vector<GridEntry> entries;
@@ -935,6 +939,7 @@ void gridProbe(const glm::vec3& p, int x, int y, int z, za::Vector<GridEntry>& o
     h = diskcache::wideHash(h, world->lightdata, lightBytes);
     h = diskcache::wideHash(h, world->planes, static_cast<size_t>(world->numplanes) * sizeof(mplane_t));
     h = diskcache::fnv(h, &grid.nearWeight, sizeof(grid.nearWeight));
+    h = diskcache::fnv(h, &grid.cell, sizeof(grid.cell));
     h = diskcache::fnv(h, &grid.glowKey, sizeof(grid.glowKey));
     return diskcache::fnv(h, grid.size, sizeof(grid.size));
 }
@@ -977,6 +982,11 @@ void gridFinish(double start)
     return za::clamp(vr_model_light_grid_near.value, 1.f, 1024.f);
 }
 
+[[nodiscard]] float gridCellSetting()
+{
+    return za::clamp(vr_model_light_grid_cell.value, 16.f, 256.f);
+}
+
 // The grid of the current map: built when it loads, on the job threads (there are no rays left to trace after this).
 void gridBuild()
 {
@@ -988,6 +998,7 @@ void gridBuild()
     grid.probes = grid.clearCells = grid.styledProbes = 0;
     grid.size[0] = grid.size[1] = grid.size[2] = 0;
     grid.nearWeight = gridNearSetting();
+    grid.cellSetting = gridCellSetting();
     if(!cl.worldmodel || !cl.worldmodel->lightdata)
     {
         return;
@@ -995,7 +1006,7 @@ void gridBuild()
 
     // On a lattice over the whole world, a little off the multiples of 16 where the map's planes tend to lie.
     constexpr float GRID_OFF = 2.5f;
-    grid.cell = GRID_CELL;
+    grid.cell = grid.cellSetting;
     for(;;)
     {
         za::SizeT total = 1;
@@ -1145,9 +1156,10 @@ void gridBuild()
 
 [[nodiscard]] bool gridReady()
 {
-    if(grid.world != cl.worldmodel || grid.generation != worldGeneration() || grid.nearWeight != gridNearSetting())
+    if(grid.world != cl.worldmodel || grid.generation != worldGeneration() || grid.nearWeight != gridNearSetting() ||
+       grid.cellSetting != gridCellSetting())
     {
-        gridBuild(); // (on switching the setting on or moving vr_model_light_grid_near: a map's load has built it otherwise)
+        gridBuild(); // (on switching the setting on or moving vr_model_light_grid_near or _cell: a map's load has built it otherwise)
     }
     return grid.probes != 0;
 }
@@ -1311,6 +1323,7 @@ ankerl::unordered_dense::map<const entity_t*, GridCached> gridCache;
 Eviction gridEviction;
 const qmodel_t* gridCacheWorld = nullptr;
 int gridCacheGeneration = -1;
+float gridCacheCell = 0.f; // (another spacing: the entries' cells are other cells)
 
 // Where a model reads the light: its origin (VR_AliasLightOrigin: a climbing hand's as if not moved for looks) at the
 // middle of its height; held weapons and hands at their origin, what's round them being a hand's width away.
@@ -1336,8 +1349,9 @@ int gridCacheGeneration = -1;
     {
         return nullptr;
     }
-    if(cl.worldmodel != gridCacheWorld || worldGeneration() != gridCacheGeneration)
+    if(cl.worldmodel != gridCacheWorld || worldGeneration() != gridCacheGeneration || grid.cell != gridCacheCell)
     {
+        gridCacheCell = grid.cell;
         gridCache.clear();
         gridEviction = {};
         gridCacheWorld = cl.worldmodel;
@@ -1430,6 +1444,125 @@ int gridCacheGeneration = -1;
     return entry->valid ? entry : nullptr;
 }
 
+// Show Light Probes (vr_model_light_grid_show): each probe within GRID_SHOW_REACH of `at` as a cross, the colour white
+// paint has under what a model there would be lit by (its styles as they are now, the intensity and the world's curve:
+// full light is white), hidden behind what is in front of it. Then the model looked at, or else the nearest: a line from
+// where it reads to each of the eight corners it reads, as thick as that corner's say and the corner's colour (one it
+// can't see: thin and red), and a dot there in the colour it reads. Compare a cross with the floor beside it. The count
+// of crosses drawn (the test's).
+constexpr float GRID_SHOW_REACH = 256.f;
+constexpr float GRID_SHOW_CROSS = 2.5f;  // half a cross's arm
+constexpr float GRID_SHOW_LOOK = 48.f;   // a model this near the line of sight is the one looked at
+constexpr float GRID_SHOW_MODEL = 768.f; // or the nearest within this
+
+[[nodiscard]] glm::vec4 gridShowColour(glm::vec3 light)
+{
+    lighting::lightCurve(&light.x);
+    return glm::vec4{glm::min(light / 128.f, glm::vec3{1.f}), 1.f};
+}
+
+// A probe's own light, what a model right on it would read.
+[[nodiscard]] bool gridProbeColour(int x, int y, int z, glm::vec4& out)
+{
+    GridRead read;
+    if((grid.cells[grid.index(x, y, z)] & GRID_FIRST) == GRID_FIRST || !gridRead(GridSpot{x, y, z, glm::vec3{0.f}}, 1u, read, false))
+    {
+        return false;
+    }
+    out = gridShowColour(read.level);
+    return true;
+}
+
+za::SizeT gridShowProbes(const glm::vec3& at)
+{
+    za::SizeT drawn = 0;
+    const GridSpot centre = gridSpot(at);
+    const int reach = static_cast<int>(glm::ceil(GRID_SHOW_REACH / grid.cell));
+    for(int z = za::max(centre.z - reach, 0); z <= za::min(centre.z + reach + 1, grid.size[2] - 2); z++)
+    {
+        for(int y = za::max(centre.y - reach, 0); y <= za::min(centre.y + reach + 1, grid.size[1] - 2); y++)
+        {
+            for(int x = za::max(centre.x - reach, 0); x <= za::min(centre.x + reach + 1, grid.size[0] - 2); x++)
+            {
+                const glm::vec3 p = grid.point(x, y, z);
+                glm::vec4 colour;
+                if(glm::distance(p, at) > GRID_SHOW_REACH || !gridProbeColour(x, y, z, colour))
+                {
+                    continue;
+                }
+                for(int axis = 0; axis < 3; axis++)
+                {
+                    glm::vec3 arm{0.f};
+                    arm[axis] = GRID_SHOW_CROSS;
+                    lines::sceneLine(p - arm, p + arm, 1.f, colour, colour);
+                }
+                drawn++;
+            }
+        }
+    }
+    return drawn;
+}
+
+// The model looked at from `at` along `forward`, or else the nearest; null when there's none.
+[[nodiscard]] const entity_t* gridShowModel(const glm::vec3& at, const glm::vec3& forward)
+{
+    const entity_t* looked = nullptr;
+    const entity_t* nearest = nullptr;
+    float lookedBy = GRID_SHOW_LOOK, nearestBy = GRID_SHOW_MODEL;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e->model->type != mod_alias || (e->model->flags & MOD_FBRIGHTHACK) || e == &cl.viewent || VR_IsViewEntity(e))
+        {
+            continue;
+        }
+        const glm::vec3 to = gridPoint(e, false) - at;
+        const float along = glm::dot(to, forward);
+        const float off = glm::length(to - forward * along);
+        if(along > 0.f && off < lookedBy)
+        {
+            lookedBy = off;
+            looked = e;
+        }
+        if(glm::length(to) < nearestBy)
+        {
+            nearestBy = glm::length(to);
+            nearest = e;
+        }
+    }
+    return looked ? looked : nearest;
+}
+
+void gridShowModelProbes(const entity_t* e)
+{
+    const glm::vec3 p = gridPoint(e, false);
+    const GridSpot spot = gridSpot(p);
+    const unsigned seen = gridSeen(spot, p);
+    const glm::vec4 unseen{1.f, 0.1f, 0.1f, 0.8f};
+    for(int c = 0; c < 8; c++)
+    {
+        const int x = spot.x + (c & 1), y = spot.y + ((c >> 1) & 1), z = spot.z + (c >> 2);
+        glm::vec4 colour;
+        if((grid.cells[grid.index(x, y, z)] & GRID_FIRST) == GRID_FIRST)
+        {
+            continue;
+        }
+        if((seen & (1u << c)) && x + 1 < grid.size[0] && y + 1 < grid.size[1] && z + 1 < grid.size[2] && gridProbeColour(x, y, z, colour))
+        {
+            lines::line(p, grid.point(x, y, z), 0.2f + 1.3f * spot.weight(c), colour, colour);
+        }
+        else
+        {
+            lines::line(p, grid.point(x, y, z), 0.2f, unseen, unseen);
+        }
+    }
+    GridRead read;
+    if(gridRead(spot, seen, read, false))
+    {
+        lines::point(p, 5.f, gridShowColour(read.level));
+    }
+}
+
 // vr_model_light_grid_info: what the map's grid holds; the light read at the view.
 void gridInfo_f()
 {
@@ -1489,6 +1622,63 @@ void gridInfo_f()
             Con_Printf("model light grid: at the view: baked %.0f %.0f %.0f, with liquids %.0f %.0f %.0f, drawn %.0f %.0f %.0f; the floor's %.0f %.0f %.0f\n",
                        baked.r, baked.g, baked.b, read.level.r, read.level.g, read.level.b, drawn.r, drawn.g, drawn.b, floorLight.r, floorLight.g, floorLight.b);
         }
+    }
+
+    // The model looked at (or the nearest), and every probe just over a floor: what a model reads, drawn, against the
+    // floor under it, drawn: is the probes' light on a par with the world's?
+    {
+        const auto drawnFloor = [](const glm::vec3& at) {
+            vec3_t v{at.x, at.y, at.z};
+            lightcache_t cache{};
+            (void)R_LightPoint(v, 0.f, &cache);
+            glm::vec3 light{lightcolor[0], lightcolor[1], lightcolor[2]};
+            lighting::lightCurve(&light.x);
+            return light;
+        };
+        const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+        if(const entity_t* e = gridShowModel(eye, geom::vec(vpn)))
+        {
+            const glm::vec3 p = gridPoint(e, false);
+            const GridSpot spot = gridSpot(p);
+            GridRead read;
+            if(gridRead(spot, gridSeen(spot, p), read, false))
+            {
+                lighting::lightCurve(&read.level.x);
+                const glm::vec3 under = drawnFloor(geom::vec(e->origin));
+                Con_Printf("model light grid: %s reads %.0f %.0f %.0f drawn; the floor under it %.0f %.0f %.0f drawn\n", e->model->name,
+                           read.level.r, read.level.g, read.level.b, under.r, under.g, under.b);
+            }
+        }
+        constexpr float OVER_FLOOR = 64.f;
+        float gridSum = 0.f, floorSum = 0.f;
+        int spots = 0, dimmer = 0, brighter = 0;
+        for(int z = 0; z + 1 < grid.size[2]; z++)
+        {
+            for(int y = 0; y + 1 < grid.size[1]; y++)
+            {
+                for(int x = 0; x + 1 < grid.size[0]; x++)
+                {
+                    const glm::vec3 p = grid.point(x, y, z);
+                    GridRead read;
+                    if((grid.cells[grid.index(x, y, z)] & GRID_FIRST) == GRID_FIRST || worldtrace::line(p, p - glm::vec3{0.f, 0.f, OVER_FLOOR}) >= 1.f ||
+                       !gridRead(GridSpot{x, y, z, glm::vec3{0.f}}, 1u, read, false))
+                    {
+                        continue;
+                    }
+                    lighting::lightCurve(&read.level.x);
+                    const float at = (read.level.r + read.level.g + read.level.b) / 3.f;
+                    const glm::vec3 under = drawnFloor(p);
+                    const float below = (under.r + under.g + under.b) / 3.f;
+                    gridSum += at;
+                    floorSum += below;
+                    spots++;
+                    dimmer += at < below * 0.7f ? 1 : 0;
+                    brighter += at > below * 1.3f ? 1 : 0;
+                }
+            }
+        }
+        Con_Printf("model light grid: at %d probes over a floor, drawn: the probes' mean %.1f, the floors' %.1f; %d probes under 0.7 of their floor, %d over 1.3\n",
+                   spots, gridSum / static_cast<float>(za::max(spots, 1)), floorSum / static_cast<float>(za::max(spots, 1)), dimmer, brighter);
     }
 
     // Thin walls: at the middle of each cell with something in it, how much light the probes out of sight would add.
@@ -1853,6 +2043,19 @@ extern "C" int VR_ModelLightGrid(const entity_t* e, float out[3])
     return 1;
 }
 
+void ambient::gridDebugDraw(const glm::vec3& head)
+{
+    if(vr_model_light_grid_show.value == 0.f || !ambient::gridOn())
+    {
+        return;
+    }
+    (void)gridShowProbes(head);
+    if(const entity_t* e = gridShowModel(head, geom::vec(vpn)))
+    {
+        gridShowModelProbes(e);
+    }
+}
+
 bool ambient::gridOn()
 {
     return vr_model_light_grid.value != 0.f && cl.worldmodel && cl.worldmodel->lightdata && gridReady();
@@ -2046,6 +2249,29 @@ void gridTest_f()
         (void)ambient::gridOn();
         check(nearer != before && entriesNearer == entries, "another near weight: new values, same entries", static_cast<double>(entriesNearer), static_cast<double>(entries));
         check(gridHash() == before, "the near weight put back: the same grid", 0.0, 0.0);
+    }
+
+    // The spacing: built again at once, without a reload, every probe still read; and the same grid back. Show Light
+    // Probes draws what's there.
+    {
+        const float was = vr_model_light_grid_cell.value;
+        const unsigned long long before = gridHash();
+        const za::SizeT probes = grid.probes;
+        const float cell = grid.cell;
+        const za::SizeT shown = gridShowProbes(spots[0]);
+        setKnob(vr_model_light_grid_cell, cell * 2.f);
+        (void)ambient::gridOn();
+        const za::SizeT coarser = grid.probes;
+        const za::SizeT shownCoarser = gridShowProbes(spots[0]);
+        check(grid.cell == cell * 2.f && coarser > 0u && coarser < probes, "twice the spacing: built again, fewer probes", static_cast<double>(coarser), static_cast<double>(probes));
+        check(shown > 0u && shownCoarser > 0u && shownCoarser < shown, "Show Light Probes: fewer crosses at twice the spacing", static_cast<double>(shownCoarser), static_cast<double>(shown));
+        GridRead coarseRead;
+        const GridSpot spot = gridSpot(spots[0]);
+        const bool coarseReads = gridRead(spot, gridSeen(spot, spots[0]), coarseRead);
+        check(coarseReads, "twice the spacing: a spot still reads", static_cast<double>(coarseRead.level.g), 0.0);
+        setKnob(vr_model_light_grid_cell, was);
+        (void)ambient::gridOn();
+        check(grid.cell == cell && gridHash() == before, "the spacing put back: the same grid", static_cast<double>(grid.cell), static_cast<double>(cell));
     }
 
     // Off: the floor's, as R_LightPoint.
