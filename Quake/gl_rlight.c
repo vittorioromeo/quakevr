@@ -284,6 +284,44 @@ static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
 
 /*
 =============
+R_SurfaceHoldsPoint
+
+Whether a point on a surface's plane is on the surface. A surface's texture extents are only the box round it in its
+texture's axes: a thin diagonal band's box is half a room, of luxels outside it that are dark. A surface is convex, so the
+point is on the one side of all its edges (or within half a unit of them: the gaps at T-junctions are no way through).
+=============
+*/
+qboolean R_SurfaceHoldsPoint (const msurface_t *surf, const float *p)
+{
+	const qmodel_t	*world = cl.worldmodel;
+	const float		*n = surf->plane->normal;
+	qboolean		left = false, right = false;
+	int				i;
+
+	for (i = 0; i < surf->numedges; i++)
+	{
+		const int		e = world->surfedges[surf->firstedge + i];
+		const medge_t	*edge = &world->edges[e >= 0 ? e : -e];
+		const float		*a = world->vertexes[edge->v[e >= 0 ? 0 : 1]].position;
+		const float		*b = world->vertexes[edge->v[e >= 0 ? 1 : 0]].position;
+		vec3_t			along, out, to;
+		float			side, slack;
+
+		VectorSubtract (b, a, along);
+		VectorSubtract (p, a, to);
+		CrossProduct (along, n, out);
+		side = DotProduct (out, to);
+		slack = 0.5f * VectorLength (along);
+		left = left || side < -slack;
+		right = right || side > slack;
+		if (left && right)
+			return false;
+	}
+	return true;
+}
+
+/*
+=============
 RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
@@ -352,7 +390,7 @@ loc0:
 			ds -= surf->texturemins[0];
 			dt -= surf->texturemins[1];
 
-			if (ds > surf->extents[0] || dt > surf->extents[1])
+			if (ds > surf->extents[0] || dt > surf->extents[1] || !R_SurfaceHoldsPoint (surf, mid))
 				continue;
 
 			if (surf->plane->type < 3)

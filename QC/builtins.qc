@@ -221,7 +221,8 @@ string(float wave, float entry, float field) arenawavesfield = #0;
 void(string s) arenawavesreport = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
-// `vel` (units/s), from where `hand`'s weapon is drawn: TRUE if it stuck (VR_AxeStick_Stuck called).
+// `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn
+// doesn't touch its drawn model, its .vr_stick_depth how far off (units).
 float(entity w, entity host, vector at, vector vel, float hand) embedstick = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
@@ -364,7 +365,8 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
 // 10 its body in the tug (its torso's lean, its free arm's flail: vr_agrunt_tug_sway, _flail): the pull's share of what
 // breaks its grip `strength`, its way to this hand: 1 if it stands in a tug; 11 its free arm's end part (-1 none; the tests);
 // 12 a blade stuck in it, any ragdoll of it (vr_embedhold.qc): the hand holds the limb nearest `grip` (where it went in), not a loose piece, by a
-// spring of at most `force` N, where the hand is, no manhandling, let go of only by 4: 1 if it does; 13 that spring's `force` now.
+// spring of at most `force` N, where the hand is, no manhandling, let go of only by 4: 1 if it does; 13 that spring's `force` now;
+// 14 where that spring pulls to, `grip` from the hand.
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {
@@ -409,6 +411,7 @@ float MGP_THROW = 19;    // the two-hand throw: 0 never, 1 only when hurt, 2 alw
 float MGP_HOLD = 20;     // one hand's hold on it, 0..1 (below 0: by its size)
 float MGP_POISE = 21;    // its Parry Poise (below 0: a parry never staggers it; combat.qc VR_Parry_Interrupt)
 float MGP_HEALTH = 22;   // its health times this as it appears (the engine's, with Monster Health's curve: .vr_hpscale)
+float MGP_SKEWER = 32;   // how far a blade stuck in it throws it about, 0..1 (vr_embedhold.qc VR_Embed_Skewer)
 float MGP_KDSCALE = 23;  // every chance to knock it down times this (vr_knockdown.qc VR_KD_Scale; a sure one by it too)
 float MGP_DOWNTIME = 24; // its time down times this (VR_KD_DownScale)
 float MGP_GETUP = 25;    // its get-up's speed times this (VR_Knockdown_Interval; the engine's active get-up too)

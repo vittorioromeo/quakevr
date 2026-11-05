@@ -562,6 +562,8 @@ void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test
 const struct cvar_s *VR_TunableFind (const char *name);	// Cvar_VariableValue/String, a name not found: a tuning constant's stand-in (vr_tunables.inc), or NULL
 int VR_TunableSetVar (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered: nonzero if it is a tuning constant's stand-in, now set (a Tunables page row; vr_tunables.cpp)
 int VR_TunablesWrite (void);							// Host_WriteConfiguration: tunables.cfg, the tuning constants set off their defaults (a development build); 0 when a write failed
+int VR_TunableCommand (void);					// Cmd_ExecuteString, an unknown name: a tuning constant typed bare ("vr_x 0.2" sets, "vr_x" shows); nonzero if it was one
+void VR_TunableTabList (const char *partial);	// BuildTabList: the tuning constants matching partial
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
 struct cvar_s *VR_CvarStandIn (const char *name);		// Cvar_FindVar, a name not found nor renamed: a data table value's stand-in by its old cvar name (vr_wofs_<key>_NN, vr_prop_<key>_NN: quakevr/data/weapons.txt, props.txt), or NULL

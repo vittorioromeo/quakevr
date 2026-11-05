@@ -50,6 +50,7 @@ enum class Param : int
     StruggleSpeed,    // its struggle's speed times this
     StruggleArms,     // its arms' drive while it struggles times this
     StruggleHurt,     // it struggles weaker as it is hurt (0: always at full effort)
+    Skewer,           // how far a blade stuck in it throws it about, 0..1 (QC vr_embedhold.qc VR_Embed_Skewer; 0: never)
     Count
 };
 inline constexpr int paramCount = static_cast<int>(Param::Count);

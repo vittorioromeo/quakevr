@@ -88,6 +88,10 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
         "1 nor over 2.5."},
     {"Struggle Weaker When Hurt", MgroupToggle,
         "It struggles weaker as it is hurt (its health over its class's full health). Off: always at full effort."},
+    {"Blade: Skewer", MgroupChance,
+        "How far a blade stuck in it throws it about: a stab's stagger (how long, how far off balance), how hard the blade moves its "
+        "ragdoll, and whether walking away drags it. 1: lifted and carried on the blade. 0.4: thrown off balance only by a deep two-handed stab. "
+        "A little: staggered a moment, standing on. 0: never."},
 };
 
 [[nodiscard]] Item mgroupItem(int g, mgroups::Param p, const char* label)

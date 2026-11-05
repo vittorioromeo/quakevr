@@ -888,6 +888,15 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return ours ? 1.f : 0.f;
     }
+    if(what == 14)
+    {
+        // Where that spring pulls to, from the hand (`grip`): the hand's pull along the blade is the blade's, not the body's.
+        if(ours)
+        {
+            g->bladeShift = grip;
+        }
+        return ours ? 1.f : 0.f;
+    }
     GrabStart gs;
     if(!r || !r->rig || !r->active.on || !r->active.stagger.on || !grabStart(ent, player, hand, gs))
     {
@@ -1214,6 +1223,7 @@ void syncRagdollGrabs(float dt)
         glm::vec3 at;
         glm::quat turn;
         handPose(player, g.hand, at, turn);
+        at += g.bladeShift;
         const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
         if(B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
         {
