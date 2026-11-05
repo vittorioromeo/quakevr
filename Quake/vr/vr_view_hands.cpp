@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -2433,6 +2434,14 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     return freeHelp;
 }
 
+// A flatscreen hand's last place on a long gun's hotspot, in the other hand's frame (its way back: setupHand).
+struct LookLast
+{
+    glm::vec3 pos{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+LookLast lookLast[2];
+
 // setupHand's phases. What the steadying hand's pose and what its fingers wrap read.
 struct HandPose
 {
@@ -2447,6 +2456,9 @@ struct HandPose
     const WorldHotspot* heldSpot;
     bool freeHelp;
     const view::ViewEntity& weapon;
+    bool helps;          // it holds that grip, or (a flatscreen long gun's look: flatsight::lookShare) is drawn as if it does
+    bool look;           // ... the look
+    glm::vec3 gripPoint; // the point of it: s.grip2H, or the look's hotspot
 };
 
 // Steadying the other hand's weapon: the hand on its blade, its magazine or its grip, then the hotspot's offset.
@@ -2480,7 +2492,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
         hide = false;
         motion = partMotion(animationMotion(entities.weapon[other], bladePos), gripBlend, bladePos);
     }
-    else if(gripBlend > 0.f && heldSpot && magSpot[other] >= 0 && chosenGrip[other] == magSpot[other] &&
+    else if(gripBlend > 0.f && !hp.look && heldSpot && magSpot[other] >= 0 && chosenGrip[other] == magSpot[other] &&
             s.magBoxValid[other])
     {
         // On the gun's attached magazine (immersive reloading): the hand's grip channel along it where the hand holds it,
@@ -2497,13 +2509,13 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     }
     else if(gripBlend > 0.f)
     {
-        pos = glm::mix(pos, s.grip2H[other], gripBlend);
+        pos = glm::mix(pos, hp.gripPoint, gripBlend);
         hide = false;
         // (A still grip, weapons::Hotspot::still, ignores the animation: the super nailgun's barrel spins beside it.)
-        motion = heldSpot ? partMotion(gripMotion(entities.weapon[other], heldSpot->def, s.grip2H[other]), gripBlend, s.grip2H[other]) :
-                            partMotion(animationMotion(entities.weapon[other], s.grip2H[other]), gripBlend, s.grip2H[other]);
+        motion = heldSpot ? partMotion(gripMotion(entities.weapon[other], heldSpot->def, hp.gripPoint), gripBlend, hp.gripPoint) :
+                            partMotion(animationMotion(entities.weapon[other], hp.gripPoint), gripBlend, hp.gripPoint);
 
-        if(twohand::helping(hand) && otherSlot >= 0)
+        if(hp.helps && otherSlot >= 0)
         {
             // A grip: the weapon's fixed-hand angles; a cup: turned as the holding hand is. Then the hotspot's own.
             // (The weapon's and the hotspot's are for the off hand helping: mirrored for the main hand.) Carried
@@ -2515,7 +2527,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             // aligned round, often far from where the hand ended up): the hand placed so, as it is turned there.
             if(cup)
             {
-                const glm::vec3 at = s.grip2H[other] - palmAt(hand, glm::vec3{0.f}, attached, mirrored);
+                const glm::vec3 at = hp.gripPoint - palmAt(hand, glm::vec3{0.f}, attached, mirrored);
                 pos = glm::mix(s.pos[hand], at, gripBlend);
             }
             const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(attached));
@@ -2536,7 +2548,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     // Round 21, third pass: the held hotspot's hand offset (vr_wofs_hsN_v*): its drawn pose moved and turned once it
     // holds it, as it takes it (visual only: the grab and the aim are the tracked hand's), in the holding hand's aim
     // frame, about its palm; as for the off hand helping, mirrored for the main hand.
-    if(heldSpot && twohand::helping(hand))
+    if(heldSpot && hp.helps)
     {
         moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other),
             heldSpot->visualPos * gripBlend, heldSpot->visualAngles * gripBlend, other == HAND_OFF, pos, handRot);
@@ -2577,7 +2589,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             held.overlap = CLAMP(0.f, heldSpot->overlap, 1.f) * weapons::maxOverlapCm;
             setManualFingers(held, heldSpot->def.manual, heldSpot->def.curl, heldSpot->def.thumbAcross);
             // Held fully by a grip or a cup (not while taking it, nor a blade, where the hand slides): its settled place.
-            if(gripBlend >= 1.f && weapons::isGripType(heldSpot->type) && twohand::helping(hand) && otherSlot >= 0 &&
+            if(gripBlend >= 1.f && weapons::isGripType(heldSpot->type) && hp.helps && otherSlot >= 0 &&
                 handrig::usable(viewModel(handrig::modelName())))
             {
                 held.canonical = true;
@@ -2744,7 +2756,13 @@ void setupHand(const hands::State& s, int hand)
     // onto the weapon's foregrip (blending in and out with the grip), turned like the holding
     // hand plus the weapon's fixed-hand angles (old engine's V_SetupFixedHelpingHandViewEnt).
     const int other = 1 - hand;
-    const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
+    // (Flatscreen play's stance: the free hand drawn on a long gun's own two-handed hotspot, as this pose has a helping hand
+    // there, with no grip taken: flatsight::lookShare. 0 in a headset.)
+    const float realBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
+    const float lookBlend = realBlend <= 0.f ? flatsight::lookShare(hand) : 0.f;
+    glm::vec3 lookPoint{0.f};
+    const int lookSpot = lookBlend > 0.f ? view::twoHandSpot(s, other, lookPoint) : -1;
+    const float gripBlend = lookSpot >= 0 ? lookBlend : realBlend;
     const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
     // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
     const WorldHotspot* heldSpot = nullptr;
@@ -2755,12 +2773,29 @@ void setupHand(const hands::State& s, int hand)
             heldSpot = w.type == weapons::HotspotType::Blade ? &w : heldSpot;
         }
     }
+    else if(lookSpot >= 0)
+    {
+        heldSpot = &worldHotspots[other][lookSpot];
+    }
     else if(gripBlend > 0.f && chosenGrip[other] >= 0)
     {
         heldSpot = &worldHotspots[other][chosenGrip[other]];
     }
-    const HandPose hp{s, hand, mirrored, fist, slot, other, gripBlend, otherSlot, heldSpot, freeHelp, weapon};
+    const HandPose hp{s, hand, mirrored, fist, slot, other, gripBlend, otherSlot, heldSpot, freeHelp, weapon,
+        twohand::helping(hand) || lookSpot >= 0, lookSpot >= 0, lookSpot >= 0 ? lookPoint : s.grip2H[other]};
     steadyOther(hp, pos, handRot, hide, motion);
+    if(lookSpot >= 0)
+    {
+        // Kept against the other hand: the gun gone (no hotspot to go by), it eases back off the last place it had.
+        const glm::mat3 toOther = glm::transpose(anglesBasis(s.rot[other]));
+        lookLast[hand] = {toOther * (pos - s.pos[other]), glm::quat_cast(toOther * anglesBasis(handRot))};
+    }
+    else if(lookBlend > 0.f)
+    {
+        const glm::mat3 fromOther = anglesBasis(s.rot[other]);
+        pos = glm::mix(pos, s.pos[other] + fromOther * lookLast[hand].pos, lookBlend);
+        handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(fromOther) * lookLast[hand].turn, lookBlend)));
+    }
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
     // most: past that it passes into it until it is out again (vr_hand_collide).
