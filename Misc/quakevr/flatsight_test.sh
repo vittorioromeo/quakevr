@@ -15,7 +15,9 @@ export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 TOL=0.02 # units off the ray, each sight; degrees far along
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
-ONE() { echo "vr_flat_aim 0; wait3; vr_test_give_wid $1; impulse 149; wait25; vr_flat_aim 1; wait30; vr_flat_sight_check;"; }
+# (wait60 after the press: the sight's travel is 18 frames, and a long gun's free hand takes 29 to leave its barrel; read at 30 the
+# super nail gun was 0.006 to 0.03 units off the ray, at 60 it is 0.0000, as it is with vr_flat_rest 0 at 30.)
+ONE() { echo "vr_flat_aim 0; wait3; vr_test_give_wid $1; impulse 149; wait25; vr_flat_aim 1; wait60; vr_flat_sight_check;"; }
 # Worst of: rear off, front off, far degrees, over the lines of a log; and how many lines with sights.
 worst() { grep -a "^flatsightcheck: .* rear off" "$1" | awk '{ for (i = 1; i <= NF; i++) { if ($i == "rear" && $(i+1) == "off") { r = $(i+2) + 0 } if ($i == "front" && $(i+1) == "off") f = $(i+2) + 0; if ($i == "far") { d = $(i+3); gsub(/[(]/, "", d); d = d + 0 } } if (r > a) a = r; if (f > b) b = f; if (d > c) c = d; n++ } END { printf "%.4f %.4f %.4f %d", a + 0, b + 0, c + 0, n + 0 }'; }
 good() { awk -v r="$1" -v f="$2" -v d="$3" -v n="$4" -v t="$TOL" -v m="$5" 'BEGIN { exit !(r <= t && f <= t && d <= t && n >= m) }' && echo 1 || echo 0; }
