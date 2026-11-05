@@ -180,3 +180,12 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Traps met:** `fx_gfx_mask` names its triangle count and reads as none if it differs: weapons.txt's three masks extended (the author's config holds none). The engine draws the nailgun's tubes about three times darker than the plate beside them, whatever their vertex normals (it was so before: near black): painted 2.4 times lighter (`TUBE_LIFT`), the cause not found. The rivets nudged the kick fit enough to make the stock's other corner (4.0 +1.7 5.7) a moving part of the pump body: `fix_shot_stock_corner.py` now fixes both sides, on the input (6 vertices' firing poses, up to 0.67 units): the one change to old vertices, against the shipped model.
 - **Verified:** `gunlooks_check: 68 passed, 0 failed` (faces of 0.5+ square units and 6+ texels wide: shotgun 4.8-6.5 texels a unit, limits 3.9-7.5, stretch at most 1.28, limit 1.7; none of 934 faces of 8+ texels in one colour; moving places none new: 55 parts' vertices on the shotgun as before; nail 232 places as before, more vertices only as copies). `autopump_test.sh`: 7 passed, 7 failed, the same seven on the old models (shell timing; not from this). `vr_menu_path_check` not touched.
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/gunlooks/shotgun_before_after.png`, `nailgun_before_after.png` (`r_fullbright 1` for neutral light).
+
+## Flatscreen model FOV (agent/flatfov)
+
+**Not built or run: the kit's build was refused by the session's permission check, twice. Everything below is read from the code.**
+
+- `vr_flat_model_fov` (default 0, off), `_near` 30, `_far` 50, under Debug > Tunables > Flatscreen > Model FOV. `flatplay::modelFov`, shader `FlatFovPoint` (`vr_flatfov_glsl.h`).
+- **Alias shader:** after the light tiles' coordinate, so light, fog and shadows keep the true place; `Motion.z` marks the instance, `VR_FlatModelFovEntity` picks hands, body, held, holstered, worn, casings and the held prop. Shadow maps never (`aliasdepth`). Temporal AA is not warped: it only runs in a headset's eyes.
+- **Mapped:** muzzle flash, casings, attachments, wounds and hot barrels (all the alias path); tracers, wisps, the flashlight's lens and cone, gadget and ammo screens, lines (laser, arcs), cords and hoses, all particles (by distance: no owner on a particle).
+- **Not mapped:** bullet-time trails, ropes, text queued by `text3d::queue` (idle ammo counter, pouch count: queued before the frame's view is set), lying particles. Decals and outlines never land on his own models.

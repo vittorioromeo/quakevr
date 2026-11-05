@@ -1815,6 +1815,11 @@ QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the ch
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_support_out, "6") // the same free hand: how far out at its own side (-30..30; 5 before)
 
+// Flatscreen > Model FOV
+QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
+QVR_TUNABLE(vr_flat_model_fov_near, "30") // the model FOV in full up to this far from the eye (units): the near arms
+QVR_TUNABLE(vr_flat_model_fov_far, "50") // and none past this far (units): the thighs, so the feet stay on the floor
+
 // Flatscreen > Ironsight
 QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it

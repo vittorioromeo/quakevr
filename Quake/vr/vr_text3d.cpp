@@ -1675,14 +1675,14 @@ extern "C" void VR_DrawSceneOpaque()
     if(!screenInkGlyphs.empty())
     {
         gfx::draw(screenInkGlyphs, viewProjection,
-            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
+            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true, .flatModelFov = true},
             gfx::fontTexture());
     }
     if(!screenGlyphs.empty())
     {
         gadget::useBrightFont(true);
         gfx::draw(screenGlyphs, viewProjection,
-            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
+            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true, .flatModelFov = true},
             gfx::fontTexture());
         gadget::useBrightFont(false);
     }
@@ -1690,7 +1690,7 @@ extern "C" void VR_DrawSceneOpaque()
     {
         gfx::draw(q.vertices, viewProjection,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-                .params = q.params, .screen = q.size, .trueColor = q.trueColor},
+                .params = q.params, .screen = q.size, .trueColor = q.trueColor, .flatModelFov = true},
             q.texture);
     }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no

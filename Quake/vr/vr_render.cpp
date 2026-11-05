@@ -19,6 +19,8 @@
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_held.hpp"
+#include "vr_shells.hpp"
 #include "vr_handrig.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
@@ -259,6 +261,44 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     }
     const int group = VR_ViewEntityGroup(e);
     return group == VR_DRAW_BODY || group == VR_DRAW_MIRROR;
+}
+
+// Flatscreen play's model FOV (flatplay::modelFov): the player's own models, what moves with him. Not what lies in the
+// world, the mirror's image, the ghosts or an enemy's flash, not monsters and not the world.
+extern "C" void VR_FlatModelFovNumbers(float out[3], int shadowpass)
+{
+    const glm::vec3 numbers = shadowpass ? glm::vec3{0.f} : flatplay::modelFov().numbers;
+    out[0] = numbers.x;
+    out[1] = numbers.y;
+    out[2] = numbers.z;
+}
+
+extern "C" int VR_FlatModelFovEntity(const entity_t* e)
+{
+    if(vr_flat_model_fov.value <= 0.f || !flatplay::active())
+    {
+        return 0;
+    }
+    const int group = view::drawGroup(e);
+    if(group == VR_DRAW_HANDS || group == VR_DRAW_BODY || group == VR_DRAW_HELD || group == VR_DRAW_HOLSTERED ||
+        group == VR_DRAW_WORN || shells::isCasing(e))
+    {
+        return 1;
+    }
+    for(int hand = 0; hand < HAND_COUNT; hand++)
+    {
+        const int prop = held::heldEntity(hand);
+        if(prop > 0 && e == &cl_entities[prop])
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+extern "C" int VR_FlatModelFovUncull(const entity_t* e)
+{
+    return VR_FlatModelFovEntity(e) && flatplay::modelFov().numbers.x < 1.f;
 }
 
 extern "C" int VR_IsViewEntity(const entity_t* e)

@@ -33,6 +33,7 @@
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
@@ -53,6 +54,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+
+#include <math.h>
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 
@@ -1330,6 +1333,25 @@ void punch_f()
         return;
     }
     startPunch(h, "vr_flat_punch");
+}
+
+ModelFov modelFov()
+{
+    ModelFov f;
+    if(vr_flat_model_fov.value <= 0.f || !active())
+    {
+        return f;
+    }
+    constexpr float halfDegree = static_cast<float>(M_PI) / 360.f;
+    const float nearest = za::max(0.f, vr_flat_model_fov_near.value);
+    f.numbers.x = tanf(r_refdef.basefov * halfDegree) / tanf(za::clamp(vr_flat_model_fov.value, 10.f, 170.f) * halfDegree);
+    f.numbers.y = nearest;
+    f.numbers.z = za::max(nearest + 1.f, vr_flat_model_fov_far.value);
+    glm::vec3 right, up;
+    gfx::sceneCamera(f.eye, right, up);
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    f.axis = {viewProjection[0][3], viewProjection[1][3], viewProjection[2][3]}; // (the row that makes w: the view's depth)
+    return f;
 }
 
 } // namespace qvr::flatplay

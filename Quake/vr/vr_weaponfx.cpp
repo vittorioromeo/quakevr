@@ -1126,6 +1126,7 @@ void drawTranslucent()
     state.blend = gfx::Blend::Premultiplied;
     state.depthTest = true;
     state.depthWrite = false;
+    state.flatModelFov = true; // (its start on the drawn muzzle, its far end where it hits)
     gfx::draw(out, gfx::sceneViewProjection(), state);
 }
 

@@ -56,6 +56,19 @@ void frame();
 // vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,
 // and 0 outside the mode (a headset player crouches with his own tracked head).
 [[nodiscard]] float crouchRatio();
+
+// The model FOV (vr_flat_model_fov, docs/vr-port/FLATPLAY.md): the player's own models and what leaves them drawn as if at
+// their own field of view, whatever the world's. View-space x and y are scaled round the view axis by
+// tan(world / 2) / tan(model / 2), z and w left alone, so depth stays exact against the world and the centre of the screen
+// does not move; the scale fades to 1 by distance from the eye, none past vr_flat_model_fov_far. Looks only: nothing
+// measured, aimed or traced reads it. numbers: x the scale (0: off, and outside the mode), y near, z far.
+struct ModelFov
+{
+    glm::vec3 eye{0.f};
+    glm::vec3 axis{0.f};
+    glm::vec3 numbers{0.f};
+};
+[[nodiscard]] ModelFov modelFov();
 [[nodiscard]] float crouchDrop();
 
 // The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
