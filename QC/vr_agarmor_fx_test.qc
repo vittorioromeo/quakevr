@@ -288,7 +288,7 @@ void(float start) VR_AgArmor_FxTestFrame =
     entity p = VR_Player();
     if(start)
     {
-        VR_Test_Begin("agarmor fx test");
+        VR_Test_BeginFlags("agarmor fx test", VR_TEST_LOUD); // (its lines printed without developer 1)
         vr_aft_rule = cvar_hget(cvarh_vr_agarmor_rule);
         vr_aft_helm = cvar_hget(cvarh_vr_agarmor_helmet_head);
         vr_aft_cuts = cvar_hget(cvarh_vr_agarmor_block_cuts);
