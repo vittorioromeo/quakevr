@@ -32,6 +32,10 @@ Punch while running at a grunt: it lands easier and slightly harder; a still clo
 Shove grunts towards a ledge, one hand, two hands and running: they stumble back on their feet at a speed that follows the shove and tip over the lip, each a little differently, no flying off {test:shove_ledge}
 Ammo boxes: a nail pistol now turns up on nail boxes on any map (rare); the heavy revolver turns up on shell boxes only after you hold the super shotgun or a revolver
 Armed Grunts, Pick Up a Second on: a grunt with one gun and a second lying close takes it when idle, ignores one 3 m or more away, and mid-fight only takes one at its feet, with a short pause, then goes back to shooting
+Fire the nailgun and the super nailgun in each hand: the sparks, smoke and flash leave the barrel that fires, alternating with the animation, and the nail comes out of that same barrel (left hand too)
+Hit a crate with the crowbar, then break it: the knock and the break are now clearly loud (2.5x and 2x over full; Debug > Tunables, Knock Volume and Break Volume) {test:vrarena_crate}
+Shove grunts towards a ledge with Debug > Show Ledge Shove Zones on: right at the lip (red) they topple straight over, from the yellow they backpedal a few steps and fold over, from the grey the ledge plays no part; the line shows in flat-screen too (Debug > Tunables, Ledge Shove: Topple Within 32, Backpedal Within 80) {test:shove_ledge}
+Grab a rock or a falling magazine with your hand turned well off it: it eases into your palm over a split second instead of snapping (Debug > Tunables, Grab: Ease Into the Hand, 0.12 s)
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
