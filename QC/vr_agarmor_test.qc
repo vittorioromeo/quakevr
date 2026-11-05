@@ -499,13 +499,13 @@ void() VR_AgArmor_TestFrame =
         {
             return;
         }
-        float request = cvar_hget(cvarh_vr_agarmor_test);
-        cvar_set("vr_agarmor_test", "0");
         entity p = VR_Player();
         if(!p)
         {
-            return;
+            return; // (the request kept for when the player is in: `map x; vr_agarmor_test n` asks in the level's first frames)
         }
+        float request = cvar_hget(cvarh_vr_agarmor_test);
+        cvar_set("vr_agarmor_test", "0");
         if(request == 5)
         {
             VR_AgArmor_FxTestFrame(1); // (ragdolls, cuts, debris, sparks: vr_agarmor_fx_test.qc)

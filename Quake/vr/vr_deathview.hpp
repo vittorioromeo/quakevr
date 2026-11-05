@@ -20,6 +20,11 @@ namespace qvr::deathview
 // Immersive view holds). Once a frame its state is worked out (the first eye's call).
 void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angles);
 
+// Flatscreen play (V_CalcRefdef: VR_FlatDeathView): the same view on the screen. Immersive: in the body's head as the
+// headset's is (its place smoothed, its turn in yaw added to the mouse's look, Quake's dead roll gone); Vomit Mode: the head's
+// own place and turn, the mouse's look on top. Third Person and Off: the view as it was (Quake's, on the floor).
+void flatView(glm::vec3& origin, glm::vec3& angles);
+
 // Whether the Immersive view holds now (the hands and the gear not drawn).
 [[nodiscard]] bool immersive();
 
