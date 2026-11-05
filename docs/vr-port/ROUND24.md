@@ -100,6 +100,38 @@ pelvis, keeping what is left of the shove. Shoves away from a ledge, those that 
   its weapon by the impact rule alone (`vr_agrunt_fall_keep_impact`), and the test checks that.
 - **Open**: the look is for him to judge in VR (the far backpedals' sliding back foot above all). A tall drop's ledge grab
   (`vr_ragdoll_active_pullup`) may still catch a slow one at the lip, as it could before.
+## The arcs on your arms on a flat screen
+
+His note: struck by lightning, the arcs on the player's own arms never show in flat-screen.
+
+**Why.** Three things, each hiding them on its own. `drawStruck` and `armArcs` queue them with `lines::line`, drawn only by
+`stereo::drawUi`, the headset's UI pass: on next's drawing `vr_shock_self_info` says 17 arcs and the frame has 0 blue pixels. Moved to
+the scene pass (`lines::sceneLine`, the water's fix), the gun held then hides nearly all of them: 0, 291, 0 and 76 pixels in the four
+cases' frames. And `ViewKeep`, a headset's comfort, dims them below the test's threshold on hands this close to the eye (whole
+frames at 0); the hand's arcs also reached to `s.pos`, about 10 units from where the stance's free hand is drawn.
+
+**Now.** Flatscreen play only (`flatplay::active`; a headset takes the old branch everywhere, with the same random numbers):
+`lines::sceneOverLine`, in the scene's translucent pass with no depth test, what "drawn over all" is in a headset; no `ViewKeep` on
+them; the hand's arcs reach on from the wrist the body draws. Tunables (Debug > Tunables): `vr_shock_self_flat_arcs` 3 (more on the
+hands and forearms: a flat view shows one hand and little arm), `vr_shock_self_flat_hand` 0.14 m. `armArcs` is shared, so the shock
+in water and Quad's arcs show on a flat screen too. Still not drawn flat: `drawSelf`'s arcs round the body and in front of the eyes.
+
+**Test.** `bash Misc/quakevr/sa_shockarcs_test.sh <agent> <outdir>`, ends `shockarcs: <n> passed, <m> failed`: pictures through a
+shambler's real bolts from behind (`CastLightning`, `QC/vr_shockarcs_test.qc`), on and off (`vr_shock_self_time` 0.8 and 0, the blue
+light off in both), five frames each, as the arcs are reshaped every frame. Lower blue pixels, vrfiringrange: level 5870 4272 2430
+4224 10029; looking down 3690 3154 2995 1779 9360; crouched a little 11596 8874 933 23166 20252; the look still swinging 3846 2565
+1943 1963 8584. The same stage with the flat draw off: 0 in all ten frames of two cases. Looked at: on the hand and the gun in each
+of the four, mid swing too. The main hand in the view (forward, right, up) moves little as the look goes: 2.7 3.2 -3.2 level, 4.8 5.2
+-4.4 at 35 down, 4.2 6.4 -5.5 at 50. The mock headset: `SA_EXTRA="vr_mock_look 50 0;" ... --modes mock --cases 1`, 5 of 5 lit (looking
+level its hands are below the view). The shock in water by `vr_shock_test 0`, flat, flash off: 5525. `waterzap_test.sh` flat and mock,
+cases 1 and 4: 4 of 4. The arcs near the eye are wide (a line's width is in world units): a broad smear at the shallow crouch's elbow.
+Pixels and frames from the arcs over the scene on were taken low-impact, his game running.
+
+**Open: the full flat crouch.** With a weapon held, `+flatcrouch` at the default drop (18) puts the gun and the hands behind the eye
+and a huge arm across the view, with no arcs on it (0 pixels in five frames): main hand 2.7 3.2 -3.2 standing, -5.1 -0.5 2.3 crouched;
+`vr_flat_stance 0` gives 4.4 5.8 -1.7, so the stance's pull back and the crouch add up. `vr_flat_arm_hold 0` changes nothing. This
+fix doesn't touch the pose, seen with the thunderbolt only. So the test's crouch case uses `vr_flat_crouch_drop` 8.
+
 ## Lightning on water
 
 His note: lightning shot into water (thunderbolt, Mjolnir hit, Shambler) should electrify the surface. After the first fix,
@@ -116,8 +148,8 @@ only the thunderbolt's and the shock's. The surface's arcs and the shock's burst
 translucent pass, as a beam's arcs: both flat and headset, hidden by walls. Above the waves (`vr_water_waves`); wider further off
 (from 200 units, up to 3x); arches leaping off the water, since flat arcs close to a line at a glancing angle; thinner within 96
 units of the eye, or a ribbon by the camera fills the view. `vr_lg_water_arcs` 1 (tunable, Debug > Tunables > Electrified Water
-Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs on your own arms and in
-front of your eyes (other `lines::line` users, not touched). A hammer slapping the surface with nothing solid is still no blow.
+Arcs): their width, 0 none (the blue light stays). Not drawn on a flat screen still: the shock's arcs in front of your eyes and
+round the body (`drawSelf`, other `lines::line` users; the arms' were fixed after: "The arcs on your arms on a flat screen"). A hammer slapping the surface with nothing solid is still no blow.
 
 **Test.** `bash Misc/quakevr/waterzap_test.sh <agent> <outdir>`: pictures, not a counter. Each case (`QC/vr_waterzap_test.qc`:
 thunderbolt by `+attack` steep and glancing, Mjolnir swung onto a knight over the water, a shambler's bolt by `CastLightning` on a
