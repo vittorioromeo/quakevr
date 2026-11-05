@@ -668,6 +668,18 @@ void printFit(const qmodel_t* model)
         Con_Printf("  body %.1f %.1f %.1f .. %.1f %.1f %.1f; the rest %.1f %.1f %.1f .. %.1f %.1f %.1f\n", lo[0].x, lo[0].y,
             lo[0].z, hi[0].x, hi[0].y, hi[0].z, lo[1].x, lo[1].y, lo[1].z, hi[1].x, hi[1].y, hi[1].z);
     }
+    {
+        // The moving parts' vertices (the muzzle flash among them), by number and rest place.
+        za::Vector<glm::vec3>& rest = scratch.rest;
+        poseVertices(hdr, hdr->frames[0].firstpose, rest);
+        for(int i = 0; i < hdr->numverts; i++)
+        {
+            if(!m->body[i])
+            {
+                Con_Printf("  part v%d at %.1f %.1f %.1f\n", i, rest[i].x, rest[i].y, rest[i].z);
+            }
+        }
+    }
     for(int p = 0; p < hdr->numposes; p++)
     {
         const PoseFit& f = m->poses[p];

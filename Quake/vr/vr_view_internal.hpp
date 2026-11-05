@@ -593,6 +593,8 @@ inline view::DrawnWeapon drawnWeapons[2];
 inline glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
 [[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0, int holder = -1);
 [[nodiscard]] glm::mat4 animationMotion(const view::ViewEntity& ve, const glm::vec3& at);
+// What the hand on the hotspot `spot` of that weapon follows: animationMotion's, the identity for a still grip (frame 0 assumed).
+[[nodiscard]] glm::mat4 gripMotion(const view::ViewEntity& ve, const weapons::Hotspot& spot, const glm::vec3& at);
 [[nodiscard]] glm::mat4 partMotion(const glm::mat4& m, float t, const glm::vec3& centre);
 void movePose(const glm::mat4& m, glm::vec3& pos, glm::vec3& angles);
 
