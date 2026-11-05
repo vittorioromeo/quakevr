@@ -4,7 +4,8 @@
 // `vr_flatitems_test 1`: each thing that can stay in the off hand, grabbed with E (it stays held: not better, or full up;
 //   what the mode takes at once is noted), the main hand's shotgun fired through it: the shot goes, the hand keeps it.
 //   Misc/quakevr/flatitems_test.sh fails the run on any "Assertion failure" in the log.
-// `vr_flatitems_test 2`: walked over, each kind of pickup is taken, and armour puts the plates on (`flatwalk: ...`).
+// `vr_flatitems_test 2`: walked over, each kind of pickup is taken (ammo, health, megahealth over 100, a monster's backpack
+//   too), a box of what he is full of is left lying, and armour puts the plates on.
 // `vr_flatitems_test 3`: E on armour that is better than what he wears: on him at once, the plates on, nothing held.
 // `vr_flatitems_test 5`: as he played: armour in the left hand with E, 2 for the shotgun, `give n 40` on the console, the shot:
 //   the one way a shot reaches VR_AmmoUtil_GetAmmoCountByAmmoId's assertion (FLATPLAY.md, "Pickups"): the engine's give
@@ -24,7 +25,7 @@ entity vr_ffx_item; // the pickup of this case
 
 float VR_FFX_GIVEUP = 8; // seconds a state may last
 float VR_FFX_HOLD_CASES = 6;
-float VR_FFX_WALK_CASES = 16;
+float VR_FFX_WALK_CASES = 20;
 
 void(float s, float frames) VR_FFX_To =
 {
@@ -64,7 +65,31 @@ entity(float xKind, vector xAt) VR_FFX_SpawnKind =
     else if(xKind == 12) { it.classname = "weapon_supershotgun"; weapon_supershotgun(); }
     else if(xKind == 13) { it.classname = "item_rockets"; item_rockets(); }
     else if(xKind == 14) { it.classname = "item_cells"; item_cells(); }
-    else                 { it.classname = "item_spikes"; item_spikes(); }
+    else if(xKind == 15) { it.classname = "item_spikes"; item_spikes(); }
+    else if(xKind == 16) { it.classname = "item_shells"; item_shells(); }  // (his shells full: it stays)
+    else if(xKind == 17) { it.classname = "item_health"; item_health(); }  // (his health full: it stays)
+    else if(xKind == 18) { it.classname = "item_health"; it.spawnflags = H_MEGA; item_health(); } // (over 100)
+    else // a backpack, as a monster drops it (DropBackpack: the armed grunts' too), put on his way at rest
+    {
+        entity d = spawn();
+        setorigin(d, xAt + '0 0 24');
+        d.ammo_shells = 20;
+        self = d;
+        DropBackpack();
+        self = oldself;
+        remove(d);
+        remove(it);
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(e.carry_use == BackpackTouch && e.ammo_shells == 20 && vlen(e.origin - xAt) < 64)
+            {
+                e.velocity = '0 0 0';
+                setorigin(e, xAt);
+                return e;
+            }
+        }
+        return world;
+    }
     self = oldself;
     return it;
 };
@@ -86,13 +111,18 @@ string(float xKind) VR_FFX_KindName =
     if(xKind == 12) { return "super shotgun"; }
     if(xKind == 13) { return "rockets"; }
     if(xKind == 14) { return "cells"; }
-    return "nails";
+    if(xKind == 15) { return "nails"; }
+    if(xKind == 16) { return "shells, his full"; }
+    if(xKind == 17) { return "health, his full"; }
+    if(xKind == 18) { return "megahealth"; }
+    return "backpack";
 };
 
 // Placed: PlaceItem has run and (an object's) VR_PickupObj_Place after it.
 float(entity xItem) VR_FFX_Placed =
 {
     if(xItem.think == PlaceItem) { return FALSE; }
+    if(xItem.carry_use == BackpackTouch) { return TRUE; } // (dropped, not placed: nothing to wait for)
     if(xItem.vr_pickup_obj) { return !!(xItem.flags & FL_FORCEGRABBABLE); } // (VR_PickupObj_Place sets it, its last word)
     return xItem.nextthink2 <= time; // (the plain box's AfterPlacement, if it has one)
 };
@@ -253,7 +283,10 @@ float(entity p, float xKind) VR_FFX_WalkGot =
     if(xKind == 12) { return !!(p.items & IT_SUPER_SHOTGUN); }
     if(xKind == 13) { return p.ammo_rockets > 0; }
     if(xKind == 14) { return p.ammo_cells > 0; }
-    return p.ammo_nails > 0;
+    if(xKind == 15) { return p.ammo_nails > 0; }
+    if(xKind == 16) { return p.ammo_shells > 100; }
+    if(xKind == 17 || xKind == 18) { return p.health > 100; }
+    return p.ammo_shells > 10;
 };
 
 // Nothing he could already be given by the walk.
@@ -290,6 +323,8 @@ void(entity p) VR_FFX_Walk =
             vr_ffx_from = p.origin;
         }
         VR_FFX_MakeBare(p);
+        if(vr_ffx_case == 16) { p.ammo_shells = 100; }
+        if(vr_ffx_case == 17 || vr_ffx_case == 18) { p.health = 100; }
         localcmd(sprintf("setpos %g %g %g 0 %g 0\n", vr_ffx_from_x, vr_ffx_from_y, vr_ffx_from_z, p.v_angle_y));
         VR_FFX_To(1, 4);
         return;
@@ -319,12 +354,10 @@ void(entity p) VR_FFX_Walk =
         {
             localcmd("-forward\n");
             float got = VR_FFX_WalkGot(p, vr_ffx_case);
-            // (Ammo and health lie on the floor as rigid boxes under his feet, and E is how they are taken: reported, not
-            // asked for. FLATPLAY.md, "Pickups".)
-            float isBox = vr_ffx_case == 7 || vr_ffx_case == 8 || vr_ffx_case >= 13;
-            if(isBox)
+            // (Full up of it, it stays: the box's own rules, as a headset hand's; his words 2026-11-05: "walk over all".)
+            if(vr_ffx_case == 16 || vr_ffx_case == 17)
             {
-                dprint(sprintf("flatitems: walked over the %s (a box): taken %g\n", VR_FFX_KindName(vr_ffx_case), gone));
+                VR_Test_Check(!gone && !got, sprintf("walked over the %s: left lying (taken %g)", VR_FFX_KindName(vr_ffx_case), gone));
             }
             else
             {
