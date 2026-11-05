@@ -90,6 +90,28 @@ void noteDrawn(const hands::State& s);
 // vr_flatplay_status's line: the ironsight, and where the free hand is.
 void statusLine();
 
+// vr_flat_sweep's row (vr_flatsweep.cpp): the free hand against the hotspot, the shot against the crosshair's point, the sights
+// against the ray. -1: doesn't apply to what is held.
+struct SweepNumbers
+{
+    int holding{-1};
+    bool hasSpot{false};
+    float lookShare{0.f};
+    bool lookFar{false};
+    float spotOff{-1.f};
+    float armHip{0.f};
+    float armSight{0.f};
+    float shotDeg{-1.f};
+    float shotApart{-1.f};
+    glm::vec3 shotPoint{0.f}; // what the crosshair is on, and where the shot's line stops
+    glm::vec3 shotStop{0.f};
+    float rearOff{-1.f};
+    float frontOff{-1.f};
+    float relief{0.f};
+    float adsT{0.f};
+};
+[[nodiscard]] SweepNumbers sweepNumbers(const hands::State& s);
+
 // Tests (vr_flatplay_debug 2, the move pass, next to flatplay::printMove): what the two parts did to this frame's shot.
 void print(const hands::State& s);
 

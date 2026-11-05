@@ -741,6 +741,10 @@ za::Vector<Item> pageDebugReports()
             .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "
                   "the gun, the sights. The hands and the shots are as he plays them. Flatscreen play only."),
         command("Flatscreen Back In His Eyes", "vr_flat_orbit").help("The view back in his eyes (`vr_flat_orbit` with no arguments)."),
+        command("Flatscreen Pose Sweep", "vr_flat_sweep menu")
+            .help("The look taken from straight up to straight down, standing and crouching, per weapon stance, hipfire and "
+                  "ironsight: one row a step in screenshots/flatsweep_menu.csv, with a picture at each end and level. It holds the "
+                  "view while it runs (some minutes). Misc/quakevr/flatsweep_check.py reads the rows. Flatscreen play only."),
         command("Flatscreen Sight Check", "vr_flat_sight_check")
             .help("The held gun's sight line as last drawn, against the view: how far each sight stands off the ray through the "
                   "crosshair, near and far, printed to the console. Flatscreen play only."),
