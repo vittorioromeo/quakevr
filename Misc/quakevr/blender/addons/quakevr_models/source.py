@@ -331,6 +331,31 @@ def append_frames(model, frames):
     tris = np.array([t[1:] for t in model.tris], np.int64)
     nv = model.num_verts
     radius = model.h[8]
+    # Normals: frame 0's, turned with the piece each vertex is on (its rigid motion from frame 0: the shading the model
+    # was made with, carried along); a piece that doesn't move keeps frame 0's bytes.
+    pose0 = model.pose_bytes()[0]
+    p0 = np.array([model.place(b) for b in pose0])
+    n0 = table[[b[3] for b in pose0]]
+    parent = list(range(nv))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b, c in tris.tolist():
+        parent[find(a)] = find(b)
+        parent[find(b)] = find(c)
+    first_at = {}
+    for v in range(nv):  # (the file splits vertices at seams: those at one place are one piece)
+        k = pose0[v][:3]
+        if k in first_at:
+            parent[find(v)] = find(first_at[k])
+        else:
+            first_at[k] = v
+    piece = np.array([find(v) for v in range(nv)])
+    pieces = [np.nonzero(piece == r)[0] for r in np.unique(piece)]
     for name, places in frames:
         if len(name) > 15:
             raise SourceError("frame name %s is longer than 15 characters" % name)
@@ -339,13 +364,12 @@ def append_frames(model, frames):
             raise SourceError("frame %s: %d vertices outside the model's box" % (name, int(((q < 0) | (q > 255)).any(1).sum())))
         q = q.astype(np.int64)
         g = org + q * sc
-        a, b, c = g[tris[:, 0]], g[tris[:, 1]], g[tris[:, 2]]
-        fn = np.cross(c - a, b - a)
-        fn /= np.maximum(np.linalg.norm(fn, axis=1), 1e-12)[:, None]
-        vn = np.zeros((nv, 3))
-        for k in range(3):
-            np.add.at(vn, tris[:, k], fn)
-        ni = np.argmax(vn @ table.T, axis=1)
+        ni = np.array([b[3] for b in pose0], np.int64)
+        for vs in pieces:
+            if np.abs(g[vs] - p0[vs]).max() <= 1e-6:
+                continue
+            R = mb.kabsch(p0[vs], g[vs]) if len(vs) >= 3 else np.eye(3)
+            ni[vs] = np.argmax((n0[vs] @ R.T) @ table.T, axis=1)
         vb = bytes(np.concatenate([q, ni[:, None]], 1).astype(np.uint8).ravel())
         hdr = bytes(int(x) for x in q.min(0)) + b"\0" + bytes(int(x) for x in q.max(0)) + b"\0" + \
             name.encode("latin-1").ljust(16, b"\0")

@@ -6108,9 +6108,10 @@ QVR_TOGGLE(vr_weapon_kick_cancel, "Take Out the Models' Own Kick",
 QVR_TOGGLE(vr_debug_draw_blend, "Print the Weapon Blends",
     "vr_debug_draw_blend: each frame of a hand's weapon blend (a draw, a force grab's catch, a pass between hands) "
     "printed to the console: what is left of it, where the gun is drawn and its real place.")
-QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 12.f, 1.f, "%.0f", noExt,
+QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 31.f, 1.f, "%.0f", noExt,
     "vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
-    "most), to look at a kick with and without the models' own (below 0: as the game steps them).")
+    "most), to look at a kick with and without the models' own, or at frames a source .blend's actions added "
+    "(below 0: as the game steps them).")
 QVR_SLIDER(vr_test_fling_speed, "Fling Speed", 1.f, 40.f, 1.f, "%.0f m/s", ext(), nullptr)
 QVR_CYCLE(vr_test_fling_at, "Fling At", nullptr,
     {0.f, "Nearest Monster"}, {1.f, "You"})

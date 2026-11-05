@@ -854,3 +854,38 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
   jump 48.6; lifted out onto the ledge). Jump-to-rise already worked before (48.6 both).
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
+
+## The shotgun as a source .blend (spike, branch `agent/blendsg`)
+
+His goal (BACKLOG, "Easier modelling and asset creation"): the weapons natively editable in Blender, Quake's animations
+kept. The shotgun first: `Misc/quakevr/src_models/blend/v_shot/` (v_shot.blend 300 KB, its skin PNG 85 KB, its relief
+PNG 2 KB) is now the source of `v_shot.mdl`, `vr_pump_on_v_shot.mdl`, `vr_pumpbody_on_v_shot.mdl` and their three
+normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` writes them (MODELS_IN_BLENDER.md, section 9).
+
+- **What it is built on:** the models add-on's import and export (mdl_blender.py), which already kept an unedited model
+  byte for byte. New: `source.py` (the build, the checks, the parts, frames baked from armature actions, the barrel
+  mask, the anchors' and hotspots' write-back to weapons.txt), `sights.py` (vr_sightalign.cpp's painted sight line in
+  Python), `blend_build.py`, `blend_export.py`.
+- **A fix on the way:** the add-on's anchor report read vr_weapons.inc's `QVR_WEAPON_DEFAULT` rows, gone since weapons.txt
+  (round 22): every weapon export reported "no slot uses" and checked no anchor. It reads weapons.txt now (mdl.py
+  `slot_table`, via weapons_data.py).
+- **The pump parts** are subsets of the gun's triangles (gunlooks.py's write_subset): the .blend marks each face's part
+  (`qvr_part`); of the 60 triangles that cover nothing (two corners welded: not faces in Blender, kept in the file in
+  place), 8 are in a part and keep it in a property (the other 52: the first ring, collapsed by split_auto_pump).
+- **Proof:** the untouched .blend exports all six files byte for byte (cmp: SAME x6); no rounding at all, since the
+  export keeps every unchanged vertex's, normal's and texel's bytes. The sight line from Python equals the game's
+  `vr_sight_lines` (rear 9.86 -0.05 6.54, front 32.52 -0.00 6.21, -0.84 deg up, 0.11 left).
+- **Round trip (not shipped):** a rivet moved 1.5 units, 42 faces' texels painted red (5503 texels changed), and an
+  armature on the pump with an action `pumpalt` (back 2.5 units, rolled 12 degrees, home: 6 frames) baked as frames
+  9-14 of the gun and of both parts. In the game: the skin shows, `vr_debug_weapon_frame` 11 and 13 draw the new pose
+  (17694 and 19808 pixels changed against frame 0, 36 for frame 0 against itself); the shot, the auto pump stroke and
+  the shell eject as before (start 0.18 s after the shot, back 2.50 units, home on time); `vr_weaponstudio_align`: the
+  sight line 0.80 deg from where it shoots, as shipped; flat ironsight `vr_flat_sight_check` 0.0005 deg.
+- **Appended frames' normals** are frame 0's turned with their piece (a rigid fit per connected piece), so the shading
+  the model was made with comes along; unmoved pieces keep frame 0's bytes.
+- **Hold the Weapon Frame** (Debug; `vr_debug_weapon_frame`) goes up to 31, for frames an action added.
+- **To try (headset):** nothing changes in the game (the shipped files are the same bytes). To try the workflow: open
+  the .blend in Blender 5.2 with the Quake VR Models add-on, move a rivet or paint the skin, save, run the export, then
+  `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
+- **Open:** a new action plays only through `vr_debug_weapon_frame` until QuakeC names its frames (`$frame` lines and a
+  `player_*` sequence); the plan for the other weapons is in MODELS_IN_BLENDER.md section 9.
