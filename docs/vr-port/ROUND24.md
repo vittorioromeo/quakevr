@@ -380,3 +380,31 @@ view for a single frame at a random moment, the magazine's state unconnected (a 
 run has it elsewhere or not at all): it looks like the low-impact screenshot's readback, not the game; worth a look only if it shows in VR.
 
 **Checklist line:** Nail pistol magazine: B/Y slides it smoothly out of the grip, then it pops outward, carrying some of your hand's motion; a new one slides home up the grip, and the other magazine guns seat with a short slide; all right with the gun tilting and turning. {test:nailpistol}
+
+## Flat-screen: the assertion, walking over armour, the view through teleporters (agent/flatfix, 2026-11-05)
+
+No checklist lines (flat-screen rule). FLATPLAY.md has the behaviour ("Pickups", "The console's give", "Teleporters").
+
+**1. The assertion ("I grabbed armor in my left hand with a shotgun in my right hand... shooting").** Not the armour. Through
+the real path (map spawn function, E, 2, +attack, RMB too; his config and the test baseline, ironsight on, grunts firing,
+armour, key, suit, rune, shells, health) a held pickup never reaches it: the hand holding it is a fist, ammo id 0, and every
+reader guards that. The one route found to that line from a shot: the engine's `give` wrote a count into `.currentammo`, the
+main hand's ammo id; with the shotgun (weapon 4 = `IT_NAILGUN`) `give n 40` leaves 40 (`give_flat`: 3 assertions in 3 shots,
+as his line). That reaches a shot only with no magazine: every flat-screen shot; a headset's with `vr_reload_mode 0`, so the
+bug is shared and the fix is the engine's. **Not proved that his session used give**: Debug > Tests' "Shotgun in the Off
+Hand" and its kin do (`give s 40`), and so does the console. If it comes back with no give, the assertion's stack is wanted.
+
+**2. Walking over armour.** `VRHandsTracked` answers yes for a flat-screen player, so the "walking does not take it" rule
+meant for tracked hands caught him. What the walk does now, each by `vr_flatitems_test 2`: armour (all three), keys, biosuit,
+rune, super shotgun, quad, pentagram, ring taken (weapons and powerups had no gap: they were taken before too). Ammo and
+health boxes are not taken by walking (rigid boxes; E takes them): listed, not changed, his call. E on armour or a key now
+takes it at once as E on a box does.
+
+**3. The view through a teleporter.** See FLATPLAY.md. Measured (`flatgate_test.sh`): pitch through a gate 25, -20, 30, -40
+kept exactly (it was reset to 0); yaw turned by the gate's 0, 90 and 135 alone, off by 0.00; walking on the way he looks, off
+by 1 degree or less; a turning view through a 90 gate: the step off by 0.005 degrees. The gun's largest step in the camera's
+frame at a crossing was 708 units (a blink), now 0.1 at a fresh gate; up to 9.5 for a frame while the walk's sway still runs,
+gone in 0.15 s.
+
+Noticed, not changed: E searches along the free hand (`VR_Forcegrab_FindTarget`), and an empty hand hangs 60 degrees down, so
+at a level view E does not look where the crosshair is; FLATPLAY.md says it does.

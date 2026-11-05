@@ -257,7 +257,10 @@ void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, i
     setVec(ent->v.velocity, sd.turn * vec(ent->v.velocity));
     const float* head = server::clientHeadAngles(ent);
     const float yaw = (head ? head[YAW] : ent->v.v_angle[YAW]) + sd.yaw;
-    ent->v.angles[PITCH] = ent->v.angles[ROLL] = 0.f;
+    // (A headset's view is its own, this only faces the play space. A flat-screen player's view IS this: the pitch he looks
+    // at stays. His own client goes on from the view it has, VR_FlatPortalAngle; this is for a client on another machine.)
+    ent->v.angles[PITCH] = progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f ? ent->v.v_angle[PITCH] : 0.f;
+    ent->v.angles[ROLL] = 0.f;
     ent->v.angles[YAW] = anglemod(yaw);
     ent->v.v_angle[YAW] = anglemod(ent->v.v_angle[YAW] + sd.yaw);
     ent->v.fixangle = 1;

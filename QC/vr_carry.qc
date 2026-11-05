@@ -1521,7 +1521,10 @@ float(float xHand, entity xBox) VR_Carry_AutoCollect =
     {
         mode = 1;
     }
-    if(!mode || xBox.carry_autotried || xBox.carry_2h || !VR_Carry_IsCollectable(xBox, mode >= 2))
+    // ... and armour, a key, a rune, a suit: no torso to let go over, no holster to reach for on the screen, so what E takes
+    // goes on at once too (armor_touch's own rules: not better than his, it stays in the hand, G lets it go).
+    float flatObject = VR_FlatPlay(self) && xBox.model != string_null && xBox.vr_pickup_obj && xBox.vr_pickup_obj != QVR_PICKUPOBJ_WEAPON;
+    if(!mode || xBox.carry_autotried || xBox.carry_2h || (!flatObject && !VR_Carry_IsCollectable(xBox, mode >= 2)))
     {
         return FALSE;
     }

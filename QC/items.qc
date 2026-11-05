@@ -564,7 +564,7 @@ void(string xModelName, float xWait) impl_equipment_item =
 // - a weapon: gripped, it is the weapon in that hand at once (weapon_touch), as a thrown one is;
 //   touched without a grip it is knocked loose;
 // - the rest: carried and let go of at a holster (VR_PickupObj_Holster), never with the trigger.
-// Walking over them no longer takes them (for a player with tracked hands; weapons: as before with
+// Walking over them no longer takes them (for a headset player's tracked hands; weapons: as before with
 // vr_body_interactions); bots and flat-screen players still take them by touch. The powerups (quad,
 // pentagram, ring, the mission packs' shields, belt, sphere) are unchanged. Off (vr_armor_wear 0,
 // vr_item_objects 0 or vr_carry 0): touching takes them, as before (which kind: next map).
@@ -843,8 +843,9 @@ void() VR_PickupObj_Handtouch =
     if(other.classname == "player" && VRIsTouchingHandFake(other))
     {
         // Walking over it does not take it, but a weapon (with vr_body_interactions, as before);
-        // bots and flat-screen players still take them.
-        if(other.ishuman && VRHandsTracked(other) && self.vr_pickup_obj != QVR_PICKUPOBJ_WEAPON)
+        // bots and flat-screen players still take them (VRHandsTracked alone says yes for a flat-screen player: the
+        // client marks his posed hands tracked, so armour, keys and suits were left lying under his feet).
+        if(other.ishuman && VRHandsTracked(other) && !VR_FlatPlay(other) && self.vr_pickup_obj != QVR_PICKUPOBJ_WEAPON)
         {
             return;
         }

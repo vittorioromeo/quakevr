@@ -112,6 +112,33 @@ menu's Item Pickup Mode; for a player in the mode it counts as at least 1 â€�
 (backpacks are mode 2's) â€” whatever he has saved, since there is no hand-to-hand step on the screen to confirm a pickup. The
 cvar itself is never written, so a headset player on the same save keeps what he set.
 
+**Pickups: walked over, or taken with `E`.** A flat-screen player has no torso to let armour go over and no holster to reach
+for, so what those gestures take goes on by touch (`VR_PickupObj_Handtouch`, `QC/items.qc`: the headset's "walking over it
+does not take it" asks `VR_FlatPlay` as well as `VRHandsTracked`, because the client marks his posed hands tracked). Walked
+over, armour, keys, the biosuit and the wetsuit, runes, powerups and weapons are taken, under their own rules (`armor_touch`:
+only better than what he wears). `E` on any of them is taken at once too, as a box is (`VR_Carry_AutoCollect`). What cannot
+be taken (armour no better than his, a box when full) stays in the hand; `G` lets it go, and a shot from the other hand is
+not affected. Ammo and health boxes are not taken by walking over them: they lie as rigid boxes and `E` is how they are
+taken. Test: `bash Misc/quakevr/flatitems_test.sh <agent>` (`vr_flatitems_test 1..5`, Debug > Tests > Flat Items);
+`vr_flatitems_test 4` is the plates before and after from the front (`vr_flat_orbit 180 70`).
+
+**The console's `give` keeps the ammo id.** `Host_Give_f` (`Quake/host_cmd.c`) ends by writing the new ammo *count* into
+`.currentammo` for the classic status bar, by `.weapon` taken as an `IT_` bit. In the VR progs `.currentammo` is the main
+hand's ammo *id* (`AID_*`) and `.weapon` a weapon id (the shotgun, 4, is `IT_NAILGUN`), so `give n 40` with the shotgun in
+hand left "ammo id 40", and the next shot that updates the counters asked for it:
+`VR_AmmoUtil_GetAmmoCountByAmmoId`'s assertion. A shot updates the counters when the gun has no magazine: every shot in
+flat-screen play, and a headset's with `vr_reload_mode 0`. The switch is skipped for the VR progs (the field `ammocounter`).
+
+**Teleporters.** Walking through a seamless teleporter (`crossPlayer`, `Quake/vr/vr_portals_gates.cpp`) the server sends an
+angle: its pitch level, its yaw from a move a tick old. A headset's view is its own and only the play space turns by it; a
+flat-screen player's view *is* that angle, so his look was reset at every gate. Now his client goes on from the view it has,
+turned by the gate alone (`VR_FlatPortalAngle`, called from `svc_setangle` in `Quake/cl_parse.c`), and for a client on
+another machine the server sends a flat-screen player's own pitch. The turn is not his, so neither the turn's lag nor the
+sway's velocity kick takes it. The arm's hold (`vr_flat_arm_hold`) uses the pose's shoulder in the frame the body jumped: the
+shoulder as last drawn was still in the room he left, and it held the gun there for that frame (708 units off, a blink). A
+plain teleporter (`vr_portals_walk 0`, a map's non-seamless one), a level's start and a respawn have no crossing and are set
+as sent. Test: `bash Misc/quakevr/flatgate_test.sh <agent>` (`vr_flatgate_test 1..3`, Debug > Tests > Flat Gate).
+
 **Crouching (Left Ctrl).** `pollKeysFlat` (`Quake/vr/vr_flatplay.cpp`) reads Left Ctrl with `E`, `F` and `G` and eases one
 number from 0 to 1 over `vr_flat_crouch_time`; `+flatcrouch` and `-flatcrouch` hold and release it from the console. That
 number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off `r_refdef.vieworg` (`Quake/view.c`), and
