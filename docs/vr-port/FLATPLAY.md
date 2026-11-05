@@ -376,3 +376,7 @@ model's bones with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder'
 What is left of the pose's own
 numbers (how far a punch throws the fist, how long it takes, how the arm's hold is measured) are named constants at the top
 of `vr_flatplay.cpp`, and the sight's (`vr_flatsight.cpp`).
+
+## The model FOV
+
+`vr_flat_model_fov` (0: off) draws the player's own models at their own field of view. It is looks only: see `flatplay::modelFov` in `vr_flatplay.hpp` and ROUND24.md for what follows it and what does not.

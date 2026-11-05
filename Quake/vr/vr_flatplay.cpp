@@ -33,9 +33,11 @@
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
+#include "vr_stereo.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
@@ -53,6 +55,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+
+#include <math.h>
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 
@@ -1239,6 +1243,39 @@ void printDrawn(const float* origin, const float* angles)
         off.x, off.y, off.z, keepNear());
 }
 
+struct ModelFovBatches
+{
+    long long drawn{0};
+    long long inEye{0};
+} modelFovBatches;
+
+// The model FOV's numbers, and each part's distance from the eye as posed: what vr_flat_model_fov_near and _far are set from.
+void modelFovStatus()
+{
+    const ModelFov f = modelFov();
+    Con_Printf("  model fov: %g, scale %.3f, in full to %.1f, none past %.1f; %lld batches drawn, %lld in a headset's eye\n",
+        vr_flat_model_fov.value, f.numbers.x, f.numbers.y, f.numbers.z, modelFovBatches.drawn, modelFovBatches.inEye);
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const hands::State& s = hands::current();
+    avatar::Skeleton b;
+    if(!avatar::skeleton(b))
+    {
+        Con_Printf("  model fov: the body is not posed\n");
+        return;
+    }
+    const auto far2 = [&eye](const glm::vec3 (&p)[2]) { return za::max(glm::distance(eye, p[0]), glm::distance(eye, p[1])); };
+    const auto near2 = [&eye](const glm::vec3 (&p)[2]) { return za::min(glm::distance(eye, p[0]), glm::distance(eye, p[1])); };
+    Con_Printf("  from the eye: muzzle %.1f %.1f; shoulder %.1f..%.1f; elbow %.1f..%.1f; wrist %.1f..%.1f\n",
+        s.muzzleValid[0] ? glm::distance(eye, s.muzzle[0]) : 0.f, s.muzzleValid[1] ? glm::distance(eye, s.muzzle[1]) : 0.f,
+        near2(b.shoulder), far2(b.shoulder), near2(b.elbow), far2(b.elbow), near2(b.wrist), far2(b.wrist));
+    if(b.legs)
+    {
+        Con_Printf("  from the eye: hip %.1f..%.1f; knee %.1f..%.1f; ankle %.1f..%.1f; toe %.1f..%.1f\n", near2(b.hip), far2(b.hip),
+            near2(b.knee), far2(b.knee), near2(b.ankle), far2(b.ankle), near2(b.toe), far2(b.toe));
+    }
+}
+
 void status_f()
 {
     Con_Printf("flatscreen play: -flatscreenmode %s, a headset session %s, the mode %s\n", fs.flag ? "given" : "not given",
@@ -1302,6 +1339,7 @@ void status_f()
     Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
                "game).\n");
     flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)
+    modelFovStatus();
 }
 
 // vr_flat_punch [main|off]: a hand's punch, driven from the console (the tests' button: V and the mouse buttons cannot
@@ -1330,6 +1368,31 @@ void punch_f()
         return;
     }
     startPunch(h, "vr_flat_punch");
+}
+
+void noteModelFovBatch()
+{
+    modelFovBatches.drawn++;
+    modelFovBatches.inEye += stereo::isRenderingEye() ? 1 : 0;
+}
+
+ModelFov modelFov()
+{
+    ModelFov f;
+    if(vr_flat_model_fov.value <= 0.f || !active())
+    {
+        return f;
+    }
+    constexpr float halfDegree = static_cast<float>(M_PI) / 360.f;
+    const float nearest = za::max(0.f, vr_flat_model_fov_near.value);
+    f.numbers.x = tanf(r_refdef.basefov * halfDegree) / tanf(za::clamp(vr_flat_model_fov.value, 10.f, 170.f) * halfDegree);
+    f.numbers.y = nearest;
+    f.numbers.z = za::max(nearest + 1.f, vr_flat_model_fov_far.value);
+    glm::vec3 right, up;
+    gfx::sceneCamera(f.eye, right, up);
+    const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    f.axis = {viewProjection[0][3], viewProjection[1][3], viewProjection[2][3]}; // (the row that makes w: the view's depth)
+    return f;
 }
 
 } // namespace qvr::flatplay

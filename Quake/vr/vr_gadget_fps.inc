@@ -412,6 +412,6 @@ void drawFps()
     // Not depth tested: over the other hand, as the hologram.
     gfx::draw(fps.quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-            .params = {fps.time, 0.35f * za::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), 0.5f}},
+            .params = {fps.time, 0.35f * za::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), 0.5f}, .flatModelFov = true},
         fpsTarget.texture);
 }

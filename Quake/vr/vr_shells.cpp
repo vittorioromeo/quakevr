@@ -860,6 +860,18 @@ void prepare()
     }
 }
 
+bool isCasing(const entity_t* e)
+{
+    for(const Shell& s : shells)
+    {
+        if(&s.ent == e)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void clear()
 {
     for(Shell& s : shells)

@@ -193,6 +193,16 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Verified:** `gunlooks_check: 68 passed, 0 failed` (faces of 0.5+ square units and 6+ texels wide: shotgun 4.8-6.5 texels a unit, limits 3.9-7.5, stretch at most 1.28, limit 1.7; none of 934 faces of 8+ texels in one colour; moving places none new: 55 parts' vertices on the shotgun as before; nail 232 places as before, more vertices only as copies). `autopump_test.sh`: 7 passed, 7 failed, the same seven on the old models (shell timing; not from this). `vr_menu_path_check` not touched.
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/gunlooks/shotgun_before_after.png`, `nailgun_before_after.png` (`r_fullbright 1` for neutral light).
 
+## Flatscreen model FOV (agent/flatfov)
+
+- **Settings:** `vr_flat_model_fov` (default 0, off), `_near` 18, `_far` 35, under Debug > Tunables > Flatscreen > Model FOV. `flatplay::modelFov`, shader `FlatFovPoint` (`vr_flatfov_glsl.h`). `vr_flatplay_status` prints the scale, each part's distance from the eye and the batch counts.
+- **Near and far are measured** (`vr_flatplay_status`, shotgun, standing, e1m1): elbows to 16.5, hipfire muzzle to 17.5, hips 22.3, knees 34.7, ankles 47.1, toes 48.1. A sighted muzzle is at 26 but on the axis, where the scale moves nothing. Other guns were not measured.
+- **Alias shader:** the point is chosen before the one multiply; light tiles, fog and shadows keep the true place. `Motion.z` marks the instance, `VR_FlatModelFovEntity` picks hands, body, held, holstered, worn, casings and the held prop. Shadow maps never (`aliasdepth`).
+- **Temporal AA does not run here:** with `vr_taa 1`, 0 of 200 batches were inside a headset's eye, and motion is collected only there.
+- **Mapped:** muzzle flash, casings, attachments, wounds, hot barrels (the alias path); tracers, wisps, the flashlight's lens and cone, the gadget, ammo screens with their bezels and glows, lines (laser, arcs), cords and hoses, all particles (by distance: a particle has no owner).
+- **Not mapped:** bullet-time trails, ropes, lying particles, non-screen `text3d::queue` text (only with `vr_weapon_screen` 0). Decals and outlines never land on his own models.
+- **Off against before:** not bit-identical between runs on either build. Base against itself: up to 767 pixels, max 29, on the gun's edges; base against off: up to 597, max 29, same place. The wall scene: 0 and 1 pixels.
+- **Side effects to judge:** a model FOV wider than the sight's world FOV shrinks the sight picture (0.91 at 75, 0.70 at 90, world 110). Looking down, the near body moves out further than what is behind it, so his floor shadow and a holstered gun show.
 ## Shotgun and nailgun looks, second pass (branch `agent/gunlooks2`)
 
 The author's notes on the first pass ("the new nailgun is an improvement in some areas, but large downgrade in other areas"). The first pass kept one mean colour per triangle and repainted everything from one metal recipe, which lost the guns' materials and their painted detail.

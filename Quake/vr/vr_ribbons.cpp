@@ -130,7 +130,7 @@ void draw(za::Span<const gfx::Vertex> triangles, bool additive)
     // no denser (it was: creases); vr_debug_ribbon_overlap 1 blends them again, to compare.
     gfx::draw(triangles, gfx::sceneViewProjection(),
         gfx::State{.shade = gfx::Shade::SoftEdge, .blend = additive ? gfx::Blend::Additive : gfx::Blend::Alpha, .depthTest = true,
-            .depthWrite = false, .once = vr_debug_ribbon_overlap.value == 0.f});
+            .depthWrite = false, .once = vr_debug_ribbon_overlap.value == 0.f, .flatModelFov = true}); // (his guns' wisps)
 }
 
 } // namespace qvr::ribbons
