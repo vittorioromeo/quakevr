@@ -1132,6 +1132,51 @@ static void check_f()
         glm::length(toShoulder), flatplay::armReach());
 }
 
+SweepNumbers sweepNumbers(const hands::State& s)
+{
+    SweepNumbers n;
+    n.holding = st.holding;
+    n.relief = st.relief;
+    n.adsT = st.adsT;
+    if(st.holding >= 0 && st.helping >= 0 && st.spot[st.holding] >= 0)
+    {
+        n.hasSpot = true;
+        n.lookShare = lookShare(st.helping);
+        n.lookFar = st.lookFar;
+        n.armHip = st.armHip;
+        n.armSight = st.armSight;
+        n.spotOff = st.drawnKnown ? glm::distance(st.drawnLocal, st.spotLocal[st.holding]) : -1.f;
+    }
+    const int g = st.holding >= 0 ? st.holding : HAND_MAIN;
+    if(aimsAtPoint(s, g))
+    {
+        const glm::vec3 viewAim = geom::vec(cl.viewangles);
+        glm::vec3 org, dir;
+        flatplay::crosshairRay(s, viewAim, org, dir);
+        const glm::vec3 point = crosshairPoint(s, viewAim);
+        const glm::vec3 m = muzzleNow(s, g);
+        const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[g], flatplay::heldIn(g), g == HAND_OFF));
+        const glm::vec3 stop = lineStop(m - shot * glm::distance(m, s.pos[g]), m + shot * aimFar);
+        const glm::vec3 toPoint = glm::normalize(aimTarget(org, dir, point, m) - m);
+        n.shotDeg = glm::degrees(za::acos(za::clamp(glm::dot(shot, toPoint), -1.f, 1.f)));
+        n.shotApart = glm::distance(stop, point);
+    }
+    view::WeaponFrame wf;
+    if(view::weaponFrame(s, g, wf))
+    {
+        const sightalign::SightLine line = sightalign::sightLine(wf.model);
+        if(line.valid)
+        {
+            const glm::vec3 cam = geom::vec(r_refdef.vieworg);
+            const glm::vec3 dir = axesOf(geom::vec(r_refdef.viewangles)) * sightDir();
+            float deg = 0.f;
+            offTheRay(cam, dir, glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}}, n.rearOff, deg);
+            offTheRay(cam, dir, glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}}, n.frontOff, deg);
+        }
+    }
+    return n;
+}
+
 } // namespace qvr::flatsight
 
 // gl_screen.c (VR_FlatAdsFov, vr_api.h): the flatscreen FOV, narrowed while the ironsight is on. Off, or outside the

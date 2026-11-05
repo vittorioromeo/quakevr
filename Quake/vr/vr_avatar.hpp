@@ -218,6 +218,11 @@ struct Skeleton
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
 
+// The drawn body as last posed, skinned here as the shader does (world units, the eye views' collapsed neck and head), for a
+// test (vr_flat_sweep): the vertices, three indices a triangle, and per triangle its part: 0 the torso and legs, 1 the neck and
+// head, 2 an arm or hand. Costs a walk of the whole mesh. False when the body is not posed.
+[[nodiscard]] bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts);
+
 // Not drawn this frame.
 void hide();
 

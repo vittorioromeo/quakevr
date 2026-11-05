@@ -1670,6 +1670,76 @@ bool skeleton(Skeleton& out)
     return true;
 }
 
+bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts)
+{
+    verts.clear();
+    tris.clear();
+    parts.clear();
+    if(!posed.ent || !posed.ent->model || posed.ent->model->type != mod_alias)
+    {
+        return false;
+    }
+    qmodel_t* const model = posed.ent->model;
+    const ModelInfo* const info = infoOf(model);
+    if(!info || !info->usable)
+    {
+        return false;
+    }
+    const glm::vec3 origin = geom::vec(posed.ent->origin);
+    za::Array<unsigned char, JointCount> partOfBone{};
+    for(int j = 0; j < JointCount; j++)
+    {
+        const char* const name = jointNames[j];
+        partOfBone[info->boneOf[j]] = j == Neck || j == Head ? 1
+            : strstr(name, "arm") || strstr(name, "hand") || strstr(name, "wrist") || strstr(name, "twist") ? 2 : 0;
+    }
+    for(const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model)); hdr;
+        hdr = Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))
+    {
+        if(hdr->poseverttype != aliashdr_t::PV_IQM)
+        {
+            continue;
+        }
+        const unsigned base = static_cast<unsigned>(verts.size());
+        const auto* v = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+        const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+        za::Vector<unsigned char> vertPart;
+        for(int i = 0; i < hdr->numverts_vbo; i++)
+        {
+            glm::vec3 p{0.f};
+            int weightOf[3]{0, 0, 0};
+            for(int w = 0; w < 4; w++)
+            {
+                if(v[i].weight[w] == 0)
+                {
+                    continue;
+                }
+                const float* m = &posed.skin[v[i].idx[w] * 12];
+                const float share = static_cast<float>(v[i].weight[w]) / 255.f;
+                for(int row = 0; row < 3; row++)
+                {
+                    p[row] += share * (m[row * 4] * v[i].xyz[0] + m[row * 4 + 1] * v[i].xyz[1] + m[row * 4 + 2] * v[i].xyz[2] + m[row * 4 + 3]);
+                }
+                weightOf[partOfBone[v[i].idx[w]]] += v[i].weight[w];
+            }
+            verts.pushBack(origin + p * posed.scale);
+            vertPart.pushBack(weightOf[1] >= 127 ? 1 : weightOf[2] >= 127 ? 2 : 0);
+        }
+        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+        {
+            tris.pushBack(base + idx[i]);
+            tris.pushBack(base + idx[i + 1]);
+            tris.pushBack(base + idx[i + 2]);
+            int count[3]{0, 0, 0};
+            count[vertPart[idx[i]]]++;
+            count[vertPart[idx[i + 1]]]++;
+            count[vertPart[idx[i + 2]]]++;
+            parts.pushBack(count[1] >= 2 ? 1 : count[2] >= 2 ? 2 : 0);
+        }
+    }
+    return !tris.empty();
+}
+
 void hide()
 {
     posed.ent = nullptr;

@@ -33,6 +33,7 @@
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
@@ -875,6 +876,7 @@ void init()
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
     Cmd_AddCommand("vr_flat_punch", punch_f);
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
+    flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -883,6 +885,7 @@ void frame()
 {
     const bool on = active();
     Cvar_SetValue("vr_flatplay", on ? 1.f : 0.f);
+    flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
 
     if(on && !fs.announced)
