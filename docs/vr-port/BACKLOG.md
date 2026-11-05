@@ -5,37 +5,21 @@ Retired items are in git history (last cleanup 2026-11-05).
 
 ## Proposed order (2026-11-05, waiting on his OK)
 
-1. **Fixes:** small and visible, one batch. Lightning on water first (a regression), then the pump vertex, the super
-   nailgun's grip, shoves off ledges, crate grips, chain stretch, the turned teleporter's bound.
+1. **Fixes:** done 2026-11-05.
 2. **The 1.1 release:** release pass (QUEUE.md), lower-end presets, a VR Tracy capture. Only on his word.
 3. **Flat-screen:** per-weapon pose, then procedural reloads, then the hotkey audit, the window's graphics, recorded motions.
 4. **Armed humanoids** (the key feature): a smarter second-weapon pickup, the enforcer's real backpack, a design study
-   for crouching and crawling; then nail pistol pickups, gremlins, AD's humanoids and their packs.
+   for crouching and crawling; then gremlins, AD's humanoids and their packs.
 5. **Combat feel:** burn marks, hit-confirm audio, arena banners, magazines sliding home, crossed-sword parry, wounded
    monsters; embedded blades (finish, then props) and the active ragdoll research as larger pieces.
-6. **Weapons and content:** AD guns' models and own weapons, bloody shotguns, reliefs, player armour parity, ammo type
+6. **Weapons and content:** AD guns' models and own weapons, bloody shotguns, reliefs, ammo type
    from the magazine, AD inventory.
 7. **Refactors, right after 1.1:** formatting, Ironwail extraction, design review P3/P6/P8/P9/P10 (QUEUE.md).
 8. **Big features, each needing its own decision:** multiplayer, modelling formats and glTF, seated play, player
    crawling, pillar climbing, TAA/DLSS, platforms, bHaptics.
 9. **Performance and parked items:** only when a capture makes one the top cost, or when a player hits it.
 
-Needs his decision: nail pistols as map pickups, player armour parity, pickup thinks, heart gib and berserk pack, TAA/DLSS.
-
-## 1. Fixes
-
-- **Lightning on water** (Vittorio, 2026-11-05): lightning shot into water (Mjolnir hit, thunderbolt, Shambler) should electrify the water's surface with lightning bolt effects. It used to work and seems to have stopped at some point: investigate.
-- **Shotgun pump wobbles a stray vertex** (Vittorio, 2026-11-05): the pumping animation while firing moves one unrelated vertex close to the stock, so it wobbles during firing; most noticeable in flat-screen mode.
-- **Super nailgun's 2H grip follows the barrel** (Vittorio, 2026-11-05): the aiming grip hotspot makes the hand move a little with the barrel's rotation. Fix it, or add a hotspot flag that keeps the hand still by ignoring the animation frames and assuming frame 0.
-- **Shoves off ledges look too perfect** (Vittorio, 2026-11-05): whatever the force, humanoids get exactly the force that makes them fall, every time. Better: the shove keeps some backpedalling, rather than flying off without touching the ground, and looks less perfect, while still shoving enemies off ledges reliably.
-- **Close two-hand crate grips pull one hand in** (gripfit2; open since the 1.1 plan, 2026-10-23).
-- **Magnetic holster chain stretches on fast swings** (magchain2: worst piece 78 %; more iterations don't fix it).
-
-### A turned teleporter's exit bound (HITZONES_AND_PORTAL_REVIEW_2026-10-04, open P3; the review removed 2026-10-09)
-
-The body carried through a gate is checked at the destination with an axis-aligned bound (`vr_portals.cpp`, the
-destination body bound), so a gate turned by a non-cardinal angle can block a narrow exit that the body would fit
-through. A bound turned with the gate (or a box test in the gate's frame) would fix it.
+Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
 
 ## 2. The 1.1 release
 
@@ -85,8 +69,6 @@ pack a frame): each wearer costs a little.
 ### More kinds and stances
 
 - **Crouching and crawling armed humanoids** (Vittorio, 2026-11-05): think about what it would take. A shot leg could cripple them; both legs make them crawl while still shooting or attacking, or retreat if unarmed. Find a generic way that works with all humanoids without tweaking each animation by hand; the humanoid IK must look good crouching and crawling, and their aim must hit the target in any stance. Also consider leaning left and right near corners, and forward and back near vertical ledges, for a better view of the target.
-- Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.
-  - Also consider flare guns and heavy revolvers.
 - **Gremlins as armed humanoids** (Vittorio, 2026-11-02): Scourge of Armagon's gremlin already steals the player's weapon and fires it, so an armed gremlin fits its character: a small body with a full-size gun. Check its rig and hands first (a kind's fit on the grunt's keys may not carry over).
 
 ## 5. Combat and feel
@@ -161,7 +143,6 @@ ML at runtime. Borrow ideas only unless noted. Not started.
 
 ### Weapons and armour
 
-- **Player armour parity** (Vittorio, 2026-10-28, from the armed humanoids' armour plan: C:\OHWorkspace\qvr-kit\scratch\research_agarmor.md, question 8): once armed humanoids wear generated per-limb plates (helmet, cuirass, pauldrons, bracers, thighs, shins), consider giving the player the same plates fitted to the player body (the generator can fit vrbody too), instead of the armour painted on the body skin; per-piece damage for the player too? Decide after the humanoids' armour ships.
 - **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
