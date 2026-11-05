@@ -299,6 +299,15 @@ The author's two mockups as a guide (textures that fit the geometry, no flat fac
 - **Not mapped:** bullet-time trails, ropes, lying particles, non-screen `text3d::queue` text (only with `vr_weapon_screen` 0). Decals and outlines never land on his own models.
 - **Off against before:** not bit-identical between runs on either build. Base against itself: up to 767 pixels, max 29, on the gun's edges; base against off: up to 597, max 29, same place. The wall scene: 0 and 1 pixels.
 - **Side effects to judge:** a model FOV wider than the sight's world FOV shrinks the sight picture (0.91 at 75, 0.70 at 90, world 110). Looking down, the near body moves out further than what is behind it, so his floor shadow and a holstered gun show.
+
+### Model FOV, second pass (agent/flatvm)
+
+His notes at fov 70: the heavy revolver stayed at model FOV 70; with a model FOV above the world's, a horizontal line with the viewmodel darker below it, every weapon.
+
+- **Revolver:** in a hand it is drawn as its parts (`rvFrame`, `rvCrane`, `rvCyl`, `rvShell`: setupRevolverParts), and `view::drawGroup` had no range for them: VR_DRAW_OTHER, so `VR_FlatModelFovEntity` left them at the world's FOV (the hand under it shrank). Now VR_DRAW_HELD; a `static_assert` checks the ranges count every member of `Entities`.
+- **Dark line:** the alias shader reads the light tiles at a part's true place (as it should), but a model FOV wider than the world's draws on the screen parts whose true place is off it: the tile coordinate is out of range, and an out-of-range `imageLoad` reads no lights. The line is where the true place leaves the screen (at s = tan(fov/2) / tan(model fov/2) of the way to the edge). `ModelDynamicLights` (vr_glsl_alias.h) now takes every light off the tiles, each tested by its reach as before: exact, and only those pixels pay.
+- **Test:** `bash Misc/quakevr/flatfov_test.sh <agent> [label] [wids]` (flatfov_check.py): fov 70, the world hidden, `_near` 200 / `_far` 201 so the model-FOV-M frame is the 70 frame shrunk round the middle; 21 weapons (1-18, 29-31) at 70, 90, 110, the chest flashlight on and off. Size: IoU against the shrunk 70 frame, at least 0.80 (revolver before 0.575 / 0.393, after 0.91 / 0.87; the lowest 0.85, the nail pistol at 110). Light: the share of lit pixels past the line against inside, at least a quarter (before: 0.000-0.003 lit past the line on every judged weapon, 0.6-1.0 inside; after 0.50-1.00 past it). Before 42 passed, 38 failed; after 80 passed, 0 failed. The nailgun (inside barely lit) and crowbar (too few pixels) are not judged for light.
+- **Suites:** flatsweep 397 passed, 13 known, 0 failed; flatplay_test.sh 31 PASS, 0 FAIL (exit 0).
 ## Shotgun and nailgun looks, second pass (branch `agent/gunlooks2`)
 
 The author's notes on the first pass ("the new nailgun is an improvement in some areas, but large downgrade in other areas"). The first pass kept one mean colour per triangle and repainted everything from one metal recipe, which lost the guns' materials and their painted detail.
