@@ -2,6 +2,7 @@
 // monsters and what flies, the split body, unsticking), the AI's images and routes through gates, pulls and tosses.
 
 #include "vr_portals_internal.hpp"
+#include "vr_testkit.hpp"
 
 using namespace qvr;
 
@@ -470,20 +471,9 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     vec3_t from{a.x, a.y, a.z}, to{stop.x, stop.y, stop.z};
     float sourcePlane[4]{sd.normal.x, sd.normal.y, sd.normal.z, sd.dist};
     trace_t source = SV_MovePortalHalf(from, boxLo, boxHi, to, type, ent, sourcePlane);
-    const glm::vec3 destStart = carried(sd, a), destEnd = carried(sd, stop);
-    glm::vec3 destLo{1e9f}, destHi{-1e9f};
-    for(int c = 0; c < 8; c++)
-    {
-        const glm::vec3 offset = sd.turn * glm::vec3{(c & 1) ? boxHi[0] : boxLo[0], (c & 2) ? boxHi[1] : boxLo[1],
-                                                     (c & 4) ? boxHi[2] : boxLo[2]};
-        destLo = glm::min(destLo, offset);
-        destHi = glm::max(destHi, offset);
-    }
     const glm::vec3 ahead = sd.turn * -sd.normal;
-    float destPlane[4]{ahead.x, ahead.y, ahead.z, glm::dot(ahead, sd.to)};
-    vec3_t da{destStart.x, destStart.y, destStart.z}, db{destEnd.x, destEnd.y, destEnd.z};
-    vec3_t dlo{destLo.x, destLo.y, destLo.z}, dhi{destHi.x, destHi.y, destHi.z};
-    trace_t dest = SV_MovePortalHalf(da, dlo, dhi, db, type, ent, destPlane);
+    const float destPlane[4]{ahead.x, ahead.y, ahead.z, glm::dot(ahead, sd.to)};
+    trace_t dest = destHalf(sd, carried(sd, a), carried(sd, stop), boxLo, boxHi, type, ent, destPlane);
     const bool destHit = dest.fraction < source.fraction;
     *trace = destHit ? dest : source;
     if(destHit)
@@ -504,6 +494,83 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     setVec(trace->endpos, glm::mix(a, b, trace->fraction));
     return 1;
 }
+
+namespace qvr::portals
+{
+trace_t destHalf(const detail::Side& sd, const glm::vec3& from, const glm::vec3& to, const float* lo, const float* hi, int type,
+    edict_t* ent, const float* plane)
+{
+    glm::vec3 boundLo{1e9f}, boundHi{-1e9f};
+    for(int c = 0; c < 8; c++)
+    {
+        const glm::vec3 p = sd.turn * glm::vec3{(c & 1) ? hi[0] : lo[0], (c & 2) ? hi[1] : lo[1], (c & 4) ? hi[2] : lo[2]};
+        boundLo = glm::min(boundLo, p);
+        boundHi = glm::max(boundHi, p);
+    }
+    vec3_t a{from.x, from.y, from.z}, b{to.x, to.y, to.z};
+    vec3_t mins{boundLo.x, boundLo.y, boundLo.z}, maxs{boundHi.x, boundHi.y, boundHi.z};
+    bool square = true; // a whole number of right angles: that bound is the box
+    for(int axis = 0; axis < 3; axis++)
+    {
+        const glm::vec3 column = glm::abs(sd.turn[axis]);
+        square &= za::max(column.x, za::max(column.y, column.z)) > 0.9999f;
+    }
+    if(square)
+    {
+        return SV_MovePortalHalf(a, mins, maxs, b, type, ent, plane);
+    }
+    const float turned[12]{sd.turn[0].x, sd.turn[0].y, sd.turn[0].z, sd.turn[1].x, sd.turn[1].y, sd.turn[1].z,
+        sd.turn[2].x, sd.turn[2].y, sd.turn[2].z, (hi[0] - lo[0]) * 0.5f, (hi[1] - lo[1]) * 0.5f, (hi[2] - lo[2]) * 0.5f};
+    return SV_MovePortalTurned(a, mins, maxs, b, type, ent, plane, turned);
+}
+
+namespace
+{
+testkit::Tally turnedTally; // vr_portals_turned_test's
+}
+
+// vr_portals_turned_test start | at <label> <x> <y> <most> | past <label> <x> <y> <yaw> <least> | end
+// (Misc/quakevr/teleporters/turned_exit_test.sh): "at": the player is within <most> units of x y; "past": at least <least>
+// units along yaw beyond x y. "end" prints "vr_portals_turned_test: N passed, M failed".
+void turnedTest_f()
+{
+    constexpr const char* name = "vr_portals_turned_test";
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        turnedTally.reset();
+        return;
+    }
+    if(!strcmp(step, "end"))
+    {
+        turnedTally.verdict(name);
+        return;
+    }
+    edict_t* const player = sv.active ? progs::playerEdict() : nullptr;
+    if(!player || Cmd_Argc() < 6)
+    {
+        turnedTally.check(false, name, "no player, or too few arguments");
+        return;
+    }
+    const glm::vec2 at{player->v.origin[0], player->v.origin[1]};
+    const glm::vec2 point{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    if(!strcmp(step, "at"))
+    {
+        const float off = glm::distance(at, point);
+        Con_Printf("%s: %s: the player at %.1f %.1f, %.1f units from %.1f %.1f\n", name, Cmd_Argv(2), static_cast<double>(at.x),
+            static_cast<double>(at.y), static_cast<double>(off), static_cast<double>(point.x), static_cast<double>(point.y));
+        turnedTally.check(off <= Q_atof(Cmd_Argv(5)), name, va("%s: not there", Cmd_Argv(2)));
+    }
+    else if(!strcmp(step, "past") && Cmd_Argc() > 6)
+    {
+        const float yaw = glm::radians(Q_atof(Cmd_Argv(5)));
+        const float along = glm::dot(at - point, glm::vec2{cosf(yaw), sinf(yaw)});
+        Con_Printf("%s: %s: the player at %.1f %.1f, %.1f units beyond %.1f %.1f\n", name, Cmd_Argv(2), static_cast<double>(at.x),
+            static_cast<double>(at.y), static_cast<double>(along), static_cast<double>(point.x), static_cast<double>(point.y));
+        turnedTally.check(along >= Q_atof(Cmd_Argv(6)), name, va("%s: not through", Cmd_Argv(2)));
+    }
+}
+} // namespace qvr::portals
 
 // VR_ClientSpecialMove (SV_Physics_Client, before the move): the player carried through a seamless teleporter (its
 // trigger touched, active) once his torso reaches the plane and his collision box fits the aperture.

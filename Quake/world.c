@@ -45,6 +45,7 @@ typedef struct
 	qboolean	hitgibs;		// QVR: MOVE_HITGIBS, or a missile
 	float		hitmodel;		// QVR: MOVE_HITMODEL: its class's tolerance (-1: not precise, the boxes)
 	int			hittype;		// QVR: (its type, with the class)
+	const float	*portalturned;	// QVR: with portalplane: the box is turned (SV_MovePortalTurned)
 	qboolean	bspbox;			// QVR: the player's narrower box against BSP models (vr_hull_width; vr/vr_hull.cpp)
 	vec3_t		bspmins, bspmaxs;
 	qboolean	entbox;			// QVR: ... and against other entities' boxes (vr_hull_ent_width)
@@ -976,7 +977,7 @@ static trace_t SV_ClipMoveToEntityQVR (edict_t *ent, vec3_t start, vec3_t mins, 
 	trace_t		trace;
 
 	if (clip->portalplane && VR_HullClipPortal (ent, start, clip->bspmins, clip->bspmaxs,
-		end, clip->portalplane, &trace))
+		end, clip->portalplane, clip->portalturned, &trace))
 		return trace;
 	if (clip->bspbox && ent->v.solid == SOLID_BSP)
 	{
@@ -1225,7 +1226,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			continue;
 		if (clip->portalplane && touch->v.solid != SOLID_BSP &&
 			VR_HullClipPortal (touch, clip->start, clip->bspmins, clip->bspmaxs, clip->end,
-				clip->portalplane, &trace))
+				clip->portalplane, clip->portalturned, &trace))
 		{
 			// The clipped portion has already been tested against this solid.
 		}
@@ -1325,7 +1326,7 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane);
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane, const float *portalturned);
 
 // QVR: counted for the profiler; with vr_profile_detail 2, each timed ("trace").
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
@@ -1335,9 +1336,9 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	if (VR_PortalBodyMove (passedict, start, mins, maxs, end, type, &trace))
 		return trace;
 	if (!vr_profile_fine)
-		return SV_MoveRun (start, mins, maxs, end, type, passedict, NULL);
+		return SV_MoveRun (start, mins, maxs, end, type, passedict, NULL, NULL);
 	VR_ProfileBegin ("trace");
-	trace = SV_MoveRun (start, mins, maxs, end, type, passedict, NULL);
+	trace = SV_MoveRun (start, mins, maxs, end, type, passedict, NULL, NULL);
 	VR_ProfileEnd ();
 	return trace;
 }
@@ -1345,10 +1346,16 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 trace_t SV_MovePortalHalf (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 	edict_t *passedict, const float plane[4])
 {
-	return SV_MoveRun (start, mins, maxs, end, type, passedict, plane);
+	return SV_MoveRun (start, mins, maxs, end, type, passedict, plane, NULL);
 }
 
-static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane)
+trace_t SV_MovePortalTurned (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
+	edict_t *passedict, const float plane[4], const float turned[12])
+{
+	return SV_MoveRun (start, mins, maxs, end, type, passedict, plane, turned);
+}
+
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane, const float *portalturned)
 {
 	moveclip_t	clip;
 	int			i;
@@ -1368,6 +1375,7 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 
 // clip to world
 	clip.portalplane = portalplane;
+	clip.portalturned = portalturned;
 	if (portalplane)
 	{
 		VectorCopy (mins, clip.bspmins);
