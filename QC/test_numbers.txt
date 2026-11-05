@@ -27,6 +27,8 @@ dispatch vr_pickup_test QC/vr_pickup_test.qc VR_PickupTest_Frame ask
 dispatch vr_shockarcs_test QC/vr_shockarcs_test.qc VR_ShockArcs_TestFrame ask
 dispatch vr_embed_test QC/vr_embed_test.qc VR_Embed_TestFrame ask
 dispatch vr_pp_test QC/vr_playerplates_test.qc VR_PP_TestFrame ask
+dispatch vr_flatitems_test QC/vr_flatitems_test.qc VR_FlatItemsTest_Frame ask
+dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
 
 vr_embed_test    1        vr_embed_test.qc                 embedded blades: thrown swords, sag, bodies, cuts, plates, vr_embed 0
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
@@ -353,7 +355,7 @@ vr_arena_test    34       vr_arena_test.qc                 (VR_AT34_Run)
 vr_arena_test    35       vr_arena_test.qc                 (VR_AT35_Begin)
 vr_arena_test    36       vr_arena_test.qc                 (VR_AT36_Begin)
 vr_arena_test    37       vr_arena_test.qc                 ammo boxes' weapons: nail pistol on nail boxes, heavy revolver gated on the super shotgun, rates (e1m1)
-vr_arena_test    38       vr_arena_test.qc                 arena map check and banners (vrarena, and e1m1 for the half off the arena)
+vr_arena_test    38       vr_arena_test.qc                 arena map check, banners and their image's pixels (vrarena, and e1m1 for the half off the arena)
 
 vr_burn_test     1*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_burn_test     2*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
@@ -643,3 +645,13 @@ vr_shockarcs_test 4 vr_shockarcs_test.qc the same, the look swinging as the scre
 vr_pp_test       10       vr_playerplates_test.qc          the armour look sheet: three tiers on you and a grunt, the far shot
 vr_pp_test       11       vr_playerplates_test.qc          every wearer and body build in red, for the fit
 vr_pp_test       12       vr_playerplates_test.qc          bent: you and a grunt, front and side, for the fit at the joints
+
+vr_flatitems_test 1       vr_flatitems_test.qc             flat-screen: what stays in the off hand, the main hand's shotgun fired through it
+vr_flatitems_test 2       vr_flatitems_test.qc             flat-screen: each kind of pickup walked over; armour puts the plates on
+vr_flatitems_test 3       vr_flatitems_test.qc             flat-screen: E on better armour: worn at once
+vr_flatitems_test 5       vr_flatitems_test.qc             flat-screen: as he played: E first, 2 for the shotgun after, the shots (his settings as they are)
+vr_flatitems_test 4       vr_flatitems_test.qc             flat-screen: the plates before and after the walk, two pictures
+
+vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks through teleporters: pitch, yaw by the gate alone, heading, body, aim
+vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
+vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level change starts level

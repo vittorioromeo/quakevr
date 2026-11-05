@@ -52,7 +52,8 @@
 //   the trim itself.
 // - 18 (vrarena; run it fresh, after `restart fresh` and after a load): a run starts with no ammunition, fists in hand.
 // - 38 (vrarena, and e1m1 for the half off the arena): the arena map check and the banners (vr_arena_banners.qc): a board's
-//   text follows a scripted wave (foes left falls, the score rises, the wave changes, the time runs), off it empties them.
+//   text and the pixels of the image drawn from it (the client's copy, the gadget's layout) follow a scripted wave (foes left
+//   falls, the score rises, the wave changes, the time runs, a perk's choice, the run's end), off it empties them.
 // - 19 (vrarena): the waves still arm an empty player: wave 1 comes by itself and a fallen foe's pack gives ammunition.
 
 // ---------------------------------------------------------------------------
@@ -3833,8 +3834,10 @@ void(entity p) VR_AT37_Row =
 
 // ---------------------------------------------------------------------------
 // Test 38: the arena map check, and the banners following a scripted wave (vr_arena_banners.qc). On an arena map: the
-// map's boards hold the very text expected at each step (read back from the server's list). Off the arena (e1m1): the
-// check refuses it, a banner placed there makes no board and the map's list of texts stays empty.
+// map's boards hold the very text expected at each step (read back from the server's list), and the image drawn from that
+// text on the client (panelboard_read: it answers once the text has come through the client's list and been drawn) changes
+// in the tile that moved and only there. Off the arena (e1m1): the check refuses it, a banner placed there makes no board and
+// the map's list of texts stays empty.
 // ---------------------------------------------------------------------------
 
 float vr_at38_state;
@@ -3843,6 +3846,11 @@ float vr_at38_wave;
 float vr_at38_left;
 float vr_at38_score;
 float vr_at38_secs;
+float vr_at38_hwave;   // the tiles' checksums at the last step
+float vr_at38_hmid;
+float vr_at38_htime;
+float vr_at38_hscore;
+float vr_at38_bar;
 
 // A board's text, each of them holding the same.
 string() VR_AT38_Board =
@@ -3859,15 +3867,41 @@ string() VR_AT38_Board =
     return text;
 }
 
-// The text expected in a wave's fight, by the board's own columns.
-string(string xHead, float xWave, float xLeft, float xSecs, float xScore) VR_AT38_Fight =
+// The text expected.
+string(float xWave, float xBoss, float xShow, float xValue, float xSecs, float xScore) VR_AT38_Text =
 {
-    float m = floor(xSecs / 60);
-    return sprintf("%s %3.0f  FOES LEFT %3.0f\nTIME %02.0f:%02.0f SCORE %6.0f", xHead, xWave, xLeft, m, xSecs - m * 60, xScore);
+    return sprintf("{arena:%.0f %.0f %.0f %.0f %.0f %.0f %.0f}", xWave, xBoss, xShow, xValue, ar_plan_n, xSecs, xScore);
+}
+
+// The text expected in a wave's fight.
+string(float xBoss, float xWave, float xLeft, float xSecs, float xScore) VR_AT38_Fight =
+{
+    return VR_AT38_Text(xWave, xBoss, AR_BANNER_SHOW_FOES, xLeft, xSecs, xScore);
+}
+
+// The image's part (vr_gadget_panel.inc's tiles): its checksum or ink, from what the board says now.
+float(float xX, float xY, float xW, float xH, float xWhat) VR_AT38_Read =
+{
+    return panelboard_read(VR_AT38_Board(), xX, xY, xW, xH, xWhat);
+}
+float() VR_AT38_Wave  = { return VR_AT38_Read(4, 2, 48, 34, 1); }
+float() VR_AT38_Mid   = { return VR_AT38_Read(58, 2, 72, 37, 1); }
+float() VR_AT38_Time  = { return VR_AT38_Read(137, 3, 109, 16, 1); }
+float() VR_AT38_Score = { return VR_AT38_Read(137, 22, 109, 16, 1); }
+float() VR_AT38_Bar   = { return VR_AT38_Read(58, 36, 72, 2, 0); }
+
+// The tiles as they are now, for the next step's compare.
+void() VR_AT38_Keep =
+{
+    vr_at38_hwave = VR_AT38_Wave();
+    vr_at38_hmid = VR_AT38_Mid();
+    vr_at38_htime = VR_AT38_Time();
+    vr_at38_hscore = VR_AT38_Score();
 }
 
 void() VR_AT38_Begin =
 {
+    vr_test_flags = VR_TEST_LOUD | VR_TEST_QUIET; // (broadcast: the verdict is seen with developer 0, for -QuitOn)
     VR_AT_Check(isarenamap("vrarena"), "isarenamap takes vrarena");
     VR_AT_Check(!isarenamap("e1m1"), "isarenamap refuses e1m1");
     VR_AT_Check(!isarenamap(""), "isarenamap refuses no name");
@@ -3903,22 +3937,49 @@ void() VR_AT38_Begin =
 void() VR_AT38_Frame =
 {
     string want;
+    // Every step's check is of a board whose image has caught up (the client has its text and has drawn it): but off, where
+    // there is none.
+    if(vr_at38_state != 5 && (ar_bn_on == 0 || VR_AT38_Read(0, 0, 1, 1, 0) < 0)) { return; }
+
     if(vr_at38_state == 0) // (the board before the run: the wave's still to come, the clock not started)
     {
-        if(!VR_ARENA_Between() || ar_bn_on == 0) { return; }
-        float next = VR_ARENA_BannerValue(AR_BANNER_RIGHT_NEXT);
-        want = sprintf("WAVE   -  %13s\nTIME 00:00 SCORE %6.0f", sprintf("WAVE 1 IN %2.0f", next), ar_score);
+        if(!VR_ARENA_Between()) { return; }
+        float next = VR_ARENA_BannerValue(AR_BANNER_SHOW_NEXT);
+        want = VR_AT38_Text(0, 0, AR_BANNER_SHOW_NEXT, next, 0, ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("before the run: [%s], wanted [%s]", VR_AT38_Board(), want));
         VR_AT_Check(next >= 1, sprintf("the next wave's seconds (%g)", next));
+        VR_AT_Check(VR_AT38_Read(0, 0, 250, 1, 0) > 0.95, sprintf("pixels: the frame is lit (%g)", VR_AT38_Read(0, 0, 250, 1, 0)));
+        VR_AT_Check(VR_AT38_Read(4, 11, 48, 24, 0) > 0.01, sprintf("pixels: the wave's tile has its dashes (%g)", VR_AT38_Read(4, 11, 48, 24, 0)));
+        VR_AT_Check(VR_AT38_Read(58, 11, 72, 24, 0) > 0.05, sprintf("pixels: the middle has its seconds (%g)", VR_AT38_Read(58, 11, 72, 24, 0)));
+        VR_AT_Check(VR_AT38_Read(56, 3, 2, 34, 0) == 0, sprintf("pixels: nothing runs over between the tiles (%g)", VR_AT38_Read(56, 3, 2, 34, 0)));
+        VR_AT_Check(VR_AT38_Bar() == 0, sprintf("pixels: no foes' bar between waves (%g)", VR_AT38_Bar()));
+        VR_AT38_Keep();
         vr_at38_left = next;
         vr_at38_state = 1;
         return;
     }
     if(vr_at38_state == 1) // (the countdown falls)
     {
-        if(VR_ARENA_BannerValue(AR_BANNER_RIGHT_NEXT) >= vr_at38_left) { return; }
-        VR_AT_Check(VR_AT38_Board() == sprintf("WAVE   -  %13s\nTIME 00:00 SCORE %6.0f", sprintf("WAVE 1 IN %2.0f", vr_at38_left - 1), ar_score),
-                    sprintf("the countdown falls: [%s]", VR_AT38_Board()));
+        if(VR_ARENA_BannerValue(AR_BANNER_SHOW_NEXT) >= vr_at38_left) { return; }
+        want = VR_AT38_Text(0, 0, AR_BANNER_SHOW_NEXT, vr_at38_left - 1, 0, ar_score);
+        VR_AT_Check(VR_AT38_Board() == want, sprintf("the countdown falls: [%s]", VR_AT38_Board()));
+        VR_AT_Check(VR_AT38_Mid() != vr_at38_hmid, "pixels: the middle changes with the seconds");
+        VR_AT_Check(VR_AT38_Wave() == vr_at38_hwave, "pixels: the wave's tile doesn't");
+        VR_AT_Check(VR_AT38_Score() == vr_at38_hscore, "pixels: nor the score's");
+        // The perk's choice: the director held, as a boss clear's cards hold it (the cards themselves: vr_arena_perks_test).
+        ark_open = 1;
+        ark_open_at = time;
+        VR_ARK_Hold();
+        vr_at38_state = 8;
+        return;
+    }
+    if(vr_at38_state == 8) // (CHOOSE A PERK, and back)
+    {
+        if(VR_AT38_Mid() == vr_at38_hmid) { return; } // (its seconds: until the middle has moved on from them)
+        VR_AT_Check(VR_ARENA_BannerShow() == AR_BANNER_SHOW_PERK, "the cards up: the board says so");
+        VR_AT_Check(VR_AT38_Board() == VR_AT38_Text(0, 0, AR_BANNER_SHOW_PERK, 0, 0, ar_score), sprintf("perk: [%s]", VR_AT38_Board()));
+        VR_AT_Check(VR_AT38_Read(58, 11, 72, 24, 0) > 0.05, sprintf("pixels: the middle has its word (%g)", VR_AT38_Read(58, 11, 72, 24, 0)));
+        VR_ARK_CloseOffer();
         VR_ARENA_FastForward(6); // (a plain wave, with a few foes)
         vr_at38_wave = 6;
         vr_at38_state = 2;
@@ -3929,8 +3990,12 @@ void() VR_AT38_Frame =
     {
         if(VR_ARENA_CountAlive() < 1) { return; }
         VR_AT_Check(ar_foes_left == ar_plan_n, sprintf("all its foes are left (%g of %g)", ar_foes_left, ar_plan_n));
-        want = VR_AT38_Fight("WAVE", ar_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
+        want = VR_AT38_Fight(0, ar_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("wave on: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(VR_AT38_Wave() != vr_at38_hwave, "pixels: the wave's tile has its number");
+        vr_at38_bar = VR_AT38_Bar();
+        VR_AT_Check(vr_at38_bar > 0.95, sprintf("pixels: the foes' bar is full (%g)", vr_at38_bar));
+        VR_AT38_Keep();
         vr_at38_left = ar_plan_n;
         vr_at38_score = ar_score;
         vr_at38_secs = VR_ARENA_BannerSeconds();
@@ -3944,8 +4009,13 @@ void() VR_AT38_Frame =
         if(time < vr_at38_at + 0.2) { return; } // (a fall wakes the director within 0.05 s)
         VR_AT_Check(ar_foes_left == vr_at38_left - 1, sprintf("foes left falls (%g from %g)", ar_foes_left, vr_at38_left));
         VR_AT_Check(ar_score > vr_at38_score, sprintf("the score rises (%g from %g)", ar_score, vr_at38_score));
-        want = VR_AT38_Fight("WAVE", ar_wave, vr_at38_left - 1, VR_ARENA_BannerSeconds(), ar_score);
+        want = VR_AT38_Fight(0, ar_wave, vr_at38_left - 1, VR_ARENA_BannerSeconds(), ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("a foe down: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(VR_AT38_Mid() != vr_at38_hmid, "pixels: the foes' number changes");
+        VR_AT_Check(VR_AT38_Score() != vr_at38_hscore, "pixels: the score's does");
+        VR_AT_Check(VR_AT38_Wave() == vr_at38_hwave, "pixels: the wave's tile doesn't");
+        VR_AT_Check(VR_AT38_Bar() < vr_at38_bar && VR_AT38_Bar() > 0, sprintf("pixels: the bar falls (%g from %g)", VR_AT38_Bar(), vr_at38_bar));
+        VR_AT38_Keep();
         vr_at38_at = time;
         vr_at38_state = 4;
         return;
@@ -3953,23 +4023,30 @@ void() VR_AT38_Frame =
     if(vr_at38_state == 4) // (the time runs on, two whole seconds)
     {
         if(VR_ARENA_BannerSeconds() < vr_at38_secs + 2) { return; }
-        want = VR_AT38_Fight("WAVE", ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
+        want = VR_AT38_Fight(0, ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("time runs: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(VR_AT38_Time() != vr_at38_htime, "pixels: the time's row changes");
+        VR_AT_Check(VR_AT38_Wave() == vr_at38_hwave, "pixels: the wave's tile doesn't");
+        VR_AT_Check(VR_AT38_Score() == vr_at38_hscore, "pixels: nor the score's");
         cvar_set("vr_arena_banners", "0");
         vr_at38_state = 5;
         return;
     }
-    if(vr_at38_state == 5) // (off: the boards are empty; on: back at once)
+    if(vr_at38_state == 5) // (off: the boards are empty, and the image is let go; on: back at once)
     {
+        if(ar_bn_on != 1 || panelboard_read("", 0, 0, 0, 0, 2) != 0) { return; }
         VR_AT_Check(VR_AT38_Board() == "", sprintf("off: the boards are empty: [%s]", VR_AT38_Board()));
+        VR_AT_Check(panelboard_read("", 0, 0, 0, 0, 2) == 0, "off: no image kept");
         cvar_set("vr_arena_banners", "1");
         vr_at38_state = 6;
         return;
     }
     if(vr_at38_state == 6)
     {
-        want = VR_AT38_Fight("WAVE", ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
+        want = VR_AT38_Fight(0, ar_wave, ar_foes_left, VR_ARENA_BannerSeconds(), ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("on again: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(VR_AT38_Read(4, 11, 48, 24, 0) > 0.05, "pixels: drawn again");
+        VR_AT38_Keep();
         vr_at38_wave = ar_wave + 1;
         VR_ARENA_FastForward(vr_at38_wave); // (the wave changes)
         vr_at38_state = 7;
@@ -3978,8 +4055,32 @@ void() VR_AT38_Frame =
     if(vr_at38_state == 7)
     {
         if(time < ar_wave_at + 0.1) { return; }
-        want = VR_AT38_Fight(VR_ARENA_IsBossWave(ar_wave) ? "BOSS" : "WAVE", vr_at38_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
+        want = VR_AT38_Fight(VR_ARENA_IsBossWave(ar_wave) ? 1 : 0, vr_at38_wave, ar_plan_n, VR_ARENA_BannerSeconds(), ar_score);
         VR_AT_Check(VR_AT38_Board() == want, sprintf("the wave changes: [%s], wanted [%s]", VR_AT38_Board(), want));
+        VR_AT_Check(VR_AT38_Wave() != vr_at38_hwave, "pixels: the wave's tile changes");
+        VR_AT38_Keep();
+        ar_down = 1; // (the run's end, the board's part: the flag it reads)
+        vr_at38_state = 9;
+        return;
+    }
+    if(vr_at38_state == 9) // (YOU FELL: over the wave's and the foes' tiles, in the warning's red)
+    {
+        if(VR_ARENA_BannerShow() != AR_BANNER_SHOW_FELL || VR_AT38_Mid() == vr_at38_hmid) { return; }
+        VR_AT_Check(VR_AT38_Read(4, 11, 126, 24, 3) > 0.15, sprintf("pixels: YOU FELL is red (%g)", VR_AT38_Read(4, 11, 126, 24, 3)));
+        VR_AT_Check(VR_AT38_Read(0, 0, 250, 1, 3) > 0.15, sprintf("pixels: and the frame (%g)", VR_AT38_Read(0, 0, 250, 1, 3)));
+        VR_AT_Check(ar_run_end > 0, "the clock stopped");
+        VR_AT38_Keep();
+        ar_down = 0;
+        ar_preset_over = 1;
+        vr_at38_state = 10;
+        return;
+    }
+    if(vr_at38_state == 10) // (CLEARED)
+    {
+        if(VR_ARENA_BannerShow() != AR_BANNER_SHOW_CLEAR || VR_AT38_Mid() == vr_at38_hmid) { return; }
+        VR_AT_Check(VR_AT38_Read(4, 11, 126, 24, 0) > 0.05, sprintf("pixels: CLEARED is up (%g)", VR_AT38_Read(4, 11, 126, 24, 0)));
+        VR_AT_Check(VR_AT38_Read(4, 11, 126, 24, 3) < 0.15, sprintf("pixels: and not red (%g)", VR_AT38_Read(4, 11, 126, 24, 3)));
+        ar_preset_over = 0;
         VR_AT_End();
     }
 }

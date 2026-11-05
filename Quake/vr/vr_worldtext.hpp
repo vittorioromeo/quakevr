@@ -31,6 +31,14 @@ struct WorldText
     float scale{1.f};
 };
 
+// A panel board: a text that is not shown as text but says what a panel drawn by the wrist gadget's screen code holds
+// (gadget::renderPanelBoard). "{arena:" and the Survival Arena's numbers (QC/vr_arena_banners.qc); it travels, replays to
+// a spawning client and goes into a demo as any text does. Its face is panelWidth by panelHeight pixels of the screen's,
+// `scale` units each. An empty text is no board, as for any other.
+inline constexpr int panelWidth = 250;
+inline constexpr int panelHeight = 40;
+[[nodiscard]] bool isPanel(const char* text);
+
 // A floating text: a short-lived label that rises from a point and fades out, facing the viewer
 // (the firing range dummy's damage numbers). The server only passes them on (unreliably, to every
 // client); the client keeps them for floatTextLife seconds.

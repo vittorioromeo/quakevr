@@ -404,6 +404,7 @@ const char *VR_ModelSkinName (const char *name);			// Mod_LoadAllSkins: the mode
 void VR_TorchLights (void);								// CL_ReadFromServer, after the temp entities: torches and flames flicker a small light onto the room (vr_torch_lights)
 void VR_FlameLights (void);								// CL_ReadFromServer, after VR_TorchLights: the flamethrowers' streams light the room, a few smoothed lights from their flames (vr_flame_lights)
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
+void VR_FlatPortalAngle (const float *before, float *angles);	// svc_setangle: a flat-screen walk through a teleporter: the view goes on as it was
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending

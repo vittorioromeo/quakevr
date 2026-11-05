@@ -624,6 +624,12 @@ za::Vector<Item> pageDebugTests()
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
                   "stand."),
+        command("Flat Items: Hold And Shoot", "vr_flatitems_test 1")
+            .help("vr_flatitems_test 1 (-flatscreenmode only): armour, a key, the biosuit, a rune, shells and health each grabbed with E into the off hand, the shotgun fired through it (flatitems: lines)."),
+        command("Flat Items: Walk Over", "vr_flatitems_test 2")
+            .help("vr_flatitems_test 2 (-flatscreenmode only): each kind of pickup ahead of you, walked over: whether it is taken, and for armour whether the plates respond (flatitems: lines)."),
+        command("Flat Gate", "vr_flatgate_test 1")
+            .help("vr_flatgate_test 1 (-flatscreenmode only, on map vrteleporters): walks you through a straight gate and two turned ones: whether the pitch stays, the yaw turns by the gate alone, and you walk on the way you look (flatgate: lines)."),
         command("Flat Keys", "vr_flatkeys_test 1")
             .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
                    "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "
