@@ -746,6 +746,7 @@ void ikStretchReset()
         row(opt::vr_arena_armor_every),
         row(opt::vr_arena_shards),
         row(opt::vr_arena_scatter),
+        row(opt::vr_arena_nav),
         row(opt::vr_arena_score_kill),
         header("The Last Foes"),
         row(opt::vr_arena_xray),

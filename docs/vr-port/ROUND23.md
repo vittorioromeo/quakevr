@@ -8514,3 +8514,18 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 **Documented red, hidden by nothing:** `flatpose: FAIL near: the gun at the camera is not cut as the desktop's near plane cuts it`
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
+
+## Arena: foes use the stairs (2026-11-05)
+
+His report: monsters have trouble going up and down the arena's stairs, which makes them less effective.
+
+Measured with `vr_arena_test 36` (`Misc/quakevr/arenapath_test.sh`: one foe at a time, 8 places, a 25 s cap). Foes walk,
+they are rarely stuck, and the stairs' rise is fine (16 high, 24 deep, 0 bad steps). The two causes are in the AI:
+Quake's `movetogoal` heads straight at the goal and a walker never steps off a ledge, so it wanders along the dais' edge
+until chance finds a flight (down: 26 of 32 trials hit the cap); and the dais' own edge hides the player from the stairs'
+foot, so `VR_Stealth_Lose` sent the foe off to search the floor.
+
+The fix: `info_arena_nav` pairs (a flight's foot and top step, written by `flight()` in `vrarena_gen.py`),
+`QC/vr_arena_nav.qc` routing a walker through the best flight when its foe's feet are on another level, and no Alert on
+such a map (`vr_arena_nav`, default 1, on the arena's settings page). A map without the points runs none of it. Wider
+stairs were not tried: the stalls are not on the stairs.

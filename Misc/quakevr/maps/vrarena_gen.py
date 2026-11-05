@@ -53,6 +53,8 @@
 #                            4 tower tops     402 402 256   and 4 walkway landings 736 +-288 256  -> kind 2
 #                            4 ground corners 640 640 0                                           -> kind 1
 #   info_arena_item     (3)  196 196 48, -196 196 48, 196 -196 48 (mid-height at the dais' diagonal faces)
+#   info_arena_nav     (16)  8 pairs, a flight's foot ("target") and its top step ("targetname"): walkers whose foe is on
+#                            another level use them (QC/vr_arena_nav.qc)
 import argparse
 import math
 import os
@@ -279,6 +281,7 @@ TOWER_LAMP_LIGHT, TOWER_LAMP_WAIT = "125", "0.66"
 SOFFIT_YS, SOFFIT_LIGHT, SOFFIT_WAIT = (160, 440), "160", "0.65"  # the decks' undersides: 4 lit panels on each
 
 SPAWNS, ITEMS, STEPS = [], [], []   # filled by geometry(): the spawn points, the item points, every stair step
+FLIGHTS = []                        # ... and each flight's two ends (info_arena_nav pairs: QC/vr_arena_nav.qc)
 CLIPS, WALL_TRIM = [], []           # ... and the walls' clip brushes and what they stand in front of (--check)
 
 
@@ -367,7 +370,11 @@ def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread, lit_every, light
         dst.append(mg.box(*lo, *hi, roles("stair", "stair", None, whole),
                           lambda n, c, riser=riser: riser if mg.dot(n, back) > 0.99 else None))
         STEPS.append((what, rise, tread))
-        if lit:                                              # its light, 12 out from the middle of the lamp
+        if k == steps - 1:                                   # the flight's two ends for the AI: 40 short of its first
+            mx, my = (lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0  # riser, and the middle of its top step
+            FLIGHTS.append(((mx - dx * (tread * (steps - 0.5) + 40), my - dy * (tread * (steps - 0.5) + 40), ZF),
+                            (mx, my, hi[2])))
+        if lit:                                             # its light, 12 out from the middle of the lamp
             mx, my = (lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0
             fx = (a if dx > 0 else b) if dx else mx
             fy = (a if dy > 0 else b) if dy else my
@@ -572,6 +579,10 @@ def geometry(mw):
     ents = [{"classname": "info_player_start", "origin": "0 0 120", "angle": "90"}]
     ents += [{"classname": "info_arena_spawn", "origin": "%d %d %d" % p[:3], "kind": str(p[3])} for p in SPAWNS]
     ents += [{"classname": "info_arena_item", "origin": "%d %d %d" % p} for p in ITEMS]
+    for i, (foot, top) in enumerate(FLIGHTS):
+        name = "arena_flight_%d" % (i + 1)
+        ents.append({"classname": "info_arena_nav", "origin": "%d %d %d" % foot, "target": name})
+        ents.append({"classname": "info_arena_nav", "origin": "%d %d %d" % top, "targetname": name})
     for pos, val, atten, *keys in lights:      # a fixture's light brings its own keys (_dirt -1: no ambient occlusion)
         e = {"classname": "light", "origin": "%d %d %d" % pos, "light": val, "wait": atten, "_color": "1 0.96 0.9"}
         for k in keys:

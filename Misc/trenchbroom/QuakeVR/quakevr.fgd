@@ -269,6 +269,11 @@ Used as a helpful aim target for rockets."
 [
 ]
 
+@PointClass color(204 128 0) size(-8 -8 0, 8 8 16) =
+	info_arena_nav : "One end of a flight of stairs or a ramp a walking monster can use, on the step or the floor itself. Pairs: the lower end has 'target', the upper end 'targetname'. A monster whose enemy's feet are on another level walks through the pair that serves it best. Maps with none: Quake's own chase."
+[
+]
+
 @PointClass color(0 128 204) size(-16 -16 -16, 16 16 16) =
 	info_arena_spawn : "A wave's foe comes in here. 'kind': 1 (or unset) a ground point, 2 a high one: a wave's ranged and flying foes come in above the floor there. The waves use these round robin; a point used twice in a wave is stepped aside. With none in the map, its foes come in a ring 400 units off the player instead."
 [
