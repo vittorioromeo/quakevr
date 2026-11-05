@@ -1087,6 +1087,10 @@ QVR_TOGGLE(vr_arena_scatter, "Supplies Anywhere",
     "the tower tops, the wall walks, anywhere you can walk to -- never right next to you, so you go "
     "looking for them; the middle of your view says what came. 0: they land on the map's own item "
     "points (vr_arena_scatter).")
+QVR_TOGGLE(vr_arena_nav, "Foes Use The Stairs",
+    "1: a walking foe whose target is on another level (you on the dais or a tower, it on the floor, or the other way) "
+    "heads for the stairs that serve it best, on maps that mark them. 0: Quake's chase, which only finds the stairs by "
+    "chance (vr_arena_nav).")
 QVR_SLIDER(vr_arena_score_kill, "Score For A Kill", 1.f, 10000.f, 5.f, "%.0f", noExt,
     "A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
     "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "

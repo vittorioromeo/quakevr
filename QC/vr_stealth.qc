@@ -1279,6 +1279,9 @@ float(float xVis) VR_Stealth_LoseNow =
 
 float(float xVis) VR_Stealth_Lose =
 {
+    // (On a map with marked flights the foe comes for him by them: the dais' own edge hides him from the stairs' foot, and
+    // an Alert there walked it off to search the floor. vr_arena_nav.qc.)
+    if(VR_ARENA_NavOn()) { return FALSE; }
     stealthprofile(1);
     float r = VR_Stealth_LoseNow(xVis);
     stealthprofile(0);

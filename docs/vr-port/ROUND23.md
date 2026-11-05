@@ -8430,6 +8430,16 @@ flatplay 27/1, flatkeys 24/4, eval canary 38/44 with every verdict where it was.
 - Swung burst: `VR_Skewer_SwingHit` in `VR_Melee_Deal`, at or above `vr_embed_skewer_swing_burst` (3 m/s), the contact within the gib's radius of its place along the blade. Not a stab, not a blow on a gib.
 - The hand's weight: thinks tally kg, kg m, kg m^2 about the grip into `.vr_skewer_load_*` for `computeLoad`: the masses add, the balance moves, the inertia gains each gib's. `vr_embed_skewer_mass_gib` 0.5, `_head` 1.5; a limb its own `.vr_prop_mass`. Listen server only, as `propMass`.
 
+### Skewering after his first test (branch `agent/skewer3`; note vrfiringrange_2026-11-04_23-58-11)
+
+- Weights: a limb's `.vr_prop_mass` is its share of the body (a soldier's leg 12.4 kg), right for holding it, absurd on a blade. `VR_Skewer_Mass`: a head `vr_embed_skewer_mass_head` 1.5; a gib `_mass_gib` 1.2, a limb `_mass_limb` 0.6, each times its size (radius / 5, 0.5 to 1.5). gib1 reads 1.24 kg, a limb 0.62.
+- Only what the blade goes through: the sweep's box and line thickness find it, `VR_Skewer_Through` decides, the blade's line (tip + 2 units) against its model (`hitmodel_any`, `vr_embed_skewer_thick` 1.5). A thrust finds no gib it doesn't go through (`VR_Skewer_SweepPasses`, so a near one can't take the blow from the one aimed at); a stab beside one is no blow (`VR_Skewer_GoesBy`), not a burst.
+- Heads: `VR_Skewer_Blow` refused `.gorging`, which ThrowHead and `VR_Decap_ThrowHead` set for life (the gremlins' mark). Every head was refused and burst. Guard gone.
+- The blade's angle: `vr_modelcollide.cpp` keeps a hand and its weapon out of gibs lying still, by entity, and a gib on the blade counted as one, pushing its own hand. `kindOf`: a gib with `.vr_skewer_p` is in nothing's way (hosting; a remote client has only the model to go by).
+- The other hand (`VR_Skewer_Grip`): a grip in reach holds the nearest (`VR_Skewer_ForGrip`), the weapon not (`carry2h::reachesSkewered` in `startFree` and the blade grips' `canGrab`: else the same press takes the weapon, and the half-sword grip turns the blade to the hand). It goes along the blade with the hand (`.vr_skewer_shift`), stopped at the hilt end (0.85 of the line) and a gap from the next one; its middle a radius past the tip, it is a prop in that hand. A tug across the line frees it: `vr_embed_skewer_tug_stretch` 30 cm from the line, or `_tug_speed` 4 m/s once half that far. Let go of: it stays where it was slid; on a thrown blade its sphere follows (`.vr_skewer_gen`).
+- Swings: `VR_Skewer_SwingHit` wanted the contact within the gib's radius of its place; a swing lands by the tip, 8 units from the first gib, so it stayed. Now `vr_embed_skewer_swing_reach` 6 past its width. And the gib answers for itself, as on a thrown blade: `VR_Skewer_Impact` in the hand, its own measured move (less the player's walk) at `vr_embed_skewer_swing_burst` 3 m/s, not along the line (the tip gets there first, and a stab at a gib on the floor must not burst it), a trace ahead of it by its radius, so no blow needs to have landed. A move over 30 m/s in the hand (`VR_SKEWER_SNAP`: a hand a wall held off and let go of) is no speed of its own, the frame before's counts: a slow press stays on, a fast swing that crosses the wall in that frame bursts. A blade let go of that hasn't gone across at half `vr_embed_skewer_throw_burst` is dropped, not thrown (`.vr_skewer_gentle`): its landing doesn't burst its gibs (with the heavier gibs it landed gib first at 7 to 11 m/s and burst them).
+- Test `vr_embed_test 21`: weights, a head, a stab beside; the other hand's slide, stops, off the tip, a tug (mock hand, real grip); a real side-on swing into a wall slow then fast (mock hand, real positions). Its stabs still deal `VR_Melee_Deal` directly; the sweep's filter is only read. Open, two failing lines of the test's rig: the thrown-hard throw reaches 15.5 m/s but ends with the gib 20 units short of the wall (a tip or hilt meets it first; it passed at 14.9 m/s from another hand place); the slow swing, run after the throws, reads 5.1 m/s by the wall (the mock hand lags and catches up under the weight, with jumps) and bursts (it passed at 0.2 units a frame when the swing ran before the throws, the fast one bursting at 29.1 m/s).
+
 ## Passing a weapon between hands eases across (agent/passblend, 2026-11-04)
 
 His note: a weapon passed from the wielding hand to the empty one appeared in the other hand at once; he asked for a very
@@ -8515,6 +8525,21 @@ pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead 
 ("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
 20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
 
+## Arena: foes use the stairs (2026-11-05)
+
+His report: monsters have trouble going up and down the arena's stairs, which makes them less effective.
+
+Measured with `vr_arena_test 36` (`Misc/quakevr/arenapath_test.sh`: one foe at a time, 8 places, a 25 s cap). Foes walk,
+they are rarely stuck, and the stairs' rise is fine (16 high, 24 deep, 0 bad steps). The two causes are in the AI:
+Quake's `movetogoal` heads straight at the goal and a walker never steps off a ledge, so it wanders along the dais' edge
+until chance finds a flight (down: 26 of 32 trials hit the cap); and the dais' own edge hides the player from the stairs'
+foot, so `VR_Stealth_Lose` sent the foe off to search the floor.
+
+The fix: `info_arena_nav` pairs (a flight's foot and top step, written by `flight()` in `vrarena_gen.py`),
+`QC/vr_arena_nav.qc` routing a walker through the best flight when its foe's feet are on another level, and no Alert on
+such a map (`vr_arena_nav`, default 1, on the arena's settings page). A map without the points runs none of it. Wider
+stairs were not tried: the stalls are not on the stairs.
+
 ## Flatscreen: the body, the hold, the walls, the sights (agent/flat3, 2026-11-05)
 
 **The body seen through.** `avatar::solveTorso` puts the neck under the eyes along the head's own axes. In a headset the head nods about the neck, so
@@ -8586,3 +8611,13 @@ What's left is the averaging itself: in a bright pool (floor 170..180) the walls
 probe reads 120 (0.7 in lightmap units; about half when drawn, through the curve). The compile's own LIGHTGRID_OCTREE is no
 ready answer: it has no direction and no cosine, and clips at 255 over most of this arena's air (layer means 211..253).
 `vr_physsound.cpp`'s walk has the same box test (not changed: it isn't light).
+
+Results, one seed, on the merged tree (level: feet on his level / there: within a blow; seconds, mean of 8; capped of 8
+at 25 s). Before: grunt up 12.4/13.5 (2), down 23.9/24.2 (7); knight up 10.0/10.8 (2), down 22.6/22.8 (7); ogre up
+10.6/19.6 (1), down 22.4/24.8 (7); dog up 9.3/10.0 (1), down 16.8/20.2 (5). After: grunt up 4.0/5.4 (0), down 4.6/7.8 (0);
+knight up 3.1/4.1 (0), down 3.5/8.2 (1); ogre up 4.7/12.0 (0), down 5.7/13.9 (1); dog up 1.8/2.5 (0), down 1.8/3.0 (0).
+
+Still red in test 36: 2 of 64 trials, a knight and an ogre going down to slot 7. With him right beside a flight's side, a
+foe off that flight can climb back on (the straight line to him crosses the lower steps) and dither there. An ogre's
+"there" is much longer than its "level" because it stops to lob, not because of the way. Not measured: the tower tops
+(flights marked and routed the same way), and waves in a crowd.

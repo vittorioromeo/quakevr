@@ -66,6 +66,8 @@ Hold a blade still and run into a grunt: it stabs and stays; backing away or pas
 In a staggering or downed body, pull along the blade: the blade comes out 1:1 and the body stays; move across or push in past its depth: the body moves, and only a fast yank tears it out. {test:embed_stab}
 Stab a grunt deep with two hands: thrown off balance, about 3.5 s of lifting it around; with one hand it stands on about 2.5 s and is less controllable; barely in, weaker. {test:embed_stab}
 Ogre: a shorter stagger, off balance only by a deep two-handed stab. Shambler: a moment, standing. Boss: nothing. {test:embed_stab}
+Stab a gib or head: only what the blade goes through goes on, and the blade keeps its angle. Other hand: slide it along, off the tip or yank it free. Swing it into a wall: it bursts; a gentle touch doesn't. {test:embed_stab}
+Survival Arena: stand on the dais, then on the floor: walkers come up and down the stairs to you instead of wandering the edge; they may still dither if you stand right beside a flight's side. {test:arena_run}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

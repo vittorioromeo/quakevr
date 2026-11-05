@@ -3874,7 +3874,12 @@ vr_embed_skewer_depth|2|Tunables|Skewered Gibs: From the Tip|Advanced VR Options
 vr_embed_skewer_gap|2|Tunables|Skewered Gibs: Spacing|Advanced VR Options > Debug > Tunables > Skewered Gibs: Spacing
 vr_embed_skewer_throw_burst|2|Tunables|Skewered Gibs: Thrown Burst Speed|Advanced VR Options > Debug > Tunables > Skewered Gibs: Thrown Burst Speed
 vr_embed_skewer_swing_burst|2|Tunables|Skewered Gibs: Swing Burst Speed|Advanced VR Options > Debug > Tunables > Skewered Gibs: Swing Burst Speed
+vr_embed_skewer_swing_reach|2|Tunables|Skewered Gibs: Swing Burst Reach|Advanced VR Options > Debug > Tunables > Skewered Gibs: Swing Burst Reach
+vr_embed_skewer_thick|2|Tunables|Skewered Gibs: Stab Thickness|Advanced VR Options > Debug > Tunables > Skewered Gibs: Stab Thickness
+vr_embed_skewer_tug_speed|2|Tunables|Skewered Gibs: Tug Speed|Advanced VR Options > Debug > Tunables > Skewered Gibs: Tug Speed
+vr_embed_skewer_tug_stretch|2|Tunables|Skewered Gibs: Tug Stretch|Advanced VR Options > Debug > Tunables > Skewered Gibs: Tug Stretch
 vr_embed_skewer_mass_gib|2|Tunables|Skewered Gibs: Gib Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Gib Weight
+vr_embed_skewer_mass_limb|2|Tunables|Skewered Gibs: Limb Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Limb Weight
 vr_embed_skewer_mass_head|2|Tunables|Skewered Gibs: Head Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Head Weight
 vr_embed_swing_speed|2|Tunables|Axe Swing: Least Speed|Advanced VR Options > Debug > Tunables > Axe Swing: Least Speed
 vr_embed_swing_angle|2|Tunables|Axe Swing: Most Off Its Plane|Advanced VR Options > Debug > Tunables > Axe Swing: Most Off Its Plane

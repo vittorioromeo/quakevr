@@ -1,6 +1,7 @@
 #ifdef QVR_TESTS
 // vr_arena_test.qc -- the Survival Arena's tests (vr_arena.qc). `vr_arena_test N` (Debug > Automation &
 // Self-Tests; VR_ARENA_Test_Frame, world.qc's StartFrame), the player kept alive (`god`); each ends on
+// - 36 (vrarena, god): how long walkers take between the floor and the dais, by the marked flights (Misc/quakevr/arenapath_test.sh).
 // `arena: test N over: P passed, F failed` (run.sh -QuitOn "arena: test [0-9]+ over").
 // - 1 (any open map): the waves' plans: wave 1 unarmed, the ladder's rungs no earlier than their wave, Quake's own
 //   monsters no earlier than theirs, the boss cadence and its kind, a plan never thicker than the cap, the score's
@@ -3554,6 +3555,214 @@ void() VR_AT35_Frame =
     VR_AT35_Next();
 }
 
+// ---------------------------------------------------------------------------
+// Test 36: how long the waves' walkers take between the floor and the dais (vrarena), and where they stall. One foe at a
+// time, the player god-moded and standing: on the dais' pad with the foe on the floor ("up"), or on the floor with the
+// foe on the dais' top across from him ("down"). The floor's places: 4 off the flights' lines, 4 in the corridors
+// between the dais' diagonal faces and the towers. Each line: when its feet reached his level and when it got within a
+// blow of him; its stalled time (under 8 units in a half-second sample) and its last stall's place. The sums per kind
+// and direction close it. It fails if any foe never reached his level inside the cap, or never reached him. Known red: a
+// knight and an ogre going down to slot 7 (him right beside a flight's side: off the flight, a foe can climb back on, as
+// the straight line to him crosses its lower steps, and dither there; ROUND23.md).
+// ---------------------------------------------------------------------------
+
+float AT36_KINDS = 4;
+float AT36_SLOTS = 8;
+float AT36_CAP = 25;            // seconds: a foe not there by then is stuck
+float AT36_REACH = 120;         // a blow's distance (id's melee range), on his level
+float AT36_LEVEL = 20;          // feet this close to his are on his level (the pad's 16 included)
+float at36_kind;
+float at36_dir;                 // 0 up, 1 down
+float at36_slot;
+entity at36_m;
+float at36_state;               // 0 place the next; 1 its own start; 2 walking
+float at36_t0;
+float at36_level;               // its time to his level (-1: not yet)
+float at36_stall;
+float at36_sample;              // next half-second sample's time
+vector at36_was;
+vector at36_stallat;
+float at36_sum_level[8];        // per kind and direction: kind * 2 + dir
+float at36_sum_arrive[8];
+float at36_sum_stall[8];
+float at36_capped[8];
+float at36_nolevel[8];
+
+float(float xKind) VR_AT36_Kind =
+{
+    if(xKind == 0) { return AR_SP_GRUNT; }
+    if(xKind == 1) { return AR_SP_KNIGHT; }
+    if(xKind == 2) { return AR_SP_OGRE; }
+    return AR_SP_DOG;
+}
+
+// A floor place: the first 4 slots far off the flights' lines, the others in the diagonal corridors; a quarter turn each.
+vector(float xSlot) VR_AT36_Floor =
+{
+    vector v = xSlot < 4 ? '600 200 0' : '230 230 0';
+    float k = xSlot < 4 ? xSlot : xSlot - 4;
+    if(k == 1) { v = [0 - v_y, v_x, 0]; }
+    else if(k == 2) { v = [0 - v_x, 0 - v_y, 0]; }
+    else if(k == 3) { v = [v_y, 0 - v_x, 0]; }
+    return v;
+}
+
+string(vector xAt) VR_AT36_Where =
+{
+    float ax = fabs(xAt_x);
+    float ay = fabs(xAt_y);
+    float along = max(ax, ay);
+    float across = min(ax, ay);
+    if(xAt_z > 116) { return "top"; }
+    if(xAt_z > 32) { return "stair"; }
+    if(along < 440 && along > 200 && across < 90) { return "stair foot"; }
+    if(ax + ay < 458 || along < 280) { return "dais side"; }
+    return "floor";
+}
+
+void() VR_AT36_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 36 needs the arena on (map vrarena)"); VR_AT_End(); return; }
+    vr_at_until = time + 2 * AT36_KINDS * AT36_SLOTS * (AT36_CAP + 1) + 60;
+    ar_mgr.think = SUB_Null; // (no waves)
+    ar_mgr.nextthink = 0;
+    at36_kind = 0;
+    at36_dir = 0;
+    at36_slot = 0;
+    at36_state = 0;
+    at36_m = world;
+    float i;
+    for(i = 0; i < 8; i++)
+    {
+        at36_sum_level[i] = 0;
+        at36_sum_arrive[i] = 0;
+        at36_sum_stall[i] = 0;
+        at36_capped[i] = 0;
+        at36_nolevel[i] = 0;
+    }
+}
+
+void() VR_AT36_Spawn =
+{
+    entity p = VR_Player();
+    vector floorAt = VR_AT36_Floor(at36_slot);
+    vector at;
+    if(at36_dir == 0)
+    {
+        setorigin(p, '0 0 137');
+        at = floorAt + '0 0 25';
+    }
+    else
+    {
+        setorigin(p, floorAt + '0 0 25');
+        at = normalize(floorAt) * -130;
+        at_z = 121;
+    }
+    p.velocity = '0 0 0';
+    float kind = VR_AT36_Kind(at36_kind);
+    entity oself = self;
+    self = spawn();
+    at36_m = self;
+    self.classname = VR_ARENA_ClassName(kind);
+    setorigin(self, at);
+    self.angles = [0, vectoyaw(p.origin - at), 0];
+    if(VR_ARENA_ArmsHumanoid(kind)) { self.weapon = AR_FIST; self.weapon2 = 0; }
+    vr_ar_hold_roll = 1;
+    vr_agr_hold = vr_agr_hold + 1;
+    VR_ARENA_CallSpawn(kind);
+    vr_agr_hold = vr_agr_hold - 1;
+    vr_ar_hold_roll = 0;
+    self = oself;
+    at36_state = 1;
+}
+
+void(float xArrived) VR_AT36_Close =
+{
+    entity m = at36_m;
+    float idx = at36_kind * 2 + at36_dir;
+    float took = xArrived ? time - at36_t0 : AT36_CAP;
+    float lev = at36_level >= 0 ? at36_level : AT36_CAP;
+    at36_sum_level[idx] = at36_sum_level[idx] + lev;
+    at36_sum_arrive[idx] = at36_sum_arrive[idx] + took;
+    at36_sum_stall[idx] = at36_sum_stall[idx] + at36_stall;
+    if(!xArrived) { at36_capped[idx] = at36_capped[idx] + 1; }
+    if(at36_level < 0) { at36_nolevel[idx] = at36_nolevel[idx] + 1; }
+    dprint(sprintf("arenapath: %s %s slot %g size %g: level %.1f there %.1f%s", m.classname, at36_dir ? "down" : "up", at36_slot,
+                   m.maxs_x, lev, took, xArrived ? "" : " CAPPED"));
+    dprint(sprintf(" stall %.1f last at %v (%s) ended %v\n", at36_stall, at36_stallat,
+                   at36_stall > 0 ? VR_AT36_Where(at36_stallat) : "-", m.origin));
+    remove(m);
+    at36_m = world;
+    at36_state = 0;
+    at36_slot = at36_slot + 1;
+    if(at36_slot >= AT36_SLOTS)
+    {
+        at36_slot = 0;
+        at36_dir = at36_dir + 1;
+        if(at36_dir >= 2)
+        {
+            at36_dir = 0;
+            at36_kind = at36_kind + 1;
+        }
+    }
+}
+
+void() VR_AT36_Frame =
+{
+    if(at36_kind >= AT36_KINDS)
+    {
+        float i;
+        float n = AT36_SLOTS;
+        for(i = 0; i < 8; i++)
+        {
+            string name = VR_ARENA_ClassName(VR_AT36_Kind(floor(i / 2)));
+            string way = (i & 1) ? "down" : "up";
+            dprint(sprintf("arenapath: SUM %s %s: level %.1f there %.1f stall %.1f capped %g of %g\n", name, way,
+                           at36_sum_level[i] / n, at36_sum_arrive[i] / n, at36_sum_stall[i] / n, at36_capped[i], n));
+            VR_AT_Check(at36_nolevel[i] == 0, sprintf("%s %s: all reached his level inside %g s (%g did not)", name, way, AT36_CAP, at36_nolevel[i]));
+            VR_AT_Check(at36_capped[i] == 0, sprintf("%s %s: all got to him inside %g s (%g did not)", name, way, AT36_CAP, at36_capped[i]));
+        }
+        VR_AT_End();
+        return;
+    }
+    if(at36_state == 0) { VR_AT36_Spawn(); return; }
+    entity m = at36_m;
+    entity p = VR_Player();
+    if(at36_state == 1)
+    {
+        if(!m.takedamage) { return; } // (its own start's think)
+        m.enemy = p;
+        m.think = FoundTarget;
+        m.nextthink = time + 0.05;
+        at36_t0 = time;
+        at36_level = -1;
+        at36_stall = 0;
+        at36_stallat = '0 0 0';
+        at36_sample = time + 0.5;
+        at36_was = m.origin;
+        at36_state = 2;
+        return;
+    }
+    float onLevel = fabs((m.origin_z + m.mins_z) - (p.origin_z + p.mins_z)) <= AT36_LEVEL;
+    if(onLevel && at36_level < 0) { at36_level = time - at36_t0; }
+    vector d = m.origin - p.origin;
+    d_z = 0;
+    if(onLevel && vlen(d) < AT36_REACH) { VR_AT36_Close(TRUE); return; }
+    if(time - at36_t0 >= AT36_CAP) { VR_AT36_Close(FALSE); return; }
+    if(time >= at36_sample)
+    {
+        vector moved = m.origin - at36_was;
+        moved_z = 0;
+        if(vlen(moved) < 8)
+        {
+            at36_stall = at36_stall + 0.5;
+            at36_stallat = m.origin;
+        }
+        at36_was = m.origin;
+        at36_sample = time + 0.5;
+    }
+}
+
 // The toolgun's spawn with outcome `xRow` (vr_toolgun_armed_infected_test, vr_toolgun.cpp): it carries it, and rises as it.
 float(entity e, float xRow) VR_Infect_TestOne =
 {
@@ -3620,6 +3829,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 33) { VR_AT33_Run(); VR_AT_End(); return; }
         if(c == 34) { VR_AT34_Run(); VR_AT_End(); return; }
         if(c == 35) { VR_AT35_Begin(); return; }
+        if(c == 36) { VR_AT36_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3655,5 +3865,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 30) { VR_AT30_Frame(); return; }
     if(vr_at_case == 32) { VR_AT32_Frame(); return; }
     if(vr_at_case == 35) { VR_AT35_Frame(); return; }
+    if(vr_at_case == 36) { VR_AT36_Frame(); return; }
 }
 #endif

@@ -2560,7 +2560,81 @@ entity(entity p, vector xAt) VR_ETS_Gib =
     g.nextthink = time + 10;
     VR_MakeGibGrabbable(g);
     VR_Gib_MakeDestroyable(g, 1);
+    setorigin(g, xAt - (g.mins + g.maxs) * 0.5); // (its middle there)
     return g;
+};
+
+// A point on the blade's line in the main hand, `xBack` units further back than where a stab first goes through a gib.
+vector(float xBack) VR_ETS_OnLine =
+{
+    entity b = VR_Blow(cVR_MainHand);
+    return b.mh_far - normalize(b.mh_far - b.mh_grip) * (xBack + 4);
+};
+
+// A head as a gibbing throws it (ThrowHead: its .gorging for life; 1.5 of a gib's health).
+entity(entity p, vector xAt) VR_ETS_Head =
+{
+    entity g = VR_ETS_Gib(p, xAt);
+    setmodel(g, "progs/h_player.mdl");
+    setsize(g, modelbounds(g, 0), modelbounds(g, 1));
+    setorigin(g, xAt - (g.mins + g.maxs) * 0.5);
+    g.gorging = TRUE;
+    VR_Gib_MakeDestroyable(g, 1.5);
+    return g;
+};
+
+// Whichever of the test's gibs the off hand holds on the blade (world: none), how many do in vr_ets_n.
+entity() VR_ETS_Gripped =
+{
+    entity got = world;
+    vr_ets_n = 0;
+    for(float i = 0; i < 3; ++i)
+    {
+        if(vr_ets_g[i].vr_skewer_p != world && vr_ets_g[i].vr_skewer_grip == cVR_OffHand + 1)
+        {
+            got = vr_ets_g[i];
+            vr_ets_n = vr_ets_n + 1;
+        }
+    }
+    return got;
+};
+
+// Level, square to `xWay`.
+vector(vector xWay) VR_ETS_Side =
+{
+    vector side = '0 0 0';
+    side_x = xWay_y;
+    side_y = -xWay_x;
+    return normalize(side);
+};
+
+// The off hand to the world point on the line of `g`'s blade `xBack` units back from its tip, `xOff` off it (the blade's up, or so).
+vector(entity g, float xBack, float xOff) VR_ETS_OffHandOn =
+{
+    VR_Skewer_Line(g);
+    vector side = VR_ETS_Side(vr_skewer_way);
+    vector at = vr_skewer_tip - vr_skewer_way * xBack + side * xOff;
+    localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to off %v\n", at));
+    return at;
+};
+
+float vr_ets_hb; // VR_ETS_OffHandStep: the hand's way so far: how far back from the tip
+float vr_ets_ho; // and off the line
+vector vr_ets_way; // the blade's way as the grip took hold
+
+// The off hand a step towards there, no faster than a real slide (the mock's jumps read as a yank). TRUE: there.
+float(entity g, float xBack, float xOff) VR_ETS_OffHandStep =
+{
+    vr_ets_hb = vr_ets_hb + max(-0.5, min(0.5, xBack - vr_ets_hb));
+    vr_ets_ho = vr_ets_ho + max(-0.1, min(0.1, xOff - vr_ets_ho));
+    vr_et_at = VR_ETS_OffHandOn(g, vr_ets_hb, vr_ets_ho);
+    return vr_ets_hb == xBack && vr_ets_ho == xOff;
+};
+
+// `g` on the blade's line as it is now (the hand settles after a gib's made), for a stab through it.
+void(entity g, float xBack) VR_ETS_PutOn =
+{
+    setorigin(g, VR_ETS_OnLine(xBack) - (g.mins + g.maxs) * 0.5);
 };
 
 // The blow of the main hand on `g`, as a sweep finds it.
@@ -2631,7 +2705,7 @@ void() VR_ETS_Step =
         makevectors(p.v_angle);
         for(i = 0; i < 4; ++i)
         {
-            vr_ets_g[i] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * (4 + i * 8));
+            vr_ets_g[i] = VR_ETS_Gib(p, VR_ETS_OnLine(i * 3));
         }
         VR_ET_To(2);
     }
@@ -2640,57 +2714,176 @@ void() VR_ETS_Step =
         VR_Test_Check(p.ishuman && VR_Skewer_HasBlade(p, cVR_MainHand), sprintf("a pointed blade in the hand (ishuman %g, embed %g, wid %g, gorging %g, carry %g)", p.ishuman, weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeaponFlags(p, cVR_MainHand)), "embed"), VRGetEntWeapon(p, cVR_MainHand), g.gorging, g.carry_player != world));
         for(i = 0; i < 3; ++i)
         {
+            VR_ETS_PutOn(vr_ets_g[i], i * 3);
             VR_ETS_Blow(p, vr_ets_g[i], VR_MKIND_STAB, 6);
             VR_Test_Check(vr_ets_g[i].vr_gib && vr_ets_g[i].model != string_null && vr_ets_g[i].vr_skewer_p == p, sprintf("stab %g: not destroyed, on the blade", i));
         }
         VR_Test_Check(vr_ets_g[1].vr_skewer_slot != g.vr_skewer_slot && vr_ets_g[2].vr_skewer_slot != vr_ets_g[1].vr_skewer_slot, "each its own place along it");
         VR_Test_Check(!VR_Blow_Strikable(g), "the blade's own blows pass it");
         VR_Test_Check(g.think == VR_Skewer_Think, "its fade held");
+        VR_ETS_PutOn(vr_ets_g[3], 0);
         VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_STAB, 30);
         VR_Test_Check(vr_ets_g[3].vr_skewer_p == world, "the fourth is past the blade's most: not on it");
+        // Heads and limbs: a head goes on as any gib; what each weighs.
+        vr_et_w = VR_ETS_Head(p, VR_ETS_OnLine(0));
+        vector side0 = VR_ETS_Side(VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip);
+        vr_ets_r = VR_ETS_Gib(p, VR_ETS_OnLine(0) + side0 * 22);
+        vr_ets_r.vr_prop_mass = 12.4; // (a soldier's leg, as VR_Limb_SetMass has it)
+        vector rm = vr_ets_r.maxs - vr_ets_r.mins;
+        VR_Test_Check(VR_Skewer_Mass(vr_ets_r) < VR_Skewer_Mass(vr_et_w) && VR_Skewer_Mass(vr_ets_r) <= 0.9, sprintf("a limb %.2f kg (its body's share 12.4; size %v), a head %.2f, a gib %.2f", VR_Skewer_Mass(vr_ets_r), rm, VR_Skewer_Mass(vr_et_w), VR_Skewer_Mass(g)));
         vr_et_at = g.origin;
         setorigin(p, p.origin + '0 0 16');
         VR_ET_To(3);
     }
     else if(vr_et_s == 3 && time > vr_et_t0 && (p.flags & FL_ONGROUND) && p.velocity == '0 0 0') // (the player back on the floor)
     {
-        float kg = 3 * cvar_hget(cvarh_vr_embed_skewer_mass_gib);
+        float kg = VR_Skewer_Mass(g) + VR_Skewer_Mass(vr_ets_g[1]) + VR_Skewer_Mass(vr_ets_g[2]);
         VR_Test_Check(fabs(p.vr_skewer_load_main_x - kg) < 0.01 && p.vr_skewer_load_main_y > 0 && p.vr_skewer_load_main_z > 0, sprintf("the hand's load: %.2f kg, %.2f kg m, %.3f kg m2 (three gibs: %.2f kg)", p.vr_skewer_load_main_x, p.vr_skewer_load_main_y, p.vr_skewer_load_main_z, kg));
         VR_Test_Check(VR_ETS_Off(p, g) < 2, sprintf("it rides the blade as the hand moves (%.2f units off where it rides)", VR_ETS_Off(p, g)));
         // A slash and a hilt blow on loose ones: burst as ever.
-        vr_ets_g[3] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
+        vr_ets_g[3] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
         vr_ets_n = 0;
+        VR_ET_To(70);
+    }
+    // A stab off the head and limb's frame: the line, not the sweep's reach. Two blows on what the blade misses and on what it goes through.
+    else if(vr_et_s == 70 && vr_et_w.takedamage && vr_ets_r.takedamage)
+    {
+        VR_ETS_Blow(p, vr_ets_r, VR_MKIND_STAB, 6);
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_p == world && vr_ets_r.model != string_null, "a stab beside a gib: not on the blade, not burst");
+        remove(vr_ets_r);
+        // (The blade has its three: one off for the head.)
+        entity off0 = vr_ets_g[2];
+        VR_Skewer_Off(off0);
+        VR_ETS_PutOn(vr_et_w, 0);
+        VR_ETS_Blow(p, vr_et_w, VR_MKIND_STAB, 6);
+        VR_Test_Check(vr_et_w.vr_skewer_p == p, sprintf("a stab through a head (its .gorging %g): on the blade", vr_et_w.gorging));
+        VR_Gib_Burst(vr_et_w, '0 0 -1');
+        vr_ets_g[2] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
         VR_ET_To(4);
     }
-    else if(vr_et_s == 4 && vr_ets_g[3].takedamage)
+    else if(vr_et_s == 4 && vr_ets_g[3].takedamage && vr_ets_g[2].takedamage)
     {
+        VR_ETS_PutOn(vr_ets_g[2], 0);
+        VR_ETS_Blow(p, vr_ets_g[2], VR_MKIND_STAB, 6);
         VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_SLASH, 30);
         VR_Test_Check(!vr_ets_g[3].vr_gib || vr_ets_g[3].model == string_null, "a slash on a loose gib bursts it");
         // The other hand's grip takes one.
         VRSetHandEmpty(p, cVR_OffHand);
-        localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to off %v\n", g.origin));
+        vr_et_at = VR_ETS_OffHandOn(g, VR_Skewer_Back(g, VR_Skewer_Line(g)), 0);
         VR_ET_To(11);
     }
-    else if(vr_et_s == 11 && vlen(VRGetHandPos(cVR_OffHand) - g.origin) < 6)
+    else if(vr_et_s == 11 && vlen(VRGetHandPos(cVR_OffHand) - vr_et_at) < 1 && vlen(VRGetEntHandVel(p, cVR_OffHand)) < 0.5) // (settled: its jump there is no yank)
     {
         localcmd("+graboff\n");
         VR_ET_To(12);
     }
-    else if(vr_et_s == 12 && VR_Carry_IsHolding(p, cVR_OffHand))
+    // The other hand's grip: it holds it on the blade, one gib only.
+    else if(vr_et_s == 12 && VR_ETS_Gripped() != world)
     {
-        // (Any of them: all are in reach. One only, the rest stay on.)
-        entity held = VR_Carry_Held(p, cVR_OffHand);
-        vr_ets_n = 0;
-        for(i = 0; i < 3; ++i)
+        entity gr = VR_ETS_Gripped();
+        VR_Test_Check(vr_ets_n == 1 && gr == g && !VR_Carry_IsHolding(p, cVR_OffHand) && gr.vr_skewer_p == p, sprintf("a grip holds the nearest one (of %g held), still on the blade", vr_ets_n));
+        // Towards the tip, a little off the line: only along it.
+        vr_ets_peak = VR_Skewer_Back(g, VR_Skewer_Line(g));
+        vr_ets_way = vr_skewer_way;
+        vr_ets_hb = vr_ets_peak;
+        vr_ets_ho = 0;
+        VR_ET_To(13);
+    }
+    else if(vr_et_s == 13)
+    {
+        if(VR_ETS_OffHandStep(g, vr_ets_peak - 4, 1))
         {
-            if(vr_ets_g[i].vr_skewer_p == p)
-            {
-                vr_ets_n = vr_ets_n + 1;
-                vr_ets_r = vr_ets_g[i];
-            }
+            VR_ET_To(73);
         }
-        VR_Test_Check(held.vr_gib && held.vr_skewer_p == world && held.carry_player == p && held.think == SUB_Remove && held.nextthink > time + 25, "the other hand's grip holds one, its fade anew");
-        VR_Test_Check(vr_ets_n == 2, sprintf("the rest stay on the blade (%g)", vr_ets_n));
+    }
+    else if(vr_et_s == 73 && time > vr_et_t0 + 0.05 && vlen(VRGetHandPos(cVR_OffHand) - vr_et_at) < 1)
+    {
+        float l13 = VR_Skewer_Line(g);
+        vector c13 = vr_skewer_tip - vr_skewer_way * VR_Skewer_Back(g, l13);
+        VR_Test_Check(fabs(VR_Skewer_Back(g, l13) - (vr_ets_peak - 4)) < 1 && vlen(g.vr_skewer_c - c13) < 1, sprintf("it slides along the blade with the hand: %.1f back from the tip, was %.1f; %.2f off its line", VR_Skewer_Back(g, l13), vr_ets_peak, vlen(g.vr_skewer_c - c13)));
+        VR_Test_Check(g.vr_skewer_p == p, "not off the blade for it");
+        // Towards the hilt: the next along stops it.
+        VR_ET_To(14);
+    }
+    else if(vr_et_s == 14)
+    {
+        if(VR_ETS_OffHandStep(g, 14, 0))
+        {
+            VR_ET_To(74);
+        }
+    }
+    else if(vr_et_s == 74 && time > vr_et_t0 + 0.15) // (the hand may be held off the blade by a little: a few frames on its way)
+    {
+        float l14 = VR_Skewer_Line(g);
+        VR_Test_Check(vr_skewer_way * vr_ets_way > 0.999, sprintf("the blade doesn't turn to the hand, no half-sword grip (%.4f)", vr_skewer_way * vr_ets_way));
+        VR_Test_Check(VR_Skewer_Back(vr_ets_g[1], l14) - VR_Skewer_Back(g, l14) >= cvar_hget(cvarh_vr_embed_skewer_gap) - 0.5, sprintf("the next one along stops it (%.1f, it %.1f)", VR_Skewer_Back(g, l14), VR_Skewer_Back(vr_ets_g[1], l14)));
+        // Off the tip end: then a prop in that hand.
+        VR_ET_To(15);
+    }
+    else if(vr_et_s == 15 && !VR_Carry_IsHolding(p, cVR_OffHand))
+    {
+        VR_ETS_OffHandStep(g, -30, 0);
+    }
+    else if(vr_et_s == 15)
+    {
+        entity held = VR_Carry_Held(p, cVR_OffHand);
+        VR_Test_Check(held == g && held.vr_gib && held.vr_skewer_p == world && held.carry_player == p && held.think == SUB_Remove && held.nextthink > time + 25, "pulled off the tip end: free, in that hand, its fade anew");
+        VR_Test_Check(vr_ets_g[1].vr_skewer_p == p && vr_ets_g[2].vr_skewer_p == p, "the rest stay on the blade");
+        localcmd("-graboff\n");
+        VR_ET_To(16);
+    }
+    // A tug across the line tears the next off.
+    else if(vr_et_s == 16 && !VR_Carry_IsHolding(p, cVR_OffHand) && !VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand))
+    {
+        VRSetHandEmpty(p, cVR_OffHand);
+        vr_et_at = VR_ETS_OffHandOn(vr_ets_g[1], VR_Skewer_Back(vr_ets_g[1], VR_Skewer_Line(vr_ets_g[1])), 0);
+        VR_ET_To(17);
+    }
+    else if(vr_et_s == 17 && vlen(VRGetHandPos(cVR_OffHand) - vr_et_at) < 1 && vlen(VRGetEntHandVel(p, cVR_OffHand)) < 0.5)
+    {
+        localcmd("+graboff\n");
+        VR_ET_To(18);
+    }
+    else if(vr_et_s == 18 && VR_ETS_Gripped() == vr_ets_g[1])
+    {
+        vr_et_at = VR_ETS_OffHandOn(vr_ets_g[1], VR_Skewer_Back(vr_ets_g[1], VR_Skewer_Line(vr_ets_g[1])), 20);
+        VR_ET_To(19);
+    }
+    else if(vr_et_s == 19 && VR_Carry_IsHolding(p, cVR_OffHand))
+    {
+        VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == vr_ets_g[1] && vr_ets_g[1].vr_skewer_p == world, "a tug across the line: off, in that hand");
+        localcmd("-graboff\n");
+        VR_ET_To(20);
+    }
+    // The hilt end stops the last, alone on the blade; let go of, it stays where it was slid to.
+    else if(vr_et_s == 20 && !VR_Carry_IsHolding(p, cVR_OffHand) && !VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand))
+    {
+        VRSetHandEmpty(p, cVR_OffHand);
+        vr_ets_r = vr_ets_g[2];
+        vr_et_at = VR_ETS_OffHandOn(vr_ets_r, VR_Skewer_Back(vr_ets_r, VR_Skewer_Line(vr_ets_r)), 0);
+        VR_ET_To(21);
+    }
+    else if(vr_et_s == 21 && vlen(VRGetHandPos(cVR_OffHand) - vr_et_at) < 1 && vlen(VRGetEntHandVel(p, cVR_OffHand)) < 0.5)
+    {
+        localcmd("+graboff\n");
+        VR_ET_To(22);
+    }
+    else if(vr_et_s == 22 && VR_ETS_Gripped() == vr_ets_r)
+    {
+        vr_ets_r.vr_skewer_gripat = vr_ets_r.vr_skewer_gripat + 60; // (as if slid there: the blade's own hand is in the way of the mock's)
+        VR_ET_To(75);
+    }
+    else if(vr_et_s == 75 && time > vr_et_t0 + 0.05)
+    {
+        float l23 = VR_Skewer_Line(vr_ets_r);
+        VR_Test_Check(vr_ets_r.vr_skewer_p == p && fabs(VR_Skewer_Back(vr_ets_r, l23) - l23 * 0.85) < 0.5, sprintf("the hilt end stops it (%.1f of %.1f)", VR_Skewer_Back(vr_ets_r, l23), l23));
+        localcmd("-graboff\n");
+        VR_ET_To(24);
+    }
+    else if(vr_et_s == 24 && !VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand) && vr_ets_r.vr_skewer_grip == 0)
+    {
+        float l24 = VR_Skewer_Line(vr_ets_r);
+        VR_Test_Check(vr_ets_r.vr_skewer_p == p && fabs(VR_Skewer_Back(vr_ets_r, l24) - l24 * 0.85) < 0.5, "let go of: it stays there, on the blade");
         // A weapon's switch: what is on the blade falls.
         VR_EH_Give(WID_SHOTGUN, 0);
         VR_ET_To(6);
@@ -2718,12 +2911,12 @@ void() VR_ETS_Step =
     }
     else if(vr_et_s == 31 && VR_Blow(cVR_MainHand).mh_far != '0 0 0')
     {
-        makevectors(p.v_angle);
-        vr_ets_r = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
+        vr_ets_r = VR_ETS_Gib(p, VR_ETS_OnLine(0));
         VR_ET_To(32);
     }
     else if(vr_et_s == 32 && vr_ets_r.takedamage)
     {
+        VR_ETS_PutOn(vr_ets_r, 0);
         VR_ETS_Blow(p, vr_ets_r, VR_MKIND_STAB, 6);
         VR_Test_Check(vr_ets_r.vr_skewer_p == p, "a fresh one on the blade");
         VR_ET_To(vr_ets_then);
@@ -2770,17 +2963,70 @@ void() VR_ETS_Step =
         vr_ets_then = 50;
         VR_ET_To(30);
     }
+    // A real swing into a wall, the blade side on (it points ahead, the wall to the right): slowly it stays on, fast it bursts at the contact.
+    else if(vr_et_s == 80)
+    {
+        makevectors('0 1 0' * p.v_viewangle_y);
+        vector eye80 = p.origin + '0 0 22';
+        traceline(eye80, eye80 + v_right * 4000, TRUE, p);
+        setorigin(p, p.origin + v_right * (4000 * trace_fraction - 50));
+        p.velocity = '0 0 0';
+        localcmd(sprintf("vr_mock_hand_to main %v\n", p.origin + v_forward * 16 + '0 0 20')); // (where the throws left it isn't by this wall)
+        VR_ET_To(81);
+    }
+    else if(vr_et_s == 81 && time > vr_et_t0 + 0.3)
+    {
+        makevectors('0 1 0' * p.v_viewangle_y);
+        vr_ets_way = v_right;
+        vr_et_at = VRGetHandPos(cVR_MainHand);
+        localcmd("vr_mock_hand_glide 0\n");
+        vr_ets_n = 0;
+        vr_ets_then = 83;
+        VR_ET_To(30);
+    }
+    else if(vr_et_s == 83 && time > vr_et_t0 + 0.5) // (the hand settled under its new weight)
+    {
+        vr_ets_n = vr_ets_n + 1;
+        localcmd(sprintf("vr_mock_hand_to main %v\n", vr_et_at + vr_ets_way * (vr_ets_n * 0.2)));
+        traceline(vr_ets_r.vr_skewer_c, vr_ets_r.vr_skewer_c + vr_ets_way * VR_Skewer_Radius(vr_ets_r), TRUE, p);
+        if(trace_fraction < 1)
+        {
+            VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_p == p, sprintf("a slow swing to the wall (%.1f m/s): it stays on", vr_ets_r.vr_skewer_lastsp));
+            localcmd(sprintf("vr_mock_hand_to main %v\n", vr_et_at));
+            vr_ets_n = 0;
+            vr_ets_peak = 0;
+            VR_ET_To(82);
+        }
+    }
+    else if(vr_et_s == 82 && time > vr_et_t0 + 0.2)
+    {
+        vr_ets_n = vr_ets_n + 1;
+        localcmd(sprintf("vr_mock_hand_to main %v\n", vr_et_at + vr_ets_way * (vr_ets_n * 2.5)));
+        vr_ets_peak = max(vr_ets_peak, vr_ets_r.vr_skewer_lastsp);
+        if(!vr_ets_r.vr_gib)
+        {
+            VR_Test_Check(TRUE, sprintf("a real swing into the wall (%.1f m/s): it bursts", vr_ets_peak));
+            // vr_embed off: as ever.
+            cvar_set("vr_embed", "0");
+            VR_EH_Give(WID_SWORD, 0);
+            vr_ets_g[3] = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+            VR_ET_To(8);
+        }
+    }
     // Thrown hard side on at a wall: the gib meets it and bursts.
     else if(vr_et_s == 50)
     {
-        VR_ET_FaceWall(100);
+        VR_ET_FaceWall(75);
+        makevectors('0 1 0' * p.v_viewangle_y);
+        localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to main %v\n", p.origin + v_forward * 50 + '0 0 20')); // (clear of the player's own body: a blade let go of beside it bumps it and drops)
         VR_ET_To(51);
     }
-    else if(vr_et_s == 51 && time > vr_et_t0)
+    else if(vr_et_s == 51 && time > vr_et_t0 + 0.2)
     {
         makevectors(p.v_angle);
         vector fwd1 = v_forward;
-        vr_et_w = VR_ETS_LetGo(p, vectoangles(v_right + v_forward * 0.35), fwd1 * 14 * VRMetersToUnits()); // (its tip end first, not a hilt)
+        vr_ets_peak = 0;
+        vr_et_w = VR_ETS_LetGo(p, vectoangles(v_right), fwd1 * 14 * VRMetersToUnits()); // (flat on: tip first it sticks in the wall, the gib short of it, rightly unhurt)
         VR_ET_To(52);
     }
     else if(vr_et_s == 52 && !vr_ets_r.vr_gib)
@@ -2791,7 +3037,14 @@ void() VR_ETS_Step =
     }
     else if(vr_et_s == 52)
     {
-        vr_ets_peak = max(vr_ets_peak, vr_ets_r.vr_skewer_lastsp); // (for the time out's line)
+        vr_ets_peak = max(vr_ets_peak, vr_ets_r.vr_skewer_lastsp);
+        if(time > vr_et_t0 + 3) // (a give-up, so the checks after it still run)
+        {
+            traceline(vr_ets_r.vr_skewer_c, vr_ets_r.vr_skewer_c + normalize(vr_ets_way) * 200, TRUE, p);
+            VR_Test_Check(FALSE, sprintf("thrown hard at a wall by the gib: it never burst (fastest %.1f m/s, dropped %g, on the blade %g, stuck %g, %.0f units on it to a wall)", vr_ets_peak, vr_ets_r.vr_skewer_gentle, vr_ets_r.vr_skewer_w == vr_et_w, vr_et_w.vr_stick_kind, 200 * trace_fraction));
+            vr_ets_then = 60;
+            VR_ET_To(30);
+        }
     }
     // Slowly: it doesn't.
     else if(vr_et_s == 60)
@@ -2810,11 +3063,7 @@ void() VR_ETS_Step =
     else if(vr_et_s == 62 && vr_et_w.origin_z < vr_et_at_z - 4 && vlen(vr_et_w.velocity) < 4)
     {
         VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.vr_skewer_w == vr_et_w, "thrown slowly at the wall: it stays on");
-        // vr_embed off: as ever.
-        cvar_set("vr_embed", "0");
-        VR_EH_Give(WID_SWORD, 0);
-        vr_ets_g[3] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
-        VR_ET_To(8);
+        VR_ET_To(80);
     }
     else if(vr_et_s == 8 && vr_ets_g[3].takedamage)
     {

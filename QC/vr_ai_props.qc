@@ -99,8 +99,8 @@ float(float dist) VR_AI_PropBlocked =
     return VR_AI_Detour(dist);
 };
 
-// movetogoal(dist) for ai_run, ai_walk and the stealth AI's walks: round the props in the way.
-void(float dist) VR_AI_MoveToGoal =
+// movetogoal(dist), round the props in the way.
+void(float dist) VR_AI_MoveRound =
 {
     if(!cvar_hget(cvarh_vr_ai_props) || !VR_Stealth_On() || !(self.flags & FL_MONSTER) || (self.flags & (FL_FLY | FL_SWIM)) ||
        self.goalentity == world)
@@ -117,4 +117,21 @@ void(float dist) VR_AI_MoveToGoal =
         return;
     }
     movetogoal(dist);
+};
+
+// movetogoal(dist) for ai_run, ai_walk and the stealth AI's walks: by way of the map's stairs when the foe is on another
+// level (vr_arena_nav.qc), round the props in the way.
+void(float dist) VR_AI_MoveToGoal =
+{
+    entity nav = VR_ARENA_NavStep(dist);
+    if(nav == world)
+    {
+        VR_AI_MoveRound(dist);
+        return;
+    }
+    entity goal = self.goalentity;
+    self.goalentity = nav;
+    self.ideal_yaw = vectoyaw(nav.origin - self.origin);
+    VR_AI_MoveRound(dist);
+    self.goalentity = goal;
 };
