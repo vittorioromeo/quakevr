@@ -565,6 +565,11 @@ def scenarios():
         "vrtesthall", "bench_armed_mix32: armed_mix16's loadouts and 16 more behind them (burst rifles, super nailgun, "
         "revolver, laser rifle, double shotgun, dual axes, sword, a knight with a shotgun, more death knights); against armed_mix16: the cost of each extra one.",
         scene="bench_armed_mix32", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    # (the armour on its heaviest wearer: ROUND24.md, "The armour's joints"; old against new builds)
+    add("armour_dknights16", ["armed"], "16 armed death knights in full armour standing in view",
+        "vrtesthall", "bench_dknights_armour: 16 armed death knights, vr_agarmor 2 (every piece, the joints' sleeves), "
+        "not hunting you: the armour shells' skinning and drawing on the wearer with the most triangles.",
+        scene="bench_dknights_armour", warm=60, load_wait=240)
     REPL = lambda on: [f"vr_agrunt_repl {on}", f"vr_agknight {on}", f"vr_agdknight {on}"]
     add("crowd32_armed", ["armed", "combat"], "32 of Quake's grunts, enforcers, knights, death knights, all replaced armed",
         "vrtesthall", "bench_crowd_plain32 with vr_agrunt_repl, vr_agknight and vr_agdknight 1: each its armed version, "
