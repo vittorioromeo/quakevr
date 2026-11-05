@@ -1853,8 +1853,9 @@ QVR_TUNABLE(vr_embed_axe_depth, "12") // cm an axe's edge goes in at twice its l
 QVR_TUNABLE(vr_embed_hold_axe_stick, "2") // cm before an axe moves
 QVR_TUNABLE(vr_embed_hold_axe_rate, "70") // cm/s an axe slides at most
 QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does
-QVR_TUNABLE(vr_embed_stagger_axe, "0.3") // s an axe's does
-QVR_TUNABLE(vr_embed_move_axe_force, "400") // N an axe does
+QVR_TUNABLE(vr_embed_stagger_axe, "0.75") // s an axe's does (times the body's Skewer, by how deep)
+QVR_TUNABLE(vr_embed_hold_axe_tug, "5") // cm the hand pulls on past its depth to tug an axe out of the wound
+QVR_TUNABLE(vr_embed_move_axe_force, "300") // N an axe does
 // Embedded Blades: Hold
 QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
 QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis before a sword moves, barely in
@@ -1868,6 +1869,9 @@ QVR_TUNABLE(vr_embed_slide_sound_vol, "0.35") // their volume
 QVR_TUNABLE(vr_embed_slide_blood, "10") // how much blood spurts out of the wound at each of those steps, going in or out (0: none)
 QVR_TUNABLE(vr_embed_wound_stream, "1") // how hard the blood stream (vr_bloodstream.cpp) of a wound with a blade in a living body pours, unending until the blade is out (0: none)
 QVR_TUNABLE(vr_embed_hold_break, "45") // cm the hand may go off the axis before the blade comes free
+QVR_TUNABLE(vr_embed_hold_yank, "6") // m/s across the axis it must also go at in a ragdoll: else it moves the body
+QVR_TUNABLE(vr_embed_touch, "1.2") // cm the blade as drawn may be off the drawn model and still go in (vr_model_collide holds it 1 off)
+QVR_TUNABLE(vr_embed_touch_wait, "0.12") // s after a blow that landed short the blade may still come to touch and stay in
 QVR_TUNABLE(vr_embed_hold_reach, "90.5") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
 QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)
 QVR_TUNABLE(vr_embed_hold_reach_down, "1.5") // times the hold's reach for a body knocked down (it falls away from the hand)
@@ -1876,12 +1880,18 @@ QVR_TUNABLE(vr_embed_limb_follow, "6") // 1/s: how fast a blade in an arm or a l
 QVR_TUNABLE(vr_embed_torso_follow, "25") // 1/s: how fast a blade in the torso, the pelvis or the head takes its turn (0: rigid)
 // Embedded Blades: Moving the Body
 QVR_TUNABLE(vr_embed_stagger_sword_speed, "5") // m/s a held stab goes at to stagger the body
-QVR_TUNABLE(vr_embed_stagger_sword, "0.6") // s a sword's stagger lasts, in as deep as a stab goes
+QVR_TUNABLE(vr_embed_stagger_sword, "2.5") // s a sword's stagger lasts, in as deep as a stab goes, on a body of Skewer 1
+QVR_TUNABLE(vr_embed_stagger_amount, "1") // how far a stab throws a body off balance, times its Skewer, by how deep
+QVR_TUNABLE(vr_embed_stagger_twohand, "1.5") // times its time and its amount with both hands on the blade
+QVR_TUNABLE(vr_embed_stagger_topple, "0.55") // the amount from which it may fall (under it, it stands on sure footed)
 QVR_TUNABLE(vr_embed_stagger_shallow, "0.5") // times that barely in
 QVR_TUNABLE(vr_embed_stagger_push, "0.3") // the stagger's push along the blow (a shove of two hands: 1)
-QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least one hand's hold on a body (VR_FoeGrab_Strength) for it to be light: staggered, moved and dragged
-QVR_TUNABLE(vr_embed_move_sword_force, "400") // N a sword barely in moves a body with at most
-QVR_TUNABLE(vr_embed_move_sword_force_deep, "2200") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least Skewer (groups.txt) of a standing body for walking away to drag it
+QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on the blade
+QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's speed gets for hitting and sticking
+QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
+QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
+QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body

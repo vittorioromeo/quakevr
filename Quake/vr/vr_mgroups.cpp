@@ -142,7 +142,7 @@ constexpr const char* dataPath = "data/groups.txt";
 constexpr const char* paramKeys[paramCount] = {"kdtrig", "resist", "ledge", "stairs", "slope", "shotgun", "wounded",
     "blow", "blast", "thrown", "tackle", "shove", "push", "stagger", "sweep", "leggrab", "lift", "necksnap", "manhandle",
     "throw", "hold", "poise", "health", "kdscale", "downtime", "getup", "snapkills", "struggle", "struggle_strength",
-    "struggle_speed", "struggle_arms", "struggle_hurt"};
+    "struggle_speed", "struggle_arms", "struggle_hurt", "skewer"};
 
 cvar_t standIns[groupCount * paramCount]{};
 DataTable<Param, groupCount, paramCount> values{standIns};

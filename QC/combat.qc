@@ -1338,19 +1338,24 @@ void(float xHand) VR_Corpse_StrikeFrame =
     // A blow's speed first: most frames the hand is slower.
     vector vel = VRGetHandVel(xHand);
     float speed = vlen(vel);
-    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)))
+    // (A melee weapon: your body carries it in too, below. As VR_Melee_DecideOn.)
+    float thing = VR_Melee_Thing(self, xHand);
+    float bodyHit = (thing == VR_MTHING_GUN || thing == VR_MTHING_FIST) ? 0 : max(0, cvar_hget(cvarh_vr_melee_body_speed));
+    vector bodyV = self.velocity * (1 / VRMetersToUnits());
+    float least = max(0.1, cvar_hget(cvarh_vr_melee_speed));
+    if(speed + vlen(bodyV) * bodyHit < least)
     {
         return;
     }
 
     // As the hands' blows (vr_melee.qc): an empty hand steadying the other's weapon doesn't strike (the weapon's hand
     // does: the first hand to strike takes the swing). A gun carried by its pump strikes (round 21).
-    if(VR_Melee_Thing(self, xHand) == VR_MTHING_NONE)
+    if(thing == VR_MTHING_NONE)
     {
         return;
     }
 
-    vector dir = normalize(vel);
+    vector dir = normalize(vel + bodyV * bodyHit);
     vector hand = VRGetHandPos(xHand);
     entity c = world;
     vector at = hand;
@@ -1374,8 +1379,21 @@ void(float xHand) VR_Corpse_StrikeFrame =
         blunt = vr_cstrike_blunt;
     }
 
+    // Your body's speed towards it, what it adds: to landing and sticking, and by less to the blow.
+    float dealt = speed;
+    if(bodyHit > 0)
+    {
+        vector to = normalize(at - self.origin);
+        float toward = max(0, bodyV * to);
+        dealt = vlen(vel + to * toward * max(0, cvar_hget(cvarh_vr_melee_body_damage)));
+        speed = vlen(vel + to * toward * bodyHit);
+        if(speed < least)
+        {
+            return;
+        }
+    }
     VR_Embed_Blow(xHand, VR_Blow(xHand), c, at, dir, speed, -1); // (it may stay in: vr_embedhold.qc)
-    VR_Corpse_Struck(xHand, c, at, dir, speed, blunt);
+    VR_Corpse_Struck(xHand, c, at, dir, dealt, blunt);
     VR_Embed_BlowsDone(xHand);
 };
 

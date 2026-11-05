@@ -83,7 +83,7 @@ void PF_embedstick()
     const glm::vec3 place{at[0], at[1], at[2]};
     const glm::vec3 going{vel[0], vel[1], vel[2]};
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM4));
-    G_FLOAT(OFS_RETURN) = axestick::stickHeld(w, host, place, going, hand) ? 1.f : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(axestick::stickHeld(w, host, place, going, hand));
 }
 
 void PF_weaponanygrip()
