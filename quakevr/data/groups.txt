@@ -23,12 +23,15 @@
 //   kdscale     every chance to knock it down times this (a sure one by this chance too)
 //   downtime    its time down times this; getup: its get-up's speed times this
 //   snapkills   the neck snap kills it (0: it only hurts, vr_foegrab_necksnap_tough)
+//   skewer      how far a blade stuck in it throws it about, 0..1: a stab's stagger (how long, how far off balance), how hard the blade moves its
+//               ragdoll, and being dragged (from vr_embed_light_hold up); 0 never (vr_embedhold.qc)
 //   struggle    held while knocked down, its members with a struggle profile struggle (vr_mgroups.cpp
 //               struggleProfiles); their strength, speed and arm drive times struggle_strength, _speed, _arms,
 //               weaker as they are hurt (struggle_hurt 1)
 
 defaults
 {
+    skewer "0.5"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -65,6 +68,7 @@ defaults
 
 group army // Grunts
 {
+    skewer "1"
     kdtrig "1"
     resist "1"
     ledge "1"
@@ -101,6 +105,7 @@ group army // Grunts
 
 group enforcer // Enforcers
 {
+    skewer "1"
     kdtrig "1"
     resist "1.15"
     ledge "1"
@@ -137,6 +142,7 @@ group enforcer // Enforcers
 
 group knight // Knights
 {
+    skewer "0.8"
     kdtrig "1"
     resist "1.15"
     ledge "1"
@@ -173,6 +179,7 @@ group knight // Knights
 
 group hknight // Death Knights
 {
+    skewer "0.5"
     kdtrig "1"
     resist "1.6"
     ledge "1"
@@ -212,6 +219,7 @@ group hknight // Death Knights
 // only hurts (Mini Bosses); about a quarter less of every chance and a faster get-up (Elite Knights).
 group miniboss // Mini Bosses
 {
+    skewer "0.2"
     kdtrig "1"
     resist "1.6"
     ledge "1"
@@ -248,6 +256,7 @@ group miniboss // Mini Bosses
 
 group eliteknight // Elite Knights
 {
+    skewer "0.5"
     kdtrig "1"
     resist "1.6"
     ledge "1"
@@ -284,6 +293,7 @@ group eliteknight // Elite Knights
 
 group ogre // Ogres
 {
+    skewer "0.4"
     kdtrig "1"
     resist "2.5"
     ledge "1"
@@ -320,6 +330,7 @@ group ogre // Ogres
 
 group zombie // Zombies
 {
+    skewer "1"
     kdtrig "1"
     resist "1"
     ledge "1"
@@ -356,6 +367,7 @@ group zombie // Zombies
 
 group mummy // Mummies
 {
+    skewer "0.9"
     kdtrig "1"
     resist "0"
     ledge "1"
@@ -392,6 +404,7 @@ group mummy // Mummies
 
 group dog // Rottweilers
 {
+    skewer "1"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -428,6 +441,7 @@ group dog // Rottweilers
 
 group demon // Fiends
 {
+    skewer "0.4"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -464,6 +478,7 @@ group demon // Fiends
 
 group shambler // Shamblers
 {
+    skewer "0.08"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -500,6 +515,7 @@ group shambler // Shamblers
 
 group gremlin // Gremlins
 {
+    skewer "1"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -536,6 +552,7 @@ group gremlin // Gremlins
 
 group skullwiz // Skull Wizards
 {
+    skewer "0.8"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -572,6 +589,7 @@ group skullwiz // Skull Wizards
 
 group crawler // Spiders and Crawlers
 {
+    skewer "0.8"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -608,6 +626,7 @@ group crawler // Spiders and Crawlers
 
 group giant // Giants
 {
+    skewer "0.05"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -644,6 +663,7 @@ group giant // Giants
 
 group wizard // Scrags and Gargoyles
 {
+    skewer "0.8"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -680,6 +700,7 @@ group wizard // Scrags and Gargoyles
 
 group shalrath // Vores
 {
+    skewer "0.25"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -716,6 +737,7 @@ group shalrath // Vores
 
 group tarbaby // Spawns
 {
+    skewer "0.8"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -752,6 +774,7 @@ group tarbaby // Spawns
 
 group fish // Fish and Eels
 {
+    skewer "0.5"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -788,6 +811,7 @@ group fish // Fish and Eels
 
 group floater // Wraiths and Floaters
 {
+    skewer "0.5"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -824,6 +848,7 @@ group floater // Wraiths and Floaters
 
 group machine // Machines
 {
+    skewer "0.1"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -860,6 +885,7 @@ group machine // Machines
 
 group boss // Bosses
 {
+    skewer "0"
     kdtrig "0"
     resist "0"
     ledge "1"
@@ -896,6 +922,7 @@ group boss // Bosses
 
 group other // Others
 {
+    skewer "0.5"
     kdtrig "0"
     resist "0"
     ledge "1"

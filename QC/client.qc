@@ -2882,6 +2882,7 @@ void(float xHand) VR_Melee_Deal =
 
 void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow; // (vr_embedhold.qc)
 void(float xHand) VR_Embed_BlowsDone;
+void(float xHand) VR_Embed_WaitFrame;
 
 // The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and (one swing, many things:
 // VR_Melee_Multi) every other thing, and the world, the same sweep crossed.
@@ -2909,6 +2910,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
     }
+    VR_Embed_WaitFrame(xHand);
 
     VR_Grenade_CatchCheck(xHand, VR_Blow(xHand)); // an empty hand not striking catches a grenade in flight (vr_grenade.qc)
     VR_Deflect(xHand, VR_Blow(xHand)); // batting swings (less than a blow) bat enemy projectiles back
