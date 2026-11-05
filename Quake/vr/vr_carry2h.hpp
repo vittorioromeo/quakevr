@@ -95,6 +95,10 @@ void dragTest_f(); // vr_carry_drag_test (vr_carry2h.cpp)
 // let go of it held in both (keep), within Two-Handed Grab Reach of where it held it (gripping it again where it is).
 [[nodiscard]] bool reaches(edict_t* ent, edict_t* player, int hand);
 
+// A listen server's own player: whether `hand` holds, or can take hold of, a gib skewered on that player's blade (QC vr_skewer.qc): its grip
+// is for the gib (VR_Skewer_Grip), not for the weapon the gib is on (vr_twohand.cpp: its grips on a blade).
+[[nodiscard]] bool reachesSkewered(int hand);
+
 // Server side (QC's carry2hoff): which hands have been pulled off `ent`, held in both of `player`'s: bit 1 the off
 // hand, 2 the main hand. A hand is off it when it is further from its grip on it (where the drawn hand is held) than
 // Two-Handed Hand Drift (vr_carry_two_hands_drift) plus vr_carry_two_hands_detach, and its fist no longer touches it

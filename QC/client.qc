@@ -2819,11 +2819,16 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
 
 float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow; // (vr_skewer.qc)
 void(float xHand, entity b) VR_Skewer_SwingHit;
+float(float xHand, entity b) VR_Skewer_GoesBy;
 
 // The blow of `xHand` VR_Melee_Strike (or VR_Melee_StrikeMore) found, in mh_c_*: dealt by the weapon in that hand.
 void(float xHand) VR_Melee_Deal =
 {
     entity b = VR_Blow(xHand);
+    if(VR_Skewer_GoesBy(xHand, b))
+    {
+        return;
+    }
     VR_Skewer_SwingHit(xHand, b); // (a gib on the blade where it met it)
     VR_Embed_Blow(xHand, b, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, b.mh_kind); // (it may stay in: vr_embedhold.qc)
     // Each thing struck sounds (a swing through two monsters sounds twice).
