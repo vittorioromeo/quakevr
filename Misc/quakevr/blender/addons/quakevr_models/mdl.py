@@ -249,17 +249,31 @@ SHELL_MODELS = {"VShot": "v_shot.mdl", "VShot2": "v_shot2.mdl"}
 MONSTER_RE = re.compile(r'constexpr const char\* (soldier|enforcer)(Muzzle|Rear)\[\] = \{(.*?)\};', re.S)
 
 
+def slot_table(root):
+    """{slot: {enum key: value}}: the weapon table's own values per slot (quakevr/data/weapons.txt, read with
+    Misc/quakevr/weapons_data.py; before round 22's data file, vr_weapons.inc's QVR_WEAPON_DEFAULT rows)."""
+    misc = os.path.join(root, "Misc", "quakevr")
+    if os.path.exists(os.path.join(root, "quakevr", "data", "weapons.txt")) and \
+            os.path.exists(os.path.join(misc, "weapons_data.py")):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("qvr_weapons_data", os.path.join(misc, "weapons_data.py"))
+        wd = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(wd)
+        return wd.slot_values(by_enum=True)
+    slots = {}
+    with open(os.path.join(root, "Quake", "vr", "vr_weapons.inc")) as f:
+        for s, k, v in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', f.read()):
+            slots.setdefault(int(s), {})[k] = v
+    return slots
+
+
 def weapon_anchors(root, model_name):
     """[(what, anchor text)] for progs/<model_name>: vr_weapons.inc's defaults for every slot that uses the model, the
     magazine mounts (vr_view.cpp), the shell ejection ports (vr_shells.cpp) and the monster guns (vr_weaponfx.cpp)."""
     out = []
     if root is None:
         return out
-    inc = os.path.join(root, "Quake", "vr", "vr_weapons.inc")
-    slots = {}
-    with open(inc) as f:
-        for s, k, v in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', f.read()):
-            slots.setdefault(int(s), {})[k] = v
+    slots = slot_table(root)
     for slot in sorted(slots):
         keys = slots[slot]
         if keys.get("ID", "").replace("\\", "/") != "progs/" + model_name:
@@ -295,10 +309,7 @@ def weapon_slots(root, model_name):
     """[(slot, Scale)] for every slot of vr_weapons.inc's defaults that uses progs/<model_name>."""
     if root is None:
         return []
-    slots = {}
-    with open(os.path.join(root, "Quake", "vr", "vr_weapons.inc")) as f:
-        for s, k, v in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', f.read()):
-            slots.setdefault(int(s), {})[k] = v
+    slots = slot_table(root)
     out = []
     for slot in sorted(slots):
         if slots[slot].get("ID", "").replace("\\", "/") == "progs/" + model_name:
