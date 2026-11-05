@@ -1107,8 +1107,8 @@ za::Vector<Item> pageDebugTools()
                   "With more than one power-up the glows take turns."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Lightning into Water", "vr_waterzap_test 1")
-            .help("vr_waterzap_test 1: over the first open water on the map (it moves you there), a thunderbolt, Mjolnir's blows in and "
-                  "just over it, a shambler's bolt: each checked to electrify the surface. PASS/FAIL lines, then waterzap: n passed, m failed."),
+            .help("vr_waterzap_test 1: moves you over the widest open water on the map and fires the thunderbolt by the trigger, down into it, "
+                  "for a look at the arcs on the surface (2 glancing, 3 Mjolnir on a knight, 4 a shambler's bolt). The test is Misc/quakevr/waterzap_test.sh."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
                   "where it strikes; it keeps Quad's arcs crawling over it (Lightning Shock), alive or dead, a ragdoll convulsing, a kill charred."),

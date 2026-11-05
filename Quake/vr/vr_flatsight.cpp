@@ -57,6 +57,7 @@
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
+#include "vr_avatar.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
@@ -107,20 +108,25 @@ struct Sight
     bool atGrip{false};         // last frame: the empty hand stood on a hotspot (its own take distance) -- the edge
     int lastHolding{-1};        // last frame's pair: a weapon changing disarms the hand that was reaching
     int lastHelping{-1};
-    float restT{0.f};           // how far the free hand has gone onto a long gun's barrel (restOnBarrel: a look, no grip)
-    bool restWanted{false};     // ... whether it is going there
-    bool restFar{false};        // ... its arm can't reach the place
-    int restHand{-1};           // ... the hand that is, or was last, on it
-    glm::vec3 restGoal{0.f};    // ... the point on the barrel, in the held hand's frame, and that point eased (a gun changing)
-    glm::vec3 restPoint{0.f};
-    glm::vec3 restMoved{0.f};   // ... how far the rest moved it in the last pose (restMoved: the view's choice of grip leaves it out)
-    bool restHas{false};        // ... this frame's gun has a barrel to rest on, and this hand is free to
-    glm::vec3 restWrist{0.f};   // ... where the rest puts the hand's wrist, in the held hand's frame (the last pose's)
-    float restPast{0.f};        // ... how far past its arm that stands with the gun where the hipfire pose has it (units)
-    bool restSightFar{false};   // ... no eye relief the sight allows brings it inside the arm
-    glm::vec3 restPlace{0.f};   // ... where that puts the hand, off its shoulder: kept for the way back with no gun held
-    glm::vec3 restFwd{1.f, 0.f, 0.f}; // ... and how it turns it
-    glm::vec3 restUp{0.f, 0.f, 1.f};
+    // The stance (vr_flat_stance; stanceAndLook): a long gun with a two-handed hotspot turns the torso, and the free hand's
+    // drawn place and turn are the hotspot's (a look: its game hand stays where the pose has it).
+    bool stanceWanted{false};   // this frame's gun is such a gun
+    bool stanceGun{false};      // ... and its hand comes in for it: not on a real grip, whose pose stays the game's own
+    float stanceT{0.f};         // how far the torso has turned
+    float stanceSign{-1.f};     // which way (the free hand's shoulder forward); kept for the way back
+    int stanceHand{-1};         // the hand holding the gun it is for, the same
+    bool lookWanted{false};     // the free hand is going to the hotspot
+    bool lookFast{false};       // ... or was taken off it by a punch or E: off as fast as a grip's
+    bool lookFar{false};        // ... its arm can't reach it, in this pose
+    float lookT{0.f};           // how far it has gone
+    int lookHand{-1};           // the hand that is, or was last, on it
+    int spot[2]{-1, -1};        // each hand's weapon's two-handed hotspot (view::twoHandSpot), as the hand held it when last drawn
+    glm::vec3 spotLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... in that hand's frame
+    float armHip{0.f};          // the share of its arm the free hand uses on it: the gun where the hipfire pose has it
+    float armSight{0.f};        // ... and on the sight's place
+    glm::vec3 drawnLocal{0.f};  // the free hand as drawn last frame, in the held hand's frame (forward, right, up), and how it
+    glm::vec3 drawnTurn{0.f};   // is turned there: what the status prints against the hotspot
+    bool drawnKnown{false};
     glm::vec3 shift{0.f};       // how far the holding hand moved onto the sight's place (world, units)
     float offBefore{0.f};       // its muzzle off the crosshair's ray before the move, and after it (units)
     float offAfter{0.f};
@@ -156,11 +162,11 @@ struct Sight
 Sight st;
 
 constexpr float gripEase = 9.f;  // how fast an empty hand travels onto a grip, and back off it (1/s)
-constexpr float restEase = 2.5f;      // how fast it travels onto a barrel and back off it (1/s): about 0.4 s, under a punch's speed
-constexpr float restMinBarrel = 9.5f; // a gun's muzzle this far from the hand holding it (units) has a barrel to rest on.
+constexpr float lookEase = 2.5f;      // how fast the free hand travels onto a long gun's hotspot and back off it (1/s): about 0.4 s
+constexpr float stanceEase = 2.5f;    // and how fast the torso turns, the same
+constexpr float longGunMuzzle = 9.5f; // a gun's muzzle this far from the hand holding it (units) makes it a long gun.
                                       // Measured: revolver 8.4, nail pistol 3.9; nail gun 10.8, super shotgun 11.4, shotgun 14.0
-constexpr float restPullMost = 12.f;  // how far the hipfire gun comes in for the arm (units); past that the arm can't reach
-constexpr float restBack = 0.8f;      // gone back to when that need is under this share of the most
+constexpr float lookBack = 0.03f;     // the free hand goes back on the hotspot under gripKeep less this share of the arm
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
 constexpr float aimFar = 4096.f;     // nothing on the crosshair's ray: the gun points this far along it
@@ -218,12 +224,6 @@ constexpr float backKeepArm = 6.f;   // the hand goes back no nearer its shoulde
     return m && st.sightModel[h] == m;
 }
 
-// How far the free hand has gone onto a barrel, smoothed: what its place and the gun's coming in for it are spent over.
-[[nodiscard]] float restShare()
-{
-    return st.restT * st.restT * (3.f - 2.f * st.restT);
-}
-
 // The hand's place and turn that put the sight line on the ray, the rear sight `relief` from the eye, in the view's frame.
 struct Sighted
 {
@@ -264,22 +264,6 @@ struct Sighted
         most = za::min(most, gAlong + (gKeep * gKeep > gAcross2 ? za::sqrt(gKeep * gKeep - gAcross2) : 0.f));
     }
     relief = za::min(relief, most);
-    if(st.restHas && h == st.holding)
-    {
-        // The hand resting on the barrel too, over its share: the same measure, on the place the rest gives it.
-        const glm::vec3 g = at0.hand + at0.turn * st.restWrist - helper;
-        const float gAlong = -glm::dot(g, d);
-        const float gAcross2 = glm::dot(g, g) - gAlong * gAlong;
-        const float gKeep = span * gripKeep;
-        const float restMost = gAlong + (gKeep * gKeep > gAcross2 ? za::sqrt(gKeep * gKeep - gAcross2) : 0.f);
-        // Only as near as vr_flat_rest_relief lets it come (at 14, the default sight's own: its picture is not changed for a
-        // look, and the arm can't reach there): nearer than that the hand goes back to hanging while the sight is up.
-        st.restSightFar = gKeep * gKeep <= gAcross2 || restMost < za::min(relief, za::max(reliefMin, vr_flat_rest_relief.value));
-        if(!st.restSightFar)
-        {
-            relief += (za::min(relief, restMost) - relief) * restShare();
-        }
-    }
     return za::max(reliefMin, relief);
 }
 
@@ -593,29 +577,6 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     st.pinned = true;
 }
 
-// A hipfire gun comes in to where the other arm reaches the place on its barrel, as a gun held in two hands does for its grip
-// (pinToGrip), over the rest's share. `restPast` is that arm's need, read with the gun where the pose has it.
-void comeInForRest(hands::State& s, bool carry)
-{
-    st.restHas = !carry && st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                 glm::length(st.muzzleLocal[st.holding]) >= restMinBarrel;
-    st.restPast = 0.f;
-    if(!st.restHas)
-    {
-        return;
-    }
-    glm::vec3 fwd, right, up;
-    hands::angleVectors(s.rot[st.holding], fwd, right, up);
-    const glm::vec3 far =
-        s.pos[st.holding] + fwd * st.restWrist.x + right * st.restWrist.y + up * st.restWrist.z - flatplay::shoulderOf(s, st.helping);
-    const float length = glm::length(far);
-    st.restPast = za::max(0.f, length - flatplay::armReach() * gripKeep);
-    if(st.restPast > 0.f && st.restPast <= restPullMost)
-    {
-        s.pos[st.holding] -= far * (st.restPast / length * restShare());
-    }
-}
-
 // The held weapon brought to the sight's place, over the travel: the hand where the solve has it (sighted), in the frame
 // of the crosshair's ray, and the muzzle the shots go from where that gun's muzzle is.
 void centreOnSight(hands::State& s, const glm::vec3& aim)
@@ -665,66 +626,62 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
     offTheRay(org, dir, st.sightMuzzle, st.offAfter, st.sightAngle);
 }
 
-// The free hand on a long gun's barrel, palm up: a look, no grip. A gun with a sight line, a barrel past restMinBarrel and no
-// grip a second hand can reach (carry, in apply) has a place for it, along the line from the held hand to the muzzle.
-// This runs after twohand::apply and is not in anything it measures, so no hold, weight or recoil knows of it; what
-// changes is where the gun stands, as far as the arm needs (comeInForRest, reliefFor). Over the pose flatplay made (its
-// hang), eased both ways; an arm that can't reach goes back to that pose the same way.
-void restOnBarrel(hands::State& s, const glm::vec3& reach, bool freshFrame)
+// The share of its arm the free hand `helper` uses on the world point `at`: from the shoulder the body poses that arm on.
+[[nodiscard]] float armShare(const hands::State& s, int helper, const glm::vec3& at)
 {
-    if(st.restHand >= 0 && flatplay::heldIn(st.restHand) >= 0)
-    {
-        st.restT = 0.f; // it took a weapon of its own: that pose is the shots' (and the gun's hand is no place to ease from)
-        st.restHand = -1;
-    }
-    st.restMoved = glm::vec3{0.f};
-    const bool hasBarrel = st.restHas;
-    if(hasBarrel)
-    {
-        st.restGoal = st.muzzleLocal[st.holding] * za::clamp(vr_flat_rest_along.value, 0.2f, 1.f);
-        if(st.restT <= 0.f)
-        {
-            st.restPoint = st.restGoal;
-        }
-        st.restHand = st.helping;
+    avatar::Skeleton k;
+    const glm::vec3 root = avatar::skeleton(k) ? k.shoulder[helper] : flatplay::shoulderOf(s, helper);
+    return glm::distance(root, at) / za::max(flatplay::armReach(), 1.f);
+}
 
-        glm::vec3 handFwd, handRight, handUp, gunFwd, gunRight, gunUp;
-        hands::angleVectors(s.rot[st.holding], handFwd, handRight, handUp);
-        hands::angleVectors(weapons::shotAngles(s.rot[st.holding], flatplay::heldIn(st.holding), st.holding == HAND_OFF), gunFwd, gunRight, gunUp);
-        // Fingers along the barrel, the palm to the gun's up: a left hand's palm is its right, a right hand's its left.
-        st.restFwd = gunFwd;
-        st.restUp = glm::cross(gunUp * (st.helping == HAND_OFF ? 1.f : -1.f), gunFwd);
-        const glm::vec3 rot = hands::anglesFromVectors(st.restFwd, st.restUp);
-        const glm::vec3 point = s.pos[st.holding] + handFwd * st.restPoint.x + handRight * st.restPoint.y + handUp * st.restPoint.z -
-                                gunUp * vr_flat_rest_below.value;
-        const glm::vec3 palm = s.palmValid[st.helping] ? hands::redirect(s.palmLocal[st.helping], rot) : glm::vec3{0.f};
-        st.restPlace = point - palm - flatplay::shoulderOf(s, st.helping);
-        const glm::vec3 wrist = point - palm - s.pos[st.holding];
-        st.restWrist = {glm::dot(wrist, handFwd), glm::dot(wrist, handRight), glm::dot(wrist, handUp)};
-    }
-    if(freshFrame)
+// The stance. A long gun whose hotspot the view found (view::twoHandSpot: the weapon's own, from Weapon Offsets) turns the
+// torso, and with no real grip to take (carry) the free hand is drawn on that hotspot, with the pose a helping hand has there:
+// the view does that with this share (lookShare), and nothing here decides a place or a turn for it. Its game hand stays in
+// the hanging pose, so no hold, weight, recoil or punch knows of it, and nothing moves the gun for it: an arm that can't reach
+// goes back to hanging, eased.
+void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3& reach, bool carry, bool freshFrame)
+{
+    if(st.lookHand >= 0 && flatplay::heldIn(st.lookHand) >= 0)
     {
-        // What decides it is what the arm would need, not where the hand is: the gun only comes in once the hand goes.
-        st.restFar = st.restPast > restPullMost || (st.restFar && st.restPast > restPullMost * restBack) ||
-                     (st.adsWanted && st.restSightFar);
-        const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
-        st.restWanted = vr_flat_rest.value != 0.f && hasBarrel && !st.restFar && !reaching && !flatplay::punching(st.helping);
+        st.lookT = 0.f; // it took a weapon of its own: that pose is the shots'
+        st.lookHand = -1;
     }
-    if(st.restT <= 0.f || st.restHand < 0)
+    const bool longGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
+                         glm::length(st.muzzleLocal[st.holding]) >= longGunMuzzle && st.spot[st.holding] >= 0;
+    st.armHip = st.armSight = 0.f;
+    if(longGun)
+    {
+        const glm::vec3& local = st.spotLocal[st.holding];
+        st.armHip = armShare(s, st.helping, s.pos[st.holding] - st.shift + axesOf(s.rot[st.holding]) * local);
+        if(sightKnown(st.holding))
+        {
+            glm::vec3 org, dir;
+            flatplay::crosshairRay(s, aim, org, dir);
+            const Sighted at = sighted(st.holding, st.relief);
+            st.armSight = armShare(s, st.helping, org + axesOf(aim) * (at.hand + at.turn * local));
+        }
+    }
+    if(!freshFrame)
     {
         return;
     }
-
-    const float t = restShare();
-    glm::vec3 fwd, right, up;
-    hands::angleVectors(s.rot[st.restHand], fwd, right, up);
-    st.restMoved = (flatplay::shoulderOf(s, st.restHand) + st.restPlace - s.pos[st.restHand]) * t;
-    s.pos[st.restHand] += st.restMoved;
-    const glm::vec3 toFwd = fwd + (st.restFwd - fwd) * t;
-    const glm::vec3 toUp = up + (st.restUp - up) * t;
-    if(glm::length(toFwd) > 1e-3f && glm::length(toUp) > 1e-3f)
+    const bool on = vr_flat_stance.value != 0.f;
+    st.stanceWanted = on && longGun;
+    st.stanceGun = st.stanceWanted && !carry;
+    if(st.stanceWanted)
     {
-        s.rot[st.restHand] = hands::anglesFromVectors(glm::normalize(toFwd), glm::normalize(toUp));
+        st.stanceHand = st.holding;
+        st.stanceSign = st.helping == HAND_OFF ? -1.f : 1.f; // the yaw grows to his left: the left shoulder comes forward by a turn to the right
+    }
+    // What decides it is what the arm needs where the gun stands, or is going: the sight's place while it is asked for.
+    const float need = st.adsWanted ? st.armSight : st.armHip;
+    st.lookFar = need > gripKeep || (st.lookFar && need > gripKeep - lookBack);
+    const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
+    st.lookFast = longGun && (reaching || flatplay::punching(st.helping));
+    st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
+    if(st.lookWanted)
+    {
+        st.lookHand = st.helping;
     }
 }
 
@@ -748,10 +705,10 @@ void frame()
         st.lastTime = -1e9;
         st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
         st.pinned = st.atGrip = st.armed = false;
-        st.restT = 0.f;
-        st.restWanted = st.restFar = st.restHas = st.restSightFar = false;
-        st.restWrist = st.restMoved = glm::vec3{0.f};
-        st.restHand = -1;
+        st.lookT = st.stanceT = 0.f;
+        st.lookWanted = st.lookFar = st.lookFast = st.stanceWanted = st.stanceGun = st.drawnKnown = false;
+        st.lookHand = st.stanceHand = -1;
+        st.spot[0] = st.spot[1] = -1;
         st.edgeFrame = -1;
         for(int h = 0; h < HAND_COUNT; h++)
         {
@@ -772,8 +729,8 @@ void frame()
     const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(t - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = t;
     st.gripT = za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
-    st.restT = za::clamp(st.restT + (st.restWanted ? 1.f : -1.f) * ease(restEase, dt), 0.f, 1.f);
-    st.restPoint += (st.restGoal - st.restPoint) * ease(restEase, dt);
+    st.lookT = za::clamp(st.lookT + (st.lookWanted ? ease(lookEase, dt) : -ease(st.lookFast ? gripEase : lookEase, dt)), 0.f, 1.f);
+    st.stanceT = za::clamp(st.stanceT + (st.stanceWanted ? 1.f : -1.f) * ease(stanceEase, dt), 0.f, 1.f);
     // The ironsight's travel is spent at a steady rate, so it is over in the cvar's own seconds; 0 asks for the whole
     // of it this frame. The weapon's shift onto the crosshair (apply) and the field of view go by the same fraction.
     const float aim = aimSeconds();
@@ -860,7 +817,6 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping);
     pinToGrip(s, reach, carryToGrip);
-    comeInForRest(s, carryToGrip);
     centreOnSight(s, aim);
     pushBack(s, aim);
 
@@ -913,8 +869,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
         keepMuzzle(s, h);
     }
 
-    // Last, on the gun as this pose leaves it: the free hand's rest is no part of anything measured above.
-    restOnBarrel(s, reach, freshFrame);
+    // Last, on the gun as this pose leaves it: the stance, and the free hand on the gun's hotspot, measure and move nothing above.
+    stanceAndLook(s, aim, reach, carryToGrip, freshFrame);
 }
 
 void notePlaced(const hands::State& s)
@@ -944,6 +900,9 @@ void noteDrawn(const hands::State& s)
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
+        glm::vec3 at{0.f};
+        st.spot[h] = view::twoHandSpot(s, h, at);
+        st.spotLocal[h] = glm::transpose(axesOf(s.visualRot[h])) * (at - s.pos[h]);
         view::WeaponFrame wf;
         st.sightModel[h] = nullptr;
         if(!view::weaponFrame(s, h, wf))
@@ -959,6 +918,16 @@ void noteDrawn(const hands::State& s)
         st.sightRear[h] = toHand * (glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}} - s.pos[h]);
         st.sightFront[h] = toHand * (glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}} - s.pos[h]);
         st.sightModel[h] = wf.model;
+    }
+    // The free hand as it was last drawn, against the gun: the status's measure.
+    glm::vec3 drawnPos, drawnRot;
+    st.drawnKnown = st.holding >= 0 && st.helping >= 0 && view::drawnHandPose(st.helping, drawnPos, drawnRot);
+    if(st.drawnKnown)
+    {
+        const glm::mat3 toHand = glm::transpose(axesOf(s.visualRot[st.holding]));
+        const glm::mat3 turn = toHand * axesOf(drawnRot);
+        st.drawnLocal = toHand * (drawnPos - s.pos[st.holding]);
+        st.drawnTurn = hands::anglesFromVectors(turn[0], turn[2]);
     }
 }
 
@@ -989,9 +958,19 @@ float drawnShare(int h)
     return flatplay::active() && h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
 }
 
-glm::vec3 restMoved(int h)
+float lookShare(int h)
 {
-    return h == st.restHand ? st.restMoved : glm::vec3{0.f};
+    return flatplay::active() && h == st.lookHand ? geom::smooth01(st.lookT) : 0.f;
+}
+
+float stanceYaw()
+{
+    return st.stanceSign * za::clamp(vr_flat_stance_turn.value, 0.f, 45.f) * geom::smooth01(st.stanceT);
+}
+
+float stanceShare(int h)
+{
+    return h == st.stanceHand && st.stanceGun ? geom::smooth01(st.stanceT) : 0.f;
 }
 
 bool adsHelper(int h)
@@ -1039,16 +1018,22 @@ void statusLine()
                        "muzzle %.1f off the held hand\n",
                 st.gripOff, twohand::gripTakeUnits, st.gripDot, vr_2h_angle_threshold.value, st.handGap, st.muzzleGap);
         }
-        if(st.restHas)
+        if(st.spot[st.holding] >= 0)
         {
-            // The free hand's rest on the barrel (restOnBarrel: no grip). Nothing above changes for it.
-            Con_Printf("  barrel rest: %s, share %.2f, barrel %.1f, its place %.1f from the shoulder (the arm keeps %.1f, %.1f past it before the gun comes in), eye relief %.1f%s\n",
-                st.restWanted ? "on" : "off", st.restT, glm::length(st.muzzleLocal[st.holding]), glm::length(st.restPlace),
-                flatplay::armReach() * gripKeep, st.restPast, st.relief, st.restFar ? ", out of reach" : "");
+            // The stance, and the free hand on the weapon's own hotspot (stanceAndLook: no grip).
+            const glm::vec3& l = st.spotLocal[st.holding];
+            const glm::vec3 d = st.drawnKnown ? st.drawnLocal - l : glm::vec3{0.f};
+            Con_Printf("  stance: %s, torso %.1f deg, free hand %s, share %.2f\n", st.stanceWanted ? "on" : "off", stanceYaw(),
+                st.lookWanted ? "going on it" : twohand::helping(st.helping) ? "holding its grip" : "hanging", lookShare(st.helping));
+            Con_Printf("  stance arm: hipfire %.2f sight %.2f of %.1f, keeps %.2f%s\n", st.armHip, st.armSight, flatplay::armReach(),
+                gripKeep, st.lookFar ? ", out of reach" : "");
+            Con_Printf("  stance spot: hs%d fwd %.2f right %.2f up %.2f relief %.1f\n", st.spot[st.holding] + 1, l.x, l.y, l.z, st.relief);
+            Con_Printf("  stance hand: off %.2f fwd %.2f right %.2f up %.2f turned %.1f %.1f %.1f\n", glm::length(d), st.drawnLocal.x,
+                st.drawnLocal.y, st.drawnLocal.z, st.drawnTurn.x, st.drawnTurn.y, st.drawnTurn.z);
         }
         else
         {
-            Con_Printf("  barrel rest: none on this gun (muzzle %.1f from the hand)\n", glm::length(st.muzzleLocal[st.holding]));
+            Con_Printf("  stance: no two-handed hotspot on this gun\n");
         }
         if(st.gripReach > 0.f)
         {

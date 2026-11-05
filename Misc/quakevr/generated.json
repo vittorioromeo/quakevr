@@ -65,11 +65,11 @@
   "part": "mdl skins after 0"
  },
  "quakevr/progs/g_nail.mdl": {
-  "sha256": "e4248c5c1950e2ee7a063327adb31de192fcd01f0df999092148f0e48153b642",
+  "sha256": "8d30f4f172b6cf7c2a3f1e05f760218741fccab9af7ce91da815007b6070be80",
   "by": "gunlooks.py"
  },
  "quakevr/progs/g_shot0.mdl": {
-  "sha256": "41028324bcba665d4c215aeb8c4424c99ca2de744c6be37d2758629b56ed6f54",
+  "sha256": "52caf62cf5a80fa206d75d12f6051a5365a8eb6c400e41da1356f4c61817fd6b",
   "by": "gunlooks.py"
  },
  "quakevr/progs/gib_brain1.mdl": {
@@ -309,11 +309,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_lava.mdl": {
-  "sha256": "76e91454180acffc74c46d68c008b5dbd5192c1294843f0dbeb52bfad7bb1945",
+  "sha256": "5a9f1914b0b54c767f96b4d26a8143758e1f9fc6b77c86bf5918ff8b88eb413d",
   "by": "gunlooks.py"
  },
  "quakevr/progs/v_lava.mdl_0_norm.png": {
-  "sha256": "09468005f86a2685991f4aba261791929687c1ec9ebf99ee56f48daca1c29f2a",
+  "sha256": "2b0f84b50d8542f3a52523a5d1b905a95445a5edfb341f5e98f2d1765575680f",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_lava2.mdl": {
@@ -349,11 +349,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_nail.mdl": {
-  "sha256": "5d8a47c1814d6148843fc052c2d03c26779e2e71bfba51df35e8cafc98101062",
+  "sha256": "6cc139de7d9689c2c507865746952f239bababd24fe94d8fdaf58d5b8f820936",
   "by": "gunlooks.py"
  },
  "quakevr/progs/v_nail.mdl_0_norm.png": {
-  "sha256": "3b388268d5c9d1c8707de70184b93d1b8ec3998a33a814780313e6eb8e026dfd",
+  "sha256": "59f6df43d23daf5c280760accc13cc288b6ec6e4ed997bce69e2ea112d332f80",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_nail2.mdl": {
@@ -397,11 +397,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_shot.mdl": {
-  "sha256": "0c54c26aa006c2f07220eec0394396afbbafe06425f8f0db974f38636ac2f180",
+  "sha256": "f674bcd48d5f3a2f5c8af8828db5d9d30074c7417429b71d8ad0fff70a10268c",
   "by": "gunlooks.py"
  },
  "quakevr/progs/v_shot.mdl_0_norm.png": {
-  "sha256": "a66aafcb3753588be5aa103d08cea18fbdb454a6673e05ab9ea673cea6fa6fcf",
+  "sha256": "b8ea33f2595378d548cd2812b40abfd1b8151771d71a1c435d6f0874f3d284e0",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_shot2.mdl": {
@@ -837,19 +837,19 @@
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_pump_on_v_shot.mdl": {
-  "sha256": "9844e99fdd393b04f573c164ce23f3ca60493abc40ed023e1624cbb66d74f636",
+  "sha256": "a0225b8f3b409e48a15ba6f9549b1aa8f83dd11cd4ef0c254a025881f73800f7",
   "by": "gunlooks.py"
  },
  "quakevr/progs/vr_pump_on_v_shot.mdl_0_norm.png": {
-  "sha256": "a66aafcb3753588be5aa103d08cea18fbdb454a6673e05ab9ea673cea6fa6fcf",
+  "sha256": "b8ea33f2595378d548cd2812b40abfd1b8151771d71a1c435d6f0874f3d284e0",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_pumpbody_on_v_shot.mdl": {
-  "sha256": "33714a1f5253888a35370a631505600ffbf421d27ddda4fcf807eccaa49ff998",
+  "sha256": "c54266247b29067c3292d7d35678207a8c16d2ce04b07266bfeb4289f4f401d3",
   "by": "gunlooks.py"
  },
  "quakevr/progs/vr_pumpbody_on_v_shot.mdl_0_norm.png": {
-  "sha256": "a66aafcb3753588be5aa103d08cea18fbdb454a6673e05ab9ea673cea6fa6fcf",
+  "sha256": "b8ea33f2595378d548cd2812b40abfd1b8151771d71a1c435d6f0874f3d284e0",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_rock1.mdl": {

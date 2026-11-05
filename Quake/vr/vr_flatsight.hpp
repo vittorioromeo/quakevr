@@ -74,9 +74,14 @@ void noteDrawn(const hands::State& s);
 // Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
 [[nodiscard]] bool adsHelper(int h);
 
-// How far the free hand's rest on a long gun's barrel moved hand `h` in the last pose (restOnBarrel: a look, no grip); 0 when
-// it doesn't, and always in a headset. The view's choice of the grip leaves it out.
-[[nodiscard]] glm::vec3 restMoved(int h);
+// The stance (vr_flat_stance). How far the free hand `h` is drawn on the held long gun's two-handed hotspot, 0..1: the view
+// draws it there with the pose a helping hand has there (no grip: twohand::drawnTransition). 0 in a headset.
+[[nodiscard]] float lookShare(int h);
+
+// How far the torso is turned for a long gun, degrees of yaw (the free hand's shoulder forward), and the share of that turn
+// for hand `h`'s gun: 0 for anything else.
+[[nodiscard]] float stanceYaw();
+[[nodiscard]] float stanceShare(int h);
 
 // The field of view to render with: `basefov`, narrowed by vr_flat_aim_fov while the ironsight is on. Outside the
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).
