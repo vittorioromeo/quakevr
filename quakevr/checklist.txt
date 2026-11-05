@@ -56,6 +56,8 @@ Shotgun and nailgun looks: hold each under real light: wood grain, rust and rive
 Ammo boxes: a nail pistol now turns up on nail boxes on any map (rare); the heavy revolver turns up on shell boxes only after you hold the super shotgun or a revolver
 Armour shows as plates on your body: hits shed limbs first (nearest the hit), the torso last; pickups dissolve them back; your hands and wrist gadget stay clear, no helmet in view {test:player_plates}
 Shotgun and nailgun looks, second pass: under real light check the shotgun's aiming view, pump ridges and rivets; the nailgun's rings, centre holes, muzzle grates and dark interiors; the lava nailgun with lava nails
+Gun rivets: fewer now (shotgun 6, nailguns 4), at seams and plate corners, clear of the sights and your hands
+Armed Grunts, Pick Up a Second on: a grunt with one gun and a second lying close takes it when idle, ignores one 3 m or more away, and mid-fight only takes one at its feet, with a short pause, then goes back to shooting
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

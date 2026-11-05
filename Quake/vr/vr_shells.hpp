@@ -24,6 +24,9 @@ void frame(const view::ViewEntity (&weapons)[2]);
 // A map's load (VR_NewMap): the casings' model and sounds loaded, not at the first shot.
 void prepare();
 
+// `e` is one of the casings (flatscreen play's model FOV: VR_FlatModelFovEntity).
+[[nodiscard]] bool isCasing(const entity_t* e);
+
 // Removes them all (a new map, a disconnect).
 void clear();
 
