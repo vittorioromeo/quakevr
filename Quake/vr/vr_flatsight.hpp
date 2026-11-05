@@ -83,6 +83,11 @@ void noteDrawn(const hands::State& s);
 // stays on it rather than letting go. 0 elsewhere.
 [[nodiscard]] float lookSlide(int h);
 
+// The elbow's pole for the free arm `h` on the hotspot, looking up: `way` (world, unit) down under the gun and out at its own side,
+// and the share of the arm's own pole it takes (vr_flat_up_elbow, by how far up he looks; 0: none). avatar::solveArm reads it, so
+// that arm clears the eye instead of bending its elbow up in front of it. 0 for any other arm, and in a headset.
+[[nodiscard]] float elbowPole(int h, glm::vec3& way);
+
 // How far the torso is turned for a long gun, degrees of yaw (the free hand's shoulder forward), and the share of that turn
 // for hand `h`'s gun: 0 for anything else.
 [[nodiscard]] float stanceYaw();

@@ -123,6 +123,8 @@ struct Sight
     float lookTarget{1.f};      // how far it goes, its arm's need allowing (hands on the body)
     float lookSlide{0.f};       // how far down the fore-end from the hotspot it holds, where the arm can't take the hotspot (units)
     int lookHand{-1};           // the hand that is, or was last, on it
+    glm::mat3 lookView{1.f};    // the view's frame (forward, right, up) and pitch as the stance was last decided: elbowPole's
+    float lookPitch{0.f};
     int spot[2]{-1, -1};        // each hand's weapon's two-handed hotspot (view::twoHandSpot), as the hand held it when last drawn
     glm::vec3 spotLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... in that hand's frame
     float armHip{0.f};          // the share of its arm the free hand uses on it: the gun where the hipfire pose has it
@@ -195,6 +197,8 @@ constexpr float spotKeepHip = 0.88f;  // hipfire, the same: the pose keeps the h
 constexpr float spotReliefMin = 9.5f; // sighted, the hotspot brings the rear sight no nearer the eye than this: the slide does the rest
 constexpr float slideKeepAhead = 3.f; // the free hand slid down the fore-end stays this far ahead of the holding hand (units)
 constexpr float gripKeep = 0.92f;    // and the other hand's grip inside this much: the arm bent, not straight
+constexpr float elbowUpFrom = 15.f;  // elbowPole: the free arm's elbow starts going under the gun from this far up (degrees)
+constexpr float elbowUpFull = 60.f;  // and is all the way there by this far up (smooth between)
 constexpr float screenMax = 25.f;    // vr_flat_ads_screen_x / _y's range: percent of the screen's height
 constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall it meets (1/s: at once, nearly, as vr_model_collide's)
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
@@ -762,6 +766,8 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     {
         return;
     }
+    st.lookView = axesOf(aim);
+    st.lookPitch = aim.x;
     const bool on = vr_flat_stance.value != 0.f;
     st.stanceWanted = on && longGun;
     st.stanceGun = st.stanceWanted && !carry;
@@ -1088,6 +1094,26 @@ float lookShare(int h)
 float lookSlide(int h)
 {
     return flatplay::active() && h == st.lookHand ? st.lookSlide : 0.f;
+}
+
+float elbowPole(int h, glm::vec3& way)
+{
+    if(!flatplay::active() || !flatplay::onBody() || h != st.lookHand)
+    {
+        return 0.f;
+    }
+    // (Quake's pitch: negative is up.)
+    const float up = geom::smooth01(za::clamp((-st.lookPitch - elbowUpFrom) / (elbowUpFull - elbowUpFrom), 0.f, 1.f));
+    const float share = za::clamp(vr_flat_up_elbow.value, 0.f, 1.f) * up * lookShare(h);
+    if(share <= 0.f)
+    {
+        return 0.f;
+    }
+    // Down under the gun (the view's down: the gun is on the sight line) and out at the arm's own side (the off hand: the left).
+    const float out = za::clamp(vr_flat_up_elbow_out.value, 0.f, 2.f);
+    const glm::vec3 side = st.lookView[1] * (h == HAND_OFF ? -1.f : 1.f);
+    way = glm::normalize(-st.lookView[2] + side * out);
+    return share;
 }
 
 float stanceYaw()

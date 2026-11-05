@@ -1842,6 +1842,8 @@ QVR_TUNABLE(vr_flat_pistol_in, "6") // and this much nearer the middle of the ch
 QVR_TUNABLE(vr_flat_pistol_up, "2") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the torso turns this much further (degrees, 0..30), the free hand's shoulder forward to the gun
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
+QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
+QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV

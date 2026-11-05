@@ -230,6 +230,11 @@ hand free takes a stance (`stanceAndLook`, `vr_flat_stance` 1; Debug > Tunables 
 - **An arm that can't reach eases back to hanging** with no gun moved (`lookFar`: past 0.92 of `armReach` from the shoulder the body
   poses, `avatar::skeleton`; hand back on under 0.89). A punch or E takes the hand off as fast as a grip's (`gripEase`). With the gun
   gone it eases off its last place (`lookLast`).
+- **Looking up, its elbow goes under the gun** (`flatsight::elbowPole`, read by `avatar::solveArm`): the arm's own pole (down by the
+  chest, tucked back) bent the elbow up in front of the eye with the gun on the sight line and the chest pitched back (crouched and
+  sighted at -85 the eye was 0.63 from the arm). The pole turns to the view's down, out at the arm's side by `vr_flat_up_elbow_out`
+  (0.5) per down, by `vr_flat_up_elbow` (1) of it, smoothly from 15 degrees up to 60; the wrist's ease swings it back by only the
+  rest. The hand stays on the gun and the gun where it was; the eye is 3.8 or more from either arm at any look (`eye_arm`).
 
 Why the earlier barrel rest looked wrong (`vr_flat_rest`, retired with its numbers; old lines are dropped by `VR_RetiredCvar`): it made
 up its own point on the barrel (a share of the way to the muzzle) and its own turn (palm to the gun's up), and never read the

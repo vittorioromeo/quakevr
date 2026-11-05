@@ -690,6 +690,16 @@ the before run (`scratch/fs3_compare.py`): 10 rows worse past their limits: **ar
 `settled` row (low ceiling, crouched, sighted, -55; that list's row moved from 45). Flat suites: flatplay 28/0, (see the report for
 flatpose, flatsight, flatkeys).
 
+**1b. The free arm clears the eye looking up** (his question: tweak the arm, or move the gun forward). The arm, not the gun: the
+sweep's elbows (new `el*`/`wr*` columns, and `vr_flat_sweep <label> ads`: the long gun sighted only) showed the off arm's own pole
+(down by the chest, tucked back) bending the elbow up onto the view's axis, 2.3 ahead of the eye, crouched and sighted at -85.
+`flatsight::elbowPole` turns that arm's pole to the view's down and out (`vr_flat_up_elbow` 1, `vr_flat_up_elbow_out` 0.5;
+smooth from 15 degrees up to 60; the wrist's ease swings it back only by the rest): the elbow goes under the gun, as a support
+elbow does. Least eye-to-arm looking up, before -> after: crouched sighted 0.63 -> 4.06 (low ceiling 4.07, at the wall 3.84),
+standing sighted 1.72 -> 4.03, the pistol crouched 3.11 -> 4.95; level and down unchanged (4.4 to 8.0: they never had it).
+The hand stays on the gun, the gun where it was, so no gun forward was needed (no tunable for it). Sweep: `401 passed, 2 known
+failing, 0 failed`; the 9 `arm_surface` rows pass and their lines are out; row by row against the start, 0 worse.
+
 **2. E aims at the crosshair.** `VR_Forcegrab_FlatGrab` searches from his eye along his view (`VR_Forcegrab_FindTargetAlong`),
 not along the free hand (which hangs about 60 down). flatitems' E cases now put the thing on the crosshair's ray, 36 ahead, 50 deg off
 the hanging hand's line (the cone is 15): they pass (flatitems 8/0), so the search is the view's.
