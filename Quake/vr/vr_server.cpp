@@ -793,8 +793,9 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
     // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp). Flatscreen play
     // (his own client: vr_flatplay.cpp) crouches with a key, not with a head, and his eyes stand under the tallest
-    // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: his eased crouch, still
-    // easing up for vr_flat_crouch_time after Left Ctrl is let go) is what vr_hull.cpp is asked with. A headset player is
+    // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: Left Ctrl held; let go,
+    // standing if it fits, else the tallest crouched box that does, and his view rises only as far as that box: hull::
+    // localEyeCap) is what vr_hull.cpp is asked with. A headset player is
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;

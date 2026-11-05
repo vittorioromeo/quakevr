@@ -36,6 +36,7 @@
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_hull.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
@@ -736,6 +737,17 @@ void pollKeysFlat()
         const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
         keyState.ratio += za::clamp(want - keyState.ratio, -step, step);
     }
+    // Let go under a low ceiling, he rises only as far as his box lets him: the server keeps his box crouched where the
+    // standing one does not fit (the headset's checks: vr_hull.cpp updateCrouch), and his eyes stop flatEyeHeadroom under
+    // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
+    // His eyes standing are Quake's: cl.viewheight over his origin, 24 over his feet (Quake's player box: mins z -24).
+    const float cap = qvr::hull::localEyeCap();
+    const float drop = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
+    if(cap >= 0.f && drop > 0.f)
+    {
+        const float standEye = cl.viewheight + 24.f;
+        keyState.ratio = za::max(keyState.ratio, za::clamp((standEye - cap) / drop, 0.f, 1.f));
+    }
 }
 
 // +flatcrouch / -flatcrouch: the crouch held and let go from the console (the same hold Left Ctrl gives).
@@ -947,6 +959,11 @@ float crouchDrop()
 float crouchRatio()
 {
     return active() ? keyState.ratio : 0.f;
+}
+
+bool crouchHeld()
+{
+    return active() && (keyState.keyCtrl || keyState.cmdHeld);
 }
 
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is

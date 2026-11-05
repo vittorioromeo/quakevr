@@ -89,7 +89,8 @@ inline constexpr int QVR_BUTTON_MAINHANDPRIMARY = 1 << 7; // in the game (-> QC 
 // The VR block's vrBits0 (QC QVR_VRBITS0_* in bits 0-13): bit 15 says this client plays flatscreen (-flatscreenmode:
 // vr_flatplay.cpp); the server takes it out (QC's bit 15 is its own) and sets the player's .vr_flatscreen.
 inline constexpr int moveFlatplayBit = 1 << 15;
-// Bit 14, the same way: this flatscreen client's crouch is held or still easing back up (vr_flatplay.cpp crouchRatio). The
+// Bit 14, the same way: this flatscreen client's crouch key is held (vr_flatplay.cpp crouchHeld; let go, the server tries
+// standing at once and keeps a crouched box where it does not fit, and the client's view rises only as far as that box). The
 // server asks this and not its own keys, per client (vr_server.cpp). A client that never sets it (a headset's, an older
 // build's) reads as not crouching by this; QC's bit 14 is the server's own (QVR_VRBITS0_HANDSTRACKED).
 inline constexpr int moveFlatCrouchBit = 1 << 14;
