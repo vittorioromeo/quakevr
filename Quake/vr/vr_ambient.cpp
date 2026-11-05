@@ -148,8 +148,9 @@ glm::vec3 lightmapAt(const msurface_t* surf, int ds, int dt)
 }
 
 // RecursiveLightPoint (gl_rlight.c) along any ray: the first world surface the ray crosses that
-// faces it, where its texture's extents hold the crossing. Liquids other than `stopAt`'s are seen
-// through (the floor under them is lit); surfaces without a lightmap are passed.
+// faces it, where the crossing is on the surface (its texture's extents are only the box round it: a thin diagonal band's
+// box is half a room, of luxels outside it that are dark). Liquids other than `stopAt`'s are seen through (the floor under
+// them is lit); surfaces without a lightmap are passed.
 bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm::vec3& end, Hit& hit, int stopAt = SURF_DRAWLAVA)
 {
     while(node->contents >= 0)
@@ -204,7 +205,7 @@ bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm
             }
             ds -= surf->texturemins[0];
             dt -= surf->texturemins[1];
-            if(ds > surf->extents[0] || dt > surf->extents[1])
+            if(ds > surf->extents[0] || dt > surf->extents[1] || !R_SurfaceHoldsPoint(surf, &mid.x))
             {
                 continue;
             }
@@ -516,7 +517,7 @@ constexpr za::SizeT GRID_MAX_CELLS = 32u * 1024u * 1024u; // a larger map's cell
 // up. Uniform surroundings come out exactly as their light.
 constexpr float GRID_POWER = 2.5f;
 
-constexpr unsigned GRID_CACHE_VERSION = 2u;         // a build's: bumped when gridProbe's values change
+constexpr unsigned GRID_CACHE_VERSION = 3u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
