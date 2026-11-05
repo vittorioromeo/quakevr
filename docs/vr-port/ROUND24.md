@@ -802,6 +802,40 @@ moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the 
 body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
 down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).
 
+## Flat pose: the stock out of the chest; sizes and the walking wrist measured (branch `agent/flatsolve5`)
+
+**The stance's torso turn was never drawn.** `flatplay::poseHands` sets `s.bodyYaw` to the view's plus `flatsight::stanceYaw()`
+(25 hipfire, 40 sighted), and `hands::update` then reset it to the view's (`vr_hands.cpp`, flat branch), so the hands stood on the
+shoulders of a turned body (`avatar::restShoulders`) while the drawn arms hung from an unturned one (the sweep's `sh*` against `an*`:
+the gun's shoulder 2.3 apart crouched). Kept now: the drawn shoulders match the pose's within 0.3. Most of the stock and forearm
+depth was that: the gun placed for a turned chest, drawn in front of a square one. The gun's place on the screen is unchanged
+(the hands were already placed on the turned shoulders); the body under them now turns as FLATPLAY.md says.
+
+**Stock Clear Of The Torso** (`vr_flat_clear_stock`, 1 unit; Debug > Tunables > Flatscreen): the last of `handOnBody`'s limits.
+The held weapon's rear (its model's back end, as last drawn, in the view's frame: `flatsight::stockOff`) is kept 1 out of the
+torso's four capsules (the sweep's and `vr_selfcollide`'s), the gun going forward along the view as far as that takes (eased over
+1.5): his Gun Out values keep their place across the screen. A wall's push back (`flatsight::pushBack`) stops where the stock would
+go in (`flatplay::stockBackMost`), and the gun hand's elbow goes out at its side and a little down while a wall pushes the gun back
+(`vr_flat_wall_elbow`, 1; all the way out at 3 units back): sighted at the wall with the body turned 40, its forearm went 2.5 into
+the chest.
+
+Sweep (his defaults), before `397 passed, 13 known failing, 0 failed`, after `407 passed, 3 known failing, 0 failed`: the 10
+`gun_torso`/`fore_torso` lines pass and are out (worst now: gun 0.37 crouched at the wall, -0.6 elsewhere; forearms 0.91).
+Row by row against origin/next (`scratch/fs5_compare.py`): 0 rows worse past a limit; rows worse within their limits come from the
+turned body (eye to chest surface, arm surface, hand depths), all still passing. Sheets: `qvr-kit/scratch/flatsolve5/sheet_before.png`,
+`sheet_after.png`: the same guns in the same places; the long gun crouched level sits a little further forward.
+
+**Sizes (measured, not changed).** Level hipfire standing, from the sweep's rows: the holding hand's distance from the eye is
+melee 16.0, pistol (two hands) 11.6, long gun 5.6 (its hand at the cheek, the stance's shoulder pocket); the muzzle 19.8 / 19.6 /
+24.7; the weapon's span on the screen (muzzle to grip, at the eye) 20.7 / 8.5 / 48.2 degrees. So a long gun's hand is drawn about
+2x a pistol's and 3x a melee hand's: that is the "much bigger". Proposed rule (his call before applying): the holding hand at one
+distance from the eye at level hipfire for every kind, about 10 (the long gun's stance back less, the melee and pistol poses nearer),
+so the size differences left are the weapons' own. Dual pistols are not in the sweep yet (a `dual` sweep stance would measure them).
+
+**The walking wrist (open).** `flatwalk_test.sh` unchanged by this branch: 11 passed, 1 failed (`walk_down`: the off wrist 0.543
+against 0.5; level 0.46). The off arm is not near its reach there (0.85 of it). The measure is the wrist against the drawn hand in
+the camera's frame, 5.1 apart: 0.5 is about 5.5 degrees of the free hand turning against the camera, which the main hand doesn't
+(0.012), so the look hand's own turn while walking (`vr_view_hands.cpp`'s `steadyOther` on the hotspot) is the next place to look.
 ## Flat-screen: crouch speed and swimming (agent/flatmove, 2026-11-05)
 
 His flat-screen notes: crouching ran as fast as standing, and swimming should be Quake's, with the jump out of the water.

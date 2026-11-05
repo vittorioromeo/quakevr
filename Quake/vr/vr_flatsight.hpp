@@ -113,6 +113,9 @@ void statusLine();
 // The stance's gun hand `h`: the hotspot the free hand is drawn on, in that hand's frame, and how far into the stance it is (0: no
 // stance on this hand, `local` not set).
 [[nodiscard]] float stanceSpot(int h, glm::vec3& local);
+// The rear of the weapon hand `h` holds (its model's back end, on its middle line) off that hand, in the view's frame (forward, right,
+// up), as it was last drawn: the stock the flat pose keeps out of the chest. False: not known for what it holds now.
+[[nodiscard]] bool stockOff(int h, glm::vec3& local);
 
 struct SweepNumbers
 {
