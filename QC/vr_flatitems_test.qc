@@ -138,13 +138,12 @@ void(entity p) VR_FFX_MakeFull =
     p.items = p.items - (p.items & (IT_KEY1 | IT_KEY2));
 };
 
-// Puts it where E's grab looks: along the free hand as it hangs, a short way out (VR_Forcegrab_FindTarget asks the hand,
-// whatever the view; a thing a player walks up to and presses E on).
+// Puts it where E's grab looks: where the crosshair points, a short way out (VR_Forcegrab_FlatGrab searches from his eye along
+// his view; a thing a player walks up to and presses E on).
 void(entity p, entity xItem) VR_FFX_LookAt =
 {
-    float hand = VR_Hand_Free(p, cVR_OffHand, VR_HANDFREE_LOCKED) ? cVR_OffHand : cVR_MainHand;
-    makeforward(VRGetEntHandRot(p, hand));
-    vector at = VRGetEntHandPos(p, hand) + v_forward * 36 - (xItem.mins + xItem.maxs) * 0.5;
+    makeforward(p.v_angle);
+    vector at = VRGetHeadPos(p) + v_forward * 36 - (xItem.mins + xItem.maxs) * 0.5;
     setorigin(xItem, at);
     xItem.velocity = '0 0 0';
 };

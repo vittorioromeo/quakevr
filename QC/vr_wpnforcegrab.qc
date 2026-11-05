@@ -231,12 +231,17 @@ float(entity e) VR_Forcegrab_IsEligible =
 }
 
 // The eligible object nearest to where the hand points, or world.
+entity(vector handPos, vector aim) VR_Forcegrab_FindTargetAlong;
+
 entity(float xHand) VR_Forcegrab_FindTarget =
 {
-    vector handPos = VRGetHandPos(xHand);
     makeforward(VRGetHandRot(xHand));
-    vector aim = v_forward;
+    return VR_Forcegrab_FindTargetAlong(VRGetHandPos(xHand), v_forward);
+}
 
+// The search, from `handPos` along `aim` (a hand's, or a flatscreen player's crosshair: VR_Forcegrab_FlatGrab).
+entity(vector handPos, vector aim) VR_Forcegrab_FindTargetAlong =
+{
     float range = cvar_hget(cvarh_vr_forcegrab_distance);
     float minCos = cos(cvar_hget(cvarh_vr_forcegrab_cone) * 0.0174533);
 
@@ -361,7 +366,10 @@ void() VR_Forcegrab_FlatGrab =
         }
     }
 
-    entity g = VR_Forcegrab_FindTarget(xHand);
+    // Where the crosshair points: from his eye along his view (the free hand hangs some 60 degrees down, and searching along it
+    // took what lay at his feet, not what he looked at).
+    makeforward(self.v_angle);
+    entity g = VR_Forcegrab_FindTargetAlong(VRGetHeadPos(self), v_forward);
     if(g == world || !VR_Forcegrab_IsEligible(g))
     {
         dprint("flat grab: nothing to take where you look\n");
