@@ -3048,6 +3048,7 @@ QVR_CVAR(vr_limb_test, "0", CVAR_NONE) // the QC runs limb gore test n on the ne
 QVR_CVAR(vr_gore_test_crowd, "0", CVAR_NONE) // units: above 0, vr_limb_test and vr_decap_test act on every monster this near you at once (one line: goretest: crowd; the benchmarks' gore scenarios)
 QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of the map at once, once (vr_monsters_test.qc; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count scenarios): 1 report, 2 wake them all, 3 kill them all, 4 bring in the deferred ones, 5 the hit probe of the nearest monster
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
+QVR_CVAR(vr_waterzap_test, "0", CVAR_NONE)           // lightning fired into water from each source, the surface's effect asserted (vr_waterzap_test.qc; map vrfiringrange; Debug > Tools > Test Effects)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_dents_test, "0", CVAR_NONE)              // the QC strikes the nearest monster or corpse as one damage path does (1 a thrown brick, 2 a hand's blow, 3 a pommel strike, 4 a sword by its blade pommel first into a corpse, 5 by its handle, 6 five shotgun pellets: their wounds alone), once; prints the wound it sent (vr_dents_test.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off
@@ -3476,6 +3477,7 @@ QVR_CVAR(vr_magholster_chain_lod, "5", CVAR_ARCHIVE)        // metres along the 
 QVR_CVAR(vr_magholster_chain_spacing, "0.25", CVAR_ARCHIVE) // metres between its points (finer: truer on edges and the floor, more work; a long tether's farther apart: vr_magholster_chain_points at most)
 QVR_CVAR(vr_magholster_chain_points, "40", CVAR_ARCHIVE)    // the most pieces it has (4 .. 256)
 QVR_CVAR(vr_magholster_chain_iterations, "12", CVAR_ARCHIVE) // passes a frame holding its pieces to their length (more: less stretch, more work; 1 .. 64)
+QVR_CVAR(vr_magholster_chain_limit, "0.1", CVAR_ARCHIVE)    // each piece kept within this share of its length, however fast the hand moves (0: off; 0.01 .. 0.9)
 QVR_CVAR(vr_magholster_chain_stiffness, "1", CVAR_ARCHIVE)  // the share of a piece's stretch each pass takes out (0.05 .. 1; lower: stretchier, softer)
 QVR_CVAR(vr_magholster_chain_collide, "1", CVAR_ARCHIVE)    // 1: its points and pieces kept out of the world (traced); 0: through it (cheaper)
 QVR_CVAR(vr_magholster_chain_radius, "0.75", CVAR_ARCHIVE)  // units its points keep off what they lie on
