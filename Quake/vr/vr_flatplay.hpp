@@ -102,6 +102,10 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // The held weapon's Gun Out (units before vr_flat_reach) at the look `pitch` (Quake's, positive down), the crouch as it is now:
 // vr_flat_gun_out level, vr_flat_gun_out_crouch crouched, going to vr_flat_gun_out_down / _up along a smooth curve. The sweep's.
 [[nodiscard]] float gunOut(float pitch);
+// How far back along `way` (world, unit length) the weapon hand `h` holds can go from where it is now, at most `most`, keeping the
+// weapon's rear vr_flat_clear_stock out of the torso (or no deeper than it is now): a wall's push back (flatsight's pushBack) stops
+// at the chest.
+[[nodiscard]] float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most);
 // The drawn body's move with the drawn view (world units): the view's own move off the pose's eye -- the walk's bob, a step's easing --
 // by vr_flat_body_bob (all of it sighted), which the drawn hands ride too (drawnOffset), so body, arms and hands move as one. 0 outside
 // the mode, off the body pose, and when the drawn view isn't his own eyes.

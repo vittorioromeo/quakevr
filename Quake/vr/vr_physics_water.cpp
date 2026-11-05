@@ -753,10 +753,13 @@ struct Swimmer
 
 Swimmer swimmers[MAX_SCOREBOARD];
 
-// A VR player's latest move, when its hands are tracked.
+// A VR player's latest move, when its hands are tracked. A flat-screen player (-flatscreenmode: .vr_flatscreen) swims
+// as in Quake (docs/vr-port/FLATPLAY.md, "Swimming"): his keys at Quake's speed where he looks, jump to rise; his
+// posed hands push no water and the water's friction is all there (no glide).
 [[nodiscard]] const VrMove* swimmer(edict_t* ent)
 {
-    if(!vr_swim.value || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP)
+    if(!vr_swim.value || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP ||
+       progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f)
     {
         return nullptr;
     }
