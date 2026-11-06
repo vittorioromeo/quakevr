@@ -76,6 +76,7 @@ struct Event
     int amount{0};
     int extra{0};
     bool clean{false}; // a clean training dummy's (QC QVR_WOUND_CLEAN): nothing painted, its dent alone (vr_dummy_dents)
+    bool precise{false}; // your own shot's (QC QVR_WOUND_PRECISE, vr_selfshot): at its point exactly, on your drawn body
 };
 
 struct Mask

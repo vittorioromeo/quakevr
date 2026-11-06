@@ -2112,7 +2112,8 @@ QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the c
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
-QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
+QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
+QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
 QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
 QVR_CVAR(vr_flatgate_test, "0", CVAR_NONE)               // -flatscreenmode only: a walk through a teleporter on vrteleporters: the view goes on as it was (vr_flatgate_test.qc; Debug > Tests > Flat Gate)
@@ -3317,6 +3318,9 @@ QVR_CVAR(vr_headbutt_speed, "1.5", CVAR_ARCHIVE)           // m/s the head must 
 QVR_CVAR(vr_damage_to_enemies, "1", CVAR_ARCHIVE)        // damage the player deals to monsters
 QVR_CVAR(vr_damage_to_player, "1", CVAR_ARCHIVE)         // damage monsters (and the world) deal to the player
 QVR_CVAR(vr_damage_self, "1", CVAR_ARCHIVE)              // damage the player deals to themselves (rockets, grenades)
+QVR_CVAR(vr_selfshot, "1", CVAR_ARCHIVE)                 // in a headset, your shots and missiles hit your own drawn body, arms and hands (vr_selfshot.qc; not the head)
+QVR_CVAR(vr_selfshot_damage, "1", CVAR_ARCHIVE)          // the damage of a shot into your own body (times the weapon's; in place of vr_damage_self)
+QVR_CVAR(vr_selfshot_debug, "0", CVAR_NONE)                     // prints each shot of yours that hits your own body (vr_selfshot.qc)
 QVR_CVAR(vr_headshot_mult, "1.5", CVAR_ARCHIVE)          // positional damage: headshots,
 QVR_CVAR(vr_limbshot_mult, "0.6", CVAR_ARCHIVE)         // arms (far from the body's middle),
 QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs

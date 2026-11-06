@@ -29,6 +29,7 @@ dispatch vr_embed_test QC/vr_embed_test.qc VR_Embed_TestFrame ask
 dispatch vr_pp_test QC/vr_playerplates_test.qc VR_PP_TestFrame ask
 dispatch vr_flatitems_test QC/vr_flatitems_test.qc VR_FlatItemsTest_Frame ask
 dispatch vr_flatgate_test QC/vr_flatgate_test.qc VR_FlatGateTest_Frame ask
+dispatch vr_selfshot_test QC/vr_selfshot_test.qc VR_SelfShotTest_Frame ask
 dispatch vr_flatmove_test QC/vr_flatmove_test.qc VR_FlatMoveTest_Frame ask
 
 vr_embed_test    1        vr_embed_test.qc                 embedded blades: thrown swords, sag, bodies, cuts, plates, vr_embed 0
@@ -665,6 +666,9 @@ vr_flatitems_test 4       vr_flatitems_test.qc             flat-screen: the plat
 vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks through teleporters: pitch, yaw by the gate alone, heading, body, aim
 vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
 vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level change starts level
+
+vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; head, option off, another player: never
+vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
 
 vr_flatmove_test 1        vr_flatmove_test.qc              flat-screen: his top level speed once settled (standing, crouched)
 vr_flatmove_test 2        vr_flatmove_test.qc              flat-screen: half a second of swimming: how far up or down, how far level
