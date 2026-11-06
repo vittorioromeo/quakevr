@@ -617,7 +617,7 @@ za::Vector<Item> pageWofsSights()
             .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
                   "it when you close the other."),
         toggle("Show Sight Line", vr_show_sight_line)
-            .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
+            .help("Draws each held gun's sight line in blue: its rear point (yellow), its front one (cyan), and the line through "
                   "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
     );
     list.pushBackMultiple(
