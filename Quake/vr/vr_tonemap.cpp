@@ -4,6 +4,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_files.hpp"
 #include "vr_input.hpp"
 #include "vr_stereo.hpp"
@@ -212,6 +213,12 @@ extern "C" float VR_SceneDither(float dither)
     return stereo::isRenderingEye() && vr_dither.value > 0.f ? 0.f : dither;
 }
 
+// Flatscreen play's window needs the post-process pass while bullet time's look is on (GL_NeedsPostprocess).
+extern "C" int VR_FlatBulletTimeLook(void)
+{
+    return flatplay::active() && bullettime::look().strength > 0.f ? 1 : 0;
+}
+
 // Uniforms 7 (Tone) and 8 (Dither) of the non-palettized post-process; zero for the window.
 extern "C" void VR_PostProcessTone(void)
 {
@@ -219,7 +226,16 @@ extern "C" void VR_PostProcessTone(void)
     {
         GL_Uniform4fFunc(7, 0.f, 0.f, 0.f, 0.f);
         GL_Uniform4fFunc(8, 0.f, 0.f, 0.f, 0.f);
-        GL_Uniform4fFunc(9, 0.f, 0.f, 0.f, 0.f);
+        if(flatplay::active()) // flatscreen play: the window gets bullet time's look, the same tunables and easing as the eyes
+        {
+            const bullettime::Look slow = bullettime::look();
+            GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, 0.f);
+            GL_Uniform3fFunc(10, slow.tint.x, slow.tint.y, slow.tint.z);
+        }
+        else
+        {
+            GL_Uniform4fFunc(9, 0.f, 0.f, 0.f, 0.f);
+        }
         return;
     }
     const glm::vec4 tone = tonemap::bind(3);

@@ -172,6 +172,7 @@ const char *VR_RelightIndicator (float *fraction);
 // The flatscreen ironsight (vr_flatsight.cpp, -flatscreenmode): the field of view to render at. For flatscreen play only
 // -- a headset's field of view is its own, and there the answer is the base fov given, whatever the player pressed.
 float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on; basefov unchanged when it is off, and outside flatscreen play
+float VR_FlatCrosshairAlpha (void);	// the crosshair's opacity: 1, faded to 0 over the flatscreen ironsight's travel; 1 outside it
 void VR_FlatCrosshairShift (float* x, float* y);	// where the crosshair stands off the screen's centre: the flatscreen ironsight's picture moved (fractions of its height); 0 0 outside it
 
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).

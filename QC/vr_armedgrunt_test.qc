@@ -1507,6 +1507,8 @@ void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
 void() VR_AGAW_Frame; // (vr_armedgrunt_aware_test.qc)
 void() VR_AGDD_Frame; // (vr_armedgrunt_dualdisarm_test.qc)
+void() VR_MRT_Frame; // (vr_meleerules_test.qc)
+void() VR_MRT_ParryFrame;
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
 float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
@@ -1599,6 +1601,8 @@ void() VR_AGTest_Frame =
     else if(t == 93) { VR_AGS_ProjTestFrame(); } // (projectiles' own rolls: vr_armedgrunt_shot_test.qc)
     else if(t == 77) { VR_AGBL_Frame(); } // (your blow on its blade away from its hand: vr_armedgrunt_blade_test.qc)
     else if(t == 78) { VR_DRPT_Frame(); } // (the directional parry of its swing: vr_dirparry_test.qc)
+    else if(t == 212) { VR_MRT_Frame(); } // (the shared melee rules: a side-step, Show Melee Arcs: vr_meleerules_test.qc)
+    else if(t == 213) { VR_MRT_ParryFrame(); } // (a lost soul's bite parried: vr_meleerules_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)

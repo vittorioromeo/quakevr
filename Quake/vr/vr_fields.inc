@@ -322,6 +322,7 @@ QVR_FIELD(vr_melee_arc)
 QVR_FIELD(vr_melee_arc_wide)
 QVR_FIELD(vr_melee_reach)
 QVR_FIELD(vr_melee_shown)
+QVR_FIELD(vr_melee_rule)
 // Show Aim Cones (vr_enemy_aim_show; QC/vr_aimcone.qc VR_AimCone_ShowFrame): a ranged monster's aim and fire cones, drawn (vr_bodycontact.cpp).
 QVR_FIELD(vr_aim_cone)
 QVR_FIELD(vr_aim_fire)

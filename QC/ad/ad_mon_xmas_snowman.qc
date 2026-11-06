@@ -59,7 +59,7 @@ void() ad_SnowmMelee =
 	if (self.health < 1) return;
 		
 	ad_ai_damagebreakable(10);							// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESNOWMAN,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return; // Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!VR_MeleeBlow(ad_ai_checkmelee(ad_MONAI_MELEESNOWMAN,ad_FALSE), ad_FALSE, ad_FALSE)) return; // Too far away // AD support: reach and melee arc (fight.qc VR_MeleeBlow)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;

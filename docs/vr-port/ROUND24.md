@@ -966,6 +966,106 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
 
+## Flat pose: grips, ADS recoil, the launchers' height, fov-scaled zoom, the crosshair fade (branch `agent/flatsolve6`)
+
+His notes of 2026-11-05. `Misc/quakevr/flatads_test.sh` (sections a-e, one run each, its own verdict) covers each item done.
+
+**1. The grenade and rocket launchers sat lower.** Why: those guns (and the proximity gun, laser cannon, Enforcer's rifle) are the
+ones whose two-handed grip the free hand takes for real (`carry`), and `flatsight::stanceShare` is 0 for them, so `targetOffset`
+gave them none of the stance's numbers: not its way back (on purpose: pulled back, the free hand's punch missed, FLATPLAY.md "The
+stance"), but not its lift either (`vr_flat_stance_up`, 4). New `flatsight::stanceLift` (any gun in the stance) carries the lift
+only. Level hipfire, before -> after: hand height grenade launcher -7.08 -> -4.02, rocket launcher -7.45 -> -4.52 (shotgun -3.34);
+the muzzle on the screen -19.2 / -17.3 deg -> -10.0 / -10.7 (shotgun -9.6). `vr_flat_sight_check` now also prints a
+`flatgunview:` line (hand, muzzle, sights in the camera's frame, each's pitch on the screen) and `flatcrosshair:`.
+
+**2. Fingers.** Flat input has no grip value, so every hand was drawn open (thumb only). `updateFingerFrames` (vr_view.cpp) gives a
+hand holding a weapon (not the fist), or drawn on its hotspot (`twohand::drawnHelping`: the stance's and the ironsight's look
+hand), the same input a posed weapon hand gets: grip pressed, thumb and trigger touched. Curls, shotgun hipfire and sighted:
+main 5 / 2.5 (index on the trigger) / 5 / 5 / 5, off 5 on all (its index closes with the grip). The grasp solve stops them on
+the model as in a headset.
+
+**3. Ironsight recoil** `vr_flat_ads_recoil` (0.35; Debug > Tunables > Flatscreen > Ironsight Recoil): the drawn recoil
+(`weaponfx::recoilOffset`) is kept at that share as the sight comes up (`flatsight::keepRecoil`, smoothed `adsT`). Shotgun shot:
+hipfire 3.15 u / 12.04 deg, sighted 1.10 u / 4.21 deg (0.350). Probe: `vr_flat_recoil_probe`. Not touched: `punchangle` (only
+the rogue lava guns' QC sets it on the player).
+
+**5. Zoom and relief follow the fov.** `vr_flat_aim_fov`'s degrees are now counted at new `vr_flat_aim_fov_ref` (95: his fov);
+at any other fov the ironsight is the same magnification (tangents of the half-angles), and the range goes to 75.
+`vr_flat_ads_relief` is the relief at that reference with Model FOV off; another fov, or `vr_flat_model_fov`, scales it by
+tan(half the reference's sighted fov) / tan(half the fov the gun is drawn at), so the sight picture keeps its size.
+His settings (fov 95, `vr_flat_aim_fov` 45, relief 4): 50.00 deg and relief 4.00, as before. Fov 70: 33.31 deg, relief 6.23;
+fov 110: 62.79 deg, relief 3.06 (both x2.340); Model FOV 70 at fov 95 with relief 14: 9.32. At the default fov 90 the old test
+values come out nearly the same (12 / 30 / 45 take 11.9 / 29.5 / 43.7 off); the default relief 14 at fov 90 and
+`vr_flat_aim_fov` 40 becomes 15.3 drawn (x1.09).
+
+**Crosshair fade** (his note via the coordinator): the 2D crosshair (`SCR_DrawCrosshair` through `VR_FlatCrosshairAlpha`) and
+vr_crosshair's dot and lasers fade by 1 - smooth(`adsT`): out over the ironsight's own travel (`vr_flat_aim_time`), back in on
+release; 1 outside flat play, so a headset is unchanged. Read 4 frames into the travel 0.69, sighted 0.000, released 1.000;
+pixels in the middle fifth (crosshairs on vs off): hipfire 505 differ (control, the same setting a frame later, 93), sighted 84
+(control 415: the scene's own change).
+
+**4 / 4b. Front sights (found, not fixed).** The flare gun's sight line (`vr_sightalign_table.inc`, from `build_flaregun.py`)
+runs from the rear notch's *bottom* to the front blade's top, both at SIGHT_Z: on that line the blade's top only touches the
+notch's bottom and the hump under the notch hides the rest of it; a sight picture has the blade's top level with the notch's top
+(EAR_TOP_Z, 0.28 higher), as the nail pistol's and the revolver's lines are. Fix: the rear point on the ears' top (table or
+generator). Not done: the super shotgun (painted sights), the grunt burst rifle (rear 14.350, front 14.450, both y 0 in the
+table: its posts' y against the bore not measured), 4c (walls), 6 (the walking wrist).
+
+**Verified.** Sweep (defaults) before (origin/next) `407 passed, 3 known failing, 0 failed`, after the same; row by row
+(`scratch/fs5_compare.py fs6base fs6after`): 0 rows worse past a limit, 290 better, 107 worse inside their limits (59 of them
+`arm_reach`: the default relief drawn 15.3 at fov 90). flatads 7/0, flatsight 12/0, flatplay 28/0, flatkeys 28/0, flatpose 21/0.
+Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the same poses; the hands now close round the handles
+(axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
+`vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
+`vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
+
+From the melee audit (his answer: "All, armed ones too").
+
+- **One helper** (fight.qc): `VR_MeleeBlow(inreach, wide, los)` (reach, then the arc, then CanDamage), id's form
+  `VR_MeleeBlow_Near(base, wide, los)`, `VR_MeleeBlow_Radius(dist, reach)` (the dragon's tail: all round),
+  `VR_MeleeBlow_Leap()` (the spawn's, fiend's, dog's touch: printed). They replace the 35 copied reach + arc checks (id,
+  Hipnotic, Rogue, MG3, and the 23 AD sites, through `Misc/quakevr/ad_import.py` and `AD_IMPORT.txt`). CanDamage now always
+  comes after the arc (ai_melee_side had it before: only the debug print differs). Each blow keeps its reach on the
+  monster (`.vr_melee_blow_reach`/`_time`) for the parry's range. Identical: every melee-arc line (id, ad, rogue sets) and
+  tests 24/29/35/78 matched the baseline exactly after stage 1.
+- **Parry gaps:** AD's lost soul and seeker get `VR_ADM_MELEE`; the Christmas pack (elf, reindeer, Santa, snowman) is
+  parried through `.vr_ad_parried` without registering them (registration would give them ragdolls and corpses). The
+  parry's range is `VR_Parry_Range(attacker, usual)` (combat.qc): the blow's own reach when it was struck through the
+  rules this frame (the dragon's tail 250, an armed blade), else 150 (110 a shambler: its lightning). Same for the
+  unparried blow's push.
+- **Debug:** `vr_enemy_melee_arc_debug` prints every blow: out of reach, all round, leaps (touch), shoves (cone), armed
+  humanoids' (reach with arm and weapon length). Show Melee Arcs draws each blow's rule (`.vr_melee_rule`,
+  vr_meleerules.qc `VR_MeleeRule_Of`): an arc; a leap (grey ring at 120, "lands by touch": the spawn, MG3 slime); all
+  round (dragon, 250); a shove's cone (grunts, enforcers, vores); none for non-blows (zombie flesh, Armagon, the spike
+  mine, eel, lava man). New command `vr_enemy_melee_arc_status` (Debug > Tests, "Melee Arcs Drawn").
+- **Shove cone** = the shared arc for its size times `vr_enemy_melee_kind_shove` (0.923: the old 60 at the default 65; a
+  vore's grows with its size: 70). Melee arc off: its own 60.
+- **Armed humanoids** (vr_armedgrunt.qc `VR_AG_BlowLands`, `VR_AG_BlowBase`): each blow (posed `VR_AGP_Strike`, the gun
+  butt's `VR_AG_Strike`) is decided by the arc and reach on its hit frame (through `VR_MeleeBlow`), not by the re-aimed
+  line; reach = shoulder + arm (its row) + the weapon's length (`VR_AG_MeleeLen`; punch and gun butt 0) + your body's
+  front 12 + `vr_enemy_melee_ag_reach` (16), never under 62, then the size growth. A blow that lands still runs the
+  weapon's own melee (its line delivers the hit and the directional parry). The melee start turns first when facing away
+  (`VR_MeleeArc_Launch`), and the swing's turn is held (`VR_MeleeArc_Face` in `VR_AGP_Frame` for punch/swing/saw, and the
+  gun-butt frames). Why Show Melee Arcs showed nothing for them: never found for certain; they now show with the weapon's
+  reach (the sword grunt 71) and the test asserts it.
+- **Damage per weapon** (weapons.qc `VR_AG_WeaponBlowDmg`, armed humanoids only; flat-screen players keep 20):
+  `vr_agrunt_melee_dmg_fist` 14, `_axe` 22 (axe, crowbar, great axe), `_sword` 22 (times vr_sword_damage_mult, as before),
+  `_hammer` 26, `_chainsaw` 18, `_gunbutt` 18: mean 20, the old flat value. Then vr_agrunt_damage_scale as before.
+- **Directional parry:** unchanged where their blade is swept already (swings, thrusts with a blade, Mjolnir). Guard-only
+  still: the punch, the gun butt, the chainsaw, the shove.
+- **Tests:** `vr_agrunt_test 212` (vr_meleerules_test.qc): an armed sword's blow from ahead lands; a side-step to 100 deg
+  as its swing starts dodges it (89 deg off at the hit frame, 0 damage); Show Melee Arcs sets and the engine draws each
+  kind (arc, leap, all round, shove: `meleearcviz: drawn arc 1 leap 1 round 1 shove 1`). `vr_agrunt_test 213`: the
+  nearest lost soul's bite parried (spawned through the dispenser, 207): needs AD mounted (`vr_ad_mounted` is 0 in the
+  agents' trees, so it reports "no lost soul" here; not verified).
+- **Before/after** (vrtesthall, seed 7; melee_arc_test.sh id/ad/rogue at arc 1): every meleearc result line identical
+  after both stages. `vr_agrunt_test` 78: 47/0 -> 47/0; 24: 2/0 -> 2/0; 29: 1/0 -> 1/0; 35 (no mock guard in this run):
+  4/2 -> 5/1 (Fist now parried; Axe still 0 of 2, as before); 18 (long blade's standoff, blows landing): 24/0 after;
+  89: 3/0 after. The ad set ran without AD mounted (id's monsters).
+- **To try in VR:** an armed sword or axe grunt: step sideways as it winds up (it should whiff), then stand in front
+  (it lands); the hits per weapon should feel like before on average (fists lighter, hammer heavier). Show Melee Arcs
+  near a spawn, a dragon, a vore: each shows its own rule.
 ## Flat-screen: standing up under a low ceiling (agent/flatmove2, 2026-11-06)
 
 His note: "flatscreen crouch allows the player to uncrouch even when there is geometry above, causing the player to

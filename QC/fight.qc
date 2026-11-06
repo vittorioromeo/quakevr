@@ -220,6 +220,7 @@ float vr_meleearc_last_off; // the last blow's angle off its facing (the test, v
 float vr_meleearc_last_time; // ... and when (time)
 float vr_meleearc_last_hit; // ... and whether it was inside the arc
 float vr_meleearc_reach_base; // the last reach check's own reach (VR_MeleeReach: Quake's or AD's, before the growth)
+entity vr_meleearc_reach_of;  // ... whose (VR_MeleeBlow: another's, its own blows' kept reach)
 float vr_melee_ahead; // set around an AD ogre's smash blow (ad_import.py SMASH_AHEAD): the normal arc, not the swing's wide one
 
 float() VR_MeleeArc_On =
@@ -230,11 +231,16 @@ float() VR_MeleeArc_On =
 // Self's kind's multipliers ('arc reach 0'; vr_enemy_melee_kind 0: '1 1 0'). Short list, by classname: a knight's
 // sword is a light, quick thrust (its arc 0.85: easier to sidestep than a grunt-sized blow). Every other kind 1 (its
 // size alone: an ogre's and a shambler's grow by the size sliders).
+float vr_meleearc_shove; // (VR_MeleeArc_ShoveAngle: a shove's cone weighed, the shove's kind)
 vector() VR_MeleeArc_Kind =
 {
     if(!cvar_hget(cvarh_vr_enemy_melee_kind))
     {
         return '1 1 0';
+    }
+    if(vr_meleearc_shove)
+    {
+        return '1 0 0' * cvar_hget(cvarh_vr_enemy_melee_kind_shove) + '0 1 0'; // (a shove: 60 deg at the 65 arc)
     }
     if(self.classname == "monster_knight")
     {
@@ -271,6 +277,7 @@ float(float base) VR_MeleeArc_Reach =
 float(float base) VR_MeleeReach =
 {
     vr_meleearc_reach_base = base;
+    vr_meleearc_reach_of = self;
     if(!self.vr_melee_reach_base)
     {
         self.vr_melee_reach_base = base; // (until its first blow, for Show Melee Arcs)
@@ -318,6 +325,85 @@ float(float wide) VR_MeleeArc_Hits =
     return vr_meleearc_last_hit;
 };
 
+// QVR: the one rule for a monster's blow on its hit frame (ROUND24.md, "Melee rules"): inside its reach (`inreach`: the
+// caller's reach check, id's `vlen(delta) <= VR_MeleeReach(60)` or AD's ad_ai_checkmelee), then, against a player
+// with the melee arc on, inside its arc (wide: a sweeping blow's), then with `los` CanDamage. TRUE if it lands. The
+// blow's reach is kept on self for the parry's range (VR_Parry_Range); vr_enemy_melee_arc_debug prints every blow,
+// out of reach too.
+float(float inreach, float wide, float los) VR_MeleeBlow =
+{
+    if(!self.enemy)
+    {
+        return inreach;
+    }
+    float base = vr_meleearc_reach_of == self ? vr_meleearc_reach_base : self.vr_melee_reach_base;
+    self.vr_melee_blow_reach = VR_MeleeArc_On() ? VR_MeleeArc_Reach(base) : base;
+    self.vr_melee_blow_time = time;
+    if(!inreach)
+    {
+        if(cvar_hget(cvarh_vr_enemy_melee_arc_debug) && (self.enemy.flags & FL_CLIENT))
+        {
+            bprint(sprintf("meleearc: %s blow out of reach (%.0f units, reach %.0f): misses\n", self.classname,
+                vlen(self.enemy.origin - self.origin), self.vr_melee_blow_reach));
+        }
+        return FALSE;
+    }
+    vr_meleearc_reach_base = base; // (VR_MeleeArc_Hits: its own)
+    if(!VR_MeleeArc_Hits(wide))
+    {
+        return FALSE;
+    }
+    return !los || CanDamage(self.enemy, self);
+};
+
+// id's form: self's enemy within Quake's reach `base` (grown: VR_MeleeReach), origin to origin.
+float(float base, float wide, float los) VR_MeleeBlow_Near =
+{
+    if(!self.enemy)
+    {
+        return FALSE;
+    }
+    return VR_MeleeBlow(vlen(self.enemy.origin - self.origin) <= VR_MeleeReach(base), wide, los);
+};
+
+// A blow all round self with no arc (the dragon's tail), its enemy `dist` away, reaching `reach`: TRUE if it lands;
+// its reach kept and printed as VR_MeleeBlow's.
+float(float dist, float reach) VR_MeleeBlow_Radius =
+{
+    self.vr_melee_blow_reach = reach;
+    self.vr_melee_blow_time = time;
+    float lands = dist <= reach;
+    if(cvar_hget(cvarh_vr_enemy_melee_arc_debug) && self.enemy && (self.enemy.flags & FL_CLIENT))
+    {
+        bprint(sprintf("meleearc: %s blow all round (%.0f units, reach %.0f): %s\n", self.classname, dist, reach,
+            lands ? "lands" : "misses"));
+    }
+    return lands;
+};
+
+// A leap's touch (a fiend's, a rottweiler's, the spawn's: no arc, it lands by touching you), printed as VR_MeleeBlow's.
+void() VR_MeleeBlow_Leap =
+{
+    if(cvar_hget(cvarh_vr_enemy_melee_arc_debug) && other && (other.flags & FL_CLIENT))
+    {
+        bprint(sprintf("meleearc: %s leap lands (touch)\n", self.classname));
+    }
+};
+
+// A shove's cone (vr_enemyshove.qc VR_EnemyShove_Hit): degrees each side of self's facing, the melee arc's for its
+// size times the shove's kind (vr_enemy_melee_kind_shove: its own 60 at the default 65 arc); the melee arc off: 60.
+float() VR_MeleeArc_ShoveAngle =
+{
+    if(!cvar_hget(cvarh_vr_enemy_melee_arc))
+    {
+        return 60;
+    }
+    vr_meleearc_shove = TRUE;
+    float a = VR_MeleeArc_Angle(FALSE);
+    vr_meleearc_shove = FALSE;
+    return a;
+};
+
 // Before a melee attack starts: TRUE if self faces its enemy enough to start it now (else it turns first).
 float() VR_MeleeArc_Launch =
 {
@@ -329,6 +415,12 @@ float() VR_MeleeArc_Launch =
 // first reach check's, else Quake's usual (60 a grunt-sized one, 100 a wider one). With 2 also printed once a second
 // (meleearc: show), for the logs.
 float vr_meleearc_show_print; // (when it last printed)
+float VR_MELEE_RULE_ARC = 0;   // (.vr_melee_rule, drawn by the engine) its blows land inside its arc and reach
+float VR_MELEE_RULE_LEAP = 1;  // a leap: it lands by touching you (the spawn's; reach: how far it leaps from)
+float VR_MELEE_RULE_ROUND = 2; // all round it, no arc (the dragon's tail: its reach)
+float VR_MELEE_RULE_SHOVE = 3; // a shove: its cone (VR_MeleeArc_ShoveAngle) and reach (VR_EnemyShove_Reach)
+float(entity m) VR_MeleeRule_Of;   // m's rule, -1: none shown (vr_meleerules.qc)
+float(entity m) VR_MeleeRule_Reach; // the reach shown for a rule other than the arc's (vr_meleerules.qc)
 void() VR_MeleeArc_ShowFrame =
 {
     if(!cvar_hget(cvarh_vr_enemy_melee_arc_show))
@@ -347,22 +439,44 @@ void() VR_MeleeArc_ShowFrame =
         entity m = findradius(p.origin, 600);
         while(m)
         {
-            // (Not the eel's zap, a burst all round it, nor the lava man's fireball: no blow, no arc.)
-            if((m.flags & FL_MONSTER) && m.health > 0 && m.enemy == p && (m.th_melee || AD_HasMelee(m)) &&
-                m.classname != "monster_eel" && m.classname != "monster_lava_man")
+            // Its blows' rule (VR_MeleeRule_Of: an arc, a leap's touch, all round, a shove's cone; none: not shown, the
+            // eel's zap, the lava man's fireball, a zombie's flesh, Armagon's).
+            float rule = -1;
+            if((m.flags & FL_MONSTER) && m.health > 0 && m.enemy == p)
+            {
+                rule = VR_MeleeRule_Of(m);
+            }
+            if(rule >= 0)
             {
                 self = m;
                 float base = self.vr_melee_reach_base ? self.vr_melee_reach_base : (self.size_x > 24 ? 100 : 60);
                 float on = cvar_hget(cvarh_vr_enemy_melee_arc);
+                self.vr_melee_rule = rule;
                 self.vr_melee_arc = on ? VR_MeleeArc_Angle(FALSE) : 180;
                 self.vr_melee_arc_wide = self.vr_melee_wide_seen ? (on ? VR_MeleeArc_Angle(TRUE) : 180) : 0;
                 self.vr_melee_reach = on ? VR_MeleeArc_Reach(base) : base;
+                if(rule == VR_MELEE_RULE_LEAP || rule == VR_MELEE_RULE_ROUND)
+                {
+                    self.vr_melee_arc = 180;
+                    self.vr_melee_arc_wide = 0;
+                    self.vr_melee_reach = VR_MeleeRule_Reach(self);
+                }
+                else if(rule == VR_MELEE_RULE_SHOVE)
+                {
+                    self.vr_melee_arc = VR_MeleeArc_ShoveAngle();
+                    self.vr_melee_arc_wide = 0;
+                    self.vr_melee_reach = VR_MeleeRule_Reach(self);
+                }
+                else if(self.vr_ag)
+                {
+                    self.vr_melee_reach = VR_MeleeRule_Reach(self); // (its weapon's: VR_AG_BlowReach)
+                }
                 self.vr_melee_shown = time;
                 if(print)
                 {
-                    bprint(sprintf("meleearc: show %s width %g arc %.1f wide %.1f reach %.1f (base %g)\n",
-                        self.classname, self.size_x, self.vr_melee_arc, VR_MeleeArc_Angle(TRUE), self.vr_melee_reach,
-                        base));
+                    bprint(sprintf("meleearc: show %s rule %g width %g arc %.1f wide %.1f reach %.1f (base %g)\n",
+                        self.classname, rule, self.size_x, self.vr_melee_arc, VR_MeleeArc_Angle(TRUE),
+                        self.vr_melee_reach, base));
                 }
                 self = oself;
             }
@@ -463,19 +577,14 @@ ai_melee
 */
 void() ai_melee =
 {
-    vector    delta;
     float     ldmg;
 
     if(!self.enemy)
         return;        // removed before stroke
 
     self.vr_melee_time = time; // QVR: (as ai_charge)
-    delta = self.enemy.origin - self.origin;
-
-    if(vlen(delta) > VR_MeleeReach(60))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc)
+    if(!VR_MeleeBlow_Near(60, FALSE, FALSE))
+        return; // QVR: (reach and melee arc)
 
     ldmg = (random() + random() + random()) * 3;
     T_Damage(self.enemy, self, self, ldmg);
@@ -484,7 +593,6 @@ void() ai_melee =
 
 void() ai_melee_side =
 {
-    vector    delta;
     float     ldmg;
 
     if(!self.enemy)
@@ -492,14 +600,8 @@ void() ai_melee_side =
 
     ai_charge_side();
 
-    delta = self.enemy.origin - self.origin;
-
-    if(vlen(delta) > VR_MeleeReach(60))
-        return;
-    if(!CanDamage(self.enemy, self))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc)
+    if(!VR_MeleeBlow_Near(60, FALSE, TRUE))
+        return; // QVR: (reach, melee arc, then CanDamage)
     ldmg = (random() + random() + random()) * 3;
     T_Damage(self.enemy, self, self, ldmg);
 };

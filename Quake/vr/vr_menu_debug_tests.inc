@@ -709,8 +709,15 @@ za::Vector<Item> pageDebugTests()
             .help("Starts the closest-approach log above again."),
         row(opt::vr_enemy_melee_arc_debug),
         toggle("Show Melee Arcs", vr_enemy_melee_arc_show)
-            .help("Each melee monster after you draws its arc and reach on the floor: red with you inside, green outside "
-                  "(Combat > Enemy Melee > Show Melee Arcs)."),
+            .help("Each melee monster after you draws its blows' rule on the floor: its arc and reach (an armed one's from "
+                  "its weapon's length), a leap's range (it lands by touch), the dragon's tail all round, a shove's cone; "
+                  "red with you inside, green outside (Combat > Enemy Melee > Show Melee Arcs)."),
+        command("Melee Arcs Drawn", "vr_enemy_melee_arc_status")
+            .help("vr_enemy_melee_arc_status: how many of each rule Show Melee Arcs last drew (arc, leap, all round, "
+                  "shove), and each monster's arc, reach and whether you are inside."),
+        command("Test: Melee Rules (Side-step, Arcs)", "vr_agrunt_test 212")
+            .help("vr_agrunt_test 212 (vrtesthall): an armed sword's blow lands from ahead, a side-step out of its swing "
+                  "dodges it; Show Melee Arcs shows each kind's rule. One agtest: line each."),
         command("Melee Arc: Nearest Faces You", "vr_test_meleearc 1")
             .help("Sets the nearest monster 56 units away facing you, after you; 4 seconds later prints its hits on "
                   "you (your health is held at 1000 meanwhile). From 100 units (a knight's run swing): vr_test_meleearc 1001."),
