@@ -6,6 +6,9 @@
 //      `flatmove: swim dz D dxy H waterlevel W`.
 //   3: out of the water: once he stands on dry ground (waterlevel 0, on the ground):
 //      `flatmove: out z Z waterjumped J` (J: Quake's jump out of the water lifted him, FL_WATERJUMP).
+//   4: his eyes under a ceiling (FLATPLAY.md, "Crouching"): once his head's height has held within 0.1 for 12 frames, his
+//      eyes' height over his feet and the lowest ceiling over his box (100: none within 100), and his box:
+//      `flatmove: room eye E ceiling C crouched B`.
 //   8: a test aid: deep water within 512 units level and 256 up or down of him, on a 32-unit grid: his box under water
 //      with 128 units of open water over and under it: `flatmove: deep X Y Z` (the first 4), then `flatmove: deep spots N`.
 //   9: a test aid (Debug > Tests > Flat Ledges): from where he floats (waterlevel 2), the spots within 512 units, on a
@@ -17,8 +20,8 @@
 
 float vr_fmt_on;    // the mode running (0: none)
 float vr_fmt_n;     // frames counted in it
-float vr_fmt_same;  // (1) frames the speed has held
-float vr_fmt_last;  // (1) the speed last frame
+float vr_fmt_same;  // (1, 4) frames the speed (the eyes' height) has held
+float vr_fmt_last;  // (1, 4) the speed (the eyes' height) last frame
 vector vr_fmt_from; // (2) where the swim started; (9) where the scan is centred
 float vr_fmt_jumped; // (3) FL_WATERJUMP seen
 float vr_fmt_found; // (9) ledges found
@@ -203,7 +206,35 @@ void() VR_FlatMoveTest_Frame =
         }
         return;
     }
-    bprint(sprintf("flatmove: no mode %g (1 speed, 2 swim, 3 out of the water, 8 deep water, 9 ledges)\n", ask));
+    if(ask == 4)
+    {
+        float feet = p.origin_z + p.mins_z;
+        float eye = p.headpos == '0 0 0' ? 0 : p.headpos_z - feet;
+        vr_fmt_same = (fabs(eye - vr_fmt_last) < 0.1) ? vr_fmt_same + 1 : 0;
+        vr_fmt_last = eye;
+        if(vr_fmt_same >= 12)
+        {
+            // The lowest ceiling over his box (its level extent), not only over his head: what his box must fit under.
+            // (Lines up from its middle and its four corners, 1 unit in: a traced box would be Quake's standing hull.)
+            float roof = 100;
+            for(float k = 0; k < 5; k++)
+            {
+                vector at = [p.origin_x, p.origin_y, feet + 1];
+                if(k > 0)
+                {
+                    at_x += ((k == 1) || (k == 2)) ? (p.mins_x + 1) : (p.maxs_x - 1);
+                    at_y += ((k == 1) || (k == 3)) ? (p.mins_y + 1) : (p.maxs_y - 1);
+                }
+                traceline(at, at + '0 0 99', TRUE, p);
+                roof = min(roof, trace_endpos_z - feet);
+            }
+            bprint(sprintf("flatmove: room eye %.1f ceiling %.1f crouched %g\n", eye, roof,
+                VRHasBit(p.vrbits0, QVR_VRBITS0_CROUCHED) ? 1 : 0));
+            VR_FMT_End();
+        }
+        return;
+    }
+    bprint(sprintf("flatmove: no mode %g (1 speed, 2 swim, 3 out of the water, 4 eyes under a ceiling, 8 deep water, 9 ledges)\n", ask));
     VR_FMT_End();
 };
 

@@ -371,7 +371,7 @@ void setVrBits(VrMove& move, const hands::State& hs)
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     set(flatplay::active(), VRBITS0_FLATPLAY);
-    set(flatplay::crouchRatio() > 0.f, VRBITS0_FLATCROUCH);
+    set(flatplay::crouchHeld(), VRBITS0_FLATCROUCH); // (the key: let go, the server tries standing at once)
     move.vrBits0 = static_cast<za::U16>(bits);
 }
 
