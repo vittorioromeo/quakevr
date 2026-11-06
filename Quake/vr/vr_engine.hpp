@@ -32,6 +32,7 @@ int S_KnownSfxMax (void);							// snd_dma.c
 void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes);	// snd_dma.c (vr_snd_bench)
 void S_FlushSfxNamed (qboolean (*match) (const char *name));	// snd_dma.c: the matching sounds' samples freed, loaded again as they next play (vr_voice)
 int Mod_KnownCount (void);							// gl_model.c
+qmodel_t *Mod_KnownModel (int i);					// gl_model.c: the i-th known model, NULL past them (vr_modelwatch.cpp)
 int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)
 int TexMgr_Count (void);							// gl_texmgr.c

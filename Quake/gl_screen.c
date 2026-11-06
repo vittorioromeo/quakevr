@@ -1243,7 +1243,13 @@ static void SCR_DrawCrosshair (void)
 	float shiftx, shifty;
 	VR_FlatCrosshairShift (&shiftx, &shifty);
 	const float canvas = vid.guiheight / CLAMP (1.0f, scr_crosshairscale.value, 10.0f);
+	// QVR: and the ironsight fades it out over its own travel, back in on release (1 outside it).
+	const float alpha = VR_FlatCrosshairAlpha ();
+	if (alpha <= 0.f)
+		return;
+	GL_PushCanvasColor (1.f, 1.f, 1.f, alpha);
 	Draw_Character(-4 + (int)(shiftx * canvas), -4 + (int)(shifty * canvas), crosshair_char);
+	GL_PopCanvasColor ();
 }
 
 typedef struct
