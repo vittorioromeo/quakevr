@@ -40,8 +40,16 @@ Otherwise:
 Or install it as a zip: zip the `quakevr_models` folder (the zip must contain the folder), then **Preferences >
 Add-ons**, the menu at the top right > **Install from Disk...**. Reinstall it when the add-on changes.
 
+With the script directory, Blender loads the add-ons from the repository itself: they are always the checkout's
+(after a pull, restart Blender, or **F3 > Reload Scripts**). Nothing is copied. (Your Blender 5.2 is set up this way:
+the script directory `C:\OHWorkspace\quakevr-iw\Misc\quakevr\blender\`, both add-ons ticked.)
+
 The buttons are in the 3D view's sidebar (press N) in the **Quake VR** tab, under **Quake VR Models**. The imports and
 exports are also in **File > Import** and **File > Export**.
+
+The panel's top box is **Export on Save** (on by default; also in the add-on's preferences): saving a weapon's source
+.blend exports it to the game ([section 9](#9-a-weapons-source-blend-the-shotgun-so-far)). **Game Folder** (in the
+box and in the preferences): where it writes; empty, the repository's `quakevr/progs` (the folder you play from).
 
 ## 2. The weapons and the wrist gadget
 
@@ -340,7 +348,19 @@ them again).
 
 ## 4. See it in the game
 
-Open the console and type:
+**By itself:** the game watches the files of the models it has loaded (`vr_model_watch 1`, the default; Debug > Tests >
+Read Models Again When Saved). Within a second of an export it reads a changed model again, as `vr_model_reload` does,
+and prints:
+
+```
+vr_model_watch: changed on disk, read again: progs/v_shot.mdl, progs/vr_pump_on_v_shot.mdl, progs/vr_pumpbody_on_v_shot.mdl
+```
+
+It watches the `.mdl`, and beside it its normal map, its full-colour skins and a body's `.md5mesh` and `.md5anim`. Nothing
+changing, it costs nothing (Windows tells it when a file in the folder is written). `vr_model_watch_status` prints what
+it watches. A model it hasn't loaded yet (one not drawn so far) is read when it is first drawn, as always.
+
+**By hand:** open the console and type:
 
 ```
 vr_model_reload
@@ -487,10 +507,23 @@ lives in `Misc/quakevr/src_models/blend/v_shot/`:
   the game: the Debug menu's Hold the Weapon Frame (`vr_debug_weapon_frame 11`); QuakeC plays them once its `$frame` lines and
   a `player_*` sequence name them.
 
-**Export** (headless; the .blend is only read):
+**The loop: edit, Ctrl+S, look.** With the game running, open `v_shot.blend` in Blender, edit, and press **Ctrl+S**.
+Saving exports it (Export on Save, the panel's top box: on by default): a background Blender runs the export below on
+the file just saved, in about 5 seconds, while you go on editing. The status bar says
+`Quake VR: v_shot.blend exported (ok, 6 files) to ...\quakevr\progs`; a refusal says `NOT exported, nothing written`
+and pops up the reasons (the whole report: `%TEMP%\quakevr_export_on_save.log`). The game reads the new files by
+itself within a second ([section 4](#4-see-it-in-the-game)): look at the gun. Save again while an export runs and it
+exports again after it.
+
+It writes into the repository's `quakevr/progs` (the .blend's own checkout) unless the add-on's **Game Folder** names
+another (then weapons.txt is left alone, as with `--out`). Only a weapon's source .blend exports on save (a model with
+its anchors' empties, inside a repository); an imported model's .blend doesn't.
+
+**Export by hand** (headless; the .blend is only read): the same export, from a command line (Git Bash; in PowerShell
+put `&` before the quoted path):
 
 ```
-blender -b Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/blend_export.py
+"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/blend_export.py
 ```
 
 It writes `quakevr/progs/v_shot.mdl`, its two pump parts and their three normal maps, and weapons.txt's changes
@@ -504,8 +537,11 @@ leaves weapons.txt alone. Before writing anything it checks, and refuses with a 
 - the sight line (worked out as the game does: `vr_sight_lines`): it may turn 0.25 degrees at most (`--allow-sights`
   to write anyway, then line them up in the game with `vr_weaponstudio_align main apply`).
 
-An untouched .blend exports the shipped files byte for byte. Then in the game: `vr_model_reload v_shot
-vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
+An untouched .blend exports the shipped files byte for byte. The game reads them again by itself (or by hand:
+`vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`).
+
+The test: `bash Misc/quakevr/blend_autoexport_test.sh <agent> [--idle]` saves a copy headless (a refused save writes
+nothing; a good one exports, and the running game reads v_shot.mdl again; `--idle`: a quiet minute has no reload).
 
 `Misc/quakevr/blend_build.py v_shot.mdl` made the .blend from the shipped files once. Don't run it again: it starts
 from the files, not from your edits.

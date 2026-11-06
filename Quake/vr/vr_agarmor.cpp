@@ -2163,8 +2163,17 @@ struct Kind
     const qmodel_t* skinned{nullptr};
     char name[MAX_QPATH]{};
     qmodel_t* armor{nullptr};
+    char armorName[MAX_QPATH]{}; // (what `armor` was loaded as: its slot may be emptied and given to another model since)
 };
 za::Vector<Kind> kinds;
+
+// Whether a kind's armour is still the model it found: a campaign switch (Mod_ResetAll) empties the slots of the models
+// it does not keep, the "#armor" ones among them, and gives them to the next models loaded (a body it keeps finds its
+// kind again: the plates drawn as a gib, a fish, a door).
+[[nodiscard]] bool armorLive(const Kind& k)
+{
+    return k.armor && !k.armor->needload && k.armor->type == mod_alias && !strcmp(k.armor->name, k.armorName);
+}
 
 [[nodiscard]] bool isWearer(const char* base)
 {
@@ -2241,7 +2250,7 @@ namespace
 {
     for(const Kind& k : kinds)
     {
-        if(k.skinned == skinned && !strcmp(k.name, skinned->name))
+        if(k.skinned == skinned && !strcmp(k.name, skinned->name) && (!k.armor || armorLive(k)))
         {
             return k.armor;
         }
@@ -2261,6 +2270,7 @@ namespace
             q_snprintf(name, sizeof(name), "%s%s", base, armorSuffix);
             k.armor = Mod_ForName(name, false);
             k.armor = k.armor && k.armor->type == mod_alias ? k.armor : nullptr;
+            q_strlcpy(k.armorName, name, sizeof(k.armorName));
         }
     }
     for(Kind& old : kinds)
@@ -2330,7 +2340,7 @@ void forgetModels()
     // (the models made from the shells are made again when next drawn)
     for(Kind& k : kinds)
     {
-        if(k.armor && k.armor->type == mod_alias && Cache_Check(&k.armor->cache))
+        if(armorLive(k) && Cache_Check(&k.armor->cache)) // (a slot given to another model since: not its cache)
         {
             Cache_Free(&k.armor->cache, false);
         }
@@ -3941,6 +3951,7 @@ void init()
 {
     Cmd_AddCommand("vr_agarmor_info", info_f);
     Cmd_AddCommand("vr_player_plates_info", view::platesInfo_f);
+    Cmd_AddCommand("vr_player_plates_model_check", view::platesModelCheck_f);
     Cmd_AddCommand("vr_agarmor_rebuild", rebuild_f);
     Cmd_AddCommand("vr_agarmor_set", set_f);
     Cmd_AddCommand("vr_agarmor_check", check_f);
