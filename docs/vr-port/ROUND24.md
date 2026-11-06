@@ -1559,3 +1559,28 @@ changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt s
 
 **Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
 1.47), then the bead sits on what you hit.
+
+## Why the lost soul "drops its target" (branch `agent/lostsoul`, 2026-11-06)
+
+It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
+
+- **The "no enemy"** is AD's enemytarget marker (`ad_ai_enemytarget.qc`): a flying monster's `enemy` becomes a
+  classname-less marker floating 128 above you (`ad_LostCheckAttack` sets it up; `self.height` = `ad_MONAI_ABOVEDIST`),
+  the real enemy behind it. Traced every 0.25 s: `enemy` the marker, `ad_lostenemy` world, `ad_lostsearch` 0, never the
+  guard state (its lost-sight branch never ran). The player's flags, notarget and god play no part.
+- **Why no bite:** `ad_LostCheckAttack` bites only within 60 (flat, `ad_ai_checkmelee`), rams only 200-400 away
+  (`ad_MONAI_RANGELOSTNEAR`/`FAR`) and strafes round you between (`ad_AS_SLIDING`, `ad_ai_run_slide`, 8 units a step).
+  Spawned 96 ahead, it circled a still player at 90 to 195 for the whole 8 s (the circle widens about 2 units a second;
+  walls push it back in), never far enough to ram. Its bite comes after a ram (`ad_lost_melee1` from the touch).
+- **After a ram** (traced): a crowbar across your face parries the ram itself and the soul bounces off (300 a second,
+  flying, no friction) and chomps the air; a ram that lands shoves you back 200 a second (AD's `ad_lost_charge_touch`),
+  so the chomp's bite (0.3 s on) finds you 80 away, out of reach: a still player on open floor is never bitten. A real
+  player sees AD's behaviour: rams from range; bites when you are pinned (a wall at your back) or step in.
+- **213 now** tests that: the soul spawns at ram range (300, or the way round you with the most room), your guard is
+  down for the ram (the mock hand at your hip), you hold your ground (velocity held 0 through the ram and chomp: a wall
+  at your back), your guard comes up as it chomps, and only a parry in its chomping frames counts (a parried ram is
+  counted apart). The verdict prints the real enemy through the marker. PASS on start, vrtesthall, ad_e1m1 (AD's own
+  map, 9 lost souls), and start without god; each ends on its verdict in about 4.5 s of game time.
+
+**Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
+to a wall its bite after a ram lands, and your crowbar's guard parries it.
