@@ -1449,6 +1449,8 @@ the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the cur
 0.3`). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
 
+Arena messages on the wrist (ROUND24.md "Survival Arena: its messages on the wrist gadget"): `developer 1;map vrarena;
+wait5;god;vr_arena_test 39` with `-QuitOn "arena: test [0-9]+ over"` (`panelboard_read` what 4..8: the hologram's arena block).
 Arena banners (panel boards, ROUND24.md "Arena banners: the gadget's layout"): `map vrarena; vr_arena_test 38` with
 `-QuitOn "test 38 over"`: each board's text from the server's list, and the pixels of the image drawn from it on the client
 (`panelboard_read`) in the tile that moved and only there: countdown, perk choice, fight, foes' bar, time, score, off (image

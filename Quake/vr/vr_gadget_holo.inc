@@ -120,8 +120,20 @@ struct HoloMessage
     bool notify{false}; // a notification (anything but a pickup): see vr_messages_hologram_only
     bool seen{false};   // shown to the player once (the hologram facing them, at least half faded in)
     bool tip{false};    // a tip (gadget::tip): waits to be seen, as with vr_messages_hologram_only
+    bool arena{false};  // the Survival Arena's (gadget::arenaMessage): one at a time
     float life{0.f};    // seconds it shows once seen (0: vr_messages_hologram_time)
 };
+
+// The Survival Arena's messages on the wrist (arenaMessage): the last one's, and the tests' counts (panelBoardRead 4..8).
+struct ArenaWrist
+{
+    za::String sent;  // the last one's text as the server sent it
+    unsigned id{0};   // its HoloMessage's
+    int frames{0};    // frames it has been shown, facing the viewer
+    int taken{0};     // messages the wrist took
+    int buzzes{0};    // buzzes they gave (out of view)
+};
+ArenaWrist arenaWrist;
 
 // A block of the image.
 struct HoloBlock
@@ -661,6 +673,10 @@ void layoutHologram()
         }
         const float grow = k > 0.f ? easeOut(age / holoGrow) : 1.f;
         const float alpha = fade * shown * (0.4f + 0.6f * open);
+        if(m.arena && m.id == arenaWrist.id && shown >= 0.5f)
+        {
+            arenaWrist.frames++;
+        }
         newest = za::max(newest, m.appeared);
         strongest = za::max(strongest, alpha);
         if(m.centre && m.text == latestCentre)

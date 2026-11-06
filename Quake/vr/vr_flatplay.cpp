@@ -30,12 +30,16 @@
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_avatar.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
+#include "vr_deathview.hpp"
+#include "vr_flathud.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_hull.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
@@ -60,6 +64,7 @@
 #include <math.h>
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
+extern "C" int Key_StringToKeynum(const char* str); // keys.c: a key's number from its bind name (vr_flat_key_swap, ...)
 
 namespace qvr::flatplay
 {
@@ -135,6 +140,8 @@ struct FlatKeys
     bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
     bool keyFlash{false};   // F, last frame
     bool keyDrop{false};    // G, last frame
+    bool keySwap{false};    // Q (vr_flat_key_swap), last frame
+    bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
 
     float ratio{0.f};       // the crouch's share now: 0 standing .. 1 crouched, eased at vr_flat_crouch_time each way
@@ -143,6 +150,8 @@ struct FlatKeys
     int crouches{0};        // vr_flatplay_status's counts: a crouch hold started
     int toggles{0};         // F: the flashlight switched
     int drops{0};           // G: impulse 47 sent (QC drops what the hand holds)
+    int swaps{0};           // Q: impulse 48 sent (QC swaps what the hands hold)
+    int times{0};           // Z: bullet time asked to start or stop
 };
 
 FlatKeys keyState;
@@ -725,9 +734,38 @@ void pollKeysFlat()
             Con_Printf("flatplay: G: drop\n");
         }
     }
+    // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and G.
+    const int swapKey = Key_StringToKeynum(vr_flat_key_swap.string);
+    const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
+    const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && keydown[swapKey] != 0;
+    const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
+    if(swap && !keyState.keySwap)
+    {
+        keyState.swaps++;
+        // The same InsertText as F and G: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
+        // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
+        Cbuf_InsertText("impulse 48\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: swap hands\n", vr_flat_key_swap.string);
+        }
+    }
+    if(slow && !keyState.keyTime)
+    {
+        keyState.times++;
+        // Bullet time's own press (vr_bullettime.cpp keyPress): the rules of the gadget's tap and of the stick press --
+        // the meter, the cooldown, the bounce guard -- with nothing of the flatscreen's own.
+        bullettime::keyPress("flatscreen key");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: bullet time\n", vr_flat_key_bullettime.string);
+        }
+    }
     keyState.keyCtrl = ctrl;
     keyState.keyFlash = flash;
     keyState.keyDrop = drop;
+    keyState.keySwap = swap;
+    keyState.keyTime = slow;
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     double dt = keyState.lastTime > -1e8 ? vr_gametime - keyState.lastTime : 0.0;
@@ -738,6 +776,17 @@ void pollKeysFlat()
     {
         const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
         keyState.ratio += za::clamp(want - keyState.ratio, -step, step);
+    }
+    // Let go under a low ceiling, he rises only as far as his box lets him: the server keeps his box crouched where the
+    // standing one does not fit (the headset's checks: vr_hull.cpp updateCrouch), and his eyes stop flatEyeHeadroom under
+    // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
+    // His eyes standing are Quake's: cl.viewheight over his origin, 24 over his feet (Quake's player box: mins z -24).
+    const float cap = qvr::hull::localEyeCap();
+    const float down = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
+    if(cap >= 0.f && down > 0.f)
+    {
+        const float standEye = cl.viewheight + 24.f;
+        keyState.ratio = za::max(keyState.ratio, za::clamp((standEye - cap) / down, 0.f, 1.f));
     }
 }
 
@@ -897,6 +946,28 @@ int heldIn(int h)
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
 
+int loneWeaponHand()
+{
+    const bool off = heldIn(HAND_OFF) >= 0;
+    const bool main = heldIn(HAND_MAIN) >= 0;
+    return off == main ? -1 : main ? HAND_MAIN : HAND_OFF;
+}
+
+FireRoute routeFire(bool lmb, bool rmb)
+{
+    FireRoute r;
+    const int lone = loneWeaponHand();
+    if(lone >= 0)
+    {
+        r.fire[lone] = lmb;
+        r.rmbAims = true;
+        return r;
+    }
+    r.fire[HAND_MAIN] = lmb;
+    r.fire[HAND_OFF] = rmb;
+    return r;
+}
+
 float poseNum(const Tunable& c)
 {
     return za::clamp(c.value, -30.f, 30.f);
@@ -952,6 +1023,11 @@ float crouchRatio()
     return active() ? keyState.ratio : 0.f;
 }
 
+bool crouchHeld()
+{
+    return active() && (keyState.keyCtrl || keyState.cmdHeld);
+}
+
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
 // negative: the view sits between -vr_flat_pitch_up and +vr_flat_pitch_down. It is asked at the one place where the
 // frame's looking has all landed in cl.viewangles (Quake/cl_main.c CL_AccumulateCmd: the look keys, the arrow keys and the
@@ -988,6 +1064,7 @@ void init()
     Cmd_AddCommand("vr_flat_punch", punch_f);
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
+    flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -1006,7 +1083,9 @@ void frame()
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
                    "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
-                   "switches the flashlight, G drops what a hand holds. vr_flatplay_status says what the mode is doing.\n");
+                   "switches the flashlight, G drops what a hand holds, Q swaps the hands, Z starts bullet time. With one weapon "
+                   "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
+                   "the mode is doing.\n");
     }
     if(!on && fs.wasOn)
     {
@@ -1789,6 +1868,14 @@ void status_f()
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
+    const int lone = loneWeaponHand();
+    Con_Printf("  The mouse: %s (one weapon held, either hand: LMB fires it, RMB the ironsight, vr_flat_aim_mode %g %s; "
+               "else LMB the right hand, RMB the left). %s pressed %d times (vr_flat_key_swap: the hands swapped), %s %d "
+               "(vr_flat_key_bullettime: bullet time).\n",
+        lone < 0 ? "LMB the right hand, RMB the left" : lone == HAND_MAIN ? "LMB the right hand's weapon, RMB aims"
+                                                                           : "LMB the left hand's weapon, RMB aims",
+        vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState.swaps,
+        vr_flat_key_bullettime.string, keyState.times);
     Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
                "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way. Ctrl is "
                "bound to `%s` now (vr_flat_crouch_fire %g: 0 the mode holds +flatcrouch, so the crouch key fires nothing, "
@@ -1878,6 +1965,23 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+}
+
+// V_CalcRefdef, after VR_FlatViewDrop: dead, the view in the ragdoll's head as the headset's is (vr_death_view 2 or Vomit
+// Mode; vr_deathview.cpp). Not in a chase view.
+extern "C" void VR_FlatDeathView(float* vieworg, float* viewangles)
+{
+    if(!qvr::flatplay::active() || chase_active.value)
+    {
+        return;
+    }
+    glm::vec3 origin = qvr::geom::vec(vieworg), angles = qvr::geom::vec(viewangles);
+    qvr::deathview::flatView(origin, angles);
+    for(int i = 0; i < 3; i++)
+    {
+        vieworg[i] = origin[i];
+        viewangles[i] = angles[i];
+    }
 }
 
 // svc_setangle (cl_parse.c, before VR_OnSetAngle takes the same message): the angle of a walk through a seamless teleporter

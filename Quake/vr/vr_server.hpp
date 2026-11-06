@@ -52,8 +52,9 @@ void sendShock(struct edict_s* player, int kind, const float org[3], float radiu
 
 // `viewmessage(player, text, seconds)` from QC (target_vr_message): `text` in the middle of `player`'s view (at eye level,
 // as VR Calibration's text; not in the wrist's hologram) for `seconds`; without a headset, a centre print held that long
-// (vr_worldtext.cpp). To that player alone, reliable.
-void sendViewMessage(struct edict_s* player, const char* text, float seconds);
+// (vr_worldtext.cpp). To that player alone, reliable. `arena`: the Survival Arena's (QVR_SVC_ARENAMESSAGE: the wrist
+// gadget's hologram shows it instead with vr_arena_wrist).
+void sendViewMessage(struct edict_s* player, const char* text, float seconds, bool arena = false);
 
 // `collectfx(hand, e, hotspot, modelindex, origin, angles)` from QC (VR_CollectFx_Send): `player`'s `hand` put away entity
 // `ent` (model `modelIndex`, there, so turned) at `hotspot` (a holster's, a pouch's): its client draws it going in

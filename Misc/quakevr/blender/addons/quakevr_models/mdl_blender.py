@@ -43,6 +43,9 @@ class ExportError(Exception):
     pass
 
 
+LAST_EXPORT = {}  # the last export_mdl's file and each written triangle's old index (-1: new)
+
+
 def pack(data):
     return base64.b64encode(zlib.compress(data, 9)).decode("ascii")
 
@@ -826,6 +829,8 @@ def export_mdl(context, ob, path, report, grow=False):
     for line in lines:
         print(line)
     # The object now stands for the file written: its attributes and references follow it.
+    LAST_EXPORT.clear()
+    LAST_EXPORT.update(path=path, tri_old_index=tri_old_index)  # (source.py: the barrel mask follows its triangles)
     rebase(ob, new, kept, new_key, tri_old_index, vert_of_vid, grid_pos, degenerate)
     return lines, moved
 

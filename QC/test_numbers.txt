@@ -358,6 +358,7 @@ vr_arena_test    35       vr_arena_test.qc                 (VR_AT35_Begin)
 vr_arena_test    36       vr_arena_test.qc                 (VR_AT36_Begin)
 vr_arena_test    37       vr_arena_test.qc                 ammo boxes' weapons: nail pistol on nail boxes, heavy revolver gated on the super shotgun, rates (e1m1)
 vr_arena_test    38       vr_arena_test.qc                 arena map check, banners and their image's pixels (vrarena, and e1m1 for the half off the arena)
+vr_arena_test    39       vr_arena_test.qc                 the arena's messages on the wrist gadget (vrarena, headset mock; vr_arena_wrist on, out of view, off)
 
 vr_burn_test     1*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_burn_test     2*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
@@ -663,5 +664,6 @@ vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level 
 vr_flatmove_test 1        vr_flatmove_test.qc              flat-screen: his top level speed once settled (standing, crouched)
 vr_flatmove_test 2        vr_flatmove_test.qc              flat-screen: half a second of swimming: how far up or down, how far level
 vr_flatmove_test 3        vr_flatmove_test.qc              flat-screen: out of the water onto dry ground, and whether the water jump lifted him
+vr_flatmove_test 4        vr_flatmove_test.qc              flat-screen: his eyes' height under a ceiling once settled, the ceiling's, his box
 vr_flatmove_test 8        vr_flatmove_test.qc              flat-screen test aid: deep water near him (room to swim 128 up and down)
 vr_flatmove_test 9        vr_flatmove_test.qc              flat-screen test aid: the spots near him where the water jump lifts him out, with their yaw

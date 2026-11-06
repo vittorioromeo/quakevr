@@ -738,6 +738,23 @@ bool ownsStick(int hand)
     return hand == stickHand() && vr_bullettime_enabled.value != 0.f;
 }
 
+void keyPress(const char* what)
+{
+    if(key_dest != key_game || vr_bullettime_enabled.value == 0.f)
+    {
+        return;
+    }
+    if(!inGame())
+    {
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: %s: not in a single-player game\n", what);
+        }
+        return;
+    }
+    trigger(HAND_MAIN, what);
+}
+
 bool stickPress(int hand, bool now)
 {
     if(!now)

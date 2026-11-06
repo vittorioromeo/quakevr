@@ -68,6 +68,44 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
 - **Sheets:** `C:/OHWorkspace/qvr-kit/scratch/armorjoints/` (`vr_pp_test 13` in vrtesthall): the grunt front and back, an elbow and a knee
   close to, each part of a limb alone, yours bent; `sheet_before.png`, `sheet_after.png`.
 
+## Armour round four's loose ends (branch `agent/armorcheck`)
+
+- **The tests that timed out with nothing printed** (`vr_agarmor_test 1`, `5`, `7`, `vr_pp_test 2`, `3`): two causes, both
+  there before round four. (1) A script `map x; vr_agarmor_test n` (no wait between) asks in the level's first frames, before
+  the player is in: the request was taken (the cvar set back to 0) and dropped, so nothing ran (`vr_pp_test`: run with no
+  player). Now `VR_AgArmor_TestFrame` and `VR_PP_TestFrame` keep the request until a player is there. (2) `vr_agarmor_test 5`
+  printed through dprint: without `developer 1` not even its verdict showed. Now broadcast (`VR_TEST_LOUD`) like the others.
+  With `wait30` and `developer 1` every one ran on both builds. Now, no waits, every one ends in about 10 s on its verdict.
+- **Results, now (before round four, d81eb28fa):** `vr_agarmor_test 1` 26/0 on e1m1 and vrtesthall (26/0); `5` 24/0 on both
+  (e1m1 23/1, its old flaky "dead ragdoll: 23 of 24 points read as their own piece"; vrtesthall 24/0); `7` 14/0 (14/0);
+  `vr_pp_test 2` 5/0, `3` 5/0 (5/0, 5/0).
+- **`vr_agarmor_test 5` on round four's build read 23/24 on both maps, every run:** "the corpse's right thigh and shin worn as
+  their own pieces": the thigh's plates now reach up over the hip, and the middle of their outer face (limbpiece 14) lies
+  nearer the pelvis's vertices than the thigh's (`limbAt`: the nearest bone vertex), so a hit there wears the torso. The
+  test strikes the thigh at its plates' knee end (limbpiece 13: joint 17). In play: a hit on the upper half of a thigh plate
+  wears a corpse's torso, not its leg (left as is).
+- **The skins from the real generator:** Blender 5.2's bundled Python has numpy 2.3.4 (4.0's 1.23.5; the plain Pythons none).
+  Proof it matches: the pre-round-four `make_agarmor.py` under it gives the pre-round-four files byte for byte. The current one
+  differs from the stand-in's: 200-240 texels a skin, all in the joint block; the relief's heights all over the atlas (the old
+  helmet brackets' block held the deepest texels, so with it gone every plate's height stretches: new = 1.083 x old - 21,
+  within 1.2). Committed. Run it as `"C:/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe"
+  Misc/quakevr/make_agarmor.py`.
+- **The death knight's 240 more triangles, timed:** bench `armour_dknights16` (new: 16 armed death knights in full yellow,
+  standing in view, vrtesthall), LTO, exclusive, 90 Hz, 5 reps each, d81eb28fa against 6afe7541d: CPU busy 2.006 -> 2.042 ms
+  (+1.8%), GPU eyes 1.831 -> 1.901 ms (+3.8%). Rep to rep: CPU 1.95 .. 2.02 old, 1.94 .. 2.30 new (two reps with hitches);
+  GPU 1.83 .. 2.00 old, 1.83 .. 2.06 new. Inside the noise; at most 0.07 ms for 16 of them.
+- **The loosened checks, each broken on purpose once:**
+  - The look check's death knight rest limit (0.8): his least at rest is his shin, 0.82, not the elbows the note named (his
+    arms 1.00). With the elbow's and knee's plates 6 units short of the joint his upper arm reads 0.38: caught. On the grunt,
+    enforcer and knight the same break isn't (the sleeve lengthens and covers the gap: no body shows); the player's bodies are.
+  - Pieces under 8 vertices not measured: with every piece measured the one that fails is the death knight's upper arm, 0.75
+    (3 of 4) at rest; his thigh (2) reads 1.00. Everything else is measured as before: the breaks above and below caught on
+    every wearer.
+  - `vr_agarmor_check` leaving the sleeves out: plate triangles dropped (one in 53) -> 101-120 open edges, "each shell
+    closed" FAIL on all four; the plates' feet 2 units inside the skin -> "the rest pose" FAIL on all four. The sleeves sunk
+    1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
+    wearer (24 failures): the look check is what guards the sleeves.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -802,6 +840,79 @@ moves under hands pinned to the view; and `vr_flat_bob` is 0 by default, so the 
 body takes the camera's own vertical move (bob, step smoothing; the floor kept, the legs take it), the hands their own bob, eased
 down by new ADS shares (no breathing in the ironsight, so the sights stay exact at rest).
 
+## Flat-screen controls and status bar: his notes of 2026-11-05 (branch `agent/flatcontrols`)
+
+**1. The mouse by what the hands hold.** `flatplay::routeFire` (`vr_flatplay.cpp`): with one weapon held, in either hand, LMB
+(+attack) fires it and RMB (+offhandattack) is the ironsight and fires nothing; with a weapon in each hand, or none, LMB the
+right hand and RMB the left, as before. Routed where the move is built (`VR_MoveMainFire` in `cl_input.c`'s attack bit,
+`setButtons`' off-hand bit) and in `client::attacking` (the punches, AD's guns' spin), so a rebound button routes the same.
+The ironsight: `vr_flat_aim_mode` (0 hold, the default; 1 toggle; VR Settings > Locomotion > Desktop Screen Play > Right Click
+Ironsight), edges only, so `vr_flat_aim` on the console stays until the button is used. The wheel's button (`K_MOUSE3`) no
+longer aims ("no need for dedicated ADS button"). The left-handed mode is in BACKLOG.md (3).
+
+**2. Q swaps the hands.** `impulse 48` → `VR_FlatSwapHands` (`QC/vr_wpnholster.qc`): weapons, their records (magazine, id),
+flags (the foregrip-carried bit off) and next-shot times change hands; a carried box or prop blocks it (G lets it go). The key is
+`vr_flat_key_swap` (a bind name, `q`). **Q and Z were bound to nothing** (`quakevr/default.cfg`, his `ironwail.cfg`): nothing
+moved.
+
+**3. Z: bullet time.** `bullettime::keyPress` (the stick press's rules: `vr_bullettime_enabled`, single player, then the tap's
+`trigger`: the bounce guard, the meter, the cooldown, the sounds). Key `vr_flat_key_bullettime` (`z`). Its meter is the status
+bar's bar (4).
+
+**4. The status bar.** *Why the held count was wrong:* the classic client data message (`SV_WriteClientdataToMessage`) wrote
+`.currentammo` as the ammo count, and the VR progs keep the main hand's ammo **type** there (`AID_*`): the bar read 1 with the
+shotgun and 17 shells, 2 with the nail gun. `VR_CalcStats` already sent the counter, but only the custom-stats path reads it.
+`VR_AmmoStat` (`vr_server.cpp`) now writes the main hand's counter (every HUD style). The per-hand counters
+(`STAT_QVR_AMMOCOUNTER`/`2`, QC's `updateAmmoCounter`) were right: probe shotgun 17 → 15 shells, revolver 15 → 14, the grunt's
+shotgun its magazine 30 → 24, dual wield each its own. *The layout* (`hudstyle 1`, `vr_flat_hud 1`; `Sbar_DrawFlatHud`,
+`Quake/sbar.c`, numbers from `Quake/vr/vr_flathud.cpp`): portrait and health centred over the ammo bar (armour to their left),
+bullet time's bar over them (cyan ready, dim blue filling, yellow running, grey cooling), each hand's ammo at its own bottom
+corner with its ammo picture; an empty hand or an ammo-less weapon shows none. `vr_flathud_report` (Debug > Reports > Flatscreen
+Play) prints both counters, the pools, STAT_AMMO, the bar and the canvas.
+
+**Tests.** `flathud_test.sh` (new, 11 checks): counts (shotgun before/after firing, STAT_AMMO = the main hand's count, the
+revolver, the grunt's shotgun's magazine, dual wield) and pixels (`flathud_check.py`, against the same frame at viewsize 120: face,
+health, both corners, the left gone after G, the bar cyan then yellow, `vr_flat_hud 0` back to Ironwail's). `flatkeys_test.sh` +8
+cases, every press through `vr_mock_key` (Key_Event and the binds): LMB/RMB with the weapon in the right hand, in the left (after
+Q), dual wield, the toggle mode; `vr_flat_key_swap x`; Q and Z refused in the headset; Z on, a bounce ignored, off.
+`vr_mock_key` now runs a key's bind next (`Cbuf_TailToFront`, `cmd.c`): Key_Event appends it to the command text, which in a
+script put the press, its waits and its release all after the rest of the script. flatplay's melee case gave its two weapons
+in one frame (only the last impulse is sent), so it was the main hand's fist against the off hand's shotgun, which the new
+rule now fires with LMB: the axe goes in a frame earlier (punches 0/0 -> 1/0 -> 1/0). Results: flathud 11/0, flatkeys 37/0,
+flatplay 28/0.
+## Flatscreen: the headset's crosshair, the death view, the armour from the eyes (branch `agent/flatvisuals`, 2026-11-06)
+
+His notes of 2026-11-05.
+
+- **Crosshair** (`vr_crosshair.cpp` `queueFlat`, from `VR_SetupViewEntities` once a frame in flatscreen play): the same modes and
+  settings as the headset (`vr_crosshair` 0 off, 1 dot, 2 laser, 3 soft laser; `_size`, `_alpha`, `_hue`, `_depth`,
+  `vr_crosshairy`). Where it lands is the game's: the trace from the game's muzzle along `weapons::shotAngles`; the laser starts
+  at the gun as drawn (its muzzle anchor on the drawn weapon: the sway, the bob and the sights move it). Drawn in the scene's
+  translucent pass over what is there (`lines::sceneOverLine`, new `lines::sceneOverPoint`): the headset draws it in the UI
+  pass, over everything, which flatscreen never draws; at the model FOV as the tracers are (near end with the gun). **With the
+  flat crosshair:** independent, both drawn when both are on (`crosshair` the 2D mark in the screen's middle, `vr_crosshair`
+  the 3D dot or laser where the gun's shots go; with the gun on the crosshair's ray the dot sits on the mark). His config has
+  `crosshair 0`, `vr_crosshair 1`: he now gets the dot in flatscreen too.
+- **Death view** (`deathview::flatView`, `VR_FlatDeathView` in `V_CalcRefdef` after `VR_FlatViewDrop`; not in a chase view):
+  `vr_death_view 2` (default) puts the flat camera in the ragdoll's head as the headset's: its place smoothed
+  (`vr_death_view_smooth`), its yaw turn (`vr_death_view_turn`) added to the mouse's look, Quake's dead roll (80) gone, out to
+  Quake's view while a menu or the console is open (`vr_death_view_menu_time`); Vomit Mode: the head's own turn, the mouse's look
+  on top. The hands and gear are hidden and the body's head too, as in the headset (the state is the same). 0 and 1: Quake's
+  view on the floor, as before.
+- **Test:** `Misc/quakevr/flatvisuals_test.sh <agent>` (+ `flatvisuals_check.py`): shotgun in hand, red, the flat crosshair
+  off; each mode's red pixels against mode 0 (dot 6 px centred at 480 269 of 480 270; laser 330 px from the gun at the low right
+  to the middle; soft laser 21 px), then `impulse 195`: `vr_death_view_status` immersive, the camera 0.8 from the head's eyes,
+  roll 0; vr_death_view 1 after: 25.5% of the pixels differ. `flatvisuals: 6 passed, 0 failed`.
+- **Armour from the eyes, not fixed (his call):** the plates are drawn from the flat eye (`vr_player_plates_info`: 1021 pieces
+  "drawn from the eyes", the helmet left out as it should be) and the forearm's bracer is the elbow half, off the screen in
+  flatscreen. The chest and legs don't show because **the body's own torso doesn't**: looking down, `vr_flat_chest_down` (0.3:
+  the chest's share of the look) bends the chest forward round the eye, which then sits inside the torso, whose faces are
+  culled from inside. Measured looking down about 60 degrees, the world hidden: default, no chest at all (only the pouch and the
+  gun); `vr_flat_chest_down 0.15` the chest's plates and the shoulders show; `0` the chest, the shoulders' and the arms' plates,
+  at both 60 and 85 degrees; the eye pulled back (`vr_flat_cam_fwd -20`) shows the plated chest too; `vr_flat_eye_lean` 24 or
+  30 shows less; `vr_flat_eye_pivot 0` puts the eye inside the shoulders. The orbit view saw them because its eye is outside
+  the body. Left at 0.3: the share also moves his hands and gun when he looks down (`flatpose`/`flatstance` tuning). Options:
+  a lower `vr_flat_chest_down` (0.15 or 0), or keep the bend and carry the eye clear of the bent chest.
 ## Flat pose: the stock out of the chest; sizes and the walking wrist measured (branch `agent/flatsolve5`)
 
 **The stance's torso turn was never drawn.** `flatplay::poseHands` sets `s.bodyYaw` to the view's plus `flatsight::stanceYaw()`
@@ -907,3 +1018,87 @@ Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the sam
 (axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
 `vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
 `vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+## Flat-screen: standing up under a low ceiling (agent/flatmove2, 2026-11-06)
+
+His note: "flatscreen crouch allows the player to uncrouch even when there is geometry above, causing the player to
+penetrate geometry. It should share the same checks/code paths as the VR crouch." The server's box already took the
+headset's path when Ctrl was let go (`updateCrouch`: standing if it fits, else the tallest crouched box that fits, else
+the one he has), but the client eased the view back up whatever the box, so the camera went into the ceiling.
+
+- **The view follows the box.** `pollKeysFlat` keeps the eased crouch no lower than leaves his eyes 8 units
+  (`flatEyeHeadroom`) under his box's top, read from the local server (`hull::localEyeCap`, as the lean's `playerBoxFits`
+  reads it). 40-high tunnel: he stays down (36 box, eyes 28). 48-high gap: 44 box, eyes 36. Walked out: standing again.
+- **Bit 14 is the key now** (`flatplay::crouchHeld`, was "eased crouch above 0"): with the view held down by a kept box,
+  the eased bit would have kept the box crouched for ever.
+- **Crouch speed** follows the box too: slowed while the key is held or his box is kept crouched.
+- **Multiplayer client** (no local server): no cap; the server's box still holds, only the view is not capped.
+- **Test:** `flatmove_test.sh` rise (`vr_flatmove_test 4`, vrteleporters' crouching room). Before: tunnel eyes 46 under a
+  40 ceiling, gap eyes 46 under 48 (2 failed); walked out stood (passes before and after, the guard against a stuck box).
+- **To try (flat-screen):** vrteleporters, east room: crouch into the LOW TUNNEL and the GAP, let go of Ctrl inside: the
+  view stays under the ceiling; walk out and you stand.
+## The shotgun as a source .blend (spike, branch `agent/blendsg`)
+
+His goal (BACKLOG, "Easier modelling and asset creation"): the weapons natively editable in Blender, Quake's animations
+kept. The shotgun first: `Misc/quakevr/src_models/blend/v_shot/` (v_shot.blend 300 KB, its skin PNG 85 KB, its relief
+PNG 2 KB) is now the source of `v_shot.mdl`, `vr_pump_on_v_shot.mdl`, `vr_pumpbody_on_v_shot.mdl` and their three
+normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` writes them (MODELS_IN_BLENDER.md, section 9).
+
+- **What it is built on:** the models add-on's import and export (mdl_blender.py), which already kept an unedited model
+  byte for byte. New: `source.py` (the build, the checks, the parts, frames baked from armature actions, the barrel
+  mask, the anchors' and hotspots' write-back to weapons.txt), `sights.py` (vr_sightalign.cpp's painted sight line in
+  Python), `blend_build.py`, `blend_export.py`.
+- **A fix on the way:** the add-on's anchor report read vr_weapons.inc's `QVR_WEAPON_DEFAULT` rows, gone since weapons.txt
+  (round 22): every weapon export reported "no slot uses" and checked no anchor. It reads weapons.txt now (mdl.py
+  `slot_table`, via weapons_data.py).
+- **The pump parts** are subsets of the gun's triangles (gunlooks.py's write_subset): the .blend marks each face's part
+  (`qvr_part`); of the 60 triangles that cover nothing (two corners welded: not faces in Blender, kept in the file in
+  place), 8 are in a part and keep it in a property (the other 52: the first ring, collapsed by split_auto_pump).
+- **Proof:** the untouched .blend exports all six files byte for byte (cmp: SAME x6); no rounding at all, since the
+  export keeps every unchanged vertex's, normal's and texel's bytes. The sight line from Python equals the game's
+  `vr_sight_lines` (rear 9.86 -0.05 6.54, front 32.52 -0.00 6.21, -0.84 deg up, 0.11 left).
+- **Round trip (not shipped):** a rivet moved 1.5 units, 42 faces' texels painted red (5503 texels changed), and an
+  armature on the pump with an action `pumpalt` (back 2.5 units, rolled 12 degrees, home: 6 frames) baked as frames
+  9-14 of the gun and of both parts. In the game: the skin shows, `vr_debug_weapon_frame` 11 and 13 draw the new pose
+  (17694 and 19808 pixels changed against frame 0, 36 for frame 0 against itself); the shot, the auto pump stroke and
+  the shell eject as before (start 0.18 s after the shot, back 2.50 units, home on time); `vr_weaponstudio_align`: the
+  sight line 0.80 deg from where it shoots, as shipped; flat ironsight `vr_flat_sight_check` 0.0005 deg; reload_test.sh
+  114 passed, 1 failed: "the shotgun's sights keep their colour as it pumps" counts red pixels round the sights, and
+  the test edit had painted the gun red (657 red against 105 sight pixels). The untouched export then put the shipped
+  files back (git clean) and gave the same numbers.
+- **Appended frames' normals** are frame 0's turned with their piece (a rigid fit per connected piece), so the shading
+  the model was made with comes along; unmoved pieces keep frame 0's bytes.
+- **Hold the Weapon Frame** (Debug; `vr_debug_weapon_frame`) goes up to 31, for frames an action added.
+- **To try (headset):** nothing changes in the game (the shipped files are the same bytes). To try the workflow: open
+  the .blend in Blender 5.2 with the Quake VR Models add-on, move a rivet or paint the skin, save, run the export, then
+  `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
+- **Open:** a new action plays only through `vr_debug_weapon_frame` until QuakeC names its frames (`$frame` lines and a
+  `player_*` sequence); the plan for the other weapons is in MODELS_IN_BLENDER.md section 9.
+## Survival Arena: its messages on the wrist gadget (agent/arenawrist, 2026-11-06)
+
+His words: now that the arena has banners, move the arena's text from the centre of the view to the wrist gadget, as an
+option, on by default.
+
+- **What moved:** every arena message (QC `VR_ARENA_Show` / `ShowAll`: the welcome, the countdown, a wave's start, a boss
+  coming, a wave's clear with its supplies, a perk taken, Quartermaster, the run's end: fell / cleared) now goes out as
+  `viewmessage(p, text, secs, 1)` (new optional `kind`; the builtins' table is full) = new `QVR_SVC_ARENAMESSAGE` (41,
+  the view message's payload). The client (`worldtext::clientParseViewMessage(arena)`) hands it to
+  `gadget::arenaMessage` with `vr_arena_wrist 1` (new, archived, default 1; Combat > Survival Arena > Messages on the
+  Wrist): the gadget's own message hologram (the one the game's centre prints already use), one arena message at a time
+  (the next replaces it in place: the countdown's seconds don't stack or regrow), for its seconds, never held. The perk's
+  separate centre print (its name and what it does) is folded into the arena's own line for the picker
+  (`ARENA - X taken` + blank line + what it does), so no arena text goes through `centerprint` any more.
+- **Out of view:** a message arriving while the gadget isn't facing you (and no arena message is still up) buzzes the
+  gadget's hand once (the watch buzz the hologram's notifications use); it shows as soon as you raise the wrist while it
+  lasts. Messages are not held until seen (they are of the moment): the banners keep the wave, foes, time, score,
+  NEXT WAVE / CHOOSE A PERK and YOU FELL / CLEARED; the perk cards are untouched (they stay in front of you).
+- **Fallbacks:** no hologram (HUD not the gadget, `vr_messages_hologram 0`, recording mode) = in view as before; `0` = in
+  the middle of the view as before; flat screen = the centre print either way (checked: `vr_enabled 0` logs `centre print`).
+- **Test aids:** `panelboard_read` `what` 4..8 read the wrist's arena messages (ink of the last one's block in the
+  hologram image, its frames shown facing the eyes, counts taken / shown in view / buzzes); `vr_gadget_info` also prints
+  how much the gadget is in view.
+- **Test:** `vr_arena_test 39` (`developer 1;map vrarena;wait5;god;vr_arena_test 39`, `-QuitOn "arena: test [0-9]+ over"`):
+  the director's countdown, wave 1, its clear (gadget turned away: 1 buzz, 0 frames for half a second, then raised: shown),
+  a perk taken, a fall, each on the wrist (ink 0.023..0.092, 3 frames) with none in view; off: the next ones in view, none
+  on the wrist. 13 passed, 0 failed. Tests 38 (46/0), 37 (17/0), 34 (3/0) pass.
+- **To try (VR):** in vrarena, raise the wrist during the countdown and at a wave's start and clear; keep it down at a
+  clear (one buzz) then raise it; take a perk; set Messages on the Wrist off and see them in the view again.

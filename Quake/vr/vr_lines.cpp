@@ -78,6 +78,11 @@ void sceneOverLine(const glm::vec3& a, const glm::vec3& b, float width, const gl
     queue.pushBack({a, b, width, colorA, colorB, false, false, true, true});
 }
 
+void sceneOverPoint(const glm::vec3& p, float size, const glm::vec4& color)
+{
+    queue.pushBack({p, p, size, color, color, true, false, true, true});
+}
+
 void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec4& color, bool xray)
 {
     auto& out = surfaces[xray];

@@ -299,6 +299,40 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
     }
 }
 
+void flatView(glm::vec3& origin, glm::vec3& angles)
+{
+    update(hands::current());
+    if(!state.active)
+    {
+        return;
+    }
+    const float w = weight();
+    if(vomit())
+    {
+        // The bone's whole turn, the mouse's look on top of it (its yaw from where it faced as the view went there).
+        if(!state.vomitRefSet)
+        {
+            state.vomitRefSet = true;
+            state.vomitYawRef = angles.y;
+        }
+        const glm::mat3 own = hands::basisOf(angles);
+        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), 0.f});
+        const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
+        const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), full, w));
+        origin = glm::mix(origin, state.anchor, w);
+        angles = hands::anglesFromVectors(turn[0], turn[2]);
+    }
+    else
+    {
+        // The eyes in the head's (smoothed), its turn in yaw added; his own look's pitch, no roll (Quake's dead 80 gone).
+        origin = glm::mix(origin, state.anchor, w);
+        angles.y += state.yaw * w;
+        angles.z *= 1.f - w;
+    }
+    state.eye0 = origin;
+    state.eye0Angles = angles;
+}
+
 bool immersive()
 {
     return state.active && weight() > 0.5f; // (out for a menu: the hands and gear drawn again, for its pointer)

@@ -110,6 +110,9 @@ void strikingVolume(const hands::State& s, int hand, za::Vector<glm::vec4>& out,
 // Whether bullet time takes `hand`'s stick press (vr_bullettime_trigger names it, bullet time on): the toolgun leaves
 // that press to it.
 [[nodiscard]] bool ownsStick(int hand);
+// A flatscreen player's key (vr_flatplay.cpp, vr_flat_key_bullettime: Z): the stick press's rules -- the game only,
+// vr_bullettime_enabled, then the tap's own (the bounce guard vr_bullettime_trigger_cooldown, the meter, the cooldown).
+void keyPress(const char* what);
 
 // Starts it (if the meter allows) or stops it: the screen tap's and vr_bullettime's action.
 void toggle();

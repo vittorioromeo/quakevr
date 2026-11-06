@@ -1156,7 +1156,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	{
 		if (bits & SU_WEAPON && SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) & 0xFF00) bits |= SU_WEAPON2;
 		if ((int)ent->v.armorvalue & 0xFF00) bits |= SU_ARMOR2;
-		if ((int)ent->v.currentammo & 0xFF00) bits |= SU_AMMO2;
+		if (VR_AmmoStat (ent) & 0xFF00) bits |= SU_AMMO2; // QVR: the count, not the VR progs' ammo type (VR_AmmoStat)
 		if ((int)ent->v.ammo_shells & 0xFF00) bits |= SU_SHELLS2;
 		if ((int)ent->v.ammo_nails & 0xFF00) bits |= SU_NAILS2;
 		if ((int)ent->v.ammo_rockets & 0xFF00) bits |= SU_ROCKETS2;
@@ -1203,7 +1203,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 		MSG_WriteByte (msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)));
 
 	MSG_WriteShort (msg, ent->v.health);
-	MSG_WriteByte (msg, ent->v.currentammo);
+	MSG_WriteByte (msg, VR_AmmoStat (ent)); // QVR (VR_AmmoStat)
 	MSG_WriteByte (msg, ent->v.ammo_shells);
 	MSG_WriteByte (msg, ent->v.ammo_nails);
 	MSG_WriteByte (msg, ent->v.ammo_rockets);
@@ -1231,7 +1231,7 @@ void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg)
 	if (bits & SU_ARMOR2)
 		MSG_WriteByte (msg, (int)ent->v.armorvalue >> 8);
 	if (bits & SU_AMMO2)
-		MSG_WriteByte (msg, (int)ent->v.currentammo >> 8);
+		MSG_WriteByte (msg, VR_AmmoStat (ent) >> 8); // QVR (VR_AmmoStat)
 	if (bits & SU_SHELLS2)
 		MSG_WriteByte (msg, (int)ent->v.ammo_shells >> 8);
 	if (bits & SU_NAILS2)

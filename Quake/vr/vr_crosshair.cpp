@@ -14,6 +14,7 @@
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Fmax.hpp"
@@ -44,9 +45,24 @@ enum Mode : int
     return tr ? worldtrace::endPos(*tr) : farEnd; // not hosting: no world to trace against
 }
 
-} // namespace
+// The frame flatscreen play's crosshairs were last queued (VR_SetupViewEntities may run more than once a frame).
+int flatQueuedFrame = -1;
 
-void queue(const hands::State& s)
+// Gun `h`'s muzzle as drawn (flatscreen play: the drawn weapon stands off the game's hand by the looks: sway, bob, the
+// sights), else the game's.
+[[nodiscard]] glm::vec3 drawnMuzzle(const hands::State& s, int h)
+{
+    const view::ViewEntity* ve = view::heldWeapon(h);
+    const int slot = ve ? weapons::slotForModel(ve->ent.model) : -1;
+    if(slot < 0)
+    {
+        return s.muzzle[h];
+    }
+    return view::anchorPosition(*ve, weapons::anchor(slot, weapons::Key::MuzzleAnchor),
+        weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
+}
+
+void queueFor(const hands::State& s, bool flat)
 {
     const int mode = static_cast<int>(vr_crosshair.value);
     const float size = CLAMP(0.f, vr_crosshair_size.value, 32.f);
@@ -70,34 +86,55 @@ void queue(const hands::State& s)
             continue;
         }
 
-        const glm::vec3 start = s.muzzle[h];
-        const glm::vec3 dir = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF)); // where shots go
+        // Where shots go: from the game's muzzle along its aim. Flatscreen: the laser starts at the gun as drawn.
+        const glm::vec3 shotFrom = s.muzzle[h];
+        const glm::vec3 dir = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+        const glm::vec3 start = flat ? drawnMuzzle(s, h) : shotFrom;
+        const auto line = flat ? lines::sceneOverLine : lines::line;
 
         if(mode == POINT)
         {
-            glm::vec3 end = aimEnd(start, dir, false);
+            glm::vec3 end = aimEnd(shotFrom, dir, false);
             end.z += vr_crosshairy.value;
-            lines::point(end, size * za::fmax(1.f, glm::distance(start, end) * 0.01f), red);
+            const float dotSize = size * za::fmax(1.f, glm::distance(start, end) * 0.01f);
+            (flat ? lines::sceneOverPoint : lines::point)(end, dotSize, red);
             continue;
         }
 
-        glm::vec3 end = aimEnd(start, dir, true);
+        glm::vec3 end = aimEnd(shotFrom, dir, true);
         end.z += vr_crosshairy.value * 10.f;
 
         const float width = size * 0.3f;
         if(mode == LINE)
         {
-            lines::line(start, end, width, red, red);
+            line(start, end, width, red, red);
         }
         else
         {
             const glm::vec3 midA = glm::mix(start, end, 0.15f);
             const glm::vec3 midB = glm::mix(start, end, 0.7f);
-            lines::line(start, midA, width, faded, red);
-            lines::line(midA, midB, width, red, red);
-            lines::line(midB, end, width, red, faded);
+            line(start, midA, width, faded, red);
+            line(midA, midB, width, red, red);
+            line(midB, end, width, red, faded);
         }
     }
+}
+
+} // namespace
+
+void queue(const hands::State& s)
+{
+    queueFor(s, false);
+}
+
+void queueFlat(const hands::State& s)
+{
+    if(flatQueuedFrame == host_framecount)
+    {
+        return;
+    }
+    flatQueuedFrame = host_framecount;
+    queueFor(s, true);
 }
 
 } // namespace qvr::crosshair
