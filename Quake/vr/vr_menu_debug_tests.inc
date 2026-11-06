@@ -1151,6 +1151,10 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_autopump_hold),
         row(opt::vr_weapon_kick_cancel),
         row(opt::vr_debug_weapon_frame),
+        row(opt::vr_model_watch),
+        command("Model Watch Status", "vr_model_watch_status")
+            .help("vr_model_watch_status: the model files watched for Read Models Again When Saved, the changes seen, "
+                  "the models read again and the time the watch took."),
         row(opt::vr_debug_draw_blend),
         command("Kick Cancel Test", "vr_kickcancel_test")
             .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "

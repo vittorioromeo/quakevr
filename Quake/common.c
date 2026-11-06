@@ -2186,6 +2186,12 @@ static int COM_PackFind (const pack_t *pack, const char *name)
 	return -1;
 }
 
+// QVR (vr_modelwatch.cpp): the pak has a file named `name`.
+qboolean COM_PackHasFile (const pack_t *pack, const char *name)
+{
+	return COM_PackFind (pack, name) >= 0;
+}
+
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
