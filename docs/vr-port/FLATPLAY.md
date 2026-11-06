@@ -62,9 +62,9 @@ the aim's turn, 18/s, where the game's hand has it at once: the crosshair crossi
   steady run they are where they rest;
 - **Walk Bob** (`vr_flat_bob`, 1): a figure of eight on the ground, its size and rate with the speed (0.7 units across,
   0.6 down, a little roll at a run), and breathing at rest;
-- **Turn Lag** (`vr_flat_turnlag`, 1) and **Turn Lag Recovery** (`vr_flat_turnlag_speed`, 1): "weapon inertia": the hands
+- **Turn Lag** (`vr_flat_turnlag`, 5; -10..10) and **Turn Lag Recovery** (`vr_flat_turnlag_speed`, 1): "weapon inertia": the hands
   keep their direction as the view turns and a critically damped spring brings them back (18/s times the recovery).
-  ~2 degrees behind at 180 degrees a second, at most **Turn Lag Cap** (`vr_flat_turnlag_cap`, 4) times the amount (softly),
+  ~2 degrees behind at 180 degrees a second, at most **Turn Lag Cap** (`vr_flat_turnlag_cap`, 10) times the amount (softly),
   back within a quarter second. A view set in one frame (a teleporter, a respawn) leaves no lag. Negative (down to -3), the
   same shown the other way: the hands lead the turn, swinging into it ahead of the view (his words: "Goldeneye-like 'turn
   with the camera'"); `Misc/quakevr/flatlagbob_test.sh` turning right: the main hand's yaw off the view -5.7..-2.3 locked,
@@ -352,7 +352,7 @@ default), read in the view's own frame and clamped at the read (`poseNum`: -30..
 2. **Its limits**, each eased in, so that no look shows a corner (`softAbove`): the stance's hotspot within the free arm (`vr_flat_keep_grip`, 0.87 of its reach from its rest shoulder: across the view first, then back along it); **Clear Of The Chest** (`vr_flat_clear_chest`, 4 ahead of the shoulder, gone when the hand is 6 over it); **Clear Of The Eye** (`vr_flat_clear_eye`, 3.5); **On The Screen** (`vr_flat_screen_angle`, 55 degrees off the view's middle; `_stance` 75, the long gun's hand by his cheek); **Within The Arm** (`vr_flat_keep_arm`, 0.92); last, **Stock Clear Of The Torso** (`vr_flat_clear_stock`, 1: the held weapon's rear kept that far out of the torso's capsules, the gun forward along the view; a wall's push back stops there too, and the gun hand's elbow goes out at its side while a wall pushes the gun back, `vr_flat_wall_elbow`, 1).
 3. **The view-fixed tweaks on top** (`vr_flat_gun_view_fwd`, `_right`, `_up`, 0, held weapons only), and the eye's nudges (`vr_flat_cam_*`), which carry the hands as ever. The neck's turn doesn't: it moves the eye off a body that stays.
 
-The body takes part. **The chest takes a share of the look** (**Chest Share**, `vr_flat_chest_down` 0.3, `vr_flat_chest_up` 0.2; half of that in the spine: `flatplay::chestPitch`, `solveTorso`), and **the crouch lowers the shoulders** under the eye (`vr_flat_crouch_shoulder_down`, `_fwd`: `flatplay::crouchNeck`, as deep as the body crouches). The eye stays where it stood: the neck, collapsed and never drawn, spans what's left.
+The body takes part. **The chest takes a share of the look** (**Chest Share**, `vr_flat_chest_down` 0 (his, 2026-11-06), `vr_flat_chest_up` 0.2; half of that in the spine: `flatplay::chestPitch`, `solveTorso`), and **the crouch lowers the shoulders** under the eye (`vr_flat_crouch_shoulder_down`, `_fwd`: `flatplay::crouchNeck`, as deep as the body crouches). The eye stays where it stood: the neck, collapsed and never drawn, spans what's left.
 
 The ironsight's solve is unchanged and still from the eye: only the shoulder it keeps the arm in reach of (`reliefFor`) is the body's now. A wall or the floor pushes the rear sight no nearer the eye than `vr_flat_ads_wall_keep` (8; it was 3, and a crouched gun at the floor filled the screen). The chest carries the head with it (`vr_flat_eye_lean`, 12, Flatscreen > Eye): the eye goes with the neck.
 
@@ -420,7 +420,7 @@ push back leaves it, tried in 10 degree steps then halved three times, at most `
 straight up; or, `vr_flat_wall_tilt_fixed` 1, always all of `vr_flat_wall_tilt` once the wall is met. The tilted pose can also
 turn the gun across the body, `vr_flat_wall_tilt_yaw` (0, -60..60: muzzle inwards), and cant it, `vr_flat_wall_tilt_roll`
 (0, -90..90: its top inwards), both mirrored for the left hand (the off hand); the least pitch is searched with them on. The
-pose eases in when the wall is met, and out when it clears, over `vr_flat_wall_tilt_time` (0.3 s, smoothstep; 0 at once); in
+pose eases in when the wall is met, and out when it clears, over `vr_flat_wall_tilt_time` (0.2 s, smoothstep; 0 at once); in
 it, the pitch follows the least that clears at 4 over that time (so 0.075 s at 0.3), and easing out it keeps the pitch it had.
 **No Fire With Gun Raised** (`vr_flat_wall_block_fire`, on; Movement > Locomotion, Desktop Screen Play): a gun turned more than
 5 degrees out of a wall does not fire, the click does nothing (no shot, no ammo) until it comes back down (`flatplay::routeFire`,

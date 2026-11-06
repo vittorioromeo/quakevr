@@ -17,6 +17,7 @@
 #include "vr_comfortfade.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_geom.hpp"
@@ -85,9 +86,16 @@ State state;
     return static_cast<int>(vr_death_view.value);
 }
 
-// Vomit Mode: on, and a body to be in (vr_death_view 0 leaves none).
+// Vomit Mode: on, and a body to be in (vr_death_view 0 leaves none). Playing on the desktop screen with the view in the
+// body's head (vr_death_view 2), vr_flat_death_vomit turns it on for the death whatever vr_death_view_vomit says (his
+// request: on a monitor the head's tumble does not make you sick). The cvar is never changed: his own setting is back
+// for the next death, a respawn or a load.
 [[nodiscard]] bool vomit()
 {
+    if(mode() >= 2 && vr_flat_death_vomit.value != 0.f && flatplay::active())
+    {
+        return true;
+    }
     return vr_death_view_vomit.value != 0.f && mode() >= 1;
 }
 

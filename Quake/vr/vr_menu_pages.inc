@@ -161,6 +161,7 @@
         row(opt::vr_flat_crouch_fire),
         row(opt::vr_flat_pitch_up),
         row(opt::vr_flat_pitch_down),
+        row(opt::vr_flat_death_vomit),
         header("Close Quarters"),
         row(opt::vr_closequarters),
         row(opt::vr_closequarters_live),
