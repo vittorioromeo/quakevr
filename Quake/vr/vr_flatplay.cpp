@@ -561,11 +561,16 @@ constexpr float stanceFadeTo = 55.f;
         return {(ahead - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
             -(below - lift * upBy) * reach};
     }
+    const glm::vec3 empty{
+        poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
     if(otherHolds)
     {
-        return {poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
+        // (At a wall the free hand lets go of the other's gun, to an empty hand's place: flatsight::wallLetGo.)
+        const glm::vec3 support{
+            poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
+        return support + (empty - support) * flatsight::wallLetGo(1 - h);
     }
-    return {poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
+    return empty;
 }
 
 // A point on the punch's line: u of the way from `from` to `to` (both where a hand sits off its shoulder, in the view's
@@ -1494,14 +1499,20 @@ struct TorsoCaps
 
 } // namespace
 
-float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most)
+float torsoGap(const hands::State& s, const glm::vec3& rear, const glm::vec3& hand)
+{
+    return active() && bodyPose() ? torsoClearance(torsoCaps(s), rear, hand) : 1e9f;
+}
+
+float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keepAsked)
 {
     glm::vec3 stock;
-    const float keep = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
-    if(most <= 0.f || keep <= 0.f || !active() || !bodyPose() || heldIn(h) < 0 || !flatsight::stockOff(h, stock))
+    const float clear = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
+    if(most <= 0.f || clear <= 0.f || !active() || !bodyPose() || heldIn(h) < 0 || !flatsight::stockOff(h, stock))
     {
         return most;
     }
+    const float keep = keepAsked < 0.f ? clear : za::min(keepAsked, clear);
     const glm::vec3 back = axes(geom::vec(cl.viewangles)) * stock;
     const TorsoCaps caps = torsoCaps(s);
     const float want = za::min(keep, torsoClearance(caps, s.pos[h] + back, s.pos[h]));

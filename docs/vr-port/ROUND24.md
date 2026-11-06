@@ -2108,6 +2108,100 @@ can tweak things easily in flatscreen without opening/closing the quake menu? Yo
 **To try (flat screen):** `bind F7 vr_armourstudio_window`, F7 in a map: Start, pick a part, drag and type values, Save;
 open the menu page and see the same values; F7 again closes it and mouse look comes back.
 
+## Flat-screen wall margin (branch `agent/flatwallmargin`, 2026-11-06)
+
+He: the wall push back and the muzzle tilt keep the gun out of the wall, but the hand still goes into it; start them a
+bit further off.
+
+- New tunable `vr_flat_wall_margin` (default 4 units, 0..24; VR Settings, the flat Wall rows: "Wall: Keep Off Distance").
+  In hipfire (sighted: none, `vr_flat_ads_wall_keep` places the sight), the push back (`handpose::gunBack`) and the tilt
+  test (`handpose::gunDepth`) count a weapon point as in a wall once a wall (not a floor or a ceiling) is within the margin
+  of it: their lines from the head go on past the point by twice the margin. The push back counts the hand's own point
+  too; the tilt doesn't (a tilt round the hand can't move it). 0 is exactly the old code path.
+- `vr_gun_wall_depth` prints a second line per hand, `gunwalloff: <hand> fist off Xcm gun off Ycm`: how near the drawn
+  hand model's vertices (`view::drawnHandSurface`) and the weapon's points come to a wall (negative: in it).
+- Measured (vrtesthall north wall, `setpos 0 623.5`, rifle 16 / revolver 31 / shotgun 4, yaw 90, 45, 135, pitch 0 and
+  +-30, standing and crouched): margin 0, the gun up to 0.9 cm in, the shotgun's pump hand 0.4 cm off; margin 2, both
+  hands >= 4.6 cm off; margin 4, both hands >= 9.8 cm off, the gun >= 4.4 cm; side walls and the open: no change.
+- **But walking into the wall the hand still goes in, whatever the margin** (scratch `fwm_walk.sh`: +forward into the
+  wall, `noclip` off -- `setpos` turns noclip on): the player stops at y 632, not 623.5 (8 units nearer than the tests'
+  setpos), the hand ends at 638, and the push back has no room at all: the arm is ~11 units from the shoulder, keep 9,
+  and `stockBackMost` (vr_flat_clear_stock) takes the rest to 0. So the whole job falls to the tilt, round the hand:
+  main fist 5-9 cm in, the support hand 5-30 cm in, at margins 0..8 alike. With `vr_flat_wall_arm_keep 0;
+  vr_flat_clear_stock 0` and margin 4 the gun hand stays out (>= 9.6 cm) but the shotgun's pump hand is still 9 cm in;
+  `vr_flat_wall_tilt_pivot 1` keeps the gun hand out (>= 2 cm), not the support hand. A real fix needs room for the push
+  back at the wall (or a shoulder pivot, or lifting the support hand off), the author's call.
+- Tests: `flatwall_test.sh` 14 passed, 0 failed. `flatsweep_test.sh`: margin 0 383 passed, 27 known, 0 failed; margin 4
+  381 passed, 25 known, **4 failed** (not accepted): wall/long hipfire at pitch 45, `jump_gun` 6.1 a degree crouched
+  (new; limit 1) and standing (6.2, listed 4.7), `jump_hand0` 3.4 crouched (new) and 3.1 standing (listed 2.6). The
+  margin makes the known jump there bigger; the level probe (no floor-then-wall switch) did not change it.
+  `flatsight_test.sh` did not run (it waits for the author's game to close: "AUTHOR GAME RUNNING").
+
+### Second pass: pull back, let go (his choice)
+
+- The wall state (`wallOn`, per hand, eased over `vr_flat_wall_tilt_time` like the tilt): a hipfire gun pushed back more
+  than 0.5 units or tilted. In it the arm may fold to 2 units from the shoulder (`wallArmKeep`, was 9) and the stock's
+  chest clearance (`stockBackMost`) fades out, so the push back has room; the free hand lets go (`flatsight::wallLetGo`:
+  the pin onto the grip fades, flatplay's support pose blends to the empty hand's, and twohand stops holding past half
+  of it) and takes the grip again as the gun comes off the wall. No new tunables.
+- Walking into the wall (scratch `fwm_walk3.sh`, empty off hand, at rest 0.5 s after the walk): the gun 8.9..15 cm off
+  the wall in all 18 cases (rifle, revolver, shotgun; head-on, 45 both ways; standing, crouched), the gun hand out in
+  all; the gun's nearest point 7.6..25 cm from the eyes. Still in: the rifle's free (empty) hand at rest (-1.5 cm
+  head-on standing, -12 crouched, -19/-25 at 45 with the wall on its side): the empty hand's own pose is in the wall and
+  nothing pushes an empty hand. During the walk-in (the 0.2 s ease) the gun and the free hand still go in (gun up to 44 cm).
+- Tests: flatsweep 384 passed, 21 known, 5 failed (the four jump rows are gone): `gun_torso wall/long/stand/hip` 1.63
+  at pitch -25 (new, limit 0.5: the stock past the chest clearance), and `fore_torso` open+wall/long ads crouch 2.53
+  (listed 1.95) and stand 3.43 (listed 3.29) -- open and sighted rows, which this change should not touch: possibly
+  from the origin/next merge, not checked. flatwall 8 passed, 6 failed: its hold, tilt-ease, mirrored-tilt and
+  block-fire rows expect the tilt and the kept hold at its wall spot, where the push back now clears the gun untilted
+  and the hand lets go (by design; the test needs new expectations). Not accepted.
+
+### Third pass: wall poses, chosen once and kept (his design)
+
+- **Wall poses** (`wallPoses`, vr_flatsight.cpp): what the way back can't clear, the drawn gun turns out of one of four
+  ways, per degree of the turn: **up** (vr_flat_wall_tilt's pose, its yaw and roll cvars as before), **left** and
+  **right** (raised 0.35 a degree, turned across the body or out), **down** (0.8 a degree, low ready). As the tilt is
+  first wanted with no pose locked, each pose's least clearing turn is searched (`tiltNeedFor`, the old search) and
+  scored (`wallPoseScore`: depth left in the wall, plus 4x its depth in the torso (`wallTorsoWeight`), plus what it comes
+  nearer the eyes than 6 units (15 cm), all x100; then the turn's degrees x0.01 as the tie's breaker). The eye and torso
+  measures (`handpose::gunNearest`, no traces) take the gun's points and the lines between them, so a barrel across the
+  face counts. The best is **locked** until
+  the state and the turn have been off 0.5 s (`wallUnlockAfter`), so walking along a wall keeps it. Chosen again only if
+  the kept pose stays 1 unit deep for 0.3 s (`wallPoseBad`, `wallPoseBadFor`); the new pose eases in from the drawn turn
+  (a slerp in the view's frame over vr_flat_wall_tilt_time). Sighted: up only (a pose kept from hipfire eases over to
+  it). The free hand lets go in every pose. Cost: a locked frame searches one pose (about 6 gun probes a frame, each a
+  trace per gun point, as the old tilt); a choice searches four (70-80 probes, once). The status line `flatwallturn:`
+  prints `pose`, `locked`, `wall` (the state) and `probes`.
+- **Walk-in:** the wall state and the turn come on ahead: where his level speed takes his box in vr_flat_wall_tilt_time
+  (a box trace, so the lines never start inside the wall), the gun pushed back as far as the state lets it; and the state
+  eases in over 0.35 of the time (out over all of it). Gun's worst during the walk: 44 cm in before, now 26 (rifle at
+  135 standing) and 18 (shotgun head-on) for a frame or two, else 10 or less.
+- **The stock** comes to the chest in the wall state (`wallStockKeep` 0, not vr_flat_clear_stock's 1); what that leaves
+  the hand short of a wall at its side, it goes across the chest (level, inwards, up to 8 units: `wallAcrossMost`);
+  head-on nothing.
+- **gun_torso wall/long/stand/hip, not fixed** (flatsweep's wall run, his box on the wall; 1.93 with the stock to the
+  chest). Wall sweeps (`scratch/fw3_wsweep.sh`, `fw3_rows.sh`): with the turn off (vr_flat_wall_tilt 0) and the stock
+  kept every row passes; the stock kept, turned: 0.53..1.30 looking 20..45 down; fold 9: the same; no stock clearance at
+  all: 2.7. So the depth is the turned poses' (and the stock to the chest adds ~0.6). Tried and reverted: keeping
+  vr_flat_clear_stock in the wall state (the rifle head-on then stays 1.3 in the wall, flatwall's look-30 row fails with
+  the weapon 5 10 cm in, and the row stays 1.30); and capping each pose's turn at 0.3 in the torso by `gunNearest`'s
+  torso depth (no change in the row, so that measure doesn't see what flatsweep's gun shapes see; and the sighted rows
+  then stayed up to 11.8 cm in the wall). The pose score keeps that torso term (x4) for what it does see. Next: score
+  the poses with flatsweep's own gun shapes (vr_flatsweep.cpp `torsoDepth`).
+- **The arm** folds to `vr_flat_wall_fold` (new tunable, default 5 units, VR Settings "Wall: Fold Arm To"; was a fixed 2):
+  standing, the stock at the chest binds first, so fold 2, 5 and 7 measured the same standing; crouched 5 keeps the gun
+  further out.
+- **The let-go free hand** (`freeOffWall`): pulled from its empty-hand place towards its side (below its shoulder, the arm
+  hanging) as far as keeps it vr_flat_wall_margin + 2 units off the wall (the least share, halved 8 times), eased like the
+  push back and only as far as it has let go.
+- Measured (`scratch/fw2_walk.sh`, walked in, at rest 0.5 s after): all 18 out: the gun hand >= 13 cm off the wall, the
+  free hand >= 3.3, the gun >= 2.2 (rifle crouched at 135), else >= 7.3. Eyes >= 12.2 cm but the rifle crouched: head-on
+  7.8 (left pose, across the face) and at 135 6.1 (right pose): the eye term (gun points and lines, from `s.head`) did not
+  move those choices; open. Poses: rifle right, right, down / left, down, right (head-on, 45, 135; standing / crouched);
+  revolver right x3 / right, right, left; shotgun right, right, left / down, up, down.
+- Sighted fix: the drawn turn used the hipfire-locked pose while the sighted measure used up; a pose kept from hipfire now
+  eases over to up when sighted. flatwall section c runs the rifle sighted (the shotgun's sighted way back clears it at
+  that spot): ease 0.195 / 0.583 s, mirrored.
 ## Rolled guns: barrel and sights rigid with the hand (branch `agent/rollaim`, 2026-11-06)
 
 His note: with Show Controller Laser on he lined up red (the shots) and green (the barrel) holding the gun level; rolling
