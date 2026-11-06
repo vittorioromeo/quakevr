@@ -222,6 +222,8 @@ constexpr int tiltHalvings = 3;
 constexpr float tiltSpeedMin = 30.f;   // vr_flat_wall_tilt_speed's range (degrees a second)
 constexpr float tiltSpeedMax = 2000.f;
 constexpr float tiltShortOfUp = 5.f; // the tilt leaves the muzzle at least this far short of straight up (degrees)
+constexpr float sightTiltDownFrom = 0.5f; // sighted, the tilt fades out looking down from 30 degrees (the pitch's sine)...
+constexpr float sightTiltDownTo = 0.766f; // ... to none by 50
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -527,7 +529,15 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     // (No further than the muzzle pointing straight up, less tiltShortOfUp: past it the gun would lean back over him.)
     const glm::mat3 hand = axesOf(s.rot[h]);
     const float offUp = glm::degrees(za::acos(za::clamp(hand[0].z, -1.f, 1.f))); // the muzzle's way off straight up
-    const float most = za::min(za::clamp(vr_flat_wall_tilt.value, 0.f, wallTiltMax), offUp - tiltShortOfUp);
+    // (Sighted and looking down past sightTiltDownFrom, none by sightTiltDownTo: tilted there the gun's rear and the hands went
+    // into the chest, 3.6 deep at 55 down; the gun's end stays hidden in the wall as it was.)
+    const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
+    const float down = -view[0].z; // the sine of the look's pitch down
+    // (And sighted, vr_flat_wall_tilt_sighted of it at most: tilted, the sights leave the ray.)
+    const float downFade =
+        1.f - geom::smooth01(za::clamp((down - sightTiltDownFrom) / (sightTiltDownTo - sightTiltDownFrom), 0.f, 1.f));
+    const float sightFade = 1.f - sight * (1.f - za::clamp(vr_flat_wall_tilt_sighted.value, 0.f, 1.f) * downFade);
+    const float most = za::min(za::clamp(vr_flat_wall_tilt.value, 0.f, wallTiltMax) * sightFade, offUp - tiltShortOfUp);
     if(most <= 0.f)
     {
         return;

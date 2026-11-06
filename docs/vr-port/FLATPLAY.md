@@ -389,11 +389,21 @@ sight's travel has gone. `vr_flat_sight_check` (Debug > Reports) measures the we
 
 **Against the walls** (**Gun Against Walls**, `vr_flat_gun_collide`, on). A held weapon goes back along the way into the body until
 it is out of the level (`pushBack`; `handpose::gunBack`, the headset's stop's points, traces and margin): towards its shoulder in
-hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded, or the rear sight 3 units from
-the eye: past that, the gun's end enters the wall and the depth buffer hides it there, as it does past `vr_gun_wall_max` in a
-headset. A wall met pushes it back at once, nearly; cleared, it comes out over a moment. It is the game's pose that moves, so the
-gun aims from where it is pushed to and the shots leave from there. A blow is left alone: a hand throwing a punch is not stopped.
-Models stop the drawn gun as in a headset (`vr_model_collide`, drawn only: the view runs it in this mode too).
+hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded (the hand `vr_flat_wall_arm_keep`,
+9 units, from its shoulder), the stock at the chest, or the rear sight `vr_flat_ads_wall_keep` from the eye. A wall met pushes it
+back at once, nearly; cleared, it comes out over a moment. It is the game's pose that moves, so the gun aims from where it is
+pushed to and the shots leave from there. A blow is left alone: a hand throwing a punch is not stopped. Models stop the drawn gun
+as in a headset (`vr_model_collide`, drawn only: the view runs it in this mode too).
+
+**The muzzle up** (Debug > Tunables > Flatscreen, "Wall: ..."). What the push back can't clear, the drawn gun tilts muzzle up out
+of (`tiltNeedFor`, `handpose::gunDepth`): the least tilt about the view's right that leaves its points out of the level where the
+push back leaves it, tried in 10 degree steps then halved three times, at most `vr_flat_wall_tilt` (85) and never past 5 short of
+straight up; it moves at most `vr_flat_wall_tilt_speed` (300) degrees a second. It turns round the hand
+(`vr_flat_wall_tilt_pivot` 0; 1 is the shoulder, which swings the gun up into the face). Sighted, the tilted gun also comes
+`vr_flat_wall_tilt_drop` (12) units down off the eye by 45 degrees of tilt: tilted on the sight line its underside filled the
+screen. Drawn only (`flatplay::drawnOffset`): the game's hand keeps the crosshair's turn, so the shots still go through the
+crosshair, and the view puts the two-handed hotspot it placed on the tilted gun back on the untilted one
+(`flatplay::drawnWallTurn`), so a two-handed hold stays. `Misc/quakevr/flatwall_test.sh` checks every weapon at a wall.
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

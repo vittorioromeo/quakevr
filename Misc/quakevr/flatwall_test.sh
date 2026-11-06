@@ -2,9 +2,9 @@
 # flatwall_test.sh <agent> -- flat-screen held weapons against a wall (docs/vr-port/FLATPLAY.md, "Against the walls"): what the
 # way back can't clear, the drawn muzzle tilts up out of (vr_flat_wall_tilt). Fast mode; each run ends on its own last line.
 #   a. every weapon (vr_test_give_wid, impulse 149) with his box against the vrtesthall wall, facing it and at 45 degrees,
-#      level and looking down 30 (and 60 off it looking up 30), hipfire and sighted: how deep its drawn points go into the
+#      level and looking down 30 (and 60 off it looking up 30), hipfire and sighted (vr_flat_wall_tilt_sighted 1): how deep its drawn points go into the
 #      level (vr_gun_wall_depth), the tilt off (vr_flat_wall_tilt 0: as before it) and on; and the two-handed holds the same.
-#   b. the shotgun sighted walked into the wall and back off it, frame by frame: it tilts, the shots still go through the
+#   b. the shotgun sighted (vr_flat_wall_tilt_sighted 1) walked into the wall and back off it, frame by frame: it tilts, the shots still go through the
 #      crosshair's point while it is tilted, and it comes back down with no jump.
 AGENT=${1:-pickup}
 source "$(dirname "$0")/qvrtest.sh"
@@ -26,7 +26,7 @@ done
 table() { grep -a "^flatwallat\|^gunwall: main" "$1" | awk '/^flatwallat/ { t = $3 " " $5 " " $7 " " $8; next } { d = $7; sub(/cm/, "", d); print t, $3, d + 0 }'; }
 for T in off on; do
   log=$HERE/scratch/flatwall_a_$T.log
-  X=""; [ $T = off ] && X="tune vr_flat_wall_tilt 0;"
+  X="tune vr_flat_wall_tilt_sighted 1;"; [ $T = off ] && X="tune vr_flat_wall_tilt 0;"
   bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$X $A; echo flatwallat done; tune_reset; toggleconsole; quit" -Filter "^flatwallat|^gunwall: main" -QuitOn "flatwallat done" -Timeout 600 > "$log" 2>&1
   table "$log" > "$HERE/scratch/flatwall_a_$T.txt"
 done
@@ -44,7 +44,7 @@ check $([ "$holds" = 0 ] && echo 1 || echo 0) "the tilt keeps every two-handed h
 
 # b. Walked in and back off, sighted.
 log=$HERE/scratch/flatwall_b.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait10; +back; wait50; -back; wait40; vr_flatplay_debug 0; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait10; +back; wait50; -back; wait40; vr_flatplay_debug 0; tune_reset; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
 tilts=$(grep -a -o "tilt [0-9.]* *$\|tilt [0-9.]* need" "$log" | awk '{ print $2 + 0 }')
 peak=$(awk '{ if ($1 > m) m = $1 } END { printf "%.1f", m + 0 }' <<<"$tilts")
 step=$(awk 'NR > 1 { d = $1 - p; if (d < 0) d = -d; if (d > m) m = d } { p = $1 } END { printf "%.2f", m + 0 }' <<<"$tilts")

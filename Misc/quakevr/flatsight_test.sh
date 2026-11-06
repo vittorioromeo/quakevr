@@ -60,10 +60,10 @@ check $(good "$r" "$f" "$d" "$c" 1) "the picture moved: the sights lie on the mo
 check $(awk -v a="${aim:-9}" 'BEGIN { exit !(a <= 0.1) }' && echo 1 || echo 0) "the picture moved: the shot points at the moved crosshair's point"
 
 # d. A wall: the test hall's start has a tall panel on its right: stepped against, turned to face. Hipfire, then the sight, then a
-# turn away from it, frame by frame.
+# turn away from it, frame by frame. The push back alone (vr_flat_wall_tilt 0): the muzzle's tilt past it is flatwall_test.sh's.
 log=$HERE/scratch/flatsight_d.log
 W="+moveright; wait60; -moveright; wait3; cl_yawspeed 90; +right; wait72; -right; wait10"
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; impulse 154; wait30; $W; vr_flatplay_debug 2; wait10; vr_gun_wall_depth; vr_flat_aim 1; wait30; vr_flat_sight_check; vr_gun_wall_depth; wait5; +left; wait72; -left; wait20; vr_flatplay_debug 0; vr_flat_aim 0; wait3; toggleconsole; quit" -Filter "^flatsightcheck|^flataim: main|^flatsight: |^gunwall:" -Timeout 60 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt 0; impulse 154; wait30; $W; vr_flatplay_debug 2; wait10; vr_gun_wall_depth; vr_flat_aim 1; wait30; vr_flat_sight_check; vr_gun_wall_depth; wait5; +left; wait72; -left; wait20; vr_flatplay_debug 0; vr_flat_aim 0; wait3; tune_reset; toggleconsole; quit" -Filter "^flatsightcheck|^flataim: main|^flatsight: |^gunwall:" -Timeout 60 > "$log" 2>&1
 grep -a "^gunwall:" "$log" | cut -c1-150 | sed 's/^/  /'
 back=$(grep -a -o "back [0-9.]*" "$log" | awk '{ print $2 + 0 }')
 peak=$(awk '{ if ($1 > m) m = $1 } END { printf "%.2f", m + 0 }' <<<"$back")

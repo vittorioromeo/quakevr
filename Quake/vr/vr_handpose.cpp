@@ -34,6 +34,7 @@
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -425,7 +426,9 @@ float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::
     return za::min(back, most);
 }
 
-float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
+constexpr float wallSteep = 0.7f; // gunDepth: a surface whose normal's up is more than this is a floor or a ceiling
+
+float gunDepth(int hand,const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
 {
     makeShape(hand, rot, muzzle);
     float deepest = 0.f;
@@ -433,7 +436,9 @@ float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm:
     {
         const glm::vec3 end = pos + o;
         const auto tr = lineTrace(from, end);
-        if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+        // (Walls only: a floor or a ceiling, steeper than wallSteep, is not counted -- looking down, the gun's end in the
+        // floor stays hidden there as before, and the gun doesn't tilt up at the ground.)
+        if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f || za::abs(worldtrace::normal(*tr).z) > wallSteep)
         {
             continue;
         }
