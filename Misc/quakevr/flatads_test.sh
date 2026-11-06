@@ -7,7 +7,7 @@ source "$(dirname "$0")/qvrtest.sh"
 export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
-SECTIONS=${SECTIONS:-a}
+SECTIONS=${SECTIONS:-abcde}  # every section (one run each); SECTIONS=a etc. for one
 
 if [[ $SECTIONS == *a* ]]; then
   log=$HERE/scratch/flatads_a.log
