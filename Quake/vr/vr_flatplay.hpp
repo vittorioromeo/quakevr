@@ -29,6 +29,21 @@ namespace qvr::flatplay
 // The weapon `h` holds, as its settings' slot; -1 for an empty hand.
 [[nodiscard]] int heldIn(int h);
 
+// The hand holding the only weapon held (heldIn), whichever hand that is; -1 with a weapon in each hand or in neither.
+[[nodiscard]] int loneWeaponHand();
+
+// The mouse's two buttons as a flatscreen player's hands take them (his words 2026-11-05; FLATPLAY.md, "The keys"): `lmb`
+// is +attack's state (the left mouse button), `rmb` +offhandattack's (the right). With one weapon held, whichever hand
+// holds it, the left button fires it and the right is the ironsight (vr_flatsight.cpp, vr_flat_aim_mode), so it fires
+// nothing; with a weapon in each hand, or none, the left button is the right hand's and the right the left's, as in VR.
+// fire[HAND_MAIN], fire[HAND_OFF]: what each hand's trigger reads.
+struct FireRoute
+{
+    bool fire[2]{false, false};
+    bool rmbAims{false}; // the right button is the ironsight's (one weapon held)
+};
+[[nodiscard]] FireRoute routeFire(bool lmb, bool rmb);
+
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.
 [[nodiscard]] float poseNum(const Tunable& c);

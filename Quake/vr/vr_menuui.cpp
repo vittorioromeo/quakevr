@@ -1729,6 +1729,9 @@ void mockKey_f()
     q_strlcpy(name, Cmd_Argv(1), sizeof(name)); // (a key's action may tokenize another command: Levels)
     const bool down = Cmd_Argc() < 3 || q_strcasecmp(Cmd_Argv(2), "up");
     const bool up = Cmd_Argc() < 3 || q_strcasecmp(Cmd_Argv(2), "down");
+    // A bind's command (Key_Event adds it at the end of the command text) runs next, as a real key's does between two
+    // frames -- not after the rest of a script already queued (a press, its waits and its release then all ran at the end).
+    const int queued = Cbuf_Pending();
     if(down)
     {
         Key_Event(key, true);
@@ -1737,6 +1740,7 @@ void mockKey_f()
     {
         Key_Event(key, false);
     }
+    Cbuf_TailToFront(Cbuf_Pending() - queued);
     Con_Printf("vr_mock_key: %s, menu %d, corner button %d%s\n", name, m_state, toolbarFocused() ? tb().focused : -1,
         key_dest == key_menu ? "" : " (menu closed)");
 }

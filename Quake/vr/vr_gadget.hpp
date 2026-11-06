@@ -64,6 +64,10 @@ void releasePanelBoard(); // (no board wants it: its image freed)
 // The tests' look at the image (QC panelboard_read), a part of it in the panel's pixels. `what` 0: how much of it is inked
 // (0..1); 1: its checksum (24 bits); 2: 1 while there is an image at all (any text, no part); 3: its ink's red over its
 // green (0..1). -1 when the image doesn't hold `text` (yet: it is drawn in a frame or two).
+// The arena's messages on the wrist (arenaMessage), `what` 4..8 (x, y, w, h unused): 4 how much of the hologram image's
+// block for the arena message `text` (as sent; "": the last one) is inked (0..1; -1 not the last one, or not in the image yet); 5 the frames
+// it has been shown so far, facing the viewer (-1 not the last one); 6 the arena messages taken by the wrist; 7 those shown
+// in view instead (worldtext::arenaInViewCount); 8 the buzzes they gave.
 [[nodiscard]] float panelBoardRead(const char* text, float x, float y, float w, float h, int what);
 
 // How much a CRT screen glitches at `time` (0..1, the CRT look's): now and then a short burst.
@@ -148,6 +152,14 @@ bool tip(za::StringView text, float seconds);
 // the hologram's messages now, for `seconds`, seen if you look at the gadget then; not a notification (no waiting to be
 // seen, no chime nor buzz). False when there is no hologram.
 bool notice(za::StringView text, float seconds);
+
+// A Survival Arena message (vr_arena_wrist: a wave's start and clear, the countdown, a perk taken, the run's end; QC
+// VR_ARENA_Show): `text` as one of the hologram's messages now, for `seconds` (its first line, up to a blank line, its
+// heading), in place of the arena's last one (the countdown's seconds replace each other, not stacking). Not held until
+// seen (it is of the moment: the banners and the cards keep what matters), but one arriving while the gadget is out of
+// view, the arena's last one gone, buzzes its hand once (a watch's buzz) so that you look. False when there is no
+// hologram (the HUD not the gadget, vr_messages_hologram off, recording mode): it shows in view then.
+bool arenaMessage(za::StringView text, float seconds);
 
 // QVR round 21 (the Screens page's Show a Test Message): the next of a few of the game's own messages (a key needed,
 // maps' texts, a secret, a powerup running out), sent as the game sends them, so that pressing again stacks them; with

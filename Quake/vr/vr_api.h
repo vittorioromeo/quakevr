@@ -339,11 +339,16 @@ int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *sta
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, cl_main.c, cl_demo.c, sv_user.c, sv_main.c, host.c,
 // host_cmd.c).
+int VR_MoveMainFire (int lmb);					// CL_SendMove's attack bit: +attack's state in, the main hand's trigger out (flatscreen play: flatplay::routeFire, the mouse's buttons by what the hands hold; otherwise as it came)
 void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
+int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counter of the left (1) or right (0) hand: 0 for none (an empty hand, a weapon with no ammo); the count, and its ammo's picture (0..3 shells, nails, rockets, cells; -1 none)
+int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
+int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update
@@ -577,6 +582,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 void VR_FlatViewDrop (float *vieworg, const float *viewangles);	// V_CalcRefdef: a flatscreen player holding his crouch sees from lower (vr_flatplay.cpp), and from wherever vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_cam_side put his eye -- forward, up and the view's own right, in the frame of the view being drawn; the crosshair's ray that every aiming measurement of the mode uses is taken from this same view (flatplay::crosshairRay), so the gun and the crosshair move with it. His origin, his collision box and his body are not touched. Outside the mode the view is left as it was
+void VR_FlatDeathView (float *vieworg, float *viewangles);	// V_CalcRefdef: dead, the view in the ragdoll's head as the headset's (vr_death_view 2, Vomit Mode; flatscreen play only)
 void VR_FlatOrbitView (float *vieworg, float *viewangles);	// V_CalcRefdef: vr_flat_orbit, the view off him looking back at his own pose (flatscreen play only)
 float VR_FlatPitchClamp (float pitch);					// CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's window, vr_flat_pitch_up / vr_flat_pitch_down (vr_flatplay.cpp); outside the mode the angle comes back as it was, so plain play and a headset are bounded by cl_maxpitch / cl_minpitch alone
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key

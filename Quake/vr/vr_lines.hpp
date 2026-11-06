@@ -24,6 +24,7 @@ void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::v
 // In the scene's translucent pass too, but over all that is drawn by then (no depth test): flatscreen play's stand-in for line,
 // which has no UI pass to be drawn in (the arcs on your own arms: vr_shock.cpp).
 void sceneOverLine(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
+void sceneOverPoint(const glm::vec3& p, float size, const glm::vec4& color); // (the crosshair's dot in flatscreen play)
 
 // A debug surface, batched with this frame's lines. In the scene (depth-tested) unless xray is requested.
 void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec4& color, bool xray = false);
