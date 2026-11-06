@@ -608,6 +608,10 @@ weapon 2
     pitch "-7"
     roll "0.0"
     scale "0.48"
+    // The raised front bead (2026-11, v_shot2.blend): the sight line 1.47 deg up, 0.11 left of the model's x (was
+    // 0.65, 0.06, the shots 0.65 deg under the sights); the shots along it (vr_weaponstudio_align main apply).
+    shot_pitch "1.47"
+    shot_yaw "0.11"
     wpnbtn_av "11.6867 1.4881 5.4412"
     wpnbtn_pitch "0.0"
     wpnbtn_roll "0.0"
@@ -664,7 +668,7 @@ weapon 2
     fx_gfx_wisp_charge "1"
     fx_gfx_wisp_alpha "0.32"
     fx_gfx_wisp_barrels "2"
-    fx_gfx_mask "983:f-5__TO__gfo__Q8____________PCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAA8AwPA8gPA8DAPAQA8___________________________Bw_________PAAAAAAAAAwQPAAwQPAAAANAAAANAAw__w_B4____f"
+    fx_gfx_mask "1011:f-5__TO__gfo__Q8____________PCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAA8AwPA8gPA8DAPAQA8___________________________Bw_________PAAAAAAAAAwQPAAwQPAAAANAAAANAAw__w_B4____fAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
