@@ -1926,9 +1926,12 @@ QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed,
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
+QVR_TUNABLE(vr_flat_bob_fwd, "0") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
+QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
 QVR_TUNABLE(vr_flat_ads_recoil, "0.35") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
-QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
+QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (-3..3, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
+QVR_TUNABLE(vr_flat_turnlag_cap, "4") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
