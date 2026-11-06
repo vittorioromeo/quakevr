@@ -2142,3 +2142,26 @@ his wrist, they came apart.
 
 **To try (VR):** Show Controller Laser on, any gun (the enforcer's rifle shows it most): red and green stay together as
 you roll your wrist and aim up and down.
+## Armour Studio round 2: his tweaks, taper, leather, animations, your body (branch `agent/armourstudio2`)
+
+- **His armour.txt is the default**: his edited file (grunt, enforcer, knight, death knight blocks; 36 parts) copied over
+  `quakevr/data/armour.txt` (LF), byte for byte. `vr_armour_test`'s last check now compares the shipped file's shell with
+  the one it made before the test (it was the generator's, which the shipped file no longer is).
+- **Taper** (`taper_start`, `taper_end`; `vr_armourstudio_taper_start/_end`, default 1): each plate ring's radii scaled,
+  the first row's value lerped to the last row's, after the stand-off (`vr_agarmor.cpp` buildShell). The hit tubes follow
+  (they take the grid). Clamped 0.2 .. 3.
+- **Leather** (`leather "0"` on a sleeve part, per side; `vr_armourstudio_leather`, a toggle): that sleeve is not made
+  (`sleeveOf` skipped). Default all on; 1 is not written to the file.
+- **Animations**: the subject plays its model's frame groups (`vr_armourstudio_anim*`, Animation header on the page and in
+  the window: combo, Play/Pause, Speed, Frame scrub). The engine writes the subject's frame; `VR_AGP_Pose` keeps its stand
+  frame unless it is the studio's subject with `vr_armourstudio_anim` on. vrgrunt/vrenforcer/vrknight/vrhknight frames are
+  named "frameN": their names come from soldier/enforcer/knight/hknight.mdl, frame for frame (114 = 114 on the grunt).
+- **Your body in the ImGui window**: with Kind = Player the body clone (`vr_bodyclone.cpp`) is placed for the open window
+  too, 1.4 m ahead and left of the view (`armourstudio::cloneWanted`); the menu page with Kind = Player now counts as a
+  body page (`menu::bodyClonePage`).
+- Tests: `vr_armour_test` 27 passed (new: the thighs' taper 1.3/0.8 on the rings, a left thigh sleeve's leather off, both
+  through the save/load round trip); `vr_armourstudio_window test` 17 passed. Screenshots checked: his grunt vs the
+  generator's, a death knight's thigh taper (side view), a hidden knee leather, the death knight's pain frames with plates,
+  the clone with armour on builds 3 and 1.
+- Open: switching `vr_body_build` 1 -> 3 while the window was open showed no clone in one run (starting on build 3 works);
+  not chased.

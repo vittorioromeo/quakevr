@@ -68,6 +68,9 @@ const Row fieldRows[NumFields] = {
     {"Start Along", &vr_armourstudio_start, -4.f, 4.f, 0.1f, "%.2f"},
     {"End Along", &vr_armourstudio_end, -4.f, 4.f, 0.1f, "%.2f"},
     {"Rows", &vr_armourstudio_rows, 0.f, 8.f, 1.f, "%.0f"},
+    {"Taper Start", &vr_armourstudio_taper_start, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Taper End", &vr_armourstudio_taper_end, 0.5f, 1.5f, 0.02f, "%.3fx"},
+    {"Leather", &vr_armourstudio_leather, 0.f, 1.f, 1.f, "%.0f"},
 };
 constexpr const char* kindLabels[NumKinds] = {"Grunt", "Enforcer", "Knight", "Death Knight", "Player (Your Body)"};
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
@@ -174,6 +177,22 @@ void valueRow(const Row& r, const int field)
     ImGui::PushID(field);
     float v = r.cvar->value;
     win.drawn[field] = v;
+    if(field == Leather)
+    {
+        // (a sleeve's leather: shown or hidden, a checkbox)
+        bool shown = v > 0.5f;
+        if(ImGui::Checkbox("Leather Sleeve Shown", &shown))
+        {
+            Cvar_SetValueQuick(r.cvar, shown ? 1.f : 0.f);
+        }
+        noteSpot("leather");
+        if(ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s: this sleeve part's leather (elbow or knee) drawn, or not at all (leather \"0\" in the file)", r.cvar->name);
+        }
+        ImGui::PopID();
+        return;
+    }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(r.label);
     ImGui::SameLine(96.f);
@@ -288,6 +307,65 @@ void fileValues()
     ImGui::TextDisabled("A model's own entries (kind \"progs/...\") go over the kind's: vr_armour_print lists them.");
 }
 
+// The subject's animations (vr_armourstudio_anim*): which, play / pause, speed, the frame (scrubbed while paused).
+void animRows()
+{
+    const int n = animCount();
+    ImGui::TextWrapped("%s", animStatus());
+    if(n == 0)
+    {
+        ImGui::TextDisabled("Start a kind's subject to play its animations (the player's kind: your own body moves).");
+        return;
+    }
+    bool on = vr_armourstudio_anim.value != 0.f;
+    if(ImGui::Checkbox("Play an Animation", &on))
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_anim, on ? 1.f : 0.f);
+    }
+    noteSpot("anim_on");
+    const int group = cvarIndex(vr_armourstudio_anim_group, 0, n - 1);
+    char preview[48];
+    q_snprintf(preview, sizeof(preview), "%s (%d)", animName(group), animFrames(group));
+    ImGui::SetNextItemWidth(220.f);
+    if(ImGui::BeginCombo("Animation", preview))
+    {
+        for(int i = 0; i < n; i++)
+        {
+            char item[48];
+            q_snprintf(item, sizeof(item), "%s (%d)##%d", animName(i), animFrames(i), i);
+            if(ImGui::Selectable(item, i == group))
+            {
+                Cvar_SetValueQuick(&vr_armourstudio_anim_group, static_cast<float>(i));
+                Cvar_SetValueQuick(&vr_armourstudio_anim, 1.f);
+            }
+        }
+        ImGui::EndCombo();
+    }
+    const bool playing = vr_armourstudio_anim_play.value != 0.f;
+    if(ImGui::Button(playing ? "Pause" : "Play"))
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_anim_play, playing ? 0.f : 1.f);
+        Cvar_SetValueQuick(&vr_armourstudio_anim, 1.f);
+    }
+    noteSpot("anim_play");
+    ImGui::SameLine();
+    float speed = vr_armourstudio_anim_speed.value;
+    ImGui::SetNextItemWidth(160.f);
+    if(ImGui::SliderFloat("Speed", &speed, -2.f, 3.f, "%.2fx"))
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_anim_speed, speed);
+    }
+    int frame = za::clamp(static_cast<int>(vr_armourstudio_anim_frame.value), 0, za::max(animFrames(group) - 1, 0));
+    ImGui::SetNextItemWidth(220.f);
+    if(ImGui::SliderInt("Frame", &frame, 0, za::max(animFrames(group) - 1, 0)))
+    {
+        // (scrubbing pauses it)
+        Cvar_SetValueQuick(&vr_armourstudio_anim_play, 0.f);
+        Cvar_SetValueQuick(&vr_armourstudio_anim, 1.f);
+        Cvar_SetValueQuick(&vr_armourstudio_anim_frame, static_cast<float>(frame));
+    }
+}
+
 void drawWindow()
 {
     win.spotCount = 0;
@@ -371,9 +449,21 @@ void drawWindow()
         {
             ImGui::TextDisabled("Side: one piece (no sides)");
         }
+        const int partNow = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
         for(int f = 0; f < NumFields; f++)
         {
+            // (the plates' rows and tapers: not the helmet's or a sleeve's; leather: the sleeves' alone)
+            const bool plates = partNow != PartHelmet && partNow < PartPauldronSleeve;
+            if((f == Leather && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows || f == TaperStart || f == TaperEnd) && !plates))
+            {
+                continue;
+            }
             valueRow(fieldRows[f], f);
+        }
+
+        if(ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            animRows();
         }
 
         if(ImGui::CollapsingHeader("The file's values (this part)", ImGuiTreeNodeFlags_DefaultOpen))

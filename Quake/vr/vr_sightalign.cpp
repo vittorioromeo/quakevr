@@ -1351,7 +1351,7 @@ int waitDebugFrames = 0; // viewFrame's waiting frames (developer 2 prints one i
 
 void viewFrame(const hands::State& s)
 {
-    // Show Sight Line: each held gun's.
+    // Show Sight Line: each held gun's, in blue (the controller laser is white).
     if(vr_show_sight_line.value)
     {
         for(int hand = 0; hand < 2; hand++)
@@ -1359,7 +1359,7 @@ void viewFrame(const hands::State& s)
             Pose p;
             if(poseOf(s, hand, p))
             {
-                drawLine(p.rear, p.front, {1.f, 1.f, 1.f, 0.8f}, 0.06f, true);
+                drawLine(p.rear, p.front, {0.35f, 0.55f, 1.f, 0.85f}, 0.06f, true);
             }
         }
     }
