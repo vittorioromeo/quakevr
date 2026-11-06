@@ -1808,3 +1808,25 @@ history). An untouched `blend_export.py` of the new .blend writes the model and 
 
 **Checklist line (suggested):** the grunts' burst rifle (pick one up from a dead grunt): the new model, held by its wooden
 grip, the other hand on the barrel's band, the front post level in the rear notch when aimed, the red lamp glowing.
+
+### Round two (his notes on the comparison: blockier than the mockup; the AD guns keep the old rifle; real muzzle holes)
+
+- **The AD rifles keep the old model.** `progs/vr_adrifle_base.mdl` (+ `_0_norm.png`) is the old `v_gruntgun.mdl` byte for
+  byte (cmp against origin/next), with its own source .blend (`src_models/blend/vr_adrifle_base/`, blend_build.py; its
+  untouched export is byte-identical). vr_adgunart.cpp builds the `#adv<n>` variants from it (and stands it in when one
+  can't be made), vr_adguns.cpp's AD-soldier stand-in is it, vr_skinrelief.cpp's rifle map is its map; weapons.txt slots
+  27-30 are origin/next's exactly. Same input bytes, same code: the variants are unchanged. The plain burst rifle
+  (`v_gruntgun.mdl`: the dropped gun, QC's WID_GRUNTGUN, the armed grunts' burst rifle, the tool gun's spawn, gunfx) is the
+  new one.
+- **Shape:** the receiver's front is a heavily chamfered nose block with brass bolt heads (geometry) and an octagonal
+  collar stepping down to the barrel; the grip raked 20 deg, bigger, in a steel frame under the receiver; a thin swept
+  trigger guard loop and a curved trigger; the stock's two parallel rods (the upper from a collar at the receiver's top
+  back) into a tall chamfered butt block (z 3.0-10.4) with a ribbed pad.
+- **Real holes:** the muzzle block's bore (0.49 deep, 8-sided; the muzzle anchor on its bottom, 32.6554 0 8.08, on the
+  model's x grid) and three 6-sided vents through it, cut by Blender's boolean (the float solver: the exact one left the
+  vents uncut), dark inside.
+- **Paint:** warmer gunmetal with broad light/dark patches, wider lighter worn edges, darker recesses, thin scratches;
+  brass rivets with highlights; the red lamp a glowing lens (49 fullbright texels), the bronze one a domed lens; dark
+  window glass in a raised frame; ring grain and pores on the walnut grip.
+- 746 triangles (the holed muzzle block 168 of them). Flat sight check 0.0000; sight_picture: the post seen 0.42 down;
+  `vr_agrunt_test 85` 40/0, `vr_agrunt_test 12` (AD guns) 21/0.

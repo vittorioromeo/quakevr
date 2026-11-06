@@ -2102,7 +2102,7 @@ weapon 21
     hand_z "0.0"
     hide_hand "0.0"
     id "progs/v_gruntgun.mdl"
-    muzzle_av "33.1500 0.0000 8.0800"
+    muzzle_av "32.6554 0.0000 8.0800"
     muzzle_x "0.0"
     muzzle_y "0.0"
     muzzle_z "0.0"
@@ -2180,7 +2180,7 @@ weapon 21
     fx_gfx_wisp_charge "0.15"
     fx_gfx_wisp_alpha "0.26"
     fx_gfx_wisp_barrels "1"
-    fx_gfx_mask "508:AAAAAAAAAAAAAAAAAAAAA8___________________AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "746:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA________________________________________DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 22: progs/v_enfrifle.mdl (vr_wofs_*_23)

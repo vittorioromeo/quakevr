@@ -65,20 +65,25 @@ PART_NAMES = ["steel", "blued", "brass", "wood", "rubber", "rod", "lamp red", "l
 # under the receiver's back, the stock (rods) a little longer than the receiver, the barrel showing between the
 # receiver's front cap and the muzzle block; the butt 5.4 units nearer than the old gun's (the old one was long behind
 # the grip), the grip and the muzzle where they were.
-RECEIVER = (-3.0, 15.0, -2.2, 2.2, 3.6, 10.2)
-HOUSING = (-1.0, 14.2, -1.75, 1.75, 9.9, 11.1)
-CAP = (14.8, 18.8, -1.85, 1.85, 5.0, 10.0)
+RECEIVER = (-3.0, 12.8, -2.2, 2.2, 3.6, 10.2)
+HOUSING = (-1.0, 12.2, -1.75, 1.75, 9.9, 11.1)
+NOSE = (12.4, 15.6, -2.05, 2.05, 4.1, 9.9)          # the receiver's chamfered front block (bolt heads on its sides)
+COLLAR_X, COLLAR_R = 17.2, 1.7                      # the octagonal collar round the barrel, its step down to it
 BLOCK = (27.1, MUZZLE_X, -1.35, 1.35, BORE_Z - 1.35, BORE_Z + 1.35)
+BORE_R, BORE_DEPTH = 0.55, 0.4946                   # the bore (its bottom, the muzzle anchor, on a step of the x grid)
+GRIP_TOP = RECEIVER[4] - 0.9                        # the wooden grip's top, in the steel frame under the receiver
+ROD_TOP_Z, ROD_LOW_Z = 9.3, (4.9, 5.1)              # the stock's rods (the lower one's z at the receiver, at the butt)
+BUTT = (-23.3, -20.9, -1.7, 1.7, 3.0, 10.4)         # the tall butt block (the pad behind it, to x -24.0)
 BAND = (22.0, 23.5)     # the clamp band round the barrel (the other hand's grip: hotspot 1)
 BAND_R = 1.2
 BARREL_R = 0.75
 WINDOW = (2.6, 8.6, 6.6, 8.6)                       # the side window on the left (+y) side: x0, x1, z0, z1
 LAMPS = ((10.9, LAMP_RED), (9.6, LAMP_BRONZE))      # their x on the left side, below and ahead of the window
-LAMP_Z, LAMP_HALF = 5.0, 0.33
-VENTS = (29.7, 30.95, 32.2)                         # the muzzle block's three holes a side (x), radius VENT_R
-VENT_R = 0.42
+LAMP_Z, LAMP_HALF = 5.0, 0.4
+VENTS = (29.6, 30.75, 31.9)                         # the muzzle block's three vents (x), through it, radius VENT_R
+VENT_R = 0.52
 GROOVES_Y = (-0.62, 0.62)                           # the two grooves along the housing's top
-GRIP_TILT = 0.222                                   # the pistol grip leans back (dx/dz)
+GRIP_TILT = 0.36                                    # the pistol grip leans back (dx/dz: 20 deg)
 
 
 def box(bm, b, bevel=0.0):
@@ -121,9 +126,52 @@ class Part:
         self.name, self.part, self.bm = name, part, bm
         bm.normal_update()
         self.planes = [(f.normal.copy(), f.normal.dot(f.calc_center_median())) for f in bm.faces]
+        # (only a closed part hides what is in it: an open one's planes bound no volume)
+        self.closed = all(len(e.link_faces) == 2 for e in bm.edges)
 
     def inside(self, p, eps=0.02):
-        return all(n.dot(p) - d < -eps for n, d in self.planes)
+        return self.closed and all(n.dot(p) - d < -eps for n, d in self.planes)
+
+
+def lathe_x(bm, rings, sides, z=BORE_Z, rot=math.pi / 8):
+    """A surface of revolution about the line y 0, z along x: rings [(x, r)], `sides` facets, open ends."""
+    loops = []
+    for x, r in rings:
+        loops.append([bm.verts.new((x, r * math.cos(rot + 2 * math.pi * k / sides),
+                                    z + r * math.sin(rot + 2 * math.pi * k / sides))) for k in range(sides)])
+    for a, b in zip(loops, loops[1:]):
+        for k in range(sides):
+            bm.faces.new((a[k], a[(k + 1) % sides], b[(k + 1) % sides], b[k]))
+    return loops
+
+
+def sweep(bm, path, half_n, half_y, cap_end=False):
+    """A thin bar along a path in the x-z plane (y 0): a rectangle `half_n` across the path and `half_y` deep at each
+    point (its corners mitred), open at its start (in a part it grows from), capped at its end if asked."""
+    rings = []
+    path = [(x, 0.0, z) for x, z in path]  # ((x, z) points)
+    for i, p in enumerate(path):
+        a = Vector(path[max(0, i - 1)]) if i > 0 else Vector(p)
+        b = Vector(path[min(len(path) - 1, i + 1)]) if i < len(path) - 1 else Vector(p)
+        t = (b - a).normalized()
+        n = Vector((-t.z, 0.0, t.x))  # in the x-z plane, across the path
+        c = Vector(p)
+        rings.append([bm.verts.new(c + n * sn * half_n + Vector((0, sy * half_y, 0)))
+                      for sn, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
+    for a, b in zip(rings, rings[1:]):
+        for k in range(4):
+            bm.faces.new((a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]))
+    if cap_end:
+        bm.faces.new(rings[-1])
+
+
+def bolt_heads(bm, centres, side, r=0.27, h=0.2):
+    """Low pyramids (bolt heads) on a face whose outward normal is +y (side 1) or -y (side -1): centres [(x, y, z)]."""
+    for x, y, z in centres:
+        base = [bm.verts.new((x + dx * r, y - side * 0.03, z + dz * r)) for dx, dz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        tip = bm.verts.new((x, y + side * h, z))
+        for k in range(4):
+            bm.faces.new((base[k], base[(k + 1) % 4], tip))
 
 
 def make_parts():
@@ -135,10 +183,17 @@ def make_parts():
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         parts.append(Part(name, part, bm))
 
+    # The receiver, its raised top, and its front: a heavily chamfered nose block (bolt heads in brass on its sides)
+    # and an octagonal collar round the barrel stepping down to it.
     add("receiver", STEEL, lambda bm: box(bm, RECEIVER, 0.45))
     add("housing", STEEL, lambda bm: box(bm, HOUSING, 0.35))
-    add("cap", STEEL, lambda bm: box(bm, CAP, 0.6))
-    add("barrel", BLUED, lambda bm: prism_x(bm, CAP[1] - 0.3, BLOCK[0] + 0.3, BARREL_R, 8, z=BORE_Z, caps=False,
+    add("nose", STEEL, lambda bm: box(bm, NOSE, 0.85))
+    for s in (1.0, -1.0):
+        add("nose bolts %+d" % s, BRASS, lambda bm, s=s: bolt_heads(
+            bm, [(x, NOSE[3] * s, z) for x in (NOSE[0] + 1.25, NOSE[1] - 1.25) for z in (NOSE[4] + 1.25, NOSE[5] - 1.25)], s))
+    add("collar", STEEL, lambda bm: lathe_x(bm, [(NOSE[1] - 0.3, COLLAR_R), (COLLAR_X, COLLAR_R),
+                                                 (COLLAR_X + 0.75, BARREL_R + 0.22)], 8))
+    add("barrel", BLUED, lambda bm: prism_x(bm, COLLAR_X + 0.5, BLOCK[0] + 0.3, BARREL_R, 8, z=BORE_Z, caps=False,
                                              rot=math.pi / 8))
     add("band", STEEL, lambda bm: prism_x(bm, BAND[0], BAND[1], BAND_R, 8, z=BORE_Z, rot=math.pi / 8))
     bolt_x = 0.5 * (BAND[0] + BAND[1])
@@ -154,30 +209,88 @@ def make_parts():
                                                           RECEIVER[5] + 0.35, SIGHT_Z)))
     add("magazine", STEEL, lambda bm: box(bm, (5.6, 9.4, -1.05, 1.05, -3.0, RECEIVER[4] + 0.25), 0.3))
 
+    # The pistol grip, raked and wood, a little deeper at its foot; the steel frame over it under the receiver's back
+    # (its back sloping with the grip's).
     def grip(bm):
-        box(bm, (-1.65, 1.65, -1.2, 1.2, -3.9, RECEIVER[4] + 0.2), 0.42)
+        box(bm, (-2.0, 2.0, -1.3, 1.3, -4.1, GRIP_TOP), 0.6)
         for v in bm.verts:
+            v.co.x *= 1.0 + 0.1 * (GRIP_TOP - v.co.z) / 7.0
             v.co.x += GRIP_TILT * (v.co.z - 0.2)
     add("grip", WOOD, grip)
-    add("guard bar", STEEL, lambda bm: box(bm, (0.9, 5.4, -0.36, 0.36, 0.0, 0.55)))
-    add("guard post", STEEL, lambda bm: box(bm, (4.75, 5.4, -0.36, 0.36, 0.15, RECEIVER[4] + 0.1)))
 
-    def trigger(bm):
-        box(bm, (2.95, 3.45, -0.2, 0.2, 1.4, RECEIVER[4] + 0.1))
+    def frame(bm):
+        box(bm, (-2.4, 2.9, -1.35, 1.35, GRIP_TOP - 0.6, RECEIVER[4] + 0.2))
         for v in bm.verts:
-            v.co.x += 0.18 * (RECEIVER[4] - v.co.z)  # curled back at its foot
-    add("trigger", BLUED, trigger)
-    add("socket top", STEEL, lambda bm: box(bm, (-4.0, -2.8, -0.9, 0.9, 8.6, 9.9)))
-    add("socket low", STEEL, lambda bm: box(bm, (-4.0, -2.8, -0.9, 0.9, 4.4, 5.7)))
-    # The stock drops a little (its top 2.6 under the sight line at the butt: the cheek's room over it).
-    add("rod top", ROD, lambda bm: rod(bm, Vector((-3.8, 0.0, 9.25)), Vector((-21.7, 0.0, 8.2)), 0.52))
-    add("rod low", ROD, lambda bm: rod(bm, Vector((-3.8, 0.0, 5.05)), Vector((-21.7, 0.0, 3.4)), 0.52))
-    add("butt plate", STEEL, lambda bm: box(bm, (-22.9, -21.5, -1.6, 1.6, 2.1, 9.0), 0.35))
-    add("pad", RUBBER, lambda bm: box(bm, (-24.0, -22.8, -1.48, 1.48, 2.25, 8.85)))
+            if v.co.x < 0.0:
+                v.co.x += GRIP_TILT * (v.co.z - RECEIVER[4])  # its back slopes forward as it goes down
+    add("grip frame", STEEL, frame)
+    # A thin trigger guard loop (from the magazine's back round under the trigger to the grip's front) and the trigger.
+    add("trigger guard", STEEL, lambda bm: sweep(bm, [(5.55, RECEIVER[4] + 0.1), (5.35, 1.2), (4.3, 0.3),
+                                                      (2.6, 0.4), (1.75, 1.6)], 0.17, 0.3))
+    add("trigger", BLUED, lambda bm: sweep(bm, [(3.45, RECEIVER[4] + 0.1), (3.35, 2.3), (3.95, 1.55)],
+                                           0.14, 0.17, cap_end=True))
+
+    # The stock (the reference's): two parallel rods, the upper from a collar at the receiver's top back, the lower
+    # from behind the grip frame, into a tall chamfered butt block with a thin pad.
+    add("socket top", STEEL, lambda bm: prism_x(bm, RECEIVER[0] - 1.3, RECEIVER[0] + 0.2, 0.85, 8, z=ROD_TOP_Z,
+                                                 rot=math.pi / 8))
+    add("socket low", STEEL, lambda bm: prism_x(bm, RECEIVER[0] - 1.1, RECEIVER[0] + 0.2, 0.8, 8, z=ROD_LOW_Z[0],
+                                                 rot=math.pi / 8))
+    add("rod top", ROD, lambda bm: rod(bm, Vector((RECEIVER[0] - 1.1, 0.0, ROD_TOP_Z)),
+                                       Vector((BUTT[1] - 0.2, 0.0, ROD_TOP_Z)), 0.5))
+    add("rod low", ROD, lambda bm: rod(bm, Vector((RECEIVER[0] - 0.9, 0.0, ROD_LOW_Z[0])),
+                                       Vector((BUTT[1] - 0.2, 0.0, ROD_LOW_Z[1])), 0.5))
+    add("butt plate", STEEL, lambda bm: box(bm, BUTT, 0.55))
+    add("pad", RUBBER, lambda bm: box(bm, (-24.0, BUTT[0] + 0.1, BUTT[2] + 0.15, BUTT[3] - 0.15, BUTT[4] + 0.2,
+                                           BUTT[5] - 0.2)))
     for x, part in LAMPS:
         add(PART_NAMES[part], part, lambda bm, x=x: box(bm, (x - LAMP_HALF, x + LAMP_HALF, RECEIVER[3] - 0.1,
-                                                            RECEIVER[3] + 0.22, LAMP_Z - LAMP_HALF, LAMP_Z + LAMP_HALF)))
+                                                            RECEIVER[3] + 0.24, LAMP_Z - LAMP_HALF, LAMP_Z + LAMP_HALF)))
     return parts
+
+
+def carve_holes(objs):
+    """The muzzle block's holes cut for real (Blender's boolean, the float solver: the exact one left the vents uncut): its bore from the front (BORE_DEPTH deep, the
+    muzzle anchor at its bottom) and three vents through it side to side, low-sided, dark inside (details)."""
+    block = next(o for o in objs if o.name == "block")
+    cutters = []
+
+    def cutter(name, verts_fn):
+        bm = bmesh.new()
+        verts_fn(bm)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        me = bpy.data.meshes.new(name)
+        bm.to_mesh(me)
+        bm.free()
+        ob = bpy.data.objects.new(name, me)
+        bpy.context.scene.collection.objects.link(ob)
+        cutters.append(ob)
+
+    cutter("bore cut", lambda bm: prism_x(bm, MUZZLE_X - BORE_DEPTH, MUZZLE_X + 1.0, BORE_R, 8, z=BORE_Z, rot=math.pi / 8))
+    for s in (1.0,):
+        for x in VENTS:
+            def vent(bm, x=x, s=s):
+                vs = prism_x(bm, 0.0, 1.0, VENT_R, 6, rot=math.pi / 6)
+                y0, y1 = BLOCK[2] - 1.0, BLOCK[3] + 1.0  # through the block, side to side
+                for v in vs:  # (its axis along y)
+                    v.co = Vector((x - v.co.y, y0 + v.co.x * (y1 - y0), BORE_Z + v.co.z))
+            cutter("vent cut", vent)
+    bpy.context.view_layer.objects.active = block
+    for c in cutters:
+        m = block.modifiers.new("cut", "BOOLEAN")
+        m.operation = "DIFFERENCE"
+        m.solver = "FLOAT"
+        m.use_hole_tolerant = True
+        m.object = c
+        bpy.ops.object.modifier_apply(modifier=m.name)
+        print("carve %s: %d faces" % (c.name, len(block.data.polygons)), [tuple(round(min(v.co[k] for v in c.data.vertices), 2) for k in range(3)), tuple(round(max(v.co[k] for v in c.data.vertices), 2) for k in range(3))], sum(1 for e in c.data.edges))
+    for c in cutters:
+        bpy.data.objects.remove(c)
+    bm = bmesh.new()
+    bm.from_mesh(block.data)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    bm.to_mesh(block.data)
+    bm.free()
 
 
 def drop_hidden(parts):
@@ -208,16 +321,16 @@ def rgb(*c):
     return Vector(c)
 
 
-GUNMETAL, GUNMETAL_LIGHT = rgb(72, 69, 66), rgb(110, 106, 101)
+GUNMETAL, GUNMETAL_LIGHT = rgb(80, 74, 68), rgb(128, 120, 110)
 BLUED_DARK, BLUED_C = rgb(44, 46, 54), rgb(78, 80, 90)
-ROD_DARK, ROD_C = rgb(76, 76, 78), rgb(124, 122, 120)
+ROD_DARK, ROD_C = rgb(92, 88, 84), rgb(146, 140, 132)
 BRASS_DARK, BRASS_C = rgb(96, 74, 38), rgb(150, 118, 62)
-WOOD_DARK, WOOD_C, WOOD_LIGHT = rgb(50, 30, 18), rgb(88, 54, 30), rgb(114, 72, 40)
+WOOD_DARK, WOOD_C, WOOD_LIGHT = rgb(46, 24, 12), rgb(104, 58, 28), rgb(140, 86, 44)
 RUBBER_C = rgb(30, 28, 27)
 GRIME, RUST = rgb(42, 36, 30), rgb(96, 52, 26)
-EDGE = rgb(150, 150, 148)
+EDGE = rgb(170, 166, 158)
 HOLE = rgb(10, 9, 9)
-LAMP_RED_C, LAMP_BRONZE_C = rgb(255, 40, 24), rgb(176, 120, 52)
+LAMP_RED_C, LAMP_RED_HOT, LAMP_BRONZE_C = rgb(220, 30, 16), rgb(255, 150, 90), rgb(176, 120, 52)
 SKIN_DARKEN = 0.66  # (judged in the game: 0.86 read near white in e1m1's light; the reference's in-game grey)
 
 
@@ -261,62 +374,77 @@ def occlusion(bvh, p, n):
     return 1.0 - hit / len(AO_DIRS)
 
 
+def in_hole(p):
+    """How deep a point of the muzzle block is inside one of its cut holes (0: on the outside)."""
+    return max(MUZZLE_X - p.x if math.hypot(p.y, p.z - BORE_Z) < BORE_R + 0.02 else 0.0,
+               BLOCK[3] - abs(p.y) if any(math.hypot(p.x - x, p.z - BORE_Z) < VENT_R + 0.02 for x in VENTS) else 0.0)
+
+
 def details(p, n, part, name):
-    """Painted details: (colour or None, how much). The holes, grooves, window, rivets."""
-    # The muzzle: the bore and the vents.
+    """Painted details: (colour or None, how much). The holes' insides, grooves, window, rivets, the scratches."""
     if name == "block":
-        if n.x > 0.9 and math.hypot(p.y, p.z - BORE_Z) < 0.55:
-            return HOLE, 1.0
-        if abs(n.y) > 0.9:
-            for x in VENTS:
-                d = math.hypot(p.x - x, p.z - BORE_Z)
-                if d < VENT_R:
-                    return HOLE * (0.6 + 0.6 * d / VENT_R), 1.0
-                if d < VENT_R + 0.12:
-                    return EDGE * 0.8, 0.7
+        d = in_hole(p)
+        if d > 0.03:
+            return HOLE * (1.4 - 0.9 * smooth(0.0, 0.6, d)), 1.0   # dark inside, darkest at the bottom
+        if abs(n.y) > 0.9 and any(VENT_R < math.hypot(p.x - x, p.z - BORE_Z) < VENT_R + 0.14 for x in VENTS):
+            return EDGE * 0.85, 0.6                                # the holes' worn rims
+        if n.x > 0.9 and BORE_R < math.hypot(p.y, p.z - BORE_Z) < BORE_R + 0.14:
+            return EDGE * 0.85, 0.6
     if name == "housing" and n.z > 0.9:
         for y in GROOVES_Y:
             if abs(p.y - y) < 0.17 and HOUSING[0] + 1.4 < p.x < HOUSING[1] - 0.9:
-                return HOLE * 2.2, 1.0
+                return HOLE * 1.6, 1.0
+            if abs(p.y - y) < 0.27 and HOUSING[0] + 1.3 < p.x < HOUSING[1] - 0.8:
+                return EDGE * 0.8, 0.5                             # the grooves' lips
     if name == "receiver" and n.y > 0.9:
         x0, x1, z0, z1 = WINDOW
-        if x0 <= p.x <= x1 and z0 <= p.z <= z1:
+        if x0 - 0.25 <= p.x <= x1 + 0.25 and z0 - 0.25 <= p.z <= z1 + 0.25:
             inner = min(p.x - x0, x1 - p.x, p.z - z0, z1 - p.z)
-            if inner < 0.22:
-                return GRIME * 0.6, 1.0               # the frame's shadowed lip
-            glass = mix(rgb(22, 26, 30), rgb(48, 56, 60), (p.z - z0) / (z1 - z0))
-            return glass, 1.0
+            if inner < 0.0:
+                return EDGE * 0.75, 0.75                           # the frame round it, raised and worn
+            if inner < 0.16:
+                return HOLE * 0.8, 1.0                             # its shadowed lip
+            # Dark glass, one faint reflection across it.
+            t = (p.x - x0) / (x1 - x0) + 0.6 * (p.z - z0) / (z1 - z0)
+            return mix(rgb(10, 12, 14), rgb(40, 46, 50), 0.8 * smooth(0.12, 0.0, abs(t - 0.75))), 1.0
     if name == "magazine" and abs(n.y) > 0.9 and abs(p.x - 7.5) < 0.22 and -2.0 < p.z < 2.8:
-        return HOLE * 2.0, 1.0                        # the slot down its side
-    # Rivets (brass): on the cap's sides, the receiver's sides, the block's post base, the butt plate.
+        return HOLE * 1.6, 1.0                                     # the slot down its side
+    # Rivets (brass), painted with a highlight: the receiver's sides, the post base, the butt block.
     rivets = []
-    if name == "cap" and abs(n.y) > 0.9:
-        rivets = [(x, z) for x in (CAP[0] + 0.95, CAP[1] - 0.95) for z in (CAP[4] + 0.95, CAP[5] - 0.95)]
-    elif name == "receiver" and abs(n.y) > 0.9:
+    if name == "receiver" and abs(n.y) > 0.9:
         rivets = [(RECEIVER[0] + 0.8, 4.4), (RECEIVER[0] + 0.8, 9.4), (RECEIVER[1] - 0.8, 9.4), (1.2, 4.4)]
     elif name == "post base" and abs(n.y) > 0.9:
         rivets = [(0.5 * sum(FRONT_POST_X), BLOCK[5] + 0.15)]
     elif name == "butt plate" and abs(n.y) > 0.9:
-        rivets = [(-22.2, 2.9), (-22.2, 8.2)]
-    elif name == "socket top" and abs(n.y) > 0.9:
-        rivets = [(-3.4, 9.25)]
+        rivets = [(0.5 * (BUTT[0] + BUTT[1]), BUTT[4] + 1.1), (0.5 * (BUTT[0] + BUTT[1]), BUTT[5] - 1.1)]
     for x, z in rivets:
         d = math.hypot(p.x - x, p.z - z)
-        if d < 0.3:
-            return mix(BRASS_C * 1.15, BRASS_DARK, d / 0.3), 1.0
-        if d < 0.4:
-            return GRIME * 0.7, 0.8
+        if d < 0.32:
+            hi = smooth(0.2, 0.0, math.hypot(p.x - x + 0.09, p.z - z - 0.09))
+            return mix(mix(BRASS_C * 1.1, BRASS_DARK, d / 0.32), BRASS_C * 1.6, hi), 1.0
+        if d < 0.44:
+            return GRIME * 0.6, 0.85
     return None, 0.0
+
+
+def scratches(p, n):
+    """Thin light scratches, mostly along the gun (x), sparse: 0..1."""
+    q = Vector((p.x * 0.45, p.y * 5.5, p.z * 5.5)) if abs(n.x) < 0.9 else Vector((p.x * 5.5, p.y * 0.8, p.z * 5.5))
+    line = abs(noise.noise(q + Vector((11.0, 3.0, 7.0))))
+    mask = smooth(0.25, 0.45, noise.noise(p * 0.6 + Vector((2.0, 9.0, 4.0))))
+    return smooth(0.035, 0.0, line) * mask
 
 
 def paint_texel(p, n, part, name, edges, ao, rnd):
     big = noise.noise(p * 0.3)
     mid = noise.noise(p * 1.05 + Vector((3.1, 7.7, 1.3)))
     fine = noise.noise(p * 3.1 + Vector((9.2, 1.4, 5.5)))
-    speck = (rnd - 0.5) * 0.16
+    speck = (rnd - 0.5) * 0.2
     if part == STEEL:
-        col = mix(GUNMETAL, GUNMETAL_LIGHT, 0.4 + 0.22 * mid + 0.14 * fine + speck)
-        col = mix(col, BLUED_C, 0.2 * smooth(0.0, 0.5, big))
+        # Hand-painted gunmetal: broad light and dark patches, a mottle, a blued cast in places.
+        col = mix(GUNMETAL, GUNMETAL_LIGHT, 0.42 + 0.45 * mid + 0.22 * fine + speck)
+        col = mix(col, BLUED_C, 0.1 * smooth(0.0, 0.5, big))
+        col = mix(col, GUNMETAL * 0.7, 0.35 * smooth(0.25, 0.55, -big))
     elif part == BLUED:
         col = mix(BLUED_DARK, BLUED_C, 0.45 + 0.5 * mid + 0.25 * fine + speck)
     elif part == ROD:
@@ -325,43 +453,59 @@ def paint_texel(p, n, part, name, edges, ao, rnd):
         col = mix(ROD_DARK, ROD_C, 0.45 + 0.4 * streak + 0.15 * fine + speck)
         col *= 0.75 + 0.35 * max(0.0, n.z)  # their tops catch the light
     elif part == BRASS:
-        col = mix(BRASS_DARK, BRASS_C, 0.5 + 0.5 * mid + 0.3 * fine)
+        col = mix(BRASS_DARK, BRASS_C * 1.15, 0.55 + 0.45 * mid + 0.3 * fine)
+        col = mix(col, BRASS_C * 1.6, 0.6 * max(0.0, n.z) * smooth(0.0, 0.4, fine + 0.3))  # catching the light
     elif part == WOOD:
-        # Oiled wood, its grain along the grip (up it), darker at the bottom from the hand.
-        g = noise.noise(Vector((p.x * 2.4 + 0.6 * fine, p.y * 2.4, p.z * 0.35)))
-        col = mix(WOOD_DARK, WOOD_C, 0.55 + 0.6 * g + 0.15 * mid + speck)
-        if abs(g) < 0.06:
-            col = mix(col, WOOD_LIGHT, 0.6)
-        col = mix(col, WOOD_DARK, 0.25 * smooth(-1.0, -4.0, p.z))
+        # Oiled walnut: the grain's rings round the grip's axis, stretched up it, wavy; open pores; worn lighter where
+        # the palm rubs, darker at the foot.
+        ax = Vector((p.x - GRIP_TILT * (p.z - 0.2), p.y, p.z))
+        warp = noise.noise(Vector((ax.x * 0.7, ax.y * 0.7, ax.z * 0.18)) + Vector((5.0, 1.0, 2.0)))
+        rings = math.sin((ax.x * 1.9 + ax.y * 0.6 + 2.2 * warp) * math.pi * 2.0)
+        grain = smooth(0.55, 0.95, rings)
+        col = mix(WOOD_C, WOOD_DARK, 0.75 * grain)
+        col = mix(col, WOOD_LIGHT, 0.45 * smooth(-0.95, -0.6, rings) + 0.15 * mid)
+        if rnd < 0.06:
+            col = mix(col, WOOD_DARK * 0.7, 0.7)                  # a pore
+        col = mix(col, WOOD_LIGHT * 1.1, 0.25 * smooth(0.5, 1.0, n.y * n.y) * smooth(-2.5, 0.5, p.z))
+        col = mix(col, WOOD_DARK, 0.3 * smooth(-1.5, -3.8, p.z))
     elif part == RUBBER:
         col = RUBBER_C * (0.9 + 0.25 * fine + speck)
+        if abs(n.x) > 0.9 and (int((p.z - BUTT[4]) * 2.2) % 2 == 0):
+            col *= 0.6                                             # the pad's ribs
     elif part == LAMP_RED:
         lens = max(abs(p.x - LAMPS[0][0]), abs(p.z - LAMP_Z))
-        if n.y > 0.9 and lens < LAMP_HALF - 0.1:
-            return LAMP_RED_C * (1.0 - 0.6 * lens / LAMP_HALF), "lamp glow"
+        if n.y > 0.9 and lens < LAMP_HALF - 0.06:
+            # Glowing: a hot middle, a red rim (fullbright).
+            return mix(LAMP_RED_HOT, LAMP_RED_C, smooth(0.04, LAMP_HALF - 0.08, lens)), "lamp glow"
         col = mix(BRASS_DARK, BRASS_C, 0.5 + 0.5 * fine)
-    else:  # LAMP_BRONZE
-        col = mix(LAMP_BRONZE_C * 0.8, LAMP_BRONZE_C * 1.1, 0.5 + 0.6 * fine)
+    else:  # LAMP_BRONZE: a domed bronze lens with a highlight, in a brass bezel
+        lens = max(abs(p.x - LAMPS[1][0]), abs(p.z - LAMP_Z))
+        if n.y > 0.9 and lens < LAMP_HALF - 0.06:
+            hi = smooth(0.12, 0.0, math.hypot(p.x - LAMPS[1][0] + 0.07, p.z - LAMP_Z - 0.08))
+            col = mix(mix(LAMP_BRONZE_C * 1.1, LAMP_BRONZE_C * 0.6, lens / LAMP_HALF), rgb(230, 200, 140), hi)
+        else:
+            col = mix(BRASS_DARK, BRASS_C, 0.5 + 0.5 * fine)
     region = PART_NAMES[part]
-    # Light grime in the hollows (the occlusion) and low down; a little rust in grime.
-    grime = 0.55 * (1.0 - ao) + 0.12 * smooth(0.2, 0.6, big)
+    # Grime in the recesses (the occlusion), a little rust in the grime.
+    grime = 0.75 * (1.0 - ao) + 0.12 * smooth(0.2, 0.6, big)
     if part not in (WOOD, RUBBER):
         col = mix(col, GRIME, grime)
         if part != BRASS:
-            r = smooth(0.42, 0.62, 0.7 * big + 0.5 * fine) * (0.4 + (1.0 - ao))
+            r = smooth(0.45, 0.65, 0.7 * big + 0.5 * fine) * (0.3 + (1.0 - ao))
             col = mix(col, RUST, 0.45 * r)
+            col = mix(col, EDGE * 0.9, 0.6 * scratches(p, n))
     else:
-        col = mix(col, GRIME, 0.5 * (1.0 - ao))
-    # Worn bright on the convex edges.
+        col = mix(col, GRIME, 0.6 * (1.0 - ao))
+    # Worn bright on the convex edges (wider and lighter on the steel).
     if part not in (RUBBER, LAMP_RED):
         wear = 0.0
         for a, b, convex in edges:
             if convex:
-                wear = max(wear, smooth(0.28, 0.02, seg_dist(p, a, b)))
+                wear = max(wear, smooth(0.36, 0.03, seg_dist(p, a, b)))
         if wear > 0.0:
-            bright = EDGE if part not in (WOOD, BRASS) else (WOOD_LIGHT * 1.1 if part == WOOD else BRASS_C * 1.3)
-            col = mix(col, bright, wear * (0.45 + 0.35 * smooth(-0.3, 0.4, fine)))
-    return col * ao ** 0.35, region
+            bright = EDGE if part not in (WOOD, BRASS) else (WOOD_LIGHT * 1.15 if part == WOOD else BRASS_C * 1.5)
+            col = mix(col, bright, wear * (0.55 + 0.35 * smooth(-0.3, 0.4, fine)))
+    return col * ao ** 0.45, region
 
 
 def bake(objs, w, h):
@@ -506,6 +650,14 @@ def main():
     parts = make_parts()
     drop_hidden(parts)
     objs = to_objects(parts)
+    carve_holes(objs)
+    empty = [o.name for o in objs if not o.data.polygons]
+    if empty:
+        print("parts wholly hidden (dropped): %s" % ", ".join(empty))
+    objs = [o for o in objs if o.data.polygons]
+    for o in objs:
+        if not o.data.uv_layers:
+            o.data.uv_layers.new()
 
     # UVs: one atlas, every corner on a texel's centre (as the MDL stores it).
     bpy.ops.object.select_all(action="DESELECT")
@@ -569,7 +721,7 @@ def main():
     hs1 = (band_mid, apothem * math.cos(a) * 0.999, BORE_Z + apothem * math.sin(a))
     side_r = (2.5, RECEIVER[2], 8.0)  # the receiver's right side, near where the old hand anchor was
     anchors = {
-        "muzzle_av": (MUZZLE_X, 0.0, BORE_Z),
+        "muzzle_av": (MUZZLE_X - BORE_DEPTH, 0.0, BORE_Z),  # the bore's bottom
         "hand_av": side_r,
         "wpnbtn_av": side_r,
         "2h_hand_av": (band_mid, 0.0, BORE_Z - apothem),  # the band's underside

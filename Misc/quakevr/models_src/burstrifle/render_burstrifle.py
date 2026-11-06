@@ -16,7 +16,7 @@ from mathutils import Vector
 
 W, H = 1536, 512
 VIEWS = {  # camera place, where it looks, lens (mm)
-    "first person": (Vector((-31.0, 9.0, 15.5)), Vector((60.0, 4.0, 4.0)), 17.0),
+    "first person": (Vector((-34.0, 9.5, 12.5)), Vector((60.0, -1.0, 5.0)), 15.0),
     "turntable": (Vector((30.0, 88.0, 46.0)), Vector((4.0, 0.0, 3.5)), 52.0),
 }
 
