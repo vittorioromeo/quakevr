@@ -379,6 +379,15 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
 {
+    if(!VR_AG_BlowLands(g, p))
+    {
+        // QVR: outside its arc or its weapon's reach (the shared melee rules: vr_armedgrunt.qc VR_AG_BlowLands): missed.
+        g.vr_ag_strikes = g.vr_ag_strikes + 1;
+        vr_agp_events = vr_agp_events + 1;
+        VR_AG_Log(sprintf("agp: %s blow at %s: outside its arc or reach, missed", p ? p.netname : "a fist's",
+            g.enemy.classname));
+        return;
+    }
     if(vr_agk_on)
     {
         // (the Pose Studio's keys move the blow's line with the pose: its hand's place and turn)
@@ -2796,7 +2805,14 @@ void() VR_AGP_Frame =
     float demo = self.vr_ag_demo && !self.enemy; // (vr_agrunt_strike_demo's: at the air, standing)
     if(!demo)
     {
-        ai_face();
+        if(self.vr_ag_act == VR_AGP_PUNCH || self.vr_ag_act == VR_AGP_SWING || self.vr_ag_act == VR_AGP_SAW)
+        {
+            VR_MeleeArc_Face(); // QVR: a blow's turn after you held (vr_enemy_melee_turn: fight.qc), as other monsters'
+        }
+        else
+        {
+            ai_face();
+        }
     }
     float s = time - self.vr_ag_act_at;
     float sp = VR_AGP_Speed(self); // (slowed: its legs' frames and its step in as slow, as far in all)

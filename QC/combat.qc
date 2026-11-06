@@ -2306,6 +2306,9 @@ float(entity e) VR_Parry_MeleeMonster =
            (e.vr_ad_mon & VR_ADM_MELEE) || e.vr_ad_parried; // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
 };
 
+float vr_parry_count;     // the player's parries so far (T_Damage: VR_Parry's), and the last one's attacker (the tests)
+entity vr_parry_count_by;
+
 // The parry's range from attacker `e` (and its blow's push): a blow struck through the shared rules this frame
 // (fight.qc VR_MeleeBlow and kin: a dragon's tail 250, an armed humanoid's long blade) as far as it reaches, never
 // less than `usual`; any other `usual` (150 units; 110 a shambler's: its lightning comes from itself too).
@@ -3175,6 +3178,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
         return T_DamageImpl(targ, inflictor, attacker, damage, 1);
     }
     float parried = VR_Parry(targ, inflictor, attacker, damage);
+    if(vr_parried)
+    {
+        vr_parry_count = vr_parry_count + 1; // (the tests: vr_meleerules_test.qc)
+        vr_parry_count_by = attacker;
+    }
     // VR: an armed one parries a monster's melee blow on its weapon (vr_armedgrunt_parry.qc): cut, and no pain from it.
     float agp = FALSE;
     float agpPain = 0;

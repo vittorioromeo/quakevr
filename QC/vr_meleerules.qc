@@ -50,5 +50,15 @@ float(entity m) VR_MeleeRule_Reach =
     {
         return VR_EnemyShove_Reach(m) + 16;
     }
+    if(m.vr_ag)
+    {
+        // An armed humanoid's: its weapon's real reach, grown as its blows' (vr_armedgrunt.qc VR_AG_BlowBase).
+        entity os = self;
+        self = m;
+        float r = cvar_hget(cvarh_vr_enemy_melee_arc) ? VR_MeleeArc_Reach(VR_AG_BlowBase(m, m.vr_ag_prop)) :
+                  VR_AG_BlowBase(m, m.vr_ag_prop);
+        self = os;
+        return r;
+    }
     return m.vr_melee_reach;
 };

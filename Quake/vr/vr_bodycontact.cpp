@@ -697,7 +697,11 @@ void meleeArcStatus_f()
 
 void qvr::bodycontact::meleeArcDraw(const glm::vec3& eye)
 {
-    arcDrawn = ArcDrawn{{0, 0, 0, 0}, arcDrawn.frames + (arcShows.count > 0 ? 1 : 0)};
+    if(arcShows.count > 0)
+    {
+        // (the last frame it drew any: kept after Show Melee Arcs goes off)
+        arcDrawn = ArcDrawn{{0, 0, 0, 0}, arcDrawn.frames + 1};
+    }
     for(int i = 0; i < arcShows.count; ++i)
     {
         const int rl = arcShows.rows[i].rule;

@@ -946,6 +946,13 @@ QVR_TUNABLE(vr_agrunt_second_combat_range, "72") // units: with a target in sigh
 QVR_TUNABLE(vr_agrunt_second_combat_time, "2") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
 QVR_TUNABLE(vr_agrunt_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
+QVR_TUNABLE(vr_enemy_melee_ag_reach, "16") // units: an armed humanoid's blow reaches its weapon's real reach (shoulder, arm, weapon length, your body's front) plus this (its lean and step in; never less than 62); the melee arc decides the rest (vr_armedgrunt.qc VR_AG_BlowBase)
+QVR_TUNABLE(vr_agrunt_melee_dmg_fist, "14") // an armed humanoid's punch's damage (before vr_agrunt_damage_scale; all its blows were 20: the six weapons' mean is 20)
+QVR_TUNABLE(vr_agrunt_melee_dmg_axe, "22") // ... its axe's, crowbar's, great axe's blow
+QVR_TUNABLE(vr_agrunt_melee_dmg_sword, "22") // ... its sword's (times vr_sword_damage_mult, as before)
+QVR_TUNABLE(vr_agrunt_melee_dmg_hammer, "26") // ... its hammer's (Mjolnir as a hammer)
+QVR_TUNABLE(vr_agrunt_melee_dmg_chainsaw, "18") // ... its chainsaw's swing
+QVR_TUNABLE(vr_agrunt_melee_dmg_gunbutt, "18") // ... a gun's butt
 QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the part it picked while that part stays reachable (then the best reachable one again: the chest first)
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before

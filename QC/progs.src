@@ -556,6 +556,7 @@ vr_wornpack_test.qc
 vr_ragsmash_test.qc // a ragdoll smashed into a wall: its sound and blood (vr_ragsmash_test)
 vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
+vr_meleerules_test.qc // the shared melee rules' tests (vr_agrunt_test 212, 213)
 vr_armedgrunt_shot_test.qc
 vr_armedgrunt_twohand_test.qc
 vr_armedgrunt_tugpunch_test.qc
