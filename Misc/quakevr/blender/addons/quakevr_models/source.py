@@ -57,6 +57,29 @@ SPECS = {
     # plates closing it), so they follow every edit of the gun.
     "v_shot2.mdl": {"derived": ("make_ssg_open", ("vr_ssg_barrels_on_v_shot2.mdl", "vr_ssg_frame_on_v_shot2.mdl"))},
 }
+# The models whose skins after 0 a generator makes from skin 0 (its code run on the exported model: "post"): the
+# hand's and fingers' blood skins (make_bloody_hands.py), the grenades' unarmed skin (make_grenade_skins.py).
+for _n in ("hand_base", "finger_thumb", "finger_index", "finger_middle", "finger_ring", "finger_pinky"):
+    SPECS[_n + ".mdl"] = {"post": ("make_bloody_hands", "bloody_hands")}
+for _n in ("grenade", "mervup", "proxbomb"):
+    SPECS[_n + ".mdl"] = {"post": ("make_grenade_skins", "grenade_skins")}
+# Models made from another's exported model by a generator's code ("derived", as the super shotgun's open halves): the
+# armed monsters without their own weapon (make_vrgrunt.py), the explosion's molten debris (make_explosion_debris.py).
+for _n, _d in (("soldier", "vrgrunt"), ("enforcer", "vrenforcer"), ("knight", "vrknight"), ("hknight", "vrhknight")):
+    SPECS[_n + ".mdl"] = {"derived": ("make_vrgrunt", (_d + ".mdl",))}
+SPECS["vr_rock1.mdl"] = {"derived": ("make_explosion_debris", ("vr_explosion_debris.mdl",))}
+
+
+def _post_bloody_hands(gen, path, name):
+    gen.process(path, os.path.splitext(name)[0])
+
+
+def _post_grenade_skins(gen, path, name):
+    gain, lift = {n: (g, l) for n, g, l in gen.MODELS}[name]
+    gen.mute(path, gen.SATURATION, gen.BAND_LIGHT, gain, lift)
+
+
+POST = {"bloody_hands": _post_bloody_hands, "grenade_skins": _post_grenade_skins}
 # The hand-made sources (Misc/quakevr/models_src/<gun>/<gun>.blend): their own export_mdl.py beside them writes their
 # files; blend_export.py and export on save run it.
 HANDMADE_SCRIPT = "export_mdl.py"
@@ -526,6 +549,23 @@ def write_weapons_txt(root, changes):
         f.write("\n".join(lines))
 
 
+def key_names(names):
+    """The shape keys' names for the model's frame names, as the import gets them from Blender: an unnamed frame is
+    frame<n>, a name already taken gets .001, .002... (id's player, dog and soldier have unnamed frames; the shambler's
+    are all "From ASE"). The file keeps its own names: the export writes the model's."""
+    seen, out = set(), []
+    for p, n in enumerate(names):
+        n = n or "frame%d" % p
+        if n in seen:
+            k = 1
+            while "%s.%03d" % (n, k) in seen:
+                k += 1
+            n = "%s.%03d" % (n, k)
+        seen.add(n)
+        out.append(n)
+    return out
+
+
 def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, report=print):
     """Exports the source .blend's model. Returns (written paths, data changes {(slot, key): value}). Raises
     SourceError (nothing written) if a check fails."""
@@ -542,7 +582,7 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
     # Frames: one shape key per frame, named and ordered as the model's (QuakeC's $frame lines).
     keys = ob.data.shape_keys
     got = [k.name for k in keys.key_blocks] if keys else []
-    want = old.pose_names()
+    want = key_names(old.pose_names())
     if got != want and not (not got and len(want) == 1):  # (a one-frame model imports without shape keys)
         errors.append("frames: the shape keys are %s; the model's frames are %s (QuakeC numbers them: keep their "
                       "names and order, add frames only as armature actions)" % (got, want))
@@ -635,6 +675,20 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         report("  %d frames appended from actions: %s .. %s (frames %d-%d)" % (
             len(extra), extra[0][0], extra[-1][0], len(want), len(want) + len(extra) - 1))
     data = new.to_bytes()
+    # Skins made from skin 0 by a generator's code (the hands' blood, the grenades' unarmed skin): made again from the
+    # exported skin 0, so they follow its edits (the .blend's own skins after 0 are only shown).
+    if spec.get("post"):
+        gen_name, how = spec["post"]
+        misc_dir = os.path.join(root, "Misc", "quakevr")
+        if misc_dir not in sys.path:
+            sys.path.insert(0, misc_dir)
+        ptmp = os.path.join(tempfile.mkdtemp(prefix="qvr_src_post_"), name)
+        with open(ptmp, "wb") as f:
+            f.write(data)
+        POST[how](importlib.import_module(gen_name), ptmp, name)
+        with open(ptmp, "rb") as f:
+            data = f.read()
+        report("  skins after 0: made from skin 0 by %s.py" % gen_name)
     outs = {name: data}
 
     # The parts.
@@ -681,7 +735,11 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         with open(src, "wb") as f:
             f.write(data)
         gen = importlib.import_module(gen_name)
-        gen.build(src=src, out_dir=dtmp, guarded=False)
+        try:
+            gen.build(src=src, out_dir=dtmp, guarded=False)
+        except (AssertionError, SystemExit, ValueError, IndexError, KeyError) as e:
+            raise SourceError("%s (made from the model by %s.py) failed: %s (its code needs the model's vertex numbers "
+                              "and triangle counts as they were: see that script)" % (", ".join(files), gen_name, e))
         for fn in files:
             with open(os.path.join(dtmp, fn), "rb") as f:
                 outs[fn] = f.read()

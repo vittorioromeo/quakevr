@@ -1,5 +1,5 @@
 # blend_autoexport_test.py -- the Blender half of blend_autoexport_test.sh: the Quake VR Models add-on's export on save
-# (autoexport.py) on a copy of a weapon's source .blend, headless, as Ctrl+S runs it.
+# (autoexport.py) on a copy of a source .blend, headless, as Ctrl+S runs it.
 #
 # Usage: blender -b --factory-startup <copy of v_shot.blend inside the repository> --python
 #            Misc/quakevr/blend_autoexport_test.py -- ok|refuse
@@ -35,6 +35,7 @@ def main(t):
     watched = [os.path.join(progs, f) for f in (name, name + "_0_norm.png")] + \
               [os.path.join(progs, p) for p in source.SPECS.get(name, {}).get("parts", ())] + \
               [os.path.join(root, "quakevr", "data", "weapons.txt")]
+    watched = [p for p in watched[:-1] if os.path.exists(p)] + watched[-1:]  # (a model without a normal map)
     before = {p: os.stat(p).st_mtime_ns for p in watched}
     if mode == "refuse":
         kb = ob.data.shape_keys.key_blocks[1]
