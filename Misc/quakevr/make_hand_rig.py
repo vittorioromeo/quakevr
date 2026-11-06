@@ -57,7 +57,7 @@ import numpy as np
 import genguard
 from mdlgen import HEADER, anorms, read_skins
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "blender", "addons", "quakevr_hand"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "blender", "addons", "quakevr_models"))
 import md5hand  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1263,7 +1263,7 @@ def main():
                 verts.append((v, st))
             t.append(vkey[key])
         tris_out.append((t[0], t[2], t[1]))  # clockwise seen from outside, as Quake's models are drawn
-    # The MD5 files, through the Blender add-on's writer (blender/addons/quakevr_hand/md5hand.py): every number exactly the
+    # The MD5 files, through the Blender add-on's writer (blender/addons/quakevr_models/md5hand.py): every number exactly the
     # float the engine's tables below hold (a vertex's rest place, its weights, the joints at their pivots), so the
     # engine reads back from the files the rig it was built with (vr_handrig.cpp: identical, bit for bit).
     def f(x):

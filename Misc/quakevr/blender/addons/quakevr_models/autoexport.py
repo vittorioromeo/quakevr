@@ -51,9 +51,11 @@ def source_model():
 
 def is_source(blend):
     """A weapon's source .blend: one blend_build.py made (source_model), or a hand-made one (models_src/<gun>/<gun>.blend
-    with its export_mdl.py beside it: blend_export.py runs that)."""
-    from . import source
-    return source_model() is not None or source.handmade_script(blend) is not None
+    with its export_mdl.py beside it: blend_export.py runs that), or a .blend holding the jointed hand or the body
+    (imported, then saved: md5source.py)."""
+    from . import md5source, source
+    return (source_model() is not None or source.handmade_script(blend) is not None or
+            md5source.find()[0] is not None)
 
 
 def export_script(blend):
@@ -216,6 +218,12 @@ def draw_panel(layout):
     p = prefs()
     box = layout.box()
     col = box.column(align=True)
+    blend = bpy.data.filepath
+    if p is None or p.export_on_save:
+        exports = bool(blend) and is_source(blend) and export_script(blend) is not None
+        col.label(text=("Ctrl+S exports it to the game" if exports else
+                        "Saving this .blend exports nothing" if blend else "Not saved yet"),
+                  icon='FILE_TICK' if exports else 'INFO')
     if p:
         col.prop(p, "export_on_save")
     else:

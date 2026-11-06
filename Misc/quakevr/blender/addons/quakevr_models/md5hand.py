@@ -1,5 +1,5 @@
 # md5hand.py -- reads and writes Quake VR's jointed hand (quakevr/progs/hand_rig.md5mesh, .md5anim and the
-# hand_rig_NN_00.lmp skins). Plain Python (no bpy, no numpy): the Blender add-on (quakevr_hand) and the generator
+# hand_rig_NN_00.lmp skins). Plain Python (no bpy, no numpy): the Blender add-on (quakevr_models, hand_blender.py) and the generator
 # (Misc/quakevr/make_hand_rig.py) both write the files through it, so they come out the same.
 #
 # Exact numbers: the engine (Quake/vr/vr_handrig.cpp) reads each vertex's rest place as the weighted mean of its
