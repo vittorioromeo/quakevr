@@ -2108,6 +2108,70 @@ can tweak things easily in flatscreen without opening/closing the quake menu? Yo
 **To try (flat screen):** `bind F7 vr_armourstudio_window`, F7 in a map: Start, pick a part, drag and type values, Save;
 open the menu page and see the same values; F7 again closes it and mouse look comes back.
 
+## Rolled guns: barrel and sights rigid with the hand (branch `agent/rollaim`, 2026-11-06)
+
+His note: with Show Controller Laser on he lined up red (the shots) and green (the barrel) holding the gun level; rolling
+his wrist, they came apart.
+
+- **Cause:** `view::weaponTurn` (vr_view_weapon.cpp) turned a held gun by its angle offsets (Pitch, Yaw, Roll, plus
+  `gunModelPitchBase` 7) by **adding** them to the hand's Euler angles. That is the hand's turn composed with the offsets
+  only while the hand is level: rolled, the pitch offset stayed a world-vertical pitch instead of the hand's (and a Yaw
+  offset went wrong pitched up or down too). The shots (`weapons::shotAngles`) were already composed in the aim frame,
+  so the shots stayed rigid and the drawn barrel, sights, muzzle and hotspots drifted. Worst on guns whose angle offset is
+  far from 0 net of the base pitch (the enforcer's rifle, Pitch 0 with Shot Pitch 7: barrel 2.9 to 6 degrees off its
+  level place in the hand at roll 90; the super shotgun with Yaw 4: 3.4 degrees pitched 30 down, even unrolled).
+- **Fix:** `weaponTurn` composes (`anglesBasis(rot) * anglesBasis({-o.x, o.y, o.z})`), as `idleAttachmentAngles`, the
+  posing code (setupPosingHand's `frame`) and `attachedTurn` already assumed. Its two hand-made copies follow:
+  `twohand::bladeDirection` (vr_twohand.cpp) and the posing floating weapon's inverse (`holdFloating`, vr_view_hands.cpp).
+  The shots are unchanged everywhere; with the hand level (pitch and roll 0) the gun is drawn exactly as before, so
+  tuned Pitch/Yaw/Roll and Shot Pitch/Yaw stay valid (he tuned them level). Pitched up or down, a gun with a Yaw offset is
+  drawn slightly differently (now correctly: rigid).
+- **Sight line:** `sightalign::poseOf` reads the drawn weapon (`view::weaponFrame`), so it was off with the barrel and is
+  rigid with it now.
+- **`vr_aim_check`** prints one more line per armed hand: the shot, the barrel and the sight line in the frame of the hand
+  the gun was drawn from this frame (`drawnAs`; `hands::State::rot` itself is a frame further on while the hand moves),
+  as up/left degrees, with shot-barrel and shot-sight.
+- **Test:** `bash Misc/quakevr/rollaim_test.sh <agent>` (rollaim_check.py): the enforcer's rifle, the super shotgun with
+  Pitch -3, Yaw 4, Roll 12, Shot Pitch 2.5, Yaw -1.5 in the main hand and in the off hand (mirrored), the heavy revolver;
+  controller pitch 0/+40/-30 by roll 0/+-45/+-90; each direction within 0.5 degrees of its level pose's: `rollaim: 12
+  passed, 0 failed` (worst 0.00). With the old Euler sum put back: 6 failed (barrels and sights 2.9 to 3.7 degrees off).
+  AD's guns need AD's own models, not in the test's game: none checked. Other aim tests: npaim 7/0, weaponstudio
+  17/0 (its own 28/0), rvtest 42/4 (the known slow push, push with a shell, live shells' speed, and "a grunt's body":
+  the same 4 with the old code). cup_aim_test.sh fails 0/4 before and after: its `vr_ad_test 98` (the Widowmaker) no
+  longer exists, so no gun is given (a stale test).
+
+**To try (VR):** Show Controller Laser on, any gun (the enforcer's rifle shows it most): red and green stay together as
+you roll your wrist and aim up and down.
+
+### Hands against Show Controller's ghost, and the pose pipeline audited (branch `agent/rollhand`)
+
+His follow-ups: with the wrist upright everything matched the ghost; palm to the floor or the ceiling, the gun and the
+hand came off it ("the hand position itself seems to not match my IRL hand").
+
+- **Measured** (`vr_hand_check`, new, Debug > Reports > Hand Check: each hand's aim frame, drawn weapon and drawn hand
+  entity, turn and place, in the controller's grip frame, the ghost's): with the old `weaponTurn` the drawn **weapon and
+  the drawn hand** were 5.6 to 8.0 degrees off their upright pose at palm down/up (the hand follows: its grasp is fitted
+  to the drawn weapon), melee too (the axe 8.0, a sword in the off hand 7.6). The aim frame (`hands::State::rot`) was
+  rigid all along: the calibration (Gun Angle/Yaw, roll, move) is composed as quaternions (`withHandOffsets`,
+  `calibrate`), the Weapon in Hand and Hand Only offsets and Hand and Weapon Together are composed, the ghost is
+  `grip * anglesBasis(preview offsets)`. So the IRL-hand mismatch was the same bug: fixed by agent/rollaim's
+  `weaponTurn`.
+- **Audit, other Euler sums on hand poses:** one more, fixed: holding a sword's blade with the other hand
+  (`twohand::bladeGripHand`'s holder turn, vr_view_hands.cpp) took the holding hand as `s.rot + fist offsets`; composed
+  now (as the empty hand is drawn). Left as they are (transient, and made for adding): the knock and shake angles added
+  to `s.rot` (pain knock, recoil: `gunLocalTurn` converts the kick for the hand's pose; chainsaw; flat-screen sway).
+  The weapon-frame sums of offsets with offsets (a cup hotspot's angles plus the fist's) don't depend on the hand's pose.
+  No roll or pitch limit on the drawn hand showed in the grid. The held weight's spring (vr_weight.cpp) lags a moving
+  hand by design and its sag pulls towards the world's down (a physical effect: settled, under 0.3 degrees here).
+- **Upright wrist unchanged:** at hand pitch and roll 0 the composed turns equal the old sums exactly; no tuned key
+  changes meaning, no migration.
+- **Test:** `bash Misc/quakevr/handroll_test.sh <agent>` (handroll_check.py): a nonzero calibration on both hands (Gun
+  Angle 30, Gun Yaw 6, roll 10, move 1/-1.5/2; the off hand its own); super shotgun (Pitch -3, Yaw 4, Roll 12) + sword,
+  enforcer's rifle + super shotgun (off, mirrored), axe + empty hand; pitch 0/+40/-30 by roll 0/+-45/+-90; each hand's
+  aim, weapon and hand within 0.5 degrees and 0.3 units of the upright pose (the weight spring's sag off, 30 frames to
+  settle): `handroll: 17 passed, 0 failed` (worst 0.32 degrees, the enforcer's rifle: its spring). With the old
+  `weaponTurn`: 7 passed, 10 failed. rollaim still 12/0.
+
 ## Armour Studio round 2: his tweaks, taper, leather, animations, your body (branch `agent/armourstudio2`)
 
 - **His armour.txt is the default**: his edited file (grunt, enforcer, knight, death knight blocks; 36 parts) copied over
