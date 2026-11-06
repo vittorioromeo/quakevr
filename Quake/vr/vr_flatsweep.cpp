@@ -29,9 +29,13 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
+
+#include <glm/gtc/quaternion.hpp>
 
 #include <cstdio>
 
@@ -706,6 +710,9 @@ struct Walk
     bool haveLast[2]{false, false};
     float gapMost[2]{0.f, 0.f};
     float jumpMost[2]{0.f, 0.f};
+    glm::quat restTurn[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}}; // each drawn hand's turn in the camera's
+    float turnMost[2]{0.f, 0.f};                                                         // frame at rest, and its most off it (deg)
+    float lookLo{1.f};                                                                   // the free hand's least share on the hotspot
     glm::vec3 handLo[2], handHi[2], shLo[2], shHi[2];
     float speedSum{0.f};
     int measured{0};
@@ -760,10 +767,20 @@ void walkFrame()
             continue;
         }
         const glm::vec3 rel = toCam * (k.wrist[h] - pos);
+        glm::vec3 hf, hr, hu;
+        hands::angleVectors(rot, hf, hr, hu);
+        const glm::quat turn = glm::quat_cast(toCam * glm::mat3{hf, hr, hu});
         if(f < walkRestFrames)
         {
             wk.restRel[h] = rel; // (standing: the last of these frames is the rest)
+            wk.restTurn[h] = turn;
             continue;
+        }
+        if(measuring)
+        {
+            const float d = za::clamp(za::abs(glm::dot(turn, wk.restTurn[h])), 0.f, 1.f);
+            wk.turnMost[h] = za::max(wk.turnMost[h], glm::degrees(2.f * za::acos(d)));
+            wk.lookLo = za::min(wk.lookLo, za::max(flatsight::lookShare(HAND_OFF), flatsight::lookShare(HAND_MAIN)));
         }
         if(!measuring)
         {
@@ -811,6 +828,8 @@ void walkFrame()
             wk.label, wk.measured, wk.speedSum / static_cast<float>(wk.measured), wk.gapMost[0], wk.gapMost[1], wk.jumpMost[0],
             wk.jumpMost[1], span(wk.handLo[0], wk.handHi[0]), span(wk.handLo[1], wk.handHi[1]), span(wk.shLo[0], wk.shHi[0]),
             span(wk.shLo[1], wk.shHi[1]));
+        Con_Printf("flatwalkturn: %s hand turn off its rest %.2f %.2f deg, free hand's least look share %.2f\n", wk.label,
+            wk.turnMost[0], wk.turnMost[1], wk.lookLo);
         wk.on = false;
     }
 }
