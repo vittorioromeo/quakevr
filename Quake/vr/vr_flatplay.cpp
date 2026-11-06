@@ -148,7 +148,9 @@ struct FlatKeys
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
 
     float ratio{0.f};       // the crouch's share now: 0 standing .. 1 crouched, eased at vr_flat_crouch_time each way
+    float lin{0.f};         // the ease's even progress, which `ratio` is through crouchShape
     double lastTime{-1e9};  // the frame the ease was last stepped at (the ease steps once a frame)
+    float lastDt{0.f};      // that step's seconds (vr_flat_crouch_trace's allowance)
 
     int crouches{0};        // vr_flatplay_status's counts: a crouch hold started
     int toggles{0};         // F: the flashlight switched
@@ -158,6 +160,43 @@ struct FlatKeys
 };
 
 FlatKeys keyState;
+
+// The crouch's ease (vr_flat_crouch_smooth): the share at even progress x, and back. 1: smoothstep, its steepest 1.5
+// times the even speed, at the middle; 0: even.
+[[nodiscard]] bool crouchSmooth()
+{
+    return vr_flat_crouch_smooth.value != 0.f;
+}
+
+[[nodiscard]] float crouchShape(float x)
+{
+    x = za::clamp(x, 0.f, 1.f);
+    return crouchSmooth() ? x * x * (3.f - 2.f * x) : x;
+}
+
+[[nodiscard]] float crouchUnshape(float y)
+{
+    y = za::clamp(y, 0.f, 1.f);
+    return crouchSmooth() ? 0.5f - std::sin(std::asin(1.f - 2.f * y) / 3.f) : y;
+}
+
+// vr_flat_crouch_trace's run: one line a frame of the drawn eye's and the main hand's height, then the biggest step either
+// took against the most the ease lets the eye move in a frame (the tests' probe: FLATPLAY.md, "Crouching").
+struct CrouchTrace
+{
+    int left{0};          // frames still to print (0: not running)
+    int frames{0};
+    int lastFrame{-1};    // the host frame sampled last (one sample a frame)
+    bool have{false};     // a frame before this one to step from
+    float eye{0.f};       // last frame's heights, world z
+    float hand{0.f};
+    float eyeStep{0.f};   // the biggest step each took
+    float handStep{0.f};
+    float allowed{0.f};   // the most the ease allows the eye a frame, at the frames' own times
+};
+
+CrouchTrace crouchTrace;
+float traceHandZ{0.f}; // poseHands' main hand this frame, world z
 
 // Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
 // plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
@@ -514,8 +553,13 @@ constexpr float stanceFadeTo = 55.f;
         const float back = poseNum(pistol ? vr_flat_pistol_back : vr_flat_stance_back);
         const float in = poseNum(pistol ? vr_flat_pistol_in : vr_flat_stance_in);
         const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
-        return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
-            -(poseNum(vr_flat_gun_down) - lift * upBy) * reach};
+        // (Gun Forward and Gun Down crouched take over from the standing ones by how deep the crouch is, as Gun Out
+        // Crouched does in gunOutAt: vr_flat_gun_ahead_crouch, vr_flat_gun_down_crouch.)
+        const float deep = bodyPose() ? keyState.ratio : 0.f;
+        const float ahead = poseNum(vr_flat_gun_ahead) + (poseNum(vr_flat_gun_ahead_crouch) - poseNum(vr_flat_gun_ahead)) * deep;
+        const float below = poseNum(vr_flat_gun_down) + (poseNum(vr_flat_gun_down_crouch) - poseNum(vr_flat_gun_down)) * deep;
+        return {(ahead - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
+            -(below - lift * upBy) * reach};
     }
     if(otherHolds)
     {
@@ -775,25 +819,37 @@ void pollKeysFlat()
     keyState.keyTime = slow;
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
+    // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
+    // the weapon) is it through crouchShape, which starts and ends gently (vr_flat_crouch_smooth 1).
     double dt = keyState.lastTime > -1e8 ? vr_gametime - keyState.lastTime : 0.0;
     keyState.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
+    keyState.lastDt = static_cast<float>(dt);
     const float want = (ctrl || keyState.cmdHeld) ? 1.f : 0.f;
     if(dt > 0.0)
     {
         const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
-        keyState.ratio += za::clamp(want - keyState.ratio, -step, step);
+        keyState.lin += za::clamp(want - keyState.lin, -step, step);
     }
+    keyState.ratio = crouchShape(keyState.lin);
     // Let go under a low ceiling, he rises only as far as his box lets him: the server keeps his box crouched where the
     // standing one does not fit (the headset's checks: vr_hull.cpp updateCrouch), and his eyes stop flatEyeHeadroom under
     // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
     // His eyes standing are Quake's: cl.viewheight over his origin, 24 over his feet (Quake's player box: mins z -24).
+    // Only a box the world keeps him in caps him: while the key holds him down the box is the lowest one over his own
+    // lowered eyes, its cap always under them, and capping by it dragged the view down in steps of a box (8 units a
+    // frame: the crouch looked instant). localEyeCap says nothing then (-1).
     const float cap = qvr::hull::localEyeCap();
     const float down = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
     if(cap >= 0.f && down > 0.f)
     {
         const float standEye = cl.viewheight + 24.f;
-        keyState.ratio = za::max(keyState.ratio, za::clamp((standEye - cap) / down, 0.f, 1.f));
+        const float least = za::clamp((standEye - cap) / down, 0.f, 1.f);
+        if(keyState.ratio < least)
+        {
+            keyState.ratio = least;
+            keyState.lin = crouchUnshape(least); // (held there: it rises from here, not from where the ease had got to)
+        }
     }
 }
 
@@ -1574,6 +1630,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
     flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z);
+    traceHandZ = s.pos[HAND_MAIN].z;
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
@@ -1908,12 +1965,13 @@ void status_f()
         vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
     // Short lines: the console wraps a long one, and these numbers are meant to be read off it and typed back in.
     Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down):\n"
-               "    held weapon %g %g %g (vr_flat_gun_*)\n"
+               "    held weapon %g %g %g (vr_flat_gun_*), crouched %g %g %g (vr_flat_gun_*_crouch)\n"
                "    an empty hand %g %g %g, a supporting hand %g %g %g (vr_flat_empty_*, vr_flat_support_*)\n"
                "    vr_flat_reach %g times their size; a bigger _down is the lower hand\n"
                "    the drawn view counts as his own eyes while it stands within %g of his head (vr_flat_gun_near),\n"
                "    eased to %g while the ironsight is on (vr_flat_ads_near).\n",
         poseNum(vr_flat_gun_ahead), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out),
+        poseNum(vr_flat_gun_ahead_crouch), poseNum(vr_flat_gun_down_crouch), poseNum(vr_flat_gun_out_crouch),
         poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
         poseNum(vr_flat_empty_out), poseNum(vr_flat_support_fwd), poseNum(vr_flat_support_down),
         poseNum(vr_flat_support_out), za::clamp(vr_flat_reach.value, 0.25f, 3.f), keepNear(),
@@ -2017,6 +2075,56 @@ ModelFov modelFov()
     return f;
 }
 
+void traceCrouch(float eyeZ)
+{
+    CrouchTrace& t = crouchTrace;
+    if(vr_flat_crouch_trace.value <= 0.f)
+    {
+        t = CrouchTrace{};
+        return;
+    }
+    if(t.lastFrame == host_framecount)
+    {
+        return; // one sample a frame
+    }
+    if(t.left <= 0)
+    {
+        t = CrouchTrace{};
+        t.left = static_cast<int>(vr_flat_crouch_trace.value);
+    }
+    t.lastFrame = host_framecount;
+    const float down = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
+    // The most the eye may move a frame: the drop over the crouch's time at the ease's steepest (1.5: smoothstep's).
+    const float steepest = crouchSmooth() ? 1.5f : 1.f;
+    const float allow = down * steepest * keyState.lastDt / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
+    const float eyeStep = t.have ? eyeZ - t.eye : 0.f;
+    const float handStep = t.have ? traceHandZ - t.hand : 0.f;
+    if(t.have)
+    {
+        t.eyeStep = za::max(t.eyeStep, glm::abs(eyeStep));
+        t.handStep = za::max(t.handStep, glm::abs(handStep));
+        t.allowed = za::max(t.allowed, allow);
+    }
+    t.have = true;
+    t.eye = eyeZ;
+    t.hand = traceHandZ;
+    ++t.frames;
+    Con_Printf("flatcrouch: frame %d held %d ratio %.3f eye %.2f (%+.2f) hand %.2f (%+.2f) cap %.1f\n", t.frames,
+        crouchHeld() ? 1 : 0, keyState.ratio, eyeZ, eyeStep, traceHandZ, handStep, qvr::hull::localEyeCap());
+    if(--t.left > 0)
+    {
+        return;
+    }
+    // The verdict: the eye never stepped more than the ease allows (a hundredth over, for rounding), the hand never more
+    // than twice it (the hand also takes the shoulders' and the weapon's crouch offsets, eased with the same share).
+    const bool pass = t.eyeStep <= t.allowed + 0.01f && t.handStep <= 2.f * t.allowed + 0.01f;
+    Con_Printf("flatcrouch: trace done: %d frames, eye step at most %.2f, hand step at most %.2f, the ease allows %.2f a "
+               "frame: %s\n",
+        t.frames, t.eyeStep, t.handStep, t.allowed, pass ? "PASS" : "FAIL");
+    Cvar_SetValueQuick(&vr_flat_crouch_trace, 0.f);
+    t = CrouchTrace{};
+}
+
 } // namespace qvr::flatplay
 
 // view.c's V_CalcRefdef: a flatscreen player holding his crouch (Left Ctrl, +flatcrouch) sees from lower, the same
@@ -2037,6 +2145,7 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+    qvr::flatplay::traceCrouch(vieworg[2]);
 }
 
 // V_CalcRefdef, after VR_FlatViewDrop: dead, the view in the ragdoll's head as the headset's is (vr_death_view 2 or Vomit

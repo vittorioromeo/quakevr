@@ -556,6 +556,9 @@ turn lag 0: the drawn weapon within 0.05 units and degrees of its still place st
 and settling, the shots on the crosshair (`Misc/quakevr/flatplay_lock.py`), the mode per player (`reload: the player reloads ...`).
 `bash Misc/quakevr/flatmove_test.sh <agent>`: the flat-screen crouch's slowing against the headset's, Quake's swimming by look
 and jump in e1m4's deep water, and the water jump out of the start map's pool (`vr_flatmove_test`; FLATPLAY.md, "Swimming").
+`bash Misc/quakevr/flatcrouch_test.sh <agent>`: the flat-screen crouch eases both ways, the eye and the held weapon's hand
+never stepping more in a frame than the ease allows (`vr_flat_crouch_trace`), the full drop and back, and Gun Down Crouched
+moving the crouched hand (FLATPLAY.md, "The crouch's ease").
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

@@ -80,7 +80,8 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 // Flat-screen play's rise from a crouch (vr_flatplay.cpp pollKeysFlat): the highest the local player's eyes may stand
 // over his feet in the box this server gives him -- his crouched box's top less flatEyeHeadroom (8), so the view never
 // rises into a ceiling his box is kept under (updateCrouch, the key let go: standing if it fits, else the tallest crouched
-// box that does, else the one he has: the headset's checks); -1 standing, or no server here (no limit).
+// box that does, else the one he has: the headset's checks); -1 standing, while his crouch key holds him down (that box
+// follows his own lowered eyes and is no ceiling to them), or no server here (no limit).
 [[nodiscard]] float localEyeCap();
 // SV_AirMove (vr_crouch_speed): the stick's most speed `maxspeed` for a client crouched (his eyes from updateCrouch under
 // the tallest crouched box's top: down to vr_crouch_speed_scale of it 8 units under, never over 90% of the stealth AI's

@@ -1829,6 +1829,8 @@ QVR_TUNABLE(vr_flat_gun_out, "1") // the held weapon, hipfire, at a level look: 
 QVR_TUNABLE(vr_flat_gun_out_down, "-4") // Gun Out looking straight down (-30..30): from vr_flat_gun_out at a level look along a smooth curve, the gun in towards the middle
 QVR_TUNABLE(vr_flat_gun_out_up, "-4") // Gun Out looking straight up (-30..30), the same
 QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-30..30), by how deep the crouch is; looking up or down goes from it to their own
+QVR_TUNABLE(vr_flat_gun_down_crouch, "0") // Gun Down crouched (-30..30; positive is lower): vr_flat_gun_down's place while crouched, blended in by how deep the crouch is, as vr_flat_gun_out_crouch is
+QVR_TUNABLE(vr_flat_gun_ahead_crouch, "16.5") // Gun Forward crouched (-30..30): vr_flat_gun_ahead's place while crouched, blended in the same way
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
@@ -1918,6 +1920,7 @@ QVR_TUNABLE(vr_flat_gun_view_up, "0") // the same, the view's up
 
 // Flatscreen > Crouch
 QVR_TUNABLE(vr_flat_crouch_time, "0.25") // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)
+QVR_TUNABLE(vr_flat_crouch_smooth, "1") // the crouch's ease: 1 starts and ends gently (smoothstep: the view, the body, the arms and the weapon all follow it), 0 at an even speed
 QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
 
 // Flatscreen > Looks

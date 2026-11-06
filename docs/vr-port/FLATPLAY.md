@@ -181,6 +181,17 @@ stands and the view rises. Before, the eased crouch came back up whatever the bo
 crouch, is the move's bit now: with the view held down by a kept box, an eased bit would have held the box down for ever.
 While his box is kept crouched he is slowed as crouched. `Misc/quakevr/flatmove_test.sh`, rise.
 
+**The crouch's ease.** The whole crouch -- the drawn view, his head and box, the body, the arms and the weapon -- reads one
+share, `keyState.ratio`: an even progress over `vr_flat_crouch_time` (0.25 s) each way, through smoothstep
+(`vr_flat_crouch_smooth` 1: starts and ends gently, at most 1.5 times the even speed; 0 even). The headroom cap above holds
+only a box the world keeps him in after he lets go: while the key is held the box is the lowest one over his own lowered
+eyes, so its cap (its top less 8) always stood under them, and capping by it pulled the view down a box at a time (7 units
+in a frame, twice: the crouch "instant" in his note). `hull::localEyeCap` answers -1 while the server reads the key held
+(`crouchFlatHeld`). The held weapon's pose has crouched values blended in by the same share, as Gun Out Crouched does:
+**Gun Down Crouched** (`vr_flat_gun_down_crouch`, 0) and **Gun Forward Crouched** (`vr_flat_gun_ahead_crouch`, 16.5).
+`vr_flat_crouch_trace N` (Debug > Tests > Flat Crouch Trace) prints the drawn eye's and the main hand's height for N frames
+and the biggest step each took against what the ease allows; `Misc/quakevr/flatcrouch_test.sh`.
+
 **Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
 looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge
 with room over it lifts him out (Quake's jump out of the water, `WaterJumpTry`). The headset's swimming is the hands': its
