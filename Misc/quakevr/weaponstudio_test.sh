@@ -71,7 +71,10 @@ alignTrio() { awk '{
     printf "%d %.3f %d\n", s, d, w
 }' "$1"; }
 log3=$HERE/scratch/ws_align.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 154; wait25; vr_weaponstudio slot; wait3; vr_wofs_shot_pitch_02; vr_wofs_shot_yaw_02; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; vr_wofs_shot_pitch_02; vr_wofs_shot_yaw_02; impulse 158; wait25; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; impulse 159; wait25; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; vr_wofs_muzzle_reset 1; vr_weaponstudio reset 1; vr_weaponstudio reset 5; vr_weaponstudio reset 10; wait3; vr_wofs_shot_pitch_02; toggleconsole; quit" -Filter "weaponstudio|vr_wofs_shot" > "$log3" 2>&1
+# (The shotgun's shipped Shot Pitch lines its sights up (his of 2026-11-06), so it is put 1 degree off first: the one
+# that was off. weapons.txt's slot 1 value plus 1; the tool's reset puts it back.)
+OFF=$(awk '/^weapon 1$/ { f = 1 } /^weapon 2$/ { f = 0 } f && $1 == "shot_pitch" { gsub(/"/, "", $2); print $2 + 1 }' "$HERE/../../quakevr/data/weapons.txt")
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 154; wait25; vr_weaponstudio slot; wait3; vr_wofs_shot_pitch_02; vr_wofs_shot_yaw_02; vr_wofs_shot_pitch_02 ${OFF:-1}; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; vr_wofs_shot_pitch_02; vr_wofs_shot_yaw_02; impulse 158; wait25; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; impulse 159; wait25; vr_weaponstudio align both; wait5; vr_weaponstudio align both apply; wait5; vr_weaponstudio align both; wait5; vr_wofs_muzzle_reset 1; vr_weaponstudio reset 1; vr_weaponstudio reset 5; vr_weaponstudio reset 10; wait3; vr_wofs_shot_pitch_02; toggleconsole; quit" -Filter "weaponstudio|vr_wofs_shot" > "$log3" 2>&1
 grep -aE "^weaponstudio align: (main hand|slot)" "$log3" | sed 's/^/  /'
 grep -aE '^"vr_wofs_shot_(pitch|yaw)_02" is' "$log3" | sed 's/^/  /'
 triples=$(alignTrio "$log3")
