@@ -115,6 +115,14 @@ bool give(int num, int type, int pieces);
 // Its unbroken pieces now (QC .vr_ar_mask; 0 none, no armour or not a live entity).
 [[nodiscard]] int entityPieces(int num);
 
+// ---- The hand tweaks (quakevr/data/armour.txt: vr_armourdata.hpp) and the Armour Studio (vr_armourstudio.hpp) ----
+// The tweaks changed: each shell made so far whose tweaks are not what it was made with made again, and the armour models
+// with it (made again when next drawn).
+void overridesChanged();
+// The studio's subject (entity `ent`, 0 none): its body drawn `bodyAlpha` see-through (1 as it is), its pieces `pieces` (a
+// mask of Piece bits, 0 none) outlined as vr_agarmor_debug draws them (their sleeves alone if `sleeve`, else their plates).
+void studioView(int ent, float bodyAlpha, int pieces, bool sleeve);
+
 void init(); // the commands (vr_agarmor_info, _check, _rebuild, _set)
 
 } // namespace qvr::agarmor

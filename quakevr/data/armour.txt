@@ -1,0 +1,17 @@
+// quakevr/data/armour.txt -- the armour's hand tweaks: per wearer kind and piece, laid over what the generator makes
+// (Quake/vr/vr_armourdata.hpp, vr_agarmor.cpp; docs/vr-port/ARMOUR_STUDIO.md). Nothing here: the generator's armour exactly.
+// Written by the Armour Studio (Debug > Tools > Armour Studio: Save) or by hand; read again when it changes on disk
+// (vr_armour_watch) or on vr_armour_reload.
+//
+// `kind <name> { <part> { key "value" ... } ... }`. Kinds: grunt, enforcer, knight, death_knight, player (every vrbody
+// build), or a model's path ("progs/vrbody_bare.mdl", over its kind's). Parts: cuirass, helmet, pauldron, bracer, thigh,
+// shin, each limb part's sleeve over its joint (pauldron_sleeve, bracer_sleeve, thigh_sleeve, shin_sleeve). A limb part
+// is both sides, mirrored (the left's values; the right's the mirror image); <part>_l or <part>_r one side's own, over it.
+//   offset   "x y z"   units along the model's forward, left and up (its rest pose)
+//   rotate   "p y r"   degrees about the model's left, up and forward axes, round the piece's middle
+//   scale    "s"       its size round its middle (1 as made)
+//   standoff "u"       units further off the skin (below 0 closer)
+//   start    "u"       units its first row of plates starts further along it (towards the waist, hand or foot)
+//   end      "u"       units its last row ends further along it
+//   rows     "n"       its rows of plates (0 the generator's; the cuirass counts its collar row)
+// (start, end and rows: the cuirass and the limbs' plates; not the helmet or the sleeves)
