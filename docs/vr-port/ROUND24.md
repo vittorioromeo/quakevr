@@ -1530,3 +1530,62 @@ changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt s
 
 **Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
 1.47), then the bead sits on what you hit.
+
+## Every other model's source is a .blend (branch `agent/blendmodels`, 2026-11-06)
+
+The author: "Let's make the '.blend' the source of truth for all weapon models, then we can do the same with other models
+too." Part two, after the weapons.
+
+**Inventory** (`quakevr/progs`: 180 `.mdl`, 10 `.md5mesh`; 68 owned by the weapons' sources). The other 122: 102
+real `.mdl`, 10 md5 meshes and their 10 244-byte `.mdl` stubs. MODELS_IN_BLENDER.md, "Every other model", has the
+groups and what made each: our gear and props (19 generators), the unrigged hand (make_bloody_hands.py's blood skins),
+id's models we ship changed (make_enemyshove, make_voreshove, make_grenade_skins; make_vrgrunt.py's armed models cut
+from them, unguarded until now), shipped as they are (49: id's monsters, gibs, heads, items, projectiles; wpnbutton,
+hand). Not migrated: `vragarmor.mdl` (an atlas on a placeholder quad; the plates are cut by the engine at load), the
+md5 body and hands (below).
+
+**What changed:**
+- 96 new sources under `Misc/quakevr/src_models/blend/<model>/` (42 MB), made by `blend_build.py`; generated.json
+  records their 101 files (and normal maps, full-colour skins) as owned.
+- `source.py`: frames without names, or with one name for all (id's player, dog, soldier; the shambler's "From ASE"),
+  were refused by the frames check (the shape keys get `frame<n>` and `.001` names): `key_names` gives the check
+  Blender's names. `post` specs: skins after 0 made from skin 0 by the generator's code at each export (the hand's
+  and fingers' blood: make_bloody_hands.py `process`; the grenades' unarmed skin: make_grenade_skins.py `mute`).
+  `derived` specs for the armed monsters (soldier, enforcer, knight, hknight write vrgrunt, vrenforcer, vrknight,
+  vrhknight: make_vrgrunt.py's new `build`) and the molten debris (vr_rock1 writes vr_explosion_debris:
+  make_explosion_debris.py's new `build`); a derived generator's failure (vertex numbers it needs) is a refusal.
+- Retired: make_vrgrunt.py, make_explosion_debris.py and taper_hand.py had no guard: they now stop
+  (`genguard.retired`) for owned files. The guarded generators stop by themselves (all files owned) or leave the owned
+  ones (make_flashlight.py still writes its sounds).
+- `blend_autoexport_test.sh`: `BA_MODEL=<model>` tests another source (default v_shot); the .py skips a normal map the
+  model hasn't.
+
+**Proof.** Every source built to a scratch folder and exported (`source.export --out`): 102/102 byte for byte (the
+models, their normal maps, full-colour skins, derived files, the post-made skins). Then for real: built, and each
+exported into the repository's `quakevr/progs` (`blend_export.py`, as export on save): 96/96 ok, `git status
+quakevr/` clean (every file byte for byte, so the game draws the same bytes: a before/after pixel compare would compare
+identical inputs). Every retired generator run (no arguments, then `--force`; `py -3.13` for the numpy ones):
+make_debris, make_crates, make_brains, make_bloody_hands, make_grenade_skins, make_shell, make_enemyshove,
+make_voreshove, make_holster, make_muzzleflash, make_rounds, make_teeth, make_pouch, make_ammo_pouch, make_walltorch,
+make_gadget, make_pauldron, make_vrgrunt, make_explosion_debris stop ("retired"), make_flashlight leaves its two
+files and writes its sounds: `quakevr/`, `Quake/` and generated.json unchanged. Export on save with the game watching
+(`blend_autoexport_test.sh`): v_shot 6/0, `BA_MODEL=soldier` 6/0 (its export writes vrgrunt.mdl too; the game reads
+soldier.mdl again by itself), `BA_MODEL=vrgadget` 6/0 (a one-frame model: the refusal adds a shape key).
+Game tests on the props (low-impact runs): crate_grip 10/0, explosion_debris 13/0, gadget_tap_melee 11/0, flatitems
+8/0; holsterzones 9/4 (the branch's `quakevr/`, `Quake/`, `QC/` are origin/next's byte for byte: not from this
+work, not looked at).
+
+**The md5 models (plan only).**
+- **The jointed hand** (`hand_rig`, `hand_rig_f`): the hand add-on already imports and exports it (bones, weights,
+  skins), byte for byte but the `commandline` line. A source .blend would take: the commandline kept on the
+  armature (then byte for byte); the export also writing `Quake/vr/vr_handrig_data.inc` (make_hand_rig.py's tables
+  compiled into the engine, which measure edits against them: an engine rebuild after a hand edit, or the engine
+  reading the tables from the file instead); the four `.lmp` skins' blood levels made from the clean one as
+  make_hand_rig.py does; the feminine hand a derived file (make_hand_feminine.py's code on the exported hand). About
+  a worker's day; the hand add-on's import and export stay as they are.
+- **The body** (`vrbody*`): make_vrbody.py makes four builds (lean, athletic, brawny, feminine) and their bare
+  variants from one parametric body, and 16 shared TGA skins (armour x damage). A .blend per build would cut that
+  link; the source would be one .blend of the base body with the builds and skins derived by make_vrbody.py's code
+  at export (as the armed monsters are), and the body add-on's export (section 3) kept for the builds. Larger: not
+  started.
+
