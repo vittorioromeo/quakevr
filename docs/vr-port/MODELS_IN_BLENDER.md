@@ -543,6 +543,7 @@ An untouched .blend exports the shipped files byte for byte. The game reads them
 
 The test: `bash Misc/quakevr/blend_autoexport_test.sh <agent> [--idle]` saves a copy headless (a refused save writes
 nothing; a good one exports, and the running game reads v_shot.mdl again; `--idle`: a quiet minute has no reload).
+`BA_MODEL=<model>` before it tests another source the game loads on e1m1 (`soldier`, `vrgadget`).
 
 `Misc/quakevr/blend_build.py v_shot.mdl` made the .blend from the shipped files once. Don't run it again: it starts
 from the files, not from your edits.

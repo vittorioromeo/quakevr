@@ -38,8 +38,12 @@ def main(t):
     watched = [p for p in watched[:-1] if os.path.exists(p)] + watched[-1:]  # (a model without a normal map)
     before = {p: os.stat(p).st_mtime_ns for p in watched}
     if mode == "refuse":
-        kb = ob.data.shape_keys.key_blocks[1]
-        kb.name = kb.name + "x"
+        keys = ob.data.shape_keys
+        if keys is not None and len(keys.key_blocks) > 1:
+            kb = keys.key_blocks[1]
+            kb.name = kb.name + "x"
+        else:  # (a one-frame model has no shape keys: one added is a frame too many)
+            ob.shape_key_add(name="frame_extra", from_mix=False)
     bpy.ops.wm.save_mainfile()
     res = autoexport.wait()
     if not t.check(res is not None, "the save started an export"):
@@ -54,8 +58,10 @@ def main(t):
             len(same), len(watched)))
     else:
         t.check(ok, "the save exported")
-        newer = [os.path.basename(p) for p in watched[:-1] if after[p] != before[p]]
-        t.check(len(newer) == len(watched) - 1, "the game's files written: %s" % ", ".join(newer))
+        # (a generic source keeps its shipped normal map while the model is unchanged: not written again)
+        must = [p for p in watched[:-1] if not (ob.get("qvr_source_blend") and p.endswith("_norm.png"))]
+        newer = [os.path.basename(p) for p in must if after[p] != before[p]]
+        t.check(len(newer) == len(must), "the game's files written: %s" % ", ".join(newer))
 
 
 tally = qvrtest.Tally("blend_autoexport_save")
