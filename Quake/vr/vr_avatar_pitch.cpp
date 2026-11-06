@@ -1,0 +1,331 @@
+// vr_avatar_pitch.cpp -- the body's pitch (vr_avatar_internal.hpp, BodyPitch): one pose state that turns the trunk
+// forward about the top of the neck, eased both ways; solveTorso (vr_avatar.cpp) applies it, the swimming legs
+// (vr_avatar_legs.cpp, swimFoot) trail along it. Its one source today is swimming: fully under water (Quake's
+// waterlevel 3) and not standing on the bottom, the trunk tips forward vr_body_swim_tilt_angle degrees, the legs trailing
+// behind and up (ROUND24.md, "Swimming tilt"). Close to a ledge you can climb out of the water at (the ledge map,
+// vr_ledges.hpp: a lip with water in the drop below it and its top above the water), it straightens again, so that the
+// legs are already under the body when the hands take the ledge (the climbing feet, vr_avatar_climb.cpp, step onto the
+// wall from there). VR and flat-screen play pose the body through the same avatar::pose, so both tilt.
+//
+// Lying down and crawling (BACKLOG.md, "Player lying down and physical crawling") is meant to be a second source: its
+// own target angle (about 90), the same pivot (the head stays where the headset or the flat-screen eye is), the same
+// ease; the legs would lie along the trunk on the floor instead of trailing (solveLeg's target, by BodyPitch::legs).
+// Only the source and the legs' floor are missing; the pivot, the arms (they follow the controllers from wherever the
+// turned chest puts the shoulders) and the ease are this file's.
+
+#include "vr_avatar.hpp"
+#include "vr_avatar_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_engine.hpp"
+#include "vr_geom.hpp"
+#include "vr_ledges.hpp"
+#include "vr_progs.hpp"
+#include "vr_testkit.hpp"
+#include "vr_trace.hpp"
+
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <glm/gtc/quaternion.hpp>
+
+namespace qvr::avatar
+{
+
+namespace detail
+{
+
+BodyPitch bodyPitch;
+
+// A critically damped spring towards `target` (the exact step: no overshoot, any dt): `angle` and its `rate` both
+// continuous, so a target that jumps (under water, out again, a ledge come close) starts and stops the turn smoothly.
+// `easeTime`: seconds to cover 95% of a step.
+void easePitch(float& angle, float& rate, float target, float easeTime, float dt)
+{
+    if(dt <= 0.f)
+    {
+        return;
+    }
+    const float omega = 4.74f / za::max(0.05f, easeTime); // 1 - (1 + x) e^-x = 0.95 at x = 4.74
+    const float x = angle - target;
+    const float temp = (rate + omega * x) * dt;
+    const float decay = za::exp(-omega * dt);
+    rate = (rate - omega * temp) * decay;
+    angle = target + (x + temp) * decay;
+}
+
+float swimPitchTarget(const SwimPitchIn& in)
+{
+    if(!in.on || in.waterlevel < 3 || in.onGround)
+    {
+        return 0.f;
+    }
+    float share = 1.f;
+    if(in.ledgeRange > 0.f && in.ledgeDist >= 0.f)
+    {
+        // Upright within a third of the range, all of the tilt from its end.
+        share = geom::smoothstep(in.ledgeRange * 0.35f, in.ledgeRange, in.ledgeDist);
+    }
+    return CLAMP(0.f, in.angle, 80.f) * share * (1.f - CLAMP(0.f, in.climb, 1.f));
+}
+
+} // namespace detail
+
+namespace
+{
+
+using namespace detail;
+
+constexpr float LEDGE_WATER_BELOW = 40.f; // units under the lip the water may start (higher, the top is out of reach)
+
+[[nodiscard]] bool liquidAt(const glm::vec3& p)
+{
+    if(!cl.worldmodel)
+    {
+        return false;
+    }
+    vec3_t v{p.x, p.y, p.z};
+    return worldtrace::isLiquid(Mod_PointInLeaf(v, cl.worldmodel)->contents);
+}
+
+// The nearest ledge of the world's ledge map (units from `head`, within `range`) you can climb out of the water at: its
+// top out of the water, water in the drop in front of it no more than LEDGE_WATER_BELOW under the lip. -1: none.
+[[nodiscard]] float nearestExitLedge(const glm::vec3& head, float range, glm::vec3* at = nullptr, glm::vec3* out = nullptr)
+{
+    if(range <= 0.f || !progs::localPlayer() || !sv.worldmodel)
+    {
+        return -1.f;
+    }
+    const ledges::Map* m = ledges::of(sv.worldmodel);
+    if(!m)
+    {
+        return -1.f;
+    }
+    za::Vector<int> near;
+    m->nearby(head - glm::vec3{range}, head + glm::vec3{range}, near);
+    float best = -1.f;
+    for(const int i : near)
+    {
+        const ledges::Edge& e = m->edges[static_cast<size_t>(i)];
+        const float t = CLAMP(0.f, glm::dot(head - e.a, e.dir), e.len);
+        const glm::vec3 lip = e.point(t);
+        const float d = glm::distance(head, lip);
+        if(d > range || (best >= 0.f && d >= best))
+        {
+            continue;
+        }
+        const ledges::Sample& sm = m->sampleAt(e, t);
+        if(liquidAt(lip + UP * 2.f - e.out * 2.f))
+        {
+            continue; // the top is under water: no way out there
+        }
+        const glm::vec3 drop = lip + e.out * (sm.dropOut + 4.f);
+        bool water = false;
+        for(float below = 8.f; below <= LEDGE_WATER_BELOW && !water; below += 16.f)
+        {
+            water = liquidAt(drop - UP * below);
+        }
+        if(water)
+        {
+            best = d;
+            if(at)
+            {
+                *at = lip;
+                if(out)
+                {
+                    *out = e.out;
+                }
+            }
+        }
+    }
+    return best;
+}
+
+void bodyPitch_f()
+{
+    const BodyPitch& p = bodyPitch;
+    Con_Printf("body_pitch: angle %.2f target %.2f rate %.2f source %s waterlevel %d ground %d ledge %.1f frames %u\n",
+        p.angle, p.target, p.rate, p.source == PitchSource::Swim ? "swim" : "none", p.waterlevel, p.onGround ? 1 : 0,
+        p.ledgeDist, p.updates);
+    // vr_body_pitch <range>: also the nearest ledge out of the water within that many units of the eyes (finding one).
+    if(Cmd_Argc() >= 2)
+    {
+        const float range = CLAMP(0.f, static_cast<float>(Q_atof(Cmd_Argv(1))), 4096.f);
+        const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+        glm::vec3 at{0.f};
+        glm::vec3 out{0.f};
+        const float d = nearestExitLedge(eye, range, &at, &out);
+        Con_Printf("body_pitch: exit ledge within %.0f: %s %.0f %.0f %.0f (%.0f units), towards the water %.2f %.2f\n", range,
+            d >= 0.f ? "at" : "none", at.x, at.y, at.z, d, out.x, out.y);
+    }
+}
+
+// vr_body_pitch_test: the pose's angle states through the ease and the swimming source, at 72 frames a second (the
+// headset's, the fixed frames'): out of the water, half in, under, on the bottom, by a ledge, holding on, turned off,
+// out again; each start and stop smooth (no frame's turn larger than the fastest the spring makes, the first frame
+// after a change hardly moving). Prints "body_pitch_test: N passed, M failed".
+void bodyPitchTest_f()
+{
+    constexpr const char* NAME = "body_pitch_test";
+    constexpr float DT = 1.f / 72.f;
+    constexpr float ANGLE = 45.f, EASE = 0.8f, RANGE = 64.f;
+    testkit::Tally t;
+    char what[256];
+    float angle = 0.f, rate = 0.f, maxStep = 0.f, firstStep = 0.f, lowest = 0.f;
+    const auto run = [&](const SwimPitchIn& in, float seconds) {
+        maxStep = 0.f;
+        lowest = angle;
+        const int frames = static_cast<int>(seconds * 72.f + 0.5f);
+        for(int f = 0; f < frames; f++)
+        {
+            const float before = angle;
+            easePitch(angle, rate, swimPitchTarget(in), EASE, DT);
+            const float step = za::abs(angle - before);
+            maxStep = za::max(maxStep, step);
+            lowest = za::min(lowest, angle);
+            if(f == 0)
+            {
+                firstStep = step;
+            }
+        }
+    };
+    const auto check = [&](bool ok, const char* fmt, auto... args) {
+        snprintf(what, sizeof(what), fmt, args...);
+        if(t.check(ok, NAME, what))
+        {
+            Con_Printf("%s: PASS %s\n", NAME, what);
+        }
+    };
+    // The fastest a 45-degree step turns at 72 Hz: its peak rate is 45 omega / e (omega 4.74 / EASE), a frame of it.
+    const float fastest = ANGLE * (4.74f / EASE) / 2.71828f * DT * 1.05f;
+    SwimPitchIn in;
+    in.on = true;
+    in.angle = ANGLE;
+    in.ledgeRange = RANGE;
+
+    in.waterlevel = 0;
+    run(in, 2.f);
+    check(angle == 0.f, "dry: angle %.3f (0)", angle);
+    in.waterlevel = 2;
+    run(in, 2.f);
+    check(angle == 0.f, "half under (waterlevel 2): angle %.3f (0)", angle);
+
+    in.waterlevel = 3;
+    run(in, EASE);
+    check(angle >= 0.94f * ANGLE && angle <= ANGLE + 0.01f, "under: after the ease time %.3f (95%% of %.0f)", angle, ANGLE);
+    check(firstStep < 0.25f, "under: the first frame turns %.4f (a smooth start, < 0.25)", firstStep);
+    check(maxStep <= fastest, "under: largest frame step %.3f (<= %.3f)", maxStep, fastest);
+    run(in, 2.f);
+    check(za::abs(angle - ANGLE) < 0.05f, "swimming: angle %.3f (%.0f)", angle, ANGLE);
+
+    in.ledgeDist = 0.2f * RANGE;
+    run(in, 2.f * EASE);
+    check(angle < 0.5f && lowest > -0.5f, "by a ledge (%.0f units): angle %.3f, lowest %.3f (upright, no overshoot)", in.ledgeDist,
+        angle, lowest);
+    in.ledgeDist = 0.675f * RANGE;
+    run(in, 3.f * EASE);
+    check(za::abs(angle - 0.5f * ANGLE) < 1.f, "half the ledge range (%.0f units): angle %.3f (about %.1f)", in.ledgeDist, angle,
+        0.5f * ANGLE);
+    in.ledgeDist = 2.f * RANGE;
+    run(in, 3.f * EASE);
+    check(za::abs(angle - ANGLE) < 0.1f, "past the ledge range: angle %.3f (%.0f)", angle, ANGLE);
+    in.ledgeDist = -1.f;
+
+    in.climb = 1.f;
+    run(in, 3.f * EASE);
+    check(angle < 0.1f, "holding on (climbing): angle %.3f (0)", angle);
+    in.climb = 0.f;
+    run(in, 3.f * EASE);
+    in.onGround = true;
+    run(in, 3.f * EASE);
+    check(angle < 0.1f, "under, standing on the bottom: angle %.3f (0)", angle);
+    in.onGround = false;
+    run(in, 3.f * EASE);
+    in.on = false;
+    run(in, 3.f * EASE);
+    check(angle < 0.1f, "turned off: angle %.3f (0)", angle);
+    in.on = true;
+    run(in, 3.f * EASE);
+
+    in.waterlevel = 2;
+    run(in, EASE);
+    check(angle <= 0.06f * ANGLE && lowest > -0.5f, "out to waterlevel 2: after the ease time %.3f, lowest %.3f", angle, lowest);
+    check(firstStep < 0.25f, "out: the first frame turns %.4f (a smooth start, < 0.25)", firstStep);
+    check(maxStep <= fastest, "out: largest frame step %.3f (<= %.3f)", maxStep, fastest);
+    // In and out every half second (bobbing at the surface): never past the angle, never below upright.
+    float highest = angle;
+    for(int i = 0; i < 6; i++)
+    {
+        in.waterlevel = i % 2 == 0 ? 3 : 2;
+        run(in, 0.5f);
+        highest = za::max(highest, angle);
+        check(maxStep <= fastest && lowest > -0.5f, "bobbing %d: largest step %.3f, lowest %.3f", i, maxStep, lowest);
+    }
+    check(highest <= ANGLE + 0.01f, "bobbing: highest %.3f (<= %.0f)", highest, ANGLE);
+    t.verdict(NAME);
+}
+
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_body_pitch", bodyPitch_f);
+    Cmd_AddCommand("vr_body_pitch_test", bodyPitchTest_f);
+}
+
+namespace detail
+{
+
+glm::mat3 bodyPitchTurn(const Body& b, float share)
+{
+    const float angle = bodyPitch.angle * share;
+    if(angle == 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    return glm::mat3_cast(glm::angleAxis(glm::radians(angle), b.left));
+}
+
+void updateBodyPitch(const hands::State& s, float dt)
+{
+    BodyPitch& p = bodyPitch;
+    p.updates++;
+    // Fully under water: Quake's own waterlevel (the eyes under) and ground, from the server's player; a client of
+    // another server: the eyes in a liquid, off the ground as the client knows it.
+    if(const edict_t* pl = progs::localPlayer())
+    {
+        p.waterlevel = static_cast<int>(pl->v.waterlevel);
+        p.onGround = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    }
+    else
+    {
+        p.waterlevel = liquidAt(s.head) ? 3 : 0;
+        p.onGround = cl.onground;
+    }
+
+    SwimPitchIn in;
+    in.on = vr_body_swim_tilt.value != 0.f;
+    in.waterlevel = p.waterlevel;
+    in.onGround = p.onGround;
+    in.angle = vr_body_swim_tilt_angle.value;
+    in.ledgeRange = za::max(0.f, vr_body_swim_tilt_ledge.value);
+    in.climb = climbing.weight;
+    const bool swimming = in.on && in.waterlevel >= 3 && !in.onGround;
+    p.ledgeDist = swimming ? nearestExitLedge(s.head, in.ledgeRange) : -1.f;
+    in.ledgeDist = p.ledgeDist;
+
+    p.target = swimPitchTarget(in);
+    p.source = swimming ? PitchSource::Swim : PitchSource::None;
+    p.easeTime = CLAMP(0.1f, vr_body_swim_tilt_time.value, 3.f);
+    p.legs = 1.f;
+    easePitch(p.angle, p.rate, p.target, p.easeTime, dt);
+    if(p.target == 0.f && za::abs(p.angle) < 0.01f && za::abs(p.rate) < 0.01f)
+    {
+        p.angle = p.rate = 0.f; // settled upright: exactly as without it
+    }
+}
+
+} // namespace detail
+
+} // namespace qvr::avatar

@@ -2196,6 +2196,41 @@ hand came off it ("the hand position itself seems to not match my IRL hand").
 - Open: switching `vr_body_build` 1 -> 3 while the window was open showed no clone in one run (starting on build 3 works);
   not chased.
 
+## Swimming tilt: the body's pitch (branch `agent/swimtilt`, 2026-11-06)
+
+His request: fully under water the body leans about 45 degrees forward, the legs trailing behind and up, easing both
+ways; straightening near a ledge you can climb out at, so the legs are under you when the hands take it.
+
+- **One pose state, `BodyPitch`** (`vr_avatar_internal.hpp`, new `vr_avatar_pitch.cpp`): the trunk (pelvis, spine,
+  chest) turned `angle` degrees forward about the top of the neck, at the end of `solveTorso` (`vr_avatar.cpp`): the head
+  stays at the headset's (or the flat-screen eye's) place; the arms solve from the turned shoulders to the controllers;
+  the legs hang from the turned hips and, swimming, trail along the trunk (`swimFoot`: the trail and the kicks' plane
+  turned with it, the stick's own trail halved at 60 degrees; the knees point along the body's tilted front). Every
+  `avatar::torso()` user (holsters, flashlight, self-collision) sees the turned chest. VR and flat-screen both pose the
+  body through `avatar::pose` (`vr_view_body.cpp`), so both tilt, no fork.
+- **The ease**: a critically damped spring (exact step, any dt): angle and rate continuous, no overshoot; the ease time is
+  the 95% time. Settled upright it snaps to exactly 0 (out of water the pose is bit-identical to before).
+- **Swimming, the one source today**: target `vr_body_swim_tilt_angle` when the local player's `waterlevel` is 3 and he
+  is not on the ground (`progs::localPlayer()`; a client of another server: the eyes in a liquid, `cl.onground`).
+  **Waterlevel 2 (head out, treading water at the surface) stays upright**, as do standing on the bottom (waterlevel 3,
+  `FL_ONGROUND`: walking on a pool's floor) and holding a hold (times `1 - climbing.weight`). Bobbing at the surface
+  (3, 2, 3, ...) only blends partway: the spring keeps it smooth.
+- **Ledges**: the world's ledge map (`vr_ledges.hpp`, climbing's) near the eyes: a lip whose top is out of the water with
+  water in its drop within 40 units under the lip is a way out; within `vr_body_swim_tilt_ledge` units (3D) the target
+  falls off (smoothstep, upright inside a third of it), so the tilt is gone before the hands reach the lip and the
+  climbing feet (`vr_avatar_climb.cpp`) start from legs under the body. Brush models' and props' ledges are not looked at.
+- **Tunables** (Body page, after the swimming kicks): `vr_body_swim_tilt` 1 (Lean Forward Under Water),
+  `vr_body_swim_tilt_angle` 45 (0 .. 80), `vr_body_swim_tilt_time` 0.8 s (0.1 .. 3), `vr_body_swim_tilt_ledge` 64 units
+  (0: never straightens).
+- **Debug** (Debug menu): `vr_body_pitch` (the state now; `vr_body_pitch <range>`: the nearest way out too) and
+  `vr_body_pitch_test` (the self-test).
+- **Lying down and crawling** (BACKLOG.md) plugs in as a second `PitchSource`: its own target (about 90), the same pivot
+  (the head stays at the headset) and ease, `BodyPitch::legs` for the legs (prone: on the floor along the trunk, a
+  target in `solveLeg` instead of `swimFoot`'s trail). Missing for it: the source (when he lies down) and the legs' floor.
+- Tests: `vr_body_pitch_test` 22 passed; `swimtilt_test.py` 12 passed (VR mock and flat-screen; screenshots checked:
+  upright, easing in, 45 with the legs trailing, near the ledge, surface, the water jump out); handroll 17, ghost body 4,
+  bodytrack_solve 240, flatmove 10 passed. Unverified: climbing out with the hands in VR (the mock run uses Quake's water
+  jump), and how 45 degrees feels with real head motion.
 ## Texturing as fast as modelling (branch `agent/texflow`, 2026-11-06)
 
 - **What:** the add-on's panel has a **Texturing** box (texflow.py: Blender side; texgen.py: numpy pixel work, no

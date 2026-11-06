@@ -247,6 +247,8 @@ without leaning, chosen automatically from the seated calibration (vr_setup seat
   the other models are left.
 - **glTF (.glb) for the hand and body models, after 1.1** (Vittorio, 2026-11-03): so modellers can work in Blender with no add-on. A small parser (cgltf; ask before downloading) fills the structure the MD5 loader fills; MD5 stays as the fallback; a .glb loads only when present; vr_hand_reload and vr_model_reload read it. Watch: Y-up metres to Z-up Quake units, seams split, 4 weights, bone rest pose and roll against the engine's axis convention, a simple material rule (one base colour texture), skins' damage and armour variants stay separate files. Bone names and grip fits still apply. Weapons and other .mdl models stay out: frame numbers in QuakeC, triangle-keyed masks and anchors.
 - **Player lying down and physical crawling** (Vittorio, 2026-11-03): the player can lie down and crawl by moving their body and arms.
+  The body's pitch (`vr_avatar_pitch.cpp`, `BodyPitch`; ROUND24.md, "Swimming tilt") is the pose state to reuse: a second
+  source with its own target (about 90), the same pivot (the head stays at the headset) and ease; the legs on the floor.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
