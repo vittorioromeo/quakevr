@@ -74,6 +74,8 @@ void frame();
 // Whether the crouch key (Left Ctrl, +flatcrouch) is held now: the move's word for the server (protocol::moveFlatCrouchBit),
 // which keeps his box crouched under a low ceiling after it is let go (vr_hull.cpp updateCrouch). False outside the mode.
 [[nodiscard]] bool crouchHeld();
+// vr_flat_crouch_trace's sample, once a frame from VR_FlatViewDrop with the drawn eye's height (world z).
+void traceCrouch(float eyeZ);
 
 // The model FOV (vr_flat_model_fov, docs/vr-port/FLATPLAY.md): the player's own models and what leaves them drawn as if at
 // their own field of view, whatever the world's. View-space x and y are scaled round the view axis by

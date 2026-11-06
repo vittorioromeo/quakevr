@@ -4967,7 +4967,10 @@ bool isCrouched(const edict_t* ent)
 
 float localEyeCap()
 {
-    if(!sv.active || !sv.worldmodel)
+    // (Nothing while his crouch key holds him down: that box is the lowest one over his own lowered eyes, chosen by them,
+    // so it is no ceiling to them -- capped by it, the view was dragged down a box at a time, 7 units a frame. Only a box
+    // the world keeps him in after he lets go caps the view's rise.)
+    if(!sv.active || !sv.worldmodel || crouchFlatHeld[1])
     {
         return -1.f;
     }

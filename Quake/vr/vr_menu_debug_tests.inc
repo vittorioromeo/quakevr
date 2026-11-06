@@ -642,6 +642,10 @@ za::Vector<Item> pageDebugTests()
         command("Flat Ledges", "vr_flatmove_test 9")
             .help("vr_flatmove_test 9 (-flatscreenmode only, floating at the surface): the spots within 512 units where "
                   "Quake's jump out of the water lifts you, with the yaw that faces the ledge (flatmove: ledge lines)."),
+        command("Flat Crouch Trace", "vr_flat_crouch_trace 90; +flatcrouch; wait40; -flatcrouch")
+            .help("vr_flat_crouch_trace 90 (-flatscreenmode only): crouches 40 frames and stands, printing the view's and "
+                  "the main hand's height each frame, then the biggest step either took against what Crouch Time and "
+                  "Crouch Ease allow (flatcrouch: lines, PASS or FAIL)."),
         command("Flat Keys", "vr_flatkeys_test 1")
             .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
                    "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "

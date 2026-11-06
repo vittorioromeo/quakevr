@@ -1875,3 +1875,30 @@ His ask: .blend as the source of truth for every model, a simpler workflow, one 
   from Blender takes it away.
 - `vr_edit_in_blender hand_rig` imports the hand into Blender; saved as src_models/blend/hand_rig/hand_rig.blend, a
   Ctrl+S after an edit changes your hand in game.
+
+## Flat-screen crouch: an eased transition, crouched gun offsets (branch `agent/flatcrouch`, 2026-11-06)
+
+His notes: "Going from uncrouched to crouched is instant, I would like a short visual transition (tweakable)", and
+tunables for the crouch weapon pose's up/down offsets, blended as the existing ones are.
+
+**What was instant.** The ease itself (`vr_flat_crouch_time` 0.25 s) was fine; the headroom cap from the uncrouch fix
+(`hull::localEyeCap`, applied in `pollKeysFlat`) was not. While the key is held the server gives him the lowest crouched box
+over his own lowered eyes (levels 36 / 44 / 52), so the cap (that box's top less 8) always stood under his eyes, and each
+frame it pulled the eased crouch down to it: measured with the new trace, the eye fell 2, 1, **7**, 1.5, **6.5** units in
+five frames and was fully down in 5 frames (0.07 s) instead of 18. Going up was already eased. Fix: `localEyeCap` answers -1
+while the server reads the key held (`crouchFlatHeld`); after he lets go the cap holds his rise under a kept box as before.
+The ease now goes through smoothstep (`vr_flat_crouch_smooth` 1, new; 0 even), on a linear progress (`keyState.lin`) the
+cap sets back through the inverse when it holds him. View, head, box, body, arms and weapon all read the one share.
+
+**Crouched gun offsets.** `vr_flat_gun_down_crouch` (0) and `vr_flat_gun_ahead_crouch` (16.5): Gun Down and Gun Forward's
+values crouched, blended in by the crouch's share as `vr_flat_gun_out_crouch` is (Debug > Tunables, after Gun Out
+Crouched). Defaults are the standing ones: nothing moves until he tunes them. `vr_flatplay_status` prints them.
+
+**Probe and test.** `vr_flat_crouch_trace N` (Debug > Tests > Flat Crouch Trace): N frames of the drawn eye's and the main
+hand's height, then the biggest step against what the ease allows (`flatcrouch: trace done ... PASS`).
+`Misc/quakevr/flatcrouch_test.sh`: shotgun held, 40 frames crouched and let go: eye step at most 1.49 (allowed 1.50), hand
+1.84, 18 down and back; Gun Down Crouched -6 lifts the crouched hand 5.8.
+
+**To try (flat screen):** tap and hold Left Ctrl: the view, arms and gun should sink and rise over a quarter second with
+soft ends; Crouch Time and Crouch Ease (Debug > Tunables) change it; Gun Down Crouched / Gun Forward Crouched move the gun
+while crouched only. The low-ceiling cases (vrteleporters' crouch room) should still hold him down.
