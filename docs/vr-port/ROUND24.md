@@ -2274,4 +2274,21 @@ Controller + Controller Laser on ... gun, hand, ghost and lines stay together (a
 Studio, sights: `vr_weaponstudio align both` ...". Kept (more than sights in them): "Shotgun top cleaned up" (texture),
 "The grunts' burst rifle is a new model" (the model as a whole).
 
-TESTS_HERE
+**Tests.** The agents' test baseline config is a full one (vr_wofs_version 43, every weapon value written), which pins
+the old values: the tests were run on a copy of it without its 8320 weapon lines (as a fresh config, or his once his
+lines equal the defaults), before (origin/next's weapons.txt) and after:
+- rollaim 12/0, handroll 17/0, npaim 7/0 (after); rvtest 42/4, the 4 known (slow push, push with a shell, live shells'
+  speed, a grunt's body).
+- weaponstudio: 17/0 before, 16/1 after: its aligner check needed a sight that was off, and the shotgun's was the one
+  (0.79 deg); his Shot Pitch -2.83 lines it up (0.00). weaponstudio_test.sh now puts the shotgun's Shot Pitch 1 degree
+  off weapons.txt's first (the tool writes it back to 0.00): 17/0.
+- flatsight: 12/0 before, 11/1 after: "the wall: the weapon goes back", KNOWN short of 2 at relief 4, now 0.53 units
+  (accepted 0.6 on 2026-11-06). Not accepted here: for him to judge.
+- flatsweep: 4 failed before (the long gun's forearm in the torso, ads), 15 failed after (383 passed both): the long
+  gun's forearm in the torso also from the hip (2.08 / 2.25, listed 1.77 / 1.90) and up to 3.70 ads (listed 3.29), its
+  hand in the head ads at pitch -25 (0.87, listed 0.77; five rows), the pistol's gun and hand in the torso at pitch 85
+  (1.78, 1.14, 2.79; listed 1.68, 0.89, 2.53). His grips sit the flat body's arms a little deeper; flatsweep_known.txt
+  not changed (report, don't accept).
+
+**To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
+weapons sit and aim as he left them.
