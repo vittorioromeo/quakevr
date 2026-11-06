@@ -697,6 +697,11 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
                 {
                     continue;
                 }
+                // (past a forearm's or a shin's last row: a humanoid's hand and foot, bare on purpose (his notes, 2026-11-06))
+                if(lower && along > tb.grid.hBottom + 0.2f)
+                {
+                    continue;
+                }
             }
             total++;
             const glm::vec3 o = lookSkin(pose, w, at(s.body.p, v), 1.f);
@@ -756,6 +761,12 @@ void lookFit(const Shell& s, const rig2::Rig& rig, bool skipUpperArms, LookFit& 
                 // Ring r: the skin's slice through it (the piece's triangles' edges crossing its plane), against the plates' feet on it.
                 const float h = g.hAt(r);
                 float bLo = 1e9f, bHi = -1e9f, pLo = 1e9f, pHi = -1e9f;
+                // (where the region's slice is a sliver, the skin weighing on it less: an enforcer's forearm half way down weighs on
+                // the upper arm and the hand too, its slice there one edge 0.2 units long against an arm 7.6 across)
+                for(float cut = 0.5f; cut > 0.2f && bHi - bLo < 1.f; cut -= 0.2f)
+                {
+                bLo = 1e9f;
+                bHi = -1e9f;
                 for(int k = 0; k + 2 < count(s.body.tris); k += 3)
                 {
                     float region = 0.f;
@@ -766,7 +777,7 @@ void lookFit(const Shell& s, const rig2::Rig& rig, bool skipUpperArms, LookFit& 
                             region += ((bones >> static_cast<unsigned>(b)) & 1u) ? at(s.body.w, at(s.body.tris, k + e)).w[b] / 3.f : 0.f;
                         }
                     }
-                    if(region < 0.5f)
+                    if(region < cut)
                     {
                         continue;
                     }
@@ -781,6 +792,7 @@ void lookFit(const Shell& s, const rig2::Rig& rig, bool skipUpperArms, LookFit& 
                             bHi = za::max(bHi, across);
                         }
                     }
+                }
                 }
                 // (each plate's foot: its underside, the last four of its vertices)
                 for(int p = 0; p < za::min(plates, g.rows * g.cols); p++)

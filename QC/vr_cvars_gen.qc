@@ -768,6 +768,8 @@ float cvarh_vr_dummy_type;
 float cvarh_vr_embed;
 float cvarh_vr_embed_arm_letgo;
 float cvarh_vr_embed_arm_stretch_ease;
+float cvarh_vr_embed_cuton;
+float cvarh_vr_embed_cuton_fling;
 float cvarh_vr_embed_drag_slack;
 float cvarh_vr_embed_enter_time;
 float cvarh_vr_embed_free_ease;
@@ -2681,6 +2683,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_embed = VR_CVar_Make("vr_embed");
     cvarh_vr_embed_arm_letgo = VR_CVar_Make("vr_embed_arm_letgo");
     cvarh_vr_embed_arm_stretch_ease = VR_CVar_Make("vr_embed_arm_stretch_ease");
+    cvarh_vr_embed_cuton = VR_CVar_Make("vr_embed_cuton");
+    cvarh_vr_embed_cuton_fling = VR_CVar_Make("vr_embed_cuton_fling");
     cvarh_vr_embed_drag_slack = VR_CVar_Make("vr_embed_drag_slack");
     cvarh_vr_embed_enter_time = VR_CVar_Make("vr_embed_enter_time");
     cvarh_vr_embed_free_ease = VR_CVar_Make("vr_embed_free_ease");

@@ -375,7 +375,8 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
         string m = limbmodel(e, xBone);
         if(m != "")
         {
-            VR_Limb_Throw(e, m, xBone, mid, ragdollcut(e, 1), ragdollcut(e, 2), ragdollcut(e, 3));
+            entity piece = VR_Limb_Throw(e, m, xBone, mid, ragdollcut(e, 1), ragdollcut(e, 2), ragdollcut(e, 3));
+            VR_Skewer_CutOn(piece, e, by, xHow, ragdollcut(e, 4, xBone)); // (on the blade that cut it: vr_skewer.qc)
         }
         vr_limb_cuts++;
         VR_GoreSnd_Tear(e, ragdollcut(e, 4, xBone)); // (the rip and the bone's crack: vr_decap.qc)

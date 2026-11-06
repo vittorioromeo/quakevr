@@ -106,6 +106,58 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
     1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
     wearer (24 failures): the look check is what guards the sleeves.
 
+## Armour round five: his annotated screenshots (branch `agent/armor5`, partial)
+
+His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fillRadii`, `mirrorRadii`, `sleeveOf`, `buildShell`), humanoids only
+(the player's plates unchanged: `PieceFrame::ends` is false on the skeletal bodies).
+
+- **Hands and feet bare:** the humanoids' hand and foot skin weighs on the forearm and the shin far past the wrist and ankle (grunt shin region
+  to 14.0 on an 8.7 bone, forearm to 9.8 on 7.0), so plates covered the hands and wrapped the feet below the sole. Now a forearm's rows end
+  `plateWristAbove` 0.9 short of its bone's end, a shin's `plateAnkleAbove` 0.6; the limb's own vertices more than 0.3 past its rows no longer
+  push its end rows out (the joint end of an upper arm or thigh 1.0). The look check's coverage skips skin past a forearm's or shin's last
+  row (+0.2).
+- **Slimmer:** `plateRidgeLimb` 0.5 on forearms and shins, `plateRidgeThigh` 0.8 (was 1.1; pauldrons and cuirass keep 1.1). A thigh's rows
+  start by `plateHipFrom` 0.12 of its bone at the latest; its rings above its region (an enforcer's and a death knight's thighs weigh on
+  it only near the knee) take the whole skin's exit (`bodyExit`) instead of the next ring's radius. Death knight thigh rows 3.2..5.9 -> 0.9..5.9.
+- **Shoulders symmetric:** `mirrorRadii` modes: the player's as before; a humanoid's upper arms always mirrored, half way where they differ
+  (death knight top ring 4.6 / 1.6 -> 3.1 both); a humanoid's other limbs corner by corner (alike: the larger; else each its own; mirroring
+  everything half way sank a knight's and an enforcer's forearm plates into the skin: coverage 0.47 / 0.67).
+- **Sleeves:** `sleevePast` 0.8 -> 0.3 (the two halves overlapped); a humanoid's rings eased round (each corner half itself, a quarter each
+  neighbour, within 0.85..1.25 of the ring's mean, never more than 0.3 in), its per-vertex push `sleeveRidgeHumanoid` 1.6 (the slimmer end
+  rows no longer cover the knee's and elbow's points: the sleeve does).
+- **Numbers:** world mirror distance (left's outer face against the right's mirrored about y 0, `vr_agarmor_info <model>`), before -> after:
+  grunt upper arms 2.02/1.85 -> 1.75/1.62; death knight 2.60/2.50 -> 2.61/2.66 (rest poses differ; the radii now equal). Grunt bulk
+  (`vr_agarmor_pop_check progs/vrgrunt.mdl`, faces off skin, mean): torso 1.33 (1.33), upper arm 1.99 (1.89), forearm 0.89 (0.88), thigh
+  2.72 (2.94), shin 1.29 (1.43). Triangles: grunt 2 920 -> 2 632 (no timing: fewer).
+- **Tried and dropped:** a higher reach over a humanoid's shoulder (1.8-2.2, for the knight's red pad): it flared the enforcer's pauldrons
+  into shells, the pad still showed. A ring's corners clamped to 1.35-1.6 of its median: cost the enforcer's forearm coverage. A limb's ring
+  middle from its own rows' skin alone: the grunt's coverage bent fell to 12%.
+- **Second pass (look check 111/3 -> 114/0, limits unchanged):**
+  - Grunt thigh coverage 75% -> 88%: a humanoid's sleeve's rounding eased corners in by up to `sleeveRoundIn` and bared the knee's point
+    the ridge pass had covered; the ridge pass (`sleeveOf`'s `ridgeOut`) now runs again after the rounding.
+  - Enforcer bracer_r 8.37 over: two causes. The hand's vertices past the bone's end set the end ring's middle (the axis band now stops
+    at the bone's end), and half way down his forearm weighs on the upper arm and the hand too, so the region's own vertices were a
+    sliver and the plates sat 1 unit to one side (-4.8..3.0 over an arm -3.7..3.9). A humanoid's forearm's and shin's rings are now
+    centred on the whole skin's exits (as a sleeve's), a corner no region ray finds takes the whole skin's exit (`fillRadii`, as the
+    thigh's): plates -4.4..4.4. The width check measured that row against a 0.2-unit sliver of skin: where the region's slice is under
+    1 unit, it takes the skin weighing 0.3 on the piece (`lookFit`).
+  - The thigh's top rings the same where its region's slice is a sliver (an enforcer's thigh weighs on the hip only at its front: the
+    rings 3 units forward). Pop check bulk, thigh mean: enforcer 3.51 -> 2.28 (it failed the 3.2 limit after the first pass; 1.97 before
+    round five), grunt 2.72 -> 1.25.
+- **Death knight's face:** guards end higher (jaw 0.42 -> 0.48 of the head), front edges further apart (0.37/0.44 -> 0.40/0.48), his
+  collar row lower (`Wearer::yoke` 0.5, the others 1.2). Moving the guards' front edges back (0.54/0.42 -> 0.46/0.36) opened the helmet
+  (14 rim edges, `vr_agarmor_check` "each shell closed"): kept.
+- **Knight's shoulder pads:** a humanoid's two upper arms start as high as the higher (`PieceFrame::topAt`; his right weighs on its bone
+  only from 1.4 down, so it started 1.7 lower); the knight's pauldrons go out over the skin round them by 1.8 (`Wearer::shoulderRidge`,
+  plateRidge 1.1 elsewhere) and mirror the larger (`Mirror::ShouldersMost`; halving undid the pad side's push). His right pad's 8
+  vertices all under plates (a ray along each normal; one bare before). Upper arm bulk 2.28. The enforcer untouched (per kind).
+- **Death knight's shoulders:** both upper arms round one axis, the left's and the mirrored right's mean (`Wearer::shoulderAxis`: his
+  arms rest differently), plates from 5 up the bone at most (`shoulderTop`; 10.8 before, his shells' reach): mirror distance 2.61 -> 2.04.
+- **Open:** in the sheet, a sliver of the knight's red pad still shows at the top of each shoulder from front and back (the pad's
+  upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
+- **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
+  (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -1367,3 +1419,33 @@ weapons.txt slot 2 (barrel mask over the new triangles, shot pitch and yaw).
 **Checklist lines (suggested):**
 - Super shotgun: aim down the sights: a glowing bead centred in the ring, the whole bead visible; shots land on it.
 - Blender: open any weapon's .blend (Misc/quakevr/src_models/blend/<model>/), move a vertex, Ctrl+S: the game shows it.
+## A cut-off head or limb stays on the axe (branch `agent/limbonaxe`, 2026-11-06)
+
+His note: "The cut off limb should get stuck on the blade that cut it off." (This replaces agent embedfix's decision "not embedded
+in the severed part".) His direction: build it on the sword's gib skewering, the axe's own bits on top.
+
+- **Reused (vr_skewer.qc, the skewer path):** the gib rides the hand by its own think (VR_Skewer_Think, its fade waiting in
+  `.vr_skewer_think`), not solid, MOVETYPE_NONE; its weight in the hand (VR_Skewer_Tally, vr_skewer_mass_head/limb, the engine's
+  vr_weight.cpp); the other hand's grip (VR_Skewer_Gripper/ForGrip, the engine's skewerDrawnHand draws that hand on the gib) and the
+  tug's numbers (`vr_embed_skewer_tug_speed` 4 m/s with half the stretch, or `vr_embed_skewer_tug_stretch` 30 cm) into that hand
+  (VR_Skewer_Take); coming off when the blade is gone, holstered, switched, the player dead, vr_embed off, the level's end
+  (VR_Skewer_Find/Off); a swing's burst on what it meets (VR_Skewer_Impact, `vr_embed_skewer_swing_burst`) and a swing's contact at it
+  (VR_Skewer_SwingHit); save/load as the skewer's (all state in entity fields and its think; not run separately).
+- **New (the edge, `.vr_skewer_cut`):** VR_Skewer_CutOn, called by VR_Decap_Cut and VR_Limb_Cut with the thrown head or limb and the
+  neck or joint: a swing's cut (QVR_DECAP_SWING, live or corpse) by a player's hand whose blade takes parts (`vr_embed_cuton`, default 1:
+  the edge blades, the axes; 2: the pointed ones too, the swords) with its blade proper (an axe's head from 0.6 of its line, a sword's
+  from 0.4) within 16 units of the cut. The part is moved so its cut end is on the edge and kept rigid there in the hand's frame
+  (`.vr_skewer_at`, the turn in `.vr_skewer_fw/up`), not along the line; at most `vr_embed_skewer_most` on a blade. Only in the hand
+  that cut it: let go of, thrown, or the axe stuck in a body, it falls (no sphere on a thrown axe). The other hand's tug is measured from
+  where it took hold, any way (no slide along the edge). Off by a stop: its own speed at least `vr_embed_cuton_fling` 2.5 m/s then down
+  to half within 0.25 s (a hard swing that stops, a shake's turn back) flings it the way it was going (VR_Skewer_Fling). For 0.4 s after
+  it went on (the swing that cut it, going on through the body) no fling, no burst. Its fling-to-a-wall watch ends as it goes on.
+- **Swords:** off by default (`vr_embed_cuton` 1): a sword's slice goes through, and a sword already skewers by a stab; 2 turns it on with
+  the same rules. Debug > Tunables > Combat > Embedded Blades: "Cut-Off Parts: Stay on the Blade", "Cut-Off Parts: Fling Speed".
+  Like skewering, it needs `vr_embed` on.
+- **Test:** `vr_embed_test 26` (`limbonaxe: N passed, M failed`), the mock hand's real killing axe swings: 0 a live grunt's head, 1 a live
+  grunt's limb, 2 a corpse's limb, 3 a corpse's head (killed whole, lain still, you put 40 units from the part): cut off onto the blade
+  (its edge 4.6-8.5 units from the cut), no blade in the body, the axe in the hand, at the axe's head; rides the hand 25 cm up at 0.5 m/s
+  (0.01-0.11 units off the hand's move), its weight in the hand (head 1.50 kg, limbs 0.54-0.85); off: 0 and 3 a 4 m/s move that stops
+  (flung at 4.8-5.3 m/s), 2 a 5 m/s swing that stops, 1 the other hand's grip, then a 35 cm pull at 1 m/s: "tugged off 31 cm", in that
+  hand. 27/0. Across the floor, the part met the floor or the body and burst (the skewer's swing burst): the test swings up and across.
