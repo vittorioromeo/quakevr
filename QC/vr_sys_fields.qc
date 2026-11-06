@@ -342,6 +342,9 @@
 .float vr_melee_arc_wide; // shown, at vr_melee_shown): its blows' arc (degrees each side of its facing), its sweeping
 .float vr_melee_reach;    // blows' (0: none seen yet), its reach (units, origin to origin); the engine draws them
 .float vr_melee_shown;    // (vr_bodycontact.cpp meleeArcDraw)
+.float vr_melee_rule;     // ... and its blows' rule (VR_MELEE_RULE_*: an arc, a leap's touch, all round, a shove's cone)
+.float vr_melee_blow_reach; // QC's: its last blow's reach (units, origin to origin) and when (time): the parry's range
+.float vr_melee_blow_time;  // (fight.qc VR_MeleeBlow, combat.qc VR_Parry_Range)
 .float vr_melee_reach_base; // QC's: its blows' own reach (Quake's or AD's, before the growth: fight.qc VR_MeleeReach)
 .float vr_melee_wide_seen;  // QC's: it struck a sweeping blow (its wide arc shown from then)
 .float vr_melee_turn_time;  // QC's: the frame (time) of its last swing turn (fight.qc VR_MeleeArc_TurnBegin), and its

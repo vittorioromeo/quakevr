@@ -1163,7 +1163,7 @@ void() ad_ai_melee =
 
 	if (!self.enemy) return;			// removed before stroke
 	ad_ai_damagebreakable(10);				// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!VR_MeleeBlow(ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE), ad_FALSE, ad_FALSE)) return;	// Too far away // AD support: reach and melee arc (fight.qc VR_MeleeBlow)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1205,7 +1205,7 @@ void(float ad_dmg_multiplier) ad_ai_meleesmash =
 	if (!self.enemy) return;						// removed before stroke
 	ad_ai_damagebreakable(3*ad_dmg_multiplier);			// Damage any breakables
 	// Is the enemy too far away, ++ extra Z height
-	if (!(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(ad_FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!VR_MeleeBlow(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL), ad_FALSE, ad_FALSE)) return; // AD support: reach and melee arc (fight.qc VR_MeleeBlow)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1250,7 +1250,7 @@ void() ad_ai_melee_side =
 	if (!self.enemy) return;	// removed before stroke
 	ad_ai_damagebreakable(10);		// Damage any breakables
 	ad_ai_charge_side();			// move (20 units) to the side of enemy
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!VR_MeleeBlow(ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE), ad_FALSE, ad_FALSE)) return;	// Too far away // AD support: reach and melee arc (fight.qc VR_MeleeBlow)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	if (!ad_CanDamage (self.enemy, self)) return;

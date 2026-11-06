@@ -281,7 +281,7 @@ FUNC_PATCHES = [
 # Quake VR's own features on AD's code (not bridge functions): the names they call are Quake VR's (QVR_NAMES, kept as
 # written; AD's own names in the replacements are renamed as usual, so FALSE reads ad_FALSE).
 Q = "Quake VR"
-QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
+QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeBlow", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
              "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "VR_Hit_BeginAs", "VR_Hit_End",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
@@ -436,7 +436,7 @@ FUNC_PATCHES += [
     ("ai_projectiles.qc", func, _PROJ_MARK[0], _PROJ_MARK[1], Q + ": its projectile meets bodies (VR_Proj_Mark)")
     for func in ("launch_plasma", "launch_projectile", "Launch_Missile", "Launch_Grenade")
 ]
-# Melee arc (fight.qc VR_MeleeArc_Hits): a swing hits only what is in front (side swings: either side). (file, the exact
+# Melee arc (fight.qc VR_MeleeBlow): a swing hits only what is in front (side swings: either side). (file, the exact
 # text of the line's test, the side argument): ai_checkmelee(...) there becomes (ai_checkmelee(...) &&
 # VR_MeleeArc_Hits(side)) and the line gets the marker. Each must be on exactly one line of its file.
 ARC_HITS = [
@@ -939,8 +939,8 @@ def main():
     for fn, needle, side in ARC_HITS:
         call = re.search(r"ai_checkmelee\([^()]*\)", needle)[0]
         src[fn] = line_patch(src[fn], fn, needle, lambda l: l.replace(
-            needle, needle.replace(call, "(%s && VR_MeleeArc_Hits(%s))" % (call, side))),
-            " // AD support: melee arc (fight.qc VR_MeleeArc_Hits)")
+            needle, needle.replace(call, "VR_MeleeBlow(%s, %s, FALSE)" % (call, side))),
+            " // AD support: reach and melee arc (fight.qc VR_MeleeBlow)")
     for fn, prefix, first, last in SMASH_AHEAD:
         for n in range(first, last + 1):
             src[fn] = line_patch(src[fn], fn, "void() %s%d" % (prefix, n), lambda l: re.sub(
@@ -1183,7 +1183,7 @@ def main():
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
     ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B) or p[4].startswith(Q)] + [
         "  %s %s: %s" % (p[0], p[1], p[4]) for p in FUNC_PATCHES] + [
-        "  %s: %s: melee arc hit test (VR_MeleeArc_Hits(%s))" % (fn, needle, side) for fn, needle, side in ARC_HITS] + [
+        "  %s: %s: reach and melee arc (VR_MeleeBlow(.., %s, FALSE))" % (fn, needle, side) for fn, needle, side in ARC_HITS] + [
         "  ai_checkattack.qc: %d melee launches behind VR_MeleeArc_Launch" % ARC_LAUNCHES] + [
         "  %s %s: aim cone wait (VR_AimCone_Wait, %s)" % (fn, func, kind) for fn, func, kind in AIM_WAITS]
     report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "

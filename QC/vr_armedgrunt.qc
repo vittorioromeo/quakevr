@@ -402,6 +402,43 @@ float(entity g) VR_AG_MeleeStart =
     return max(VR_AG_GRIP_REACH + 10, VR_AG_MeleeStandoff(g) + 12);
 };
 
+// QVR: its blows under the shared melee rules (ROUND24.md, "Melee rules"; fight.qc VR_MeleeBlow). Its blow's reach
+// (its middle to yours, flat; before the size growth): its weapon's real reach, its shoulder ahead of its middle and
+// its arm (its row), the weapon's length from its grip (VR_AG_MeleeLen; a punch or a gun's butt: none), your body's
+// front (12), and vr_enemy_melee_ag_reach more (the blow's lean and step in); never less than a swing's start (62).
+float vr_ag_blow_arm; // (the last VR_AG_BlowBase's arm and length: the debug print)
+float vr_ag_blow_len;
+float(entity g, entity p) VR_AG_BlowBase =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    vr_ag_blow_arm = max(12, vr_am_sh_r_x + vr_am_arm);
+    vr_ag_blow_len = (p && VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE) ? VR_AG_MeleeLen(p) : 0;
+    return max(VR_AG_GRIP_REACH + 10, 12 + vr_ag_blow_arm + vr_ag_blow_len + cvar_hget(cvarh_vr_enemy_melee_ag_reach));
+};
+
+// Its blow with weapon `p` (world: a punch) on its hit frame: against a player with the melee arc on, TRUE only inside
+// its arc and its reach (VR_MeleeBlow: a side-step out of its arc dodges it, as a knight's); else TRUE (the weapon's
+// own line decides, as before).
+float(entity g, entity p) VR_AG_BlowLands =
+{
+    entity os = self;
+    self = g;
+    float lands = TRUE;
+    if(self.enemy && VR_MeleeArc_On())
+    {
+        vector to = VR_AI_Origin(self.enemy) - self.origin;
+        to_z = 0;
+        lands = VR_MeleeBlow(vlen(to) <= VR_MeleeReach(VR_AG_BlowBase(g, p)), FALSE, FALSE);
+        if(cvar_hget(cvarh_vr_enemy_melee_arc_debug))
+        {
+            bprint(sprintf("meleearc: %s (%s) blow at %.0f units: reach %.0f (arm %.0f, length %.0f)\n", self.classname,
+                p ? p.netname : "fist", vlen(to), self.vr_melee_blow_reach, vr_ag_blow_arm, vr_ag_blow_len));
+        }
+    }
+    self = os;
+    return lands;
+};
+
 // ai_run (its moves between its attacks, `dist` its run frame's): a melee holder at its standoff; FALSE: as before.
 float(float dist) VR_AG_MeleeSpaceMove =
 {
@@ -2159,6 +2196,13 @@ void() VR_AG_Strike =
 {
     float h = cVR_MainHand;
     entity p = self.vr_ag_prop;
+    if(!VR_AG_BlowLands(self, p))
+    {
+        self.vr_ag_strikes = self.vr_ag_strikes + 1;
+        VR_AG_Log(sprintf("struck at %s with %s: outside its arc or reach, missed", self.enemy.classname,
+            p ? p.netname : "its fists"));
+        return; // QVR: (the shared melee rules)
+    }
     vector from = p ? p.origin : self.origin + '0 0 16';
     if(!p)
     {
@@ -2431,12 +2475,13 @@ void() vr_ag_atk7 =
 void() vr_ag_atk8 = { VR_AM_Anim(VR_AM_A_ATK, 7, vr_ag_atk9); VR_AG_AtkFrame(8); };
 void() vr_ag_atk9 = { VR_AM_Anim(VR_AM_A_ATK, 8, vr_ag_atk9); VR_AG_AtkFrame(9); VR_AG_AfterAttack(); };
 
-// A melee blow (the shove's frames: a step in, the arm out); its swing drawn from the second.
-void() vr_ag_swing1 = { VR_AM_Anim(VR_AM_A_SHOVE, 0, vr_ag_swing2); ai_face(); ai_charge(4); };
-void() vr_ag_swing2 = { VR_AM_Anim(VR_AM_A_SHOVE, 1, vr_ag_swing3); ai_face(); ai_charge(4); self.vr_ag_swing_at = time;
+// A melee blow (the shove's frames: a step in, the arm out); its swing drawn from the second. Its turn after you
+// held as other monsters' (fight.qc VR_MeleeArc_Face: vr_enemy_melee_turn).
+void() vr_ag_swing1 = { VR_AM_Anim(VR_AM_A_SHOVE, 0, vr_ag_swing2); VR_MeleeArc_Face(); ai_charge(4); };
+void() vr_ag_swing2 = { VR_AM_Anim(VR_AM_A_SHOVE, 1, vr_ag_swing3); VR_MeleeArc_Face(); ai_charge(4); self.vr_ag_swing_at = time;
     VR_SoundVaried(self, CHAN_WEAPON, self.vr_ag_prop ? "weapons/ax1.wav" : "knight/sword1.wav", 1, ATTN_NORM); };
-void() vr_ag_swing3 = { VR_AM_Anim(VR_AM_A_SHOVE, 2, vr_ag_swing4); ai_face(); ai_charge(2); };
-void() vr_ag_swing4 = { VR_AM_Anim(VR_AM_A_SHOVE, 3, vr_ag_swing5); ai_face(); VR_AG_Strike(); };
+void() vr_ag_swing3 = { VR_AM_Anim(VR_AM_A_SHOVE, 2, vr_ag_swing4); VR_MeleeArc_Face(); ai_charge(2); };
+void() vr_ag_swing4 = { VR_AM_Anim(VR_AM_A_SHOVE, 3, vr_ag_swing5); VR_MeleeArc_Face(); VR_AG_Strike(); };
 void() vr_ag_swing5 = { VR_AM_Anim(VR_AM_A_SHOVE, 4, vr_ag_swing6); };
 void() vr_ag_swing6 = { VR_AM_Anim(VR_AM_A_SHOVE, 5, vr_ag_swing6); VR_AG_AfterAttack(); };
 
@@ -2941,6 +2986,13 @@ float() VR_AG_CheckAttack =
             if(VR_AG_FriendHold(self.origin + self.view_ofs * 0.5, VR_AG_FriendSpread(self.vr_ag_wid)))
             {
                 return FALSE; // (a friend between: no swing through it)
+            }
+            if(!VR_MeleeArc_Launch())
+            {
+                // QVR: facing away: it turns first, as other monsters (fight.qc VR_MeleeArc_Launch; ai_run_melee).
+                self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
+                ChangeYaw();
+                return FALSE;
             }
             self.th_melee();
             VR_AGAI_AttackFinished(0.6 + random() * 0.4); // (vr_agrunt_ai_firerate)

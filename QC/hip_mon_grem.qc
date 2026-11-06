@@ -1636,13 +1636,9 @@ void(float side) Gremlin_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(100, FALSE, TRUE))
+        return; // QVR: (reach, melee arc, CanDamage: fight.qc VR_MeleeBlow)
 
-    if(!CanDamage(self.enemy, self))
-        return;
 
     sound(self, CHAN_WEAPON, "grem/attack.wav", 1, ATTN_NORM);
     ldmg = 10 + 5*random();

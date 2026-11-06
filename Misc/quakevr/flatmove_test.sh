@@ -12,10 +12,15 @@
 #           under three quarters of the flat-screen's rise in the same half second: 38 of 78).
 #   ledge   the start map's pool: swimming at its low edge (+forward) lifts him out onto dry ground by Quake's jump out of
 #           the water (FL_WATERJUMP), which the headset leaves to the hands (vr_water_jump 0, vr_climb).
+#   rise    vrteleporters' crouching room (teleporters/crouch_test.sh's places): crouched (Left Ctrl) into the 40-high tunnel
+#           and let go, he stays crouched (his 36 box) with his eyes at least 4 under its ceiling (Quake's near plane: the
+#           view never goes into it); crouched in the 48-high gap and let go, he rises only as far as fits (the 44 box,
+#           his eyes 4 or more under the opening's top); let go in the tunnel and walked out east, he stands up again (eyes
+#           at 45 or more over his feet, the standing box). The view's rise is capped by the box the server gives him.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
-Q='^flatmove: (speed|swim|out|timed out)'
+Q='^flatmove: (speed|swim|out|room|timed out)'
 run() { local tag=$1 flat=$2 script=$3; local a=(); [ "$flat" = flat ] && a=(-ExtraArgs "-flatscreenmode")
         bash $KIT/run.sh $AGENT "${a[@]}" -QuitOn "$Q" -Timeout 120 -Filter "^flatmove" -Script "$script; wait600; toggleconsole; quit" > "$S/fm_$tag.log" 2>&1; }
 val() { grep -a "^flatmove: $2" "$S/fm_$1.log" | head -1 | sed "s/.*$2 \([-0-9.]*\).*/\1/"; }
@@ -51,5 +56,21 @@ check $(awk -v v="$vr" -v u="$up" 'BEGIN{exit !(v!="" && v>0 && v<0.75*u)}' && e
 run ledge flat "map start; wait60; god; notarget; setpos 1344 1728 86 0 180 0; noclip; wait5; +forward; vr_flatmove_test 3"
 out=$(grep -a "^flatmove: \(out\|timed\)" "$S/fm_ledge.log" | head -1)
 check $(grep -q "^flatmove: out .* waterjumped 1" <<<"$out" && echo 1 || echo 0) "ledge: swimming at the pool's edge lifts him out onto dry ground (${out:-no line})"
+
+# 4. letting go of the crouch under a low ceiling (vrteleporters' crouching room)
+R="map vrteleporters; wait60; god; notarget; +flatcrouch; wait40"
+run tunnel flat "$R; setpos 624 -320 24 0 0 0; noclip 0; wait5; -flatcrouch; vr_flatmove_test 4"
+run gap flat "$R; setpos 624 -192 24 0 0 0; noclip 0; wait5; -flatcrouch; vr_flatmove_test 4"
+run walkout flat "$R; setpos 624 -320 24 0 0 0; noclip 0; wait5; -flatcrouch; wait30; +forward; wait90; -forward; vr_flatmove_test 4"
+room() { grep -a "^flatmove: room" "$S/fm_$1.log" | head -1 | sed "s/.* $2 \([-0-9.]*\).*/\1/"; }
+for t in tunnel gap walkout; do
+    eval "${t}_e=\$(room $t eye); ${t}_c=\$(room $t ceiling); ${t}_b=\$(room $t crouched)"
+done
+check $(awk -v e="$tunnel_e" -v c="$tunnel_c" -v b="$tunnel_b" 'BEGIN{exit !(e!="" && e<=c-4 && b==1)}' && echo 1 || echo 0) \
+    "rise: let go in the 40-high tunnel, he stays crouched (box $tunnel_b), eyes $tunnel_e under its ceiling at $tunnel_c"
+check $(awk -v e="$gap_e" -v c="$gap_c" -v b="$gap_b" 'BEGIN{exit !(e!="" && e<=c-4 && b==1)}' && echo 1 || echo 0) \
+    "rise: let go in the 48-high gap, he rises only as far as fits (box $gap_b), eyes $gap_e under its top at $gap_c"
+check $(awk -v e="$walkout_e" -v b="$walkout_b" 'BEGIN{exit !(e!="" && e>=45 && b==0)}' && echo 1 || echo 0) \
+    "rise: walked out of the tunnel, he stands up again (eyes $walkout_e, crouched $walkout_b)"
 
 verdict; exit $fail
