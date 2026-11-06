@@ -1683,3 +1683,33 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
+
+## Installer: the settings page after installing (branch `agent/instset`, 2026-11-06)
+
+His request: an installer page for the most common settings, easy to add/remove, organized in subcategories with a
+tree view in the installer's look, and never stale. Players asked to set them before the first start.
+
+- **Done**: step 6 **Set up the game** (between Install and Play): categories > subcategories > settings, the right
+  control per kind, the game's help and menu path, Reset to default, Reset all. The list is
+  `Misc/installer/settings_page.txt` (cvar names only); labels, help, ranges, choices and defaults come from the game's
+  menu rows (`vr_menu_dump_settings`, new) into `quakevr/settings_page.json` (shipped; Setup reads it from the install).
+  Full design, order and how to add a setting: INSTALLER.md, section 14.
+- **Writing**: only the page's changes, to `quakevr/installer_settings.cfg`; `quake.rc` runs it once after the saved
+  config (`vr_installer_settings`, stamp kept in the new archived cvar `vr_installer_applied`), before `quakevr.cfg`.
+  In-game changes later win; upgrades start from the player's `ironwail.cfg`.
+- **Staleness**: `settings_page.py check <agent>` fails on a missing, unsaved or changed setting or a stale manifest;
+  warns on a removed menu row; in `run_test_suite.py` as `settings_page` (`Misc/quakevr/settings_page_test.py`: 21 checks,
+  including the failures on purpose and three game runs: applied, an in-game change kept after a second install, not run
+  again).
+- **Starting list**: Comfort (Turning `vr_snap_turn`, Turn Speed, Vignette, Position seated/standing
+  `vr_bodycal_seated`), Your Body (Handedness `vr_handedness`, Gloves, Body Type), Gameplay (Replace All Humanoids
+  `vr_agrunt_repl`, Gore), Graphics (Graphics Presets). **Left out: VR or flat screen**: `quakevr.cfg` forces
+  `vr_enabled 1` at every start, so it isn't a saved setting; the flat-screen shortcut and the Play page's "Play on the
+  monitor" cover it. Handedness and Graphics Presets are presets (applied once, "As it is now" on an update).
+- **Test in VR**: install into a fresh folder, change a few settings on the page (Snap 45, left-handed, Medium), start:
+  they are set; change Turning in the game, run Setup's Update and change only Turn Speed: Turning stays as set in game.
+
+Suggested checklist lines:
+- Installer: after installing, the Set up the game page shows the settings tree; picks are applied at the first start.
+- Installer: after an update, the page shows your current settings; a change made in the game earlier is kept.
+

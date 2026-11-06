@@ -1,0 +1,117 @@
+<UserControl x:Class="QuakeVR.Installer.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The settings page (ViewModels/SettingsViewModels.cs): a tree of categories > subcategories > settings, each
+         with its control (on/off, a row of choices, a slider with its value), the game's help, and Reset. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding SettingsPage}">
+        <StackPanel>
+            <TextBlock Text="Set up the game" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="{Binding Subtitle}" />
+
+            <DockPanel Margin="0,16,0,10">
+                <Button DockPanel.Dock="Right" Content="Reset all to defaults" Style="{StaticResource LinkButton}" Command="{Binding ResetAllCommand}"
+                        VerticalAlignment="Center" Margin="18,0,0,0" />
+                <Button DockPanel.Dock="Right" Content="Open or close all" Style="{StaticResource LinkButton}" Command="{Binding ExpandAllCommand}"
+                        VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ChangedText}" Style="{StaticResource Small}" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <ItemsControl ItemsSource="{Binding Categories}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,0,0,8">
+                            <ToggleButton Style="{StaticResource TreeHeader}" IsChecked="{Binding IsExpanded}">
+                                <TextBlock Text="{Binding Title}" FontFamily="{StaticResource CondensedFont}" FontSize="17" FontWeight="SemiBold" />
+                            </ToggleButton>
+                            <!-- The branch: a brass guide line down its left, as a tree's. -->
+                            <ItemsControl ItemsSource="{Binding Subcategories}" Focusable="False" Margin="17,0,0,0"
+                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource Brass}" BorderThickness="1,0,0,0" Padding="16,10,0,2" Opacity="1">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"
+                                                           Visibility="{Binding HasTitle, Converter={StaticResource BoolToVis}}" />
+                                                <ItemsControl ItemsSource="{Binding Settings}" Focusable="False">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Style="{StaticResource CardBorder}" Margin="0,0,0,6" Padding="14,10">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto" />
+                                                                        <RowDefinition Height="Auto" />
+                                                                        <RowDefinition Height="Auto" />
+                                                                    </Grid.RowDefinitions>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Label}" Style="{StaticResource Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="  changed" Style="{StaticResource Small}" Foreground="{StaticResource AccentHover}"
+                                                                                   VerticalAlignment="Center" Visibility="{Binding IsChanged, Converter={StaticResource BoolToVis}}" />
+                                                                    </StackPanel>
+                                                                    <Button Grid.Column="1" Content="Reset to default" FontSize="12.5"
+                                                                            Command="{Binding ResetCommand}" VerticalAlignment="Center"
+                                                                            ToolTip="{Binding Def.Default, StringFormat=Default: {0}}">
+                                                                        <Button.Style>
+                                                                            <Style TargetType="Button" BasedOn="{StaticResource LinkButton}">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsDefault}" Value="True">
+                                                                                        <Setter Property="Visibility" Value="Hidden" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Button.Style>
+                                                                    </Button>
+
+                                                                    <!-- The control its kind needs. -->
+                                                                    <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
+                                                                        <CheckBox Content="On" IsChecked="{Binding IsOn}"
+                                                                                  Visibility="{Binding IsToggle, Converter={StaticResource BoolToVis}}" />
+                                                                        <ItemsControl ItemsSource="{Binding Choices}" Focusable="False"
+                                                                                      Visibility="{Binding IsChoice, Converter={StaticResource BoolToVis}}">
+                                                                            <ItemsControl.ItemsPanel>
+                                                                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                                            </ItemsControl.ItemsPanel>
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <RadioButton Style="{StaticResource ChoicePill}" Content="{Binding Label}"
+                                                                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}" ToolTip="{Binding Help}" />
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                        <DockPanel Visibility="{Binding IsSlider, Converter={StaticResource BoolToVis}}">
+                                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding ValueText}" Style="{StaticResource Body}"
+                                                                                       FontFamily="{StaticResource MonoFont}" MinWidth="70" TextAlignment="Right" VerticalAlignment="Center" />
+                                                                            <Slider Minimum="{Binding SliderMin}" Maximum="{Binding SliderMax}" Value="{Binding Number}"
+                                                                                    SmallChange="{Binding SliderStep}" LargeChange="{Binding SliderStep}" TickFrequency="{Binding SliderStep}"
+                                                                                    IsSnapToTickEnabled="True" Width="420" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                                        </DockPanel>
+                                                                    </Grid>
+
+                                                                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,6,0,0">
+                                                                        <TextBlock Text="{Binding SelectedHelp}" Style="{StaticResource Small}" Foreground="{StaticResource Text}" TextWrapping="Wrap"
+                                                                                   Visibility="{Binding HasSelectedHelp, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4" />
+                                                                        <TextBlock Text="{Binding Help}" Style="{StaticResource Small}" TextWrapping="Wrap"
+                                                                                   Visibility="{Binding HasHelp, Converter={StaticResource BoolToVis}}" />
+                                                                        <TextBlock Text="{Binding WhereInGame}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}"
+                                                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
