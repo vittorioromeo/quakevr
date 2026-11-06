@@ -554,4 +554,9 @@ def main():
 
 
 if __name__ == "__main__":
+    # Retired (2026-11, docs/vr-port/MODELS_IN_BLENDER.md section 9): the .blend is the source now, edited by hand since
+    # this made it; running this would overwrite it. --from-scratch makes it anew all the same.
+    if "--from-scratch" not in sys.argv:
+        sys.exit("build_flaregun.py: retired: Misc/quakevr/models_src/flaregun/flaregun.blend is the source now (edit it, save: export on save); this would overwrite it. "
+                 "--from-scratch to make it anew all the same.")
     main()

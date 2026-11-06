@@ -1373,6 +1373,57 @@ His words: avoid running the export script by hand. Now the loop is edit, Ctrl+S
   stock and Ctrl+S: the status bar says exported, the gun changes within a second or two. Rename a shape key and
   Ctrl+S: the popup refuses and the game doesn't change. (Undo both; don't commit the .blend.)
 
+## Every weapon's source is a .blend (branch `agent/blendall`, 2026-11-06)
+
+The author: "Let's make the '.blend' the source of truth for all weapon models ... Ensure everything works as before
+after the migration and that all models are committed." And, for the super shotgun: "Please model a raised bead if it's
+not there already."
+
+**Inventory and order.** Every weapon model the game loads: 25 view models made by generators (polish_weapons.py,
+gunlooks.py, make_swords.py, make_enemyguns.py, make_chainsaw.py, make_crowbar.py, make_toolgun.py) or shipped since the
+game folder (v_spike), the 8 pickups (g_*: gunlooks.py for g_shot0 and g_nail, the rest shipped as they are), the
+magazines and wells (make_mags.py, make_nailpistol_mags.py), the parts (the shotgun's pump: v_shot.blend already; the
+super shotgun's open halves: make_ssg_open.py), the nail pistol (models_src/nailpistol + build_nailpistol_slide.py), and
+the hand-made flare gun, revolver and widowmaker (models_src/<gun>/<gun>.blend + export_mdl.py). Order: the generic
+build/export first (source.py), then all generic ones at once (they round-trip byte for byte), then ownership and
+retirement, then the hand-made ones' export path, then the bead.
+
+**What changed** (MODELS_IN_BLENDER.md section 9, "Every weapon", has the list of sources):
+- `source.py`: a one-frame model needs no shape keys; an anchor already off the surface in weapons.txt isn't refused
+  until moved; the normal maps are kept as shipped while the model file and relief they're baked from are unchanged
+  (the shipped maps of 8 guns and the 9 magazines were baked by older code: a fresh bake differs by a few bytes), baked
+  again otherwise; full-colour skins (`v_crowbar.mdl_0.png`) kept beside the .blend and copied; the super shotgun's open
+  halves made from the exported gun by make_ssg_open.py's `build(src, out_dir, guarded=False)`; v_nail and v_lava get
+  gunlooks.py's relief as PNG. `owned_files`, `HANDMADE_FILES`, `handmade_script`.
+- 53 new generic sources under `Misc/quakevr/src_models/blend/<model>/` (11 MB), built by `blend_build.py` from the
+  shipped files; v_shot's (made before) unchanged.
+- `genguard.py`: `generated.json` entries with `"source"` (112 files) are owned by a .blend: Guard leaves them (even
+  with `--force`) and names the .blend; a generator whose files are all owned stops (`retired`). `blend_build.py`
+  records a new source's files. The add-on's Bake Normal Map refuses an owned map.
+- `blend_export.py` and export on save: any source made by blend_build.py (`qvr_source_blend`), and the hand-made ones
+  (runs the `export_mdl.py` beside the .blend). The nail pistol's hand-made .blend no longer made the shipped gun (its
+  export differs from the committed `v_nailpistol_classic.mdl` the full slide was built from): archived, its
+  export_mdl.py refuses. The hand-made `build_*.py` refuse without `--from-scratch`.
+
+**The super shotgun's bead.** Its "front post" was a painted patch flush with the muzzle band's top, and the rib's back
+face, just behind the ring, had its top at the ring's middle: through the ring the bead was hidden (sight_picture.py:
+"seen down to 0.00"). Edited in v_shot2.blend: a glowing bead (an octagon seen from behind, radius 0.2, 0.22 over the
+band, on the front post's sight texels, in every frame with the band) and the rib's back end lowered 3 grid steps
+(7.556 -> 7.389), so the ring is a real aperture. The sight line: 0.65 -> 1.47 deg up, 0.06 -> 0.11 left; the shots
+follow it (`shot_pitch 1.47`, `shot_yaw 0.11`, slot 2 in weapons.txt). sight_picture.py's line updated; vr_sightalign's
+comment.
+
+**Proof.** Every source exported by `blend_export.py --out` (56 sources, 112 files) is byte for byte the shipped file
+(before the bead). The retired generators (polish_weapons, gunlooks, make_swords, make_mags, bake_normals v_axe,
+fix_shot_stock_corner, build_nailpistol_slide) stop and write nothing. Export on save on a copy of v_axe.blend: ok, the
+same file. Super shotgun, headset (mock) `vr_sight_check`: laser vs sight line 0.652 -> 0.003 deg; flat
+`vr_flat_sight_check`: rear 0.0002, front 0.0004 off the ray (shotgun 0.0001 / 0.0002); sight_picture.py: the bead seen
+down to 0.25 under its top (was 0.00). Only shipped changes: v_shot2.mdl, its normal map, its two open halves,
+weapons.txt slot 2 (barrel mask over the new triangles, shot pitch and yaw).
+
+**Checklist lines (suggested):**
+- Super shotgun: aim down the sights: a glowing bead centred in the ring, the whole bead visible; shots land on it.
+- Blender: open any weapon's .blend (Misc/quakevr/src_models/blend/<model>/), move a vertex, Ctrl+S: the game shows it.
 ## A cut-off head or limb stays on the axe (branch `agent/limbonaxe`, 2026-11-06)
 
 His note: "The cut off limb should get stuck on the blade that cut it off." (This replaces agent embedfix's decision "not embedded

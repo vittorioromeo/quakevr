@@ -91,15 +91,54 @@ def save(manifest):
 
 
 def edited(paths, manifest=None):
-    """The files among `paths` whose content isn't what the manifest says a generator wrote."""
+    """The files among `paths` whose content isn't what the manifest says a generator wrote (a file a source .blend
+    owns isn't: see owned)."""
     manifest = load() if manifest is None else manifest
     out = []
     for p in paths:
         r = rel(p)
         e = manifest.get(r) if r else None
-        if e is not None and os.path.exists(p) and sha256(p, e.get("part")) != e["sha256"]:
+        if e is not None and "source" not in e and os.path.exists(p) and sha256(p, e.get("part")) != e["sha256"]:
             out.append(p)
     return out
+
+
+# Files whose source is a .blend (docs/vr-port/MODELS_IN_BLENDER.md, "A weapon's source .blend"): the manifest's
+# {"by": "<model>.blend", "source": "<the .blend, from the repository>"}. Its export writes them; no generator does,
+# not even with --force (it would undo the .blend's edits): Guard leaves them as they are and says so, and a generator
+# all of whose files are owned stops (retired).
+
+
+def owned(paths, manifest=None):
+    """{path: its source .blend (from the repository)} for the files among `paths` a source .blend owns."""
+    manifest = load() if manifest is None else manifest
+    out = {}
+    for p in paths:
+        r = rel(p)
+        e = manifest.get(r) if r else None
+        if e is not None and e.get("source"):
+            out[p] = e["source"]
+    return out
+
+
+def own(source, paths):
+    """Records `paths` as owned by the source .blend `source` (blend_build.py, once a model's .blend is made)."""
+    manifest = load()
+    src = rel(source)
+    for p in paths:
+        r = rel(p)
+        if r:
+            manifest[r] = {"by": os.path.basename(source), "source": src}
+    save(manifest)
+
+
+def retired(script, paths):
+    """For a generator that writes without a Guard: stops it if a source .blend owns any of `paths`."""
+    o = owned([os.path.abspath(p) for p in paths])
+    if o:
+        sys.exit("%s: retired for these files: their source is a .blend now (edit it and save, or export it: "
+                 "docs/vr-port/MODELS_IN_BLENDER.md, section 9). Nothing was written.\n%s" % (
+                     script, "\n".join("  %s: %s" % (rel(p), s) for p, s in sorted(o.items()))))
 
 
 class Guard:
@@ -108,7 +147,18 @@ class Guard:
         self.part = part
         self.paths = [os.path.abspath(p) for p in paths]
         self.kept = {}
-        changed = edited(self.paths)
+        o = owned(self.paths)
+        if o and len(o) == len(self.paths):
+            retired(script, self.paths)
+        if o:
+            print("%s: leaving %d files as they are: their source is a .blend (edit it and save, or export it):\n%s" % (
+                script, len(o), "\n".join("  %s: %s" % (rel(p), s) for p, s in sorted(o.items()))))
+            for p in o:
+                if os.path.exists(p):
+                    with open(p, "rb") as f:
+                        self.kept[p] = f.read()
+            atexit.register(self.restore)
+        changed = [p for p in edited(self.paths) if p not in o]
         if not changed:
             return
         names = "\n".join("  %s (last written by %s)" % (rel(p), load()[rel(p)].get("by", "?")) for p in changed)

@@ -51,7 +51,59 @@ SURFACE_MAX = 0.1      # an anchor this far off the surface at most (anchors.py 
 SPECS = {
     "v_shot.mdl": {"parts": ("vr_pumpbody_on_v_shot.mdl", "vr_pump_on_v_shot.mdl"), "relief": "gunlooks",
                    "rivets_from": "Misc/quakevr/src_models/gunlooks/v_shot.mdl"},
+    "v_nail.mdl": {"relief": "gunlooks", "rivets_from": "Misc/quakevr/src_models/gunlooks/v_nail.mdl"},
+    "v_lava.mdl": {"relief": "gunlooks", "rivets_from": "Misc/quakevr/src_models/gunlooks/v_lava.mdl"},
+    # The super shotgun broken open: its two halves cut from the exported gun by make_ssg_open.py's code (the cut, the
+    # plates closing it), so they follow every edit of the gun.
+    "v_shot2.mdl": {"derived": ("make_ssg_open", ("vr_ssg_barrels_on_v_shot2.mdl", "vr_ssg_frame_on_v_shot2.mdl"))},
 }
+# The hand-made sources (Misc/quakevr/models_src/<gun>/<gun>.blend): their own export_mdl.py beside them writes their
+# files; blend_export.py and export on save run it.
+HANDMADE_SCRIPT = "export_mdl.py"
+
+
+def handmade_script(blend):
+    """The hand-made source .blend's own export script (models_src/<gun>/export_mdl.py), or None."""
+    if not blend:
+        return None
+    d = os.path.dirname(os.path.abspath(blend))
+    s = os.path.join(d, HANDMADE_SCRIPT)
+    if os.path.basename(os.path.dirname(d)) == "models_src" and os.path.isfile(s) and repo_root(blend):
+        return s
+    return None
+
+
+HANDMADE_FILES = {  # (what each hand-made source writes into quakevr/progs: genguard's manifest records it as owned)
+    "flaregun": ("v_flaregun.mdl", "vr_flare.mdl", "vr_flaregun_preview.mdl"),
+    "revolver": ("v_revolver.mdl", "v_revolver_crane.mdl", "v_revolver_cyl.mdl", "v_revolver_frame.mdl",
+                 "v_revolver_shell.mdl", "vr_revolver_preview.mdl"),
+    "widowmaker": ("v_widowmaker.mdl", "vr_widowmaker_preview.mdl"),
+}
+
+
+def owned_files(ob):
+    """The files (in quakevr/progs) the source .blend's export writes: the model, its parts, the files made from it,
+    their normal maps, its full-colour skins."""
+    from . import normalmaps
+    name = ob["qvr_name"]
+    spec = SPECS.get(name, {})
+    files = [name] + [str(f) for f in ob.get("qvr_part_files", [])] + list(spec.get("derived", ("", ()))[1])
+    if ob.get("qvr_source_blend"):
+        files += [str(f) + "_0_norm.png" for f in ob.get("qvr_norms", {})]
+    else:
+        files += [os.path.basename(p) for p in normalmaps.outputs("", normalmaps.target_of(name))]
+    return files + [str(f) for f in ob.get("qvr_extra_files", [])]
+
+
+def sha(data):
+    import hashlib
+    return hashlib.sha256(data).hexdigest()
+
+
+def norm_inputs(model_bytes, relief=None):
+    """What a model's normal map is baked from (its file; the relief): the export bakes it again only when they change,
+    so an unedited .blend gives the shipped map byte for byte (it was baked by an earlier bake's code, or numpy)."""
+    return sha(model_bytes + (relief.astype(np.int64).tobytes() if relief is not None else b""))
 
 
 class SourceError(Exception):
@@ -200,6 +252,25 @@ def build(context, root, name, out_dir):
         ob["qvr_relief"] = img.name
         ob["qvr_relief_density"] = float(d["density"])
 
+    # Generic (every weapon, 2026-11): marked a source; its normal maps kept as shipped until what they're baked from
+    # changes; its full-colour skins (<model>_<n>.png) kept beside the .blend and copied by the export.
+    ob["qvr_source_blend"] = 1
+    owned = [name] + list(parts) + list(spec.get("derived", ("", ()))[1])
+    relief = image_heights(bpy.data.images[ob["qvr_relief"]]) if ob.get("qvr_relief") else None
+    norms = {}
+    for fn in owned:
+        np_path = os.path.join(progs, fn + "_0_norm.png")
+        if os.path.exists(np_path):
+            with open(os.path.join(progs, fn), "rb") as f:
+                mb_ = f.read()
+            with open(np_path, "rb") as f:
+                norms[fn] = {"in": norm_inputs(mb_, relief if fn == name else None), "out": sha(f.read())}
+    ob["qvr_norms"] = norms
+    extras = sorted(f for f in os.listdir(progs) if re.fullmatch(re.escape(name) + r"_\d+(_glow|_luma)?\.png", f))
+    for fn in extras:
+        shutil.copyfile(os.path.join(progs, fn), os.path.join(out_dir, fn))
+    ob["qvr_extra_files"] = extras
+
     # The anchors, hotspots, the shell port and the sight line, as empties.
     coll = bpy.data.collections.new("anchors")
     context.scene.collection.children.link(coll)
@@ -209,7 +280,10 @@ def build(context, root, name, out_dir):
         for key in ANCHOR_KEYS:
             p = mdl.parse_anchor(vals.get(key, ""))
             if p is not None:
-                make_empty(context, ob, "av %s" % key, p, 0.6, props={"qvr_slot": slot, "qvr_key": key})
+                # (how far off the surface the shipped anchor is: one already off it isn't refused unless moved)
+                off = mdl.bind_anchor(model, vals.get(key, ""))[2]
+                make_empty(context, ob, "av %s" % key, p, 0.6, props={"qvr_slot": slot, "qvr_key": key,
+                                                                      "qvr_built_off": float(off)})
         for n in range(1, 5):
             if vals.get("hs%d_type" % n, "0") not in ("0", ""):
                 p = tuple(float(vals.get("hs%d_%s" % (n, c), "0")) for c in "xyz")
@@ -469,7 +543,7 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
     keys = ob.data.shape_keys
     got = [k.name for k in keys.key_blocks] if keys else []
     want = old.pose_names()
-    if got != want:
+    if got != want and not (not got and len(want) == 1):  # (a one-frame model imports without shape keys)
         errors.append("frames: the shape keys are %s; the model's frames are %s (QuakeC numbers them: keep their "
                       "names and order, add frames only as armature actions)" % (got, want))
     if errors:
@@ -506,7 +580,7 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
             w, t, d = mdl.bind_anchor(new, text, rest)
             report("  anchor %-10s slot %d \"%s\": triangle %d, %.4f off the surface%s" % (
                 key, slot, text, t, d, " (moved: written to weapons.txt)" if key in moved_keys else ""))
-            if d > SURFACE_MAX:
+            if d > SURFACE_MAX and (key in moved_keys or d > float(e.get("qvr_built_off", 0.0)) + 1e-3):
                 errors.append("anchor %s (empty \"%s\") is %.3f units off the model's surface: put it on the surface "
                               "(snap: Vertex/Face) or it binds to the nearest triangle somewhere else" % (key, e.name, d))
         else:
@@ -595,6 +669,24 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
                 if nm != mask:
                     changes[(slot, "fx_gfx_mask")] = nm
 
+    misc = os.path.join(root, "Misc", "quakevr")
+    if misc not in sys.path:
+        sys.path.insert(0, misc)
+
+    # The files made from the model by a generator's code (the super shotgun's open halves).
+    if spec.get("derived"):
+        gen_name, files = spec["derived"]
+        dtmp = tempfile.mkdtemp(prefix="qvr_src_derived_")
+        src = os.path.join(dtmp, name)
+        with open(src, "wb") as f:
+            f.write(data)
+        gen = importlib.import_module(gen_name)
+        gen.build(src=src, out_dir=dtmp, guarded=False)
+        for fn in files:
+            with open(os.path.join(dtmp, fn), "rb") as f:
+                outs[fn] = f.read()
+        report("  %s: %s, made from the model by %s.py" % (" and ".join(files), "written", gen_name))
+
     # Write: the models, then their normal maps baked from them (the relief from the .blend's PNG).
     os.makedirs(out_dir, exist_ok=True)
     written = []
@@ -603,21 +695,46 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         with open(p, "wb") as f:
             f.write(b)
         written.append(p)
+    relief = None
     if spec.get("relief") and ob.get("qvr_relief"):
         img = bpy.data.images[ob["qvr_relief"]]
         img.reload()
-        h = image_heights(img).astype(np.float64)
+        relief = image_heights(img)
+        h = relief.astype(np.float64)
         density = float(ob["qvr_relief_density"])
-        misc = os.path.join(root, "Misc", "quakevr")
-        if misc not in sys.path:
-            sys.path.insert(0, misc)
         gen = importlib.import_module(spec["relief"])
         gen.relief = lambda _name, h=h, density=density: (h * 0.002, density, 1)
     from . import normalmaps
     from . import normalbake as nb
-    for p, rgb in normalmaps.bake(out_dir, name).items():
-        nb.write_png(p, rgb)
-        written.append(p)
+    if not ob.get("qvr_source_blend"):  # (the shotgun's .blend, made before: its maps always baked)
+        for p, rgb in normalmaps.bake(out_dir, name).items():
+            nb.write_png(p, rgb)
+            written.append(p)
+    else:
+        # The maps the shipped model has: kept while what they're baked from is unchanged, else baked again.
+        for fn, rec in dict(ob.get("qvr_norms", {})).items():
+            fn = str(fn)
+            npng = fn + "_0_norm.png"
+            shipped = os.path.join(progs, npng)
+            same_in = norm_inputs(outs[fn], relief if fn == name else None) == rec["in"]
+            if same_in and os.path.exists(shipped) and sha(open(shipped, "rb").read()) == rec["out"]:
+                if not in_repo:
+                    shutil.copyfile(shipped, os.path.join(out_dir, npng))
+                    written.append(os.path.join(out_dir, npng))
+                report("  %s: kept (the model and its relief as it was baked from)" % npng)
+                continue
+            p = os.path.join(out_dir, npng)
+            rgb = normalmaps.bake(out_dir, normalmaps.target_of(fn))[p]
+            nb.write_png(p, rgb)
+            written.append(p)
+            report("  %s: baked again" % npng)
+        # The full-colour skins beside the .blend, as they are.
+        here = os.path.dirname(bpy.data.filepath)
+        for fn in ob.get("qvr_extra_files", []):
+            s, d = os.path.join(here, str(fn)), os.path.join(out_dir, str(fn))
+            if os.path.normcase(os.path.abspath(s)) != os.path.normcase(os.path.abspath(d)):
+                shutil.copyfile(s, d)
+            written.append(d)
     if changes:
         if in_repo:
             write_weapons_txt(root, changes)
