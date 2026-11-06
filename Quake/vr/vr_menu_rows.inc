@@ -1500,6 +1500,11 @@ QVR_TOGGLE(vr_hit_head_priority, "Head Priority",
 QVR_SLIDER(vr_damage_to_enemies, "Damage to Enemies", 0.25f, 4.f, 0.05f, "%.2fx", ext(), "Damage you deal to monsters.")
 QVR_SLIDER(vr_damage_to_player, "Damage to You", 0.f, 4.f, 0.05f, "%.2fx", ext(), "Damage monsters, traps and falls deal to you.")
 QVR_SLIDER(vr_damage_self, "Self Damage", 0.f, 2.f, 0.05f, "%.2fx", ext(), "Damage your own rockets and grenades deal to you.")
+QVR_TOGGLE(vr_selfshot, "Shoot Yourself",
+    "In a headset, your shots, nails, rockets and grenades hit your own body, arms and hands where you point "
+    "them (not your head): armour, blood, a wound right where it struck. Never the hand holding the gun.")
+QVR_SLIDER(vr_selfshot_damage, "Shooting Yourself: Damage", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "The damage of your own shot into your body, arms or hands, times the weapon's.")
 QVR_TOGGLE(vr_positional_damage, "Positional Damage", "Headshots, arm and leg shots on humanoid monsters.")
 QVR_SLIDER(vr_headshot_mult, "Headshot Damage", 1.f, 5.f, 0.1f, "%.1fx", ext(), nullptr)
 QVR_SLIDER(vr_limbshot_mult, "Arm Shot Damage", 0.1f, 1.f, 0.05f, "%.2fx", ext(), nullptr)
@@ -5030,6 +5035,12 @@ QVR_SLIDER(vr_gadget_fingertip_roll, "Fingertip Roll", -45.f, 45.f, 1.f, "%.0f d
     "... rolled about your hand's forward (positive: its top outward).")
 QVR_SLIDER(vr_gadget_button_cooldown, "Button Cooldown", 0.f, 2.f, 0.1f, "%.1f s", ext(0.f, 5.f),
     "After a press counts, how long before the next one does (no double toggles from a bounce).")
+QVR_TOGGLE(vr_gadget_lock_twohand, "Lock While Both Hands Hold One Thing",
+    "On: while both your hands hold the same thing (a weapon two-handed, one prop or crate, one body or "
+    "enemy, one embedded blade) the gadget ignores taps, buttons and touches: no slow motion by accident "
+    "in a fight. Different things in each hand: it works as ever.")
+QVR_SLIDER(vr_gadget_lock_grace, "Lock After Letting Go", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
+    "How long the gadget stays locked after your second hand lets go, so that letting go never taps it.")
 QVR_CYCLE(vr_debug_gadget_button, "Show the Button",
     "Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
     "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "

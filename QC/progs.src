@@ -11,6 +11,8 @@ vr_weaponinst.qc
 vr_util.qc
 // The hand-held things' named buzzes (VR_Haptic_*), before their callers.
 vr_haptics.qc
+// Shooting yourself (weapons.qc, combat.qc, vr_wounds.qc and vr_util.qc's VR_OwnerSpared call it).
+vr_selfshot.qc
 vr_grab.qc
 // The QC tests' shared tally (VR_Test_Begin/Check/Verdict).
 vr_testutil.qc
@@ -175,6 +177,7 @@ vr_crouch_test.qc
 vr_flatkeys_test.qc
 vr_flatitems_test.qc
 vr_flatgate_test.qc
+vr_selfshot_test.qc
 vr_flatmove_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc

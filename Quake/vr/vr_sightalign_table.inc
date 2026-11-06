@@ -15,7 +15,7 @@
 {"progs/v_rock2.mdl", {5.70f, 0.f, 10.70f}, {56.11f, 0.f, 10.70f}},
 {"progs/v_multi2.mdl", {5.70f, 0.f, 10.77f}, {56.11f, 0.f, 10.77f}},
 {"progs/v_laserg.mdl", {50.00f, 0.f, -7.86f}, {105.17f, 0.f, -7.86f}},
-{"progs/v_gruntgun.mdl", {-3.50f, 0.f, 14.900f}, {22.40f, 0.f, 14.900f}},
+{"progs/v_gruntgun.mdl", {-2.15f, 0.f, 11.600f}, {28.15f, 0.f, 11.600f}},
 {"progs/v_enfrifle.mdl", {6.30f, 0.f, 10.799f}, {23.00f, 0.f, 10.659f}},
 // The nail pistol: its modelled sights (build_nailpistol.py, the Body's frame), the rear ears' tops level with the front post's.
 {"progs/v_nailpistol.mdl", {-1.25f, 0.f, 6.376f}, {9.07f, 0.f, 6.376f}},

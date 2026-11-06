@@ -693,6 +693,7 @@ void(entity xMissile, float xHand) VR_ShotLaunched =
 {
     VR_DamageCredit_FromHand(xMissile, self, xHand);
     VR_ShotPlace(xMissile, xHand);
+    VR_SelfShot_Launched(xMissile, xHand); // (it may strike your own body: vr_selfshot.qc)
 };
 
 // The projectiles placed this frame with something that takes damage along the weapon (VR_ShotPlace) touch what they
@@ -2248,6 +2249,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
+        if(vr_ss_armed)
+        {
+            VR_SelfShot_Pellet(vr_ss_armed - 1, vr_ss_armed_muzzle, src, direction); // your own body first (vr_selfshot.qc)
+        }
         if(!(self.flags & FL_CLIENT) && (trace_ent.flags & FL_CLIENT))
         {
             VR_BodyShield_Take(trace_ent, src, src + direction*xRange); // a body the player holds before him takes it
@@ -2341,7 +2346,10 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
+    vr_ss_armed = xHand + 1; // (its pellets may meet your own body: vr_selfshot.qc)
+    vr_ss_armed_muzzle = muzzle;
     FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
+    vr_ss_armed = 0;
     VR_Hit_End();
     // QVR: the shot's line passing near a monster alerts it (vr_stealth.qc)
     traceline(src, src + dir * 2048, FALSE, self);
@@ -2998,6 +3006,12 @@ void(float xHand) W_FireLightning =
     VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
     vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
     vr_lightning_hitpass = fromImage ? MOVE_HITPASS : 0;
+    // Your own body before what it strikes (vr_selfshot.qc): the bolt ends there, striking you.
+    float selfStruck = !through && !fromImage && VR_SelfShot_Segment(self, xHand, org, boltEnd);
+    if(selfStruck)
+    {
+        boltEnd = vr_ss_at - boltDir * 4; // (LightningDamage's bolt reaches 4 on)
+    }
     if(through)
     {
         LightningDamage(from, gateIn, self, cvar_hget(cvarh_vr_dmg_lightning)); // the piece on this side
@@ -3005,6 +3019,11 @@ void(float xHand) W_FireLightning =
         vr_lightning_hitpass = MOVE_HITPASS; // (the far piece strikes you too: your own image)
     }
     LightningDamage(from, boltEnd + boltDir*4, self, cvar_hget(cvarh_vr_dmg_lightning));
+    if(selfStruck)
+    {
+        trace_endpos = vr_ss_at; // (VR_LightningHit's point)
+        VR_LightningHit(self, self, cvar_hget(cvarh_vr_dmg_lightning), boltDir);
+    }
     vr_lightning_hitpass = 0;
     vr_decap_weapon = 0;
     VR_Hit_End();

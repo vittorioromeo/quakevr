@@ -1772,6 +1772,157 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
 
+## The grunts' burst rifle made anew (branch `agent/burstrifle`, 2026-11-06)
+
+`progs/v_gruntgun.mdl` built from nothing after Vittorio's reference (a compact burst carbine): `Misc/quakevr/models_src/
+burstrifle/build_burstrifle.py -- --from-scratch` (Blender 5.2, headless) makes the shapes (508 triangles, flat faceted,
+the main edges bevelled), the UVs, a palette skin painted by script (512 x 512: gunmetal, blued barrel, post and ears,
+brass rivets and band bolt, oiled wood grip, rubber pad; light grime from occlusion, a little rust, worn convex edges;
+the red lamp glows: 16 fullbright texels), writes the model (nine frames `frame1..frame9`, packed from the old corner
+-29.9 -6.17 -4.6 so slot 21's settings and the AD variants hold it), bakes its normal map, writes the anchors and then
+makes the source .blend from them (`src_models/blend/v_gruntgun/`, the generic layout: the old migrated one is in git's
+history). An untouched `blend_export.py` of the new .blend writes the model and the map byte for byte.
+`render_burstrifle.py` renders the .blend beside the reference.
+
+- **Kept:** the origin in the pistol grip's middle (the grip z -3.9..3.8, leaning back 12.5 deg), the bore (z 8.08), the
+  muzzle anchor (33.15 0 8.08), the corner. **Changed from the image (agreed):** a clamp band on the barrel (x 22.0-23.5,
+  hotspot 1 on its left: hs1 -9.3665 -3.365 0.1797, the hotspots' frame = 0.61 * corner + 0.39 * the model point); the
+  front post on the muzzle block, its top level with the rear ears' tops: the sight line z 11.6 (was 14.9: 3.5 over the
+  bore, was 6.8), rear -2.15, front 28.15 (vr_sightalign_table.inc, sight_picture.py, sightline_table.py).
+- **Shorter behind the grip:** the reference's butt is much nearer the grip than the old gun's; the butt pad's back is
+  at x -24.0 (was -29.4): 57.2 units long (was 62.8), 85 cm at Scale 0.39. The stock drops 2.6 under the sight line at the
+  butt (the flat ironsight's cheek room).
+- **weapons.txt:** slot 21 and the AD slots 27-30 (they repeat its anchors): muzzle_av, hand_av/wpnbtn_av (the
+  receiver's right side), 2h_hand_av (the band's underside), wpntxt_av (the housing's top, at its back), hs1; slot 21's
+  barrel mask (the barrel, band, muzzle block, post).
+- **Verified:** sight_picture: the front post seen 0.42-0.67 units down from its top in the notch; flat
+  `vr_flat_sight_check` rear/front/far off 0.0000; flat hipfire and ADS screenshots (the post in the notch);
+  `vr_agrunt_test 85` 40 passed, 0 failed (the burst rifle's shots from its own muzzle, off 0.0).
+- **Not verified:** headset `vr_sight_check` (the mock's main hand had no weapon after `impulse 149` in e1m1 and
+  vrfiringrange: a test-setup question, the flat run held it); the AD variants (vr_adgunart.cpp's add-ons were placed on
+  the old shape: the fuelled guns' canister x 5-12 under the receiver now crosses the magazine, the hose inlet at x -11.5
+  sits by the lower stock rod); the soldier's own held gun (soldier.mdl) is still the old shape, so a dead grunt drops a
+  gun that looks different from the one he held.
+- **Files:** the normal map is 1.3 MB (the skin is 512 x 512, was the soldier's 256 x 260). `progs/v_gruntgun.mdl_0.clean`
+  (a blood patch for the old skin) no longer matches: to delete.
+
+**Checklist line (suggested):** the grunts' burst rifle (pick one up from a dead grunt): the new model, held by its wooden
+grip, the other hand on the barrel's band, the front post level in the rear notch when aimed, the red lamp glowing.
+
+### Round two (his notes on the comparison: blockier than the mockup; the AD guns keep the old rifle; real muzzle holes)
+
+- **The AD rifles keep the old model.** `progs/vr_adrifle_base.mdl` (+ `_0_norm.png`) is the old `v_gruntgun.mdl` byte for
+  byte (cmp against origin/next), with its own source .blend (`src_models/blend/vr_adrifle_base/`, blend_build.py; its
+  untouched export is byte-identical). vr_adgunart.cpp builds the `#adv<n>` variants from it (and stands it in when one
+  can't be made), vr_adguns.cpp's AD-soldier stand-in is it, vr_skinrelief.cpp's rifle map is its map; weapons.txt slots
+  27-30 are origin/next's exactly. Same input bytes, same code: the variants are unchanged. The plain burst rifle
+  (`v_gruntgun.mdl`: the dropped gun, QC's WID_GRUNTGUN, the armed grunts' burst rifle, the tool gun's spawn, gunfx) is the
+  new one.
+- **Shape:** the receiver's front is a heavily chamfered nose block with brass bolt heads (geometry) and an octagonal
+  collar stepping down to the barrel; the grip raked 20 deg, bigger, in a steel frame under the receiver; a thin swept
+  trigger guard loop and a curved trigger; the stock's two parallel rods (the upper from a collar at the receiver's top
+  back) into a tall chamfered butt block (z 3.0-10.4) with a ribbed pad.
+- **Real holes:** the muzzle block's bore (0.49 deep, 8-sided; the muzzle anchor on its bottom, 32.6554 0 8.08, on the
+  model's x grid) and three 6-sided vents through it, cut by Blender's boolean (the float solver: the exact one left the
+  vents uncut), dark inside.
+- **Paint:** warmer gunmetal with broad light/dark patches, wider lighter worn edges, darker recesses, thin scratches;
+  brass rivets with highlights; the red lamp a glowing lens (49 fullbright texels), the bronze one a domed lens; dark
+  window glass in a raised frame; ring grain and pores on the walnut grip.
+- 746 triangles (the holed muzzle block 168 of them). Flat sight check 0.0000; sight_picture: the post seen 0.42 down;
+  `vr_agrunt_test 85` 40/0, `vr_agrunt_test 12` (AD guns) 21/0.
+
+### Round three (his notes: "the stock shape is still not triangular like the mockup and the wooden handle is still too straight")
+
+- **Stock:** an open triangle tapering to the receiver, as the mockup's side view: a chamfered steel adapter block on the
+  receiver's back (x -4.9..-2.8, z 6.2-9.95, two rivets), the upper rod level from its top (z 9.3) to the butt block's top,
+  the lower rod from its lower part (z 7.0), a short mitred elbow, then down and back to the butt block's bottom (z 2.3):
+  the rods 2.3 apart at the adapter, 7.0 at the butt. The butt block upright and tall (z 1.3-10.5, 1.3 x the receiver),
+  the pad behind it a lighter rubber. Rods thicker (r 0.58, was 0.5). (The round-two sockets are gone.)
+- **Grip:** lofted through seven sections (eight sides each) along an axis raked 24 deg (was 20) through the origin, bending
+  back a little more towards the foot: a narrow web under the receiver swelling into the palm at the back, the finger
+  curve under the guard and a middle-finger bump in front, a flared foot with a bevelled bottom edge (102 triangles). The
+  origin (the fist) is inside its section at t 0.39 as before; the steel frame's back follows the grip's back. Wood grain
+  runs along the curved axis (worked out per point from the loft's sections), fewer pores, a lighter walnut.
+- **Also:** the receiver 0.6 taller (z 3.1-10.3, mostly downward: the sight line, ears and post are unchanged; the housing
+  top 11.15, `wpntxt_av` follows); lamps 1.2 across (were 0.8) with round lenses, a brass rivet beside them; warmer
+  brown-grey steel, blued parts and rods (the reference's receiver measures R:G:B about 1 : 0.81 : 0.71).
+- **The comparison render** now splits his picture where it is split (576 rows first person, 448 turntable; it assumed
+  512 each) and frames the first person with a camera fitted to seven points of the reference's gun (28 px rms); the
+  turntable nearly orthographic, 27 deg round to the front, 22 above.
+- 822 triangles. sight_picture: the post seen 0.61 down from its top; flat `vr_flat_sight_check` 0.0000 and the post in
+  the notch in the ADS screenshot; `vr_agrunt_test 85` 40/0; an untouched `blend_export.py` of the new .blend writes the
+  model and its map byte for byte; `vr_adrifle_base` untouched.
+## Shooting yourself (branch `agent/selfshot`, 2026-11-06)
+
+Vittorio (BACKLOG): "the player should be able to damage themselves in VR by pointing their weapon at their own
+limbs/body and firing", and the wound "precisely where the hit is registered on the player's arms/hands/body".
+
+- **The hit geometry** is the wounds' (what an enemy's hit on you is painted by): capsules round the drawn torso, legs,
+  each forearm (elbow to wrist) and hand, as posed. It moved from `vr_wounds.cpp` to `vr_selfshot.cpp`
+  (`selfshot::build`), each capsule now tagged with its part; the wounds use it unchanged. For your own shots the torso
+  stops 6 units under the eyes (`chinUnderEyes`): **the head is no part** (seen from inside it; a gun at your face is
+  never met), though the wounds' torso reaches round the head for enemy hits.
+- **Who:** only the listen server's own player, in a headset (`VRHandsTracked`, not flat-screen play), `vr_selfshot 1`
+  (default on). The engine draws no body for a co-op guest or a bot, so they are never met (`selfhit_segment` -1).
+- **What is never met:** the firing hand's own forearm and hand; the other arm too while both hands hold the gun
+  (`VRGet2HAiming`). A hitscan shot is tested from the muzzle on (its trace starts behind the muzzle,
+  `VR_ShotBackPoint`: what lies along the gun, the grip, a hand on the fore-end, is the gun's).
+- **Hitscan** (`FireBullets`: shotgun, super shotgun, revolver; each pellet): `VR_SelfShot_Pellet` after its trace,
+  armed by FireBullets alone (`vr_ss_armed`: monsters' and the tests' FireBulletsImpl calls never meet the shooter).
+  **Lightning:** the bolt ends at your body and strikes you (`VR_LightningHit`: the shock arcs too). Not through a
+  teleporter (your image is met there as before).
+- **Missiles** (every hand's: `VR_ShotLaunched` marks `.vr_ss_skip`): `SV_PushEntity` calls `VR_SelfShotMove`, which
+  stops the move at your body (from where it starts: a muzzle pressed into your forearm hits it at once), reports you as
+  struck (`.vr_ss_struck`), once; `VR_OwnerSpared` lets that touch through. Nails, rockets, grenades, lasers, the
+  expansions' and AD's missiles whose touches use `VR_OwnerSpared`.
+- **Damage** takes the normal path (T_Damage: armour, god mode, Quad, teamplay) times `vr_selfshot_damage` (1) in place
+  of `vr_damage_self`; the armour plate nearest the point is shed (`vr_pp_hit`); a hit on a forearm or hand buzzes that
+  hand (0.25 s, 90 Hz).
+- **The wound** is sent marked `QVR_WOUND_PRECISE` (128 on the kind) at the point: the client paints it where the line
+  from 2 units before it meets your drawn capsules (no spread, no jitter, no room-scale shift; a point already inside:
+  there), on the body and both hand models (it lands on whichever is there) and it moves with them (texture space).
+  `vr_wounds_debug` as before; `vr_selfshot_debug 1` prints each self-hit (2: every test).
+- **Blades:** not done (a swing past your other arm is ordinary melee; cutting yourself would be accidental too often).
+- Menu: Damage and Knockback (the "Gameplay" damage multipliers) has Shoot Yourself and its damage; VR Settings >
+  Weapons and Bullet Time has the toggle. Debug > Tests: Shoot Yourself: Aimed / Ordinary Firing.
+
+**Tests** (`vr_selfshot_test`, mock headset, e1m1): **1** aimed: a pellet at the off palm, the off forearm, the thigh,
+a nail at the forearm, a nail started inside it: each hit its part, 3-14 damage, the off hand buzzed, the wound 0.00-0.15
+units from the hit on that part; a line through the head, `vr_selfshot 0`, another player: never. 23 passed, 0 failed.
+**2** ordinary firing: ten poses (one hand forward, dual side by side, arms crossed, the off hand cupping the grip,
+pointing down, kicked up, from the hip, turned out, turned in, at the floor ahead), both hands each firing a six-pellet
+blast, a nail and the lightning's line along their aims: 0 self-hits. (The mock's controller pitch 70 is a level aim.)
+`vr_selfshot_debug 3` takes an eyeshot of the wounds at the end of test 1.
+
+**Checklist lines (suggested):** In a headset, point your gun at your other palm, forearm, thigh and fire: it hurts, that
+hand buzzes and the wound is right where you aimed, following the arm. Normal firing (dual, crossed arms, two-handed, from
+the hip) never hits you; Shoot Yourself off (Damage and Knockback) and nothing happens.
+## The gadget locked while both hands hold one thing (branch `agent/gadgetlock`, 2026-11-06)
+
+His note: bullet time's double tap still turned on by accident in fights with both hands busy. New
+`Quake/vr/vr_gadgetlock.cpp` (`gadgetlock::locked()`, worked out once a frame): while both hands hold the same thing --
+one weapon two-handed (`twohand::helping`: a hotspot, a free grip, a blade grip, a cup), the same carried prop or crate
+(the carry stats equal), the same embedded blade (the embed stats), the same enemy (foegrab, the listen server) or the
+same ragdoll (`box3d::ragdollHold`) -- and for `vr_gadget_lock_grace` (0.2) real seconds after, the gadget takes no
+input. Gated: the screen tap (bullet time: no tap, a double tap's first dropped, the hand must lift off before the next),
+the side button (gear lights, Doom's opening presses) and AD's page button (a fingertip on one must leave it first), and
+the touchscreen when an app takes the gadget's screen (Doom: a touch under way ends). Different things in each hand:
+unchanged. `vr_gadget_lock_twohand` (1) turns it off: HUD and Menus > Screens, "Lock While Both Hands Hold One Thing"
+(the grace a developer row under it). `vr_debug_bullettime` or `vr_debug_gadget_button` print its changes ("gadget
+lock: on (both hands hold ...)", "let go, 0.20 s grace", "off"). The older guards (`vr_bullettime_tap_twohanded`,
+`vr_bullettime_tap_both_held`) are kept as they were.
+
+Test: `Misc/quakevr/gadget_lock_test.sh <agent>` (fixed frames, ends on `gadget_lock_test: N passed, M failed`; 18
+passed): two different weapons count; a shotgun two-handed, a sword in both hands and a crate in both hands lock, and no
+tap counts once locked (4 taps each); with the lock off the two-handed shotgun's double tap counts; letting go of the
+shotgun's foregrip then double-tapping at once: the first tap (inside the grace) is ignored, the second counts as a
+first; the side button pressed during the hold does nothing, after letting go it presses. Test aids: `vr_2h_sticky 30`
+and `vr_carry_two_hands_drift 60` keep the holds while the mock's tracked main hand reaches the off wrist's screen (as
+shipped it would pull the hand off its grip).
+
+**Checklist line (suggested):** Wrist gadget: hold the shotgun two-handed, or a crate or the sword in both hands, and
+double-tap the gadget's screen: no slow motion (and the side button does nothing); let go and double-tap after a moment:
+it works; one weapon in each hand: it works as before (HUD and Menus > Screens, "Lock While Both Hands Hold One Thing").
 ## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
 
 His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new

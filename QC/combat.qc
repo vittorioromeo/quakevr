@@ -1956,7 +1956,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         if(targ.flags & FL_CLIENT)
         {
-            damage = damage * cvar_hget(cvarh_vr_damage_self);
+            // (your own shot into your body, arms or hands: its own scale, vr_selfshot.qc)
+            damage = damage * cvar_hget(VR_SelfShot_Live(targ) ? cvarh_vr_selfshot_damage : cvarh_vr_damage_self);
         }
     }
     else if((targ.flags & FL_CLIENT) && !(attacker.flags & FL_CLIENT))
@@ -2051,6 +2052,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         {
             targ.vr_pp_hit = (inflictor.absmin + inflictor.absmax) * 0.5;
             targ.vr_pp_hit_time = time;
+        }
+        if(VR_SelfShot_Live(targ)) // your own shot: where it struck (vr_selfshot.qc), and the hand struck buzzes
+        {
+            targ.vr_pp_hit = vr_ss_at;
+            targ.vr_pp_hit_time = time;
+            VR_SelfShot_Felt(targ, take, save);
         }
     }
 

@@ -621,6 +621,14 @@ za::Vector<Item> pageDebugTests()
             .help("vr_footstep_test 1 (load a map with room first; reload it to stop): each biped in turn walks, then runs, "
                   "ahead of you: listen for the steps on its feet, softer walking. The console's report at the end "
                   "(vr_footstep_report). vr_footstep_test 2: 32 grunts hunting you, for the nearest-win budget."),
+        command("Shoot Yourself: Aimed", "developer 1; vr_selfshot_test 1")
+            .help("vr_selfshot_test 1 (God mode off): your main hand shoots your off hand's palm, your off forearm and "
+                  "your thigh, and two nails into the forearm (one started inside it): each hits that part, hurts, buzzes "
+                  "the off hand and leaves its wound right there. Your head, the option off and another player: never. "
+                  "In a headset it aims from wherever your hands are (hold the off hand out ahead)."),
+        command("Shoot Yourself: Ordinary Firing", "developer 1; vr_selfshot_test 2")
+            .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
+                  "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
         command("Crouch Shots", "developer 1; vr_crouch_test 12")
             .help("vr_crouch_test 12: a grunt put ahead of you fires 12 bullets at you as it aims them, then goes: whether "
                   "you are crouched (Player Hitbox > Crouching), your eyes' height, the aim's height over your feet and "

@@ -27,6 +27,8 @@ float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state ta
 .float vr_born; // when it was made (set by the engine, ED_Alloc: vr_cheats.cpp; VR_Scene_IsRuntimeProp)
 .float vr_hpscale; // a monster: the multiplier Monster Health put on its health as it first appeared (set by the engine, vr_mgroups.cpp VR_MonsterHealth_Frame; 0 not yet)
 .float vr_gate_crossed; // when a missile was last carried through a teleporter (set by the engine: VR_PortalToss); then it meets its owner (VR_OwnerSpared)
+.float vr_ss_skip;   // a hand's missile that may strike its shooter's own body (vr_selfshot.qc): 64 + the parts it spares; 0 none
+.float vr_ss_struck; // when it struck its shooter's own body (set by the engine: VR_SelfShotMove); its touch meets him then
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)
 .entity vr_hit_extra; // precise hits (vr_hitmodel.cpp): a part drawn as an entity of its own (not solid) its shots meet

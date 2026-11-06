@@ -389,6 +389,7 @@ void resetBodyEquipment()
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
                   "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
                   "reloading. Only with the Immersive weapon mode."),
+        row(opt::vr_selfshot), // (its damage: Advanced VR Options > Combat > Damage and Knockback)
     };
 }
 
