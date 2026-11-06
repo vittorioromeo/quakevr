@@ -196,6 +196,183 @@ void qvr::menu::dumpPaths_f()
     Con_Printf("menu paths dumped: %d\n", static_cast<int>(search.index.size()));
 }
 
+namespace
+{
+
+// A text as a JSON string (quotes, backslashes and control characters escaped; other bytes as they are).
+[[nodiscard]] za::String jsonText(const char* text)
+{
+    za::String out{"\""};
+    for(const char* c = text ? text : ""; *c; c++)
+    {
+        const unsigned char u = static_cast<unsigned char>(*c);
+        if(u == '"' || u == '\\')
+        {
+            out += '\\';
+            out += *c;
+        }
+        else if(u == '\n')
+        {
+            out += "\\n";
+        }
+        else if(u < 0x20)
+        {
+            out += va("\\u%04x", u);
+        }
+        else
+        {
+            out += *c;
+        }
+    }
+    out += "\"";
+    return out;
+}
+
+// One setting for Setup's settings page (Misc/installer/settings_page.py): its cvar, then its row's (the first in
+// Search's order: the shallowest), each field an "MS|<cvar>|<key>|<JSON value>" line (a long help stays under the
+// console's line length).
+void dumpSetting(const char* name)
+{
+    const cvar_t* var = Cvar_FindVar(name);
+    if(!var)
+    {
+        Con_Printf("MS|%s|exists|false\n", name);
+        return;
+    }
+    Con_Printf("MS|%s|exists|true\n", name);
+    Con_Printf("MS|%s|archive|%s\n", name, (var->flags & CVAR_ARCHIVE) ? "true" : "false");
+    if(var == &vr_graphics_preset)
+    {
+        // Not a saved setting: a button (applies a group of settings once). Its choices are the Graphics Presets
+        // page's buttons, its help the Graphics page's link to them; its default the shipped level.
+        Con_Printf("MS|%s|kind|\"apply\"\n", name);
+        Con_Printf("MS|%s|default|\"%d\"\n", name, gfxpresets::levelHigh);
+        for(const SearchEntry& e : search.index)
+        {
+            if(e.isPage && e.page == pageIndex(pageGraphicsPresets))
+            {
+                Con_Printf("MS|%s|path|%s\n", name, jsonText((e.path.empty() ? e.label : e.path + " > " + e.label).cStr()).cStr());
+                Con_Printf("MS|%s|label|%s\n", name, jsonText(e.label.cStr()).cStr());
+                break;
+            }
+        }
+        for(const Item& item : items(pageIndex(pageGraphics)))
+        {
+            if(item.kind == Item::Action && item.page == pageIndex(pageGraphicsPresets) && item.helpText)
+            {
+                Con_Printf("MS|%s|help|%s\n", name, jsonText(item.helpText).cStr());
+            }
+        }
+        for(int level = 0; level < gfxpresets::levelCount; level++)
+        {
+            const char* levelLabel = gfxpresets::levelName(level);
+            for(const Item& item : items(pageIndex(pageGraphicsPresets)))
+            {
+                if(item.kind == Item::Action && item.label && za::StringView{item.label}.startsWith(za::StringView{levelLabel}))
+                {
+                    Con_Printf("MS|%s|choice|%d|%s\n", name, level, jsonText(item.label).cStr());
+                    Con_Printf("MS|%s|choicehelp|%d|%s\n", name, level, jsonText(item.helpText).cStr());
+                    break;
+                }
+            }
+        }
+        return;
+    }
+    // A preset (Handedness): a button too; its choices are the ones that set something, its default the one the
+    // settings' defaults match.
+    const Preset* preset = nullptr;
+    for(const Preset& p : presets)
+    {
+        preset = p.choice == var ? &p : preset;
+    }
+    const PresetChoice* presetDefault = nullptr;
+    for(int i = 0; preset && i < preset->count && !presetDefault; i++)
+    {
+        bool all = true;
+        for(const PresetSetting& s : preset->choices[i].settings)
+        {
+            const cvar_t* setting = Cvar_FindVar(s.cvar);
+            all = all && setting && setting->default_string && Q_atof(setting->default_string) == s.value;
+        }
+        presetDefault = all ? &preset->choices[i] : nullptr;
+    }
+    if(preset)
+    {
+        Con_Printf("MS|%s|default|\"%g\"\n", name, presetDefault ? presetDefault->value : var->value);
+    }
+    else
+    {
+        Con_Printf("MS|%s|default|%s\n", name, jsonText(var->default_string).cStr());
+    }
+    for(const SearchEntry& e : search.index)
+    {
+        if(e.isPage || e.cvar != var)
+        {
+            continue;
+        }
+        for(const Item& item : items(e.page))
+        {
+            if(item.cvar != var || (item.kind != Item::Slider && item.kind != Item::Cycle))
+            {
+                continue;
+            }
+            const bool toggle = item.kind == Item::Cycle && item.choices.size() == 2 && item.choices[0].value == 0.f &&
+                                item.choices[1].value == 1.f && !q_strcasecmp(item.choices[0].label, "Off") &&
+                                !q_strcasecmp(item.choices[1].label, "On");
+            Con_Printf("MS|%s|kind|\"%s\"\n", name,
+                preset ? "apply" : item.kind == Item::Slider ? "slider" : toggle ? "toggle" : "choice");
+            Con_Printf("MS|%s|label|%s\n", name, jsonText(e.label.cStr()).cStr());
+            Con_Printf("MS|%s|path|%s\n", name, jsonText((e.path.empty() ? e.label : e.path + " > " + e.label).cStr()).cStr());
+            Con_Printf("MS|%s|level|%d\n", name, e.level);
+            if(item.helpText)
+            {
+                Con_Printf("MS|%s|help|%s\n", name, jsonText(item.helpText).cStr());
+            }
+            if(item.kind == Item::Slider)
+            {
+                Con_Printf("MS|%s|min|%g\nMS|%s|max|%g\nMS|%s|step|%g\n", name, item.min, name, item.max, name, item.step);
+                Con_Printf("MS|%s|format|%s\n", name, jsonText(item.format).cStr());
+                if(item.extendable)
+                {
+                    Con_Printf("MS|%s|hardmin|%g\nMS|%s|hardmax|%g\n", name, item.hardMin, name, item.hardMax);
+                }
+            }
+            else if(!toggle)
+            {
+                for(const Choice& c : item.choices)
+                {
+                    bool sets = !preset;
+                    for(int i = 0; preset && i < preset->count; i++)
+                    {
+                        sets = sets || preset->choices[i].value == c.value;
+                    }
+                    if(sets)
+                    {
+                        Con_Printf("MS|%s|choice|%g|%s\n", name, c.value, jsonText(c.label).cStr());
+                    }
+                }
+            }
+            return;
+        }
+    }
+    Con_Printf("MS|%s|kind|\"none\"\n", name); // no menu row shows it (any more)
+}
+
+} // namespace
+
+void qvr::menu::dumpSettings_f()
+{
+    buildSearchIndex();
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        dumpSetting(Cmd_Argv(i));
+    }
+    levelOverride = was;
+    Con_Printf("menu settings dumped: %d\n", Cmd_Argc() - 1);
+}
+
 void qvr::menu::press_f()
 {
     // (Unquoted, the page and the row split at " > ": a test script's quotes need not survive its shell.)

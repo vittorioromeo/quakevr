@@ -22,6 +22,8 @@ public enum Page
     Detect,
     Options,
     Install,
+    /// <summary>After installing: the most common settings, before the first start (SettingsPageViewModel).</summary>
+    Settings,
     Done,
     /// <summary>After Play: a word from the author, and Ko-fi.</summary>
     Support,
@@ -206,7 +208,7 @@ public sealed class MainViewModel : ObservableObject
         // entry, the default folder (InstallDetection; Browse picks another).
         _found = InstallDetection.Find(RegistryFor(options), options.Target, Environment.ProcessPath, DefaultInstallDir);
         _installDir = (options.Target is { } t ? PathUtil.TryNormalize(t) : null) ?? _found.Picked?.Dir ?? DefaultInstallDir;
-        Steps = [new(1, "Welcome"), new(2, AiStatement.Title), new(3, "Your PC"), new(4, "Options"), new(5, "Install"), new(6, "Play"), new(7, "Thanks")];
+        Steps = [new(1, "Welcome"), new(2, AiStatement.Title), new(3, "Your PC"), new(4, "Options"), new(5, "Install"), new(6, "Settings"), new(7, "Play"), new(8, "Thanks")];
         StatementChoices = [.. Enumerable.Range(0, AiStatement.Claims.Count).Select(i => new StatementChoice(Statement, i))];
         Statement.Changed += () =>
         {
@@ -290,7 +292,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (Set(ref _page, value))
             {
-                Raise(nameof(IsWelcome), nameof(IsStatement), nameof(IsDetect), nameof(IsOptions), nameof(IsInstall), nameof(IsDone), nameof(IsSupport), nameof(NextText), nameof(ShowBack), nameof(FooterHint));
+                Raise(nameof(IsWelcome), nameof(IsStatement), nameof(IsDetect), nameof(IsOptions), nameof(IsInstall), nameof(IsSettings), nameof(IsDone), nameof(IsSupport), nameof(NextText), nameof(ShowBack), nameof(FooterHint));
             }
         }
     }
@@ -300,6 +302,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsDetect => Page == Page.Detect;
     public bool IsOptions => Page == Page.Options;
     public bool IsInstall => Page == Page.Install;
+    public bool IsSettings => Page == Page.Settings;
     public bool IsDone => Page == Page.Done;
     public bool IsSupport => Page == Page.Support;
     public bool ShowBack => Page is Page.Statement or Page.Detect or Page.Options or Page.Support || (Page == Page.Install && !Installing);
@@ -325,6 +328,7 @@ public sealed class MainViewModel : ObservableObject
         Page.Detect => "Your Quake files are only read, never changed.",
         Page.Options => "Free and open source. No telemetry: nothing is sent about you.",
         Page.Support => "Quake VR: Unleashed is free, and it stays free.",
+        Page.Settings => "Set once, at the next start: what you change in the game later is kept.",
         _ => "",
     };
 
@@ -413,6 +417,10 @@ public sealed class MainViewModel : ObservableObject
             case Page.Options:
                 _ = InstallAsync();
                 break;
+            case Page.Settings:
+                SaveSettings();
+                GoTo(Page.Done);
+                break;
             case Page.Done:
                 GoTo(Page.Support);
                 break;
@@ -420,6 +428,60 @@ public sealed class MainViewModel : ObservableObject
                 Application.Current.Shutdown();
                 break;
         }
+    }
+
+    // ---- Settings: the most common settings after installing (docs/vr-port/INSTALLER.md, "Settings page") ------------
+
+    SettingsPageViewModel? _settingsPage;
+
+    public SettingsPageViewModel? SettingsPage
+    {
+        get => _settingsPage;
+        private set => Set(ref _settingsPage, value);
+    }
+
+    /// <summary>The settings page when the installed game has its manifest (quakevr\settings_page.json), else Done.</summary>
+    void GoToSettingsOrDone()
+    {
+        try
+        {
+            SettingsPage = Core.Settings.SettingsSession.Open(InstallDir) is { } session ? new SettingsPageViewModel(session) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException
+                                      or KeyNotFoundException or InvalidOperationException)
+        {
+            AddLog(LogLevel.Warning, $"The settings page was skipped: {e.Message}");
+            SettingsPage = null;
+        }
+        GoTo(SettingsPage is null ? Page.Done : Page.Settings);
+    }
+
+    /// <summary>The page's changes to quakevr\installer_settings.cfg (the game runs it once at its next start).</summary>
+    void SaveSettings()
+    {
+        if (SettingsPage is null)
+        {
+            return;
+        }
+        try
+        {
+            var count = SettingsPage.ChangedCount;
+            AddLog(LogLevel.Info, SettingsPage.Save() is { } path
+                ? $"{count} setting{(count == 1 ? "" : "s")} saved for the next start ({path})."
+                : "No setting changed on the settings page: nothing written.");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            AddLog(LogLevel.Error, $"The settings could not be saved: {e.Message}");
+        }
+    }
+
+    /// <summary>The harness: the settings page for a made-up install.</summary>
+    internal void SimulateSettings(Core.Settings.SettingsSession session)
+    {
+        Installing = false;
+        SettingsPage = new SettingsPageViewModel(session);
+        GoTo(Page.Settings);
     }
 
     void Back()
@@ -715,7 +777,7 @@ public sealed class MainViewModel : ObservableObject
             await AddArcaneDimensionsAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
-            GoTo(Page.Done);
+            GoToSettingsOrDone();
             UiSounds.Play(Sfx.InstallDone);
         }
         catch (OperationCanceledException)
@@ -1429,7 +1491,7 @@ public sealed class MainViewModel : ObservableObject
             await AddArcaneDimensionsAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
-            GoTo(Page.Done);
+            GoToSettingsOrDone();
             UiSounds.Play(Sfx.InstallDone);
         }
         catch (OperationCanceledException)

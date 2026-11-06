@@ -1,0 +1,237 @@
+{
+ "schema": 1,
+ "source": "Misc/installer/settings_page.py from settings_page.txt and the game's menu rows",
+ "settings": [
+  {
+   "cvar": "vr_snap_turn",
+   "category": "Comfort",
+   "subcategory": "Turning",
+   "kind": "choice",
+   "label": "Turning",
+   "help": "Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle.",
+   "path": "Advanced VR Options > Movement > Locomotion > Turning",
+   "default": "0",
+   "choices": [
+    {
+     "value": "0",
+     "label": "Smooth"
+    },
+    {
+     "value": "30",
+     "label": "Snap 30"
+    },
+    {
+     "value": "45",
+     "label": "Snap 45"
+    },
+    {
+     "value": "90",
+     "label": "Snap 90"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_turn_speed",
+   "category": "Comfort",
+   "subcategory": "Turning",
+   "kind": "slider",
+   "label": "Turn Speed",
+   "help": "How fast smooth turning turns you.",
+   "path": "VR Settings > Comfort, Teleport and Turning > Turn Speed",
+   "default": "3.25",
+   "min": 1,
+   "max": 8,
+   "step": 0.25,
+   "format": "%.2f",
+   "hardmin": 1,
+   "hardmax": 36
+  },
+  {
+   "cvar": "vr_comfort_vignette",
+   "category": "Comfort",
+   "subcategory": "Motion Sickness",
+   "kind": "choice",
+   "label": "Vignette",
+   "help": "Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. Your own steps in the room never do it.",
+   "path": "VR Settings > Comfort, Teleport and Turning > Vignette",
+   "default": "0",
+   "choices": [
+    {
+     "value": "0",
+     "label": "Off"
+    },
+    {
+     "value": "1",
+     "label": "Moving and Turning"
+    },
+    {
+     "value": "2",
+     "label": "Moving Only"
+    },
+    {
+     "value": "3",
+     "label": "Turning Only"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_bodycal_seated",
+   "category": "Comfort",
+   "subcategory": "How You Play",
+   "kind": "choice",
+   "label": "Position",
+   "help": "Seated: the game stands you up (your eyes at your standing Height), the body stands with its legs on the floor, the holsters and pouches move where a seated player reaches them, and a hand reaching low goes on down to the floor. VR Calibration and Body Calibration take you seated too.",
+   "path": "VR Settings > Height and Hand Calibration > Seated Play > Position",
+   "default": "0",
+   "choices": [
+    {
+     "value": "0",
+     "label": "Standing"
+    },
+    {
+     "value": "1",
+     "label": "Seated"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_handedness",
+   "category": "Your Body",
+   "subcategory": "Hands",
+   "kind": "apply",
+   "label": "Handedness",
+   "help": "Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below).",
+   "path": "Advanced VR Options > Body and Display > Handedness",
+   "default": "1",
+   "choices": [
+    {
+     "value": "1",
+     "label": "Right-handed"
+    },
+    {
+     "value": "2",
+     "label": "Left-handed"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_gloves",
+   "category": "Your Body",
+   "subcategory": "Hands",
+   "kind": "choice",
+   "label": "Gloves",
+   "help": "Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones cover every finger. With bare forearms (no bracers) a cuff covers the wrist.",
+   "path": "VR Settings > Player Appearance > Gloves",
+   "default": "0",
+   "choices": [
+    {
+     "value": "0",
+     "label": "None"
+    },
+    {
+     "value": "1",
+     "label": "Fingerless"
+    },
+    {
+     "value": "2",
+     "label": "Full"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_body_mode",
+   "category": "Your Body",
+   "subcategory": "Body",
+   "kind": "choice",
+   "label": "Body Type",
+   "help": "How much of your body you see: all of it, legs and all; the torso and arms; or only the hands.",
+   "path": "VR Settings > Body and Flashlight > Body Type",
+   "default": "3",
+   "choices": [
+    {
+     "value": "3",
+     "label": "Full Body"
+    },
+    {
+     "value": "2",
+     "label": "Torso and Arms"
+    },
+    {
+     "value": "0",
+     "label": "Only Hands"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_agrunt_repl",
+   "category": "Gameplay",
+   "subcategory": "Enemies",
+   "kind": "toggle",
+   "label": "Replace All Humanoids",
+   "help": "Every grunt and enforcer a map spawns (its own, its spawners', its waiting ones) is its armed version holding its own gun: the same damage, rate of fire, aim, health and loot as the one it replaces, but you can knock or pull the gun out of its hands, win it in a tug, parry it, shoot it out, and its ragdoll keeps hold of it. Takes effect at the next map load (vr_agrunt_repl).",
+   "path": "Advanced VR Options > Combat > Armed Humanoid Replacements > Replace All Humanoids",
+   "default": "1"
+  },
+  {
+   "cvar": "vr_gore",
+   "category": "Gameplay",
+   "subcategory": "Gore",
+   "kind": "choice",
+   "label": "Gore",
+   "help": "Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip.",
+   "path": "Advanced VR Options > Gore > Gore",
+   "default": "2",
+   "choices": [
+    {
+     "value": "0",
+     "label": "Quake VR"
+    },
+    {
+     "value": "1",
+     "label": "More"
+    },
+    {
+     "value": "2",
+     "label": "Over the top"
+    }
+   ]
+  },
+  {
+   "cvar": "vr_graphics_preset",
+   "category": "Graphics",
+   "subcategory": "Quality",
+   "kind": "apply",
+   "label": "Graphics Presets",
+   "help": "Off (Quake), Low, Medium, High (as shipped) and Ultra set the settings on the Graphics pages at once; My Settings sets yours back. Also on VR Settings.",
+   "path": "VR Settings > Graphics Presets",
+   "default": "3",
+   "choices": [
+    {
+     "value": "0",
+     "label": "Off (Quake)",
+     "help": "Quake's own look: flat dynamic lights, no shadows, bumps, ambient occlusion, bloom or tone mapping, plain liquids, no teleporter views. The least GPU time."
+    },
+    {
+     "value": "1",
+     "label": "Low",
+     "help": "For weaker graphics cards: Quake VR's lighting and look with few shadows (2 dynamic lights, none from the map), no bumps, parallax, ambient occlusion, refraction, teleporter views or heat haze. About a third of High's GPU time."
+    },
+    {
+     "value": "2",
+     "label": "Medium",
+     "help": "Most of it at about half High's GPU time: bumps, parallax (without its depth: things meet the wall's surface, not its carved relief), ambient occlusion, every liquid effect and teleporter views, with fewer and smaller shadows (4 dynamic lights, 2 map lights)."
+    },
+    {
+     "value": "3",
+     "label": "High (as shipped)",
+     "help": "The game's defaults: everything on, 8 shadowed dynamic lights and 4 map lights out to 3072 units."
+    },
+    {
+     "value": "4",
+     "label": "Ultra",
+     "help": "Past the defaults, for fast graphics cards: 12 shadowed dynamic lights and 6 map lights out to 4096 units, more torch lights, particles at full resolution, the finer bloom, deeper parallax steps."
+    }
+   ]
+  }
+ ]
+}

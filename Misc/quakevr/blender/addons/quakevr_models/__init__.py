@@ -1,21 +1,25 @@
-# Quake VR models: imports and exports Quake VR's body (vrbody*.md5mesh, .md5anim and the vrbody_NN_00.tga skins),
-# its weapons (v_*.mdl), its wrist gadget (vrgadget.mdl), the flashlight and every other model of quakevr/progs (.mdl)
-# with their frames, skins and UVs, keeping what the engine relies on (the body's joints; the models' anchors, header,
-# frames and vertex indices; checks.py: what the engine takes from the flashlight, the holster, the pauldrons, the
-# shell...), so they can be edited in Blender and reloaded in the game (vr_model_reload; a source .blend exports on save: autoexport.py). The author's guide: docs/vr-port/MODELS_IN_BLENDER.md. The hand
-# has its own add-on (quakevr_hand).
+# Quake VR: the one Blender add-on for every model of the game (until 2026-11 two: Quake VR Models and Quake VR Hand).
+# It imports and exports Quake VR's body (vrbody*.md5mesh, .md5anim and the vrbody_NN_00.tga skins), the jointed hand
+# (hand_rig.md5mesh: hand_blender.py), its weapons (v_*.mdl), its wrist gadget (vrgadget.mdl), the flashlight and every
+# other model of quakevr/progs (.mdl) with their frames, skins and UVs, keeping what the engine relies on (the body's
+# joints; the models' anchors, header, frames and vertex indices; checks.py: what the engine takes from the
+# flashlight, the holster, the pauldrons, the shell...). One panel (3D View > Sidebar > Quake VR) finds what the open
+# .blend edits and shows its tools. A model's source .blend, or a .blend holding the hand or the body, exports on save
+# (autoexport.py; the game reads it again by itself); Show in Game asks the running game to draw it in front of you.
+# The workflow: docs/vr-port/BLENDER_WORKFLOW.md; the details: MODELS_IN_BLENDER.md, HANDS_IN_BLENDER.md.
 #
 # Blender 5.2. Install: Preferences > File Paths > Script Directories: add Misc/quakevr/blender, restart Blender,
-# then Preferences > Add-ons: enable "Quake VR Models".
+# then Preferences > Add-ons: enable "Quake VR". (The package keeps its old name, quakevr_models, so an installed
+# copy stays enabled with its preferences; the old hand add-on's entry is taken out by itself.)
 
 bl_info = {
-    "name": "Quake VR Models",
+    "name": "Quake VR",
     "author": "Quake VR",
-    "version": (1, 1, 0),
+    "version": (2, 0, 0),
     "blender": (5, 2, 0),
-    "location": "File > Import/Export > Quake VR Body / Quake VR Model (.mdl); 3D View > Sidebar > Quake VR",
-    "description": "Edit Quake VR's body, weapons, wrist gadget, flashlight and other models with their bones, "
-                   "frames, skins and anchors",
+    "location": "3D View > Sidebar > Quake VR; File > Import/Export > Quake VR Body / Hand / Model",
+    "description": "Edit every Quake VR model (weapons, props, gear, monsters, the body, the jointed hand): "
+                   "export on save, show it in the running game",
     "category": "Import-Export",
 }
 
@@ -28,7 +32,9 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from . import autoexport
 from . import body_blender as BB
 from . import checks
+from . import hand_blender
 from . import md5body
+from . import md5source
 from . import mdl
 from . import mdl_blender as MB
 from . import normal_blender as NB
@@ -306,8 +312,8 @@ def model_image(ob):
     for m in ob.data.materials:
         if m is not None and m.node_tree is not None:
             for n in m.node_tree.nodes:
-                if n.type == 'TEX_IMAGE' and n.image is not None:
-                    return n.image
+                if n.type == 'TEX_IMAGE' and n.image is not None and not n.get("qvr_normal"):
+                    return n.image  # (the skin, not the normal map shown: normal_blender.show)
     return None
 
 
@@ -394,42 +400,214 @@ class QVR_OT_bake_normal_map(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class QVR_PT_models(bpy.types.Panel):
-    bl_label = "Quake VR Models"
+# ----------------------------------------------------------------------------
+# The game: Show in Game (a request file the game reads), the source .blend of an imported model, and what the game's
+# vr_edit_in_blender asks of Blender (edit_from_game).
+
+REQUEST_FILE = "blender_request.txt"  # in the game folder (quakevr/): read by the engine's vr_blender.cpp
+
+
+def detect(context):
+    """What this .blend edits: (kind, object, label). kind: 'source' (a model's source .blend: export on save),
+    'hand', 'body' (imported jointed hand or body: export on save too), 'mdl' (an imported .mdl: its source .blend
+    owns its files), or None."""
+    ob = autoexport.source_model()
+    if ob is not None:
+        return 'source', ob, "Source of %s" % ob.get("qvr_name", ob.name)
+    blend = bpy.data.filepath
+    from . import source as S
+    if blend and S.handmade_script(blend):
+        return 'source', None, "Hand-made source: %s" % os.path.basename(blend)
+    kind, ob = md5source.find(context)
+    if kind is not None:
+        return kind, ob, "The %s: %s" % ("jointed hand" if kind == md5source.HAND else "body",
+                                         md5source.model_name(kind, ob))
+    ob = active_model(context, MB.KIND)
+    if ob is not None:
+        return 'mdl', ob, "Imported: %s" % os.path.basename(ob.get("qvr_source") or ob.name)
+    return None, None, "No Quake VR model here"
+
+
+def repo_root_of(path):
+    from . import source as S
+    return S.repo_root(path) if path else None
+
+
+def owned_source(model_file):
+    """The source .blend that writes quakevr/progs/<model_file> (generated.json's "source"), or None."""
+    import json
+    root = repo_root_of(model_file) or repo_root_of(bpy.data.filepath)
+    if root is None:
+        return None
+    try:
+        with open(os.path.join(root, "Misc", "quakevr", "generated.json")) as f:
+            entry = json.load(f).get("quakevr/progs/" + os.path.basename(model_file).lower())
+    except (OSError, ValueError):
+        return None
+    src = entry.get("source") if entry else None
+    return os.path.join(root, *src.split("/")) if src else None
+
+
+def game_models(context):
+    """The game's names (vr_model_reload's) of what this .blend edits."""
+    kind, ob, _ = detect(context)
+    if kind == 'source' and ob is not None:
+        return [os.path.splitext(ob.get("qvr_name", ob.name))[0]]
+    if kind == 'source':  # a hand-made source: its main model (source.HANDMADE_FILES)
+        from . import source as S
+        d = os.path.basename(os.path.dirname(os.path.abspath(bpy.data.filepath)))
+        return [os.path.splitext(m)[0] for m in S.HANDMADE_FILES.get(d, ())][:1]
+    if kind in (md5source.HAND, md5source.BODY):
+        return [md5source.model_name(kind, ob)]
+    if kind == 'mdl':
+        return [os.path.splitext(os.path.basename(ob.get("qvr_source") or ob.name))[0]]
+    return []
+
+
+def game_folder():
+    """The game folder the request goes to: the Game Folder preference's parent (it names progs), else the
+    repository's quakevr."""
+    out = autoexport.out_dir()
+    if out:
+        return os.path.dirname(out.rstrip("\\/"))
+    root = repo_root_of(bpy.data.filepath)
+    return os.path.join(root, "quakevr") if root else None
+
+
+def write_request(lines):
+    """Writes the request the game reads within half a second (vr_blender_link: show <model> / reload <model>):
+    the file's path, or None (no game folder)."""
+    folder = game_folder()
+    if folder is None or not os.path.isdir(folder):
+        return None
+    path = os.path.join(folder, REQUEST_FILE)
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
+
+
+class QVR_OT_show_in_game(bpy.types.Operator):
+    """Show the model in the running game: it is read again and drawn in front of you, turning (vr_model_show),
+    until you press it again for another model or the game's Debug > Tests > Hide the Model from Blender. Save first:
+    the game shows the model as last exported"""
+    bl_idname = "quakevr_models.show_in_game"
+    bl_label = "Show in Game"
+
+    def execute(self, context):
+        names = game_models(context)
+        if not names:
+            self.report({'ERROR'}, "no Quake VR model in this .blend")
+            return {'CANCELLED'}
+        path = write_request(["show %s" % names[0]])
+        if path is None:
+            self.report({'ERROR'}, "no game folder: save the .blend inside the repository, or set the Game Folder")
+            return {'CANCELLED'}
+        self.report({'INFO'}, "asked the game to show %s (%s)" % (names[0], path))
+        return {'FINISHED'}
+
+
+class QVR_OT_open_source(bpy.types.Operator):
+    """Open the model's source .blend (Misc/quakevr/src_models/blend/...): edit that one, its save exports to the game
+    (an imported model's .blend doesn't: the source owns the files)"""
+    bl_idname = "quakevr_models.open_source"
+    bl_label = "Open Its Source .blend"
+
+    def execute(self, context):
+        ob = active_model(context, MB.KIND)
+        src = owned_source(ob.get("qvr_source") or "") if ob is not None else None
+        if not src or not os.path.isfile(src):
+            self.report({'ERROR'}, "no source .blend recorded for this model (generated.json)")
+            return {'CANCELLED'}
+        bpy.ops.wm.open_mainfile(filepath=src)
+        return {'FINISHED'}
+
+
+def import_for_edit(path):
+    """Imports a game file (the jointed hand, the body, a .mdl without a source .blend) into the open scene."""
+    name = os.path.basename(path).lower()
+    if name.endswith(".md5mesh") and name.startswith("hand_rig"):
+        bpy.ops.import_scene.quakevr_hand(filepath=path)
+    elif name.endswith(".md5mesh"):
+        bpy.ops.import_scene.quakevr_body(filepath=path)
+    else:
+        bpy.ops.import_scene.quakevr_mdl(filepath=path)
+    print("Quake VR: imported %s: save it as a .blend inside the repository and Ctrl+S exports it" % path)
+
+
+def edit_from_game(path):
+    """The game's vr_edit_in_blender for a model without a source .blend (blender --python-expr): imports it once the
+    window is up."""
+    if bpy.app.background:
+        import_for_edit(path)
+        return
+
+    def run():
+        wm = bpy.context.window_manager
+        win = wm.windows[0] if wm.windows else None
+        area = next((a for a in win.screen.areas if a.type == 'VIEW_3D'), None) if win else None
+        region = next((r for r in area.regions if r.type == 'WINDOW'), None) if area else None
+        try:
+            if win is None:
+                import_for_edit(path)
+            else:
+                with bpy.context.temp_override(window=win, area=area, region=region):
+                    import_for_edit(path)
+        except RuntimeError as e:
+            print("Quake VR: couldn't import %s: %s" % (path, e))
+        return None
+    bpy.app.timers.register(run, first_interval=0.5)
+
+
+class QVR_PT_quakevr(bpy.types.Panel):
+    """The one Quake VR panel: what this .blend edits, found by itself, and its tools."""
+    bl_label = "Quake VR"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Quake VR"
 
     def draw(self, context):
         layout = self.layout
-        autoexport.draw_panel(layout)
+        kind, ob, label = detect(context)
+        layout.label(text=label, icon='OBJECT_DATA' if kind else 'QUESTION')
+        if kind in ('source', md5source.HAND, md5source.BODY):
+            autoexport.draw_panel(layout)
+        if kind is not None:
+            layout.operator(QVR_OT_show_in_game.bl_idname, icon='PLAY')
         col = layout.column(align=True)
-        col.label(text="Weapons, gadget, flashlight... (.mdl)")
-        col.operator(QVR_OT_import_mdl.bl_idname, text="Import Model", icon='IMPORT')
-        col.operator(QVR_OT_export_mdl.bl_idname, text="Export Model", icon='EXPORT')
-        col.operator(QVR_OT_carry_frames.bl_idname, icon='SHAPEKEY_DATA')
-        col.separator()
-        col.label(text="Body (.md5mesh)")
-        col.operator(QVR_OT_import_body.bl_idname, text="Import Body", icon='IMPORT')
-        col.operator(QVR_OT_export_body.bl_idname, text="Export Body", icon='EXPORT')
-        col.operator(QVR_OT_apply_pose_body.bl_idname, icon='ARMATURE_DATA')
-        col.operator(QVR_OT_select_unweighted.bl_idname, icon='GROUP_VERTEX')
-        col.separator()
-        col.label(text="Skin")
-        col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
-        col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
-        col.separator()
-        col.label(text="Normal map")
-        col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
+        if kind == 'mdl':
+            col.label(text="Its source .blend writes its files:", icon='INFO')
+            col.operator(QVR_OT_open_source.bl_idname, icon='FILE_BLEND')
+            col.operator(QVR_OT_export_mdl.bl_idname, text="Export Model Anyway", icon='EXPORT')
+        if kind in ('source', 'mdl'):
+            col.operator(QVR_OT_carry_frames.bl_idname, icon='SHAPEKEY_DATA')
+        elif kind == md5source.BODY:
+            col.operator(QVR_OT_export_body.bl_idname, text="Export Body Now", icon='EXPORT')
+            col.operator(QVR_OT_apply_pose_body.bl_idname, icon='ARMATURE_DATA')
+            col.operator(QVR_OT_select_unweighted.bl_idname, icon='GROUP_VERTEX')
+        elif kind == md5source.HAND:
+            hand_blender.draw_tools(col)
+        if kind in ('source', 'mdl', md5source.BODY):
+            col.separator()
+            col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
+            col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
+            col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
+        box = layout.box()
+        box.label(text="Import (then save inside the repository)")
+        row = box.row(align=True)
+        row.operator(QVR_OT_import_mdl.bl_idname, text="Model", icon='IMPORT')
+        row.operator(QVR_OT_import_body.bl_idname, text="Body", icon='IMPORT')
+        row.operator(hand_blender.QVR_OT_import_hand.bl_idname, text="Hand", icon='IMPORT')
 
 
 def menu_import(self, context):
     self.layout.operator(QVR_OT_import_body.bl_idname, text="Quake VR Body (.md5mesh)")
+    self.layout.operator(hand_blender.QVR_OT_import_hand.bl_idname, text="Quake VR Hand (.md5mesh)")
     self.layout.operator(QVR_OT_import_mdl.bl_idname, text="Quake VR Model: Weapon, Gadget (.mdl)")
 
 
 def menu_export(self, context):
     self.layout.operator(QVR_OT_export_body.bl_idname, text="Quake VR Body (.md5mesh)")
+    self.layout.operator(hand_blender.QVR_OT_export_hand.bl_idname, text="Quake VR Hand (.md5mesh)")
     self.layout.operator(QVR_OT_export_mdl.bl_idname, text="Quake VR Model: Weapon, Gadget (.mdl)")
 
 
@@ -438,9 +616,10 @@ class QVR_AP_models(bpy.types.AddonPreferences):
 
     export_on_save: BoolProperty(
         name="Export on Save", default=True,
-        description="Saving a weapon's source .blend (Misc/quakevr/src_models/blend) exports it to the game, as "
-                    "blend_export.py does, in a background Blender: nothing is written if a check fails. The game "
-                    "reads the changed models again by itself (vr_model_watch)")
+        description="Saving a model's source .blend (Misc/quakevr/src_models/blend), or a .blend holding the "
+                    "jointed hand or the body, exports it to the game, as blend_export.py does, in a background "
+                    "Blender: nothing is written if a check fails. The game reads the changed models again by itself "
+                    "(vr_model_watch)")
     progs_dir: StringProperty(
         name="Game Folder", subtype='DIR_PATH', default="",
         description="Where the export on save writes the game's files. Empty: the repository's quakevr/progs (and "
@@ -452,9 +631,35 @@ class QVR_AP_models(bpy.types.AddonPreferences):
         col.prop(self, "progs_dir")
 
 
+OLD_ADDONS = ("quakevr_hand",)  # merged into this one (2026-11): their entries taken out of the preferences
+
+
+def retire_old_addons():
+    """The hand's old add-on (quakevr_hand, now hand_blender.py here) disabled and out of the preferences, so Blender
+    doesn't look for it at each start. Run from a timer (not while add-ons are being enabled)."""
+    import addon_utils
+    prefs = bpy.context.preferences
+    gone = []
+    for name in OLD_ADDONS:
+        if prefs.addons.get(name) is not None:
+            try:
+                addon_utils.disable(name, default_set=True)
+            except Exception:  # noqa: BLE001  (its folder is gone: only the entry is left)
+                pass
+            if prefs.addons.get(name) is not None:
+                prefs.addons.remove(prefs.addons[name])
+            gone.append(name)
+    if gone:
+        print("Quake VR: the old add-on %s is part of Quake VR now: taken out of the preferences (kept so when they "
+              "are saved: Auto-Save Preferences does it on quitting)" % ", ".join(gone))
+        prefs.is_dirty = True
+    return None
+
+
 classes = (QVR_AP_models, QVR_OT_import_mdl, QVR_OT_export_mdl, QVR_OT_carry_frames, QVR_OT_import_body,
            QVR_OT_export_body, QVR_OT_apply_pose_body, QVR_OT_select_unweighted, QVR_OT_save_skin,
-           QVR_OT_reload_skin, QVR_OT_bake_normal_map, QVR_PT_models)
+           QVR_OT_reload_skin, QVR_OT_bake_normal_map, QVR_OT_show_in_game, QVR_OT_open_source,
+           QVR_PT_quakevr) + hand_blender.classes
 
 
 def register():
@@ -463,6 +668,8 @@ def register():
     autoexport.register()
     bpy.types.TOPBAR_MT_file_import.append(menu_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_export)
+    if not bpy.app.background:
+        bpy.app.timers.register(retire_old_addons, first_interval=1.0)
 
 
 def unregister():

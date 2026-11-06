@@ -1830,3 +1830,106 @@ grip, the other hand on the barrel's band, the front post level in the rear notc
   window glass in a raised frame; ring grain and pores on the walnut grip.
 - 746 triangles (the holed muzzle block 168 of them). Flat sight check 0.0000; sight_picture: the post seen 0.42 down;
   `vr_agrunt_test 85` 40/0, `vr_agrunt_test 12` (AD guns) 21/0.
+## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
+
+His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new
+value. I think 0.2x would be a good start"; "add a tunable camera aimpunch + directional hit effects ... Make everything
+tunable"; "Like for VR, add a blood vignette when the player is low on health ... flatscreen-specific size and opacity
+tunables". FLATPLAY.md, "Hit feedback" has the whole of it; `vr_flathit.cpp` the code.
+
+- The hands' knock on a hit (`vr_painknock.cpp`) is scaled in `vr_view.cpp` by `flathit::keepHitReact`: 1 hipfire,
+  `vr_flat_ads_hitreact` (0.2) sighted, by the ironsight's smoothed travel (as `vr_flat_ads_recoil`).
+- The punch goes into `cl.viewangles` as each frame's change of a sum of per-hit pulses (8 kept), so the aim and the
+  crosshair never part: the shots go where the crosshair is during the punch, and the aim returns exactly to where the mouse
+  put it when the punch settles. Pitch stays inside `cl_minpitch` / `cl_maxpitch`; what the clamp refused is not owed back.
+  Defaults: 2 degrees for a 20-point hit, at most 6, 0.05 s in, 0.3 s back, half sighted. Quake's own view kick is left as
+  it was (a look only).
+- The marks are drawn in `SCR_UpdateScreen` before the crosshair (`VR_FlatHitDraw`, on the crosshair's canvas) with a new
+  `Draw_FillQuad` (gl_draw.c): 9 quads an arc, ends faded. Damage gives the mark half to all of its opacity.
+- The low-health blood was already drawn in flat by the shared post-process; `vr_blood.cpp` now takes its size and peak
+  opacity from `vr_flat_blood_health_size` / `_opacity` while flatscreen play is on.
+- Tests: `bash Misc/quakevr/flathit_test.sh <agent>` (e1m1, a real grunt firing from the right; each run ends on the
+  trigger's own line): punch 1.47 deg left in the aim 4 frames on, 0 after settling, the picture moved 6 px (the turn says
+  9.2 at 960 px, within its margin); the mark's ring pixels right 381, others 0, the probe's mark at 91.5 deg; knock
+  share 1.000 hipfire, 0.200 sighted (1.934 -> 0.387); punch sighted 0.478 of 0.956; vignette edge +30.3 redness at
+  10 health, middle 0.0. 10 of 10. Flat suites after it: flatads 7/7, flatplay 28/28, flathud 11/11, flatsight 12/12,
+  flatvisuals 6/6.
+- Test aids: Debug > Flatscreen Play > "Flatscreen Test Hit From The Right" (`vr_blood_test packet right`) and "Flatscreen
+  Hit Probe" (`vr_flat_hit_probe`); `vr_flat_hit_test a, b, waitN` runs commands at the next hit.
+
+To test in flat: get shot from each side, hipfire and sighted: the view's punch and its settle, the marks' place and fade,
+the arms' smaller knock sighted; drop under 35 health for the beating edges. Tune under Tunables > Flatscreen > Hit Feedback.
+## Installer: the settings page after installing (branch `agent/instset`, 2026-11-06)
+
+His request: an installer page for the most common settings, easy to add/remove, organized in subcategories with a
+tree view in the installer's look, and never stale. Players asked to set them before the first start.
+
+- **Done**: step 6 **Set up the game** (between Install and Play): categories > subcategories > settings, the right
+  control per kind, the game's help and menu path, Reset to default, Reset all. The list is
+  `Misc/installer/settings_page.txt` (cvar names only); labels, help, ranges, choices and defaults come from the game's
+  menu rows (`vr_menu_dump_settings`, new) into `quakevr/settings_page.json` (shipped; Setup reads it from the install).
+  Full design, order and how to add a setting: INSTALLER.md, section 14.
+- **Writing**: only the page's changes, to `quakevr/installer_settings.cfg`; `quake.rc` runs it once after the saved
+  config (`vr_installer_settings`, stamp kept in the new archived cvar `vr_installer_applied`), before `quakevr.cfg`.
+  In-game changes later win; upgrades start from the player's `ironwail.cfg`.
+- **Staleness**: `settings_page.py check <agent>` fails on a missing, unsaved or changed setting or a stale manifest;
+  warns on a removed menu row; in `run_test_suite.py` as `settings_page` (`Misc/quakevr/settings_page_test.py`: 21 checks,
+  including the failures on purpose and three game runs: applied, an in-game change kept after a second install, not run
+  again).
+- **Starting list**: Comfort (Turning `vr_snap_turn`, Turn Speed, Vignette, Position seated/standing
+  `vr_bodycal_seated`), Your Body (Handedness `vr_handedness`, Gloves, Body Type), Gameplay (Replace All Humanoids
+  `vr_agrunt_repl`, Gore), Graphics (Graphics Presets). **Left out: VR or flat screen**: `quakevr.cfg` forces
+  `vr_enabled 1` at every start, so it isn't a saved setting; the flat-screen shortcut and the Play page's "Play on the
+  monitor" cover it. Handedness and Graphics Presets are presets (applied once, "As it is now" on an update).
+- **Test in VR**: install into a fresh folder, change a few settings on the page (Snap 45, left-handed, Medium), start:
+  they are set; change Turning in the game, run Setup's Update and change only Turn Speed: Turning stays as set in game.
+
+Suggested checklist lines:
+- Installer: after installing, the Set up the game page shows the settings tree; picks are applied at the first start.
+- Installer: after an update, the page shows your current settings; a change made in the game earlier is kept.
+
+## One Blender add-on, a shorter loop (branch `agent/blendaddon`, 2026-11-06)
+
+His ask: .blend as the source of truth for every model, a simpler workflow, one add-on, engine help. The page for him:
+[BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md).
+
+- **One add-on, "Quake VR".** The hand's add-on (`quakevr_hand`) is `quakevr_models/hand_blender.py` now and
+  `md5hand.py` moved beside it (make_hand_rig.py, make_hand_feminine.py, normalbake.py follow). The package keeps the
+  name `quakevr_models` (decision: his Blender stays ticked with its preferences, and blend_export.py and the tests'
+  imports don't change); only the shown name changed. On a windowed start it takes the old `quakevr_hand` entry out
+  of the preferences (marked dirty: Auto-Save keeps it). One panel finds what the .blend edits (a model's source, a
+  hand-made source, the jointed hand, the body, an imported .mdl: that one gets **Open Its Source .blend**, from
+  generated.json) and shows that kind's tools; the imports sit at its foot. Operator ids kept (`quakevr_hand.*`).
+- **Export on save for every kind.** A .blend holding the imported hand or body exports on save too
+  (`md5source.py`, through blend_export.py): to the Game Folder, else the .blend's repository's `quakevr/progs`. Saved
+  unedited: the shipped files byte for byte but the md5mesh's `commandline` line (hand: 7 files; body: 20). The
+  normal maps are baked again only when the mesh or a skin changed.
+- **Two body export bugs fixed** (found by the round trip): the skin export took the normal map the import shows
+  (1024x1024) as the skin and refused; and it put every off-palette texel of an untouched skin on the palette (20% of
+  the bytes of each of the 16 skins changed). Now only changed texels are quantized, as its option says.
+- **Engine** (`vr_blender.cpp`): `vr_edit_in_blender [model|hand|look] [-n]` opens the model's source .blend in Blender
+  (generated.json's `source`, else `src_models/blend/<m>/<m>.blend`; the hand and the body, with none, imported by the
+  add-on through `--python-expr`); the repository is the game folder resolved through links (`files::resolved`).
+  `vr_blender_path` (archived, empty: the newest `Program Files/Blender Foundation/Blender X.Y/blender.exe`).
+  `vr_model_show <model>`: the model in front of you, turning (a client-side visedict; not the hand or body);
+  `vr_blender_link 1`: `quakevr/blender_request.txt` (the add-on's **Show in Game**) asked every half second (one
+  file time), only `show`/`reload` lines run, a request older than the game ignored. Debug > Tests: Edit in Blender,
+  Edit Looked-At Model in Blender, Hear Blender's Show in Game, Hide the Model from Blender.
+- **Tests:** `blend_addon_test.sh <agent>`: `vr_blender_test` 17/17 (sources of v_shot, a hand-made gun, vrgrunt, the
+  pump part, a crate, the hand; the main hand's shotgun; Blender found; the request file: 2 lines run, 2 refused, not
+  run twice; show and hide), and the hand's and body's .blend exported on save through the one add-on (9/9 each,
+  the panel drawn into a stand-in layout). `blend_autoexport_test.sh` 6/6 for v_shot and for `BA_MODEL=vr_crate1`.
+- **Not checked:** a windowed Blender (the panel, Show in Game's button, the hand's import from the game waits for
+  the window with a timer), and a real launch of Blender from the game (`-n` only: no GUI in tests); "look" picking
+  has no assertion. The md5 plan's first step (a hand source .blend with the engine's tables) is not done: saving
+  the imported hand inside the repository is its stand-in.
+
+**Checklist lines (suggested):**
+- Blender: only "Quake VR" in Add-ons (no Quake VR Hand, no "add-on not found" at start); its sidebar panel says what
+  the file is (open v_shot.blend: "Source of v_shot.mdl").
+- In game, shotgun in hand: Debug > Tests > Edit in Blender opens v_shot.blend in Blender; edit, Ctrl+S, the gun
+  changes in your hand.
+- Blender: Show in Game on vr_crate1.blend draws the crate in front of you, turning; Debug > Tests > Hide the Model
+  from Blender takes it away.
+- `vr_edit_in_blender hand_rig` imports the hand into Blender; saved as src_models/blend/hand_rig/hand_rig.blend, a
+  Ctrl+S after an edit changes your hand in game.

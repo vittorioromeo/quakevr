@@ -71,6 +71,7 @@ SUITE = [
     ("shot_shape", "shot_shape_test.py", [], 1200, False),
     ("parry_pose", "parry_pose_test.sh", [], 3600, False),
     ("selfchecks", "selfchecks_test.sh", [], 1200, False),
+    ("settings_page", "settings_page_test.py", [], 1200, False),  # Setup's settings page: the manifest not stale, the cfg run once
     ("animsmooth", "animsmooth_test.sh", [], 1200, False),
     ("teleporters_chase", "teleporters/teleporters_test.sh", ["chase"], 2400, False),  # (flaky: test_flaky.txt)
     ("stealth", "stealth_tests.sh", [], 5400, False),

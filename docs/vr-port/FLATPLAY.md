@@ -516,3 +516,26 @@ of `vr_flatplay.cpp`, and the sight's (`vr_flatsight.cpp`).
 ## The model FOV
 
 `vr_flat_model_fov` (0: off) draws the player's own models at their own field of view. It is looks only: see `flatplay::modelFov` in `vr_flatplay.hpp` and ROUND24.md for what follows it and what does not.
+
+## Hit feedback
+
+`vr_flathit.cpp`; every number under Debug > Tunables > Flatscreen > Hit Feedback.
+
+- **The hands' knock** (the headset's, `vr_painknock.cpp`) is kept at `vr_flat_ads_hitreact` (0.2) of itself sighted, eased
+  with the ironsight's travel as the recoil's share is.
+- **The punch.** Each hit turns the view along the blow: from ahead it tips up, from behind or above down, from the right it
+  turns left (`vr_flat_hitpunch_pitch` / `_yaw`, negative the other way). `vr_flat_hitpunch` degrees for a 20-point hit (a
+  quarter to twice that with the damage), at most `vr_flat_hitpunch_max` added up; it arrives over `vr_flat_hitpunch_attack`
+  and eases back over `vr_flat_hitpunch_time`; sighted `vr_flat_hitpunch_ads` of it. It goes into the aim itself
+  (`cl.viewangles`, each frame's change of it): while punched, the crosshair, the sights and the shots move together (a shot
+  always goes where the crosshair is); settled, the aim is back exactly where the mouse put it, his own moves during it kept.
+  Quake's own view kick (`v_kickpitch`, `v_kickroll`) is untouched: a look only, as before.
+- **The marks.** A red arc round the crosshair toward where each hit came from (`vr_flat_hitdir` its opacity, `_time` its
+  fade, `_radius`, `_width`, `_arc` its place and size, shares of the screen's height); it turns as he turns and moves. A hit
+  with no way to it (a fall, lava, his own blast) has none.
+- **Low health.** The headset's beating blood at the screen's edges (`vr_blood.cpp`), with its own size and opacity on a
+  flat screen: `vr_flat_blood_health_size` (0.5), `vr_flat_blood_health_opacity` (0.35).
+
+Debug > Flatscreen Play: "Flatscreen Test Hit From The Right" (a made-up hit through the damage message) and "Flatscreen Hit
+Probe" (`vr_flat_hit_probe`). Tests: `bash Misc/quakevr/flathit_test.sh <agent>` (`vr_flat_hit_test` runs a test's commands
+at the next hit).
