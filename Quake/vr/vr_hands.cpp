@@ -895,10 +895,12 @@ void update()
     flick::update(state);
 
     // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
-    // the tracked hips' (vr_bodytrack.cpp).
+    // the tracked hips' (vr_bodytrack.cpp). Flatscreen play: the view's, turned by a long gun's stance (flatplay::poseHands set it,
+    // and the hands stand on the shoulders of that turned body: reset to the view's here, the body was drawn unturned under them).
     state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(state, headYawBlended(), turnYaw,
                                                      t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
-                               : yaw;
+                    : flatplay::active() ? state.bodyYaw
+                                         : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)

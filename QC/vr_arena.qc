@@ -1330,21 +1330,25 @@ void(float xWave) VR_ARENA_PresetPlan =
 
 float() VR_ARENA_AnyPlayerUp = { return VR_PlayerAlive() != world; }
 
-// The arena's readout: in the middle of the view (the engine's view message: eye level in the headset, not the wrist's
-// hologram; a centre print held that long on a flat screen), its first line (up to a blank line) highlighted, for
-// xSecs. One message shows at a time: a newer one replaces it. The console's log keeps a copy (developer).
-float AR_SAY = 4; // s an arena line holds in the view
+// The arena's readout: in the headset, the wrist gadget's hologram (the player's vr_arena_wrist: a buzz of the hand when
+// it is out of view), else in the middle of the view (the engine's view message: eye level, its first line, up to a
+// blank line, highlighted); a centre print held that long on a flat screen; for xSecs. One message shows at a time: a
+// newer one replaces it. The console's log keeps a copy (developer).
+float AR_SAY = 4; // s an arena line holds
+float AR_MSG_KIND = 1; // viewmessage's kind: the arena's
+float ar_said_n;       // the messages sent so far, each player's (arena test 39 counts them on the wrist)
 
 void(entity xPlayer, string xText, float xSecs) VR_ARENA_Show =
 {
-    viewmessage(xPlayer, xText, xSecs);
+    viewmessage(xPlayer, xText, xSecs, AR_MSG_KIND);
+    ar_said_n = ar_said_n + 1;
     dprint(sprintf("ARENA> %s", xText));
 }
 
 void(string xText, float xSecs) VR_ARENA_ShowAll =
 {
     entity p = VR_Player();
-    while(p) { viewmessage(p, xText, xSecs); p = VR_NextPlayer(p); }
+    while(p) { viewmessage(p, xText, xSecs, AR_MSG_KIND); ar_said_n = ar_said_n + 1; p = VR_NextPlayer(p); }
     dprint(sprintf("ARENA> %s", xText));
 }
 

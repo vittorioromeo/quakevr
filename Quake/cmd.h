@@ -49,6 +49,8 @@ void Cbuf_AddText (const char *text);
 // the text is added to the end of the command buffer.
 
 void Cbuf_InsertText (const char *text);
+int Cbuf_Pending (void);			// QVR: the length of the text still to run
+void Cbuf_TailToFront (int bytes);	// QVR: its last `bytes` moved to run next (vr_mock_key: a key's bind)
 // when a command wants to issue other commands immediately, the text is
 // inserted at the beginning of the buffer, before any remaining unexecuted
 // commands.

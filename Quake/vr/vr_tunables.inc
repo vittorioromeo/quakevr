@@ -1847,6 +1847,7 @@ QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
 QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
+QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV
@@ -1860,7 +1861,7 @@ QVR_TUNABLE(vr_flat_ads_wall_keep, "8") // the ironsight: a wall or the floor pu
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
 QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
@@ -1888,6 +1889,7 @@ QVR_TUNABLE(vr_flat_crouch_gun_out, "2") // the crouch: a held weapon's hand thi
 QVR_TUNABLE(vr_flat_crouch_shoulder_fwd, "2") // the crouch: his shoulders this much further forward under the eye (-10..10 units)
 QVR_TUNABLE(vr_flat_clear_chest, "4") // a hand keeps this far ahead of its shoulder when it is below the shoulder: clear of the chest (0..15 units, eased in over the next 3)
 QVR_TUNABLE(vr_flat_clear_eye, "3.5") // a hand keeps this far from the eye (0..15 units, eased in over the next 2)
+QVR_TUNABLE(vr_flat_clear_stock, "1") // the held weapon's rear (its stock) keeps this far out of the torso, the gun pushed forward along the view (0..6 units, eased in over the next 1.5)
 QVR_TUNABLE(vr_flat_keep_arm, "0.92") // a hand keeps within this share of what its arm reaches, eased in over the last 0.1 (0.3..1)
 QVR_TUNABLE(vr_flat_keep_grip, "0.87") // a long gun's hand keeps its hotspot within this share of the free arm's reach, eased in over the last 0.1 (0.3..1.5)
 QVR_TUNABLE(vr_flat_screen_angle, "55") // a hand keeps within this angle off the middle of the view (20..85 degrees): on the screen

@@ -155,6 +155,8 @@
         row(opt::vr_crouch_speed_scale),
         row(opt::vr_slope_walk),
         header("Desktop Screen Play"),
+        row(opt::vr_flat_aim_mode),
+        row(opt::vr_flat_hud),
         row(opt::vr_flat_crouch_fire),
         row(opt::vr_flat_pitch_up),
         row(opt::vr_flat_pitch_down),

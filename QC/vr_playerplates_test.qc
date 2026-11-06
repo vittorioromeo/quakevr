@@ -618,7 +618,7 @@ void() VR_PP_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_pp_test);
     entity p = VR_Player();
-    if(ask)
+    if(ask && p) // (the request kept for when the player is in: `map x; vr_pp_test n` asks in the level's first frames)
     {
         cvar_set("vr_pp_test", "0");
         if(ask == 1)

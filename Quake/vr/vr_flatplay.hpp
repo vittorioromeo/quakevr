@@ -29,6 +29,21 @@ namespace qvr::flatplay
 // The weapon `h` holds, as its settings' slot; -1 for an empty hand.
 [[nodiscard]] int heldIn(int h);
 
+// The hand holding the only weapon held (heldIn), whichever hand that is; -1 with a weapon in each hand or in neither.
+[[nodiscard]] int loneWeaponHand();
+
+// The mouse's two buttons as a flatscreen player's hands take them (his words 2026-11-05; FLATPLAY.md, "The keys"): `lmb`
+// is +attack's state (the left mouse button), `rmb` +offhandattack's (the right). With one weapon held, whichever hand
+// holds it, the left button fires it and the right is the ironsight (vr_flatsight.cpp, vr_flat_aim_mode), so it fires
+// nothing; with a weapon in each hand, or none, the left button is the right hand's and the right the left's, as in VR.
+// fire[HAND_MAIN], fire[HAND_OFF]: what each hand's trigger reads.
+struct FireRoute
+{
+    bool fire[2]{false, false};
+    bool rmbAims{false}; // the right button is the ironsight's (one weapon held)
+};
+[[nodiscard]] FireRoute routeFire(bool lmb, bool rmb);
+
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.
 [[nodiscard]] float poseNum(const Tunable& c);
@@ -105,6 +120,10 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // The held weapon's Gun Out (units before vr_flat_reach) at the look `pitch` (Quake's, positive down), the crouch as it is now:
 // vr_flat_gun_out level, vr_flat_gun_out_crouch crouched, going to vr_flat_gun_out_down / _up along a smooth curve. The sweep's.
 [[nodiscard]] float gunOut(float pitch);
+// How far back along `way` (world, unit length) the weapon hand `h` holds can go from where it is now, at most `most`, keeping the
+// weapon's rear vr_flat_clear_stock out of the torso (or no deeper than it is now): a wall's push back (flatsight's pushBack) stops
+// at the chest.
+[[nodiscard]] float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most);
 // The drawn body's move with the drawn view (world units): the view's own move off the pose's eye -- the walk's bob, a step's easing --
 // by vr_flat_body_bob (all of it sighted), which the drawn hands ride too (drawnOffset), so body, arms and hands move as one. 0 outside
 // the mode, off the body pose, and when the drawn view isn't his own eyes.

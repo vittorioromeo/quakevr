@@ -829,6 +829,21 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
 }
 
+// The status bar's ammo count (STAT_AMMO). With the Quake VR progs .currentammo is the main hand's ammo *type* (AID_*:
+// 1 shells, 2 nails, ...), and the classic client data message wrote it as the count: the status bar read 1 with a
+// shotgun in hand and 17 shells, 2 with the nail gun (his report 2026-11-05: "the HUD seems to report wrong ammunition
+// count for the held weapons"). VR_CalcStats already sent the counter, but only the custom stats path uses those; the
+// client data message every protocol sends is fixed here (SV_WriteClientdataToMessage). The main hand's counter: what
+// QC's updateAmmoCounter keeps (the reserve of the gun's ammo, or the clip of a gun whose clip is its only ammo).
+extern "C" int VR_AmmoStat(edict_t* ent)
+{
+    if(!bindings().isVrProgs)
+    {
+        return static_cast<int>(ent->v.currentammo);
+    }
+    return static_cast<int>(fieldFloatOr(ent, fields().ammocounter, ent->v.currentammo));
+}
+
 // The status bar highlights the active weapon by its item bit; with the Quake VR progs .weapon
 // holds a weapon ID (QC WID_*). Weapons without a classic slot highlight nothing.
 extern "C" int VR_ActiveWeaponStat(edict_t* ent)
@@ -1453,7 +1468,7 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
 }
 
-void sendViewMessage(edict_t* player, const char* text, float seconds)
+void sendViewMessage(edict_t* player, const char* text, float seconds, bool arena)
 {
     sizebuf_t* msg = clientMessage(player);
     if(!msg)
@@ -1461,7 +1476,7 @@ void sendViewMessage(edict_t* player, const char* text, float seconds)
         return;
     }
     MSG_WriteByte(msg, svc_quakevr);
-    MSG_WriteByte(msg, QVR_SVC_VIEWMESSAGE);
+    MSG_WriteByte(msg, arena ? QVR_SVC_ARENAMESSAGE : QVR_SVC_VIEWMESSAGE);
     MSG_WriteShort(msg, CLAMP(0, static_cast<int>(seconds * 10.f + 0.5f), 32767));
     MSG_WriteString(msg, text);
 }

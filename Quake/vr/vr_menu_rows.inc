@@ -1109,6 +1109,11 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
 QVR_TOGGLE(vr_arena_banners, "Arena Banners",
     "1: the boards high on the arena's walls show the wave, the foes left, the time and the score, live. "
     "0: they are off (vr_arena_banners).")
+QVR_TOGGLE(vr_arena_wrist, "Messages on the Wrist",
+    "1: the arena's messages -- a wave starting and cleared, the countdown, a perk taken, the run's end -- show "
+    "in the wrist gadget's hologram: raise the wrist to read them; one coming while the gadget is out of view "
+    "buzzes its hand. 0: in the middle of your view. Without the gadget's hologram, and on a flat screen, they "
+    "show in view as ever (vr_arena_wrist).")
 QVR_TOGGLE(vr_arena_xray, "Last Foes Through Walls",
     "1: once only a few of a wave are left (Foes Left below, counting those still to come in), each of "
     "them glows red through walls -- an outline you see through the towers, the dais and the walk -- when "
@@ -5921,6 +5926,15 @@ QVR_TOGGLE(vr_xr_skip_incompatible_layers, "Skip Incompatible API Layers",
 QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
     "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
     "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
+QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
+    "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand: the left mouse button fires it "
+    "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
+    "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
+    {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
+    "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
+    "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
+    "the status bar as Ironwail draws it (vr_flat_hud).")
 QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")
@@ -6108,9 +6122,10 @@ QVR_TOGGLE(vr_weapon_kick_cancel, "Take Out the Models' Own Kick",
 QVR_TOGGLE(vr_debug_draw_blend, "Print the Weapon Blends",
     "vr_debug_draw_blend: each frame of a hand's weapon blend (a draw, a force grab's catch, a pass between hands) "
     "printed to the console: what is left of it, where the gun is drawn and its real place.")
-QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 12.f, 1.f, "%.0f", noExt,
+QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 31.f, 1.f, "%.0f", noExt,
     "vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
-    "most), to look at a kick with and without the models' own (below 0: as the game steps them).")
+    "most), to look at a kick with and without the models' own, or at frames a source .blend's actions added "
+    "(below 0: as the game steps them).")
 QVR_SLIDER(vr_test_fling_speed, "Fling Speed", 1.f, 40.f, 1.f, "%.0f m/s", ext(), nullptr)
 QVR_CYCLE(vr_test_fling_at, "Fling At", nullptr,
     {0.f, "Nearest Monster"}, {1.f, "You"})

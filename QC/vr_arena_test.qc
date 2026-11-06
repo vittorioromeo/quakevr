@@ -55,6 +55,10 @@
 //   text and the pixels of the image drawn from it (the client's copy, the gadget's layout) follow a scripted wave (foes left
 //   falls, the score rises, the wave changes, the time runs, a perk's choice, the run's end), off it empties them.
 // - 19 (vrarena): the waves still arm an empty player: wave 1 comes by itself and a fallen foe's pack gives ammunition.
+// - 39 (vrarena, the headset mock): the arena's messages on the wrist (vr_arena_wrist): the countdown, wave 1, its clear,
+//   a perk taken, a fall, each taken by the gadget's hologram and shown there (frames facing the eyes, ink in its image),
+//   none in the middle of the view; the clear coming with the gadget out of view buzzes, shows nothing until it is
+//   raised, then shows; off (0), the next ones show in view again and the wrist takes none.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -63,7 +67,7 @@
 float vr_at_case;        // 0 idle; 1 .. 14 running
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[33];    // the cvars the tests set, put back at the end
+float vr_at_keep[34];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -113,9 +117,10 @@ vr_at_cvar VR_AT_CVARS[] =
     { "vr_arena_xray", "1" },     // (test 16: the last foes seen through walls)
     { "vr_arena_xray_left", "2" },
     { "vr_arena_xray_distance", "600" },
-    { "vr_arena_banners", "1" }   // (test 38: the banners)
+    { "vr_arena_banners", "1" },  // (test 38: the banners)
+    { "vr_arena_wrist", "1" }     // (test 39: the messages on the wrist)
 };
-float VR_AT_NCVARS = 33;
+float VR_AT_NCVARS = 34;
 
 void() VR_AT_Save =
 {
@@ -4152,6 +4157,144 @@ void() VR_AT37_Frame =
     VR_AT37_Row(p);
 }
 
+// ---------------------------------------------------------------------------
+// Test 39: the arena's messages on the wrist (vrarena, the headset mock; vr_arena_wrist, gadget::arenaMessage)
+// ---------------------------------------------------------------------------
+// The messages are the director's own (VR_ARENA_Show / ShowAll; ar_said_n counts them), all but the fall's (its function
+// called as the director calls it: the test's player can't fall). The engine's side is read through panelboard_read's
+// what 4..8 (vr_gadget.hpp): the last one's ink in the hologram's image and its frames shown facing the eyes, the counts
+// taken by the wrist, shown in view instead, and the buzzes.
+
+float vr_at39_state;
+float vr_at39_n;       // ar_said_n at the step's start
+float vr_at39_said0;   // ... and at the test's
+float vr_at39_taken0;  // the wrist's count then
+float vr_at39_view0;   // the view's
+float vr_at39_buzz0;   // the buzzes
+float vr_at39_frames;  // frames counted out of view
+float vr_at39_ok;      // messages seen on the wrist
+
+float(float xWhat) VR_AT39_Read = { return panelboard_read("", 0, 0, 0, 0, xWhat); }
+
+// The off hand: its gadget raised in front of the eyes (1), or turned away (0).
+void(float xLook) VR_AT39_Hand =
+{
+    if(xLook) { localcmd("vr_mock_hand off -0.05 1.40 -0.35 0 -80 0\n"); }
+    else { localcmd("vr_mock_hand off -0.05 1.40 -0.35 0 90 0\n"); }
+}
+
+// 1 once the newest message is on the wrist and shown: taken (as many as sent), 3 frames facing the eyes, inked.
+float(string xWhat) VR_AT39_Shown =
+{
+    if(VR_AT39_Read(6) - vr_at39_taken0 < ar_said_n - vr_at39_said0) { return 0; }
+    if(VR_AT39_Read(5) < 3 || VR_AT39_Read(4) < 0) { return 0; }
+    float ink = VR_AT39_Read(4);
+    VR_AT_Check(ink > 0.003, sprintf("%s: its words in the hologram's image (ink %g)", xWhat, ink));
+    vr_at39_ok = vr_at39_ok + 1;
+    dprint(sprintf("arena: test 39: %s on the wrist (ink %g, %g frames)\n", xWhat, ink, VR_AT39_Read(5)));
+    vr_at39_n = ar_said_n;
+    return 1;
+}
+
+void() VR_AT39_Begin =
+{
+    vr_test_flags = VR_TEST_LOUD | VR_TEST_QUIET; // (broadcast: the verdict is seen with developer 0, for -QuitOn)
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 39 needs an arena map"); VR_AT_End(); return; }
+    cvar_set("vr_arena_wrist", "1");
+    cvar_set("vr_arena_perks", "1");
+    VR_AT39_Hand(1);
+    vr_at39_said0 = vr_at39_n = ar_said_n;
+    vr_at39_taken0 = VR_AT39_Read(6);
+    vr_at39_view0 = VR_AT39_Read(7);
+    vr_at39_buzz0 = VR_AT39_Read(8);
+    vr_at39_ok = 0;
+    vr_at39_state = 1;
+    vr_at_until = time + 120;
+}
+
+void() VR_AT39_Frame =
+{
+    if(vr_at39_state < 10 && VR_AT39_Read(7) != vr_at39_view0)
+    {
+        VR_AT_Check(FALSE, sprintf("on: an arena message showed in the middle of the view (%g)", VR_AT39_Read(7) - vr_at39_view0));
+        VR_AT_End();
+        return;
+    }
+    if(vr_at39_state == 1) // (the countdown to wave 1)
+    {
+        if(ar_said_n == vr_at39_n || !VR_ARENA_Between() || ar_count <= 0) { return; }
+        if(VR_AT39_Shown("the countdown")) { vr_at39_state = 2; }
+        return;
+    }
+    if(vr_at39_state == 2) // (wave 1 comes in)
+    {
+        if(ar_said_n == vr_at39_n || VR_ARENA_Between() || ar_wave != 1) { return; }
+        if(!VR_AT39_Shown("wave 1")) { return; }
+        VR_AT39_Hand(0);
+        vr_at39_state = 3;
+        return;
+    }
+    if(vr_at39_state == 3) // (wave 1's line gone, the gadget away)
+    {
+        if(VR_AT39_Read(5) >= 0) { return; }
+        vr_at39_state = 4;
+        return;
+    }
+    if(vr_at39_state == 4) // (its foes down: the clear comes out of view)
+    {
+        if(!VR_ARENA_Between()) { VR_AT_KillOne(1); return; }
+        if(ar_said_n == vr_at39_n || VR_AT39_Read(6) - vr_at39_taken0 < ar_said_n - vr_at39_said0) { return; }
+        VR_AT_Check(VR_AT39_Read(8) == vr_at39_buzz0 + 1, sprintf("out of view: the clear buzzed once (%g)", VR_AT39_Read(8) - vr_at39_buzz0));
+        vr_at39_frames = 0;
+        vr_at39_state = 5;
+        return;
+    }
+    if(vr_at39_state == 5) // (half a second out of view: not shown)
+    {
+        vr_at39_frames = vr_at39_frames + 1;
+        if(vr_at39_frames < 36) { return; }
+        VR_AT_Check(VR_AT39_Read(5) == 0, sprintf("out of view: the clear not shown (%g frames)", VR_AT39_Read(5)));
+        VR_AT39_Hand(1);
+        vr_at39_state = 6;
+        return;
+    }
+    if(vr_at39_state == 6) // (raised: the clear shows; then a perk's choice)
+    {
+        if(!VR_AT39_Shown("wave 1 clear, the wrist raised")) { return; }
+        VR_ARK_Offer(5);
+        VR_AT_Check(ark_open && ark_offer_n > 0, sprintf("a perk's cards are up (%g)", ark_offer_n));
+        VR_AT_Check(VR_ARK_CardPick(0) == 1, "the first card taken");
+        vr_at39_state = 7;
+        return;
+    }
+    if(vr_at39_state == 7) // (the perk taken: in place of the clear, no buzz)
+    {
+        if(!VR_AT39_Shown("a perk taken")) { return; }
+        VR_AT_Check(VR_AT39_Read(8) == vr_at39_buzz0 + 1, sprintf("in view: no more buzzes (%g)", VR_AT39_Read(8) - vr_at39_buzz0));
+        VR_ARENA_Show(VR_Player(), sprintf("YOU FELL AT WAVE %g\n\nscore %g\n", ar_wave, ar_score), 9); // (the director's own line)
+        vr_at39_state = 8;
+        return;
+    }
+    if(vr_at39_state == 8) // (the fall; then off)
+    {
+        if(!VR_AT39_Shown("a fall")) { return; }
+        VR_AT_Check(vr_at39_ok == 5, sprintf("five messages seen on the wrist (%g)", vr_at39_ok));
+        cvar_set("vr_arena_wrist", "0");
+        vr_at39_taken0 = VR_AT39_Read(6);
+        vr_at39_view0 = VR_AT39_Read(7);
+        vr_at39_state = 10;
+        return;
+    }
+    if(vr_at39_state == 10) // (off: the next two show in view, the wrist takes none)
+    {
+        if(ar_said_n < vr_at39_n + 2 || VR_AT39_Read(7) < vr_at39_view0 + 2) { return; }
+        VR_AT_Check(VR_AT39_Read(7) - vr_at39_view0 == ar_said_n - vr_at39_n,
+                    sprintf("off: every message in the view (%g of %g)", VR_AT39_Read(7) - vr_at39_view0, ar_said_n - vr_at39_n));
+        VR_AT_Check(VR_AT39_Read(6) == vr_at39_taken0, sprintf("off: none on the wrist (%g)", VR_AT39_Read(6) - vr_at39_taken0));
+        VR_AT_End();
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar_hget(cvarh_vr_arena_test);
@@ -4207,6 +4350,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 36) { VR_AT36_Begin(); return; }
         if(c == 37) { VR_AT37_Begin(); return; }
         if(c == 38) { VR_AT38_Begin(); return; }
+        if(c == 39) { VR_AT39_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4245,5 +4389,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 36) { VR_AT36_Frame(); return; }
     if(vr_at_case == 37) { VR_AT37_Frame(); return; }
     if(vr_at_case == 38) { VR_AT38_Frame(); return; }
+    if(vr_at_case == 39) { VR_AT39_Frame(); return; }
 }
 #endif

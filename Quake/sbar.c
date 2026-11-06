@@ -1602,6 +1602,66 @@ void Sbar_DrawFace (void)
 
 /*
 ===============
+Sbar_DrawFlatHud -- QVR: flatscreen play's layout of the modern status bar at hudstyle 1 (VR_FlatHudOn,
+Quake/vr/vr_flathud.cpp; docs/vr-port/FLATPLAY.md, "The status bar"): the portrait and the health in the middle over
+the ammo bar (the armour to their left), bullet time's meter over them, and each hand's ammo at its own bottom corner
+(the left hand's at the left edge, the right hand's at the right). Called on CANVAS_SBAR2.
+===============
+*/
+static const float sb_flat_timecolors[4][3] = {
+	{0.20f, 0.45f, 0.70f},	// filling (not enough to start)
+	{0.30f, 0.85f, 1.00f},	// ready
+	{1.00f, 0.85f, 0.20f},	// running
+	{0.50f, 0.50f, 0.50f},	// cooling down
+};
+static const float sb_flat_timeback[3] = {0.f, 0.f, 0.f};
+
+static void Sbar_DrawFlatHud (int armor, qboolean invuln)
+{
+	int		cx, rowtop, x, y, count, pic;
+	float	level;
+	int		state;
+
+	cx = (int)((glcanvas.right + glcanvas.left) * 0.5f + 0.5f);
+	rowtop = (int)(glcanvas.bottom - 9 - 4 - 24 + 0.5f); // a face's height over the ammo bar (Sbar_DrawInventory2)
+
+	// the portrait and the health, centred; the armour to their left
+	Sbar_DrawPic (cx - 52, rowtop - 24, Sbar_FacePic ());
+	Sbar_DrawNum (cx - 20, rowtop - 24, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
+	if (armor > 0)
+	{
+		Sbar_DrawPic (cx - 172, rowtop - 24, Sbar_ArmorPic ());
+		Sbar_DrawNum (cx - 140, rowtop - 24, armor, 3, invuln || armor <= 25);
+	}
+
+	// bullet time's meter over them: filling, ready, running, cooling down
+	if (VR_FlatHudTime (&level, &state))
+	{
+		y = rowtop - 7;
+		Draw_FillEx (cx - 52, y, 104, 4, sb_flat_timeback, 0.6f);
+		Draw_FillEx (cx - 52, y, 104 * CLAMP (0.f, level, 1.f), 4, sb_flat_timecolors[CLAMP (0, state, 3)], 1.f);
+	}
+
+	// each hand's ammo at its own corner
+	y = (int)(glcanvas.bottom - SBAR2_MARGIN_Y - 24 + 0.5f);
+	if (VR_FlatHudHand (1, &count, &pic))
+	{
+		x = (int)(glcanvas.left + SBAR2_MARGIN_X + 0.5f);
+		if (pic >= 0 && pic < 4)
+			Sbar_DrawPic (x, y - 24, sb_ammo[pic]);
+		Sbar_DrawNum (x + 32, y - 24, count, 3, count <= 10);
+	}
+	if (VR_FlatHudHand (0, &count, &pic))
+	{
+		x = (int)(glcanvas.right - SBAR2_MARGIN_X - 24 + 0.5f);
+		if (pic >= 0 && pic < 4)
+			Sbar_DrawPic (x, y - 24, sb_ammo[pic]);
+		Sbar_DrawNum (x - 32 - 48, y - 24, count, 3, count <= 10);
+	}
+}
+
+/*
+===============
 Sbar_Draw
 ===============
 */
@@ -1780,6 +1840,16 @@ void Sbar_Draw (void)
 		else if (scr_viewsize.value < 120) //johnfitz -- check viewsize instead of sb_lines
 		{
 			GL_SetCanvas (CANVAS_SBAR2);
+
+			if (VR_FlatHudOn ()) // QVR: flatscreen play's own layout (vr_flat_hud)
+			{
+				Sbar_DrawFlatHud (armor, invuln);
+				Sbar_DrawInventory2 ();
+				if (cl.maxclients != 1)
+					Sbar_DrawFrags2 ();
+				Sbar_DrawSigils ();
+				return;
+			}
 
 			x = (int)(glcanvas.left + SBAR2_MARGIN_X + 0.5f);
 			y = (int)(glcanvas.bottom - SBAR2_MARGIN_Y - 48 + 0.5f);

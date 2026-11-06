@@ -3,7 +3,9 @@
 #include "vr_worldtext.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gadget.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
@@ -41,8 +43,10 @@ struct ViewMessage
     za::String text;
     double start{0.0};
     double end{0.0};
+    bool arena{false}; // the Survival Arena's (QVR_SVC_ARENAMESSAGE)
 };
 ViewMessage viewMessage;
+int arenaInView = 0; // the arena's messages shown in the middle of the view (arenaInViewCount)
 
 [[nodiscard]] WorldText& serverText(int handle)
 {
@@ -289,11 +293,27 @@ void clientParseFloatText()
     }
 }
 
-void clientParseViewMessage()
+void clientParseViewMessage(bool arena)
 {
     const float seconds = static_cast<float>(MSG_ReadShort()) / 10.f;
     const char* text = MSG_ReadString();
-    Con_DPrintf("view message: %.1f s at %.2f (%s)\n", seconds, cl.time, vrActive() ? "in view" : "centre print");
+    // The arena's, in the headset: the wrist gadget's hologram (vr_arena_wrist), unless it has none (another HUD, the
+    // hologram off, recording mode): then in view as before.
+    const bool wrist = arena && vrActive() && vr_arena_wrist.value != 0.f && gadget::arenaMessage(text, seconds);
+    Con_DPrintf("%s message: %.1f s at %.2f (%s)\n", arena ? "arena" : "view", seconds, cl.time,
+        wrist ? "on the wrist" : vrActive() ? "in view" : "centre print");
+    if(wrist)
+    {
+        if(viewMessage.arena)
+        {
+            viewMessage = ViewMessage{}; // (an arena line still up in view, the option just turned on: gone)
+        }
+        return;
+    }
+    if(arena)
+    {
+        arenaInView++;
+    }
     if(!vrActive())
     {
         // A flat screen: the centre print, held that long.
@@ -301,6 +321,7 @@ void clientParseViewMessage()
         viewMessage = ViewMessage{};
         return;
     }
+    viewMessage.arena = arena;
     viewMessage.text.clear();
     const char* blank = strstr(text, "\n\n");
     for(const char* c = text; *c; c++)
@@ -309,6 +330,11 @@ void clientParseViewMessage()
     }
     viewMessage.start = cl.time;
     viewMessage.end = cl.time + seconds;
+}
+
+int arenaInViewCount()
+{
+    return arenaInView;
 }
 
 bool viewMessageShowing()
