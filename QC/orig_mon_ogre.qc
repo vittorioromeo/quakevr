@@ -229,10 +229,8 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(!smash))
-        return; // QVR: (melee arc: fight.qc; the swing sweeps side to side: wide; the smash comes down ahead: not)
+    if(!VR_MeleeBlow_Near(100, !smash, FALSE))
+        return; // QVR: (reach, melee arc: fight.qc VR_MeleeBlow)
 
     ldmg = (random() + random() + random()) * 4;
 

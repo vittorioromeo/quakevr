@@ -487,6 +487,7 @@ struct ArcShow
     float off = 0.f;      // its enemy's angle off its facing (degrees, level)
     float dist = 0.f;     // ... and how far (level)
     int state = 0;        // 2: its enemy is inside its arc and reach; 1: only inside its sweeping blows'; 0: outside
+    int rule = 0;         // its blows' rule (QC's VR_MELEE_RULE_*: fight.qc): 0 an arc, 1 a leap, 2 all round, 3 a shove
     char name[24] = "";
 };
 struct ArcShows
@@ -525,6 +526,7 @@ void meleeArcGather()
         r.arc = progs::fieldFloatOr(m, progs::fields().vr_melee_arc, 0.f);
         r.wide = progs::fieldFloatOr(m, progs::fields().vr_melee_arc_wide, 0.f);
         r.reach = progs::fieldFloatOr(m, progs::fields().vr_melee_reach, 0.f);
+        r.rule = static_cast<int>(progs::fieldFloatOr(m, progs::fields().vr_melee_rule, 0.f));
         const glm::vec2 to{p->v.origin[0] - m->v.origin[0], p->v.origin[1] - m->v.origin[1]};
         r.dist = glm::length(to);
         float off = r.dist > 0.01f ? glm::degrees(za::atan2(to.y, to.x)) - r.yaw : 0.f;
@@ -670,8 +672,44 @@ void qvr::bodycontact::aimConeDraw(const glm::vec3& eye)
     }
 }
 
+namespace
+{
+// The last meleeArcDraw's monsters by rule (vr_enemy_melee_arc_status: the tests).
+struct ArcDrawn
+{
+    int byRule[4] = {0, 0, 0, 0};
+    int frames = 0; // frames it drew any
+};
+ArcDrawn arcDrawn;
+
+void meleeArcStatus_f()
+{
+    Con_Printf("meleearcviz: drawn arc %d leap %d round %d shove %d (frames %d)\n", arcDrawn.byRule[0],
+        arcDrawn.byRule[1], arcDrawn.byRule[2], arcDrawn.byRule[3], arcDrawn.frames);
+    for(int i = 0; i < arcShows.count; ++i)
+    {
+        const ArcShow& r = arcShows.rows[i];
+        Con_Printf("meleearcviz: %s rule %d arc %.0f wide %.0f reach %.0f state %d\n", r.name, r.rule,
+            static_cast<double>(r.arc), static_cast<double>(r.wide), static_cast<double>(r.reach), r.state);
+    }
+}
+} // namespace
+
 void qvr::bodycontact::meleeArcDraw(const glm::vec3& eye)
 {
+    if(arcShows.count > 0)
+    {
+        // (the last frame it drew any: kept after Show Melee Arcs goes off)
+        arcDrawn = ArcDrawn{{0, 0, 0, 0}, arcDrawn.frames + 1};
+    }
+    for(int i = 0; i < arcShows.count; ++i)
+    {
+        const int rl = arcShows.rows[i].rule;
+        if(rl >= 0 && rl < 4 && (arcShows.rows[i].reach > 0.f))
+        {
+            arcDrawn.byRule[rl]++;
+        }
+    }
     const glm::vec4 red{1.f, 0.15f, 0.15f, 0.95f};
     const glm::vec4 orange{1.f, 0.55f, 0.1f, 0.95f};
     const glm::vec4 green{0.2f, 1.f, 0.3f, 0.9f};
@@ -683,20 +721,37 @@ void qvr::bodycontact::meleeArcDraw(const glm::vec3& eye)
         {
             continue;
         }
-        // The reach all round (grey), the sweeping blows' fan (orange: past the arc on each side), the arc (red with
-        // its enemy inside it, else green).
-        arcFan(r.feet, 0.f, 360.f, r.reach, grey, false);
-        if(r.wide > r.arc)
+        char rule[48];
+        if(r.rule == 1)
         {
-            const glm::vec4 w = r.state == 1 ? orange : glm::vec4{orange.r, orange.g, orange.b, 0.5f};
-            arcFan(r.feet, r.yaw + r.arc, r.yaw + r.wide, r.reach, w, true);
-            arcFan(r.feet, r.yaw - r.wide, r.yaw - r.arc, r.reach, w, true);
+            // A leap: no arc, it lands by touching you; the grey ring is how far it leaps from.
+            arcFan(r.feet, 0.f, 360.f, r.reach, grey, false);
+            q_snprintf(rule, sizeof(rule), "leap from %.0f: lands by touch", static_cast<double>(r.reach));
         }
-        arcFan(r.feet, r.yaw - r.arc, r.yaw + r.arc, r.reach, r.state == 2 ? red : green, true);
-        char text[96];
-        q_snprintf(text, sizeof(text), "%s\narc %.0f%s reach %.0f\nyou %.0f deg %.0f u", r.name,
-            static_cast<double>(r.arc), r.wide > r.arc ? "/wide" : "", static_cast<double>(r.reach),
-            static_cast<double>(r.off), static_cast<double>(r.dist));
+        else if(r.rule == 2)
+        {
+            // All round it, no arc (the dragon's tail): the whole ring red with its enemy inside, else green.
+            arcFan(r.feet, 0.f, 360.f, r.reach, r.state == 2 ? red : green, false);
+            q_snprintf(rule, sizeof(rule), "all round, reach %.0f", static_cast<double>(r.reach));
+        }
+        else
+        {
+            // The reach all round (grey), the sweeping blows' fan (orange: past the arc on each side), the arc (or a
+            // shove's cone: red with its enemy inside it, else green).
+            arcFan(r.feet, 0.f, 360.f, r.reach, grey, false);
+            if(r.wide > r.arc)
+            {
+                const glm::vec4 w = r.state == 1 ? orange : glm::vec4{orange.r, orange.g, orange.b, 0.5f};
+                arcFan(r.feet, r.yaw + r.arc, r.yaw + r.wide, r.reach, w, true);
+                arcFan(r.feet, r.yaw - r.wide, r.yaw - r.arc, r.reach, w, true);
+            }
+            arcFan(r.feet, r.yaw - r.arc, r.yaw + r.arc, r.reach, r.state == 2 ? red : green, true);
+            q_snprintf(rule, sizeof(rule), "%s %.0f%s reach %.0f", r.rule == 3 ? "shove cone" : "arc",
+                static_cast<double>(r.arc), r.wide > r.arc ? "/wide" : "", static_cast<double>(r.reach));
+        }
+        char text[128];
+        q_snprintf(text, sizeof(text), "%s\n%s\nyou %.0f deg %.0f u", r.name, rule, static_cast<double>(r.off),
+            static_cast<double>(r.dist));
         const glm::vec3 at{r.feet.x, r.feet.y, r.top + 10.f};
         const glm::vec3 toText = at - eye;
         text3d::queueOverlay(text, at, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.06f);
@@ -707,6 +762,7 @@ void qvr::bodycontact::init()
 {
     Cmd_AddCommand("vr_body_contact_status", status_f);
     Cmd_AddCommand("vr_enemy_melee_space_status", meleeSpaceStatus_f);
+    Cmd_AddCommand("vr_enemy_melee_arc_status", meleeArcStatus_f);
 }
 
 void qvr::bodycontact::serverFrame()

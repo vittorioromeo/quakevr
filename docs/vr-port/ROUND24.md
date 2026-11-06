@@ -966,6 +966,54 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
 
+## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
+
+From the melee audit (his answer: "All, armed ones too").
+
+- **One helper** (fight.qc): `VR_MeleeBlow(inreach, wide, los)` (reach, then the arc, then CanDamage), id's form
+  `VR_MeleeBlow_Near(base, wide, los)`, `VR_MeleeBlow_Radius(dist, reach)` (the dragon's tail: all round),
+  `VR_MeleeBlow_Leap()` (the spawn's, fiend's, dog's touch: printed). They replace the 35 copied reach + arc checks (id,
+  Hipnotic, Rogue, MG3, and the 23 AD sites, through `Misc/quakevr/ad_import.py` and `AD_IMPORT.txt`). CanDamage now always
+  comes after the arc (ai_melee_side had it before: only the debug print differs). Each blow keeps its reach on the
+  monster (`.vr_melee_blow_reach`/`_time`) for the parry's range. Identical: every melee-arc line (id, ad, rogue sets) and
+  tests 24/29/35/78 matched the baseline exactly after stage 1.
+- **Parry gaps:** AD's lost soul and seeker get `VR_ADM_MELEE`; the Christmas pack (elf, reindeer, Santa, snowman) is
+  parried through `.vr_ad_parried` without registering them (registration would give them ragdolls and corpses). The
+  parry's range is `VR_Parry_Range(attacker, usual)` (combat.qc): the blow's own reach when it was struck through the
+  rules this frame (the dragon's tail 250, an armed blade), else 150 (110 a shambler: its lightning). Same for the
+  unparried blow's push.
+- **Debug:** `vr_enemy_melee_arc_debug` prints every blow: out of reach, all round, leaps (touch), shoves (cone), armed
+  humanoids' (reach with arm and weapon length). Show Melee Arcs draws each blow's rule (`.vr_melee_rule`,
+  vr_meleerules.qc `VR_MeleeRule_Of`): an arc; a leap (grey ring at 120, "lands by touch": the spawn, MG3 slime); all
+  round (dragon, 250); a shove's cone (grunts, enforcers, vores); none for non-blows (zombie flesh, Armagon, the spike
+  mine, eel, lava man). New command `vr_enemy_melee_arc_status` (Debug > Tests, "Melee Arcs Drawn").
+- **Shove cone** = the shared arc for its size times `vr_enemy_melee_kind_shove` (0.923: the old 60 at the default 65; a
+  vore's grows with its size: 70). Melee arc off: its own 60.
+- **Armed humanoids** (vr_armedgrunt.qc `VR_AG_BlowLands`, `VR_AG_BlowBase`): each blow (posed `VR_AGP_Strike`, the gun
+  butt's `VR_AG_Strike`) is decided by the arc and reach on its hit frame (through `VR_MeleeBlow`), not by the re-aimed
+  line; reach = shoulder + arm (its row) + the weapon's length (`VR_AG_MeleeLen`; punch and gun butt 0) + your body's
+  front 12 + `vr_enemy_melee_ag_reach` (16), never under 62, then the size growth. A blow that lands still runs the
+  weapon's own melee (its line delivers the hit and the directional parry). The melee start turns first when facing away
+  (`VR_MeleeArc_Launch`), and the swing's turn is held (`VR_MeleeArc_Face` in `VR_AGP_Frame` for punch/swing/saw, and the
+  gun-butt frames). Why Show Melee Arcs showed nothing for them: never found for certain; they now show with the weapon's
+  reach (the sword grunt 71) and the test asserts it.
+- **Damage per weapon** (weapons.qc `VR_AG_WeaponBlowDmg`, armed humanoids only; flat-screen players keep 20):
+  `vr_agrunt_melee_dmg_fist` 14, `_axe` 22 (axe, crowbar, great axe), `_sword` 22 (times vr_sword_damage_mult, as before),
+  `_hammer` 26, `_chainsaw` 18, `_gunbutt` 18: mean 20, the old flat value. Then vr_agrunt_damage_scale as before.
+- **Directional parry:** unchanged where their blade is swept already (swings, thrusts with a blade, Mjolnir). Guard-only
+  still: the punch, the gun butt, the chainsaw, the shove.
+- **Tests:** `vr_agrunt_test 212` (vr_meleerules_test.qc): an armed sword's blow from ahead lands; a side-step to 100 deg
+  as its swing starts dodges it (89 deg off at the hit frame, 0 damage); Show Melee Arcs sets and the engine draws each
+  kind (arc, leap, all round, shove: `meleearcviz: drawn arc 1 leap 1 round 1 shove 1`). `vr_agrunt_test 213`: the
+  nearest lost soul's bite parried (spawned through the dispenser, 207): needs AD mounted (`vr_ad_mounted` is 0 in the
+  agents' trees, so it reports "no lost soul" here; not verified).
+- **Before/after** (vrtesthall, seed 7; melee_arc_test.sh id/ad/rogue at arc 1): every meleearc result line identical
+  after both stages. `vr_agrunt_test` 78: 47/0 -> 47/0; 24: 2/0 -> 2/0; 29: 1/0 -> 1/0; 35 (no mock guard in this run):
+  4/2 -> 5/1 (Fist now parried; Axe still 0 of 2, as before); 18 (long blade's standoff, blows landing): 24/0 after;
+  89: 3/0 after. The ad set ran without AD mounted (id's monsters).
+- **To try in VR:** an armed sword or axe grunt: step sideways as it winds up (it should whiff), then stand in front
+  (it lands); the hits per weapon should feel like before on average (fists lighter, hammer heavier). Show Melee Arcs
+  near a spawn, a dragon, a vore: each shows its own rule.
 ## Flat-screen: standing up under a low ceiling (agent/flatmove2, 2026-11-06)
 
 His note: "flatscreen crouch allows the player to uncrouch even when there is geometry above, causing the player to

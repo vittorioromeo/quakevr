@@ -109,13 +109,9 @@ void() Attack_With_Tail =
 
     vector delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(100, FALSE, TRUE))
+        return; // QVR: (reach, melee arc, CanDamage: fight.qc VR_MeleeBlow)
 
-    if(!CanDamage(self.enemy, self))
-        return;
 
     float ldmg = (random() + random() + random()) * 40;
     T_Damage(self.enemy, self, self, ldmg);

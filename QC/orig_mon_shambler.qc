@@ -100,12 +100,8 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
-    if(!CanDamage(self.enemy, self))
-        return;
+    if(!VR_MeleeBlow_Near(100, FALSE, TRUE))
+        return; // QVR: (reach, melee arc, CanDamage: fight.qc VR_MeleeBlow)
 
     ldmg = (random() + random() + random()) * 40;
     T_Damage(self.enemy, self, self, ldmg);
@@ -130,10 +126,8 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(TRUE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(100, TRUE, FALSE))
+        return; // QVR: (reach, melee arc: fight.qc VR_MeleeBlow)
 
     ldmg = (random() + random() + random()) * 20;
     T_Damage(self.enemy, self, self, ldmg);
