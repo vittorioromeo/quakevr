@@ -48,6 +48,20 @@ static class ScreenshotHarness
     ];
     static readonly StringBuilder FitReport = new();
 
+    // The checkout's quakevr\settings_page.json, found up from the harness's folder (a build in the repository).
+    static string? FindSettingsManifest()
+    {
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
+        {
+            var p = Path.Combine(d.FullName, "quakevr", Core.Settings.SettingsManifest.FileName);
+            if (File.Exists(p))
+            {
+                return p;
+            }
+        }
+        return null;
+    }
+
     public static async Task<int> RunAsync(StartupOptions options, string dir)
     {
         Directory.CreateDirectory(dir);
@@ -129,6 +143,39 @@ static class ScreenshotHarness
         ]);
         await Save(view, Path.Combine(dir, "4-preparing.png"));
         report.AppendLine($"preparing: cancel button '{vm.CancelText}'");
+
+        // The settings page after installing: a made-up first install with this checkout's manifest, then with picks.
+        if (FindSettingsManifest() is { } settingsManifest)
+        {
+            var fake = Path.Combine(dir, "settings-install");
+            Directory.CreateDirectory(Path.Combine(fake, "quakevr"));
+            File.Copy(settingsManifest, Path.Combine(fake, "quakevr", Core.Settings.SettingsManifest.FileName), true);
+            if (Core.Settings.SettingsSession.Open(fake) is { } session)
+            {
+                vm.SimulateSettings(session);
+                await Save(view, Path.Combine(dir, "5-settings.png"));
+                var page = vm.SettingsPage!;
+                foreach (var c in page.Categories)
+                {
+                    c.IsExpanded = true;
+                }
+                var rows = page.Categories.SelectMany(c => c.Subcategories).SelectMany(s => s.Settings).ToList();
+                if (rows.FirstOrDefault(r => r.IsChoice && r.Choices.Count > 2) is { } choice)
+                {
+                    choice.Value = choice.Choices[2].Value;
+                }
+                if (rows.FirstOrDefault(r => r.IsSlider) is { } slider)
+                {
+                    slider.Number = (slider.SliderMin + slider.SliderMax) / 2;
+                }
+                await Save(view, Path.Combine(dir, "5-settings-changed.png"));
+                report.AppendLine($"settings page: {session.Settings.Count} settings in {page.Categories.Count} categories; {page.ChangedText}");
+            }
+        }
+        else
+        {
+            report.AppendLine("settings page: no quakevr\\settings_page.json above the harness (not rendered)");
+        }
 
         vm.SimulateDone(new InstallRecord { Version = record.Version, QuakeDir = record.QuakeDir },
             new PreparationResult { Started = true, Finished = true, MapsOk = 3, RelightAsked = true, RelightDone = true, Relit = 38 });

@@ -58,6 +58,10 @@ const string Usage = """
     qvr-setup serve --dir <folder> [--port <n>] [--drop-after <bytes>] [--minutes <n>] [--log <file>]
                     (a local release's assets over HTTP on 127.0.0.1, with Range; --drop-after cuts each file's first
                      download there, to test resuming; runs until Ctrl+C or --minutes)
+    qvr-setup settings --target <dir> [--set <cvar>=<value>]...
+                    (the settings page without its window: each setting with the value the page starts with (the
+                     player's on an update); with --set, the changed ones written to quakevr\installer_settings.cfg,
+                     which the game runs once after its saved config: docs/vr-port/INSTALLER.md, "Settings page")
     """;
 
 if (args.Length == 0)
@@ -682,6 +686,31 @@ try
             {
             }
             Log($"stopped: {server.Requests} requests, {server.RangeRequests} with Range, {server.Drops} cut");
+            return 0;
+        }
+        case "settings":
+        {
+            var target = Opt("target") ?? positional.FirstOrDefault() ?? throw new ArgumentException("--target <install folder> is required");
+            var session = QuakeVR.Installer.Core.Settings.SettingsSession.Open(target)
+                          ?? throw new ArgumentException($"no settings manifest in {Path.Combine(target, "quakevr")} (an older game)");
+            Console.WriteLine($"settings page: {session.Settings.Count} settings, {(session.HasConfig ? "from the saved config" : "a first install (defaults)")}, {session.Pending.Count} pending");
+            foreach (var s in session.Settings)
+            {
+                Console.WriteLine($"  {s.Category} > {s.Subcategory} > {s.Label} ({s.Cvar}, {s.Kind}): \"{session.Initial[s.Cvar]}\" [default {s.Default}]");
+            }
+            var values = new Dictionary<string, string>(session.Initial, StringComparer.OrdinalIgnoreCase);
+            foreach (var set in options.TryGetValue("set", out var sets) ? sets : [])
+            {
+                var eq = set.IndexOf('=');
+                if (eq <= 0 || !values.ContainsKey(set[..eq]))
+                {
+                    throw new ArgumentException($"--set {set}: not <cvar>=<value> of a setting on the page");
+                }
+                values[set[..eq]] = set[(eq + 1)..];
+            }
+            var written = session.Write(values, DateTime.Now);
+            Console.WriteLine(written is null ? "settings page: nothing changed, nothing written" :
+                $"settings page: {session.Changes(values).Count} changed, written to {written}");
             return 0;
         }
         case "shortcut-args":

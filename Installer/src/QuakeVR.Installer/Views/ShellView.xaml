@@ -173,6 +173,7 @@
                 <v:DetectPage skin:Fx.Enter="True" Visibility="{Binding IsDetect, Converter={StaticResource BoolToVis}}" />
                 <v:OptionsPage skin:Fx.Enter="True" Visibility="{Binding IsOptions, Converter={StaticResource BoolToVis}}" />
                 <v:InstallPage skin:Fx.Enter="True" Visibility="{Binding IsInstall, Converter={StaticResource BoolToVis}}" />
+                <v:SettingsPage skin:Fx.Enter="True" Visibility="{Binding IsSettings, Converter={StaticResource BoolToVis}}" />
                 <v:DonePage skin:Fx.Enter="True" Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}" />
                 <v:SupportPage skin:Fx.Enter="True" Visibility="{Binding IsSupport, Converter={StaticResource BoolToVis}}" />
             </Grid>
