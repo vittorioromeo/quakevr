@@ -933,6 +933,8 @@ constexpr int plateMostRowsTorso = 6, plateMostRowsLong = 5, plateMostRowsArm = 
     return h;
 }
 
+[[nodiscard]] bool bodyExit(const Body& b, const glm::vec3& o, const glm::vec3& d, float most, float& t, W& w);
+
 // The grid's shape from the piece's extent: its rows and columns, its rings' middles.
 void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
 {
@@ -972,19 +974,44 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     g.axis.clear();
     g.axis.resize(static_cast<za::SizeT>(g.rows + 1), glm::vec2{0.f});
     const float band = za::max(tall / static_cast<float>(g.rows) * 0.6f, 0.6f);
+    // (a humanoid's forearm's and shin's middles from their own skin, not the hand's or the foot's past the bone's end: an enforcer's
+    // hand drew his wrist ring aside, its row 8.4 units wider than his arm)
+    const float bandEnd = f.ends && (forearm || shin) ? f.length : 1e9f;
     for(int ring = 0; ring <= g.rows; ring++)
     {
         glm::vec2 bl{1e9f}, bh{-1e9f};
         for(const glm::vec3& p : L.orig)
         {
             const glm::vec3 q = p - f.origin;
-            if(za::abs(glm::dot(q, f.up) - g.hAt(ring)) <= band)
+            if(za::abs(glm::dot(q, f.up) - g.hAt(ring)) <= band && glm::dot(q, f.up) <= bandEnd)
             {
                 bl = glm::min(bl, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
                 bh = glm::max(bh, glm::vec2{glm::dot(q, f.fwd), glm::dot(q, f.left)});
             }
         }
         at(g.axis, ring) = bl.x <= bh.x ? (bl + bh) * 0.5f : (lo + hi) * 0.5f;
+        // (a humanoid's forearm or shin: the ring round the whole skin's middle at that height, as a sleeve's: its region's own
+        // vertices there can be a sliver (an enforcer's forearm weighs on the upper arm and the hand half way down it), which put
+        // his right bracer's plates 1 unit to one side, sunk into the arm on the other)
+        for(int pass = 0; pass < 2 && bandEnd < 1e8f && f.body; pass++)
+        {
+            const glm::vec3 o = f.origin + f.up * g.hAt(ring) + f.fwd * at(g.axis, ring).x + f.left * at(g.axis, ring).y;
+            glm::vec2 mid{0.f};
+            int found = 0;
+            for(int col = 0; col < g.cols * 2; col++)
+            {
+                const float az = static_cast<float>(col) * pi / static_cast<float>(g.cols);
+                const glm::vec3 d = f.fwd * za::cos(az) + f.left * za::sin(az);
+                float t = 0.f;
+                W w;
+                if(bodyExit(*f.body, o, d, f.length, t, w))
+                {
+                    mid += glm::vec2{glm::dot(o + d * t - f.origin, f.fwd), glm::dot(o + d * t - f.origin, f.left)};
+                    found++;
+                }
+            }
+            at(g.axis, ring) = found >= g.cols * 2 ? mid / static_cast<float>(found) : at(g.axis, ring);
+        }
         // (the torso's middle on the body's centre line: its seam)
         at(g.axis, ring).y = torso ? 0.f : at(g.axis, ring).y;
     }
@@ -1051,7 +1078,8 @@ void fillRadii(const Local& L, const za::Vector<glm::vec3>& fringe, const PieceF
             // (a humanoid's ring past its region (a thigh's top at the hip): where the whole skin is, out from the axis)
             W w;
             const glm::vec2 c = at(g.axis, ring);
-            g.at2(ring, col) = g.at2(ring, col) <= 0.01f && f.hip && f.body &&
+            // (and a forearm's or a shin's ring where its region is a sliver: an enforcer's forearm half way down)
+            g.at2(ring, col) = g.at2(ring, col) <= 0.01f && (f.hip || (f.ends && !f.upper)) && f.body &&
                                        bodyExit(*f.body, f.origin + f.up * h + f.fwd * c.x + f.left * c.y, dirOf(g.azOf(col)), f.length * 1.5f, t, w)
                                    ? t
                                    : g.at2(ring, col);
@@ -1535,41 +1563,45 @@ void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, 
     // The skin's own vertices between the rings under the sleeve's flat faces, as the plates' (fillRadii): each corner out by at
     // most sleeveRidge for them (a low-poly knee's point past that is left to show, rather than a bulging sleeve).
     const float colWide = 2.f * pi / static_cast<float>(g.cols);
-    for(int v = 0; v < count(b.p) && g.cols <= mostCols; v++)
+    const auto ridgeOut = [&]
     {
-        const float h = glm::dot(at(b.p, v) - f.origin, f.up);
-        const float ringF = (h - h0) / (h1 - h0 + (h1 >= h0 ? 1e-6f : -1e-6f)) * static_cast<float>(sleeveRings - 1);
-        if(ringF < 0.f || ringF > static_cast<float>(sleeveRings - 1))
+        for(int v = 0; v < count(b.p) && g.cols <= mostCols; v++)
         {
-            continue;
+            const float h = glm::dot(at(b.p, v) - f.origin, f.up);
+            const float ringF = (h - h0) / (h1 - h0 + (h1 >= h0 ? 1e-6f : -1e-6f)) * static_cast<float>(sleeveRings - 1);
+            if(ringF < 0.f || ringF > static_cast<float>(sleeveRings - 1))
+            {
+                continue;
+            }
+            const int ring = za::min(static_cast<int>(ringF), sleeveRings - 2);
+            const float t = ringF - static_cast<float>(ring);
+            const glm::vec3 cen = centre[ring] + (centre[ring + 1] - centre[ring]) * t;
+            glm::vec3 rel = at(b.p, v) - cen;
+            rel -= f.up * glm::dot(rel, f.up);
+            const float radial = glm::length(rel);
+            if(radial > most)
+            {
+                continue;
+            }
+            float az = za::atan2(glm::dot(rel, f.left), glm::dot(rel, f.fwd)) - g.azOf(0);
+            az = az < 0.f ? az + 2.f * pi : az;
+            const float colF = za::min(az / colWide, static_cast<float>(g.cols) - 1e-3f);
+            const int col = static_cast<int>(colF), col1 = (col + 1) % g.cols;
+            const float u = colF - static_cast<float>(col);
+            const float need = radial * za::cos((u - 0.5f) * colWide) / chord + fit;
+            const float w00 = (1.f - t) * (1.f - u), w01 = (1.f - t) * u, w10 = t * (1.f - u), w11 = t * u;
+            const float have = rad[ring][col] * w00 + rad[ring][col1] * w01 + rad[ring + 1][col] * w10 + rad[ring + 1][col1] * w11;
+            if(need > have && need - have <= (f.ends ? sleeveRidgeHumanoid : sleeveRidge))
+            {
+                const float k = (need - have) / za::max(w00 * w00 + w01 * w01 + w10 * w10 + w11 * w11, 1e-3f);
+                rad[ring][col] += k * w00;
+                rad[ring][col1] += k * w01;
+                rad[ring + 1][col] += k * w10;
+                rad[ring + 1][col1] += k * w11;
+            }
         }
-        const int ring = za::min(static_cast<int>(ringF), sleeveRings - 2);
-        const float t = ringF - static_cast<float>(ring);
-        const glm::vec3 cen = centre[ring] + (centre[ring + 1] - centre[ring]) * t;
-        glm::vec3 rel = at(b.p, v) - cen;
-        rel -= f.up * glm::dot(rel, f.up);
-        const float radial = glm::length(rel);
-        if(radial > most)
-        {
-            continue;
-        }
-        float az = za::atan2(glm::dot(rel, f.left), glm::dot(rel, f.fwd)) - g.azOf(0);
-        az = az < 0.f ? az + 2.f * pi : az;
-        const float colF = za::min(az / colWide, static_cast<float>(g.cols) - 1e-3f);
-        const int col = static_cast<int>(colF), col1 = (col + 1) % g.cols;
-        const float u = colF - static_cast<float>(col);
-        const float need = radial * za::cos((u - 0.5f) * colWide) / chord + fit;
-        const float w00 = (1.f - t) * (1.f - u), w01 = (1.f - t) * u, w10 = t * (1.f - u), w11 = t * u;
-        const float have = rad[ring][col] * w00 + rad[ring][col1] * w01 + rad[ring + 1][col] * w10 + rad[ring + 1][col1] * w11;
-        if(need > have && need - have <= (f.ends ? sleeveRidgeHumanoid : sleeveRidge))
-        {
-            const float k = (need - have) / za::max(w00 * w00 + w01 * w01 + w10 * w10 + w11 * w11, 1e-3f);
-            rad[ring][col] += k * w00;
-            rad[ring][col1] += k * w01;
-            rad[ring + 1][col] += k * w10;
-            rad[ring + 1][col1] += k * w11;
-        }
-    }
+    };
+    ridgeOut();
     // (a humanoid's: each ring a clean band, its corners eased towards their neighbours' and none far past the ring's mean: a low-poly
     // knee's or elbow's point made them spiky and disjoint; his notes, 2026-11-06)
     for(int ring = 0; f.ends && ring < sleeveRings && g.cols <= mostCols; ring++)
@@ -1585,6 +1617,11 @@ void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, 
         {
             rad[ring][col] = za::max(za::clamp(eased[col], mean * sleeveRoundLeast, mean * sleeveRoundMost), rad[ring][col] - sleeveRoundIn); // (no further in: a knee's point showed)
         }
+    }
+    // (and the points it covered still under it: easing a corner in by up to sleeveRoundIn bared a grunt's knee's point)
+    if(f.ends && developer.value < 2.f)
+    {
+        ridgeOut();
     }
     const int row = g.cols + 1;
     for(int ring = 0; ring < sleeveRings && g.cols <= mostCols; ring++)
