@@ -1,20 +1,8 @@
-# Quake VR hand: imports and exports the jointed hand (quakevr/progs/hand_rig.md5mesh, .md5anim and the
-# hand_rig_NN_00.lmp skins) with its armature, weights and skin, so it can be edited in Blender and reloaded in the
-# game (vr_hand_reload). The author's guide: docs/vr-port/HANDS_IN_BLENDER.md. Files are read and written by
-# md5hand.py (shared with Misc/quakevr/make_hand_rig.py).
-#
-# Blender 5.2. Install: Preferences > File Paths > Script Directories: add Misc/quakevr/blender, restart Blender,
-# then Preferences > Add-ons: enable "Quake VR Hand".
-
-bl_info = {
-    "name": "Quake VR Hand",
-    "author": "Quake VR",
-    "version": (1, 0, 0),
-    "blender": (5, 2, 0),
-    "location": "File > Import/Export > Quake VR Hand (.md5mesh); 3D View > Sidebar > Quake VR",
-    "description": "Edit Quake VR's jointed hand (hand_rig.md5mesh) with its bones, weights and skin",
-    "category": "Import-Export",
-}
+# hand_blender.py -- the jointed hand (quakevr/progs/hand_rig.md5mesh, .md5anim and the hand_rig_NN_00.lmp skins) in
+# the Quake VR add-on: imported and exported with its armature, weights and skin, so it can be edited in Blender and
+# reloaded in the game (vr_hand_reload; the game's model watch reads it again by itself). The author's guide:
+# docs/vr-port/HANDS_IN_BLENDER.md. Files are read and written by md5hand.py (shared with
+# Misc/quakevr/make_hand_rig.py). Until 2026-11 this was its own add-on, quakevr_hand.
 
 import os
 
@@ -27,12 +15,10 @@ from . import md5hand as M
 
 
 def normal_maps():
-    """The models' add-on's normal map baking (quakevr_models/normal_blender.py), or None if it isn't there."""
-    try:
-        from quakevr_models import normal_blender
-    except ImportError:
-        return None
+    """The add-on's normal map baking (normal_blender.py)."""
+    from . import normal_blender
     return normal_blender
+
 
 ARMATURE_NAME = "hand_rig"
 MESH_NAME = "hand"
@@ -439,7 +425,6 @@ class QVR_OT_bake_normal_map(bpy.types.Operator):
     def execute(self, context):
         nb = normal_maps()
         if nb is None:
-            self.report({'ERROR'}, "needs the Quake VR Models add-on (quakevr_models) enabled too")
             return {'CANCELLED'}
         arm, ob = find_hand(context)
         path = arm.get("qvr_source") if arm is not None else None
@@ -562,47 +547,15 @@ def reload_skin_png(img):
     img.reload()
 
 
-class QVR_PT_hand(bpy.types.Panel):
-    bl_label = "Quake VR Hand"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Quake VR"
-
-    def draw(self, context):
-        col = self.layout.column(align=True)
-        col.operator(QVR_OT_import_hand.bl_idname, text="Import Hand", icon='IMPORT')
-        col.operator(QVR_OT_export_hand.bl_idname, text="Export Hand", icon='EXPORT')
-        col.separator()
-        col.operator(QVR_OT_apply_pose.bl_idname, icon='ARMATURE_DATA')
-        col.operator(QVR_OT_select_unweighted.bl_idname, icon='GROUP_VERTEX')
-        col.separator()
-        col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
-        col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
-        col.separator()
-        col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
-
-
-def menu_import(self, context):
-    self.layout.operator(QVR_OT_import_hand.bl_idname, text="Quake VR Hand (.md5mesh)")
-
-
-def menu_export(self, context):
-    self.layout.operator(QVR_OT_export_hand.bl_idname, text="Quake VR Hand (.md5mesh)")
+def draw_tools(col):
+    """The hand's tools in the Quake VR panel (the add-on's __init__.py)."""
+    col.operator(QVR_OT_export_hand.bl_idname, text="Export Hand", icon='EXPORT')
+    col.operator(QVR_OT_apply_pose.bl_idname, icon='ARMATURE_DATA')
+    col.operator(QVR_OT_select_unweighted.bl_idname, icon='GROUP_VERTEX')
+    col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
+    col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
+    col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
 
 
 classes = (QVR_OT_import_hand, QVR_OT_export_hand, QVR_OT_apply_pose, QVR_OT_select_unweighted, QVR_OT_save_skin,
-           QVR_OT_reload_skin, QVR_OT_bake_normal_map, QVR_PT_hand)
-
-
-def register():
-    for c in classes:
-        bpy.utils.register_class(c)
-    bpy.types.TOPBAR_MT_file_import.append(menu_import)
-    bpy.types.TOPBAR_MT_file_export.append(menu_export)
-
-
-def unregister():
-    bpy.types.TOPBAR_MT_file_export.remove(menu_export)
-    bpy.types.TOPBAR_MT_file_import.remove(menu_import)
-    for c in reversed(classes):
-        bpy.utils.unregister_class(c)
+           QVR_OT_reload_skin, QVR_OT_bake_normal_map)

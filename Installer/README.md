@@ -84,6 +84,7 @@ qvr-setup install --feed http://127.0.0.1:8517/latest.json --sandbox <dir> --acc
 qvr-setup install --package dist\QuakeVR.zip --hd [--no-feed] --dry-run   # what would be downloaded: --hd is the feed's hdtextures, else the built-in pinned pack
 qvr-setup install ... --ad [--ad-zip <zip>] [--no-stores]   # Arcane Dimensions (experimental, opt-in): see "Arcane Dimensions" below
 qvr-setup serve --dir out\release\<v>-local\assets --port 8517 [--drop-after <bytes>]   # a local release over HTTP (Range), 127.0.0.1 only
+qvr-setup settings --target <dir> [--set <cvar>=<value>]...   # the settings page without its window (docs/vr-port/INSTALLER.md, section 14)
 qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]

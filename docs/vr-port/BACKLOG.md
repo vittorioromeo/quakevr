@@ -23,6 +23,7 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 
 ## 2. The 1.1 release
 
+- **Review the installer's settings page before 1.1** (Vittorio, 2026-11-06): go through every setting on the installer's "Set up the game" page (`Misc/installer/settings_page.txt`): which ones, their order, labels and help; decide whether "VR or flat screen" belongs there (today the page leaves it off: the game forces VR at every start).
 - **Gameplay page before 1.1** (Vittorio, 2026-11-06): VR Settings must have a "Gameplay" section that tweaks every major gameplay decision from one simple menu (armed replacements, embedded blades, knockdowns, melee and parry, bullet time, arena, difficulty-like toggles...); check vr_menu_gameplay.inc covers them all, plainly named.
 - **Armed replacements on by default in 1.1** (Vittorio, 2026-11-06): `vr_agrunt_repl` 1 (already the default; keep it).
 - **Installer settings page** (users' request, 2026-11-06): after installing, a page to set the most common settings before the first launch; his call on scope and timing.

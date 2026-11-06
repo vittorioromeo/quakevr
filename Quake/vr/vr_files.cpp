@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -477,6 +478,45 @@ za::String generic(za::StringView path)
     }
 #endif
     return out;
+}
+
+za::String resolved(za::StringView path)
+{
+    const za::String abs = absolute(path);
+#ifdef _WIN32
+    wchar_t wpath[MAX_PATH * 2];
+    if(!MultiByteToWideChar(CP_UTF8, 0, abs.cStr(), -1, wpath, MAX_PATH * 2))
+    {
+        return abs;
+    }
+    const HANDLE h = CreateFileW(wpath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS, nullptr); // (a folder too)
+    if(h == INVALID_HANDLE_VALUE)
+    {
+        return abs;
+    }
+    wchar_t wout[MAX_PATH * 2];
+    const DWORD n = GetFinalPathNameByHandleW(h, wout, MAX_PATH * 2, FILE_NAME_NORMALIZED);
+    CloseHandle(h);
+    char out[MAX_PATH * 6];
+    if(n == 0 || n >= MAX_PATH * 2 || !WideCharToMultiByte(CP_UTF8, 0, wout, -1, out, sizeof(out), nullptr, nullptr))
+    {
+        return abs;
+    }
+    const char* p = out;
+    if(strncmp(p, "\\\\?\\UNC\\", 8) == 0)
+    {
+        return generic(za::String{"\\\\"} + (p + 8));
+    }
+    if(strncmp(p, "\\\\?\\", 4) == 0)
+    {
+        p += 4;
+    }
+    return generic(p);
+#else
+    char out[4096];
+    return realpath(abs.cStr(), out) ? za::String{out} : abs;
+#endif
 }
 
 za::String join(za::StringView dir, za::StringView rest)

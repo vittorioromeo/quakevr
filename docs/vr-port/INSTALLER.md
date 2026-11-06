@@ -25,6 +25,7 @@ other open questions are in [section 11](#11-decisions-vittorio-2026-10-06); the
 - [11. Decisions (Vittorio, 2026-10-06)](#11-decisions-vittorio-2026-10-06)
 - [12. Problems found while researching](#12-problems-found-while-researching)
 - [13. The installer app (phase 1)](#13-the-installer-app-phase-1)
+- [14. Settings page](#14-settings-page)
 - [Appendix A: the author's config against a fresh install](#appendix-a-the-authors-config-against-a-fresh-install)
 
 Sources: `docs/INSTALL.md`, `docs/RELIGHTING.md`, `docs/vr-port/TEXTURES.md`, `docs/vr-port/CREDITS.md`,
@@ -313,7 +314,8 @@ per-weapon (`vr_wofs_*`) tables.
 3. Process for later rounds: before a release, dump a fresh install (`resetall; exec quakevr.cfg; writeconfig
    fresh` with `-vrmock`, as done here) and diff it with his current config; promote with `vr_default` lines plus a
    `defaultChanges` entry (so existing players get it too).
-4. The installer itself **writes no settings**. Machine-dependent choices belong to the first start in the game:
+4. The installer writes no settings of its own: only what the player changes on its settings page
+   ([section 14](#14-settings-page)). Machine-dependent choices belong to the first start in the game:
    the graphics preset from the GPU (`GL_RENDERER`; a new first-run step) and the runtime: **when Virtual Desktop is
    installed, suggest its OpenXR runtime** (VDXR, `vr_xr_runtime 1`, as the author uses; decision 10).
 
@@ -537,6 +539,72 @@ copied `QuakeVR-Setup.exe`, `--offline`, into scratch folders (files, `install.j
 
 Open questions for the author: whether to show the installer's own version check before the Welcome page.
 
+
+## 14. Settings page
+
+Players asked to set the most common settings before the first start. After installing (or updating), Setup shows
+**Set up the game** (step 6, between Install and Play): a tree of categories > subcategories > settings, the first
+category open, each setting with the control its kind needs (On for a toggle, a row of choices, a slider with its value
+in the game's own format), the game's help (and a choice's own help), "In the game: <menu path>", **Reset to default**
+on a changed row and **Reset all to defaults** / **Open or close all** above. Next saves and goes on to Play.
+
+### Where each part comes from
+
+| Part | File | What |
+|---|---|---|
+| Which settings, in what groups | `Misc/installer/settings_page.txt` | `[Category > Subcategory]` lines, then one cvar a line, in display order. Nothing else |
+| Everything else | `quakevr/settings_page.json` (the manifest, committed, shipped in the package) | label, help, kind (`toggle`, `choice`, `slider`, `apply`), range, step, format, choices, default, menu path: made by `Misc/installer/settings_page.py update <agent>` from the game's own menu rows (`vr_menu_dump_settings <cvar>...`, run headless) |
+| The page | `Installer/src/QuakeVR.Installer.Core/Settings/SettingsPage.cs`, `ViewModels/SettingsViewModels.cs`, `Views/SettingsPage.xaml` (styles `ChoicePill`, `TreeHeader`, the Slider in `Themes/Theme.xaml`) | reads the manifest from the install (`<QVR>\quakevr`): Setup and the game it installed always agree. No manifest (an older package): no page, straight to Play |
+
+Kinds: a row with Off/On is a `toggle`; other cycles are `choice`; sliders are `slider` (the menu bar's range, widened to
+include the player's value). `apply` is a button rather than a saved setting, applied once: **Graphics Presets**
+(`vr_graphics_preset`, choices the Graphics Presets page's buttons, default High) and the menu's presets such as
+**Handedness** (`vr_handedness`: only the choices that set something; default the one the defaults match). On an update an
+`apply` setting starts at "As it is now" (Setup can't tell which preset the player's values match) and writes nothing
+unless picked.
+
+### How the game gets them (the order)
+
+`quakevr/quake.rc`: `exec default.cfg` (with `vr_defaults.cfg`) > `exec config.cfg` (the player's `ironwail.cfg`, then
+`vr_migrate_config`) > **`vr_installer_settings`** > `exec quakevr.cfg` (the forced rules) > `autoexec.cfg`.
+
+- Setup writes **only the settings changed on the page** to `quakevr\installer_settings.cfg`, with a `// stamp <time>-<random>`
+  line. Nothing changed: nothing written.
+- `vr_installer_settings` (Quake/vr/vr_cvars.cpp) runs that file **once**: only when its stamp differs from
+  `vr_installer_applied` (archived, personal: never a default), which it then sets. After the saved config, so the page's
+  picks win over it that one time; before `quakevr.cfg`, so the forced rules still win; after `vr_migrate_config`, so a
+  migration never undoes them.
+- Later changes in the game are saved in `ironwail.cfg` as usual and win from then on: the file is not run again. Setup
+  never writes on its own: an update without changes on the page leaves everything as the game has it.
+- **Upgrades**: the page starts from the player's values (`ironwail.cfg`; missing ones at the default), plus the picks
+  of an earlier page the game has not run yet (the file's stamp is not the config's `vr_installer_applied`); those are
+  kept in the new file. A crash before the config is saved re-runs the file next time (the stamp wasn't saved either).
+- `installer_settings.cfg` is a player file (not in the package, kept on update and uninstall; `quakevr/.gitignore`).
+- `qvr-setup settings --target <dir> [--set <cvar>=<value>]...` is the page without its window (prints each setting and
+  the value the page starts with; writes the changes).
+
+### Never stale: the check
+
+`python Misc/installer/settings_page.py check <agent>` (one headless game run) fails, with a `settings_page: FAIL` line
+each, when a listed cvar no longer exists, is not saved with the config (no `CVAR_ARCHIVE`; `apply` excepted), the list
+is malformed, or the manifest differs from what the game says now (a label, help, range, choice or default changed in
+the game; a setting added to or removed from the list). A setting whose menu row was removed is a **WARNING** (left off
+the page). Its last line: `settings_page check: N passed, M failed`. Fix: edit the list if a cvar went, then
+`settings_page.py update <agent>` and commit `quakevr/settings_page.json`.
+
+It runs in the release test suite (`Misc/release/run_test_suite.py`: `settings_page`, `Misc/quakevr/settings_page_test.py`),
+which also makes it fail on purpose (a missing and an unsaved cvar, a stale label), and runs the page's logic
+(`qvr-setup settings`) on a scratch install with the game reading the file: values and presets applied once, an in-game
+change kept after a second run of the page, the file not run again.
+
+### Adding or removing a setting
+
+1. Add (or remove) its cvar under a `[Category > Subcategory]` line of `Misc/installer/settings_page.txt`. It must have a
+   menu row (its label and help are the row's) and be saved with the config. Rename a label in the game, not here.
+2. `python Misc/installer/settings_page.py update <agent>` (after building that agent), then `... check <agent>`.
+3. Commit the list and `quakevr/settings_page.json`. The installer needs no change.
+
+A setting the game shows only as a button (a preset) needs its case in `dumpSetting` (Quake/vr/vr_menu_paths.inc).
 
 ## Appendix A: the author's config against a fresh install
 

@@ -1,0 +1,31 @@
+# settings_page.txt -- the settings on Setup's settings page (after installing; docs/vr-port/INSTALLER.md, "Settings
+# page"), in the order shown. "[Category > Subcategory]" starts a group; then one cvar a line. Adding or removing a
+# setting is one line here, then: python Misc/installer/settings_page.py update <agent> (writes
+# quakevr/settings_page.json, the manifest Setup reads: labels, help, kinds, ranges, choices and defaults all come from
+# the game's own menu rows, never from this file). `settings_page.py check <agent>` fails when the manifest is stale.
+
+[Comfort > Turning]
+vr_snap_turn
+vr_turn_speed
+
+[Comfort > Motion Sickness]
+vr_comfort_vignette
+
+[Comfort > How You Play]
+vr_bodycal_seated
+
+[Your Body > Hands]
+vr_handedness
+vr_gloves
+
+[Your Body > Body]
+vr_body_mode
+
+[Gameplay > Enemies]
+vr_agrunt_repl
+
+[Gameplay > Gore]
+vr_gore
+
+[Graphics > Quality]
+vr_graphics_preset

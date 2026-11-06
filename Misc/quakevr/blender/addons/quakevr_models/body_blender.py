@@ -480,8 +480,8 @@ def export_skin(ob, folder, report, carry=True, quantize=True):
     for m in ob.data.materials:
         if m is not None and m.node_tree is not None:
             for n in m.node_tree.nodes:
-                if n.type == 'TEX_IMAGE' and n.image is not None:
-                    img = n.image
+                if n.type == 'TEX_IMAGE' and n.image is not None and not n.get("qvr_normal"):
+                    img = n.image  # (not the normal map the import shows: normal_blender.show)
     if img is None:
         img = bpy.data.images.get("vrbody_skin")
     if img is None:
@@ -500,7 +500,9 @@ def export_skin(ob, folder, report, carry=True, quantize=True):
         q = qpal.Quantizer()
         idx_old = old_indices(old)
         new_idx = q.indices(rgb, idx_old)
-        rgb = [qpal.PALETTE[i] for i in new_idx]
+        # Only the changed texels: the shipped skins are full colour in places (refine_body_skins.py), and an
+        # untouched skin exports as it is (the export on save of a body .blend saved unedited writes the same skins).
+        rgb = [c if c == o else qpal.PALETTE[i] for c, o, i in zip(rgb, old, new_idx)]
     changed = sum(1 for a, b in zip(old, rgb) if a != b)
     olds = {}
     if carry and which == 0:

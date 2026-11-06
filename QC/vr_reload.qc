@@ -105,6 +105,7 @@ string VR_RELOAD_CLASS = "vr_ammo_shell";
 string VR_RELOAD_MAGCLASS = "vr_ammo_mag";
 float vr_reload_by_pouch; // (VR_Reload_SeatMagInto's log: a magazine from the pouch, not a loose one: VR_Reload_PouchFrame)
 // (VR_RELOAD_FRONTCLASS, VR_RELOAD_ROCKET, VR_RELOAD_GRENADE, VR_RELOAD_PROX: vr_grenade.qc, before this)
+void(entity xPlayer, string xKind, float xHand, string xDetail) VR_Anim_Event; // the animation recorder's (vr_motion.qc)
 
 void() VR_Reload_Precache =
 {
@@ -939,6 +940,7 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
             "along the way out of the well", asSeated, asHand, vlen(xVel), xVel_z, normalize(xVel) *
             VR_Reload_MagOutWay(p, xHand));
     }
+    VR_Anim_Event(p, "mag_out", xHand, xHow); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s)%s", VR_Reload_Desc(r), xHand, xHow, how));
     VR_Reload_CellSparks(p, xHand, r, "taken out");
     VR_Reload_CellSpent(r);
@@ -1013,6 +1015,7 @@ void(entity p, float xHand, string xHow) VR_Reload_MagOutRelease =
     vr_reload_out_way = way;
     vr_reload_out_vel = vel;
     vr_reload_out_hand = VRGetEntHandVel(p, xHand) * VRMetersToUnits();
+    VR_Anim_Event(p, "mag_out", xHand, xHow); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s): out along its way at %.0f u/s, %.0f u/s in all", VR_Reload_Desc(r), xHand,
         xHow, vel * way, vlen(vel)));
     VR_Reload_CellSpent(r);
@@ -1122,6 +1125,7 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
         }
     }
     VR_Reload_Haptic(self, gunHand, 0.1, 60, 0.9);
+    VR_Anim_Event(self, "mag_in", gunHand, xHeld ? "held" : "contact"); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%s seated (hand %g%s): the gun holds %g", VR_Reload_Desc(r), gunHand,
         xHeld ? "" : (vr_reload_by_pouch ? ", from the pouch" : ", a loose one by contact"), r.vr_ammo_count));
     VR_Reload_CellSparks(self, gunHand, r, "seated");
@@ -1507,6 +1511,7 @@ void(float xHand) VR_Reload_Take =
     }
     VR_Reload_Sound(self, VRGetHandChannel(xHand), "vr/reload_pouch.wav", 0.9);
     VR_Reload_Haptic(self, xHand, 0.07, 120, 0.7);
+    VR_Anim_Event(self, "pouch_take", xHand, ftos(n)); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%s taken from the pouch by hand %g: %g left", (w || front) ? VR_Reload_Desc(r) : (n > 2 ?
         sprintf("a handful of %g shells", n) : (n == 2 ? "a taped pair" : "a shell")), xHand,
         VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
@@ -1892,6 +1897,7 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
         r.avelocity = '0 1 0' * (crandom() * 400) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
     }
+    VR_Anim_Event(p, "break_open", xHand, xHow); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("the super shotgun (hand %g) broken open by %s: %g spent and %g live thrown out%s", xHand, xHow,
         spent, live, (p.vr_ssg_fired && time - p.vr_ssg_fired < 5) ? sprintf(", %.2f s after its last shot",
         time - p.vr_ssg_fired) : ""));
@@ -1910,6 +1916,7 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
     {
         VR_Reload_Haptic(p, VRGetOtherHand(xHand), 0.06, 80, 0.6);
     }
+    VR_Anim_Event(p, "close", xHand, xHow); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("the super shotgun (hand %g) closed by %s: %g loaded", xHand, xHow, VRGetEntWeaponClip(p,
         xHand)));
 };
@@ -2297,6 +2304,7 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
         VR_Reload_Haptic(self, xHand, 0.05, 160, 0.8); // the shell pushed home
     }
     VR_Reload_Haptic(self, gunHand, 0.08, 70, 0.7);  // the gun taking it
+    VR_Anim_Event(self, "rounds_in", gunHand, ftos(n)); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%g into the gun (hand %g%s): its magazine %g of %g, %g in the reserve", n, gunHand,
         xHeld ? "" : ", a loose round by contact", clip + n, size,
         VR_AmmoUtil_GetAmmoCountByAmmoId(self, r.vr_ammo_aid)));
@@ -2984,6 +2992,7 @@ void(float xHand) VR_Reload_PouchFrame =
     setmodel(t, n >= 2 ? VR_RELOAD_PAIR : VR_RELOAD_SHELL);
     collectfx(VRGetOtherHand(xHand), world, QVR_CFX_INTO_GUN, t.modelindex, top, vectoangles(self.ammopouchz * -1));
     remove(t);
+    VR_Anim_Event(self, "rounds_in", xHand, "from the pouch"); // (the animation recorder's: vr_animrec.cpp)
     VR_Reload_Log(sprintf("%g into the gun (hand %g) from the pouch: its magazine %g of %g, %g in the reserve", n, xHand,
         clip + n, size, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
     if(clip + n >= size)
