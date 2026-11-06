@@ -498,6 +498,23 @@ float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm:
     return deepest;
 }
 
+float gunNearest(int hand, const glm::vec3& eye, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
+{
+    makeShape(hand, rot, muzzle);
+    float nearest = 1e9f;
+    for(const glm::vec3& o : shape[hand])
+    {
+        nearest = za::min(nearest, glm::distance(eye, pos + o));
+    }
+    return nearest;
+}
+
+float pointWallDepth(const glm::vec3& from, const glm::vec3& point, float margin)
+{
+    const auto hit = marginTrace(from, point, za::max(margin, 0.f));
+    return hit && hit->wall ? za::max(hit->depth, 0.f) : 0.f;
+}
+
 void resolvePositions(hands::State& s, float /* turnYaw */)
 {
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or

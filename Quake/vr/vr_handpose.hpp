@@ -36,6 +36,13 @@ void weightDirections(hands::State& s, float turnYaw);
 [[nodiscard]] float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
     float margin, float handMargin);
 
+// One point (an empty hand), the same way: how deep it is past the first wall on the line from `from` to it, counted
+// `margin` deeper (0: clear; floors and ceilings not counted). Flatscreen play's free hand at a wall (vr_flatsight.cpp).
+// The same weapon's points: the nearest's distance from `eye` (units). No traces.
+[[nodiscard]] float gunNearest(int hand, const glm::vec3& eye, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle);
+
+[[nodiscard]] float pointWallDepth(const glm::vec3& from, const glm::vec3& point, float margin);
+
 // vr_gun_wall_depth: each hand's weapon as drawn last frame (held or carried), how far into the level it goes (its model's
 // points past the surfaces the lines from the hand to them meet), and how far the walls held the hand out.
 void gunWallDepth_f();

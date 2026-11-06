@@ -1499,14 +1499,15 @@ struct TorsoCaps
 
 } // namespace
 
-float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most)
+float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keepAsked)
 {
     glm::vec3 stock;
-    const float keep = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
-    if(most <= 0.f || keep <= 0.f || !active() || !bodyPose() || heldIn(h) < 0 || !flatsight::stockOff(h, stock))
+    const float clear = za::clamp(vr_flat_clear_stock.value, 0.f, stockMost);
+    if(most <= 0.f || clear <= 0.f || !active() || !bodyPose() || heldIn(h) < 0 || !flatsight::stockOff(h, stock))
     {
         return most;
     }
+    const float keep = keepAsked < 0.f ? clear : za::min(keepAsked, clear);
     const glm::vec3 back = axes(geom::vec(cl.viewangles)) * stock;
     const TorsoCaps caps = torsoCaps(s);
     const float want = za::min(keep, torsoClearance(caps, s.pos[h] + back, s.pos[h]));
