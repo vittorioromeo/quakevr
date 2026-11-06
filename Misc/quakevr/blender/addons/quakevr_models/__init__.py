@@ -6,6 +6,7 @@
 # flashlight, the holster, the pauldrons, the shell...). One panel (3D View > Sidebar > Quake VR) finds what the open
 # .blend edits and shows its tools. A model's source .blend, or a .blend holding the hand or the body, exports on save
 # (autoexport.py; the game reads it again by itself); Show in Game asks the running game to draw it in front of you.
+# Texturing (texflow.py, texgen.py): paint in Blender or in another program (its PNG watched), starter shading, fills.
 # The workflow: docs/vr-port/BLENDER_WORKFLOW.md; the details: MODELS_IN_BLENDER.md, HANDS_IN_BLENDER.md.
 #
 # Blender 5.2. Install: Preferences > File Paths > Script Directories: add Misc/quakevr/blender, restart Blender,
@@ -39,6 +40,7 @@ from . import mdl
 from . import mdl_blender as MB
 from . import normal_blender as NB
 from . import qpal
+from . import texflow
 
 REPORT_TEXT = "Quake VR export report"
 
@@ -313,7 +315,8 @@ def model_image(ob):
         if m is not None and m.node_tree is not None:
             for n in m.node_tree.nodes:
                 if n.type == 'TEX_IMAGE' and n.image is not None and not n.get("qvr_normal"):
-                    return n.image  # (the skin, not the normal map shown: normal_blender.show)
+                    return texflow.node_skin(n)  # (the skin, not the normal map shown: normal_blender.show, nor
+                    # Palette Preview's view image: texflow.refresh_view)
     return None
 
 
@@ -558,6 +561,9 @@ def edit_from_game(path):
     bpy.app.timers.register(run, first_interval=0.5)
 
 
+edit_skin_from_game = texflow.edit_skin_from_game  # (the game's vr_edit_skin: q.edit_skin_from_game(<skin>))
+
+
 class QVR_PT_quakevr(bpy.types.Panel):
     """The one Quake VR panel: what this .blend edits, found by itself, and its tools."""
     bl_label = "Quake VR"
@@ -588,9 +594,9 @@ class QVR_PT_quakevr(bpy.types.Panel):
             hand_blender.draw_tools(col)
         if kind in ('source', 'mdl', md5source.BODY):
             col.separator()
-            col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
-            col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
             col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
+            if ob is not None:
+                texflow.draw_panel(layout, context, ob)  # (Save/Reload Skin PNG: Edit Skin Externally does both)
         box = layout.box()
         box.label(text="Import (then save inside the repository)")
         row = box.row(align=True)
@@ -625,10 +631,29 @@ class QVR_AP_models(bpy.types.AddonPreferences):
         description="Where the export on save writes the game's files. Empty: the repository's quakevr/progs (and "
                     "its data/weapons.txt). Another folder: only the model files (weapons.txt left alone)")
 
+    skin_editor: StringProperty(
+        name="Skin Editor", subtype='FILE_PATH', default="",
+        description="The paint program Edit Skin Externally opens the skin's PNG in (its .exe). Empty: Krita, "
+                    "Aseprite, GIMP or Photoshop if installed (in that order), else the program Windows opens PNGs "
+                    "with")
+    uv_layout_png: BoolProperty(
+        name="UV Layout PNG", default=True,
+        description="Edit Skin Externally also writes the UV layout beside the skin (<skin>_uv.png: lines on "
+                    "transparent), to lay over it as a layer")
+
     def draw(self, context):
         col = self.layout.column()
         col.prop(self, "export_on_save")
         col.prop(self, "progs_dir")
+        col.separator()
+        col.prop(self, "skin_editor")
+        if not self.skin_editor:
+            found = texflow.detect_editors()
+            col.label(text="Found: %s" % (", ".join(n for n, _ in found) if found else
+                                          "none (Windows' program for PNGs)"), icon='INFO')
+        col.prop(self, "uv_layout_png")
+        col.label(text="Palettes for paint programs: %s" % os.path.join(os.path.dirname(__file__), "palettes"),
+                  icon='COLOR')
 
 
 OLD_ADDONS = ("quakevr_hand",)  # merged into this one (2026-11): their entries taken out of the preferences
@@ -666,6 +691,7 @@ def register():
     for c in classes:
         bpy.utils.register_class(c)
     autoexport.register()
+    texflow.register()
     bpy.types.TOPBAR_MT_file_import.append(menu_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_export)
     if not bpy.app.background:
@@ -675,6 +701,7 @@ def register():
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import)
+    texflow.unregister()
     autoexport.unregister()
     for c in reversed(classes):
         bpy.utils.unregister_class(c)

@@ -373,10 +373,62 @@ Useful checks after a weapon edit:
 - `vr_anchor_info progs/v_shot.mdl <anchor>` says where an anchor binds;
 - `vr_anchor_nearest progs/v_shot.mdl <x> <y> <z>` gives the anchor of the surface point nearest a point.
 
-## 5. Skins in another editor
+## 5. Texturing
 
-Click **Save Skin PNG** in the sidebar (with the model selected) and pick a file, for example next to your .blend.
-Paint the PNG and save it, then click **Reload Skin PNG**. Then export: the PNG becomes the skin, on Quake's palette.
+The skin is part of the source: a source .blend reads its skins from the PNGs beside it (`<model>_skin<n>.png`), and
+saving the .blend writes a painted skin there and exports, so the game reads the model again (as for a mesh edit). The
+tools are in the panel's **Texturing** box (3D view sidebar, **Quake VR** tab). **Skin** picks which of a model's
+skins they work on (the armour has three).
+
+### Loop 1: paint in Blender
+
+1. Open the model's source .blend (or `vr_edit_in_blender` in the game) and click **Paint in Blender**: Texture
+   Paint on the skin, nearest texels, the viewport showing the texture.
+2. Paint. The brush's swatches are Quake's 224 ordinary colours (**Swatches**); **Fullbright** switches to the 32
+   glowing ones (sights, screens, lights). A texel glows only when painted exactly in a glowing colour.
+3. **Palette Preview** shows the skin as the export will put it on the palette; **UV Wires** draws the UV layout over
+   it. Both only change what the viewport shows: the saved file keeps the skin.
+4. **Ctrl+S**. The skin's PNG is written, the .blend exports, and the game reads the model again within a second.
+
+### Loop 2: paint in another program
+
+1. Click **Edit Skin Externally** (or, in the game, `vr_edit_skin`: the weapon in your hand, `vr_edit_skin look` for
+   what you look at, `vr_edit_skin <model> [skin]`; Debug > Tests > Edit Skin in Paint Program). The skin's PNG opens
+   in your paint program, and the UV layout is written beside it as `<skin>_uv.png`, to add as a layer.
+2. Paint and save the PNG there (keep its size). Blender reads it within a second, saves the .blend, which exports,
+   and the game reads the model again. Keep painting and saving: every save comes through.
+3. **Stop Watching** when you're done (opening another .blend stops it too).
+
+The paint program is the add-on's **Skin Editor** preference. If it is empty, the add-on uses the first one it finds
+installed: Krita, Aseprite, GIMP or Photoshop; with none, the program Windows opens PNGs with. Quake's palette for
+them is in `Misc/quakevr/blender/addons/quakevr_models/palettes`: `quake.gpl` (GIMP, Krita, Aseprite; the glowing
+colours are named FULLBRIGHT), `quake_ordinary.gpl` and `quake_fullbright.gpl` (the two halves), `quake.pal` (JASC,
+for Aseprite and others) and `quake.hex`. Paint without anti-aliasing or blending if you can: any colour off the palette
+is put on the nearest palette colour by the export.
+
+If you paint the skin in Blender and don't save, and the PNG then changes outside, Blender doesn't replace your
+strokes. It says so and shows **Load PNG Anyway**, which takes the PNG (Ctrl+Z brings the strokes back). Ctrl+S
+keeps Blender's version instead. When Edit Skin Externally starts on a skin painted in Blender and not saved, it writes
+Blender's version to the PNG first. The PNG it replaces is copied to `quakevr_skin_backups` in the system's temp folder.
+
+### Helpers
+
+- **Bake Starter Shading**: ambient occlusion, creases and worn outer edges, baked from the mesh with Cycles (a few
+  seconds), darken or lighten each texel along its own palette ramp (**Overlay**, the default). **Fresh Base** starts
+  from a grey instead. **Selected Faces Only** limits it to the faces selected in Edit Mode. Texels no face uses are
+  left alone.
+- **Fill Material**: select faces in Edit Mode. Fill Material paints their texels with **metal**, **wood**,
+  **leather**, **rust** or **cloth**: a pattern on a palette ramp (**Ramp** picks another row of the palette; **Scale**,
+  **Brightness**, **Seed**).
+- **Write UV Layout PNG**: the UV layout beside the skin's PNG (lines on transparent), without opening anything.
+
+Both the bake and the fill leave the glowing texels and the flat area at texel (0, 0) alone (the engine floods that
+area: see [section 7](#7-when-the-export-says-no)), unless you untick **Keep Glowing Texels** or **Keep Texel (0, 0)'s
+Area**. Each one is a single Ctrl+Z step, and nothing reaches the PNG or the game until you save.
+
+(The old **Save Skin PNG** and **Reload Skin PNG** buttons are gone from the panel: Edit Skin Externally does both.
+A model imported without a source .blend, such as the jointed hand or the body, gets its skin written beside the saved
+.blend as `<blend>_skin<n>.png` the first time.)
 
 ## 6. The generators
 
