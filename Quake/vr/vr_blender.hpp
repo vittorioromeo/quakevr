@@ -7,7 +7,7 @@
 namespace qvr::blender
 {
 
-void registerCommands(); // vr_edit_in_blender, vr_model_show, vr_blender_test
+void registerCommands(); // vr_edit_in_blender, vr_edit_skin, vr_model_show, vr_blender_test
 void frame();            // each frame (VR_HostFrameEnd): the request file looked at every half second
 void addPreview();       // each frame, with the view's entities: the model vr_model_show shows
 

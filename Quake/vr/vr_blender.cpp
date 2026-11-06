@@ -9,6 +9,9 @@
 // (quakevr_models.edit_from_game): saved inside the repository, that .blend exports on save. The repository is the game
 // folder's own (quakevr/ resolved through links: its parent). -n prints what it would run.
 //
+// vr_edit_skin [model | hand | look] [skin] [-n]: as vr_edit_in_blender, then the add-on's Edit Skin Externally (the
+// skin's PNG in your paint program, watched: saved there, the .blend saves and exports, the game reads it again).
+//
 // vr_model_show [model]: the model drawn in front of you (where you look, at arm's length past its size), turning, its
 // file read again first; no model: hidden. Not the body or the hands (they are drawn on you).
 //
@@ -232,6 +235,14 @@ struct Edit
     return "\"" + blender + "\" --python-expr \"import quakevr_models as q; q.edit_from_game(r'" + e.opens + "')\"";
 }
 
+// vr_edit_skin's: the source .blend opened, then the add-on's Edit Skin Externally on skin `skin` (-1: the panel's).
+[[nodiscard]] za::String skinCommandLine(const za::String& blender, const Edit& e, const int skin)
+{
+    char expr[96];
+    snprintf(expr, sizeof(expr), "import quakevr_models as q; q.edit_skin_from_game(%d)", skin);
+    return "\"" + blender + "\" \"" + e.opens + "\" --python-expr \"" + expr + "\"";
+}
+
 [[nodiscard]] bool launch(const za::String& cmd, const za::String& dir)
 {
 #ifdef _WIN32
@@ -298,8 +309,8 @@ struct Edit
 }
 
 // The model vr_edit_in_blender works on: `what` named, "hand" (the main hand's weapon), "look", or "" (the hand's, else
-// the one looked at). "" when there is none.
-[[nodiscard]] za::String pickModel(const char* what)
+// the one looked at). "" when there is none. skin (optional): the skin the looked-at entity wears (else left as is).
+[[nodiscard]] za::String pickModel(const char* what, int* skin = nullptr)
 {
     const bool hand = !what[0] || q_strcasecmp(what, "hand") == 0;
     const bool look = !what[0] || q_strcasecmp(what, "look") == 0;
@@ -318,6 +329,10 @@ struct Edit
     {
         if(const entity_t* e = lookedAt())
         {
+            if(skin)
+            {
+                *skin = e->skinnum;
+            }
             return modelName(e->model->name);
         }
     }
@@ -373,6 +388,72 @@ void editInBlender_f()
     }
     Con_Printf("vr_edit_in_blender: %s: %s %s in Blender%s\n", model.cStr(), e.imports ? "importing" : "opening",
         e.opens.cStr(), e.imports ? " (save it inside the repository: Ctrl+S then exports it)" : "");
+}
+
+// vr_edit_skin [model | hand | look] [skin] [-n]: the model's source .blend opened in Blender, its skin's PNG in your
+// paint program (the add-on's Edit Skin Externally): saved there, Blender saves the .blend, which exports, and the game
+// reads the model again (vr_model_watch). The skin: the number given, else the looked-at entity's, else the panel's.
+void editSkin_f()
+{
+    bool dry = false;
+    const char* what = "";
+    int skin = -1;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        const char* a = Cmd_Argv(i);
+        if(strcmp(a, "-n") == 0)
+        {
+            dry = true;
+        }
+        else if(isdigit(static_cast<unsigned char>(a[0])))
+        {
+            skin = atoi(a);
+        }
+        else
+        {
+            what = a;
+        }
+    }
+    int lookedSkin = -1;
+    const za::String model = pickModel(what, &lookedSkin);
+    if(model.empty())
+    {
+        Con_Printf("vr_edit_skin: no model %s (vr_edit_skin <model> | hand | look [skin])\n",
+            what[0] ? "there" : "in your main hand or where you look");
+        return;
+    }
+    if(skin < 0)
+    {
+        skin = lookedSkin;
+    }
+    const Edit e = resolve(model);
+    if(e.opens.empty() || e.imports)
+    {
+        Con_Printf("vr_edit_skin: %s\n", e.opens.empty() ? e.why.cStr() :
+            (model + ": no source .blend (vr_edit_in_blender imports it: save it inside the repository, then Edit "
+                     "Skin Externally in the Quake VR panel)").cStr());
+        return;
+    }
+    const za::String blender = blenderPath();
+    if(blender.empty())
+    {
+        Con_Printf("vr_edit_skin: no Blender found in Program Files/Blender Foundation: set vr_blender_path to its "
+                   "blender.exe\n");
+        return;
+    }
+    const za::String cmd = skinCommandLine(blender, e, skin);
+    if(dry)
+    {
+        Con_Printf("vr_edit_skin: %s skin %d: would open %s\n  %s\n", model.cStr(), skin, e.opens.cStr(), cmd.cStr());
+        return;
+    }
+    if(!launch(cmd, repoRoot()))
+    {
+        Con_Printf("vr_edit_skin: couldn't start %s (vr_blender_path)\n", blender.cStr());
+        return;
+    }
+    Con_Printf("vr_edit_skin: %s: opening %s in Blender, then skin %d in your paint program (-1: the panel's); save it "
+               "there and the game reads the model again\n", model.cStr(), e.opens.cStr(), skin);
 }
 
 [[nodiscard]] bool drawnOnYou(const za::String& model)
@@ -564,6 +645,9 @@ void test_f()
     const za::String cmd = commandLine("blender.exe", hand);
     (void)t.check(strstr(cmd.cStr(), "edit_from_game(r'") && strstr(cmd.cStr(), "hand_rig.md5mesh')"),
         name, "the hand's command line imports it through the add-on");
+    const za::String skinCmd = skinCommandLine("blender.exe", resolve("armor"), 2);
+    (void)t.check(strstr(skinCmd.cStr(), "armor.blend\" --python-expr") && strstr(skinCmd.cStr(), "edit_skin_from_game(2)"),
+        name, "vr_edit_skin's command line opens the source and edits skin 2 through the add-on");
 #ifdef _WIN32
     if(!vr_blender_path.string[0])
     {
@@ -596,6 +680,7 @@ void test_f()
 void registerCommands()
 {
     Cmd_AddCommand("vr_edit_in_blender", editInBlender_f);
+    Cmd_AddCommand("vr_edit_skin", editSkin_f);
     Cmd_AddCommand("vr_model_show", modelShow_f);
     Cmd_AddCommand("vr_blender_test", test_f);
 }
