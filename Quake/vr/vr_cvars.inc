@@ -779,6 +779,9 @@ QVR_CVAR(vr_gadget_fingertip_pitch, "0", CVAR_ARCHIVE) // degrees: the fingertip
 QVR_CVAR(vr_gadget_fingertip_yaw, "0", CVAR_ARCHIVE)  // ... inward (towards the other hand; negative: outward) ...
 QVR_CVAR(vr_gadget_fingertip_roll, "0", CVAR_ARCHIVE) // ... and rolled about the hand's forward (positive: its top outward)
 QVR_CVAR(vr_gadget_button_cooldown, "0.2", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
+// QVR round 24 (vr_gadgetlock.cpp; his note 2026-11-06): the gadget locked while both hands hold one thing.
+QVR_CVAR(vr_gadget_lock_twohand, "1", CVAR_ARCHIVE)   // 1: while both hands hold the same thing (one weapon two-handed, the same prop, body, enemy or embedded blade) the gadget takes no input (no screen tap: bullet time; no buttons; no touches); different things in each hand: unchanged. 0: off
+QVR_CVAR(vr_gadget_lock_grace, "0.2", CVAR_ARCHIVE)   // real seconds the lock stays on after the second hand lets go (letting go never taps)
 QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // 1 its hit volume drawn (green ready, yellow pressed, red cooling down), the fingertip (the drawn index fingertip white, joined to the tuned one) and its presses printed; 2 also the screen tap's zone and the tapping hand's striking volume (the drawn hand's surface, the gun's butt; white: on the zone); 3 also prints each frame how far the zone is from the drawn gadget (and how far off the old frame-start test was)
 // The touchscreen (vr_touch.cpp): the other hand's index fingertip on the gadget's screen (or a floating panel) while an
 // app takes it (Doom); distances in cm from the screen's face (docs/vr-port/DOOM.md, "The touchscreen").

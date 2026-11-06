@@ -5030,6 +5030,12 @@ QVR_SLIDER(vr_gadget_fingertip_roll, "Fingertip Roll", -45.f, 45.f, 1.f, "%.0f d
     "... rolled about your hand's forward (positive: its top outward).")
 QVR_SLIDER(vr_gadget_button_cooldown, "Button Cooldown", 0.f, 2.f, 0.1f, "%.1f s", ext(0.f, 5.f),
     "After a press counts, how long before the next one does (no double toggles from a bounce).")
+QVR_TOGGLE(vr_gadget_lock_twohand, "Lock While Both Hands Hold One Thing",
+    "On: while both your hands hold the same thing (a weapon two-handed, one prop or crate, one body or "
+    "enemy, one embedded blade) the gadget ignores taps, buttons and touches: no slow motion by accident "
+    "in a fight. Different things in each hand: it works as ever.")
+QVR_SLIDER(vr_gadget_lock_grace, "Lock After Letting Go", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
+    "How long the gadget stays locked after your second hand lets go, so that letting go never taps it.")
 QVR_CYCLE(vr_debug_gadget_button, "Show the Button",
     "Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
     "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "
