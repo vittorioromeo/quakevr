@@ -1934,7 +1934,7 @@ QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1);
 QVR_TUNABLE(vr_flat_bob_fwd, "1") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
 QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
 QVR_TUNABLE(vr_flat_ads_recoil, "0.1") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
-QVR_TUNABLE(vr_flat_turnlag, "5") // the drawn hands trail a turn and catch up (-10..10, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
+QVR_TUNABLE(vr_flat_turnlag, "2") // the drawn hands trail a turn and catch up (-10..10, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 QVR_TUNABLE(vr_flat_turnlag_cap, "10") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
 

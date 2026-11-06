@@ -2366,3 +2366,58 @@ ways; straightening near a ledge you can climb out at, so the legs are under you
   Preview while painting.
 - **His Blender:** its script directory is his checkout's `Misc/quakevr/blender` (checked read-only). After the merge:
   restart Blender or F3 > Reload Scripts. Nothing was copied.
+
+## His weapon offsets as the defaults; sight and alignment items retired (branch `agent/wofspromote`, 2026-11-06)
+
+His words: "All weapon sights and muzzle and alignment issues in VR are solved now. Please retire any corresponding items
+from the checklist and promote all my new weapon offset changes as the defaults."
+
+**Promoted** with `python Misc/quakevr/weapons_data.py promote <his quakevr/ironwail.cfg>` (read from a copy; his checkout
+untouched): his config's 163 `vr_wofs_<key>_NN` lines, 157 of them off the shipped `quakevr/data/weapons.txt` values (6 were
+the same but for float noise). Per slot (changed values): axe 3, shotgun 10, super shotgun 6, nailgun 3, super nailgun 3,
+grenade launcher 1, rocket launcher 7, lightning gun 1, Mjolnir 3, laser cannon 1, proximity gun 2, grappling hook 5,
+knight sword 3, hell knight sword 4, chainsaw 1, grunt gun 2, crowbar 3, MG3 hammer 3, AD crossbow 8, Shadow Axe 3,
+Widowmaker 5, AD plasma gun 1, nail pistol 3, flare gun 2, heavy revolver 6; AD melee: fury's sword 4, death knight's 4,
+zombie's 4, death guard's 6, hunter ogre's hammer 12, mace 5, sword 10, dark prince's 6, justice 5, judge 6, blue flail 6.
+Mostly grip pose (Offset X/Y/Z, Pitch/Yaw/Roll), then Shot Pitch/Yaw (12), Muzzle X/Y/Z (7), the ogre hammer's and
+sword's hotspot 1 (12), the Widowmaker readout (4), fingers (4), two-handed (2), Scale (1), blade overlap (3).
+No migration step: configs are sparse since configVersion 218, so a changed default reaches every player who did not set
+the key (vr_weapons.cpp's comment; CODE_STYLE.md, "Settings and the config"). Once he runs this build his lines equal the
+defaults and the next save drops them.
+
+**The promoter tidies float noise** now (`weapons_data.py tidy`): a slider's `12.150001` lands as `12.15` (the shortest
+text within 1e-6 relative); his hotspot grabs' six-decimal values stay as they are.
+
+**Not promoted:** his `tunables.cfg` (smoke blow, knockdown ledge, light grid cell, `vr_flat_turnlag 2`: not weapon
+values; the ship log's UNPROMOTED TUNABLES lists these 7, never a weapon key, as the weapon values are not tunables);
+`vr_gunfx_wisp_delay 0.45` / `vr_gunfx_wisp_time 6` (gun smoke, not offsets: ask); his `vr_agrunt_grips` already equals
+the shipped grips (rows of 2026-10-31). Hand calibration and toolgun values are personal.
+
+**Verified:** one run, `vr_config_defaults` (a fresh config) then `vr_wofs_dump` of all 51 slots, then his 164 lines
+exec'd and dumped again: 17578 values, 0 different. `vr_aim_check` with the axe, super shotgun, enforcer's rifle, heavy
+revolver, grappling hook and toolgun held (main hand, mock pose): 32 lines, identical before and after his lines.
+
+**Checklist retired** (quakevr/checklist.txt): "Front sights now visible when aiming down the sights of the flare gun..."; "Super
+shotgun: aim down the sights: a raised glowing bead..."; "Super shotgun: run Align Sights to My Aim again..."; "[ ] Show
+Controller + Controller Laser on ... gun, hand, ghost and lines stay together (agent/rollaim + agent/rollhand)"; "Weapon
+Studio, sights: `vr_weaponstudio align both` ...". Kept (more than sights in them): "Shotgun top cleaned up" (texture),
+"The grunts' burst rifle is a new model" (the model as a whole).
+
+**Tests.** The agents' test baseline config is a full one (vr_wofs_version 43, every weapon value written), which pins
+the old values: the tests were run on a copy of it without its 8320 weapon lines (as a fresh config, or his once his
+lines equal the defaults), before (origin/next's weapons.txt) and after:
+- rollaim 12/0, handroll 17/0, npaim 7/0 (after); rvtest 42/4, the 4 known (slow push, push with a shell, live shells'
+  speed, a grunt's body).
+- weaponstudio: 17/0 before, 16/1 after: its aligner check needed a sight that was off, and the shotgun's was the one
+  (0.79 deg); his Shot Pitch -2.83 lines it up (0.00). weaponstudio_test.sh now puts the shotgun's Shot Pitch 1 degree
+  off weapons.txt's first (the tool writes it back to 0.00): 17/0.
+- flatsight: 12/0 before, 11/1 after: "the wall: the weapon goes back", KNOWN short of 2 at relief 4, now 0.53 units
+  (accepted 0.6 on 2026-11-06). Not accepted here: for him to judge.
+- flatsweep: 4 failed before (the long gun's forearm in the torso, ads), 15 failed after (383 passed both): the long
+  gun's forearm in the torso also from the hip (2.08 / 2.25, listed 1.77 / 1.90) and up to 3.70 ads (listed 3.29), its
+  hand in the head ads at pitch -25 (0.87, listed 0.77; five rows), the pistol's gun and hand in the torso at pitch 85
+  (1.78, 1.14, 2.79; listed 1.68, 0.89, 2.53). His grips sit the flat body's arms a little deeper; flatsweep_known.txt
+  not changed (report, don't accept).
+
+**To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
+weapons sit and aim as he left them.

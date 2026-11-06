@@ -252,6 +252,20 @@ def same_number(a, b):
     return abs(x - y) <= 1e-5 * max(1.0, abs(x))
 
 
+def tidy(value):
+    """A slider's float noise taken off a number (12.150001 -> 12.15): the shortest text that is the same float32
+    (relative 1e-6); other text as it is."""
+    try:
+        x = float(value)
+    except ValueError:
+        return value
+    for digits in range(1, 10):
+        text = f"{x:.{digits}g}"
+        if abs(float(text) - x) <= 1e-6 * abs(x) + 1e-9:
+            return text if "e" not in text else value
+    return value
+
+
 def named_values():
     """vr_weaponvalues.inc: each named value's old cvar name -> (slot, weapons.txt key)."""
     key_of = dict(read_keys())
@@ -281,6 +295,7 @@ def promote(cfg, dry, table=WEAPONS):
     new_blocks = {}  # slot without a block -> {key: value}
     changed = 0
     for slot, key, value in sets:
+        value = tidy(value)
         b = by_slot.get(slot)
         if b is not None and key in b["keys"]:
             i = b["keys"][key]

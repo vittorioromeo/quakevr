@@ -1734,8 +1734,8 @@ QVR_CVAR(vr_gunfx_heat_glow, "3", CVAR_ARCHIVE)        // Glow Strength: the hot
 QVR_CVAR(vr_gunfx_heat_light, "0.3", CVAR_ARCHIVE)       // Heat Light Strength: the light a glowing barrel casts, following its glow (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
-QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
-QVR_CVAR(vr_gunfx_wisp_time, "4.5", CVAR_ARCHIVE)        // seconds a barrel keeps smoking after that, full (fewer shots: down to 0.4 of it; 0-30)
+QVR_CVAR(vr_gunfx_wisp_delay, "0.45", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
+QVR_CVAR(vr_gunfx_wisp_time, "6", CVAR_ARCHIVE)        // seconds a barrel keeps smoking after that, full (fewer shots: down to 0.4 of it; 0-30)
 QVR_CVAR(vr_gunfx_wisp_fade, "3", CVAR_ARCHIVE)      // seconds the smoke let go lasts, rising and fading (0.2-4: the trail's length)
 QVR_CVAR(vr_gunfx_wisp_width, "1.5", CVAR_ARCHIVE)     // cm thick at the muzzle (0.05-20)
 QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fainter) when it fades (1-10)
