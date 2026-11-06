@@ -8,6 +8,7 @@
 #include "vr_agarmor_internal.hpp"
 
 #include "vr_api.h"
+#include "vr_armourdata.hpp"
 #include "vr_avatar.hpp"
 #include "vr_view.hpp"
 #include "vr_backend.hpp"
@@ -416,6 +417,9 @@ struct PieceFrame
     float hipFrom{plateHipFrom}; // (a humanoid's thigh: its rows start this far down its bone at the latest, of its length; Wearer::hipFrom)
     bool upper{false}; // (an upper arm or a thigh: its plates' far end at the joint)
     const Body* body{nullptr}; // (a limb: the whole skin, for a ring its region doesn't reach: fillRadii)
+    // (armour.txt's tweaks, planGrid: the first and last rows this many units further along the piece, its rows; 0 the generator's)
+    float shiftStart{0.f}, shiftEnd{0.f};
+    int rows{0};
 };
 
 [[nodiscard]] float backCutOf(const char* model, int piece)
@@ -989,10 +993,16 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     // (a thigh's plates up to the hip, whatever its weights: an enforcer's and a death knight's thighs weigh on them only near the knee)
     g.hTop = thigh && f.ends ? za::min(g.hTop, f.length * f.hipFrom) : g.hTop;
     g.hTop = upperArm && f.ends ? za::max(za::min(g.hTop, f.topAt), f.topMost) : g.hTop;
+    g.hTopRaw = g.hTop;
+    // (armour.txt: the rows' ends further along the piece, towards its far end: down the torso, down a limb's bone)
+    const float along = g.hBottom >= g.hTop ? 1.f : -1.f;
+    g.hTop = f.shiftStart != 0.f ? g.hTop + along * f.shiftStart : g.hTop;
+    g.hBottom = f.shiftEnd != 0.f ? g.hBottom + along * f.shiftEnd : g.hBottom;
     const float tall = za::abs(g.hBottom - g.hTop);
     const bool leg = piece >= ThighL;
     g.rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : plateHighLimb) + 0.5f), 2, torso ? plateMostRowsTorso : leg ? plateMostRowsLong : plateMostRowsArm);
     g.rows += torso ? 1 : 0;
+    g.rows = f.rows > 0 ? za::clamp(f.rows, 2, torso ? 12 : 10) : g.rows;
     g.yoke = torso ? (f.yoke >= 0.f ? f.yoke : plateYoke) : 0.f;
     g.cols = torso ? 8 : 6;
     g.axis.clear();
@@ -2097,6 +2107,53 @@ void topFour(W& w)
     w = o;
 }
 
+// armour.txt's tweaks (vr_armourdata.hpp) on the vertices [from, to) of a piece just made: `push` 1 a sleeve's stand-off, out
+// from its middle square to `up` (its bone), 2 the helmet's, out from its middle; 0 none (a grid piece's is in its radii). Then
+// scaled and turned round the middle of their box, and moved. Nothing set: not a vertex touched.
+void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int push, const glm::vec3& up)
+{
+    using armourdata::Override;
+    const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
+    const bool pushed = has(armourdata::Standoff) && push != 0;
+    const bool moved = has(armourdata::OffsetX) || has(armourdata::OffsetY) || has(armourdata::OffsetZ) || has(armourdata::Pitch) ||
+        has(armourdata::Yaw) || has(armourdata::Roll) || has(armourdata::Scale);
+    if(from >= to || (!pushed && !moved))
+    {
+        return;
+    }
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int i = from; i < to; i++)
+    {
+        lo = glm::min(lo, at(s.verts, i).p);
+        hi = glm::max(hi, at(s.verts, i).p);
+    }
+    const glm::vec3 mid = (lo + hi) * 0.5f;
+    if(has(armourdata::Standoff) && push)
+    {
+        for(int i = from; i < to; i++)
+        {
+            glm::vec3 d = at(s.verts, i).p - mid;
+            d = push == 1 ? d - up * glm::dot(d, up) : d;
+            at(s.verts, i).p += geom::safeNormalize(d, glm::vec3{0.f}, 1e-6f) * o.v[armourdata::Standoff];
+        }
+    }
+    const float deg = pi / 180.f;
+    const float p = o.v[armourdata::Pitch] * deg, y = o.v[armourdata::Yaw] * deg, r = o.v[armourdata::Roll] * deg;
+    // (yaw about up, pitch about left, roll about forward: the model's z, y, x)
+    const glm::mat3 yawM{za::cos(y), za::sin(y), 0.f, -za::sin(y), za::cos(y), 0.f, 0.f, 0.f, 1.f};
+    const glm::mat3 pitchM{za::cos(p), 0.f, -za::sin(p), 0.f, 1.f, 0.f, za::sin(p), 0.f, za::cos(p)};
+    const glm::mat3 rollM{1.f, 0.f, 0.f, 0.f, za::cos(r), za::sin(r), 0.f, -za::sin(r), za::cos(r)};
+    const glm::mat3 turn = yawM * pitchM * rollM;
+    const float scale = has(armourdata::Scale) ? za::clamp(o.v[armourdata::Scale], 0.2f, 3.f) : 1.f;
+    const glm::vec3 move{o.v[armourdata::OffsetX], o.v[armourdata::OffsetY], o.v[armourdata::OffsetZ]};
+    for(int i = from; i < to; i++)
+    {
+        Vert& v = at(s.verts, i);
+        v.p = mid + turn * ((v.p - mid) * scale) + move;
+        v.n = turn * v.n;
+    }
+}
+
 } // namespace
 
 namespace detail
@@ -2137,6 +2194,16 @@ bool buildShell(qmodel_t* src, Shell& s)
         return false;
     }
     s.generation = rig->generation;
+    s.tweaks = armourdata::signature(src->name);
+    s.tweaksGen = armourdata::generation();
+    // (armour.txt's tweaks: each piece's plates' and its sleeve's; nothing set, nothing applied)
+    armourdata::Override tweak[NumPieces], sleeveTweak[NumPieces];
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        (void)armourdata::resolve(src->name, piece, false, tweak[piece]);
+        (void)armourdata::resolve(src->name, piece, true, sleeveTweak[piece]);
+    }
+    const auto tweaked = [](const armourdata::Override& o, int field) { return (o.has >> static_cast<unsigned>(field)) & 1u; };
     Local locals[NumPieces];
     PieceFrame frames[NumPieces];
     za::Vector<uint8_t> overs[NumPieces];
@@ -2146,6 +2213,9 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         PieceFrame& f = frames[piece];
         f = frameOf(*rig, piece);
+        f.shiftStart = tweaked(tweak[piece], armourdata::Start) ? tweak[piece].v[armourdata::Start] : 0.f;
+        f.shiftEnd = tweaked(tweak[piece], armourdata::End) ? tweak[piece].v[armourdata::End] : 0.f;
+        f.rows = tweaked(tweak[piece], armourdata::Rows) ? static_cast<int>(tweak[piece].v[armourdata::Rows] + 0.5f) : 0;
         f.backCut = backCutOf(src->name, piece);
         f.yoke = piece == Cuirass && !skeletal ? wearerOf(src->name).yoke : -1.f;
         if(!skeletal && f.ok && (piece == PauldronL || piece == PauldronR))
@@ -2207,10 +2277,11 @@ bool buildShell(qmodel_t* src, Shell& s)
     // reach itself unchanged: raising it on every humanoid flared the enforcer's pauldrons into shells.
     if(frames[PauldronL].ends && grids[PauldronL].rows && grids[PauldronR].rows)
     {
-        const float top = za::min(grids[PauldronL].hTop, grids[PauldronR].hTop);
+        // (before armour.txt's `start`: planGrid adds each side's own again)
+        const float top = za::min(grids[PauldronL].hTopRaw, grids[PauldronR].hTopRaw);
         for(const int piece : {PauldronL, PauldronR})
         {
-            if(grids[piece].hTop > top + 0.05f)
+            if(grids[piece].hTopRaw > top + 0.05f)
             {
                 frames[piece].topAt = top;
                 planGrid(locals[piece], frames[piece], piece, grids[piece]);
@@ -2262,10 +2333,19 @@ bool buildShell(qmodel_t* src, Shell& s)
             mirrorRadii(grids[piece], grids[piece + 1], skeletal ? Mirror::Whole : piece != PauldronL ? Mirror::Corners : wearerOf(src->name).shoulderRidge >= 0.f ? Mirror::ShouldersMost : Mirror::Shoulders);
         }
     }
+    // (armour.txt's stand-off: every corner further off the skin)
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        for(float& r : grids[piece].radius)
+        {
+            r = tweaked(tweak[piece], armourdata::Standoff) ? za::max(r + tweak[piece].v[armourdata::Standoff], 0.05f) : r;
+        }
+    }
     for(int piece = 0; piece < NumPieces; piece++)
     {
         const PieceFrame& f = frames[piece];
         const int firstVert = count(s.verts), firstTri = count(s.tris);
+        int sleeveVert = -1;
         s.tubes[piece] = PlateTube{};
         s.tubes[piece].grid = grids[piece];
         s.tubes[piece].origin = f.origin;
@@ -2283,8 +2363,17 @@ bool buildShell(qmodel_t* src, Shell& s)
             platesOf(s, locals[piece], f, grids[piece], piece, plateSeed(src->name));
             if(piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2)
             {
+                sleeveVert = count(s.verts);
                 sleeveOf(s, s.body, f, grids[piece], piece);
             }
+        }
+        // (armour.txt's tweaks on what was made: the helmet pushed out round its middle, a sleeve round its bone's line; then
+        // each moved, turned and scaled round its middle)
+        const int plateEnd = sleeveVert >= 0 ? sleeveVert : count(s.verts);
+        tweakVerts(s, firstVert, plateEnd, tweak[piece], piece == Helmet ? 2 : 0, f.up);
+        if(sleeveVert >= 0)
+        {
+            tweakVerts(s, sleeveVert, count(s.verts), sleeveTweak[piece], 1, f.up);
         }
         s.pieceVerts[piece] = count(s.verts) - firstVert;
         s.pieceTris[piece] = (count(s.tris) - firstTri) / 3;
@@ -2340,6 +2429,16 @@ struct Named
 za::Vector<Named> named; // vr_agarmor_set
 
 za::Vector<Shell> shells; // made this session (per model)
+
+// The Armour Studio's subject (studioView): its entity, its body's alpha, the pieces outlined (a mask) and whether their sleeves.
+struct StudioView
+{
+    int ent{0};
+    float alpha{1.f};
+    int pieces{0};
+    bool sleeve{false};
+};
+StudioView studio;
 
 entity_t worn[maxWorn];
 int wornSource[maxWorn]{}, wornPieces[maxWorn]{}, wornSlots[maxWorn]{};
@@ -2403,6 +2502,12 @@ const Shell* wornAt(int k, int& entnum)
     {
         if(!strcmp(s.model.cStr(), src->name))
         {
+            // (armour.txt changed since: made again only if its tweaks for this model did)
+            if(s.tweaksGen != armourdata::generation() && s.generation == rig->generation)
+            {
+                s.tweaksGen = armourdata::generation();
+                s.generation = s.tweaks != armourdata::signature(src->name) ? -1 : s.generation;
+            }
             if(s.generation != rig->generation)
             {
                 (void)buildShell(src, s);
@@ -2739,6 +2844,37 @@ void set_f()
 
 } // namespace
 
+void overridesChanged()
+{
+    bool any = false;
+    for(Shell& s : shells)
+    {
+        if(s.tweaks == armourdata::signature(s.model.cStr()))
+        {
+            s.tweaksGen = armourdata::generation();
+            continue;
+        }
+        qmodel_t* src = Mod_ForName(s.model.cStr(), false);
+        if(src)
+        {
+            (void)buildShell(src, s);
+            any = true;
+        }
+    }
+    if(any)
+    {
+        forgetModels();
+    }
+}
+
+void studioView(int ent, float bodyAlpha, int pieces, bool sleeve)
+{
+    studio.ent = ent;
+    studio.alpha = bodyAlpha;
+    studio.pieces = pieces & allPieces;
+    studio.sleeve = sleeve;
+}
+
 bool give(int num, int type, int pieces)
 {
     // A live game's entity: its armour in QC (pools and all: vr_agarmor.qc VR_AgArmor_SetCmd), sent back as the server's.
@@ -2985,6 +3121,8 @@ void relink()
             entity_t& a = worn[k];
             a = *e;
             a.model = armor;
+            // (the Armour Studio's subject: its body a ghost, its plates whole)
+            a.alpha = studio.ent > 0 && num == studio.ent ? static_cast<byte>(ENTALPHA_DEFAULT) : a.alpha;
             a.skinnum = type - 1 + 3 * level;
             a.frame = 0;
             a.previouspose = a.currentpose = 0;
@@ -2994,6 +3132,10 @@ void relink()
             wornShell[k] = shell;
             wornSlots[k] = at(shells, shell).numSlots;
             cl_visedicts[cl_numvisedicts++] = &a;
+        }
+        if(studio.ent > 0 && num == studio.ent && studio.alpha < 0.999f)
+        {
+            e->alpha = ENTALPHA_ENCODE(za::clamp(studio.alpha, 0.05f, 1.f));
         }
     }
 }
@@ -3611,13 +3753,19 @@ int shotPiece(edict_t* ent, const float* p, const float* dir)
 
 void debugDraw()
 {
-    if(!vr_agarmor_debug.value || !sv.active)
+    // (the Armour Studio's: its subject's chosen piece alone, whatever vr_agarmor_debug)
+    const bool picked = studio.ent > 0 && studio.pieces != 0;
+    if((!vr_agarmor_debug.value && !picked) || !sv.active)
     {
         return;
     }
     const progs::ServerVm vm; // (the view's: EDICT_NUM and the fields need the server's VM)
     for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
     {
+        if(!vr_agarmor_debug.value && i != studio.ent)
+        {
+            continue;
+        }
         edict_t* e = EDICT_NUM(i);
         const int mask = wornMask(e);
         const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
@@ -3634,6 +3782,14 @@ void debugDraw()
             {
                 continue;
             }
+            // (a sleeve's triangles: the atlas's joint block)
+            const glm::vec2 st = at(s->verts, at(s->tris, k)).st;
+            const bool sleeveTri = piece >= PauldronL && st.x >= jointBlock.x0 && st.y >= jointBlock.y0 && st.y <= jointBlock.y1;
+            const bool studioOne = picked && i == studio.ent;
+            if(studioOne && (!((studio.pieces >> piece) & 1) || sleeveTri != studio.sleeve))
+            {
+                continue;
+            }
             glm::vec3 w[3];
             for(int c = 0; c < 3; c++)
             {
@@ -3643,7 +3799,7 @@ void debugDraw()
             // thin to see on a flat screen or across a room)
             const bool outer = at(s->verts, at(s->tris, k)).layer == 0;
             const float width = outer ? debugOuterWidth : debugInnerWidth;
-            glm::vec4 col = debugColours[static_cast<za::SizeT>(piece)];
+            glm::vec4 col = studioOne ? glm::vec4{0.2f, 1.f, 1.f, 1.f} : debugColours[static_cast<za::SizeT>(piece)];
             col.a = outer ? 1.f : 0.45f;
             lines::line(w[0], w[1], width, col, col);
             lines::line(w[1], w[2], width, col, col);
