@@ -794,6 +794,13 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
         row(opt::vr_flatplay_debug),
+        command("Flatscreen Test Hit From The Right", "vr_blood_test packet right")
+            .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
+                  "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "
+                  "Tunables > Flatscreen > Hit Feedback."),
+        command("Flatscreen Hit Probe", "vr_flat_hit_probe")
+            .help("vr_flat_hit_probe: since the last one, the hands' knock before and after the ironsight's share, the "
+                  "punch's largest (and before its share), what of it is in the aim now, and each mark's angle and opacity."),
         command("Flatscreen Look At Yourself", "vr_flat_orbit -60 44")
             .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "
                   "the gun, the sights. The hands and the shots are as he plays them. Flatscreen play only."),

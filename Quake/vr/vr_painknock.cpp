@@ -1,6 +1,7 @@
 // vr_painknock.cpp -- see vr_painknock.hpp.
 
 #include "vr_painknock.hpp"
+#include "vr_flathit.hpp"
 #include "vr_geom.hpp"
 #include "vr_blood.hpp"
 #include "vr_cvars.hpp"
@@ -347,4 +348,5 @@ extern "C" void VR_OnDamage(int armor, int blood, const float* from)
 {
     qvr::blood::onDamage(armor, blood, from);
     qvr::painknock::onDamage(armor, blood, from);
+    qvr::flathit::onDamage(armor, blood, from); // flatscreen play's punch of the view and the marks toward the hit (vr_flathit.cpp)
 }

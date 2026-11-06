@@ -593,6 +593,142 @@
         </Setter>
     </Style>
 
+    <!-- The settings page: a choice as a small iron plate in a row of them (the picked one hot). -->
+    <Style x:Key="ChoicePill" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Foreground" Value="{StaticResource Subtle}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd" Background="#FF0B0907" BorderBrush="{StaticResource SunkenEdge}" BorderThickness="1"
+                            CornerRadius="3" Padding="11,5">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHover}" />
+                            <Setter Property="Foreground" Value="{StaticResource Text}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HotFace}" />
+                            <Setter Property="Foreground" Value="#FFFFF0D0" />
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="#FFFF8A30" ShadowDepth="0" BlurRadius="10" Opacity="0.5" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The settings tree: a category's header, a chevron that turns as it opens. -->
+    <Style x:Key="TreeHeader" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" Background="{StaticResource IronFace}" BorderBrush="{StaticResource RaisedEdge}" BorderThickness="1"
+                            CornerRadius="3" Padding="12,9">
+                        <DockPanel>
+                            <TextBlock x:Name="Chevron" Text="&#xE76C;" Style="{StaticResource Glyph}" FontSize="11" Foreground="{StaticResource Brass}"
+                                       VerticalAlignment="Center" Margin="0,0,12,0" RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform><RotateTransform x:Name="Turn" Angle="0" /></TextBlock.RenderTransform>
+                            </TextBlock>
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chevron" Property="RenderTransform">
+                                <Setter.Value><RotateTransform Angle="90" /></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentHover}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Sliders: a sunken groove, the filled part glowing, an iron thumb. -->
+    <Style x:Key="SliderRepeat" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" Height="22">
+                        <Border Height="6" CornerRadius="3" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Slider">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Border x:Name="Groove" Background="#FF0B0907" BorderBrush="{StaticResource SunkenEdge}" BorderThickness="1" CornerRadius="4"
+                            Padding="2,0" Height="24">
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderRepeat}" Command="Slider.DecreaseLarge" Background="{StaticResource Accent}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderRepeat}" Command="Slider.IncreaseLarge" Background="#30FFFFFF" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="T" Width="14" Height="18" CornerRadius="2" Background="{StaticResource IronFace}"
+                                                    BorderBrush="{StaticResource Brass}" BorderThickness="1" />
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="T" Property="BorderBrush" Value="{StaticResource AccentHover}" />
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="T" Property="BorderBrush" Value="{StaticResource AccentHover}" />
+                                                    <Setter TargetName="T" Property="Effect">
+                                                        <Setter.Value><DropShadowEffect Color="#FFFF8A30" ShadowDepth="0" BlurRadius="10" Opacity="0.8" /></Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Groove" Property="BorderBrush" Value="{StaticResource Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Text boxes: a sunken slot; the focused one smoulders. -->
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="#FF0B0907" />

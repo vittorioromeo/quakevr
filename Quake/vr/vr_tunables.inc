@@ -1933,6 +1933,23 @@ QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 QVR_TUNABLE(vr_flat_turnlag_cap, "4") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
 
+// Flatscreen > Hit Feedback (vr_flathit.cpp; FLATPLAY.md, "Hit feedback")
+QVR_TUNABLE(vr_flat_ads_hitreact, "0.2") // aiming down the sights, a hit's knock of the drawn arms and weapon (vr_painknock.cpp) is kept at this share (0..1; 1: as hipfire)
+QVR_TUNABLE(vr_flat_hitpunch, "2") // a hit's punch of the view and the aim, degrees for a 20-point hit (more or less with the damage, 0.25x..2x; 0..20; 0 none)
+QVR_TUNABLE(vr_flat_hitpunch_max, "6") // the most the punches add up to (0..45 degrees)
+QVR_TUNABLE(vr_flat_hitpunch_pitch, "1") // its tip of the view along the blow: up from ahead, down from behind or above (-3..3; negative the other way)
+QVR_TUNABLE(vr_flat_hitpunch_yaw, "1") // its turn along the blow: a hit from the right turns him left (-3..3; negative: toward the attacker)
+QVR_TUNABLE(vr_flat_hitpunch_attack, "0.05") // seconds the punch takes to arrive (0..0.5)
+QVR_TUNABLE(vr_flat_hitpunch_time, "0.3") // seconds it takes to ease back, the aim back where it was (0.01..3)
+QVR_TUNABLE(vr_flat_hitpunch_ads, "0.5") // aiming down the sights, the punch is kept at this share (0..1)
+QVR_TUNABLE(vr_flat_hitdir, "0.8") // the marks round the crosshair toward where a hit came from: their opacity (0..1; 0 none)
+QVR_TUNABLE(vr_flat_hitdir_time, "1.5") // seconds a mark takes to fade out (0.05..5)
+QVR_TUNABLE(vr_flat_hitdir_radius, "0.15") // how far from the crosshair a mark stands, a share of the screen's height (0.02..0.5)
+QVR_TUNABLE(vr_flat_hitdir_width, "0.012") // a mark's thickness, a share of the screen's height (0.002..0.1)
+QVR_TUNABLE(vr_flat_hitdir_arc, "40") // a mark's length round the crosshair (5..180 degrees)
+QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the screen's blood reaches (0..1; vr_blood_health_size in a headset)
+QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
+
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
 QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at into what it meets

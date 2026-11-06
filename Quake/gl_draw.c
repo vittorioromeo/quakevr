@@ -1243,6 +1243,31 @@ void Draw_FillEx (float x, float y, float w, float h, const float *rgb, float al
 
 /*
 =============
+Draw_FillQuad -- QVR
+
+Fills any four-cornered shape (xy: 4 corners, x then y, in order round it) with a single color: flatscreen play's hit marks
+=============
+*/
+void Draw_FillQuad (const float *xy, const float *rgb, float alpha)
+{
+	guivertex_t *verts;
+	int i;
+
+	if (alpha <= 0.f)
+		return;
+
+	GL_PushCanvasColor (rgb[0], rgb[1], rgb[2], alpha);
+	Draw_SetTexture (whitetexture);
+
+	verts = Draw_AllocQuad ();
+	for (i = 0; i < 4; i++)
+		Draw_SetVertex (verts++, xy[i*2], xy[i*2+1], 0.f, 0.f);
+
+	GL_PopCanvasColor ();
+}
+
+/*
+=============
 Draw_Fill
 
 Fills a box of pixels with a single color

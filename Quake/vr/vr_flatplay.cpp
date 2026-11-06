@@ -35,6 +35,7 @@
 #include "vr_client.hpp"
 #include "vr_deathview.hpp"
 #include "vr_flathud.hpp"
+#include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -1108,6 +1109,7 @@ void init()
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
+    flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -1118,6 +1120,7 @@ void frame()
     Cvar_SetValue("vr_flatplay", on ? 1.f : 0.f);
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
+    flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
 
     if(on && !fs.announced)
     {

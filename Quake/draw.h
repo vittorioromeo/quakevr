@@ -45,6 +45,7 @@ void Draw_ConsoleBackground (void); //johnfitz -- removed parameter int lines
 void Draw_TileClear (int x, int y, int w, int h);
 void Draw_Fill (int x, int y, int w, int h, int c, float alpha); //johnfitz -- added alpha
 void Draw_FillEx (float x, float y, float w, float h, const float *rgb, float alpha);
+void Draw_FillQuad (const float *xy, const float *rgb, float alpha); // QVR: four corners (x, y each), in order round it
 void Draw_PartialFadeScreen (float x0, float x1, float y0, float y1, float alpha);
 extern float draw_textoutline; // QVR: 0..1, a dark outline round text (the menus over a see-through background)
 void Draw_FadeScreen (float alpha);
