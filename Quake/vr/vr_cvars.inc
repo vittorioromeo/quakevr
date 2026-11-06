@@ -1370,6 +1370,7 @@ QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1
 QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
 QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
+QVR_CVAR(vr_glove_retro, "1", CVAR_ARCHIVE)          // Quake's look for the gloves' leather (vr_glsl_alias.h LeatherSteps): its texels as blocks (the skin's grid, ~1.3 a mm), each on a palette ramp's 16 colour steps in the chosen hue, dithered per texel; 0 smooth (finer detail, a pebbled grain up close)
 QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
 QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
 QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),

@@ -1560,6 +1560,47 @@ changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt s
 **Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
 1.47), then the bead sits on what you hit.
 
+## Gloves in Quake's art style (worktree `embed5`, branch `agent/gloves`, 2026-11-06)
+
+His words: the gloves look very high-res up close in VR, and the hand and the wrist don't match in texture/art style.
+
+**Measured** (`scratch/gl_density.py`: area-weighted texels a mm over the meshes, at their in-game sizes): the hand's skin
+(512, Quake palette) 1.31 (quartiles 1.19-1.52); the body's forearm (`vrbody`, 512 x 2048, palette, dithered ramps)
+1.04 (0.91-1.29), its wrist 1.33, upper arm 0.81; id's weapons 0.12-0.21 (at 38.1 mm a unit). The glove paint was
+1024 (2.63 a mm, twice the skin), full colour, with a ~1.7 mm pebbled grain painted in, and the shader added a finer
+procedural pebble grain (~0.7 mm) and its own pebble relief on top: 2-4 times finer than anything else on the avatar,
+in continuous colour, while the skins next to it are nearest-filtered palette texels (his `gl_texturemode`
+GL_NEAREST_MIPMAP_LINEAR). With his bare forearms (`vr_body_bracers` 0 is his setting) the glove's cuff on the forearm
+is the plain procedural leather on the body's grid while the hand had the fine painted one: the wrist seam.
+
+**Changed:**
+- `make_glove_paint.py`: paints at twice the skin's grid and averages down to the skin's own 512 (SHIP), drops the
+  pebbles (blotches of a few texels instead), creases strong enough to stay a colour step, and paints the light in as
+  Quake's skins do (CAVITY: a texel's height over its 5 x 5 neighbours: ridges, thread, seam lips paler, grooves
+  darker). The shipped `hand_rig_00_00_glove.png` / `_glove_height.png` are 512 now (regenerated, guard updated).
+- Shader (`vr_glsl_alias.h`): `vr_glove_retro` 1 (new, default 1; Player Appearance > Gloves > Quake-Style Leather):
+  the leather's texels (the paint's; the plain leather and the cuff on the skin's own grid, hand or forearm) read as
+  blocks at their centres whatever the filtering, no sub-texel grain or grain relief, and `LeatherSteps` puts each
+  texel's brightness on one of 16 ramp steps in the chosen hue (never black), dithered per texel within half a step
+  (the body's `pick()` dithers its ramps per texel too); fades to plain mipmapping where texels get under a pixel.
+  Glove.w carries it as 16s. 0 gives the smooth reading (with the old fine grain) of the new paint.
+- Both sides of the wrist are now the same treatment at about the same density (hand 1.3, forearm cuff ~1.0-1.3
+  texels a mm) and the same steps of the same colour: no change of detail at the seam.
+
+**Tested** (low-impact runs, his game was open: 512 eyes): `scratch/gl_shots.sh` (start map, four looks: his black
+fingerless with bare forearms, brown full with bracers, brown fingerless bare, brown full plain bare; two poses each),
+sheets `scratch/gl_cmp_side.png` (close, exposure x3 for viewing) and `scratch/gl_cmp_back.png`: up close the
+leather is texel blocks in two or three colour steps with the creases and seams a step darker, like the bracers and
+the arm's skin; at arm's length the two looks are nearly the same (mipmapped). A dark checker on the full glove with
+bracers on is in the before shots too (a shadow, not this change). `vr_gloves_reload`, `vr_hand_reload`, both hand
+shapes: paint read 512 x 512, relief 1.7 ms, no errors. No dedicated glove test exists.
+
+**For him in VR:** hold the hand close (10-20 cm) with his black fingerless gloves and with a brown pair: the texels
+should read like the forearm's skin, no fine pebbles; the wrist where the cuff meets the hand shouldn't change in
+detail; toggle Quake-Style Leather to compare. Not shipped as his look: the coordinator shows the sheets first.
+
+**Checklist line (suggested):** Gloves up close: texel blocks and colour steps like your arm's skin, no fine grain, the
+wrist seamless (Player Appearance > Gloves > Quake-Style Leather toggles the old smooth look).
 ## Why the lost soul "drops its target" (branch `agent/lostsoul`, 2026-11-06)
 
 It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
