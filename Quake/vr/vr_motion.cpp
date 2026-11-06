@@ -14,6 +14,7 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
+#include "vr_recbutton.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
@@ -1062,10 +1063,9 @@ enum class Rec
 Rec rec = Rec::Off;
 void finishTake();
 za::Vector<za::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
-// The buttons the recorder can take (vr_motion_button's), an index into taken's.
-constexpr bool HandInput::*recButtons[] = {
-    &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
-constexpr int recButtonCount = static_cast<int>(za::getArraySize(recButtons));
+// The buttons the recorder can take (vr_motion_button's): vr_recbutton.hpp's, shared with the animation recorder.
+constexpr auto& recButtons = recbutton::buttons;
+constexpr int recButtonCount = recbutton::buttonCount;
 bool taken[HAND_COUNT][recButtonCount]{}; // the recorder took this button's press (its release too)
 za::Vector<Row> rows;
 za::Vector<Row> preroll; // (first in, first out)
@@ -1082,35 +1082,13 @@ za::String feedbackText;
 ankerl::unordered_dense::map<za::String, int> takeCounts;
 bool countsValid = false;
 
-// vr_motion_button's choices (VR Settings > Advanced > Motion Recorder, "Record Button"): a button of one hand, pressed
-// to start a take and again to end it; with `withTrigger`, held while that hand's trigger is pulled (the button alone
-// does nothing then). Whichever it is, it is the recorder's while armed: the game never gets it (only the trigger
-// pulled without the button, for a combination).
-struct RecordBinding
-{
-    int hand;
-    bool HandInput::*button;
-    bool withTrigger;
-    const char* text; // the HUD's instruction
-};
-
-constexpr RecordBinding recordBindings[] = {
-    {HAND_OFF, &HandInput::stickClick, false, "click the off stick"},              // 0 (the default)
-    {HAND_MAIN, &HandInput::stickClick, false, "click the main stick"},            // 1
-    {HAND_MAIN, &HandInput::primary, false, "press A"},                            // 2
-    {HAND_MAIN, &HandInput::secondary, false, "press B"},                          // 3
-    {HAND_OFF, &HandInput::primary, false, "press X"},                             // 4
-    {HAND_OFF, &HandInput::secondary, false, "press Y"},                           // 5
-    {HAND_OFF, &HandInput::grip, false, "squeeze the off grip"},                   // 6
-    {HAND_MAIN, &HandInput::grip, false, "squeeze the main grip"},                 // 7
-    {HAND_MAIN, &HandInput::secondary, true, "hold B, pull the main trigger"},     // 8
-    {HAND_OFF, &HandInput::secondary, true, "hold Y, pull the off trigger"},       // 9
-};
+// vr_motion_button's choices (VR Settings > Advanced > Motion Recorder, "Record Button"): vr_recbutton.hpp's (the
+// animation recorder's vr_ar_button has the same).
+using RecordBinding = recbutton::Binding;
 
 [[nodiscard]] const RecordBinding& recordBinding()
 {
-    const int i = static_cast<int>(vr_motion_button.value);
-    return recordBindings[i >= 0 && i < static_cast<int>(za::getArraySize(recordBindings)) ? i : 0];
+    return recbutton::binding(vr_motion_button.value);
 }
 
 [[nodiscard]] int recordHand()
@@ -1120,14 +1098,7 @@ constexpr RecordBinding recordBindings[] = {
 
 [[nodiscard]] int recButtonIndex(bool HandInput::*button)
 {
-    for(int i = 0; i < recButtonCount; i++)
-    {
-        if(recButtons[i] == button)
-        {
-            return i;
-        }
-    }
-    return -1;
+    return recbutton::buttonIndex(button);
 }
 
 bool armedOrRecording()

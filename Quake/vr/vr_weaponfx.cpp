@@ -1,5 +1,6 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
+#include "vr_animrec.hpp"
 #include "vr_testkit.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_random.hpp"
@@ -330,6 +331,7 @@ void playerFired(int hand)
     {
         return;
     }
+    animrec::event("fire", hand, ""); // (recorded while the animation recorder runs: the detail its model)
     if(slot == weapons::slotForName("progs/v_shot.mdl"))
     {
         autopump::fired(hand); // (the shotgun's auto pump: vr_autopump.cpp)

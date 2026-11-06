@@ -1037,6 +1037,34 @@ QVR_CVAR(vr_motion_review_category, "-1", CVAR_ARCHIVE) // and of which category
 QVR_CVAR(vr_motion_review_speed, "0.5", CVAR_ARCHIVE)   // the ghost replay's pace (1: as recorded)
 QVR_CVAR(vr_motion_relabel_category, "0", CVAR_NONE)    // Relabel: the category (vr_motion_category's index) and detail a take is given
 QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
+// The animation recorder (vr_animrec.cpp, docs/vr-port/ANIMATIONS.md; Debug > Animation Recorder): motions recorded in
+// the headset for the flat-screen hands, quakevr/anims/<name>.anim.
+QVR_CVAR(vr_ar_armed, "0", CVAR_NONE)          // 1: the record button (vr_ar_button) starts and ends recordings
+QVR_CVAR(vr_ar_button, "0", CVAR_ARCHIVE)      // the record button: vr_motion_button's choices (vr_recbutton.hpp; 0: the off stick click)
+QVR_CVAR(vr_ar_countdown, "3", CVAR_ARCHIVE)   // seconds counted down (beeps and buzzes) before a recording starts
+QVR_CVAR(vr_ar_name, "", CVAR_NONE)            // the next recording's name ("": its weapons and the date)
+QVR_CVAR(vr_ar_maxtime, "60", CVAR_ARCHIVE)    // seconds: a recording ends by itself after so long
+// Smoothing (vr_ar_smooth; Misc/quakevr/anim_smooth.py the same): the jitter filter's time constant (s, forwards and
+// backwards: no lag), and how far the spline through the keys kept may stray from the filtered motion (m, degrees, finger
+// curls 0..1).
+QVR_CVAR(vr_ar_smooth_tau, "0.02", CVAR_ARCHIVE)
+QVR_CVAR(vr_ar_smooth_pos, "0.004", CVAR_ARCHIVE)
+QVR_CVAR(vr_ar_smooth_ang, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_ar_smooth_curl, "0.04", CVAR_ARCHIVE)
+// The preview (vr_ar_play): on the flat-screen hands, a ghost in the headset.
+QVR_CVAR(vr_ar_play_frame, "0", CVAR_ARCHIVE)    // 0: the hands placed on the body (its yaw; a look up or down leaves them); 1: on the head
+QVR_CVAR(vr_ar_play_mirror, "0", CVAR_ARCHIVE)   // 1: mirrored left to right (each hand plays the other's part)
+QVR_CVAR(vr_ar_play_x, "0", CVAR_ARCHIVE)        // cm: the whole motion moved forward,
+QVR_CVAR(vr_ar_play_y, "0", CVAR_ARCHIVE)        // left,
+QVR_CVAR(vr_ar_play_z, "0", CVAR_ARCHIVE)        // up (in the frame it is placed in)
+QVR_CVAR(vr_ar_play_pitch, "0", CVAR_ARCHIVE)    // degrees: the whole motion turned about the frame's origin
+QVR_CVAR(vr_ar_play_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ar_play_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ar_play_scale, "1", CVAR_ARCHIVE)    // its size (the hands' places from the frame's origin)
+QVR_CVAR(vr_ar_play_speed, "1", CVAR_ARCHIVE)    // its pace (1: as recorded)
+QVR_CVAR(vr_ar_play_loop, "1", CVAR_ARCHIVE)     // 1: again and again (blended out and in each time); 0: once
+QVR_CVAR(vr_ar_play_blend, "0.25", CVAR_ARCHIVE) // seconds blended in from the game's own pose at the start, and out at the end
+QVR_CVAR(vr_ar_play_smoothed, "1", CVAR_ARCHIVE) // 1: a recording's smoothed file when it has one (<name>.smooth.anim)
 QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_NONE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
 QVR_CVAR(vr_memstats_log, "0", CVAR_NONE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
@@ -3895,6 +3923,7 @@ QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscre
 QVR_CVAR(vr_flat_pitch_up, "85", CVAR_ARCHIVE)          // flatscreen look: how far up the view may look, in degrees from straight ahead (0..90; 90: all the way up, as the plain game's cl_minpitch -90 allowed it). Only the flatscreen view is bounded this way (vr_flatplay.cpp VR_FlatPitchClamp, Quake/cl_main.c): plain and headset play keep cl_maxpitch / cl_minpitch as they were
 QVR_CVAR(vr_flat_pitch_down, "85", CVAR_ARCHIVE)        // the same, looking down (0..90; 90: all the way down, as the plain game's cl_maxpitch 90 allowed it)
 QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_ARCHIVE)        // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
+QVR_CVAR(vr_flat_wall_block_fire, "1", CVAR_ARCHIVE)    // flatscreen play: 1 a gun tilted up at a wall (vr_flat_wall_tilt) does not fire, the button does nothing (no shot, no ammo) until it comes back down; 0 it fires as it is (the shots still go through the crosshair). Melee weapons are never stopped
 QVR_CVAR(vr_flat_aim_mode, "0", CVAR_ARCHIVE)           // the right mouse button's ironsight (one weapon held, either hand: vr_flatsight.cpp): 0 held while the button is held, 1 a press turns it on and the next off
 QVR_CVAR(vr_flat_key_swap, "q", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("q", "x", ...; "" none); read from the keyboard's state like E, F and G
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none

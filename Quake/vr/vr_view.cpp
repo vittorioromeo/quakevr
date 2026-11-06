@@ -5194,6 +5194,13 @@ extern "C" void VR_SetupViewEntities()
     for(int hand = 0; hand < 2; hand++)
     {
         const glm::vec3 shakenPos = s.pos[hand], shakenRot = s.visualRot[hand];
+        if(s.grip2HValid[hand] && flatsight::wallTilt(hand) != 0.f)
+        {
+            // (Flatscreen play's muzzle tilt at a wall is drawn only: the hotspot the game's grip goes by is the untilted gun's.)
+            glm::vec3 shift;
+            const glm::mat3 turn = flatplay::drawnWallTurn(hand, shift);
+            s.grip2H[hand] = shakenPos - shift + glm::transpose(turn) * (s.grip2H[hand] - shakenPos);
+        }
         s.pos[hand] -= knockPos[hand] + shakePos[hand] + pressPos[hand];
         s.rot[hand] -= knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] -= knockAngles[hand] + shakeAngles[hand];

@@ -37,6 +37,8 @@
 #include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
+#include "vr_animrec.hpp"
+#include "vr_recbutton.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
