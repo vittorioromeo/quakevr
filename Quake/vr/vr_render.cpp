@@ -539,6 +539,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         {
             const int paint = render::glovePaintFlags(e);
             out->glove[3] += 4.f * static_cast<float>(paint);
+            out->glove[3] += vr_glove_retro.value != 0.f ? 16.f : 0.f; // Quake's look (texel blocks, colour steps): Glove.w's 16
             out->gloveshell[1] = paint == 2 ? CLAMP(0.f, vr_glove_relief.value, 2.f) : 0.f; // its relief's normal map's strength
         }
     }

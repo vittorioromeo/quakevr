@@ -604,6 +604,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_glove_lightness),
         row(opt::vr_glove_thickness),
         row(opt::vr_glove_paint),
+        row(opt::vr_glove_retro),
         row(opt::vr_glove_relief),
         header("Nails"),
         row(opt::vr_nails),

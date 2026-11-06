@@ -27,7 +27,11 @@ import make_hand_rig as hand
 from make_skin_masks import seam_lines, spread, STITCH_OFF, STITCH_STEP, SEAM
 
 PROGS = HERE.parent.parent / 'quakevr/progs'
-SCALE = 2  # texels to the skin's (512: 1.5 a mm) -> 3 a mm
+SCALE = 2  # painted at twice the skin's texels (512: ~1.3 a mm), then averaged down to the skin's own grid (SHIP)
+SHIP = 1  # the files' texels to the skin's: the skin's own grid, as the body's skins (make_vrbody.py: ~1 a mm on the
+          # forearm) and the hand's; the shader reads them in its blocks and Quake's colour steps (vr_glove_retro)
+CAVITY = 0.6  # the light painted in, as Quake's skins have it: raised texels (ridges, thread, the seams' lips) paler,
+              # sunk ones (grooves, folds) darker, by their height over the texels round them (a sheen in the paint)
 OUT = PROGS / 'hand_rig_00_00_glove.png'
 OUT_H = PROGS / 'hand_rig_00_00_glove_height.png'
 HEIGHT_MM = 2.5  # the height map's full range (0..255), mm: vr_render.cpp gloveHeightRangeMm (it makes it a normal map)
@@ -279,11 +283,11 @@ def palm_marks(rig, p, n, pt, seed):
 def grain(p, pt):
     """The leather's own surface: pebbles (~1.7 mm) between crevices, a coarser network of creases through them, a
     mottled tone, grime in the crevices."""
-    e, tone = worley(p, 0.14, 11)
-    peb = smooth(0.0, 0.4, e)  # 0 in a crevice, 1 on a pebble's rounded top
-    pt.shade *= 0.85 + 0.15 * peb
-    pt.shade *= 0.97 + 0.06 * tone
-    pt.height += 0.055 * peb
+    # (no pebbles: a ~1.7 mm grain is finer than the skin's texels, 0.77 mm, and read as a high-resolution texture
+    # next to the body's; the leather's grain is the blotches below and the shader's texel dither instead)
+    blot, tone = worley(p, 0.32, 11)  # coarse blotches, 4 mm: a few texels each, as Quake's skins mottle leather
+    pt.shade *= 0.95 + 0.1 * tone
+    pt.shade *= 1 - 0.06 * (1 - smooth(0.0, 0.25, blot))
     e2, _ = worley(p * np.array([1.0, 1.0, 1.6]), 0.55, 23)
     net = 1 - smooth(0.0, 0.18, e2 + 0.04 * value_noise(p, 0.12, 27))
     net *= smooth(-0.1, 0.5, value_noise(p, 0.8, 29))  # in places only
@@ -338,6 +342,21 @@ def scratches(img_wear, img_shade, img_h, covered, rng, back_map):
         count += 1
 
 
+def down(a, covered, f):
+    """`a` averaged over f x f blocks, over the covered texels in each (0 where none is)."""
+    H, W = a.shape
+    w = covered.astype(float).reshape(H // f, f, W // f, f).sum((1, 3))
+    s = (a * covered).reshape(H // f, f, W // f, f).sum((1, 3))
+    return np.where(w > 0, s / np.maximum(w, 1e-9), 0.0)
+
+
+def box(a, r):
+    """The sum of `a` over the (2r + 1)^2 texels round each."""
+    H, W = a.shape
+    p = np.pad(a, r)
+    return sum(p[y:y + H, x:x + W] for y in range(2 * r + 1) for x in range(2 * r + 1))
+
+
 def main():
     preview = None
     if '--preview' in sys.argv:
@@ -381,6 +400,18 @@ def main():
     back_map = np.zeros((H, W), bool)
     back_map[covered] = (-norm[covered][:, 1] > -0.2) | (part[covered] > 0)
     scratches(wear, shade, height, covered, np.random.default_rng(7), back_map)
+    # down to the skin's grid (SHIP): each texel the average of the covered ones painted under it
+    f = SCALE // SHIP
+    if f > 1:
+        shade, wear, height = (down(a, covered, f) for a in (shade, wear, height))
+        tint = np.stack([down(tint[..., c], covered, f) for c in range(3)], -1)
+        covered = down(covered * 1.0, covered | True, f) > 0.25
+        H, W = covered.shape
+    # the light painted in (CAVITY): a texel's height over its neighbours' (a 5 x 5 texels' mean)
+    hp = np.where(covered, height, 0.0)
+    cnt = box(covered * 1.0, 2)
+    rel = np.where(cnt > 0, height - box(hp, 2) / np.maximum(cnt, 1e-6), 0.0)
+    shade = shade * (1 + CAVITY * np.clip(rel, -0.5, 0.5))
     rgb = np.clip(0.5 * shade[..., None] * tint, 0, 1)
     rgb = np.stack([spread(rgb[..., c], covered, 6) for c in range(3)], -1)
     rgb[~covered & ~(spread(covered * 1.0, covered, 6) > 0)] = 0.5
