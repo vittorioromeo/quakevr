@@ -46,6 +46,7 @@ Stabs (coalesced): a stab or swung axe stays in the body; it slides with your pu
 Fast stabs into a grunt stick reliably now (no more misses because the blade stopped a hair short), and a blade still doesn't stick from visibly short {test:embed_stab}
 Armour joints: no plate floats at elbows or knees, leather sleeves bend with the joint (grunts and your own); an upper arm or thigh worn alone ends at its joint and the bare limb carries on
 Armour plates' relief is about 8% deeper after the skins were regenerated properly: do the plates still look right up close?
+Shotgun source .blend: open Misc/quakevr/src_models/blend/v_shot/v_shot.blend with the add-on, move a rivet or paint the skin, save, run blend_export.py (MODELS_IN_BLENDER.md section 9), then vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot: the change shows, and it fires, pumps and the sights line up
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
