@@ -1817,6 +1817,32 @@ blast, a nail and the lightning's line along their aims: 0 self-hits. (The mock'
 **Checklist lines (suggested):** In a headset, point your gun at your other palm, forearm, thigh and fire: it hurts, that
 hand buzzes and the wound is right where you aimed, following the arm. Normal firing (dual, crossed arms, two-handed, from
 the hip) never hits you; Shoot Yourself off (Damage and Knockback) and nothing happens.
+## The gadget locked while both hands hold one thing (branch `agent/gadgetlock`, 2026-11-06)
+
+His note: bullet time's double tap still turned on by accident in fights with both hands busy. New
+`Quake/vr/vr_gadgetlock.cpp` (`gadgetlock::locked()`, worked out once a frame): while both hands hold the same thing --
+one weapon two-handed (`twohand::helping`: a hotspot, a free grip, a blade grip, a cup), the same carried prop or crate
+(the carry stats equal), the same embedded blade (the embed stats), the same enemy (foegrab, the listen server) or the
+same ragdoll (`box3d::ragdollHold`) -- and for `vr_gadget_lock_grace` (0.2) real seconds after, the gadget takes no
+input. Gated: the screen tap (bullet time: no tap, a double tap's first dropped, the hand must lift off before the next),
+the side button (gear lights, Doom's opening presses) and AD's page button (a fingertip on one must leave it first), and
+the touchscreen when an app takes the gadget's screen (Doom: a touch under way ends). Different things in each hand:
+unchanged. `vr_gadget_lock_twohand` (1) turns it off: HUD and Menus > Screens, "Lock While Both Hands Hold One Thing"
+(the grace a developer row under it). `vr_debug_bullettime` or `vr_debug_gadget_button` print its changes ("gadget
+lock: on (both hands hold ...)", "let go, 0.20 s grace", "off"). The older guards (`vr_bullettime_tap_twohanded`,
+`vr_bullettime_tap_both_held`) are kept as they were.
+
+Test: `Misc/quakevr/gadget_lock_test.sh <agent>` (fixed frames, ends on `gadget_lock_test: N passed, M failed`; 18
+passed): two different weapons count; a shotgun two-handed, a sword in both hands and a crate in both hands lock, and no
+tap counts once locked (4 taps each); with the lock off the two-handed shotgun's double tap counts; letting go of the
+shotgun's foregrip then double-tapping at once: the first tap (inside the grace) is ignored, the second counts as a
+first; the side button pressed during the hold does nothing, after letting go it presses. Test aids: `vr_2h_sticky 30`
+and `vr_carry_two_hands_drift 60` keep the holds while the mock's tracked main hand reaches the off wrist's screen (as
+shipped it would pull the hand off its grip).
+
+**Checklist line (suggested):** Wrist gadget: hold the shotgun two-handed, or a crate or the sword in both hands, and
+double-tap the gadget's screen: no slow motion (and the side button does nothing); let go and double-tap after a moment:
+it works; one weapon in each hand: it works as before (HUD and Menus > Screens, "Lock While Both Hands Hold One Thing").
 ## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
 
 His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new
