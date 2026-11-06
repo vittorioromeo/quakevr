@@ -558,6 +558,8 @@ def main():
     dst = os.path.join(REPO, "quakevr", "progs", "v_nailpistol.mdl")
     src = sys.argv[1] if len(sys.argv) > 1 else dst
     dst = sys.argv[2] if len(sys.argv) > 2 else dst
+    import genguard  # (retired for the shipped gun: its source is a .blend)
+    genguard.retired("build_nailpistol_slide.py", [dst])
     import mdl as M
     m = M.Model.read(src)
     names = m.pose_names()

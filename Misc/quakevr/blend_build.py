@@ -36,6 +36,12 @@ def main():
     out = out or os.path.join(HERE, "src_models", "blend", os.path.splitext(name)[0])
     path = source.build(bpy.context, ROOT, name, out)
     print("blend_build: %s (%d bytes)" % (path, os.path.getsize(path)))
+    # The files it now owns: no generator writes them again (genguard.py; Misc/quakevr/generated.json).
+    sys.path.insert(0, HERE)
+    import genguard
+    files = source.owned_files(source.source_object())
+    genguard.own(path, [os.path.join(ROOT, "quakevr", "progs", f) for f in files])
+    print("blend_build: owns %s" % ", ".join(files))
 
 
 if __name__ == "__main__":

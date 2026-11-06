@@ -44,9 +44,16 @@ def source_model():
     """The source .blend's model object: the one model object, with its anchors' empties (blend_build.py made them;
     an imported model has none)."""
     obs = [o for o in bpy.data.objects if o.type == 'MESH' and o.get("qvr_kind") == MB.KIND and o.get("qvr_mdl")]
-    if len(obs) != 1 or not any(c.get("qvr_key") for c in obs[0].children):
-        return None
+    if len(obs) != 1 or not (obs[0].get("qvr_source_blend") or any(c.get("qvr_key") for c in obs[0].children)):
+        return None  # (qvr_source_blend: every weapon's source made since 2026-11, anchors or not)
     return obs[0]
+
+
+def is_source(blend):
+    """A weapon's source .blend: one blend_build.py made (source_model), or a hand-made one (models_src/<gun>/<gun>.blend
+    with its export_mdl.py beside it: blend_export.py runs that)."""
+    from . import source
+    return source_model() is not None or source.handmade_script(blend) is not None
 
 
 def export_script(blend):
@@ -183,7 +190,7 @@ def on_save(*args):
     if not enabled():
         return
     blend = args[0] if args and isinstance(args[0], str) and args[0] else bpy.data.filepath
-    if not blend or not blend.lower().endswith(".blend") or source_model() is None or export_script(blend) is None:
+    if not blend or not blend.lower().endswith(".blend") or not is_source(blend) or export_script(blend) is None:
         return
     if state["proc"] is not None:
         state["again"] = blend  # (exported again when the one under way ends: the newest file)

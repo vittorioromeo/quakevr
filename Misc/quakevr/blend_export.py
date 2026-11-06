@@ -18,6 +18,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ADDONS = os.path.join(HERE, "blender", "addons")
 
 
+def export_handmade(script, out):
+    """Runs the hand-made source's export_mdl.py (-- <out>) in this Blender, on the open .blend."""
+    import runpy
+    os.makedirs(out, exist_ok=True)
+    before = {f: os.path.getmtime(os.path.join(out, f)) for f in os.listdir(out)}
+    argv = sys.argv
+    sys.argv = [script, "--", out]
+    try:
+        runpy.run_path(script, run_name="__main__")
+    except SystemExit as e:
+        if e.code not in (0, None):
+            print("blend_export: REFUSED: %s stopped (%s)" % (os.path.basename(script), e.code))
+            sys.exit(1)
+    except Exception as e:  # noqa: BLE001
+        print("blend_export: REFUSED: %s failed: %s" % (os.path.basename(script), e))
+        sys.exit(1)
+    finally:
+        sys.argv = argv
+    written = [f for f in sorted(os.listdir(out)) if os.path.getmtime(os.path.join(out, f)) != before.get(f)]
+    for f in written:
+        print("  wrote %s (%d bytes)" % (os.path.join(out, f), os.path.getsize(os.path.join(out, f))))
+    print("blend_export: ok, %d files (%s)" % (len(written), os.path.basename(script)))
+
+
 def main():
     import bpy
     a = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -32,6 +56,10 @@ def main():
         print("blend_export: REFUSED: open a source .blend inside the repository (blender -b <file.blend> --python ...)")
         sys.exit(1)
     print("blend_export: %s" % blend)
+    hand = source.handmade_script(blend)
+    if hand:  # a hand-made source (models_src/<gun>/): its own export_mdl.py writes its files
+        export_handmade(hand, out or os.path.join(root, "quakevr", "progs"))
+        return
     try:
         written, changes = source.export(bpy.context, root, out, allow_moved="--allow-moved" in a,
                                          allow_sights="--allow-sights" in a)

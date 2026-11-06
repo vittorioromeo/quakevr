@@ -777,6 +777,9 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     paths = [a if os.path.dirname(a) else os.path.join(PROGS, a) for a in args] or \
         [os.path.join(PROGS, n) for n in SPECS]
+    if "--report" not in sys.argv:
+        import genguard  # rewrites in place: stops on models a source .blend owns (MODELS_IN_BLENDER.md, section 9)
+        genguard.retired("reuv_weapons.py", paths)
     for path in paths:
         if "--report" not in sys.argv:
             stretch_summary(load_mdl(path), False)

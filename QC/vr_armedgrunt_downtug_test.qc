@@ -344,6 +344,12 @@ void() VR_AGDT_Down =
     {
         outcome = "nothing";
     }
+    else if(tp > 7 && !tug && !g.vr_ag_prop)
+    {
+        // QVR: no tug, its weapon gone (struck out of its hand by the pull: a strike disarm), the hand holding its body
+        // (the grip took a limb): not stuck, it lets go as you do (seed 1's 'shove down grip fast' since 2026-11-05).
+        outcome = "took its body";
+    }
     else if(tp > 7)
     {
         outcome = "STUCK";

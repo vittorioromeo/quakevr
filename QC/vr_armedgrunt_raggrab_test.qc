@@ -161,6 +161,13 @@ void() VR_AGRB_Frame =
         p.velocity = '0 0 0';
         vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 80);
         g.health = 400; // (a landing's impact damage never kills it)
+        if(g.vr_wp_pack)
+        {
+            // QVR: no worn backpack: lying, its pack can be under the hand put on its forearm, and a grip there takes
+            // the pack (seed 1, 'lying forearm', since 2026-11-06); this test is the weapon's tug (as test 202 does).
+            remove(g.vr_wp_pack);
+            g.vr_wp_pack = world;
+        }
         vr_agrb_t0 = time;
         vr_agrb_still = 0;
         vr_agrb_tugged = 0;

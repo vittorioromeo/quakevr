@@ -191,4 +191,14 @@ def export(out_dir=None, log=print):
 
 if __name__ == "__main__":
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    # Retired (2026-11): this .blend's export no longer matched the shipped gun (the full slide, build_nailpistol_slide.py,
+    # was made from v_nailpistol_classic.mdl, edited since). The nail pistol's files each have a source .blend of their
+    # own, made from the shipped files: Misc/quakevr/src_models/blend/v_nailpistol/ (and v_nailpistol_mag,
+    # vr_nailpistol_preview, vr_mag_npistol, vr_mag_on_v_nailpistol). Written into the repository, it stops.
+    _qvr = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    sys.path.insert(0, _qvr)
+    import genguard  # noqa: E402
+    _out = argv[0] if argv else os.path.join(_qvr, "..", "..", "quakevr", "progs")
+    genguard.retired("models_src/nailpistol/export_mdl.py",
+                     [os.path.join(_out, f) for f in ("v_nailpistol.mdl", "v_nailpistol_mag.mdl", "vr_nailpistol_preview.mdl")])
     export(argv[0] if argv else None)
