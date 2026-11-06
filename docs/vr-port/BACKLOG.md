@@ -1,17 +1,17 @@
 # Backlog: agreed work for the next rounds
 
 Items the author approved or asked about, not yet started, grouped by area; each keeps a note on where it came from.
-Retired items are in git history (last cleanup 2026-11-05).
+Retired items are in git history (last cleanup 2026-11-06).
 
 ## Proposed order (2026-11-05, waiting on his OK)
 
 1. **Fixes:** done 2026-11-05.
 2. **The 1.1 release:** release pass (QUEUE.md), lower-end presets, a VR Tracy capture. Only on his word.
 3. **Flat-screen:** per-weapon pose, then procedural reloads, then the hotkey audit, the window's graphics, recorded motions.
-4. **Armed humanoids** (the key feature): a smarter second-weapon pickup, the enforcer's real backpack, a design study
-   for crouching and crawling; then gremlins, AD's humanoids and their packs.
-5. **Combat feel:** burn marks, hit-confirm audio, arena banners, magazines sliding home, crossed-sword parry, wounded
-   monsters; embedded blades (finish, then props) and the active ragdoll research as larger pieces.
+4. **Armed humanoids** (the key feature): the enforcer's real backpack, a design study for crouching and crawling;
+   then gremlins, AD's humanoids and their packs.
+5. **Combat feel:** hit-confirm audio, crossed-sword parry, wounded monsters; embedded blades (finish, then props) and
+   the active ragdoll research as larger pieces.
 6. **Weapons and content:** AD guns' models and own weapons, bloody shotguns, reliefs, ammo type
    from the magazine, AD inventory.
 7. **Refactors, right after 1.1:** formatting, Ironwail extraction, design review P3/P6/P8/P9/P10 (QUEUE.md).
@@ -43,12 +43,10 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 
 ## 4. Armed humanoids
 
-### Armed humanoids picking up a second weapon (the author, 2026-11-03)
+### Pick Up a Second's default (the author, 2026-11-03)
 
-`vr_agrunt_dual_pickup` (Armed Grunts: "Pick Up a Second") stays off by default until this is revisited: in combat it would
-be silly for an enemy to stop shooting the player with its current weapon to go and pick another one up. To do: make
-`VR_AG_WantsSecond` (`QC/vr_armedgrunt.qc`) smarter, so that one goes for a second weapon only if it is very close by and
-wouldn't take much downtime; then look at the default again.
+The smarter pickup shipped (ROUND24.md, "Pick Up a Second, smarter": only a cheap trip, tighter in a fight);
+`vr_agrunt_dual_pickup` is still 0. Left: his call on the default once he has played with it on.
 
 ### The enforcer's backpack made a real one (author, 2026-11-02)
 
@@ -80,11 +78,6 @@ pack a frame): each wearer costs a little.
 
 - **Shooting yourself in VR** (Vittorio, 2026-11-06): the player can hurt themselves by pointing a weapon at their own limbs or body and firing: shots and blades hit the player's own body (limb hit, blood, damage), headset only.
 
-
-### Magazines sliding home (RELOAD.md; noted, not done, 2026-10-08)
-
-A magazine seated at its well drawn sliding the last bit home: a short seat slide, as the shells' slide
-into the guns (vr_collectfx.cpp's "into the gun" variant, its path the well's axis).
 
 ### Dual-wield parry: crossed swords (the author, 2026-10-18)
 With a sword in each hand (e.g. the Death Fury's pair), crossing the two blades in front of the body should be a valid
@@ -245,7 +238,9 @@ without leaning, chosen automatically from the seated calibration (vr_setup seat
 
 ### Modelling and body
 
-- **Easier modelling and asset creation** (Vittorio, 2026-11-05): Blender is painful for Quake models: their format needs conversions on import and export, and being vertex based they don't suit usual workflows. Audit what Ironwail supports, find the most convenient formats, add them, and perhaps convert existing assets. (See also the glTF entry.)
+- **Easier modelling and asset creation** (Vittorio, 2026-11-05): Blender is painful for Quake models: their format needs conversions on import and export, and being vertex based they don't suit usual workflows. Audit what Ironwail supports, find the most convenient formats, add them, and perhaps convert existing assets. (See also the glTF entry.) Started for weapons: the shotgun's source
+  .blend and export on save (ROUND24.md, "The shotgun as a source .blend", "Blender: export on save"); the audit and
+  the other models are left.
 - **glTF (.glb) for the hand and body models, after 1.1** (Vittorio, 2026-11-03): so modellers can work in Blender with no add-on. A small parser (cgltf; ask before downloading) fills the structure the MD5 loader fills; MD5 stays as the fallback; a .glb loads only when present; vr_hand_reload and vr_model_reload read it. Watch: Y-up metres to Z-up Quake units, seams split, 4 weights, bone rest pose and roll against the engine's axis convention, a simple material rule (one base colour texture), skins' damage and armour variants stay separate files. Bone names and grip fits still apply. Weapons and other .mdl models stay out: frame numbers in QuakeC, triangle-keyed masks and anchors.
 - **Player lying down and physical crawling** (Vittorio, 2026-11-03): the player can lie down and crawl by moving their body and arms.
 

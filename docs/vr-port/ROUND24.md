@@ -157,6 +157,22 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
   upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
 - **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
   (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+- **Pass 5c (branch `agent/armor5c`):**
+  - **Corpse tiles:** `vr_pp_test 15`'s tiles 10-11 showed a standing grunt: a monster's start comes a few frames after its spawn
+    (takedamage off till then), so the hit did nothing. The test now kills it once it takes damage (state 3) and shoots once its
+    frame has held half a second (FAIL "timed out" after 5 / 10 s), from closer (his pictures 12, 13). Its death animation is
+    random, so before and after lie differently. The feet: the shin plates end above the boot; nothing below the sole.
+  - **Thighs:** the enforcer's and the death knight's plates started at the hip's pivot, but their skin from the belt (enforcer)
+    or the tabard's hem (death knight) down to mid-thigh weighs on the pelvis, so it stayed bare. `Wearer::hipFrom` (the
+    thigh's rows start this far down the bone at the latest, of its length; `plateHipFrom` 0.12 the others): enforcer -0.5,
+    death knight -0.3. Rows -0.9..6.0 -> -4.0..6.0 (enforcer), 0.9..5.9 -> -2.4..5.9 (death knight), 3 rows each, not 2. A
+    humanoid thigh's rings above its region take at least the whole skin's exit (`fillRadii`). Thigh bulk (pop check, mean/most):
+    enforcer 2.28/8.54 -> 1.34/8.65, death knight 0.56/1.14 -> 0.67/8.27. Triangles: enforcer 2 440 -> 2 584, death knight
+    2 632 -> 2 776 (+144 each, one row per thigh; the knight already had 2 776; no timing taken).
+  - **Open:** the enforcer's thighs from behind are still bare from the buttocks to the knee row (his back thigh skin is
+    pelvis-weighted; the plates there sit under it); the knight's red pad wedge at the front of his right shoulder (a cuirass
+    ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
+    grunt's spiky knee leather and the enforcer's elbow band untouched.
 
 ## Flatscreen: the stance, replacing the barrel rest
 
@@ -1175,7 +1191,12 @@ From the melee audit (his answer: "All, armed ones too").
   as its swing starts dodges it (89 deg off at the hit frame, 0 damage); Show Melee Arcs sets and the engine draws each
   kind (arc, leap, all round, shove: `meleearcviz: drawn arc 1 leap 1 round 1 shove 1`). `vr_agrunt_test 213`: the
   nearest lost soul's bite parried (spawned through the dispenser, 207): needs AD mounted (`vr_ad_mounted` is 0 in the
-  agents' trees, so it reports "no lost soul" here; not verified).
+  agents' trees, so it reports "no lost soul" here; not verified). Night check 2026-11-06 with AD's paks copied into
+  the agent's base (`kit/bases/<agent>/qbase/ad`) and `-Games "-game hipnotic -game rogue -game ad -game quakevr"`:
+  it first stopped on `Host_Error: PR_ExecuteProgram: NULL function` (VR_AGT_Hunt ran id's FoundTarget, which thinks
+  the lost soul's unset `th_run`); now it wakes the soul by AD's own AI (`AD_TestWake`). It then runs but **fails**:
+  0 parries in 8 s, the soul 150-200 away with no enemy at the end (map start and vrtesthall, with and without god).
+  Open: why the woken lost soul drops its enemy instead of biting.
 - **Before/after** (vrtesthall, seed 7; melee_arc_test.sh id/ad/rogue at arc 1): every meleearc result line identical
   after both stages. `vr_agrunt_test` 78: 47/0 -> 47/0; 24: 2/0 -> 2/0; 29: 1/0 -> 1/0; 35 (no mock guard in this run):
   4/2 -> 5/1 (Fist now parried; Axe still 0 of 2, as before); 18 (long blade's standoff, blows landing): 24/0 after;
@@ -1476,3 +1497,36 @@ second tree; none was a gameplay regression, each a test that no longer fit:
   now "took its body" (not ok, not stuck): 1/0 (14/17, stuck 0).
 - **213 lost soul** (needs AD; night branch's wake fix cherry-picked): still 0 parries, the soul 141 units away with no
   enemy. Not fixed: open (why the woken soul drops its enemy).
+## The .blend migration checked in game (branch `agent/blendverify`, 2026-11-06)
+
+agent/blendall's weapon migration on next, against the build before its merge (14d0b35b9). Shipped game files the merge
+changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt slot 2 (`git diff --stat 14d0b35b9
+462384339 -- quakevr/`); code: one comment. Every other weapon draws from byte-identical files.
+- **Every weapon, headset mock** (`vr_test_give_wid 1..31; impulse 149; vr_sight_check main`, grip mode sticky): each
+  draws its model; laser vs sight line, before = after on every gun but the super shotgun: grapple 0.0023, shotgun
+  1.0349, nailgun 0.0004, super nailgun 0.4978, rocket launchers 0.0007/0.0016, prox 0.0007, thunderbolt 0.2383,
+  laser cannon 0.0561, grunt gun 0.0020, enforcer rifle 0.4794, nail pistol 0.1299, flare gun 0.0296, revolver 0.1510
+  (the kit base config's saved shot keys). Super shotgun: 0.6542 -> 1.4730 with that config's saved `vr_wofs_shot_pitch_03
+  "0"`; with the shot keys reset to weapons.txt's (1.47, 0.11): 0.0020.
+- **Flat** (the same with `-flatscreenmode`, `+attack`): the guns fire (ammo down: shotgun 1, super shotgun 2, the
+  nailguns, rockets, prox, cells, nail pistol, revolver); flatsight 12/0 (15 guns with sights: at most rear 0.0002,
+  front 0.0007 units off the ray, 0.0032 deg far along), flatplay 28/0, flatkeys 37/0, flatads 7/0.
+- **Reload** (reload_test.sh): 114/1; the one fail is the known "the shotgun's sights keep their colour as it pumps"
+  (107/56 99/0 104/49), and it fails the same before the migration (107/55 99/0 104/49: v_shot is unchanged). The super
+  shotgun's checks pass: break-open, its pair, the ring on the barrels part, its sights' colour shut, fired, open, shut
+  (159/0 163/25 230/24 163/24), its blood open and shut.
+- **Weapon self-tests:** nptest 39/0, npaim 7/0, flaretest 22/0, flaremuzzle 5/0, magslide 63/0, agtest 1 17/0; rvtest
+  43/3 (a slow push, a push with a shell in the other hand, the live shells' speed): the same 3 before the migration.
+- **Generators against owned files:** the release path (make_release.ps1/.py, package-quakevr.ps1, the kit build.sh,
+  run_test_suite.py's 43 scripts and everything they run, 122 scripts) runs no model generator. Four in-place rewriters
+  had no guard and would have overwritten owned models when run by hand: reuv_shot2.py (v_shot2), refine_light.py
+  (v_light), refine_laserg.py (v_laserg), reuv_weapons.py (v_plasma, v_nail2, v_lava2, v_rock2, v_multi2, v_grpple,
+  v_hammer): now `genguard.retired` (`--report` still runs). Every weapon generator run (no arguments, then `--force`) in a
+  copy of the tree: the 112 owned files unchanged.
+- **For the author:** his own config has `vr_wofs_shot_pitch_03 "0.650418"`, `vr_wofs_shot_yaw_03 "0.059087"` (his
+  Align Sights to My Aim on the old sight line). It overrides the new default (1.47, 0.11): with it the super shotgun shoots
+  about 0.8 deg under the new bead. Not changed (his setting): run Align Sights again on the super shotgun, or reset those
+  two keys, to take the new line.
+
+**Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
+1.47), then the bead sits on what you hit.

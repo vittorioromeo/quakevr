@@ -569,7 +569,11 @@ def fix(path, report_only=False):
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    fix(args[0] if args else DEFAULT, report_only="--report" in sys.argv)
+    path = args[0] if args else DEFAULT
+    if "--report" not in sys.argv:
+        import genguard  # rewrites in place: stops on a model a source .blend owns (MODELS_IN_BLENDER.md, section 9)
+        genguard.retired("reuv_shot2.py", [path])
+    fix(path, report_only="--report" in sys.argv)
 
 
 if __name__ == "__main__":

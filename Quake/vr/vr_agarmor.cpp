@@ -58,6 +58,8 @@ constexpr int maxNamed = 256; // vr_agarmor_set's entities
 constexpr const char* armorSuffix = "#armor";
 constexpr const char* rigSuffix = "#rig2";
 constexpr const char* skinModelName = "progs/vragarmor.mdl";
+// A humanoid's thigh's plates start this far down its bone at the latest (of its length; Wearer::hipFrom).
+constexpr float plateHipFrom = 0.12f;
 // Who wears it, and where the cuirass stops behind (model x; -1e9 nowhere): the enforcer's power pack is its own, so its
 // cuirass is a breastplate to its back's surface (x -10: the pack from -10.5 to -23, up past its head; P2).
 // The head proper (the helmet's fit; helmetOf): up to headTop of the head bone's length above its pivot and headSide to
@@ -83,6 +85,9 @@ struct Wearer
     // left's and the mirrored right's mean, so the two are each other's mirror image in the bind pose whatever their rest poses)
     float shoulderTop{-1e9f};
     bool shoulderAxis{false};
+    // (its thighs' plates start this far down their bones at the latest, of their length: below 0 above the hip's pivot, where its
+    // skin weighs on the pelvis; plateHipFrom)
+    float hipFrom{plateHipFrom};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
@@ -97,8 +102,8 @@ struct Wearer
 // vertices are left out of the guards' fit, so nothing held them out and they sank into his cheeks; they are plates now, down each
 // side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
 // out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
-constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f},
+constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {.model = "progs/vrenforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
+    {.model = "progs/enforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     // The knight's red shoulder pads stand up to 2.5 units off his upper arms' skin, weighing on them 0.2-0.4 (the rest on his
     // chest): his upper arms' plates go out over them (his note, 2026-11-06: "exposed knight shoulder").
     {"progs/vrknight.mdl", -1e9f, 1.06f, 0.75f, 0.5f, -1.f, 0.3f, 0.04f, -1.f, 0.18f, 0.03f, 0.7f, -1.f, -1.f, {-1.f, -1.f}, {-1.f, -1.f}, 1.2f, 1.8f},
@@ -108,7 +113,7 @@ constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl"
     // down, the right out), so each side's plates round its own bone's axis were tilted apart: one axis mirrored for both; and his
     // shoulder shells' plates reached 10.8 up the bone, a cape: 5.
     {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.48f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.40f, 0.48f}, 0.5f, -1.f,
-        -5.f, true},
+        -5.f, true, -0.3f},
     // The player's own body, each build (vr_player_plates; vr_agarmor.hpp, "The player's plates"): the same plates, on its IK.
     {"progs/vrbody.mdl", -1e9f}, {"progs/vrbody_bare.mdl", -1e9f}, {"progs/vrbody_lean.mdl", -1e9f},
     {"progs/vrbody_lean_bare.mdl", -1e9f}, {"progs/vrbody_brawny.mdl", -1e9f}, {"progs/vrbody_brawny_bare.mdl", -1e9f},
@@ -408,6 +413,7 @@ struct PieceFrame
     bool ends{false}; // (a humanoid's limb, not the player's: a forearm's and a shin's plates stop short of the wrist and the ankle)
     float ridge{-1.f}; // (fillRadii: -1 plateRidge; plateRidgeLimb on a humanoid's forearms and legs)
     bool hip{false};   // (a humanoid's thigh: its rings above its region on the whole skin; fillRadii)
+    float hipFrom{plateHipFrom}; // (a humanoid's thigh: its rows start this far down its bone at the latest, of its length; Wearer::hipFrom)
     bool upper{false}; // (an upper arm or a thigh: its plates' far end at the joint)
     const Body* body{nullptr}; // (a limb: the whole skin, for a ring its region doesn't reach: fillRadii)
 };
@@ -909,9 +915,8 @@ constexpr float plateWaist = 1.2f;              // the cuirass past its region's
 // floating at the elbow, the forearm coming out through the upper arm's plates): the upper arm's and the thigh's plates end this far
 // short of the joint, the forearm's and the shin's start this far past it; a sleeve of leather bellows on the skin between (sleeveOf).
 constexpr float plateElbowAbove = 1.6f, plateKneeAbove = 2.0f, plateElbowBelow = 0.9f, plateKneeBelow = 1.2f; // units
-// A humanoid's forearm's plates stop this far short of the wrist, its shin's of the ankle (its bones' ends); its thigh's start this far
-// down its bone at the latest (of its length).
-constexpr float plateWristAbove = 0.9f, plateAnkleAbove = 0.6f, plateHipFrom = 0.12f;
+// A humanoid's forearm's plates stop this far short of the wrist, its shin's of the ankle (its bones' ends); its thigh's start: plateHipFrom.
+constexpr float plateWristAbove = 0.9f, plateAnkleAbove = 0.6f;
 // How far a humanoid's limb's corner may stand over its rays' radius for the skin's vertices between (plateRidge: the cuirass's and the
 // player's): their low-poly limbs' corners made the plates wide and bulky (his notes, 2026-11-06).
 constexpr float plateRidgeLimb = 0.5f, plateRidgeThigh = 0.8f; // (a thigh's more: the low-poly knee's point)
@@ -982,7 +987,7 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     // plates went over the hand and round the foot, below its sole; his notes, 2026-11-06)
     g.hBottom = f.ends && (forearm || shin) ? za::min(g.hBottom, f.length - (forearm ? plateWristAbove : plateAnkleAbove)) : g.hBottom;
     // (a thigh's plates up to the hip, whatever its weights: an enforcer's and a death knight's thighs weigh on them only near the knee)
-    g.hTop = thigh && f.ends ? za::min(g.hTop, f.length * plateHipFrom) : g.hTop;
+    g.hTop = thigh && f.ends ? za::min(g.hTop, f.length * f.hipFrom) : g.hTop;
     g.hTop = upperArm && f.ends ? za::max(za::min(g.hTop, f.topAt), f.topMost) : g.hTop;
     const float tall = za::abs(g.hBottom - g.hTop);
     const bool leg = piece >= ThighL;
@@ -1096,6 +1101,11 @@ void fillRadii(const Local& L, const za::Vector<glm::vec3>& fringe, const PieceF
         return hit;
     };
     const int first = g.yoke > 0.f ? 1 : 0;
+    float regionLo = 1e9f;
+    for(const glm::vec3& p : L.orig)
+    {
+        regionLo = za::min(regionLo, glm::dot(p - f.origin, f.up));
+    }
     for(int ring = first; ring <= g.rows; ring++)
     {
         const float h = g.hAt(ring);
@@ -1111,6 +1121,13 @@ void fillRadii(const Local& L, const za::Vector<glm::vec3>& fringe, const PieceF
             g.at2(ring, col) = g.at2(ring, col) <= 0.01f && (f.hip || (f.ends && !f.upper)) && f.body &&
                                        bodyExit(*f.body, f.origin + f.up * h + f.fwd * c.x + f.left * c.y, dirOf(g.azOf(col)), f.length * 1.5f, t, w)
                                    ? t
+                                   : g.at2(ring, col);
+            // (a humanoid's thigh's rings above its region: never inside the whole skin there. Its region's few triangles that reach up
+            // to the hip are the thigh's inner side, so its rays found them close in and the top rows sank into the leg: the enforcer's
+            // and the death knight's thighs bare from the hip to the knee's row; his notes, 2026-11-06)
+            g.at2(ring, col) = f.hip && f.body && h < regionLo &&
+                                       bodyExit(*f.body, f.origin + f.up * h + f.fwd * c.x + f.left * c.y, dirOf(g.azOf(col)), f.length * 1.5f, t, w)
+                                   ? za::max(g.at2(ring, col), t)
                                    : g.at2(ring, col);
         }
     }
@@ -2147,8 +2164,8 @@ bool buildShell(qmodel_t* src, Shell& s)
         f.cut = regionCut(s.body.w, f.bones);
         f.ends = !skeletal && limbBone[piece] != nullptr;
         f.ridge = !f.ends || piece == PauldronL || piece == PauldronR ? plateRidge : piece == ThighL || piece == ThighR ? plateRidgeThigh : plateRidgeLimb;
-        f.ridge = f.ends && (piece == PauldronL || piece == PauldronR) && wearerOf(src->name).shoulderRidge >= 0.f ? wearerOf(src->name).shoulderRidge : f.ridge;
-        f.hip = f.ends && (piece == ThighL || piece == ThighR);
+        f.ridge = f.ends && (piece == PauldronL || piece == PauldronR) && wearerOf(src->name).shoulderRidge >= 0.f ? wearerOf(src->name).shoulderRidge : f.ridge;        f.hip = f.ends && (piece == ThighL || piece == ThighR);
+        f.hipFrom = wearerOf(src->name).hipFrom;
         f.upper = piece == PauldronL || piece == PauldronR || piece == ThighL || piece == ThighR;
         f.body = &s.body;
         if(f.ok && (piece == PauldronL || piece == PauldronR))
