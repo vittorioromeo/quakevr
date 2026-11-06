@@ -35,6 +35,7 @@
 #include "vr_selfshot.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_motion.hpp"
+#include "vr_animrec.hpp"
 #include "vr_mem.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
@@ -977,6 +978,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"motionevent", PF_motionevent},
     {"motionpoint", PF_motionpoint},
     {"motionvalue", PF_motionvalue},
+    {"animevent", PF_animevent},
     {"hitmodel_target", PF_hitmodel_target},
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},

@@ -48,9 +48,62 @@
             .help("The active ragdolls' behaviours on a monster of your choice, flat on the desktop: played, slowed, "
                   "stepped, drawn (skeleton, limits, targets, contacts, balance) and tuned live, saved as presets "
                   "(vr_ragtool; launch with -ragtool; docs/vr-port/RAGTOOL.md)."),
+        open("Animation Recorder", pageIndex(pageAnimRecorder))
+            .help("Record motions in the headset (strikes, reloads) for the flat-screen hands, after a countdown: saved to "
+                  "quakevr/anims (docs/vr-port/ANIMATIONS.md); smooth them and play them back on the hands to check."),
         open("Automation & Self-Tests", pageIndex(pageDebugAutomation))
             .help("Scripted scenarios, self-tests, benchmarks, acceptance checks and crash tests, meant mostly for headless "
                   "agent runs (ROUND22.md, \"Debug > Automation & Self-Tests\")."),
+    };
+}
+
+// The animation recorder (vr_animrec.cpp, docs/vr-port/ANIMATIONS.md): recordings for the flat-screen hands.
+za::Vector<Item> pageAnimRecorder()
+{
+    za::Vector<Choice> buttons;
+    for(int i = 0; i < recbutton::bindingCount; i++)
+    {
+        buttons.pushBack({static_cast<float>(i), recbutton::bindings[i].text});
+    }
+    return {
+        header("Record"),
+        info(animrec::statusLine),
+        action("Start / Stop Recording", animrec::toggleRecording)
+            .help("Starts the countdown, then records until pressed again (or Longest). Named by the Next Name, else by "
+                  "the weapons in your hands and the date: quakevr/anims/<name>.anim."),
+        toggle("Arm Record Button", vr_ar_armed)
+            .help("Armed: the Record Button starts and stops recordings (its own action rests until you disarm)."),
+        cycle("Record Button", vr_ar_button, ZA_MOVE(buttons))
+            .help("Pressed to start and to stop, while armed. Don't arm the Motion Recorder on the same button."),
+        slider("Countdown", vr_ar_countdown, 0.f, 10.f, 0.5f, "%.1f s").help("Before the recording starts: a beep and a buzz each second."),
+        slider("Longest", vr_ar_maxtime, 2.f, 120.f, 1.f, "%.0f s").help("A recording ends by itself after so long."),
+        info(animrec::lastLine),
+        header("Smooth"),
+        action("Smooth Last", animrec::smoothLast)
+            .help("Writes <name>.smooth.anim beside it: the jitter filtered out, and only the keyframes a spline needs to "
+                  "stay within the tolerances (vr_ar_smooth <name>; Misc/quakevr/anim_smooth.py offline)."),
+        slider("Jitter Filter", vr_ar_smooth_tau, 0.f, 0.1f, 0.005f, "%.3f s").help("Its time constant (0: none)."),
+        slider("Position Tolerance", vr_ar_smooth_pos, 0.0005f, 0.02f, 0.0005f, "%.4f m"),
+        slider("Angle Tolerance", vr_ar_smooth_ang, 0.1f, 10.f, 0.1f, "%.1f deg"),
+        header("Preview"),
+        action("Play Last", animrec::playLast)
+            .help("On the flat-screen hands (a ghost in the headset), blended in and out of your own pose; vr_ar_play <name> "
+                  "plays another."),
+        action("Stop Playing", animrec::stopPreview),
+        toggle("Smoothed File", vr_ar_play_smoothed).help("The recording's .smooth.anim when it has one."),
+        cycle("Placed On", vr_ar_play_frame, {{0.f, "Body"}, {1.f, "Head"}})
+            .help("Body: a look up or down leaves the hands where they were recorded on the body. Head: they follow it."),
+        toggle("Mirror", vr_ar_play_mirror).help("Left to right: each hand plays the other's part."),
+        toggle("Loop", vr_ar_play_loop),
+        slider("Speed", vr_ar_play_speed, 0.1f, 2.f, 0.05f, "%.2fx"),
+        slider("Blend", vr_ar_play_blend, 0.f, 1.f, 0.05f, "%.2f s").help("In from your own pose at the start, out at the end."),
+        slider("Forward", vr_ar_play_x, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Left", vr_ar_play_y, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Up", vr_ar_play_z, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Pitch", vr_ar_play_pitch, -90.f, 90.f, 1.f, "%.0f deg"),
+        slider("Yaw", vr_ar_play_yaw, -90.f, 90.f, 1.f, "%.0f deg"),
+        slider("Roll", vr_ar_play_roll, -90.f, 90.f, 1.f, "%.0f deg"),
+        slider("Scale", vr_ar_play_scale, 0.5f, 1.5f, 0.01f, "%.2fx"),
     };
 }
 
@@ -741,6 +794,13 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
         row(opt::vr_flatplay_debug),
+        command("Flatscreen Test Hit From The Right", "vr_blood_test packet right")
+            .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
+                  "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "
+                  "Tunables > Flatscreen > Hit Feedback."),
+        command("Flatscreen Hit Probe", "vr_flat_hit_probe")
+            .help("vr_flat_hit_probe: since the last one, the hands' knock before and after the ironsight's share, the "
+                  "punch's largest (and before its share), what of it is in the aim now, and each mark's angle and opacity."),
         command("Flatscreen Look At Yourself", "vr_flat_orbit -60 44")
             .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "
                   "the gun, the sights. The hands and the shots are as he plays them. Flatscreen play only."),

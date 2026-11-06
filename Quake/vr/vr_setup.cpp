@@ -971,6 +971,7 @@ void init()
     Cmd_AddCommand("vr_menu_path_check", menu::pathCheck_f);
     Cmd_AddCommand("vr_menu_dump", menu::dump_f);
     Cmd_AddCommand("vr_menu_dump_paths", menu::dumpPaths_f);
+    Cmd_AddCommand("vr_menu_dump_settings", menu::dumpSettings_f);
 #ifndef QVR_RELEASE
     Cmd_AddCommand("vr_tunables_tree", menu::tunablesTree_f);
 #endif
