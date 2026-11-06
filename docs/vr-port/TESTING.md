@@ -1670,3 +1670,16 @@ the rig of every seed table's model the game folders have, Hipnotic's, Rogue's a
 M failed, K absent`, each failure's `ragdoll: ... got 0 vertices` line before it); passes on `0 failed, 0 absent`. Needs
 AD's paks copied into the agent's base (`bases/<agent>/qbase/ad`, never linked), else SKIP. Run it when a monster's
 weapon becomes a loose piece (vr_monstermods.cpp knownSwords) or a seed table changes.
+
+## Swimming tilt: the body's pitch (2026-11-06)
+
+`vr_body_pitch_test` (console, any map): the body pitch's angle states through its ease and the swimming source at 72
+frames a second (dry, waterlevel 2, under, by a ledge, holding on, on the bottom, off, out again, bobbing in and out
+every half second), every frame's step within the spring's fastest, the first frame after a change under 0.25 degrees:
+`body_pitch_test: 22 passed, 0 failed` (`-QuitOn "body_pitch_test: [0-9]+ passed"`). In the game:
+`python Misc/quakevr/swimtilt_test.py <agent>`: vrfiringrange's pool with the mock headset, then `-flatscreenmode`, the
+body shown from its left (`vr_body_debug 3`): dry 0, 12 frames under easing in, 45 swimming, straightening under the exit
+ledge, upright at the surface and on Quake's water jump out (12 checks; the screenshots composed into
+`scratch/swimtilt_vr.png` and `swimtilt_flat.png`). Note: `setpos` turns noclip on (no water level updates there): follow
+it with `noclip` to turn it off; `cl_upspeed 1; +moveup` keeps him from sinking. `vr_body_pitch <range>` also prints the
+nearest ledge out of the water within the range (finding test spots).

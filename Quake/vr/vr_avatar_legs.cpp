@@ -488,10 +488,15 @@ namespace
     const glm::vec3 across{water.dir.x, water.dir.y, 0.f}; // the stick's share, sideways of the body's up
     const float len = glm::length(across);
     const float backwards = len > 1e-3f ? za::max(0.f, -glm::dot(across, b.fwd) / len) : 0.f;
-    const glm::vec3 trail =
-        safeNormalize(-UP * (1.f + 0.5f * za::min(0.f, water.dir.z)) - across * (0.9f * (1.f - 0.5f * backwards)), -UP);
+    // The body's pitch (vr_avatar_pitch.cpp: the swimming tilt): the legs trail along the turned trunk, the stick's
+    // own trail less as the trunk already lies forward (at 45 degrees, about 30 more at full stick).
+    const float pitched = CLAMP(0.f, bodyPitch.angle * bodyPitch.legs / 60.f, 1.f);
+    const glm::mat3 pitch = bodyPitchTurn(b, bodyPitch.legs);
+    const glm::vec3 trail = pitch * safeNormalize(-UP * (1.f + 0.5f * za::min(0.f, water.dir.z)) -
+                                                      across * (0.9f * (1.f - 0.5f * backwards) * (1.f - 0.5f * pitched)),
+                                        -UP);
 
-    const glm::vec3 kickDir = b.fwd + across * 0.8f;
+    const glm::vec3 kickDir = pitch * (b.fwd + across * 0.8f);
     const glm::vec3 kickAxis = safeNormalize(kickDir - trail * glm::dot(kickDir, trail), b.fwd);
     const float amp = glm::radians(6.f + 16.f * water.stick) * CLAMP(0.f, vr_body_swim_kick.value, 2.f);
     const float phase = water.phase + (side == 0 ? 0.f : glm::pi<float>());
@@ -561,7 +566,8 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     if(swim > 1e-3f)
     {
         target = glm::mix(target, swimFoot(b, side, t.pos, a + l), swim);
-        kneeDir = safeNormalize(glm::mix(kneeDir, b.fwd, swim), b.fwd);
+        const glm::vec3 front = bodyPitchTurn(b, bodyPitch.legs) * b.fwd; // (the body's front, tilted: vr_avatar_pitch.cpp)
+        kneeDir = safeNormalize(glm::mix(kneeDir, front, swim), b.fwd);
     }
     // Climbing: to its foothold or hanging (updateClimbing), the knee towards the face and a little out (hanging, a
     // little forward).

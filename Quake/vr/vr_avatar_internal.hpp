@@ -1,6 +1,6 @@
 #pragma once
-// vr_avatar_internal.hpp -- what vr_avatar.cpp (see vr_avatar.hpp) shares with its legs (vr_avatar_legs.cpp) and
-// climbing feet (vr_avatar_climb.cpp). Internal: included by those three alone. Namespace avatar::detail: the
+// vr_avatar_internal.hpp -- what vr_avatar.cpp (see vr_avatar.hpp) shares with its legs (vr_avatar_legs.cpp),
+// climbing feet (vr_avatar_climb.cpp) and the body's pitch (vr_avatar_pitch.cpp). Internal: included by those alone. Namespace avatar::detail: the
 // skeleton's types and constants and the legs' and climbing's state (once vr_avatar.cpp's anonymous namespace), and
 // the functions each file calls in another.
 #include "vr_avatar.hpp"
@@ -197,5 +197,52 @@ extern Climbing climbing;
 [[nodiscard]] glm::vec3 climbOutward(int side);
 void updateClimbing(const Body& b, float dt, bool legs);
 void logClimbing(const Body& b);
+
+// ---- The body's pitch (vr_avatar_pitch.cpp) ----
+// One pose state: the trunk (pelvis, spine, chest) turned `angle` degrees forward about the top of the neck, so the head
+// stays where the headset (or the flat-screen eye) is; the arms reach the controllers from where the turned chest puts
+// the shoulders, the legs hang from the turned hips and trail along the trunk by `legs`. A source sets the target
+// (swimming today; lying down and crawling, BACKLOG.md, later: its own target, the legs on the floor), the ease is
+// shared. Updated after solveTorso each frame (pose): solveTorso turns by last frame's angle, as with climbHang.
+enum class PitchSource : int
+{
+    None,
+    Swim, // fully under water, off the bottom (vr_body_swim_tilt)
+};
+
+struct BodyPitch
+{
+    float angle{0.f};    // degrees now, the trunk forward (eased)
+    float rate{0.f};     // degrees a second (the ease's: continuous, so no pops either way)
+    float target{0.f};   // degrees, this frame's
+    float easeTime{0.8f}; // seconds the ease takes to cover 95% of a step
+    float legs{1.f};     // how much the legs' rest direction turns with the trunk (swimming: all of it)
+    PitchSource source{PitchSource::None};
+    // Swimming's inputs, as last seen (vr_body_pitch prints them).
+    int waterlevel{0};
+    bool onGround{false};
+    float ledgeDist{-1.f}; // units to the nearest ledge out of the water within vr_body_swim_tilt_ledge (-1: none)
+    unsigned updates{0};   // frames updated (the body posed) since the last reset
+};
+
+extern BodyPitch bodyPitch;
+
+// Swimming's target (the self-test feeds it directly).
+struct SwimPitchIn
+{
+    bool on{true};
+    int waterlevel{0};
+    bool onGround{false};
+    float angle{45.f};       // degrees under water
+    float ledgeDist{-1.f};   // units to a ledge out of the water (-1: none)
+    float ledgeRange{64.f};  // units: within it, straightening (upright within a third of it)
+    float climb{0.f};        // Climbing::weight: holding on takes the tilt out
+};
+[[nodiscard]] float swimPitchTarget(const SwimPitchIn& in);
+void easePitch(float& angle, float& rate, float target, float easeTime, float dt);
+
+// The trunk's turn now (about the body's left; identity upright), `share` of it (the legs': BodyPitch::legs).
+[[nodiscard]] glm::mat3 bodyPitchTurn(const Body& b, float share = 1.f);
+void updateBodyPitch(const hands::State& s, float dt);
 
 } // namespace qvr::avatar::detail

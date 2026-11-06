@@ -260,4 +260,8 @@ struct WalkState
 // off as this cadence does, as far as vr_body_step_run says.
 [[nodiscard]] float personStep(float speed);
 
+// Registers vr_body_pitch (the body's pitch now: the swimming tilt) and vr_body_pitch_test (its self-test):
+// vr_avatar_pitch.cpp.
+void init();
+
 } // namespace qvr::avatar
