@@ -2232,6 +2232,20 @@ struct EmbedPin
     glm::quat relTurn{1.f, 0.f, 0.f, 0.f};
     glm::vec3 lastOnPos{0.f}, lastOnRot{0.f}, lastCtlPos{0.f}, lastCtlRot{0.f}; // the last frame on it
     float lastOffset{0.f};   // (vr_embed_probe: the drawn hand's offset from its controller last frame, units)
+    // This frame (embedPinStep, before the weapons are placed): on it; off it, the ease's offset and turn about the controller,
+    // one transform for the drawn hand and the weapon in it (his note 2026-11-06: "both the axe and the hand should smoothly
+    // travel together").
+    bool on{false};
+    bool easing{false};
+    glm::vec3 easeOff{0.f};
+    glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
+    // (vr_embed_probe: the drawn weapon's origin from its controller last frame, the blade's while on it; its pose as placed
+    // before the ease this frame.)
+    bool weaponOffValid{false};
+    glm::vec3 weaponOff{0.f};
+    glm::vec3 weaponPre{0.f}, weaponDrawn{0.f};
+    glm::mat3 weaponPreTurn{1.f}, weaponDrawnTurn{1.f};
+    bool weaponPreSet{false};
 };
 EmbedPin embedPins[2];
 
@@ -2244,6 +2258,9 @@ struct EmbedProbe
     float gib{-1.f};   // cm: a hand holding a skewered gib, drawn from where it took hold of it on the gib (the most)
     float gibCtl{-1.f}; // cm: and its controller from there (the most: how far off the gib it would be drawn without)
     int on{0};         // frames a hand was drawn on a blade
+    float grip{-1.f};  // cm: coming off a blade into the hand, the drawn hand from where it holds the drawn weapon (the most)
+    float wstep{0.f};  // cm: and the most the drawn weapon's offset from its controller changed in a frame (the blade's before)
+    int eased{0};      // frames a weapon was drawn easing off a blade
 };
 EmbedProbe embedProbe;
 
@@ -2264,6 +2281,9 @@ void embedProbeWrite()
     Cvar_SetValueQuick(&vr_embed_probe_gib, embedProbe.gib);
     Cvar_SetValueQuick(&vr_embed_probe_gibctl, embedProbe.gibCtl);
     Cvar_SetValueQuick(&vr_embed_probe_on, static_cast<float>(embedProbe.on));
+    Cvar_SetValueQuick(&vr_embed_probe_grip, embedProbe.grip);
+    Cvar_SetValueQuick(&vr_embed_probe_wstep, embedProbe.wstep);
+    Cvar_SetValueQuick(&vr_embed_probe_eased, static_cast<float>(embedProbe.eased));
 }
 
 [[nodiscard]] bool embedPinUsable(const EmbedPin& pin)
@@ -2308,50 +2328,10 @@ void embedHandleHand(const entity_t& e, bool mirrored, glm::vec3& onPos, glm::ve
 void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& pos, glm::vec3& rot)
 {
     EmbedPin& pin = embedPins[hand];
-    const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
-    pin.last = vr_gametime;
-    const int stat = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF];
-    if(stat > 0 && (stat / 2 != pin.ent || pin.weight <= 0.f))
+    if(!pin.on)
     {
-        pin.ent = stat / 2;
-        pin.byHandle = (stat & 1) != 0;
-        pin.spot = -1;
-        pin.release = 0.f;
-        if(embedPinUsable(pin))
-        {
-            const entity_t& e = cl_entities[pin.ent];
-            const glm::mat3 turn = glm::transpose(entityTurn(e));
-            pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
-            pin.localTurn = turn * anglesBasis(s.rot[hand]);
-            pin.spot = pin.byHandle ? -1 : embedNearestSpot(e, s.pos[hand]);
-        }
+        return; // (off it, easing: setupWeapon and setupHand move both, embedEase)
     }
-    const bool on = stat > 0 && embedPinUsable(pin);
-    if(!on && pin.weight > 0.f)
-    {
-        // Off it: from where it was drawn on it, eased to its controller.
-        pin.releaseFrom = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
-        pin.relPos = pin.lastOnPos - pin.lastCtlPos;
-        pin.relTurn = glm::normalize(glm::quat_cast(anglesBasis(pin.lastOnRot)) * glm::inverse(glm::quat_cast(anglesBasis(pin.lastCtlRot))));
-        pin.release = 1.f;
-        pin.weight = 0.f;
-    }
-    if(!on)
-    {
-        if(pin.release > 0.f)
-        {
-            pin.release = za::fmax(0.f, pin.release - dt / za::fmax(vr_embed_free_ease.value, 0.001f));
-            const float w = pin.releaseFrom * pin.release * pin.release * (3.f - 2.f * pin.release);
-            pos += pin.relPos * w;
-            rot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, pin.relTurn, w)) * anglesBasis(rot));
-            const float offset = glm::length(pin.relPos) * w;
-            embedProbe.step = za::fmax(embedProbe.step, za::fmax(offset - pin.lastOffset, pin.lastOffset - offset) / units::metresToUnits() * 100.f);
-            pin.lastOffset = offset;
-            embedProbeWrite();
-        }
-        return;
-    }
-    pin.weight = za::fmin(1.f, pin.weight + dt / embedPinIn);
     const entity_t& e = cl_entities[pin.ent];
     glm::vec3 onPos, onRot;
     if(pin.byHandle)
@@ -2390,7 +2370,117 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     pin.lastOnPos = pos;
     pin.lastOnRot = rot;
     pin.lastOffset = glm::distance(pos, pin.lastCtlPos);
+    if(pin.byHandle)
+    {
+        // (vr_embed_probe: the blade as drawn, from its controller: where the weapon in the hand starts from.)
+        pin.weaponOff = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - s.pos[hand];
+        pin.weaponOffValid = true;
+    }
     embedProbe.on++;
+    embedProbeWrite();
+}
+} // namespace
+
+// Each frame, before the weapons are placed: whether `hand` holds a blade in a body (STAT_QVR_EMBED*), and off it, the ease back to
+// its controller (vr_embed_free_ease) that the drawn hand and the weapon in it share (embedEase).
+void embedPinStep(const hands::State& s, int hand)
+{
+    EmbedPin& pin = embedPins[hand];
+    const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
+    pin.last = vr_gametime;
+    pin.weaponPreSet = false;
+    const int stat = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF];
+    if(stat > 0 && (stat / 2 != pin.ent || pin.weight <= 0.f))
+    {
+        pin.ent = stat / 2;
+        pin.byHandle = (stat & 1) != 0;
+        pin.spot = -1;
+        pin.release = 0.f;
+        if(embedPinUsable(pin))
+        {
+            const entity_t& e = cl_entities[pin.ent];
+            const glm::mat3 turn = glm::transpose(entityTurn(e));
+            pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+            pin.localTurn = turn * anglesBasis(s.rot[hand]);
+            pin.spot = pin.byHandle ? -1 : embedNearestSpot(e, s.pos[hand]);
+        }
+    }
+    pin.on = stat > 0 && embedPinUsable(pin);
+    if(!pin.on && pin.weight > 0.f)
+    {
+        // Off it: from where it was drawn on it, eased to its controller.
+        pin.releaseFrom = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
+        pin.relPos = pin.lastOnPos - pin.lastCtlPos;
+        pin.relTurn = glm::normalize(glm::quat_cast(anglesBasis(pin.lastOnRot)) * glm::inverse(glm::quat_cast(anglesBasis(pin.lastCtlRot))));
+        pin.release = 1.f;
+        pin.weight = 0.f;
+    }
+    pin.easing = false;
+    if(pin.on)
+    {
+        pin.weight = za::fmin(1.f, pin.weight + dt / embedPinIn);
+        return;
+    }
+    if(pin.release <= 0.f)
+    {
+        pin.weaponOffValid = false;
+        return;
+    }
+    pin.release = za::fmax(0.f, pin.release - dt / za::fmax(vr_embed_free_ease.value, 0.001f));
+    const float w = pin.releaseFrom * pin.release * pin.release * (3.f - 2.f * pin.release);
+    pin.easing = true;
+    pin.easeOff = pin.relPos * w;
+    pin.easeTurn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, pin.relTurn, w);
+    const float offset = glm::length(pin.relPos) * w;
+    embedProbe.step = za::fmax(embedProbe.step, za::fmax(offset - pin.lastOffset, pin.lastOffset - offset) / units::metresToUnits() * 100.f);
+    pin.lastOffset = offset;
+    embedProbeWrite();
+}
+
+bool embedEase(int hand, glm::vec3& offset, glm::quat& turn)
+{
+    const EmbedPin& pin = embedPins[hand];
+    if(!pin.easing)
+    {
+        return false;
+    }
+    offset = pin.easeOff;
+    turn = pin.easeTurn;
+    return true;
+}
+
+void embedEaseWeapon(int hand, const glm::vec3& pre, const glm::mat3& preTurn, const glm::vec3& drawn, const glm::mat3& drawnTurn)
+{
+    EmbedPin& pin = embedPins[hand];
+    pin.weaponPre = pre;
+    pin.weaponPreTurn = preTurn;
+    pin.weaponDrawn = drawn;
+    pin.weaponDrawnTurn = drawnTurn;
+    pin.weaponPreSet = true;
+}
+
+namespace
+{
+// vr_embed_probe: a hand easing off a blade with a weapon in it: the drawn hand (`pre` as placed before the ease, `pos` as drawn) from
+// where it holds the weapon as drawn (the hand's place on it before the ease, carried by the weapon's own move); the weapon's step.
+void embedEaseProbe(const hands::State& s, int hand, const glm::vec3& pre, const glm::vec3& pos)
+{
+    EmbedPin& pin = embedPins[hand];
+    if(!vr_embed_probe.string[0] || !pin.weaponPreSet)
+    {
+        return;
+    }
+    const float toCm = 100.f / units::metresToUnits();
+    const glm::vec3 grip = pin.weaponDrawn + pin.weaponDrawnTurn * (glm::transpose(pin.weaponPreTurn) * (pre - pin.weaponPre));
+    embedProbe.grip = za::fmax(embedProbe.grip, glm::distance(pos, grip) * toCm);
+    const glm::vec3 off = pin.weaponDrawn - s.pos[hand];
+    if(pin.weaponOffValid)
+    {
+        embedProbe.wstep = za::fmax(embedProbe.wstep, glm::distance(off, pin.weaponOff) * toCm);
+    }
+    pin.weaponOff = off;
+    pin.weaponOffValid = true;
+    embedProbe.eased++;
     embedProbeWrite();
 }
 
@@ -2913,7 +3003,8 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 pos = controllerPos;
     bool hide = false;
     glm::mat4 motion{1.f}; // the weapon's firing animation where the hand holds it (animationMotion)
-    if(slot >= 0 && slot != fist)
+    const bool armed = slot >= 0 && slot != fist;
+    if(armed)
     {
         hide = weapons::value(slot, Key::HideHand) != 0.f;
         handRot = attachedTurn(s.rot[hand], slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
@@ -2922,7 +3013,6 @@ void setupHand(const hands::State& s, int hand)
         moveDrawnHand(hand, mirrored, attachedTurn(s.rot[hand], slot, mirrored, glm::vec3{0.f}, hand),
             weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
             weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
-        motion = animationMotion(weapon, pos);
     }
     else if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
     {
@@ -2932,6 +3022,26 @@ void setupHand(const hands::State& s, int hand)
         moveDrawnHand(hand, mirrored, attachedTurn(controllerRot, embedSlot, mirrored, glm::vec3{0.f}, hand),
             weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
             weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+    }
+    // Just off a blade in a body: eased from where it was on it, the weapon in it with it (setupWeapon), one turn about the
+    // controller and one move for both (his note 2026-11-06: the axe stays in the drawn hand all the way).
+    glm::vec3 easeOff{0.f};
+    glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
+    if(embedEase(hand, easeOff, easeTurn))
+    {
+        const glm::vec3 pivot = armed ? s.pos[hand] : pos;
+        const glm::vec3 pre = pos;
+        const glm::mat3 turn = glm::mat3_cast(easeTurn);
+        pos = pivot + easeOff + turn * (pos - pivot);
+        handRot = basisAngles(turn * anglesBasis(handRot));
+        if(armed)
+        {
+            embedEaseProbe(s, hand, pre, pos);
+        }
+    }
+    if(armed)
+    {
+        motion = animationMotion(weapon, pos);
     }
 
     // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves

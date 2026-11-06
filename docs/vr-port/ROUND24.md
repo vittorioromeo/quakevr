@@ -683,6 +683,37 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   | 24 | (new) | 19/1 | 20/2 unseeded (eased 3.58; the axe drag 5.2 units, held); 21/1 seeded 1 (eased) |
   | 1 | 4 failed, no verdict | 4 failed, no verdict | 57/4, with its verdict (the same 4) |
   | 21 | 39/2 | 40/2 | 40/2 (the same 2) |
+
+## Embedded blades: his notes of 2026-11-06 (agent embedfix, branch `agent/embedfix`)
+
+- **"Unsticking an embedded axe makes the hand lag behind."** The cause, as he guessed: the blade's entity goes at once and the axe is
+  drawn in the hand again at its controller's pose (setupWeapon: `s.pos`, `s.visualRot`), while the drawn hand eased from where it was on
+  the blade (embedDrawnHand, vr_embed_free_ease); and a hand holding a weapon took its turn from `s.rot`, so the hand's turned ease was
+  dropped too. Now `embedPinStep` (vr_view_hands.cpp, each frame before the weapons) works out the ease once, as one rigid transform
+  about the controller (`embedEase`: the turn, then the move), and setupWeapon (the weapon, before it is placed: its attachments and
+  hotspots follow) and setupHand (the hand, after its weapon's pose) both apply it. An empty hand eases as before.
+- **"Decapitation or a limb cut with the axe leaves it embedded where the part was."** A killing blow's cut happens inside the blow,
+  before VR_Embed_BlowsDone sticks the blade; just killed, the body may not be a hit model yet and the engine falls back to sticking in
+  its box at the contact (kind 4, "8.8 cm off its model"), in nothing, and the hand on it moved the ragdoll. Now VR_Embed_Try (vr_embedhold.qc)
+  doesn't stick a blade in a body that had a head or limb cut off within the blow's wait (`.vr_stick_cutat`, set by VR_AxeStick_CutDone:
+  a blow that cuts a part off went through it), nor where the part it would go into is cut off (VR_AxeStick_BoneCut: the bone's bit in
+  ragdolllimbs 2, or a head bone of a headless body), checked again on where it went in; the blade stays in the hand. A stuck blade
+  whose part is cut off by anything later comes free (VR_AxeStick_Think: into the hand if held, else it falls), on top of the cut's own
+  CutPrepare/CutDone marks.
+- **Decision:** not embedded in the severed part. The severed head or limb is a flying gib: an edge's blade held in one would be a new
+  mechanism (the hold's spring and drag are a ragdoll's; skewering is a pointed blade's, along its line). The blow went through it, so
+  the axe stays free in the hand. Ask him if he wants the gib to stay on the axe (as a skewer).
+- **Test:** `vr_embed_test 25` (`embedfix: N passed, M failed`): 0 a killing axe swing at the head (beheads), 1 at a limb (cuts it off):
+  no blade in the body, the axe in the hand, the hand drawn back doesn't move the body; 2 a hard axe tug: `vr_embed_probe_grip` (the drawn
+  hand from where it holds the drawn axe, the most over the ease) and `_wstep` (the drawn axe's per-frame step from its controller,
+  from the blade's last drawn place on) against the hand's `_step`. A blow that didn't land as the case wants (the mock swing sometimes
+  turns side on, or misses the head) is dealt again, at most 3 times, said in the log. `vr_embed_probe_split 1` draws the weapon the old way.
+- **Numbers (low-impact runs):** before (split 1): grip 31.1 cm, the axe's step 31.4 cm in one frame; after: grip 0.00 cm over 18 frames,
+  the axe's step = the hand's (3.42 cm at 2 m/s, the 20 cm tug's eased offset). The cut: the first run, with only the bone check, had
+  the limb blow (limb 7 cut, the blade "in" bone 6, kind 4) stuck and held, the body dragged 30 units; without the blow check it
+  happened in 1 run of 5 (4 more with the QC checks off: none; timing, whether the dead body is a hit model yet); with it, 0 of 4. Test 25: 13/0 three times. Test 7:
+  75/7 seeded 1 (as origin/next), 76/6 and 74/8 unseeded (the known stab/slide ones); 11: 103/0 seeded and not; 24: 21/1 seeded 1 (the
+  known "eased" 3.59 > 3 thin margin), 20/2 and 21/1 unseeded (the known corpse lift/drag); 21: 40/2 (the same 2).
 ## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
 
 **Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
@@ -1018,6 +1049,40 @@ Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the sam
 (axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
 `vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
 `vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+
+## Flat pose leftovers: the front sights (branch `agent/flatsolve7`, 2026-11-06)
+
+**`flatads_test.sh` reported 2 passed** after the flatsolve6 merge: its `SECTIONS` defaulted to `a` (the recoil's two
+checks), so a plain run skipped b-e. Run with all sections: 7 passed, 0 failed. The default is now every section.
+
+**The front sights (4 / 4b).** Measured on each gun's mesh (frame 0) with the eye on its sight line, as the flat
+ironsight puts it (rays from the eye to points under the front sight's top, stopped by anything nearer): how far down the
+front sight is seen. Before: shotgun 0.27, lightning gun 0.60+, nail pistol 0.29, revolver 0.35; **flare gun 0.00, grunt
+burst rifle 0.01, enforcer rifle 0.00, super shotgun 0.00**. The three modelled ones had the same cause: the line ran
+from the rear notch's *bottom* (the rear sight's block is solid under it and hides everything below the line) to a front
+top no higher. **Not asymmetry:** the grunt gun's post, ears, muzzle and bore all sit at y +0.016 (the MDL's y
+quantization; the whole gun +0.040), so nothing is off sideways. Fixes, each front top raised level with the rear's tops
+so the line runs over them (the nail pistol's and revolver's design):
+- Flare gun: the blade's top to EAR_TOP_Z (+0.28; the .blend edited, 4 vertices, re-exported: 12 MDL vertices moved,
+  skins and UVs identical). `build_flaregun.py` builds it so too (its rebuild is not byte-reproducible: it differs in
+  vertex order and noise, so the .blend was edited instead, as its README says). Line `{1.15, 0, 6.412}` -> `{11.75, 0,
+  6.412}`, still parallel to the bores. Seen 0.26 of the 0.28 notch.
+- Grunt burst rifle (`make_enemyguns.py`): the post's top 14.45 -> 14.9 (the ears' tops): the line level (was 0.22 deg
+  up). Seen 0.59.
+- Enforcer rifle: the notch 0.3 (its ears) under the line's rear point; the generator's floor (notch 0.2 over the housing)
+  lifts the line 0.14: rear 10.799, post top 10.659 (0.44 over the band, was 0.30), still zeroed at 10 m (0.483 deg, was
+  0.471). Seen 0.42.
+- Super shotgun: **not fixed: a model issue.** Its ring is painted on the back of a solid block and its bead is a painted
+  patch on the barrels' top: on the line through the ring the block hides the bead, and over the ring (tried: a flat-only
+  line 0.09 over the ring's top) the bead, flush with the top, is seen edge-on (a pixel or two at 960x540). A real fix is
+  geometry: a raised bead (and/or a cut aperture) on v_shot2.mdl.
+
+Headset `vr_sight_check` (mock, laser vs sight line): super shotgun 0.653 -> 0.653, grunt gun 0.221 -> 0.000, enforcer
+rifle 0.470 -> 0.481 (its zero), flare gun 0.048 -> 0.048. flatsight 12/0, flatads 7/0. Sighted sheets:
+`scratch/fs7_ads_before.png`, `fs7_ads_after.png`, `fs7_zoom_after.png` (the posts and the blade in the notches).
+Measure: `python Misc/quakevr/sight_picture.py` (ONLY=<gun>, YS=1).
+
+**Not done:** 2 (walls: push back and muzzle up, tunables), 3 (the walking wrist, `steadyOther`).
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").
