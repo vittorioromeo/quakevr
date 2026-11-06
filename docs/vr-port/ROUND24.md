@@ -966,6 +966,24 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
 
+## Flat-screen: standing up under a low ceiling (agent/flatmove2, 2026-11-06)
+
+His note: "flatscreen crouch allows the player to uncrouch even when there is geometry above, causing the player to
+penetrate geometry. It should share the same checks/code paths as the VR crouch." The server's box already took the
+headset's path when Ctrl was let go (`updateCrouch`: standing if it fits, else the tallest crouched box that fits, else
+the one he has), but the client eased the view back up whatever the box, so the camera went into the ceiling.
+
+- **The view follows the box.** `pollKeysFlat` keeps the eased crouch no lower than leaves his eyes 8 units
+  (`flatEyeHeadroom`) under his box's top, read from the local server (`hull::localEyeCap`, as the lean's `playerBoxFits`
+  reads it). 40-high tunnel: he stays down (36 box, eyes 28). 48-high gap: 44 box, eyes 36. Walked out: standing again.
+- **Bit 14 is the key now** (`flatplay::crouchHeld`, was "eased crouch above 0"): with the view held down by a kept box,
+  the eased bit would have kept the box crouched for ever.
+- **Crouch speed** follows the box too: slowed while the key is held or his box is kept crouched.
+- **Multiplayer client** (no local server): no cap; the server's box still holds, only the view is not capped.
+- **Test:** `flatmove_test.sh` rise (`vr_flatmove_test 4`, vrteleporters' crouching room). Before: tunnel eyes 46 under a
+  40 ceiling, gap eyes 46 under 48 (2 failed); walked out stood (passes before and after, the guard against a stuck box).
+- **To try (flat-screen):** vrteleporters, east room: crouch into the LOW TUNNEL and the GAP, let go of Ctrl inside: the
+  view stays under the ceiling; walk out and you stand.
 ## The shotgun as a source .blend (spike, branch `agent/blendsg`)
 
 His goal (BACKLOG, "Easier modelling and asset creation"): the weapons natively editable in Blender, Quake's animations
