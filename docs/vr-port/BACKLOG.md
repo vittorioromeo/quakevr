@@ -23,6 +23,9 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 
 ## 2. The 1.1 release
 
+- **Gameplay page before 1.1** (Vittorio, 2026-11-06): VR Settings must have a "Gameplay" section that tweaks every major gameplay decision from one simple menu (armed replacements, embedded blades, knockdowns, melee and parry, bullet time, arena, difficulty-like toggles...); check vr_menu_gameplay.inc covers them all, plainly named.
+- **Armed replacements on by default in 1.1** (Vittorio, 2026-11-06): `vr_agrunt_repl` 1 (already the default; keep it).
+- **Installer settings page** (users' request, 2026-11-06): after installing, a page to set the most common settings before the first launch; his call on scope and timing.
 - **Release pass:** QUEUE.md lists it (release build tests, real packaging, beta4 upgrade path, mods, notes).
 - **A VR Tracy capture** (`vr_tracy_preset full`) and a VR RenderDoc capture, to confirm the perf work on real hardware.
 - **Lower-end graphics settings before a release** (the author, round 20: "maybe later on before release, you can
