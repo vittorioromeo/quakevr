@@ -41,7 +41,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(HERE, "blender", "addons", "quakevr_hand"))
+sys.path.insert(0, os.path.join(HERE, "blender", "addons", "quakevr_models"))
 import genguard  # noqa: E402
 import md5hand  # noqa: E402
 

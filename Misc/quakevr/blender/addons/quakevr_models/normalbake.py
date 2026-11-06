@@ -43,12 +43,12 @@ def _qpal():
 def _md5hand():
     import sys
     try:
-        import bpy  # noqa: F401  (in Blender: the hand's add-on, as a package)
+        import bpy  # noqa: F401  (in Blender: the add-on's package)
         if ADDONS not in sys.path:
             sys.path.append(ADDONS)
-        from quakevr_hand import md5hand
+        from quakevr_models import md5hand
     except ImportError:
-        d = os.path.join(ADDONS, "quakevr_hand")
+        d = os.path.join(ADDONS, "quakevr_models")
         if d not in sys.path:
             sys.path.append(d)
         import md5hand

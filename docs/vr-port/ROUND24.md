@@ -1771,3 +1771,49 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
+
+## One Blender add-on, a shorter loop (branch `agent/blendaddon`, 2026-11-06)
+
+His ask: .blend as the source of truth for every model, a simpler workflow, one add-on, engine help. The page for him:
+[BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md).
+
+- **One add-on, "Quake VR".** The hand's add-on (`quakevr_hand`) is `quakevr_models/hand_blender.py` now and
+  `md5hand.py` moved beside it (make_hand_rig.py, make_hand_feminine.py, normalbake.py follow). The package keeps the
+  name `quakevr_models` (decision: his Blender stays ticked with its preferences, and blend_export.py and the tests'
+  imports don't change); only the shown name changed. On a windowed start it takes the old `quakevr_hand` entry out
+  of the preferences (marked dirty: Auto-Save keeps it). One panel finds what the .blend edits (a model's source, a
+  hand-made source, the jointed hand, the body, an imported .mdl: that one gets **Open Its Source .blend**, from
+  generated.json) and shows that kind's tools; the imports sit at its foot. Operator ids kept (`quakevr_hand.*`).
+- **Export on save for every kind.** A .blend holding the imported hand or body exports on save too
+  (`md5source.py`, through blend_export.py): to the Game Folder, else the .blend's repository's `quakevr/progs`. Saved
+  unedited: the shipped files byte for byte but the md5mesh's `commandline` line (hand: 7 files; body: 20). The
+  normal maps are baked again only when the mesh or a skin changed.
+- **Two body export bugs fixed** (found by the round trip): the skin export took the normal map the import shows
+  (1024x1024) as the skin and refused; and it put every off-palette texel of an untouched skin on the palette (20% of
+  the bytes of each of the 16 skins changed). Now only changed texels are quantized, as its option says.
+- **Engine** (`vr_blender.cpp`): `vr_edit_in_blender [model|hand|look] [-n]` opens the model's source .blend in Blender
+  (generated.json's `source`, else `src_models/blend/<m>/<m>.blend`; the hand and the body, with none, imported by the
+  add-on through `--python-expr`); the repository is the game folder resolved through links (`files::resolved`).
+  `vr_blender_path` (archived, empty: the newest `Program Files/Blender Foundation/Blender X.Y/blender.exe`).
+  `vr_model_show <model>`: the model in front of you, turning (a client-side visedict; not the hand or body);
+  `vr_blender_link 1`: `quakevr/blender_request.txt` (the add-on's **Show in Game**) asked every half second (one
+  file time), only `show`/`reload` lines run, a request older than the game ignored. Debug > Tests: Edit in Blender,
+  Edit Looked-At Model in Blender, Hear Blender's Show in Game, Hide the Model from Blender.
+- **Tests:** `blend_addon_test.sh <agent>`: `vr_blender_test` 17/17 (sources of v_shot, a hand-made gun, vrgrunt, the
+  pump part, a crate, the hand; the main hand's shotgun; Blender found; the request file: 2 lines run, 2 refused, not
+  run twice; show and hide), and the hand's and body's .blend exported on save through the one add-on (9/9 each,
+  the panel drawn into a stand-in layout). `blend_autoexport_test.sh` 6/6 for v_shot and for `BA_MODEL=vr_crate1`.
+- **Not checked:** a windowed Blender (the panel, Show in Game's button, the hand's import from the game waits for
+  the window with a timer), and a real launch of Blender from the game (`-n` only: no GUI in tests); "look" picking
+  has no assertion. The md5 plan's first step (a hand source .blend with the engine's tables) is not done: saving
+  the imported hand inside the repository is its stand-in.
+
+**Checklist lines (suggested):**
+- Blender: only "Quake VR" in Add-ons (no Quake VR Hand, no "add-on not found" at start); its sidebar panel says what
+  the file is (open v_shot.blend: "Source of v_shot.mdl").
+- In game, shotgun in hand: Debug > Tests > Edit in Blender opens v_shot.blend in Blender; edit, Ctrl+S, the gun
+  changes in your hand.
+- Blender: Show in Game on vr_crate1.blend draws the crate in front of you, turning; Debug > Tests > Hide the Model
+  from Blender takes it away.
+- `vr_edit_in_blender hand_rig` imports the hand into Blender; saved as src_models/blend/hand_rig/hand_rig.blend, a
+  Ctrl+S after an edit changes your hand in game.
