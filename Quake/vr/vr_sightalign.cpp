@@ -65,7 +65,7 @@ struct Painted
 };
 constexpr Painted painted[] = {
     {"progs/v_shot.mdl", Rear::Notch},  // two rear posts, a front post
-    {"progs/v_shot2.mdl", Rear::Ring},  // a ring, a front post
+    {"progs/v_shot2.mdl", Rear::Ring},  // a ring (a real aperture), a raised front bead (2026-11)
     {"progs/v_light.mdl", Rear::Notch}, // two rear posts, a front post (round 20)
     {"progs/v_plasma.mdl", Rear::Notch}, // the lightning gun's alternate: the same model
 };

@@ -393,8 +393,8 @@ The generators in `Misc/quakevr` make the shipped models:
 | Generator | Writes |
 |---|---|
 | `make_vrbody.py` | the three builds and the 16 skins |
-| `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons |
-| `gunlooks.py` (after `polish_weapons.py`: `--capture`, then it, then `bake_normals.py`) | the shotgun's and nailguns' skins and rivets, `g_shot0.mdl`, `g_nail.mdl` |
+| `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons until 2026-11: **retired**, every weapon's source is a .blend ([section 9](#every-weapon-2026-11)) |
+| `gunlooks.py` (after `polish_weapons.py`: `--capture`, then it, then `bake_normals.py`) | the shotgun's and nailguns' skins and rivets, `g_shot0.mdl`, `g_nail.mdl`: **retired** likewise |
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
 | `make_flashlight.py` | `vrflashlight.mdl`, its full-colour skin (`vrflashlight.mdl_0.png`) and its sounds; then `bake_normals.py vrflashlight.mdl` |
@@ -479,10 +479,11 @@ with the model).
 weapon's left and right often share texels; the body's arms and legs do), the map carries only what suits every face
 drawing those texels: a tile's relief shows on each face made from it.
 
-## 9. A weapon's source .blend (the shotgun, so far)
+## 9. A weapon's source .blend (every weapon)
 
-For the shotgun the `.blend` is the source and the shipped files are made from it, as a generator made them before. It
-lives in `Misc/quakevr/src_models/blend/v_shot/`:
+For every weapon the `.blend` is the source and the shipped files are made from it, as a generator made them before
+(the list: [Every weapon](#every-weapon-2026-11) below). The shotgun's, as the example, lives in
+`Misc/quakevr/src_models/blend/v_shot/`:
 
 | File | What |
 |---|---|
@@ -550,19 +551,42 @@ from the files, not from your edits.
 `_glow` or `_luma` for what glows: vr_modelload.cpp), but the sights, the barrel glow, the ammo screen and the
 flood-filled corner read the 8-bit skin's palette indices, so the source keeps the palette skin.
 
-### The other weapons (the plan)
+### Every weapon (2026-11)
 
-- **Shared** (done): the add-on (`source.py`: build, checks, export; `sights.py`; anchors read from weapons.txt), the two
-  scripts, the anchors' and hotspots' empties, the barrel mask, the normal maps.
-- **Per weapon:** a `SPECS` entry in `source.py` (the parts the engine draws in its place, the relief's generator, where
-  the rivets start), its painted sights' kind (`sights.PAINTED`) or the table's line, then `blend_build.py <model>` once.
-  The parts: the super shotgun's open halves (`vr_ssg_frame_on_v_shot2`, `vr_ssg_barrels_on_v_shot2`, make_ssg_open.py),
-  the magazines and wells (`vr_mag_on_*`, `vr_magwell_on_*`, make_mags.py: mounted on anchors in vr_view.cpp), the
-  revolver's parts (their own origins: a .blend of their own).
-- **The generators that retire** for a weapon once its .blend ships (they would overwrite its edits): gunlooks.py
-  (v_shot, v_nail, v_lava), polish_weapons.py and the improve_weapons*.py before it, fix_shot_stock_corner.py,
-  recolor_shotgun_sight.py, make_ssg_open.py, make_mags.py's part files; bake_normals.py stays (the export calls its code).
-- **Repository cost:** about the model file's size each (the .blend keeps a compressed copy of the file it stands for,
-  so an unedited export is byte for byte): the 34 `v_*.mdl` are 6.7 MB, so 5 to 10 MB of .blend files and PNGs, plus a
-  new copy of a .blend at each commit that changes it (git doesn't diff .blend files: commit them after an edit
-  session, not after every export).
+Every weapon model the game loads has a source .blend now, and one workflow: open it, edit, **Ctrl+S** (export on
+save), look in the game; or export by hand (`blend_export.py`, above, works on any of them). An untouched export writes
+the shipped files byte for byte (checked for all of them: 56 sources, 112 files).
+
+| Source | Writes (into `quakevr/progs`) |
+|---|---|
+| `src_models/blend/<model>/<model>.blend`, one per model: `v_axe`, `v_chainsaw`, `v_crowbar`, `v_enfrifle`, `v_grpple`, `v_gruntgun`, `v_hammer`, `v_hksword`, `v_ksword`, `v_laserg`, `v_lava`, `v_lava2`, `v_light`, `v_multi`, `v_multi2`, `v_nail`, `v_nail2`, `v_nailpistol`, `v_nailpistol_mag`, `v_plasma`, `v_prox`, `v_rock`, `v_rock2`, `v_spike`, `v_toolgun`; the pickups `g_light`, `g_nail`, `g_nail2`, `g_prox`, `g_rock`, `g_rock2`, `g_shot`, `g_shot0`; the magazines `vr_mag_light`, `vr_mag_nail`, `vr_mag_snail`, `vr_mag_npistol`, `vr_mag_on_v_*` (7), the wells `vr_magwell_on_v_*` (6); `vr_nailpistol_preview` | `<model>.mdl`, its normal map when it ships one, its full-colour skins (`v_crowbar.mdl_0.png`: the PNG beside the .blend, copied) |
+| `src_models/blend/v_shot/v_shot.blend` | the shotgun, its auto pump's two parts, their normal maps |
+| `src_models/blend/v_shot2/v_shot2.blend` | the super shotgun and its two open halves (`vr_ssg_frame_on_v_shot2`, `vr_ssg_barrels_on_v_shot2`: cut from the exported gun by make_ssg_open.py's code, so they follow every edit), their normal maps |
+| `models_src/flaregun/flaregun.blend` (hand-made; its `export_mdl.py` does the export) | `v_flaregun.mdl`, `vr_flare.mdl`, `vr_flaregun_preview.mdl` |
+| `models_src/revolver/revolver.blend` (hand-made) | `v_revolver.mdl` and its `_crane`, `_cyl`, `_frame`, `_shell` parts, `vr_revolver_preview.mdl` |
+| `models_src/widowmaker/widowmaker.blend` (hand-made) | `v_widowmaker.mdl`, `vr_widowmaker_preview.mdl` |
+
+- **The hand-made ones** keep their own layout (objects, a full-colour skin, empties: their README): saving one, or
+  `blend_export.py` on it, runs the `export_mdl.py` beside it. `models_src/nailpistol/` is an archive: its .blend no
+  longer made the shipped gun (the full slide was built from `v_nailpistol_classic.mdl`, edited since), so the nail
+  pistol's files have generic sources made from the shipped ones; its `export_mdl.py` refuses.
+- **The normal maps** are kept as shipped while what they are baked from (the model file, the relief) is unchanged, and
+  baked again when it changes (the export says which). The shipped maps were baked by earlier code: a fresh bake of an
+  unedited model differs in a few bytes for some guns.
+- **Anchors already off the surface** in weapons.txt (the nail pistol's muzzle, the revolver's 2h hand) aren't refused
+  until moved.
+- **No generator overwrites a source's files.** `generated.json` records each file with its `.blend` (`"source"`);
+  `genguard.py` makes a generator leave them as they are (even with `--force`) and say so, and stops a generator all of
+  whose files are owned: polish_weapons.py, gunlooks.py, make_swords.py, make_enemyguns.py, make_chainsaw.py,
+  make_crowbar.py, make_toolgun.py, make_mags.py, make_nailpistol_mags.py, make_ssg_open.py (by hand),
+  improve_weapons*.py, recolor_shotgun_sight.py, fix_shot_stock_corner.py, build_nailpistol_slide.py; bake_normals.py for
+  their maps; the hand-made `build_*.py` refuse without `--from-scratch` (they would overwrite the .blend). Their code
+  stays: the export calls make_ssg_open.py's cut and the normal maps' recipes; gunlooks.py's relief is the PNG beside
+  `v_shot`, `v_nail`, `v_lava`.
+- **A new model** (any `.mdl` the add-on imports): `blend_build.py <model>.mdl` once: it builds the .blend from the
+  shipped files and records its files as owned. Then the .blend is the source.
+- **The super shotgun's bead** (2026-11): a raised, glowing front bead on the muzzle band, and the rib's back end lowered
+  under the ring's middle so the ring is a real aperture: edited in `v_shot2.blend`. Its sight line is 1.47 deg up (was
+  0.65); its shots follow it (`shot_pitch 1.47`, `shot_yaw 0.11` in weapons.txt).
+- **Repository cost:** 11 MB of .blend files and PNGs for the 53 generic sources, plus a new copy of a .blend at each
+  commit that changes it (git doesn't diff .blend files: commit them after an edit session, not after every export).
