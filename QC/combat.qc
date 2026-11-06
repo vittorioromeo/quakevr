@@ -2303,7 +2303,22 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
            e.vr_dummy_striking || e.vr_eshove_striking ||
            (e.vr_ag && VR_AG_Striking(e)) || // an armed grunt's punch, swing or thrust (vr_armedgrunt_play.qc)
-           (e.vr_ad_mon & VR_ADM_MELEE); // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
+           (e.vr_ad_mon & VR_ADM_MELEE) || e.vr_ad_parried; // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
+};
+
+float vr_parry_count;     // the player's parries so far (T_Damage: VR_Parry's), and the last one's attacker (the tests)
+entity vr_parry_count_by;
+
+// The parry's range from attacker `e` (and its blow's push): a blow struck through the shared rules this frame
+// (fight.qc VR_MeleeBlow and kin: a dragon's tail 250, an armed humanoid's long blade) as far as it reaches, never
+// less than `usual`; any other `usual` (150 units; 110 a shambler's: its lightning comes from itself too).
+float(entity e, float usual) VR_Parry_Range =
+{
+    if(e.vr_melee_blow_time == time && e.vr_melee_blow_reach > usual)
+    {
+        return e.vr_melee_blow_reach;
+    }
+    return usual;
 };
 
 // The weapon's line (VR_Parry_Blocks): from its butt (a sword's pommel, a gun's grip) to its far end
@@ -2877,8 +2892,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
     vector to = attacker.origin - targ.origin;
     to_z = 0;
-    // Up close only (a shambler's lightning also comes from the shambler itself).
-    if(vlen(to) > 150 || (VR_IsShambler(attacker) && vlen(to) > 110))
+    // Up close only, as far as the blow reaches (a shambler's lightning also comes from the shambler itself).
+    if(vlen(to) > VR_Parry_Range(attacker, VR_IsShambler(attacker) ? 110 : 150))
     {
         return damage;
     }
@@ -3163,6 +3178,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
         return T_DamageImpl(targ, inflictor, attacker, damage, 1);
     }
     float parried = VR_Parry(targ, inflictor, attacker, damage);
+    if(vr_parried)
+    {
+        vr_parry_count = vr_parry_count + 1; // (the tests: vr_meleerules_test.qc)
+        vr_parry_count_by = attacker;
+    }
     // VR: an armed one parries a monster's melee blow on its weapon (vr_armedgrunt_parry.qc): cut, and no pain from it.
     float agp = FALSE;
     float agpPain = 0;
@@ -3214,7 +3234,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     // VR: a monster's melee blow that was not parried throws the player back (vr_melee_push_player;
     // Quake's own push is weak).
     if(r && parried == damage && inflictor == attacker && (attacker.flags & FL_MONSTER) &&
-       targ.classname == "player" && VR_Parry_MeleeMonster(attacker) && !attacker.vr_eshove_striking && vlen(attacker.origin - targ.origin) < 150)
+       targ.classname == "player" && VR_Parry_MeleeMonster(attacker) && !attacker.vr_eshove_striking &&
+       vlen(attacker.origin - targ.origin) < VR_Parry_Range(attacker, 150))
     {
         VR_Push(targ, targ.origin - attacker.origin, damage * 12 * cvar_hget(cvarh_vr_melee_push_player),
             damage * 3 * cvar_hget(cvarh_vr_melee_push_player));

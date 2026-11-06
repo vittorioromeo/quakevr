@@ -483,9 +483,9 @@ void() dragon_tail_touch =
 
     delta = self.enemy.origin - self.origin;
     tailDamage = vlen(delta);
-    if(vlen(delta) > 150)
+    if(!VR_MeleeBlow_Radius(vlen(delta), 150))
     {
-        return;
+        return; // QVR: (all round, no arc; its reach for the parry: fight.qc VR_MeleeBlow_Radius)
     }
 
     tailDamage = (random() * 30) + 30;
@@ -508,7 +508,7 @@ void() dragon_tail =
 
     dir = self.enemy.origin - self.origin;
     dist = vlen(dir);
-    if(dist < 250)
+    if(VR_MeleeBlow_Radius(dist, 250)) // QVR: (all round, no arc; its reach for the parry)
     {
         T_Damage(self.enemy, self, self, 30);
         if(self.vr_parry_stagger_until > time)

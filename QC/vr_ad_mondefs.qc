@@ -15,6 +15,8 @@ float VR_ADM_ARMOUR = 4; // in plate or metal: a blunt blow sounds on armour (VR
 float VR_ADM_ZOMBIE = 8; // a zombie: only gibbing or beheading kills it for good
 float VR_ADM_NOHEAD = 16; // never beheaded (its own death throws its head: the skull wizard's); its head zone kept
 .float vr_ad_mon;        // VR_ADM_* bits; 0: not one of AD's monsters (or one with none of Quake VR's treatment)
+.float vr_ad_parried;    // one of AD's with none of Quake VR's treatment whose melee is still parried (the Christmas
+                         // pack's elf, reindeer, Santa, snowman: VR_AD_MonsterSetup; VR_Parry_MeleeMonster)
 .float vr_ad_headf;      // its head zone (PositionalHead): forward, up, radius (0: none) on its stand frame
 .float vr_ad_headu;
 .float vr_ad_headr;

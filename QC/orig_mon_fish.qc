@@ -79,10 +79,8 @@ void() fish_melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(60))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(60, FALSE, FALSE))
+        return; // QVR: (reach, melee arc: fight.qc VR_MeleeBlow)
 
     sound(self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
     ldmg = (random() + random()) * 3;

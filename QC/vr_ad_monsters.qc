@@ -352,7 +352,7 @@ void() VR_AD_MonsterSetup =
     // Seeker (progs/mon_seeker.mdl: a walker of metal; deaths 59-70, B 185-196 of five). Head: its rig's 23.8 3.3 48.6.
     else if(t == ad_CT_MONSEEKER)
     {
-        VR_AD_MonKd(VR_ADM_ARMOUR, 24, 48.5, 5, cvarh_vr_corpse_health_enforcer,
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 24, 48.5, 5, cvarh_vr_corpse_health_enforcer, // (its arm's blow)
                     cvarh_vr_knockdown_chance_enforcer, 70, 59, 196, 185);
     }
     // Pyro and fumigator (progs/mon_pyro.mdl, mon_fumigator.mdl: one mesh, id's enforcer's frames with a tank and its
@@ -419,10 +419,18 @@ void() VR_AD_MonsterSetup =
     {
         VR_AD_Mon(VR_ADM_NOHEAD, -8.5, 29, 7, 0);
     }
-    else if(t == ad_CT_MONLOSTSOUL || t == ad_CT_MINIONLOSTSOUL || t == ad_CT_MONBOIL || t == ad_CT_MONJIM ||
-            t == ad_CT_MONJIMROCKET)
+    else if(t == ad_CT_MONLOSTSOUL || t == ad_CT_MINIONLOSTSOUL)
+    {
+        VR_AD_Mon(VR_ADM_MELEE, 0, 0, 0, 0); // (its bite: parried)
+    }
+    else if(t == ad_CT_MONBOIL || t == ad_CT_MONJIM || t == ad_CT_MONJIMROCKET)
     {
         VR_AD_Mon(0, 0, 0, 0, 0);
+    }
+    // The Christmas pack's (none of Quake VR's treatment): their blows parried all the same.
+    else if(t == ad_CT_MONELF || t == ad_CT_MONRAINDEER || t == ad_CT_MONSANTA || t == ad_CT_MONSNOWMAN)
+    {
+        self.vr_ad_parried = TRUE;
     }
     // Bosses: their ragdolls, heads and limbs, no knockdown and no corpse to gib (Quake VR's bosses have none). The
     // judicator (progs/mon_judge.mdl: the justice knight's frames; deaths A 112-121, B 103-111; headfit.py mon_judge 55 -6

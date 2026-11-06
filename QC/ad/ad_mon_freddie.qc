@@ -261,7 +261,7 @@ void(float ad_side) ad_fred_blade =
 	if (self.health < 1) return;
 
 	ad_ai_damagebreakable(20);							// Damage any breakables
-	if (!(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(ad_side != 0))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!VR_MeleeBlow(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL), ad_side != 0, ad_FALSE)) return;	// Too far away // AD support: reach and melee arc (fight.qc VR_MeleeBlow)
 
 	// Can the target bleed? - generate blood
 	if (!ad_CanDamage (self.enemy, self)) return;
