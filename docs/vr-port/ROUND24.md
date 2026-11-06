@@ -174,6 +174,35 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
     ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
     grunt's spiky knee leather and the enforcer's elbow band untouched.
 
+## Armour tweaks file and the Armour Studio (branch `agent/armourstudio`)
+
+His ask: "tweak the armour plates manually for each armed humanoid". Details: `docs/vr-port/ARMOUR_STUDIO.md`.
+
+- **Data:** `quakevr/data/armour.txt` (`vr_armourdata.cpp`): per kind (grunt, enforcer, knight, death_knight, player, or a model's
+  path) and part (cuirass, helmet, pauldron, bracer, thigh, shin, the four sleeves; a limb part both sides mirrored, `_l`/`_r` one
+  side's own): offset, rotate, scale, standoff, start, end, rows. Laid over the generator in `buildShell`: start/end/rows in
+  `planGrid` (`PieceFrame::shiftStart/shiftEnd/rows`; the upper arms' common top taken before them, `PlateGrid::hTopRaw`), standoff
+  on the grid's radii after mirroring, the rest on the piece's vertices after it is made (`tweakVerts`: a sleeve's and the helmet's
+  stand-off pushed out from their middle). Nothing set, nothing touched. Read at start, on `vr_armour_reload`, and when the file
+  changes on disk (`vr_armour_watch` 1, once a second); a changed table makes again only the shells whose tweaks changed
+  (`agarmor::overridesChanged`, `Shell::tweaks`), and the armour models with them. `vr_armour_print`. Cvars: `vr_armour_file`
+  (`data/armour.txt`), `vr_armour_watch` (1).
+- **Empty file = today's armour:** `vr_agarmor_info`'s 14 shell hashes (every wearer and body build) identical to `origin/next`'s.
+  `vr_agarmor_check` 20/0, `vr_agarmor_look_check` 114/0, `vr_agarmor_pop_check` 10/0, `vr_agarmor_test 1` 26/0 (also with a bracer
+  override on), `vr_agarmor_test 5` 24/0, `vr_pp_test 1` 53/0.
+- **Studio:** Debug > Tools > Armour Studio (`vr_armourstudio.cpp`, the VR menu's own sliders: headset and flat screen alike): a
+  subject ahead (QC `vr_armourstudio.qc` `VR_ArmourStudio_Spawn`, fists, `vr_agrunt_freeze` while open, takedamage off), its tier,
+  turn, body ghost (`vr_armourstudio_ghost` 0.4: the body's alpha, the plates whole), the part alone; the part picked outlined in
+  cyan (`agarmor::studioView`, through `debugDraw`); every value a `vr_armourstudio_*` cvar, each change laid into the table and
+  the kind's armour made again (grunt about 40 ms). Undo (a slider's run on one value one step, 64 kept), Reset Part, Reset Kind,
+  Save, Reload, Close. The player's kind edits your own body's plates (no subject or outline: the menu's body clone, a mirror).
+- **Test:** `vr_armour_test` (`armourtest: 24 passed, 0 failed`; Debug > Tests): an override moves the right piece's vertices (the
+  right side's mirrored) and nothing else, a sleeve's stand-off, rows; saved and read back; edited on disk and read again by the
+  watcher; kept over a map change; the shipped file again the generator's shell.
+- **Not done:** the generator's per-kind taste constants (`Wearer::hipFrom`, the stand-offs) stay in the code (moving them was
+  optional; no output change wanted). A part's move or turn is not followed by the hit tests' tube (`PlateTube`), only its stand-off,
+  start, end and rows; a player's debris models (`#plate<n>`) already loaded keep the old shape till the next map.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -1589,3 +1618,68 @@ work, not looked at).
   at export (as the armed monsters are), and the body add-on's export (section 3) kept for the builds. Larger: not
   started.
 
+## Gloves in Quake's art style (worktree `embed5`, branch `agent/gloves`, 2026-11-06)
+
+His words: the gloves look very high-res up close in VR, and the hand and the wrist don't match in texture/art style.
+
+**Measured** (`scratch/gl_density.py`: area-weighted texels a mm over the meshes, at their in-game sizes): the hand's skin
+(512, Quake palette) 1.31 (quartiles 1.19-1.52); the body's forearm (`vrbody`, 512 x 2048, palette, dithered ramps)
+1.04 (0.91-1.29), its wrist 1.33, upper arm 0.81; id's weapons 0.12-0.21 (at 38.1 mm a unit). The glove paint was
+1024 (2.63 a mm, twice the skin), full colour, with a ~1.7 mm pebbled grain painted in, and the shader added a finer
+procedural pebble grain (~0.7 mm) and its own pebble relief on top: 2-4 times finer than anything else on the avatar,
+in continuous colour, while the skins next to it are nearest-filtered palette texels (his `gl_texturemode`
+GL_NEAREST_MIPMAP_LINEAR). With his bare forearms (`vr_body_bracers` 0 is his setting) the glove's cuff on the forearm
+is the plain procedural leather on the body's grid while the hand had the fine painted one: the wrist seam.
+
+**Changed:**
+- `make_glove_paint.py`: paints at twice the skin's grid and averages down to the skin's own 512 (SHIP), drops the
+  pebbles (blotches of a few texels instead), creases strong enough to stay a colour step, and paints the light in as
+  Quake's skins do (CAVITY: a texel's height over its 5 x 5 neighbours: ridges, thread, seam lips paler, grooves
+  darker). The shipped `hand_rig_00_00_glove.png` / `_glove_height.png` are 512 now (regenerated, guard updated).
+- Shader (`vr_glsl_alias.h`): `vr_glove_retro` 1 (new, default 1; Player Appearance > Gloves > Quake-Style Leather):
+  the leather's texels (the paint's; the plain leather and the cuff on the skin's own grid, hand or forearm) read as
+  blocks at their centres whatever the filtering, no sub-texel grain or grain relief, and `LeatherSteps` puts each
+  texel's brightness on one of 16 ramp steps in the chosen hue (never black), dithered per texel within half a step
+  (the body's `pick()` dithers its ramps per texel too); fades to plain mipmapping where texels get under a pixel.
+  Glove.w carries it as 16s. 0 gives the smooth reading (with the old fine grain) of the new paint.
+- Both sides of the wrist are now the same treatment at about the same density (hand 1.3, forearm cuff ~1.0-1.3
+  texels a mm) and the same steps of the same colour: no change of detail at the seam.
+
+**Tested** (low-impact runs, his game was open: 512 eyes): `scratch/gl_shots.sh` (start map, four looks: his black
+fingerless with bare forearms, brown full with bracers, brown fingerless bare, brown full plain bare; two poses each),
+sheets `scratch/gl_cmp_side.png` (close, exposure x3 for viewing) and `scratch/gl_cmp_back.png`: up close the
+leather is texel blocks in two or three colour steps with the creases and seams a step darker, like the bracers and
+the arm's skin; at arm's length the two looks are nearly the same (mipmapped). A dark checker on the full glove with
+bracers on is in the before shots too (a shadow, not this change). `vr_gloves_reload`, `vr_hand_reload`, both hand
+shapes: paint read 512 x 512, relief 1.7 ms, no errors. No dedicated glove test exists.
+
+**For him in VR:** hold the hand close (10-20 cm) with his black fingerless gloves and with a brown pair: the texels
+should read like the forearm's skin, no fine pebbles; the wrist where the cuff meets the hand shouldn't change in
+detail; toggle Quake-Style Leather to compare. Not shipped as his look: the coordinator shows the sheets first.
+
+**Checklist line (suggested):** Gloves up close: texel blocks and colour steps like your arm's skin, no fine grain, the
+wrist seamless (Player Appearance > Gloves > Quake-Style Leather toggles the old smooth look).
+## Why the lost soul "drops its target" (branch `agent/lostsoul`, 2026-11-06)
+
+It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
+
+- **The "no enemy"** is AD's enemytarget marker (`ad_ai_enemytarget.qc`): a flying monster's `enemy` becomes a
+  classname-less marker floating 128 above you (`ad_LostCheckAttack` sets it up; `self.height` = `ad_MONAI_ABOVEDIST`),
+  the real enemy behind it. Traced every 0.25 s: `enemy` the marker, `ad_lostenemy` world, `ad_lostsearch` 0, never the
+  guard state (its lost-sight branch never ran). The player's flags, notarget and god play no part.
+- **Why no bite:** `ad_LostCheckAttack` bites only within 60 (flat, `ad_ai_checkmelee`), rams only 200-400 away
+  (`ad_MONAI_RANGELOSTNEAR`/`FAR`) and strafes round you between (`ad_AS_SLIDING`, `ad_ai_run_slide`, 8 units a step).
+  Spawned 96 ahead, it circled a still player at 90 to 195 for the whole 8 s (the circle widens about 2 units a second;
+  walls push it back in), never far enough to ram. Its bite comes after a ram (`ad_lost_melee1` from the touch).
+- **After a ram** (traced): a crowbar across your face parries the ram itself and the soul bounces off (300 a second,
+  flying, no friction) and chomps the air; a ram that lands shoves you back 200 a second (AD's `ad_lost_charge_touch`),
+  so the chomp's bite (0.3 s on) finds you 80 away, out of reach: a still player on open floor is never bitten. A real
+  player sees AD's behaviour: rams from range; bites when you are pinned (a wall at your back) or step in.
+- **213 now** tests that: the soul spawns at ram range (300, or the way round you with the most room), your guard is
+  down for the ram (the mock hand at your hip), you hold your ground (velocity held 0 through the ram and chomp: a wall
+  at your back), your guard comes up as it chomps, and only a parry in its chomping frames counts (a parried ram is
+  counted apart). The verdict prints the real enemy through the marker. PASS on start, vrtesthall, ad_e1m1 (AD's own
+  map, 9 lost souls), and start without god; each ends on its verdict in about 4.5 s of game time.
+
+**Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
+to a wall its bite after a ram lands, and your crowbar's guard parries it.

@@ -1113,12 +1113,13 @@ SPECULAR_AA_FUNCTIONS
 "// a pebbled grain of its own, faded out where a pebble would be under ~2 pixels. Out: the colour's shade, the relief's\n" \
 "// slope (in uv units, for WoundBump), its sheen's share. painted: a painted layer gives the grain (vr_glove_paint):\n" \
 "// this one's finer and fainter, a texture under it.\n" \
-"float GloveLeather(vec2 uv, vec2 duvdx, vec2 duvdy, vec2 ts, float a, float ax, float ay, float hem, vec2 dhem, bool painted, out vec2 slope, out float gloss)\n" \
+"// retro (vr_glove_retro): no grain finer than a texel; each texel (texel: its index) a tone of its own instead.\n" \
+"float GloveLeather(vec2 uv, vec2 duvdx, vec2 duvdy, vec2 ts, float a, float ax, float ay, float hem, vec2 dhem, bool painted, bool retro, vec2 texel, out vec2 slope, out float gloss)\n" \
 "{\n" \
 "	float cells = painted ? 1.1 : 0.55; // grain cells a texel: the hand's 1.5 texels a mm, a pebble ~1.2 mm\n" \
 "	float grainK = painted ? 0.35 : 1.0;\n" \
 "	float px = cells * max(length(duvdx * ts), length(duvdy * ts)); // cells a pixel\n" \
-"	float fine = 1.0 - smoothstep(0.25, 0.6, px);\n" \
+"	float fine = retro ? 0.0 : 1.0 - smoothstep(0.25, 0.6, px);\n" \
 "	vec2 s = 1.6 * vec2(ax - a, ay - a); // the seams (A 0.5 flat; 1.6 texels its full range)\n" \
 "	float roll = 0.6 * sin(3.14159 * hem);\n" \
 "	s += 0.6 * 3.14159 * cos(3.14159 * hem) * dhem; // the hem rolled over\n" \
@@ -1132,6 +1133,8 @@ SPECULAR_AA_FUNCTIONS
 "		pebble = mix(0.85, pebble, fine * grainK);\n" \
 "		tone = mix(0.5, gr.w, fine * grainK);\n" \
 "	}\n" \
+"	if (retro && !painted) // the plain leather's texels mottled (the painted layer has its own blotches)\n" \
+"		tone = StumpRand(ivec3(ivec2(texel), 41));\n" \
 "	slope = s * vec2(1.0, ts.y / ts.x);\n" \
 "	float seam = clamp(1.0 + 1.8 * (a - 0.5), 0.3, 1.5); // grooves dark, stitches light\n" \
 "	gloss = clamp(seam, 0.0, 1.0) * mix(0.35, 1.0, pebble) * (0.5 + 0.5 * hem);\n" \
@@ -1148,6 +1151,20 @@ SPECULAR_AA_FUNCTIONS
 "	float s = pow(max(dot(n, normalize(l + v)), 0.0), 18.0);\n" \
 "	float f = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);\n" \
 "	return min(in_color.rgb, vec3(1.0)) * k * (s * 0.12 + f * 0.05);\n" \
+"}\n" \
+"\n" \
+"// QVR: a glove's leather in Quake's colour steps (vr_glove_retro): its brightness (the brightest channel) on one of a\n" \
+"// palette ramp's 16 levels (the darkest kept off black), its hue kept (the colour you chose), the level picked per\n" \
+"// texel (texel: its index) with a random dither near a step, as make_vrbody.py's pick() paints the body's skins; k\n" \
+"// 0..1 how much (0 where texels get smaller than a pixel: plain mipmapping there, no shimmer).\n" \
+"vec3 LeatherSteps(vec3 c, vec2 texel, float k)\n" \
+"{\n" \
+"	float top = max(max(c.r, c.g), c.b);\n" \
+"	if (k <= 0.0 || top <= 0.0)\n" \
+"		return c;\n" \
+"	float d = 0.5 + 0.5 * (StumpRand(ivec3(ivec2(texel), 23)) - 0.5); // (half a step: flat leather one level, its blotches in steps, not speckled)\n" \
+"	float q = max(floor(top * 16.0 + d), 1.0) / 16.0; // (never black: a dark glove's texels without black specks)\n" \
+"	return mix(c, c * (q / top), k);\n" \
 "}\n" \
 "\n" \
 "// QVR: painted nails' gloss (vr_nail_gloss g 0..1; k the polish's cover): a clear coat's highlight in the model's own\n" \
@@ -1290,7 +1307,8 @@ QVR_DENT_FUNCTIONS \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w);\n" \
 "		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
-"		float gmode = mod(glove.w, 4.0), gpaint = floor(glove.w * 0.25); // Glove.w: the channel, 4 times the painted layer's (vr_render.cpp glovePaintFlags)\n" \
+"		float gmode = mod(glove.w, 4.0), gpaint = mod(floor(glove.w * 0.25), 4.0); // Glove.w: the channel, 4 times the painted layer's (vr_render.cpp glovePaintFlags),\n" \
+"		bool gretro = glove.w > 15.5; // 16 times Quake's look's (vr_glove_retro)\n" \
 "		float gm = gmode > 1.5 ? mask.b : gmode > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
 "		float cover = smoothstep(0.3, 0.5, gm), hem = clamp((gm - 0.55) / 0.45, 0.0, 1.0);\n" \
 "		vec2 ts = vec2(textureSize(SkinMaskTex, 0));\n" \
@@ -1339,9 +1357,17 @@ QVR_DENT_FUNCTIONS \
 "		{\n" \
 "			vec3 paint = vec3(0.5);\n" \
 "			float wear = 0.0;\n" \
+"			// Quake's look (vr_glove_retro): the leather's texels (the painted layer's, else the skin's: the hand's or the\n" \
+"			// forearm's, about as fine) as blocks, each one colour on Quake's steps (LeatherSteps), while a texel is a pixel\n" \
+"			// or more; smaller, plain mipmapping\n" \
+"			vec2 gts = gpaint > 0.5 ? vec2(textureSize(GloveTex, 0)) : vec2(textureSize(Tex, 0));\n" \
+"			vec2 gtexel = floor(uv * gts);\n" \
+"			float gblocks = gretro ? 1.0 - smoothstep(0.5, 1.0, max(length(duvdx * gts), length(duvdy * gts))) : 0.0;\n" \
 "			if (gpaint > 0.5) // QVR: its painted leather (vr_glove_paint; make_glove_paint.py): RGB its detail times the colour\n" \
 "			{ // (0.5 as it is), A its wear; its relief (the normal map below) in place of the mask's seams (the painted ones over them)\n" \
 "				vec4 gp = textureGrad(GloveTex, uv, duvdx, duvdy);\n" \
+"				if (gblocks > 0.0) // its texel's own (whatever the filtering)\n" \
+"					gp = mix(gp, textureLod(GloveTex, (gtexel + 0.5) / gts, 0.0), gblocks);\n" \
 "				paint = gp.rgb;\n" \
 "				wear = max(gp.a, 0.4 * (1.0 - hem)); // (the hem's edge rubbed too)\n" \
 "				mask.a = mx.a = my.a = 0.5;\n" \
@@ -1350,7 +1376,8 @@ QVR_DENT_FUNCTIONS \
 "			float lum = dot(glove.rgb, vec3(0.299, 0.587, 0.114));\n" \
 "			vec3 worn = mix(vec3(lum), glove.rgb, 0.45) * 1.6 + vec3(0.075, 0.068, 0.06);\n" \
 "			leather = mix(glove.rgb, worn, wear) * paint * 2.0;\n" \
-"			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, gpaint > 0.5, leatherSlope, leatherGloss);\n" \
+"			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, gpaint > 0.5, gretro, gtexel, leatherSlope, leatherGloss);\n" \
+"			leather = LeatherSteps(leather, gtexel, gblocks);\n" \
 "			leatherGloss *= 1.0 - 0.7 * wear;\n" \
 "			leatherCover = cover * skinShare;\n" \
 "		}\n" \

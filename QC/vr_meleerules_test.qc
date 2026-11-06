@@ -8,7 +8,9 @@
 //   it and shown (the sword's arc with its weapon's reach, the spawn's leap, the dragon's all round, the vore's shove
 //   cone); the engine's count of what it drew: the script's vr_enemy_melee_arc_status.
 // `vr_agrunt_test 213` (AD's start; the script puts a lost soul ahead first: vr_test_spawn 207, impulse 241; your
-// crowbar's guard held: vr_parry_test_guard 1 and the mock hand across): the nearest monster's bite parried.
+// crowbar's guard held: vr_parry_test_guard 1 and the mock hand across): the nearest monster's bite parried. AD's soul
+// rams from 200-400 away and bites only after a ram (between 60 and 200 it circles you, its enemy AD's marker floating
+// above you): it spawns at ram range, its ram lands (your guard down), you hold your ground, your guard parries the bite.
 // Each `agtest: PASS|FAIL meleerules ...`; ends on `agtest: test 212 over: P passed, F failed` (213 likewise).
 
 float vr_mrt_case;
@@ -186,10 +188,14 @@ void() VR_MRT_Frame =
     cvar_set("vr_agrunt_test", "0");
 };
 
-// 213: the nearest monster (a lost soul) bites you, your guard held: at least one bite parried within 8 s.
+// 213: the nearest monster (a lost soul) bites you, your guard held: at least one bite parried within 8 s (it charges
+// from where it spawns, then bites; a parried charge alone does not count).
 entity vr_mrt_mon;
 float vr_mrt_wait; // (213: how long it waits for the lost soul)
-float vr_mrt_p0;
+float vr_mrt_p0;     // (213: the parry count already judged)
+float vr_mrt_bites;  // (213: its bites parried)
+float vr_mrt_others; // (213: other parries: its charge's ramming touch)
+float vr_mrt_guard;  // (213: the script's vr_parry_test_guard, restored at the end)
 void() VR_MRT_ParryFrame =
 {
     entity p = vr_agt_player;
@@ -198,8 +204,26 @@ void() VR_MRT_ParryFrame =
         if(!vr_mrt_wait)
         {
             vr_mrt_wait = time + 3;
-            makevectors('0 1 0' * p.angles_y);
-            VR_MRT_Spawn(207, p.origin + v_forward * 96 + '0 0 16'); // (AD's lost soul: the dispenser's 207) // (AD's monster readies itself a moment after it spawns)
+            // AD's lost soul (the dispenser's 207) at its charge range: 200 to 400 away it rams you, nearer it strafes
+            // round you and bites only within 60 (ad_LostCheckAttack), so it bites when a charge has brought it in.
+            // Spawned nearer, it circles a still player for long seconds before it is far enough to charge.
+            // (ahead, or the way round you with the most room)
+            float d = 0;
+            float bestyaw = 0;
+            for(float a = 0; a < 360; a += 45)
+            {
+                makevectors('0 1 0' * (p.angles_y + a));
+                traceline(p.origin + '0 0 16', p.origin + '0 0 16' + v_forward * 400, TRUE, p);
+                if(min(300, trace_fraction * 400 - 48) > d + 1)
+                {
+                    d = min(300, trace_fraction * 400 - 48);
+                    bestyaw = a;
+                }
+            }
+            makevectors('0 1 0' * (p.angles_y + bestyaw));
+            VR_AGT_Print(sprintf("meleerules: the lost soul spawns %g away, %g degrees left of ahead (its ram range "
+                "200-400)", d, bestyaw));
+            VR_MRT_Spawn(207, p.origin + v_forward * d + '0 0 16'); // (AD's monster readies itself a moment after it spawns)
         }
         vr_mrt_mon = world;
         float best = 1000;
@@ -241,17 +265,58 @@ void() VR_MRT_ParryFrame =
         }
         vr_mrt_wait = 0;
         vr_mrt_p0 = vr_parry_count;
+        vr_mrt_bites = vr_mrt_others = 0;
+        // Its ram lands (your guard down, the crowbar at your hip): a parried ram bounces it off you and its chomp
+        // misses; a ram that lands leaves it on you, chomping (as in AD). Your guard comes up as it starts to chomp.
+        vr_mrt_guard = cvar_hget(cvarh_vr_parry_test_guard);
+        cvar_set("vr_parry_test_guard", "0");
+        localcmd("vr_mock_hand main 0.25 0.8 -0.05 70 0 0\n");
         vr_agt_until = time + 8;
         vr_agt_step = 1;
         return;
     }
-    float n = vr_parry_count - vr_mrt_p0;
-    if(n > 0 || time >= vr_agt_until)
+    entity mon = vr_mrt_mon;
+    float chomp = mon.frame - ad_LOST_MELEE * ad_LOST_ANIMBLOCK;
+    float chomping = chomp >= 0 && chomp < ad_LOST_ANIMBLOCK; // (ad_lost_melee2's frames)
+    if(mon.frame >= ad_LOST_CHARGE * ad_LOST_ANIMBLOCK && chomp < ad_LOST_ANIMBLOCK)
     {
-        VR_AGT_Check(sprintf("meleerules: %s's bite parried (%g parries, the last by %s; it is %g away, health %g, "
-            "enemy %s)", vr_mrt_mon.classname, n, vr_parry_count_by.classname,
-            vlen(vr_mrt_mon.origin - vr_agt_player.origin), vr_mrt_mon.health, vr_mrt_mon.enemy.classname),
-            n > 0 && vr_parry_count_by == vr_mrt_mon);
+        // Its ram shoves you back (ad_lost_charge_touch: 200 a second) out of its bite's reach (60 on the flat, by
+        // the chomp's third frame, 0.3 s on): you stand your ground here, as with a wall at your back.
+        p.velocity = '0 0 0';
+    }
+    if(chomping && !cvar_hget(cvarh_vr_parry_test_guard))
+    {
+        cvar_set("vr_parry_test_guard", "1");
+        localcmd("vr_mock_hand main 0.15 1.35 -0.35 0 90 0\n"); // (the crowbar across again)
+    }
+    if(vr_parry_count > vr_mrt_p0)
+    {
+        // A parry this frame: a bite if the soul shows its chomping frames, else its charge's ramming touch
+        // (ad_lost_charge_touch, the charge frames until its next think).
+        vr_mrt_p0 = vr_parry_count;
+        if(vr_parry_count_by == mon && chomping)
+        {
+            vr_mrt_bites = vr_mrt_bites + 1;
+        }
+        else
+        {
+            vr_mrt_others = vr_mrt_others + 1;
+        }
+    }
+    if(vr_mrt_bites > 0 || time >= vr_agt_until)
+    {
+        // (its enemy is AD's marker floating above you while it flies, ad_ai_enemytarget.qc: the real one through it)
+        entity en = mon.enemy;
+        string via = "";
+        if(en.ad_classtype == ad_CT_ENEMYTARGET && en.state == ad_STATE_ON)
+        {
+            en = en.enemy;
+            via = " (through AD's marker above it)";
+        }
+        VR_AGT_Check(sprintf("meleerules: %s's bite parried (%g bites parried, %g other parries; it is %g away, health "
+            "%g, enemy %s%s)", mon.classname, vr_mrt_bites, vr_mrt_others, vlen(mon.origin - vr_agt_player.origin),
+            mon.health, en.classname, via), vr_mrt_bites > 0);
+        cvar_set("vr_parry_test_guard", ftos(vr_mrt_guard));
         cvar_set("vr_agrunt_test", "0");
     }
 };

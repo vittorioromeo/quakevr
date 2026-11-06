@@ -8,7 +8,16 @@ can edit in any image editor (`vr_glove_paint 1`, the default; "Worn Leather" in
 ## The files
 
 Both in `quakevr/progs/`, laid out on the hand's own skin (the same UV layout as `hand_rig_00_00.lmp` and the skin
-masks, at twice their resolution: 1024 x 1024, about 3 texels a millimetre):
+masks, at their resolution: 512 x 512, about 1.3 texels a millimetre, as coarse as the hand's skin and the body's
+forearm; any size loads, but a finer one only looks finer with Quake-Style Leather off):
+
+**Quake-Style Leather** (`vr_glove_retro` 1, the default; Player Appearance > Gloves): the leather is drawn as
+Quake's skins are: each texel (the painted layer's; the plain leather and a bare forearm's cuff on the skin's own
+grid) a block of one colour, its brightness on one of a palette ramp's 16 steps in the hue you chose (never black),
+dithered per texel near a step; no grain finer than a texel (`vr_glsl_alias.h` `LeatherSteps`). Where texels get
+smaller than a pixel it fades to plain mipmapping. Paint for it as for Quake: shading and highlights in the texels
+(the generator paints the light in: raised texels paler, grooves darker), contrasts of a step or more (about 6% of the
+colour's brightness) or they vanish. `0`: smooth, with the shader's fine pebbled grain up close (the old look).
 
 | File | Channels |
 |---|---|

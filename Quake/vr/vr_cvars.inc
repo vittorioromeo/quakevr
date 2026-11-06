@@ -1370,6 +1370,7 @@ QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1
 QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
 QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
+QVR_CVAR(vr_glove_retro, "1", CVAR_ARCHIVE)          // Quake's look for the gloves' leather (vr_glsl_alias.h LeatherSteps): its texels as blocks (the skin's grid, ~1.3 a mm), each on a palette ramp's 16 colour steps in the chosen hue, dithered per texel; 0 smooth (finer detail, a pebbled grain up close)
 QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
 QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
 QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),
@@ -2912,7 +2913,27 @@ QVR_CVAR(vr_rigdata_dir, "", CVAR_NONE)               // the folder under the ga
 QVR_CVAR(vr_rig2_forearm_twist, "0.5", CVAR_NONE)      // the share of an armed grunt's hand's twist about its forearm its forearm takes (the authored forearm a hinge: its skin twisted along it, not all at the wrist; 0: all at the wrist)
 QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
 QVR_CVAR(vr_agarmor_wear, "0", CVAR_NONE)            // debug (vr_agarmor.cpp): every armour piece drawn with this wear's damage marks: 0 the server's (each piece at two thirds and a third of its pool), 1 dented, 2 battered and scorched
-QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)       // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
+QVR_CVAR(vr_armour_file, "data/armour.txt", CVAR_NONE) // debug (vr_armourdata.cpp): the armour's hand tweaks' file, in quakevr/ (the tests point it elsewhere)
+QVR_CVAR(vr_armour_watch, "1", CVAR_NONE)             // debug (vr_armourdata.cpp): 1 the armour tweaks' file read again when it changes on disk (looked at once a second)
+QVR_CVAR(vr_armourstudio_kind, "0", CVAR_NONE)        // debug (vr_armourstudio.cpp): the Armour Studio's kind: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 the player (your own body)
+QVR_CVAR(vr_armourstudio_tier, "3", CVAR_NONE)        // debug: its subject's armour: 1 green, 2 yellow, 3 red
+QVR_CVAR(vr_armourstudio_turn, "0", CVAR_NONE)        // debug: its subject turned this many degrees from facing you
+QVR_CVAR(vr_armourstudio_ghost, "0.4", CVAR_NONE)     // debug: its subject's body drawn this opaque (1 as it is)
+QVR_CVAR(vr_armourstudio_alone, "0", CVAR_NONE)       // debug: 1 its subject wears the part picked alone (both sides), 0 every piece
+QVR_CVAR(vr_armourstudio_part, "0", CVAR_NONE)        // debug: the part edited: 0 cuirass, 1 helmet, 2 pauldron, 3 bracer, 4 thigh, 5 shin, 6..9 their sleeves
+QVR_CVAR(vr_armourstudio_side, "0", CVAR_NONE)        // debug: 0 both sides (the right mirrored), 1 the left's own, 2 the right's own
+QVR_CVAR(vr_armourstudio_offset_x, "0", CVAR_NONE)    // debug: the part's values as edited (vr_armourdata.hpp Field): units forward
+QVR_CVAR(vr_armourstudio_offset_y, "0", CVAR_NONE)    // debug: units left
+QVR_CVAR(vr_armourstudio_offset_z, "0", CVAR_NONE)    // debug: units up
+QVR_CVAR(vr_armourstudio_pitch, "0", CVAR_NONE)       // debug: degrees about the model's left axis
+QVR_CVAR(vr_armourstudio_yaw, "0", CVAR_NONE)         // debug: degrees about its up axis
+QVR_CVAR(vr_armourstudio_roll, "0", CVAR_NONE)        // debug: degrees about its forward axis
+QVR_CVAR(vr_armourstudio_scale, "1", CVAR_NONE)       // debug: its size round its middle
+QVR_CVAR(vr_armourstudio_standoff, "0", CVAR_NONE)    // debug: units further off the skin
+QVR_CVAR(vr_armourstudio_start, "0", CVAR_NONE)       // debug: units its first row starts further along it
+QVR_CVAR(vr_armourstudio_end, "0", CVAR_NONE)         // debug: units its last row ends further along it
+QVR_CVAR(vr_armourstudio_rows, "0", CVAR_NONE)        // debug: its rows of plates (0 the generator's)
+QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)      // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_helmet_gap, "0.15", CVAR_NONE)    // vr_agarmor: the helmet's gap off the head (units; rigid on the head bone, so closer than the body's plates; vr_agarmor_rebuild)
