@@ -40,7 +40,9 @@ run() { local tag=$1 flat=$2 script=$3 filter=$4; local a=(); [ "$flat" = flat ]
 run crouchfloor flat "$P; vr_floor_offset -10; wait20; vr_flatkeys_test 1; wait5; +flatcrouch; wait40; vr_flatkeys_test 1; wait5; -flatcrouch; wait40; vr_flatkeys_test 1; wait5; vr_floor_offset -22" "^flatkeys:"
 fl=$(grep -a "^flatkeys: crouched" "$S/crouchfloor.log" | sed 's/.*crouched \([0-9.]*\) stand \([0-9.]*\).*/\1:\2/' | tr '\n' ' ')
 check $(echo "$fl" | grep -qE '^0:1 1:0\.[0-9]+ 0:1 $' && echo 1 || echo 0) "crouch: vr_stand is 1 standing with vr_floor_offset moved, under 1 only for the crouch he holds ($fl= crouched:stand)"
-run crouchflat flat "$P; vr_flatkeys_test 1; +flatcrouch; wait40; vr_flatkeys_test 1; -flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
+# (Each reading a few frames before the key changes: the move's crouch bit is the key itself, so a reading asked in the
+# frame the key changes already sees the new box.)
+run crouchflat flat "$P; vr_flatkeys_test 1; wait5; +flatcrouch; wait40; vr_flatkeys_test 1; wait5; -flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
 eyes=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/.*eye \([0-9.]*\).*/\1/')
 n=$(echo "$eyes" | grep -c .)
 top=$(echo "$eyes" | head -1); low=$(echo "$eyes" | sort -g | head -1); back=$(echo "$eyes" | tail -1)

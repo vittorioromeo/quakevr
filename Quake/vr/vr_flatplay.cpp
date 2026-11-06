@@ -742,11 +742,11 @@ void pollKeysFlat()
     // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
     // His eyes standing are Quake's: cl.viewheight over his origin, 24 over his feet (Quake's player box: mins z -24).
     const float cap = qvr::hull::localEyeCap();
-    const float drop = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
-    if(cap >= 0.f && drop > 0.f)
+    const float down = za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f);
+    if(cap >= 0.f && down > 0.f)
     {
         const float standEye = cl.viewheight + 24.f;
-        keyState.ratio = za::max(keyState.ratio, za::clamp((standEye - cap) / drop, 0.f, 1.f));
+        keyState.ratio = za::max(keyState.ratio, za::clamp((standEye - cap) / down, 0.f, 1.f));
     }
 }
 

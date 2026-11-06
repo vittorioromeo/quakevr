@@ -812,7 +812,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // he holds (Left Ctrl, vr_flat_crouch_drop; vr_flatplay.cpp, vr_hands.cpp lowers his head with it) lowers it, by how far
     // his head is under his view height, of his standing height: not a step's easing, nor vr_floor_offset. A headset
     // player takes the line below exactly as before (flatDrop is 0 for him).
-    const float flatDrop = flatCrouch ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2])) : 0.f;
+    // (Held, or let go and his box kept crouched under a low ceiling, his view held down with it: hull::localEyeCap.)
+    const float flatDrop = (flatCrouch || (flat && hull::isCrouched(ent)))
+                               ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2]))
+                               : 0.f;
     const bool upright = seated::active() || (flat && flatDrop <= 0.f) || move.headPos == glm::vec3{0.f} ||
                          standing <= 0.f;
     setFieldFloat(ent, f.vr_stand,
