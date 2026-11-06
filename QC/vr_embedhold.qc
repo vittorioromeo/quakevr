@@ -1029,6 +1029,18 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
         VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));
         return 0;
     }
+    // A blow that cut off a head or a limb went through it: not in the body (his note 2026-11-06: left where the part was, in nothing,
+    // the body moved by it). Nor where it would go in is a part cut off before. It stays in the hand.
+    if(m.vr_stick_cutat > 0 && time - m.vr_stick_cutat <= max(0, cvar_hget(cvarh_vr_embed_touch_wait)) + 0.05)
+    {
+        VR_Embed_Say("NOT STUCK: the blow cut a part off, it went through");
+        return 0;
+    }
+    if(VR_AxeStick_BoneCut(m, ragdolllimb(m, xAt)))
+    {
+        VR_Embed_Say(sprintf("NOT STUCK: the part it went into is cut off (bone %g)", ragdolllimb(m, xAt)));
+        return 0;
+    }
     float wid = VRGetEntWeapon(self, xHand);
     float flags = VRGetEntWeaponFlags(self, xHand);
     entity inst = VRGetEntWeaponInst(self, xHand);
@@ -1052,6 +1064,13 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
         vr_embed_gap = w.vr_stick_depth;
         remove(w); // (the weapon's record is the hand's still)
         return stuck;
+    }
+    if(VR_AxeStick_BoneCut(m, w.vr_stick_bone))
+    {
+        // (Where the blade went in, not the blow's contact: as above.)
+        VR_Embed_Say(sprintf("NOT STUCK: the part it went into is cut off (bone %g)", w.vr_stick_bone));
+        remove(w);
+        return 0;
     }
     VRSetHandEmpty(self, xHand);
     VRHandStopFiring(self, xHand);

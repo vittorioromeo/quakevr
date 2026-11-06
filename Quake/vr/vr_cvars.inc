@@ -1118,6 +1118,10 @@ QVR_CVAR(vr_embed_probe_ghost, "0", CVAR_NONE)         // the most ghost opacity
 QVR_CVAR(vr_embed_probe_gib, "-1", CVAR_NONE)          // cm the most a hand holding a skewered gib was drawn from where it took hold of it
 QVR_CVAR(vr_embed_probe_gibctl, "-1", CVAR_NONE)       // cm the most its controller was from there
 QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was drawn on a blade
+QVR_CVAR(vr_embed_probe_grip, "-1", CVAR_NONE)         // cm the most the drawn hand was from where it holds the drawn weapon, easing off a blade
+QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn weapon's offset from its controller changed in a frame, off a blade (the blade's before)
+QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
+QVR_CVAR(vr_embed_probe_split, "0", CVAR_NONE)         // vr_embed_test 25's before: 1 leaves the weapon at its controller while the hand eases off a blade
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
@@ -1660,6 +1664,7 @@ QVR_CVAR(vr_recoil_2h_time, "0.725", CVAR_ARCHIVE)
 QVR_CVAR(vr_recoil_2h_haptic, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_draw_blend, "0", CVAR_NONE)         // debug: 1 each frame of a hand's weapon blend printed (vr_drawblend.cpp; Debug > Tests)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
+QVR_CVAR(vr_model_watch, "1", CVAR_NONE)               // developer: 1 the loaded models' files watched on disk, a changed one read again as vr_model_reload reads it (vr_modelwatch.cpp; Blender's export on save; Debug > Tests)
 QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
 QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire

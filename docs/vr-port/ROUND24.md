@@ -735,6 +735,37 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   | 24 | (new) | 19/1 | 20/2 unseeded (eased 3.58; the axe drag 5.2 units, held); 21/1 seeded 1 (eased) |
   | 1 | 4 failed, no verdict | 4 failed, no verdict | 57/4, with its verdict (the same 4) |
   | 21 | 39/2 | 40/2 | 40/2 (the same 2) |
+
+## Embedded blades: his notes of 2026-11-06 (agent embedfix, branch `agent/embedfix`)
+
+- **"Unsticking an embedded axe makes the hand lag behind."** The cause, as he guessed: the blade's entity goes at once and the axe is
+  drawn in the hand again at its controller's pose (setupWeapon: `s.pos`, `s.visualRot`), while the drawn hand eased from where it was on
+  the blade (embedDrawnHand, vr_embed_free_ease); and a hand holding a weapon took its turn from `s.rot`, so the hand's turned ease was
+  dropped too. Now `embedPinStep` (vr_view_hands.cpp, each frame before the weapons) works out the ease once, as one rigid transform
+  about the controller (`embedEase`: the turn, then the move), and setupWeapon (the weapon, before it is placed: its attachments and
+  hotspots follow) and setupHand (the hand, after its weapon's pose) both apply it. An empty hand eases as before.
+- **"Decapitation or a limb cut with the axe leaves it embedded where the part was."** A killing blow's cut happens inside the blow,
+  before VR_Embed_BlowsDone sticks the blade; just killed, the body may not be a hit model yet and the engine falls back to sticking in
+  its box at the contact (kind 4, "8.8 cm off its model"), in nothing, and the hand on it moved the ragdoll. Now VR_Embed_Try (vr_embedhold.qc)
+  doesn't stick a blade in a body that had a head or limb cut off within the blow's wait (`.vr_stick_cutat`, set by VR_AxeStick_CutDone:
+  a blow that cuts a part off went through it), nor where the part it would go into is cut off (VR_AxeStick_BoneCut: the bone's bit in
+  ragdolllimbs 2, or a head bone of a headless body), checked again on where it went in; the blade stays in the hand. A stuck blade
+  whose part is cut off by anything later comes free (VR_AxeStick_Think: into the hand if held, else it falls), on top of the cut's own
+  CutPrepare/CutDone marks.
+- **Decision:** not embedded in the severed part. The severed head or limb is a flying gib: an edge's blade held in one would be a new
+  mechanism (the hold's spring and drag are a ragdoll's; skewering is a pointed blade's, along its line). The blow went through it, so
+  the axe stays free in the hand. Ask him if he wants the gib to stay on the axe (as a skewer).
+- **Test:** `vr_embed_test 25` (`embedfix: N passed, M failed`): 0 a killing axe swing at the head (beheads), 1 at a limb (cuts it off):
+  no blade in the body, the axe in the hand, the hand drawn back doesn't move the body; 2 a hard axe tug: `vr_embed_probe_grip` (the drawn
+  hand from where it holds the drawn axe, the most over the ease) and `_wstep` (the drawn axe's per-frame step from its controller,
+  from the blade's last drawn place on) against the hand's `_step`. A blow that didn't land as the case wants (the mock swing sometimes
+  turns side on, or misses the head) is dealt again, at most 3 times, said in the log. `vr_embed_probe_split 1` draws the weapon the old way.
+- **Numbers (low-impact runs):** before (split 1): grip 31.1 cm, the axe's step 31.4 cm in one frame; after: grip 0.00 cm over 18 frames,
+  the axe's step = the hand's (3.42 cm at 2 m/s, the 20 cm tug's eased offset). The cut: the first run, with only the bone check, had
+  the limb blow (limb 7 cut, the blade "in" bone 6, kind 4) stuck and held, the body dragged 30 units; without the blow check it
+  happened in 1 run of 5 (4 more with the QC checks off: none; timing, whether the dead body is a hit model yet); with it, 0 of 4. Test 25: 13/0 three times. Test 7:
+  75/7 seeded 1 (as origin/next), 76/6 and 74/8 unseeded (the known stab/slide ones); 11: 103/0 seeded and not; 24: 21/1 seeded 1 (the
+  known "eased" 3.59 > 3 thin margin), 20/2 and 21/1 unseeded (the known corpse lift/drag); 21: 40/2 (the same 2).
 ## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
 
 **Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
@@ -1018,6 +1049,92 @@ His flat-screen notes: crouching ran as fast as standing, and swimming should be
 - **To try (flat-screen):** run and crouch-run (Left Ctrl); swim in e1m4 looking up and down, hold Space to rise, and swim
   at a low pool edge (the start map's pool) to be lifted out.
 
+## Flat pose: grips, ADS recoil, the launchers' height, fov-scaled zoom, the crosshair fade (branch `agent/flatsolve6`)
+
+His notes of 2026-11-05. `Misc/quakevr/flatads_test.sh` (sections a-e, one run each, its own verdict) covers each item done.
+
+**1. The grenade and rocket launchers sat lower.** Why: those guns (and the proximity gun, laser cannon, Enforcer's rifle) are the
+ones whose two-handed grip the free hand takes for real (`carry`), and `flatsight::stanceShare` is 0 for them, so `targetOffset`
+gave them none of the stance's numbers: not its way back (on purpose: pulled back, the free hand's punch missed, FLATPLAY.md "The
+stance"), but not its lift either (`vr_flat_stance_up`, 4). New `flatsight::stanceLift` (any gun in the stance) carries the lift
+only. Level hipfire, before -> after: hand height grenade launcher -7.08 -> -4.02, rocket launcher -7.45 -> -4.52 (shotgun -3.34);
+the muzzle on the screen -19.2 / -17.3 deg -> -10.0 / -10.7 (shotgun -9.6). `vr_flat_sight_check` now also prints a
+`flatgunview:` line (hand, muzzle, sights in the camera's frame, each's pitch on the screen) and `flatcrosshair:`.
+
+**2. Fingers.** Flat input has no grip value, so every hand was drawn open (thumb only). `updateFingerFrames` (vr_view.cpp) gives a
+hand holding a weapon (not the fist), or drawn on its hotspot (`twohand::drawnHelping`: the stance's and the ironsight's look
+hand), the same input a posed weapon hand gets: grip pressed, thumb and trigger touched. Curls, shotgun hipfire and sighted:
+main 5 / 2.5 (index on the trigger) / 5 / 5 / 5, off 5 on all (its index closes with the grip). The grasp solve stops them on
+the model as in a headset.
+
+**3. Ironsight recoil** `vr_flat_ads_recoil` (0.35; Debug > Tunables > Flatscreen > Ironsight Recoil): the drawn recoil
+(`weaponfx::recoilOffset`) is kept at that share as the sight comes up (`flatsight::keepRecoil`, smoothed `adsT`). Shotgun shot:
+hipfire 3.15 u / 12.04 deg, sighted 1.10 u / 4.21 deg (0.350). Probe: `vr_flat_recoil_probe`. Not touched: `punchangle` (only
+the rogue lava guns' QC sets it on the player).
+
+**5. Zoom and relief follow the fov.** `vr_flat_aim_fov`'s degrees are now counted at new `vr_flat_aim_fov_ref` (95: his fov);
+at any other fov the ironsight is the same magnification (tangents of the half-angles), and the range goes to 75.
+`vr_flat_ads_relief` is the relief at that reference with Model FOV off; another fov, or `vr_flat_model_fov`, scales it by
+tan(half the reference's sighted fov) / tan(half the fov the gun is drawn at), so the sight picture keeps its size.
+His settings (fov 95, `vr_flat_aim_fov` 45, relief 4): 50.00 deg and relief 4.00, as before. Fov 70: 33.31 deg, relief 6.23;
+fov 110: 62.79 deg, relief 3.06 (both x2.340); Model FOV 70 at fov 95 with relief 14: 9.32. At the default fov 90 the old test
+values come out nearly the same (12 / 30 / 45 take 11.9 / 29.5 / 43.7 off); the default relief 14 at fov 90 and
+`vr_flat_aim_fov` 40 becomes 15.3 drawn (x1.09).
+
+**Crosshair fade** (his note via the coordinator): the 2D crosshair (`SCR_DrawCrosshair` through `VR_FlatCrosshairAlpha`) and
+vr_crosshair's dot and lasers fade by 1 - smooth(`adsT`): out over the ironsight's own travel (`vr_flat_aim_time`), back in on
+release; 1 outside flat play, so a headset is unchanged. Read 4 frames into the travel 0.69, sighted 0.000, released 1.000;
+pixels in the middle fifth (crosshairs on vs off): hipfire 505 differ (control, the same setting a frame later, 93), sighted 84
+(control 415: the scene's own change).
+
+**4 / 4b. Front sights (found, not fixed).** The flare gun's sight line (`vr_sightalign_table.inc`, from `build_flaregun.py`)
+runs from the rear notch's *bottom* to the front blade's top, both at SIGHT_Z: on that line the blade's top only touches the
+notch's bottom and the hump under the notch hides the rest of it; a sight picture has the blade's top level with the notch's top
+(EAR_TOP_Z, 0.28 higher), as the nail pistol's and the revolver's lines are. Fix: the rear point on the ears' top (table or
+generator). Not done: the super shotgun (painted sights), the grunt burst rifle (rear 14.350, front 14.450, both y 0 in the
+table: its posts' y against the bore not measured), 4c (walls), 6 (the walking wrist).
+
+**Verified.** Sweep (defaults) before (origin/next) `407 passed, 3 known failing, 0 failed`, after the same; row by row
+(`scratch/fs5_compare.py fs6base fs6after`): 0 rows worse past a limit, 290 better, 107 worse inside their limits (59 of them
+`arm_reach`: the default relief drawn 15.3 at fov 90). flatads 7/0, flatsight 12/0, flatplay 28/0, flatkeys 28/0, flatpose 21/0.
+Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the same poses; the hands now close round the handles
+(axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
+`vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
+`vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+
+## Flat pose leftovers: the front sights (branch `agent/flatsolve7`, 2026-11-06)
+
+**`flatads_test.sh` reported 2 passed** after the flatsolve6 merge: its `SECTIONS` defaulted to `a` (the recoil's two
+checks), so a plain run skipped b-e. Run with all sections: 7 passed, 0 failed. The default is now every section.
+
+**The front sights (4 / 4b).** Measured on each gun's mesh (frame 0) with the eye on its sight line, as the flat
+ironsight puts it (rays from the eye to points under the front sight's top, stopped by anything nearer): how far down the
+front sight is seen. Before: shotgun 0.27, lightning gun 0.60+, nail pistol 0.29, revolver 0.35; **flare gun 0.00, grunt
+burst rifle 0.01, enforcer rifle 0.00, super shotgun 0.00**. The three modelled ones had the same cause: the line ran
+from the rear notch's *bottom* (the rear sight's block is solid under it and hides everything below the line) to a front
+top no higher. **Not asymmetry:** the grunt gun's post, ears, muzzle and bore all sit at y +0.016 (the MDL's y
+quantization; the whole gun +0.040), so nothing is off sideways. Fixes, each front top raised level with the rear's tops
+so the line runs over them (the nail pistol's and revolver's design):
+- Flare gun: the blade's top to EAR_TOP_Z (+0.28; the .blend edited, 4 vertices, re-exported: 12 MDL vertices moved,
+  skins and UVs identical). `build_flaregun.py` builds it so too (its rebuild is not byte-reproducible: it differs in
+  vertex order and noise, so the .blend was edited instead, as its README says). Line `{1.15, 0, 6.412}` -> `{11.75, 0,
+  6.412}`, still parallel to the bores. Seen 0.26 of the 0.28 notch.
+- Grunt burst rifle (`make_enemyguns.py`): the post's top 14.45 -> 14.9 (the ears' tops): the line level (was 0.22 deg
+  up). Seen 0.59.
+- Enforcer rifle: the notch 0.3 (its ears) under the line's rear point; the generator's floor (notch 0.2 over the housing)
+  lifts the line 0.14: rear 10.799, post top 10.659 (0.44 over the band, was 0.30), still zeroed at 10 m (0.483 deg, was
+  0.471). Seen 0.42.
+- Super shotgun: **not fixed: a model issue.** Its ring is painted on the back of a solid block and its bead is a painted
+  patch on the barrels' top: on the line through the ring the block hides the bead, and over the ring (tried: a flat-only
+  line 0.09 over the ring's top) the bead, flush with the top, is seen edge-on (a pixel or two at 960x540). A real fix is
+  geometry: a raised bead (and/or a cut aperture) on v_shot2.mdl.
+
+Headset `vr_sight_check` (mock, laser vs sight line): super shotgun 0.653 -> 0.653, grunt gun 0.221 -> 0.000, enforcer
+rifle 0.470 -> 0.481 (its zero), flare gun 0.048 -> 0.048. flatsight 12/0, flatads 7/0. Sighted sheets:
+`scratch/fs7_ads_before.png`, `fs7_ads_after.png`, `fs7_zoom_after.png` (the posts and the blade in the notches).
+Measure: `python Misc/quakevr/sight_picture.py` (ONLY=<gun>, YS=1).
+
+**Not done:** 2 (walls: push back and muzzle up, tunables), 3 (the walking wrist, `steadyOther`).
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").
@@ -1121,6 +1238,44 @@ normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` wri
   `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
 - **Open:** a new action plays only through `vr_debug_weapon_frame` until QuakeC names its frames (`$frame` lines and a
   `player_*` sequence); the plan for the other weapons is in MODELS_IN_BLENDER.md section 9.
+
+## The shotgun's top retopologized (agent/sgtopo, 2026-11-06)
+
+His words: the workflow works; there is cursed topology on top of the shotgun between the back sights and the stock: fix
+it without messing up the textures and UVs. Done in the source .blend (`Misc/quakevr/src_models/blend/v_shot/`), then
+`blend_export.py` (anchors all ok, sight line turned 0.000 deg / moved 0.000, normal maps re-baked, weapons.txt's barrel
+mask re-indexed: 1876 -> 1908 triangles).
+
+- **What was there** (top view, x along the gun): from the receiver's front corner (18.55, -1.74) a fan of 10 faces to the
+  rear sight's base (x 9.97), min angle 0.2 deg, with a zero-area filler for the T-junction at v32; behind the sight, inside
+  the V the two bevels make towards the stock's ridge, 24 faces: slivers over five UV islands, five zero-area fillers along
+  x 9.75, two faces facing down and an interior vertex; on the +y bevel a vertical sliver hiding the T-junction at v55.
+- **Now:** each area is a constrained Delaunay triangulation of the same outline (its boundary vertices kept, so no face
+  round it changes), interior points on a staggered grid, relaxed: the front 40 faces (min angle 16.1 deg), the V 26 (12.2;
+  its centre line v53-v104 kept as an edge, with points on it), the +y bevel split at v55 as the -y one is at v52 (16.5).
+  The bevels, the rivets, the sight posts and the notch floor are untouched; 7 vertices only the old faces used are gone
+  (and v98, 0.023 under the V's plane). Faces 1816 -> 1848; the file 1908 triangles (1780 kept in place, 68 new), the
+  T-junction cracks 26 -> 23.
+- **Frames:** every new vertex is a barycentric mix of an old face's corners, the same in every shape key (and the export
+  carries new vertices with their piece).
+- **UVs:** the front area is one island (a top-down projection): new corners read the old faces' UVs, interior points sit
+  on texel centres; rendered from above (nearest texel) against before: 6.2% of its pixels differ, all texel-edge shifts
+  (max 0.33 / 0.40 texel, mean 0.035). The V had no island to carry (a collage): its new faces read one island (the one its
+  -y half used, a top-down projection fitted to 0.6 texel), and the 208 texels of that island no other face reads were
+  painted with what the old faces showed at their place (skin and relief PNGs): rendered from above it looks as before
+  (18% of its pixels differ, texel-edge resampling of the old stretched slivers; the stock and the front 0%).
+- **In the game:** flat ironsight frame before/after: 532 pixels differ, all on the gun's top at the sights; the headset
+  frame (gun seen from above) shows the same gun (its run-to-run noise hides the difference); `vr_flat_sight_check`
+  0.0004 deg either way; reload_test.sh 114 passed, 1 failed, the same one with the old files ("the shotgun's sights keep
+  their colour as it pumps": 107/55 99/0 104/49 now, 105/55 99/0 104/49 before; the frame drawn whole shows red sight
+  pixels, the pump's parts none).
+- **Left as they are** (the same kind, not equally safe): the receiver's sides are fans too (-y from v33: faces 47-50, min
+  2.8 deg; +y from v49: 63-66, min 3.0), but their faces are not coplanar (normals up to 4 deg apart) and the shell
+  port's anchor sits on v39 / triangle 48; under the receiver, long slivers (faces 83-93, 45, 46, min 1.2-4.7 deg, facing
+  down, rarely seen); the barrels' top (faces 142, 143, 146, 147, min 2.2) and the rib's long strips (958, 959, 966, 967);
+  the collapsed first pump ring (zero-area by design, split_auto_pump).
+- **To try (VR):** look down on the shotgun's top behind the rear sight in the headset: the same texture, no streaks or
+  sparkles; the sights and the auto pump as before.
 ## Survival Arena: its messages on the wrist gadget (agent/arenawrist, 2026-11-06)
 
 His words: now that the arena has banners, move the arena's text from the centre of the view to the wrist gadget, as an
@@ -1150,3 +1305,65 @@ option, on by default.
   on the wrist. 13 passed, 0 failed. Tests 38 (46/0), 37 (17/0), 34 (3/0) pass.
 - **To try (VR):** in vrarena, raise the wrist during the countdown and at a wave's start and clear; keep it down at a
   clear (one buzz) then raise it; take a perk; set Messages on the Wrist off and see them in the view again.
+
+## The plates drawn as a gib (agent/platesmodel, 2026-11-06)
+
+- **Bug:** after a campaign switch (here id1 to rogue, then R2M6), the armour plates morphed in as another model: a gib,
+  a fish, a door (`vr_player_plates_info`: `model *78`). Any build; which model it hit depended on the slots.
+- **Cause:** `agarmor::armorFor` (vr_agarmor.cpp) kept each body's armour model as a `qmodel_t*`. A campaign switch's
+  `Mod_ResetAll` keeps the alias models whose files stay the same (vr_modelkeep.cpp) in their slots, the player's body
+  among them, but empties the derived `<body>#armor` ones, and `Mod_FindName` gives the emptied slots to the next map's
+  models. The body found its cached kind again (same pointer, same name) and got the slot now holding another model.
+  `forgetModels` (`vr_agarmor_rebuild`) would also have freed that other model's cache.
+- **Fix:** each kind keeps the name its armour was loaded as; `armorLive` (the slot still that model, loaded, alias) or
+  the armour is looked up again, as `view::viewModel` already checks its own cache.
+- **Check:** `vr_player_plates_model_check [end]` (`ppmodel: ok|FAIL ...`; `end`: `ppmodel: N passed, M failed`): the
+  plates drawn as "<body>#armor", an alias model, the body the build's own.
+- **Test:** `bash Misc/quakevr/plates_model_test.sh <agent>` (needs rogue): builds 1-3, armour in e1m1, the switch,
+  armour in r2m6; the check on each map, and the pixels (`plates_model_pixels.py`: a camera in front of the player, the
+  plates on against off: the silhouette in r2m6 the same as in e1m1, at least 0.4 intersection over union). Without the
+  fix: 3 passed, 6 failed (plates `*62`, `*87`; same pixels 0.23-0.26). With it: 9 passed, 0 failed (0.68-0.70).
+  `vr_pp_test 1` 53/0, `3` 5/0.
+- **To try:** flat or VR, build 3: a map in id1, then Dissolution of Eternity, R2M6, the armour by the entrance.
+## Blender: export on save, the game reads it again (branch `agent/blendauto`, 2026-11-06)
+
+His words: avoid running the export script by hand. Now the loop is edit, Ctrl+S, look (MODELS_IN_BLENDER.md, sections
+1, 4 and 9).
+
+- **The add-on** (`quakevr_models/autoexport.py`, version 1.1.0): a `save_post` handler. Saving a weapon's source .blend
+  (one model object with its anchors' empties, inside a repository that has `Misc/quakevr/blend_export.py`) runs that
+  same script on the saved file in a **background Blender** (`blender -b --factory-startup <file> --python
+  blend_export.py`), not in-process: the export changes the object it exports (mode_set to Object, triangulates it,
+  sets its frame and properties), which would change the scene being edited after every Ctrl+S. It takes ~5 s and
+  doesn't block the editing; a timer reads the result: the status bar says ok (the files and the folder) or `NOT
+  exported, nothing written` with a popup of the reasons; the whole report is `%TEMP%\quakevr_export_on_save.log`. A
+  save during an export exports again after it. The checks are blend_export's own: nothing is written on a refusal.
+  Preferences (and the panel's new top box): **Export on Save** (default on), **Game Folder** (empty: the repository's
+  `quakevr/progs`, weapons.txt written too; another folder: `--out`, weapons.txt left alone).
+- **The engine** (`vr_modelwatch.cpp`; `vr_model_watch`, default 1, Debug > Tests > Read Models Again When Saved;
+  `vr_model_watch_status`, a Debug button too): the loaded alias models in `progs/` that a folder has (not a pak) are
+  watched: the .mdl and beside it its `_0_norm.png`, full-colour skins (`_0.png`, `_0_glow`, `_0_luma`) and a body's
+  `.md5mesh`/`.md5anim` that exist. Windows watches their folders (FindFirstChangeNotification), asked every half
+  second of real time: nothing changing, no file is looked at. A notification has every file's write time looked at
+  over the next half seconds (spread over the frames); a model whose file changed is read when a whole half second
+  passes with no new change (an export's files read together), and only when its .mdl is whole (header, version, size
+  at least what its counts need; else retried at the next half second, said once). It is read through
+  `view::reloadModels` (vr_model_reload's own work, split out of its command) and prints `vr_model_watch: changed on
+  disk, read again: ...`. Newly loaded models are listed for at most 0.2 ms a frame, their folder listed once (no
+  lookup of a missing file). New engine helpers: `Mod_KnownModel` (gl_model.c), `COM_PackHasFile` (common.c).
+- **His Blender:** checked (read-only, a background Blender with his preferences): Blender 5.2 already has the script
+  directory `C:\OHWorkspace\quakevr-iw\Misc\quakevr\blender\` and both add-ons (Quake VR Models, the hand's) enabled,
+  preferences auto-saved: the docs' method, which loads the add-ons from his checkout. Nothing was copied or changed
+  (a copy in the user add-ons folder would duplicate the modules). After this branch is merged into his checkout:
+  restart Blender (or F3 > Reload Scripts) once.
+- **Test:** `bash Misc/quakevr/blend_autoexport_test.sh <agent> --idle` (blend_autoexport_test.py is its Blender half),
+  on a copy of v_shot.blend in `scratch/ba_autoexport`: a renamed frame saved: refused, 5 of 5 game files untouched;
+  the game on e1m1 and the copy saved: exported (4 game files newer, byte for byte the shipped ones) and the game printed
+  `vr_model_watch: changed on disk, read again: progs/v_shot.mdl, progs/vr_pump_on_v_shot.mdl,
+  progs/vr_pumpbody_on_v_shot.mdl` and vr_model_reload's lines; a real-time minute idle on e1m1: 224 files of 123
+  models in 1 folder, 131 asks, 0 notifications, 0 looks, 0 reloads, 52.7 ms in 66 s (4.4 us a frame, the first
+  listing included; low-impact run). 8 passed, 0 failed.
+- **To try (VR / desktop):** restart Blender, open `Misc/quakevr/src_models/blend/v_shot/v_shot.blend`, see the Export
+  on Save box at the top of the Quake VR panel; with the game running and the shotgun in hand, move a vertex of the
+  stock and Ctrl+S: the status bar says exported, the gun changes within a second or two. Rename a shape key and
+  Ctrl+S: the popup refuses and the game doesn't change. (Undo both; don't commit the .blend.)

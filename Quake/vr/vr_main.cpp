@@ -71,6 +71,7 @@
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
 #include "vr_renderdoc.hpp"
+#include "vr_modelwatch.hpp"
 #include "vr_ad.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
@@ -2304,6 +2305,7 @@ extern "C" void VR_Init()
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
     renderdoc::registerCommands(); // vr_renderdoc_capture, vr_renderdoc_status (vr_renderdoc.cpp)
+    modelwatch::registerCommands(); // vr_model_watch_status (vr_modelwatch.cpp)
     ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
@@ -2855,6 +2857,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::renderdoc::poll(); // the delayed RenderDoc capture (vr_renderdoc.cpp)
+    qvr::modelwatch::frame(); // vr_model_watch: a loaded model whose file changed read again (vr_modelwatch.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)

@@ -429,6 +429,7 @@ int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
 qboolean COM_FileExists (const char *filename, unsigned int *path_id);
 qboolean COM_StemNowhere (const char *stem); // QVR: no `stem`.<extension> in any search path (true only when sure)
+qboolean COM_PackHasFile (const struct pack_s *pack, const char *name); // QVR: the pak has the file (vr_modelwatch.cpp)
 void COM_CloseFile (int h);
 
 // these procedures open a file using COM_FindFile and loads it into a proper

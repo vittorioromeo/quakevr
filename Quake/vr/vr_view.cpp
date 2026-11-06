@@ -121,7 +121,13 @@ void updateFingerFrames()
     for(int hand = 0; hand < 2; hand++)
     {
         const bool holder = posingHotspot && hand == posing::session().weaponHand;
-        const HandInput& in = holder ? holding : input.hands[hand];
+        // Flatscreen play has no controller to squeeze: a hand holding a weapon (one or two hands), or drawn on its
+        // two-handed hotspot (the stance's and the ironsight's look hand), grips as a headset's does with its grip
+        // pressed and the index finger resting on the trigger (on the fore-end, the helper's index closes with the grip).
+        const int flatSlot = flatplay::active() ? weapons::heldSlot(hand) : -1;
+        const bool flatGrips =
+            flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand));
+        const HandInput& in = holder || flatGrips ? holding : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder
@@ -4955,6 +4961,8 @@ extern "C" void VR_SetupViewEntities()
         // A shot's programmatic recoil (vr_weaponfx.cpp), the same way.
         glm::vec3 recoilPos, recoilAngles;
         weaponfx::recoilOffset(hand, s.visualRot[hand], recoilPos, recoilAngles);
+        // (Flatscreen play's ironsight keeps vr_flat_ads_recoil of it, by how far the gun has come up to the eye.)
+        flatsight::keepRecoil(recoilPos, recoilAngles);
         shakePos[hand] += recoilPos;
         shakeAngles[hand] += recoilAngles;
         // A running chainsaw's engine (vr_chainsaw.cpp), the same way.
@@ -5019,6 +5027,8 @@ extern "C" void VR_SetupViewEntities()
         }
         {
             QVR_PROFILE("view weapons");
+            embedPinStep(s, HAND_MAIN); // (a blade just out of a body: the weapon eased into the hand with the hand)
+            embedPinStep(s, HAND_OFF);
             setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
             setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
                 cl.stats[STAT_QVR_WEAPONFRAME2]);

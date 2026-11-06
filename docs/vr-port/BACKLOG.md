@@ -78,8 +78,8 @@ pack a frame): each wearer costs a little.
 
 ### Small
 
-- **Lightning burn marks** (Vittorio, 2026-11-05): thunderbolt and Shambler lightning bolts hitting geometry should leave permanent burn marks on the surfaces they hit, like the flamethrower's.
-- **Arena text banners** (Vittorio, 2026-11-05): real-time text banners in the arena showing enemies left and information about the current wave, time, score and so on.
+- **Shooting yourself in VR** (Vittorio, 2026-11-06): the player can hurt themselves by pointing a weapon at their own limbs or body and firing: shots and blades hit the player's own body (limb hit, blood, damage), headset only.
+
 
 ### Magazines sliding home (RELOAD.md; noted, not done, 2026-10-08)
 

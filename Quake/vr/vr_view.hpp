@@ -420,6 +420,9 @@ enum class PlatePass : int
 void platesResync();
 // vr_player_plates_info: what's drawn this frame.
 void platesInfo_f();
+// vr_player_plates_model_check [end]: the plates drawn as the drawn body's own armour model (`ppmodel: ok|FAIL ...`); `end`
+// the tally (`ppmodel: N passed, M failed`). Misc/quakevr/plates_model_test.sh.
+void platesModelCheck_f();
 // The tests (ragdollbone's QVR_ARMOR_CLIENT, `what`): 10 the settled pieces drawn, 11 those coming in, 12 those going out, 13
 // the newest morph coming in's progress (per mille; 0 none), 14 morphs begun so far, 15 the pieces drawn from the eyes last
 // frame (a view without the head), 16 those drawn with the head, 17 the plates' slots (0: no shell), 18 the settled ones' colour.
@@ -468,6 +471,9 @@ void resetCaches();
 // triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
 // .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
 void modelReload_f();
+// The same for these models (progs/<name>.mdl, as the engine knows them; empty: the editable ones): vr_model_reload's
+// work and lines, also vr_model_watch's (vr_modelwatch.cpp).
+void reloadModels(const za::Vector<za::String>& names);
 
 // The motion review's ghost (vr_motion_review.cpp): a recorded take's weapon (or empty hand) in `hand`, drawn
 // translucent and tinted this frame where the game draws a weapon held at the hand pose `pos`, `rot` (hands::State's
