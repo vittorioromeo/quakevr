@@ -1175,7 +1175,12 @@ From the melee audit (his answer: "All, armed ones too").
   as its swing starts dodges it (89 deg off at the hit frame, 0 damage); Show Melee Arcs sets and the engine draws each
   kind (arc, leap, all round, shove: `meleearcviz: drawn arc 1 leap 1 round 1 shove 1`). `vr_agrunt_test 213`: the
   nearest lost soul's bite parried (spawned through the dispenser, 207): needs AD mounted (`vr_ad_mounted` is 0 in the
-  agents' trees, so it reports "no lost soul" here; not verified).
+  agents' trees, so it reports "no lost soul" here; not verified). Night check 2026-11-06 with AD's paks copied into
+  the agent's base (`kit/bases/<agent>/qbase/ad`) and `-Games "-game hipnotic -game rogue -game ad -game quakevr"`:
+  it first stopped on `Host_Error: PR_ExecuteProgram: NULL function` (VR_AGT_Hunt ran id's FoundTarget, which thinks
+  the lost soul's unset `th_run`); now it wakes the soul by AD's own AI (`AD_TestWake`). It then runs but **fails**:
+  0 parries in 8 s, the soul 150-200 away with no enemy at the end (map start and vrtesthall, with and without god).
+  Open: why the woken lost soul drops its enemy instead of biting.
 - **Before/after** (vrtesthall, seed 7; melee_arc_test.sh id/ad/rogue at arc 1): every meleearc result line identical
   after both stages. `vr_agrunt_test` 78: 47/0 -> 47/0; 24: 2/0 -> 2/0; 29: 1/0 -> 1/0; 35 (no mock guard in this run):
   4/2 -> 5/1 (Fist now parried; Axe still 0 of 2, as before); 18 (long blade's standoff, blows landing): 24/0 after;

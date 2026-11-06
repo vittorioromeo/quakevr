@@ -230,7 +230,15 @@ void() VR_MRT_ParryFrame =
             }
             return;
         }
-        VR_AGT_Hunt(vr_mrt_mon);
+        // (AD's monsters hunt by AD's own AI: id's FoundTarget would think their unset th_run, a NULL function)
+        entity os = self;
+        self = vr_mrt_mon;
+        float woke = AD_TestWake(p);
+        self = os;
+        if(!woke)
+        {
+            VR_AGT_Hunt(vr_mrt_mon);
+        }
         vr_mrt_wait = 0;
         vr_mrt_p0 = vr_parry_count;
         vr_agt_until = time + 8;
@@ -240,8 +248,10 @@ void() VR_MRT_ParryFrame =
     float n = vr_parry_count - vr_mrt_p0;
     if(n > 0 || time >= vr_agt_until)
     {
-        VR_AGT_Check(sprintf("meleerules: %s's bite parried (%g parries, the last by %s)", vr_mrt_mon.classname, n,
-            vr_parry_count_by.classname), n > 0 && vr_parry_count_by == vr_mrt_mon);
+        VR_AGT_Check(sprintf("meleerules: %s's bite parried (%g parries, the last by %s; it is %g away, health %g, "
+            "enemy %s)", vr_mrt_mon.classname, n, vr_parry_count_by.classname,
+            vlen(vr_mrt_mon.origin - vr_agt_player.origin), vr_mrt_mon.health, vr_mrt_mon.enemy.classname),
+            n > 0 && vr_parry_count_by == vr_mrt_mon);
         cvar_set("vr_agrunt_test", "0");
     }
 };
