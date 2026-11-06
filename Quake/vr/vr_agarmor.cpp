@@ -2340,6 +2340,21 @@ bool buildShell(qmodel_t* src, Shell& s)
         {
             r = tweaked(tweak[piece], armourdata::Standoff) ? za::max(r + tweak[piece].v[armourdata::Standoff], 0.05f) : r;
         }
+        // (armour.txt's taper: each ring's radii scaled, its first row's taper_start lerped to its last row's taper_end)
+        PlateGrid& g = grids[piece];
+        if((tweaked(tweak[piece], armourdata::TaperStart) || tweaked(tweak[piece], armourdata::TaperEnd)) && g.rows > 0)
+        {
+            const float a = za::clamp(tweak[piece].v[armourdata::TaperStart], 0.2f, 3.f);
+            const float b = za::clamp(tweak[piece].v[armourdata::TaperEnd], 0.2f, 3.f);
+            for(int ring = 0; ring <= g.rows; ring++)
+            {
+                const float k = a + (b - a) * static_cast<float>(ring) / static_cast<float>(g.rows);
+                for(int col = 0; col < g.cols; col++)
+                {
+                    g.at2(ring, col) = za::max(g.at2(ring, col) * k, 0.05f);
+                }
+            }
+        }
     }
     for(int piece = 0; piece < NumPieces; piece++)
     {
@@ -2361,7 +2376,9 @@ bool buildShell(qmodel_t* src, Shell& s)
         else if(grids[piece].rows)
         {
             platesOf(s, locals[piece], f, grids[piece], piece, plateSeed(src->name));
-            if(piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2)
+            // (armour.txt's `leather "0"` on a sleeve part: that sleeve not made at all)
+            const bool leatherOff = tweaked(sleeveTweak[piece], armourdata::Leather) && sleeveTweak[piece].v[armourdata::Leather] < 0.5f;
+            if(piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2 && !leatherOff)
             {
                 sleeveVert = count(s.verts);
                 sleeveOf(s, s.body, f, grids[piece], piece);

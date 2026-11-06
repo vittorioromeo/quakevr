@@ -18,6 +18,7 @@
 
 #include <glm/glm.hpp>
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +39,25 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
-    &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows};
+    &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
+    &vr_armourstudio_leather};
+
+// The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
+constexpr int maxAnims = 64;
+struct Anim
+{
+    char name[16];
+    int first, frames;
+};
+struct Anims
+{
+    const qmodel_t* model{nullptr}; // (the model they were read from)
+    Anim list[maxAnims]{};
+    int count{0};
+    int group{-1};    // the one playing
+    double pos{0.0};  // frames into it
+};
+Anims anims;
 
 struct State
 {
@@ -56,6 +75,7 @@ struct State
     int undoField{-1}, undoSel{-1};
     double undoAt{-1e9};
     char statusText[256]{};
+    char animText[160]{};
 };
 State st;
 
@@ -65,7 +85,7 @@ struct Test
     int step{0};
     double since{0.0}; // (realtime the step began)
     testkit::Tally tally;
-    uint32_t hashEmpty{0}, hashTweaked{0}, hashHand{0};
+    uint32_t hashEmpty{0}, hashTweaked{0}, hashHand{0}, hashShipped{0};
     int genBefore{0}; // (the table's generation before the hand-edited file: the watcher's read bumps it)
     char fileWas[64]{};
     char mapWas[64]{};
@@ -98,7 +118,7 @@ Test test;
         const bool mirror = side == SideRight && (field == OffsetY || field == Yaw || field == Roll);
         return mirror ? -both->v[field] : both->v[field];
     }
-    return field == Scale ? 1.f : 0.f;
+    return fieldDefault(field);
 }
 
 void showFields()
@@ -172,6 +192,9 @@ void syncFields()
         }
         // (rows 0: the generator's)
         o->has &= f == Rows && o->v[Rows] < 0.5f ? ~(1u << static_cast<unsigned>(Rows)) : ~0u;
+        // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
+        o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
+        o->has &= f == Leather && (o->v[Leather] > 0.5f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
     }
     if(any)
     {
@@ -234,6 +257,91 @@ void spawnSubject()
     Con_Printf(num ? "armourstudio: a %s ahead (entity %d)\n" : "armourstudio: no %s made (a map with you in it needed)\n", kindNames[kind], num);
 }
 
+// The model's animations read again (a new model).
+void readAnims(const qmodel_t* m)
+{
+    anims.model = m;
+    anims.count = 0;
+    anims.group = -1;
+    const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m))) : nullptr;
+    // (the generated vr models' frames have no names: the Quake model they were made from names them, frame for frame)
+    constexpr const char* sources[][2] = {{"progs/vrgrunt.mdl", "progs/soldier.mdl"}, {"progs/vrenforcer.mdl", "progs/enforcer.mdl"},
+        {"progs/vrknight.mdl", "progs/knight.mdl"}, {"progs/vrhknight.mdl", "progs/hknight.mdl"}};
+    const aliashdr_t* named = hdr;
+    for(const auto& s : sources)
+    {
+        const bool unnamed = hdr && hdr->numframes > 0 && (!hdr->frames[0].name[0] || !strncmp(hdr->frames[0].name, "frame", 5));
+        qmodel_t* src = unnamed && !strcmp(m->name, s[0]) ? Mod_ForName(s[1], false) : nullptr;
+        named = src && src->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : named;
+    }
+    char lastKey[16]{};
+    for(int i = 0; hdr && i < hdr->numframes; i++)
+    {
+        char name[16];
+        q_strlcpy(name, named && i < named->numframes ? named->frames[i].name : hdr->frames[i].name, sizeof(name));
+        size_t n = strlen(name);
+        while(n > 0 && ((name[n - 1] >= '0' && name[n - 1] <= '9') || name[n - 1] == '_'))
+        {
+            name[--n] = '\0';
+        }
+        Anim* last = anims.count > 0 ? &anims.list[anims.count - 1] : nullptr;
+        if(last && !strcmp(lastKey, name))
+        {
+            last->frames++;
+            continue;
+        }
+        q_strlcpy(lastKey, name, sizeof(lastKey));
+        if(anims.count >= maxAnims)
+        {
+            break;
+        }
+        Anim& a = anims.list[anims.count++];
+        q_strlcpy(a.name, name[0] ? name : "frame", sizeof(a.name));
+        a.first = i;
+        a.frames = 1;
+    }
+}
+
+// The subject's frame while vr_armourstudio_anim plays (the QC holds its stand frame otherwise: vr_armedgrunt_pose.qc):
+// the animation picked, played at 10 frames a second times its speed, or paused on vr_armourstudio_anim_frame.
+void playAnim(edict_t* e)
+{
+    const int mi = static_cast<int>(e->v.modelindex);
+    const qmodel_t* m = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
+    if(m != anims.model)
+    {
+        readAnims(m);
+    }
+    if(!vr_armourstudio_anim.value || anims.count == 0)
+    {
+        anims.group = -1;
+        return;
+    }
+    const int group = za::clamp(static_cast<int>(vr_armourstudio_anim_group.value), 0, anims.count - 1);
+    const Anim& a = anims.list[group];
+    if(group != anims.group)
+    {
+        anims.group = group;
+        anims.pos = 0.0;
+        Cvar_SetValueQuick(&vr_armourstudio_anim_frame, 0.f);
+    }
+    if(vr_armourstudio_anim_play.value)
+    {
+        anims.pos += host_frametime * 10.0 * static_cast<double>(vr_armourstudio_anim_speed.value);
+        anims.pos -= static_cast<double>(a.frames) * floor(anims.pos / static_cast<double>(a.frames));
+        const int shown = za::clamp(static_cast<int>(anims.pos), 0, a.frames - 1);
+        if(static_cast<int>(vr_armourstudio_anim_frame.value) != shown)
+        {
+            Cvar_SetValueQuick(&vr_armourstudio_anim_frame, static_cast<float>(shown));
+        }
+    }
+    else
+    {
+        anims.pos = za::clamp(static_cast<double>(static_cast<int>(vr_armourstudio_anim_frame.value)), 0.0, static_cast<double>(a.frames - 1));
+    }
+    e->v.frame = static_cast<float>(a.first + za::clamp(static_cast<int>(anims.pos), 0, a.frames - 1));
+}
+
 // Its tier, its turn (facing you, then turned), its look.
 void keepSubject()
 {
@@ -276,6 +384,7 @@ void keepSubject()
             e->v.angles[1] = za::atan2(dy, dx) * (180.f / 3.14159265f) + vr_armourstudio_turn.value;
             e->v.angles[0] = e->v.angles[2] = 0.f;
             e->v.takedamage = DAMAGE_NO; // (its start, a few frames after its spawn, makes it take damage)
+            playAnim(e);
         }
     }
     agarmor::studioView(st.subject, za::clamp(vr_armourstudio_ghost.value, 0.f, 1.f), pieces, sleeve);
@@ -387,6 +496,10 @@ void testStep1()
     t.reset();
     q_strlcpy(test.fileWas, vr_armour_file.string, sizeof(test.fileWas));
     q_strlcpy(test.mapWas, sv.name, sizeof(test.mapWas));
+    {
+        const agarmor::detail::Shell* shipped = gruntShell();
+        test.hashShipped = shipped ? shipped->hash : 0u;
+    }
     Cvar_Set("vr_armour_file", testFile);
     (void)files::writeText(filePath(), ""); // (the test's own file, empty)
     (void)load();
@@ -459,6 +572,62 @@ void testStep1()
     changed();
     s = gruntShell();
     t.check(s && s->hash == test.hashTweaked, testName, "rows back to the generator's: not the same shell as before");
+    // Taper: the thighs' first ring 1.3 times as wide round their line, their last 0.8 times (each ring's mean radius).
+    const auto ringMean = [](const agarmor::detail::Shell* sh, int piece, bool last) {
+        const auto& g = sh->tubes[piece].grid;
+        if(g.rows <= 0 || g.cols <= 0 || count(g.radius) < (g.rows + 1) * g.cols)
+        {
+            return 0.f;
+        }
+        const int ring = last ? g.rows : 0;
+        float sum = 0.f;
+        for(int c = 0; c < g.cols; c++)
+        {
+            sum += at(g.radius, ring * g.cols + c);
+        }
+        return sum / static_cast<float>(g.cols);
+    };
+    const float topWas = s ? ringMean(s, agarmor::ThighL, false) : 0.f, lowWas = s ? ringMean(s, agarmor::ThighR, true) : 0.f;
+    Override* taper = entry("grunt", PartThigh, SideBoth, true);
+    taper->v[TaperStart] = 1.3f;
+    taper->v[TaperEnd] = 0.8f;
+    taper->has |= (1u << TaperStart) | (1u << TaperEnd);
+    changed();
+    s = gruntShell();
+    const float topRatio = s && topWas > 0.f ? ringMean(s, agarmor::ThighL, false) / topWas : 0.f;
+    const float lowRatio = s && lowWas > 0.f ? ringMean(s, agarmor::ThighR, true) / lowWas : 0.f;
+    q_snprintf(what, sizeof(what), "the thighs' taper: their first ring %.3fx (1.3 wanted), their last %.3fx (0.8 wanted)",
+        static_cast<double>(topRatio), static_cast<double>(lowRatio));
+    t.check(za::abs(topRatio - 1.3f) < 0.01f && za::abs(lowRatio - 0.8f) < 0.01f, testName, what);
+    taper->has &= ~((1u << TaperStart) | (1u << TaperEnd));
+    // Leather: the left thigh's sleeve hidden, the right's kept.
+    const auto sleeveVerts = [](const agarmor::detail::Shell* sh, int piece) {
+        int n = 0;
+        for(const auto& v : sh->verts)
+        {
+            n += v.piece == piece && v.st.x >= 224.f && v.st.y >= 64.f && v.st.y <= 96.f ? 1 : 0;
+        }
+        return n;
+    };
+    const int rightSleeve = s ? sleeveVerts(s, agarmor::ThighR) : 0;
+    Override* leather = entry("grunt", PartThighSleeve, SideLeft, true);
+    leather->v[Leather] = 0.f;
+    leather->has |= 1u << Leather;
+    changed();
+    s = gruntShell();
+    q_snprintf(what, sizeof(what), "leather \"0\" on the left thigh's sleeve: its vertices %d (0 wanted), the right's %d (%d wanted)",
+        s ? sleeveVerts(s, agarmor::ThighL) : -1, s ? sleeveVerts(s, agarmor::ThighR) : -1, rightSleeve);
+    t.check(s && sleeveVerts(s, agarmor::ThighL) == 0 && rightSleeve > 0 && sleeveVerts(s, agarmor::ThighR) == rightSleeve, testName, what);
+    leather->has &= ~(1u << Leather);
+    changed();
+    s = gruntShell();
+    t.check(s && s->hash == test.hashTweaked, testName, "taper and leather cleared: not the same shell as before");
+    // (both again, for the file's round trip below)
+    taper->has |= (1u << TaperStart) | (1u << TaperEnd);
+    leather->has |= 1u << Leather;
+    changed();
+    s = gruntShell();
+    test.hashTweaked = s ? s->hash : 0u;
     // Saved and read back: the same shell.
     t.check(save(), testName, "could not write the test's file");
     clear("grunt", -1, -1);
@@ -514,11 +683,11 @@ void testStep3()
     }
     agarmor::detail::Shell* s = gruntShell();
     t.check(s && s->hash == test.hashHand, testName, "after a map change the tweaked shell is not the same");
-    // Back as it was: the shipped file, the generator's armour.
+    // Back as it was: the shipped file, its armour as before the test.
     Cvar_Set("vr_armour_file", test.fileWas);
     (void)load();
     s = gruntShell();
-    t.check(s && s->hash == test.hashEmpty, testName, "the shipped file read again: not the generator's shell");
+    t.check(s && s->hash == test.hashShipped, testName, "the shipped file read again: not the shell it made before the test");
     test.step = 0;
     t.verdict(testName);
 }
@@ -557,6 +726,19 @@ void init()
     Cmd_AddCommand("vr_armourstudio_reset_part", resetPart_f);
     Cmd_AddCommand("vr_armourstudio_reset_kind", resetKind_f);
     Cmd_AddCommand("vr_armour_test", test_f);
+    Cmd_AddCommand("vr_armourstudio_anim_info", [] {
+        Con_Printf("armourstudio: %s\n", animStatus());
+        for(int i = 0; i < animCount(); i++)
+        {
+            Con_Printf("  %d %s (%d frames from %d)\n", i, anims.list[i].name, anims.list[i].frames, anims.list[i].first);
+        }
+        if(st.subject && sv.active)
+        {
+            const progs::ServerVm vm;
+            const edict_t* e = progs::edictAt(st.subject);
+            Con_Printf("armourstudio: subject frame %d\n", e ? static_cast<int>(e->v.frame) : -1);
+        }
+    });
     st.savedGen = st.ownGen = generation();
     windowInit();
 }
@@ -581,6 +763,44 @@ const char* status()
         countSet(), countSet() == 1 ? "" : "s", generation() != st.savedGen ? ", not saved" : ", saved",
         st.running && !st.subject && st.subjectKind != KindPlayer ? "; no subject: Start" : "");
     return st.statusText;
+}
+
+int animCount()
+{
+    return st.subject ? anims.count : 0;
+}
+
+const char* animName(int i)
+{
+    return i >= 0 && i < animCount() ? anims.list[i].name : "";
+}
+
+int animFrames(int i)
+{
+    return i >= 0 && i < animCount() ? anims.list[i].frames : 0;
+}
+
+const char* animStatus()
+{
+    const int n = animCount();
+    const int g = za::clamp(static_cast<int>(vr_armourstudio_anim_group.value), 0, za::max(n - 1, 0));
+    if(n == 0)
+    {
+        q_snprintf(st.animText, sizeof(st.animText), "Animation: no subject (Start)");
+    }
+    else
+    {
+        q_snprintf(st.animText, sizeof(st.animText), "Animation %d of %d: %s, frame %d of %d (model frame %d)%s", g + 1, n,
+            anims.list[g].name, static_cast<int>(vr_armourstudio_anim_frame.value) + 1, anims.list[g].frames,
+            anims.list[g].first + za::clamp(static_cast<int>(vr_armourstudio_anim_frame.value), 0, anims.list[g].frames - 1),
+            vr_armourstudio_anim.value ? (vr_armourstudio_anim_play.value ? ", playing" : ", paused") : ", off (standing)");
+    }
+    return st.animText;
+}
+
+bool cloneWanted()
+{
+    return windowOpen() && za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) == KindPlayer;
 }
 
 } // namespace qvr::armourstudio

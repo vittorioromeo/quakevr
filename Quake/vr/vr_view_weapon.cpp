@@ -494,11 +494,14 @@ void recordDrawnWeapon(const hands::State& s, int hand)
 }
 
 // A held weapon's turn at the holding hand's angles `rot`, as the hands' angles (setupWeapon draws its entity at
-// these, the pitch negated).
+// these, the pitch negated). The angle offsets turn it in the hand's own frame (pitched up by o.x, yawed left by o.y
+// about the hand's up, rolled by o.z), composed with `rot`: rigid with the hand. (They were added to `rot`'s Euler
+// angles, which only agrees with the hand level: rolled, the barrel and sights drifted off the shots, Shot Pitch and
+// Yaw being turned in the hand's frame; 2026-11-06, his Show Controller Laser's red and green apart as he rolled.)
 [[nodiscard]] glm::vec3 weaponTurn(const glm::vec3& rot, int slot, bool mirrored)
 {
     const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
-    return {rot.x - o.x, rot.y + o.y, rot.z + o.z};
+    return basisAngles(anglesBasis(rot) * anglesBasis(glm::vec3{-o.x, o.y, o.z}));
 }
 
 namespace

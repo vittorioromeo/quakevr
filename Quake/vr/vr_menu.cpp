@@ -16,6 +16,7 @@
 #include "vr_testkit.hpp"
 #include "vr_random.hpp"
 #include "vr_menu_internal.hpp"
+#include "vr_armourdata.hpp"
 
 namespace menu_detail
 {

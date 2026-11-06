@@ -15,3 +15,208 @@
 //   end      "u"       units its last row ends further along it
 //   rows     "n"       its rows of plates (0 the generator's; the cuirass counts its collar row)
 // (start, end and rows: the cuirass and the limbs' plates; not the helmet or the sleeves)
+
+kind "grunt"
+{
+    cuirass
+    {
+        scale "1"
+        standoff "-0.05"
+        start "0"
+        end "0.75"
+    }
+    helmet
+    {
+        offset "0 0 0"
+        rotate "0 0 0"
+        scale "0.9"
+        standoff "-0.2"
+        end "0"
+    }
+    pauldron
+    {
+        offset "0 0 0"
+        scale "1"
+        standoff "0"
+    }
+    pauldron_l
+    {
+        rotate "-2 0 0"
+        scale "1"
+        standoff "0"
+        start "-0.4"
+        end "0"
+    }
+    pauldron_r
+    {
+        offset "0.39 0 -0.17"
+        rotate "-3.4 0 0"
+        scale "1"
+        standoff "0"
+        start "-0.53"
+        end "-0.2"
+    }
+    bracer
+    {
+        standoff "-0.2"
+        start "0.11"
+        end "0.25"
+    }
+    bracer_l
+    {
+        start "0.1"
+    }
+    thigh
+    {
+        start "-1.3"
+        end "-0.15"
+    }
+    thigh_l
+    {
+        scale "1.06"
+    }
+    shin_l
+    {
+        end "-0.25"
+        rows "4"
+    }
+    thigh_sleeve
+    {
+        rotate "10 0 0"
+        scale "0.98"
+        standoff "-0.1"
+    }
+}
+
+kind "enforcer"
+{
+    cuirass
+    {
+        offset "0.5 0 0"
+        scale "1"
+        standoff "0.15"
+        start "7"
+    }
+    helmet
+    {
+        scale "0.975"
+        standoff "-0.25"
+    }
+    pauldron
+    {
+        end "0.75"
+    }
+    pauldron_r
+    {
+        start "1.6"
+    }
+    bracer_r
+    {
+        standoff "0.5"
+        start "-1.13"
+        end "3.3"
+    }
+    thigh
+    {
+        offset "-0.2 0 0"
+        scale "1.1"
+        standoff "1"
+        start "-4"
+        end "0.2"
+    }
+    bracer_sleeve
+    {
+        scale "0.696"
+    }
+}
+
+kind "knight"
+{
+    cuirass
+    {
+        standoff "-0.1"
+        start "1.35"
+        end "1"
+    }
+    helmet
+    {
+        standoff "-0.5"
+    }
+    pauldron
+    {
+        standoff "-0.65"
+    }
+    pauldron_l
+    {
+        start "-1.17"
+    }
+    pauldron_r
+    {
+        start "-2.35"
+    }
+    bracer
+    {
+        end "2.13"
+    }
+    bracer_l
+    {
+        end "0.09"
+    }
+    bracer_r
+    {
+        standoff "-0.22"
+        end "2.13"
+    }
+    thigh
+    {
+        standoff "0.17"
+        start "-3.51"
+        end "0.35"
+    }
+    shin_r
+    {
+        end "-1.3"
+    }
+}
+
+kind "death_knight"
+{
+    cuirass
+    {
+        standoff "-0.4"
+        start "2.5"
+        end "4"
+    }
+    helmet
+    {
+        offset "0 -0.78 0"
+        rotate "1.9 0 0"
+        standoff "-0.6"
+    }
+    pauldron
+    {
+        start "4"
+        rows "2"
+    }
+    bracer
+    {
+        start "1.52"
+    }
+    bracer_l
+    {
+        offset "0 0 -0.98"
+        end "1.26"
+    }
+    bracer_r
+    {
+        end "0.35"
+    }
+    thigh
+    {
+        start "-4"
+    }
+    shin
+    {
+        standoff "-0.1"
+    }
+}

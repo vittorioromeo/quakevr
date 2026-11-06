@@ -270,7 +270,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 }
 
 // The world direction of a sword's blade held at `rot` in `hand`, as the view draws the weapon
-// (vr_view.cpp setupWeapon: the hand's angles plus the weapon's, the pitch negated for alias
+// (vr_view.cpp setupWeapon: the hand's turn composed with the weapon's angles, the pitch negated for alias
 // models, mirrored in the off hand).
 [[nodiscard]] glm::vec3 bladeDirection(int slot, int hand, const glm::vec3& rot)
 {
@@ -291,9 +291,12 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
         d.y = -d.y;
     }
 
+    // (The weapon's angle offsets composed with the hand's turn, as view::weaponTurn: rigid with the hand when rolled.)
+    const glm::mat3 b = hands::basisOf(rot) * hands::basisOf(glm::vec3{-o.x, o.y, o.z});
+    const glm::vec3 wt = hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
     float m[16];
     vec3_t origin{0.f, 0.f, 0.f};
-    vec3_t angles{-rot.x + o.x, rot.y + o.y, rot.z + o.z};
+    vec3_t angles{-wt.x, wt.y, wt.z};
     R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT);
     return safeNormalize(glm::vec3{m[0] * d.x + m[4] * d.y + m[8] * d.z, m[1] * d.x + m[5] * d.y + m[9] * d.z,
         m[2] * d.x + m[6] * d.y + m[10] * d.z});

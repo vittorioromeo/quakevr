@@ -450,6 +450,7 @@ float cvarh_vr_arena_xray_left;
 float cvarh_vr_arena_xray_shown;
 float cvarh_vr_armor_scale;
 float cvarh_vr_armor_wear;
+float cvarh_vr_armourstudio_anim;
 float cvarh_vr_axestick;
 float cvarh_vr_axestick_bleed;
 float cvarh_vr_axestick_tug;
@@ -2369,6 +2370,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_arena_xray_shown = VR_CVar_Make("vr_arena_xray_shown");
     cvarh_vr_armor_scale = VR_CVar_Make("vr_armor_scale");
     cvarh_vr_armor_wear = VR_CVar_Make("vr_armor_wear");
+    cvarh_vr_armourstudio_anim = VR_CVar_Make("vr_armourstudio_anim");
     cvarh_vr_axestick = VR_CVar_Make("vr_axestick");
     cvarh_vr_axestick_bleed = VR_CVar_Make("vr_axestick_bleed");
     cvarh_vr_axestick_tug = VR_CVar_Make("vr_axestick_tug");

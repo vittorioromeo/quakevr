@@ -46,6 +46,22 @@ leaves the studio running (Stop removes the subject). It can be moved, resized a
   the menu's way and sees it on the window, clicks Stop, presses Escape: `armourwin: 17 passed, 0 failed` (writes
   `quakevr/data/armour_wintest.txt`, never armour.txt). In a headset it checks the window refuses: `armourwin: 1 passed`.
 
+## Animations
+
+The subject plays its model's animations with its plates on, as in play (Animation on the page, the window's Animation
+header): **Play an Animation** (`vr_armourstudio_anim`; off, it stands still), **Animation** (`vr_armourstudio_anim_group`:
+the model's frames grouped by name: stand, walk, run, pain, death, attacks...; the generated vr models' unnamed frames take
+the names of the Quake model they were made from), **Play / Pause** (`vr_armourstudio_anim_play`), **Speed**
+(`vr_armourstudio_anim_speed`, 1 = 10 frames a second, below 0 backwards), **Frame** (`vr_armourstudio_anim_frame`: scrubbing
+pauses). The engine sets the subject's frame; the QC's freeze keeps its stand frame otherwise (vr_armedgrunt_pose.qc).
+`vr_armourstudio_anim_info` prints the animations and the subject's frame.
+
+## Your own body (the player's kind)
+
+With Kind = Player, the menu page shows the body's mirror image (vr_bodyclone.cpp) beside the panel, and the ImGui window shows
+it too, ahead of you and to the left (the window opens on the right): its plates are the ones you edit. It needs armour on you
+(no armour, no plates).
+
 ## The values
 
 | Slider | File key | What it does |
@@ -57,8 +73,13 @@ leaves the studio running (Stop removes the subject). It can be moved, resized a
 | Start Along | `start` | units its first row of plates starts further along it (towards the waist, the hand, the foot; below 0 further up) |
 | End Along | `end` | units its last row ends further along it (longer; below 0 shorter) |
 | Rows | `rows` | its rows of plates (0 the generator's; the cuirass counts its collar row; a limb's two sides take the larger) |
+| Taper at Start | `taper_start` | the plate rows' size round the part's line at its first row (1 as made; 0.2 .. 3), lerped row by row to ... |
+| Taper at End | `taper_end` | ... this at its last row: a death knight's thighs wider at the pelvis, narrower at the knee (1.15, 0.9) |
+| Leather Sleeve Shown | `leather` | a sleeve part's leather (over an elbow or a knee, one half of it) drawn, or `"0"`: not made at all |
 
-Start, End and Rows are the cuirass's and the limbs' plates' (not the helmet's or a sleeve's). The pieces stay on the bones they
+Start, End, Rows and the tapers are the cuirass's and the limbs' plates' (not the helmet's or a sleeve's; the ImGui window
+hides those rows there); Leather is the sleeve parts' alone (pick e.g. Knee Sleeves (Thigh's), Left Only, to hide that one
+strap). The pieces stay on the bones they
 rode: a moved plate keeps its skin weights, so it follows the body as before. What hit tests use to find a limb's plates from
 inside (the grid's tube) follows the stand-off, rows, start and end, not a move or a turn.
 
