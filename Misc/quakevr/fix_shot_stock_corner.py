@@ -99,6 +99,8 @@ def fix(path):
 
 if __name__ == "__main__":
     base = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "progs")
+    import genguard  # (retired: v_shot.blend is the source of these)
+    genguard.retired("fix_shot_stock_corner.py", [os.path.join(base, f) for f in ("v_shot.mdl", "vr_pumpbody_on_v_shot.mdl")])
     for f in ("v_shot.mdl", "vr_pumpbody_on_v_shot.mdl"):
         if os.path.exists(os.path.join(base, f)):  # (gunlooks.py's input has the gun alone)
             fix(os.path.join(base, f))

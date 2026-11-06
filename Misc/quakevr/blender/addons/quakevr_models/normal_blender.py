@@ -199,6 +199,10 @@ def bake(context, model_ob, path, highs=(), details=True, overwrite=False, repor
     target = normalmaps.target_of(path)
     outs = normalmaps.outputs(progs, target)
     g = genguard()
+    if g is not None and g.owned(outs) and not overwrite:
+        report("not baked: %s: its source is a .blend (%s): save or export that, it bakes the map" % (
+            ", ".join(os.path.basename(p) for p in outs), sorted(set(g.owned(outs).values()))[0]))
+        return None
     if g is not None:
         edited = g.edited(outs)
     else:  # no manifest to tell a baked map from a painted one: only overwrite when asked
@@ -218,7 +222,7 @@ def bake(context, model_ob, path, highs=(), details=True, overwrite=False, repor
         manifest = g.load()
         for p in maps:
             r = g.rel(p)
-            if r:
+            if r and not manifest.get(r, {}).get("source"):
                 manifest[r] = {"sha256": g.sha256(p), "by": "bake_normals.py"}
         g.save(manifest)
     refresh(list(maps))

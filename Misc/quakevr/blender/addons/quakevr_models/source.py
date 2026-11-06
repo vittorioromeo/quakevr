@@ -73,6 +73,28 @@ def handmade_script(blend):
     return None
 
 
+HANDMADE_FILES = {  # (what each hand-made source writes into quakevr/progs: genguard's manifest records it as owned)
+    "flaregun": ("v_flaregun.mdl", "vr_flare.mdl", "vr_flaregun_preview.mdl"),
+    "revolver": ("v_revolver.mdl", "v_revolver_crane.mdl", "v_revolver_cyl.mdl", "v_revolver_frame.mdl",
+                 "v_revolver_shell.mdl", "vr_revolver_preview.mdl"),
+    "widowmaker": ("v_widowmaker.mdl", "vr_widowmaker_preview.mdl"),
+}
+
+
+def owned_files(ob):
+    """The files (in quakevr/progs) the source .blend's export writes: the model, its parts, the files made from it,
+    their normal maps, its full-colour skins."""
+    from . import normalmaps
+    name = ob["qvr_name"]
+    spec = SPECS.get(name, {})
+    files = [name] + [str(f) for f in ob.get("qvr_part_files", [])] + list(spec.get("derived", ("", ()))[1])
+    if ob.get("qvr_source_blend"):
+        files += [str(f) + "_0_norm.png" for f in ob.get("qvr_norms", {})]
+    else:
+        files += [os.path.basename(p) for p in normalmaps.outputs("", normalmaps.target_of(name))]
+    return files + [str(f) for f in ob.get("qvr_extra_files", [])]
+
+
 def sha(data):
     import hashlib
     return hashlib.sha256(data).hexdigest()

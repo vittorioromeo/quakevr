@@ -518,4 +518,9 @@ def main():
     export_mdl.export()
 
 
+# Retired (2026-11, docs/vr-port/MODELS_IN_BLENDER.md section 9): the .blend is the source now, edited by hand since
+# this made it; running this would overwrite it. --from-scratch makes it anew all the same.
+if "--from-scratch" not in sys.argv:
+    sys.exit("build_nailpistol.py: retired: Misc/quakevr/src_models/blend/v_nailpistol/v_nailpistol.blend (the shipped gun; nailpistol.blend is an archive) is the source now (edit it, save: export on save); this would overwrite it. "
+             "--from-scratch to make it anew all the same.")
 main()
