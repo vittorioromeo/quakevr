@@ -132,9 +132,29 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
 - **Tried and dropped:** a higher reach over a humanoid's shoulder (1.8-2.2, for the knight's red pad): it flared the enforcer's pauldrons
   into shells, the pad still showed. A ring's corners clamped to 1.35-1.6 of its median: cost the enforcer's forearm coverage. A limb's ring
   middle from its own rows' skin alone: the grunt's coverage bent fell to 12%.
-- **Open:** look check 111/3: the grunt's thigh coverage 75% at rest and bent (2 of its 8 counted vertices: its knee's point at 9.4 and
-  11.8 under the sleeve); the enforcer's right forearm row 8.37 wider than the skin (limit 7.5; the wrist ring's centre drawn aside by the
-  hand). Not done: the death knight's face (helmet/yoke), the knight's red shoulder pad, the death knight's cape-like pauldrons' size.
+- **Second pass (look check 111/3 -> 114/0, limits unchanged):**
+  - Grunt thigh coverage 75% -> 88%: a humanoid's sleeve's rounding eased corners in by up to `sleeveRoundIn` and bared the knee's point
+    the ridge pass had covered; the ridge pass (`sleeveOf`'s `ridgeOut`) now runs again after the rounding.
+  - Enforcer bracer_r 8.37 over: two causes. The hand's vertices past the bone's end set the end ring's middle (the axis band now stops
+    at the bone's end), and half way down his forearm weighs on the upper arm and the hand too, so the region's own vertices were a
+    sliver and the plates sat 1 unit to one side (-4.8..3.0 over an arm -3.7..3.9). A humanoid's forearm's and shin's rings are now
+    centred on the whole skin's exits (as a sleeve's), a corner no region ray finds takes the whole skin's exit (`fillRadii`, as the
+    thigh's): plates -4.4..4.4. The width check measured that row against a 0.2-unit sliver of skin: where the region's slice is under
+    1 unit, it takes the skin weighing 0.3 on the piece (`lookFit`).
+  - The thigh's top rings the same where its region's slice is a sliver (an enforcer's thigh weighs on the hip only at its front: the
+    rings 3 units forward). Pop check bulk, thigh mean: enforcer 3.51 -> 2.28 (it failed the 3.2 limit after the first pass; 1.97 before
+    round five), grunt 2.72 -> 1.25.
+- **Death knight's face:** guards end higher (jaw 0.42 -> 0.48 of the head), front edges further apart (0.37/0.44 -> 0.40/0.48), his
+  collar row lower (`Wearer::yoke` 0.5, the others 1.2). Moving the guards' front edges back (0.54/0.42 -> 0.46/0.36) opened the helmet
+  (14 rim edges, `vr_agarmor_check` "each shell closed"): kept.
+- **Knight's shoulder pads:** a humanoid's two upper arms start as high as the higher (`PieceFrame::topAt`; his right weighs on its bone
+  only from 1.4 down, so it started 1.7 lower); the knight's pauldrons go out over the skin round them by 1.8 (`Wearer::shoulderRidge`,
+  plateRidge 1.1 elsewhere) and mirror the larger (`Mirror::ShouldersMost`; halving undid the pad side's push). His right pad's 8
+  vertices all under plates (a ray along each normal; one bare before). Upper arm bulk 2.28. The enforcer untouched (per kind).
+- **Death knight's shoulders:** both upper arms round one axis, the left's and the mirrored right's mean (`Wearer::shoulderAxis`: his
+  arms rest differently), plates from 5 up the bone at most (`shoulderTop`; 10.8 before, his shells' reach): mirror distance 2.61 -> 2.04.
+- **Open:** in the sheet, a sliver of the knight's red pad still shows at the top of each shoulder from front and back (the pad's
+  upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
 - **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
   (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
 
