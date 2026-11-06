@@ -4502,6 +4502,7 @@ void(float xHand) VR_Impulse_WeaponButton =
     if(VRGetWeapon(xHand) == WID_GRAPPLE) { VR_Grapple_Detach(xHand); }
     else                                  { ToggleSecondaryAmmo(xHand); }
 };
+void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
 void() ImpulseCommands =
 {
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
@@ -4564,6 +4565,15 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_Forcegrab_FlatDrop();
+        return;
+    }
+
+    // Flatscreen play (-flatscreenmode): Q swaps what the hands hold (vr_flatplay.cpp reads the key, vr_flat_key_swap;
+    // vr_wpnholster.qc VR_FlatSwapHands). Nobody else's impulse.
+    if(self.impulse == 48 && VR_FlatPlay(self))
+    {
+        self.impulse = 0;
+        VR_FlatSwapHands(self);
         return;
     }
 

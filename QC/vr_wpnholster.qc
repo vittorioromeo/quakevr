@@ -1438,6 +1438,47 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
     W_SetCurrentAmmo();
 };
 
+// Flatscreen play's Q (impulse 48, vr_flatplay.cpp; his words 2026-11-05: "a button to swap left/right hand contents"):
+// what the two hands hold changes hands, each weapon with its record (its magazine, its id) and its next shot's time; a
+// weapon in one hand goes to the empty other. A hand carrying a thing (a box, a prop: VR_Carry_Held) keeps it, and then
+// nothing is swapped (a carried thing is G's to let go). Prints "flat swap:" (developer 1).
+void(entity ent) VR_FlatSwapHands =
+{
+    if(VR_Carry_Held(ent, cVR_MainHand) != world || VR_Carry_Held(ent, cVR_OffHand) != world)
+    {
+        dprint("flat swap: a hand carries something: nothing swapped\n");
+        return;
+    }
+    float wm = VRGetEntWeapon(ent, cVR_MainHand);
+    float wo = VRGetEntWeapon(ent, cVR_OffHand);
+    if(wm == WID_FIST && wo == WID_FIST)
+    {
+        dprint("flat swap: both hands empty\n");
+        return;
+    }
+    float fm = VRGetEntWeaponFlags(ent, cVR_MainHand);
+    float fo = VRGetEntWeaponFlags(ent, cVR_OffHand);
+    entity im = VRGetEntWeaponInst(ent, cVR_MainHand);
+    entity io = VRGetEntWeaponInst(ent, cVR_OffHand);
+    float am = ent.attack_finished;
+    VRHandStopFiring(ent, cVR_MainHand);
+    VRHandStopFiring(ent, cVR_OffHand);
+    VRSetEntWeapon(ent, cVR_MainHand, wo);
+    VRSetEntWeaponFlags(ent, cVR_MainHand, fo - (fo & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    VRSetEntWeaponInst(ent, cVR_MainHand, io);
+    VRSetEntWeapon(ent, cVR_OffHand, wm);
+    VRSetEntWeaponFlags(ent, cVR_OffHand, fm - (fm & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    VRSetEntWeaponInst(ent, cVR_OffHand, im);
+    ent.attack_finished = ent.offhand_attack_finished;
+    ent.offhand_attack_finished = am;
+    VR_SoundVaried(ent, VRGetHandChannel(cVR_OffHand), "knight/sword2.wav", 0.7, ATTN_NORM);
+    entity oself = self;
+    self = ent;
+    W_SetCurrentAmmo();
+    self = oself;
+    dprint(sprintf("flat swap: main hand %g -> %g, off hand %g -> %g\n", wm, wo, wo, wm));
+};
+
 void(entity ent, float xHand, float hs, entity inst) VR_MagHolster_DrawSound; // (vr_magholster.qc)
 
 // The weapon in holster `xHotspot` drawn into the empty `xHand`: immersive, the holster's (its record with it: its

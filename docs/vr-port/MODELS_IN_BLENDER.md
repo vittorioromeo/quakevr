@@ -458,3 +458,75 @@ with the model).
 **Where the skin's texels are shared** (every face of a generated model's material maps to that material's tile; a
 weapon's left and right often share texels; the body's arms and legs do), the map carries only what suits every face
 drawing those texels: a tile's relief shows on each face made from it.
+
+## 9. A weapon's source .blend (the shotgun, so far)
+
+For the shotgun the `.blend` is the source and the shipped files are made from it, as a generator made them before. It
+lives in `Misc/quakevr/src_models/blend/v_shot/`:
+
+| File | What |
+|---|---|
+| `v_shot.blend` (300 KB, compressed) | The model (as Import gives it: frame 0 the mesh, every other frame a shape key named as QuakeC's `$frame` lines, in their order), its anchors and hotspots as empties, the rivets (vertex group `rivets`), which faces are the auto pump's moving fore-end (face attribute `qvr_part`: 1 the pump, 0 the gun without it) |
+| `v_shot_skin0.png` (85 KB) | The skin, in Quake's palette colours. Paint it here or in any editor. |
+| `v_shot_relief.png` (2 KB) | The relief the normal map is baked from (grey: 128 flat, one level a height step; gunlooks.py's wood grain, rust pits and panel lines). |
+
+**Edit** it as section 2 says (frames, skin, UVs, the box: the same rules), and also:
+
+- **Anchors** are the empties `av hand_av`, `av muzzle_av`, `av 2h_hand_av`, `av wpnbtn_av`, `av wpntxt_av` (weapons.txt's
+  points), **hotspots** `hs 1`, `hs 2` (where the other hand grips). Move one and the export writes its new value into
+  `quakevr/data/weapons.txt`. Keep an anchor on the surface (snap to Face). `port shell` is vr_shells.cpp's ejection
+  port: moved, the export prints the line to paste there. `sight rear` and `sight front` show the sight line the game
+  works out from the painted sights (texels in palette 224-239, 252, 253): they can't be moved; repaint the sights.
+- **The pump** is drawn apart from the gun by the engine (vr_autopump.cpp). A face you add to the fore-end: set its
+  `qvr_part` to 1 (Mesh > Set Attribute). The export writes `vr_pump_on_v_shot.mdl` and `vr_pumpbody_on_v_shot.mdl`
+  from your model, so they follow every edit.
+- **New animations:** add an armature and an Armature modifier on the model (weight the vertices to its bones), make an
+  action, and give the action a custom property `qvr_frames` with a name (`pumpalt`, at most 12 letters). The export
+  bakes it to frames after the model's own, one a scene frame over the action's range (`pumpalt1`, `pumpalt2`...;
+  the shotgun's are 9 on). The model's own frames stay shape keys: QuakeC plays them by number. To see new frames in
+  the game: the Debug menu's Hold the Weapon Frame (`vr_debug_weapon_frame 11`); QuakeC plays them once its `$frame` lines and
+  a `player_*` sequence name them.
+
+**Export** (headless; the .blend is only read):
+
+```
+blender -b Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/blend_export.py
+```
+
+It writes `quakevr/progs/v_shot.mdl`, its two pump parts and their three normal maps, and weapons.txt's changes
+(anchors, hotspots, the barrel mask `fx_gfx_mask` kept on its triangles). `-- --out <folder>` writes elsewhere and
+leaves weapons.txt alone. Before writing anything it checks, and refuses with a message (`blend_export: REFUSED`):
+
+- the frames: as many shape keys as frames, named and ordered as the model's;
+- the box (section 2), the parts (every face in one);
+- the anchors: each on the surface (0.1 units at most), and the surface under an unmoved one where it was in every
+  frame (`--allow-moved` to write anyway);
+- the sight line (worked out as the game does: `vr_sight_lines`): it may turn 0.25 degrees at most (`--allow-sights`
+  to write anyway, then line them up in the game with `vr_weaponstudio_align main apply`).
+
+An untouched .blend exports the shipped files byte for byte. Then in the game: `vr_model_reload v_shot
+vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
+
+`Misc/quakevr/blend_build.py v_shot.mdl` made the .blend from the shipped files once. Don't run it again: it starts
+from the files, not from your edits.
+
+**Skins in full colour:** the engine also takes a full-colour skin for a weapon (`progs/v_shot.mdl_0.png`, with
+`_glow` or `_luma` for what glows: vr_modelload.cpp), but the sights, the barrel glow, the ammo screen and the
+flood-filled corner read the 8-bit skin's palette indices, so the source keeps the palette skin.
+
+### The other weapons (the plan)
+
+- **Shared** (done): the add-on (`source.py`: build, checks, export; `sights.py`; anchors read from weapons.txt), the two
+  scripts, the anchors' and hotspots' empties, the barrel mask, the normal maps.
+- **Per weapon:** a `SPECS` entry in `source.py` (the parts the engine draws in its place, the relief's generator, where
+  the rivets start), its painted sights' kind (`sights.PAINTED`) or the table's line, then `blend_build.py <model>` once.
+  The parts: the super shotgun's open halves (`vr_ssg_frame_on_v_shot2`, `vr_ssg_barrels_on_v_shot2`, make_ssg_open.py),
+  the magazines and wells (`vr_mag_on_*`, `vr_magwell_on_*`, make_mags.py: mounted on anchors in vr_view.cpp), the
+  revolver's parts (their own origins: a .blend of their own).
+- **The generators that retire** for a weapon once its .blend ships (they would overwrite its edits): gunlooks.py
+  (v_shot, v_nail, v_lava), polish_weapons.py and the improve_weapons*.py before it, fix_shot_stock_corner.py,
+  recolor_shotgun_sight.py, make_ssg_open.py, make_mags.py's part files; bake_normals.py stays (the export calls its code).
+- **Repository cost:** about the model file's size each (the .blend keeps a compressed copy of the file it stands for,
+  so an unedited export is byte for byte): the 34 `v_*.mdl` are 6.7 MB, so 5 to 10 MB of .blend files and PNGs, plus a
+  new copy of a .blend at each commit that changes it (git doesn't diff .blend files: commit them after an edit
+  session, not after every export).

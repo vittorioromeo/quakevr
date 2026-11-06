@@ -39,8 +39,11 @@ void init(); // registers input commands
 // Whether the +grab button of `hand` (HAND_OFF, HAND_MAIN) is held.
 [[nodiscard]] bool grabbing(int hand);
 
-// Whether the trigger of `hand` is held (+attack, +offhandattack).
+// Whether the trigger of `hand` is held (+attack, +offhandattack; in flatscreen play as flatplay::routeFire routes the
+// mouse's buttons by what the hands hold).
 [[nodiscard]] bool attacking(int hand);
+// +offhandattack held (the right mouse button), whatever it drives: flatscreen play's ironsight reads it.
+[[nodiscard]] bool offhandButton();
 
 // Null when the server doesn't speak the VR protocol or the entity has no VR data.
 [[nodiscard]] const EntityVr* entityVr(int num);

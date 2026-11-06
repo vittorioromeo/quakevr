@@ -339,11 +339,16 @@ int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *sta
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, cl_main.c, cl_demo.c, sv_user.c, sv_main.c, host.c,
 // host_cmd.c).
+int VR_MoveMainFire (int lmb);					// CL_SendMove's attack bit: +attack's state in, the main hand's trigger out (flatscreen play: flatplay::routeFire, the mouse's buttons by what the hands hold; otherwise as it came)
 void VR_WriteMoveExtras (struct sizebuf_s *buf);			// end of CL_SendMove
+int VR_FlatHudOn (void);						// Sbar_Draw, the modern status bar at hudstyle 1: 1 while flatscreen play draws its own layout (vr_flat_hud; vr_flathud.cpp)
+int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counter of the left (1) or right (0) hand: 0 for none (an empty hand, a weapon with no ammo); the count, and its ammo's picture (0..3 shells, nails, rockets, cells; -1 none)
+int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
 void VR_CalcStats (struct client_s *client, int *statsi, float *statsf); // end of SV_CalcStats
+int VR_AmmoStat (struct edict_s *ent);				// SV_WriteClientdataToMessage: the status bar's ammo count (the VR progs' .currentammo is the main hand's ammo type: their counter instead)
 int VR_ActiveWeaponStat (struct edict_s *ent);			// SV_WriteClientdataToMessage: the active weapon item bit
 int VR_EntityUpdateBits (struct edict_s *ent);			// SV_WriteEntitiesToClient, before U_EXTEND*
 void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits); // after the update

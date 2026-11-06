@@ -737,6 +737,9 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Play Status", "vr_flatplay_status")
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
+        command("Flatscreen Status Bar Report", "vr_flathud_report")
+            .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
+                  "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
         row(opt::vr_flatplay_debug),
         command("Flatscreen Look At Yourself", "vr_flat_orbit -60 44")
             .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "

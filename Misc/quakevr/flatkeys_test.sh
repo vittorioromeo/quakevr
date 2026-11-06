@@ -40,7 +40,9 @@ run() { local tag=$1 flat=$2 script=$3 filter=$4; local a=(); [ "$flat" = flat ]
 run crouchfloor flat "$P; vr_floor_offset -10; wait20; vr_flatkeys_test 1; wait5; +flatcrouch; wait40; vr_flatkeys_test 1; wait5; -flatcrouch; wait40; vr_flatkeys_test 1; wait5; vr_floor_offset -22" "^flatkeys:"
 fl=$(grep -a "^flatkeys: crouched" "$S/crouchfloor.log" | sed 's/.*crouched \([0-9.]*\) stand \([0-9.]*\).*/\1:\2/' | tr '\n' ' ')
 check $(echo "$fl" | grep -qE '^0:1 1:0\.[0-9]+ 0:1 $' && echo 1 || echo 0) "crouch: vr_stand is 1 standing with vr_floor_offset moved, under 1 only for the crouch he holds ($fl= crouched:stand)"
-run crouchflat flat "$P; vr_flatkeys_test 1; +flatcrouch; wait40; vr_flatkeys_test 1; -flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
+# (Each reading a few frames before the key changes: the move's crouch bit is the key itself, so a reading asked in the
+# frame the key changes already sees the new box.)
+run crouchflat flat "$P; vr_flatkeys_test 1; wait5; +flatcrouch; wait40; vr_flatkeys_test 1; wait5; -flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
 eyes=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/.*eye \([0-9.]*\).*/\1/')
 n=$(echo "$eyes" | grep -c .)
 top=$(echo "$eyes" | head -1); low=$(echo "$eyes" | sort -g | head -1); back=$(echo "$eyes" | tail -1)
@@ -230,5 +232,54 @@ run adsfloor flat "$P; vr_flatplay_debug 2; $AIMFOV12 tune vr_flat_aim_time 0.05
 r4=$(adsramp "$S/adsfloor.log")
 check $(ramped "$r4" 12 3 6 0.03 0.07) \
     "ironsight ease: vr_flat_aim_time 0.05, the slider's floor, is over in a few frames ($r4)"
+
+# 8. The mouse's buttons by what the hands hold (his words 2026-11-05; flatplay::routeFire), each pressed through the
+# engine's own key path (vr_mock_key: Key_Event, the binds MOUSE1 +attack and MOUSE2 +offhandattack). One weapon, in
+# either hand: the left button fires it and the right is the ironsight (vr_flat_aim_mode 0: held; 1: a click on, the
+# next off) and fires nothing. A weapon in each hand: the left button the right hand's, the right the left hand's.
+# The shots are read off the pools (vr_flathud_report), the ironsight off its own print (vr_flatplay_debug 1).
+KEY() { echo "vr_mock_key $1 down; wait${2:-3}; vr_mock_key $1 up; wait10"; }
+REP="vr_flathud_report; wait2"
+pools() { grep -a "^flathud: pools" "$S/$1.log" | sed 's/.*shells \([0-9]*\) nails \([0-9]*\).*/\1:\2/' | tr '\n' ' '; }
+run mouseone flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $REP; $(KEY mouse1 30); $REP; vr_mock_key mouse2 down; wait20; vr_mock_key mouse2 up; wait10; $REP" "^(flathud: pools|flatsight: ironsight)"
+mo=$(pools mouseone); set -- $mo
+check $([ "${1%%:*}" -gt "${2%%:*}" ] && [ "${2%%:*}" = "${3%%:*}" ] \
+        && grep -qa "ironsight on (right mouse button (held))" "$S/mouseone.log" && grep -qa "ironsight off (right mouse button (held))" "$S/mouseone.log" \
+        && echo 1 || echo 0) \
+    "mouse, one weapon in the right hand: LMB fires it, RMB holds the ironsight and fires nothing (shells:nails $mo; $(grep -ac 'flatsight: ironsight' "$S/mouseone.log") ironsight lines)"
+# Q (vr_mock_key q: the key itself, read from the keyboard's state) moves it to the left hand: still LMB fires, RMB aims.
+run mouseleft flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $(KEY q); vr_flathud_report; wait2; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 10); $REP" "^(flathud: (pools|left hand|right hand)|flatsight: ironsight|flat swap:|flatplay: q)"
+ml=$(pools mouseleft); set -- $ml
+check $(grep -qa "^flat swap: main hand 4 -> 0, off hand 0 -> 4" "$S/mouseleft.log" && grep -qa "^flathud: left hand: weapon 4 shown 1" "$S/mouseleft.log" \
+        && grep -qa "^flatplay: q: swap hands" "$S/mouseleft.log" && echo 1 || echo 0) \
+    "Q swaps the hands: the shotgun from the right hand to the left ($(grep -a '^flat swap:' "$S/mouseleft.log" | head -1))"
+check $([ "${2%%:*}" -gt "${3%%:*}" ] && [ "${3%%:*}" = "${4%%:*}" ] && grep -qa "ironsight on (right mouse button (held))" "$S/mouseleft.log" && echo 1 || echo 0) \
+    "mouse, one weapon in the left hand: LMB still fires it, RMB still aims (shells:nails $ml)"
+run mousedual flat "$P; vr_flatplay_debug 1; impulse 154; wait5; give n 50; wait2; impulse 176; wait10; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 30); $REP" "^(flathud: pools|flatsight: ironsight)"
+md=$(pools mousedual); set -- $md
+check $([ "${1%%:*}" -gt "${2%%:*}" ] && [ "${1##*:}" = "${2##*:}" ] && [ "${2%%:*}" = "${3%%:*}" ] && [ "${2##*:}" -gt "${3##*:}" ] \
+        && ! grep -qa "ironsight on" "$S/mousedual.log" && echo 1 || echo 0) \
+    "mouse, dual wielding: LMB fires the right hand's shotgun (shells), RMB the left hand's nail gun (nails), no ironsight (shells:nails $md)"
+run mousetoggle flat "$P; vr_flatplay_debug 1; vr_flat_aim_mode 1; impulse 154; wait10; $(KEY mouse2); wait20; $(KEY mouse2); vr_flat_aim_mode 0" "^flatsight: ironsight"
+check $([ "$(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | sed 's/ (.*//' | tr '\n' ' ')" = "flatsight: ironsight on flatsight: ironsight off " ] \
+        && grep -qa "(toggle)" "$S/mousetoggle.log" && echo 1 || echo 0) \
+    "mouse, vr_flat_aim_mode 1: a click turns the ironsight on and stays, the next turns it off ($(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | tr '\n' ';'))"
+
+# 9. Q's key is vr_flat_key_swap's: set to x, Q does nothing and X swaps. In the headset the impulse is refused.
+run swapkey flat "$P; vr_flatplay_debug 1; vr_flat_key_swap x; impulse 154; wait10; $(KEY q); wait10; $(KEY x); wait10; vr_flat_key_swap q" "^(flat swap:|flatplay: [qx]:)"
+check $([ "$(grep -ac '^flat swap:' "$S/swapkey.log")" = 1 ] && grep -qa "^flatplay: x: swap hands" "$S/swapkey.log" && ! grep -qa "^flatplay: q:" "$S/swapkey.log" && echo 1 || echo 0) \
+    "swap key: vr_flat_key_swap x -- Q does nothing, X swaps ($(grep -a '^flat swap:\|^flatplay: [qx]:' "$S/swapkey.log" | tr '\n' ';'))"
+run swapvr vr "$P; impulse 154; wait10; impulse 48; wait10; $(KEY q)" "^flat swap:"
+check $(! grep -qa "^flat swap:" "$S/swapvr.log" && echo 1 || echo 0) "swap in the headset: impulse 48 and Q do nothing"
+
+# 10. Z: bullet time as the gadget's tap starts it (vr_bullettime.cpp keyPress: its bounce guard, the meter, the
+# cooldown). A second press 3 frames on is the bounce (ignored); one past vr_bullettime_trigger_cooldown stops it.
+run timekey flat "$P; vr_debug_bullettime 1; vr_bullettime_enabled 1; $(KEY z); vr_flathud_report; wait2; $(KEY z); wait60; $(KEY z); vr_flathud_report" "^(bullet time|flathud: pools)"
+check $(grep -qa "^bullet time: flatscreen key" "$S/timekey.log" && grep -qa "^bullet time: on" "$S/timekey.log" && grep -qa "ignored" "$S/timekey.log" \
+        && grep -qa "^bullet time: off" "$S/timekey.log" && grep -a "^flathud: pools" "$S/timekey.log" | head -1 | grep -q "state 2" \
+        && echo 1 || echo 0) \
+    "Z: bullet time on (the bar's state 2), a bounce ignored, off past the trigger cooldown ($(grep -a '^bullet time' "$S/timekey.log" | sed 's/ (.*//' | tr '\n' ';'))"
+run timevr vr "$P; vr_debug_bullettime 1; $(KEY z)" "^bullet time"
+check $(! grep -qa "^bullet time" "$S/timevr.log" && echo 1 || echo 0) "Z in the headset: nothing (the key is the flatscreen's)"
 
 verdict; exit $fail

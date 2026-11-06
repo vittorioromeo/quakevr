@@ -665,7 +665,9 @@ void(float h, float v) vr_tip_setflags = #0;   // qvr::tips::Flags (QVR_TIP_* be
 void(vector org, string text, vector colour, float scale) floattext = #0; // a text rising from `org` and fading (1.5 s), facing the viewer, for every client
 // `text` floating in the middle of `player`'s view (eye level, as VR Calibration's text; not the wrist's hologram) for
 // `seconds`; without a headset, a centre print held that long (target_vr_message; vr_server.hpp). No new tip meanwhile.
-void(entity player, string text, float seconds) viewmessage = #0;
+// `kind` 1: the Survival Arena's (VR_ARENA_Show): the wrist gadget's hologram shows it instead, with the player's
+// vr_arena_wrist (gadget::arenaMessage). panelboard_read's what 4..8 read them there (the tests': vr_gadget.hpp).
+void(entity player, string text, float seconds, optional float kind) viewmessage = #0;
 // The places the player can walk to from `start` (his origin, standing): a walk over a lattice `grid` apart, each move
 // as he walks (his box, a step up or down of 18 at most, never off a ledge or up a slope too steep), `most` at most;
 // how many: navplace(-1, start, grid, most)_x (vr_builtins.cpp; Survival Arena's supplies, vr_arena_supply.qc).

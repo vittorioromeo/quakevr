@@ -793,8 +793,9 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
     // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp). Flatscreen play
     // (his own client: vr_flatplay.cpp) crouches with a key, not with a head, and his eyes stand under the tallest
-    // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: his eased crouch, still
-    // easing up for vr_flat_crouch_time after Left Ctrl is let go) is what vr_hull.cpp is asked with. A headset player is
+    // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: Left Ctrl held; let go,
+    // standing if it fits, else the tallest crouched box that does, and his view rises only as far as that box: hull::
+    // localEyeCap) is what vr_hull.cpp is asked with. A headset player is
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
@@ -811,7 +812,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // he holds (Left Ctrl, vr_flat_crouch_drop; vr_flatplay.cpp, vr_hands.cpp lowers his head with it) lowers it, by how far
     // his head is under his view height, of his standing height: not a step's easing, nor vr_floor_offset. A headset
     // player takes the line below exactly as before (flatDrop is 0 for him).
-    const float flatDrop = flatCrouch ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2])) : 0.f;
+    // (Held, or let go and his box kept crouched under a low ceiling, his view held down with it: hull::localEyeCap.)
+    const float flatDrop = (flatCrouch || (flat && hull::isCrouched(ent)))
+                               ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2]))
+                               : 0.f;
     const bool upright = seated::active() || (flat && flatDrop <= 0.f) || move.headPos == glm::vec3{0.f} ||
                          standing <= 0.f;
     setFieldFloat(ent, f.vr_stand,
@@ -823,6 +827,21 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldFloat(ent, f.handdrop, move.handDrop);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
+}
+
+// The status bar's ammo count (STAT_AMMO). With the Quake VR progs .currentammo is the main hand's ammo *type* (AID_*:
+// 1 shells, 2 nails, ...), and the classic client data message wrote it as the count: the status bar read 1 with a
+// shotgun in hand and 17 shells, 2 with the nail gun (his report 2026-11-05: "the HUD seems to report wrong ammunition
+// count for the held weapons"). VR_CalcStats already sent the counter, but only the custom stats path uses those; the
+// client data message every protocol sends is fixed here (SV_WriteClientdataToMessage). The main hand's counter: what
+// QC's updateAmmoCounter keeps (the reserve of the gun's ammo, or the clip of a gun whose clip is its only ammo).
+extern "C" int VR_AmmoStat(edict_t* ent)
+{
+    if(!bindings().isVrProgs)
+    {
+        return static_cast<int>(ent->v.currentammo);
+    }
+    return static_cast<int>(fieldFloatOr(ent, fields().ammocounter, ent->v.currentammo));
 }
 
 // The status bar highlights the active weapon by its item bit; with the Quake VR progs .weapon
@@ -1449,7 +1468,7 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
 }
 
-void sendViewMessage(edict_t* player, const char* text, float seconds)
+void sendViewMessage(edict_t* player, const char* text, float seconds, bool arena)
 {
     sizebuf_t* msg = clientMessage(player);
     if(!msg)
@@ -1457,7 +1476,7 @@ void sendViewMessage(edict_t* player, const char* text, float seconds)
         return;
     }
     MSG_WriteByte(msg, svc_quakevr);
-    MSG_WriteByte(msg, QVR_SVC_VIEWMESSAGE);
+    MSG_WriteByte(msg, arena ? QVR_SVC_ARENAMESSAGE : QVR_SVC_VIEWMESSAGE);
     MSG_WriteShort(msg, CLAMP(0, static_cast<int>(seconds * 10.f + 0.5f), 32767));
     MSG_WriteString(msg, text);
 }

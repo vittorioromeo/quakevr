@@ -72,7 +72,12 @@ void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& co
 void clientReset();
 void clientParse(int subcmd); // QVR_SVC_WORLDTEXT_*
 void clientParseFloatText();  // QVR_SVC_FLOATTEXT
-void clientParseViewMessage(); // QVR_SVC_VIEWMESSAGE
+// QVR_SVC_VIEWMESSAGE, or QVR_SVC_ARENAMESSAGE (`arena`): the Survival Arena's, which with vr_arena_wrist the wrist
+// gadget's hologram shows instead (gadget::arenaMessage; in view as before when it has none).
+void clientParseViewMessage(bool arena);
+// The Survival Arena's messages shown in the middle of the view (a view message, or a flat screen's centre print) so far:
+// the tests' (QC panelboard_read's what 7).
+[[nodiscard]] int arenaInViewCount();
 void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded mid-game
 [[nodiscard]] const za::Vector<WorldText>& clientTexts();
 // Which list clientTexts() is: a new number at each clientReset (a new map or connection; never 0), so that what is

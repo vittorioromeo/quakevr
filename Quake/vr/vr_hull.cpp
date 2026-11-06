@@ -3220,9 +3220,14 @@ float crouchEye[crouchSlots]{};
 float crouchSlowShare[crouchSlots]{};
 // A flat-screen player (-flatscreenmode: .vr_flatscreen) stands with his eyes at Quake's viewheight, under the tallest
 // crouched box's top, so his eyes cannot say how crouched he is (they slowed him standing: 260 of 320, crouched 240): his
-// crouch key does (updateCrouch's flatscreenCrouch: Left Ctrl held, or its eased crouch still easing back up).
+// crouch key does (updateCrouch's flatscreenCrouch: Left Ctrl, or +flatcrouch, held), and his box kept crouched under a
+// low ceiling after he lets go.
 bool crouchFlat[crouchSlots]{};
 bool crouchFlatHeld[crouchSlots]{};
+// localEyeCap: how far under his crouched box's top a flat-screen player's view stops rising -- the gap his eyes have
+// fully crouched under the lowest box (28 of 36 at the defaults), and more than Quake's near plane (4), so the view
+// never reaches into the ceiling over the box.
+constexpr float flatEyeHeadroom = 8.f;
 
 bool crouchOn()
 {
@@ -4896,9 +4901,9 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     // Flatscreen play (-flatscreenmode, the player's own client: vr_flatplay.cpp): his crouch is a key held (Left
     // Ctrl) and his head is let back down by vr_flat_crouch_drop, so his eyes stand at Quake's viewheight -- under
     // the tallest crouched box's top -- and he never asks to stand outright, whatever the box he is in. His key says
-    // it instead (flatscreenCrouch, from vr_flatplay.cpp's eased crouchRatio, which is easing back up for
-    // vr_flat_crouch_time after the key is let go and 0 standing), and he is asked the way a headset player is:
-    // standing first, and the tallest crouched box that fits where he is when standing does not.
+    // it instead (flatscreenCrouch: vr_flatplay.cpp crouchHeld, the key held now), and let go he is asked the way a
+    // headset player is: standing first, and the tallest crouched box that fits where he is when standing does not, else
+    // the box he has. His client's view rises only as far as that box (localEyeCap), as a headset's eyes stay under it.
     if(flatscreen && !flatscreenCrouch)
     {
         if(boxFitsAt(ent, num, 0.f))
@@ -4960,6 +4965,16 @@ bool isCrouched(const edict_t* ent)
     return crouchTop(ent) > 0.f;
 }
 
+float localEyeCap()
+{
+    if(!sv.active || !sv.worldmodel)
+    {
+        return -1.f;
+    }
+    const float top = crouchTopNum(1); // (the local player, as playerBoxFits asks)
+    return top > 0.f ? za::max(0.f, top - flatEyeHeadroom) : -1.f;
+}
+
 float crouchSpeedMax(edict_t* ent, float maxspeed)
 {
     const int num = clientNum(ent);
@@ -4968,11 +4983,12 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
         return maxspeed;
     }
     // The share his eyes ask for: none over the tallest crouched box's top, all crouchSpeedBand units under it.
-    // A flat-screen player's: all while his crouch key holds him down, none standing (crouchFlat).
+    // A flat-screen player's: all while his crouch key holds him down or his box is kept crouched under a low ceiling
+    // (his view held under it too: localEyeCap), none standing (crouchFlat).
     float want = 0.f;
     if(vr_crouch_speed.value != 0.f && crouchFlat[num])
     {
-        want = crouchFlatHeld[num] ? 1.f : 0.f;
+        want = (crouchFlatHeld[num] || crouchBox[num] > 0.f) ? 1.f : 0.f;
     }
     else if(vr_crouch_speed.value != 0.f && crouchEye[num] > 0.f)
     {
