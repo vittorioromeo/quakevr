@@ -1033,6 +1033,8 @@ void ikStretchReset()
         row(opt::vr_damage_to_enemies),
         row(opt::vr_damage_to_player),
         row(opt::vr_damage_self),
+        row(opt::vr_selfshot),
+        row(opt::vr_selfshot_damage),
         header("Positional Damage"),
         row(opt::vr_positional_damage),
         row(opt::vr_headshot_mult),

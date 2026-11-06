@@ -61,6 +61,7 @@ namespace
 {
 
 constexpr int cleanFlag = 64; // QC vr_wounds.qc QVR_WOUND_CLEAN, added to the kind
+constexpr int preciseFlag = 128; // QC vr_wounds.qc QVR_WOUND_PRECISE, added to the kind
 
 // ----------------------------------------------------------------------------
 // The frame's budget (vr_wounds_budget): a burst's events (an explosion's, a gib storm's, a dismembering: 400 at once,
@@ -281,7 +282,8 @@ void parseEvent()
     ev.amount = MSG_ReadByte();
     ev.extra = MSG_ReadByte();
     ev.clean = (ev.kind & cleanFlag) != 0; // (QC QVR_WOUND_CLEAN: a clean training dummy's, for its dents and streams)
-    ev.kind &= ~cleanFlag;
+    ev.precise = (ev.kind & preciseFlag) != 0; // (QC QVR_WOUND_PRECISE: your own shot, at its point: vr_selfshot)
+    ev.kind &= ~(cleanFlag | preciseFlag);
     // A melee wound's extra: 1 a blunt blow, and over it whose and how (QC VR_Wound_Hit: bloodstream::Melee).
     int melee = bloodstream::MeleeNone;
     if(ev.kind == KindMelee)

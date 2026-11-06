@@ -1500,6 +1500,11 @@ QVR_TOGGLE(vr_hit_head_priority, "Head Priority",
 QVR_SLIDER(vr_damage_to_enemies, "Damage to Enemies", 0.25f, 4.f, 0.05f, "%.2fx", ext(), "Damage you deal to monsters.")
 QVR_SLIDER(vr_damage_to_player, "Damage to You", 0.f, 4.f, 0.05f, "%.2fx", ext(), "Damage monsters, traps and falls deal to you.")
 QVR_SLIDER(vr_damage_self, "Self Damage", 0.f, 2.f, 0.05f, "%.2fx", ext(), "Damage your own rockets and grenades deal to you.")
+QVR_TOGGLE(vr_selfshot, "Shoot Yourself",
+    "In a headset, your shots, nails, rockets and grenades hit your own body, arms and hands where you point "
+    "them (not your head): armour, blood, a wound right where it struck. Never the hand holding the gun.")
+QVR_SLIDER(vr_selfshot_damage, "Shooting Yourself: Damage", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "The damage of your own shot into your body, arms or hands, times the weapon's.")
 QVR_TOGGLE(vr_positional_damage, "Positional Damage", "Headshots, arm and leg shots on humanoid monsters.")
 QVR_SLIDER(vr_headshot_mult, "Headshot Damage", 1.f, 5.f, 0.1f, "%.1fx", ext(), nullptr)
 QVR_SLIDER(vr_limbshot_mult, "Arm Shot Damage", 0.1f, 1.f, 0.05f, "%.2fx", ext(), nullptr)

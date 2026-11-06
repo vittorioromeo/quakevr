@@ -22,6 +22,7 @@
 #include "vr_water.hpp"
 #include "vr_geom.hpp"
 #include "vr_mem.hpp"
+#include "vr_selfshot.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -1094,51 +1095,24 @@ void facingPoints(const Surface& s, const glm::vec3& from, int count, za::Vector
 // ----------------------------------------------------------------------------
 // Where a blow meets the player's own body and hands (jointed models, skinned on the GPU: no triangles here): capsules
 // round them as they are posed -- the torso and the legs round the pelvis, each forearm from the elbow to the wrist,
-// each hand past the wrist -- and the first one the blow's line goes into.
+// each hand past the wrist (vr_selfshot.cpp: the same your own shots meet) -- and the first one the blow's line goes into.
 
-struct Capsule
-{
-    glm::vec3 a{0.f}, b{0.f};
-    float r{1.f};
-};
-
-using PlayerCapsules = za::InPlaceVector<Capsule, 6>;
+using Capsule = selfshot::Capsule;
+using PlayerCapsules = selfshot::Capsules;
 
 PlayerCapsules playerCapsules(entity_t* const own[3])
 {
-    PlayerCapsules out;
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    if(own[0])
-    {
-        const glm::vec3 pelvis{own[0]->origin[0], own[0]->origin[1], own[0]->origin[2]};
-        out.pushBack({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f}); // the torso
-        out.pushBack({pelvis - up * 30.f, pelvis - up * 4.f, 6.f});  // the legs
-    }
-    for(int hand = 0; hand < 2; hand++)
-    {
-        glm::vec3 wrist, dir;
-        if(avatar::forearm(hand, wrist, dir))
-        {
-            avatar::ForearmFrame f;
-            const float len = avatar::forearmFrame(hand, 1.f, f) && f.length > 1.f ? f.length : 10.f;
-            out.pushBack({wrist - dir * len, wrist, 2.3f});
-            out.pushBack({wrist + dir * 1.f, wrist + dir * 5.5f, 3.2f});
-        }
-        else if(own[1 + hand])
-        {
-            const glm::vec3 c{own[1 + hand]->origin[0], own[1 + hand]->origin[1], own[1 + hand]->origin[2]};
-            out.pushBack({c, c, 3.5f});
-        }
-    }
-    return out;
+    return selfshot::build(own);
 }
 
 using geom::closestOnSegment;
 
-// The first capsule the line through `org` going `dir` goes into (48 units either side): where, and its normal there.
-bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+// The first capsule the line through `org` going `dir` goes into (`from` to `to` units along it, `step` apart): where,
+// its normal there, and its part (selfshot::Part).
+bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal,
+    float from = -48.f, float to = 48.f, float step = 0.4f, int* part = nullptr)
 {
-    for(float s = -48.f; s <= 48.f; s += 0.4f)
+    for(float s = from; s <= to; s += step)
     {
         const glm::vec3 p = org + dir * s;
         for(const Capsule& c : caps)
@@ -1150,11 +1124,34 @@ bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const gl
             {
                 at = p;
                 normal = l > 1e-4f ? d / l : -dir;
+                if(part)
+                {
+                    *part = c.part;
+                }
                 return true;
             }
         }
     }
     return false;
+}
+
+// A self-hit's wound (Event::precise: your own shot, vr_selfshot): at its point exactly, on the part it struck -- the
+// line from just before the point to a little past it, finely, no spread nor jitter nor the body's room-scale shift.
+// False when nothing drawn is there now (painted as any other hit then).
+bool strikePrecise(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+{
+    int part = -1;
+    constexpr float before = 2.f;
+    if(!strikeCapsules(caps, org, dir, at, normal, -before, 4.f, 0.05f, &part))
+    {
+        return false;
+    }
+    if(glm::distance(at, org - dir * before) < 1e-3f)
+    {
+        at = org; // (already inside where the line starts: it started inside, a muzzle pressed into you)
+    }
+    selfshot::notePreciseWound(glm::distance(at, org), part);
+    return true;
 }
 
 // ----------------------------------------------------------------------------
@@ -1290,8 +1287,9 @@ void wound(const Target& t, const Event& ev)
         }
         else if(t.view && t.capsules)
         {
-            // Not struck where the jitter put it: a little nearer the line's middle, a few times.
-            bool struck = false;
+            // Your own shot: where it struck (strikePrecise). Else not struck where the jitter put it: a little nearer
+            // the line's middle, a few times.
+            bool struck = ev.precise && strikePrecise(*t.capsules, org, way, at, n);
             for(int i = 0; i < 6 && !struck; i++)
             {
                 struck = strikeCapsules(*t.capsules, org + t.shift + (i ? glm::vec3{vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -8.f, 8.f)} : glm::vec3{0.f}), way, at, n);
@@ -1311,7 +1309,7 @@ void wound(const Target& t, const Event& ev)
     };
     // The player's: spread over the body (the server's point is the box's middle, not where it struck).
     const auto spread = [&](const glm::vec3& org, const glm::vec3& way) {
-        if(!t.view)
+        if(!t.view || ev.precise) // (your own shot's point is where it struck)
         {
             return org;
         }
@@ -1342,7 +1340,9 @@ void wound(const Target& t, const Event& ev)
             const glm::vec3 org = spread(ev.org, dir);
             glm::vec3 at, n;
             const bool struck =
-                mesh ? strike(surf, org, dir, at, n) : (t.capsules && strikeCapsules(*t.capsules, org + t.shift, dir, at, n));
+                mesh ? strike(surf, org, dir, at, n) :
+                       (t.capsules && ((ev.precise && strikePrecise(*t.capsules, org, dir, at, n)) ||
+                                          strikeCapsules(*t.capsules, org + t.shift, dir, at, n)));
             if(vr_wounds_debug.value)
             {
                 Con_Printf("wounds: burn kind %d on %s: %s\n", ev.kind, t.ent->model->name, struck ? "struck" : "missed");

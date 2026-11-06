@@ -310,6 +310,8 @@ QVR_FIELD(vr_born)
 // A monster's Monster Health multiplier, set once as it first appears (VR_MonsterHealth_Frame, vr_mgroups.cpp; 0 not yet).
 QVR_FIELD(vr_hpscale)
 QVR_FIELD(vr_gate_crossed) // a missile carried through a teleporter: when (VR_PortalToss); it meets its owner (VR_PortalHitsOwner)
+QVR_FIELD(vr_ss_skip)   // a hand's missile that may strike its shooter's own body (vr_selfshot): 64 + the parts it spares (1 << part); 0 none
+QVR_FIELD(vr_ss_struck) // when it struck its shooter's own body (VR_SelfShotMove): its touch meets him (QC VR_OwnerSpared)
 
 // Quake's drawing extensions, set by the engine on what it makes (vr_explosiondebris.cpp: a chunk's size and its fade).
 QVR_FIELD(alpha)
