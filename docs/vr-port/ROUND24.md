@@ -106,6 +106,38 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
     1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
     wearer (24 failures): the look check is what guards the sleeves.
 
+## Armour round five: his annotated screenshots (branch `agent/armor5`, partial)
+
+His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fillRadii`, `mirrorRadii`, `sleeveOf`, `buildShell`), humanoids only
+(the player's plates unchanged: `PieceFrame::ends` is false on the skeletal bodies).
+
+- **Hands and feet bare:** the humanoids' hand and foot skin weighs on the forearm and the shin far past the wrist and ankle (grunt shin region
+  to 14.0 on an 8.7 bone, forearm to 9.8 on 7.0), so plates covered the hands and wrapped the feet below the sole. Now a forearm's rows end
+  `plateWristAbove` 0.9 short of its bone's end, a shin's `plateAnkleAbove` 0.6; the limb's own vertices more than 0.3 past its rows no longer
+  push its end rows out (the joint end of an upper arm or thigh 1.0). The look check's coverage skips skin past a forearm's or shin's last
+  row (+0.2).
+- **Slimmer:** `plateRidgeLimb` 0.5 on forearms and shins, `plateRidgeThigh` 0.8 (was 1.1; pauldrons and cuirass keep 1.1). A thigh's rows
+  start by `plateHipFrom` 0.12 of its bone at the latest; its rings above its region (an enforcer's and a death knight's thighs weigh on
+  it only near the knee) take the whole skin's exit (`bodyExit`) instead of the next ring's radius. Death knight thigh rows 3.2..5.9 -> 0.9..5.9.
+- **Shoulders symmetric:** `mirrorRadii` modes: the player's as before; a humanoid's upper arms always mirrored, half way where they differ
+  (death knight top ring 4.6 / 1.6 -> 3.1 both); a humanoid's other limbs corner by corner (alike: the larger; else each its own; mirroring
+  everything half way sank a knight's and an enforcer's forearm plates into the skin: coverage 0.47 / 0.67).
+- **Sleeves:** `sleevePast` 0.8 -> 0.3 (the two halves overlapped); a humanoid's rings eased round (each corner half itself, a quarter each
+  neighbour, within 0.85..1.25 of the ring's mean, never more than 0.3 in), its per-vertex push `sleeveRidgeHumanoid` 1.6 (the slimmer end
+  rows no longer cover the knee's and elbow's points: the sleeve does).
+- **Numbers:** world mirror distance (left's outer face against the right's mirrored about y 0, `vr_agarmor_info <model>`), before -> after:
+  grunt upper arms 2.02/1.85 -> 1.75/1.62; death knight 2.60/2.50 -> 2.61/2.66 (rest poses differ; the radii now equal). Grunt bulk
+  (`vr_agarmor_pop_check progs/vrgrunt.mdl`, faces off skin, mean): torso 1.33 (1.33), upper arm 1.99 (1.89), forearm 0.89 (0.88), thigh
+  2.72 (2.94), shin 1.29 (1.43). Triangles: grunt 2 920 -> 2 632 (no timing: fewer).
+- **Tried and dropped:** a higher reach over a humanoid's shoulder (1.8-2.2, for the knight's red pad): it flared the enforcer's pauldrons
+  into shells, the pad still showed. A ring's corners clamped to 1.35-1.6 of its median: cost the enforcer's forearm coverage. A limb's ring
+  middle from its own rows' skin alone: the grunt's coverage bent fell to 12%.
+- **Open:** look check 111/3: the grunt's thigh coverage 75% at rest and bent (2 of its 8 counted vertices: its knee's point at 9.4 and
+  11.8 under the sleeve); the enforcer's right forearm row 8.37 wider than the skin (limit 7.5; the wrist ring's centre drawn aside by the
+  hand). Not done: the death knight's face (helmet/yoke), the knight's red shoulder pad, the death knight's cape-like pauldrons' size.
+- **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
+  (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
