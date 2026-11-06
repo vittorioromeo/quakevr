@@ -129,6 +129,8 @@ struct Feel
     glm::quat gunTurn[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}}; // each drawn hand's turn in the view's
     bool gunTurnSeen[2]{false, false};                                                   // frame, eased (gunTurnEase)
     double gunTurnAt[2]{-1e9, -1e9};
+    glm::mat3 wallTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}}; // each drawn hand's tilt at a wall, as last drawn (drawnWallTurn),
+    glm::vec3 wallShift[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and the hand's move by it (round a point behind the hand)
 };
 
 Feel feel;
@@ -182,6 +184,7 @@ constexpr float lagStiffness = 18.f;
 constexpr float lagShown = 0.12f;
 constexpr float maxLagDeg = 4.f;
 constexpr double portalNoKickTime = 0.05; // s: a tick and a little: the velocity the client lerps across a gate
+constexpr float wallDropFull = 45.f; // drawnOffset: a sighted gun tilted this far at a wall is all of vr_flat_wall_tilt_drop down (degrees)
 constexpr float bodyJumpedOver = 64.f; // the body as drawn this far from the pose's: a jump of the player, not a pose (units)
 constexpr float lagSnapDeg = 45.f; // a view turned more than this in a frame was set (a teleporter, a respawn): no lag
 
@@ -1589,9 +1592,18 @@ void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::v
         za::max(0.f, d - span), span, d, d / span, speed, bend, drawnRot.x);
 }
 
+glm::mat3 drawnWallTurn(int h, glm::vec3& shift)
+{
+    const bool on = active() && h >= 0 && h < 2;
+    shift = on ? feel.wallShift[h] : glm::vec3{0.f};
+    return on ? feel.wallTurn[h] : glm::mat3{1.f};
+}
+
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles)
 {
     pos = angles = glm::vec3{0.f};
+    feel.wallTurn[h] = glm::mat3{1.f};
+    feel.wallShift[h] = glm::vec3{0.f};
     if(!active() || !s.valid)
     {
         return;
@@ -1687,7 +1699,21 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     }
     feel.gunTurnAt[h] = feel.lastTime;
     const glm::quat drawnTurn = onSight > 0.f ? glm::slerp(feel.gunTurn[h], glm::quat_cast(sightTurn), onSight) : feel.gunTurn[h];
-    const glm::mat3 handAxes = drawnAxes * glm::mat3_cast(drawnTurn);
+    // At a wall the way back couldn't clear, the muzzle tilted up round the hand (flatsight::wallTilt): drawn only.
+    glm::vec3 tiltPivot{0.f};
+    const float tilt = flatsight::wallTilt(h, &tiltPivot);
+    const glm::mat3 wallTurn = glm::mat3_cast(glm::angleAxis(glm::radians(tilt), drawnAxes[1]));
+    feel.wallTurn[h] = wallTurn;
+    if(tilt != 0.f)
+    {
+        const glm::vec3 pivot = drawnAxes * tiltPivot;
+        // (Sighted, the tilted gun comes down off the eye too, by vr_flat_wall_tilt_drop, all of it by wallDropFull's tilt:
+        // tilted on the sight line, its underside filled the screen.)
+        const float drop = za::clamp(vr_flat_wall_tilt_drop.value, 0.f, 20.f) * onSight * geom::smooth01(za::clamp(tilt / wallDropFull, 0.f, 1.f));
+        feel.wallShift[h] = pivot - wallTurn * pivot - drawnAxes[2] * drop;
+        pos += feel.wallShift[h];
+    }
+    const glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn);
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {

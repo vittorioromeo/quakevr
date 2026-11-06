@@ -71,6 +71,12 @@ void noteDrawn(const hands::State& s);
 // How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
 [[nodiscard]] float drawnShare(int h);
 
+// How far hand `h`'s drawn weapon is tilted muzzle up at a wall the way back couldn't clear (degrees, about the view's right;
+// vr_flat_wall_tilt), and the point it turns round, off the hand in the view's frame (`pivot`; vr_flat_wall_tilt_pivot):
+// flatplay::drawnOffset turns the drawn hand by it. The game's hand, and the shots, keep the crosshair's turn. 0 outside
+// the mode.
+[[nodiscard]] float wallTilt(int h, glm::vec3* pivot = nullptr);
+
 // A shot's drawn recoil of a hand (weaponfx::recoilOffset), kept at vr_flat_ads_recoil of itself as far as the ironsight
 // has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.
 void keepRecoil(glm::vec3& pos, glm::vec3& angles);

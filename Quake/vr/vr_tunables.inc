@@ -1855,6 +1855,11 @@ QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
 QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
+QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towards its shoulder until the hand is this far from it (0..20 units; less: further back)
+QVR_TUNABLE(vr_flat_wall_tilt, "85") // what that push back can't clear, the drawn muzzle tilts up out of, at most this far and never past straight up (0..85 degrees; 0: off). Drawn only: the shots still go through the crosshair
+QVR_TUNABLE(vr_flat_wall_tilt_speed, "300") // the most the tilt moves in a second, up or down (30..2000 degrees): no jump
+QVR_TUNABLE(vr_flat_wall_tilt_pivot, "0") // what it tilts round: 0 the hand, 1 its shoulder (the arm swings the gun up and back, the hand keeps its reach; it also brings the gun up into the face)
+QVR_TUNABLE(vr_flat_wall_tilt_drop, "12") // sighted, the tilted gun also comes this far down off the eye (0..20 units; all of it by 45 degrees of tilt)
 QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 

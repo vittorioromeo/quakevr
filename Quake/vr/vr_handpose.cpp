@@ -425,6 +425,23 @@ float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::
     return za::min(back, most);
 }
 
+float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
+{
+    makeShape(hand, rot, muzzle);
+    float deepest = 0.f;
+    for(const glm::vec3& o : shape[hand])
+    {
+        const glm::vec3 end = pos + o;
+        const auto tr = lineTrace(from, end);
+        if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+        {
+            continue;
+        }
+        deepest = za::max(deepest, glm::dot(worldtrace::endPos(*tr) - end, worldtrace::normal(*tr)));
+    }
+    return deepest;
+}
+
 void resolvePositions(hands::State& s, float /* turnYaw */)
 {
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or
