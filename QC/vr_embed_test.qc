@@ -3828,6 +3828,10 @@ void() VR_LA_Step =
         VR_Test_Check(fabs(p.vr_skewer_load_main_x - VR_Skewer_Mass(g)) < 0.01 && p.vr_skewer_load_main_x > 0,
             sprintf("its weight in the hand: %.2f kg (its %.2f)", p.vr_skewer_load_main_x, VR_Skewer_Mass(g)));
         vr_la_h0 = VRGetHandPos(cVR_MainHand);
+        if(vr_et_case <= 1)
+        {
+            localcmd("screenshot\n"); // (the picture: the head, then the limb, on the axe)
+        }
         if(vr_et_case == 1)
         {
             vr_et_at = g.vr_skewer_c;

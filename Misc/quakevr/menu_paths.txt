@@ -133,6 +133,7 @@ vr_ghost_hands_fade_range|0|VR Settings - Player Appearance|Ghost Fade-In Range|
 vr_ghost_hands_ignore_recoil|0|VR Settings - Player Appearance|No Ghost from Recoil|VR Settings > Player Appearance > No Ghost from Recoil
 vr_ghost_hands_ignore_bodies|0|VR Settings - Player Appearance|No Ghost Holding Bodies|VR Settings > Player Appearance > No Ghost Holding Bodies
 vr_ghost_hands_ignore_climb|0|VR Settings - Player Appearance|No Ghost Climbing|VR Settings > Player Appearance > No Ghost Climbing
+vr_ghost_hands_ignore_embed|0|VR Settings - Player Appearance|No Ghost on Stuck Blades|VR Settings > Player Appearance > No Ghost on Stuck Blades
 |0|VR Settings - Player Appearance|Reset This Page|VR Settings > Player Appearance > Reset This Page
 @page|0|VR Settings - HUD, Haptics and Sound||VR Settings > HUD, Haptics and Sound
 vr_hud_mode|0|VR Settings - HUD, Haptics and Sound|HUD|VR Settings > HUD, Haptics and Sound > HUD
@@ -1059,6 +1060,8 @@ vr_arena_shards|1|Survival Arena|Armour Shards|Advanced VR Options > Combat > Su
 vr_arena_scatter|1|Survival Arena|Supplies Anywhere|Advanced VR Options > Combat > Survival Arena > Supplies Anywhere
 vr_arena_nav|1|Survival Arena|Foes Use The Stairs|Advanced VR Options > Combat > Survival Arena > Foes Use The Stairs
 vr_arena_score_kill|1|Survival Arena|Score For A Kill|Advanced VR Options > Combat > Survival Arena > Score For A Kill
+vr_arena_banners|1|Survival Arena|Arena Banners|Advanced VR Options > Combat > Survival Arena > Arena Banners
+vr_arena_wrist|1|Survival Arena|Messages on the Wrist|Advanced VR Options > Combat > Survival Arena > Messages on the Wrist
 vr_arena_xray|1|Survival Arena|Last Foes Through Walls|Advanced VR Options > Combat > Survival Arena > Last Foes Through Walls
 vr_arena_xray_left|1|Survival Arena|Foes Left|Advanced VR Options > Combat > Survival Arena > Foes Left
 vr_arena_xray_distance|1|Survival Arena|Outline Distance|Advanced VR Options > Combat > Survival Arena > Outline Distance
@@ -1122,6 +1125,7 @@ vr_knockdown_getup_force|2|Knockdowns|Forced Get-Up|Advanced VR Options > Combat
 vr_knockdown_blend|2|Knockdowns|Blend|Advanced VR Options > Combat > Knockdowns > Blend
 vr_knockdown_getup_speed|2|Knockdowns|Get-Up Speed|Advanced VR Options > Combat > Knockdowns > Get-Up Speed
 vr_knockdown_debug|1|Knockdowns|Print Rolls|Advanced VR Options > Combat > Knockdowns > Print Rolls
+vr_knockdown_ledge_show|1|Knockdowns|Show Ledge Shove Zones|Advanced VR Options > Combat > Knockdowns > Show Ledge Shove Zones
 |1|Knockdowns|Reset This Page|Advanced VR Options > Combat > Knockdowns > Reset This Page
 @page|1|Holding Enemies||Advanced VR Options > Combat > Holding Enemies
 vr_foegrab|1|Holding Enemies|Holding Enemies|Advanced VR Options > Combat > Holding Enemies > Holding Enemies
@@ -1285,6 +1289,8 @@ cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Loco
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
+vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
+vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
 vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
@@ -2583,12 +2589,15 @@ vr_crates_margin|2|Tunables|Away From Things|Advanced VR Options > Debug > Tunab
 vr_crates_seed|2|Tunables|Layout|Advanced VR Options > Debug > Tunables > Layout
 vr_crate_impact|2|Tunables|Breaks On Impact|Advanced VR Options > Debug > Tunables > Breaks On Impact
 vr_crate_piece_impact|2|Tunables|Thrown Pieces Burst|Advanced VR Options > Debug > Tunables > Thrown Pieces Burst
+vr_carry_grab_ease|2|Tunables|Grab: Ease Into the Hand|Advanced VR Options > Debug > Tunables > Grab: Ease Into the Hand
 vr_carry_slam_height|2|Tunables|Slam: Over the Head|Advanced VR Options > Debug > Tunables > Slam: Over the Head
 vr_carry_slam_speed|2|Tunables|Slam: Swing Speed|Advanced VR Options > Debug > Tunables > Slam: Swing Speed
 vr_carry_slam_window|2|Tunables|Slam: Time to Swing|Advanced VR Options > Debug > Tunables > Slam: Time to Swing
 vr_carry_slam_damage|2|Tunables|Slam: Damage|Advanced VR Options > Debug > Tunables > Slam: Damage
 vr_crate_slam_throw_damage|2|Tunables|Thrown Down: Damage|Advanced VR Options > Debug > Tunables > Thrown Down: Damage
 vr_crate_slam_throw_speed|2|Tunables|Thrown Down: Landing Speed|Advanced VR Options > Debug > Tunables > Thrown Down: Landing Speed
+vr_crate_hit_volume|2|Tunables|Knock Volume|Advanced VR Options > Debug > Tunables > Knock Volume
+vr_crate_break_volume|2|Tunables|Break Volume|Advanced VR Options > Debug > Tunables > Break Volume
 vr_crate_pieces|2|Tunables|Pieces|Advanced VR Options > Debug > Tunables > Pieces
 vr_crate_piece_max|2|Tunables|Most Pieces|Advanced VR Options > Debug > Tunables > Most Pieces
 vr_crate_piece_time|2|Tunables|Pieces Last|Advanced VR Options > Debug > Tunables > Pieces Last
@@ -2716,6 +2725,8 @@ vr_knockdown_ledge_backpedal_past|2|Tunables|Ledge Shove: Carried Past|Advanced 
 vr_knockdown_ledge_backpedal_vary|2|Tunables|Ledge Shove: Variation|Advanced VR Options > Debug > Tunables > Ledge Shove: Variation
 vr_knockdown_ledge_backpedal_carry|2|Tunables|Ledge Shove: Past the Edge|Advanced VR Options > Debug > Tunables > Ledge Shove: Past the Edge
 vr_knockdown_ledge_backpedal_balance|2|Tunables|Ledge Shove: Balance|Advanced VR Options > Debug > Tunables > Ledge Shove: Balance
+vr_knockdown_ledge_topple|2|Tunables|Ledge Shove: Topple Within|Advanced VR Options > Debug > Tunables > Ledge Shove: Topple Within
+vr_knockdown_ledge_backpedal_reach|2|Tunables|Ledge Shove: Backpedal Within|Advanced VR Options > Debug > Tunables > Ledge Shove: Backpedal Within
 vr_knockdown_ledge_backpedal_yaw|2|Tunables|Ledge Shove: Way Off|Advanced VR Options > Debug > Tunables > Ledge Shove: Way Off
 vr_ragdoll_active_getup_pin|2|Tunables|Get-Up Lift|Advanced VR Options > Debug > Tunables > Get-Up Lift
 vr_ragdoll_active_getup_blend|2|Tunables|Get-Up Blend|Advanced VR Options > Debug > Tunables > Get-Up Blend
@@ -3103,6 +3114,13 @@ vr_agrunt_second_combat_range|2|Tunables|Second Weapon Range (Fight)|Advanced VR
 vr_agrunt_second_combat_time|2|Tunables|Second Weapon Trip (Fight)|Advanced VR Options > Debug > Tunables > Second Weapon Trip (Fight)
 vr_agrunt_friendly_giveup|2|Tunables|Gives Up After|Advanced VR Options > Debug > Tunables > Gives Up After
 vr_agrunt_saw_start|2|Tunables|Chainsaw Thrust From|Advanced VR Options > Debug > Tunables > Chainsaw Thrust From
+vr_enemy_melee_ag_reach|2|Tunables|Blow Reach Extra|Advanced VR Options > Debug > Tunables > Blow Reach Extra
+vr_agrunt_melee_dmg_fist|2|Tunables|Punch Damage|Advanced VR Options > Debug > Tunables > Punch Damage
+vr_agrunt_melee_dmg_axe|2|Tunables|Axe Blow Damage|Advanced VR Options > Debug > Tunables > Axe Blow Damage
+vr_agrunt_melee_dmg_sword|2|Tunables|Sword Blow Damage|Advanced VR Options > Debug > Tunables > Sword Blow Damage
+vr_agrunt_melee_dmg_hammer|2|Tunables|Hammer Blow Damage|Advanced VR Options > Debug > Tunables > Hammer Blow Damage
+vr_agrunt_melee_dmg_chainsaw|2|Tunables|Chainsaw Swing Damage|Advanced VR Options > Debug > Tunables > Chainsaw Swing Damage
+vr_agrunt_melee_dmg_gunbutt|2|Tunables|Gun Butt Damage|Advanced VR Options > Debug > Tunables > Gun Butt Damage
 vr_agrunt_aim_exposed_hold|2|Tunables|Keep Aim On a Part|Advanced VR Options > Debug > Tunables > Keep Aim On a Part
 vr_agrunt_range_scale|2|Tunables|Distance Scale|Advanced VR Options > Debug > Tunables > Distance Scale
 vr_agrunt_range_walkfire|2|Tunables|Walking Fire|Advanced VR Options > Debug > Tunables > Walking Fire
@@ -3291,6 +3309,7 @@ vr_enemy_melee_arc_wide|2|Tunables|Wide Swings|Advanced VR Options > Debug > Tun
 vr_enemy_melee_arc_size|2|Tunables|Arc Growth with Size|Advanced VR Options > Debug > Tunables > Arc Growth with Size
 vr_enemy_melee_reach_size|2|Tunables|Reach Growth with Size|Advanced VR Options > Debug > Tunables > Reach Growth with Size
 vr_enemy_melee_turn|2|Tunables|Swing Turn|Advanced VR Options > Debug > Tunables > Swing Turn
+vr_enemy_melee_kind_shove|2|Tunables|Shove Cone|Advanced VR Options > Debug > Tunables > Shove Cone
 vr_enemy_aim_angle|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_enemy_aim_fire|2|Tunables|Fire Cone|Advanced VR Options > Debug > Tunables > Fire Cone
 vr_enemy_aim_delay|2|Tunables|Max Delay|Advanced VR Options > Debug > Tunables > Max Delay
@@ -3860,6 +3879,9 @@ vr_model_light_teleport_range|2|Tunables|Teleporter Light Range|Advanced VR Opti
 vr_flat_gun_ahead|2|Tunables|Gun Forward|Advanced VR Options > Debug > Tunables > Gun Forward
 vr_flat_gun_down|2|Tunables|Gun Down|Advanced VR Options > Debug > Tunables > Gun Down
 vr_flat_gun_out|2|Tunables|Gun Out|Advanced VR Options > Debug > Tunables > Gun Out
+vr_flat_gun_out_down|2|Tunables|Gun Out Looking Down|Advanced VR Options > Debug > Tunables > Gun Out Looking Down
+vr_flat_gun_out_up|2|Tunables|Gun Out Looking Up|Advanced VR Options > Debug > Tunables > Gun Out Looking Up
+vr_flat_gun_out_crouch|2|Tunables|Gun Out Crouched|Advanced VR Options > Debug > Tunables > Gun Out Crouched
 vr_flat_gun_collide|2|Tunables|Gun Against Walls|Advanced VR Options > Debug > Tunables > Gun Against Walls
 vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug > Tunables > Gun With The Crosshair
 vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
@@ -3875,21 +3897,66 @@ vr_flat_stance_turn|2|Tunables|Stance Torso Turn|Advanced VR Options > Debug > T
 vr_flat_stance_back|2|Tunables|Stance Gun Back|Advanced VR Options > Debug > Tunables > Stance Gun Back
 vr_flat_stance_in|2|Tunables|Stance Gun In|Advanced VR Options > Debug > Tunables > Stance Gun In
 vr_flat_stance_up|2|Tunables|Stance Gun Up|Advanced VR Options > Debug > Tunables > Stance Gun Up
+vr_flat_stance_pistol|2|Tunables|Two-Handed Pistols|Advanced VR Options > Debug > Tunables > Two-Handed Pistols
+vr_flat_pistol_turn|2|Tunables|Pistol Torso Turn|Advanced VR Options > Debug > Tunables > Pistol Torso Turn
+vr_flat_pistol_back|2|Tunables|Pistol Back|Advanced VR Options > Debug > Tunables > Pistol Back
+vr_flat_pistol_in|2|Tunables|Pistol In|Advanced VR Options > Debug > Tunables > Pistol In
+vr_flat_pistol_up|2|Tunables|Pistol Up|Advanced VR Options > Debug > Tunables > Pistol Up
+vr_flat_ads_turn|2|Tunables|Ironsight Torso Turn|Advanced VR Options > Debug > Tunables > Ironsight Torso Turn
+vr_flat_ads_lean|2|Tunables|Ironsight Chest Lean|Advanced VR Options > Debug > Tunables > Ironsight Chest Lean
+vr_flat_up_elbow|2|Tunables|Look Up: Elbow Under Gun|Advanced VR Options > Debug > Tunables > Look Up: Elbow Under Gun
+vr_flat_up_elbow_out|2|Tunables|Look Up: Elbow Out|Advanced VR Options > Debug > Tunables > Look Up: Elbow Out
+vr_flat_wall_elbow|2|Tunables|Wall: Gun Elbow Out|Advanced VR Options > Debug > Tunables > Wall: Gun Elbow Out
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
+vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
+vr_flat_model_fov_near|2|Tunables|Model FOV Full Up To|Advanced VR Options > Debug > Tunables > Model FOV Full Up To
+vr_flat_model_fov_far|2|Tunables|Model FOV None Past|Advanced VR Options > Debug > Tunables > Model FOV None Past
 vr_flat_ads_relief|2|Tunables|Ironsight Eye Relief|Advanced VR Options > Debug > Tunables > Ironsight Eye Relief
+vr_flat_ads_wall_keep|2|Tunables|Ironsight Against Walls|Advanced VR Options > Debug > Tunables > Ironsight Against Walls
 vr_flat_ads_screen_x|2|Tunables|Ironsight Picture Right|Advanced VR Options > Debug > Tunables > Ironsight Picture Right
 vr_flat_ads_screen_y|2|Tunables|Ironsight Picture Up|Advanced VR Options > Debug > Tunables > Ironsight Picture Up
 vr_flat_ads_near|2|Tunables|Ironsight With The Crosshair|Advanced VR Options > Debug > Tunables > Ironsight With The Crosshair
 vr_flat_aim_fov|2|Tunables|Ironsight Field of View|Advanced VR Options > Debug > Tunables > Ironsight Field of View
+vr_flat_aim_fov_ref|2|Tunables|Ironsight Reference FOV|Advanced VR Options > Debug > Tunables > Ironsight Reference FOV
 vr_flat_aim_time|2|Tunables|Ironsight Time|Advanced VR Options > Debug > Tunables > Ironsight Time
 vr_flat_aim_point|2|Tunables|Aim Through the Crosshair|Advanced VR Options > Debug > Tunables > Aim Through the Crosshair
+vr_flat_eye_pivot|2|Tunables|Eye Turns About The Neck|Advanced VR Options > Debug > Tunables > Eye Turns About The Neck
+vr_flat_eye_fwd|2|Tunables|Eye Forward Of The Neck|Advanced VR Options > Debug > Tunables > Eye Forward Of The Neck
+vr_flat_eye_up|2|Tunables|Eye Above The Neck|Advanced VR Options > Debug > Tunables > Eye Above The Neck
+vr_flat_eye_lean|2|Tunables|Eye Leans With The Chest|Advanced VR Options > Debug > Tunables > Eye Leans With The Chest
 vr_flat_cam_fwd|2|Tunables|View Forward|Advanced VR Options > Debug > Tunables > View Forward
 vr_flat_cam_up|2|Tunables|View Up|Advanced VR Options > Debug > Tunables > View Up
 vr_flat_cam_side|2|Tunables|View Sideways|Advanced VR Options > Debug > Tunables > View Sideways
+vr_flat_body_pose|2|Tunables|Hands Stand On The Body|Advanced VR Options > Debug > Tunables > Hands Stand On The Body
+vr_flat_chest_down|2|Tunables|Chest Share, Down|Advanced VR Options > Debug > Tunables > Chest Share, Down
+vr_flat_chest_up|2|Tunables|Chest Share, Up|Advanced VR Options > Debug > Tunables > Chest Share, Up
+vr_flat_arm_down|2|Tunables|Arm Share, Down|Advanced VR Options > Debug > Tunables > Arm Share, Down
+vr_flat_arm_up|2|Tunables|Arm Share, Up|Advanced VR Options > Debug > Tunables > Arm Share, Up
+vr_flat_arm_out_down|2|Tunables|Arm Out, Down|Advanced VR Options > Debug > Tunables > Arm Out, Down
+vr_flat_arm_out_up|2|Tunables|Arm Out, Up|Advanced VR Options > Debug > Tunables > Arm Out, Up
+vr_flat_stance_fade|2|Tunables|Stance Fades With The Look|Advanced VR Options > Debug > Tunables > Stance Fades With The Look
+vr_flat_stance_fade_crouch|2|Tunables|Stance Fades With The Crouch|Advanced VR Options > Debug > Tunables > Stance Fades With The Crouch
+vr_flat_crouch_shoulder_down|2|Tunables|Crouch: Shoulders Down|Advanced VR Options > Debug > Tunables > Crouch: Shoulders Down
+vr_flat_crouch_gun_out|2|Tunables|Crouch: Gun Out|Advanced VR Options > Debug > Tunables > Crouch: Gun Out
+vr_flat_crouch_shoulder_fwd|2|Tunables|Crouch: Shoulders Forward|Advanced VR Options > Debug > Tunables > Crouch: Shoulders Forward
+vr_flat_clear_chest|2|Tunables|Clear Of The Chest|Advanced VR Options > Debug > Tunables > Clear Of The Chest
+vr_flat_clear_eye|2|Tunables|Clear Of The Eye|Advanced VR Options > Debug > Tunables > Clear Of The Eye
+vr_flat_clear_stock|2|Tunables|Stock Clear Of The Torso|Advanced VR Options > Debug > Tunables > Stock Clear Of The Torso
+vr_flat_keep_arm|2|Tunables|Within The Arm|Advanced VR Options > Debug > Tunables > Within The Arm
+vr_flat_keep_grip|2|Tunables|Hotspot Within The Free Arm|Advanced VR Options > Debug > Tunables > Hotspot Within The Free Arm
+vr_flat_screen_angle|2|Tunables|On The Screen|Advanced VR Options > Debug > Tunables > On The Screen
+vr_flat_screen_angle_stance|2|Tunables|On The Screen, Stance|Advanced VR Options > Debug > Tunables > On The Screen, Stance
+vr_flat_gun_view_fwd|2|Tunables|Gun Along The View|Advanced VR Options > Debug > Tunables > Gun Along The View
+vr_flat_gun_view_right|2|Tunables|Gun To The View's Right|Advanced VR Options > Debug > Tunables > Gun To The View's Right
+vr_flat_gun_view_up|2|Tunables|Gun To The View's Up|Advanced VR Options > Debug > Tunables > Gun To The View's Up
 vr_flat_crouch_time|2|Tunables|Crouch Time|Advanced VR Options > Debug > Tunables > Crouch Time
 vr_flat_crouch_drop|2|Tunables|Crouch Drop|Advanced VR Options > Debug > Tunables > Crouch Drop
 vr_flat_sway|2|Tunables|Move Sway|Advanced VR Options > Debug > Tunables > Move Sway
 vr_flat_bob|2|Tunables|Walk Bob|Advanced VR Options > Debug > Tunables > Walk Bob
+vr_flat_body_bob|2|Tunables|Body Rides View Bob|Advanced VR Options > Debug > Tunables > Body Rides View Bob
+vr_flat_ads_sway|2|Tunables|Ironsight Sway|Advanced VR Options > Debug > Tunables > Ironsight Sway
+vr_flat_ads_bob|2|Tunables|Ironsight Bob|Advanced VR Options > Debug > Tunables > Ironsight Bob
+vr_flat_ads_recoil|2|Tunables|Ironsight Recoil|Advanced VR Options > Debug > Tunables > Ironsight Recoil
 vr_flat_turnlag|2|Tunables|Turn Lag|Advanced VR Options > Debug > Tunables > Turn Lag
 vr_flat_turnlag_speed|2|Tunables|Turn Lag Recovery|Advanced VR Options > Debug > Tunables > Turn Lag Recovery
 vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > Debug > Tunables > Thrown Sword: Least Speed
@@ -3919,6 +3986,8 @@ vr_embed_skewer_tug_stretch|2|Tunables|Skewered Gibs: Tug Stretch|Advanced VR Op
 vr_embed_skewer_mass_gib|2|Tunables|Skewered Gibs: Gib Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Gib Weight
 vr_embed_skewer_mass_limb|2|Tunables|Skewered Gibs: Limb Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Limb Weight
 vr_embed_skewer_mass_head|2|Tunables|Skewered Gibs: Head Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Head Weight
+vr_embed_cuton|2|Tunables|Cut-Off Parts: Stay on the Blade|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Stay on the Blade
+vr_embed_cuton_fling|2|Tunables|Cut-Off Parts: Fling Speed|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Fling Speed
 vr_embed_swing_speed|2|Tunables|Axe Swing: Least Speed|Advanced VR Options > Debug > Tunables > Axe Swing: Least Speed
 vr_embed_swing_angle|2|Tunables|Axe Swing: Most Off Its Plane|Advanced VR Options > Debug > Tunables > Axe Swing: Most Off Its Plane
 vr_embed_axe_depth|2|Tunables|Axe: Depth|Advanced VR Options > Debug > Tunables > Axe: Depth
@@ -3927,6 +3996,12 @@ vr_embed_hold_axe_rate|2|Tunables|Axe: Slide Speed|Advanced VR Options > Debug >
 vr_embed_stagger_axe_speed|2|Tunables|Stagger: Axe's Least Speed|Advanced VR Options > Debug > Tunables > Stagger: Axe's Least Speed
 vr_embed_stagger_axe|2|Tunables|Stagger: Axe's Time|Advanced VR Options > Debug > Tunables > Stagger: Axe's Time
 vr_embed_hold_axe_tug|2|Tunables|Axe: Tug Out|Advanced VR Options > Debug > Tunables > Axe: Tug Out
+vr_embed_hold_axe_tug_speed|2|Tunables|Axe: Tug Speed|Advanced VR Options > Debug > Tunables > Axe: Tug Speed
+vr_embed_hold_axe_tug_time|2|Tunables|Axe: Tug Time|Advanced VR Options > Debug > Tunables > Axe: Tug Time
+vr_embed_tug_shake|2|Tunables|Axe: Tug Shake|Advanced VR Options > Debug > Tunables > Axe: Tug Shake
+vr_embed_tug_shake_from|2|Tunables|Axe: Shake From|Advanced VR Options > Debug > Tunables > Axe: Shake From
+vr_embed_lean_axe|2|Tunables|Axe: Leeway|Advanced VR Options > Debug > Tunables > Axe: Leeway
+vr_embed_move_axe_lift|2|Tunables|Moving: Axe's Lift|Advanced VR Options > Debug > Tunables > Moving: Axe's Lift
 vr_embed_move_axe_force|2|Tunables|Moving: Axe's Force|Advanced VR Options > Debug > Tunables > Moving: Axe's Force
 vr_embed_hold_follow|2|Tunables|Hold: Follow|Advanced VR Options > Debug > Tunables > Hold: Follow
 vr_embed_hold_sword_stick|2|Tunables|Sword: Stick, Barely In|Advanced VR Options > Debug > Tunables > Sword: Stick, Barely In
@@ -3935,6 +4010,9 @@ vr_embed_hold_sword_rate|2|Tunables|Sword: Slide Speed, Barely In|Advanced VR Op
 vr_embed_hold_sword_rate_deep|2|Tunables|Sword: Slide Speed, All the Way In|Advanced VR Options > Debug > Tunables > Sword: Slide Speed, All the Way In
 vr_embed_hold_sword_most|2|Tunables|Sword: Most In|Advanced VR Options > Debug > Tunables > Sword: Most In
 vr_embed_hold_corpse|2|Tunables|Dead Body: Stick|Advanced VR Options > Debug > Tunables > Dead Body: Stick
+vr_embed_hold_corpse_tug_sword|2|Tunables|Dead Body: Sword Tug Speed|Advanced VR Options > Debug > Tunables > Dead Body: Sword Tug Speed
+vr_embed_hold_corpse_tug_axe|2|Tunables|Dead Body: Axe Tug Speed|Advanced VR Options > Debug > Tunables > Dead Body: Axe Tug Speed
+vr_embed_hold_corpse_slip|2|Tunables|Dead Body: Slip Off|Advanced VR Options > Debug > Tunables > Dead Body: Slip Off
 vr_embed_slide_sound_cm|2|Tunables|Slide Sound: Every|Advanced VR Options > Debug > Tunables > Slide Sound: Every
 vr_embed_slide_sound_vol|2|Tunables|Slide Sound: Volume|Advanced VR Options > Debug > Tunables > Slide Sound: Volume
 vr_embed_slide_blood|2|Tunables|Slide Blood: Amount|Advanced VR Options > Debug > Tunables > Slide Blood: Amount
@@ -3965,6 +4043,14 @@ vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced V
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
+vr_embed_move_sword_lift|2|Tunables|Moving: Sword's Lift|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift
+vr_embed_move_sword_lift_deep|2|Tunables|Moving: Sword's Lift, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift, Deep
+vr_embed_lean_sword|2|Tunables|Hold: Sword's Leeway|Advanced VR Options > Debug > Tunables > Hold: Sword's Leeway
+vr_embed_free_ease|2|Tunables|Hold: Out Into the Hand|Advanced VR Options > Debug > Tunables > Hold: Out Into the Hand
+vr_embed_arm_stretch|2|Tunables|Hold: Arm Stretch|Advanced VR Options > Debug > Tunables > Hold: Arm Stretch
+vr_embed_arm_stretch_ease|2|Tunables|Hold: Arm Stretch Ease|Advanced VR Options > Debug > Tunables > Hold: Arm Stretch Ease
+vr_embed_arm_letgo|2|Tunables|Hold: Let Go Past|Advanced VR Options > Debug > Tunables > Hold: Let Go Past
+vr_embed_handle_free|2|Tunables|Hold: Free Stuck Handles|Advanced VR Options > Debug > Tunables > Hold: Free Stuck Handles
 vr_embed_tether_far|2|Tunables|Tether: Dead Body|Advanced VR Options > Debug > Tunables > Tether: Dead Body
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
@@ -4033,6 +4119,7 @@ vr_holster_zones_show_items|2|Debug - Views|Show Holster Item Boxes|Advanced VR 
 |2|Debug - Views|Print Holster Setup|Advanced VR Options > Debug > Views > Print Holster Setup
 vr_debug_hitzones|2|Debug - Views|Show Hit Zones|Advanced VR Options > Debug > Views > Show Hit Zones
 vr_debug_disarm|2|Debug - Views|Show Disarm Volumes|Advanced VR Options > Debug > Views > Show Disarm Volumes
+vr_knockdown_ledge_show|2|Debug - Views|Show Ledge Shove Zones|Advanced VR Options > Debug > Views > Show Ledge Shove Zones
 vr_dirparry_debug|2|Debug - Views|Show Directional Parry|Advanced VR Options > Debug > Views > Show Directional Parry
 vr_agrunt_melee_speed|2|Debug - Views|Enemy Melee Speed|Advanced VR Options > Debug > Views > Enemy Melee Speed
 vr_debug_hitzones_xray|2|Debug - Views|Hit Zones Through Walls|Advanced VR Options > Debug > Views > Hit Zones Through Walls
@@ -4302,9 +4389,11 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Profiling and Memory|Reset This Page|Advanced VR Options > Debug > Profiling and Memory > Reset This Page
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
+|2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Look At Yourself|Advanced VR Options > Debug > Reports > Flatscreen Look At Yourself
 |2|Debug - Reports|Flatscreen Back In His Eyes|Advanced VR Options > Debug > Reports > Flatscreen Back In His Eyes
+|2|Debug - Reports|Flatscreen Pose Sweep|Advanced VR Options > Debug > Reports > Flatscreen Pose Sweep
 |2|Debug - Reports|Flatscreen Sight Check|Advanced VR Options > Debug > Reports > Flatscreen Sight Check
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
@@ -4446,6 +4535,7 @@ vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > 
 |2|Debug - Tools|Decal Atlas|Advanced VR Options > Debug > Tools > Decal Atlas
 |2|Debug - Tools|Hand Mesh|Advanced VR Options > Debug > Tools > Hand Mesh
 |2|Debug - Tools|Gadget Screen|Advanced VR Options > Debug > Tools > Gadget Screen
+|2|Debug - Tools|Arena Banner|Advanced VR Options > Debug > Tools > Arena Banner
 |2|Debug - Tools|Eye Images (with the UI)|Advanced VR Options > Debug > Tools > Eye Images (with the UI)
 |2|Debug - Tools|Texture Checksums|Advanced VR Options > Debug > Tools > Texture Checksums
 |2|Debug - Tools|Reflection Map|Advanced VR Options > Debug > Tools > Reflection Map
@@ -4532,6 +4622,7 @@ vr_gadget_test_state|2|Debug - Tools|Gadget Screen Readings|Advanced VR Options 
 |2|Debug - Tools|Biosuit On You|Advanced VR Options > Debug > Tools > Biosuit On You
 |2|Debug - Tools|Electrified Water|Advanced VR Options > Debug > Tools > Electrified Water
 |2|Debug - Tools|Lightning into Water|Advanced VR Options > Debug > Tools > Lightning into Water
+|2|Debug - Tools|Struck by a Bolt from Behind|Advanced VR Options > Debug > Tools > Struck by a Bolt from Behind
 |2|Debug - Tools|Lightning Bolt at the Nearest|Advanced VR Options > Debug > Tools > Lightning Bolt at the Nearest
 |2|Debug - Tools|Lightning Kill the Nearest|Advanced VR Options > Debug > Tools > Lightning Kill the Nearest
 |2|Debug - Tools|Throw a Brick at the Nearest|Advanced VR Options > Debug > Tools > Throw a Brick at the Nearest
@@ -4635,6 +4726,8 @@ vr_test_spawn_yaw|2|Debug - Tests|Box Turned|Advanced VR Options > Debug > Tests
 vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Tests > Box Tilted
 |2|Debug - Tests|Put It There|Advanced VR Options > Debug > Tests > Put It There
 |2|Debug - Tests|Armour on Armed Grunts|Advanced VR Options > Debug > Tests > Armour on Armed Grunts
+|2|Debug - Tests|Armour Plates: Pop-through Check|Advanced VR Options > Debug > Tests > Armour Plates: Pop-through Check
+|2|Debug - Tests|Armour Plates: Generator Check|Advanced VR Options > Debug > Tests > Armour Plates: Generator Check
 |2|Debug - Tests|Death Knight's Gun and Casts|Advanced VR Options > Debug > Tests > Death Knight's Gun and Casts
 |2|Debug - Tests|Armed Humanoid Tuning|Advanced VR Options > Debug > Tests > Armed Humanoid Tuning
 |2|Debug - Tests|Worn Backpacks|Advanced VR Options > Debug > Tests > Worn Backpacks
@@ -4644,6 +4737,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Worn Backpacks: Pulling Lifts|Advanced VR Options > Debug > Tests > Worn Backpacks: Pulling Lifts
 |2|Debug - Tests|Enforcer's Lift Zone|Advanced VR Options > Debug > Tests > Enforcer's Lift Zone
 |2|Debug - Tests|Your Armour Plates: the Test|Advanced VR Options > Debug > Tests > Your Armour Plates: the Test
+|2|Debug - Tests|Your Armour Plates: Which Model|Advanced VR Options > Debug > Tests > Your Armour Plates: Which Model
 |2|Debug - Tests|Your Armour Plates: Full|Advanced VR Options > Debug > Tests > Your Armour Plates: Full
 |2|Debug - Tests|Your Armour Plates: Half|Advanced VR Options > Debug > Tests > Your Armour Plates: Half
 |2|Debug - Tests|Your Armour Plates: Torso Only|Advanced VR Options > Debug > Tests > Your Armour Plates: Torso Only
@@ -4672,6 +4766,11 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Crouch Shots|Advanced VR Options > Debug > Tests > Crouch Shots
 |2|Debug - Tests|Crouch Status|Advanced VR Options > Debug > Tests > Crouch Status
+|2|Debug - Tests|Flat Items: Hold And Shoot|Advanced VR Options > Debug > Tests > Flat Items: Hold And Shoot
+|2|Debug - Tests|Flat Items: Walk Over|Advanced VR Options > Debug > Tests > Flat Items: Walk Over
+|2|Debug - Tests|Flat Gate|Advanced VR Options > Debug > Tests > Flat Gate
+|2|Debug - Tests|Flat Move: Speed|Advanced VR Options > Debug > Tests > Flat Move: Speed
+|2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Keys|Advanced VR Options > Debug > Tests > Flat Keys
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test
 |2|Debug - Tests|One Swing, Many Hits Test|Advanced VR Options > Debug > Tests > One Swing, Many Hits Test
@@ -4698,6 +4797,8 @@ vr_struggle_force|2|Debug - Tests|Every Downed One Struggles|Advanced VR Options
 |2|Debug - Tests|Clear Melee Approach Log|Advanced VR Options > Debug > Tests > Clear Melee Approach Log
 vr_enemy_melee_arc_debug|2|Debug - Tests|Log Melee Arc|Advanced VR Options > Debug > Tests > Log Melee Arc
 vr_enemy_melee_arc_show|2|Debug - Tests|Show Melee Arcs|Advanced VR Options > Debug > Tests > Show Melee Arcs
+|2|Debug - Tests|Melee Arcs Drawn|Advanced VR Options > Debug > Tests > Melee Arcs Drawn
+|2|Debug - Tests|Test: Melee Rules (Side-step, Arcs)|Advanced VR Options > Debug > Tests > Test: Melee Rules (Side-step, Arcs)
 |2|Debug - Tests|Melee Arc: Nearest Faces You|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces You
 |2|Debug - Tests|Melee Arc: Nearest Faces Away|Advanced VR Options > Debug > Tests > Melee Arc: Nearest Faces Away
 |2|Debug - Tests|Melee Arc: You Step Aside|Advanced VR Options > Debug > Tests > Melee Arc: You Step Aside
@@ -4862,6 +4963,7 @@ vr_autopump_hold|2|Debug - Tests|Hold the Auto Pump|Advanced VR Options > Debug 
 vr_weapon_kick_cancel|2|Debug - Tests|Take Out the Models' Own Kick|Advanced VR Options > Debug > Tests > Take Out the Models' Own Kick
 vr_debug_weapon_frame|2|Debug - Tests|Hold the Weapon Frame|Advanced VR Options > Debug > Tests > Hold the Weapon Frame
 vr_model_watch|2|Debug - Tests|Read Models Again When Saved|Advanced VR Options > Debug > Tests > Read Models Again When Saved
+|2|Debug - Tests|Model Watch Status|Advanced VR Options > Debug > Tests > Model Watch Status
 vr_debug_draw_blend|2|Debug - Tests|Print the Weapon Blends|Advanced VR Options > Debug > Tests > Print the Weapon Blends
 |2|Debug - Tests|Kick Cancel Test|Advanced VR Options > Debug > Tests > Kick Cancel Test
 vr_test_fling_speed|2|Debug - Tests|Fling Speed|Advanced VR Options > Debug > Tests > Fling Speed
