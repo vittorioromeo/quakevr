@@ -1006,6 +1006,10 @@ za::Vector<Item> pageArmourStudio()
 {
     return {
         info(armourStudioStatus),
+        command("Open the ImGui Window (Flat Screen)", "vr_armourstudio_window open")
+            .help("vr_armourstudio_window: this page's rows in a floating window over play (flat screen only), the same studio: "
+                  "a change in one shows in the other. Bind a key to vr_armourstudio_window to toggle it; Escape or its X "
+                  "closes it."),
         command("Start: the Kind Ahead", "vr_armourstudio")
             .help("vr_armourstudio: the kind below put ahead of you with its fists, held still and unhurt, in the tier below, "
                   "the part picked outlined in cyan. The player's kind is your own body (the menu's body clone, a mirror)."),

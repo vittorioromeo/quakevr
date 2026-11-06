@@ -15,5 +15,14 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 
 // The page's status line: what is edited, how many parts are set, whether saved.
 [[nodiscard]] const char* status();
+// Whether the studio runs (Start given, not closed): its subject kept ahead of you.
+[[nodiscard]] bool running();
+
+// The flat-screen ImGui window (vr_armourstudio_window.cpp; vr_armourstudio_window): the menu page's rows in a floating
+// window over play, the same vr_armourstudio_* cvars and the same commands -- no state of its own beyond its place.
+void windowInit();     // the commands: vr_armourstudio_window [open|close|toggle|test], vr_armourstudio_window_close
+void windowFrame();    // vr_main's client frame, before the other ImGui tools (it closes when one of them opens)
+void windowShutdown(); // closed (the input grab given back)
+[[nodiscard]] bool windowOpen();
 
 } // namespace qvr::armourstudio
