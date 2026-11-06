@@ -139,7 +139,8 @@ struct HandposeScratch
 {
     za::Vector<glm::vec3> model; // the weapon model's points (makeShape)
     za::Vector<Plane> planes;    // the rays' planes (gunDepenetrate)
-    auto members() { return qvr::mem::list(model, planes); }
+    za::Vector<glm::vec4> fist;  // the drawn hand model's vertices (gunWallDepth_f)
+    auto members() { return qvr::mem::list(model, planes, fist); }
 };
 mem::Scratch<HandposeScratch> scratch{"handpose"};
 
@@ -393,28 +394,71 @@ float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 
 } // namespace
 
+constexpr float wallSteep = 0.7f;  // gunDepth: a surface whose normal's up is more than this is a floor or a ceiling
+constexpr float marginReach = 2.f; // a wall margin's lines go on past the point this many margins (walls met at up to 60 degrees)
+
+namespace
+{
+
+// What the line from `from` to a weapon's point `end` meets first, carried on past the point by marginReach times
+// `margin` (0: to the point, as the headset's stop): its normal, and how far that surface is past the point along it
+// (`depth`; negative: in front of it), `margin` more for a wall. A floor or a ceiling met only past the point, or a wall
+// further than its margin, is nothing.
+struct MarginHit
+{
+    glm::vec3 n{0.f};
+    float depth{0.f};
+    bool wall{false};
+};
+[[nodiscard]] za::Optional<MarginHit> marginTrace(const glm::vec3& from, const glm::vec3& end, float margin)
+{
+    glm::vec3 to = end;
+    const float len = glm::distance(from, end);
+    const bool reach = margin > 0.f && len > 0.001f;
+    if(reach)
+    {
+        to = end + (end - from) * (marginReach * margin / len);
+    }
+    const auto tr = lineTrace(from, to);
+    if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+    {
+        return za::nullOpt;
+    }
+    MarginHit hit;
+    hit.n = worldtrace::normal(*tr);
+    hit.wall = za::abs(hit.n.z) <= wallSteep;
+    const float raw = glm::dot(worldtrace::endPos(*tr) - end, hit.n);
+    const bool past = reach && glm::distance(from, worldtrace::endPos(*tr)) > len;
+    if(past && (!hit.wall || raw + margin <= 0.f))
+    {
+        return za::nullOpt;
+    }
+    hit.depth = past ? raw + margin : za::max(raw, 0.f) + (hit.wall ? margin : 0.f);
+    return za::Optional<MarginHit>{hit};
+}
+
+} // namespace
+
 float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
-    const glm::vec3& way, float most)
+    const glm::vec3& way, float most, float margin)
 {
     constexpr float leastOut = 0.1f; // a surface the way runs along: going back does not take the weapon off it
     makeShape(hand, rot, muzzle);
+    margin = za::max(margin, 0.f);
     float back = 0.f;
     for(int round = 0; round < 3 && back < most; round++)
     {
         float more = 0.f;
         for(const glm::vec3& o : shape[hand])
         {
-            const glm::vec3 end = pos + way * back + o;
-            const auto tr = lineTrace(from, end);
-            if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+            const auto hit = marginTrace(from, pos + way * back + o, margin);
+            if(!hit)
             {
                 continue;
             }
-            const glm::vec3 n = worldtrace::normal(*tr);
-            const float out = glm::dot(way, n);
-            if(out > leastOut)
+            if(const float out = glm::dot(way, hit->n); out > leastOut)
             {
-                more = za::max(more, (za::max(glm::dot(worldtrace::endPos(*tr) - end, n), 0.f) + gunMargin) / out);
+                more = za::max(more, (hit->depth + gunMargin) / out);
             }
         }
         if(more <= 0.f)
@@ -426,23 +470,20 @@ float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::
     return za::min(back, most);
 }
 
-constexpr float wallSteep = 0.7f; // gunDepth: a surface whose normal's up is more than this is a floor or a ceiling
-
-float gunDepth(int hand,const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
+float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
+    float margin, float handMargin)
 {
     makeShape(hand, rot, muzzle);
     float deepest = 0.f;
-    for(const glm::vec3& o : shape[hand])
+    for(za::SizeT i = 0; i < shape[hand].size(); i++)
     {
-        const glm::vec3 end = pos + o;
-        const auto tr = lineTrace(from, end);
         // (Walls only: a floor or a ceiling, steeper than wallSteep, is not counted -- looking down, the gun's end in the
-        // floor stays hidden there as before, and the gun doesn't tilt up at the ground.)
-        if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f || za::abs(worldtrace::normal(*tr).z) > wallSteep)
+        // floor stays hidden there as before, and the gun doesn't tilt up at the ground. The hand's own point is first.)
+        const auto hit = marginTrace(from, pos + shape[hand][i], za::max(i == 0 ? handMargin : margin, 0.f));
+        if(hit && hit->wall)
         {
-            continue;
+            deepest = za::max(deepest, hit->depth);
         }
-        deepest = za::max(deepest, glm::dot(worldtrace::endPos(*tr) - end, worldtrace::normal(*tr)));
     }
     return deepest;
 }
@@ -572,6 +613,46 @@ glm::vec3 wallPush(int hand)
     return hand == 0 || hand == 1 ? wallPushes[hand] : glm::vec3{0.f};
 }
 
+constexpr float offMost = 32.f; // gunWallDepth_f: how far off a wall it looks (units)
+
+namespace
+{
+
+// How far in front of a wall (not a floor or a ceiling) a point is, on the line from the eyes on past it (negative: in it;
+// at most offMost).
+[[nodiscard]] float wallOff(const glm::vec3& p)
+{
+    const glm::vec3 eyes = hands::current().head;
+    const float len = glm::distance(eyes, p);
+    const glm::vec3 to = len > 0.001f ? p + (p - eyes) * (offMost / len) : p;
+    const auto tr = lineTrace(eyes, to);
+    if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f || za::abs(worldtrace::normal(*tr).z) > wallSteep)
+    {
+        return offMost;
+    }
+    return za::min(-glm::dot(worldtrace::endPos(*tr) - p, worldtrace::normal(*tr)), offMost);
+}
+
+// vr_gun_wall_depth's second line for hand `h`: its drawn hand model's vertex nearest a wall (off; negative: in it; -1
+// none drawn) and the weapon's (`gunOff`, cm; -1 none).
+void fistLine(int h, float gunOff)
+{
+    const float cm = 100.f / units::metresToUnits();
+    float fistOff = -1.f;
+    if(view::drawnHandSurface(h, scratch.fist, nullptr) && !scratch.fist.empty())
+    {
+        fistOff = offMost;
+        for(const glm::vec4& p : scratch.fist)
+        {
+            fistOff = za::min(fistOff, wallOff(glm::vec3{p}));
+        }
+        fistOff *= cm;
+    }
+    Con_Printf("gunwalloff: %s fist off %.1fcm gun off %.1fcm\n", h == HAND_MAIN ? "main" : "off", fistOff, gunOff);
+}
+
+} // namespace
+
 void gunWallDepth_f()
 {
     za::Vector<glm::vec3>& pts = scratch.model;
@@ -583,6 +664,7 @@ void gunWallDepth_f()
         if(!modelcollide::drawnWeaponPoints(h, pts, from))
         {
             Con_Printf("gunwall: %s hand, no weapon drawn\n", name);
+            fistLine(h, -1.f);
             continue;
         }
         const char* how = twohand::carrying(h) ? (twohand::freeHelping(1 - h) ? "carried2h" : "carried")
@@ -614,13 +696,20 @@ void gunWallDepth_f()
                 deepest = za::max(deepest, depth);
             }
         }
+        float gunOff = offMost;
+        for(const glm::vec3& p : pts)
+        {
+            gunOff = za::min(gunOff, wallOff(p));
+        }
         // (Short: one console line. in: points in the level of all; out: the hand held out by the walls; hand in: the hand
         // itself; reach: its farthest point from the hand.)
         Con_Printf("gunwall: %s %s in %d/%d deep %.1fcm out %.1fcm hand in %.1fcm at %.0f %.0f %.0f reach %.0f %.0f %.0f\n",
-            name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(wallPushes[h]) * cm,
-            depthOf(from) * cm, from.x, from.y, from.z, reach.x, reach.y, reach.z);
+            name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(wallPushes[h]) * cm, depthOf(from) * cm,
+            from.x, from.y, from.z, reach.x, reach.y, reach.z);
+        fistLine(h, gunOff * cm);
     }
     pts.clear();
+    scratch.fist.clear();
 }
 
 void reset()
