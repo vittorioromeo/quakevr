@@ -1192,6 +1192,34 @@ neither the free hand turning (the guess above) nor `steadyOther`'s blend: it is
 (the arm's solve, vr_avatar.cpp). A screen-relative yaw sway was tried: no change (bobYaw is 0.3 deg), not kept.
 `run_crouch_down` now also fails (wrist 1.142, jump 0.193) on origin/next: identical with the tilt off, so not this branch.
 
+**His answer: tunables, an ease, no fire while raised** ("Give me tunables for the tilted pose, also including yaw and roll ...
+transition time, start with 0.3s ... mirrored for the left hand ... inhibits shooting while in this tilted state").
+- Pose: `vr_flat_wall_tilt_fixed` 0 (the least pitch that clears, as before; 1: always all of `vr_flat_wall_tilt`),
+  `vr_flat_wall_tilt_yaw` 0 (-60..60, muzzle inwards) and `vr_flat_wall_tilt_roll` 0 (-90..90, top inwards), mirrored for
+  the off (left) hand; the least pitch is searched with them on (`tiltTurn`: yaw about the view's up, pitch about its right,
+  roll about its forward, in that order applied last to first). `flatsight::wallTurn` gives the drawn turn to drawnOffset
+  and the stock's untilt.
+- Ease: `vr_flat_wall_tilt_time` 0.3 s replaces `vr_flat_wall_tilt_speed`: the pose eases in (smoothstep) when the wall is
+  met and out when it clears; in it the pitch follows the least that clears at 4/time; easing out keeps the pitch it had.
+- Fire: `vr_flat_wall_block_fire` 1 (Movement > Locomotion, Desktop Screen Play, "No Fire With Gun Raised"): a gun turned
+  more than 5 degrees does not fire (`flatplay::routeFire`; both buttons, either hand); melee weapons always swing. Note: a
+  shot's own kick at a wall can push the gun in and raise it, which then blocks the next shots for the ease (seen at level:
+  the click's recoil started a 20 degree tilt).
+- Verified: `flatwall_test.sh` 15/0 (new c: eased in and out in 0.292 s at 0.3 and 0.583 at 0.6, measured from the first
+  frame off zero; right hand up 0.643 side -0.262 cant -0.259, left hand 0.643 / +0.262 / +0.259 at pitch 40 yaw 20 roll
+  15; new d: tilted at the wall 17 -> 17 shells, block off 17 -> 16, off the wall -> 15). Section b's peak check now 3
+  degrees: walking in sighted, the way back clears the gun 4 frames after the wall is met, so the eased tilt reaches 5-9
+  degrees there, not the 20 the 300 deg/s step reached. Sweep: the 4 wall rows are settled rows, which the ease can't
+  reach (the least tilt itself is 45 at 20 down, 57.5 at 30), unchanged at 3.660 / 4.694 / 2.053 / 2.633: added to
+  `flatsweep_known.txt` with a note (403 passed, 7 known, 0 failed).
+
+**Turn lag cap and lead; the forward bob** (his words: "make the cap a tunable, and allow negative values of turnlag ...
+Goldeneye-like 'turn with the camera'"; "a forward/back bobbing for the viewmodel ... a different tunable ... take into account
+the camera rotation"). `vr_flat_turnlag_cap` 4 (was the constant), `vr_flat_turnlag` -3..3 (negative: the lag shown the
+other way, the hands lead); `vr_flat_bob_fwd` 0 and `vr_flat_ads_bob_fwd` 0.15 (FLATPLAY.md "Bob and sway"). The walk probe
+prints `flatwalkfwd:` (hands' and shoulders' range along the camera's forward, the main hand's yaw off the view);
+`Misc/quakevr/flatlagbob_test.sh` 5/0 (numbers in FLATPLAY.md). One commit for both (they share vr_flatplay.cpp's hunks).
+
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").

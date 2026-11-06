@@ -64,8 +64,16 @@ the aim's turn, 18/s, where the game's hand has it at once: the crosshair crossi
   0.6 down, a little roll at a run), and breathing at rest;
 - **Turn Lag** (`vr_flat_turnlag`, 1) and **Turn Lag Recovery** (`vr_flat_turnlag_speed`, 1): "weapon inertia": the hands
   keep their direction as the view turns and a critically damped spring brings them back (18/s times the recovery).
-  ~2 degrees behind at 180 degrees a second, at most 4 (softly), back within a quarter second. A view set in one frame
-  (a teleporter, a respawn) leaves no lag.
+  ~2 degrees behind at 180 degrees a second, at most **Turn Lag Cap** (`vr_flat_turnlag_cap`, 4) times the amount (softly),
+  back within a quarter second. A view set in one frame (a teleporter, a respawn) leaves no lag. Negative (down to -3), the
+  same shown the other way: the hands lead the turn, swinging into it ahead of the view (his words: "Goldeneye-like 'turn
+  with the camera'"); `Misc/quakevr/flatlagbob_test.sh` turning right: the main hand's yaw off the view -5.7..-2.3 locked,
+  -7.9..-4.5 at 1, -6.2..-2.8 capped at 0.5, -3.6..-0.1 at -1;
+- **Walk Bob Forward** (`vr_flat_bob_fwd`, 0: off) and **Ironsight Bob Forward** (`vr_flat_ads_bob_fwd`, 0.15 of it sighted):
+  separate from Walk Bob, the body, arms and gun bob forward and back together on a walk (`fwdBob`, through `bodyRide` and
+  `drawnOffset`), in step with it (forward at each step's dip: -cos of twice the bob's phase), along the view's own forward,
+  pitch included: 0.6 units each way at a run per 1. Measured at 2, running (flatlagbob_test.sh, camera frame): the main
+  hand's forward range 0.20 -> 2.41 units, its shoulder's 0.01 -> 2.35; looking 40 down 0.20 -> 2.26 and 0.05 -> 2.35.
 
 These are tuning constants (`tune <name> <value>`; **Debug > Tunables > Flatscreen > Looks**, saved in `tunables.cfg`). Debug
 > Reports > Flatscreen Play has Status, Print (`vr_flatplay_debug`: prints each E and V press, each hand's punch and where
