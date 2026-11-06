@@ -1003,6 +1003,44 @@ normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` wri
   `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
 - **Open:** a new action plays only through `vr_debug_weapon_frame` until QuakeC names its frames (`$frame` lines and a
   `player_*` sequence); the plan for the other weapons is in MODELS_IN_BLENDER.md section 9.
+
+## The shotgun's top retopologized (agent/sgtopo, 2026-11-06)
+
+His words: the workflow works; there is cursed topology on top of the shotgun between the back sights and the stock: fix
+it without messing up the textures and UVs. Done in the source .blend (`Misc/quakevr/src_models/blend/v_shot/`), then
+`blend_export.py` (anchors all ok, sight line turned 0.000 deg / moved 0.000, normal maps re-baked, weapons.txt's barrel
+mask re-indexed: 1876 -> 1908 triangles).
+
+- **What was there** (top view, x along the gun): from the receiver's front corner (18.55, -1.74) a fan of 10 faces to the
+  rear sight's base (x 9.97), min angle 0.2 deg, with a zero-area filler for the T-junction at v32; behind the sight, inside
+  the V the two bevels make towards the stock's ridge, 24 faces: slivers over five UV islands, five zero-area fillers along
+  x 9.75, two faces facing down and an interior vertex; on the +y bevel a vertical sliver hiding the T-junction at v55.
+- **Now:** each area is a constrained Delaunay triangulation of the same outline (its boundary vertices kept, so no face
+  round it changes), interior points on a staggered grid, relaxed: the front 40 faces (min angle 16.1 deg), the V 26 (12.2;
+  its centre line v53-v104 kept as an edge, with points on it), the +y bevel split at v55 as the -y one is at v52 (16.5).
+  The bevels, the rivets, the sight posts and the notch floor are untouched; 7 vertices only the old faces used are gone
+  (and v98, 0.023 under the V's plane). Faces 1816 -> 1848; the file 1908 triangles (1780 kept in place, 68 new), the
+  T-junction cracks 26 -> 23.
+- **Frames:** every new vertex is a barycentric mix of an old face's corners, the same in every shape key (and the export
+  carries new vertices with their piece).
+- **UVs:** the front area is one island (a top-down projection): new corners read the old faces' UVs, interior points sit
+  on texel centres; rendered from above (nearest texel) against before: 6.2% of its pixels differ, all texel-edge shifts
+  (max 0.33 / 0.40 texel, mean 0.035). The V had no island to carry (a collage): its new faces read one island (the one its
+  -y half used, a top-down projection fitted to 0.6 texel), and the 208 texels of that island no other face reads were
+  painted with what the old faces showed at their place (skin and relief PNGs): rendered from above it looks as before
+  (18% of its pixels differ, texel-edge resampling of the old stretched slivers; the stock and the front 0%).
+- **In the game:** flat ironsight frame before/after: 532 pixels differ, all on the gun's top at the sights; the headset
+  frame (gun seen from above) shows the same gun (its run-to-run noise hides the difference); `vr_flat_sight_check`
+  0.0004 deg either way; reload_test.sh 114 passed, 1 failed, the same one with the old files ("the shotgun's sights keep
+  their colour as it pumps": 107/55 99/0 104/49 now, 105/55 99/0 104/49 before; the frame drawn whole shows red sight
+  pixels, the pump's parts none).
+- **Left as they are** (the same kind, not equally safe): the receiver's sides are fans too (-y from v33: faces 47-50, min
+  2.8 deg; +y from v49: 63-66, min 3.0), but their faces are not coplanar (normals up to 4 deg apart) and the shell
+  port's anchor sits on v39 / triangle 48; under the receiver, long slivers (faces 83-93, 45, 46, min 1.2-4.7 deg, facing
+  down, rarely seen); the barrels' top (faces 142, 143, 146, 147, min 2.2) and the rib's long strips (958, 959, 966, 967);
+  the collapsed first pump ring (zero-area by design, split_auto_pump).
+- **To try (VR):** look down on the shotgun's top behind the rear sight in the headset: the same texture, no streaks or
+  sparkles; the sights and the auto pump as before.
 ## Survival Arena: its messages on the wrist gadget (agent/arenawrist, 2026-11-06)
 
 His words: now that the arena has banners, move the arena's text from the centre of the view to the wrist gadget, as an
