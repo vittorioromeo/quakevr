@@ -444,6 +444,19 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         }
     }
 
+    // The body's pitch (vr_avatar_pitch.cpp; swimming under water: vr_body_swim_tilt): the trunk turned forward about the
+    // top of the neck, so the head stays at the eyes; the arms and legs solve from the turned shoulders and hips (not
+    // the reference poses).
+    if(crouchPose && bodyPitch.angle != 0.f)
+    {
+        const glm::mat3 pitch = bodyPitchTurn(b);
+        for(Bone* bone : {&p, &sp, &c})
+        {
+            bone->pos = top + pitch * (bone->pos - top);
+            bone->rot = pitch * bone->rot;
+        }
+    }
+
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
     // drawn: the eyes are inside them.
     Bone& n = b.bones[Neck];
@@ -1384,6 +1397,7 @@ void resetMotion()
     water = Water{};
     climbing = Climbing{};
     climbHang = 0.f;
+    bodyPitch = BodyPitch{};
     armEase = ArmEase{};
     for(ForearmTwist& f : forearms)
     {
@@ -1582,6 +1596,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         updateWater(b, s, dt);
     }
+    updateBodyPitch(s, dt); // (next frame's solveTorso: the trunk's turn)
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);

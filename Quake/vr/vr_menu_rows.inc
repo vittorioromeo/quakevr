@@ -107,6 +107,16 @@ QVR_SLIDER(vr_body_swim_kick, "Swimming Kicks", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "Swimming, the legs trail behind and kick where the stick moves you: how wide (0: no kicks).")
 QVR_SLIDER(vr_body_swim_kick_rate, "Swimming Kick Rate", 0.f, 4.f, 0.1f, "+%.1f /s", ext(),
     "How many more kicks a second at full stick (treading water, about 0.7).")
+QVR_TOGGLE(vr_body_swim_tilt, "Lean Forward Under Water",
+    "Fully under water and off the bottom, your body leans forward as a swimmer's does, the legs trailing behind; "
+    "your head stays where it is. With your head out of the water or your feet on the bottom it stands upright.")
+QVR_SLIDER(vr_body_swim_tilt_angle, "Under Water Lean", 0.f, 80.f, 5.f, "%.0f deg", ext(),
+    "How far forward the body leans under water.")
+QVR_SLIDER(vr_body_swim_tilt_time, "Under Water Lean Time", 0.1f, 3.f, 0.1f, "%.1f s", ext(),
+    "How long the body takes to lean forward going under, and to straighten coming up.")
+QVR_SLIDER(vr_body_swim_tilt_ledge, "Straighten Near a Way Out", 0.f, 160.f, 8.f, "%.0f units", ext(),
+    "Swimming towards a ledge you can climb out at, the body straightens from this far away, so your legs are under you "
+    "when you climb out (0: it stays leaning).")
 QVR_TOGGLE(vr_body_climb_feet, "Climbing Footholds",
     "Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
     "you climb; with none, they hang. Off: they hang as in the air.")
