@@ -1772,6 +1772,35 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
 
+## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
+
+His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new
+value. I think 0.2x would be a good start"; "add a tunable camera aimpunch + directional hit effects ... Make everything
+tunable"; "Like for VR, add a blood vignette when the player is low on health ... flatscreen-specific size and opacity
+tunables". FLATPLAY.md, "Hit feedback" has the whole of it; `vr_flathit.cpp` the code.
+
+- The hands' knock on a hit (`vr_painknock.cpp`) is scaled in `vr_view.cpp` by `flathit::keepHitReact`: 1 hipfire,
+  `vr_flat_ads_hitreact` (0.2) sighted, by the ironsight's smoothed travel (as `vr_flat_ads_recoil`).
+- The punch goes into `cl.viewangles` as each frame's change of a sum of per-hit pulses (8 kept), so the aim and the
+  crosshair never part: the shots go where the crosshair is during the punch, and the aim returns exactly to where the mouse
+  put it when the punch settles. Pitch stays inside `cl_minpitch` / `cl_maxpitch`; what the clamp refused is not owed back.
+  Defaults: 2 degrees for a 20-point hit, at most 6, 0.05 s in, 0.3 s back, half sighted. Quake's own view kick is left as
+  it was (a look only).
+- The marks are drawn in `SCR_UpdateScreen` before the crosshair (`VR_FlatHitDraw`, on the crosshair's canvas) with a new
+  `Draw_FillQuad` (gl_draw.c): 9 quads an arc, ends faded. Damage gives the mark half to all of its opacity.
+- The low-health blood was already drawn in flat by the shared post-process; `vr_blood.cpp` now takes its size and peak
+  opacity from `vr_flat_blood_health_size` / `_opacity` while flatscreen play is on.
+- Tests: `bash Misc/quakevr/flathit_test.sh <agent>` (e1m1, a real grunt firing from the right; each run ends on the
+  trigger's own line): punch 1.47 deg left in the aim 4 frames on, 0 after settling, the picture moved 6 px (the turn says
+  9.2 at 960 px, within its margin); the mark's ring pixels right 381, others 0, the probe's mark at 91.5 deg; knock
+  share 1.000 hipfire, 0.200 sighted (1.934 -> 0.387); punch sighted 0.478 of 0.956; vignette edge +30.3 redness at
+  10 health, middle 0.0. 10 of 10. Flat suites after it: flatads 7/7, flatplay 28/28, flathud 11/11, flatsight 12/12,
+  flatvisuals 6/6.
+- Test aids: Debug > Flatscreen Play > "Flatscreen Test Hit From The Right" (`vr_blood_test packet right`) and "Flatscreen
+  Hit Probe" (`vr_flat_hit_probe`); `vr_flat_hit_test a, b, waitN` runs commands at the next hit.
+
+To test in flat: get shot from each side, hipfire and sighted: the view's punch and its settle, the marks' place and fade,
+the arms' smaller knock sighted; drop under 35 health for the beating edges. Tune under Tunables > Flatscreen > Hit Feedback.
 ## Installer: the settings page after installing (branch `agent/instset`, 2026-11-06)
 
 His request: an installer page for the most common settings, easy to add/remove, organized in subcategories with a

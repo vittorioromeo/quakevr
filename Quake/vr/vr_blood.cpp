@@ -3,6 +3,7 @@
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_portals.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -32,6 +33,20 @@ float setting(const cvar_t& v, float lo, float hi)
 {
     return (v.value != v.value) ? lo : za::clamp(v.value, lo, hi);
 }
+float flatSetting(const Tunable& v, float hi)
+{
+    return (v.value != v.value) ? 0.f : za::clamp(v.value, 0.f, hi);
+}
+// Low health's size and strongest opacity: flatscreen play has its own (the whole screen is in sight there, not only its
+// edges: vr_flat_blood_health_size / _opacity, Debug > Tunables > Flatscreen > Hit Feedback).
+float healthSize()
+{
+    return flatplay::active() ? flatSetting(vr_flat_blood_health_size, 1.f) : setting(vr_blood_health_size, 0.f, 1.f);
+}
+float healthOpacity()
+{
+    return flatplay::active() ? flatSetting(vr_flat_blood_health_opacity, 0.8f) : setting(vr_blood_health_intensity, 0.f, 0.8f);
+}
 struct Health
 {
     float severity{0.f}, peak{0.f}, rate{0.f}, pulse{0.f};
@@ -44,7 +59,7 @@ Health healthLook(int health, double p)
         return h;
     h.severity = za::pow(za::clamp((threshold - health) / threshold, 0.f, 1.f),
         setting(vr_blood_health_curve, 0.25f, 4.f));
-    h.peak = setting(vr_blood_health_intensity, 0.f, 0.8f) * h.severity;
+    h.peak = healthOpacity() * h.severity;
     h.rate = setting(vr_blood_health_rate, 0.1f, 3.f) *
         (1.f + h.severity * setting(vr_blood_health_rate_scale, 0.f, 4.f));
     h.rate = za::min(h.rate, 6.f);
@@ -175,7 +190,7 @@ void info_f()
     float hit = 0.f;
     for(const Hit& e : hits)
         hit = 1.f - (1.f - hit) * (1.f - hitLook(e, clock - e.at));
-    Con_Printf("blood size: hit %.3f health %.3f\n", setting(vr_blood_hit_size, 0.f, 1.f), setting(vr_blood_health_size, 0.f, 1.f));
+    Con_Printf("blood size: hit %.3f health %.3f\n", setting(vr_blood_hit_size, 0.f, 1.f), healthSize());
     const glm::vec4 p = projection(r_refdef.viewangles);
     const auto edge = [&p](float x, float y)
     {
@@ -278,7 +293,7 @@ bool active()
 {
     advance();
     if(!playable() || portals::viewing()) return false;
-    if(setting(vr_blood_health_size, 0.f, 1.f) > 0.f && healthLook(cl.stats[STAT_HEALTH], phase).peak > 0.f) return true;
+    if(healthSize() > 0.f && healthLook(cl.stats[STAT_HEALTH], phase).peak > 0.f) return true;
     for(const Hit& h : hits)
         if(setting(vr_blood_hit_size, 0.f, 1.f) > 0.f && hitLook(h, clock - h.at) > 0.f) return true;
     return false;
@@ -288,7 +303,7 @@ void bind()
     advance();
     const glm::vec4 p = projection(r_refdef.viewangles);
     GL_Uniform4fFunc(2, p.x, p.y, p.z, p.w);
-    GL_Uniform4fFunc(4, setting(vr_blood_hit_size, 0.f, 1.f), setting(vr_blood_health_size, 0.f, 1.f), 0.f, 0.f);
+    GL_Uniform4fFunc(4, setting(vr_blood_hit_size, 0.f, 1.f), healthSize(), 0.f, 0.f);
     GL_Uniform4fFunc(3, static_cast<float>(glx + r_refdef.vrect.x),
         static_cast<float>(gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height),
         1.f / za::max(r_refdef.vrect.width, 1), 1.f / za::max(r_refdef.vrect.height, 1));

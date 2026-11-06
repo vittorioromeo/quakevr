@@ -25,6 +25,7 @@
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -4957,6 +4958,8 @@ extern "C" void VR_SetupViewEntities()
         shakeAngles[hand] *= 1.f - flatsight::drawnShare(hand);
         glm::vec3 painPos, painAngles;
         painknock::offset(hand, painPos, painAngles);
+        // (Flatscreen play's ironsight keeps vr_flat_ads_hitreact of it, by how far the gun has come up to the eye.)
+        flathit::keepHitReact(hand, painPos, painAngles);
         shakePos[hand] += painPos;
         shakeAngles[hand] += painAngles;
         // A shot's programmatic recoil (vr_weaponfx.cpp), the same way.
