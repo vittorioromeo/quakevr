@@ -16,6 +16,7 @@ float VR_AGDD_GIVEUP = 12;  // s: its take up (a safety net: a fail)
 float vr_agdd_case;
 float vr_agdd_frames;
 float vr_agdd_until;
+float vr_agdd_knock_at; // (the last knock's time: a take-up after it)
 float vr_agdd_gap;          // the worst gap of the phase
 float vr_agdd_undrawn;      // frames a held weapon wasn't drawn
 float vr_agdd_bad;          // frames its slots didn't agree
@@ -305,10 +306,21 @@ void() VR_AGDD_Frame =
         VR_AGDD_Phase(sprintf("its right knocked out: holds %s", g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
             g.vr_ag_prop == vr_agdd_kept && !g.vr_ag_prop2 && !vr_agdd_kept.vr_ag_left);
         VR_AGDD_Knock(g, 0);
+        vr_agdd_knock_at = time;
         vr_agt_step = 6;
         return;
     }
     if(vr_agdd_frames < 10) { return; }
+    // QVR: both knocked out; a weapon lying at its feet (the one knocked out before) may be taken up again within these
+    // frames (VR_AG_TakeBegin: its own at once, drawn where it lay): that take began after the knock, not a knock that
+    // left it armed (seed 1's case 4, 2026-11-06).
+    if(!g.vr_ag_prop2 && g.vr_ag_wid2 == -1 && g.vr_ag_prop && g.vr_ag_took_at >= vr_agdd_knock_at && !g.vr_ag_took_done)
+    {
+        VR_AGT_Print(sprintf("dualdisarm %g: after the last knock it took up %s from the floor (%.2f s on)", c,
+            g.vr_ag_prop.netname, g.vr_ag_took_at - vr_agdd_knock_at));
+        VR_AGDD_Phase("the last knocked out", TRUE);
+    }
+    else
     VR_AGDD_Phase("the last knocked out", !g.vr_ag_prop && !g.vr_ag_prop2 && g.vr_ag_wid == -1 && g.vr_ag_wid2 == -1);
     VR_AGT_RemovePair(g);
     vr_agdd_case = c + 1;
