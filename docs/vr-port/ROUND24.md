@@ -157,6 +157,22 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
   upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
 - **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
   (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+- **Pass 5c (branch `agent/armor5c`):**
+  - **Corpse tiles:** `vr_pp_test 15`'s tiles 10-11 showed a standing grunt: a monster's start comes a few frames after its spawn
+    (takedamage off till then), so the hit did nothing. The test now kills it once it takes damage (state 3) and shoots once its
+    frame has held half a second (FAIL "timed out" after 5 / 10 s), from closer (his pictures 12, 13). Its death animation is
+    random, so before and after lie differently. The feet: the shin plates end above the boot; nothing below the sole.
+  - **Thighs:** the enforcer's and the death knight's plates started at the hip's pivot, but their skin from the belt (enforcer)
+    or the tabard's hem (death knight) down to mid-thigh weighs on the pelvis, so it stayed bare. `Wearer::hipFrom` (the
+    thigh's rows start this far down the bone at the latest, of its length; `plateHipFrom` 0.12 the others): enforcer -0.5,
+    death knight -0.3. Rows -0.9..6.0 -> -4.0..6.0 (enforcer), 0.9..5.9 -> -2.4..5.9 (death knight), 3 rows each, not 2. A
+    humanoid thigh's rings above its region take at least the whole skin's exit (`fillRadii`). Thigh bulk (pop check, mean/most):
+    enforcer 2.28/8.54 -> 1.34/8.65, death knight 0.56/1.14 -> 0.67/8.27. Triangles: enforcer 2 440 -> 2 584, death knight
+    2 632 -> 2 776 (+144 each, one row per thigh; the knight already had 2 776; no timing taken).
+  - **Open:** the enforcer's thighs from behind are still bare from the buttocks to the knee row (his back thigh skin is
+    pelvis-weighted; the plates there sit under it); the knight's red pad wedge at the front of his right shoulder (a cuirass
+    ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
+    grunt's spiky knee leather and the enforcer's elbow band untouched.
 
 ## Flatscreen: the stance, replacing the barrel rest
 
