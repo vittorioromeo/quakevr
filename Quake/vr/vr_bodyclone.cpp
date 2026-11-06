@@ -83,7 +83,7 @@ void update()
     float sign = 0.f;
     if(studio)
     {
-        sign = 0.f; // (nothing to stand beside)
+        sign = 1.f; // (left of the view: the window opens on the screen's right)
     }
     else if(side == 1)
     {

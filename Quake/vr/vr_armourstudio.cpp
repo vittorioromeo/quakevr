@@ -264,21 +264,33 @@ void readAnims(const qmodel_t* m)
     anims.count = 0;
     anims.group = -1;
     const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m))) : nullptr;
+    // (the generated vr models' frames have no names: the Quake model they were made from names them, frame for frame)
+    constexpr const char* sources[][2] = {{"progs/vrgrunt.mdl", "progs/soldier.mdl"}, {"progs/vrenforcer.mdl", "progs/enforcer.mdl"},
+        {"progs/vrknight.mdl", "progs/knight.mdl"}, {"progs/vrhknight.mdl", "progs/hknight.mdl"}};
+    const aliashdr_t* named = hdr;
+    for(const auto& s : sources)
+    {
+        const bool unnamed = hdr && hdr->numframes > 0 && (!hdr->frames[0].name[0] || !strncmp(hdr->frames[0].name, "frame", 5));
+        qmodel_t* src = unnamed && !strcmp(m->name, s[0]) ? Mod_ForName(s[1], false) : nullptr;
+        named = src && src->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : named;
+    }
+    char lastKey[16]{};
     for(int i = 0; hdr && i < hdr->numframes; i++)
     {
         char name[16];
-        q_strlcpy(name, hdr->frames[i].name, sizeof(name));
+        q_strlcpy(name, named && i < named->numframes ? named->frames[i].name : hdr->frames[i].name, sizeof(name));
         size_t n = strlen(name);
-        while(n > 0 && name[n - 1] >= '0' && name[n - 1] <= '9')
+        while(n > 0 && ((name[n - 1] >= '0' && name[n - 1] <= '9') || name[n - 1] == '_'))
         {
             name[--n] = '\0';
         }
         Anim* last = anims.count > 0 ? &anims.list[anims.count - 1] : nullptr;
-        if(last && !strcmp(last->name, name))
+        if(last && !strcmp(lastKey, name))
         {
             last->frames++;
             continue;
         }
+        q_strlcpy(lastKey, name, sizeof(lastKey));
         if(anims.count >= maxAnims)
         {
             break;
@@ -714,6 +726,19 @@ void init()
     Cmd_AddCommand("vr_armourstudio_reset_part", resetPart_f);
     Cmd_AddCommand("vr_armourstudio_reset_kind", resetKind_f);
     Cmd_AddCommand("vr_armour_test", test_f);
+    Cmd_AddCommand("vr_armourstudio_anim_info", [] {
+        Con_Printf("armourstudio: %s\n", animStatus());
+        for(int i = 0; i < animCount(); i++)
+        {
+            Con_Printf("  %d %s (%d frames from %d)\n", i, anims.list[i].name, anims.list[i].frames, anims.list[i].first);
+        }
+        if(st.subject && sv.active)
+        {
+            const progs::ServerVm vm;
+            const edict_t* e = progs::edictAt(st.subject);
+            Con_Printf("armourstudio: subject frame %d\n", e ? static_cast<int>(e->v.frame) : -1);
+        }
+    });
     st.savedGen = st.ownGen = generation();
     windowInit();
 }
