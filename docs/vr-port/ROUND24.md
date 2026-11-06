@@ -1555,3 +1555,40 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
+
+## The grunts' burst rifle made anew (branch `agent/burstrifle`, 2026-11-06)
+
+`progs/v_gruntgun.mdl` built from nothing after Vittorio's reference (a compact burst carbine): `Misc/quakevr/models_src/
+burstrifle/build_burstrifle.py -- --from-scratch` (Blender 5.2, headless) makes the shapes (508 triangles, flat faceted,
+the main edges bevelled), the UVs, a palette skin painted by script (512 x 512: gunmetal, blued barrel, post and ears,
+brass rivets and band bolt, oiled wood grip, rubber pad; light grime from occlusion, a little rust, worn convex edges;
+the red lamp glows: 16 fullbright texels), writes the model (nine frames `frame1..frame9`, packed from the old corner
+-29.9 -6.17 -4.6 so slot 21's settings and the AD variants hold it), bakes its normal map, writes the anchors and then
+makes the source .blend from them (`src_models/blend/v_gruntgun/`, the generic layout: the old migrated one is in git's
+history). An untouched `blend_export.py` of the new .blend writes the model and the map byte for byte.
+`render_burstrifle.py` renders the .blend beside the reference.
+
+- **Kept:** the origin in the pistol grip's middle (the grip z -3.9..3.8, leaning back 12.5 deg), the bore (z 8.08), the
+  muzzle anchor (33.15 0 8.08), the corner. **Changed from the image (agreed):** a clamp band on the barrel (x 22.0-23.5,
+  hotspot 1 on its left: hs1 -9.3665 -3.365 0.1797, the hotspots' frame = 0.61 * corner + 0.39 * the model point); the
+  front post on the muzzle block, its top level with the rear ears' tops: the sight line z 11.6 (was 14.9: 3.5 over the
+  bore, was 6.8), rear -2.15, front 28.15 (vr_sightalign_table.inc, sight_picture.py, sightline_table.py).
+- **Shorter behind the grip:** the reference's butt is much nearer the grip than the old gun's; the butt pad's back is
+  at x -24.0 (was -29.4): 57.2 units long (was 62.8), 85 cm at Scale 0.39. The stock drops 2.6 under the sight line at the
+  butt (the flat ironsight's cheek room).
+- **weapons.txt:** slot 21 and the AD slots 27-30 (they repeat its anchors): muzzle_av, hand_av/wpnbtn_av (the
+  receiver's right side), 2h_hand_av (the band's underside), wpntxt_av (the housing's top, at its back), hs1; slot 21's
+  barrel mask (the barrel, band, muzzle block, post).
+- **Verified:** sight_picture: the front post seen 0.42-0.67 units down from its top in the notch; flat
+  `vr_flat_sight_check` rear/front/far off 0.0000; flat hipfire and ADS screenshots (the post in the notch);
+  `vr_agrunt_test 85` 40 passed, 0 failed (the burst rifle's shots from its own muzzle, off 0.0).
+- **Not verified:** headset `vr_sight_check` (the mock's main hand had no weapon after `impulse 149` in e1m1 and
+  vrfiringrange: a test-setup question, the flat run held it); the AD variants (vr_adgunart.cpp's add-ons were placed on
+  the old shape: the fuelled guns' canister x 5-12 under the receiver now crosses the magazine, the hose inlet at x -11.5
+  sits by the lower stock rod); the soldier's own held gun (soldier.mdl) is still the old shape, so a dead grunt drops a
+  gun that looks different from the one he held.
+- **Files:** the normal map is 1.3 MB (the skin is 512 x 512, was the soldier's 256 x 260). `progs/v_gruntgun.mdl_0.clean`
+  (a blood patch for the old skin) no longer matches: to delete.
+
+**Checklist line (suggested):** the grunts' burst rifle (pick one up from a dead grunt): the new model, held by its wooden
+grip, the other hand on the barrel's band, the front post level in the rear notch when aimed, the red lamp glowing.
