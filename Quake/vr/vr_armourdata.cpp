@@ -54,7 +54,10 @@ constexpr const char* fileHead =
     "//   start    \"u\"       units its first row of plates starts further along it (towards the waist, hand or foot)\n"
     "//   end      \"u\"       units its last row ends further along it\n"
     "//   rows     \"n\"       its rows of plates (0 the generator's; the cuirass counts its collar row)\n"
-    "// (start, end and rows: the cuirass and the limbs' plates; not the helmet or the sleeves)\n";
+    "//   taper_start \"s\"  the plate rows' size round its line at its first row (1 as made), lerped row by row to ...\n"
+    "//   taper_end   \"s\"  ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)\n"
+    "//   leather  \"0\"       a sleeve's leather not drawn at all (1 or unset: drawn)\n"
+    "// (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)\n";
 
 [[nodiscard]] Entry* find(const char* name)
 {
@@ -165,7 +168,7 @@ void bump()
                         static_cast<double>(o.v[Roll]));
                     out += line;
                 }
-                for(const int f : {static_cast<int>(Scale), static_cast<int>(Standoff), static_cast<int>(Start), static_cast<int>(End), static_cast<int>(Rows)})
+                for(int f = Scale; f < NumFields; f++)
                 {
                     if(o.has & (1u << static_cast<unsigned>(f)))
                     {
@@ -277,13 +280,14 @@ void parse(const char* text, za::Vector<Entry>& into)
                     continue;
                 }
                 int field = -1;
-                for(const int f : {static_cast<int>(Scale), static_cast<int>(Standoff), static_cast<int>(Start), static_cast<int>(End), static_cast<int>(Rows)})
+                for(int f = Scale; f < NumFields; f++)
                 {
                     field = key == fieldNames[f] ? f : field;
                 }
                 if(field < 0)
                 {
-                    Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows): ignored\n", pathText, key.cStr());
+                    Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
+                               "leather): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }
@@ -340,7 +344,10 @@ int kindOf(const char* model)
 bool resolve(const char* model, int piece, bool sleeve, Override& out)
 {
     out = Override{};
-    out.v[Scale] = 1.f;
+    for(int f = 0; f < NumFields; f++)
+    {
+        out.v[f] = fieldDefault(f);
+    }
     if(table.empty() || piece < 0 || piece >= agarmor::NumPieces || (sleeve && piece < agarmor::PauldronL))
     {
         return false;

@@ -11,6 +11,7 @@ bool qvr::menu::bodyClonePage()
     const PageRef b = PageRef::at(ui().page);
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
         b == pageHolsterZones || b == pageSeatedHolsters || b == pageVrsBodyEquipment || b == pageVrsHolsters ||
+        (b == pageArmourStudio && static_cast<int>(vr_armourstudio_kind.value) == qvr::armourdata::KindPlayer) ||
         ui().bodyCloneLatch == ui().page)
     {
         return true;

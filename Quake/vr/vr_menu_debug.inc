@@ -1001,6 +1001,11 @@ za::Vector<Item> pageDebugReports()
     return qvr::armourstudio::status();
 }
 
+[[nodiscard]] const char* armourStudioAnimStatus()
+{
+    return qvr::armourstudio::animStatus();
+}
+
 // The Armour Studio (vr_armourstudio.hpp; docs/vr-port/ARMOUR_STUDIO.md): the armour's plates tweaked by hand, per kind and piece.
 za::Vector<Item> pageArmourStudio()
 {
@@ -1055,6 +1060,27 @@ za::Vector<Item> pageArmourStudio()
         slider("Rows", vr_armourstudio_rows, 0.f, 8.f, 1.f, "%.0f")
             .help("vr_armourstudio_rows: its rows of plates (0 the generator's; the cuirass counts its collar row; a limb's two "
                   "sides take the larger)."),
+        slider("Taper at Start", vr_armourstudio_taper_start, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_taper_start: the plate rows' size round the part's line at its first row (the waist side of "
+                  "a thigh: the hip), lerped row by row to the taper at its end. 1 as made. Not the helmet or a sleeve."),
+        slider("Taper at End", vr_armourstudio_taper_end, 0.5f, 1.5f, 0.02f, "%.2fx")
+            .help("vr_armourstudio_taper_end: ... at its last row (a thigh's knee). A death knight's thighs wider at the "
+                  "pelvis, narrower at the knee: 1.15 and 0.9."),
+        toggle("Leather Sleeve Shown", vr_armourstudio_leather)
+            .help("vr_armourstudio_leather: a sleeve part's leather (over the elbow or the knee) drawn, or not at all (saved as "
+                  "leather \"0\"). Pick a sleeve part and a side to hide one strap alone."),
+        header("Animation"),
+        info(armourStudioAnimStatus),
+        toggle("Play an Animation", vr_armourstudio_anim)
+            .help("vr_armourstudio_anim: the subject plays one of its model's animations (its frames grouped by name: stand, "
+                  "run, attack, pain, death...), the plates on it as in play; off, it stands still."),
+        slider("Animation", vr_armourstudio_anim_group, 0.f, 40.f, 1.f, "%.0f")
+            .help("vr_armourstudio_anim_group: which animation (the line above names it)."),
+        toggle("Playing", vr_armourstudio_anim_play).help("vr_armourstudio_anim_play: playing, or paused on the frame below."),
+        slider("Speed", vr_armourstudio_anim_speed, -2.f, 3.f, 0.1f, "%.1fx")
+            .help("vr_armourstudio_anim_speed: 1 Quake's 10 frames a second; below 0 backwards."),
+        slider("Frame", vr_armourstudio_anim_frame, 0.f, 30.f, 1.f, "%.0f")
+            .help("vr_armourstudio_anim_frame: the frame within the animation (pause, then scrub it)."),
         header("Edits"),
         command("Undo", "vr_armourstudio_undo").help("vr_armourstudio_undo: the last change back (a slider's run of steps is one)."),
         command("Reset Part", "vr_armourstudio_reset_part").help("vr_armourstudio_reset_part: this part's (and side's) values cleared."),

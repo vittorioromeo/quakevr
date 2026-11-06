@@ -32,10 +32,18 @@ enum Field : int
     Start,    // units the plates' first row starts further along the piece (towards its far end: the waist, the hand, the foot)
     End,      // units the plates' last row ends further along it
     Rows,     // rows of plates (0: the generator's; the cuirass counts its collar row)
+    TaperStart, // the plate rows' size round the piece's line at its first row (1 as made), lerped row by row to ...
+    TaperEnd,   // ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)
+    Leather,    // a sleeve's leather drawn (1, as made) or not at all (0): the sleeve parts' alone
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
-    "standoff", "start", "end", "rows"};
+    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather"};
+// A field's value where nothing is set.
+[[nodiscard]] constexpr float fieldDefault(int field)
+{
+    return field == Scale || field == TaperStart || field == TaperEnd || field == Leather ? 1.f : 0.f;
+}
 
 enum Part : int
 {
@@ -82,7 +90,7 @@ struct Override
 // The kind a wearer's model is (-1 none).
 [[nodiscard]] int kindOf(const char* model);
 // What applies to agarmor piece `piece` (vr_agarmor.hpp Piece) of `model`: its plates, or its sleeve. Values not set are 0
-// (Scale 1); `has` which are set. False: nothing set.
+// (fieldDefault: Scale, the tapers and Leather 1); `has` which are set. False: nothing set.
 bool resolve(const char* model, int piece, bool sleeve, Override& out);
 // A hash of everything that applies to `model` (0: nothing).
 [[nodiscard]] uint32_t signature(const char* model);
