@@ -1018,6 +1018,40 @@ Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the sam
 (axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
 `vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
 `vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+
+## Flat pose leftovers: the front sights (branch `agent/flatsolve7`, 2026-11-06)
+
+**`flatads_test.sh` reported 2 passed** after the flatsolve6 merge: its `SECTIONS` defaulted to `a` (the recoil's two
+checks), so a plain run skipped b-e. Run with all sections: 7 passed, 0 failed. The default is now every section.
+
+**The front sights (4 / 4b).** Measured on each gun's mesh (frame 0) with the eye on its sight line, as the flat
+ironsight puts it (rays from the eye to points under the front sight's top, stopped by anything nearer): how far down the
+front sight is seen. Before: shotgun 0.27, lightning gun 0.60+, nail pistol 0.29, revolver 0.35; **flare gun 0.00, grunt
+burst rifle 0.01, enforcer rifle 0.00, super shotgun 0.00**. The three modelled ones had the same cause: the line ran
+from the rear notch's *bottom* (the rear sight's block is solid under it and hides everything below the line) to a front
+top no higher. **Not asymmetry:** the grunt gun's post, ears, muzzle and bore all sit at y +0.016 (the MDL's y
+quantization; the whole gun +0.040), so nothing is off sideways. Fixes, each front top raised level with the rear's tops
+so the line runs over them (the nail pistol's and revolver's design):
+- Flare gun: the blade's top to EAR_TOP_Z (+0.28; the .blend edited, 4 vertices, re-exported: 12 MDL vertices moved,
+  skins and UVs identical). `build_flaregun.py` builds it so too (its rebuild is not byte-reproducible: it differs in
+  vertex order and noise, so the .blend was edited instead, as its README says). Line `{1.15, 0, 6.412}` -> `{11.75, 0,
+  6.412}`, still parallel to the bores. Seen 0.26 of the 0.28 notch.
+- Grunt burst rifle (`make_enemyguns.py`): the post's top 14.45 -> 14.9 (the ears' tops): the line level (was 0.22 deg
+  up). Seen 0.59.
+- Enforcer rifle: the notch 0.3 (its ears) under the line's rear point; the generator's floor (notch 0.2 over the housing)
+  lifts the line 0.14: rear 10.799, post top 10.659 (0.44 over the band, was 0.30), still zeroed at 10 m (0.483 deg, was
+  0.471). Seen 0.42.
+- Super shotgun: **not fixed: a model issue.** Its ring is painted on the back of a solid block and its bead is a painted
+  patch on the barrels' top: on the line through the ring the block hides the bead, and over the ring (tried: a flat-only
+  line 0.09 over the ring's top) the bead, flush with the top, is seen edge-on (a pixel or two at 960x540). A real fix is
+  geometry: a raised bead (and/or a cut aperture) on v_shot2.mdl.
+
+Headset `vr_sight_check` (mock, laser vs sight line): super shotgun 0.653 -> 0.653, grunt gun 0.221 -> 0.000, enforcer
+rifle 0.470 -> 0.481 (its zero), flare gun 0.048 -> 0.048. flatsight 12/0, flatads 7/0. Sighted sheets:
+`scratch/fs7_ads_before.png`, `fs7_ads_after.png`, `fs7_zoom_after.png` (the posts and the blade in the notches).
+Measure: `python Misc/quakevr/sight_picture.py` (ONLY=<gun>, YS=1).
+
+**Not done:** 2 (walls: push back and muzzle up, tunables), 3 (the walking wrist, `steadyOther`).
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").
