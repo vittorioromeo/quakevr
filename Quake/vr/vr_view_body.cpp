@@ -5,6 +5,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
+#include "vr_testkit.hpp"
 
 namespace view_detail
 {
@@ -581,6 +582,32 @@ void platesInfo_f()
         p.fromEyesLast, p.withHeadLast, n, n ? static_cast<double>(m[0]) : 0.0, n ? static_cast<double>(m[1]) : 0.0, n ? static_cast<double>(m[2]) : 0.0,
         n ? static_cast<double>(m[3]) : 0.0, nb, nb ? static_cast<double>(b[12]) : 0.0, nb ? static_cast<double>(b[13]) : 0.0, nb ? static_cast<double>(b[14]) : 0.0,
         nb ? static_cast<double>(b[15]) : 0.0);
+}
+
+// vr_player_plates_model_check's tally (its `end` prints and clears it).
+testkit::Tally platesModelTally;
+
+void platesModelCheck_f()
+{
+    testkit::Tally& c = platesModelTally;
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "end"))
+    {
+        c.verdict("ppmodel");
+        c.reset();
+        return;
+    }
+    // The settled plates drawn, as the armour made for the body drawn ("<body>#armor"), the body the build's own.
+    const view::ViewEntity& body = entities.body;
+    const view::ViewEntity& plate = entities.plate[0];
+    const char* bodyName = body.visible && body.ent.model ? body.ent.model->name : "-";
+    const char* plateName = plate.visible && plate.ent.model ? plate.ent.model->name : "-";
+    const int build = avatar::bodyBuild();
+    char want[MAX_QPATH];
+    q_snprintf(want, sizeof(want), "%s#armor", bodyName);
+    const bool bodyOk = !strcmp(bodyName, bodyModelName(build, drawnBare));
+    const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !strcmp(plateName, want);
+    const bool ok = c.check(bodyOk && plateOk && playerPlates.entityPieces[0] != 0);
+    Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, playerPlates.entityPieces[0]);
 }
 
 int platesState(int what)
