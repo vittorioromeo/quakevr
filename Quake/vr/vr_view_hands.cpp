@@ -3286,7 +3286,7 @@ void placeFloating(const hands::State& s, posing::Session& ps)
 }
 
 // The weapon hand put where its weapon, placed by its settings now, is drawn where it floats: the weapon's turn is the
-// hand's plus its angle offsets (weaponTurn), its model's origin the hand's point plus its offset in its own frame.
+// hand's turned by its angle offsets (weaponTurn), its model's origin the hand's point plus its offset in its own frame.
 void holdFloating(hands::State& s, const posing::Session& ps)
 {
     const int wh = ps.weaponHand;
@@ -3296,7 +3296,8 @@ void holdFloating(hands::State& s, const posing::Session& ps)
     view::ViewEntity ve;
     place(ve, ps.model, glm::vec3{0.f}, {-wt.x, wt.y, wt.z}, 0, mirrored);
     s.pos[wh] = ps.modelOrigin - glm::vec3{hotspotFrame(ve.ent, mirrored)[3]};
-    s.rot[wh] = s.visualRot[wh] = {wt.x + o.x, wt.y - o.y, wt.z - o.z};
+    // (weaponTurn undone: its angle offsets are composed in the hand's frame.)
+    s.rot[wh] = s.visualRot[wh] = basisAngles(anglesBasis(wt) * glm::transpose(anglesBasis(glm::vec3{-o.x, o.y, o.z})));
     wholeTurn[wh] = glm::mat3{1.f};
 }
 } // namespace view_detail

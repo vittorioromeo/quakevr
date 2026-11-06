@@ -6,6 +6,7 @@
 #include "vr_admelee.hpp"
 #include "vr_geom.hpp"
 #include "vr_progs.hpp"
+#include "vr_sightalign.hpp"
 
 namespace qvr::view
 {
@@ -1434,6 +1435,29 @@ void aimCheck_f()
                    "barrel %.2f aim %.2f; wrist bend %.1f\n",
             name, slot, deg(shot, barrel), deg(shot, aim), deg(barrel, aim), pitchOf(shot), pitchOf(barrel), pitchOf(aim),
             bend);
+        // Each direction in the frame of the hand the weapon was drawn from this frame (drawnAs: forward, left, up; the
+        // hand still moving, hands::State::rot is a frame on), as up and left angles: the shots (from that hand), the
+        // barrel and the sight line (rear to front sight, as drawn). All rigid with the hand: the same whatever its roll.
+        const glm::vec3 drawnRot = drawnAs[h].rot;
+        const glm::mat3 hb = hands::basisOf(drawnRot);
+        const glm::vec3 drawnShot = hands::forward(weapons::shotAngles(drawnRot, slot, h == HAND_OFF));
+        const auto local = [&](const glm::vec3& d) {
+            const glm::vec3 l = glm::transpose(hb) * glm::normalize(d);
+            return glm::vec2{glm::degrees(za::asin(za::clamp(l.z, -1.f, 1.f))), glm::degrees(za::atan2(l.y, l.x))};
+        };
+        glm::vec3 sight{0.f};
+        view::WeaponFrame wf;
+        if(const sightalign::SightLine line = view::weaponFrame(s, h, wf) ? sightalign::sightLine(wf.model) : sightalign::SightLine{};
+            line.valid)
+        {
+            sight = glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}} - glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}};
+        }
+        const bool hasSight = sight != glm::vec3{0.f};
+        const glm::vec2 ls = local(drawnShot), lb = local(barrel), lv = hasSight ? local(sight) : glm::vec2{0.f};
+        Con_Printf("aim_check: %s hand in the hand's frame (up, left): shot %.2f %.2f barrel %.2f %.2f sight %.2f %.2f%s; "
+                   "shot-barrel %.2f shot-sight %.2f\n",
+            name, ls.x, ls.y, lb.x, lb.y, lv.x, lv.y, hasSight ? "" : " (none)", deg(drawnShot, barrel),
+            hasSight ? deg(drawnShot, sight) : 0.f);
     }
 }
 } // namespace qvr::view
