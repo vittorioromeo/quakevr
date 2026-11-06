@@ -1,0 +1,260 @@
+GIMP Palette
+Name: Quake
+Columns: 16
+# Quake's palette (gfx/palette.lmp). Indices 224..255 are FULLBRIGHT: they glow in the dark. Paint them only where a texel should glow (sights, screens, lights); everything else the game puts on the ordinary colours (0..223).
+  0   0   0	index 0
+ 15  15  15	index 1
+ 31  31  31	index 2
+ 47  47  47	index 3
+ 63  63  63	index 4
+ 75  75  75	index 5
+ 91  91  91	index 6
+107 107 107	index 7
+123 123 123	index 8
+139 139 139	index 9
+155 155 155	index 10
+171 171 171	index 11
+187 187 187	index 12
+203 203 203	index 13
+219 219 219	index 14
+235 235 235	index 15
+ 15  11   7	index 16
+ 23  15  11	index 17
+ 31  23  11	index 18
+ 39  27  15	index 19
+ 47  35  19	index 20
+ 55  43  23	index 21
+ 63  47  23	index 22
+ 75  55  27	index 23
+ 83  59  27	index 24
+ 91  67  31	index 25
+ 99  75  31	index 26
+107  83  31	index 27
+115  87  31	index 28
+123  95  35	index 29
+131 103  35	index 30
+143 111  35	index 31
+ 11  11  15	index 32
+ 19  19  27	index 33
+ 27  27  39	index 34
+ 39  39  51	index 35
+ 47  47  63	index 36
+ 55  55  75	index 37
+ 63  63  87	index 38
+ 71  71 103	index 39
+ 79  79 115	index 40
+ 91  91 127	index 41
+ 99  99 139	index 42
+107 107 151	index 43
+115 115 163	index 44
+123 123 175	index 45
+131 131 187	index 46
+139 139 203	index 47
+  0   0   0	index 48
+  7   7   0	index 49
+ 11  11   0	index 50
+ 19  19   0	index 51
+ 27  27   0	index 52
+ 35  35   0	index 53
+ 43  43   7	index 54
+ 47  47   7	index 55
+ 55  55   7	index 56
+ 63  63   7	index 57
+ 71  71   7	index 58
+ 75  75  11	index 59
+ 83  83  11	index 60
+ 91  91  11	index 61
+ 99  99  11	index 62
+107 107  15	index 63
+  7   0   0	index 64
+ 15   0   0	index 65
+ 23   0   0	index 66
+ 31   0   0	index 67
+ 39   0   0	index 68
+ 47   0   0	index 69
+ 55   0   0	index 70
+ 63   0   0	index 71
+ 71   0   0	index 72
+ 79   0   0	index 73
+ 87   0   0	index 74
+ 95   0   0	index 75
+103   0   0	index 76
+111   0   0	index 77
+119   0   0	index 78
+127   0   0	index 79
+ 19  19   0	index 80
+ 27  27   0	index 81
+ 35  35   0	index 82
+ 47  43   0	index 83
+ 55  47   0	index 84
+ 67  55   0	index 85
+ 75  59   7	index 86
+ 87  67   7	index 87
+ 95  71   7	index 88
+107  75  11	index 89
+119  83  15	index 90
+131  87  19	index 91
+139  91  19	index 92
+151  95  27	index 93
+163  99  31	index 94
+175 103  35	index 95
+ 35  19   7	index 96
+ 47  23  11	index 97
+ 59  31  15	index 98
+ 75  35  19	index 99
+ 87  43  23	index 100
+ 99  47  31	index 101
+115  55  35	index 102
+127  59  43	index 103
+143  67  51	index 104
+159  79  51	index 105
+175  99  47	index 106
+191 119  47	index 107
+207 143  43	index 108
+223 171  39	index 109
+239 203  31	index 110
+255 243  27	index 111
+ 11   7   0	index 112
+ 27  19   0	index 113
+ 43  35  15	index 114
+ 55  43  19	index 115
+ 71  51  27	index 116
+ 83  55  35	index 117
+ 99  63  43	index 118
+111  71  51	index 119
+127  83  63	index 120
+139  95  71	index 121
+155 107  83	index 122
+167 123  95	index 123
+183 135 107	index 124
+195 147 123	index 125
+211 163 139	index 126
+227 179 151	index 127
+171 139 163	index 128
+159 127 151	index 129
+147 115 135	index 130
+139 103 123	index 131
+127  91 111	index 132
+119  83  99	index 133
+107  75  87	index 134
+ 95  63  75	index 135
+ 87  55  67	index 136
+ 75  47  55	index 137
+ 67  39  47	index 138
+ 55  31  35	index 139
+ 43  23  27	index 140
+ 35  19  19	index 141
+ 23  11  11	index 142
+ 15   7   7	index 143
+187 115 159	index 144
+175 107 143	index 145
+163  95 131	index 146
+151  87 119	index 147
+139  79 107	index 148
+127  75  95	index 149
+115  67  83	index 150
+107  59  75	index 151
+ 95  51  63	index 152
+ 83  43  55	index 153
+ 71  35  43	index 154
+ 59  31  35	index 155
+ 47  23  27	index 156
+ 35  19  19	index 157
+ 23  11  11	index 158
+ 15   7   7	index 159
+219 195 187	index 160
+203 179 167	index 161
+191 163 155	index 162
+175 151 139	index 163
+163 135 123	index 164
+151 123 111	index 165
+135 111  95	index 166
+123  99  83	index 167
+107  87  71	index 168
+ 95  75  59	index 169
+ 83  63  51	index 170
+ 67  51  39	index 171
+ 55  43  31	index 172
+ 39  31  23	index 173
+ 27  19  15	index 174
+ 15  11   7	index 175
+111 131 123	index 176
+103 123 111	index 177
+ 95 115 103	index 178
+ 87 107  95	index 179
+ 79  99  87	index 180
+ 71  91  79	index 181
+ 63  83  71	index 182
+ 55  75  63	index 183
+ 47  67  55	index 184
+ 43  59  47	index 185
+ 35  51  39	index 186
+ 31  43  31	index 187
+ 23  35  23	index 188
+ 15  27  19	index 189
+ 11  19  11	index 190
+  7  11   7	index 191
+255 243  27	index 192
+239 223  23	index 193
+219 203  19	index 194
+203 183  15	index 195
+187 167  15	index 196
+171 151  11	index 197
+155 131   7	index 198
+139 115   7	index 199
+123  99   7	index 200
+107  83   0	index 201
+ 91  71   0	index 202
+ 75  55   0	index 203
+ 59  43   0	index 204
+ 43  31   0	index 205
+ 27  15   0	index 206
+ 11   7   0	index 207
+  0   0 255	index 208
+ 11  11 239	index 209
+ 19  19 223	index 210
+ 27  27 207	index 211
+ 35  35 191	index 212
+ 43  43 175	index 213
+ 47  47 159	index 214
+ 47  47 143	index 215
+ 47  47 127	index 216
+ 47  47 111	index 217
+ 47  47  95	index 218
+ 43  43  79	index 219
+ 35  35  63	index 220
+ 27  27  47	index 221
+ 19  19  31	index 222
+ 11  11  15	index 223
+ 43   0   0	FULLBRIGHT 224
+ 59   0   0	FULLBRIGHT 225
+ 75   7   0	FULLBRIGHT 226
+ 95   7   0	FULLBRIGHT 227
+111  15   0	FULLBRIGHT 228
+127  23   7	FULLBRIGHT 229
+147  31   7	FULLBRIGHT 230
+163  39  11	FULLBRIGHT 231
+183  51  15	FULLBRIGHT 232
+195  75  27	FULLBRIGHT 233
+207  99  43	FULLBRIGHT 234
+219 127  59	FULLBRIGHT 235
+227 151  79	FULLBRIGHT 236
+231 171  95	FULLBRIGHT 237
+239 191 119	FULLBRIGHT 238
+247 211 139	FULLBRIGHT 239
+167 123  59	FULLBRIGHT 240
+183 155  55	FULLBRIGHT 241
+199 195  55	FULLBRIGHT 242
+231 227  87	FULLBRIGHT 243
+127 191 255	FULLBRIGHT 244
+171 231 255	FULLBRIGHT 245
+215 255 255	FULLBRIGHT 246
+103   0   0	FULLBRIGHT 247
+139   0   0	FULLBRIGHT 248
+179   0   0	FULLBRIGHT 249
+215   0   0	FULLBRIGHT 250
+255   0   0	FULLBRIGHT 251
+255 243 147	FULLBRIGHT 252
+255 247 199	FULLBRIGHT 253
+255 255 255	FULLBRIGHT 254
+159  91  83	FULLBRIGHT 255

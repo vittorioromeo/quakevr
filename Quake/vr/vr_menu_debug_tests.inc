@@ -1179,6 +1179,14 @@ za::Vector<Item> pageDebugTests()
         command("Edit Looked-At Model in Blender", "vr_edit_in_blender look")
             .help("vr_edit_in_blender look: the source .blend of the model nearest where you look (a monster, a "
                   "prop, an item), opened in Blender."),
+        command("Edit Skin in Paint Program", "vr_edit_skin")
+            .help("vr_edit_skin: the skin of the weapon in your main hand (or of the model you look at, the skin it "
+                  "wears) opened in your paint program through Blender (the add-on's Skin Editor; else Krita, "
+                  "Aseprite, GIMP or Photoshop). Save it there: Blender saves the .blend, which exports, and the game "
+                  "reads it again. vr_edit_skin <model> | look [skin] for another."),
+        command("Edit Looked-At Model's Skin", "vr_edit_skin look")
+            .help("vr_edit_skin look: the skin the model nearest where you look wears, opened in your paint "
+                  "program."),
         row(opt::vr_blender_link),
         command("Hide the Model from Blender", "vr_model_show")
             .help("vr_model_show: hides the model Blender's Show in Game (or vr_model_show <model>) drew in front of "

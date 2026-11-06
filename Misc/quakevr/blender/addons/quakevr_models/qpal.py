@@ -25,17 +25,25 @@ FULLBRIGHT = 224
 
 PALETTE = [tuple(bytes.fromhex("".join(PALETTE_HEX))[3 * i:3 * i + 3]) for i in range(256)]
 
+# A glowing colour painted exactly (the paint programs' fullbright swatches): its index. Not the glowing colours an
+# ordinary one has too.
+EXACT_FULLBRIGHT = {PALETTE[i]: i for i in range(255, FULLBRIGHT - 1, -1) if PALETTE[i] not in PALETTE[:FULLBRIGHT]}
+
 
 class Quantizer:
     """Colours to palette indices. A texel whose colour is still its old index's keeps that index (so an unedited skin
     comes back byte for byte). Any other colour becomes the nearest palette colour: among the ordinary ones (0..223),
     or, where the old texel glowed (a sight, a screen), among all 256, a glowing one winning a tie (so a glowing texel
-    can be repainted in another glow, or made ordinary, and an ordinary one never starts glowing)."""
+    can be repainted in another glow, or made ordinary). An ordinary texel starts glowing only when painted exactly in
+    a glowing colour (the Fullbright swatches: texgen.palette_files, the add-on's Quake Fullbright palette); a colour
+    merely near one stays ordinary."""
 
     def __init__(self):
         self.cache = {}
 
     def nearest(self, rgb, glow):
+        if not glow and rgb in EXACT_FULLBRIGHT:
+            return EXACT_FULLBRIGHT[rgb]
         key = (rgb, glow)
         c = self.cache.get(key)
         if c is None:
