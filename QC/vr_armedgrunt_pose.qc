@@ -2114,7 +2114,11 @@ void(entity g, entity p) VR_AGP_Pose =
         g.enemy = world;
         g.vr_ag_act = 0;
         g.velocity = '0 0 0';
-        g.frame = VR_AM_StandFrame(g, 0);
+        // (the Armour Studio's subject playing an animation: the engine sets its frame, vr_armourstudio.cpp)
+        if(!(g == vr_as_subject && cvar_hget(cvarh_vr_armourstudio_anim)))
+        {
+            g.frame = VR_AM_StandFrame(g, 0);
+        }
     }
     if(frozen && vr_agk_hpose >= 0 && vr_agk_hpose < 100)
     {

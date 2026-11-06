@@ -18,6 +18,17 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 // Whether the studio runs (Start given, not closed): its subject kept ahead of you.
 [[nodiscard]] bool running();
 
+// The subject's animations (its model's frames grouped by name: stand, run, pain...; none without a subject), played by
+// vr_armourstudio_anim / _anim_group / _anim_play / _anim_speed / _anim_frame; the line saying which and where.
+[[nodiscard]] int animCount();
+[[nodiscard]] const char* animName(int i);
+[[nodiscard]] int animFrames(int i);
+[[nodiscard]] const char* animStatus();
+
+// Whether the body's mirror image (vr_bodyclone.cpp) is wanted for the studio: the ImGui window open on the player's kind
+// (its plates are your own body's), placed straight ahead of you as no menu panel is there to stand beside.
+[[nodiscard]] bool cloneWanted();
+
 // The flat-screen ImGui window (vr_armourstudio_window.cpp; vr_armourstudio_window): the menu page's rows in a floating
 // window over play, the same vr_armourstudio_* cvars and the same commands -- no state of its own beyond its place.
 void windowInit();     // the commands: vr_armourstudio_window [open|close|toggle|test], vr_armourstudio_window_close

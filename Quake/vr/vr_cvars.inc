@@ -2968,6 +2968,14 @@ QVR_CVAR(vr_armourstudio_standoff, "0", CVAR_NONE)    // debug: units further of
 QVR_CVAR(vr_armourstudio_start, "0", CVAR_NONE)       // debug: units its first row starts further along it
 QVR_CVAR(vr_armourstudio_end, "0", CVAR_NONE)         // debug: units its last row ends further along it
 QVR_CVAR(vr_armourstudio_rows, "0", CVAR_NONE)        // debug: its rows of plates (0 the generator's)
+QVR_CVAR(vr_armourstudio_taper_start, "1", CVAR_NONE) // debug: the plate rows' size round its line at its first row (1 as made)
+QVR_CVAR(vr_armourstudio_taper_end, "1", CVAR_NONE)   // debug: ... at its last row (lerped row by row between)
+QVR_CVAR(vr_armourstudio_leather, "1", CVAR_NONE)     // debug: a sleeve part's leather drawn (1) or hidden (0)
+QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
+QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index
+QVR_CVAR(vr_armourstudio_anim_play, "1", CVAR_NONE)   // debug: 1 playing, 0 paused (vr_armourstudio_anim_frame picks the frame)
+QVR_CVAR(vr_armourstudio_anim_speed, "1", CVAR_NONE)  // debug: its speed (1: Quake's 10 frames a second)
+QVR_CVAR(vr_armourstudio_anim_frame, "0", CVAR_NONE)  // debug: the frame within the animation shown (set while playing; scrub it paused)
 QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)      // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
