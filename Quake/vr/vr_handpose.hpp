@@ -27,6 +27,10 @@ void weightDirections(hands::State& s, float turnYaw);
 [[nodiscard]] float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
     const glm::vec3& way, float most);
 
+// The same weapon's points, as they stand: how deep the deepest is past the first surface on the line from `from` to it (0:
+// all clear). Flatscreen play's muzzle tilt at a wall (vr_flatsight.cpp, pushBack) tries its angles with it.
+[[nodiscard]] float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle);
+
 // vr_gun_wall_depth: each hand's weapon as drawn last frame (held or carried), how far into the level it goes (its model's
 // points past the surfaces the lines from the hand to them meet), and how far the walls held the hand out.
 void gunWallDepth_f();

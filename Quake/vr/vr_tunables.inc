@@ -1855,6 +1855,15 @@ QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
 QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
+QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towards its shoulder until the hand is this far from it (0..20 units; less: further back)
+QVR_TUNABLE(vr_flat_wall_tilt, "85") // what that push back can't clear, the drawn muzzle tilts up out of, at most this far and never past straight up (0..85 degrees; 0: off). Drawn only: the shots still go through the crosshair
+QVR_TUNABLE(vr_flat_wall_tilt_fixed, "0") // the tilt's pitch: 0 the least that clears the wall (at most vr_flat_wall_tilt); 1 always all of vr_flat_wall_tilt once the wall is met
+QVR_TUNABLE(vr_flat_wall_tilt_yaw, "0") // and the tilted gun also turns this far across the body, muzzle inwards (-60..60 degrees; the left hand mirrored)
+QVR_TUNABLE(vr_flat_wall_tilt_roll, "0") // and cants this far, its top inwards (-90..90 degrees; the left hand mirrored)
+QVR_TUNABLE(vr_flat_wall_tilt_sighted, "0") // sighted, this share of that tilt (0..1; 0: the sights stay on the ray and the gun's end goes into the wall as before; none looking down past 50)
+QVR_TUNABLE(vr_flat_wall_tilt_time, "0.3") // the tilted pose eases in, and back out off the wall, over this many seconds (0..1.5; 0: at once)
+QVR_TUNABLE(vr_flat_wall_tilt_pivot, "0") // what it tilts round: 0 the hand, 1 its shoulder (the arm swings the gun up and back, the hand keeps its reach; it also brings the gun up into the face)
+QVR_TUNABLE(vr_flat_wall_tilt_drop, "12") // sighted, the tilted gun also comes this far down off the eye (0..20 units; all of it by 45 degrees of tilt)
 QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
@@ -1917,9 +1926,12 @@ QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed,
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
+QVR_TUNABLE(vr_flat_bob_fwd, "0") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
+QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
 QVR_TUNABLE(vr_flat_ads_recoil, "0.35") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
-QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
+QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (-3..3, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
+QVR_TUNABLE(vr_flat_turnlag_cap, "4") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
