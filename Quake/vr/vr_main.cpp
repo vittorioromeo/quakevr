@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_animrec.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_dynres.hpp"
 #include "vr_warmup.hpp"
@@ -2211,6 +2212,7 @@ extern "C" void VR_Init()
     bodycal::init();
     setup::init();
     motion::init();
+    animrec::init(); // the animation recorder's commands (vr_animrec.cpp)
     flashlight::init();
     gearlights::init();
     chainsaw::init();
@@ -2362,6 +2364,7 @@ extern "C" void VR_Shutdown()
     {
         voicenotes::shutdown();
         motion::shutdown();
+        animrec::shutdown();
         gpustats::stop();
         stopBackend();
         delete state;
@@ -2459,6 +2462,7 @@ extern "C" void VR_BeginFrame()
         {
             QVR_TRACY_SCOPE(zoneMotionFrame, "texts: motion");
             motion::frame();     // the motion recorder's indicator, likewise
+            animrec::frame();    // the animation recorder's countdown and REC, its preview's ghost
         }
         {
             QVR_TRACY_SCOPE(zoneEditors, "texts: posing and editors");
@@ -2870,6 +2874,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::diskcache::setInPlay(cls.state == ca_connected && cls.signon == SIGNONS && !scr_disabled_for_loading);
     qvr::warmup::frame();
     qvr::motion::hostFrameEnd();
+    qvr::animrec::hostFrameEnd(); // the animation recorder's frame, its countdown, its preview's clock
     qvr::allocsites::frameEnd();
     qvr::inputlag::frameEnd(); // vr_inputlag_test
 }

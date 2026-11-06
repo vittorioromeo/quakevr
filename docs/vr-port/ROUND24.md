@@ -1629,6 +1629,25 @@ changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt s
 **Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
 1.47), then the bead sits on what you hit.
 
+## Animation recorder, phase 1 (branch `agent/animrec`, 2026-11-06)
+
+His ask: record motions in VR (melee strikes per weapon kind, reloads) to drive the flat-screen hands later, with
+per-animation and per-weapon tweaks and the hand jitter smoothed out. Phase 1 built: the recorder (Debug > Animation
+Recorder; `vr_ar_record`; the armed record button, its choices shared with the motion recorder through `vr_recbutton.hpp`;
+a countdown), the `.anim` text file (`quakevr/anims`: the head and both hands relative to the head and to the body, the
+fingers, grip and trigger, the weapons, and the events fire, pump, load, mag_out/in, pouch_take, rounds_in,
+break_open/close, each with the nearest hotspot), the smoothing (`vr_ar_smooth` and `Misc/quakevr/anim_smooth.py`, the
+same keys), and a preview on the flat-screen hands and as a ghost in the headset (`vr_ar_play`: blended in and out,
+mirror, offset, rotation, scale, speed, loop). The format, the smoothing, and the phase-2 plan with his four design
+notes (retargeting to each player's hotspots, mirroring, blending from any pose, what stays procedural): ANIMATIONS.md.
+
+Test: `bash Misc/quakevr/animrec_test.sh <agent>`: record 11/11 (145 frames -> 46 keys, 3.80 mm / 0.52 degrees within
+4 mm / 1.5), anim_smooth.py the same 46 keys, flat play 3/3 (on target to 0.000 units; blending steps 2.26 against 1.41
+units a frame played; level, looking up, looking down, crouched).
+
+**Checklist lines (suggested):** Animation recorder: set `vr_ar_name`, Debug > Animation Recorder > Start, do a shotgun
+reload after the countdown, Stop: the file in quakevr/anims lists your steps (mag, pouch, pump). -- Smooth Last, then
+Play Last: the ghost follows your motion without the shake; Mirror plays it with the other hand.
 ## Every other model's source is a .blend (branch `agent/blendmodels`, 2026-11-06)
 
 The author: "Let's make the '.blend' the source of truth for all weapon models, then we can do the same with other models

@@ -5,6 +5,7 @@
 // slamming home). The clacks: the first (the action unlocking, the slide starting back) as the stroke starts, the
 // second (the slide slamming home) ahead of its end by its lead, so its loudest moment is the stroke's end.
 
+#include "vr_animrec.hpp"
 #include "vr_autopump.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
@@ -120,6 +121,8 @@ void fired(int hand)
     s.time = strokeTime();
     s.start = cl.time + strokeDelay(s.time);
     s.travel = strokeTravel();
+    animrec::event("pump", hand, va("auto: back from %.2f s to %.2f s after the shot", s.start - s.shot,
+        s.start - s.shot + s.time)); // (recorded while the animation recorder runs)
     if(vr_debug_weaponfx.value)
     {
         Con_Printf("autopump hand %d start t %.3f (real %.3f): back at %.3f, home at %.3f, %.2f units, shot at %.3f\n",
