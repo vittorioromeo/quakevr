@@ -939,6 +939,7 @@ qboolean GL_NeedsPostprocess (void)
 {
 	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT
 		|| VR_RenderingEye () || VR_PortalDrawing () // QVR: an offscreen camera always has a target
+		|| VR_FlatBulletTimeLook () // QVR: flatscreen play's bullet time look, drawn by the post-process
 		|| VR_FlatNearPlane () > 0.f; // QVR: the window's own depth is not the float one flatscreen play's near plane asks
 }
 
