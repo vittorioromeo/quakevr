@@ -2748,7 +2748,9 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     if(gripBlend > 0.f && twohand::bladeGrip(other) && otherSlot >= 0 &&
         twohand::bladeGripHand(s, hand,
             glm::vec3{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1], entities.weapon[other].ent.origin[2]},
-            s.rot[other] + weaponAngleOffsets(fist, other == HAND_OFF), bladePos, bladeRot))
+            // (the holding hand as drawn: its turn composed with the fist's offsets, not added to its Euler angles)
+            basisAngles(anglesBasis(s.rot[other]) * anglesBasis(weaponAngleOffsets(fist, other == HAND_OFF))), bladePos,
+            bladeRot))
     {
         // Holding the other hand's sword by its blade (round 18): on the blade where the hand is,
         // turned (the least turn) to close round it; its fingers' channel on the blade (round 21, second pass: the

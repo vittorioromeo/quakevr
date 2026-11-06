@@ -420,6 +420,9 @@ Fitted hands, third pass: `vr_show_controller 1` draws each controller as tracke
 `vr_aim_check` prints those angles between them, their pitches and the wrist's bend (`aim_check:` lines), and the shot,
 barrel and sight line in the frame of the hand the gun was drawn from (rigid: the same at any roll;
 `bash Misc/quakevr/rollaim_test.sh <agent>` checks it across rolls and pitches, "rollaim: N passed, M failed");
+`vr_hand_check` prints each hand's aim, drawn weapon and drawn hand against the controller's grip pose (Show
+Controller's ghost's), `bash Misc/quakevr/handroll_test.sh <agent>` checks them rigid across rolls and pitches with a
+nonzero calibration, guns and melee weapons in both hands ("handroll: N passed, M failed");
 `vr_dumpview` prints each hand's place, angles, controller and drawn palm to four decimals; `vr_debug_grasp 1` says
 where the held thing is in the hand and whether it was solved afresh at rest. The tuning keys are per weapon:
 `vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,

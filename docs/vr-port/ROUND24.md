@@ -2142,6 +2142,36 @@ his wrist, they came apart.
 
 **To try (VR):** Show Controller Laser on, any gun (the enforcer's rifle shows it most): red and green stay together as
 you roll your wrist and aim up and down.
+
+### Hands against Show Controller's ghost, and the pose pipeline audited (branch `agent/rollhand`)
+
+His follow-ups: with the wrist upright everything matched the ghost; palm to the floor or the ceiling, the gun and the
+hand came off it ("the hand position itself seems to not match my IRL hand").
+
+- **Measured** (`vr_hand_check`, new, Debug > Reports > Hand Check: each hand's aim frame, drawn weapon and drawn hand
+  entity, turn and place, in the controller's grip frame, the ghost's): with the old `weaponTurn` the drawn **weapon and
+  the drawn hand** were 5.6 to 8.0 degrees off their upright pose at palm down/up (the hand follows: its grasp is fitted
+  to the drawn weapon), melee too (the axe 8.0, a sword in the off hand 7.6). The aim frame (`hands::State::rot`) was
+  rigid all along: the calibration (Gun Angle/Yaw, roll, move) is composed as quaternions (`withHandOffsets`,
+  `calibrate`), the Weapon in Hand and Hand Only offsets and Hand and Weapon Together are composed, the ghost is
+  `grip * anglesBasis(preview offsets)`. So the IRL-hand mismatch was the same bug: fixed by agent/rollaim's
+  `weaponTurn`.
+- **Audit, other Euler sums on hand poses:** one more, fixed: holding a sword's blade with the other hand
+  (`twohand::bladeGripHand`'s holder turn, vr_view_hands.cpp) took the holding hand as `s.rot + fist offsets`; composed
+  now (as the empty hand is drawn). Left as they are (transient, and made for adding): the knock and shake angles added
+  to `s.rot` (pain knock, recoil: `gunLocalTurn` converts the kick for the hand's pose; chainsaw; flat-screen sway).
+  The weapon-frame sums of offsets with offsets (a cup hotspot's angles plus the fist's) don't depend on the hand's pose.
+  No roll or pitch limit on the drawn hand showed in the grid. The held weight's spring (vr_weight.cpp) lags a moving
+  hand by design and its sag pulls towards the world's down (a physical effect: settled, under 0.3 degrees here).
+- **Upright wrist unchanged:** at hand pitch and roll 0 the composed turns equal the old sums exactly; no tuned key
+  changes meaning, no migration.
+- **Test:** `bash Misc/quakevr/handroll_test.sh <agent>` (handroll_check.py): a nonzero calibration on both hands (Gun
+  Angle 30, Gun Yaw 6, roll 10, move 1/-1.5/2; the off hand its own); super shotgun (Pitch -3, Yaw 4, Roll 12) + sword,
+  enforcer's rifle + super shotgun (off, mirrored), axe + empty hand; pitch 0/+40/-30 by roll 0/+-45/+-90; each hand's
+  aim, weapon and hand within 0.5 degrees and 0.3 units of the upright pose (the weight spring's sag off, 30 frames to
+  settle): `handroll: 17 passed, 0 failed` (worst 0.32 degrees, the enforcer's rifle: its spring). With the old
+  `weaponTurn`: 7 passed, 10 failed. rollaim still 12/0.
+
 ## Armour Studio round 2: his tweaks, taper, leather, animations, your body (branch `agent/armourstudio2`)
 
 - **His armour.txt is the default**: his edited file (grunt, enforcer, knight, death knight blocks; 36 parts) copied over

@@ -831,7 +831,12 @@ za::Vector<Item> pageDebugReports()
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
         command("Aim Check", "vr_aim_check")
             .help("vr_aim_check: each held gun's shots against its drawn barrel and the controller's aim (degrees: Show "
-                  "Controller Laser's red, green, white), their pitches, and the wrist's bend."),
+                  "Controller Laser's red, green, white), their pitches, and the wrist's bend; and the shot, barrel and sight "
+                  "line in the hand's frame (the same at any roll)."),
+        command("Hand Check", "vr_hand_check")
+            .help("vr_hand_check: each hand's aim, drawn weapon and drawn hand against the controller's grip pose (the one "
+                  "Show Controller's ghost is drawn from): turn and place. Hold still and roll the controller: they should "
+                  "not change."),
         command("Torch Lights", "vr_torch_lights_list")
             .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
                   "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),

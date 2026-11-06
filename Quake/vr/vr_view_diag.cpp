@@ -8,6 +8,8 @@
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace qvr::view
 {
 void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha)
@@ -1460,11 +1462,60 @@ void aimCheck_f()
             hasSight ? deg(drawnShot, sight) : 0.f);
     }
 }
+
+// vr_hand_check: per hand (armed, a melee weapon or empty), what is drawn against the controller's own grip pose as the
+// runtime gives it (hands::State::gripRot, gripPos: the pose Show Controller's ghost is drawn from, its preview offsets
+// composed on it): the hand's aim frame (hands::State::rot), the drawn weapon's turn (its model's axes) and the drawn
+// jointed hand's, as angles in the grip's frame (pitch up, yaw left, roll), and the hand's point, the weapon's origin
+// and the drawn hand's origin in it (units: forward, left, up). Everything rigid with the controller: the same numbers at
+// any pose of it ("hand_check:" lines).
+void handCheck_f()
+{
+    const hands::State& s = hands::current();
+    for(int h = 0; h < 2; h++)
+    {
+        const char* name = h == HAND_MAIN ? "main" : "off";
+        const glm::mat3 g = hands::basisOf(s.gripRot[h]);
+        const glm::mat3 unmirror{1.f, 0.f, 0.f, 0.f, h == HAND_OFF ? -1.f : 1.f, 0.f, 0.f, 0.f, 1.f};
+        const auto turnIn = [&](const glm::mat3& m) {
+            const glm::mat3 n{glm::normalize(m[0]), glm::normalize(m[1]), glm::normalize(m[2])};
+            const glm::mat3 l = glm::transpose(g) * n;
+            const glm::vec3 a = hands::anglesFromVectors(glm::normalize(l[0]), glm::normalize(l[2]));
+            return glm::vec3{-a.x, a.y, a.z};
+        };
+        const auto placeIn = [&](const glm::vec3& p) { return glm::transpose(g) * (p - s.gripPos[h]); };
+        const glm::vec3 aim = turnIn(hands::basisOf(s.rot[h])), at = placeIn(s.pos[h]);
+        const view::ViewEntity& we = entities.weapon[h];
+        const bool armed = we.visible && we.ent.model;
+        const glm::mat4 hs = armed ? hotspotFrame(we.ent, we.mirrored) : glm::mat4{1.f};
+        const glm::vec3 wt = armed ? turnIn(glm::mat3{hs} * (we.mirrored ? unmirror : glm::mat3{1.f})) : glm::vec3{0.f};
+        const glm::vec3 wo = armed ? placeIn(glm::vec3{hs[3]}) : glm::vec3{0.f};
+        const RigHand& rh = rigHands[h];
+        // (The hand's entity as drawn: the palm's fit to what it holds and the firing motion in.)
+        float hm[16];
+        render::entityMatrix(entities.hand[h].ent, h == HAND_OFF, ENTSCALE_DEFAULT, glm::vec3{0.f}, hm);
+        const glm::mat4 handToWorld = glm::make_mat4(hm);
+        const glm::vec3 ht = rh.drawn ? turnIn(glm::mat3{handToWorld} * unmirror) : glm::vec3{0.f};
+        const glm::vec3 ho = rh.drawn ? placeIn(glm::vec3{handToWorld[3]}) : glm::vec3{0.f};
+        // (One line each: the console wraps long lines.)
+        Con_Printf("hand_check: %s aim %.2f %.2f %.2f at %.2f %.2f %.2f slot %d\n", name, aim.x, aim.y, aim.z, at.x, at.y,
+            at.z, weapons::heldSlot(h));
+        if(armed)
+        {
+            Con_Printf("hand_check: %s weapon %.2f %.2f %.2f at %.2f %.2f %.2f\n", name, wt.x, wt.y, wt.z, wo.x, wo.y, wo.z);
+        }
+        if(rh.drawn)
+        {
+            Con_Printf("hand_check: %s hand %.2f %.2f %.2f at %.2f %.2f %.2f\n", name, ht.x, ht.y, ht.z, ho.x, ho.y, ho.z);
+        }
+    }
+}
 } // namespace qvr::view
 
 void qvr::view::registerDiagCommands()
 {
     Cmd_AddCommand("vr_aim_check", aimCheck_f);
+    Cmd_AddCommand("vr_hand_check", handCheck_f);
     Cmd_AddCommand("vr_dumpview", dumpView_f);
     Cmd_AddCommand("vr_grasp_dump", graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", graspBench_f);
