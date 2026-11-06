@@ -2136,6 +2136,25 @@ bit further off.
   (new; limit 1) and standing (6.2, listed 4.7), `jump_hand0` 3.4 crouched (new) and 3.1 standing (listed 2.6). The
   margin makes the known jump there bigger; the level probe (no floor-then-wall switch) did not change it.
   `flatsight_test.sh` did not run (it waits for the author's game to close: "AUTHOR GAME RUNNING").
+
+### Second pass: pull back, let go (his choice)
+
+- The wall state (`wallOn`, per hand, eased over `vr_flat_wall_tilt_time` like the tilt): a hipfire gun pushed back more
+  than 0.5 units or tilted. In it the arm may fold to 2 units from the shoulder (`wallArmKeep`, was 9) and the stock's
+  chest clearance (`stockBackMost`) fades out, so the push back has room; the free hand lets go (`flatsight::wallLetGo`:
+  the pin onto the grip fades, flatplay's support pose blends to the empty hand's, and twohand stops holding past half
+  of it) and takes the grip again as the gun comes off the wall. No new tunables.
+- Walking into the wall (scratch `fwm_walk3.sh`, empty off hand, at rest 0.5 s after the walk): the gun 8.9..15 cm off
+  the wall in all 18 cases (rifle, revolver, shotgun; head-on, 45 both ways; standing, crouched), the gun hand out in
+  all; the gun's nearest point 7.6..25 cm from the eyes. Still in: the rifle's free (empty) hand at rest (-1.5 cm
+  head-on standing, -12 crouched, -19/-25 at 45 with the wall on its side): the empty hand's own pose is in the wall and
+  nothing pushes an empty hand. During the walk-in (the 0.2 s ease) the gun and the free hand still go in (gun up to 44 cm).
+- Tests: flatsweep 384 passed, 21 known, 5 failed (the four jump rows are gone): `gun_torso wall/long/stand/hip` 1.63
+  at pitch -25 (new, limit 0.5: the stock past the chest clearance), and `fore_torso` open+wall/long ads crouch 2.53
+  (listed 1.95) and stand 3.43 (listed 3.29) -- open and sighted rows, which this change should not touch: possibly
+  from the origin/next merge, not checked. flatwall 8 passed, 6 failed: its hold, tilt-ease, mirrored-tilt and
+  block-fire rows expect the tilt and the kept hold at its wall spot, where the push back now clears the gun untilted
+  and the hand lets go (by design; the test needs new expectations). Not accepted.
 ## Rolled guns: barrel and sights rigid with the hand (branch `agent/rollaim`, 2026-11-06)
 
 His note: with Show Controller Laser on he lined up red (the shots) and green (the barrel) holding the gun level; rolling
