@@ -468,6 +468,9 @@ void resetCaches();
 // triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
 // .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
 void modelReload_f();
+// The same for these models (progs/<name>.mdl, as the engine knows them; empty: the editable ones): vr_model_reload's
+// work and lines, also vr_model_watch's (vr_modelwatch.cpp).
+void reloadModels(const za::Vector<za::String>& names);
 
 // The motion review's ghost (vr_motion_review.cpp): a recorded take's weapon (or empty hand) in `hand`, drawn
 // translucent and tinted this frame where the game draws a weapon held at the hand pose `pos`, `rot` (hands::State's

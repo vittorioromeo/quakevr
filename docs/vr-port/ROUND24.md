@@ -1050,3 +1050,46 @@ option, on by default.
   on the wrist. 13 passed, 0 failed. Tests 38 (46/0), 37 (17/0), 34 (3/0) pass.
 - **To try (VR):** in vrarena, raise the wrist during the countdown and at a wave's start and clear; keep it down at a
   clear (one buzz) then raise it; take a perk; set Messages on the Wrist off and see them in the view again.
+
+## Blender: export on save, the game reads it again (branch `agent/blendauto`, 2026-11-06)
+
+His words: avoid running the export script by hand. Now the loop is edit, Ctrl+S, look (MODELS_IN_BLENDER.md, sections
+1, 4 and 9).
+
+- **The add-on** (`quakevr_models/autoexport.py`, version 1.1.0): a `save_post` handler. Saving a weapon's source .blend
+  (one model object with its anchors' empties, inside a repository that has `Misc/quakevr/blend_export.py`) runs that
+  same script on the saved file in a **background Blender** (`blender -b --factory-startup <file> --python
+  blend_export.py`), not in-process: the export changes the object it exports (mode_set to Object, triangulates it,
+  sets its frame and properties), which would change the scene being edited after every Ctrl+S. It takes ~5 s and
+  doesn't block the editing; a timer reads the result: the status bar says ok (the files and the folder) or `NOT
+  exported, nothing written` with a popup of the reasons; the whole report is `%TEMP%\quakevr_export_on_save.log`. A
+  save during an export exports again after it. The checks are blend_export's own: nothing is written on a refusal.
+  Preferences (and the panel's new top box): **Export on Save** (default on), **Game Folder** (empty: the repository's
+  `quakevr/progs`, weapons.txt written too; another folder: `--out`, weapons.txt left alone).
+- **The engine** (`vr_modelwatch.cpp`; `vr_model_watch`, default 1, Debug > Tests > Read Models Again When Saved;
+  `vr_model_watch_status`, a Debug button too): the loaded alias models in `progs/` that a folder has (not a pak) are
+  watched: the .mdl and beside it its `_0_norm.png`, full-colour skins (`_0.png`, `_0_glow`, `_0_luma`) and a body's
+  `.md5mesh`/`.md5anim` that exist. Windows watches their folders (FindFirstChangeNotification), asked every half
+  second of real time: nothing changing, no file is looked at. A notification has every file's write time looked at
+  over the next half seconds (spread over the frames); a model whose file changed is read when a whole half second
+  passes with no new change (an export's files read together), and only when its .mdl is whole (header, version, size
+  at least what its counts need; else retried at the next half second, said once). It is read through
+  `view::reloadModels` (vr_model_reload's own work, split out of its command) and prints `vr_model_watch: changed on
+  disk, read again: ...`. Newly loaded models are listed for at most 0.2 ms a frame, their folder listed once (no
+  lookup of a missing file). New engine helpers: `Mod_KnownModel` (gl_model.c), `COM_PackHasFile` (common.c).
+- **His Blender:** checked (read-only, a background Blender with his preferences): Blender 5.2 already has the script
+  directory `C:\OHWorkspace\quakevr-iw\Misc\quakevr\blender\` and both add-ons (Quake VR Models, the hand's) enabled,
+  preferences auto-saved: the docs' method, which loads the add-ons from his checkout. Nothing was copied or changed
+  (a copy in the user add-ons folder would duplicate the modules). After this branch is merged into his checkout:
+  restart Blender (or F3 > Reload Scripts) once.
+- **Test:** `bash Misc/quakevr/blend_autoexport_test.sh <agent> --idle` (blend_autoexport_test.py is its Blender half),
+  on a copy of v_shot.blend in `scratch/ba_autoexport`: a renamed frame saved: refused, 5 of 5 game files untouched;
+  the game on e1m1 and the copy saved: exported (4 game files newer, byte for byte the shipped ones) and the game printed
+  `vr_model_watch: changed on disk, read again: progs/v_shot.mdl, progs/vr_pump_on_v_shot.mdl,
+  progs/vr_pumpbody_on_v_shot.mdl` and vr_model_reload's lines; a real-time minute idle on e1m1: 224 files of 123
+  models in 1 folder, 131 asks, 0 notifications, 0 looks, 0 reloads, 52.7 ms in 66 s (4.4 us a frame, the first
+  listing included; low-impact run). 8 passed, 0 failed.
+- **To try (VR / desktop):** restart Blender, open `Misc/quakevr/src_models/blend/v_shot/v_shot.blend`, see the Export
+  on Save box at the top of the Quake VR panel; with the game running and the shotgun in hand, move a vertex of the
+  stock and Ctrl+S: the status bar says exported, the gun changes within a second or two. Rename a shape key and
+  Ctrl+S: the popup refuses and the game doesn't change. (Undo both; don't commit the .blend.)

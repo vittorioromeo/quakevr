@@ -53,6 +53,7 @@ static int	mod_decompressed_capacity;
 static qmodel_t	mod_known[MAX_MOD_KNOWN];
 static int		mod_numknown;
 int Mod_KnownCount (void) { return mod_numknown; } // QVR (vr_limits)
+qmodel_t *Mod_KnownModel (int i) { return i >= 0 && i < mod_numknown ? &mod_known[i] : NULL; } // QVR (vr_modelwatch.cpp)
 int Mod_KnownMax (void) { return MAX_MOD_KNOWN; }
 
 texture_t	*r_notexture_mip; //johnfitz -- moved here from r_main.c

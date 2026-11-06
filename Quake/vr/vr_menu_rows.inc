@@ -6126,6 +6126,10 @@ QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 31.f, 1.f, "%.0
     "vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
     "most), to look at a kick with and without the models' own, or at frames a source .blend's actions added "
     "(below 0: as the game steps them).")
+QVR_TOGGLE(vr_model_watch, "Read Models Again When Saved",
+    "vr_model_watch: the loaded models' files watched on disk (every half second); a model whose file changed (the "
+    "Blender add-on's export on save, any editor) is read again as vr_model_reload reads it, with a console line. "
+    "vr_model_watch_status prints what is watched and the time it takes.")
 QVR_SLIDER(vr_test_fling_speed, "Fling Speed", 1.f, 40.f, 1.f, "%.0f m/s", ext(), nullptr)
 QVR_CYCLE(vr_test_fling_at, "Fling At", nullptr,
     {0.f, "Nearest Monster"}, {1.f, "You"})
