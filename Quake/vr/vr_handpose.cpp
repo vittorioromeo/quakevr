@@ -644,8 +644,8 @@ namespace
 }
 
 // vr_gun_wall_depth's second line for hand `h`: its drawn hand model's vertex nearest a wall (off; negative: in it; -1
-// none drawn) and the weapon's (`gunOff`, cm; -1 none).
-void fistLine(int h, float gunOff)
+// none drawn) and the weapon's (`gunOff`, cm; -1 none); and the weapon's point nearest the eyes (`eye`, cm; -1 none).
+void fistLine(int h, float gunOff, float eye)
 {
     const float cm = 100.f / units::metresToUnits();
     float fistOff = -1.f;
@@ -658,7 +658,8 @@ void fistLine(int h, float gunOff)
         }
         fistOff *= cm;
     }
-    Con_Printf("gunwalloff: %s fist off %.1fcm gun off %.1fcm\n", h == HAND_MAIN ? "main" : "off", fistOff, gunOff);
+    Con_Printf("gunwalloff: %s fist off %.1fcm gun off %.1fcm eye %.1fcm\n", h == HAND_MAIN ? "main" : "off", fistOff, gunOff,
+        eye);
 }
 
 } // namespace
@@ -674,7 +675,7 @@ void gunWallDepth_f()
         if(!modelcollide::drawnWeaponPoints(h, pts, from))
         {
             Con_Printf("gunwall: %s hand, no weapon drawn\n", name);
-            fistLine(h, -1.f);
+            fistLine(h, -1.f, -1.f);
             continue;
         }
         const char* how = twohand::carrying(h) ? (twohand::freeHelping(1 - h) ? "carried2h" : "carried")
@@ -706,17 +707,18 @@ void gunWallDepth_f()
                 deepest = za::max(deepest, depth);
             }
         }
-        float gunOff = offMost;
+        float gunOff = offMost, eye = 1e9f;
         for(const glm::vec3& p : pts)
         {
             gunOff = za::min(gunOff, wallOff(p));
+            eye = za::min(eye, glm::distance(p, eyes));
         }
         // (Short: one console line. in: points in the level of all; out: the hand held out by the walls; hand in: the hand
         // itself; reach: its farthest point from the hand.)
         Con_Printf("gunwall: %s %s in %d/%d deep %.1fcm out %.1fcm hand in %.1fcm at %.0f %.0f %.0f reach %.0f %.0f %.0f\n",
             name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(wallPushes[h]) * cm, depthOf(from) * cm,
             from.x, from.y, from.z, reach.x, reach.y, reach.z);
-        fistLine(h, gunOff * cm);
+        fistLine(h, gunOff * cm, eye * cm);
     }
     pts.clear();
     scratch.fist.clear();

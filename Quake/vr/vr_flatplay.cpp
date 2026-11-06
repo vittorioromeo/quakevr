@@ -561,11 +561,16 @@ constexpr float stanceFadeTo = 55.f;
         return {(ahead - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
             -(below - lift * upBy) * reach};
     }
+    const glm::vec3 empty{
+        poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
     if(otherHolds)
     {
-        return {poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
+        // (At a wall the free hand lets go of the other's gun, to an empty hand's place: flatsight::wallLetGo.)
+        const glm::vec3 support{
+            poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
+        return support + (empty - support) * flatsight::wallLetGo(1 - h);
     }
-    return {poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
+    return empty;
 }
 
 // A point on the punch's line: u of the way from `from` to `to` (both where a hand sits off its shoulder, in the view's
