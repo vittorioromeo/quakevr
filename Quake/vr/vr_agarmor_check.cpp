@@ -697,6 +697,11 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
                 {
                     continue;
                 }
+                // (past a forearm's or a shin's last row: a humanoid's hand and foot, bare on purpose (his notes, 2026-11-06))
+                if(lower && along > tb.grid.hBottom + 0.2f)
+                {
+                    continue;
+                }
             }
             total++;
             const glm::vec3 o = lookSkin(pose, w, at(s.body.p, v), 1.f);
