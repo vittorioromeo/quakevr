@@ -1499,6 +1499,11 @@ struct TorsoCaps
 
 } // namespace
 
+float torsoGap(const hands::State& s, const glm::vec3& rear, const glm::vec3& hand)
+{
+    return active() && bodyPose() ? torsoClearance(torsoCaps(s), rear, hand) : 1e9f;
+}
+
 float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keepAsked)
 {
     glm::vec3 stock;

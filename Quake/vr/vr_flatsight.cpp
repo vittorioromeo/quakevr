@@ -169,6 +169,7 @@ struct Sight
     float acrossNeed[2]{0.f, 0.f}; // in the wall state, how far the weapon must go across the chest past the way back (units)
     float across[2]{0.f, 0.f};     // and that eased like the way back
     float tiltEye[2]{1e9f, 1e9f};  // the turned weapon's nearest point to the eyes (units; tiltNeedFor)
+    float tiltTorso[2]{0.f, 0.f};  // and its rear's depth in the torso (units)
     int pose[2]{0, 0};             // the wall pose chosen (wallPoses) and kept while locked
     bool locked[2]{false, false};
     bool rescore[2]{false, false}; // the kept pose has stayed in the wall: choose again (frame sets it, pushBack does it)
@@ -622,6 +623,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
 {
     st.tiltNeed[h] = st.tiltDepth[h] = st.tiltLeft[h] = 0.f;
     st.tiltEye[h] = 1e9f;
+    st.tiltTorso[h] = 0.f;
     st.tiltWanted[h] = false;
     // (No further than the muzzle pointing straight up, less tiltShortOfUp: past it the gun would lean back over him.)
     const glm::mat3 hand = axesOf(s.rot[h]);
@@ -669,8 +671,11 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
         const glm::mat3 r = tiltTurn(h, view, deg, sightFade, pose);
         const glm::mat3 turned = r * hand;
         st.probes++;
-        return handpose::gunNearest(
-            h, s.head, at + pivot - r * pivot, hands::anglesFromVectors(turned[0], turned[2]), r * muzzle);
+        // (And how deep its rear goes into the torso: turned across the body, the stock swings into the chest.)
+        const glm::vec3 handAt = at + pivot - r * pivot;
+        glm::vec3 stock;
+        st.tiltTorso[h] = stockOff(h, stock) ? za::max(0.f, -flatplay::torsoGap(s, handAt + r * (view * stock), handAt)) : 0.f;
+        return handpose::gunNearest(h, s.head, handAt, hands::anglesFromVectors(turned[0], turned[2]), r * muzzle);
     };
     if(vr_flat_wall_tilt_fixed.value != 0.f)
     {
@@ -722,7 +727,8 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
 // it comes nearer the eyes than wallEyeKeep, and then the least turn off the aim (a tie's breaker).
 [[nodiscard]] float wallPoseScore(int h)
 {
-    return st.tiltLeft[h] * 100.f + za::max(0.f, wallEyeKeep - st.tiltEye[h]) * 100.f + st.tiltNeed[h] * 0.01f;
+    return (st.tiltLeft[h] + st.tiltTorso[h]) * 100.f + za::max(0.f, wallEyeKeep - st.tiltEye[h]) * 100.f +
+           st.tiltNeed[h] * 0.01f;
 }
 
 // The held weapons against the walls: how far each must go back (handpose::gunBack) at the place this pose made for it,

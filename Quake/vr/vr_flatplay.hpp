@@ -126,6 +126,9 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // weapon's rear vr_flat_clear_stock out of the torso (or no deeper than it is now): a wall's push back (flatsight's pushBack) stops
 // at the chest. `keep` (units, 0..vr_flat_clear_stock; negative: all of vr_flat_clear_stock) asks for less of that clearance:
 // flatsight's wall state takes the stock to the chest, never into it. vr_flat_clear_stock 0 keeps none, as ever.
+// How far the line from a weapon's rear `rear` to the hand `hand` stays out of the torso (units; negative: in it; huge
+// with no body pose). flatsight's wall poses score with it.
+[[nodiscard]] float torsoGap(const hands::State& s, const glm::vec3& rear, const glm::vec3& hand);
 [[nodiscard]] float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keep = -1.f);
 // The drawn body's move with the drawn view (world units): the view's own move off the pose's eye -- the walk's bob, a step's easing --
 // by vr_flat_body_bob (all of it sighted), which the drawn hands ride too (drawnOffset), so body, arms and hands move as one. 0 outside
