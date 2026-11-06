@@ -174,6 +174,35 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
     ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
     grunt's spiky knee leather and the enforcer's elbow band untouched.
 
+## Armour tweaks file and the Armour Studio (branch `agent/armourstudio`)
+
+His ask: "tweak the armour plates manually for each armed humanoid". Details: `docs/vr-port/ARMOUR_STUDIO.md`.
+
+- **Data:** `quakevr/data/armour.txt` (`vr_armourdata.cpp`): per kind (grunt, enforcer, knight, death_knight, player, or a model's
+  path) and part (cuirass, helmet, pauldron, bracer, thigh, shin, the four sleeves; a limb part both sides mirrored, `_l`/`_r` one
+  side's own): offset, rotate, scale, standoff, start, end, rows. Laid over the generator in `buildShell`: start/end/rows in
+  `planGrid` (`PieceFrame::shiftStart/shiftEnd/rows`; the upper arms' common top taken before them, `PlateGrid::hTopRaw`), standoff
+  on the grid's radii after mirroring, the rest on the piece's vertices after it is made (`tweakVerts`: a sleeve's and the helmet's
+  stand-off pushed out from their middle). Nothing set, nothing touched. Read at start, on `vr_armour_reload`, and when the file
+  changes on disk (`vr_armour_watch` 1, once a second); a changed table makes again only the shells whose tweaks changed
+  (`agarmor::overridesChanged`, `Shell::tweaks`), and the armour models with them. `vr_armour_print`. Cvars: `vr_armour_file`
+  (`data/armour.txt`), `vr_armour_watch` (1).
+- **Empty file = today's armour:** `vr_agarmor_info`'s 14 shell hashes (every wearer and body build) identical to `origin/next`'s.
+  `vr_agarmor_check` 20/0, `vr_agarmor_look_check` 114/0, `vr_agarmor_pop_check` 10/0, `vr_agarmor_test 1` 26/0 (also with a bracer
+  override on), `vr_agarmor_test 5` 24/0, `vr_pp_test 1` 53/0.
+- **Studio:** Debug > Tools > Armour Studio (`vr_armourstudio.cpp`, the VR menu's own sliders: headset and flat screen alike): a
+  subject ahead (QC `vr_armourstudio.qc` `VR_ArmourStudio_Spawn`, fists, `vr_agrunt_freeze` while open, takedamage off), its tier,
+  turn, body ghost (`vr_armourstudio_ghost` 0.4: the body's alpha, the plates whole), the part alone; the part picked outlined in
+  cyan (`agarmor::studioView`, through `debugDraw`); every value a `vr_armourstudio_*` cvar, each change laid into the table and
+  the kind's armour made again (grunt about 40 ms). Undo (a slider's run on one value one step, 64 kept), Reset Part, Reset Kind,
+  Save, Reload, Close. The player's kind edits your own body's plates (no subject or outline: the menu's body clone, a mirror).
+- **Test:** `vr_armour_test` (`armourtest: 24 passed, 0 failed`; Debug > Tests): an override moves the right piece's vertices (the
+  right side's mirrored) and nothing else, a sleeve's stand-off, rows; saved and read back; edited on disk and read again by the
+  watcher; kept over a map change; the shipped file again the generator's shell.
+- **Not done:** the generator's per-kind taste constants (`Wearer::hipFrom`, the stand-offs) stay in the code (moving them was
+  optional; no output change wanted). A part's move or turn is not followed by the hit tests' tube (`PlateTube`), only its stand-off,
+  start, end and rows; a player's debris models (`#plate<n>`) already loaded keep the old shape till the next map.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
