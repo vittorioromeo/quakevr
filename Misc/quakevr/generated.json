@@ -253,7 +253,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_enfrifle.mdl": {
-  "sha256": "5d0123a59628a01bc241e06aa5f3743605690caefce6cb51727963ee5c133869",
+  "sha256": "4e277e7f6fa0c4a9acf6e5a5a670cbdc34bfc853505ea33c9cb88de0b4ebc426",
   "by": "make_enemyguns.py"
  },
  "quakevr/progs/v_enfrifle.mdl_0_norm.png": {
@@ -269,7 +269,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_gruntgun.mdl": {
-  "sha256": "f1047cb6b9e8f325cfa998babf2ae439f65866de3b6bbba223373235fbc328f4",
+  "sha256": "fc8da5ff12c395bb4f726d7587e6693fd79edc9be8d6a570a13771014a529f7a",
   "by": "make_enemyguns.py"
  },
  "quakevr/progs/v_gruntgun.mdl_0_norm.png": {

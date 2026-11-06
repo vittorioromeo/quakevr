@@ -33,6 +33,7 @@ float AXESTICK_EDGE = 2;        // by its edge
 .float  vr_stick_tughand;
 .entity vr_stick_tugger;
 .float  vr_stick_cutmark; // when the cut under way (VR_AxeStick_CutPrepare) was found to take the limb it is in
+.float  vr_stick_cutat;   // (on a body) when a limb or its head was last cut off (VR_AxeStick_CutDone)
 .float  vr_stick_bone;    // the bone of the body it went into, as the body stood then (ragdolllimb: -1 the torso, -2 no rig)
 .float  vr_stick_runs;    // the open wound's stream: when its next word goes (0: not running)
 float   vr_embed_woundruns; // (for the test: how many words so far)
@@ -273,12 +274,29 @@ void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug =
 };
 
 // While stuck (its think, every 0.02 s): what it is in still holds it; a tug; the bleeding.
+// Whether the part of `m` its bone `xBone` is (ragdolllimb's: a limb's joint, the head's bone) is cut off: a blade in it would be in
+// nothing (his note 2026-11-06: an axe left where a cut-off head was, the body moved by it).
+float(entity m, float xBone) VR_AxeStick_BoneCut =
+{
+    if(m == world || xBone < 0)
+    {
+        return FALSE;
+    }
+    if(ragdolllimbs(m, 2) & VR_AgArmor_Bit(xBone))
+    {
+        return TRUE;
+    }
+    return m.vr_headless && (ragdolllimbs(m, 1) & VR_AgArmor_Bit(xBone));
+};
+
 void() VR_AxeStick_Think =
 {
     entity h = self.vr_stick_ent;
-    // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed.)
+    // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed; or the part it is in is cut
+    // off, whatever cut it.)
     if(!VR_AxeStick_On(self) ||
        (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
+       (cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && VR_AxeStick_BoneCut(h, self.vr_stick_bone)) ||
        (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
     {
         VR_AxeStick_Fall(self);
@@ -406,6 +424,7 @@ void(entity e, float xTakes) VR_AxeStick_CutPrepare =
 
 void(entity e) VR_AxeStick_CutDone =
 {
+    e.vr_stick_cutat = time; // (a hand's blow that cut it went through: VR_Embed_Try)
     if(!cvar_hget(cvarh_vr_embed))
     {
         return;

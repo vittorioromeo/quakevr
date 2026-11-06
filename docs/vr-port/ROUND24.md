@@ -106,6 +106,58 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
     1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
     wearer (24 failures): the look check is what guards the sleeves.
 
+## Armour round five: his annotated screenshots (branch `agent/armor5`, partial)
+
+His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fillRadii`, `mirrorRadii`, `sleeveOf`, `buildShell`), humanoids only
+(the player's plates unchanged: `PieceFrame::ends` is false on the skeletal bodies).
+
+- **Hands and feet bare:** the humanoids' hand and foot skin weighs on the forearm and the shin far past the wrist and ankle (grunt shin region
+  to 14.0 on an 8.7 bone, forearm to 9.8 on 7.0), so plates covered the hands and wrapped the feet below the sole. Now a forearm's rows end
+  `plateWristAbove` 0.9 short of its bone's end, a shin's `plateAnkleAbove` 0.6; the limb's own vertices more than 0.3 past its rows no longer
+  push its end rows out (the joint end of an upper arm or thigh 1.0). The look check's coverage skips skin past a forearm's or shin's last
+  row (+0.2).
+- **Slimmer:** `plateRidgeLimb` 0.5 on forearms and shins, `plateRidgeThigh` 0.8 (was 1.1; pauldrons and cuirass keep 1.1). A thigh's rows
+  start by `plateHipFrom` 0.12 of its bone at the latest; its rings above its region (an enforcer's and a death knight's thighs weigh on
+  it only near the knee) take the whole skin's exit (`bodyExit`) instead of the next ring's radius. Death knight thigh rows 3.2..5.9 -> 0.9..5.9.
+- **Shoulders symmetric:** `mirrorRadii` modes: the player's as before; a humanoid's upper arms always mirrored, half way where they differ
+  (death knight top ring 4.6 / 1.6 -> 3.1 both); a humanoid's other limbs corner by corner (alike: the larger; else each its own; mirroring
+  everything half way sank a knight's and an enforcer's forearm plates into the skin: coverage 0.47 / 0.67).
+- **Sleeves:** `sleevePast` 0.8 -> 0.3 (the two halves overlapped); a humanoid's rings eased round (each corner half itself, a quarter each
+  neighbour, within 0.85..1.25 of the ring's mean, never more than 0.3 in), its per-vertex push `sleeveRidgeHumanoid` 1.6 (the slimmer end
+  rows no longer cover the knee's and elbow's points: the sleeve does).
+- **Numbers:** world mirror distance (left's outer face against the right's mirrored about y 0, `vr_agarmor_info <model>`), before -> after:
+  grunt upper arms 2.02/1.85 -> 1.75/1.62; death knight 2.60/2.50 -> 2.61/2.66 (rest poses differ; the radii now equal). Grunt bulk
+  (`vr_agarmor_pop_check progs/vrgrunt.mdl`, faces off skin, mean): torso 1.33 (1.33), upper arm 1.99 (1.89), forearm 0.89 (0.88), thigh
+  2.72 (2.94), shin 1.29 (1.43). Triangles: grunt 2 920 -> 2 632 (no timing: fewer).
+- **Tried and dropped:** a higher reach over a humanoid's shoulder (1.8-2.2, for the knight's red pad): it flared the enforcer's pauldrons
+  into shells, the pad still showed. A ring's corners clamped to 1.35-1.6 of its median: cost the enforcer's forearm coverage. A limb's ring
+  middle from its own rows' skin alone: the grunt's coverage bent fell to 12%.
+- **Second pass (look check 111/3 -> 114/0, limits unchanged):**
+  - Grunt thigh coverage 75% -> 88%: a humanoid's sleeve's rounding eased corners in by up to `sleeveRoundIn` and bared the knee's point
+    the ridge pass had covered; the ridge pass (`sleeveOf`'s `ridgeOut`) now runs again after the rounding.
+  - Enforcer bracer_r 8.37 over: two causes. The hand's vertices past the bone's end set the end ring's middle (the axis band now stops
+    at the bone's end), and half way down his forearm weighs on the upper arm and the hand too, so the region's own vertices were a
+    sliver and the plates sat 1 unit to one side (-4.8..3.0 over an arm -3.7..3.9). A humanoid's forearm's and shin's rings are now
+    centred on the whole skin's exits (as a sleeve's), a corner no region ray finds takes the whole skin's exit (`fillRadii`, as the
+    thigh's): plates -4.4..4.4. The width check measured that row against a 0.2-unit sliver of skin: where the region's slice is under
+    1 unit, it takes the skin weighing 0.3 on the piece (`lookFit`).
+  - The thigh's top rings the same where its region's slice is a sliver (an enforcer's thigh weighs on the hip only at its front: the
+    rings 3 units forward). Pop check bulk, thigh mean: enforcer 3.51 -> 2.28 (it failed the 3.2 limit after the first pass; 1.97 before
+    round five), grunt 2.72 -> 1.25.
+- **Death knight's face:** guards end higher (jaw 0.42 -> 0.48 of the head), front edges further apart (0.37/0.44 -> 0.40/0.48), his
+  collar row lower (`Wearer::yoke` 0.5, the others 1.2). Moving the guards' front edges back (0.54/0.42 -> 0.46/0.36) opened the helmet
+  (14 rim edges, `vr_agarmor_check` "each shell closed"): kept.
+- **Knight's shoulder pads:** a humanoid's two upper arms start as high as the higher (`PieceFrame::topAt`; his right weighs on its bone
+  only from 1.4 down, so it started 1.7 lower); the knight's pauldrons go out over the skin round them by 1.8 (`Wearer::shoulderRidge`,
+  plateRidge 1.1 elsewhere) and mirror the larger (`Mirror::ShouldersMost`; halving undid the pad side's push). His right pad's 8
+  vertices all under plates (a ray along each normal; one bare before). Upper arm bulk 2.28. The enforcer untouched (per kind).
+- **Death knight's shoulders:** both upper arms round one axis, the left's and the mirrored right's mean (`Wearer::shoulderAxis`: his
+  arms rest differently), plates from 5 up the bone at most (`shoulderTop`; 10.8 before, his shells' reach): mirror distance 2.61 -> 2.04.
+- **Open:** in the sheet, a sliver of the knight's red pad still shows at the top of each shoulder from front and back (the pad's
+  upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
+- **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
+  (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -683,6 +735,37 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   | 24 | (new) | 19/1 | 20/2 unseeded (eased 3.58; the axe drag 5.2 units, held); 21/1 seeded 1 (eased) |
   | 1 | 4 failed, no verdict | 4 failed, no verdict | 57/4, with its verdict (the same 4) |
   | 21 | 39/2 | 40/2 | 40/2 (the same 2) |
+
+## Embedded blades: his notes of 2026-11-06 (agent embedfix, branch `agent/embedfix`)
+
+- **"Unsticking an embedded axe makes the hand lag behind."** The cause, as he guessed: the blade's entity goes at once and the axe is
+  drawn in the hand again at its controller's pose (setupWeapon: `s.pos`, `s.visualRot`), while the drawn hand eased from where it was on
+  the blade (embedDrawnHand, vr_embed_free_ease); and a hand holding a weapon took its turn from `s.rot`, so the hand's turned ease was
+  dropped too. Now `embedPinStep` (vr_view_hands.cpp, each frame before the weapons) works out the ease once, as one rigid transform
+  about the controller (`embedEase`: the turn, then the move), and setupWeapon (the weapon, before it is placed: its attachments and
+  hotspots follow) and setupHand (the hand, after its weapon's pose) both apply it. An empty hand eases as before.
+- **"Decapitation or a limb cut with the axe leaves it embedded where the part was."** A killing blow's cut happens inside the blow,
+  before VR_Embed_BlowsDone sticks the blade; just killed, the body may not be a hit model yet and the engine falls back to sticking in
+  its box at the contact (kind 4, "8.8 cm off its model"), in nothing, and the hand on it moved the ragdoll. Now VR_Embed_Try (vr_embedhold.qc)
+  doesn't stick a blade in a body that had a head or limb cut off within the blow's wait (`.vr_stick_cutat`, set by VR_AxeStick_CutDone:
+  a blow that cuts a part off went through it), nor where the part it would go into is cut off (VR_AxeStick_BoneCut: the bone's bit in
+  ragdolllimbs 2, or a head bone of a headless body), checked again on where it went in; the blade stays in the hand. A stuck blade
+  whose part is cut off by anything later comes free (VR_AxeStick_Think: into the hand if held, else it falls), on top of the cut's own
+  CutPrepare/CutDone marks.
+- **Decision:** not embedded in the severed part. The severed head or limb is a flying gib: an edge's blade held in one would be a new
+  mechanism (the hold's spring and drag are a ragdoll's; skewering is a pointed blade's, along its line). The blow went through it, so
+  the axe stays free in the hand. Ask him if he wants the gib to stay on the axe (as a skewer).
+- **Test:** `vr_embed_test 25` (`embedfix: N passed, M failed`): 0 a killing axe swing at the head (beheads), 1 at a limb (cuts it off):
+  no blade in the body, the axe in the hand, the hand drawn back doesn't move the body; 2 a hard axe tug: `vr_embed_probe_grip` (the drawn
+  hand from where it holds the drawn axe, the most over the ease) and `_wstep` (the drawn axe's per-frame step from its controller,
+  from the blade's last drawn place on) against the hand's `_step`. A blow that didn't land as the case wants (the mock swing sometimes
+  turns side on, or misses the head) is dealt again, at most 3 times, said in the log. `vr_embed_probe_split 1` draws the weapon the old way.
+- **Numbers (low-impact runs):** before (split 1): grip 31.1 cm, the axe's step 31.4 cm in one frame; after: grip 0.00 cm over 18 frames,
+  the axe's step = the hand's (3.42 cm at 2 m/s, the 20 cm tug's eased offset). The cut: the first run, with only the bone check, had
+  the limb blow (limb 7 cut, the blade "in" bone 6, kind 4) stuck and held, the body dragged 30 units; without the blow check it
+  happened in 1 run of 5 (4 more with the QC checks off: none; timing, whether the dead body is a hit model yet); with it, 0 of 4. Test 25: 13/0 three times. Test 7:
+  75/7 seeded 1 (as origin/next), 76/6 and 74/8 unseeded (the known stab/slide ones); 11: 103/0 seeded and not; 24: 21/1 seeded 1 (the
+  known "eased" 3.59 > 3 thin margin), 20/2 and 21/1 unseeded (the known corpse lift/drag); 21: 40/2 (the same 2).
 ## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
 
 **Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."
@@ -1018,6 +1101,40 @@ Sheets `qvr-kit/scratch/flatsolve6/sheet_before.png`, `sheet_after.png`: the sam
 (axe, revolver, shotgun's grip and fore-end), the shotgun's front beads visible sighted. His `tunables.cfg` now also holds
 `vr_flat_gun_down 2`, `vr_flat_stance_back 4`, `vr_flat_pistol_in 2`, `vr_flat_pistol_up 4`, `vr_flat_ads_relief 4` and
 `vr_flat_aim_fov 45` (none promoted here); none overrides a new default.
+
+## Flat pose leftovers: the front sights (branch `agent/flatsolve7`, 2026-11-06)
+
+**`flatads_test.sh` reported 2 passed** after the flatsolve6 merge: its `SECTIONS` defaulted to `a` (the recoil's two
+checks), so a plain run skipped b-e. Run with all sections: 7 passed, 0 failed. The default is now every section.
+
+**The front sights (4 / 4b).** Measured on each gun's mesh (frame 0) with the eye on its sight line, as the flat
+ironsight puts it (rays from the eye to points under the front sight's top, stopped by anything nearer): how far down the
+front sight is seen. Before: shotgun 0.27, lightning gun 0.60+, nail pistol 0.29, revolver 0.35; **flare gun 0.00, grunt
+burst rifle 0.01, enforcer rifle 0.00, super shotgun 0.00**. The three modelled ones had the same cause: the line ran
+from the rear notch's *bottom* (the rear sight's block is solid under it and hides everything below the line) to a front
+top no higher. **Not asymmetry:** the grunt gun's post, ears, muzzle and bore all sit at y +0.016 (the MDL's y
+quantization; the whole gun +0.040), so nothing is off sideways. Fixes, each front top raised level with the rear's tops
+so the line runs over them (the nail pistol's and revolver's design):
+- Flare gun: the blade's top to EAR_TOP_Z (+0.28; the .blend edited, 4 vertices, re-exported: 12 MDL vertices moved,
+  skins and UVs identical). `build_flaregun.py` builds it so too (its rebuild is not byte-reproducible: it differs in
+  vertex order and noise, so the .blend was edited instead, as its README says). Line `{1.15, 0, 6.412}` -> `{11.75, 0,
+  6.412}`, still parallel to the bores. Seen 0.26 of the 0.28 notch.
+- Grunt burst rifle (`make_enemyguns.py`): the post's top 14.45 -> 14.9 (the ears' tops): the line level (was 0.22 deg
+  up). Seen 0.59.
+- Enforcer rifle: the notch 0.3 (its ears) under the line's rear point; the generator's floor (notch 0.2 over the housing)
+  lifts the line 0.14: rear 10.799, post top 10.659 (0.44 over the band, was 0.30), still zeroed at 10 m (0.483 deg, was
+  0.471). Seen 0.42.
+- Super shotgun: **not fixed: a model issue.** Its ring is painted on the back of a solid block and its bead is a painted
+  patch on the barrels' top: on the line through the ring the block hides the bead, and over the ring (tried: a flat-only
+  line 0.09 over the ring's top) the bead, flush with the top, is seen edge-on (a pixel or two at 960x540). A real fix is
+  geometry: a raised bead (and/or a cut aperture) on v_shot2.mdl.
+
+Headset `vr_sight_check` (mock, laser vs sight line): super shotgun 0.653 -> 0.653, grunt gun 0.221 -> 0.000, enforcer
+rifle 0.470 -> 0.481 (its zero), flare gun 0.048 -> 0.048. flatsight 12/0, flatads 7/0. Sighted sheets:
+`scratch/fs7_ads_before.png`, `fs7_ads_after.png`, `fs7_zoom_after.png` (the posts and the blade in the notches).
+Measure: `python Misc/quakevr/sight_picture.py` (ONLY=<gun>, YS=1).
+
+**Not done:** 2 (walls: push back and muzzle up, tunables), 3 (the walking wrist, `steadyOther`).
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").
@@ -1121,6 +1238,44 @@ normal maps; `blender -b <the .blend> --python Misc/quakevr/blend_export.py` wri
   `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`.
 - **Open:** a new action plays only through `vr_debug_weapon_frame` until QuakeC names its frames (`$frame` lines and a
   `player_*` sequence); the plan for the other weapons is in MODELS_IN_BLENDER.md section 9.
+
+## The shotgun's top retopologized (agent/sgtopo, 2026-11-06)
+
+His words: the workflow works; there is cursed topology on top of the shotgun between the back sights and the stock: fix
+it without messing up the textures and UVs. Done in the source .blend (`Misc/quakevr/src_models/blend/v_shot/`), then
+`blend_export.py` (anchors all ok, sight line turned 0.000 deg / moved 0.000, normal maps re-baked, weapons.txt's barrel
+mask re-indexed: 1876 -> 1908 triangles).
+
+- **What was there** (top view, x along the gun): from the receiver's front corner (18.55, -1.74) a fan of 10 faces to the
+  rear sight's base (x 9.97), min angle 0.2 deg, with a zero-area filler for the T-junction at v32; behind the sight, inside
+  the V the two bevels make towards the stock's ridge, 24 faces: slivers over five UV islands, five zero-area fillers along
+  x 9.75, two faces facing down and an interior vertex; on the +y bevel a vertical sliver hiding the T-junction at v55.
+- **Now:** each area is a constrained Delaunay triangulation of the same outline (its boundary vertices kept, so no face
+  round it changes), interior points on a staggered grid, relaxed: the front 40 faces (min angle 16.1 deg), the V 26 (12.2;
+  its centre line v53-v104 kept as an edge, with points on it), the +y bevel split at v55 as the -y one is at v52 (16.5).
+  The bevels, the rivets, the sight posts and the notch floor are untouched; 7 vertices only the old faces used are gone
+  (and v98, 0.023 under the V's plane). Faces 1816 -> 1848; the file 1908 triangles (1780 kept in place, 68 new), the
+  T-junction cracks 26 -> 23.
+- **Frames:** every new vertex is a barycentric mix of an old face's corners, the same in every shape key (and the export
+  carries new vertices with their piece).
+- **UVs:** the front area is one island (a top-down projection): new corners read the old faces' UVs, interior points sit
+  on texel centres; rendered from above (nearest texel) against before: 6.2% of its pixels differ, all texel-edge shifts
+  (max 0.33 / 0.40 texel, mean 0.035). The V had no island to carry (a collage): its new faces read one island (the one its
+  -y half used, a top-down projection fitted to 0.6 texel), and the 208 texels of that island no other face reads were
+  painted with what the old faces showed at their place (skin and relief PNGs): rendered from above it looks as before
+  (18% of its pixels differ, texel-edge resampling of the old stretched slivers; the stock and the front 0%).
+- **In the game:** flat ironsight frame before/after: 532 pixels differ, all on the gun's top at the sights; the headset
+  frame (gun seen from above) shows the same gun (its run-to-run noise hides the difference); `vr_flat_sight_check`
+  0.0004 deg either way; reload_test.sh 114 passed, 1 failed, the same one with the old files ("the shotgun's sights keep
+  their colour as it pumps": 107/55 99/0 104/49 now, 105/55 99/0 104/49 before; the frame drawn whole shows red sight
+  pixels, the pump's parts none).
+- **Left as they are** (the same kind, not equally safe): the receiver's sides are fans too (-y from v33: faces 47-50, min
+  2.8 deg; +y from v49: 63-66, min 3.0), but their faces are not coplanar (normals up to 4 deg apart) and the shell
+  port's anchor sits on v39 / triangle 48; under the receiver, long slivers (faces 83-93, 45, 46, min 1.2-4.7 deg, facing
+  down, rarely seen); the barrels' top (faces 142, 143, 146, 147, min 2.2) and the rib's long strips (958, 959, 966, 967);
+  the collapsed first pump ring (zero-area by design, split_auto_pump).
+- **To try (VR):** look down on the shotgun's top behind the rear sight in the headset: the same texture, no streaks or
+  sparkles; the sights and the auto pump as before.
 ## Survival Arena: its messages on the wrist gadget (agent/arenawrist, 2026-11-06)
 
 His words: now that the arena has banners, move the arena's text from the centre of the view to the wrist gadget, as an
@@ -1212,3 +1367,34 @@ His words: avoid running the export script by hand. Now the loop is edit, Ctrl+S
   on Save box at the top of the Quake VR panel; with the game running and the shotgun in hand, move a vertex of the
   stock and Ctrl+S: the status bar says exported, the gun changes within a second or two. Rename a shape key and
   Ctrl+S: the popup refuses and the game doesn't change. (Undo both; don't commit the .blend.)
+
+## A cut-off head or limb stays on the axe (branch `agent/limbonaxe`, 2026-11-06)
+
+His note: "The cut off limb should get stuck on the blade that cut it off." (This replaces agent embedfix's decision "not embedded
+in the severed part".) His direction: build it on the sword's gib skewering, the axe's own bits on top.
+
+- **Reused (vr_skewer.qc, the skewer path):** the gib rides the hand by its own think (VR_Skewer_Think, its fade waiting in
+  `.vr_skewer_think`), not solid, MOVETYPE_NONE; its weight in the hand (VR_Skewer_Tally, vr_skewer_mass_head/limb, the engine's
+  vr_weight.cpp); the other hand's grip (VR_Skewer_Gripper/ForGrip, the engine's skewerDrawnHand draws that hand on the gib) and the
+  tug's numbers (`vr_embed_skewer_tug_speed` 4 m/s with half the stretch, or `vr_embed_skewer_tug_stretch` 30 cm) into that hand
+  (VR_Skewer_Take); coming off when the blade is gone, holstered, switched, the player dead, vr_embed off, the level's end
+  (VR_Skewer_Find/Off); a swing's burst on what it meets (VR_Skewer_Impact, `vr_embed_skewer_swing_burst`) and a swing's contact at it
+  (VR_Skewer_SwingHit); save/load as the skewer's (all state in entity fields and its think; not run separately).
+- **New (the edge, `.vr_skewer_cut`):** VR_Skewer_CutOn, called by VR_Decap_Cut and VR_Limb_Cut with the thrown head or limb and the
+  neck or joint: a swing's cut (QVR_DECAP_SWING, live or corpse) by a player's hand whose blade takes parts (`vr_embed_cuton`, default 1:
+  the edge blades, the axes; 2: the pointed ones too, the swords) with its blade proper (an axe's head from 0.6 of its line, a sword's
+  from 0.4) within 16 units of the cut. The part is moved so its cut end is on the edge and kept rigid there in the hand's frame
+  (`.vr_skewer_at`, the turn in `.vr_skewer_fw/up`), not along the line; at most `vr_embed_skewer_most` on a blade. Only in the hand
+  that cut it: let go of, thrown, or the axe stuck in a body, it falls (no sphere on a thrown axe). The other hand's tug is measured from
+  where it took hold, any way (no slide along the edge). Off by a stop: its own speed at least `vr_embed_cuton_fling` 2.5 m/s then down
+  to half within 0.25 s (a hard swing that stops, a shake's turn back) flings it the way it was going (VR_Skewer_Fling). For 0.4 s after
+  it went on (the swing that cut it, going on through the body) no fling, no burst. Its fling-to-a-wall watch ends as it goes on.
+- **Swords:** off by default (`vr_embed_cuton` 1): a sword's slice goes through, and a sword already skewers by a stab; 2 turns it on with
+  the same rules. Debug > Tunables > Combat > Embedded Blades: "Cut-Off Parts: Stay on the Blade", "Cut-Off Parts: Fling Speed".
+  Like skewering, it needs `vr_embed` on.
+- **Test:** `vr_embed_test 26` (`limbonaxe: N passed, M failed`), the mock hand's real killing axe swings: 0 a live grunt's head, 1 a live
+  grunt's limb, 2 a corpse's limb, 3 a corpse's head (killed whole, lain still, you put 40 units from the part): cut off onto the blade
+  (its edge 4.6-8.5 units from the cut), no blade in the body, the axe in the hand, at the axe's head; rides the hand 25 cm up at 0.5 m/s
+  (0.01-0.11 units off the hand's move), its weight in the hand (head 1.50 kg, limbs 0.54-0.85); off: 0 and 3 a 4 m/s move that stops
+  (flung at 4.8-5.3 m/s), 2 a 5 m/s swing that stops, 1 the other hand's grip, then a 35 cm pull at 1 m/s: "tugged off 31 cm", in that
+  hand. 27/0. Across the floor, the part met the floor or the body and burst (the skewer's swing burst): the test swings up and across.

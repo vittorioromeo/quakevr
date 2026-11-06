@@ -796,6 +796,8 @@ void(entity e, vector xVel, float xHow) VR_Decap_Effects =
 // QVR: Survival Arena's Neck Snapper perk (vr_arena_perks.qc, compiled late): a beheading heals the one who did it.
 void(entity e, entity by, float xHow) VR_ARK_Decap;
 
+float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn; // (vr_skewer.qc, compiled late)
+
 float(entity e, entity by, vector xVel, float xHow) VR_Decap_Cut =
 {
     float oldSolid = e.solid;
@@ -816,7 +818,9 @@ float(entity e, entity by, vector xVel, float xHow) VR_Decap_Cut =
     VR_AxeStick_CutDone(e);
     e.vr_headless = 1; // (the engine's too)
     VR_AgArmor_CutDone(e, TRUE, VR_Decap_IsPop(xHow) ? xVel * 0.5 : ragdollcut(e, 2)); // (dislodged with the head)
+    vr_decap_lasthead = world;
     VR_Decap_Effects(e, xVel, xHow);
+    VR_Skewer_CutOn(vr_decap_lasthead, e, by, xHow, ragdollcut(e, 4)); // (on the blade that cut it: vr_skewer.qc)
     vr_decap_count++;
     VR_ARK_Decap(e, by, xHow); // QVR: Survival Arena's Neck Snapper (vr_arena_perks.qc)
     if(VR_Decap_IsPop(xHow))

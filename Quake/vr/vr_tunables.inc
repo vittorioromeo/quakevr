@@ -1956,6 +1956,8 @@ QVR_TUNABLE(vr_embed_skewer_tug_stretch, "30") // cm the other hand must pull aw
 QVR_TUNABLE(vr_embed_skewer_mass_gib, "1.2") // kg a gib of a middling size weighs on a blade (a torso's piece)
 QVR_TUNABLE(vr_embed_skewer_mass_limb, "0.6") // kg a limb of a middling size does (by size, not its share of the body: a soldier's leg was 12 kg)
 QVR_TUNABLE(vr_embed_skewer_mass_head, "1.5") // kg a head does
+QVR_TUNABLE(vr_embed_cuton, "1") // a head or limb a held blade's swing cuts off stays on it at the cut (QC VR_Skewer_CutOn): 0 never, 1 an edge's (the axes), 2 a point's too (the swords)
+QVR_TUNABLE(vr_embed_cuton_fling, "2.5") // m/s: a part on the edge flies off at a sharp stop (to half within 0.25 s) from at least this fast: a hard swing, a shake (0: never)
 // Embedded Blades: Axe
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
 QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the blade's plane

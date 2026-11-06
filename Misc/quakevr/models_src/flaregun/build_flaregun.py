@@ -38,8 +38,8 @@ BARREL_TOP_Z, BARREL_BOT_Z = 5.0, 2.7
 BARREL_X0, MUZZLE_X, BORE_DEPTH = 2.4, 10.5, 2.6  # (10.5: the barrels half as long again, Vittorio 2026-10-26; was 7.8)
 # The frame's flat top (behind the hinge block, over the breeches).
 FRAME_TOP_Z = 6.2
-# The sight line: the rear notch's bottom (cut in a low hump at the frame top's rear end) and the front blade's top, both
-# at SIGHT_Z: parallel to the bores.
+# The sight line: the rear notch's top (the ears' top, EAR_TOP_Z: the notch is cut in a low hump at the frame top's rear end) and the
+# front blade's top, both at EAR_TOP_Z: parallel to the bores. SIGHT_Z is the notch's bottom.
 SIGHT_Z = 6.6
 SIGHT_REAR_X, SIGHT_FRONT_X = -0.35, MUZZLE_X - 0.25  # (the blade 0.25 behind the muzzle)
 NOTCH_HALF_W, EAR_TOP_Z = 0.16, SIGHT_Z + 0.28  # the notch's half width; the hump's top beside it
@@ -180,10 +180,10 @@ def build_body():
     ear = [(0.62, FRAME_TOP_Z - 0.05), (0.1, EAR_TOP_Z), (SIGHT_REAR_X, EAR_TOP_Z), (SIGHT_REAR_X, FRAME_TOP_Z - 0.05)]
     for y0, y1 in ((NOTCH_HALF_W, 1.0), (-1.0, -NOTCH_HALF_W)):
         bevel_caps(bm, side(bm, ear, y0, y1, PAINT), 0.05)
-    # The front sight: a blade on a ramp on the top barrel, its top at the sight line.
+    # The front sight: a blade on a ramp on the top barrel, its top at the sight line (level with the ears: EAR_TOP_Z).
     top_flat = BARREL_TOP_Z + BARREL_R * math.cos(rot)
-    side(bm, [(SIGHT_FRONT_X - 1.0, top_flat - 0.1), (SIGHT_FRONT_X, top_flat - 0.1), (SIGHT_FRONT_X, SIGHT_Z),
-              (SIGHT_FRONT_X - 0.3, SIGHT_Z), (SIGHT_FRONT_X - 1.0, top_flat + 0.12)], -0.13, 0.13, SIGHT)
+    side(bm, [(SIGHT_FRONT_X - 1.0, top_flat - 0.1), (SIGHT_FRONT_X, top_flat - 0.1), (SIGHT_FRONT_X, EAR_TOP_Z),
+              (SIGHT_FRONT_X - 0.3, EAR_TOP_Z), (SIGHT_FRONT_X - 1.0, top_flat + 0.12)], -0.13, 0.13, SIGHT)
     # The grip: wooden, leaning back GRIP_TILT, its front a little hollowed, flaring back at the bottom.
     grip = [(1.25, 1.6), (1.2, 0.0), (1.1, -2.1), (1.1, -4.1), (1.25, -5.9), (1.05, -6.7), (0.0, -7.05),
             (-1.15, -6.9), (-1.8, -6.3), (-1.75, -5.2), (-1.5, -3.6), (-1.35, -1.4), (-1.4, 0.0), (-1.45, 1.6)]
@@ -325,7 +325,7 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd, dofs, ob_name):
     elif part in (BOLT, SIGHT):
         col = BASE[part] * (0.9 + 0.15 * mid)
         col = mix(col, RUST, 0.6 * smooth(0.0, 0.5, big + 0.5 * fine))
-        if part == SIGHT and d.z > SIGHT_Z - 0.3 and n.x < 0.5:
+        if part == SIGHT and d.z > EAR_TOP_Z - 0.3 and n.x < 0.5:
             col = rgb(214, 176, 104) * (0.92 + 0.12 * rnd[0])  # the blade's top and back: bright brass, to catch the eye
     elif part == CART:
         col = BASE[CART] * (0.92 + 0.12 * mid) * (0.8 + 0.3 * max(0.0, n.z))
@@ -502,8 +502,8 @@ def main():
     # Markers (not exported: names starting with _): the muzzles (their axes +X) and the sight line's two points.
     for name, pt in (("_MuzzleTop", Vector((MUZZLE_X, 0, BARREL_TOP_Z))),
                      ("_MuzzleBottom", Vector((MUZZLE_X, 0, BARREL_BOT_Z))),
-                     ("_SightRear", Vector((SIGHT_REAR_X, 0, SIGHT_Z))),
-                     ("_SightFront", Vector((SIGHT_FRONT_X, 0, SIGHT_Z)))):
+                     ("_SightRear", Vector((SIGHT_REAR_X, 0, EAR_TOP_Z))),
+                     ("_SightFront", Vector((SIGHT_FRONT_X, 0, EAR_TOP_Z)))):
         e = bpy.data.objects.new(name, None)
         e.empty_display_type = "SINGLE_ARROW" if "Muzzle" in name else "PLAIN_AXES"
         e.empty_display_size = 1.5
