@@ -174,6 +174,35 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
     ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
     grunt's spiky knee leather and the enforcer's elbow band untouched.
 
+## Armour tweaks file and the Armour Studio (branch `agent/armourstudio`)
+
+His ask: "tweak the armour plates manually for each armed humanoid". Details: `docs/vr-port/ARMOUR_STUDIO.md`.
+
+- **Data:** `quakevr/data/armour.txt` (`vr_armourdata.cpp`): per kind (grunt, enforcer, knight, death_knight, player, or a model's
+  path) and part (cuirass, helmet, pauldron, bracer, thigh, shin, the four sleeves; a limb part both sides mirrored, `_l`/`_r` one
+  side's own): offset, rotate, scale, standoff, start, end, rows. Laid over the generator in `buildShell`: start/end/rows in
+  `planGrid` (`PieceFrame::shiftStart/shiftEnd/rows`; the upper arms' common top taken before them, `PlateGrid::hTopRaw`), standoff
+  on the grid's radii after mirroring, the rest on the piece's vertices after it is made (`tweakVerts`: a sleeve's and the helmet's
+  stand-off pushed out from their middle). Nothing set, nothing touched. Read at start, on `vr_armour_reload`, and when the file
+  changes on disk (`vr_armour_watch` 1, once a second); a changed table makes again only the shells whose tweaks changed
+  (`agarmor::overridesChanged`, `Shell::tweaks`), and the armour models with them. `vr_armour_print`. Cvars: `vr_armour_file`
+  (`data/armour.txt`), `vr_armour_watch` (1).
+- **Empty file = today's armour:** `vr_agarmor_info`'s 14 shell hashes (every wearer and body build) identical to `origin/next`'s.
+  `vr_agarmor_check` 20/0, `vr_agarmor_look_check` 114/0, `vr_agarmor_pop_check` 10/0, `vr_agarmor_test 1` 26/0 (also with a bracer
+  override on), `vr_agarmor_test 5` 24/0, `vr_pp_test 1` 53/0.
+- **Studio:** Debug > Tools > Armour Studio (`vr_armourstudio.cpp`, the VR menu's own sliders: headset and flat screen alike): a
+  subject ahead (QC `vr_armourstudio.qc` `VR_ArmourStudio_Spawn`, fists, `vr_agrunt_freeze` while open, takedamage off), its tier,
+  turn, body ghost (`vr_armourstudio_ghost` 0.4: the body's alpha, the plates whole), the part alone; the part picked outlined in
+  cyan (`agarmor::studioView`, through `debugDraw`); every value a `vr_armourstudio_*` cvar, each change laid into the table and
+  the kind's armour made again (grunt about 40 ms). Undo (a slider's run on one value one step, 64 kept), Reset Part, Reset Kind,
+  Save, Reload, Close. The player's kind edits your own body's plates (no subject or outline: the menu's body clone, a mirror).
+- **Test:** `vr_armour_test` (`armourtest: 24 passed, 0 failed`; Debug > Tests): an override moves the right piece's vertices (the
+  right side's mirrored) and nothing else, a sleeve's stand-off, rows; saved and read back; edited on disk and read again by the
+  watcher; kept over a map change; the shipped file again the generator's shell.
+- **Not done:** the generator's per-kind taste constants (`Wearer::hipFrom`, the stand-offs) stay in the code (moving them was
+  optional; no output change wanted). A part's move or turn is not followed by the hit tests' tube (`PlateTube`), only its stand-off,
+  start, end and rows; a player's debris models (`#plate<n>`) already loaded keep the old shape till the next map.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -1572,3 +1601,27 @@ detail; toggle Quake-Style Leather to compare. Not shipped as his look: the coor
 
 **Checklist line (suggested):** Gloves up close: texel blocks and colour steps like your arm's skin, no fine grain, the
 wrist seamless (Player Appearance > Gloves > Quake-Style Leather toggles the old smooth look).
+## Why the lost soul "drops its target" (branch `agent/lostsoul`, 2026-11-06)
+
+It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
+
+- **The "no enemy"** is AD's enemytarget marker (`ad_ai_enemytarget.qc`): a flying monster's `enemy` becomes a
+  classname-less marker floating 128 above you (`ad_LostCheckAttack` sets it up; `self.height` = `ad_MONAI_ABOVEDIST`),
+  the real enemy behind it. Traced every 0.25 s: `enemy` the marker, `ad_lostenemy` world, `ad_lostsearch` 0, never the
+  guard state (its lost-sight branch never ran). The player's flags, notarget and god play no part.
+- **Why no bite:** `ad_LostCheckAttack` bites only within 60 (flat, `ad_ai_checkmelee`), rams only 200-400 away
+  (`ad_MONAI_RANGELOSTNEAR`/`FAR`) and strafes round you between (`ad_AS_SLIDING`, `ad_ai_run_slide`, 8 units a step).
+  Spawned 96 ahead, it circled a still player at 90 to 195 for the whole 8 s (the circle widens about 2 units a second;
+  walls push it back in), never far enough to ram. Its bite comes after a ram (`ad_lost_melee1` from the touch).
+- **After a ram** (traced): a crowbar across your face parries the ram itself and the soul bounces off (300 a second,
+  flying, no friction) and chomps the air; a ram that lands shoves you back 200 a second (AD's `ad_lost_charge_touch`),
+  so the chomp's bite (0.3 s on) finds you 80 away, out of reach: a still player on open floor is never bitten. A real
+  player sees AD's behaviour: rams from range; bites when you are pinned (a wall at your back) or step in.
+- **213 now** tests that: the soul spawns at ram range (300, or the way round you with the most room), your guard is
+  down for the ram (the mock hand at your hip), you hold your ground (velocity held 0 through the ram and chomp: a wall
+  at your back), your guard comes up as it chomps, and only a parry in its chomping frames counts (a parried ram is
+  counted apart). The verdict prints the real enemy through the marker. PASS on start, vrtesthall, ad_e1m1 (AD's own
+  map, 9 lost souls), and start without god; each ends on its verdict in about 4.5 s of game time.
+
+**Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
+to a wall its bite after a ram lands, and your crowbar's guard parries it.

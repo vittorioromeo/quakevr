@@ -2,6 +2,7 @@
 // Split from vr_menu.cpp (a move); what they share is in vr_menu_internal.hpp.
 
 #include "vr_menu_internal.hpp"
+#include "vr_armourstudio.hpp"
 
 namespace menu_detail
 {
