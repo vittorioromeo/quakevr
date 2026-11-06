@@ -12,6 +12,7 @@
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
 // settings); the menu button closes the menu from any page.
 
+#include "vr_animrec.hpp"
 #include "vr_testkit.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
@@ -1636,6 +1637,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     if(motion::button(h, b.button, now))
     {
         logButton(h, b, now, b.key[h], "the motion recorder");
+        return;
+    }
+    // With the animation recorder armed, its record button (vr_ar_button) starts and ends a recording instead.
+    if(animrec::button(h, b.button, now))
+    {
+        logButton(h, b, now, b.key[h], "the animation recorder");
         return;
     }
     // At a holster with a weapon in it (or one bound), the magnetic holsters' bind button binds it to the

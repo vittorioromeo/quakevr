@@ -3,6 +3,8 @@
 # weapon's source .blend"): the model, the parts the engine draws in its place, their normal maps, and the data the
 # game keeps for the model in quakevr/data/weapons.txt (an anchor or hotspot moved, the barrel mask). It checks
 # first (frames, box, anchors on the surface, the sight line, the parts) and writes nothing if a check fails.
+# A .blend holding the jointed hand or the body (imported, then saved) writes their md5 files and skins
+# (blender/addons/quakevr_models/md5source.py).
 #
 # Usage: blender -b Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/blend_export.py --
 #            [--out folder] [--allow-moved] [--allow-sights]
@@ -59,6 +61,20 @@ def main():
     hand = source.handmade_script(blend)
     if hand:  # a hand-made source (models_src/<gun>/): its own export_mdl.py writes its files
         export_handmade(hand, out or os.path.join(root, "quakevr", "progs"))
+        return
+    from quakevr_models import md5source
+    kind, _ = md5source.find(bpy.context)
+    if kind is not None:  # the jointed hand or the body, imported and saved (md5source.py)
+        def report(level, msg):
+            print("  %s: %s" % (next(iter(level)).lower(), msg))
+        try:
+            written = md5source.export(bpy.context, blend, out, report)
+        except md5source.Md5SourceError as e:
+            print("blend_export: REFUSED: nothing written:\n  " + str(e).replace("\n", "\n  "))
+            sys.exit(1)
+        for p in written:
+            print("  wrote %s (%d bytes)" % (p, os.path.getsize(p)))
+        print("blend_export: ok, %d files (the %s)" % (len(written), kind))
         return
     try:
         written, changes = source.export(bpy.context, root, out, allow_moved="--allow-moved" in a,

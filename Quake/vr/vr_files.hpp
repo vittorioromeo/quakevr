@@ -143,6 +143,10 @@ struct Identity
 // parts.
 [[nodiscard]] za::String absolute(za::StringView path);
 
+// std::filesystem::canonical(path).generic_string(): the absolute path with links and junctions followed (a game folder
+// linked to a checkout gives the checkout's); `path` itself (absolute) when it can't be resolved.
+[[nodiscard]] za::String resolved(za::StringView path);
+
 // std::filesystem::path's `dir / rest`: `rest` when it is absolute, else the two with a '/' between (none added after a
 // separator or an empty `dir`).
 [[nodiscard]] za::String join(za::StringView dir, za::StringView rest);

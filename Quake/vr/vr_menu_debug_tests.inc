@@ -1159,6 +1159,17 @@ za::Vector<Item> pageDebugTests()
         command("Model Watch Status", "vr_model_watch_status")
             .help("vr_model_watch_status: the model files watched for Read Models Again When Saved, the changes seen, "
                   "the models read again and the time the watch took."),
+        command("Edit in Blender", "vr_edit_in_blender")
+            .help("vr_edit_in_blender: opens the source .blend of the weapon in your main hand (or, with none, of the "
+                  "model you look at) in Blender (vr_blender_path; empty: the newest installed). Ctrl+S there and the "
+                  "game reads it again. vr_edit_in_blender <model> | look for another."),
+        command("Edit Looked-At Model in Blender", "vr_edit_in_blender look")
+            .help("vr_edit_in_blender look: the source .blend of the model nearest where you look (a monster, a "
+                  "prop, an item), opened in Blender."),
+        row(opt::vr_blender_link),
+        command("Hide the Model from Blender", "vr_model_show")
+            .help("vr_model_show: hides the model Blender's Show in Game (or vr_model_show <model>) drew in front of "
+                  "you."),
         row(opt::vr_debug_draw_blend),
         command("Kick Cancel Test", "vr_kickcancel_test")
             .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "
