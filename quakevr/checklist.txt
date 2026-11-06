@@ -53,6 +53,9 @@ AD lost soul and seeker bites can now be parried with a guard (untested here: AD
 Blender: with the game running, open v_shot.blend, move a vertex and press Ctrl+S: about 5 s later the gun in the game changes by itself; rename a shape key and save: a refusal popup, nothing changes in the game (undo both, don't commit the .blend)
 Your armour plates after switching campaign: play an id1 map, then Dissolution of Eternity's R2M6 and pick up the armour by the entrance: plates appear, not a gib or a piece of wall (each body build)
 Front sights now visible when aiming down the sights of the flare gun, the grunt's burst rifle and the enforcer's rifle (taller post or blade, level with the rear ears), flat and headset
+[ ] Embedded axe (vr_embed 1): tug the axe out hard (20 cm). The axe stays in your drawn hand the whole way back to your controller: no axe jumping ahead, no hand lagging behind it; both glide together over about a quarter second (vr_embed_free_ease). Same with a sword stuck in a body and let go of / pulled out.
+[ ] Embedded axe (vr_embed 1): behead a grunt with a killing axe swing at its head, then cut off an arm or leg with a killing swing. The axe never stays floating where the head or limb was; it stays in your hand, and you can't drag the limbless/headless ragdoll by it.
+[ ] Embedded axe (vr_embed 1): stick an axe in a grunt's arm or head, then cut that limb/head off with another weapon or shot. The stuck axe comes free (into your hand if you were holding it, falling if not); it never hangs in empty space.
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

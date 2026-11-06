@@ -1133,9 +1133,29 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     const bool mirrored = held.mirrored;
     drawnAs[hand] = held; // what the weapon's attachments (its button) follow
 
-    const glm::vec3& rot = held.rot;
     // (A carried gun is drawn as the hand that let it go held it, without this hand's offset turn.)
-    const glm::vec3 wt = carried ? weaponTurn(rot, slot, mirrored) : heldWeaponTurn(rot, hand, slot, mirrored);
+    glm::vec3 wt = carried ? weaponTurn(held.rot, slot, mirrored) : heldWeaponTurn(held.rot, hand, slot, mirrored);
+
+    // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by
+    // the same turn about the controller and the same move (his note 2026-11-06: the hand lagged behind the axe).
+    if(glm::vec3 easeOff{0.f}; !floating && !carried && model && slot >= 0)
+    {
+        glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
+        if(embedEase(hand, easeOff, easeTurn))
+        {
+            const glm::vec3 prePos = held.pos;
+            const glm::mat3 preTurn = anglesBasis(wt);
+            if(vr_embed_probe_split.value == 0.f) // (vr_embed_test 25's before: the weapon left at its controller)
+            {
+                const glm::mat3 turn = glm::mat3_cast(easeTurn);
+                wt = basisAngles(turn * preTurn);
+                held.pos += easeOff;
+                held.rot = basisAngles(turn * anglesBasis(held.rot));
+                drawnAs[hand] = held;
+            }
+            embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
+        }
+    }
 
     // A spent enemy rifle crackling in the hand shakes (vr_shock.cpp gunShake; vr_enemygun_spent_shake): a small jitter
     // of its place and turn, fading with its arcs (the author's note map1_2026-10-08_13-56-46).

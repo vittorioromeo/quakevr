@@ -683,6 +683,37 @@ run has it elsewhere or not at all): it looks like the low-impact screenshot's r
   | 24 | (new) | 19/1 | 20/2 unseeded (eased 3.58; the axe drag 5.2 units, held); 21/1 seeded 1 (eased) |
   | 1 | 4 failed, no verdict | 4 failed, no verdict | 57/4, with its verdict (the same 4) |
   | 21 | 39/2 | 40/2 | 40/2 (the same 2) |
+
+## Embedded blades: his notes of 2026-11-06 (agent embedfix, branch `agent/embedfix`)
+
+- **"Unsticking an embedded axe makes the hand lag behind."** The cause, as he guessed: the blade's entity goes at once and the axe is
+  drawn in the hand again at its controller's pose (setupWeapon: `s.pos`, `s.visualRot`), while the drawn hand eased from where it was on
+  the blade (embedDrawnHand, vr_embed_free_ease); and a hand holding a weapon took its turn from `s.rot`, so the hand's turned ease was
+  dropped too. Now `embedPinStep` (vr_view_hands.cpp, each frame before the weapons) works out the ease once, as one rigid transform
+  about the controller (`embedEase`: the turn, then the move), and setupWeapon (the weapon, before it is placed: its attachments and
+  hotspots follow) and setupHand (the hand, after its weapon's pose) both apply it. An empty hand eases as before.
+- **"Decapitation or a limb cut with the axe leaves it embedded where the part was."** A killing blow's cut happens inside the blow,
+  before VR_Embed_BlowsDone sticks the blade; just killed, the body may not be a hit model yet and the engine falls back to sticking in
+  its box at the contact (kind 4, "8.8 cm off its model"), in nothing, and the hand on it moved the ragdoll. Now VR_Embed_Try (vr_embedhold.qc)
+  doesn't stick a blade in a body that had a head or limb cut off within the blow's wait (`.vr_stick_cutat`, set by VR_AxeStick_CutDone:
+  a blow that cuts a part off went through it), nor where the part it would go into is cut off (VR_AxeStick_BoneCut: the bone's bit in
+  ragdolllimbs 2, or a head bone of a headless body), checked again on where it went in; the blade stays in the hand. A stuck blade
+  whose part is cut off by anything later comes free (VR_AxeStick_Think: into the hand if held, else it falls), on top of the cut's own
+  CutPrepare/CutDone marks.
+- **Decision:** not embedded in the severed part. The severed head or limb is a flying gib: an edge's blade held in one would be a new
+  mechanism (the hold's spring and drag are a ragdoll's; skewering is a pointed blade's, along its line). The blow went through it, so
+  the axe stays free in the hand. Ask him if he wants the gib to stay on the axe (as a skewer).
+- **Test:** `vr_embed_test 25` (`embedfix: N passed, M failed`): 0 a killing axe swing at the head (beheads), 1 at a limb (cuts it off):
+  no blade in the body, the axe in the hand, the hand drawn back doesn't move the body; 2 a hard axe tug: `vr_embed_probe_grip` (the drawn
+  hand from where it holds the drawn axe, the most over the ease) and `_wstep` (the drawn axe's per-frame step from its controller,
+  from the blade's last drawn place on) against the hand's `_step`. A blow that didn't land as the case wants (the mock swing sometimes
+  turns side on, or misses the head) is dealt again, at most 3 times, said in the log. `vr_embed_probe_split 1` draws the weapon the old way.
+- **Numbers (low-impact runs):** before (split 1): grip 31.1 cm, the axe's step 31.4 cm in one frame; after: grip 0.00 cm over 18 frames,
+  the axe's step = the hand's (3.42 cm at 2 m/s, the 20 cm tug's eased offset). The cut: the first run, with only the bone check, had
+  the limb blow (limb 7 cut, the blade "in" bone 6, kind 4) stuck and held, the body dragged 30 units; without the blow check it
+  happened in 1 run of 5 (4 more with the QC checks off: none; timing, whether the dead body is a hit model yet); with it, 0 of 4. Test 25: 13/0 three times. Test 7:
+  75/7 seeded 1 (as origin/next), 76/6 and 74/8 unseeded (the known stab/slide ones); 11: 103/0 seeded and not; 24: 21/1 seeded 1 (the
+  known "eased" 3.59 > 3 thin margin), 20/2 and 21/1 unseeded (the known corpse lift/drag); 21: 40/2 (the same 2).
 ## His notes of 2026-11-05: nailgun muzzles, crate sounds, ledge shove zones, grab ease (agent notesb)
 
 **Nailgun muzzles.** "The sparks come out of the center between the two muzzles, not from the muzzle that's currently firing."

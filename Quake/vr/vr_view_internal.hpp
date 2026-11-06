@@ -885,6 +885,12 @@ struct LimbEase
     glm::vec3 drawnPos{0.f}; // where the hand was drawn last (its controller's place moved; vr_ragdoll_hand_probe)
 };
 inline LimbEase limbEase[2];
+// A hand holding a blade in a body (vr_view_hands.cpp): each frame before the weapons, whether it holds one and, just off it, the ease
+// (vr_embed_free_ease) the drawn hand and the weapon in it share: turned by `turn` about the controller, then moved by `offset`.
+void embedPinStep(const hands::State& s, int hand);
+[[nodiscard]] bool embedEase(int hand, glm::vec3& offset, glm::quat& turn);
+// (vr_embed_probe: the weapon as it would be placed without the ease, and as drawn.)
+void embedEaseWeapon(int hand, const glm::vec3& pre, const glm::mat3& preTurn, const glm::vec3& drawn, const glm::mat3& drawnTurn);
 void setupHand(const hands::State& s, int hand);
 void drawHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion);
