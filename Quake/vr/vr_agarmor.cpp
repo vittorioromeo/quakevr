@@ -77,6 +77,12 @@ struct Wearer
     // width where they turn to the back, and their front edge's place and distance from the middle of the face at the cheek
     // row and at the jaw row.
     float plateWide{-1.f}, plateBack{-1.f}, plateFront[2]{-1.f, -1.f}, plateOpen[2]{-1.f, -1.f};
+    float yoke{1.2f}; // (the cuirass's collar row over its region's top: plateYoke)
+    float shoulderRidge{-1.f}; // (an upper arm's plates out over the skin round it at most this far: -1 plateRidge)
+    // (its upper arms' plates start no higher than this up their bones (-1e9: as their shells reach); and both round one axis, the
+    // left's and the mirrored right's mean, so the two are each other's mirror image in the bind pose whatever their rest poses)
+    float shoulderTop{-1e9f};
+    bool shoulderAxis{false};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
@@ -92,8 +98,17 @@ struct Wearer
 // side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
 // out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f},
-    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.42f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.37f, 0.44f}},
+    {"progs/enforcer.mdl", -10.5f},
+    // The knight's red shoulder pads stand up to 2.5 units off his upper arms' skin, weighing on them 0.2-0.4 (the rest on his
+    // chest): his upper arms' plates go out over them (his note, 2026-11-06: "exposed knight shoulder").
+    {"progs/vrknight.mdl", -1e9f, 1.06f, 0.75f, 0.5f, -1.f, 0.3f, 0.04f, -1.f, 0.18f, 0.03f, 0.7f, -1.f, -1.f, {-1.f, -1.f}, {-1.f, -1.f}, 1.2f, 1.8f},
+    // His face too hidden by the helmet and the collar (his note, 2026-11-06): the guards end higher (jaw 0.42 -> 0.48), their front
+    // edges further apart (0.37/0.44 from the middle -> 0.40/0.48), the collar lower (0.5).
+    // His shoulders "asymmetric and too large, the left way too big" (2026-11-06): his upper arms rest differently (the left straight
+    // down, the right out), so each side's plates round its own bone's axis were tilted apart: one axis mirrored for both; and his
+    // shoulder shells' plates reached 10.8 up the bone, a cape: 5.
+    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.48f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.40f, 0.48f}, 0.5f, -1.f,
+        -5.f, true},
     // The player's own body, each build (vr_player_plates; vr_agarmor.hpp, "The player's plates"): the same plates, on its IK.
     {"progs/vrbody.mdl", -1e9f}, {"progs/vrbody_bare.mdl", -1e9f}, {"progs/vrbody_lean.mdl", -1e9f},
     {"progs/vrbody_lean_bare.mdl", -1e9f}, {"progs/vrbody_brawny.mdl", -1e9f}, {"progs/vrbody_brawny_bare.mdl", -1e9f},
@@ -384,6 +399,9 @@ struct PieceFrame
     glm::vec3 origin{0.f}, up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f}, left{0.f, 1.f, 0.f};
     float length{1.f};
     float backCut{-1e9f}; // (the cuirass: nothing behind this model x; Wearer::backCut)
+    float yoke{-1.f};     // (the cuirass: its collar row's height, Wearer::yoke; -1 plateYoke)
+    float topAt{1e9f};    // (a humanoid's upper arm: its plates start this high at the latest, its other side's start; planGrid)
+    float topMost{-1e9f}; // (and no higher than this: Wearer::shoulderTop)
     float cut{0.5f};      // (its region: the vertices weighing more than this on its bones; regionCut)
     const za::Vector<uint8_t>* over{nullptr}; // (a pauldron: the body's vertices in its region besides; girdleShells)
     bool ok{false};
@@ -965,11 +983,12 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     g.hBottom = f.ends && (forearm || shin) ? za::min(g.hBottom, f.length - (forearm ? plateWristAbove : plateAnkleAbove)) : g.hBottom;
     // (a thigh's plates up to the hip, whatever its weights: an enforcer's and a death knight's thighs weigh on them only near the knee)
     g.hTop = thigh && f.ends ? za::min(g.hTop, f.length * plateHipFrom) : g.hTop;
+    g.hTop = upperArm && f.ends ? za::max(za::min(g.hTop, f.topAt), f.topMost) : g.hTop;
     const float tall = za::abs(g.hBottom - g.hTop);
     const bool leg = piece >= ThighL;
     g.rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : plateHighLimb) + 0.5f), 2, torso ? plateMostRowsTorso : leg ? plateMostRowsLong : plateMostRowsArm);
     g.rows += torso ? 1 : 0;
-    g.yoke = torso ? plateYoke : 0.f;
+    g.yoke = torso ? (f.yoke >= 0.f ? f.yoke : plateYoke) : 0.f;
     g.cols = torso ? 8 : 6;
     g.axis.clear();
     g.axis.resize(static_cast<za::SizeT>(g.rows + 1), glm::vec2{0.f});
@@ -1247,7 +1266,8 @@ enum class Mirror
     Whole,     // the player's: the whole piece if alike, else each its own
     Shoulders, // a humanoid's upper arms: always, half way where they differ (its two shoulders' fits differed, a death knight's left
                // twice his right; his notes, 2026-11-06)
-    Corners    // a humanoid's other limbs: corner by corner, alike or each its own (a knight's and an enforcer's sides differ)
+    Corners,   // a humanoid's other limbs: corner by corner, alike or each its own (a knight's and an enforcer's sides differ)
+    ShouldersMost // a knight's upper arms: always, the larger (Wearer::shoulderRidge: over his shoulder pads)
 };
 void mirrorRadii(PlateGrid& a, PlateGrid& b, Mirror how)
 {
@@ -1256,7 +1276,7 @@ void mirrorRadii(PlateGrid& a, PlateGrid& b, Mirror how)
         for(int col = 0; col < a.cols; col++)
         {
             const float x = a.at2(ring, col), y = b.at2(ring, b.mirrorOf(col));
-            const bool alike = za::abs(x - y) < 0.5f;
+            const bool alike = za::abs(x - y) < 0.5f || how == Mirror::ShouldersMost;
             a.at2(ring, col) = alike ? za::max(x, y) : how == Mirror::Shoulders ? (x + y) * 0.5f : x;
             b.at2(ring, b.mirrorOf(col)) = alike ? za::max(x, y) : how == Mirror::Shoulders ? (x + y) * 0.5f : y;
         }
@@ -2110,9 +2130,24 @@ bool buildShell(qmodel_t* src, Shell& s)
         PieceFrame& f = frames[piece];
         f = frameOf(*rig, piece);
         f.backCut = backCutOf(src->name, piece);
+        f.yoke = piece == Cuirass && !skeletal ? wearerOf(src->name).yoke : -1.f;
+        if(!skeletal && f.ok && (piece == PauldronL || piece == PauldronR))
+        {
+            const Wearer who = wearerOf(src->name);
+            f.topMost = who.shoulderTop;
+            const PieceFrame l = frameOf(*rig, PauldronL), r = frameOf(*rig, PauldronR);
+            if(who.shoulderAxis && l.ok && r.ok)
+            {
+                const glm::vec3 m = geom::safeNormalize(l.up + glm::vec3{r.up.x, -r.up.y, r.up.z}, l.up, 1e-6f);
+                f.up = piece == PauldronL ? m : glm::vec3{m.x, -m.y, m.z};
+                f.fwd = geom::safeNormalize(glm::vec3{1.f, 0.f, 0.f} - f.up * f.up.x, glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
+                f.left = glm::cross(f.up, f.fwd);
+            }
+        }
         f.cut = regionCut(s.body.w, f.bones);
         f.ends = !skeletal && limbBone[piece] != nullptr;
         f.ridge = !f.ends || piece == PauldronL || piece == PauldronR ? plateRidge : piece == ThighL || piece == ThighR ? plateRidgeThigh : plateRidgeLimb;
+        f.ridge = f.ends && (piece == PauldronL || piece == PauldronR) && wearerOf(src->name).shoulderRidge >= 0.f ? wearerOf(src->name).shoulderRidge : f.ridge;
         f.hip = f.ends && (piece == ThighL || piece == ThighR);
         f.upper = piece == PauldronL || piece == PauldronR || piece == ThighL || piece == ThighR;
         f.body = &s.body;
@@ -2147,6 +2182,21 @@ bool buildShell(qmodel_t* src, Shell& s)
                 {
                     fringes[piece].pushBack(at(s.body.p, v));
                 }
+            }
+        }
+    }
+    // A humanoid's upper arms start as high as the higher of the two: a knight's right upper arm weighs on its bone only from 1.4
+    // down it (his left from -0.9), so its plates started 1.7 lower and its red shoulder pad showed (his note, 2026-11-06). The
+    // reach itself unchanged: raising it on every humanoid flared the enforcer's pauldrons into shells.
+    if(frames[PauldronL].ends && grids[PauldronL].rows && grids[PauldronR].rows)
+    {
+        const float top = za::min(grids[PauldronL].hTop, grids[PauldronR].hTop);
+        for(const int piece : {PauldronL, PauldronR})
+        {
+            if(grids[piece].hTop > top + 0.05f)
+            {
+                frames[piece].topAt = top;
+                planGrid(locals[piece], frames[piece], piece, grids[piece]);
             }
         }
     }
@@ -2191,7 +2241,8 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         if(grids[piece].rows && grids[piece + 1].rows)
         {
-            mirrorRadii(grids[piece], grids[piece + 1], skeletal ? Mirror::Whole : piece == PauldronL ? Mirror::Shoulders : Mirror::Corners);
+            // (a knight's: the larger, so the pad's side's push isn't halved)
+            mirrorRadii(grids[piece], grids[piece + 1], skeletal ? Mirror::Whole : piece != PauldronL ? Mirror::Corners : wearerOf(src->name).shoulderRidge >= 0.f ? Mirror::ShouldersMost : Mirror::Shoulders);
         }
     }
     for(int piece = 0; piece < NumPieces; piece++)
