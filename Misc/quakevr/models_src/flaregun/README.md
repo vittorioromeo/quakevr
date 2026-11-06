@@ -43,16 +43,17 @@ build_flaregun.py, the front sight 0.25 behind the muzzle, the fired skins' soot
 | --- | --- | --- |
 | Top barrel's muzzle (exit, bore centre) | 12.000 0 4.532 | +X |
 | Bottom barrel's muzzle | 12.000 0 2.232 | +X |
-| Rear sight (the notch's bottom, at its back edge) | 1.150 0 6.132 | |
-| Front sight (the blade's top, on the top barrel) | 11.750 0 6.132 | |
+| Rear sight (the notch's top: its cheeks' top, at its back edge) | 1.150 0 6.412 | |
+| Front sight (the blade's top, on the top barrel) | 11.750 0 6.412 | |
 
-The sight line runs from the rear notch to the front blade's top: y 0, z 6.132, **parallel to both bores** (+X), 1.6
-above the top bore's axis. The bores are 1.6 wide (radius 0.8), 2.6 deep. Aim: the front blade's top (painted bright
-brass) in the bottom of the rear notch. The rear notch (0.32 wide, 0.28 deep) is cut in a low hump at the rear end of
+The sight line runs over the rear notch's top to the front blade's top: y 0, z 6.412, **parallel to both bores** (+X),
+1.88 above the top bore's axis. The bores are 1.6 wide (radius 0.8), 2.6 deep. Aim: the front blade (its top painted
+bright brass) in the rear notch, its top level with the cheeks' tops (the usual sight picture: the blade shows in the
+notch, 0.28 of it). The rear notch (0.32 wide, 0.28 deep, its bottom at 6.132) is cut in a low hump at the rear end of
 the frame's flat top, between its two cheeks; the hump ramps up from the flat top in front and ends square at the back,
-and the frame's tang behind it slopes down, below the line. The hinge block's top (0.32 below the line) and the frame's
-flat top stay under it.
-(For `vr_sightalign`: rear `{1.15, 0, 6.132}`, front `{11.75, 0, 6.132}`.)
+and the frame's tang behind it slopes down, below the line. The hinge block's top and the frame's flat top stay under it.
+(Until 2026-11-06 the blade's top stood at the notch's bottom and the line ran there: the hump hid the blade.)
+(For `vr_sightalign`: rear `{1.15, 0, 6.412}`, front `{11.75, 0, 6.412}`.)
 
 ## Editing in Blender
 

@@ -590,9 +590,11 @@ def details_grunt(p, spec, P, key):
     for x, z, mat in ((9.8, 8.9, 'red'), (11.8, 9.0, 'bronze')):
         q, n = surface(p, x, 20.0, z, (0.0, -1.0, 0.0))
         p.box(q, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), n, (0.5, 0.55, 0.3), mat, key)
-    # Sights: a notch at the receiver's back, a post ahead of the clamp band (level with the notch's bottom).
+    # Sights: a notch at the receiver's back, a post ahead of the clamp band, its top level with the notch's ears (14.35 +
+    # their 0.55): the line over them is level and the post shows in the notch. (Until 2026-11-06 the post's top was at
+    # 14.45, by the notch's bottom: the rear sight's block hid it.)
     rear_sight(p, -3.5, 14.35, 'blued', key)
-    front_sight(p, 22.4, 14.45, 'blued', key)
+    front_sight(p, 22.4, 14.9, 'blued', key)
     # The stock: a mount on the back, two rods straight back and one down, a butt plate and its pad.
     X, Y, Z = np.eye(3)
     sx = spec['stock_x']
@@ -608,22 +610,26 @@ def details_grunt(p, spec, P, key):
 def details_enforcer(p, spec, P, key):
     """The enforcers' rifle (its vents and the muzzle cone's grooves carved: GUNS' cuts): small, low sights (NOTES.md
     vrfiringrange_2026-10-01_02-39, 11-38-49: a notch over the lowered housing's peak, a short thin post on the
-    foregrip band, a little under the notch's bottom: the sight line meets the shots' ENF_ZERO_METRES ahead), a thin
+    foregrip band, a little under the notch's ears' tops: the sight line over them meets the shots' ENF_ZERO_METRES ahead), a thin
     barrel."""
     s, _ = surface(p, ENF_REAR_SIGHT_X, 0.0, 40.0, (0.0, 0.0, -1.0))
     face_x, _, bore = spec['muzzle_face']
     xf = spec['fore']
     # The line through the notch (n) and the post's top (t) meets the bore's line ENF_ZERO_METRES past the muzzle:
     # n - t = (n - bore) k. The post ENF_POST over the band, the notch at least 0.2 over the housing.
+    # (n: the line's rear point, the ears' tops; the notch's bottom is `ear` under it, so the post's top shows in the
+    # notch level with the ears: until 2026-11-06 the line ran from the notch's bottom and its block hid the post.)
+    ear = 0.3
     k = (xf - ENF_REAR_SIGHT_X) / (face_x + spec['barrel'] + ENF_ZERO_METRES * MODEL_UNITS_PER_METRE - ENF_REAR_SIGHT_X)
-    notch = max((spec['band_top'] + ENF_POST - bore * k) / (1.0 - k), s[2] + 0.2)
+    notch = max((spec['band_top'] + ENF_POST - bore * k) / (1.0 - k), s[2] + 0.2 + ear)
+    print('  rifle sights: the line\'s rear %.3f, the notch\'s bottom %.3f, the housing under it %.3f' % (notch, notch - ear, s[2]))
     slope = (notch - bore) * k / (xf - ENF_REAR_SIGHT_X)
     top = notch - slope * (xf - ENF_REAR_SIGHT_X)
     # Nothing of the body between them over the line (the eye sees the post over it).
     for q in P:
         if ENF_REAR_SIGHT_X + 0.5 < q[0] < xf and abs(q[1]) < 1.0:
             assert q[2] < notch - slope * (q[0] - ENF_REAR_SIGHT_X) - 0.05, 'the body stands over the sight line at %s' % (q,)
-    rear_sight(p, ENF_REAR_SIGHT_X, notch, 'blued', key, ear=0.3, block=(0.2, 0.55), ears=(0.09, 0.14), gap=0.38)
+    rear_sight(p, ENF_REAR_SIGHT_X, notch - ear, 'blued', key, ear=ear, block=(0.2, 0.55), ears=(0.09, 0.14), gap=0.38)
     front_sight(p, xf, top, 'blued', key, base=(0.26, 0.24, 0.12), post=(0.13, 0.07), bevel=0.06,
                 base_z=spec['band_top'])
     spec['sights'] = ((ENF_REAR_SIGHT_X, 0.0, notch), (xf, 0.0, top), top - spec['band_top'], notch - bore, slope)
