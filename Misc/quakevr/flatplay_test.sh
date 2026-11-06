@@ -1,9 +1,10 @@
 #!/bin/bash
 # flatplay_test.sh <agent> -- flatscreen play (-flatscreenmode; docs/vr-port/FLATPLAY.md), headless:
-#   1. the hands are locked to the view: with vr_flat_sway, vr_flat_bob and vr_flat_turnlag 0, the drawn main weapon
+#   1. the hands are locked to the view: with vr_flat_sway, vr_flat_bob, vr_flat_bob_fwd and vr_flat_turnlag 0, the drawn main weapon
 #      in the camera's frame (vr_flatplay_debug 2's "flatview:" lines) stays within 0.05 units and degrees of
 #      where it stands still while he strafes and turns (it was 23.7 units strafing, 7.5 degrees turning:
-#      ROUND22.md, "Flatscreen hands: locked to the view"); with the defaults, it sways, bobs and trails the turn
+#      ROUND22.md, "Flatscreen hands: locked to the view"); with the defaults but the turn lag 1 (cap 4: the bounds are
+#      sized for it; his 5, cap 10, the default since 2026-11-06, trails 28 degrees at 360 deg/s), it sways, bobs and trails the turn
 #      within bounds and settles, and the shots the moves send stay on the crosshair (Misc/quakevr/flatplay_lock.py).
 #   2. the mode is the player's own (.vr_flatscreen from his move): with the flag, "the player reloads 0 (flatscreen 1)";
 #      without it, "reloads 1 (flatscreen 0)".
@@ -42,7 +43,7 @@ HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 for MODE in locked feel; do
   # (vr_flat_aim_point 0: a gun's aim at the crosshair's point turns it as the point moves, which is what it is for; this
   # measures the lock under it. flatpose_test.sh section f gates the aim itself, moving nothing.)
-  SET="tune vr_flat_aim_point 0;"; [ "$MODE" = "locked" ] && SET="$SET tune vr_flat_sway 0; tune vr_flat_bob 0; tune vr_flat_turnlag 0;"
+  SET="tune vr_flat_aim_point 0;"; [ "$MODE" = "feel" ] && SET="$SET tune vr_flat_turnlag 1; tune vr_flat_turnlag_cap 4;"; [ "$MODE" = "locked" ] && SET="$SET tune vr_flat_sway 0; tune vr_flat_bob 0; tune vr_flat_bob_fwd 0; tune vr_flat_turnlag 0;"
   # (setpos turns noclip on, noclip off again: walking. The waits are the phases' frames: strafe, stop, turn, settle.)
   bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; setpos 480 -352 88 0 0 0; noclip; impulse 2; $SET cl_yawspeed 360; wait30; vr_flatplay_debug 2; wait20; +moveleft; wait80; -moveleft; wait30; +right; wait60; -right; wait80; vr_flatplay_debug 0; tune_reset; toggleconsole; quit" -Filter "^flat(view|move):" > "$HERE/scratch/flatlock_$MODE.log" 2>&1
   while read -r line; do

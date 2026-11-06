@@ -6,7 +6,7 @@
 #      level (vr_gun_wall_depth), the tilt off (vr_flat_wall_tilt 0: as before it) and on; and the two-handed holds the same.
 #   b. the shotgun sighted (vr_flat_wall_tilt_sighted 1) walked into the wall and back off it, frame by frame: it tilts, the shots still go through the
 #      crosshair's point while it is tilted, and it comes back down with no jump.
-#   c. the tilted pose eases in and out over vr_flat_wall_tilt_time (0.3 s, then 0.6); a fixed pitch with yaw and roll, the
+#   c. the tilted pose eases in and out over vr_flat_wall_tilt_time (0.2 s, the default, then 0.6); a fixed pitch with yaw and roll, the
 #      left hand's mirrored.
 #   d. vr_flat_wall_block_fire: tilted at the wall a click fires nothing (no shell spent); the option off, or off the wall, it fires.
 # flatwall_test.sh <agent> [sections]: only those sections (default abcd).
@@ -67,13 +67,14 @@ check $(awk -v a="${aim% *}" -v n="${aim#* }" 'BEGIN { exit !(a <= 0.1 && n >= 5
 fi
 
 # c. The tilted pose's ease and its mirroring: the shotgun hipfire, a fixed pitch of 40 with yaw 20 and roll 15, put on the
-#    wall and taken off it (vr_flat_wall_tilt_time 0.3, then 0.6), then in the left hand (impulse 48 swaps the hands).
-# (Looking 30 down: there the way back leaves the shotgun in the wall, level it clears it.)
-ON="setpos 0 623.5 25 30 90 0"; OFF="setpos 0 500 25 30 90 0"; F=90 # (frames: the longest ease, 0.6 s, is 43)
+#    wall and taken off it (vr_flat_wall_tilt_time 0.2, the default, then 0.6), then in the left hand (impulse 48 swaps the hands).
+# (Looking 20 down: there the way back leaves the shotgun in the wall, level it clears it. It was 30 down until his pose
+# of 2026-11-06 became the defaults: Gun Down 2 and Chest Share Down 0 move the gun, and 30 down its way back clears.)
+ON="setpos 0 623.5 25 20 90 0"; OFF="setpos 0 500 25 20 90 0"; F=90 # (frames: the longest ease, 0.6 s, is 43)
 if [[ $ONLY == *c* ]]; then
 log=$HERE/scratch/flatwall_c.log
 M() { echo "echo flatwallease mark $1"; }
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_fixed 1; tune vr_flat_wall_tilt 40; tune vr_flat_wall_tilt_yaw 20; tune vr_flat_wall_tilt_roll 15; vr_test_give_wid 4; impulse 149; wait25; $OFF; wait20; vr_flatplay_debug 2; $(M in03); $ON; wait$F; $(M out03); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.6; $(M in06); $ON; wait$F; $(M out06); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.3; $(M main); $ON; wait$F; $(M swap); impulse 48; $OFF; wait$F; $(M off); $ON; wait$F; vr_flatplay_debug 0; tune_reset; echo flatwallease done; toggleconsole; quit" -Filter "^flatwallturn: |^flatwallease" -QuitOn "flatwallease done" -Timeout 180 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_fixed 1; tune vr_flat_wall_tilt 40; tune vr_flat_wall_tilt_yaw 20; tune vr_flat_wall_tilt_roll 15; vr_test_give_wid 4; impulse 149; wait25; $OFF; wait20; vr_flatplay_debug 2; $(M in03); $ON; wait$F; $(M out03); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.6; $(M in06); $ON; wait$F; $(M out06); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.2; $(M main); $ON; wait$F; $(M swap); impulse 48; $OFF; wait$F; $(M off); $ON; wait$F; vr_flatplay_debug 0; tune_reset; echo flatwallease done; toggleconsole; quit" -Filter "^flatwallturn: |^flatwallease" -QuitOn "flatwallease done" -Timeout 180 > "$log" 2>&1
 # Each phase: the ease's time (in: from the first frame off 0 to all of it; out: from the first frame under all to none),
 # and the last frame's turn (the muzzle's way up and right, the top's lean right).
 grep -a "^flatwallturn: \|^flatwallease mark" "$log" | awk '
@@ -86,11 +87,11 @@ grep -a "^flatwallturn: \|^flatwallease mark" "$log" | awk '
 e() { awk -v p="$1" '$1 == "ease" && $2 == p { print $3 }' "$HERE/scratch/flatwall_c.txt"; }
 tn() { awk -v p="$1" '$1 == "turn" && $2 == p { print $3, $4, $5 }' "$HERE/scratch/flatwall_c.txt"; }
 read -r mu ms mc <<<"$(tn main)"; read -r ou os oc <<<"$(tn off)"
-echo "  ease in/out at 0.3 s: $(e in03) / $(e out03) s; at 0.6 s: $(e in06) / $(e out06) s"
+echo "  ease in/out at 0.2 s: $(e in03) / $(e out03) s; at 0.6 s: $(e in06) / $(e out06) s"
 echo "  turned (up side cant): right hand $mu $ms $mc; left hand $ou $os $oc"
 near() { awk -v x="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(x != "" && x >= lo && x <= hi) }' && echo 1 || echo 0; }
-check $(near "$(e in03)" 0.26 0.32) "vr_flat_wall_tilt_time 0.3: the pose eases in over 0.3 s"
-check $(near "$(e out03)" 0.26 0.32) "and back out off the wall over 0.3 s"
+check $(near "$(e in03)" 0.16 0.22) "vr_flat_wall_tilt_time 0.2 (the default): the pose eases in over 0.2 s"
+check $(near "$(e out03)" 0.16 0.22) "and back out off the wall over 0.2 s"
 check $( [ "$(near "$(e in06)" 0.56 0.62)" = 1 ] && [ "$(near "$(e out06)" 0.56 0.62)" = 1 ] && echo 1 || echo 0) "0.6: over 0.6 s, in and out"
 check $(awk -v mu="$mu" -v ms="$ms" -v mc="$mc" -v ou="$ou" -v os="$os" -v oc="$oc" 'function a(x) { return x < 0 ? -x : x }
   BEGIN { exit !(mu > 0.5 && ms < -0.1 && mc < -0.1 && a(ou - mu) < 0.02 && a(os + ms) < 0.02 && a(oc + mc) < 0.02) }' && echo 1 || echo 0) \

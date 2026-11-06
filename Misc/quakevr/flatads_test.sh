@@ -1,7 +1,7 @@
 #!/bin/bash
 # flatads_test.sh <agent> -- flatscreen ironsight items of 2026-11-05 (docs/vr-port/ROUND24.md, "Flat pose: grips, ADS recoil,
 # the sights", agent/flatsolve6). Fast mode; each run ends with its own script.
-#   a. recoil: a shotgun shot hipfire, then sighted: the drawn recoil sighted is vr_flat_ads_recoil (0.35) of hipfire's.
+#   a. recoil: a shotgun shot hipfire, then sighted: the drawn recoil sighted is vr_flat_ads_recoil (0.1) of hipfire's.
 AGENT=${1:-pickup}
 source "$(dirname "$0")/qvrtest.sh"
 export QVR_AUTHOR_WAIT_ALWAYS=1
@@ -17,7 +17,7 @@ if [[ $SECTIONS == *a* ]]; then
   echo "  hipfire: $hip"; echo "  sighted: $ads"
   hp=$(awk '{ print $3 }' <<<"$hip"); ha=$(awk '{ print $5 }' <<<"$hip"); ap=$(awk '{ print $8 }' <<<"$ads"); aa=$(awk '{ print $10 }' <<<"$ads")
   check $(awk -v p="${hp:-0}" -v a="${ha:-0}" 'BEGIN { exit !(p > 0.1 && a > 0.1) }' && echo 1 || echo 0) "recoil: a hipfire shot kicks the drawn gun ($hp u, $ha deg)"
-  check $(awk -v hp="${hp:-0}" -v ha="${ha:-0}" -v ap="${ap:-9}" -v aa="${aa:-9}" 'BEGIN { exit !(hp > 0 && ha > 0 && ap / hp > 0.30 && ap / hp < 0.40 && aa / ha > 0.30 && aa / ha < 0.40) }' && echo 1 || echo 0) "recoil: sighted it kicks 0.35 of that ($ap u, $aa deg)"
+  check $(awk -v hp="${hp:-0}" -v ha="${ha:-0}" -v ap="${ap:-9}" -v aa="${aa:-9}" 'BEGIN { exit !(hp > 0 && ha > 0 && ap / hp > 0.08 && ap / hp < 0.12 && aa / ha > 0.08 && aa / ha < 0.12) }' && echo 1 || echo 0) "recoil: sighted it kicks 0.1 of that (vr_flat_ads_recoil) ($ap u, $aa deg)"
 fi
 
 if [[ $SECTIONS == *b* ]]; then
