@@ -32,7 +32,9 @@ namespace qvr::adguns
 namespace
 {
 
-constexpr const char* baseModel = "progs/v_gruntgun.mdl";
+// The old burst rifle (make_enemyguns.py's, cut from soldier.mdl), kept for these variants under its own name:
+// v_gruntgun.mdl is the plain burst rifle's own model now (models_src/burstrifle), made anew.
+constexpr const char* baseModel = "progs/vr_adrifle_base.mdl";
 constexpr const char* launcherModel = "progs/v_rock.mdl"; // our grenade launcher (its barrel and drum)
 constexpr size_t mdlHeader = 84;
 constexpr int extraRows = 160;
@@ -1480,7 +1482,7 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
     byte* src = COM_LoadMallocFile(VR_ModelFile(baseModel), &pathId);
     if(!src)
     {
-        why = "v_gruntgun.mdl not found";
+        why = "vr_adrifle_base.mdl not found";
         return false;
     }
     const size_t size = static_cast<size_t>(com_filesize);

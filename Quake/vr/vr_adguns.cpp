@@ -697,7 +697,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         char base[MAX_QPATH];
         int skin = 0;
         const Gun* g = parse(name, base, sizeof(base), skin) ? gunOf(base) : nullptr;
-        const char* standIn = (g && g->model == modelmeta::Id::AdSoldier) ? "progs/v_gruntgun.mdl" : "progs/v_enfrifle.mdl";
+        const char* standIn = (g && g->model == modelmeta::Id::AdSoldier) ? "progs/vr_adrifle_base.mdl" : "progs/v_enfrifle.mdl";
         Con_DPrintf("AD gun model: %s: %s: %s stands in\n", name, why, standIn);
         return COM_LoadMallocFile(standIn, path_id);
     }

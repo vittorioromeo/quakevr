@@ -45,7 +45,7 @@ guns={'v_grpple':(8.09,20.0),'v_nail':(-2.05,20.21),'v_lava':(-2.05,20.21),'v_na
       'v_laserg':(50.0,105.17)}
 # Guns with modelled sights (make_enemyguns.py prints them): the rear ears' tops and the post's top, as they are.
 # The grunts' burst gun's level; the enforcers' rifle's zeroed (its line meets the shots' 10 m out: ENF_ZERO_METRES).
-sights={'v_gruntgun':((-3.5,14.9),(22.4,14.9)),'v_enfrifle':((6.30,10.799),(23.00,10.659))}
+sights={'v_gruntgun':((-2.15,11.6),(28.15,11.6)),'v_enfrifle':((6.30,10.799),(23.00,10.659))}
 def top(m,x0,x1,band=0.5):
     V=m['frames'][0]; best=-1e9
     for ys in [i*band/4 for i in range(-4,5)]:
