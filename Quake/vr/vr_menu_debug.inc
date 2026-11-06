@@ -989,9 +989,82 @@ za::Vector<Item> pageDebugReports()
 }
 
 // Rebuilds, reloads, debug images, test effects.
+[[nodiscard]] const char* armourStudioStatus()
+{
+    return qvr::armourstudio::status();
+}
+
+// The Armour Studio (vr_armourstudio.hpp; docs/vr-port/ARMOUR_STUDIO.md): the armour's plates tweaked by hand, per kind and piece.
+za::Vector<Item> pageArmourStudio()
+{
+    return {
+        info(armourStudioStatus),
+        command("Start: the Kind Ahead", "vr_armourstudio")
+            .help("vr_armourstudio: the kind below put ahead of you with its fists, held still and unhurt, in the tier below, "
+                  "the part picked outlined in cyan. The player's kind is your own body (the menu's body clone, a mirror)."),
+        cycle("Kind", vr_armourstudio_kind,
+            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Player (Your Body)"}})
+            .help("vr_armourstudio_kind: whose armour is edited (quakevr/data/armour.txt's kind: grunt also the plain soldier, "
+                  "enforcer both enforcers, player every body build)."),
+        cycle("Tier", vr_armourstudio_tier, {{1.f, "Green"}, {2.f, "Yellow"}, {3.f, "Red"}})
+            .help("vr_armourstudio_tier: the subject's armour."),
+        slider("Turn", vr_armourstudio_turn, -180.f, 180.f, 15.f, "%.0f deg")
+            .help("vr_armourstudio_turn: the subject turned from facing you (180: its back)."),
+        slider("Body Ghost", vr_armourstudio_ghost, 0.f, 1.f, 0.05f, "%.2f")
+            .help("vr_armourstudio_ghost: how opaque the subject's body is drawn (1 as it is), the plates whole."),
+        toggle("Wear the Part Alone", vr_armourstudio_alone)
+            .help("vr_armourstudio_alone: the subject wears only the part picked (both sides), the rest of its armour off."),
+        header("Part"),
+        cycle("Part", vr_armourstudio_part,
+            {{0.f, "Cuirass"}, {1.f, "Helmet"}, {2.f, "Pauldrons (Upper Arms)"}, {3.f, "Bracers (Forearms)"}, {4.f, "Thighs"},
+                {5.f, "Shins"}, {6.f, "Elbow Sleeves (Upper Arm's)"}, {7.f, "Elbow Sleeves (Forearm's)"}, {8.f, "Knee Sleeves (Thigh's)"},
+                {9.f, "Knee Sleeves (Shin's)"}})
+            .help("vr_armourstudio_part: the piece edited, outlined on the subject."),
+        cycle("Side", vr_armourstudio_side, {{0.f, "Both (Mirrored)"}, {1.f, "Left Only"}, {2.f, "Right Only"}})
+            .help("vr_armourstudio_side: a limb's part edited on both sides (the left's values, the right the mirror image), or "
+                  "one side's own values over them."),
+        slider("Forward", vr_armourstudio_offset_x, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_offset_x: the part moved along the body's forward (units)."),
+        slider("Left", vr_armourstudio_offset_y, -6.f, 6.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_offset_y: ... along its left (the right side's: mirrored)."),
+        slider("Up", vr_armourstudio_offset_z, -6.f, 6.f, 0.1f, "%.1f").help("vr_armourstudio_offset_z: ... along its up."),
+        slider("Pitch", vr_armourstudio_pitch, -45.f, 45.f, 1.f, "%.0f deg")
+            .help("vr_armourstudio_pitch: turned about the body's left axis, round the part's middle."),
+        slider("Yaw", vr_armourstudio_yaw, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_yaw: ... about its up axis."),
+        slider("Roll", vr_armourstudio_roll, -45.f, 45.f, 1.f, "%.0f deg").help("vr_armourstudio_roll: ... about its forward axis."),
+        slider("Scale", vr_armourstudio_scale, 0.5f, 1.5f, 0.02f, "%.2fx").help("vr_armourstudio_scale: its size round its middle."),
+        slider("Stand-off", vr_armourstudio_standoff, -1.f, 2.f, 0.05f, "%.2f")
+            .help("vr_armourstudio_standoff: units further off the skin (below 0 closer): a plate piece's rows' radii, a sleeve or "
+                  "the helmet pushed out from its middle."),
+        slider("Start Along", vr_armourstudio_start, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_start: units its first row of plates starts further along it, towards the waist, the hand or "
+                  "the foot (below 0: further up). Not the helmet or a sleeve."),
+        slider("End Along", vr_armourstudio_end, -4.f, 4.f, 0.1f, "%.1f")
+            .help("vr_armourstudio_end: units its last row ends further along it (longer; below 0 shorter)."),
+        slider("Rows", vr_armourstudio_rows, 0.f, 8.f, 1.f, "%.0f")
+            .help("vr_armourstudio_rows: its rows of plates (0 the generator's; the cuirass counts its collar row; a limb's two "
+                  "sides take the larger)."),
+        header("Edits"),
+        command("Undo", "vr_armourstudio_undo").help("vr_armourstudio_undo: the last change back (a slider's run of steps is one)."),
+        command("Reset Part", "vr_armourstudio_reset_part").help("vr_armourstudio_reset_part: this part's (and side's) values cleared."),
+        command("Reset Kind", "vr_armourstudio_reset_kind").help("vr_armourstudio_reset_kind: every part of this kind cleared."),
+        command("Save", "vr_armourstudio_save")
+            .help("vr_armourstudio_save: quakevr/data/armour.txt written (every kind's tweaks). It is read at start and again "
+                  "whenever it changes on disk."),
+        command("Reload the File", "vr_armour_reload").help("vr_armour_reload: armour.txt read again (unsaved edits lost)."),
+        command("Print the Tweaks", "vr_armour_print").help("vr_armour_print: the tweaks as the file would have them, to the console."),
+        command("Close (Remove the Subject)", "vr_armourstudio_close")
+            .help("vr_armourstudio_close: the subject removed, the armed humanoids free to move again (vr_agrunt_freeze back)."),
+    };
+}
+
 za::Vector<Item> pageDebugTools()
 {
     return {
+        header("Armour"),
+        open("Armour Studio", pageIndex(pageArmourStudio))
+            .help("The armour's plates tweaked by hand per kind and piece (moved, turned, scaled, further off the skin, longer, "
+                  "more rows), live on a subject ahead of you; saved to quakevr/data/armour.txt."),
         header("Blood Feedback"),
         command("Blood Feedback Report", "vr_blood_info"),
         command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),

@@ -12,6 +12,8 @@
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
 #include "vr_agarmor.hpp"
+#include "vr_armourdata.hpp"
+#include "vr_armourstudio.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
@@ -2113,6 +2115,8 @@ extern "C" void VR_Init()
     weaponstudio::init(); // vr_weaponstudio, vr_weaponstudio_open/_close/_slot/_align/_preview/_test (vr_weaponstudio.cpp):
                           // the keys' window (vr_weaponstudio_ui.cpp); its own pages over the menus' stand-ins; its camera's fly speed is a tunable
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
+    armourdata::init();   // the armour's hand tweaks, quakevr/data/armour.txt (vr_armourdata.cpp): read; vr_armour_reload, _print
+    armourstudio::init(); // the Armour Studio (vr_armourstudio.cpp): vr_armourstudio, _close, _save, _undo, _reset_*; vr_armour_test
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
@@ -2862,6 +2866,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::renderdoc::poll(); // the delayed RenderDoc capture (vr_renderdoc.cpp)
     qvr::modelwatch::frame(); // vr_model_watch: a loaded model whose file changed read again (vr_modelwatch.cpp)
+    qvr::armourstudio::frame(); // armour.txt read again when it changed (vr_armour_watch); the Armour Studio's sliders and subject
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)

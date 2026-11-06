@@ -165,6 +165,7 @@ vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_agarmor_test.qc
+vr_armourstudio.qc
 vr_embed_test.qc
 vr_playerplates_test.qc
 vr_embed_edge_test.qc

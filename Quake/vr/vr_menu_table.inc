@@ -52,6 +52,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageDebugProfiling();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
+[[nodiscard]] za::Vector<Item> pageArmourStudio();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageDebugAutomation();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
@@ -458,6 +459,7 @@ inline constexpr Page pages[] = {
     {"Wrist Gadget Font", pageFontSurface<1>, pageScreens}, // (vr_menu_pages.inc fontRows; vr_fontstyle.cpp Surface::Gadget)
     {"Ammo Screen Font", pageFontSurface<2>, pageScreens}, // (Surface::Ammo)
     {"World Text Font", pageFontSurface<3>, pageScreens}, // (Surface::World)
+    {"Armour Studio", pageArmourStudio, pageDebugTools, LevelDeveloper}, // (vr_menu_debug.inc; vr_armourstudio.cpp)
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)

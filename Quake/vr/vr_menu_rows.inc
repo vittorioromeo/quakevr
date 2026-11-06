@@ -4499,6 +4499,9 @@ QVR_SLIDER(vr_glove_thickness, "Glove Thickness", 0.f, 4.f, 0.25f, "%.2f mm", no
 QVR_TOGGLE(vr_glove_paint, "Worn Leather",
     "The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
     "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather.")
+QVR_TOGGLE(vr_glove_retro, "Quake-Style Leather",
+    "The leather drawn as Quake's skins are: in blocks of its texels (as fine as your arm's and the hand's "
+    "skin), each one of a palette ramp's colour steps in the hue you chose. Off: smooth, finer detail.")
 QVR_SLIDER(vr_glove_relief, "Leather Relief", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "How deep the worn leather's relief is in the light: raised stitches in their grooves, the padded "
     "panels between seams, the creases over the knuckles and joints, the grain. 1 matches the bracers "
@@ -5931,6 +5934,10 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
     "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
+    "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
+    "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
+    "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

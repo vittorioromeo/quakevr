@@ -232,7 +232,7 @@ export's report checks those, before and after, and a line starting with `CHECK`
 | `vrpauldron.mdl`, `vrpauldron_arm.mdl` the pauldrons | The origin on the left shoulder joint (the right one is drawn mirrored); 5 skins: 0 leather, 1-3 the armour's colour, 4 steel (Pauldron Style) | Keep the origin and the 5 skins |
 | `vr_shell.mdl` the spent shotgun shell | Its axis along +x, the origin in its middle (it tumbles about it); the rim's radius 1.12 cm, how high a lying shell's middle is (`vr_shells.cpp` `shellRadius`) | The report prints the new `shellRadius` if the rim changed |
 | `wpnbutton.mdl` the ammo button on the guns | Drawn at the gun's button anchor; a fingertip within 2.7 units of its origin presses it | Keep it centred on the origin |
-| `hand_base.mdl`, `finger_*.mdl` the unrigged hand | Not drawn (the six-model hand was removed 2026-11-02); the rigged hand (`hand_rig`, the hand add-on) is built from them | After an edit run `make_hand_rig.py` (and `make_bloody_hands.py` for the blood skins 1-3 after a skin 0 edit): the report says so |
+| `hand_base.mdl`, `finger_*.mdl` the unrigged hand | Not drawn (the six-model hand was removed 2026-11-02); the rigged hand (`hand_rig`, the hand add-on) is built from them | Edit its source .blend (`src_models/blend/hand_base/`: the export makes the blood skins 1-3 from skin 0), then run `make_hand_rig.py`: the report says so |
 | `knight.mdl`, `hknight.mdl` | The sword hidden as a knight dies, by its vertex numbers and the model's counts (`vr_monstermods.cpp` `knownSwords`); the dropped sword (`v_ksword.mdl`, `v_hksword.mdl`) is cut from them by `make_swords.py` | Keep the sword's vertices, or update `knownSwords` (the report says); moved the sword: run `make_swords.py` |
 | `ogre.mdl` | Its chainsaw hidden as an ogre dies, by its vertices 416..496 and the model's counts (`vr_monstermods.cpp` `knownSwords`); the dropped chainsaw (`v_chainsaw.mdl`) is cut from it by `make_chainsaw.py` | Keep the chainsaw's vertices, or update `knownSwords` (the report says); moved the chainsaw: run `make_chainsaw.py` |
 | `v_chainsaw.mdl` the chainsaw | Its cord's T-handle **read from the model** (`vr_chainsaw.cpp`): the vertices that differ between frames 0 and 9 are the handle (their middle in frame 0: where the hand takes it; where they meet in frame 9: the cord's hole); its bar: the vertices past 58% of its length along +x (they may sink into monsters). Round 21's close-up pass (`make_chainsaw.py` `polish`: the starter's housing under the handle, the bar's nuts, edge wear) only appends | Keep frame 9 as frame 0 with the handle collapsed into its hole, +x along the bar, the origin in the rear handle's grip (or retune slot 20's Offset) |
@@ -543,6 +543,7 @@ An untouched .blend exports the shipped files byte for byte. The game reads them
 
 The test: `bash Misc/quakevr/blend_autoexport_test.sh <agent> [--idle]` saves a copy headless (a refused save writes
 nothing; a good one exports, and the running game reads v_shot.mdl again; `--idle`: a quiet minute has no reload).
+`BA_MODEL=<model>` before it tests another source the game loads on e1m1 (`soldier`, `vrgadget`).
 
 `Misc/quakevr/blend_build.py v_shot.mdl` made the .blend from the shipped files once. Don't run it again: it starts
 from the files, not from your edits.
@@ -590,3 +591,44 @@ the shipped files byte for byte (checked for all of them: 56 sources, 112 files)
   0.65); its shots follow it (`shot_pitch 1.47`, `shot_yaw 0.11` in weapons.txt).
 - **Repository cost:** 11 MB of .blend files and PNGs for the 53 generic sources, plus a new copy of a .blend at each
   commit that changes it (git doesn't diff .blend files: commit them after an edit session, not after every export).
+
+### Every other model (2026-11)
+
+Every other `.mdl` the game ships in `quakevr/progs` has a source .blend too, made the same way (`blend_build.py`) and
+edited the same way: open `Misc/quakevr/src_models/blend/<model>/<model>.blend`, edit, **Ctrl+S**, look in the game (the
+game reads any loaded model again when its file changes). An untouched export writes the shipped files byte for byte
+(checked for all 96 sources, 101 files and their normal maps and full-colour skins). What each model's export must keep
+(the points the game's code holds, the frames QuakeC numbers) is the table in
+[The flashlight and the other models](#the-flashlight-and-the-other-models).
+
+| Group | Sources (`src_models/blend/<model>/`) | Was made by (now retired for these files) |
+|---|---|---|
+| Our gear | `vrgadget`, `vrgadget_strap`; `vrflashlight`; `vrpouch`, `vrpouch_ammo`; `vrpauldron`, `vrpauldron_arm`; `legholster` | make_gadget.py, make_flashlight.py (still makes its sounds), make_pouch.py, make_ammo_pouch.py, make_pauldron.py, make_holster.py |
+| Our props and effects | `vr_crate1`, `vr_crate2`, `vr_plank1`..`4`, `vr_barrel`; `vr_brick1`..`4`, `vr_rock1`..`5`; `vr_shell`, `vr_shell_live`, `vr_shell_pair`; `vr_round_rocket`; `vr_muzzleflash`; `vrtorch`; `vr_tooth`; `gib_brain1`..`3` | make_crates.py, make_debris.py, make_shell.py, make_rounds.py, make_muzzleflash.py, make_walltorch.py, make_teeth.py, make_brains.py |
+| | `vr_rock1` also writes `vr_explosion_debris.mdl` (its molten skin made from the rock by make_explosion_debris.py's code) | make_explosion_debris.py |
+| The unrigged hand | `hand_base`, `finger_thumb`, `finger_index`, `finger_middle`, `finger_ring`, `finger_pinky`: skin 0 is the .blend's; the blood skins 1-3 are made from it at each export (make_bloody_hands.py's code) | make_bloody_hands.py; taper_hand.py refuses to write an owned file |
+| id's models we ship changed | `soldier`, `enforcer` (their shove frames), `shalrath` (its shove); `grenade`, `mervup`, `proxbomb` (skin 1, unarmed, made from skin 0 at each export: make_grenade_skins.py's code); `knight`, `hknight` | make_enemyshove.py, make_voreshove.py, make_grenade_skins.py |
+| | `soldier`, `enforcer`, `knight`, `hknight` also write the armed models without their weapon, `vrgrunt.mdl`, `vrenforcer.mdl`, `vrknight.mdl`, `vrhknight.mdl` (make_vrgrunt.py's code: it drops the weapon's triangles by vertex number, so keep those vertices) | make_vrgrunt.py |
+| Shipped as they are (id's, the mission packs', the game folder's since the start) | the monsters `boss`, `demon`, `dog`, `fish`, `ogre`, `player`, `shambler`, `wizard`, `zombie`; the gibs `gib1`..`3`, `zom_gib` and the heads `h_demon`, `h_dog`, `h_guard`, `h_hellkn`, `h_knight`, `h_mega`, `h_ogre`, `h_player`, `h_shal`, `h_shams`, `h_zombie`; the items `armor`, `backpack`, `invisibl`, `invulner`, `quaddama`, `w_g_key`, `w_s_key`, `end1`..`4`; the projectiles and effects `spike`, `s_spike`, `k_spike`, `w_spike`, `lasrspik`, `missile`, `beam`, `flame`, `flame2`, `hook`, `teleport`; `wpnbutton`, `hand` | nothing |
+
+Not sources (made otherwise):
+
+- `vragarmor.mdl`: a placeholder quad carrying the armour's skin atlas, painted by make_agarmor.py; the plates
+  themselves are cut by the engine from each wearer's body as it loads (`vr_agarmor.cpp`). Its source stays the
+  generator.
+- The body (`vrbody*.md5mesh`, `.md5anim`, the `vrbody_*.tga` skins: make_vrbody.py and the body's own import and
+  export, section 3) and the jointed hand (`hand_rig*.md5mesh`: make_hand_rig.py, make_hand_feminine.py and the hand
+  add-on, [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md)); their 244-byte `.mdl` stubs (`vrbody.mdl`, `hand_rig.mdl`...)
+  only name them for the engine. A .blend source for these: see ROUND24.md, "Every other model's source is a .blend".
+
+Notes:
+
+- **Frames without names** (id's player, dog and soldier have unnamed frames; the shambler's are all "From ASE"): the
+  shape keys are `frame<n>`, or the name with `.001`, `.002`... (Blender's names are unique); the file keeps its own.
+- **Skins made from skin 0** (the hand's blood, the grenades' unarmed skin): the .blend holds them, but the export
+  makes them again from skin 0, so they follow its edits; painting them in the .blend does nothing.
+- **Derived models** (the armed monsters, the molten debris): edit the model they're made from; the export writes both.
+  The code that makes them needs the vertex numbers it names: the export refuses (nothing written) if it fails.
+- **Repository cost:** 42 MB more of .blend files and PNGs (the big ones are id's monsters: the hell knight's 2 MB,
+  the shambler's, the ogre's 1 MB); the full-colour skins beside them are the shipped files' copies (git stores them
+  once).

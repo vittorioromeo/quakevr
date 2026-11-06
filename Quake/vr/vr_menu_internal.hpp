@@ -430,6 +430,7 @@ za::Vector<Item> pageChanged();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
+[[nodiscard]] za::Vector<Item> pageArmourStudio();
 [[nodiscard]] za::Vector<Item> pageDebugViews();
 [[nodiscard]] za::Vector<Item> pageDoom();
 [[nodiscard]] za::Vector<Item> pageEnemyMelee();
