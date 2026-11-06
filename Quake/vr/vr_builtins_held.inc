@@ -23,6 +23,17 @@ void PF_motionvalue()
     motion::qcValue(G_STRING(OFS_PARM0), G_VECTOR(OFS_PARM1));
 }
 
+// void(entity player, string kind, float hand, string detail) animevent: the animation recorder's (vr_animrec.cpp; QC
+// VR_Anim_Event), the local player's alone, kept only while a recording runs.
+void PF_animevent()
+{
+    if(G_EDICT(OFS_PARM0) != progs::localPlayer())
+    {
+        return;
+    }
+    animrec::event(G_STRING(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_STRING(OFS_PARM3));
+}
+
 // Round 21: the weapons' hotspots (where the other hand may hold them; vr_weapons.hpp), as the local player's view
 // draws them this frame. vector(entity player, float hand, float index) weaponhotspot: hotspot `index` (0..3) of the
 // weapon in `hand` (cVR_MainHand, cVR_OffHand): a grip's point, a blade grip's middle, in the world ('0 0 0' if none);

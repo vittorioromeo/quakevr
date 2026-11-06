@@ -6139,6 +6139,10 @@ QVR_SLIDER(vr_debug_weapon_frame, "Hold the Weapon Frame", -1.f, 31.f, 1.f, "%.0
     "vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
     "most), to look at a kick with and without the models' own, or at frames a source .blend's actions added "
     "(below 0: as the game steps them).")
+QVR_TOGGLE(vr_blender_link, "Hear Blender's Show in Game",
+    "vr_blender_link: the Quake VR Blender add-on's Show in Game button reaches the game (quakevr/"
+    "blender_request.txt, read every half second): it draws the model in front of you. Only showing and reading "
+    "models again is taken from it.")
 QVR_TOGGLE(vr_model_watch, "Read Models Again When Saved",
     "vr_model_watch: the loaded models' files watched on disk (every half second); a model whose file changed (the "
     "Blender add-on's export on save, any editor) is read again as vr_model_reload reads it, with a console line. "

@@ -1,5 +1,6 @@
 // vr_hands.cpp -- see vr_hands.hpp.
 
+#include "vr_animrec.hpp"
 #include "vr_hands.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -803,6 +804,7 @@ void placeFlat(const glm::vec3& aim, float yaw)
         // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
         // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
         flatplay::poseHands(state, aim);
+        animrec::applyPreview(state); // the animation recorder's preview (vr_ar_play), blended over the pose
     }
     else
     {

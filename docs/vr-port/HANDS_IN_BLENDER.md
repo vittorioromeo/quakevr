@@ -10,23 +10,13 @@ geometry, moving the joints and repainting the skin.
 
 ## 1. Install the add-on (once)
 
-The add-on is in the repository, in `Misc/quakevr/blender/addons/quakevr_hand`. It is written for Blender 5.2.
+The hand is part of the one **Quake VR** add-on (`Misc/quakevr/blender/addons/quakevr_models`; until 2026-11 it had
+its own, Quake VR Hand): install it as [BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md) says. Its buttons are in the 3D
+view's sidebar (N), **Quake VR** tab, once the scene holds the hand; the import is also there and in **File > Import**.
 
-1. In Blender, open **Edit > Preferences > File Paths > Script Directories** and click **Add**.
-2. Choose the repository's `Misc/quakevr/blender` folder. Name it `quakevr`.
-3. Save the preferences (the menu at the bottom left of Preferences > **Save Preferences**, unless Auto-Save
-   Preferences is on), then **close and reopen Blender**: Blender only reads a new script directory at startup.
-4. In **Edit > Preferences > Add-ons**, search for **Quake VR Hand** and tick it.
-
-"Add-on not loaded: quakevr_hand, cause: No module named 'quakevr_hand'" means step 3 was skipped or the
-preferences weren't saved: the add-on was ticked before Blender had the folder on its path.
-
-Alternatively, install it as a zip (no script directory needed, but reinstall it after the add-on changes): zip the
-`Misc/quakevr/blender/addons/quakevr_hand` folder (the zip must contain the `quakevr_hand` folder), then in
-**Preferences > Add-ons**, the menu at the top right > **Install from Disk...**, pick the zip, and tick it.
-
-Blender now loads the add-on straight from the repository. When the add-on changes in a pull, restart Blender to pick
-it up.
+The shortest way in: in the game's console, `vr_edit_in_blender hand_rig` starts Blender with the hand imported. Save that .blend inside
+the repository (e.g. `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend`): every Ctrl+S then exports the hand (Export
+on Save), and the game reads it again by itself.
 
 ## 2. Import the hand
 
@@ -205,8 +195,8 @@ an edit of the shape or the proportions carries them along. `Misc/quakevr/bake_n
 - **Import** shows it on the hand (a Normal Map node into the material's Normal; Blender's tangent frame is a little
   different from the game's: judge it in the game).
 - **After an edit, it's one step:** Export bakes it again from the hand you just wrote (Bake Normal Map, ticked in the
-  export's options), or press **Bake Normal Map** in the Quake VR Hand panel (from the hand as last exported). Then
-  `vr_hand_reload` in the game. Baking needs the Quake VR Models add-on enabled too (the baker lives there).
+  export's options), or press **Bake Normal Map** in the Quake VR panel (from the hand as last exported). Then
+  `vr_hand_reload` in the game (or nothing: the game reads it again by itself).
 - **Repaint the skin's creases** and bake again: the grooves follow the dark lines you paint (a line needs to be clearly
   darker than the skin around it and a few texels long).
 - **Paint the map yourself**, or **bake it from a high poly** (select the high poly, then the hand, and Bake Normal

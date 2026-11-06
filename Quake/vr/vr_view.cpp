@@ -3,6 +3,7 @@
 #include "vr_view_internal.hpp"
 #include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
 #include "vr_agarmor.hpp"
+#include "vr_blender.hpp" // (blender::addPreview: vr_model_show's model)
 #include "vr_ambient.hpp"
 #include "vr_axestick.hpp"
 #include "vr_kickcancel.hpp"
@@ -5350,6 +5351,7 @@ extern "C" void VR_SetupViewEntities()
         // Spent casings thrown out of the weapons (vr_shells.cpp).
         shells::frame(entities.weapon);
         collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
+        blender::addPreview(); // the model vr_model_show shows (vr_blender.cpp)
         flail::frame(s); // AD support: the death sergeant's flail's head and chain (vr_flail.cpp)
         explosiondebris::frame();
         fireparticles::frame();
