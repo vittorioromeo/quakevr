@@ -157,7 +157,12 @@ struct Sight
     float back[2]{0.f, 0.f};     // and how far it is back, eased once a frame (pushBack)
     glm::vec3 backWay[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the way it goes, in the view's frame
     float tiltNeed[2]{0.f, 0.f}; // how far each drawn weapon's muzzle must tilt up to be out of what the way back can't clear
-    float tilt[2]{0.f, 0.f};     // (degrees, this pose's measure) and how far it is tilted, eased once a frame (wallTilt)
+    float tilt[2]{0.f, 0.f};     // (degrees, this pose's measure) and how far it is tilted up, as drawn (wallTilt)
+    bool tiltWanted[2]{false, false}; // the wall needs the tilted pose this frame (tiltNeedFor)
+    float tiltOn[2]{0.f, 0.f};    // how far into the tilted pose, 0..1 over vr_flat_wall_tilt_time (eased: smooth01)
+    float tiltPitch[2]{0.f, 0.f}; // the tilted pose's pitch, following tiltNeed (held as it eases out)
+    float tiltShare[2]{0.f, 0.f}; // the share of the yaw and roll (the sighted share: tiltNeedFor's sightFade)
+    float tiltAngle[2]{0.f, 0.f}; // the whole drawn turn (degrees: wallTilt, wallBlocksFire)
     float tiltDepth[2]{0.f, 0.f}; // how deep in the walls it stood before the tilt, and after it (units; the status prints them)
     float tiltLeft[2]{0.f, 0.f};
     glm::vec3 tiltPivot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // what it turns round, off the hand in the view's frame
@@ -219,8 +224,11 @@ constexpr float wallTiltMax = 85.f;  // vr_flat_wall_tilt's range (degrees)
 constexpr float tiltFrom = 0.25f;    // the weapon this deep in a wall at the most the way back takes it (units): its muzzle tilts
 constexpr float tiltStep = 10.f;     // the tilt's search: tried in steps this big (degrees), then halved this many times
 constexpr int tiltHalvings = 3;
-constexpr float tiltSpeedMin = 30.f;   // vr_flat_wall_tilt_speed's range (degrees a second)
-constexpr float tiltSpeedMax = 2000.f;
+constexpr float tiltTimeMax = 1.5f;  // vr_flat_wall_tilt_time's range (seconds)
+constexpr float tiltPitchEase = 4.f; // in the pose, its pitch follows the least that clears at this many over vr_flat_wall_tilt_time (1/s)
+constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
+constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
+constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (vr_flat_wall_block_fire; degrees)
 constexpr float tiltShortOfUp = 5.f; // the tilt leaves the muzzle at least this far short of straight up (degrees)
 constexpr float sightTiltDownFrom = 0.5f; // sighted, the tilt fades out looking down from 30 degrees (the pitch's sine)...
 constexpr float sightTiltDownTo = 0.766f; // ... to none by 50
@@ -519,6 +527,20 @@ bool adsApplies()
     return wayLen > 1e-3f ? way / wayLen : -sightDir();
 }
 
+// The tilted pose's turn in the world about the view's axes (`axes`: forward, right, up): `pitch` up about its right, then
+// vr_flat_wall_tilt_yaw (muzzle inwards) and vr_flat_wall_tilt_roll (top inwards) times `share`, mirrored for the left hand
+// (the off hand). The roll is about the untilted gun's way (the view's forward), before the pitch and the yaw.
+[[nodiscard]] glm::mat3 tiltTurn(int h, const glm::mat3& axes, float pitch, float share)
+{
+    const float side = h == HAND_OFF ? -1.f : 1.f; // (inwards: to the left for the right hand)
+    const float yaw = za::clamp(vr_flat_wall_tilt_yaw.value, -tiltYawMax, tiltYawMax) * share * side;
+    const float roll = za::clamp(vr_flat_wall_tilt_roll.value, -tiltRollMax, tiltRollMax) * share * side;
+    // (About the view's up, a positive angle turns the muzzle left; about its forward, the top to the right.)
+    const glm::quat q = glm::angleAxis(glm::radians(yaw), axes[2]) * glm::angleAxis(glm::radians(pitch), axes[1]) *
+                        glm::angleAxis(glm::radians(-roll), axes[0]);
+    return glm::mat3_cast(q);
+}
+
 // What the way back can't clear (it stops with the arm folded, the stock at the chest, the rear sight vr_flat_ads_wall_keep
 // from the eye), the drawn muzzle tilts up out of (vr_flat_wall_tilt): the least tilt about the view's right, round the
 // hand, that leaves the weapon out of the walls where the way back leaves it, or all of the setting. The drawn gun only
@@ -526,6 +548,7 @@ bool adsApplies()
 void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm::vec3& wayWorld)
 {
     st.tiltNeed[h] = st.tiltDepth[h] = st.tiltLeft[h] = 0.f;
+    st.tiltWanted[h] = false;
     // (No further than the muzzle pointing straight up, less tiltShortOfUp: past it the gun would lean back over him.)
     const glm::mat3 hand = axesOf(s.rot[h]);
     const float offUp = glm::degrees(za::acos(za::clamp(hand[0].z, -1.f, 1.f))); // the muzzle's way off straight up
@@ -554,11 +577,20 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     {
         return;
     }
+    st.tiltWanted[h] = true;
+    st.tiltShare[h] = sightFade;
     const auto depthAt = [&](float deg) {
-        const glm::mat3 r = glm::mat3_cast(glm::angleAxis(glm::radians(deg), view[1]));
+        const glm::mat3 r = tiltTurn(h, view, deg, sightFade);
         const glm::mat3 turned = r * hand;
         return handpose::gunDepth(h, s.head, at + pivot - r * pivot, hands::anglesFromVectors(turned[0], turned[2]), r * muzzle);
     };
+    // Fixed (vr_flat_wall_tilt_fixed): all of it, however little would clear.
+    if(vr_flat_wall_tilt_fixed.value != 0.f)
+    {
+        st.tiltNeed[h] = most;
+        st.tiltLeft[h] = depthAt(most);
+        return;
+    }
     // The least: in steps up to the most, then halved between the last step in and the first out.
     float lo = 0.f, hi = most, left = before;
     bool out = false;
@@ -609,6 +641,7 @@ void pushBack(hands::State& s, const glm::vec3& aim)
     {
         st.backNeed[h] = 0.f;
         st.tiltNeed[h] = 0.f;
+        st.tiltWanted[h] = false;
         if(flatplay::heldIn(h) < 0 || !s.muzzleValid[h] || !st.muzzleKnown[h] || vr_flat_gun_collide.value == 0.f)
         {
             continue;
@@ -986,7 +1019,8 @@ void frame()
         for(int h = 0; h < HAND_COUNT; h++)
         {
             st.back[h] = st.backNeed[h] = 0.f;
-            st.tilt[h] = st.tiltNeed[h] = 0.f;
+            st.tilt[h] = st.tiltNeed[h] = st.tiltOn[h] = st.tiltPitch[h] = st.tiltShare[h] = st.tiltAngle[h] = 0.f;
+            st.tiltWanted[h] = false;
             st.sightModel[h] = nullptr;
         }
         if(st.fovNarrow != 0.f)
@@ -1018,10 +1052,22 @@ void frame()
     for(int h = 0; h < HAND_COUNT; h++)
     {
         st.back[h] += (st.backNeed[h] - st.back[h]) * ease(st.backNeed[h] > st.back[h] ? backIn : backOut, dt);
-        // (The tilt the same, never faster than vr_flat_wall_tilt_speed degrees a second: no jump.)
-        const float most = za::clamp(vr_flat_wall_tilt_speed.value, tiltSpeedMin, tiltSpeedMax) * dt;
-        const float to = (st.tiltNeed[h] - st.tilt[h]) * ease(st.tiltNeed[h] > st.tilt[h] ? backIn : backOut, dt);
-        st.tilt[h] += za::clamp(to, -most, most);
+        // The tilted pose eases in, and back out off the wall, over vr_flat_wall_tilt_time (0: at once). In it, its pitch
+        // follows the least that clears at tiltPitchEase over that time (it went straight after it before, 4.7 degrees of
+        // gun per degree of look going down into a wall); easing out, it keeps the pitch it had.
+        const float tiltTime = za::clamp(vr_flat_wall_tilt_time.value, 0.f, tiltTimeMax);
+        if(st.tiltWanted[h])
+        {
+            st.tiltPitch[h] = st.tiltOn[h] <= 0.f || tiltTime <= 0.f
+                                  ? st.tiltNeed[h]
+                                  : st.tiltPitch[h] + (st.tiltNeed[h] - st.tiltPitch[h]) * ease(tiltPitchEase / tiltTime, dt);
+        }
+        const float onStep = tiltTime > 0.f ? dt / tiltTime : 1.f;
+        st.tiltOn[h] = za::clamp(st.tiltOn[h] + (st.tiltWanted[h] ? onStep : -onStep), 0.f, 1.f);
+        const float on = geom::smooth01(st.tiltOn[h]);
+        st.tilt[h] = on * st.tiltPitch[h];
+        const glm::mat3 r = tiltTurn(h, glm::mat3{1.f}, st.tilt[h], on * st.tiltShare[h]);
+        st.tiltAngle[h] = glm::degrees(za::acos(za::clamp(0.5f * (r[0][0] + r[1][1] + r[2][2] - 1.f), -1.f, 1.f)));
     }
 
     pollKey();
@@ -1198,7 +1244,7 @@ void noteDrawn(const hands::State& s)
             const glm::vec3 rear{wf.modelToWorld * glm::vec4{wf.model->mins[0], cy, cz, 1.f}};
             // (Without the drawn tilt at a wall: the pose's own gun, which the way back measures from.)
             const glm::mat3 viewAxes = axesOf(geom::vec(cl.viewangles));
-            const glm::mat3 untilt = glm::mat3_cast(glm::angleAxis(glm::radians(-st.tilt[h]), viewAxes[1]));
+            const glm::mat3 untilt = glm::transpose(wallTurn(h, viewAxes));
             st.stock[h] = glm::transpose(viewAxes) * (untilt * (rear - s.pos[h]));
             st.stockModel[h] = wf.model;
         }
@@ -1284,7 +1330,21 @@ float wallTilt(int h, glm::vec3* pivot)
     {
         *pivot = on ? st.tiltPivot[h] : glm::vec3{0.f};
     }
-    return on ? st.tilt[h] : 0.f;
+    return on ? st.tiltAngle[h] : 0.f;
+}
+
+glm::mat3 wallTurn(int h, const glm::mat3& axes)
+{
+    if(!flatplay::active() || h < 0 || h >= HAND_COUNT || st.tiltAngle[h] == 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    return tiltTurn(h, axes, st.tilt[h], geom::smooth01(st.tiltOn[h]) * st.tiltShare[h]);
+}
+
+bool wallBlocksFire(int h)
+{
+    return vr_flat_wall_block_fire.value != 0.f && wallTilt(h) > tiltBlocksFire;
 }
 
 float drawnShare(int h)
@@ -1506,14 +1566,25 @@ void print(const hands::State& s)
             vr_gametime, st.ads ? "asked for" : "off", r_refdef.fov_x, r_refdef.fov_y, units, degrees);
         return;
     }
+    // (The wall's turn as drawn, in the view's frame: the turned muzzle's way up and to the right, its top's lean right
+    // about the muzzle's own way: towards the right that stays level with the view.)
+    const glm::mat3 viewAxes = axesOf(viewAim);
+    const glm::mat3 turn = wallTurn(st.holding, viewAxes);
+    const glm::vec3 turnedFwd = turn * viewAxes[0];
+    const float turnUp = glm::dot(turnedFwd, viewAxes[2]);
+    const float turnSide = glm::dot(turnedFwd, viewAxes[1]);
+    const glm::vec3 levelRight = glm::cross(turnedFwd, viewAxes[2]);
+    const float levelLen = glm::length(levelRight);
+    const float turnCant = levelLen > 1e-3f ? glm::dot(turn * viewAxes[2], levelRight / levelLen) : 0.f;
     Con_Printf("flatsight: t %.4f ads %s t %.2f fov %.2f x %.2f hand %s grip %s held %d helpKind %d transition %.2f "
                "muzzle off the crosshair %.2f -> %.2f units (%.2f deg) hand moved %.2f fov take %g relief %.2f back %.2f asked %.2f "
-               "tilt %.1f need %.1f depth %.2f left %.2f\n",
+               "tilt %.1f need %.1f depth %.2f left %.2f\nflatwallturn: t %.4f on %.3f angle %.1f up %.3f side %.3f cant %.3f block %d\n",
         vr_gametime, adsApplies() ? "on" : (st.ads ? "no sights" : "off"), st.adsT, r_refdef.fov_x, r_refdef.fov_y,
         st.holding == HAND_MAIN ? "main" : "off", st.pinned ? "hotspot" : "none", twohand::helping(st.helping) ? 1 : 0,
         twohand::helpKind(st.helping), twohand::transition(st.holding), st.offBefore, units, degrees,
         glm::length(st.shift), vr_flat_aim_fov.value, st.relief, st.back[st.holding], st.offAsked, st.tilt[st.holding],
-        st.tiltNeed[st.holding], st.tiltDepth[st.holding], st.tiltLeft[st.holding]);
+        st.tiltNeed[st.holding], st.tiltDepth[st.holding], st.tiltLeft[st.holding], vr_gametime, geom::smooth01(st.tiltOn[st.holding]),
+        st.tiltAngle[st.holding], turnUp, turnSide, turnCant, wallBlocksFire(st.holding) ? 1 : 0);
 }
 
 // vr_flat_sight_check [main|off]: the sight line as the weapon was last drawn, against the view it was drawn with: how far

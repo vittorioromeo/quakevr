@@ -5931,6 +5931,10 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
     "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
+    "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
+    "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
+    "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

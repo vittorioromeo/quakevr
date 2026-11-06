@@ -71,11 +71,18 @@ void noteDrawn(const hands::State& s);
 // How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
 [[nodiscard]] float drawnShare(int h);
 
-// How far hand `h`'s drawn weapon is tilted muzzle up at a wall the way back couldn't clear (degrees, about the view's right;
-// vr_flat_wall_tilt), and the point it turns round, off the hand in the view's frame (`pivot`; vr_flat_wall_tilt_pivot):
-// flatplay::drawnOffset turns the drawn hand by it. The game's hand, and the shots, keep the crosshair's turn. 0 outside
-// the mode.
+// How far hand `h`'s drawn weapon is turned out of a wall the way back couldn't clear (degrees, the whole turn: the muzzle up,
+// vr_flat_wall_tilt, and its yaw and roll, vr_flat_wall_tilt_yaw / _roll, eased in and out over vr_flat_wall_tilt_time), and
+// the point it turns round, off the hand in the view's frame (`pivot`; vr_flat_wall_tilt_pivot). 0 outside the mode.
 [[nodiscard]] float wallTilt(int h, glm::vec3* pivot = nullptr);
+
+// That turn in the world, for a view whose axes are `axes` (columns forward, right, up): flatplay::drawnOffset turns the
+// drawn hand by it round the pivot. The game's hand, and the shots, keep the crosshair's turn. Identity outside the mode.
+[[nodiscard]] glm::mat3 wallTurn(int h, const glm::mat3& axes);
+
+// Whether hand `h`'s trigger is stopped: its gun is turned out of a wall past a few degrees and vr_flat_wall_block_fire is on
+// (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
+[[nodiscard]] bool wallBlocksFire(int h);
 
 // A shot's drawn recoil of a hand (weaponfx::recoilOffset), kept at vr_flat_ads_recoil of itself as far as the ironsight
 // has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.

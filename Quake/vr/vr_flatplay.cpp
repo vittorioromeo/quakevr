@@ -956,7 +956,11 @@ int loneWeaponHand()
     return off == main ? -1 : main ? HAND_MAIN : HAND_OFF;
 }
 
-FireRoute routeFire(bool lmb, bool rmb)
+namespace
+{
+
+// The mouse's buttons by what the hands hold (routeFire, before a wall stops a raised gun).
+[[nodiscard]] FireRoute routeButtons(bool lmb, bool rmb)
 {
     FireRoute r;
     const int lone = loneWeaponHand();
@@ -968,6 +972,23 @@ FireRoute routeFire(bool lmb, bool rmb)
     }
     r.fire[HAND_MAIN] = lmb;
     r.fire[HAND_OFF] = rmb;
+    return r;
+}
+
+} // namespace
+
+FireRoute routeFire(bool lmb, bool rmb)
+{
+    // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
+    // A melee weapon swings as ever (a blow is never stopped at a wall).
+    FireRoute r = routeButtons(lmb, rmb);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(r.fire[h] && !punchesWith(h) && flatsight::wallBlocksFire(h))
+        {
+            r.fire[h] = false;
+        }
+    }
     return r;
 }
 
@@ -1702,7 +1723,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     // At a wall the way back couldn't clear, the muzzle tilted up round the hand (flatsight::wallTilt): drawn only.
     glm::vec3 tiltPivot{0.f};
     const float tilt = flatsight::wallTilt(h, &tiltPivot);
-    const glm::mat3 wallTurn = glm::mat3_cast(glm::angleAxis(glm::radians(tilt), drawnAxes[1]));
+    const glm::mat3 wallTurn = flatsight::wallTurn(h, drawnAxes);
     feel.wallTurn[h] = wallTurn;
     if(tilt != 0.f)
     {

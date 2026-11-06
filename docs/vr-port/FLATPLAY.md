@@ -398,7 +398,14 @@ as in a headset (`vr_model_collide`, drawn only: the view runs it in this mode t
 **The muzzle up** (Debug > Tunables > Flatscreen, "Wall: ..."). What the push back can't clear, the drawn gun tilts muzzle up out
 of (`tiltNeedFor`, `handpose::gunDepth`): the least tilt about the view's right that leaves its points out of the level where the
 push back leaves it, tried in 10 degree steps then halved three times, at most `vr_flat_wall_tilt` (85) and never past 5 short of
-straight up; it moves at most `vr_flat_wall_tilt_speed` (300) degrees a second. It turns round the hand
+straight up; or, `vr_flat_wall_tilt_fixed` 1, always all of `vr_flat_wall_tilt` once the wall is met. The tilted pose can also
+turn the gun across the body, `vr_flat_wall_tilt_yaw` (0, -60..60: muzzle inwards), and cant it, `vr_flat_wall_tilt_roll`
+(0, -90..90: its top inwards), both mirrored for the left hand (the off hand); the least pitch is searched with them on. The
+pose eases in when the wall is met, and out when it clears, over `vr_flat_wall_tilt_time` (0.3 s, smoothstep; 0 at once); in
+it, the pitch follows the least that clears at 4 over that time (so 0.075 s at 0.3), and easing out it keeps the pitch it had.
+**No Fire With Gun Raised** (`vr_flat_wall_block_fire`, on; Movement > Locomotion, Desktop Screen Play): a gun turned more than
+5 degrees out of a wall does not fire, the click does nothing (no shot, no ammo) until it comes back down (`flatplay::routeFire`,
+`flatsight::wallBlocksFire`); melee weapons always swing. It turns round the hand
 (`vr_flat_wall_tilt_pivot` 0; 1 is the shoulder, which swings the gun up into the face). Walls only: a floor or a ceiling (a
 surface whose normal's up is over 0.7) is not counted. Sighted, only `vr_flat_wall_tilt_sighted` (0) of it, fading out looking
 down 30 to 50 (tilted, the sights leave the ray and the gun comes back into the chest); the tilted gun then also comes
