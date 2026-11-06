@@ -1,11 +1,14 @@
-"""Paint the gloves' worn leather (vr_gloves) on the jointed hand's skin layout, twice the skin's resolution:
+"""Paint the gloves' worn leather (vr_gloves) on the jointed hand's skin layout, at the skin's own resolution (512:
+~1.3 texels a mm, as the hand's skin and about the body's forearm; painted at twice that and averaged down, the
+light painted into it as Quake's skins have it: CAVITY), so that the leather is as coarse as the rest of the avatar
+(the shader draws it in texel blocks and Quake's colour steps: vr_glove_retro):
   progs/hand_rig_00_00_glove.png         RGB the leather's detail, multiplied with the glove's colour (vr_glove_hue,
                                          _saturation, _lightness): 128 grey leaves it as it is, darker darkens it,
                                          lighter lightens it, a coloured texel shifts its hue; A its wear (0 none, 255
                                          worn through to a pale, greyed, matte scuff);
   progs/hand_rig_00_00_glove_height.png  its relief, 128 flat (lighter raised), for the shader's bumps.
 Every hand skin (hand_rig_0N_00) uses these unless it has files of its own of the same names (vr_render.cpp).
-What is painted: a pebbled grain with a coarser network of creases through it and a mottled tone; the knuckles
+What is painted: blotches of a few texels with a coarser network of creases through them and a mottled tone; the knuckles
 scuffed paler, and the backs of the finger joints less so, with the leather bunched into wrinkles over them and folded
 into deep creases on the palm's side; the palm's own folds; the seams along the fingers' sides and round the thumb
 (make_skin_masks.py's lines: its groove, a row of thread stitches either side) and three stitched "points" down the
@@ -287,11 +290,11 @@ def grain(p, pt):
     # next to the body's; the leather's grain is the blotches below and the shader's texel dither instead)
     blot, tone = worley(p, 0.32, 11)  # coarse blotches, 4 mm: a few texels each, as Quake's skins mottle leather
     pt.shade *= 0.95 + 0.1 * tone
-    pt.shade *= 1 - 0.06 * (1 - smooth(0.0, 0.25, blot))
+    pt.shade *= 1 - 0.1 * (1 - smooth(0.0, 0.25, blot))
     e2, _ = worley(p * np.array([1.0, 1.0, 1.6]), 0.55, 23)
     net = 1 - smooth(0.0, 0.18, e2 + 0.04 * value_noise(p, 0.12, 27))
     net *= smooth(-0.1, 0.5, value_noise(p, 0.8, 29))  # in places only
-    pt.shade *= 1 - 0.12 * net
+    pt.shade *= 1 - 0.24 * net  # (strong enough to stay a colour step darker on the skin's grid)
     pt.height -= 0.12 * net
     pt.height += 0.12 * fbm(p, 0.9, 43, 2)  # the hide's own soft unevenness
     mot = fbm(p, 1.2, 31, 3)

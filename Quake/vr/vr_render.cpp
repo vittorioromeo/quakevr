@@ -849,7 +849,7 @@ struct GloveLayers
 GloveLayers gloveLayers;
 
 // The relief's height map (_glove_height, make_glove_paint.py): its R the height, 128 flat, 0..255 this many mm; at
-// 1024 x 1024 this many texels a mm (the skin's 1.5 twice). Its slopes are steepened by gloveReliefGain, as the bracers'
+// 1024 x 1024 this many texels a mm (the skin's 1.5 twice; the shipped one is 512, the skin's own: scaled by its width). Its slopes are steepened by gloveReliefGain, as the bracers'
 // and pauldrons' baked relief is (normalbody.py, normaltiles.py: their stitches and seams deeper than real ones).
 static constexpr float gloveHeightRangeMm = 2.5f;
 static constexpr float gloveTexelsPerMm = 3.f;

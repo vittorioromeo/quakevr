@@ -1154,16 +1154,16 @@ SPECULAR_AA_FUNCTIONS
 "}\n" \
 "\n" \
 "// QVR: a glove's leather in Quake's colour steps (vr_glove_retro): its brightness (the brightest channel) on one of a\n" \
-"// palette ramp's 16 levels, its hue kept (the colour you chose), the level picked per texel (texel: its index) with a\n" \
-"// random dither between the two nearest, as make_vrbody.py's pick() paints the body's skins; k 0..1 how much (0 where\n" \
-"// texels get smaller than a pixel: plain mipmapping there, no shimmer).\n" \
+"// palette ramp's 16 levels (the darkest kept off black), its hue kept (the colour you chose), the level picked per\n" \
+"// texel (texel: its index) with a random dither near a step, as make_vrbody.py's pick() paints the body's skins; k\n" \
+"// 0..1 how much (0 where texels get smaller than a pixel: plain mipmapping there, no shimmer).\n" \
 "vec3 LeatherSteps(vec3 c, vec2 texel, float k)\n" \
 "{\n" \
 "	float top = max(max(c.r, c.g), c.b);\n" \
 "	if (k <= 0.0 || top <= 0.0)\n" \
 "		return c;\n" \
-"	float d = 0.5 + 0.75 * (StumpRand(ivec3(ivec2(texel), 23)) - 0.5); // (0.75: flat leather mostly one level)\n" \
-"	float q = floor(top * 16.0 + d) / 16.0;\n" \
+"	float d = 0.5 + 0.5 * (StumpRand(ivec3(ivec2(texel), 23)) - 0.5); // (half a step: flat leather one level, its blotches in steps, not speckled)\n" \
+"	float q = max(floor(top * 16.0 + d), 1.0) / 16.0; // (never black: a dark glove's texels without black specks)\n" \
 "	return mix(c, c * (q / top), k);\n" \
 "}\n" \
 "\n" \
