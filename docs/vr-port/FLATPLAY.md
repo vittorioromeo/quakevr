@@ -399,7 +399,9 @@ as in a headset (`vr_model_collide`, drawn only: the view runs it in this mode t
 of (`tiltNeedFor`, `handpose::gunDepth`): the least tilt about the view's right that leaves its points out of the level where the
 push back leaves it, tried in 10 degree steps then halved three times, at most `vr_flat_wall_tilt` (85) and never past 5 short of
 straight up; it moves at most `vr_flat_wall_tilt_speed` (300) degrees a second. It turns round the hand
-(`vr_flat_wall_tilt_pivot` 0; 1 is the shoulder, which swings the gun up into the face). Sighted, the tilted gun also comes
+(`vr_flat_wall_tilt_pivot` 0; 1 is the shoulder, which swings the gun up into the face). Walls only: a floor or a ceiling (a
+surface whose normal's up is over 0.7) is not counted. Sighted, only `vr_flat_wall_tilt_sighted` (0) of it, fading out looking
+down 30 to 50 (tilted, the sights leave the ray and the gun comes back into the chest); the tilted gun then also comes
 `vr_flat_wall_tilt_drop` (12) units down off the eye by 45 degrees of tilt: tilted on the sight line its underside filled the
 screen. Drawn only (`flatplay::drawnOffset`): the game's hand keeps the crosshair's turn, so the shots still go through the
 crosshair, and the view puts the two-handed hotspot it placed on the tilted gun back on the untilted one
