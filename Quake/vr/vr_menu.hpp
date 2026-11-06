@@ -62,6 +62,10 @@ void dump_f();
 // lines: "MP|<cvar, @page, or empty>|<level>|<page title>|<row label>|<path>". Misc/quakevr/menu_paths.py turns them
 // into Misc/quakevr/menu_paths.txt, which the board maps' scripts read ({menu:...} from a cvar's name).
 void dumpPaths_f();
+// vr_menu_dump_settings <cvar>...: each setting's metadata for Setup's settings page as MS| console lines
+// ("MS|<cvar>|<key>|<JSON value>": exists, archive, default, kind, label, path, help, range, choices; kind "none": no
+// menu row shows it). Misc/installer/settings_page.py turns them into quakevr/settings_page.json and checks them.
+void dumpSettings_f();
 #ifndef QVR_RELEASE
 void tunablesTree_f(); // vr_tunables_tree [list]: Debug > Tunables' submenus checked (each constant on one, reached)
 #endif

@@ -2,6 +2,8 @@
 
 exec default.cfg
 exec config.cfg
+// The settings picked on Setup's settings page (installer_settings.cfg), once: vr_cvars.cpp, docs/vr-port/INSTALLER.md.
+vr_installer_settings
 exec quakevr.cfg
 exec autoexec.cfg
 

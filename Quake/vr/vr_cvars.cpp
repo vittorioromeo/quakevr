@@ -887,7 +887,7 @@ const CompiledDefault compiledDefaults[] = {
 // Per-player or bookkeeping settings, never shipped.
 [[nodiscard]] bool personal(const cvar_t* var)
 {
-    return var == &vr_cfg_version || var == &vr_tutorial_started || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+    return var == &vr_cfg_version || var == &vr_installer_applied || var == &vr_tutorial_started|| var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_seated_height // (one's chair)
         || var == &vr_props_version || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
@@ -967,6 +967,50 @@ bool sameSettingValue(const char* a, const char* b)
     return sameValue(a, b);
 }
 
+// "vr_installer_settings" (quake.rc, right after the saved config): runs installer_settings.cfg, the settings picked on
+// Setup's settings page (docs/vr-port/INSTALLER.md, "Settings page"), once. Its "// stamp <id>" line is kept in
+// vr_installer_applied (saved with the config), so it runs again only when Setup writes a new file. After the saved
+// config, the page's picks win over it once; before quakevr.cfg, the forced rules still win; a later change in the
+// game is saved over it and the file is not run again. Setup writes only what was changed on its page.
+void installerSettings_f()
+{
+    byte* file = COM_LoadMallocFile("installer_settings.cfg", nullptr);
+    if(!file)
+    {
+        return;
+    }
+    const za::StringView text{reinterpret_cast<const char*>(file)};
+    constexpr za::StringView stampTag = "// stamp ";
+    const size_t at = text.find(stampTag);
+    za::String stamp;
+    if(at != za::StringView::nPos)
+    {
+        size_t end = at + stampTag.size();
+        while(end < text.size() && text[end] != '\n' && text[end] != '\r' && text[end] != ' ')
+        {
+            end++;
+        }
+        stamp = za::String{text.substrByPosLen(at + stampTag.size(), end - at - stampTag.size())};
+    }
+    if(stamp.empty())
+    {
+        Con_Printf("installer_settings.cfg: no \"// stamp\" line, not run\n");
+    }
+    else if(stamp == za::StringView{vr_installer_applied.string})
+    {
+        Con_DPrintf("installer_settings.cfg: stamp %s already applied\n", stamp.cStr());
+    }
+    else
+    {
+        // (Inserted: it runs now, before the rest of quake.rc.)
+        za::String run{"\n"};
+        run.append(text);
+        run += va("\nvr_installer_applied \"%s\"\necho \"installer settings applied: stamp %s\"\n", stamp.cStr(), stamp.cStr());
+        Cbuf_InsertText(run.cStr());
+    }
+    VR_HeapFree(file);
+}
+
 void registerCvars()
 {
 #define QVR_CVAR(name, def, flags) Cvar_RegisterVariable(&name);
@@ -976,6 +1020,7 @@ void registerCvars()
 
     Cvar_RegisterVariable(&vr_backend);
     Cmd_AddCommand("vr_migrate_config", migrateConfig_f);
+    Cmd_AddCommand("vr_installer_settings", installerSettings_f);
     Cmd_AddCommand("vr_menu_body_clone_info", bodyclone::info_f);
     Cmd_AddCommand("vr_default", default_f);
     Cmd_AddCommand("vr_savedefaults", saveDefaults_f);
