@@ -19,6 +19,8 @@ vector vr_agit_fw;     // towards the wall you face (level)
 vector vr_agit_wall;   // the wall's point ahead of you
 float vr_agit_held;    // a hand had it during the case
 float vr_agit_keep_yank;
+float vr_agit_keep_impact; // (vr_agrunt_fall_keep_impact before the test: VR_AGIT_IMPACT meanwhile)
+float VR_AGIT_IMPACT = 4.5; // m/s: the rule's threshold the cases are made for (the default before 2026-11-03)
 float vr_agit_round;   // the list's rounds done (scratch4)
 float VR_AGIT_PUSH = 0;
 float VR_AGIT_WALK = 1;
@@ -365,6 +367,10 @@ void() VR_AGIT_Frame =
             VR_AGIT_FindWall(p);
             vr_agit_keep_yank = cvar_hget(cvarh_vr_agrunt_disarm_yank);
             cvar_set("vr_agrunt_disarm_yank", "0"); // (a hand on its body here, never on its weapon)
+            // QVR: the rule's own threshold, not the default's: its throws and falls land at 8-10 m/s, under his 12
+            // (the default since 2026-11-03: a hard landing keeps the weapon), so each case tests the rule at 4.5.
+            vr_agit_keep_impact = cvar_hget(cvarh_vr_agrunt_fall_keep_impact);
+            cvar_set("vr_agrunt_fall_keep_impact", ftos(VR_AGIT_IMPACT));
             if(cvar_hget(cvarh_scratch1) > 0)
             {
                 c = vr_agit_case = cvar_hget(cvarh_scratch1) - 1;
@@ -588,6 +594,7 @@ void() VR_AGIT_Frame =
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
         cvar_set("vr_agrunt_disarm_yank", ftos(vr_agit_keep_yank));
+        cvar_set("vr_agrunt_fall_keep_impact", ftos(vr_agit_keep_impact));
         cvar_set("vr_mock_hand_glide", "0");
         setorigin(p, vr_agit_home);
         p.velocity = '0 0 0';
