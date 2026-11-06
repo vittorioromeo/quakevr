@@ -6,6 +6,7 @@
 // any order), from hands::current().
 
 #include "vr_bodyclone.hpp"
+#include "vr_armourstudio.hpp"
 #include "vr_backend.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -50,15 +51,22 @@ void update()
     glm::vec3 corner, xAxis, yAxis;
     // Holster Setup (the author, 2026-10-22: "the holsters being set up on the clone as well"): beside its panel.
     const bool setup = holstersetup::panelQuad(corner, xAxis, yAxis);
+    // The Armour Studio's ImGui window on the player's kind (flat screen: no menu panel): straight ahead of you.
+    const bool studio = !setup && armourstudio::cloneWanted();
     if(vr_menu_body_clone.value == 0.f || !s.valid ||
-        (!setup && (!menu::bodyClonePage() || !panel::menuQuad(s, corner, xAxis, yAxis))))
+        (!setup && !studio && (!menu::bodyClonePage() || !panel::menuQuad(s, corner, xAxis, yAxis))))
     {
         state.placed = false;
         return;
     }
+    const float m2u = units::metresToUnits();
+    if(studio)
+    {
+        corner = s.head + hands::forward({0.f, s.headAngles.y, 0.f}) * m2u;
+        xAxis = yAxis = glm::vec3{0.f};
+    }
 
     // The panel: the way to its middle, flat, and the angle half its width takes up.
-    const float m2u = units::metresToUnits();
     const glm::vec3 centre = corner + 0.5f * (xAxis + yAxis);
     glm::vec3 ahead{centre.x - s.head.x, centre.y - s.head.y, 0.f};
     const float panelDistance = glm::length(ahead);
@@ -73,7 +81,11 @@ void update()
     const float distance = za::clamp(vr_menu_body_clone_distance.value, 0.5f, 5.f) * m2u;
     const int side = static_cast<int>(vr_menu_body_clone_side.value);
     float sign = 0.f;
-    if(side == 1)
+    if(studio)
+    {
+        sign = 1.f; // (left of the view: the window opens on the screen's right)
+    }
+    else if(side == 1)
     {
         sign = 1.f; // left (Quake's yaw turns left)
     }
