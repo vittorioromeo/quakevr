@@ -67,15 +67,18 @@ else:
     check(d >= DEATH_DIFF, "dead: the head's view against Quake's floor view: %.1f%% of the pixels differ" % (100 * d))
 
 log = open(sys.argv[2], "rb").read().decode("latin-1").replace("\r", "").replace("\n", "") # (run.sh wraps long lines at a space)
-st = re.findall(r"deathview: mode (\d+) health (-?\d+) doll (\d+) ragdoll (\d) head (\d).*?immersive (\d).*?camera (\S+) (\S+) (\S+) \((-?[\d.]+) from the eyes\).*?camangles (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)", log)
-if len(st) < 2:
-    check(False, "two death view statuses printed (got %d)" % len(st))
+st = re.findall(r"deathview: mode (\d+) health (-?\d+) doll (\d+) ragdoll (\d) head (\d).*?immersive (\d).*?camera (\S+) (\S+) (\S+) \((-?[\d.]+) from the eyes\).*?vomit (\d) camangles (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)", log)
+if len(st) < 3:
+    check(False, "three death view statuses printed (got %d)" % len(st))
 else:
-    m, health, doll, rag, head, imm, cx, cy, cz, off, pa, ya, ra = st[0]
-    check(m == "2" and int(health) <= 0 and doll != "0" and rag == "1" and imm == "1" and 0 <= float(off) <= EYES_NEAR and abs(float(ra)) < 0.5,
-          "dead, Immersive: body %s ragdoll %s immersive %s, the camera %s from the head's eyes, roll %s" % (doll, rag, imm, off, ra))
-    imm1 = st[1][5]
-    check(st[1][0] == "1" and imm1 == "0", "Third Person after: immersive %s" % imm1)
+    m, health, doll, rag, head, imm, cx, cy, cz, off, vo, pa, ya, ra = st[0]
+    check(m == "2" and int(health) <= 0 and doll != "0" and rag == "1" and imm == "1" and vo == "0" and 0 <= float(off) <= EYES_NEAR and abs(float(ra)) < 0.5,
+          "dead, Immersive, vr_flat_death_vomit 0: body %s ragdoll %s immersive %s vomit %s, the camera %s from the head's eyes, roll %s" % (doll, rag, imm, vo, off, ra))
+    m, imm, off, vo = st[1][0], st[1][5], st[1][9], st[1][10]
+    check(m == "2" and imm == "1" and vo == "1" and 0 <= float(off) <= EYES_NEAR,
+          "vr_flat_death_vomit 1 (vr_death_view_vomit 0): vomit %s immersive %s, the camera %s from the head's eyes" % (vo, imm, off))
+    imm1, vo1 = st[2][5], st[2][10]
+    check(st[2][0] == "1" and imm1 == "0" and vo1 == "0", "Third Person after: immersive %s vomit %s (not forced)" % (imm1, vo1))
 
 passed = sum(1 for r in results if r)
 print("flatvisuals: %d passed, %d failed" % (passed, len(results) - passed))

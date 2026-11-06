@@ -1824,12 +1824,12 @@ QVR_TUNABLE(vr_model_light_teleport_range, "256")
 
 // Flatscreen > Held Weapon
 QVR_TUNABLE(vr_flat_gun_ahead, "16.5") // the held weapon, hipfire, at a level look: how far in front of the shoulder the arm hangs from it sits (-30..30 units; 14 off the old anchor)
-QVR_TUNABLE(vr_flat_gun_down, "0") // the held weapon, hipfire, at a level look: how far below that shoulder it sits (-30..30; positive is lower; 12 off the old anchor, which stood 12 higher)
+QVR_TUNABLE(vr_flat_gun_down, "2") // the held weapon, hipfire, at a level look: how far below that shoulder it sits (-30..30; positive is lower; 12 off the old anchor, which stood 12 higher)
 QVR_TUNABLE(vr_flat_gun_out, "1") // the held weapon, hipfire, at a level look: how far out at the holding hand's own side of that shoulder it sits (-30..30; 4 off the old anchor; negative brings it across)
 QVR_TUNABLE(vr_flat_gun_out_down, "-4") // Gun Out looking straight down (-30..30): from vr_flat_gun_out at a level look along a smooth curve, the gun in towards the middle
 QVR_TUNABLE(vr_flat_gun_out_up, "-4") // Gun Out looking straight up (-30..30), the same
 QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-30..30), by how deep the crouch is; looking up or down goes from it to their own
-QVR_TUNABLE(vr_flat_gun_down_crouch, "0") // Gun Down crouched (-30..30; positive is lower): vr_flat_gun_down's place while crouched, blended in by how deep the crouch is, as vr_flat_gun_out_crouch is
+QVR_TUNABLE(vr_flat_gun_down_crouch, "-5") // Gun Down crouched (-30..30; positive is lower): vr_flat_gun_down's place while crouched, blended in by how deep the crouch is, as vr_flat_gun_out_crouch is
 QVR_TUNABLE(vr_flat_gun_ahead_crouch, "16.5") // Gun Forward crouched (-30..30): vr_flat_gun_ahead's place while crouched, blended in the same way
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
@@ -1844,15 +1844,15 @@ QVR_TUNABLE(vr_flat_empty_out, "4") // an empty hand: how far out at its own sid
 QVR_TUNABLE(vr_flat_support_fwd, "8.5") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 6 off the old anchor)
 QVR_TUNABLE(vr_flat_support_down, "3") // the same free hand: how far below its shoulder (-30..30; positive is lower; 15 off the old anchor)
 QVR_TUNABLE(vr_flat_stance, "1") // a long gun with a two-handed hotspot (Weapon Offsets): the torso turns, the free hand's shoulder forward, and the free hand is drawn on that hotspot with its pose, as a look: no grip, two-handed aim, recoil or weight (vr_flatsight.cpp stanceAndLook; 0: the hand hangs, the torso faces the view)
-QVR_TUNABLE(vr_flat_stance_turn, "25") // how far the torso turns for it (degrees, 0..45); the view doesn't turn
-QVR_TUNABLE(vr_flat_stance_back, "10") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
+QVR_TUNABLE(vr_flat_stance_turn, "15") // how far the torso turns for it (degrees, 0..45); the view doesn't turn
+QVR_TUNABLE(vr_flat_stance_back, "4") // the gun's hand in the stance: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_stance_pistol, "1") // a pistol (a gun with a two-handed hotspot, its muzzle under 9.5 from the hand) held with the other hand free: held in both hands too, in its own stance below (0: one hand, the other hangs)
 QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
 QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
-QVR_TUNABLE(vr_flat_pistol_in, "6") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
-QVR_TUNABLE(vr_flat_pistol_up, "2") // and this much higher than Gun Down
+QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
+QVR_TUNABLE(vr_flat_pistol_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_ads_turn, "15") // the ironsight in a two-handed stance: the torso turns this much further (degrees, 0..30), the free hand's shoulder forward to the gun
 QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into the gun (degrees, 0..30); the head and the eye stay
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
@@ -1863,7 +1863,7 @@ QVR_TUNABLE(vr_flat_wall_tilt_fixed, "0") // the tilt's pitch: 0 the least that 
 QVR_TUNABLE(vr_flat_wall_tilt_yaw, "0") // and the tilted gun also turns this far across the body, muzzle inwards (-60..60 degrees; the left hand mirrored)
 QVR_TUNABLE(vr_flat_wall_tilt_roll, "0") // and cants this far, its top inwards (-90..90 degrees; the left hand mirrored)
 QVR_TUNABLE(vr_flat_wall_tilt_sighted, "0") // sighted, this share of that tilt (0..1; 0: the sights stay on the ray and the gun's end goes into the wall as before; none looking down past 50)
-QVR_TUNABLE(vr_flat_wall_tilt_time, "0.3") // the tilted pose eases in, and back out off the wall, over this many seconds (0..1.5; 0: at once)
+QVR_TUNABLE(vr_flat_wall_tilt_time, "0.2") // the tilted pose eases in, and back out off the wall, over this many seconds (0..1.5; 0: at once)
 QVR_TUNABLE(vr_flat_wall_tilt_pivot, "0") // what it tilts round: 0 the hand, 1 its shoulder (the arm swings the gun up and back, the hand keeps its reach; it also brings the gun up into the face)
 QVR_TUNABLE(vr_flat_wall_tilt_drop, "12") // sighted, the tilted gun also comes this far down off the eye (0..20 units; all of it by 45 degrees of tilt)
 QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
@@ -1875,12 +1875,12 @@ QVR_TUNABLE(vr_flat_model_fov_near, "18") // the model FOV in full up to this fa
 QVR_TUNABLE(vr_flat_model_fov_far, "35") // and none past this far (units): the knees (35), so the shins and feet (47) stay on the floor
 
 // Flatscreen > Ironsight
-QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value), as it is at fov vr_flat_aim_fov_ref with no model fov: another fov or vr_flat_model_fov scales it so the sight picture keeps its size (flatsight::reliefScale). vr_flatsight.cpp solves the hand from the weapon's sight line
+QVR_TUNABLE(vr_flat_ads_relief, "4") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value), as it is at fov vr_flat_aim_fov_ref with no model fov: another fov or vr_flat_model_fov scales it so the sight picture keeps its size (flatsight::reliefScale). vr_flatsight.cpp solves the hand from the weapon's sight line
 QVR_TUNABLE(vr_flat_ads_wall_keep, "8") // the ironsight: a wall or the floor pushes the rear sight no nearer the eye than this (3..30 units); past it the gun's end enters the surface and is hidden there, and no gun looms
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
 QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov, "45") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_TUNABLE(vr_flat_aim_fov_ref, "95") // the fov vr_flat_aim_fov's degrees and vr_flat_ads_relief's units are counted at (60..130; 95: his; at fov 90 vr_flat_aim_fov 12/30/45 take 11.9/29.5/43.7 off)
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
@@ -1896,7 +1896,7 @@ QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view
 
 // Flatscreen > Body Pose
 QVR_TUNABLE(vr_flat_body_pose, "1") // 1: the hands stand on the body: on the shoulders the arms hang from, the chest takes a share of the look, the crouch lowers the shoulders, with limits (0: the view-fixed pose before it)
-QVR_TUNABLE(vr_flat_chest_down, "0.3") // the chest's share of a look down (0..1): 0.3 of 85 degrees bends it 25
+QVR_TUNABLE(vr_flat_chest_down, "0") // the chest's share of a look down (0..1): 0.3 of 85 degrees bends it 25
 QVR_TUNABLE(vr_flat_chest_up, "0.2") // the chest's share of a look up (0..1)
 QVR_TUNABLE(vr_flat_arm_down, "0.7") // the arm's share of a look down, about its shoulder (0..1.5)
 QVR_TUNABLE(vr_flat_arm_up, "0.85") // the arm's share of a look up, about its shoulder (0..1.5): lifts the hand over the shoulder
@@ -1925,16 +1925,16 @@ QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the c
 
 // Flatscreen > Looks
 QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
-QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_TUNABLE(vr_flat_bob, "1") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
-QVR_TUNABLE(vr_flat_bob_fwd, "0") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
+QVR_TUNABLE(vr_flat_bob_fwd, "1") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
 QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
-QVR_TUNABLE(vr_flat_ads_recoil, "0.35") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
-QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (-3..3, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
+QVR_TUNABLE(vr_flat_ads_recoil, "0.1") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
+QVR_TUNABLE(vr_flat_turnlag, "5") // the drawn hands trail a turn and catch up (-10..10, at most vr_flat_turnlag_cap degrees each): "weapon inertia"; 0 the hands locked to the view; negative they lead the turn instead (GoldenEye's "turn with the camera")
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
-QVR_TUNABLE(vr_flat_turnlag_cap, "4") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
+QVR_TUNABLE(vr_flat_turnlag_cap, "10") // the most the turn's lag shows, times |vr_flat_turnlag| (0..30 degrees, softly)
 
 // Flatscreen > Hit Feedback (vr_flathit.cpp; FLATPLAY.md, "Hit feedback")
 QVR_TUNABLE(vr_flat_ads_hitreact, "0.2") // aiming down the sights, a hit's knock of the drawn arms and weapon (vr_painknock.cpp) is kept at this share (0..1; 1: as hipfire)

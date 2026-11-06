@@ -2054,6 +2054,42 @@ hand's height, then the biggest step against what the ease allows (`flatcrouch: 
 soft ends; Crouch Time and Crouch Ease (Debug > Tunables) change it; Gun Down Crouched / Gun Forward Crouched move the gun
 while crouched only. The low-ceiling cases (vrteleporters' crouch room) should still hold him down.
 
+## Flat-screen: his values as defaults, Vomit Mode on flat deaths (branch `agent/flatpromote`, 2026-11-06)
+
+His words: "Please promote my flatscreen values as defaults. Also add an option (on by default) to force 'vomit mode on'
+for flatscreen player ragdoll deaths."
+
+**Promoted** (from his `quakevr/tunables.cfg`, only these 15, with `tune_promote.py` on a file of those lines):
+`vr_flat_gun_down` 0 -> 2, `_gun_down_crouch` 0 -> -5, `_stance_turn` 25 -> 15, `_stance_back` 10 -> 4, `_pistol_in` 6 -> 2,
+`_pistol_up` 2 -> 4, `_wall_tilt_time` 0.3 -> 0.2, `_ads_relief` 14 -> 4, `_aim_fov` 40 -> 45, `_chest_down` 0.3 -> 0,
+`_bob` 0 -> 1, `_bob_fwd` 0 -> 1, `_ads_recoil` 0.35 -> 0.1, `_turnlag` 1 -> 5, `_turnlag_cap` 4 -> 10.
+**Turn Lag's range widened** from -3..3 to -10..10 (`lagAmountMax`, the Tunables row): his 5 was past it, so the game
+clamped it to 3 while he played. At 5 the hands trail a 360 deg/s turn by 28 degrees (flatplay's turn, measured); at 3,
+what he actually saw, 16.8; the old 1, 3.4. If 5 feels too much, 3 is what he tuned on.
+
+**Vomit Mode on flat deaths.** `vr_flat_death_vomit` (1, archived; the Desktop Screen Play rows, "Vomit Mode on Death"):
+on a flat screen with Death View on Immersive (`vr_death_view 2`), `deathview::vomit()` answers yes for the death
+whatever `vr_death_view_vomit` says. The cvar is never written, so his setting holds for the headset and the next
+death; Third Person (`vr_death_view 1`) is not forced. Test: flatvisuals' death part, now three statuses: off (vomit 0,
+camera 0.8 from the eyes, roll 0), on (vomit 1, camera 0.0 from the eyes), Third Person after (vomit 0).
+
+**Tests moved to the new defaults** (the check was about the default, not the behaviour): flatads a (sighted recoil
+0.1 of hipfire, 0.08..0.12; measured 0.100), flatcrouch offsets (Gun Down Crouched -11: 6 higher than the default -5),
+flatwall c (the first ease is the default 0.2 s: 0.16..0.22, measured 0.195), flatwall c/d's place 20 down instead of
+30 (his gun pose clears the wall 30 down: no tilt there; 20 down tilts, 47.5 degrees least), flatplay locked (also
+`vr_flat_bob_fwd 0`) and feel (pinned to turn lag 1 cap 4: its bounds, 4.5 degrees, are sized for that).
+flatsweep_known.txt: four rows pass now and are out (jump_gun low/open/wall long crouch hip, jump_hand0 wall/long/crouch/hip).
+
+**Real failures with his values (limits kept):** flatsweep 24 new rows, all `ads` but two hipfire long-gun forearm rows
+(fore_torso 9, gun_torso 6, hand_head 5, hand_torso 4; worst: gun_torso open/long/stand/ads 3.44 at pitch -85 limit 0.5,
+fore_torso open/pistol/stand/ads 3.53 at 15 limit 1.0, hand_torso open/pistol/stand/ads 2.53 at 85, hand_head long ads
+0.77 at -25 limit 0.5): Eye Relief 4 puts the sighted gun and hands against the head and chest. flatsight d: "the wall:
+the weapon goes back" (0.68 units, needs 2): at relief 4 the sighted gun has 1 unit left before the 3-unit minimum.
+flatwalk's one failure (wrist off its rest 0.596 > 0.5) fails on origin/next too.
+
+**To try (flat screen):** the ironsight close to the eye (relief 4, 45 degrees of zoom), the hands' bob and forward bob on
+a walk, the turn's lag (is 5 too much?); die with Death View Immersive: the view tumbles with the head; Vomit Mode on
+Death off: the smoothed view again.
 ## Armour Studio: an ImGui window (branch `agent/armourimgui`)
 
 His words: "Can you also add a floating ImGui armour studio window that I can open close like for the weaponstudio so that I

@@ -219,10 +219,10 @@ CtrlBind ctrlBind;
 
 // The turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed): the drawn hands keep their direction as the view turns and a
 // critically damped spring (this stiff, rad/s) brings them back; this much of what it leaves shown, never more than
-// vr_flat_turnlag_cap (4, softly). A turn of 180 degrees a second leaves them ~2 degrees behind, back within a quarter second.
+// vr_flat_turnlag_cap (10, softly). A turn of 180 degrees a second leaves them ~2 degrees behind, back within a quarter second.
 constexpr float lagStiffness = 18.f;
 constexpr float lagShown = 0.12f;
-constexpr float lagAmountMax = 3.f; // vr_flat_turnlag's range, either way
+constexpr float lagAmountMax = 10.f; // vr_flat_turnlag's range, either way
 constexpr float lagCapMax = 30.f;   // vr_flat_turnlag_cap's (degrees)
 constexpr double portalNoKickTime = 0.05; // s: a tick and a little: the velocity the client lerps across a gate
 constexpr float wallDropFull = 45.f; // drawnOffset: a sighted gun tilted this far at a wall is all of vr_flat_wall_tilt_drop down (degrees)

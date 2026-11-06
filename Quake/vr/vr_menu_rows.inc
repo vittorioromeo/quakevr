@@ -5959,6 +5959,10 @@ QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
 QVR_SLIDER(vr_flat_pitch_down, "Look Down Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far down the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_down). A headset is not limited by this.")
+QVR_TOGGLE(vr_flat_death_vomit, "Vomit Mode on Death",
+    "Playing on the desktop screen (-flatscreenmode) with Death View on Immersive: when you die, the view is your "
+    "ragdoll's eyes, turned exactly as its head tumbles (Vomit Mode), whatever the Vomit Mode setting is. Your own "
+    "setting is kept for the headset. Off: the Vomit Mode setting decides (vr_flat_death_vomit).")
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",

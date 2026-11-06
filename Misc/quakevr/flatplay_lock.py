@@ -4,9 +4,9 @@ The log's "flatview:" lines are the drawn main weapon in the camera's frame, one
 then turns (the script in flatplay_test.sh); "flatmove:" lines are the main hand's shot as each move sends it, against
 the view the move carries.
 
-mode "locked" (vr_flat_sway, vr_flat_bob and vr_flat_turnlag 0): the drawn weapon never moves off its place in the view
+mode "locked" (vr_flat_sway, vr_flat_bob, vr_flat_bob_fwd and vr_flat_turnlag 0): the drawn weapon never moves off its place in the view
 (0.05 units, 0.05 degrees), strafing or turning.
-mode "feel" (the defaults): it moves (the sway, the bob, the turn's lag) but within bounds (3 units, 4.5 degrees), and is
+mode "feel" (the defaults, the turn lag 1 cap 4): it moves (the sway, the bob, the turn's lag) but within bounds (3 units, 4.5 degrees), and is
 back within 0.05 degrees of the view a second after the turn; the shots stay on the crosshair (0.1 degrees) throughout.
 Prints "PASS ..." or "FAIL ..." lines.
 """

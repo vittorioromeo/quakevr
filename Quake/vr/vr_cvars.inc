@@ -3936,7 +3936,8 @@ QVR_CVAR(vr_flat_wall_block_fire, "1", CVAR_ARCHIVE)    // flatscreen play: 1 a 
 QVR_CVAR(vr_flat_aim_mode, "0", CVAR_ARCHIVE)           // the right mouse button's ironsight (one weapon held, either hand: vr_flatsight.cpp): 0 held while the button is held, 1 a press turns it on and the next off
 QVR_CVAR(vr_flat_key_swap, "q", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("q", "x", ...; "" none); read from the keyboard's state like E, F and G
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
-QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)                // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
+QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
+QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
