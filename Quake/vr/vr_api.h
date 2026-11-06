@@ -591,7 +591,7 @@ float VR_FlatPitchClamp (float pitch);					// CL_AccumulateCmd, once the frame's
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
-int VR_ImGuiEvent (const void *sdlEvent);				// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it)
+int VR_ImGuiEvent (const void *sdlEvent, int quakeKey);	// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it). quakeKey: a key event's game key (-1 none): one bound to a tool's toggle (vr_armourstudio_window) is the game's too
 int VR_ImGuiTextMode (void);							// Key_TextEntry in the game: -1 no tool's ImGui; else a textmode_t (SDL's text input on while a tool is open: ImGui's fields get typed chars)
 void VR_ImGuiRender (void);								// GL_EndRendering, before the swap: the flat-screen tools' ImGui windows drawn (vr_imgui.cpp)
 int VR_RigStudioView (float *origin, float *angles);	// V_CalcRefdef: the Rig Studio's camera over the view (nonzero: set; vr_rigstudio.cpp)
