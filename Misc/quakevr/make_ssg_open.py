@@ -210,10 +210,13 @@ def breech_pixel(rng, y, z):
     return steel(rng, BREECH, y, z)
 
 
-def build():
-    out_b = os.path.join(PROGS, "vr_ssg_barrels_on_v_shot2.mdl")
-    out_f = os.path.join(PROGS, "vr_ssg_frame_on_v_shot2.mdl")
-    guard = genguard.Guard("make_ssg_open.py", [out_b, out_f])
+def build(src=SRC, out_dir=PROGS, guarded=True):
+    """The two halves of `src`, written into out_dir. Since 2026-11 run by v_shot2.blend's export (source.py SPECS,
+    guarded=False: from the model it exports); run by hand, genguard skips the files the .blend owns."""
+    SRC = src  # noqa: N806
+    out_b = os.path.join(out_dir, "vr_ssg_barrels_on_v_shot2.mdl")
+    out_f = os.path.join(out_dir, "vr_ssg_frame_on_v_shot2.mdl")
+    guard = genguard.Guard("make_ssg_open.py", [out_b, out_f]) if guarded else None
     base = mp.Model(SRC)
     P, T, frame_sel, barrel_sel = classify(base)
     loop = rear_loop(P, T, barrel_sel)
@@ -272,7 +275,8 @@ def build():
     print("the breech face's middle (the load point): %.2f %.2f %.2f" % tuple(mid))
     for p in (out_f, out_b):
         print("%s: %d bytes" % (os.path.normpath(p), os.path.getsize(p)))
-    guard.finish()
+    if guard is not None:
+        guard.finish()
 
 
 if __name__ == "__main__":
