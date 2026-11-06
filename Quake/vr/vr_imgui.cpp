@@ -10,6 +10,7 @@
 #include <SDL.h>
 
 #include <stdio.h>
+#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -202,9 +203,37 @@ void shutdown()
 
 } // namespace qvr::imgui
 
+namespace
+{
+// The commands a key bound to still runs while a tool holds the keys (its toggle: the same key opens and closes it).
+constexpr const char* toolToggles[] = {"vr_armourstudio_window"};
+
+[[nodiscard]] bool bindsToolToggle(const int quakeKey)
+{
+    const char* b = quakeKey >= 0 && quakeKey < MAX_KEYS ? keybindings[quakeKey] : nullptr;
+    if(!b)
+    {
+        return false;
+    }
+    while(*b == ' ' || *b == '"')
+    {
+        b++;
+    }
+    for(const char* t : toolToggles)
+    {
+        const size_t n = strlen(t);
+        if(!strncmp(b, t, n) && (b[n] == '\0' || b[n] == ' ' || b[n] == ';' || b[n] == '"'))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
 // in_sdl.c's IN_SendKeyEvents, each event first: nonzero when ImGui takes it (a tool is open in the game: the game's
-// own handling skips it). Zero cost while no tool is open (one flag).
-extern "C" int VR_ImGuiEvent(const void* event)
+// own handling skips it). Zero cost while no tool is open (one flag). `quakeKey`: a key event's game key (-1 none).
+extern "C" int VR_ImGuiEvent(const void* event, const int quakeKey)
 {
     if(!im.want || !im.ready)
     {
@@ -232,6 +261,12 @@ extern "C" int VR_ImGuiEvent(const void* event)
     if(!input)
     {
         return 0; // (window events: the engine's too)
+    }
+    // A key bound to a tool's toggle runs its binding too (the same key closes the window it opened), unless ImGui
+    // types into a field.
+    if((ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) && !ImGui::GetIO().WantTextInput && bindsToolToggle(quakeKey))
+    {
+        return 0;
     }
     // The console's key still opens the console (unless ImGui types into a field).
     if((ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) && ev->key.keysym.scancode == SDL_SCANCODE_GRAVE &&

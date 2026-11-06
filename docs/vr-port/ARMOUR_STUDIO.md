@@ -20,6 +20,32 @@ Debug > Tools > Armour Studio (VR Settings menu: the headset's laser or the flat
 5. **Undo** (a slider's run of steps on one value is one step), **Reset Part**, **Reset Kind**, **Save** (writes armour.txt),
    **Reload the File**, **Print the Tweaks**, **Close** (the subject removed, the armed humanoids move again).
 
+## The ImGui window (flat screen)
+
+The same studio in a floating window over play, so it can be tweaked without opening and closing the Quake menu:
+**`vr_armourstudio_window`** toggles it (`open`, `close`, `test` as arguments; `vr_armourstudio_window_close` too), and the
+page's first row, Open the ImGui Window, opens it. It ships no key: `bind F7 vr_armourstudio_window` (any key) gives it one,
+and that key closes it again while the window is open (a key bound to `vr_armourstudio_window` still reaches its binding
+while the window holds the keys, unless a value box is being typed in). Escape or the window's X closes it too; closing it
+leaves the studio running (Stop removes the subject). It can be moved, resized and collapsed; it opens where it was left.
+
+- Its rows are the page's: Start / Stop the subject, Undo, Reset Part, Reset Kind, Save, Reload the File, Print the Tweaks at
+  the top; Kind, Tier, Turn, Body Ghost, Wear the Part Alone; Part and Side; every value as a slider (Ctrl+click types into
+  it) and a typed box with - / + steps (Ctrl+click the steps for ten times as much).
+- **The file's values**: for the part picked, the table's values (the file as read, with edits not saved yet: the status line
+  says whether it is saved): the both-sides values and, for a limb, each side's own and what each side uses (`own` wins over
+  `both`, the right's mirrored; `generator` where nothing is set).
+- It drives the same `vr_armourstudio_*` cvars and runs the same commands as the menu page (no second copy of the studio): a
+  change in one shows in the other at once.
+- Input is the Weapon Studio's: while it is open the mouse and keys go to the window (the cursor shown, the game's mouse look
+  and keys held back; the console key still opens the console); closing gives the mouse back.
+- Flat screen only: in a headset it does not open (the menu page is the headset's). It does not open while the Rig Studio, the
+  wave editor or the Weapon Studio is open, and closes when one of them opens.
+- Test: `vr_armourstudio_window test` (Debug > Tests: Armour Studio: ImGui Window Test), with `-flatscreenmode` in a map:
+  opens it, clicks Start, the grunt bracer's Forward `+`, Save, Reset Part, Reload the File with a mock mouse, writes a value
+  the menu's way and sees it on the window, clicks Stop, presses Escape: `armourwin: 17 passed, 0 failed` (writes
+  `quakevr/data/armour_wintest.txt`, never armour.txt). In a headset it checks the window refuses: `armourwin: 1 passed`.
+
 ## The values
 
 | Slider | File key | What it does |

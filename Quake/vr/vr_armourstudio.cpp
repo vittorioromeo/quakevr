@@ -558,6 +558,12 @@ void init()
     Cmd_AddCommand("vr_armourstudio_reset_kind", resetKind_f);
     Cmd_AddCommand("vr_armour_test", test_f);
     st.savedGen = st.ownGen = generation();
+    windowInit();
+}
+
+bool running()
+{
+    return st.running;
 }
 
 void frame()

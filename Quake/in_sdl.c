@@ -1633,7 +1633,7 @@ void IN_SendKeyEvents (void)
 
 	while (SDL_PollEvent(&event))
 	{
-		if (VR_ImGuiEvent (&event)) // QVR: a flat-screen tool's ImGui took it (the Rig Studio: vr/vr_imgui.cpp)
+		if (VR_ImGuiEvent (&event, (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) ? IN_SDL2_ScancodeToQuakeKey (event.key.keysym.scancode) : -1)) // QVR: a flat-screen tool's ImGui took it (the Rig Studio: vr/vr_imgui.cpp); the key, so a key bound to a tool's toggle still reaches its binding
 			continue;
 		switch (event.type)
 		{

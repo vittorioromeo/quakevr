@@ -2053,3 +2053,21 @@ hand's height, then the biggest step against what the ease allows (`flatcrouch: 
 **To try (flat screen):** tap and hold Left Ctrl: the view, arms and gun should sink and rise over a quarter second with
 soft ends; Crouch Time and Crouch Ease (Debug > Tunables) change it; Gun Down Crouched / Gun Forward Crouched move the gun
 while crouched only. The low-ceiling cases (vrteleporters' crouch room) should still hold him down.
+
+## Armour Studio: an ImGui window (branch `agent/armourimgui`)
+
+His words: "Can you also add a floating ImGui armour studio window that I can open close like for the weaponstudio so that I
+can tweak things easily in flatscreen without opening/closing the quake menu? You can keep the current menu as is too."
+
+- `Quake/vr/vr_armourstudio_window.cpp`: `vr_armourstudio_window [open|close|toggle|test]` (no argument: toggle) and
+  `vr_armourstudio_window_close`; Debug > Tools > Armour Studio's first row opens it. Every row writes the page's own
+  `vr_armourstudio_*` cvar or runs its command, so the studio's frame does the rest (undo, subject, table): the menu and the
+  window always agree. Layout, input, the file's-values table: `ARMOUR_STUDIO.md`, "The ImGui window".
+- The Weapon Studio has no key binding (console only), so this ships none either; `bind <key> vr_armourstudio_window` makes
+  one, and `vr_imgui.cpp` now lets a key bound to `vr_armourstudio_window` reach its binding while ImGui holds the keys
+  (`VR_ImGuiEvent` takes the game key from `in_sdl.c`), so the same key closes it.
+- Test: `vr_armourstudio_window test` with `-flatscreenmode` (`map vrtesthall`, `-QuitOn "^armourwin: [0-9]+ passed"`):
+  `armourwin: 17 passed, 0 failed`; in the mock headset `armourwin: 1 passed, 0 failed` (it refuses to open).
+
+**To try (flat screen):** `bind F7 vr_armourstudio_window`, F7 in a map: Start, pick a part, drag and type values, Save;
+open the menu page and see the same values; F7 again closes it and mouse look comes back.
