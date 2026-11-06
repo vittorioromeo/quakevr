@@ -320,12 +320,8 @@ void(float side)    Demon_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
-    if(!CanDamage(self.enemy, self))
-        return;
+    if(!VR_MeleeBlow_Near(100, FALSE, TRUE))
+        return; // QVR: (reach, melee arc, CanDamage: fight.qc VR_MeleeBlow)
 
     sound(self, CHAN_WEAPON, "demon/dhit2.wav", 1, ATTN_NORM);
     ldmg = 10 + 5*random();
@@ -348,6 +344,7 @@ void()    Demon_JumpTouch =
         if(vlen(self.velocity) > 400)
         {
             ldmg = 40 + 10*random();
+            VR_MeleeBlow_Leap(); // QVR: (printed: vr_enemy_melee_arc_debug)
             T_Damage(other, self, self, ldmg);
             if(VR_Leap_BlowEnded())
             {

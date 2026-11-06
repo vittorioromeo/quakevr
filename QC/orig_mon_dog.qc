@@ -51,10 +51,8 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(100, FALSE, FALSE))
+        return; // QVR: (reach, melee arc: fight.qc VR_MeleeBlow)
 
     ldmg = (random() + random() + random()) * 8;
     T_Damage(self.enemy, self, self, ldmg);
@@ -72,6 +70,7 @@ void()    Dog_JumpTouch =
         if(vlen(self.velocity) > 300)
         {
             ldmg = 10 + 10*random();
+            VR_MeleeBlow_Leap(); // QVR: (printed: vr_enemy_melee_arc_debug)
             T_Damage(other, self, self, ldmg);
             if(VR_Leap_BlowEnded())
             {

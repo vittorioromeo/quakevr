@@ -495,8 +495,11 @@ constexpr float stanceFadeTo = 55.f;
         // some of it a crouch, whose trunk leans into the gun.)
         const float away = bodyPose() ? za::clamp((glm::abs(pitch) - stanceFadeFrom) / (stanceFadeTo - stanceFadeFrom), 0.f, 1.f) : 0.f;
         const float crouched = bodyPose() ? keyState.ratio * za::clamp(vr_flat_stance_fade_crouch.value, 0.f, 1.f) : 0.f;
-        const float stance = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceShare(h)) * (1.f - crouched) *
-                             (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
+        const float fade = (1.f - crouched) * (1.f - za::clamp(vr_flat_stance_fade.value, 0.f, 1.f) * away * away * (3.f - 2.f * away));
+        const float stance = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceShare(h)) * fade;
+        // (A gun whose grip the free hand takes for real gets the stance's height, not its way back or in: the same height on the
+        // screen as the others. Pulled back, the free hand's punch missed: FLATPLAY.md, "The stance".)
+        const float lift = (stanceAsked >= 0.f ? stanceAsked : flatsight::stanceLift(h)) * fade;
         // (Crouched, the gun goes out at its side, its stock off the chest the crouch leans forward.)
         const float crouchOut = bodyPose() ? keyState.ratio * za::clamp(vr_flat_crouch_gun_out.value, -poseTweakMax, poseTweakMax) : 0.f;
         // (A pistol's stance: both hands in front of him, its own numbers. A long gun's: towards the shoulder pocket.)
@@ -505,7 +508,7 @@ constexpr float stanceFadeTo = 55.f;
         const float in = poseNum(pistol ? vr_flat_pistol_in : vr_flat_stance_in);
         const float upBy = poseNum(pistol ? vr_flat_pistol_up : vr_flat_stance_up);
         return {(poseNum(vr_flat_gun_ahead) - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
-            -(poseNum(vr_flat_gun_down) - stance * upBy) * reach};
+            -(poseNum(vr_flat_gun_down) - lift * upBy) * reach};
     }
     if(otherHolds)
     {

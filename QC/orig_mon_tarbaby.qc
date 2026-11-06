@@ -97,6 +97,7 @@ void()    Tar_JumpTouch =
         if(vlen(self.velocity) > 400)
         {
             ldmg = 10 + 10*random();
+            VR_MeleeBlow_Leap(); // QVR: (printed: vr_enemy_melee_arc_debug)
             T_Damage(other, self, self, ldmg);
             if(VR_Leap_BlowEnded())
             {

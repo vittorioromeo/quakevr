@@ -360,6 +360,7 @@ unsigned char* VR_CleanSkin(const char* name, unsigned char* data, int width, in
 // The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
 unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
 unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's depth/stencil format (the eyes' float one: vr_depth_float; flatscreen play's too)
+int VR_FlatBulletTimeLook (void);	// flatscreen play, bullet time's look on the window: the post-process pass is needed (vr_tonemap.cpp)
 float VR_FlatNearPlane (void);	// flatscreen play's near plane, on the window's targets with float depth (vr_stereo.cpp); 0: the desktop's is kept
 int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
 float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
