@@ -7,6 +7,7 @@
 #include "vr_foegrab.hpp"
 #include "vr_touch.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gadgetlock.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
@@ -878,6 +879,23 @@ void viewFrame(const hands::State& s)
         touch::takesGadgetScreen())
     {
         state.tapPeak = 0.f;
+        return;
+    }
+    // Both hands on one thing (vr_gadgetlock.hpp): no tap, a double tap's first dropped, and the hand must lift off the
+    // screen before the next tap after it.
+    if(gadgetlock::locked())
+    {
+        if(vr_debug_bullettime.value && state.firstTapAt >= 0.0)
+        {
+            Con_Printf("bullet time: a double tap's first dropped (gadget lock)\n");
+        }
+        if(vr_debug_bullettime.value && state.tapPeak > 0.f)
+        {
+            Con_Printf("bullet time: a tap at %.2f m/s ignored (gadget lock)\n", state.tapPeak);
+        }
+        state.tapPeak = 0.f;
+        state.firstTapAt = -1.0;
+        state.tapLifted = false;
         return;
     }
     tapScreen(s, 1 - hands::gadgetHand(), z);

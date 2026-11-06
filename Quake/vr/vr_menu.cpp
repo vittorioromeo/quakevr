@@ -665,6 +665,8 @@ void hologramTestMessage()
         row(opt::vr_dead_hide_gear),
         row(opt::vr_gadget_stamina),
         row(opt::vr_gadget_light).developer(),
+        row(opt::vr_gadget_lock_twohand),
+        row(opt::vr_gadget_lock_grace).developer(),
         header("Gear Lights: the Gadget's Side Button"),
         row(opt::vr_gear_lights),
         row(opt::vr_gear_lights_dim).developer(),
