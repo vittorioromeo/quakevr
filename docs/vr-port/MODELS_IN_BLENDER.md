@@ -10,7 +10,7 @@ without a restart:
 | The wrist gadget | `vrgadget.mdl` (the casing) and `vrgadget_strap.mdl` (a strap) |
 | The flashlight, the holster, the pauldrons, the spent shell, the ammo button... | every other `.mdl`: see [the table](#the-flashlight-and-the-other-models) |
 
-The hand has its own add-on and guide: [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md).
+The hand's guide: [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md) (the same add-on). The workflow in short: [BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md).
 
 The rules, in short:
 
@@ -24,32 +24,24 @@ The rules, in short:
 
 ## 1. Install the add-on (once)
 
-The add-on is `Misc/quakevr/blender/addons/quakevr_models`, next to the hand's. It is written for Blender 5.2.
-
-If you installed the hand's add-on with a script directory, you already have this one: in **Edit > Preferences >
-Add-ons**, search for **Quake VR Models** and tick it. Restart Blender first if it isn't listed (Blender reads a
-script directory's contents at startup).
-
-Otherwise:
-
-1. **Edit > Preferences > File Paths > Script Directories > Add**: choose the repository's `Misc/quakevr/blender`
-   folder, name it `quakevr`.
-2. Save the preferences (unless Auto-Save Preferences is on), then **close and reopen Blender**.
-3. **Edit > Preferences > Add-ons**: search for **Quake VR Models** and tick it.
+The add-on is **Quake VR**, `Misc/quakevr/blender/addons/quakevr_models` (Blender 5.2): one add-on for every model,
+the hand's tools included (until 2026-11 the hand had its own). Install it and use it as
+[BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md) says: a script directory on `Misc/quakevr/blender`, restart, tick
+**Quake VR**. With the script directory, Blender loads it from the repository itself (after a pull: restart Blender, or
+**F3 > Reload Scripts**). (Your Blender 5.2 is set up this way: the script directory
+`C:\OHWorkspace\quakevr-iw\Misc\quakevr\blender\`; the old hand entry goes away by itself.)
 
 Or install it as a zip: zip the `quakevr_models` folder (the zip must contain the folder), then **Preferences >
 Add-ons**, the menu at the top right > **Install from Disk...**. Reinstall it when the add-on changes.
 
-With the script directory, Blender loads the add-ons from the repository itself: they are always the checkout's
-(after a pull, restart Blender, or **F3 > Reload Scripts**). Nothing is copied. (Your Blender 5.2 is set up this way:
-the script directory `C:\OHWorkspace\quakevr-iw\Misc\quakevr\blender\`, both add-ons ticked.)
+The buttons are in the 3D view's sidebar (press N) in the **Quake VR** tab: one panel that says what the open .blend is
+and shows its tools, with the imports at its foot. The imports and exports are also in **File > Import** and
+**File > Export**.
 
-The buttons are in the 3D view's sidebar (press N) in the **Quake VR** tab, under **Quake VR Models**. The imports and
-exports are also in **File > Import** and **File > Export**.
-
-The panel's top box is **Export on Save** (on by default; also in the add-on's preferences): saving a weapon's source
-.blend exports it to the game ([section 9](#9-a-weapons-source-blend-the-shotgun-so-far)). **Game Folder** (in the
-box and in the preferences): where it writes; empty, the repository's `quakevr/progs` (the folder you play from).
+The panel's top box is **Export on Save** (on by default; also in the add-on's preferences): saving a model's source
+.blend, or a .blend holding the jointed hand or the body, exports it to the game ([section 9](#9-a-weapons-source-blend-every-weapon)).
+**Game Folder** (in the box and in the preferences): where it writes; empty, the repository's `quakevr/progs` (the
+folder you play from). **Show in Game** asks the running game to draw the model in front of you.
 
 ## 2. The weapons and the wrist gadget
 

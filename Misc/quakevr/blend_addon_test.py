@@ -48,6 +48,23 @@ def main(t, kind, work):
     Q.import_for_edit(shipped)
     k, ob, label = Q.detect(bpy.context)
     t.check(k == kind, "detected: %s (%s)" % (k, label))
+    drawn = []
+
+    class Layout:  # (no window: the panel drawn into a stand-in that records the buttons)
+        def __getattr__(self, name):
+            def call(*a, **kw):
+                if name == "operator":
+                    drawn.append(a[0])
+                return Layout()
+            return call
+    try:
+        Q.QVR_PT_quakevr.draw(type("P", (), {"layout": Layout()})(), bpy.context)
+        err = None
+    except Exception as e:  # noqa: BLE001
+        err = e
+    want = "export_scene.quakevr_hand" if kind == "hand" else "export_scene.quakevr_body"
+    t.check(err is None and want in drawn and "quakevr_models.show_in_game" in drawn,
+            "the panel draws the %s's tools and Show in Game (%s)" % (kind, err or ", ".join(drawn)))
     p = prefs.addons["quakevr_models"].preferences
     p.progs_dir = out
     blend = os.path.join(work, name + ".blend")
