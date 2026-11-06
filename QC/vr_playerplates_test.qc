@@ -536,6 +536,29 @@ void(entity p) VR_PPT_Look =
                 }
             }
         }
+        else if(vr_ppt_on == 15)
+        {
+            // (his angles, 2026-11-06, yellow: the grunt, the death knight, the knight, the enforcer from the front and the back
+            // (0-7); the grunt's hands and feet close to (8); his wrists (9); a grunt's corpse's legs from above (10, 11))
+            VR_PPT_Set(p, 0, 0);
+            float kind = k < 8 ? floor(k / 2) : k == 9 ? 3 : 0;
+            if(k == 8 || k == 9) { localcmd("vr_mock_camera 0.1 0.7 -1.85 8 0\n"); }
+            else if(k >= 10) { localcmd(k == 10 ? "vr_mock_camera 0 1.1 -1.3 30 0\n" : "vr_mock_camera 0 1.5 -1.0 45 0\n"); }
+            else { localcmd(kind == 3 ? "vr_mock_camera 0 1.3 -1.2 8 0\n" : "vr_mock_camera 0 0.95 -1.45 0 0\n"); }
+            vr_ppt_g0 = VR_PPT_LookWearer(p, kind, 2, 0, 100);
+            if(k % 2 && k < 8)
+            {
+                vr_ppt_g0.angles_y = vr_ppt_g0.angles_y + 180;
+                vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
+            }
+            if(k >= 10)
+            {
+                // (killed where it stands: its corpse keeps its plates)
+                vr_ppt_g0.health = 1;
+                T_Damage(vr_ppt_g0, p, p, 20);
+                vr_ppt_g0 = world;
+            }
+        }
         else if(k < 8)
         {
             // (each kind, facing you, then turned away)
@@ -556,7 +579,7 @@ void(entity p) VR_PPT_Look =
         vr_ppt_at0 = vr_ppt_g0.origin;
         vr_ppt_at1 = vr_ppt_g1.origin;
         vr_ppt_at2 = vr_ppt_g2.origin;
-        VR_PPT_To(1, rint(1.3 * 72));
+        VR_PPT_To(1, rint(((vr_ppt_on == 15 && k >= 10) ? 3.5 : 1.3) * 72)); // (a corpse settled)
     }
     else if(vr_ppt_s == 1)
     {
@@ -670,7 +693,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14 || ask == 15)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -689,7 +712,7 @@ void() VR_PP_TestFrame =
     {
         VR_PPT_Live(p);
     }
-    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13)
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13 || vr_ppt_on == 15)
     {
         VR_PPT_Look(p);
     }

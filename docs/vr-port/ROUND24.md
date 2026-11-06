@@ -106,6 +106,58 @@ next part come out of it oddly; your own plates good, but the elbows' and knees'
     1.5 units into the body pass `vr_agarmor_check` (20/0) and `vr_agarmor_pop_check` (10/0) but fail the look check on every
     wearer (24 failures): the look check is what guards the sleeves.
 
+## Armour round five: his annotated screenshots (branch `agent/armor5`, partial)
+
+His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fillRadii`, `mirrorRadii`, `sleeveOf`, `buildShell`), humanoids only
+(the player's plates unchanged: `PieceFrame::ends` is false on the skeletal bodies).
+
+- **Hands and feet bare:** the humanoids' hand and foot skin weighs on the forearm and the shin far past the wrist and ankle (grunt shin region
+  to 14.0 on an 8.7 bone, forearm to 9.8 on 7.0), so plates covered the hands and wrapped the feet below the sole. Now a forearm's rows end
+  `plateWristAbove` 0.9 short of its bone's end, a shin's `plateAnkleAbove` 0.6; the limb's own vertices more than 0.3 past its rows no longer
+  push its end rows out (the joint end of an upper arm or thigh 1.0). The look check's coverage skips skin past a forearm's or shin's last
+  row (+0.2).
+- **Slimmer:** `plateRidgeLimb` 0.5 on forearms and shins, `plateRidgeThigh` 0.8 (was 1.1; pauldrons and cuirass keep 1.1). A thigh's rows
+  start by `plateHipFrom` 0.12 of its bone at the latest; its rings above its region (an enforcer's and a death knight's thighs weigh on
+  it only near the knee) take the whole skin's exit (`bodyExit`) instead of the next ring's radius. Death knight thigh rows 3.2..5.9 -> 0.9..5.9.
+- **Shoulders symmetric:** `mirrorRadii` modes: the player's as before; a humanoid's upper arms always mirrored, half way where they differ
+  (death knight top ring 4.6 / 1.6 -> 3.1 both); a humanoid's other limbs corner by corner (alike: the larger; else each its own; mirroring
+  everything half way sank a knight's and an enforcer's forearm plates into the skin: coverage 0.47 / 0.67).
+- **Sleeves:** `sleevePast` 0.8 -> 0.3 (the two halves overlapped); a humanoid's rings eased round (each corner half itself, a quarter each
+  neighbour, within 0.85..1.25 of the ring's mean, never more than 0.3 in), its per-vertex push `sleeveRidgeHumanoid` 1.6 (the slimmer end
+  rows no longer cover the knee's and elbow's points: the sleeve does).
+- **Numbers:** world mirror distance (left's outer face against the right's mirrored about y 0, `vr_agarmor_info <model>`), before -> after:
+  grunt upper arms 2.02/1.85 -> 1.75/1.62; death knight 2.60/2.50 -> 2.61/2.66 (rest poses differ; the radii now equal). Grunt bulk
+  (`vr_agarmor_pop_check progs/vrgrunt.mdl`, faces off skin, mean): torso 1.33 (1.33), upper arm 1.99 (1.89), forearm 0.89 (0.88), thigh
+  2.72 (2.94), shin 1.29 (1.43). Triangles: grunt 2 920 -> 2 632 (no timing: fewer).
+- **Tried and dropped:** a higher reach over a humanoid's shoulder (1.8-2.2, for the knight's red pad): it flared the enforcer's pauldrons
+  into shells, the pad still showed. A ring's corners clamped to 1.35-1.6 of its median: cost the enforcer's forearm coverage. A limb's ring
+  middle from its own rows' skin alone: the grunt's coverage bent fell to 12%.
+- **Second pass (look check 111/3 -> 114/0, limits unchanged):**
+  - Grunt thigh coverage 75% -> 88%: a humanoid's sleeve's rounding eased corners in by up to `sleeveRoundIn` and bared the knee's point
+    the ridge pass had covered; the ridge pass (`sleeveOf`'s `ridgeOut`) now runs again after the rounding.
+  - Enforcer bracer_r 8.37 over: two causes. The hand's vertices past the bone's end set the end ring's middle (the axis band now stops
+    at the bone's end), and half way down his forearm weighs on the upper arm and the hand too, so the region's own vertices were a
+    sliver and the plates sat 1 unit to one side (-4.8..3.0 over an arm -3.7..3.9). A humanoid's forearm's and shin's rings are now
+    centred on the whole skin's exits (as a sleeve's), a corner no region ray finds takes the whole skin's exit (`fillRadii`, as the
+    thigh's): plates -4.4..4.4. The width check measured that row against a 0.2-unit sliver of skin: where the region's slice is under
+    1 unit, it takes the skin weighing 0.3 on the piece (`lookFit`).
+  - The thigh's top rings the same where its region's slice is a sliver (an enforcer's thigh weighs on the hip only at its front: the
+    rings 3 units forward). Pop check bulk, thigh mean: enforcer 3.51 -> 2.28 (it failed the 3.2 limit after the first pass; 1.97 before
+    round five), grunt 2.72 -> 1.25.
+- **Death knight's face:** guards end higher (jaw 0.42 -> 0.48 of the head), front edges further apart (0.37/0.44 -> 0.40/0.48), his
+  collar row lower (`Wearer::yoke` 0.5, the others 1.2). Moving the guards' front edges back (0.54/0.42 -> 0.46/0.36) opened the helmet
+  (14 rim edges, `vr_agarmor_check` "each shell closed"): kept.
+- **Knight's shoulder pads:** a humanoid's two upper arms start as high as the higher (`PieceFrame::topAt`; his right weighs on its bone
+  only from 1.4 down, so it started 1.7 lower); the knight's pauldrons go out over the skin round them by 1.8 (`Wearer::shoulderRidge`,
+  plateRidge 1.1 elsewhere) and mirror the larger (`Mirror::ShouldersMost`; halving undid the pad side's push). His right pad's 8
+  vertices all under plates (a ray along each normal; one bare before). Upper arm bulk 2.28. The enforcer untouched (per kind).
+- **Death knight's shoulders:** both upper arms round one axis, the left's and the mirrored right's mean (`Wearer::shoulderAxis`: his
+  arms rest differently), plates from 5 up the bone at most (`shoulderTop`; 10.8 before, his shells' reach): mirror distance 2.61 -> 2.04.
+- **Open:** in the sheet, a sliver of the knight's red pad still shows at the top of each shoulder from front and back (the pad's
+  upper faces, at grazing angles). The death knight's top ring now cuts his shoulder shells at their widest (radii 6.7/7.0/7.4/4.3).
+- **Sheet:** `vr_pp_test 15` (vrtesthall, `god; notarget` first): each kind front and back, hands and feet close to, a corpse's legs
+  (`ppshot: done`). `scratch/r5_before.png` (origin/next), `scratch/r5_after.png` (low-impact shots: his game was running).
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
