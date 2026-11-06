@@ -68,6 +68,7 @@ float vr_drpt_b_n;       // ... how many lines its blow had
 float vr_drpt_keep_parry;
 float vr_drpt_keep_contact;
 float vr_drpt_keep_debug;
+float vr_drpt_drawn_forced; // (TRUE: the line cases set vr_mock_fast 1 from 2; VR_DRPT_End sets it back)
 float vr_drpt_keep_speed;
 float vr_drpt_hurt_at;   // when you were hurt (s into its swing; 0: not)
 float vr_drpt_swung;     // ... its swing's end as its think saw it (s)
@@ -234,6 +235,11 @@ void() VR_DRPT_End =
     cvar_set("vr_agrunt_parry", ftos(vr_drpt_keep_parry));
     localcmd(sprintf("tune vr_dirparry_contact %g\ntune vr_dirparry_through_monster 0\ntune vr_dirparry_through_armed 0\n", vr_drpt_keep_contact)); // (tunables: set by `tune`)
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
+    if(vr_drpt_drawn_forced)
+    {
+        cvar_set("vr_mock_fast", "2"); // (undrawn again, as the run started)
+        vr_drpt_drawn_forced = FALSE;
+    }
     cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
     cvar_set("vr_agknight", ftos(vr_drpt_keep_knight));
     cvar_set("vr_melee_bloodlust", ftos(vr_drpt_keep_lust));
@@ -767,6 +773,13 @@ void() VR_DRPT_Frame =
         setorigin(p, vr_drpt_home); // (where the reference swings found you: a blow's knockback undone)
         p.velocity = '0 0 0';
         cvar_set("vr_dirparry_debug", ((c == 9) || (c >= 13)) ? "1" : ftos(vr_drpt_keep_debug));
+        if(c >= 13 && cvar_hget(cvarh_vr_mock_fast) >= 2)
+        {
+            // QVR: the line cases measure the weapon as the renderer draws it (debugdirparryline): an undrawn run
+            // (vr_mock_fast 2, the regression's lanes) draws its frames from here on, still unpaced (same game clock).
+            cvar_set("vr_mock_fast", "1");
+            vr_drpt_drawn_forced = TRUE;
+        }
         cvar_set("vr_agknight", c == 15 ? "1" : ftos(vr_drpt_keep_knight));
         localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? ceil(vr_drpt_gap7) + 1 : vr_drpt_keep_contact));
         cvar_set("vr_agrunt_melee_speed", ((c == 11) || (c == 12)) ? "0.5" : ftos(vr_drpt_keep_speed));
