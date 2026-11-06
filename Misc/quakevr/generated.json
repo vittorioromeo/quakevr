@@ -647,6 +647,14 @@
   "by": "widowmaker.blend",
   "source": "Misc/quakevr/models_src/widowmaker/widowmaker.blend"
  },
+ "quakevr/progs/vr_adrifle_base.mdl": {
+  "by": "vr_adrifle_base.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_adrifle_base/vr_adrifle_base.blend"
+ },
+ "quakevr/progs/vr_adrifle_base.mdl_0_norm.png": {
+  "by": "vr_adrifle_base.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_adrifle_base/vr_adrifle_base.blend"
+ },
  "quakevr/progs/vr_barrel.mdl": {
   "by": "vr_barrel.blend",
   "source": "Misc/quakevr/src_models/blend/vr_barrel/vr_barrel.blend"

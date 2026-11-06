@@ -46,7 +46,8 @@ CORNER = (-29.9, -6.170675277709961, -4.599999904632568)  # the old model's scal
 FRAMES = ["frame%d" % i for i in range(1, 10)]               # QuakeC's $frame lines (vr_enemyguns.qc)
 SKIN_W, SKIN_H = 512, 512
 SLOT = 21
-VARIANT_SLOTS = (27, 28, 29, 30)                             # the AD rifles: slot 21's settings and anchors repeated
+# (The AD rifles, slots 27-30, are made from the OLD burst rifle, progs/vr_adrifle_base.mdl: never touched here.)
+VARIANT_SLOTS = ()
 WEAPON_SCALE = 0.39                                          # slot 21's Scale (the hotspots' frame: hotspot_value)
 
 BORE_Z = 8.08

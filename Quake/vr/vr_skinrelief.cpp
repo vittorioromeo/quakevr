@@ -39,7 +39,7 @@ constexpr float maxHeightUnits = 0.3f; // the heights' units a texel at most (ma
 constexpr int cacheVersion = 1;      // bump with any change that makes another map from the same skin (and cacheBuild)
 constexpr const char* cacheBuild = "5e1ef00000000001"; // the disk cache's build for these maps (vr_normalmap_cache)
 constexpr const char* rifleModel = "progs/v_gruntgun.mdl#adv"; // our burst rifle's variants (vr_adgunart.cpp)
-constexpr const char* rifleMap = "progs/v_gruntgun.mdl_0_norm"; // the rifle's baked map (bake_normals.py)
+constexpr const char* rifleMap = "progs/vr_adrifle_base.mdl_0_norm"; // the old rifle's baked map (their base)
 
 // The model being loaded's units per skin texel (VR_SkinReliefBegin), and each map's, for a reload (vid_restart).
 float pendingUnits;
