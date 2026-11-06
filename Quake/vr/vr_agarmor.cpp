@@ -990,13 +990,15 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
             }
         }
         at(g.axis, ring) = bl.x <= bh.x ? (bl + bh) * 0.5f : (lo + hi) * 0.5f;
-        // (a humanoid's forearm or shin: the ring round the whole skin's middle at that height, as a sleeve's: its region's own
-        // vertices there can be a sliver (an enforcer's forearm weighs on the upper arm and the hand half way down it), which put
-        // his right bracer's plates 1 unit to one side, sunk into the arm on the other)
-        for(int pass = 0; pass < 2 && bandEnd < 1e8f && f.body; pass++)
+        // (a humanoid's forearm, shin or thigh: the ring round the whole skin's middle at that height, as a sleeve's: its region's own
+        // vertices there can be a sliver (an enforcer's forearm weighs on the upper arm and the hand half way down it, his thigh on
+        // the hip only at its front), which put his right bracer's plates 1 unit to one side, sunk into the arm on the other, and his
+        // thighs' top rings 3 units forward, bulky)
+        // (a thigh's only where its region's slice is a sliver against the skin's: lower down its own skin is the leg)
+        for(int pass = 0; pass < 2 && f.ends && (forearm || shin || thigh) && f.body; pass++)
         {
             const glm::vec3 o = f.origin + f.up * g.hAt(ring) + f.fwd * at(g.axis, ring).x + f.left * at(g.axis, ring).y;
-            glm::vec2 mid{0.f};
+            glm::vec2 mid{0.f}, el{1e9f}, eh{-1e9f};
             int found = 0;
             for(int col = 0; col < g.cols * 2; col++)
             {
@@ -1006,11 +1008,19 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
                 W w;
                 if(bodyExit(*f.body, o, d, f.length, t, w))
                 {
-                    mid += glm::vec2{glm::dot(o + d * t - f.origin, f.fwd), glm::dot(o + d * t - f.origin, f.left)};
+                    const glm::vec2 e{glm::dot(o + d * t - f.origin, f.fwd), glm::dot(o + d * t - f.origin, f.left)};
+                    mid += e;
+                    el = glm::min(el, e);
+                    eh = glm::max(eh, e);
                     found++;
                 }
             }
-            at(g.axis, ring) = found >= g.cols * 2 ? mid / static_cast<float>(found) : at(g.axis, ring);
+            const bool sliver = bl.x > bh.x || bh.x - bl.x < (eh.x - el.x) * 0.7f || bh.y - bl.y < (eh.y - el.y) * 0.7f;
+            if(thigh && pass == 0 && !sliver)
+            {
+                break;
+            }
+            at(g.axis, ring) = found >= g.cols * (thigh ? 1 : 2) ? mid / static_cast<float>(found) : at(g.axis, ring);
         }
         // (the torso's middle on the body's centre line: its seam)
         at(g.axis, ring).y = torso ? 0.f : at(g.axis, ring).y;
@@ -1619,7 +1629,7 @@ void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, 
         }
     }
     // (and the points it covered still under it: easing a corner in by up to sleeveRoundIn bared a grunt's knee's point)
-    if(f.ends && developer.value < 2.f)
+    if(f.ends)
     {
         ridgeOut();
     }
