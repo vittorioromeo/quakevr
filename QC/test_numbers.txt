@@ -196,6 +196,8 @@ vr_agrunt_test   207      vr_armedknight_test.qc           (the census alone: on
 vr_agrunt_test   208      vr_armedknight_test.qc           (a save from before the replacement: none armed, the kill)
 vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both guns drawn: 30 dual nail pistol spawns (VR_AGTest_DualSpawns)
 vr_agrunt_test   211      vr_armedgrunt_second_test.qc     Pick Up a Second, smarter: idle near takes, far ignored, in a fight past the combat range ignored, very near taken (downtime), taken away: gives up
+vr_agrunt_test   212      vr_meleerules_test.qc            the shared melee rules: an armed sword's blow lands from ahead, a side-step dodges it; Show Melee Arcs shows each kind's rule (arc, leap, all round, shove)
+vr_agrunt_test   213      vr_meleerules_test.qc            the nearest monster's bite parried (AD's lost soul; your crowbar's guard held)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
 vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)
@@ -664,5 +666,6 @@ vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level 
 vr_flatmove_test 1        vr_flatmove_test.qc              flat-screen: his top level speed once settled (standing, crouched)
 vr_flatmove_test 2        vr_flatmove_test.qc              flat-screen: half a second of swimming: how far up or down, how far level
 vr_flatmove_test 3        vr_flatmove_test.qc              flat-screen: out of the water onto dry ground, and whether the water jump lifted him
+vr_flatmove_test 4        vr_flatmove_test.qc              flat-screen: his eyes' height under a ceiling once settled, the ceiling's, his box
 vr_flatmove_test 8        vr_flatmove_test.qc              flat-screen test aid: deep water near him (room to swim 128 up and down)
 vr_flatmove_test 9        vr_flatmove_test.qc              flat-screen test aid: the spots near him where the water jump lifts him out, with their yaw

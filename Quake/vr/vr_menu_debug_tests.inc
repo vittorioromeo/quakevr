@@ -551,6 +551,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pp_test 1 (no god): the pieces against the armour for each tier, hits from each side, a shard, new armour and "
                   "an upgrade through the morph, the damage the same on and off, the helmet from the eyes. Ends on \"pptest: N passed, M failed\". "
                   "vr_player_plates_info prints what's drawn."),
+        command("Your Armour Plates: Which Model", "vr_player_plates_model_check; vr_player_plates_model_check end")
+            .help("Whether your plates are drawn as your body's own armour model (\"<body>#armor\"), not another model "
+                  "(after a campaign switch they once were a gib or a door). Wear armour first. Prints \"ppmodel: ok|FAIL ...\"."),
         command("Your Armour Plates: Full", "vr_pp_test 5").help("Red armour at its most (vr_pp_test 5): every plate. See it in a mirror: a Body page's clone, or vr_mock_camera."),
         command("Your Armour Plates: Half", "vr_pp_test 6").help("Red armour at half (vr_pp_test 6): five pieces, restored in order or shed by a hit."),
         command("Your Armour Plates: Torso Only", "vr_pp_test 7").help("Red armour at 1 (vr_pp_test 7): the cuirass alone."),
@@ -709,8 +712,15 @@ za::Vector<Item> pageDebugTests()
             .help("Starts the closest-approach log above again."),
         row(opt::vr_enemy_melee_arc_debug),
         toggle("Show Melee Arcs", vr_enemy_melee_arc_show)
-            .help("Each melee monster after you draws its arc and reach on the floor: red with you inside, green outside "
-                  "(Combat > Enemy Melee > Show Melee Arcs)."),
+            .help("Each melee monster after you draws its blows' rule on the floor: its arc and reach (an armed one's from "
+                  "its weapon's length), a leap's range (it lands by touch), the dragon's tail all round, a shove's cone; "
+                  "red with you inside, green outside (Combat > Enemy Melee > Show Melee Arcs)."),
+        command("Melee Arcs Drawn", "vr_enemy_melee_arc_status")
+            .help("vr_enemy_melee_arc_status: how many of each rule Show Melee Arcs last drew (arc, leap, all round, "
+                  "shove), and each monster's arc, reach and whether you are inside."),
+        command("Test: Melee Rules (Side-step, Arcs)", "vr_agrunt_test 212")
+            .help("vr_agrunt_test 212 (vrtesthall): an armed sword's blow lands from ahead, a side-step out of its swing "
+                  "dodges it; Show Melee Arcs shows each kind's rule. One agtest: line each."),
         command("Melee Arc: Nearest Faces You", "vr_test_meleearc 1")
             .help("Sets the nearest monster 56 units away facing you, after you; 4 seconds later prints its hits on "
                   "you (your health is held at 1000 meanwhile). From 100 units (a knight's run swing): vr_test_meleearc 1001."),
@@ -1144,6 +1154,10 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_autopump_hold),
         row(opt::vr_weapon_kick_cancel),
         row(opt::vr_debug_weapon_frame),
+        row(opt::vr_model_watch),
+        command("Model Watch Status", "vr_model_watch_status")
+            .help("vr_model_watch_status: the model files watched for Read Models Again When Saved, the changes seen, "
+                  "the models read again and the time the watch took."),
         row(opt::vr_debug_draw_blend),
         command("Kick Cancel Test", "vr_kickcancel_test")
             .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "

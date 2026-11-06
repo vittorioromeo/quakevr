@@ -946,6 +946,13 @@ QVR_TUNABLE(vr_agrunt_second_combat_range, "72") // units: with a target in sigh
 QVR_TUNABLE(vr_agrunt_second_combat_time, "2") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
 QVR_TUNABLE(vr_agrunt_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
+QVR_TUNABLE(vr_enemy_melee_ag_reach, "16") // units: an armed humanoid's blow reaches its weapon's real reach (shoulder, arm, weapon length, your body's front) plus this (its lean and step in; never less than 62); the melee arc decides the rest (vr_armedgrunt.qc VR_AG_BlowBase)
+QVR_TUNABLE(vr_agrunt_melee_dmg_fist, "14") // an armed humanoid's punch's damage (before vr_agrunt_damage_scale; all its blows were 20: the six weapons' mean is 20)
+QVR_TUNABLE(vr_agrunt_melee_dmg_axe, "22") // ... its axe's, crowbar's, great axe's blow
+QVR_TUNABLE(vr_agrunt_melee_dmg_sword, "22") // ... its sword's (times vr_sword_damage_mult, as before)
+QVR_TUNABLE(vr_agrunt_melee_dmg_hammer, "26") // ... its hammer's (Mjolnir as a hammer)
+QVR_TUNABLE(vr_agrunt_melee_dmg_chainsaw, "18") // ... its chainsaw's swing
+QVR_TUNABLE(vr_agrunt_melee_dmg_gunbutt, "18") // ... a gun's butt
 QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the part it picked while that part stays reachable (then the best reachable one again: the chest first)
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
@@ -1165,6 +1172,7 @@ QVR_TUNABLE(vr_enemy_melee_arc_wide, "20") // Combat > Enemy Melee > Wide Swings
 QVR_TUNABLE(vr_enemy_melee_arc_size, "0.1") // Combat > Enemy Melee > Arc Growth with Size: share more Arc Angle per grunt width more of the monster's width (an ogre 40 units: 65 x 1.067 = 69 deg; a shambler 64: 76 deg); 0: the same for all (fight.qc VR_MeleeArc_Angle)
 QVR_TUNABLE(vr_enemy_melee_reach_size, "0.1") // Combat > Enemy Melee > Reach Growth with Size: share more reach (Quake's own: 60 a knight's sword, 100 an ogre's chainsaw) per grunt width more (an ogre: 107, a shambler 117); 0: Quake's for all (fight.qc VR_MeleeReach)
 QVR_TUNABLE(vr_enemy_melee_turn, "6") // Combat > Enemy Melee > Swing Turn: degrees a frame (10 a second) a monster turns after you while swinging (its own speed if lower; 0: its own speed)
+QVR_TUNABLE(vr_enemy_melee_kind_shove, "0.923") // Combat > Enemy Melee > Shove Cone: a shove's cone as a share of the melee arc (grunts, enforcers, vores; 0.923: its old 60 deg at the default 65 arc; fight.qc VR_MeleeArc_ShoveAngle)
 QVR_TUNABLE(vr_enemy_aim_angle, "20") // Combat > Enemy Melee > Aim Cone: degrees each side of its facing a shot may bend toward you (hitscan and fast shots; lobbed and slow ones times vr_enemy_aim_wide)
 QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degrees each side of its facing you must be inside for it to shoot at once (else it waits, turning; times the kind's multiplier too)
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
@@ -1856,12 +1864,13 @@ QVR_TUNABLE(vr_flat_model_fov_near, "18") // the model FOV in full up to this fa
 QVR_TUNABLE(vr_flat_model_fov_far, "35") // and none past this far (units): the knees (35), so the shins and feet (47) stay on the floor
 
 // Flatscreen > Ironsight
-QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
+QVR_TUNABLE(vr_flat_ads_relief, "14") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value), as it is at fov vr_flat_aim_fov_ref with no model fov: another fov or vr_flat_model_fov scales it so the sight picture keeps its size (flatsight::reliefScale). vr_flatsight.cpp solves the hand from the weapon's sight line
 QVR_TUNABLE(vr_flat_ads_wall_keep, "8") // the ironsight: a wall or the floor pushes the rear sight no nearer the eye than this (3..30 units); past it the gun's end enters the surface and is hidden there, and no gun looms
 QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
 QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_fov_ref, "95") // the fov vr_flat_aim_fov's degrees and vr_flat_ads_relief's units are counted at (60..130; 95: his; at fov 90 vr_flat_aim_fov 12/30/45 take 11.9/29.5/43.7 off)
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
@@ -1908,6 +1917,7 @@ QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed,
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
+QVR_TUNABLE(vr_flat_ads_recoil, "0.35") // aiming down the sights, a shot's drawn recoil (back, rise, turn) is kept at this share (0..1; 1: as hipfire)
 QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 

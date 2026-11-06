@@ -2,7 +2,7 @@
 # its weapons (v_*.mdl), its wrist gadget (vrgadget.mdl), the flashlight and every other model of quakevr/progs (.mdl)
 # with their frames, skins and UVs, keeping what the engine relies on (the body's joints; the models' anchors, header,
 # frames and vertex indices; checks.py: what the engine takes from the flashlight, the holster, the pauldrons, the
-# shell...), so they can be edited in Blender and reloaded in the game (vr_model_reload). The author's guide: docs/vr-port/MODELS_IN_BLENDER.md. The hand
+# shell...), so they can be edited in Blender and reloaded in the game (vr_model_reload; a source .blend exports on save: autoexport.py). The author's guide: docs/vr-port/MODELS_IN_BLENDER.md. The hand
 # has its own add-on (quakevr_hand).
 #
 # Blender 5.2. Install: Preferences > File Paths > Script Directories: add Misc/quakevr/blender, restart Blender,
@@ -11,7 +11,7 @@
 bl_info = {
     "name": "Quake VR Models",
     "author": "Quake VR",
-    "version": (1, 0, 0),
+    "version": (1, 1, 0),
     "blender": (5, 2, 0),
     "location": "File > Import/Export > Quake VR Body / Quake VR Model (.mdl); 3D View > Sidebar > Quake VR",
     "description": "Edit Quake VR's body, weapons, wrist gadget, flashlight and other models with their bones, "
@@ -25,6 +25,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
+from . import autoexport
 from . import body_blender as BB
 from . import checks
 from . import md5body
@@ -401,6 +402,7 @@ class QVR_PT_models(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        autoexport.draw_panel(layout)
         col = layout.column(align=True)
         col.label(text="Weapons, gadget, flashlight... (.mdl)")
         col.operator(QVR_OT_import_mdl.bl_idname, text="Import Model", icon='IMPORT')
@@ -431,14 +433,34 @@ def menu_export(self, context):
     self.layout.operator(QVR_OT_export_mdl.bl_idname, text="Quake VR Model: Weapon, Gadget (.mdl)")
 
 
-classes = (QVR_OT_import_mdl, QVR_OT_export_mdl, QVR_OT_carry_frames, QVR_OT_import_body, QVR_OT_export_body,
-           QVR_OT_apply_pose_body, QVR_OT_select_unweighted, QVR_OT_save_skin, QVR_OT_reload_skin,
-           QVR_OT_bake_normal_map, QVR_PT_models)
+class QVR_AP_models(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    export_on_save: BoolProperty(
+        name="Export on Save", default=True,
+        description="Saving a weapon's source .blend (Misc/quakevr/src_models/blend) exports it to the game, as "
+                    "blend_export.py does, in a background Blender: nothing is written if a check fails. The game "
+                    "reads the changed models again by itself (vr_model_watch)")
+    progs_dir: StringProperty(
+        name="Game Folder", subtype='DIR_PATH', default="",
+        description="Where the export on save writes the game's files. Empty: the repository's quakevr/progs (and "
+                    "its data/weapons.txt). Another folder: only the model files (weapons.txt left alone)")
+
+    def draw(self, context):
+        col = self.layout.column()
+        col.prop(self, "export_on_save")
+        col.prop(self, "progs_dir")
+
+
+classes = (QVR_AP_models, QVR_OT_import_mdl, QVR_OT_export_mdl, QVR_OT_carry_frames, QVR_OT_import_body,
+           QVR_OT_export_body, QVR_OT_apply_pose_body, QVR_OT_select_unweighted, QVR_OT_save_skin,
+           QVR_OT_reload_skin, QVR_OT_bake_normal_map, QVR_PT_models)
 
 
 def register():
     for c in classes:
         bpy.utils.register_class(c)
+    autoexport.register()
     bpy.types.TOPBAR_MT_file_import.append(menu_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_export)
 
@@ -446,5 +468,6 @@ def register():
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import)
+    autoexport.unregister()
     for c in reversed(classes):
         bpy.utils.unregister_class(c)

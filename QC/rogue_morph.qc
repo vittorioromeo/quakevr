@@ -130,7 +130,7 @@ void() morph_stab2 =
 
     if(dist <= VR_MeleeReach(90))
     {
-        if(!VR_MeleeArc_Hits(FALSE))
+        if(!VR_MeleeBlow(TRUE, FALSE, FALSE))
             return; // QVR: (melee arc: the stab misses beside or behind it; no lasers point-blank either)
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
         attackDamage = (random() * 10) + 20;
@@ -204,10 +204,8 @@ void() morph_smack =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > VR_MeleeReach(100))
-        return;
-    if(!VR_MeleeArc_Hits(FALSE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeBlow_Near(100, FALSE, FALSE))
+        return; // QVR: (reach, melee arc: fight.qc VR_MeleeBlow)
 
     ldmg = (random() * 10) + 10;
     T_Damage(self.enemy, self, self, ldmg);

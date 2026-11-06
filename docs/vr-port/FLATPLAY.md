@@ -156,12 +156,22 @@ the key, not his eyes: a flat-screen player's eyes stand at Quake's viewheight, 
 read as the headset's are they slowed him standing too (260 of 320, crouched 240: "crouch speed seems the same as standing
 speed"). `updateCrouch` keeps per client whether he is flat-screen and his key's word (`crouchFlat`, `crouchFlatHeld`), and
 the slowing's share eases to all or none of it over the headset's 0.25 s. `Misc/quakevr/flatmove_test.sh`, crouch. What the server asks is the move's own word, per client
-(`protocol::moveFlatCrouchBit`, bit 14 of `vrBits0`, set while his eased crouch is above 0), never the host's keys, and it
+(`protocol::moveFlatCrouchBit`, bit 14 of `vrBits0`, set while the key is held: `flatplay::crouchHeld`), never the host's keys, and it
 needs no protocol step: nothing else ever set that bit of the wire, a client that does not set it reads as not crouching by
 it, and a demo records the server's messages, not moves. Nothing is added to the move wire, and nothing new
 collides: a crouch is not a jump. `.vr_stand` â€” how upright the game thinks he is, read by `QC/vr_kdtrig.qc` â€” is worked out
 from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
 computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
+
+**Standing up under a low ceiling.** Letting go of the crouch is the headset's standing up: the server tries the standing
+box where he is, else the tallest crouched box that fits, else keeps his (`updateCrouch`), and the view rises only as far as
+that box: `pollKeysFlat` keeps the eased crouch no lower than leaves his eyes `flatEyeHeadroom` (8) under the box's top
+(`hull::localEyeCap`, the local server's box for its own player, as the lean's `playerBoxFits` asks it). In the 40-high
+tunnel he stays down (the 36 box, eyes at 28); in a 48-high gap he comes up to the 44 box, eyes at 36; walked out, the box
+stands and the view rises. Before, the eased crouch came back up whatever the box, and the view went into the ceiling
+(his note: "flatscreen crouch allows the player to uncrouch even when there is geometry above"). The key, not the eased
+crouch, is the move's bit now: with the view held down by a kept box, an eased bit would have held the box down for ever.
+While his box is kept crouched he is slowed as crouched. `Misc/quakevr/flatmove_test.sh`, rise.
 
 **Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
 looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge

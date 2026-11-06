@@ -153,13 +153,25 @@ float() VRMeleeDmgQuadMult =
 // what the hand holds: its own Melee Damage x times the weight's curve (VR_Weight_MeleeMult: Weapon Weights, Held Object
 // Weights; vr_weight_damage_*).
 
+// QVR: an armed humanoid's blow (ROUND24.md, "Melee rules"): its weapon's (vr_agrunt_melee_dmg_*: a fist's, an
+// axe's or crowbar's, a sword's, a hammer's, a chainsaw's, a gun's butt; their mean 20, the flat 20 before).
+float() VR_AG_WeaponBlowDmg =
+{
+    float w = self.weapon;
+    return cvar_hget(w == WID_FIST ? cvarh_vr_agrunt_melee_dmg_fist :
+                     (w == WID_AXE || w == WID_CROWBAR || w == WID_SUPERAXE) ? cvarh_vr_agrunt_melee_dmg_axe :
+                     w == WID_SWORD ? cvarh_vr_agrunt_melee_dmg_sword :
+                     w == WID_MJOLNIR ? cvarh_vr_agrunt_melee_dmg_hammer :
+                     w == WID_CHAINSAW ? cvarh_vr_agrunt_melee_dmg_chainsaw : cvarh_vr_agrunt_melee_dmg_gunbutt);
+};
+
 float(float xHand, float xBase) VRMeleeDmg =
 {
     // An incandescent blade's blow hits harder (vr_hotblade_damage more base damage: vr_hotblade.qc).
     xBase = xBase + VR_HotBlade_Extra(self, xHand);
     if(!VRHandsTracked(self) || !self.ishuman)
     {
-        return 20 + VR_HotBlade_Extra(self, xHand);
+        return (self.vr_ag ? VR_AG_WeaponBlowDmg() : 20) + VR_HotBlade_Extra(self, xHand);
     }
 
     // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).

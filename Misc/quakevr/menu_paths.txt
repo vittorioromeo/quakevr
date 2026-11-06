@@ -4861,6 +4861,7 @@ vr_debug_weaponfx|2|Debug - Tests|Print Weapon Effects|Advanced VR Options > Deb
 vr_autopump_hold|2|Debug - Tests|Hold the Auto Pump|Advanced VR Options > Debug > Tests > Hold the Auto Pump
 vr_weapon_kick_cancel|2|Debug - Tests|Take Out the Models' Own Kick|Advanced VR Options > Debug > Tests > Take Out the Models' Own Kick
 vr_debug_weapon_frame|2|Debug - Tests|Hold the Weapon Frame|Advanced VR Options > Debug > Tests > Hold the Weapon Frame
+vr_model_watch|2|Debug - Tests|Read Models Again When Saved|Advanced VR Options > Debug > Tests > Read Models Again When Saved
 vr_debug_draw_blend|2|Debug - Tests|Print the Weapon Blends|Advanced VR Options > Debug > Tests > Print the Weapon Blends
 |2|Debug - Tests|Kick Cancel Test|Advanced VR Options > Debug > Tests > Kick Cancel Test
 vr_test_fling_speed|2|Debug - Tests|Fling Speed|Advanced VR Options > Debug > Tests > Fling Speed

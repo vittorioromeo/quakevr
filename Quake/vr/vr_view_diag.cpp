@@ -100,11 +100,18 @@ qboolean reloadMatch(const char* name, void* ctx)
 
 void modelReload_f()
 {
-    ReloadMatch m;
+    za::Vector<za::String> names;
     for(int i = 1; i < Cmd_Argc(); i++)
     {
-        m.names.pushBack(modelPath(Cmd_Argv(i)));
+        names.pushBack(modelPath(Cmd_Argv(i)));
     }
+    reloadModels(names);
+}
+
+void reloadModels(const za::Vector<za::String>& names)
+{
+    ReloadMatch m;
+    m.names = names;
     Mod_ReloadAliasModels(reloadMatch, &m);
     for(const za::String& n : m.names)
     {
