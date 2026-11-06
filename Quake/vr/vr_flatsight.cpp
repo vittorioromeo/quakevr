@@ -240,7 +240,6 @@ constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall 
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
 constexpr float wallArmMax = 20.f;   // vr_flat_wall_arm_keep's range (units)
 constexpr float wallMarginMax = 24.f; // vr_flat_wall_margin's range (units)
-constexpr float wallStockKeep = 0.f;  // in the wall state the stock comes to the chest, not into it (units of vr_flat_clear_stock)
 // The wall poses: what the way back can't clear, the drawn gun turns out of one of these ways, per degree of the turn
 // (pitch up, yaw left, roll its top inwards, mirrored for the left hand). Up is vr_flat_wall_tilt's pose (its yaw and
 // roll the cvars'); the others raise it a little and turn it across the body or out, or point it down. Chosen once as a
@@ -256,9 +255,11 @@ constexpr int wallPoseCount = 4;
 constexpr WallPose wallPoses[wallPoseCount]{{"up", 1.f, 0.f, 0.f}, {"left", 0.35f, 1.f, 0.f}, {"right", 0.35f, -1.f, 0.f},
     {"down", -0.8f, 0.f, 0.f}};
 constexpr float wallEyeKeep = 6.f;      // a pose that brings the gun nearer the eyes than this (units, 15 cm) scores worse
+constexpr float wallTorsoWeight = 4.f;  // and a unit of it in the torso as this many in the wall
 constexpr float wallPoseBad = 1.f;      // the kept pose this deep in a wall (units) ...
 constexpr float wallPoseBadFor = 0.3f;  // ... for this long (s) is chosen again
 constexpr float wallUnlockAfter = 0.5f; // off the wall (the state and the turn eased out) this long (s), the next wall chooses afresh
+constexpr float wallStockKeep = 0.f;  // in the wall state the stock comes to the chest, not into it (units of vr_flat_clear_stock)
 constexpr float wallAcrossMost = 8.f; // in the wall state, a weapon goes at most this far across the chest off a wall at its side (units)
 constexpr float wallAheadMost = 48.f;
 constexpr glm::vec3 aheadBoxMin{-16.f, -16.f, -8.f}; // his box's way ahead: its width, short (no floor or ceiling)
@@ -671,11 +672,10 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
         const glm::mat3 r = tiltTurn(h, view, deg, sightFade, pose);
         const glm::mat3 turned = r * hand;
         st.probes++;
-        // (And how deep its rear goes into the torso: turned across the body, the stock swings into the chest.)
-        const glm::vec3 handAt = at + pivot - r * pivot;
-        glm::vec3 stock;
-        st.tiltTorso[h] = stockOff(h, stock) ? za::max(0.f, -flatplay::torsoGap(s, handAt + r * (view * stock), handAt)) : 0.f;
-        return handpose::gunNearest(h, s.head, handAt, hands::anglesFromVectors(turned[0], turned[2]), r * muzzle);
+        // (And how deep it goes into the torso: turned across the body, its rear swings into the chest. The points and the
+        // lines between them: the barrel across the face counts, not only its ends.)
+        return handpose::gunNearest(h, s.head, at + pivot - r * pivot, hands::anglesFromVectors(turned[0], turned[2]),
+            r * muzzle, &s, &st.tiltTorso[h]);
     };
     if(vr_flat_wall_tilt_fixed.value != 0.f)
     {
@@ -724,10 +724,11 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
 }
 
 // A wall pose's score (lower is better): how deep the weapon stays in the walls turned as far as it may (tiltLeft), what
-// it comes nearer the eyes than wallEyeKeep, and then the least turn off the aim (a tie's breaker).
+// it comes nearer the eyes than wallEyeKeep or into the torso (counted wallTorsoWeight times: a gun in the chest shows,
+// one in the wall's margin hardly), and then the least turn off the aim (a tie's breaker).
 [[nodiscard]] float wallPoseScore(int h)
 {
-    return (st.tiltLeft[h] + st.tiltTorso[h]) * 100.f + za::max(0.f, wallEyeKeep - st.tiltEye[h]) * 100.f +
+    return (st.tiltLeft[h] + st.tiltTorso[h] * wallTorsoWeight) * 100.f + za::max(0.f, wallEyeKeep - st.tiltEye[h]) * 100.f +
            st.tiltNeed[h] * 0.01f;
 }
 
@@ -755,11 +756,13 @@ void pushBack(hands::State& s, const glm::vec3& aim)
 
         // As far as the arm folds in hipfire, as far as the rear sight comes to the eye in the sight.
         const float sight = h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
-        // In the wall state (hipfire, at a wall: wallOn), the arm folds further, to vr_flat_wall_fold, and the stock comes
-        // to the chest (wallStockKeep, not vr_flat_clear_stock): the gun comes back towards the chest and the hand off the
-        // wall. At the wall the player stands 8 units nearer than his box's half (y 632 against 640), and the arm's 9 of 11
-        // units and the stock's clearance left the push back no room at all: the hand stayed in the wall. (Folded to 2,
-        // the rifle's end came 7.6 cm from the eyes; the stock past the chest went 1.6 into the torso.)
+        // In the wall state (hipfire, at a wall: wallOn), the arm folds further, to vr_flat_wall_fold: the gun comes back
+        // towards the chest and the hand off the wall, the stock to the chest (wallStockKeep), not past it. At the wall the
+        // player stands 8 units nearer than his box's half (y 632 against 640), and the arm's 9 of 11 units and the stock's
+        // clearance left the push back little room: the wall poses, the way across and the free hand's pull do the rest.
+        // (Folded to 2 the rifle's end came 7.6 cm from the eyes. Past the chest, flatsweep's gun went 1.6 into the torso.
+        // Keeping all of vr_flat_clear_stock instead left the rifle head-on 1.3 in the wall and weapon 5 10 cm in looking
+        // 30 down, and the torso row no better: the depth there is the turned pose's, looking down 20..45.)
         const float wall = geom::smooth01(st.wallOn[h]) * (1.f - sight);
         const float armKeep = za::clamp(vr_flat_wall_arm_keep.value, 0.f, wallArmMax);
         const float fold = za::min(armKeep, za::clamp(vr_flat_wall_fold.value, 0.f, wallArmMax));
@@ -848,7 +851,14 @@ void pushBack(hands::State& s, const glm::vec3& aim)
                     st.tiltPivot[h] = pivot;
                 }
             };
-            const int kept = sight > 0.f ? wallUp : st.pose[h];
+            // (Sighted the up pose only: one kept from hipfire eases over to it, so the drawn turn is the measured one.)
+            if(sight > 0.f && st.pose[h] != wallUp)
+            {
+                st.swapFrom[h] = glm::quat_cast(glm::transpose(view) * drawnTurn(h, view) * view);
+                st.swapT[h] = 0.f;
+                st.pose[h] = wallUp;
+            }
+            const int kept = st.pose[h];
             measure(kept);
             // Met a wall (or the kept pose stays in it): each pose scored once, the best kept (locked) till he is off
             // the wall. Sighted, the first only.

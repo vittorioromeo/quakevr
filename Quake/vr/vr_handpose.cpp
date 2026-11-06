@@ -21,6 +21,7 @@
 
 #include "vr_handpose.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_mem.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
@@ -498,13 +499,32 @@ float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm:
     return deepest;
 }
 
-float gunNearest(int hand, const glm::vec3& eye, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle)
+float gunNearest(int hand, const glm::vec3& eye, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
+    const hands::State* s, float* torsoDepth)
 {
     makeShape(hand, rot, muzzle);
-    float nearest = 1e9f;
-    for(const glm::vec3& o : shape[hand])
+    float nearest = 1e9f, deepest = 0.f;
+    for(za::SizeT i = 0; i < shape[hand].size(); i++)
     {
-        nearest = za::min(nearest, glm::distance(eye, pos + o));
+        const glm::vec3 p = pos + shape[hand][i];
+        nearest = za::min(nearest, glm::distance(eye, p));
+        // (Each point and the line from the one before: the barrel across the face, the body through the chest.)
+        if(i > 0)
+        {
+            const glm::vec3 q = pos + shape[hand][i - 1];
+            const glm::vec3 d = p - q;
+            const float len2 = glm::dot(d, d);
+            const float t = len2 > 1e-6f ? za::clamp(glm::dot(eye - q, d) / len2, 0.f, 1.f) : 0.f;
+            nearest = za::min(nearest, glm::distance(eye, q + d * t));
+            if(s && torsoDepth)
+            {
+                deepest = za::max(deepest, -flatplay::torsoGap(*s, q, p));
+            }
+        }
+    }
+    if(torsoDepth)
+    {
+        *torsoDepth = deepest;
     }
     return nearest;
 }

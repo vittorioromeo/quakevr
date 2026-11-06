@@ -2162,29 +2162,46 @@ bit further off.
   ways, per degree of the turn: **up** (vr_flat_wall_tilt's pose, its yaw and roll cvars as before), **left** and
   **right** (raised 0.35 a degree, turned across the body or out), **down** (0.8 a degree, low ready). As the tilt is
   first wanted with no pose locked, each pose's least clearing turn is searched (`tiltNeedFor`, the old search) and
-  scored (`wallPoseScore`: depth left in the wall x100, closer than 6 units (15 cm) to the eyes x100, then the turn's
-  degrees x0.01 as the tie's breaker); the best is **locked** until the state and the turn have been off 0.5 s
-  (`wallUnlockAfter`), so walking along a wall keeps it. Chosen again only if the kept pose stays 1 unit deep for 0.3 s
-  (`wallPoseBad`, `wallPoseBadFor`); the new pose eases in from the drawn turn (a slerp over vr_flat_wall_tilt_time).
-  Sighted: up only (no wall state). The free hand lets go in every pose. Cost: a locked frame searches one pose (about 6
-  gun probes a frame, each a trace per gun point, as the old tilt); a choice searches four (up to ~72 once). The status
-  line `flatwallturn:` prints `pose`, `locked`, `wall` (the state) and `probes`.
+  scored (`wallPoseScore`: depth left in the wall, plus 4x its depth in the torso (`wallTorsoWeight`), plus what it comes
+  nearer the eyes than 6 units (15 cm), all x100; then the turn's degrees x0.01 as the tie's breaker). The eye and torso
+  measures (`handpose::gunNearest`, no traces) take the gun's points and the lines between them, so a barrel across the
+  face counts. The best is **locked** until
+  the state and the turn have been off 0.5 s (`wallUnlockAfter`), so walking along a wall keeps it. Chosen again only if
+  the kept pose stays 1 unit deep for 0.3 s (`wallPoseBad`, `wallPoseBadFor`); the new pose eases in from the drawn turn
+  (a slerp in the view's frame over vr_flat_wall_tilt_time). Sighted: up only (a pose kept from hipfire eases over to
+  it). The free hand lets go in every pose. Cost: a locked frame searches one pose (about 6 gun probes a frame, each a
+  trace per gun point, as the old tilt); a choice searches four (70-80 probes, once). The status line `flatwallturn:`
+  prints `pose`, `locked`, `wall` (the state) and `probes`.
 - **Walk-in:** the wall state and the turn come on ahead: where his level speed takes his box in vr_flat_wall_tilt_time
   (a box trace, so the lines never start inside the wall), the gun pushed back as far as the state lets it; and the state
-  eases in over 0.35 of the time (out over all of it). Gun's worst during the walk: 44 cm in before, now 19 (rifle at
-  45 with the wall on its side), 18 (shotgun head-on), else 10 or less.
-- **The stock:** the wall state takes it to the chest, not past it (`wallStockKeep` 0; `stockBackMost` takes a keep).
-  What that leaves the hand short of a wall at its side, it goes across the chest (level, inwards, up to 8 units:
-  `wallAcrossMost`); head-on nothing.
+  eases in over 0.35 of the time (out over all of it). Gun's worst during the walk: 44 cm in before, now 26 (rifle at
+  135 standing) and 18 (shotgun head-on) for a frame or two, else 10 or less.
+- **The stock** comes to the chest in the wall state (`wallStockKeep` 0, not vr_flat_clear_stock's 1); what that leaves
+  the hand short of a wall at its side, it goes across the chest (level, inwards, up to 8 units: `wallAcrossMost`);
+  head-on nothing.
+- **gun_torso wall/long/stand/hip, not fixed** (flatsweep's wall run, his box on the wall; 1.93 with the stock to the
+  chest). Wall sweeps (`scratch/fw3_wsweep.sh`, `fw3_rows.sh`): with the turn off (vr_flat_wall_tilt 0) and the stock
+  kept every row passes; the stock kept, turned: 0.53..1.30 looking 20..45 down; fold 9: the same; no stock clearance at
+  all: 2.7. So the depth is the turned poses' (and the stock to the chest adds ~0.6). Tried and reverted: keeping
+  vr_flat_clear_stock in the wall state (the rifle head-on then stays 1.3 in the wall, flatwall's look-30 row fails with
+  the weapon 5 10 cm in, and the row stays 1.30); and capping each pose's turn at 0.3 in the torso by `gunNearest`'s
+  torso depth (no change in the row, so that measure doesn't see what flatsweep's gun shapes see; and the sighted rows
+  then stayed up to 11.8 cm in the wall). The pose score keeps that torso term (x4) for what it does see. Next: score
+  the poses with flatsweep's own gun shapes (vr_flatsweep.cpp `torsoDepth`).
 - **The arm** folds to `vr_flat_wall_fold` (new tunable, default 5 units, VR Settings "Wall: Fold Arm To"; was a fixed 2):
   standing, the stock at the chest binds first, so fold 2, 5 and 7 measured the same standing; crouched 5 keeps the gun
-  further out. Eye distance at rest now 12.2..20.5 cm (was 7.6..25).
+  further out.
 - **The let-go free hand** (`freeOffWall`): pulled from its empty-hand place towards its side (below its shoulder, the arm
   hanging) as far as keeps it vr_flat_wall_margin + 2 units off the wall (the least share, halved 8 times), eased like the
   push back and only as far as it has let go.
-- Measured (`scratch/fw2_walk.sh`, walked in, at rest 0.5 s after): every case's gun hand >= 13 cm off the wall, the free
-  hand >= 3.3 cm, the gun >= 7.3 cm, the eyes >= 12.2 cm. Poses chosen: rifle head-on right, 45 right/down (stand/crouch),
-  135 left/down; revolver right, right, right / up, right, left; shotgun right, right, left / right, down, down.
+- Measured (`scratch/fw2_walk.sh`, walked in, at rest 0.5 s after): all 18 out: the gun hand >= 13 cm off the wall, the
+  free hand >= 3.3, the gun >= 2.2 (rifle crouched at 135), else >= 7.3. Eyes >= 12.2 cm but the rifle crouched: head-on
+  7.8 (left pose, across the face) and at 135 6.1 (right pose): the eye term (gun points and lines, from `s.head`) did not
+  move those choices; open. Poses: rifle right, right, down / left, down, right (head-on, 45, 135; standing / crouched);
+  revolver right x3 / right, right, left; shotgun right, right, left / down, up, down.
+- Sighted fix: the drawn turn used the hipfire-locked pose while the sighted measure used up; a pose kept from hipfire now
+  eases over to up when sighted. flatwall section c runs the rifle sighted (the shotgun's sighted way back clears it at
+  that spot): ease 0.195 / 0.583 s, mirrored.
 ## Rolled guns: barrel and sights rigid with the hand (branch `agent/rollaim`, 2026-11-06)
 
 His note: with Show Controller Laser on he lined up red (the shots) and green (the barrel) holding the gun level; rolling

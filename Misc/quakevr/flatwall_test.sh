@@ -69,8 +69,9 @@ check $(awk -v a="${aim% *}" -v n="${aim#* }" 'BEGIN { exit !(a <= 0.1 && n >= 5
 fi
 
 # (Sighted since the wall poses: in hipfire the wall state chooses a pose per wall, and its arm folds further, so the
-# up pose's own ease and mirroring are tested where it is the only one.)
-# c. The tilted pose's ease and its mirroring: the shotgun sighted (vr_flat_wall_tilt_sighted 1), a fixed pitch of 40 with yaw 20 and roll 15, put on the
+# up pose's own ease and mirroring are tested where it is the only one. The rifle: sighted at this spot the shotgun's
+# way back clears it untilted, the rifle's doesn't.)
+# c. The tilted pose's ease and its mirroring: the rifle sighted (vr_flat_wall_tilt_sighted 1), a fixed pitch of 40 with yaw 20 and roll 15, put on the
 #    wall and taken off it (vr_flat_wall_tilt_time 0.2, the default, then 0.6), then in the left hand (impulse 48 swaps the hands).
 # (Looking 20 down: there the way back leaves the shotgun in the wall, level it clears it. It was 30 down until his pose
 # of 2026-11-06 became the defaults: Gun Down 2 and Chest Share Down 0 move the gun, and 30 down its way back clears.)
@@ -78,7 +79,7 @@ ON="setpos 0 623.5 25 20 90 0"; OFF="setpos 0 500 25 20 90 0"; F=90 # (frames: t
 if [[ $ONLY == *c* ]]; then
 log=$HERE/scratch/flatwall_c.log
 M() { echo "echo flatwallease mark $1"; }
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_fixed 1; tune vr_flat_wall_tilt 40; tune vr_flat_wall_tilt_yaw 20; tune vr_flat_wall_tilt_roll 15; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; vr_flat_aim 1; $OFF; wait20; vr_flatplay_debug 2; $(M in03); $ON; wait$F; $(M out03); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.6; $(M in06); $ON; wait$F; $(M out06); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.2; $(M main); $ON; wait$F; $(M swap); impulse 48; $OFF; wait$F; $(M off); $ON; wait$F; vr_flatplay_debug 0; tune_reset; echo flatwallease done; toggleconsole; quit" -Filter "^flatwallturn: |^flatwallease" -QuitOn "flatwallease done" -Timeout 180 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_fixed 1; tune vr_flat_wall_tilt 40; tune vr_flat_wall_tilt_yaw 20; tune vr_flat_wall_tilt_roll 15; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 16; impulse 149; wait25; vr_flat_aim 1; $OFF; wait20; vr_flatplay_debug 2; $(M in03); $ON; wait$F; $(M out03); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.6; $(M in06); $ON; wait$F; $(M out06); $OFF; wait$F; tune vr_flat_wall_tilt_time 0.2; $(M main); $ON; wait$F; $(M swap); impulse 48; $OFF; wait$F; $(M off); $ON; wait$F; vr_flatplay_debug 0; tune_reset; echo flatwallease done; toggleconsole; quit" -Filter "^flatwallturn: |^flatwallease" -QuitOn "flatwallease done" -Timeout 180 > "$log" 2>&1
 # Each phase: the ease's time (in: from the first frame off 0 to all of it; out: from the first frame under all to none),
 # and the last frame's turn (the muzzle's way up and right, the top's lean right).
 grep -a "^flatwallturn: \|^flatwallease mark" "$log" | awk '
