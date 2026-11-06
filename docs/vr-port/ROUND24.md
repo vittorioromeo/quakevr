@@ -1752,3 +1752,49 @@ It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).
 
 **Checklist line (suggested):** AD (ad_e1m1): a lost soul rams you from range and circles you when near; with your back
 to a wall its bite after a ram lands, and your crowbar's guard parries it.
+
+## Shooting yourself (branch `agent/selfshot`, 2026-11-06)
+
+Vittorio (BACKLOG): "the player should be able to damage themselves in VR by pointing their weapon at their own
+limbs/body and firing", and the wound "precisely where the hit is registered on the player's arms/hands/body".
+
+- **The hit geometry** is the wounds' (what an enemy's hit on you is painted by): capsules round the drawn torso, legs,
+  each forearm (elbow to wrist) and hand, as posed. It moved from `vr_wounds.cpp` to `vr_selfshot.cpp`
+  (`selfshot::build`), each capsule now tagged with its part; the wounds use it unchanged. For your own shots the torso
+  stops 6 units under the eyes (`chinUnderEyes`): **the head is no part** (seen from inside it; a gun at your face is
+  never met), though the wounds' torso reaches round the head for enemy hits.
+- **Who:** only the listen server's own player, in a headset (`VRHandsTracked`, not flat-screen play), `vr_selfshot 1`
+  (default on). The engine draws no body for a co-op guest or a bot, so they are never met (`selfhit_segment` -1).
+- **What is never met:** the firing hand's own forearm and hand; the other arm too while both hands hold the gun
+  (`VRGet2HAiming`). A hitscan shot is tested from the muzzle on (its trace starts behind the muzzle,
+  `VR_ShotBackPoint`: what lies along the gun, the grip, a hand on the fore-end, is the gun's).
+- **Hitscan** (`FireBullets`: shotgun, super shotgun, revolver; each pellet): `VR_SelfShot_Pellet` after its trace,
+  armed by FireBullets alone (`vr_ss_armed`: monsters' and the tests' FireBulletsImpl calls never meet the shooter).
+  **Lightning:** the bolt ends at your body and strikes you (`VR_LightningHit`: the shock arcs too). Not through a
+  teleporter (your image is met there as before).
+- **Missiles** (every hand's: `VR_ShotLaunched` marks `.vr_ss_skip`): `SV_PushEntity` calls `VR_SelfShotMove`, which
+  stops the move at your body (from where it starts: a muzzle pressed into your forearm hits it at once), reports you as
+  struck (`.vr_ss_struck`), once; `VR_OwnerSpared` lets that touch through. Nails, rockets, grenades, lasers, the
+  expansions' and AD's missiles whose touches use `VR_OwnerSpared`.
+- **Damage** takes the normal path (T_Damage: armour, god mode, Quad, teamplay) times `vr_selfshot_damage` (1) in place
+  of `vr_damage_self`; the armour plate nearest the point is shed (`vr_pp_hit`); a hit on a forearm or hand buzzes that
+  hand (0.25 s, 90 Hz).
+- **The wound** is sent marked `QVR_WOUND_PRECISE` (128 on the kind) at the point: the client paints it where the line
+  from 2 units before it meets your drawn capsules (no spread, no jitter, no room-scale shift; a point already inside:
+  there), on the body and both hand models (it lands on whichever is there) and it moves with them (texture space).
+  `vr_wounds_debug` as before; `vr_selfshot_debug 1` prints each self-hit (2: every test).
+- **Blades:** not done (a swing past your other arm is ordinary melee; cutting yourself would be accidental too often).
+- Menu: Damage and Knockback (the "Gameplay" damage multipliers) has Shoot Yourself and its damage; VR Settings >
+  Weapons and Bullet Time has the toggle. Debug > Tests: Shoot Yourself: Aimed / Ordinary Firing.
+
+**Tests** (`vr_selfshot_test`, mock headset, e1m1): **1** aimed: a pellet at the off palm, the off forearm, the thigh,
+a nail at the forearm, a nail started inside it: each hit its part, 3-14 damage, the off hand buzzed, the wound 0.00-0.15
+units from the hit on that part; a line through the head, `vr_selfshot 0`, another player: never. 23 passed, 0 failed.
+**2** ordinary firing: ten poses (one hand forward, dual side by side, arms crossed, the off hand cupping the grip,
+pointing down, kicked up, from the hip, turned out, turned in, at the floor ahead), both hands each firing a six-pellet
+blast, a nail and the lightning's line along their aims: 0 self-hits. (The mock's controller pitch 70 is a level aim.)
+`vr_selfshot_debug 3` takes an eyeshot of the wounds at the end of test 1.
+
+**Checklist lines (suggested):** In a headset, point your gun at your other palm, forearm, thigh and fire: it hurts, that
+hand buzzes and the wound is right where you aimed, following the arm. Normal firing (dual, crossed arms, two-handed, from
+the hip) never hits you; Shoot Yourself off (Damage and Knockback) and nothing happens.

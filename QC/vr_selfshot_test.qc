@@ -36,6 +36,11 @@ void(float s, float frames) VR_SST_To =
 
 void() VR_SST_End =
 {
+    if(cvar_hget(cvarh_vr_selfshot_debug) >= 3)
+    {
+        // (the wounds as they are, looked down at, before the hands go back)
+        localcmd("vr_mock_look 55 0; gl_cshiftpercent 0; wait; wait; vr_eyeshot 1; screenshot; vr_mock_look 0 0\n");
+    }
     localcmd("vr_mock_hand main; vr_mock_hand off; vr_selfshot 1\n");
     VR_Test_Verdict();
     vr_sst_on = 0;
@@ -119,8 +124,6 @@ void(entity p) VR_SST_Aimed =
         if(vr_sst_case <= 2)
         {
             vector target = selfhit_point(VR_SST_Part(vr_sst_case), VR_SST_Along(vr_sst_case));
-            dprint(sprintf("selfshot: case %g: muzzle %v, target %v, origin %v, hands %v %v, torso %v\n", vr_sst_case, muzzle,
-                target, p.origin, VRGetHandPos(cVR_MainHand), VRGetHandPos(cVR_OffHand), selfhit_point(QVR_SS_PART_TORSO, 0)));
             VR_SST_Shoot(p, normalize(target - muzzle));
             VR_SST_To(2, 0);
         }
@@ -191,21 +194,22 @@ void(entity p) VR_SST_Aimed =
 };
 
 // Test 2's poses: main hand x y z pitch yaw, off hand the same (vr_mock_hand: metres, +x right, +y up, -z forward;
-// pitch up, yaw left).
+// pitch up, yaw left; the gun aims 70 degrees under the controller's pitch: 70 is level).
 string(float xCase) VR_SST_Pose =
 {
-    if(xCase == 0) { return "vr_mock_hand main 0.2 1.2 -0.4 0 0 0; vr_mock_hand off -0.25 1.0 -0.2 0 0 0"; } // one hand forward
-    if(xCase == 1) { return "vr_mock_hand main 0.15 1.25 -0.45 0 0 0; vr_mock_hand off -0.15 1.25 -0.45 0 0 0"; } // dual, side by side
-    if(xCase == 2) { return "vr_mock_hand main -0.1 1.22 -0.42 0 0 0; vr_mock_hand off 0.1 1.15 -0.38 0 0 0"; } // dual, arms crossed
-    if(xCase == 3) { return "vr_mock_hand main 0.1 1.2 -0.35 0 0 0; vr_mock_hand off 0.08 1.15 -0.33 0 0 0"; } // the off hand cupping the grip
-    if(xCase == 4) { return "vr_mock_hand main 0.2 1.1 -0.4 -45 0 0; vr_mock_hand off -0.2 1.1 -0.4 -45 0 0"; } // pointing down ahead
-    if(xCase == 5) { return "vr_mock_hand main 0.2 1.25 -0.4 35 0 0; vr_mock_hand off -0.2 1.25 -0.4 35 0 0"; } // kicked up (recoil)
-    if(xCase == 6) { return "vr_mock_hand main 0.22 0.95 -0.25 0 0 0; vr_mock_hand off -0.22 0.95 -0.25 0 0 0"; } // from the hip
-    if(xCase == 7) { return "vr_mock_hand main 0.35 1.2 -0.25 0 -60 0; vr_mock_hand off -0.35 1.2 -0.25 0 60 0"; } // turned out
-    if(xCase == 8) { return "vr_mock_hand main 0.2 1.25 -0.45 0 25 0; vr_mock_hand off -0.2 1.0 -0.25 -20 -25 0"; } // turned in, the other low
+    if(xCase == 0) { return "vr_mock_hand main 0.2 1.2 -0.4 70 0 0; vr_mock_hand off -0.25 1.0 -0.2 70 0 0"; } // one hand forward
+    if(xCase == 1) { return "vr_mock_hand main 0.15 1.25 -0.45 70 0 0; vr_mock_hand off -0.15 1.25 -0.45 70 0 0"; } // dual, side by side
+    if(xCase == 2) { return "vr_mock_hand main -0.1 1.22 -0.42 70 0 0; vr_mock_hand off 0.1 1.15 -0.38 70 0 0"; } // dual, arms crossed
+    if(xCase == 3) { return "vr_mock_hand main 0.05 1.2 -0.4 70 0 0; vr_mock_hand off 0.03 1.16 -0.37 70 0 0"; } // the off hand cupping the grip
+    if(xCase == 4) { return "vr_mock_hand main 0.2 1.1 -0.4 25 0 0; vr_mock_hand off -0.2 1.1 -0.4 25 0 0"; } // pointing down ahead
+    if(xCase == 5) { return "vr_mock_hand main 0.2 1.25 -0.4 105 0 0; vr_mock_hand off -0.2 1.25 -0.4 105 0 0"; } // kicked up (recoil)
+    if(xCase == 6) { return "vr_mock_hand main 0.22 0.95 -0.25 70 0 0; vr_mock_hand off -0.22 0.95 -0.25 70 0 0"; } // from the hip
+    if(xCase == 7) { return "vr_mock_hand main 0.35 1.2 -0.25 70 -60 0; vr_mock_hand off -0.35 1.2 -0.25 70 60 0"; } // turned out
+    if(xCase == 8) { return "vr_mock_hand main 0.2 1.25 -0.45 70 25 0; vr_mock_hand off -0.2 1.0 -0.25 50 -25 0"; } // turned in, the other low
+    if(xCase == 9) { return "vr_mock_hand main 0.2 1.1 -0.35 0 0 0; vr_mock_hand off -0.25 1.0 -0.15 0 0 0"; } // at the floor ahead of the feet
     return "";
 };
-float VR_SST_POSES = 9;
+float VR_SST_POSES = 10;
 
 // One hand's ordinary fire: a blast of six pellets, a nail, the lightning's line, along its aim.
 void(entity p, float xHand) VR_SST_FireHand =
