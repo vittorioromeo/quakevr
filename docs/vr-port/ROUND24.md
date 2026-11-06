@@ -2131,3 +2131,8 @@ bit further off.
   vr_flat_clear_stock 0` and margin 4 the gun hand stays out (>= 9.6 cm) but the shotgun's pump hand is still 9 cm in;
   `vr_flat_wall_tilt_pivot 1` keeps the gun hand out (>= 2 cm), not the support hand. A real fix needs room for the push
   back at the wall (or a shoulder pivot, or lifting the support hand off), the author's call.
+- Tests: `flatwall_test.sh` 14 passed, 0 failed. `flatsweep_test.sh`: margin 0 383 passed, 27 known, 0 failed; margin 4
+  381 passed, 25 known, **4 failed** (not accepted): wall/long hipfire at pitch 45, `jump_gun` 6.1 a degree crouched
+  (new; limit 1) and standing (6.2, listed 4.7), `jump_hand0` 3.4 crouched (new) and 3.1 standing (listed 2.6). The
+  margin makes the known jump there bigger; the level probe (no floor-then-wall switch) did not change it.
+  `flatsight_test.sh` did not run (it waits for the author's game to close: "AUTHOR GAME RUNNING").
