@@ -82,7 +82,9 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
         return;
     }
     vr_wound_sent++;
-    woundevent(e, at, normalize(dir), QVR_WOUND_SHOT + VR_Wound_CleanFlag(e), damage, 1);
+    // (your own pellet in your body: at its point exactly, vr_selfshot.qc)
+    float precise = (VR_SelfShot_Live(e) && vlen(at - vr_ss_at) < 0.5) ? QVR_WOUND_PRECISE : 0;
+    woundevent(e, at, normalize(dir), QVR_WOUND_SHOT + VR_Wound_CleanFlag(e) + precise, damage, 1);
 };
 
 .float vr_bloodied; // it has bled: a blow, a shot, a blast that drew blood (not a shove's or a bash's, a burn, a fall, a
@@ -194,13 +196,20 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     VR_Hit_Where(targ, inflictor, attacker, dir);
     org = hit_where;
     dir = hit_whereway;
+    float precise = 0;
+    if(VR_SelfShot_Live(targ)) // your own shot or missile: where it struck (vr_selfshot.qc; a blast scorches round it)
+    {
+        org = vr_ss_at;
+        dir = vr_ss_dir;
+        precise = kind != QVR_WOUND_BLAST ? QVR_WOUND_PRECISE : 0;
+    }
     if(dir == '0 0 0')
     {
         dir = '0 0 -1';
     }
     vr_wound_sent++;
     vr_wound_lastkind = kind + (extra & 1) * 0.5; // (the dents' tests: vr_dents_test.qc)
-    woundevent(targ, org, normalize(dir), kind + VR_Wound_CleanFlag(targ), min(255, take), extra);
+    woundevent(targ, org, normalize(dir), kind + VR_Wound_CleanFlag(targ) + precise, min(255, take), extra);
 };
 
 // A ragdoll's part struck against the level hard enough (vr_ragimpact.qc VR_RagImpact_Hit, vr_ragimpact_dent: a head

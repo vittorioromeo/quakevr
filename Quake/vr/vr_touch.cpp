@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gadgetlock.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_gfx.hpp"
 #include "vr_main.hpp"
@@ -103,7 +104,14 @@ void viewFrame(const hands::State& s)
     Surface z;
     const int hand = 1 - hands::gadgetHand();
     state.tested = s.valid && surfaceNow(z);
-    if(!state.tested)
+    // Both hands on one thing (vr_gadgetlock.hpp): the gadget's screen takes no touch (one under way ends); the fingertip
+    // must come back in front of it before the next.
+    const bool locked = state.tested && state.req.gadget && gadgetlock::locked();
+    if(locked)
+    {
+        state.surface = z; // (still where it is: lastSurface)
+    }
+    if(!state.tested || locked)
     {
         if(c.down)
         {
@@ -112,7 +120,7 @@ void viewFrame(const hands::State& s)
             state.upAt = realtime;
         }
         c.valid = c.hover = c.hard = false;
-        state.armed = true;
+        state.armed = !locked;
         c.serial++;
         return;
     }

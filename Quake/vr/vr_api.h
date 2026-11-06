@@ -320,6 +320,7 @@ void VR_PortalToss (struct edict_s *ent);	// SV_Physics_Toss, before the move: t
 void VR_PortalMonsterCross (struct edict_s *ent);	// SV_Physics_Step, after its think: a monster through a paired teleporter (vr_portals.cpp)
 void VR_PortalTraceBegin (void);			// PF_traceline: the last portal trace's crossings forgotten
 void VR_PortalTrace (const float start[3], const float end[3], int type, struct edict_s *passedict, trace_t *trace); // ... MOVE_PORTALS: on through the teleporters it crosses
+void VR_SelfShotMove (struct edict_s *missile, trace_t *trace, const float end[3]); // SV_PushEntity: a hand's missile meeting its shooter's own drawn body first (vr_selfshot.cpp)
 int VR_PortalHitsOwner (struct edict_s *missile); // SV_MoveRun: nonzero if a missile was carried through a teleporter (VR_PortalToss): it meets its owner (Quake's owner rule off)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
 int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity it must not move (a Box3D body: lifts carry it by contact)

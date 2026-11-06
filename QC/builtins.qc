@@ -573,6 +573,15 @@ vector(entity e, vector p) hitmodel_rest = #0;
 // bones VR_REGION_ARM, legs VR_REGION_LEG, the head VR_REGION_HEAD, the torso VR_REGION_BODY); VR_REGION_NONE when e is
 // no target, its model has no rig, or the triangle is of no one part (PositionalPointRegion then decides by its place).
 float(entity e, vector p) hitmodel_part = #0;
+// Shooting yourself (engine vr_selfshot.cpp; vr_selfshot.qc): the segment a..b (a sphere of `radius` swept along it)
+// against pl's own drawn body and hands (pl the listen server's own player in a headset, else nothing): how far along
+// it first meets a part not in `skip` (1 << QVR_SS_PART_*; 0: it starts inside), -1 none.
+float(entity pl, vector a, vector b, float radius, float skip) selfhit_segment = #0;
+// 0 the part the last selfhit_segment or missile met (-1 none); 1 the precise wounds painted on you; 2 how far the last
+// landed from its point; 3 its part; 4 the parts drawn now.
+float(float what) selfhit_info = #0;
+// The point `along` the axis of the drawn part (0 one end, 1 the other: a forearm's elbow, wrist); '0 0 0' not drawn.
+vector(float part, float along) selfhit_point = #0;
 // Debug > Show Hit Zones (vr_debug_hitzones): a zone of e drawn this server frame, in e's own frame (x forward along its
 // yaw, y left, z up, from its origin): a box lo..hi (radius 0) or a capsule of `radius` from lo to hi. zone: 0 body, 1
 // head, 2 extremities, 3 legs, 4 melee beheading (its colour).

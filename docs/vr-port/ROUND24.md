@@ -1852,6 +1852,77 @@ grip, the other hand on the barrel's band, the front post level in the rear notc
 - 822 triangles. sight_picture: the post seen 0.61 down from its top; flat `vr_flat_sight_check` 0.0000 and the post in
   the notch in the ADS screenshot; `vr_agrunt_test 85` 40/0; an untouched `blend_export.py` of the new .blend writes the
   model and its map byte for byte; `vr_adrifle_base` untouched.
+## Shooting yourself (branch `agent/selfshot`, 2026-11-06)
+
+Vittorio (BACKLOG): "the player should be able to damage themselves in VR by pointing their weapon at their own
+limbs/body and firing", and the wound "precisely where the hit is registered on the player's arms/hands/body".
+
+- **The hit geometry** is the wounds' (what an enemy's hit on you is painted by): capsules round the drawn torso, legs,
+  each forearm (elbow to wrist) and hand, as posed. It moved from `vr_wounds.cpp` to `vr_selfshot.cpp`
+  (`selfshot::build`), each capsule now tagged with its part; the wounds use it unchanged. For your own shots the torso
+  stops 6 units under the eyes (`chinUnderEyes`): **the head is no part** (seen from inside it; a gun at your face is
+  never met), though the wounds' torso reaches round the head for enemy hits.
+- **Who:** only the listen server's own player, in a headset (`VRHandsTracked`, not flat-screen play), `vr_selfshot 1`
+  (default on). The engine draws no body for a co-op guest or a bot, so they are never met (`selfhit_segment` -1).
+- **What is never met:** the firing hand's own forearm and hand; the other arm too while both hands hold the gun
+  (`VRGet2HAiming`). A hitscan shot is tested from the muzzle on (its trace starts behind the muzzle,
+  `VR_ShotBackPoint`: what lies along the gun, the grip, a hand on the fore-end, is the gun's).
+- **Hitscan** (`FireBullets`: shotgun, super shotgun, revolver; each pellet): `VR_SelfShot_Pellet` after its trace,
+  armed by FireBullets alone (`vr_ss_armed`: monsters' and the tests' FireBulletsImpl calls never meet the shooter).
+  **Lightning:** the bolt ends at your body and strikes you (`VR_LightningHit`: the shock arcs too). Not through a
+  teleporter (your image is met there as before).
+- **Missiles** (every hand's: `VR_ShotLaunched` marks `.vr_ss_skip`): `SV_PushEntity` calls `VR_SelfShotMove`, which
+  stops the move at your body (from where it starts: a muzzle pressed into your forearm hits it at once), reports you as
+  struck (`.vr_ss_struck`), once; `VR_OwnerSpared` lets that touch through. Nails, rockets, grenades, lasers, the
+  expansions' and AD's missiles whose touches use `VR_OwnerSpared`.
+- **Damage** takes the normal path (T_Damage: armour, god mode, Quad, teamplay) times `vr_selfshot_damage` (1) in place
+  of `vr_damage_self`; the armour plate nearest the point is shed (`vr_pp_hit`); a hit on a forearm or hand buzzes that
+  hand (0.25 s, 90 Hz).
+- **The wound** is sent marked `QVR_WOUND_PRECISE` (128 on the kind) at the point: the client paints it where the line
+  from 2 units before it meets your drawn capsules (no spread, no jitter, no room-scale shift; a point already inside:
+  there), on the body and both hand models (it lands on whichever is there) and it moves with them (texture space).
+  `vr_wounds_debug` as before; `vr_selfshot_debug 1` prints each self-hit (2: every test).
+- **Blades:** not done (a swing past your other arm is ordinary melee; cutting yourself would be accidental too often).
+- Menu: Damage and Knockback (the "Gameplay" damage multipliers) has Shoot Yourself and its damage; VR Settings >
+  Weapons and Bullet Time has the toggle. Debug > Tests: Shoot Yourself: Aimed / Ordinary Firing.
+
+**Tests** (`vr_selfshot_test`, mock headset, e1m1): **1** aimed: a pellet at the off palm, the off forearm, the thigh,
+a nail at the forearm, a nail started inside it: each hit its part, 3-14 damage, the off hand buzzed, the wound 0.00-0.15
+units from the hit on that part; a line through the head, `vr_selfshot 0`, another player: never. 23 passed, 0 failed.
+**2** ordinary firing: ten poses (one hand forward, dual side by side, arms crossed, the off hand cupping the grip,
+pointing down, kicked up, from the hip, turned out, turned in, at the floor ahead), both hands each firing a six-pellet
+blast, a nail and the lightning's line along their aims: 0 self-hits. (The mock's controller pitch 70 is a level aim.)
+`vr_selfshot_debug 3` takes an eyeshot of the wounds at the end of test 1.
+
+**Checklist lines (suggested):** In a headset, point your gun at your other palm, forearm, thigh and fire: it hurts, that
+hand buzzes and the wound is right where you aimed, following the arm. Normal firing (dual, crossed arms, two-handed, from
+the hip) never hits you; Shoot Yourself off (Damage and Knockback) and nothing happens.
+## The gadget locked while both hands hold one thing (branch `agent/gadgetlock`, 2026-11-06)
+
+His note: bullet time's double tap still turned on by accident in fights with both hands busy. New
+`Quake/vr/vr_gadgetlock.cpp` (`gadgetlock::locked()`, worked out once a frame): while both hands hold the same thing --
+one weapon two-handed (`twohand::helping`: a hotspot, a free grip, a blade grip, a cup), the same carried prop or crate
+(the carry stats equal), the same embedded blade (the embed stats), the same enemy (foegrab, the listen server) or the
+same ragdoll (`box3d::ragdollHold`) -- and for `vr_gadget_lock_grace` (0.2) real seconds after, the gadget takes no
+input. Gated: the screen tap (bullet time: no tap, a double tap's first dropped, the hand must lift off before the next),
+the side button (gear lights, Doom's opening presses) and AD's page button (a fingertip on one must leave it first), and
+the touchscreen when an app takes the gadget's screen (Doom: a touch under way ends). Different things in each hand:
+unchanged. `vr_gadget_lock_twohand` (1) turns it off: HUD and Menus > Screens, "Lock While Both Hands Hold One Thing"
+(the grace a developer row under it). `vr_debug_bullettime` or `vr_debug_gadget_button` print its changes ("gadget
+lock: on (both hands hold ...)", "let go, 0.20 s grace", "off"). The older guards (`vr_bullettime_tap_twohanded`,
+`vr_bullettime_tap_both_held`) are kept as they were.
+
+Test: `Misc/quakevr/gadget_lock_test.sh <agent>` (fixed frames, ends on `gadget_lock_test: N passed, M failed`; 18
+passed): two different weapons count; a shotgun two-handed, a sword in both hands and a crate in both hands lock, and no
+tap counts once locked (4 taps each); with the lock off the two-handed shotgun's double tap counts; letting go of the
+shotgun's foregrip then double-tapping at once: the first tap (inside the grace) is ignored, the second counts as a
+first; the side button pressed during the hold does nothing, after letting go it presses. Test aids: `vr_2h_sticky 30`
+and `vr_carry_two_hands_drift 60` keep the holds while the mock's tracked main hand reaches the off wrist's screen (as
+shipped it would pull the hand off its grip).
+
+**Checklist line (suggested):** Wrist gadget: hold the shotgun two-handed, or a crate or the sword in both hands, and
+double-tap the gadget's screen: no slow motion (and the side button does nothing); let go and double-tap after a moment:
+it works; one weapon in each hand: it works as before (HUD and Menus > Screens, "Lock While Both Hands Hold One Thing").
 ## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
 
 His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new

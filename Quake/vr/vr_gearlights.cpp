@@ -6,6 +6,7 @@
 #include "vr_doom.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gadgetlock.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -336,6 +337,13 @@ void viewFrame(const hands::State& s)
     {
         state.pressing = false;
         pageButton.pressing = false; // AD support (vr_ad_gearlights.inc)
+        return;
+    }
+    // Both hands on one thing (vr_gadgetlock.hpp): no press; a fingertip on a button then must leave it first.
+    if(gadgetlock::locked())
+    {
+        state.pressing = true;
+        pageButton.pressing = true;
         return;
     }
     pressButton(s, 1 - hands::gadgetHand());
