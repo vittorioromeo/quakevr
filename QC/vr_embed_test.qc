@@ -3667,6 +3667,226 @@ void() VR_EC_Step =
     vr_et_on = 0;
 };
 
+// ---- vr_embed_test 26 (limbonaxe): his note of 2026-11-06, "the cut off limb should get stuck on the blade that cut it off" (vr_skewer.qc
+// VR_Skewer_CutOn), by the mock hand's real killing axe blows. 0 a live grunt's head, 1 a live grunt's limb, 2 a corpse's limb, 3 a
+// corpse's head: the part is on the axe (no blade left in the body, the axe in the hand), rides it rigidly as the hand moves (25 cm up at
+// 0.5 m/s), weighs in the hand; then off: 0 and 3 a fast move (4 m/s) that stops, 2 a hard swing (5 m/s) that stops, 1 the other hand's grip
+// and a 35 cm tug (into that hand). Ends `limbonaxe: N passed, M failed`. (A blow that didn't land as the case wants is dealt again, at most 3
+// times, as test 25's.)
+vector vr_la_c0;   // the part's middle as the ride began
+vector vr_la_h0;   // and the hand's
+vector vr_la_side; // the way across
+vector vr_la_home; // where you stood as the test began
+entity() VR_LA_Gib =
+{
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.vr_skewer_p == self && e.vr_skewer_cut)
+        {
+            return e;
+        }
+    }
+    return world;
+};
+void(string xWhy) VR_LA_Again =
+{
+    bprint(sprintf("limbonaxe: case %g again: %s\n", vr_et_case, xWhy));
+    vr_ec_tries = vr_ec_tries + 1;
+    vr_ee_target = world;
+    vr_eh_down = 0;
+    vr_eh_home = vr_la_home;
+    VR_EH_NextCase();
+    vr_et_case = vr_et_case - 1;
+};
+void() VR_LA_Next =
+{
+    localcmd("-graboff\n");
+    vr_ec_tries = 0;
+    vr_ee_target = world;
+    vr_eh_down = 0;
+    vr_eh_home = vr_la_home;
+    VR_EH_NextCase();
+};
+void() VR_LA_Step =
+{
+    entity p = self;
+    float t = time - vr_et_t0;
+    float cm = 0.01 * VRMetersToUnits();
+    float corpse = vr_et_case == 2 || vr_et_case == 3;
+    if(vr_et_case > 3)
+    {
+        vr_eh_part = 0;
+        localcmd("-graboff\n");
+        VR_Test_Verdict();
+        vr_et_on = 0;
+        return;
+    }
+    if(vr_et_m != world && vr_et_m.health > 0 && !corpse)
+    {
+        vr_et_m.nextthink = time + 0.5;
+        vr_et_m.velocity = '0 0 0';
+        vr_et_m.health = 1; // (the blow kills: Killed cuts what it is at)
+    }
+    // A corpse first: killed whole (once it can be hurt), left to lie still.
+    if(corpse && vr_et_s == 0 && vr_ee_target == world)
+    {
+        setorigin(p, vr_eh_home);
+        p.velocity = '0 0 0';
+        vr_et_m = VR_ET_Grunt(44);
+        vr_la_c0 = '0 0 0';
+        VR_ET_To(20);
+        return;
+    }
+    if(vr_et_s == 20 && vr_et_m.health > 0)
+    {
+        if(vr_et_m.takedamage && t > 0.1)
+        {
+            vr_et_m.health = 1;
+            T_Damage(vr_et_m, p, p, 2);
+            vr_et_t0 = time;
+        }
+        return;
+    }
+    if(vr_et_s == 20)
+    {
+        vector now = limbplace(vr_et_m, 0, 3);
+        float still = vlen(now - vr_la_c0) < 0.05;
+        vr_la_c0 = now;
+        if(t > 0.8 && still)
+        {
+            VR_Test_Check(vr_et_m.health <= 0 && vr_et_m.modelindex != 0, sprintf("case %g: a corpse lying (health %g)", vr_et_case, vr_et_m.health));
+            vr_ee_target = vr_et_m;
+            vr_eh_down = 1.2;
+            // (Fallen, the part may lie past the hand's reach: you stand 40 units from it, as before it.)
+            vector tg = VR_EH_Target(vr_et_m) - vr_la_home;
+            tg_z = 0;
+            vr_eh_home = vr_la_home + normalize(tg) * max(0, vlen(tg) - 40);
+            VR_ET_To(0);
+        }
+        return;
+    }
+    if(vr_et_s < 10)
+    {
+        vr_eh_part = (vr_et_case == 0 || vr_et_case == 3) ? 1 : 2;
+        if(vr_et_s == 1 && vr_eh_part == 2 && vr_et_m != world)
+        {
+            float bits = ragdolllimbs(vr_et_m, 0);
+            vr_eh_limb = -1;
+            for(float b = 0; b < VR_LIMB_JOINTS && vr_eh_limb < 0; b++)
+            {
+                if(bits & VR_AgArmor_Bit(b))
+                {
+                    vr_eh_limb = b;
+                }
+            }
+        }
+        if(VR_EH_Blow(WID_AXE, 7, 0, TRUE, t))
+        {
+            VR_ET_To(10);
+        }
+        return;
+    }
+    string what = (vr_eh_part == 1 ? "head" : "limb");
+    entity g = VR_LA_Gib();
+    if(vr_et_s == 10 && t > cvar_hget(cvarh_vr_embed_touch_wait) + 0.1)
+    {
+        float cut = vr_et_m != world && (vr_eh_part == 1 ? vr_et_m.vr_headless : ragdolllimbs(vr_et_m, 2) != 0);
+        if((!cut || g == world) && vr_ec_tries < 3)
+        {
+            VR_LA_Again(sprintf("cut %g, on the blade %g (aimed at %v, the swing's end %v, you at %v, its line %v)", cut, g != world, VR_EH_Target(vr_et_m), vr_eh_end, p.origin,
+                VR_Blow(cVR_MainHand).mh_far - VR_Blow(cVR_MainHand).mh_grip));
+            return;
+        }
+        VR_Test_Check(cut && g != world && g.vr_skewer_hand == cVR_MainHand,
+            sprintf("case %g: a killing axe blow at a %s's %s cuts it off onto the blade (cut %g, on it %g, blows %g)", vr_et_case, corpse ? "corpse" : "live grunt", what, cut, g != world, vr_ec_tries + 1));
+        VR_Test_Check(VR_EH_Blade() == world && VRGetEntWeapon(p, cVR_MainHand) == WID_AXE, sprintf("the axe in the hand, in no body (holds %g)", VRGetEntWeapon(p, cVR_MainHand)));
+        if(g == world)
+        {
+            VR_LA_Next();
+            return;
+        }
+        VR_Melee_Line(p, cVR_MainHand, VR_Melee_Thing(p, cVR_MainHand));
+        VR_Test_Check(vlen(g.vr_skewer_c - vr_mline_far) < 30, sprintf("at the axe's head: its middle %.1f units from the blade's end", vlen(g.vr_skewer_c - vr_mline_far)));
+        vr_la_c0 = g.vr_skewer_c;
+        vr_la_h0 = VRGetHandPos(cVR_MainHand);
+        vr_la_side = VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90);
+        VR_EH_HandTo(vr_la_h0 + '0 0 1' * 25 * cm, 0.5);
+        VR_ET_To(11);
+        return;
+    }
+    if(g == world && vr_et_s >= 11 && vr_et_s < 12)
+    {
+        VR_Test_Check(FALSE, sprintf("the %s fell off the blade, moved slowly (state %g)", what, vr_et_s));
+        VR_LA_Next();
+        return;
+    }
+    if(vr_et_s == 11 && t > 0.65)
+    {
+        vector hm = VRGetHandPos(cVR_MainHand) - vr_la_h0;
+        vector gm = g.vr_skewer_c - vr_la_c0;
+        VR_Test_Check(vlen(hm) > 20 * cm && vlen(gm - hm) < 1.5, sprintf("it rides the blade: the hand went %.1f units, the %s %.1f, %.2f apart", vlen(hm), what, vlen(gm), vlen(gm - hm)));
+        VR_Test_Check(fabs(p.vr_skewer_load_main_x - VR_Skewer_Mass(g)) < 0.01 && p.vr_skewer_load_main_x > 0,
+            sprintf("its weight in the hand: %.2f kg (its %.2f)", p.vr_skewer_load_main_x, VR_Skewer_Mass(g)));
+        vr_la_h0 = VRGetHandPos(cVR_MainHand);
+        if(vr_et_case <= 1)
+        {
+            localcmd("screenshot\n"); // (the picture: the head, then the limb, on the axe)
+        }
+        if(vr_et_case == 1)
+        {
+            vr_et_at = g.vr_skewer_c;
+            localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to off %v\n", vr_et_at));
+            VR_ET_To(13);
+        }
+        else
+        {
+            float sp = vr_et_case == 2 ? 5 : 4;
+            float go = vr_et_case == 2 ? 40 : 30;
+            // (Across and up, in the air: across at the floor, the part meets it or the body and bursts, as a skewered gib.)
+            VR_EH_HandTo(vr_la_h0 + normalize(vr_la_side + '0 0 1') * go * cm, go * cm / VRMetersToUnits() / sp);
+            VR_ET_To(12);
+        }
+        return;
+    }
+    if(vr_et_s == 12 && (g == world || t > 0.6))
+    {
+        // (g: the one on the blade; off, the last one cut: the head thrown or the newest gib.)
+        entity off = world;
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(e.vr_gib && e.vr_skewer_p == world && e.vr_skewer_cutt > 0 && (off == world || e.vr_skewer_cutt > off.vr_skewer_cutt))
+            {
+                off = e;
+            }
+        }
+        VR_Test_Check(g == world && off != world && vlen(off.velocity) > 1.5 * VRMetersToUnits(),
+            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s)", vr_et_case == 2 ? "hard swing (5 m/s)" : "fast move (4 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits()));
+        VR_LA_Next();
+        return;
+    }
+    if(vr_et_s == 13 && vlen(VRGetHandPos(cVR_OffHand) - vr_et_at) < 1 && vlen(VRGetEntHandVel(p, cVR_OffHand)) < 0.5)
+    {
+        localcmd("+graboff\n");
+        VR_ET_To(15);
+        return;
+    }
+    if(vr_et_s == 15 && (g.vr_skewer_grip == cVR_OffHand + 1 || t > 1))
+    {
+        VR_Test_Check(g.vr_skewer_grip == cVR_OffHand + 1 && g.vr_skewer_p == p, "the other hand's grip holds it, still on the blade");
+        VR_EH_HandTo(vr_la_h0, 0); // (the axe's hand stays)
+        localcmd(sprintf("vr_mock_hand_glide 0.35\nvr_mock_hand_to off %v\n", vr_et_at - vr_eh_fw * 35 * cm));
+        VR_ET_To(16);
+        return;
+    }
+    if(vr_et_s == 16 && (g == world || t > 1))
+    {
+        entity held = VR_Carry_Held(p, cVR_OffHand);
+        VR_Test_Check(g == world && held != world && held.vr_gib && held.vr_skewer_p == world, sprintf("a 35 cm tug: off, in that hand (holds %s)", held.classname));
+        VR_LA_Next();
+        return;
+    }
+};
+
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
@@ -3765,6 +3985,22 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             vr_eh_home = VR_Player().origin;
             localcmd("vr_mock_hand_to_absolute 1\n");
             vr_et_on = 25;
+            vr_et_case = 0;
+            VR_ET_To(0);
+        }
+        if(ask == 26)
+        {
+            VR_Test_BeginFlags("limbonaxe", VR_TEST_LOUD);
+            cvar_set("vr_knockdown", "0"); // (as test 25)
+            cvar_set("vr_decap_pop_roll", "0"); // (a cut's chance always wins)
+            cvar_set("vr_embed_cuton", "1");
+            vr_eh_home = VR_Player().origin;
+            vr_la_home = vr_eh_home;
+            vr_ee_target = world;
+            vr_eh_down = 0;
+            vr_ec_tries = 0;
+            localcmd("vr_mock_hand_to_absolute 1\n");
+            vr_et_on = 26;
             vr_et_case = 0;
             VR_ET_To(0);
         }
@@ -3888,6 +4124,15 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_EH_NextCase();
         }
         VR_EC_Step();
+    }
+    else if(vr_et_on == 26)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: case %g state %g", vr_et_case, vr_et_s));
+            VR_LA_Next();
+        }
+        VR_LA_Step();
     }
     else if(vr_et_on == 8)
     {

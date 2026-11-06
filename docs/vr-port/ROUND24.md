@@ -1367,3 +1367,34 @@ His words: avoid running the export script by hand. Now the loop is edit, Ctrl+S
   on Save box at the top of the Quake VR panel; with the game running and the shotgun in hand, move a vertex of the
   stock and Ctrl+S: the status bar says exported, the gun changes within a second or two. Rename a shape key and
   Ctrl+S: the popup refuses and the game doesn't change. (Undo both; don't commit the .blend.)
+
+## A cut-off head or limb stays on the axe (branch `agent/limbonaxe`, 2026-11-06)
+
+His note: "The cut off limb should get stuck on the blade that cut it off." (This replaces agent embedfix's decision "not embedded
+in the severed part".) His direction: build it on the sword's gib skewering, the axe's own bits on top.
+
+- **Reused (vr_skewer.qc, the skewer path):** the gib rides the hand by its own think (VR_Skewer_Think, its fade waiting in
+  `.vr_skewer_think`), not solid, MOVETYPE_NONE; its weight in the hand (VR_Skewer_Tally, vr_skewer_mass_head/limb, the engine's
+  vr_weight.cpp); the other hand's grip (VR_Skewer_Gripper/ForGrip, the engine's skewerDrawnHand draws that hand on the gib) and the
+  tug's numbers (`vr_embed_skewer_tug_speed` 4 m/s with half the stretch, or `vr_embed_skewer_tug_stretch` 30 cm) into that hand
+  (VR_Skewer_Take); coming off when the blade is gone, holstered, switched, the player dead, vr_embed off, the level's end
+  (VR_Skewer_Find/Off); a swing's burst on what it meets (VR_Skewer_Impact, `vr_embed_skewer_swing_burst`) and a swing's contact at it
+  (VR_Skewer_SwingHit); save/load as the skewer's (all state in entity fields and its think; not run separately).
+- **New (the edge, `.vr_skewer_cut`):** VR_Skewer_CutOn, called by VR_Decap_Cut and VR_Limb_Cut with the thrown head or limb and the
+  neck or joint: a swing's cut (QVR_DECAP_SWING, live or corpse) by a player's hand whose blade takes parts (`vr_embed_cuton`, default 1:
+  the edge blades, the axes; 2: the pointed ones too, the swords) with its blade proper (an axe's head from 0.6 of its line, a sword's
+  from 0.4) within 16 units of the cut. The part is moved so its cut end is on the edge and kept rigid there in the hand's frame
+  (`.vr_skewer_at`, the turn in `.vr_skewer_fw/up`), not along the line; at most `vr_embed_skewer_most` on a blade. Only in the hand
+  that cut it: let go of, thrown, or the axe stuck in a body, it falls (no sphere on a thrown axe). The other hand's tug is measured from
+  where it took hold, any way (no slide along the edge). Off by a stop: its own speed at least `vr_embed_cuton_fling` 2.5 m/s then down
+  to half within 0.25 s (a hard swing that stops, a shake's turn back) flings it the way it was going (VR_Skewer_Fling). For 0.4 s after
+  it went on (the swing that cut it, going on through the body) no fling, no burst. Its fling-to-a-wall watch ends as it goes on.
+- **Swords:** off by default (`vr_embed_cuton` 1): a sword's slice goes through, and a sword already skewers by a stab; 2 turns it on with
+  the same rules. Debug > Tunables > Combat > Embedded Blades: "Cut-Off Parts: Stay on the Blade", "Cut-Off Parts: Fling Speed".
+  Like skewering, it needs `vr_embed` on.
+- **Test:** `vr_embed_test 26` (`limbonaxe: N passed, M failed`), the mock hand's real killing axe swings: 0 a live grunt's head, 1 a live
+  grunt's limb, 2 a corpse's limb, 3 a corpse's head (killed whole, lain still, you put 40 units from the part): cut off onto the blade
+  (its edge 4.6-8.5 units from the cut), no blade in the body, the axe in the hand, at the axe's head; rides the hand 25 cm up at 0.5 m/s
+  (0.01-0.11 units off the hand's move), its weight in the hand (head 1.50 kg, limbs 0.54-0.85); off: 0 and 3 a 4 m/s move that stops
+  (flung at 4.8-5.3 m/s), 2 a 5 m/s swing that stops, 1 the other hand's grip, then a 35 cm pull at 1 m/s: "tugged off 31 cm", in that
+  hand. 27/0. Across the floor, the part met the floor or the body and burst (the skewer's swing burst): the test swings up and across.

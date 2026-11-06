@@ -1944,6 +1944,8 @@ QVR_TUNABLE_SLIDER(vr_embed_skewer_tug_stretch, "Skewered Gibs: Tug Stretch", 0.
 QVR_TUNABLE_SLIDER(vr_embed_skewer_mass_gib, "Skewered Gibs: Gib Weight", 0.0f, 5.0f, 0.1f, "%.1f kg", 0.0f, 20.0f, "What a gib of a middling size adds to the blade it is on, in the hand and thrown (half to one and a half that by its size).")
 QVR_TUNABLE_SLIDER(vr_embed_skewer_mass_limb, "Skewered Gibs: Limb Weight", 0.0f, 5.0f, 0.1f, "%.1f kg", 0.0f, 20.0f, "What a limb of a middling size adds to the blade it is on (half to one and a half that by its size).")
 QVR_TUNABLE_SLIDER(vr_embed_skewer_mass_head, "Skewered Gibs: Head Weight", 0.0f, 10.0f, 0.1f, "%.1f kg", 0.0f, 20.0f, "What a head adds to the blade it is on, in the hand and thrown.")
+QVR_TUNABLE_SLIDER(vr_embed_cuton, "Cut-Off Parts: Stay on the Blade", 0.0f, 2.0f, 1.0f, "%.0f", 0.0f, 2.0f, "A head or limb a swing cuts off stays on the blade at the cut until shaken, swung or pulled off. 0: never, 1: axes, 2: swords too.")
+QVR_TUNABLE_SLIDER(vr_embed_cuton_fling, "Cut-Off Parts: Fling Speed", 0.0f, 10.0f, 0.5f, "%.1f m/s", 0.0f, 30.0f, "How fast a part on the blade must be going before a sharp stop (a hard swing, a shake) flings it off. 0: never.")
 QVR_TUNABLE_GROUP("Combat > Embedded Blades > Axe")
 QVR_TUNABLE_SLIDER(vr_embed_swing_speed, "Axe Swing: Least Speed", 1.0f, 15.0f, 0.25f, "%.2f m/s", 0.0f, 30.0f, "How fast the hand must drive a swung axe, edge first, for it to stay in the body.")
 QVR_TUNABLE_SLIDER(vr_embed_swing_angle, "Axe Swing: Most Off Its Plane", 5.0f, 90.0f, 5.0f, "%.0f deg", 0.0f, 90.0f, "The most the blow may go off the blade's plane.")
