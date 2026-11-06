@@ -59,6 +59,7 @@ A head or limb cut off by an axe swing now stays stuck on the axe at the cut (li
 Super shotgun: aim down the sights: a raised glowing bead sits centred in the rear ring and the shots land on it; break-open reload as before
 Every weapon now has a source .blend (Misc/quakevr/src_models/blend/<model>/): open one, edit, Ctrl+S, and the game updates the weapon by itself
 Super shotgun: run Align Sights to My Aim again (your saved shot pitch 0.65 predates the new bead's 1.47), then the bead sits on what you hit
+Armour: the enforcer's and death knight's thighs are covered from the hip to the knee while walking (the enforcer's from behind still open); armoured grunt corpses keep their feet bare
 [ ] Embedded axe (vr_embed 1): tug the axe out hard (20 cm). The axe stays in your drawn hand the whole way back to your controller: no axe jumping ahead, no hand lagging behind it; both glide together over about a quarter second (vr_embed_free_ease). Same with a sword stuck in a body and let go of / pulled out.
 [ ] Embedded axe (vr_embed 1): behead a grunt with a killing axe swing at its head, then cut off an arm or leg with a killing swing. The axe never stays floating where the head or limb was; it stays in your hand, and you can't drag the limbless/headless ragdoll by it.
 [ ] Embedded axe (vr_embed 1): stick an axe in a grunt's arm or head, then cut that limb/head off with another weapon or shot. The stuck axe comes free (into your hand if you were holding it, falling if not); it never hangs in empty space.

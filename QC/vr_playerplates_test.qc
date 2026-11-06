@@ -543,7 +543,7 @@ void(entity p) VR_PPT_Look =
             VR_PPT_Set(p, 0, 0);
             float kind = k < 8 ? floor(k / 2) : k == 9 ? 3 : 0;
             if(k == 8 || k == 9) { localcmd("vr_mock_camera 0.1 0.7 -1.85 8 0\n"); }
-            else if(k >= 10) { localcmd(k == 10 ? "vr_mock_camera 0 1.1 -1.3 30 0\n" : "vr_mock_camera 0 1.5 -1.0 45 0\n"); }
+            else if(k >= 10) { localcmd(k == 10 ? "vr_mock_camera 0 1.0 -2.0 35 0\n" : "vr_mock_camera 0.6 0.9 -2.3 35 30\n"); }
             else { localcmd(kind == 3 ? "vr_mock_camera 0 1.3 -1.2 8 0\n" : "vr_mock_camera 0 0.95 -1.45 0 0\n"); }
             vr_ppt_g0 = VR_PPT_LookWearer(p, kind, 2, 0, 100);
             if(k % 2 && k < 8)
@@ -553,10 +553,12 @@ void(entity p) VR_PPT_Look =
             }
             if(k >= 10)
             {
-                // (killed where it stands: its corpse keeps its plates)
-                vr_ppt_g0.health = 1;
-                T_Damage(vr_ppt_g0, p, p, 20);
-                vr_ppt_g0 = world;
+                // (killed where it stands once it takes damage (state 3): a monster's start comes a few frames after its spawn,
+                // takedamage off till then, so a hit now left it standing)
+                vr_ppt_at0 = vr_ppt_g0.origin;
+                vr_ppt_frames = 0;
+                VR_PPT_To(3, 0);
+                return;
             }
         }
         else if(k < 8)
@@ -579,7 +581,45 @@ void(entity p) VR_PPT_Look =
         vr_ppt_at0 = vr_ppt_g0.origin;
         vr_ppt_at1 = vr_ppt_g1.origin;
         vr_ppt_at2 = vr_ppt_g2.origin;
-        VR_PPT_To(1, rint(((vr_ppt_on == 15 && k >= 10) ? 3.5 : 1.3) * 72)); // (a corpse settled)
+        VR_PPT_To(1, rint(1.3 * 72));
+    }
+    else if(vr_ppt_s == 3)
+    {
+        // (vr_pp_test 15's corpse: killed as soon as it takes damage (its plates stay on), then shot once its frame has held for
+        // half a second (its death played out))
+        if(vr_ppt_g0.health > 0)
+        {
+            if(vr_ppt_g0.takedamage == DAMAGE_NO)
+            {
+                if(time - vr_ppt_t0 > 5)
+                {
+                    bprint(sprintf("ppshot: FAIL timed out: the corpse's monster never took damage (%s, think in %g, health %g)\n",
+                        vr_ppt_g0.classname, vr_ppt_g0.nextthink - time, vr_ppt_g0.health));
+                    VR_PPT_To(2, 0);
+                }
+                return;
+            }
+            vr_ppt_g0.health = 1;
+            T_Damage(vr_ppt_g0, p, p, 20);
+            vr_ppt_prog = vr_ppt_g0.frame;
+            return;
+        }
+        if(vr_ppt_g0.frame != vr_ppt_prog)
+        {
+            vr_ppt_prog = vr_ppt_g0.frame;
+            vr_ppt_frames = 0;
+            return;
+        }
+        vr_ppt_frames = vr_ppt_frames + 1;
+        if(vr_ppt_frames >= 36)
+        {
+            VR_PPT_To(1, 0);
+        }
+        else if(time - vr_ppt_t0 > 10)
+        {
+            bprint("ppshot: FAIL timed out: the corpse never settled\n");
+            VR_PPT_To(1, 0);
+        }
     }
     else if(vr_ppt_s == 1)
     {
