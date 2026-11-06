@@ -2107,3 +2107,27 @@ can tweak things easily in flatscreen without opening/closing the quake menu? Yo
 
 **To try (flat screen):** `bind F7 vr_armourstudio_window`, F7 in a map: Start, pick a part, drag and type values, Save;
 open the menu page and see the same values; F7 again closes it and mouse look comes back.
+
+## Flat-screen wall margin (branch `agent/flatwallmargin`, 2026-11-06)
+
+He: the wall push back and the muzzle tilt keep the gun out of the wall, but the hand still goes into it; start them a
+bit further off.
+
+- New tunable `vr_flat_wall_margin` (default 4 units, 0..24; VR Settings, the flat Wall rows: "Wall: Keep Off Distance").
+  In hipfire (sighted: none, `vr_flat_ads_wall_keep` places the sight), the push back (`handpose::gunBack`) and the tilt
+  test (`handpose::gunDepth`) count a weapon point as in a wall once a wall (not a floor or a ceiling) is within the margin
+  of it: their lines from the head go on past the point by twice the margin. The push back counts the hand's own point
+  too; the tilt doesn't (a tilt round the hand can't move it). 0 is exactly the old code path.
+- `vr_gun_wall_depth` prints a second line per hand, `gunwalloff: <hand> fist off Xcm gun off Ycm`: how near the drawn
+  hand model's vertices (`view::drawnHandSurface`) and the weapon's points come to a wall (negative: in it).
+- Measured (vrtesthall north wall, `setpos 0 623.5`, rifle 16 / revolver 31 / shotgun 4, yaw 90, 45, 135, pitch 0 and
+  +-30, standing and crouched): margin 0, the gun up to 0.9 cm in, the shotgun's pump hand 0.4 cm off; margin 2, both
+  hands >= 4.6 cm off; margin 4, both hands >= 9.8 cm off, the gun >= 4.4 cm; side walls and the open: no change.
+- **But walking into the wall the hand still goes in, whatever the margin** (scratch `fwm_walk.sh`: +forward into the
+  wall, `noclip` off -- `setpos` turns noclip on): the player stops at y 632, not 623.5 (8 units nearer than the tests'
+  setpos), the hand ends at 638, and the push back has no room at all: the arm is ~11 units from the shoulder, keep 9,
+  and `stockBackMost` (vr_flat_clear_stock) takes the rest to 0. So the whole job falls to the tilt, round the hand:
+  main fist 5-9 cm in, the support hand 5-30 cm in, at margins 0..8 alike. With `vr_flat_wall_arm_keep 0;
+  vr_flat_clear_stock 0` and margin 4 the gun hand stays out (>= 9.6 cm) but the shotgun's pump hand is still 9 cm in;
+  `vr_flat_wall_tilt_pivot 1` keeps the gun hand out (>= 2 cm), not the support hand. A real fix needs room for the push
+  back at the wall (or a shoulder pivot, or lifting the support hand off), the author's call.

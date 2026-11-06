@@ -395,15 +395,16 @@ float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 } // namespace
 
 constexpr float wallSteep = 0.7f;  // gunDepth: a surface whose normal's up is more than this is a floor or a ceiling
-constexpr float marginReach = 2.f; // a wall margin's lines go on past the point this many margins (walls met at up to 60 degrees)
+constexpr float marginReach = 2.f; // a wall margin's level lines from a point are this many margins long (walls met at up to 60 degrees)
 
 namespace
 {
 
-// What the line from `from` to a weapon's point `end` meets first, carried on past the point by marginReach times
-// `margin` (0: to the point, as the headset's stop): its normal, and how far that surface is past the point along it
-// (`depth`; negative: in front of it), `margin` more for a wall. A floor or a ceiling met only past the point, or a wall
-// further than its margin, is nothing.
+// What the line from `from` to a weapon's point `end` meets first: its normal, and how far that surface is past the
+// point along it (`depth`), `margin` more for a wall (not a floor or a ceiling). With a margin and the line clear, a wall
+// short of it in front of the point counts too: a level line on from the point, the way the line goes (marginReach
+// margins long, less as the line points down or up), meets it (depth: the margin less the wall's way off). Level, so
+// a gun's end low over the floor by a wall doesn't meet the floor first and the wall the next degree (a jump).
 struct MarginHit
 {
     glm::vec3 n{0.f};
@@ -412,14 +413,25 @@ struct MarginHit
 };
 [[nodiscard]] za::Optional<MarginHit> marginTrace(const glm::vec3& from, const glm::vec3& end, float margin)
 {
-    glm::vec3 to = end;
-    const float len = glm::distance(from, end);
-    const bool reach = margin > 0.f && len > 0.001f;
-    if(reach)
+    if(const auto tr = lineTrace(from, end); tr && !tr->startsolid && !tr->allsolid && tr->fraction < 1.f)
     {
-        to = end + (end - from) * (marginReach * margin / len);
+        MarginHit hit;
+        hit.n = worldtrace::normal(*tr);
+        hit.wall = za::abs(hit.n.z) <= wallSteep;
+        hit.depth = za::max(glm::dot(worldtrace::endPos(*tr) - end, hit.n), 0.f) + (hit.wall ? margin : 0.f);
+        return za::Optional<MarginHit>{hit};
     }
-    const auto tr = lineTrace(from, to);
+    const float len = glm::distance(from, end);
+    if(margin <= 0.f || len <= 0.001f)
+    {
+        return za::nullOpt;
+    }
+    const glm::vec3 level{end.x - from.x, end.y - from.y, 0.f};
+    if(glm::length(level) <= 0.001f)
+    {
+        return za::nullOpt;
+    }
+    const auto tr = lineTrace(end, end + level * (marginReach * margin / len));
     if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
     {
         return za::nullOpt;
@@ -427,13 +439,11 @@ struct MarginHit
     MarginHit hit;
     hit.n = worldtrace::normal(*tr);
     hit.wall = za::abs(hit.n.z) <= wallSteep;
-    const float raw = glm::dot(worldtrace::endPos(*tr) - end, hit.n);
-    const bool past = reach && glm::distance(from, worldtrace::endPos(*tr)) > len;
-    if(past && (!hit.wall || raw + margin <= 0.f))
+    hit.depth = glm::dot(worldtrace::endPos(*tr) - end, hit.n) + margin;
+    if(!hit.wall || hit.depth <= 0.f)
     {
         return za::nullOpt;
     }
-    hit.depth = past ? raw + margin : za::max(raw, 0.f) + (hit.wall ? margin : 0.f);
     return za::Optional<MarginHit>{hit};
 }
 
