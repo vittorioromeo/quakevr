@@ -420,6 +420,9 @@ enum class PlatePass : int
 void platesResync();
 // vr_player_plates_info: what's drawn this frame.
 void platesInfo_f();
+// vr_player_plates_model_check [end]: the plates drawn as the drawn body's own armour model (`ppmodel: ok|FAIL ...`); `end`
+// the tally (`ppmodel: N passed, M failed`). Misc/quakevr/plates_model_test.sh.
+void platesModelCheck_f();
 // The tests (ragdollbone's QVR_ARMOR_CLIENT, `what`): 10 the settled pieces drawn, 11 those coming in, 12 those going out, 13
 // the newest morph coming in's progress (per mille; 0 none), 14 morphs begun so far, 15 the pieces drawn from the eyes last
 // frame (a view without the head), 16 those drawn with the head, 17 the plates' slots (0: no shell), 18 the settled ones' colour.

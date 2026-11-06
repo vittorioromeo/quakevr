@@ -1050,3 +1050,23 @@ option, on by default.
   on the wrist. 13 passed, 0 failed. Tests 38 (46/0), 37 (17/0), 34 (3/0) pass.
 - **To try (VR):** in vrarena, raise the wrist during the countdown and at a wave's start and clear; keep it down at a
   clear (one buzz) then raise it; take a perk; set Messages on the Wrist off and see them in the view again.
+
+## The plates drawn as a gib (agent/platesmodel, 2026-11-06)
+
+- **Bug:** after a campaign switch (here id1 to rogue, then R2M6), the armour plates morphed in as another model: a gib,
+  a fish, a door (`vr_player_plates_info`: `model *78`). Any build; which model it hit depended on the slots.
+- **Cause:** `agarmor::armorFor` (vr_agarmor.cpp) kept each body's armour model as a `qmodel_t*`. A campaign switch's
+  `Mod_ResetAll` keeps the alias models whose files stay the same (vr_modelkeep.cpp) in their slots, the player's body
+  among them, but empties the derived `<body>#armor` ones, and `Mod_FindName` gives the emptied slots to the next map's
+  models. The body found its cached kind again (same pointer, same name) and got the slot now holding another model.
+  `forgetModels` (`vr_agarmor_rebuild`) would also have freed that other model's cache.
+- **Fix:** each kind keeps the name its armour was loaded as; `armorLive` (the slot still that model, loaded, alias) or
+  the armour is looked up again, as `view::viewModel` already checks its own cache.
+- **Check:** `vr_player_plates_model_check [end]` (`ppmodel: ok|FAIL ...`; `end`: `ppmodel: N passed, M failed`): the
+  plates drawn as "<body>#armor", an alias model, the body the build's own.
+- **Test:** `bash Misc/quakevr/plates_model_test.sh <agent>` (needs rogue): builds 1-3, armour in e1m1, the switch,
+  armour in r2m6; the check on each map, and the pixels (`plates_model_pixels.py`: a camera in front of the player, the
+  plates on against off: the silhouette in r2m6 the same as in e1m1, at least 0.4 intersection over union). Without the
+  fix: 3 passed, 6 failed (plates `*62`, `*87`; same pixels 0.23-0.26). With it: 9 passed, 0 failed (0.68-0.70).
+  `vr_pp_test 1` 53/0, `3` 5/0.
+- **To try:** flat or VR, build 3: a map in id1, then Dissolution of Eternity, R2M6, the armour by the entrance.
