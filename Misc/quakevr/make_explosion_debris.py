@@ -7,9 +7,22 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'Misc/quakevr/blender/addons/quakevr_models'))
 from qpal import PALETTE
 
+def build(src, out_dir, guarded=True):
+    """vr_explosion_debris.mdl made from `src` (vr_rock1.mdl) into out_dir (source.py's export calls this: vr_rock1.blend's
+    export writes it too)."""
+    make(Path(src), Path(out_dir) / 'vr_explosion_debris.mdl')
+
+
 def main():
-    source = ROOT / 'quakevr/progs/vr_rock1.mdl'
+    # Since 2026-11 vr_rock1.blend's export makes it (MODELS_IN_BLENDER.md, "Every other model"): this stops for it.
+    sys.path.insert(0, str(ROOT / 'Misc/quakevr'))
+    import genguard
     out = ROOT / 'quakevr/progs/vr_explosion_debris.mdl'
+    genguard.retired('make_explosion_debris.py', [str(out)])
+    make(ROOT / 'quakevr/progs/vr_rock1.mdl', out)
+
+
+def make(source, out):
     data = bytearray(source.read_bytes())
     assert data[:4] == b'IDPO' and struct.unpack_from('<i', data, 4)[0] == 6
     skins, width, height = struct.unpack_from('<3i', data, 48)

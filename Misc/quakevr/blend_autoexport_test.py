@@ -1,5 +1,5 @@
 # blend_autoexport_test.py -- the Blender half of blend_autoexport_test.sh: the Quake VR Models add-on's export on save
-# (autoexport.py) on a copy of a weapon's source .blend, headless, as Ctrl+S runs it.
+# (autoexport.py) on a copy of a source .blend, headless, as Ctrl+S runs it.
 #
 # Usage: blender -b --factory-startup <copy of v_shot.blend inside the repository> --python
 #            Misc/quakevr/blend_autoexport_test.py -- ok|refuse
@@ -35,10 +35,15 @@ def main(t):
     watched = [os.path.join(progs, f) for f in (name, name + "_0_norm.png")] + \
               [os.path.join(progs, p) for p in source.SPECS.get(name, {}).get("parts", ())] + \
               [os.path.join(root, "quakevr", "data", "weapons.txt")]
+    watched = [p for p in watched[:-1] if os.path.exists(p)] + watched[-1:]  # (a model without a normal map)
     before = {p: os.stat(p).st_mtime_ns for p in watched}
     if mode == "refuse":
-        kb = ob.data.shape_keys.key_blocks[1]
-        kb.name = kb.name + "x"
+        keys = ob.data.shape_keys
+        if keys is not None and len(keys.key_blocks) > 1:
+            kb = keys.key_blocks[1]
+            kb.name = kb.name + "x"
+        else:  # (a one-frame model has no shape keys: one added is a frame too many)
+            ob.shape_key_add(name="frame_extra", from_mix=False)
     bpy.ops.wm.save_mainfile()
     res = autoexport.wait()
     if not t.check(res is not None, "the save started an export"):
@@ -53,8 +58,10 @@ def main(t):
             len(same), len(watched)))
     else:
         t.check(ok, "the save exported")
-        newer = [os.path.basename(p) for p in watched[:-1] if after[p] != before[p]]
-        t.check(len(newer) == len(watched) - 1, "the game's files written: %s" % ", ".join(newer))
+        # (a generic source keeps its shipped normal map while the model is unchanged: not written again)
+        must = [p for p in watched[:-1] if not (ob.get("qvr_source_blend") and p.endswith("_norm.png"))]
+        newer = [os.path.basename(p) for p in must if after[p] != before[p]]
+        t.check(len(newer) == len(must), "the game's files written: %s" % ", ".join(newer))
 
 
 tally = qvrtest.Tally("blend_autoexport_save")

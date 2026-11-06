@@ -62,9 +62,23 @@ def make(progs, name, spec):
                                                                           len(tris) - len(kept), len(out)))
 
 
+def build(src, out_dir, guarded=True):
+    """The armed models made from `src` (its monster's exported model: soldier.mdl, ...) into out_dir, which must hold
+    it (source.py's export calls this: soldier.blend's export writes vrgrunt.mdl too)."""
+    progs = os.path.dirname(os.path.abspath(src))
+    assert os.path.normcase(progs) == os.path.normcase(os.path.abspath(out_dir)), 'src must be in out_dir'
+    for name, spec in MODELS.items():
+        if spec['src'] == os.path.basename(src):
+            make(progs, name, spec)
+
+
 def main():
+    # Since 2026-11 the armed models are made by their monster's source .blend's export (soldier.blend: vrgrunt.mdl;
+    # MODELS_IN_BLENDER.md, "Every other model"): this stops for them. (Imported first: it takes --force out of argv.)
+    import genguard
     progs = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '..', '..', 'quakevr', 'progs')
     names = [sys.argv[2]] if len(sys.argv) > 2 else list(MODELS)
+    genguard.retired('make_vrgrunt.py', [os.path.join(progs, n + '.mdl') for n in names])
     for name in names:
         make(progs, name, MODELS[name])
 
