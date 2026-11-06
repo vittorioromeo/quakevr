@@ -2303,6 +2303,7 @@ void SCR_UpdateScreen (void)
 	}
 	else
 	{
+		VR_FlatHitDraw (); // QVR: flatscreen play's marks of where hits came from (vr_flathit.cpp)
 		SCR_DrawCrosshair (); //johnfitz
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();

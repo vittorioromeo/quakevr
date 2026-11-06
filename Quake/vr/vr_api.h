@@ -504,6 +504,7 @@ void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
 int VR_BloodActive (void); // peripheral feedback; independent of screen tints
 void VR_BloodBind (void); // uniforms 2..4 in viewblend/warpscale
 void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)
+void VR_FlatHitDraw (void);							// SCR_UpdateScreen: flatscreen play's marks round the crosshair toward where hits came from (vr_flathit.cpp)
 
 // Console (console.c).
 int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log
