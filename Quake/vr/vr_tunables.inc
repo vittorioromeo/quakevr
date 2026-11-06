@@ -1858,6 +1858,8 @@ QVR_TUNABLE(vr_flat_ads_lean, "10") // and the chest leans this far forward into
 QVR_TUNABLE(vr_flat_up_elbow, "1") // looking up with the free hand on a gun's hotspot, its elbow goes down under the gun and out instead of up in front of the eye: this share of it (0..1) from 15 deg up, all by 60
 QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own side, per its way down (0..2; 0: straight under the gun)
 QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towards its shoulder until the hand is this far from it (0..20 units; less: further back)
+QVR_TUNABLE(vr_flat_wall_fold, "5") // in the wall state (a hipfire gun pushed back or tilted at a wall) the arm may fold further, to this far from the shoulder (0..20 units; more than vr_flat_wall_arm_keep: no further), the stock to the chest; less: the gun comes nearer the eyes, more: it tilts more
+QVR_TUNABLE(vr_flat_wall_margin, "4") // a hipfire gun, and the hand on it, counts as clear of a wall only this far off it: the push back and the tilt start this much sooner (0..24 units; 0: only once in it)
 QVR_TUNABLE(vr_flat_wall_tilt, "85") // what that push back can't clear, the drawn muzzle tilts up out of, at most this far and never past straight up (0..85 degrees; 0: off). Drawn only: the shots still go through the crosshair
 QVR_TUNABLE(vr_flat_wall_tilt_fixed, "0") // the tilt's pitch: 0 the least that clears the wall (at most vr_flat_wall_tilt); 1 always all of vr_flat_wall_tilt once the wall is met
 QVR_TUNABLE(vr_flat_wall_tilt_yaw, "0") // and the tilted gun also turns this far across the body, muzzle inwards (-60..60 degrees; the left hand mirrored)

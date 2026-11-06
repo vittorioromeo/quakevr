@@ -837,6 +837,13 @@ za::Vector<Item> pageDebugReports()
             .help("vr_hand_check: each hand's aim, drawn weapon and drawn hand against the controller's grip pose (the one "
                   "Show Controller's ghost is drawn from): turn and place. Hold still and roll the controller: they should "
                   "not change."),
+        command("Body Pitch", "vr_body_pitch")
+            .help("vr_body_pitch: the body's forward tilt now (Body > Lean Forward Under Water): its angle and target, why "
+                  "(swimming), the water level, standing on the bottom, and the distance to a ledge you can climb out at "
+                  "(-1: none near)."),
+        command("Body Pitch Self-Test", "vr_body_pitch_test")
+            .help("vr_body_pitch_test: the under water lean's states through its ease (dry, half under, under, by a "
+                  "ledge, holding on, on the bottom, off, out again, bobbing), each smooth: N passed, M failed."),
         command("Torch Lights", "vr_torch_lights_list")
             .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
                   "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),

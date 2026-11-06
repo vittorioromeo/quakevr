@@ -2232,6 +2232,7 @@ extern "C" void VR_Init()
     client::init();
     server::init();
     view::registerDiagCommands(); // vr_dumpview, vr_grasp_*, vr_hotspot_fit... (vr_view_diag.cpp)
+    avatar::init();               // vr_body_pitch, vr_body_pitch_test (vr_avatar_pitch.cpp)
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
     Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
     Cmd_AddCommand("vr_carry_drag_test", carry2h::dragTest_f);

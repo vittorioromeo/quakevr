@@ -1424,6 +1424,10 @@ QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how t
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
+QVR_CVAR(vr_body_swim_tilt, "1", CVAR_ARCHIVE)        // fully under water (waterlevel 3) and off the bottom, the body tilts forward about the neck, the legs trailing (vr_avatar_pitch.cpp); 0: upright
+QVR_CVAR(vr_body_swim_tilt_angle, "45", CVAR_ARCHIVE) // degrees it tilts (0 .. 80)
+QVR_CVAR(vr_body_swim_tilt_time, "0.8", CVAR_ARCHIVE) // seconds the tilt takes to come and to go (0.1 .. 3)
+QVR_CVAR(vr_body_swim_tilt_ledge, "64", CVAR_ARCHIVE) // units from a ledge you can climb out of the water at where it starts straightening (upright within a third of it; 0: never)
 QVR_CVAR(vr_body_turn_step, "40", CVAR_ARCHIVE)       // degrees the body turns over its planted feet before they step round
 QVR_CVAR(vr_body_climb_feet, "1", CVAR_ARCHIVE)       // climbing (a hand on a hold), the feet find footholds (ledges, rungs, the wall) and step between them; 0: they hang
 QVR_CVAR(vr_body_climb_feet_reach, "1", CVAR_ARCHIVE) // how far below the hips they look for one, times the default (0.5 .. 1.2)

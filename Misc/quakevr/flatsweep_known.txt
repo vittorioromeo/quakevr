@@ -31,3 +31,5 @@ hand_torso open/long/stand/ads 2 0.968
 hand_torso open/pistol/crouch/ads 2 0.886
 hand_torso open/pistol/stand/ads 2 2.532
 hand_torso wall/long/stand/ads 2 0.968
+# Wall candidate poses (2026-11-06): turned poses looking 20-45 down bring the long gun stock into the chest; next: score poses with flatsweep shapes
+gun_torso wall/long/stand/hip 2 1.930

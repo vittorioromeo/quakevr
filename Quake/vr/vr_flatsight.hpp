@@ -117,6 +117,10 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // proximity gun, the laser cannon, the Enforcer's rifle: their grips are taken for real, `carry`): the stance's height
 // (vr_flat_stance_up), which stanceShare would otherwise leave those guns 4 units under the others.
 [[nodiscard]] float stanceLift(int h);
+// How far the free hand has let go of the gun in hand `h` (0..1): a hipfire gun pushed back or tilted at a wall (the wall
+// state) is held one-handed, the free hand easing off to its own pose over vr_flat_wall_tilt_time, and back onto the gun
+// as it comes off the wall. 0 outside the mode.
+[[nodiscard]] float wallLetGo(int h);
 
 // The stance's kind: a pistol's (vr_flat_stance_pistol: both hands in front of him, vr_flat_pistol_*) rather than a long gun's
 // (vr_flat_stance_*: the gun's hand towards the shoulder pocket, by his cheek).
