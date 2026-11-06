@@ -65,25 +65,82 @@ PART_NAMES = ["steel", "blued", "brass", "wood", "rubber", "rod", "lamp red", "l
 # under the receiver's back, the stock (rods) a little longer than the receiver, the barrel showing between the
 # receiver's front cap and the muzzle block; the butt 5.4 units nearer than the old gun's (the old one was long behind
 # the grip), the grip and the muzzle where they were.
-RECEIVER = (-3.0, 12.8, -2.2, 2.2, 3.6, 10.2)
-HOUSING = (-1.0, 12.2, -1.75, 1.75, 9.9, 11.1)
-NOSE = (12.4, 15.6, -2.05, 2.05, 4.1, 9.9)          # the receiver's chamfered front block (bolt heads on its sides)
+RECEIVER = (-3.0, 12.8, -2.2, 2.2, 3.1, 10.3)       # (round three: 0.6 taller, mostly downward: the sight line holds)
+HOUSING = (-1.0, 12.2, -1.75, 1.75, 10.0, 11.15)
+NOSE = (12.4, 15.6, -2.05, 2.05, 3.7, 10.0)         # the receiver's chamfered front block (bolt heads on its sides)
 COLLAR_X, COLLAR_R = 17.2, 1.7                      # the octagonal collar round the barrel, its step down to it
 BLOCK = (27.1, MUZZLE_X, -1.35, 1.35, BORE_Z - 1.35, BORE_Z + 1.35)
 BORE_R, BORE_DEPTH = 0.55, 0.4946                   # the bore (its bottom, the muzzle anchor, on a step of the x grid)
-GRIP_TOP = RECEIVER[4] - 0.9                        # the wooden grip's top, in the steel frame under the receiver
-ROD_TOP_Z, ROD_LOW_Z = 9.3, (4.9, 5.1)              # the stock's rods (the lower one's z at the receiver, at the butt)
-BUTT = (-23.3, -20.9, -1.7, 1.7, 3.0, 10.4)         # the tall butt block (the pad behind it, to x -24.0)
+# The stock (the reference's side view: an open triangle tapering to the receiver): a steel adapter block on the
+# receiver's back, the upper rod straight back from its top to the butt block's top, the lower rod from its bottom
+# (behind the grip), a short elbow, then down and back to the butt block's bottom; the butt block tall (1.5 x the
+# receiver), upright, a rubber pad behind it.
+ADAPTER = (RECEIVER[0] - 1.9, RECEIVER[0] + 0.2, -1.45, 1.45, 6.2, 9.95)
+ROD_TOP_Z = 9.3                                     # the upper rod, level
+ROD_LOW = ((ADAPTER[0] + 0.3, 7.0), (ADAPTER[0] - 1.3, 6.75))  # the lower rod's start and elbow (x, z)
+ROD_R = 0.58
+BUTT = (-23.3, -20.9, -1.7, 1.7, 1.3, 10.5)         # the tall butt block (the pad behind it, to x -24.0)
+ROD_BUTT_LOW_Z = BUTT[4] + 1.0                      # the lower rod's end at the butt block's bottom
 BAND = (22.0, 23.5)     # the clamp band round the barrel (the other hand's grip: hotspot 1)
 BAND_R = 1.2
 BARREL_R = 0.75
 WINDOW = (2.6, 8.6, 6.6, 8.6)                       # the side window on the left (+y) side: x0, x1, z0, z1
-LAMPS = ((10.9, LAMP_RED), (9.6, LAMP_BRONZE))      # their x on the left side, below and ahead of the window
-LAMP_Z, LAMP_HALF = 5.0, 0.4
+LAMPS = ((11.15, LAMP_RED), (9.55, LAMP_BRONZE))    # their x on the left side, below and ahead of the window
+LAMP_Z, LAMP_HALF = 4.95, 0.6
 VENTS = (29.6, 30.75, 31.9)                         # the muzzle block's three vents (x), through it, radius VENT_R
 VENT_R = 0.52
 GROOVES_Y = (-0.62, 0.62)                           # the two grooves along the housing's top
-GRIP_TILT = 0.36                                    # the pistol grip leans back (dx/dz: 20 deg)
+
+# The wooden pistol grip (round three: curved, bulbous): lofted through sections across its axis, which rakes back
+# GRIP_RAKE (dx/dz: 24 deg) through the origin (the fist's middle) and bends back a little more towards the foot. Each
+# section: (t 0 top .. 1 bottom, front, back, half width); the front's finger curve under the guard and a bump for the
+# middle finger, the back's narrow web under the receiver swelling into the palm, the foot flared, its bottom edge
+# bevelled. Eight sides a section.
+GRIP_RAKE = 0.45
+GRIP_S = (2.9, -4.5)                                # the axis's top (in the steel frame) and bottom, along it
+GRIP_BEND = 0.55                                    # how far back the foot bends off the straight rake
+GRIP_LEVELS = (
+    (0.00, 1.55, 1.40, 1.10),
+    (0.17, 1.30, 1.25, 1.05),
+    (0.38, 1.62, 1.80, 1.22),
+    (0.58, 1.45, 2.18, 1.33),
+    (0.80, 1.68, 2.20, 1.33),
+    (0.93, 1.95, 2.45, 1.42),
+    (1.00, 1.72, 2.20, 1.22),
+)
+GRIP_FRAME_Z = 1.7                                  # the steel frame over the grip's top, under the receiver: its bottom
+
+
+def grip_axes():
+    d = Vector((GRIP_RAKE, 0.0, 1.0)).normalized()   # up the grip
+    f = Vector((1.0, 0.0, -GRIP_RAKE)).normalized()  # across it, forward
+    return d, f
+
+
+def grip_section(t):
+    """The grip's section at t (0 top .. 1 bottom): its centre, forward direction, front, back, half width."""
+    d, f = grip_axes()
+    s = GRIP_S[0] + (GRIP_S[1] - GRIP_S[0]) * t
+    c = d * s - f * GRIP_BEND * t * t
+    lv = GRIP_LEVELS
+    for (t0, *a), (t1, *b) in zip(lv, lv[1:]):
+        if t <= t1 or t1 == lv[-1][0]:
+            k = max(0.0, min(1.0, (t - t0) / (t1 - t0)))
+            fr, bk, w = (x + (y - x) * k for x, y in zip(a, b))
+            return c, f, fr, bk, w
+    raise AssertionError
+
+
+def grip_t_at(z):
+    """The t whose section's centre is at height z."""
+    lo, hi = 0.0, 1.0
+    for _ in range(30):
+        m = 0.5 * (lo + hi)
+        if grip_section(m)[0].z > z:
+            lo = m
+        else:
+            hi = m
+    return 0.5 * (lo + hi)
 
 
 def box(bm, b, bevel=0.0):
@@ -165,6 +222,44 @@ def sweep(bm, path, half_n, half_y, cap_end=False):
         bm.faces.new(rings[-1])
 
 
+def tube(bm, path, r, sides=6):
+    """A round rod along a path in the x-z plane [(x, z)], mitred at its bends, open at both ends (they are in parts)."""
+    pts = [Vector((x, 0.0, z)) for x, z in path]
+    rings = []
+    for i, p in enumerate(pts):
+        t_in = (p - pts[i - 1]).normalized() if i > 0 else None
+        t_out = (pts[i + 1] - p).normalized() if i < len(pts) - 1 else None
+        one = t_in if t_in is not None else t_out
+        t = (t_in + t_out).normalized() if t_in is not None and t_out is not None else one
+        miter = 1.0 / max(0.5, t.dot(one))
+        n = Vector((-t.z, 0.0, t.x))                  # across the path, in the x-z plane
+        ring = []
+        for k in range(sides):
+            a = math.pi / sides + 2.0 * math.pi * k / sides
+            ring.append(bm.verts.new(p + n * (r * math.cos(a) * miter) + Vector((0.0, r * math.sin(a), 0.0))))
+        rings.append(ring)
+    for a, b in zip(rings, rings[1:]):
+        for k in range(sides):
+            bm.faces.new((a[k], a[(k + 1) % sides], b[(k + 1) % sides], b[k]))
+
+
+def grip_loft(bm):
+    """The wooden grip: GRIP_LEVELS' sections lofted, eight sides each, capped."""
+    rings = []
+    for t, *_ in GRIP_LEVELS:
+        c, f, fr, bk, w = grip_section(t)
+        y = Vector((0.0, 1.0, 0.0))
+        pts = [(fr, 0.0), (0.74 * fr, 0.86 * w), (0.12 * (fr - bk), w), (-0.74 * bk, 0.86 * w),
+               (-bk, 0.0), (-0.74 * bk, -0.86 * w), (0.12 * (fr - bk), -w), (0.74 * fr, -0.86 * w)]
+        rings.append([bm.verts.new(c + f * u + y * v) for u, v in pts])
+    n = len(rings[0])
+    for a, b in zip(rings, rings[1:]):
+        for k in range(n):
+            bm.faces.new((a[k], a[(k + 1) % n], b[(k + 1) % n], b[k]))
+    bm.faces.new(rings[0])
+    bm.faces.new(rings[-1])
+
+
 def bolt_heads(bm, centres, side, r=0.27, h=0.2):
     """Low pyramids (bolt heads) on a face whose outward normal is +y (side 1) or -y (side -1): centres [(x, y, z)]."""
     for x, y, z in centres:
@@ -209,37 +304,28 @@ def make_parts():
                                                           RECEIVER[5] + 0.35, SIGHT_Z)))
     add("magazine", STEEL, lambda bm: box(bm, (5.6, 9.4, -1.05, 1.05, -3.0, RECEIVER[4] + 0.25), 0.3))
 
-    # The pistol grip, raked and wood, a little deeper at its foot; the steel frame over it under the receiver's back
-    # (its back sloping with the grip's).
-    def grip(bm):
-        box(bm, (-2.0, 2.0, -1.3, 1.3, -4.1, GRIP_TOP), 0.6)
-        for v in bm.verts:
-            v.co.x *= 1.0 + 0.1 * (GRIP_TOP - v.co.z) / 7.0
-            v.co.x += GRIP_TILT * (v.co.z - 0.2)
-    add("grip", WOOD, grip)
+    # The pistol grip, wood, curved and bulbous (grip_loft); the steel frame over its top under the receiver, its back
+    # following the grip's back, its front where the trigger guard ends.
+    add("grip", WOOD, grip_loft)
 
     def frame(bm):
-        box(bm, (-2.4, 2.9, -1.35, 1.35, GRIP_TOP - 0.6, RECEIVER[4] + 0.2))
+        box(bm, (-2.4, 2.6, -1.35, 1.35, GRIP_FRAME_Z, RECEIVER[4] + 0.2))
         for v in bm.verts:
             if v.co.x < 0.0:
-                v.co.x += GRIP_TILT * (v.co.z - RECEIVER[4])  # its back slopes forward as it goes down
+                c, f, fr, bk, w = grip_section(grip_t_at(v.co.z))
+                v.co.x = (c - f * bk).x - 0.12 * (1.0 if v.co.z < RECEIVER[4] else 0.0)
     add("grip frame", STEEL, frame)
     # A thin trigger guard loop (from the magazine's back round under the trigger to the grip's front) and the trigger.
-    add("trigger guard", STEEL, lambda bm: sweep(bm, [(5.55, RECEIVER[4] + 0.1), (5.35, 1.2), (4.3, 0.3),
-                                                      (2.6, 0.4), (1.75, 1.6)], 0.17, 0.3))
-    add("trigger", BLUED, lambda bm: sweep(bm, [(3.45, RECEIVER[4] + 0.1), (3.35, 2.3), (3.95, 1.55)],
+    add("trigger guard", STEEL, lambda bm: sweep(bm, [(5.55, RECEIVER[4] + 0.1), (5.35, 1.0), (4.3, 0.1),
+                                                      (2.7, 0.2), (1.7, 1.3)], 0.17, 0.3))
+    add("trigger", BLUED, lambda bm: sweep(bm, [(3.45, RECEIVER[4] + 0.1), (3.35, 2.1), (3.95, 1.35)],
                                            0.14, 0.17, cap_end=True))
 
-    # The stock (the reference's): two parallel rods, the upper from a collar at the receiver's top back, the lower
-    # from behind the grip frame, into a tall chamfered butt block with a thin pad.
-    add("socket top", STEEL, lambda bm: prism_x(bm, RECEIVER[0] - 1.3, RECEIVER[0] + 0.2, 0.85, 8, z=ROD_TOP_Z,
-                                                 rot=math.pi / 8))
-    add("socket low", STEEL, lambda bm: prism_x(bm, RECEIVER[0] - 1.1, RECEIVER[0] + 0.2, 0.8, 8, z=ROD_LOW_Z[0],
-                                                 rot=math.pi / 8))
-    add("rod top", ROD, lambda bm: rod(bm, Vector((RECEIVER[0] - 1.1, 0.0, ROD_TOP_Z)),
-                                       Vector((BUTT[1] - 0.2, 0.0, ROD_TOP_Z)), 0.5))
-    add("rod low", ROD, lambda bm: rod(bm, Vector((RECEIVER[0] - 0.9, 0.0, ROD_LOW_Z[0])),
-                                       Vector((BUTT[1] - 0.2, 0.0, ROD_LOW_Z[1])), 0.5))
+    # The stock (the reference's): the adapter block, the upper rod level back to the butt block's top, the lower one
+    # from the adapter's bottom down and back to the butt block's bottom, the tall butt block, the pad.
+    add("adapter", STEEL, lambda bm: box(bm, ADAPTER, 0.3))
+    add("rod top", ROD, lambda bm: tube(bm, [(ADAPTER[0] + 0.3, ROD_TOP_Z), (BUTT[1] + 0.25, ROD_TOP_Z)], ROD_R))
+    add("rod low", ROD, lambda bm: tube(bm, list(ROD_LOW) + [(BUTT[1] + 0.25, ROD_BUTT_LOW_Z)], ROD_R))
     add("butt plate", STEEL, lambda bm: box(bm, BUTT, 0.55))
     add("pad", RUBBER, lambda bm: box(bm, (-24.0, BUTT[0] + 0.1, BUTT[2] + 0.15, BUTT[3] - 0.15, BUTT[4] + 0.2,
                                            BUTT[5] - 0.2)))
@@ -321,14 +407,14 @@ def rgb(*c):
     return Vector(c)
 
 
-GUNMETAL, GUNMETAL_LIGHT = rgb(80, 74, 68), rgb(128, 120, 110)
-BLUED_DARK, BLUED_C = rgb(44, 46, 54), rgb(78, 80, 90)
-ROD_DARK, ROD_C = rgb(92, 88, 84), rgb(146, 140, 132)
+GUNMETAL, GUNMETAL_LIGHT = rgb(88, 72, 62), rgb(142, 118, 102)   # (round three: warmer, the reference's brown-grey)
+BLUED_DARK, BLUED_C = rgb(52, 45, 42), rgb(92, 78, 70)
+ROD_DARK, ROD_C = rgb(104, 88, 76), rgb(162, 140, 122)
 BRASS_DARK, BRASS_C = rgb(96, 74, 38), rgb(150, 118, 62)
-WOOD_DARK, WOOD_C, WOOD_LIGHT = rgb(46, 24, 12), rgb(104, 58, 28), rgb(140, 86, 44)
-RUBBER_C = rgb(30, 28, 27)
+WOOD_DARK, WOOD_C, WOOD_LIGHT = rgb(54, 28, 14), rgb(122, 68, 32), rgb(158, 98, 50)
+RUBBER_C = rgb(54, 50, 46)
 GRIME, RUST = rgb(42, 36, 30), rgb(96, 52, 26)
-EDGE = rgb(170, 166, 158)
+EDGE = rgb(176, 160, 142)
 HOLE = rgb(10, 9, 9)
 LAMP_RED_C, LAMP_RED_HOT, LAMP_BRONZE_C = rgb(220, 30, 16), rgb(255, 150, 90), rgb(176, 120, 52)
 SKIN_DARKEN = 0.66  # (judged in the game: 0.86 read near white in e1m1's light; the reference's in-game grey)
@@ -412,7 +498,10 @@ def details(p, n, part, name):
     # Rivets (brass), painted with a highlight: the receiver's sides, the post base, the butt block.
     rivets = []
     if name == "receiver" and abs(n.y) > 0.9:
-        rivets = [(RECEIVER[0] + 0.8, 4.4), (RECEIVER[0] + 0.8, 9.4), (RECEIVER[1] - 0.8, 9.4), (1.2, 4.4)]
+        rivets = [(RECEIVER[0] + 0.8, RECEIVER[4] + 0.8), (RECEIVER[0] + 0.8, RECEIVER[5] - 0.8),
+                  (RECEIVER[1] - 0.8, RECEIVER[5] - 0.8), (1.2, RECEIVER[4] + 0.8), (8.1, LAMP_Z)]
+    elif name == "adapter" and abs(n.y) > 0.9:
+        rivets = [(0.5 * (ADAPTER[0] + ADAPTER[1]), ADAPTER[5] - 0.9), (0.5 * (ADAPTER[0] + ADAPTER[1]), ADAPTER[4] + 0.9)]
     elif name == "post base" and abs(n.y) > 0.9:
         rivets = [(0.5 * sum(FRONT_POST_X), BLOCK[5] + 0.15)]
     elif name == "butt plate" and abs(n.y) > 0.9:
@@ -456,15 +545,18 @@ def paint_texel(p, n, part, name, edges, ao, rnd):
         col = mix(BRASS_DARK, BRASS_C * 1.15, 0.55 + 0.45 * mid + 0.3 * fine)
         col = mix(col, BRASS_C * 1.6, 0.6 * max(0.0, n.z) * smooth(0.0, 0.4, fine + 0.3))  # catching the light
     elif part == WOOD:
-        # Oiled walnut: the grain's rings round the grip's axis, stretched up it, wavy; open pores; worn lighter where
-        # the palm rubs, darker at the foot.
-        ax = Vector((p.x - GRIP_TILT * (p.z - 0.2), p.y, p.z))
+        # Oiled walnut: the grain's rings round the grip's (curved) axis, running along it, wavy; open pores; worn
+        # lighter where the palm rubs, darker at the foot.
+        d, _ = grip_axes()
+        t = max(0.0, min(1.0, (GRIP_S[0] - p.dot(d)) / (GRIP_S[0] - GRIP_S[1])))
+        c, f, *_ = grip_section(t)
+        ax = Vector(((p - c).dot(f), p.y, t * (GRIP_S[0] - GRIP_S[1])))  # across, side, along the axis
         warp = noise.noise(Vector((ax.x * 0.7, ax.y * 0.7, ax.z * 0.18)) + Vector((5.0, 1.0, 2.0)))
         rings = math.sin((ax.x * 1.9 + ax.y * 0.6 + 2.2 * warp) * math.pi * 2.0)
         grain = smooth(0.55, 0.95, rings)
         col = mix(WOOD_C, WOOD_DARK, 0.75 * grain)
         col = mix(col, WOOD_LIGHT, 0.45 * smooth(-0.95, -0.6, rings) + 0.15 * mid)
-        if rnd < 0.06:
+        if rnd < 0.025:
             col = mix(col, WOOD_DARK * 0.7, 0.7)                  # a pore
         col = mix(col, WOOD_LIGHT * 1.1, 0.25 * smooth(0.5, 1.0, n.y * n.y) * smooth(-2.5, 0.5, p.z))
         col = mix(col, WOOD_DARK, 0.3 * smooth(-1.5, -3.8, p.z))
@@ -473,13 +565,13 @@ def paint_texel(p, n, part, name, edges, ao, rnd):
         if abs(n.x) > 0.9 and (int((p.z - BUTT[4]) * 2.2) % 2 == 0):
             col *= 0.6                                             # the pad's ribs
     elif part == LAMP_RED:
-        lens = max(abs(p.x - LAMPS[0][0]), abs(p.z - LAMP_Z))
+        lens = math.hypot(abs(p.x - LAMPS[0][0]), abs(p.z - LAMP_Z))
         if n.y > 0.9 and lens < LAMP_HALF - 0.06:
             # Glowing: a hot middle, a red rim (fullbright).
             return mix(LAMP_RED_HOT, LAMP_RED_C, smooth(0.04, LAMP_HALF - 0.08, lens)), "lamp glow"
         col = mix(BRASS_DARK, BRASS_C, 0.5 + 0.5 * fine)
     else:  # LAMP_BRONZE: a domed bronze lens with a highlight, in a brass bezel
-        lens = max(abs(p.x - LAMPS[1][0]), abs(p.z - LAMP_Z))
+        lens = math.hypot(abs(p.x - LAMPS[1][0]), abs(p.z - LAMP_Z))
         if n.y > 0.9 and lens < LAMP_HALF - 0.06:
             hi = smooth(0.12, 0.0, math.hypot(p.x - LAMPS[1][0] + 0.07, p.z - LAMP_Z - 0.08))
             col = mix(mix(LAMP_BRONZE_C * 1.1, LAMP_BRONZE_C * 0.6, lens / LAMP_HALF), rgb(230, 200, 140), hi)

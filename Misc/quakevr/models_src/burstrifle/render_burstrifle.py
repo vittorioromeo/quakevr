@@ -4,7 +4,7 @@
 #
 #   blender -b Misc/quakevr/src_models/blend/v_gruntgun/v_gruntgun.blend -P Misc/quakevr/models_src/burstrifle/render_burstrifle.py -- <out.png> [reference image]
 #
-# The reference is 3:1 per half (top: first person, bottom: turntable), as his was (1536 x 1024).
+# The reference is his 1536 x 1024 picture: first person above (576 rows), the turntable below (448 rows).
 
 import math
 import os
@@ -14,10 +14,12 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-W, H = 1536, 512
-VIEWS = {  # camera place, where it looks, lens (mm)
-    "first person": (Vector((-34.0, 9.5, 12.5)), Vector((60.0, -1.0, 5.0)), 15.0),
-    "turntable": (Vector((30.0, 88.0, 46.0)), Vector((4.0, 0.0, 3.5)), 52.0),
+W = 1536
+VIEWS = {  # camera place, where it looks, lens (mm), height (the reference's halves: 576 and 448 rows)
+    # (first person: fitted to the reference's own picture, seven points of the gun, 28 px rms)
+    "first person": (Vector((-39.3, 41.8, 22.05)), Vector((13.86, 16.15, 11.45)), 17.8, 576),
+    # (turntable: nearly orthographic as the reference is; 27 deg round from the side to the front, 22 deg above)
+    "turntable": (Vector((91.5, 164.0, 79.0)), Vector((7.5, -2.0, 5.0)), 100.0, 448),
 }
 
 
@@ -47,7 +49,7 @@ def setup():
     sh.show_cavity = False
     sc.world = sc.world or bpy.data.worlds.new("w")
     sc.world.color = (0.035, 0.036, 0.04)
-    sc.render.resolution_x, sc.render.resolution_y = W, H
+    sc.render.resolution_x = W
     sc.render.film_transparent = False
     sc.view_settings.view_transform = "Standard"
     cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
@@ -57,7 +59,8 @@ def setup():
 
 
 def render(sc, cam, view, path):
-    at, look, lens = VIEWS[view]
+    at, look, lens, h = VIEWS[view]
+    sc.render.resolution_y = h
     cam.location = at
     cam.rotation_euler = (look - at).to_track_quat("-Z", "Y").to_euler()
     cam.data.lens = lens
@@ -94,9 +97,10 @@ def main():
     cells = []
     if ref:
         r = pixels(ref)
-        rh = r.shape[0] // 2
-        for i, s in enumerate(shots):
-            cells.append(np.concatenate([half(r[i * rh:(i + 1) * rh, :W]), half(s)], axis=1))
+        y = 0
+        for (view, v), s in zip(VIEWS.items(), shots):
+            cells.append(np.concatenate([half(r[y:y + v[3], :W]), half(s)], axis=1))
+            y += v[3]
     else:
         cells = [half(s) for s in shots]
     grid = np.concatenate(cells, axis=0)

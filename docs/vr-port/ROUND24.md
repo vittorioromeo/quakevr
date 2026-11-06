@@ -1830,6 +1830,28 @@ grip, the other hand on the barrel's band, the front post level in the rear notc
   window glass in a raised frame; ring grain and pores on the walnut grip.
 - 746 triangles (the holed muzzle block 168 of them). Flat sight check 0.0000; sight_picture: the post seen 0.42 down;
   `vr_agrunt_test 85` 40/0, `vr_agrunt_test 12` (AD guns) 21/0.
+
+### Round three (his notes: "the stock shape is still not triangular like the mockup and the wooden handle is still too straight")
+
+- **Stock:** an open triangle tapering to the receiver, as the mockup's side view: a chamfered steel adapter block on the
+  receiver's back (x -4.9..-2.8, z 6.2-9.95, two rivets), the upper rod level from its top (z 9.3) to the butt block's top,
+  the lower rod from its lower part (z 7.0), a short mitred elbow, then down and back to the butt block's bottom (z 2.3):
+  the rods 2.3 apart at the adapter, 7.0 at the butt. The butt block upright and tall (z 1.3-10.5, 1.3 x the receiver),
+  the pad behind it a lighter rubber. Rods thicker (r 0.58, was 0.5). (The round-two sockets are gone.)
+- **Grip:** lofted through seven sections (eight sides each) along an axis raked 24 deg (was 20) through the origin, bending
+  back a little more towards the foot: a narrow web under the receiver swelling into the palm at the back, the finger
+  curve under the guard and a middle-finger bump in front, a flared foot with a bevelled bottom edge (102 triangles). The
+  origin (the fist) is inside its section at t 0.39 as before; the steel frame's back follows the grip's back. Wood grain
+  runs along the curved axis (worked out per point from the loft's sections), fewer pores, a lighter walnut.
+- **Also:** the receiver 0.6 taller (z 3.1-10.3, mostly downward: the sight line, ears and post are unchanged; the housing
+  top 11.15, `wpntxt_av` follows); lamps 1.2 across (were 0.8) with round lenses, a brass rivet beside them; warmer
+  brown-grey steel, blued parts and rods (the reference's receiver measures R:G:B about 1 : 0.81 : 0.71).
+- **The comparison render** now splits his picture where it is split (576 rows first person, 448 turntable; it assumed
+  512 each) and frames the first person with a camera fitted to seven points of the reference's gun (28 px rms); the
+  turntable nearly orthographic, 27 deg round to the front, 22 above.
+- 822 triangles. sight_picture: the post seen 0.61 down from its top; flat `vr_flat_sight_check` 0.0000 and the post in
+  the notch in the ADS screenshot; `vr_agrunt_test 85` 40/0; an untouched `blend_export.py` of the new .blend writes the
+  model and its map byte for byte; `vr_adrifle_base` untouched.
 ## Flat hit feedback (branch `agent/flathit`, 2026-11-06)
 
 His words: "reduce the amount of movements the arms/weapons get when the player is hit during ADS, tunable through a new
