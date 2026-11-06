@@ -51,14 +51,16 @@ fi
 # b. Walked in and back off, sighted.
 if [[ $ONLY == *b* ]]; then
 log=$HERE/scratch/flatwall_b.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait10; +back; wait50; -back; wait40; vr_flatplay_debug 0; tune_reset; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; tune vr_flat_wall_tilt_sighted 1; vr_test_give_wid 4; impulse 149; wait25; setpos 0 590 25 0 90 0; vr_flat_aim 1; wait40; vr_flatplay_debug 2; +forward; wait50; -forward; wait30; +back; wait50; -back; wait40; vr_flatplay_debug 0; tune_reset; echo flatwallwalk done; toggleconsole; quit" -Filter "^flataim: main|^flatsight: |^flatwallwalk" -QuitOn "flatwallwalk done" -Timeout 120 > "$log" 2>&1
 tilts=$(grep -a -o "tilt [0-9.]* *$\|tilt [0-9.]* need" "$log" | awk '{ print $2 + 0 }')
 peak=$(awk '{ if ($1 > m) m = $1 } END { printf "%.1f", m + 0 }' <<<"$tilts")
 step=$(awk 'NR > 1 { d = $1 - p; if (d < 0) d = -d; if (d > m) m = d } { p = $1 } END { printf "%.2f", m + 0 }' <<<"$tilts")
 last=$(tail -1 <<<"$tilts")
 aim=$(grep -a "^flataim: main" "$log" | awk '{ for (i = 1; i <= NF; i++) if ($i == "point") { x = $(i+1) + 0; if (x > m) m = x } n++ } END { printf "%.4f %d", m + 0, n + 0 }')
 echo "  walked in sighted: tilt at most $peak deg, its biggest step a frame $step, $last at the end; the shots at most ${aim% *} deg off the point (${aim#* } reads)"
-check $(awk -v p="$peak" 'BEGIN { exit !(p >= 20) }' && echo 1 || echo 0) "walked into the wall sighted, the muzzle tilts up"
+# (Walking in, the way back clears the sighted gun a few frames after it meets the wall: the tilt is wanted only those
+# frames, so vr_flat_wall_tilt_time's ease takes it a few degrees up and back down; it went to 20 with the old 300 deg/s.)
+check $(awk -v p="$peak" 'BEGIN { exit !(p >= 3) }' && echo 1 || echo 0) "walked into the wall sighted, the muzzle tilts up while the way back can't clear it"
 check $(awk -v s="$step" 'BEGIN { exit !(s <= 8) }' && echo 1 || echo 0) "it tilts and comes back down with no jump (a frame's step at most 8 deg)"
 check $(awk -v l="${last:-99}" 'BEGIN { exit !(l <= 0.5) }' && echo 1 || echo 0) "off the wall, the tilt is gone"
 check $(awk -v a="${aim% *}" -v n="${aim#* }" 'BEGIN { exit !(a <= 0.1 && n >= 50) }' && echo 1 || echo 0) "tilted, the shots still go through the crosshair's point"
