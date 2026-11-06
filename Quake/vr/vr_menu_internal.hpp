@@ -37,6 +37,8 @@
 #include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
+#include "vr_animrec.hpp"
+#include "vr_recbutton.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
@@ -428,6 +430,7 @@ za::Vector<Item> pageChanged();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
+[[nodiscard]] za::Vector<Item> pageArmourStudio();
 [[nodiscard]] za::Vector<Item> pageDebugViews();
 [[nodiscard]] za::Vector<Item> pageDoom();
 [[nodiscard]] za::Vector<Item> pageEnemyMelee();

@@ -521,6 +521,7 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armour Tweaks: Data File Test", "vr_armour_test").help("vr_armour_test: armour.txt's tweaks on the grunt: a bracer override moves those plates alone (the right mirrored), a sleeve's stand-off, rows; saved and read back, edited on disk and read again by the watcher, kept over a map change (it reloads this map), then the shipped file again. Ends on \"armourtest: N passed, M failed\". It writes quakevr/data/armour_test.txt."),
         command("Armour Plates: Pop-through Check", "vr_agarmor_pop_check").help("The body against the plates on every wearer and your own: poses with bent elbows and knees, each part of the armour worn alone; by region, plates off their neighbours. The console has the numbers; vr_pp_test 14 the same in live poses."),
         command("Armour Plates: Generator Check", "vr_agarmor_look_check").help("Every wearer and body build: the same seed the same plates, triangles within the budget; the tiers' hues apart (vr_agarmor_look_check; ends on \"agarmor look: N passed, M failed\"). vr_agarmor_seed 1; vr_agarmor_rebuild shows other plates."),
         command("Death Knight's Gun and Casts", "vr_agtune_test 3")

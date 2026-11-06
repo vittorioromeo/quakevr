@@ -20,6 +20,9 @@
 void(string kind, string sub, float hand, float value, vector at, entity targ, string detail) motionevent = #0;
 void(float hand, vector at, string name) motionpoint = #0;
 void(string key, vector value) motionvalue = #0;
+// The animation recorder's (vr_animrec.cpp, docs/vr-port/ANIMATIONS.md): a weapon's event (a reload's steps) of the
+// local player while a recording runs (else nothing).
+void(entity player, string kind, float hand, string detail) animevent = #0;
 void() VR_KdTrig_ChargeSample; // (vr_kdtrig.qc)
 
 // An event (see above): what (`xKind`: melee, bash, parrybash, shove, headbutt, stroke, push, parry,
@@ -28,6 +31,13 @@ void() VR_KdTrig_ChargeSample; // (vr_kdtrig.qc)
 void(string xKind, string xSub, float xHand, float xValue, vector xAt, entity xTarg, string xDetail) VR_Motion_Event =
 {
     motionevent(xKind, xSub, xHand, xValue, xAt, xTarg, xDetail);
+};
+
+// The animation recorder's event (`xKind`: mag_out, mag_in, pouch_take, rounds_in, break_open, close; ANIMATIONS.md):
+// the engine keeps only the local player's (the recorder is the client's), only while recording.
+void(entity xPlayer, string xKind, float xHand, string xDetail) VR_Anim_Event =
+{
+    animevent(xPlayer, xKind, xHand, xDetail);
 };
 
 // A hand as an event's `sub` for the pushes: "main", "off", "both" (-1).

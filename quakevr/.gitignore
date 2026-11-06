@@ -13,6 +13,7 @@
 /maps/autosave/
 /screenshots/
 /notes/
+/anims/
 /proposed_defaults/
 /ragtool/
 /motions/*
@@ -21,6 +22,7 @@
 /profile/
 /imgui.ini
 /rigstudio_test*/
+/data/armour_test.txt
 /sound_tests/
 /cache/
 /bodycal/

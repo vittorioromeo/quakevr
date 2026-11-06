@@ -129,6 +129,8 @@ struct Feel
     glm::quat gunTurn[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}}; // each drawn hand's turn in the view's
     bool gunTurnSeen[2]{false, false};                                                   // frame, eased (gunTurnEase)
     double gunTurnAt[2]{-1e9, -1e9};
+    glm::mat3 wallTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}}; // each drawn hand's tilt at a wall, as last drawn (drawnWallTurn),
+    glm::vec3 wallShift[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and the hand's move by it (round a point behind the hand)
 };
 
 Feel feel;
@@ -177,11 +179,13 @@ CtrlBind ctrlBind;
 
 // The turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed): the drawn hands keep their direction as the view turns and a
 // critically damped spring (this stiff, rad/s) brings them back; this much of what it leaves shown, never more than
-// maxLagDeg (softly). A turn of 180 degrees a second leaves them ~2 degrees behind, back within a quarter second.
+// vr_flat_turnlag_cap (4, softly). A turn of 180 degrees a second leaves them ~2 degrees behind, back within a quarter second.
 constexpr float lagStiffness = 18.f;
 constexpr float lagShown = 0.12f;
-constexpr float maxLagDeg = 4.f;
+constexpr float lagAmountMax = 3.f; // vr_flat_turnlag's range, either way
+constexpr float lagCapMax = 30.f;   // vr_flat_turnlag_cap's (degrees)
 constexpr double portalNoKickTime = 0.05; // s: a tick and a little: the velocity the client lerps across a gate
+constexpr float wallDropFull = 45.f; // drawnOffset: a sighted gun tilted this far at a wall is all of vr_flat_wall_tilt_drop down (degrees)
 constexpr float bodyJumpedOver = 64.f; // the body as drawn this far from the pose's: a jump of the player, not a pose (units)
 constexpr float lagSnapDeg = 45.f; // a view turned more than this in a frame was set (a teleporter, a respawn): no lag
 
@@ -204,6 +208,8 @@ constexpr float runSpeed = 320.f;
 constexpr float bobRate = 1.15f; // cycles a second at a run (two steps each)
 constexpr float bobSide = 0.7f;
 constexpr float bobUp = 0.6f;
+constexpr float bobFwd = 0.6f;    // vr_flat_bob_fwd's at 1: units each way at a run (fwdBob)
+constexpr float bobFwdMax = 3.f;  // and its range
 constexpr float bobRoll = 0.8f;
 constexpr float bobYaw = 0.3f;
 constexpr float bobEase = 6.f;
@@ -881,7 +887,7 @@ void stepFeel()
         turned = glm::vec2{0.f}; // set, not turned
         feel.lag = feel.lagRate = glm::vec2{0.f};
     }
-    if(vr_flat_turnlag.value > 0.f)
+    if(vr_flat_turnlag.value != 0.f) // (negative: drawnOffset shows it the other way, the hands leading the turn)
     {
         feel.lag -= turned;
         // Critically damped, stepped exactly: x(t) = (x0 + (v0 + w x0) t) e^-wt.
@@ -938,6 +944,22 @@ void stepFeel()
     feel.breath = za::remainder(feel.breath + dt * breathRate, 4.f * glm::pi<float>());
 }
 
+// The walk's forward and back bob (vr_flat_bob_fwd, his words 2026-11-06): along the view's own forward (`camAngles`, its
+// pitch included), in step with the walk, forward at each step's dip (the up and down bob's lowest); sighted,
+// vr_flat_ads_bob_fwd of it. Separate from vr_flat_bob. The body, the arms and the gun ride it together (bodyRide,
+// drawnOffset). World units.
+[[nodiscard]] glm::vec3 fwdBob(const glm::vec3& camAngles)
+{
+    const float amount = za::clamp(vr_flat_bob_fwd.value, 0.f, bobFwdMax);
+    if(amount <= 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    const float ads = za::clamp(flatsight::adsShare(), 0.f, 1.f);
+    const float share = 1.f + (za::clamp(vr_flat_ads_bob_fwd.value, 0.f, 1.f) - 1.f) * ads;
+    return axes(camAngles)[0] * (amount * bobFwd * share * feel.amp * -za::cos(2.f * feel.phase));
+}
+
 } // namespace
 
 int heldIn(int h)
@@ -953,7 +975,11 @@ int loneWeaponHand()
     return off == main ? -1 : main ? HAND_MAIN : HAND_OFF;
 }
 
-FireRoute routeFire(bool lmb, bool rmb)
+namespace
+{
+
+// The mouse's buttons by what the hands hold (routeFire, before a wall stops a raised gun).
+[[nodiscard]] FireRoute routeButtons(bool lmb, bool rmb)
 {
     FireRoute r;
     const int lone = loneWeaponHand();
@@ -965,6 +991,23 @@ FireRoute routeFire(bool lmb, bool rmb)
     }
     r.fire[HAND_MAIN] = lmb;
     r.fire[HAND_OFF] = rmb;
+    return r;
+}
+
+} // namespace
+
+FireRoute routeFire(bool lmb, bool rmb)
+{
+    // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
+    // A melee weapon swings as ever (a blow is never stopped at a wall).
+    FireRoute r = routeButtons(lmb, rmb);
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(r.fire[h] && !punchesWith(h) && flatsight::wallBlocksFire(h))
+        {
+            r.fire[h] = false;
+        }
+    }
     return r;
 }
 
@@ -1158,7 +1201,7 @@ glm::vec3 bodyRide(const hands::State& s)
     }
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    return (cam - (s.head + camShiftWorld(aim))) * rideShare();
+    return (cam - (s.head + camShiftWorld(aim))) * rideShare() + fwdBob(geom::vec(r_refdef.viewangles));
 }
 
 glm::vec3 levelHang(const hands::State& s, int h)
@@ -1589,9 +1632,18 @@ void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::v
         za::max(0.f, d - span), span, d, d / span, speed, bend, drawnRot.x);
 }
 
+glm::mat3 drawnWallTurn(int h, glm::vec3& shift)
+{
+    const bool on = active() && h >= 0 && h < 2;
+    shift = on ? feel.wallShift[h] : glm::vec3{0.f};
+    return on ? feel.wallTurn[h] : glm::mat3{1.f};
+}
+
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles)
 {
     pos = angles = glm::vec3{0.f};
+    feel.wallTurn[h] = glm::mat3{1.f};
+    feel.wallShift[h] = glm::vec3{0.f};
     if(!active() || !s.valid)
     {
         return;
@@ -1610,13 +1662,16 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const glm::vec3 view = onCam ? cam : s.head;
     // (The view's own move off the pose's eye -- the walk's bob, a step's easing -- by vr_flat_body_bob's share, as the body rides it:
     // bodyRide. The sights below stand on the view itself.)
-    const glm::vec3 to = from + (view - from) * rideShare();
     const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
                                       : aim;
+    // (And the walk's forward and back bob, which the body rides too: bodyRide.)
+    const glm::vec3 forwardBob = onCam ? fwdBob(camAngles) : glm::vec3{0.f};
+    const glm::vec3 to = from + (view - from) * rideShare() + forwardBob;
 
-    // The turn's lag, shown (softly capped).
-    const float lagAmount = za::clamp(vr_flat_turnlag.value, 0.f, 3.f);
-    const float lagCap = maxLagDeg * lagAmount;
+    // The turn's lag, shown (softly capped at vr_flat_turnlag_cap times the amount). Negative, the same turned the other way:
+    // the hands lead the turn, swinging into it ahead of the view (his words: "Goldeneye-like 'turn with the camera'").
+    const float lagAmount = za::clamp(vr_flat_turnlag.value, -lagAmountMax, lagAmountMax);
+    const float lagCap = za::clamp(vr_flat_turnlag_cap.value, 0.f, lagCapMax) * za::fabs(lagAmount);
 
     // On the ironsight the hand is the solve's, from this camera (the block below): the looks are spent out over its travel.
     glm::vec3 sightHand{0.f};
@@ -1670,7 +1725,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     // The last word on the ironsight: the sights on the ray of the camera this frame is drawn with, the solve's hand in its
     // frame (it stays within the arm: vr_flatsight.cpp's reliefFor), whatever the frame's bob, kick and nudges did to it.
-    drawn += (view + camAxes * (sightHand + adsLocal) - drawn) * onSight;
+    drawn += (view + forwardBob + camAxes * (sightHand + adsLocal) - drawn) * onSight;
 
     pos = drawn - s.pos[h];
 
@@ -1687,7 +1742,21 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     }
     feel.gunTurnAt[h] = feel.lastTime;
     const glm::quat drawnTurn = onSight > 0.f ? glm::slerp(feel.gunTurn[h], glm::quat_cast(sightTurn), onSight) : feel.gunTurn[h];
-    const glm::mat3 handAxes = drawnAxes * glm::mat3_cast(drawnTurn);
+    // At a wall the way back couldn't clear, the muzzle tilted up round the hand (flatsight::wallTilt): drawn only.
+    glm::vec3 tiltPivot{0.f};
+    const float tilt = flatsight::wallTilt(h, &tiltPivot);
+    const glm::mat3 wallTurn = flatsight::wallTurn(h, drawnAxes);
+    feel.wallTurn[h] = wallTurn;
+    if(tilt != 0.f)
+    {
+        const glm::vec3 pivot = drawnAxes * tiltPivot;
+        // (Sighted, the tilted gun comes down off the eye too, by vr_flat_wall_tilt_drop, all of it by wallDropFull's tilt:
+        // tilted on the sight line, its underside filled the screen.)
+        const float drop = za::clamp(vr_flat_wall_tilt_drop.value, 0.f, 20.f) * onSight * geom::smooth01(za::clamp(tilt / wallDropFull, 0.f, 1.f));
+        feel.wallShift[h] = pivot - wallTurn * pivot - drawnAxes[2] * drop;
+        pos += feel.wallShift[h];
+    }
+    const glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn);
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {

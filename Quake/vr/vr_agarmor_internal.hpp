@@ -137,6 +137,7 @@ struct PlateGrid
     int rows{0}, cols{0};
     bool centred{false};  // a seam at the front (the cuirass); else a plate facing front
     float hTop{0.f}, hBottom{0.f};
+    float hTopRaw{0.f};   // (hTop before armour.txt's `start`: the upper arms' common top)
     float spike{1.4f};    // a corner's radius at most, of the piece's middle one
     float yoke{0.f};      // the cuirass's first row: this much above the rest, closing in on the neck
     float sleeveEnd{0.f}; // a limb's part: its joint's sleeve's far end (the joint, or past it as far as its region goes)
@@ -196,6 +197,8 @@ struct Shell
     int numSlots{0};
     int slotBone[maxSlots]{}, slotPiece[maxSlots]{};
     uint32_t hash{0};
+    uint32_t tweaks{0};  // (armourdata::signature of its model when made: armour.txt's tweaks it has)
+    int tweaksGen{0};    // (armourdata::generation then)
     float made{0.f};    // ms
     char helmFit[320]{}; // the helmet's rings against the head (vr_agarmor_info, the check)
 };

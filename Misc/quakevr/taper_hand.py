@@ -12,6 +12,7 @@
 # end at x -6.97. Vertices behind TAPER_START are pulled towards the wrist's axis, down to
 # TAPER_END_SCALE of their distance at the very end (smoothly).
 
+import os
 import struct
 import sys
 
@@ -34,6 +35,10 @@ def taper(x, y, z):
 
 def main():
     src, dst = sys.argv[1], sys.argv[2]
+    # hand_base.mdl's source is a .blend since 2026-11 (MODELS_IN_BLENDER.md, "Every other model"): taper it there.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import genguard
+    genguard.retired("taper_hand.py", [dst])
     d = bytearray(open(src, "rb").read())
     h = HEADER.unpack_from(d, 0)
     assert h[0] == b"IDPO" and h[1] == 6, "not a Quake mdl"

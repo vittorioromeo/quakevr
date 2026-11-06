@@ -174,6 +174,35 @@ His notes 2026-11-06 (pictures 12-18, yellow). `vr_agarmor.cpp` (`planGrid`, `fi
     ridge of 2.6 on the knight hid it from behind but not the front, and raised his collar over his beard: dropped); the
     grunt's spiky knee leather and the enforcer's elbow band untouched.
 
+## Armour tweaks file and the Armour Studio (branch `agent/armourstudio`)
+
+His ask: "tweak the armour plates manually for each armed humanoid". Details: `docs/vr-port/ARMOUR_STUDIO.md`.
+
+- **Data:** `quakevr/data/armour.txt` (`vr_armourdata.cpp`): per kind (grunt, enforcer, knight, death_knight, player, or a model's
+  path) and part (cuirass, helmet, pauldron, bracer, thigh, shin, the four sleeves; a limb part both sides mirrored, `_l`/`_r` one
+  side's own): offset, rotate, scale, standoff, start, end, rows. Laid over the generator in `buildShell`: start/end/rows in
+  `planGrid` (`PieceFrame::shiftStart/shiftEnd/rows`; the upper arms' common top taken before them, `PlateGrid::hTopRaw`), standoff
+  on the grid's radii after mirroring, the rest on the piece's vertices after it is made (`tweakVerts`: a sleeve's and the helmet's
+  stand-off pushed out from their middle). Nothing set, nothing touched. Read at start, on `vr_armour_reload`, and when the file
+  changes on disk (`vr_armour_watch` 1, once a second); a changed table makes again only the shells whose tweaks changed
+  (`agarmor::overridesChanged`, `Shell::tweaks`), and the armour models with them. `vr_armour_print`. Cvars: `vr_armour_file`
+  (`data/armour.txt`), `vr_armour_watch` (1).
+- **Empty file = today's armour:** `vr_agarmor_info`'s 14 shell hashes (every wearer and body build) identical to `origin/next`'s.
+  `vr_agarmor_check` 20/0, `vr_agarmor_look_check` 114/0, `vr_agarmor_pop_check` 10/0, `vr_agarmor_test 1` 26/0 (also with a bracer
+  override on), `vr_agarmor_test 5` 24/0, `vr_pp_test 1` 53/0.
+- **Studio:** Debug > Tools > Armour Studio (`vr_armourstudio.cpp`, the VR menu's own sliders: headset and flat screen alike): a
+  subject ahead (QC `vr_armourstudio.qc` `VR_ArmourStudio_Spawn`, fists, `vr_agrunt_freeze` while open, takedamage off), its tier,
+  turn, body ghost (`vr_armourstudio_ghost` 0.4: the body's alpha, the plates whole), the part alone; the part picked outlined in
+  cyan (`agarmor::studioView`, through `debugDraw`); every value a `vr_armourstudio_*` cvar, each change laid into the table and
+  the kind's armour made again (grunt about 40 ms). Undo (a slider's run on one value one step, 64 kept), Reset Part, Reset Kind,
+  Save, Reload, Close. The player's kind edits your own body's plates (no subject or outline: the menu's body clone, a mirror).
+- **Test:** `vr_armour_test` (`armourtest: 24 passed, 0 failed`; Debug > Tests): an override moves the right piece's vertices (the
+  right side's mirrored) and nothing else, a sleeve's stand-off, rows; saved and read back; edited on disk and read again by the
+  watcher; kept over a map change; the shipped file again the generator's shell.
+- **Not done:** the generator's per-kind taste constants (`Wearer::hipFrom`, the stand-offs) stay in the code (moving them was
+  optional; no output change wanted). A part's move or turn is not followed by the hit tests' tube (`PlateTube`), only its stand-off,
+  start, end and rows; a player's debris models (`#plate<n>`) already loaded keep the old shape till the next map.
+
 ## Flatscreen: the stance, replacing the barrel rest
 
 A long gun with a two-handed hotspot turns the torso (free hand's shoulder forward), brings the gun's hand towards the shoulder pocket,
@@ -1151,6 +1180,75 @@ rifle 0.470 -> 0.481 (its zero), flare gun 0.048 -> 0.048. flatsight 12/0, flata
 Measure: `python Misc/quakevr/sight_picture.py` (ONLY=<gun>, YS=1).
 
 **Not done:** 2 (walls: push back and muzzle up, tunables), 3 (the walking wrist, `steadyOther`).
+
+## Flat pose: the muzzle up at a wall; the walking wrist measured again (branch `agent/flatwall`)
+
+His note 4c ("pushed back a bit or even have their muzzle pointed upwards if the player is right against a wall") and the
+walking wrist (6).
+
+**Measured first.** Every weapon (vr_test_give_wid 1-31) with his box against the vrtesthall wall, facing it and at 45, level and
+looking 30 down or up, hipfire and sighted (`vr_gun_wall_depth`): 41 of 248 reads had drawn points over 2 cm in the wall, deepest
+27 cm (a long gun looking down; the long melee weapons 78). The push back stops with the arm folded, the stock at the chest or the
+rear sight `vr_flat_ads_wall_keep` from the eye; past that the gun went in.
+
+**The muzzle up** (FLATPLAY.md "Against the walls"; Debug > Tunables > Flatscreen "Wall: ..."): what the push back can't clear,
+the drawn gun tilts up out of: the least tilt round the hand about the view's right that leaves its points out of the walls
+(`handpose::gunDepth`: walls only, a surface whose normal's up is over 0.7 is a floor or ceiling and not counted), at most
+`vr_flat_wall_tilt` 85 and 5 short of straight up, moving at most `vr_flat_wall_tilt_speed` 300 deg/s. Drawn only: the game's
+hand keeps the crosshair's turn (the shots 0.0000 deg off the crosshair's point while tilted), and the view puts the two-handed
+hotspot back on the untilted gun (`flatplay::drawnWallTurn`; without it the tilt dropped holds). Also new:
+`vr_flat_wall_arm_keep` 9 (the push back's arm limit, a constant before), `vr_flat_wall_tilt_pivot` 0 (1: round the shoulder;
+tried, it swings the gun up into the face), `vr_flat_wall_tilt_sighted` 0 and `vr_flat_wall_tilt_drop` 12 (below). With the
+tilt (sighted share 1): 3 of 232 reads over 2 cm, all looking 30 down or up with the box pressed on the wall, deepest 6.6 cm;
+the long melee weapons (wid 12, 14) still go in looking down.
+
+**Decision: sighted, no tilt by default** (`vr_flat_wall_tilt_sighted 0`, as before: the sights stay on the ray and the gun's
+end goes into the wall). Tilted on the sight line its underside filled the screen (the 12 unit drop helps), and sighted looking
+down 30-55 at the wall the gun's rear and the hands went 3-9 units into the chest (sweep wall rows). At 1 it tilts as in hipfire,
+fading out looking down 30 to 50.
+
+**Verified.** `Misc/quakevr/flatwall_test.sh` 7/0 (every weapon at the wall, sighted share 1; no hold lost; walked in and back
+sighted: peak 20.6 deg, a frame's step at most 4.2, gone off the wall, the shots on the point). Sweep row by row (the same build
+with `vr_flat_wall_tilt 0` against the defaults, origin/next merged): open and low rows identical; wall 403 passed, 3 known, 4
+failed (base 407/3/0): `jump_gun` / `jump_hand0` of the long gun's hipfire at 20-30 down (4.7 / 3.7 deg of gun move per degree
+of look, limit 1): the tilt itself growing as the look goes down into the wall. flatsight 12/0 (section d now runs with the tilt
+off: it checks the push back), flatplay 28/0, flatkeys 37/0, flatads 7/0 (abcde), flatpose 20/1 (eye-far: the knight walked off
+the crosshair, 0 pellets, the shot line 0.03 off; it passed the run before), flatwalk 10/2 (below).
+
+**The walking wrist (open).** New `flatwalkturn:` line from `vr_flat_walk_probe`: walking looking down, each drawn hand turns
+only 1.50 deg against the camera (both alike; level 0.16), and the free hand's look share stays 1.00. So the off wrist's 0.545 is
+neither the free hand turning (the guess above) nor `steadyOther`'s blend: it is the arm's wrist moving against the drawn hand
+(the arm's solve, vr_avatar.cpp). A screen-relative yaw sway was tried: no change (bobYaw is 0.3 deg), not kept.
+`run_crouch_down` now also fails (wrist 1.142, jump 0.193) on origin/next: identical with the tilt off, so not this branch.
+
+**His answer: tunables, an ease, no fire while raised** ("Give me tunables for the tilted pose, also including yaw and roll ...
+transition time, start with 0.3s ... mirrored for the left hand ... inhibits shooting while in this tilted state").
+- Pose: `vr_flat_wall_tilt_fixed` 0 (the least pitch that clears, as before; 1: always all of `vr_flat_wall_tilt`),
+  `vr_flat_wall_tilt_yaw` 0 (-60..60, muzzle inwards) and `vr_flat_wall_tilt_roll` 0 (-90..90, top inwards), mirrored for
+  the off (left) hand; the least pitch is searched with them on (`tiltTurn`: yaw about the view's up, pitch about its right,
+  roll about its forward, in that order applied last to first). `flatsight::wallTurn` gives the drawn turn to drawnOffset
+  and the stock's untilt.
+- Ease: `vr_flat_wall_tilt_time` 0.3 s replaces `vr_flat_wall_tilt_speed`: the pose eases in (smoothstep) when the wall is
+  met and out when it clears; in it the pitch follows the least that clears at 4/time; easing out keeps the pitch it had.
+- Fire: `vr_flat_wall_block_fire` 1 (Movement > Locomotion, Desktop Screen Play, "No Fire With Gun Raised"): a gun turned
+  more than 5 degrees does not fire (`flatplay::routeFire`; both buttons, either hand); melee weapons always swing. Note: a
+  shot's own kick at a wall can push the gun in and raise it, which then blocks the next shots for the ease (seen at level:
+  the click's recoil started a 20 degree tilt).
+- Verified: `flatwall_test.sh` 15/0 (new c: eased in and out in 0.292 s at 0.3 and 0.583 at 0.6, measured from the first
+  frame off zero; right hand up 0.643 side -0.262 cant -0.259, left hand 0.643 / +0.262 / +0.259 at pitch 40 yaw 20 roll
+  15; new d: tilted at the wall 17 -> 17 shells, block off 17 -> 16, off the wall -> 15). Section b's peak check now 3
+  degrees: walking in sighted, the way back clears the gun 4 frames after the wall is met, so the eased tilt reaches 5-9
+  degrees there, not the 20 the 300 deg/s step reached. Sweep: the 4 wall rows are settled rows, which the ease can't
+  reach (the least tilt itself is 45 at 20 down, 57.5 at 30), unchanged at 3.660 / 4.694 / 2.053 / 2.633: added to
+  `flatsweep_known.txt` with a note (403 passed, 7 known, 0 failed).
+
+**Turn lag cap and lead; the forward bob** (his words: "make the cap a tunable, and allow negative values of turnlag ...
+Goldeneye-like 'turn with the camera'"; "a forward/back bobbing for the viewmodel ... a different tunable ... take into account
+the camera rotation"). `vr_flat_turnlag_cap` 4 (was the constant), `vr_flat_turnlag` -3..3 (negative: the lag shown the
+other way, the hands lead); `vr_flat_bob_fwd` 0 and `vr_flat_ads_bob_fwd` 0.15 (FLATPLAY.md "Bob and sway"). The walk probe
+prints `flatwalkfwd:` (hands' and shoulders' range along the camera's forward, the main hand's yaw off the view);
+`Misc/quakevr/flatlagbob_test.sh` 5/0 (numbers in FLATPLAY.md). One commit for both (they share vr_flatplay.cpp's hunks).
+
 ## Melee rules: enemy melee under one set of rules (branch `agent/meleerules`, 2026-11-06)
 
 From the melee audit (his answer: "All, armed ones too").
@@ -1531,6 +1629,124 @@ changed: only v_shot2.mdl, its normal map, its two open halves and weapons.txt s
 **Checklist line (suggested):** Super shotgun: Align Sights to My Aim again (your saved shot pitch 0.65 predates the bead's
 1.47), then the bead sits on what you hit.
 
+## Animation recorder, phase 1 (branch `agent/animrec`, 2026-11-06)
+
+His ask: record motions in VR (melee strikes per weapon kind, reloads) to drive the flat-screen hands later, with
+per-animation and per-weapon tweaks and the hand jitter smoothed out. Phase 1 built: the recorder (Debug > Animation
+Recorder; `vr_ar_record`; the armed record button, its choices shared with the motion recorder through `vr_recbutton.hpp`;
+a countdown), the `.anim` text file (`quakevr/anims`: the head and both hands relative to the head and to the body, the
+fingers, grip and trigger, the weapons, and the events fire, pump, load, mag_out/in, pouch_take, rounds_in,
+break_open/close, each with the nearest hotspot), the smoothing (`vr_ar_smooth` and `Misc/quakevr/anim_smooth.py`, the
+same keys), and a preview on the flat-screen hands and as a ghost in the headset (`vr_ar_play`: blended in and out,
+mirror, offset, rotation, scale, speed, loop). The format, the smoothing, and the phase-2 plan with his four design
+notes (retargeting to each player's hotspots, mirroring, blending from any pose, what stays procedural): ANIMATIONS.md.
+
+Test: `bash Misc/quakevr/animrec_test.sh <agent>`: record 11/11 (145 frames -> 46 keys, 3.80 mm / 0.52 degrees within
+4 mm / 1.5), anim_smooth.py the same 46 keys, flat play 3/3 (on target to 0.000 units; blending steps 2.26 against 1.41
+units a frame played; level, looking up, looking down, crouched).
+
+**Checklist lines (suggested):** Animation recorder: set `vr_ar_name`, Debug > Animation Recorder > Start, do a shotgun
+reload after the countdown, Stop: the file in quakevr/anims lists your steps (mag, pouch, pump). -- Smooth Last, then
+Play Last: the ghost follows your motion without the shake; Mirror plays it with the other hand.
+## Every other model's source is a .blend (branch `agent/blendmodels`, 2026-11-06)
+
+The author: "Let's make the '.blend' the source of truth for all weapon models, then we can do the same with other models
+too." Part two, after the weapons.
+
+**Inventory** (`quakevr/progs`: 180 `.mdl`, 10 `.md5mesh`; 68 owned by the weapons' sources). The other 122: 102
+real `.mdl`, 10 md5 meshes and their 10 244-byte `.mdl` stubs. MODELS_IN_BLENDER.md, "Every other model", has the
+groups and what made each: our gear and props (19 generators), the unrigged hand (make_bloody_hands.py's blood skins),
+id's models we ship changed (make_enemyshove, make_voreshove, make_grenade_skins; make_vrgrunt.py's armed models cut
+from them, unguarded until now), shipped as they are (49: id's monsters, gibs, heads, items, projectiles; wpnbutton,
+hand). Not migrated: `vragarmor.mdl` (an atlas on a placeholder quad; the plates are cut by the engine at load), the
+md5 body and hands (below).
+
+**What changed:**
+- 96 new sources under `Misc/quakevr/src_models/blend/<model>/` (42 MB), made by `blend_build.py`; generated.json
+  records their 101 files (and normal maps, full-colour skins) as owned.
+- `source.py`: frames without names, or with one name for all (id's player, dog, soldier; the shambler's "From ASE"),
+  were refused by the frames check (the shape keys get `frame<n>` and `.001` names): `key_names` gives the check
+  Blender's names. `post` specs: skins after 0 made from skin 0 by the generator's code at each export (the hand's
+  and fingers' blood: make_bloody_hands.py `process`; the grenades' unarmed skin: make_grenade_skins.py `mute`).
+  `derived` specs for the armed monsters (soldier, enforcer, knight, hknight write vrgrunt, vrenforcer, vrknight,
+  vrhknight: make_vrgrunt.py's new `build`) and the molten debris (vr_rock1 writes vr_explosion_debris:
+  make_explosion_debris.py's new `build`); a derived generator's failure (vertex numbers it needs) is a refusal.
+- Retired: make_vrgrunt.py, make_explosion_debris.py and taper_hand.py had no guard: they now stop
+  (`genguard.retired`) for owned files. The guarded generators stop by themselves (all files owned) or leave the owned
+  ones (make_flashlight.py still writes its sounds).
+- `blend_autoexport_test.sh`: `BA_MODEL=<model>` tests another source (default v_shot); the .py skips a normal map the
+  model hasn't.
+
+**Proof.** Every source built to a scratch folder and exported (`source.export --out`): 102/102 byte for byte (the
+models, their normal maps, full-colour skins, derived files, the post-made skins). Then for real: built, and each
+exported into the repository's `quakevr/progs` (`blend_export.py`, as export on save): 96/96 ok, `git status
+quakevr/` clean (every file byte for byte, so the game draws the same bytes: a before/after pixel compare would compare
+identical inputs). Every retired generator run (no arguments, then `--force`; `py -3.13` for the numpy ones):
+make_debris, make_crates, make_brains, make_bloody_hands, make_grenade_skins, make_shell, make_enemyshove,
+make_voreshove, make_holster, make_muzzleflash, make_rounds, make_teeth, make_pouch, make_ammo_pouch, make_walltorch,
+make_gadget, make_pauldron, make_vrgrunt, make_explosion_debris stop ("retired"), make_flashlight leaves its two
+files and writes its sounds: `quakevr/`, `Quake/` and generated.json unchanged. Export on save with the game watching
+(`blend_autoexport_test.sh`): v_shot 6/0, `BA_MODEL=soldier` 6/0 (its export writes vrgrunt.mdl too; the game reads
+soldier.mdl again by itself), `BA_MODEL=vrgadget` 6/0 (a one-frame model: the refusal adds a shape key).
+Game tests on the props (low-impact runs): crate_grip 10/0, explosion_debris 13/0, gadget_tap_melee 11/0, flatitems
+8/0; holsterzones 9/4 (the branch's `quakevr/`, `Quake/`, `QC/` are origin/next's byte for byte: not from this
+work, not looked at).
+
+**The md5 models (plan only).**
+- **The jointed hand** (`hand_rig`, `hand_rig_f`): the hand add-on already imports and exports it (bones, weights,
+  skins), byte for byte but the `commandline` line. A source .blend would take: the commandline kept on the
+  armature (then byte for byte); the export also writing `Quake/vr/vr_handrig_data.inc` (make_hand_rig.py's tables
+  compiled into the engine, which measure edits against them: an engine rebuild after a hand edit, or the engine
+  reading the tables from the file instead); the four `.lmp` skins' blood levels made from the clean one as
+  make_hand_rig.py does; the feminine hand a derived file (make_hand_feminine.py's code on the exported hand). About
+  a worker's day; the hand add-on's import and export stay as they are.
+- **The body** (`vrbody*`): make_vrbody.py makes four builds (lean, athletic, brawny, feminine) and their bare
+  variants from one parametric body, and 16 shared TGA skins (armour x damage). A .blend per build would cut that
+  link; the source would be one .blend of the base body with the builds and skins derived by make_vrbody.py's code
+  at export (as the armed monsters are), and the body add-on's export (section 3) kept for the builds. Larger: not
+  started.
+
+## Gloves in Quake's art style (worktree `embed5`, branch `agent/gloves`, 2026-11-06)
+
+His words: the gloves look very high-res up close in VR, and the hand and the wrist don't match in texture/art style.
+
+**Measured** (`scratch/gl_density.py`: area-weighted texels a mm over the meshes, at their in-game sizes): the hand's skin
+(512, Quake palette) 1.31 (quartiles 1.19-1.52); the body's forearm (`vrbody`, 512 x 2048, palette, dithered ramps)
+1.04 (0.91-1.29), its wrist 1.33, upper arm 0.81; id's weapons 0.12-0.21 (at 38.1 mm a unit). The glove paint was
+1024 (2.63 a mm, twice the skin), full colour, with a ~1.7 mm pebbled grain painted in, and the shader added a finer
+procedural pebble grain (~0.7 mm) and its own pebble relief on top: 2-4 times finer than anything else on the avatar,
+in continuous colour, while the skins next to it are nearest-filtered palette texels (his `gl_texturemode`
+GL_NEAREST_MIPMAP_LINEAR). With his bare forearms (`vr_body_bracers` 0 is his setting) the glove's cuff on the forearm
+is the plain procedural leather on the body's grid while the hand had the fine painted one: the wrist seam.
+
+**Changed:**
+- `make_glove_paint.py`: paints at twice the skin's grid and averages down to the skin's own 512 (SHIP), drops the
+  pebbles (blotches of a few texels instead), creases strong enough to stay a colour step, and paints the light in as
+  Quake's skins do (CAVITY: a texel's height over its 5 x 5 neighbours: ridges, thread, seam lips paler, grooves
+  darker). The shipped `hand_rig_00_00_glove.png` / `_glove_height.png` are 512 now (regenerated, guard updated).
+- Shader (`vr_glsl_alias.h`): `vr_glove_retro` 1 (new, default 1; Player Appearance > Gloves > Quake-Style Leather):
+  the leather's texels (the paint's; the plain leather and the cuff on the skin's own grid, hand or forearm) read as
+  blocks at their centres whatever the filtering, no sub-texel grain or grain relief, and `LeatherSteps` puts each
+  texel's brightness on one of 16 ramp steps in the chosen hue (never black), dithered per texel within half a step
+  (the body's `pick()` dithers its ramps per texel too); fades to plain mipmapping where texels get under a pixel.
+  Glove.w carries it as 16s. 0 gives the smooth reading (with the old fine grain) of the new paint.
+- Both sides of the wrist are now the same treatment at about the same density (hand 1.3, forearm cuff ~1.0-1.3
+  texels a mm) and the same steps of the same colour: no change of detail at the seam.
+
+**Tested** (low-impact runs, his game was open: 512 eyes): `scratch/gl_shots.sh` (start map, four looks: his black
+fingerless with bare forearms, brown full with bracers, brown fingerless bare, brown full plain bare; two poses each),
+sheets `scratch/gl_cmp_side.png` (close, exposure x3 for viewing) and `scratch/gl_cmp_back.png`: up close the
+leather is texel blocks in two or three colour steps with the creases and seams a step darker, like the bracers and
+the arm's skin; at arm's length the two looks are nearly the same (mipmapped). A dark checker on the full glove with
+bracers on is in the before shots too (a shadow, not this change). `vr_gloves_reload`, `vr_hand_reload`, both hand
+shapes: paint read 512 x 512, relief 1.7 ms, no errors. No dedicated glove test exists.
+
+**For him in VR:** hold the hand close (10-20 cm) with his black fingerless gloves and with a brown pair: the texels
+should read like the forearm's skin, no fine pebbles; the wrist where the cuff meets the hand shouldn't change in
+detail; toggle Quake-Style Leather to compare. Not shipped as his look: the coordinator shows the sheets first.
+
+**Checklist line (suggested):** Gloves up close: texel blocks and colour steps like your arm's skin, no fine grain, the
+wrist seamless (Player Appearance > Gloves > Quake-Style Leather toggles the old smooth look).
 ## Why the lost soul "drops its target" (branch `agent/lostsoul`, 2026-11-06)
 
 It doesn't: test 213 misread AD's design (AD's QC, our bridge untouched).

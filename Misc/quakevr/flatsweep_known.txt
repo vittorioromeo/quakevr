@@ -3,3 +3,9 @@
 jump_gun low/long/crouch/hip 2 1.044
 jump_gun open/long/crouch/hip 2 1.049
 settled low/long/crouch/ads 3 0.000
+# The wall's muzzle tilt (vr_flat_wall_tilt, least that clears): settled rows, so vr_flat_wall_tilt_time's ease doesn't reach
+# them; the least tilt itself grows 45 -> 57.5 degrees from 20 to 30 down at the wall (ROUND24 "Flat pose: the muzzle up").
+jump_gun wall/long/crouch/hip 2 3.660
+jump_gun wall/long/stand/hip 2 4.694
+jump_hand0 wall/long/crouch/hip 2 2.053
+jump_hand0 wall/long/stand/hip 2 2.633

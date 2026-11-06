@@ -539,6 +539,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         {
             const int paint = render::glovePaintFlags(e);
             out->glove[3] += 4.f * static_cast<float>(paint);
+            out->glove[3] += vr_glove_retro.value != 0.f ? 16.f : 0.f; // Quake's look (texel blocks, colour steps): Glove.w's 16
             out->gloveshell[1] = paint == 2 ? CLAMP(0.f, vr_glove_relief.value, 2.f) : 0.f; // its relief's normal map's strength
         }
     }
@@ -848,7 +849,7 @@ struct GloveLayers
 GloveLayers gloveLayers;
 
 // The relief's height map (_glove_height, make_glove_paint.py): its R the height, 128 flat, 0..255 this many mm; at
-// 1024 x 1024 this many texels a mm (the skin's 1.5 twice). Its slopes are steepened by gloveReliefGain, as the bracers'
+// 1024 x 1024 this many texels a mm (the skin's 1.5 twice; the shipped one is 512, the skin's own: scaled by its width). Its slopes are steepened by gloveReliefGain, as the bracers'
 // and pauldrons' baked relief is (normalbody.py, normaltiles.py: their stitches and seams deeper than real ones).
 static constexpr float gloveHeightRangeMm = 2.5f;
 static constexpr float gloveTexelsPerMm = 3.f;

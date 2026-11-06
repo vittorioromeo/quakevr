@@ -139,6 +139,11 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // from so the hand stays on its arm. Zero outside the mode.
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles);
 
+// The tilt at a wall drawnOffset gave hand `h` last (flatsight::wallTilt; identity outside the mode), and the drawn hand's
+// move by it (`shift`): the view puts the hotspot it placed on that drawn weapon back off it, so the game's two-handed grip
+// keeps the untilted gun's.
+[[nodiscard]] glm::mat3 drawnWallTurn(int h, glm::vec3& shift);
+
 // The crosshair's ray as this pose has it: the pose's head (its crouch's drop in it) with the eye's nudges vr_flat_cam_fwd
 // / _up / _side, along the aim; the head alone when the drawn view is not the player's own (a chase view, the ragdoll
 // tool's orbit, a view standing further from his head than vr_flat_gun_near, eased to vr_flat_ads_near while the ironsight
