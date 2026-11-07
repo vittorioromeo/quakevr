@@ -2461,6 +2461,13 @@ void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const P
                 {
                     W tw = w;
                     topFour(tw);
+                    // (its place along the line from the one row to the joint and on to the other, by length)
+                    const glm::vec3 e1 = joint - p0, e2 = p1 - joint;
+                    const float l1 = glm::length(e1), l2 = glm::length(e2);
+                    const float u1 = za::clamp(glm::dot(p - p0, e1) / za::max(l1 * l1, 1e-6f), 0.f, 1.f);
+                    const float u2 = za::clamp(glm::dot(p - joint, e2) / za::max(l2 * l2, 1e-6f), 0.f, 1.f);
+                    const bool first = glm::distance(p, p0 + e1 * u1) <= glm::distance(p, joint + e2 * u2);
+                    br.underAlong[br.numUnder] = (first ? u1 * l1 : l1 + u2 * l2) / za::max(l1 + l2, 1e-6f);
                     br.under[br.numUnder++] = skinnedOf(p, tw);
                 }
             }

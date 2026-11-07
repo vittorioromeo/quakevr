@@ -232,6 +232,7 @@ struct Bridge
     float depth{0.f}, standoff{0.f}, scale{1.f};
     float taper[4]{1.f, 1.f, 1.f, 1.f}; // armour.txt's: the upper sleeve's taper_start, _end, the lower's
     Skinned under[bridgeMostUnder];      // the skin between the rows (kept under the leather at any bend)
+    float underAlong[bridgeMostUnder]{}; // ... each one's place along the leather at rest (0 the upper row, 1 the lower)
     int numUnder{0};
     glm::vec3 pivot{0.f};                // the joint (rest; the lower part's bone's pivot): the curve's turn is round it
 };
@@ -245,6 +246,9 @@ struct BridgeDiag
     float worst{0.f};            // the furthest outside (units)
     float worstAt{0.f};          // ... where along the leather (its rings: 0 the upper row's .. rings - 1)
     int atRows{0};               // outside within half a ring of either row (the plates' own fit there: not counted above)
+    // (the curve: the rows' turn between them, the joint's reach along each row's line, their middles apart, the most pushed)
+    float theta{0.f}, a0{0.f}, a1{0.f}, chord{0.f}, pushMost{0.f};
+    float roundOf{0.f}, keep{0.f}, back{0.f}; // (round tangents' share, their lengths kept, the curve against its rings' frames)
 };
 
 struct Shell
