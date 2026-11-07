@@ -61,6 +61,7 @@ constexpr WatchedFloat watchedFloats[] = {
     {"MG_registered", allBits},           // MG_WorldFrame
     {"vr_flameprop", allBits},            // the live flames: VR_Burn_MapFrame, VR_Burn_MapBodiesFrame, the wall torches
     {"vr_hosecut", 1, true},              // AD's cut hoses' pieces (vr_adtank.cpp setupStubs)
+    {"vr_skewer_grip", 1, true},          // the gibs a hand holds on a blade (vr_view_hands.cpp skewerGripped)
 };
 constexpr int maxFloats = static_cast<int>(sizeof(watchedFloats) / sizeof(watchedFloats[0]));
 using Mask = uint16_t; // a pending mask: bit 0 for .classname, 2 << i for watchedFloats[i]

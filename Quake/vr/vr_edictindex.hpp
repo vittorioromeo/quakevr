@@ -22,8 +22,8 @@ void fieldStored(struct edict_s* ed, int field);
 // answers for the server's VM (current), else the walk. A loop calls it again from the edict it got, so it sees what its
 // body changed as the walk would.
 // - nextFlagged: any of `bits` in .flags (the bits QuakeC sets: FL_MONSTER, FL_CLIENT, FL_ITEM; an engine bit walks).
-// - nextNonzero: the float `field` (its offset: progs::fields()) not 0; the index's "not 0" fields only (vr_hosecut),
-//   any other walks.
+// - nextNonzero: the float `field` (its offset: progs::fields()) not 0; the index's "not 0" fields only (vr_hosecut,
+//   vr_skewer_grip), any other walks.
 // - nextClassname: the classname `name` (find()'s).
 [[nodiscard]] int nextFlagged(int from, int bits);
 [[nodiscard]] int nextNonzero(int from, int field);

@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
@@ -2507,7 +2508,8 @@ SkewerPin skewerPins[2];
     }
     const progs::ServerVm vm;
     const int mine = EDICT_TO_PROG(player);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    // (the gripped ones only: the edict index's .vr_skewer_grip, the edicts it is not 0 on)
+    for(int i = edictindex::nextNonzero(svs.maxclients, grip); i > 0; i = edictindex::nextNonzero(i, grip))
     {
         edict_t* const e = EDICT_NUM(i);
         if(!e->free && progs::fieldInt(e, on) == mine && progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1))
