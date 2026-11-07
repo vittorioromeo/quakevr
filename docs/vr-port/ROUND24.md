@@ -2806,3 +2806,50 @@ busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms betwee
 
 With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
 AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.
+
+## Hand motion source, and the flat-screen shove (branch `agent/flatinput`, 2026-11-07)
+
+**The bug.** On the flat screen the hands are posed from the view, so a fast mouse flick swings them (and what they hold)
+through the world as fast as a real swing: with `vr_flat_flick_test 144 40` (40 degrees a frame, yaw and half of it in
+pitch, the other way every three frames) an axe chopped a wall and a gib and played five blow swishes and sounds. Every
+gesture that fires on motion read that motion as the player's.
+
+**The layer** (`Quake/vr/vr_handsource.hpp`, `.cpp`): each frame every hand's motion has a source.
+- `Tracked`: a controller's. `Synthesized`: made by the game or derived from the camera (the flat-screen look, the wall
+  tilt, a lean, a slide, recoil). `Action`: the game's motion for an explicit button action that the gesture rules must
+  judge (flat-screen V's punch, the fire button's punch with a melee weapon).
+- `hands::update` calls `handsource::beginFrame(vrActive())` before the hands are placed: Tracked in the headset,
+  Synthesized on the flat screen. Whatever moves a hand calls `handsource::mark(h, Source::..., "why")` that frame,
+  before the move is built; the strongest mark wins (Action > Synthesized > Tracked). **Other features plug in here**:
+  lean, slide, wall tilt and recoil mark the hands they move as `Synthesized` (on the flat screen that is already the
+  base; in the headset it would turn gestures off for that frame, so mark only motion that is really made up).
+- `handsource::gestures(h)` is the one rule (Tracked or Action; `vr_handsource_gate 0` lets everything through, the old
+  way). The consumers ask it, nothing else:
+  - client: the super shotgun's flick reload and its pry/lift (`vr_flick.cpp`), the flashlight's flick
+    (`vr_flashlight.cpp`), the chainsaw's cord pull (`vr_chainsaw.cpp`);
+  - the move (`vr_client.cpp handMove`): a hand that fails it sends no velocity (`vel`, `ownVel`, `angVel`, `velMag`
+    zero; the throw's estimate stays: letting go is a button), so every server gesture that goes by the velocity sees a
+    still hand (the force grab's flick pull, the revolver's push, the reload's tosses and ejects, a crate burst by a
+    hand, a hand's hit reaction, projectiles inheriting the hand's speed);
+  - the move's new byte `handSynth` -> QC `.handsynth` (bits 1 off, 2 main), read by QC `VR_HandMotionTracked(p, hand)`
+    (`vr_util.qc`), the same rule for the server's detectors that go by the poses: `VR_Melee_Track` (every swing, slap,
+    bash and hand shove) and `VR_Revolver_Flick` (the cylinder's flick open and shut).
+- Buttons are untouched: V, the fire button's punch, reload, `+flickreload`, the eject button, the shove key.
+- `vr_handsource_debug 1` (Debug > Flatscreen Play) prints each hand's source as it changes.
+
+**The flat-screen shove** (mouse 5, `vr_flat_key_shove "mouse5"`; `vr_flat_shove_now` from the console): the headset's
+one-hand shove of an open palm, straight ahead of the body at chest height (QC `VR_FlatShove`, impulse 53 the off hand,
+54 the main): what it finds (`VR_Bash_Find`, its reach times `vr_flat_shove_reach`) is shoved by the same landing as a
+palm's push (`VR_Bash_Land`, split out of `VR_Bash` unchanged): stamina, a counter's window, the stagger and push, the
+sound, the cooldown. The engine draws the hand's push (out a third of `vr_flat_shove_time` 0.4 s, `vr_flat_shove_anim_reach`
+14 units ahead and in towards the middle) and sends the impulse as the hand reaches out; the push is synthesized motion,
+so the melee rules do not read it as a slap of its own. The hand: an empty one (the off hand first), else the off hand.
+Cvars (menu: Movement > Desktop Screen Play): `vr_flat_shove 1`, `vr_flat_shove_cooldown 0.8`, `vr_flat_shove_push 1`,
+`vr_flat_shove_reach 1`; also `vr_flat_shove_damage 1`, `vr_flat_shove_time 0.4`, `vr_flat_shove_anim_reach 14`.
+
+**Tests.** `bash Misc/quakevr/flatinput_test.sh <agent>` (14 checks, "flatinput: N passed, M failed"): 40-degree flicks
+with an axe at a grunt, the revolver, the super shotgun: no blow, swing out, eject, flick or pry; the same flicks with
+`vr_handsource_gate 0` do strike (the control); the axe walked into the wall's tilt and out: no blow; V's punch lands and
+is marked an action; two shoves land, a press within the cooldown does nothing; the mock headset's hands are never
+synthesized. The headset: the melee eval (eval.sh) and the revolver's `vr_rv_test 1`; the super shotgun's flick and pry
+by `Misc/quakevr/reload/reload_test.sh`.
