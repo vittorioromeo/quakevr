@@ -2581,3 +2581,20 @@ Sheet `C:/OHWorkspace/qvr-kit/scratch/armorleft_sheet.png` (before: origin/next'
   vrtesthall): not this change.
 - **Noticed:** the studio's Animation list shows the grunt's and the knight's frames as one "frame" group (114 and 97 frames;
   the enforcer's are named); `vr_armourstudio_turn` changed after the subject is made seemed not to turn it in these runs.
+
+## Tracy session: loading and gameplay (branch `agent/tracy1107`, 2026-11-07, overnight)
+
+Release-Tracy, `vr_tracy_preset full`, his settings, the mock at 2048 eyes paced 90 Hz; E1M1 (VR and flat), armed_mix32,
+AD ad_tfuma (data copied into the kit game folder), arena wave 6, and a loads run (cold start, e1m1, vrfiringrange,
+changelevel, restart, AD cold and warm). Full numbers and the open items: qvr-kit/scratch/tracy1107_report.md.
+
+- AD fight: CPU busy p50 11.9 ms (over 90 Hz); `findradius` alone 2.0 ms a frame (187 calls, every edict walked each).
+- Applied, exact, each its own commit: `CRC_Block` slicing-by-8 (the 12 MB progs' CRC: server progs 30-36 -> 12-17 ms at
+  every map load); the model light grid reused on a reload of the same map (restart 51 -> 0 ms; `vr_model_light_grid_info`
+  prints a contents hash); `findradius` prefetching (AD -8% a call); the worn pack's rest box cached per shell and fit, and
+  `Mod_FindName` remembering a name's slot by its hash (`limbpiece` E1M1 0.30 -> 0.16 ms, AD 0.40 -> 0.12). Restart of e1m2
+  228 -> 142 ms; CPU busy p50 E1M1 4.27 -> 4.16, AD 11.89 -> 11.05.
+- Tests: wornpack 25 passed 0 failed; the grid's contents hash equal reused and rebuilt; progs CRC 23819 old and new.
+- Left for him: an area-tree or QC-side findradius (~1.5 ms on AD fights), GL programs compiled at init (a 16.7 ms
+  first-wisp hitch), limb textures probed during play, cold skin normal maps on the main thread (176-357 ms), armed_mix32's
+  78 heap allocations a frame.
