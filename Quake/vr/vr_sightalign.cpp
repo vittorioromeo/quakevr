@@ -68,6 +68,7 @@ constexpr Painted painted[] = {
     {"progs/v_shot2.mdl", Rear::Ring},  // a ring (a real aperture), a raised front bead (2026-11)
     {"progs/v_light.mdl", Rear::Notch}, // two rear posts, a front post (round 20)
     {"progs/v_plasma.mdl", Rear::Notch}, // the lightning gun's alternate: the same model
+    {"progs/v_nailpistol.mdl", Rear::Notch}, // two rear ears, a front post (2026-11-07; until painted, the table's line)
 };
 
 // The guns without painted sights: a line along the top of the barrel, on the model's middle (y 0), parallel to its

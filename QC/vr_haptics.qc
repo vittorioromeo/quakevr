@@ -57,9 +57,6 @@ void(float xHand) VR_Haptic_PackFull = { haptic(xHand, 0.0, 0.06, 40, 0.9); };
 // A hand touching a ragdoll.
 void(float xHand) VR_Haptic_RagdollTouch = { haptic(xHand, 0.0, 0.08, 60, 0.5); };
 
-// A wall torch taken.
-void(float xHand) VR_Haptic_GrabTorch = { haptic(xHand, 0.0, 0.08, 80, 0.8); };
-
 // The flashlight off its mount, and back on (a click and a second, higher one).
 void(float xHand) VR_Haptic_LampDetach = { haptic(xHand, 0, 0.06, 90, 0.6); };
 void(float xHand) VR_Haptic_LampAttach =

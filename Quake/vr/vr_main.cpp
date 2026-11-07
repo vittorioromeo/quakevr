@@ -1927,37 +1927,36 @@ namespace
 // VR_NewMap's prewarm, in order: what the map's first frames, the first shot or the first hit made on first use, made
 // now, in the load: the decals' atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the
 // liquids' volume and mesh (20-100 ms each map), the particles' atlas, the detail textures, the torch's shape, the
-// casings' model and sounds. `optional`: only with vr_load_prewarm (ROUND22.md "Frame spikes": each first use's frame,
-// Tracy).
+// casings' model and sounds; the models' rig data, the reflections' world buffers, the guns' screen anchors and your
+// skin masks (ROUND22.md "Frame spikes": each first use's frame, Tracy).
 struct PrewarmStep
 {
     const char* name;
     void (*prepare)();
-    bool optional;
 };
 constexpr PrewarmStep prewarmSteps[] = {
-    {"decal atlas", decals::prepare, false},
-    {"particle atlas", particles::prepare, false},
-    {"detail textures", detail::prepare, false},
-    {"liquids", water::prepare, false},
-    {"view models", view::prepareModels, false},
-    {"torch", flashlight::prepare, false},
-    {"casings", shells::prepare, false},
-    {"gunfire layers", gunsfx::prepare, false}, // (the shots' thumps, tails, casings: made as they load)
-    {"impact sounds", impacts::prepare, false}, // (the surfaces' hit sounds: made as they load)
-    {"gore sounds", goresound::prepare, false},
-    {"auto pump", autopump::prepare, false},
-    {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
-    {"Widowmaker", adweapons::prepare, false},   // AD support: its barrels' motor
-    {"model light grid", ambient::prepareGrid, false},
-    {"explosion debris", explosiondebris::prepare, false},
-    {"muzzle flash", weaponfx::prepare, false},
-    {"wall torches", walltorch::prepare, false},
-    {"cords", gfx::prepareTube, false}, // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
-    {"smooth rigs", animsmooth::prepare, true},          // 6-27 ms a monster kind's first smooth draw
-    {"env cube world", envmap::prepare, true},          // 2-12 ms the first frame
-    {"gun anchors", view::prepareWorldWeapons, true},   // ~10 ms the first gun lying near
-    {"skin masks", VR_PrecacheSkinMasks, true},          // 4-9 ms the first frame (your hands' glove paint read again)
+    {"decal atlas", decals::prepare},
+    {"particle atlas", particles::prepare},
+    {"detail textures", detail::prepare},
+    {"liquids", water::prepare},
+    {"view models", view::prepareModels},
+    {"torch", flashlight::prepare},
+    {"casings", shells::prepare},
+    {"gunfire layers", gunsfx::prepare}, // (the shots' thumps, tails, casings: made as they load)
+    {"impact sounds", impacts::prepare}, // (the surfaces' hit sounds: made as they load)
+    {"gore sounds", goresound::prepare},
+    {"auto pump", autopump::prepare},
+    {"AD crossbow", adcrossbow::prepare}, // AD support: its next bolt's sound
+    {"Widowmaker", adweapons::prepare},   // AD support: its barrels' motor
+    {"model light grid", ambient::prepareGrid},
+    {"explosion debris", explosiondebris::prepare},
+    {"muzzle flash", weaponfx::prepare},
+    {"wall torches", walltorch::prepare},
+    {"cords", gfx::prepareTube}, // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
+    {"smooth rigs", animsmooth::prepare},          // 6-27 ms a monster kind's first smooth draw
+    {"env cube world", envmap::prepare},          // 2-12 ms the first frame
+    {"gun anchors", view::prepareWorldWeapons},   // ~10 ms the first gun lying near
+    {"skin masks", VR_PrecacheSkinMasks},          // 4-9 ms the first frame (your hands' glove paint read again)
 };
 } // namespace
 
@@ -1972,10 +1971,6 @@ extern "C" void VR_NewMap()
     double total = 0.0;
     for(const PrewarmStep& step : prewarmSteps)
     {
-        if(step.optional && vr_load_prewarm.value == 0.f)
-        {
-            continue;
-        }
         QVR_PROFILE(step.name);
         const double start = Sys_DoubleTime();
         step.prepare();

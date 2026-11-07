@@ -7,8 +7,12 @@
 # (blender/addons/quakevr_models/md5source.py).
 #
 # Usage: blender -b Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/blend_export.py --
-#            [--out folder] [--allow-moved] [--allow-sights]
+#            [--out folder] [--allow-moved] [--allow-sights] [--grow]
 #   --out: write there instead of quakevr/progs (weapons.txt is then left alone; the changes are listed).
+#   --grow: vertices past the model's box make it bigger instead of refusing (as the model's Grow the Box, kept in the
+#     .blend: the add-on's Quake VR panel, under Export on Save). The grid starts from the file it replaces (so once
+#     grown it stays so); an origin that moved gets the weapon's offsets that keep it in place in weapons.txt, listed
+#     on "  box: " lines.
 #   --allow-moved: write even if the surface under an anchor moved (its empty not moved with it).
 #   --allow-sights: write even if the sight line turned (line them up again in the game: vr_weaponstudio_align).
 # Ends with "blend_export: ok, N files" or "blend_export: REFUSED: ..." (exit code 1).
@@ -78,7 +82,7 @@ def main():
         return
     try:
         written, changes = source.export(bpy.context, root, out, allow_moved="--allow-moved" in a,
-                                         allow_sights="--allow-sights" in a)
+                                         allow_sights="--allow-sights" in a, grow="--grow" in a)
     except source.SourceError as e:
         print("blend_export: REFUSED: nothing written:\n  " + str(e).replace("\n", "\n  "))
         sys.exit(1)

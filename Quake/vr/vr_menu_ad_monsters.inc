@@ -186,8 +186,6 @@
                   "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits; "
                   "the flails lying about: handles, heads, pairs, heads without their handle, handles without a head (both "
                   "0 when right), each rope's ends apart against its length."),
-        row(opt::vr_flail_frame),
-        row(opt::vr_flail_smooth),
         command("Flail Lying With Its Head", "vr_ad_test 169")
             .help("A death sergeant's flail made 64 units ahead (the toolgun's dispenser): its head beside it on its "
                   "chain, a body of its own you can carry; force grab the handle, the head trails it."),

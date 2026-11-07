@@ -38,6 +38,10 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
+// Whether `ve`'s model is drawn this frame: visible, with a model, and not hidden for a clean shot (vr_shot_hide). What
+// is drawn from a model besides it (a torch's lit lens: vr_flashlight.cpp) follows this, so it goes when the model does.
+[[nodiscard]] bool drawn(const ViewEntity& ve);
+
 // The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange) with bare forearms (vr_body_bracers
 // 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
 // hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
@@ -459,7 +463,7 @@ void graspDump_f();
 // holsters, the wrist gadget), not in the first frame drawn (0.3 s the first time: the body's 0.2).
 void prepareModels();
 
-// A map's load (VR_NewMap's prewarm, vr_load_prewarm): the precached guns' button and screen anchors bound, as the
+// A map's load (VR_NewMap's prewarm): the precached guns' button and screen anchors bound, as the
 // first gun lying near you would (~10 ms in that frame: ROUND22.md "Frame spikes").
 void prepareWorldWeapons();
 

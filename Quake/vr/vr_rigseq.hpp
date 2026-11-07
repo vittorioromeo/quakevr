@@ -46,7 +46,6 @@ void adjustTargets(const ragdoll::Rig& rig, const agarms::Spec& spec, const rigp
 // The studio: entity `ent` drawn with these bones (model space, rest -> now) this frame; `arms`: its arms by them too.
 // ent 0: none.
 void setStudio(int ent, const rigpose::Rigid* F, int numBones, bool arms);
-[[nodiscard]] int studioEnt();
 
 // The client's sequences (QVR_SVC_RIGSEQ).
 void parseMessage();
@@ -55,9 +54,6 @@ void clientClear(); // a map change, a disconnect
 // The server's frame end: QC's requests taken, the plays advanced, their events sent to QC.
 void serverFrame();
 void serverClear(); // a new map
-
-// Debug: the play on entity `ent` now (client): its sequence's name ("": none), its time (s) and weight.
-bool playingOn(int ent, const char*& name, float& time, float& weight);
 
 void registerCommands(); // vr_rigseq_play, vr_rigseq_stop, vr_rigseq_status
 

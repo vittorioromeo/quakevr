@@ -36,7 +36,6 @@ struct Choice
 [[nodiscard]] const char* modelLabel(int i);
 [[nodiscard]] int behaviourCount();
 [[nodiscard]] const char* behaviourLabel(int i);
-[[nodiscard]] const char* behaviourHelp(int i);
 // The parameter registry: each entry a cvar of a behaviour group, with its slider's range.
 struct Param
 {

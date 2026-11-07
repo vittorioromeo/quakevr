@@ -315,7 +315,7 @@ za::Vector<Item> pageDebugViews()
                   "the pelvis, chest, shoulders and elbows, the holsters and the ammo pouch: units from your eyes, forward, "
                   "right, up."),
         command("Print Torso Direction", "vr_torso_report")
-            .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
+            .help("vr_torso_report: the head's yaw, the torso guess and its target, the hands' pull and weights."),
         command("Print Walking Direction", "vr_move_report")
             .help("vr_move_report: Move Towards' setting, the yaws of the head, the torso and the hands, and where you are walking."),
         row(opt::vr_debug_body_error),
@@ -476,6 +476,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
                   "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
                   "session's state (VISIBLE: the runtime's menu has the controllers)."),
+        row(opt::vr_xr_late_acquire),
         row(opt::vr_debug_runtime_menu),
         row(opt::vr_debug_window_unfocused),
         row(opt::vr_debug_mirror_vsync),
@@ -561,7 +562,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),
         row(opt::vr_gun_pieces_cache),
-        row(opt::vr_gun_pieces_ahead),
         command("Gun Shapes Stats", "vr_gun_pieces_cache_stats")
             .help("vr_gun_pieces_cache_stats: the guns' pieces this session read from the disk or cut, the files "
                   "written, and with Check on, how many were compared and differed."),
@@ -595,20 +595,14 @@ za::Vector<Item> pageDebugProfiling()
                   "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
                   "and compared texel by texel, in the console. Stand where shadows are."),
         row(opt::vr_alias_eye_cache),
-        row(opt::vr_setup_screens_cache),
-        row(opt::vr_place_entities_first),
         row(opt::vr_wounds_budget),
         row(opt::vr_place_keep),
-        row(opt::vr_load_prewarm),
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
                   "Set-up Shared)."),
         row(opt::vr_alias_cull_posed),
-        row(opt::vr_body_prepass),
-        row(opt::vr_alias_prepass),
-        row(opt::vr_oit_lazy_clear),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
@@ -732,9 +726,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agholds_report: each armed humanoid drawn lately, its weapon and its hands on it (one-handed, two: the "
                   "off hand on its second grip or cupping the other), what the Weapon Holds asked; vr_agholds_info the "
                   "settings' table."),
-        toggle("Armed Humanoids: Check the Arms' Detail", vr_agarms_lod_check)
-            .help("vr_agarms_lod_check: each far armed humanoid's reused arms (Arms' Level of Detail, Graphics) also solved and "
-                  "compared; Arms' Solve Time prints how far apart its hands and weapons were."),
         toggle("Armed Humanoids: Arms' Warm Start", vr_agarms_warm)
             .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
                   "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "
@@ -1210,11 +1201,6 @@ za::Vector<Item> pageDebugTools()
                   "preview model floats ahead at arm's reach, at the size it is in your hand (a viewthing given the model: "
                   "until the map changes, player.mdl is drawn as it too). The scenario widowmaker_art also puts one in "
                   "your hand."),
-        command("Widowmaker: Hand-Made Model", "vr_ad_widowmaker_art 1")
-            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (after his mockup). Reloads it."),
-        command("Widowmaker: Model Made from AD's", "vr_ad_widowmaker_art 0")
-            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads, for A/B. "
-                  "Reloads it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

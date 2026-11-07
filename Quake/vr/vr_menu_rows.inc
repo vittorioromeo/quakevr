@@ -95,10 +95,6 @@ QVR_SLIDER(vr_body_stride, "Stride Length", 0.3f, 2.f, 0.05f, "%.2fx", ext(),
     "walking takes fewer steps), but the feet leave the floor further at the stride's ends, past the legs' reach.")
 QVR_SLIDER(vr_body_step_width, "Step Width", -0.08f, 0.25f, 0.01f, "%+.2f m", ext(),
     "How much further apart each foot walks than it stands (hips' width apart): out, or in if negative.")
-QVR_TOGGLE(vr_body_step_sounds, "Footsteps on the Feet",
-    "Your footsteps play as the drawn feet touch down, from that foot, quieter the slower you go. Turning and small moves "
-    "in the room are silent. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you "
-    "cover, as in Quake.")
 QVR_SLIDER(vr_body_turn_step, "Turn Before Stepping", 15.f, 90.f, 5.f, "%.0f deg", ext(),
     "How far you turn over your planted feet before they step round to follow.")
 QVR_SLIDER(vr_body_wade, "Wading Heaviness", 0.f, 2.f, 0.1f, "%.1fx", ext(),
@@ -752,10 +748,6 @@ QVR_SLIDER(vr_knockdown_shove_ledge_push, "Ledge Push", 0.f, 1.5f, 0.05f, "%.2fx
 QVR_SLIDER(vr_knockdown_shove_ledge_over, "Ledge Carry Past the Edge", 0.f, 1.f, 0.05f, "%.2fx", noExt,
     "Once a shove has taken it past the edge, how much of its speed it keeps as it falls: low, it just tips "
     "over the lip and drops near the ledge's foot; 1: it flies on as it goes (as before).")
-QVR_TOGGLE(vr_knockdown_weld, "Weapon Stays in Hand",
-    "Its weapon stays in its hand while it is down or staggering, lifted or struggling (killed there, it "
-    "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Off: it "
-    "flops loose as a dead one's.")
 QVR_SLIDER(vr_knockdown_wiggle, "Struggling Strength", 0.f, 3.f, 0.1f, "%.1fx", noExt,
     "Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle.")
 QVR_SLIDER(vr_knockdown_wiggle_frequency, "Struggling Frequency", 0.1f, 5.f, 0.1f, "%.1f Hz", noExt, nullptr)
@@ -937,9 +929,6 @@ QVR_TOGGLE(vr_agrunt_range, "Keep Their Distance",
     "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
     "(further while you hold a melee weapon or charge it), about it it strafes round you, further it comes "
     "on. Off: it closes in as before. Melee weapons: Melee Spacing below (vr_agrunt_range).")
-QVR_TOGGLE(vr_agrunt_aim_converge, "Aim From the Muzzle",
-    "Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
-    "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge).")
 QVR_TOGGLE(vr_agrunt_aim_exposed, "Aim at What They Can Hit",
     "Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
     "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
@@ -1193,11 +1182,6 @@ QVR_TOGGLE(vr_agrunt_disarm_deliberate, "Deliberate Blows Only",
     "Only a deliberate blow knocks its weapon out: a closed fist or something held, swung over more than "
     "a frame. An open hand reaching for it, or your idle hands jolted as you are pushed or walk into it, "
     "never (vr_agrunt_disarm_deliberate).")
-QVR_TOGGLE(vr_agrunt_strike_first, "Strikes on Its Weapon Disarm",
-    "A deliberate strike (a fist, a held gun or prop, in slow motion too) that meets its weapon or gun "
-    "hand knocks the weapon out unless its parry was raised for it; into a raised parry it may still "
-    "(Strike Beats a Raised Parry, in the tunables). Off: such a blow is parried whenever it can be "
-    "(vr_agrunt_strike_first).")
 QVR_TOGGLE(vr_agrunt_tug, "Tug-of-War",
     "Grabbing its weapon starts a struggle: it stands its ground as an active ragdoll, your hand holding "
     "its weapon in its hand, its arms pulling back; pull hard enough, or long enough, and its grip breaks: "
@@ -1468,10 +1452,6 @@ QVR_SLIDER(vr_gunsfx_dryfire, "Dry Fire Click", 0.f, 2.f, 0.1f, "%.1f", noExt,
 QVR_TOGGLE(vr_gunsfx_action, "Actions From the Action",
     "A gun's mechanical sounds (breaking open and closing, a magazine in or out, a shell in) heard from that "
     "part of the gun, not its muzzle.")
-QVR_SLIDER(vr_gunsfx_punch, "Haptic Punch", 0.f, 2.f, 0.1f, "%.1fx", noExt,
-    "Each shot punches the controller: a sharp spike, then a short rumble as long as the gun's recoil takes to "
-    "come back, as hard as its recoil (each weapon's own: Weapon Offsets > Effects > Haptic Punch). 0: the "
-    "old flat buzz.")
 QVR_TOGGLE(vr_snd_limiter, "Mix Limiter",
     "Loud sounds piling up (explosive boxes blowing up together) are brought down smoothly just under full "
     "volume instead of clipping, which crackles; quieter sounds untouched. Spatial audio on or off. Off: "
@@ -3825,9 +3805,6 @@ QVR_SLIDER(vr_weapon_grab_handle_leniency, "Handle Grab Leniency", 0.f, 10.f, 0.
 QVR_SLIDER(vr_weapon_catch_handle_leniency, "Mid-Air Catch Leniency", 0.f, 15.f, 0.5f, "%.1f cm", noExt,
     "A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
     "this much off it. Not a force grab's pull. 0: only by your fist on it.")
-QVR_TOGGLE(vr_pickup_float_grace, "Floating Pickup Grace",
-    "A weapon, key or armour hanging in the air (spinning) isn't knocked down by your empty hand reaching into "
-    "it slowly for a moment: close your grip and it is taken where it hangs. Off: a touch knocks it loose.")
 QVR_TOGGLE(vr_weapon_grab_hotspots, "Weapons by Their Hotspots",
     "Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
     "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
@@ -5321,13 +5298,6 @@ QVR_SLIDER_BYNAME(vr_adgun_crossbow_anim_at, "Crossbow Held After a Shot", -1.f,
 QVR_TOGGLE_BYNAME(vr_adgun_hose_arms, "Fuel Hose Avoids the Arms",
     "The hose kept out of your drawn arms (the upper arm and forearm as capsules), going round them. Off: "
     "it passes through them (to compare; Fuel Hose Info measures how deep).")
-QVR_TOGGLE_BYNAME(vr_flail_frame, "Flail Head in Your Frame",
-    "Debug: the held flail's head simulated in your moving frame (the stick's walk and turn carry it; Flail "
-    "Body Inertia's share of your speeding up swings it). Off: in the world's, as before (the stick's walk "
-    "flung it).")
-QVR_TOGGLE_BYNAME(vr_flail_smooth, "Flail Head Drawn Smooth",
-    "Debug: the held flail's head drawn between the server's steps, on the hand as drawn, at the headset's "
-    "frame rate. Off: where each 72 Hz step left it (jerky under the hand).")
 
 // vr_menu_automation.inc: ?
 QVR_TOGGLE(vr_agrunt_ik_debug, "Armed Grunts: Grip Distances",
@@ -5808,11 +5778,6 @@ QVR_CYCLE(vr_gun_pieces_cache, "Gun Shapes on Disk",
     "grunt's gun drops). Check: read, then cut anyway and compared (Gun Shapes Stats counts them). Off: "
     "cut once every session (vr_gun_pieces_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
-QVR_CYCLE(vr_gun_pieces_ahead, "Gun Shapes at Load",
-    "A map's load makes the convex pieces of every weapon it can give (lying about, its monsters' drops, "
-    "backpacks, your hands and holsters) from their files, or cuts them (on the job pool), so the first "
-    "pickup mid-game is not a hitch. Off: cut at the first pickup (vr_gun_pieces_ahead).",
-    {0.f, "Off"}, {1.f, "On"})
 QVR_CYCLE(vr_bench_profiler, "External Profiler Collects",
     "For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
     "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
@@ -5828,14 +5793,6 @@ QVR_CYCLE(vr_alias_eye_cache, "Second Eye's Model Set-up",
     "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
     "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats).",
     {0.f, "Made Again"}, {1.f, "First Eye's"}, {2.f, "Checked"})
-QVR_TOGGLE(vr_setup_screens_cache, "Button Screens' List",
-    "vr_setup_screens_cache: the buttons with value screens over them (the calibration room's settings, the "
-    "hub's campaigns and Continue) found by a walk of every entity every half second (on), or every frame "
-    "(off, as before: 0.1-0.2 ms a frame in Arcane Dimensions' biggest maps). The same screens either way.")
-QVR_TOGGLE(vr_place_entities_first, "Crates' Placing: Entities First",
-    "vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
-    "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
-    "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher).")
 QVR_CYCLE(vr_wounds_budget, "Wound Painting Budget",
     "vr_wounds_budget: the wounds painted at most this long a frame, the rest of a burst (an explosion's, a "
     "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
@@ -5847,30 +5804,12 @@ QVR_TOGGLE(vr_place_keep, "Keep Crates' and Rocks' Layouts",
     "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
     "Arcane Dimensions' big maps), or planned again at every load (off, as before). The same layout either way; "
     "another seed or setting plans anew.")
-QVR_TOGGLE(vr_load_prewarm, "Load Prewarm",
-    "vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
-    "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
-    "guns' screen anchors (10 ms the first time a gun lay near you), your skin masks and glove paint.")
 QVR_CYCLE(vr_alias_cull_posed, "Cull Posed Models",
     "vr_alias_cull_posed: your body, its mirror image, the jointed hands and the ragdolls left out of each "
     "eye's view and each shadow map face their bones' box does not reach (On), or drawn into all of them "
     "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
     "(Checked: see Model Cull Stats). The same images either way.",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"})
-QVR_CYCLE(vr_body_prepass, "Body Depth Pre-pass",
-    "vr_body_prepass: your body and its mirror image drawn into the eye's depth first, then shaded once a "
-    "pixel (On), or shaded as drawn, the arms over the torso shaded twice (Off, as before). The same image "
-    "either way.",
-    {0.f, "Off"}, {1.f, "On"})
-QVR_CYCLE(vr_alias_prepass, "Model Depth Pre-pass",
-    "vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
-    "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
-    "and gore 4-23% less GPU on models at a headset's resolution. The same image either way.",
-    {0.f, "Off"}, {1.f, "On"})
-QVR_TOGGLE(vr_oit_lazy_clear, "Lazy OIT Clear",
-    "vr_oit_lazy_clear: the translucent pass's two buffers cleared at a view's first translucent draw, and "
-    "neither cleared nor resolved in a view with nothing translucent (on), or cleared and resolved in every "
-    "view (off, as before). The same image either way.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
@@ -6263,9 +6202,6 @@ QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
     "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled). "
     "vr_debug_gunfx 2 (console): also each frame a hot barrel glows, \"gunfx barrel hand .. heat .. glow .. light "
     ".. drawn .. off ..\" (off: how far its drawn muzzle was from where its light was placed).")
-QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
-    "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
-    "as before the fix: the denser creases, to compare.")
 QVR_TOGGLE(vr_debug_gunsfx, "Print Gunfire Layers and Punches",
     "vr_debug_gunsfx: a console line for each shot (its layers, tail, room), each punch and dry click.")
 QVR_TOGGLE(vr_debug_weaponfx, "Print Weapon Effects",
@@ -6275,11 +6211,6 @@ QVR_TOGGLE(vr_debug_weaponfx, "Print Weapon Effects",
 QVR_SLIDER(vr_autopump_hold, "Hold the Auto Pump", -0.05f, 1.f, 0.05f, "%.2f", noExt,
     "vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
     "(0.35-0.45: at the back; below 0: off).")
-QVR_TOGGLE(vr_weapon_kick_cancel, "Take Out the Models' Own Kick",
-    "vr_weapon_kick_cancel: Quake's guns' firing frames kick the whole gun back and up in the model; that kick "
-    "is taken out of their poses (the body exactly still; their pumps, barrels and drums still move; the "
-    "grenade launchers wholly still) and the programmatic recoil kicks them instead. Off: the models' own "
-    "kick again, to compare.")
 QVR_TOGGLE(vr_debug_draw_blend, "Print the Weapon Blends",
     "vr_debug_draw_blend: each frame of a hand's weapon blend (a draw, a force grab's catch, a pass between hands) "
     "printed to the console: what is left of it, where the gun is drawn and its real place.")

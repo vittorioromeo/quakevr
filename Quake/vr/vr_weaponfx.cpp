@@ -897,7 +897,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
     lastFrame = host_framecount;
     QVR_PROFILE("weapon fx");
 
-    // The held guns' poses with their models' own kick out (or put back: vr_weapon_kick_cancel; a model read again).
+    // The held guns' poses with their models' own kick out (a model read again: cut again).
     for(const view::ViewEntity& w : weapons)
     {
         if(w.visible && w.ent.model)

@@ -577,7 +577,7 @@ float QVR_PICKUPOBJ_HOLSTER = 3; // taken at a holster
 .float vr_wearable;     // armour to be worn by hand
 .float vr_wear_hover;   // carried over the torso last frame (for the hover haptic)
 .float vr_wear_floats;  // hangs in the air until taken or knocked (and again when it comes back in deathmatch)
-void(entity xBox) VR_Carry_FloatGraceFrame; // (vr_carry.qc: the floating pickups' grace, vr_pickup_float_grace)
+void(entity xBox) VR_Carry_FloatGraceFrame; // (vr_carry.qc: the floating pickups' grace)
 float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGraceGrip;
 .float vr_pickup_sparkle; // a weapon's next sparkle (weapon_item_think's; not its think2, which forcegrabbable_item_reposition reads)
 

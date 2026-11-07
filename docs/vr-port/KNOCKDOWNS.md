@@ -35,7 +35,7 @@ struggle physically; `_frequency` 2.2 Hz, `_pause` 0 s).
 
 - Not solid, touchable (`SOLID_NOT_BUT_TOUCHABLE`), `.vr_knockdown` 1. The engine makes its ragdoll at once from the
   frame it is drawn in, keeping its motion; the shove's push is scaled by `vr_knockdown_push`. Its weapon is welded to
-  its hand (`vr_knockdown_weld`).
+  its hand.
 - Down knockdowns don't count against `vr_ragdoll_max` in the engine. QC makes room first (`VR_Knockdown_MakeRoom`):
   the oldest dead ragdoll is removed; if none is left, the oldest knocked-down monster is killed and its body removed.
 - Hits land on the ragdoll (the precise hits test the limbs as drawn). It reacts as usual: it gets angry, plays its

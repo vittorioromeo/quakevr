@@ -2885,18 +2885,6 @@ Channel channelOf(const ragdoll::Bone& bone)
     return Channel::Torso;
 }
 
-const char* channelName(Channel c)
-{
-    switch(c)
-    {
-    case Channel::Legs: return "legs";
-    case Channel::Torso: return "torso";
-    case Channel::Arms: return "arms";
-    case Channel::Head: return "head";
-    }
-    return "?";
-}
-
 float fadeAt(const Fade& f, float t)
 {
     if(t <= f.t0)

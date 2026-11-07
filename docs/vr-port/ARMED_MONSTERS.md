@@ -241,6 +241,7 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   place (always since wave C1), and a gun's shots leave its drawn muzzle along its drawn line (`vr_agrunt_shot_drawn`,
   QC asks `weapondrawnpose(p, 0, 21/22)`: the turn and shift of the drawn weapon off the server's, a listen server's own
   view); a two-handed melee weapon (not the chainsaw) is swung one-handed, the off hand let go and taken again round the
-  shoulder (`vr_agrunt_swing_one_hand`; the second grip's release always); punches eased into the blow (`vr_agrunt_punch_ease`); a chainsaw's thrust keeps both handles within reach (`vr_agrunt_saw_reach`); a
-  weapon taken up turns from how it lay the short way (`vr_agrunt_lift_turn`). Each 1 by default, 0 before (the
-  vr_agarms_* switches among them retired in wave C1).
+  shoulder (the second grip's release always); punches eased into the blow; a chainsaw's thrust keeps both handles
+  within reach; a weapon taken up turns from how it lay the short way. Their A/B switches (`vr_agrunt_swing_one_hand`,
+  `vr_agrunt_punch_ease`, `vr_agrunt_saw_reach`, `vr_agrunt_lift_turn`, with `vr_agrunt_run_key_stance`) retired
+  2026-11-07, as the vr_agarms_* ones in wave C1.

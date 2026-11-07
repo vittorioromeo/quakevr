@@ -674,11 +674,6 @@ void setStudio(int ent, const rigpose::Rigid* F, int numBones, bool arms)
     }
 }
 
-int studioEnt()
-{
-    return rs.studio.ent;
-}
-
 void parseMessage()
 {
     const int ent = MSG_ReadShort();
@@ -760,22 +755,6 @@ void serverClear()
 {
     rs.server.clear();
     rs.qc = QcSide{};
-}
-
-bool playingOn(int ent, const char*& name, float& time, float& weight)
-{
-    ClientPlay* p = clientPlay(ent);
-    name = "";
-    time = 0.f;
-    weight = 0.f;
-    if(!p)
-    {
-        return false;
-    }
-    name = p->name.cStr();
-    time = static_cast<float>(cl.time - p->start);
-    weight = p->stopAt >= 0.0 ? 0.5f : 1.f;
-    return true;
 }
 
 void registerCommands()

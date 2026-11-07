@@ -127,10 +127,10 @@ void draw(za::Span<const gfx::Vertex> triangles, bool additive)
         return;
     }
     // Each pixel drawn once (State::once): where a ribbon folds over itself on a sharp turn, or two cross, the smoke is
-    // no denser (it was: creases); vr_debug_ribbon_overlap 1 blends them again, to compare.
+    // no denser (it was: creases).
     gfx::draw(triangles, gfx::sceneViewProjection(),
         gfx::State{.shade = gfx::Shade::SoftEdge, .blend = additive ? gfx::Blend::Additive : gfx::Blend::Alpha, .depthTest = true,
-            .depthWrite = false, .once = vr_debug_ribbon_overlap.value == 0.f, .flatModelFov = true}); // (his guns' wisps)
+            .depthWrite = false, .once = true, .flatModelFov = true}); // (his guns' wisps)
 }
 
 } // namespace qvr::ribbons
