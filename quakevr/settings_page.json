@@ -169,7 +169,7 @@
    "kind": "toggle",
    "label": "Replace All Humanoids",
    "help": "Every grunt and enforcer a map spawns (its own, its spawners', its waiting ones) is its armed version holding its own gun: the same damage, rate of fire, aim, health and loot as the one it replaces, but you can knock or pull the gun out of its hands, win it in a tug, parry it, shoot it out, and its ragdoll keeps hold of it. Takes effect at the next map load (vr_agrunt_repl).",
-   "path": "Advanced VR Options > Combat > Armed Humanoid Replacements > Replace All Humanoids",
+   "path": "VR Settings > Gameplay > Replace All Humanoids",
    "default": "1"
   },
   {
@@ -179,7 +179,7 @@
    "kind": "choice",
    "label": "Gore",
    "help": "Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip.",
-   "path": "Advanced VR Options > Gore > Gore",
+   "path": "VR Settings > Gameplay > Gore",
    "default": "2",
    "choices": [
     {

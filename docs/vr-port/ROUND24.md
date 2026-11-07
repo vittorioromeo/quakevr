@@ -2459,6 +2459,22 @@ lines equal the defaults), before (origin/next's weapons.txt) and after:
 **To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
 weapons sit and aim as he left them.
 
+## Release 1.1 readiness pass (night 11-07, agent/release11)
+
+Full regression (`run_baseline.sh --no-bench --jobs 4`, 300 cases, run 20261107-022308) against the last full run on
+next (20261106-025836): 278 pass; 6 changed. Summary table and triage: `qvr-kit/scratch/release11_report.md`.
+- **Crash fixed:** holding one enemy with both hands crashed the game (`NUM_FOR_EDICT` with no VM: the gadget lock's
+  "the same enemy" check, `vr_gadgetlock.cpp` from 56b36f59f, called `foegrab::heldBy` in the view frame before its
+  `progs::ServerVm`). judo 0/16 (a crash a case) -> 16/0; gadget_lock 18/0.
+- **VR Settings > Gameplay** (BACKLOG "Gameplay page before 1.1"): one page of the big switches, existing rows only:
+  Replace All Humanoids, Enemy Weapon Drops, Enemy Shoves, Melee Arc; Knockdowns, Holding Enemies, Embedded Blades;
+  Parry, Bash, Parry Stamina, Slower When Tired, Melee Bloodlust; Bullet Time; Gore; Arena In Any Map. The installer
+  manifest's paths follow (`settings_page.py update`); calibration boards 0 missing.
+- **Graphics presets:** Off (Quake) also turns off the muzzle smoke cone, the smoke wisps, enemies' muzzle smoke,
+  explosion debris and the model light grid; Low keeps 4 debris lights (of 8), as its torch and lava-nail lights.
+  hazepreset 8/0.
+- **cup_aim_test:** needs AD's data (the Widowmaker is AD's; `vr_ad_test 98` does nothing unless AD is mounted): runs
+  with `-game ad` now and skips with a verdict line where the base has no `ad/` (agents' bases have none).
 ## Lying down and crawling (branch `agent/prone`, 2026-11-07)
 
 His backlog item (2026-11-03): the player can lie down and crawl by moving his body. Built on the crouch's box and the

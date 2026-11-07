@@ -61,6 +61,9 @@ const char* bothHold()
     {
         return nullptr;
     }
+    // (The server's VM before foegrab::heldBy too: its NUM_FOR_EDICT reads the current VM, none in the view frame;
+    // judo_test crashed there holding a grunt with both hands, release 1.1 regression run.)
+    progs::ServerVm serverVm;
     if(foegrab::holding(0) && foegrab::holding(1))
     {
         const int foe = foegrab::heldBy(player, 1);
@@ -69,7 +72,6 @@ const char* bothHold()
             return "the same enemy";
         }
     }
-    progs::ServerVm serverVm;
     const int num = NUM_FOR_EDICT(player);
     box3d::RagdollHold held[2];
     if(box3d::ragdollHold(num, 0, held[0]) && box3d::ragdollHold(num, 1, held[1]) && held[0].num > 0 &&

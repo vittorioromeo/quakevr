@@ -8,6 +8,12 @@
 # itself after its last step.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 T=C:/OHWorkspace/qvr-agents/$AGENT/scratch; mkdir -p "$T"
+# The Widowmaker is AD's (vr_ad_test 98 gives it only with AD's data mounted): a game folder without ad/ skips the test.
+BASE=${QVR_BASE_DIR:-$KIT/bases/$AGENT/qbase}
+if [ ! -d "$BASE/ad" ]; then
+    echo "cupaim: 0 passed, 0 failed (skipped: no ad/ game folder in $BASE; the Widowmaker needs AD's data)"
+    exit 0
+fi
 S="map e1m1;wait30;god;notarget;developer 1;vr_weapon_grip_mode 1;vr_debug_2h_grip 2;vr_mock_hand main 0.2 1.3 -0.3 70 0 0;vr_mock_hand off -0.2 1.1 -0.3 70 0 0;+grabright;vr_mock_button main grip 1;vr_ad_test 98;wait60"
 S="$S;${EXTRA:-};vr_wofs_hs1_aim2h_35 1;vr_mock_hand_to off heldspot 0 palm;wait5;+graboff;vr_mock_button off grip 1;wait40"
 for set in 1 0; do
@@ -16,5 +22,6 @@ for set in 1 0; do
     S="$S;vr_mock_hand_lift -0.04;wait40;echo cupaim step on$set down;vr_aim_check"
 done
 S="$S;toggleconsole;quit"
-bash "$KIT/run.sh" "$AGENT" -Script "$S" -Filter "^cupaim|^aim_check: main|^2h grip|rror" -Timeout 180 > "$T/cupaim.log" 2>&1
+# (AD's data loaded, as the other AD tests: without it vr_ad_test 98 gives nothing and the main hand stays unarmed.)
+bash "$KIT/run.sh" "$AGENT" -Games '-game ad -game quakevr' -ExtraArgs '-nomapindex -noaddons' -Script "$S" -Filter "^cupaim|^aim_check: main|^2h grip|rror" -Timeout 180 > "$T/cupaim.log" 2>&1
 python "C:/OHWorkspace/qvr-agents/$AGENT/Misc/quakevr/twohand/cup_aim_check.py" "$T/cupaim.log"
