@@ -837,11 +837,6 @@ bool recording()
     return recorder.rec != Rec::Off;
 }
 
-bool previewing()
-{
-    return preview.active;
-}
-
 void toggleRecording()
 {
     if(recorder.rec == Rec::Off)

@@ -610,7 +610,7 @@ bool resetOffsets()
 
 bool showSolved()
 {
-    return vr_pose_solve.value != 0.f || realtime < solvedUntil;
+    return realtime < solvedUntil;
 }
 
 void solvedPalm(const Candidate& c)

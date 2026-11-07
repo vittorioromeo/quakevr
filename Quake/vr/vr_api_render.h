@@ -228,8 +228,7 @@ int VR_FlatModelFovEntity (const struct entity_s *e); // r_alias.c: e is the pla
 int VR_FlatModelFovUncull (const struct entity_s *e); // r_alias.c: e is, and the scale draws it inwards: its true place outside the view says nothing
 int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
 int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Hands hand: its depth drawn first, then only its nearest surface blended
-int VR_OITLazyClear (void); // gl_rmain.c: the OIT targets cleared at a view's first translucent draw, none and no resolve without one (vr_oit_lazy_clear)
-int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image: vr_body_prepass; the world's models: vr_alias_prepass)
+int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image, the world's models)
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
 void VR_AliasWetCoat (const struct entity_s *e, float out[2]);	// instance: its wet coat (vr_wounds.cpp wetCoat, vr_wounds_wet_coat): strength (0 dry), 1 all of it (else where its mask is wet)
 void VR_AliasWoundPaintSide (const struct entity_s *e, int side, float out[4]);	// R_PaintAliasWounds: its woundside, painting side `side` alone (-1: all of it)

@@ -376,8 +376,8 @@ struct Planner
         const float height = o.hu * 2.f;
         // Clear of the entities (their boxes grown by their margins): no traces, so first (a third of the rejected spots
         // were rejected here, after some 45 traces each: 150 ms of a big AD map's load; the same answer, every test is
-        // needed to pass). vr_place_entities_first 0: last, as before (A/B).
-        if(vr_place_entities_first.value != 0.f && !clearOfEntities(o, c, floorZ, height, reason))
+        // needed to pass).
+        if(!clearOfEntities(o, c, floorZ, height, reason))
         {
             return false;
         }
@@ -437,7 +437,7 @@ struct Planner
                 return false;
             }
         }
-        return vr_place_entities_first.value != 0.f || clearOfEntities(o, c, floorZ, height, reason);
+        return true;
     }
 
     // Clear of the entities (their boxes grown by their margins).

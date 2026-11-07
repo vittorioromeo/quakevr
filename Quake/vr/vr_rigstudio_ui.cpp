@@ -363,7 +363,7 @@ void toolsWindow()
         ImGui::Checkbox("Aim Lines", &st.aimLines);
         helpMarker("With the aim target on: each weapon's barrel line (cyan, from its muzzle as far as the target, its error "
                    "beside it: yaw + left, pitch + up), the game's shot line where it is another (dashed magenta: "
-                   "vr_agrunt_aim_converge sends it from the muzzle to the target) and a thin line from the muzzle to the target.");
+                   "the game sends it from the muzzle to the target) and a thin line from the muzzle to the target.");
         ghostsDisplayUi(); // (the IK ghost; the onion skin is the strike timeline's, in the Pose Studio Data window)
     }
     if(ImGui::CollapsingHeader("Aim Target", ImGuiTreeNodeFlags_DefaultOpen))

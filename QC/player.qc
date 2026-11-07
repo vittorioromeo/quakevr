@@ -172,7 +172,7 @@ void(float xHand) player_run =
                    {
                    self.spawnsilent = 0.5*(self.spawnsilent - 95);
                    }
-                // QVR: heard from the drawn feet instead, as they touch down (vr_body_step_sounds, vr_playersteps.cpp).
+                // QVR: heard from the drawn feet instead, as they touch down (vr_playersteps.cpp).
                 if(!playerstepsilent(self))
                 {
                     r = random();

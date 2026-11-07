@@ -55,9 +55,8 @@ void test_f()
         return;
     }
     const KeepCvar keep[] = {KeepCvar{&vr_gunsfx}, KeepCvar{&vr_gunsfx_layers}, KeepCvar{&vr_gunsfx_tail},
-        KeepCvar{&vr_gunsfx_vary}, KeepCvar{&vr_gunsfx_dryfire}, KeepCvar{&vr_gunsfx_action}, KeepCvar{&vr_gunsfx_punch}};
-    for(cvar_t* c : {&vr_gunsfx, &vr_gunsfx_layers, &vr_gunsfx_tail, &vr_gunsfx_dryfire, &vr_gunsfx_action,
-            &vr_gunsfx_punch})
+        KeepCvar{&vr_gunsfx_vary}, KeepCvar{&vr_gunsfx_dryfire}, KeepCvar{&vr_gunsfx_action}};
+    for(cvar_t* c : {&vr_gunsfx, &vr_gunsfx_layers, &vr_gunsfx_tail, &vr_gunsfx_dryfire, &vr_gunsfx_action})
     {
         Cvar_SetQuick(c, "1");
     }
@@ -276,10 +275,6 @@ void test_f()
                 punchOwns(HAND_MAIN),
             "a shot sends its spike at once (%.2f) and holds back the flat buzz", state.lastPulse[HAND_MAIN].amplitude);
         state.punches[HAND_MAIN] = Punch{};
-        Cvar_SetQuick(&vr_gunsfx_punch, "0");
-        fired(HAND_MAIN);
-        check(state.punches[HAND_MAIN].slot < 0 && !punchOwns(HAND_MAIN), "punch 0: the flat buzz as before");
-        Cvar_SetQuick(&vr_gunsfx_punch, "1");
     }
 
     // 7. An action's sound from the action; the shot from the muzzle; none with the setting off.

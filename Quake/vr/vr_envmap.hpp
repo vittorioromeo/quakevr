@@ -30,7 +30,7 @@ namespace qvr::envmap
 // rendered.
 void update();
 
-// The map's load (VR_NewMap's prewarm, vr_load_prewarm): the world's buffers for the cubes made now, not in the first
+// The map's load (VR_NewMap's prewarm): the world's buffers for the cubes made now, not in the first
 // frame (2-12 ms: ROUND22.md "Frame spikes").
 void prepare();
 

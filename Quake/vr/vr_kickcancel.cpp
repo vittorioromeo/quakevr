@@ -76,8 +76,8 @@ struct ModelKick
     za::Vector<PoseFit> poses;     // every pose's
     za::Vector<unsigned char> body; // each vertex: 1 the gun's body (fitted), 0 a part moving on it
     int bodyCount{0};
-    // Every pose's vertices as the model has them, and with the kick taken out (ensure: the one the model's data holds,
-    // by vr_weapon_kick_cancel). Empty until the model is first made ready (ensure).
+    // Every pose's vertices as the model has them, and with the kick taken out (ensure: the one the model's data holds).
+    // Empty until the model is first made ready (ensure).
     za::Vector<trivertx_t> original;
     za::Vector<trivertx_t> cancelled;
     int probe{-1}; // the first pose the cancel changes (-1: none): whose bytes tell which the data holds (ensure)
@@ -502,7 +502,7 @@ enum class Held
     return m;
 }
 
-// `model`'s data made to hold its cancelled poses (vr_weapon_kick_cancel; 0: its own), fitted first if it is new, and
+// `model`'s data made to hold its cancelled poses, fitted first if it is new, and
 // uploaded again when that changed it (its dequantised offsets made again for the poses it now has).
 void ensure(qmodel_t* model, aliashdr_t* hdr)
 {
@@ -530,12 +530,11 @@ void ensure(qmodel_t* model, aliashdr_t* hdr)
     {
         return;
     }
-    const bool want = vr_weapon_kick_cancel.value != 0.f;
-    if((held == Held::Cancelled) == want)
+    if(held == Held::Cancelled)
     {
         return;
     }
-    memcpy(posesOf(hdr), (want ? m->cancelled : m->original).data(), poseBytes(hdr));
+    memcpy(posesOf(hdr), m->cancelled.data(), poseBytes(hdr));
     hdr->dequantready = 0;
     if(model->meshvbo)
     {

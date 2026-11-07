@@ -101,9 +101,6 @@ struct Rig
     za::Vector<VertWeights> weights;
 };
 
-// The skinned copy a ragdoll of `rig` is drawn with ("<model>#rag", or "<model>#rig2" for an authored rig).
-[[nodiscard]] qmodel_t* skinnedModelOf(const Rig& rig);
-
 // rig2::latch (a rig file reloaded): the rigs made from the authored rigs handed out no more (kept: ragdolls point to them),
 // made again from the files when next asked for.
 void retireAuthored();

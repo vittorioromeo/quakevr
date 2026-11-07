@@ -14,7 +14,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
 } // namespace
 
 // (Only reads the map: made on the game's thread pool while the map spawns, see beforeLoad.)
-[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, bool junctions, MeshStats& stats)
+[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, MeshStats& stats)
 {
     const double t0 = Sys_DoubleTime();
     struct Face
@@ -130,10 +130,6 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
             const int a = corners[static_cast<size_t>(f.first + k)], b = corners[static_cast<size_t>(f.first + (k + 1) % f.count)];
             outline.pushBack(a);
             corner.pushBack(1);
-            if(!junctions)
-            {
-                continue;
-            }
             const glm::vec3 pa = position(a), pb = position(b);
             const glm::vec3 d = pb - pa;
             const float length = glm::length(d);
@@ -380,8 +376,7 @@ namespace
 {
 [[nodiscard]] bool sameMap(const MeshCache& c, const qmodel_t* map)
 {
-    if(strcmp(c.name, map->name) || c.vertexes != map->numvertexes || c.surfaces != map->numsurfaces ||
-       c.junctions != (vr_box3d_mesh_junctions.value != 0.f))
+    if(strcmp(c.name, map->name) || c.vertexes != map->numvertexes || c.surfaces != map->numsurfaces)
     {
         return false;
     }
@@ -434,7 +429,6 @@ namespace
 MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
 {
     const int keepMaps = za::clamp(static_cast<int>(vr_box3d_mesh_keep_maps.value), 0, 8);
-    const bool junctions = vr_box3d_mesh_junctions.value != 0.f;
     // Kept: this map's newest scales, then the other maps' newest (one scale each), newest first.
     za::Vector<za::U8> keep(meshCache.size(), 0);
     {
@@ -443,10 +437,6 @@ MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
         for(size_t i = meshCache.size(); i-- > 0;)
         {
             const MeshCache& c = meshCache[i];
-            if(c.junctions != junctions)
-            {
-                continue;
-            }
             if(sameMap(c, map))
             {
                 if(scales < meshCacheScales)
@@ -532,8 +522,7 @@ void settleMesh()
     made.vertexes = map->numvertexes;
     made.surfaces = map->numsurfaces;
     made.m2u = m2u;
-    made.junctions = vr_box3d_mesh_junctions.value != 0.f;
-    made.mesh = worldMesh(map, m2u, made.junctions, made.stats);
+    made.mesh = worldMesh(map, m2u, made.stats);
     return addMesh(ZA_MOVE(made), map).mesh;
 }
 [[nodiscard]] za::Vector<b3Vec3> corners(const za::Vector<HalfSpace>& planes, float m2u)

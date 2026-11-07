@@ -1804,16 +1804,6 @@ float cornerRowsTop()
     return bannerRowLayout(l, {"", ""}, top).yc - ToolbarLayout::half / l.k;
 }
 
-float cornerLabelBottom()
-{
-    float top = cornerRowsTop();
-    if(flatRecordingShown())
-    {
-        top = za::fmin(top, flatRecording.y0);
-    }
-    return top;
-}
-
 float toolbarBottom()
 {
     return toolbarShown() ? toolbarLayout().buttonsBottom() : -1e9f;
@@ -2227,11 +2217,6 @@ void sticksPushed()
     {
         panelGrab.sticksMoved = true;
     }
-}
-
-bool panelHeld()
-{
-    return panelGrab.hand >= 0;
 }
 
 void panelPlace_f()

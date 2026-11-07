@@ -45,7 +45,7 @@ struct Proxies
 // The model's proxies (its rig's chest, the chest's parent, its head), fitted once. Null: none. `sides` (0..1): the
 // torso's left, right and back radii fitted only from its chest's vertices within this share of the bone's length from
 // its pivot (the waist; 1: all), so a shoulder pad or a backpack high on the chest does not swell it round the shoulders
-// (the enforcer's: ArmedRig::torsoSides, vr_agbody_torso_sides).
+// (the enforcer's: ArmedRig::torsoSides).
 [[nodiscard]] const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, float sides = 1.f);
 void resetModels(); // the models' proxies and the uppers forgotten (a rig file reloaded: rig2::latch)
 

@@ -141,12 +141,6 @@ vector(vector dir, float kind) VR_AimCone_Bend =
     return dir;
 };
 
-// A shot's direction from `org` toward `targ`, bent (VR_AimCone_Bend): normalize(targ - org)'s.
-vector(vector org, vector targ, float kind) VR_AimCone_Dir =
-{
-    return VR_AimCone_Bend(normalize(targ - org), kind);
-};
-
 void() VR_AimCone_HoldThink;
 
 // At a shot, before it is made (`fn` the function that makes it: the shot's frame function, or a fire function with no

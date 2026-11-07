@@ -1169,7 +1169,6 @@ za::Vector<Item> pageDebugTests()
                   "on the world, wood, metal, flesh, armour, a torch and a grenade, in a row ahead of you, each printed "
                   "(vr_impacts_test.qc)."),
         row(opt::vr_debug_gunfx),
-        row(opt::vr_debug_ribbon_overlap),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
                   "(no other weapon's), Recoil Amount scales it, its Return Time 2x / 0.5x takes twice / half as long "
@@ -1185,7 +1184,6 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_debug_gunsfx),
         row(opt::vr_debug_weaponfx),
         row(opt::vr_autopump_hold),
-        row(opt::vr_weapon_kick_cancel),
         row(opt::vr_debug_weapon_frame),
         row(opt::vr_model_watch),
         command("Model Watch Status", "vr_model_watch_status")

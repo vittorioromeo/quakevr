@@ -65,7 +65,6 @@ enum class Channel : uint8_t
 };
 inline constexpr int channelCount = 4;
 [[nodiscard]] Channel channelOf(const ragdoll::Bone& bone);
-[[nodiscard]] const char* channelName(Channel c);
 
 // The limbs a Reach moves (each found by its bones' names: upperarm/forearm, arm/hand, thigh/shin; _l and _r).
 enum class Limb : uint8_t

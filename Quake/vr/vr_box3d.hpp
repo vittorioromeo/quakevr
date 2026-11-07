@@ -147,7 +147,7 @@ void forEachFlailRope(za::FunctionRef<void(int handle, int head, float length, b
 [[nodiscard]] bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor);
 // ... and as the view draws it at the client's time `time` (cl.time, the entities' lerp): its middle from its anchor and
 // its turn, both in the play space's frame (turned back by the player's play space turn, QC .vryaw, at each step),
-// interpolated between the steps about that time (vr_flail_smooth; vr_flail.cpp puts it on the hand as drawn).
+// interpolated between the steps about that time (vr_flail.cpp puts it on the hand as drawn).
 [[nodiscard]] bool flailHeadAt(int client, int hand, double time, glm::vec3& off, glm::quat& rot);
 // vr_flail_info: the heads' stats since the last (frames held, the chain's most stretch, the frames the level stood
 // between the handle and the head, the fastest, hits dealt); then cleared.
@@ -398,8 +398,8 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
 // Whether a hold on part `part` of edict `num`'s ragdoll is a hold on the weapon riding its part `rides` (QC
-// VR_AG_RagProp) with its grip at `grip`: that part, the part holding it (a loose piece's holder, the gun welded there:
-// vr_knockdown_weld; else `rides`), that arm's hand or forearm, or the other arm's with its hand on the grip.
+// VR_AG_RagProp) with its grip at `grip`: that part, the part holding it (a loose piece's holder, the gun welded there;
+// else `rides`), that arm's hand or forearm, or the other arm's with its hand on the grip.
 [[nodiscard]] bool ragdollWeaponHold(int num, int rides, int part, const glm::vec3& grip);
 // The hands and the limbs (QC's builtins: ragdollgrab, ragdollrelease, ragdollheld, ragdollreach). `hand`: QC's (0 the
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,

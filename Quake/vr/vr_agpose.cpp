@@ -2113,7 +2113,7 @@ float actProgress(int pose, const ActTimes& a, float s)
             u = smooth(u);
         }
         const float h = punch ? 0.8f : 0.55f;
-        const bool pe = punch && vr_agrunt_punch_ease.value != 0.f; // (no kink at the blow)
+        const bool pe = punch; // (a punch: no kink at the blow)
         constexpr float halfPi = 1.5707963f;
         if(u < h)
         {
