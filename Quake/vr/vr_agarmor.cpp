@@ -1538,8 +1538,8 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
 
 // An elbow's or a knee's sleeve, the half on this limb's part: a band of leather bellows round the skin from under its end row of
 // plates to the joint, weighted as the skin under it is, so it bends as the joint does (a part worn alone ends at the joint, the
-// next part's skin carrying on from it). 36 triangles.
-void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, int piece)
+// next part's skin carrying on from it). 36 triangles. `taperStart`, `taperEnd`: armour.txt's taper on the sleeve part (1 as made).
+void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, int piece, float taperStart, float taperEnd)
 {
     const bool upper = piece == PauldronL || piece == PauldronR || piece == ThighL || piece == ThighR;
     const int endRing = upper ? g.rows : 0, nextRing = upper ? g.rows - 1 : 1;
@@ -1679,6 +1679,21 @@ void sleeveOf(Shell& s, const Body& b, const PieceFrame& f, const PlateGrid& g, 
     if(f.ends)
     {
         ridgeOut();
+    }
+    // (armour.txt's taper on the sleeve part: each ring's radii scaled round its middle, in the limb's order as the plates' rows
+    // are: the taper at start on its end nearer the body (an upper part's under its plates, a lower part's at the joint), lerped
+    // to the taper at end on the other. Its ring under the plates stays under their feet (below), so the seam holds.)
+    if(taperStart != 1.f || taperEnd != 1.f)
+    {
+        for(int ring = 0; ring < sleeveRings && g.cols <= mostCols; ring++)
+        {
+            const float along = static_cast<float>(ring) / static_cast<float>(sleeveRings - 1);
+            const float k = taperStart + (taperEnd - taperStart) * (upper ? along : 1.f - along);
+            for(int col = 0; col < g.cols; col++)
+            {
+                rad[ring][col] = za::max(rad[ring][col] * k, 0.05f);
+            }
+        }
     }
     const int row = g.cols + 1;
     for(int ring = 0; ring < sleeveRings && g.cols <= mostCols; ring++)
@@ -2381,7 +2396,11 @@ bool buildShell(qmodel_t* src, Shell& s)
             if(piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2 && !leatherOff)
             {
                 sleeveVert = count(s.verts);
-                sleeveOf(s, s.body, f, grids[piece], piece);
+                // (its taper: as the plates', clamped 0.2 .. 3)
+                const armourdata::Override& st = sleeveTweak[piece];
+                const float ta = tweaked(st, armourdata::TaperStart) ? za::clamp(st.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
+                const float tb = tweaked(st, armourdata::TaperEnd) ? za::clamp(st.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
+                sleeveOf(s, s.body, f, grids[piece], piece, ta, tb);
             }
         }
         // (armour.txt's tweaks on what was made: the helmet pushed out round its middle, a sleeve round its bone's line; then

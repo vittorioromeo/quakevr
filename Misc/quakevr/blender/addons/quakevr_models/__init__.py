@@ -204,12 +204,15 @@ class QVR_OT_import_body(bpy.types.Operator, ImportHelper):
     skin: EnumProperty(name="Skin", items=skin_items,
                        description="The skin to paint. The plain one (00) carries your changes into the other 15 on "
                                    "export; another is written alone")
+    builds: BoolProperty(name="Every Build (Shape Keys)", default=True,
+                         description="The other builds beside it (vrbody_lean, vrbody, vrbody_brawny, vrbody_fem) as "
+                                     "shape keys: edits to the basis carry into them, and the export writes them all")
 
     def execute(self, context):
         try:
             if context.object is not None and context.object.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
-            BB.import_body(context, self.filepath, int(self.skin))
+            BB.import_body(context, self.filepath, int(self.skin), self.builds, self.report)
             ob = active_model(context, BB.KIND)
             if ob is not None:
                 NB.show(ob, NB.map_for(os.path.dirname(self.filepath), "body", int(self.skin)))
@@ -245,7 +248,7 @@ class QVR_OT_export_body(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         ob = active_model(context, BB.KIND)
         if ob is not None and ob.get("qvr_source"):
-            self.filepath = ob["qvr_source"]
+            self.filepath = bpy.path.abspath(ob["qvr_source"])
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
@@ -384,7 +387,7 @@ class QVR_OT_bake_normal_map(bpy.types.Operator):
 
     def execute(self, context):
         ob = active_model(context)
-        path = ob.get("qvr_source") if ob is not None else None
+        path = bpy.path.abspath(ob.get("qvr_source")) if ob is not None and ob.get("qvr_source") else None
         if not path or not os.path.exists(path):
             self.report({'ERROR'}, "no exported model to bake: import one (or export it first)")
             return {'CANCELLED'}

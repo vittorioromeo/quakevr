@@ -21,6 +21,11 @@ bool qvr::menu::bodyClonePage()
     return ui().bodyCloneLatch == ui().page;
 }
 
+bool qvr::menu::armourStudioPage()
+{
+    return key_dest == key_menu && m_state == m_vr && ui().page >= 0 && ui().page < pageCount && PageRef::at(ui().page) == pageArmourStudio;
+}
+
 int qvr::menu::currentPage()
 {
     return ui().page;
@@ -598,6 +603,14 @@ void qvr::menu::jumpToRagtool()
         return;
     }
     openFromAnywhere(target);
+}
+
+void qvr::menu::jumpToArmourStudio()
+{
+    if(!armourStudioPage())
+    {
+        openFromAnywhere(pageIndex(pageArmourStudio));
+    }
 }
 
 void qvr::menu::jumpToRelighting()

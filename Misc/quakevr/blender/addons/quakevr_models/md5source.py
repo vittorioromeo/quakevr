@@ -32,7 +32,7 @@ def find(context=None):
 
 
 def source_path(kind, ob):
-    return (ob.parent if kind == HAND else ob)["qvr_source"]
+    return bpy.path.abspath((ob.parent if kind == HAND else ob)["qvr_source"])
 
 
 def model_name(kind, ob):
@@ -70,6 +70,37 @@ def contents(folder, model):
     return h.hexdigest()
 
 
+def scripts_folder(blend):
+    """Misc/quakevr of the .blend's repository, else of the add-on's (it lives in Misc/quakevr/blender/addons)."""
+    from . import source
+    root = source.repo_root(blend) if blend else None
+    cands = [os.path.join(root, "Misc", "quakevr")] if root else []
+    cands.append(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")))
+    for c in cands:
+        if os.path.exists(os.path.join(c, "make_hand_feminine.py")):
+            return c
+    return None
+
+
+def feminine(blend, path, folder, report):
+    """The feminine hand (hand_rig_f, vr_hand_shape 1) made again from the hand just exported: it is the standard hand
+    reshaped (make_hand_feminine.py), with the same joints, weights and texture coordinates."""
+    import sys
+    here = scripts_folder(blend)
+    if here is None:
+        report({'WARNING'}, "make_hand_feminine.py not found: the feminine hand (hand_rig_f) wasn't made again")
+        return
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    try:
+        import make_hand_feminine
+        outs = make_hand_feminine.derive(path, folder)
+    except Exception as e:  # noqa: BLE001 (the hand itself is written: say why the feminine one isn't)
+        report({'WARNING'}, "the feminine hand (hand_rig_f) wasn't made again: %s" % e)
+        return
+    report({'INFO'}, "the feminine hand made again from it: %s" % ", ".join(os.path.basename(o) for o in outs))
+
+
 def export(context, blend, out, report):
     """Exports the .blend's hand or body: the files written (absolute paths). Raises Md5SourceError (nothing written
     when a check fails before the first file)."""
@@ -105,6 +136,8 @@ def export(context, blend, out, report):
     if contents(folder, model) == unchanged:
         report({'INFO'}, "the mesh and the skins are as they were: the normal maps kept")
     else:
+        if kind == HAND and model.lower() == "hand_rig":
+            feminine(blend, path, folder, report)
         from . import normal_blender as NB
         try:
             NB.bake(context, ob, path, report=lambda m: report({'WARNING'}, m))

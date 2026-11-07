@@ -2,7 +2,8 @@
 # blend_addon_test.sh <agent> -- the one Quake VR Blender add-on and the game's side of the workflow
 # (docs/vr-port/BLENDER_WORKFLOW.md), headless:
 #   1. the game (vr_blender_test): vr_edit_in_blender finds each model's source (a weapon, a hand-made gun, a derived
-#      model, a part, a prop; the jointed hand imported), the main hand's weapon, Blender in Program Files; the request
+#      model, a part, a prop, the hand's and a body build's .blends; the bare-forearm body imported), the main hand's
+#      weapon, Blender in Program Files; the request
 #      file Show in Game writes is run (show, reload) and other lines refused; vr_model_show shows and hides;
 #   2. Blender (blend_addon_test.py, the hand then the body): the add-on registers whole (the hand's tools in it, one
 #      panel), takes the old hand add-on's entry out of the preferences, finds the kind; a .blend holding the imported

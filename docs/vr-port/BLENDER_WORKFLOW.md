@@ -36,13 +36,13 @@ Auto-Save do it, and Blender stops looking for it.)
 
 ## The jointed hand and the body
 
-They have no source .blend yet. **Edit in Blender** on `hand_rig` (or `vrbody`) starts Blender and imports the
-game's file. **Save it inside the repository** (suggested: `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend`,
-`.../vrbody/vrbody.blend`): from then on Ctrl+S exports it like any other model (the md5 files, the skins with
-their blood or armour carried over, the normal maps when the mesh or skins changed), and **Edit in Blender** opens
-that .blend instead (the source's path is the one it looks for). Saved unedited, the exported files are the shipped
-ones but for the md5mesh's `commandline` line. (The plan for full sources, the hand's tables and the body's builds
-made from one base: ROUND24.md, "Every other model's source is a .blend".)
+Their sources are `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend` and `.../vrbody/vrbody.blend`, and
+**Edit in Blender** opens them like any other source. Ctrl+S exports them like any other model: the md5 files, the
+skins with their blood or armour carried over, the normal maps when the mesh or skins changed; the hand also makes the
+feminine hand again from itself, and the body writes all its builds, which are the shape keys of its one mesh (edit
+the basis and every build follows). Saved unedited, they write the shipped files byte for byte. The generators
+(make_hand_rig.py, make_hand_feminine.py, make_vrbody.py's builds and skins) no longer write these files.
+Details: [MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md) section 3, [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md).
 
 ## How the two sides talk
 
@@ -54,4 +54,5 @@ made from one base: ROUND24.md, "Every other model's source is a .blend".)
   the hand and the body). `vr_edit_in_blender <model> -n` prints what it would run.
 
 Test: `bash Misc/quakevr/blend_addon_test.sh <agent>` (the game's side, the hand's and the body's export on save);
-`blend_autoexport_test.sh <agent>` (a weapon; `BA_MODEL=vr_crate1` for a prop).
+`blend_autoexport_test.sh <agent>` (a weapon; `BA_MODEL=vr_crate1` for a prop); `blend_md5_test.sh <agent>` (the
+hand's and the body's source .blends: byte for byte unedited, an edit of each read again by the game).
