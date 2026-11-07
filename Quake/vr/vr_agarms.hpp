@@ -205,6 +205,8 @@ void printErr();
 void registerCommands();
 // The models' skins and the entities' arms forgotten (a rig file reloaded: rig2::latch; made again as drawn).
 void resetModels();
+// vr_agarms_hash: an ARMPOSE message's bytes as read (vr_client.cpp)
+void hashMessage(const void* bytes, int n);
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length
 // returned (0: none); and put back (a length of 0: dropped).

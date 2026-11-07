@@ -235,8 +235,45 @@ struct State
     double checkHandSum{0.0}, checkTurnSum{0.0};
     float checkHandMost{0.f}, checkTurnMost{0.f};
     int checkHands{0}, checkWeapons{0};
+    // vr_agarms_hash: every solve's and reuse's result (Placed's places and turns, bit for bit) since the last reset, in
+    // the order they were made; the ARMPOSE messages' bytes as the client read them (hashMessage): two runs compared
+    unsigned long long hash{14695981039346656037ull};
+    int hashN{0};
+    unsigned long long msgHash{14695981039346656037ull};
+    int msgN{0};
 };
 State state;
+
+// vr_agarms_hash: `n` bytes at `p` into hash `h` (FNV-1a).
+void hashBytes(unsigned long long& h, const void* p, int n)
+{
+    const auto* b = static_cast<const unsigned char*>(p);
+    for(int i = 0; i < n; i++)
+    {
+        h = (h ^ b[i]) * 1099511628211ull;
+    }
+}
+
+// vr_agarms_hash: a result's places and turns (the floats only: no padding read).
+void hashPlaced(const agarms::Placed& o)
+{
+    const auto rigid = [](const rigpose::Rigid& r) {
+        hashBytes(state.hash, &r.rot, sizeof(r.rot));
+        hashBytes(state.hash, &r.pos, sizeof(r.pos));
+    };
+    for(int s = 0; s < 2; s++)
+    {
+        const unsigned char on = o.on[s] ? 1 : 0;
+        hashBytes(state.hash, &on, 1);
+        rigid(o.weapon[s]);
+        rigid(o.hand[s]);
+        rigid(o.upperM[s]);
+        rigid(o.foreM[s]);
+        rigid(o.handM[s]);
+        hashBytes(state.hash, &o.elbow[s], sizeof(o.elbow[s]));
+    }
+    state.hashN++;
+}
 
 [[nodiscard]] glm::vec3 norm(const glm::vec3& v, const glm::vec3& fallback)
 {
@@ -2254,6 +2291,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             noteErr(*m, *st, hdr, pose1, pose2, blend, arms, C, second, slid, t.second, held2);
         }
     }
+    hashPlaced(out);
     return true;
 }
 
@@ -2384,6 +2422,7 @@ bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig,
         state.jerkOver = keepOver;
         state.jerkMost = keepMost;
     }
+    hashPlaced(out);
     return true;
 }
 
@@ -2791,6 +2830,12 @@ bool qvr::agarms::shoulderLimits(const qmodel_t* model, int bone, ShoulderInfo& 
     return false;
 }
 
+void qvr::agarms::hashMessage(const void* bytes, int n)
+{
+    hashBytes(state.msgHash, bytes, n);
+    state.msgN++;
+}
+
 void qvr::agarms::resetModels()
 {
     state = State{};
@@ -2801,5 +2846,15 @@ void qvr::agarms::registerCommands()
     Cmd_AddCommand("vr_agarms_cost", cost_f);
     Cmd_AddCommand("vr_agarms_info", info_f);
     Cmd_AddCommand("vr_agarms_dump", dump_f);
+    // vr_agarms_hash: the arms' results and the ARMPOSE messages since vr_agarms_hash_reset, as hashes (two runs alike
+    // when their poses are bit for bit the same)
+    Cmd_AddCommand("vr_agarms_hash", [] {
+        Con_Printf("agarms hash: %d results %016llx; %d armpose messages %016llx\n", state.hashN, state.hash, state.msgN,
+            state.msgHash);
+    });
+    Cmd_AddCommand("vr_agarms_hash_reset", [] {
+        state.hash = state.msgHash = 14695981039346656037ull;
+        state.hashN = state.msgN = 0;
+    });
     agglitch::registerCommands();
 }
