@@ -184,6 +184,7 @@ void(float xHand, float xClip) VRSetWeaponClip =
 // whatever the hand held is gone. WID_FIST: the hand emptied.
 void(entity e, float xHand, float xWid, float xFlags, float xClip) VRGiveEntWeapon =
 {
+    VR_ADGun_Placed(xWid); // (an AD soldier's gun: its model made and precached first, the hands' models are sent by index)
     if(xHand == cVR_OffHand) { e.weapon2 = xWid; e.weaponflags2 = xFlags; }
     else                     { e.weapon = xWid; e.weaponflags = xFlags; }
     VRSetEntWeaponInst(e, xHand, xWid == WID_FIST ? world : WeaponInst_New(xClip));
