@@ -993,7 +993,7 @@ findradius (origin, radius)
 =================
 */
 // QVR: vr/vr_findradius.cpp: the same walk, or on a big map the area grid with the edicts changed since they were
-// linked: the same chain either way, in the same order (vr_findradius_check compares the two).
+// linked: the same chain either way, in the same order.
 static void PF_findradius (void)
 {
 	RETURN_EDICT(VR_FindRadius (G_VECTOR(OFS_PARM0), G_FLOAT(OFS_PARM1)));

@@ -3510,8 +3510,7 @@ void() VR_EF_Step =
 };
 
 // ---- vr_embed_test 25 (embedfix): his notes of 2026-11-06, by the mock hand's real blow. 2: an axe tugged hard out of a body comes into
-// the hand with the hand, one move (the engine's vr_embed_probe_grip, _wstep; vr_embed_probe_split 1 shows the old way: the weapon at its
-// controller while the hand eases). 0: a killing axe blow at the head that beheads it, 1: at a limb that cuts it off: the axe isn't left
+// the hand with the hand, one move (the engine's vr_embed_probe_grip, _wstep: the weapon moves with the hand as it eases). 0: a killing axe blow at the head that beheads it, 1: at a limb that cuts it off: the axe isn't left
 // where the part was, nothing holds the body through it. Ends `embedfix: N passed, M failed`. (A blow that didn't land as the case
 // wants, the mock hand's swing being what it is, is dealt again, at most 3 times: its line says.)
 float vr_ec_tries;

@@ -261,39 +261,8 @@ struct State
     int hashN{0};
     unsigned long long msgHash{14695981039346656037ull};
     int msgN{0};
-    // vr_agarms_fast_check: each solve against the old way's (vr_agarms_warm 0, vr_agarms_fast 0) on a copy of its state: the hands' places
-    // apart (units), the elbows', the hands' and held weapons' turns (degrees), how many, how many past 0.25 / 0.5 / 2
-    double fastHandSum{0.0};
-    float fastHandMost{0.f}, fastElbowMost{0.f}, fastTurnMost{0.f};
-    int fastN{0}, fastOver{0};
-
-    // (what a solve adds to, kept round a solve made only to compare)
-    struct Counters
-    {
-        double costUs, jerkSum;
-        int costN, jerkN, jerkOver;
-        float jerkMost;
-        unsigned long long hash;
-        int hashN;
-    };
-    [[nodiscard]] Counters counters() const
-    {
-        return Counters{costUs, jerkSum, costN, jerkN, jerkOver, jerkMost, hash, hashN};
-    }
-    void restore(const Counters& c)
-    {
-        costUs = c.costUs;
-        jerkSum = c.jerkSum;
-        costN = c.costN;
-        jerkN = c.jerkN;
-        jerkOver = c.jerkOver;
-        jerkMost = c.jerkMost;
-        hash = c.hash;
-        hashN = c.hashN;
-    }
 };
 State state;
-bool fastRef = false; // vr_agarms_fast_check: the reference solve (the old way) under way
 
 // vr_agarms_hash: `n` bytes at `p` into hash `h` (FNV-1a).
 void hashBytes(unsigned long long& h, const void* p, int n)
@@ -1907,8 +1876,8 @@ bool solvePrepare(SolveJob& j)
     }
     const float dt = static_cast<float>(za::clamp(cl.time - st->time, 0.0, 0.25));
     const int lastFrame = st->frame; // (vr_agarms_warm: the warm start only from a recent solve)
-    const bool warm = vr_agarms_warm.value != 0.f && !fastRef;
-    const bool fast = vr_agarms_fast.value != 0.f && !fastRef; // (the off hand's slide bisected)
+    const bool warm = vr_agarms_warm.value != 0.f;
+    const bool fast = vr_agarms_fast.value != 0.f; // (the off hand's slide bisected)
     st->time = cl.time;
     st->frame = host_framecount;
     st->easeFrame = host_framecount;
@@ -2684,46 +2653,7 @@ void batchFlush()
 bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
     const rigpose::Rigid* kick, const Targets& t, Placed& out)
 {
-    const int num = client::entityNumber(e);
-    Ent* st = vr_agarms_fast_check.value != 0.f && (vr_agarms_warm.value != 0.f || vr_agarms_fast.value != 0.f) && !fastRef && num > 0 ? entOf(num, false) : nullptr;
-    if(!st)
-    {
-        return solveImpl(e, hdr, rig, spec, posed, kick, t, out);
-    }
-    // vr_agarms_fast_check: solved the old way first (vr_agarms_warm 0, vr_agarms_fast 0) on a copy of its state, then as it is, and the two
-    // compared (vr_agarms_cost prints how far apart)
-    const Ent keep = *st;
-    const Lod keepLod = lodOf(*st);
-    const State::Counters keepCounters = state.counters();
-    Placed ref;
-    fastRef = true;
-    const bool refOk = solveImpl(e, hdr, rig, spec, posed, kick, t, ref);
-    fastRef = false;
-    *st = keep;
-    lodOf(*st) = keepLod;
-    state.restore(keepCounters);
-    const bool ok = solveImpl(e, hdr, rig, spec, posed, kick, t, out);
-    if(ok && refOk)
-    {
-        float hand = 0.f, elbow = 0.f, turn = 0.f;
-        for(int s = 0; s < 2; s++)
-        {
-            hand = za::max(hand, glm::length(out.hand[s].pos - ref.hand[s].pos));
-            elbow = za::max(elbow, glm::length(out.elbow[s] - ref.elbow[s]));
-            turn = za::max(turn, angleDeg(glm::inverse(out.handM[s].rot) * ref.handM[s].rot));
-            if(out.on[s] && ref.on[s])
-            {
-                turn = za::max(turn, angleDeg(glm::inverse(out.weapon[s].rot) * ref.weapon[s].rot));
-            }
-        }
-        state.fastN++;
-        state.fastHandSum += hand;
-        state.fastHandMost = za::max(state.fastHandMost, hand);
-        state.fastElbowMost = za::max(state.fastElbowMost, elbow);
-        state.fastTurnMost = za::max(state.fastTurnMost, turn);
-        state.fastOver += hand > 0.25f || elbow > 0.5f || turn > 2.f ? 1 : 0;
-    }
-    return ok;
+    return solveImpl(e, hdr, rig, spec, posed, kick, t, out);
 }
 
 void batchBegin()
@@ -2731,7 +2661,7 @@ void batchBegin()
     batch.n = batch.ran = 0;
     // (in place, as before: off, a single thread, or a debug mode that prints or notes from inside the solve)
     batch.on = vr_agarms_jobs.value != 0.f && jobs::workers() > 0 && vr_agrunt_ik_debug.value < 4.f &&
-               vr_agrunt_ik_tag.value < 0.f && vr_agarms_fast_check.value == 0.f;
+               vr_agrunt_ik_tag.value < 0.f;
 }
 
 int batchQueue(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
@@ -3303,16 +3233,6 @@ void cost_f()
     state.checkHandSum = state.checkTurnSum = 0.0;
     state.checkHandMost = state.checkTurnMost = 0.f;
     state.checkHands = state.checkWeapons = 0;
-    if(state.fastN > 0)
-    {
-        Con_Printf("agarms fast check: against the full search: hands %.4f units mean, %.3f most; elbows %.3f most; turns "
-                   "%.3f deg most; %d of %d past 0.25 u / 0.5 u / 2 deg\n",
-            state.fastHandSum / state.fastN, state.fastHandMost, state.fastElbowMost, state.fastTurnMost, state.fastOver,
-            state.fastN);
-    }
-    state.fastHandSum = 0.0;
-    state.fastHandMost = state.fastElbowMost = state.fastTurnMost = 0.f;
-    state.fastN = state.fastOver = 0;
 }
 
 } // namespace

@@ -15,8 +15,8 @@
 // - SV_ClearWorld (a map, a load): every edict dirty until it is linked.
 // A search: the dirty list (dropping the clean, the free and the SOLID_NOT: an edict made solid again is marked), then
 // the grid's candidates in a box round the sphere that are not dirty; each tested exactly as the walk tests it, then
-// sorted into edict order: the walk's chain, field for field. vr_findradius_check 1 runs both and counts differences.
-// Small maps walk (vr_findradius_grid_min edicts): there the walk is as quick.
+// sorted into edict order: the walk's chain, field for field.
+// Small maps walk (gridMinEdicts): there the walk is as quick.
 
 #include "vr_findradius.hpp"
 #include "vr_engine.hpp"
@@ -44,8 +44,8 @@ namespace
 constexpr unsigned char stateDirty = 1;  // tested by itself (not in the grid as it is now)
 constexpr unsigned char stateListed = 2; // in Tracking::listed
 constexpr float walkRadius = 4096.f;     // a radius past this walks (the grid would hand back most of a map)
-constexpr int checkPrintMax = 12;
-constexpr float solidNot = static_cast<float>(SOLID_NOT); // (.solid compared as a float, as Quake's C does)        // differences printed in full until the next vr_findradius_stats
+constexpr int gridMinEdicts = 100; // edicts in use from which the grid searches (quicker on every map measured, 135 edicts and up; below 100 a walk is cheap anyway)
+constexpr float solidNot = static_cast<float>(SOLID_NOT); // (.solid compared as a float, as Quake's C does)
 
 // Which server edicts are dirty (the main thread). Kept across map changes: SV_ClearWorld starts it afresh; released
 // (by the memory reports' tools), it starts afresh too (every edict dirty: still exact).
@@ -62,18 +62,16 @@ struct Lists
 {
     za::Vector<edict_t*> candidates; // the grid's
     za::Vector<edict_t*> found;      // the edicts the search chains
-    za::Vector<edict_t*> walked;     // vr_findradius_check: the walk's, to compare
-    auto members() { return mem::list(candidates, found, walked); }
+    auto members() { return mem::list(candidates, found); }
 };
 mem::Scratch<Lists> lists{"findradius"};
 
 // Since the last vr_findradius_stats (the main thread).
 struct Stats
 {
-    long long calls{0}, gridCalls{0}, searches{0}, frames{0}, listed{0}, candidates{0}, hits{0}, compared{0}, differing{0};
+    long long calls{0}, gridCalls{0}, searches{0}, frames{0}, listed{0}, candidates{0}, hits{0};
     unsigned long long cycles{0}, cycles0{0};
     double seconds0{0.}, lastTime{-1.};
-    int printed{0};
 };
 Stats stats;
 
@@ -269,58 +267,6 @@ void gridSearch(Tracking& t, const float* org, float rad, za::Vector<edict_t*>& 
     return isfinite(v[0]) && isfinite(v[1]) && isfinite(v[2]);
 }
 
-// vr_findradius_check: the grid's list against the walk's.
-void compare(const za::Vector<edict_t*>& walked, const za::Vector<edict_t*>& grid, const float* org, float radius)
-{
-    stats.compared++;
-    if(walked.size() == grid.size() && (walked.empty() || !memcmp(walked.data(), grid.data(), walked.size() * sizeof(edict_t*))))
-    {
-        return;
-    }
-    stats.differing++;
-    if(stats.printed >= checkPrintMax)
-    {
-        return;
-    }
-    stats.printed++;
-    const char* caller = qcvm->xfunction ? PR_GetString(qcvm->xfunction->s_name) : "?";
-    Con_Printf("findradius check: %s at %.0f %.0f %.0f r %g: walk %d, grid %d\n", caller, org[0], org[1], org[2], radius,
-        static_cast<int>(walked.size()), static_cast<int>(grid.size()));
-    // The edicts in one list and not the other (both are in edict order).
-    za::SizeT a = 0, b = 0;
-    int shown = 0;
-    while((a < walked.size() || b < grid.size()) && shown < 4)
-    {
-        edict_t* ent;
-        const char* which;
-        if(b == grid.size() || (a < walked.size() && walked[a] < grid[b]))
-        {
-            ent = walked[a++];
-            which = "walk only";
-        }
-        else if(a == walked.size() || grid[b] < walked[a])
-        {
-            ent = grid[b++];
-            which = "grid only";
-        }
-        else
-        {
-            a++;
-            b++;
-            continue;
-        }
-        shown++;
-        const int e = serverEdictNumber(ent);
-        const Tracking& t = tracking;
-        Con_Printf("findradius check: %s #%d %s solid %g move %g linked %d state %d\n", which, e,
-            PR_GetString(ent->v.classname), ent->v.solid, ent->v.movetype, ent->area.prev != nullptr,
-            e >= 0 && e < static_cast<int>(t.state.size()) ? t.state[static_cast<za::SizeT>(e)] : -1);
-        Con_Printf("findradius check: origin %.1f %.1f %.1f abs %.1f %.1f %.1f .. %.1f %.1f %.1f\n", ent->v.origin[0],
-            ent->v.origin[1], ent->v.origin[2], ent->v.absmin[0], ent->v.absmin[1], ent->v.absmin[2], ent->v.absmax[0],
-            ent->v.absmax[1], ent->v.absmax[2]);
-    }
-}
-
 // vr_findradius_stats: since the last time (then zeroed).
 void stats_f()
 {
@@ -337,7 +283,6 @@ void stats_f()
     Con_Printf("findradius grid: %.1f dirty, %.1f candidates a search; %.1f found a call; %d edicts\n",
         static_cast<double>(stats.listed) / grids, static_cast<double>(stats.candidates) / grids,
         static_cast<double>(stats.hits) / calls, sv.qcvm.edicts ? sv.qcvm.num_edicts : 0);
-    Con_Printf("findradius check: %lld compared, %lld differ\n", stats.compared, stats.differing);
     stats = Stats{};
     stats.cycles0 = __rdtsc();
     stats.seconds0 = Sys_DoubleTime();
@@ -347,7 +292,6 @@ void stats_f()
 
 extern "C" edict_t* VR_FindRadius(const float* org, float rad)
 {
-    const float radius = rad;
     rad *= rad;
     const unsigned long long start = __rdtsc();
     if(!stats.cycles0)
@@ -366,18 +310,10 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     // The grid: the server's, a sphere it can search (a number, not most of the map); a big map (or forced).
     const bool gridUsable = t && finite3(org) && rad >= 0.f && rad <= walkRadius * walkRadius;
     const int mode = static_cast<int>(vr_findradius_grid.value);
-    const bool check = gridUsable && vr_findradius_check.value != 0.f;
-    const bool grid = gridUsable && (mode == 2 || (mode == 1 && qcvm->num_edicts >= static_cast<int>(vr_findradius_grid_min.value)));
+    const bool grid = gridUsable && (mode == 2 || (mode == 1 && qcvm->num_edicts >= gridMinEdicts));
 
     za::Vector<edict_t*>& found = lists.found;
-    if(check)
-    {
-        walk(org, rad, lists.walked);
-        gridSearch(*t, org, rad, found);
-        compare(lists.walked, found, org, radius);
-        found = lists.walked; // (the walk's chain: the game as it was, whatever the grid found)
-    }
-    else if(grid)
+    if(grid)
     {
         stats.gridCalls++;
         gridSearch(*t, org, rad, found);
