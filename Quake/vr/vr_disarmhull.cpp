@@ -158,7 +158,9 @@ void boxHull(Hull& out)
     return glm::length(s) > 1e-6f ? glm::normalize(s) : glm::vec3{0.f};
 }
 
-// The hands' hulls this frame (hand): remade once a frame for each one asked for.
+// The hands' hulls this frame (hand): remade once a frame for each one asked for (their points, the drawn arm's in the
+// world, are never the same two frames running while it lives: a cache of the last frame's hit 0 of 1200 in
+// armed_mix32, 2026-11-07; make's quickhull works in a scratch arena instead).
 struct HandEntry
 {
     int num{0}, side{0}, frame{-1};
@@ -187,14 +189,43 @@ struct HandHulls
     za::Vector<glm::vec3> region[handParts]; // ... those on the hand, on the forearm
 };
 HandHulls hands;
-
-// make's points for Box3D (the main thread's).
+// make's points for Box3D and its quickhull's memory (the main thread's): b3CreateHullWith's two blocks (its working
+// memory, then the hull), each a slot grown to the most asked, given out afresh for each call (nothing freed).
+constexpr int arenaSlots = 2;
 struct MakeScratch
 {
     za::Vector<b3Vec3> points;
-    auto members() { return mem::list(points); }
+    za::Vector<char> slot[arenaSlots];
+    auto members() { return mem::list(points, slot[0], slot[1]); }
 };
 mem::Scratch<MakeScratch> makeScratch{"disarm hulls"};
+int arenaUsed = 0; // slots given out in this b3CreateHullWith call
+
+void* arenaAlloc(size_t size, int32_t alignment)
+{
+    if(arenaUsed >= arenaSlots)
+    {
+        Sys_Error("disarmhull: quickhull asked for more than %d blocks", arenaSlots); // (b3CreateHullImpl asks for two)
+    }
+    za::Vector<char>& s = makeScratch.slot[arenaUsed++];
+    const za::SizeT need = static_cast<za::SizeT>(size) + static_cast<za::SizeT>(alignment);
+    if(s.size() < need)
+    {
+        s.resize(need);
+    }
+    const uintptr_t at = reinterpret_cast<uintptr_t>(s.data());
+    const uintptr_t mask = static_cast<uintptr_t>(alignment) - 1;
+    return reinterpret_cast<void*>((at + mask) & ~mask);
+}
+
+void arenaFree(void*, size_t) {} // (the slots are given out afresh at the next call)
+
+// b3CreateHull's hull in the arena (valid until the next call; never b3DestroyHull).
+[[nodiscard]] b3HullData* arenaHull(const b3Vec3* points, int count, int budget)
+{
+    arenaUsed = 0;
+    return b3CreateHullWith(points, count, budget, arenaAlloc, arenaFree);
+}
 
 // `h` as a Hull{} is, its vectors emptied but keeping their room.
 void reset(Hull& h)
@@ -387,17 +418,13 @@ void make(const glm::vec3* points, int count, Hull& out)
     b3HullData* h = nullptr;
     for(int budget : budgets)
     {
-        if(count >= 4 && (h = b3CreateHull(pts.data(), count, budget)) != nullptr)
+        if(count >= 4 && (h = arenaHull(pts.data(), count, budget)) != nullptr)
         {
             break;
         }
     }
     if(!h || h->faceCount < 4)
     {
-        if(h)
-        {
-            b3DestroyHull(h);
-        }
         boxHull(out);
         return;
     }
@@ -426,8 +453,7 @@ void make(const glm::vec3* points, int count, Hull& out)
             out.edges.pushBack(glm::ivec2{edges[e].origin, edges[edges[e].twin].origin});
         }
     }
-    b3DestroyHull(h);
-    out.ok = true;
+    out.ok = true; // (h the arena's: nothing to free)
 }
 
 float gap(const Placed& p, const glm::vec3& a, const glm::vec3& b, float grow, float* along)
