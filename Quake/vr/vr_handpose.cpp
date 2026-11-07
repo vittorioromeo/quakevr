@@ -482,7 +482,7 @@ float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::
 }
 
 float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
-    float margin, float handMargin)
+    float margin, float handMargin, glm::vec3* normal)
 {
     makeShape(hand, rot, muzzle);
     float deepest = 0.f;
@@ -491,9 +491,13 @@ float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm:
         // (Walls only: a floor or a ceiling, steeper than wallSteep, is not counted -- looking down, the gun's end in the
         // floor stays hidden there as before, and the gun doesn't tilt up at the ground. The hand's own point is first.)
         const auto hit = marginTrace(from, pos + shape[hand][i], za::max(i == 0 ? handMargin : margin, 0.f));
-        if(hit && hit->wall)
+        if(hit && hit->wall && hit->depth > deepest)
         {
-            deepest = za::max(deepest, hit->depth);
+            deepest = hit->depth;
+            if(normal)
+            {
+                *normal = hit->n;
+            }
         }
     }
     return deepest;
