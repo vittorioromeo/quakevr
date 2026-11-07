@@ -14,9 +14,12 @@ The hand is part of the one **Quake VR** add-on (`Misc/quakevr/blender/addons/qu
 its own, Quake VR Hand): install it as [BLENDER_WORKFLOW.md](BLENDER_WORKFLOW.md) says. Its buttons are in the 3D
 view's sidebar (N), **Quake VR** tab, once the scene holds the hand; the import is also there and in **File > Import**.
 
-The shortest way in: in the game's console, `vr_edit_in_blender hand_rig` starts Blender with the hand imported. Save that .blend inside
-the repository (e.g. `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend`): every Ctrl+S then exports the hand (Export
-on Save), and the game reads it again by itself.
+**The hand's source is `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend`** (2026-11): open it (or, in the game,
+`vr_edit_in_blender hand_rig`), edit, **Ctrl+S**. The save exports the hand (Export on Save: its md5 files and its
+4 skins, the blood carried over; the feminine hand made again from it, section 9; the normal map baked again when
+the mesh or skin changed) and the game reads it again by itself (`vr_model_watch`). Saved unedited, it writes the
+shipped files byte for byte. The generators no longer write what it owns (`Misc/quakevr/generated.json`): section 7.
+The import below is for a fresh start or another file.
 
 ## 2. Import the hand
 
@@ -169,19 +172,19 @@ warns you if it finds one.
 
 ## 7. The generator
 
-`Misc/quakevr/make_hand_rig.py` still makes the shipped hand. It writes the MD5 files through the add-on's own
-writer, and writes `Quake/vr/vr_handrig_data.inc`, the tables compiled into the engine:
+`Misc/quakevr/make_hand_rig.py` made the shipped hand, procedurally, and `Quake/vr/vr_handrig_data.inc`, the tables
+compiled into the engine:
 
 - The engine uses those tables until it reads the file.
-- The game measures your edits against them.
+- The game measures your edits against them (the pivots moved, the grasp's spheres refitted: all worked out from the
+  file as it loads, so no engine rebuild after an edit).
 
-**The generator doesn't overwrite your edited hand.** It stops and names the edited files. `--keep-edited` writes the
-rest (the tables) and leaves your hand as it is; `--force` overwrites it with the generator's hand (see
-[MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md#6-the-generators)). Keep your .blend: you can export from it again at any
-time.
-
-If you change the generator itself, it gives you a new shipped hand. Rebuild the engine, because the tables change.
-Your .blend then still holds the old hand: import the new one to edit it.
+**Since 2026-11 the hand's source is `hand_rig.blend`, and the generator is retired:** every file it wrote is the
+.blend's now (`Misc/quakevr/generated.json`), so run, it stops before writing anything and says so (`--force` doesn't
+change that). The tables stay as it last wrote them: they are the reference, the shipped hand as it was made. To
+start again from the generator's hand (after changing the generator itself), take the hand files' entries out of
+generated.json, run it, rebuild the engine (the tables change), and make the .blend again
+(`blender -b --factory-startup --python Misc/quakevr/blend_build.py -- hand_rig`).
 
 ## 8. The normal map
 
@@ -219,12 +222,12 @@ wrist, tapered fingertips with longer nail beds. `Misc/quakevr/make_hand_feminin
   slimmer hand. Repaint the skin once and both hands have it.
 - The grasp's spheres and the gloves' shells are made from its own mesh as it loads, as for an edited hand.
 
-**After editing the standard hand, run the generator again** to carry the edit over:
-`py -3.13 Misc/quakevr/make_hand_feminine.py` (`--stats` prints the two hands' widths and lengths, `--preview out.png`
-draws them overlaid). Its knobs are at its top (`FINGER_WIDTH`, `PALM_WIDTH`, `TIP_LENGTH`, `NAIL_BASE`...).
+**It follows the standard hand by itself:** saving `hand_rig.blend` with a changed hand makes the feminine one again
+(`make_hand_feminine.derive`, the generator's own code) and writes it with the hand. Its knobs are at the generator's
+top (`FINGER_WIDTH`, `PALM_WIDTH`, `TIP_LENGTH`, `NAIL_BASE`...): after changing them, save the .blend once with an
+edit (or run `derive` by hand), since `hand_rig.blend` owns `hand_rig_f.*` and the generator run by itself only
+stops and says so (`--stats` and `--preview out.png` still work: the two hands' sizes, and both drawn overlaid).
 
-**You can also edit the feminine hand in Blender** like the standard one: import `hand_rig_f.md5mesh`, edit it (keep
-its bones where they are, or the two hands no longer share their grips), export it over the same file, then
-`vr_hand_reload` with Hand Shape on (it reloads the shape in use). The generator then refuses to overwrite your edit
-(`--keep-edited`, `--force`). Keep the shader name `hand_rig` to share the skins; another name needs its own
-`<name>_0N_00.lmp` skins (the masks, glove paint and nails would still be the standard hand's).
+**You can still edit the feminine hand in Blender** (import `hand_rig_f.md5mesh`, edit, export over it, `vr_hand_reload`
+with Hand Shape on), but the next save of `hand_rig.blend` that changes the hand makes it again over your edit. Keep
+its bones where they are, and the shader name `hand_rig` to share the skins.
