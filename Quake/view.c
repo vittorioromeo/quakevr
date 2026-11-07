@@ -905,6 +905,7 @@ void V_CalcRefdef (void)
 	VR_FlatDeathView (r_refdef.vieworg, r_refdef.viewangles); // QVR: dead, in the ragdoll's head as in the headset (vr/vr_deathview.cpp)
 	VR_FlatOrbitView (r_refdef.vieworg, r_refdef.viewangles); // QVR: vr_flat_orbit, a test aid: looking back at his own pose
 	VR_WeaponStudioView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the Weapon Studio's camera, flown out of his eyes while its window is open and its camera is on (vr/vr_weaponstudio.cpp); while it is off -- the default -- the view above is left as it is
+	VR_FlatFlycamView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the flatscreen fly camera (vr_flat_flycam; vr/vr_flycam.cpp): his own eye remembered, then the view flown free while it is on
 }
 
 /*

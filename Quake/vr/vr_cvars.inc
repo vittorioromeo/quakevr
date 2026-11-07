@@ -3996,7 +3996,13 @@ QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts a
 QVR_CVAR(vr_flat_key_grab, "r", CVAR_ARCHIVE)           // the key that force-grabs what the view is pointed at (impulse 46), by its bind name; "" none (was E until E became the right lean)
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
-QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)               // flatscreen play: Q / E lean the view, the weapon and the body sideways round a corner (vr_flat_lean_*); 0 off
+QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
+QVR_CVAR(vr_flat_flycam, "0", CVAR_NONE)                // flatscreen play's fly camera (vr_flycam.cpp): 1 the view flies free (mouse looks, W A S D, Space up, Ctrl down, Shift faster) while you stand exactly as you were, nothing of yours moving; 0 back in your eyes. Not saved; a headset ignores it
+QVR_CVAR(vr_flat_flycam_pause, "1", CVAR_ARCHIVE)       // the fly camera: 1 the game is paused while it flies (single player, or a game this client's server runs alone); 0 the world runs on (you still stand still: no key reaches you). Multiplayer never pauses
+QVR_CVAR(vr_flat_flycam_speed, "320", CVAR_ARCHIVE)     // the fly camera's speed, units a second
+QVR_CVAR(vr_flat_flycam_accel, "1600", CVAR_ARCHIVE)    // the fly camera's acceleration and braking, units a second each second; 0 instant
+QVR_CVAR(vr_flat_flycam_fast, "3", CVAR_ARCHIVE)        // the fly camera's speed with Shift held, times vr_flat_flycam_speed
+QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E lean the view, the weapon and the body sideways round a corner (vr_flat_lean_*); 0 off
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too

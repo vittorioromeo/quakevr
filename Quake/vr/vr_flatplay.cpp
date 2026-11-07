@@ -37,6 +37,7 @@
 #include "vr_flathud.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -376,8 +377,9 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     {
         return false;
     }
-    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    return glm::length(cam - camShiftWorld(geom::vec(r_refdef.viewangles)) - s.head) < keepNear();
+    // (His own eye: with the fly camera up, the view V_CalcRefdef made for him, not the camera's. vr_flycam.cpp)
+    const glm::vec3 cam = flycam::eyeOrg();
+    return glm::length(cam - camShiftWorld(flycam::eyeAngles()) - s.head) < keepNear();
 }
 
 // V's punch, seconds from the press: folded, thrown, held, drawn back.
@@ -1354,6 +1356,7 @@ void init()
     Cmd_AddCommand("vr_flat_shove_now", shoveNow_f); // the shove key's shove, the console's way (tests)
     Cmd_AddCommand("vr_flat_flick_test", flickTest_f); // the tests' mouse, flicked hard (no gesture may come of it)
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
+    flycam::init(); // vr_flat_flycam_toggle, vr_flat_flycam_test (vr_flycam.cpp)
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
@@ -1365,10 +1368,17 @@ void frame()
 {
     const bool on = active();
     Cvar_SetValue("vr_flatplay", on ? 1.f : 0.f);
+    flycam::frame(on);  // the fly camera (vr_flat_flycam; vr_flycam.cpp): its key, the flight. While it flies nothing of
+                        // his is read or stepped below -- no keys, no ironsight, no hit's punch into the aim, no lean:
+                        // he stands exactly as he was
+    const bool frozen = on && flycam::on();
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flickTestFrame();   // vr_flat_flick_test's next flick, when one runs: likewise
-    flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
-    flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
+    if(!frozen)
+    {
+        flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
+        flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
+    }
 
     if(on && !fs.announced)
     {
@@ -1410,6 +1420,11 @@ void frame()
         return;
     }
 
+    if(frozen)
+    {
+        keyState.lastTime = vr_gametime; // (the crouch's ease held where it was, not stepped a long frame on landing)
+        return;
+    }
     pollKeys();
     pollKeysFlat();
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
@@ -1453,8 +1468,8 @@ glm::vec3 bodyRide(const hands::State& s)
         return glm::vec3{0.f};
     }
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
-    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    return (cam - (s.head + camShiftWorld(aim))) * rideShare() + fwdBob(geom::vec(r_refdef.viewangles));
+    const glm::vec3 cam = flycam::eyeOrg(); // (his own eye, not the fly camera's)
+    return (cam - (s.head + camShiftWorld(aim))) * rideShare() + fwdBob(flycam::eyeAngles());
 }
 
 glm::vec3 levelHang(const hands::State& s, int h)
@@ -1922,13 +1937,13 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     // drawn, the nudged eye included. Whether the drawn view still counts as his own eyes is viewIsHisOwn's, the same
     // answer crosshairRay gives the shot's crosshair.
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
-    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 cam = flycam::eyeOrg(); // (his own eye, not the fly camera's: vr_flycam.cpp)
     const bool onCam = viewIsHisOwn(s);
     const glm::vec3 from = onCam ? s.head + camShiftWorld(aim) : s.head; // (the pose's hands carry the nudge: poseHands)
     const glm::vec3 view = onCam ? cam : s.head;
     // (The view's own move off the pose's eye -- the walk's bob, a step's easing -- by vr_flat_body_bob's share, as the body rides it:
     // bodyRide. The sights below stand on the view itself.)
-    const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
+    const glm::vec3 camAngles = onCam ? flycam::eyeAngles()
                                       : aim;
     // (And the walk's forward and back bob, which the body rides too: bodyRide.)
     const glm::vec3 forwardBob = onCam ? fwdBob(camAngles) : glm::vec3{0.f};
