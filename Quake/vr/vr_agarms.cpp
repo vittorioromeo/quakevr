@@ -2556,7 +2556,12 @@ bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig,
     }
     // In view: its middle within the eyes' views and the margin, its size (lodRadius) round it.
     const bool seen = lodSeen(to, dist);
-    const int every = za::clamp(static_cast<int>(seen ? vr_agarms_lod_far.value : vr_agarms_lod_unseen.value), 1, lodEveryMost);
+    int every = za::clamp(static_cast<int>(seen ? vr_agarms_lod_far.value : vr_agarms_lod_unseen.value), 1, lodEveryMost);
+    if(seen && vr_agarms_lod_distant_at.value > 0.f && dist > vr_agarms_lod_distant_at.value)
+    {
+        // (the distant tier: further still in view, solved less often again; never more often than Far in View)
+        every = za::max(every, za::clamp(static_cast<int>(vr_agarms_lod_distant.value), 1, lodEveryMost));
+    }
     const int gap = host_framecount - lod->solvedFrame;
     if(every <= 1 || gap >= every || (host_framecount + num) % every == 0)
     {

@@ -3215,6 +3215,10 @@ QVR_SLIDER_BYNAME(vr_agarms_lod_near, "Arms' Detail: Near Within", 64.f, 1024.f,
     "Armed humanoids nearer than this pose their arms every frame.")
 QVR_SLIDER_BYNAME(vr_agarms_lod_far, "Arms' Detail: Far in View", 1.f, 6.f, 1.f, "every %.0f frames", noExt,
     "How often a far armed humanoid in view poses its arms (1: every frame).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_distant, "Arms' Detail: Distant in View", 1.f, 10.f, 1.f, "every %.0f frames", noExt,
+    "How often an armed humanoid in view beyond Distant From poses its arms (never more often than Far in View).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_distant_at, "Arms' Detail: Distant From", 0.f, 2048.f, 50.f, "%.0f units", noExt,
+    "How far off an armed humanoid in view counts as distant (0: none do).")
 QVR_SLIDER_BYNAME(vr_agarms_lod_unseen, "Arms' Detail: Out of View", 1.f, 30.f, 1.f, "every %.0f frames", noExt,
     "How often a far armed humanoid out of view poses its arms (1: every frame). Turning your head towards one poses it at once.")
 QVR_SLIDER_BYNAME(vr_agarms_lod_margin, "Arms' Detail: View Margin", 0.f, 60.f, 5.f, "%.0f deg", noExt,

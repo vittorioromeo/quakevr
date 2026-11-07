@@ -2676,6 +2676,8 @@ QVR_CVAR(vr_agarms_lod, "1", CVAR_ARCHIVE)          // vr_agarms: the arms' IK l
 QVR_CVAR(vr_agarms_lod_near, "192", CVAR_ARCHIVE)    // ... within this of the view (units): every frame
 QVR_CVAR(vr_agarms_lod_far, "2", CVAR_ARCHIVE)       // ... further off in view: solved every this many frames
 QVR_CVAR(vr_agarms_lod_unseen, "6", CVAR_ARCHIVE)    // ... further off out of view: every this many frames
+QVR_CVAR(vr_agarms_lod_distant, "3", CVAR_ARCHIVE)   // ... in view past vr_agarms_lod_distant_at: every this many frames (at least vr_agarms_lod_far's)
+QVR_CVAR(vr_agarms_lod_distant_at, "600", CVAR_ARCHIVE) // ... from this far off (units; 0: no distant tier)
 QVR_CVAR(vr_agarms_lod_margin, "20", CVAR_ARCHIVE)   // ... in view: within the eyes' views and this much round them (degrees: a turn of the head never meets a stale arm)
 QVR_CVAR(vr_agarms_lod_check, "0", CVAR_NONE)       // ... 1: each reused frame also solved (on a copy of its state) and the two compared: vr_agarms_cost prints how far apart (Debug > Tests)
 QVR_CVAR(vr_agarms_warm, "0", CVAR_NONE)            // vr_agarms: 1 a free hand's or fist's refinement (its hand turned with its forearm, up to 4 solves) started from its forearm's last turn: mostly 1 or 2 solves, but settled fully, where the full search from the goal's turn stops short (the free hands' turns differ, up to ~25 degrees: off until chosen); 0 from the goal's turn each frame (before)
