@@ -107,9 +107,15 @@ def finish():
         tail = next(l for l in lines if l.startswith("blend_export: ok"))[len("blend_export: "):]
         msg = "Quake VR: %s exported (%s) to %s in %.1f s; the game reads it again by itself" % (
             name, tail, os.path.dirname(wrote[0]) if wrote else "?", secs)
-        state["result"] = (True, [msg])
-        print(msg)
-        show('INFO', msg)
+        box = [l[len("  box: "):] for l in lines if l.startswith("  box: ")]  # (Grow the Box grew it: the offsets)
+        if box:
+            msg += "; THE BOX GREW (see the popup)"
+        state["result"] = (True, [msg] + box)
+        print(msg + "".join("\n  " + l for l in box))
+        show('WARNING' if box else 'INFO', msg)
+        if box:
+            popup("Quake VR: exported; the model's box grew", box + ["(the whole report: %s)" % log_path()],
+                  icon='INFO')
     else:
         at = next((i for i, l in enumerate(lines) if "REFUSED" in l), None)
         why = [l.strip() for l in lines[at:]] if at is not None else lines[-12:]
@@ -173,18 +179,21 @@ def show(level, msg):
         bpy.ops.quakevr_models.save_export_report(level=level, message=msg)
 
 
-def popup(title, lines):
+def popup(title, lines, icon='ERROR'):
     if bpy.app.background:
         return
 
+    import textwrap
+    rows = [r for line in lines for r in (textwrap.wrap(line, 120, subsequent_indent="    ") or [""])]
+
     def draw(self, _context):
-        for line in lines[:24]:
-            self.layout.label(text=line)
+        for row in rows[:30]:
+            self.layout.label(text=row)
     o = window_override()
     if o is None:
         return
     with o:
-        bpy.context.window_manager.popup_menu(draw, title=title, icon='ERROR')
+        bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
 @persistent
@@ -228,6 +237,9 @@ def draw_panel(layout):
         col.prop(p, "export_on_save")
     else:
         col.label(text="Export on save: on")
+    ob = source_model()
+    if ob is not None:
+        col.prop(ob, "qvr_grow_box")  # (kept in the .blend: the background export reads it, as blend_export.py --grow)
     busy = state["proc"] is not None
     res = state["result"]
     if busy:
@@ -241,6 +253,13 @@ def draw_panel(layout):
 
 def register():
     bpy.utils.register_class(QVR_OT_save_export_report)
+    bpy.types.Object.qvr_grow_box = bpy.props.BoolProperty(
+        name="Grow the Box", default=False, options=set(),
+        description="Vertices past the model's box (its byte grid) make the export make the box bigger instead of "
+                    "refusing: the grid gets coarser (every vertex moves a little); past the low side the origin "
+                    "moves too, and the export writes the weapon's offsets that keep it in place into weapons.txt "
+                    "(and shows them: your config keeps its own, so type them in the game's console too). Kept in "
+                    "the .blend; later exports start from the grown box (the model file they replace)")
     if on_save not in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.append(on_save)
 
@@ -248,4 +267,5 @@ def register():
 def unregister():
     if on_save in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.remove(on_save)
+    del bpy.types.Object.qvr_grow_box
     bpy.utils.unregister_class(QVR_OT_save_export_report)

@@ -13,8 +13,6 @@ Same pipeline as the nail pistol (`../nailpistol/`).
 | `revolver_skin.png` | The gun's skin, 384x384 RGB, already in Quake's palette: paint this one. `revolver_skin_pal.png`: the indexed copy every export writes (what the MDLs hold). |
 | `revolver_shell.png`, `revolver_shell_slug.png`, `revolver_shell_spent.png`, `revolver_shell_slug_spent.png` | The shell's four skins (64x64, one UV layout): red, the blue slug, both spent (darker, the crimp open, the primer struck). The Shell's `skins` property lists them in skin order. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
-| `build_revolver.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin), checks the crane's swing and exports. It **overwrites** the .blend and the skins: once they are edited by hand, don't run it. (It makes the Cylinder with solid ends: `cut_chambers.py` after it.) |
-| `cut_chambers.py` | Bores the six chambers through the Cylinder in the .blend (below, "The chambers"). Run once; it stops if they are cut already. |
 | `render_revolver.py` | Renders the exported MDLs (`renders/`): `blender -b --factory-startup -P render_revolver.py -- <out folder> [size] [view ...]`. |
 | `renders/` | `three` (three-quarter, as the mockup), `vs_mockup` (beside it), `side`, `right`, `cocked`, `open` and `openfront` (swung out, shells chambered), `sights` (from behind along the sight line), `fp` (about as held), `shells`, `scale` (with the nail pistol and the shotgun, each at its in-hand scale). |
 
@@ -71,7 +69,7 @@ Look along it from behind: the blade sits in the notch, between the hammer's pro
 
 ## The chambers
 
-Real holes, right through the Cylinder (`cut_chambers.py`): ten sides each, 0.6 from a chamber's middle to its walls (the
+Real holes, right through the Cylinder (cut once into the .blend by a script that is removed now; they are in the .blend): ten sides each, 0.6 from a chamber's middle to its walls (the
 shell's hull is 0.59: it seats without touching them, its rim 0.66 on the face), walled inside. Swung out you see through
 the empty ones. Their walls take a small patch of grey ramp in `revolver_skin.png` (18 texels at 154..156, 18..23, inside
 a chamber disc that the end faces no longer show), the end faces their UVs as before (the rims drawn from radius 0.48 of
@@ -85,7 +83,7 @@ part's object, origin and parent. Faces and UVs: an edited face keeps its UVs; a
 Paint `revolver_skin.png` (the gun) or the shell PNGs in Texture Paint or an image editor and save; any colour is fine,
 the export takes the nearest of Quake's 224 ordinary palette colours. Changing `swing`, `cock`, `pull` or `travel`
 changes the frames. An object whose name starts with `_` is left out; any other new mesh is drawn with the Body. The
-face attribute `rv_part` only tells `build_revolver.py` what to paint where.
+face attribute `rv_part` only told the removed `build_revolver.py` (git history) what to paint where; nothing reads it.
 
 ## Exporting
 
