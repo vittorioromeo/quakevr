@@ -2451,6 +2451,47 @@ lines equal the defaults), before (origin/next's weapons.txt) and after:
 **To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
 weapons sit and aim as he left them.
 
+## Lying down and crawling (branch `agent/prone`, 2026-11-07)
+
+His backlog item (2026-11-03): the player can lie down and crawl by moving his body. Built on the crouch's box and the
+swimming tilt's `BodyPitch`.
+
+- **When (VR: physical, decision).** Your eyes under `vr_prone_eye` (18 units over your feet, about 0.5 m of headset:
+  on your front propped on the elbows; on all fours, about 0.6 m, stays a crouch) and you lie down; up again once they
+  are 2 units over the lying box's top *and* the lowest crouched box fits where you are. No button in a headset: a
+  seated player has no way to lie down (his crouch toggle lowers the view 0.5 m: a crouch). In water (waterlevel 2+) you
+  don't start lying down.
+- **Flat-screen: a toggle, the same code path.** `vr_flat_key_prone` "x" (free in the mode; Z is bullet time, C swims
+  down) or `vr_prone_toggle` (Debug > Tests too): the view eases down `vr_prone_body_time` to 4 under `vr_prone_eye` (46
+  to 14), the crouch bit is held meanwhile, so the server sees the low eyes exactly as a headset's and lies him down.
+  Toggled up under a ceiling the crouch doesn't fit, the server keeps him down and his view is held under the box's top
+  (`localEyeCap`, as the crouch's). Dead or between maps: up.
+- **The box (vr_hull.cpp).** Lying down is a value of the crouch's own `crouchBox` slot: `vr_prone_height` 24 (24 is the
+  lowest box the clip recovery's height growth covers, so no tree-builder change: decision; a lower box needs that grown).
+  moveBox/entBox/touchBox/hitBox, monsters' sight (bit 23, crouched) and the trees (one more, 16x24, in `wantedExts`)
+  follow. Needs `vr_crouch_hull` on.
+- **Moving.** `vr_prone_speed_scale` 0.3 of the most speed (96 of 320), eased 0.25 s like the crouch's slowing, whatever
+  `vr_crouch_speed`. Jumping: QC `PlayerJump` returns while `.vr_prone` (a new field the engine sets from each move;
+  jump boots included, swimming up untouched). **Weapons: all usable lying down (decision)**: aiming from the floor is the
+  point; nothing changed in QC.
+- **The body (vr_avatar_pitch.cpp, vr_avatar.cpp, vr_avatar_legs.cpp).** `PitchSource::Prone`: target
+  `vr_prone_body_angle` 90 plus asin((eyes over the floor - 8) / torso) (at most +30: propped up, the hips slope down to
+  the floor), eased over `vr_prone_body_time` 0.6 s; the server's state for the local player (a remote client: his eyes
+  that low). `BodyPitch::lying` (the angle's share while it comes from lying down) straightens the crouched trunk
+  (crouch pose, crouch tilt and lean fade out) so the turn lays a straight trunk behind the head, and lays the legs back
+  along it with the feet on the floor, knees down, toes pointed. Swimming wins over lying down.
+- **Settings.** Movement > Player Hitbox > Lying Down: Lie Down and Crawl (`vr_prone` 1), Lying Down Below
+  (`vr_prone_eye` 18), Lying Down Height (`vr_prone_height` 24), Crawling Speed (`vr_prone_speed_scale` 0.3), Lying
+  Down Status (`vr_prone_status`). Body page: Lying Down Body Angle (`vr_prone_body_angle` 90), Lying Down Time
+  (`vr_prone_body_time` 0.6). Debug > Tests: Lying Down Status, Lie Down / Get Up (Flat-Screen).
+- **Tests.** `Misc/quakevr/prone_test.py <agent>`: 21 passed (VR mock and flat-screen: standing, down at once (box 24),
+  the body's angle (VR 104 of 106, flat about 105), no jump, the crawl 96, into the 40-high tunnel, up to a crouch (36) in
+  it, kept down under it with `vr_crouch_height` 44, standing out of it, `vr_prone 0` a crouch). `vr_body_pitch_test`
+  adds lying down's targets and ease (29 passed). Not regressed: swimtilt 12, flatmove 10, flatcrouch 3, crouch_speed 4,
+  bodytrack_solve 240, handroll 17, ghost body 4 passed; teleporters/crouch_test.sh's cases as documented. Screenshots checked (side view and first person looking down, both modes): the
+  body flat behind the head, the arms out to the hands.
+- **Left:** crawling by pulling with the arms (the stick moves you); a box under 24; seated lying down; the flat-screen
+  view on lying down is Quake's own camera at 14 units (no special framing).
 ## The hand's and the body's source .blends (branch `agent/blendmd5`, 2026-11-07)
 
 The md5 plan ("The md5 models (plan only)", above), done:

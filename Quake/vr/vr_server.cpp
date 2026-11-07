@@ -801,6 +801,8 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
     hull::updateCrouch(ent, move.headPos, !flat || flatCrouch);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
+    // Lying down (vr_prone; his crouched box then the lowest, vr_prone_height): QC's .vr_prone (no jumping: PlayerJump).
+    setFieldFloat(ent, f.vr_prone, hull::isProne(ent) ? 1.f : 0.f);
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
     // The head's height over the floor, a share of his standing eye height (vr_height_calibration; 1 standing): how the
