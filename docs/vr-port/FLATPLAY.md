@@ -437,6 +437,19 @@ this share of the screen's height above its bottom edge comes up (the view's up,
 it is there, and the way back is found again from there: pulled back at a wall, a pistol sat under the status bar. Long guns
 already reach higher and don't move. Less looking down past 20 degrees, none by 50. 0: off.
 
+**Wall: Slide Along** (`vr_flat_wall_slide`, 1), **Slide Up To** (`vr_flat_wall_slide_from`, 15 deg), **Back And Up From**
+(`vr_flat_wall_slide_to`, 40 deg), **Slide Ease** (`vr_flat_wall_slide_time`, 0.12 s): a hipfire weapon meeting a wall at a
+slant lies flat along it: the drawn gun turns level out of the wall (the least that clears it, up to parallel; drawn only,
+the shots still go through the crosshair, and it fires) and goes out along the wall's normal (at most 10 units) instead of
+back towards the shoulder. The share is a smooth curve of the angle between the gun and the wall (all of it up to Slide Up
+To, none from Back And Up From) and eases over Slide Ease; the wall state (the arm's fold, the room, the raise, the free
+hand letting go) only comes with the rest of the share, so met head-on it goes back and tilts up as before. A melee weapon
+only goes out, never turns. 0: off (as before).
+
+**Wall: No Ironsight Tilted** (`vr_flat_wall_block_ads`, 1): while the gun stands tilted up at a wall (more than 5 degrees)
+the ironsight waits; the key's ask is kept and it comes on once the gun is down. **Hide Torch Model**
+(`vr_flat_flashlight_hide`, 1): the torch worn at the eyes is not drawn; its beam and light are.
+
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --
 `+vr_flat_cam_fwd` along the look, `+vr_flat_cam_up` higher, `+vr_flat_cam_side` to **the view's own right**. The nudges go where

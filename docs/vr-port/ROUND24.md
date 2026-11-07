@@ -2806,3 +2806,35 @@ busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms betwee
 
 With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
 AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.
+
+## Flat-screen wall: slide along, no ironsight tilted, no torch model (branch `agent/flatwall4`, 2026-11-07)
+
+His jitter: moving along a wall facing along it slightly away, then turning a little towards it. Repro `scratch/fw4_sweep.sh`
+(vrtesthall's south wall on the right; s: his box on it, the view turning 5 deg/s from 10 out to 50 in; w: walking along it
+from 10 out, turning 15 deg/s for 20 degrees; frame by frame the drawn gun's place and turn in the view: the new
+`flatwalldrawn:` and `flatslide:` lines under vr_flatplay_debug 2). Before (vr_flat_wall_slide 0): walking, the rifle went
+from level to 85 degrees up within 20 degrees of the wall (a frame's turn up to 75 deg; shotgun 70); standing, the rifle's
+turn stepped 30 deg in a frame (4.1 units), the shotgun's 6.3. Cause: gunBack's way back towards the shoulder runs nearly
+along a wall met at a slant (1/out: 10 units back for 1 in, and none past its leastOut 0.1), the walk-in's ahead probe the
+same, and the stop at the chest cut the room from 16 to 2.5 units within a degree, so the tilt came all at once.
+
+- **Slide along** (`vr_flat_wall_slide` 1, `_from` 15, `_to` 40 deg, `_time` 0.12 s; Flatscreen > Free Hands rows;
+  `slideFor`): the gun's level way against the wall's normal (gunDepth now hands back the deepest point's normal) gives a
+  share: 1 up to `_from`, smooth to 0 at `_to`, eased. With it the drawn gun turns level out of the wall (`flatTurn`, in
+  drawnTurn after the tilt: the least that clears, up to the share of parallel; a melee weapon never) and the way out leans
+  from the way back to the wall's level normal, its most up to 10 units (`slideOutMost`) past the chest stop. The wall
+  state's effects (fold, room, raise, the free hand's let-go, the elbow) are scaled by 1 - share. Head-on: as before.
+- Measured (rifle / shotgun): standing, turning in: a frame's step 0.49 / 0.39 units, turn 2.9 / 1.9 deg (before 4.1 / 1.9
+  units, 30 / 6.3 deg); it lies along the wall from about 25 deg in (where it first reaches the wall from his box) and tilts
+  up from about 33. Walking: turn 5.2 / 5.0 deg a frame (before 75 / 70); the place's 7.3 / 4.4 unit step is flatplay's
+  step sway (the velocity's change kicks the hands) as his box meets the wall: there before, slide off too, not changed.
+  Settled on the wall at yaw 5 to -50: every drawn point out (vr_gun_wall_depth 0.0 cm, on and off), the rifle keeps its
+  two-handed hold to 25 deg in (20 before).
+- **Block ADS** (`vr_flat_wall_block_ads` 1): adsApplies is false while the tilt up (`upAngle`: the drawn turn less the
+  level one) is over 5 deg; the key's ask is kept. vr_flat_wall_block_fire reads the same tilt up (laid along, it fires).
+- **Torch model** (`vr_flat_flashlight_hide` 1): flatscreen play hides the torch's entity after `place`; beam and light stay.
+- Tests: flatwall e (new: the turning sweep has no step, lies along before it tilts up, the ironsight blocked tilted),
+  flatwall a-d, flatsight, flatsweep 383 passed, 27 known, 0 failed. Pictures: `scratch/fw4_shots_off.png`,
+  `scratch/fw4_shots_on.png` (rifle at 0, 15, 25, 35 deg in).
+- Lean (agent/flatmove): the leaned eye and gun come in as flatplay poses them (`s.head`, `s.pos`, `s.rot`, the crosshair
+  ray); slideFor and pushBack read only those, so a leaned pose feeds the wall code with no change here.

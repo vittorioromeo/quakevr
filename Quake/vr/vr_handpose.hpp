@@ -32,9 +32,9 @@ void weightDirections(hands::State& s, float turnYaw);
 // The same weapon's points, as they stand: how deep the deepest is past the first wall on the line from `from` to it (0:
 // all clear; floors and ceilings not counted). Flatscreen play's muzzle tilt at a wall (vr_flatsight.cpp, pushBack) tries
 // its angles with it. A point counts `margin` deeper (`handMargin` for the hand's own point), so one that short of a wall
-// counts as in it.
+// counts as in it. `normal` (if given): the deepest point's wall's normal, out of it (left as it was when all is clear).
 [[nodiscard]] float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
-    float margin, float handMargin);
+    float margin, float handMargin, glm::vec3* normal = nullptr);
 
 // The same weapon's points: the nearest's distance from `eye` (units), and (with `s`) the deepest one's depth in his torso
 // (`torsoDepth`, units, 0 out; flatplay::torsoGap). No traces.
