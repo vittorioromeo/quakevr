@@ -52,6 +52,8 @@ static int	mod_decompressed_capacity;
 #define	MAX_MOD_KNOWN	4096 /*johnfitz -- was 512 */
 static qmodel_t	mod_known[MAX_MOD_KNOWN];
 static int		mod_numknown;
+#define MOD_NAME_CACHE 4096 // QVR: Mod_FindName's slots by their names' hashes (a power of two)
+static int		mod_namecache[MOD_NAME_CACHE]; // (slot + 1; 0 none)
 int Mod_KnownCount (void) { return mod_numknown; } // QVR (vr_limits)
 qmodel_t *Mod_KnownModel (int i) { return i >= 0 && i < mod_numknown ? &mod_known[i] : NULL; } // QVR (vr_modelwatch.cpp)
 int Mod_KnownMax (void) { return MAX_MOD_KNOWN; }
@@ -360,11 +362,24 @@ static qmodel_t *Mod_FindName (const char *name)
 //
 // search the currently loaded models
 //
+	// QVR: the slot last found for a name hashed to this entry, checked by its name (TRACY_1107.md: the game asks for
+	// models by name every frame; this walk strcmp'ed each of hundreds of slots, kilobytes apart). Not there (or no longer:
+	// a slot emptied or reused), the walk as before, its answer noted.
+	unsigned int h = 2166136261u; // FNV-1a
+	const char *c;
+	for (c = name; *c; c++)
+		h = (h ^ (unsigned char) *c) * 16777619u;
+	h &= MOD_NAME_CACHE - 1;
+	i = mod_namecache[h] - 1;
+	if (i >= 0 && i < mod_numknown && !strcmp (mod_known[i].name, name))
+		return &mod_known[i];
+
 	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
 	{
 		if (!strcmp (mod->name, name) )
 			break;
 	}
+	mod_namecache[h] = i + 1; // (a new one's slot below, as well)
 
 	if (i == mod_numknown)
 	{
