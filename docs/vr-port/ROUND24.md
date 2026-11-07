@@ -2679,3 +2679,44 @@ the parent build; seed 4242: 22e429ac, ba8ddaa6, loadouts hash 10104 vs 24627; s
 seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two different fresh seeds. vr_agrunt_test 70
 22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
 numbers on the parent build (pre-existing drift of the pommel distances, not this change).
+
+## Map-load work off the main thread (branch `agent/loadjobs`, 2026-11-07, on `agent/perfalloc`)
+
+Follows perfdesign's section A (kit `scratch/perfdesign_report.md`). Method: Release-Tracy exe, exclusive runs, a new
+process a load, `vr_cache_dir` a fresh folder (engine-cold) then the same folder again (engine-warm); the time is
+`vr_startup_times`' last map load total (the `map` command to its first frame drawn). Tracy captures (full preset) only
+for the breakdowns. Results table: kit `scratch/loadjobs_report.md`.
+
+**Failed lookups (item 3), commit "File cache: files written outside every search path's folder forget nothing".** The
+index asked for exists already (vr_fscache.cpp's listings and misses, pak stem hashes, COM_StemNowhere); what made a
+first load's misses cost 879 ms on ad_tfuma (15 ms on a warm one) was the derived-data cache: each of the ~750 files
+the workers write during the load reached VR_FileCacheForgetFile, which forgot every listing of a folder that wasn't
+there and had the main thread scan every miss for names the file could be. The file cache now keeps the identities of
+the folders lookups look in (loose search paths, pak folders; added at each window, search-path change and full
+forget; never removed) and a written file whose folder isn't one of them nor inside one (named parents walked up to
+the volume's root, by identity: junctions followed) forgets nothing. Writes inside them, unknown cases and folders
+made behave as before. `vr_fscache_test` gained the case (24 passed). ad_tfuma cold "looked for, none found" 879 -> 20 ms.
+
+**Skins' normal maps on jobs (items 1 and 4), cvar `vr_load_jobs` (1; 0 the serial path; Debug menu, "Load Work on Job Threads", beside "Decode Textures Ahead").** See the
+comment at `VR_SkinNormalsPost` (vr_normalmaps.cpp) for inputs, outputs and joins. TexMgr_LoadImage32 posts a skin's
+normal map (made from its colours, or read from the disk cache: both on the job) and returns without uploading; the
+skin keeps the flat normal map until the commit (TexMgr_CommitNormalMap: upload, label, bindless handle, link). Commits
+happen in post order: each later post commits the oldest finished ones without waiting; SCR_UpdateScreen (before
+drawing), TexMgr_ReloadImages(Named), imagedump and imagehash join all; TexMgr_FreeTexture waits for and drops its
+entries; VR_Shutdown drops the rest. TexMgr_SkinToNormals and its helpers now take the islands explicitly (MaskView)
+and allocate on the heap (was the hunk; gx/gy zeroed as Hunk_Alloc did); the islands maker is pure (no hunk, no
+timing); the cache read on the job counts nothing (`readRgbaAt`), the counts, the cache write and the prints are the
+commit's. Ownership: the job's struct is the job's alone from the post until the Future is waited for.
+
+Verified bit-identical: `imagehash` (every texture, normal maps included) the same frame as the `map` command and 3
+frames later, vr_load_jobs 0 against 1, engine-cold (normal maps made) and engine-warm (read from the cache), e1m1,
+ad_tfuma, vrfiringrange: all 12 sums equal per map (e1m1 d071c79aadc70bbc, ad_tfuma 8e89ed76898d6fd4, vrfiringrange
+bab4dce68cbff385).
+
+Loads (ms, engine-cold / engine-warm, rep 1): baseline e1m1 2990 / 1419, ad_tfuma 4574 / 1463, vrfiringrange 4050 /
+1612; with both commits 2090 / 1292, 2552 / 1440, 3340 / 1437. Model light grid contents hash equal with vr_load_jobs 0
+and 1 (ad_tfuma f13a9fac10031d2d, e1m1 ff18e0fd8568016c); loads print no error or warning; vr_limb_test 2 and 3 done.
+
+**Not done (this round's budget):** authored skin normal maps' PNG decode (item 2: most of the remaining `Image decode`
+after item 3), Box3D convex pieces cache (item 5), limb models' wait (item 6: their precaches stay at spawn, as model
+indices depend on the order; their skins' normal maps now go to jobs with step 1).
