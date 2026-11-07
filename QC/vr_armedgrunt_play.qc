@@ -1007,9 +1007,23 @@ float(entity p) VR_AG_DrawnFrame =
 // The held weapon `p`'s line as drawn now (VR_AG_DrawnFrame): its drawn model's two ends along its forward (vr_ag_wa
 // the back, vr_ag_wb the front: the weapon's own length, held::drawnExtent), vr_ag_wr half its thickness. No drawn
 // surface: 8 units behind its grip to its muzzle (one too near: 24 ahead), 3 thick, as before.
+// Its line on its drawn frame is kept for the rest of the server frame (the shots, the parries and the strikes ask for
+// each weapon's several times a frame): vr_ag_wl_frame the frame it was worked out in (framecount + 1; 0 none). The
+// line from its own origin (not drawn) is worked out each time.
+.float vr_ag_wl_frame;
+.vector vr_ag_wl_a;
+.vector vr_ag_wl_b;
+.float vr_ag_wl_r;
 void(entity p) VR_AG_WeaponLine =
 {
-    VR_AG_DrawnFrame(p);
+    if(p.vr_ag_wl_frame == framecount + 1)
+    {
+        vr_ag_wa = p.vr_ag_wl_a;
+        vr_ag_wb = p.vr_ag_wl_b;
+        vr_ag_wr = p.vr_ag_wl_r;
+        return;
+    }
+    float drawn = VR_AG_DrawnFrame(p);
     vector f = vr_ag_df_fw;
     vector u = vr_ag_df_up;
     vector rt = [f_y * u_z - f_z * u_y, f_z * u_x - f_x * u_z, f_x * u_y - f_y * u_x]; // (forward x up: its right)
@@ -1021,6 +1035,13 @@ void(entity p) VR_AG_WeaponLine =
         vr_ag_wa = vr_ag_df_o + vr_ag_df_fw * lo_x - rt * lo_y + vr_ag_df_up * lo_z;
         vr_ag_wb = vr_ag_df_o + vr_ag_df_fw * hi_x - rt * hi_y + vr_ag_df_up * hi_z;
         vr_ag_wr = max(0.5, size_x);
+        if(drawn)
+        {
+            p.vr_ag_wl_frame = framecount + 1;
+            p.vr_ag_wl_a = vr_ag_wa;
+            p.vr_ag_wl_b = vr_ag_wb;
+            p.vr_ag_wl_r = vr_ag_wr;
+        }
         return;
     }
     makevectors(p.v_angle);
