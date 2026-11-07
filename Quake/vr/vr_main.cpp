@@ -131,6 +131,7 @@
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flycam.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_imgui.hpp"
 #include "vr_rigdata.hpp"
@@ -2527,8 +2528,12 @@ extern "C" void VR_BeginFrame()
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    // (Holster Setup, the Arena Wave Editor and the Weapon Studio hold the game's time too)
-    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() || weaponstudio::holds() ? 1 : 0;
+    // (Holster Setup, the Arena Wave Editor, the Weapon Studio and the flatscreen fly camera hold the game's time too: the
+    // fly camera only in single player, vr_flat_flycam_pause; vr_flycam.cpp)
+    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() || weaponstudio::holds() ||
+                   flycam::holds()
+               ? 1
+               : 0;
 }
 
 extern "C" int VR_IsActive()

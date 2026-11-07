@@ -590,6 +590,25 @@ What is left of the pose's own
 numbers (how far a punch throws the fist, how long it takes, how the arm's hold is measured) are named constants at the top
 of `vr_flatplay.cpp`, and the sight's (`vr_flatsight.cpp`).
 
+## The fly camera
+
+**F8** (`vr_flat_key_flycam`), `vr_flat_flycam_toggle`, or `vr_flat_flycam 1` takes the view out of his eyes: the mouse
+looks, W A S D fly (the move binds: +forward, +back, +moveleft, +moveright), Space up (+jump, +moveup), Ctrl down
+(+movedown), Shift faster, through walls. He stands exactly as he was: his angles never change (`CL_AccumulateCmd` gives
+the look to the camera and puts his angles back), his move is zero (`VR_AdjustMove`), no button or impulse is sent
+(`CL_SendMove`), the mode's own keys (lean, melee, drop, swap, grab, shove, crouch, ironsight) are not read or stepped
+(`flatplay::frame`), the server gets the hands, their buttons and his crouch of the last move before it took off
+(`vr_client.cpp` poseMove, the weapon posing mode's hold), and the drawn hands are posed from his own eye, not the
+camera's (`flycam::eyeOrg`). His body is seen from outside with its head, as any view away from his eyes sees it
+(`vr_avatar.cpp`). No crosshair while it flies.
+
+`vr_flat_flycam_pause` 1 (the default) holds the game (no physics, no player think: `VR_RuntimeMenuPause`, no PAUSE
+plaque) -- only a game this client's own server runs for one player; multiplayer and demos always run on. 0 runs the world
+on, and he still stands still. `vr_flat_flycam_speed` (320 units/s), `vr_flat_flycam_accel` (1600 units/s each second; 0
+at once), `vr_flat_flycam_fast` (Shift: x3). Off again, the view is back in his eye exactly. A headset ignores it (the
+toggle says so). Rows: Movement > Locomotion > Desktop Screen Play; Debug > Reports: Flatscreen Fly Camera (and its
+test). Test: `vr_flat_flycam_test` (`Misc/quakevr/flatflycam_test.sh`).
+
 ## The model FOV
 
 `vr_flat_model_fov` (0: off) draws the player's own models at their own field of view. It is looks only: see `flatplay::modelFov` in `vr_flatplay.hpp` and ROUND24.md for what follows it and what does not.

@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flycam.hpp"
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
@@ -435,10 +436,12 @@ void setButtons(VrMove& move)
     }
 }
 
-// The weapon posing mode's held move (or this move remembered as the unposed one).
+// The weapon posing mode's held move (or this move remembered as the unposed one). The flatscreen fly camera holds the
+// same way (vr_flycam.cpp): his hands, their buttons and his crouch as the last move before it took off, no attack.
 void poseMove(VrMove& move)
 {
-    if(posing::active())
+    const bool flying = flycam::on();
+    if(posing::active() || flying)
     {
         const glm::vec3 walked = move.origin - unposed.origin;
         for(int h = 0; h < HAND_COUNT; h++)
@@ -466,8 +469,11 @@ void poseMove(VrMove& move)
             }
             move.shotRot[h] = unposed.shotRot[h];
         }
-        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
-                                                                     VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
+        // (Flying, also the state he stands in: two-handed aim, the flatscreen bits, the crouch held.)
+        const int kept = VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING | VRBITS0_OFFHAND_RELOADING |
+                         VRBITS0_MAINHAND_RELOADING |
+                         (flying ? VRBITS0_2H_AIMING | VRBITS0_FLATPLAY | VRBITS0_FLATCROUCH : 0);
+        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & kept);
         move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
                           QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
     }
@@ -856,6 +862,10 @@ bool offhandButton()
 
 bool attacking(int hand)
 {
+    if(flycam::on())
+    {
+        return false; // (the fly camera has the mouse: vr_flycam.cpp)
+    }
     const bool lmb = (in_attack.state & 1) != 0;
     if(flatplay::active()) // (the mouse's buttons as flatscreen play routes them)
     {
@@ -977,7 +987,7 @@ extern "C" void VR_OnClientClearState()
 
 extern "C" int VR_MoveMainFire(int lmb)
 {
-    moveLmb = lmb != 0;
+    moveLmb = lmb != 0 && !flycam::on(); // (the fly camera has the mouse: vr_flycam.cpp)
     if(!flatplay::active())
     {
         return moveLmb ? 1 : 0;

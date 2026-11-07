@@ -6028,6 +6028,19 @@ QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
     "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
     "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
     "(vr_flat_keys_own).")
+QVR_TOGGLE(vr_flat_flycam, "Fly Camera (F8)",
+    "Playing on the desktop screen (-flatscreenmode): the view flies free while you stand exactly as you were -- the mouse "
+    "looks, W A S D fly, Space up, Ctrl down, Shift faster, through walls. Nothing of yours moves, fires or turns; your "
+    "body is seen from outside. F8 (vr_flat_key_flycam) or vr_flat_flycam_toggle turns it on and off (vr_flat_flycam).")
+QVR_TOGGLE(vr_flat_flycam_pause, "Fly Camera Pauses",
+    "On: the game is paused while the fly camera flies (single player only: multiplayer always runs on). Off: the world "
+    "runs on, and you still stand still -- no key reaches you (vr_flat_flycam_pause).")
+QVR_SLIDER(vr_flat_flycam_speed, "Fly Camera Speed", 50.f, 2000.f, 10.f, "%.0f u/s", noExt,
+    "The fly camera's speed, units a second (vr_flat_flycam_speed).")
+QVR_SLIDER(vr_flat_flycam_accel, "Fly Camera Acceleration", 0.f, 8000.f, 100.f, "%.0f u/s2", noExt,
+    "How quickly the fly camera speeds up and brakes, units a second each second; 0 at once (vr_flat_flycam_accel).")
+QVR_SLIDER(vr_flat_flycam_fast, "Fly Camera Shift Speed", 1.f, 10.f, 0.5f, "x%.1f", noExt,
+    "The fly camera's speed with Shift held, times its speed (vr_flat_flycam_fast).")
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",

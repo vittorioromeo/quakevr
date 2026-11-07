@@ -42,6 +42,7 @@
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_weaponstudio.hpp" // (its window pausing his own walking: VR_AdjustMove below)
+#include "vr_flycam.hpp"       // (the flatscreen fly camera has his move keys too: VR_AdjustMove below)
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -1968,7 +1969,8 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     // (vr_weaponstudio.cpp) -- so his own walking is paused for those frames, whatever his keys and his sticks were
     // pressed to. Nothing here is kept, so the window's Close gives the walking back exactly as it was; his looking is
     // untouched either way.
-    if(weaponstudio::active())
+    // The flatscreen fly camera likewise: its W A S D fly the camera, and he stands still (vr_flycam.cpp).
+    if(weaponstudio::active() || flycam::on())
     {
         *forwardmove = 0.f;
         *sidemove = 0.f;

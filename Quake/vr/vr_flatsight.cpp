@@ -61,6 +61,7 @@
 #include "vr_client.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flycam.hpp"
 #include "vr_geom.hpp"
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
@@ -2256,7 +2257,8 @@ extern "C" float VR_FlatAdsFov(float basefov)
 // height, x to the right and y down: the ironsight's picture moved (vr_flat_ads_screen_x / _y). 0 0 outside the mode.
 extern "C" float VR_FlatCrosshairAlpha(void)
 {
-    return qvr::flatsight::crosshairFade();
+    // (None while the fly camera flies: the middle of its view is not where he aims. vr_flycam.cpp)
+    return qvr::flycam::on() ? 0.f : qvr::flatsight::crosshairFade();
 }
 
 extern "C" void VR_FlatCrosshairShift(float* x, float* y)

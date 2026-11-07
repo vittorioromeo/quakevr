@@ -3269,6 +3269,36 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
 - **Test in VR.** The knight's right elbow while it idles, walks and swings: the leather should stay put round the
   elbow. Check the other joints too, for no new lumps near the rows (the push next to the rows is now smaller).
 
+## Flat-screen fly camera (branch `agent/flatinput`, worktree flatwall, 2026-11-07)
+
+Vittorio: a fly camera in flatscreen play that moves anywhere while the body, hands and arms stand still, pausing the game
+by default. Full description: FLATPLAY.md, "The fly camera".
+
+- **Use.** F8 (`vr_flat_key_flycam`) or `vr_flat_flycam_toggle` (or `vr_flat_flycam 1/0`): mouse looks, W A S D fly,
+  Space up, Ctrl down, Shift x3, no collision. Cvars: `vr_flat_flycam_pause` 1, `_speed` 320, `_accel` 1600 (0 instant),
+  `_fast` 3. Rows under Desktop Screen Play; Debug > Reports has the toggle and the test.
+- **How he stays still** (`Quake/vr/vr_flycam.cpp`). Look: `CL_AccumulateCmd` saves `cl.viewangles` before the frame's
+  look and `VR_FlatFlycamLook` turns the camera by the difference and puts them back (the server's setangle before that
+  still lands). Move: `VR_AdjustMove` zeroes it (the Weapon Studio's path). Buttons and impulses: zeroed in `CL_SendMove`;
+  `client::attacking` false. Hands to the server: `poseMove`'s posing hold (the last move before it took off, walked
+  along with him), also keeping 2H aim, the flatscreen and crouch bits. Mode keys, ironsight, hit punch, lean: not
+  stepped in `flatplay::frame`. Drawn hands: `viewIsHisOwn`, `bodyRide` and `drawnOffset` read his own eye
+  (`flycam::eyeOrg/eyeAngles`, captured at the end of `V_CalcRefdef` before the camera takes it; kept as it was while the
+  game is held).
+- **Pause.** `flycam::holds()` joins `VR_RuntimeMenuPause` (no `SV_Physics`, no `SV_ClientThink`; no `sv.paused`, so no
+  PAUSE plaque and the mouse still reads). Only when `sv.active && svs.maxclients == 1` and not a demo: a multiplayer
+  server or a remote one never pauses for one client's camera (decision).
+- **Body.** Nothing new: the avatar already draws the head for any view more than a head's length from the eyes.
+- **Left as is.** A body animation already in flight (a punch, a shove, a crouch's ease) is frozen where it was; the
+  drawn pose's own idle eases run on `vr_gametime`, which a pause does not stop, so a pose still settling when the camera
+  comes on settles (the test waits 2 s after spawn: before that the hands were still moving 0.3 units).
+- **Test.** `Misc/quakevr/flatflycam_test.sh` (`vr_flat_flycam_test`): 21 checks: on, held, +right turns the camera
+  179 deg, +back/+jump fly it 231 units off (+attack held), screenshot; in to 80 units, +lookdown, screenshot
+  (`scratch/flatflycam.png`); origin and angles moved 0.000, hands 0.006 units at most, 0 buttons sent, game time
+  unchanged; pause 0 with +forward/+jump/+attack held for a second: time ran 1.000 s, he stayed; off: view back to 0.0000
+  units, 0.0000 deg. In the mock headset the toggle only prints a note.
+- **Test on the desktop.** F8 in a fight: fly round, look at the body, hands and weapon from the front and back; F8 again
+  and nothing should have changed. `vr_flat_flycam_pause 0`: monsters move, he doesn't, no shots from clicking.
 ## Nail pistol sights (branch `agent/release`, 2026-11-07)
 
 Vittorio: "Please add the nail pistol to the sighted models" (he paints its glowing sights in Blender himself).
