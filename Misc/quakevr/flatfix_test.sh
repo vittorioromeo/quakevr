@@ -133,7 +133,7 @@ check $([ "$holds" = 3 ] && grep -qa '2h grip: off hand took it' "$S/grip_ship.l
     "and vr_twohand takes all three holds: $holds of 3 status prints say the off hand is on its grip hotspot (helpKind 1)"
 
 # ---- 5. the one knob that moves the shotgun's number: vr_flat_gun_fwd, inside its range, nothing else touched.
-run grip_gun17 "$P; tune vr_flat_gun_fwd 17; $GRIPTAIL" '^  two hands:|^  grip:|^  hotspot:|^2h grip: |^    an empty hand '
+run grip_gun17 "$P; tune vr_flat_gun_ahead 17; $GRIPTAIL" '^  two hands:|^  grip:|^  hotspot:|^2h grip: |^    an empty hand '
 hs17=$(grep -a '^  hotspot: ' "$S/grip_gun17.log")
 nhs17=$(grep -ac '^  hotspot: ' "$S/grip_gun17.log")
 g1=$(fwdOf "$hs17" 0); g2=$(fwdOf "$hs17" 1)
@@ -142,9 +142,9 @@ two17=$(keep1 "$(grep -a '^  two hands: ' "$S/grip_gun17.log" | head -1)")
 poseA=$(grep -a '^    an empty hand ' "$S/grip_ship.log" | head -1)
 poseB=$(grep -a '^    an empty hand ' "$S/grip_gun17.log" | head -1)
 check $([ "$nhs17" = 3 ] && inq "$g1" -8 -1 && [ "$left" = 1 ] && echo 1 || echo 0) \
-    "vr_flat_gun_fwd 17 alone puts the shotgun's grip behind the held hand and the mode leaves it to its own support pose: $(sed 's/^  //' <<<"$hs17" | head -1) -- $two17"
+    "vr_flat_gun_ahead 17 alone puts the shotgun's grip behind the held hand and the mode leaves it to its own support pose: $(sed 's/^  //' <<<"$hs17" | head -1) -- $two17"
 check $(awk -v a="$f1" -v b="$g1" 'BEGIN{exit !((a + 0) - (b + 0) >= 10)}' && echo 1 || echo 0) \
-    "that move is $(awk -v a="$f1" -v b="$g1" 'BEGIN{printf "%.1f", (a + 0) - (b + 0)}') units along vr_flat_gun_fwd's own 12 (17 -> 5): the shotgun's hotspot reads fwd $g1 at 17 and fwd $f1 at the shipped 5"
+    "that move is $(awk -v a="$f1" -v b="$g1" 'BEGIN{printf "%.1f", (a + 0) - (b + 0)}') units along vr_flat_gun_ahead's 12 (17 -> 5): the shotgun's hotspot reads fwd $g1 at 17 and fwd $f1 at the shipped 5"
 check $([ "$(grep -ac 'on its grip hotspot (held holding: helpKind 1' "$S/grip_gun17.log")" = 2 ] && gate 5 20 "$g2" "$f2" && echo 1 || echo 0) \
     "and it is the shotgun alone: at the same 17 the rocket launcher still stands ahead (fwd $g2, $f2 at 5) and its hold is still taken, as the proximity gun's is"
 check $([ -n "$poseA" ] && [ "$poseA" = "$poseB" ] && echo 1 || echo 0) \
