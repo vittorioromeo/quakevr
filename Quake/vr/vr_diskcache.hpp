@@ -82,6 +82,12 @@ void setInPlay(bool inPlay);
     unsigned& a, unsigned& b, za::Vector<char>& data, const char* what = nullptr);
 void write(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned a,
     unsigned b, const void* data, size_t length);
+// Any thread (a skin's normal map job, vr_normalmaps.cpp VR_SkinNormalsPost): the RGBA file of `key` in `folder`
+// (folderOf's, taken on the main thread) read into `rgba` (width x height x 4): 1 read, 2 none, 3 there but amiss.
+// Counts nothing and reads no cvar: the main thread notes what it found (noteRgbaRead) at the job's join.
+[[nodiscard]] int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* rgba, int width, int height,
+    double& seconds);
+void noteRgbaRead(Product p, int status, size_t bytes, double seconds, const char* what); // main thread
 // Whether that file is there (no read; the warm-up's and the loads' look-ahead).
 [[nodiscard]] bool has(Product p, const char* build, unsigned long long key, const char* ext);
 

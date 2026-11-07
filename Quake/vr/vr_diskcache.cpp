@@ -335,6 +335,40 @@ bool read(Product p, const char* build, unsigned long long key, const char* ext,
     return true;
 }
 
+int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* rgba, int width, int height, double& seconds)
+{
+    const double t0 = Sys_DoubleTime();
+    unsigned w = 0, h = 0;
+    bool there = false;
+    za::Vector<char> data;
+    if(!readFile(folder + nameOf(key, "nrm"), normalMagic, w, h, data, there))
+    {
+        return there ? 3 : 2;
+    }
+    if(w != static_cast<unsigned>(width) || h != static_cast<unsigned>(height) ||
+        data.size() != static_cast<size_t>(width) * height * 4)
+    {
+        return 3;
+    }
+    memcpy(rgba, data.data(), data.size());
+    seconds = Sys_DoubleTime() - t0;
+    return 1;
+}
+
+void noteRgbaRead(Product p, int status, size_t bytes, double seconds, const char* what)
+{
+    if(status == 1)
+    {
+        noteHit(p, bytes, seconds);
+        return;
+    }
+    if(status == 3)
+    {
+        noteRejected(p);
+    }
+    noteMiss(p, what);
+}
+
 bool has(Product p, const char* build, unsigned long long key, const char* ext)
 {
     return files::isFile(fileFor(p, build, key, ext).cStr());
@@ -361,7 +395,9 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     if(writes.size() >= writesMost)
     {
         QVR_TRACY_SCOPE(tracyScope, "disk cache oldest wait");
+        const double t0 = Sys_DoubleTime();
         writes.front().wait();
+        VR_TimeAdd("disk cache: a write waited for (64 under way)", Sys_DoubleTime() - t0); // load timing (vr_startup_times)
         writes.erase(writes.begin());
     }
     QVR_TRACY_SCOPE(submitScope, "disk cache submit");
