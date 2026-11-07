@@ -773,6 +773,13 @@ void registerCommands()
         });
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    (void)ensurePrograms();
+}
+
 } // namespace qvr::temporal
 
 using namespace qvr;

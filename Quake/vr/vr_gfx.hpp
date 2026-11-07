@@ -359,4 +359,21 @@ void destroyTexture(Texture texture);
 // sources (no `fragment`: depth only), labelled `name`; 0, with a warning, if it does not build.
 [[nodiscard]] unsigned glProgram(const char* vertex, const char* fragment, const char* name);
 
+// Every VR program made lazily (programFor's, the particles', the modules' below) made now: at start-up
+// (VR_PrecompilePrograms, after GL_CreateShaders), so that no first draw compiles one in play. The permanent decals'
+// bake program is made in each map's load (vr_permdecals.cpp), the envmap's with its targets.
+void precompilePrograms();
+
 } // namespace qvr::gfx
+
+// The modules' own (each as its first use would make them; gfx::precompilePrograms calls them).
+namespace qvr::bloom { void precompilePrograms(); }
+namespace qvr::bttrails { void precompilePrograms(); }
+namespace qvr::dynres { void precompilePrograms(); }
+namespace qvr::foveated { void precompilePrograms(); }
+namespace qvr::haze { void precompilePrograms(); }
+namespace qvr::lighting { void precompilePrograms(); }
+namespace qvr::stereo { void precompilePrograms(); }
+namespace qvr::temporal { void precompilePrograms(); }
+namespace qvr::upscale { void precompilePrograms(); }
+namespace qvr::water { void precompilePrograms(); }

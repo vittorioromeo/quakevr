@@ -2778,3 +2778,8 @@ void lighting::shadowCounts(int& dlights, int& mapLights)
         mapLights += slot.light >= 0 && slot.fade > 0.f ? 1 : 0;
     }
 }
+
+void lighting::precompilePrograms()
+{
+    (void)ensureProgram(); // (gfx::precompilePrograms)
+}

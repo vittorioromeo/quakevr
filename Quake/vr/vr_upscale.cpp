@@ -585,4 +585,13 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    (void)easu();
+    (void)compose();
+    (void)nis();
+}
+
 } // namespace qvr::upscale

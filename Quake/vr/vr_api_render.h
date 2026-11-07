@@ -317,6 +317,7 @@ unsigned VR_SceneTarget (unsigned *color, unsigned *depth, int *samples, int vie
 void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)
 void VR_FillSurfaceLux (struct msurface_s *surf, unsigned *lux_data, int lightmap_width); // GL_BuildLightmaps: a lit face's light directions (deluxemaps)
 void VR_ItemTextureClamp (struct qmodel_s *mod);			// Mod_LoadBrushModel: an item box's faces' texture ranges (maps/b_*: parallax stops at their edges)
+void VR_PrecompilePrograms (void);						// GL_Init, after GL_CreateShaders: the VR passes' programs (vr_gfx_gl.cpp), none compiled at a first draw
 void VR_SkinsBegin (void);								// Mod_LoadAllSkins, first
 void VR_ExternalSkin (struct qmodel_s *mod, void *hdr, struct gltexture_s **skin, struct gltexture_s **fb, unsigned texflags,
 	unsigned char *texels, int size, src_offset_t offset, int i, int j); // Mod_LoadAllSkins: skin i (frame j of a group, -1 none) replaced by a full-colour one, its normal map queued
