@@ -993,6 +993,267 @@ findradius (origin, radius)
 =================
 */
 #define FINDRADIUS_AHEAD 8 // QVR: edicts prefetched ahead of the walk
+
+// ---- PROTOTYPE (agent/perfdesign, scratch, not for shipping): findradius variants timed and compared ----
+#include <intrin.h>
+void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace);
+cvar_t vr_frp = {"vr_frp", "0", CVAR_NONE}; // 0 vanilla; 1 all variants timed, compared (vanilla's chain); 2 solid-first; 3 grid
+#define FRP_V 5	// 0 vanilla, 1 vanilla again (warm), 2 solid-first, 3 area grid + sort, 4 SoA snapshot scan
+#define FRP_CALLERS 96
+typedef struct { dfunction_t *f; const char *name; double calls, rad, hits, cand; unsigned long long t[FRP_V]; double diff[FRP_V]; } frp_caller_t;
+static frp_caller_t frp_callers[FRP_CALLERS];
+static int frp_ncallers, frp_griddiffs;
+static edict_t **frp_buf[FRP_V]; static int frp_cnt[FRP_V]; static int frp_space;
+static edict_t **frp_area; static int frp_areaspace;
+static float *frp_cx, *frp_cy, *frp_cz; static unsigned char *frp_alive; static int frp_snapn, frp_snapspace;
+static double frp_snaptime = -1, frp_frames, frp_calls, frp_edicts, frp_free, frp_notsolid, frp_samecentre, frp_samecall;
+static unsigned long long frp_snapcycles, frp_c0; static double frp_t0;
+#define FRP_SEEN 1024
+static float frp_seen[FRP_SEEN][4]; static int frp_nseen;
+
+static void FRP_Grow (void)
+{
+	int i, n = qcvm->num_edicts + 16;
+	if (n <= frp_space)
+		return;
+	frp_space = n * 2;
+	for (i = 0; i < FRP_V; i++)
+		frp_buf[i] = (edict_t **) realloc (frp_buf[i], frp_space * sizeof (edict_t *));
+	frp_area = (edict_t **) realloc (frp_area, frp_space * sizeof (edict_t *));
+	frp_areaspace = frp_space;
+}
+
+static qboolean FRP_In (const edict_t *ent, const float *org, float rad)
+{
+	float d, lensq;
+	d = org[0] - (ent->v.origin[0] + (ent->v.mins[0] + ent->v.maxs[0]) * 0.5); lensq = d * d; if (lensq > rad) return false;
+	d = org[1] - (ent->v.origin[1] + (ent->v.mins[1] + ent->v.maxs[1]) * 0.5); lensq += d * d; if (lensq > rad) return false;
+	d = org[2] - (ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2]) * 0.5); lensq += d * d; if (lensq > rad) return false;
+	return true;
+}
+
+static void FRP_Vanilla (const float *org, float rad, edict_t **out, int *n)
+{
+	int i; edict_t *ent = NEXT_EDICT(qcvm->edicts);
+	*n = 0;
+	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
+	{
+		if (i + FINDRADIUS_AHEAD < qcvm->num_edicts)
+		{
+			const byte *ahead = (const byte *)ent + FINDRADIUS_AHEAD * qcvm->edict_size;
+			__builtin_prefetch (ahead);
+			__builtin_prefetch (ahead + offsetof (edict_t, v.solid));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.origin));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.mins));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.maxs) + sizeof (ent->v.maxs) - 1);
+		}
+		if (ent->free || ent->v.solid == SOLID_NOT || !FRP_In (ent, org, rad))
+			continue;
+		out[(*n)++] = ent;
+	}
+}
+
+// ED_Free sets .solid 0: a free edict is SOLID_NOT, so .solid first skips the header's line
+static void FRP_SolidFirst (const float *org, float rad, edict_t **out, int *n)
+{
+	int i; edict_t *ent = NEXT_EDICT(qcvm->edicts);
+	*n = 0;
+	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
+	{
+		if (i + FINDRADIUS_AHEAD < qcvm->num_edicts)
+		{
+			const byte *ahead = (const byte *)ent + FINDRADIUS_AHEAD * qcvm->edict_size;
+			__builtin_prefetch (ahead + offsetof (edict_t, v.solid));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.mins));
+		}
+		if (ent->v.solid == SOLID_NOT || ent->free || !FRP_In (ent, org, rad))
+			continue;
+		out[(*n)++] = ent;
+	}
+}
+
+static int FRP_PtrCmp (const void *a, const void *b)
+{
+	const edict_t *x = *(edict_t * const *)a, *y = *(edict_t * const *)b;
+	return x < y ? -1 : x > y;
+}
+
+static void FRP_Grid (const float *org, float rad, edict_t **out, int *n, int *cand)
+{
+	float r = sqrtf (rad), lo[3], hi[3];
+	int i, c = 0;
+	*n = 0;
+	for (i = 0; i < 3; i++) { lo[i] = org[i] - r; hi[i] = org[i] + r; }
+	SV_AreaEdictsUnordered (lo, hi, frp_area, &c, frp_areaspace);
+	*cand = c;
+	for (i = 0; i < c; i++)
+	{
+		edict_t *ent = frp_area[i];
+		if (ent->free || ent->v.solid == SOLID_NOT || !FRP_In (ent, org, rad))
+			continue;
+		out[(*n)++] = ent;
+	}
+	if (*n > 1)
+		qsort (out, *n, sizeof (edict_t *), FRP_PtrCmp);
+}
+
+static void FRP_Snapshot (void)
+{
+	int i, n = qcvm->num_edicts; edict_t *ent;
+	unsigned long long c = __rdtsc ();
+	if (n > frp_snapspace)
+	{
+		frp_snapspace = n * 2;
+		frp_cx = (float *) realloc (frp_cx, frp_snapspace * sizeof (float));
+		frp_cy = (float *) realloc (frp_cy, frp_snapspace * sizeof (float));
+		frp_cz = (float *) realloc (frp_cz, frp_snapspace * sizeof (float));
+		frp_alive = (unsigned char *) realloc (frp_alive, frp_snapspace);
+	}
+	ent = qcvm->edicts;
+	for (i = 0; i < n; i++, ent = NEXT_EDICT(ent))
+	{
+		frp_alive[i] = i > 0 && !ent->free && ent->v.solid != SOLID_NOT;
+		frp_cx[i] = ent->v.origin[0] + (ent->v.mins[0] + ent->v.maxs[0]) * 0.5f;
+		frp_cy[i] = ent->v.origin[1] + (ent->v.mins[1] + ent->v.maxs[1]) * 0.5f;
+		frp_cz[i] = ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2]) * 0.5f;
+		frp_free += ent->free;
+		frp_notsolid += !ent->free && ent->v.solid == SOLID_NOT;
+	}
+	frp_snapn = n;
+	frp_snapcycles += __rdtsc () - c;
+}
+
+static void FRP_SoA (const float *org, float rad, edict_t **out, int *n)
+{
+	int i; const float ox = org[0], oy = org[1], oz = org[2];
+	*n = 0;
+	for (i = 1; i < frp_snapn; i++)
+	{
+		const float dx = ox - frp_cx[i], dy = oy - frp_cy[i], dz = oz - frp_cz[i];
+		if (frp_alive[i] && dx * dx + dy * dy + dz * dz <= rad)
+			out[(*n)++] = EDICT_NUM(i);
+	}
+}
+
+static void FRP_Run (const float *org, float rad)
+{
+	int v, i, cand = 0, mode = (int) vr_frp.value;
+	unsigned long long c;
+	frp_caller_t *cs = NULL;
+	edict_t *chain = (edict_t *)qcvm->edicts, **res;
+	FRP_Grow ();
+	if (!frp_c0) { frp_c0 = __rdtsc (); frp_t0 = Sys_DoubleTime (); }
+	if (qcvm->time != frp_snaptime)
+	{
+		frp_snaptime = qcvm->time; frp_frames++; frp_nseen = 0;
+		frp_edicts += qcvm->num_edicts;
+		if (mode == 1) FRP_Snapshot ();
+	}
+	frp_calls++;
+	for (i = 0; i < frp_nseen; i++)
+		if (frp_seen[i][0] == org[0] && frp_seen[i][1] == org[1] && frp_seen[i][2] == org[2])
+		{
+			frp_samecentre++;
+			if (frp_seen[i][3] == rad) frp_samecall++;
+			break;
+		}
+	if (frp_nseen < FRP_SEEN) { frp_seen[frp_nseen][0] = org[0]; frp_seen[frp_nseen][1] = org[1]; frp_seen[frp_nseen][2] = org[2]; frp_seen[frp_nseen][3] = rad; frp_nseen++; }
+	for (i = 0; i < frp_ncallers; i++)
+		if (frp_callers[i].f == qcvm->xfunction) { cs = &frp_callers[i]; break; }
+	if (!cs && frp_ncallers < FRP_CALLERS) { cs = &frp_callers[frp_ncallers++]; memset (cs, 0, sizeof (*cs)); cs->f = qcvm->xfunction; cs->name = qcvm->xfunction ? PR_GetString (qcvm->xfunction->s_name) : "?"; }
+	rad = fabsf (rad);
+	rad *= rad;
+	if (mode == 1)
+	{
+		c = __rdtsc (); FRP_Vanilla (org, rad, frp_buf[0], &frp_cnt[0]); if (cs) cs->t[0] += __rdtsc () - c;
+		c = __rdtsc (); FRP_Vanilla (org, rad, frp_buf[1], &frp_cnt[1]); if (cs) cs->t[1] += __rdtsc () - c;
+		c = __rdtsc (); FRP_SolidFirst (org, rad, frp_buf[2], &frp_cnt[2]); if (cs) cs->t[2] += __rdtsc () - c;
+		c = __rdtsc (); FRP_Grid (org, rad, frp_buf[3], &frp_cnt[3], &cand); if (cs) cs->t[3] += __rdtsc () - c;
+		c = __rdtsc (); FRP_SoA (org, rad, frp_buf[4], &frp_cnt[4]); if (cs) cs->t[4] += __rdtsc () - c;
+		for (v = 1; v < FRP_V && cs; v++)
+			if (frp_cnt[v] != frp_cnt[0] || memcmp (frp_buf[v], frp_buf[0], frp_cnt[0] * sizeof (edict_t *)))
+			{
+				cs->diff[v]++;
+				if (v == 3 && frp_griddiffs < 40)
+				{
+					int a, b;
+					for (a = 0; a < frp_cnt[0]; a++)
+					{
+						edict_t *e = frp_buf[0][a];
+						for (b = 0; b < frp_cnt[3] && frp_buf[3][b] != e; b++) {}
+						if (b == frp_cnt[3] && frp_griddiffs++ < 40)
+							Con_Printf ("frpdiff: %s missed #%d %s solid %g movetype %g linked %d origin %.1f %.1f %.1f abs centre %.1f %.1f %.1f\n",
+								cs->name, NUM_FOR_EDICT(e), PR_GetString (e->v.classname), e->v.solid, e->v.movetype, e->area.prev != NULL,
+								e->v.origin[0], e->v.origin[1], e->v.origin[2], (e->v.absmin[0] + e->v.absmax[0]) * 0.5,
+								(e->v.absmin[1] + e->v.absmax[1]) * 0.5, (e->v.absmin[2] + e->v.absmax[2]) * 0.5);
+					}
+				}
+			}
+		res = frp_buf[0]; v = 0;
+	}
+	else
+	{
+		v = mode == 3 ? 3 : mode == 2 ? 2 : 0;
+		c = __rdtsc ();
+		if (v == 3) FRP_Grid (org, rad, frp_buf[3], &frp_cnt[3], &cand);
+		else if (v == 2) FRP_SolidFirst (org, rad, frp_buf[2], &frp_cnt[2]);
+		else FRP_Vanilla (org, rad, frp_buf[0], &frp_cnt[0]);
+		if (cs) cs->t[v] += __rdtsc () - c;
+		res = frp_buf[v];
+	}
+	if (cs) { cs->calls++; cs->rad += sqrtf (rad); cs->hits += frp_cnt[v]; cs->cand += cand; }
+	for (i = 0; i < frp_cnt[v]; i++)
+	{
+		res[i]->v.chain = EDICT_TO_PROG(chain);
+		chain = res[i];
+	}
+	RETURN_EDICT(chain);
+}
+
+static int FRP_CallerCmp (const void *a, const void *b)
+{
+	const frp_caller_t *x = (const frp_caller_t *)a, *y = (const frp_caller_t *)b;
+	return x->t[0] + x->t[2] + x->t[3] < y->t[0] + y->t[2] + y->t[3] ? 1 : -1;
+}
+
+static void FRP_Stats_f (void)
+{
+	int i, v;
+	double ns = frp_c0 ? (Sys_DoubleTime () - frp_t0) * 1e9 / (double)(__rdtsc () - frp_c0) : 0, tot[FRP_V] = {0}, diffs[FRP_V] = {0};
+	Con_Printf ("frp: mode %d, %.0f frames, %.0f calls (%.1f a frame), edicts %.0f avg (free %.0f, SOLID_NOT %.0f a frame), edict_size %d\n",
+		(int) vr_frp.value, frp_frames, frp_calls, frp_calls / (frp_frames > 0 ? frp_frames : 1), frp_edicts / (frp_frames > 0 ? frp_frames : 1),
+		frp_free / (frp_frames > 0 ? frp_frames : 1), frp_notsolid / (frp_frames > 0 ? frp_frames : 1), sv.qcvm.edict_size);
+	Con_Printf ("frp: offsets free %d solid %d origin %d mins %d maxs %d absmin %d chain %d\n", (int) offsetof (edict_t, free),
+		(int) offsetof (edict_t, v.solid), (int) offsetof (edict_t, v.origin), (int) offsetof (edict_t, v.mins), (int) offsetof (edict_t, v.maxs),
+		(int) offsetof (edict_t, v.absmin), (int) offsetof (edict_t, v.chain));
+	Con_Printf ("frp: same centre again in a frame %.0f (same centre and radius %.0f); snapshot build %.2f us a frame\n", frp_samecentre,
+		frp_samecall, frp_frames > 0 ? frp_snapcycles * ns / 1000.0 / frp_frames : 0);
+	qsort (frp_callers, frp_ncallers, sizeof (frp_caller_t), FRP_CallerCmp);
+	Con_Printf ("frp: caller calls/frame rad hits cand | us a call: vanilla, again, solidfirst, grid, soa | diffs again sf grid soa\n");
+	for (i = 0; i < frp_ncallers; i++)
+	{
+		const frp_caller_t *c = &frp_callers[i];
+		for (v = 0; v < FRP_V; v++) { tot[v] += c->t[v]; diffs[v] += c->diff[v]; }
+		if (i < 14)
+			Con_Printf ("frp: %-28s %6.2f %5.0f %5.1f %5.1f | %6.2f %6.2f %6.2f %6.2f %6.2f | %.0f %.0f %.0f %.0f\n",
+				c->name, c->calls / (frp_frames > 0 ? frp_frames : 1), c->rad / c->calls, c->hits / c->calls,
+				c->cand / c->calls, c->t[0] * ns / 1000 / c->calls, c->t[1] * ns / 1000 / c->calls, c->t[2] * ns / 1000 / c->calls,
+				c->t[3] * ns / 1000 / c->calls, c->t[4] * ns / 1000 / c->calls, c->diff[1], c->diff[2], c->diff[3], c->diff[4]);
+	}
+	Con_Printf ("frp: total ms a frame: vanilla %.3f again %.3f solidfirst %.3f grid %.3f soa %.3f (+snapshot) | diffs %.0f %.0f %.0f %.0f\n",
+		tot[0] * ns / 1e6 / frp_frames, tot[1] * ns / 1e6 / frp_frames, tot[2] * ns / 1e6 / frp_frames, tot[3] * ns / 1e6 / frp_frames,
+		tot[4] * ns / 1e6 / frp_frames, diffs[1], diffs[2], diffs[3], diffs[4]);
+	Con_Printf ("frp: done\n");
+	frp_ncallers = 0; frp_frames = frp_calls = frp_edicts = frp_free = frp_notsolid = frp_samecentre = frp_samecall = 0; frp_snapcycles = 0;
+}
+
+void FRP_Init (void)
+{
+	Cvar_RegisterVariable (&vr_frp);
+	Cmd_AddCommand ("vr_frp_stats", FRP_Stats_f);
+}
+// ---- end PROTOTYPE ----
+
 static void PF_findradius (void)
 {
 	edict_t	*ent, *chain;
@@ -1000,6 +1261,11 @@ static void PF_findradius (void)
 	float	*org;
 	int		i;
 
+	if (vr_frp.value && qcvm == &sv.qcvm) // PROTOTYPE
+	{
+		FRP_Run (G_VECTOR(OFS_PARM0), G_FLOAT(OFS_PARM1));
+		return;
+	}
 	chain = (edict_t *)qcvm->edicts;
 
 	org = G_VECTOR(OFS_PARM0);

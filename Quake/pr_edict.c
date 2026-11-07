@@ -2477,6 +2477,7 @@ void PR_Init (void)
 		cmd->completion = ED_PrintEdict_Completion_f;
 	Cmd_AddCommand ("edicts", ED_PrintEdicts);
 	Cmd_AddCommand ("edictcount", ED_Count);
+	{ extern void FRP_Init (void); FRP_Init (); } // PROTOTYPE (agent/perfdesign)
 	Cmd_AddCommand ("profile", PR_Profile_f);
 	Cmd_AddCommand ("profile_qc", PR_ProfileQC_f); // QVR: per-function time (vr_qcprofile)
 	Cvar_RegisterVariable (&vr_qcprofile);
