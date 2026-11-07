@@ -4,6 +4,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_edictindex.hpp"
 
 namespace box3d::detail
 {
@@ -72,7 +73,11 @@ void watchCorpses()
     watch.resize(static_cast<size_t>(qcvm->num_edicts));
     world->motion.resize(static_cast<size_t>(qcvm->num_edicts));
     const bool on = corpseMode() != 0 || vr_ragdoll.value >= 1.f; // (ragdolls: when a frame changed, createRagdoll)
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    // The monsters now and the edicts it left a watch or a motion on last frame (no longer monsters: theirs cleared), in
+    // edict order; every other edict's are cleared already (the edict index's FL_MONSTER).
+    qvr::edictindex::flaggedOrKept(svs.maxclients, FL_MONSTER, world->corpseNums, world->corpseScan);
+    const za::Vector<int>& scan = world->corpseScan;
+    for(const int num : scan)
     {
         // A monster's motion (a beheaded one's ragdoll goes on with it: ownMotion). A teleport (or a respawn) starts it
         // again.
@@ -104,7 +109,7 @@ void watchCorpses()
     }
     if(vr_ragdoll_active.value != 0.f)
     {
-        for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+        for(const int num : scan)
         {
             edict_t* const me = EDICT_NUM(num);
             if(!me->free && hasFlag(me, FL_MONSTER) && me->v.health > 0.f)
@@ -115,9 +120,14 @@ void watchCorpses()
             }
         }
     }
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    world->corpseNums.clear();
+    for(const int num : scan)
     {
         World::CorpseWatch& w = watch[static_cast<size_t>(num)];
+        if(!EDICT_NUM(num)->free && hasFlag(EDICT_NUM(num), FL_MONSTER))
+        {
+            world->corpseNums.pushBack(num); // (a watch or a motion left on it, maybe)
+        }
         edict_t* ent = EDICT_NUM(num);
         if(!on || ent->free || !deadMonster(ent))
         {
@@ -495,7 +505,9 @@ constexpr double corpseStuck = 2.0; // s
 void settleCorpses()
 {
     const float wake = za::max(vr_corpse_placed_wake.value, 0.f);
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->corpseWatch.size()); num++)
+    // (the monsters only: the edict index's FL_MONSTER)
+    for(int num = qvr::edictindex::nextFlagged(svs.maxclients, FL_MONSTER);
+        num > 0 && num < static_cast<int>(world->corpseWatch.size()); num = qvr::edictindex::nextFlagged(num, FL_MONSTER))
     {
         edict_t* ent = EDICT_NUM(num);
         if(ent->free || !deadMonster(ent) || isRagdollSlot(num))

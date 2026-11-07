@@ -8,6 +8,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_drawnpose.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_held.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
@@ -1375,7 +1376,10 @@ void serverFrame()
     {
         tracks.resize(static_cast<za::SizeT>(qcvm->max_edicts));
     }
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    // The targets (monsters) now and the edicts it left a track on (no longer targets: theirs cleared), in edict order;
+    // every other edict's track has no model already (the edict index's FL_MONSTER: isTarget's).
+    edictindex::flaggedOrKept(0, FL_MONSTER, trackNums, trackScan);
+    for(const int num : trackScan)
     {
         edict_t* ent = EDICT_NUM(num);
         Track& t = tracks[static_cast<za::SizeT>(num)];
@@ -1421,6 +1425,22 @@ void serverFrame()
         t.step = static_cast<int>(ent->v.movetype) == MOVETYPE_STEP;
         t.seen = now;
     }
+    // The tracks left with a model: those it visited that have one, and those past the edicts (not visited: kept).
+    za::SizeT past = 0;
+    while(past < trackNums.size() && trackNums[past] < qcvm->num_edicts)
+    {
+        past++;
+    }
+    trackNums.erase(trackNums.begin(), trackNums.begin() + past);
+    za::SizeT n = 0;
+    for(const int num : trackScan)
+    {
+        if(tracks[static_cast<za::SizeT>(num)].model)
+        {
+            trackScan[n++] = num;
+        }
+    }
+    trackNums.insert(trackNums.begin(), trackScan.begin(), trackScan.begin() + n);
 }
 
 namespace
@@ -1524,6 +1544,7 @@ void reset()
     za::fill(byIndex, nullptr);
     za::fill(byIndexModel, nullptr);
     tracks.clear();
+    trackNums.clear();
     last = Last{};
     events.clear();
     resetZones();

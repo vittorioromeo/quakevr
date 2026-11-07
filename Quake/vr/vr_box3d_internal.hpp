@@ -728,6 +728,9 @@ struct World
         double aliveAt{-1.0};
     };
     za::Vector<MonsterMotion> motion;
+    // watchCorpses' edicts: the monsters it left a watch or a motion on (ascending; every other's is cleared), and the
+    // ones it visits (those and the monsters now: the edict index's; edictindex::flaggedOrKept).
+    za::Vector<int> corpseNums, corpseScan;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
     // A full ragdoll pool (vr_ragdoll_max): the corpses waiting for QC to make room (VR_Knockdown_MakeRoom), run after
     // syncEntities' edict loop rather than inside it; and the ones it refused, left as corpses until they are gone.

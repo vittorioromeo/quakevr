@@ -579,7 +579,7 @@ void registerCommands()
 int nextNonzero(int from, int field)
 {
     const int i = watchedFloatOf(field);
-    if(i >= 0 && watch.floatNonzero[i])
+    if(i >= 0 && watch.floatNonzero[i] && qcvm == &sv.qcvm)
     {
         if(EdictIndex* ix = ready())
         {
@@ -599,9 +599,60 @@ int nextNonzero(int from, int field)
     return 0;
 }
 
+int nextFlagged(int from, int bits)
+{
+    constexpr int flagsField = static_cast<int>(offsetof(entvars_t, flags) / 4);
+    // (another VM current: the walk, the index left as it is)
+    const int found = qcvm == &sv.qcvm ? VR_EdictIndex_FindFlags(from, flagsField, bits) : -1;
+    if(found >= 0)
+    {
+        return found;
+    }
+    for(int e = from + 1; e < qcvm->num_edicts; e++)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        if(!ed->free && (static_cast<int>(ed->v.flags) & bits))
+        {
+            return e;
+        }
+    }
+    return 0;
+}
+
+void flaggedOrKept(int from, int bits, const za::Vector<int>& kept, za::Vector<int>& out)
+{
+    out.clear();
+    const int end = qcvm->num_edicts;
+    za::SizeT k = 0;
+    while(k < kept.size() && kept[k] <= from)
+    {
+        k++;
+    }
+    for(int e = nextFlagged(from, bits);; e = nextFlagged(e, bits))
+    {
+        const int upTo = e > 0 ? e : end;
+        for(; k < kept.size() && kept[k] < upTo; k++)
+        {
+            if(kept[k] < end)
+            {
+                out.pushBack(kept[k]);
+            }
+        }
+        if(e <= 0)
+        {
+            break;
+        }
+        out.pushBack(e);
+        if(k < kept.size() && kept[k] == e)
+        {
+            k++;
+        }
+    }
+}
+
 int nextClassname(int from, const char* name)
 {
-    const int found = VR_EdictIndex_Find(from, classField, name);
+    const int found = qcvm == &sv.qcvm ? VR_EdictIndex_Find(from, classField, name) : -1;
     if(found >= 0)
     {
         return found;

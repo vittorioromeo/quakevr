@@ -221,5 +221,8 @@ struct Track
     float moveDur{0.1f};
 };
 inline za::Vector<Track> tracks;
+// serverFrame's edicts: those with a track's model left on (ascending; every other's is nullptr), and the ones it
+// visits (those and the monsters now: the edict index's; edictindex::flaggedOrKept).
+inline za::Vector<int> trackNums, trackScan;
 
 } // namespace qvr::hitmodel::detail
