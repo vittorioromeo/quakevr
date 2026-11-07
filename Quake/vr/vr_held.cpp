@@ -204,6 +204,11 @@ struct DrawnMesh
     za::Vector<Triangle> tris;
     za::Vector<MeshNode> nodes;
     disarmhull::Hull hull; // its triangles' convex hull (drawnHull: made the first time asked)
+    // drawnExtent's answer (a function of this mesh alone: made the first time asked, dropped with the mesh)
+    mutable bool extentDone{false};
+    mutable bool extentOk{false};
+    mutable glm::vec3 extentBack{0.f}, extentFront{0.f};
+    mutable float extentRadius{0.f};
     DrawnMesh(const qmodel_t* m, int p, const DrawnTransform& t) : model{m}, pose{p}, xf{t} {}
 };
 
@@ -887,7 +892,9 @@ const disarmhull::Hull* drawnHull(edict_t* ent)
     return m->hull.ok ? &m->hull : nullptr;
 }
 
-bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+namespace
+{
+bool computeExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
 {
     // Its hull's long axis (its two corners farthest apart: a blade's length whichever way its model has it, not its
     // model's x), through its corners' middle, from the least to the most of them along it; the radius their most off it.
@@ -1025,6 +1032,31 @@ bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
     front = f;
     radius = r;
     return true;
+}
+} // namespace
+
+bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+{
+    // (its mesh's: worked out once a mesh, computeExtent; QC asks for each held weapon several times a frame)
+    glm::mat3 axes;
+    glm::vec3 origin;
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    if(!m)
+    {
+        return false;
+    }
+    if(!m->extentDone)
+    {
+        m->extentOk = computeExtent(ent, m->extentBack, m->extentFront, m->extentRadius);
+        m->extentDone = true;
+    }
+    if(m->extentOk)
+    {
+        back = m->extentBack;
+        front = m->extentFront;
+        radius = m->extentRadius;
+    }
+    return m->extentOk;
 }
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)

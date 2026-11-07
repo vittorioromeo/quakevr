@@ -74,6 +74,9 @@ Flat-screen: die with the immersive death view: the camera tumbles with your hea
 Armour: the knight's red shoulder pads no longer show from the front (pauldrons closed over the top by a dome): look at an armed knight from your height, idle, running and swinging; the domes shouldn't look too big {test:armor_look}
 VR Settings > Gameplay: the big gameplay switches (humanoid replacements, drops, melee, knockdowns, holding enemies, bullet time, gore, arena) on one page; check the wording of each row
 Holding one enemy with both hands no longer crashes the game
+Armed humanoids far off in view (600+ units): arms still smooth
+Two-handed armed humanoids: the off hand still takes and keeps the second grip
+Try vr_agarms_warm 1: do armed humanoids' free hands and fists look better or worse?
 [ ] Fresh map seeds (VR Settings > Gameplay > Maps > "New Each Time", on by default): start e1m1, note the crates/barrels by the first walls and the armed grunts' guns; `restart` (or new game): they should differ. Quicksave, play on, quickload: exactly as saved. Turn it off, restart twice: the same both times. `vr_map_seed_info` prints the seed.
 [ ] Armour Studio, leather taper: pick Knee Sleeves (Thigh's) or another sleeve part; Taper at Start / Taper at End now shape the leather (start = the end nearer the body). The leather stays tucked under the plates; looks right at 1.2 / 0.8? (ImGui window and menu page)
 [ ] Armour Studio, your body: Kind = Player with NO armour on you (fresh game): the clone (window: ahead-left; menu page: beside the panel) wears the Tier picked; change Tier, toggle Wear the Part Alone, switch vr_body_build 1/2/3 while it shows. Your own body wears it too while the studio shows.

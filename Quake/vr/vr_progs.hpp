@@ -141,6 +141,13 @@ struct Bindings
     float* agkPart[9]{};
     float* agDrawn[3]{};
     float* agExtent[2]{};
+    // agposesend's pose (QC vr_armedgrunt_pose.qc VR_AGP_Pose's globals, in AgPoseGlobal's order). Any null: QC writes it.
+    enum AgPoseGlobal
+    {
+        agpWr, agpV, agpFw, agpUp, agpF, agpR, agpWo, agpWl, agpVl, agpFwl, agpUpl, agpTq, agpElr, agpEll, agkGp, agkGr, agkLp,
+        agkLr, agpWaist, agPoseCount
+    };
+    float* agPose[agPoseCount]{};
     float* blowLine[3]{}; // blowline's (vr_blowline.cpp): vr_blow_a, vr_blow_b, vr_blow_more
     float* extSpawnParms[numExtSpawnParms]{};
 };

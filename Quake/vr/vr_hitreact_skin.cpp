@@ -9,17 +9,29 @@ namespace hitreact_detail
 {
 
 // vr_agarms: `e`'s arms posed by its weapons (vr_agarms.cpp) and those drawn on its hands; `s` placed this frame.
-void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend)
+SkinWork soloWork; // (relinkSkinned's)
+
+bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend,
+    SkinWork& w, bool batch)
 {
+    w.s = &s;
+    w.e = e;
+    w.hdr = hdr;
+    w.pose1 = pose1;
+    w.pose2 = pose2;
+    w.blend = blend;
+    w.ticket = -1;
     const ArmedRig* a = armedRigOf(e->model);
     const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
-    agarms::Spec spec;
+    agarms::Spec& spec = w.spec;
+    spec = agarms::Spec{};
+    w.rig = rig;
     if(!a || !rig || rig->numPoses != hdr->numposes || !specOf(*a, *rig, hdr, spec))
     {
-        return;
+        return false;
     }
     // Its bones as drawn (kickInstance's), their hit reactions (the chest's carries the shoulders, and the weapons).
-    rigpose::Rigid posed[ragdoll::maxBones];
+    rigpose::Rigid* posed = w.posed;
     const float b = pose1 == pose2 ? 0.f : za::clamp(blend, 0.f, 1.f);
     for(int i = 0; i < rig->numBones; i++)
     {
@@ -156,11 +168,12 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         posed[i] = composeRigid(body[i], posed[i]);
     }
-    rigpose::Rigid kick[ragdoll::maxBones];
+    rigpose::Rigid* kick = w.kick;
     const bool kicked = vr_hit_react.value == 1.f && hitreact::reacting(e) && hitreact::boneKicks(e, *rig, posed, kick);
     const rigpose::Rigid chestKick = kicked ? kick[spec.chest] : rigpose::Rigid{};
     const int kind = spec.kind;
-    agarms::Targets t;
+    agarms::Targets& t = w.t;
+    t = agarms::Targets{};
     const bool hasR = heldProp(s.prop);
     const int slot = hasR ? weapons::slotForModel(cl_entities[s.prop].model) : -1;
     if(hasR)
@@ -269,7 +282,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         if(t.goal[side] != agarms::Goal::None && !placeable(t.weapon[side]))
         {
-            return;
+            return false;
         }
     }
     posestudio::adjust(s.ent, t); // (the Pose Studio's drag: a weapon held at the controller)
@@ -277,19 +290,53 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         rigseq::adjustTargets(*rig, spec, posed, kicked ? kick : nullptr, t); // (the Rig Studio's arms: the hands on their bones)
     }
-    agarms::Placed placed;
+    agarms::Placed& placed = w.placed;
+    placed = agarms::Placed{};
     // (vr_agarms_lod: far ones' last solve reused between their turns; exact while reacting to a hit or the studios'
     // subject)
     const bool exact = kicked || hitreact::reacting(e) || posestudio::active() || rigstudio::wantsNotes() ||
                        weaponstudio::wantsNotes() || poselive::recording(s.ent) || vr_agrunt_ik_debug.value >= 2.f;
+    w.kicked = kicked;
+    w.layerArms = layerArms;
+    w.hasR = hasR;
+    w.kind = kind;
+    w.slot = slot;
+    w.slotL = slotL;
+    w.secondPoint = secondPoint;
     if(!agarms::lodReuse(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, exact, placed))
     {
-        QVR_TRACY_SCOPE(tracySolve, "armed pose: arms solve");
+        // (vr_agarms_jobs: queued, solved on the job threads with the frame's others, taken in relinkSkinnedEnd)
+        if(batch && (w.ticket = agarms::batchQueue(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t)) >= 0)
+        {
+            return true;
+        }
         if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
         {
-            return;
+            return false;
         }
     }
+    return true;
+}
+
+void relinkSkinnedEnd(SkinWork& w)
+{
+    if(w.ticket >= 0 && !agarms::batchTake(w.ticket, w.placed))
+    {
+        return;
+    }
+    const ArmPose& s = *w.s;
+    const entity_t* e = w.e;
+    const ragdoll::Rig* rig = w.rig;
+    const int pose1 = w.pose1, pose2 = w.pose2;
+    const float blend = w.blend;
+    const rigpose::Rigid* posed = w.posed;
+    const rigpose::Rigid* kick = w.kick;
+    const bool kicked = w.kicked;
+    const bool layerArms = w.layerArms, hasR = w.hasR;
+    const int kind = w.kind, slot = w.slot, slotL = w.slotL;
+    const glm::vec3& secondPoint = w.secondPoint;
+    const agarms::Targets& t = w.t;
+    agarms::Placed& placed = w.placed;
     if(rig->authored)
     {
         // drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
@@ -367,6 +414,16 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         }
     }
     aggrip::noteSubject(kind, slot, slotL, viewDistance(e));
+}
+
+
+// relinkSkinnedBegin and End at once (each solved in place).
+void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend)
+{
+    if(relinkSkinnedBegin(s, e, hdr, pose1, pose2, blend, soloWork, false))
+    {
+        relinkSkinnedEnd(soloWork);
+    }
 }
 
 } // namespace hitreact_detail
