@@ -856,6 +856,17 @@ unsigned eyeTargetsGeneration()
     return eyeTargets.generation;
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    if(!mirrorProgram && !mirrorFailed)
+    {
+        mirrorProgram = gfx::glProgram(mirrorVs, mirrorFs, "vr mirror");
+        mirrorFailed = !mirrorProgram;
+    }
+}
+
 } // namespace qvr::stereo
 
 using namespace qvr;

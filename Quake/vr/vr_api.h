@@ -164,6 +164,7 @@ int VR_FileCacheMissKnown (const char *name);	// COM_FindFile: `name` found nowh
 void VR_FileCacheMissNote (const char *name);	// ... found nowhere now
 void VR_FileCacheSearchChanged (void);	// the search paths, or which of them a lookup skips, changed: the misses known forgotten
 void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved (after it): both directories' listings (a directory moved: every one)
+void VR_FileCacheDerived (int on);	// a limb model's load in play (VR_LatePrecacheModel, its monster's file read): the last window's listings and misses, kept, answer its lookups (1 then 0)
 
 // The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text
 // ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.

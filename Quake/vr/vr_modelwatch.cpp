@@ -18,6 +18,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_limbmodel.hpp"
 #include "vr_strings.hpp"
 #include "vr_view.hpp"
 
@@ -234,7 +235,9 @@ void listModel(int i, const qmodel_t* m)
 {
     watch.listed[static_cast<za::SizeT>(i)] = m->name;
     za::String path;
-    if(!loosePath(m->name, path))
+    // (a limb gore model is made from its monster's file, never read from one of its own: no folder listed for it, which
+    // late in a map was a directory listing in a frame of play for each new limb model)
+    if(strstr(m->name, limbmodel::suffix) || !loosePath(m->name, path))
     {
         return;
     }

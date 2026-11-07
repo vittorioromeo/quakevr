@@ -393,6 +393,24 @@ struct SizedDistances
 };
 SizedDistances sizedDistances;
 
+// The scene distances' program (one sample or several), unless made or failed already.
+void makeDistanceProgram(bool multisampled)
+{
+    GLuint& program = multisampled ? distanceProgramMs : distanceProgram;
+    bool& failed = multisampled ? distanceFailedMs : distanceFailed;
+    if(program || failed)
+    {
+        return;
+    }
+    za::String fs = distanceFs;
+    if(multisampled)
+    {
+        fs.insert(fs.find('\n') + 1, "#define MULTISAMPLED\n");
+    }
+    program = gfx::glProgram(distanceVs, fs.cStr(), "vr scene distances");
+    failed = !program;
+}
+
 GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
 {
     if(portals::viewing())
@@ -411,13 +429,7 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     GLuint& program = multisampled ? distanceProgramMs : distanceProgram;
     if(!program)
     {
-        za::String fs = distanceFs;
-        if(multisampled)
-        {
-            fs.insert(fs.find('\n') + 1, "#define MULTISAMPLED\n");
-        }
-        program = gfx::glProgram(distanceVs, fs.cStr(), "vr scene distances");
-        failed = !program;
+        makeDistanceProgram(multisampled);
         if(failed)
         {
             return 0;
@@ -2320,6 +2332,13 @@ unsigned opaqueSceneDistances()
         source = framebufs.composite.depth_stencil_tex;
     }
     return makeDistances(source, multisampled, R_SetupGL);
+}
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    makeDistanceProgram(false);
+    makeDistanceProgram(true);
 }
 
 } // namespace qvr::water

@@ -335,6 +335,13 @@ void shutdown()
     failed = false;
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    (void)ensurePrograms();
+}
+
 } // namespace qvr::bloom
 
 // GL_PostProcess: binds this eye's glow to texture unit 2 and gives how much of it to add (0: none,

@@ -22,6 +22,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_jobs.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -101,6 +102,42 @@ void clearMisses()
 {
     misses.clear();
     missesEpoch++;
+}
+
+// The last window's listings and misses, kept when it closes for the models derived during play (VR_FileCacheDerived:
+// limb gore's limb models, whose skins' and normal maps' names, and their monster's replacements, are asked when a kind
+// of monster first appears; 16 lookups a limb in every folder, ~2 ms, in a frame of play). Brought back for those
+// loads only, and kept as current as a window's: a file written forgets what it may be (forget, forgetMisses), every
+// listing forgotten or the search paths changing drop them. (Main thread; keptValid: whether there are any, for others.)
+struct Kept
+{
+    decltype(dirs) dirs;
+    Names misses;
+    bool valid{false};
+};
+Kept kept;
+za::Atomic<bool> keptValid{false};
+bool derivedOn = false; // the kept window open for a derived model's load (VR_FileCacheDerived)
+
+template <typename T>
+void swapMoved(T& a, T& b)
+{
+    T t = ZA_MOVE(a);
+    a = ZA_MOVE(b);
+    b = ZA_MOVE(t);
+}
+
+// The kept ones into the window's state and back (dirs and misses are empty outside a window).
+void swapKept()
+{
+    swapMoved(dirs, kept.dirs);
+    swapMoved(misses, kept.misses);
+}
+
+void dropKept()
+{
+    kept = Kept{};
+    keptValid.storeSeqCst(false);
 }
 
 // The directories other threads wrote in (VR_FileCacheForgetFile), for the main thread's next lookup to forget, and the
@@ -287,8 +324,24 @@ void forget(const DirId& id, za::StringView path)
     forgetMisses(path);
 }
 
-// What other threads asked (the main thread's, before a lookup).
+void takePendingRun();
+
+// What other threads asked (the main thread's, before a lookup); outside a window, of the kept ones.
 void takePending()
+{
+    const bool onKept = !enabled.loadSeqCst() && kept.valid;
+    if(onKept)
+    {
+        swapKept();
+    }
+    takePendingRun();
+    if(onKept)
+    {
+        swapKept();
+    }
+}
+
+void takePendingRun()
 {
     if(missesForgetAsked.exchangeSeqCst(false))
     {
@@ -299,6 +352,10 @@ void takePending()
         dirs.clear();
         clearMisses();
         window++;
+        if(!enabled.loadSeqCst() || derivedOn)
+        {
+            dropKept(); // (swapped back empty)
+        }
     }
     za::Vector<DirId> ids;
     za::Vector<za::String> paths;
@@ -324,6 +381,7 @@ const Listing& listing(za::StringView dir)
     {
         return it->second;
     }
+    QVR_TRACY_SCOPE(tracyScope, "File system probe: folder listed");
     const za::String key{dir};
     Listing& l = dirs[key];
     // (who it is before what is in it: a file made in between is forgotten with it, not missed)
@@ -353,11 +411,56 @@ extern "C" void VR_FileCacheEnable(int on)
     {
         owner = za::ThisThread::getId();
     }
+    takePending(); // (what other threads asked, of the state as it is; all listed afresh from now on)
+    const bool was = enabled.loadSeqCst();
     enabled.storeSeqCst(on != 0);
-    takePending(); // (all listed afresh from now on: what was asked before is in the new listings)
+    if(on)
+    {
+        dropKept(); // (the new window's are kept when it closes)
+    }
+    else if(was && za::ThisThread::getId() == owner)
+    {
+        kept.dirs = ZA_MOVE(dirs);
+        kept.misses = ZA_MOVE(misses);
+        kept.valid = true;
+        keptValid.storeSeqCst(true);
+        derivedOn = false;
+    }
     dirs.clear();
     clearMisses();
     window++;
+}
+
+extern "C" void VR_FileCacheDerived(int on)
+{
+    if(za::ThisThread::getId() != owner)
+    {
+        return;
+    }
+    if(on)
+    {
+        if(derivedOn || enabled.loadSeqCst())
+        {
+            return; // (a window open: a map's load)
+        }
+        takePending();
+        if(!kept.valid)
+        {
+            return;
+        }
+        swapKept();
+        enabled.storeSeqCst(true);
+        derivedOn = true;
+    }
+    else if(derivedOn)
+    {
+        takePending();
+        enabled.storeSeqCst(false);
+        derivedOn = false;
+        swapKept(); // (dropped meanwhile, every listing forgotten: kept.valid false, the window's emptied)
+        dirs.clear();
+        misses.clear();
+    }
 }
 
 extern "C" unsigned long long VR_FileCacheWindow()
@@ -385,6 +488,10 @@ extern "C" void VR_FileCacheForget()
     dirs.clear();
     clearMisses();
     window++;
+    if(!enabled.loadSeqCst() || derivedOn)
+    {
+        dropKept();
+    }
 }
 
 extern "C" void VR_FileCacheSearchChanged()
@@ -395,6 +502,7 @@ extern "C" void VR_FileCacheSearchChanged()
         return;
     }
     clearMisses();
+    kept.misses.clear(); // (in a derived load's window: the window's)
 }
 
 extern "C" int VR_FileCacheMissKnown(const char* name)
@@ -423,7 +531,7 @@ extern "C" void VR_FileCacheMissNote(const char* name)
 
 extern "C" void VR_FileCacheForgetFile(const char* path)
 {
-    if(!enabled.loadSeqCst())
+    if(!enabled.loadSeqCst() && !keptValid.loadSeqCst())
     {
         return; // (none listed: VR_FileCacheEnable starts afresh, after this file's change)
     }
@@ -446,12 +554,21 @@ extern "C" void VR_FileCacheForgetFile(const char* path)
         pending.paths.pushBack(ZA_MOVE(folded));
         return;
     }
+    const bool onKept = !enabled.loadSeqCst() && kept.valid; // (the kept ones', outside a window)
+    if(onKept)
+    {
+        swapKept();
+    }
     forget(id, folded);
+    if(onKept)
+    {
+        swapKept();
+    }
 }
 
 extern "C" void VR_FileCacheForgetMoved(const char* from, const char* to)
 {
-    if(!enabled.loadSeqCst())
+    if(!enabled.loadSeqCst() && !keptValid.loadSeqCst())
     {
         return;
     }

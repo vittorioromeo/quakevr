@@ -10,6 +10,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
@@ -187,6 +188,27 @@ struct HandHulls
 };
 HandHulls hands;
 
+// make's points for Box3D (the main thread's).
+struct MakeScratch
+{
+    za::Vector<b3Vec3> points;
+    auto members() { return mem::list(points); }
+};
+mem::Scratch<MakeScratch> makeScratch{"disarm hulls"};
+
+// `h` as a Hull{} is, its vectors emptied but keeping their room.
+void reset(Hull& h)
+{
+    h.corners.clear();
+    h.planes.clear();
+    h.edges.clear();
+    h.slack = 0.f;
+    h.lo = glm::vec3{0.f};
+    h.hi = glm::vec3{0.f};
+    h.points = 0;
+    h.ok = false;
+}
+
 [[nodiscard]] bool local()
 {
     return sv.active && cls.state == ca_connected;
@@ -345,7 +367,7 @@ void measure(const Placed& p, const za::Vector<glm::vec3>& points, float& outsid
 
 void make(const glm::vec3* points, int count, Hull& out)
 {
-    out = Hull{};
+    reset(out); // (its vectors keep their room: a hand's hulls are remade every frame)
     out.points = count;
     out.lo = glm::vec3{ZA_FLOAT_MAX};
     out.hi = glm::vec3{-ZA_FLOAT_MAX};
@@ -353,7 +375,8 @@ void make(const glm::vec3* points, int count, Hull& out)
     {
         return;
     }
-    za::Vector<b3Vec3> pts;
+    za::Vector<b3Vec3>& pts = makeScratch.points;
+    pts.clear();
     pts.reserve(static_cast<za::SizeT>(count));
     for(int i = 0; i < count; i++)
     {
@@ -526,7 +549,7 @@ bool hand(edict_t* g, int side, HandPlaced& out, HandSource* source, bool* inDra
         bool any = false;
         for(int k = 0; k < handParts; k++)
         {
-            e->hull[k] = Hull{};
+            reset(e->hull[k]);
             if(e->ok && !hands.region[k].empty())
             {
                 make(hands.region[k].data(), static_cast<int>(hands.region[k].size()), e->hull[k]);

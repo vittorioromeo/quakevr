@@ -1466,6 +1466,7 @@ static void GL_Init (void)
 		}
 	}
 	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
+	VR_TIMED ("VR programs compiled and linked (VR_PrecompilePrograms)", VR_PrecompilePrograms ()); // QVR: none at a first draw in play
 	VR_GLStep ("framebuffers (GL_CreateFrameBuffers)"); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_CreateFrameBuffers ();
 	VR_GLStep ("light tiles (GLLight_CreateResources)");

@@ -753,6 +753,17 @@ void registerCommands()
     Cmd_AddCommand("vr_bullettime_trails_list", list_f);
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    if(!program && !programFailed)
+    {
+        program = gfx::glProgram(vertexSource, fragmentSource, "vr bullet time trails");
+        programFailed = !program;
+    }
+}
+
 } // namespace qvr::bttrails
 
 using namespace qvr;
