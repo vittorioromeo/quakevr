@@ -5856,7 +5856,8 @@ QVR_TOGGLE(vr_campaign_keep_models, "Campaign Switch Keeps Models",
     "again (vr_campaign_keep_models).")
 QVR_TOGGLE(vr_load_jobs, "Load Work on Job Threads",
     "On: a map load makes the skins' normal maps (or reads them from the cache) on the job threads while it goes on, "
-    "uploaded before its first frame: the same textures, the first load of a map about 0.5 s faster. Off: each on "
+    "uploaded before its first frame, and cuts the held guns' convex pieces behind the first frames (a hand waits for "
+    "its own gun's): the same textures and pieces, the first load of a map 0.5-1 s faster. Off: each on "
     "the main thread in turn, as before (vr_load_jobs; for comparing).")
 QVR_TOGGLE(vr_texture_prefetch, "Decode Textures Ahead",
     "On: a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker "
