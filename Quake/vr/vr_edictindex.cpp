@@ -57,8 +57,10 @@ constexpr WatchedFloat watchedFloats[] = {
     {"vr_letgo_fall", allBits},           // VR_Throw_SelfFrame
     {"vr_throw_self", allBits},           // ...
     {"MG_registered", allBits},           // MG_WorldFrame
+    {"vr_flameprop", allBits},            // the live flames: VR_Burn_MapFrame, VR_Burn_MapBodiesFrame, the wall torches
 };
 constexpr int maxFloats = static_cast<int>(sizeof(watchedFloats) / sizeof(watchedFloats[0]));
+static_assert(maxFloats <= 7, "a pending mask (unsigned char) has bit 0 for .classname and 2 << i for watchedFloats[i]");
 constexpr int classField = static_cast<int>(offsetof(entvars_t, classname) / 4);
 constexpr unsigned char watchClassname = 1; // fieldwatch's value for .classname; 2 + i for watchedFloats[i]
 // fieldwatch's value for .origin, .mins, .maxs (each component) and .solid: not indexed here, but a store marks the
