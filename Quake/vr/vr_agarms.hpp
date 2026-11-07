@@ -148,6 +148,18 @@ bool restRow(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::Rig& r
 bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
     const rigpose::Rigid* kick, const Targets& t, Placed& out);
 
+// vr_agarms_jobs: a frame's solves on the job threads, all on the main thread but the solves themselves. batchBegin, then
+// for each armed humanoid batchQueue (its state gathered now; `posed` and `kick` kept by the caller until it is taken):
+// a ticket, or -1 (solve it in place now: batching off, a debug mode, the batch full); batchRun runs every queued solve
+// (on the pool); batchTake each ticket's result (solve's: false none), in any order; batchEnd. The results are the same
+// as solve's, bit for bit.
+void batchBegin();
+[[nodiscard]] int batchQueue(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec,
+    const rigpose::Rigid* posed, const rigpose::Rigid* kick, const Targets& t);
+void batchRun();
+bool batchTake(int ticket, Placed& out);
+void batchEnd();
+
 // vr_agarms_lod (Graphics > Performance): instead of solve, `e`'s last solve reused this frame (true; `out` placed as
 // solve's) when it is far (past vr_agarms_lod_near from the view) and not its turn: solved every vr_agarms_lod_far
 // frames in the eyes' views (vr_agarms_lod_margin round them), every vr_agarms_lod_unseen out of them. Its arms ride its

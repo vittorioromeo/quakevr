@@ -30,8 +30,17 @@
 #include "Zancle/Math/Tan.hpp"
 
 #include <string.h>
+#include "vr_jobs.hpp"
 
 using namespace qvr;
+
+namespace qvr::agarms
+{
+namespace
+{
+void batchFlush(); // (vr_agarms_jobs: the queued solves run now; below)
+} // namespace
+} // namespace qvr::agarms
 
 namespace
 {
@@ -243,9 +252,12 @@ struct State
     double checkHandSum{0.0}, checkTurnSum{0.0};
     float checkHandMost{0.f}, checkTurnMost{0.f};
     int checkHands{0}, checkWeapons{0};
+    // vr_agarms_jobs: the solves made on the job threads, in how many batches, the main thread's time in them (us)
+    int batchedN{0}, batchRuns{0};
+    double batchUs{0.0};
     // vr_agarms_hash: every solve's and reuse's result (Placed's places and turns, bit for bit) since the last reset, in
     // the order they were made; the ARMPOSE messages' bytes as the client read them (hashMessage): two runs compared
-    unsigned long long hash{14695981039346656037ull};
+    unsigned long long hash{0};
     int hashN{0};
     unsigned long long msgHash{14695981039346656037ull};
     int msgN{0};
@@ -293,24 +305,29 @@ void hashBytes(unsigned long long& h, const void* p, int n)
     }
 }
 
-// vr_agarms_hash: a result's places and turns (the floats only: no padding read).
-void hashPlaced(const agarms::Placed& o)
+// vr_agarms_hash: a result's places and turns (the floats only: no padding read) and whose, hashed, added to the sum (the
+// same sum in any order: vr_agarms_jobs takes its results after the frame's reuses).
+void hashPlaced(const agarms::Placed& o, int num)
 {
-    const auto rigid = [](const rigpose::Rigid& r) {
-        hashBytes(state.hash, &r.rot, sizeof(r.rot));
-        hashBytes(state.hash, &r.pos, sizeof(r.pos));
+    unsigned long long h = 14695981039346656037ull;
+    hashBytes(h, &num, sizeof(num));
+    hashBytes(h, &host_framecount, sizeof(host_framecount));
+    const auto rigid = [&h](const rigpose::Rigid& r) {
+        hashBytes(h, &r.rot, sizeof(r.rot));
+        hashBytes(h, &r.pos, sizeof(r.pos));
     };
     for(int s = 0; s < 2; s++)
     {
         const unsigned char on = o.on[s] ? 1 : 0;
-        hashBytes(state.hash, &on, 1);
+        hashBytes(h, &on, 1);
         rigid(o.weapon[s]);
         rigid(o.hand[s]);
         rigid(o.upperM[s]);
         rigid(o.foreM[s]);
         rigid(o.handM[s]);
-        hashBytes(state.hash, &o.elbow[s], sizeof(o.elbow[s]));
+        hashBytes(h, &o.elbow[s], sizeof(o.elbow[s]));
     }
+    state.hash += h;
     state.hashN++;
 }
 
@@ -468,6 +485,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     if(!free)
     {
         free = &state.skins[spec.kind % maxModels];
+        agarms::batchFlush(); // (vr_agarms_jobs: the queued solves run before a skin they may use is made again)
     }
     Skin& m = *free;
     m = Skin{};
@@ -1179,6 +1197,13 @@ struct Limits
     bool clearWrist{true};  // ... its wrist turned out of the torso, at most clearMost degrees (a hand on a weapon or a grip: less)
     float clearMost{armClearMost};
     float stretchMost{1.f}; // the IK stretch (agpose::stretch, eased): the arm lengthened up to this to reach its goal
+    // (the settings the solve reads, taken when a Limits is made, on the main thread: a solve on a job thread reads no
+    // cvar, vr_agarms_jobs)
+    float poleKey{vr_agarms_pole_key.value};
+    float wristMost{vr_agarms_wrist_most.value};
+    float second{vr_agarms_second.value};
+    float wrist{vr_agarms_wrist.value};
+    float debug{vr_agrunt_ik_debug.value};
 };
 
 // The shoulder's cone's axis now (model space): its range's middle on clavicle turn `kq`.
@@ -1246,7 +1271,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     {
         const glm::vec3 shift = S1 + dir0 * want - W1;
         o.miss = glm::length(shift);
-        if(vr_agrunt_ik_debug.value >= 5.f && o.miss > (vr_agrunt_ik_debug.value >= 6.f ? 0.5f : 4.f)) // (6: the small ones too)
+        if(lim.debug >= 5.f && o.miss > (lim.debug >= 6.f ? 0.5f : 4.f)) // (6: the small ones too)
         {
             Con_Printf("agarms reach: side %d shoulder %.1f %.1f %.1f (on the chest %.1f %.1f %.1f) wrist wanted %.1f %.1f %.1f: %.1f "
                        "away, reach %.1f..%.1f (arm %.1f + %.1f)\n",
@@ -1274,7 +1299,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
             const glm::vec3 shift = S1 + dir * dl - W1;
             o.limited = glm::length(shift);
             o.miss += o.limited;
-            if(vr_agrunt_ik_debug.value >= 6.f && o.limited > 0.5f)
+            if(lim.debug >= 6.f && o.limited > 0.5f)
             {
                 Con_Printf("agarms limited: side %d by %.1f (%.0f deg off the shoulder's range)\n", s, o.limited, (off - most2) * (180.f / pi));
             }
@@ -1307,7 +1332,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     // (a pole past a strike's own share, 0.8: the Pose Studio's keys, vr_agpose.hpp, set by hand: weighed up to 9 times
     // as much, its elbow where it was put as far as its wrist allows)
     // (vr_agarms_pole_key: a key's pole, its share 1, weighed that much more: it stays where the studio put it)
-    const float poleWeight = 0.5f + za::max(0.f, vr_agarms_pole_key.value) * za::clamp((poleShare - 0.8f) / 0.2f, 0.f, 1.f);
+    const float poleWeight = 0.5f + za::max(0.f, lim.poleKey) * za::clamp((poleShare - 0.8f) / 0.2f, 0.f, 1.f);
     // The elbow's costs at `phi` round its circle: its wrist's comfort, its pole, its shoulder's (up past it, in across the
     // chest), its last place's, the body's proxies.
     struct Terms
@@ -1449,7 +1474,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     o.bend = angleDeg(glm::inverse(rf) * H.rot);
     // A wrist past its most (a swing's twist the elbow can't take): the hand, and its weapon with it, turned back
     // towards the forearm about the wrist (the wrist stays).
-    const float bendMost = za::max(vr_agarms_wrist_most.value + lim.wristMore, 10.f);
+    const float bendMost = za::max(lim.wristMost + lim.wristMore, 10.f);
     if(o.bend > bendMost)
     {
         o.H.rot = glm::normalize(glm::slerp(rf, H.rot, bendMost / o.bend));
@@ -1503,7 +1528,7 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S0, const glm::quat& cq,
     ArmOut o2 = solveArmOnce(sd, s, S0, cq, H2, prevElbow, pole, lim);
     o2.cleared = glm::length(W2 - o.W);
     o2.miss += o2.cleared;
-    if(vr_agrunt_ik_debug.value >= 6.f && o2.cleared > 0.5f)
+    if(lim.debug >= 6.f && o2.cleared > 0.5f)
     {
         Con_Printf("agarms cleared: side %d by %.1f (its upper arm %.1f in the torso)\n", s, o2.cleared, o.armIn);
     }
@@ -1804,11 +1829,55 @@ bool restRow(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::Rig& r
 
 namespace
 {
-bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
-    const rigpose::Rigid* kick, const Targets& t, Placed& out)
+// One armed humanoid's arms' solve (vr_agarms_jobs): what solvePrepare gathered on the main thread, what solveCore made
+// (on a job thread or not), for solveFinish. Its posed bones and kicks are its caller's (kept until it is finished).
+struct SolveJob
 {
-    out = Placed{};
+    const entity_t* e{nullptr};
+    const aliashdr_t* hdr{nullptr};
+    const ragdoll::Rig* rig{nullptr};
+    agarms::Spec spec;
+    const rigpose::Rigid* posed{nullptr};
+    const rigpose::Rigid* kick{nullptr};
+    agarms::Targets t;
+    const Skin* m{nullptr};
+    Ent* st{nullptr};
+    Lod* lod{nullptr};
+    int num{0};
+    bool haveBody{false};
+    agbody::Posed bodyNow;
+    Limits lim;
+    float dt{0.f};
+    int lastFrame{-1};
+    bool warm{false}, fast{false};
+    double clTime{0.0};
+    int frame{0};
+    double us{0.0};     // (vr_agarms_cost: its prepare's and core's time)
+    bool ready{false};  // (prepared: its core to run)
+    agarms::Placed out;
+    bool ok{false};
+    ArmOut arms[2];
+    rigpose::Rigid C;
+    float second{0.f}, slid{0.f};
+    bool held2{false};
+};
+SolveJob soloJob; // (solveImpl's: one solved in place)
+
+// The arms' solve in three parts (vr_agarms_jobs): solvePrepare on the main thread (its Ent and Lod found or made, its
+// clocks, the body's proxies posed, the settings read), solveCore anywhere (its own Ent and Lod and the job only),
+// solveFinish on the main thread (the notes, the counts), in the order they were made.
+bool solvePrepare(SolveJob& j)
+{
     const double solveStart = Sys_DoubleTime();
+    const entity_t* e = j.e;
+    const aliashdr_t* hdr = j.hdr;
+    const ragdoll::Rig& rig = *j.rig;
+    const Spec& spec = j.spec;
+    const rigpose::Rigid* posed = j.posed;
+    const rigpose::Rigid* kick = j.kick;
+    const Targets& t = j.t;
+    j.out = Placed{};
+    j.ok = false;
     const Skin* m = skinOf(e->model, hdr, rig, spec);
     const int num = client::entityNumber(e);
     Ent* st = (m && num > 0) ? entOf(num, true) : nullptr;
@@ -1848,17 +1917,13 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
     {
         st->on = 0.01f;
     }
-    const rigpose::Rigid C = chestNow(rig, m->chest, posed, kick);
-    ArmOut arms[2];
-    float second = 0.f;
-    float slid = 0.f;
-    bool held2 = false;
     // The robust solve's limits (ROUND22.md, "Armed humanoids in motion"): the body's proxies (vr_agarms_body), the
     // elbow's swing a frame (vr_agarms_elbow_rate).
     const agbody::Proxies* px = agbody::of(e->model, rig, m->chest, m->torsoSides);
-    const agbody::Posed bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
-    Limits lim;
-    lim.body = px ? &bodyNow : nullptr;
+    j.haveBody = px != nullptr;
+    j.bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
+    Limits& lim = j.lim;
+    lim = Limits{};
     lim.twistShare = za::clamp(vr_agarms_twist_share.value > 0.f ? vr_agarms_twist_share.value : m->twistShare, 0.f, 1.f);
     lim.wristMore = m->wristMore;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
@@ -1877,6 +1942,54 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         st->stretchMost = za::abs(st->stretchMost - want) < 1e-4f ? want : st->stretchMost;
         lim.stretchMost = st->stretchMost;
     }
+    j.m = m;
+    j.st = st;
+    j.lod = &lod;
+    j.num = num;
+    j.dt = dt;
+    j.lastFrame = lastFrame;
+    j.warm = warm;
+    j.fast = fast;
+    j.clTime = cl.time;
+    j.frame = host_framecount;
+    j.us = (Sys_DoubleTime() - solveStart) * 1e6;
+    j.ready = true;
+    return true;
+}
+
+void solveCore(SolveJob& j)
+{
+    if(!j.ready)
+    {
+        return;
+    }
+    QVR_TRACY_SCOPE(tracyCore, "armed pose: arms solve");
+    const double solveStart = Sys_DoubleTime();
+    const entity_t* e = j.e;
+    const ragdoll::Rig& rig = *j.rig;
+    const rigpose::Rigid* posed = j.posed;
+    const rigpose::Rigid* kick = j.kick;
+    const Targets& t = j.t;
+    const Skin* m = j.m;
+    Ent* st = j.st;
+    Lod& lod = *j.lod;
+    Placed& out = j.out;
+    const float dt = j.dt;
+    const int lastFrame = j.lastFrame;
+    const bool warm = j.warm, fast = j.fast;
+    const double clTime = j.clTime;
+    const int frameNow = j.frame;
+    const rigpose::Rigid C = chestNow(rig, m->chest, posed, kick);
+    ArmOut (&arms)[2] = j.arms;
+    float& second = j.second;
+    float& slid = j.slid;
+    bool& held2 = j.held2;
+    second = 0.f;
+    slid = 0.f;
+    held2 = false;
+    Limits lim = j.lim;
+    lim.body = j.haveBody ? &j.bodyNow : nullptr;
+    const agbody::Posed& bodyNow = j.bodyNow;
     Limits limHeld = lim; // (a hand on a weapon or its grip, a fist: turned out of the torso a little at most)
     limHeld.clearMost = armClearHeldMost;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
@@ -2013,7 +2126,7 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         const auto placeHand = [&](rigpose::Rigid& h) {
             h.pos = g == Goal::Point ? grip - h.rot * sd.grip.pos : wrist - h.rot * sd.W;
         };
-        if(warm && st->foreGoal[s] == static_cast<int>(g) && lastFrame >= 0 && host_framecount - lastFrame <= lodEveryMost)
+        if(warm && st->foreGoal[s] == static_cast<int>(g) && lastFrame >= 0 && frameNow - lastFrame <= lodEveryMost)
         {
             // vr_agarms_warm: started from the forearm's last turn (on the chest), mostly settled at once (one or two
             // solves, not up to four); not settled in as many rounds: solved from the goal's turn as before
@@ -2124,7 +2237,7 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             const glm::vec3 from = rig.authored ? solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld).S : S1;
             return glm::length(rigpose::apply(hl, m->side[1].W) - from);
         };
-        const float okMost = vr_agarms_second.value * armLen;
+        const float okMost = lim.second * armLen;
         if(fast)
         {
             // vr_agarms_fast: the same answer as the whole-unit steps and the bisection below (while the reach only grows
@@ -2246,13 +2359,13 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         for(int step = 0; step < 12 && !fast; step++)
         {
             reach = reachAt(at);
-            if(reach <= vr_agarms_second.value * armLen || at.pos.x <= 3.f)
+            if(reach <= lim.second * armLen || at.pos.x <= 3.f)
             {
                 break;
             }
             at.pos.x = za::max(3.f, at.pos.x - 1.f);
         }
-        if(!fast && lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= vr_agarms_second.value * armLen)
+        if(!fast && lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= lim.second * armLen)
         {
             // (with the IK stretch: the slide found to a hundredth of a unit, not in whole units: as its stretch eases in
             // or out the hand glides along the gun, never a unit's jump)
@@ -2261,7 +2374,7 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             {
                 rigpose::Rigid mid = at;
                 mid.pos.x = (lo + hi) * 0.5f;
-                (reachAt(mid) <= vr_agarms_second.value * armLen ? lo : hi) = mid.pos.x;
+                (reachAt(mid) <= lim.second * armLen ? lo : hi) = mid.pos.x;
             }
             at.pos.x = lo;
             reach = reachAt(at);
@@ -2270,9 +2383,9 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         const ArmOut tryL = solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld);
         // (a grip held is let go a little further than it is taken, no toggling at its edge)
         const bool keep = st->held2;
-        bool can = reach <= (vr_agarms_second.value + (keep ? secondSlack : 0.f)) * armLen &&
-                   tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f) + (rig.authored ? authoredWristMore : 0.f);
-        if(vr_agrunt_ik_debug.value >= 4.f)
+        bool can = reach <= (lim.second + (keep ? secondSlack : 0.f)) * armLen &&
+                   tryL.bend <= lim.wrist + (keep ? secondBendSlack : 0.f) + (rig.authored ? authoredWristMore : 0.f);
+        if(lim.debug >= 4.f)
         {
             Con_Printf("agarms second: reach %.1f of arm %.1f (%.2f), wrist bend %.0f, slid %.1f: %s; key offset %s %.2f %.2f %.2f\n",
                 reach, armLen, reach / za::max(armLen, 1e-3f), tryL.bend, atX - at.pos.x, can ? "held" : "not",
@@ -2281,13 +2394,13 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         if(can != st->held2)
         {
             // (... and kept taken or let go a moment before it changes again)
-            if(cl.time - st->held2At < secondDwell)
+            if(clTime - st->held2At < secondDwell)
             {
                 can = st->held2;
             }
             else
             {
-                st->held2At = cl.time;
+                st->held2At = clTime;
             }
         }
         st->held2 = can;
@@ -2347,10 +2460,10 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         if(mode != st->leftMode)
         {
             st->leftMode = mode;
-            st->leftModeAt = cl.time;
+            st->leftModeAt = clTime;
         }
         const rigpose::Rigid now = arms[1].H;
-        if(st->haveLeft && dt > 0.f && cl.time - st->leftModeAt < 0.3)
+        if(st->haveLeft && dt > 0.f && clTime - st->leftModeAt < 0.3)
         {
             const float k = 1.f - za::exp(-dt / 0.06f);
             rigpose::Rigid eased;
@@ -2380,7 +2493,8 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             if((bits & 0x7f800000u) == 0x7f800000u || za::abs(sum) > 1e5f) // (NaN or infinite: exponent all ones)
             {
                 out = Placed{};
-                return false;
+                j.ok = false;
+                return;
             }
         }
     }
@@ -2434,9 +2548,9 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         {
             moved = za::max(moved, glm::length(still[i] - lod.still[i]));
         }
-        const int frames = za::max(1, host_framecount - lod.solvedFrame);
+        const int frames = za::max(1, frameNow - lod.solvedFrame);
         lod.settled = lod.haveStill && moved <= lodStill * static_cast<float>(frames) && st->on >= 1.f &&
-                      cl.time - st->leftModeAt >= 0.3 && (st->grip2w <= 0.f || st->grip2w >= 1.f) &&
+                      clTime - st->leftModeAt >= 0.3 && (st->grip2w <= 0.f || st->grip2w >= 1.f) &&
                       st->easeT[0] >= st->easeDur[0] && st->easeT[1] >= st->easeDur[1] &&
                       st->stretchMost == za::clamp(t.stretch, 1.f, agpose::stretchMost);
         for(int i = 0; i < 4; i++)
@@ -2445,11 +2559,10 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         }
         lod.haveStill = true;
     }
-    lod.solvedFrame = host_framecount;
+    lod.solvedFrame = frameNow;
     lod.relDt = dt;
     lod.reusedBefore = lod.reusedSince;
     lod.reusedSince = false;
-    noteJerk(lod, e, out);
     if(posed && rig.head >= 0)
     {
         const ragdoll::Bone& hb = rig.bones[rig.head];
@@ -2458,10 +2571,38 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
         {
             st->handHead[s] = rigpose::apply(arms[s].H, m->side[s].grip.pos) - head; // (the hand's middle, pose 0 -> now)
         }
-        st->handHeadFrame = host_framecount;
+        st->handHeadFrame = frameNow;
     }
+    j.C = C;
+    j.ok = true;
+    j.us += (Sys_DoubleTime() - solveStart) * 1e6;
+    (void)e;
+}
+
+bool solveFinish(SolveJob& j, Placed& result)
+{
+    result = j.out;
+    if(!j.ok)
+    {
+        return false;
+    }
+    const entity_t* e = j.e;
+    const aliashdr_t* hdr = j.hdr;
+    const ragdoll::Rig& rig = *j.rig;
+    const rigpose::Rigid* posed = j.posed;
+    const rigpose::Rigid* kick = j.kick;
+    const Targets& t = j.t;
+    const Skin* m = j.m;
+    Ent* st = j.st;
+    const Placed& out = j.out;
+    const ArmOut (&arms)[2] = j.arms;
+    const rigpose::Rigid& C = j.C;
+    const int num = j.num;
+    const float second = j.second, slid = j.slid;
+    const bool held2 = j.held2;
+    noteJerk(*j.lod, e, out);
     // vr_agarms_cost: the solves' time (each armed humanoid's arms a frame; not the measures below)
-    state.costUs += (Sys_DoubleTime() - solveStart) * 1e6;
+    state.costUs += j.us;
     state.costN++;
     const bool glitch = agglitch::watching(num) || poselive::measuring(num); // (the Pose Studio's Live tape measures its subject too)
     if(glitch || vr_agrunt_ik_tag.value >= 0.f)
@@ -2480,8 +2621,63 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             noteErr(*m, *st, hdr, pose1, pose2, blend, arms, C, second, slid, t.second, held2);
         }
     }
-    hashPlaced(out);
+    hashPlaced(out, j.num);
     return true;
+}
+
+bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+    const rigpose::Rigid* kick, const Targets& t, Placed& out)
+{
+    SolveJob& j = soloJob;
+    j = SolveJob{};
+    j.e = e;
+    j.hdr = hdr;
+    j.rig = &rig;
+    j.spec = spec;
+    j.posed = posed;
+    j.kick = kick;
+    j.t = t;
+    if(!solvePrepare(j))
+    {
+        out = Placed{};
+        return false;
+    }
+    solveCore(j);
+    return solveFinish(j, out);
+}
+
+// vr_agarms_jobs: the frame's queued solves (batchQueue's tickets index them), the first not run yet, whether batching.
+struct Batch
+{
+    SolveJob jobs[maxEnts];
+    int n{0};
+    int ran{0};
+    bool on{false};
+};
+Batch batch;
+jobs::Site solveSite{"armed humanoids' arms solves"}; // (its parallelFor: vr_jobs_sites)
+
+void batchFlush()
+{
+    if(batch.ran >= batch.n)
+    {
+        return;
+    }
+    QVR_TRACY_SCOPE(tracyBatch, "armed arms: solve batch");
+    const int from = batch.ran;
+    const int count = batch.n - from;
+    batch.ran = batch.n;
+    const double t0 = Sys_DoubleTime();
+    // (each job writes only its own humanoid's Ent, Lod and job: the same results on any thread, in any order)
+    jobs::parallelFor(solveSite, static_cast<za::SizeT>(count), 1, [from](za::SizeT b, za::SizeT e) {
+        for(za::SizeT i = b; i < e; i++)
+        {
+            solveCore(batch.jobs[from + static_cast<int>(i)]);
+        }
+    }, count > 1);
+    state.batchedN += count;
+    state.batchRuns++;
+    state.batchUs += (Sys_DoubleTime() - t0) * 1e6;
 }
 } // namespace
 
@@ -2528,6 +2724,74 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         state.fastOver += hand > 0.25f || elbow > 0.5f || turn > 2.f ? 1 : 0;
     }
     return ok;
+}
+
+void batchBegin()
+{
+    batch.n = batch.ran = 0;
+    // (in place, as before: off, a single thread, or a debug mode that prints or notes from inside the solve)
+    batch.on = vr_agarms_jobs.value != 0.f && jobs::workers() > 0 && vr_agrunt_ik_debug.value < 4.f &&
+               vr_agrunt_ik_tag.value < 0.f && vr_agarms_fast_check.value == 0.f;
+}
+
+int batchQueue(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+    const rigpose::Rigid* kick, const Targets& t)
+{
+    const int num = client::entityNumber(e);
+    if(!batch.on || batch.n >= maxEnts || num <= 0 || agglitch::watching(num) || poselive::measuring(num))
+    {
+        batchFlush(); // (its state as the ones queued before it leave it: solved in place after them)
+        return -1;
+    }
+    for(int i = 0; i < batch.n; i++)
+    {
+        if(batch.jobs[i].num == num && batch.jobs[i].ready)
+        {
+            batchFlush(); // (twice in a frame: the second after the first)
+            return -1;
+        }
+    }
+    SolveJob& j = batch.jobs[batch.n];
+    j = SolveJob{};
+    j.e = e;
+    j.hdr = hdr;
+    j.rig = &rig;
+    j.spec = spec;
+    j.posed = posed;
+    j.kick = kick;
+    j.t = t;
+    j.num = num;
+    (void)solvePrepare(j); // (not ready: taken as none)
+    return batch.n++;
+}
+
+void batchRun()
+{
+    batchFlush();
+}
+
+bool batchTake(int ticket, Placed& out)
+{
+    if(ticket < 0 || ticket >= batch.n)
+    {
+        out = Placed{};
+        return false;
+    }
+    batchFlush(); // (taken before batchRun: its solve now)
+    SolveJob& j = batch.jobs[ticket];
+    if(!j.ready)
+    {
+        out = Placed{};
+        return false;
+    }
+    return solveFinish(j, out);
+}
+
+void batchEnd()
+{
+    batchFlush();
+    batch.n = batch.ran = 0;
+    batch.on = false;
 }
 
 bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
@@ -2662,7 +2926,7 @@ bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig,
         state.jerkOver = keepOver;
         state.jerkMost = keepMost;
     }
-    hashPlaced(out);
+    hashPlaced(out, num);
     return true;
 }
 
@@ -3020,6 +3284,10 @@ void cost_f()
     Con_Printf("agarms jerk: far ones' in view, their drawn right hands' change of step a frame: %.4f units mean, %.3f "
                "most, %d over a unit (of %d)\n",
         state.jerkN > 0 ? state.jerkSum / state.jerkN : 0.0, state.jerkMost, state.jerkOver, state.jerkN);
+    Con_Printf("agarms jobs: %d solves on the job threads in %d batches, the main thread %.1f us a batch (%d workers)\n",
+        state.batchedN, state.batchRuns, state.batchRuns > 0 ? state.batchUs / state.batchRuns : 0.0, jobs::workers());
+    state.batchedN = state.batchRuns = 0;
+    state.batchUs = 0.0;
     state.costUs = 0.0;
     state.costN = 0;
     state.reusedN = state.reusedUnseenN = state.nearN = state.turnN = state.jerkN = state.jerkOver = 0;
@@ -3103,7 +3371,8 @@ void qvr::agarms::registerCommands()
             state.msgHash);
     });
     Cmd_AddCommand("vr_agarms_hash_reset", [] {
-        state.hash = state.msgHash = 14695981039346656037ull;
+        state.hash = 0;
+        state.msgHash = 14695981039346656037ull;
         state.hashN = state.msgN = 0;
     });
     agglitch::registerCommands();
