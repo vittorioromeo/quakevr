@@ -521,6 +521,25 @@ def mask_decode(text):
     return out
 
 
+def mask_by_place(bits, shipped_path, new):
+    """A barrel mask for `new`'s triangles from one for the shipped file's (None: no such file, or the mask isn't
+    its): each new triangle takes the mark of the shipped triangle at the same corners (frame 0)."""
+    if not os.path.exists(shipped_path):
+        return None
+    shipped = mdl.Model.read(shipped_path)
+    if len(shipped.tris) != len(bits):
+        return None
+
+    def keys(m):
+        rest = [m.place(b) for b in m.pose_bytes()[0]]
+        return [frozenset(tuple(round(c, 3) for c in rest[v]) for v in t[1:]) for t in m.tris]
+
+    marked = {}
+    for k, b in zip(keys(shipped), bits):
+        marked[k] = marked.get(k, False) or b
+    return [marked.get(k, False) for k in keys(new)]
+
+
 def mask_encode(flags):
     chars = []
     for i in range(0, len(flags), 6):
@@ -760,8 +779,22 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         mask = vals.get("fx_gfx_mask", "0")
         if ":" in mask:
             bits = mask_decode(mask)
+            flags = None
             if len(bits) == old.h[16]:
-                nm = mask_encode([bits[o] if 0 <= o < len(bits) else False for o in tri_old])
+                flags = [bits[o] if 0 <= o < len(bits) else False for o in tri_old]
+            else:
+                # The mask numbers another file's triangles than the .blend's reference (the shotgun's: its reference
+                # is gunlooks.py's input, the shipped file has the rivets too): it follows them by their places.
+                flags = mask_by_place(bits, os.path.join(progs, name), new)
+                if flags is None:
+                    warns.append("slot %d's barrel mask (fx_gfx_mask) is for a model of %d triangles, neither the "
+                                 ".blend's reference (%d) nor the shipped file: not carried over" %
+                                 (slot, len(bits), old.h[16]))
+                else:
+                    report("  barrel mask (slot %d): %d of %d triangles marked, by their places in the shipped file "
+                           "(was %d of %d)" % (slot, sum(flags), len(flags), sum(bits), len(bits)))
+            if flags is not None:
+                nm = mask_encode(flags)
                 if nm != mask:
                     changes[(slot, "fx_gfx_mask")] = nm
 

@@ -3412,3 +3412,16 @@ housings with recessed luminous inserts instead of floating glowing rectangles; 
 - **Screenshots** (`scratch/` of the worktree): `ss_before_flat.png` / `ss_after_flat.png` (flat: hipfire, ADS, ADS at
   hue 73), `ss_before_blend.png` / `ss_after_blend.png` (Blender: in hand, the rear and the front close up),
   `ss_after_ads_crop2.png` (the sight picture, default hue and 73, and the housing in hipfire).
+- **Follow-up: the barrel mask, and the export's add-on.** The first export left weapons.txt's shotgun barrel mask at
+  "1908:" for a 1928-triangle model: the engine drops a mask whose count differs (no barrel glow mask). Two causes:
+  the mask was carried over only when it numbers the .blend's reference's triangles, and the shotgun's reference is
+  gunlooks.py's input (1876 triangles, the rivets come after); and `blend_export.py` run in a worktree used the add-on
+  Blender had already loaded from the author's checkout (its `sys.path` insert came too late). Now blend_export.py drops
+  an add-on loaded from elsewhere and imports its own checkout's, and a mask for the shipped file's triangles follows
+  them by their corners (frame 0): 386 of 1928 marked (was 396 of 1908: the old front post's 10 are gone).
+- **His black slivers on the receiver's top** (between the rear sight and the eye): not found in the model. On the
+  shipped and the new v_shot.mdl, its pump body and fore-end, every frame: no open edge, T-joint or crack on the top
+  (vertices welded by place in every frame), no triangle folded over, the top covered once seen from above, no black
+  texel and no bad normal-map texel under its triangles, no thin skin triangle (a near-singular normal-map frame), none
+  in the barrel mask. A one-sided render of the quantized model from above and behind shows none. Likely the renderer,
+  not the mesh; reproducing it needs his setup (map, auto pump, graphics preset).
