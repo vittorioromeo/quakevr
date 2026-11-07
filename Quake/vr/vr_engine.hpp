@@ -125,6 +125,7 @@ int NUM_FOR_EDICT_CHECKED (const edict_t *e);		// pr_edict.c: -1 instead of a Ho
 void V_SetupView (void);							// view.c: V_RenderView without the drawing
 void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the linked edicts whose boxes touch mins..maxs
 void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the same, in no order
+void SV_AreaRadiusCandidates (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the same by the boxes as linked (findradius)
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p); // world.c: the ledge map (vr_ledges.cpp)
 void Z_Usage (int *used, int *peak, int *size);		// zone.c: the zone's bytes in use, most ever, and total (vr_limits)
 void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments); // zone.c (vr_limits)

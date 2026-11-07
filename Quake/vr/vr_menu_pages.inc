@@ -1125,6 +1125,8 @@ void resetHandMoves()
         row(opt::vr_agarms_lod),
         row(opt::vr_agarms_lod_near),
         row(opt::vr_agarms_lod_far),
+        row(opt::vr_agarms_lod_distant),
+        row(opt::vr_agarms_lod_distant_at),
         row(opt::vr_agarms_lod_unseen),
         row(opt::vr_agarms_lod_margin),
     };

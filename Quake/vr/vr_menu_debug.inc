@@ -542,6 +542,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
                   "read again since the last time."),
+        row(opt::vr_findradius_grid),
+        row(opt::vr_findradius_check),
+        command("findradius Stats", "vr_findradius_stats")
+            .help("vr_findradius_stats: QuakeC's findradius since the last time: calls a frame, how many went through "
+                  "the area grid, its time a frame and a call, and with Check findradius on, the searches compared "
+                  "with the walk and how many differed (0 expected)."),
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),
@@ -719,6 +725,22 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Armed Humanoids: Check the Arms' Detail", vr_agarms_lod_check)
             .help("vr_agarms_lod_check: each far armed humanoid's reused arms (Arms' Level of Detail, Graphics) also solved and "
                   "compared; Arms' Solve Time prints how far apart its hands and weapons were."),
+        toggle("Armed Humanoids: Arms' Warm Start", vr_agarms_warm)
+            .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
+                  "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "
+                  "degrees; off: from the goal's turn every frame, as before."),
+        toggle("Armed Humanoids: Arms' Grip Slide Bisected", vr_agarms_fast)
+            .help("vr_agarms_fast: the off hand's slide along a two-handed gun to its reach found by bisection, last frame's "
+                  "answer checked first (2-5 arm solves, not up to 19); off: the whole-unit steps, as before."),
+        toggle("Armed Humanoids: Pose Message in One Builtin", vr_agposesend)
+            .help("vr_agposesend: an armed humanoid's pose message written by one builtin (agposesend), the same bytes as "
+                  "QuakeC's ~50 Write calls (vr_agarms_hash); off: QuakeC writes it, as before."),
+        toggle("Armed Humanoids: Arms' Solves on Job Threads", vr_agarms_jobs)
+            .help("vr_agarms_jobs: a frame's arm solves run together on the job threads (the same results bit for bit: "
+                  "vr_agarms_hash); off: each solved in place on the main thread, as before. Arms' Solve Time prints both."),
+        toggle("Armed Humanoids: Check the Solve Shortcuts", vr_agarms_fast_check)
+            .help("vr_agarms_fast_check: each solve also made without the shortcuts (on a copy of its state) and compared; "
+                  "Arms' Solve Time prints how far apart the hands, elbows and turns were."),
         command("Armed Humanoids: Arms' Solve Time", "vr_agarms_cost")
             .help("vr_agarms_cost: the arms' solves since the last (one armed humanoid's arms a frame): how many, us each."),
         command("Armed Monsters' Weapons: Drawn vs Server", "vr_agrunt_weapon_probe")

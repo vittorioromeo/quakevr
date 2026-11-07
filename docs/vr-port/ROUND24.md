@@ -2459,6 +2459,56 @@ lines equal the defaults), before (origin/next's weapons.txt) and after:
 **To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
 weapons sit and aim as he left them.
 
+## Flat-screen wall: muzzle up only (branch `agent/flatwall3`, 2026-11-07)
+
+His test of the third pass: it keeps off the wall, but the left / right / down poses look weird.
+
+- **One pose:** the wall poses, their scoring, lock, re-choice and swap ease are gone (`wallPoses`, `wallPoseScore`,
+  `st.pose/locked/rescore/swapT`): a gun turns muzzle up only (vr_flat_wall_tilt, the least that clears; its ease, the
+  walk-in's early start and the sighted fade kept). The way across the chest went too (the room does it; across brought
+  the rifle 9.6 cm from the eyes at 45 degrees). **Melee** (`flatplay::meleeIn`: axe, mjolnir, sword, chainsaw, crowbar,
+  super axe) never turns: it only goes back.
+- **Room** (`roomFor`): in the wall state the way back is the turned weapon's, as drawn so far: the least that clears it
+  (its points vr_flat_wall_margin off, the hand's own 1 unit: `wallHandRoom`) from the pose's own place, up to the hand
+  3 units past its shoulder (`wallPastShoulder`): past the fold and the stock's place, the arm and the stock into the
+  torso. Turned up, that is less than the level gun's way back, so the gun comes forward again; still turning in, more
+  (the walk-in transient). The wall state is still decided by the level gun's way back (decided by the room's, it
+  flickered and flatsweep's poses never settled).
+- **Eye cap: none; the wall wins.** At a wall his eyes are too near it for the margin, a muzzle-up gun and 15 cm:
+  capping the room at 15 cm left guns 3 cm in the wall, at 8 cm the rifle's hand 1.2 cm in (crouched, 135); driving the
+  gun back till it was 15 cm off took it out of the view (down at the shoulder). The status line's `eyecap` says it is
+  nearer than 15 cm (`flatwallturn:` now prints `room` and `eyecap` instead of `pose` and `locked`).
+- **Free hand:** lets go as before. Kept on (tried): twohand's hold took the rifle and both hands 3-5 cm into the wall.
+- Measured (`scratch/fw4_walk.sh`, walked in, at rest 0.5 s after; rifle, revolver, shotgun, axe; head-on, 45 both
+  ways; standing, crouched): at rest all out: gun >= 8.6 cm off the wall, gun hand >= 7.8, free hand >= 3.3. Gun to the
+  eyes at rest: rifle 6.7-14.0, revolver 13.7-16.8, shotgun 11.3-17.2, axe >= 17.1 (3.2 crouched at 135 before). Walk-in
+  worst (a frame or two): gun -1.1 cm (axe, 135), gun hand -1.1 (revolver, 135), free hand -2.3 (rifle, 45 crouched);
+  before: gun -26, free hand -21. A pistol turned up stands below the view; the rifle stands up at the right edge.
+- Tests: flatwall 14/0, flatsight 12/0, flatsweep 383 passed, 25 known, 2 failed: jump_gun / jump_hand0
+  wall/long/stand/hip 4.99 / 2.76 at pitch 30 (listed 4.69 / 2.63: the room moves the gun with the look; not accepted
+  here). flatsweep's torso rows skip the wall state (new CSV column `wall_on`, flatsweep_check.py `wall_state`); its
+  head rows still count.
+- First, separately: the flat rows his weapon offsets moved recorded as known (flatsweep_known.txt, flatsight's wall row
+  0.45), at the higher of agent/wofspromote's run and origin/next's re-run.
+
+**To try (flat):** walk into a wall with the rifle, a pistol, the shotgun and the axe, straight and at an angle: the gun
+turns muzzle up and nothing goes into the wall; the axe just comes back.
+
+**His call (2026-11-07):** the two jump rows accepted (flatsweep_known.txt); the pistol raised into view.
+- **Raise into view** (`vr_flat_wall_raise`, default 0.4; flatscreen settings "Wall: Raise Into View"; `raiseFor`):
+  in the wall state, after the way back, a weapon whose muzzle (as drawn, turned) stands lower than this share of the
+  view's height up from its bottom edge comes straight up till it is there (eased as the way back), at most 12 units;
+  the way back is then found again from the raised place, and where that can't clear (a ceiling) the raise is halved
+  down to what does. Generic, no number per weapon: at his box on the vrtesthall wall the revolver comes up 2.66
+  units, the nail pistol 3.57, the flare gun 3.22 (all three sat under the status bar, a barrel tip showing; none of
+  them is turned at that wall, the way back clears them); the shotgun, the enforcer rifle and the axe 0 standing (they
+  reach higher); the shotgun crouched comes up 0 to 3.9 (20 up to 20 down, smooth). `vr_gun_wall_depth` 0.0 cm for all
+  of them, hand 0.0. The status line `flatwallturn:` prints `raise`. Tried first: along the view's up, checked against
+  the walls before the way back: looking down that went into the wall (the crouched shotgun's raise fell 3.4 -> 1.0
+  from level to 2 down: flatsweep jump_gun 1.05) and the turn then came and went frame after frame at 35 down
+  (flatsweep `settled`). Less looking down past 20 degrees, none by 50 (there the view finds the weapon anyway, and the
+  wall state ends: a full raise dropped 4.5 units at once at 52 down, flatsweep jump_hand1 1.04).
+  Pictures: `scratch/fw5_before.png`, `scratch/fw5_after.png` (revolver, nail pistol, flare gun, shotgun, rifle).
 ## Release 1.1 readiness pass (night 11-07, agent/release11)
 
 Full regression (`run_baseline.sh --no-bench --jobs 4`, 300 cases, run 20261107-022308) against the last full run on
@@ -2657,3 +2707,102 @@ Round 2:
   fewer): about 230 KB at 768, no slot growing in play. held::drawnMesh remakes a hash-clashing entry in place (its
   vectors kept) instead of erase + emplace. The grasp, barrel mask, model collide and dequant caches are left (bounded
   warm-up, keyed by model and frame).
+## Arms IK and the armed pose's cost (branch `agent/armsperf`, 2026-11-07)
+
+The approved list from perfdesign section C, one commit each; vr_agarms_hash (new) compares runs bit for bit: the sum of
+each arms result's hash (entity, frame, its places and turns) and the ARMPOSE messages' bytes as the client read them.
+The fixed-frame benches are deterministic (two runs, same hashes), so every change below was checked by hash against
+the run before it.
+
+- **vr_agarms_hash, vr_agarms_hash_reset** (Debug tool): prints both hashes; the bench cfgs reset at the window's start.
+- **1. Warm start (vr_agarms_warm, default 0).** A free hand's or fist's refinement (hand turned with its forearm, up to 4
+  arm solves) started from last frame's forearm turn on the chest (per Ent; reset with its goal's kind, a stale solve,
+  a new Ent; not settled in 3 rounds: the old search). It settles fully where the old search stops after 3 rounds, so
+  the free hands' turns differ by up to ~25 degrees (vr_agarms_fast_check: 25-32% of armed_mix32's solves past 2
+  degrees, hands' places 0.0035 units mean): a look change, so off until Vittorio chooses. armed_mix32: 34.8 -> 23.8 us
+  a solve with it on (-32% with item 2); AD's fight: no change (its humanoids hold weapons: Frame goals, no rounds).
+- **vr_agarms_fast_check** (Debug): each solve also made with the shortcuts off on a copy of its state; vr_agarms_cost
+  prints how far apart.
+- **2. Grip slide bisected (vr_agarms_fast, default 1).** The off hand's slide along a two-handed gun: the whole-unit
+  steps and the stretch's 7 halvings give the same answer by bisection while the reach grows with the slide; last
+  frame's step and halving choices are checked first (their bracket's two ends: 2 solves). armed_mix32's bench window:
+  22876 solves bit for bit the old ones (hash equal); the warm-up had 1 of 7579 apart (a reach not growing with the
+  slide). armed_mix32 34.8 -> 31.3 us a solve (-10%).
+- **3. Distant tier (vr_agarms_lod_distant 3, vr_agarms_lod_distant_at 600; Graphics rows).** In view past 600 units:
+  every 3rd frame (never more often than Far in View). AD's fight: 17492 -> 11852 solves in the window (-32%, 0.47 ->
+  0.33 ms a frame); jerk (far in view) 0.0216 -> 0.0222 units mean, over a unit 13 -> 24 of 33047, most 3.675 both.
+  armed_mix32 and E1M1 unchanged (nothing that far).
+- **4. Solves on the job threads (vr_agarms_jobs, default 1).** agarms::solve in three: solvePrepare (main: skin, Ent and
+  Lod found or made, clocks, body proxies posed, every setting read into Limits), solveCore (any thread: its own Ent,
+  Lod and job only; no cvar, QC, GL or allocation), solveFinish (main: jerk, cost, glitch and error notes, hash).
+  relinkArms runs relinkSkinnedBegin for each armed humanoid (its posed bones kept in a SkinWork), one parallelFor over
+  the queued solves, then relinkSkinnedEnd in order; one solved or reused in place finishes at once as before. A skin
+  made again flushes the queue first; debug modes that print or note inside the solve, and the fast check, solve in
+  place. Hash equal with vr_agarms_jobs 0 and 1 and with the old relinkArms (armed_mix32, AD). Save and load:
+  armed_mix32 saved and loaded mid-fight, solves back on the jobs after the load (5516 in 246 batches), no errors.
+  Low-impact run (8 CPUs, idle priority: not a timing): the main thread 163 us a batch for ~19 solves of ~41 us.
+- **5. drawnExtent cached on its DrawnMesh** (a function of the mesh alone; dropped with it). Hashes equal.
+- **6. VR_AG_WeaponLine once a server frame** for a weapon on its drawn frame (vr_ag_wl_frame = framecount + 1 and the
+  line on the weapon); the line from its own origin (makevectors) is worked out each time. No caller reads its side
+  globals (vr_ag_df_*, vr_ag_wx_*) after it. Hashes equal.
+- **7. agposesend (vr_agposesend, default 1).** VR_AGP_Pose hands the ARMPOSE message to one builtin: its globals read
+  by name (Bindings::agPose, the new vr_agp_waist), flags/off-hand/stretch/take bytes and the gun's axes as arguments,
+  the VM's arithmetic (rint's half in double, min/max, OP_MUL_V), each write through VR_BroadcastDest/Written. FALSE
+  (cvar 0, a global missing): QC's Writes as before. ARMPOSE bytes equal (both benches).
+
+Baseline (Release-Tracy ThinLTO, exclusive, QC zones level 2, 900-frame window): AD fight busy p50 10.70 / p99 15.40 ms,
+solves 0.47 ms/f, agweaponextent 0.24, Write* builtins ~0.21; armed_mix32 5.31 / 6.98, solves 0.89, extent 0.11;
+E1M1 fight 3.95 / 5.51, solves 0.08, extent 0.20. **Not measured yet:** the exclusive after-runs for items 4-7 (the
+author's game was running: the timing runs could not start). `bash scratch/ap_mfin.sh` (Release-Tracy build in place)
+takes them: final, vr_agarms_jobs 0, vr_agposesend 0, and all new settings off.
+
+Checklist lines: "Armed humanoids far off in view (600+ units): arms still smooth (distant tier, every 3rd frame)";
+"Armed humanoids two-handed: the off hand still on the second grip as before (bisected slide)"; "Try vr_agarms_warm 1:
+free hands/fists look better or worse? (their wrists settle straighter)".
+## findradius through the area grid (branch `agent/findradius`, 2026-11-07)
+
+From perfdesign's section B (the prototype `vr_frp`, commit ebf911a47, reused for its measurements, not merged). Quake's
+`findradius` walked every edict; an AD edict is ~15.8 KB, so each is a page and 2259 of them cost ~10.7 us a call, 229
+calls a frame in AD's fight (the armed humanoids' three each a frame): 2.4 ms a frame.
+
+**Engine** (`Quake/vr/vr_findradius.cpp`; PF_findradius now calls `VR_FindRadius`):
+- The area grid's node arrays (world.c) keep each edict's abs box as it was linked; `SV_AreaRadiusCandidates` reads
+  those (contiguous) instead of the edicts, so only real candidates touch an edict's page.
+- Exact by construction: an edict is "dirty" (tested by itself at each search) from any change of its .origin, .mins,
+  .maxs or .solid until SV_LinkEdict places it again. QuakeC's stores reach it through the edict index's field watch
+  (vr_edictindex.cpp: the fields' value `watchGeometry`; the `OP_STOREP_V` hook it lacked, in both interpreter loops);
+  the engine's through SV_UnlinkEdict, VR_EdictIndex_Touch (freed, taken, cleared, parsed), sv_phys.c's pusher solid
+  restore, vr_propthink.cpp's native .solid store; SV_ClearWorld makes every edict dirty. A link whose box does not
+  hold the middle (NaN, mins > maxs) stays dirty. A search compacts the dirty list (dropping the clean, the free, the
+  SOLID_NOT), tests it, then the grid's clean candidates in a cube round the sphere (margin 1 + 1e-5 x magnitude), with
+  the walk's very test (same expressions), and sorts by edict number: the walk's chain, in its order. The debris case
+  (`vr_ar_debris`: setorigin, then .solid, unlinked a frame) is a .solid store: dirty.
+- Cvars: `vr_findradius_grid` 1 (0 walk, 1 grid from `vr_findradius_grid_min` edicts, 2 always), `vr_findradius_grid_min`
+  100, `vr_findradius_check` 0 (both run, the walk's chain used, differences counted and the first printed);
+  `vr_findradius_stats`. Debug > Profiling and Memory rows. A non-number centre or radius, or a radius over 4096: the walk.
+- Crossover: with the box cache the grid was quicker on every scene, down to the arena's 135 edicts (0.36 vs 0.52 us a
+  call; armed_mix32 1.18 vs 1.43, where the prototype's grid lost); min set to 100.
+
+**QC**: VR_AGPar_Frame skips its r170 search for monsters' blows when no monster began a melee attack in the last 1.5 s
+(`vr_melee_begun_last`, set at every site that sets `.vr_melee_begun = time`, the tests' too): exact, as the loop needs
+`time - m.vr_melee_begun < 1.5`. VR_AGS_Projectiles (r128) and VR_AG_WeaponStruck (r48) are left: what they want
+(a client-owned moving entity with a projectile's touch, a moving thrown weapon / gib / force-grabbable) has no cheap
+exact test without tagging every spawn site or an engine tally; after the grid they cost ~1 us a call.
+
+**Verified** (`vr_findradius_check 1`, grid forced): e1m1 fight 125,026 searches, AD tfuma fight 206,297 and a long one
+(3180 frames) 528,591, armed_mix32 88,190, arena waves (example_mixed, 3082 frames) 30,139, e1m1 saved mid-fight and
+loaded (67,254 + 41,453): **0 differ**. vr_agarmor_test 5 (debris) 24/0 with the grid forced, and checked; vr_agrunt_test
+60 6/0; 78, 96, 98, 35 fail the same on origin/next (pre-existing). End-state hashes can't compare (two walk runs differ).
+
+**Timings** (Release-Tracy, exclusive, 2048 eyes, 900-frame window; findradius ms a frame from vr_findradius_stats, CPU
+busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms between runs):
+
+| scene | findradius ms/frame: walk -> grid -> + QC gate | calls/frame | CPU busy before (origin/next) | after |
+|---|---|---|---|---|
+| AD tfuma fight (2259 edicts) | 2.44 -> 0.24 -> 0.16 | 229 -> 169 | 8.48 / 9.40 / 13.51 | 6.50 / 6.99 / 10.50 (rep 6.72 / 7.21 / 10.77) |
+| E1M1 fight (415) | 0.24 -> 0.06 -> 0.05 | 139 -> 104 | 2.96 / 3.34 / 4.58 | 2.81 / 3.05 / 4.97 |
+| armed_mix32 (371) | 0.14 -> 0.12 -> 0.08 | 100 -> 70 | 4.56 / 4.84 / 6.83 | 4.52 / 4.75 / 6.61 |
+| arena waves (135) | 0.004 -> 0.003 -> 0.002 | 7.5 -> 5.5 | 1.30 / 1.18 / 6.25 | 1.29 / 1.17 / 5.54 |
+
+With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
+AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.

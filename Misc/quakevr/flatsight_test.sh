@@ -74,12 +74,13 @@ aim=$(grep -a "^flataim: main" "$log" | awk '{ for (i = 1; i <= NF; i++) if ($i 
 echo "  the wall: back at most $peak units, its biggest step out a frame $step, $last left at the end; sights rear $r front $f; the shots at most ${aim% *} deg off the point (${aim#* } reads)"
 # Known (his relief 4 / promoted defaults, accepted 2026-11-06; ROUND24 "Flat-screen: his values as defaults"): at Eye
 # Relief 4 the sighted gun has 1 unit to give before the 3-unit minimum, so it goes back 0.68, short of the 2 the check
-# asks. Listed as known, as flatsweep_known.txt's rows are: it may not get worse than that (0.6 with the noise).
+# asks. Listed as known, as flatsweep_known.txt's rows are: it may not get worse than that. His weapon offsets 2026-11-06
+# (accepted): 0.53 with them, so no worse than 0.45 with the noise (was 0.6).
 if awk -v p="$peak" 'BEGIN { exit !(p >= 2) }'; then
     check 1 "the wall: the weapon goes back"
 else
-    check $(awk -v p="$peak" 'BEGIN { exit !(p >= 0.6) }' && echo 1 || echo 0) \
-        "the wall: the weapon goes back -- KNOWN short of 2 at relief 4 ($peak units; accepted 2026-11-06, no worse than 0.6)"
+    check $(awk -v p="$peak" 'BEGIN { exit !(p >= 0.45) }' && echo 1 || echo 0) \
+        "the wall: the weapon goes back -- KNOWN short of 2 at relief 4 ($peak units; accepted 2026-11-06, no worse than 0.45)"
 fi
 check $(awk -v s="$step" 'BEGIN { exit !(s <= 2.5) }' && echo 1 || echo 0) "the wall: it comes out with no jump"
 check $(good "$r" "$f" "$d" "$c" 1) "the wall: the sights stay on the ray, pushed back"

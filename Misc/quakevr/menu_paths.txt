@@ -529,6 +529,8 @@ vr_gadget_fps|1|Graphics|FPS Counter on the Gadget|Advanced VR Options > Graphic
 vr_agarms_lod|1|Graphics|Armed Humanoids' Arms: Level of Detail|Advanced VR Options > Graphics > Armed Humanoids' Arms: Level of Detail
 vr_agarms_lod_near|1|Graphics|Arms' Detail: Near Within|Advanced VR Options > Graphics > Arms' Detail: Near Within
 vr_agarms_lod_far|1|Graphics|Arms' Detail: Far in View|Advanced VR Options > Graphics > Arms' Detail: Far in View
+vr_agarms_lod_distant|1|Graphics|Arms' Detail: Distant in View|Advanced VR Options > Graphics > Arms' Detail: Distant in View
+vr_agarms_lod_distant_at|1|Graphics|Arms' Detail: Distant From|Advanced VR Options > Graphics > Arms' Detail: Distant From
 vr_agarms_lod_unseen|1|Graphics|Arms' Detail: Out of View|Advanced VR Options > Graphics > Arms' Detail: Out of View
 vr_agarms_lod_margin|1|Graphics|Arms' Detail: View Margin|Advanced VR Options > Graphics > Arms' Detail: View Margin
 |1|Graphics|Reset This Page|Advanced VR Options > Graphics > Reset This Page
@@ -4390,6 +4392,11 @@ vr_box3d_threads_bodies|2|Debug - Profiling and Memory|Physics Threads From|Adva
 |2|Debug - Profiling and Memory|Ragdoll Hand Probe|Advanced VR Options > Debug > Profiling and Memory > Ragdoll Hand Probe
 |2|Debug - Profiling and Memory|Armed Humanoids: Weapon Holds Report|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Weapon Holds Report
 vr_agarms_lod_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Arms' Detail|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Check the Arms' Detail
+vr_agarms_warm|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Warm Start|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Warm Start
+vr_agarms_fast|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Grip Slide Bisected|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Grip Slide Bisected
+vr_agposesend|2|Debug - Profiling and Memory|Armed Humanoids: Pose Message in One Builtin|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Pose Message in One Builtin
+vr_agarms_jobs|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solves on Job Threads|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solves on Job Threads
+vr_agarms_fast_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Solve Shortcuts|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Check the Solve Shortcuts
 |2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solve Time|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solve Time
 |2|Debug - Profiling and Memory|Armed Monsters' Weapons: Drawn vs Server|Advanced VR Options > Debug > Profiling and Memory > Armed Monsters' Weapons: Drawn vs Server
 |2|Debug - Profiling and Memory|Grip Fit: Last|Advanced VR Options > Debug > Profiling and Memory > Grip Fit: Last

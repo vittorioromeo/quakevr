@@ -1148,6 +1148,20 @@ float poseNum(const Tunable& c)
     return za::clamp(c.value, -30.f, 30.f);
 }
 
+bool meleeIn(int h)
+{
+    switch(heldWid(h))
+    {
+    case WID_AXE:
+    case WID_MJOLNIR:
+    case WID_SWORD:
+    case WID_CHAINSAW:
+    case WID_CROWBAR:
+    case WID_SUPERAXE: return true;
+    default: return false;
+    }
+}
+
 bool punching(int h)
 {
     const double t = vr_gametime - fs.punchAt[h];

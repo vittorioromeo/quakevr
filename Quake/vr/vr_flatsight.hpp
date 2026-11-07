@@ -164,6 +164,7 @@ struct SweepNumbers
     float frontOff{-1.f};
     float relief{0.f};
     float adsT{0.f};
+    float wallOn{0.f}; // the held hand's wall state (0..1): there its arm and the stock go into the torso on purpose
 };
 [[nodiscard]] SweepNumbers sweepNumbers(const hands::State& s);
 

@@ -1356,12 +1356,19 @@ void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)
     }
 }
 
+// vr_agarms_jobs: each armed humanoid's skinning held over its arms' solve (relinkArms), how many this frame.
+constexpr int maxSkinWorks = 64;
+SkinWork skinWorks[maxSkinWorks];
+int skinWorkN = 0;
+
 void relinkArms()
 {
     if(!vr_agrunt_ik.value)
     {
         return;
     }
+    skinWorkN = 0;
+    agarms::batchBegin();
     for(ArmPose& s : armPoses.slots)
     {
         if(s.ent <= 0 || s.ent >= cl.num_entities)
@@ -1428,12 +1435,41 @@ void relinkArms()
             liveRecord(s, e, pose1, pose2, blend);
         }
         QVR_TRACY_SCOPE(tracySkinned, "armed arms: skinned props");
-        relinkSkinned(s, e, hdr, pose1, pose2, blend);
+        if(skinWorkN < maxSkinWorks)
+        {
+            // (vr_agarms_jobs: the rest after the frame's solves, below, in this order)
+            SkinWork& w = skinWorks[skinWorkN];
+            if(relinkSkinnedBegin(s, e, hdr, pose1, pose2, blend, w, true))
+            {
+                if(w.ticket >= 0)
+                {
+                    w.rec = rec;
+                    skinWorkN++;
+                    continue;
+                }
+                relinkSkinnedEnd(w); // (solved or reused in place: finished now, as before)
+            }
+        }
+        else
+        {
+            relinkSkinned(s, e, hdr, pose1, pose2, blend);
+        }
         if(rec)
         {
             poselive::recorded();
         }
     }
+    agarms::batchRun();
+    for(int i = 0; i < skinWorkN; i++)
+    {
+        QVR_TRACY_SCOPE(tracyCommit, "armed arms: skinned props (after the solves)");
+        relinkSkinnedEnd(skinWorks[i]);
+        if(skinWorks[i].rec)
+        {
+            poselive::recorded();
+        }
+    }
+    agarms::batchEnd();
     aggrip::frame();
 }
 } // namespace qvr::hitreact
