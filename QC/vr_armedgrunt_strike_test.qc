@@ -62,6 +62,9 @@ void(entity g, float state) VR_AGST_Hold =
     g.vr_agpar_w = state == 2 ? 1 : 0;
     g.vr_agpar_seen = time;
     g.vr_agpar_tby = vr_agt_player;
+    // (No armour: the skill's roll is the next of a sequence per spawn, so which case's grunt wore a plate shifted
+    // with the cases before it; a plate under rule 0 takes its share of a parried blow, 5 -> 3.)
+    VR_AgArmor_Give(g, 0, 0);
 };
 
 // Your main hand's blow this frame as the melee tracker has it: its points from `a0`..`a1` (its last pose) to `b0`..`b1`
