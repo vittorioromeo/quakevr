@@ -16,7 +16,7 @@ P="developer 1;map e1m1;wait60;god;notarget;vr_reload_mode 3;vr_holster_mode 0;v
 draw() { # $1: where the hand goes to draw (holster 3: the reach point; zone 3: the holster as drawn)
     echo "vr_mock_hand_to main $1;wait5;vr_mock_hand_to main $1;wait5;+grabright;vr_mock_button main grip 1;wait10;vr_mock_hand main 0.3 1.0 -0.2 -40 0 0;wait3;"
 }
-fail=0
+fail=0; n=0; nfail=0
 if [ "$2" = "shot" ]; then
     CAM="0.25 1.45 -1.0 30 180"
     AT="vr_mock_hand_to main zonegrip 3 -2 0 0;wait3;vr_mock_hand_to main zonegrip 3 -2 0 0;wait3;"
@@ -24,8 +24,13 @@ if [ "$2" = "shot" ]; then
     bash $KIT/run.sh $AGENT -Clean -Out holsterzones.png -Script "${S}toggleconsole;quit" -Filter "composed|ERROR"
     exit 0
 fi
+# Expectations updated 2026-11-07 (Vittorio approved) to the SHIPPED hip zone since 18da3d3e8 (y -2.75, z -2.35, depth 0.05,
+# width 0.5, height 0.7): the cases had been tuned on config 156 (y -2.25, depth 0.15), 0.5 further out and thicker. Now:
+# spheres at the drawn hip: the ammo pouch's hotspot 2 wins, so DROP; zones: 1 unit out already drops (hotspot 2), up to
+# 6 in is IN (hotspot 6), 7 in drops; the palm 3 in lands in hotspot 2 with the thin zone, so the hand point no longer
+# rescues it (DROP with and without; no palm offset from -11 to +3 gives an IN).
 # mode:point:hand point:out,side:expected (mode 0 the old spheres, 1 the zones; point: grip or palm)
-CASES="0:grip:1:0,0:IN 0:grip:1:-1,0:DROP 0:grip:1:-2,0:DROP 0:grip:1:-3,0:DROP 1:grip:1:2,0:IN 1:grip:1:0,0:IN 1:grip:1:-2,0:IN 1:grip:1:-4,0:DROP 1:grip:1:-7,0:DROP 1:grip:1:6,0:DROP 1:palm:1:-3,0:IN 1:palm:0:-3,0:DROP"
+CASES=${CASES:-"0:grip:1:0,0:DROP 0:grip:1:-1,0:DROP 0:grip:1:-2,0:DROP 0:grip:1:-3,0:DROP 1:grip:1:2,0:DROP 1:grip:1:0,0:IN 1:grip:1:-2,0:IN 1:grip:1:-4,0:IN 1:grip:1:-7,0:DROP 1:grip:1:6,0:DROP 1:palm:1:-3,0:DROP 1:palm:0:-3,0:DROP"}
 for c in $CASES; do
     IFS=: read mode point hp pos want <<< "$c"
     if [ $mode = 0 ]; then D=$(draw "holster 3"); else D=$(draw "zone 3"); fi
@@ -34,12 +39,15 @@ for c in $CASES; do
     OUT=$(bash $KIT/run.sh $AGENT -Script "${S}toggleconsole;quit" -Filter "^zone (rhip|hand main:)")
     HS=$(echo "$OUT" | grep "^zone hand main:" | head -1 | sed 's/.*hotspot \([0-9]*\).*points (\([^)]*\)).*/hotspot \1, hand at \2/')
     if echo "$OUT" | grep "^zone rhip" | tail -1 | grep -q "a gun in it"; then got=IN; else got=DROP; fi
-    if [ "$got" = "$want" ]; then r=PASS; else r=FAIL; fail=1; fi
+    if [ "$got" = "$want" ]; then r=PASS; else r=FAIL; fail=1; nfail=$((nfail+1)); fi
+    n=$((n+1))
     echo "$r zones $mode, $point at the drawn hip holster + ($pos), hand point $hp: $HS -> $got (want $want)"
 done
 S="$P wait10;"
 for z in 0 1 2 3 4 5 6 7; do S="$S vr_mock_hand_to off zonebox $z;wait3;vr_mock_hand_to off zonebox $z;wait3;vr_holster_zones_report;"; done
 GOT=$(bash $KIT/run.sh $AGENT -Script "${S}toggleconsole;quit" -Filter "^zone hand off:" | grep "^zone hand off:" | sed 's/.*hotspot \([0-9]*\).*/\1/' | tr '\n' ' ')
-if [ "$GOT" = "3 4 5 6 8 9 12 11 " ]; then r=PASS; else r=FAIL; fail=1; fi
+if [ "$GOT" = "3 4 5 6 8 9 12 11 " ]; then r=PASS; else r=FAIL; fail=1; nfail=$((nfail+1)); fi
+n=$((n+1))
 echo "$r the empty hand at the holsters' and pouches' zones: hotspots $GOT(want 3 4 5 6 8 9 12 11)"
+echo "holsterzones: $((n-nfail)) passed, $nfail failed"
 exit $fail

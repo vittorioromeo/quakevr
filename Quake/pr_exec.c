@@ -831,6 +831,8 @@ static void PR_ExecuteProgramRun (func_t fnum)
 		ptr->vector[0] = OPA->vector[0];
 		ptr->vector[1] = OPA->vector[1];
 		ptr->vector[2] = OPA->vector[2];
+		if (qcvm->watchpending) // QVR: a watched vector's store (findradius: .origin, .mins, .maxs)
+			VR_EdictIndex_Stored (OPB->_int);
 		break;
 
 	case OP_ADDRESS:

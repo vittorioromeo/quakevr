@@ -5753,6 +5753,14 @@ QVR_CYCLE(vr_gl_markers, "GL Debug Groups",
 QVR_TOGGLE(vr_qcprofile, "Time QuakeC Functions",
     "vr_qcprofile: each server QuakeC function's time (its own, with the builtins it calls, and with its "
     "callees), its calls, and each builtin's, for QuakeC Time Report. Costs a little while on.")
+QVR_CYCLE(vr_findradius_grid, "findradius Search",
+    "vr_findradius_grid: how QuakeC's findradius (the armed humanoids' look for shots and blows, explosions' "
+    "reach) finds what is near: Walk, every entity (Quake's); Big Maps, through the area grid on maps of "
+    "vr_findradius_grid_min entities or more, the default; Grid, always. The same entities, in the same order.",
+    {0.f, "Walk"}, {1.f, "Big Maps"}, {2.f, "Grid"})
+QVR_TOGGLE(vr_findradius_check, "Check findradius",
+    "vr_findradius_check: every findradius also walks every entity and compares the two (the walk's result is "
+    "used); findradius Stats counts the differences and the first are printed (findradius check:). Slower.")
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "

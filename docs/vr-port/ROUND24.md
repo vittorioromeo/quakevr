@@ -2732,3 +2732,50 @@ takes them: final, vr_agarms_jobs 0, vr_agposesend 0, and all new settings off.
 Checklist lines: "Armed humanoids far off in view (600+ units): arms still smooth (distant tier, every 3rd frame)";
 "Armed humanoids two-handed: the off hand still on the second grip as before (bisected slide)"; "Try vr_agarms_warm 1:
 free hands/fists look better or worse? (their wrists settle straighter)".
+## findradius through the area grid (branch `agent/findradius`, 2026-11-07)
+
+From perfdesign's section B (the prototype `vr_frp`, commit ebf911a47, reused for its measurements, not merged). Quake's
+`findradius` walked every edict; an AD edict is ~15.8 KB, so each is a page and 2259 of them cost ~10.7 us a call, 229
+calls a frame in AD's fight (the armed humanoids' three each a frame): 2.4 ms a frame.
+
+**Engine** (`Quake/vr/vr_findradius.cpp`; PF_findradius now calls `VR_FindRadius`):
+- The area grid's node arrays (world.c) keep each edict's abs box as it was linked; `SV_AreaRadiusCandidates` reads
+  those (contiguous) instead of the edicts, so only real candidates touch an edict's page.
+- Exact by construction: an edict is "dirty" (tested by itself at each search) from any change of its .origin, .mins,
+  .maxs or .solid until SV_LinkEdict places it again. QuakeC's stores reach it through the edict index's field watch
+  (vr_edictindex.cpp: the fields' value `watchGeometry`; the `OP_STOREP_V` hook it lacked, in both interpreter loops);
+  the engine's through SV_UnlinkEdict, VR_EdictIndex_Touch (freed, taken, cleared, parsed), sv_phys.c's pusher solid
+  restore, vr_propthink.cpp's native .solid store; SV_ClearWorld makes every edict dirty. A link whose box does not
+  hold the middle (NaN, mins > maxs) stays dirty. A search compacts the dirty list (dropping the clean, the free, the
+  SOLID_NOT), tests it, then the grid's clean candidates in a cube round the sphere (margin 1 + 1e-5 x magnitude), with
+  the walk's very test (same expressions), and sorts by edict number: the walk's chain, in its order. The debris case
+  (`vr_ar_debris`: setorigin, then .solid, unlinked a frame) is a .solid store: dirty.
+- Cvars: `vr_findradius_grid` 1 (0 walk, 1 grid from `vr_findradius_grid_min` edicts, 2 always), `vr_findradius_grid_min`
+  100, `vr_findradius_check` 0 (both run, the walk's chain used, differences counted and the first printed);
+  `vr_findradius_stats`. Debug > Profiling and Memory rows. A non-number centre or radius, or a radius over 4096: the walk.
+- Crossover: with the box cache the grid was quicker on every scene, down to the arena's 135 edicts (0.36 vs 0.52 us a
+  call; armed_mix32 1.18 vs 1.43, where the prototype's grid lost); min set to 100.
+
+**QC**: VR_AGPar_Frame skips its r170 search for monsters' blows when no monster began a melee attack in the last 1.5 s
+(`vr_melee_begun_last`, set at every site that sets `.vr_melee_begun = time`, the tests' too): exact, as the loop needs
+`time - m.vr_melee_begun < 1.5`. VR_AGS_Projectiles (r128) and VR_AG_WeaponStruck (r48) are left: what they want
+(a client-owned moving entity with a projectile's touch, a moving thrown weapon / gib / force-grabbable) has no cheap
+exact test without tagging every spawn site or an engine tally; after the grid they cost ~1 us a call.
+
+**Verified** (`vr_findradius_check 1`, grid forced): e1m1 fight 125,026 searches, AD tfuma fight 206,297 and a long one
+(3180 frames) 528,591, armed_mix32 88,190, arena waves (example_mixed, 3082 frames) 30,139, e1m1 saved mid-fight and
+loaded (67,254 + 41,453): **0 differ**. vr_agarmor_test 5 (debris) 24/0 with the grid forced, and checked; vr_agrunt_test
+60 6/0; 78, 96, 98, 35 fail the same on origin/next (pre-existing). End-state hashes can't compare (two walk runs differ).
+
+**Timings** (Release-Tracy, exclusive, 2048 eyes, 900-frame window; findradius ms a frame from vr_findradius_stats, CPU
+busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms between runs):
+
+| scene | findradius ms/frame: walk -> grid -> + QC gate | calls/frame | CPU busy before (origin/next) | after |
+|---|---|---|---|---|
+| AD tfuma fight (2259 edicts) | 2.44 -> 0.24 -> 0.16 | 229 -> 169 | 8.48 / 9.40 / 13.51 | 6.50 / 6.99 / 10.50 (rep 6.72 / 7.21 / 10.77) |
+| E1M1 fight (415) | 0.24 -> 0.06 -> 0.05 | 139 -> 104 | 2.96 / 3.34 / 4.58 | 2.81 / 3.05 / 4.97 |
+| armed_mix32 (371) | 0.14 -> 0.12 -> 0.08 | 100 -> 70 | 4.56 / 4.84 / 6.83 | 4.52 / 4.75 / 6.61 |
+| arena waves (135) | 0.004 -> 0.003 -> 0.002 | 7.5 -> 5.5 | 1.30 / 1.18 / 6.25 | 1.29 / 1.17 / 5.54 |
+
+With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
+AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.
