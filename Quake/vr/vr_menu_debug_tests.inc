@@ -638,6 +638,11 @@ za::Vector<Item> pageDebugTests()
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
                   "stand."),
+        command("Lying Down Status", "vr_prone_status")
+            .help("vr_prone_status: whether you lie down (vr_prone), your box's height, your eyes over your feet against "
+                  "the limit you lie down under, your speed, on the ground, and whether a crouch fits (you could get up)."),
+        command("Lie Down / Get Up (Flat-Screen)", "vr_prone_toggle")
+            .help("vr_prone_toggle: flat-screen play's prone key (X). In a headset you lie down for real."),
         command("Flat Items: Hold And Shoot", "vr_flatitems_test 1")
             .help("vr_flatitems_test 1 (-flatscreenmode only): armour, a key, the biosuit, a rune, shells and health each grabbed with E into the off hand, the shotgun fired through it (flatitems: lines)."),
         command("Flat Items: Walk Over", "vr_flatitems_test 2")

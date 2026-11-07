@@ -1559,6 +1559,8 @@ void() PlayerJump =
         return;
     }
 
+    if(self.vr_prone) return; // lying down (the engine's vr_prone: his box is low, he crawls): no jumping, boots or not
+
     if(AD_JumpBoots()) return; // AD support: AD's Jump Boots' jumps, in the air too (vr_ad_items.qc)
 
     if(!(self.flags & FL_ONGROUND))
