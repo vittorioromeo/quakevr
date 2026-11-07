@@ -2679,3 +2679,56 @@ the parent build; seed 4242: 22e429ac, ba8ddaa6, loadouts hash 10104 vs 24627; s
 seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two different fresh seeds. vr_agrunt_test 70
 22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
 numbers on the parent build (pre-existing drift of the pommel distances, not this change).
+
+## Arms IK and the armed pose's cost (branch `agent/armsperf`, 2026-11-07)
+
+The approved list from perfdesign section C, one commit each; vr_agarms_hash (new) compares runs bit for bit: the sum of
+each arms result's hash (entity, frame, its places and turns) and the ARMPOSE messages' bytes as the client read them.
+The fixed-frame benches are deterministic (two runs, same hashes), so every change below was checked by hash against
+the run before it.
+
+- **vr_agarms_hash, vr_agarms_hash_reset** (Debug tool): prints both hashes; the bench cfgs reset at the window's start.
+- **1. Warm start (vr_agarms_warm, default 0).** A free hand's or fist's refinement (hand turned with its forearm, up to 4
+  arm solves) started from last frame's forearm turn on the chest (per Ent; reset with its goal's kind, a stale solve,
+  a new Ent; not settled in 3 rounds: the old search). It settles fully where the old search stops after 3 rounds, so
+  the free hands' turns differ by up to ~25 degrees (vr_agarms_fast_check: 25-32% of armed_mix32's solves past 2
+  degrees, hands' places 0.0035 units mean): a look change, so off until Vittorio chooses. armed_mix32: 34.8 -> 23.8 us
+  a solve with it on (-32% with item 2); AD's fight: no change (its humanoids hold weapons: Frame goals, no rounds).
+- **vr_agarms_fast_check** (Debug): each solve also made with the shortcuts off on a copy of its state; vr_agarms_cost
+  prints how far apart.
+- **2. Grip slide bisected (vr_agarms_fast, default 1).** The off hand's slide along a two-handed gun: the whole-unit
+  steps and the stretch's 7 halvings give the same answer by bisection while the reach grows with the slide; last
+  frame's step and halving choices are checked first (their bracket's two ends: 2 solves). armed_mix32's bench window:
+  22876 solves bit for bit the old ones (hash equal); the warm-up had 1 of 7579 apart (a reach not growing with the
+  slide). armed_mix32 34.8 -> 31.3 us a solve (-10%).
+- **3. Distant tier (vr_agarms_lod_distant 3, vr_agarms_lod_distant_at 600; Graphics rows).** In view past 600 units:
+  every 3rd frame (never more often than Far in View). AD's fight: 17492 -> 11852 solves in the window (-32%, 0.47 ->
+  0.33 ms a frame); jerk (far in view) 0.0216 -> 0.0222 units mean, over a unit 13 -> 24 of 33047, most 3.675 both.
+  armed_mix32 and E1M1 unchanged (nothing that far).
+- **4. Solves on the job threads (vr_agarms_jobs, default 1).** agarms::solve in three: solvePrepare (main: skin, Ent and
+  Lod found or made, clocks, body proxies posed, every setting read into Limits), solveCore (any thread: its own Ent,
+  Lod and job only; no cvar, QC, GL or allocation), solveFinish (main: jerk, cost, glitch and error notes, hash).
+  relinkArms runs relinkSkinnedBegin for each armed humanoid (its posed bones kept in a SkinWork), one parallelFor over
+  the queued solves, then relinkSkinnedEnd in order; one solved or reused in place finishes at once as before. A skin
+  made again flushes the queue first; debug modes that print or note inside the solve, and the fast check, solve in
+  place. Hash equal with vr_agarms_jobs 0 and 1 and with the old relinkArms (armed_mix32, AD). Save and load:
+  armed_mix32 saved and loaded mid-fight, solves back on the jobs after the load (5516 in 246 batches), no errors.
+  Low-impact run (8 CPUs, idle priority: not a timing): the main thread 163 us a batch for ~19 solves of ~41 us.
+- **5. drawnExtent cached on its DrawnMesh** (a function of the mesh alone; dropped with it). Hashes equal.
+- **6. VR_AG_WeaponLine once a server frame** for a weapon on its drawn frame (vr_ag_wl_frame = framecount + 1 and the
+  line on the weapon); the line from its own origin (makevectors) is worked out each time. No caller reads its side
+  globals (vr_ag_df_*, vr_ag_wx_*) after it. Hashes equal.
+- **7. agposesend (vr_agposesend, default 1).** VR_AGP_Pose hands the ARMPOSE message to one builtin: its globals read
+  by name (Bindings::agPose, the new vr_agp_waist), flags/off-hand/stretch/take bytes and the gun's axes as arguments,
+  the VM's arithmetic (rint's half in double, min/max, OP_MUL_V), each write through VR_BroadcastDest/Written. FALSE
+  (cvar 0, a global missing): QC's Writes as before. ARMPOSE bytes equal (both benches).
+
+Baseline (Release-Tracy ThinLTO, exclusive, QC zones level 2, 900-frame window): AD fight busy p50 10.70 / p99 15.40 ms,
+solves 0.47 ms/f, agweaponextent 0.24, Write* builtins ~0.21; armed_mix32 5.31 / 6.98, solves 0.89, extent 0.11;
+E1M1 fight 3.95 / 5.51, solves 0.08, extent 0.20. **Not measured yet:** the exclusive after-runs for items 4-7 (the
+author's game was running: the timing runs could not start). `bash scratch/ap_mfin.sh` (Release-Tracy build in place)
+takes them: final, vr_agarms_jobs 0, vr_agposesend 0, and all new settings off.
+
+Checklist lines: "Armed humanoids far off in view (600+ units): arms still smooth (distant tier, every 3rd frame)";
+"Armed humanoids two-handed: the off hand still on the second grip as before (bisected slide)"; "Try vr_agarms_warm 1:
+free hands/fists look better or worse? (their wrists settle straighter)".
