@@ -716,7 +716,7 @@ void startShove(const char* from)
     {
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: shove (%s): cooling down, %.2f s left\n", from, vr_gametime - fs.shoveReady);
+            Con_Printf("flatplay: shove (%s): cooling down, %.2f s left\n", from, fs.shoveReady - vr_gametime);
         }
         return;
     }
@@ -1346,6 +1346,7 @@ void init()
     Cmd_AddCommand("vr_prone_toggle", proneToggle_f); // the prone key's toggle (vr_flat_key_prone), the console's way
     Cmd_AddCommand("vr_flat_punch", punch_f);
     Cmd_AddCommand("vr_flat_shove_now", shoveNow_f); // the shove key's shove, the console's way (tests)
+    Cmd_AddCommand("vr_flat_flick_test", flickTest_f); // the tests' mouse, flicked hard (no gesture may come of it)
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
@@ -1359,6 +1360,7 @@ void frame()
     const bool on = active();
     Cvar_SetValue("vr_flatplay", on ? 1.f : 0.f);
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
+    flickTestFrame();   // vr_flat_flick_test's next flick, when one runs: likewise
     flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
     flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
 
@@ -2216,6 +2218,50 @@ void status_f()
                "game).\n");
     flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)
     modelFovStatus();
+}
+
+// vr_flat_flick_test [frames] [degrees]: the tests' mouse, flicked hard: for `frames` frames (144 if none) the view turns
+// by `degrees` a frame (25 if none; 1800 degrees a second at 72 frames) in yaw and half that in pitch, the other way every
+// three frames, as a mouse moved fast left and right does; then FlickTest::settle still frames for the game to read the last
+// of it, and "flatflick: done". No gesture may come of it (vr_handsource.hpp): Misc/quakevr/flatinput_test.sh.
+struct FlickTest
+{
+    int left{0};     // frames of flicking left
+    int frame{0};    // frames flicked
+    int settle{0};   // still frames left before the verdict line
+    float deg{25.f}; // the turn a frame
+};
+FlickTest flickTest;
+constexpr int flickSettle = 36; // half a second: the server's frames and the gestures' own windows (the revolver's 0.25 s)
+
+void flickTestFrame()
+{
+    if(flickTest.left > 0)
+    {
+        const float way = (flickTest.frame / 3) % 2 == 0 ? 1.f : -1.f;
+        cl.viewangles[YAW] += way * flickTest.deg;
+        cl.viewangles[PITCH] = za::clamp(cl.viewangles[PITCH] + way * flickTest.deg * 0.5f, -60.f, 60.f);
+        flickTest.frame++;
+        if(--flickTest.left == 0)
+        {
+            flickTest.settle = flickSettle;
+        }
+        return;
+    }
+    if(flickTest.settle > 0 && --flickTest.settle == 0)
+    {
+        Con_Printf("flatflick: done, %d frames of %.0f-degree flicks; hands now %s, %s\n", flickTest.frame,
+            static_cast<double>(flickTest.deg), handsource::name(handsource::source(HAND_OFF)),
+            handsource::name(handsource::source(HAND_MAIN)));
+    }
+}
+
+void flickTest_f()
+{
+    flickTest = FlickTest{};
+    flickTest.left = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 144;
+    flickTest.deg = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 1.f, 44.f) : 25.f;
+    Con_Printf("flatflick: %d frames of %.0f-degree flicks\n", flickTest.left, static_cast<double>(flickTest.deg));
 }
 
 // vr_flat_shove_now: the shove key's shove (its cooldown and all), from the console: the tests' button.

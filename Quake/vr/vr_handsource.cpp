@@ -64,7 +64,7 @@ const char* why(int h)
 
 bool gestures(int h)
 {
-    return source(h) != Source::Synthesized;
+    return source(h) != Source::Synthesized || vr_handsource_gate.value == 0.f;
 }
 
 za::U8 moveBits()
