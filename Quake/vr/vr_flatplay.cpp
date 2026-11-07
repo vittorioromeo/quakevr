@@ -7,7 +7,7 @@
 //   - the hands are posed from the view angles, the weapon in each hand and the player's own movement: they hold a gun
 //     the way a first-person viewmodel does, aim at the crosshair, trail a turn, bob on a walk and breathe at rest
 //     (poseHands, called from vr_hands.cpp in place of the straight-out-in-front pose);
-//   - E force-grabs what the view is pointed at, V punches with the right hand, and either hand's fire button punches
+//   - R (vr_flat_key_grab) force-grabs what the view is pointed at, V punches with the right hand, and either hand's fire button punches
 //     with a weapon a swing strikes with: all of it goes through the game's own force grab and melee, a punch being a
 //     real motion of the hand, so the melee rules decide whether it lands (vr_flat_punch drives either hand's punch from
 //     the console);

@@ -45,6 +45,9 @@ void frame(bool on);
 [[nodiscard]] float slideShare();
 // How much further down the slide puts his eyes now (units; flatplay::crouchDrop adds it).
 [[nodiscard]] float slideDrop();
+// How far behind the eye the slide's leant-back trunk hangs from (units: vr_flat_slide_neck_back; the avatar takes it by
+// its slide share). 0 outside the mode.
+[[nodiscard]] float slideNeckBack();
 
 // One step of the slide on the ground (the self-test drives it directly): the speed along the floor `vel`, the floor's
 // normal, the move keys' way (unit, or zero), seconds. Out: the new speed along the floor; `ended` when it is slower

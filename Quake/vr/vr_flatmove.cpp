@@ -786,6 +786,11 @@ float slideShare()
     return flatplay::active() ? client.slide.share : 0.f;
 }
 
+float slideNeckBack()
+{
+    return flatplay::active() ? za::clamp(vr_flat_slide_neck_back.value, 0.f, 20.f) : 0.f;
+}
+
 float slideDrop()
 {
     return slideShare() * za::clamp(vr_flat_slide_drop.value, 0.f, 14.f);

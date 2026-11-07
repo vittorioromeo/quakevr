@@ -1935,6 +1935,7 @@ QVR_TUNABLE(vr_flat_slide_cooldown, "0.5") // the slide: seconds after one ends 
 QVR_TUNABLE(vr_flat_slide_steer, "40") // the slide: degrees a second the move keys turn it (0: straight on)
 QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the crouch his eyes go down (units, 0..14)
 QVR_TUNABLE(vr_flat_slide_body_angle, "45") // the slide: the trunk leant back this many degrees from upright, the legs out in front along the floor (vr_avatar_pitch.cpp)
+QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
 QVR_TUNABLE(vr_flat_lean_angle, "15") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
 QVR_TUNABLE(vr_flat_lean_dist, "16") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it

@@ -1931,6 +1931,7 @@ QVR_TUNABLE_SLIDER(vr_flat_slide_cooldown, "Slide Cooldown", 0.f, 3.f, 0.05f, "%
 QVR_TUNABLE_SLIDER(vr_flat_slide_steer, "Slide Steering", 0.f, 180.f, 5.f, "%.0f deg/s", 0.f, 180.f, "How fast the move keys turn a slide (vr_flat_slide_steer; 0: straight on).")
 QVR_TUNABLE_SLIDER(vr_flat_slide_drop, "Slide Eye Drop", 0.f, 14.f, 0.5f, "%.1f units", 0.f, 14.f, "How much lower than the crouch his eyes go in a slide (vr_flat_slide_drop).")
 QVR_TUNABLE_SLIDER(vr_flat_slide_body_angle, "Slide Body Lean Back", 0.f, 80.f, 1.f, "%.0f deg", 0.f, 80.f, "The trunk leant back this far from upright in a slide, the legs out in front along the floor (vr_flat_slide_body_angle).")
+QVR_TUNABLE_SLIDER(vr_flat_slide_neck_back, "Slide Neck Back", 0.f, 20.f, 0.5f, "%.1f units", 0.f, 20.f, "How far behind the eye the leant-back trunk hangs in a slide: the chest goes under the view and the legs out in front show past it (vr_flat_slide_neck_back).")
 QVR_TUNABLE_SLIDER(vr_flat_slide_body_time, "Slide Pose Time", 0.05f, 1.f, 0.05f, "%.2f s", 0.05f, 1.f, "Seconds the body and the view take into the slide pose and out (vr_flat_slide_body_time).")
 QVR_TUNABLE_GROUP("Flatscreen > Lean")
 QVR_TUNABLE_SLIDER(vr_flat_lean_angle, "Lean Roll", 0.f, 35.f, 1.f, "%.0f deg", 0.f, 35.f, "How far Q and E roll the view and the held weapon at a full lean (vr_flat_lean_angle).")
