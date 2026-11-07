@@ -102,11 +102,6 @@ void() VR_FST_Next =
     vr_fst_until = time + 0.3; // (its spawn's walkmonster_start takes a frame or two)
 };
 
-void(entity g, vector at) VR_FST_GoalAt =
-{
-    setorigin(g, at);
-};
-
 void() VR_Footstep_TestFrame =
 {
     float req = rint(cvar_hget(cvarh_vr_footstep_test));

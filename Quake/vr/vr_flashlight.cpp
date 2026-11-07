@@ -510,6 +510,8 @@ struct State
     int gameFrame{-1};
     int viewFrame{-1};      // the frame setupView last ran in (once a frame)
     int viewGeneration{-1}; // the map's (worldGeneration) setupView last saw
+    const view::ViewEntity* model{nullptr}; // the torch's drawn model (setupView): its lit lens goes with it (drawLens)
+    int lensFrame{-100};                    // the frame drawLens last drew the lit lens in (vr_flashlight_probe)
 
     float beamLength{-1.f}; // the visible beam's length, eased towards where the beam lands (<0: none yet)
     double beamTime{0.0};
@@ -2203,6 +2205,9 @@ void probe_f()
     {
         Con_Printf("torchprobe %s clipease %.2f cm %.1f deg\n", tag, st.clipLeftCm, st.clipLeftDeg);
     }
+    // The lit lens's disc (drawLens) drawn in the last frame or the one before, and the torch's model drawn.
+    Con_Printf("torchprobe %s lens drawn %d model %d\n", tag, st.lensFrame >= host_framecount - 2 ? 1 : 0,
+        st.model && view::drawn(*st.model) ? 1 : 0);
     view::WeaponMount gm;
     if(st.mode == Mode::OnGun && st.gunHand >= 0 && view::weaponMount(st.gunHand, gm))
     {
@@ -2318,6 +2323,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         return; // once per frame, however often the view is set up
     }
     lastFrame = host_framecount;
+    st.model = &ve;
     // The hands the game reads (the drawn `s` may be pushed out of the body, round the lamp on it): what lights the
     // lamp and what a press is judged on; their speed too (a drawn hand let go by the body jumps).
     const hands::State& game = st.gameFrame == host_framecount ? st.game : s;
@@ -2507,7 +2513,8 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     place(ve, drawn, hover);
     if(flatplay::active() && vr_flat_flashlight_hide.value != 0.f)
     {
-        ve.visible = false; // (flatscreen play: worn at the eyes, its model only got in the way; the beam and light stay)
+        ve.visible = false; // (flatscreen play: worn at the eyes, its model only got in the way; the beam and light stay,
+                            // its lit lens goes with it: drawLens)
     }
     if(vr_show_flashlight_zones.value)
     {
@@ -2570,10 +2577,11 @@ bool cordDrawn()
 }
 
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
-// fullbright lens was one colour).
+// fullbright lens was one colour). Drawn only with the torch's model (view::drawn): hidden (vr_flat_flashlight_hide,
+// vr_shot_hide), its lens isn't left floating where it was (the beam and the light are the air's and the world's: they stay).
 void drawLens()
 {
-    if(!st.on || !st.placed || !enabled())
+    if(!st.on || !st.placed || !enabled() || !st.model || !view::drawn(*st.model))
     {
         return;
     }
@@ -2602,6 +2610,7 @@ void drawLens()
     state.depthWrite = false;
     state.flatModelFov = true;
     gfx::draw(fan, gfx::sceneViewProjection(), state);
+    st.lensFrame = host_framecount;
 }
 
 void drawTranslucent()

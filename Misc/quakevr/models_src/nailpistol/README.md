@@ -1,5 +1,14 @@
 # Nail pistol: art source
 
+**Archive (2026-11).** This folder is the nail pistol's first art, kept for its skin and renders. It no longer
+makes the shipped gun: the full slide was built from `v_nailpistol_classic.mdl` and edited since, so the shipped
+`v_nailpistol.mdl` and `v_nailpistol_mag.mdl` come from their own sources,
+`Misc/quakevr/src_models/blend/v_nailpistol/v_nailpistol.blend` and `.../v_nailpistol_mag/v_nailpistol_mag.blend`
+([MODELS_IN_BLENDER.md](../../../../docs/vr-port/MODELS_IN_BLENDER.md), section 9): edit those and press Ctrl+S
+(export on save), or run `blend_export.py` on them. The scripts that were here (`build_nailpistol.py`,
+`build_nailpistol_slide.py`, `export_mdl.py`) are removed (they are in git history); the text below describes
+the archive as it was.
+
 The nail pistol's model and skin, before it is a weapon (no gameplay yet): a compact, semi-automatic, Quake 1 style
 pistol of rusty riveted iron, a hexagonal muzzle, three vent slots in each side, a copper feed block on top (the slide,
 which snaps back per shot), iron sights, an angled grip, a thick trigger guard, and a separate magazine with a copper
@@ -11,8 +20,6 @@ agreed changes (separate magazine, iron sights, separate slide, thicker guard an
 | `nailpistol.blend` | The source: objects `Body`, `Slide`, `Trigger`, `Magazine` (children of `Body`), one material `NailPistolSkin` (the skin, nearest filtering), one UV atlas shared by all four. |
 | `nailpistol_skin.png` | The skin, 256x256 RGB, already in Quake's palette: paint this one (in Blender or any image editor). |
 | `nailpistol_skin_pal.png` | The same skin as palette indices (8-bit, Quake's palette), written by every export: what the MDLs hold. |
-| `export_mdl.py` | Writes the MDLs from the .blend (below). |
-| `build_nailpistol.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin) and exports. It **overwrites** the .blend and the skin: once they are edited by hand, don't run it. |
 | `renders/` | Blender renders (front-left, side, the magazine), the scale against the nailgun and shotgun, an in-game screenshot, the trigger guard beside the mockup's (`guard_vs_mockup.png`). |
 
 Triangles: `v_nailpistol.mdl` 489 (Body, Slide, Trigger), `v_nailpistol_mag.mdl` 104. Skin 256x256 (v_nail.mdl's is
@@ -30,7 +37,7 @@ and `v_shot.mdl`. The pistol is ~13.2 units long: at a view weapon's usual in-ha
   default 1.5) as frames 0 and 1 blended (Quake/vr/vr_nailslide.cpp measures frame 1's travel from the model).
   The shipped MDL's frame 1 was moved from 1.0 to 3.0 back without Blender (its slide's vertices' offset scaled,
   re-quantised as the export's writer does: ROUND23.md, "Nail pistol: moving slide"); the .blend keeps 1.0 until
-  build_nailpistol.py is run again.
+  the full slide was built.
 - `Trigger`: origin at its pivot (its top), so it can be rotated about Y for a pull later.
 - `Magazine`: origin at its top; it comes out along its local **-Z** (down the grip, which leans back 12 degrees). The
   export prints where it sits in the Body's frame: origin 0.468 0 2.201, rotated 12 degrees about Y.
@@ -44,37 +51,9 @@ the image `nailpistol_skin`). Paint in Texture Paint or in an image editor on `n
 Save in Blender); any colour is fine, the export takes the nearest of Quake's 224 ordinary palette colours (never the
 fullbright ones). Quake's look: a few flat colours, darker crevices, brighter worn edges, 1-texel detail.
 
-The face attribute `np_part` only tells `build_nailpistol.py` what to paint where; nothing else reads it. An object
+The face attribute `np_part` only told the removed `build_nailpistol.py` what to paint where; nothing reads it. An object
 whose name starts with `_` is left out of the export (references, helpers).
 
-## Exporting
-
-From the repository root:
-
-    "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b Misc/quakevr/models_src/nailpistol/nailpistol.blend -P Misc/quakevr/models_src/nailpistol/export_mdl.py
-
-(add `-- <folder>` to write elsewhere). It writes, into `quakevr/progs/`:
-
-- `v_nailpistol.mdl`: every mesh but the Magazine, in the Body's frame; frame 0 `rest`, frame 1 `rest1` (the slide back
-  by `travel`).
-- `v_nailpistol_mag.mdl`: the Magazine in its own frame.
-- `vr_nailpistol_preview.mdl`: all of it with the magazine in, scaled by `preview_scale`: for looking at it in the game.
-
-**Then run `python Misc/quakevr/models_src/nailpistol/build_nailpistol_slide.py`** (pure Python, no Blender): it turns
-the classic model export_mdl.py wrote (a copper slide on top of the receiver) into the full pistol slide, frames 0
-`slide` and 1 `slide1`: the classic grip, guard, trigger, muzzle and sights kept, its receiver, rear housing and slide
-left out, and its own frame, slide (vents, ejection port, serrations, the sights on it) and copper barrel added,
-generated in the script, the back end painted from the classic rear housing's texels, the skin grown to 256x512 with
-them painted below the classic texels (ROUND23.md, "Nail pistol: a full-slide look"; the classic look was a second
-look of the model until 2026-11-02). It keeps the classic model it read as its source, `v_nailpistol_classic.mdl`
-here: run on its own output it builds from that and writes the same file again. It checks its
-faces before writing (`check_faces`: folds degenerate in every blend, new triangles facing out, no two coplanar
-same-facing overlapping triangles: they z-fight) and stops on a problem. The back end is steel (lighter, flatter,
-cooler than the classic housing's texels it samples, a bright rim, a seam at x -2.4: `REAR_*`, `SEAM`).
-
-and `nailpistol_skin_pal.png` here. It uses `Misc/quakevr/mdlgen.py` (the generated models' MDL writer) and the
-palette in `Misc/quakevr/blender/addons/quakevr_models/qpal.py`. Art lint: `python Misc/quakevr/check_mdl_art.py
-quakevr/progs/v_nailpistol.mdl quakevr/progs/v_nailpistol_mag.mdl` (needs numpy: Blender's own Python has it).
 
 ## In the game
 

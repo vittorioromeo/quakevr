@@ -496,7 +496,8 @@ only goes out, never turns. 0: off (as before).
 
 **Wall: No Ironsight Tilted** (`vr_flat_wall_block_ads`, 1): while the gun stands tilted up at a wall (more than 5 degrees)
 the ironsight waits; the key's ask is kept and it comes on once the gun is down. **Hide Torch Model**
-(`vr_flat_flashlight_hide`, 1): the torch worn at the eyes is not drawn; its beam and light are.
+(`vr_flat_flashlight_hide`, 1): the torch worn at the eyes is not drawn, nor its lit lens (the disc `drawLens` adds over the
+lens follows the model: `view::drawn`); its beam and light are.
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

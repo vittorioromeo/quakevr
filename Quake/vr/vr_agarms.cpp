@@ -247,11 +247,6 @@ struct State
     float jerkMost{0.f};
     int jerkN{0};
     int jerkOver{0};    // ... over a unit
-    // vr_agarms_lod_check: each reused frame against the solve it stood for: the hands' places apart (units), the held
-    // weapons' turns apart (degrees), how many
-    double checkHandSum{0.0}, checkTurnSum{0.0};
-    float checkHandMost{0.f}, checkTurnMost{0.f};
-    int checkHands{0}, checkWeapons{0};
     // vr_agarms_jobs: the solves made on the job threads, in how many batches, the main thread's time in them (us)
     int batchedN{0}, batchRuns{0};
     double batchUs{0.0};
@@ -1156,7 +1151,7 @@ struct Limits
 {
     const agbody::Posed* body{nullptr};
     float maxStep{0.f};
-    float twistShare{0.5f}; // the forearm's share of the hand's twist (Skin's; vr_agarms_twist_share overrides)
+    float twistShare{0.5f}; // the forearm's share of the hand's twist (Skin's)
     float wristMore{0.f};   // degrees its wrist bends past vr_agarms_wrist_most (Skin's)
     float clavShare{0.f};   // vr_agarms_clavicle, _most (degrees)
     float clavMost{0.f};
@@ -1893,7 +1888,7 @@ bool solvePrepare(SolveJob& j)
     j.bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
     Limits& lim = j.lim;
     lim = Limits{};
-    lim.twistShare = za::clamp(vr_agarms_twist_share.value > 0.f ? vr_agarms_twist_share.value : m->twistShare, 0.f, 1.f);
+    lim.twistShare = za::clamp(m->twistShare, 0.f, 1.f);
     lim.wristMore = m->wristMore;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
     // (the authored rig's shoulders at the arms' own joints, further out than the derived rig's: its clavicle
@@ -2821,41 +2816,6 @@ bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig,
     }
     state.reusedN++;
     state.reusedUnseenN += seen ? 0 : 1;
-    if(vr_agarms_lod_check.value != 0.f)
-    {
-        // (vr_agarms_lod_check: the solve this frame would have made, on a copy of its state, against the reuse)
-        const Ent keep = *st;
-        const Lod keepLod = *lod;
-        const double keepCost = state.costUs, keepJerk = state.jerkSum;
-        const int keepN = state.costN, keepJerkN = state.jerkN, keepOver = state.jerkOver;
-        const float keepMost = state.jerkMost;
-        Placed full;
-        if(solve(e, hdr, rig, spec, posed, kick, t, full))
-        {
-            for(int s = 0; s < 2; s++)
-            {
-                const float hand = glm::length(full.hand[s].pos - out.hand[s].pos);
-                state.checkHandSum += hand;
-                state.checkHandMost = za::max(state.checkHandMost, hand);
-                state.checkHands++;
-                if(full.on[s] && out.on[s])
-                {
-                    const float turn = angleDeg(glm::inverse(full.weapon[s].rot) * out.weapon[s].rot);
-                    state.checkTurnSum += turn;
-                    state.checkTurnMost = za::max(state.checkTurnMost, turn);
-                    state.checkWeapons++;
-                }
-            }
-        }
-        *st = keep;
-        *lod = keepLod;
-        state.costUs = keepCost;
-        state.costN = keepN;
-        state.jerkSum = keepJerk;
-        state.jerkN = keepJerkN;
-        state.jerkOver = keepOver;
-        state.jerkMost = keepMost;
-    }
     hashPlaced(out, num);
     return true;
 }
@@ -3223,16 +3183,6 @@ void cost_f()
     state.reusedN = state.reusedUnseenN = state.nearN = state.turnN = state.jerkN = state.jerkOver = 0;
     state.jerkSum = 0.0;
     state.jerkMost = 0.f;
-    if(state.checkHands > 0)
-    {
-        Con_Printf("agarms lod check: reused against solved: hands %.3f units mean, %.3f most (%d); weapons' turn %.3f deg "
-                   "mean, %.3f most (%d)\n",
-            state.checkHandSum / state.checkHands, state.checkHandMost, state.checkHands,
-            state.checkWeapons > 0 ? state.checkTurnSum / state.checkWeapons : 0.0, state.checkTurnMost, state.checkWeapons);
-    }
-    state.checkHandSum = state.checkTurnSum = 0.0;
-    state.checkHandMost = state.checkTurnMost = 0.f;
-    state.checkHands = state.checkWeapons = 0;
 }
 
 } // namespace

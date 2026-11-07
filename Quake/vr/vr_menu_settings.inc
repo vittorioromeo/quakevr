@@ -764,7 +764,6 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_xr_unfocused_pause).advanced(),
         row(opt::vr_xr_unfocused_volume).advanced(),
         row(opt::vr_xr_exit_quits).advanced(),
-        row(opt::vr_xr_late_acquire).advanced(),
         row(opt::vr_xr_vendor_profiles).advanced(),
         row(opt::vr_xr_log_timing).advanced(),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)

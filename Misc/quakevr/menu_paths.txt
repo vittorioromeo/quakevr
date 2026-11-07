@@ -222,7 +222,6 @@ vr_xr_unfocused|1|Headset|Runtime Menu Open|Advanced VR Options > Headset > Runt
 vr_xr_unfocused_pause|1|Headset|Runtime Menu Pauses|Advanced VR Options > Headset > Runtime Menu Pauses
 vr_xr_unfocused_volume|1|Headset|Runtime Menu Volume|Advanced VR Options > Headset > Runtime Menu Volume
 vr_xr_exit_quits|1|Headset|Exit From Runtime Menu|Advanced VR Options > Headset > Exit From Runtime Menu
-vr_xr_late_acquire|1|Headset|Late Image Acquire|Advanced VR Options > Headset > Late Image Acquire
 vr_xr_vendor_profiles|1|Headset|Vendor Controller Profiles|Advanced VR Options > Headset > Vendor Controller Profiles
 vr_xr_log_timing|1|Headset|OpenXR Timing Log|Advanced VR Options > Headset > OpenXR Timing Log
 vr_render_scale|1|Headset|Render Scale|Advanced VR Options > Headset > Render Scale
@@ -264,7 +263,6 @@ vr_gunsfx_vary|1|Sound|Shot Variation|Advanced VR Options > Sound > Shot Variati
 vr_gunsfx_impacts|1|Sound|Surface Impacts|Advanced VR Options > Sound > Surface Impacts
 vr_gunsfx_dryfire|1|Sound|Dry Fire Click|Advanced VR Options > Sound > Dry Fire Click
 vr_gunsfx_action|1|Sound|Actions From the Action|Advanced VR Options > Sound > Actions From the Action
-vr_gunsfx_punch|1|Sound|Haptic Punch|Advanced VR Options > Sound > Haptic Punch
 vr_snd_limiter|1|Sound|Mix Limiter|Advanced VR Options > Sound > Mix Limiter
 vr_snd_limiter_ceiling|1|Sound|Limiter Ceiling|Advanced VR Options > Sound > Limiter Ceiling
 vr_snd_frame|1|Sound|Frame Size|Advanced VR Options > Sound > Frame Size
@@ -461,7 +459,6 @@ vr_body_step_rate|1|Body|Step Rate|Advanced VR Options > Body > Step Rate
 vr_body_step_run|1|Body|Running Cadence|Advanced VR Options > Body > Running Cadence
 vr_body_stride|1|Body|Stride Length|Advanced VR Options > Body > Stride Length
 vr_body_step_width|1|Body|Step Width|Advanced VR Options > Body > Step Width
-vr_body_step_sounds|1|Body|Footsteps on the Feet|Advanced VR Options > Body > Footsteps on the Feet
 vr_body_turn_step|1|Body|Turn Before Stepping|Advanced VR Options > Body > Turn Before Stepping
 vr_body_wade|1|Body|Wading Heaviness|Advanced VR Options > Body > Wading Heaviness
 vr_body_swim_kick|1|Body|Swimming Kicks|Advanced VR Options > Body > Swimming Kicks
@@ -922,7 +919,6 @@ vr_agrunt_strike_shoulder|1|Armed Grunts (Experimental)|Shoulder Drive|Advanced 
 vr_agrunt_disarm|1|Armed Grunts (Experimental)|Hits Disarm|Advanced VR Options > Combat > Armed Grunts (Experimental) > Hits Disarm
 vr_agrunt_disarm_yank|1|Armed Grunts (Experimental)|Grab Its Weapon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grab Its Weapon
 vr_agrunt_disarm_deliberate|1|Armed Grunts (Experimental)|Deliberate Blows Only|Advanced VR Options > Combat > Armed Grunts (Experimental) > Deliberate Blows Only
-vr_agrunt_strike_first|1|Armed Grunts (Experimental)|Strikes on Its Weapon Disarm|Advanced VR Options > Combat > Armed Grunts (Experimental) > Strikes on Its Weapon Disarm
 vr_agrunt_tug|1|Armed Grunts (Experimental)|Tug-of-War|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug-of-War
 vr_agrunt_tug_break_force|1|Armed Grunts (Experimental)|Tug: Break Force|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Force
 vr_agrunt_tug_break_impulse|1|Armed Grunts (Experimental)|Tug: Break Impulse|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Impulse
@@ -1018,7 +1014,6 @@ vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Opt
 vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Shortest Standoff
 vr_agrunt_mspace_max|1|Armed Grunts - AI Behaviour|Longest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Longest Standoff
 vr_agrunt_mspace_speed|1|Armed Grunts - AI Behaviour|Re-Close Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Re-Close Speed
-vr_agrunt_aim_converge|1|Armed Grunts - AI Behaviour|Aim From the Muzzle|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Aim From the Muzzle
 vr_agrunt_aim_exposed|1|Armed Grunts - AI Behaviour|Aim at What They Can Hit|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Aim at What They Can Hit
 vr_agrunt_blast_safe|1|Armed Grunts - AI Behaviour|Launchers Fired Safely|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Launchers Fired Safely
 vr_agrunt_rearm|1|Armed Grunts - AI Behaviour|Picks Weapons Up|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Picks Weapons Up
@@ -1119,7 +1114,6 @@ vr_knockdown_shove_max_spin|2|Knockdowns|Max Spin|Advanced VR Options > Combat >
 vr_knockdown_shove_ledge_topple|2|Knockdowns|Topple Over a Ledge|Advanced VR Options > Combat > Knockdowns > Topple Over a Ledge
 vr_knockdown_shove_ledge_push|2|Knockdowns|Ledge Push|Advanced VR Options > Combat > Knockdowns > Ledge Push
 vr_knockdown_shove_ledge_over|2|Knockdowns|Ledge Carry Past the Edge|Advanced VR Options > Combat > Knockdowns > Ledge Carry Past the Edge
-vr_knockdown_weld|1|Knockdowns|Weapon Stays in Hand|Advanced VR Options > Combat > Knockdowns > Weapon Stays in Hand
 vr_knockdown_wiggle|2|Knockdowns|Struggling Strength|Advanced VR Options > Combat > Knockdowns > Struggling Strength
 vr_knockdown_wiggle_frequency|2|Knockdowns|Struggling Frequency|Advanced VR Options > Combat > Knockdowns > Struggling Frequency
 vr_knockdown_retry|1|Knockdowns|Retry|Advanced VR Options > Combat > Knockdowns > Retry
@@ -1462,7 +1456,6 @@ vr_collect_fx_size|1|Carrying|Put-Away End Size|Advanced VR Options > Carrying a
 vr_weapon_grab_slack|1|Carrying|Weapon Grab Slack|Advanced VR Options > Carrying and Throwing > Carrying > Weapon Grab Slack
 vr_weapon_grab_handle_leniency|1|Carrying|Handle Grab Leniency|Advanced VR Options > Carrying and Throwing > Carrying > Handle Grab Leniency
 vr_weapon_catch_handle_leniency|1|Carrying|Mid-Air Catch Leniency|Advanced VR Options > Carrying and Throwing > Carrying > Mid-Air Catch Leniency
-vr_pickup_float_grace|1|Carrying|Floating Pickup Grace|Advanced VR Options > Carrying and Throwing > Carrying > Floating Pickup Grace
 vr_weapon_grab_hotspots|1|Carrying|Weapons by Their Hotspots|Advanced VR Options > Carrying and Throwing > Carrying > Weapons by Their Hotspots
 vr_weapon_grab_anywhere|1|Carrying|Weapons Anywhere|Advanced VR Options > Carrying and Throwing > Carrying > Weapons Anywhere
 vr_weapon_grab_anywhere_min|1|Carrying|Anywhere: Away From Grips|Advanced VR Options > Carrying and Throwing > Carrying > Anywhere: Away From Grips
@@ -4290,6 +4283,7 @@ vr_renderdoc_frames|2|Debug - Profiling and Memory|Capture Frames|Advanced VR Op
 vr_renderdoc_hide_menu|2|Debug - Profiling and Memory|Hide Menu While Capturing|Advanced VR Options > Debug > Profiling and Memory > Hide Menu While Capturing
 |2|Debug - Profiling and Memory|RenderDoc Status|Advanced VR Options > Debug > Profiling and Memory > RenderDoc Status
 vr_xr_log_timing|2|Debug - Profiling and Memory|OpenXR Timing Log|Advanced VR Options > Debug > Profiling and Memory > OpenXR Timing Log
+vr_xr_late_acquire|2|Debug - Profiling and Memory|Late Image Acquire|Advanced VR Options > Debug > Profiling and Memory > Late Image Acquire
 vr_debug_runtime_menu|2|Debug - Profiling and Memory|Act as if the Runtime's Menu Were Open|Advanced VR Options > Debug > Profiling and Memory > Act as if the Runtime's Menu Were Open
 vr_debug_window_unfocused|2|Debug - Profiling and Memory|Act as if the Window Lost Focus|Advanced VR Options > Debug > Profiling and Memory > Act as if the Window Lost Focus
 vr_debug_mirror_vsync|2|Debug - Profiling and Memory|Act as if the Driver Forced V-Sync|Advanced VR Options > Debug > Profiling and Memory > Act as if the Driver Forced V-Sync
@@ -4316,7 +4310,6 @@ vr_qcexec|2|Debug - Profiling and Memory|QuakeC Loop|Advanced VR Options > Debug
 |2|Debug - Profiling and Memory|Edict Index Stats|Advanced VR Options > Debug > Profiling and Memory > Edict Index Stats
 |2|Debug - Profiling and Memory|Force Grab Search Stats|Advanced VR Options > Debug > Profiling and Memory > Force Grab Search Stats
 vr_gun_pieces_cache|2|Debug - Profiling and Memory|Gun Shapes on Disk|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes on Disk
-vr_gun_pieces_ahead|2|Debug - Profiling and Memory|Gun Shapes at Load|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes at Load
 |2|Debug - Profiling and Memory|Gun Shapes Stats|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes Stats
 |2|Debug - Profiling and Memory|Game State Hash|Advanced VR Options > Debug > Profiling and Memory > Game State Hash
 |2|Debug - Profiling and Memory|Ragdolls Hash|Advanced VR Options > Debug > Profiling and Memory > Ragdolls Hash
@@ -4327,16 +4320,10 @@ vr_shadow_layered|2|Debug - Profiling and Memory|Layered Shadow Casters|Advanced
 |2|Debug - Profiling and Memory|Check Layered Shadows|Advanced VR Options > Debug > Profiling and Memory > Check Layered Shadows
 |2|Debug - Profiling and Memory|Check Shadow Caster Set-up|Advanced VR Options > Debug > Profiling and Memory > Check Shadow Caster Set-up
 vr_alias_eye_cache|2|Debug - Profiling and Memory|Second Eye's Model Set-up|Advanced VR Options > Debug > Profiling and Memory > Second Eye's Model Set-up
-vr_setup_screens_cache|2|Debug - Profiling and Memory|Button Screens' List|Advanced VR Options > Debug > Profiling and Memory > Button Screens' List
-vr_place_entities_first|2|Debug - Profiling and Memory|Crates' Placing: Entities First|Advanced VR Options > Debug > Profiling and Memory > Crates' Placing: Entities First
 vr_wounds_budget|2|Debug - Profiling and Memory|Wound Painting Budget|Advanced VR Options > Debug > Profiling and Memory > Wound Painting Budget
 vr_place_keep|2|Debug - Profiling and Memory|Keep Crates' and Rocks' Layouts|Advanced VR Options > Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts
-vr_load_prewarm|2|Debug - Profiling and Memory|Load Prewarm|Advanced VR Options > Debug > Profiling and Memory > Load Prewarm
 |2|Debug - Profiling and Memory|Model Set-up Stats|Advanced VR Options > Debug > Profiling and Memory > Model Set-up Stats
 vr_alias_cull_posed|2|Debug - Profiling and Memory|Cull Posed Models|Advanced VR Options > Debug > Profiling and Memory > Cull Posed Models
-vr_body_prepass|2|Debug - Profiling and Memory|Body Depth Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Body Depth Pre-pass
-vr_alias_prepass|2|Debug - Profiling and Memory|Model Depth Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Model Depth Pre-pass
-vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear
 |2|Debug - Profiling and Memory|Lazy OIT Clear Stats|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear Stats
 |2|Debug - Profiling and Memory|Model Cull Stats|Advanced VR Options > Debug > Profiling and Memory > Model Cull Stats
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared
@@ -4391,7 +4378,6 @@ vr_box3d_threads_bodies|2|Debug - Profiling and Memory|Physics Threads From|Adva
 |2|Debug - Profiling and Memory|Thread Pool Sites Reset|Advanced VR Options > Debug > Profiling and Memory > Thread Pool Sites Reset
 |2|Debug - Profiling and Memory|Ragdoll Hand Probe|Advanced VR Options > Debug > Profiling and Memory > Ragdoll Hand Probe
 |2|Debug - Profiling and Memory|Armed Humanoids: Weapon Holds Report|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Weapon Holds Report
-vr_agarms_lod_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Arms' Detail|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Check the Arms' Detail
 vr_agarms_warm|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Warm Start|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Warm Start
 vr_agarms_fast|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Grip Slide Bisected|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Grip Slide Bisected
 vr_agposesend|2|Debug - Profiling and Memory|Armed Humanoids: Pose Message in One Builtin|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Pose Message in One Builtin
@@ -4569,8 +4555,6 @@ vr_obs_process_check|2|Debug - Reports|OBS: Process Check|Advanced VR Options > 
 |2|Debug - Tools|Heavy Revolver Art|Advanced VR Options > Debug > Tools > Heavy Revolver Art
 |2|Debug - Tools|Heavy Revolver Art: Swung Out|Advanced VR Options > Debug > Tools > Heavy Revolver Art: Swung Out
 |2|Debug - Tools|Widowmaker Art|Advanced VR Options > Debug > Tools > Widowmaker Art
-|2|Debug - Tools|Widowmaker: Hand-Made Model|Advanced VR Options > Debug > Tools > Widowmaker: Hand-Made Model
-|2|Debug - Tools|Widowmaker: Model Made from AD's|Advanced VR Options > Debug > Tools > Widowmaker: Model Made from AD's
 |2|Debug - Tools|Wound Masks|Advanced VR Options > Debug > Tools > Wound Masks
 |2|Debug - Tools|Decal Atlas|Advanced VR Options > Debug > Tools > Decal Atlas
 |2|Debug - Tools|Hand Mesh|Advanced VR Options > Debug > Tools > Hand Mesh
@@ -4995,14 +4979,12 @@ vr_nailslide_debug|2|Debug - Tests|Slide: Print|Advanced VR Options > Debug > Te
 vr_debug_impacts|2|Debug - Tests|Print Impact Effects|Advanced VR Options > Debug > Tests > Print Impact Effects
 |2|Debug - Tests|Every Hit Ladder on Every Material|Advanced VR Options > Debug > Tests > Every Hit Ladder on Every Material
 vr_debug_gunfx|2|Debug - Tests|Print Gunfire Particles|Advanced VR Options > Debug > Tests > Print Gunfire Particles
-vr_debug_ribbon_overlap|2|Debug - Tests|Wisps Overlap Again|Advanced VR Options > Debug > Tests > Wisps Overlap Again
 |2|Debug - Tests|Per-Weapon Recoil Test|Advanced VR Options > Debug > Tests > Per-Weapon Recoil Test
 |2|Debug - Tests|Print Two-Handed Recoil|Advanced VR Options > Debug > Tests > Print Two-Handed Recoil
 |2|Debug - Tests|Gunfire Sound and Punch Test|Advanced VR Options > Debug > Tests > Gunfire Sound and Punch Test
 vr_debug_gunsfx|2|Debug - Tests|Print Gunfire Layers and Punches|Advanced VR Options > Debug > Tests > Print Gunfire Layers and Punches
 vr_debug_weaponfx|2|Debug - Tests|Print Weapon Effects|Advanced VR Options > Debug > Tests > Print Weapon Effects
 vr_autopump_hold|2|Debug - Tests|Hold the Auto Pump|Advanced VR Options > Debug > Tests > Hold the Auto Pump
-vr_weapon_kick_cancel|2|Debug - Tests|Take Out the Models' Own Kick|Advanced VR Options > Debug > Tests > Take Out the Models' Own Kick
 vr_debug_weapon_frame|2|Debug - Tests|Hold the Weapon Frame|Advanced VR Options > Debug > Tests > Hold the Weapon Frame
 vr_model_watch|2|Debug - Tests|Read Models Again When Saved|Advanced VR Options > Debug > Tests > Read Models Again When Saved
 |2|Debug - Tests|Model Watch Status|Advanced VR Options > Debug > Tests > Model Watch Status
@@ -8464,8 +8446,6 @@ vr_adgun_hose_arms|2|Arcane Dimensions Monsters|Fuel Hose Avoids the Arms|Advanc
 |2|Arcane Dimensions Monsters|Melee Weapons Dropped: Death Sergeant's Flail|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Melee Weapons Dropped: Death Sergeant's Flail
 |2|Arcane Dimensions Monsters|Flail in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Flail in Hand
 |2|Arcane Dimensions Monsters|Flail Info|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Flail Info
-vr_flail_frame|2|Arcane Dimensions Monsters|Flail Head in Your Frame|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Flail Head in Your Frame
-vr_flail_smooth|2|Arcane Dimensions Monsters|Flail Head Drawn Smooth|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Flail Head Drawn Smooth
 |2|Arcane Dimensions Monsters|Flail Lying With Its Head|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Flail Lying With Its Head
 |2|Arcane Dimensions Monsters|Drop the Main Hand's Flail|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Drop the Main Hand's Flail
 |2|Arcane Dimensions Monsters|Take the Nearest Flail|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > Take the Nearest Flail

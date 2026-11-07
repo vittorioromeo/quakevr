@@ -129,7 +129,7 @@ bool button(int hand, Button b, bool down);
 void sticks(const glm::vec2& off, const glm::vec2& main);
 
 // Whether the posing hand is drawn wrapping the weapon (the grasp solved, the palm fitted): for a moment after each set
-// (the grip play will give it), or always with vr_pose_solve 1. Otherwise it is drawn at its controller, unsolved, its
+// (the grip play will give it). Otherwise it is drawn at its controller, unsolved, its
 // fingers the controller's curls, passing through the weapon: free to be put where it should be.
 [[nodiscard]] bool showSolved();
 // The view, drawing the hand solved: the palm fitted as the pose last set holds it (vr_pose_check), if the hand is still

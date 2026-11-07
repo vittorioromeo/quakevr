@@ -493,9 +493,8 @@ void(entity g, vector handL) VR_AGP_Fists =
         else if(s < vr_agp_tw + vr_agp_ts)
         {
             float u = (s - vr_agp_tw) / vr_agp_ts;
-            // (vr_agrunt_punch_ease: eased out of the wind-up and into the blow, no stop dead at the target; before,
-            // u * u * (2 - u): still moving at the target, stopped there as the recovery began)
-            float pe = cvar_hget(cvarh_vr_agrunt_punch_ease) ? VR_Smooth(u) : u * u * (2 - u);
+            // (eased out of the wind-up and into the blow, no stop dead at the target)
+            float pe = VR_Smooth(u);
             fist = VR_AGP_Bezier(wind, ctl, hit, pe);
             if(!g.vr_ag_act_hit && u >= 0.8)
             {
@@ -544,12 +543,12 @@ vector(vector v) VR_AGP_Mirror = { v_y = -v_y; return v; };
 // Whether the right hand's weapon swings in its attack (two held: VR_AGP_Begin's hands).
 float(entity g) VR_AGP_RightSwings = { return !g.vr_ag_prop2 || g.vr_ag_act_hand != 1; };
 
-// vr_agrunt_swing_one_hand: a two-handed melee weapon (not the chainsaw's thrust) swung in the right hand alone, its
+// A two-handed melee weapon (not the chainsaw's thrust) swung in the right hand alone, its
 // off hand off the second grip while it swings (the swings' arcs are one hand's: the off hand chased a grip it could
 // not keep, ROUND22.md "Armed humanoids in motion, round 2"); the engine lets go and takes it again over 0.25 s.
 float(entity g, entity p) VR_AGP_SwingOneHand =
 {
-    return cvar_hget(cvarh_vr_agrunt_swing_one_hand) && g.vr_ag_act == VR_AGP_SWING && p && p.weapon != WID_CHAINSAW &&
+    return g.vr_ag_act == VR_AGP_SWING && p && p.weapon != WID_CHAINSAW &&
            !g.vr_ag_prop2;
 };
 
@@ -867,7 +866,7 @@ vector(vector v, vector a, vector b) VR_AGP_Arc =
     return VR_AG_Rotate(v, k * (1 / s), atan2(s, c) * (180 / 3.14159265));
 };
 
-// vr_agrunt_lift_turn: the frame (fw0, up0) turned towards (fw1, up1) by share `u`, the short way: its line swung onto
+// A weapon taken up: the frame (fw0, up0) turned towards (fw1, up1) by share `u`, the short way: its line swung onto
 // fw1's about their common normal, then rolled about it, each the shorter way round (the two axes blended apart spun
 // a weapon taken up lying on its side through 160 degrees). Out: vr_agp_sfw, vr_agp_sup (unit, square).
 vector vr_agp_sfw;
@@ -931,8 +930,7 @@ vector(entity p, vector at, vector fw) VR_AGP_SawReach =
     float most = VR_AGP_SAW_REACH * vr_am_arm;
     // (and its rear handle within VR_AGP_SAW_REACH_R of the right arm: a thrust's grip had been out of the right hand's
     // reach and its front handle out of the left's in half its frames; both kept, a few rounds)
-    float rounds = cvar_hget(cvarh_vr_agrunt_saw_reach) ? 3 : 1;
-    for(float i = 0; i < rounds; i++)
+    for(float i = 0; i < 3; i++)
     {
         vector h = at + off;
         float d = vlen(h - vr_am_sh_l);
@@ -940,14 +938,11 @@ vector(entity p, vector at, vector fw) VR_AGP_SawReach =
         {
             at = at - normalize(h - vr_am_sh_l) * (d - most);
         }
-        if(rounds > 1)
+        float mr = VR_AGP_SAW_REACH_R * vr_am_arm;
+        float dr = vlen(at - vr_am_sh_r);
+        if(dr > mr)
         {
-            float mr = VR_AGP_SAW_REACH_R * vr_am_arm;
-            float dr = vlen(at - vr_am_sh_r);
-            if(dr > mr)
-            {
-                at = vr_am_sh_r + (at - vr_am_sh_r) * (mr / dr);
-            }
+            at = vr_am_sh_r + (at - vr_am_sh_r) * (mr / dr);
         }
     }
     return at;
@@ -1278,14 +1273,14 @@ void(entity g) VR_AGP_Phase =
         {
             u = VR_Smooth(u);
         }
-        float pe = punch && cvar_hget(cvarh_vr_agrunt_punch_ease); // (vr_agrunt_punch_ease: the body's turn eased too)
+        // (a punch: the body's turn eased too)
         if(u < h)
         {
-            vr_agp_ww = pe ? 1 - VR_Smooth(u / h) : cos(1.5708 * u / h); // (fastest as it passes the blow)
+            vr_agp_ww = punch ? 1 - VR_Smooth(u / h) : cos(1.5708 * u / h); // (fastest as it passes the blow)
         }
         else
         {
-            vr_agp_wf = follow * (pe ? VR_Smooth((u - h) / (1 - h)) : sin(1.5708 * (u - h) / (1 - h)));
+            vr_agp_wf = follow * (punch ? VR_Smooth((u - h) / (1 - h)) : sin(1.5708 * (u - h) / (1 - h)));
         }
     }
     else if(s < tS + vr_agp_th)
@@ -1638,13 +1633,9 @@ void(entity g, entity p) VR_AGK_Keys =
     VR_AGK_Add(base, (1 - wp) * (1 - wa), FALSE);
     VR_AGK_Add(base + VR_AGK_AIM * VR_AGK_POSE, (1 - wp) * wa, FALSE);
     // The Run key: a change on the carried stance (the studio previews Run carried, its Aim/Guard standing), so laid on
-    // with the carried stance's share (vr_agrunt_run_key_stance; ROUND23.md, "The fists' guard in game as the Pose Studio
-    // shows it": on the guard as well it raised an unarmed enforcer's fists to its brow, crossed)
-    float wrun = (1 - wp) * g.vr_agp_runw;
-    if(cvar_hget(cvarh_vr_agrunt_run_key_stance))
-    {
-        wrun = wrun * (1 - wa);
-    }
+    // with the carried stance's share (ROUND23.md, "The fists' guard in game as the Pose Studio shows it": on the guard
+    // as well it raised an unarmed enforcer's fists to its brow, crossed)
+    float wrun = (1 - wp) * g.vr_agp_runw * (1 - wa);
     VR_AGK_Add(base + VR_AGK_RUN * VR_AGK_POSE, wrun, FALSE);
     VR_AGK_Add(base + VR_AGK_PICKUP * VR_AGK_POSE, wp - wc, FALSE);
     VR_AGK_Add(base + VR_AGK_CAST * VR_AGK_POSE, wc, FALSE);
@@ -2355,36 +2346,18 @@ void(entity g, entity p) VR_AGP_Pose =
         else if(pL)
         {
             vr_agp_vl = lay + (vr_agp_vl - lay) * u;
-            if(cvar_hget(cvarh_vr_agrunt_lift_turn))
-            {
-                VR_AGP_TurnFrame(g.vr_ag_took_fw, g.vr_ag_took_up, vr_agp_fwl, vr_agp_upl, u);
-                vr_agp_fwl = vr_agp_sfw;
-                vr_agp_upl = vr_agp_sup;
-            }
-            else
-            {
-                vr_agp_fwl = normalize(g.vr_ag_took_fw + (vr_agp_fwl - g.vr_ag_took_fw) * u);
-                vr_agp_upl = normalize(g.vr_ag_took_up + (vr_agp_upl - g.vr_ag_took_up) * u);
-                vr_agp_upl = normalize(vr_agp_upl - vr_agp_fwl * (vr_agp_upl * vr_agp_fwl));
-            }
+            VR_AGP_TurnFrame(g.vr_ag_took_fw, g.vr_ag_took_up, vr_agp_fwl, vr_agp_upl, u);
+            vr_agp_fwl = vr_agp_sfw;
+            vr_agp_upl = vr_agp_sup;
         }
         else
         {
             posL = lay + (posL - lay) * u;
             vr_agp_wr = 0;
             vr_agp_v = posL;
-            if(cvar_hget(cvarh_vr_agrunt_lift_turn))
-            {
-                VR_AGP_TurnFrame(g.vr_ag_took_fw, g.vr_ag_took_up, vr_agp_fw, vr_agp_up, u);
-                vr_agp_fw = vr_agp_sfw;
-                vr_agp_up = vr_agp_sup;
-            }
-            else
-            {
-                vr_agp_fw = normalize(g.vr_ag_took_fw + (vr_agp_fw - g.vr_ag_took_fw) * u);
-                vr_agp_up = normalize(g.vr_ag_took_up + (vr_agp_up - g.vr_ag_took_up) * u);
-                vr_agp_up = normalize(vr_agp_up - vr_agp_fw * (vr_agp_up * vr_agp_fw));
-            }
+            VR_AGP_TurnFrame(g.vr_ag_took_fw, g.vr_ag_took_up, vr_agp_fw, vr_agp_up, u);
+            vr_agp_fw = vr_agp_sfw;
+            vr_agp_up = vr_agp_sup;
         }
     }
     float body = g.vr_ag_took_at <= 0 && VR_AGP_TorsoNow(g);

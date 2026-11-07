@@ -1575,7 +1575,6 @@ struct Drawn
     const qmodel_t* model{nullptr};
 };
 Drawn drawn[2];
-float artSeen = -1.f;   // vr_ad_widowmaker_art as spinFrame last saw it (-1: not yet)
 bool artLoaded = false; // the Widowmaker's model read last was the hand-made one (derivedFile)
 
 // The Widowmaker drawn (its spin frames), checked once a model (and again when it is read anew: vr_model_reload keeps
@@ -1591,7 +1590,7 @@ struct SpinModel
 SpinModel spinModel;
 
 constexpr const char* widowmakerName = "progs/v_shot3.mdl#vr";
-constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-made model (vr_ad_widowmaker_art)
+constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-made model
 
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
@@ -1786,16 +1785,6 @@ void fired(int hand)
 
 void spinFrame(view::ViewEntity (&weapons)[2])
 {
-    // The Widowmaker's model switched (vr_ad_widowmaker_art: hand-made or made from AD's): read again now
-    // (vr_view_diag.cpp modelReload_f), as it is drawn next.
-    if(vr_ad_widowmaker_art.value != artSeen)
-    {
-        if(artSeen >= 0.f)
-        {
-            Cbuf_InsertText("vr_model_reload \"progs/v_shot3.mdl#vr\"\n"); // (ahead of a script still waiting)
-        }
-        artSeen = vr_ad_widowmaker_art.value;
-    }
     for(int hand = 0; hand < 2; hand++)
     {
         view::ViewEntity& w = weapons[hand];
@@ -1909,13 +1898,10 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     {
         return nullptr;
     }
-    // The Widowmaker: the hand-made model (in the same frame, nothing of AD's in it) unless vr_ad_widowmaker_art is 0.
+    // The Widowmaker: the hand-made model (in the same frame, nothing of AD's in it); made from AD's without its file.
     if(!q_strcasecmp(name, widowmakerName))
     {
         artLoaded = false;
-    }
-    if(!q_strcasecmp(name, widowmakerName) && vr_ad_widowmaker_art.value != 0.f)
-    {
         if(byte* art = COM_LoadMallocFile(widowmakerArtName, path_id))
         {
             Con_DPrintf("AD weapon model: %s is the hand-made %s\n", name, widowmakerArtName);
@@ -1941,8 +1927,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 
 void info_f()
 {
-    Con_Printf("(the Widowmaker drawn: %s, vr_ad_widowmaker_art %g; below, the one made from AD's)\n",
-        vr_ad_widowmaker_art.value != 0.f ? widowmakerArtName : "made from AD's", vr_ad_widowmaker_art.value);
+    Con_Printf("(the Widowmaker drawn: %s; below, the one made from AD's)\n", artLoaded ? widowmakerArtName : "made from AD's");
     for(const Recipe& r : recipes)
     {
         Built b;

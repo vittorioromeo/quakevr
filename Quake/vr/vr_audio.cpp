@@ -98,7 +98,6 @@ Features featuresFromCvars()
     f.unitsPerMetre = units::metresToUnits();
     f.rate = VR_SndRate();
     f.fullBand = VR_SndFullBand() >= 1;
-    f.reverbBeside = vr_snd_reverb_beside.value != 0.f;
     return f;
 }
 
@@ -889,12 +888,12 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         });
     }
     const int used = za::min(active, lanes);
-    // A pass: the reverb (its convolution, then its decode a block behind) and/or the lanes (the voices' HRTF).
-    const auto pass = [&](bool withReverb, bool withLanes) {
+    // A pass: the lanes (the voices' HRTF) and, beside them, the reverb (its convolution, then its decode a block behind).
+    const auto pass = [&](bool withReverb) {
         reverbConvolved.storeRelaxed(0);
         // (Beside the reverb, at most lanesBesideReverb lanes: more of them slow the reverb's convolution down, the
         // longest part, more than they save; vr_snd_bench: its p95 0.70 -> 0.56 ms with 4 of the 8.)
-        const int laneCount = withLanes ? (withReverb ? za::min(used, lanesBesideReverb) : used) : 0;
+        const int laneCount = withReverb ? za::min(used, lanesBesideReverb) : used;
         const int units = laneCount + (withReverb ? 2 : 0);
         if(units <= 1 || active == 0)
         {
@@ -964,15 +963,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         });
         filtered = filtered || withReverb;
     };
-    if(reverbOn && !f.reverbBeside)
-    {
-        pass(false, true); // (the lanes, then the reverb alone: vr_snd_reverb_beside 0)
-        pass(true, false);
-    }
-    else
-    {
-        pass(reverbOn, true);
-    }
+    pass(reverbOn);
     for(int k = 0; k < active; k++)
     {
         Voice& v = voices[list[k]];

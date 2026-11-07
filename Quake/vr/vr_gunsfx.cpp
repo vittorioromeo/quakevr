@@ -457,7 +457,7 @@ int dryClick(int entnum, int entchannel, float* fvol, float* pitch)
 {
     const float recoil = weapons::recoilFeel(weapons::value(slot, Key::RecoilKick) * share,
         weapons::value(slot, Key::RecoilRise) * share);
-    const float punch = za::clamp(vr_gunsfx_punch.value, 0.f, 2.f) * za::max(weapons::value(slot, Key::HapticPunch), 0.f);
+    const float punch = za::max(weapons::value(slot, Key::HapticPunch), 0.f);
     return za::clamp(0.85f * punch * za::sqrt(recoil), 0.f, 1.f);
 }
 
@@ -561,7 +561,7 @@ void fired(int hand)
         return;
     }
     const int slot = weapons::heldSlot(hand);
-    if(!on() || vr_gunsfx_punch.value <= 0.f || slot < 0 || slot == weapons::fistSlot())
+    if(!on() || slot < 0 || slot == weapons::fistSlot())
     {
         return;
     }

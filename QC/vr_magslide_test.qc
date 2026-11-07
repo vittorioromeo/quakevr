@@ -80,7 +80,6 @@ void() VR_MST_Seat =
     self = os;
 };
 
-void() VR_MST_Next = { vr_mst_step++; vr_mst_frames = 0; vr_mst_seen = 0; };
 
 void(string xPress) VR_MST_Button =
 {

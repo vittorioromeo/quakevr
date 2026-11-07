@@ -655,9 +655,4 @@ bool fromWorld(const brushes::Brush& b, int faces, za::Vector<brushlight::Map>& 
     return false;
 }
 
-int bakedCount()
-{
-    return static_cast<int>(bakedOfWorld().list.size());
-}
-
 } // namespace qvr::brushbake

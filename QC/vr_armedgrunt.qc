@@ -1655,7 +1655,7 @@ float vr_ag_shot_on;       // VR_AG_ShootProp's shot under way: its straight lin
 vector vr_ag_shot_straight;
 float vr_ag_miss_n;        // shots measured (the tests: test 49), each its line's miss at its target's point:
 float vr_ag_miss_d;        // ... the muzzle to that point,
-float vr_ag_miss_raw;      // ... to the right of it (units; - left) as aimed from the grip (before vr_agrunt_aim_converge),
+float vr_ag_miss_raw;      // ... to the right of it (units; - left) as aimed from the grip (before converging),
 float vr_ag_miss_lat;      // ... as fired,
 float vr_ag_miss_up;       // ... above it as fired
 
@@ -1730,7 +1730,7 @@ void(entity p, vector dir) VR_AG_SetHand =
     }
     if(vr_ag_shot_on && self.enemy)
     {
-        // Converging on its target (vr_agrunt_aim_converge): aimed from its grip, its shot left the muzzle beside that
+        // Converging on its target: aimed from its grip, its shot left the muzzle beside that
         // line along it (or along the drawn gun's, turned off it): a miss to one side at any distance. Now its line
         // from the muzzle it fires from to its target's point, turned by its aim's error and kick as before (unbiased).
         vector at = VR_AG_AimPoint();
@@ -1738,7 +1738,7 @@ void(entity p, vector dir) VR_AG_SetHand =
         old_x = -old_x;
         makevectors(old);
         vr_ag_miss_raw = VR_AG_MissRight(m, v_forward, at);
-        if(cvar_hget(cvarh_vr_agrunt_aim_converge) && vlen(at - m) > 8)
+        if(vlen(at - m) > 8)
         {
             vector e = VR_AG_Angles(dir0) - VR_AG_Angles(vr_ag_shot_straight);
             vector c = VR_AG_Angles(normalize(at - m));
@@ -3135,7 +3135,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     {
         targ.vr_ag_struck_at = time;
     }
-    // A thrown thing's way in met its weapon or hand before its body (vr_agrunt_strike_first): its momentum's rule, not
+    // A thrown thing's way in met its weapon or hand before its body: its momentum's rule, not
     // the damage's (vr_armedgrunt_parry.qc).
     if(targ.vr_ag && targ.vr_ag_prop && targ.health > 0 && cvar_hget(cvarh_vr_agrunt_disarm) && !vr_agpar_now &&
        inflictor != attacker && inflictor != world && VR_AG_ThrowOnWeapon(targ, inflictor, attacker))

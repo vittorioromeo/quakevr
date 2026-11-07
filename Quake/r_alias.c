@@ -742,7 +742,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	alphatest = model->flags & MF_HOLEY ? 1 : 0;
 	translucent = !aliasxray && !ENTALPHA_OPAQUE (ibuf.ent->alpha); // QVR: (an outline through walls is its own blend)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
-	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
+	if (oit) // QVR: the OIT targets cleared at their first draw
 		R_PrepareOITDraw (1);
 	switch (softemu)
 	{
@@ -880,7 +880,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	}
 	VR_TemporalMotionWrites (!translucent && !aliasdepth && !aliasxray); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
 	if (!translucent && !aliasdepth && !aliasxray && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
-	{ // QVR: your body's depth first (vr_body_prepass; the world's models too: vr_alias_prepass): its opaque skins with no fragment shader, the same instances and
+	{ // QVR: your body's depth first (the world's models too): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
@@ -1057,7 +1057,7 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 		return false;
 	if (VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) // QVR: bone matrices are per entity
 		return false;
-	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's (vr_alias_prepass)
+	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's
 		return false;
 
 	return true;

@@ -12,7 +12,6 @@
 #   grab     a forearm cut off, left to land; the mock main hand put on it and gripping: held
 #   save     a corpse missing an arm saved and loaded: its ragdoll made again without it (cut bones the same)
 #   zombie   a zombie slashed at a limb at full health (12): dies for good, a ragdoll; vr_limbs_zombies 0: it doesn't
-#   blast    vr_limbs_blast 0 and 1: an explosion's kill gibs, or pops the limbs near it (the body a ragdoll)
 #   perf     64 limbs lying about and 8 dismembered ragdolls: the physics step's time (vr_physics_steptime)
 #            Dawn of the Machine's (its data there): KINDS="34" the rocket ogre (MG3=1 adds its models to "models")
 #   eyes     eyeshots (vr_eyeshot: both eyes) into the kit's scratch (limbs_eyes.png): the grunt's limbs hung before you, a corpse missing
@@ -21,7 +20,7 @@ AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
-CASES=${*:-models corpse live chance cap grab save zombie blast perf}
+CASES=${*:-models corpse live chance cap grab save zombie perf}
 KINDS=${KINDS:-0 1 2 3 4 5 6 7 8 9 10 12 13 14}
 PRE="map vrfiringrange;wait20;god;notarget;developer 1;vr_test_spawn ${MON:-0}"
 FILTER="^limbtest|^vr_limb_models|^  *[0-9]+ [a-z_0-9]+ +bones|^vr_physics_steptime|rror|CRASH"
@@ -59,8 +58,6 @@ for c in $CASES; do
         run "$PRE;vr_test_spawn_dist 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_debug_ragdoll 1;vr_limb_test 13;vr_limb_test 3;wait5;vr_ragdoll_list;save limbtest;wait10;load limbtest;wait60;vr_ragdoll_list 1;wait5;vr_limb_test 15;wait5;vr_limb_test 13;toggleconsole;quit" "" "^limbtest|^vr_ragdoll_list|cut off|rror|CRASH" ;;
     zombie)
         run "$PRE;vr_test_spawn 2;vr_test_spawn_dist 90;impulse 241;wait30;vr_limb_test 12;wait60;vr_mock_look 0 60;vr_limbs_zombies 0;impulse 241;wait30;vr_limb_test 12;wait30;vr_limbs_zombies 1;toggleconsole;quit" ;;
-    blast)
-        run "$PRE;vr_decap_pop_roll 0;vr_limbs_blast 0;vr_test_spawn_dist 90;impulse 241;wait30;vr_limb_test 9;wait30;vr_mock_look 0 60;vr_limbs_blast 1;impulse 241;wait30;vr_limb_test 9;wait30;toggleconsole;quit" ;;
     perf)
         S="$PRE;vr_limbs_max 64;vr_test_spawn_dead 1;vr_test_spawn_dist 90"
         for y in 0 45 90 135 180 225 270 315; do S="$S;vr_mock_look 0 $y;impulse 241;wait30;vr_limb_test 3;wait5"; done
