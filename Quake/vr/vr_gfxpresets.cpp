@@ -61,6 +61,7 @@ constexpr Row presetRows[] = {
     {&vr_specular,                    {"0",     D,       D,       D,    D}},
     {&vr_model_light_parity,          {"0",     D,       D,       D,    D}},
     {&vr_model_ambient_dir,           {"0",     D,       D,       D,    D}}, // directional ambient on models (vr_ambient.cpp)
+    {&vr_model_light_grid,            {"0",     D,       D,       D,    D}}, // models lit by the baked light grid (Off: Quake's floor light)
     {&vr_rim_light,                   {"0",     D,       D,       D,    D}}, // (vr_envmap.cpp)
     {&vr_viewmodel_minlight,          {"24",    D,       D,       D,    D}},
     {&vr_texture_smooth,              {"0",     D,       D,       D,    D}},
@@ -99,6 +100,13 @@ constexpr Row presetRows[] = {
     {&vr_soft_particles,              {"0",     "0",     D,       D,    D}},
     {&vr_particle_halfres,            {D,       D,       D,       D,    "0"}}, // Ultra: all at full resolution
     {&vr_particle_max_screen,         {"0.1",   "0.1",   "0.12",  D,    D}},
+    // Quake VR's own smoke and debris (release 1.1 audit): none in Quake's look; fewer glowing chunks' lights on Low,
+    // as its torch and lava nail lights
+    {&vr_gunfx_smoke,                 {"0",     D,       D,       D,    D}}, // the muzzle's smoke cone
+    {&vr_gunfx_wisps,                 {"0",     D,       D,       D,    D}}, // the barrels' smoke wisps after firing
+    {&vr_muzzle_smoke_enemies,        {"0",     D,       D,       D,    D}}, // grunts' and enforcers' muzzle smoke
+    {&vr_explosion_debris,            {"0",     D,       D,       D,    D}},
+    {&vr_explosion_debris_lights,     {"0",     "4",     D,       D,    D}},
     // Liquids (vr_water.cpp), teleporters (vr_portals.cpp), heat haze (vr_haze.cpp)
     {&vr_water_waves,                 {"0",     D,       D,       D,    D}},
     {&vr_water_fresnel,               {"0",     D,       D,       D,    D}},
