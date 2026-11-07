@@ -3,6 +3,7 @@
 
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_handsource.hpp"
 #include "vr_avatar.hpp"
 #include "vr_coil.hpp"
 #include "vr_body.hpp"
@@ -1513,7 +1514,7 @@ void flickFlip(const hands::State& s)
         {
             st.flickArmed[hand] = true;
         }
-        if(rate < speed || !st.flickArmed[hand] || !holding || vr_flashlight_flick.value == 0.f)
+        if(rate < speed || !st.flickArmed[hand] || !holding || vr_flashlight_flick.value == 0.f || !handsource::gestures(hand))
         {
             continue;
         }

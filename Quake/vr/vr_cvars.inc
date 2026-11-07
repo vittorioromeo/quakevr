@@ -3969,6 +3969,15 @@ QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_ARCHIVE)        // Left Ctrl and firing:
 QVR_CVAR(vr_flat_wall_block_fire, "1", CVAR_ARCHIVE)    // flatscreen play: 1 a gun tilted up at a wall (vr_flat_wall_tilt) does not fire, the button does nothing (no shot, no ammo) until it comes back down; 0 it fires as it is (the shots still go through the crosshair). Melee weapons are never stopped
 QVR_CVAR(vr_flat_aim_mode, "0", CVAR_ARCHIVE)           // the right mouse button's ironsight (one weapon held, either hand: vr_flatsight.cpp): 0 held while the button is held, 1 a press turns it on and the next off
 QVR_CVAR(vr_flat_key_swap, "q", CVAR_ARCHIVE)           // the key that swaps what the two hands hold (impulse 48, QC VR_FlatSwapHands), by its bind name ("q", "x", ...; "" none); read from the keyboard's state like E, F and G
+QVR_CVAR(vr_flat_key_shove, "mouse5", CVAR_ARCHIVE)   // the key that shoves (an open hand pushed out in front of you: the headset's one-hand shove, QC vr_melee_bash.qc VR_FlatShove), by its bind name; "" none
+QVR_CVAR(vr_flat_shove, "1", CVAR_ARCHIVE)            // flatscreen play: 1 the shove key shoves; 0 it does nothing
+QVR_CVAR(vr_flat_shove_cooldown, "0.8", CVAR_ARCHIVE) // seconds after a shove before the key shoves again (a press meanwhile does nothing)
+QVR_CVAR(vr_flat_shove_push, "1", CVAR_ARCHIVE)       // how hard it throws what it reaches back, times the headset's one-hand shove (vr_shove_push_onehand)
+QVR_CVAR(vr_flat_shove_damage, "1", CVAR_ARCHIVE)     // its damage, times the headset's one-hand shove's
+QVR_CVAR(vr_flat_shove_reach, "1", CVAR_ARCHIVE)      // how far ahead of the hand it reaches, times the headset shove's (VR_BASH_REACH)
+QVR_CVAR(vr_flat_shove_time, "0.4", CVAR_ARCHIVE)     // seconds the hand's push takes, out and back (the shove lands as the hand reaches its furthest, a third of the way in)
+QVR_CVAR(vr_flat_shove_anim_reach, "14", CVAR_ARCHIVE) // units the hand pushes out ahead of where it rests (the animation only)
+QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's

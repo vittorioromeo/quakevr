@@ -40,6 +40,7 @@
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_handsource.hpp"
 #include "vr_hull.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
@@ -52,6 +53,7 @@
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -90,6 +92,14 @@ struct FlatState
     double grabAt{-1e9};         // E: the time the reach started
     int grabs{0};                // vr_flatplay_status's counts
     int punches[2]{0, 0};        // and the punch's, per hand
+    // The shove (vr_flat_key_shove, vr_flat_shove_now): the hand pushing, when its push started, whether the game has been
+    // told yet (QC VR_FlatShove, as the hand reaches out), and when the key shoves again (vr_flat_shove_cooldown).
+    int shoveHand{HAND_OFF};
+    double shoveAt{-1e9};
+    bool shoveSent{true};
+    double shoveReady{-1e9};
+    int shoves{0};
+    bool keyShove{false};        // the shove key, last frame
 
     // The game's pose (poseHands): each hand's place off its shoulder in the view's own frame (forward, right, up), eased
     // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
@@ -667,6 +677,72 @@ void startPunch(int h, const char* from)
     }
 }
 
+// The shove's push (vr_flat_shove_time, out a third of it and back): 0 .. 1 .. 0, 0 when `h` is not pushing.
+[[nodiscard]] float shoveOut(int h)
+{
+    const double t = vr_gametime - fs.shoveAt;
+    const float total = za::fmax(0.1f, vr_flat_shove_time.value);
+    if(h != fs.shoveHand || t < 0.0 || t > total)
+    {
+        return 0.f;
+    }
+    const float out = total / 3.f;
+    return t < out ? slide(t, 0.0, out) : 1.f - slide(t, out, total - out);
+}
+
+[[nodiscard]] bool shoving(int h)
+{
+    return shoveOut(h) > 0.f || (h == fs.shoveHand && !fs.shoveSent);
+}
+
+// The shove's hand offset in the view's frame (forward, right, up): pushed out ahead and in towards the middle.
+[[nodiscard]] glm::vec3 shoveOffset(int h)
+{
+    const float out = shoveOut(h) * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 40.f);
+    return {out, (h == HAND_OFF ? 0.35f : -0.35f) * out, 0.15f * out};
+}
+
+// A shove (the shove key, vr_flat_shove_now): an open hand pushed out in front of him. The game's one-hand shove lands
+// as the hand reaches out (QC VR_FlatShove, impulse 53 the off hand, 54 the main); the push itself is only drawn, and is
+// synthesized motion (vr_handsource.hpp): the melee rules do not read it as a slap or a shove of their own. With an
+// empty hand, the off hand's first; with none, the off hand (what it holds pushes with it).
+void startShove(const char* from)
+{
+    if(vr_flat_shove.value == 0.f)
+    {
+        return;
+    }
+    if(vr_gametime < fs.shoveReady)
+    {
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: shove (%s): cooling down, %.2f s left\n", from, vr_gametime - fs.shoveReady);
+        }
+        return;
+    }
+    const int h = heldIn(HAND_OFF) < 0 || heldIn(HAND_MAIN) >= 0 ? HAND_OFF : HAND_MAIN;
+    fs.shoveHand = h;
+    fs.shoveAt = vr_gametime;
+    fs.shoveSent = false;
+    fs.shoveReady = vr_gametime + za::fmax(vr_flat_shove_cooldown.value, za::fmax(0.1f, vr_flat_shove_time.value));
+    fs.shoves++;
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: shove (%s): %s hand\n", from, h == HAND_MAIN ? "main" : "off");
+    }
+}
+
+// Each frame: the shove told to the game as its hand reaches out.
+void shoveFrame()
+{
+    if(fs.shoveSent || vr_gametime - fs.shoveAt < za::fmax(0.1f, vr_flat_shove_time.value) / 3.f)
+    {
+        return;
+    }
+    fs.shoveSent = true;
+    Cbuf_InsertText(fs.shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
+}
+
 // E's reach with the collecting hand.
 [[nodiscard]] glm::vec3 grabOffset()
 {
@@ -870,6 +946,15 @@ void pollKeysFlat()
         toggleProne("flatscreen key");
     }
     keyState.keyProne = proneDown;
+    // Mouse 5 (vr_flat_key_shove): a shove.
+    const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
+    const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && keydown[shoveKey] != 0;
+    if(shove && !fs.keyShove)
+    {
+        startShove(vr_flat_key_shove.string);
+    }
+    fs.keyShove = shove;
+    shoveFrame();
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -1260,6 +1345,7 @@ void init()
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
     Cmd_AddCommand("vr_prone_toggle", proneToggle_f); // the prone key's toggle (vr_flat_key_prone), the console's way
     Cmd_AddCommand("vr_flat_punch", punch_f);
+    Cmd_AddCommand("vr_flat_shove_now", shoveNow_f); // the shove key's shove, the console's way (tests)
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
@@ -1690,7 +1776,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const float sideOf = h == HAND_OFF ? -1.f : 1.f;
         const glm::vec3 fromAnchor{anchorFromShoulder.x, anchorFromShoulder.y * sideOf, anchorFromShoulder.z};
         const glm::vec3 restOld = rest - fromAnchor; // the numbers off the old anchor: the punch's, and vr_flat_body_pose 0's
-        const glm::vec3 swing = punchSwing(h, restOld) - restOld;
+        // A punch is the melee rules' to judge, a real blow (vr_handsource.hpp: an action); the rest of the pose is made
+        // up, the shove's push too (its blow is the game's own: VR_FlatShove), and no gesture reads it.
+        if(punching(h))
+        {
+            handsource::mark(h, handsource::Source::Action, "punch");
+        }
+        const glm::vec3 swing = punchSwing(h, restOld) - restOld + shoveOffset(h);
         const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
         if(onBody)
         {
@@ -1710,7 +1802,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
-        const bool hangs = heldIn(h) < 0 && !punching(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
+        const bool hangs = heldIn(h) < 0 && !punching(h) && !shoving(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
                            !(flatsight::adsHelper(h));
         if(heldIn(h) >= 0)
         {
@@ -2124,6 +2216,12 @@ void status_f()
                "game).\n");
     flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)
     modelFovStatus();
+}
+
+// vr_flat_shove_now: the shove key's shove (its cooldown and all), from the console: the tests' button.
+void shoveNow_f()
+{
+    startShove("vr_flat_shove_now");
 }
 
 // vr_flat_punch [main|off]: a hand's punch, driven from the console (the tests' button: V and the mouse buttons cannot

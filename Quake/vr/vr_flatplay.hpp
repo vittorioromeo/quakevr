@@ -195,4 +195,7 @@ void status_f();
 // swing strikes with.
 void punch_f();
 
+// vr_flat_shove_now: the shove key's shove from the console (vr_flat_key_shove's; the tests' button).
+void shoveNow_f();
+
 } // namespace qvr::flatplay
