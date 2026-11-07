@@ -4228,7 +4228,7 @@ void packModelBox(edict_t* ent, glm::vec3& mid, glm::vec3& half)
 namespace
 {
 // packRest's answer for a shell (by its address, checked against its make: generation, tweaks, hash, vertices) and the
-// fit's cvars it was made with (TRACY_1107.md: the worn packs' place asked for it for every wearer a frame).
+// fit's cvars it was made with (ROUND24.md, "Tracy session 11-07": the worn packs' place asked for it for every wearer a frame).
 struct PackRestCached
 {
     const Shell* shell{nullptr};

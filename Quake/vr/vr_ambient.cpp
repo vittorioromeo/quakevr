@@ -993,7 +993,7 @@ void gridBuild()
 {
     const double start = Sys_DoubleTime();
     // The last build's, kept aside: the same map loaded again (a restart, a level change back) reuses them below when its
-    // key (the disk cache's: the lightmaps, the planes, the settings) is the same (TRACY_1107.md).
+    // key (the disk cache's: the lightmaps, the planes, the settings) is the same (ROUND24.md, "Tracy session 11-07").
     za::Vector<unsigned> lastCells;
     za::Vector<GridEntry> lastEntries;
     lastCells.swap(grid.cells);

@@ -67,7 +67,7 @@ static const unsigned short crctable[256] =
 };
 
 
-// QVR: slicing-by-8 (TRACY_1107.md): crcslices[k - 1][b] is byte b's CRC followed by k zero bytes (crctable is k = 0);
+// QVR: slicing-by-8 (ROUND24.md, "Tracy session 11-07"): crcslices[k - 1][b] is byte b's CRC followed by k zero bytes (crctable is k = 0);
 // eight bytes a step, the same result as a byte at a time (CRC_Block hashed the 12 MB progs at every map load)
 static const unsigned short crcslices[7][256] =
 {

@@ -362,7 +362,7 @@ static qmodel_t *Mod_FindName (const char *name)
 //
 // search the currently loaded models
 //
-	// QVR: the slot last found for a name hashed to this entry, checked by its name (TRACY_1107.md: the game asks for
+	// QVR: the slot last found for a name hashed to this entry, checked by its name (ROUND24.md, "Tracy session 11-07": the game asks for
 	// models by name every frame; this walk strcmp'ed each of hundreds of slots, kilobytes apart). Not there (or no longer:
 	// a slot emptied or reused), the walk as before, its answer noted.
 	unsigned int h = 2166136261u; // FNV-1a

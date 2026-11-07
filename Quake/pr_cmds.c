@@ -1012,7 +1012,7 @@ static void PF_findradius (void)
 		float d, lensq;
 		// QVR: the edicts are kilobytes apart, beyond the hardware prefetchers' reach (a page): the lines this walk reads
 		// asked for FINDRADIUS_AHEAD edicts ahead (an armed humanoid's three findradius a frame cost 12 us each on a
-		// big AD map; TRACY_1107.md). It reads the same fields: the same chain.
+		// big AD map; ROUND24.md, "Tracy session 11-07"). It reads the same fields: the same chain.
 		if (i + FINDRADIUS_AHEAD < qcvm->num_edicts)
 		{
 			const byte *ahead = (const byte *)ent + FINDRADIUS_AHEAD * qcvm->edict_size;
