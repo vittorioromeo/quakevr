@@ -1035,6 +1035,21 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-07: A/B and compare switches of finished fixes (cruft_report S2-S4): the default kept, the other side
+    // gone.
+    "vr_agrunt_punch_ease",
+    "vr_agrunt_lift_turn",
+    "vr_agrunt_run_key_stance",
+    "vr_agrunt_saw_reach",
+    "vr_agrunt_swing_one_hand",
+    "vr_agarms_lod_check",
+    "vr_weapon_kick_cancel",
+    "vr_flail_frame",
+    "vr_flail_smooth",
+    "vr_debug_ribbon_overlap",
+    "vr_pose_solve",
+    "vr_ragdoll_weapon_collide",
+    "vr_ad_widowmaker_art",
     // 2026-11-07: finished perf A/B switches (the same results either way; cruft_report S1): their default kept, the
     // old path gone.
     "vr_place_entities_first",

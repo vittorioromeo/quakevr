@@ -725,9 +725,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agholds_report: each armed humanoid drawn lately, its weapon and its hands on it (one-handed, two: the "
                   "off hand on its second grip or cupping the other), what the Weapon Holds asked; vr_agholds_info the "
                   "settings' table."),
-        toggle("Armed Humanoids: Check the Arms' Detail", vr_agarms_lod_check)
-            .help("vr_agarms_lod_check: each far armed humanoid's reused arms (Arms' Level of Detail, Graphics) also solved and "
-                  "compared; Arms' Solve Time prints how far apart its hands and weapons were."),
         toggle("Armed Humanoids: Arms' Warm Start", vr_agarms_warm)
             .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
                   "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "
@@ -1197,11 +1194,6 @@ za::Vector<Item> pageDebugTools()
                   "preview model floats ahead at arm's reach, at the size it is in your hand (a viewthing given the model: "
                   "until the map changes, player.mdl is drawn as it too). The scenario widowmaker_art also puts one in "
                   "your hand."),
-        command("Widowmaker: Hand-Made Model", "vr_ad_widowmaker_art 1")
-            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (after his mockup). Reloads it."),
-        command("Widowmaker: Model Made from AD's", "vr_ad_widowmaker_art 0")
-            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads, for A/B. "
-                  "Reloads it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

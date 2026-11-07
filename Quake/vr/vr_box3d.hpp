@@ -147,7 +147,7 @@ void forEachFlailRope(za::FunctionRef<void(int handle, int head, float length, b
 [[nodiscard]] bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor);
 // ... and as the view draws it at the client's time `time` (cl.time, the entities' lerp): its middle from its anchor and
 // its turn, both in the play space's frame (turned back by the player's play space turn, QC .vryaw, at each step),
-// interpolated between the steps about that time (vr_flail_smooth; vr_flail.cpp puts it on the hand as drawn).
+// interpolated between the steps about that time (vr_flail.cpp puts it on the hand as drawn).
 [[nodiscard]] bool flailHeadAt(int client, int hand, double time, glm::vec3& off, glm::quat& rot);
 // vr_flail_info: the heads' stats since the last (frames held, the chain's most stretch, the frames the level stood
 // between the handle and the head, the fastest, hits dealt); then cleared.

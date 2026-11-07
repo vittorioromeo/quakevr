@@ -257,7 +257,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Fists' Guard as Posed", "vr_agrunt_test 90")
             .help("vr_agrunt_test 90 (vrtesthall's start; about 5 s): an unarmed enforcer held in its Guard key as the "
                   "Pose Studio holds it, then running at you: its drawn fists (less its head) within 2 units of the "
-                  "studio's, never crossed (vr_agrunt_run_key_stance; agtest: fists' guard ... PASS)."),
+                  "studio's, never crossed (agtest: fists' guard ... PASS)."),
         command("Armed Grunts: Dual Guns' Muzzles", "vr_agrunt_test 85")
             .help("vr_agrunt_test 85 (vrtesthall's start; a few seconds): every dual-gun pair of a grunt and an enforcer "
                   "(their own guns too) fires each gun in turn: each shot leaves its own gun's drawn muzzle, the left "

@@ -86,13 +86,13 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
     const bool looseA = r.rig->bones[pa].joint == ragdoll::Joint::Loose, looseB = r.rig->bones[pb].joint == ragdoll::Joint::Loose;
     if(looseA || looseB)
     {
-        // vr_ragdoll_weapon_collide: a living one's weapon (knocked down or staggering: welded in its hand,
+        // A living one's weapon (knocked down or staggering: welded in its hand,
         // vr_knockdown_weld) meets its torso and head (not its arms and legs), so its arm can't fold it into its chest;
         // a corpse's meets nothing of its own.
         const char* other = r.rig->bones[looseA ? pb : pa].name;
         const bool body = !strncmp(other, "chest", 5) || !strncmp(other, "pelvis", 6) || !strncmp(other, "spine", 5) ||
                           !strncmp(other, "neck", 4) || !strncmp(other, "head", 4);
-        return r.knocked && !(looseA && looseB) && body && vr_ragdoll_weapon_collide.value != 0.f &&
+        return r.knocked && !(looseA && looseB) && body &&
                shapeGap(a, b, 0.7f) > selfApart;
     }
     return !r.knocked || shapeGap(a, b, 0.7f) > selfApart;

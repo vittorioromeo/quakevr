@@ -5321,13 +5321,6 @@ QVR_SLIDER_BYNAME(vr_adgun_crossbow_anim_at, "Crossbow Held After a Shot", -1.f,
 QVR_TOGGLE_BYNAME(vr_adgun_hose_arms, "Fuel Hose Avoids the Arms",
     "The hose kept out of your drawn arms (the upper arm and forearm as capsules), going round them. Off: "
     "it passes through them (to compare; Fuel Hose Info measures how deep).")
-QVR_TOGGLE_BYNAME(vr_flail_frame, "Flail Head in Your Frame",
-    "Debug: the held flail's head simulated in your moving frame (the stick's walk and turn carry it; Flail "
-    "Body Inertia's share of your speeding up swings it). Off: in the world's, as before (the stick's walk "
-    "flung it).")
-QVR_TOGGLE_BYNAME(vr_flail_smooth, "Flail Head Drawn Smooth",
-    "Debug: the held flail's head drawn between the server's steps, on the hand as drawn, at the headset's "
-    "frame rate. Off: where each 72 Hz step left it (jerky under the hand).")
 
 // vr_menu_automation.inc: ?
 QVR_TOGGLE(vr_agrunt_ik_debug, "Armed Grunts: Grip Distances",
@@ -6219,9 +6212,6 @@ QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
     "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled). "
     "vr_debug_gunfx 2 (console): also each frame a hot barrel glows, \"gunfx barrel hand .. heat .. glow .. light "
     ".. drawn .. off ..\" (off: how far its drawn muzzle was from where its light was placed).")
-QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
-    "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
-    "as before the fix: the denser creases, to compare.")
 QVR_TOGGLE(vr_debug_gunsfx, "Print Gunfire Layers and Punches",
     "vr_debug_gunsfx: a console line for each shot (its layers, tail, room), each punch and dry click.")
 QVR_TOGGLE(vr_debug_weaponfx, "Print Weapon Effects",
@@ -6231,11 +6221,6 @@ QVR_TOGGLE(vr_debug_weaponfx, "Print Weapon Effects",
 QVR_SLIDER(vr_autopump_hold, "Hold the Auto Pump", -0.05f, 1.f, 0.05f, "%.2f", noExt,
     "vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
     "(0.35-0.45: at the back; below 0: off).")
-QVR_TOGGLE(vr_weapon_kick_cancel, "Take Out the Models' Own Kick",
-    "vr_weapon_kick_cancel: Quake's guns' firing frames kick the whole gun back and up in the model; that kick "
-    "is taken out of their poses (the body exactly still; their pumps, barrels and drums still move; the "
-    "grenade launchers wholly still) and the programmatic recoil kicks them instead. Off: the models' own "
-    "kick again, to compare.")
 QVR_TOGGLE(vr_debug_draw_blend, "Print the Weapon Blends",
     "vr_debug_draw_blend: each frame of a hand's weapon blend (a draw, a force grab's catch, a pass between hands) "
     "printed to the console: what is left of it, where the gun is drawn and its real place.")
