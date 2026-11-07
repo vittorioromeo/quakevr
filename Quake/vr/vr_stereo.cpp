@@ -336,6 +336,7 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
     {
         mirrorProgram = gfx::glProgram(mirrorVs, mirrorFs, "vr mirror");
         mirrorFailed = !mirrorProgram;
+        gfx::ownDeferred(mirrorProgram, &mirrorFailed);
     }
     if(mirrorFailed)
     {
@@ -864,6 +865,7 @@ void precompilePrograms()
     {
         mirrorProgram = gfx::glProgram(mirrorVs, mirrorFs, "vr mirror");
         mirrorFailed = !mirrorProgram;
+        gfx::ownDeferred(mirrorProgram, &mirrorFailed);
     }
 }
 

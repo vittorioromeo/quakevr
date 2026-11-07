@@ -1106,6 +1106,16 @@ extern "C" void VR_SkinNormalsForget (gltexture_t *glt)
 	}
 }
 
+// Whether `base` has a normal map still on a job (its normal map is set only at the join: VR_LoadNormalMap's "already
+// has one" guard asks this too, so a skin asked for twice before its join gets one texture and one job).
+static bool VR_SkinNormalsPending (const gltexture_t *base)
+{
+	for (const PendingSkinNormal &p : pendingSkinNormals)
+		if (p.base == base)
+			return true;
+	return false;
+}
+
 extern "C" void VR_SkinNormalsDrop (void)
 {
 	pendingSkinNormals.clear (); // (each Future waits for its job)
@@ -1207,7 +1217,7 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 	enum srcformat	fmt;
 	byte			*img;
 
-	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
+	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL) || VR_SkinNormalsPending (glt))
 		return;
 	if (VR_PBRNormal (glt, image, shared, data, format, worldwidth, flags))
 		return;

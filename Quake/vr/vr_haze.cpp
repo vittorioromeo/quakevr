@@ -754,6 +754,7 @@ void draw()
     {
         program = gfx::glProgram(vertexSource, fragmentSource, "vr heat haze");
         programFailed = !program;
+        gfx::ownDeferred(program, &programFailed);
         if(programFailed)
         {
             return;
@@ -814,6 +815,7 @@ void precompilePrograms()
     {
         program = gfx::glProgram(vertexSource, fragmentSource, "vr heat haze");
         programFailed = !program;
+        gfx::ownDeferred(program, &programFailed);
     }
 }
 

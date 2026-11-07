@@ -916,6 +916,7 @@ bool ensureTubeProgram()
                                      "\n#define BLENDED 0\n" + fragmentShader;
         tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
+        gfx::ownDeferred(tubeProgram, &tubeProgramFailed);
         Con_DPrintf("VR: tube: program made in %.2f ms\n", (Sys_DoubleTime() - start) * 1000.0);
     }
     return tubeProgram != 0;
@@ -1002,6 +1003,7 @@ GLuint programFor(Shade shade, bool blended, bool retro)
     }
     p = glProgram(vertexShader, fragmentFor(s, blended, retro).cStr(), retro ? "vr triangles (retro)" : "vr triangles");
     programFailed[s][blended][retro] = !p;
+    gfx::ownDeferred(p, &programFailed[s][blended][retro]);
     return p;
 }
 
@@ -1450,6 +1452,7 @@ namespace
             which == 4 ? "vr particles (retro fast half size)" : which == 5 ? "vr particles (retro centre near)" :
             "vr particles (retro centre near half size)");
         particleProgramFailed[waste][variant] = !program;
+        gfx::ownDeferred(program, &particleProgramFailed[waste][variant]);
     }
     return program;
 }
@@ -2393,21 +2396,26 @@ void precompilePrograms()
         underMarkProgram = glProgram(halfCompositeVs, underMarkFs, "vr particles (reverse order, opaque marked)");
         underCompositeProgram = glProgram(halfCompositeVs, underCompositeFs, "vr particles (reverse order, blended in)");
         underFailed = !underMarkProgram || !underCompositeProgram;
+        gfx::ownDeferred(underMarkProgram, &underFailed);
+        gfx::ownDeferred(underCompositeProgram, &underFailed);
     }
     if(!halfDepthCompositeProgram && !halfDepthCompositeFailed)
     {
         halfDepthCompositeProgram = glProgram(halfCompositeVs, halfDepthCompositeFs, "vr particles (half size, depth-aware)");
         halfDepthCompositeFailed = !halfDepthCompositeProgram;
+        gfx::ownDeferred(halfDepthCompositeProgram, &halfDepthCompositeFailed);
     }
     if(!halfCompositeProgram && !halfCompositeFailed)
     {
         halfCompositeProgram = glProgram(halfCompositeVs, halfCompositeFs, "vr particles (half size, blended in)");
         halfCompositeFailed = !halfCompositeProgram;
+        gfx::ownDeferred(halfCompositeProgram, &halfCompositeFailed);
     }
     if(!bentProgram && !bentProgramFailed)
     {
         bentProgram = glProgram(bentVertexShader, bentFragmentShader, "vr bent mesh");
         bentProgramFailed = !bentProgram;
+        gfx::ownDeferred(bentProgram, &bentProgramFailed);
     }
     bloom::precompilePrograms();
     bttrails::precompilePrograms();

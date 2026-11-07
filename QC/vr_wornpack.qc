@@ -292,7 +292,7 @@ void(entity pk, entity g) VR_WP_Pulls =
     {
         if(pl.classname == "player")
         {
-            float pm =VR_WP_HandPull(g, pl, pnum, cVR_MainHand);
+            float pm = VR_WP_HandPull(g, pl, pnum, cVR_MainHand);
             float po = VR_WP_HandPull(g, pl, pnum, cVR_OffHand);
             if(pm >= 0 || po >= 0)
             {
@@ -330,7 +330,7 @@ void(entity pk, entity g) VR_WP_Tug =
     {
         if(pl.classname == "player")
         {
-            float sm =ragdollbone(g, [5, pnum, cVR_MainHand], QVR_WORNPACK);
+            float sm = ragdollbone(g, [5, pnum, cVR_MainHand], QVR_WORNPACK);
             float so = ragdollbone(g, [5, pnum, cVR_OffHand], QVR_WORNPACK);
             if(sm >= 0 || so >= 0)
             {

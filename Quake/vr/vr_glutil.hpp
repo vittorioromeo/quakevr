@@ -20,10 +20,16 @@ namespace qvr::gfx
 // compile and link is queued without reading its status (linkProgram gives the program), so the driver's threads take
 // them all; endDeferredChecks then reads each one's statuses in order, warns as compiled/linkProgram would and labels
 // the programs (the driver's glObjectLabel waits for the link: 480 of a cold 555 ms). A program that failed is
-// relinked to one that draws (or dispatches) nothing, as its owner already holds the name (made one at a time, it
-// would have had 0 and skipped its pass). Without the extension both do nothing.
+// handled as a one-at-a-time make would have: its owner (ownDeferred) gets 0 and its failure flag set, so it takes its
+// fallback or skips its pass, and the program is deleted. (One with no owner said: relinked to a program that draws
+// nothing, a safety net.) Without the extension they do nothing.
 void beginDeferredChecks();
 void endDeferredChecks();
+
+// Called by a program's owner right after making it (`program` and `failed`, null if it has no flag, are its own
+// variables, alive until endDeferredChecks): while the checks are deferred, if the program turns out to have failed,
+// endDeferredChecks sets `program` to 0 and `*failed` to true. Otherwise nothing.
+void ownDeferred(GLuint& program, bool* failed);
 
 // Whether the framebuffer bound to GL_FRAMEBUFFER is complete.
 [[nodiscard]] bool boundFramebufferComplete();

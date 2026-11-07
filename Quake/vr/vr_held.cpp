@@ -301,8 +301,12 @@ void buildMeshNodes(DrawnMesh& m, int first, int count)
     };
     mix(&model, sizeof(model));
     mix(&pose, sizeof(pose));
+    // The whole transform, the weapon model transform (vr_wofs, Weapon Studio) included: tuning it mid-map makes
+    // a new mesh (and drawnExtent a new answer) instead of taking the in-place branch below.
     const float numbers[] = {xf.netScale.x, xf.netScale.y, xf.netScale.z, xf.scaleOrigin.x, xf.scaleOrigin.y,
-        xf.scaleOrigin.z, xf.offset.x, xf.offset.y, xf.offset.z, xf.size};
+        xf.scaleOrigin.z, xf.offset.x, xf.offset.y, xf.offset.z, xf.size, xf.alias ? 1.f : 0.f, xf.t.active ? 1.f : 0.f,
+        xf.t.k, xf.t.offset.x, xf.t.offset.y, xf.t.offset.z, xf.t.scale.x, xf.t.scale.y, xf.t.scale.z, xf.so.x, xf.so.y,
+        xf.so.z, xf.hs.x, xf.hs.y, xf.hs.z};
     mix(numbers, sizeof(numbers));
     auto& meshes = drawnMeshes.meshes;
     auto it = meshes.find(h);
@@ -321,6 +325,11 @@ void buildMeshNodes(DrawnMesh& m, int first, int count)
         made->nodes.clear();
         made->hull.points = 0; // (drawnHull makes it again: disarmhull::make empties it keeping its room)
         made->hull.ok = false;
+        made->extentDone = false; // (drawnExtent's answer was the other mesh's)
+        made->extentOk = false;
+        made->extentBack = glm::vec3{0.f};
+        made->extentFront = glm::vec3{0.f};
+        made->extentRadius = 0.f;
     }
     else
     {

@@ -200,15 +200,18 @@ struct MakeScratch
 };
 mem::Scratch<MakeScratch> makeScratch{"disarm hulls"};
 int arenaUsed = 0; // slots given out in this b3CreateHullWith call
+// Blocks asked past the slots (b3CreateHullImpl asks for two today; a Box3D update might ask more): each its own,
+// dropped at the next call (the hull is valid until then).
+za::Vector<za::Vector<char>> arenaOverflow;
 
 void* arenaAlloc(size_t size, int32_t alignment)
 {
+    const za::SizeT need = static_cast<za::SizeT>(size) + static_cast<za::SizeT>(alignment);
     if(arenaUsed >= arenaSlots)
     {
-        Sys_Error("disarmhull: quickhull asked for more than %d blocks", arenaSlots); // (b3CreateHullImpl asks for two)
+        arenaOverflow.pushBack(za::Vector<char>{});
     }
-    za::Vector<char>& s = makeScratch.slot[arenaUsed++];
-    const za::SizeT need = static_cast<za::SizeT>(size) + static_cast<za::SizeT>(alignment);
+    za::Vector<char>& s = arenaUsed < arenaSlots ? makeScratch.slot[arenaUsed++] : arenaOverflow.back();
     if(s.size() < need)
     {
         s.resize(need);
@@ -224,6 +227,7 @@ void arenaFree(void*, size_t) {} // (the slots are given out afresh at the next 
 [[nodiscard]] b3HullData* arenaHull(const b3Vec3* points, int count, int budget)
 {
     arenaUsed = 0;
+    arenaOverflow.clear();
     return b3CreateHullWith(points, count, budget, arenaAlloc, arenaFree);
 }
 

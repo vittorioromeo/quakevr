@@ -1052,6 +1052,7 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     {
         ent->v.origin[i] = ent->v.oldorigin[i] = target[i];
     }
+    VR_FindRadius_Dirty(ent); // (moved in C: findradius tests it by itself until it is linked)
 
     return 1;
 }
@@ -1180,6 +1181,7 @@ extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
         ent->v.absmin[i] += delta[i];
         ent->v.absmax[i] += delta[i];
     }
+    VR_FindRadius_Dirty(ent); // (moved without a link while the progs run: findradius tests it by itself)
 }
 
 extern "C" void VR_AfterPlayerPostThink(edict_t* ent)

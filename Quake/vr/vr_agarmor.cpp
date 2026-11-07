@@ -4244,6 +4244,7 @@ struct PackRestCached
     glm::vec3 half{0.f};
 };
 za::Vector<PackRestCached> packRestCache;
+constexpr za::SizeT maxPackRestCached = 64; // more than the packs worn at once; all dropped when it would hold more
 
 bool packRestMake(const Shell& shell, const PackFit& fit, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half);
 } // namespace
@@ -4273,6 +4274,10 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     }
     if(!cached)
     {
+        if(packRestCache.size() >= maxPackRestCached)
+        {
+            packRestCache.clear(); // (keyed by shell address: a session's remade shells would add one each, never used again)
+        }
         packRestCache.pushBack(PackRestCached{});
         cached = &packRestCache.back();
         cached->shell = s;

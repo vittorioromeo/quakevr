@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_haze.hpp"
 #include "vr_mem.hpp"
 #include "vr_portals.hpp"
@@ -542,6 +543,7 @@ void drawView()
     {
         program = gfx::glProgram(vertexSource, fragmentSource, "vr bullet time trails");
         programFailed = !program;
+        gfx::ownDeferred(program, &programFailed);
         if(programFailed)
         {
             return;
@@ -761,6 +763,7 @@ void precompilePrograms()
     {
         program = gfx::glProgram(vertexSource, fragmentSource, "vr bullet time trails");
         programFailed = !program;
+        gfx::ownDeferred(program, &programFailed);
     }
 }
 

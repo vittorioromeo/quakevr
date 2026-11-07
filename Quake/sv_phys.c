@@ -300,6 +300,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		if (trace.fraction > 0)
 		{	// actually covered some distance
 			VectorCopy (trace.endpos, ent->v.origin);
+			VR_FindRadius_Dirty (ent); // QVR: moved, not linked before SV_Impact's QuakeC (findradius tests it by itself)
 			VectorCopy (ent->v.velocity, original_velocity);
 			numplanes = 0;
 		}

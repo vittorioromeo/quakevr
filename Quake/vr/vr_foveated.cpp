@@ -3,6 +3,7 @@
 #include "vr_foveated.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_profile.hpp"
 #include "vr_upscale.hpp"
 
@@ -401,6 +402,7 @@ void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int s
     {
         debugProgram = gfx::glProgram(debugVs, debugFs, "vr foveated debug");
         debugFailed = !debugProgram;
+        gfx::ownDeferred(debugProgram, &debugFailed);
     }
     if(!debugProgram)
     {
@@ -432,6 +434,7 @@ void precompilePrograms()
     {
         debugProgram = gfx::glProgram(debugVs, debugFs, "vr foveated debug");
         debugFailed = !debugProgram;
+        gfx::ownDeferred(debugProgram, &debugFailed);
     }
 }
 

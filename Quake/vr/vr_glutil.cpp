@@ -17,8 +17,16 @@ struct DeferredProgram
     char name[64]{};
 };
 
+// An owner's program variable and failure flag (ownDeferred): set at endDeferredChecks if its program failed.
+struct DeferredOwner
+{
+    GLuint* program{nullptr};
+    bool* failed{nullptr};
+};
+
 bool deferring = false;
 za::Vector<DeferredProgram> deferredPrograms;
+za::Vector<DeferredOwner> deferredOwners;
 
 // Shader `shader`'s compile status, warning with its info log on a failure.
 [[nodiscard]] bool compileStatus(const GLuint shader, const char* name)
@@ -54,7 +62,9 @@ constexpr const char* nothingVs = "#version 430\nvoid main() { gl_Position = vec
 constexpr const char* nothingFs = "#version 430\nvoid main() { discard; }\n";
 constexpr const char* nothingCs = "#version 430\nlayout(local_size_x = 1) in;\nvoid main() {}\n";
 
-// A deferred program that failed: relinked from shaders that draw (or dispatch) nothing, the stages it had.
+// A deferred program that failed and that no owner said it holds (ownDeferred): relinked from shaders that draw (or
+// dispatch) nothing, the stages it had, so its holder never uses a deleted name (a safety net: every program
+// gfx::precompilePrograms makes has its owner).
 void relinkToNothing(const DeferredProgram& d)
 {
     GLint type = 0;
@@ -104,6 +114,15 @@ void beginDeferredChecks()
 {
     deferring = gl_parallel_compile_able != 0;
     deferredPrograms.clear();
+    deferredOwners.clear();
+}
+
+void ownDeferred(GLuint& program, bool* failed)
+{
+    if(deferring && program)
+    {
+        deferredOwners.pushBack(DeferredOwner{&program, failed});
+    }
 }
 
 void endDeferredChecks()
@@ -117,12 +136,34 @@ void endDeferredChecks()
         ok = ok && linkStatus(d.program, d.name);
         if(!ok)
         {
+            // As a one-at-a-time make would have: the owner's program 0 and its failure flag set (its fallback
+            // path or a skipped pass), the program deleted.
+            bool owned = false;
+            for(const DeferredOwner& o : deferredOwners)
+            {
+                if(*o.program == d.program)
+                {
+                    *o.program = 0;
+                    if(o.failed)
+                    {
+                        *o.failed = true;
+                    }
+                    owned = true;
+                }
+            }
+            if(owned)
+            {
+                GL_DeleteProgramFunc(d.program);
+                continue;
+            }
             relinkToNothing(d);
         }
         GL_ObjectLabelFunc(GL_PROGRAM, d.program, -1, d.name);
     }
     deferredPrograms.clear();
     deferredPrograms.shrinkToFit();
+    deferredOwners.clear();
+    deferredOwners.shrinkToFit();
 }
 
 GLuint linkProgram(const GLuint vs, const GLuint fs, const char* name)
