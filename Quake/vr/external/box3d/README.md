@@ -17,7 +17,9 @@ public C API), unchanged but for local changes marked `QVR` (keep them when upda
 and `src/core.c` (above, and `TRACY.md`), and in `src/mesh_contact.c`
 b3ComputeMeshManifolds asks the pre-solve callback for a mesh's contact points too (upstream asks it only in the convex
 path, once a contact), so that a prop passing through a teleporter does not collide with the wall behind it
-(`vr_box3d.cpp` preSolve, the portal copies). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
+(`vr_box3d.cpp` preSolve, the portal copies), and in `src/hull.c` and `include/box3d/collision.h` b3CreateHullWith:
+b3CreateHull with its working memory and result from the caller's allocator (b3CreateHull calls the same code with
+b3Alloc / b3Free), so that the disarm hulls made each frame use a scratch arena (`vr_disarmhull.cpp`). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):
