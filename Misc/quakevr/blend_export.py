@@ -51,6 +51,12 @@ def main():
     if "--out" in a:
         out = os.path.abspath(a[a.index("--out") + 1])
     sys.path.insert(0, ADDONS)
+    # Blender may have loaded the installed add-on already (another checkout's): this checkout's code exports.
+    loaded = sys.modules.get("quakevr_models")
+    if loaded is not None and not os.path.normcase(os.path.abspath(getattr(loaded, "__file__", "") or "")).startswith(
+            os.path.normcase(os.path.abspath(ADDONS))):
+        for k in [k for k in sys.modules if k == "quakevr_models" or k.startswith("quakevr_models.")]:
+            del sys.modules[k]
     from quakevr_models import source
     blend = bpy.data.filepath
     root = source.repo_root(blend) if blend else None
