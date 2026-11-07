@@ -374,6 +374,7 @@ void CL_BaseMove (usercmd_t *cmd)
 		cmd->sidemove *= cl_movespeedkey.value;
 		cmd->upmove *= cl_movespeedkey.value;
 	}
+	VR_FlatMoveScale (&cmd->forwardmove, &cmd->sidemove); // QVR: leaning (flatscreen play), slower (vr_flat_lean_speed)
 }
 
 

@@ -6025,6 +6025,22 @@ QVR_TOGGLE(vr_flat_death_vomit, "Vomit Mode on Death",
     "Playing on the desktop screen (-flatscreenmode) with Death View on Immersive: when you die, the view is your "
     "ragdoll's eyes, turned exactly as its head tumbles (Vomit Mode), whatever the Vomit Mode setting is. Your own "
     "setting is kept for the headset. Off: the Vomit Mode setting decides (vr_flat_death_vomit).")
+QVR_TOGGLE(vr_flat_slide, "Slide",
+    "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
+    "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
+    "Tunables > Flatscreen > Slide (vr_flat_slide).")
+QVR_TOGGLE(vr_flat_lean, "Lean (Q / E)",
+    "Playing on the desktop screen (-flatscreenmode): Q and E lean left and right round a corner -- the view, the "
+    "weapon and the body tilt and the eye moves out, never into a wall. Enemies can hit what leans out. Standing and "
+    "crouched; not lying down or sliding. Tuning: Debug > Tunables > Flatscreen > Lean (vr_flat_lean).")
+QVR_CYCLE(vr_flat_lean_toggle, "Lean Keys",
+    "Hold: you lean while Q or E is held. Toggle: a press leans, the next press stands you straight "
+    "(vr_flat_lean_toggle).",
+    {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
+    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
+    "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
+    "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
