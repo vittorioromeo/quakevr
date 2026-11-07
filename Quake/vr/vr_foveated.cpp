@@ -424,4 +424,15 @@ void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int s
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    if(!debugProgram && !debugFailed)
+    {
+        debugProgram = gfx::glProgram(debugVs, debugFs, "vr foveated debug");
+        debugFailed = !debugProgram;
+    }
+}
+
 } // namespace qvr::foveated

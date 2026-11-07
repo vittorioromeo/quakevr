@@ -2192,6 +2192,15 @@ qboolean COM_PackHasFile (const pack_t *pack, const char *name)
 	return COM_PackFind (pack, name) >= 0;
 }
 
+// QVR: a loose folder asked for a file (outside the file system cache's windows): a zone of its own, so that a capture
+// shows any lookup that reaches the disk during play (TRACY.md)
+static int COM_ProbeFileType (const char *netpath)
+{
+	VR_TRACY_SCOPE("File system probe");
+	VR_TracyText(netpath);
+	return Sys_FileType (netpath);
+}
+
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
@@ -2327,7 +2336,7 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 
 			q_snprintf (netpath, sizeof(netpath), "%s/%s",search->filename, filename);
 			i = VR_FileCacheHas (netpath); // QVR: while loading, each directory listed once (vr_fscache.cpp)
-			if (i == 0 || (i < 0 && ! (Sys_FileType(netpath) & FS_ENT_FILE)))
+			if (i == 0 || (i < 0 && ! (COM_ProbeFileType (netpath) & FS_ENT_FILE)))
 				continue;
 
 			q_strlcpy(com_filesource, search->filename, sizeof(com_filesource));

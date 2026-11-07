@@ -461,15 +461,7 @@ bool programFailed[shadeCount][2][2]{};
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
     GL_CompileShaderFunc(shader);
-
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
-    {
-        char log[1024];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
-    }
+    (void)gfx::compiled(shader, name); // (a failed one still given: its program's link fails)
     return shader;
 }
 
@@ -2380,7 +2372,62 @@ void destroyTexture(Texture texture)
     GL_ClearBindings();
 }
 
+void precompilePrograms()
+{
+    // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
+    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
+    for(int s = 0; s < shadeCount; s++)
+    {
+        (void)programFor(static_cast<Shade>(s), false, false);
+        (void)programFor(static_cast<Shade>(s), true, false);
+    }
+    (void)programFor(Shade::Texture, false, true);
+    (void)programFor(Shade::Texture, true, true);
+    for(int variant = 0; variant < 11; variant++)
+    {
+        (void)particleProgramFor(variant); // (vr_debug_particle_waste's twins: when that debug view is first drawn)
+    }
+    (void)ensureTubeProgram();
+    if(!underMarkProgram && !underFailed)
+    {
+        underMarkProgram = glProgram(halfCompositeVs, underMarkFs, "vr particles (reverse order, opaque marked)");
+        underCompositeProgram = glProgram(halfCompositeVs, underCompositeFs, "vr particles (reverse order, blended in)");
+        underFailed = !underMarkProgram || !underCompositeProgram;
+    }
+    if(!halfDepthCompositeProgram && !halfDepthCompositeFailed)
+    {
+        halfDepthCompositeProgram = glProgram(halfCompositeVs, halfDepthCompositeFs, "vr particles (half size, depth-aware)");
+        halfDepthCompositeFailed = !halfDepthCompositeProgram;
+    }
+    if(!halfCompositeProgram && !halfCompositeFailed)
+    {
+        halfCompositeProgram = glProgram(halfCompositeVs, halfCompositeFs, "vr particles (half size, blended in)");
+        halfCompositeFailed = !halfCompositeProgram;
+    }
+    if(!bentProgram && !bentProgramFailed)
+    {
+        bentProgram = glProgram(bentVertexShader, bentFragmentShader, "vr bent mesh");
+        bentProgramFailed = !bentProgram;
+    }
+    bloom::precompilePrograms();
+    bttrails::precompilePrograms();
+    dynres::precompilePrograms();
+    foveated::precompilePrograms();
+    haze::precompilePrograms();
+    lighting::precompilePrograms();
+    stereo::precompilePrograms();
+    temporal::precompilePrograms();
+    upscale::precompilePrograms();
+    water::precompilePrograms();
+    gfx::endDeferredChecks();
+}
+
 } // namespace qvr::gfx
+
+extern "C" void VR_PrecompilePrograms(void)
+{
+    qvr::gfx::precompilePrograms();
+}
 
 namespace
 {

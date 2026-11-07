@@ -453,13 +453,8 @@ bool invert4(const float* m, float* out)
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
     GL_CompileShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
+    if(!gfx::compiled(shader, name))
     {
-        char log[2048];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
         GL_DeleteShaderFunc(shader);
         return 0;
     }
@@ -771,6 +766,13 @@ void registerCommands()
                     100.0 * s[2] / q_max(1.0, static_cast<double>(state.width) * state.height));
             }
         });
+}
+
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    (void)ensurePrograms();
 }
 
 } // namespace qvr::temporal

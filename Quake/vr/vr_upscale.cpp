@@ -229,13 +229,8 @@ void main()
     const char* text = source.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
     GL_CompileShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
+    if(!gfx::compiled(shader, name))
     {
-        char log[2048];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
         GL_DeleteShaderFunc(shader);
         return 0;
     }
@@ -583,6 +578,15 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
     GL_Uniform1fFunc(3, rcasConstant(sharpness()));
     GL_Uniform1iFunc(4, rcas ? 1 : 0);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    (void)easu();
+    (void)compose();
+    (void)nis();
 }
 
 } // namespace qvr::upscale

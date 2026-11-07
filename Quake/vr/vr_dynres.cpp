@@ -286,4 +286,15 @@ void testLoad(int eye, unsigned fbo, int width, int height)
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
 }
 
+
+// Its GL programs made now (gfx::precompilePrograms, at start-up), as their first use would: no compile in play.
+void precompilePrograms()
+{
+    if(!loadProgram && !loadFailed)
+    {
+        loadProgram = gfx::glProgram(loadVs, loadFs, "vr dynres test load");
+        loadFailed = !loadProgram;
+    }
+}
+
 } // namespace qvr::dynres
