@@ -80,7 +80,13 @@ each tier, then the build switched 2 -> 1 -> 3 -> 2, then the kind another (noth
 | Rows | `rows` | its rows of plates (0 the generator's; the cuirass counts its collar row; a limb's two sides take the larger) |
 | Taper at Start | `taper_start` | the plate rows' size round the part's line at its first row (1 as made; 0.2 .. 3), lerped row by row to ... |
 | Taper at End | `taper_end` | ... this at its last row: a death knight's thighs wider at the pelvis, narrower at the knee (1.15, 0.9) |
-| Leather Sleeve Shown | `leather` | a sleeve part's leather (over an elbow or a knee, one half of it) drawn, or `"0"`: not made at all |
+| Leather Sleeve Shown | `leather` | a sleeve part's leather (over an elbow or a knee, one half of it) drawn, or `"0"`: not made at all (with the bending leather, `vr_agarmor_bridge 1`: `"0"` on either of a joint's sleeve parts, that joint's whole leather) |
+| Leather Folds | `folds` | the joint's leather's bellows folds, 0-4 (the upper sleeve part's, else the lower's, else `vr_agarmor_folds`, 4) |
+| Fold Depth | `fold_depth` | how far they stand on the inside of a bend, in units (flat on its outside; else `vr_agarmor_fold_depth`, 0.3) |
+
+With the bending leather (`vr_agarmor_bridge 1`, the default; ROUND24.md, "Leather bridge at elbows and knees") a joint's
+leather is one tube made each frame from the upper part's last row to the lower part's first: a sleeve part's tapers size
+its half (eased to the rows at its ends), its stand-off and scale apply round the tube, its offset and rotate do not.
 
 Start, End and Rows are the cuirass's and the limbs' plates' (not the helmet's or a sleeve's; the ImGui window hides those rows
 there). The tapers are every part's but the helmet's: on a sleeve part they size its leather's rings the same way, in the

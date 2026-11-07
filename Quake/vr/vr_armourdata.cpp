@@ -287,7 +287,7 @@ void parse(const char* text, za::Vector<Entry>& into)
                 if(field < 0)
                 {
                     Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
-                               "leather): ignored\n", pathText, key.cStr());
+                               "leather, folds, fold_depth): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }

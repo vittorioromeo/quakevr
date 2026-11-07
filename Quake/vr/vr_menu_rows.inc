@@ -5435,6 +5435,21 @@ QVR_CYCLE(vr_agarmor, "Armed Humanoids' Armour (P0)",
 QVR_CYCLE(vr_agarmor_pieces, "Armour Pieces",
     "vr_agarmor_pieces: which pieces the armoured grunts wear (each piece hidden by collapsing its bones).",
     {3.f, "Cuirass and Helmet"}, {1.f, "Cuirass"}, {2.f, "Helmet"})
+QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
+    "vr_agarmor_bridge: the leather between the armour plates at the elbows and knees. Bending: one tube made every "
+    "frame from the upper plates' last row to the lower plates' first, curved round the joint, its folds bunched "
+    "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
+    "load (for comparison). The shells are made again when it changes.",
+    {1.f, "Bending"}, {0.f, "Old Sleeves"})
+QVR_SLIDER(vr_agarmor_folds, "Leather Folds", 0.f, 4.f, 1.f, "%.0f", noExt,
+    "vr_agarmor_folds: the bellows folds in the elbow and knee leather (armour.txt's `folds` on a sleeve part, or "
+    "the Armour Studio's Leather Folds, over it for one kind).")
+QVR_SLIDER(vr_agarmor_fold_depth, "Leather Fold Depth", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "vr_agarmor_fold_depth: how far the leather's folds stand on the inside of a bend, in units (they flatten on "
+    "its outside; armour.txt's `fold_depth` over it for one kind).")
+QVR_SLIDER(vr_agarmor_bend, "Bend Armoured Elbows and Knees", 0.f, 150.f, 10.f, "%.0f deg", noExt,
+    "vr_agarmor_bend (debug): every armoured body drawn on the authored rig stands in its rest pose with its "
+    "elbows and knees bent this far (within their limits), to look at the leather over the joints. 0: off.")
 QVR_TOGGLE(vr_debug_hand_bones, "Show Hand Bones",
     "Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
     "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm).")

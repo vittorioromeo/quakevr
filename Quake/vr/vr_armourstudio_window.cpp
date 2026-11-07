@@ -71,6 +71,8 @@ const Row fieldRows[NumFields] = {
     {"Taper Start", &vr_armourstudio_taper_start, 0.5f, 1.5f, 0.02f, "%.3fx"},
     {"Taper End", &vr_armourstudio_taper_end, 0.5f, 1.5f, 0.02f, "%.3fx"},
     {"Leather", &vr_armourstudio_leather, 0.f, 1.f, 1.f, "%.0f"},
+    {"Leather Folds", &vr_armourstudio_folds, 0.f, 4.f, 1.f, "%.0f"},
+    {"Fold Depth", &vr_armourstudio_fold_depth, 0.f, 1.f, 0.02f, "%.2f"},
 };
 constexpr const char* kindLabels[NumKinds] = {"Grunt", "Enforcer", "Knight", "Death Knight", "Player (Your Body)"};
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
@@ -455,7 +457,7 @@ void drawWindow()
             // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too);
             // leather: the sleeves' alone)
             const bool plates = partNow != PartHelmet && partNow < PartPauldronSleeve;
-            if((f == Leather && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows) && !plates) ||
+            if(((f == Leather || f == Folds || f == FoldDepth) && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows) && !plates) ||
                 ((f == TaperStart || f == TaperEnd) && partNow == PartHelmet))
             {
                 continue;

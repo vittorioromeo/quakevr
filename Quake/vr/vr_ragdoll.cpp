@@ -4057,6 +4057,7 @@ extern "C" void VR_RagdollSwap(void)
 extern "C" void VR_Rig2Swap(void)
 {
     rig2::liveAll();    // (the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
+    agarmor::benchPose(); // (vr_agarmor_bend: the armoured bodies' elbows and knees bent, debug)
     rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
     agarmor::relink();  // (their armour, drawn with their bones: vr_agarmor.cpp)
 }

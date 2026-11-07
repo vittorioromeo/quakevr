@@ -2194,8 +2194,9 @@ void topFour(W& w)
 // armour.txt's tweaks (vr_armourdata.hpp) on the vertices [from, to) of a piece just made: `push` 1 a sleeve's stand-off, out
 // from its middle square to `up` (its bone), 2 the helmet's, out from its middle; 0 none (a grid piece's is in its radii). Then
 // scaled and turned round the middle of their box, and moved. Nothing set: not a vertex touched.
-void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int push, const glm::vec3& up)
+void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int push, const glm::vec3& up, int boxTo = -1)
 {
+    boxTo = boxTo < 0 ? to : boxTo; // (the middle: of [from, boxTo) alone; a bridge's end ring after the plates moves with them)
     using armourdata::Override;
     const auto has = [&](int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
     const bool pushed = has(armourdata::Standoff) && push != 0;
@@ -2206,7 +2207,7 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int p
         return;
     }
     glm::vec3 lo{1e9f}, hi{-1e9f};
-    for(int i = from; i < to; i++)
+    for(int i = from; i < boxTo; i++)
     {
         lo = glm::min(lo, at(s.verts, i).p);
         hi = glm::max(hi, at(s.verts, i).p);
@@ -2236,6 +2237,239 @@ void tweakVerts(Shell& s, int from, int to, const armourdata::Override& o, int p
         v.p = mid + turn * ((v.p - mid) * scale) + move;
         v.n = turn * v.n;
     }
+}
+
+// ---- The joints' bridges (vr_agarmor_bridge.cpp makes them each frame; ROUND24.md, "Leather bridge at elbows and knees") ----
+constexpr float bridgeSkinFit = 0.25f;   // units off the skin: a bridge's end where its part isn't worn
+constexpr float bridgeUnderReach = 1.35f; // the skin kept under a bridge: within this many of its rows' mean radius of their line
+                                          // (further out: a held gun's stock, a pad, not the limb's skin)
+constexpr int bridgeJointUpper[NumJoints] = {PauldronL, PauldronR, ThighL, ThighR};
+
+// A grid's ring's rest frame: z down the limb (the way its rings count), x its forward, y = z x x.
+void endFrameOf(const PieceFrame& f, const PlateGrid& g, BridgeEnd& e)
+{
+    e.z = f.up * (g.hBottom >= g.hTop ? 1.f : -1.f);
+    e.x = geom::safeNormalize(f.fwd - e.z * glm::dot(f.fwd, e.z), f.left, 1e-6f);
+    e.y = glm::cross(e.z, e.x);
+}
+
+// A ring on the skin where ring `ring` of a piece's grid is, its corners in the grid's columns' directions just off the skin
+// (none of its flat faces through it: the skin half way to each neighbour too), each carried as the skin there.
+bool skinRingOf(const Body& b, const PieceFrame& f, const PlateGrid& g, int ring, int bone, BridgeEnd& e)
+{
+    const auto dirOf = [&](float az) { return f.fwd * za::cos(az) + f.left * za::sin(az); };
+    const glm::vec2 c = at(g.axis, ring);
+    glm::vec3 o = f.origin + f.up * g.hAt(ring) + f.fwd * c.x + f.left * c.y;
+    float ringMean = 0.f;
+    for(int col = 0; col < g.cols; col++)
+    {
+        ringMean += g.at2(ring, col) / static_cast<float>(g.cols);
+    }
+    const float most = ringMean * 1.6f + 1.f, chord = za::cos(pi / static_cast<float>(g.cols));
+    // (round the limb's own middle there, as sleeveOf's rings)
+    glm::vec3 mid{0.f};
+    int found = 0;
+    for(int k = 0; k < g.cols * 2; k++)
+    {
+        float t = 0.f;
+        W w;
+        const glm::vec3 d = dirOf(static_cast<float>(k) * pi / static_cast<float>(g.cols));
+        if(bodyExit(b, o, d, most, t, w))
+        {
+            mid += o + d * t;
+            found++;
+        }
+    }
+    if(found >= g.cols)
+    {
+        mid /= static_cast<float>(found);
+        o = mid - f.up * glm::dot(mid - o, f.up);
+    }
+    for(int col = 0; col < bridgeCols; col++)
+    {
+        const float az = g.azOf(col);
+        const glm::vec3 d = dirOf(az);
+        float t = 0.f;
+        W w;
+        if(!bodyExit(b, o, d, most, t, w))
+        {
+            t = ringMean * 0.8f;
+            w = W{};
+            w.w[bone] = 1.f;
+        }
+        float r = t;
+        for(const float side : {-1.f, 1.f})
+        {
+            float tm = 0.f;
+            W wm;
+            r = bodyExit(b, o, dirOf(az + side * pi / static_cast<float>(g.cols)), most, tm, wm) ? za::max(r, tm / chord) : r;
+        }
+        topFour(w);
+        e.ring[col] = skinnedOf(o + d * (r + bridgeSkinFit), w);
+    }
+    endFrameOf(f, g, e);
+    e.bone = bone;
+    e.ok = true;
+    return true;
+}
+
+// Each joint's bridge from its two parts' grids (the plates' end rings already captured in `rows`), the skin under it and
+// armour.txt's settings on its sleeve parts.
+void bridgesOf(Shell& s, const rig2::Rig& rig, const PieceFrame* frames, const PlateGrid* grids, const armourdata::Override* sleeveTweak,
+    const BridgeEnd* rows)
+{
+    const auto tweaked = [](const armourdata::Override& o, int field) { return ((o.has >> static_cast<unsigned>(field)) & 1u) != 0u; };
+    s.bridgeVerts = 0;
+    for(int j = 0; j < NumJoints; j++)
+    {
+        Bridge& br = s.bridges[j];
+        br = Bridge{};
+        const int up = bridgeJointUpper[j], lo = up + 2;
+        br.upper = up;
+        br.lower = lo;
+        const armourdata::Override& tu = sleeveTweak[up];
+        const armourdata::Override& tl = sleeveTweak[lo];
+        // (armour.txt's `leather "0"` on either sleeve part: the joint's leather not made)
+        const bool off = (tweaked(tu, armourdata::Leather) && tu.v[armourdata::Leather] < 0.5f) ||
+            (tweaked(tl, armourdata::Leather) && tl.v[armourdata::Leather] < 0.5f);
+        const int bu = s.tubes[up].bone, bl = s.tubes[lo].bone;
+        if(off || !rows[up].ok || !rows[lo].ok || bu < 0 || bl < 0)
+        {
+            continue;
+        }
+        br.plates[0] = rows[up];
+        br.plates[1] = rows[lo];
+        br.pivot = rig.bones[bl].pivot;
+        if(!skinRingOf(s.body, frames[up], grids[up], grids[up].rows, bu, br.skin[0]) ||
+           !skinRingOf(s.body, frames[lo], grids[lo], 0, bl, br.skin[1]))
+        {
+            continue;
+        }
+        // One rest frame for both ends (the upper's forward, square to each end's direction: no twist between them at rest), and
+        // the lower ends' corners in the upper's order round it (the parts' grids' columns needn't go round alike: lerped
+        // corner by corner, a mismatched pair crossed the middle and the tube pinched shut there).
+        const glm::vec3 x0 = br.plates[0].x;
+        const glm::vec3 x1 = geom::safeNormalize(x0 - br.plates[1].z * glm::dot(x0, br.plates[1].z), br.plates[1].x, 1e-6f);
+        for(BridgeEnd* e : {&br.plates[0], &br.skin[0], &br.plates[1], &br.skin[1]})
+        {
+            e->x = e == &br.plates[0] || e == &br.skin[0] ? x0 : x1;
+            e->y = glm::cross(e->z, e->x);
+        }
+        float az[2][bridgeCols];
+        for(int e = 0; e < 2; e++)
+        {
+            glm::vec3 m{0.f};
+            for(const Skinned& c : br.plates[e].ring)
+            {
+                m += c.p / static_cast<float>(bridgeCols);
+            }
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const glm::vec3 d = br.plates[e].ring[c].p - m;
+                az[e][c] = za::atan2(glm::dot(d, br.plates[e].y), glm::dot(d, br.plates[e].x));
+            }
+        }
+        int bestShift = 0, bestDir = 1;
+        float bestCost = 1e9f;
+        for(const int dir : {1, -1})
+        {
+            for(int shift = 0; shift < bridgeCols; shift++)
+            {
+                float cost = 0.f;
+                for(int c = 0; c < bridgeCols; c++)
+                {
+                    const float d = az[0][c] - az[1][(shift + dir * c + 2 * bridgeCols) % bridgeCols];
+                    const float w = za::atan2(za::sin(d), za::cos(d));
+                    cost += w * w;
+                }
+                if(cost < bestCost)
+                {
+                    bestCost = cost;
+                    bestShift = shift;
+                    bestDir = dir;
+                }
+            }
+        }
+        for(BridgeEnd* e : {&br.plates[1], &br.skin[1]})
+        {
+            Skinned was[bridgeCols];
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                was[c] = e->ring[c];
+            }
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                e->ring[c] = was[(bestShift + bestDir * c + 2 * bridgeCols) % bridgeCols];
+            }
+        }
+        // (the upper sleeve's value, else the lower's, else the global setting)
+        const auto pick = [&](int field, float global) {
+            return tweaked(tu, field) ? tu.v[field] : tweaked(tl, field) ? tl.v[field] : global;
+        };
+        br.folds = za::clamp(static_cast<int>(pick(armourdata::Folds, vr_agarmor_folds.value) + 0.5f), 0, bridgeMostFolds);
+        br.rings = br.folds >= 3 ? 2 * br.folds + 1 : br.folds == 2 ? 9 : 7;
+        br.depth = za::clamp(pick(armourdata::FoldDepth, vr_agarmor_fold_depth.value), 0.f, 2.f);
+        br.standoff = pick(armourdata::Standoff, 0.f);
+        br.scale = za::clamp(pick(armourdata::Scale, 1.f), 0.2f, 3.f);
+        br.taper[0] = tweaked(tu, armourdata::TaperStart) ? za::clamp(tu.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
+        br.taper[1] = tweaked(tu, armourdata::TaperEnd) ? za::clamp(tu.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
+        br.taper[2] = tweaked(tl, armourdata::TaperStart) ? za::clamp(tl.v[armourdata::TaperStart], 0.2f, 3.f) : 1.f;
+        br.taper[3] = tweaked(tl, armourdata::TaperEnd) ? za::clamp(tl.v[armourdata::TaperEnd], 0.2f, 3.f) : 1.f;
+        // The skin between the two rows (on the limb's two bones, near their line): kept under the leather at any bend.
+        glm::vec3 p0{0.f}, p1{0.f};
+        float mean = 0.f;
+        for(int c = 0; c < bridgeCols; c++)
+        {
+            p0 += br.plates[0].ring[c].p / static_cast<float>(bridgeCols);
+            p1 += br.plates[1].ring[c].p / static_cast<float>(bridgeCols);
+        }
+        for(int c = 0; c < bridgeCols; c++)
+        {
+            mean += (glm::distance(br.plates[0].ring[c].p, p0) + glm::distance(br.plates[1].ring[c].p, p1)) / (2.f * bridgeCols);
+        }
+        // (between: nearest the limb's line from the one row to the joint and on to the other at neither end; a limb bent at
+        // rest has no room between the rows' planes: a knight's sword arm)
+        const glm::vec3 joint = br.pivot;
+        const auto between = [&](const glm::vec3& p, float& dist) {
+            const glm::vec3 e1 = joint - p0, e2 = p1 - joint;
+            const float u1 = glm::dot(p - p0, e1) / za::max(glm::dot(e1, e1), 1e-6f), u2 = glm::dot(p - joint, e2) / za::max(glm::dot(e2, e2), 1e-6f);
+            const float d1 = glm::distance(p, p0 + e1 * za::clamp(u1, 0.f, 1.f)), d2 = glm::distance(p, joint + e2 * za::clamp(u2, 0.f, 1.f));
+            dist = za::min(d1, d2);
+            return d1 <= d2 ? u1 > 0.f : u2 < 1.f;
+        };
+        int candidates = 0;
+        for(int pass = 0; pass < 2; pass++)
+        {
+            const int stride = pass == 0 ? 1 : za::max(1, (candidates + bridgeMostUnder - 1) / bridgeMostUnder);
+            int seen = 0;
+            for(int v = 0; v < count(s.body.p); v++)
+            {
+                const glm::vec3 p = at(s.body.p, v);
+                const W& w = at(s.body.w, v);
+                const float onLimb = w.w[bu] + w.w[bl];
+                float dist = 0.f;
+                if(onLimb < 0.5f || !between(p, dist) || dist > mean * bridgeUnderReach)
+                {
+                    continue;
+                }
+                if(pass == 0)
+                {
+                    candidates++;
+                    continue;
+                }
+                if(seen++ % stride == 0 && br.numUnder < bridgeMostUnder)
+                {
+                    W tw = w;
+                    topFour(tw);
+                    br.under[br.numUnder++] = skinnedOf(p, tw);
+                }
+            }
+        }
+        br.first = s.bridgeVerts;
+        s.bridgeVerts += br.rings * (bridgeCols + 1);
+        br.ok = true;
+    }
+    bridgeRest(s);
 }
 
 } // namespace
@@ -2293,6 +2527,9 @@ bool buildShell(qmodel_t* src, Shell& s)
     za::Vector<uint8_t> overs[NumPieces];
     za::Vector<glm::vec3> fringes[NumPieces];
     PlateGrid grids[NumPieces];
+    // (the joints' leather: a bridge made each frame (vr_agarmor_bridge 1), else each limb part's sleeve made here)
+    const bool bridged = vr_agarmor_bridge.value != 0.f;
+    BridgeEnd rows[NumPieces];
     for(int piece = 0; piece < NumPieces; piece++)
     {
         PieceFrame& f = frames[piece];
@@ -2445,7 +2682,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         const PieceFrame& f = frames[piece];
         const int firstVert = count(s.verts), firstTri = count(s.tris);
-        int sleeveVert = -1;
+        int sleeveVert = -1, ringVert = -1;
         s.tubes[piece] = PlateTube{};
         s.tubes[piece].grid = grids[piece];
         s.tubes[piece].origin = f.origin;
@@ -2461,9 +2698,27 @@ bool buildShell(qmodel_t* src, Shell& s)
         else if(grids[piece].rows)
         {
             platesOf(s, locals[piece], f, grids[piece], piece, plateSeed(src->name));
+            // (a joint's bridge: this part's end ring at the joint, its plates' feet there, weighted as they are; moved by
+            // armour.txt's tweaks with the plates, then kept apart: bridgesOf)
+            const PlateGrid& g = grids[piece];
+            if(bridged && piece >= PauldronL && g.cols == bridgeCols && g.rows >= 1)
+            {
+                ringVert = count(s.verts);
+                const int ring = f.upper ? g.rows : 0;
+                const glm::vec2 c = at(g.axis, ring);
+                for(int col = 0; col < bridgeCols; col++)
+                {
+                    const float az = g.azOf(col);
+                    Vert v;
+                    v.p = f.origin + f.up * g.hAt(ring) + f.fwd * c.x + f.left * c.y + (f.fwd * za::cos(az) + f.left * za::sin(az)) * (g.at2(ring, col) + plateFit);
+                    v.w = plateWeights(locals[piece], v.p);
+                    v.piece = piece;
+                    s.verts.pushBack(v);
+                }
+            }
             // (armour.txt's `leather "0"` on a sleeve part: that sleeve not made at all)
             const bool leatherOff = tweaked(sleeveTweak[piece], armourdata::Leather) && sleeveTweak[piece].v[armourdata::Leather] < 0.5f;
-            if(piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2 && !leatherOff)
+            if(!bridged && piece >= PauldronL && grids[piece].cols == 6 && grids[piece].rows >= 2 && !leatherOff)
             {
                 sleeveVert = count(s.verts);
                 // (its taper: as the plates', clamped 0.2 .. 3)
@@ -2476,13 +2731,39 @@ bool buildShell(qmodel_t* src, Shell& s)
         // (armour.txt's tweaks on what was made: the helmet pushed out round its middle, a sleeve round its bone's line; then
         // each moved, turned and scaled round its middle)
         const int plateEnd = sleeveVert >= 0 ? sleeveVert : count(s.verts);
-        tweakVerts(s, firstVert, plateEnd, tweak[piece], piece == Helmet ? 2 : 0, f.up);
+        tweakVerts(s, firstVert, plateEnd, tweak[piece], piece == Helmet ? 2 : 0, f.up, ringVert >= 0 ? ringVert : plateEnd);
         if(sleeveVert >= 0)
         {
             tweakVerts(s, sleeveVert, count(s.verts), sleeveTweak[piece], 1, f.up);
         }
+        if(ringVert >= 0)
+        {
+            BridgeEnd& e = rows[piece];
+            for(int col = 0; col < bridgeCols; col++)
+            {
+                W w = at(s.verts, ringVert + col).w;
+                topFour(w);
+                e.ring[col] = skinnedOf(at(s.verts, ringVert + col).p, w);
+            }
+            endFrameOf(f, grids[piece], e);
+            e.bone = s.tubes[piece].bone;
+            e.ok = e.bone >= 0;
+            s.verts.resize(static_cast<za::SizeT>(ringVert));
+        }
         s.pieceVerts[piece] = count(s.verts) - firstVert;
         s.pieceTris[piece] = (count(s.tris) - firstTri) / 3;
+    }
+    for(Bridge& br : s.bridges)
+    {
+        br = Bridge{};
+    }
+    s.bridgeVerts = 0;
+    s.bridgeRestP.clear();
+    s.bridgeRestN.clear();
+    s.bridgeTris.clear();
+    if(bridged)
+    {
+        bridgesOf(s, *rig, frames, grids, sleeveTweak, rows);
     }
     // Slots: each piece's bones its own.
     int slotOf[NumPieces][rig2::maxBones];
@@ -2516,6 +2797,16 @@ bool buildShell(qmodel_t* src, Shell& s)
         h = fnv(h, v.w.w, sizeof(v.w.w));
     }
     h = fnv(h, s.tris.data(), sizeof(int) * s.tris.size());
+    for(const glm::vec3& p : s.bridgeRestP) // (the joints' leather: its rest pose and settings)
+    {
+        h = fnv(h, &p, sizeof(p));
+    }
+    for(const Bridge& br : s.bridges)
+    {
+        const float k[11] = {br.ok ? 1.f : 0.f, static_cast<float>(br.folds), br.depth, br.standoff, br.scale, br.taper[0], br.taper[1],
+            br.taper[2], br.taper[3], static_cast<float>(br.rings), static_cast<float>(br.numUnder)};
+        h = fnv(h, k, sizeof(k));
+    }
     s.hash = h;
     s.ok = !s.tris.empty();
     s.made = static_cast<float>((Sys_DoubleTime() - t0) * 1000.0);
@@ -2558,8 +2849,24 @@ struct Kind
     char name[MAX_QPATH]{};
     qmodel_t* armor{nullptr};
     char armorName[MAX_QPATH]{}; // (what `armor` was loaded as: its slot may be emptied and given to another model since)
+    qmodel_t* bridge{nullptr};    // its joints' leather ("<model>#bridge", asked for when first drawn; vr_agarmor_bridge.cpp)
+    char bridgeName[MAX_QPATH]{};
+    bool bridgeAsked{false};
 };
 za::Vector<Kind> kinds;
+
+// The joints' leather drawn this frame: an entity per armoured body (relink), its bones made when first asked (bonePoses).
+constexpr int maxBridges = 64;
+constexpr const char* bridgeSuffix = "#bridge";
+entity_t bridgeEnts[maxBridges];
+int bridgeSource[maxBridges]{}, bridgeShell[maxBridges]{}, bridgePieces[maxBridges]{};
+bool bridgeMade[maxBridges]{};
+int numBridges = 0;
+float bridgeBonesOf[maxBridges][bridgeMostVerts * 12]{};
+// (the player's body's: vr_view_body.cpp's entity, made once a frame)
+float playerBridgeBones[bridgeMostVerts * 12]{};
+int playerBridgeFrame = -1, playerBridgePieces = -1;
+float bridgeKey[3]{-1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth as the shells were made with)
 
 // Whether a kind's armour is still the model it found: a campaign switch (Mod_ResetAll) empties the slots of the models
 // it does not keep, the "#armor" ones among them, and gives them to the next models loaded (a body it keeps finds its
@@ -2567,6 +2874,10 @@ za::Vector<Kind> kinds;
 [[nodiscard]] bool armorLive(const Kind& k)
 {
     return k.armor && !k.armor->needload && k.armor->type == mod_alias && !strcmp(k.armor->name, k.armorName);
+}
+[[nodiscard]] bool bridgeLive(const Kind& k)
+{
+    return k.bridge && !k.bridge->needload && k.bridge->type == mod_alias && !strcmp(k.bridge->name, k.bridgeName);
 }
 
 [[nodiscard]] bool isWearer(const char* base)
@@ -2685,6 +2996,31 @@ namespace
     return k.armor;
 }
 
+// The joints' leather's model over a body drawn as `skinned` (its armour's kind found first: armorFor), else nullptr.
+[[nodiscard]] qmodel_t* bridgeFor(const qmodel_t* skinned)
+{
+    for(Kind& k : kinds)
+    {
+        if(k.skinned != skinned || strcmp(k.name, skinned->name) || !armorLive(k))
+        {
+            continue;
+        }
+        if(!k.bridgeAsked)
+        {
+            k.bridgeAsked = true;
+            const size_t len = strlen(k.armorName), suffix = strlen(armorSuffix);
+            char name[MAX_QPATH];
+            q_strlcpy(name, k.armorName, za::min(sizeof(name), len - suffix + 1));
+            q_strlcat(name, bridgeSuffix, sizeof(name));
+            k.bridge = Mod_ForName(name, false);
+            k.bridge = k.bridge && k.bridge->type == mod_alias ? k.bridge : nullptr;
+            q_strlcpy(k.bridgeName, name, sizeof(k.bridgeName));
+        }
+        return bridgeLive(k) ? k.bridge : nullptr;
+    }
+    return nullptr;
+}
+
 // An entity's armour in a word (the server's, the client's): its type (bits 30-31), its worn pieces' wear (bits 20-29
 // at a third of their pool or under, 10-19 at two thirds or under; P2's damage marks), its pieces (0-9).
 [[nodiscard]] uint32_t packState(int type, int pieces, int wear)
@@ -2743,6 +3079,10 @@ void forgetModels()
         if(armorLive(k) && Cache_Check(&k.armor->cache)) // (a slot given to another model since: not its cache)
         {
             Cache_Free(&k.armor->cache, false);
+        }
+        if(bridgeLive(k) && Cache_Check(&k.bridge->cache))
+        {
+            Cache_Free(&k.bridge->cache, false);
         }
     }
     kinds.clear();
@@ -2864,7 +3204,8 @@ void info_f()
     Con_Printf("agarmor: %d drawn last frame\n", numWorn);
 }
 
-// vr_agarmor_headcam [view] [distance] [set]: (the mock headset; the helmet's eyeshots) the eyes on two heads: the left on
+// vr_agarmor_headcam [view] [distance] [set] [drop]: (the mock headset; the helmet's eyeshots; drop: units lower, the
+// joints' leather's) the eyes on two heads: the left on
 // the nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not; set 1: the nearest
 // death knight's, the screenshot's eye, and knight's: vr_agarmor_test 8), `distance` units off
 // (default 22) at the helmet's middle (its rest pose where the body stands): view 1 front, 2 side (its right), 3
@@ -2880,6 +3221,7 @@ void headcam_f()
         return;
     }
     const bool knights = Cmd_Argc() > 3 && atoi(Cmd_Argv(3)) == 1;
+    const float drop = Cmd_Argc() > 4 ? static_cast<float>(atof(Cmd_Argv(4))) : 0.f;
     const char* wanted[2] = {knights ? "progs/vrhknight.mdl" : "progs/vrgrunt.mdl", knights ? "progs/vrknight.mdl" : "progs/vrenforcer.mdl"};
     const glm::vec3 me = cl.viewentity > 0 && cl.viewentity < cl.num_entities ?
         glm::vec3{cl_entities[cl.viewentity].origin[0], cl_entities[cl.viewentity].origin[1], cl_entities[cl.viewentity].origin[2]} :
@@ -2914,7 +3256,8 @@ void headcam_f()
         mid /= static_cast<float>(n);
         const float y = e.angles[1] * (pi / 180.f);
         const glm::vec3 fw{za::cos(y), za::sin(y), 0.f}, left{-za::sin(y), za::cos(y), 0.f};
-        const glm::vec3 head = geom::vec(e.origin) + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z};
+        // (`drop`: the eyes this many units lower, on the same level line: the elbows' and the knees' leather)
+        const glm::vec3 head = geom::vec(e.origin) + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z - drop};
         const glm::vec3 dirs[4] = {fw, -left, glm::normalize(fw - left), -fw};
         const float yaws[4] = {180.f, 90.f, 135.f, 0.f};
         camAt[k] = head + dirs[view - 1] * dist;
@@ -3028,6 +3371,17 @@ void setWorn(int num, int type, int pieces)
 
 bool makeModel(qmodel_t* mod)
 {
+    // "<model>#bridge": the joints' leather (vr_agarmor_bridge.cpp)
+    if(const size_t len = strlen(mod->name), suffix = strlen(bridgeSuffix); len > suffix && !strcmp(mod->name + len - suffix, bridgeSuffix))
+    {
+        char base[MAX_QPATH];
+        q_strlcpy(base, mod->name, za::min(sizeof(base), len - suffix + 1));
+        qmodel_t* src = isWearer(base) ? Mod_ForName(base, false) : nullptr;
+        qmodel_t* skins = src ? Mod_ForName(skinModelName, false) : nullptr;
+        const auto* kh = skins && skins->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(skins)) : nullptr;
+        const Shell* s = kh ? shellFor(src) : nullptr;
+        return s && s->bridgeVerts > 0 && makeBridgeModel(mod, *s, kh);
+    }
     const size_t len = strlen(mod->name), suffix = strlen(armorSuffix);
     if(len <= suffix || strcmp(mod->name + len - suffix, armorSuffix))
     {
@@ -3182,6 +3536,19 @@ bool makeModel(qmodel_t* mod)
 void relink()
 {
     numWorn = 0;
+    numBridges = 0;
+    // (the joints' leather's settings changed: every shell made again, as vr_agarmor_rebuild)
+    const float key[3] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value};
+    if(memcmp(key, bridgeKey, sizeof(key)))
+    {
+        const bool first = bridgeKey[0] < 0.f;
+        memcpy(bridgeKey, key, sizeof(key));
+        if(!first)
+        {
+            shells.clear();
+            forgetModels();
+        }
+    }
     if(cls.state != ca_connected || !cl_entities || (vr_agarmor.value == 0.f && named.empty() && numServed == 0))
     {
         return;
@@ -3239,6 +3606,31 @@ void relink()
             wornSlots[k] = at(shells, shell).numSlots;
             cl_visedicts[cl_numvisedicts++] = &a;
         }
+        // The joints' leather: an entity of its own over every piece worn (its bones made when first drawn: bonePoses).
+        const Shell& sh = at(shells, shell);
+        int limbs = 0;
+        for(const Bridge& br : sh.bridges)
+        {
+            limbs |= br.ok ? (pieces & ((1 << br.upper) | (1 << br.lower))) : 0;
+        }
+        qmodel_t* bridge = limbs && sh.bridgeVerts > 0 && numBridges < maxBridges && cl_numvisedicts < MAX_VISEDICTS ? bridgeFor(e->model) : nullptr;
+        if(bridge)
+        {
+            const int k = numBridges++;
+            entity_t& b = bridgeEnts[k];
+            b = *e;
+            b.model = bridge;
+            b.alpha = studio.ent > 0 && num == studio.ent ? static_cast<byte>(ENTALPHA_DEFAULT) : b.alpha;
+            b.skinnum = type - 1; // (the leather is the same under every wear's paint)
+            b.frame = 0;
+            b.previouspose = b.currentpose = 0;
+            b.lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
+            bridgeSource[k] = num;
+            bridgeShell[k] = shell;
+            bridgePieces[k] = pieces;
+            bridgeMade[k] = false;
+            cl_visedicts[cl_numvisedicts++] = &b;
+        }
         if(studio.ent > 0 && num == studio.ent && studio.alpha < 0.999f)
         {
             e->alpha = ENTALPHA_ENCODE(za::clamp(studio.alpha, 0.05f, 1.f));
@@ -3248,6 +3640,26 @@ void relink()
 
 int bonePoses(const entity_t* e, const float** matrices)
 {
+    if(numBridges > 0 && e >= &bridgeEnts[0] && e < &bridgeEnts[numBridges])
+    {
+        // The joints' leather: made from its body's bones as drawn, once a frame (a vertex a bone: vr_agarmor_bridge.cpp)
+        const int k = static_cast<int>(e - &bridgeEnts[0]);
+        const Shell* s = bridgeShell[k] < count(shells) ? &at(shells, bridgeShell[k]) : nullptr;
+        const int n = s ? s->bridgeVerts : 0;
+        if(!matrices || n <= 0)
+        {
+            return n;
+        }
+        if(!bridgeMade[k])
+        {
+            bridgeMade[k] = true;
+            const float* src = nullptr;
+            const int have = VR_AliasBonePoses(&cl_entities[bridgeSource[k]], &src);
+            (void)bridgeBones(*s, bridgePieces[k], src, src ? have : 0, bridgeBonesOf[k]);
+        }
+        *matrices = bridgeBonesOf[k];
+        return n;
+    }
     if(numWorn <= 0 || e < &worn[0] || e >= &worn[numWorn])
     {
         return 0;
@@ -3278,6 +3690,10 @@ int bonePoses(const entity_t* e, const float** matrices)
 
 const entity_t* sourceOf(const entity_t* e)
 {
+    if(numBridges > 0 && e >= &bridgeEnts[0] && e < &bridgeEnts[numBridges])
+    {
+        return &cl_entities[bridgeSource[e - &bridgeEnts[0]]];
+    }
     if(numWorn <= 0 || e < &worn[0] || e >= &worn[numWorn])
     {
         return nullptr;
@@ -4398,6 +4814,76 @@ qmodel_t* playerArmorModel(qmodel_t* body)
     return body && isPlayerBody(body->name) ? armorFor(body) : nullptr;
 }
 
+qmodel_t* playerBridgeModel(qmodel_t* body)
+{
+    if(!body || !isPlayerBody(body->name) || !armorFor(body))
+    {
+        return nullptr;
+    }
+    const int i = shellNamed(body->name);
+    return i >= 0 && at(shells, i).bridgeVerts > 0 ? bridgeFor(body) : nullptr;
+}
+
+int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int have, const float** out)
+{
+    const int i = body ? shellNamed(body->name) : -1;
+    const Shell* s = i >= 0 ? &at(shells, i) : nullptr;
+    const int n = s ? s->bridgeVerts : 0;
+    if(n <= 0 || !out)
+    {
+        return n;
+    }
+    // (once a frame: the views' passes differ in the head alone)
+    if(playerBridgeFrame != host_framecount || playerBridgePieces != pieces)
+    {
+        playerBridgeFrame = host_framecount;
+        playerBridgePieces = pieces;
+        (void)bridgeBones(*s, pieces, bones, bones ? have : 0, playerBridgeBones);
+    }
+    *out = playerBridgeBones;
+    return n;
+}
+
+void benchPose()
+{
+    const float bend = vr_agarmor_bend.value;
+    if(bend == 0.f || cls.state != ca_connected || !cl_entities)
+    {
+        return;
+    }
+    // (every armoured body drawn on the authored rig: its rest pose, its elbows and knees bent `bend` degrees within their range)
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e < cl_entities || e >= cl_entities + cl_max_edicts || strchr(e->model->name, '#'))
+        {
+            continue;
+        }
+        const int num = static_cast<int>(e - cl_entities);
+        int type = 0, pieces = 0, wear = 0;
+        wornBy(num, type, pieces, wear);
+        const rig2::Rig* rig = type > 0 && pieces ? rig2::rigFor(e->model) : nullptr;
+        if(!rig)
+        {
+            continue;
+        }
+        rig2::Pose pose = rig2::restPose(*rig);
+        for(const char* name : {"forearm_l", "forearm_r", "shin_l", "shin_r"})
+        {
+            const int b = rig2::boneByName(*rig, name);
+            if(b < 0 || rig->bones[b].joint != rig2::Joint::Hinge)
+            {
+                continue;
+            }
+            const glm::vec2 r = rig->bones[b].range;
+            pose.a[b].x = r.y >= -r.x ? za::min(za::abs(bend), r.y) : za::max(-za::abs(bend), r.x);
+        }
+        rigpose::Rigid F[rig2::maxBones];
+        rig2::forward(*rig, pose, F);
+        rig2::drawPosed(num, e->model, F, rig->numBones);
+    }
+}
+
 bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, const int*& slotPiece)
 {
     const int i = body ? shellNamed(body->name) : -1;
@@ -4550,6 +5036,8 @@ void init()
     Cmd_AddCommand("vr_agarmor_rebuild", rebuild_f);
     Cmd_AddCommand("vr_agarmor_set", set_f);
     Cmd_AddCommand("vr_agarmor_check", check_f);
+    Cmd_AddCommand("vr_agarmor_bridge_check", bridgeCheck_f);
+    Cmd_AddCommand("vr_agarmor_bridge_stats", bridgeStats_f);
     Cmd_AddCommand("vr_agarmor_look_check", lookCheck_f);
     Cmd_AddCommand("vr_agarmor_pop_check", popCheck_f);
     Cmd_AddCommand("vr_agarmor_pop_sample", popSample_f);

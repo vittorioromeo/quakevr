@@ -184,9 +184,76 @@ struct PlateTube
     mutable glm::mat3 frameRest{1.f};
 };
 
+// ---- The elbows' and the knees' leather (vr_agarmor_bridge.cpp; ROUND24.md, "Leather bridge at elbows and knees") ----
+// One tube per joint made every frame the body is drawn (vr_agarmor_bridge 1): from the posed end row of the upper part's plates
+// (pauldron, thigh) to the posed first row of the lower part's (bracer, shin), curved along each row's direction, its bellows
+// bunched on the inside of the bend and stretched flat on the outside. A part not worn: that end on the skin past the joint.
+// Drawn as an entity of its own whose every vertex is a bone of its own (bridgeBones: each frame's places, through the
+// skinned path's per-entity bones: lighting, shadows, culling and the rest as the plates').
+enum Joint : int
+{
+    ElbowL,
+    ElbowR,
+    KneeL,
+    KneeR,
+    NumJoints
+};
+inline constexpr int bridgeCols = 6;      // a ring's corners: the limbs' grids' columns
+inline constexpr int bridgeMostFolds = 4; // (the rings within one entity's 256 bones: 4 joints x 9 rings x 7)
+inline constexpr int bridgeMostRings = 9;
+inline constexpr int bridgeMostVerts = NumJoints * bridgeMostRings * (bridgeCols + 1);
+inline constexpr int bridgeMostUnder = 96; // the skin's vertices between the rows a joint keeps under its leather
+
+// A point carried by the bones as an armour vertex is: its rest place, its weights quantised as the armour model's are
+// (makeModel), so its posed place is the drawn plate's to the float.
+struct Skinned
+{
+    glm::vec3 p{0.f};
+    int bone[4]{};
+    float w[4]{};
+    int n{0};
+};
+
+struct BridgeEnd
+{
+    bool ok{false};
+    Skinned ring[bridgeCols];
+    glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, 1.f, 0.f}, z{0.f, 0.f, 1.f}; // its rest frame: z down the limb (upper part to lower)
+    int bone{-1};                                                  // the bone turning that frame (the part's own limb bone)
+};
+
+struct Bridge
+{
+    bool ok{false};
+    int upper{-1}, lower{-1};   // pieces
+    BridgeEnd plates[2];        // 0 the upper part's last row, 1 the lower part's first (their feet)
+    BridgeEnd skin[2];          // the same places on the skin (a part not worn)
+    int folds{0}, rings{0}, first{0}; // first: its vertices' first in the bridge model
+    float depth{0.f}, standoff{0.f}, scale{1.f};
+    float taper[4]{1.f, 1.f, 1.f, 1.f}; // armour.txt's: the upper sleeve's taper_start, _end, the lower's
+    Skinned under[bridgeMostUnder];      // the skin between the rows (kept under the leather at any bend)
+    int numUnder{0};
+    glm::vec3 pivot{0.f};                // the joint (rest; the lower part's bone's pivot): the curve's turn is round it
+};
+
+// What a bridge made: its end rings against the rows they meet, and the skin left outside it (vr_agarmor_bridge_check).
+struct BridgeDiag
+{
+    float ringGap{0.f};          // the end rings' furthest corner from the rows' (units)
+    int under{0}, outside{0};    // the skin's vertices tested, those outside the leather (after the push)
+    int outsideInner{0};         // ... of which on the inside of the bend (the crease: the limbs themselves overlap there)
+    float worst{0.f};            // the furthest outside (units)
+    float worstAt{0.f};          // ... where along the leather (its rings: 0 the upper row's .. rings - 1)
+    int atRows{0};               // outside within half a ring of either row (the plates' own fit there: not counted above)
+};
+
 struct Shell
 {
     PlateTube tubes[NumPieces];
+    Bridge bridges[NumJoints];
+    int bridgeVerts{0};          // the bridge model's vertices (0: none, vr_agarmor_bridge 0's sleeves instead)
+    za::Vector<glm::vec3> bridgeRestP, bridgeRestN; // its rest places and normals (the model's bind pose)
+    za::Vector<int> bridgeTris;
     za::String model;
     int generation{-1};
     bool ok{false};
@@ -210,6 +277,25 @@ bool buildShell(qmodel_t* src, Shell& s);
 [[nodiscard]] const rig2::Rig* rigOfShell(qmodel_t* src);
 [[nodiscard]] uint32_t pieceRegionBones(const rig2::Rig& rig, int piece);
 void pieceAxes(const rig2::Rig& rig, int piece, glm::vec3& origin, glm::vec3& up, glm::vec3& fwd, glm::vec3& left);
+
+// vr_agarmor_bridge.cpp: a point's weights as the armour model quantises them; its place posed by `bones` (rig bones, 12
+// floats each, row-major 3x4; false: a bone past `have`).
+[[nodiscard]] Skinned skinnedOf(const glm::vec3& p, const W& w);
+[[nodiscard]] bool posedOf(const Skinned& s, const float* bones, int have, glm::vec3& out);
+// The shell's bridges' rest pose (their model's bind pose) and triangles, once its bridges are set (buildShell).
+void bridgeRest(Shell& s);
+// Joint j's vertices posed by `bones` (its rings in order, bridgeCols + 1 a ring), the ends on the plates worn (else the
+// skin). False: not drawn (a bone missing). `diag` optional.
+bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperWorn, bool lowerWorn, glm::vec3* outP,
+    glm::vec3* outN, BridgeDiag* diag);
+// Every bridge vertex's bone (a matrix each, 12 floats) for the pieces worn: a joint with neither part worn, or leather off,
+// collapsed. Returns the count (s.bridgeVerts).
+int bridgeBones(const Shell& s, int pieces, const float* bones, int have, float* out);
+// "<model>#bridge": the bridge model of a shell (its skins vragarmor.mdl's `skins`).
+bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* skins);
+void bridgeCheck_f(); // vr_agarmor_bridge_check [model]: the end rings on the rows and the skin under it over each joint's range
+void bridgeStats_f(); // vr_agarmor_bridge_stats: the bridges made lately and their cost
+void bridgeStatsAdd(double seconds, int joints);
 
 // vr_agarmor_check.cpp: the vr_agarmor_check command.
 void check_f();

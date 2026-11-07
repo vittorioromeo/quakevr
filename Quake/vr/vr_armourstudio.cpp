@@ -45,7 +45,7 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
-    &vr_armourstudio_leather};
+    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -94,6 +94,7 @@ struct Test
     uint32_t hashEmpty{0}, hashTweaked{0}, hashHand{0}, hashShipped{0};
     int genBefore{0}; // (the table's generation before the hand-edited file: the watcher's read bumps it)
     char fileWas[64]{};
+    float bridgeWas{1.f}; // (vr_agarmor_bridge before the test: its sleeves' checks are the load-time sleeves')
     char mapWas[64]{};
 };
 Test test;
@@ -142,7 +143,8 @@ void notePlayerShown()
         const bool mirror = side == SideRight && (field == OffsetY || field == Yaw || field == Roll);
         return mirror ? -both->v[field] : both->v[field];
     }
-    return fieldDefault(field);
+    // (a joint's folds not set: the global settings')
+    return field == Folds ? vr_agarmor_folds.value : field == FoldDepth ? vr_agarmor_fold_depth.value : fieldDefault(field);
 }
 
 void showFields()
@@ -222,6 +224,10 @@ void syncFields()
         // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
         o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
         o->has &= f == Leather && (o->v[Leather] > 0.5f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
+        // (the folds: whole, 0-4; as the global settings, or on a part with no leather: not written)
+        o->v[Folds] = f == Folds ? za::clamp(static_cast<float>(static_cast<int>(o->v[Folds] + 0.5f)), 0.f, 4.f) : o->v[Folds];
+        const float global = f == Folds ? vr_agarmor_folds.value : vr_agarmor_fold_depth.value;
+        o->has &= (f == Folds || f == FoldDepth) && (za::abs(o->v[f] - global) < 1e-4f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(f)) : ~0u;
     }
     if(any)
     {
@@ -527,6 +533,11 @@ void testStep1()
         const agarmor::detail::Shell* shipped = gruntShell();
         test.hashShipped = shipped ? shipped->hash : 0u;
     }
+    // (the sleeves' checks below are the load-time sleeves' (vr_agarmor_bridge 0); the joints' leather made each frame has
+    // its own, vr_agarmor_bridge_check's, armour.txt's settings on it included)
+    test.bridgeWas = vr_agarmor_bridge.value;
+    Cvar_SetValueQuick(&vr_agarmor_bridge, 0.f);
+    Cmd_ExecuteString("vr_agarmor_rebuild", src_command);
     Cvar_Set("vr_armour_file", testFile);
     (void)files::writeText(filePath(), ""); // (the test's own file, empty)
     (void)load();
@@ -794,6 +805,8 @@ void testStep3()
     agarmor::detail::Shell* s = gruntShell();
     t.check(s && s->hash == test.hashHand, testName, "after a map change the tweaked shell is not the same");
     // Back as it was: the shipped file, its armour as before the test.
+    Cvar_SetValueQuick(&vr_agarmor_bridge, test.bridgeWas);
+    Cmd_ExecuteString("vr_agarmor_rebuild", src_command);
     Cvar_Set("vr_armour_file", test.fileWas);
     (void)load();
     s = gruntShell();

@@ -35,10 +35,12 @@ enum Field : int
     TaperStart, // the plate rows' size round the piece's line at its first row (1 as made), lerped row by row to ...
     TaperEnd,   // ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)
     Leather,    // a sleeve's leather drawn (1, as made) or not at all (0): the sleeve parts' alone
+    Folds,      // a joint's leather's bellows: its folds (0-4; not set: vr_agarmor_folds), the sleeve parts' alone (the upper's first)
+    FoldDepth,  // ... how deep they stand on the inside of a bend (units; not set: vr_agarmor_fold_depth)
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
-    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather"};
+    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth"};
 // A field's value where nothing is set.
 [[nodiscard]] constexpr float fieldDefault(int field)
 {
