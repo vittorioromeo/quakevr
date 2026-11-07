@@ -24,6 +24,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "vr/vr_ea.h"
 
 
 namespace qvr::carry2h
@@ -670,7 +671,7 @@ void gripTest_f()
         const glm::vec3 from = foldedHand(player, 1).pos;
         edict_t* crate = nullptr;
         float best = 1e9f;
-        for(int i = 1; i < qcvm->num_edicts; i++)
+        EA_OPEN(46) for(int i = 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
             const float d = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? 1e9f : glm::distance(geom::vec(e->v.origin), from);
@@ -679,7 +680,7 @@ void gripTest_f()
                 best = d;
                 crate = e;
             }
-        }
+        } EA_CLOSE(46)
         if(!crate)
         {
             gripTally.check(false, name, "no crate");
@@ -778,14 +779,14 @@ bool reachesSkewered(int hand)
     }
     const progs::ServerVm vm;
     const int mine = EDICT_TO_PROG(player);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(47) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* const e = EDICT_NUM(i);
         if(!e->free && progs::fieldInt(e, on) == mine && (progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1) || reaches(e, player, hand)))
         {
             return true;
         }
-    }
+    } EA_CLOSE(47)
     return false;
 }
 

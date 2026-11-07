@@ -5,6 +5,7 @@
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
 #include "vr_geom.hpp"
+#include "vr/vr_ea.h"
 
 namespace foegrab::detail
 {
@@ -337,7 +338,7 @@ struct Search
 {
     const float maxInside = maxInsideCm * cm();
     Search r;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(60) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* m = EDICT_NUM(num);
         if(!canHold(m))
@@ -390,7 +391,7 @@ struct Search
                 r.hit = hit;
             }
         }
-    }
+    } EA_CLOSE(60)
     return r;
 }
 
@@ -411,7 +412,7 @@ struct PackFound
 [[nodiscard]] PackFound packSearch(const za::Vector<glm::vec4>& fist, const glm::vec3& lo, const glm::vec3& hi, float lenient)
 {
     PackFound r;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(61) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* m = EDICT_NUM(num);
         glm::vec3 mid{0.f}, half{0.f};
@@ -442,7 +443,7 @@ struct PackFound
                 r.m = m;
             }
         }
-    }
+    } EA_CLOSE(61)
     return r;
 }
 

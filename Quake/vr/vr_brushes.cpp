@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::brushes
 {
@@ -1613,14 +1614,14 @@ void restoreAfterLoad()
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%d", modelPrefix, b.id);
         int num = 0;
-        for(int i = 1; i < qcvm->num_edicts && !num; i++)
+        EA_OPEN(41) for(int i = 1; i < qcvm->num_edicts && !num; i++)
         {
             edict_t* ed = EDICT_NUM(i);
             if(!ed->free && !strcmp(PR_GetString(ed->v.classname), className) && !strcmp(PR_GetString(ed->v.model), name) && !ofEntity(i))
             {
                 num = i;
             }
-        }
+        } EA_CLOSE(41)
         adoptEdict = num;
         made += create(b, b.id) ? 1 : 0;
     }

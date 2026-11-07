@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_ea.h"
 
 extern edict_t **bbox_linked;
 
@@ -1115,7 +1116,7 @@ static void ED_Count (void)
 
 	PR_PushQCVM(&sv.qcvm, &oldqcvm);
 	active = models = solid = step = 0;
-	for (i = 0; i < qcvm->num_edicts; i++)
+	EA_OPEN(119) for (i = 0; i < qcvm->num_edicts; i++)
 	{
 		ent = EDICT_NUM(i);
 		if (ent->free)
@@ -1127,7 +1128,7 @@ static void ED_Count (void)
 			models++;
 		if (ent->v.movetype == MOVETYPE_STEP)
 			step++;
-	}
+	} EA_CLOSE(119)
 
 	Con_Printf ("num_edicts:%3i\n", qcvm->num_edicts);
 	Con_Printf ("active    :%3i\n", active);

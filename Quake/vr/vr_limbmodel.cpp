@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::limbmodel
 {
@@ -841,20 +842,20 @@ void prebuild()
     // Their rigs made first, all at once on the pool (warmRigs): limbInfo below asks for each kind's rig in turn, which
     // derived them one after another here (tens of milliseconds each), before the server's own warmRigs.
     za::Vector<qmodel_t*> rigged;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(77) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         const int index = kindModel(EDICT_NUM(num));
         if(index > 0 && za::find(rigged.begin(), rigged.end(), sv.models[index]) == rigged.end())
         {
             rigged.pushBack(sv.models[index]);
         }
-    }
+    } EA_CLOSE(77)
     ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
     VR_TimeAdd("  their monsters' rigs (warmRigs)", Sys_DoubleTime() - t0);
     za::Vector<int> seen;
     za::Vector<const char*> names; // (keptName's: the precaches below, in this order)
     int waiting = 0;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(78) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         const int index = kindModel(ent);
@@ -885,7 +886,7 @@ void prebuild()
         // load for its 170 limbs, 2026-10-30); the precaches below take them (derivedFile), else build their own.
         startKind(ent, index);
         ent->v.modelindex = oldIndex;
-    }
+    } EA_CLOSE(78)
     for(LateKind& kind : late.kinds)
     {
         za::Vector<Built> built = kind.built.get();
@@ -1008,7 +1009,7 @@ void spawnFrame()
     {
         newMap();
     }
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(79) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         const int index = static_cast<int>(ent->v.modelindex);
@@ -1019,7 +1020,7 @@ void spawnFrame()
         }
         late.seen[static_cast<za::SizeT>(index)] = 1;
         startKind(ent, index);
-    }
+    } EA_CLOSE(79)
     for(za::SizeT k = 0; k < late.kinds.size();)
     {
         LateKind& kind = late.kinds[k];

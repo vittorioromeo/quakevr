@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "steam.h"
 #include <setjmp.h>
 #include "vr/vr_tracy.h"
+#include "vr/vr_ea.h"
 
 /*
 
@@ -1088,7 +1089,7 @@ static int Host_AutosaveUnsafe (const char **reason)
 	alerted = Cvar_VariableValue ("vr_autosave_safe_alerted") != 0.f;
 	self = EDICT_TO_PROG (sv_player);
 	VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, eye);
-	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	EA_OPEN(113) for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
 	{
 		// a living monster in the world (not a corpse, nor one yet to appear: AD's spawned later)
 		if (ed->free || !((int) ed->v.flags & FL_MONSTER) || ed->v.health <= 0.f || ed->v.deadflag != 0.f ||
@@ -1112,7 +1113,7 @@ static int Host_AutosaveUnsafe (const char **reason)
 			*reason = "a monster is near, in sight";
 			return 1;
 		}
-	}
+	} EA_CLOSE(113)
 	return 0;
 }
 
@@ -1314,12 +1315,12 @@ void Host_ServerFrame (void)
 //johnfitz -- devstats
 	if (cls.signon == SIGNONS && (devstats.value || developer.value)) // QVR: counted only when shown or warned about (a walk of every edict a server frame: 4000 in AD's big maps)
 	{
-		for (i=0, active=0; i<qcvm->num_edicts; i++)
+		EA_OPEN(114) for (i=0, active=0; i<qcvm->num_edicts; i++)
 		{
 			ent = EDICT_NUM(i);
 			if (!ent->free)
 				active++;
-		}
+		} EA_CLOSE(114)
 		if (active > 600 && dev_peakstats.edicts <= 600)
 			Con_DWarning ("%i edicts exceeds standard limit of 600 (max = %d).\n", active, qcvm->max_edicts);
 		dev_stats.edicts = active;

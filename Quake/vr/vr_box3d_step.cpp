@@ -12,6 +12,7 @@
 #include "vr_move.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -181,7 +182,7 @@ void spinAlign(Slot& s, float dt)
 void beforeStep(float dt)
 {
     const float g = sv_gravity.value;
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    EA_OPEN(35) for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
         s.arrival = glm::vec3{0.f};
@@ -312,7 +313,7 @@ void beforeStep(float dt)
         }
         b3Body_SetLinearVelocity(s.body, world->toM(vel));
         b3Body_SetAngularVelocity(s.body, b3v(spin));
-    }
+    } EA_CLOSE(35)
 }
 
 // The props' lift in water (beforeStep's) given again, for the step's pieces after the first: Box3D clears a body's
@@ -320,14 +321,14 @@ void beforeStep(float dt)
 // pieces a frame, floating crates sank to the bottom).
 void liftAgain()
 {
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    EA_OPEN(36) for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         const Slot& s = world->slots[num];
         if(s.lift != 0.f && (s.kind == Kind::Prop || s.kind == Kind::Corpse) && B3_IS_NON_NULL(s.body) && b3Body_IsValid(s.body))
         {
             b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, s.lift}, false);
         }
-    }
+    } EA_CLOSE(36)
     for(const RagdollBodies& r : world->ragdolls) // (ragdollsInLiquids')
     {
         const bool driven = r.driveForceAt == qcvm->time; // (driveActive's, this frame)
@@ -460,14 +461,14 @@ void ragdollsInLiquids(float dt)
         }
     }
     // (A corpse's one body: Corpse Collision's pushable corpses, ragdolls off.)
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num++)
+    EA_OPEN(37) for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num++)
     {
         Slot& s = world->slots[num];
         if(s.kind == Kind::Corpse && s.corpseDynamic && s.ragdoll < 0 && b3Body_IsValid(s.body) && b3Body_IsAwake(s.body))
         {
             s.lift = bodyInLiquid(s.body, ownFloat(EDICT_NUM(num)), g, dt);
         }
-    }
+    } EA_CLOSE(37)
 }
 
 // The share of a monster's landing speed at `p` (on what it lands) its fall damage is measured at: liquid over it
@@ -1227,7 +1228,7 @@ void callBodyHits()
         {
             vel *= thrownKeep * r.thrownPeak / speed;
         }
-        for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
+        EA_OPEN(38) for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
         {
             edict_t* e = EDICT_NUM(n);
             if(n == num || e->free || e->v.health <= 0.f || !(static_cast<int>(e->v.flags) & FL_MONSTER) ||
@@ -1241,7 +1242,7 @@ void callBodyHits()
                 continue;
             }
             hits[static_cast<za::SizeT>(count++)] = {num, n, mass, vel};
-        }
+        } EA_CLOSE(38)
     }
     for(int i = 0; i < count; i++)
     {
@@ -1476,7 +1477,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
         const bool scrapes = physsound::scrapesWanted();
         const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
-        for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+        EA_OPEN(39) for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
         {
             Slot& s = world->slots[num];
             if(s.ragdoll >= 0)
@@ -1510,7 +1511,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
                     noteSlide(num, s, dt / static_cast<float>(pieces));
                 }
             }
-        }
+        } EA_CLOSE(39)
         rideStanding();
     }
     const double tAfter = Sys_DoubleTime();

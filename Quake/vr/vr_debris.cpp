@@ -42,6 +42,7 @@
 
 #include <ctype.h>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::debris
 {
@@ -849,7 +850,7 @@ void list_f()
     };
     za::Vector<Row> rows;
     lightcache_t cache{};
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(56) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const char* cls = e->free ? "" : PR_GetString(e->v.classname);
@@ -864,7 +865,7 @@ void list_f()
                 PR_GetString(e->v.model) + 6, static_cast<int>(e->v.skin), e->v.origin[0], e->v.origin[1], e->v.origin[2],
                 e->v.angles[0], e->v.angles[1], e->v.angles[2], (static_cast<int>(e->v.flags) & FL_ONGROUND) ? ", resting" : "",
                 light)});
-    }
+    } EA_CLOSE(56)
     PR_PopQCVM(oldVm);
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "lit"))
     {

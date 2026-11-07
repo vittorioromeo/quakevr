@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "q_ctype.h"
+#include "vr/vr_ea.h"
 
 #define	STRINGTEMP_BUFFERS		1024
 #define	STRINGTEMP_LENGTH		1024
@@ -1081,7 +1082,7 @@ static void PF_Find (void)
 		}
 	}
 
-	for (e++ ; e < qcvm->num_edicts ; e++)
+	EA_OPEN(117) for (e++ ; e < qcvm->num_edicts ; e++)
 	{
 		ed = EDICT_NUM(e);
 		if (ed->free)
@@ -1094,7 +1095,7 @@ static void PF_Find (void)
 			RETURN_EDICT(ed);
 			return;
 		}
-	}
+	} EA_CLOSE(117)
 
 	RETURN_EDICT(qcvm->edicts);
 }
@@ -1361,7 +1362,14 @@ PF_nextent
 entity nextent(entity)
 =============
 */
+static void PF_nextent_ (void);
 static void PF_nextent (void)
+{
+	long long t0 = EA_Now();
+	PF_nextent_ ();
+	EA_Add (126, t0);
+}
+static void PF_nextent_ (void)
 {
 	int		i;
 	edict_t	*ent;
@@ -1426,7 +1434,7 @@ static void PF_aim (void)
 	bestent = NULL;
 
 	check = NEXT_EDICT(qcvm->edicts);
-	for (i = 1; i < qcvm->num_edicts; i++, check = NEXT_EDICT(check) )
+	EA_OPEN(118) for (i = 1; i < qcvm->num_edicts; i++, check = NEXT_EDICT(check) )
 	{
 		if (check->v.takedamage != DAMAGE_AIM)
 			continue;
@@ -1447,7 +1455,7 @@ static void PF_aim (void)
 			bestdist = dist;
 			bestent = check;
 		}
-	}
+	} EA_CLOSE(118)
 
 	if (bestent)
 	{

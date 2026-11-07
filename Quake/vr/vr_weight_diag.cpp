@@ -40,6 +40,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::weight
 {
@@ -449,7 +450,7 @@ void table_f()
         PR_SwitchQCVM(&sv.qcvm);
     }
     za::Vector<za::String> seen;
-    for(int i = 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(108) for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int index = static_cast<int>(e->v.modelindex);
@@ -465,7 +466,7 @@ void table_f()
             seen.pushBack(model->name);
             row("lvl", model->name, mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage));
         }
-    }
+    } EA_CLOSE(108)
     if(old != &sv.qcvm)
     {
         PR_SwitchQCVM(nullptr);

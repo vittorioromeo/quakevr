@@ -11,6 +11,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -161,7 +162,7 @@ void ragdollList_f()
         {
             int flames = 0;
             float sum = 0.f, most = 0.f;
-            for(int e = svs.maxclients + 1; e < qcvm->num_edicts; e++)
+            EA_OPEN(18) for(int e = svs.maxclients + 1; e < qcvm->num_edicts; e++)
             {
                 edict_t* fl = EDICT_NUM(e);
                 const glm::vec3 at = vec(fl->v.origin);
@@ -175,7 +176,7 @@ void ragdollList_f()
                 flames++;
                 sum += distance;
                 most = za::max(most, distance);
-            }
+            } EA_CLOSE(18)
             Con_Printf("  %d flames on it: %.1f units from its limbs' surface on average, %.1f at most\n", flames,
                 sum / static_cast<float>(za::max(flames, 1)), most);
         }
@@ -314,7 +315,7 @@ void corpseList_f()
     static constexpr const char* modes[] = {"none", "fixed box", "pushable box", "fixed pose", "pushable pose"};
     int count = 0;
     za::Vector<b3ContactData>& contacts = scratch.pushContacts;
-    for(int num = 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
+    EA_OPEN(19) for(int num = 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
     {
         const Slot& s = world->slots[num];
         if(s.kind != Kind::Corpse || B3_IS_NULL(s.body))
@@ -343,7 +344,7 @@ void corpseList_f()
             num, PR_GetString(e->v.classname), modes[CLAMP(0, s.corpseMode, 4)], b3Body_GetShapeCount(s.body),
             s.corpseDynamic ? b3Body_GetMass(s.body) : 0.f, e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[1],
             b3Body_IsAwake(s.body) ? "awake" : "asleep", props, hands, level);
-    }
+    } EA_CLOSE(19)
     Con_Printf("vr_corpse_list: %d corpses in the physics (vr_corpse_collide %d)\n", count, corpseMode());
 }
 
@@ -360,7 +361,7 @@ void corpsePoses_f()
     const progs::ServerVm vm;
     const bool brief = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
     int dead = 0, ragdolls = 0, lying = 0, notLying = 0, placed = 0;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(20) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         // (A mapper's corpse too: misc_corpse, a dead monster's body when vr_corpse_placed is on, else scenery.)
@@ -401,7 +402,7 @@ void corpsePoses_f()
                 rig ? (progress < 0.f ? " (no death frame)" : va(" (%.0f%% of its death)", progress * 100.f)) : "", why,
                 flat ? "" : ", NOT LYING");
         }
-    }
+    } EA_CLOSE(20)
     Con_Printf("vr_corpse_poses: %d dead monsters (%d placed by the map), %d ragdolls, %d lying, %d not lying (vr_ragdoll %g, "
                "at most %g)\n",
         dead, placed, ragdolls, lying, notLying, vr_ragdoll.value, vr_ragdoll_max.value);
@@ -419,7 +420,7 @@ void corpseDrop_f()
     const glm::vec3 eye = vec(progs::playerEdict()->v.origin);
     int corpse = 0, prop = 0;
     float corpseD = 1e9f, propD = 1e9f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
+    EA_OPEN(21) for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
     {
         const Slot& s = world->slots[num];
         const float d = glm::distance(eye, vec(EDICT_NUM(num)->v.origin));
@@ -433,7 +434,7 @@ void corpseDrop_f()
             prop = num;
             propD = d;
         }
-    }
+    } EA_CLOSE(21)
     if(!corpse || !prop)
     {
         Con_Printf("vr_corpse_drop: no %s\n", corpse ? "loose prop" : "corpse in the physics");

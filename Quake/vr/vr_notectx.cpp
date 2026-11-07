@@ -23,6 +23,7 @@
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::notectx
 {
@@ -149,7 +150,7 @@ void describeNearby(za::String& out, edict_t* player)
     const float reach = nearbyMetres * units::metresToUnits();
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     za::Vector<za::Pair<float, int>> closeBy;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(82) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER))
@@ -162,7 +163,7 @@ void describeNearby(za::String& out, edict_t* player)
         {
             closeBy.pushBack({d, i});
         }
-    }
+    } EA_CLOSE(82)
     za::quickSort(closeBy.begin(), closeBy.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
     const int agOfs = progs::fields().vr_ag;
     for(const auto& [d, i] : closeBy)

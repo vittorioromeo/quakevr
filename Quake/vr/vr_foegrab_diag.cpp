@@ -4,6 +4,7 @@
 
 #include "vr_foegrab_internal.hpp"
 #include "vr_progs.hpp"
+#include "vr/vr_ea.h"
 
 namespace foegrab::detail
 {
@@ -541,7 +542,7 @@ void neckDiagFrame()
     }
     const glm::vec3 middle = 0.5f * (d.palm[0] + d.palm[1]);
     float nearest = neckDiagReach;
-    for(int num = 1; num < qcvm->num_edicts && ent == 0; num++)
+    EA_OPEN(62) for(int num = 1; num < qcvm->num_edicts && ent == 0; num++)
     {
         edict_t* e = EDICT_NUM(num);
         if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f)
@@ -558,7 +559,7 @@ void neckDiagFrame()
             nearest = glm::distance(box, middle);
             d.ent = num;
         }
-    }
+    } EA_CLOSE(62)
     ent = ent != 0 ? ent : d.ent;
     if(ent == 0)
     {
@@ -628,7 +629,7 @@ void grabDiagFrame()
     }
     const glm::vec3 middle = 0.5f * (g.palm[0] + g.palm[1]);
     float nearest = neckDiagReach;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && ent == 0; num++)
+    EA_OPEN(63) for(int num = svs.maxclients + 1; num < qcvm->num_edicts && ent == 0; num++)
     {
         edict_t* e = EDICT_NUM(num);
         if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || box3d::isRagdoll(num))
@@ -641,7 +642,7 @@ void grabDiagFrame()
             nearest = glm::distance(box, middle);
             g.ent = num;
         }
-    }
+    } EA_CLOSE(63)
     g.ent = ent != 0 ? ent : nearest < neckDiagReach ? g.ent : 0;
     // (None: the one last tried, a while (lifted or thrown, a ragdoll now): its result stays in view.)
     const bool recent = time - za::max(za::max(g.liftAt, g.throwAt), g.legAt) < 4.0;

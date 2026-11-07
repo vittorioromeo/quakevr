@@ -11,6 +11,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -223,10 +224,10 @@ void shotBench_f()
     }
     const progs::ServerVm vm;
     int g = 0;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !g; i++)
+    EA_OPEN(16) for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !g; i++)
     {
         g = solidProp(i) ? i : 0;
-    }
+    } EA_CLOSE(16)
     if(!g)
     {
         Con_Printf("vr_physics_shotbench: no solid prop\n");
@@ -314,7 +315,7 @@ void fire_f()
     else
     {
         float best = 1e30f;
-        for(int i = svs.maxclients + 1; world && i < qcvm->num_edicts; i++)
+        EA_OPEN(17) for(int i = svs.maxclients + 1; world && i < qcvm->num_edicts; i++)
         {
             if(!solidProp(i))
             {
@@ -328,7 +329,7 @@ void fire_f()
                 best = d;
                 at = c;
             }
-        }
+        } EA_CLOSE(17)
         if(best >= 1e30f)
         {
             Con_Printf("vr_physics_fire: no solid prop to fire at\n");

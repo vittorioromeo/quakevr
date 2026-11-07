@@ -7,6 +7,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_weapon_ids.h"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -92,7 +93,7 @@ void traceGibContacts()
     }
     const int idField = fields().vr_sgib_id;
     za::Array<b3ContactData, 16> contacts;
-    for(int num = svs.maxclients + 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    EA_OPEN(22) for(int num = svs.maxclients + 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         const Slot& s = world->slots[num];
         if(s.kind != Kind::Prop || B3_IS_NULL(s.body))
@@ -128,7 +129,7 @@ void traceGibContacts()
                 PR_GetString(EDICT_NUM(za::max(0, numOf(other)))->v.classname),
                 glm::length(glmv(b3Body_GetLinearVelocity(s.body))) * world->m2u);
         }
-    }
+    } EA_CLOSE(22)
 }
 
 namespace
@@ -396,7 +397,7 @@ void syncHands(float dt)
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's
-    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    EA_OPEN(23) for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
         const bool live = vr_box3d_hand_push.value && !player->free && svs.clients[i - 1].active && player->v.health > 0.f &&
@@ -532,7 +533,7 @@ void syncHands(float dt)
             }
             hb.at = at;
         }
-    }
+    } EA_CLOSE(23)
 }
 
 namespace
@@ -1170,7 +1171,7 @@ void syncReach(float dt)
     using Key = World::ReachKey;
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
-    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    EA_OPEN(24) for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
         const bool live = !player->free && svs.clients[i - 1].active && player->v.health > 0.f && f.handpos >= 0 &&
@@ -1261,7 +1262,7 @@ void syncReach(float dt)
                 sweepReach(hb, i, ReachPose{at, fromB3(now.q)}, ReachPose{pos, rot}, dt);
             }
         }
-    }
+    } EA_CLOSE(24)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

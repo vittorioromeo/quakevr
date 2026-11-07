@@ -27,6 +27,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "vr/vr_ea.h"
 
 
 using namespace qvr;
@@ -340,7 +341,7 @@ void place_f()
         // The nearest to the first player of a classname: what a test just let go of, whatever its edict number.
         const glm::vec3 from = geom::vec(progs::playerEdict()->v.origin);
         float best = FLT_MAX;
-        for(int i = 1; i < qcvm->num_edicts; i++)
+        EA_OPEN(89) for(int i = 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
             if(e->free || strcmp(PR_GetString(e->v.classname), which + 5))
@@ -353,11 +354,11 @@ void place_f()
                 best = d;
                 ent = e;
             }
-        }
+        } EA_CLOSE(89)
     }
     else
     {
-        for(int i = qcvm->num_edicts - 1; i > 0 && !ent; i--)
+        EA_OPEN(90) for(int i = qcvm->num_edicts - 1; i > 0 && !ent; i--)
         {
             edict_t* e = EDICT_NUM(i);
             const bool newest = !strcmp(which, "new") && f.vr_rigid >= 0 && fieldFloat(e, f.vr_rigid) != 0.f;
@@ -365,7 +366,7 @@ void place_f()
             {
                 ent = e;
             }
-        }
+        } EA_CLOSE(90)
     }
     if(!ent || ent->free)
     {
@@ -509,7 +510,7 @@ void testModelQueries()
     int checked = 0;
     ankerl::unordered_dense::map<const qmodel_t*, bool> seen;
     const auto& f = fields();
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(91) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         const qmodel_t* model = modelOf(ent);
@@ -567,7 +568,7 @@ void testModelQueries()
         setFieldVec(ent, f.model_offset, offset);
         setFieldFloat(ent, f.vr_rigid, rigid);
         check();
-    }
+    } EA_CLOSE(91)
     Con_Printf("prop model queries: PASS %d transform cases across %d models (centre and four point queries each)\n",
         checked, static_cast<int>(seen.size()));
 }

@@ -47,6 +47,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "vr/vr_ea.h"
 
 extern "C" int VR_IsActive(void);
 extern "C" {
@@ -1159,7 +1160,7 @@ struct Census
     const int wearerOfs = progs::fields().vr_wp_wearer;
     const edict_t* subj = subjectEdict();
     const int sp = subj ? EDICT_TO_PROG(subj) : -1;
-    for(int i = 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(94) for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free)
@@ -1184,7 +1185,7 @@ struct Census
         c.mineW += mine && weapon;
         c.mineT += mine && tank;
         c.mineR += mine && weapon && instOfs >= 0 && progs::fieldInt(e, instOfs) != 0;
-    }
+    } EA_CLOSE(94)
     return c;
 }
 

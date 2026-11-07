@@ -35,6 +35,10 @@
 #else
 #include <x86intrin.h>
 #endif
+#include "vr/vr_ea.h"
+#include "vr/vr_ea_table.inc"
+#include "vr/vr_ea_impl.inc"
+#include "vr/vr_ea_fields.inc"
 
 using namespace qvr;
 
@@ -173,7 +177,7 @@ void walk(const float* org, float rad, za::Vector<edict_t*>& out)
 {
     out.clear();
     edict_t* ent = NEXT_EDICT(qcvm->edicts);
-    for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
+    EA_OPEN(59) for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
     {
         // The edicts are kilobytes apart, beyond the hardware prefetchers' reach (a page): the lines this walk reads
         // asked for walkAhead edicts ahead (ROUND24.md, "Tracy session 11-07").
@@ -190,7 +194,7 @@ void walk(const float* org, float rad, za::Vector<edict_t*>& out)
         {
             out.pushBack(ent);
         }
-    }
+    } EA_CLOSE(59)
 }
 
 // The grid's search: the dirty edicts, then the grid's clean ones near the sphere; sorted into edict order.
@@ -447,6 +451,9 @@ namespace qvr::findradius
 void registerCommands()
 {
     Cmd_AddCommand("vr_findradius_stats", stats_f);
+    Cmd_AddCommand("ea_reset", ea_reset_f);
+    Cmd_AddCommand("ea_stats", ea_stats_f);
+    Cmd_AddCommand("ea_fields", ea_fields_f);
 }
 
 void markDirty(int e)

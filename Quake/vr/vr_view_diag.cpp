@@ -9,6 +9,7 @@
 #include "vr_sightalign.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
+#include "vr/vr_ea.h"
 
 namespace qvr::view
 {
@@ -355,7 +356,7 @@ void agruntWeaponProbe_f()
     progs::ServerVm vm;
     int n = 0;
     int undrawn = 0; // (vr_agrunt_weapon_undrawn: the tests' reading)
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(106) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* ed = EDICT_NUM(i);
         if(ed->free || strcmp(PR_GetString(ed->v.classname), "vr_ag_weapon") != 0 || !ed->v.modelindex)
@@ -392,7 +393,7 @@ void agruntWeaponProbe_f()
             glm::distance(so, co) * cm, turn, drawn ? "drawn" : "NOT DRAWN", ce.model ? ce.model->name : "none",
             ce.msgtime == cl.mtime[0] ? "now" : "stale", static_cast<int>(ce.alpha));
         n++;
-    }
+    } EA_CLOSE(106)
     Cvar_SetValueQuick(&vr_agrunt_weapon_undrawn, static_cast<float>(undrawn));
     if(n == 0)
     {

@@ -60,6 +60,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vr_geom.hpp"
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -817,7 +818,7 @@ void armedChoose()
 {
     int best = 0;
     distance = range;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(102) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || e->v.modelindex == 0.f || heldByPlayer(i))
@@ -832,7 +833,7 @@ void armedChoose()
             distance = t;
             best = i;
         }
-    }
+    } EA_CLOSE(102)
     return best;
 }
 

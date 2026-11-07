@@ -59,6 +59,7 @@
 #include "vr_admelee.hpp"
 #include "vr_geom.hpp"
 #include "vr_trace.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -756,7 +757,7 @@ void syncPropRopes()
         return;
     }
     const int frame = ++world->fuelFrame;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
+    EA_OPEN(9) for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
     {
         edict_t* t = EDICT_NUM(n);
         if(t->free || fieldInt(t, link) == 0)
@@ -845,7 +846,7 @@ void syncPropRopes()
         r->id = b3CreateDistanceJoint(world->id, &jd);
         b3Body_SetAwake(gb, true);
         b3Body_SetAwake(tb, true);
-    }
+    } EA_CLOSE(9)
     za::vectorEraseIf(world->fuelRopes, [frame](const World::FuelRope& r) {
         if(r.seen == frame)
         {

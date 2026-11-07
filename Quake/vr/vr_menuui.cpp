@@ -67,6 +67,7 @@
 #include "Zancle/Math/Lround.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
@@ -3222,14 +3223,14 @@ namespace
         return false;
     }
     const int target = EDICT_TO_PROG(player);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(80) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* e = EDICT_NUM(i);
         if(!e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f && e->v.enemy == target)
         {
             return true;
         }
-    }
+    } EA_CLOSE(80)
     return false;
 }
 

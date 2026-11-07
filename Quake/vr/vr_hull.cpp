@@ -41,6 +41,7 @@
 
 #include <atomic>
 #include <string.h>
+#include "vr/vr_ea.h"
 namespace qvr::hull
 {
 using namespace detail;
@@ -4380,7 +4381,7 @@ za::Vector<glm::vec3> wantedExts(bool loading)
     }
     if(vr_mhull.value != 0.f && (sv.active || loading))
     {
-        for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
+        EA_OPEN(69) for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
         {
             const edict_t* e = reinterpret_cast<const edict_t*>(reinterpret_cast<const byte*>(sv.qcvm.edicts) +
                 static_cast<za::PtrDiffT>(i) * sv.qcvm.edict_size);
@@ -4389,7 +4390,7 @@ za::Vector<glm::vec3> wantedExts(bool loading)
             {
                 exts.emplaceBack(w * 0.5f, w * 0.5f, h * 0.5f);
             }
-        }
+        } EA_CLOSE(69)
     }
     return exts;
 }
@@ -4405,7 +4406,7 @@ namespace detail
 void collidingSubs(za::Vector<za::SizeT>& subs)
 {
     subs.clear();
-    for(int e = 1; e < qcvm->num_edicts; ++e)
+    EA_OPEN(70) for(int e = 1; e < qcvm->num_edicts; ++e)
     {
         const edict_t* ent = EDICT_NUM(e);
         const int index = static_cast<int>(ent->v.modelindex);
@@ -4417,7 +4418,7 @@ void collidingSubs(za::Vector<za::SizeT>& subs)
         if(sub <= 0) continue;
         const za::SizeT s = static_cast<za::SizeT>(sub);
         if(za::find(subs.begin(), subs.end(), s) == subs.end()) subs.pushBack(s);
-    }
+    } EA_CLOSE(70)
 }
 } // namespace detail
 namespace

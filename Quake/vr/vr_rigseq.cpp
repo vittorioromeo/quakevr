@@ -22,6 +22,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 extern "C" int PR_MakeTempString(const char* val); // pr_cmds.c
 
@@ -388,7 +389,7 @@ void advance()
     edict_t* p = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestD = 1e30f;
-    for(int i = 2; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(92) for(int i = 2; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int mi = static_cast<int>(e->v.modelindex);
@@ -403,7 +404,7 @@ void advance()
             bestD = l;
             best = e;
         }
-    }
+    } EA_CLOSE(92)
     return best;
 }
 
@@ -723,7 +724,7 @@ void serverFrame()
     {
         return; // (the progs have no such field: nothing asks)
     }
-    for(int i = 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(93) for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free)
@@ -749,7 +750,7 @@ void serverFrame()
         {
             setFields(e, -1.f, -1.f);
         }
-    }
+    } EA_CLOSE(93)
     if(!rs.server.empty())
     {
         advance();

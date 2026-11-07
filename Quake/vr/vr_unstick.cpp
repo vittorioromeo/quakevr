@@ -10,6 +10,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr/vr_ea.h"
 
 
 namespace qvr::unstick
@@ -155,7 +156,7 @@ void info_f()
     Con_Printf("vr_stuck_info: monsters freed %d times (last %s, %.2f units), %d searches failed\n", monsterStats.freed,
         monsterStats.last[0] ? monsterStats.last : "-", monsterStats.lastDist, monsterStats.failed);
     edict_t* e = NEXT_EDICT(qcvm->edicts);
-    for(int i = 1; i < qcvm->num_edicts; ++i, e = NEXT_EDICT(e))
+    EA_OPEN(104) for(int i = 1; i < qcvm->num_edicts; ++i, e = NEXT_EDICT(e))
     {
         if(e->free || static_cast<int>(e->v.movetype) != MOVETYPE_PUSH)
         {
@@ -172,7 +173,7 @@ void info_f()
                 e->v.absmin[0], e->v.absmin[1], e->v.absmin[2], e->v.absmax[0], e->v.absmax[1], e->v.absmax[2],
                 e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]);
         }
-    }
+    } EA_CLOSE(104)
 }
 
 // vr_stuck_test <x> <y> <z>: the first player put there as if it had walked there (its last free spot too, so Quake's
@@ -256,7 +257,7 @@ void sink_f()
         const edict_t* player = progs::playerEdict();
         float best = 1e30f;
         num = 0;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+        EA_OPEN(105) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
         {
             const edict_t* e = EDICT_NUM(i);
             if(!walker(e))
@@ -273,7 +274,7 @@ void sink_f()
                 best = d;
                 num = i;
             }
-        }
+        } EA_CLOSE(105)
     }
     if(num <= svs.maxclients || num >= qcvm->num_edicts || !walker(EDICT_NUM(num)))
     {

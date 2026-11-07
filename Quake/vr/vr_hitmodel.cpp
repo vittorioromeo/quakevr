@@ -44,6 +44,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::hitmodel
 {
@@ -1375,7 +1376,7 @@ void serverFrame()
     {
         tracks.resize(static_cast<za::SizeT>(qcvm->max_edicts));
     }
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(65) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         Track& t = tracks[static_cast<za::SizeT>(num)];
@@ -1420,7 +1421,7 @@ void serverFrame()
         }
         t.step = static_cast<int>(ent->v.movetype) == MOVETYPE_STEP;
         t.seen = now;
-    }
+    } EA_CLOSE(65)
 }
 
 namespace

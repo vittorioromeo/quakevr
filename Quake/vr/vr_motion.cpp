@@ -47,6 +47,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "vr/vr_ea.h"
 
 extern "C" double host_netinterval; // host.c
 
@@ -1583,7 +1584,7 @@ void sampleEntities(edict_t* player)
 
     // The nearest monsters (alive or not), the held things, and the player.
     za::InPlaceVector<za::Pair<float, int>, entityMost> closeBy;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(81) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free)
@@ -1618,7 +1619,7 @@ void sampleEntities(edict_t* player)
             continue;
         }
         closeBy.pushBack({d, i});
-    }
+    } EA_CLOSE(81)
     const double window = replayWindow();
     for(const auto& [d, i] : closeBy)
     {

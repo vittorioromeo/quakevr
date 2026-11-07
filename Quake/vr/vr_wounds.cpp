@@ -49,6 +49,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -3235,7 +3236,7 @@ void dummyReset_f()
     int found = 0;
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    for(int i = 1; i < qcvm->num_edicts && i < cl_max_edicts; i++)
+    EA_OPEN(109) for(int i = 1; i < qcvm->num_edicts && i < cl_max_edicts; i++)
     {
         edict_t* ed = EDICT_NUM(i);
         if(ed->free || !progs::isTrainingDummy(ed))
@@ -3252,7 +3253,7 @@ void dummyReset_f()
             ev.kind = KindClear;
             events.pushBack(ev);
         }
-    }
+    } EA_CLOSE(109)
     PR_PopQCVM(oldvm);
     Con_Printf("vr_dummy_gore_reset: %d training %s cleared (dents, blood streams, wounds)\n", found, found == 1 ? "dummy" : "dummies");
 }

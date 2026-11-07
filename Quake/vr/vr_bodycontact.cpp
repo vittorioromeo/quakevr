@@ -19,6 +19,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -506,7 +507,7 @@ void meleeArcGather()
         return;
     }
     const float now = static_cast<float>(qcvm->time);
-    for(int e = svs.maxclients + 1; e < qcvm->num_edicts && arcShows.count < maxArcShows; ++e)
+    EA_OPEN(7) for(int e = svs.maxclients + 1; e < qcvm->num_edicts && arcShows.count < maxArcShows; ++e)
     {
         edict_t* m = EDICT_NUM(e);
         if(m->free || !isMonster(m) || m->v.health <= 0.f)
@@ -535,7 +536,7 @@ void meleeArcGather()
         const bool inReach = r.dist <= r.reach;
         r.state = inReach && off <= r.arc ? 2 : inReach && off <= r.wide ? 1 : 0;
         q_strlcpy(r.name, PR_GetString(m->v.classname), sizeof(r.name));
-    }
+    } EA_CLOSE(7)
 }
 
 // A fan on the level plane at `c`: from yaw `from` to `to` (degrees), `radius` long; its edges and rim bright, spokes
@@ -597,7 +598,7 @@ void aimConeGather()
         return;
     }
     const float now = static_cast<float>(qcvm->time);
-    for(int e = svs.maxclients + 1; e < qcvm->num_edicts && aimShows.count < maxAimShows; ++e)
+    EA_OPEN(8) for(int e = svs.maxclients + 1; e < qcvm->num_edicts && aimShows.count < maxAimShows; ++e)
     {
         edict_t* m = EDICT_NUM(e);
         if(m->free || !isMonster(m) || m->v.health <= 0.f)
@@ -622,7 +623,7 @@ void aimConeGather()
         float off = r.dist > 0.01f ? glm::degrees(za::atan2(to.y, to.x)) - r.yaw : 0.f;
         r.off = za::abs(off - 360.f * za::round(off / 360.f));
         q_strlcpy(r.name, PR_GetString(m->v.classname), sizeof(r.name));
-    }
+    } EA_CLOSE(8)
 }
 
 } // namespace

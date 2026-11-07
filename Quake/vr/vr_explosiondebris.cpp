@@ -45,6 +45,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::explosiondebris
 {
@@ -166,7 +167,7 @@ void rescan()
     Server& s = server;
     s.count = 0;
     const int field = progs::fields().vr_xdebris;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && s.count < capacity; num++)
+    EA_OPEN(58) for(int num = svs.maxclients + 1; num < qcvm->num_edicts && s.count < capacity; num++)
     {
         edict_t* e = EDICT_NUM(num);
         const float serial = e->free ? 0.f : progs::fieldFloat(e, field);
@@ -187,7 +188,7 @@ void rescan()
         }
         s.live[at] = c;
         s.serial = za::max(s.serial, serial);
-    }
+    } EA_CLOSE(58)
 }
 
 [[nodiscard]] int modelIndex()

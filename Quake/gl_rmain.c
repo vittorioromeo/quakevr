@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
+#include "vr/vr_ea.h"
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -1733,7 +1734,7 @@ static void R_ShowBoundingBoxes (void)
 
 	// Iterate over all server entities
 	bestdist = FLT_MAX;
-	for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
+	EA_OPEN(110) for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 	{
 		if (ed == sv_player || ed->free)
 			continue; // don't draw player's own bbox or freed edicts
@@ -1782,7 +1783,7 @@ static void R_ShowBoundingBoxes (void)
 
 		// Add edict to list
 		R_AddHighlightedEntity (ed, SHOWBBOX_LINK_NONE);
-	}
+	} EA_CLOSE(110)
 
 	if (focused)
 		VEC_PUSH (bbox_linked, focused);
@@ -1811,7 +1812,7 @@ static void R_ShowBoundingBoxes (void)
 			const char *focus_target = PR_GetString (focused->v.target);
 			const char *focus_targetname = PR_GetString (focused->v.targetname);
 
-			for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
+			EA_OPEN(111) for (i=1, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
 			{
 				if (ed == sv_player || ed->free || ed == focused)
 					continue;
@@ -1840,7 +1841,7 @@ static void R_ShowBoundingBoxes (void)
 							R_AddHighlightedEntity (ed, SHOWBBOX_LINK_INCOMING);
 					}
 				}
-			}
+			} EA_CLOSE(111)
 		}
 
 		// Draw all links

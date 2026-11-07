@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <time.h>
 #ifndef WITHOUT_CURL
 #include <curl/curl.h>
+#include "vr/vr_ea.h"
 #endif
 #define MAX_URL	2048
 
@@ -2410,7 +2411,7 @@ static int Host_BackgroundSave (void *param)
 
 		PR_SwitchQCVM (&sv.qcvm);
 		SaveData_WriteHeader (save);
-		for (i = 0, ed = save->edicts; i < save->num_edicts; i++, ed = NEXT_EDICT (ed))
+		EA_OPEN(115) for (i = 0, ed = save->edicts; i < save->num_edicts; i++, ed = NEXT_EDICT (ed))
 		{
 			if (SDL_AtomicGet(&save->abort))
 			{
@@ -2419,7 +2420,7 @@ static int Host_BackgroundSave (void *param)
 			}
 			ED_Write (save, ed);
 			fflush (save->file);
-		}
+		} EA_CLOSE(115)
 		if (!abort)
 			fprintf (save->file, "// %d edicts\n", save->num_edicts);
 		PR_SwitchQCVM (NULL);
@@ -3669,12 +3670,12 @@ static edict_t	*FindViewthing (void)
 	edict_t	*e = NULL;
 
 	PR_SwitchQCVM(&sv.qcvm);
-	for (i=0 ; i<qcvm->num_edicts ; i++)
+	EA_OPEN(116) for (i=0 ; i<qcvm->num_edicts ; i++)
 	{
 		e = EDICT_NUM(i);
 		if ( !strcmp (PR_GetString(e->v.classname), "viewthing") )
 			break;
-	}
+	} EA_CLOSE(116)
 
 	if (i == qcvm->num_edicts)
 	{

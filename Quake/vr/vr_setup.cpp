@@ -28,6 +28,7 @@
 #include "Zancle/String/StringView.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::setup
 {
@@ -164,13 +165,13 @@ void listOptionScreens()
     l.numEdicts = qcvm->num_edicts;
     l.nextScan = realtime + 0.5;
     l.nums.clear();
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(98) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         if(vrTargetName(EDICT_NUM(i)))
         {
             l.nums.pushBack(i);
         }
-    }
+    } EA_CLOSE(98)
 }
 
 // The value screen above each of the map's setting buttons (the server's edicts: a local game).

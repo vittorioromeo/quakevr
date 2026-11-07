@@ -36,6 +36,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include "vr/vr_ea.h"
 #endif
 
 extern "C" int r_numactiveparticles; // r_part.c
@@ -669,7 +670,7 @@ void stateHash_f()
     };
     const size_t fieldBytes = static_cast<size_t>(qcvm->progs->entityfields) * 4u;
     int used = 0;
-    for(int i = 0; i < qcvm->num_edicts; i++)
+    EA_OPEN(6) for(int i = 0; i < qcvm->num_edicts; i++)
     {
         edict_t* ent = EDICT_NUM(i);
         const unsigned char isFree = ent->free ? 1 : 0;
@@ -679,7 +680,7 @@ void stateHash_f()
             mix(&ent->v, fieldBytes);
             used++;
         }
-    }
+    } EA_CLOSE(6)
     Con_Printf("vr_bench_statehash: %d edicts (%d in use), time %.3f, %016llx\n", qcvm->num_edicts, used, qcvm->time,
         static_cast<unsigned long long>(h));
     // vr_bench_statehash fields: also a hash per QuakeC field (over the edicts in use), to find what two runs differ in.

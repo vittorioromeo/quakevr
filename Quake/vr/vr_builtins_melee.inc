@@ -1,4 +1,5 @@
 // vr_builtins_melee.inc -- PF_ builtins: wounds, gore sounds, hit reactions, flame contact, the melee history and its iterators.
+#include "vr/vr_ea.h"
 // Split from vr_builtins.cpp (a move): included where it was, so it shares that file's (anonymous-namespace) state.
 
 // A wound on a model (vr_wounds.cpp): void(entity e, vector org, vector dir, float kind, float amount, float extra)
@@ -533,14 +534,14 @@ void PF_particle2()
             return found;
         }
     }
-    for(int i = from + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(45) for(int i = from + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(!e->free && (static_cast<int>(E_FLOAT(e, field)) & flags))
         {
             return i;
         }
-    }
+    } EA_CLOSE(45)
     return 0;
 }
 

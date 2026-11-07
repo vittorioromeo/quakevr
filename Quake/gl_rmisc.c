@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
+#include "vr/vr_ea.h"
 
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;
@@ -134,7 +135,7 @@ static void R_ShowbboxesFilter_Completion_f (const char *partial)
 	}
 	else
 	{
-		for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+		EA_OPEN(112) for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
 		{
 			const char *name;
 			if (ed == sv_player || ed->free || !ed->v.classname)
@@ -142,7 +143,7 @@ static void R_ShowbboxesFilter_Completion_f (const char *partial)
 			name = PR_GetString (ed->v.classname);
 			if (*name)
 				Con_AddToTabList (name, partial, "#");
-		}
+		} EA_CLOSE(112)
 	}
 
 	PR_PopQCVM (oldvm);

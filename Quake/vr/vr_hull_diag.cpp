@@ -44,6 +44,7 @@
 
 #include <atomic>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::hull
 {
@@ -589,7 +590,7 @@ bool hop(edict_t* ent)
     {
         int count = 0;
         edict_t* chosen = nullptr;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+        EA_OPEN(71) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
         {
             edict_t* e = EDICT_NUM(i);
             if(!e->free && static_cast<int>(e->v.solid) == SOLID_BSP && static_cast<int>(e->v.movetype) == MOVETYPE_PUSH &&
@@ -597,7 +598,7 @@ bool hop(edict_t* ent)
             {
                 chosen = e; // reservoir sampling: each pusher alike
             }
-        }
+        } EA_CLOSE(71)
         if(chosen)
         {
             wmins = glm::vec3{chosen->v.absmin[0] - 96.f, chosen->v.absmin[1] - 96.f, chosen->v.absmin[2]};
@@ -917,7 +918,7 @@ void monsterWalk_f()
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     w.goal = ED_Alloc();
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    EA_OPEN(72) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
         const int cls = e->free ? -1 : monsterClassOf(e);
@@ -940,7 +941,7 @@ void monsterWalk_f()
             e->v.nextthink = 0.f; // its AI stopped: the walk moves it
         }
         w.mons.pushBack(m);
-    }
+    } EA_CLOSE(72)
     PR_PopQCVM(oldvm);
     Con_Printf("vr_mhull_walktest: %d monsters, %s\n", static_cast<int>(w.mons.size()), w.mode ? "patrol" : "random walk");
 }
@@ -1185,14 +1186,14 @@ void approachRun()
     const char* name = Cmd_Argv(1);
     int nth = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
     edict_t* target = nullptr;
-    for(int i = 1; i < qcvm->num_edicts && !target; ++i)
+    EA_OPEN(73) for(int i = 1; i < qcvm->num_edicts && !target; ++i)
     {
         edict_t* e = EDICT_NUM(i);
         if(!e->free && !strcmp(PR_GetString(e->v.classname), name) && nth-- == 0)
         {
             target = e;
         }
-    }
+    } EA_CLOSE(73)
     if(!target)
     {
         Con_Printf("approach: no %s\n", name);

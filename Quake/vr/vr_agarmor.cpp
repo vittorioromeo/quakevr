@@ -44,6 +44,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::agarmor
 {
@@ -3523,14 +3524,14 @@ void serverWriteAll(sizebuf_t* msg)
     }
     writeState(msg, -1, 0u);
     sent.resize(static_cast<za::SizeT>(sv.qcvm.num_edicts), 0u);
-    for(int i = 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(2) for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
         at(sent, i) = stateOf(EDICT_NUM(i), i <= svs.maxclients);
         if(at(sent, i) && msg->cursize + 16 < msg->maxsize)
         {
             writeState(msg, i, at(sent, i));
         }
-    }
+    } EA_CLOSE(2)
 }
 
 void parseEvent()
@@ -3866,7 +3867,7 @@ void debugDraw()
         return;
     }
     const progs::ServerVm vm; // (the view's: EDICT_NUM and the fields need the server's VM)
-    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(3) for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
     {
         if(!vr_agarmor_debug.value && i != studio.ent)
         {
@@ -3911,7 +3912,7 @@ void debugDraw()
             lines::line(w[1], w[2], width, col, col);
             lines::line(w[2], w[0], width, col, col);
         }
-    }
+    } EA_CLOSE(3)
 }
 
 // The limb whose plates enclose `p` as `ent` is drawn (-1 none): by each piece's grid, its point taken back to the rest pose by

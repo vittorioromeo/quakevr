@@ -23,6 +23,7 @@
 #include "Zancle/Math/Round.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 using qvr::toolgun::brushtool::Input;
@@ -135,7 +136,7 @@ void tick(int hand, float amplitude)
 // The player or a monster (anything with a box that moves by itself) that a box lo..hi would hold inside; 0: none.
 [[nodiscard]] int holds(const glm::vec3& lo, const glm::vec3& hi)
 {
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(103) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int solid = static_cast<int>(e->v.solid);
@@ -150,7 +151,7 @@ void tick(int hand, float amplitude)
         {
             return i;
         }
-    }
+    } EA_CLOSE(103)
     return 0;
 }
 

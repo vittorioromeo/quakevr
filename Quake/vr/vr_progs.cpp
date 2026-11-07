@@ -43,6 +43,7 @@
 #include "Zancle/String/String.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::progs
 {
@@ -615,14 +616,14 @@ void probeKinds(za::Vector<int>& probes, int pass)
     G_FLOAT(OFS_PARM0) = static_cast<float>(pass);
     callSpawnServerEntryPoint(sv_bindings.Probe_Kinds);
     probing = false;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    EA_OPEN(84) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
     {
         if(!EDICT_NUM(i)->free && (i >= before || wasFree[static_cast<za::SizeT>(i)] != 0) &&
             za::find(probes.begin(), probes.end(), i) == probes.end())
         {
             probes.pushBack(i); // (its own entities too: whatever its spawn function made)
         }
-    }
+    } EA_CLOSE(84)
     VR_TimeAdd("VR after spawn: kinds that can appear (probes)", Sys_DoubleTime() - t0);
     Con_DPrintf("probes: pass %d, %d entities for the kinds that can appear later, %.1f ms\n", pass,
         static_cast<int>(probes.size() - made), (Sys_DoubleTime() - t0) * 1000.0);
@@ -710,7 +711,7 @@ void qvr::progs::modelCheck_f()
     }
     int checked = 0;
     int wrong = 0;
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(85) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         const int index = static_cast<int>(ent->v.modelindex);
@@ -731,7 +732,7 @@ void qvr::progs::modelCheck_f()
                     has);
             }
         }
-    }
+    } EA_CLOSE(85)
     int clientWrong = -1; // (no client)
     if(cls.state == ca_connected && cls.signon == SIGNONS)
     {
@@ -1065,7 +1066,7 @@ void restoreLateSounds()
 // (A save without the list, made before it was saved, is refused: VR_ReadSaveInfo.)
 void rebindLoadedModels()
 {
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(86) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         if(ent->free)
@@ -1085,7 +1086,7 @@ void rebindLoadedModels()
         {
             SV_LinkEdict(ent, false);
         }
-    }
+    } EA_CLOSE(86)
     for(int i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
         const ddef_t& d = qcvm->globaldefs[i];

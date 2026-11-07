@@ -4,6 +4,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -131,7 +132,7 @@ void addSkeweredShapes(edict_t* ent, int num, b3BodyId body)
         return;
     }
     const int self = EDICT_TO_PROG(ent);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    EA_OPEN(26) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* g = EDICT_NUM(i);
         if(g->free || fieldInt(g, f.vr_skewer_w) != self)
@@ -152,7 +153,7 @@ void addSkeweredShapes(edict_t* ent, int num, b3BodyId body)
         const b3Sphere sphere{world->toM(glm::vec3{at.x, -at.y, at.z}), radius};
         b3CreateSphereShape(body, &def, &sphere);
         Con_DPrintf("box3d: a skewered gib on the thrown blade: its body now %.2f kg\n", b3Body_GetMass(body));
-    }
+    } EA_CLOSE(26)
 }
 } // namespace
 
@@ -764,7 +765,7 @@ void prebuildPropHulls(const za::Vector<uint8_t>& carried)
     {
         return;
     }
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(27) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         if(ent->free || (num < static_cast<int>(world->slots.size()) && world->slots[num].kind != Kind::None) ||
@@ -798,7 +799,7 @@ void prebuildPropHulls(const za::Vector<uint8_t>& carried)
             return propHullOf(points, budget, m2u);
         }));
         hullBuilds.posted++;
-    }
+    } EA_CLOSE(27)
 }
 } // namespace
 
@@ -823,7 +824,7 @@ void syncEntities(float dt)
     za::Vector<uint8_t>& carried = scratch.carried;
     carried.clear();
     carried.resize(static_cast<size_t>(qcvm->num_edicts), 0);
-    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    EA_OPEN(28) for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
         if(player->free)
@@ -843,7 +844,7 @@ void syncEntities(float dt)
                 }
             }
         }
-    }
+    } EA_CLOSE(28)
 
     updateShapeGeneration();
     if(!world->retiredHulls.empty())
@@ -883,7 +884,7 @@ void syncEntities(float dt)
     });
     prebuildPropHulls(carried);
     world->syncingEntities = true;
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(29) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         Slot& s = slotOf(num);
@@ -930,7 +931,7 @@ void syncEntities(float dt)
             break;
         default: break;
         }
-    }
+    } EA_CLOSE(29)
     world->syncingEntities = false;
     keepPendingHulls();
     // The corpses that found the ragdoll pool full: QC makes room for each, now that the loop is done (a refusal is not
@@ -952,13 +953,13 @@ void syncEntities(float dt)
         }
     }
     world->roomWanted.clear();
-    for(size_t num = static_cast<size_t>(qcvm->num_edicts); num < world->slots.size(); num++)
+    EA_OPEN(30) for(size_t num = static_cast<size_t>(qcvm->num_edicts); num < world->slots.size(); num++)
     {
         if(world->slots[num].kind != Kind::None)
         {
             destroyBody(world->slots[num]);
         }
-    }
+    } EA_CLOSE(30)
 }
 
 namespace

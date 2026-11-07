@@ -45,6 +45,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/glm.hpp>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -734,7 +735,7 @@ extern "C" void VR_Footsteps_Frame(void)
     Due dues[32];
     int numDue = 0;
 
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(64) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER))
@@ -826,7 +827,7 @@ extern "C" void VR_Footsteps_Frame(void)
                 st.due[s] = 0.0;
             }
         }
-    }
+    } EA_CLOSE(64)
 
     const float limit = numNearest > 0 ? nearest[numNearest - 1] : -1.f;
     for(int k = 0; k < numDue; k++)

@@ -7,6 +7,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::box3d
 {
@@ -379,7 +380,7 @@ void blast(const glm::vec3& at, float damage)
     }
     world->recentBlasts[static_cast<za::SizeT>(world->nextBlast)] = World::RecentBlast{at, damage, qcvm->time};
     world->nextBlast = (world->nextBlast + 1) % static_cast<int>(world->recentBlasts.size());
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    EA_OPEN(10) for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
         if(s.kind != Kind::Prop)
@@ -423,7 +424,7 @@ void blast(const glm::vec3& at, float damage)
         {
             Con_Printf("box3d: %d blasted: %.0f points, %.1f kg, %.0f u/s\n", num, points, mass, speed);
         }
-    }
+    } EA_CLOSE(10)
 }
 
 bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass, float restitution, float most)
@@ -1287,7 +1288,7 @@ int nearestProp()
     const edict_t* player = progs::playerEdict();
     float best = 1e9f;
     int found = 0;
-    for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world->slots.size()); i++)
+    EA_OPEN(11) for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world->slots.size()); i++)
     {
         const edict_t* e = EDICT_NUM(i);
         if(!e->free && world->slots[i].kind == Kind::Prop)
@@ -1299,7 +1300,7 @@ int nearestProp()
                 found = i;
             }
         }
-    }
+    } EA_CLOSE(11)
     return found;
 }
 

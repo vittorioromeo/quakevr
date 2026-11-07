@@ -42,6 +42,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::hitmodel
 {
@@ -159,7 +160,7 @@ void check_f()
     PR_PushQCVM(&sv.qcvm, &oldvm);
     calls++;
     za::Vector<glm::vec3> drawn; // (a debug command's: made each call)
-    for(int num = 1; num < qcvm->num_edicts && num < cl_max_edicts; num++)
+    EA_OPEN(66) for(int num = 1; num < qcvm->num_edicts && num < cl_max_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         const entity_t& e = cl_entities[num];
@@ -203,7 +204,7 @@ void check_f()
                     tr.prevOrigin.y, tr.origin.x, tr.origin.y, tr.moveStart);
             }
         }
-    }
+    } EA_CLOSE(66)
     PR_PopQCVM(oldvm);
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "print"))
     {
@@ -235,11 +236,11 @@ void bench_f()
     Con_Printf("vr_hitmodel_bench: %d rays a monster, tolerance %.1f\n", rays, tol);
     ankerl::unordered_dense::map<za::String, bool> seen;
     int only = -1;
-    for(int num = 1; newest && num < qcvm->num_edicts; num++)
+    EA_OPEN(67) for(int num = 1; newest && num < qcvm->num_edicts; num++)
     {
         only = target(EDICT_NUM(num)) ? num : only;
-    }
-    for(int num = 1; num < qcvm->num_edicts; num++)
+    } EA_CLOSE(67)
+    EA_OPEN(68) for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
         if(!target(ent) || (newest && num != only))
@@ -312,7 +313,7 @@ void bench_f()
             modelNs / 1000. / rays, narrow ? static_cast<double>(stats.nodes - before.nodes) / narrow : 0.,
             narrow ? static_cast<double>(stats.tris - before.tris) / narrow : 0., overhang);
         Con_Printf("  hits %016llx %s\n", static_cast<unsigned long long>(hitHash), name.cStr());
-    }
+    } EA_CLOSE(68)
     vr_debug_hits.value = saveDebug;
     PR_PopQCVM(oldvm);
 }

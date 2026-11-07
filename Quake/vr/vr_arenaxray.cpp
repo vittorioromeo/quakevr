@@ -12,6 +12,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::arenaxray
 {
@@ -85,7 +86,7 @@ void serverWriteAll(sizebuf_t* msg)
     }
     writeState(msg, -1, 0);
     sent.resize(static_cast<za::SizeT>(sv.qcvm.num_edicts), 0);
-    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    EA_OPEN(4) for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
     {
         const unsigned char now = stateOf(EDICT_NUM(i));
         sent[static_cast<za::SizeT>(i)] = now;
@@ -93,7 +94,7 @@ void serverWriteAll(sizebuf_t* msg)
         {
             writeState(msg, i, now);
         }
-    }
+    } EA_CLOSE(4)
 }
 
 void parseEvent()

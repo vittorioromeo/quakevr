@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_ea.h"
 
 // QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds): the player's physics, a few a tick
 #define SV_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
@@ -69,7 +70,7 @@ void SV_CheckAllEnts (void)
 
 // see if any solid entities are inside the final position
 	check = NEXT_EDICT(qcvm->edicts);
-	for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
+	EA_OPEN(123) for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
 	{
 		if (check->free)
 			continue;
@@ -80,7 +81,7 @@ void SV_CheckAllEnts (void)
 
 		if (SV_TestEntityPosition (check))
 			Con_Printf ("entity in invalid position\n");
-	}
+	} EA_CLOSE(123)
 }
 
 /*
@@ -533,7 +534,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 // see if any solid entities are inside the final position
 	num_moved = 0;
 	check = NEXT_EDICT(qcvm->edicts);
-	for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
+	EA_OPEN(124) for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
 	{
 		qboolean riding;
 		int movemask;
@@ -671,7 +672,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 			Hunk_FreeToLowMark (mark); //johnfitz
 			return;
 		}
-	}
+	} EA_CLOSE(124)
 
 	VR_ClimbCarried (pusher, move); // QVR: the holds on it moved with it
 	Hunk_FreeToLowMark (mark); //johnfitz
@@ -1381,7 +1382,7 @@ void SV_Physics (void)
 	VR_TRACY_SCOPE ("SV edicts");
 	VR_TracyText (va ("%d edicts", entity_cap));
 	//for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
-	for (i=0 ; i<entity_cap ; i++, ent = NEXT_EDICT(ent))
+	EA_OPEN(125) for (i=0 ; i<entity_cap ; i++, ent = NEXT_EDICT(ent))
 	{
 		if (ent->free)
 			continue;
@@ -1428,7 +1429,7 @@ void SV_Physics (void)
 				ent->sendinterval = true;
 		}
 	//johnfitz
-	}
+	} EA_CLOSE(125)
 	} // QVR: ("SV edicts")
 
 	VR_MonsterHealth_Frame (); // QVR: Combat > Monster Health's cut on the monsters seen for the first time

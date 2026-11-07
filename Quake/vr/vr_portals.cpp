@@ -32,6 +32,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 extern "C" void SV_AddToFatPVS(vec3_t org, mnode_t* node, qmodel_t* worldmodel); // sv_main.c
 
@@ -264,7 +265,7 @@ void build()
     }
     progs::ServerVm serverVm;
     const int mangleField = ED_FindFieldOffset("mangle");
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(83) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || strcmp(PR_GetString(e->v.classname), "trigger_teleport"))
@@ -363,7 +364,7 @@ void build()
             finish(sides[q], m, vec(d->v.origin), destYaw);
             q++;
         }
-    }
+    } EA_CLOSE(83)
     pairExits();
     exits.reserve(sides.size());
     for(const Side& sd : sides)

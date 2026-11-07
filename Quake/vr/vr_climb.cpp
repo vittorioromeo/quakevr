@@ -148,6 +148,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
+#include "vr/vr_ea.h"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -746,7 +747,7 @@ enum class Check
     const int ofs = progs::fields().vr_climb_ladder;
     if(ofs < 0 || vr_climb_ladders.value != 0.f) { return false; }
     const float margin = touch().front;
-    for(int i = 1; i < qcvm->num_edicts; ++i)
+    EA_OPEN(48) for(int i = 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER) { continue; }
@@ -756,7 +757,7 @@ enum class Check
             inside = inside && hand[k] >= e->v.absmin[k] - margin && hand[k] <= e->v.absmax[k] + margin;
         }
         if(inside) { return true; }
-    }
+    } EA_CLOSE(48)
     return false;
 }
 
@@ -804,7 +805,7 @@ constexpr float ladderRungDepth = 32.f;
     const Touch k = touch();
     const glm::vec2 toBody = towardsBody(player, hand);
     const glm::vec3 out{toBody.x, toBody.y, 0.f}, up{0.f, 0.f, 1.f};
-    for(int i = 1; i < qcvm->num_edicts; ++i)
+    EA_OPEN(49) for(int i = 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER) { continue; }
@@ -841,7 +842,7 @@ constexpr float ladderRungDepth = 32.f;
         l.hold = top + up * ledges::holdLift;
         l.ent = tr.ent && tr.ent != EDICT_NUM(0) ? tr.ent : nullptr;
         return za::Optional<Ledge>{l};
-    }
+    } EA_CLOSE(49)
     return za::nullOpt;
 }
 
@@ -3161,7 +3162,7 @@ void probe(edict_t* ent, float yaw)
     {
         list(*w, glm::vec3{0.f}, 0);
     }
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(50) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int index = static_cast<int>(e->v.modelindex);
@@ -3183,7 +3184,7 @@ void probe(edict_t* ent, float yaw)
             props.finish();
             list(props, glm::vec3{0.f}, i);
         }
-    }
+    } EA_CLOSE(50)
     if(!found)
     {
         Con_Printf("no ledge within 64 units ahead\n");

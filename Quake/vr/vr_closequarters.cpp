@@ -29,6 +29,7 @@
 #include "Zancle/Math/MinMax.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -428,11 +429,11 @@ void test_f()
         }
         const progs::ServerVm vm;
         edict_t* grunt = nullptr;
-        for(int i = 1; i < qcvm->num_edicts && !grunt; i++)
+        EA_OPEN(51) for(int i = 1; i < qcvm->num_edicts && !grunt; i++)
         {
             edict_t* const e = EDICT_NUM(i);
             grunt = !e->free && !strcmp(PR_GetString(e->v.classname), "monster_army") && e->v.health > 0.f ? e : nullptr;
-        }
+        } EA_CLOSE(51)
         cqTally.check(grunt != nullptr && liveEnemy(grunt), name, "the grunt standing: a live foe");
         // (the knockdown's mark, .vr_knockdown 1: a living ragdoll's, QC vr_knockdown.qc; the test's grunts here are
         // spawned as targets a sweep does not knock down, so the mark is set for the check and restored)

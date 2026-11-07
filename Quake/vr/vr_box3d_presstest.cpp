@@ -5,6 +5,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_progs.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -104,7 +105,7 @@ void pressTest_f()
     const glm::vec3 eye = vec(player->v.origin);
     int best = 0;
     float bestDist = 1e30f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
+    EA_OPEN(25) for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
     {
         const Slot& s = world->slots[static_cast<size_t>(num)];
         edict_t* e = EDICT_NUM(num);
@@ -118,7 +119,7 @@ void pressTest_f()
             best = num;
             bestDist = d;
         }
-    }
+    } EA_CLOSE(25)
     if(!best)
     {
         Con_Printf("presstest: no solid prop\n");

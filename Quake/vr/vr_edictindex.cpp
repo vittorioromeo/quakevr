@@ -32,6 +32,7 @@
 #include "Zancle/String/StringView.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -282,10 +283,10 @@ void rebuild(EdictIndex& ix)
     ix.volatileBits.assign(static_cast<za::SizeT>(ix.words), 0);
     ix.pendingMask.assign(static_cast<za::SizeT>(ix.maxEdicts), 0);
     ix.pending.clear();
-    for(int e = 1; e < sv.qcvm.num_edicts; e++)
+    EA_OPEN(57) for(int e = 1; e < sv.qcvm.num_edicts; e++)
     {
         readEdict(ix, e, allFields);
-    }
+    } EA_CLOSE(57)
     ix.valid = true;
 }
 

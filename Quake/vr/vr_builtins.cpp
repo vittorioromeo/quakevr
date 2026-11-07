@@ -80,6 +80,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr/vr_ea.h"
 
 
 namespace qvr::progs
@@ -267,7 +268,7 @@ void PF_findcone()
     const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
     edict_t* chain = qcvm->edicts;
     edict_t* ent = NEXT_EDICT(qcvm->edicts);
-    for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
+    EA_OPEN(42) for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
     {
         if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT)
         {
@@ -304,7 +305,7 @@ void PF_findcone()
         }
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
-    }
+    } EA_CLOSE(42)
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
 }
 
@@ -411,13 +412,13 @@ void PF_findportalcone()
     else
     {
         edict_t* ent = NEXT_EDICT(qcvm->edicts);
-        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        EA_OPEN(43) for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
         {
             forcegrabGridStats.walked++;
             if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
             ent->v.chain = EDICT_TO_PROG(chain);
             chain = ent;
-        }
+        } EA_CLOSE(43)
     }
     if(vr_prop_query_verify.value)
     {
@@ -425,7 +426,7 @@ void PF_findportalcone()
         // chain (including order), without writing chain fields or calling QC.
         edict_t* expected = qcvm->edicts;
         edict_t* ent = NEXT_EDICT(qcvm->edicts);
-        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        EA_OPEN(44) for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
         {
             if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
             const glm::vec3 to = portals::pullImage(from, physics::modelCentre(ent)) - from;
@@ -433,7 +434,7 @@ void PF_findportalcone()
             if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
             if(ent->v.chain != EDICT_TO_PROG(expected)) { Sys_Error("force-grab broad phase changed chain at %d", i); }
             expected = ent;
-        }
+        } EA_CLOSE(44)
         if(chain != expected) { Sys_Error("force-grab broad phase changed chain head"); }
     }
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);

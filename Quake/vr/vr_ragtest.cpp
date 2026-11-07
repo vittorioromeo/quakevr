@@ -27,6 +27,7 @@
 #include "Zancle/String/String.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -593,7 +594,7 @@ bool fireGrab(edict_t* t, Run& run)
     const glm::vec3 o = vec(t->v.origin);
     edict_t* other = nullptr;
     float best = 1024.f;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(87) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         if(e == t || e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || e->v.takedamage == 0.f)
@@ -606,7 +607,7 @@ bool fireGrab(edict_t* t, Run& run)
             best = d;
             other = e;
         }
-    }
+    } EA_CLOSE(87)
     if(!other)
     {
         Con_Printf("ragact: no other monster within 1024 units of him to grab (spawn one)\n");
@@ -977,7 +978,7 @@ constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
     const glm::vec3 from = vec(EDICT_NUM(1)->v.origin);
     edict_t* best = nullptr;
     dist = 1e30f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    EA_OPEN(88) for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* e = EDICT_NUM(num);
         if(!takes(a, e))
@@ -990,7 +991,7 @@ constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
             dist = d;
             best = e;
         }
-    }
+    } EA_CLOSE(88)
     return best;
 }
 

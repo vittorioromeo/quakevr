@@ -66,6 +66,7 @@
 #include "vr_geom.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::ledges
 {
@@ -1261,7 +1262,7 @@ void debugDraw()
     {
         drawMap(*world, glm::vec3{0.f}, false);
     }
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(74) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* ent = EDICT_NUM(i);
         const int index = static_cast<int>(ent->v.modelindex);
@@ -1273,7 +1274,7 @@ void debugDraw()
         {
             drawMap(*m, vec(ent->v.origin), true);
         }
-    }
+    } EA_CLOSE(74)
     // The solid props' ledges as they lie now (vr_climb_props), orange; their ticks every 8 units as above.
     if(vr_climb_props.value != 0.f)
     {
@@ -1283,14 +1284,14 @@ void debugDraw()
         props.edges.clear();
         props.samples.clear();
         nums.clear();
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+        EA_OPEN(75) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {
             box3d::ClimbBody body;
             if(const box3d::ClimbShape* shape = box3d::climbShape(i, body); shape && glm::distance(body.origin, eye) < range + 64.f)
             {
                 propLedges(i, *shape, body, eye - glm::vec3{range}, eye + glm::vec3{range}, props, nums);
             }
-        }
+        } EA_CLOSE(75)
         for(const Edge& e : props.edges)
         {
             const Sample& s = props.sampleAt(e, 0.f);

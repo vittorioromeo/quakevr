@@ -39,6 +39,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
+#include "vr/vr_ea.h"
 
 
 using namespace qvr;
@@ -623,10 +624,10 @@ void netStats_f()
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
     int used = 0;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(97) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         used += EDICT_NUM(i)->free ? 0 : 1;
-    }
+    } EA_CLOSE(97)
     const int most = qcvm->max_edicts;
     PR_PopQCVM(oldVm);
     Con_Printf("vr_net_stats: %d entities in use (of %d)\n", used, most);

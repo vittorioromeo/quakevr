@@ -60,6 +60,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <string.h>
+#include "vr/vr_ea.h"
 
 using namespace qvr;
 
@@ -622,7 +623,7 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
     const float r = za::clamp(held.measure.cross * 0.5f, 1.f, maxRadius);
     lo -= glm::vec3{r};
     hi += glm::vec3{r};
-    for(int e = 1; e < qcvm->num_edicts; e++)
+    EA_OPEN(76) for(int e = 1; e < qcvm->num_edicts; e++)
     {
         edict_t* m = EDICT_NUM(e);
         if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)
@@ -764,7 +765,7 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
             }
             return;
         }
-    }
+    } EA_CLOSE(76)
 }
 
 // vr_legsweep_table: every weapon model loaded and some props: their length, cross-section, slenderness, blade and

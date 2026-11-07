@@ -49,6 +49,7 @@
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
 #include <stdio.h>
+#include "vr/vr_ea.h"
 
 namespace qvr
 {
@@ -987,7 +988,7 @@ void handToNearest(int hand)
     glm::vec3 target{0.f};
     float best = 1e30f;
     int found = 0;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(5) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* e = EDICT_NUM(i);
         if(e->free || strcmp(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
@@ -1001,7 +1002,7 @@ void handToNearest(int hand)
             target = at;
             found = i;
         }
-    }
+    } EA_CLOSE(5)
     PR_PopQCVM(oldVm);
     if(!found)
     {

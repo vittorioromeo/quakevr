@@ -29,6 +29,7 @@
 #include "vr_cvars.hpp"
 
 #include <stdio.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::scenario
 {
@@ -510,7 +511,7 @@ bool takeIntoHand(edict_t* p, edict_t* spawner, int hand, za::Vector<int>& taken
     const int born = progs::fields().vr_drop_born;
     edict_t* w = nullptr;
     float best = 1e9f;
-    for(int n = 1; n < qcvm->num_edicts; n++)
+    EA_OPEN(95) for(int n = 1; n < qcvm->num_edicts; n++)
     {
         edict_t* e = EDICT_NUM(n);
         if(e->free || e == p || za::find(taken.begin(), taken.end(), n) != taken.end() || progs::fieldInt(e, handtouch) == 0 ||
@@ -525,7 +526,7 @@ bool takeIntoHand(edict_t* p, edict_t* spawner, int hand, za::Vector<int>& taken
             best = d;
             w = e;
         }
-    }
+    } EA_CLOSE(95)
     if(!w)
     {
         return false;
@@ -1014,12 +1015,12 @@ void frame()
             {
                 const edict_t* e = pl.num < qcvm->num_edicts ? EDICT_NUM(pl.num) : nullptr;
                 bool ok = e && !e->free && e->v.classname == pl.classname;
-                for(int n = 1; !ok && n < qcvm->num_edicts; n++)
+                EA_OPEN(96) for(int n = 1; !ok && n < qcvm->num_edicts; n++)
                 {
                     const edict_t* o = EDICT_NUM(n);
                     ok = !o->free && o != p && o->v.modelindex != 0.f &&
                          glm::distance(geom::vec(o->v.origin), pl.at) < 64.f;
-                }
+                } EA_CLOSE(96)
                 there += ok ? 1 : 0;
                 if(!ok)
                 {

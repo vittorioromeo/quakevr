@@ -34,6 +34,7 @@
 #include "vr_geom.hpp"
 
 #include <string.h>
+#include "vr/vr_ea.h"
 
 namespace qvr::crates
 {
@@ -551,7 +552,7 @@ void list_f()
     PR_PushQCVM(&sv.qcvm, &oldVm);
     int n = 0, pieces = 0, moved = 0;
     float most = 0.f;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(52) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const char* cls = e->free ? "" : PR_GetString(e->v.classname);
@@ -587,7 +588,7 @@ void list_f()
             Con_Printf("crates: %d takedamage %.0f solid %.0f owner %d\n", i, e->v.takedamage, e->v.solid,
                 NUM_FOR_EDICT(PROG_TO_EDICT(e->v.owner)));
         }
-    }
+    } EA_CLOSE(52)
     // Any two whose boxes (as drawn, turned as they lie) overlap by more than half a unit: a map's crates placed into each
     // other (the separating axis test: the 3 + 3 faces' normals and the 9 edges' crosses).
     struct Box
@@ -598,13 +599,13 @@ void list_f()
         glm::vec3 half;
     };
     za::Vector<Box> boxes;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(53) for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int model = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? -1 : modelIndexOf(PR_GetString(e->v.model));
         if(model >= 0)
         { boxes.pushBack(Box{i, vec(e->v.origin), held::axesFromAngles(e->v.angles, false), models[model].half * sizeOf(model)}); }
-    }
+    } EA_CLOSE(53)
     int overlaps = 0;
     for(size_t a = 0; a < boxes.size(); a++)
     {
@@ -1246,7 +1247,7 @@ int putPlaced(edict_t* e)
     // Or on a crate placed before it whose middle is under its origin (a map's stack: the trace above sees the level only,
     // which put the top one into the ones it stands on; vrstart's range, the author's note vrstart_2026-10-07_23-36-45).
     const int self = NUM_FOR_EDICT(e);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(54) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* c = EDICT_NUM(i);
         if(i == self || c->free || strcmp(PR_GetString(c->v.classname), "vr_crate") || c->v.origin[2] >= at.z)
@@ -1273,7 +1274,7 @@ int putPlaced(edict_t* e)
                 break;
             }
         }
-    }
+    } EA_CLOSE(54)
     const float floorZ = top > -1e9f ? top : at.z;
     e->v.frame = 0.f;
     rest(e, o.axes, glm::vec3{at.x, at.y, floorZ + o.hu + 0.02f}, models[model].half * sizeOf(model));
@@ -1297,14 +1298,14 @@ int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int 
     {
         c.time = qcvm->time;
         c.fixed.clear();
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+        EA_OPEN(55) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
             if(!e->free && progs::fieldFloat(e, field) > 0.f && static_cast<int>(e->v.solid) == SOLID_BBOX && !box3d::isBox3DProp(i))
             {
                 c.fixed.pushBack(i);
             }
-        }
+        } EA_CLOSE(55)
     }
     const glm::vec3 d = end - start;
     for(const int i : c.fixed)

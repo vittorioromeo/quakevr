@@ -29,6 +29,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr/vr_ea.h"
 
 namespace qvr::adtank
 {
@@ -1340,7 +1341,7 @@ void setupStubs(const glm::vec3& eye)
     if(sv.active && cl.worldmodel && cut >= 0)
     {
         progs::ServerVm serverVm;
-        for(int n = svs.maxclients + 1; n < qcvm->num_edicts && n < cl.num_entities; n++)
+        EA_OPEN(0) for(int n = svs.maxclients + 1; n < qcvm->num_edicts && n < cl.num_entities; n++)
         {
             edict_t* e = EDICT_NUM(n);
             if(e->free || !e->v.modelindex || progs::fieldFloat(e, cut) <= 0.f)
@@ -1367,7 +1368,7 @@ void setupStubs(const glm::vec3& eye)
                 nums[at] = n;
                 dists[at] = d;
             }
-        }
+        } EA_CLOSE(0)
     }
     const int frame = host_framecount;
     for(int k = 0; k < count; k++)
@@ -1463,7 +1464,7 @@ void relinkWorn()
         return;
     }
     progs::ServerVm serverVm;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts && wornCount < wornMax; n++)
+    EA_OPEN(1) for(int n = svs.maxclients + 1; n < qcvm->num_edicts && wornCount < wornMax; n++)
     {
         edict_t* e = EDICT_NUM(n);
         if(e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "vr_fueltank_worn") != 0)
@@ -1495,7 +1496,7 @@ void relinkWorn()
             ce.angles[2] = e->v.angles[2];
         }
         worn[wornCount++] = Worn{n, gun, wearer};
-    }
+    } EA_CLOSE(1)
 }
 
 void init()

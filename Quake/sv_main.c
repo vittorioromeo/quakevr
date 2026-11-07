@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_ea.h"
 
 server_t	sv;
 server_static_t	svs;
@@ -795,7 +796,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 
 // add all other entities that touch the pvs
 	ent = NEXT_EDICT(qcvm->edicts);
-	for (e=1 ; e<qcvm->num_edicts ; e++, ent = NEXT_EDICT(ent))
+	EA_OPEN(120) for (e=1 ; e<qcvm->num_edicts ; e++, ent = NEXT_EDICT(ent))
 	{
 		if (ent != clent)	// clent already added before the loop
 		{
@@ -860,7 +861,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		}
 		else
 			continue;
-	}
+	} EA_CLOSE(120)
 
 	if (sv_netsort.value)
 	{
@@ -1059,10 +1060,10 @@ void SV_CleanupEnts (void)
 	edict_t	*ent;
 
 	ent = NEXT_EDICT(qcvm->edicts);
-	for (e=1 ; e<qcvm->num_edicts ; e++, ent = NEXT_EDICT(ent))
+	EA_OPEN(121) for (e=1 ; e<qcvm->num_edicts ; e++, ent = NEXT_EDICT(ent))
 	{
 		ent->v.effects = (int)ent->v.effects & ~EF_MUZZLEFLASH;
-	}
+	} EA_CLOSE(121)
 }
 
 /*
@@ -1631,7 +1632,7 @@ void SV_CreateBaseline (void)
 	int			entnum;
 	int			bits; //johnfitz -- PROTOCOL_FITZQUAKE
 
-	for (entnum = 0; entnum < qcvm->num_edicts ; entnum++)
+	EA_OPEN(122) for (entnum = 0; entnum < qcvm->num_edicts ; entnum++)
 	{
 	// get the current server version
 		svent = EDICT_NUM(entnum);
@@ -1737,7 +1738,7 @@ void SV_CreateBaseline (void)
 
 		if (bits & B_SCALE)
 			MSG_WriteByte (sv.signon, svent->baseline.scale);
-	}
+	} EA_CLOSE(122)
 }
 
 

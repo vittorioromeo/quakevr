@@ -20,6 +20,7 @@
 #include "Zancle/Math/MinMax.hpp"
 
 #include <glm/gtc/quaternion.hpp>
+#include "vr/vr_ea.h"
 
 extern "C"
 {
@@ -186,14 +187,14 @@ void probe_f()
         {
             found = EDICT_NUM(number);
         }
-        for(int i = 1; number <= 0 && i < qcvm->num_edicts; i++)
+        EA_OPEN(99) for(int i = 1; number <= 0 && i < qcvm->num_edicts; i++)
         {
             edict_t* const e = EDICT_NUM(i);
             if(!e->free && !strcmp(PR_GetString(e->v.classname), Cmd_Argv(1)))
             {
                 found = e; // (the newest: the loop goes on past it)
             }
-        }
+        } EA_CLOSE(99)
         if(found)
         {
             Con_Printf(" | %s %d next %.4f at %.2f %.2f %.2f vel %.1f %.1f %.1f", Cmd_Argv(1), NUM_FOR_EDICT(found),
@@ -521,10 +522,10 @@ extern "C" double VR_PhysicsEntityBegin(edict_t* ent, int num)
         {
             playerTime.edicts = qcvm->num_edicts;
             playerTime.wasFree.resize(static_cast<za::SizeT>(qcvm->num_edicts));
-            for(int i = 0; i < qcvm->num_edicts; i++)
+            EA_OPEN(100) for(int i = 0; i < qcvm->num_edicts; i++)
             {
                 playerTime.wasFree[static_cast<za::SizeT>(i)] = EDICT_NUM(i)->free ? 1 : 0;
-            }
+            } EA_CLOSE(100)
         }
     }
     return world;
@@ -560,7 +561,7 @@ extern "C" void VR_PhysicsEntityEnd(edict_t* ent, int num, double world)
     if(playerTime.spawns)
     {
         const int owner = EDICT_TO_PROG(ent);
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+        EA_OPEN(101) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {
             edict_t* const e = EDICT_NUM(i);
             const bool fresh = i >= playerTime.edicts || playerTime.wasFree[static_cast<za::SizeT>(i)] != 0;
@@ -568,7 +569,7 @@ extern "C" void VR_PhysicsEntityEnd(edict_t* ent, int num, double world)
             {
                 e->v.nextthink = static_cast<float>(time + (static_cast<double>(e->v.nextthink) - time) * s);
             }
-        }
+        } EA_CLOSE(101)
     }
     // The player's clock: ahead by what its frame was longer than the world's (Sandevistan only: the melee's).
     if(scaleClock.sandevistan)

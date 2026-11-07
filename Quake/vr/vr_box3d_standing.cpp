@@ -6,6 +6,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_geom.hpp"
+#include "vr/vr_ea.h"
 
 namespace box3d::detail
 {
@@ -53,7 +54,7 @@ void beforeStanding()
 {
     world->stands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float mass = za::max(vr_box3d_player_mass.value, 0.f);
-    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    EA_OPEN(31) for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
         World::Stand& st = world->stands[static_cast<size_t>(i)];
@@ -106,7 +107,7 @@ void beforeStanding()
         {
             Con_Printf("box3d: player %d on %d at %.2f %.2f %.2f in it (m)\n", i, num, local.x, local.y, local.z);
         }
-    }
+    } EA_CLOSE(31)
 }
 
 } // namespace box3d::detail
@@ -273,7 +274,7 @@ void unstickProps()
     {
         return;
     }
-    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    EA_OPEN(32) for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
         if(player->free || !svs.clients[i - 1].active || player->v.health <= 0.f ||
@@ -338,7 +339,7 @@ void unstickProps()
                     away.x, away.y, away.z);
             }
         }
-    }
+    } EA_CLOSE(32)
 }
 
 namespace
@@ -413,7 +414,7 @@ void pressStanding(float dt)
 // turned so that its box now holds him, he steps up out of it.
 void rideStanding()
 {
-    for(int i = 1; i < static_cast<int>(world->stands.size()) && i < qcvm->num_edicts; i++)
+    EA_OPEN(33) for(int i = 1; i < static_cast<int>(world->stands.size()) && i < qcvm->num_edicts; i++)
     {
         World::Stand& st = world->stands[static_cast<size_t>(i)];
         const b3BodyId body = standBody(st.ground);
@@ -463,7 +464,7 @@ void rideStanding()
         {
             Con_Printf("box3d: player %d carried %.2f %.2f %.2f by %d\n", i, move.x, move.y, move.z, st.ground);
         }
-    }
+    } EA_CLOSE(33)
 }
 
 namespace
@@ -696,7 +697,7 @@ void watchInside()
         return;
     }
     insideWatch.frames++;
-    for(int num = 1; num <= svs.maxclients && num < qcvm->num_edicts; num++)
+    EA_OPEN(34) for(int num = 1; num <= svs.maxclients && num < qcvm->num_edicts; num++)
     {
         edict_t* p = EDICT_NUM(num);
         if(p->free || static_cast<int>(p->v.solid) != SOLID_SLIDEBOX || static_cast<int>(p->v.movetype) == MOVETYPE_NOCLIP)
@@ -750,7 +751,7 @@ void watchInside()
         insideWatch.in[k] = in;
         insideWatch.run[k] = in ? insideWatch.run[k] + 1 : 0;
         insideWatch.longest = za::max(insideWatch.longest, insideWatch.run[k]);
-    }
+    } EA_CLOSE(34)
 }
 } // namespace box3d::detail
 

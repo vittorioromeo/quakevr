@@ -7,6 +7,7 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include <glm/gtc/type_ptr.hpp>
+#include "vr/vr_ea.h"
 
 namespace view_detail
 {
@@ -2507,14 +2508,14 @@ SkewerPin skewerPins[2];
     }
     const progs::ServerVm vm;
     const int mine = EDICT_TO_PROG(player);
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    EA_OPEN(107) for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* const e = EDICT_NUM(i);
         if(!e->free && progs::fieldInt(e, on) == mine && progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1))
         {
             return i;
         }
-    }
+    } EA_CLOSE(107)
     return 0;
 }
 
