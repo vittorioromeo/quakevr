@@ -443,6 +443,34 @@ namespace
     }
     return world->slots[num];
 }
+void markSlotActive(int num)
+{
+    const auto word = static_cast<za::SizeT>(num) >> 6;
+    if(word >= world->slotsActive.size())
+    {
+        world->slotsActive.resize(word + 1, 0);
+    }
+    world->slotsActive[word] |= uint64_t{1} << (num & 63);
+}
+int nextActiveSlot(int from)
+{
+    const za::Vector<uint64_t>& bits = world->slotsActive;
+    auto w = static_cast<za::SizeT>(from + 1) >> 6;
+    if(w >= bits.size())
+    {
+        return 0;
+    }
+    uint64_t word = bits[w] & (~uint64_t{0} << ((from + 1) & 63));
+    while(!word)
+    {
+        if(++w >= bits.size())
+        {
+            return 0;
+        }
+        word = bits[w];
+    }
+    return static_cast<int>(w << 6) + __builtin_ctzll(word);
+}
 void destroyBody(Slot& s)
 {
     if(s.ragdoll >= 0 && s.ragdoll < static_cast<int>(world->ragdolls.size()))

@@ -534,6 +534,9 @@ struct World
     };
     za::Vector<PortalCopy> portalCopies;
     za::Vector<Slot> slots; // by edict number
+    // The slots the frame's slot loops visit (bits by edict number): set when one is given a body (markSlotActive),
+    // cleared when beforeStep finds it without one (Kind::None, no ragdoll: every slot loop skips it).
+    za::Vector<uint64_t> slotsActive;
     // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
     // their reach bodies (syncReach): the empty hand's, or the held weapon's.
     struct ReachKey
@@ -839,6 +842,9 @@ void applySimdWidth(b3WorldId id);
 [[nodiscard]] void* userOf(int num);
 [[nodiscard]] int numOf(b3ShapeId shape);
 [[nodiscard]] Slot& slotOf(int num);
+void markSlotActive(int num); // slot `num` given a body (its kind set: createBody, createRagdoll)
+// The next slot after `from` that the slot loops visit (World::slotsActive), in edict order; 0 none.
+[[nodiscard]] int nextActiveSlot(int from);
 
 void dropGrabsOf(int num); // (below: "Ragdolls")
 // Whether the ragdoll of `ent` bleeds from its limbs flung fast (ragdoll::publish's `bleeds`): a corpse's always, a live
