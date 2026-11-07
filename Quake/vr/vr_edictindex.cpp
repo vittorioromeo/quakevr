@@ -44,6 +44,8 @@ struct WatchedFloat
 {
     const char* name;
     int mask; // the bits indexed: those only QuakeC writes
+    // Indexed as one bit, "not 0" (the engine's own loops: nextNonzero), instead of its bits; findflags() on it walks.
+    bool nonzero{false};
 };
 
 // The float fields findflags() steps through by the index. .flags: not the bits the engine sets in C (sv_phys.c,
@@ -58,9 +60,11 @@ constexpr WatchedFloat watchedFloats[] = {
     {"vr_throw_self", allBits},           // ...
     {"MG_registered", allBits},           // MG_WorldFrame
     {"vr_flameprop", allBits},            // the live flames: VR_Burn_MapFrame, VR_Burn_MapBodiesFrame, the wall torches
+    {"vr_hosecut", 1, true},              // AD's cut hoses' pieces (vr_adtank.cpp setupStubs)
 };
 constexpr int maxFloats = static_cast<int>(sizeof(watchedFloats) / sizeof(watchedFloats[0]));
-static_assert(maxFloats <= 7, "a pending mask (unsigned char) has bit 0 for .classname and 2 << i for watchedFloats[i]");
+using Mask = uint16_t; // a pending mask: bit 0 for .classname, 2 << i for watchedFloats[i]
+static_assert(maxFloats <= 15, "a pending mask has bit 0 for .classname and 2 << i for watchedFloats[i]");
 constexpr int classField = static_cast<int>(offsetof(entvars_t, classname) / 4);
 constexpr unsigned char watchClassname = 1; // fieldwatch's value for .classname; 2 + i for watchedFloats[i]
 // fieldwatch's value for .origin, .mins, .maxs (each component) and .solid: not indexed here, but a store marks the
@@ -72,7 +76,7 @@ constexpr int geometryFields[] = {
     static_cast<int>(offsetof(entvars_t, mins) / 4) + 1, static_cast<int>(offsetof(entvars_t, mins) / 4) + 2,
     static_cast<int>(offsetof(entvars_t, maxs) / 4), static_cast<int>(offsetof(entvars_t, maxs) / 4) + 1,
     static_cast<int>(offsetof(entvars_t, maxs) / 4) + 2, static_cast<int>(offsetof(entvars_t, solid) / 4)};
-constexpr unsigned char allFields = 0xff;   // an edict's pending mask: every watched field
+constexpr Mask allFields = 0xffff;   // an edict's pending mask: every watched field
 
 // A classname's text looked up without making a za::String of it (a transparent hash).
 struct TextHash
@@ -99,7 +103,7 @@ struct EdictIndex
     za::Vector<uint64_t> volatileBits; // [words]: edicts in use whose classname's text is read at the query
     ankerl::unordered_dense::map<za::String, int, TextHash, TextEqual> bucketOfText;
     ankerl::unordered_dense::map<int, int> bucketOfString; // a stable string_t's bucket
-    za::Vector<unsigned char> pendingMask; // [maxEdicts]: the fields to read again (0: not pending)
+    za::Vector<Mask> pendingMask;          // [maxEdicts]: the fields to read again (0: not pending)
     za::Vector<int> pending;               // the edicts with a pending mask, in order of their first change
     auto members()
     {
@@ -113,7 +117,7 @@ mem::Cache<EdictIndex> edictIndex{"edict index", mem::MapChange};
 struct Recorded
 {
     int ofs;            // OP_ADDRESS's result: the field's byte offset from the edicts' start
-    unsigned char mask; // the watched field's bit in a pending mask
+    Mask mask;          // the watched field's bit in a pending mask
 };
 struct Watch
 {
@@ -123,6 +127,7 @@ struct Watch
     int numFloats{0};                     // watchedFloats the progs have (as floats)
     int floatField[maxFloats]{};          // [numFloats] the field's offset
     int floatMask[maxFloats]{};           // [numFloats] its bits indexed
+    bool floatNonzero[maxFloats]{};       // [numFloats] indexed as "not 0" (bit 0; WatchedFloat::nonzero)
     int64_t queries{0}, rebuilds{0}, touches{0};
 };
 Watch watch;
@@ -241,7 +246,8 @@ void readClassname(EdictIndex& ix, int e, const edict_t* ed)
 
 void readFloat(EdictIndex& ix, int i, int e, const edict_t* ed)
 {
-    const int now = ed->free ? 0 : (static_cast<int>(fieldFloat(ed, watch.floatField[i])) & watch.floatMask[i]);
+    const float value = ed->free ? 0.f : fieldFloat(ed, watch.floatField[i]);
+    const int now = watch.floatNonzero[i] ? (value != 0.f ? 1 : 0) : (static_cast<int>(value) & watch.floatMask[i]);
     int& listed = ix.floatValue[static_cast<za::SizeT>(i) * ix.maxEdicts + e];
     int changed = listed ^ now;
     while(changed)
@@ -253,7 +259,7 @@ void readFloat(EdictIndex& ix, int i, int e, const edict_t* ed)
     listed = now;
 }
 
-void readEdict(EdictIndex& ix, int e, unsigned char mask)
+void readEdict(EdictIndex& ix, int e, Mask mask)
 {
     const edict_t* ed = edictAt(e);
     if(mask & watchClassname)
@@ -322,7 +328,7 @@ void flushPending(EdictIndex& ix)
     return &ix;
 }
 
-void markPending(int e, unsigned char mask)
+void markPending(int e, Mask mask)
 {
     EdictIndex& ix = edictIndex;
     if(!ix.valid || e <= 0 || e >= ix.maxEdicts)
@@ -344,7 +350,7 @@ void markPending(int e, unsigned char mask)
 
 // A recorded store done (or its call over): the index reads the edict again, or (mask 0, watchGeometry) findradius
 // tests it by itself until it is linked again.
-void markStored(int e, unsigned char mask)
+void markStored(int e, Mask mask)
 {
     if(mask == 0)
     {
@@ -391,6 +397,7 @@ void VR_EdictIndex_ProgsLoaded()
         watch.fieldwatch[ofs] = static_cast<unsigned char>(2 + n);
         watch.floatField[n] = ofs;
         watch.floatMask[n] = w.mask;
+        watch.floatNonzero[n] = w.nonzero;
         n++;
     }
     watch.numFloats = n;
@@ -444,8 +451,7 @@ extern "C" void VR_EdictIndex_StringSlot(int slot, int stable)
 
 extern "C" void VR_EdictIndex_Address(int ofs, int watched)
 {
-    const unsigned char mask = watched == watchGeometry ? 0
-                               : static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2));
+    const Mask mask = watched == watchGeometry ? 0 : static_cast<Mask>(watched == watchClassname ? watchClassname : 2u << (watched - 2));
     watch.recorded.pushBack(Recorded{ofs, mask});
     sv.qcvm.watchpending = static_cast<int>(watch.recorded.size());
 }
@@ -523,9 +529,9 @@ extern "C" int VR_EdictIndex_FindFlags(int start, int field, int flags)
         return -1;
     }
     const int i = watch.fieldwatch[field] - 2;
-    if(i >= watch.numFloats || (flags & ~watch.floatMask[i]))
+    if(i >= watch.numFloats || watch.floatNonzero[i] || (flags & ~watch.floatMask[i]))
     {
-        return -1; // (an engine-written bit: walked)
+        return -1; // (an engine-written bit, or a field indexed as "not 0": walked)
     }
     const int end = sv.qcvm.num_edicts;
     int best = end;
@@ -551,11 +557,65 @@ void stats_f()
     watch.queries = watch.rebuilds = watch.touches = 0;
 }
 
+// watchedFloats' entry the progs have for `field` (its offset), -1 none.
+[[nodiscard]] int watchedFloatOf(int field)
+{
+    if(field < 0 || field >= static_cast<int>(watch.fieldwatch.size()) || watch.fieldwatch[field] < 2 ||
+        watch.fieldwatch[field] == watchGeometry)
+    {
+        return -1;
+    }
+    const int i = watch.fieldwatch[field] - 2;
+    return i < watch.numFloats ? i : -1;
+}
+
 } // namespace
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_edictindex_stats", stats_f);
+}
+
+int nextNonzero(int from, int field)
+{
+    const int i = watchedFloatOf(field);
+    if(i >= 0 && watch.floatNonzero[i])
+    {
+        if(EdictIndex* ix = ready())
+        {
+            const int end = sv.qcvm.num_edicts;
+            const int found = nextBit(ix->floatBits.data() + static_cast<za::SizeT>(i) * numBits * ix->words, from + 1, end);
+            return found < end ? found : 0;
+        }
+    }
+    for(int e = from + 1; e < qcvm->num_edicts; e++)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        if(!ed->free && fieldFloat(ed, field) != 0.f)
+        {
+            return e;
+        }
+    }
+    return 0;
+}
+
+int nextClassname(int from, const char* name)
+{
+    const int found = VR_EdictIndex_Find(from, classField, name);
+    if(found >= 0)
+    {
+        return found;
+    }
+    for(int e = from + 1; e < qcvm->num_edicts; e++)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        const char* t = ed->free ? nullptr : PR_GetString(fieldInt(ed, classField));
+        if(t && !strcmp(t, name))
+        {
+            return e;
+        }
+    }
+    return 0;
 }
 
 void fieldStored(edict_t* ed, int field)
@@ -577,7 +637,7 @@ void fieldStored(edict_t* ed, int field)
     }
     // (the mask VR_EdictIndex_Address records for that field's STOREP)
     markStored(static_cast<int>((p - base) / sv.qcvm.edict_size),
-        watched == watchGeometry ? 0 : static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2)));
+        watched == watchGeometry ? 0 : static_cast<Mask>(watched == watchClassname ? watchClassname : 2u << (watched - 2)));
 }
 
 } // namespace qvr::edictindex

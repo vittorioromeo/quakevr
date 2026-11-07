@@ -15,4 +15,14 @@ void registerCommands(); // vr_edictindex_stats
 // vr_propthink.cpp): followed as that STOREP's would be. Nothing for a field the index doesn't watch.
 void fieldStored(struct edict_s* ed, int field);
 
+// The engine's own loops over the edicts with something set, stepped by the index instead of walking every edict: each
+// returns the edict a walk from `from + 1` over the current VM's edicts in use would reach first (0: none). The index
+// answers for the server's VM (current), else the walk. A loop calls it again from the edict it got, so it sees what its
+// body changed as the walk would.
+// - nextNonzero: the float `field` (its offset: progs::fields()) not 0; the index's "not 0" fields only (vr_hosecut),
+//   any other walks.
+// - nextClassname: the classname `name` (find()'s).
+[[nodiscard]] int nextNonzero(int from, int field);
+[[nodiscard]] int nextClassname(int from, const char* name);
+
 } // namespace qvr::edictindex

@@ -57,6 +57,7 @@
 #include "vr_box3d_internal.hpp"
 
 #include "vr_admelee.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_geom.hpp"
 #include "vr_trace.hpp"
 
@@ -756,7 +757,14 @@ void syncPropRopes()
         return;
     }
     const int frame = ++world->fuelFrame;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
+    // (the tanks and the flails' heads only, in edict order: the edict index's classnames)
+    const auto nextEnd = [](int from)
+    {
+        const int a = qvr::edictindex::nextClassname(from, "vr_fueltank");
+        const int b = qvr::edictindex::nextClassname(from, "vr_flailhead");
+        return a > 0 && b > 0 ? za::min(a, b) : za::max(a, b);
+    };
+    for(int n = nextEnd(svs.maxclients); n > 0; n = nextEnd(n))
     {
         edict_t* t = EDICT_NUM(n);
         if(t->free || fieldInt(t, link) == 0)

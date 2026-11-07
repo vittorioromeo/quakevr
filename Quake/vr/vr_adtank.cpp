@@ -12,6 +12,7 @@
 #include "vr_bodyclone.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_flail.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
@@ -1340,7 +1341,9 @@ void setupStubs(const glm::vec3& eye)
     if(sv.active && cl.worldmodel && cut >= 0)
     {
         progs::ServerVm serverVm;
-        for(int n = svs.maxclients + 1; n < qcvm->num_edicts && n < cl.num_entities; n++)
+        // (the cut pieces only: the edict index's .vr_hosecut, the edicts it is not 0 on)
+        for(int n = edictindex::nextNonzero(svs.maxclients, cut); n > 0 && n < cl.num_entities;
+            n = edictindex::nextNonzero(n, cut))
         {
             edict_t* e = EDICT_NUM(n);
             if(e->free || !e->v.modelindex || progs::fieldFloat(e, cut) <= 0.f)
@@ -1463,7 +1466,9 @@ void relinkWorn()
         return;
     }
     progs::ServerVm serverVm;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts && wornCount < wornMax; n++)
+    // (the worn tanks only: the edict index's classnames)
+    for(int n = edictindex::nextClassname(svs.maxclients, "vr_fueltank_worn"); n > 0 && wornCount < wornMax;
+        n = edictindex::nextClassname(n, "vr_fueltank_worn"))
     {
         edict_t* e = EDICT_NUM(n);
         if(e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "vr_fueltank_worn") != 0)
