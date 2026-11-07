@@ -14,6 +14,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_testkit.hpp"
@@ -48,6 +49,12 @@ constexpr float bridgeInsideDeep = 1.25f; // the folds on the inside of a full b
 constexpr float bridgeEnvelope = 0.35f;   // armour.txt's taper and stand-off at full this far in from each end (of the length)
 constexpr float bridgeArcMost = 2.9f;     // radians: the turn the curve's tangents are sized for at most
 constexpr float bridgeCrease = 0.5f;      // the skin this far round to the inside of a bend (cosine) is the crease's
+constexpr float bridgeCreaseFade = 0.3f;  // ... its push faded out over this much further in (cosine, and the bend in radians)
+constexpr float bridgeRoundFrom = 0.1f;   // the joint's reach along each row (of the chord): round tangents eased in from here...
+constexpr float bridgeRoundFade = 0.05f;  // ... over this (the old switch at 0.15)
+constexpr float bridgeBackFrom = -0.5f;   // the curve's tangent against its rings' frames (cosine): the tangents a half chord's here...
+constexpr float bridgeBackTo = 0.f;       // ... their own from here
+constexpr float bridgePushShare = 0.25f;  // a sample's corners' weights' squares summed: at least this (a cell's middle's)
 
 constexpr int ringVerts = bridgeCols + 1; // (a ring's corners and its seam's copy)
 
@@ -83,6 +90,7 @@ using geom::smooth01;
 [[nodiscard]] float polygonReach(const glm::vec2* corner, const glm::vec2& dir, int& edge, float& along)
 {
     const auto cross2 = [](const glm::vec2& a, const glm::vec2& b) { return a.x * b.y - a.y * b.x; };
+    float best = 0.f;
     for(int k = 0; k < bridgeCols; k++)
     {
         const glm::vec2 a = corner[k], e = corner[(k + 1) % bridgeCols] - a;
@@ -92,14 +100,14 @@ using geom::smooth01;
             continue;
         }
         const float r = cross2(a, e) / den, s = cross2(a, dir) / den;
-        if(r > 0.f && s >= -1e-4f && s <= 1.0001f)
+        if(r > best && s >= -1e-4f && s <= 1.0001f)
         {
             edge = k;
             along = za::clamp(s, 0.f, 1.f);
-            return r;
+            best = r;
         }
     }
-    return 0.f;
+    return best;
 }
 
 // A joint's posed rings (its curve's), before their corners.
@@ -224,8 +232,13 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     glm::vec3 joint;
     (void)posedOf(pivot, bones, have, joint);
     const float a0 = glm::dot(joint - mid[0], axis[0]), a1 = glm::dot(mid[1] - joint, axis[1]);
-    const bool round = a0 > 0.15f * chord && a1 > 0.15f * chord;
-    const glm::vec3 t0 = axis[0] * (round ? 3.f * a0 : arc), t1 = axis[1] * (round ? 3.f * a1 : arc);
+    // (each end's tangent round from 0.15 of the chord on, the arc's below 0.1, the one eased into the other between: the
+    // joint's reach at either end crossing the line as it moved switched both tangents' lengths at once, the round one four
+    // chords long on the knight's sword arm, a jump of the whole middle)
+    const float round0 = smooth01((a0 / za::max(chord, 1e-6f) - bridgeRoundFrom) / bridgeRoundFade);
+    const float round1 = smooth01((a1 / za::max(chord, 1e-6f) - bridgeRoundFrom) / bridgeRoundFade);
+    const float roundOf = za::min(round0, round1);
+    float m0 = arc + (3.f * a0 - arc) * round0, m1 = arc + (3.f * a1 - arc) * round1;
     const float bend = za::clamp(theta / bridgeBendFull, 0.f, 1.f);
     const glm::vec3 turnDir = axis[1] - axis[0];
 
@@ -233,13 +246,37 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     rg.n = br.rings;
     const int last = rg.n - 1;
     float tOf[bridgeMostRings]{}, foldOf[bridgeMostRings]{}, scaleOf[bridgeMostRings]{}, offOf[bridgeMostRings]{};
+    glm::quat frameOf[bridgeMostRings];
     for(int i = 0; i < rg.n; i++)
     {
-        const float t = static_cast<float>(i) / static_cast<float>(last), t2 = t * t, t3 = t2 * t;
-        tOf[i] = t;
+        tOf[i] = static_cast<float>(i) / static_cast<float>(last);
+        frameOf[i] = glm::slerp(frameTurn[0], frameTurn[1], tOf[i]);
+    }
+    const auto speedOf = [&](float t, float k0, float k1) {
+        const float t2 = t * t;
+        return (6.f * t2 - 6.f * t) * mid[0] + (3.f * t2 - 4.f * t + 1.f) * k0 * axis[0] + (-6.f * t2 + 6.f * t) * mid[1] + (3.f * t2 - 2.f * t) * k1 * axis[1];
+    };
+    // A curve whose tangent turns back against its rings' frames (a ring's frame turned onto it by the shortest turn: none
+    // is defined for a tangent pointing back, and the rings spun from step to step): its tangents shortened, eased by how far
+    // back it turns, towards a half chord's, which hug the chord. The knight's right elbow: its sword arm's forearm row sits
+    // before the corner of the two rows' lines, and the joint, off the upper row's line, sized the round tangents at four
+    // times the chord: the curve looped round (281 degrees of turn for a 79 degree bend), its tangent at -0.998 to the frame.
+    float back = 1.f;
+    for(int i = 1; i < last; i++)
+    {
+        const glm::vec3 zq = frameOf[i] * glm::vec3{0.f, 0.f, 1.f};
+        back = za::min(back, glm::dot(zq, geom::safeNormalize(speedOf(tOf[i], m0, m1), zq, 1e-8f)));
+    }
+    const float keep = smooth01((back - bridgeBackFrom) / (bridgeBackTo - bridgeBackFrom)), hug = 0.5f * chord;
+    m0 = hug + (m0 - hug) * keep;
+    m1 = hug + (m1 - hug) * keep;
+    const glm::vec3 t0 = axis[0] * m0, t1 = axis[1] * m1;
+    for(int i = 0; i < rg.n; i++)
+    {
+        const float t = tOf[i], t2 = t * t, t3 = t2 * t;
         rg.centre[i] = (2.f * t3 - 3.f * t2 + 1.f) * mid[0] + (t3 - 2.f * t2 + t) * t0 + (-2.f * t3 + 3.f * t2) * mid[1] + (t3 - t2) * t1;
-        const glm::vec3 d = (6.f * t2 - 6.f * t) * mid[0] + (3.f * t2 - 4.f * t + 1.f) * t0 + (-6.f * t2 + 6.f * t) * mid[1] + (3.f * t2 - 2.f * t) * t1;
-        const glm::quat q = glm::slerp(frameTurn[0], frameTurn[1], t);
+        const glm::vec3 d = speedOf(t, m0, m1);
+        const glm::quat q = frameOf[i];
         const glm::vec3 zq = q * glm::vec3{0.f, 0.f, 1.f};
         const glm::vec3 zt = geom::safeNormalize(d, zq, 1e-8f);
         rg.turn[i] = i == 0 ? frameTurn[0] : i == last ? frameTurn[1] : glm::normalize(turnBetween(zq, zt) * q);
@@ -277,7 +314,7 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     };
     lay();
 
-    // The skin between kept under it: each of its vertices posed, found between two rings (their planes), its reach out from
+    // The skin between kept under it: each of its vertices posed, at its rest place between two rings, its reach out from
     // the curve there against the leather's polygon in that direction; short, the corners round it pushed out (not the end
     // rings: the rows'). Twice, the second over the first's pushes. Not on the inside of a bend: the limbs overlap there.
     const auto measure = [&](bool pushing, BridgeDiag* d)
@@ -289,21 +326,12 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
             {
                 continue;
             }
-            int seg = -1;
-            float f = 0.f;
-            for(int i = 0; i + 1 < rg.n && seg < 0; i++)
-            {
-                const float a = glm::dot(u - rg.centre[i], rg.along[i]), b = glm::dot(u - rg.centre[i + 1], rg.along[i + 1]);
-                if(a >= 0.f && b < 0.f)
-                {
-                    seg = i;
-                    f = a / (a - b);
-                }
-            }
-            if(seg < 0)
-            {
-                continue;
-            }
+            // (measured in the leather's cross-section at its own place along it, from where it lies at rest: found between
+            // the posed rings' planes, it went from one stretch to another far along as a bend's crossed planes swept by, or
+            // came into one from none, and its push jumped with it, the corners flung out and back)
+            const float where = za::clamp(br.underAlong[k], 0.f, 1.f) * static_cast<float>(last);
+            const int seg = za::min(static_cast<int>(where), last - 1);
+            const float f = where - static_cast<float>(seg);
             const glm::vec3 c = rg.centre[seg] + (rg.centre[seg + 1] - rg.centre[seg]) * f;
             const glm::quat q = glm::slerp(rg.turn[seg], rg.turn[seg + 1], f);
             const glm::vec3 l = glm::inverse(q) * (u - c);
@@ -343,8 +371,12 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
                     d->worst = crease ? d->worst : za::max(d->worst, ru - reach);
                 }
             }
-            const float need = ru + bridgeSkinGap - reach;
-            if(!pushing || crease || need <= 0.f)
+            // (the crease's skin not pushed: faded in past the crease's edge, in the bend and round the ring, so a sample
+            // crossing it as the joint moves changes the push smoothly; a hard edge snapped the leather by the push)
+            const float cosIn = glm::dot(q * glm::vec3{xy.x / ru, xy.y / ru, 0.f}, inside);
+            const float creaseOf = smooth01((bend - 0.3f) / bridgeCreaseFade) * smooth01((cosIn - bridgeCrease) / bridgeCreaseFade);
+            const float need = (ru + bridgeSkinGap - reach) * (1.f - creaseOf);
+            if(!pushing || need <= 0.f)
             {
                 continue;
             }
@@ -357,12 +389,12 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
                 w[i] = ringOf[i] == 0 || ringOf[i] == last ? 0.f : w[i];
                 sum2 += w[i] * w[i];
             }
-            if(sum2 < 1e-4f)
-            {
-                continue;
-            }
-            // (on top of the pushes the polygon was measured with: each sample's own, the corners keeping the most asked)
-            const float kk = za::min(need, bridgePushMost) / sum2;
+            // (on top of the pushes the polygon was measured with: each sample's own, the corners keeping the most asked;
+            // the least push of the corners that moves the leather there by `need`, its share no less than a cell's middle:
+            // near an end ring, whose corners stay on the plates' row, the free corners' weights go to nothing, and
+            // `need / sum2` grew without bound there: a sample sliding towards the row flung its corners out to the cap and
+            // back, up to 5 units in a frame on every model, vr_agarmor_bridge_check's continuity)
+            const float kk = za::min(need, bridgePushMost) / za::max(sum2, bridgePushShare);
             for(int i = 0; i < 4; i++)
             {
                 float& p = push[ringOf[i]][colOf[i]];
@@ -392,6 +424,20 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     {
         *diag = BridgeDiag{};
         measure(false, diag);
+        diag->theta = theta;
+        diag->a0 = a0;
+        diag->a1 = a1;
+        diag->chord = chord;
+        diag->roundOf = roundOf;
+        diag->keep = keep;
+        diag->back = back;
+        for(int i = 0; i < rg.n; i++)
+        {
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                diag->pushMost = za::max(diag->pushMost, push[i][c]);
+            }
+        }
     }
 
     // The places, a ring at a time (its seam's copy last), and their normals across the grid.
@@ -674,6 +720,119 @@ void bridgeStats_f()
     st = Stats{};
 }
 
+namespace
+{
+void bonesOfPose(const rigpose::Rigid* F, int numBones, float* bones)
+{
+    for(int b = 0; b < numBones; b++)
+    {
+        const glm::mat3 r = glm::mat3_cast(F[b].rot);
+        for(int row = 0; row < 3; row++)
+        {
+            bones[b * 12 + row * 4 + 0] = r[0][row];
+            bones[b * 12 + row * 4 + 1] = r[1][row];
+            bones[b * 12 + row * 4 + 2] = r[2][row];
+            bones[b * 12 + row * 4 + 3] = F[b].pos[row];
+        }
+    }
+}
+
+// The leather through the model's animation frames as the game draws them (each frame's bones lerped to the next's in
+// small steps): no vertex of it may jump much further in a step than its two rows do (the leather is a function of the
+// bones: smooth bones, smooth leather; a jump is a choice in it flipping, the knight's right elbow's spazzing).
+constexpr int continuitySteps = 8;       // steps between one frame and the next
+constexpr float continuityShare = 3.f;   // a vertex may move this many times its rows' furthest in a step...
+constexpr float continuitySlack = 0.5f;  // ... and this much more (units)
+
+template <typename Check>
+void continuityCheck(qmodel_t* src, const Shell& s, const rig2::Rig& rig, const Check& check)
+{
+    const ragdoll::Rig* rr = ragdoll::rigFor(src);
+    if(!rr || !rr->authored || rr->numBones != rig.numBones || rr->numPoses < 2)
+    {
+        return;
+    }
+    constexpr int most = bridgeMostRings * ringVerts;
+    glm::vec3 P[most], N[most], was[NumJoints][most];
+    BridgeDiag dWas[NumJoints], worstBefore[NumJoints], worstAfter[NumJoints];
+    float worstExcess[NumJoints], worstJump[NumJoints]{}, worstRef[NumJoints]{};
+    int worstPose[NumJoints]{}, worstStep[NumJoints]{}, worstVert[NumJoints]{}, steps = 0;
+    for(float& w : worstExcess)
+    {
+        w = -1e9f;
+    }
+    rigpose::Rigid F[rig2::maxBones];
+    float bones[rig2::maxBones * 12]{};
+    for(int p = 0; p + 1 < rr->numPoses; p++)
+    {
+        for(int k = 0; k <= continuitySteps; k++)
+        {
+            rig2::posedBetween(*rr, p, p + 1, static_cast<float>(k) / static_cast<float>(continuitySteps), F);
+            bonesOfPose(F, rig.numBones, bones);
+            steps += k > 0 ? 1 : 0;
+            for(int j = 0; j < NumJoints; j++)
+            {
+                const Bridge& br = s.bridges[j];
+                BridgeDiag d;
+                if(!br.ok || !evalBridge(s, j, bones, rig.numBones, true, true, P, N, &d))
+                {
+                    continue;
+                }
+                const int n = br.rings * ringVerts, lastRing = (br.rings - 1) * ringVerts;
+                if(k > 0)
+                {
+                    // (the furthest any vertex moved against the furthest the end rings did: the rows, carried by the bones)
+                    float ref = 0.f, jump = 0.f;
+                    int at = 0;
+                    for(int v = 0; v < n; v++)
+                    {
+                        const float m = glm::distance(P[v], was[j][v]);
+                        ref = v < ringVerts || v >= lastRing ? za::max(ref, m) : ref;
+                        at = m > jump ? v : at;
+                        jump = za::max(jump, m);
+                    }
+                    const float excess = jump - continuityShare * ref;
+                    if(excess > worstExcess[j])
+                    {
+                        worstExcess[j] = excess;
+                        worstJump[j] = jump;
+                        worstRef[j] = ref;
+                        worstPose[j] = p;
+                        worstStep[j] = k;
+                        worstVert[j] = at;
+                        worstBefore[j] = dWas[j];
+                        worstAfter[j] = d;
+                    }
+                }
+                memcpy(was[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
+                dWas[j] = d;
+            }
+        }
+    }
+    char what[320];
+    for(int j = 0; j < NumJoints; j++)
+    {
+        const Bridge& br = s.bridges[j];
+        if(!br.ok)
+        {
+            continue;
+        }
+        const BridgeDiag& a = worstBefore[j];
+        const BridgeDiag& b = worstAfter[j];
+        Con_DPrintf("agarmor bridge check:   %s %s worst step: frame %d step %d, ring %d; bend %.1f->%.1f deg, joint along the rows %.2f, %.2f "
+                    "-> %.2f, %.2f (chord %.2f), curve against its frames %.3f -> %.3f (tangents kept %.2f -> %.2f), most pushed %.2f -> %.2f\n",
+            src->name, pieceNames[br.lower], worstPose[j], worstStep[j], worstVert[j] / ringVerts, static_cast<double>(a.theta * 180.f / pi),
+            static_cast<double>(b.theta * 180.f / pi), static_cast<double>(a.a0), static_cast<double>(a.a1), static_cast<double>(b.a0),
+            static_cast<double>(b.a1), static_cast<double>(b.chord), static_cast<double>(a.back), static_cast<double>(b.back),
+            static_cast<double>(a.keep), static_cast<double>(b.keep), static_cast<double>(a.pushMost), static_cast<double>(b.pushMost));
+        q_snprintf(what, sizeof(what), "%s %s: through %d frames (%d steps) no vertex jumps: worst %.2f moved against its rows' %.2f (at most %.0fx + %.1f), frame %d",
+            src->name, pieceNames[br.lower], rr->numPoses, steps, static_cast<double>(worstJump[j]), static_cast<double>(worstRef[j]),
+            static_cast<double>(continuityShare), static_cast<double>(continuitySlack), worstPose[j]);
+        check(worstExcess[j] <= continuitySlack, what);
+    }
+}
+} // namespace
+
 void bridgeCheck_f()
 {
     const char* only = Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr;
@@ -824,6 +983,7 @@ void bridgeCheck_f()
                 static_cast<double>(worstDeg), inner, atRows, br.numUnder);
             check(tested > 0 && outside == 0, what);
         }
+        continuityCheck(src, *s, *rig, check);
     }
     // armour.txt's settings on the leather: the grunt's left knee's sleeve parts (the table's entries put back after).
     qmodel_t* grunt = !only || !strcmp(only, checked[0]) ? Mod_ForName(checked[0], false) : nullptr;
