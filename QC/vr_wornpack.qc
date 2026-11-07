@@ -287,11 +287,12 @@ void(entity pk, entity g) VR_WP_Pulls =
     entity pl = nextent(world);
     float pnum = 1;
     float held = FALSE;
-    while(pl && pnum <= 16)
+    // (ends once no player is left after it: those edicts do nothing here; find() steps through the classname index)
+    while(pl && pnum <= 16 && (pl.classname == "player" || find(pl, classname, "player")))
     {
         if(pl.classname == "player")
         {
-            float pm = VR_WP_HandPull(g, pl, pnum, cVR_MainHand);
+            float pm =VR_WP_HandPull(g, pl, pnum, cVR_MainHand);
             float po = VR_WP_HandPull(g, pl, pnum, cVR_OffHand);
             if(pm >= 0 || po >= 0)
             {
@@ -324,11 +325,12 @@ void(entity pk, entity g) VR_WP_Tug =
     entity pl = nextent(world);
     float pnum = 1;
     float held = FALSE;
-    while(pl && pnum <= 16)
+    // (ends once no player is left after it: those edicts do nothing here; find() steps through the classname index)
+    while(pl && pnum <= 16 && (pl.classname == "player" || find(pl, classname, "player")))
     {
         if(pl.classname == "player")
         {
-            float sm = ragdollbone(g, [5, pnum, cVR_MainHand], QVR_WORNPACK);
+            float sm =ragdollbone(g, [5, pnum, cVR_MainHand], QVR_WORNPACK);
             float so = ragdollbone(g, [5, pnum, cVR_OffHand], QVR_WORNPACK);
             if(sm >= 0 || so >= 0)
             {
