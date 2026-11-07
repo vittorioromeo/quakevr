@@ -569,6 +569,18 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         const glm::vec3 front = bodyPitchTurn(b, bodyPitch.legs) * b.fwd; // (the body's front, tilted: vr_avatar_pitch.cpp)
         kneeDir = safeNormalize(glm::mix(kneeDir, front, swim), b.fwd);
     }
+    // Lying down (vr_prone; BodyPitch::lying): the legs straight back along the laid trunk, the feet down on the floor
+    // (a little apart), the knees towards the floor; no steps.
+    const float lying = bodyPitch.lying * (1.f - swim);
+    if(lying > 1e-3f)
+    {
+        const glm::mat3 pitch = bodyPitchTurn(b);
+        const glm::vec3 back = safeNormalize(pitch * -UP, -b.fwd);
+        glm::vec3 lie = t.pos + back * ((a + l) * 0.96f) + outward * (0.04f * (a + l));
+        lie.z = za::max(footZ, za::min(lie.z, t.pos.z));
+        target = glm::mix(target, lie, lying);
+        kneeDir = safeNormalize(glm::mix(kneeDir, safeNormalize(pitch * b.fwd, -UP), lying), b.fwd);
+    }
     // Climbing: to its foothold or hanging (updateClimbing), the knee towards the face and a little out (hanging, a
     // little forward).
     const float climbW = climbing.weight;
@@ -583,7 +595,8 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take, and (vr_bodytrack_legs_walk)
     // what the walk, the run and the air take: moving, the gait drives the legs; standing still, the tracked legs show.
     const float gaitOver = vr_bodytrack_legs_walk.value != 0.f ? za::max(gait.amount, gait.air) : 0.f;
-    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - gaitOver), target, kneeDir);
+    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - lying) * (1.f - gaitOver), target,
+        kneeDir);
 
     glm::vec3 bend;
     const glm::vec3 knee = twoBone(t.pos, target, a, l, kneeDir + outward * 0.1f, kneeDir, bend);
@@ -602,6 +615,12 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     {
         const glm::mat3 pointed = basis(shinDir + bend * 0.35f, bend);
         f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), swim));
+    }
+    if(lying > 1e-3f)
+    {
+        // Lying down: the toes along the shin, the top of the foot to the floor's side away from the knee's bend.
+        const glm::mat3 pointed = basis(shinDir + bend * 0.35f, bend);
+        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), lying));
     }
     if(climbW > 1e-3f)
     {

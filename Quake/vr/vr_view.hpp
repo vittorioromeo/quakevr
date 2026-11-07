@@ -425,7 +425,8 @@ void platesInfo_f();
 void platesModelCheck_f();
 // The tests (ragdollbone's QVR_ARMOR_CLIENT, `what`): 10 the settled pieces drawn, 11 those coming in, 12 those going out, 13
 // the newest morph coming in's progress (per mille; 0 none), 14 morphs begun so far, 15 the pieces drawn from the eyes last
-// frame (a view without the head), 16 those drawn with the head, 17 the plates' slots (0: no shell), 18 the settled ones' colour.
+// frame (a view without the head), 16 those drawn with the head (a view away from the eyes: a gate's, a spectator's), 17 the
+// plates' slots (0: no shell), 18 the settled ones' colour, 19 those drawn in the body's mirror image last frame (vr_bodyclone).
 [[nodiscard]] int platesState(int what);
 
 void dumpView_f();

@@ -25,6 +25,7 @@ A_FV = "qvr_fv"      # CORNER int: the file's vertex this corner is
 A_S, A_T = "qvr_s", "qvr_t"  # CORNER float: the file's texture coordinates, exactly (not a float2: that's a UV map)
 SKINS = 16
 BUILDS = (("vrbody_lean", "Lean"), ("vrbody", "Athletic"), ("vrbody_brawny", "Brawny"), ("vrbody_fem", "Feminine"))
+BUILD_PROP = "qvr_build_%s_%s"  # on the body object: a build's (shape key's) .md5mesh / .md5anim text, packed
 
 
 class BodyError(Exception):
@@ -39,7 +40,12 @@ def skin_path(folder, n):
 # Import
 
 
-def import_body(context, path, skin=0):
+def import_body(context, path, skin=0, builds=False, report=None):
+    """The body from `path`. With `builds`, the other builds of the same mesh beside it (vrbody_lean, vrbody_brawny,
+    vrbody_fem: same vertices, triangles, texture coordinates and weights; only the places differ) come in as shape
+    keys of it, named after their files: the body's source .blend holds every build (MODELS_IN_BLENDER.md, "The
+    builds")."""
+    report = report or (lambda level, msg: print(msg))
     with open(path) as f:
         text = f.read()
     mesh = B.Mesh(text, os.path.basename(path))
@@ -138,6 +144,8 @@ def import_body(context, path, skin=0):
     ob["qvr_md5mesh"] = pack(text.encode())
     ob["qvr_md5anim"] = pack(anim_text.encode())
     arm["qvr_body"] = ob.name
+    if builds:
+        add_build_keys(ob, mesh, vmap, os.path.dirname(path), name, report)
 
     folder = os.path.dirname(path)
     if os.path.exists(skin_path(folder, skin)):
@@ -340,41 +348,68 @@ def export_body(context, ob, path, report, write_skin=True, carry=True, quantize
     if len(tris) > 65535 or len(keys) > 65535:
         raise BodyError("too many triangles or vertices for the engine (65535 at most)")
 
-    out_verts, unchanged, rest_out, reweighted = [], 0, [], []
-    for i in order:
-        key, bv, st = keys[i]
-        place = places[bv]
-        w = infl[bv]
-        fv = key[1] if key[0] == "f" else None
-        same = (fv is not None and place == rests[fv] and len(w) == len(src_w[fv]) and
-                all(j == j0 and abs(b - b0) < 1e-6 for (j, b), (j0, b0) in zip(w, src_w[fv])))
-        if same:
-            ws = [(j, b, o, t) for j, b, o, t in src.vertex_weights(fv)]
-            out_verts.append((st, src.verts[fv][1], ws))
-            unchanged += 1
-        else:
-            ws = [(j, b, src.offset_for(j, place), None) for j, b in w]
-            st_text = src.verts[fv][1] if fv is not None else None
-            out_verts.append((st, st_text, ws))
-        rest_out.append(place)
-        reweighted.append(fv is None or len(w) != len(src_w[fv]) or
-                          any(j != j0 or abs(b - b0) >= 1e-6 for (j, b), (j0, b0) in zip(w, src_w[fv])))
-    untouched = unchanged == len(src.verts) == len(out_verts) and [tuple(t) for t in tris] == [tuple(t) for t in src.tris]
-    cmd = src.commandline if untouched else "Blender %s, quakevr_models" % bpy.app.version_string
-    anim = os.path.splitext(path)[0] + ".md5anim"
-    B.write_md5mesh(path, src, out_verts, tris, cmd)
-    bounds = None
-    if not untouched:
-        bounds = ([min(p[k] for p in rest_out) for k in range(3)], [max(p[k] for p in rest_out) for k in range(3)])
-    B.write_md5anim(anim, anim_text, bounds, cmd)
-    report({'INFO'}, "wrote %s and %s: %d vertices (%d as they were), %d triangles" % (
-        path, os.path.basename(anim), len(out_verts), unchanged, len(tris)))
+    def write_build(bpath, bsrc, banim_text, bplaces):
+        """Writes one build (its .md5mesh and .md5anim): the vertices at `bplaces`, each unedited one with the file
+        `bsrc`'s own numbers. (out_verts, rest_out, reweighted, the texts written)."""
+        brests = [bsrc.rest(v) for v in range(len(bsrc.verts))]
+        bsrc_w = [[(j, b) for j, b, _, _ in bsrc.vertex_weights(v)] for v in range(len(bsrc.verts))]
+        out_verts, unchanged, rest_out, reweighted = [], 0, [], []
+        for i in order:
+            key, bv, st = keys[i]
+            place = bplaces[bv]
+            w = infl[bv]
+            fv = key[1] if key[0] == "f" else None
+            same = (fv is not None and place == brests[fv] and len(w) == len(bsrc_w[fv]) and
+                    all(j == j0 and abs(b - b0) < 1e-6 for (j, b), (j0, b0) in zip(w, bsrc_w[fv])))
+            if same:
+                ws = [(j, b, o, t) for j, b, o, t in bsrc.vertex_weights(fv)]
+                out_verts.append((st, bsrc.verts[fv][1], ws))
+                unchanged += 1
+            else:
+                ws = [(j, b, bsrc.offset_for(j, place), None) for j, b in w]
+                st_text = bsrc.verts[fv][1] if fv is not None else None
+                out_verts.append((st, st_text, ws))
+            rest_out.append(place)
+            reweighted.append(fv is None or len(w) != len(bsrc_w[fv]) or
+                              any(j != j0 or abs(b - b0) >= 1e-6 for (j, b), (j0, b0) in zip(w, bsrc_w[fv])))
+        untouched = (unchanged == len(bsrc.verts) == len(out_verts) and
+                     [tuple(t) for t in tris] == [tuple(t) for t in bsrc.tris])
+        cmd = bsrc.commandline if untouched else "Blender %s, quakevr_models" % bpy.app.version_string
+        banim = os.path.splitext(bpath)[0] + ".md5anim"
+        B.write_md5mesh(bpath, bsrc, out_verts, tris, cmd)
+        bounds = None
+        if not untouched:
+            bounds = ([min(p[k] for p in rest_out) for k in range(3)], [max(p[k] for p in rest_out) for k in range(3)])
+        B.write_md5anim(banim, banim_text, bounds, cmd)
+        report({'INFO'}, "wrote %s and %s: %d vertices (%d as they were), %d triangles" % (
+            bpath, os.path.basename(banim), len(out_verts), unchanged, len(tris)))
+        with open(bpath) as f:
+            mtext = f.read()
+        with open(banim) as f:
+            atext = f.read()
+        return out_verts, rest_out, reweighted, mtext, atext
+
+    keyed = build_keys(ob)
+    if keyed:
+        places = key_places(ob, keyed[0], to_arm)
+    out_verts, rest_out, reweighted, mtext, atext = write_build(path, src, anim_text, places)
     # What was written is what the next export compares with.
-    with open(path) as f:
-        ob["qvr_md5mesh"] = pack(f.read().encode())
-    with open(anim) as f:
-        ob["qvr_md5anim"] = pack(f.read().encode())
-    if builds:
+    ob["qvr_md5mesh"] = pack(mtext.encode())
+    ob["qvr_md5anim"] = pack(atext.encode())
+    # The other builds, from the shape keys: the same vertices, triangles, texture coordinates and weights.
+    folder = os.path.dirname(path)
+    for kb in keyed[1:]:
+        mprop, aprop = BUILD_PROP % (kb.name, "md5mesh"), BUILD_PROP % (kb.name, "md5anim")
+        ksrc = B.Mesh(unpack(ob[mprop]).decode(), kb.name + ".md5mesh")
+        if len(ksrc.verts) != len(src.verts):
+            raise BodyError("the shape key %s doesn't match its file (import the body again)" % kb.name)
+        _, _, _, mt, at = write_build(os.path.join(folder, kb.name + ".md5mesh"), ksrc, unpack(ob[aprop]).decode(),
+                                      key_places(ob, kb, to_arm))
+        ob[mprop] = pack(mt.encode())
+        ob[aprop] = pack(at.encode())
+    if builds and keyed:
+        report({'INFO'}, "the other builds are the shape keys: The Other Builds Too isn't needed")
+    elif builds:
         same_topology = (len(out_verts) == len(src.verts) and all(keys[i][0] == ("f", n) for n, i in enumerate(order))
                          and [tuple(t) for t in tris] == [tuple(t) for t in src.tris])
         if not same_topology:
@@ -385,6 +420,84 @@ def export_body(context, ob, path, report, write_skin=True, carry=True, quantize
     rebase(ob, loop_vert, keys, order, tris)
     if write_skin:
         export_skin(ob, os.path.dirname(path), report, carry, quantize)
+
+
+def build_keys(ob):
+    """[the reference key, then a key per other build] when the body holds its builds as shape keys (the import with
+    the builds: each other build's key named after its file, with that file's text kept on the object), else []."""
+    sk = ob.data.shape_keys
+    if sk is None or not sk.key_blocks:
+        return []
+    ref = sk.reference_key
+    return [ref] + [kb for kb in sk.key_blocks if kb != ref and BUILD_PROP % (kb.name, "md5mesh") in ob]
+
+
+def key_places(ob, kb, to_arm):
+    """A shape key's vertices in the armature's space, as the export reads the mesh's."""
+    co = np.empty(len(kb.data) * 3, np.float32)
+    kb.data.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    if to_arm != Matrix.Identity(4):
+        M = np.array(to_arm)
+        co = (co.astype(np.float64) @ M[:3, :3].T + M[:3, 3]).astype(np.float32)
+    return [tuple(float(c) for c in p) for p in co]
+
+
+def same_mesh(a, b):
+    """`b` is `a` in another build: the same joints, vertices (texture coordinates), triangles and weights (joints and
+    biases); only the places differ."""
+    if len(a.verts) != len(b.verts) or [tuple(t) for t in a.tris] != [tuple(t) for t in b.tris]:
+        return False
+    if [j[0] for j in a.joints] != [j[0] for j in b.joints]:
+        return False
+    for v in range(len(a.verts)):
+        if a.verts[v][0] != b.verts[v][0]:
+            return False
+        if [(j, w) for j, w, _, _ in a.vertex_weights(v)] != [(j, w) for j, w, _, _ in b.vertex_weights(v)]:
+            return False
+    return True
+
+
+def add_build_keys(ob, mesh, vmap, folder, this, report):
+    """The other builds beside the imported one as shape keys (the reference key is the imported build)."""
+    others = []
+    for name, _ in BUILDS:
+        p = os.path.join(folder, name + ".md5mesh")
+        pa = os.path.splitext(p)[0] + ".md5anim"
+        if name == this or not os.path.exists(p) or not os.path.exists(pa):
+            continue
+        with open(p) as f:
+            text = f.read()
+        with open(pa) as f:
+            atext = f.read()
+        om = B.Mesh(text, name + ".md5mesh")
+        if not same_mesh(mesh, om):
+            report({'WARNING'}, "%s isn't the same mesh as %s (vertices, triangles, weights): not a shape key" % (
+                name, this))
+            continue
+        places = [None] * len(ob.data.vertices)
+        ok = True
+        for v in range(len(om.verts)):
+            r, i = om.rest(v), vmap[v]
+            if places[i] is None:
+                places[i] = r
+            elif places[i] != r:
+                ok = False  # two vertices joined in this build are apart in that one
+        if not ok:
+            report({'WARNING'}, "%s's seams don't match %s's: not a shape key" % (name, this))
+            continue
+        others.append((name, text, atext, places))
+    if not others:
+        return
+    ob.shape_key_add(name=this, from_mix=False)
+    for name, text, atext, places in others:
+        kb = ob.shape_key_add(name=name, from_mix=False)
+        kb.data.foreach_set("co", [c for p in places for c in p])
+        kb.value = 0.0
+        ob[BUILD_PROP % (name, "md5mesh")] = pack(text.encode())
+        ob[BUILD_PROP % (name, "md5anim")] = pack(atext.encode())
+    ob.data.update()
+    report({'INFO'}, "the other builds as shape keys: %s" % ", ".join(n for n, _, _, _ in others))
 
 
 def carry_to_builds(path, src, out_verts, rest_out, rests, reweighted, report):
@@ -551,8 +664,22 @@ def apply_pose_to_mesh(context, ob):
     ob.data.vertices.foreach_get("co", rest)
     # Only the vertices the pose moved: the others keep their rest places exactly (not the armature's rounding).
     moved = np.abs(co - rest).reshape(-1, 3).max(axis=1) > 1e-5
+    delta = (co - rest).reshape(-1, 3)
     rest.reshape(-1, 3)[moved] = co.reshape(-1, 3)[moved]
     ob.data.vertices.foreach_set("co", rest)
+    sk = ob.data.shape_keys
+    if sk is not None:
+        # The builds' shape keys: the reference key takes the posed shape, the others move by as much (as editing
+        # the reference key in Edit Mode carries into them).
+        for kb in sk.key_blocks:
+            if kb == sk.reference_key:
+                kb.data.foreach_set("co", rest)
+                continue
+            k = np.empty(len(rest), np.float32)
+            kb.data.foreach_get("co", k)
+            k = k.reshape(-1, 3)
+            k[moved] += delta[moved]
+            kb.data.foreach_set("co", k.ravel())
     ob.data.update()
     for pb in arm.pose.bones:
         pb.matrix_basis = Matrix.Identity(4)

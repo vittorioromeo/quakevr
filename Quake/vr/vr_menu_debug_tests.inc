@@ -522,6 +522,7 @@ za::Vector<Item> pageDebugTests()
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
         command("Armour Studio: ImGui Window Test (Flat Screen)", "vr_armourstudio_window test").help("vr_armourstudio_window test: the Armour Studio's ImGui window opened, its Start, a value's + step, Save, Reset Part and Reload the File clicked with a mock mouse (the grunt's bracer), a change made the menu's way shown on the window, Stop, Escape closes it. In a headset: the window refuses to open. Ends on \"armourwin: N passed, M failed\". It writes quakevr/data/armour_wintest.txt."),
+        command("Armour Studio: Your Clone's Armour Test", "vr_armourstudio_clone_test").help("vr_armourstudio_clone_test (a fresh game, no armour on you): Kind = Player shown (flat screen: the ImGui window; in a headset: the menu's page), your body and its mirror image wear the studio's armour, each tier, then the build switched while shown (2 to 1, 3 and 2 again); none again once the kind is another. Ends on \"armourclone: N passed, M failed\"."),
         command("Armour Tweaks: Data File Test", "vr_armour_test").help("vr_armour_test: armour.txt's tweaks on the grunt: a bracer override moves those plates alone (the right mirrored), a sleeve's stand-off, rows; saved and read back, edited on disk and read again by the watcher, kept over a map change (it reloads this map), then the shipped file again. Ends on \"armourtest: N passed, M failed\". It writes quakevr/data/armour_test.txt."),
         command("Armour Plates: Pop-through Check", "vr_agarmor_pop_check").help("The body against the plates on every wearer and your own: poses with bent elbows and knees, each part of the armour worn alone; by region, plates off their neighbours. The console has the numbers; vr_pp_test 14 the same in live poses."),
         command("Armour Plates: Generator Check", "vr_agarmor_look_check").help("Every wearer and body build: the same seed the same plates, triangles within the budget; the tiers' hues apart (vr_agarmor_look_check; ends on \"agarmor look: N passed, M failed\"). vr_agarmor_seed 1; vr_agarmor_rebuild shows other plates."),
@@ -638,6 +639,11 @@ za::Vector<Item> pageDebugTests()
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
                   "stand."),
+        command("Lying Down Status", "vr_prone_status")
+            .help("vr_prone_status: whether you lie down (vr_prone), your box's height, your eyes over your feet against "
+                  "the limit you lie down under, your speed, on the ground, and whether a crouch fits (you could get up)."),
+        command("Lie Down / Get Up (Flat-Screen)", "vr_prone_toggle")
+            .help("vr_prone_toggle: flat-screen play's prone key (X). In a headset you lie down for real."),
         command("Flat Items: Hold And Shoot", "vr_flatitems_test 1")
             .help("vr_flatitems_test 1 (-flatscreenmode only): armour, a key, the biosuit, a rune, shells and health each grabbed with E into the off hand, the shotgun fired through it (flatitems: lines)."),
         command("Flat Items: Walk Over", "vr_flatitems_test 2")

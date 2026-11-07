@@ -144,6 +144,11 @@ void noteDrawn(int entities, bool body, const glm::vec3& bodyOrigin)
     state.bodyOrigin = bodyOrigin;
 }
 
+bool bodyShown()
+{
+    return state.shown && state.body;
+}
+
 void info_f()
 {
     glm::mat4 m;

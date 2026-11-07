@@ -2290,6 +2290,43 @@ hand came off it ("the hand position itself seems to not match my IRL hand").
 - Open: switching `vr_body_build` 1 -> 3 while the window was open showed no clone in one run (starting on build 3 works);
   not chased.
 
+## Armour Studio round 3: leather taper, your clone always armoured (branch `agent/armourstudio3`, 2026-11-07)
+
+His words: "Is it also possible to add tapering to the leather parts of the armor?" and "The player view still doesn't work in
+the armor studio. I can now see my clone, but it isn't wearing armor."
+
+- **Leather taper**: `taper_start` / `taper_end` on the sleeve parts (`pauldron_sleeve`, `bracer_sleeve`, `thigh_sleeve`,
+  `shin_sleeve`, per side): each of the sleeve's 4 rings scaled round its middle (`sleeveOf`, after its rounding), lerped in
+  the limb's order (start = the end nearer the body: an upper part's sleeve's ring under its plates, a lower part's at the
+  joint). The ring under the plates is still clamped to their feet afterwards, so the plate/leather seam holds; the two halves
+  of a knee or an elbow overlap past the joint (sleevePast), so a taper on one gives a step, not a gap. Clamped 0.2 .. 3. The
+  same sliders as the plates' (the ImGui window now shows them on the sleeve parts; hidden only on the helmet; the menu
+  page's help says so). A taper set back to 1 (the plates' or a sleeve's) drops out of the part's values: not written to
+  armour.txt. Untweaked: the branch is skipped, so every shell is the same as before (vr_armour_test's cleared-hash checks).
+- **Why the clone wore nothing**: the clone is the mirror image of your own body's view entities, and the plates on your body
+  come from the server's word on your armour (`agarmor::clientState`): no armour item, no plates (round 2 tested it after
+  `give a 200`). Now `armourstudio::playerArmour` overrides that word in `view::setupPlates` while the studio shows the player's
+  kind (the ImGui window open, or the menu's Armour Studio page, `menu::armourStudioPage`): the studio's Tier on every piece (or
+  the part alone). As the kind first shows, Tier is set to the armour you wear, if any. Your own first-person body wears it
+  too while the studio shows (the clone is its image).
+- **Build switch**: the 1 -> 3 switch with the window open now keeps the clone and its armour (checked each frame by the test
+  below: the body's model is the build's, `vr_player_plates_info`).
+- Tests: `vr_armour_test` 30 passed (new: the left knee's leather taper, thigh's half 1 -> 1.4 = rings 1.000 1.133 1.267 1.400,
+  shin's 1.4 -> 0.7 = 0.760 (under its plates) 0.933 1.167 1.400, the right's 1.000; the plates unmoved; cleared = the same
+  shell). New `vr_armourstudio_clone_test` (Debug > Tests): fresh game, no armour; Kind = Player shown; tiers 1, 2, 3, then
+  build 2 -> 1 -> 3 -> 2 switched while shown, each with the colour, all 1023 pieces settled, the clone's image showing the body
+  and all pieces drawn in it; then kind grunt: nothing on you. `armourclone: 8 passed, 0 failed` flat (-flatscreenmode, the
+  window) and in the mock headset (the menu page). `vr_armourstudio_window test` 17 passed. Screenshots checked: the clone in
+  yellow with no armour (HUD armour 0), a grunt's knee sleeves tapered 0.7 -> 1.8 / 1.8 -> 0.7 (flared at the knee, joined).
+- **Clone test fixed (branch `agent/clonefix`, 2026-11-07)**: `vr_armourstudio_clone_test` failed "step 1 ... the clone's
+  pieces 0" on next. Bisect: it fails at 5a273fbe4 itself (no later commit caused it). The test was stale, not the feature:
+  "the clone's pieces" read `platesState(16)`, the pieces a *view* (PlatePass::View) drew with the head, i.e. from a view
+  more than 0.3 m from the eyes (a gate's, a spectator's); the mirror image's plates go through PlatePass::Clone, which was
+  never counted. Now that pass has its own count (`platesState(19)`, also in `vr_player_plates_info`: "in the mirror image
+  N"); the frame's rollover is done by whichever of the two passes draws first. Feature checked in a flat screenshot: Kind
+  = Player, Tier Red, no armour item: the clone wears the full red armour and helmet. Tests: `armourclone: 8 passed, 0
+  failed` (mock VR e1m1, flat vrtesthall), `armourtest` 30/0, `armourwin` 17/0.
+
 ## Swimming tilt: the body's pitch (branch `agent/swimtilt`, 2026-11-06)
 
 His request: fully under water the body leans about 45 degrees forward, the legs trailing behind and up, easing both
@@ -2438,3 +2475,109 @@ next (20261106-025836): 278 pass; 6 changed. Summary table and triage: `qvr-kit/
   hazepreset 8/0.
 - **cup_aim_test:** needs AD's data (the Widowmaker is AD's; `vr_ad_test 98` does nothing unless AD is mounted): runs
   with `-game ad` now and skips with a verdict line where the base has no `ad/` (agents' bases have none).
+## Lying down and crawling (branch `agent/prone`, 2026-11-07)
+
+His backlog item (2026-11-03): the player can lie down and crawl by moving his body. Built on the crouch's box and the
+swimming tilt's `BodyPitch`.
+
+- **When (VR: physical, decision).** Your eyes under `vr_prone_eye` (18 units over your feet, about 0.5 m of headset:
+  on your front propped on the elbows; on all fours, about 0.6 m, stays a crouch) and you lie down; up again once they
+  are 2 units over the lying box's top *and* the lowest crouched box fits where you are. No button in a headset: a
+  seated player has no way to lie down (his crouch toggle lowers the view 0.5 m: a crouch). In water (waterlevel 2+) you
+  don't start lying down.
+- **Flat-screen: a toggle, the same code path.** `vr_flat_key_prone` "x" (free in the mode; Z is bullet time, C swims
+  down) or `vr_prone_toggle` (Debug > Tests too): the view eases down `vr_prone_body_time` to 4 under `vr_prone_eye` (46
+  to 14), the crouch bit is held meanwhile, so the server sees the low eyes exactly as a headset's and lies him down.
+  Toggled up under a ceiling the crouch doesn't fit, the server keeps him down and his view is held under the box's top
+  (`localEyeCap`, as the crouch's). Dead or between maps: up.
+- **The box (vr_hull.cpp).** Lying down is a value of the crouch's own `crouchBox` slot: `vr_prone_height` 24 (24 is the
+  lowest box the clip recovery's height growth covers, so no tree-builder change: decision; a lower box needs that grown).
+  moveBox/entBox/touchBox/hitBox, monsters' sight (bit 23, crouched) and the trees (one more, 16x24, in `wantedExts`)
+  follow. Needs `vr_crouch_hull` on.
+- **Moving.** `vr_prone_speed_scale` 0.3 of the most speed (96 of 320), eased 0.25 s like the crouch's slowing, whatever
+  `vr_crouch_speed`. Jumping: QC `PlayerJump` returns while `.vr_prone` (a new field the engine sets from each move;
+  jump boots included, swimming up untouched). **Weapons: all usable lying down (decision)**: aiming from the floor is the
+  point; nothing changed in QC.
+- **The body (vr_avatar_pitch.cpp, vr_avatar.cpp, vr_avatar_legs.cpp).** `PitchSource::Prone`: target
+  `vr_prone_body_angle` 90 plus asin((eyes over the floor - 8) / torso) (at most +30: propped up, the hips slope down to
+  the floor), eased over `vr_prone_body_time` 0.6 s; the server's state for the local player (a remote client: his eyes
+  that low). `BodyPitch::lying` (the angle's share while it comes from lying down) straightens the crouched trunk
+  (crouch pose, crouch tilt and lean fade out) so the turn lays a straight trunk behind the head, and lays the legs back
+  along it with the feet on the floor, knees down, toes pointed. Swimming wins over lying down.
+- **Settings.** Movement > Player Hitbox > Lying Down: Lie Down and Crawl (`vr_prone` 1), Lying Down Below
+  (`vr_prone_eye` 18), Lying Down Height (`vr_prone_height` 24), Crawling Speed (`vr_prone_speed_scale` 0.3), Lying
+  Down Status (`vr_prone_status`). Body page: Lying Down Body Angle (`vr_prone_body_angle` 90), Lying Down Time
+  (`vr_prone_body_time` 0.6). Debug > Tests: Lying Down Status, Lie Down / Get Up (Flat-Screen).
+- **Tests.** `Misc/quakevr/prone_test.py <agent>`: 21 passed (VR mock and flat-screen: standing, down at once (box 24),
+  the body's angle (VR 104 of 106, flat about 105), no jump, the crawl 96, into the 40-high tunnel, up to a crouch (36) in
+  it, kept down under it with `vr_crouch_height` 44, standing out of it, `vr_prone 0` a crouch). `vr_body_pitch_test`
+  adds lying down's targets and ease (29 passed). Not regressed: swimtilt 12, flatmove 10, flatcrouch 3, crouch_speed 4,
+  bodytrack_solve 240, handroll 17, ghost body 4 passed; teleporters/crouch_test.sh's cases as documented. Screenshots checked (side view and first person looking down, both modes): the
+  body flat behind the head, the arms out to the hands.
+- **Left:** crawling by pulling with the arms (the stick moves you); a box under 24; seated lying down; the flat-screen
+  view on lying down is Quake's own camera at 14 units (no special framing).
+## The hand's and the body's source .blends (branch `agent/blendmd5`, 2026-11-07)
+
+The md5 plan ("The md5 models (plan only)", above), done:
+
+- **Sources:** `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend` (215 KB) and `.../vrbody/vrbody.blend` (719 KB),
+  made by `blend_build.py -- hand_rig` / `-- vrbody` (the add-on's import of the shipped files, saved; paths in them
+  relative to the .blend). generated.json: the hand's .blend owns `hand_rig.*`, `hand_rig_f.*`, the 4 `.lmp` skins;
+  the body's owns the four builds' `.md5mesh`/`.md5anim`/`.mdl` and the 16 skins. make_hand_rig.py and
+  make_hand_feminine.py are retired (all their files owned: they stop, nothing written; `--stats`/`--preview` still
+  run); make_vrbody.py keeps the owned files and still writes the `_bare` meshes and `vr_bodybare.inc`.
+- **The body's builds are shape keys** (decision: one .blend, not one a build; the plan's "builds derived at export"
+  without make_vrbody.py's parametric code): basis `vrbody`, keys `vrbody_lean`, `vrbody_brawny`, `vrbody_fem` (the
+  feminine build too: same joints, vertices, UVs and weights; only the places differ). Each build's file text is kept
+  on the object, so an unedited key writes its file byte for byte; an edit of the basis in Edit Mode carries into the
+  keys (Blender's own), Apply Pose to Mesh moves the keys by as much. The import's new **Every Build (Shape Keys)**
+  (default on); The Other Builds Too stays for a body without keys.
+- **The hand:** the commandline line kept (the armature remembers the imported files' line and a digest of the rest:
+  an unedited export is byte for byte, an edited one says Blender's); a changed hand makes the feminine hand again on
+  export (`make_hand_feminine.derive`, the generator's code: on the shipped hand it gives the shipped `hand_rig_f`
+  byte for byte); the blood skins as before (carried under the blood). **Decision:** the export does not write
+  `vr_handrig_data.inc`: the engine derives the rig from the file as it loads and measures against the compiled
+  tables, which stay the generator's last output (the reference); no engine rebuild after a hand edit.
+- **Engine test** `vr_blender_test` 20/20 (hand_rig and vrbody_lean now resolve to their .blends; the import case is
+  `vrbody_bare`, still the generator's).
+- **Test** `blend_md5_test.sh <agent>` 9/9: both .blends exported unedited into copies, every file as shipped (hand
+  21 of 21, body 58 of 58: no float noise, all bytes equal); the feminine derive as shipped; with the game on e1m1, a
+  fingertip edit (5/5: the feminine hand made again, skins untouched) and a head-top edit of the basis (7/7: every build
+  0.5 higher at that vertex, nothing else) saved through export on save, and the game read `hand_rig.mdl` and
+  `vrbody.mdl` again by itself; files put back. Also: blend_addon 3/3 (hand 9/9, body 9/9), bodytrack_solve 240/0,
+  vr_ghost_body_test 4/0, handroll 17/0, armourtest 27/0 (low-impact runs).
+- **Not done / open:** an edit of the body doesn't reach the `_bare` meshes (make_vrbody.py's parametric body, as
+  before); the generators' procedural hand and body are frozen as the reference (to start over from them, the
+  generated.json entries go first). Not checked in a windowed Blender (the shape key panel, Edit Mode on a key).
+
+## Armour's four open items on armed humanoids (branch `agent/armorleft`, 2026-11-07, overnight)
+
+Shots: the Armour Studio's subject (`vr_armourstudio 3` first, so later kinds spawn along the player's settled yaw), tier 2, body
+ghost 1, `vr_mock_camera` close to it (scratch `shots.sh`): 12 tiles, each item idle and two `vr_armourstudio_anim*` frames.
+Sheet `C:/OHWorkspace/qvr-kit/scratch/armorleft_sheet.png` (before: origin/next's `vr_agarmor.cpp`; after: this branch).
+
+- **Knight's red pad (fixed, code):** it is his own mesh: red shoulder pads on both shoulders (skin, not a tint or a leftover
+  plate), standing up into the pauldrons' open top ring; seen from above (your eyes are higher than his) the red showed between
+  the pauldron's top and the collar. No armour.txt value hid it (tried: pauldron stand-off 0 / 0.3, start -3.5 each side, scale
+  1.15, offset up 1 / in 1-2, roll +-12, taper_start 0.5-0.8; cuirass start 0, stand-off 0.4, taper_start 1.12): each moved the
+  red elsewhere. Now `Wearer::shoulderCap` (knight 0.8): `platesOf` closes a pauldron's top ring with a dome (rim, a middle ring
+  1.18 wider than the rim (`capBulge`) half way up, an apex 0.8 of the ring's radius + `plateStep` out along the arm's line,
+  and a flat underside: a closed shell, one plate tile stretched over it, the rim layer). Red gone in idle, run and swing frames.
+  `vr_agarmor_check` 20/0 ("each shell closed" on all four). Only the knight (shoulderCap -1 elsewhere); his armour.txt untouched.
+- **Enforcer's thighs from behind (not changed):** at the studio's close back view, before and after look the same: covered in
+  idle and run 1/5. Tried: the thighs' plates weighted as the whole skin under them (this leg's and the pelvis's vertices), so
+  the back rows follow the pelvis-weighted skin: no visible change in the sheet, dropped (not worth the risk). The bare skin the
+  round-five note describes shows only from further off and lower, at the buttocks' crease.
+- **Grunt's knee leather (not changed):** the thigh sleeve's last ring flares wide (a skirt with a point at the outer back), and
+  the knee's low-poly point shows between the two sleeves' halves in front. Tried: a sleeve corner capped at 1.2 / 1.12 of its
+  ring's median (no visible change: the whole ring is wide, not one corner); thigh_sleeve scale 0.85, stand-off -0.6, pitch 0 /
+  -10 / 25; shin_sleeve stand-off 0.6, offset up 0.8-1, pitch +-15; the new sleeve tapers (thigh_sleeve taper_end 0.7-0.8):
+  narrower leather bares more of the knee. Needs a shape change in `sleeveOf` (the rings' middle at the joint is pulled back by
+  the calf), not a value.
+- **Enforcer's elbow band (not changed):** no description of what is wrong beyond "elbow band"; front and three-quarter shots
+  show the bracer sleeve as a dark ring at his elbow (his bracer_sleeve scale 0.696). Nothing changed without knowing the ask.
+- **Tests:** `vr_armour_test` 30/0, `vr_armourstudio_window test` 17/0, `vr_agarmor_check` 20/0; `vr_armourstudio_clone_test`
+  1/1 ("step 1 ... the clone's pieces 0") on this branch and the same on origin/next's `vr_agarmor.cpp` (headless mock, e1m1 and
+  vrtesthall): not this change.
+- **Noticed:** the studio's Animation list shows the grunt's and the knight's frames as one "frame" group (114 and 97 frames;
+  the enforcer's are named); `vr_armourstudio_turn` changed after the subject is made seemed not to turn it in these runs.

@@ -77,6 +77,10 @@ void afterLoad();
 void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 // Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
 [[nodiscard]] bool isCrouched(const edict_t* ent);
+// Whether a client lies down (vr_prone: updateCrouch; his box then vr_prone_height tall, a crouched box to the rest).
+[[nodiscard]] bool isProne(const edict_t* ent);
+// The local player (client 1 of this server) lying down: 1, 0; -1 with no server here (a client of another one).
+[[nodiscard]] int localProne();
 // Flat-screen play's rise from a crouch (vr_flatplay.cpp pollKeysFlat): the highest the local player's eyes may stand
 // over his feet in the box this server gives him -- his crouched box's top less flatEyeHeadroom (8), so the view never
 // rises into a ceiling his box is kept under (updateCrouch, the key let go: standing if it fits, else the tallest crouched
