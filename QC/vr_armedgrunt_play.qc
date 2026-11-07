@@ -1009,11 +1009,18 @@ float(entity p) VR_AG_DrawnFrame =
 // surface: 8 units behind its grip to its muzzle (one too near: 24 ahead), 3 thick, as before.
 // Its line on its drawn frame is kept for the rest of the server frame (the shots, the parries and the strikes ask for
 // each weapon's several times a frame): vr_ag_wl_frame the frame it was worked out in (framecount + 1; 0 none). The
-// line from its own origin (not drawn) is worked out each time.
+// line from its own origin (not drawn) is worked out each time. A kept line also gives back the drawn frame
+// (vr_ag_df_o, _fw, _up) and the extent's ends (vr_ag_wx_back, _front) it was worked out from, so a caller reading those
+// after VR_AG_WeaponLine sees this weapon's, not the last one asked.
 .float vr_ag_wl_frame;
 .vector vr_ag_wl_a;
 .vector vr_ag_wl_b;
 .float vr_ag_wl_r;
+.vector vr_ag_wl_o;
+.vector vr_ag_wl_fw;
+.vector vr_ag_wl_up;
+.vector vr_ag_wl_xb;
+.vector vr_ag_wl_xf;
 void(entity p) VR_AG_WeaponLine =
 {
     if(p.vr_ag_wl_frame == framecount + 1)
@@ -1021,6 +1028,11 @@ void(entity p) VR_AG_WeaponLine =
         vr_ag_wa = p.vr_ag_wl_a;
         vr_ag_wb = p.vr_ag_wl_b;
         vr_ag_wr = p.vr_ag_wl_r;
+        vr_ag_df_o = p.vr_ag_wl_o;
+        vr_ag_df_fw = p.vr_ag_wl_fw;
+        vr_ag_df_up = p.vr_ag_wl_up;
+        vr_ag_wx_back = p.vr_ag_wl_xb;
+        vr_ag_wx_front = p.vr_ag_wl_xf;
         return;
     }
     float drawn = VR_AG_DrawnFrame(p);
@@ -1041,6 +1053,11 @@ void(entity p) VR_AG_WeaponLine =
             p.vr_ag_wl_a = vr_ag_wa;
             p.vr_ag_wl_b = vr_ag_wb;
             p.vr_ag_wl_r = vr_ag_wr;
+            p.vr_ag_wl_o = vr_ag_df_o;
+            p.vr_ag_wl_fw = vr_ag_df_fw;
+            p.vr_ag_wl_up = vr_ag_df_up;
+            p.vr_ag_wl_xb = lo;
+            p.vr_ag_wl_xf = hi;
         }
         return;
     }

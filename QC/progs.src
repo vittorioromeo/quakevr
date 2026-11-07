@@ -569,6 +569,7 @@ vr_armedgrunt_parry_test.qc
 vr_armedgrunt_strike_test.qc
 vr_armedgrunt_aware_test.qc // test 200: disarm attempts on unaware grunts wake them; dual wield drops the struck one
 vr_armedgrunt_blade_test.qc // test 77: blade on blade
+vr_armedgrunt_extent_test.qc // test 214: a held weapon's drawn extent follows its transform tuned mid-map
 vr_ownclash_test.qc // vr_clash_test: your two weapons clashing
 vr_dirparry_test.qc // test 78: the directional parry
 vr_armedgrunt_preparry_test.qc

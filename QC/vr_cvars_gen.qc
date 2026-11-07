@@ -1044,6 +1044,7 @@ float cvarh_vr_grunt_burst_damage;
 float cvarh_vr_gruntgun_ammo;
 float cvarh_vr_gruntgun_damage;
 float cvarh_vr_gunangle;
+float cvarh_vr_gunmodelscale;
 float cvarh_vr_gunyaw;
 float cvarh_vr_handcal_off_mirror;
 float cvarh_vr_handgrenade;
@@ -2969,6 +2970,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_gruntgun_ammo = VR_CVar_Make("vr_gruntgun_ammo");
     cvarh_vr_gruntgun_damage = VR_CVar_Make("vr_gruntgun_damage");
     cvarh_vr_gunangle = VR_CVar_Make("vr_gunangle");
+    cvarh_vr_gunmodelscale = VR_CVar_Make("vr_gunmodelscale");
     cvarh_vr_gunyaw = VR_CVar_Make("vr_gunyaw");
     cvarh_vr_handcal_off_mirror = VR_CVar_Make("vr_handcal_off_mirror");
     cvarh_vr_handgrenade = VR_CVar_Make("vr_handgrenade");

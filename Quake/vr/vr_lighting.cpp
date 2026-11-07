@@ -100,6 +100,7 @@ void main()
 }
 )";
     depthProgram = gfx::glProgram(vs, nullptr, "vr shadow depth");
+    gfx::ownDeferred(depthProgram, nullptr); // (no flag: asked again at its next use, as a failed make was)
     if(depthProgram && gl_viewport_layer_able && !depthLayeredProgram)
     {
         // The world's and the brush casters' for vr_shadow_layered: a draw's (Entry >> 3) matrices into the face (Entry & 7)
@@ -131,6 +132,7 @@ void main()
         q_snprintf(source, sizeof(source), "#version 430\n#extension %s : require\n%s",
             extensions[za::clamp(gl_viewport_layer_able, 1, 3)], layeredBody);
         depthLayeredProgram = gfx::glProgram(source, nullptr, "vr shadow depth layered");
+        gfx::ownDeferred(depthLayeredProgram, nullptr);
     }
     return depthProgram != 0;
 }

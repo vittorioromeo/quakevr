@@ -175,6 +175,10 @@ void main()
     upProgram = gfx::glProgram(fullscreenVs, upFs, "vr bloom up");
     meanProgram = gfx::glProgram(fullscreenVs, meanFs, "vr bloom mean");
     failed = !brightProgram || !downProgram || !upProgram || !meanProgram;
+    for(GLuint* p : {&brightProgram, &downProgram, &upProgram, &meanProgram})
+    {
+        gfx::ownDeferred(*p, &failed);
+    }
     return !failed;
 }
 

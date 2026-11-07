@@ -3095,3 +3095,43 @@ pose stays hipfire and the free hand lets go as hipfire's does at a wall.
   goes in `quakevr/scratch_flatwall_a.cfg` (git-ignored), run with exec, its waitN spelled out as run.ps1 does.
 - The `flatsight: t ... ads` debug field says `waits` (was `no sights`) when the ironsight is asked for, the weapon has
   sights and block ADS holds it.
+
+## Perf review fixes (branch `agent/regfix`, 2026-11-07)
+
+The review of the 2026-11-06/07 performance changes (five findings, the save check, the nits), each fixed:
+
+- **A held mesh remade in place kept the old mesh's extent** (vr_held.cpp drawnMesh, 4c5f12102 + fa63a90c6). The
+  in-place branch now resets extentDone/extentOk/the ends/radius, and the hash takes the whole DrawnTransform (the
+  weapon model transform `t`: vr_wofs, Weapon Studio, vr_gunmodelscale; the header's `so`/`hs`), so a mid-map tune makes
+  a new mesh instead of taking that branch. New `vr_agrunt_test 214` (vr_armedgrunt_extent_test.qc): a sword grunt's
+  agweaponextent front end 8.15, vr_gunmodelscale x1.5 -> 11.64, put back -> 8.15 (3/0).
+  VR_AG_WeaponLine's kept line now also gives back vr_ag_df_o/_fw/_up and vr_ag_wx_back/_front (five more fields), so
+  a caller reading those after it sees this weapon's.
+- **findradius grid: C moves before QuakeC with no relink.** VR_FindRadius_Dirty after SV_FlyMove's origin copy
+  (before SV_Impact's touch functions), after VR_BeforePlayerPostThink's compat-muzzle shift and after
+  VR_ClientTeleport's origin write. The other C origin writes the probe lists (sv_phys.c SV_WalkMove/TryUnstick/
+  CheckStuck restores, vr_physics.cpp's sweep `place`, which restores before returning) relink before any QuakeC.
+  Check (vr_findradius_grid 2, vr_findradius_check 1): e1m1 1200 frames 63,468 compared, AD tfuma 1500 frames 57,490,
+  vr_agrunt_test 60 (6/0): 0 differ.
+- **File cache: a write through a junction's target** (vr_fscache.cpp, 03c5042bb). Each listing's folder identity goes
+  into `roots.listed` (locked, deduplicated, never taken from); underRoots also matches the written file's own folder
+  against it, so D:\maps\x.bsp forgets the id1/maps -> D:\maps listing.
+- **Skin normal maps on jobs: the duplicate guard** (vr_normalmaps.cpp). VR_LoadNormalMap also returns when the skin
+  has a normal map still pending (VR_SkinNormalsPending: a scan of pendingSkinNormals by base), so a skin asked twice
+  before its join gets one texture and one job.
+- **A failed deferred shader compile** (vr_glutil.cpp, 5e5039db8). Owners say which variable holds a program and its
+  failure flag (`gfx::ownDeferred(program, &failed)`, right after making it); endDeferredChecks gives a failed one's
+  owner 0 and sets the flag (its fallback or skipped pass, as a one-at-a-time make), and deletes the program. Every
+  program gfx::precompilePrograms makes has its owner (vr_gfx_gl: triangles, particles, tube, reverse-order and half-size
+  composites, bent mesh; bloom, bttrails, dynres, foveated, haze, lighting (no flag: asked again at next use, as
+  before), stereo mirror, temporal, upscale, water). relinkToNothing stays only as a net for an owner not said.
+  Parallel compile kept. Not exercised (shaders compile on the dev GPU).
+- **Save check:** vr_melee_begun_last is a plain global: a save written on vrtesthall has `"vr_melee_begun_last"` in its
+  globals and loads back. The WeaponLine kept-line fields are saved as fields; their frame key (framecount + 1) can't
+  match after a load (framecount is saved and moves on before the first read).
+- **Nits:** packRestCache dropped when it would hold more than 64 shells (vr_agarmor.cpp); the disarm hull arena
+  gives a block past its two slots from an overflow list dropped at the next call (no Sys_Error); vr_wornpack.qc's
+  two missing spaces.
+
+Tests: vr_agrunt_test 214 3/0, 77 12/0, 60 6/0; flatwall 18/0, flatsight 12/0, flatsweep 383/0 (27 known); melee eval
+no verdict changes (PASS->PASS 0.1 degree drifts); e1m1 and a save loaded clean.

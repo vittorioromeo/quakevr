@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
@@ -270,6 +271,7 @@ void testLoad(int eye, unsigned fbo, int width, int height)
     {
         loadProgram = gfx::glProgram(loadVs, loadFs, "vr dynres test load");
         loadFailed = !loadProgram;
+        gfx::ownDeferred(loadProgram, &loadFailed);
     }
     if(!loadProgram)
     {
@@ -294,6 +296,7 @@ void precompilePrograms()
     {
         loadProgram = gfx::glProgram(loadVs, loadFs, "vr dynres test load");
         loadFailed = !loadProgram;
+        gfx::ownDeferred(loadProgram, &loadFailed);
     }
 }
 

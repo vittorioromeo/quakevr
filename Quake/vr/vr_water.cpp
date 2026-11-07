@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_stereo.hpp"
 #include "vr_jobs.hpp"
 #include "vr_trace.hpp"
@@ -409,6 +410,7 @@ void makeDistanceProgram(bool multisampled)
     }
     program = gfx::glProgram(distanceVs, fs.cStr(), "vr scene distances");
     failed = !program;
+    gfx::ownDeferred(program, &failed);
 }
 
 GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())

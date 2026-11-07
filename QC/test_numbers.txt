@@ -201,6 +201,7 @@ vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both g
 vr_agrunt_test   211      vr_armedgrunt_second_test.qc     Pick Up a Second, smarter: idle near takes, far ignored, in a fight past the combat range ignored, very near taken (downtime), taken away: gives up
 vr_agrunt_test   212      vr_meleerules_test.qc            the shared melee rules: an armed sword's blow lands from ahead, a side-step dodges it; Show Melee Arcs shows each kind's rule (arc, leap, all round, shove)
 vr_agrunt_test   213      vr_meleerules_test.qc            the nearest monster's bite parried (AD's lost soul; your crowbar's guard held)
+vr_agrunt_test   214      vr_armedgrunt_extent_test.qc     a held weapon's drawn extent (agweaponextent) follows vr_gunmodelscale changed mid-map, and back
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
 vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)

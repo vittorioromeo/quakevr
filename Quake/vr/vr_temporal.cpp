@@ -486,6 +486,10 @@ bool invert4(const float* m, float* out)
         getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
         clearTexImage = reinterpret_cast<ClearTexImageFn>(SDL_GL_GetProcAddress("glClearTexImage"));
         state.failed = !state.resolveProgram || !state.maskProgram || !state.applyProgram;
+        for(GLuint* p : {&state.resolveProgram, &state.maskProgram, &state.applyProgram})
+        {
+            gfx::ownDeferred(*p, &state.failed);
+        }
     }
     return !state.failed;
 }

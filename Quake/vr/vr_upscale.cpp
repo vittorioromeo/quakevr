@@ -285,6 +285,7 @@ Program easuProgram, composeProgram, nisProgram;
     const za::String source = za::String{prelude} + ffxA + joined(fsrHeader) + main;
     p.id = buildProgram(fullscreenVs, GL_FRAGMENT_SHADER, source, name);
     p.failed = !p.id;
+    gfx::ownDeferred(p.id, &p.failed);
     return p.id;
 }
 
@@ -307,6 +308,7 @@ Program easuProgram, composeProgram, nisProgram;
     const za::String source = za::String{nisPrelude} + joined(nisHeader) + nisMain;
     nisProgram.id = buildProgram(nullptr, GL_COMPUTE_SHADER, source, "vr nis");
     nisProgram.failed = !nisProgram.id;
+    gfx::ownDeferred(nisProgram.id, &nisProgram.failed);
     return nisProgram.id;
 }
 

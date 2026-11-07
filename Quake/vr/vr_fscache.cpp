@@ -156,10 +156,14 @@ Pending pending;
 // a folder that wasn't there and the misses the file might have been (a scan of every miss on the main thread): 0.5-0.9 s
 // of a map's first load (loadjobs, 2026-11-07). Added to by the main thread (addRoots: each window's start, each change
 // of the search paths, each VR_FileCacheForget), never taken from (a superset is safe); read by any thread, locked.
+// `listed`: every folder a listing was made of, by identity (listing(): a junction inside a search path is its target's),
+// so a file written through a junction's target (D:\maps\x.bsp for id1/maps -> D:\maps), which no root's name walk
+// reaches, still forgets that listing. Added to the same way.
 struct Roots
 {
     za::AtomicMutex lock;
     za::Vector<DirId> ids;
+    za::Vector<DirId> listed;
 };
 Roots roots;
 
@@ -399,6 +403,16 @@ void addRoots()
                     return true;
                 }
             }
+            if(depth == 0) // (the written file's own folder: a listed one, reached through a junction)
+            {
+                for(const DirId& r : roots.listed)
+                {
+                    if(r == id)
+                    {
+                        return true;
+                    }
+                }
+            }
         }
         if(!parentOf(cur, up) || !strcmp(up, cur))
         {
@@ -472,6 +486,19 @@ const Listing& listing(za::StringView dir)
     Listing& l = dirs[key];
     // (who it is before what is in it: a file made in between is forgotten with it, not missed)
     l.known = dirIdentity(key.cStr(), l.id);
+    if(l.known)
+    {
+        za::LockGuard guard{roots.lock};
+        bool have = false;
+        for(const DirId& r : roots.listed)
+        {
+            have = have || r == l.id;
+        }
+        if(!have)
+        {
+            roots.listed.pushBack(l.id);
+        }
+    }
     for(findfile_t* f = Sys_FindFirst(key.cStr(), nullptr); f; f = Sys_FindNext(f))
     {
         if(!(f->attribs & FA_DIRECTORY))
