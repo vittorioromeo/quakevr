@@ -2101,7 +2101,12 @@ void print(const hands::State& s)
                "muzzle off the crosshair %.2f -> %.2f units (%.2f deg) hand moved %.2f fov take %g relief %.2f back %.2f asked %.2f "
                "tilt %.1f need %.1f depth %.2f left %.2f\nflatwallturn: t %.4f on %.3f angle %.1f up %.3f side %.3f cant %.3f block %d "
                "room %.2f raise %.2f eyecap %d wall %.3f probes %d\n",
-        vr_gametime, adsApplies() ? "on" : (st.ads ? "no sights" : "off"), st.adsT, r_refdef.fov_x, r_refdef.fov_y,
+        vr_gametime,
+        adsApplies()                                                ? "on"
+        : !st.ads                                                   ? "off"
+        : st.holding >= 0 && sightalign::alignable(st.holding) ? "waits" // (asked, tilted up at a wall: vr_flat_wall_block_ads)
+                                                                    : "no sights",
+        st.adsT, r_refdef.fov_x, r_refdef.fov_y,
         st.holding == HAND_MAIN ? "main" : "off", st.pinned ? "hotspot" : "none", twohand::helping(st.helping) ? 1 : 0,
         twohand::helpKind(st.helping), twohand::transition(st.holding), st.offBefore, units, degrees,
         glm::length(st.shift), vr_flat_aim_fov.value, st.relief, st.back[st.holding], st.offAsked, st.tilt[st.holding],

@@ -3079,3 +3079,19 @@ same, and the stop at the chest cut the room from 16 to 2.5 units within a degre
   `scratch/fw4_shots_on.png` (rifle at 0, 15, 25, 35 deg in).
 - Lean (agent/flatmove): the leaned eye and gun come in as flatplay poses them (`s.head`, `s.pos`, `s.rot`, the crosshair
   ray); slideFor and pushBack read only those, so a leaned pose feeds the wall code with no change here.
+
+## flatwall a: the two-handed sighted holds at a wall, after block ADS (branch `agent/flatwall5`, 2026-11-07)
+
+With the precache crash fixed (2c8754e4e) flatwall a ran to its end and failed "sighted, the tilt keeps every two-handed
+hold": 18 of the 24 sighted two-handed reads (weapons 8, 9, 10, 12, 16, 28) lost the support hand with the tilt on.
+Bisected with the fix cherry-picked: e0e821f7b (flatwall3 in, before flatwall4) 0 lost; 4c96bc061 (flatwall4) fails;
+next 18 lost; next with `vr_flat_wall_block_ads 0` 0 lost. So it is block ADS, not a hold regression: the test asks for the
+sight with the gun already tilted up at the wall (`vr_flat_wall_tilt_sighted 1`), the ironsight waits as designed, the
+pose stays hipfire and the free hand lets go as hipfire's does at a wall.
+
+- The check is now two: of the two-handed sighted holds, those still sighted with the tilt keep the hold (6: weapons 8, 9,
+  16 at 45 degrees and looking up), and every other one is a sight that waits (18). Each read takes one frame of
+  vr_flatplay_debug 2 for the ironsight's state. The script outgrew the command line (bash "Argument list too long"): it
+  goes in `quakevr/scratch_flatwall_a.cfg` (git-ignored), run with exec, its waitN spelled out as run.ps1 does.
+- The `flatsight: t ... ads` debug field says `waits` (was `no sights`) when the ironsight is asked for, the weapon has
+  sights and block ADS holds it.
