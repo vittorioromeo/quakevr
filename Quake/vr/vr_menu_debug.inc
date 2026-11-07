@@ -542,6 +542,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
                   "read again since the last time."),
+        row(opt::vr_findradius_grid),
+        row(opt::vr_findradius_check),
+        command("findradius Stats", "vr_findradius_stats")
+            .help("vr_findradius_stats: QuakeC's findradius since the last time: calls a frame, how many went through "
+                  "the area grid, its time a frame and a call, and with Check findradius on, the searches compared "
+                  "with the walk and how many differed (0 expected)."),
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),

@@ -289,6 +289,12 @@ void VR_EdictIndex_Stored (int ofs);		// OP_STOREP into ofs while some are pendi
 void VR_EdictIndex_TopLevelDone (void);		// PR_ExecuteProgram, the server's outermost call returned
 int VR_EdictIndex_Find (int start, int field, const char *s);	// PF_Find: the next match after start (0: none), -1 to walk
 int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: the same
+// findradius through the area grid (vr_findradius.cpp): an edict is tested by itself while it is "dirty" (its origin,
+// size or solid changed since it was linked, or it isn't linked); the rest are found through the grid.
+edict_t *VR_FindRadius (const float *org, float rad);	// PF_findradius: the chain (the walk's, exactly)
+void VR_FindRadius_Dirty (edict_t *ed);		// the engine changed the edict's origin, size or solid, or unlinked it
+void VR_FindRadius_Linked (edict_t *ed);	// SV_LinkEdict: its abs box set, about to go into the grid
+void VR_FindRadius_Reset (void);			// SV_ClearWorld: nothing linked
 int VR_MonsterFrozen (struct edict_s *ent);	// SV_Physics, past the clients: a living monster frozen (vr_freeze_monsters): skipped
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 int VR_ServerMusicTrack (int mapTrack);	// SV_SendServerinfo: the CD track (QC vr_music_track, set by target_vr_music; else the map's)

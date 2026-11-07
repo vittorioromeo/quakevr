@@ -150,6 +150,7 @@ void() VR_AGPar_Test =
         if(vr_agpt2_ogre)
         {
             vr_agpt2_ogre.vr_melee_begun = time; // (its chainsaw's attack under way: the grunt sees it coming)
+            vr_melee_begun_last = time;
         }
         return;
     }
@@ -286,6 +287,7 @@ void() VR_AGPar_Test =
         vr_agpt2_ogre.nextthink = -1;
         vr_agpt2_ogre.enemy = g;
         vr_agpt2_ogre.vr_melee_begun = time;
+        vr_melee_begun_last = time;
         VR_AGPT2_Print(sprintf("(the chainsaw's way meets its weapon held ready: %g, its parry up %.2f)",
             VR_AGPar_MonsterMeets(g, vr_agpt2_ogre), g.vr_agpar_w));
         vr_agt_step = 7;

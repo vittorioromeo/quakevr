@@ -171,6 +171,7 @@ void stabilize(edict_t* self, const progs::FieldOffsets& f)
     float& throwhit = progs::fieldFloat(self, f.throwhit);
     const float time = pr_global_struct->time;
     const float oldFlags = v.flags;
+    const float oldSolid = v.solid;
 
     // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
     if(v.waterlevel >= 1.f && worldtrace::isLiquid(static_cast<int>(v.watertype)))
@@ -228,6 +229,10 @@ void stabilize(edict_t* self, const progs::FieldOffsets& f)
     if(v.flags != oldFlags)
     {
         edictindex::fieldStored(self, flagsField); // (FL_INWATER: QuakeC's store would have told it)
+    }
+    if(v.solid != oldSolid)
+    {
+        VR_FindRadius_Dirty(self); // (findradius: QuakeC's store of .solid would have told it)
     }
 
     if(particles != 0.f && (static_cast<int>(v.flags) & (FL_ONGROUND | FL_INWATER)))

@@ -303,6 +303,9 @@ float cVR_Forcegrab_AfterFoe = 0.5; // s: that moment (a judo throw's follow-thr
 .float vr_parry_step;    // ... its steps so far
 .float vr_parry_sway;    // ... its sway, degrees (0: none, its angles as they were)
 .float vr_parry_last;    // (a monster) when a blow of its was last parried: within vr_parry_cooldown, no new parry (VR_Parry)
+// The latest .vr_melee_begun set to the time (any monster; every site that sets it sets this too): VR_AGPar_Frame
+// skips its search for monsters' blows (findradius) when this is 1.5 s old or more (no monster's can be younger).
+float vr_melee_begun_last;
 .float vr_melee_begun;   // (a monster) when its melee attack running began (its th_melee called; 0: none, ai_run clears it):
                          // a blow of the attack its last parried blow was in is no new parry (VR_Parry, vr_parry_cooldown_attack)
 .float vr_throw_self;    // a thing a player threw hard (his: .owner): 1 sparing him until vr_throw_self_at; 2 past it,

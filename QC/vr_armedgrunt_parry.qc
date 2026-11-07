@@ -1045,7 +1045,8 @@ void(entity g) VR_AGPar_Frame =
         }
         pl = VR_NextPlayer(pl);
     }
-    entity m = findradius(g.origin, 170);
+    // (No monster began a melee attack in the last 1.5 s: none can pass, so no search. vr_melee_begun_last.)
+    entity m = time - vr_melee_begun_last < 1.5 ? findradius(g.origin, 170) : world;
     while(m)
     {
         if((m.flags & FL_MONSTER) && m != g && m.health > 0 && m.enemy == g && m.vr_melee_begun > 0 &&
