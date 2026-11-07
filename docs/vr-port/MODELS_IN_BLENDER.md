@@ -600,7 +600,11 @@ leaves weapons.txt alone. Before writing anything it checks, and refuses with a 
 - the anchors: each on the surface (0.1 units at most), and the surface under an unmoved one where it was in every
   frame (`--allow-moved` to write anyway);
 - the sight line (worked out as the game does: `vr_sight_lines`): it may turn 0.25 degrees at most (`--allow-sights`
-  to write anyway, then line them up in the game with `vr_weaponstudio_align main apply`).
+  to write anyway, then line them up in the game with `vr_weaponstudio_align main apply`). Sights painted where there
+  were none (the nail pistol's, 2026-11) are not refused: the export reports the new line and warns to run the align.
+  On a skin with no glowing texels yet, paint them in the exact Fullbright swatches (the add-on's Quake Fullbright
+  palette, 224-239): a colour merely near one stays ordinary (qpal.py), and only the sights may glow on a sighted
+  model (vr_sights.cpp `sightedModels`).
 
 An untouched .blend exports the shipped files byte for byte. The game reads them again by itself (or by hand:
 `vr_model_reload v_shot vr_pump_on_v_shot vr_pumpbody_on_v_shot`).

@@ -3268,3 +3268,29 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
   evidence.
 - **Test in VR.** The knight's right elbow while it idles, walks and swings: the leather should stay put round the
   elbow. Check the other joints too, for no new lumps near the rows (the push next to the rows is now smaller).
+
+## Nail pistol sights (branch `agent/release`, 2026-11-07)
+
+Vittorio: "Please add the nail pistol to the sighted models" (he paints its glowing sights in Blender himself).
+
+- **What changed.** `vr_sights.cpp` `sightedModels`: `progs/v_nailpistol.mdl` (also its own pickup) and
+  `progs/vr_nailpistol_preview.mdl` (Debug menu, Nail Pistol Art). Its magazines (`vr_mag_npistol`,
+  `vr_mag_on_v_nailpistol`, `v_nailpistol_mag`) have their own skin and no sights: left out. `vr_sightalign.cpp`
+  `painted`: the nail pistol, Rear::Notch (two rear ears, a front post); until the skin has sights, the table's line
+  (`vr_sightalign_table.inc`) is used as before. The Blender add-on's `sights.py` `PAINTED` lists it too, and the
+  export (`source.py`) now reports a new sight line (none before) and warns to run the align, instead of saying nothing.
+- **Fire texels.** None in any shipped nail pistol skin (`v_nailpistol`, `vr_nailpistol_preview`, the three magazine
+  models), nor in the author's work in progress (2026-11-07): no muzzle flash, light or screen to repaint.
+- **After painting.** Paint in the exact Fullbright swatches (qpal.py: on a texel that did not glow, a near colour stays
+  ordinary). Paint the two rear ears and the front post, never the notch floor between the ears (the rear sight is
+  read as the widest gap across: a painted floor leaves no gap, and the line falls back to the table's). The first
+  export is not refused (no old line: the 0.25 degree check has nothing to compare), so no `--allow-sights`. Then in
+  the game: `vr_sight_lines` (the nail pistol says `sights`, not `table`), and `vr_weaponstudio_align main apply`
+  (flat-screen, the nail pistol in the main hand). Later exports are held to 0.25 degrees.
+- **Tests** (a scratch copy painted 236 on the ears' and the front post's top faces, swapped in for the runs; scratch
+  `np_paint.py`, `test_npsights.sh`). `vr_sight_lines`: `sights rear -1.21 -0.00 6.38 front 9.15 0.05 6.38 (0.29
+  left)`, the same as the add-on's `sights.py` reads on that file; the shipped model: `table`, as before. The skin as
+  uploaded (`imagedump`) at `vr_sight_hue` 30 and 120: 405 texels differ, exactly the 405 painted, hue 29 to 119;
+  nothing else. Flat view, paused: `vr_weapon_glow` 0 to 0.3 brightens the sights ((255,217,184) to (255,237,202));
+  hue 120 moves the drawn sights' hue as the shotgun's in the same shots (mean 28 to 59; the shotgun 21 to 55); the
+  shipped nail pistol through the same steps: ~100 grey pixels (noise). `flatsight_test.sh`: see the report.

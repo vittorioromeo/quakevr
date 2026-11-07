@@ -652,6 +652,12 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         if a and not b:
             errors.append("sights: the painted sights no longer make a sight line (the sight texels, palette 224-239, "
                           "252, 253, on the rear notch and the front post): repaint them")
+        elif b and not a:
+            # Sights painted where there were none (the nail pistol, 2026-11): nothing to keep, so nothing refused.
+            (u1, l1) = sights.angle_deg(b)
+            report("  sights: new painted sights, rear %s front %s, %.3f deg up, %.3f deg left" % (
+                point_text(b[0]), point_text(b[1]), u1, l1))
+            warns.append("sights: new painted sights: line them up in the game (vr_weaponstudio_align main apply)")
         elif a and b:
             (u0, l0), (u1, l1) = sights.angle_deg(a), sights.angle_deg(b)
             turn = math.hypot(u1 - u0, l1 - l0)
