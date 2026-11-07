@@ -132,21 +132,23 @@ check $([ "$nhs" = 3 ] && gate 5 20 "$f1" "$f2" "$f3" && echo 1 || echo 0) \
 check $([ "$holds" = 3 ] && grep -qa '2h grip: off hand took it' "$S/grip_ship.log" && echo 1 || echo 0) \
     "and vr_twohand takes all three holds: $holds of 3 status prints say the off hand is on its grip hotspot (helpKind 1)"
 
-# ---- 5. the one knob that moves the shotgun's number: vr_flat_gun_fwd, inside its range, nothing else touched.
-run grip_gun17 "$P; tune vr_flat_gun_ahead 17; $GRIPTAIL" '^  two hands:|^  grip:|^  hotspot:|^2h grip: |^    an empty hand '
-hs17=$(grep -a '^  hotspot: ' "$S/grip_gun17.log")
-nhs17=$(grep -ac '^  hotspot: ' "$S/grip_gun17.log")
-g1=$(fwdOf "$hs17" 0); g2=$(fwdOf "$hs17" 1)
-left=$(grep -ac "off hand where the mode's pose puts it" "$S/grip_gun17.log")
-two17=$(keep1 "$(grep -a '^  two hands: ' "$S/grip_gun17.log" | head -1)")
+# ---- 5. the one knob that moves the shotgun's number: vr_flat_gun_ahead, inside its range, nothing else touched.
+# (The shipped 16.5 leaves the shotgun's grip behind the held hand, to the mode's support pose; 5, the value it shipped
+# at before, brings the gun back so the off hand takes its grip: a value that moves it, so the case tests something.)
+run grip_gun5 "$P; tune vr_flat_gun_ahead 5; $GRIPTAIL" '^  two hands:|^  grip:|^  hotspot:|^2h grip: |^    an empty hand '
+hs5=$(grep -a '^  hotspot: ' "$S/grip_gun5.log")
+nhs5=$(grep -ac '^  hotspot: ' "$S/grip_gun5.log")
+g1=$(fwdOf "$hs5" 0); g2=$(fwdOf "$hs5" 1)
+two5=$(keep1 "$(grep -a '^  two hands: ' "$S/grip_gun5.log" | head -1)")
+held5=$(grep -ac 'on its grip hotspot (held holding: helpKind 1' "$S/grip_gun5.log")
 poseA=$(grep -a '^    an empty hand ' "$S/grip_ship.log" | head -1)
-poseB=$(grep -a '^    an empty hand ' "$S/grip_gun17.log" | head -1)
-check $([ "$nhs17" = 3 ] && inq "$g1" -8 -1 && [ "$left" = 1 ] && echo 1 || echo 0) \
-    "vr_flat_gun_ahead 17 alone puts the shotgun's grip behind the held hand and the mode leaves it to its own support pose: $(sed 's/^  //' <<<"$hs17" | head -1) -- $two17"
-check $(awk -v a="$f1" -v b="$g1" 'BEGIN{exit !((a + 0) - (b + 0) >= 10)}' && echo 1 || echo 0) \
-    "that move is $(awk -v a="$f1" -v b="$g1" 'BEGIN{printf "%.1f", (a + 0) - (b + 0)}') units along vr_flat_gun_ahead's 12 (17 -> 5): the shotgun's hotspot reads fwd $g1 at 17 and fwd $f1 at the shipped 5"
-check $([ "$(grep -ac 'on its grip hotspot (held holding: helpKind 1' "$S/grip_gun17.log")" = 2 ] && gate 5 20 "$g2" "$f2" && echo 1 || echo 0) \
-    "and it is the shotgun alone: at the same 17 the rocket launcher still stands ahead (fwd $g2, $f2 at 5) and its hold is still taken, as the proximity gun's is"
+poseB=$(grep -a '^    an empty hand ' "$S/grip_gun5.log" | head -1)
+check $([ "$nhs5" = 3 ] && inq "$g1" 5 20 && grep -qa 'on its grip hotspot' <<<"$two5" && echo 1 || echo 0) \
+    "vr_flat_gun_ahead 5 alone puts the shotgun's grip ahead of the held hand and the off hand takes it: $(sed 's/^  //' <<<"$hs5" | head -1) -- $two5"
+check $(awk -v a="$g1" -v b="$f1" 'BEGIN{exit !((a + 0) - (b + 0) >= 10)}' && echo 1 || echo 0) \
+    "that move is $(awk -v a="$g1" -v b="$f1" 'BEGIN{printf "%.1f", (a + 0) - (b + 0)}') units (vr_flat_gun_ahead 16.5 -> 5): the shotgun's hotspot reads fwd $f1 at the shipped 16.5 and fwd $g1 at 5"
+check $([ "$held5" = 3 ] && gate 5 20 "$g2" "$f2" && echo 1 || echo 0) \
+    "and the other guns are as they were: at the same 5 the rocket launcher still stands ahead (fwd $g2, $f2 at 16.5) and all three holds are taken ($held5 of 3)"
 check $([ -n "$poseA" ] && [ "$poseA" = "$poseB" ] && echo 1 || echo 0) \
     "no support pose was changed to show it: both runs print the same place for an empty and a supporting hand $(sed 's/^ *//' <<<"$poseA")"
 
