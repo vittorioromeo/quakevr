@@ -159,6 +159,7 @@ struct PlayerPlates
     int begun{0};                      // morphs begun so far (the tests)
     int drawnFrame{-1};
     int fromEyes{0}, withHead{0}, fromEyesLast{0}, withHeadLast{0}; // the pieces the views drew this frame, the last (the tests)
+    int clone{0}, cloneLast{0}; // the pieces the body's mirror image drew (PlatePass::Clone) this frame, the last (the tests)
 };
 PlayerPlates playerPlates;
 float platesBones[plateEntities][128 * 12]{}; // (agarmor's maxSlots)
@@ -532,16 +533,18 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
     const bool head = src && src == withHead;
     PlayerPlates& p = playerPlates;
     const int pieces = p.entityPieces[index] & (head ? agarmor::allPieces : ~(1 << agarmor::Helmet));
-    if(pass == PlatePass::View)
+    if(pass == PlatePass::View || pass == PlatePass::Clone)
     {
+        // (rolled over by whichever pass draws first in a frame: the renderer may draw the image before its source)
         if(p.drawnFrame != host_framecount)
         {
             p.drawnFrame = host_framecount;
             p.fromEyesLast = p.fromEyes;
             p.withHeadLast = p.withHead;
-            p.fromEyes = p.withHead = 0;
+            p.cloneLast = p.clone;
+            p.fromEyes = p.withHead = p.clone = 0;
         }
-        (head ? p.withHead : p.fromEyes) |= pieces;
+        (pass == PlatePass::Clone ? p.clone : head ? p.withHead : p.fromEyes) |= pieces;
     }
     float* out = platesBones[index];
     for(int slot = 0; slot < numSlots; slot++)
@@ -586,8 +589,8 @@ void platesInfo_f()
     const int n = plateBonePoses(&entities.plate[0].ent, &m, PlatePass::View);
     const float* b = nullptr;
     const int nb = VR_AliasBonePoses(&body, &b);
-    Con_Printf("plates: drawn from the eyes %d, with the head %d; %d slots, slot 0 row 0 %.3f %.3f %.3f %.3f; %d body bones, bone 1 row 0 %.3f %.3f %.3f %.3f\n",
-        p.fromEyesLast, p.withHeadLast, n, n ? static_cast<double>(m[0]) : 0.0, n ? static_cast<double>(m[1]) : 0.0, n ? static_cast<double>(m[2]) : 0.0,
+    Con_Printf("plates: drawn from the eyes %d, with the head %d, in the mirror image %d; %d slots, slot 0 row 0 %.3f %.3f %.3f %.3f; %d body bones, bone 1 row 0 %.3f %.3f %.3f %.3f\n",
+        p.fromEyesLast, p.withHeadLast, p.cloneLast, n, n ? static_cast<double>(m[0]) : 0.0, n ? static_cast<double>(m[1]) : 0.0, n ? static_cast<double>(m[2]) : 0.0,
         n ? static_cast<double>(m[3]) : 0.0, nb, nb ? static_cast<double>(b[12]) : 0.0, nb ? static_cast<double>(b[13]) : 0.0, nb ? static_cast<double>(b[14]) : 0.0,
         nb ? static_cast<double>(b[15]) : 0.0);
 }
@@ -647,6 +650,7 @@ int platesState(int what)
         case 16: return p.withHeadLast;
         case 17: return agarmor::playerSlots(entities.body.ent.model, slots, bone, piece) ? slots : 0;
         case 18: return p.type;
+        case 19: return p.cloneLast;
         default: return -1;
     }
 }
