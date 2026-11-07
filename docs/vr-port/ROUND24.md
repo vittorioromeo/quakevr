@@ -3268,3 +3268,34 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
   evidence.
 - **Test in VR.** The knight's right elbow while it idles, walks and swings: the leather should stay put round the
   elbow. Check the other joints too, for no new lumps near the rows (the push next to the rows is now smaller).
+
+## Grow the Box on Export on Save (branch `agent/loadjobs`, worktree phases, 2026-11-07)
+
+Vittorio: "add the option to the plugin please" (v_nailpistol.blend refused: 15 vertices outside the model's box, "tick
+Grow the Box", an option only File > Export's dialog had).
+
+- **Checkbox.** Grow the Box is in the add-on's Quake VR panel (3D view sidebar), in the top box under Export on Save,
+  for a weapon's source .blend. It is the model object's `qvr_grow_box` (default off), saved in the .blend, so the
+  background Ctrl+S export reads it. `blend_export.py --grow` does the same. File > Export's dialog starts from it.
+- **Where the box comes from.** A source .blend's export starts from the reference model (`qvr_mdl`, its header as
+  built). Export on Save runs on the saved file in a background Blender and saves nothing back, so the reference
+  never learned a grown box: every save would grow again from the old box (and an edit near the edge would move the
+  grid each time). Now the export starts from the grid of the model file it replaces when that grid holds the
+  reference's box (`mdl_blender.replaced_box`). Once grown, it stays grown, grows again only when a vertex leaves the
+  grown box, and an unchanged .blend saves to the same bytes. An anchor whose surface moved no more than the grids'
+  half steps is a warning, not a refusal (the grid moves every vertex a little).
+- **Offsets.** When the low side grows, the origin moves and the weapon's Scale pivots about it. The export writes
+  the compensating Offset X/Y/Z (`x`/`y`/`z`, old minus `moved x (1 - Scale)`) into weapons.txt with the anchors. It
+  measures from the replaced file's origin, so a second save adds nothing. The `  box:` report lines (the grid, the
+  `inc vr_wofs_*` console lines for his saved config, what weapons.txt got) pop up after Ctrl+S, and the status bar
+  says THE BOX GREW. A shipped grown model still needs a `vr_wofs_version` step for other players' configs.
+- **Refusal message** names where the option is (the panel, File > Export's dialog, `--grow`).
+- **Test** (headless, copies in `scratch/gb`): an untouched copy exports the shipped v_nailpistol.mdl byte for byte. With
+  3 vertices moved 3 units past -x, it is refused without grow and grows with `--grow` (origin x -2.58 to -5.52, `inc
+  vr_wofs_x_37 1.6202`, weapons.txt slot 36 x -0.18 to 1.4402). A second export with or without `--grow` is
+  byte-identical (it starts from the grown file). The stored `qvr_grow_box` alone gives the same file. Exported into
+  the worktree's own progs, weapons.txt was written once and the second save changed nothing (the files were put
+  back after).
+- **Test in Blender.** On a copy of a weapon's .blend, pull a vertex past the box and save: a refusal popup names the
+  checkbox. Tick Grow the Box and save: the status bar says THE BOX GREW and a popup shows the offsets. Save again: no
+  popup, the same file.

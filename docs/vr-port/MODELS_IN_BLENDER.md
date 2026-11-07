@@ -179,19 +179,34 @@ An `.mdl` stores each vertex as a byte per axis: its place is `origin + byte × 
 make a box, and every vertex must be inside it, in every frame. The export keeps the box, so an edit that reaches
 past it is **refused**: the vertices outside are selected, and the message names the frames.
 
-Tick **Grow the Box** to let the export make the box bigger:
+Tick **Grow the Box** to let the export make the box bigger. It is in two places:
 
-- The grid gets coarser along the axes that need it. Every vertex goes onto the new grid, moving up to half a step
-  (the report says how much). The anchors move by as little.
+- a weapon's source .blend ([section 9](#9-a-weapons-source-blend-every-weapon)): the panel's top box (3D view
+  sidebar, **Quake VR** tab), under Export on Save. It is kept in the .blend (on the model object), so every Ctrl+S
+  honours it; `blend_export.py --grow` does the same from a command line;
+- an imported model: File > Export > Quake VR Model's dialog (it starts ticked if the model's object has it ticked).
+
+What growing does:
+
+- The grid gets coarser along the axes that need it, just enough for the vertices outside. Every vertex goes onto
+  the new grid, moving up to half a step (the report says how much). The anchors move by as little (a source .blend's
+  export doesn't count an anchor whose surface moved no more than that as moved).
+- It happens once: later exports start from the grown box (a source .blend's from the model file they replace, an
+  imported model's from the file it now stands for), so it grows again only if a vertex goes past the grown box, and
+  saving an unchanged .blend again writes the same bytes. To go back to the old box, put the old model file back.
 - Past the low side, the origin moves too. The weapon's Scale turns about the origin, so the drawn weapon would move
-  by `(origin moved) × (1 - Scale)`. The export prints the offsets that keep it in place, for each slot using the
+  by `(origin moved) × (1 - Scale)`. The export gives the offsets that keep it in place, for each slot using the
   model:
 
   ```
-    inc vr_wofs_y_02 0.0430        (slot 1 at Scale 0.44; with another Scale: 0.0768 x (1 - Scale))
+    inc vr_wofs_x_37 1.6202        (slot 36 at Scale 0.45; with another Scale: 2.9458 x (1 - Scale))
   ```
 
-  Paste them into the console. The gadget has no Scale setting, so its origin can move freely.
+  A source .blend's export (Ctrl+S, or blend_export.py into `quakevr/progs`) writes them into weapons.txt's defaults
+  itself (`  box:` lines in its report; Ctrl+S shows them in a popup). Your config keeps its own offsets over
+  weapons.txt's, so type the `inc` lines into the game's console too (they're saved); a grown model that ships needs
+  a `vr_wofs_version` step for other players' saved configs, as any changed default does. From File > Export, only
+  the console lines. The gadget has no Scale setting, so its origin can move freely.
 
 ### The wrist gadget
 
@@ -494,7 +509,7 @@ file and redo your edits, or keep yours and pass `--keep-edited`.
 
 | Message | What to do |
 |---|---|
-| `N vertices (selected) are outside the model's box in frames ...` | Pull them back inside, or tick Grow the Box (section 2, [The box](#the-box)). |
+| `N vertices (selected) are outside the model's box in frames ...` | Pull them back inside, or tick Grow the Box: in a source .blend the panel's top box, under Export on Save (kept in the .blend; `blend_export.py --grow`), else File > Export's dialog (section 2, [The box](#the-box)). |
 | `the model has N frames and the object M shape keys` | Put the shape keys back (import again, or undo). |
 | `the skin image ... is WxH; the model's skin is ...` | Scale the image back to the skin's size. |
 | `the flat area at the skin's top-left corner grew or changed colour` (a warning) | Repaint texel (0, 0) and the area round it as they were. |
@@ -596,7 +611,12 @@ It writes `quakevr/progs/v_shot.mdl`, its two pump parts and their three normal 
 leaves weapons.txt alone. Before writing anything it checks, and refuses with a message (`blend_export: REFUSED`):
 
 - the frames: as many shape keys as frames, named and ordered as the model's;
-- the box (section 2), the parts (every face in one);
+- the box (section 2, [The box](#the-box)): a vertex past it refuses, unless **Grow the Box** is ticked (the panel's
+  top box, under Export on Save: kept in the .blend) or `--grow` is given. Growing starts from the grid of the model
+  file the export replaces (so a grown box stays grown and doesn't grow again), and when the origin moves, the
+  offsets that keep the weapon in place go into weapons.txt (with `--out`: listed only) and a popup shows them with
+  the console lines for your config (`  box:` lines in the report);
+- the parts (every face in one);
 - the anchors: each on the surface (0.1 units at most), and the surface under an unmoved one where it was in every
   frame (`--allow-moved` to write anyway);
 - the sight line (worked out as the game does: `vr_sight_lines`): it may turn 0.25 degrees at most (`--allow-sights`

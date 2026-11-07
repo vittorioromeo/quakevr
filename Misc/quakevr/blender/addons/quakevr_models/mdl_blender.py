@@ -483,8 +483,35 @@ def triangulate(ob):
     return n
 
 
-def export_mdl(context, ob, path, report, grow=False):
-    """Writes the object as a Quake model at `path`. Returns (the report's lines, anchors moved)."""
+GROW_WHERE = ("Grow the Box: the 3D view's sidebar, Quake VR panel, under Export on Save (kept in the .blend); File > "
+              "Export > Quake VR Model's dialog; blend_export.py --grow")
+
+
+def replaced_box(path, old):
+    """(origin, scale) of the model at `path` (the file an export replaces) when its grid holds the reference's box
+    and differs from it: a box an earlier export grew. A source .blend's reference (qvr_mdl) keeps the header it was
+    built with (the export on save runs on a copy of the .blend in a background Blender and saves nothing back), so its
+    exports start from the grid of the file they replace: once grown, the box stays grown and isn't grown again.
+    None otherwise (no such file: the reference's header)."""
+    if not os.path.isfile(path):
+        return None
+    try:
+        m = mdl.Model.read(path)
+        o1, s1 = np.array(m.origin, np.float64), np.array(m.scale, np.float64)
+    except Exception:  # noqa: BLE001  (not a model: the reference's header)
+        return None
+    o0, s0 = np.array(old.origin, np.float64), np.array(old.scale, np.float64)
+    if (o1 == o0).all() and (s1 == s0).all():
+        return None
+    if (o1 <= o0).all() and (s1 >= s0).all() and (o1 + 255 * s1 >= o0 + 255 * s0 - 1e-6).all():
+        return tuple(float(x) for x in o1), [float(x) for x in s1]
+    return None
+
+
+def export_mdl(context, ob, path, report, grow=False, box=None):
+    """Writes the object as a Quake model at `path`. Returns (the report's lines, anchors moved). `grow`: vertices past
+    the box make it bigger (else the export refuses); `box`: (origin, scale), the grid to start from instead of the
+    reference's header (replaced_box)."""
     if ob.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
     if len([m for m in ob.modifiers if m.show_viewport]):
@@ -502,6 +529,8 @@ def export_mdl(context, ob, path, report, grow=False):
     sw, sh = old.skin_size
     scale = list(old.scale)
     origin = old.origin
+    if box is not None:
+        origin, scale = tuple(box[0]), list(box[1])
 
     # Blender's corners -> file vertices.
     nl = len(me.loops)
@@ -660,6 +689,7 @@ def export_mdl(context, ob, path, report, grow=False):
     sc = np.array(scale, np.float64)
     q = np.round((places - org) / sc)
     grow_lines = []
+    grew = None  # (origin before, origin after) when the box grew
     if (q < 0).any() or (q > 255).any():
         out = (q < 0).any(2).any(0) | (q > 255).any(2).any(0)
         if not grow:
@@ -668,10 +698,11 @@ def export_mdl(context, ob, path, report, grow=False):
             hi = org + 255 * sc
             frames = [old.pose_names()[p] for p in range(P) if ((q[p] < 0) | (q[p] > 255)).any()]
             raise ExportError("%d vertices (selected) are outside the model's box in frames %s (x %.2f..%.2f, y %.2f..%.2f, "
-                              "z %.2f..%.2f: a byte per axis on the header's grid). Keep them inside, or tick Grow the Box (the grid "
+                              "z %.2f..%.2f: a byte per axis on the header's grid). Keep them inside, or tick %s (the grid "
                               "gets coarser, every vertex moves a little; past the low side the origin moves too, which "
-                              "the weapon's Scale turns about: the export then prints the offsets that keep it in "
-                              "place)" % (len(bad), ", ".join(frames), org[0], hi[0], org[1], hi[1], org[2], hi[2]))
+                              "the weapon's Scale turns about: the export then gives the offsets that keep it in "
+                              "place)" % (len(bad), ", ".join(frames), org[0], hi[0], org[1], hi[1], org[2], hi[2],
+                                          GROW_WHERE))
         low = (q < 0).any(axis=(0, 1))    # the axes past the box's low side,
         high = (q > 255).any(axis=(0, 1))  # and its high side: only these change
         lo = np.where(low, places.min(axis=(0, 1)) - 1e-4, org)
@@ -686,6 +717,7 @@ def export_mdl(context, ob, path, report, grow=False):
             if (low[k] or high[k]) and need > sc[k]:
                 new_sc[k] = f32(need * (1.0 + 1e-6))
         grow_lines = grow_report(old, ob, path, org, sc, new_org, new_sc)
+        grew = (tuple(float(x) for x in org), tuple(float(x) for x in new_org))
         org, sc = new_org, new_sc
         origin, scale = tuple(float(x) for x in org), [float(x) for x in sc]
         q = np.round((places - org) / sc)
@@ -830,7 +862,8 @@ def export_mdl(context, ob, path, report, grow=False):
         print(line)
     # The object now stands for the file written: its attributes and references follow it.
     LAST_EXPORT.clear()
-    LAST_EXPORT.update(path=path, tri_old_index=tri_old_index)  # (source.py: the barrel mask follows its triangles)
+    LAST_EXPORT.update(path=path, tri_old_index=tri_old_index,  # (source.py: the barrel mask follows its triangles,
+                       grew=grew, grow_lines=list(grow_lines))  # the offsets the origin's move needs)
     rebase(ob, new, kept, new_key, tri_old_index, vert_of_vid, grid_pos, degenerate)
     return lines, moved
 
@@ -848,7 +881,8 @@ def grow_report(old, ob, path, org, sc, new_org, new_sc):
         slots = mdl.weapon_slots(root, old.name)
         if slots:
             lines.append("the origin moved (%.4f %.4f %.4f): the weapon's Scale turns about it, so the drawn weapon "
-                         "moves by that times (1 - Scale). To keep it in place, in the console (they're saved):" % tuple(d))
+                         "moves by that times (1 - Scale). To keep it in place, in the game's console (your config "
+                         "saves these offsets over weapons.txt's):" % tuple(d))
             for slot, ts in slots:
                 for k, axis in enumerate("xyz"):
                     if d[k] != 0:
