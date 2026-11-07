@@ -1321,6 +1321,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     friction = za::max(tune(ent, Tune::Friction), 0.f);
 
     s.kind = Kind::Corpse;
+    markSlotActive(num);
     s.model = model;
     s.frame = static_cast<int>(ent->v.frame);
     s.corpseMode = corpseMode();

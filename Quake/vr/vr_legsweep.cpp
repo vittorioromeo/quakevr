@@ -32,6 +32,7 @@
 #include "vr_anchor.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
@@ -622,7 +623,8 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
     const float r = za::clamp(held.measure.cross * 0.5f, 1.f, maxRadius);
     lo -= glm::vec3{r};
     hi += glm::vec3{r};
-    for(int e = 1; e < qcvm->num_edicts; e++)
+    // (the monsters only: the edict index's FL_MONSTER)
+    for(int e = edictindex::nextFlagged(0, FL_MONSTER); e > 0; e = edictindex::nextFlagged(e, FL_MONSTER))
     {
         edict_t* m = EDICT_NUM(e);
         if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)

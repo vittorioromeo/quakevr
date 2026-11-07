@@ -57,6 +57,7 @@
 #include "vr_box3d_internal.hpp"
 
 #include "vr_admelee.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_geom.hpp"
 #include "vr_trace.hpp"
 
@@ -442,6 +443,34 @@ namespace
     }
     return world->slots[num];
 }
+void markSlotActive(int num)
+{
+    const auto word = static_cast<za::SizeT>(num) >> 6;
+    if(word >= world->slotsActive.size())
+    {
+        world->slotsActive.resize(word + 1, 0);
+    }
+    world->slotsActive[word] |= uint64_t{1} << (num & 63);
+}
+int nextActiveSlot(int from)
+{
+    const za::Vector<uint64_t>& bits = world->slotsActive;
+    auto w = static_cast<za::SizeT>(from + 1) >> 6;
+    if(w >= bits.size())
+    {
+        return 0;
+    }
+    uint64_t word = bits[w] & (~uint64_t{0} << ((from + 1) & 63));
+    while(!word)
+    {
+        if(++w >= bits.size())
+        {
+            return 0;
+        }
+        word = bits[w];
+    }
+    return static_cast<int>(w << 6) + __builtin_ctzll(word);
+}
 void destroyBody(Slot& s)
 {
     if(s.ragdoll >= 0 && s.ragdoll < static_cast<int>(world->ragdolls.size()))
@@ -757,7 +786,14 @@ void syncPropRopes()
         return;
     }
     const int frame = ++world->fuelFrame;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
+    // (the tanks and the flails' heads only, in edict order: the edict index's classnames)
+    const auto nextEnd = [](int from)
+    {
+        const int a = qvr::edictindex::nextClassname(from, "vr_fueltank");
+        const int b = qvr::edictindex::nextClassname(from, "vr_flailhead");
+        return a > 0 && b > 0 ? za::min(a, b) : za::max(a, b);
+    };
+    for(int n = nextEnd(svs.maxclients); n > 0; n = nextEnd(n))
     {
         edict_t* t = EDICT_NUM(n);
         if(t->free || fieldInt(t, link) == 0)

@@ -181,11 +181,18 @@ void spinAlign(Slot& s, float dt)
 void beforeStep(float dt)
 {
     const float g = sv_gravity.value;
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    // (the slots with a body only: World::slotsActive; every other's arrival and lift are 0 already)
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
+        num = nextActiveSlot(num))
     {
         Slot& s = world->slots[num];
         s.arrival = glm::vec3{0.f};
         s.lift = 0.f;
+        if(s.kind == Kind::None && s.ragdoll < 0)
+        {
+            world->slotsActive[static_cast<za::SizeT>(num) >> 6] &= ~(uint64_t{1} << (num & 63)); // (no body now)
+            continue;
+        }
         if(s.kind != Kind::Prop || !b3Body_IsAwake(s.body))
         {
             continue;
@@ -320,7 +327,8 @@ void beforeStep(float dt)
 // pieces a frame, floating crates sank to the bottom).
 void liftAgain()
 {
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
+        num = nextActiveSlot(num))
     {
         const Slot& s = world->slots[num];
         if(s.lift != 0.f && (s.kind == Kind::Prop || s.kind == Kind::Corpse) && B3_IS_NON_NULL(s.body) && b3Body_IsValid(s.body))
@@ -460,7 +468,8 @@ void ragdollsInLiquids(float dt)
         }
     }
     // (A corpse's one body: Corpse Collision's pushable corpses, ragdolls off.)
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num++)
+    for(int num = nextActiveSlot(0);
+        num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num = nextActiveSlot(num))
     {
         Slot& s = world->slots[num];
         if(s.kind == Kind::Corpse && s.corpseDynamic && s.ragdoll < 0 && b3Body_IsValid(s.body) && b3Body_IsAwake(s.body))
@@ -1476,7 +1485,9 @@ extern "C" void VR_PhysicsFrameEnd(void)
         updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
         const bool scrapes = physsound::scrapesWanted();
         const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
-        for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+        // (the slots with a body only: World::slotsActive)
+        for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
+            num = nextActiveSlot(num))
         {
             Slot& s = world->slots[num];
             if(s.ragdoll >= 0)
