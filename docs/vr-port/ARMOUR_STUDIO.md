@@ -59,8 +59,13 @@ pauses). The engine sets the subject's frame; the QC's freeze keeps its stand fr
 ## Your own body (the player's kind)
 
 With Kind = Player, the menu page shows the body's mirror image (vr_bodyclone.cpp) beside the panel, and the ImGui window shows
-it too, ahead of you and to the left (the window opens on the right): its plates are the ones you edit. It needs armour on you
-(no armour, no plates).
+it too, ahead of you and to the left (the window opens on the right): its plates are the ones you edit. While either shows
+the player's kind, your body (and so its image) wears the studio's armour whatever you have: the Tier picked (green, yellow,
+red; as the kind first shows, the tier is set to the armour you wear, if any), every piece, or the part picked alone with Wear
+the Part Alone (`armourstudio::playerArmour`, read by the plates' `view::setupPlates`). Switching `vr_body_build` while it
+shows keeps the image and its armour. Test: `vr_armourstudio_clone_test` (Debug > Tests: Armour Studio: Your Clone's Armour
+Test), in a fresh game (no armour on you), flat screen with `-flatscreenmode` (the window) or in the headset (the menu page):
+each tier, then the build switched 2 -> 1 -> 3 -> 2, then the kind another (nothing on you): `armourclone: 8 passed, 0 failed`.
 
 ## The values
 
@@ -77,8 +82,11 @@ it too, ahead of you and to the left (the window opens on the right): its plates
 | Taper at End | `taper_end` | ... this at its last row: a death knight's thighs wider at the pelvis, narrower at the knee (1.15, 0.9) |
 | Leather Sleeve Shown | `leather` | a sleeve part's leather (over an elbow or a knee, one half of it) drawn, or `"0"`: not made at all |
 
-Start, End, Rows and the tapers are the cuirass's and the limbs' plates' (not the helmet's or a sleeve's; the ImGui window
-hides those rows there); Leather is the sleeve parts' alone (pick e.g. Knee Sleeves (Thigh's), Left Only, to hide that one
+Start, End and Rows are the cuirass's and the limbs' plates' (not the helmet's or a sleeve's; the ImGui window hides those rows
+there). The tapers are every part's but the helmet's: on a sleeve part they size its leather's rings the same way, in the
+limb's order (Taper at Start on its end nearer the body: an upper part's sleeve under its plates, a lower part's at the joint;
+Taper at End on the other), the ring under the plates kept under their feet so the seam holds; a knee's or an elbow's two
+halves overlap at the joint, so tapering one shows a step there, not a gap. A taper of 1 is not written to the file. Leather is the sleeve parts' alone (pick e.g. Knee Sleeves (Thigh's), Left Only, to hide that one
 strap). The pieces stay on the bones they
 rode: a moved plate keeps its skin weights, so it follows the body as before. What hit tests use to find a limb's plates from
 inside (the grid's tube) follows the stand-off, rows, start and end, not a move or a turn.
