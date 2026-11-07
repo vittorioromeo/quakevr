@@ -274,26 +274,28 @@ for off in "${!CLOSE_STEP[@]}"; do
 done
 PY=${PY:-py -3.13}
 SSGCHECKS="$(dirname "$0")/ssg_checks.py" # (by the script's own place: run from elsewhere the three checks on it read nothing and failed)
-check $($PY "$SSGCHECKS" ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight's ring is on the barrels part (it swings open with them), none on the frame"
+check $($PY "$SSGCHECKS" ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight (the notch sight's inserts) is on the barrels part (it swings open with them), none on the frame"
 # The sights' colour: recoloured (the player's hue) on the super shotgun shut, fired, open and shut again, and on the
-# shotgun's auto pump's parts (its fore-end held back), as on the gun itself.
+# shotgun's auto pump's parts (its fore-end held back), as on the gun itself. Seen from above and behind (the gun held level):
+# since 2026-11 both guns' glowing inserts are on their sights' back faces (a side view sees none); at least 15 pixels.
 SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots
-SEE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20"
+SEE="vr_weapon_screen 0;vr_gadget_screen_text_white 1;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 60 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera -0.1 1.62 -0.3 55 0;wait20"
 tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s1=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -4))
-check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
-tb_run_sh -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
+check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
+tb_run_sh -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;wait30;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s2=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -3))
-check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
+check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
 log=$(tb_run_sh -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
 # The blood on the super shotgun stays on it broken open (the author's note vrfiringrange_2026-10-08_22-03-33: its parts
 # read the gun's mask, their taller skin's rows mapped): shot shut, open, shut again, bloody (vr_gore_gear 1) and clean
 # (0: the hand's blood alone); the gun's own blood (the difference) open at least 60% of what it is shut.
+SEESIDE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20" # (from the side)
 BLOODY="vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff -1;wait10"
 for gear in 1 0; do
-    tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $gear};$SEE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
+    tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $gear};$SEESIDE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
     [ $gear = 1 ] && b1=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3)) || b0=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3))
 done
 check $(echo "$b1 $b0" | awk '{ shut = $2 - $6; open = $3 - $7; again = $4 - $8; print (shut > 300 && open > 0.6 * shut && again > 0.6 * shut) ? 1 : 0 }') "the super shotgun's blood stays on it open and shut again (bloody $b1, clean $b0: shut, open, shut)"

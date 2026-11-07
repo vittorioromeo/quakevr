@@ -108,7 +108,7 @@ def ys(V, x0, x1, z0, z1, what):
 
 LINES = {
     'v_shot.mdl': ((9.754, -0.05, 6.545), (32.406, -0.0045, 6.212)),  # (2026-11: the sights' housings)
-    'v_shot2.mdl': ((12.33, -0.03, 7.55), (27.92, 0.00, 7.945)),  # (2026-11: the raised bead, the rib's back lowered)
+    'v_shot2.mdl': ((12.823, -0.03, 7.7225), (27.818, 0.0066, 8.112)),  # (2026-11: the notch sight, the ramp post)
     'v_light.mdl': ((-1.78, -0.17, 11.48), (31.28, -0.16, 11.34)),
     'v_gruntgun.mdl': ((-2.15, 0, 11.6), (28.15, 0, 11.6)),
     'v_enfrifle.mdl': ((6.30, 0, 10.799), (23.00, 0, 10.659)),

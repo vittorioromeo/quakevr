@@ -3425,3 +3425,44 @@ housings with recessed luminous inserts instead of floating glowing rectangles; 
   texel and no bad normal-map texel under its triangles, no thin skin triangle (a near-singular normal-map frame), none
   in the barrel mask. A one-sided render of the quantized model from above and behind shows none. Likely the renderer,
   not the mesh; reproducing it needs his setup (map, auto pump, graphics preset).
+
+## The super shotgun's notch sight (branch `agent/selfshot`, 2026-11-08)
+
+His note: "The new shotgun sights are great. Can you make the same change to the super shotgun? I'd like to have the
+circle removed, and use the same idea as the normal shotgun." (His mockup `scratch/shotsight_mockup/ssg_mockup.webp` in
+the kit: its blocky rear notch sight liked, its front post too bulky: slim like the shotgun's; glowing inserts on the
+rear's ears as the shotgun has.)
+
+- **Geometry** (`v_shot2.blend`, edited headless: a one-off bpy script, not kept; the .blend is the source). Gone: the
+  ring (96 triangles), the old front patch (24) and the bead (28), each a piece of its own; every glowing texel of the
+  skin (2493, all theirs) repainted steel. Rear: one closed solid on the rib just in front of the barrels' back, x 12.82
+  (back) to 13.05 (the ears' tops) / 13.28 (below), a square U: a notch 0.55 wide, its floor 0.28 under the line (one
+  step over the rib), between two square ears 0.29 wide, their tops 0.28 over the line (0.28 over the barrels' tops);
+  its bottom in the rib. Front: a slim ramp post at the muzzle, its back at x 27.82 (0.33 wide at the top, 0.48 lower),
+  its top one grid step over the insert, a ramp down to x 28.27, a block under it down into the barrels. 30 new
+  vertices on the barrels (past make_ssg_open.py's cut, x 12.5): both sights swing open with the barrels; the frame
+  part keeps its 535 triangles. The z grid is 0.056 units, y 0.037.
+- **Skin.** New patches in free skin (s 128-196, t 98-145): metal (Quake's brown-grey row and the blue-grey, dithered,
+  lit top edges), the ears' and the post's back faces each a metal frame round a glowing insert (palette 234 rim, 235,
+  236 core: fullbright, recoloured by `vr_sight_hue`), the recess painted (a dark line over and beside, a lit lip under),
+  as the shotgun's. No relief PNG for this gun (its normal map is baked from the model).
+- **Sight line.** Rear 12.823 -0.030 7.7225, front 27.818 0.0066 8.112 (were the ring's middle 12.325 -0.028 7.545 and
+  the bead 27.924 0.001 7.945): 1.488 deg up, 0.140 left (were 1.468, 0.108): turned 0.02 up, 0.03 left (the grid:
+  0.5 y steps of play). It is 0.17 higher than the ring's: with the inserts' tops on the old line the barrels' backs
+  (the V between them) hid the ears' inserts but for small triangles in the sight picture; one grid step higher (3
+  steps, the post's top too) they show whole (the kick's frame `shot4` lifts the post to 248 of the box's 255: no
+  growing). sight_picture.py: the front seen down to 0.41 under its top (was 0.25). The shots turned with the line:
+  weapons.txt slot 2 `shot_pitch` 3.09 -> 3.11, `shot_yaw` 0.19 -> 0.22 (his promoted values, their offset from the sights
+  kept; his own `vr_wofs_shot_*_03`, if saved, untouched). vr_sightalign's table, sights.py `PAINTED`: `Rear::Notch` /
+  "notch" (was ring); sight_picture.py's line; the empties `sight rear` / `sight front` moved onto it.
+- **Barrel mask:** 374 of 915 triangles (was 480 of 1011: the ring and the patch were marked; the new sights aren't, as
+  the shotgun's). `fx_gfx_mask` "915:..." matches the model.
+- **Checks.** The export: holes as before (0 open loops, 3 cracks, 0 wide); the breech face's middle 12.77 -0.03 6.77 and
+  the barrels' back 9 points as before (vr_view.cpp's ssg constants hold). `vr_sight_lines`: v_shot2 "sights rear 12.82
+  -0.03 7.72 front 27.82 0.01 8.11 (1.49 deg up, 0.14 left)". Flat `vr_flat_sight_check`: rear 0.0001, front 0.0001
+  off the ray.
+- **reload_test.sh** (section 7): the ring check reads the rear sight's box x 12.0-13.4 (ssg_checks.py); the sights'
+  colour checks look from above and behind with the gun held level (both guns' inserts are on back faces now: the side
+  camera saw 1-3 pixels of the super shotgun's and 12 of the shotgun's), at least 15 pixels (was 50), the ammo screen's
+  text white (its red "0/2" after firing sat next to the rear sight); the blood check keeps the side camera.
+- **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.

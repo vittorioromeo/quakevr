@@ -681,7 +681,12 @@ the shipped files byte for byte (checked for all of them: 56 sources, 112 files)
   shipped files and records its files as owned. Then the .blend is the source.
 - **The super shotgun's bead** (2026-11): a raised, glowing front bead on the muzzle band, and the rib's back end lowered
   under the ring's middle so the ring is a real aperture: edited in `v_shot2.blend`. Its sight line is 1.47 deg up (was
-  0.65); its shots follow it (`shot_pitch 1.47`, `shot_yaw 0.11` in weapons.txt).
+  0.65); its shots follow it (`shot_pitch 1.47`, `shot_yaw 0.11` in weapons.txt). Replaced since (ROUND24.md, "The super
+  shotgun's notch sight"): the ring, the old front patch and the bead are gone; a blocky notch sight on the rib just in
+  front of the barrels' back (a square U notch between two square ears, a glowing insert on each ear's back face) and a
+  slim ramp post at the muzzle (its insert on its back face), the shotgun's idea. Both are on the barrels part (x past
+  make_ssg_open.py's cut), so they swing open with the barrels. The sight line kept the old one's angles within 0.03 deg
+  (1.488 up, 0.140 left), 0.17 higher (else the barrels' backs hide the rear inserts); vr_sightalign reads it as a notch.
 - **The shotgun's sights** (2026-11): raised metal housings instead of glowing blocks, edited in `v_shot.blend` (ROUND24.md,
   "The shotgun's sight housings"): a rear housing across the receiver (a U notch between two ears), a ramp post on the
   muzzle band; the glowing inserts are painted on the ears' and the post's back faces, their tops where the old posts'
