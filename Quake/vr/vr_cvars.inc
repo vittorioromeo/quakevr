@@ -2487,6 +2487,8 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own camp
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
+QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: each new start of a map (new game, level change, restart; not a loaded save) rolls its crates and barrels, rocks, armed replacements and their armour anew; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
+QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
 QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand

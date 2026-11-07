@@ -382,6 +382,12 @@ has the probe that dumps every anchor in every pose of its model (base against b
 run (A/B between builds). `vr_motion_header_check` (in `selfchecks_test.sh`): the weapon anchors through a motion
 take's header and back, and an old take's vertex index to the default (PASS/FAIL).
 
+Map content seeds (ROUND24.md, "Fresh map seeds"): `vr_fresh_map_seeds` (default 1) deals the crates, rocks, armed
+replacements and their armour anew at each new start of a map, but never in a test session (`vr_backend mock`) or a
+test's seeded load: the tests keep the map name's content whatever their config. `vr_map_seed N` before a `map` fixes
+it (`-1`: a fresh one under the mock too); `vr_map_seed_info` prints the one in play; `vr_agrunt_test 73` prints the
+map's `loadouts hash`.
+
 Multiview twins (STEREO.md, "Multiview-ready: the check"): `vr_multiview_check` builds every graphics program's
 single-pass stereo twin and ends on `vr_multiview_check: N passed, M failed` (a FAIL line for each twin that does not
 build and is not on its allow-list). `selfchecks_test.sh` runs it last, its run ending on that verdict; alone:

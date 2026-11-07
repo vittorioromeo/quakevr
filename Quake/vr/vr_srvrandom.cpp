@@ -23,6 +23,7 @@
 
 #include "vr_srvrandom.hpp"
 #include "vr_engine.hpp"
+#include "vr_cvars.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include <stdlib.h>
@@ -47,7 +48,66 @@ void info_f()
     Con_Printf("server random: seed %llu (sv_random_seed %s%s)\n", static_cast<unsigned long long>(currentSeed),
         sv_random_seed.string, nextMapArmed ? "; the next map's armed" : "");
 }
+
+// The map's content seed (see the header): 0 none. lastLoadArmed: this load was seeded by a test (seedNextMap: a
+// motion take's, vr_bench_seed's), whose content stays the map name's.
+za::U32 currentMapSeed = 0u;
+const char* mapSeedWhy = "no map yet";
+bool lastLoadArmed = false;
+
+[[nodiscard]] bool testSession() { return !q_strcasecmp(vr_backend.string, "mock"); }
+
+void mapSeedInfo_f()
+{
+    Con_Printf("map seed: %u (%s; vr_fresh_map_seeds %s, vr_map_seed %s)\n", static_cast<unsigned>(currentMapSeed), mapSeedWhy,
+        vr_fresh_map_seeds.string, vr_map_seed.string);
+}
 } // namespace
+
+void chooseMapSeed(bool fromSave)
+{
+    const int fixed = static_cast<int>(vr_map_seed.value);
+    if(fromSave)
+    {
+        // (a saved game's own replaces this with its globals; a save from before the seeds has none: the map's name)
+        currentMapSeed = 0u;
+        mapSeedWhy = "a saved game's (none: one made before the map seeds)";
+    }
+    else if(fixed > 0)
+    {
+        currentMapSeed = static_cast<za::U32>(fixed) & 0xFFFFFFu;
+        mapSeedWhy = "vr_map_seed's";
+    }
+    else if(lastLoadArmed)
+    {
+        currentMapSeed = 0u;
+        mapSeedWhy = "none: a test's seeded load";
+    }
+    else if(fixed == 0 && (vr_fresh_map_seeds.value == 0.f || testSession()))
+    {
+        currentMapSeed = 0u;
+        mapSeedWhy = vr_fresh_map_seeds.value == 0.f ? "none: vr_fresh_map_seeds 0" : "none: a test session (vr_backend mock)";
+    }
+    else
+    {
+        // The clock's, through splitmix64, to 24 bits (never 0). Apart from the server stream's own seed.
+        za::U64 z = static_cast<za::U64>(za::Clock::nowNanoseconds()) ^ 0x6D617073656564ull;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        z ^= z >> 31;
+        currentMapSeed = static_cast<za::U32>(z % 0xFFFFFFull) + 1u;
+        mapSeedWhy = "fresh";
+    }
+    Con_DPrintf("map seed %u (%s)\n", static_cast<unsigned>(currentMapSeed), mapSeedWhy);
+}
+
+void restoreMapSeed(za::U32 seed)
+{
+    currentMapSeed = seed & 0xFFFFFFu;
+    mapSeedWhy = seed ? "the saved game's" : "the saved game's: none";
+}
+
+za::U32 mapSeed() { return currentMapSeed; }
 
 void seedNow(za::U64 seed)
 {
@@ -80,6 +140,7 @@ za::U64 derivedSeed(za::U64 salt)
 void registerCommands()
 {
     Cmd_AddCommand("sv_random_info", info_f);
+    Cmd_AddCommand("vr_map_seed_info", mapSeedInfo_f);
 }
 } // namespace qvr::srvrandom
 
@@ -88,6 +149,7 @@ extern "C" void VR_ServerRandomMapLoad(void)
 {
     using namespace qvr::srvrandom;
     za::U64 seed = 0u;
+    lastLoadArmed = nextMapArmed; // (the map's content seed too: chooseMapSeed)
     if(nextMapArmed)
     {
         seed = nextMapSeed;

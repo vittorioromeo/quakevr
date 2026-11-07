@@ -116,6 +116,12 @@ float(float k, vector at) VR_AgArmor_Rand =
     else if(k == 2) a = 0.5698402910;
     else if(k >= 3) a = 0.4142135624 + k * 0.0731;
     float x = vr_ar_seq * a + at_x * 0.0137 + at_y * 0.0071 + at_z * 0.0029 + k * 0.31;
+    if(vr_map_content_seed > 0) // (the map's content seed, vr_fresh_map_seeds: another spread each new start; 0 as before)
+    {
+        float s = vr_map_content_seed - 30011 * floor(vr_map_content_seed / 30011);
+        float o = (s + 1) * (0.3819660113 + k * 0.1234);
+        x = x + (o - floor(o));
+    }
     return x - floor(x);
 };
 

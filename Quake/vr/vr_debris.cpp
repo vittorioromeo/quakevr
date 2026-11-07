@@ -11,6 +11,7 @@
 #include "vr_held.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
+#include "vr_srvrandom.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -930,6 +931,7 @@ PlanKey planKey(const za::Vector<Obstacle>& obstacles)
             k.add(v->string);
         }
     }
+    k.add(static_cast<int>(srvrandom::mapSeed())); // (the map's content seed: vr_fresh_map_seeds)
     k.parts[0] = k.h;
     // The map: its entities' text (the worldspawn's keys), geometry, textures and light.
     const qmodel_t* map = sv.worldmodel;
@@ -1081,7 +1083,8 @@ int plan()
     }
 
     Planner pl;
-    pl.rng.s = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_debris_seed.value)) * 0x9E3779B97F4A7C15ull);
+    pl.rng.s = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_debris_seed.value)) * 0x9E3779B97F4A7C15ull) ^
+               (static_cast<uint64_t>(srvrandom::mapSeed()) * 0xE7037ED1A0B428DBull); // (the map's content seed: 0, as before)
     pl.worldScale = za::clamp(vr_world_scale.value, 0.5f, 3.f);
     const float chance = za::max(vr_debris_chance.value, 0.f) * worldspawnValue("_vr_debris");
     const bool rocks = vr_debris_rocks.value != 0.f, bricks = vr_debris_bricks.value != 0.f;
