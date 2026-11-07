@@ -507,6 +507,153 @@ void PF_agweaponextent()
     progs::returnVec({radius, glm::distance(front, back), 0.f});
 }
 
+// agposesend's arithmetic as the QuakeC VM does it, for the same bytes: rint (pr_cmds.c PF_rint: its half added in
+// double), min and max (PF_min, PF_max with two), a vector's dot product (pr_exec.c OP_MUL_V).
+float agpsRint(float f)
+{
+    return f > 0 ? static_cast<float>(static_cast<int>(f + 0.5)) : static_cast<float>(static_cast<int>(f - 0.5));
+}
+float agpsMin(float a, float b)
+{
+    return a > b ? b : a;
+}
+float agpsMax(float a, float b)
+{
+    return a < b ? b : a;
+}
+float agpsDot(const float* a, const float* b)
+{
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+// QC WriteByte, WriteShort, WriteCoord (MSG_BROADCAST: VR_BroadcastDest's room kept as for QuakeC's own writes)
+void agpsByte(float v)
+{
+    sizebuf_t* d = VR_BroadcastDest(1);
+    MSG_WriteByte(d, static_cast<int>(v));
+    VR_BroadcastWritten(d);
+}
+void agpsShort(float v)
+{
+    sizebuf_t* d = VR_BroadcastDest(2);
+    MSG_WriteShort(d, static_cast<int>(v));
+    VR_BroadcastWritten(d);
+}
+void agpsVec(const float* v) // (VR_AGP_WriteVec)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        sizebuf_t* d = VR_BroadcastDest(4);
+        MSG_WriteCoord(d, v[i], sv.protocolflags);
+        VR_BroadcastWritten(d);
+    }
+}
+void agpsDir(const float* v) // (VR_AGP_WriteDir)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        agpsShort(agpsRint(v[i] * 32000));
+    }
+}
+void agpsShorts(const float* v, float per) // (VR_AGP_WriteShorts)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        agpsShort(agpsRint(agpsMax(-32000, agpsMin(32000, v[i] * per))));
+    }
+}
+void agpsLocalDir(const float* w, const Bindings& b) // (VR_AGP_WriteDir(VR_AGP_ToLocal(w)))
+{
+    const float o[3] = {agpsDot(w, b.agPose[Bindings::agpF]), -agpsDot(w, b.agPose[Bindings::agpR]), w[2]};
+    agpsDir(o);
+}
+
+// float(entity g, entity p, entity pL, float fl, float bytes, vector gx, vector gy, vector gz) agposesend: armed humanoid
+// `g`'s pose this server frame (QVR_SVC_ARMPOSE) to MSG_BROADCAST, the bytes QC VR_AGP_Pose's ~50 Write calls made, from
+// its globals (vr_agp_*, vr_agk_*; vr_agp_waist) and: `p` its weapon (world: reaching, or fists), `pL` its left one, `fl`
+// the flags byte + 256 x the off-hand block's byte + 65536 with the body's block, `bytes` the IK stretch's byte + 256 x
+// the take's, `gx`, `gy`, `gz` the gun's axes. FALSE: not written (vr_agposesend 0, or a global missing): QC writes it.
+void PF_agposesend()
+{
+    const Bindings& b = bindings();
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(vr_agposesend.value == 0.f)
+    {
+        return;
+    }
+    for(const float* g : b.agPose)
+    {
+        if(!g)
+        {
+            return;
+        }
+    }
+    const int fl = static_cast<int>(G_FLOAT(OFS_PARM3));
+    const int bytes = static_cast<int>(G_FLOAT(OFS_PARM4));
+    const int sendFl = fl & 255, offFl = (fl >> 8) & 255;
+    const bool body = (fl & 65536) != 0;
+    const float* gx = G_VECTOR(OFS_PARM5);
+    const float* gy = G_VECTOR(OFS_PARM6);
+    const float* gz = G_VECTOR(OFS_PARM7);
+    const auto glob = [&b](int i) { return b.agPose[i]; };
+    agpsByte(39); // svc_quakevr
+    agpsByte(36); // QVR_SVC_ARMPOSE
+    agpsShort(static_cast<float>(G_EDICTNUM(OFS_PARM0)));
+    agpsShort(static_cast<float>(G_EDICTNUM(OFS_PARM1)));
+    agpsByte(static_cast<float>(sendFl));
+    agpsByte(agpsRint(agpsMin(1, agpsMax(0, *glob(Bindings::agpWr))) * 255));
+    agpsVec(glob(Bindings::agpV));
+    agpsLocalDir(glob(Bindings::agpFw), b);
+    agpsLocalDir(glob(Bindings::agpUp), b);
+    for(const int w : {Bindings::agpFw, Bindings::agpUp})
+    {
+        const float f[3] = {agpsDot(glob(w), gx), agpsDot(glob(w), gy), agpsDot(glob(w), gz)};
+        agpsDir(f);
+    }
+    agpsByte(agpsRint(agpsMin(1, agpsMax(0, *glob(Bindings::agpWo))) * 255));
+    agpsByte(agpsRint(agpsMin(1, agpsMax(0, *glob(Bindings::agpWl))) * 255));
+    agpsVec(glob(Bindings::agpVl));
+    if(sendFl & 8) // VR_AGP_LEFTWPN
+    {
+        agpsShort(static_cast<float>(G_EDICTNUM(OFS_PARM2)));
+        agpsLocalDir(glob(Bindings::agpFwl), b);
+        agpsLocalDir(glob(Bindings::agpUpl), b);
+    }
+    if(body)
+    {
+        const float* tq = glob(Bindings::agpTq);
+        for(int i = 0; i < 3; i++)
+        {
+            agpsShort(agpsRint(tq[i] * 100));
+        }
+        agpsDir(glob(Bindings::agpElr));
+        agpsDir(glob(Bindings::agpEll));
+        agpsVec(glob(Bindings::agpWaist));
+        if(sendFl & 1) // VR_AGP_FIXED
+        {
+            agpsByte(static_cast<float>((bytes >> 8) & 255));
+        }
+    }
+    if(offFl)
+    {
+        agpsByte(static_cast<float>(offFl));
+        if(offFl & 4)
+        {
+            agpsShorts(glob(Bindings::agkGp), 100);
+            agpsShorts(glob(Bindings::agkGr), 10);
+        }
+        if(offFl & 8)
+        {
+            agpsShorts(glob(Bindings::agkLp), 100);
+            agpsShorts(glob(Bindings::agkLr), 10);
+        }
+        if(offFl & 16)
+        {
+            agpsByte(static_cast<float>(bytes & 255));
+        }
+    }
+    G_FLOAT(OFS_RETURN) = 1.f;
+}
+
 // vector(float kind, float f) admeleebend: AD sword kind `kind`'s blade at share `f` of the line from the hand to its tip,
 // off that line (admelee::bend, as shares of its length): x in the blade's plane (the model's +y crossed with the line),
 // y along the model's +y; z 1 if the blade is curved (0: straight, nothing off it). QC VR_Melee_At.

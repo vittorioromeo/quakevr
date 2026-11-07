@@ -1251,6 +1251,7 @@ float vr_agp_wf;     // the follow-through's: from the blow, 1 at the strike's e
 vector vr_agp_tq;    // the torso's turn now: yaw, pitch, roll (degrees)
 vector vr_agp_drawr; // the hands drawn back in the wind-up (its body's space, before the turn)
 vector vr_agp_drawl;
+vector vr_agp_waist; // the waist the torso was turned about, as sent (agposesend reads it)
 vector vr_agp_elr;   // the elbows' poles (its body's space; their length the share: 0 the animation's)
 vector vr_agp_ell;
 vector VR_AGP_WAIST = '-4.7 0.9 4.8'; // the grunt's waist (its rig's pelvis's end: the chest's turn's pivot)
@@ -2567,6 +2568,20 @@ void(entity g, entity p) VR_AGP_Pose =
         offFl = offFl | ((vr_agp_flags & VR_AGP_FREE) ? 1 : 0) | ((vr_agp_flags & VR_AGP_TWO) ? 2 : 0);
         sendFl = sendFl | VR_AGP_FREE | VR_AGP_TWO;
     }
+    float takeB = 0;
+    if(body)
+    {
+        vr_agp_waist = VR_AM_Fit(g, VR_AGP_WAIST); // (the waist they were turned about)
+        if(vr_agp_flags & VR_AGP_FIXED)
+        {
+            takeB = rint(min(1, max(0, takeW)) * 127) + (pL ? 128 : 0);
+        }
+    }
+    // (the message in one builtin call, the same bytes as the Writes below: ~50 builtin calls a pose)
+    if(agposesend(g, reaching ? world : p, pL, sendFl + offFl * 256 + (body ? 65536 : 0), stretchB + takeB * 256, gx, gy, gz))
+    {
+        return;
+    }
 
     WriteByte(MSG_BROADCAST, 39); // svc_quakevr
     WriteByte(MSG_BROADCAST, 36); // QVR_SVC_ARMPOSE
@@ -2599,11 +2614,11 @@ void(entity g, entity p) VR_AGP_Pose =
         WriteShort(MSG_BROADCAST, rint(vr_agp_tq_z * 100));
         VR_AGP_WriteDir(vr_agp_elr);
         VR_AGP_WriteDir(vr_agp_ell);
-        VR_AGP_WriteVec(VR_AM_Fit(g, VR_AGP_WAIST)); // (the waist they were turned about)
+        VR_AGP_WriteVec(vr_agp_waist); // (the waist they were turned about)
         if(vr_agp_flags & VR_AGP_FIXED)
         {
             // (a take's weight x 127, its left hand taking it 128: the client's kneel, vr_aglegs)
-            WriteByte(MSG_BROADCAST, rint(min(1, max(0, takeW)) * 127) + (pL ? 128 : 0));
+            WriteByte(MSG_BROADCAST, takeB);
         }
     }
     if(offFl)
