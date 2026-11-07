@@ -992,6 +992,7 @@ Returns a chain of entities that have origins within a spherical area
 findradius (origin, radius)
 =================
 */
+#define FINDRADIUS_AHEAD 8 // QVR: edicts prefetched ahead of the walk
 static void PF_findradius (void)
 {
 	edict_t	*ent, *chain;
@@ -1009,6 +1010,18 @@ static void PF_findradius (void)
 	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
 	{
 		float d, lensq;
+		// QVR: the edicts are kilobytes apart, beyond the hardware prefetchers' reach (a page): the lines this walk reads
+		// asked for FINDRADIUS_AHEAD edicts ahead (an armed humanoid's three findradius a frame cost 12 us each on a
+		// big AD map; ROUND24.md, "Tracy session 11-07"). It reads the same fields: the same chain.
+		if (i + FINDRADIUS_AHEAD < qcvm->num_edicts)
+		{
+			const byte *ahead = (const byte *)ent + FINDRADIUS_AHEAD * qcvm->edict_size;
+			__builtin_prefetch (ahead);
+			__builtin_prefetch (ahead + offsetof (edict_t, v.solid));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.origin));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.mins));
+			__builtin_prefetch (ahead + offsetof (edict_t, v.maxs) + sizeof (ent->v.maxs) - 1);
+		}
 		if (ent->free)
 			continue;
 		if (ent->v.solid == SOLID_NOT)

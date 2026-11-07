@@ -146,6 +146,10 @@ struct FlatKeys
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
+    bool keyProne{false};   // X (vr_flat_key_prone), last frame
+    bool prone{false};      // lying down asked for (vr_flat_key_prone, vr_prone_toggle): a toggle
+    float proneRatio{0.f};  // lying down's share now: 0 up .. 1 down, eased over vr_prone_body_time (crouchShape)
+    float proneLin{0.f};    // its ease's even progress
 
     float ratio{0.f};       // the crouch's share now: 0 standing .. 1 crouched, eased at vr_flat_crouch_time each way
     float lin{0.f};         // the ease's even progress, which `ratio` is through crouchShape
@@ -751,6 +755,42 @@ void pollKeys()
 // Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, G drops what a hand
 // holds. Read from the keyboard state like E and V, and only while the game has the keys. (+flatcrouch / -flatcrouch hold
 // the crouch the same way, for the console and the mode's own Ctrl bind: CtrlBind above.)
+// Lying down's drop of the eyes (vr_prone): from Quake's standing eyes (cl.viewheight over the origin, 24 over the feet)
+// to 4 units under vr_prone_eye over the feet (at the defaults 46 to 14: 32), where the server takes him for lying
+// down (vr_hull.cpp updateCrouch) as it does a headset player whose eyes are that low.
+[[nodiscard]] float proneDrop()
+{
+    const float eye = za::clamp(vr_prone_eye.value - 4.f, 6.f, 40.f);
+    return za::clamp(cl.viewheight + 24.f - eye, 0.f, 44.f);
+}
+
+// vr_prone_toggle and the prone key: lie down, or get up again (the server lets him up only where the lowest crouched
+// box fits: under a lower ceiling he stays down, his view held under it: pollKeysFlat's cap).
+void toggleProne(const char* why)
+{
+    if(vr_prone.value == 0.f || vr_crouch_hull.value == 0.f)
+    {
+        keyState.prone = false;
+        Con_Printf("flatplay: lying down is off (vr_prone, vr_crouch_hull)\n");
+        return;
+    }
+    keyState.prone = !keyState.prone;
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s: %s\n", why, keyState.prone ? "lie down" : "get up");
+    }
+}
+
+void proneToggle_f()
+{
+    if(!active())
+    {
+        Con_Printf("vr_prone_toggle: flat-screen play only; in a headset, lie down for real (your eyes under vr_prone_eye)\n");
+        return;
+    }
+    toggleProne("vr_prone_toggle");
+}
+
 void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
@@ -822,6 +862,14 @@ void pollKeysFlat()
     keyState.keyDrop = drop;
     keyState.keySwap = swap;
     keyState.keyTime = slow;
+    // X (vr_flat_key_prone): lie down, get up (vr_prone_toggle's toggle).
+    const int proneKey = Key_StringToKeynum(vr_flat_key_prone.string);
+    const bool proneDown = inGame && proneKey > 0 && proneKey < MAX_KEYS && keydown[proneKey] != 0;
+    if(proneDown && !keyState.keyProne)
+    {
+        toggleProne("flatscreen key");
+    }
+    keyState.keyProne = proneDown;
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -837,6 +885,19 @@ void pollKeysFlat()
         keyState.lin += za::clamp(want - keyState.lin, -step, step);
     }
     keyState.ratio = crouchShape(keyState.lin);
+    // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off (vr_prone 0, or
+    // the crouched box off) it never goes down.
+    // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
+    if(!(vr_prone.value != 0.f && vr_crouch_hull.value != 0.f) || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
+    {
+        keyState.prone = false;
+    }
+    if(dt > 0.0)
+    {
+        const float step = static_cast<float>(dt) / za::clamp(vr_prone_body_time.value, 0.1f, 3.f);
+        keyState.proneLin += za::clamp((keyState.prone ? 1.f : 0.f) - keyState.proneLin, -step, step);
+    }
+    keyState.proneRatio = crouchShape(keyState.proneLin);
     // Let go under a low ceiling, he rises only as far as his box lets him: the server keeps his box crouched where the
     // standing one does not fit (the headset's checks: vr_hull.cpp updateCrouch), and his eyes stop flatEyeHeadroom under
     // its top (hull::localEyeCap) -- in a 40-high tunnel he stays down, in a 48-high gap he comes up to 36 over his feet.
@@ -854,6 +915,15 @@ void pollKeysFlat()
         {
             keyState.ratio = least;
             keyState.lin = crouchUnshape(least); // (held there: it rises from here, not from where the ease had got to)
+        }
+        // Kept lying down (the server keeps his box low under a ceiling the crouched one does not fit): the lying drop
+        // holds his eyes under that box's top the same way.
+        const float proneDown = proneDrop();
+        const float need = standEye - cap;
+        if(need > down && proneDown > 0.f && keyState.proneRatio * proneDown < need)
+        {
+            keyState.proneRatio = za::clamp(need / proneDown, 0.f, 1.f);
+            keyState.proneLin = crouchUnshape(keyState.proneRatio);
         }
     }
 }
@@ -1133,7 +1203,14 @@ void noteBackendImplied()
 // (vr_server.cpp) follow that lowered head.
 float crouchDrop()
 {
-    return active() ? keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f) : 0.f;
+    // Lying down (vr_flat_key_prone) goes lower than the crouch: the deeper of the two.
+    return active() ? za::max(keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), keyState.proneRatio * proneDrop())
+                    : 0.f;
+}
+
+float proneRatio()
+{
+    return active() ? keyState.proneRatio : 0.f;
 }
 
 // Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
@@ -1144,7 +1221,8 @@ float crouchRatio()
 
 bool crouchHeld()
 {
-    return active() && (keyState.keyCtrl || keyState.cmdHeld);
+    // (Lying down asked for holds it too: the server's box follows his eyes down, and he lies once they are low.)
+    return active() && (keyState.keyCtrl || keyState.cmdHeld || keyState.prone);
 }
 
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
@@ -1180,6 +1258,7 @@ void init()
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
+    Cmd_AddCommand("vr_prone_toggle", proneToggle_f); // the prone key's toggle (vr_flat_key_prone), the console's way
     Cmd_AddCommand("vr_flat_punch", punch_f);
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)

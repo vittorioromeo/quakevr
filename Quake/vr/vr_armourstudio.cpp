@@ -4,11 +4,14 @@
 #include "vr_agarmor.hpp"
 #include "vr_agarmor_internal.hpp"
 #include "vr_armourdata.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_menu.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -22,6 +25,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+extern "C" int VR_IsActive(void);
 
 namespace qvr::armourstudio
 {
@@ -76,6 +81,7 @@ struct State
     double undoAt{-1e9};
     char statusText[256]{};
     char animText[160]{};
+    bool playerShown{false}; // the player's kind shown last frame (playerArmour; its tier taken from yours as it first shows)
 };
 State st;
 
@@ -91,6 +97,24 @@ struct Test
     char mapWas[64]{};
 };
 Test test;
+
+// The player's kind on show: the ImGui window open, or the menu's Armour Studio page, on Kind = Player (playerArmour).
+[[nodiscard]] bool playerShown()
+{
+    return za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) == KindPlayer && (windowOpen() || menu::armourStudioPage());
+}
+
+// As it first shows, the studio's tier is the armour you wear (none: the tier picked stays).
+void notePlayerShown()
+{
+    const bool shown = playerShown();
+    const int worn = cls.state == ca_connected && cl.viewentity > 0 ? agarmor::clientState(cl.viewentity, 0) : 0;
+    if(shown && !st.playerShown && worn >= 1 && worn <= 3)
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_tier, static_cast<float>(worn));
+    }
+    st.playerShown = shown;
+}
 
 [[nodiscard]] int selectedSide()
 {
@@ -192,6 +216,9 @@ void syncFields()
         }
         // (rows 0: the generator's)
         o->has &= f == Rows && o->v[Rows] < 0.5f ? ~(1u << static_cast<unsigned>(Rows)) : ~0u;
+        // (a taper of 1, the plates' or a sleeve's: as made, not written to the file)
+        const bool taper = f == TaperStart || f == TaperEnd;
+        o->has &= taper && za::abs(o->v[f] - 1.f) < 1e-4f ? ~(1u << static_cast<unsigned>(f)) : ~0u;
         // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
         o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
         o->has &= f == Leather && (o->v[Leather] > 0.5f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
@@ -622,6 +649,89 @@ void testStep1()
     changed();
     s = gruntShell();
     t.check(s && s->hash == test.hashTweaked, testName, "taper and leather cleared: not the same shell as before");
+    // Leather taper: the left knee's two sleeves, the thigh's half 1 -> 1.4, the shin's 1.4 -> 0.7 (in the limb's order: the
+    // shin's start is its joint end), each ring's size round its middle; their plates and the right knee's sleeves untouched.
+    const auto sleeveRing = [](const agarmor::detail::Shell* sh, int piece, int ring) {
+        constexpr int ringVerts = 7; // (a sleeve's 6 columns and its seam's copy)
+        glm::vec3 p[6];
+        int n = 0, k = 0;
+        for(const auto& v : sh->verts)
+        {
+            if(v.piece != piece || v.st.x < 224.f || v.st.y < 64.f || v.st.y > 96.f)
+            {
+                continue;
+            }
+            if(k >= ring * ringVerts && k < ring * ringVerts + 6)
+            {
+                p[n++] = v.p;
+            }
+            k++;
+        }
+        if(n < 6)
+        {
+            return 0.f;
+        }
+        const glm::vec3 mid = (p[0] + p[1] + p[2] + p[3] + p[4] + p[5]) / 6.f;
+        float sum = 0.f;
+        for(const glm::vec3& q : p)
+        {
+            sum += glm::length(q - mid) / 6.f;
+        }
+        return sum;
+    };
+    float ringsWas[4][4]{}; // (thigh L, shin L, thigh R, shin R; rings 0 .. 3)
+    const int kneePieces[4] = {agarmor::ThighL, agarmor::ShinL, agarmor::ThighR, agarmor::ShinR};
+    for(int i = 0; s && i < 4; i++)
+    {
+        for(int ring = 0; ring < 4; ring++)
+        {
+            ringsWas[i][ring] = sleeveRing(s, kneePieces[i], ring);
+        }
+    }
+    za::Vector<agarmor::detail::Vert> vertsWas;
+    if(s)
+    {
+        vertsWas = s->verts;
+    }
+    Override* thighLeather = entry("grunt", PartThighSleeve, SideLeft, true);
+    Override* shinLeather = entry("grunt", PartShinSleeve, SideLeft, true);
+    thighLeather->v[TaperStart] = 1.f;
+    thighLeather->v[TaperEnd] = 1.4f;
+    shinLeather->v[TaperStart] = 1.4f;
+    shinLeather->v[TaperEnd] = 0.7f;
+    thighLeather->has |= (1u << TaperStart) | (1u << TaperEnd);
+    shinLeather->has |= (1u << TaperStart) | (1u << TaperEnd);
+    changed();
+    s = gruntShell();
+    const float shinWant[4] = {0.f, 1.4f - 0.7f * 2.f / 3.f, 1.4f - 0.7f / 3.f, 1.4f};
+    float ratio[4][4]{};
+    bool taperOk = s != nullptr;
+    for(int i = 0; s && i < 4; i++)
+    {
+        for(int ring = 0; ring < 4; ring++)
+        {
+            ratio[i][ring] = ringsWas[i][ring] > 0.f ? sleeveRing(s, kneePieces[i], ring) / ringsWas[i][ring] : 0.f;
+            // (the left's against the lerp, but for the shin's ring 0: under its plates' feet, so no wider than it was; the
+            // right's unchanged)
+            const float want = i >= 2 ? 1.f : i == 0 ? 1.f + 0.4f * static_cast<float>(ring) / 3.f : shinWant[ring];
+            taperOk = taperOk && (ringsWas[i][ring] > 0.f) && (i == 1 && ring == 0 ? ratio[i][ring] <= 1.f : za::abs(ratio[i][ring] - want) < 0.01f);
+        }
+    }
+    char taperWhat[320];
+    q_snprintf(taperWhat, sizeof(taperWhat), "the left knee's leather taper: thigh's rings %.3f %.3f %.3f %.3f (1 1.133 1.267 1.4 wanted), shin's %.3f %.3f %.3f %.3f "
+                                   "(<=1 0.933 1.167 1.4), the right's %.3f %.3f (1 1)",
+        static_cast<double>(ratio[0][0]), static_cast<double>(ratio[0][1]), static_cast<double>(ratio[0][2]), static_cast<double>(ratio[0][3]),
+        static_cast<double>(ratio[1][0]), static_cast<double>(ratio[1][1]), static_cast<double>(ratio[1][2]), static_cast<double>(ratio[1][3]),
+        static_cast<double>(ratio[2][3]), static_cast<double>(ratio[3][3]));
+    Con_Printf("%s: %s\n", testName, taperWhat);
+    t.check(taperOk, testName, taperWhat);
+    t.check(s && movedBy(vertsWas, s->verts, agarmor::ThighL, false, glm::vec3{0.f}, n) && movedBy(vertsWas, s->verts, agarmor::ShinL, false, glm::vec3{0.f}, n),
+        testName, "the leather taper moved the left thigh's or shin's plates");
+    thighLeather->has &= ~((1u << TaperStart) | (1u << TaperEnd));
+    shinLeather->has &= ~((1u << TaperStart) | (1u << TaperEnd));
+    changed();
+    s = gruntShell();
+    t.check(s && s->hash == test.hashTweaked, testName, "the leather taper cleared: not the same shell as before");
     // (both again, for the file's round trip below)
     taper->has |= (1u << TaperStart) | (1u << TaperEnd);
     leather->has |= 1u << Leather;
@@ -703,8 +813,125 @@ void test_f()
     testStep1();
 }
 
+// ---- The clone's test (vr_armourstudio_clone_test): your body and its mirror image wear the studio's armour on the player's
+// kind with none on you: each tier, each build (switched while it is shown), and none again once the kind is another. Flat
+// screen: the ImGui window; in the headset: the menu's page. Its steps one a frame, each on its own condition. ----
+constexpr const char* cloneTestName = "armourclone";
+constexpr int cloneStepFrames = 72 * 8; // frames a step may wait (a safety net: FAIL "timed out")
+constexpr int cloneBuildFirst = 2;             // the build it starts on (the tiers'), then switched while shown to these:
+constexpr int cloneBuilds[3] = {1, 3, 2};      // (1 -> 3: the switch that once showed no clone)
+
+struct CloneTest
+{
+    int step{0}; // 0 off; 1 .. 3 the tiers; 4 .. 6 the builds; 7 the kind another; 8 done
+    int frames{0};
+    testkit::Tally tally;
+    float kindWas{0.f}, tierWas{3.f}, buildWas{1.f}, aloneWas{0.f};
+};
+CloneTest cloneTest;
+
+void cloneVerdict()
+{
+    CloneTest& c = cloneTest;
+    Cvar_SetValueQuick(&vr_armourstudio_kind, c.kindWas);
+    Cvar_SetValueQuick(&vr_armourstudio_tier, c.tierWas);
+    Cvar_SetValueQuick(&vr_body_build, c.buildWas);
+    Cvar_SetValueQuick(&vr_armourstudio_alone, c.aloneWas);
+    Cbuf_AddText(VR_IsActive() ? "togglemenu\n" : "vr_armourstudio_window close\n");
+    c.step = 0;
+    c.tally.verdict(cloneTestName);
+}
+
+// The step's settle: the tier wanted on every piece, settled (no morph), the clone's image showing the body, and the pieces
+// drawn in the clone (its own pass, with the head: PlatePass::Clone) all of them.
+[[nodiscard]] bool cloneSettled(int tier)
+{
+    return playerShown() && view::platesState(18) == tier && view::platesState(10) == agarmor::allPieces && view::platesState(11) == 0 &&
+           bodyclone::bodyShown() && view::platesState(19) == agarmor::allPieces;
+}
+
+void cloneTestFrame()
+{
+    CloneTest& c = cloneTest;
+    if(c.step == 0)
+    {
+        return;
+    }
+    c.frames++;
+    const int tier = c.step <= 3 ? c.step : 3;
+    // (the kind another: nothing on you; the clone's count is its last drawing's, so not asked)
+    const bool done = c.step <= 6 ? cloneSettled(tier) && c.frames > 2 : view::platesState(10) == 0 && view::platesState(18) == 0 && !playerShown();
+    if(!done)
+    {
+        if(c.frames > cloneStepFrames)
+        {
+            c.tally.check(false, cloneTestName,
+                va("timed out: step %d (shown %d, colour %d, pieces %d, coming %d, clone body %d, the clone's pieces %d, build %d)", c.step, playerShown() ? 1 : 0,
+                    view::platesState(18), view::platesState(10), view::platesState(11), bodyclone::bodyShown() ? 1 : 0, view::platesState(19),
+                    static_cast<int>(vr_body_build.value)));
+            cloneVerdict();
+        }
+        return;
+    }
+    c.tally.check(true);
+    Con_Printf("%s: step %d ok: tier %d, build %d, colour %d, pieces %d, the clone's pieces %d, your armour %d (frames %d)\n", cloneTestName, c.step, tier,
+        static_cast<int>(vr_body_build.value), view::platesState(18), view::platesState(10), view::platesState(19), agarmor::clientState(cl.viewentity, 0),
+        c.frames);
+    Cbuf_AddText(c.step >= 3 && c.step <= 6 ? "vr_player_plates_info\n" : ""); // (the body's model: the build's)
+    c.step++;
+    c.frames = 0;
+    if(c.step <= 3)
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_tier, static_cast<float>(c.step));
+    }
+    else if(c.step <= 6)
+    {
+        Cvar_SetValueQuick(&vr_body_build, static_cast<float>(cloneBuilds[c.step - 4])); // (switched while shown)
+    }
+    else if(c.step == 7)
+    {
+        Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(KindGrunt)); // (your own armour again: none)
+    }
+    else
+    {
+        cloneVerdict();
+    }
+}
+
+void cloneTest_f()
+{
+    if(!sv.active || cls.state != ca_connected)
+    {
+        Con_Printf("vr_armourstudio_clone_test: a map first\n");
+        return;
+    }
+    CloneTest& c = cloneTest;
+    c = CloneTest{};
+    c.kindWas = vr_armourstudio_kind.value;
+    c.tierWas = vr_armourstudio_tier.value;
+    c.buildWas = vr_body_build.value;
+    c.aloneWas = vr_armourstudio_alone.value;
+    // (a fresh game: no armour on you, so what the clone wears is the studio's)
+    const int worn = agarmor::clientState(cl.viewentity, 0);
+    c.tally.check(worn <= 0, cloneTestName, va("you wear armour (type %d): a fresh game wanted", worn));
+    Cvar_SetValueQuick(&vr_armourstudio_alone, 0.f);
+    Cvar_SetValueQuick(&vr_armourstudio_tier, 1.f);
+    Cvar_SetValueQuick(&vr_body_build, static_cast<float>(cloneBuildFirst));
+    Cvar_SetValueQuick(&vr_armourstudio_kind, static_cast<float>(KindPlayer));
+    if(VR_IsActive())
+    {
+        menu::jumpToArmourStudio();
+    }
+    else
+    {
+        Cbuf_AddText("vr_armourstudio_window open\n");
+    }
+    c.step = 1;
+}
+
 void testFrame()
 {
+    cloneTestFrame();
     if(test.step == 2)
     {
         testStep2();
@@ -726,6 +953,7 @@ void init()
     Cmd_AddCommand("vr_armourstudio_reset_part", resetPart_f);
     Cmd_AddCommand("vr_armourstudio_reset_kind", resetKind_f);
     Cmd_AddCommand("vr_armour_test", test_f);
+    Cmd_AddCommand("vr_armourstudio_clone_test", cloneTest_f);
     Cmd_AddCommand("vr_armourstudio_anim_info", [] {
         Con_Printf("armourstudio: %s\n", animStatus());
         for(int i = 0; i < animCount(); i++)
@@ -753,6 +981,7 @@ void frame()
     armourdata::frame();
     syncFields();
     keepSubject();
+    notePlayerShown();
     testFrame();
 }
 
@@ -801,6 +1030,19 @@ const char* animStatus()
 bool cloneWanted()
 {
     return windowOpen() && za::clamp(static_cast<int>(vr_armourstudio_kind.value), 0, NumKinds - 1) == KindPlayer;
+}
+
+bool playerArmour(int& type, int& pieces)
+{
+    if(!playerShown())
+    {
+        return false;
+    }
+    bool sleeve = false;
+    type = za::clamp(static_cast<int>(vr_armourstudio_tier.value), 1, 3);
+    pieces = vr_armourstudio_alone.value ? piecesOf(za::clamp(static_cast<int>(vr_armourstudio_part.value), 0, NumParts - 1), SideBoth, sleeve)
+                                         : agarmor::allPieces;
+    return true;
 }
 
 } // namespace qvr::armourstudio

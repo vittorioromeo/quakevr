@@ -126,6 +126,8 @@ struct Bindings
     float* spawnServerFromSaveFile{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
+    // vr_map_content_seed: the map's content seed (srvrandom::mapSeed), set at its load; saved with the game
+    float* mapContentSeed{nullptr};
     float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
     float* agrHold{nullptr};   // vr_agr_hold: > 0 while a tool spawns (no armed replacement: progs::ToolSpawn)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)

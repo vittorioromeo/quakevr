@@ -25,6 +25,7 @@
 #include "vr_footsteps.hpp"
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
@@ -450,6 +451,7 @@ extern "C" void VR_OnProgsLoaded()
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
         b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");
+        b.mapContentSeed = globalFloat("vr_map_content_seed");
         b.spawnLive = globalFloat("vr_spawn_live");
         b.arenaWave = globalFloat("ar_wave");
         b.arenaWaveAt = globalFloat("ar_wave_at");
@@ -563,6 +565,12 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     qvr::climb::precache();     // the mantle's grunts
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
+    // The map's content seed (vr_fresh_map_seeds), for QC's rolls as the map spawns and the planners at its first frame.
+    qvr::srvrandom::chooseMapSeed(loadingSaveGame);
+    if(sv_bindings.mapContentSeed)
+    {
+        *sv_bindings.mapContentSeed = static_cast<float>(qvr::srvrandom::mapSeed());
+    }
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
     qvr::hull::beforeLoad(); // the map as brushes and the compiled hulls, on the pool while the map spawns
     qvr::box3d::beforeLoad(); // the world's mesh, likewise
@@ -1103,6 +1111,8 @@ extern "C" void VR_OnLoadGame()
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);
+    // The saved game's map content seed (a saved global; 0 in a save made before them: the map's name alone).
+    qvr::srvrandom::restoreMapSeed(sv_bindings.mapContentSeed ? static_cast<za::U32>(za::max(*sv_bindings.mapContentSeed, 0.f)) : 0u);
 
     // The saved edicts replaced the map's own, numbers and all: what SV_SpawnServer's two frames made for the map's
     // entities (Box3D's bodies, the free places and turns in the hand) would be taken for the loaded ones'. Built

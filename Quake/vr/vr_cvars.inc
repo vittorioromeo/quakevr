@@ -35,6 +35,13 @@ QVR_CVAR(vr_crouch_height, "36", CVAR_ARCHIVE)         // ... the lowest crouche
 QVR_CVAR(vr_crouch_step, "8", CVAR_ARCHIVE)            // ... then a box every this many units taller up to 52 (36, 44, 52: your eyes under one, that one; over all, standing); 0: that one crouched height alone
 QVR_CVAR(vr_crouch_speed, "1", CVAR_ARCHIVE)           // crouched (your eyes under the tallest crouched box, vr_crouch_height/_step: 52; fully 8 units lower), the stick's most speed is vr_crouch_speed_scale of it, and always under the stealth AI's footsteps (vr_stealth_run_speed, 90% of it); eased in and out (vr_hull.cpp VR_CrouchSpeedMax); jumps, falls, knockback, movers untouched
 QVR_CVAR(vr_crouch_speed_scale, "0.75", CVAR_ARCHIVE)  // ... times the most speed (sv_maxspeed after stamina and carrying) crouched (0.2-1)
+QVR_CVAR(vr_prone, "1", CVAR_ARCHIVE)                  // lying down (needs vr_crouch_hull): your eyes under vr_prone_eye over your feet (a headset: lie down for real; flat-screen: vr_flat_key_prone / vr_prone_toggle), your box is vr_prone_height, you crawl at vr_prone_speed_scale, no jumping, the body lies flat behind your head (vr_hull.cpp, vr_avatar_pitch.cpp; ROUND24 "Lying down and crawling"); 0: never
+QVR_CVAR(vr_prone_eye, "18", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to vr_prone_height less 2; 18 is about 0.5 m); up again once they are 2 over the box's top and the lowest crouched box fits
+QVR_CVAR(vr_prone_height, "24", CVAR_ARCHIVE)          // ... your box's height lying down, in units (24 to the lowest crouched height less 4)
+QVR_CVAR(vr_prone_speed_scale, "0.3", CVAR_ARCHIVE)    // ... the stick's most speed lying down, times your top speed (0.1-1), eased in and out like the crouch's
+QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... degrees the body turns forward about the neck lying down (0 .. 100; the eyes over the floor tip the hips down more, so they rest on it)
+QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
+QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
@@ -2480,6 +2487,8 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own camp
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
+QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: each new start of a map (new game, level change, restart; not a loaded save) rolls its crates and barrels, rocks, armed replacements and their armour anew; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
+QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
 QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand

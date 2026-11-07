@@ -346,6 +346,12 @@ def main():
     if stats or prev:
         return
     guard = genguard.Guard("make_hand_feminine.py", outs)
+    write(mesh, new, outs)
+    guard.finish()
+    print("-> %s" % ", ".join(os.path.basename(o) for o in outs))
+
+
+def write(mesh, new, outs):
     joints = [(n, parent, pos) for n, parent, pos, _ in mesh["joints"]]
     verts = []
     for v, (s, t, first, count) in enumerate(mesh["verts"]):
@@ -356,8 +362,17 @@ def main():
     md5hand.write_md5anim(outs[1], joints, [tuple(p) for p in new], cmd)
     import make_hand_rig
     make_hand_rig.write_placeholder_mdl(outs[2])
-    guard.finish()
-    print("-> %s" % ", ".join(os.path.basename(o) for o in outs))
+
+
+def derive(src, folder):
+    """The feminine hand from the standard one at `src`, written into `folder`: the hand's source .blend runs this on
+    export when the hand changed (hand_rig.blend owns hand_rig_f.* too, so the generator itself is retired: genguard).
+    The files written."""
+    outs = [os.path.join(folder, n) for n in ("hand_rig_f.md5mesh", "hand_rig_f.md5anim", "hand_rig_f.mdl")]
+    mesh, rest = load(src)
+    new, _ = reshape(mesh, rest)
+    write(mesh, new, outs)
+    return outs
 
 
 if __name__ == "__main__":

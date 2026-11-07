@@ -561,6 +561,11 @@ za::Vector<Item> pageDebugProfiling()
                   "started from at this map's load. sv_random_seed <that number> in the console before a map plays "
                   "its AI the same again (0, the default: the clock's, a new one each load); the client's effects "
                   "never move them."),
+        command("Map Content Seed", "vr_map_seed_info")
+            .help("vr_map_seed_info: the seed this map's crates and barrels, rocks and bricks, and armed enemies' weapons "
+                  "and armour were dealt from (Gameplay > New Each Time; 0: the map's name alone, the same every time). "
+                  "vr_map_seed <that number> in the console before a map deals the same again; -1 a new one even in a "
+                  "test session (the mock headset, where it is otherwise off)."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
@@ -1074,7 +1079,8 @@ za::Vector<Item> pageArmourStudio()
                   "sides take the larger)."),
         slider("Taper at Start", vr_armourstudio_taper_start, 0.5f, 1.5f, 0.02f, "%.2fx")
             .help("vr_armourstudio_taper_start: the plate rows' size round the part's line at its first row (the waist side of "
-                  "a thigh: the hip), lerped row by row to the taper at its end. 1 as made. Not the helmet or a sleeve."),
+                  "a thigh: the hip), lerped row by row to the taper at its end. 1 as made. A sleeve part's leather the "
+                  "same, its end nearer the body (its ring under the plates stays under them). Not the helmet."),
         slider("Taper at End", vr_armourstudio_taper_end, 0.5f, 1.5f, 0.02f, "%.2fx")
             .help("vr_armourstudio_taper_end: ... at its last row (a thigh's knee). A death knight's thighs wider at the "
                   "pelvis, narrower at the knee: 1.15 and 0.9."),

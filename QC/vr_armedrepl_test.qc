@@ -706,6 +706,7 @@ void() VR_AGRT_Census =
         float waiting = 0;
         float pending = 0;
         float humans = 0;
+        float lh = 7; // (the loadouts' and armour's hash, in edict order: the map content seed's check, vr_fresh_map_seeds)
         entity e = nextent(world);
         while(e)
         {
@@ -716,6 +717,7 @@ void() VR_AGRT_Census =
             else if((e.flags & FL_MONSTER) && e.health > 0)
             {
                 live = live + 1;
+                lh = VR_AGR_Mod(lh * 31 + e.weapon * 7 + e.weapon2 * 13 + e.vr_ar_type * 5 + VR_AGR_Mod(e.vr_ar_mask, 1021), 30011);
                 humans = humans + (e.classname == "monster_army" || e.classname == "monster_enforcer");
                 if(e.vr_agr)
                 {
@@ -731,6 +733,7 @@ void() VR_AGRT_Census =
             killed_monsters));
         VR_AGT_Print(sprintf("map %s: grunts and enforcers %g, replaced %g: own gun %g, varied %g, unrolled %g", mapname, humans, armed,
             native, varied, pending));
+        VR_AGT_Print(sprintf("map %s: loadouts hash %g (map seed %g)", mapname, lh, vr_map_content_seed));
         e = nextent(world);
         while(e)
         {

@@ -176,5 +176,9 @@ bool scroll(int rows);
 // the pouches', the flashlight's place on the body and its head zones, the wrist gadget's mount, the virtual stock's, the
 // pauldrons'): kept while that page stays. vr_menu_body_clone 2: any VR page.
 [[nodiscard]] bool bodyClonePage();
+// The VR menu open on Debug > Tools > Armour Studio (vr_armourstudio.cpp: the player's kind worn while it is shown).
+[[nodiscard]] bool armourStudioPage();
+// That page from anywhere (vr_armourstudio_clone_test in the headset).
+void jumpToArmourStudio();
 
 } // namespace qvr::menu

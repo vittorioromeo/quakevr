@@ -14,7 +14,10 @@
 //   start    "u"       units its first row of plates starts further along it (towards the waist, hand or foot)
 //   end      "u"       units its last row ends further along it
 //   rows     "n"       its rows of plates (0 the generator's; the cuirass counts its collar row)
-// (start, end and rows: the cuirass and the limbs' plates; not the helmet or the sleeves)
+//   taper_start "s"  the plate rows' size round its line at its first row (1 as made), lerped row by row to ...
+//   taper_end   "s"  ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)
+//   leather  "0"       a sleeve's leather not drawn at all (1 or unset: drawn)
+// (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)
 
 kind "grunt"
 {
@@ -24,6 +27,8 @@ kind "grunt"
         standoff "-0.05"
         start "0"
         end "0.75"
+        taper_start "1.075"
+        taper_end "0.975"
     }
     helmet
     {
@@ -38,6 +43,8 @@ kind "grunt"
         offset "0 0 0"
         scale "1"
         standoff "0"
+        taper_start "1"
+        taper_end "0.975"
     }
     pauldron_l
     {
@@ -53,37 +60,57 @@ kind "grunt"
         rotate "-3.4 0 0"
         scale "1"
         standoff "0"
-        start "-0.53"
+        start "-1.57"
         end "-0.2"
+        taper_start "1.174"
     }
     bracer
     {
         standoff "-0.2"
         start "0.11"
         end "0.25"
+        taper_start "1"
+        taper_end "1"
     }
     bracer_l
     {
         start "0.1"
+        taper_end "0.95"
+    }
+    bracer_r
+    {
+        taper_start "1"
+        taper_end "0.85"
     }
     thigh
     {
         start "-1.3"
         end "-0.15"
+        taper_start "1.1"
+        taper_end "0.95"
     }
     thigh_l
     {
         scale "1.06"
+    }
+    shin
+    {
+        taper_start "1"
+        taper_end "1"
     }
     shin_l
     {
         end "-0.25"
         rows "4"
     }
+    bracer_sleeve
+    {
+        standoff "1"
+    }
     thigh_sleeve
     {
         rotate "10 0 0"
-        scale "0.98"
+        scale "1"
         standoff "-0.1"
     }
 }
@@ -214,6 +241,7 @@ kind "death_knight"
     thigh
     {
         start "-4"
+        taper_start "1"
     }
     shin
     {

@@ -36,6 +36,9 @@ za::Vector<Item> pageMain()
         open("Weapons and Bullet Time", pageIndex(pageVrsWeaponsBulletTime))
             .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
         // (The author, 2026-10-22: its own page here, "easier to find"; Body and Equipment had it.)
+        open("Gameplay", pageIndex(pageVrsGameplay))
+            .help("The big gameplay choices on one page: armed humanoids, weapon drops, enemy shoves, knockdowns, "
+                  "holding enemies, embedded blades, parry and bash, stamina, bullet time, gore, the Survival Arena."),
         open("Item Collection", pageIndex(pageVrsItemCollection))
             .help("How you pick up ammo, health and backpacks (Item Pickup Mode): carry them by hand and put them away at "
                   "a holster, take them the moment you grip them, or walk into them as in Quake."),
@@ -192,6 +195,39 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
     return {
         row(opt::vr_menu_pickup_mode),
         backpacks,
+    };
+}
+
+// VR Settings > Gameplay (the author, 2026-11-06, BACKLOG "Gameplay page before 1.1": every major gameplay decision from
+// one simple menu): each row is the switch of a feature whose numbers live on the Advanced VR Options pages.
+[[nodiscard]] za::Vector<Item> pageVrsGameplay()
+{
+    return {
+        header("Enemies"),
+        row(opt::vr_agrunt_repl),
+        row(opt::vr_enemy_drops),
+        row(opt::vr_enemy_shove),
+        row(opt::vr_enemy_melee_arc),
+        header("Hands On"),
+        row(opt::vr_knockdown),
+        row(opt::vr_foegrab),
+        row(opt::vr_embed),
+        header("Melee and Parry"),
+        row(opt::vr_parry),
+        row(opt::vr_bash),
+        row(opt::vr_parry_stamina),
+        row(opt::vr_stamina_speed),
+        row(opt::vr_melee_bloodlust),
+        header("Bullet Time"),
+        row(opt::vr_bullettime_enabled),
+        header("Gore"),
+        row(opt::vr_gore),
+        header("Maps"),
+        row(opt::vr_fresh_map_seeds),
+        header("Survival Arena"),
+        row(opt::vr_arena)
+            .help("The Survival Arena's waves of monsters in any map you play, from its own spots (an arena map runs "
+                  "them anyway). More: Advanced VR Options > Combat > Survival Arena."),
     };
 }
 

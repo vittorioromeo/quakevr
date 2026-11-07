@@ -90,6 +90,7 @@ def import_hand(context, path):
     arm = bpy.data.objects.new(ARMATURE_NAME, arm_data)
     arm["qvr_hand"] = 1
     arm["qvr_source"] = path
+    remember_files(arm, path)
     context.collection.objects.link(arm)
     arm.show_in_front = True
     mesh_data = bpy.data.meshes.new(MESH_NAME)
@@ -209,6 +210,53 @@ class HandError(Exception):
     pass
 
 
+# The files' commandline line names who wrote them. An export of an unedited hand writes the files it was imported
+# from (or last exported) byte for byte, that line included: the armature keeps it and a digest of the rest.
+def files_digest(path):
+    """SHA-256 of the .md5mesh and .md5anim at `path` but their commandline lines (None if one is missing)."""
+    import hashlib
+    h = hashlib.sha256()
+    for p in (path, os.path.splitext(path)[0] + ".md5anim"):
+        if not os.path.exists(p):
+            return None
+        with open(p, "rb") as f:
+            h.update(b"\n".join(l for l in f.read().split(b"\n") if not l.startswith(b"commandline")) + b"\0")
+    return h.hexdigest()
+
+
+def commandline_of(path):
+    with open(path, "rb") as f:
+        for line in f.read().split(b"\n")[:4]:
+            if line.startswith(b"commandline"):
+                return line.decode()
+    return None
+
+
+def remember_files(arm, path):
+    d = files_digest(path)
+    if d is not None:
+        arm["qvr_digest"] = d
+        arm["qvr_commandline"] = commandline_of(path) or ""
+        arm["qvr_commandline_anim"] = commandline_of(os.path.splitext(path)[0] + ".md5anim") or ""
+
+
+def keep_commandline(arm, path):
+    """The files just written at `path` are the remembered ones but for the commandline line: put the remembered lines
+    back (True)."""
+    if not arm.get("qvr_commandline") or files_digest(path) != arm.get("qvr_digest"):
+        return False
+    for p, prop in ((path, "qvr_commandline"), (os.path.splitext(path)[0] + ".md5anim", "qvr_commandline_anim")):
+        old = arm.get(prop, "").encode()
+        if not old:
+            continue
+        with open(p, "rb") as f:
+            lines = f.read().split(b"\n")
+        lines = [old if l.startswith(b"commandline") else l for l in lines]
+        with open(p, "wb") as f:
+            f.write(b"\n".join(lines))
+    return True
+
+
 def export_hand(context, path, write_skin=True, report=print):
     arm, ob = find_hand(context)
     if arm is None or ob is None:
@@ -300,6 +348,8 @@ def export_hand(context, path, write_skin=True, report=print):
     cmd = "Blender %s, quakevr_hand" % bpy.app.version_string
     M.write_md5mesh(path, joints, verts, tris, "hand_rig", cmd)
     M.write_md5anim(anim, joints, [p for _, _, p in verts], cmd)
+    if not keep_commandline(arm, path):
+        remember_files(arm, path)
     report({'INFO'}, "wrote %s and %s: %d vertices, %d triangles" % (path, os.path.basename(anim), len(verts), len(tris)))
     if write_skin:
         export_skin(os.path.dirname(path), report)
@@ -387,7 +437,7 @@ class QVR_OT_export_hand(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         arm, _ = find_hand(context)
         if arm is not None and arm.get("qvr_source"):
-            self.filepath = arm["qvr_source"]
+            self.filepath = bpy.path.abspath(arm["qvr_source"])
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
@@ -427,7 +477,7 @@ class QVR_OT_bake_normal_map(bpy.types.Operator):
         if nb is None:
             return {'CANCELLED'}
         arm, ob = find_hand(context)
-        path = arm.get("qvr_source") if arm is not None else None
+        path = bpy.path.abspath(arm.get("qvr_source")) if arm is not None and arm.get("qvr_source") else None
         if ob is None or not path or not os.path.exists(path):
             self.report({'ERROR'}, "no exported hand to bake: import it (or export it first)")
             return {'CANCELLED'}

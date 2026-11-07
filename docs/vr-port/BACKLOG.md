@@ -249,6 +249,8 @@ without leaning, chosen automatically from the seated calibration (vr_setup seat
 - **Player lying down and physical crawling** (Vittorio, 2026-11-03): the player can lie down and crawl by moving their body and arms.
   The body's pitch (`vr_avatar_pitch.cpp`, `BodyPitch`; ROUND24.md, "Swimming tilt") is the pose state to reuse: a second
   source with its own target (about 90), the same pivot (the head stays at the headset) and ease; the legs on the floor.
+  Lying down landed (ROUND24.md, "Lying down and crawling": `vr_prone`, the 24 box, the crawl's speed, no jumps, the body
+  flat, flat-screen's X); left: moving by pulling with the arms (the stick crawls today), a box lower than 24.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 

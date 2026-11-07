@@ -13,6 +13,7 @@
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_srvrandom.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -724,7 +725,9 @@ int plan()
     }
     const double t0 = Sys_DoubleTime();
     Planner pl;
-    const uint64_t seed = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_crates_seed.value)) * 0xD1B54A32D192ED03ull);
+    // (the map's content seed: 0 with vr_fresh_map_seeds 0, the map's name alone as before)
+    const uint64_t seed = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_crates_seed.value)) * 0xD1B54A32D192ED03ull) ^
+                          (static_cast<uint64_t>(srvrandom::mapSeed()) * 0xA0761D6478BD642Full);
     pl.rng.s = seed;
     const float margin = za::max(vr_crates_margin.value, 0.f);
     debris::gatherObstacles(pl.obstacles, za::max(margin - 24.f, 0.f));

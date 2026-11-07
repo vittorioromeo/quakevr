@@ -864,6 +864,14 @@ za::Vector<Item> pageHitbox()
         row(opt::vr_crouch_step),
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your box's height (0 standing) and whether you could stand."),
+        header("Lying Down"),
+        row(opt::vr_prone),
+        row(opt::vr_prone_eye),
+        row(opt::vr_prone_height),
+        row(opt::vr_prone_speed_scale),
+        command("Lying Down Status", "vr_prone_status")
+            .help("Prints whether you lie down, your box's height, your eyes' height over your feet against the limit, "
+                  "your speed, and whether a crouch would fit (you could get up)."),
         row(opt::vr_box3d_player_radius),
         header("Standing on Props"),
         row(opt::vr_box3d_player_stand),

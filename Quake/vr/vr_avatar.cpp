@@ -323,6 +323,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         tiltReach = za::min(glm::length(v), 0.95f * torsoLen);
         leanDir = tiltReach > 1e-4f ? glm::normalize(v) : leanDir;
     }
+    // Lying down (vr_prone; vr_avatar_pitch.cpp, BodyPitch::lying): the trunk straight under the neck, no lean, crouch
+    // or crouch tilt, by its share: the body's pitch below lays that straight trunk on the floor behind the head.
+    const float lying = crouchPose ? bodyPitch.lying : 0.f;
+    tiltReach *= 1.f - lying;
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
@@ -337,16 +341,18 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
 
     // The crouched pose's share, from the crouch under the standing neck (the neck's own crouched offset then lowers it
     // a little more, which the pose below follows).
-    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) : 0.f;
+    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) : 0.f;
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
     top += flatplay::crouchNeck(nf, s.headAngles.x) * w;
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
-    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
+    const float tilt =
+        glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight) * (1.f - lying);
     float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
     pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
+    pelvisZ = pelvisZ + (top0.z - torsoLen - pelvisZ) * lying; // (lying down: the straight trunk, its full length)
     const float dz = top0.z - pelvisZ;
     const float lean = dz < torsoLen ? za::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
 

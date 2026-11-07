@@ -117,6 +117,11 @@ QVR_SLIDER(vr_body_swim_tilt_time, "Under Water Lean Time", 0.1f, 3.f, 0.1f, "%.
 QVR_SLIDER(vr_body_swim_tilt_ledge, "Straighten Near a Way Out", 0.f, 160.f, 8.f, "%.0f units", ext(),
     "Swimming towards a ledge you can climb out at, the body straightens from this far away, so your legs are under you "
     "when you climb out (0: it stays leaning).")
+QVR_SLIDER(vr_prone_body_angle, "Lying Down Body Angle", 0.f, 100.f, 5.f, "%.0f deg", ext(),
+    "Lying down (Player Hitbox > Lying Down), how far forward the body turns about your neck: 90 flat behind your head "
+    "(propped up higher, the hips slope down to the floor). 0: it stays upright.")
+QVR_SLIDER(vr_prone_body_time, "Lying Down Time", 0.1f, 3.f, 0.1f, "%.1f s", ext(),
+    "How long the body takes to lie down and to get up again (flat-screen: the view's drop too).")
 QVR_TOGGLE(vr_body_climb_feet, "Climbing Footholds",
     "Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
     "you climb; with none, they hang. Off: they hang as in the air.")
@@ -889,8 +894,12 @@ QVR_SLIDER(vr_agrunt_repl_rare_map, "Rare From Map", 0.f, 8.f, 1.f, "%.0f", noEx
     "Rare weapons only from this map of an episode on (e1m4, hip1m4, r2m4, ...); maps with no number in "
     "their name never. 0: any map (vr_agrunt_repl_rare_map).")
 QVR_SLIDER(vr_agrunt_repl_seed, "Shuffle", 0.f, 100.f, 1.f, "%.0f", noExt,
-    "Each humanoid's loadout is the same every time you play a map (its spawn point and the map pick it); "
-    "another number deals every map's out anew (vr_agrunt_repl_seed).")
+    "With Gameplay > New Each Time off, each humanoid's loadout is the same every time you play a map (its spawn "
+    "point and the map pick it); another number deals every map's out anew (vr_agrunt_repl_seed).")
+QVR_TOGGLE(vr_fresh_map_seeds, "New Each Time",
+    "Each time you start a map (a new game, the next level, a restart), its crates and barrels, the rocks and bricks "
+    "on the floor, and the armed enemies' weapons and armour come out differently. Off: the same every time you play "
+    "it. A loaded save is always just as it was saved. Next map (vr_fresh_map_seeds; vr_map_seed_info).")
 QVR_TOGGLE(vr_agrunt_repl_id, "Quake's Campaigns",
     "Quake, Dimension of the Past, Dimension and Dawn of the Machine, and custom maps "
     "(vr_agrunt_repl_id).")
@@ -4073,7 +4082,8 @@ QVR_TOGGLE(vr_debris_bricks, "Bricks", "Bricks at the foot of brick walls. Next 
 // vr_menu_physics.inc: pageCrates
 QVR_TOGGLE(vr_crates, "Crates",
     "Wooden crates, small and large, stand by the walls and in corners, some stacked two high: push them, "
-    "carry them, stand on them, break them. The same places at every load. Single player. Next map.")
+    "carry them, stand on them, break them. New places each time you start a map (Gameplay > New Each Time). "
+    "Single player. Next map.")
 QVR_SLIDER(vr_crate_health, "Health", 0.f, 100.f, 5.f, "%.0f", ext(0.f, 1000.f),
     "A small crate's (a large one's 1.6 times): shots, blows, explosions and hard hits wear it down. A shotgun "
     "blast does up to 24, the axe about 20. 0: they never break.")
@@ -5210,6 +5220,17 @@ QVR_CYCLE(vr_crouch_step, "Heights Above It",
     "Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
     "eyes under one, that box (36, 44, 52 every 8). None: the lowest only (vr_crouch_step).",
     {0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"}, {12.f, "Every 12 units"})
+QVR_TOGGLE(vr_prone, "Lie Down and Crawl",
+    "Lie down for real (your eyes under Lying Down Below) and your box is very low: you crawl under what even a "
+    "crouch can't pass, slowly, and you can't jump. Getting up needs room for a crouch over you. Flat-screen: the "
+    "prone key (X) lies down and gets up. Needs the Crouched Hitbox. Off: never lying down (vr_prone).")
+QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 22.f, 1.f, "%.0f units", noExt,
+    "Your eyes' height over your feet under which you lie down (18 is about half a metre: propped on your elbows, "
+    "not on all fours). Up again with them 2 units over your lying box (vr_prone_eye).")
+QVR_SLIDER(vr_prone_height, "Lying Down Height", 24.f, 32.f, 1.f, "%.0f units", noExt,
+    "Your box's height lying down, at most the lowest crouched height less 4 (vr_prone_height).")
+QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
+    "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
 QVR_SLIDER(vr_box3d_player_radius, "Prop Push Radius", 5.f, 40.f, 1.f, "%.0f cm", noExt,
     "Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
     "not by your box (vr_box3d_player_radius).")
