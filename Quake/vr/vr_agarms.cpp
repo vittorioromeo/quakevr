@@ -185,6 +185,10 @@ struct Ent
     double leftModeAt{0.0};
     float stretchMost{1.f}; // the IK stretch it may use (Targets::stretch eased: stretchEase)
     float stretch[2]{1.f, 1.f}; // ... each arm's as drawn (the skin's: rows, skinned)
+    // vr_agarms_warm: each free hand's or fist's forearm turn last solved (on the chest) and its goal then: the next
+    // solve's refinement starts there (warm), not from the goal's turn
+    glm::quat foreRel[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
+    int foreGoal[2]{-1, -1};
 };
 
 // vr_agarms_lod: an Ent's last solve (State::lods, by its Ent's index; not in the Live tape's state: its subject is
@@ -241,8 +245,39 @@ struct State
     int hashN{0};
     unsigned long long msgHash{14695981039346656037ull};
     int msgN{0};
+    // vr_agarms_fast_check: each solve against the old way's (vr_agarms_warm 0, vr_agarms_fast 0) on a copy of its state: the hands' places
+    // apart (units), the elbows', the hands' and held weapons' turns (degrees), how many, how many past 0.25 / 0.5 / 2
+    double fastHandSum{0.0};
+    float fastHandMost{0.f}, fastElbowMost{0.f}, fastTurnMost{0.f};
+    int fastN{0}, fastOver{0};
+
+    // (what a solve adds to, kept round a solve made only to compare)
+    struct Counters
+    {
+        double costUs, jerkSum;
+        int costN, jerkN, jerkOver;
+        float jerkMost;
+        unsigned long long hash;
+        int hashN;
+    };
+    [[nodiscard]] Counters counters() const
+    {
+        return Counters{costUs, jerkSum, costN, jerkN, jerkOver, jerkMost, hash, hashN};
+    }
+    void restore(const Counters& c)
+    {
+        costUs = c.costUs;
+        jerkSum = c.jerkSum;
+        costN = c.costN;
+        jerkN = c.jerkN;
+        jerkOver = c.jerkOver;
+        jerkMost = c.jerkMost;
+        hash = c.hash;
+        hashN = c.hashN;
+    }
 };
 State state;
+bool fastRef = false; // vr_agarms_fast_check: the reference solve (the old way) under way
 
 // vr_agarms_hash: `n` bytes at `p` into hash `h` (FNV-1a).
 void hashBytes(unsigned long long& h, const void* p, int n)
@@ -1763,7 +1798,9 @@ bool restRow(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::Rig& r
     return true;
 }
 
-bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+namespace
+{
+bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
     const rigpose::Rigid* kick, const Targets& t, Placed& out)
 {
     out = Placed{};
@@ -1796,6 +1833,8 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->rigBone[3 * s + 2] = m->side[s].handBone;
     }
     const float dt = static_cast<float>(za::clamp(cl.time - st->time, 0.0, 0.25));
+    const int lastFrame = st->frame; // (vr_agarms_warm: the warm start only from a recent solve)
+    const bool warm = vr_agarms_warm.value != 0.f && !fastRef;
     st->time = cl.time;
     st->frame = host_framecount;
     st->easeFrame = host_framecount;
@@ -1960,12 +1999,36 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     const auto solveSide = [&](int s, rigpose::Rigid H, Goal g) {
         const Side& sd = m->side[s];
         const glm::vec3 S1 = rigpose::apply(C, sd.S);
-        ArmOut a = solveArm(sd, s, S1, C.rot, H, prevOf(s), t.pole[s], g == Goal::None ? lim : limHeld);
         if(g == Goal::Frame)
         {
-            return a;
+            st->foreGoal[s] = -1;
+            return solveArm(sd, s, S1, C.rot, H, prevOf(s), t.pole[s], limHeld);
         }
         const glm::vec3 grip = rigpose::apply(H, sd.grip.pos), wrist = rigpose::apply(H, sd.W);
+        const auto placeHand = [&](rigpose::Rigid& h) {
+            h.pos = g == Goal::Point ? grip - h.rot * sd.grip.pos : wrist - h.rot * sd.W;
+        };
+        if(warm && st->foreGoal[s] == static_cast<int>(g) && lastFrame >= 0 && host_framecount - lastFrame <= lodEveryMost)
+        {
+            // vr_agarms_warm: started from the forearm's last turn (on the chest), mostly settled at once (one or two
+            // solves, not up to four); not settled in as many rounds: solved from the goal's turn as before
+            rigpose::Rigid h = H;
+            h.rot = glm::normalize(C.rot * st->foreRel[s]);
+            placeHand(h);
+            ArmOut w = solveArm(sd, s, S1, C.rot, h, prevOf(s), t.pole[s], g == Goal::None ? lim : limHeld);
+            for(int round = 0; round < 3; round++)
+            {
+                if(za::abs(glm::dot(h.rot, w.F.rot)) > 0.99996f)
+                {
+                    st->foreRel[s] = glm::normalize(glm::inverse(C.rot) * w.F.rot);
+                    return w;
+                }
+                h.rot = w.F.rot;
+                placeHand(h);
+                w = solveArm(sd, s, S1, C.rot, h, prevOf(s), t.pole[s], g == Goal::None ? lim : limHeld);
+            }
+        }
+        ArmOut a = solveArm(sd, s, S1, C.rot, H, prevOf(s), t.pole[s], g == Goal::None ? lim : limHeld);
         for(int round = 0; round < 3; round++)
         {
             if(round > 0 && za::abs(glm::dot(H.rot, a.F.rot)) > 0.99996f) // (its forearm's turn settled: within a degree)
@@ -1973,9 +2036,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                 break;
             }
             H.rot = a.F.rot;
-            H.pos = g == Goal::Point ? grip - H.rot * sd.grip.pos : wrist - H.rot * sd.W;
+            placeHand(H);
             a = solveArm(sd, s, S1, C.rot, H, prevOf(s), t.pole[s], g == Goal::None ? lim : limHeld);
         }
+        st->foreGoal[s] = static_cast<int>(g);
+        st->foreRel[s] = glm::normalize(glm::inverse(C.rot) * a.F.rot);
         return a;
     };
     // The right arm, then its weapon where its hand is.
@@ -2293,6 +2358,52 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     }
     hashPlaced(out);
     return true;
+}
+} // namespace
+
+bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+    const rigpose::Rigid* kick, const Targets& t, Placed& out)
+{
+    const int num = client::entityNumber(e);
+    Ent* st = vr_agarms_fast_check.value != 0.f && vr_agarms_warm.value != 0.f && !fastRef && num > 0 ? entOf(num, false) : nullptr;
+    if(!st)
+    {
+        return solveImpl(e, hdr, rig, spec, posed, kick, t, out);
+    }
+    // vr_agarms_fast_check: solved the old way first (vr_agarms_warm 0) on a copy of its state, then as it is, and the two
+    // compared (vr_agarms_cost prints how far apart)
+    const Ent keep = *st;
+    const Lod keepLod = lodOf(*st);
+    const State::Counters keepCounters = state.counters();
+    Placed ref;
+    fastRef = true;
+    const bool refOk = solveImpl(e, hdr, rig, spec, posed, kick, t, ref);
+    fastRef = false;
+    *st = keep;
+    lodOf(*st) = keepLod;
+    state.restore(keepCounters);
+    const bool ok = solveImpl(e, hdr, rig, spec, posed, kick, t, out);
+    if(ok && refOk)
+    {
+        float hand = 0.f, elbow = 0.f, turn = 0.f;
+        for(int s = 0; s < 2; s++)
+        {
+            hand = za::max(hand, glm::length(out.hand[s].pos - ref.hand[s].pos));
+            elbow = za::max(elbow, glm::length(out.elbow[s] - ref.elbow[s]));
+            turn = za::max(turn, angleDeg(glm::inverse(out.handM[s].rot) * ref.handM[s].rot));
+            if(out.on[s] && ref.on[s])
+            {
+                turn = za::max(turn, angleDeg(glm::inverse(out.weapon[s].rot) * ref.weapon[s].rot));
+            }
+        }
+        state.fastN++;
+        state.fastHandSum += hand;
+        state.fastHandMost = za::max(state.fastHandMost, hand);
+        state.fastElbowMost = za::max(state.fastElbowMost, elbow);
+        state.fastTurnMost = za::max(state.fastTurnMost, turn);
+        state.fastOver += hand > 0.25f || elbow > 0.5f || turn > 2.f ? 1 : 0;
+    }
+    return ok;
 }
 
 bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
@@ -2795,6 +2906,16 @@ void cost_f()
     state.checkHandSum = state.checkTurnSum = 0.0;
     state.checkHandMost = state.checkTurnMost = 0.f;
     state.checkHands = state.checkWeapons = 0;
+    if(state.fastN > 0)
+    {
+        Con_Printf("agarms fast check: against the full search: hands %.4f units mean, %.3f most; elbows %.3f most; turns "
+                   "%.3f deg most; %d of %d past 0.25 u / 0.5 u / 2 deg\n",
+            state.fastHandSum / state.fastN, state.fastHandMost, state.fastElbowMost, state.fastTurnMost, state.fastOver,
+            state.fastN);
+    }
+    state.fastHandSum = 0.0;
+    state.fastHandMost = state.fastElbowMost = state.fastTurnMost = 0.f;
+    state.fastN = state.fastOver = 0;
 }
 
 } // namespace
