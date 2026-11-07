@@ -886,6 +886,8 @@ void prebuild()
         startKind(ent, index);
         ent->v.modelindex = oldIndex;
     }
+    const double tBuilt = Sys_DoubleTime();
+    VR_TimeAdd("  their kinds' limbs looked up, builds posted (rigs included)", tBuilt - t0);
     for(LateKind& kind : late.kinds)
     {
         za::Vector<Built> built = kind.built.get();
@@ -898,11 +900,14 @@ void prebuild()
         }
     }
     late.kinds.clear();
+    const double tLoad = Sys_DoubleTime();
+    VR_TimeAdd("  their limbs' files built (waited for)", tLoad - tBuilt);
     // (the models' skins and normal maps: the main thread's, in the order the kinds and their bones come, as before)
     for(const char* name : names)
     {
         VR_LatePrecacheModel(name);
     }
+    VR_TimeAdd("  their limb models loaded (precached)", Sys_DoubleTime() - tLoad);
     const int made = static_cast<int>(names.size());
     VR_TimeAdd("VR after spawn: limb models", Sys_DoubleTime() - t0);
     Con_DPrintf("limb models: %d made for %d kinds of monster (%d of them not yet appeared), %.1f ms\n", made,

@@ -2680,6 +2680,79 @@ seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two di
 22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
 numbers on the parent build (pre-existing drift of the pommel distances, not this change).
 
+## Map-load work off the main thread (branch `agent/loadjobs`, 2026-11-07, on `agent/perfalloc`)
+
+Follows perfdesign's section A (kit `scratch/perfdesign_report.md`). Method: Release-Tracy exe, exclusive runs, a new
+process a load, `vr_cache_dir` a fresh folder (engine-cold) then the same folder again (engine-warm); the time is
+`vr_startup_times`' last map load total (the `map` command to its first frame drawn). Tracy captures (full preset) only
+for the breakdowns. Results table: kit `scratch/loadjobs_report.md`.
+
+**Failed lookups (item 3), commit "File cache: files written outside every search path's folder forget nothing".** The
+index asked for exists already (vr_fscache.cpp's listings and misses, pak stem hashes, COM_StemNowhere); what made a
+first load's misses cost 879 ms on ad_tfuma (15 ms on a warm one) was the derived-data cache: each of the ~750 files
+the workers write during the load reached VR_FileCacheForgetFile, which forgot every listing of a folder that wasn't
+there and had the main thread scan every miss for names the file could be. The file cache now keeps the identities of
+the folders lookups look in (loose search paths, pak folders; added at each window, search-path change and full
+forget; never removed) and a written file whose folder isn't one of them nor inside one (named parents walked up to
+the volume's root, by identity: junctions followed) forgets nothing. Writes inside them, unknown cases and folders
+made behave as before. `vr_fscache_test` gained the case (24 passed). ad_tfuma cold "looked for, none found" 879 -> 20 ms.
+
+**Skins' normal maps on jobs (items 1 and 4), cvar `vr_load_jobs` (1; 0 the serial path; Debug menu, "Load Work on Job Threads", beside "Decode Textures Ahead").** See the
+comment at `VR_SkinNormalsPost` (vr_normalmaps.cpp) for inputs, outputs and joins. TexMgr_LoadImage32 posts a skin's
+normal map (made from its colours, or read from the disk cache: both on the job) and returns without uploading; the
+skin keeps the flat normal map until the commit (TexMgr_CommitNormalMap: upload, label, bindless handle, link). Commits
+happen in post order: each later post commits the oldest finished ones without waiting; SCR_UpdateScreen (before
+drawing), TexMgr_ReloadImages(Named), imagedump and imagehash join all; TexMgr_FreeTexture waits for and drops its
+entries; VR_Shutdown drops the rest. TexMgr_SkinToNormals and its helpers now take the islands explicitly (MaskView)
+and allocate on the heap (was the hunk; gx/gy zeroed as Hunk_Alloc did); the islands maker is pure (no hunk, no
+timing); the cache read on the job counts nothing (`readRgbaAt`), the counts, the cache write and the prints are the
+commit's. Ownership: the job's struct is the job's alone from the post until the Future is waited for.
+
+Verified bit-identical: `imagehash` (every texture, normal maps included) the same frame as the `map` command and 3
+frames later, vr_load_jobs 0 against 1, engine-cold (normal maps made) and engine-warm (read from the cache), e1m1,
+ad_tfuma, vrfiringrange: all 12 sums equal per map (e1m1 d071c79aadc70bbc, ad_tfuma 8e89ed76898d6fd4, vrfiringrange
+bab4dce68cbff385).
+
+Loads (ms, engine-cold / engine-warm, rep 1): baseline e1m1 2990 / 1419, ad_tfuma 4574 / 1463, vrfiringrange 4050 /
+1612; with both commits 2090 / 1292, 2552 / 1440, 3340 / 1437. Model light grid contents hash equal with vr_load_jobs 0
+and 1 (ad_tfuma f13a9fac10031d2d, e1m1 ff18e0fd8568016c); loads print no error or warning; vr_limb_test 2 and 3 done.
+
+**Not done (this round's budget):** authored skin normal maps' PNG decode (item 2: most of the remaining `Image decode`
+after item 3), Box3D convex pieces cache (item 5), limb models' wait (item 6: their precaches stay at spawn, as model
+indices depend on the order; their skins' normal maps now go to jobs with step 1).
+
+**Round 2 (same branch).** `vr_wornpack_test 1` giving no verdict in 400 s was the script, not the branch: the test's
+lines are dprints (VR_Test_Print), so its verdict shows only with `developer 1`; with it, 25 passed 0 failed with
+vr_load_jobs 0 and 1.
+
+New load-timing lines (commit "Load timing: ..."): under a model's "their normal maps" its authored files read and
+decoded / looked for / shared / prepared and uploaded, the made ones posted, the weapons' relief maps; under "VR after
+spawn: limb models" the lookups and posts, the builds waited for, the limb models loaded; "disk cache: a write waited
+for (64 under way)". What they showed (ordinary runs, so proportions only; ad_tfuma cold / warm):
+- Item 2 as briefed has little to take: ad_tfuma loads no authored normal map at all; vrfiringrange's 78 authored
+  files cost 68 ms to read and decode (most come decoded ahead by vr_imgprefetch) and 117-162 ms to prepare and upload
+  (1024 x 1024: the mip chain and the upload). The made ones' posts are 460-530 ms cold against 200 ms warm for the
+  same 566 posts: the uploads at the commits (338 / 166 ms) and the mipping down before each post (179 / 21 ms) run
+  slower while every worker is making normal maps (the main thread shares the cores); the cache's write queue waited
+  0 ms on ad_tfuma, 91 ms on vrfiringrange. Next candidates: the mipping down on the job (the texels posted at full
+  size), and the four AD weapons' relief maps (VR_SkinRelief: 204 ms cold, 29 warm, made on the main thread; needs the
+  islands mask and the model's units copied for the job, and TexMgr_AuthoredHeights after it).
+- Item 5: the held guns' pieces were already on the disk cache (vr_gun_pieces_cache, keyed by the triangles and the
+  settings: vrfiringrange warm 2.7 ms); the cold cost was the cut, waited for at the first frame. Commit "Held guns'
+  convex pieces cut on the pool behind the first frames": with vr_load_jobs 1 each gun is its own job; joinHeldGuns
+  adds the finished ones at each world step, a hand asking for a gun (gunPieces, key -2) waits for that gun alone,
+  destroyWorld for all; a model slot reused meanwhile is skipped. vr_gun_pieces_cache 2 (Check) and vr_load_jobs 0 cut
+  in place as before. Same pieces: vrfiringrange's 24 guns' points hashes (a developer 1 line) equal with vr_load_jobs
+  0 and 1, engine-cold and engine-warm. prepareHeldGuns on vrfiringrange cold 570 -> 1 ms (waited for later: 1.6 ms).
+- Item 6: "VR after spawn: limb models" is the limb models' loads (Mod_ForName: 662 ms cold / 235 warm on ad_tfuma);
+  their builds are waited for 12-22 ms, the rigs and lookups 50-120 ms. The loads stay (the precache order gives the
+  model indices); their skins' normal maps already go to jobs; the cold excess is the same as above (uploads and
+  draw lists made on main while the workers are busy).
+
+Loads with round 2 (Release-Tracy, exclusive, ms, rep 1 / rep 2; before it: 2090 / 2087, 2552 / 2780, 3340 / 3362
+cold): e1m1 cold 2131 / 2135, warm 1361 / 1288; ad_tfuma cold 3890 (*) / 2557, warm 1406 / 1536; vrfiringrange cold
+2866 / 3020, warm 1498 / 1464. (*) An outlier: its limb models alone took 974 ms (rep 2 and earlier runs: 400-490);
+ad_tfuma's and e1m1's loads gain nothing here (their guns' cuts were ~70 ms), vrfiringrange cold -0.35..-0.5 s.
 ## Per-frame allocations, VR programs at start-up (branch `agent/perfalloc`, 2026-11-07)
 
 Round 1 (tree regfix): disarm hulls' vectors reused, shadow brush candidates in the shadow scratch, no folder listed for

@@ -2047,6 +2047,7 @@ QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least Skewer (groups.txt) of a st
 QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on the blade
 QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's or a punch's speed gets for hitting and sticking
 QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
+QVR_TUNABLE(vr_melee_body_min_part, "0.5") // a blade's blow that lands only for your body's speed counts on this outer share of the blade (0 any part)
 QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
 QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)

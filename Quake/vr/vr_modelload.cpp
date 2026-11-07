@@ -223,26 +223,22 @@ each triangle's three corners in texels (x, y), `numtris` of them. A texel withi
 A change here changes the skins' normal maps: bump NORMALCACHE_VERSION (vr_normalmaps.cpp; their disk cache).
 ===============
 */
-static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h);
+static void Mod_SkinIslandsInto (byte *mask, const float *corners, int numtris, int w, int h);
 
-// the same, malloc'd (VR_SetHeightMaskLazy)
+// the same, malloc'd (VR_SetHeightMaskLazy; any thread: a skin's normal map job, VR_SkinNormalsPost): NULL if out of
+// memory (made without islands)
 static byte *Mod_SkinIslandsMalloc (const float *corners, int numtris, int w, int h)
 {
-	double	t0 = Sys_DoubleTime ();
-	int		mark = Hunk_LowMark ();
-	byte	*mask = (byte *) VR_HeapMalloc ((size_t) w * h);
-	if (!mask)
-		Sys_Error ("Mod_SkinIslandsMalloc: out of memory");
-	memcpy (mask, Mod_SkinIslands (corners, numtris, w, h), (size_t) w * h);
-	Hunk_FreeToLowMark (mark);
-	VR_TimeAdd ("        islands", Sys_DoubleTime () - t0); // load timing (vr_startup_times)
+	byte	*mask = (byte *) VR_HeapCalloc ((size_t) w * h, 1);
+	if (mask)
+		Mod_SkinIslandsInto (mask, corners, numtris, w, h);
 	return mask;
 }
 
-static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
+// `mask`: w x h zeroed bytes (written only here; reads nothing else)
+static void Mod_SkinIslandsInto (byte *mask, const float *corners, int numtris, int w, int h)
 {
 	int		i, j, k, x, y;
-	byte	*mask = (byte *) Hunk_Alloc (w * h);
 
 	for (i = 0; i < numtris; i++)
 	{
@@ -312,7 +308,6 @@ static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
 			}
 		}
 	}
-	return mask;
 }
 
 /*
@@ -574,10 +569,9 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 				corners[i * 6 + j * 2 + 0] = v->st[0] * w;
 				corners[i * 6 + j * 2 + 1] = v->st[1] * h;
 			}
-		md5islands = (byte *) VR_HeapMalloc ((size_t) w * h);
+		md5islands = Mod_SkinIslandsMalloc (corners, surf->numtris, w, h);
 		if (!md5islands)
 			Sys_Error ("Mod_MD5SkinNormalMap: out of memory");
-		memcpy (md5islands, Mod_SkinIslands (corners, surf->numtris, w, h), (size_t) w * h);
 		md5islands_surf = surf;
 		md5islands_w = w;
 		md5islands_h = h;
