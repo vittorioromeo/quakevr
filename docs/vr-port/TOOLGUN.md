@@ -159,7 +159,7 @@ tests: `vr_brush_spawn`, `vr_brush_ent`, `vr_brush_trace`, `Misc/quakevr/brush_t
 - QC: `WID_TOOLGUN` 19 (`IID_TOOLGUN` 49, `HIP_IT_TOOLGUN`), `QC/vr_toolgun.qc` (`weapon_toolgun`,
   `VR_Toolgun_Remove`), `weapons.qc` W_AttackImpl does nothing for it. Weapon settings slot 26 (`vr_wofs_*_27`,
   `vr_weapons.inc`: the grunts' gun's, its Offset moved for the model's bounds; `vr_wofs_version` 40).
-- The model: `Misc/quakevr/make_toolgun.py` (mdlgen boxes; the grunts' gun's model space: the grip at the origin).
+- The model: `Misc/quakevr/src_models/blend/v_toolgun/v_toolgun.blend` (its source; Ctrl+S exports; mdlgen boxes made it once; the grunts' gun's model space: the grip at the origin).
 - The engine: `Quake/vr/vr_toolgun.cpp` (the tools, the aim, the ghost, the glow, the gun's screen, the physgun's
   wrist), its hooks in `vr_input.cpp` (the hand's buttons, the sticks); `vr_toolgun_panel.cpp` (the panel: one layout
   function run twice a frame, for the laser's input in the host frame and for its image in the 2D pass's end, drawn
