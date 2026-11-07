@@ -29,6 +29,11 @@ void frame(); // the sliders against the table, the subject kept, the test's ste
 // (its plates are your own body's), placed straight ahead of you as no menu panel is there to stand beside.
 [[nodiscard]] bool cloneWanted();
 
+// The armour your body (and so its mirror image) wears while the studio shows the player's kind (its ImGui window open, or
+// the menu's Armour Studio page, on Kind = Player): the studio's tier (`type` 1 green .. 3 red) and every piece, or the part
+// picked alone (`pieces`), whatever armour you have. False: not shown, your own armour as it is.
+[[nodiscard]] bool playerArmour(int& type, int& pieces);
+
 // The flat-screen ImGui window (vr_armourstudio_window.cpp; vr_armourstudio_window): the menu page's rows in a floating
 // window over play, the same vr_armourstudio_* cvars and the same commands -- no state of its own beyond its place.
 void windowInit();     // the commands: vr_armourstudio_window [open|close|toggle|test], vr_armourstudio_window_close

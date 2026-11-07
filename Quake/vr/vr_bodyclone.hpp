@@ -26,6 +26,8 @@ namespace qvr::bodyclone
 
 // The view's count of the entities it drew reflected this frame and where the body's went (vr_menu_body_clone_info).
 void noteDrawn(int entities, bool body, const glm::vec3& bodyOrigin);
+// The tests: the image shown and the body drawn in it (as of the last noteDrawn).
+[[nodiscard]] bool bodyShown();
 
 // vr_menu_body_clone_info: whether the image is shown, its mirror, and what was drawn in it last frame.
 void info_f();

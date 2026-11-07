@@ -609,7 +609,8 @@ int poll()
 }
 
 // vr_blender_test: the model picking and sources (a weapon, a hand-made gun, a derived model, a part, a prop, the
-// jointed hand), Blender found, and the request file (a show, a reload, a line refused), with a verdict line.
+// jointed hand, a body build, the bare-forearm body imported), Blender found, and the request file (a show, a reload,
+// a line refused), with a verdict line.
 void test_f()
 {
     constexpr const char* name = "vr_blender_test";
@@ -628,7 +629,9 @@ void test_f()
             Case{"vrgrunt", "src_models/blend/soldier/soldier.blend", false},
             Case{"vr_pump_on_v_shot", "src_models/blend/v_shot/v_shot.blend", false},
             Case{"vr_crate1", "src_models/blend/vr_crate1/vr_crate1.blend", false},
-            Case{"hand_rig", "quakevr/progs/hand_rig.md5mesh", true}})
+            Case{"hand_rig", "src_models/blend/hand_rig/hand_rig.blend", false},
+            Case{"vrbody_lean", "src_models/blend/vrbody/vrbody.blend", false},
+            Case{"vrbody_bare", "quakevr/progs/vrbody_bare.md5mesh", true}})
     {
         const Edit e = resolve(modelName(c.model));
         const bool ok = strings::endsWith(e.opens.cStr(), c.ends) && e.imports == c.imports &&
@@ -641,10 +644,11 @@ void test_f()
         held == "v_shot" ? "PASS" : "FAIL", held.cStr(), cl.viewent.model ? cl.viewent.model->name : "none",
         cl_numvisedicts);
     (void)t.check(held == "v_shot");
-    const Edit hand = resolve("hand_rig");
-    const za::String cmd = commandLine("blender.exe", hand);
-    (void)t.check(strstr(cmd.cStr(), "edit_from_game(r'") && strstr(cmd.cStr(), "hand_rig.md5mesh')"),
-        name, "the hand's command line imports it through the add-on");
+    // (The hand and the body have source .blends: the bare-forearm body is a skinned model still imported.)
+    const Edit bare = resolve("vrbody_bare");
+    const za::String cmd = commandLine("blender.exe", bare);
+    (void)t.check(strstr(cmd.cStr(), "edit_from_game(r'") && strstr(cmd.cStr(), "vrbody_bare.md5mesh')"),
+        name, "a skinned model without a source: its command line imports it through the add-on");
     const za::String skinCmd = skinCommandLine("blender.exe", resolve("armor"), 2);
     (void)t.check(strstr(skinCmd.cStr(), "armor.blend\" --python-expr") && strstr(skinCmd.cStr(), "edit_skin_from_game(2)"),
         name, "vr_edit_skin's command line opens the source and edits skin 2 through the add-on");

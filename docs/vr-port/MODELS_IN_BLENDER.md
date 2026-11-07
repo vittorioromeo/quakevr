@@ -5,7 +5,8 @@ without a restart:
 
 | Model | Files in `quakevr/progs` |
 |---|---|
-| The body (torso, head, arms, legs), in three builds | `vrbody_lean`, `vrbody` (athletic), `vrbody_brawny`: each a `.md5mesh` and a `.md5anim`; 16 skins shared by the three, `vrbody_00_00.tga` .. `vrbody_15_00.tga` |
+| The body (torso, head, arms, legs), in three builds (and the feminine one) | `vrbody_lean`, `vrbody` (athletic), `vrbody_brawny`, `vrbody_fem`: each a `.md5mesh` and a `.md5anim`; 16 skins shared by them, `vrbody_00_00.tga` .. `vrbody_15_00.tga`. Source: `Misc/quakevr/src_models/blend/vrbody/vrbody.blend` |
+| The jointed hand | `hand_rig.md5mesh`, `.md5anim`, its 4 skins `hand_rig_0N_00.lmp`, and the feminine hand `hand_rig_f` made from it. Source: `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend` ([HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md)) |
 | The weapons | `v_*.mdl` (`v_shot.mdl`, `v_nail2.mdl`, `v_axe.mdl`...) |
 | The wrist gadget | `vrgadget.mdl` (the casing) and `vrgadget_strap.mdl` (a strap) |
 | The flashlight, the holster, the pauldrons, the spent shell, the ammo button... | every other `.mdl`: see [the table](#the-flashlight-and-the-other-models) |
@@ -254,11 +255,26 @@ the console warns: the beam then starts where the shipped torch's lens is.
 
 ## 3. The body
 
-### Import
+### Its source .blend
+
+**Open `Misc/quakevr/src_models/blend/vrbody/vrbody.blend`** (or, in the game, Debug > Tests > Edit in Blender on the
+body). It is the body's source, as a weapon's .blend is its: edit it and **Ctrl+S**; the save exports every build and
+the skins to the game (section 9's export on save), and the game reads them again by itself (`vr_model_watch`).
+Saved unedited, it writes the shipped files byte for byte. It holds the athletic build (`vrbody`) with the other
+builds as its shape keys (below) and the plain skin, `vrbody_00_00`, packed.
+
+The generator, make_vrbody.py, no longer writes what the .blend owns (`Misc/quakevr/generated.json`: the four builds'
+`.md5mesh`, `.md5anim` and `.mdl` stubs, the 16 skins): run, it leaves them as they are and says so. It still makes
+the bare-forearm meshes (`vrbody*_bare`, below) and `Quake/vr/vr_bodybare.inc`.
+
+(Made once by `blender -b --factory-startup --python Misc/quakevr/blend_build.py -- vrbody`, which imports the shipped
+body with its builds and records the files it owns. Tested by `Misc/quakevr/blend_md5_test.sh <agent>`.)
+
+### Import (another skin, or without the source)
 
 **File > Import > Quake VR Body (.md5mesh)**, and pick `quakevr/progs/vrbody.md5mesh` (athletic), `vrbody_lean` or
 `vrbody_brawny`. Before clicking Import, choose the **Skin** to paint in the side panel. The default is the plain skin,
-`vrbody_00_00`.
+`vrbody_00_00`. **Every Build (Shape Keys)** (on by default) brings the other builds in as shape keys.
 
 You get:
 
@@ -295,13 +311,17 @@ One unit is one Quake unit (a metre is 26.25 units). The feet are at z = 0, the 
 
 ### The three builds
 
-The builds (Body > Build in the game, `vr_body_build`) are three meshes with the same vertices, triangles and UVs,
-more or less muscular. To edit all three:
+The builds (Body > Build in the game, `vr_body_build`) are meshes with the same vertices, triangles, UVs and weights,
+more or less muscular: `vrbody_lean`, `vrbody` (athletic), `vrbody_brawny` and `vrbody_fem`. In the source .blend
+they are **shape keys** of the one mesh: the basis is `vrbody`, and `vrbody_lean`, `vrbody_brawny`, `vrbody_fem` are
+the others (Object Data > Shape Keys).
 
-- **Edit one, and tick The Other Builds Too on export.** Each vertex you moved is moved by as much in the other two,
-  and weights you changed are copied. This needs the same vertices, triangles and UVs: after adding, deleting or
-  re-UVing geometry, the other builds are left alone, and the export says so.
-- **Or edit each build on its own:** import it, edit it and export it.
+- **Edit the basis** (`vrbody` selected in the shape keys, Edit Mode): Blender moves each vertex by as much in the
+  other builds. Weights, UVs and added or deleted geometry are shared by all of them. The export writes the four.
+- **Edit one build alone:** select its shape key and edit it in Edit Mode (or sculpt it). Only that build changes.
+- **Apply Pose to Mesh** puts the pose into the basis and moves the other builds' vertices by as much.
+- Without the source (a body imported with Every Build off): tick **The Other Builds Too** on export to carry each
+  moved vertex into the other builds' files by as much, as before.
 
 **Bare forearms** (Body > Bracers off, `vr_body_bracers 0`) are three more files, `vrbody_bare`, `vrbody_lean_bare` and
 `vrbody_brawny_bare` (`make_vrbody.py` writes them; it leaves the edited skins alone with `--keep-edited`). They differ
@@ -660,10 +680,10 @@ Not sources (made otherwise):
 - `vragarmor.mdl`: a placeholder quad carrying the armour's skin atlas, painted by make_agarmor.py; the plates
   themselves are cut by the engine from each wearer's body as it loads (`vr_agarmor.cpp`). Its source stays the
   generator.
-- The body (`vrbody*.md5mesh`, `.md5anim`, the `vrbody_*.tga` skins: make_vrbody.py and the body's own import and
-  export, section 3) and the jointed hand (`hand_rig*.md5mesh`: make_hand_rig.py, make_hand_feminine.py and the hand
-  add-on, [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md)); their 244-byte `.mdl` stubs (`vrbody.mdl`, `hand_rig.mdl`...)
-  only name them for the engine. A .blend source for these: see ROUND24.md, "Every other model's source is a .blend".
+- The body's bare-forearm meshes (`vrbody*_bare`: make_vrbody.py, section 3). The body itself and the jointed hand
+  have source .blends (`src_models/blend/vrbody/vrbody.blend`, section 3; `src_models/blend/hand_rig/hand_rig.blend`,
+  [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md)); their 244-byte `.mdl` stubs (`vrbody.mdl`, `hand_rig.mdl`...) only name
+  them for the engine.
 
 Notes:
 

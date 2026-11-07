@@ -117,6 +117,11 @@ QVR_SLIDER(vr_body_swim_tilt_time, "Under Water Lean Time", 0.1f, 3.f, 0.1f, "%.
 QVR_SLIDER(vr_body_swim_tilt_ledge, "Straighten Near a Way Out", 0.f, 160.f, 8.f, "%.0f units", ext(),
     "Swimming towards a ledge you can climb out at, the body straightens from this far away, so your legs are under you "
     "when you climb out (0: it stays leaning).")
+QVR_SLIDER(vr_prone_body_angle, "Lying Down Body Angle", 0.f, 100.f, 5.f, "%.0f deg", ext(),
+    "Lying down (Player Hitbox > Lying Down), how far forward the body turns about your neck: 90 flat behind your head "
+    "(propped up higher, the hips slope down to the floor). 0: it stays upright.")
+QVR_SLIDER(vr_prone_body_time, "Lying Down Time", 0.1f, 3.f, 0.1f, "%.1f s", ext(),
+    "How long the body takes to lie down and to get up again (flat-screen: the view's drop too).")
 QVR_TOGGLE(vr_body_climb_feet, "Climbing Footholds",
     "Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
     "you climb; with none, they hang. Off: they hang as in the air.")
@@ -5210,6 +5215,17 @@ QVR_CYCLE(vr_crouch_step, "Heights Above It",
     "Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
     "eyes under one, that box (36, 44, 52 every 8). None: the lowest only (vr_crouch_step).",
     {0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"}, {12.f, "Every 12 units"})
+QVR_TOGGLE(vr_prone, "Lie Down and Crawl",
+    "Lie down for real (your eyes under Lying Down Below) and your box is very low: you crawl under what even a "
+    "crouch can't pass, slowly, and you can't jump. Getting up needs room for a crouch over you. Flat-screen: the "
+    "prone key (X) lies down and gets up. Needs the Crouched Hitbox. Off: never lying down (vr_prone).")
+QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 22.f, 1.f, "%.0f units", noExt,
+    "Your eyes' height over your feet under which you lie down (18 is about half a metre: propped on your elbows, "
+    "not on all fours). Up again with them 2 units over your lying box (vr_prone_eye).")
+QVR_SLIDER(vr_prone_height, "Lying Down Height", 24.f, 32.f, 1.f, "%.0f units", noExt,
+    "Your box's height lying down, at most the lowest crouched height less 4 (vr_prone_height).")
+QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
+    "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
 QVR_SLIDER(vr_box3d_player_radius, "Prop Push Radius", 5.f, 40.f, 1.f, "%.0f cm", noExt,
     "Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
     "not by your box (vr_box3d_player_radius).")

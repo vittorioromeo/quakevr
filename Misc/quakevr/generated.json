@@ -260,20 +260,20 @@
   "source": "Misc/quakevr/src_models/blend/hand_base/hand_base.blend"
  },
  "quakevr/progs/hand_rig.md5anim": {
-  "sha256": "b1e712498297c1172aedc63d91549c748efca843db980029952118fe1426bccb",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig.md5mesh": {
-  "sha256": "90dee0aae38a48bfe7ae65ffd16db85ea91b0ea5d178974ea3f4ffa6c21b1153",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig.mdl": {
-  "sha256": "c4e98c757e32f4cf04452e4085f691c20332d593f056a03491a70c6bdfcbed96",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_00_00.lmp": {
-  "sha256": "9a75a25c252d2f060e7bb35e3831dda4d03d95f2ee294efe4b1a000090fe6dfa",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_00_00_glove.png": {
   "sha256": "a1aa3760689aa03ba86551f82936953edc619a409493f3df1b00786e34c70afa",
@@ -292,40 +292,40 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/hand_rig_01_00.lmp": {
-  "sha256": "2edb3c52735d4a938a4a374bda5a9c3936d094fdd0d150b01e699935fcd52ce2",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_01_00_nails.png": {
   "sha256": "c6bfd8ef5b1d47c54d16c0de06424448ae8a59b6012cfc7a8cd6b82c56e4f490",
   "by": "make_nail_mask.py"
  },
  "quakevr/progs/hand_rig_02_00.lmp": {
-  "sha256": "dc1a7187e4915707606476baba0adeaa0c34c014f2f19ac9b7d0f34ae13cf24e",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_02_00_nails.png": {
   "sha256": "d746f80ce7e0e6feec3562b19b9947afc5c9cee0cd668ede88df7fe24b5beb7e",
   "by": "make_nail_mask.py"
  },
  "quakevr/progs/hand_rig_03_00.lmp": {
-  "sha256": "b39de69424526656cebbf4d412755656337fb1ba3995cbb6a6d942ae3cee5ef2",
-  "by": "make_hand_rig.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_03_00_nails.png": {
   "sha256": "7b1af6152c52171ac758a5b12c162c8e912a3daba2698181241e41598ae6e2fd",
   "by": "make_nail_mask.py"
  },
  "quakevr/progs/hand_rig_f.md5anim": {
-  "sha256": "e962eb2f2b2634ce87f44691a5168d86fd05efe99d86588e59a0b511ccfd17d1",
-  "by": "make_hand_feminine.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_f.md5mesh": {
-  "sha256": "0deeac47320edaf358aa61b305cf53548c934916dcb0088ef6822c5aaa9b7707",
-  "by": "make_hand_feminine.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hand_rig_f.mdl": {
-  "sha256": "c4e98c757e32f4cf04452e4085f691c20332d593f056a03491a70c6bdfcbed96",
-  "by": "make_hand_feminine.py"
+  "by": "hand_rig.blend",
+  "source": "Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend"
  },
  "quakevr/progs/hknight.mdl": {
   "by": "hknight.blend",
@@ -1368,88 +1368,88 @@
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vrbody.md5anim": {
-  "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody.md5mesh": {
-  "sha256": "789ed9eb3d16fd6369fb8df38bef71f3549a8a6bdb9414e0bd181a9570feda7d",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody.mdl": {
-  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_00_00.tga": {
-  "sha256": "1d2e6c43178bc8150b51375339a57341d7f8a66b95fc5e38e590d91f40c20cec",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_00_00_norm.png": {
   "sha256": "063d6997cfba4e00ede4a8612bb1177aa6eac82096dfdef70f3c2136deb4f93e",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrbody_01_00.tga": {
-  "sha256": "fc507e03df58be060352245fec17bee927d95cf86920e93a06376e05a29ae519",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_02_00.tga": {
-  "sha256": "ea56dc068b983ff1fb30aee7cf7a486d9920aca648fa998e1bb1b74feff83c1f",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_03_00.tga": {
-  "sha256": "3153bcfb9ad44e6c45d33641fa6ed866abf3c62c3ec6e02cf7264cefbe4b4f7e",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_04_00.tga": {
-  "sha256": "d4c9faf74f0efea2de2282929461ad5c985d0a9a0751a48fc6162a808d027485",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_04_00_norm.png": {
   "sha256": "09f9785f5d2c3311b2c4cb44496d60e2785dae004e893c307fc2191e62dc2921",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrbody_05_00.tga": {
-  "sha256": "8122a2df6063e0836fb3089149019169a2b4e83484888995c92d6aa900194ca6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_06_00.tga": {
-  "sha256": "76f1f8e0777f36d02790f08b726051637d68a78fcc03d4257b2620b0dfa175a6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_07_00.tga": {
-  "sha256": "cfaffb2019f9e3c059a09d6992d205ac9c0c7d6b51f327eb7f3e374676098a5e",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_08_00.tga": {
-  "sha256": "78db49965769bb6b1b2fc36ad669a21f4c6e08df0f1a5ca875bae49f84cda948",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_09_00.tga": {
-  "sha256": "b785ef37db94b0ba642b5a22a2bbc521c53e7a135e16f0b0aa49d8a78459b7bf",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_10_00.tga": {
-  "sha256": "7d86b8224e818e8a303b3dfa6ef3ef9ac59b8c9400c56041d6b815c1cd2d77b8",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_11_00.tga": {
-  "sha256": "2989400d65f398eafc5100f4190930f24ebb9035e0cdb730554557404b3482fa",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_12_00.tga": {
-  "sha256": "966b372fc21dead85f761ff3122baa58ad3b58a8a86e85a8bd8ce1044a09f52e",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_13_00.tga": {
-  "sha256": "98cb921299f605457382e1b03b3bc51275241d32701aaf4fc2df26f12a4c7d05",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_14_00.tga": {
-  "sha256": "35c9e4c154bd6fd5836917828533ed94a54697860104bf847c8b35f0d15db48e",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_15_00.tga": {
-  "sha256": "da37c3ced4c70e72260526d0229f6b692fc3b48a5eddb6275aad4701f0186838",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_bare.md5anim": {
   "sha256": "af242dfd065a2c637c578808ce94a37fb873545dea68258ee06bef2052e87c67",
@@ -1464,16 +1464,16 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_brawny.md5anim": {
-  "sha256": "febebb4eb52067b3f857d4a038738f76491223d23ace1f5ebf87264e912afbc1",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_brawny.md5mesh": {
-  "sha256": "8db8c6e3977c46afabb4ffb151ea3816e668d6590b851fcebdf66cfe9b1d05d8",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_brawny.mdl": {
-  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_brawny_bare.md5anim": {
   "sha256": "155d1b19cb3395361351e452b9e8f278aeaec5adafa45a6315d0a7262401e58d",
@@ -1488,16 +1488,16 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_fem.md5anim": {
-  "sha256": "9eadad02ba327d89d9e09687b0b82ebab2766c26af78dfe73159275f26227f0e",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_fem.md5mesh": {
-  "sha256": "8ff454d8b455087305629c085386dc09ddcbe42b0844990baf4c481ff41e1a6c",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_fem.mdl": {
-  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_fem_bare.md5anim": {
   "sha256": "c397a7732341fcb99b4d6686d63da603ca833e68fd2915cf066537d1d642320c",
@@ -1512,16 +1512,16 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean.md5anim": {
-  "sha256": "eec0d5dcef04e9e1f62dfb03e61a0455f4deee3d568f9cb837e29aa8c31097df",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_lean.md5mesh": {
-  "sha256": "98f208e4c1a8df005eb305e64e5a83f7250d1f189d5dfca7c0fa145dfa0675b1",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_lean.mdl": {
-  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
-  "by": "make_vrbody.py"
+  "by": "vrbody.blend",
+  "source": "Misc/quakevr/src_models/blend/vrbody/vrbody.blend"
  },
  "quakevr/progs/vrbody_lean_bare.md5anim": {
   "sha256": "781180f56adf54096edbffd0e6fb6bf4674772cb960f6a4c80dda25b66600f4b",

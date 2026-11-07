@@ -202,12 +202,13 @@ void logClimbing(const Body& b);
 // One pose state: the trunk (pelvis, spine, chest) turned `angle` degrees forward about the top of the neck, so the head
 // stays where the headset (or the flat-screen eye) is; the arms reach the controllers from where the turned chest puts
 // the shoulders, the legs hang from the turned hips and trail along the trunk by `legs`. A source sets the target
-// (swimming today; lying down and crawling, BACKLOG.md, later: its own target, the legs on the floor), the ease is
+// (swimming; lying down, vr_prone: its own target, the legs on the floor), the ease is
 // shared. Updated after solveTorso each frame (pose): solveTorso turns by last frame's angle, as with climbHang.
 enum class PitchSource : int
 {
     None,
-    Swim, // fully under water, off the bottom (vr_body_swim_tilt)
+    Swim,  // fully under water, off the bottom (vr_body_swim_tilt)
+    Prone, // lying down (vr_prone: the server's box, vr_hull.cpp isProne), the legs on the floor behind
 };
 
 struct BodyPitch
@@ -218,6 +219,12 @@ struct BodyPitch
     float easeTime{0.8f}; // seconds the ease takes to cover 95% of a step
     float legs{1.f};     // how much the legs' rest direction turns with the trunk (swimming: all of it)
     PitchSource source{PitchSource::None};
+    // Lying down's share of the pose now (0 .. 1): the angle's share of lying down's own while it comes from lying down
+    // (and while it eases back up from it). solveTorso straightens the crouched trunk by it (lying, the trunk is the
+    // straight line the turn lays flat), solveLeg lays the legs on the floor behind by it.
+    float lying{0.f};
+    float lyingFrom{0.f}; // 1 once lying down set the angle, 0 once swimming did (the share above keeps to its source)
+    float lyingAngle{90.f}; // degrees lying down's target was, last (the share's full)
     // Swimming's inputs, as last seen (vr_body_pitch prints them).
     int waterlevel{0};
     bool onGround{false};
@@ -239,6 +246,10 @@ struct SwimPitchIn
     float climb{0.f};        // Climbing::weight: holding on takes the tilt out
 };
 [[nodiscard]] float swimPitchTarget(const SwimPitchIn& in);
+// Lying down's target: `angle` (vr_prone_body_angle) and more as the eyes stand higher over the floor than a body
+// lying flat has them (eyeOverFloor, units), so the hips go down to the floor behind (at most 30 more); torso: the
+// pelvis to the neck's top, units.
+[[nodiscard]] float pronePitchTarget(float angle, float eyeOverFloor, float torso);
 void easePitch(float& angle, float& rate, float target, float easeTime, float dt);
 
 // The trunk's turn now (about the body's left; identity upright), `share` of it (the legs': BodyPitch::legs).

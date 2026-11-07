@@ -484,6 +484,12 @@ Settings (Movement > Player Hitbox > Crouching):
 | Heights Above It | `vr_crouch_step` | 8 | 0 (that one only), 4, 8, 12 |
 | Crouch Status | `vr_crouch_status` | | your eyes' height, your box's (0 standing), whether you could stand |
 
+**Lying down** (`vr_prone`, 2026-11-07; ROUND24.md, "Lying down and crawling"): your eyes under `vr_prone_eye` (18)
+over your feet, the box is `vr_prone_height` (24: the lowest the clip recovery is grown for) and stays so until your eyes
+are 2 over it *and* the lowest crouched box fits (then the crouch's own rise). The same `crouchBox` slot, so moveBox,
+entBox, touchBox, hitBox and the trees (an extra 16x24 one) follow; QC sees `.vr_prone` (no jumps). Settings: Player
+Hitbox > Lying Down; `vr_prone_status`; test `Misc/quakevr/prone_test.py <agent>`.
+
 Tests: `Misc/quakevr/teleporters/crouch_test.sh <agent>` in vrteleporters' crouching room (east of the hub: a 40-high
 tunnel, a 48-high gap, cover 32 and 48 high, a 48x48 teleporter pair); `vr_crouch_test <n>` (Debug > Tests > Crouch
 Shots, `vr_crouch_test.qc`): a grunt ahead fires n bullets as it aims them.

@@ -3224,6 +3224,11 @@ float crouchSlowShare[crouchSlots]{};
 // low ceiling after he lets go.
 bool crouchFlat[crouchSlots]{};
 bool crouchFlatHeld[crouchSlots]{};
+// Lying down (vr_prone; ROUND24.md, "Lying down and crawling"): per client, whether he lies (his box then
+// proneHeight tall: crouchBox holds it, so every box above follows), and the crawl's slowing share (eased like the
+// crouch's); cleared at each map's load.
+bool proneNow[crouchSlots]{};
+float proneSlowShare[crouchSlots]{};
 // localEyeCap: how far under his crouched box's top a flat-screen player's view stops rising -- the gap his eyes have
 // fully crouched under the lowest box (28 of 36 at the defaults), and more than Quake's near plane (4), so the view
 // never reaches into the ceiling over the box.
@@ -3264,6 +3269,26 @@ float crouchLevelFor(const qmodel_t* world, float eye)
         }
     }
     return 0.f;
+}
+
+bool proneOn()
+{
+    return crouchOn() && vr_prone.value != 0.f;
+}
+
+// The box's height lying down: vr_prone_height, 24 (the lowest box the trees' clip recovery is grown for: recoverClips)
+// up to the lowest crouched height less 4.
+float proneHeight(const qmodel_t* world)
+{
+    float levels[maxCrouchLevels];
+    crouchLevels(world, levels);
+    return za::clamp(vr_prone_height.value, 24.f, za::max(24.f, levels[0] - 4.f));
+}
+
+// The eyes' height over the feet under which he lies down: vr_prone_eye, 8 up to the box's top less 2.
+float proneEyeLimit(const qmodel_t* world)
+{
+    return za::clamp(vr_prone_eye.value, 8.f, proneHeight(world) - 2.f);
 }
 
 float crouchTopNum(int num)
@@ -3314,6 +3339,32 @@ void crouchStatus_f()
         static_cast<double>(top), static_cast<double>(eye), static_cast<double>(crouchLevelFor(sv.worldmodel, 0.f)),
         top > 0.f ? (boxFitsAt(ent, 1, 0.f) ? 1 : 0) : 1, static_cast<double>(ent->v.origin[0]),
         static_cast<double>(ent->v.origin[1]), static_cast<double>(ent->v.origin[2]));
+}
+
+// vr_prone_status: the first player lying down or not (vr_prone), his box's height (0: standing), his eyes over his
+// feet against the limit he lies down under, his speed along the floor and up, whether he is on the ground, and whether
+// the lowest crouched box would fit where he is (he could get up).
+void proneStatus_f()
+{
+    if(!sv.active || svs.maxclients < 1 || !sv.worldmodel)
+    {
+        Con_Printf("vr_prone_status: no game\n");
+        return;
+    }
+    progs::ServerVm vm; // a console command: no VM is current
+    edict_t* ent = progs::playerEdict();
+    const glm::vec3 head = progs::fields().headpos >= 0 ? progs::fieldVec(ent, progs::fields().headpos) : glm::vec3{0.f};
+    const float eye = head == glm::vec3{0.f} ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    float levels[maxCrouchLevels];
+    crouchLevels(sv.worldmodel, levels);
+    const float speed = za::sqrt(ent->v.velocity[0] * ent->v.velocity[0] + ent->v.velocity[1] * ent->v.velocity[1]);
+    Con_Printf("prone: on %d lying %d box %.0f eye %.1f limit %.1f height %.0f speed %.1f velz %.1f ground %d "
+               "crouchfits %d z %.2f x %.1f\n",
+        proneOn() ? 1 : 0, proneNow[1] ? 1 : 0, static_cast<double>(crouchTopNum(1)), static_cast<double>(eye),
+        static_cast<double>(proneEyeLimit(sv.worldmodel)), static_cast<double>(proneHeight(sv.worldmodel)),
+        static_cast<double>(speed), static_cast<double>(ent->v.velocity[2]),
+        (static_cast<int>(ent->v.flags) & FL_ONGROUND) ? 1 : 0, boxFitsAt(ent, 1, levels[0]) ? 1 : 0,
+        static_cast<double>(ent->v.origin[2]), static_cast<double>(ent->v.origin[0]));
 }
 
 // The player's width against entities' boxes: 0 Quake's (off).
@@ -4322,6 +4373,10 @@ za::Vector<glm::vec3> wantedExts(bool loading)
         {
             exts.pushBack(crouchExt(levels[i])); // the crouched player's (vr_crouch_hull)
         }
+        if(proneOn() && proneHeight(sv.worldmodel) < levels[0])
+        {
+            exts.pushBack(crouchExt(proneHeight(sv.worldmodel))); // lying down (vr_prone)
+        }
     }
     if(vr_mhull.value != 0.f && (sv.active || loading))
     {
@@ -4435,7 +4490,10 @@ void init()
     Cvar_SetCallback(&vr_crouch_hull, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_height, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_step, onWidthChanged);
+    Cvar_SetCallback(&vr_prone, onWidthChanged);
+    Cvar_SetCallback(&vr_prone_height, onWidthChanged);
     Cmd_AddCommand("vr_crouch_status", crouchStatus_f);
+    Cmd_AddCommand("vr_prone_status", proneStatus_f);
     Cvar_SetCallback(&vr_hull_keep, onKeepChanged);
     for(const MonsterClass& c : monsterClasses)
     {
@@ -4454,6 +4512,8 @@ void beforeLoad()
         crouchSlowShare[i] = 0.f;
         crouchFlat[i] = false;
         crouchFlatHeld[i] = false;
+        proneNow[i] = false;
+        proneSlowShare[i] = 0.f;
     }
     qmodel_t* world = sv.worldmodel;
     if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
@@ -4892,12 +4952,43 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     crouchFlat[num] = flatscreen;
     crouchFlatHeld[num] = flatscreen && flatscreenCrouch;
     float& c = crouchBox[num];
+    bool& prone = proneNow[num];
     if(!crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
     {
         c = 0.f;
+        prone = false;
         return;
     }
     const float eye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    // Lying down (vr_prone): his eyes under vr_prone_eye over his feet -- a headset player lying down for real, a
+    // flat-screen one whose prone key (vr_flatplay.cpp) puts his eyes down there, his crouch held meanwhile -- give the
+    // proneHeight box at once (a lower box fits wherever his has). Up again: his eyes 2 units over the box's top (a
+    // flat-screen player: his key and crouch let go), and only where the lowest crouched box fits -- under a ceiling lower
+    // than that he stays down (as the crouch keeps its box); then the crouch below takes it from there (standing if it
+    // fits and his eyes ask for it). Off (vr_prone 0) while lying: up as a crouch rises, as soon as it fits.
+    if(prone)
+    {
+        float levels[maxCrouchLevels];
+        crouchLevels(sv.worldmodel, levels);
+        const bool rise = (flatscreen && !flatscreenCrouch) || eye >= proneHeight(sv.worldmodel) + crouchStandMargin ||
+                          !proneOn();
+        if(!rise || !boxFitsAt(ent, num, levels[0]))
+        {
+            if(proneOn())
+            {
+                c = proneHeight(sv.worldmodel);
+            }
+            return;
+        }
+        prone = false;
+        c = levels[0];
+    }
+    else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2)
+    {
+        prone = true;
+        c = proneHeight(sv.worldmodel);
+        return;
+    }
     // Flatscreen play (-flatscreenmode, the player's own client: vr_flatplay.cpp): his crouch is a key held (Left
     // Ctrl) and his head is let back down by vr_flat_crouch_drop, so his eyes stand at Quake's viewheight -- under
     // the tallest crouched box's top -- and he never asks to stand outright, whatever the box he is in. His key says
@@ -4965,6 +5056,21 @@ bool isCrouched(const edict_t* ent)
     return crouchTop(ent) > 0.f;
 }
 
+bool isProne(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    return proneOn() && num >= 1 && num < crouchSlots && proneNow[num];
+}
+
+int localProne()
+{
+    if(!sv.active || !sv.worldmodel || svs.maxclients < 1)
+    {
+        return -1;
+    }
+    return proneOn() && proneNow[1] ? 1 : 0;
+}
+
 float localEyeCap()
 {
     // (Nothing while his crouch key holds him down: that box is the lowest one over his own lowered eyes, chosen by them,
@@ -5002,14 +5108,25 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
     float& share = crouchSlowShare[num];
     const float step = static_cast<float>(host_frametime) / crouchSpeedEaseTime;
     share = want > share ? za::min(want, share + step) : za::max(want, share - step);
-    if(share <= 0.f)
+    // Lying down (vr_prone): the crawl, vr_prone_speed_scale of the most speed, eased in and out the same way (whatever
+    // vr_crouch_speed says: crawling is never at a walk).
+    float& lying = proneSlowShare[num];
+    const float proneWant = proneOn() && proneNow[num] ? 1.f : 0.f;
+    lying = proneWant > lying ? za::min(proneWant, lying + step) : za::max(proneWant, lying - step);
+    float speed = maxspeed;
+    if(share > 0.f)
     {
-        return maxspeed;
+        const float scaled = maxspeed * za::clamp(vr_crouch_speed_scale.value, 0.2f, 1.f);
+        const float quiet = za::max(0.f, vr_stealth_run_speed.value * crouchSpeedQuiet);
+        const float crouched = za::min(maxspeed, za::min(scaled, quiet));
+        speed = maxspeed + (crouched - maxspeed) * share;
     }
-    const float scaled = maxspeed * za::clamp(vr_crouch_speed_scale.value, 0.2f, 1.f);
-    const float quiet = za::max(0.f, vr_stealth_run_speed.value * crouchSpeedQuiet);
-    const float crouched = za::min(maxspeed, za::min(scaled, quiet));
-    return maxspeed + (crouched - maxspeed) * share;
+    if(lying > 0.f)
+    {
+        const float crawl = za::min(speed, maxspeed * za::clamp(vr_prone_speed_scale.value, 0.1f, 1.f));
+        speed += (crawl - speed) * lying;
+    }
+    return speed;
 }
 
 } // namespace qvr::hull

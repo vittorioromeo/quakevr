@@ -1,30 +1,35 @@
 // vr_avatar_pitch.cpp -- the body's pitch (vr_avatar_internal.hpp, BodyPitch): one pose state that turns the trunk
 // forward about the top of the neck, eased both ways; solveTorso (vr_avatar.cpp) applies it, the swimming legs
-// (vr_avatar_legs.cpp, swimFoot) trail along it. Its one source today is swimming: fully under water (Quake's
+// (vr_avatar_legs.cpp, swimFoot) trail along it. Its first source is swimming: fully under water (Quake's
 // waterlevel 3) and not standing on the bottom, the trunk tips forward vr_body_swim_tilt_angle degrees, the legs trailing
 // behind and up (ROUND24.md, "Swimming tilt"). Close to a ledge you can climb out of the water at (the ledge map,
 // vr_ledges.hpp: a lip with water in the drop below it and its top above the water), it straightens again, so that the
 // legs are already under the body when the hands take the ledge (the climbing feet, vr_avatar_climb.cpp, step onto the
 // wall from there). VR and flat-screen play pose the body through the same avatar::pose, so both tilt.
 //
-// Lying down and crawling (BACKLOG.md, "Player lying down and physical crawling") is meant to be a second source: its
-// own target angle (about 90), the same pivot (the head stays where the headset or the flat-screen eye is), the same
-// ease; the legs would lie along the trunk on the floor instead of trailing (solveLeg's target, by BodyPitch::legs).
-// Only the source and the legs' floor are missing; the pivot, the arms (they follow the controllers from wherever the
-// turned chest puts the shoulders) and the ease are this file's.
+// Lying down (vr_prone; ROUND24.md, "Lying down and crawling") is the second source: while the server has the local
+// player lying down (vr_hull.cpp: his eyes under vr_prone_eye, his box low) the target is vr_prone_body_angle (90), more
+// as his eyes stand higher over the floor (the hips slope down to it: pronePitchTarget), eased over vr_prone_body_time;
+// the same pivot (the head stays where the headset or the flat-screen eye is). BodyPitch::lying, its share, straightens
+// the crouched trunk (solveTorso) and lays the legs on the floor behind (solveLeg); the arms follow the controllers from
+// wherever the turned chest puts the shoulders.
 
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
+#include "vr_hull.hpp"
 #include "vr_ledges.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_units.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -70,6 +75,20 @@ float swimPitchTarget(const SwimPitchIn& in)
     return CLAMP(0.f, in.angle, 80.f) * share * (1.f - CLAMP(0.f, in.climb, 1.f));
 }
 
+float pronePitchTarget(float angle, float eyeOverFloor, float torso)
+{
+    const float base = CLAMP(0.f, angle, 100.f);
+    if(torso <= 1.f || base <= 0.f)
+    {
+        return base;
+    }
+    // The eyes of a body lying flat on its front, its head up: about PRONE_FLAT_EYE units over the floor. Higher (propped
+    // on the elbows, on all fours), the trunk from the neck down slopes to the floor behind: asin(rise / torso).
+    constexpr float PRONE_FLAT_EYE = 8.f;
+    const float rise = CLAMP(0.f, (eyeOverFloor - PRONE_FLAT_EYE) / torso, 0.5f);
+    return base + glm::degrees(za::asin(rise)) * za::min(1.f, base / 90.f);
+}
+
 } // namespace detail
 
 namespace
@@ -78,6 +97,7 @@ namespace
 using namespace detail;
 
 constexpr float LEDGE_WATER_BELOW = 40.f; // units under the lip the water may start (higher, the top is out of reach)
+constexpr float PRONE_TORSO_M = 0.55f;    // metres from the pelvis to the neck's top, roughly (lying down's hip slope)
 
 [[nodiscard]] bool liquidAt(const glm::vec3& p)
 {
@@ -145,9 +165,10 @@ constexpr float LEDGE_WATER_BELOW = 40.f; // units under the lip the water may s
 void bodyPitch_f()
 {
     const BodyPitch& p = bodyPitch;
-    Con_Printf("body_pitch: angle %.2f target %.2f rate %.2f source %s waterlevel %d ground %d ledge %.1f frames %u\n",
-        p.angle, p.target, p.rate, p.source == PitchSource::Swim ? "swim" : "none", p.waterlevel, p.onGround ? 1 : 0,
-        p.ledgeDist, p.updates);
+    Con_Printf("body_pitch: angle %.2f target %.2f rate %.2f source %s waterlevel %d ground %d ledge %.1f frames %u "
+               "lying %.2f\n",
+        p.angle, p.target, p.rate, p.source == PitchSource::Swim ? "swim" : p.source == PitchSource::Prone ? "prone" : "none",
+        p.waterlevel, p.onGround ? 1 : 0, p.ledgeDist, p.updates, p.lying);
     // vr_body_pitch <range>: also the nearest ledge out of the water within that many units of the eyes (finding one).
     if(Cmd_Argc() >= 2)
     {
@@ -263,6 +284,42 @@ void bodyPitchTest_f()
         check(maxStep <= fastest && lowest > -0.5f, "bobbing %d: largest step %.3f, lowest %.3f", i, maxStep, lowest);
     }
     check(highest <= ANGLE + 0.01f, "bobbing: highest %.3f (<= %.0f)", highest, ANGLE);
+
+    // Lying down (vr_prone): flat on the floor 90, propped up higher (the hips slope down to the floor), never past 30
+    // more; off at 0; and the ease down to it and back up as smooth as the swimming one's.
+    const float flatT = pronePitchTarget(90.f, 8.f, 20.f);
+    const float proppedT = pronePitchTarget(90.f, 14.f, 20.f);
+    const float highT = pronePitchTarget(90.f, 60.f, 20.f);
+    check(za::abs(flatT - 90.f) < 0.01f, "lying flat: target %.2f (90)", flatT);
+    check(proppedT > 105.f && proppedT < 110.f, "propped up (eyes 14 over the floor): target %.2f (about 107.5)", proppedT);
+    check(za::abs(highT - 120.f) < 0.01f, "eyes high: target %.2f (at most 120)", highT);
+    const float offT = pronePitchTarget(0.f, 14.f, 20.f);
+    check(offT == 0.f, "lying down's angle 0: target %.2f (0)", offT);
+    angle = rate = 0.f;
+    const auto runTo = [&](float target, float seconds) {
+        maxStep = 0.f;
+        const int frames = static_cast<int>(seconds * 72.f + 0.5f);
+        for(int f = 0; f < frames; f++)
+        {
+            const float before = angle;
+            easePitch(angle, rate, target, 0.6f, DT);
+            maxStep = za::max(maxStep, za::abs(angle - before));
+            if(f == 0)
+            {
+                firstStep = za::abs(angle - before);
+            }
+        }
+    };
+    const float fastestProne = proppedT * (4.74f / 0.6f) / 2.71828f * DT * 1.05f;
+    runTo(proppedT, 0.6f);
+    check(angle >= 0.94f * proppedT && angle <= proppedT + 0.01f, "lying down: after 0.6 s %.2f (95%% of %.2f)", angle, proppedT);
+    // (The first frame's turn from rest: about the target times (omega dt)^2 / 2, 0.64 here; a smooth start is under a
+    // quarter of the fastest frame's.)
+    check(firstStep < 0.25f * fastestProne && maxStep <= fastestProne,
+        "lying down: first step %.3f (< %.3f, a smooth start), largest %.3f (<= %.3f)", firstStep, 0.25f * fastestProne,
+        maxStep, fastestProne);
+    runTo(0.f, 0.6f);
+    check(angle <= 0.06f * proppedT && maxStep <= fastestProne, "getting up: after 0.6 s %.2f, largest step %.3f", angle, maxStep);
     t.verdict(NAME);
 }
 
@@ -319,11 +376,38 @@ void updateBodyPitch(const hands::State& s, float dt)
     p.source = swimming ? PitchSource::Swim : PitchSource::None;
     p.easeTime = CLAMP(0.1f, vr_body_swim_tilt_time.value, 3.f);
     p.legs = 1.f;
+    // Lying down (vr_prone): the server's word for the local player (vr_hull.cpp: his eyes under vr_prone_eye, his box
+    // low); a client of another server: his eyes that low over the floor. Swimming wins (lying down needs a floor).
+    const int served = hull::localProne();
+    // (Flat-screen: the eyes over the box's feet -- his standing eyes are Quake's 46 there, not the calibrated height his
+    // head's headHeight is measured from.)
+    const float eyeOverFloor = flatplay::active() ? s.head.z - (s.playerOrigin.z - 24.f) : s.headHeight * units::metresToUnits();
+    const bool lying = vr_prone.value != 0.f && vr_crouch_hull.value != 0.f &&
+                       (served >= 0 ? served == 1 : eyeOverFloor < vr_prone_eye.value);
+    if(lying && !swimming)
+    {
+        const float torso = PRONE_TORSO_M * units::metresToUnits() * units::bodyScale();
+        p.target = pronePitchTarget(vr_prone_body_angle.value, eyeOverFloor, torso);
+        p.source = PitchSource::Prone;
+        p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f);
+        p.lyingFrom = 1.f;
+        p.lyingAngle = za::max(30.f, p.target);
+    }
+    else if(swimming)
+    {
+        p.lyingFrom = 0.f;
+    }
+    else if(p.lyingFrom > 0.f)
+    {
+        p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f); // getting up: lying down's own time
+    }
     easePitch(p.angle, p.rate, p.target, p.easeTime, dt);
     if(p.target == 0.f && za::abs(p.angle) < 0.01f && za::abs(p.rate) < 0.01f)
     {
         p.angle = p.rate = 0.f; // settled upright: exactly as without it
+        p.lyingFrom = 0.f;
     }
+    p.lying = p.lyingFrom * CLAMP(0.f, p.angle / p.lyingAngle, 1.f);
 }
 
 } // namespace detail
