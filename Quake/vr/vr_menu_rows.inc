@@ -5795,11 +5795,8 @@ QVR_TOGGLE(vr_qcprofile, "Time QuakeC Functions",
 QVR_CYCLE(vr_findradius_grid, "findradius Search",
     "vr_findradius_grid: how QuakeC's findradius (the armed humanoids' look for shots and blows, explosions' "
     "reach) finds what is near: Walk, every entity (Quake's); Big Maps, through the area grid on maps of "
-    "vr_findradius_grid_min entities or more, the default; Grid, always. The same entities, in the same order.",
+    "100 entities or more, the default; Grid, always. The same entities, in the same order.",
     {0.f, "Walk"}, {1.f, "Big Maps"}, {2.f, "Grid"})
-QVR_TOGGLE(vr_findradius_check, "Check findradius",
-    "vr_findradius_check: every findradius also walks every entity and compares the two (the walk's result is "
-    "used); findradius Stats counts the differences and the first are printed (findradius check:). Slower.")
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
@@ -6051,6 +6048,15 @@ QVR_SLIDER(vr_flat_shove_push, "Shove Strength", 0.f, 3.f, 0.05f, "x%.2f", noExt
     "(vr_flat_shove_push).")
 QVR_SLIDER(vr_flat_shove_reach, "Shove Reach", 0.5f, 3.f, 0.05f, "x%.2f", noExt,
     "Playing on the desktop screen: how far ahead a shove reaches, times the headset's shove (vr_flat_shove_reach).")
+QVR_SLIDER(vr_flat_shove_damage, "Shove Damage", 0.f, 3.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen: how much damage a shove does, times the headset's one-hand shove "
+    "(vr_flat_shove_damage). 0 shoves without hurting.")
+QVR_SLIDER(vr_flat_shove_time, "Shove Time", 0.1f, 1.5f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: seconds the hand's push takes, out and back; the shove lands as the hand "
+    "reaches its furthest, a third of the way in (vr_flat_shove_time). The cooldown is at least this long.")
+QVR_SLIDER(vr_flat_shove_anim_reach, "Shove Hand Travel", 0.f, 40.f, 1.f, "%.0f u", noExt,
+    "Playing on the desktop screen: how far the hand pushes out ahead of where it rests, in game units. The "
+    "animation only: how far the shove reaches is Shove Reach (vr_flat_shove_anim_reach).")
 QVR_TOGGLE(vr_handsource_debug, "Print Hand Motion Source",
     "Prints each hand's motion source as it changes: tracked (a controller), synthesized (the flat-screen look, a lean, "
     "the wall tilt: no gesture reads it) or action (the V punch) (vr_handsource_debug).")

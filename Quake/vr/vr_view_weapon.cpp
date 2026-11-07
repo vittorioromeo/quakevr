@@ -1148,14 +1148,11 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         {
             const glm::vec3 prePos = held.pos;
             const glm::mat3 preTurn = anglesBasis(wt);
-            if(vr_embed_probe_split.value == 0.f) // (vr_embed_test 25's before: the weapon left at its controller)
-            {
-                const glm::mat3 turn = glm::mat3_cast(easeTurn);
-                wt = basisAngles(turn * preTurn);
-                held.pos += easeOff;
-                held.rot = basisAngles(turn * anglesBasis(held.rot));
-                drawnAs[hand] = held;
-            }
+            const glm::mat3 turn = glm::mat3_cast(easeTurn);
+            wt = basisAngles(turn * preTurn);
+            held.pos += easeOff;
+            held.rot = basisAngles(turn * anglesBasis(held.rot));
+            drawnAs[hand] = held;
             embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
         }
     }
