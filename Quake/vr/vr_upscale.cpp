@@ -229,13 +229,8 @@ void main()
     const char* text = source.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
     GL_CompileShaderFunc(shader);
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
+    if(!gfx::compiled(shader, name))
     {
-        char log[2048];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
         GL_DeleteShaderFunc(shader);
         return 0;
     }

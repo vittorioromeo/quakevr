@@ -12,6 +12,19 @@ namespace qvr::gfx
 // labelled `name`.
 [[nodiscard]] GLuint linkProgram(GLuint vs, GLuint fs, const char* name);
 
+// Whether `shader` (just compiled, labelled `name`) compiled: a failure warns with the info log. True without reading
+// its status while the checks are deferred (beginDeferredChecks): read then at endDeferredChecks.
+[[nodiscard]] bool compiled(GLuint shader, const char* name);
+
+// gfx::precompilePrograms with the driver's parallel compile (gl_parallel_compile_able): between these, every
+// compile and link is queued without reading its status (linkProgram gives the program), so the driver's threads take
+// them all; endDeferredChecks then reads each one's statuses in order, warns as compiled/linkProgram would and labels
+// the programs (the driver's glObjectLabel waits for the link: 480 of a cold 555 ms). A program that failed is
+// relinked to one that draws (or dispatches) nothing, as its owner already holds the name (made one at a time, it
+// would have had 0 and skipped its pass). Without the extension both do nothing.
+void beginDeferredChecks();
+void endDeferredChecks();
+
 // Whether the framebuffer bound to GL_FRAMEBUFFER is complete.
 [[nodiscard]] bool boundFramebufferComplete();
 
