@@ -340,7 +340,7 @@ za::Vector<entity_t*> aliasCasters;
 
 // Rebuilt for every shadow-render invocation, including each portal camera. Only the model type is
 // filtered here: msgtime, itemsOnly, scale and origin remain live per-light tests in collectBrushes.
-using BrushCandidates = za::SmallVector<entity_t*, 64>;
+using BrushCandidates = za::Vector<entity_t*>; // (shadowScratch's: its room kept from frame to frame)
 
 void collectBrushCandidates(BrushCandidates& candidates)
 {
@@ -1085,7 +1085,8 @@ struct ShadowScratch
     za::Vector<Candidate> mapCandidates;    // the map lights near the viewer
     za::Vector<Request> requests;           // the faces packed into the atlas
     za::Vector<Request> estimate;           // a map's lights' faces at once (atlasEstimate)
-    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests, estimate); }
+    BrushCandidates brushCandidates;        // the frame's brush entities (VR_RenderShadowMaps: an AD map has hundreds)
+    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests, estimate, brushCandidates); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
@@ -1899,7 +1900,8 @@ extern "C" void VR_RenderShadowMaps(void)
     selectMapLights(eye, dt);
 
     profile::begin("shadow brush candidates", false);
-    BrushCandidates candidates;
+    BrushCandidates& candidates = shadowScratch.brushCandidates;
+    candidates.clear();
     if(portalLightCount > 0 || za::anyOf(dlightSlots.begin(), dlightSlots.end(), [](const DlightSlot& s) { return s.selected; }) ||
         za::anyOf(mapSlots.begin(), mapSlots.end(), [](const MapSlot& s) { return s.light >= 0; }))
     {
