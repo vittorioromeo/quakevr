@@ -3133,5 +3133,5 @@ The review of the 2026-11-06/07 performance changes (five findings, the save che
   gives a block past its two slots from an overflow list dropped at the next call (no Sys_Error); vr_wornpack.qc's
   two missing spaces.
 
-Tests: vr_agrunt_test 214 3/0, 77 12/0, 60 6/0; flatwall 18/0, flatsight 12/0, flatsweep 383/0 (27 known); melee eval
+Tests: vr_agrunt_test 214 3/0, 77 12/0, 60 6/0; vr_wornpack_test 1 25/0; flatwall 18/0, flatsight 12/0, flatsweep 383/0 (27 known); melee eval
 no verdict changes (PASS->PASS 0.1 degree drifts); e1m1 and a save loaded clean.
