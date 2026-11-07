@@ -432,6 +432,10 @@ down 30 to 50 (tilted, the sights leave the ray and the gun comes back into the 
 screen. Drawn only (`flatplay::drawnOffset`): the game's hand keeps the crosshair's turn, so the shots still go through the
 crosshair, and the view puts the two-handed hotspot it placed on the tilted gun back on the untilted one
 (`flatplay::drawnWallTurn`), so a two-handed hold stays. `Misc/quakevr/flatwall_test.sh` checks every weapon at a wall.
+**Wall: Raise Into View** (`vr_flat_wall_raise`, 0.4): in the hipfire wall state, a weapon whose muzzle would sit lower than
+this share of the screen's height above its bottom edge comes up (the view's up, at most 12 units, never into a ceiling) until
+it is there, and the way back is found again from there: pulled back at a wall, a pistol sat under the status bar. Long guns
+already reach higher and don't move. Less looking down past 20 degrees, none by 50. 0: off.
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

@@ -2493,6 +2493,22 @@ His test of the third pass: it keeps off the wall, but the left / right / down p
 
 **To try (flat):** walk into a wall with the rifle, a pistol, the shotgun and the axe, straight and at an angle: the gun
 turns muzzle up and nothing goes into the wall; the axe just comes back.
+
+**His call (2026-11-07):** the two jump rows accepted (flatsweep_known.txt); the pistol raised into view.
+- **Raise into view** (`vr_flat_wall_raise`, default 0.4; flatscreen settings "Wall: Raise Into View"; `raiseFor`):
+  in the wall state, after the way back, a weapon whose muzzle (as drawn, turned) stands lower than this share of the
+  view's height up from its bottom edge comes straight up till it is there (eased as the way back), at most 12 units;
+  the way back is then found again from the raised place, and where that can't clear (a ceiling) the raise is halved
+  down to what does. Generic, no number per weapon: at his box on the vrtesthall wall the revolver comes up 2.66
+  units, the nail pistol 3.57, the flare gun 3.22 (all three sat under the status bar, a barrel tip showing; none of
+  them is turned at that wall, the way back clears them); the shotgun, the enforcer rifle and the axe 0 standing (they
+  reach higher); the shotgun crouched comes up 0 to 3.9 (20 up to 20 down, smooth). `vr_gun_wall_depth` 0.0 cm for all
+  of them, hand 0.0. The status line `flatwallturn:` prints `raise`. Tried first: along the view's up, checked against
+  the walls before the way back: looking down that went into the wall (the crouched shotgun's raise fell 3.4 -> 1.0
+  from level to 2 down: flatsweep jump_gun 1.05) and the turn then came and went frame after frame at 35 down
+  (flatsweep `settled`). Less looking down past 20 degrees, none by 50 (there the view finds the weapon anyway, and the
+  wall state ends: a full raise dropped 4.5 units at once at 52 down, flatsweep jump_hand1 1.04).
+  Pictures: `scratch/fw5_before.png`, `scratch/fw5_after.png` (revolver, nail pistol, flare gun, shotgun, rifle).
 ## Release 1.1 readiness pass (night 11-07, agent/release11)
 
 Full regression (`run_baseline.sh --no-bench --jobs 4`, 300 cases, run 20261107-022308) against the last full run on
