@@ -457,12 +457,12 @@ The generators in `Misc/quakevr` make the shipped models:
 | Generator | Writes |
 |---|---|
 | `make_vrbody.py` | the three builds and the 16 skins |
-| `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons until 2026-11: **retired**, every weapon's source is a .blend ([section 9](#every-weapon-2026-11)) |
+| `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py` | the weapons until 2026-11: **retired**, every weapon's source is a .blend ([section 9](#every-weapon-2026-11)) |
 | `gunlooks.py` (after `polish_weapons.py`: `--capture`, then it, then `bake_normals.py`) | the shotgun's and nailguns' skins and rivets, `g_shot0.mdl`, `g_nail.mdl`: **retired** likewise |
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
 | `make_flashlight.py` | `vrflashlight.mdl`, its full-colour skin (`vrflashlight.mdl_0.png`) and its sounds; then `bake_normals.py vrflashlight.mdl` |
-| `make_holster.py`, `make_pauldron.py`, `make_shell.py`, `make_pouch.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl`; `vrpouch.mdl` |
+| `make_holster.py`, `make_pouch.py`, and the removed `make_pauldron.py`, `make_shell.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl`; `vrpouch.mdl` |
 | `make_bloody_hands.py` | the blood skins (1-3) of `hand_base.mdl` and `finger_*.mdl` |
 | `make_spawn_buttons.py` | `maps/vr_spawnpanel.bsp`, `maps/vr_spawnbutton.bsp` |
 | `make_detail.py`, `make_grades.py` | the detail textures (`textures/vr/detail_*.png`), the colour grades (`gfx/vr/grade_*.png`) |
@@ -643,11 +643,16 @@ the shipped files byte for byte (checked for all of them: 56 sources, 112 files)
 - **No generator overwrites a source's files.** `generated.json` records each file with its `.blend` (`"source"`);
   `genguard.py` makes a generator leave them as they are (even with `--force`) and say so, and stops a generator all of
   whose files are owned: polish_weapons.py, gunlooks.py, make_swords.py, make_enemyguns.py, make_chainsaw.py,
-  make_crowbar.py, make_toolgun.py, make_mags.py, make_nailpistol_mags.py, make_ssg_open.py (by hand),
-  improve_weapons*.py, recolor_shotgun_sight.py, fix_shot_stock_corner.py, build_nailpistol_slide.py; bake_normals.py for
+  make_crowbar.py, make_ssg_open.py (by hand),
+  improve_weapons*.py; bake_normals.py for
   their maps; the hand-made `build_*.py` refuse without `--from-scratch` (they would overwrite the .blend). Their code
   stays: the export calls make_ssg_open.py's cut and the normal maps' recipes; gunlooks.py's relief is the PNG beside
   `v_shot`, `v_nail`, `v_lava`.
+  Generators that no other code imports and whose files all have a .blend were removed (2026-11; git history has them):
+  make_mags, make_nailpistol_mags, make_toolgun, make_pauldron, make_shell, make_rounds, make_muzzleflash,
+  make_walltorch, make_teeth, make_enemyshove, make_voreshove, recolor_shotgun_sight, fix_shot_stock_corner, taper_hand,
+  and the from-scratch build scripts of the nail pistol, revolver and burst rifle. Generators other code imports
+  (make_swords, make_chainsaw, make_enemyguns, make_pouch, polish_weapons...) stay as libraries; they refuse to write.
 - **A new model** (any `.mdl` the add-on imports): `blend_build.py <model>.mdl` once: it builds the .blend from the
   shipped files and records its files as owned. Then the .blend is the source.
 - **The super shotgun's bead** (2026-11): a raised, glowing front bead on the muzzle band, and the rib's back end lowered
@@ -668,10 +673,10 @@ game reads any loaded model again when its file changes). An untouched export wr
 | Group | Sources (`src_models/blend/<model>/`) | Was made by (now retired for these files) |
 |---|---|---|
 | Our gear | `vrgadget`, `vrgadget_strap`; `vrflashlight`; `vrpouch`, `vrpouch_ammo`; `vrpauldron`, `vrpauldron_arm`; `legholster` | make_gadget.py, make_flashlight.py (still makes its sounds), make_pouch.py, make_ammo_pouch.py, make_pauldron.py, make_holster.py |
-| Our props and effects | `vr_crate1`, `vr_crate2`, `vr_plank1`..`4`, `vr_barrel`; `vr_brick1`..`4`, `vr_rock1`..`5`; `vr_shell`, `vr_shell_live`, `vr_shell_pair`; `vr_round_rocket`; `vr_muzzleflash`; `vrtorch`; `vr_tooth`; `gib_brain1`..`3` | make_crates.py, make_debris.py, make_shell.py, make_rounds.py, make_muzzleflash.py, make_walltorch.py, make_teeth.py, make_brains.py |
+| Our props and effects | `vr_crate1`, `vr_crate2`, `vr_plank1`..`4`, `vr_barrel`; `vr_brick1`..`4`, `vr_rock1`..`5`; `vr_shell`, `vr_shell_live`, `vr_shell_pair`; `vr_round_rocket`; `vr_muzzleflash`; `vrtorch`; `vr_tooth`; `gib_brain1`..`3` | make_crates.py, make_debris.py, make_shell.py (removed), make_rounds.py (removed), make_muzzleflash.py (removed), make_walltorch.py (removed), make_teeth.py (removed), make_brains.py |
 | | `vr_rock1` also writes `vr_explosion_debris.mdl` (its molten skin made from the rock by make_explosion_debris.py's code) | make_explosion_debris.py |
-| The unrigged hand | `hand_base`, `finger_thumb`, `finger_index`, `finger_middle`, `finger_ring`, `finger_pinky`: skin 0 is the .blend's; the blood skins 1-3 are made from it at each export (make_bloody_hands.py's code) | make_bloody_hands.py; taper_hand.py refuses to write an owned file |
-| id's models we ship changed | `soldier`, `enforcer` (their shove frames), `shalrath` (its shove); `grenade`, `mervup`, `proxbomb` (skin 1, unarmed, made from skin 0 at each export: make_grenade_skins.py's code); `knight`, `hknight` | make_enemyshove.py, make_voreshove.py, make_grenade_skins.py |
+| The unrigged hand | `hand_base`, `finger_thumb`, `finger_index`, `finger_middle`, `finger_ring`, `finger_pinky`: skin 0 is the .blend's; the blood skins 1-3 are made from it at each export (make_bloody_hands.py's code) | make_bloody_hands.py; taper_hand.py (removed) refuses to write an owned file |
+| id's models we ship changed | `soldier`, `enforcer` (their shove frames), `shalrath` (its shove); `grenade`, `mervup`, `proxbomb` (skin 1, unarmed, made from skin 0 at each export: make_grenade_skins.py's code); `knight`, `hknight` | make_enemyshove.py (removed), make_voreshove.py (removed), make_grenade_skins.py |
 | | `soldier`, `enforcer`, `knight`, `hknight` also write the armed models without their weapon, `vrgrunt.mdl`, `vrenforcer.mdl`, `vrknight.mdl`, `vrhknight.mdl` (make_vrgrunt.py's code: it drops the weapon's triangles by vertex number, so keep those vertices) | make_vrgrunt.py |
 | Shipped as they are (id's, the mission packs', the game folder's since the start) | the monsters `boss`, `demon`, `dog`, `fish`, `ogre`, `player`, `shambler`, `wizard`, `zombie`; the gibs `gib1`..`3`, `zom_gib` and the heads `h_demon`, `h_dog`, `h_guard`, `h_hellkn`, `h_knight`, `h_mega`, `h_ogre`, `h_player`, `h_shal`, `h_shams`, `h_zombie`; the items `armor`, `backpack`, `invisibl`, `invulner`, `quaddama`, `w_g_key`, `w_s_key`, `end1`..`4`; the projectiles and effects `spike`, `s_spike`, `k_spike`, `w_spike`, `lasrspik`, `missile`, `beam`, `flame`, `flame2`, `hook`, `teleport`; `wpnbutton`, `hand` | nothing |
 

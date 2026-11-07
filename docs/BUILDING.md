@@ -169,8 +169,8 @@ in regular use.
 | `relight_quakevr_maps.py` | Relights Quake VR's own maps (tutorial, firing range) in place; they are committed |
 | `make_spawn_buttons.py` | Builds the brush models (panel, button) of the firing range's second row of monster buttons, which its entity file places (ericw-tools `qbsp` and `light`); they are committed |
 | `transcribe_notes.py` | Transcribes voice notes with faster-whisper into `quakevr/notes/NOTES.md` |
-| `make_vrbody.py`, `make_pauldron.py`, `make_gadget.py`, `make_holster.py`, `make_flashlight.py`, `make_shell.py`, `make_swords.py` | Generate the body, pauldrons, wrist gadget, holsters, flashlight, shell casing and knights' swords models (with `mdlgen.py`) |
-| `improve_weapons*.py`, `recolor_shotgun_sight.py`, `taper_hand.py`, `make_bloody_hands.py` | Rework the weapon and hand models (grips, trigger guards, details, sights, damage skins) from the sources in `src_models/` |
+| `make_vrbody.py`, `make_gadget.py`, `make_holster.py`, `make_flashlight.py`, `make_swords.py` | Generate the body, wrist gadget, holsters, flashlight, knights' swords models (with `mdlgen.py`) |
+| `improve_weapons*.py`, `make_bloody_hands.py` | Rework the weapon and hand models (grips, trigger guards, details, sights, damage skins) from the sources in `src_models/` |
 | `make_detail.py`, `make_grades.py`, `make_sounds.py` | Generate the detail textures, the colour grades and the synthesised sounds |
 | `quakepak.py` | Reads Quake's `.pak` files (used by the others) |
 | `check_statics.py`, `check_qc_precedence.py` | The code checks: no function-local statics in `Quake/vr` ([CODE_STYLE.md](vr-port/CODE_STYLE.md)), no QuakeC expression read differently from C |
