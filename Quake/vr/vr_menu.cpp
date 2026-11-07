@@ -869,6 +869,14 @@ za::Vector<Item> pageHitbox()
         row(opt::vr_prone_eye),
         row(opt::vr_prone_height),
         row(opt::vr_prone_speed_scale),
+        row(opt::vr_prone_crawl),
+        row(opt::vr_prone_stick_scale),
+        row(opt::vr_prone_crawl_gain),
+        row(opt::vr_prone_crawl_min_speed),
+        row(opt::vr_prone_crawl_plant_height),
+        row(opt::vr_prone_crawl_friction),
+        row(opt::vr_prone_crawl_max_speed),
+        row(opt::vr_prone_crawl_haptic),
         command("Lying Down Status", "vr_prone_status")
             .help("Prints whether you lie down, your box's height, your eyes' height over your feet against the limit, "
                   "your speed, and whether a crouch would fit (you could get up)."),

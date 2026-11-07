@@ -39,6 +39,15 @@ QVR_CVAR(vr_prone, "1", CVAR_ARCHIVE)                  // lying down (needs vr_c
 QVR_CVAR(vr_prone_eye, "18", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to vr_prone_height less 2; 18 is about 0.5 m); up again once they are 2 over the box's top and the lowest crouched box fits
 QVR_CVAR(vr_prone_height, "24", CVAR_ARCHIVE)          // ... your box's height lying down, in units (24 to the lowest crouched height less 4)
 QVR_CVAR(vr_prone_speed_scale, "0.3", CVAR_ARCHIVE)    // ... the stick's most speed lying down, times your top speed (0.1-1), eased in and out like the crouch's
+QVR_CVAR(vr_prone_crawl, "1", CVAR_ARCHIVE)            // ... VR: crawl with the arms: a hand planted on the floor (or coming down to it) and pulled back towards you drags you forward along the pull (vr_physics_water.cpp VR_AfterCrawlMove; ROUND24 "Crawling with the arms"); tracked hand motion only (vr_handsource_gate), not a hand whose trigger fires; 0: the stick alone
+QVR_CVAR(vr_prone_stick_scale, "0.25", CVAR_ARCHIVE)   // ... VR, lying down with vr_prone_crawl on: the stick's crawl speed times this (on top of vr_prone_speed_scale; 0 none, 1 all; like vr_swim_stick_speed): the arms do most of it
+QVR_CVAR(vr_prone_crawl_gain, "2.5", CVAR_ARCHIVE)     // ... how far a pull drags you, times the hand's own travel (1: as a hand gripping the floor, exactly)
+QVR_CVAR(vr_prone_crawl_min_speed, "0.3", CVAR_ARCHIVE) // ... m/s a hand must move back along the floor to pull (slower: resting, aiming)
+QVR_CVAR(vr_prone_crawl_plant_height, "10", CVAR_ARCHIVE) // ... units over your feet under which a hand is on the floor and can start a pull (or coming down to it under twice this); a pull goes on under twice this
+QVR_CVAR(vr_prone_crawl_friction, "3", CVAR_ARCHIVE)   // ... how quickly the crawl's momentum dies between pulls (per second: 3 glides about a third of a second)
+QVR_CVAR(vr_prone_crawl_max_speed, "120", CVAR_ARCHIVE) // ... units/second the arms' crawl can reach
+QVR_CVAR(vr_prone_crawl_haptic, "0.3", CVAR_ARCHIVE)   // ... a short pulse in the hand as it plants for a pull, this strong (0 none); its palm's slap on the floor too (vr_physsound_grab)
+QVR_CVAR(vr_prone_crawl_debug, "0", CVAR_NONE)         // ... 1: print each pull (hand, how far it went, the speed it gave) and each hand's height over the feet as it plants
 QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... degrees the body turns forward about the neck lying down (0 .. 100; the eyes over the floor tip the hips down more, so they rest on it)
 QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
 QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
@@ -3985,6 +3994,7 @@ QVR_CVAR(vr_flat_shove_reach, "1", CVAR_ARCHIVE)      // how far ahead of the ha
 QVR_CVAR(vr_flat_shove_time, "0.4", CVAR_ARCHIVE)     // seconds the hand's push takes, out and back (the shove lands as the hand reaches its furthest, a third of the way in)
 QVR_CVAR(vr_flat_shove_anim_reach, "14", CVAR_ARCHIVE) // units the hand pushes out ahead of where it rests (the animation only)
 QVR_CVAR(vr_handsource_gate, "1", CVAR_ARCHIVE)        // 1: hand motion the game makes up (the flat-screen look, a lean, the wall tilt: vr_handsource.cpp) triggers no gesture (a swing, a flick, a pry); 0: every motion does, as before (a test's comparison, a way back)
+QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both hands' motion synthesized every frame (as the flat-screen pose's), in a headset too: no gesture may fire on it (vr_handsource.cpp; crawl_test.py)
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_key_grab, "r", CVAR_ARCHIVE)           // the key that force-grabs what the view is pointed at (impulse 46), by its bind name; "" none (was E until E became the right lean)

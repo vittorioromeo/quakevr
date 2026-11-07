@@ -35,7 +35,8 @@ SHOTS = "vr_body_debug 3;wait3;screenshot;vr_body_debug 0;%s;wait3;screenshot;%s
 # (VR: the hands held out ahead and low, as on the elbows; the standing pose's again after)
 HANDS = "vr_mock_hand main 0.2 0.15 -0.45;vr_mock_hand off -0.2 0.15 -0.45"
 HANDS_BACK = "vr_mock_hand main;vr_mock_hand off"
-START = ["map vrteleporters", "wait60", "god", "notarget", "vr_crouch_height 36", "vr_prone 1",
+# (vr_prone_stick_scale 1: the stick's whole crawl, the box's and the speed's checks; crawl_test.py tests the arms and the scale)
+START = ["map vrteleporters", "wait60", "god", "notarget", "vr_crouch_height 36", "vr_prone 1", "vr_prone_stick_scale 1",
          "setpos 480 -320 24 0 0 0", "wait5", "noclip 0", "wait5"]
 
 VR = ";".join(START + [

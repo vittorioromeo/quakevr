@@ -465,6 +465,7 @@ float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times th
 float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)
 void VR_CloseQuartersMove (struct edict_s *ent, float *wishvel); // SV_AirMove, walking: near a live enemy, the move straight at it slowed (vr_closequarters.cpp)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
+void VR_AfterCrawlMove (struct edict_s *ent, float forwardmove, float sidemove); // after SV_AirMove: lying down, the arms' crawl (vr_prone_crawl) and the stick's share of it
 void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)
 void VR_GroundGravity (struct edict_s *ent, const float *before); // SV_Physics_Client, gravity added: on a walkable slope, only its part into the slope (vr_slope_walk)
 float VR_StepSize (float fallback);					// SV_WalkMove step height

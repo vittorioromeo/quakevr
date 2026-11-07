@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_physics_internal.hpp"
+#include "vr_physsound.hpp"
 #include "vr_held.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
@@ -753,18 +754,23 @@ struct Swimmer
 
 Swimmer swimmers[MAX_SCOREBOARD];
 
-// A VR player's latest move, when its hands are tracked. A flat-screen player (-flatscreenmode: .vr_flatscreen) swims
-// as in Quake (docs/vr-port/FLATPLAY.md, "Swimming"): his keys at Quake's speed where he looks, jump to rise; his
-// posed hands push no water and the water's friction is all there (no glide).
-[[nodiscard]] const VrMove* swimmer(edict_t* ent)
+// A VR player's latest move, when its hands are tracked: the arm strokes' (swimming, and crawling lying down: below).
+// A flat-screen player (-flatscreenmode: .vr_flatscreen) swims as in Quake (docs/vr-port/FLATPLAY.md, "Swimming"): his
+// keys at Quake's speed where he looks, jump to rise; his posed hands push no water and the water's friction is all
+// there (no glide); lying down he crawls with his keys alone.
+[[nodiscard]] const VrMove* strokingMove(edict_t* ent)
 {
-    if(!vr_swim.value || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP ||
-       progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f)
+    if(static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP || progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f)
     {
         return nullptr;
     }
     const VrMove* move = server::clientMove(ent);
     return move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? move : nullptr;
+}
+
+[[nodiscard]] const VrMove* swimmer(edict_t* ent)
+{
+    return vr_swim.value ? strokingMove(ent) : nullptr;
 }
 
 // A stroke is over (the hand stopped, turned, or left the water): a full one -- it passed the power
@@ -1066,6 +1072,215 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     ent->v.velocity[0] = vel.x;
     ent->v.velocity[1] = vel.y;
     ent->v.velocity[2] = vel.z;
+}
+
+// ----------------------------------------------------------------------------
+// Crawling with the arms (vr_prone_crawl; ROUND24.md, "Crawling with the arms")
+//
+// Lying down (hull::isProne), a VR player drags himself along the floor as he would for real: a hand reaches ahead
+// through the air (nothing), comes down to the floor and pulls back towards him (the body goes the other way, along the
+// pull, level with the floor), lifts and reaches again. The swimming strokes' kin and their gate (strokingMove: tracked
+// hands, not flat-screen, not noclip); the floor is no water, so its own simpler rule: a hand pulls while it moves back
+// (against where you look, vr_prone_crawl_min_speed or faster) on the floor (under vr_prone_crawl_plant_height over the
+// feet to start, or coming down to it under twice that; it goes on under twice that). A hand whose motion the game
+// made up (.handsynth: vr_handsource_gate) or whose trigger fires (aiming from the floor) never pulls. A pull gives the
+// crawl a speed: the hand's own back along the floor times vr_prone_crawl_gain (1: a hand gripping the floor), reached
+// quickly and never braking what the crawl already has; between pulls it glides out (vr_prone_crawl_friction),
+// at most vr_prone_crawl_max_speed. On the ground, the player's speed along it is kept up to the crawl's (whatever the
+// floor's friction took). The stick, vr_prone_stick_scale of the crawl's speed (vr_prone_speed_scale), feeds the crawl
+// as a pull does (and SV_AirMove's stick is capped at as much: hull::crouchSpeedMax).
+
+namespace
+{
+
+// A pull's way: its hand's motion along the floor within about 66 degrees of straight back (cos).
+constexpr float crawlBackCos = 0.4f;
+// A hand coming down at this many m/s (or faster) plants for a pull under twice vr_prone_crawl_plant_height.
+constexpr float crawlPlantDown = 0.2f;
+// How quickly (per second) the crawl reaches a pull's speed: a hand gripping the floor, a few frames.
+constexpr float crawlGrip = 15.f;
+
+struct CrawlHand
+{
+    bool pulling{false};
+    float pulled{0.f}; // units along the floor this pull (vr_prone_crawl_debug)
+    float peak{0.f};   // the crawl's speed it reached
+};
+
+struct Crawler
+{
+    double time{-1.0};
+    glm::vec2 vel{0.f}; // the crawl's own speed along the floor (units/second)
+    CrawlHand hands[2];
+};
+
+Crawler crawlers[MAX_SCOREBOARD];
+
+[[nodiscard]] const VrMove* crawlMove(edict_t* ent)
+{
+    return vr_prone_crawl.value != 0.f ? strokingMove(ent) : nullptr;
+}
+
+void endPull(edict_t* ent, CrawlHand& c, int h)
+{
+    if(c.pulling && vr_prone_crawl_debug.value)
+    {
+        Con_Printf("crawl: %s hand pull: %.1f units of floor, crawl %.0f u/s (player %d)\n", h ? "main" : "off", c.pulled,
+            c.peak, NUM_FOR_EDICT(ent));
+    }
+    c = {};
+}
+
+} // namespace
+
+// SV_AirMove's stick lying down (hull::crouchSpeedMax): a VR player crawling with his arms has vr_prone_stick_scale of
+// the stick's crawl (on top of vr_prone_speed_scale); 1 for the rest.
+float qvr::physics::crawlStickScale(edict_t* ent)
+{
+    return crawlMove(ent) ? CLAMP(0.f, vr_prone_stick_scale.value, 1.f) : 1.f;
+}
+
+extern "C" cvar_t sv_maxspeed; // sv_user.c
+
+// SV_ClientThink, after SV_AirMove (walking, not swimming): the arms' crawl. The stick's part of it (`forwardmove`,
+// `sidemove`: the move's) feeds the crawl's speed as a pull does: SV_AirMove alone, its ground friction (sv_stopspeed)
+// over its acceleration at a wanted speed this low, would hardly move him (24 asked went 3).
+extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemove)
+{
+    QVR_PROFILE("vr crawl");
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(client < 0 || client >= za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
+    {
+        return;
+    }
+    Crawler& c = crawlers[client];
+    const VrMove* move = crawlMove(ent);
+    const double now = qcvm->time;
+    if(!move || !hull::isProne(ent))
+    {
+        c = {};
+        return;
+    }
+    if(now < c.time || now - c.time > 0.5) // a new map, or lying down again: start afresh
+    {
+        c = {};
+    }
+    c.time = now;
+
+    const float dt = static_cast<float>(host_frametime);
+    const float gain = za::max(0.f, vr_prone_crawl_gain.value) * units::metresToUnits();
+    const float minSpeed = za::max(0.f, vr_prone_crawl_min_speed.value);
+    const float plant = za::max(0.f, vr_prone_crawl_plant_height.value);
+    const float maxSpeed = za::max(0.f, vr_prone_crawl_max_speed.value);
+    const float feet = ent->v.origin[2] + ent->v.mins[2];
+    const bool onGround = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+
+    // Where you look, along the floor: a pull goes back against it.
+    const float yaw = glm::radians(VR_MoveAngles(ent, ent->v.v_angle)[YAW]);
+    const glm::vec2 look{za::cos(yaw), za::sin(yaw)};
+
+    glm::vec2 want{0.f};
+    bool pulling = false;
+
+    // The stick: where it points along the floor, at vr_prone_stick_scale of the crawl's top speed (vr_prone_speed_scale).
+    {
+        const glm::vec2 right{za::sin(yaw), -za::cos(yaw)};
+        const glm::vec2 wish = look * forwardmove + right * sidemove;
+        const float wishLen = glm::length(wish);
+        const float top = sv_maxspeed.value * za::clamp(vr_prone_speed_scale.value, 0.1f, 1.f) *
+                          physics::crawlStickScale(ent);
+        if(onGround && wishLen > 1.f && top > 0.f)
+        {
+            want += wish * (za::min(wishLen, top) / wishLen);
+            pulling = true;
+        }
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        const VrHandMove& hand = move->hands[h];
+        CrawlHand& state = c.hands[h];
+        const float speedMs = glm::length(hand.vel); // m/s, the hand's own motion (not the player's)
+        const bool fires = h == HAND_MAIN ? ent->v.button0 != 0.f : (move->buttons & protocol::QVR_BUTTON_OFFHANDATTACK) != 0;
+        if(!(speedMs <= glitchSpeed) || (move->handSynth & (1 << h)) || fires || !onGround)
+        {
+            endPull(ent, state, h);
+            continue;
+        }
+        const glm::vec2 level{hand.vel.x, hand.vel.y};
+        const float levelSpeed = glm::length(level);
+        const float back = levelSpeed > 0.f ? -glm::dot(level / levelSpeed, look) : 0.f;
+        const float height = hand.pos.z - feet;
+        const bool moving = levelSpeed > minSpeed && back >= crawlBackCos;
+        const bool planted = height < plant || (hand.vel.z <= -crawlPlantDown && height < 2.f * plant);
+        if(!moving || height >= 2.f * plant || (!state.pulling && !planted))
+        {
+            endPull(ent, state, h);
+            continue;
+        }
+        if(!state.pulling)
+        {
+            // Planted: a light pulse in the hand and its palm on the floor (the climbing hold's slap, by the floor's
+            // texture).
+            state.pulling = true;
+            const float haptic = CLAMP(0.f, vr_prone_crawl_haptic.value, 1.f);
+            if(haptic > 0.f)
+            {
+                server::sendHaptic(ent, h, 0.f, 0.05f, 60.f, haptic);
+                physsound::grab(ent, glm::vec3{hand.pos.x, hand.pos.y, feet + 1.f}, nullptr);
+            }
+            if(vr_prone_crawl_debug.value)
+            {
+                Con_Printf("crawl: %s hand plants %.1f over the feet, %.2f m/s back\n", h ? "main" : "off", height, levelSpeed);
+            }
+        }
+        want -= level * gain; // the body goes against the hand
+        state.pulled += levelSpeed * units::metresToUnits() * dt;
+        pulling = true;
+    }
+
+    // A pull's speed, reached quickly; never braking what the crawl has along it. Between pulls the crawl glides out.
+    const float wantLen = glm::length(want);
+    if(!pulling)
+    {
+        c.vel *= za::max(0.f, 1.f - za::max(0.f, vr_prone_crawl_friction.value) * dt);
+    }
+    else if(wantLen > 0.f)
+    {
+        const glm::vec2 way = want / wantLen;
+        const float along = glm::dot(c.vel, way);
+        if(along < wantLen)
+        {
+            c.vel += way * ((wantLen - along) * za::min(1.f, dt * crawlGrip));
+        }
+    }
+    const float len = glm::length(c.vel);
+    if(!ZA_ISFINITE(len))
+    {
+        c.vel = glm::vec2{0.f};
+        return;
+    }
+    if(len > maxSpeed)
+    {
+        c.vel *= maxSpeed / len;
+    }
+    for(CrawlHand& state : c.hands)
+    {
+        state.peak = za::max(state.peak, glm::length(c.vel));
+    }
+
+    // On the ground: the player's speed along the crawl kept up to it (the floor's friction took some since last frame).
+    const float speed = glm::length(c.vel);
+    if(!onGround || speed < 0.01f)
+    {
+        return;
+    }
+    const glm::vec2 way = c.vel / speed;
+    const float along = ent->v.velocity[0] * way.x + ent->v.velocity[1] * way.y;
+    if(along < speed)
+    {
+        ent->v.velocity[0] += way.x * (speed - along);
+        ent->v.velocity[1] += way.y * (speed - along);
+    }
 }
 
 // Debounces splashes from hands and room-scale bodies bobbing at the water surface.

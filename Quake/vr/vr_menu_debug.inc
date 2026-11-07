@@ -410,6 +410,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_climb_debug),
         row(opt::vr_debug_hands),
         row(opt::vr_swim_debug),
+        row(opt::vr_prone_crawl_debug),
         row(opt::vr_grapple_debug),
         row(opt::vr_debug_buttons),
         command("Restore Controller Bindings", "vr_bindings_reset")
@@ -832,6 +833,7 @@ za::Vector<Item> pageDebugReports()
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
         row(opt::vr_flatplay_debug),
         row(opt::vr_handsource_debug),
+        row(opt::vr_handsource_force),
         command("Flatscreen Flick Test", "vr_flat_flick_test")
             .help("vr_flat_flick_test [frames] [degrees]: the view flicked hard left and right, up and down, as a fast mouse "
                   "does (2 s at 25 degrees a frame). No melee blow, flick reload or other gesture may come of it: the "

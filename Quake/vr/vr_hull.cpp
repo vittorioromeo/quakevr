@@ -10,6 +10,7 @@
 #include "vr_files.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
+#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -5121,7 +5122,8 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
     const float step = static_cast<float>(host_frametime) / crouchSpeedEaseTime;
     share = want > share ? za::min(want, share + step) : za::max(want, share - step);
     // Lying down (vr_prone): the crawl, vr_prone_speed_scale of the most speed, eased in and out the same way (whatever
-    // vr_crouch_speed says: crawling is never at a walk).
+    // vr_crouch_speed says: crawling is never at a walk). A VR player crawling with his arms (vr_prone_crawl) has only
+    // vr_prone_stick_scale of it on the stick: the arms do most of it (physics::crawlStickScale).
     float& lying = proneSlowShare[num];
     const float proneWant = proneOn() && proneNow[num] ? 1.f : 0.f;
     lying = proneWant > lying ? za::min(proneWant, lying + step) : za::max(proneWant, lying - step);
@@ -5135,7 +5137,8 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
     }
     if(lying > 0.f)
     {
-        const float crawl = za::min(speed, maxspeed * za::clamp(vr_prone_speed_scale.value, 0.1f, 1.f));
+        const float crawl =
+            za::min(speed, maxspeed * za::clamp(vr_prone_speed_scale.value, 0.1f, 1.f) * physics::crawlStickScale(ent));
         speed += (crawl - speed) * lying;
     }
     return speed;
