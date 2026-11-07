@@ -105,17 +105,27 @@ def main():
             counts.append(str(n))
         print("blood " + " ".join(counts))
         return
+    # Red pixels count only in a box around the sights (the recoloured yellow pixels' bounding box, padded): the gun's own
+    # dark-red rim/rust texture elsewhere in the frame (the shotgun skin since e2aa179c0) is not a sight losing its colour.
+    PAD = 12
     out = []
     for path in sys.argv[2:]:
-        near = red = 0
         im = Image.open(path).convert("RGB")
-        for r, g, b in im.getdata():
+        w = im.width
+        near = 0
+        reds = []
+        nx0 = ny0 = 1 << 30
+        nx1 = ny1 = -1
+        for i, (r, g, b) in enumerate(im.getdata()):
             h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
             if s > 0.55 and v > 0.45:
+                x, y = i % w, i // w
                 if abs(h * 360 - 60) <= 12:
                     near += 1
+                    nx0, ny0, nx1, ny1 = min(nx0, x), min(ny0, y), max(nx1, x), max(ny1, y)
                 elif h * 360 < 35 or h * 360 > 340:
-                    red += 1
+                    reds.append((x, y))
+        red = sum(1 for x, y in reds if nx0 - PAD <= x <= nx1 + PAD and ny0 - PAD <= y <= ny1 + PAD)
         out.append("%d/%d" % (near, red))
     print("sights " + " ".join(out))
 
