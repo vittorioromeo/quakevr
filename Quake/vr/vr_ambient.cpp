@@ -615,6 +615,7 @@ struct Grid
     za::Vector<unsigned char> glowBlocks;                            // 1: a liquid within reach of the block (GLOW_BLOCK)
     int blocks[3]{0, 0, 0};
     unsigned long long glowKey{0};                                   // the colours, for the disk cache's key
+    unsigned long long builtKey{0};                                  // the disk cache's key of what cells/entries hold (0: unknown)
     za::SizeT glowProbes[GLOW_KINDS]{};
 
     [[nodiscard]] za::SizeT index(int x, int y, int z) const
@@ -991,6 +992,14 @@ void gridFinish(double start)
 void gridBuild()
 {
     const double start = Sys_DoubleTime();
+    // The last build's, kept aside: the same map loaded again (a restart, a level change back) reuses them below when its
+    // key (the disk cache's: the lightmaps, the planes, the settings) is the same (TRACY_1107.md).
+    za::Vector<unsigned> lastCells;
+    za::Vector<GridEntry> lastEntries;
+    lastCells.swap(grid.cells);
+    lastEntries.swap(grid.entries);
+    const unsigned long long lastKey = grid.builtKey;
+    grid.builtKey = 0ull;
     grid.cells.clear();
     grid.entries.clear();
     grid.world = cl.worldmodel;
@@ -1029,6 +1038,14 @@ void gridBuild()
     // A big map's grid, kept from an earlier load (vr_model_light_grid_cache).
     const int cacheMode = diskcache::modeOf(diskcache::Product::LightGrid);
     const unsigned long long cacheKey = cacheMode ? gridCacheKey() : 0ull;
+    if(cacheMode == 1 && cacheKey != 0ull && cacheKey == lastKey && lastCells.size() == grid.cells.size())
+    {
+        grid.cells.swap(lastCells);
+        grid.entries.swap(lastEntries);
+        grid.builtKey = cacheKey;
+        gridFinish(start);
+        return;
+    }
     const za::String cacheBuild = diskcache::buildOf(&GRID_CACHE_VERSION, 1);
     za::Vector<char> cached;
     unsigned cachedCells = 0u, cachedEntries = 0u;
@@ -1041,6 +1058,7 @@ void gridBuild()
         memcpy(grid.cells.data(), cached.data(), cachedCells * sizeof(unsigned));
         grid.entries.resize(cachedEntries, GridEntry{});
         memcpy(grid.entries.data(), cached.data() + cachedCells * sizeof(unsigned), cachedEntries * sizeof(GridEntry));
+        grid.builtKey = cacheKey;
         gridFinish(start);
         return;
     }
@@ -1151,6 +1169,7 @@ void gridBuild()
         diskcache::write(diskcache::Product::LightGrid, cacheBuild.cStr(), cacheKey, "mlg", "QMLG", static_cast<unsigned>(grid.cells.size()),
                          static_cast<unsigned>(grid.entries.size()), bytes.data(), bytes.size());
     }
+    grid.builtKey = cacheKey;
     gridFinish(start);
 }
 
@@ -1578,6 +1597,11 @@ void gridInfo_f()
     Con_Printf("model light grid: lit liquids in reach of %zu probes (lava), %zu (slime), %zu (teleporter); %zu entries\n",
                static_cast<size_t>(grid.glowProbes[0]), static_cast<size_t>(grid.glowProbes[1]), static_cast<size_t>(grid.glowProbes[2]),
                static_cast<size_t>(grid.entries.size()));
+    {
+        unsigned long long h = diskcache::wideHash(diskcache::fnvStart, grid.cells.data(), grid.cells.size() * sizeof(unsigned));
+        h = diskcache::wideHash(h, grid.entries.data(), grid.entries.size() * sizeof(GridEntry));
+        Con_Printf("model light grid: contents hash %016llx (key %016llx)\n", h, grid.builtKey);
+    }
     for(const auto& [tx, colour] : grid.glowColours)
     {
         Con_Printf("model light grid: liquid %s lights %.0f %.0f %.0f\n", tx ? tx->name : "?", colour.r, colour.g, colour.b);
