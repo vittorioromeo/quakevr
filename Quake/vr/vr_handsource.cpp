@@ -41,6 +41,10 @@ void beginFrame(bool tracked)
         }
         printed[h] = marks[h];
         marks[h] = tracked ? HandMark{Source::Tracked, "controller"} : HandMark{Source::Synthesized, "flat-screen pose"};
+        if(vr_handsource_force.value != 0.f)
+        {
+            marks[h] = HandMark{Source::Synthesized, "forced (vr_handsource_force)"};
+        }
     }
 }
 

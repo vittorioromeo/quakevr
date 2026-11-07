@@ -3191,3 +3191,40 @@ knee, and the shell back as before when cleared. `vr_armour_test` 30/0 (its slee
 `leather_player.png`.
 
 Open: the Armour Studio's sleeve outline (vr_agarmor_debug's lines for a sleeve part) draws nothing with the bridge on.
+
+## Crawling with the arms (branch `agent/regfix`, 2026-11-07)
+
+His words: lying down, crawl forward by lifting the arms, reaching ahead, and pulling back towards yourself and the
+ground; the stick little or nothing, as swimming. "Lying down and crawling"'s left-over item.
+
+- **The stroke (vr_physics_water.cpp `VR_AfterCrawlMove`, after `SV_AirMove`).** VR only, lying down
+  (`hull::isProne`), the swimming strokes' gate (`strokingMove`, shared now: tracked hands, not flat-screen, not
+  noclip). A hand pulls while it moves back along the floor (within about 66 degrees of straight back from where you
+  look, at `vr_prone_crawl_min_speed` 0.3 m/s or faster) on the floor: it starts under `vr_prone_crawl_plant_height`
+  10 units over the feet (or coming down at 0.2 m/s or more under twice that) and goes on under twice that. The body
+  goes against the hand along the floor: the hand's level speed times `vr_prone_crawl_gain` 2.5 (1: a hand gripping
+  the floor exactly), reached in a few frames, never braking the crawl along it. Between pulls the crawl glides out
+  (`vr_prone_crawl_friction` 3 /s), at most `vr_prone_crawl_max_speed` 120 u/s. On the ground the player's speed along
+  the crawl is kept up to it (Quake's floor friction would eat a slow crawl). Either hand, in turn or together.
+- **Not from (decision).** A hand through the air (no plant: reaching ahead does nothing, nor coming back high), a hand
+  whose motion the game made up (`.handsynth`, `vr_handsource_gate`), a hand whose trigger fires (main: button0; off:
+  the off-hand attack): empty hands and held weapons or melee alike crawl, aiming from the floor doesn't (it needs the
+  hand low and moving back briskly; firing never).
+- **The stick.** `vr_prone_stick_scale` 0.25 (0 none, 1 all) of the crawl's speed (`vr_prone_speed_scale` 0.3: 96 of
+  320, so 24) while `vr_prone_crawl` is on, in VR; it feeds the crawl as a pull does (SV_AirMove alone, its ground
+  friction over its acceleration at 24 wanted, went 3 u/s), and `hull::crouchSpeedMax` caps SV_AirMove's own stick at
+  as much. Flat-screen untouched (its keys crawl at 96).
+- **Feedback.** A pulse in the hand as it plants (`vr_prone_crawl_haptic` 0.3; 0 none) with the climbing hold's palm
+  slap by the floor's texture (`physsound::grab`, `vr_physsound_grab` loud).
+- **Settings.** Movement > Player Hitbox > Lying Down: Crawl With Your Arms (`vr_prone_crawl` 1), Stick While Crawling
+  (0.25), Arm Crawl Strength (2.5), Arm Crawl Pull Speed (0.3 m/s), Arm Crawl Floor Height (10 units), Arm Crawl
+  Friction (3), Arm Crawl Top Speed (120), Arm Crawl Haptics (0.3). Debug: Arm Crawl Pulls (`vr_prone_crawl_debug`:
+  each plant's height and each pull's length and speed), Force Hands Synthesized (`vr_handsource_force`, a new test
+  aid: both hands' motion counts as synthesized in a headset too).
+- **Tests.** `Misc/quakevr/crawl_test.py <agent>` 8/0 (mock, vrteleporters' crouching room): three reach-and-pull
+  strokes 175 units forward; reaching and coming back through the air 0.5; the strokes standing 0, crouching 0, with
+  `vr_handsource_force 1` 0, with `vr_prone_crawl 0` 0; the stick lying down 24.0 u/s, standing 320. `prone_test.py`
+  21/0 (it sets `vr_prone_stick_scale 1`: its checks are the box's and the stick's whole crawl), `swim_sound_test.sh`
+  11/0.
+- **Left:** the tuning (gain, floor height, min speed) wants a real headset on the floor: the mock's hands at 0.04 m
+  are 2 units over the feet.

@@ -5235,6 +5235,27 @@ QVR_SLIDER(vr_prone_height, "Lying Down Height", 24.f, 32.f, 1.f, "%.0f units", 
     "Your box's height lying down, at most the lowest crouched height less 4 (vr_prone_height).")
 QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
     "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
+QVR_TOGGLE(vr_prone_crawl, "Crawl With Your Arms",
+    "Lying down in VR, drag yourself along the floor: reach ahead, put your hand down and pull it back towards you. "
+    "A hand moving through the air or firing does nothing. Off: the stick alone, at full crawling speed (vr_prone_crawl).")
+QVR_SLIDER(vr_prone_stick_scale, "Stick While Crawling", 0.f, 1.f, 0.05f, "%.2fx", noExt,
+    "With Crawl With Your Arms on, the stick's share of the crawling speed: small, the arms do most of it, as in "
+    "swimming. 0: the stick does nothing lying down (vr_prone_stick_scale).")
+QVR_SLIDER(vr_prone_crawl_gain, "Arm Crawl Strength", 0.5f, 6.f, 0.25f, "%.2fx", noExt,
+    "How far a pull drags you, times your hand's own travel along the floor (1: exactly as far, a hand gripping it) "
+    "(vr_prone_crawl_gain).")
+QVR_SLIDER(vr_prone_crawl_min_speed, "Arm Crawl Pull Speed", 0.1f, 1.5f, 0.05f, "%.2f m/s", noExt,
+    "How fast a hand must move back along the floor to pull you: slower is resting or aiming (vr_prone_crawl_min_speed).")
+QVR_SLIDER(vr_prone_crawl_plant_height, "Arm Crawl Floor Height", 4.f, 24.f, 1.f, "%.0f units", noExt,
+    "A hand under this height over your feet is on the floor and can start a pull (coming down to it, under twice "
+    "this); a pull goes on under twice this (vr_prone_crawl_plant_height).")
+QVR_SLIDER(vr_prone_crawl_friction, "Arm Crawl Friction", 0.5f, 10.f, 0.5f, "%.1f /s", noExt,
+    "How quickly you stop between pulls: lower glides further (vr_prone_crawl_friction).")
+QVR_SLIDER(vr_prone_crawl_max_speed, "Arm Crawl Top Speed", 40.f, 320.f, 10.f, "%.0f u/s", noExt,
+    "The most speed the arms' crawl reaches (vr_prone_crawl_max_speed).")
+QVR_SLIDER(vr_prone_crawl_haptic, "Arm Crawl Haptics", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "A short pulse in the hand as it plants on the floor for a pull, with its palm's slap: this strong (0 none) "
+    "(vr_prone_crawl_haptic).")
 QVR_SLIDER(vr_box3d_player_radius, "Prop Push Radius", 5.f, 40.f, 1.f, "%.0f cm", noExt,
     "Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
     "not by your box (vr_box3d_player_radius).")
@@ -5600,6 +5621,9 @@ QVR_CYCLE(vr_debug_hands, "Hands",
     {0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"})
 QVR_TOGGLE(vr_swim_debug, "Swim Strokes",
     "Each stroke: its peak speed, the power gate, the reverse damping and the push it gave.")
+QVR_TOGGLE(vr_prone_crawl_debug, "Arm Crawl Pulls",
+    "Lying down, each hand that plants on the floor (its height over your feet) and each pull: how far the hand went "
+    "and the crawl's speed it gave (vr_prone_crawl_debug).")
 QVR_CYCLE(vr_grapple_debug, "Grappling Hook",
     "What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame; and "
     "each rope drawn every frame (which beam, from where to where: a rope drawn where there is none). Needs "
@@ -6030,6 +6054,9 @@ QVR_SLIDER(vr_flat_shove_reach, "Shove Reach", 0.5f, 3.f, 0.05f, "x%.2f", noExt,
 QVR_TOGGLE(vr_handsource_debug, "Print Hand Motion Source",
     "Prints each hand's motion source as it changes: tracked (a controller), synthesized (the flat-screen look, a lean, "
     "the wall tilt: no gesture reads it) or action (the V punch) (vr_handsource_debug).")
+QVR_TOGGLE(vr_handsource_force, "Force Hands Synthesized",
+    "Test aid: both hands' motion counts as made up by the game, in a headset too: no swing, flick or arm crawl may "
+    "come of it (vr_handsource_force).")
 QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")

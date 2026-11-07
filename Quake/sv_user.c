@@ -456,6 +456,7 @@ void SV_ClientThink (void)
 		float scale = VR_WaterStickScale (sv_player, false) * VR_CarryMoveScale (sv_player); // QVR: wading in shallow water
 		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_AirMove ();
+		VR_AfterCrawlMove (sv_player, cmd.forwardmove, cmd.sidemove); // QVR: lying down, the arms' crawl
 	} // QVR
 	//johnfitz
 }

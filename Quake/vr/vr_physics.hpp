@@ -86,4 +86,8 @@ enum class SplashSound : int
 // client, and its sound (vr_water_sounds) (QC's watersplash).
 void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, SplashSound sound);
 
+// Lying down, the stick's share of the crawl (hull::crouchSpeedMax): vr_prone_stick_scale for a VR player crawling with
+// his arms (vr_prone_crawl; vr_physics_water.cpp), 1 for the rest.
+[[nodiscard]] float crawlStickScale(edict_t* ent);
+
 } // namespace qvr::physics
