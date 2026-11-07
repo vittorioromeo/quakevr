@@ -452,9 +452,11 @@ void drawWindow()
         const int partNow = cvarIndex(vr_armourstudio_part, 0, NumParts - 1);
         for(int f = 0; f < NumFields; f++)
         {
-            // (the plates' rows and tapers: not the helmet's or a sleeve's; leather: the sleeves' alone)
+            // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too);
+            // leather: the sleeves' alone)
             const bool plates = partNow != PartHelmet && partNow < PartPauldronSleeve;
-            if((f == Leather && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows || f == TaperStart || f == TaperEnd) && !plates))
+            if((f == Leather && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows) && !plates) ||
+                ((f == TaperStart || f == TaperEnd) && partNow == PartHelmet))
             {
                 continue;
             }
