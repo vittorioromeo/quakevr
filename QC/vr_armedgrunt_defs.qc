@@ -11,7 +11,6 @@
 .float vr_ag_wflags;       // that weapon's flags
 .entity vr_ag_prop;        // the weapon as it holds it (classname vr_ag_weapon: its record in .weaponinst), or world
 .float vr_ag_reserve;      // its rounds beyond the clip in the gun (vr_agrunt_reserve clips at its spawn)
-.float vr_ag_kick;         // the held weapon's recoil, 1 at a shot, dying out (drawn: the prop)
 .float vr_ag_kick_at;      // when it last fired
 .float vr_ag_refire_at;    // (a held weapon) its next shot no sooner (VR_AG_RefireReady: the player's interval)
 .float vr_ag_swing_at;     // when its last swing (a melee blow) began

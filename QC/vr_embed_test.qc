@@ -1751,12 +1751,6 @@ void(vector xWay) VR_EM_Walk =
     }
 };
 
-// The way back along the blade, as a place for the hand `xBy` units from where it is.
-vector(entity w, float xBy) VR_EM_Along =
-{
-    return VRGetHandPos(cVR_MainHand) + w.vr_stick_dir * xBy;
-};
-
 // A case's blow, as VR_EH_Blow, the body the kind asked for. TRUE: done.
 float(float xWid, float xSpeed, float t) VR_EM_Blow =
 {
