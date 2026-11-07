@@ -478,6 +478,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     qmodel_t* model = modelOf(ent);
     s.size = props::drawnSize(model);
     s.kind = kind;
+    markSlotActive(num);
     s.flight = false;
     s.model = model;
     s.modelRev = brushes::revision(model); // (a runtime brush's model is made again in place: vr_brushes.cpp)

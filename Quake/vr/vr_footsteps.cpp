@@ -26,6 +26,7 @@
 #include "vr_footsteps.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_physsound.hpp"
@@ -734,7 +735,8 @@ extern "C" void VR_Footsteps_Frame(void)
     Due dues[32];
     int numDue = 0;
 
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    // (the monsters only: the edict index's FL_MONSTER)
+    for(int i = edictindex::nextFlagged(svs.maxclients, FL_MONSTER); i > 0; i = edictindex::nextFlagged(i, FL_MONSTER))
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER))

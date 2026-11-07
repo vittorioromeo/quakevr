@@ -2,6 +2,7 @@
 
 #include "vr_mdlbuild.hpp"
 #include "vr_geom.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_bytes.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_box3d.hpp"
@@ -1015,7 +1016,8 @@ void spawnFrame()
     {
         newMap();
     }
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    // (the monsters only: the edict index's FL_MONSTER)
+    for(int num = edictindex::nextFlagged(svs.maxclients, FL_MONSTER); num > 0; num = edictindex::nextFlagged(num, FL_MONSTER))
     {
         edict_t* ent = EDICT_NUM(num);
         const int index = static_cast<int>(ent->v.modelindex);

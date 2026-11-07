@@ -534,6 +534,9 @@ struct World
     };
     za::Vector<PortalCopy> portalCopies;
     za::Vector<Slot> slots; // by edict number
+    // The slots the frame's slot loops visit (bits by edict number): set when one is given a body (markSlotActive),
+    // cleared when beforeStep finds it without one (Kind::None, no ragdoll: every slot loop skips it).
+    za::Vector<uint64_t> slotsActive;
     // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
     // their reach bodies (syncReach): the empty hand's, or the held weapon's.
     struct ReachKey
@@ -728,6 +731,9 @@ struct World
         double aliveAt{-1.0};
     };
     za::Vector<MonsterMotion> motion;
+    // watchCorpses' edicts: the monsters it left a watch or a motion on (ascending; every other's is cleared), and the
+    // ones it visits (those and the monsters now: the edict index's; edictindex::flaggedOrKept).
+    za::Vector<int> corpseNums, corpseScan;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
     // A full ragdoll pool (vr_ragdoll_max): the corpses waiting for QC to make room (VR_Knockdown_MakeRoom), run after
     // syncEntities' edict loop rather than inside it; and the ones it refused, left as corpses until they are gone.
@@ -836,6 +842,9 @@ void applySimdWidth(b3WorldId id);
 [[nodiscard]] void* userOf(int num);
 [[nodiscard]] int numOf(b3ShapeId shape);
 [[nodiscard]] Slot& slotOf(int num);
+void markSlotActive(int num); // slot `num` given a body (its kind set: createBody, createRagdoll)
+// The next slot after `from` that the slot loops visit (World::slotsActive), in edict order; 0 none.
+[[nodiscard]] int nextActiveSlot(int from);
 
 void dropGrabsOf(int num); // (below: "Ragdolls")
 // Whether the ragdoll of `ent` bleeds from its limbs flung fast (ragdoll::publish's `bleeds`): a corpse's always, a live
