@@ -3228,3 +3228,43 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
   11/0.
 - **Left:** the tuning (gain, floor height, min speed) wants a real headset on the floor: the mock's hands at 0.04 m
   are 2 units over the feet.
+
+## Knight's right elbow leather spazzing (branch `agent/flatinput`, worktree flatwall, 2026-11-07)
+
+- **Root cause.** The knight's sword arm is bent at rest. Its bracer's first row sits before the corner where the two
+  rows' lines meet, and the elbow's pivot lies 3.7 units off the upper row's line. The "round" Hermite tangents reach
+  the pivot's projection on each row's line, so they came out four chords long (14.3 units for a 3.8-unit chord). The
+  curve looped: its tangent turned 281 degrees for a 79-degree bend. At the middle rings the tangent pointed back
+  against the rings' slerped frames (cosine -0.998). Each ring's frame is the slerped frame turned onto the tangent by
+  the shortest turn, and that turn has no defined axis at 180 degrees, so the rings spun from one frame to the next.
+  This happened in 727 of the knight's 864 animation steps. No other joint has the geometry (the next worst, the
+  knight's left elbow, never turns back past cosine 0.85).
+- **Fix** (`vr_agarmor_bridge.cpp` evalBridge). The curve's worst cosine against its frames is measured with its own
+  tangents. Below 0 the tangents are eased towards half a chord, and below -0.5 they are a half chord (`bridgeBackFrom`
+  / `bridgeBackTo`). Joints whose curves never turn back are unchanged.
+- **The same class, found on every model by the new check** (all made continuous; shapes unchanged away from the old
+  switch points):
+  - The push's least-norm share (`need / sum2`) grew without bound next to an end ring, whose corners can't move. A
+    sample sliding towards a row flung its corners out to the 5-unit cap and back. Now `sum2` is at least 0.25, a cell
+    middle's value (`bridgePushShare`).
+  - The crease's hard edge turned a sample's push on and off. The push now fades out over 0.3 past the edge, in the bend
+    and in the cosine round the ring (`bridgeCreaseFade`). Pushes outside the crease are unchanged.
+  - A skin sample was placed in the first stretch between posed ring planes that held it. In a bend's crossed planes it
+    jumped to another stretch far along. It is now measured at its rest place along the leather
+    (`Bridge::underAlong`, set in bridgesOf).
+  - The round/arc tangent switch at 0.15 of the chord moved both tangents together. Each end is now eased on its own
+    reach, from 0.1 to 0.15.
+  - polygonReach takes the outermost crossing rather than the first edge found.
+- **Check.** `vr_agarmor_bridge_check` lerps each model's animation frames to the next in 8 steps (`rig2::posedBetween`,
+  the game's own blend). No leather vertex may move more than 3x its end rings' furthest plus 0.5 units in a step.
+  `developer 1` prints each joint's worst step with the curve's numbers. Before the fix: 41 passed, 15 failed (15 of
+  16 joints). The knight's right elbow moved 7.71 units against 0.44, and pushes jumped up to 5 units on grunt,
+  enforcer and death knight joints. After: 56 passed, 0 failed. The worst steps are the enforcer's left elbow (2.25
+  against 0.72) and the knight's right elbow (2.06 against 0.57), both in fast swings.
+- **Other tests.** `vr_armour_test` 30/0, `vr_agarmor_check` 20/0, `vr_agarmor_test 1` 26/0.
+- **Screenshots.** `scratch/knightelbow_before_after.png`: the knight's right elbow, three-quarter view, idle. Top row
+  is before, bottom row is after, and the left and right columns are two frames apart. The mean pixel change between
+  the two frames in the crop is 2.33 before and 1.61 after. Stills show the spin poorly; the check's numbers are the
+  evidence.
+- **Test in VR.** The knight's right elbow while it idles, walks and swings: the leather should stay put round the
+  elbow. Check the other joints too, for no new lumps near the rows (the push next to the rows is now smaller).
