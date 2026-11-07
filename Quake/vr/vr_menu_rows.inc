@@ -5808,11 +5808,6 @@ QVR_CYCLE(vr_gun_pieces_cache, "Gun Shapes on Disk",
     "grunt's gun drops). Check: read, then cut anyway and compared (Gun Shapes Stats counts them). Off: "
     "cut once every session (vr_gun_pieces_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
-QVR_CYCLE(vr_gun_pieces_ahead, "Gun Shapes at Load",
-    "A map's load makes the convex pieces of every weapon it can give (lying about, its monsters' drops, "
-    "backpacks, your hands and holsters) from their files, or cuts them (on the job pool), so the first "
-    "pickup mid-game is not a hitch. Off: cut at the first pickup (vr_gun_pieces_ahead).",
-    {0.f, "Off"}, {1.f, "On"})
 QVR_CYCLE(vr_bench_profiler, "External Profiler Collects",
     "For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
     "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
@@ -5828,14 +5823,6 @@ QVR_CYCLE(vr_alias_eye_cache, "Second Eye's Model Set-up",
     "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
     "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats).",
     {0.f, "Made Again"}, {1.f, "First Eye's"}, {2.f, "Checked"})
-QVR_TOGGLE(vr_setup_screens_cache, "Button Screens' List",
-    "vr_setup_screens_cache: the buttons with value screens over them (the calibration room's settings, the "
-    "hub's campaigns and Continue) found by a walk of every entity every half second (on), or every frame "
-    "(off, as before: 0.1-0.2 ms a frame in Arcane Dimensions' biggest maps). The same screens either way.")
-QVR_TOGGLE(vr_place_entities_first, "Crates' Placing: Entities First",
-    "vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
-    "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
-    "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher).")
 QVR_CYCLE(vr_wounds_budget, "Wound Painting Budget",
     "vr_wounds_budget: the wounds painted at most this long a frame, the rest of a burst (an explosion's, a "
     "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
@@ -5847,30 +5834,12 @@ QVR_TOGGLE(vr_place_keep, "Keep Crates' and Rocks' Layouts",
     "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
     "Arcane Dimensions' big maps), or planned again at every load (off, as before). The same layout either way; "
     "another seed or setting plans anew.")
-QVR_TOGGLE(vr_load_prewarm, "Load Prewarm",
-    "vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
-    "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
-    "guns' screen anchors (10 ms the first time a gun lay near you), your skin masks and glove paint.")
 QVR_CYCLE(vr_alias_cull_posed, "Cull Posed Models",
     "vr_alias_cull_posed: your body, its mirror image, the jointed hands and the ragdolls left out of each "
     "eye's view and each shadow map face their bones' box does not reach (On), or drawn into all of them "
     "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
     "(Checked: see Model Cull Stats). The same images either way.",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"})
-QVR_CYCLE(vr_body_prepass, "Body Depth Pre-pass",
-    "vr_body_prepass: your body and its mirror image drawn into the eye's depth first, then shaded once a "
-    "pixel (On), or shaded as drawn, the arms over the torso shaded twice (Off, as before). The same image "
-    "either way.",
-    {0.f, "Off"}, {1.f, "On"})
-QVR_CYCLE(vr_alias_prepass, "Model Depth Pre-pass",
-    "vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
-    "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
-    "and gore 4-23% less GPU on models at a headset's resolution. The same image either way.",
-    {0.f, "Off"}, {1.f, "On"})
-QVR_TOGGLE(vr_oit_lazy_clear, "Lazy OIT Clear",
-    "vr_oit_lazy_clear: the translucent pass's two buffers cleared at a view's first translucent draw, and "
-    "neither cleared nor resolved in a view with nothing translucent (on), or cleared and resolved in every "
-    "view (off, as before). The same image either way.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

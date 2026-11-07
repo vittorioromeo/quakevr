@@ -693,10 +693,10 @@ struct Planner
             reason = RSlope;
             return false;
         }
-        // Clear of the entities first (no traces; the same answer: every test must pass), unless vr_place_entities_first 0
+        // Clear of the entities first (no traces; the same answer: every test must pass)
         const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
         const float r = za::max(half.x, za::max(half.y, half.z));
-        if(vr_place_entities_first.value != 0.f && !clearOfEntities(floor, r, height, reason))
+        if(!clearOfEntities(floor, r, height, reason))
         {
             return false;
         }
@@ -738,7 +738,7 @@ struct Planner
             reason = RLow;
             return false;
         }
-        return vr_place_entities_first.value != 0.f || clearOfEntities(floor, r, height, reason);
+        return true;
     }
 
     [[nodiscard]] bool clearOfEntities(const glm::vec3& floor, float r, float height, int& reason) const

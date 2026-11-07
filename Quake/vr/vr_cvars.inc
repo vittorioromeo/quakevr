@@ -258,9 +258,7 @@ QVR_CVAR(vr_box3d_shot_shape, "1", CVAR_ARCHIVE) // shots and missiles (rockets,
 QVR_CVAR(vr_box3d_player_unstick, "1", CVAR_ARCHIVE) // a solid prop overlapping a player's box (toppled onto him) doesn't block his moves, and is pushed out of his body
 QVR_CVAR(vr_box3d_player_hold, "1", CVAR_ARCHIVE) // ... but a player inside one only moves out of it, never deeper, and one with his feet a little into its top (landed on it, or it rocked up into him) is put back on top; and one he threw (its .owner) still meets his traces; 0: every move let through (he fell through a toppled box), his own thrown box passed
 QVR_CVAR(vr_box3d_gun_pieces, "12", CVAR_NONE)      // the guns' bodies (held, and lying as props) in at most this many convex pieces that follow the drawn gun (vr_convex.cpp: the shotgun's shell port, the wells, the gaps between parts left open); 0 or 1: one hull round each
-QVR_CVAR(vr_gun_pieces_ahead, "1", CVAR_NONE)     // at a map's load, the held-gun convex pieces of every weapon the map can give (lying weapons, its monsters' drops, backpacks, the player's hands and holsters) are read from the disk or cut on the job pool, so a first pickup in play finds them made (vr_box3d.cpp prepareHeldGuns, QC vr_gunprep.qc); 0: cut at the first pickup as before
 QVR_CVAR(vr_gun_pieces_cache, "1", CVAR_NONE)     // the guns' convex pieces kept on disk (cache/gunpieces, vr_box3d.cpp gunPieces: 10-85 ms a gun, the first time one is dropped, picked up or holstered in a session; the same pieces read back); 0 cut every session; 2 read, then cut anyway and compared (vr_gun_pieces_cache_stats)
-QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_box3d_mesh_keep_maps, "2", CVAR_NONE)  // the world meshes of this many maps played before kept beside this map's (vr_box3d.cpp MeshCache: a return to the hub not made again, 47-50 ms; each kept by all it was made of, compared whole); 0: only this map's
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 // Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
@@ -279,7 +277,6 @@ QVR_CVAR(vr_snd_voices, "32", CVAR_ARCHIVE)           // how many of the loudest
 QVR_CVAR(vr_snd_limiter, "1", CVAR_ARCHIVE)          // the mix's look-ahead peak limiter (loud sounds piling up, such as boxes blowing up together, brought down smoothly, not clipped: no crackle), and the effects allowed the 6 dB Quake kept for the music; 0: Quake's hard clip of the effects
 QVR_CVAR(vr_snd_limiter_ceiling, "-1", CVAR_ARCHIVE) // dB of the output's full scale, the limiter's ceiling (-12-0; Quake clipped the effects at -6)
 QVR_CVAR(vr_snd_frame, "256", CVAR_ARCHIVE)           // samples a voice renders at a time (256, 512, 1024): larger is cheaper, direction changes coarser
-QVR_CVAR(vr_snd_reverb_beside, "1", CVAR_NONE)        // the reverb rendered on the calling thread while the pool does the voices' HRTF (1), or after them (0); the same sound, a matter of speed (vr_snd_bench)
 QVR_CVAR(vr_snd_occlusion, "0.8", CVAR_ARCHIVE)       // walls and doors between a sound and the head make it quieter and duller: strength (0 off, 1 full)
 QVR_CVAR(vr_snd_occlusion_samples, "8", CVAR_ARCHIVE) // rays per sound: 1 on or off; more: partly hidden (a sphere's points)
 QVR_CVAR(vr_snd_occlusion_radius, "0.5", CVAR_ARCHIVE) // m, the sphere a sound comes from (partial occlusion)
@@ -529,22 +526,11 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Button Screens' List: 1 the edicts named "vr_..." (the calibration room's setting
-// buttons, the hub's campaign and Continue buttons) listed every half second for their value screens (vr_setup.cpp);
-// 0 every edict's targetname read every frame (as before: 0.1-0.2 ms a frame in AD's big maps)
-QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
-// entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
-QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
 // bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
 // and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
 // (a death) skips the planning (200-250 ms in AD's big maps); 0 planned at every load, as before. The same layout either way.
 QVR_CVAR(vr_place_keep, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
-// first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
-// your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use
-QVR_CVAR(vr_load_prewarm, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Shadow Caster Set-up Shared: 1 each animated shadow caster's whole instance (pose, matrix,
 // zero blend, swing rows) made once for the frame's shadow lights and copied into the others' batches, its depth draws
 // with no textures bound (no fragment shader reads them), and the first eye's scene taking the shadow pass's lerp and
@@ -556,20 +542,6 @@ QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // into every view and face, as before; 2 as 1, each one culled skinned again on the CPU and checked to be wholly outside
 // (vr_alias_cull_stats prints the culls by model and any wrongly culled).
 QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Body Depth Pre-pass: 1 your body (and its mirror image) drawn into the eye's depth first
-// without a fragment shader (glprogs.alias_depth; the alias vertex shader's gl_Position is invariant), then shaded with
-// the depth it left, so each pixel of it is shaded once (the arms over the torso, the legs over each other); 0 as before.
-// The same image either way.
-QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Model Depth Pre-pass: 1 as vr_body_prepass for the world's opaque models (monsters,
-// props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
-// pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
-QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Lazy OIT Clear: 1 the translucent pass's two OIT targets (gl_rmain.c) cleared at a
-// view's first translucent draw, and neither cleared nor resolved in a view with nothing translucent (most views: the
-// GPU benchmark, BENCHMARKS.md, about 0.05 ms a view); 0 cleared and resolved in every view, as before. The same image
-// either way.
-QVR_CVAR(vr_oit_lazy_clear, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set

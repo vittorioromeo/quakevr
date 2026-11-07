@@ -4316,7 +4316,6 @@ vr_qcexec|2|Debug - Profiling and Memory|QuakeC Loop|Advanced VR Options > Debug
 |2|Debug - Profiling and Memory|Edict Index Stats|Advanced VR Options > Debug > Profiling and Memory > Edict Index Stats
 |2|Debug - Profiling and Memory|Force Grab Search Stats|Advanced VR Options > Debug > Profiling and Memory > Force Grab Search Stats
 vr_gun_pieces_cache|2|Debug - Profiling and Memory|Gun Shapes on Disk|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes on Disk
-vr_gun_pieces_ahead|2|Debug - Profiling and Memory|Gun Shapes at Load|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes at Load
 |2|Debug - Profiling and Memory|Gun Shapes Stats|Advanced VR Options > Debug > Profiling and Memory > Gun Shapes Stats
 |2|Debug - Profiling and Memory|Game State Hash|Advanced VR Options > Debug > Profiling and Memory > Game State Hash
 |2|Debug - Profiling and Memory|Ragdolls Hash|Advanced VR Options > Debug > Profiling and Memory > Ragdolls Hash
@@ -4327,16 +4326,10 @@ vr_shadow_layered|2|Debug - Profiling and Memory|Layered Shadow Casters|Advanced
 |2|Debug - Profiling and Memory|Check Layered Shadows|Advanced VR Options > Debug > Profiling and Memory > Check Layered Shadows
 |2|Debug - Profiling and Memory|Check Shadow Caster Set-up|Advanced VR Options > Debug > Profiling and Memory > Check Shadow Caster Set-up
 vr_alias_eye_cache|2|Debug - Profiling and Memory|Second Eye's Model Set-up|Advanced VR Options > Debug > Profiling and Memory > Second Eye's Model Set-up
-vr_setup_screens_cache|2|Debug - Profiling and Memory|Button Screens' List|Advanced VR Options > Debug > Profiling and Memory > Button Screens' List
-vr_place_entities_first|2|Debug - Profiling and Memory|Crates' Placing: Entities First|Advanced VR Options > Debug > Profiling and Memory > Crates' Placing: Entities First
 vr_wounds_budget|2|Debug - Profiling and Memory|Wound Painting Budget|Advanced VR Options > Debug > Profiling and Memory > Wound Painting Budget
 vr_place_keep|2|Debug - Profiling and Memory|Keep Crates' and Rocks' Layouts|Advanced VR Options > Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts
-vr_load_prewarm|2|Debug - Profiling and Memory|Load Prewarm|Advanced VR Options > Debug > Profiling and Memory > Load Prewarm
 |2|Debug - Profiling and Memory|Model Set-up Stats|Advanced VR Options > Debug > Profiling and Memory > Model Set-up Stats
 vr_alias_cull_posed|2|Debug - Profiling and Memory|Cull Posed Models|Advanced VR Options > Debug > Profiling and Memory > Cull Posed Models
-vr_body_prepass|2|Debug - Profiling and Memory|Body Depth Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Body Depth Pre-pass
-vr_alias_prepass|2|Debug - Profiling and Memory|Model Depth Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Model Depth Pre-pass
-vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear
 |2|Debug - Profiling and Memory|Lazy OIT Clear Stats|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear Stats
 |2|Debug - Profiling and Memory|Model Cull Stats|Advanced VR Options > Debug > Profiling and Memory > Model Cull Stats
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared

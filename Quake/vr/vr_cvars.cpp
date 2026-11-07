@@ -1035,6 +1035,17 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-07: finished perf A/B switches (the same results either way; cruft_report S1): their default kept, the
+    // old path gone.
+    "vr_place_entities_first",
+    "vr_setup_screens_cache",
+    "vr_load_prewarm",
+    "vr_gun_pieces_ahead",
+    "vr_oit_lazy_clear",
+    "vr_body_prepass",
+    "vr_alias_prepass",
+    "vr_box3d_mesh_junctions",
+    "vr_snd_reverb_beside",
     // 2026-11-05: the free hand's rest on a barrel, at a point of its own (FLATPLAY.md): the weapon's two-handed hotspot now
     // (vr_flat_stance). tunables.cfg's and old configs' lines stay quiet:
     "vr_flat_rest",

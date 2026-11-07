@@ -405,7 +405,7 @@ void prepareHeldGuns()
     const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxBodyShapes);
     const func_t collect = qvr::progs::findFunction("VR_GunPrep_Collect");
     const func_t modelOf = qvr::progs::findFunction("VR_GunPrep_Model");
-    if(!vr_gun_pieces_ahead.value || most < 2 || !collect || !modelOf)
+    if(most < 2 || !collect || !modelOf)
     {
         return;
     }

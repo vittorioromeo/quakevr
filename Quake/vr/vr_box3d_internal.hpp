@@ -866,7 +866,7 @@ struct MeshStats
     int faces{0}, triangles{0}, junctions{0}, junctionFaces{0}, middleFans{0};
     double ms{0.0};
 };
-[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, bool junctions, MeshStats& stats);
+[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, MeshStats& stats);
 
 // The world's mesh is made once per map and world scale and kept while the map is (a saved game loaded, a restart:
 // Box3D's world is made again, not the mesh). A few scales are kept: a take's replay (vr_motion_play) sets the world
@@ -880,7 +880,6 @@ struct MeshCache
     char name[MAX_QPATH]{};
     int vertexes{0}, surfaces{0};
     float m2u{0.f};
-    bool junctions{true};
     b3MeshData* mesh{nullptr};
     MeshStats stats;
     za::U64 inputsKey{0};          // MeshInputs' hash
@@ -889,7 +888,7 @@ struct MeshCache
 };
 inline za::Vector<MeshCache> meshCache; // the latest used last
 
-// What worldMesh reads of a map (beside the scale and vr_box3d_mesh_junctions), as words: the faces it makes (not sky
+// What worldMesh reads of a map (beside the scale), as words: the faces it makes (not sky
 // or liquid, 3 corners or more), each its corner count, its normal and its corners (the vertex's number and point).
 // Made once a map load (beforeLoad: a few ms on vrstart; the map's model is freed and loaded again at each), kept for
 // the map's frames; `same` lists the cache entries found equal to it (their serials), so a frame's check compares no

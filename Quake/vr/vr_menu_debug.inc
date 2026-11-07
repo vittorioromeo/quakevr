@@ -561,7 +561,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),
         row(opt::vr_gun_pieces_cache),
-        row(opt::vr_gun_pieces_ahead),
         command("Gun Shapes Stats", "vr_gun_pieces_cache_stats")
             .help("vr_gun_pieces_cache_stats: the guns' pieces this session read from the disk or cut, the files "
                   "written, and with Check on, how many were compared and differed."),
@@ -595,20 +594,14 @@ za::Vector<Item> pageDebugProfiling()
                   "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
                   "and compared texel by texel, in the console. Stand where shadows are."),
         row(opt::vr_alias_eye_cache),
-        row(opt::vr_setup_screens_cache),
-        row(opt::vr_place_entities_first),
         row(opt::vr_wounds_budget),
         row(opt::vr_place_keep),
-        row(opt::vr_load_prewarm),
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
                   "Set-up Shared)."),
         row(opt::vr_alias_cull_posed),
-        row(opt::vr_body_prepass),
-        row(opt::vr_alias_prepass),
-        row(opt::vr_oit_lazy_clear),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
