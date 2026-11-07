@@ -132,7 +132,9 @@ float(float xHand, entity b) VR_Melee_Track =
     }
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
-    if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self))
+    // (A hand moved by the game, not by the player -- the flatscreen look, a lean, the wall tilt -- swings nothing:
+    // VR_HandMotionTracked.)
+    if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self) || !VR_HandMotionTracked(self, xHand))
     {
         b.mh_n = 0;
         b.mh_thing = thing;
@@ -746,6 +748,13 @@ float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) V
         toward = (self.velocity * to) / VRMetersToUnits() * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1);
     }
     if(toward <= 0)
+    {
+        b.mh_bodyspeed = 0;
+        return VR_Melee_Decide(xHand, b, xI, xKind);
+    }
+    // A weapon's blow (blade, pommel, handle; not a punch) that lands only by your body's speed counts on its outer part only (vr_melee_body_min_part): nearer the
+    // hand it stands as the hand alone makes it.
+    if(xKind != VR_MPT_FIST && vr_mpt_f[xI] < cvar_hget(cvarh_vr_melee_body_min_part))
     {
         b.mh_bodyspeed = 0;
         return VR_Melee_Decide(xHand, b, xI, xKind);

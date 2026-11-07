@@ -8,8 +8,13 @@
 #include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_jobs.hpp"
+#include "vr_tracy.h"
 
+#include "vr_cvars.hpp"
+
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -30,6 +35,34 @@ static int			heightmask_numtris;
 static byte			*(*heightmask_make) (const float *corners, int numtris, int w, int h);
 static byte			*heightmask_made; // (malloc'd)
 static void TexMgr_EnsureHeightMask (void);
+
+// The islands a made normal map reads (TexMgr_DilateIslands, TexMgr_ShadingToHeights, TexMgr_SkinToNormals): the
+// current ones (the globals above, main thread), or a skin job's own copy (VR_SkinNormalsPost: any thread).
+struct MaskView
+{
+	const byte	*mask;
+	int			width, height;
+};
+static MaskView TexMgr_CurrentMask (void)
+{
+	return {heightmask, heightmask_width, heightmask_height};
+}
+
+// What TexMgr_SkinToNormals worked out, printed by the main thread (developer 1) where it was made or committed.
+struct SkinNormalStats
+{
+	float	relief, k, noise;
+	double	ms, colourMs, formMs;
+	int		width, height;
+	bool	made;
+};
+static void TexMgr_PrintSkinStats (const SkinNormalStats &st)
+{
+	if (!st.made)
+		return;
+	Con_DPrintf ("skin normal map %d x %d: relief 90%% %.2f times %.2f (noise %.4f)\n", st.width, st.height, st.relief, st.k, st.noise);
+	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (colours %.1f edges, forms and heights %.1f)" "\n", st.width, st.height, st.ms, st.colourMs, st.formMs);
+}
 
 // The made normal maps' passes over their texels shared out on the game's pool, rows (or columns) in chunks: each
 // texel written by one chunk only, from what the pass before left, so the same numbers as on one thread (a skin's are
@@ -54,7 +87,7 @@ round. Tangent space: x along the texture's s, y up its rows (green up). With `h
 mapping walks (TexMgr_ShadingToHeights), `texelsperunit` how fine the texture is in the world; else 255.
 ================
 */
-static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit, float *scratch = NULL);
+static void TexMgr_ShadingToHeights (const MaskView &hm, const float *lum, float *h, int width, int height, float texelsperunit, float *scratch = NULL);
 
 /*
 ================
@@ -67,7 +100,7 @@ seams, which the bumps on the model's own light (vr_normalmap_models) would show
 #define DILATE_TEXELS 4
 
 // `scratch`: 3 w h floats of the caller's (any thread), or NULL: the hunk's (the main thread).
-static void TexMgr_DilateIslands (float *lum, int width, int height, float *scratch = NULL)
+static void TexMgr_DilateIslands (const MaskView &hm, float *lum, int width, int height, float *scratch = NULL)
 {
 	int		x, y, pass, mark = scratch ? 0 : Hunk_LowMark ();
 	byte	*in = scratch ? (byte *) scratch : (byte *) Hunk_AllocNoFill (width * height);
@@ -76,8 +109,8 @@ static void TexMgr_DilateIslands (float *lum, int width, int height, float *scra
 
 	for (y = 0; y < height; y++)
 		for (x = 0; x < width; x++)
-			in[y * width + x] = heightmask[(y * heightmask_height / height) * heightmask_width + x * heightmask_width / width] != 0;
-	for (pass = 0; pass < DILATE_TEXELS * q_max (1, width / heightmask_width); pass++)
+			in[y * width + x] = hm.mask[(y * hm.height / height) * hm.width + x * hm.width / width] != 0;
+	for (pass = 0; pass < DILATE_TEXELS * q_max (1, width / hm.width); pass++)
 	{
 		memcpy (src, lum, width * height * sizeof (float));
 		memcpy (next, in, width * height);
@@ -127,11 +160,11 @@ static void TexMgr_ShadingToNormals (byte *data, int width, int height, float sc
 		mean += lum[x];
 	}
 	if (heightmask)
-		TexMgr_DilateIslands (lum, width, height);
+		TexMgr_DilateIslands (TexMgr_CurrentMask (), lum, width, height);
 	if (heights)
 	{
 		h = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
-		TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit);
+		TexMgr_ShadingToHeights (TexMgr_CurrentMask (), lum, h, width, height, texelsperunit);
 	}
 	// Shading relative to the texture's own brightness: Quake's dark textures as bumpy as bright ones.
 	mean /= (float)(width * height);
@@ -172,7 +205,7 @@ is taken as HEIGHT_MINRANGE at least: shallower. The texture tiles: the edges wr
 ================
 */
 // `scratch`: w h floats of the caller's (any thread), or NULL: the hunk's (the main thread).
-static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit, float *scratch)
+static void TexMgr_ShadingToHeights (const MaskView &hm, const float *lum, float *h, int width, int height, float texelsperunit, float *scratch)
 {
 	int		i, pass, passes, mark, count = width * height;
 	int		histogram[256], seen;
@@ -216,13 +249,13 @@ static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int 
 		h[i] = 1.f - CLAMP (0.f, (hi - h[i]) / range, 1.f);
 	// a skin's islands (VR_SetHeightMask): up to the top over HEIGHT_RIM texels at their edges, so that the rays
 	// parallax mapping walks stop there instead of reading the skin's other parts past a seam
-	if (heightmask)
+	if (hm.mask)
 		TexMgr_ForRows (height, count, [&] (int y)
 		{
 			for (int x = 0; x < width; x++)
 			{
-				int mx = x * heightmask_width / width, my = y * heightmask_height / height;
-				float d = heightmask[my * heightmask_width + mx] * (width / (float) heightmask_width); // in these texels
+				int mx = x * hm.width / width, my = y * hm.height / height;
+				float d = hm.mask[my * hm.width + mx] * (width / (float) hm.width); // in these texels
 				h[y * width + x] = 1.f - (1.f - h[y * width + x]) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f);
 			}
 		});
@@ -385,28 +418,41 @@ static void TexMgr_Slopes (const float *img, int w, int h, int x, int y, float d
 	}
 }
 
-static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
+// Any thread (VR_SkinNormalsPost's jobs): reads only `data`, `hm` and constants, its buffers its own (the heap, not the
+// hunk); what it worked out goes to `st` (printed by the caller on the main thread).
+static void TexMgr_SkinToNormals (const MaskView &hm, byte *data, int width, int height, float scale, qboolean heights, float texelsperunit,
+	SkinNormalStats &st)
 {
 	static constexpr int	radius[SKIN_FORMS] = {1, 3, 5};			// sigma 1.4, 3.5, 5.5 texels (of the model's skin)
 	static constexpr float	formweight[SKIN_FORMS] = {0.8f, 0.9f, 0.7f};
-	int		i, s, mark, count = width * height, below;
+	int		i, s, count = width * height, below;
 	float	*col, *wgt, *gx, *gy, *jt, *lum, *h = NULL, *fine, *forms;
 	short	*bins;
 	float	noise;
 	double	start = Sys_DoubleTime (), tformed, tfine;
 
+	st = SkinNormalStats{};
 	if (width < 3 || height < 3)
 		return;
-	mark = Hunk_LowMark ();
-	col = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
-	jt = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
-	wgt = (float *) Hunk_AllocNoFill (count * sizeof (float));
-	gx = (float *) Hunk_Alloc (count * sizeof (float));
-	gy = (float *) Hunk_Alloc (count * sizeof (float));
-	fine = (float *) Hunk_AllocNoFill (count * sizeof (float));
-	forms = (float *) Hunk_AllocNoFill (count * sizeof (float));
-	lum = (float *) Hunk_AllocNoFill (count * sizeof (float));
-	bins = (short *) Hunk_AllocNoFill (count * sizeof (short)); // the edges' slopes' histogram bins (-1: off the islands)
+	// (the hunk's before 2026-11-07: the same values, every buffer written before it is read but gx, gy: zeroed)
+	float *buffers = (float *) VR_HeapMalloc ((size_t) count * (3 + 3 + 1 + 1 + 1 + 1 + 1) * sizeof (float) + (size_t) count * sizeof (short));
+	float *zeroed = (float *) VR_HeapCalloc ((size_t) count * 2, sizeof (float));
+	if (!buffers || !zeroed) // (no Sys_Error off the main thread: the skin's normal map left its colours)
+	{
+		VR_HeapFree (buffers);
+		VR_HeapFree (zeroed);
+		return;
+	}
+	col = buffers;
+	jt = col + (size_t) count * 3;
+	wgt = jt + (size_t) count * 3;
+	fine = wgt + count;
+	forms = fine + count;
+	lum = forms + count;
+	h = heights ? lum + count : NULL;
+	bins = (short *) (lum + (size_t) count * 2); // the edges' slopes' histogram bins (-1: off the islands)
+	gx = zeroed;
+	gy = zeroed + count;
 
 	// brightness and two colour differences; the islands' coverage; the materials' weights for edges and forms
 	TexMgr_ForRows (height, count, [&] (int row)
@@ -421,7 +467,7 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 		col[i*3+0] = lum[i] = r * 0.299f + g * 0.587f + b * 0.114f;
 		col[i*3+1] = r - g;
 		col[i*3+2] = (r + g) * 0.5f - b;
-		wgt[i] = !heightmask || heightmask[(ty * heightmask_height / height) * heightmask_width + tx * heightmask_width / width] ? 1.f : 1e-3f;
+		wgt[i] = !hm.mask || hm.mask[(ty * hm.height / height) * hm.width + tx * hm.width / width] ? 1.f : 1e-3f;
 
 		grey = r > b + 0.02f ? 1.f - TexMgr_Smoothstep (0.06f, 0.14f, sat) : 1.f - TexMgr_Smoothstep (0.22f, 0.4f, sat);
 		metal = grey * TexMgr_Smoothstep (0.03f, 0.12f, mx);
@@ -442,8 +488,6 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	const int sets = together ? 1 + SKIN_FORMS : 1, blurfloats = count * 8 + width * 4;
 	// the heights (from lum alone) a step of their own too, in buffers of their own (3 + 1 w h floats)
 	float *heightscratch = heights ? (float *) VR_HeapMalloc ((size_t) count * 4 * sizeof (float)) : NULL;
-	if (heights)
-		h = (float *) Hunk_AllocNoFill (count * sizeof (float));
 	float *extra = (float *) VR_HeapMalloc ((size_t) sets * (count * 3 + blurfloats + (together ? count * 2 : 0)) * sizeof (float));
 	float *setblurred[1 + SKIN_FORMS], *setscratch[1 + SKIN_FORMS], *setx[1 + SKIN_FORMS], *sety[1 + SKIN_FORMS];
 	for (s = 0; s < 1 + SKIN_FORMS; s++)
@@ -463,9 +507,9 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 			{
 				if (heights)
 				{
-					if (heightmask)
-						TexMgr_DilateIslands (lum, width, height, heightscratch);
-					TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit, heightscratch + 3 * count);
+					if (hm.mask)
+						TexMgr_DilateIslands (hm, lum, width, height, heightscratch);
+					TexMgr_ShadingToHeights (hm, lum, h, width, height, texelsperunit, heightscratch + 3 * count);
 				}
 				continue;
 			}
@@ -592,7 +636,9 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 		for (p90 = 0, below = 0; p90 < 255 && below + tilts[p90] < all * 9 / 10; p90++)
 			below += tilts[p90];
 		k = CLAMP (1.f / 3.f, SKIN_P90 / ((p90 + 0.5f) / 64.f), 3.f);
-		Con_DPrintf ("skin normal map %d x %d: relief 90%% %.2f times %.2f (noise %.4f)\n", width, height, (p90 + 0.5f) / 64.f, k, noise);
+		st.relief = (p90 + 0.5f) / 64.f;
+		st.k = k;
+		st.noise = noise;
 		scale *= k;
 	}
 	TexMgr_ForRows (height, count, [&] (int row)
@@ -617,8 +663,14 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 		out[3] = h ? (byte) CLAMP (0, (int)(h[i] * 255.f + 0.5f), 255) : 255;
 	}
 	});
-	Hunk_FreeToLowMark (mark);
-	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (colours %.1f edges, forms and heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0);
+	VR_HeapFree (buffers);
+	VR_HeapFree (zeroed);
+	st.width = width;
+	st.height = height;
+	st.ms = (Sys_DoubleTime () - start) * 1000.0;
+	st.colourMs = (tfine - start) * 1000.0;
+	st.formMs = (tformed - tfine) * 1000.0;
+	st.made = true;
 }
 
 /*
@@ -693,6 +745,7 @@ extern "C" void VR_SetHeightMask (const byte *mask, int width, int height)
 VR_SetHeightMaskLazy -- as VR_SetHeightMask, the islands made by `make` (malloc'd) from the triangles'
 `corners` on the skin (`numtris` x 3 x (x, y) texels) only when a normal map is made (not read from the cache, nor
 shared: 0.8 ms a model, 60 ms of the first load). The corners must live until VR_SetHeightMask (NULL, 0, 0).
+`make` may run on any thread (a skin job's, VR_SkinNormalsPost): it reads only its arguments (no hunk, no globals).
 ================
 */
 extern "C" void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
@@ -712,8 +765,10 @@ static void TexMgr_EnsureHeightMask (void)
 {
 	if (heightmask_corners && !heightmask_made)
 	{
+		double t0 = Sys_DoubleTime ();
 		heightmask_made = heightmask_make (heightmask_corners, heightmask_numtris, heightmask_width, heightmask_height);
 		heightmask = heightmask_made;
+		VR_TimeAdd ("        islands", Sys_DoubleTime () - t0); // load timing (vr_startup_times)
 	}
 }
 
@@ -754,20 +809,41 @@ static const char *TexMgr_NormalCacheBuild (void)
 	return normalcache_build.cStr ();
 }
 
-static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, int height, qboolean heights, float texelsperunit)
+// What a skin's islands come from: the lazy corners (VR_SetHeightMaskLazy), else a mask given (or none).
+struct MaskSource
+{
+	const float	*corners;
+	int			numtris;
+	const byte	*mask;
+	int			width, height;
+};
+
+// Any thread: reads only its arguments.
+static unsigned long long TexMgr_SkinNormalsKeyOf (const MaskSource &ms, const byte *data, int width, int height, qboolean heights, float texelsperunit)
 {
 	unsigned long long h = qvr::diskcache::fnvStart;
-	const qboolean masked = heightmask || heightmask_corners;
-	int params[6] = {width, height, heights ? 1 : 0, masked ? heightmask_width : 0, masked ? heightmask_height : 0,
-		heightmask_corners ? heightmask_numtris : -1};
+	const qboolean masked = ms.mask || ms.corners;
+	int params[6] = {width, height, heights ? 1 : 0, masked ? ms.width : 0, masked ? ms.height : 0,
+		ms.corners ? ms.numtris : -1};
 	h = qvr::diskcache::fnv (h, params, sizeof (params));
 	h = qvr::diskcache::fnv (h, &texelsperunit, sizeof (texelsperunit));
 	h = qvr::diskcache::wideHash (h, data, (size_t) width * height * 4);
-	if (heightmask_corners) // the islands are made from these (VR_SetHeightMaskLazy)
-		h = qvr::diskcache::wideHash (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
-	else if (heightmask)
-		h = qvr::diskcache::wideHash (h, heightmask, (size_t) heightmask_width * heightmask_height);
+	if (ms.corners) // the islands are made from these (VR_SetHeightMaskLazy)
+		h = qvr::diskcache::wideHash (h, ms.corners, (size_t) ms.numtris * 6 * sizeof (float));
+	else if (ms.mask)
+		h = qvr::diskcache::wideHash (h, ms.mask, (size_t) ms.width * ms.height);
 	return h;
+}
+
+static MaskSource TexMgr_CurrentMaskSource (void)
+{
+	MaskSource ms = {heightmask_corners, heightmask_numtris, heightmask_corners ? NULL : heightmask, heightmask_width, heightmask_height};
+	return ms;
+}
+
+static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, int height, qboolean heights, float texelsperunit)
+{
+	return TexMgr_SkinNormalsKeyOf (TexMgr_CurrentMaskSource (), data, width, height, heights, texelsperunit);
 }
 
 #define ALPHATEST_CUTOFF 170 // the shaders' alpha test (0.666): 8-bit alphas from 170 pass
@@ -832,6 +908,216 @@ extern "C" void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheig
 
 /*
 ================
+VR_SkinNormalsPost, VR_SkinNormalsJoin, VR_SkinNormalsForget -- a skin's normal map made from its colours (or read
+from the disk cache) on a job while the load goes on (vr_load_jobs 1; loadjobs, 2026-11-07). Until then the main
+thread made each skin's in turn, splitting each one's passes on the pool and waiting for them (0.5-0.7 s of a map's
+first load waiting, plus 0.13-0.26 s of cache reads on a later one).
+
+TexMgr_LoadImage32 hands VR_SkinNormalsPost the skin's texels, mipped down to the normal map's size, and returns
+without uploading; the job's result is uploaded at the join (TexMgr_CommitNormalMap) and only then becomes its skin's
+normal map (TexMgr_NormalMap gives the flat one until then: whatever draws meanwhile draws as without normal maps).
+- Inputs, copied at the post and the job's alone until its join: the texels and their size, heights or not, the
+  texels per unit, the islands' source (the triangles' corners and the maker, or a mask given: copies), the cache's
+  mode and its folder (cvars read here, on the main thread).
+- Outputs (the same struct, read by the main thread only after the job's Future is waited for): the normal map's
+  texels, the cache key and what its read found, the maker's stats.
+- The job touches nothing else: no hunk, cvar, console, GL, file cache or model table (TexMgr_SkinNormalsKeyOf,
+  qvr::diskcache::readRgbaAt, the maker and TexMgr_SkinToNormals read only their arguments; the pool's parallelFor
+  nests). The cache's counts and its write, the prints and the upload are the main thread's, at the join, in the
+  order the skins were posted: the same texels, the same textures, as vr_load_jobs 0's.
+- Joins (main thread): each post commits the oldest ones already done (no wait); SCR_UpdateScreen before anything is drawn, TexMgr_ReloadImages(Named), imagedump and
+  imagehash (VR_LoadJobsJoin); a texture freed (VR_SkinNormalsForget: its entries waited for and dropped); the
+  game's shutdown (VR_SkinNormalsDrop).
+================
+*/
+struct SkinNormalJob
+{
+	za::Vector<byte>	data;			// in: the skin's texels (RGBA); out: its normal map's
+	int					width = 0, height = 0;
+	qboolean			heights = false;
+	float				texelsperunit = 0.f;
+	bool				hascorners = false;	// the islands made from these by `make` (VR_SetHeightMaskLazy) ...
+	za::Vector<float>	corners;
+	int					numtris = 0;
+	byte				*(*make) (const float *corners, int numtris, int w, int h) = nullptr;
+	za::Vector<byte>	mask;			// ... or this mask given (VR_SetHeightMask), or none
+	int					maskwidth = 0, maskheight = 0;
+	int					cache = 0;		// VR_NormalCacheMode
+	za::String			folder;			// the cache's folder for this build
+	// out
+	unsigned long long	key = 0;
+	int					read = 0;		// readRgbaAt's: 1 read, 2 none, 3 amiss (0: not looked)
+	double				readSeconds = 0.0;
+	int					same = -1;		// vr_normalmap_cache 2: made, and the same as the file (1) or not (0)
+	SkinNormalStats		st{};
+	double				ms = 0.0;
+};
+
+struct PendingSkinNormal
+{
+	gltexture_t						*glt = nullptr;		// the normal map (made, not uploaded)
+	gltexture_t						*base = nullptr;	// its skin (VR_SkinNormalsSetBase)
+	za::UniquePtr<SkinNormalJob>	job;
+	qvr::jobs::Future<void>			done;
+};
+static za::Vector<PendingSkinNormal> pendingSkinNormals; // main thread only (the jobs see only their own struct)
+
+// The job (any thread): as VR_MakeNormalMap's skin branch, on its own struct.
+static void TexMgr_SkinNormalsRun (SkinNormalJob &j)
+{
+	const double t0 = Sys_DoubleTime ();
+	const MaskSource ms = {j.hascorners ? j.corners.data () : NULL, j.numtris, j.mask.empty () ? NULL : j.mask.data (), j.maskwidth, j.maskheight};
+	const size_t n = (size_t) j.width * j.height * 4;
+	za::Vector<byte> cached;
+	int hit = 0;
+	if (j.cache)
+	{
+		j.key = TexMgr_SkinNormalsKeyOf (ms, j.data.data (), j.width, j.height, j.heights, j.texelsperunit);
+		cached.resize (n);
+		j.read = qvr::diskcache::readRgbaAt (j.folder, j.key, cached.data (), j.width, j.height, j.readSeconds);
+		hit = j.read == 1;
+	}
+	if (hit && j.cache == 1)
+		memcpy (j.data.data (), cached.data (), n);
+	else
+	{
+		byte *made = NULL;
+		MaskView mv = {ms.mask, j.maskwidth, j.maskheight};
+		if (ms.corners)
+		{
+			made = j.make (ms.corners, j.numtris, j.maskwidth, j.maskheight);
+			mv.mask = made;
+		}
+		TexMgr_SkinToNormals (mv, j.data.data (), j.width, j.height, SKIN_DEPTH * j.texelsperunit, j.heights, j.texelsperunit, j.st);
+		if (hit) // vr_normalmap_cache 2: made anyway, and compared
+			j.same = memcmp (j.data.data (), cached.data (), n) == 0;
+		VR_HeapFree (made);
+	}
+	j.ms = (Sys_DoubleTime () - t0) * 1000.0;
+}
+
+extern "C" int VR_LoadJobsOn (void)
+{
+	return qvr::vr_load_jobs.value != 0.f;
+}
+
+static void TexMgr_SkinNormalsCommit (PendingSkinNormal &p);
+
+extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind, int worldwidth)
+{
+	if (NORMALMAP_TYPE (kind) != NORMALMAP_SHADING || !(kind & NORMALMAP_SKIN) || !VR_LoadJobsOn () || !glt || !data)
+		return 0;
+	// the oldest ones done already, while they are: committed now, in the order posted (no waiting; their texels not
+	// held until the first frame: a map's first load posts 550 of them)
+	while (!pendingSkinNormals.empty () && pendingSkinNormals.front ().done.ready ())
+	{
+		TexMgr_SkinNormalsCommit (pendingSkinNormals.front ());
+		pendingSkinNormals.erase (pendingSkinNormals.begin ());
+	}
+	auto job = za::makeUnique<SkinNormalJob> ();
+	SkinNormalJob &j = *job;
+	const MaskSource ms = TexMgr_CurrentMaskSource ();
+	j.width = glt->width;
+	j.height = glt->height;
+	j.data.resize ((size_t) j.width * j.height * 4);
+	memcpy (j.data.data (), data, j.data.size ());
+	j.heights = (kind & NORMALMAP_HEIGHTS) != 0;
+	j.texelsperunit = glt->width / (float) q_max (1, worldwidth);
+	j.maskwidth = ms.width;
+	j.maskheight = ms.height;
+	if (ms.corners)
+	{
+		j.hascorners = true;
+		j.numtris = ms.numtris;
+		j.make = heightmask_make;
+		j.corners.resize ((size_t) q_max (ms.numtris, 0) * 6);
+		if (!j.corners.empty ())
+			memcpy (j.corners.data (), ms.corners, j.corners.size () * sizeof (float));
+	}
+	else if (ms.mask)
+	{
+		j.mask.resize ((size_t) ms.width * ms.height);
+		memcpy (j.mask.data (), ms.mask, j.mask.size ());
+	}
+	j.cache = VR_NormalCacheMode ();
+	if (j.cache)
+		j.folder = qvr::diskcache::folderOf (qvr::diskcache::Product::NormalMaps, TexMgr_NormalCacheBuild ());
+	PendingSkinNormal p;
+	p.glt = glt;
+	SkinNormalJob *raw = job.get ();
+	p.job = ZA_MOVE (job);
+	p.done = qvr::jobs::async ([raw] { TexMgr_SkinNormalsRun (*raw); });
+	pendingSkinNormals.pushBack (ZA_MOVE (p));
+	return 1;
+}
+
+// The skin whose normal map was just posted (TexMgr_LoadNormalMap, after TexMgr_LoadImage32 posted it).
+extern "C" void VR_SkinNormalsSetBase (gltexture_t *glt, gltexture_t *base)
+{
+	if (!pendingSkinNormals.empty () && pendingSkinNormals.back ().glt == glt)
+		pendingSkinNormals.back ().base = base;
+}
+
+static void TexMgr_SkinNormalsCommit (PendingSkinNormal &p)
+{
+	p.done.wait ();
+	SkinNormalJob &j = *p.job;
+	if (j.cache)
+		qvr::diskcache::noteRgbaRead (qvr::diskcache::Product::NormalMaps, j.read, j.data.size (), j.readSeconds, "(a skin)");
+	if (j.read == 1 && j.cache == 1)
+		VR_TimeAdd ("normal maps of skins read from the cache (on jobs)", j.ms / 1000.0);
+	else
+	{
+		TexMgr_PrintSkinStats (j.st);
+		if (j.same >= 0)
+			VR_NormalCacheChecked (j.same, p.glt->name);
+		else if (j.cache)
+			VR_NormalCacheStore (TexMgr_NormalCacheBuild (), j.key, j.data.data (), j.width, j.height);
+		VR_TimeAdd ("normal maps made from skins (on jobs)", j.ms / 1000.0);
+	}
+	TexMgr_CommitNormalMap (p.glt, p.base, j.data.data ());
+}
+
+extern "C" void VR_SkinNormalsJoin (void)
+{
+	if (pendingSkinNormals.empty ())
+		return;
+	QVR_TRACY_SCOPE (tracyScope, "skin normal maps joined and uploaded");
+	const double t0 = Sys_DoubleTime ();
+	za::Vector<PendingSkinNormal> all;
+	all.swap (pendingSkinNormals);
+	for (PendingSkinNormal &p : all)
+		TexMgr_SkinNormalsCommit (p);
+	VR_TimeAdd ("skin normal maps joined and uploaded (main)", Sys_DoubleTime () - t0);
+}
+
+extern "C" void VR_SkinNormalsForget (gltexture_t *glt)
+{
+	for (za::SizeT i = 0; i < pendingSkinNormals.size ();)
+	{
+		PendingSkinNormal &p = pendingSkinNormals[i];
+		if (p.glt == glt || p.base == glt)
+		{
+			p.done.wait ();
+			pendingSkinNormals.erase (pendingSkinNormals.begin () + i);
+		}
+		else
+			i++;
+	}
+}
+
+extern "C" void VR_SkinNormalsDrop (void)
+{
+	pendingSkinNormals.clear (); // (each Future waits for its job)
+}
+
+extern "C" void VR_LoadJobsJoin (void)
+{
+	VR_SkinNormalsJoin ();
+}
+
+/*
+================
 VR_MakeNormalMap -- a normal map's texels (`data`, RGBA, glt's size once mipmapped down) made: the world's normal maps
 (NORMALMAP_HEIGHTS) carry the heights parallax mapping walks (vr_parallax) in alpha: made ones from the shading,
 authored ones their own alpha (DarkPlaces' convention; 255, flat, if they have none: NORMALMAP_FLAT set in the kind
@@ -861,8 +1147,10 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 				memcpy (data, cached, n);
 			else
 			{
+				SkinNormalStats st;
 				TexMgr_EnsureHeightMask ();
-				TexMgr_SkinToNormals (data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit);
+				TexMgr_SkinToNormals (TexMgr_CurrentMask (), data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit, st);
+				TexMgr_PrintSkinStats (st);
 				if (hit) // vr_normalmap_cache 2: made anyway, and compared
 					VR_NormalCacheChecked (memcmp (data, cached, n) == 0, glt->name);
 				else if (cache)
@@ -931,25 +1219,36 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
 		if (TexMgr_ShareNormalMap (glt, filename, authored[i].kind | NORMALMAP_FILE | heights)) // made for another skin
 		{
+			if (flags & NORMALMAP_SKIN)
+				VR_TimeAdd ("    authored ones shared", Sys_DoubleTime () - t0);
 			Hunk_FreeToLowMark (mark);
 			return;
 		}
 		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		if (flags & NORMALMAP_SKIN) // load timing (vr_startup_times: a model's, under "their normal maps")
+			VR_TimeAdd (img ? "    authored files read and decoded" : "    authored files looked for, none", Sys_DoubleTime () - t0);
 		if (img)
 		{
+			const double t1 = Sys_DoubleTime ();
 			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
+			if (flags & NORMALMAP_SKIN)
+				VR_TimeAdd ("    authored ones prepared and uploaded", Sys_DoubleTime () - t1);
 			Con_DPrintf ("normal map %s (%d x %d, %.1f ms)" "\n", filename, fwidth, fheight, (Sys_DoubleTime () - t0) * 1000.0); // what it cost
 		}
 		Hunk_FreeToLowMark (mark);
 		if (img)
 			return;
 	}
+	const double t0 = Sys_DoubleTime ();
 	if (flags & NORMALMAP_RELIEF) // a weapon made from another model's file: its relief made from its skin (vr_skinrelief.cpp)
 		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
 			glt->source_offset, NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS | NORMALMAP_RELIEF, worldwidth);
 	else
 		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
 			glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
+	if (flags & NORMALMAP_SKIN)
+		VR_TimeAdd ((flags & NORMALMAP_RELIEF) ? "    weapons' relief maps (vr_skinrelief)" : "    made ones posted (or made: vr_load_jobs 0)",
+			Sys_DoubleTime () - t0);
 }
 
 

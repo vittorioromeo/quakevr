@@ -9,9 +9,12 @@
 #   c. the tilted pose eases in and out over vr_flat_wall_tilt_time (0.2 s, the default, then 0.6); a fixed pitch with yaw and roll, the
 #      left hand's mirrored.
 #   d. vr_flat_wall_block_fire: tilted at the wall a click fires nothing (no shell spent); the option off, or off the wall, it fires.
-# flatwall_test.sh <agent> [sections]: only those sections (default abcd).
+#   e. along a wall (vr_flat_wall_slide): the rifle, his box on the south wall at his right, the view turning towards it
+#      at 5 deg/s from along it to 50 in: the drawn gun's place and turn frame to frame (flatwalldrawn) have no step; it
+#      lies along the wall first (a level turn), tilts up only later; tilted up, the ironsight waits (vr_flat_wall_block_ads).
+# flatwall_test.sh <agent> [sections]: only those sections (default abcde).
 AGENT=${1:-pickup}
-ONLY=${2:-abcd}
+ONLY=${2:-abcde}
 source "$(dirname "$0")/qvrtest.sh"
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 LIMIT=2.0      # cm: a weapon's drawn points no deeper than this in the wall (the trace margin and the tilt's own 0.25 units)
@@ -115,5 +118,24 @@ echo "  shells: at the wall $s0, clicked $s1 (turned $turned); the option off, c
 check $( [ -n "$s3" ] && [ "$s1" = "$s0" ] && echo 1 || echo 0) "tilted at the wall, a click fires nothing (no shell spent)"
 check $( [ -n "$s3" ] && [ "$s2" -lt "$s1" ] && echo 1 || echo 0) "vr_flat_wall_block_fire 0: it fires tilted"
 check $( [ -n "$s3" ] && [ "$s3" -lt "$s2" ] && echo 1 || echo 0) "off the wall, it fires"
+fi
+
+# e. Along a wall: one continuous pose over the angle (his jitter: along a wall, turning a little towards it).
+if [[ $ONLY == *e* ]]; then
+log=$HERE/scratch/flatwall_e.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_flat_bob 0; vr_test_give_wid 16; impulse 149; wait25; setpos 300 -495 25 0 10 0; wait60; cl_yawspeed 5; vr_flatplay_debug 2; +right; wait864; -right; echo flatwallswept; vr_flat_aim 1; wait40; echo flatwallads block; wait2; vr_flat_wall_block_ads 0; wait40; echo flatwallads free; wait2; vr_flatplay_debug 0; vr_flat_aim 0; vr_flat_wall_block_ads 1; echo flatwallslide done; toggleconsole; quit" -Filter "^flatwalldrawn|^flatsight: |^flatwallads|^flatwallswept" -QuitOn "flatwallslide done" -Timeout 300 > "$log" 2>&1
+# (flatwalldrawn: t, view yaw, at x y z, yaw, pitch, slide, flat, wall, back, let go, held, up; the last line a frame. The
+# turning only: up to flatwallswept, before the ironsight's own move.)
+read -r step turn flat upAt flatAt n <<<"$(grep -a "^flatwalldrawn\|^flatwallswept" "$log" | awk '/^flatwallswept/ { exit } { t[$2] = $0 } END { n = asorti(t, k, "@ind_num_asc"); for (i = 1; i <= n; i++) { split(t[k[i]], f, " ")
+    if (i > 1) { d = sqrt((f[4]-x)^2 + (f[5]-y)^2 + (f[6]-z)^2); if (d > s) s = d; a = f[7]-yw; if (a < 0) a = -a; b = f[8]-p; if (b < 0) b = -b; if (a > r) r = a; if (b > r) r = b }
+    x = f[4]; y = f[5]; z = f[6]; yw = f[7]; p = f[8]; v = f[3] > 180 ? 360 - f[3] : -f[3]
+    if (f[10] > fm) fm = f[10]; if (f[10] > 3 && fa == "") fa = v; if (f[15] > 5 && ua == "") ua = v }
+    printf "%.2f %.2f %.1f %s %s %d", s, r, fm, ua == "" ? 99 : ua, fa == "" ? 99 : fa, n }')"
+adsBlock=$(grep -a "^flatsight: \|^flatwallads" "$log" | awk '/^flatwallads block/ { print a; exit } /^flatsight: / { a = ($5 == "on") ? 1 : 0 }')
+adsFree=$(grep -a "^flatsight: \|^flatwallads" "$log" | awk '/^flatwallads free/ { print a; exit } /^flatsight: / { a = ($5 == "on") ? 1 : 0 }')
+echo "  turning into the wall ($n frames): biggest step a frame $step units, turn $turn deg; laid along it (level turn up to $flat deg) from $flatAt deg in, tilted up from $upAt; sighted there: blocked $adsBlock, the block off $adsFree"
+check $(awk -v s="$step" -v r="$turn" -v n="$n" 'BEGIN { exit !(n >= 800 && s <= 1.0 && r <= 4.0) }' && echo 1 || echo 0) "turning towards the wall, the drawn gun has no step (a frame's at most 1 unit, 4 degrees)"
+check $(awk -v f="$flat" -v fa="$flatAt" -v ua="$upAt" 'BEGIN { exit !(f >= 3 && fa < ua && ua < 99) }' && echo 1 || echo 0) "it lies along the wall first, tilts up only steeper"
+check $([ "$adsBlock" = 0 ] && [ "$adsFree" = 1 ] && echo 1 || echo 0) "tilted up at the wall the ironsight waits (vr_flat_wall_block_ads); the option off, it comes on"
 fi
 verdict; exit $fail

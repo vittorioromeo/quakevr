@@ -138,6 +138,7 @@
 .float vr_prone; // the player lies down (vr_prone: his box vr_prone_height tall; the engine sets it from his move): no jumping (PlayerJump)
 .float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
 .float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
+.float handsynth; // the hands whose motion in this move is synthesized, not for gestures (the engine's vr_handsource.cpp: VR_HANDSYNTH_*, VR_HandMotionTracked)
 .float vr_posetime; // the time of the poses in the player's last move (s, modulo VR_POSE_CLOCK_WRAP; -1 unknown): VR_Melee_Track
 .float mainhand_hotspot;
 

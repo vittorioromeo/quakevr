@@ -99,6 +99,7 @@ console.
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
+| Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` â†’ `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
@@ -483,6 +484,19 @@ crosshair, and the view puts the two-handed hotspot it placed on the tilted gun 
 this share of the screen's height above its bottom edge comes up (the view's up, at most 12 units, never into a ceiling) until
 it is there, and the way back is found again from there: pulled back at a wall, a pistol sat under the status bar. Long guns
 already reach higher and don't move. Less looking down past 20 degrees, none by 50. 0: off.
+
+**Wall: Slide Along** (`vr_flat_wall_slide`, 1), **Slide Up To** (`vr_flat_wall_slide_from`, 15 deg), **Back And Up From**
+(`vr_flat_wall_slide_to`, 40 deg), **Slide Ease** (`vr_flat_wall_slide_time`, 0.12 s): a hipfire weapon meeting a wall at a
+slant lies flat along it: the drawn gun turns level out of the wall (the least that clears it, up to parallel; drawn only,
+the shots still go through the crosshair, and it fires) and goes out along the wall's normal (at most 10 units) instead of
+back towards the shoulder. The share is a smooth curve of the angle between the gun and the wall (all of it up to Slide Up
+To, none from Back And Up From) and eases over Slide Ease; the wall state (the arm's fold, the room, the raise, the free
+hand letting go) only comes with the rest of the share, so met head-on it goes back and tilts up as before. A melee weapon
+only goes out, never turns. 0: off (as before).
+
+**Wall: No Ironsight Tilted** (`vr_flat_wall_block_ads`, 1): while the gun stands tilted up at a wall (more than 5 degrees)
+the ironsight waits; the key's ask is kept and it comes on once the gun is down. **Hide Torch Model**
+(`vr_flat_flashlight_hide`, 1): the torch worn at the eyes is not drawn; its beam and light are.
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

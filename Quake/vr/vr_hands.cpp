@@ -11,6 +11,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_handpose.hpp"
+#include "vr_handsource.hpp"
 #include "vr_main.hpp"
 #include "vr_motion.hpp"
 #include "vr_throw.hpp"
@@ -896,6 +897,9 @@ void update()
     // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
     easeStairs(player);
 
+    // Each hand's motion: a controller's in the headset, made up on the flat screen; whatever moves a hand on top marks
+    // it while it is placed (vr_handsource.hpp).
+    handsource::beginFrame(vrActive());
     if(vrActive())
     {
         placeTracked(t, m2u, seatedLift);

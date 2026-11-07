@@ -195,4 +195,11 @@ void status_f();
 // swing strikes with.
 void punch_f();
 
+// vr_flat_shove_now: the shove key's shove from the console (vr_flat_key_shove's; the tests' button).
+void shoveNow_f();
+
+// vr_flat_flick_test [frames] [degrees]: the view flicked hard, as the tests' mouse ("flatflick: done" at its end).
+void flickTest_f();
+void flickTestFrame();
+
 } // namespace qvr::flatplay

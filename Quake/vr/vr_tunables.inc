@@ -1870,6 +1870,12 @@ QVR_TUNABLE(vr_flat_wall_tilt_pivot, "0") // what it tilts round: 0 the hand, 1 
 QVR_TUNABLE(vr_flat_wall_tilt_drop, "12") // sighted, the tilted gun also comes this far down off the eye (0..20 units; all of it by 45 degrees of tilt)
 QVR_TUNABLE(vr_flat_wall_raise, "0.4") // in the wall state (hipfire), a weapon whose muzzle stands lower comes up until it is this share of the view's height up from its bottom edge (0..1; 0: off), up to 12 units and never into a ceiling: a pistol turned up stood below the view
 QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
+QVR_TUNABLE(vr_flat_wall_slide, "1") // a hipfire weapon meeting a wall at a slant lies flat along it (turned level out of it, out along its normal) instead of going back and tilting up (0..1; 0: off)
+QVR_TUNABLE(vr_flat_wall_slide_from, "15") // all along the wall up to this angle between the gun and the wall (degrees)
+QVR_TUNABLE(vr_flat_wall_slide_to, "40") // and none from this angle (head-on: back and up); one smooth curve between (degrees)
+QVR_TUNABLE(vr_flat_wall_slide_time, "0.12") // the slide's share and turn ease over about this many seconds (0..1; 0: at once)
+QVR_TUNABLE(vr_flat_wall_block_ads, "1") // no ironsight while the gun is tilted up at a wall: the aim key waits until it comes down (0: the ironsight as ever)
+QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
 // Flatscreen > Model FOV
@@ -2060,6 +2066,7 @@ QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least Skewer (groups.txt) of a st
 QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on the blade
 QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's or a punch's speed gets for hitting and sticking
 QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
+QVR_TUNABLE(vr_melee_body_min_part, "0.5") // a blade's blow that lands only for your body's speed counts on this outer share of the blade (0 any part)
 QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
 QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)

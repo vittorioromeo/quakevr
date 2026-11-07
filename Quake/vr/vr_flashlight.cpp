@@ -3,6 +3,7 @@
 
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_handsource.hpp"
 #include "vr_avatar.hpp"
 #include "vr_coil.hpp"
 #include "vr_body.hpp"
@@ -1513,7 +1514,7 @@ void flickFlip(const hands::State& s)
         {
             st.flickArmed[hand] = true;
         }
-        if(rate < speed || !st.flickArmed[hand] || !holding || vr_flashlight_flick.value == 0.f)
+        if(rate < speed || !st.flickArmed[hand] || !holding || vr_flashlight_flick.value == 0.f || !handsource::gestures(hand))
         {
             continue;
         }
@@ -2504,6 +2505,10 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         }
     }
     place(ve, drawn, hover);
+    if(flatplay::active() && vr_flat_flashlight_hide.value != 0.f)
+    {
+        ve.visible = false; // (flatscreen play: worn at the eyes, its model only got in the way; the beam and light stay)
+    }
     if(vr_show_flashlight_zones.value)
     {
         drawZones(s, glm::mat4{1.f}, eyes, true);
