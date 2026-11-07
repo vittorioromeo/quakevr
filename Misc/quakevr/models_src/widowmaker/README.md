@@ -6,7 +6,7 @@ triangle (one on top, two below), each with brass collars and raised rings at th
 receiver (its back a riveted plate of dark rusty iron with red-brown stains and rust runs, its sides a steel panel with
 darker bars, its top an olive-brass cover with a raised strip); vertical brick-brown grips on riveted iron feet, the
 rear one under the receiver's back, the front one hung from an iron rail under the barrels. Nothing of AD's is in it
-(AD's own model is still what `vr_ad_widowmaker_art 0` makes the VR model from).
+(AD's own model is what the VR model is made from when this file is missing).
 
 Its one moving part: **the barrels turn** (a Gatling), with their collars and muzzle rings, about the spin axis at the
 triangle's middle: a shot each third of a turn, at rest a barrel on top, as the model made from AD's
@@ -79,7 +79,7 @@ spin4, the barrels 53 degrees round, from the front), `compare_mockup` (the mock
 
 ## In the game
 
-`vr_ad_widowmaker_art` (1): the Widowmaker (`progs/v_shot3.mdl#vr`) is this model; 0 the one made from AD's view model,
-for A/B; a change reloads it. Debug > Tools > Model Previews: **Widowmaker Art** (the preview floats ahead at arm's
-reach), **Widowmaker: Hand-Made Model** / **Model Made from AD's**. The scenario `widowmaker_art` (vrtesthall) puts one
+The Widowmaker (`progs/v_shot3.mdl#vr`) is this model (without the file, the one made from AD's view model; the
+`vr_ad_widowmaker_art` A/B switch was retired 2026-11-07). Debug > Tools > Model Previews: **Widowmaker Art** (the
+preview floats ahead at arm's reach). The scenario `widowmaker_art` (vrtesthall) puts one
 in your hand and the preview ahead. After a re-export, Debug > Tools > Reload Models.

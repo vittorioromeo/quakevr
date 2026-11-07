@@ -2,7 +2,7 @@
 # playersteps_test.sh <agent>: the player's footsteps on the drawn feet (ROUND23.md, "The player's walk";
 # vr_playersteps.cpp, vr_body_step_report). On vrarena's flat floor: a walk, a run and a strafe (by the mock's stick, counted
 # frames for a dozen steps or more each): one sound from a foot per touchdown, within a frame of the foot drawn down, nothing from
-# the old trigger, and louder at a run. Head turns, stick turns and small room moves: silent; with their tunable up, spaced. vr_body_step_sounds 0 and vr_body_walk 0: the old trigger alone. Ends on
+# the old trigger, and louder at a run. Head turns, stick turns and small room moves: silent; with their tunable up, spaced. vr_body_walk 0 (no legs): the old trigger alone. Ends on
 # "playersteps_test: N passed, M failed".
 KIT=C:/OHWorkspace/qvr-kit
 AGENT=${1:-phases}
@@ -22,7 +22,6 @@ for X in 0.3 0 -0.3 0 0.3 0 -0.3 0; do ROOM="$ROOM;vr_mock_hand head $X 1.6 0;wa
 ROOM="$ROOM;vr_mock_hand head;wait20"
 S="$S;$HEADTURN;vr_body_step_report headturn quiet;$STICKTURN;vr_body_step_report stickturn quiet;$ROOM;vr_body_step_report roommove quiet"
 S="$S;tune vr_footstep_player_adjust_vol 0.2;$STICKTURN;vr_body_step_report stickturn_on spaced;tune_reset vr_footstep_player_adjust_vol"
-S="$S;vr_body_step_sounds 0;$(phase off_run old 0 1 0)"
-S="$S;vr_body_step_sounds 1;vr_body_walk 0;$(phase nolegs_run old 0 1 0)"
+S="$S;vr_body_walk 0;$(phase nolegs_run old 0 1 0)"
 S="$S;vr_body_walk 1;vr_body_step_report done"
 bash $KIT/run.sh $AGENT -Script "$S" -Filter "${PSF:-playersteps}" -QuitOn "playersteps_test: \d+ passed" -Timeout 200

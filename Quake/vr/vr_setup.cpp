@@ -133,7 +133,7 @@ void option_f()
 // The edicts whose targetname starts "vr_" (the setting, campaign and Continue buttons drawOptionScreens labels), listed
 // again every half second or when the map or the edict count changes: every frame's walk of every edict's targetname
 // cost 0.1-0.2 ms a frame in Arcane Dimensions' big maps (4000 edicts, thousands of targetnames). A button given such a
-// name later shows its screen within half a second. vr_setup_screens_cache 0: every frame's walk (A/B).
+// name later shows its screen within half a second.
 struct OptionScreenList
 {
     const qmodel_t* world{nullptr};
@@ -156,7 +156,7 @@ OptionScreenList optionScreens;
 void listOptionScreens()
 {
     OptionScreenList& l = optionScreens;
-    if(vr_setup_screens_cache.value != 0.f && l.world == sv.worldmodel && l.numEdicts == qcvm->num_edicts && realtime < l.nextScan)
+    if(l.world == sv.worldmodel && l.numEdicts == qcvm->num_edicts && realtime < l.nextScan)
     {
         return;
     }

@@ -51,9 +51,8 @@ guns), read from the weapon **as drawn this frame** (the renderer's own model ma
 through `rigstudio::drawnMatrix`: every layer, lerp, the Pose Keys tool's pose, a mirrored left gun and either rig
 included): its **barrel line** (cyan: the drawn model's forward from its muzzle anchor, thin along the barrel itself,
 thick on to the target's distance, a ring labelled "R barrel" / "L barrel" at its end), the **shot line** where it is
-another (dashed magenta to a magenta diamond labelled "shot": QC `VR_AG_SetHand`'s: with `vr_agrunt_aim_converge` 1,
-the default, from the muzzle to the target, so the diamond sits on the target; else the drawn gun's line with
-`vr_agrunt_shot_drawn`, or the hidden gun's), and a thin orange line from the muzzle to the target. The aim target's own
+another (dashed magenta to a magenta diamond labelled "shot": QC `VR_AG_SetHand`'s: from the muzzle to the target, so
+the diamond sits on the target), and a thin orange line from the muzzle to the target. The aim target's own
 orange cross and "aim target" label are drawn over all of them (it alone is picked and dragged). At the view's foot:
 "aim error: yaw x, pitch y (total z)" per weapon (degrees; yaw + left, pitch + up), the shot line's source, the key's
 note ("this key also aims: ..."), Align's status. (Before 2026-10-27's fix the barrel was the butt-to-muzzle line of

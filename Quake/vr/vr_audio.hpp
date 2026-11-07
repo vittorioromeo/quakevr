@@ -43,7 +43,6 @@ struct Features
     float unitsPerMetre{26.25f};
     float rate{1.f};         // slow motion's playback rate (VR_SndRate: slower and lower; 1 normal)
     bool fullBand{false};    // the voices read their sounds' band-limited copies (vr_snd_fullband; sfxcache_t::fullband)
-    bool reverbBeside{true}; // the reverb rendered beside the voices' HRTF, not after it (vr_snd_reverb_beside: the same sound)
 };
 [[nodiscard]] Features featuresFromCvars();
 

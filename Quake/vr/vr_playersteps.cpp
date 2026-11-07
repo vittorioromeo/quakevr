@@ -3,7 +3,7 @@
 //
 // - The old trigger. QC's player_run (one think in 0.1 s while moving): every 95 units or so on the ground, one of
 //   misc/foot1..7.wav at 0.5, ATTN_NORM, from the player, whatever the legs are doing.
-// - On the feet (vr_body_step_sounds). A touchdown of the drawn legs (avatar::Skeleton::steps) plays the same recordings at
+// - On the feet. A touchdown of the drawn legs (avatar::Skeleton::steps) plays the same recordings at
 //   the same volume from that foot's place, on the client, in the frame the foot is drawn down. fromLegs() is the one rule
 //   for both sides, so that a step is either the foot's or the old trigger's, never both: the old one asks oldStepSilent.
 // - The old trigger keeps: the setting off; no walking legs drawn (no legs, vr_body_walk 0, no VR); in the air (it
@@ -98,7 +98,7 @@ State state;
 
 [[nodiscard]] bool fromLegs()
 {
-    if(vr_body_step_sounds.value == 0.f || vr_body_walk.value == 0.f || cl.maxclients > 1)
+    if(vr_body_walk.value == 0.f || cl.maxclients > 1)
     {
         return false;
     }

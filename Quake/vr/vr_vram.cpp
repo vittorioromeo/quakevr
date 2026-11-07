@@ -446,11 +446,6 @@ void writeCsv(const za::Vector<Object>& objects)
 
 } // namespace
 
-Totals lastTotals()
-{
-    return last.totals;
-}
-
 namespace
 {
 
