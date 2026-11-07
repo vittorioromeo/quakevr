@@ -2450,3 +2450,37 @@ lines equal the defaults), before (origin/next's weapons.txt) and after:
 
 **To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
 weapons sit and aim as he left them.
+
+## The hand's and the body's source .blends (branch `agent/blendmd5`, 2026-11-07)
+
+The md5 plan ("The md5 models (plan only)", above), done:
+
+- **Sources:** `Misc/quakevr/src_models/blend/hand_rig/hand_rig.blend` (215 KB) and `.../vrbody/vrbody.blend` (719 KB),
+  made by `blend_build.py -- hand_rig` / `-- vrbody` (the add-on's import of the shipped files, saved; paths in them
+  relative to the .blend). generated.json: the hand's .blend owns `hand_rig.*`, `hand_rig_f.*`, the 4 `.lmp` skins;
+  the body's owns the four builds' `.md5mesh`/`.md5anim`/`.mdl` and the 16 skins. make_hand_rig.py and
+  make_hand_feminine.py are retired (all their files owned: they stop, nothing written; `--stats`/`--preview` still
+  run); make_vrbody.py keeps the owned files and still writes the `_bare` meshes and `vr_bodybare.inc`.
+- **The body's builds are shape keys** (decision: one .blend, not one a build; the plan's "builds derived at export"
+  without make_vrbody.py's parametric code): basis `vrbody`, keys `vrbody_lean`, `vrbody_brawny`, `vrbody_fem` (the
+  feminine build too: same joints, vertices, UVs and weights; only the places differ). Each build's file text is kept
+  on the object, so an unedited key writes its file byte for byte; an edit of the basis in Edit Mode carries into the
+  keys (Blender's own), Apply Pose to Mesh moves the keys by as much. The import's new **Every Build (Shape Keys)**
+  (default on); The Other Builds Too stays for a body without keys.
+- **The hand:** the commandline line kept (the armature remembers the imported files' line and a digest of the rest:
+  an unedited export is byte for byte, an edited one says Blender's); a changed hand makes the feminine hand again on
+  export (`make_hand_feminine.derive`, the generator's code: on the shipped hand it gives the shipped `hand_rig_f`
+  byte for byte); the blood skins as before (carried under the blood). **Decision:** the export does not write
+  `vr_handrig_data.inc`: the engine derives the rig from the file as it loads and measures against the compiled
+  tables, which stay the generator's last output (the reference); no engine rebuild after a hand edit.
+- **Engine test** `vr_blender_test` 20/20 (hand_rig and vrbody_lean now resolve to their .blends; the import case is
+  `vrbody_bare`, still the generator's).
+- **Test** `blend_md5_test.sh <agent>` 9/9: both .blends exported unedited into copies, every file as shipped (hand
+  21 of 21, body 58 of 58: no float noise, all bytes equal); the feminine derive as shipped; with the game on e1m1, a
+  fingertip edit (5/5: the feminine hand made again, skins untouched) and a head-top edit of the basis (7/7: every build
+  0.5 higher at that vertex, nothing else) saved through export on save, and the game read `hand_rig.mdl` and
+  `vrbody.mdl` again by itself; files put back. Also: blend_addon 3/3 (hand 9/9, body 9/9), bodytrack_solve 240/0,
+  vr_ghost_body_test 4/0, handroll 17/0, armourtest 27/0 (low-impact runs).
+- **Not done / open:** an edit of the body doesn't reach the `_bare` meshes (make_vrbody.py's parametric body, as
+  before); the generators' procedural hand and body are frozen as the reference (to start over from them, the
+  generated.json entries go first). Not checked in a windowed Blender (the shape key panel, Edit Mode on a key).
