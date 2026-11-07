@@ -2680,6 +2680,79 @@ seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two di
 22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
 numbers on the parent build (pre-existing drift of the pommel distances, not this change).
 
+## Map-load work off the main thread (branch `agent/loadjobs`, 2026-11-07, on `agent/perfalloc`)
+
+Follows perfdesign's section A (kit `scratch/perfdesign_report.md`). Method: Release-Tracy exe, exclusive runs, a new
+process a load, `vr_cache_dir` a fresh folder (engine-cold) then the same folder again (engine-warm); the time is
+`vr_startup_times`' last map load total (the `map` command to its first frame drawn). Tracy captures (full preset) only
+for the breakdowns. Results table: kit `scratch/loadjobs_report.md`.
+
+**Failed lookups (item 3), commit "File cache: files written outside every search path's folder forget nothing".** The
+index asked for exists already (vr_fscache.cpp's listings and misses, pak stem hashes, COM_StemNowhere); what made a
+first load's misses cost 879 ms on ad_tfuma (15 ms on a warm one) was the derived-data cache: each of the ~750 files
+the workers write during the load reached VR_FileCacheForgetFile, which forgot every listing of a folder that wasn't
+there and had the main thread scan every miss for names the file could be. The file cache now keeps the identities of
+the folders lookups look in (loose search paths, pak folders; added at each window, search-path change and full
+forget; never removed) and a written file whose folder isn't one of them nor inside one (named parents walked up to
+the volume's root, by identity: junctions followed) forgets nothing. Writes inside them, unknown cases and folders
+made behave as before. `vr_fscache_test` gained the case (24 passed). ad_tfuma cold "looked for, none found" 879 -> 20 ms.
+
+**Skins' normal maps on jobs (items 1 and 4), cvar `vr_load_jobs` (1; 0 the serial path; Debug menu, "Load Work on Job Threads", beside "Decode Textures Ahead").** See the
+comment at `VR_SkinNormalsPost` (vr_normalmaps.cpp) for inputs, outputs and joins. TexMgr_LoadImage32 posts a skin's
+normal map (made from its colours, or read from the disk cache: both on the job) and returns without uploading; the
+skin keeps the flat normal map until the commit (TexMgr_CommitNormalMap: upload, label, bindless handle, link). Commits
+happen in post order: each later post commits the oldest finished ones without waiting; SCR_UpdateScreen (before
+drawing), TexMgr_ReloadImages(Named), imagedump and imagehash join all; TexMgr_FreeTexture waits for and drops its
+entries; VR_Shutdown drops the rest. TexMgr_SkinToNormals and its helpers now take the islands explicitly (MaskView)
+and allocate on the heap (was the hunk; gx/gy zeroed as Hunk_Alloc did); the islands maker is pure (no hunk, no
+timing); the cache read on the job counts nothing (`readRgbaAt`), the counts, the cache write and the prints are the
+commit's. Ownership: the job's struct is the job's alone from the post until the Future is waited for.
+
+Verified bit-identical: `imagehash` (every texture, normal maps included) the same frame as the `map` command and 3
+frames later, vr_load_jobs 0 against 1, engine-cold (normal maps made) and engine-warm (read from the cache), e1m1,
+ad_tfuma, vrfiringrange: all 12 sums equal per map (e1m1 d071c79aadc70bbc, ad_tfuma 8e89ed76898d6fd4, vrfiringrange
+bab4dce68cbff385).
+
+Loads (ms, engine-cold / engine-warm, rep 1): baseline e1m1 2990 / 1419, ad_tfuma 4574 / 1463, vrfiringrange 4050 /
+1612; with both commits 2090 / 1292, 2552 / 1440, 3340 / 1437. Model light grid contents hash equal with vr_load_jobs 0
+and 1 (ad_tfuma f13a9fac10031d2d, e1m1 ff18e0fd8568016c); loads print no error or warning; vr_limb_test 2 and 3 done.
+
+**Not done (this round's budget):** authored skin normal maps' PNG decode (item 2: most of the remaining `Image decode`
+after item 3), Box3D convex pieces cache (item 5), limb models' wait (item 6: their precaches stay at spawn, as model
+indices depend on the order; their skins' normal maps now go to jobs with step 1).
+
+**Round 2 (same branch).** `vr_wornpack_test 1` giving no verdict in 400 s was the script, not the branch: the test's
+lines are dprints (VR_Test_Print), so its verdict shows only with `developer 1`; with it, 25 passed 0 failed with
+vr_load_jobs 0 and 1.
+
+New load-timing lines (commit "Load timing: ..."): under a model's "their normal maps" its authored files read and
+decoded / looked for / shared / prepared and uploaded, the made ones posted, the weapons' relief maps; under "VR after
+spawn: limb models" the lookups and posts, the builds waited for, the limb models loaded; "disk cache: a write waited
+for (64 under way)". What they showed (ordinary runs, so proportions only; ad_tfuma cold / warm):
+- Item 2 as briefed has little to take: ad_tfuma loads no authored normal map at all; vrfiringrange's 78 authored
+  files cost 68 ms to read and decode (most come decoded ahead by vr_imgprefetch) and 117-162 ms to prepare and upload
+  (1024 x 1024: the mip chain and the upload). The made ones' posts are 460-530 ms cold against 200 ms warm for the
+  same 566 posts: the uploads at the commits (338 / 166 ms) and the mipping down before each post (179 / 21 ms) run
+  slower while every worker is making normal maps (the main thread shares the cores); the cache's write queue waited
+  0 ms on ad_tfuma, 91 ms on vrfiringrange. Next candidates: the mipping down on the job (the texels posted at full
+  size), and the four AD weapons' relief maps (VR_SkinRelief: 204 ms cold, 29 warm, made on the main thread; needs the
+  islands mask and the model's units copied for the job, and TexMgr_AuthoredHeights after it).
+- Item 5: the held guns' pieces were already on the disk cache (vr_gun_pieces_cache, keyed by the triangles and the
+  settings: vrfiringrange warm 2.7 ms); the cold cost was the cut, waited for at the first frame. Commit "Held guns'
+  convex pieces cut on the pool behind the first frames": with vr_load_jobs 1 each gun is its own job; joinHeldGuns
+  adds the finished ones at each world step, a hand asking for a gun (gunPieces, key -2) waits for that gun alone,
+  destroyWorld for all; a model slot reused meanwhile is skipped. vr_gun_pieces_cache 2 (Check) and vr_load_jobs 0 cut
+  in place as before. Same pieces: vrfiringrange's 24 guns' points hashes (a developer 1 line) equal with vr_load_jobs
+  0 and 1, engine-cold and engine-warm. prepareHeldGuns on vrfiringrange cold 570 -> 1 ms (waited for later: 1.6 ms).
+- Item 6: "VR after spawn: limb models" is the limb models' loads (Mod_ForName: 662 ms cold / 235 warm on ad_tfuma);
+  their builds are waited for 12-22 ms, the rigs and lookups 50-120 ms. The loads stay (the precache order gives the
+  model indices); their skins' normal maps already go to jobs; the cold excess is the same as above (uploads and
+  draw lists made on main while the workers are busy).
+
+Loads with round 2 (Release-Tracy, exclusive, ms, rep 1 / rep 2; before it: 2090 / 2087, 2552 / 2780, 3340 / 3362
+cold): e1m1 cold 2131 / 2135, warm 1361 / 1288; ad_tfuma cold 3890 (*) / 2557, warm 1406 / 1536; vrfiringrange cold
+2866 / 3020, warm 1498 / 1464. (*) An outlier: its limb models alone took 974 ms (rep 2 and earlier runs: 400-490);
+ad_tfuma's and e1m1's loads gain nothing here (their guns' cuts were ~70 ms), vrfiringrange cold -0.35..-0.5 s.
 ## Per-frame allocations, VR programs at start-up (branch `agent/perfalloc`, 2026-11-07)
 
 Round 1 (tree regfix): disarm hulls' vectors reused, shadow brush candidates in the shadow scratch, no folder listed for
@@ -2865,3 +2938,144 @@ state 83 timeout): not from this. `vr_wornpack_test 3` never ends on origin/next
 the two lifts, on both builds, the same lines): not from this; open. eval.sh: no failure.
 The server state hash (`vr_bench_statehash`) can't compare the builds here: origin/next gives a different hash run to
 run on the same script (E1M1 fight, worn pack test), so the exactness rests on the per-call check above.
+## Flat-screen slide and lean; the keys moved (branch `agent/flatmove`, 2026-11-07)
+
+His brief (flat-screen round 2026-11-07, worker 1): Q / E lean, 3 swaps the hands, crouching at a run slides (Apex Legends),
+the lean's eye and gun feed the wall tilt (worker 2's code is left alone), enemies can hit what leans out.
+
+**Keys.** Q, E lean left / right (`vr_flat_key_lean_left` `q`, `vr_flat_key_lean_right` `e`; `vr_flat_lean_toggle` 0 hold,
+1 toggle; `+flatleanleft` / `+flatleanright`). 3 swaps the hands (`vr_flat_key_swap` `q` -> `3`); the third weapon is
+reached with 1, 2 and the wheel, which cycle every weapon collected. The force grab moved off E to **R** (`vr_flat_key_grab`,
+new; E is the right lean now -- R was free and reloading is off in the mode: a decision, say if another key is wanted). V
+(melee) and G (drop) as they were. `bind e +moveup` dropped from `Quake/default_cfg.h` and `quakevr/default.cfg` (jump
+swims up). His config needs nothing: while the mode runs `Key_Event` skips the bind of a key the mode reads itself
+(`VR_FlatKeyOwned`: the leans, swap, grab, prone, bullet time, F, G, V), so his `bind "e" "+moveup"` and `bind "3"
+"impulse 3"` stay in the file and do nothing in flat-screen play; `vr_flat_keys_own 0` runs them too. In a headset and
+outside the mode nothing changed. (vr_ settings are written sparse: his config has no `vr_flat_key_swap` line, so the new
+default reaches him.)
+
+**Slide** (`Quake/vr/vr_flatmove.cpp`, server side: `VR_FlatSlideMove` from `SV_AirMove`). Crouch pressed (or landed with it
+held) on the ground faster than `vr_flat_slide_min` 220 -> speed + `vr_flat_slide_boost` 60 (to `vr_flat_slide_max` 560),
+then `slideStep`: the slope's pull (`vr_flat_slide_slope` 900 x sine; uphill the same against), the move keys' turn
+(`vr_flat_slide_steer` 40 deg/s), friction `vr_flat_slide_friction` 260 u/s^2, the top speed; under `vr_flat_slide_end` 130
+it ends in the crouch, then `vr_flat_slide_cooldown` 0.5 s. Letting go ends it; a jump ends it keeping the speed (Quake's air
+move: 340 of 344 u/s in the test); a ledge run off resumes it on landing. Found on the way: fast over the floor Quake's
+FL_ONGROUND is off every other move (the walk clips down to the floor only on the moves that meet it), so "on the ground"
+is the flag or the floor within 4 units and not going up -- before that, vrarena's slope (a real fall) and the flicker
+looked alike. The view: `vr_flat_slide_drop` 6 more than the crouch. The body: BodyPitch's new source Slide
+(`vr_avatar_pitch.cpp`): -`vr_flat_slide_body_angle` (45) about a neck `vr_flat_slide_neck_back` (10) behind the eye, the
+trunk straight (lying's straightening), the chest's share of the look off, the legs out in front on the floor
+(`vr_avatar_legs.cpp`). Without the neck's move back the chest filled the lower screen and hid the legs (looking 20 down);
+with it the legs show past the chest. Eased over `vr_flat_slide_body_time` 0.2 s.
+
+**Lean** (client: `flatmove::frame`, `leanShift`, `leanRoll`). The eye `vr_flat_lean_dist` 16 sideways and down round
+`vr_flat_lean_pivot` 30 (4.6 at the defaults), roll `vr_flat_lean_angle` 15, `vr_flat_lean_time` 0.18 s. The pose's head
+moves (placeFlat) with `State::lean` and `leanHold` 1 (the trunk tilts from the hips, the headset's lean path), the drawn
+view by the same (`VR_FlatViewLean` after `VR_FlatViewDrop`). Interface to the wall tilt: none of its code changed -- it reads
+the leant head and hands like everything else. The roll is the drawn view's only (the pose's angles unrolled: the drawn
+hands keep the camera's roll through drawnOffset), so the gun rolls with the screen and the sights stay on the crosshair.
+Wall clamp: three lines (eye, under it, the weapon's place ahead) stop it `vr_flat_lean_margin` 6 short, at once; it comes
+back at the lean's speed. Not prone, sliding, swimming or dead. Walking leant `vr_flat_lean_speed` 0.6 of the speed actually
+moved (the keys' length held to sv_maxspeed first: 0.6 of 400 was 0.75 of 320). Hit boxes: `VR_LeanHitBoxes` (head box
+7x7x8 half, chest box at 0.55 of the way from the origin to the head) for a flat-screen client whose head is 6+ units off his
+middle; `SV_ClipToLeanBoxes` (`Quake/world.c`) tries them after the entities for every non-body, non-NOMONSTERS trace (shots,
+missiles, point traces: a monster's CheckAttack line sees the head too), with the usual owner rules (his own shots pass).
+World collision untouched. `vr_flat_lean_hit` 0: his box only.
+
+**Verified** (`bash Misc/quakevr/flatslide_test.sh selfshot`: 10/0): `vr_flatslide_selftest` 6/0 (flat 380 -> 250 in 0.5 s;
+ends; downhill 25 deg 380 -> 440, six seconds -> 560; uphill 15 deg 188 vs the flat's 279, ends); `vr_flatslide_test` 5/0 in
+vrtesthall (307 -> peak 367; 0.92 s against the friction's 0.91, 231 units, 66 moves all on the ground; ends crouched; jump
+340 of 344); `vr_flatlean_test` 4/0 (eye 16.0 right, roll 15.0, down 4.6; a line across the leant head 20 off his middle hits
+him, misses with his box alone; walking leant 192 of 320 = 0.60; leant into a wall: the eye 6.0 off it, 15 of 16); sights
+leant right / right crouched / left within 0.001 units (`vr_flat_sight_check`), the shot 0.0000 deg off its point leant;
+the keys by `vr_mock_key`: E, Q lean, 3 swaps, R grabs, the binds on E and 3 run only with `vr_flat_keys_own 0`.
+`flatkeys_test.sh` updated for 3 (was Q): 37/0; `flatmove_test.sh` 10/0, `flatcrouch_test.sh` 3/0. (In the vrtesthall
+pictures the slab over the first-person slide is a shells box the slide ran over and the off hand took: walked-over
+pickups.) Pictures: scratch/fm_pose.png (slide first person and from the side, the lean
+first person / front / behind, crouched), scratch/fm_slidefp.png (the slide's legs seen past the chest), scratch/fm_ads.png
+(ironsight leant, standing and crouched).
+
+**To try (desktop, -flatscreenmode):** run and hold Left Ctrl (slide, legs in front looking down), a ramp down (faster) and up
+(stops), jump out of a slide; Q / E at a doorway's edge, ironsight leant, lean into a wall (no clipping), a grunt shooting
+your leant head.
+
+## Hand motion source, and the flat-screen shove (branch `agent/flatinput`, 2026-11-07)
+
+**The bug.** On the flat screen the hands are posed from the view, so a fast mouse flick swings them (and what they hold)
+through the world as fast as a real swing: with `vr_flat_flick_test 144 40` (40 degrees a frame, yaw and half of it in
+pitch, the other way every three frames) an axe chopped a wall and a gib and played five blow swishes and sounds. Every
+gesture that fires on motion read that motion as the player's.
+
+**The layer** (`Quake/vr/vr_handsource.hpp`, `.cpp`): each frame every hand's motion has a source.
+- `Tracked`: a controller's. `Synthesized`: made by the game or derived from the camera (the flat-screen look, the wall
+  tilt, a lean, a slide, recoil). `Action`: the game's motion for an explicit button action that the gesture rules must
+  judge (flat-screen V's punch, the fire button's punch with a melee weapon).
+- `hands::update` calls `handsource::beginFrame(vrActive())` before the hands are placed: Tracked in the headset,
+  Synthesized on the flat screen. Whatever moves a hand calls `handsource::mark(h, Source::..., "why")` that frame,
+  before the move is built; the strongest mark wins (Action > Synthesized > Tracked). **Other features plug in here**:
+  lean, slide, wall tilt and recoil mark the hands they move as `Synthesized` (on the flat screen that is already the
+  base; in the headset it would turn gestures off for that frame, so mark only motion that is really made up).
+- `handsource::gestures(h)` is the one rule (Tracked or Action; `vr_handsource_gate 0` lets everything through, the old
+  way). The consumers ask it, nothing else:
+  - client: the super shotgun's flick reload and its pry/lift (`vr_flick.cpp`), the flashlight's flick
+    (`vr_flashlight.cpp`), the chainsaw's cord pull (`vr_chainsaw.cpp`);
+  - the move (`vr_client.cpp handMove`): a hand that fails it sends no velocity (`vel`, `ownVel`, `angVel`, `velMag`
+    zero; the throw's estimate stays: letting go is a button), so every server gesture that goes by the velocity sees a
+    still hand (the force grab's flick pull, the revolver's push, the reload's tosses and ejects, a crate burst by a
+    hand, a hand's hit reaction, projectiles inheriting the hand's speed);
+  - the move's new byte `handSynth` -> QC `.handsynth` (bits 1 off, 2 main), read by QC `VR_HandMotionTracked(p, hand)`
+    (`vr_util.qc`), the same rule for the server's detectors that go by the poses: `VR_Melee_Track` (every swing, slap,
+    bash and hand shove) and `VR_Revolver_Flick` (the cylinder's flick open and shut).
+- Buttons are untouched: V, the fire button's punch, reload, `+flickreload`, the eject button, the shove key.
+- `vr_handsource_debug 1` (Debug > Flatscreen Play) prints each hand's source as it changes.
+
+**The flat-screen shove** (mouse 5, `vr_flat_key_shove "mouse5"`; `vr_flat_shove_now` from the console): the headset's
+one-hand shove of an open palm, straight ahead of the body at chest height (QC `VR_FlatShove`, impulse 53 the off hand,
+54 the main): what it finds (`VR_Bash_Find`, its reach times `vr_flat_shove_reach`) is shoved by the same landing as a
+palm's push (`VR_Bash_Land`, split out of `VR_Bash` unchanged): stamina, a counter's window, the stagger and push, the
+sound, the cooldown. The engine draws the hand's push (out a third of `vr_flat_shove_time` 0.4 s, `vr_flat_shove_anim_reach`
+14 units ahead and in towards the middle) and sends the impulse as the hand reaches out; the push is synthesized motion,
+so the melee rules do not read it as a slap of its own. The hand: an empty one (the off hand first), else the off hand.
+Cvars (menu: Movement > Desktop Screen Play): `vr_flat_shove 1`, `vr_flat_shove_cooldown 0.8`, `vr_flat_shove_push 1`,
+`vr_flat_shove_reach 1`; also `vr_flat_shove_damage 1`, `vr_flat_shove_time 0.4`, `vr_flat_shove_anim_reach 14`.
+
+**Tests.** `bash Misc/quakevr/flatinput_test.sh <agent>` (14 checks, "flatinput: N passed, M failed"): 40-degree flicks
+with an axe at a grunt, the revolver, the super shotgun: no blow, swing out, eject, flick or pry; the same flicks with
+`vr_handsource_gate 0` do strike (the control); the axe walked into the wall's tilt and out: no blow; V's punch lands and
+is marked an action; two shoves land, a press within the cooldown does nothing; the mock headset's hands are never
+synthesized. The headset: the melee eval (eval.sh) and the revolver's `vr_rv_test 1`; the super shotgun's flick and pry
+by `Misc/quakevr/reload/reload_test.sh`.
+## Flat-screen wall: slide along, no ironsight tilted, no torch model (branch `agent/flatwall4`, 2026-11-07)
+
+His jitter: moving along a wall facing along it slightly away, then turning a little towards it. Repro `scratch/fw4_sweep.sh`
+(vrtesthall's south wall on the right; s: his box on it, the view turning 5 deg/s from 10 out to 50 in; w: walking along it
+from 10 out, turning 15 deg/s for 20 degrees; frame by frame the drawn gun's place and turn in the view: the new
+`flatwalldrawn:` and `flatslide:` lines under vr_flatplay_debug 2). Before (vr_flat_wall_slide 0): walking, the rifle went
+from level to 85 degrees up within 20 degrees of the wall (a frame's turn up to 75 deg; shotgun 70); standing, the rifle's
+turn stepped 30 deg in a frame (4.1 units), the shotgun's 6.3. Cause: gunBack's way back towards the shoulder runs nearly
+along a wall met at a slant (1/out: 10 units back for 1 in, and none past its leastOut 0.1), the walk-in's ahead probe the
+same, and the stop at the chest cut the room from 16 to 2.5 units within a degree, so the tilt came all at once.
+
+- **Slide along** (`vr_flat_wall_slide` 1, `_from` 15, `_to` 40 deg, `_time` 0.12 s; Flatscreen > Free Hands rows;
+  `slideFor`): the gun's level way against the wall's normal (gunDepth now hands back the deepest point's normal) gives a
+  share: 1 up to `_from`, smooth to 0 at `_to`, eased. With it the drawn gun turns level out of the wall (`flatTurn`, in
+  drawnTurn after the tilt: the least that clears, up to the share of parallel; a melee weapon never) and the way out leans
+  from the way back to the wall's level normal, its most up to 10 units (`slideOutMost`) past the chest stop. The wall
+  state's effects (fold, room, raise, the free hand's let-go, the elbow) are scaled by 1 - share. Head-on: as before.
+- Measured (rifle / shotgun): standing, turning in: a frame's step 0.49 / 0.39 units, turn 2.9 / 1.9 deg (before 4.1 / 1.9
+  units, 30 / 6.3 deg); it lies along the wall from about 25 deg in (where it first reaches the wall from his box) and tilts
+  up from about 33. Walking: turn 5.2 / 5.0 deg a frame (before 75 / 70); the place's 7.3 / 4.4 unit step is flatplay's
+  step sway (the velocity's change kicks the hands) as his box meets the wall: there before, slide off too, not changed.
+  Settled on the wall at yaw 5 to -50: every drawn point out (vr_gun_wall_depth 0.0 cm, on and off), the rifle keeps its
+  two-handed hold to 25 deg in (20 before).
+- **Block ADS** (`vr_flat_wall_block_ads` 1): adsApplies is false while the tilt up (`upAngle`: the drawn turn less the
+  level one) is over 5 deg; the key's ask is kept. vr_flat_wall_block_fire reads the same tilt up (laid along, it fires).
+- **Torch model** (`vr_flat_flashlight_hide` 1): flatscreen play hides the torch's entity after `place`; beam and light stay.
+- Tests: flatwall e (new: the turning sweep has no step, 0.49 units / 2.9 deg a frame; lies along before it tilts up; the
+  ironsight blocked tilted) 3/0, b-d all pass, flatsweep 383 passed, 27 known, 0 failed. flatwall a and flatsight a crash
+  on origin/next's base (`SV_ModelIndex: model progs/v_gruntgun.mdl#adv0 not precached`, vr_test_give_wid on a grunt gun,
+  slide off too): before it, flatwall a's 136 reads all out of the wall (0 over 2 cm), flatsight's 12 guns all on the ray
+  (0.0011 units at most); flatsight b-d pass. Pictures: `scratch/fw4_shots_off.png`,
+  `scratch/fw4_shots_on.png` (rifle at 0, 15, 25, 35 deg in).
+- Lean (agent/flatmove): the leaned eye and gun come in as flatplay poses them (`s.head`, `s.pos`, `s.rot`, the crosshair
+  ray); slideFor and pushBack read only those, so a leaned pose feeds the wall code with no change here.

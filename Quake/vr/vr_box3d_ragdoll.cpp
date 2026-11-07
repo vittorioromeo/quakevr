@@ -286,12 +286,114 @@ jobs::Site gunPrepSite{"box3d gun pieces ahead"}; // (prepareHeldGuns' parallelF
 struct GunPrepWork
 {
     const qmodel_t* model{nullptr};
+    char name[MAX_QPATH]{};          // its name as posted (the commit skips a model slot reused since)
     za::Vector<glm::vec3> triangles; // the model's own (held::modelTriangles: a held gun's key, -2)
     za::Vector<convex::Piece> pieces;
     convex::Report report;
     bool fromDisk{false};
 };
+
+// A held gun cut on the pool while the game goes on (prepareHeldGuns, vr_load_jobs 1), one job a gun: `work` is the
+// job's alone from the post until `done` is waited for; the main thread then adds it to gunShapes (commitGunPrep).
+struct GunPrepJob
+{
+    za::UniquePtr<za::Vector<GunPrepWork>> work; // (one gun)
+    int most{0};
+    double posted{0.0};
+    jobs::Future<void> done;
+};
+za::Vector<GunPrepJob> gunPrepPending; // main thread only
+
+void cutGunPrep(za::Vector<GunPrepWork>& work, const convex::Settings& settings)
+{
+    const auto cutOne = [&](za::SizeT i) {
+        work[i].fromDisk = cutGun(work[i].triangles, settings, work[i].pieces, work[i].report, work[i].name);
+    };
+    if(vr_gun_pieces_cache.value >= 2.f) // (Check: it prints on a difference)
+    {
+        for(za::SizeT i = 0; i < work.size(); i++)
+        {
+            cutOne(i);
+        }
+    }
+    else
+    {
+        jobs::parallelFor(gunPrepSite, work.size(), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT i = begin; i < end; i++)
+            {
+                cutOne(i);
+            }
+        });
+    }
+}
+
+// The cut guns into gunShapes under the key a hand holding one asks for (main thread). A model already there (cut at a
+// pickup that did not wait: none, gunPieces joins first) or whose slot now holds another model is skipped.
+void commitGunPrep(za::Vector<GunPrepWork>& work, int most, const char* list, double ms)
+{
+    int read = 0;
+    for(GunPrepWork& w : work)
+    {
+        const PropHullKey key{w.model, -2, {}};
+        if(strcmp(w.model->name, w.name) != 0 || za::anyOf(gunShapes.entries.begin(), gunShapes.entries.end(),
+            [&](const GunShapeCache::Entry& e) { return e.key == key && e.most == most; }))
+        {
+            continue;
+        }
+        GunShapeCache::Entry entry{key, most, static_cast<int>(gunShapes.pieceEnds.size()), 0, {}};
+        for(const convex::Piece& piece : w.pieces)
+        {
+            gunShapes.points.emplaceBackRange(piece.points.data(), piece.points.size());
+            gunShapes.pieceEnds.pushBack(static_cast<int>(gunShapes.points.size()));
+        }
+        entry.pieces = static_cast<int>(w.pieces.size());
+        entry.report = w.report;
+        gunShapes.entries.pushBack(entry);
+        read += w.fromDisk ? 1 : 0;
+        if(developer.value) // (its pieces' points as one number: vr_load_jobs 0 and 1 give the same)
+        {
+            za::U64 hash = 0xcbf29ce484222325ull;
+            for(const convex::Piece& piece : w.pieces)
+            {
+                const auto* bytes = reinterpret_cast<const unsigned char*>(piece.points.data());
+                for(size_t k = 0; k < piece.points.size() * sizeof(glm::vec3); k++)
+                {
+                    hash = (hash ^ bytes[k]) * 0x100000001b3ull;
+                }
+            }
+            Con_DPrintf("box3d: held gun %s: %d pieces, points hash %016llx\n", w.name, static_cast<int>(w.pieces.size()),
+                static_cast<unsigned long long>(hash));
+        }
+    }
+    Con_DPrintf("box3d: %d held guns' pieces ready in %.1f ms (%d read from the disk, %d cut):%s\n",
+        static_cast<int>(work.size()), ms, read, static_cast<int>(work.size()) - read, list);
+}
 } // namespace
+
+// The held guns cut on the pool (prepareHeldGuns, vr_load_jobs 1) added to gunShapes: those done, and `model`'s (or
+// every one: `all`) waited for (each world step: none waited for; a gun's pieces asked for, gunPieces: its own; the
+// world's end: all).
+void joinHeldGuns(const qmodel_t* model, bool all)
+{
+    for(za::SizeT i = 0; i < gunPrepPending.size();)
+    {
+        GunPrepJob& j = gunPrepPending[i];
+        const bool mine = all || (model && (*j.work)[0].model == model);
+        if(!mine && !j.done.ready())
+        {
+            i++;
+            continue;
+        }
+        const double t0 = Sys_DoubleTime();
+        j.done.wait();
+        VR_TimeAdd("box3d: held guns' pieces cut on the pool, waited for", Sys_DoubleTime() - t0); // (load timing)
+        const GunPrepWork& w = (*j.work)[0];
+        char list[MAX_QPATH + 2];
+        q_snprintf(list, sizeof(list), " %s", w.name);
+        commitGunPrep(*j.work, j.most, list, (Sys_DoubleTime() - j.posted) * 1000.0);
+        gunPrepPending.erase(gunPrepPending.begin() + i);
+    }
+}
 
 // The held guns of every weapon the map can give made at its load (QC's VR_GunPrep_Models lists their models: the
 // weapons lying about, its monsters' drops, backpacks, the players' hands and holsters): each one's convex pieces read
@@ -366,12 +468,15 @@ void prepareHeldGuns()
         const bool made = za::anyOf(gunShapes.entries.begin(), gunShapes.entries.end(),
             [&](const GunShapeCache::Entry& e) { return e.key == key && e.most == most; });
         const bool queued = za::anyOf(work.begin(), work.end(), [&](const GunPrepWork& w) { return w.model == model; });
-        if(made || queued)
+        const bool posted = za::anyOf(gunPrepPending.begin(), gunPrepPending.end(),
+            [&](const GunPrepJob& j) { return j.most == most && (*j.work)[0].model == model; });
+        if(made || queued || posted)
         {
             continue;
         }
         GunPrepWork one;
         one.model = model;
+        q_strlcpy(one.name, model->name, sizeof(one.name));
         if(held::modelTriangles(model, false, one.triangles)) // (the main thread: it reads the model's cache)
         {
             work.pushBack(ZA_MOVE(one));
@@ -383,43 +488,29 @@ void prepareHeldGuns()
     }
     convex::Settings settings;
     settings.maxPieces = most;
-    const auto cutOne = [&](za::SizeT i) {
-        work[i].fromDisk = cutGun(work[i].triangles, settings, work[i].pieces, work[i].report, work[i].model->name);
-    };
-    if(vr_gun_pieces_cache.value >= 2.f) // (Check: it prints on a difference)
+    // vr_load_jobs 1: each gun cut on the pool while the first frames go on (vrfiringrange's first load waited ~0.5 s
+    // here), added at a later world step once done, or when a hand asks for that gun (joinHeldGuns: it waits for that
+    // one alone): the same pieces. The Check mode (vr_gun_pieces_cache 2) and vr_load_jobs 0 cut them here, as before.
+    if(vr_load_jobs.value != 0.f && vr_gun_pieces_cache.value < 2.f && jobs::pool())
     {
-        for(za::SizeT i = 0; i < work.size(); i++)
+        for(GunPrepWork& w : work)
         {
-            cutOne(i);
+            GunPrepJob j;
+            j.work = za::makeUnique<za::Vector<GunPrepWork>>();
+            j.work->pushBack(ZA_MOVE(w));
+            j.most = most;
+            j.posted = Sys_DoubleTime();
+            za::Vector<GunPrepWork>* raw = j.work.get();
+            j.done = jobs::async([raw, settings] { cutGunPrep(*raw, settings); });
+            gunPrepPending.pushBack(ZA_MOVE(j));
         }
+        VR_TimeAdd("box3d: the map's held guns' pieces (prepareHeldGuns)", Sys_DoubleTime() - t0); // load timing (vr_startup_times)
+        return;
     }
-    else
-    {
-        jobs::parallelFor(gunPrepSite, work.size(), 1, [&](za::SizeT begin, za::SizeT end) {
-            for(za::SizeT i = begin; i < end; i++)
-            {
-                cutOne(i);
-            }
-        });
-    }
-    int read = 0;
-    for(GunPrepWork& w : work)
-    {
-        GunShapeCache::Entry entry{PropHullKey{w.model, -2, {}}, most, static_cast<int>(gunShapes.pieceEnds.size()), 0, {}};
-        for(const convex::Piece& piece : w.pieces)
-        {
-            gunShapes.points.emplaceBackRange(piece.points.data(), piece.points.size());
-            gunShapes.pieceEnds.pushBack(static_cast<int>(gunShapes.points.size()));
-        }
-        entry.pieces = static_cast<int>(w.pieces.size());
-        entry.report = w.report;
-        gunShapes.entries.pushBack(entry);
-        read += w.fromDisk ? 1 : 0;
-    }
+    cutGunPrep(work, settings);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
+    commitGunPrep(work, most, list, ms);
     VR_TimeAdd("box3d: the map's held guns' pieces (prepareHeldGuns)", ms / 1000.0); // load timing (vr_startup_times)
-    Con_DPrintf("box3d: %d held guns' pieces ready in %.1f ms (%d read from the disk, %d cut):%s\n",
-        static_cast<int>(work.size()), ms, read, static_cast<int>(work.size()) - read, list);
 }
 
 // QC's VR_Knockdown_MakeRoom for `ent` (a ragdoll retired, a knockdown ended): whether a ragdoll may be made now. Its

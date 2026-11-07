@@ -9,7 +9,9 @@
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_handpose.hpp"
+#include "vr_handsource.hpp"
 #include "vr_main.hpp"
 #include "vr_motion.hpp"
 #include "vr_throw.hpp"
@@ -796,6 +798,17 @@ void placeFlat(const glm::vec3& aim, float yaw)
         state.head[2] -= crouchDown;
         state.headHeight = vr_height_calibration.value - crouchDown / units::metresToUnits();
     }
+    // Leaning (Q / E, vr_flatmove.cpp): his head moved sideways and a little down as it swings, and the body's lean
+    // toward it (the trunk tilts from the hips: vr_avatar.cpp solveTorso, as a headset player's lean). The hands, the
+    // crosshair's ray, the ironsight and the wall's tilt all stand on this head, so they lean with it.
+    const glm::vec3 leanShift = flatmove::leanShift();
+    if(leanShift != glm::vec3{0.f})
+    {
+        state.head += leanShift;
+        state.headHeight += leanShift.z / units::metresToUnits();
+        state.lean = glm::vec3{leanShift.x, leanShift.y, 0.f};
+        state.leanHold = 1.f;
+    }
 
 
     const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
@@ -884,6 +897,9 @@ void update()
     // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
     easeStairs(player);
 
+    // Each hand's motion: a controller's in the headset, made up on the flat screen; whatever moves a hand on top marks
+    // it while it is placed (vr_handsource.hpp).
+    handsource::beginFrame(vrActive());
     if(vrActive())
     {
         placeTracked(t, m2u, seatedLift);

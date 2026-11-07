@@ -853,6 +853,7 @@ void syncEntities(float dt)
     }
     watchCorpses();
     settleCorpses();
+    joinHeldGuns(nullptr, false); // (the guns cut on the pool since: added once done)
     if(const int loadout = heldLoadout(); !world->gunsPrepared || loadout != world->gunsLoadout)
     {
         // (The player's hands and holsters are filled as it enters the map, after this first frame: made again then.)

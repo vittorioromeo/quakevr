@@ -150,6 +150,19 @@ struct Pending
 };
 Pending pending;
 
+// The folders lookups look in (each loose search path, each pak's own folder), by identity (DirId): a file written
+// outside all of them can't be any lookup's file, and forgets nothing. The derived-data cache's files (<basedir>/cache,
+// or vr_cache_dir: hundreds written by the workers while a map's first load runs) used to forget, each, every listing of
+// a folder that wasn't there and the misses the file might have been (a scan of every miss on the main thread): 0.5-0.9 s
+// of a map's first load (loadjobs, 2026-11-07). Added to by the main thread (addRoots: each window's start, each change
+// of the search paths, each VR_FileCacheForget), never taken from (a superset is safe); read by any thread, locked.
+struct Roots
+{
+    za::AtomicMutex lock;
+    za::Vector<DirId> ids;
+};
+Roots roots;
+
 #ifdef _WIN32
 constexpr bool caseInsensitive = true; // Windows' file names: the same file whatever the case (ASCII here)
 #else
@@ -324,6 +337,78 @@ void forget(const DirId& id, za::StringView path)
     forgetMisses(path);
 }
 
+// The search paths' folders added to the roots (main thread: com_searchpaths is its).
+void addRoots()
+{
+    za::Vector<DirId> found;
+    char dir[MAX_OSPATH];
+    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    {
+        DirId id;
+        const char* d = s->pack ? (parentOf(s->pack->filename, dir) ? dir : nullptr) : s->filename;
+        if(d && dirIdentity(d, id))
+        {
+            found.pushBack(id);
+        }
+    }
+    za::LockGuard guard{roots.lock};
+    for(const DirId& id : found)
+    {
+        bool have = false;
+        for(const DirId& r : roots.ids)
+        {
+            have = have || r == id;
+        }
+        if(!have)
+        {
+            roots.ids.pushBack(id);
+        }
+    }
+}
+
+// Whether the folder `dir` (a written file's) is a root or inside one, by its identity and its parents' named up to
+// its volume's root (a junction on the way is followed: its target's identity). True when it can't be told (no roots
+// yet, a folder not opened, a relative name's top). Any thread.
+[[nodiscard]] bool underRoots(const char* dir)
+{
+    char cur[MAX_OSPATH], up[MAX_OSPATH];
+    if(q_strlcpy(cur, dir, sizeof(cur)) >= sizeof(cur))
+    {
+        return true;
+    }
+    {
+        za::LockGuard guard{roots.lock};
+        if(roots.ids.empty())
+        {
+            return true;
+        }
+    }
+    for(int depth = 0; depth < 64; depth++)
+    {
+        DirId id;
+        if(!*cur || !dirIdentity(cur, id))
+        {
+            return true;
+        }
+        {
+            za::LockGuard guard{roots.lock};
+            for(const DirId& r : roots.ids)
+            {
+                if(r == id)
+                {
+                    return true;
+                }
+            }
+        }
+        if(!parentOf(cur, up) || !strcmp(up, cur))
+        {
+            return false; // (the volume's root, not a root's folder nor in one)
+        }
+        memcpy(cur, up, sizeof(cur));
+    }
+    return true;
+}
+
 void takePendingRun();
 
 // What other threads asked (the main thread's, before a lookup); outside a window, of the kept ones.
@@ -349,6 +434,7 @@ void takePendingRun()
     }
     if(forgetAsked.exchangeSeqCst(false))
     {
+        addRoots(); // (a folder made: maybe a search path's, not there before)
         dirs.clear();
         clearMisses();
         window++;
@@ -412,6 +498,10 @@ extern "C" void VR_FileCacheEnable(int on)
         owner = za::ThisThread::getId();
     }
     takePending(); // (what other threads asked, of the state as it is; all listed afresh from now on)
+    if(za::ThisThread::getId() == owner)
+    {
+        addRoots();
+    }
     const bool was = enabled.loadSeqCst();
     enabled.storeSeqCst(on != 0);
     if(on)
@@ -485,6 +575,7 @@ extern "C" void VR_FileCacheForget()
         forgetAsked.storeSeqCst(true); // a file written on another thread (a background save, an add-on's install): the main
         return;             // thread's next lookup forgets the listings
     }
+    addRoots(); // (a folder made: maybe a search path's, not there before)
     dirs.clear();
     clearMisses();
     window++;
@@ -501,6 +592,7 @@ extern "C" void VR_FileCacheSearchChanged()
         missesForgetAsked.storeSeqCst(true);
         return;
     }
+    addRoots();
     clearMisses();
     kept.misses.clear(); // (in a derived load's window: the window's)
 }
@@ -541,6 +633,10 @@ extern "C" void VR_FileCacheForgetFile(const char* path)
     {
         VR_FileCacheForget();
         return;
+    }
+    if(!underRoots(dir))
+    {
+        return; // (no lookup's: the derived-data cache's files, written by the workers while a map loads)
     }
     za::String folded;
     if(!missPath(path, folded))
@@ -699,6 +795,17 @@ void testCommand()
     check(miss("fscache_test/n.tmp"), "another miss kept");
     check(write(other + "/n.tmp") && miss("fscache_test/n.tmp") && !COM_FileExists("fscache_test/n.tmp", nullptr),
         "a miss kept when a file of its name is written in another directory");
+    {
+        // outside every search path's folder (the derived-data cache's): nothing forgotten (roots)
+        const za::String outsideTop = qvr::files::baseCacheDir() + "/fscache_test";
+        const za::String outside = outsideTop + "/fscache_test";
+        qvr::files::createDirectories(outside.cStr()); // (folders made: every listing and miss forgotten)
+        check(!COM_FileExists("fscache_test/n.tmp", nullptr) && miss("fscache_test/n.tmp") && listed(root),
+            "the miss noted again, the listing made again");
+        check(write(outside + "/n.tmp") && miss("fscache_test/n.tmp") && listed(root),
+            "a miss and a listing kept when a file of its name is written outside every search path's folder");
+        qvr::files::removeAll(outsideTop.cStr());
+    }
     check(!COM_FileExists("fscache_test/d.tmp", nullptr), "a miss of a file another thread writes");
 
     check(write(root + "/c.tmp") && has(root + "/c.tmp") == 1 && has(other + "/c.tmp") == 0, "a file to move");

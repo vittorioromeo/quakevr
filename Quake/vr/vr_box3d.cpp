@@ -554,6 +554,7 @@ void updateSettings()
 }
 void destroyWorld()
 {
+    joinHeldGuns(nullptr, true); // (no cut left running past its world: gunShapes is the session's)
     if(!world)
     {
         return;

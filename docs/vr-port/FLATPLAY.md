@@ -92,12 +92,14 @@ console.
 |---|---|
 | mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
 | mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) |
-| `Q` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `q`; `""` none). Q was bound to nothing before |
+| `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now `R`) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
+| `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
-| `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` Ã¢â€ â€™ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
+| `R` | force-grabs what the view is pointed at, with the free hand (`impulse 46` Ã¢â€ â€™ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and R does nothing. The key is `vr_flat_key_grab` (default `r`; `""` none). |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
+| Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` â†’ `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
@@ -191,6 +193,52 @@ in a frame, twice: the crouch "instant" in his note). `hull::localEyeCap` answer
 **Gun Down Crouched** (`vr_flat_gun_down_crouch`, 0) and **Gun Forward Crouched** (`vr_flat_gun_ahead_crouch`, 16.5).
 `vr_flat_crouch_trace N` (Debug > Tests > Flat Crouch Trace) prints the drawn eye's and the main hand's height for N frames
 and the biggest step each took against what the ease allows; `Misc/quakevr/flatcrouch_test.sh`.
+
+**The keys the mode reads, and an old config's binds.** The mode reads its keys itself (above), so a bind on the
+same key ran as well: an old config's `bind e +moveup` swam up as E leant, `bind 3 "impulse 3"` picked the third
+weapon as 3 swapped the hands. While the mode runs, `Key_Event` (`Quake/keys.c`) skips the bind of a key the mode
+reads (`VR_FlatKeyOwned`, `vr_flatmove.cpp`: the leans, swap, grab, prone, bullet time, F, G and V), so an old
+config works as it is and nothing in it needs changing; outside the mode, and in a headset, the binds run as ever.
+`vr_flat_keys_own 0` (VR Settings > Locomotion, Desktop Screen Play > Desktop Keys Only Do Theirs) lets them run too.
+`bind e +moveup` is gone from the default binds (`Quake/default_cfg.h`, `quakevr/default.cfg`): jump swims up.
+
+**Sliding.** Crouching (Left Ctrl) while running faster than `vr_flat_slide_min` (220 u/s; a walk is 200, the run
+320) along the floor starts a slide, Apex Legends' way: the speed boosted by `vr_flat_slide_boost` (60), then no walk
+and no ground friction but the slide's own, `vr_flat_slide_friction` (260 u/s a second: from the run about a second
+and 230 units); down a slope it gains `vr_flat_slide_slope` (900) times the slope's sine (over the friction from about
+17 degrees: faster), up to `vr_flat_slide_max` (560); up a slope it loses the same and stops. Under `vr_flat_slide_end`
+(130) it ends in the crouch it is; letting go of the crouch ends it standing; a jump in it keeps the speed (Quake's
+air move), and a ledge it runs off goes on sliding when he lands. The move keys turn it `vr_flat_slide_steer` (40)
+degrees a second. After one, `vr_flat_slide_cooldown` (0.5 s) before the next. The server runs it
+(`VR_FlatSlideMove`, from `SV_AirMove`, `Quake/sv_user.c`), from the move's crouch bit (`hull::flatCrouchHeld`); his
+box is the crouched one the key gives. On the ground means Quake's flag or the floor within 4 units and not going up:
+fast over the floor the flag is off every other move. The client reads the local server's slide: his eyes go
+`vr_flat_slide_drop` (6) further down than the crouch (`flatplay::crouchDrop`), and the body's pitch
+(`vr_avatar_pitch.cpp`) leans the trunk back `vr_flat_slide_body_angle` (45) about a neck `vr_flat_slide_neck_back` (10)
+behind the eye, straight like lying down's, the chest's share of the look off, the legs out in front along the floor
+(`vr_avatar_legs.cpp`, `BodyPitch::sliding`), eased over `vr_flat_slide_body_time` (0.2 s): looking down he sees his
+legs past his chest. All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play >
+Slide) turns it off. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`).
+
+**Leaning.** Q and E (Prey's, Rainbow Six Siege's) lean the view, the weapon and the body sideways round a corner:
+the eye moves `vr_flat_lean_dist` (16) units out and, swinging round a point `vr_flat_lean_pivot` (30) under it, a
+little down (4.6 at the defaults), the view rolls `vr_flat_lean_angle` (15) degrees, over `vr_flat_lean_time`
+(0.18 s) each way. It is the pose's head that moves (`vr_hands.cpp` placeFlat, from `flatmove::leanShift`), with the
+body's lean toward it (`hands::State::lean`: the trunk tilts from the hips as a headset player's does), and the drawn
+view by the same (`VR_FlatViewLean`, `Quake/view.c`): the hands, the crosshair's ray, the ironsight and the wall's
+tilt (`vr_flatsight.cpp`) all stand on that head, so the gun leans out with the eye and a wall's tilt is measured
+from the leant pose (shooting round a corner the unleant gun would be raised at). The roll is the drawn view's, which
+the drawn hands keep (flatplay's drawnOffset), so the weapon rolls with the camera and the ironsight's sights stay
+on the crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched). Three lines sideways from
+the eye, under it and from where the weapon is ahead stop the lean `vr_flat_lean_margin` (6) short of a wall: the eye
+never goes in, at once, and comes back out at the lean's speed. Standing and crouched; not lying down, sliding,
+swimming or dead (it straightens). Walking leant is `vr_flat_lean_speed` (0.6) of the speed (`VR_FlatMoveScale`,
+`Quake/cl_input.c`). The server meets shots and missiles with the leant upper body: two boxes, the head and the
+chest half way to the hips, out of his box (`VR_LeanHitBoxes`; `SV_ClipToLeanBoxes`, `Quake/world.c`, after the
+entities: a shot's, a missile's or a point's trace, never a body's move), so a grunt can shoot the head round the
+corner; his box against the world is unchanged, and his own shots pass them. `vr_flat_lean_hit 0`: his box only.
+`vr_flat_lean 0` (Desktop Screen Play > Lean) turns it off, `vr_flat_lean_toggle 1` makes the keys toggles; the rest
+is in Debug > Tunables > Flatscreen > Lean. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatlean_test`).
 
 **Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
 looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge
@@ -436,6 +484,19 @@ crosshair, and the view puts the two-handed hotspot it placed on the tilted gun 
 this share of the screen's height above its bottom edge comes up (the view's up, at most 12 units, never into a ceiling) until
 it is there, and the way back is found again from there: pulled back at a wall, a pistol sat under the status bar. Long guns
 already reach higher and don't move. Less looking down past 20 degrees, none by 50. 0: off.
+
+**Wall: Slide Along** (`vr_flat_wall_slide`, 1), **Slide Up To** (`vr_flat_wall_slide_from`, 15 deg), **Back And Up From**
+(`vr_flat_wall_slide_to`, 40 deg), **Slide Ease** (`vr_flat_wall_slide_time`, 0.12 s): a hipfire weapon meeting a wall at a
+slant lies flat along it: the drawn gun turns level out of the wall (the least that clears it, up to parallel; drawn only,
+the shots still go through the crosshair, and it fires) and goes out along the wall's normal (at most 10 units) instead of
+back towards the shoulder. The share is a smooth curve of the angle between the gun and the wall (all of it up to Slide Up
+To, none from Back And Up From) and eases over Slide Ease; the wall state (the arm's fold, the room, the raise, the free
+hand letting go) only comes with the rest of the share, so met head-on it goes back and tilts up as before. A melee weapon
+only goes out, never turns. 0: off (as before).
+
+**Wall: No Ironsight Tilted** (`vr_flat_wall_block_ads`, 1): while the gun stands tilted up at a wall (more than 5 degrees)
+the ironsight waits; the key's ask is kept and it comes on once the gun is down. **Hide Torch Model**
+(`vr_flat_flashlight_hide`, 1): the torch worn at the eyes is not drawn; its beam and light are.
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

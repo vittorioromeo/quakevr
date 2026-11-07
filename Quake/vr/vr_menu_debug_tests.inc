@@ -661,6 +661,19 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flat_crouch_trace 90 (-flatscreenmode only): crouches 40 frames and stands, printing the view's and "
                   "the main hand's height each frame, then the biggest step either took against what Crouch Time and "
                   "Crouch Ease allow (flatcrouch: lines, PASS or FAIL)."),
+        command("Flat Slide: Self-Test", "vr_flatslide_selftest")
+            .help("vr_flatslide_selftest: the slide's step on made-up floors -- level friction, downhill up to the top speed, "
+                  "uphill to a stop (flatslide_selftest: lines, a verdict)."),
+        command("Flat Slide: Run And Slide", "+forward; vr_flatslide_test")
+            .help("vr_flatslide_test (-flatscreenmode only, open level ground ahead, cl_alwaysrun 1): runs you forward, "
+                  "crouches at full speed (a slide), lets go, slides again and jumps in it (flatslide: lines, a verdict). "
+                  "Let go of +forward after (-forward)."),
+        command("Flat Lean Test", "vr_flatlean_test")
+            .help("vr_flatlean_test (-flatscreenmode only, room ahead and a wall at a side): leans right (the eye, the roll, "
+                  "a shot across the leant head), walks leant and upright, then leans into the nearer wall (flatlean: "
+                  "lines, a verdict). It moves you with setpos (noclip on: noclip again to walk)."),
+        command("Flat Lean / Slide Status", "vr_flatmove_status")
+            .help("vr_flatmove_status: the lean's share, the eye's move and the roll, whether you slide and its pose."),
         command("Flat Keys", "vr_flatkeys_test 1")
             .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
                    "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "

@@ -520,6 +520,17 @@ float(entity xPlayer) VR_FlatPlay =
     return xPlayer.vr_flatscreen != 0;
 };
 
+// Whether hand `xHand` of `p` moved itself this move: a controller, or a button's action played as a motion (flatscreen
+// V's punch). Not when its motion is synthesized (.handsynth, the engine's vr_handsource.cpp: the flatscreen hands
+// following the look, a lean, the wall tilt). The one rule a motion-triggered gesture asks (VR_Melee_Track,
+// VR_Revolver_Flick); the engine sends such a hand with no velocity too, for the gestures that go by it.
+float VR_HANDSYNTH_OFF = 1;
+float VR_HANDSYNTH_MAIN = 2;
+float(entity p, float xHand) VR_HandMotionTracked =
+{
+    return !(p.handsynth & (xHand == cVR_MainHand ? VR_HANDSYNTH_MAIN : VR_HANDSYNTH_OFF));
+};
+
 float(entity ent) VRIsWeaponReloadingEnabled =
 {
     // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it

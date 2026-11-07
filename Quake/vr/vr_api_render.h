@@ -280,6 +280,15 @@ int VR_SkinReliefWanted (const char *model);				// VR_LoadSkinNormalMaps: nonzer
 void VR_SkinReliefBegin (const void *hdr, const void *stverts, const void *triangles, const void *frames); // ... its units per texel, from its first frame
 void VR_SkinReliefEnd (void);
 unsigned char *VR_SkinRelief (struct gltexture_s *glt, unsigned char *data); // TexMgr_LoadImage32: the map made from the skin's RGBA (hunk; glt's size set)
+// A map load's work on the job threads (vr_load_jobs; vr_normalmaps.cpp "VR_SkinNormalsPost"): a skin's normal map
+// made on a job, uploaded at the join (TexMgr_CommitNormalMap, gl_texmgr.c). Main thread, all of them.
+int VR_LoadJobsOn (void);			// vr_load_jobs: 0 every step on the main thread (the reference: the same results)
+void VR_LoadJobsJoin (void);		// every job's result committed (SCR_UpdateScreen before drawing; reloads, dumps)
+int VR_SkinNormalsPost (struct gltexture_s *glt, const unsigned char *data, int kind, int worldwidth); // 1: posted (glt not uploaded)
+void VR_SkinNormalsSetBase (struct gltexture_s *glt, struct gltexture_s *base); // ... its skin, set at the commit
+void VR_SkinNormalsForget (struct gltexture_s *glt); // a texture freed: its posts waited for and dropped
+void VR_SkinNormalsDrop (void);		// the game's shutdown: every post waited for and dropped
+void TexMgr_CommitNormalMap (struct gltexture_s *glt, struct gltexture_s *base, unsigned char *data); // gl_texmgr.c: uploaded, base's normal map
 void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
 	unsigned char *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
 void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,

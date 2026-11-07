@@ -2230,6 +2230,8 @@ void SCR_UpdateScreen (void)
 	if (!scr_initialized || !con_initialized)
 		return;				// not initialized yet
 
+	VR_LoadJobsJoin (); // QVR: the load's work on the job threads committed before anything is drawn (vr/vr_normalmaps.cpp)
+
 	if (VR_SkipScreen ()) // QVR: a test run's unpaced frames, not drawn (vr_mock_fast 2): the view set up alone
 	{
 		// The console forced down as SCR_SetUpToDrawConsole decides it (not called here): else it keeps the last drawn

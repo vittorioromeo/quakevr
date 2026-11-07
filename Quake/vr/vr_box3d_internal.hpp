@@ -942,6 +942,9 @@ struct GunPiecesDisk
 inline GunPiecesDisk gunPiecesDisk;
 [[nodiscard]] bool cutGun(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings,
     za::Vector<convex::Piece>& pieces, convex::Report& report, const char* name);
+// prepareHeldGuns' cuts on the pool (vr_load_jobs 1) added to gunShapes: those done, and `model`'s or (`all`) every
+// one waited for (vr_box3d_ragdoll.cpp; each world step, a gun's pieces asked for, the world's end).
+void joinHeldGuns(const qmodel_t* model, bool all);
 
 // A gun in convex pieces that follow its drawn shape (vr_convex.hpp: its shell port, its well, the gaps between its
 // parts left open; one hull spanned them, and a round lying on it rested on air), from its drawn triangles (`corners`,
@@ -975,6 +978,7 @@ template <typename Corners>
         return world->gunPieces.emplace(key, ZA_MOVE(hulls)).first->second;
     }
     // Made once a session (gunShapes), its hulls once a world (in metres).
+    joinHeldGuns(key.model, false); // (this gun still being cut on the pool: waited for, not cut again here)
     const GunShapeCache::Entry* made = nullptr;
     for(const GunShapeCache::Entry& e : gunShapes.entries)
     {

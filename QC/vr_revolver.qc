@@ -705,6 +705,14 @@ float vr_rv_rollmax; // (the fastest roll seen, signed: the tests reset it)
 float vr_rv_turnrate; // how fast the hand turns now, about any axis (degrees a second; VR_Revolver_Push)
 float(entity h, float xHand) VR_Revolver_Flick =
 {
+    // A hand moved by the game (VR_HandMotionTracked: the flatscreen look, the wall tilt) flicks nothing, and its turn
+    // meanwhile is no flick's either.
+    if(!VR_HandMotionTracked(self, xHand))
+    {
+        h.rvh_upok = FALSE;
+        vr_rv_rollrate = vr_rv_turnrate = 0;
+        return VR_Revolver_FlickRate(h, 0, frametime);
+    }
     // (From the hand's turn since the last frame: how far its up swung about its aim towards its left, or its right in the
     // off hand: the cylinder's side. The hand as tracked, as its gun is drawn.)
     makevectors(VRGetEntHandRot(self, xHand));

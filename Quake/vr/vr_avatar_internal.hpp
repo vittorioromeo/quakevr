@@ -209,6 +209,7 @@ enum class PitchSource : int
     None,
     Swim,  // fully under water, off the bottom (vr_body_swim_tilt)
     Prone, // lying down (vr_prone: the server's box, vr_hull.cpp isProne), the legs on the floor behind
+    Slide, // flat-screen sliding (vr_flat_slide: vr_flatmove.cpp), the trunk leant back, the legs out in front
 };
 
 struct BodyPitch
@@ -225,6 +226,12 @@ struct BodyPitch
     float lying{0.f};
     float lyingFrom{0.f}; // 1 once lying down set the angle, 0 once swimming did (the share above keeps to its source)
     float lyingAngle{90.f}; // degrees lying down's target was, last (the share's full)
+    // Sliding's share (flat-screen play's slide, vr_flat_slide_body_angle: a negative angle, the trunk leant back about
+    // the neck so the hips come forward), kept like lying down's: solveTorso straightens the trunk by it, solveLeg lays
+    // the legs out in front along the floor.
+    float sliding{0.f};
+    float slidingFrom{0.f};
+    float slidingAngle{45.f};
     // Swimming's inputs, as last seen (vr_body_pitch prints them).
     int waterlevel{0};
     bool onGround{false};
