@@ -19,6 +19,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_geom.hpp"
 #include "vr_hull.hpp"
 #include "vr_ledges.hpp"
@@ -167,7 +168,7 @@ void bodyPitch_f()
     const BodyPitch& p = bodyPitch;
     Con_Printf("body_pitch: angle %.2f target %.2f rate %.2f source %s waterlevel %d ground %d ledge %.1f frames %u "
                "lying %.2f\n",
-        p.angle, p.target, p.rate, p.source == PitchSource::Swim ? "swim" : p.source == PitchSource::Prone ? "prone" : "none",
+        p.angle, p.target, p.rate, p.source == PitchSource::Swim ? "swim" : p.source == PitchSource::Prone ? "prone" : p.source == PitchSource::Slide ? "slide" : "none",
         p.waterlevel, p.onGround ? 1 : 0, p.ledgeDist, p.updates, p.lying);
     // vr_body_pitch <range>: also the nearest ledge out of the water within that many units of the eyes (finding one).
     if(Cmd_Argc() >= 2)
@@ -401,13 +402,34 @@ void updateBodyPitch(const hands::State& s, float dt)
     {
         p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f); // getting up: lying down's own time
     }
+    // Sliding (flat-screen play, vr_flatmove.cpp): the trunk leant back vr_flat_slide_body_angle about the neck, so the
+    // hips come forward under the lowered eyes and the legs go out in front along the floor (solveLeg).
+    if(flatplay::active() && flatmove::sliding() && !swimming && !lying)
+    {
+        p.target = -CLAMP(0.f, vr_flat_slide_body_angle.value, 80.f);
+        p.source = PitchSource::Slide;
+        p.easeTime = CLAMP(0.05f, vr_flat_slide_body_time.value, 1.f);
+        p.slidingFrom = 1.f;
+        p.slidingAngle = za::max(10.f, -p.target);
+        p.lyingFrom = 0.f;
+    }
+    else if(p.slidingFrom > 0.f)
+    {
+        p.easeTime = CLAMP(0.05f, vr_flat_slide_body_time.value, 1.f); // up out of it: the slide's own time
+        if(swimming || lying)
+        {
+            p.slidingFrom = 0.f;
+        }
+    }
     easePitch(p.angle, p.rate, p.target, p.easeTime, dt);
     if(p.target == 0.f && za::abs(p.angle) < 0.01f && za::abs(p.rate) < 0.01f)
     {
         p.angle = p.rate = 0.f; // settled upright: exactly as without it
         p.lyingFrom = 0.f;
+        p.slidingFrom = 0.f;
     }
     p.lying = p.lyingFrom * CLAMP(0.f, p.angle / p.lyingAngle, 1.f);
+    p.sliding = p.slidingFrom * CLAMP(0.f, -p.angle / p.slidingAngle, 1.f);
 }
 
 } // namespace detail

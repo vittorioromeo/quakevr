@@ -585,6 +585,16 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     // little forward).
     const float climbW = climbing.weight;
     const ClimbFoot& cf = climbing.feet[side];
+    // Sliding (flat-screen play, BodyPitch::sliding): the legs out in front along the floor, the feet down on it a little
+    // apart, the knees up a little; no steps.
+    const float sliding = bodyPitch.sliding * (1.f - swim);
+    if(sliding > 1e-3f)
+    {
+        glm::vec3 out = t.pos + b.fwd * ((a + l) * 0.93f) + outward * (0.08f * (a + l));
+        out.z = footZ;
+        target = glm::mix(target, out, sliding);
+        kneeDir = safeNormalize(glm::mix(kneeDir, UP + b.fwd * 0.3f, sliding), b.fwd);
+    }
     if(climbW > 1e-3f)
     {
         target = glm::mix(target, cf.now, climbW);
@@ -595,7 +605,7 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take, and (vr_bodytrack_legs_walk)
     // what the walk, the run and the air take: moving, the gait drives the legs; standing still, the tracked legs show.
     const float gaitOver = vr_bodytrack_legs_walk.value != 0.f ? za::max(gait.amount, gait.air) : 0.f;
-    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - lying) * (1.f - gaitOver), target,
+    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - lying) * (1.f - sliding) * (1.f - gaitOver), target,
         kneeDir);
 
     glm::vec3 bend;
@@ -615,6 +625,12 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     {
         const glm::mat3 pointed = basis(shinDir + bend * 0.35f, bend);
         f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), swim));
+    }
+    if(sliding > 1e-3f)
+    {
+        // Sliding: the toes up and ahead, the soles forward (feet first).
+        const glm::mat3 pointed = basis(safeNormalize(shinDir + UP * 0.9f, UP), bend);
+        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), sliding));
     }
     if(lying > 1e-3f)
     {

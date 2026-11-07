@@ -13,7 +13,6 @@ static const char default_cfg[] =
 "bind PGDN +lookup\n"
 "bind END centerview\n"
 
-"bind e +moveup\n"
 "bind c +movedown\n"
 "bind SHIFT +speed\n"
 "bind CTRL +attack\n"

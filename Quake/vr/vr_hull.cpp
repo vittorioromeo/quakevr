@@ -5071,6 +5071,18 @@ int localProne()
     return proneOn() && proneNow[1] ? 1 : 0;
 }
 
+bool isFlat(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    return num >= 1 && num < crouchSlots && crouchFlat[num];
+}
+
+bool flatCrouchHeld(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    return num >= 1 && num < crouchSlots && crouchFlatHeld[num];
+}
+
 float localEyeCap()
 {
     // (Nothing while his crouch key holds him down: that box is the lowest one over his own lowered eyes, chosen by them,

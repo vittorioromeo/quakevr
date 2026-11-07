@@ -1403,6 +1403,55 @@ trace_t SV_MovePortalTurned (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 	return SV_MoveRun (start, mins, maxs, end, type, passedict, plane, turned);
 }
 
+/*
+==================
+SV_ClipToLeanBoxes
+
+QVR: a shot, a missile or a point's trace (not a body's move) against the flat-screen players' leant upper bodies
+(VR_LeanHitBoxes, vr/vr_flatmove.cpp: the head and the chest out of his box, while he leans round a corner). The nearer
+hit wins, and it is his: the damage is his. His own shots and missiles pass them, as they pass his box.
+==================
+*/
+static void SV_ClipToLeanBoxes (moveclip_t *clip)
+{
+	int			i, k, n;
+	float		boxes[2][6];
+	edict_t		*touch;
+	trace_t		trace;
+	hull_t		*hull;
+	vec3_t		hullmins, hullmaxs;
+
+	for (i = 1; i <= svs.maxclients; i++)
+	{
+		touch = EDICT_NUM (i);
+		if (touch == clip->passedict)
+			continue;
+		if (clip->passedict && PROG_TO_EDICT (clip->passedict->v.owner) == touch && !clip->hitowner)
+			continue;
+		if (clip->passedict && PROG_TO_EDICT (touch->v.owner) == clip->passedict)
+			continue;
+		n = VR_LeanHitBoxes (touch, boxes);
+		for (k = 0; k < n; k++)
+		{
+			if (clip->boxmins[0] > boxes[k][3] || clip->boxmins[1] > boxes[k][4] || clip->boxmins[2] > boxes[k][5] ||
+				clip->boxmaxs[0] < boxes[k][0] || clip->boxmaxs[1] < boxes[k][1] || clip->boxmaxs[2] < boxes[k][2])
+				continue;
+			VectorSubtract (boxes[k], clip->maxs, hullmins);
+			VectorSubtract (boxes[k] + 3, clip->mins, hullmaxs);
+			hull = SV_HullForBox (hullmins, hullmaxs);
+			memset (&trace, 0, sizeof (trace_t));
+			trace.fraction = 1;
+			trace.allsolid = true;
+			VectorCopy (clip->end, trace.endpos);
+			SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, (float *) clip->start, (float *) clip->end, &trace);
+			if (trace.startsolid || trace.fraction >= clip->trace.fraction)
+				continue; // (from inside it: not a hit on it; the world or a nearer one first)
+			trace.ent = touch;
+			clip->trace = trace;
+		}
+	}
+}
+
 static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane, const float *portalturned)
 {
 	moveclip_t	clip;
@@ -1477,6 +1526,8 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 
 // clip to entities
 	SV_ClipToLinks ( sv_areanodes, &clip );
+	if (!clip.bodymove && type != MOVE_NOMONSTERS && !clip.trace.allsolid)
+		SV_ClipToLeanBoxes (&clip); // QVR: a flat-screen player's leant upper body (vr/vr_flatmove.cpp)
 
 	return clip.trace;
 }

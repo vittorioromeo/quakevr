@@ -36,6 +36,7 @@
 #include "vr_deathview.hpp"
 #include "vr_flathud.hpp"
 #include "vr_flathit.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -717,7 +718,9 @@ void startPunch(int h, const char* from)
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    const bool grab = inGame && keydown['e'] != 0;
+    // The force grab's key (vr_flat_key_grab, R: E became the right lean, vr_flatmove.cpp).
+    const int grabKey = Key_StringToKeynum(vr_flat_key_grab.string);
+    const bool grab = inGame && grabKey > 0 && grabKey < MAX_KEYS && keydown[grabKey] != 0;
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
@@ -731,7 +734,7 @@ void pollKeys()
                                           // (InsertText, not AddText: the grab is asked for now, not after what is already queued)
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: E: force grab\n");
+            Con_Printf("flatplay: %s: force grab\n", vr_flat_key_grab.string);
         }
     }
     if(v && !fs.keyV)
@@ -1204,7 +1207,9 @@ void noteBackendImplied()
 float crouchDrop()
 {
     // Lying down (vr_flat_key_prone) goes lower than the crouch: the deeper of the two.
-    return active() ? za::max(keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), keyState.proneRatio * proneDrop())
+    // A slide (vr_flatmove.cpp) takes him vr_flat_slide_drop lower than the crouch.
+    return active() ? za::max(keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), keyState.proneRatio * proneDrop()) +
+                          flatmove::slideDrop()
                     : 0.f;
 }
 
@@ -1256,6 +1261,7 @@ void init()
 {
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
+    flatmove::init(); // the slide and the lean (vr_flatmove.cpp)
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
     Cmd_AddCommand("vr_prone_toggle", proneToggle_f); // the prone key's toggle (vr_flat_key_prone), the console's way
@@ -1312,11 +1318,13 @@ void frame()
         fs.lastTime = -1e9;
         feel = Feel{};
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
+        flatmove::frame(false);
         return;
     }
 
     pollKeys();
     pollKeysFlat();
+    flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
 }
 
 float chestPitch(float pitch)

@@ -325,7 +325,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     }
     // Lying down (vr_prone; vr_avatar_pitch.cpp, BodyPitch::lying): the trunk straight under the neck, no lean, crouch
     // or crouch tilt, by its share: the body's pitch below lays that straight trunk on the floor behind the head.
-    const float lying = crouchPose ? bodyPitch.lying : 0.f;
+    const float lying = crouchPose ? za::max(bodyPitch.lying, bodyPitch.sliding) : 0.f; // (sliding: the same straight trunk, leant back)
     tiltReach *= 1.f - lying;
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
