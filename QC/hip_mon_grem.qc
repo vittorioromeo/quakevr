@@ -437,6 +437,7 @@ void(float dist) gremlin_run =
             if(r < 45)
             {
                 self.vr_melee_begun = time; // VR: one attack's blows, one parry (combat.qc VR_Parry)
+                vr_melee_begun_last = time;
                 self.th_melee();
                 self.attack_state = AS_STRAIGHT;
                 return;
