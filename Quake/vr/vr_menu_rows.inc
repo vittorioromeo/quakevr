@@ -894,8 +894,12 @@ QVR_SLIDER(vr_agrunt_repl_rare_map, "Rare From Map", 0.f, 8.f, 1.f, "%.0f", noEx
     "Rare weapons only from this map of an episode on (e1m4, hip1m4, r2m4, ...); maps with no number in "
     "their name never. 0: any map (vr_agrunt_repl_rare_map).")
 QVR_SLIDER(vr_agrunt_repl_seed, "Shuffle", 0.f, 100.f, 1.f, "%.0f", noExt,
-    "Each humanoid's loadout is the same every time you play a map (its spawn point and the map pick it); "
-    "another number deals every map's out anew (vr_agrunt_repl_seed).")
+    "With Gameplay > New Each Time off, each humanoid's loadout is the same every time you play a map (its spawn "
+    "point and the map pick it); another number deals every map's out anew (vr_agrunt_repl_seed).")
+QVR_TOGGLE(vr_fresh_map_seeds, "New Each Time",
+    "Each time you start a map (a new game, the next level, a restart), its crates and barrels, the rocks and bricks "
+    "on the floor, and the armed enemies' weapons and armour come out differently. Off: the same every time you play "
+    "it. A loaded save is always just as it was saved. Next map (vr_fresh_map_seeds; vr_map_seed_info).")
 QVR_TOGGLE(vr_agrunt_repl_id, "Quake's Campaigns",
     "Quake, Dimension of the Past, Dimension and Dawn of the Machine, and custom maps "
     "(vr_agrunt_repl_id).")
@@ -4078,7 +4082,8 @@ QVR_TOGGLE(vr_debris_bricks, "Bricks", "Bricks at the foot of brick walls. Next 
 // vr_menu_physics.inc: pageCrates
 QVR_TOGGLE(vr_crates, "Crates",
     "Wooden crates, small and large, stand by the walls and in corners, some stacked two high: push them, "
-    "carry them, stand on them, break them. The same places at every load. Single player. Next map.")
+    "carry them, stand on them, break them. New places each time you start a map (Gameplay > New Each Time). "
+    "Single player. Next map.")
 QVR_SLIDER(vr_crate_health, "Health", 0.f, 100.f, 5.f, "%.0f", ext(0.f, 1000.f),
     "A small crate's (a large one's 1.6 times): shots, blows, explosions and hard hits wear it down. A shotgun "
     "blast does up to 24, the axe about 20. 0: they never break.")

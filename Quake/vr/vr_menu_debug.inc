@@ -561,6 +561,11 @@ za::Vector<Item> pageDebugProfiling()
                   "started from at this map's load. sv_random_seed <that number> in the console before a map plays "
                   "its AI the same again (0, the default: the clock's, a new one each load); the client's effects "
                   "never move them."),
+        command("Map Content Seed", "vr_map_seed_info")
+            .help("vr_map_seed_info: the seed this map's crates and barrels, rocks and bricks, and armed enemies' weapons "
+                  "and armour were dealt from (Gameplay > New Each Time; 0: the map's name alone, the same every time). "
+                  "vr_map_seed <that number> in the console before a map deals the same again; -1 a new one even in a "
+                  "test session (the mock headset, where it is otherwise off)."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "

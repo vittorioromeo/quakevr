@@ -222,6 +222,8 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
         row(opt::vr_bullettime_enabled),
         header("Gore"),
         row(opt::vr_gore),
+        header("Maps"),
+        row(opt::vr_fresh_map_seeds),
         header("Survival Arena"),
         row(opt::vr_arena)
             .help("The Survival Arena's waves of monsters in any map you play, from its own spots (an arena map runs "

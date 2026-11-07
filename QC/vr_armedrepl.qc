@@ -22,8 +22,9 @@
 //   "<n>m<index>": e1m4, hip2m3, r1m5; a map with no index never);
 // - vr_agrunt_repl_dual: a second weapon that pairs (VR_AG_Pairs: from the same rolls);
 // - vr_agrunt_repl_gunaxe: a gun in its right hand and an axe in its left (VR_AGR_GunAxe: the gun, the axe up close).
-// The rolls are seeded by the map's name, the monster's spawn point and kind (vr_agrunt_repl_seed shuffles them all):
-// the same map gives the same loadouts every time, a restart and a reload too. Eligibility needs a player: a map's own
+// The rolls are seeded by the map's name, the monster's spawn point and kind (vr_agrunt_repl_seed shuffles them all),
+// and the map's content seed (vr_map_content_seed: vr_fresh_map_seeds, a new one at each new start of a map; 0 with it
+// off: the same map gives the same loadouts every time, a restart too). A loaded game keeps its own. Eligibility needs a player: a map's own
 // monsters spawn before one is in, so theirs are rolled on the first frame with one (VR_AGR_Frame), spawned holding
 // their own gun meanwhile.
 // Where: vr_agrunt_repl_id (Quake's own campaigns, their custom maps), vr_agrunt_repl_mp (the mission packs),
@@ -71,6 +72,10 @@ float() VR_AGR_Rand =
 void(vector seed) VR_AGR_SeedSet =
 {
     float c = VR_AGR_Mod(fabs(rint(cvar_hget(cvarh_vr_agrunt_repl_seed))), 30011);
+    if(vr_map_content_seed > 0)
+    {
+        c = VR_AGR_Mod(c + 1 + VR_AGR_Mod(vr_map_content_seed, 30010), 30011); // (0: as before)
+    }
     vr_agr_s1 = 1 + VR_AGR_Mod(seed_x + 17 * c, 30268);
     vr_agr_s2 = 1 + VR_AGR_Mod(seed_y + 29 * c, 30306);
     vr_agr_s3 = 1 + VR_AGR_Mod(seed_x * 3 + seed_y + seed_z * 11 + c, 30322);
