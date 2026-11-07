@@ -947,7 +947,9 @@ void startKind(edict_t* ent, int index)
     {
         return;
     }
+    VR_FileCacheDerived(1); // (in play: found from the map load's listings, no folder asked)
     byte* src = COM_LoadMallocFile(VR_ModelFile(base), &kind.pathId);
+    VR_FileCacheDerived(0);
     if(!src)
     {
         return;

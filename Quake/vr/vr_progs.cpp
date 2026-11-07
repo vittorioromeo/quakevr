@@ -1166,7 +1166,17 @@ extern "C" int VR_LatePrecacheModel(const char* name)
             // Clients learn about it from VR_ServerFrameEnd.
             const double t0 = Sys_DoubleTime(); // (its load: the frame's hitch, said with developer 1)
             sv.model_precache[i] = name;
+            // (a limb model in play: its skins' and normal maps' lookups answered from the map load's listings)
+            const bool derived = strstr(name, qvr::limbmodel::suffix) != nullptr;
+            if(derived)
+            {
+                VR_FileCacheDerived(1);
+            }
             sv.models[i] = Mod_ForName(name, true);
+            if(derived)
+            {
+                VR_FileCacheDerived(0);
+            }
             if(sv.state == ss_active) // (not the map's own: vr_limbs_prebuild's, as it loads)
             {
                 Con_DPrintf("late precache: %s, %.1f ms\n", name, (Sys_DoubleTime() - t0) * 1000.0);
