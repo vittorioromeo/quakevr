@@ -3268,3 +3268,29 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
   evidence.
 - **Test in VR.** The knight's right elbow while it idles, walks and swings: the leather should stay put round the
   elbow. Check the other joints too, for no new lumps near the rows (the push next to the rows is now smaller).
+
+## Flat-screen: the hidden torch's lens glow (branch `agent/embed5`, 2026-11-07)
+
+Vittorio: "the flashlight model is invisible but I still see a floating circle where it used to be only when the
+flashlight is on".
+
+- **Cause.** `vr_flat_flashlight_hide` hid the torch's view entity, but `drawLens` (vr_flashlight.cpp), the additive
+  disc in the beam's colour drawn over the lens while the light is on, checked only that the light was on and placed.
+  It went on drawing at the hidden model's lens. Nothing else is drawn from the lens: the visible beam is an open cone
+  in the air (no cap, and no circle was seen with the lens moved into view), and the dynamic lights are lighting.
+- **Fix.** New `view::drawn(ve)` (vr_view.hpp/.cpp): visible, with a model, and not hidden by `vr_shot_hide`, the same
+  test the view uses to submit the entity. The flashlight keeps a pointer to its view entity (`setupView`), and
+  `drawLens` draws only when `view::drawn` says the model is drawn. The lens therefore also goes with `vr_shot_hide 2`.
+  The beam, the spotlight and the lamp glow light are unchanged. VR is unchanged (the model is drawn there).
+- **Probe.** `vr_flashlight_probe [tag]` prints a new line, `torchprobe <tag> lens drawn D model M`: the disc drawn in
+  the last two frames, and the model drawn. flash_grab_test.py ignores lines it doesn't know.
+- **Check.** `bash Misc/quakevr/flashglow_test.sh <agent> [tag]` (with `flashglow_check.py`; it prints
+  `flashglow: N passed, M failed`): flat-screen, light on, at a wall and down
+  the corridor, lens 0 and model 0; `vr_flat_flashlight_hide 0` gives lens 1 and model 1; VR mock, torch on the head and
+  lit, gives lens 1 and model 1. After: 4 passed, 0 failed. Before: 2 failed (lens 1 with model 0).
+  A one-off variant (not committed) did the same with the torch moved into view (`vr_flashlight_head_forward 0.12`,
+  `_out -0.05`, `_up -0.06`), to show the disc. Screenshots: `scratch/flashglow_before_inview_flat.png` (the bright
+  circle at the wall and in open space) and `scratch/flashglow_after_inview_flat.png` (gone, the wall still lit). The
+  tiles are: wall with light on, corridor with light on, light off, and model shown.
+- **Test in VR.** Flat-screen with F on: no circle anywhere, and walls still lit. In the headset, the clipped or held
+  torch's lens still glows when it is on.

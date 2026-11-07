@@ -38,6 +38,10 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
+// Whether `ve`'s model is drawn this frame: visible, with a model, and not hidden for a clean shot (vr_shot_hide). What
+// is drawn from a model besides it (a torch's lit lens: vr_flashlight.cpp) follows this, so it goes when the model does.
+[[nodiscard]] bool drawn(const ViewEntity& ve);
+
 // The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange) with bare forearms (vr_body_bracers
 // 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
 // hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
