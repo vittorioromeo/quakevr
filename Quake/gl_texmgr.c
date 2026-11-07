@@ -501,6 +501,7 @@ static void TexMgr_Imagedump_f (void)
 	gltexture_t	*glt;
 	byte *buffer;
 	char *c;
+	VR_LoadJobsJoin (); // QVR: the skins' normal maps made on jobs uploaded first (vr/vr_normalmaps.cpp)
 
 	if (Cmd_Argc () >= 2)
 		filter = Cmd_Argv (1);
@@ -573,6 +574,7 @@ static void TexMgr_Imagehash_f (void)
 	gltexture_t *glt;
 	unsigned long long total = 0;
 	int count = 0;
+	VR_LoadJobsJoin (); // QVR: the skins' normal maps made on jobs uploaded first (vr/vr_normalmaps.cpp)
 
 	q_snprintf (path, sizeof (path), "%s/imagehash.txt", com_gamedir);
 	out = fopen (path, "w");
@@ -731,6 +733,11 @@ gltexture_t *TexMgr_NewTexture (void)
 //ericw -- workaround for preventing TexMgr_FreeTexture during TexMgr_ReloadImages
 static qboolean in_reload_images;
 
+// QVR: a skin's normal map made on a job (vr_load_jobs; vr/vr_normalmaps.cpp "VR_SkinNormalsPost"): TexMgr_LoadNormalMap
+// lets TexMgr_LoadImage32 post it (texmgr_normalasync), which then returns without uploading (texmgr_normalposted);
+// TexMgr_CommitNormalMap uploads it at the join (main thread, all of it)
+static qboolean texmgr_normalasync, texmgr_normalposted;
+
 /*
 ================
 TexMgr_FreeTexture
@@ -748,6 +755,8 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		Con_Printf ("TexMgr_FreeTexture: NULL texture\n");
 		return;
 	}
+
+	VR_SkinNormalsForget (kill); // QVR: a normal map on a job for it, or it: waited for and dropped
 
 	texmgr_frees++; // QVR
 	VR_PBRForget (kill); // QVR: discard companion coverage records before this texture slot is reused
@@ -1496,16 +1505,12 @@ static qboolean TexMgr_AlphaTested (gltexture_t *glt)
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
+static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0);
+
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
-	int	miplevel, mipwidth, mipheight, picmip;
-	glformat_t internalformat;
-	qboolean compress;
+	int	mipwidth, mipheight, picmip;
 	int normalmap = NORMALMAP_TYPE (normalmap_kind[glt - gltextures_base]); // QVR
-	qboolean heights; // QVR
-	byte *coveragemip = NULL; // QVR: an alpha-tested texture's mip with its coverage kept (vr_alpha_coverage)
-	float coverage = 0.f;
-	int mark = 0;
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 
 	if (glt->source_format == SRC_RGBA && !normalmap) // QVR: a full-colour weapon skin without its painted blood (vr_gore_clean_skins)
@@ -1552,9 +1557,34 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
-	heights = (normalmap_kind[glt - gltextures_base] & NORMALMAP_HEIGHTS) != 0; // QVR: the world's normal maps carry heights
+	// QVR: a skin's normal map made on a job, uploaded at its join (TexMgr_CommitNormalMap)
+	if (normalmap && texmgr_normalasync &&
+		VR_SkinNormalsPost (glt, (byte *) data, normalmap_kind[glt - gltextures_base], normalmap_worldwidth[glt - gltextures_base]))
+	{
+		texmgr_normalposted = true;
+		return;
+	}
 	if (normalmap) // QVR: made from the shading, or an authored one's heights (vr/vr_normalmaps.cpp)
 		normalmap_kind[glt - gltextures_base] = (byte) VR_MakeNormalMap (glt, (byte *) data, normalmap_kind[glt - gltextures_base], normalmap_worldwidth[glt - gltextures_base]);
+	TexMgr_Upload32 (glt, data, t0);
+}
+
+/*
+================
+TexMgr_Upload32 -- QVR: TexMgr_LoadImage32's upload, its mipmaps and filter modes (glt's size final); also a skin's
+normal map made on a job, at its join (TexMgr_CommitNormalMap)
+================
+*/
+static void TexMgr_Upload32 (gltexture_t *glt, unsigned *data, double t0)
+{
+	int	miplevel, mipwidth, mipheight;
+	glformat_t internalformat;
+	qboolean compress;
+	int normalmap = NORMALMAP_TYPE (normalmap_kind[glt - gltextures_base]); // QVR
+	qboolean heights = (normalmap_kind[glt - gltextures_base] & NORMALMAP_HEIGHTS) != 0; // QVR: the world's normal maps carry heights
+	byte *coveragemip = NULL; // QVR: an alpha-tested texture's mip with its coverage kept (vr_alpha_coverage)
+	float coverage = 0.f;
+	int mark = 0;
 
 	// upload
 	compress = gl_compress_textures.value && TexMgr_CanCompress (glt);
@@ -1881,20 +1911,43 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	normalmap_generated[glt - gltextures_base] = (byte) VR_PBRGeneratedFlags (source_file); // resolved once, not per draw
 
 	mark = Hunk_LowMark ();
+	texmgr_normalasync = true; // QVR: a skin's made on a job (TexMgr_LoadImage32)
+	texmgr_normalposted = false;
 	if (format == SRC_INDEXED)
 		TexMgr_LoadImage8 (glt, data);
 	else
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
+	texmgr_normalasync = false;
+	if (texmgr_normalposted) // QVR: uploaded, and base's normal map, at its join (TexMgr_CommitNormalMap)
+	{
+		texmgr_normalposted = false;
+		VR_SkinNormalsSetBase (glt, base);
+		Hunk_FreeToLowMark (mark);
+		return glt;
+	}
+	TexMgr_CommitNormalMap (glt, base, NULL);
+	Hunk_FreeToLowMark (mark);
+	return glt;
+}
+
+/*
+================
+TexMgr_CommitNormalMap -- QVR: a normal map's texels uploaded (`data`, its final size: a skin's made on a job, at its
+join, vr/vr_normalmaps.cpp; NULL: uploaded already), labelled, made resident (bindless), and base's normal map
+================
+*/
+void TexMgr_CommitNormalMap (gltexture_t *glt, gltexture_t *base, byte *data)
+{
+	if (data)
+		TexMgr_Upload32 (glt, (unsigned *) data, Sys_DoubleTime ());
 	GL_ObjectLabelFunc (GL_TEXTURE, glt->texnum, -1, glt->name);
 	if (glt->flags & TEXPREF_BINDLESS && gl_bindless_able)
 	{
 		glt->bindless_handle = GL_GetTextureHandleARBFunc (glt->texnum);
 		GL_MakeTextureHandleResidentARBFunc (glt->bindless_handle);
 	}
-	Hunk_FreeToLowMark (mark);
-
-	normalmap_of[base - gltextures_base] = glt;
-	return glt;
+	if (base)
+		normalmap_of[base - gltextures_base] = glt;
 }
 
 /*
@@ -2197,6 +2250,7 @@ TexMgr_ReloadImages -- reloads all texture images. called only by vid_restart
 void TexMgr_ReloadImages (void)
 {
 	gltexture_t *glt;
+	VR_LoadJobsJoin (); // QVR: the skins' normal maps made on jobs uploaded first (vr/vr_normalmaps.cpp)
 
 	TexMgr_CreateSamplers ();
 
@@ -2229,6 +2283,7 @@ void TexMgr_ReloadImagesNamed (const char *prefix)
 {
 	gltexture_t *glt;
 	size_t len = strlen (prefix);
+	VR_LoadJobsJoin (); // QVR: the skins' normal maps made on jobs uploaded first (vr/vr_normalmaps.cpp)
 
 	in_reload_images = true; // no texture freed under the walk (see TexMgr_ReloadImages)
 	for (glt = active_gltextures; glt; glt = glt->next)

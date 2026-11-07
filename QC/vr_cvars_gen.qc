@@ -1257,6 +1257,7 @@ float cvarh_vr_magslide_test;
 float cvarh_vr_melee_bloodlust;
 float cvarh_vr_melee_bloodlust_mult;
 float cvarh_vr_melee_body_damage;
+float cvarh_vr_melee_body_min_part;
 float cvarh_vr_melee_body_speed;
 float cvarh_vr_melee_butt_run;
 float cvarh_vr_melee_dmg_max;
@@ -3181,6 +3182,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_melee_bloodlust = VR_CVar_Make("vr_melee_bloodlust");
     cvarh_vr_melee_bloodlust_mult = VR_CVar_Make("vr_melee_bloodlust_mult");
     cvarh_vr_melee_body_damage = VR_CVar_Make("vr_melee_body_damage");
+    cvarh_vr_melee_body_min_part = VR_CVar_Make("vr_melee_body_min_part");
     cvarh_vr_melee_body_speed = VR_CVar_Make("vr_melee_body_speed");
     cvarh_vr_melee_butt_run = VR_CVar_Make("vr_melee_butt_run");
     cvarh_vr_melee_dmg_max = VR_CVar_Make("vr_melee_dmg_max");
