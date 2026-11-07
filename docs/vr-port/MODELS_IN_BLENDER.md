@@ -658,6 +658,11 @@ the shipped files byte for byte (checked for all of them: 56 sources, 112 files)
 - **The super shotgun's bead** (2026-11): a raised, glowing front bead on the muzzle band, and the rib's back end lowered
   under the ring's middle so the ring is a real aperture: edited in `v_shot2.blend`. Its sight line is 1.47 deg up (was
   0.65); its shots follow it (`shot_pitch 1.47`, `shot_yaw 0.11` in weapons.txt).
+- **The shotgun's sights** (2026-11): raised metal housings instead of glowing blocks, edited in `v_shot.blend` (ROUND24.md,
+  "The shotgun's sight housings"): a rear housing across the receiver (a U notch between two ears), a ramp post on the
+  muzzle band; the glowing inserts are painted on the ears' and the post's back faces, their tops where the old posts'
+  were (the sight line turned 0.001 deg). The front post can't stand higher: the kick's frame `shot3` lifts it to the
+  top of the model's box.
 - **Repository cost:** 11 MB of .blend files and PNGs for the 53 generic sources, plus a new copy of a .blend at each
   commit that changes it (git doesn't diff .blend files: commit them after an edit session, not after every export).
 

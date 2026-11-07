@@ -27,7 +27,7 @@ namespace
 // is drawn (their muzzle flashes, if any, in other colours). The other weapons' fire texels are
 // muzzle flashes (nailguns, launchers), the lava nailguns' lava and the laser cannon's coils.
 constexpr const char* sightedModels[] = {
-    "progs/v_shot.mdl",   // the shotgun: three sights (two rear posts, a front post)
+    "progs/v_shot.mdl",   // the shotgun: three inserts (the rear housing's two ears, the front post)
     "progs/v_shot2.mdl",  // the double shotgun: a ring sight
     "progs/g_shot0.mdl",  // the shotgun's pickup: its sights (Quake's dark red)
     "progs/v_light.mdl",  // the lightning gun: two rear posts, a front post (round 20)
