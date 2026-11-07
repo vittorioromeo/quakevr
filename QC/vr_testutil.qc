@@ -151,7 +151,6 @@ void() VR_TestsFrame =
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
     VR_PropImp_TestFrame(); // VR: the props' impact rule (vr_prop_impact_test, vr_propimpact_test.qc)
-    VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
     VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
     VR_TestHurt_Frame(); // VR: the nearest live monster hurt by a shot of the player's (vr_test_hurt <damage>, combat_test.qc)
     VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)

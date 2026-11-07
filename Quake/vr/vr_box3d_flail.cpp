@@ -73,11 +73,11 @@ struct Head
     double lastRattle{-1.0};
     glm::vec3 lastGood{0.f}; // units: its middle after the last frame, on the right side of the level's surfaces
     // The player's own frame at the last frame (carryWithPlayer): his origin, his play space's turn (QC .vryaw) and the
-    // head it turns about (.headpos), his speed then (units/s; zero with vr_flail_frame 0).
+    // head it turns about (.headpos), his speed then (units/s).
     glm::vec3 frameOrigin{0.f}, framePivot{0.f}, frameVel{0.f};
     float frameYaw{0.f};
     bool frameKnown{false};
-    // The view's (vr_flail_smooth, flailHeadAt): the last steps' head from its anchor and its turn, both in the play
+    // The view's (flailHeadAt): the last steps' head from its anchor and its turn, both in the play
     // space's frame (turned back by .vryaw then), at the server's time after each step (what its message carries).
     struct Sample
     {
@@ -299,7 +299,7 @@ void noteHeldHeads(edict_t* player, int client)
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
-// The head simulated in the player's moving frame (vr_flail_frame 1; the note vrtesthall_2026-10-24_00-54-30: the
+// The head simulated in the player's moving frame (the note vrtesthall_2026-10-24_00-54-30: the
 // stick's walk flung it, "spazzing out, super fast": the anchor ran at his 8 m/s and the air dragged the head behind).
 // Before the step, his own move since the last frame -- his origin's (the stick's walk, a push, a lift, a fall, a
 // teleport within reach) and his play space's turn about his head (the stick's snap or smooth turn; QC .vryaw, the
@@ -317,10 +317,9 @@ void carryWithPlayer(Head& head, edict_t* player, float dt)
     {
         pivot = origin;
     }
-    const bool on = vr_flail_frame.value != 0.f;
     const glm::vec3 shift = origin - head.frameOrigin;
     glm::vec3 vel{0.f};
-    if(on && head.frameKnown && dt > 0.f && glm::length(shift) / world->m2u <= teleport)
+    if(head.frameKnown && dt > 0.f && glm::length(shift) / world->m2u <= teleport)
     {
         const float turn = za::remainder(yaw - head.frameYaw, 360.f);
         // (His speed this frame, units/s; a step up a stair, faster than a hand, kept out of it: the last one stands.)
@@ -354,11 +353,11 @@ void carryWithPlayer(Head& head, edict_t* player, float dt)
     head.frameOrigin = origin;
     head.framePivot = pivot;
     head.frameYaw = yaw;
-    head.frameVel = on ? vel : glm::vec3{0.f};
+    head.frameVel = vel;
     head.frameKnown = true;
 }
 
-// The head's place for the view after the step (vr_flail_smooth): from its anchor, turned back by the play space's turn.
+// The head's place for the view after the step: from its anchor, turned back by the play space's turn.
 void sample(Head& head, edict_t* player)
 {
     const float yaw = fieldFloatOr(player, fields().vryaw, 0.f);

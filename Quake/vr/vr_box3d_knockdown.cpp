@@ -16,7 +16,7 @@ namespace
 // ----------------------------------------------------------------------------
 // Knockdowns (vr_knockdown; QC vr_knockdown.qc; Combat > Knockdowns). A shove can knock a living monster with a rig down:
 // the QC makes it touchable and not solid, .vr_knockdown 1, and its ragdoll is made at once (ragdollKnockdown) from the
-// frame it is drawn in, its gun welded in its hand (vr_knockdown_weld). It is a ragdoll as a dead one is (hit on its
+// frame it is drawn in, its gun welded in its hand. It is a ragdoll as a dead one is (hit on its
 // limbs, grabbed, pushed, thrown; killed there, it simply stays one: its gun goes, the QC drops it). To get up
 // (ragdollGetUp) the QC names the frame its get-up starts from (its own fall-and-rise frames' lowest, or a death's last
 // to play backwards; two to choose from): the frame is fitted to how the body lies (its turn about the vertical and

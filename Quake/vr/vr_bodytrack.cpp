@@ -754,11 +754,6 @@ float torsoWeight()
     return st.torso;
 }
 
-float armWeight(int side)
-{
-    return st.arm[side & 1];
-}
-
 float legWeight(int side)
 {
     return st.leg[side & 1];

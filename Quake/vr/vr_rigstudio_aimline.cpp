@@ -1,8 +1,7 @@
 // vr_rigstudio_aimline.cpp -- the Rig Studio's aim lines and Align to Target (RIGSTUDIO.md, "Aim lines and Align to
 // Target"). For each weapon the subject holds (both for two guns), as drawn: its barrel's line (the model's butt to its
 // muzzle, as the aim test measures it) from the muzzle on, the line the game's shot would take when that is another
-// (vr_agrunt_aim_converge: from the muzzle to the target; else the drawn gun's line, vr_agrunt_shot_drawn, or the hidden
-// gun's), a thin line from the muzzle to the aim target, and the error: yaw (+ left), pitch (+ up), total. Tools >
+// (from the muzzle to the target), a thin line from the muzzle to the aim target, and the error: yaw (+ left), pitch (+ up), total. Tools >
 // Display > Aim Lines (on: drawn while the aim target is on).
 //
 // Align to Target (Tools > Aim Target, the Pose Studio Data window beside the key; vr_rigstudio_align): the current pose
@@ -259,32 +258,10 @@ bool readAimLine(int hand, AimLineReading& r)
     r.total = angleBetween(r.barrel, r.toTarget);
     r.yaw = geom::wrap180((za::atan2(r.barrel.y, r.barrel.x) - za::atan2(r.toTarget.y, r.toTarget.x)) / deg);
     r.pitch = (za::asin(za::clamp(r.barrel.z, -1.f, 1.f)) - za::asin(za::clamp(r.toTarget.z, -1.f, 1.f))) / deg;
-    // The game's shot (QC VR_AG_SetHand): converging, from the muzzle to its target; else along the drawn gun's line
-    // (vr_agrunt_shot_drawn) or the hidden gun's (its entity's angles, the server's)
-    if(vr_agrunt_aim_converge.value != 0.f)
-    {
-        r.shot = r.toTarget;
-        r.shotWhy = "converge: muzzle to target";
-        r.shotOk = true;
-    }
-    else if(vr_agrunt_shot_drawn.value != 0.f)
-    {
-        r.shot = r.barrel;
-        r.shotWhy = "the drawn gun's line";
-        r.shotOk = true;
-    }
-    else if(sv.active && prop < sv.qcvm.num_edicts)
-    {
-        const progs::ServerVm vm;
-        const edict_t* p = EDICT_NUM(prop);
-        if(!p->free)
-        {
-            const float pp = p->v.angles[0] * deg, py = p->v.angles[1] * deg; // (a model's pitch: up)
-            r.shot = glm::vec3{za::cos(pp) * za::cos(py), za::cos(pp) * za::sin(py), za::sin(pp)};
-            r.shotWhy = "the hidden gun's line";
-            r.shotOk = true;
-        }
-    }
+    // The game's shot (QC VR_AG_SetHand): converging, from the muzzle to its target
+    r.shot = r.toTarget;
+    r.shotWhy = "converge: muzzle to target";
+    r.shotOk = true;
     r.shotOff = r.shotOk ? angleBetween(r.shot, r.barrel) : 0.f;
     r.ok = true;
     return true;

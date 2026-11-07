@@ -463,7 +463,7 @@ void graspDump_f();
 // holsters, the wrist gadget), not in the first frame drawn (0.3 s the first time: the body's 0.2).
 void prepareModels();
 
-// A map's load (VR_NewMap's prewarm, vr_load_prewarm): the precached guns' button and screen anchors bound, as the
+// A map's load (VR_NewMap's prewarm): the precached guns' button and screen anchors bound, as the
 // first gun lying near you would (~10 ms in that frame: ROUND22.md "Frame spikes").
 void prepareWorldWeapons();
 

@@ -100,7 +100,6 @@ vr_stealth_test.qc
 vr_foegrab.qc
 
 buttons.qc
-buttons_test.qc
 vr_tips.qc
 vr_deathdoll.qc
 client.qc

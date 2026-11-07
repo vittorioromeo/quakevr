@@ -1076,11 +1076,6 @@ const char* behaviourLabel(int i)
     return i >= 0 && i < behaviourTotal ? behaviours[i].label : "?";
 }
 
-const char* behaviourHelp(int i)
-{
-    return i >= 0 && i < behaviourTotal ? behaviours[i].help : "";
-}
-
 int groupCount()
 {
     return GroupTotal;

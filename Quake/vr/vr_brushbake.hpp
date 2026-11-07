@@ -42,7 +42,5 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
 // Brush `b`'s light as light.exe baked it in the client's world (see above): its faces' maps and texels in its
 // rectangle; false if the world has none for it (or it has another number of faces than `faces`).
 bool fromWorld(const brushes::Brush& b, int faces, za::Vector<brushlight::Map>& maps, brushlight::Texels& texels);
-// How many brushes the client's world has light.exe's light for.
-[[nodiscard]] int bakedCount();
 
 } // namespace qvr::brushbake

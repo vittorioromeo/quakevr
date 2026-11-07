@@ -45,7 +45,6 @@ void event(const char* kind, int hand, const char* detail);
 void applyPreview(hands::State& s);
 
 [[nodiscard]] bool recording();  // counting down or recording
-[[nodiscard]] bool previewing();
 
 // For the menu (Debug > Animation Recorder).
 void toggleRecording();

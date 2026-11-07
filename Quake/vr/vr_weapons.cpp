@@ -1037,7 +1037,7 @@ void takeRecoilUnits74()
         const float before = za::max(o.strength, 0.f) * 0.5f * (za::max(o.kick, 0.f) + za::max(o.rise, 0.f));
         const float now = recoilFeel(n.kickCm, n.riseDeg);
         cvar_t& punch = cvarAt(slot, Key::HapticPunch);
-        const float full = 0.85f * za::clamp(vr_gunsfx_punch.value, 0.f, 2.f) * za::max(punch.value, 0.f);
+        const float full = 0.85f * za::max(punch.value, 0.f);
         if(before > 0.f && now > 0.f && fabsf(now - before) > 1e-4f * before && full * za::sqrt(za::min(before, now)) < 1.f)
         {
             punched += setConverted(slot, Key::HapticPunch, punch.value * za::sqrt(before / now));

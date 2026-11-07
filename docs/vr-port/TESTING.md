@@ -682,7 +682,7 @@ After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
 `vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
 `vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
-`vr_pose_solve 1` solves the posing hand live (as before). Each headshot that plays its sound prints `headshot sound: <target> by <inflictor>` (`vr_debug_shots 1`). Weapon ids: impulse 154 shotgun, 156 nailgun, 162 laser cannon (hipnotic). `vr_test_dialog [seconds] [turn] [eyeshot]`: the New Game confirmation, closing by itself, while the mock head turns: eye images at its first and last frames and the eyes' yaw printed (they must follow the head).
+Each headshot that plays its sound prints `headshot sound: <target> by <inflictor>` (`vr_debug_shots 1`). Weapon ids: impulse 154 shotgun, 156 nailgun, 162 laser cannon (hipnotic). `vr_test_dialog [seconds] [turn] [eyeshot]`: the New Game confirmation, closing by itself, while the mock head turns: eye images at its first and last frames and the eyes' yaw printed (they must follow the head).
 Training dummy enemies (round 21): `vr_dummy_type <n>` (0 grunt .. 18 electric eel: QC/vr_dummy_types.qc; it stands as
 the new one within a frame, unless someone stands where it would) and `vr_dummy_test 1` print its class, model, box,
 health and the zone a level shot at its head, body and legs strikes; `vr_dummy_test 2`/`3` hit it for 10 or for the
