@@ -331,7 +331,7 @@ void writeHeader()
                     "hand1_head,arm0,arm1,gap0,gap1,holding,has_spot,look_share,look_far,spot_off,arm_hip,arm_sight,shot_deg,shot_apart,"
                     "rear_off,front_off,relief,ads_t,gun_x,gun_y,gun_z,hand0_x,hand0_y,hand0_z,hand1_x,hand1_y,hand1_z,point_x,point_y,point_z,stop_x,stop_y,stop_z,swing,"
                     "yaw,sh0_x,sh0_y,sh0_z,sh1_x,sh1_y,sh1_z,an0_x,an0_y,an0_z,an1_x,an1_y,an1_z,spot_slide,"
-                    "el0_x,el0_y,el0_z,el1_x,el1_y,el1_z,wr0_x,wr0_y,wr0_z,wr1_x,wr1_y,wr1_z,gun_out\n");
+                    "el0_x,el0_y,el0_z,el1_x,el1_y,el1_z,wr0_x,wr0_y,wr0_z,wr1_x,wr1_y,wr1_z,gun_out,wall_on\n");
 }
 
 // The row: the pose as last drawn.
@@ -459,7 +459,7 @@ void writeRow(const Config& c, bool settled)
     fprintf(sw.out,
         "%s,%s,%d,%d,%.1f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
         "%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%.3f,%.3f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,"
-        "%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f\n",
+        "%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f\n",
         sw.label, c.name, c.crouch ? 1 : 0, c.ads ? 1 : 0, sw.pitch, settled ? 1 : 0, sw.frames, eye.x, eye.y, eye.z, glm::dot(fromHead, yf),
         fromHead.z, hullMargin, solid, clear, 100.f * innerRays / (gridX * gridY), 100.f * hiddenRays / (gridX * gridY),
         100.f * bodyRays / (gridX * gridY), 100.f * armInnerRays / (gridX * gridY), 100.f * armRays / (gridX * gridY), eyeTo[0], eyeTo[1],
@@ -469,7 +469,7 @@ void writeRow(const Config& c, bool settled)
         hand[1].x, hand[1].y, hand[1].z, n.shotPoint.x, n.shotPoint.y, n.shotPoint.z, n.shotStop.x, n.shotStop.y, n.shotStop.z, sw.movedMost,
         r_refdef.viewangles[1], k.shoulder[0].x, k.shoulder[0].y, k.shoulder[0].z, k.shoulder[1].x, k.shoulder[1].y, k.shoulder[1].z, anchor[0].x, anchor[0].y,
         anchor[0].z, anchor[1].x, anchor[1].y, anchor[1].z, n.spotSlide, k.elbow[0].x, k.elbow[0].y, k.elbow[0].z, k.elbow[1].x,
-        k.elbow[1].y, k.elbow[1].z, k.wrist[0].x, k.wrist[0].y, k.wrist[0].z, k.wrist[1].x, k.wrist[1].y, k.wrist[1].z, flatplay::gunOut(sw.pitch));
+        k.elbow[1].y, k.elbow[1].z, k.wrist[0].x, k.wrist[0].y, k.wrist[0].z, k.wrist[1].x, k.wrist[1].y, k.wrist[1].z, flatplay::gunOut(sw.pitch), n.wallOn);
     sw.rows++;
     sw.unsettled += settled ? 0 : 1;
 }
