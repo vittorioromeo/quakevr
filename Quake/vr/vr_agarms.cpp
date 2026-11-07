@@ -189,6 +189,10 @@ struct Ent
     // solve's refinement starts there (warm), not from the goal's turn
     glm::quat foreRel[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
     int foreGoal[2]{-1, -1};
+    // vr_agarms_fast: the off hand's slide along the gun to its reach last frame: the whole-unit step it stopped at, the
+    // bisection's 7 choices (bits, the first highest; -1 none yet): tried first
+    int slideK{0};
+    int slideBits{-1};
 };
 
 // vr_agarms_lod: an Ent's last solve (State::lods, by its Ent's index; not in the Live tape's state: its subject is
@@ -1835,6 +1839,7 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
     const float dt = static_cast<float>(za::clamp(cl.time - st->time, 0.0, 0.25));
     const int lastFrame = st->frame; // (vr_agarms_warm: the warm start only from a recent solve)
     const bool warm = vr_agarms_warm.value != 0.f && !fastRef;
+    const bool fast = vr_agarms_fast.value != 0.f && !fastRef; // (the off hand's slide bisected)
     st->time = cl.time;
     st->frame = host_framecount;
     st->easeFrame = host_framecount;
@@ -2119,7 +2124,126 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             const glm::vec3 from = rig.authored ? solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld).S : S1;
             return glm::length(rigpose::apply(hl, m->side[1].W) - from);
         };
-        for(int step = 0; step < 12; step++)
+        const float okMost = vr_agarms_second.value * armLen;
+        if(fast)
+        {
+            // vr_agarms_fast: the same answer as the whole-unit steps and the bisection below (while the reach only grows
+            // with the slide out), found by bisection and checked first at last frame's answer: a couple of solves, not
+            // up to 19. The steps' places: x_k (k from 0, a unit each, at most 11, at 3 at least: where the steps stop).
+            float xs[12];
+            int kmax = 0;
+            for(int k = 0; k < 12; k++)
+            {
+                xs[k] = k == 0 ? atX : za::max(3.f, xs[k - 1] - 1.f);
+                kmax = k;
+                if(xs[k] <= 3.f)
+                {
+                    break;
+                }
+            }
+            rigpose::Rigid hls[12];
+            float rs[12];
+            signed char known[12]{};
+            const auto test = [&](int k) {
+                if(!known[k])
+                {
+                    rigpose::Rigid a = at;
+                    a.pos.x = xs[k];
+                    rs[k] = reachAt(a);
+                    hls[k] = hl;
+                    known[k] = rs[k] <= okMost ? 1 : -1;
+                }
+                return known[k] > 0;
+            };
+            // (the first step that reaches: lo the last known not to, hi the first known to)
+            int lo = -1, hi = kmax + 1;
+            const int g = za::clamp(st->slideK, 0, kmax);
+            if(test(g))
+            {
+                hi = g;
+                if(g > 0)
+                {
+                    (test(g - 1) ? hi : lo) = g - 1;
+                }
+            }
+            else
+            {
+                lo = g;
+            }
+            while(hi - lo > 1)
+            {
+                const int mid = (lo + hi) / 2;
+                (test(mid) ? hi : lo) = mid;
+            }
+            const int k = hi <= kmax ? hi : kmax; // (none reaches: the last step's, as the steps leave it)
+            test(k);
+            reach = rs[k];
+            hl = hls[k];
+            at.pos.x = hi > kmax && kmax == 11 && xs[11] > 3.f ? za::max(3.f, xs[11] - 1.f) : xs[k];
+            st->slideK = k;
+            if(lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= okMost)
+            {
+                // The bisection's 7 halvings (each a choice: reaches or not), last frame's choices tried first: their
+                // bracket's ends checked (reaches at its low end, not at its high end) give the same 7 choices.
+                const float lo0 = at.pos.x, hi0 = za::min(atX, at.pos.x + 1.f);
+                rigpose::Rigid hlLo = hl;
+                float reachLo = reach;
+                const auto tryX = [&](float x, rigpose::Rigid& h, float& r) {
+                    rigpose::Rigid a = at;
+                    a.pos.x = x;
+                    r = reachAt(a);
+                    h = hl;
+                    return r <= okMost;
+                };
+                bool done = false;
+                if(st->slideBits >= 0)
+                {
+                    float l = lo0, h = hi0;
+                    for(int i = 0; i < 7; i++)
+                    {
+                        const float mid = (l + h) * 0.5f;
+                        ((st->slideBits >> (6 - i)) & 1 ? l : h) = mid;
+                    }
+                    rigpose::Rigid hlL = hlLo, hlH;
+                    float rL = reachLo, rH = 0.f;
+                    if((l == lo0 || tryX(l, hlL, rL)) && (h == hi0 || !tryX(h, hlH, rH)))
+                    {
+                        at.pos.x = l;
+                        hl = hlL;
+                        reach = rL;
+                        done = true;
+                    }
+                }
+                if(!done)
+                {
+                    float l = lo0, h = hi0;
+                    int bits = 0;
+                    for(int i = 0; i < 7; i++)
+                    {
+                        const float mid = (l + h) * 0.5f;
+                        rigpose::Rigid hm;
+                        float rm = 0.f;
+                        const bool ok = tryX(mid, hm, rm);
+                        bits = bits << 1 | (ok ? 1 : 0);
+                        if(ok)
+                        {
+                            l = mid;
+                            hlLo = hm;
+                            reachLo = rm;
+                        }
+                        else
+                        {
+                            h = mid;
+                        }
+                    }
+                    st->slideBits = bits;
+                    at.pos.x = l;
+                    hl = hlLo;
+                    reach = reachLo;
+                }
+            }
+        }
+        for(int step = 0; step < 12 && !fast; step++)
         {
             reach = reachAt(at);
             if(reach <= vr_agarms_second.value * armLen || at.pos.x <= 3.f)
@@ -2128,7 +2252,7 @@ bool solveImpl(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig
             }
             at.pos.x = za::max(3.f, at.pos.x - 1.f);
         }
-        if(lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= vr_agarms_second.value * armLen)
+        if(!fast && lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= vr_agarms_second.value * armLen)
         {
             // (with the IK stretch: the slide found to a hundredth of a unit, not in whole units: as its stretch eases in
             // or out the hand glides along the gun, never a unit's jump)
@@ -2365,12 +2489,12 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     const rigpose::Rigid* kick, const Targets& t, Placed& out)
 {
     const int num = client::entityNumber(e);
-    Ent* st = vr_agarms_fast_check.value != 0.f && vr_agarms_warm.value != 0.f && !fastRef && num > 0 ? entOf(num, false) : nullptr;
+    Ent* st = vr_agarms_fast_check.value != 0.f && (vr_agarms_warm.value != 0.f || vr_agarms_fast.value != 0.f) && !fastRef && num > 0 ? entOf(num, false) : nullptr;
     if(!st)
     {
         return solveImpl(e, hdr, rig, spec, posed, kick, t, out);
     }
-    // vr_agarms_fast_check: solved the old way first (vr_agarms_warm 0) on a copy of its state, then as it is, and the two
+    // vr_agarms_fast_check: solved the old way first (vr_agarms_warm 0, vr_agarms_fast 0) on a copy of its state, then as it is, and the two
     // compared (vr_agarms_cost prints how far apart)
     const Ent keep = *st;
     const Lod keepLod = lodOf(*st);

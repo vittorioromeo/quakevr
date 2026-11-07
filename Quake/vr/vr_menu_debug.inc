@@ -723,6 +723,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
                   "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "
                   "degrees; off: from the goal's turn every frame, as before."),
+        toggle("Armed Humanoids: Arms' Grip Slide Bisected", vr_agarms_fast)
+            .help("vr_agarms_fast: the off hand's slide along a two-handed gun to its reach found by bisection, last frame's "
+                  "answer checked first (2-5 arm solves, not up to 19); off: the whole-unit steps, as before."),
         toggle("Armed Humanoids: Check the Solve Shortcuts", vr_agarms_fast_check)
             .help("vr_agarms_fast_check: each solve also made without the shortcuts (on a copy of its state) and compared; "
                   "Arms' Solve Time prints how far apart the hands, elbows and turns were."),
