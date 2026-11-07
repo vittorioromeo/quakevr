@@ -3,6 +3,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_agarmor.hpp"
+#include "vr_armourstudio.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_testkit.hpp"
@@ -192,8 +193,15 @@ void setupPlates()
         x = 0;
     }
     const bool on = vr_player_plates.value != 0.f;
-    const int type = on ? za::max(agarmor::clientState(cl.viewentity, 0), 0) : 0;
-    const int pieces = on && type > 0 ? za::max(agarmor::clientState(cl.viewentity, 1), 0) : 0;
+    int type = on ? za::max(agarmor::clientState(cl.viewentity, 0), 0) : 0;
+    int pieces = on && type > 0 ? za::max(agarmor::clientState(cl.viewentity, 1), 0) : 0;
+    // (the Armour Studio on the player's kind: the armour it edits, whatever you wear; ARMOUR_STUDIO.md, "Your own body")
+    int studioType = 0, studioPieces = 0;
+    if(on && armourstudio::playerArmour(studioType, studioPieces))
+    {
+        type = studioType;
+        pieces = studioPieces;
+    }
     const double now = vr_gametime;
     const float time = vr_player_plates_morph_time.value;
 

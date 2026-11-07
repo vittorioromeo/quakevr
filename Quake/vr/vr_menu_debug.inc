@@ -1074,7 +1074,8 @@ za::Vector<Item> pageArmourStudio()
                   "sides take the larger)."),
         slider("Taper at Start", vr_armourstudio_taper_start, 0.5f, 1.5f, 0.02f, "%.2fx")
             .help("vr_armourstudio_taper_start: the plate rows' size round the part's line at its first row (the waist side of "
-                  "a thigh: the hip), lerped row by row to the taper at its end. 1 as made. Not the helmet or a sleeve."),
+                  "a thigh: the hip), lerped row by row to the taper at its end. 1 as made. A sleeve part's leather the "
+                  "same, its end nearer the body (its ring under the plates stays under them). Not the helmet."),
         slider("Taper at End", vr_armourstudio_taper_end, 0.5f, 1.5f, 0.02f, "%.2fx")
             .help("vr_armourstudio_taper_end: ... at its last row (a thigh's knee). A death knight's thighs wider at the "
                   "pelvis, narrower at the knee: 1.15 and 0.9."),
