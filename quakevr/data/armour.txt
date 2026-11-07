@@ -28,11 +28,11 @@ kind "grunt"
         start "0"
         end "0.75"
         taper_start "1.075"
-        taper_end "0.975"
+        taper_end "0.95"
     }
     helmet
     {
-        offset "0 0 0"
+        offset "0 0 -0.05"
         rotate "0 0 0"
         scale "0.9"
         standoff "-0.2"
@@ -136,6 +136,7 @@ kind "enforcer"
     pauldron_r
     {
         start "1.6"
+        end "-1.03"
     }
     bracer_r
     {
@@ -151,9 +152,21 @@ kind "enforcer"
         start "-4"
         end "0.2"
     }
+    pauldron_sleeve_r
+    {
+        offset "-2.61 0 0"
+    }
     bracer_sleeve
     {
-        scale "0.696"
+        scale "1"
+    }
+    bracer_sleeve_l
+    {
+        scale "1"
+    }
+    bracer_sleeve_r
+    {
+        scale "1"
     }
 }
 
@@ -172,6 +185,7 @@ kind "knight"
     pauldron
     {
         standoff "-0.65"
+        end "-1.57"
     }
     pauldron_l
     {
