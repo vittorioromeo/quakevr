@@ -1,0 +1,901 @@
+// vr_agarmor_bridge.cpp -- the elbows' and the knees' leather, made each frame the body is drawn (vr_agarmor_internal.hpp,
+// Bridge; ROUND24.md, "Leather bridge at elbows and knees"). vr_agarmor.cpp sets each joint's bridge up as a shell is made
+// (bridgesOf: its two end rings, skinned as the plates' feet there or the skin's, and the skin between) and draws it as an
+// entity of its own (relink, bonePoses); here it is posed: a tube along a Hermite curve from the upper part's last row to the
+// lower part's first, each ring turned with the curve, its corners lerped from the one row's to the other's, its bellows
+// standing on the inside of the bend and stretched flat on its outside, pushed out over the skin between wherever the skin
+// would show through. Its vertices are each a bone of the entity's own: their matrices carry each frame's places to the
+// skinned path (lighting, shadows, culling and the rest as the plates').
+
+#include "vr_agarmor.hpp"
+#include "vr_agarmor_internal.hpp"
+
+#include "vr_armourdata.hpp"
+#include "vr_cvars.hpp"
+#include "vr_engine.hpp"
+#include "vr_geom.hpp"
+#include "vr_rig2.hpp"
+#include "vr_rigpose.hpp"
+#include "vr_testkit.hpp"
+
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Tan.hpp"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+#include <string.h>
+
+namespace qvr::agarmor::detail
+{
+
+namespace
+{
+
+using geom::pi;
+
+constexpr float bridgeSkinGap = 0.2f;     // units: the leather at least this far off the skin it keeps under it
+constexpr float bridgePushMost = 5.f;     // units: a corner pushed out at most this far for it (an enforcer's elbow: 4 at rest)
+constexpr float bridgePushSpread = 0.6f;  // a push shared with the corners next to it round the ring and along the tube (a lump eased)
+constexpr int bridgePushPasses = 3;       // the skin measured and the corners pushed this many times (each over the last's)
+constexpr float bridgeBendFull = 1.5f;    // radians: a bend this far or further has every fold on its inside
+constexpr float bridgeInsideDeep = 1.25f; // the folds on the inside of a full bend: this many times their depth
+constexpr float bridgeEnvelope = 0.35f;   // armour.txt's taper and stand-off at full this far in from each end (of the length)
+constexpr float bridgeArcMost = 2.9f;     // radians: the turn the curve's tangents are sized for at most
+constexpr float bridgeCrease = 0.5f;      // the skin this far round to the inside of a bend (cosine) is the crease's
+
+constexpr int ringVerts = bridgeCols + 1; // (a ring's corners and its seam's copy)
+
+// The cost (vr_agarmor_bridge_stats): since the last report.
+struct Stats
+{
+    double seconds{0.0}, frameSeconds{0.0}, worstFrame{0.0};
+    int joints{0}, frames{0}, frame{-1};
+};
+Stats stats;
+
+[[nodiscard]] glm::mat3 turnOf(const float* bones, int b)
+{
+    const float* m = bones + b * 12;
+    return glm::mat3{glm::vec3{m[0], m[4], m[8]}, glm::vec3{m[1], m[5], m[9]}, glm::vec3{m[2], m[6], m[10]}};
+}
+
+// The turn taking unit `a` to unit `b` (the shortest).
+[[nodiscard]] glm::quat turnBetween(const glm::vec3& a, const glm::vec3& b)
+{
+    const float d = glm::dot(a, b);
+    if(d < -0.9999f)
+    {
+        const glm::vec3 side = za::abs(a.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
+        return glm::angleAxis(pi, glm::normalize(glm::cross(a, side)));
+    }
+    return glm::normalize(glm::quat{1.f + d, glm::cross(a, b)});
+}
+
+using geom::smooth01;
+
+// Where a ray from the ring's middle along `dir` (its plane, local) leaves its polygon `corner` (6, local xy); 0 none.
+[[nodiscard]] float polygonReach(const glm::vec2* corner, const glm::vec2& dir, int& edge, float& along)
+{
+    const auto cross2 = [](const glm::vec2& a, const glm::vec2& b) { return a.x * b.y - a.y * b.x; };
+    for(int k = 0; k < bridgeCols; k++)
+    {
+        const glm::vec2 a = corner[k], e = corner[(k + 1) % bridgeCols] - a;
+        const float den = cross2(dir, e);
+        if(za::abs(den) < 1e-8f)
+        {
+            continue;
+        }
+        const float r = cross2(a, e) / den, s = cross2(a, dir) / den;
+        if(r > 0.f && s >= -1e-4f && s <= 1.0001f)
+        {
+            edge = k;
+            along = za::clamp(s, 0.f, 1.f);
+            return r;
+        }
+    }
+    return 0.f;
+}
+
+// A joint's posed rings (its curve's), before their corners.
+struct Rings
+{
+    int n{0};
+    glm::vec3 centre[bridgeMostRings];
+    glm::quat turn[bridgeMostRings];
+    glm::vec3 along[bridgeMostRings];   // the curve's direction there
+    glm::vec3 inside[bridgeMostRings];  // towards the inside of the bend, square to `along` (none: zero)
+    glm::vec2 corner[bridgeMostRings][bridgeCols]; // local xy (the ring's frame), folds and pushes on
+    float z[bridgeMostRings][bridgeCols];
+};
+
+} // namespace
+
+Skinned skinnedOf(const glm::vec3& p, const W& w)
+{
+    // (as makeModel quantises a vertex's weights: the first four bones weighing on it in order, each in 255ths, the last the rest)
+    Skinned s;
+    s.p = p;
+    int order[4] = {-1, -1, -1, -1};
+    int k = 0;
+    for(int b = 0; b < rig2::maxBones && k < 4; b++)
+    {
+        if(w.w[b] > 0.f)
+        {
+            order[k++] = b;
+        }
+    }
+    int left = 255;
+    for(int i = 0; i < k; i++)
+    {
+        const int bone = order[i];
+        const int wb = i + 1 < k ? static_cast<int>(w.w[bone] * 255.f + 0.5f) : left;
+        const int q = za::clamp(za::min(wb, left), 0, 255);
+        s.bone[i] = bone;
+        s.w[i] = static_cast<float>(q) / 255.f;
+        left -= q;
+    }
+    s.n = k;
+    return s;
+}
+
+bool posedOf(const Skinned& s, const float* bones, int have, glm::vec3& out)
+{
+    glm::vec3 o{0.f};
+    for(int i = 0; i < s.n; i++)
+    {
+        const int b = s.bone[i];
+        if(b < 0 || b >= have)
+        {
+            return false;
+        }
+        const float* m = bones + b * 12;
+        const glm::vec3& p = s.p;
+        o += s.w[i] * glm::vec3{m[0] * p.x + m[1] * p.y + m[2] * p.z + m[3], m[4] * p.x + m[5] * p.y + m[6] * p.z + m[7],
+                          m[8] * p.x + m[9] * p.y + m[10] * p.z + m[11]};
+    }
+    out = o;
+    return s.n > 0;
+}
+
+bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperWorn, bool lowerWorn, glm::vec3* outP,
+    glm::vec3* outN, BridgeDiag* diag)
+{
+    const Bridge& br = s.bridges[j];
+    if(!br.ok || br.rings < 2 || br.rings > bridgeMostRings)
+    {
+        return false;
+    }
+    // The two ends: the plates' rows worn, else the skin's rings there; each ring posed, its middle, its frame turned with its
+    // part's bone, its corners in that frame.
+    const BridgeEnd* ends[2] = {upperWorn ? &br.plates[0] : &br.skin[0], lowerWorn ? &br.plates[1] : &br.skin[1]};
+    glm::vec3 mid[2], axis[2];
+    glm::quat frameTurn[2];
+    glm::vec3 local[2][bridgeCols];
+    for(int e = 0; e < 2; e++)
+    {
+        const BridgeEnd& E = *ends[e];
+        if(!E.ok || E.bone < 0 || E.bone >= have)
+        {
+            return false;
+        }
+        glm::vec3 q[bridgeCols];
+        mid[e] = glm::vec3{0.f};
+        for(int c = 0; c < bridgeCols; c++)
+        {
+            if(!posedOf(E.ring[c], bones, have, q[c]))
+            {
+                return false;
+            }
+            mid[e] += q[c] / static_cast<float>(bridgeCols);
+        }
+        const glm::mat3 R = turnOf(bones, E.bone);
+        const glm::vec3 z = geom::safeNormalize(R * E.z, E.z, 1e-8f);
+        const glm::vec3 rx = R * E.x;
+        const glm::vec3 x = geom::safeNormalize(rx - z * glm::dot(rx, z), E.x, 1e-8f);
+        const glm::mat3 F{x, glm::cross(z, x), z};
+        frameTurn[e] = glm::normalize(glm::quat_cast(F));
+        axis[e] = z;
+        const glm::mat3 Ft = glm::transpose(F);
+        for(int c = 0; c < bridgeCols; c++)
+        {
+            local[e][c] = Ft * (q[c] - mid[e]);
+        }
+    }
+
+    // The curve: Hermite from the one row's middle to the other's, along each row's direction, round the joint: its tangents
+    // reach the joint's place along each row's line (a Bezier's inner points there), so it turns close round the elbow's or
+    // the knee's point rather than cutting the corner as a circle's arc would (the skin's point showed through); a joint
+    // behind a row (a part moved by armour.txt): the circle's arc's.
+    const float chord = glm::distance(mid[0], mid[1]);
+    const float theta = za::acos(za::clamp(glm::dot(axis[0], axis[1]), -1.f, 1.f));
+    const float th = za::min(theta, bridgeArcMost);
+    const float arc = th < 1e-3f ? chord : chord * 2.f * za::tan(th * 0.25f) / za::sin(th * 0.5f);
+    Skinned pivot;
+    pivot.p = br.pivot;
+    pivot.bone[0] = ends[1]->bone;
+    pivot.w[0] = 1.f;
+    pivot.n = 1;
+    glm::vec3 joint;
+    (void)posedOf(pivot, bones, have, joint);
+    const float a0 = glm::dot(joint - mid[0], axis[0]), a1 = glm::dot(mid[1] - joint, axis[1]);
+    const bool round = a0 > 0.15f * chord && a1 > 0.15f * chord;
+    const glm::vec3 t0 = axis[0] * (round ? 3.f * a0 : arc), t1 = axis[1] * (round ? 3.f * a1 : arc);
+    const float bend = za::clamp(theta / bridgeBendFull, 0.f, 1.f);
+    const glm::vec3 turnDir = axis[1] - axis[0];
+
+    Rings rg;
+    rg.n = br.rings;
+    const int last = rg.n - 1;
+    float tOf[bridgeMostRings]{}, foldOf[bridgeMostRings]{}, scaleOf[bridgeMostRings]{}, offOf[bridgeMostRings]{};
+    for(int i = 0; i < rg.n; i++)
+    {
+        const float t = static_cast<float>(i) / static_cast<float>(last), t2 = t * t, t3 = t2 * t;
+        tOf[i] = t;
+        rg.centre[i] = (2.f * t3 - 3.f * t2 + 1.f) * mid[0] + (t3 - 2.f * t2 + t) * t0 + (-2.f * t3 + 3.f * t2) * mid[1] + (t3 - t2) * t1;
+        const glm::vec3 d = (6.f * t2 - 6.f * t) * mid[0] + (3.f * t2 - 4.f * t + 1.f) * t0 + (-6.f * t2 + 6.f * t) * mid[1] + (3.f * t2 - 2.f * t) * t1;
+        const glm::quat q = glm::slerp(frameTurn[0], frameTurn[1], t);
+        const glm::vec3 zq = q * glm::vec3{0.f, 0.f, 1.f};
+        const glm::vec3 zt = geom::safeNormalize(d, zq, 1e-8f);
+        rg.turn[i] = i == 0 ? frameTurn[0] : i == last ? frameTurn[1] : glm::normalize(turnBetween(zq, zt) * q);
+        rg.along[i] = i == 0 ? axis[0] : i == last ? axis[1] : zt;
+        const glm::vec3 in = turnDir - rg.along[i] * glm::dot(turnDir, rg.along[i]);
+        rg.inside[i] = glm::length(in) > 1e-4f ? glm::normalize(in) : glm::vec3{0.f};
+        // (the bellows: a fold's top on every other ring, none at the ends; armour.txt's taper and stand-off, none at the ends)
+        const float wave = za::sin(pi * static_cast<float>(br.folds) * t);
+        foldOf[i] = i == 0 || i == last ? 0.f : br.depth * wave * wave;
+        const float env = smooth01(t / bridgeEnvelope) * smooth01((1.f - t) / bridgeEnvelope);
+        const float k = t < 0.5f ? br.taper[0] + (br.taper[1] - br.taper[0]) * (2.f * t) : br.taper[2] + (br.taper[3] - br.taper[2]) * (2.f * t - 1.f);
+        scaleOf[i] = 1.f + (k * br.scale - 1.f) * env;
+        offOf[i] = br.standoff * env;
+    }
+    float push[bridgeMostRings][bridgeCols]{}, pushedBefore[bridgeMostRings][bridgeCols]{};
+    const auto lay = [&]
+    {
+        for(int i = 0; i < rg.n; i++)
+        {
+            const float t = tOf[i];
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const glm::vec3 L = local[0][c] + (local[1][c] - local[0][c]) * t;
+                const glm::vec2 xy = glm::vec2{L.x, L.y} * scaleOf[i];
+                const float r = glm::length(xy);
+                const glm::vec2 dir = r > 1e-5f ? xy / r : glm::vec2{1.f, 0.f};
+                // (the folds deep on the inside of the bend, flat on its outside; all round on a straight limb)
+                const glm::vec3 radial = rg.turn[i] * glm::vec3{dir.x, dir.y, 0.f};
+                const float cosIn = glm::dot(radial, rg.inside[i]);
+                const float fold = foldOf[i] * ((1.f - bend) + bend * bridgeInsideDeep * smooth01((cosIn + 0.3f) / 1.1f));
+                rg.corner[i][c] = dir * (r + offOf[i] + fold + push[i][c]);
+                rg.z[i][c] = L.z;
+            }
+        }
+    };
+    lay();
+
+    // The skin between kept under it: each of its vertices posed, found between two rings (their planes), its reach out from
+    // the curve there against the leather's polygon in that direction; short, the corners round it pushed out (not the end
+    // rings: the rows'). Twice, the second over the first's pushes. Not on the inside of a bend: the limbs overlap there.
+    const auto measure = [&](bool pushing, BridgeDiag* d)
+    {
+        for(int k = 0; k < br.numUnder; k++)
+        {
+            glm::vec3 u;
+            if(!posedOf(br.under[k], bones, have, u))
+            {
+                continue;
+            }
+            int seg = -1;
+            float f = 0.f;
+            for(int i = 0; i + 1 < rg.n && seg < 0; i++)
+            {
+                const float a = glm::dot(u - rg.centre[i], rg.along[i]), b = glm::dot(u - rg.centre[i + 1], rg.along[i + 1]);
+                if(a >= 0.f && b < 0.f)
+                {
+                    seg = i;
+                    f = a / (a - b);
+                }
+            }
+            if(seg < 0)
+            {
+                continue;
+            }
+            const glm::vec3 c = rg.centre[seg] + (rg.centre[seg + 1] - rg.centre[seg]) * f;
+            const glm::quat q = glm::slerp(rg.turn[seg], rg.turn[seg + 1], f);
+            const glm::vec3 l = glm::inverse(q) * (u - c);
+            const glm::vec2 xy{l.x, l.y};
+            const float ru = glm::length(xy);
+            if(ru < 1e-4f)
+            {
+                continue;
+            }
+            glm::vec2 poly[bridgeCols];
+            for(int col = 0; col < bridgeCols; col++)
+            {
+                poly[col] = rg.corner[seg][col] + (rg.corner[seg + 1][col] - rg.corner[seg][col]) * f;
+            }
+            int edge = 0;
+            float s = 0.f;
+            const float reach = polygonReach(poly, xy / ru, edge, s);
+            if(reach <= 0.f)
+            {
+                continue;
+            }
+            const glm::vec3 inside = rg.inside[seg] + (rg.inside[seg + 1] - rg.inside[seg]) * f;
+            const bool crease = bend > 0.3f && glm::dot(q * glm::vec3{xy.x / ru, xy.y / ru, 0.f}, inside) > bridgeCrease;
+            if(d)
+            {
+                d->under++;
+                const float where = static_cast<float>(seg) + f;
+                if(ru > reach + 0.01f && (where < 0.5f || where > static_cast<float>(last) - 0.5f))
+                {
+                    d->atRows++; // (at a row: under its plates' own fit, the upper's lapping edge)
+                }
+                else if(ru > reach + 0.01f)
+                {
+                    d->outside += crease ? 0 : 1;
+                    d->outsideInner += crease ? 1 : 0;
+                    d->worstAt = !crease && ru - reach > d->worst ? static_cast<float>(seg) + f : d->worstAt;
+                    d->worst = crease ? d->worst : za::max(d->worst, ru - reach);
+                }
+            }
+            const float need = ru + bridgeSkinGap - reach;
+            if(!pushing || crease || need <= 0.f)
+            {
+                continue;
+            }
+            const int e1 = (edge + 1) % bridgeCols;
+            const int ringOf[4] = {seg, seg, seg + 1, seg + 1}, colOf[4] = {edge, e1, edge, e1};
+            float w[4] = {(1.f - f) * (1.f - s), (1.f - f) * s, f * (1.f - s), f * s};
+            float sum2 = 0.f;
+            for(int i = 0; i < 4; i++)
+            {
+                w[i] = ringOf[i] == 0 || ringOf[i] == last ? 0.f : w[i];
+                sum2 += w[i] * w[i];
+            }
+            if(sum2 < 1e-4f)
+            {
+                continue;
+            }
+            // (on top of the pushes the polygon was measured with: each sample's own, the corners keeping the most asked)
+            const float kk = za::min(need, bridgePushMost) / sum2;
+            for(int i = 0; i < 4; i++)
+            {
+                float& p = push[ringOf[i]][colOf[i]];
+                p = za::min(za::max(p, pushedBefore[ringOf[i]][colOf[i]] + w[i] * kk), bridgePushMost);
+            }
+        }
+    };
+    for(int pass = 0; pass < bridgePushPasses && br.numUnder > 0; pass++)
+    {
+        memcpy(pushedBefore, push, sizeof(push));
+        measure(true, nullptr);
+        // (eased: each corner at least a share of its neighbours' pushes, so a pushed corner is a swell, not a spike)
+        float eased[bridgeMostRings][bridgeCols]{};
+        for(int i = 1; i < last; i++)
+        {
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const float near = za::max(za::max(push[i][(c + 1) % bridgeCols], push[i][(c + bridgeCols - 1) % bridgeCols]),
+                    za::max(push[i - 1][c], push[i + 1][c]));
+                eased[i][c] = za::max(push[i][c], near * bridgePushSpread);
+            }
+        }
+        memcpy(push, eased, sizeof(push));
+        lay();
+    }
+    if(diag)
+    {
+        *diag = BridgeDiag{};
+        measure(false, diag);
+    }
+
+    // The places, a ring at a time (its seam's copy last), and their normals across the grid.
+    for(int i = 0; i < rg.n; i++)
+    {
+        for(int c = 0; c <= bridgeCols; c++)
+        {
+            const int cc = c % bridgeCols;
+            outP[i * ringVerts + c] = rg.centre[i] + rg.turn[i] * glm::vec3{rg.corner[i][cc].x, rg.corner[i][cc].y, rg.z[i][cc]};
+        }
+    }
+    for(int i = 0; i < rg.n; i++)
+    {
+        for(int c = 0; c <= bridgeCols; c++)
+        {
+            const int cc = c % bridgeCols;
+            const glm::vec3& p = outP[i * ringVerts + cc];
+            const glm::vec3 round = outP[i * ringVerts + (cc + 1) % bridgeCols] - outP[i * ringVerts + (cc + bridgeCols - 1) % bridgeCols];
+            const glm::vec3 down = outP[za::min(i + 1, last) * ringVerts + cc] - outP[za::max(i - 1, 0) * ringVerts + cc];
+            glm::vec3 n = geom::safeNormalize(glm::cross(down, round), p - rg.centre[i], 1e-10f);
+            n = glm::dot(n, p - rg.centre[i]) < 0.f ? -n : n;
+            outN[i * ringVerts + c] = geom::safeNormalize(n, glm::vec3{0.f, 0.f, 1.f}, 1e-10f);
+        }
+    }
+    return true;
+}
+
+void bridgeRest(Shell& s)
+{
+    s.bridgeRestP.clear();
+    s.bridgeRestN.clear();
+    s.bridgeTris.clear();
+    if(s.bridgeVerts <= 0 || s.bridgeVerts > bridgeMostVerts)
+    {
+        s.bridgeVerts = 0;
+        return;
+    }
+    s.bridgeRestP.resize(static_cast<za::SizeT>(s.bridgeVerts), glm::vec3{0.f});
+    s.bridgeRestN.resize(static_cast<za::SizeT>(s.bridgeVerts), glm::vec3{0.f, 0.f, 1.f});
+    float identity[rig2::maxBones * 12]{};
+    for(int b = 0; b < rig2::maxBones; b++)
+    {
+        identity[b * 12 + 0] = identity[b * 12 + 5] = identity[b * 12 + 10] = 1.f;
+    }
+    for(int j = 0; j < NumJoints; j++)
+    {
+        const Bridge& br = s.bridges[j];
+        if(!br.ok)
+        {
+            continue;
+        }
+        glm::vec3 P[bridgeMostRings * ringVerts], N[bridgeMostRings * ringVerts];
+        if(!evalBridge(s, j, identity, rig2::maxBones, true, true, P, N, nullptr))
+        {
+            continue;
+        }
+        const int n = br.rings * ringVerts;
+        for(int v = 0; v < n; v++)
+        {
+            at(s.bridgeRestP, br.first + v) = P[v];
+            at(s.bridgeRestN, br.first + v) = N[v];
+        }
+        // (wound outward: the way most of its quads face out)
+        float facing = 0.f;
+        for(int i = 0; i + 1 < br.rings; i++)
+        {
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const int a = i * ringVerts + c;
+                facing += glm::dot(glm::cross(P[a + 1] - P[a], P[a + ringVerts + 1] - P[a]), N[a] + N[a + ringVerts + 1]);
+            }
+        }
+        const bool flip = facing < 0.f;
+        for(int i = 0; i + 1 < br.rings; i++)
+        {
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const int a = br.first + i * ringVerts + c, b = a + 1, cc = a + ringVerts + 1, d = a + ringVerts;
+                for(const int x : {a, flip ? cc : b, flip ? b : cc, a, flip ? d : cc, flip ? cc : d})
+                {
+                    s.bridgeTris.pushBack(x);
+                }
+            }
+        }
+    }
+}
+
+int bridgeBones(const Shell& s, int pieces, const float* bones, int have, float* out)
+{
+    const double t0 = Sys_DoubleTime();
+    int joints = 0;
+    for(int j = 0; j < NumJoints; j++)
+    {
+        const Bridge& br = s.bridges[j];
+        if(!br.ok)
+        {
+            continue;
+        }
+        const int n = br.rings * ringVerts;
+        float* o = out + br.first * 12;
+        const bool upperWorn = ((pieces >> br.upper) & 1) != 0, lowerWorn = ((pieces >> br.lower) & 1) != 0;
+        glm::vec3 P[bridgeMostRings * ringVerts], N[bridgeMostRings * ringVerts];
+        if(!bones || (!upperWorn && !lowerWorn) || !evalBridge(s, j, bones, have, upperWorn, lowerWorn, P, N, nullptr))
+        {
+            memset(o, 0, sizeof(float) * 12u * static_cast<size_t>(n)); // (not drawn: collapsed)
+            continue;
+        }
+        joints++;
+        // Each vertex's bone: its rest normal turned onto its normal now, its rest place carried onto its place now.
+        for(int v = 0; v < n; v++)
+        {
+            const glm::vec3& rp = at(s.bridgeRestP, br.first + v);
+            const glm::mat3 R = glm::mat3_cast(turnBetween(at(s.bridgeRestN, br.first + v), N[v]));
+            const glm::vec3 t = P[v] - R * rp;
+            float* m = o + v * 12;
+            for(int row = 0; row < 3; row++)
+            {
+                m[row * 4 + 0] = R[0][row];
+                m[row * 4 + 1] = R[1][row];
+                m[row * 4 + 2] = R[2][row];
+                m[row * 4 + 3] = t[row];
+            }
+        }
+    }
+    bridgeStatsAdd(Sys_DoubleTime() - t0, joints);
+    return s.bridgeVerts;
+}
+
+bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
+{
+    const int numVerts = s.bridgeVerts, numIndexes = count(s.bridgeTris);
+    if(numVerts <= 0 || numVerts > 256 || numIndexes <= 0 || !kh)
+    {
+        return false;
+    }
+    aliashdr_t skinHdr;
+    memcpy(&skinHdr, kh, sizeof(aliashdr_t)); // (as makeModel: the hunk growing below may evict the skins' model)
+    kh = &skinHdr;
+    const int start = Hunk_LowMark();
+    auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(sizeof(aliashdr_t))));
+    auto* bones = static_cast<boneinfo_t*>(Hunk_Alloc(static_cast<int>(sizeof(boneinfo_t)) * numVerts));
+    auto* bind = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numVerts));
+    auto* poses = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numVerts));
+    auto* verts = static_cast<iqmvert_t*>(Hunk_Alloc(static_cast<int>(sizeof(iqmvert_t)) * numVerts));
+    auto* indexes = static_cast<unsigned short*>(Hunk_Alloc(static_cast<int>(sizeof(unsigned short)) * numIndexes));
+    hdr->ident = kh->ident;
+    hdr->version = kh->version;
+    hdr->scale[0] = hdr->scale[1] = hdr->scale[2] = 1.f;
+    hdr->boundingradius = 64.f;
+    hdr->numskins = kh->numskins;
+    hdr->skinwidth = kh->skinwidth;
+    hdr->skinheight = kh->skinheight;
+    hdr->numverts = numVerts;
+    hdr->numverts_vbo = numVerts;
+    hdr->numtris = numIndexes / 3;
+    hdr->numframes = 1;
+    hdr->synctype = ST_SYNC;
+    hdr->numindexes = numIndexes;
+    hdr->numposes = 1;
+    hdr->numbones = numVerts;
+    hdr->poseverttype = aliashdr_t::PV_IQM;
+    hdr->nextsurface = 0;
+    hdr->frames[0].firstpose = 0;
+    hdr->frames[0].numposes = 1;
+    hdr->frames[0].interval = 0.1f;
+    q_strlcpy(hdr->frames[0].name, "bridge", sizeof(hdr->frames[0].name));
+    memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
+    memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
+    memcpy(hdr->texels, kh->texels, sizeof(hdr->texels));
+    for(int b = 0; b < numVerts; b++)
+    {
+        q_snprintf(bones[b].name, sizeof(bones[b].name), "bridge:%d", b);
+        bones[b].parent = -1;
+        for(int i = 0; i < 12; i++)
+        {
+            const float id = i % 5 == 0 ? 1.f : 0.f;
+            bones[b].inverse.mat[i] = id;
+            bind[b].mat[i] = id;
+            poses[b].mat[i] = id;
+        }
+    }
+    // (the leather's place in the atlas, as the sleeves': round it u; along it v, a fold of geometry a fold of paint (make_agarmor.py
+    // paints four down the block); no folds: the paint's eight, mirrored about the joint)
+    constexpr float jx0 = 224.f, jy0 = 64.f, jx1 = 256.f, jy1 = 96.f; // (vr_agarmor.cpp jointBlock)
+    const float padW = static_cast<float>(TexMgr_PadConditional(kh->skinwidth)), padH = static_cast<float>(TexMgr_PadConditional(kh->skinheight));
+    for(int j = 0; j < NumJoints; j++)
+    {
+        const Bridge& br = s.bridges[j];
+        for(int i = 0; br.ok && i < br.rings; i++)
+        {
+            const float t = static_cast<float>(i) / static_cast<float>(br.rings - 1);
+            const float v = br.folds > 0 ? t * static_cast<float>(br.folds) * 0.25f : 1.f - za::abs(2.f * t - 1.f);
+            for(int c = 0; c <= bridgeCols; c++)
+            {
+                const int k = br.first + i * ringVerts + c;
+                const float u = static_cast<float>(c) / static_cast<float>(bridgeCols);
+                iqmvert_t& o = verts[k];
+                const glm::vec3& p = at(s.bridgeRestP, k);
+                const glm::vec3& n = at(s.bridgeRestN, k);
+                for(int a = 0; a < 3; a++)
+                {
+                    o.xyz[a] = p[a];
+                    o.norm[a] = static_cast<int8_t>(za::clamp(static_cast<int>(n[a] * 127.f + (n[a] < 0.f ? -0.5f : 0.5f)), -127, 127));
+                }
+                o.norm[3] = 0;
+                o.st[0] = (jx0 + 0.5f + za::clamp(u, 0.f, 1.f) * (jx1 - jx0 - 1.f)) / padW;
+                o.st[1] = (jy0 + 0.5f + za::clamp(v, 0.f, 1.f) * (jy1 - jy0 - 1.f)) / padH;
+                for(int q = 0; q < 4; q++)
+                {
+                    o.weight[q] = 0;
+                    o.idx[q] = 0;
+                }
+                o.weight[0] = 255;
+                o.idx[0] = static_cast<uint8_t>(k);
+            }
+        }
+    }
+    for(int i = 0; i + 2 < numIndexes; i += 3)
+    {
+        indexes[i] = static_cast<unsigned short>(at(s.bridgeTris, i));
+        indexes[i + 1] = static_cast<unsigned short>(at(s.bridgeTris, s.body.nativeFlip ? i + 2 : i + 1));
+        indexes[i + 2] = static_cast<unsigned short>(at(s.bridgeTris, s.body.nativeFlip ? i + 1 : i + 2));
+    }
+    hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
+    hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
+    hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);
+    hdr->vertexes = reinterpret_cast<byte*>(verts) - reinterpret_cast<byte*>(hdr);
+    hdr->indexes = reinterpret_cast<byte*>(indexes) - reinterpret_cast<byte*>(hdr);
+    if(mod->meshvbo)
+    {
+        GLMesh_DeleteVertexBuffer(mod);
+    }
+    GLMesh_LoadVertexBuffer(mod, hdr);
+    mod->type = mod_alias;
+    mod->needload = false;
+    mod->numframes = 1;
+    mod->synctype = ST_SYNC;
+    mod->flags = 0;
+    for(int i = 0; i < 3; i++)
+    {
+        mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -128.f;
+        mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = 128.f;
+    }
+    const int total = Hunk_LowMark() - start;
+    Cache_Alloc(&mod->cache, total, mod->name);
+    if(!mod->cache.data)
+    {
+        Hunk_FreeToLowMark(start);
+        return false;
+    }
+    memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
+    Hunk_FreeToLowMark(start);
+    Con_DPrintf("agarmor: %s made (%d vertices, %d triangles)\n", mod->name, numVerts, numIndexes / 3);
+    return true;
+}
+
+void bridgeStatsAdd(double seconds, int joints)
+{
+    Stats& st = stats;
+    if(st.frame != host_framecount)
+    {
+        st.worstFrame = za::max(st.worstFrame, st.frameSeconds);
+        st.frameSeconds = 0.0;
+        st.frame = host_framecount;
+        st.frames++;
+    }
+    st.seconds += seconds;
+    st.frameSeconds += seconds;
+    st.joints += joints;
+}
+
+void bridgeStats_f()
+{
+    Stats& st = stats;
+    st.worstFrame = za::max(st.worstFrame, st.frameSeconds);
+    const double frames = static_cast<double>(za::max(st.frames, 1));
+    Con_Printf("agarmor bridge stats: %d frames, %d joints made (%.1f a frame), %.1f us a frame (worst %.1f), %.2f us a joint\n", st.frames, st.joints,
+        static_cast<double>(st.joints) / frames, st.seconds * 1e6 / frames, st.worstFrame * 1e6,
+        st.joints > 0 ? st.seconds * 1e6 / static_cast<double>(st.joints) : 0.0);
+    st = Stats{};
+}
+
+void bridgeCheck_f()
+{
+    const char* only = Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr;
+    constexpr const char* testName = "agarmor bridge check";
+    testkit::Tally tally;
+    const auto check = [&](bool ok, const char* what) {
+        if(tally.check(ok, testName, what))
+        {
+            Con_Printf("%s: PASS %s\n", testName, what);
+        }
+    };
+    char what[320];
+    for(const char* model : checked)
+    {
+        if(only && strcmp(only, model))
+        {
+            continue;
+        }
+        qmodel_t* src = Mod_ForName(model, false);
+        const Shell* s = src ? shellFor(src) : nullptr;
+        const rig2::Rig* rig = src ? rigOfShell(src) : nullptr;
+        if(!s || !rig)
+        {
+            q_snprintf(what, sizeof(what), "%s: no shell", model);
+            check(false, what);
+            continue;
+        }
+        int made = 0;
+        for(const Bridge& br : s->bridges)
+        {
+            made += br.ok ? 1 : 0;
+        }
+        q_snprintf(what, sizeof(what), "%s: %d joints bridged (4 wanted), %d vertices (at most %d)", model, made, s->bridgeVerts, bridgeMostVerts);
+        check(made == NumJoints && s->bridgeVerts <= bridgeMostVerts && count(s->bridgeRestP) == s->bridgeVerts, what);
+        for(int j = 0; j < NumJoints; j++)
+        {
+            const Bridge& br = s->bridges[j];
+            const int hinge = br.ok ? br.plates[1].bone : -1;
+            if(hinge < 0 || hinge >= rig->numBones)
+            {
+                continue;
+            }
+            // The plates' own vertices nearest each end ring's corners (their feet), carried as they're drawn.
+            Skinned feet[2][bridgeCols];
+            float restGap = 0.f;
+            for(int e = 0; e < 2; e++)
+            {
+                const int piece = e == 0 ? br.upper : br.lower;
+                for(int c = 0; c < bridgeCols; c++)
+                {
+                    float best = 1e9f;
+                    for(const Vert& v : s->verts)
+                    {
+                        const float d = v.piece == piece ? glm::distance(v.p, br.plates[e].ring[c].p) : 1e9f;
+                        if(d < best)
+                        {
+                            best = d;
+                            feet[e][c] = skinnedOf(v.p, v.w);
+                        }
+                    }
+                    restGap = za::max(restGap, best);
+                }
+            }
+            // The joint swept through its range (its bend from straight), the rest of the body at rest.
+            const glm::vec2 range = rig->bones[hinge].range;
+            float worstGap = 0.f, worstOut = 0.f, worstAlone = 0.f, worstAt = 0.f, worstDeg = 0.f;
+            int outside = 0, inner = 0, tested = 0, bad = 0, atRows = 0;
+            constexpr int steps = 9;
+            for(int k = 0; k < steps; k++)
+            {
+                rig2::Pose pose = rig2::restPose(*rig);
+                pose.a[hinge].x = range.x + (range.y - range.x) * static_cast<float>(k) / static_cast<float>(steps - 1);
+                rigpose::Rigid F[rig2::maxBones];
+                rig2::forward(*rig, pose, F);
+                float bones[rig2::maxBones * 12]{};
+                for(int b = 0; b < rig->numBones; b++)
+                {
+                    const glm::mat3 r = glm::mat3_cast(F[b].rot);
+                    for(int row = 0; row < 3; row++)
+                    {
+                        bones[b * 12 + row * 4 + 0] = r[0][row];
+                        bones[b * 12 + row * 4 + 1] = r[1][row];
+                        bones[b * 12 + row * 4 + 2] = r[2][row];
+                        bones[b * 12 + row * 4 + 3] = F[b].pos[row];
+                    }
+                }
+                glm::vec3 P[bridgeMostRings * ringVerts], N[bridgeMostRings * ringVerts];
+                BridgeDiag d;
+                if(!evalBridge(*s, j, bones, rig->numBones, true, true, P, N, &d))
+                {
+                    bad++;
+                    continue;
+                }
+                for(int e = 0; e < 2; e++)
+                {
+                    const int ring = e == 0 ? 0 : br.rings - 1;
+                    for(int c = 0; c <= bridgeCols; c++)
+                    {
+                        glm::vec3 foot;
+                        if(posedOf(feet[e][c % bridgeCols], bones, rig->numBones, foot))
+                        {
+                            worstGap = za::max(worstGap, glm::distance(foot, P[ring * ringVerts + c]));
+                        }
+                    }
+                }
+                for(int v = 0; v < br.rings * ringVerts; v++)
+                {
+                    bad += P[v] == P[v] && N[v] == N[v] ? 0 : 1; // (NaN)
+                }
+                Con_DPrintf("agarmor bridge check:   %s %s %.0f deg: %d of %d out (worst %.2f at %.2f), crease %d, rows %d\n", model, pieceNames[br.lower],
+                    static_cast<double>(pose.a[hinge].x), d.outside, d.under, static_cast<double>(d.worst), static_cast<double>(d.worstAt),
+                    d.outsideInner, d.atRows);
+                tested += d.under;
+                outside += d.outside;
+                atRows += d.atRows;
+                inner += d.outsideInner;
+                if(d.worst > worstOut)
+                {
+                    worstOut = d.worst;
+                    worstAt = d.worstAt;
+                    worstDeg = pose.a[hinge].x;
+                }
+                // (a part worn alone: the other end on the skin; the worn row's ring still on its row)
+                for(int alone = 0; alone < 2; alone++)
+                {
+                    if(!evalBridge(*s, j, bones, rig->numBones, alone == 0, alone == 1, P, N, nullptr))
+                    {
+                        bad++;
+                        continue;
+                    }
+                    const int ring = alone == 0 ? 0 : br.rings - 1;
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        glm::vec3 foot;
+                        if(posedOf(feet[alone][c], bones, rig->numBones, foot))
+                        {
+                            worstAlone = za::max(worstAlone, glm::distance(foot, P[ring * ringVerts + c]));
+                        }
+                    }
+                }
+            }
+            q_snprintf(what, sizeof(what), "%s %s: end rings on the plates' rows over %.0f..%.0f deg: furthest %.3f (rest %.3f; alone %.3f), %d bad",
+                model, pieceNames[br.lower], static_cast<double>(range.x), static_cast<double>(range.y), static_cast<double>(worstGap),
+                static_cast<double>(restGap), static_cast<double>(worstAlone), bad);
+            check(bad == 0 && worstGap <= restGap + 0.02f && worstAlone <= restGap + 0.02f, what);
+            q_snprintf(what, sizeof(what), "%s %s: skin under the leather: %d of %d samples out (furthest %.2f at ring %.2f of %d, %.0f deg), %d in the crease, %d at the rows (%d kept)",
+                model, pieceNames[br.lower], outside, tested, static_cast<double>(worstOut), static_cast<double>(worstAt), br.rings - 1,
+                static_cast<double>(worstDeg), inner, atRows, br.numUnder);
+            check(tested > 0 && outside == 0, what);
+        }
+    }
+    // armour.txt's settings on the leather: the grunt's left knee's sleeve parts (the table's entries put back after).
+    qmodel_t* grunt = !only || !strcmp(only, checked[0]) ? Mod_ForName(checked[0], false) : nullptr;
+    const Shell* s = grunt ? shellFor(grunt) : nullptr;
+    if(s && s->bridges[KneeL].ok && s->bridges[KneeR].ok)
+    {
+        using namespace armourdata;
+        (void)entry("grunt", PartThighSleeve, SideLeft, true);
+        (void)entry("grunt", PartShinSleeve, SideLeft, true);
+        Override* tu = entry("grunt", PartThighSleeve, SideLeft, false);
+        Override* tl = entry("grunt", PartShinSleeve, SideLeft, false);
+        const Override wasU = *tu, wasL = *tl;
+        const uint32_t hashWas = s->hash;
+        const auto ringMean = [](const Shell& sh, int j, int ring) {
+            const Bridge& br = sh.bridges[j];
+            glm::vec3 m{0.f};
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                m += at(sh.bridgeRestP, br.first + ring * ringVerts + c) / static_cast<float>(bridgeCols);
+            }
+            float r = 0.f;
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                r += glm::distance(at(sh.bridgeRestP, br.first + ring * ringVerts + c), m) / static_cast<float>(bridgeCols);
+            }
+            return r;
+        };
+        const int midRing = s->bridges[KneeL].rings / 2, lastRing = s->bridges[KneeL].rings - 1;
+        const float midWas[2] = {ringMean(*s, KneeL, midRing), ringMean(*s, KneeR, midRing)};
+        const float endWas = ringMean(*s, KneeL, 0) + ringMean(*s, KneeL, lastRing);
+        // (leather "0" on the thigh's sleeve: that knee's leather gone, the other's kept)
+        tu->v[Leather] = 0.f;
+        tu->has |= 1u << Leather;
+        changed();
+        s = shellFor(grunt);
+        q_snprintf(what, sizeof(what), "leather \"0\" on the left thigh's sleeve: the left knee's leather %s, the right's %s",
+            s && s->bridges[KneeL].ok ? "made" : "gone", s && s->bridges[KneeR].ok ? "made" : "gone");
+        check(s && !s->bridges[KneeL].ok && s->bridges[KneeR].ok, what);
+        // (the taper: the thigh's sleeve 1 -> 1.4, the shin's 1.4 -> 0.7: the middle ring wider, the ends on their rows)
+        *tu = wasU;
+        tu->v[TaperStart] = 1.f;
+        tu->v[TaperEnd] = 1.4f;
+        tl->v[TaperStart] = 1.4f;
+        tl->v[TaperEnd] = 0.7f;
+        tu->has |= (1u << TaperStart) | (1u << TaperEnd);
+        tl->has |= (1u << TaperStart) | (1u << TaperEnd);
+        changed();
+        s = shellFor(grunt);
+        const float midL = s ? ringMean(*s, KneeL, midRing) / za::max(midWas[0], 1e-3f) : 0.f;
+        const float midR = s ? ringMean(*s, KneeR, midRing) / za::max(midWas[1], 1e-3f) : 0.f;
+        const float ends = s ? ringMean(*s, KneeL, 0) + ringMean(*s, KneeL, lastRing) - endWas : 1.f;
+        q_snprintf(what, sizeof(what), "the left knee's leather taper: its middle ring %.3fx (about 1.4 wanted), the right's %.3fx (1), its ends moved %.4f (0)",
+            static_cast<double>(midL), static_cast<double>(midR), static_cast<double>(ends));
+        check(s && midL > 1.25f && za::abs(midR - 1.f) < 0.01f && za::abs(ends) < 1e-3f, what);
+        // (folds 1 on the shin's sleeve: the left knee's one fold, seven rings; the right's the global setting)
+        *tu = wasU;
+        *tl = wasL;
+        tl->v[Folds] = 1.f;
+        tl->has |= 1u << Folds;
+        changed();
+        s = shellFor(grunt);
+        const int global = za::clamp(static_cast<int>(vr_agarmor_folds.value + 0.5f), 0, bridgeMostFolds);
+        q_snprintf(what, sizeof(what), "folds \"1\" on the left shin's sleeve: the left knee's folds %d in %d rings (1 in 7), the right's %d (%d)",
+            s ? s->bridges[KneeL].folds : -1, s ? s->bridges[KneeL].rings : -1, s ? s->bridges[KneeR].folds : -1, global);
+        check(s && s->bridges[KneeL].folds == 1 && s->bridges[KneeL].rings == 7 && s->bridges[KneeR].folds == global, what);
+        *tu = wasU;
+        *tl = wasL;
+        changed();
+        s = shellFor(grunt);
+        check(s && s->hash == hashWas, "the leather's settings cleared: the same shell as before");
+    }
+    tally.verdict(testName);
+}
+
+} // namespace qvr::agarmor::detail

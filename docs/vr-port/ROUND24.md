@@ -3135,3 +3135,59 @@ The review of the 2026-11-06/07 performance changes (five findings, the save che
 
 Tests: vr_agrunt_test 214 3/0, 77 12/0, 60 6/0; vr_wornpack_test 1 25/0; flatwall 18/0, flatsight 12/0, flatsweep 383/0 (27 known); melee eval
 no verdict changes (PASS->PASS 0.1 degree drifts); e1m1 and a save loaded clean.
+
+## Leather bridge at elbows and knees (branch `agent/regfix`, 2026-11-07)
+
+His note: the leather between the plates is a good idea, but it is rigid, does not bend round the elbows and knees and does
+not join the next part's plates. Before: `sleeveOf` made each joint's leather once at load as two halves (the upper part's
+down to the joint, the lower's up from it), skinned as the skin under them; near the joint the skin is mostly one bone,
+so the halves moved rigidly, never met, and the elbow's skin showed between them when bent.
+
+Now (`vr_agarmor_bridge 1`, the default; `vr/vr_agarmor_bridge.cpp`): one tube per joint made every frame the body is
+drawn, from the posed last row of the upper part's plates (pauldron, thigh) to the posed first row of the lower part's
+(bracer, shin):
+- **Ends:** each end ring is that row's six feet (`cornerAt` with `plateWeights`, moved by armour.txt's tweaks with the
+  plates, the weights quantised as `makeModel` quantises them), so it is the drawn plates' row to the float (the check:
+  0.004-0.005 units from the plates' nearest vertex at every angle, which is `plateFootApart`). A part not worn: that end
+  is a ring on the skin where its row would be (`bodyExit` rays, 0.25 units off, skinned as the skin there).
+- **Curve:** Hermite from one row's middle to the other's along each row's direction, the tangents reaching the joint's
+  posed pivot along each row's line (a Bezier's inner points there), so it turns close round the elbow's point instead of
+  cutting the corner as a circular arc did (the arc let the elbow's skin through by up to 2.5 units). Each ring's frame:
+  the two rows' frames slerped, turned onto the curve's direction. The rows' corners are lerped in those frames; the
+  lower row's corners are matched to the upper's order round the limb at load (lerped by index, a mismatched pair crossed
+  the middle and pinched the enforcer's tube shut).
+- **Bellows:** `folds` folds (rings `2 x folds + 1`, at least 7), a fold's top `fold_depth` out on every other ring. Their
+  depth by bend: all round on a straight limb, 1.25x on the inside of a full bend (90 degrees or more) and none on its
+  outside (stretched flat). The rings themselves bunch on the inside as the curve turns. The atlas's joint block is
+  mapped a painted fold per geometric fold (make_agarmor.py paints four down the block); 0 folds: the old mirrored v.
+- **Skin under it:** up to 96 skin vertices between the rows (on the two limb bones, nearest the row-joint-row line away
+  from its ends, within 1.35x the rows' mean radius: a held gun's stock is not skin) are posed each frame, found between
+  two rings, and the corners round any that would show pushed out (0.2 off the skin, at most 5 units, three passes, each
+  push shared 0.6 with its neighbours so it is a swell, not a spike). Not on the inside of a bend (the limbs overlap
+  there) and not within half a ring of either row (the plates' own fit).
+- **Drawing:** an entity per armoured body (`relink`; the player's: `entities.plate[plateBridge]`, vr_view_body.cpp) with
+  the model `<model>#bridge` whose every vertex is its own bone (252 at most: 4 joints x 9 rings x 7, within the skinned
+  path's 256): `bonePoses` sets each vertex's matrix to its rest normal turned onto its normal now and its rest place
+  carried onto its place now, once a frame, so lighting, shadows, culling and the depth caches work as on the plates.
+  No per-frame allocation (stack arrays; the bones in file-scope buffers).
+- **armour.txt:** the sleeve parts' `taper_start` / `taper_end` (the upper sleeve's over the first half, the lower's over
+  the second, eased to 1 at the rows), `standoff`, `scale`, `leather "0"` (on either sleeve part: that joint's leather
+  gone); new `folds` and `fold_depth` (the upper sleeve's, else the lower's, else `vr_agarmor_folds` 4 /
+  `vr_agarmor_fold_depth` 0.3); Armour Studio rows Leather Folds and Fold Depth on the sleeve parts. A sleeve's offset
+  and rotate no longer apply (the tube has no rigid place to move).
+- `vr_agarmor_bridge 0`: the old load-time sleeves, for comparison (the shells are made again when it, the folds or the
+  depth change). `vr_agarmor_bend <deg>` (debug): every armoured body in its rest pose with elbows and knees bent.
+  `vr_agarmor_headcam` takes a 4th argument, `drop` (units lower: the joints).
+
+Cost (vr_agarmor_bridge_stats; quick build, low-impact run, so high): 5.8-7 us a joint, 69 us a frame for three grunts
+(12 joints), the player's 15 us a joint (24 skin samples). Made once a frame, whatever the views and shadow passes.
+
+Tests: `vr_agarmor_bridge_check` 40/0: every joint of the grunt, enforcer, knight and death knight swept over its hinge's
+range (9 steps): the end rings on the plates' rows (0.004-0.005; worn alone too), no NaN, the skin between under the
+leather (0 out; a few in the crease and at the rows, reported); armour.txt's leather 0, taper and folds on the grunt's left
+knee, and the shell back as before when cleared. `vr_armour_test` 30/0 (its sleeves' checks now run on
+`vr_agarmor_bridge 0`), `vr_agarmor_check` 20/0, `vr_agarmor_test 1` 26/0, `vr_pp_test 1` 53/0. Before/after shots:
+`scratch/leather_side_g*.png` (grunt from his right, 100 degrees), `leather_front60*.png`, `leather_knights*.png`,
+`leather_player.png`.
+
+Open: the Armour Studio's sleeve outline (vr_agarmor_debug's lines for a sleeve part) draws nothing with the bridge on.

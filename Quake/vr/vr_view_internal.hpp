@@ -353,6 +353,7 @@ float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags);
 [[nodiscard]] glm::mat3 ssgWorldTurn(const view::ViewEntity& gun, float deg);
 
 inline constexpr int plateEntities = 5;
+inline constexpr int plateBridge = plateEntities; // entities.plate's last: the joints' leather (agarmor::playerBridgeModel)
 
 struct Entities
 {
@@ -366,7 +367,7 @@ struct Entities
     view::ViewEntity holsterFrontButton[HolsterCount]; // and the grappling guns' front buttons there
     view::ViewEntity worldFrontButton[maxWorldWeapons];
     view::ViewEntity body;
-    view::ViewEntity plate[plateEntities]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (setupPlates)
+    view::ViewEntity plate[plateEntities + 1]; // the armour's plates on it (vr_player_plates): the settled ones, then each morph (setupPlates), then the joints' leather
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;

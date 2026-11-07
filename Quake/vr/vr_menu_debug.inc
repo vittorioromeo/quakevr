@@ -261,6 +261,15 @@ za::Vector<Item> pageDebugViews()
                   "envelope prints how far each joint turns cleanly."),
         row(opt::vr_agarmor),
         row(opt::vr_agarmor_pieces),
+        row(opt::vr_agarmor_bridge),
+        row(opt::vr_agarmor_folds),
+        row(opt::vr_agarmor_fold_depth),
+        row(opt::vr_agarmor_bend),
+        command("Check the Elbow and Knee Leather", "vr_agarmor_bridge_check")
+            .help("vr_agarmor_bridge_check [model]: each armed humanoid's elbows and knees swept through their range: the "
+                  "leather's end rings on the plates' rows (and with one part worn alone), the skin between kept under it "
+                  "(the console; ends on 'agarmor bridge check: N passed, M failed'). vr_agarmor_bridge_stats prints "
+                  "its cost per frame since last asked."),
         command("Check the Armour's Fit", "vr_agarmor_check")
             .help("vr_agarmor_check [model] [random poses]: the armour shells made twice (alike), closed, then measured on "
                   "the authored rig's rest pose, every joint near them swept and 200 random poses: body vertices inside "

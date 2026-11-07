@@ -96,8 +96,10 @@ void parseEvent();
 void relink();
 // VR_AliasBonePoses: an armour entity's bones (its source's as drawn, a hidden piece's collapsed). 0: not one.
 [[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
-// The body an armour entity is drawn on (nullptr: not one).
+// The body an armour entity (or a joints' leather entity) is drawn on (nullptr: not one).
 [[nodiscard]] const struct entity_s* sourceOf(const struct entity_s* e);
+// VR_Rig2Swap, before the authored rig's swaps: vr_agarmor_bend's pose on every armoured body (debug; the leather's look).
+void benchPose();
 // ---- The player's plates (vr_player_plates; ROUND24.md, "The player's armour plates") ----
 // The same generator on the player's body (progs/vrbody*: its own bones taken for a rig, the plates skinned on them, so they
 // follow its IK); a look alone (QC vr_playerplates.qc keeps .vr_pp_type and .vr_pp_mask by .armorvalue, sent as above; the
@@ -106,6 +108,10 @@ void relink();
 [[nodiscard]] qmodel_t* playerArmorModel(qmodel_t* body);
 // That model's bone slots: each one's bone (the body model's bone order) and piece. False: no shell yet.
 [[nodiscard]] bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, const int*& slotPiece);
+// Its joints' leather (vr_agarmor_bridge 1; ROUND24.md, "Leather bridge at elbows and knees"): the model ("<body>#bridge";
+// null: none), and its bones for `pieces` worn from the body's `bones` (`have` of them; made once a frame): the count.
+[[nodiscard]] qmodel_t* playerBridgeModel(qmodel_t* body);
+int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int have, const float** out);
 
 // Entity `num`'s armour: type 0 none, 1 green, 2 yellow, 3 red; `pieces` a mask of Piece bits; -1: vr_agarmor's again.
 void setWorn(int num, int type, int pieces);

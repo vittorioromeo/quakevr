@@ -160,6 +160,7 @@ struct PlayerPlates
     int drawnFrame{-1};
     int fromEyes{0}, withHead{0}, fromEyesLast{0}, withHeadLast{0}; // the pieces the views drew this frame, the last (the tests)
     int clone{0}, cloneLast{0}; // the pieces the body's mirror image drew (PlatePass::Clone) this frame, the last (the tests)
+    int bridgePieces{0};        // the pieces the joints' leather is over this frame (entities.plate[plateBridge])
 };
 PlayerPlates playerPlates;
 float platesBones[plateEntities][128 * 12]{}; // (agarmor's maxSlots)
@@ -268,6 +269,17 @@ void setupPlates()
         }
     };
     show(0, pieces & ~coming, type, 0.f);
+    // (the joints' leather over the pieces worn, settled or coming: an entity of its own, its bones made once a frame)
+    if(qmodel_t* bridge = pieces ? agarmor::playerBridgeModel(body.ent.model) : nullptr)
+    {
+        view::ViewEntity& ve = entities.plate[plateBridge];
+        place(ve, bridge, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]}, glm::vec3{0.f}, 0, false);
+        ve.ent.skinnum = type - 1;
+        ve.ent.alpha = body.ent.alpha;
+        ve.lightMultiply = body.lightMultiply;
+        ve.lightMod = body.lightMod;
+        p.bridgePieces = pieces;
+    }
     for(int i = 0; i + 1 < plateEntities; i++)
     {
         const PlateMorph& m = p.morphs[i];
@@ -493,6 +505,18 @@ namespace qvr::view
 
 int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
 {
+    if(e == &entities.plate[plateBridge].ent)
+    {
+        // The joints' leather: from the body's bones as the views draw it (the limbs are the same in every pass)
+        const entity_t& body = entities.body.ent;
+        if(!matrices)
+        {
+            return agarmor::playerBridgePoses(body.model, playerPlates.bridgePieces, nullptr, 0, nullptr);
+        }
+        const float* src = nullptr;
+        const int have = VR_AliasBonePoses(&body, &src);
+        return agarmor::playerBridgePoses(body.model, playerPlates.bridgePieces, src, have, matrices);
+    }
     int index = -1;
     for(int i = 0; i < plateEntities; i++)
     {
