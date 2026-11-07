@@ -553,7 +553,6 @@ za::Vector<Item> pageDebugProfiling()
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
                   "read again since the last time."),
         row(opt::vr_findradius_grid),
-        row(opt::vr_findradius_check),
         command("findradius Stats", "vr_findradius_stats")
             .help("vr_findradius_stats: QuakeC's findradius since the last time: calls a frame, how many went through "
                   "the area grid, its time a frame and a call, and with Check findradius on, the searches compared "
@@ -749,9 +748,6 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Armed Humanoids: Arms' Solves on Job Threads", vr_agarms_jobs)
             .help("vr_agarms_jobs: a frame's arm solves run together on the job threads (the same results bit for bit: "
                   "vr_agarms_hash); off: each solved in place on the main thread, as before. Arms' Solve Time prints both."),
-        toggle("Armed Humanoids: Check the Solve Shortcuts", vr_agarms_fast_check)
-            .help("vr_agarms_fast_check: each solve also made without the shortcuts (on a copy of its state) and compared; "
-                  "Arms' Solve Time prints how far apart the hands, elbows and turns were."),
         command("Armed Humanoids: Arms' Solve Time", "vr_agarms_cost")
             .help("vr_agarms_cost: the arms' solves since the last (one armed humanoid's arms a frame): how many, us each."),
         command("Armed Monsters' Weapons: Drawn vs Server", "vr_agrunt_weapon_probe")

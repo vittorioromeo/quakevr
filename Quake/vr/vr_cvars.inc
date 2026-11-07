@@ -1170,7 +1170,6 @@ QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was draw
 QVR_CVAR(vr_embed_probe_grip, "-1", CVAR_NONE)         // cm the most the drawn hand was from where it holds the drawn weapon, easing off a blade
 QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn weapon's offset from its controller changed in a frame, off a blade (the blade's before)
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
-QVR_CVAR(vr_embed_probe_split, "0", CVAR_NONE)         // vr_embed_test 25's before: 1 leaves the weapon at its controller while the hand eases off a blade
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
@@ -2694,7 +2693,6 @@ QVR_CVAR(vr_agarms_warm, "0", CVAR_NONE)            // vr_agarms: 1 a free hand'
 QVR_CVAR(vr_agarms_fast, "1", CVAR_NONE)            // vr_agarms: 1 the off hand's slide along a two-handed gun to its reach (whole-unit steps, then 7 halvings with the IK stretch: up to 19 arm solves on an authored rig) found by bisection, last frame's answer checked first (2-5 solves; the same answer while the reach grows with the slide); 0 the steps (before)
 QVR_CVAR(vr_agposesend, "1", CVAR_NONE)             // QC VR_AGP_Pose: 1 an armed humanoid's pose message (QVR_SVC_ARMPOSE) written by one builtin, agposesend (the same bytes: vr_agarms_hash); 0 by QuakeC's ~50 Write calls (before)
 QVR_CVAR(vr_agarms_jobs, "1", CVAR_NONE)          // vr_agarms: 1 the armed humanoids' arm solves of a frame on the job threads (gathered and committed on the main thread; the same results bit for bit, vr_agarms_hash); 0 each solved in place on the main thread (before)
-QVR_CVAR(vr_agarms_fast_check, "0", CVAR_NONE)      // ... 1: each solve also made the old way, with the solve's shortcuts (vr_agarms_warm, vr_agarms_fast) off (on a copy of its state) and the two compared: vr_agarms_cost prints how far apart (Debug > Tests)
 QVR_CVAR(vr_agarms_elbow_rate, "720", CVAR_NONE)      // vr_agarms: an elbow swings round its reach line at most this fast (degrees a second; the way round outside the body: no flips); 0 anywhere at once (before)
 QVR_CVAR(vr_agrunt_upper, "1", CVAR_NONE)           // vr_agarms: 1 armed humanoids' chests (and heads) held on their hips as they stand (the frames' own chest and shoulder motion in shots, reloads, pains and runs, which the posed arms don't follow, taken out; hit flinches and strikes' turns on top; the frames' in a pickup's crouch); 0 the frames' (before)
 QVR_CVAR(vr_agrunt_aim_twist, "0.5", CVAR_NONE)      // ... a gun aimed turns their chest towards its aim by this share of the aim's yaw and pitch off their body's way (at most 25 and 20 degrees; a shot's kick leans it back, a reload turns it towards the off hand); 0 none
@@ -3802,9 +3800,7 @@ QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)
 
 // findradius() through the area grid (vr_findradius.cpp; ROUND24.md, "findradius through the area grid"): the same
 // chain as Quake's walk of every edict, quicker on a big map.
-QVR_CVAR(vr_findradius_grid, "1", CVAR_NONE)       // 0 Quake's walk; 1 the grid on maps with vr_findradius_grid_min edicts or more; 2 the grid always
-QVR_CVAR(vr_findradius_grid_min, "100", CVAR_NONE) // edicts in use from which the grid searches (the grid was quicker on every map measured, 135 edicts and up; below 100 a walk is cheap anyway)
-QVR_CVAR(vr_findradius_check, "0", CVAR_NONE)      // each findradius runs both and the walk's chain is used; differences counted (vr_findradius_stats) and the first printed (findradius check:)
+QVR_CVAR(vr_findradius_grid, "1", CVAR_NONE)       // 0 Quake's walk; 1 the grid on maps with 100 edicts or more; 2 the grid always
 
 // The external map index (Quake/vr/vr_mapindex.cpp): Quaddicted's package index, fetched at start-up on a thread of
 // its own and cached in the game dir (quakevr/cache/maps_index.txt). No UI page yet: maps_list / maps_info /

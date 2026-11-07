@@ -4396,7 +4396,6 @@ vr_agarms_warm|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Warm Start|
 vr_agarms_fast|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Grip Slide Bisected|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Grip Slide Bisected
 vr_agposesend|2|Debug - Profiling and Memory|Armed Humanoids: Pose Message in One Builtin|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Pose Message in One Builtin
 vr_agarms_jobs|2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solves on Job Threads|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solves on Job Threads
-vr_agarms_fast_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Solve Shortcuts|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Check the Solve Shortcuts
 |2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solve Time|Advanced VR Options > Debug > Profiling and Memory > Armed Humanoids: Arms' Solve Time
 |2|Debug - Profiling and Memory|Armed Monsters' Weapons: Drawn vs Server|Advanced VR Options > Debug > Profiling and Memory > Armed Monsters' Weapons: Drawn vs Server
 |2|Debug - Profiling and Memory|Grip Fit: Last|Advanced VR Options > Debug > Profiling and Memory > Grip Fit: Last
