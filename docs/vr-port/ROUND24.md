@@ -2629,3 +2629,31 @@ the parent build; seed 4242: 22e429ac, ba8ddaa6, loadouts hash 10104 vs 24627; s
 seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two different fresh seeds. vr_agrunt_test 70
 22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
 numbers on the parent build (pre-existing drift of the pommel distances, not this change).
+
+## Per-frame allocations, VR programs at start-up (branch `agent/perfalloc`, 2026-11-07)
+
+Round 1 (tree regfix): disarm hulls' vectors reused, shadow brush candidates in the shadow scratch, no folder listed for
+limb models in play (the file cache answers them from the load's listings), every VR program made at start-up
+(gfx::precompilePrograms: no compile at a first draw in play). armed_mix32: 71 -> 18 heap events a frame.
+
+Round 2:
+
+- **VR programs with the driver's parallel compile.** gfx::beginDeferredChecks / endDeferredChecks round
+  precompilePrograms (only with GL_KHR/ARB_parallel_shader_compile, as GL_CreateShaders): compiles and links are queued
+  without reading their status, all read in order at the end. The program labels moved there too: NVIDIA's
+  glObjectLabel on a program waits for its link (480 of a cold 555 ms). Cold driver cache (a nonce in the sources, a
+  temporary measuring build): 555-640 ms -> 175 ms; warm (every later start): 12 ms either way. A program that fails is
+  warned about as before and relinked to one that draws (or dispatches) nothing, as its owner already holds the name
+  (made one at a time it would have had 0 and skipped its pass). Checked with every VR shader forced to fail (#error):
+  50 relinked, e1m1 loads and runs.
+- **Disarm hulls: Box3D's quickhull into a scratch arena.** The hands' hulls are rebuilt each frame because their points
+  (the drawn arm in the world) differ every frame: a last-frame cache hit 0 of 1200 builds in armed_mix32, so no cache.
+  b3CreateHullWith (a marked local change in `external/box3d`, its README.md) runs b3CreateHull's code with the
+  caller's allocator; disarmhull::make gives it two grown-once slots in its mem::Scratch: 4 heap events a hull -> 0, the
+  same hull (same code, same points). vr_agrunt_test 16: 274 passed 0 failed (once 273/1, "Grunt dual nail pistols, the
+  right one: held in its right hand", a set-up check, passing on two reruns; the base 274/0).
+- **Warm-up allocations.** decals::prepare (the map's load) sets the ring to vr_decal_max and reserves each slot 12
+  corners and 16 grid buckets (200 marks of an E1M1 fight and an arena wave: 12 corners at most, 97% in 8 buckets or
+  fewer): about 230 KB at 768, no slot growing in play. held::drawnMesh remakes a hash-clashing entry in place (its
+  vectors kept) instead of erase + emplace. The grasp, barrel mask, model collide and dequant caches are left (bounded
+  warm-up, keyed by model and frame).
