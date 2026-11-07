@@ -2629,17 +2629,6 @@ void rigSweep_f()
     Con_Printf("vr_ragdoll_rig_sweep: %d rigged, %d failed, %d absent\n", rigged, failed, absent);
 }
 
-qmodel_t* skinnedModelOf(const Rig& rig)
-{
-    if(rig.authored)
-    {
-        return rig2::skinnedFor(rig.model);
-    }
-    char name[MAX_QPATH];
-    q_snprintf(name, sizeof(name), "%s%s", rig.model->name, skinnedSuffix);
-    return Mod_ForName(name, false);
-}
-
 void retireAuthored()
 {
     for(za::UniquePtr<Rig>& r : authoredRigs.rigs)

@@ -73,12 +73,12 @@ struct FoamLook
     float edge = 0.f;          // the wavy edge (LiquidFoam): how far the liquid's edge is drawn back, units (0 off)
 };
 [[nodiscard]] FoamLook foamLook(int liquid);
-[[nodiscard]] int foamLiquid(int contents); // CONTENTS_LAVA 1, CONTENTS_SLIME 2, else (water) 0
-[[nodiscard]] int foamContents(int liquid); // and back
+[[nodiscard]] int foamContents(int liquid); // a liquid's contents: 1 CONTENTS_LAVA, 2 CONTENTS_SLIME, else (water) CONTENTS_WATER
 
 // The world's shore (made with the geometric waves' mesh): the parts of the level liquid tops' edges where the liquid
 // meets rock or another liquid (the foam's rim), a, b their ends at height z, `in` the way into the liquid (a unit
-// vector), `face` the mesh's face (shoreSeen), `liquid` foamLiquid's. A number that changes when they are made anew.
+// vector), `face` the mesh's face (shoreSeen), `liquid` 1 lava, 2 slime, 0 water. A number that changes when they are
+// made anew.
 struct ShoreSegment
 {
     glm::vec2 a{0.f}, b{0.f}, in{0.f};

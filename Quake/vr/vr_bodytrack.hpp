@@ -104,7 +104,6 @@ void place(const glm::vec3& base, const glm::vec3& floorBelowHead, const glm::ve
 
 // The regions' blend weights now (0: today's guesses alone, bit-identical).
 [[nodiscard]] float torsoWeight();
-[[nodiscard]] float armWeight(int side); // 0 left, 1 right
 [[nodiscard]] float legWeight(int side);
 
 // The torso: the spine's tilt (hips to chest) from the vertical, `dir` its horizontal direction in the world (unit;
