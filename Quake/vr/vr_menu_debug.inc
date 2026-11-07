@@ -726,6 +726,9 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Armed Humanoids: Arms' Grip Slide Bisected", vr_agarms_fast)
             .help("vr_agarms_fast: the off hand's slide along a two-handed gun to its reach found by bisection, last frame's "
                   "answer checked first (2-5 arm solves, not up to 19); off: the whole-unit steps, as before."),
+        toggle("Armed Humanoids: Arms' Solves on Job Threads", vr_agarms_jobs)
+            .help("vr_agarms_jobs: a frame's arm solves run together on the job threads (the same results bit for bit: "
+                  "vr_agarms_hash); off: each solved in place on the main thread, as before. Arms' Solve Time prints both."),
         toggle("Armed Humanoids: Check the Solve Shortcuts", vr_agarms_fast_check)
             .help("vr_agarms_fast_check: each solve also made without the shortcuts (on a copy of its state) and compared; "
                   "Arms' Solve Time prints how far apart the hands, elbows and turns were."),
