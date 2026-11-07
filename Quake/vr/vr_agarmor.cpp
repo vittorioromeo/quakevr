@@ -89,6 +89,8 @@ struct Wearer
     // (its thighs' plates start this far down their bones at the latest, of their length: below 0 above the hip's pivot, where its
     // skin weighs on the pelvis; plateHipFrom)
     float hipFrom{plateHipFrom};
+    // (its upper arms' plates closed over the top by a dome this high, of their top ring's radius: -1 open; platesOf)
+    float shoulderCap{-1.f};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
@@ -107,7 +109,10 @@ constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl"
     {.model = "progs/enforcer.mdl", .backCut = -10.5f, .hipFrom = -0.5f},
     // The knight's red shoulder pads stand up to 2.5 units off his upper arms' skin, weighing on them 0.2-0.4 (the rest on his
     // chest): his upper arms' plates go out over them (his note, 2026-11-06: "exposed knight shoulder").
-    {"progs/vrknight.mdl", -1e9f, 1.06f, 0.75f, 0.5f, -1.f, 0.3f, 0.04f, -1.f, 0.18f, 0.03f, 0.7f, -1.f, -1.f, {-1.f, -1.f}, {-1.f, -1.f}, 1.2f, 1.8f},
+    // Their tops still showed through the pauldrons' open top ring, looking down at him (his note, 2026-11-07: "red pad visible
+    // from the front"): his pauldrons are closed over the top by a low dome (shoulderCap).
+    {"progs/vrknight.mdl", -1e9f, 1.06f, 0.75f, 0.5f, -1.f, 0.3f, 0.04f, -1.f, 0.18f, 0.03f, 0.7f, -1.f, -1.f, {-1.f, -1.f}, {-1.f, -1.f}, 1.2f, 1.8f,
+        -1e9f, false, plateHipFrom, 0.8f},
     // His face too hidden by the helmet and the collar (his note, 2026-11-06): the guards end higher (jaw 0.42 -> 0.48), their front
     // edges further apart (0.37/0.44 from the middle -> 0.40/0.48), the collar lower (0.5).
     // His shoulders "asymmetric and too large, the left way too big" (2026-11-06): his upper arms rest differently (the left straight
@@ -416,6 +421,7 @@ struct PieceFrame
     bool hip{false};   // (a humanoid's thigh: its rings above its region on the whole skin; fillRadii)
     float hipFrom{plateHipFrom}; // (a humanoid's thigh: its rows start this far down its bone at the latest, of its length; Wearer::hipFrom)
     bool upper{false}; // (an upper arm or a thigh: its plates' far end at the joint)
+    float cap{-1.f};   // (a knight's upper arm: its top ring closed by a dome this high, of the ring's radius; Wearer::shoulderCap)
     const Body* body{nullptr}; // (a limb: the whole skin, for a ring its region doesn't reach: fillRadii)
     // (armour.txt's tweaks, planGrid: the first and last rows this many units further along the piece, its rows; 0 the generator's)
     float shiftStart{0.f}, shiftEnd{0.f};
@@ -932,6 +938,7 @@ constexpr float sleevePast = 0.3f;   // units a sleeve may go past its joint, un
                                      // 2026-11-06: the two halves overlapped, his note "leather seam overlap")
 constexpr float sleeveRoundLeast = 0.85f, sleeveRoundMost = 1.25f, sleeveRoundIn = 0.3f; // a humanoid's sleeve's corners within these of its ring's mean
 constexpr float sleeveUnder = 0.45f; // how far up under the end row of plates a sleeve starts (of that row's height)
+constexpr float capBulge = 1.18f;    // a knight's pauldron's dome (Wearer::shoulderCap): its middle ring this much wider than its rim
 // The body's vertices weighing on a piece's bones less than its region's cut but at least this much (a deltoid between the
 // cuirass and the upper arm, a buttock over the thigh) push its plates out over them too, if a plate needn't swell past
 // plateRidge for them (else they're left to show: a little overlap rather than a bulky plate).
@@ -1496,6 +1503,68 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
             const float proud = plateStep + (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.04f;
             const int tile = static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(plateTilesX * plateTilesY)) % (plateTilesX * plateTilesY);
             addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, tile, plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f);
+        }
+    }
+    // (a knight's upper arm: its top ring closed by a low dome over his shoulder pad, and a flat underside under it, so the cap is a
+    // closed shell of its own; one plate tile stretched over it; the rim layer: not a plate's face for the fit's and hits' sums)
+    if(f.cap > 0.f && g.rows > 0 && g.cols >= 3)
+    {
+        glm::vec3 mid{0.f}, next{0.f};
+        for(int c = 0; c < g.cols; c++)
+        {
+            mid += cornerAt(0, c);
+            next += cornerAt(1, c);
+        }
+        mid /= static_cast<float>(g.cols);
+        next /= static_cast<float>(g.cols);
+        float rad = 0.f;
+        for(int c = 0; c < g.cols; c++)
+        {
+            rad += glm::distance(cornerAt(0, c), mid) / static_cast<float>(g.cols);
+        }
+        const glm::vec3 out = geom::safeNormalize(mid - next, -f.up, 1e-6f);
+        const glm::vec3 apex = mid + out * (rad * f.cap + plateStep);
+        const glm::vec3 inner = mid - out * rad; // (the dome's normals: from a point this far inside)
+        const int tile = static_cast<int>(plateRand(seed, 7000 + piece, 0, 0) * static_cast<float>(plateTilesX * plateTilesY)) % (plateTilesX * plateTilesY);
+        const float tw = (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX), th = (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
+        const float tx = cuirassBlock.x0 + static_cast<float>(tile % plateTilesX) * tw, ty = cuirassBlock.y0 + static_cast<float>(tile / plateTilesX) * th;
+        const auto put = [&](const glm::vec3& p, const glm::vec3& n, float u, float v, const W& w) {
+            Vert o;
+            o.p = p;
+            o.n = n;
+            o.st = glm::vec2{tx + 0.25f + u * (tw - 0.5f), ty + 0.25f + v * (th - 0.5f)};
+            o.w = w;
+            o.piece = piece;
+            o.layer = 2;
+            s.verts.pushBack(o);
+            return count(s.verts) - 1;
+        };
+        const int top = put(apex, out, 0.5f, 0.5f, plateWeights(L, apex));
+        const int base = put(mid, -out, 0.5f, 0.5f, plateWeights(L, mid));
+        // (the rim on the top ring, then a ring half way up bulging out past it (capBulge), so a pad's tip right by the rim is under
+        // it too, then the apex)
+        const int first = count(s.verts);
+        for(int k = 0; k < 2; k++)
+        {
+            for(int c = 0; c < g.cols; c++)
+            {
+                const float az = 6.2831853f * static_cast<float>(c) / static_cast<float>(g.cols);
+                const glm::vec3 rim = cornerAt(0, c);
+                const glm::vec3 p = k == 0 ? rim : mid + (rim - mid) * capBulge + out * ((rad * f.cap + plateStep) * 0.5f);
+                const float uv = k == 0 ? 0.5f : 0.35f;
+                put(p, geom::safeNormalize(p - inner, out, 1e-6f), 0.5f + uv * za::cos(az), 0.5f + uv * za::sin(az),
+                    k == 0 ? at(weights, c) : plateWeights(L, p));
+            }
+        }
+        for(int c = 0; c < g.cols; c++)
+        {
+            const int a = first + c, b = first + (c + 1) % g.cols, ma = a + g.cols, mb = b + g.cols;
+            const glm::vec3 n = glm::cross(at(s.verts, a).p - apex, at(s.verts, b).p - apex);
+            const bool flip = glm::dot(n, out) < 0.f;
+            addTri(s, top, flip ? mb : ma, flip ? ma : mb);
+            addTri(s, a, flip ? mb : b, flip ? b : mb);
+            addTri(s, a, flip ? ma : mb, flip ? mb : ma);
+            addTri(s, base, flip ? a : b, flip ? b : a);
         }
     }
     s.pieceOpen[piece] = 0;
@@ -2251,6 +2320,7 @@ bool buildShell(qmodel_t* src, Shell& s)
         f.ridge = !f.ends || piece == PauldronL || piece == PauldronR ? plateRidge : piece == ThighL || piece == ThighR ? plateRidgeThigh : plateRidgeLimb;
         f.ridge = f.ends && (piece == PauldronL || piece == PauldronR) && wearerOf(src->name).shoulderRidge >= 0.f ? wearerOf(src->name).shoulderRidge : f.ridge;        f.hip = f.ends && (piece == ThighL || piece == ThighR);
         f.hipFrom = wearerOf(src->name).hipFrom;
+        f.cap = f.ends && (piece == PauldronL || piece == PauldronR) ? wearerOf(src->name).shoulderCap : -1.f;
         f.upper = piece == PauldronL || piece == PauldronR || piece == ThighL || piece == ThighR;
         f.body = &s.body;
         if(f.ok && (piece == PauldronL || piece == PauldronR))

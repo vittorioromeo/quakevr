@@ -2533,3 +2533,35 @@ The md5 plan ("The md5 models (plan only)", above), done:
 - **Not done / open:** an edit of the body doesn't reach the `_bare` meshes (make_vrbody.py's parametric body, as
   before); the generators' procedural hand and body are frozen as the reference (to start over from them, the
   generated.json entries go first). Not checked in a windowed Blender (the shape key panel, Edit Mode on a key).
+
+## Armour's four open items on armed humanoids (branch `agent/armorleft`, 2026-11-07, overnight)
+
+Shots: the Armour Studio's subject (`vr_armourstudio 3` first, so later kinds spawn along the player's settled yaw), tier 2, body
+ghost 1, `vr_mock_camera` close to it (scratch `shots.sh`): 12 tiles, each item idle and two `vr_armourstudio_anim*` frames.
+Sheet `C:/OHWorkspace/qvr-kit/scratch/armorleft_sheet.png` (before: origin/next's `vr_agarmor.cpp`; after: this branch).
+
+- **Knight's red pad (fixed, code):** it is his own mesh: red shoulder pads on both shoulders (skin, not a tint or a leftover
+  plate), standing up into the pauldrons' open top ring; seen from above (your eyes are higher than his) the red showed between
+  the pauldron's top and the collar. No armour.txt value hid it (tried: pauldron stand-off 0 / 0.3, start -3.5 each side, scale
+  1.15, offset up 1 / in 1-2, roll +-12, taper_start 0.5-0.8; cuirass start 0, stand-off 0.4, taper_start 1.12): each moved the
+  red elsewhere. Now `Wearer::shoulderCap` (knight 0.8): `platesOf` closes a pauldron's top ring with a dome (rim, a middle ring
+  1.18 wider than the rim (`capBulge`) half way up, an apex 0.8 of the ring's radius + `plateStep` out along the arm's line,
+  and a flat underside: a closed shell, one plate tile stretched over it, the rim layer). Red gone in idle, run and swing frames.
+  `vr_agarmor_check` 20/0 ("each shell closed" on all four). Only the knight (shoulderCap -1 elsewhere); his armour.txt untouched.
+- **Enforcer's thighs from behind (not changed):** at the studio's close back view, before and after look the same: covered in
+  idle and run 1/5. Tried: the thighs' plates weighted as the whole skin under them (this leg's and the pelvis's vertices), so
+  the back rows follow the pelvis-weighted skin: no visible change in the sheet, dropped (not worth the risk). The bare skin the
+  round-five note describes shows only from further off and lower, at the buttocks' crease.
+- **Grunt's knee leather (not changed):** the thigh sleeve's last ring flares wide (a skirt with a point at the outer back), and
+  the knee's low-poly point shows between the two sleeves' halves in front. Tried: a sleeve corner capped at 1.2 / 1.12 of its
+  ring's median (no visible change: the whole ring is wide, not one corner); thigh_sleeve scale 0.85, stand-off -0.6, pitch 0 /
+  -10 / 25; shin_sleeve stand-off 0.6, offset up 0.8-1, pitch +-15; the new sleeve tapers (thigh_sleeve taper_end 0.7-0.8):
+  narrower leather bares more of the knee. Needs a shape change in `sleeveOf` (the rings' middle at the joint is pulled back by
+  the calf), not a value.
+- **Enforcer's elbow band (not changed):** no description of what is wrong beyond "elbow band"; front and three-quarter shots
+  show the bracer sleeve as a dark ring at his elbow (his bracer_sleeve scale 0.696). Nothing changed without knowing the ask.
+- **Tests:** `vr_armour_test` 30/0, `vr_armourstudio_window test` 17/0, `vr_agarmor_check` 20/0; `vr_armourstudio_clone_test`
+  1/1 ("step 1 ... the clone's pieces 0") on this branch and the same on origin/next's `vr_agarmor.cpp` (headless mock, e1m1 and
+  vrtesthall): not this change.
+- **Noticed:** the studio's Animation list shows the grunt's and the knight's frames as one "frame" group (114 and 97 frames;
+  the enforcer's are named); `vr_armourstudio_turn` changed after the subject is made seemed not to turn it in these runs.
