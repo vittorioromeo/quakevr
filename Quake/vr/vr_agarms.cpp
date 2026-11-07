@@ -1151,7 +1151,7 @@ struct Limits
 {
     const agbody::Posed* body{nullptr};
     float maxStep{0.f};
-    float twistShare{0.5f}; // the forearm's share of the hand's twist (Skin's; vr_agarms_twist_share overrides)
+    float twistShare{0.5f}; // the forearm's share of the hand's twist (Skin's)
     float wristMore{0.f};   // degrees its wrist bends past vr_agarms_wrist_most (Skin's)
     float clavShare{0.f};   // vr_agarms_clavicle, _most (degrees)
     float clavMost{0.f};
@@ -1888,7 +1888,7 @@ bool solvePrepare(SolveJob& j)
     j.bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
     Limits& lim = j.lim;
     lim = Limits{};
-    lim.twistShare = za::clamp(vr_agarms_twist_share.value > 0.f ? vr_agarms_twist_share.value : m->twistShare, 0.f, 1.f);
+    lim.twistShare = za::clamp(m->twistShare, 0.f, 1.f);
     lim.wristMore = m->wristMore;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
     // (the authored rig's shoulders at the arms' own joints, further out than the derived rig's: its clavicle

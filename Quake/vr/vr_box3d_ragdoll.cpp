@@ -709,7 +709,7 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
     }
 }
 
-// Ragdoll `r`'s loose piece `loose` welded where it is now to its part `to` (vr_knockdown_weld; createRagdoll). `held`:
+// Ragdoll `r`'s loose piece `loose` welded where it is now to its part `to` (createRagdoll). `held`:
 // `to` is the hand that holds it, and the piece weighs no more than that hand (a 3 kg rifle on a 0.6 kg hand: the weld
 // gave under a landing's jolt, the weapon swinging 15 units off the hand a moment).
 void weldLoose(RagdollBodies& r, int num, int loose, int to, float looseVolume, float density, bool held)
@@ -921,12 +921,12 @@ void createRagdollParts(CreateWork& w, edict_t* ent, int num, Slot& s, bool now)
     constexpr float looseMass = 3.f; // kg: a loose piece (his shotgun)
     float& density = w.density;
     density = mass / za::max(volume, 1e-6f);
-    // Knocked down or staggering, alive (vr_knockdown_weld): its weapon (a loose piece) made in the hand that holds it,
+    // Knocked down or staggering, alive: its weapon (a loose piece) made in the hand that holds it,
     // where that hand holds it in the rest pose (looseHolder: the part nearest it there), not where its frame has it
     // (a pain frame swings it apart from the hands), and welded to that hand below: it follows the hand through every
     // active-ragdoll state (stagger, knockdown, lift, struggle, get-up) as a dead one's weapon is dropped.
     bool& weld = w.weld;
-    weld = r.knocked && vr_knockdown_weld.value != 0.f;
+    weld = r.knocked;
     za::Array<int, ragdoll::maxBones>& heldBy = w.heldBy;
     for(int b = 0; b < r.count; b++)
     {
@@ -1081,7 +1081,7 @@ void createRagdollJoints(CreateWork& w, edict_t* ent, int num)
     }
 }
 
-// Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the hand that holds it (made there
+// Knocked down: a loose piece (his gun) welded where it is to the hand that holds it (made there
 // above: heldBy); one with no holder found, to the part nearest it.
 void createRagdollWeld(CreateWork& w, int num)
 {

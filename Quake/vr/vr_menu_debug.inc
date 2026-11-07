@@ -476,6 +476,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
                   "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
                   "session's state (VISIBLE: the runtime's menu has the controllers)."),
+        row(opt::vr_xr_late_acquire),
         row(opt::vr_debug_runtime_menu),
         row(opt::vr_debug_window_unfocused),
         row(opt::vr_debug_mirror_vsync),

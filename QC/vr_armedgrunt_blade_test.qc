@@ -24,7 +24,6 @@ float VR_AGBL_CASES = 12;
 float vr_agbl_case;      // the case running
 float vr_agbl_until;     // its set-up's give-up time (a safety net: FAIL "timed out")
 float vr_agbl_keep_beat; // cvars before (put back at the end)
-float vr_agbl_keep_first;
 float vr_agbl_keep_parry;
 float vr_agbl_keep_armor;
 
@@ -48,7 +47,6 @@ void() VR_AGBL_End =
 {
     entity p = vr_agt_player;
     localcmd(sprintf("tune vr_agrunt_strike_beat %g\n", vr_agbl_keep_beat)); // (a tunable: set by `tune`)
-    cvar_set("vr_agrunt_strike_first", ftos(vr_agbl_keep_first));
     cvar_set("vr_agrunt_parry", ftos(vr_agbl_keep_parry));
     cvar_set("vr_agarmor_rule", ftos(vr_agbl_keep_armor));
     VR_AGPT_Clear();
@@ -79,7 +77,6 @@ void(entity g, float c) VR_AGBL_Strike =
     if(c == 0 || c == 2) { state = 0; }
     if(c == 7) { state = 2; }
     VR_AGST_Hold(g, state);
-    cvar_set("vr_agrunt_strike_first", "1");
     vector at = wa + (wb - wa) * 0.55; // (its blade's middle)
     if(c == 2 || c == 3) { at = wa + (wb - wa) * 0.92; } // (near its tip)
     if(c == 10) { at = wa + (wb - wa) * 0.75; } // (a shotgun's barrel)
@@ -170,7 +167,6 @@ void() VR_AGBL_Frame =
         if(vr_agbl_case == 0)
         {
             vr_agbl_keep_beat = cvar_hget(cvarh_vr_agrunt_strike_beat);
-            vr_agbl_keep_first = cvar_hget(cvarh_vr_agrunt_strike_first);
             vr_agbl_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);
             vr_agbl_keep_armor = cvar_hget(cvarh_vr_agarmor_rule);
             cvar_set("vr_agrunt_parry", "1");

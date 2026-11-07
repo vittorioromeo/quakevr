@@ -222,7 +222,6 @@ vr_xr_unfocused|1|Headset|Runtime Menu Open|Advanced VR Options > Headset > Runt
 vr_xr_unfocused_pause|1|Headset|Runtime Menu Pauses|Advanced VR Options > Headset > Runtime Menu Pauses
 vr_xr_unfocused_volume|1|Headset|Runtime Menu Volume|Advanced VR Options > Headset > Runtime Menu Volume
 vr_xr_exit_quits|1|Headset|Exit From Runtime Menu|Advanced VR Options > Headset > Exit From Runtime Menu
-vr_xr_late_acquire|1|Headset|Late Image Acquire|Advanced VR Options > Headset > Late Image Acquire
 vr_xr_vendor_profiles|1|Headset|Vendor Controller Profiles|Advanced VR Options > Headset > Vendor Controller Profiles
 vr_xr_log_timing|1|Headset|OpenXR Timing Log|Advanced VR Options > Headset > OpenXR Timing Log
 vr_render_scale|1|Headset|Render Scale|Advanced VR Options > Headset > Render Scale
@@ -264,7 +263,6 @@ vr_gunsfx_vary|1|Sound|Shot Variation|Advanced VR Options > Sound > Shot Variati
 vr_gunsfx_impacts|1|Sound|Surface Impacts|Advanced VR Options > Sound > Surface Impacts
 vr_gunsfx_dryfire|1|Sound|Dry Fire Click|Advanced VR Options > Sound > Dry Fire Click
 vr_gunsfx_action|1|Sound|Actions From the Action|Advanced VR Options > Sound > Actions From the Action
-vr_gunsfx_punch|1|Sound|Haptic Punch|Advanced VR Options > Sound > Haptic Punch
 vr_snd_limiter|1|Sound|Mix Limiter|Advanced VR Options > Sound > Mix Limiter
 vr_snd_limiter_ceiling|1|Sound|Limiter Ceiling|Advanced VR Options > Sound > Limiter Ceiling
 vr_snd_frame|1|Sound|Frame Size|Advanced VR Options > Sound > Frame Size
@@ -461,7 +459,6 @@ vr_body_step_rate|1|Body|Step Rate|Advanced VR Options > Body > Step Rate
 vr_body_step_run|1|Body|Running Cadence|Advanced VR Options > Body > Running Cadence
 vr_body_stride|1|Body|Stride Length|Advanced VR Options > Body > Stride Length
 vr_body_step_width|1|Body|Step Width|Advanced VR Options > Body > Step Width
-vr_body_step_sounds|1|Body|Footsteps on the Feet|Advanced VR Options > Body > Footsteps on the Feet
 vr_body_turn_step|1|Body|Turn Before Stepping|Advanced VR Options > Body > Turn Before Stepping
 vr_body_wade|1|Body|Wading Heaviness|Advanced VR Options > Body > Wading Heaviness
 vr_body_swim_kick|1|Body|Swimming Kicks|Advanced VR Options > Body > Swimming Kicks
@@ -922,7 +919,6 @@ vr_agrunt_strike_shoulder|1|Armed Grunts (Experimental)|Shoulder Drive|Advanced 
 vr_agrunt_disarm|1|Armed Grunts (Experimental)|Hits Disarm|Advanced VR Options > Combat > Armed Grunts (Experimental) > Hits Disarm
 vr_agrunt_disarm_yank|1|Armed Grunts (Experimental)|Grab Its Weapon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grab Its Weapon
 vr_agrunt_disarm_deliberate|1|Armed Grunts (Experimental)|Deliberate Blows Only|Advanced VR Options > Combat > Armed Grunts (Experimental) > Deliberate Blows Only
-vr_agrunt_strike_first|1|Armed Grunts (Experimental)|Strikes on Its Weapon Disarm|Advanced VR Options > Combat > Armed Grunts (Experimental) > Strikes on Its Weapon Disarm
 vr_agrunt_tug|1|Armed Grunts (Experimental)|Tug-of-War|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug-of-War
 vr_agrunt_tug_break_force|1|Armed Grunts (Experimental)|Tug: Break Force|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Force
 vr_agrunt_tug_break_impulse|1|Armed Grunts (Experimental)|Tug: Break Impulse|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Impulse
@@ -1018,7 +1014,6 @@ vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Opt
 vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Shortest Standoff
 vr_agrunt_mspace_max|1|Armed Grunts - AI Behaviour|Longest Standoff|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Longest Standoff
 vr_agrunt_mspace_speed|1|Armed Grunts - AI Behaviour|Re-Close Speed|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Re-Close Speed
-vr_agrunt_aim_converge|1|Armed Grunts - AI Behaviour|Aim From the Muzzle|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Aim From the Muzzle
 vr_agrunt_aim_exposed|1|Armed Grunts - AI Behaviour|Aim at What They Can Hit|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Aim at What They Can Hit
 vr_agrunt_blast_safe|1|Armed Grunts - AI Behaviour|Launchers Fired Safely|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Launchers Fired Safely
 vr_agrunt_rearm|1|Armed Grunts - AI Behaviour|Picks Weapons Up|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Picks Weapons Up
@@ -1119,7 +1114,6 @@ vr_knockdown_shove_max_spin|2|Knockdowns|Max Spin|Advanced VR Options > Combat >
 vr_knockdown_shove_ledge_topple|2|Knockdowns|Topple Over a Ledge|Advanced VR Options > Combat > Knockdowns > Topple Over a Ledge
 vr_knockdown_shove_ledge_push|2|Knockdowns|Ledge Push|Advanced VR Options > Combat > Knockdowns > Ledge Push
 vr_knockdown_shove_ledge_over|2|Knockdowns|Ledge Carry Past the Edge|Advanced VR Options > Combat > Knockdowns > Ledge Carry Past the Edge
-vr_knockdown_weld|1|Knockdowns|Weapon Stays in Hand|Advanced VR Options > Combat > Knockdowns > Weapon Stays in Hand
 vr_knockdown_wiggle|2|Knockdowns|Struggling Strength|Advanced VR Options > Combat > Knockdowns > Struggling Strength
 vr_knockdown_wiggle_frequency|2|Knockdowns|Struggling Frequency|Advanced VR Options > Combat > Knockdowns > Struggling Frequency
 vr_knockdown_retry|1|Knockdowns|Retry|Advanced VR Options > Combat > Knockdowns > Retry
@@ -1462,7 +1456,6 @@ vr_collect_fx_size|1|Carrying|Put-Away End Size|Advanced VR Options > Carrying a
 vr_weapon_grab_slack|1|Carrying|Weapon Grab Slack|Advanced VR Options > Carrying and Throwing > Carrying > Weapon Grab Slack
 vr_weapon_grab_handle_leniency|1|Carrying|Handle Grab Leniency|Advanced VR Options > Carrying and Throwing > Carrying > Handle Grab Leniency
 vr_weapon_catch_handle_leniency|1|Carrying|Mid-Air Catch Leniency|Advanced VR Options > Carrying and Throwing > Carrying > Mid-Air Catch Leniency
-vr_pickup_float_grace|1|Carrying|Floating Pickup Grace|Advanced VR Options > Carrying and Throwing > Carrying > Floating Pickup Grace
 vr_weapon_grab_hotspots|1|Carrying|Weapons by Their Hotspots|Advanced VR Options > Carrying and Throwing > Carrying > Weapons by Their Hotspots
 vr_weapon_grab_anywhere|1|Carrying|Weapons Anywhere|Advanced VR Options > Carrying and Throwing > Carrying > Weapons Anywhere
 vr_weapon_grab_anywhere_min|1|Carrying|Anywhere: Away From Grips|Advanced VR Options > Carrying and Throwing > Carrying > Anywhere: Away From Grips
@@ -4290,6 +4283,7 @@ vr_renderdoc_frames|2|Debug - Profiling and Memory|Capture Frames|Advanced VR Op
 vr_renderdoc_hide_menu|2|Debug - Profiling and Memory|Hide Menu While Capturing|Advanced VR Options > Debug > Profiling and Memory > Hide Menu While Capturing
 |2|Debug - Profiling and Memory|RenderDoc Status|Advanced VR Options > Debug > Profiling and Memory > RenderDoc Status
 vr_xr_log_timing|2|Debug - Profiling and Memory|OpenXR Timing Log|Advanced VR Options > Debug > Profiling and Memory > OpenXR Timing Log
+vr_xr_late_acquire|2|Debug - Profiling and Memory|Late Image Acquire|Advanced VR Options > Debug > Profiling and Memory > Late Image Acquire
 vr_debug_runtime_menu|2|Debug - Profiling and Memory|Act as if the Runtime's Menu Were Open|Advanced VR Options > Debug > Profiling and Memory > Act as if the Runtime's Menu Were Open
 vr_debug_window_unfocused|2|Debug - Profiling and Memory|Act as if the Window Lost Focus|Advanced VR Options > Debug > Profiling and Memory > Act as if the Window Lost Focus
 vr_debug_mirror_vsync|2|Debug - Profiling and Memory|Act as if the Driver Forced V-Sync|Advanced VR Options > Debug > Profiling and Memory > Act as if the Driver Forced V-Sync

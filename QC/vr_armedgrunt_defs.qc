@@ -118,7 +118,6 @@ void(entity g, entity p) VR_AGPar_Pose;                                    // VR
 vector vr_agpar_mid;       // ... its weapon's middle's target (body space), VR_AGPar_Pose's this pose
 float vr_agpar_mw;         // ... its share then (0: no parry pose this pose)
 vector(entity g, entity p) VR_AGPar_Meet;                                  // VR_AGP_Pose: its weapon put on that target
-float(entity g) VR_AGPar_WeaponFrame;                                      // VR_AG_WeaponStruck: a blow on its weapon
 // Its guard (vr_armedgrunt_guard.qc: the preventive parry, vr_agrunt_preparry, and the wind-up parry,
 // vr_agrunt_windup_parry): raised for a while before any blow, then dropped (a recovery: the opening).
 .float vr_agg_state;       // VR_AGG_*: 0 idle, 1 reacting (raised at vr_agg_until), 2 raised, 3 recovering
@@ -138,7 +137,7 @@ float(entity pl, float h) VR_AGG_Cat;                                      // wh
 float(float cat, float k) VR_AGG_Mult;                                     // ... its multiplier
 float(float c, float m) VR_AGG_Odds;                                       // a chance scaled, its ends kept
 string(entity g) VR_AGG_Label;                                             // Show Disarm Volumes: its guard's state
-// A deliberate strike on its weapon or hand (vr_agrunt_strike_first; vr_armedgrunt_parry.qc):
+// A deliberate strike on its weapon or hand (vr_armedgrunt_parry.qc):
 float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR_AG_HandStrikeSpeed: the swept test
 float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries
 float(entity g, entity p) VR_AG_TugStrike;                                 // VR_AG_TugFrame: the other fist's strike in a tug

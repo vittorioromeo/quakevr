@@ -294,7 +294,6 @@ QVR_CVAR(vr_gunsfx_vary, "4", CVAR_ARCHIVE)          // percent: each shot (and 
 QVR_CVAR(vr_gunsfx_impacts, "1", CVAR_ARCHIVE)       // a bullet's or a nail's hit on a wall sounds of its surface (stone, dirt, metal, wood), at the surface: volume (0 none)
 QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)      // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
 QVR_CVAR(vr_gunsfx_action, "1", CVAR_ARCHIVE)        // a gun's actions (breaking open, closing, a magazine in or out) heard from the action, not the muzzle
-QVR_CVAR(vr_gunsfx_punch, "1", CVAR_ARCHIVE)         // a shot's haptic punch (a spike and a tail as long as its recoil's way back, times the weapon's Haptic Punch) instead of the flat buzz (0: the flat buzz)
 QVR_CVAR(vr_debug_gunsfx, "0", CVAR_NONE)                   // console lines for each shot's layers, tail and room, each punch and dry click
 QVR_CVAR(vr_snd_hit_layer, "1", CVAR_ARCHIVE)        // the volume of a blunt blow's second layer, of what it hit (flesh, armour, wood, a wall; QC vr_crates.qc VR_Blunt_HitLayer; 0 none)
 QVR_CVAR(vr_snd_hands, "1", CVAR_ARCHIVE)             // your weapons' and hands' sounds (QC CHAN_HAND: a parry, a reload, a holster) from the hand, not the middle of the head
@@ -1407,7 +1406,6 @@ QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) w
 QVR_CVAR(vr_body_step_rate, "3.6", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
 QVR_CVAR(vr_body_stride, "1.25", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
 QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
-QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
 QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
@@ -2097,7 +2095,6 @@ QVR_CVAR(vr_smallgibs_brains, "1", CVAR_ARCHIVE)           // a head burst (a he
 // Per enemy (vr_smallgibs_mult_<monster>, vr_smallgibs_brains_mult_<monster>): quakevr/data/monsters.txt's smallgibs,
 // smallgibs_brains (vr_monsterdata.inc; ROUND23.md, "Monsters as data").
 QVR_CVAR(vr_gore_stick_thrown, "1", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
-QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th monster dispenser (func_enemy_dispenser) used, as its button would (buttons.qc VR_TestDispenser_Frame: test dispenser: lines, the monster's yaw); back to 0 once done
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
@@ -2470,7 +2467,6 @@ QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
 QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand
 QVR_CVAR(vr_agrunt_disarm_deliberate, "1", CVAR_ARCHIVE) // 1: only a deliberate blow knocks its weapon out (a closed fist or something held, swung over more than a frame; never an open hand or a jolted idle hand); 0: any hand that fast
-QVR_CVAR(vr_agrunt_strike_first, "1", CVAR_ARCHIVE) // 1: a deliberate strike (fist, held gun or prop) meeting its weapon or gun hand disarms it unless its parry was raised for it (then a roll, vr_agrunt_strike_beat); 0: such a blow parries whenever it can (the old order)
 QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (pull to win; 0: the grab takes it at once)
 QVR_CVAR(vr_agrunt_tug_break_force, "450", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
 QVR_CVAR(vr_agrunt_tug_break_impulse, "200", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
@@ -2622,7 +2618,6 @@ QVR_CVAR(vr_agrunt_mspace_reach, "0.8", CVAR_ARCHIVE)  // where in its swing's r
 QVR_CVAR(vr_agrunt_mspace_min, "40", CVAR_ARCHIVE)     // units (its middle to yours): a melee holder whose standoff comes out shorter than this closes in as before (fists, the axe, the hammers)
 QVR_CVAR(vr_agrunt_mspace_max, "88", CVAR_ARCHIVE)     // units: the furthest standoff a melee holder keeps (a very long blade stands no further)
 QVR_CVAR(vr_agrunt_mspace_speed, "1.25", CVAR_ARCHIVE) // a melee holder's step coming back to its standoff when you back off, times its run's step
-QVR_CVAR(vr_agrunt_aim_converge, "1", CVAR_ARCHIVE)  // 1: an armed humanoid's shot goes from the muzzle it leaves to your chest (its aim's error kept, unbiased); 0: aimed from its grip and fired parallel from its muzzle (or along its drawn gun), a miss to one side at any distance (before)
 QVR_CVAR(vr_agrunt_aim_exposed, "1", CVAR_ARCHIVE)   // 1: an armed humanoid aims at a part of you its muzzle's line reaches (chest, head, belly, shoulders, the head's sides, hips, legs; a rocket the floor at your feet), looked for each 0.1 s, and holds fire while none is (no shots into cover); 0: always your chest, its eyes' line to your head deciding (before). vr_armedgrunt.qc VR_AG_Expose
 QVR_CVAR(vr_agrunt_aim_exposed_show, "0", CVAR_NONE)  // 1: each armed humanoid's aim point on you shown each look (sparks: yellow reachable, red none reachable, at its last)
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
@@ -2679,7 +2674,6 @@ QVR_CVAR(vr_posestudio_live_walk, "1", CVAR_NONE)    // ... paused: 1 the sticks
 QVR_CVAR(vr_posestudio_panel, "", CVAR_ARCHIVE)       // the Pose Studio's panel where you put it (its handle: grip to move it), from your head's place and yaw: forward left up (metres), pitch yaw roll (degrees); empty: the default place (Recentre)
 QVR_CVAR(vr_posestudio_panel_folded, "0", CVAR_ARCHIVE) // ... 1 folded to its handle bar (Fold / Unfold)
 QVR_CVAR(vr_agarms_pole_key, "10", CVAR_NONE)          // vr_agarms: an elbow's pole set by a Pose Studio key (its share 1) weighed this much against its wrist's comfort and its limits (4 before: it drifted off where it was put)
-QVR_CVAR(vr_agbody_torso_sides, "0", CVAR_NONE)       // vr_agarms (tuning): > 0 every armed model's torso proxy has its sides and back fitted from this share of its chest bone from the waist (0: each model's own: the grunt's 1, the enforcer's less, its shoulder pads and power pack left out)
 // Armed humanoids' weapon holds (vr_agholds.inc; Combat > Armed Grunts > Weapon Holds): vr_agrunt_hold_<kind>_<weapon>
 // 0 Auto, 1 One-Handed, 2 Two-Handed (vr_agrunt_enforcer_one_hand, retired, is Auto's enforcer pistols in one hand).
 // A gun's pose category (QVR_AGGUN): vr_agrunt_posecat_<kind>_<weapon> 0 Auto, 1 Rifle, 2 Pistol, 3 Shoulder Launcher,
@@ -2694,7 +2688,6 @@ QVR_CVAR(vr_agbody_torso_sides, "0", CVAR_NONE)       // vr_agarms (tuning): > 0
 #include "vr_agholds.inc"
 #undef QVR_AGGUN
 #undef QVR_AGHOLD
-QVR_CVAR(vr_agarms_twist_share, "0", CVAR_NONE)       // vr_agarms (tuning): > 0 the share of a hand's twist about its forearm the forearm takes, every armed model (0: each model's own, 0.5 both)
 QVR_CVAR(vr_posestudio_live_warm,"0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enemygun_spent_smoke, "5", CVAR_ARCHIVE)     // seconds a grunt's burst rifle or an enforcer's laser rifle smokes once its last round is fired (held or dropped; 0: never; QC vr_enemyguns.qc)
@@ -2782,7 +2775,6 @@ QVR_CVAR(vr_grab_gibs, "1", CVAR_ARCHIVE)             // gibs and heads: 0 left 
 QVR_CVAR(vr_carry, "1", CVAR_ARCHIVE)                 // ammo and health boxes: grip to carry, trigger to take, nudge with hands and guns (0: touch takes them)
 QVR_CVAR(vr_armor_wear, "1", CVAR_ARCHIVE)            // armour: 1 a physics object you carry and put on by letting go of it over your torso, 0 touching takes it (the kind: next map)
 QVR_CVAR(vr_item_objects, "1", CVAR_ARCHIVE)          // the map's weapons, keys, runes, the biosuit, the wetsuit, the horn: 1 physics objects once a hand or a force grab takes them (a weapon gripped is your weapon; the rest taken at a holster), 0 touching takes them (the kind: next map)
-QVR_CVAR(vr_pickup_float_grace, "1", CVAR_ARCHIVE)    // a pickup hanging in the air (spinning) isn't knocked by an empty hand reaching into it slowly for a moment: a grip then takes it where it hangs
 QVR_CVAR(vr_carry_body_collision, "1", CVAR_ARCHIVE) // solid carried crates, barrels and explosive boxes stop at the carrier's torso (one or both hands)
 QVR_CVAR(vr_carry_move_mass, "100", CVAR_ARCHIVE) // kg of solid carried props which halve stick locomotion speed; 0 disables mass load
 QVR_CVAR(vr_carry_move_size, "1", CVAR_ARCHIVE) // metres of carried props' longest dimensions without bulk load; twice this halves speed; 0 disables bulk load
@@ -2901,7 +2893,6 @@ QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times t
 QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
 QVR_CVAR(vr_knockdown_shove_ledge_over, "0.45", CVAR_ARCHIVE) // shoved over a ledge, once past the edge its speed along the shove eased down to at most this times the speed it was kept at (0..1): it tips over the lip and drops near the ledge's foot; 1: flies on as it goes (before 2026-10-21)
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
-QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down or staggering, held as in its rest pose by the hand that holds it there (0: it falls loose)
 QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
 QVR_CVAR(vr_knockdown_ledge_show, "0", CVAR_NONE)       // debug: Show Ledge Shove Zones: a line from your feet ahead along the floor to the first ledge, red where a monster shoved on topples over it at once, yellow where it backpedals to it (vr_ledgeshow.cpp)
 QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
@@ -3129,7 +3120,7 @@ QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs:
 QVR_CVAR(vr_limbs_prebuild, "2", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster (those waiting for a trigger too) made as it loads (0: at the first cut, a hitch); 2 (the default since vr_cfg_version 147): also the kinds the firing range's dispensers and dummies (and vr_probe_test_spawn's) can make (the firing range's load +0.22 s with a filled cache; 1 makes those in play, one a frame, ~8 ms each)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
 QVR_CVAR(vr_dmgcredit_test, "0", CVAR_NONE) // the QC fires every weapon at a target that takes only one weapon's damage and prints the weapon each is credited with (vr_dmgcredit_test.qc; Debug > Tests)
-QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation), 5 the weapons lying near reported, 6 a floating pickup ahead, watched (vr_pickup_float_grace) (vr_pickup_test.qc; Debug > Tests)
+QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation), 5 the weapons lying near reported, 6 a floating pickup ahead, watched (the floating grace) (vr_pickup_test.qc; Debug > Tests)
 QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (at least 0.05)
 QVR_CVAR(vr_limbs_end_fountain, "1", CVAR_ARCHIVE) // s the cut end of a limb (or head) cut off spurts blood for as it flies (0: none)
 QVR_CVAR(vr_limb_test, "0", CVAR_NONE) // the QC runs limb gore test n on the nearest monster or corpse (vr_limbs.qc; Debug > Gore Tests)

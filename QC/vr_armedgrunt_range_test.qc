@@ -273,7 +273,7 @@ void() VR_AGAIM_Frame =
         cvar_set("vr_agrunt_aim_error", "0");
         cvar_set("vr_agrunt_range", "0");
         vr_agaim_w = 0;
-        VR_AGT_Print(sprintf("aim: vr_agrunt_aim_converge %g, kind %g", cvar_hget(cvarh_vr_agrunt_aim_converge), VR_AGT_Kind()));
+        VR_AGT_Print(sprintf("aim: kind %g", VR_AGT_Kind()));
         vr_agt_step = 1;
     }
     if(vr_agt_step == 1)

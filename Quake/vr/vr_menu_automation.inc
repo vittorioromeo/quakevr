@@ -279,7 +279,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Aim", "vr_agrunt_test 49")
             .help("vr_agrunt_test 49 (vrtesthall's start): a grunt with each gun (shotgun, nail guns, the grunt's and the "
                   "enforcer's rifles) 600 units ahead comes at you firing, no aim error: each shot's miss to your side "
-                  "by 100 units of distance, aimed from its grip (the old way) and as fired (vr_agrunt_aim_converge)."),
+                  "by 100 units of distance, aimed from its grip (the old way) and as fired (from the muzzle)."),
         command("Armed Grunts: Aim Behind Cover", "scratch1 0; vr_agrunt_test 76")
             .help("vr_agrunt_test 76 (vrtesthall's start; under a minute): a grunt 300 units ahead, you behind a box 40 "
                   "units before you (none, a low wall, a door frame, a crate, a wall), each gun (shotgun, nailgun, rifle, "
@@ -319,7 +319,7 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 94 (vrtesthall; a few seconds): a shotgun grunt struck on its barrel or forearm by a "
                   "fist, a held shotgun, a carried crate and a thrown gun, unaware, caught out or its parry raised, and "
                   "in slow motion: disarmed unless its parry was raised (parried); an open hand or a push neither; a "
-                  "punch on its legs its full damage (vr_agrunt_strike_first; agtest: strike ... PASS)."),
+                  "punch on its legs its full damage (agtest: strike ... PASS)."),
         command("Armed Grunts: Shots on the Drawn Body", "vr_agrunt_test 79")
             .help("vr_agrunt_test 79 (vrtesthall; a few seconds): each kind of armed humanoid held in its guard: a shot "
                   "across its drawn forearm hits its arm, one where its animation frame's arm is misses; a sword one "

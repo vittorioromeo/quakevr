@@ -273,7 +273,7 @@ void(entity p) VR_PickupTest_Lying =
 
 // 6: a super shotgun pickup 40 units ahead of you, as the map's (hanging at vr_item_float_height), watched: each change
 // of its state (hanging, knocked loose, taken) printed with its time and height (floatgrab: in the console; the floating
-// pickups' grace, vr_pickup_float_grace: `vr_mock_hand_to main nearest weapon_supershotgun <units>` reaches it).
+// pickups' grace: `vr_mock_hand_to main nearest weapon_supershotgun <units>` reaches it).
 .entity vr_pickuptest_watched;
 .float vr_pickuptest_state;
 void() VR_PickupTest_Watch =

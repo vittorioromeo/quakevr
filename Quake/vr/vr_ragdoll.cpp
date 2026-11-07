@@ -1492,7 +1492,7 @@ void deriveRig(DeriveWork& w, qmodel_t* model, const aliashdr_t* hdr, const Seed
     rig.looseInHands = tb.loosePerPiece || tb.looseKept;
     // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
     // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
-    // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
+    // unit, welded in a knocked-down one's chest 166 times denser than the body and whirling
     // so fast it shook the whole ragdoll apart (a judo-thrown mummy's parts hitting the floor at 4000-12000 u/s, fall
     // damage on flat ground; ROUND22.md). Hidden in every ragdoll, as the player's weapons are.
     for(int b = table.count; b < numBones; b++)

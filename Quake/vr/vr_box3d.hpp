@@ -398,8 +398,8 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
 // Whether a hold on part `part` of edict `num`'s ragdoll is a hold on the weapon riding its part `rides` (QC
-// VR_AG_RagProp) with its grip at `grip`: that part, the part holding it (a loose piece's holder, the gun welded there:
-// vr_knockdown_weld; else `rides`), that arm's hand or forearm, or the other arm's with its hand on the grip.
+// VR_AG_RagProp) with its grip at `grip`: that part, the part holding it (a loose piece's holder, the gun welded there;
+// else `rides`), that arm's hand or forearm, or the other arm's with its hand on the grip.
 [[nodiscard]] bool ragdollWeaponHold(int num, int rides, int part, const glm::vec3& grip);
 // The hands and the limbs (QC's builtins: ragdollgrab, ragdollrelease, ragdollheld, ragdollreach). `hand`: QC's (0 the
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,

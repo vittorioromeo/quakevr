@@ -5,12 +5,12 @@
 // ----------------------------------------------------------------------------
 // vr_armedgrunt_strike_test.qc -- `vr_agrunt_test 94` (Debug > Tests > Armed Grunts: Strikes on Its Weapon Disarm): a
 // deliberate strike on an armed grunt's weapon or gun hand disarms it unless its parry was raised for it
-// (vr_armedgrunt_parry.qc VR_AG_BlowOnWeapon; vr_agrunt_strike_first). In vrtesthall, you unseen, a fresh shotgun grunt
+// (vr_armedgrunt_parry.qc VR_AG_BlowOnWeapon). In vrtesthall, you unseen, a fresh shotgun grunt
 // 60 units ahead for each case, held still, its parry state set (unaware; aware but caught out; aware, raised); your
 // hand mocked as the melee tracker has it (its swept points this frame, its real-time swing, the swing the frame before,
 // the fist closed), then its weapon's think (VR_AG_WeaponStruck) or the melee's damage (T_Damage_VRMelee) or a throw:
-//   fist on its barrel 6 m/s: unaware, caught out: disarmed; caught out with vr_agrunt_strike_first 0: parried (the old
-//   order); raised, vr_agrunt_strike_beat 0: parried; 1: disarmed; on its forearm (off its weapon): disarmed;
+//   fist on its barrel 6 m/s: unaware, caught out: disarmed; raised, vr_agrunt_strike_beat 0: parried; 1: disarmed;
+//   on its forearm (off its weapon): disarmed;
 //   an open hand reaching, a 2 m/s push: neither; a held shotgun's far end bashed through its barrel (your hand 20 units
 //   off it): disarmed; a carried 24-unit crate swung into it, your fist 13 units off: disarmed (the fist alone: not met);
 //   a gun thrown across its barrel: disarmed; one bounced off its body by its gun hand (5 damage, under the disarming
@@ -20,14 +20,13 @@
 // Each case `agtest: PASS|FAIL strike <case>: ...`; ends on `agtest: test 94 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
-float VR_AGST_CASES = 16;
+float VR_AGST_CASES = 15;
 float vr_agst_case;       // the case running
 float vr_agst_until;      // its set-up's give-up time (a safety net: FAIL "timed out")
 float vr_agst_keep_beat;  // cvars before (put back at the end)
-float vr_agst_keep_first;
 float vr_agst_keep_parry;
 float vr_agst_keep_scale;
-float vr_agst_keep_armor; // vr_agarmor_rule (pinned 0: a plate under rule 1 stops case 13's whole blow)
+float vr_agst_keep_armor; // vr_agarmor_rule (pinned 0: a plate under rule 1 stops case 12's whole blow)
 entity vr_agst_crate;
 
 // The case's name.
@@ -35,19 +34,18 @@ string(float c) VR_AGST_Name =
 {
     if(c == 0) { return "fist on its barrel, unaware"; }
     if(c == 1) { return "fist on its barrel, caught out"; }
-    if(c == 2) { return "fist on its barrel, caught out, old order (vr_agrunt_strike_first 0)"; }
-    if(c == 3) { return "fist into its raised parry, beat 0"; }
-    if(c == 4) { return "fist into its raised parry, beat 1"; }
-    if(c == 5) { return "fist on its forearm, caught out"; }
-    if(c == 6) { return "open hand reaching for its barrel, caught out"; }
-    if(c == 7) { return "a 2 m/s push on its barrel, unaware"; }
-    if(c == 8) { return "a held shotgun bashed through its barrel, caught out"; }
-    if(c == 9) { return "a carried crate swung into its barrel, caught out"; }
-    if(c == 10) { return "a gun thrown across its barrel"; }
-    if(c == 11) { return "a gun thrown at its gun hand, bounced off its body"; }
-    if(c == 12) { return "the melee's punch on its legs, caught out"; }
-    if(c == 13) { return "the melee's punch through its barrel into its chest, caught out"; }
-    if(c == 14) { return "the melee's punch through its barrel into its raised parry, beat 0"; }
+    if(c == 2) { return "fist into its raised parry, beat 0"; }
+    if(c == 3) { return "fist into its raised parry, beat 1"; }
+    if(c == 4) { return "fist on its forearm, caught out"; }
+    if(c == 5) { return "open hand reaching for its barrel, caught out"; }
+    if(c == 6) { return "a 2 m/s push on its barrel, unaware"; }
+    if(c == 7) { return "a held shotgun bashed through its barrel, caught out"; }
+    if(c == 8) { return "a carried crate swung into its barrel, caught out"; }
+    if(c == 9) { return "a gun thrown across its barrel"; }
+    if(c == 10) { return "a gun thrown at its gun hand, bounced off its body"; }
+    if(c == 11) { return "the melee's punch on its legs, caught out"; }
+    if(c == 12) { return "the melee's punch through its barrel into its chest, caught out"; }
+    if(c == 13) { return "the melee's punch through its barrel into its raised parry, beat 0"; }
     return "fist on its barrel, caught out, slow motion (vr_timescale 0.3)";
 };
 
@@ -121,7 +119,6 @@ void() VR_AGST_End =
 {
     entity p = vr_agt_player;
     localcmd(sprintf("tune vr_agrunt_strike_beat %g\n", vr_agst_keep_beat)); // (a tunable: set by `tune`)
-    cvar_set("vr_agrunt_strike_first", ftos(vr_agst_keep_first));
     cvar_set("vr_agrunt_parry", ftos(vr_agst_keep_parry));
     cvar_set("vr_timescale", ftos(vr_agst_keep_scale));
     cvar_set("vr_agarmor_rule", ftos(vr_agst_keep_armor));
@@ -150,10 +147,9 @@ void(entity g, float c) VR_AGST_Strike =
     float fb = vr_ag_feedbacks;
     float sp = 6;
     float state = 1;
-    if(c == 0 || c == 7 || c == 10 || c == 11) { state = 0; }
-    if(c == 3 || c == 4 || c == 14) { state = 2; }
+    if(c == 0 || c == 6 || c == 9 || c == 10) { state = 0; }
+    if(c == 2 || c == 3 || c == 13) { state = 2; }
     VR_AGST_Hold(g, state);
-    cvar_set("vr_agrunt_strike_first", c == 2 ? "0" : "1");
     float expectDis = TRUE;
     float expectParry = FALSE;
     float dmg = -1;
@@ -161,23 +157,23 @@ void(entity g, float c) VR_AGST_Strike =
     float okExtra = TRUE;
     vr_ag_strike_where = 0;
     p.weapon = WID_FIST;
-    if((c <= 7) || (c == 15))
+    if((c <= 6) || (c == 14))
     {
         vector at = bar;
-        if(c == 5)
+        if(c == 4)
         {
             // (its forearm, towards its elbow from its grip)
             VR_AGS_HandLine(g, w);
             at = vr_ags_hb;
             extra = sprintf(", %.1f units off its weapon's line", VR_AG_SegDist(at, at, wa, wb));
         }
-        if(c == 7) { sp = 2; step = 2 * VRMetersToUnits() / 72; }
-        VR_AGST_Blow(at + side * step * 0.5, '0 0 0', at - side * step * 0.5, '0 0 0', 1, side * -1, sp, c != 6, VR_MTHING_FIST);
-        expectDis = (c != 2 && c != 3 && c != 6 && c != 7);
-        expectParry = (c == 2 || c == 3);
+        if(c == 6) { sp = 2; step = 2 * VRMetersToUnits() / 72; }
+        VR_AGST_Blow(at + side * step * 0.5, '0 0 0', at - side * step * 0.5, '0 0 0', 1, side * -1, sp, c != 5, VR_MTHING_FIST);
+        expectDis = (c != 2 && c != 5 && c != 6);
+        expectParry = (c == 2);
         VR_AG_WeaponStruck(g, w);
     }
-    else if(c == 8)
+    else if(c == 7)
     {
         // A held shotgun: your hand 22 units to its side, the gun's line across to 2 units past its barrel, swung down.
         p.weapon = WID_SHOTGUN;
@@ -187,7 +183,7 @@ void(entity g, float c) VR_AGST_Strike =
         VR_AG_WeaponStruck(g, w);
         p.weapon = WID_FIST;
     }
-    else if(c == 9)
+    else if(c == 8)
     {
         // A carried crate (24 units) on your fist, the fist 13 units above its barrel, swung across: the crate meets it.
         vector f = bar + up * 13;
@@ -206,7 +202,7 @@ void(entity g, float c) VR_AGST_Strike =
         vr_agst_crate = world;
         expectDis = alone < 0;
     }
-    else if(c == 10)
+    else if(c == 9)
     {
         // A nailgun thrown at 14 m/s across its barrel, 4 units short of it now.
         entity t = VR_AGPT_Weapon(WID_NAILGUN, bar + side * 4, FALSE);
@@ -216,7 +212,7 @@ void(entity g, float c) VR_AGST_Strike =
         VR_AG_WeaponStruck(g, w);
         extra = sprintf(", %.1f kg", VR_Thrown_Mass(t));
     }
-    else if(c == 11)
+    else if(c == 10)
     {
         // A nailgun thrown at its gun hand, touching its body by its forearm and bounced back at 14 m/s: 5 damage.
         VR_AGS_HandLine(g, w);
@@ -252,7 +248,7 @@ void(entity g, float c) VR_AGST_Strike =
         vector a;
         vector b;
         vector bodyAt;
-        if(c == 12)
+        if(c == 11)
         {
             a = VR_AGPT2_At(g, [6, -14, -16]);
             b = VR_AGPT2_At(g, [6, 14, -16]);
@@ -264,8 +260,8 @@ void(entity g, float c) VR_AGST_Strike =
             a = bar + side * step * 0.5;
             b = bar - side * step * 0.5;
             bodyAt = VR_AGPT2_At(g, VR_AGPar_Chest(g));
-            expectDis = c == 13;
-            expectParry = c == 14;
+            expectDis = c == 12;
+            expectParry = c == 13;
         }
         VR_AGST_Blow(a, '0 0 0', b, '0 0 0', 1, normalize(b - a), sp, TRUE, VR_MTHING_FIST);
         dmg = VR_AGST_Melee(g, bodyAt, normalize(b - a));
@@ -277,7 +273,7 @@ void(entity g, float c) VR_AGST_Strike =
         {
             okExtra = fabs(dmg - kept) < 0.01;
         }
-        else if(c == 12)
+        else if(c == 11)
         {
             okExtra = (fabs(dmg - vr_agpt2_expect) < 0.01 && dmg > 0);
         }
@@ -290,7 +286,7 @@ void(entity g, float c) VR_AGST_Strike =
     float parried = vr_agpar_n - n0;
     float okDis = disarmed == expectDis;
     float okParry = (parried > 0) == expectParry;
-    if(c == 5)
+    if(c == 4)
     {
         okExtra = vr_ag_strike_where == 2; // (its forearm, not its weapon, met)
     }
@@ -315,12 +311,11 @@ void() VR_AGST_Frame =
         if(vr_agst_case == 0)
         {
             vr_agst_keep_beat = cvar_hget(cvarh_vr_agrunt_strike_beat);
-            vr_agst_keep_first = cvar_hget(cvarh_vr_agrunt_strike_first);
             vr_agst_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);
             vr_agst_keep_scale = cvar_hget(cvarh_vr_timescale);
             vr_agst_keep_armor = cvar_hget(cvarh_vr_agarmor_rule);
             cvar_set("vr_agrunt_parry", "1");
-            // (The player's armour rule: a plate saves its share, the rest gets through (case 13's damage past a parry's);
+            // (The player's armour rule: a plate saves its share, the rest gets through (case 12's damage past a parry's);
             // rule 1, shipped 2026-10-30, stops the whole hit while its pool lasts.)
             cvar_set("vr_agarmor_rule", "0");
             p.flags = p.flags | FL_NOTARGET;
@@ -332,14 +327,14 @@ void() VR_AGST_Frame =
         }
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
-        cvar_set("vr_timescale", vr_agst_case == 15 ? "0.3" : "1");
+        cvar_set("vr_timescale", vr_agst_case == 14 ? "0.3" : "1");
         // (Into a raised parry: beat 0, then 1; a tunable, set by `tune` (run before the strike: the grunt's start).)
         float beat = vr_agst_keep_beat;
-        if(vr_agst_case == 4)
+        if(vr_agst_case == 3)
         {
             beat = 1;
         }
-        else if(vr_agst_case == 3 || vr_agst_case == 14)
+        else if(vr_agst_case == 2 || vr_agst_case == 13)
         {
             beat = 0;
         }
@@ -352,7 +347,7 @@ void() VR_AGST_Frame =
     if(vr_agt_step == 1)
     {
         // Its start done (walkmonster_start_go: it takes damage), its weapon placed, the time scale reached.
-        float scaled = vr_agst_case == 15 ? vr_hand_time_scale > 0 && vr_hand_time_scale <= 0.31 : vr_hand_time_scale >= 0.99 || vr_hand_time_scale <= 0;
+        float scaled = vr_agst_case == 14 ? vr_hand_time_scale > 0 && vr_hand_time_scale <= 0.31 : vr_hand_time_scale >= 0.99 || vr_hand_time_scale <= 0;
         if(!(g.takedamage && g.vr_ag_prop && g.vr_ag_prop.vr_ag_was_n >= 1 && scaled))
         {
             if(time > vr_agst_until)
