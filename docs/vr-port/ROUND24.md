@@ -2598,3 +2598,34 @@ changelevel, restart, AD cold and warm). Full numbers and the open items: qvr-ki
 - Left for him: an area-tree or QC-side findradius (~1.5 ms on AD fights), GL programs compiled at init (a 16.7 ms
   first-wisp hitch), limb textures probed during play, cold skin normal maps on the main thread (176-357 ms), armed_mix32's
   78 heap allocations a frame.
+
+## Fresh map seeds (branch `agent/mapseeds`, 2026-11-07, overnight)
+
+His ask: the per-map random content new at every new start of a map, not at a save's load. `vr_fresh_map_seeds` (default
+1, archived; VR Settings > Gameplay > Maps > "New Each Time") picks a map content seed at each map load that is not a
+saved game's (new game, changelevel, restart): 24 bits from the clock (srvrandom::chooseMapSeed, vr_srvrandom.cpp). It
+is mixed into what was seeded by the map's name alone:
+- the crates' and barrels' layout, skins, stacks, crowbars and flare guns on them (vr_crates.cpp's planner seed);
+- the rocks and bricks (vr_debris.cpp's planner seed; the seed is in the plan key, so vr_place_keep never reuses another
+  seed's plan);
+- the armed replacements' loadouts (QC VR_AGR_SeedSet: an offset to vr_agrunt_repl_seed's shuffle);
+- the grunts' armour roll (QC VR_AgArmor_Rand's low-discrepancy spread, offset).
+Already random per load before this (the server stream, clock-seeded): which pooled grunts are armed, crate contents
+and break patterns (QC random() at break time). Not per-map content, left alone: the ragdolls' death rolls (entity and
+frame), vr_agarmor_seed (the plates' look per model).
+
+Saves: QC global `vr_map_content_seed` (vr_armedgrunt_defs.qc) is written by the engine before anything spawns and is a
+saved global; VR_OnLoadGame reads it back (a save from before: 0, the map's name alone, exactly as it was). Crates and
+debris in a save are entities anyway; the seed matters for replacements still to roll (a spawner's, "rolled now").
+
+Seed 0 is today's behaviour bit for bit. It is 0 when: `vr_fresh_map_seeds 0`; a test session (`vr_backend mock`: every
+kit run and the eval suite, whatever their config); a test's seeded load (seedNextMap: motion takes, vr_bench_seed).
+`vr_map_seed N` (not archived) fixes it for repro (wins over everything but a save); `-1` a fresh one even under the
+mock. `vr_map_seed_info` prints it and why (the Debug menu's "Map Content Seed", next to "Server Random Seed").
+`vr_agrunt_test 73`'s census prints `loadouts hash H (map seed S)`.
+
+Verified (e1m1): seed 0 crates layout c4276fdd, debris 03be04b6, census 18 replaced (7 own gun, 11 varied), equal to
+the parent build; seed 4242: 22e429ac, ba8ddaa6, loadouts hash 10104 vs 24627; save at 4242, `vr_map_seed 0; load`:
+seed 4242 restored, hash 10104 again; `vr_map_seed -1; restart; restart`: two different fresh seeds. vr_agrunt_test 70
+22 passed 0 failed; 5 (save and load) 0 failed; eval canary 36/44, 21 differ, full 161/171, 69 differ: the same
+numbers on the parent build (pre-existing drift of the pommel distances, not this change).
