@@ -3780,7 +3780,7 @@ QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)
 // findradius() through the area grid (vr_findradius.cpp; ROUND24.md, "findradius through the area grid"): the same
 // chain as Quake's walk of every edict, quicker on a big map.
 QVR_CVAR(vr_findradius_grid, "1", CVAR_NONE)       // 0 Quake's walk; 1 the grid on maps with vr_findradius_grid_min edicts or more; 2 the grid always
-QVR_CVAR(vr_findradius_grid_min, "400", CVAR_NONE) // edicts in use from which the grid searches (below, the walk is as quick)
+QVR_CVAR(vr_findradius_grid_min, "100", CVAR_NONE) // edicts in use from which the grid searches (the grid was quicker on every map measured, 135 edicts and up; below 100 a walk is cheap anyway)
 QVR_CVAR(vr_findradius_check, "0", CVAR_NONE)      // each findradius runs both and the walk's chain is used; differences counted (vr_findradius_stats) and the first printed (findradius check:)
 
 // The external map index (Quake/vr/vr_mapindex.cpp): Quaddicted's package index, fetched at start-up on a thread of
