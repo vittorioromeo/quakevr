@@ -461,15 +461,7 @@ bool programFailed[shadeCount][2][2]{};
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
     GL_CompileShaderFunc(shader);
-
-    GLint ok = 0;
-    GL_GetShaderivFunc(shader, GL_COMPILE_STATUS, &ok);
-    if(!ok)
-    {
-        char log[1024];
-        GL_GetShaderInfoLogFunc(shader, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to compile:\n%s\n", name, log);
-    }
+    (void)gfx::compiled(shader, name); // (a failed one still given: its program's link fails)
     return shader;
 }
 
@@ -2383,6 +2375,7 @@ void destroyTexture(Texture texture)
 void precompilePrograms()
 {
     // (made at their first draw, the first muzzle wisp's was a 16.7 ms hitch in a fight: TRACY session 2026-11-07)
+    gfx::beginDeferredChecks(); // (the driver's threads compile them all: statuses read at the end)
     for(int s = 0; s < shadeCount; s++)
     {
         (void)programFor(static_cast<Shade>(s), false, false);
@@ -2426,6 +2419,7 @@ void precompilePrograms()
     temporal::precompilePrograms();
     upscale::precompilePrograms();
     water::precompilePrograms();
+    gfx::endDeferredChecks();
 }
 
 } // namespace qvr::gfx

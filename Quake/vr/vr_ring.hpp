@@ -63,6 +63,16 @@ public:
         popFront();
     }
 
+    // Every slot, in use or not (their contents' room made ahead: decals::prepare).
+    template <typename F>
+    void forEachSlot(F&& f)
+    {
+        for(T& slot : slots)
+        {
+            f(slot);
+        }
+    }
+
     // Another capacity; the oldest go first if there are more than that. (Allocates: for a changed setting.)
     void setCapacity(za::SizeT capacity)
     {

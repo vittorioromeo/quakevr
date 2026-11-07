@@ -283,6 +283,30 @@ bool specOf(const ArmedRig& a, const ragdoll::Rig& rig, const aliashdr_t* hdr, a
 
 // vr_hitreact_skin.cpp
 void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend);
+// relinkSkinned in two (vr_agarms_jobs): its bones and targets up to the arms' solve (Begin: false nothing more; with
+// `batch` its solve queued, agarms::batchQueue), then the rest with its result (End, after agarms::batchRun).
+struct SkinWork
+{
+    const ArmPose* s{nullptr};
+    const entity_t* e{nullptr};
+    const aliashdr_t* hdr{nullptr};
+    int pose1{0}, pose2{0};
+    float blend{0.f};
+    const ragdoll::Rig* rig{nullptr};
+    agarms::Spec spec;
+    rigpose::Rigid posed[ragdoll::maxBones];
+    rigpose::Rigid kick[ragdoll::maxBones];
+    bool kicked{false}, layerArms{false}, hasR{false};
+    int kind{0}, slot{-1}, slotL{-1};
+    glm::vec3 secondPoint{0.f};
+    agarms::Targets t;
+    agarms::Placed placed;
+    int ticket{-1}; // (agarms::batchQueue's; -1 solved already)
+    bool rec{false}; // (the Pose Studio's Live tape recording it: poselive::recorded after End)
+};
+bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend,
+    SkinWork& w, bool batch);
+void relinkSkinnedEnd(SkinWork& w);
 
 } // namespace hitreact_detail
 

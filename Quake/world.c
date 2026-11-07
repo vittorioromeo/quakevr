@@ -220,9 +220,11 @@ static	int			sv_numareanodes;
 // QVR: each node's linked edicts (both lists) in an array as well, in no order (the last one moved into a removed one's
 // place: edict_t's areanode, areaslot): SV_AreaEdictsUnordered reads their boxes without chasing the links one by one
 // (each link a load waiting on the last). The same edicts as the lists, so the same ones found; in another order.
+// Each slot also keeps the edict's abs box as it was linked (boxes): SV_AreaRadiusCandidates reads those, not the edicts.
 typedef struct
 {
 	edict_t	**ents;
+	float	(*boxes)[6];	// [space] absmin, absmax when linked
 	int		count, space;
 } areaarray_t;
 static	areaarray_t	sv_areaarrays[AREA_NODES];
@@ -234,11 +236,14 @@ static void SV_AreaArrayAdd (edict_t *ent, int node)
 	{
 		a->space = a->space ? a->space * 2 : 64;
 		a->ents = (edict_t **) VR_HeapRealloc (a->ents, a->space * sizeof (edict_t *));
-		if (!a->ents)
+		a->boxes = (float (*)[6]) VR_HeapRealloc (a->boxes, a->space * sizeof (a->boxes[0]));
+		if (!a->ents || !a->boxes)
 			Sys_Error ("SV_AreaArrayAdd: out of memory");
 	}
 	ent->areanode = node;
 	ent->areaslot = a->count;
+	VectorCopy (ent->v.absmin, a->boxes[a->count]);
+	VectorCopy (ent->v.absmax, a->boxes[a->count] + 3);
 	a->ents[a->count++] = ent;
 }
 
@@ -253,6 +258,7 @@ static void SV_AreaArrayRemove (edict_t *ent)
 		return; // (not in it: linked before the world was cleared)
 	last = a->ents[--a->count];
 	a->ents[ent->areaslot] = last;
+	memcpy (a->boxes[ent->areaslot], a->boxes[a->count], sizeof (a->boxes[0]));
 	last->areaslot = ent->areaslot;
 }
 
@@ -315,6 +321,7 @@ void SV_ClearWorld (void)
 	sv_numareanodes = 0;
 	for (int i = 0; i < AREA_NODES; i++) // QVR: (their memory kept)
 		sv_areaarrays[i].count = 0;
+	VR_FindRadius_Reset (); // QVR: nothing linked: findradius tests every edict until it is linked again
 	SV_CreateAreaNode (0, sv.worldmodel->mins, sv.worldmodel->maxs);
 }
 
@@ -332,6 +339,7 @@ void SV_UnlinkEdict (edict_t *ent)
 	RemoveLink (&ent->area);
 	ent->area.prev = ent->area.next = NULL;
 	SV_AreaArrayRemove (ent); // QVR
+	VR_FindRadius_Dirty (ent); // QVR: out of the grid (findradius tests it itself until it is linked again)
 }
 
 
@@ -461,6 +469,44 @@ static void SV_AreaEdictsUnorderedR (areanode_t *node, const float *mins, const 
 void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
 {
 	SV_AreaEdictsUnorderedR (sv_areanodes, mins, maxs, list, listcount, listspace);
+}
+
+/*
+====================
+SV_AreaRadiusCandidates
+
+QVR: the linked edicts whose boxes as they were linked touch mins..maxs, in no order, for findradius
+(vr/vr_findradius.cpp): the same walk as SV_AreaEdictsUnordered, but the boxes are read from the nodes' arrays, not
+from the edicts (each edict is kilobytes away from the next: a page each). An edict changed since it was linked is
+findradius's to test itself.
+====================
+*/
+static void SV_AreaRadiusCandidatesR (areanode_t *node, const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	const areaarray_t *a = &sv_areaarrays[node - sv_areanodes];
+	int			i;
+
+	for (i = 0; i < a->count; i++)
+	{
+		const float *b = a->boxes[i];
+		if (mins[0] > b[3] || mins[1] > b[4] || mins[2] > b[5] || maxs[0] < b[0] || maxs[1] < b[1] || maxs[2] < b[2])
+			continue;
+		if (*listcount == listspace)
+			return;
+		list[(*listcount)++] = a->ents[i];
+	}
+
+	if (node->axis == -1)
+		return;
+	if (maxs[node->axis] >= node->dist - AREA_LOOSE)
+		SV_AreaRadiusCandidatesR (node->children[0], mins, maxs, list, listcount, listspace);
+	if (mins[node->axis] <= node->dist + AREA_LOOSE)
+		SV_AreaRadiusCandidatesR (node->children[1], mins, maxs, list, listcount, listspace);
+}
+
+void SV_AreaRadiusCandidates (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	SV_AreaRadiusCandidatesR (sv_areanodes, mins, maxs, list, listcount, listspace);
 }
 
 /*
@@ -645,6 +691,8 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 		ent->v.absmax[1] += 1;
 		ent->v.absmax[2] += 1;
 	}
+
+	VR_FindRadius_Linked (ent); // QVR: in the grid as it is now (or SOLID_NOT: not in it, and findradius skips it)
 
 // link to PVS leafs
 	ent->num_leafs = 0;

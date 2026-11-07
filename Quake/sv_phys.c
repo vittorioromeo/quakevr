@@ -597,6 +597,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 			pusher->v.solid = SOLID_NOT;
 			SV_PushEntity (check, move);
 			pusher->v.solid = solid_backup;
+			VR_FindRadius_Dirty (pusher); // QVR: solid again in C (findradius tests it by itself until it is linked)
 		}
 
 	// if it is still inside the pusher, block

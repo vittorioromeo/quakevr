@@ -2128,7 +2128,29 @@ static bool b3UpdateHullBulkProperties( b3HullData* hull )
 	return true;
 }
 
-b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount )
+// QVR (local change, README.md): b3CreateHull's working memory and its result from `allocFcn` / `freeFcn` (NULL: b3Alloc
+// and b3Free), sizes as b3Alloc gives its function (B3_ALIGNMENT); b3CreateHullWith's caller frees the result itself.
+static void* b3HullAlloc( b3AllocFcn* allocFcn, size_t size )
+{
+	if ( allocFcn == NULL )
+	{
+		return b3Alloc( size );
+	}
+	return allocFcn( ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1, B3_ALIGNMENT );
+}
+
+static void b3HullFree( b3FreeFcn* freeFcn, void* mem, size_t size )
+{
+	if ( freeFcn == NULL )
+	{
+		b3Free( mem, size );
+		return;
+	}
+	freeFcn( mem, ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1 );
+}
+
+static b3HullData* b3CreateHullImpl( const b3Vec3* points, int pointCount, int maxVertexCount, b3AllocFcn* allocFcn,
+									 b3FreeFcn* freeFcn )
 {
 	if ( pointCount < 4 )
 	{
@@ -2140,7 +2162,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 
 	// Single allocation for all working memory.
 	b3HullWorkSizes sizes = b3ComputeHullWorkSizes( pointCount, clampedMaxCount );
-	char* work = b3Alloc( sizes.totalBytes );
+	char* work = b3HullAlloc( allocFcn, sizes.totalBytes );
 
 	b3HullBuilder builder;
 	b3HullBuilder_Init( &builder, work, &sizes );
@@ -2150,21 +2172,21 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	bool ok = b3HullBuilder_Construct( &builder, points, pointCount, clampedMaxCount, origin, shiftedPoints );
 	if ( ok == false )
 	{
-		b3Free( work, sizes.totalBytes );
+		b3HullFree( freeFcn, work, sizes.totalBytes );
 		return NULL;
 	}
 
 	if ( builder.finalVertexCount > B3_MAX_HULL_VERTICES )
 	{
 		b3Log( "hull final vertex count of %d exceeds limit of %d", builder.finalVertexCount, B3_MAX_HULL_VERTICES );
-		b3Free( work, sizes.totalBytes );
+		b3HullFree( freeFcn, work, sizes.totalBytes );
 		return NULL;
 	}
 
 	if ( builder.finalFaceCount > B3_MAX_HULL_FACES )
 	{
 		b3Log( "hull final face count of %d exceeds limit of %d", builder.finalFaceCount, B3_MAX_HULL_FACES );
-		b3Free( work, sizes.totalBytes );
+		b3HullFree( freeFcn, work, sizes.totalBytes );
 		return NULL;
 	}
 
@@ -2172,7 +2194,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	if ( builder.finalHalfEdgeCount > maxHalfEdgeCount )
 	{
 		b3Log( "hull final half edge count of %d exceeds limit of %d", builder.finalHalfEdgeCount, maxHalfEdgeCount );
-		b3Free( work, sizes.totalBytes );
+		b3HullFree( freeFcn, work, sizes.totalBytes );
 		return NULL;
 	}
 
@@ -2242,7 +2264,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	int edgeCosineOffset = (int)byteCount;
 	byteCount += b3AlignUp8( ( edgeCount / 2 ) * (int)sizeof( float ) );
 
-	b3HullData* hull = b3Alloc( byteCount );
+	b3HullData* hull = b3HullAlloc( allocFcn, byteCount );
 	memset( hull, 0, byteCount );
 
 	hull->version = B3_HULL_VERSION;
@@ -2333,7 +2355,7 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	}
 
 	// All builder pointers are dead from here on.
-	b3Free( work, sizes.totalBytes );
+	b3HullFree( freeFcn, work, sizes.totalBytes );
 
 	b3UpdateHullEdgeCosines( hull );
 
@@ -2341,13 +2363,13 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	bool success = b3UpdateHullBulkProperties( hull );
 	if ( success == false )
 	{
-		b3DestroyHull( hull );
+		b3HullFree( freeFcn, hull, hull->byteCount );
 		return NULL;
 	}
 
 	if ( b3IsValidHull( hull ) == false )
 	{
-		b3DestroyHull( hull );
+		b3HullFree( freeFcn, hull, hull->byteCount );
 		return NULL;
 	}
 
@@ -2355,6 +2377,18 @@ b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCou
 	hull->hash = b3Hash64NonZero( (uint8_t*)hull, hull->byteCount );
 
 	return hull;
+}
+
+b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount )
+{
+	return b3CreateHullImpl( points, pointCount, maxVertexCount, NULL, NULL );
+}
+
+// QVR (local change, README.md)
+b3HullData* b3CreateHullWith( const b3Vec3* points, int pointCount, int maxVertexCount, b3AllocFcn* allocFcn,
+							  b3FreeFcn* freeFcn )
+{
+	return b3CreateHullImpl( points, pointCount, maxVertexCount, allocFcn, freeFcn );
 }
 
 b3HullData* b3CloneHull( const b3HullData* hull )

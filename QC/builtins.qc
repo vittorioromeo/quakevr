@@ -256,6 +256,11 @@ float(entity p) agdrawnframe = #0;
 vector(entity p) agweaponextent = #0;
 vector vr_ag_wx_back;
 vector vr_ag_wx_front;
+// agposesend: armed humanoid `g`'s pose message (QVR_SVC_ARMPOSE) to MSG_BROADCAST in one call, the bytes VR_AGP_Pose's
+// Write calls made, from its globals (vr_agp_*, vr_agk_*, vr_agp_waist) and: `p` its weapon (world: none or reaching),
+// `pL` its left one, `fl` the flags byte + 256 x the off-hand block's byte + 65536 with the body's block, `bytes` the IK
+// stretch's byte + 256 x the take's, the gun's axes. FALSE: not written (vr_agposesend 0): QC writes it.
+float(entity g, entity p, entity pL, float fl, float bytes, vector gx, vector gy, vector gz) agposesend = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).

@@ -821,6 +821,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
     {"agweaponextent", PF_agweaponextent},
+    {"agposesend", PF_agposesend},
     {"admeleebend", PF_admeleebend},
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},

@@ -3215,6 +3215,10 @@ QVR_SLIDER_BYNAME(vr_agarms_lod_near, "Arms' Detail: Near Within", 64.f, 1024.f,
     "Armed humanoids nearer than this pose their arms every frame.")
 QVR_SLIDER_BYNAME(vr_agarms_lod_far, "Arms' Detail: Far in View", 1.f, 6.f, 1.f, "every %.0f frames", noExt,
     "How often a far armed humanoid in view poses its arms (1: every frame).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_distant, "Arms' Detail: Distant in View", 1.f, 10.f, 1.f, "every %.0f frames", noExt,
+    "How often an armed humanoid in view beyond Distant From poses its arms (never more often than Far in View).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_distant_at, "Arms' Detail: Distant From", 0.f, 2048.f, 50.f, "%.0f units", noExt,
+    "How far off an armed humanoid in view counts as distant (0: none do).")
 QVR_SLIDER_BYNAME(vr_agarms_lod_unseen, "Arms' Detail: Out of View", 1.f, 30.f, 1.f, "every %.0f frames", noExt,
     "How often a far armed humanoid out of view poses its arms (1: every frame). Turning your head towards one poses it at once.")
 QVR_SLIDER_BYNAME(vr_agarms_lod_margin, "Arms' Detail: View Margin", 0.f, 60.f, 5.f, "%.0f deg", noExt,
@@ -5749,6 +5753,14 @@ QVR_CYCLE(vr_gl_markers, "GL Debug Groups",
 QVR_TOGGLE(vr_qcprofile, "Time QuakeC Functions",
     "vr_qcprofile: each server QuakeC function's time (its own, with the builtins it calls, and with its "
     "callees), its calls, and each builtin's, for QuakeC Time Report. Costs a little while on.")
+QVR_CYCLE(vr_findradius_grid, "findradius Search",
+    "vr_findradius_grid: how QuakeC's findradius (the armed humanoids' look for shots and blows, explosions' "
+    "reach) finds what is near: Walk, every entity (Quake's); Big Maps, through the area grid on maps of "
+    "vr_findradius_grid_min entities or more, the default; Grid, always. The same entities, in the same order.",
+    {0.f, "Walk"}, {1.f, "Big Maps"}, {2.f, "Grid"})
+QVR_TOGGLE(vr_findradius_check, "Check findradius",
+    "vr_findradius_check: every findradius also walks every entity and compares the two (the walk's result is "
+    "used); findradius Stats counts the differences and the first are printed (findradius check:). Slower.")
 QVR_CYCLE(vr_qcexec, "QuakeC Loop",
     "vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
     "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "

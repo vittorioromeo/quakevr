@@ -245,6 +245,11 @@ qx_dispatch:
 		ptr->vector[0] = a->vector[0];
 		ptr->vector[1] = a->vector[1];
 		ptr->vector[2] = a->vector[2];
+		if (vm->watchpending) // QVR: a watched vector's store (findradius: .origin, .mins, .maxs)
+		{
+			QX_RUNAWAY (); // (it leaves the VM)
+			VR_EdictIndex_Stored (b->_int);
+		}
 	} QX_NEXT ();
 
 	QX_CASE (OP_ADDRESS) { QX_ABC;

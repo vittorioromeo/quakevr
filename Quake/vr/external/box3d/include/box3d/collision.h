@@ -239,6 +239,12 @@ B3_API b3HullData* b3CreateComplexHull( float radius );
 /// or B3_MAX_HULL_EDGES is exceeded.
 B3_API b3HullData* b3CreateHull( const b3Vec3* points, int pointCount, int maxVertexCount );
 
+/// QVR (local change, README.md): b3CreateHull with its working memory and its result from `allocFcn` (sizes and
+/// alignment as b3SetAllocator's get) and its early frees to `freeFcn`: the caller frees the result (not
+/// b3DestroyHull). Quake VR's disarm hulls, made each frame into a scratch arena (vr_disarmhull.cpp).
+B3_API b3HullData* b3CreateHullWith( const b3Vec3* points, int pointCount, int maxVertexCount, b3AllocFcn* allocFcn,
+									 b3FreeFcn* freeFcn );
+
 /// Deep clone a hull.
 B3_API b3HullData* b3CloneHull( const b3HullData* hull );
 
