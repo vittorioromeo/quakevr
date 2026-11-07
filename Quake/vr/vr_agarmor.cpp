@@ -4225,6 +4225,29 @@ void packModelBox(edict_t* ent, glm::vec3& mid, glm::vec3& half)
     packModelBoxSized(packFitOf(baseOf(ent)).scale.value, mid, half);
 }
 
+namespace
+{
+// packRest's answer for a shell (by its address, checked against its make: generation, tweaks, hash, vertices) and the
+// fit's cvars it was made with (TRACY_1107.md: the worn packs' place asked for it for every wearer a frame).
+struct PackRestCached
+{
+    const Shell* shell{nullptr};
+    int generation{-1};
+    int tweaksGen{-1};
+    uint32_t hash{0};
+    za::SizeT verts{0};
+    float fit[7]{};
+    bool ok{false};
+    glm::vec3 restOrigin{0.f};
+    glm::mat3 restAxes{1.f};
+    glm::vec3 mid{0.f};
+    glm::vec3 half{0.f};
+};
+za::Vector<PackRestCached> packRestCache;
+
+bool packRestMake(const Shell& shell, const PackFit& fit, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half);
+} // namespace
+
 bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half)
 {
     const Shell* s = serverShell(baseOf(ent));
@@ -4241,6 +4264,46 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
         return true;
     }
     const PackFit& fit = packFitOf(baseOf(ent));
+    // (made once for its shell as it is and its fit: it walked the shell's vertices twice for every wearer a frame)
+    const float fitNow[7] = {fit.scale.value, fit.x.value, fit.y.value, fit.z.value, fit.pitch.value, fit.yaw.value, fit.roll.value};
+    PackRestCached* cached = nullptr;
+    for(PackRestCached& c : packRestCache)
+    {
+        cached = c.shell == s ? &c : cached;
+    }
+    if(!cached)
+    {
+        packRestCache.pushBack(PackRestCached{});
+        cached = &packRestCache.back();
+        cached->shell = s;
+    }
+    if(cached->generation == s->generation && cached->tweaksGen == s->tweaksGen && cached->hash == s->hash &&
+       cached->verts == s->verts.size() && !memcmp(cached->fit, fitNow, sizeof(fitNow)))
+    {
+        restOrigin = cached->restOrigin;
+        restAxes = cached->restAxes;
+        mid = cached->mid;
+        half = cached->half;
+        return cached->ok;
+    }
+    cached->generation = s->generation;
+    cached->tweaksGen = s->tweaksGen;
+    cached->hash = s->hash;
+    cached->verts = s->verts.size();
+    memcpy(cached->fit, fitNow, sizeof(fitNow));
+    cached->ok = packRestMake(*s, fit, cached->restOrigin, cached->restAxes, cached->mid, cached->half);
+    restOrigin = cached->restOrigin;
+    restAxes = cached->restAxes;
+    mid = cached->mid;
+    half = cached->half;
+    return cached->ok;
+}
+
+namespace
+{
+bool packRestMake(const Shell& shell, const PackFit& fit, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half)
+{
+    const Shell* s = &shell;
     // At rest: the cuirass's height's span and its middle across; its back the outer face's least x where the pack lies
     // against it (within the pack's height and width there: not the small of the back below it).
     float lo = 1e9f, hi = -1e9f, across = 0.f;
@@ -4276,6 +4339,7 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     restAxes = held::axesFromAngles(turnAngles, false);
     return true;
 }
+} // namespace
 
 int packBone(edict_t* ent)
 {
