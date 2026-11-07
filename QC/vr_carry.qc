@@ -430,14 +430,14 @@ float(entity xBox) VR_Carry_Hanging =
            xBox.carry_player == world;
 };
 
-// Floating pickups' grace (vr_pickup_float_grace; a player's "they would just fall to the ground" as he reached for one):
+// Floating pickups' grace (a player's "they would just fall to the ground" as he reached for one):
 // an empty tracked hand reaching into a pickup hanging in the air doesn't knock it loose for vr_pickup_float_grace_time
 // from when its touch began, so a grip closing meanwhile takes it where it hangs (the touch's grip comes before its
 // nudge). A hand faster than vr_pickup_float_grace_swat (a swat) knocks it at once, and so does one still pushing into
 // it once the grace is over. TRUE: not knocked this frame.
 float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGrace =
 {
-    if(!cvar_hget(cvarh_vr_pickup_float_grace) || !VR_Carry_Hanging(xBox) || !xPlayer.ishuman ||
+    if(!VR_Carry_Hanging(xBox) || !xPlayer.ishuman ||
        !VRHandsTracked(xPlayer) || !VRIsHandEmpty(xPlayer, xHand))
     {
         return FALSE;
@@ -483,7 +483,7 @@ float VR_CARRY_GRIP_WINDOW = 0.2; // (VR_Carry_GripPressed)
 // would only knock it at the next (a fist).
 float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGraceGrip =
 {
-    if(!cvar_hget(cvarh_vr_pickup_float_grace) || !VR_Carry_Hanging(xBox) || xBox.carry_grace_player != xPlayer ||
+    if(!VR_Carry_Hanging(xBox) || xBox.carry_grace_player != xPlayer ||
        !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
     {
         return FALSE;

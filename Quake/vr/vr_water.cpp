@@ -1743,11 +1743,6 @@ FoamLook foamLook(int liquid)
     return l;
 }
 
-int foamLiquid(int contents)
-{
-    return contents == CONTENTS_LAVA ? 1 : contents == CONTENTS_SLIME ? 2 : 0;
-}
-
 int foamContents(int liquid)
 {
     return liquid == 1 ? CONTENTS_LAVA : liquid == 2 ? CONTENTS_SLIME : CONTENTS_WATER;

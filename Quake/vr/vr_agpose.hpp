@@ -197,7 +197,7 @@ struct ActTimes
 [[nodiscard]] float actPlace(const ActTimes& a, float s);
 // The act's progress at time `s` (QC's phases' shares as they always were): -1 the stance at its start, 0 the wind-up's key
 // whole, 1 the blow's, 2 the follow-through's (held through a hold), 3 the stance at its end. A punch's, a swing's (the
-// chainsaw's) and the shove's each their own (vr_agrunt_punch_ease the punch's).
+// chainsaw's) and the shove's each their own (the punch's eased).
 [[nodiscard]] float actProgress(int pose, const ActTimes& a, float s);
 // Phase `phase`'s own place in pose `pose`'s act (where its key was always whole).
 [[nodiscard]] float defaultPlace(int pose, int phase);

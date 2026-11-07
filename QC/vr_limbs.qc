@@ -1156,17 +1156,11 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
     return VR_Limb_BoltArm(targ, xAt, xDir, xDamage);
 };
 
-// An enforcer's laser bolt (an enemy's: Laser_Touch, any monster's at another; or your enforcer's rifle:
-// VR_RifleLaser_Touch) about to deal `xDamage` to `targ` for `attacker`, striking it at `xAt` going `xDir`: armed if
-// it strikes a monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as animated or ragdolled), the kill
-// or corpse hit popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; corpses obey their own toggles).
-float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_Decap_LaserArm =
-{
-    return VR_Decap_ProjArm(targ, attacker, xAt, xDir, xDamage, QVR_PROJ_LASER);
-};
-
-// Any projectile's hit (VR_Proj_Begin, weapons.qc; `xKind` QVR_PROJ_*) about to deal `xDamage` to `targ` for `attacker`,
-// striking it at `xAt` going `xDir`: armed as a laser bolt's (above), at its kind's chance: a laser's or a plasma bolt's
+// Any projectile's hit (VR_Proj_Begin, weapons.qc; `xKind` QVR_PROJ_*: an enforcer's laser bolt, an enemy's from
+// Laser_Touch, any monster's at another, or your enforcer's rifle's from VR_RifleLaser_Touch) about to deal `xDamage` to
+// `targ` for `attacker`, striking it at `xAt` going `xDir`: armed if it strikes a monster's head or a limb
+// (VR_Decap_OnHead, VR_Limb_At: on its model as animated or ragdolled), the kill or corpse hit popping it (times Head
+// Chance or Limb Chance; corpses obey their own toggles) at its kind's chance: a laser's or a plasma bolt's
 // vr_decap_pop_laser, a bolt's, a nail's or a lump's vr_decap_pop_projectile; an explosive's none (its blast's pops).
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm =
 {

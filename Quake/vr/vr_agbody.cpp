@@ -162,7 +162,6 @@ namespace qvr::agbody
 
 const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, float sides)
 {
-    sides = vr_agbody_torso_sides.value > 0.f ? vr_agbody_torso_sides.value : sides; // (the tuning's override)
     sides = za::clamp(sides, 0.2f, 1.f);
     Proxies* again = nullptr;
     for(Proxies& m : state.models)

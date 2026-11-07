@@ -237,7 +237,7 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
     if(by.flags & FL_CLIENT)
     {
         VR_AG_DisarmTry(g, by, VR_AG_TRY_PARRIED); // (your try at its weapon: it turns on you)
-        // (Its weapon's later blows this motion are this parry's; its hand's knock on the weapon too: VR_AG_HandStrike.)
+        // (Its weapon's later blows this motion are this parry's; its hand's knock on the weapon too: VR_AG_StrikeFrame.)
         if(h == cVR_OffHand) { by.vr_ag_knock_off = time; } else { by.vr_ag_knock_at = time; }
     }
     if(quiet)
@@ -300,7 +300,7 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
 };
 
 // ----------------------------------------------------------------------------
-// A deliberate strike on its weapon or its hand (vr_agrunt_strike_first; ROUND23.md, "Armed humanoid disarming, part 2")
+// A deliberate strike on its weapon or its hand (ROUND23.md, "Armed humanoid disarming, part 2")
 // ----------------------------------------------------------------------------
 // His words (2026-10-30): a well-aimed blow or throw on its weapon or hand should disarm it, not be parried or hurt it,
 // in slow motion too. One decision, VR_AG_BlowOnWeapon, for a blow that met its weapon before its body (VR_AGPar_Blow,
@@ -413,7 +413,7 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
             return t;
         }
     }
-    // (The hand to its gun's muzzle now: VR_AG_HandStrike's old test.)
+    // (The hand to its gun's muzzle now.)
     vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
     if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
     {
@@ -562,13 +562,13 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
 {
     vr_ag_strike_why = "";
     vr_agbc_why = "";
-    if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || g.vr_ag_tug_pl ||
+    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || g.vr_ag_tug_pl ||
        g.health <= 0 || !(pl.flags & FL_CLIENT) || VR_AG_Still(g))
     {
         if(cvar_hget(cvarh_vr_agrunt_debug) >= 3) // (every frame: the gates' trace, vr_agrunt_debug 3)
         {
-            VR_AG_Log(sprintf("strike: none (hand %g): strike_first %g, disarm %g, armed %g, tug %g, health %g, still %g",
-                h, cvar_hget(cvarh_vr_agrunt_strike_first), cvar_hget(cvarh_vr_agrunt_disarm), g.vr_ag_prop != world,
+            VR_AG_Log(sprintf("strike: none (hand %g): disarm %g, armed %g, tug %g, health %g, still %g",
+                h, cvar_hget(cvarh_vr_agrunt_disarm), g.vr_ag_prop != world,
                 g.vr_ag_tug_pl != world, g.health, VR_AG_Still(g)));
         }
         return -1;
@@ -702,7 +702,7 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
 // (vr_agrunt_disarm_throw). TRUE: knocked out of its hand. (One that never touches its body: VR_AG_WeaponStruck's.)
 float(entity g, entity e, entity by) VR_AG_ThrowOnWeapon =
 {
-    if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !g.vr_ag_prop || VR_AG_Still(g) || time - e.vr_ag_knock_at <= 0.5 ||
+    if(!g.vr_ag_prop || VR_AG_Still(g) || time - e.vr_ag_knock_at <= 0.5 ||
        (e.flags & (FL_CLIENT | FL_MONSTER)) || !(e.classname == "thrown_weapon" || e.vr_gib || (e.flags & FL_FORCEGRABBABLE)))
     {
         return FALSE;
@@ -807,7 +807,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
             vr_agpar_x = hit_pos;
             return VR_AGPar_Parried(targ, attacker, h, damage);
         }
-        // A deliberate strike that met its weapon or hand first (vr_agrunt_strike_first): disarmed, the blow going on into
+        // A deliberate strike that met its weapon or hand first: disarmed, the blow going on into
         // its body as it would unparried; or into its raised parry, lost the roll: parried.
         float strike = VR_AG_BlowOnWeapon(targ, attacker, h, hit_pos);
         if(strike == VR_AG_STRIKE_DISARM)
@@ -893,34 +893,7 @@ float(entity g, entity pl, float h) VR_AGPar_Marked =
     return g.vr_agpar_by == pl && g.vr_agpar_hand == h + 1 && time - g.vr_agpar_last < VR_AGPAR_MARK;
 };
 
-// VR_AG_WeaponStruck (its weapon's think, each frame; vr_agrunt_strike_first 0): your blow on its weapon that hasn't met
-// its body (the weapon held out): parried now. TRUE: its weapon knocked away.
-float(entity g) VR_AGPar_WeaponFrame =
-{
-    if(!cvar_hget(cvarh_vr_agrunt_parry) || !g.vr_ag_prop)
-    {
-        return FALSE;
-    }
-    entity pl = VR_Player();
-    while(pl)
-    {
-        if(pl.health > 0 && vlen(pl.origin - g.origin) < 160)
-        {
-            float h;
-            for(h = 0; h < 2; h++)
-            {
-                if(!VR_AGPar_Marked(g, pl, h) && VR_AGPar_HandParries(g, pl, h) && !g.vr_ag_prop)
-                {
-                    return TRUE;
-                }
-            }
-        }
-        pl = VR_NextPlayer(pl);
-    }
-    return FALSE;
-};
-
-// VR_AG_WeaponStruck (its first weapon's think, each frame; vr_agrunt_strike_first 1): your hands' deliberate strikes on
+// VR_AG_WeaponStruck (its first weapon's think, each frame): your hands' deliberate strikes on
 // its weapons or hands (VR_AG_BlowOnWeapon), and the other blows on them parried as before. TRUE: its weapon knocked
 // away.
 float(entity g, entity p) VR_AG_StrikeFrame =

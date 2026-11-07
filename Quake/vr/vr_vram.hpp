@@ -26,6 +26,5 @@ struct Totals
     double processMb{-1.0};  // Windows' count of the process's dedicated GPU memory (-1: not known)
     int objects{0};
 };
-[[nodiscard]] Totals lastTotals();
 
 } // namespace qvr::vram

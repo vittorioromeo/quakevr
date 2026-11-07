@@ -56,7 +56,6 @@
         row(opt::vr_weapon_grab_slack),
         row(opt::vr_weapon_grab_handle_leniency),
         row(opt::vr_weapon_catch_handle_leniency),
-        row(opt::vr_pickup_float_grace),
         row(opt::vr_weapon_grab_hotspots),
         row(opt::vr_weapon_grab_anywhere),
         row(opt::vr_weapon_grab_anywhere_min),

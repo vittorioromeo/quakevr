@@ -241,23 +241,14 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
     return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
 }
 
-extern "C" int VR_OITLazyClear(void)
-{
-    return vr_oit_lazy_clear.value != 0.f;
-}
-
 extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 {
-    // vr_alias_prepass: the world's models (no morphs there: VR_AliasMorph's are view entities') (r_alias.c keeps the
-    // eligible and the rest in separate batches: R_Alias_CanAddToBatch). All of them: a limit to those near the eye
-    // split the batches and cost more than it saved (GPU benchmark, BENCHMARKS.md).
-    if(vr_alias_prepass.value != 0.f && e && !VR_IsViewEntity(e))
+    // The world's models (no morphs there: VR_AliasMorph's are view entities') (r_alias.c keeps the eligible and the
+    // rest in separate batches: R_Alias_CanAddToBatch). All of them: a limit to those near the eye split the batches and
+    // cost more than it saved (GPU benchmark, BENCHMARKS.md).
+    if(e && !VR_IsViewEntity(e))
     {
         return 1;
-    }
-    if(vr_body_prepass.value == 0.f)
-    {
-        return 0;
     }
     const int group = VR_ViewEntityGroup(e);
     return group == VR_DRAW_BODY || group == VR_DRAW_MIRROR;

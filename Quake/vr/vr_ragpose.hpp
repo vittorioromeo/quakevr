@@ -95,12 +95,6 @@ inline void bonePoseLerp(const ragdoll::Rig& rig, int a, int b2, float t, int b,
     return glm::normalize(glm::inverse(jointFrameA(bone)) * relative * jointFrameB(bone));
 }
 
-// And back: the child's turn in its parent's rest space a joint target stands for.
-[[nodiscard]] inline glm::quat fromJoint(const glm::quat& frame, const glm::quat& target)
-{
-    return glm::normalize(frame * target * glm::inverse(frame));
-}
-
 // The turn of `q` about z (rad, -pi..pi: Box3D's b3GetTwistAngle, a hinge's angle).
 [[nodiscard]] inline float twistZ(const glm::quat& q)
 {

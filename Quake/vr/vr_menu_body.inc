@@ -22,7 +22,6 @@ const char* bodytrackAvailability(int)
         row(opt::vr_body_step_run),
         row(opt::vr_body_stride),
         row(opt::vr_body_step_width),
-        row(opt::vr_body_step_sounds),
         row(opt::vr_body_turn_step),
         row(opt::vr_body_wade),
         row(opt::vr_body_swim_kick),

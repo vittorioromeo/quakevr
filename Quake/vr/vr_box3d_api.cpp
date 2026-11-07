@@ -45,11 +45,9 @@ void beforeLoad()
     p.key.vertexes = map->numvertexes;
     p.key.surfaces = map->numsurfaces;
     p.key.m2u = m2u;
-    p.key.junctions = vr_box3d_mesh_junctions.value != 0.f;
     p.map = map;
     MeshStats* stats = &p.key.stats; // (only the job writes it until settleMesh)
-    const bool junctions = p.key.junctions;
-    p.job = jobs::async([map, m2u, junctions, stats] { return worldMesh(map, m2u, junctions, *stats); });
+    p.job = jobs::async([map, m2u, stats] { return worldMesh(map, m2u, *stats); });
 }
 
 void finishLoads()
