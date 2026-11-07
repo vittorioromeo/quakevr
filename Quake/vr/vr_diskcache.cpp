@@ -395,7 +395,9 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     if(writes.size() >= writesMost)
     {
         QVR_TRACY_SCOPE(tracyScope, "disk cache oldest wait");
+        const double t0 = Sys_DoubleTime();
         writes.front().wait();
+        VR_TimeAdd("disk cache: a write waited for (64 under way)", Sys_DoubleTime() - t0); // load timing (vr_startup_times)
         writes.erase(writes.begin());
     }
     QVR_TRACY_SCOPE(submitScope, "disk cache submit");

@@ -1219,25 +1219,36 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
 		if (TexMgr_ShareNormalMap (glt, filename, authored[i].kind | NORMALMAP_FILE | heights)) // made for another skin
 		{
+			if (flags & NORMALMAP_SKIN)
+				VR_TimeAdd ("    authored ones shared", Sys_DoubleTime () - t0);
 			Hunk_FreeToLowMark (mark);
 			return;
 		}
 		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		if (flags & NORMALMAP_SKIN) // load timing (vr_startup_times: a model's, under "their normal maps")
+			VR_TimeAdd (img ? "    authored files read and decoded" : "    authored files looked for, none", Sys_DoubleTime () - t0);
 		if (img)
 		{
+			const double t1 = Sys_DoubleTime ();
 			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
+			if (flags & NORMALMAP_SKIN)
+				VR_TimeAdd ("    authored ones prepared and uploaded", Sys_DoubleTime () - t1);
 			Con_DPrintf ("normal map %s (%d x %d, %.1f ms)" "\n", filename, fwidth, fheight, (Sys_DoubleTime () - t0) * 1000.0); // what it cost
 		}
 		Hunk_FreeToLowMark (mark);
 		if (img)
 			return;
 	}
+	const double t0 = Sys_DoubleTime ();
 	if (flags & NORMALMAP_RELIEF) // a weapon made from another model's file: its relief made from its skin (vr_skinrelief.cpp)
 		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
 			glt->source_offset, NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS | NORMALMAP_RELIEF, worldwidth);
 	else
 		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
 			glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
+	if (flags & NORMALMAP_SKIN)
+		VR_TimeAdd ((flags & NORMALMAP_RELIEF) ? "    weapons' relief maps (vr_skinrelief)" : "    made ones posted (or made: vr_load_jobs 0)",
+			Sys_DoubleTime () - t0);
 }
 
 
