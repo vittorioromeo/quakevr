@@ -3237,8 +3237,8 @@ ground; the stick little or nothing, as swimming. "Lying down and crawling"'s le
   curve looped: its tangent turned 281 degrees for a 79-degree bend. At the middle rings the tangent pointed back
   against the rings' slerped frames (cosine -0.998). Each ring's frame is the slerped frame turned onto the tangent by
   the shortest turn, and that turn has no defined axis at 180 degrees, so the rings spun from one frame to the next.
-  This happened in 727 of the knight's 864 animation steps. No other joint has the geometry (the next worst, the
-  comparison, never turns back past cosine 0.85).
+  This happened in 727 of the knight's 864 animation steps; on other joints only in 2 steps of the grunt's left elbow
+  (the knight's left elbow, by comparison, never turns back past cosine 0.85).
 - **Fix** (`vr_agarmor_bridge.cpp` evalBridge). The curve's worst cosine against its frames is measured with its own
   tangents. Below 0 the tangents are eased towards half a chord, and below -0.5 they are a half chord (`bridgeBackFrom`
   / `bridgeBackTo`). Joints whose curves never turn back are unchanged.
