@@ -6001,6 +6001,20 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
     "the status bar as Ironwail draws it (vr_flat_hud).")
+QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
+    "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
+    "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
+    "(vr_flat_shove).")
+QVR_SLIDER(vr_flat_shove_cooldown, "Shove Cooldown", 0.f, 3.f, 0.1f, "%.1f s", noExt,
+    "Playing on the desktop screen: seconds after a shove before the key shoves again (vr_flat_shove_cooldown).")
+QVR_SLIDER(vr_flat_shove_push, "Shove Strength", 0.f, 3.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen: how far a shove throws what it reaches, times the headset's one-hand shove "
+    "(vr_flat_shove_push).")
+QVR_SLIDER(vr_flat_shove_reach, "Shove Reach", 0.5f, 3.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen: how far ahead a shove reaches, times the headset's shove (vr_flat_shove_reach).")
+QVR_TOGGLE(vr_handsource_debug, "Print Hand Motion Source",
+    "Prints each hand's motion source as it changes: tracked (a controller), synthesized (the flat-screen look, a lean, "
+    "the wall tilt: no gesture reads it) or action (the V punch) (vr_handsource_debug).")
 QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")
@@ -6011,6 +6025,22 @@ QVR_TOGGLE(vr_flat_death_vomit, "Vomit Mode on Death",
     "Playing on the desktop screen (-flatscreenmode) with Death View on Immersive: when you die, the view is your "
     "ragdoll's eyes, turned exactly as its head tumbles (Vomit Mode), whatever the Vomit Mode setting is. Your own "
     "setting is kept for the headset. Off: the Vomit Mode setting decides (vr_flat_death_vomit).")
+QVR_TOGGLE(vr_flat_slide, "Slide",
+    "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
+    "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
+    "Tunables > Flatscreen > Slide (vr_flat_slide).")
+QVR_TOGGLE(vr_flat_lean, "Lean (Q / E)",
+    "Playing on the desktop screen (-flatscreenmode): Q and E lean left and right round a corner -- the view, the "
+    "weapon and the body tilt and the eye moves out, never into a wall. Enemies can hit what leans out. Standing and "
+    "crouched; not lying down or sliding. Tuning: Debug > Tunables > Flatscreen > Lean (vr_flat_lean).")
+QVR_CYCLE(vr_flat_lean_toggle, "Lean Keys",
+    "Hold: you lean while Q or E is held. Toggle: a press leans, the next press stands you straight "
+    "(vr_flat_lean_toggle).",
+    {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
+    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
+    "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
+    "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",

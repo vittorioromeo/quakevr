@@ -66,7 +66,7 @@ void noteBackendImplied();
 // VR_Init: reads the flag, registers vr_flatplay_status, vr_flat_punch, +flatcrouch / -flatcrouch.
 void init();
 
-// VR_BeginFrame, before the hands are posed: the keys (E, V, Left Ctrl, F, G) and each hand's fire button (the game's
+// VR_BeginFrame, before the hands are posed: the keys (R, V, Left Ctrl, F, G, 3, Z, X; the leans Q and E: vr_flatmove.cpp) and each hand's fire button (the game's
 // own fire state: with a weapon a swing strikes with it, that button starts that hand's punch), the cvars the mode
 // stands in for (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
 void frame();
@@ -194,5 +194,12 @@ void status_f();
 // script; the fire buttons can, through +attack and +offhandattack). Only while the mode runs, and only with a weapon a
 // swing strikes with.
 void punch_f();
+
+// vr_flat_shove_now: the shove key's shove from the console (vr_flat_key_shove's; the tests' button).
+void shoveNow_f();
+
+// vr_flat_flick_test [frames] [degrees]: the view flicked hard, as the tests' mouse ("flatflick: done" at its end).
+void flickTest_f();
+void flickTestFrame();
 
 } // namespace qvr::flatplay

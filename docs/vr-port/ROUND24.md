@@ -2879,7 +2879,113 @@ busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms betwee
 
 With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
 AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.
+## Flat-screen slide and lean; the keys moved (branch `agent/flatmove`, 2026-11-07)
 
+His brief (flat-screen round 2026-11-07, worker 1): Q / E lean, 3 swaps the hands, crouching at a run slides (Apex Legends),
+the lean's eye and gun feed the wall tilt (worker 2's code is left alone), enemies can hit what leans out.
+
+**Keys.** Q, E lean left / right (`vr_flat_key_lean_left` `q`, `vr_flat_key_lean_right` `e`; `vr_flat_lean_toggle` 0 hold,
+1 toggle; `+flatleanleft` / `+flatleanright`). 3 swaps the hands (`vr_flat_key_swap` `q` -> `3`); the third weapon is
+reached with 1, 2 and the wheel, which cycle every weapon collected. The force grab moved off E to **R** (`vr_flat_key_grab`,
+new; E is the right lean now -- R was free and reloading is off in the mode: a decision, say if another key is wanted). V
+(melee) and G (drop) as they were. `bind e +moveup` dropped from `Quake/default_cfg.h` and `quakevr/default.cfg` (jump
+swims up). His config needs nothing: while the mode runs `Key_Event` skips the bind of a key the mode reads itself
+(`VR_FlatKeyOwned`: the leans, swap, grab, prone, bullet time, F, G, V), so his `bind "e" "+moveup"` and `bind "3"
+"impulse 3"` stay in the file and do nothing in flat-screen play; `vr_flat_keys_own 0` runs them too. In a headset and
+outside the mode nothing changed. (vr_ settings are written sparse: his config has no `vr_flat_key_swap` line, so the new
+default reaches him.)
+
+**Slide** (`Quake/vr/vr_flatmove.cpp`, server side: `VR_FlatSlideMove` from `SV_AirMove`). Crouch pressed (or landed with it
+held) on the ground faster than `vr_flat_slide_min` 220 -> speed + `vr_flat_slide_boost` 60 (to `vr_flat_slide_max` 560),
+then `slideStep`: the slope's pull (`vr_flat_slide_slope` 900 x sine; uphill the same against), the move keys' turn
+(`vr_flat_slide_steer` 40 deg/s), friction `vr_flat_slide_friction` 260 u/s^2, the top speed; under `vr_flat_slide_end` 130
+it ends in the crouch, then `vr_flat_slide_cooldown` 0.5 s. Letting go ends it; a jump ends it keeping the speed (Quake's air
+move: 340 of 344 u/s in the test); a ledge run off resumes it on landing. Found on the way: fast over the floor Quake's
+FL_ONGROUND is off every other move (the walk clips down to the floor only on the moves that meet it), so "on the ground"
+is the flag or the floor within 4 units and not going up -- before that, vrarena's slope (a real fall) and the flicker
+looked alike. The view: `vr_flat_slide_drop` 6 more than the crouch. The body: BodyPitch's new source Slide
+(`vr_avatar_pitch.cpp`): -`vr_flat_slide_body_angle` (45) about a neck `vr_flat_slide_neck_back` (10) behind the eye, the
+trunk straight (lying's straightening), the chest's share of the look off, the legs out in front on the floor
+(`vr_avatar_legs.cpp`). Without the neck's move back the chest filled the lower screen and hid the legs (looking 20 down);
+with it the legs show past the chest. Eased over `vr_flat_slide_body_time` 0.2 s.
+
+**Lean** (client: `flatmove::frame`, `leanShift`, `leanRoll`). The eye `vr_flat_lean_dist` 16 sideways and down round
+`vr_flat_lean_pivot` 30 (4.6 at the defaults), roll `vr_flat_lean_angle` 15, `vr_flat_lean_time` 0.18 s. The pose's head
+moves (placeFlat) with `State::lean` and `leanHold` 1 (the trunk tilts from the hips, the headset's lean path), the drawn
+view by the same (`VR_FlatViewLean` after `VR_FlatViewDrop`). Interface to the wall tilt: none of its code changed -- it reads
+the leant head and hands like everything else. The roll is the drawn view's only (the pose's angles unrolled: the drawn
+hands keep the camera's roll through drawnOffset), so the gun rolls with the screen and the sights stay on the crosshair.
+Wall clamp: three lines (eye, under it, the weapon's place ahead) stop it `vr_flat_lean_margin` 6 short, at once; it comes
+back at the lean's speed. Not prone, sliding, swimming or dead. Walking leant `vr_flat_lean_speed` 0.6 of the speed actually
+moved (the keys' length held to sv_maxspeed first: 0.6 of 400 was 0.75 of 320). Hit boxes: `VR_LeanHitBoxes` (head box
+7x7x8 half, chest box at 0.55 of the way from the origin to the head) for a flat-screen client whose head is 6+ units off his
+middle; `SV_ClipToLeanBoxes` (`Quake/world.c`) tries them after the entities for every non-body, non-NOMONSTERS trace (shots,
+missiles, point traces: a monster's CheckAttack line sees the head too), with the usual owner rules (his own shots pass).
+World collision untouched. `vr_flat_lean_hit` 0: his box only.
+
+**Verified** (`bash Misc/quakevr/flatslide_test.sh selfshot`: 10/0): `vr_flatslide_selftest` 6/0 (flat 380 -> 250 in 0.5 s;
+ends; downhill 25 deg 380 -> 440, six seconds -> 560; uphill 15 deg 188 vs the flat's 279, ends); `vr_flatslide_test` 5/0 in
+vrtesthall (307 -> peak 367; 0.92 s against the friction's 0.91, 231 units, 66 moves all on the ground; ends crouched; jump
+340 of 344); `vr_flatlean_test` 4/0 (eye 16.0 right, roll 15.0, down 4.6; a line across the leant head 20 off his middle hits
+him, misses with his box alone; walking leant 192 of 320 = 0.60; leant into a wall: the eye 6.0 off it, 15 of 16); sights
+leant right / right crouched / left within 0.001 units (`vr_flat_sight_check`), the shot 0.0000 deg off its point leant;
+the keys by `vr_mock_key`: E, Q lean, 3 swaps, R grabs, the binds on E and 3 run only with `vr_flat_keys_own 0`.
+`flatkeys_test.sh` updated for 3 (was Q): 37/0; `flatmove_test.sh` 10/0, `flatcrouch_test.sh` 3/0. (In the vrtesthall
+pictures the slab over the first-person slide is a shells box the slide ran over and the off hand took: walked-over
+pickups.) Pictures: scratch/fm_pose.png (slide first person and from the side, the lean
+first person / front / behind, crouched), scratch/fm_slidefp.png (the slide's legs seen past the chest), scratch/fm_ads.png
+(ironsight leant, standing and crouched).
+
+**To try (desktop, -flatscreenmode):** run and hold Left Ctrl (slide, legs in front looking down), a ramp down (faster) and up
+(stops), jump out of a slide; Q / E at a doorway's edge, ironsight leant, lean into a wall (no clipping), a grunt shooting
+your leant head.
+
+## Hand motion source, and the flat-screen shove (branch `agent/flatinput`, 2026-11-07)
+
+**The bug.** On the flat screen the hands are posed from the view, so a fast mouse flick swings them (and what they hold)
+through the world as fast as a real swing: with `vr_flat_flick_test 144 40` (40 degrees a frame, yaw and half of it in
+pitch, the other way every three frames) an axe chopped a wall and a gib and played five blow swishes and sounds. Every
+gesture that fires on motion read that motion as the player's.
+
+**The layer** (`Quake/vr/vr_handsource.hpp`, `.cpp`): each frame every hand's motion has a source.
+- `Tracked`: a controller's. `Synthesized`: made by the game or derived from the camera (the flat-screen look, the wall
+  tilt, a lean, a slide, recoil). `Action`: the game's motion for an explicit button action that the gesture rules must
+  judge (flat-screen V's punch, the fire button's punch with a melee weapon).
+- `hands::update` calls `handsource::beginFrame(vrActive())` before the hands are placed: Tracked in the headset,
+  Synthesized on the flat screen. Whatever moves a hand calls `handsource::mark(h, Source::..., "why")` that frame,
+  before the move is built; the strongest mark wins (Action > Synthesized > Tracked). **Other features plug in here**:
+  lean, slide, wall tilt and recoil mark the hands they move as `Synthesized` (on the flat screen that is already the
+  base; in the headset it would turn gestures off for that frame, so mark only motion that is really made up).
+- `handsource::gestures(h)` is the one rule (Tracked or Action; `vr_handsource_gate 0` lets everything through, the old
+  way). The consumers ask it, nothing else:
+  - client: the super shotgun's flick reload and its pry/lift (`vr_flick.cpp`), the flashlight's flick
+    (`vr_flashlight.cpp`), the chainsaw's cord pull (`vr_chainsaw.cpp`);
+  - the move (`vr_client.cpp handMove`): a hand that fails it sends no velocity (`vel`, `ownVel`, `angVel`, `velMag`
+    zero; the throw's estimate stays: letting go is a button), so every server gesture that goes by the velocity sees a
+    still hand (the force grab's flick pull, the revolver's push, the reload's tosses and ejects, a crate burst by a
+    hand, a hand's hit reaction, projectiles inheriting the hand's speed);
+  - the move's new byte `handSynth` -> QC `.handsynth` (bits 1 off, 2 main), read by QC `VR_HandMotionTracked(p, hand)`
+    (`vr_util.qc`), the same rule for the server's detectors that go by the poses: `VR_Melee_Track` (every swing, slap,
+    bash and hand shove) and `VR_Revolver_Flick` (the cylinder's flick open and shut).
+- Buttons are untouched: V, the fire button's punch, reload, `+flickreload`, the eject button, the shove key.
+- `vr_handsource_debug 1` (Debug > Flatscreen Play) prints each hand's source as it changes.
+
+**The flat-screen shove** (mouse 5, `vr_flat_key_shove "mouse5"`; `vr_flat_shove_now` from the console): the headset's
+one-hand shove of an open palm, straight ahead of the body at chest height (QC `VR_FlatShove`, impulse 53 the off hand,
+54 the main): what it finds (`VR_Bash_Find`, its reach times `vr_flat_shove_reach`) is shoved by the same landing as a
+palm's push (`VR_Bash_Land`, split out of `VR_Bash` unchanged): stamina, a counter's window, the stagger and push, the
+sound, the cooldown. The engine draws the hand's push (out a third of `vr_flat_shove_time` 0.4 s, `vr_flat_shove_anim_reach`
+14 units ahead and in towards the middle) and sends the impulse as the hand reaches out; the push is synthesized motion,
+so the melee rules do not read it as a slap of its own. The hand: an empty one (the off hand first), else the off hand.
+Cvars (menu: Movement > Desktop Screen Play): `vr_flat_shove 1`, `vr_flat_shove_cooldown 0.8`, `vr_flat_shove_push 1`,
+`vr_flat_shove_reach 1`; also `vr_flat_shove_damage 1`, `vr_flat_shove_time 0.4`, `vr_flat_shove_anim_reach 14`.
+
+**Tests.** `bash Misc/quakevr/flatinput_test.sh <agent>` (14 checks, "flatinput: N passed, M failed"): 40-degree flicks
+with an axe at a grunt, the revolver, the super shotgun: no blow, swing out, eject, flick or pry; the same flicks with
+`vr_handsource_gate 0` do strike (the control); the axe walked into the wall's tilt and out: no blow; V's punch lands and
+is marked an action; two shoves land, a press within the cooldown does nothing; the mock headset's hands are never
+synthesized. The headset: the melee eval (eval.sh) and the revolver's `vr_rv_test 1`; the super shotgun's flick and pry
+by `Misc/quakevr/reload/reload_test.sh`.
 ## Flat-screen wall: slide along, no ironsight tilted, no torch model (branch `agent/flatwall4`, 2026-11-07)
 
 His jitter: moving along a wall facing along it slightly away, then turning a little towards it. Repro `scratch/fw4_sweep.sh`

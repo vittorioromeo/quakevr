@@ -12,6 +12,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
@@ -325,7 +326,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     }
     // Lying down (vr_prone; vr_avatar_pitch.cpp, BodyPitch::lying): the trunk straight under the neck, no lean, crouch
     // or crouch tilt, by its share: the body's pitch below lays that straight trunk on the floor behind the head.
-    const float lying = crouchPose ? bodyPitch.lying : 0.f;
+    const float lying = crouchPose ? za::max(bodyPitch.lying, bodyPitch.sliding) : 0.f; // (sliding: the same straight trunk, leant back)
     tiltReach *= 1.f - lying;
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
@@ -346,6 +347,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
     top += flatplay::crouchNeck(nf, s.headAngles.x) * w;
+    // Sliding (flat-screen play, vr_flatmove.cpp): the leant-back trunk hangs off a neck further back than the eye (the
+    // chin to the chest): the chest under the view, the legs out in front seen past it (vr_flat_slide_neck_back).
+    top -= b.fwd * (flatmove::slideNeckBack() * bodyPitch.sliding);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
     const float tilt =
@@ -411,7 +415,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // into a gun sighted in both hands (flatsight::stanceLean: the head stays, the collapsed neck spans it).
     if(crouchPose && flatplay::active())
     {
-        const float lean = flatplay::chestPitch(s.headAngles.x) + (flatplay::onBody() ? flatsight::stanceLean() : 0.f);
+        // (Not in a slide: the leant-back trunk stays straight, its chest under the view: vr_flatmove.cpp.)
+        const float lean = (flatplay::chestPitch(s.headAngles.x) + (flatplay::onBody() ? flatsight::stanceLean() : 0.f)) *
+                           (1.f - bodyPitch.sliding);
         const glm::vec3 chestFromSpine = c.pos - sp.pos;
         const glm::mat3 spineTurn = bodyTurn(b, 0.5f * lean, 0.f, 0.f);
         sp.rot = spineTurn * sp.rot;

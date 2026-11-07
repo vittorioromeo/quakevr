@@ -248,10 +248,10 @@ check $([ "${1%%:*}" -gt "${2%%:*}" ] && [ "${2%%:*}" = "${3%%:*}" ] \
         && echo 1 || echo 0) \
     "mouse, one weapon in the right hand: LMB fires it, RMB holds the ironsight and fires nothing (shells:nails $mo; $(grep -ac 'flatsight: ironsight' "$S/mouseone.log") ironsight lines)"
 # Q (vr_mock_key q: the key itself, read from the keyboard's state) moves it to the left hand: still LMB fires, RMB aims.
-run mouseleft flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $(KEY q); vr_flathud_report; wait2; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 10); $REP" "^(flathud: (pools|left hand|right hand)|flatsight: ironsight|flat swap:|flatplay: q)"
+run mouseleft flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $(KEY 3); vr_flathud_report; wait2; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 10); $REP" "^(flathud: (pools|left hand|right hand)|flatsight: ironsight|flat swap:|flatplay: 3)"
 ml=$(pools mouseleft); set -- $ml
 check $(grep -qa "^flat swap: main hand 4 -> 0, off hand 0 -> 4" "$S/mouseleft.log" && grep -qa "^flathud: left hand: weapon 4 shown 1" "$S/mouseleft.log" \
-        && grep -qa "^flatplay: q: swap hands" "$S/mouseleft.log" && echo 1 || echo 0) \
+        && grep -qa "^flatplay: 3: swap hands" "$S/mouseleft.log" && echo 1 || echo 0) \
     "Q swaps the hands: the shotgun from the right hand to the left ($(grep -a '^flat swap:' "$S/mouseleft.log" | head -1))"
 check $([ "${2%%:*}" -gt "${3%%:*}" ] && [ "${3%%:*}" = "${4%%:*}" ] && grep -qa "ironsight on (right mouse button (held))" "$S/mouseleft.log" && echo 1 || echo 0) \
     "mouse, one weapon in the left hand: LMB still fires it, RMB still aims (shells:nails $ml)"
@@ -265,11 +265,11 @@ check $([ "$(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | sed 's/ (.*/
         && grep -qa "(toggle)" "$S/mousetoggle.log" && echo 1 || echo 0) \
     "mouse, vr_flat_aim_mode 1: a click turns the ironsight on and stays, the next turns it off ($(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | tr '\n' ';'))"
 
-# 9. Q's key is vr_flat_key_swap's: set to x, Q does nothing and X swaps. In the headset the impulse is refused.
-run swapkey flat "$P; vr_flatplay_debug 1; vr_flat_key_swap x; impulse 154; wait10; $(KEY q); wait10; $(KEY x); wait10; vr_flat_key_swap q" "^(flat swap:|flatplay: [qx]:)"
-check $([ "$(grep -ac '^flat swap:' "$S/swapkey.log")" = 1 ] && grep -qa "^flatplay: x: swap hands" "$S/swapkey.log" && ! grep -qa "^flatplay: q:" "$S/swapkey.log" && echo 1 || echo 0) \
-    "swap key: vr_flat_key_swap x -- Q does nothing, X swaps ($(grep -a '^flat swap:\|^flatplay: [qx]:' "$S/swapkey.log" | tr '\n' ';'))"
-run swapvr vr "$P; impulse 154; wait10; impulse 48; wait10; $(KEY q)" "^flat swap:"
+# 9. 3's key is vr_flat_key_swap's: set to x, 3 does nothing and X swaps. In the headset the impulse is refused.
+run swapkey flat "$P; vr_flatplay_debug 1; vr_flat_key_swap x; impulse 154; wait10; $(KEY 3); wait10; $(KEY x); wait10; vr_flat_key_swap 3" "^(flat swap:|flatplay: [3x]:)"
+check $([ "$(grep -ac '^flat swap:' "$S/swapkey.log")" = 1 ] && grep -qa "^flatplay: x: swap hands" "$S/swapkey.log" && ! grep -qa "^flatplay: 3:" "$S/swapkey.log" && echo 1 || echo 0) \
+    "swap key: vr_flat_key_swap x -- 3 does nothing, X swaps ($(grep -a '^flat swap:\|^flatplay: [3x]:' "$S/swapkey.log" | tr '\n' ';'))"
+run swapvr vr "$P; impulse 154; wait10; impulse 48; wait10; $(KEY 3)" "^flat swap:"
 check $(! grep -qa "^flat swap:" "$S/swapvr.log" && echo 1 || echo 0) "swap in the headset: impulse 48 and Q do nothing"
 
 # 10. Z: bullet time as the gadget's tap starts it (vr_bullettime.cpp keyPress: its bounce guard, the meter, the

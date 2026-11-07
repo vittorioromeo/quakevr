@@ -1931,6 +1931,25 @@ QVR_TUNABLE(vr_flat_gun_view_up, "0") // the same, the view's up
 QVR_TUNABLE(vr_flat_crouch_time, "0.25") // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)
 QVR_TUNABLE(vr_flat_crouch_smooth, "1") // the crouch's ease: 1 starts and ends gently (smoothstep: the view, the body, the arms and the weapon all follow it), 0 at an even speed
 QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
+QVR_TUNABLE(vr_flat_slide_min, "220") // the slide (vr_flat_slide): the least speed along the floor (units/s) a crouch starts a slide at; slower, it is a plain crouch (a walk is 200, a run 320)
+QVR_TUNABLE(vr_flat_slide_boost, "60") // the slide: units/s added to his speed as it starts (never past vr_flat_slide_max)
+QVR_TUNABLE(vr_flat_slide_friction, "260") // the slide: units/s it loses each second on flat ground (a run's 380 slides about a second, 190 units)
+QVR_TUNABLE(vr_flat_slide_slope, "900") // the slide: units/s gained each second down a slope, times the slope's sine (a 20 degree slope: 308, more than the friction: faster); up a slope the same is lost
+QVR_TUNABLE(vr_flat_slide_max, "560") // the slide: the most speed along the floor it reaches downhill (units/s)
+QVR_TUNABLE(vr_flat_slide_end, "130") // the slide: under this speed (units/s) it ends in a crouch
+QVR_TUNABLE(vr_flat_slide_cooldown, "0.5") // the slide: seconds after one ends before a crouch starts the next
+QVR_TUNABLE(vr_flat_slide_steer, "40") // the slide: degrees a second the move keys turn it (0: straight on)
+QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the crouch his eyes go down (units, 0..14)
+QVR_TUNABLE(vr_flat_slide_body_angle, "45") // the slide: the trunk leant back this many degrees from upright, the legs out in front along the floor (vr_avatar_pitch.cpp)
+QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
+QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
+QVR_TUNABLE(vr_flat_lean_angle, "15") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
+QVR_TUNABLE(vr_flat_lean_dist, "16") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
+QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot
+QVR_TUNABLE(vr_flat_lean_time, "0.18") // the lean: seconds into a full lean and back
+QVR_TUNABLE(vr_flat_lean_speed, "0.6") // the lean: his move keys' speed at a full lean, a share of their own (0.2..1)
+QVR_TUNABLE(vr_flat_lean_margin, "6") // the lean: units the eye and the weapon keep off a wall at its side (the lean stops shorter)
+QVR_TUNABLE(vr_flat_lean_hit, "1") // the lean: shots and missiles hit the leant upper body (two boxes from the hips to the head), out of his box; his box against the world stays as it was. 0: his box only
 
 // Flatscreen > Looks
 QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none

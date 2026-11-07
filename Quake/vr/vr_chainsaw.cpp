@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_handsource.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
@@ -769,7 +770,7 @@ void setupView(const hands::State& s)
         const glm::vec3 out = p - hole;
         const float ext = glm::length(out) - glm::distance(st.seatWorld[sawHand], hole);
         const glm::vec3 dir = glm::length(out) > 1e-3f ? out / glm::length(out) : sawUp;
-        const float speed = glm::dot(s.vel[h], dir); // m/s away from the hole
+        const float speed = handsource::gestures(h) ? glm::dot(s.vel[h], dir) : 0.f; // m/s away from the hole (vr_handsource.hpp)
         st.peakSpeed = za::max(st.peakSpeed * 0.5f, speed);
         const float need = metres(za::fmax(1.f, vr_chainsaw_pull_distance.value) * 0.01f);
         if(st.armed && ext >= need)

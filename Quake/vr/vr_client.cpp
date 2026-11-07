@@ -5,6 +5,7 @@
 #include "vr_arenaxray.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_handsource.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_adguns.hpp"
@@ -321,6 +322,15 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     hand.throwFlick = e.flick;
     hand.throwPos = e.pos;
     hand.throwAge = static_cast<float>(za::max(0.0, latest - e.time));
+    // A hand whose motion this frame is synthesized (vr_handsource.hpp: the flat-screen look, a lean, the wall tilt) sends
+    // none: the server's gestures that go by the velocities (a force grab's flick, the revolver's push, a reload's toss,
+    // a crate burst by the hand) see a still hand, and the ones that go by the poses ask .handsynth (QC
+    // VR_HandMotionTracked). Its throw's estimate stays: letting go is a button.
+    if(!handsource::gestures(h))
+    {
+        hand.vel = hand.ownVel = hand.angVel = glm::vec3{0.f};
+        hand.velMag = 0.f;
+    }
 
     move.hotspots[h] = static_cast<za::U8>(hs.hotspot[h]);
 
@@ -396,6 +406,7 @@ void setButtons(VrMove& move)
     // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
     move.sawCord = chainsaw::moveBits();
     move.handDrop = weight::dropBits();
+    move.handSynth = handsource::moveBits();
     if(flashlight::holds(HAND_OFF) || chainsaw::holds(HAND_OFF))
     {
         move.buttons |= QVR_BUTTON_OFFHANDBUSY;

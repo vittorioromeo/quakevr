@@ -78,6 +78,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     MSG_WriteByte(buf, move.buttons);
     MSG_WriteByte(buf, move.sawCord);
     MSG_WriteByte(buf, move.handDrop);
+    MSG_WriteByte(buf, move.handSynth);
     writeVec3(buf, move.origin);
     writeVec3(buf, move.headPos);
     writeVec3(buf, move.shotRot[0]);
@@ -147,6 +148,7 @@ za::Optional<VrMove> readVrMove()
     move.buttons = static_cast<za::U8>(MSG_ReadByte());
     move.sawCord = static_cast<za::U8>(MSG_ReadByte());
     move.handDrop = static_cast<za::U8>(MSG_ReadByte());
+    move.handSynth = static_cast<za::U8>(MSG_ReadByte());
     move.origin = in.vec3();
     move.headPos = in.vec3();
     move.shotRot[0] = in.vec3();
