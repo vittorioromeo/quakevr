@@ -2459,6 +2459,56 @@ lines equal the defaults), before (origin/next's weapons.txt) and after:
 **To try (VR):** just play (his lines equal the defaults now; a fresh config gives the same): a few guns and melee
 weapons sit and aim as he left them.
 
+## Flat-screen wall: muzzle up only (branch `agent/flatwall3`, 2026-11-07)
+
+His test of the third pass: it keeps off the wall, but the left / right / down poses look weird.
+
+- **One pose:** the wall poses, their scoring, lock, re-choice and swap ease are gone (`wallPoses`, `wallPoseScore`,
+  `st.pose/locked/rescore/swapT`): a gun turns muzzle up only (vr_flat_wall_tilt, the least that clears; its ease, the
+  walk-in's early start and the sighted fade kept). The way across the chest went too (the room does it; across brought
+  the rifle 9.6 cm from the eyes at 45 degrees). **Melee** (`flatplay::meleeIn`: axe, mjolnir, sword, chainsaw, crowbar,
+  super axe) never turns: it only goes back.
+- **Room** (`roomFor`): in the wall state the way back is the turned weapon's, as drawn so far: the least that clears it
+  (its points vr_flat_wall_margin off, the hand's own 1 unit: `wallHandRoom`) from the pose's own place, up to the hand
+  3 units past its shoulder (`wallPastShoulder`): past the fold and the stock's place, the arm and the stock into the
+  torso. Turned up, that is less than the level gun's way back, so the gun comes forward again; still turning in, more
+  (the walk-in transient). The wall state is still decided by the level gun's way back (decided by the room's, it
+  flickered and flatsweep's poses never settled).
+- **Eye cap: none; the wall wins.** At a wall his eyes are too near it for the margin, a muzzle-up gun and 15 cm:
+  capping the room at 15 cm left guns 3 cm in the wall, at 8 cm the rifle's hand 1.2 cm in (crouched, 135); driving the
+  gun back till it was 15 cm off took it out of the view (down at the shoulder). The status line's `eyecap` says it is
+  nearer than 15 cm (`flatwallturn:` now prints `room` and `eyecap` instead of `pose` and `locked`).
+- **Free hand:** lets go as before. Kept on (tried): twohand's hold took the rifle and both hands 3-5 cm into the wall.
+- Measured (`scratch/fw4_walk.sh`, walked in, at rest 0.5 s after; rifle, revolver, shotgun, axe; head-on, 45 both
+  ways; standing, crouched): at rest all out: gun >= 8.6 cm off the wall, gun hand >= 7.8, free hand >= 3.3. Gun to the
+  eyes at rest: rifle 6.7-14.0, revolver 13.7-16.8, shotgun 11.3-17.2, axe >= 17.1 (3.2 crouched at 135 before). Walk-in
+  worst (a frame or two): gun -1.1 cm (axe, 135), gun hand -1.1 (revolver, 135), free hand -2.3 (rifle, 45 crouched);
+  before: gun -26, free hand -21. A pistol turned up stands below the view; the rifle stands up at the right edge.
+- Tests: flatwall 14/0, flatsight 12/0, flatsweep 383 passed, 25 known, 2 failed: jump_gun / jump_hand0
+  wall/long/stand/hip 4.99 / 2.76 at pitch 30 (listed 4.69 / 2.63: the room moves the gun with the look; not accepted
+  here). flatsweep's torso rows skip the wall state (new CSV column `wall_on`, flatsweep_check.py `wall_state`); its
+  head rows still count.
+- First, separately: the flat rows his weapon offsets moved recorded as known (flatsweep_known.txt, flatsight's wall row
+  0.45), at the higher of agent/wofspromote's run and origin/next's re-run.
+
+**To try (flat):** walk into a wall with the rifle, a pistol, the shotgun and the axe, straight and at an angle: the gun
+turns muzzle up and nothing goes into the wall; the axe just comes back.
+
+**His call (2026-11-07):** the two jump rows accepted (flatsweep_known.txt); the pistol raised into view.
+- **Raise into view** (`vr_flat_wall_raise`, default 0.4; flatscreen settings "Wall: Raise Into View"; `raiseFor`):
+  in the wall state, after the way back, a weapon whose muzzle (as drawn, turned) stands lower than this share of the
+  view's height up from its bottom edge comes straight up till it is there (eased as the way back), at most 12 units;
+  the way back is then found again from the raised place, and where that can't clear (a ceiling) the raise is halved
+  down to what does. Generic, no number per weapon: at his box on the vrtesthall wall the revolver comes up 2.66
+  units, the nail pistol 3.57, the flare gun 3.22 (all three sat under the status bar, a barrel tip showing; none of
+  them is turned at that wall, the way back clears them); the shotgun, the enforcer rifle and the axe 0 standing (they
+  reach higher); the shotgun crouched comes up 0 to 3.9 (20 up to 20 down, smooth). `vr_gun_wall_depth` 0.0 cm for all
+  of them, hand 0.0. The status line `flatwallturn:` prints `raise`. Tried first: along the view's up, checked against
+  the walls before the way back: looking down that went into the wall (the crouched shotgun's raise fell 3.4 -> 1.0
+  from level to 2 down: flatsweep jump_gun 1.05) and the turn then came and went frame after frame at 35 down
+  (flatsweep `settled`). Less looking down past 20 degrees, none by 50 (there the view finds the weapon anyway, and the
+  wall state ends: a full raise dropped 4.5 units at once at 52 down, flatsweep jump_hand1 1.04).
+  Pictures: `scratch/fw5_before.png`, `scratch/fw5_after.png` (revolver, nail pistol, flare gun, shotgun, rifle).
 ## Release 1.1 readiness pass (night 11-07, agent/release11)
 
 Full regression (`run_baseline.sh --no-bench --jobs 4`, 300 cases, run 20261107-022308) against the last full run on

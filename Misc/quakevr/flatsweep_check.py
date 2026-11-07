@@ -32,6 +32,11 @@ def hipfire(r):
     return r["ads"] == "0"
 
 
+def wall_state(r):
+    # the held hand's wall state (wall_on: 0..1; rows from before the column: none)
+    return float(r.get("wall_on") or 0.0) >= 0.5
+
+
 def aiming(r):
     return r["weapon"] != "melee" and float(r["shot_apart"]) >= 0.0
 
@@ -71,10 +76,13 @@ CHECKS = [
     ("arm_at_eye_pct", "arm_inner_pct", "high", 0.5, 0.2, camera_rows, 2, "the screen seeing an arm's inside, %"),
     ("arm_at_eye", "arm_inside", "high", 0.0, 0.0, camera_rows, 2, "the eye inside an arm"),
     ("arm_surface", "eye_arm", "low", 1.0, 0.05, camera_rows, 2, "the eye's distance from an arm's surface"),
-    ("gun_torso", "gun_torso", "high", 0.5, 0.05, gun_rows, 2, "the gun in the torso, depth"),
+    # (The torso checks skip the wall state's rows: there the gun goes back as far as the wall needs, the arm, the hand and
+    # the stock into the torso on purpose (unseen from the eyes; ROUND24 "Flat-screen wall: muzzle up only"). The head
+    # checks and the wall's own stay.)
+    ("gun_torso", "gun_torso", "high", 0.5, 0.05, lambda r: gun_rows(r) and not wall_state(r), 2, "the gun in the torso, depth"),
     ("gun_head", "gun_head", "high", 0.5, 0.05, lambda r: gun_rows(r) and hipfire(r), 2, "the gun in the head and neck, hipfire, depth"),
-    ("hand_torso", lambda r: max(float(r["hand0_torso"]), float(r["hand1_torso"])), "high", 0.5, 0.05, camera_rows, 2, "a hand in the torso, depth"),
-    ("fore_torso", lambda r: max(float(r["fore0_torso"]), float(r["fore1_torso"])), "high", 1.0, 0.05, camera_rows, 2, "a forearm in the torso, depth"),
+    ("hand_torso", lambda r: max(float(r["hand0_torso"]), float(r["hand1_torso"])), "high", 0.5, 0.05, lambda r: not wall_state(r), 2, "a hand in the torso, depth"),
+    ("fore_torso", lambda r: max(float(r["fore0_torso"]), float(r["fore1_torso"])), "high", 1.0, 0.05, lambda r: not wall_state(r), 2, "a forearm in the torso, depth"),
     ("hand_head", lambda r: max(float(r["hand0_head"]), float(r["hand1_head"])), "high", 0.5, 0.05, camera_rows, 2, "a hand in the head and neck, depth"),
     ("arm_reach", lambda r: max(float(r["arm0"]), float(r["arm1"])), "high", 1.0, 0.01, camera_rows, 2, "shoulder to drawn hand, share of the arm"),
     ("hand_gap", lambda r: max(float(r["gap0"]), float(r["gap1"])), "high", 6.0, 0.05, camera_rows, 2, "the arm's wrist to the drawn hand (5.4 at rest): the hand detached"),

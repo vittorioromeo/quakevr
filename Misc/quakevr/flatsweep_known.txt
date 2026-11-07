@@ -3,33 +3,37 @@
 settled low/long/crouch/ads 3 0.000
 # The wall's muzzle tilt (vr_flat_wall_tilt, least that clears): settled rows, so vr_flat_wall_tilt_time's ease doesn't reach
 # them; the least tilt itself grows 45 -> 57.5 degrees from 20 to 30 down at the wall (ROUND24 "Flat pose: the muzzle up").
-jump_gun wall/long/stand/hip 2 4.694
-jump_hand0 wall/long/stand/hip 2 2.633
+# Muzzle up only (agent/flatwall3): the room moves the gun with the look, 4.694 -> 4.989 and 2.633 -> 2.756 at pitch 30;
+# accepted 2026-11-07 (ROUND24 "Flat-screen wall: muzzle up only").
+jump_gun wall/long/stand/hip 2 4.989
+jump_hand0 wall/long/stand/hip 2 2.756
 # His relief 4 / promoted defaults, accepted 2026-11-06 ("Ship, accept rows"; ROUND24 "Flat-screen: his values as
 # defaults"): Eye Relief 4 puts the sighted gun and hands against the head and chest.
 fore_torso low/long/crouch/ads 2 1.893
-fore_torso open/long/crouch/ads 2 1.947
-fore_torso open/long/stand/ads 2 3.289
-fore_torso open/long/stand/hip 2 1.769
+fore_torso open/long/stand/hip 2 2.080
 fore_torso open/pistol/crouch/ads 2 2.443
 fore_torso open/pistol/stand/ads 2 3.530
-fore_torso wall/long/crouch/ads 2 1.947
-fore_torso wall/long/stand/ads 2 3.288
-fore_torso wall/long/stand/hip 2 1.898
+fore_torso wall/long/stand/hip 2 2.250
 gun_torso low/long/crouch/ads 2 1.960
 gun_torso open/long/crouch/ads 2 1.960
 gun_torso open/long/stand/ads 2 3.439
-gun_torso open/pistol/stand/ads 2 1.683
 gun_torso wall/long/crouch/ads 2 1.960
 gun_torso wall/long/stand/ads 2 3.439
-hand_head low/long/crouch/ads 2 0.766
-hand_head open/long/crouch/ads 2 0.766
-hand_head open/long/stand/ads 2 0.766
-hand_head wall/long/crouch/ads 2 0.766
-hand_head wall/long/stand/ads 2 0.766
+hand_head low/long/crouch/ads 2 0.870
+hand_head open/long/crouch/ads 2 0.870
+hand_head open/long/stand/ads 2 0.870
+hand_head wall/long/crouch/ads 2 0.870
+hand_head wall/long/stand/ads 2 0.870
 hand_torso open/long/stand/ads 2 0.968
-hand_torso open/pistol/crouch/ads 2 0.886
-hand_torso open/pistol/stand/ads 2 2.532
 hand_torso wall/long/stand/ads 2 0.968
 # Wall candidate poses (2026-11-06): turned poses looking 20-45 down bring the long gun stock into the chest; next: score poses with flatsweep shapes
 gun_torso wall/long/stand/hip 2 1.930
+# His weapon offsets 2026-11-06 (accepted; ROUND24 "Flat-screen wall: muzzle up only"): the promoted offsets move the
+# long gun's forearm and the pistol's gun and hand further into the torso, measured on origin/next.
+fore_torso open/long/crouch/ads 2 2.533
+fore_torso open/long/stand/ads 2 3.700
+fore_torso wall/long/crouch/ads 2 2.532
+fore_torso wall/long/stand/ads 2 3.700
+gun_torso open/pistol/stand/ads 2 1.780
+hand_torso open/pistol/crouch/ads 2 1.143
+hand_torso open/pistol/stand/ads 2 2.793

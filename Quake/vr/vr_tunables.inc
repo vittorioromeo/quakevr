@@ -1868,6 +1868,7 @@ QVR_TUNABLE(vr_flat_wall_tilt_sighted, "0") // sighted, this share of that tilt 
 QVR_TUNABLE(vr_flat_wall_tilt_time, "0.2") // the tilted pose eases in, and back out off the wall, over this many seconds (0..1.5; 0: at once)
 QVR_TUNABLE(vr_flat_wall_tilt_pivot, "0") // what it tilts round: 0 the hand, 1 its shoulder (the arm swings the gun up and back, the hand keeps its reach; it also brings the gun up into the face)
 QVR_TUNABLE(vr_flat_wall_tilt_drop, "12") // sighted, the tilted gun also comes this far down off the eye (0..20 units; all of it by 45 degrees of tilt)
+QVR_TUNABLE(vr_flat_wall_raise, "0.4") // in the wall state (hipfire), a weapon whose muzzle stands lower comes up until it is this share of the view's height up from its bottom edge (0..1; 0: off), up to 12 units and never into a ceiling: a pistol turned up stood below the view
 QVR_TUNABLE(vr_flat_wall_elbow, "1") // a long gun pushed back by a wall: its own hand's elbow goes out at its side, the forearm across the chest, not into it (0..1)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 

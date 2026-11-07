@@ -52,6 +52,10 @@ struct FireRoute
 // of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
 [[nodiscard]] bool punching(int h);
 
+// Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
+// weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
+[[nodiscard]] bool meleeIn(int h);
+
 // How hand `h` must be turned for the weapon it holds to shoot along the forward of `angles`, whatever its Shot Pitch and
 // Yaw (the drawn gun and its muzzle follow the hand). A hand holding nothing: `angles`.
 [[nodiscard]] glm::vec3 aimRotAt(const glm::vec3& angles, int h);
