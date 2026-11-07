@@ -123,9 +123,10 @@ fi
 # e. Along a wall: one continuous pose over the angle (his jitter: along a wall, turning a little towards it).
 if [[ $ONLY == *e* ]]; then
 log=$HERE/scratch/flatwall_e.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_flat_bob 0; vr_test_give_wid 16; impulse 149; wait25; setpos 300 -495 25 0 10 0; wait60; cl_yawspeed 5; vr_flatplay_debug 2; +right; wait864; -right; vr_flat_aim 1; wait40; echo flatwallads block; wait2; vr_flat_wall_block_ads 0; wait40; echo flatwallads free; wait2; vr_flatplay_debug 0; vr_flat_aim 0; vr_flat_wall_block_ads 1; echo flatwallslide done; toggleconsole; quit" -Filter "^flatwalldrawn|^flatsight: |^flatwallads" -QuitOn "flatwallslide done" -Timeout 300 > "$log" 2>&1
-# (flatwalldrawn: t, view yaw, at x y z, yaw, pitch, slide, flat, wall, back, let go, held, up; the last line a frame.)
-read -r step turn flat upAt flatAt n <<<"$(grep -a "^flatwalldrawn" "$log" | awk '{ t[$2] = $0 } END { n = asorti(t, k, "@ind_num_asc"); for (i = 1; i <= n; i++) { split(t[k[i]], f, " ")
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_flat_bob 0; vr_test_give_wid 16; impulse 149; wait25; setpos 300 -495 25 0 10 0; wait60; cl_yawspeed 5; vr_flatplay_debug 2; +right; wait864; -right; echo flatwallswept; vr_flat_aim 1; wait40; echo flatwallads block; wait2; vr_flat_wall_block_ads 0; wait40; echo flatwallads free; wait2; vr_flatplay_debug 0; vr_flat_aim 0; vr_flat_wall_block_ads 1; echo flatwallslide done; toggleconsole; quit" -Filter "^flatwalldrawn|^flatsight: |^flatwallads|^flatwallswept" -QuitOn "flatwallslide done" -Timeout 300 > "$log" 2>&1
+# (flatwalldrawn: t, view yaw, at x y z, yaw, pitch, slide, flat, wall, back, let go, held, up; the last line a frame. The
+# turning only: up to flatwallswept, before the ironsight's own move.)
+read -r step turn flat upAt flatAt n <<<"$(grep -a "^flatwalldrawn\|^flatwallswept" "$log" | awk '/^flatwallswept/ { exit } { t[$2] = $0 } END { n = asorti(t, k, "@ind_num_asc"); for (i = 1; i <= n; i++) { split(t[k[i]], f, " ")
     if (i > 1) { d = sqrt((f[4]-x)^2 + (f[5]-y)^2 + (f[6]-z)^2); if (d > s) s = d; a = f[7]-yw; if (a < 0) a = -a; b = f[8]-p; if (b < 0) b = -b; if (a > r) r = a; if (b > r) r = b }
     x = f[4]; y = f[5]; z = f[6]; yw = f[7]; p = f[8]; v = f[3] > 180 ? 360 - f[3] : -f[3]
     if (f[10] > fm) fm = f[10]; if (f[10] > 3 && fa == "") fa = v; if (f[15] > 5 && ua == "") ua = v }

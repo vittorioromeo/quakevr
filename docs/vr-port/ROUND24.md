@@ -2833,8 +2833,11 @@ same, and the stop at the chest cut the room from 16 to 2.5 units within a degre
 - **Block ADS** (`vr_flat_wall_block_ads` 1): adsApplies is false while the tilt up (`upAngle`: the drawn turn less the
   level one) is over 5 deg; the key's ask is kept. vr_flat_wall_block_fire reads the same tilt up (laid along, it fires).
 - **Torch model** (`vr_flat_flashlight_hide` 1): flatscreen play hides the torch's entity after `place`; beam and light stay.
-- Tests: flatwall e (new: the turning sweep has no step, lies along before it tilts up, the ironsight blocked tilted),
-  flatwall a-d, flatsight, flatsweep 383 passed, 27 known, 0 failed. Pictures: `scratch/fw4_shots_off.png`,
+- Tests: flatwall e (new: the turning sweep has no step, 0.49 units / 2.9 deg a frame; lies along before it tilts up; the
+  ironsight blocked tilted) 3/0, b-d all pass, flatsweep 383 passed, 27 known, 0 failed. flatwall a and flatsight a crash
+  on origin/next's base (`SV_ModelIndex: model progs/v_gruntgun.mdl#adv0 not precached`, vr_test_give_wid on a grunt gun,
+  slide off too): before it, flatwall a's 136 reads all out of the wall (0 over 2 cm), flatsight's 12 guns all on the ray
+  (0.0011 units at most); flatsight b-d pass. Pictures: `scratch/fw4_shots_off.png`,
   `scratch/fw4_shots_on.png` (rifle at 0, 15, 25, 35 deg in).
 - Lean (agent/flatmove): the leaned eye and gun come in as flatplay poses them (`s.head`, `s.pos`, `s.rot`, the crosshair
   ray); slideFor and pushBack read only those, so a leaned pose feeds the wall code with no change here.
