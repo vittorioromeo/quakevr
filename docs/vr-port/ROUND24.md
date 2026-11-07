@@ -2806,3 +2806,62 @@ busy avg / p50 / p99 ms from vr_bench; the AD scene's busy moves +-0.4 ms betwee
 
 With the QC gate and the walk (`vr_findradius_grid 0`) AD reads 1.79 ms and busy 8.17 avg: the grid is ~1.6 ms of the
 AD gain. The run scripts: C:/OHWorkspace/qvr-kit/scratch/findradius_report.md.
+
+## Edict walks through the index and lists (branch `agent/edictwalks`, 2026-11-07)
+
+The low-risk conversions of the edict audit (`C:/OHWorkspace/qvr-kit/scratch/edictaudit_report.md`, approved by the
+author): each one's own commit, each giving the same edicts in the same order as the walk it replaces.
+- **#6 `.vr_flameprop` indexed** (vr_edictindex.cpp `watchedFloats`): QC `findflags(world, vr_flameprop, 3)` (burning,
+  wall torches) no longer walks.
+- **#4 AD tanks**: `relinkWorn` (`vr_fueltank_worn`) and `syncPropRopes` (`vr_fueltank` + `vr_flailhead`, merged in
+  edict order) step through the classname index; `setupStubs` through `.vr_hosecut`, indexed as **"not 0"**: a new kind
+  of index field (`WatchedFloat::nonzero`, one bit, for the engine's own loops; `findflags()` on it still walks: its
+  bits aren't indexed). Pending masks widened to 16 bits (9 fields now).
+- **#3 FL_MONSTER walks**: corpses (watchCorpses x3, settleCorpses), footsteps, limbmodel `spawnFrame`, legsweep
+  `sweepHand`, hitmodel `serverFrame` step through the flags index (`edictindex::nextFlagged`). watchCorpses and
+  hitmodel clear the state of the edicts they skip, so they visit the monsters **and** the edicts they left state on
+  last time (`edictindex::flaggedOrKept`; `World::corpseNums`, `hitmodel::trackNums`): every other edict's state is
+  clear already (checked, below).
+- **#2 Box3D slot loops** (beforeStep, liftAgain, the corpses' lift, the publish loop): `World::slotsActive`, a bitset
+  set where a slot gets a body (createBody, createRagdoll: the only places a slot's kind is set), cleared when
+  beforeStep finds the slot without one (Kind::None, no ragdoll, its arrival and lift just zeroed). The syncEntities
+  change feed (#1) not done (medium risk).
+- **#5 skewerGripped** (vr_view_hands.cpp, twice a frame): `.vr_skewer_grip` indexed "not 0"; its own test unchanged.
+- **#10 VR_WP_Tug / VR_WP_Pulls** (QC): QC has no player count, so the loop ends once no edict after the current one is
+  a player (`find()` on classname: the index); every edict past that did nothing in the loop (its body is for
+  `classname == "player"` only), so the same players with the same numbers.
+- New C++ API (vr_edictindex.hpp): `nextFlagged`, `nextNonzero`, `nextClassname` (the walk when there is no index:
+  another VM current, a field not indexed), `flaggedOrKept`. The engine's queries answer only with the server's VM
+  current; otherwise they walk and leave the index alone (0 index rebuilds during every fight below).
+- Skipped (as decided): SV_PushMove's box query, the QC field reorder.
+
+**Checked** (a throwaway branch `agent/edictwalks-check`: at each converted site the old walk's list and the new list
+per call, timed; the corpses' and hit models' "every other edict is clear already", the Box3D slots' "every slot
+outside the bitset is inert"): **0 differences** in every site, over the long fights (2650 frames each: 40 bursts) of
+AD tfuma (2259 edicts), armed_mix32, the arena, and E1M1 (1126 frames); also `vr_embed_test 21` (skewering) and
+`vr_wornpack_test 3`. Not exercised there: `liftAgain` (only on a slow frame's later step pieces: 0 calls; the same
+bitset as the other three, which were checked), a hose actually cut (the hose test's sweep found no hose headless;
+the stubs' list was compared every frame, empty).
+
+**Measured** (Release-Tracy ThinLTO, not exclusive; the walk alone, old list vs new, us per host frame; the loop
+bodies are the same either way). AD tfuma:
+
+| site | old | new |
+|---|---|---|
+| flameprop (QC findflags) | 27.2 | 0.4 |
+| tank worn / stubs / ropes | 30.2 / 18.9 / 30.1 | 0.6 / 0.3 / 0.7 |
+| corpse watch / settle | 7.6 / 6.2 | 1.4 / 1.4 |
+| footsteps / limbmodel / legsweep / hitmodel | 8.9 / 6.3 / 8.5 / 7.1 | 1.7 / 1.4 / 1.2 / 1.3 |
+| Box3D slots: before / corpse lift / publish | 12.4 / 5.7 / 7.2 | 1.6 / 1.6 / 1.8 |
+| skewer | 33.2 | 0.5 |
+| **total** | **~210** | **~16** |
+
+armed_mix32: ~31 -> ~4; E1M1: ~29 -> ~4; arena (small): ~7 -> ~1.3. The audit's figures were larger (its timers
+wrapped whole loops with their bodies, and ran low-impact); these isolate the walks. The QC worn pack loops (#10) are
+not in the table (QC; the audit put them at ~30 us in AD: 815 nextent calls a frame, now ~3 per pack).
+
+**Tests**: `vr_embed_test 21`: 40 passed, 2 failed, the same 2 on origin/next (the gib thrown at a wall never bursts;
+state 83 timeout): not from this. `vr_wornpack_test 3` never ends on origin/next either (timed out at 250 s after
+the two lifts, on both builds, the same lines): not from this; open. eval.sh: no failure.
+The server state hash (`vr_bench_statehash`) can't compare the builds here: origin/next gives a different hash run to
+run on the same script (E1M1 fight, worn pack test), so the exactness rests on the per-call check above.
