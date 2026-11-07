@@ -750,6 +750,13 @@ float(float xHand, entity b, float xI, float xKind, entity xThing, vector xAt) V
         b.mh_bodyspeed = 0;
         return VR_Melee_Decide(xHand, b, xI, xKind);
     }
+    // A weapon's blow (blade, pommel, handle; not a punch) that lands only by your body's speed counts on its outer part only (vr_melee_body_min_part): nearer the
+    // hand it stands as the hand alone makes it.
+    if(xKind != VR_MPT_FIST && vr_mpt_f[xI] < cvar_hget(cvarh_vr_melee_body_min_part))
+    {
+        b.mh_bodyspeed = 0;
+        return VR_Melee_Decide(xHand, b, xI, xKind);
+    }
     vector play = VR_Blow_ToPlaySpace(normalize(xAt - self.origin)) * toward;
     vector add = play * max(0, cvar_hget(cvarh_vr_melee_body_speed));
     vector gnear = b.mh_vnear, ggrip = b.mh_vgrip, gfar = b.mh_vfar;
