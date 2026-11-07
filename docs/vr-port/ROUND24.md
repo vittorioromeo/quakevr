@@ -3315,3 +3315,113 @@ housings with recessed luminous inserts instead of floating glowing rectangles; 
   texel and no bad normal-map texel under its triangles, no thin skin triangle (a near-singular normal-map frame), none
   in the barrel mask. A one-sided render of the quantized model from above and behind shows none. Likely the renderer,
   not the mesh; reproducing it needs his setup (map, auto pump, graphics preset).
+## Flat-screen fly camera (branch `agent/flatinput`, worktree flatwall, 2026-11-07)
+
+Vittorio: a fly camera in flatscreen play that moves anywhere while the body, hands and arms stand still, pausing the game
+by default. Full description: FLATPLAY.md, "The fly camera".
+
+- **Use.** F8 (`vr_flat_key_flycam`) or `vr_flat_flycam_toggle` (or `vr_flat_flycam 1/0`): mouse looks, W A S D fly,
+  Space up, Ctrl down, Shift x3, no collision. Cvars: `vr_flat_flycam_pause` 1, `_speed` 320, `_accel` 1600 (0 instant),
+  `_fast` 3. Rows under Desktop Screen Play; Debug > Reports has the toggle and the test.
+- **How he stays still** (`Quake/vr/vr_flycam.cpp`). Look: `CL_AccumulateCmd` saves `cl.viewangles` before the frame's
+  look and `VR_FlatFlycamLook` turns the camera by the difference and puts them back (the server's setangle before that
+  still lands). Move: `VR_AdjustMove` zeroes it (the Weapon Studio's path). Buttons and impulses: zeroed in `CL_SendMove`;
+  `client::attacking` false. Hands to the server: `poseMove`'s posing hold (the last move before it took off, walked
+  along with him), also keeping 2H aim, the flatscreen and crouch bits. Mode keys, ironsight, hit punch, lean: not
+  stepped in `flatplay::frame`. Drawn hands: `viewIsHisOwn`, `bodyRide` and `drawnOffset` read his own eye
+  (`flycam::eyeOrg/eyeAngles`, captured at the end of `V_CalcRefdef` before the camera takes it; kept as it was while the
+  game is held).
+- **Pause.** `flycam::holds()` joins `VR_RuntimeMenuPause` (no `SV_Physics`, no `SV_ClientThink`; no `sv.paused`, so no
+  PAUSE plaque and the mouse still reads). Only when `sv.active && svs.maxclients == 1` and not a demo: a multiplayer
+  server or a remote one never pauses for one client's camera (decision).
+- **Body.** Nothing new: the avatar already draws the head for any view more than a head's length from the eyes.
+- **Left as is.** A body animation already in flight (a punch, a shove, a crouch's ease) is frozen where it was; the
+  drawn pose's own idle eases run on `vr_gametime`, which a pause does not stop, so a pose still settling when the camera
+  comes on settles (the test waits 2 s after spawn: before that the hands were still moving 0.3 units).
+- **Test.** `Misc/quakevr/flatflycam_test.sh` (`vr_flat_flycam_test`): 21 checks: on, held, +right turns the camera
+  179 deg, +back/+jump fly it 231 units off (+attack held), screenshot; in to 80 units, +lookdown, screenshot
+  (`scratch/flatflycam.png`); origin and angles moved 0.000, hands 0.006 units at most, 0 buttons sent, game time
+  unchanged; pause 0 with +forward/+jump/+attack held for a second: time ran 1.000 s, he stayed; off: view back to 0.0000
+  units, 0.0000 deg. In the mock headset the toggle only prints a note.
+- **Test on the desktop.** F8 in a fight: fly round, look at the body, hands and weapon from the front and back; F8 again
+  and nothing should have changed. `vr_flat_flycam_pause 0`: monsters move, he doesn't, no shots from clicking.
+## Nail pistol sights (branch `agent/release`, 2026-11-07)
+
+Vittorio: "Please add the nail pistol to the sighted models" (he paints its glowing sights in Blender himself).
+
+- **What changed.** `vr_sights.cpp` `sightedModels`: `progs/v_nailpistol.mdl` (also its own pickup) and
+  `progs/vr_nailpistol_preview.mdl` (Debug menu, Nail Pistol Art). Its magazines (`vr_mag_npistol`,
+  `vr_mag_on_v_nailpistol`, `v_nailpistol_mag`) have their own skin and no sights: left out. `vr_sightalign.cpp`
+  `painted`: the nail pistol, Rear::Notch (two rear ears, a front post); until the skin has sights, the table's line
+  (`vr_sightalign_table.inc`) is used as before. The Blender add-on's `sights.py` `PAINTED` lists it too, and the
+  export (`source.py`) now reports a new sight line (none before) and warns to run the align, instead of saying nothing.
+- **Fire texels.** None in any shipped nail pistol skin (`v_nailpistol`, `vr_nailpistol_preview`, the three magazine
+  models), nor in the author's work in progress (2026-11-07): no muzzle flash, light or screen to repaint.
+- **After painting.** Paint in the exact Fullbright swatches (qpal.py: on a texel that did not glow, a near colour stays
+  ordinary). Paint the two rear ears and the front post, never the notch floor between the ears (the rear sight is
+  read as the widest gap across: a painted floor leaves no gap, and the line falls back to the table's). The first
+  export is not refused (no old line: the 0.25 degree check has nothing to compare), so no `--allow-sights`. Then in
+  the game: `vr_sight_lines` (the nail pistol says `sights`, not `table`), and `vr_weaponstudio_align main apply`
+  (flat-screen, the nail pistol in the main hand). Later exports are held to 0.25 degrees.
+- **Tests** (a scratch copy painted 236 on the ears' and the front post's top faces, swapped in for the runs; scratch
+  `np_paint.py`, `test_npsights.sh`). `vr_sight_lines`: `sights rear -1.21 -0.00 6.38 front 9.15 0.05 6.38 (0.29
+  left)`, the same as the add-on's `sights.py` reads on that file; the shipped model: `table`, as before. The skin as
+  uploaded (`imagedump`) at `vr_sight_hue` 30 and 120: 405 texels differ, exactly the 405 painted, hue 29 to 119;
+  nothing else. Flat view, paused: `vr_weapon_glow` 0 to 0.3 brightens the sights ((255,217,184) to (255,237,202));
+  hue 120 moves the drawn sights' hue as the shotgun's in the same shots (mean 28 to 59; the shotgun 21 to 55); the
+  shipped nail pistol through the same steps: ~100 grey pixels (noise). `flatsight_test.sh`: see the report.
+## Flat-screen: the hidden torch's lens glow (branch `agent/embed5`, 2026-11-07)
+
+Vittorio: "the flashlight model is invisible but I still see a floating circle where it used to be only when the
+flashlight is on".
+
+- **Cause.** `vr_flat_flashlight_hide` hid the torch's view entity, but `drawLens` (vr_flashlight.cpp), the additive
+  disc in the beam's colour drawn over the lens while the light is on, checked only that the light was on and placed.
+  It went on drawing at the hidden model's lens. Nothing else is drawn from the lens: the visible beam is an open cone
+  in the air (no cap, and no circle was seen with the lens moved into view), and the dynamic lights are lighting.
+- **Fix.** New `view::drawn(ve)` (vr_view.hpp/.cpp): visible, with a model, and not hidden by `vr_shot_hide`, the same
+  test the view uses to submit the entity. The flashlight keeps a pointer to its view entity (`setupView`), and
+  `drawLens` draws only when `view::drawn` says the model is drawn. The lens therefore also goes with `vr_shot_hide 2`.
+  The beam, the spotlight and the lamp glow light are unchanged. VR is unchanged (the model is drawn there).
+- **Probe.** `vr_flashlight_probe [tag]` prints a new line, `torchprobe <tag> lens drawn D model M`: the disc drawn in
+  the last two frames, and the model drawn. flash_grab_test.py ignores lines it doesn't know.
+- **Check.** `bash Misc/quakevr/flashglow_test.sh <agent> [tag]` (with `flashglow_check.py`; it prints
+  `flashglow: N passed, M failed`): flat-screen, light on, at a wall and down
+  the corridor, lens 0 and model 0; `vr_flat_flashlight_hide 0` gives lens 1 and model 1; VR mock, torch on the head and
+  lit, gives lens 1 and model 1. After: 4 passed, 0 failed. Before: 2 failed (lens 1 with model 0).
+  A one-off variant (not committed) did the same with the torch moved into view (`vr_flashlight_head_forward 0.12`,
+  `_out -0.05`, `_up -0.06`), to show the disc. Screenshots: `scratch/flashglow_before_inview_flat.png` (the bright
+  circle at the wall and in open space) and `scratch/flashglow_after_inview_flat.png` (gone, the wall still lit). The
+  tiles are: wall with light on, corridor with light on, light off, and model shown.
+- **Test in VR.** Flat-screen with F on: no circle anywhere, and walls still lit. In the headset, the clipped or held
+  torch's lens still glows when it is on.
+## Grow the Box on Export on Save (branch `agent/loadjobs`, worktree phases, 2026-11-07)
+
+Vittorio: "add the option to the plugin please" (v_nailpistol.blend refused: 15 vertices outside the model's box, "tick
+Grow the Box", an option only File > Export's dialog had).
+
+- **Checkbox.** Grow the Box is in the add-on's Quake VR panel (3D view sidebar), in the top box under Export on Save,
+  for a weapon's source .blend. It is the model object's `qvr_grow_box` (default off), saved in the .blend, so the
+  background Ctrl+S export reads it. `blend_export.py --grow` does the same. File > Export's dialog starts from it.
+- **Where the box comes from.** A source .blend's export starts from the reference model (`qvr_mdl`, its header as
+  built). Export on Save runs on the saved file in a background Blender and saves nothing back, so the reference
+  never learned a grown box: every save would grow again from the old box (and an edit near the edge would move the
+  grid each time). Now the export starts from the grid of the model file it replaces when that grid holds the
+  reference's box (`mdl_blender.replaced_box`). Once grown, it stays grown, grows again only when a vertex leaves the
+  grown box, and an unchanged .blend saves to the same bytes. An anchor whose surface moved no more than the grids'
+  half steps is a warning, not a refusal (the grid moves every vertex a little).
+- **Offsets.** When the low side grows, the origin moves and the weapon's Scale pivots about it. The export writes
+  the compensating Offset X/Y/Z (`x`/`y`/`z`, old minus `moved x (1 - Scale)`) into weapons.txt with the anchors. It
+  measures from the replaced file's origin, so a second save adds nothing. The `  box:` report lines (the grid, the
+  `inc vr_wofs_*` console lines for his saved config, what weapons.txt got) pop up after Ctrl+S, and the status bar
+  says THE BOX GREW. A shipped grown model still needs a `vr_wofs_version` step for other players' configs.
+- **Refusal message** names where the option is (the panel, File > Export's dialog, `--grow`).
+- **Test** (headless, copies in `scratch/gb`): an untouched copy exports the shipped v_nailpistol.mdl byte for byte. With
+  3 vertices moved 3 units past -x, it is refused without grow and grows with `--grow` (origin x -2.58 to -5.52, `inc
+  vr_wofs_x_37 1.6202`, weapons.txt slot 36 x -0.18 to 1.4402). A second export with or without `--grow` is
+  byte-identical (it starts from the grown file). The stored `qvr_grow_box` alone gives the same file. Exported into
+  the worktree's own progs, weapons.txt was written once and the second save changed nothing (the files were put
+  back after).
+- **Test in Blender.** On a copy of a weapon's .blend, pull a vertex past the box and save: a refusal popup names the
+  checkbox. Tick Grow the Box and save: the status bar says THE BOX GREW and a popup shows the offsets. Save again: no
+  popup, the same file.

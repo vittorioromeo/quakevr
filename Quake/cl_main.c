@@ -910,11 +910,18 @@ void CL_AccumulateCmd (void)
 {
 	if (cls.signon == SIGNONS)
 	{
+		vec3_t lookbefore; // QVR: the angles before this frame's look (the flatscreen fly camera takes the look)
+		VectorCopy (cl.viewangles, lookbefore);
+
 		//basic keyboard looking
 		CL_AdjustAngles ();
 
 		//accumulate movement from other devices
 		IN_Move (&cl.pendingcmd);
+
+		// QVR: the flatscreen fly camera (vr_flat_flycam; vr/vr_flycam.cpp): while it flies the look just taken turns the
+		// camera, and his own angles go back to what they were -- he does not turn.
+		VR_FlatFlycamLook (lookbefore, cl.viewangles);
 
 		// QVR: flatscreen play looks within vr_flat_pitch_up / vr_flat_pitch_down (vr/vr_flatplay.cpp). The look keys, the
 		// arrow keys and the wheel (CL_AdjustAngles, just above) and the mouse, the stick and the gyro (IN_Move, just above)

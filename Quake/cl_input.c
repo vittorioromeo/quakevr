@@ -430,6 +430,12 @@ void CL_SendMove (const usercmd_t *cmd)
 			bits |= 2;
 		in_jump.state &= ~2;
 
+		if (VR_FlatFlycamOwnsInput ()) // QVR: the flatscreen fly camera has the keys (Space flies it up): no fire, no jump, no impulse reaches him
+		{
+			bits = 0;
+			in_impulse = 0;
+		}
+
 		MSG_WriteByte (&buf, bits);
 
 		MSG_WriteByte (&buf, in_impulse);

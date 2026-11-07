@@ -585,9 +585,11 @@ def key_names(names):
     return out
 
 
-def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, report=print):
+def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, report=print, grow=False):
     """Exports the source .blend's model. Returns (written paths, data changes {(slot, key): value}). Raises
-    SourceError (nothing written) if a check fails."""
+    SourceError (nothing written) if a check fails. `grow` (or the model's Grow the Box, qvr_grow_box, kept in the
+    .blend): vertices past the box make it bigger; the grid starts from the replaced file's (mb.replaced_box), and an
+    origin that moves gets the weapon's offsets that keep it in place (weapons.txt, reported as "  box: " lines)."""
     ob = source_object()
     name = ob["qvr_name"]
     spec = SPECS.get(name, {})
@@ -612,18 +614,43 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
     tmp = tempfile.mkdtemp(prefix="qvr_src_")
     path = os.path.join(tmp, name)
     msgs = []
+    grow = bool(grow or ob.get("qvr_grow_box", False))
+    box = mb.replaced_box(os.path.join(out_dir, name), old)
+    if box is not None:
+        report("  grid: %s's (grown by an export before): origin %s, scale %s" % (
+            name, " ".join("%.4f" % x for x in box[0]), " ".join("%.5f" % x for x in box[1])))
     try:
-        lines, moved = mb.export_mdl(context, ob, path, lambda lvl, m: msgs.append(m))
+        lines, moved = mb.export_mdl(context, ob, path, lambda lvl, m: msgs.append(m), grow, box)
     except mb.ExportError as e:
         raise SourceError("export: %s" % e)
+    grow_lines = mb.LAST_EXPORT.get("grow_lines", [])
     for m in msgs:
-        report("  " + m)
+        if m not in grow_lines:
+            report("  " + m)
     tri_old = list(mb.LAST_EXPORT["tri_old_index"])
     new = mdl.Model.read(path)
 
     # Anchors and hotspots: the empties' places, against weapons.txt's.
     slots = model_slots(root, name)
     changes = {}
+    # The box grew past its low side: the origin moved, and the weapon's Scale turns about it. The offsets that keep the
+    # drawn weapon in place, from this export's starting grid (the replaced file's: done once, not again each save).
+    box_lines = ["  box: " + l for l in grow_lines]
+    grew = mb.LAST_EXPORT.get("grew")
+    if grew is not None:
+        d = np.array(grew[1]) - np.array(grew[0])
+        offs = {}
+        for slot, ts in mdl.weapon_slots(root, name):
+            for k, axis in enumerate("xyz"):
+                if d[k] != 0:
+                    cur = float(slots.get(slot, {}).get(axis, "0") or 0)
+                    offs[(slot, axis)] = fmt(cur - d[k] * (1 - ts))
+        if offs:
+            changes.update(offs)
+            box_lines.append("  box: weapons.txt's defaults %s: %s" % (
+                "got them (written with this export)" if in_repo else "would get them (not written: the export isn't "
+                "to the repository's quakevr/progs)",
+                ", ".join("slot %d %s \"%s\"" % (s, k, v) for (s, k), v in sorted(offs.items()))))
     moved_keys = set()
     rest = [new.place(b) for b in new.pose_bytes()[0]]
     for e in [o for o in bpy.data.objects if o.parent == ob and o.get("qvr_key")]:
@@ -648,9 +675,18 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
                 k = "%s_%s" % (key, c)
                 if abs(float(vals.get(k, "0")) - x) > 5e-5:
                     changes[(slot, k)] = fmt(x)
+    # On a grid other than the reference's (a grown box) every vertex moved up to half a step of each grid: a surface
+    # under an anchor that moved no more than that moved with the grid, not with an edit.
+    grid_tol = 0.0
+    if tuple(new.scale) != tuple(old.scale) or tuple(new.origin) != tuple(old.origin):
+        grid_tol = 0.5 * (math.hypot(*old.scale) + math.hypot(*new.scale))
     for what, text, dist in moved:
         key = next((k for k in ANCHOR_KEYS if "vr_wofs_%s_" % k in what), None)
         if key in moved_keys:
+            continue
+        if dist <= grid_tol:
+            warns.append("anchor %s \"%s\": the surface under it moved %.3f units with the grown box's grid (at most "
+                         "%.3f)" % (what, text, dist, grid_tol))
             continue
         errors.append("anchor %s \"%s\": the surface under it moved %.3f units in some frame (%s). Move the anchor's "
                       "empty onto the new surface, or export with --allow-moved" % (what, text, dist,
@@ -671,6 +707,12 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
         if a and not b:
             errors.append("sights: the painted sights no longer make a sight line (the sight texels, palette 224-239, "
                           "252, 253, on the rear notch and the front post): repaint them")
+        elif b and not a:
+            # Sights painted where there were none (the nail pistol, 2026-11): nothing to keep, so nothing refused.
+            (u1, l1) = sights.angle_deg(b)
+            report("  sights: new painted sights, rear %s front %s, %.3f deg up, %.3f deg left" % (
+                point_text(b[0]), point_text(b[1]), u1, l1))
+            warns.append("sights: new painted sights: line them up in the game (vr_weaponstudio_align main apply)")
         elif a and b:
             (u0, l0), (u1, l1) = sights.angle_deg(a), sights.angle_deg(b)
             turn = math.hypot(u1 - u0, l1 - l0)
@@ -836,4 +878,6 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
                    ", ".join("slot %d %s" % (s, k) for (s, k) in sorted(changes)))
     for w in warns:
         report("  WARNING " + w)
+    for l in box_lines:
+        report(l)
     return written, changes  # (the scratch copy stays in the system's temp folder)

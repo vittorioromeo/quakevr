@@ -838,6 +838,12 @@ za::Vector<Item> pageDebugReports()
             .help("The drawn view off him, looking back at his own pose from his front right (`vr_flat_orbit yaw distance down`): the arms, "
                   "the gun, the sights. The hands and the shots are as he plays them. Flatscreen play only."),
         command("Flatscreen Back In His Eyes", "vr_flat_orbit").help("The view back in his eyes (`vr_flat_orbit` with no arguments)."),
+        command("Flatscreen Fly Camera", "vr_flat_flycam_toggle")
+            .help("The fly camera on or off (F8, vr_flat_flycam_toggle): the view flies free (mouse, W A S D, Space, Ctrl, "
+                  "Shift) while he stands exactly as he was; the game paused (vr_flat_flycam_pause). Flatscreen play only."),
+        command("Flatscreen Fly Camera Test", "vr_flat_flycam_test")
+            .help("vr_flat_flycam_test: on, turned round, flown 200 units off and shot; checks nothing of his moved, the "
+                  "game's time held (and ran with pause 0), no button reached him, and the view back in his eye exactly."),
         command("Flatscreen Pose Sweep", "vr_flat_sweep menu")
             .help("The look taken from straight up to straight down, standing and crouching, per weapon stance, hipfire and "
                   "ironsight: one row a step in screenshots/flatsweep_menu.csv, with a picture at each end and level. It holds the "

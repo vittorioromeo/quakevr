@@ -123,6 +123,8 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
         ob = active_model(context, MB.KIND)
         if ob is not None and ob.get("qvr_source"):
             self.filepath = ob["qvr_source"]
+        if ob is not None:
+            self.grow = bool(ob.get("qvr_grow_box", False))  # (the panel's Grow the Box, kept in the .blend)
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):

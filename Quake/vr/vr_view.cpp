@@ -3537,6 +3537,11 @@ bool emptyHandPose(const hands::State& s, int hand, EmptyHand& out)
     return emptyHandImpl(s, hand, out);
 }
 
+bool drawn(const ViewEntity& ve)
+{
+    return ve.visible && ve.ent.model && !hiddenForShot(ve);
+}
+
 const ViewEntity* find(const entity_t* e)
 {
     const auto* first = reinterpret_cast<const unsigned char*>(&entities);
