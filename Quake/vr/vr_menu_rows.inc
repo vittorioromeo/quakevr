@@ -6001,6 +6001,20 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
     "the status bar as Ironwail draws it (vr_flat_hud).")
+QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
+    "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
+    "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
+    "(vr_flat_shove).")
+QVR_SLIDER(vr_flat_shove_cooldown, "Shove Cooldown", 0.f, 3.f, 0.1f, "%.1f s", noExt,
+    "Playing on the desktop screen: seconds after a shove before the key shoves again (vr_flat_shove_cooldown).")
+QVR_SLIDER(vr_flat_shove_push, "Shove Strength", 0.f, 3.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen: how far a shove throws what it reaches, times the headset's one-hand shove "
+    "(vr_flat_shove_push).")
+QVR_SLIDER(vr_flat_shove_reach, "Shove Reach", 0.5f, 3.f, 0.05f, "x%.2f", noExt,
+    "Playing on the desktop screen: how far ahead a shove reaches, times the headset's shove (vr_flat_shove_reach).")
+QVR_TOGGLE(vr_handsource_debug, "Print Hand Motion Source",
+    "Prints each hand's motion source as it changes: tracked (a controller), synthesized (the flat-screen look, a lean, "
+    "the wall tilt: no gesture reads it) or action (the V punch) (vr_handsource_debug).")
 QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
     "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")

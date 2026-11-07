@@ -8,6 +8,7 @@
 // barrel going up and back towards the player first (the old engine's TurnVector(fwd, up, a)).
 
 #include "vr_flick.hpp"
+#include "vr_handsource.hpp"
 #include "vr_client.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
@@ -154,6 +155,12 @@ void updatePry(const hands::State& s, int hand, float dt)
         p.armed = false;
         return;
     }
+    // Hands the game moves (vr_handsource.hpp: the flat-screen look, the wall tilt) pry nothing: disarmed, measured afresh.
+    if(!handsource::gestures(hand) || !handsource::gestures(other))
+    {
+        p.armed = false;
+        return;
+    }
     const float a = pryAngle(s, hand);
     if(!p.armed)
     {
@@ -258,7 +265,7 @@ void update(hands::State& s)
             {
                 restUp[h] = up;
             }
-            if(canFlick(h))
+            if(canFlick(h) && handsource::gestures(h)) // (not a hand the game moves: vr_handsource.hpp)
             {
                 current[h] = speed >= flickSpeed(h) && glm::dot(fwd, restUp[h]) > 0.6f;
                 if(vr_reload_debug.value >= 2.f && speed >= restSpeed(h))

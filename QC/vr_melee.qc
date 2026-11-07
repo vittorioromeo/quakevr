@@ -132,7 +132,9 @@ float(float xHand, entity b) VR_Melee_Track =
     }
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
-    if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self))
+    // (A hand moved by the game, not by the player -- the flatscreen look, a lean, the wall tilt -- swings nothing:
+    // VR_HandMotionTracked.)
+    if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self) || !VR_HandMotionTracked(self, xHand))
     {
         b.mh_n = 0;
         b.mh_thing = thing;

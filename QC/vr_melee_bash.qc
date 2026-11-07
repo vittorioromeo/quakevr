@@ -768,6 +768,7 @@ float(float xHand, entity b, vector xFwd, float xSpeed) VR_Bash_Pushing =
 // What is just ahead of the stance of `xHand` (VR_BASH_REACH, along `xForward`): the weapon's line (or the palm)
 // swept forward, against monsters' boxes. Into vr_bash_victims (a chain), how many.
 entity vr_bash_victims;
+float vr_bash_reach_mul; // VR_Bash_Find's reach times this (0: 1; flatscreen's shove: vr_flat_shove_reach, VR_FlatShove)
 float(float xHand, entity b, vector xForward) VR_Bash_Find =
 {
     vector a = b.mh_near;
@@ -777,7 +778,7 @@ float(float xHand, entity b, vector xForward) VR_Bash_Find =
         a = b.mh_grip - xForward * 2;
         c = b.mh_grip + xForward * 2;
     }
-    float reach = VR_BASH_REACH * VRMetersToUnits();
+    float reach = VR_BASH_REACH * VRMetersToUnits() * (vr_bash_reach_mul > 0 ? vr_bash_reach_mul : 1);
     float pad = 6;
     float hits = 0;
     vr_bash_victims = world;
@@ -1123,6 +1124,75 @@ void(float xHand, vector xForward, vector xPushVel, float xBoth) VR_Bash_Deflect
 // Follows each hand's stance and push; a push of a stance far enough is a bash (or a shove, open palms): what is just
 // ahead is knocked back, once. Runs after the hands are tracked and before their blows: the hands in a push don't
 // also strike.
+// A shove or a bash landing on what it found (vr_bash_victims, `xHits` of them, VR_Bash_Find): its stamina, a counter's
+// window used, each one hit, the cooldown, the sound, the hands' feel, the puff and the melee event. `xHand` the hand
+// (`xBoth`: both), `xArmed` a bash (a weapon's), `xAt` where it lands, `xScale` and `xPush` its damage and push before a
+// counter; `xPushSpeed` (m/s) and `xPushDist` (m) the push said in the event. VR_Bash; flatscreen VR_FlatShove.
+void(float xHand, float xBoth, float xArmed, float xHits, vector xAt, vector xFwd, float xScale, float xPush,
+     float xPushSpeed, float xPushDist) VR_Bash_Land =
+{
+    // Stamina (vr_shove_stamina): a shove or a bash that lands spends it (once a push: not again if it batted a
+    // projectile first); short of it, it is weaker (VR_Bash_Hit).
+    VR_Bash_Pay(xBoth, xArmed);
+
+    // A bash or a shove in a counter's window after a parry (VR_Counter_Use): the counter, harder and further.
+    float counter = 0;
+    if(VR_Counter_Ready())
+    {
+        counter = VR_Counter_Use(xArmed ? "bash" : "shove", vr_bash_victims);
+    }
+    float scale = xScale;
+    float push = xPush;
+    if(counter)
+    {
+        scale = scale * counter;
+        push = push * counter;
+    }
+    vr_bash_counter = counter;
+    vr_bash_both = xBoth;
+    entity e = vr_bash_victims;
+    while(e)
+    {
+        entity next = e.vr_bash_next;
+        vector hitAt = xAt;
+        hitAt_x = min(e.absmax_x, max(e.absmin_x, hitAt_x));
+        hitAt_y = min(e.absmax_y, max(e.absmin_y, hitAt_y));
+        hitAt_z = min(e.absmax_z, max(e.absmin_z, hitAt_z));
+        VR_Bash_Hit(e, hitAt, xFwd, xArmed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, xBoth ? -1 : xHand, scale, push);
+        e = next;
+    }
+    vr_bash_counter = FALSE;
+    vr_bash_both = FALSE;
+    vr_bash_exhaust_dmg = 0;
+    vr_bash_exhaust_push = 0;
+    self.vr_bash_time = VR_PlayerTime() + VR_BASH_COOLDOWN;
+
+    // Each its own sound (vr_bash_sound, its volume; round 18), apart from the blows'; 0: silent.
+    float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
+    float bashChan = xBoth ? CHAN_AUTO : VRGetHandChannel(xHand); // (both hands: in front of the chest)
+    if(bashSound > 0)
+    {
+        sound(self, bashChan, (counter && xArmed) ? "vr/bash_parry.wav" : (xArmed ? "vr/bash.wav" : "vr/shove.wav"),
+              bashSound * (xBoth ? 1 : 0.7), ATTN_NORM);
+    }
+    if(xBoth)
+    {
+        haptic(cVR_MainHand, 0.0, 0.25, 70, 1.0);
+        haptic(cVR_OffHand, 0.0, 0.25, 70, 1.0);
+        handimpact(cVR_MainHand, 3, xFwd * -1);
+        handimpact(cVR_OffHand, 3, xFwd * -1);
+    }
+    else
+    {
+        haptic(xHand, 0.0, 0.2, 70, 0.8);
+        handimpact(xHand, 2, xFwd * -1);
+    }
+    particle2(xAt + xFwd * 12, xFwd * 80, QVR_PARTICLE_PRESET_BULLETPUFF, xBoth ? 16 : 10);
+    VR_Melee_Event(sprintf("%s, hand %g, %s, %g hit%s, push %.1f m/s over %.0f cm", counter ? (xArmed ? "parrybash" :
+        "counter shove") : (xArmed ? "bash" : "shove"), xHand, xBoth ? "two hands" : "one hand", xHits, xHits == 1 ? "" : "s",
+        xPushSpeed, xPushDist * 100));
+};
+
 void() VR_Bash =
 {
     entity bm = VR_Blow(cVR_MainHand);
@@ -1320,71 +1390,57 @@ void() VR_Bash =
         return; // a push at the air: nothing yet (the push may still reach something)
     }
 
-    // Stamina (vr_shove_stamina): a shove or a bash that lands spends it (once a push: not again if it batted a
-    // projectile first); short of it, it is weaker (VR_Bash_Hit).
-    VR_Bash_Pay(both, armed);
-
-    // A bash or a shove in a counter's window after a parry (VR_Counter_Use): the counter, harder and further.
-    float counter = 0;
-    if(VR_Counter_Ready())
-    {
-        counter = VR_Counter_Use(armed ? "bash" : "shove", vr_bash_victims);
-    }
-    float scale = both ? 1 : VR_BASH_ONE_DAMAGE;
-    float push = VR_Shove_HandsPush(both);
-    if(counter)
-    {
-        scale = scale * counter;
-        push = push * counter;
-    }
     vector at = both ? (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5 : VRGetHandPos(readyHand);
     if(armed)
     {
         at = (b.mh_near + b.mh_far) * 0.5;
     }
-    vr_bash_counter = counter;
-    vr_bash_both = both;
-    entity e = vr_bash_victims;
-    while(e)
-    {
-        entity next = e.vr_bash_next;
-        vector hitAt = at;
-        hitAt_x = min(e.absmax_x, max(e.absmin_x, hitAt_x));
-        hitAt_y = min(e.absmax_y, max(e.absmin_y, hitAt_y));
-        hitAt_z = min(e.absmax_z, max(e.absmin_z, hitAt_z));
-        VR_Bash_Hit(e, hitAt, fwd, armed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, both ? -1 : readyHand, scale, push);
-        e = next;
-    }
-    vr_bash_counter = FALSE;
-    vr_bash_both = FALSE;
-    vr_bash_exhaust_dmg = 0;
-    vr_bash_exhaust_push = 0;
-    self.vr_bash_time = VR_PlayerTime() + VR_BASH_COOLDOWN;
+    VR_Bash_Land(readyHand, both, armed, hits, at, fwd, both ? 1 : VR_BASH_ONE_DAMAGE, VR_Shove_HandsPush(both),
+                 VR_Bash_PushVel(b) * pfwd, b.mh_push_dist);
+};
 
-    // Each its own sound (vr_bash_sound, its volume; round 18), apart from the blows'; 0: silent.
-    float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
-    float bashChan = both ? CHAN_AUTO : VRGetHandChannel(readyHand); // (both hands: in front of the chest)
-    if(bashSound > 0)
+// Flatscreen play's shove (the shove key, vr_flat_key_shove, mouse 5: impulse 53 the off hand, 54 the main; the engine's
+// vr_flatplay.cpp startShove draws the hand's push and sends the impulse as it reaches out). The headset's one-hand
+// shove of an open palm, straight ahead of the body at chest height: what it finds (VR_Bash_Find, its reach times
+// vr_flat_shove_reach) is shoved as a palm's push shoves it (VR_Bash_Land), its damage times vr_flat_shove_damage and its
+// push times vr_flat_shove_push. The bash's own cooldown holds too (VR_BASH_COOLDOWN); the key's is the engine's
+// (vr_flat_shove_cooldown). A push at the air shoves nothing and costs nothing.
+float VR_FLATSHOVE_DOWN = 0.3; // m the push goes below the eyes
+float VR_FLATSHOVE_OUT = 0.3;  // m ahead of them it starts from
+void(float xHand) VR_FlatShove =
+{
+    if(!VR_FlatPlay(self) || !cvar_hget(cvarh_vr_flat_shove) || !cvar_hget(cvarh_vr_bash) || !self.ishuman ||
+       self.health <= 0)
     {
-        sound(self, bashChan, (counter && armed) ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
-              bashSound * (both ? 1 : 0.7), ATTN_NORM);
+        return;
     }
-    if(both)
+    if(VR_PlayerTime() < self.vr_bash_time)
     {
-        haptic(cVR_MainHand, 0.0, 0.25, 70, 1.0);
-        haptic(cVR_OffHand, 0.0, 0.25, 70, 1.0);
-        handimpact(cVR_MainHand, 3, fwd * -1);
-        handimpact(cVR_OffHand, 3, fwd * -1);
+        VR_Melee_Event(sprintf("flat shove, hand %g, cooling down", xHand));
+        return;
     }
-    else
+    float m2u = VRMetersToUnits();
+    vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
+    entity b = VR_Blow(xHand);
+    float oldStance = b.mh_stance;
+    vector oldGrip = b.mh_grip;
+    b.mh_stance = 2; // (an open palm's push: VR_Bash_Find sweeps the palm forward)
+    b.mh_grip = VRGetHeadPos(self) - '0 0 1' * (VR_FLATSHOVE_DOWN * m2u) + fwd * (VR_FLATSHOVE_OUT * m2u);
+    vector at = b.mh_grip;
+    vr_bash_reach_mul = max(0.1, cvar_hget(cvarh_vr_flat_shove_reach));
+    float hits = VR_Bash_Find(xHand, b, fwd);
+    vr_bash_reach_mul = 0;
+    b.mh_stance = oldStance;
+    b.mh_grip = oldGrip;
+    self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
+    VR_Motion_Event("push", "shove", xHand, 0, at, world, "flatscreen");
+    if(!hits)
     {
-        haptic(readyHand, 0.0, 0.2, 70, 0.8);
-        handimpact(readyHand, 2, fwd * -1);
+        VR_Melee_Event(sprintf("flat shove, hand %g, nothing in reach", xHand));
+        return;
     }
-    particle2(at + fwd * 12, fwd * 80, QVR_PARTICLE_PRESET_BULLETPUFF, both ? 16 : 10);
-    VR_Melee_Event(sprintf("%s, hand %g, %s, %g hit%s, push %.1f m/s over %.0f cm", counter ? (armed ? "parrybash" :
-        "counter shove") : (armed ? "bash" : "shove"), readyHand, both ? "two hands" : "one hand", hits, hits == 1 ? "" : "s",
-        VR_Bash_PushVel(b) * pfwd, b.mh_push_dist * 100));
+    VR_Bash_Land(xHand, FALSE, FALSE, hits, at, fwd, VR_BASH_ONE_DAMAGE * max(0, cvar_hget(cvarh_vr_flat_shove_damage)),
+                 VR_Shove_HandsPush(FALSE) * max(0, cvar_hget(cvarh_vr_flat_shove_push)), 0, 0);
 };
 
 // ----------------------------------------------------------------------------
