@@ -2318,6 +2318,14 @@ the armor studio. I can now see my clone, but it isn't wearing armor."
   and all pieces drawn in it; then kind grunt: nothing on you. `armourclone: 8 passed, 0 failed` flat (-flatscreenmode, the
   window) and in the mock headset (the menu page). `vr_armourstudio_window test` 17 passed. Screenshots checked: the clone in
   yellow with no armour (HUD armour 0), a grunt's knee sleeves tapered 0.7 -> 1.8 / 1.8 -> 0.7 (flared at the knee, joined).
+- **Clone test fixed (branch `agent/clonefix`, 2026-11-07)**: `vr_armourstudio_clone_test` failed "step 1 ... the clone's
+  pieces 0" on next. Bisect: it fails at 5a273fbe4 itself (no later commit caused it). The test was stale, not the feature:
+  "the clone's pieces" read `platesState(16)`, the pieces a *view* (PlatePass::View) drew with the head, i.e. from a view
+  more than 0.3 m from the eyes (a gate's, a spectator's); the mirror image's plates go through PlatePass::Clone, which was
+  never counted. Now that pass has its own count (`platesState(19)`, also in `vr_player_plates_info`: "in the mirror image
+  N"); the frame's rollover is done by whichever of the two passes draws first. Feature checked in a flat screenshot: Kind
+  = Player, Tier Red, no armour item: the clone wears the full red armour and helmet. Tests: `armourclone: 8 passed, 0
+  failed` (mock VR e1m1, flat vrtesthall), `armourtest` 30/0, `armourwin` 17/0.
 
 ## Swimming tilt: the body's pitch (branch `agent/swimtilt`, 2026-11-06)
 

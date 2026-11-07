@@ -843,11 +843,11 @@ void cloneVerdict()
 }
 
 // The step's settle: the tier wanted on every piece, settled (no morph), the clone's image showing the body, and the pieces
-// drawn with the head (the clone's view) all of them.
+// drawn in the clone (its own pass, with the head: PlatePass::Clone) all of them.
 [[nodiscard]] bool cloneSettled(int tier)
 {
     return playerShown() && view::platesState(18) == tier && view::platesState(10) == agarmor::allPieces && view::platesState(11) == 0 &&
-           bodyclone::bodyShown() && view::platesState(16) == agarmor::allPieces;
+           bodyclone::bodyShown() && view::platesState(19) == agarmor::allPieces;
 }
 
 void cloneTestFrame()
@@ -867,7 +867,7 @@ void cloneTestFrame()
         {
             c.tally.check(false, cloneTestName,
                 va("timed out: step %d (shown %d, colour %d, pieces %d, coming %d, clone body %d, the clone's pieces %d, build %d)", c.step, playerShown() ? 1 : 0,
-                    view::platesState(18), view::platesState(10), view::platesState(11), bodyclone::bodyShown() ? 1 : 0, view::platesState(16),
+                    view::platesState(18), view::platesState(10), view::platesState(11), bodyclone::bodyShown() ? 1 : 0, view::platesState(19),
                     static_cast<int>(vr_body_build.value)));
             cloneVerdict();
         }
@@ -875,7 +875,7 @@ void cloneTestFrame()
     }
     c.tally.check(true);
     Con_Printf("%s: step %d ok: tier %d, build %d, colour %d, pieces %d, the clone's pieces %d, your armour %d (frames %d)\n", cloneTestName, c.step, tier,
-        static_cast<int>(vr_body_build.value), view::platesState(18), view::platesState(10), view::platesState(16), agarmor::clientState(cl.viewentity, 0),
+        static_cast<int>(vr_body_build.value), view::platesState(18), view::platesState(10), view::platesState(19), agarmor::clientState(cl.viewentity, 0),
         c.frames);
     Cbuf_AddText(c.step >= 3 && c.step <= 6 ? "vr_player_plates_info\n" : ""); // (the body's model: the build's)
     c.step++;
