@@ -3379,3 +3379,36 @@ Grow the Box", an option only File > Export's dialog had).
 - **Test in Blender.** On a copy of a weapon's .blend, pull a vertex past the box and save: a refusal popup names the
   checkbox. Tick Grow the Box and save: the status bar says THE BOX GREW and a popup shows the offsets. Save again: no
   popup, the same file.
+## The shotgun's sight housings (branch `agent/regfix`, 2026-11-08)
+
+His note: "Can you please start a worker to improve the shotgun ironsights like in this ChatGPT mockup?" (raised metal
+housings with recessed luminous inserts instead of floating glowing rectangles; the mockups are in the kit's
+`scratch/shotsight_mockup/`).
+
+- **Geometry** (`v_shot.blend`, edited headless: a one-off bpy script, not kept; the .blend is the source). The old
+  glowing blocks (20 + 10 triangles) are gone. Rear: one solid across the receiver at x 9.75..10.41, its back flat, its
+  front leaning, a U notch (floor 0.27 under the line, walls leaning out) between two trapezoid ears 0.4 tall, their
+  tops 0.13 over the line; its bottom sunk into the receiver (the receiver's two holes under the old posts closed).
+  Front: a ramp post on the muzzle band, its back flat (0.42 wide at the top), its top one grid step (0.067) over the
+  insert. Higher won't fit: the kick's frame `shot3` lifts the muzzle to the model's box top (10.48), and the box is
+  kept. 53 new vertices, all on the gun's body (`qvr_part` 0), riding it in every frame; the pump parts re-exported.
+- **Skin.** The old sight patch (s 61..123, t 89..124; only the old blocks read it) repainted: metal patches (Quake's
+  brown-grey row and the receiver's blue-grey, dithered, lit top edges) and the ears' and the post's back faces, each a
+  metal frame round a glowing insert (palette 234 rim, 235, 236 core: fullbright, recoloured by `vr_sight_hue`). The
+  x grid is 0.22 units (0.56 cm): a modelled recess would hide the insert from above, so the recess is painted (a dark
+  line over and beside the insert, a lit lip under it) and the relief has the inserts one step deep (2 levels) for the
+  normal map. The notch's floor is plain metal.
+- **Sight line.** Rear 9.754 -0.050 6.545, front 32.406 -0.005 6.212 (were 9.856 -0.050 6.545, 32.519 -0.005 6.212):
+  -0.843 deg up, 0.115 left (were -0.842, 0.114): turned 0.001 deg, so no `--allow-sights`, no realign, weapons.txt
+  unchanged. The insert tops sit on the old posts' tops; the points moved 0.11 back (the inserts are on the back faces).
+  vr_sightalign's table keeps `Rear::Notch`. sight_picture.py's line updated: the front insert seen down to 0.27 under
+  its top, as before (the rest under the rib at x 19.4).
+- **The mockup's colour:** `vr_sight_hue 73` (yellow-green); his default (-1, the player's hue) is unchanged.
+- **Not done: `g_shot0.mdl`** (the pickup) keeps its old glowing blocks: its own low-poly mesh, a 256x128 skin and a
+  z grid of 0.145 units (the housings' details are 0.067), and no one aims through it. A follow-up if wanted.
+- **Checks.** The export: anchors ok, holes as before (2 see-through, 8 wide cracks: the old ones), sights turned
+  0.001 deg; an untouched re-export writes the same bytes. `vr_sight_lines`: v_shot "sights rear 9.75 -0.05 6.54 front
+  32.41 -0.00 6.21". flatsight_test 12/0; flatsweep 383 passed, 27 known, 0 failed.
+- **Screenshots** (`scratch/` of the worktree): `ss_before_flat.png` / `ss_after_flat.png` (flat: hipfire, ADS, ADS at
+  hue 73), `ss_before_blend.png` / `ss_after_blend.png` (Blender: in hand, the rear and the front close up),
+  `ss_after_ads_crop2.png` (the sight picture, default hue and 73, and the housing in hipfire).
