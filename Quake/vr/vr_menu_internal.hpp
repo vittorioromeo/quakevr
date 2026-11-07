@@ -508,6 +508,7 @@ extern mem::Cache<PageTexts> pageTexts;
 [[nodiscard]] za::Vector<Item> pageVrsHud();
 [[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound();
 [[nodiscard]] za::Vector<Item> pageVrsItemCollection();
+[[nodiscard]] za::Vector<Item> pageVrsGameplay();
 [[nodiscard]] za::Vector<Item> pageVrsLighting();
 [[nodiscard]] za::Vector<Item> pageVrsLocoControls();
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion();
