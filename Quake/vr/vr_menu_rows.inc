@@ -5854,6 +5854,10 @@ QVR_TOGGLE(vr_campaign_keep_models, "Campaign Switch Keeps Models",
     "On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
     "its folders (each file their load looked for is found the same again), instead of loading every one "
     "again (vr_campaign_keep_models).")
+QVR_TOGGLE(vr_load_jobs, "Load Work on Job Threads",
+    "On: a map load makes the skins' normal maps (or reads them from the cache) on the job threads while it goes on, "
+    "uploaded before its first frame: the same textures, the first load of a map about 0.5 s faster. Off: each on "
+    "the main thread in turn, as before (vr_load_jobs; for comparing).")
 QVR_TOGGLE(vr_texture_prefetch, "Decode Textures Ahead",
     "On: a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker "
     "threads while it uploads them in order: the same pixels, QRP's E1M1 about 0.15 s faster the first time. "

@@ -642,6 +642,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),
+        row(opt::vr_load_jobs),
         row(opt::vr_texture_prefetch),
         command("Textures Decoded Ahead Info", "vr_image_prefetch_info")
             .help("vr_image_prefetch_info: the images the last loads read ahead, how many the loads took (and decoded "

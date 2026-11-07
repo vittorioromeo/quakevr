@@ -2376,6 +2376,7 @@ extern "C" void VR_Shutdown()
     }
     voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
     qvr::warmup::stop(); // the background warm-up stopped (its item under way finished)
+    VR_SkinNormalsDrop(); // the skins' normal maps still on jobs (vr_normalmaps.cpp), before the pool goes
     VR_TexCacheFinishWrites(); // the cache files still being written (vr_diskcache.cpp)
     audio::shutdown(); // (its simulations finished, Steam Audio's objects released, phonon.dll unloaded)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
