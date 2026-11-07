@@ -16,6 +16,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
+#include "vr_edictindex.hpp" // EWCHECK
 #include "vr_b3glm.hpp"
 #include "vr_geom.hpp"
 #include "vr_brushes.hpp"

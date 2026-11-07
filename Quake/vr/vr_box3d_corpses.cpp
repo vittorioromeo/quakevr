@@ -76,6 +76,27 @@ void watchCorpses()
     // The monsters now and the edicts it left a watch or a motion on last frame (no longer monsters: theirs cleared), in
     // edict order; every other edict's are cleared already (the edict index's FL_MONSTER).
     qvr::edictindex::flaggedOrKept(svs.maxclients, FL_MONSTER, world->corpseNums, world->corpseScan);
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::corpseWatch, svs.maxclients, FL_MONSTER); // EWCHECK
+    { // EWCHECK: every edict outside the scan has its watch and motion clear already
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        za::SizeT ewK = 0;
+        for(int ewN = svs.maxclients + 1; ewN < qcvm->num_edicts; ewN++)
+        {
+            while(ewK < world->corpseScan.size() && world->corpseScan[ewK] < ewN) ewK++;
+            if(ewK < world->corpseScan.size() && world->corpseScan[ewK] == ewN) continue;
+            const World::MonsterMotion& m = world->motion[static_cast<size_t>(ewN)];
+            const World::CorpseWatch& w = watch[static_cast<size_t>(ewN)];
+            const World::MonsterMotion dm{};
+            const World::CorpseWatch dw{};
+            ewSame = ewSame && m.n == dm.n && m.vel == dm.vel && m.alive == dm.alive && m.aliveAt == dm.aliveAt &&
+                     m.at[0] == dm.at[0] && m.at[1] == dm.at[1] && m.at[2] == dm.at[2] && m.when[0] == dm.when[0] &&
+                     m.when[1] == dm.when[1] && m.when[2] == dm.when[2] && w.frame == dw.frame && w.model == dw.model &&
+                     w.since == dw.since && w.origin == dw.origin && w.last == dw.last && w.changed == dw.changed &&
+                     w.dying == dw.dying && w.settled == dw.settled;
+        }
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::corpseKept, qvr::edictindex::ewcheck::now() - ewT0, 0.0, ewSame);
+    }
     const za::Vector<int>& scan = world->corpseScan;
     for(const int num : scan)
     {
@@ -506,6 +527,7 @@ void settleCorpses()
 {
     const float wake = za::max(vr_corpse_placed_wake.value, 0.f);
     // (the monsters only: the edict index's FL_MONSTER)
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::corpseSettle, svs.maxclients, FL_MONSTER); // EWCHECK
     for(int num = qvr::edictindex::nextFlagged(svs.maxclients, FL_MONSTER);
         num > 0 && num < static_cast<int>(world->corpseWatch.size()); num = qvr::edictindex::nextFlagged(num, FL_MONSTER))
     {

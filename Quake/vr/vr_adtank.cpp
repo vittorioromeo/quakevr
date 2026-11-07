@@ -1342,6 +1342,7 @@ void setupStubs(const glm::vec3& eye)
     {
         progs::ServerVm serverVm;
         // (the cut pieces only: the edict index's .vr_hosecut, the edicts it is not 0 on)
+        qvr::edictindex::ewcheck::nonzero(qvr::edictindex::ewcheck::tankStubs, svs.maxclients, cut); // EWCHECK
         for(int n = edictindex::nextNonzero(svs.maxclients, cut); n > 0 && n < cl.num_entities;
             n = edictindex::nextNonzero(n, cut))
         {
@@ -1467,6 +1468,7 @@ void relinkWorn()
     }
     progs::ServerVm serverVm;
     // (the worn tanks only: the edict index's classnames)
+    qvr::edictindex::ewcheck::classname(qvr::edictindex::ewcheck::tankWorn, svs.maxclients, "vr_fueltank_worn", nullptr); // EWCHECK
     for(int n = edictindex::nextClassname(svs.maxclients, "vr_fueltank_worn"); n > 0 && wornCount < wornMax;
         n = edictindex::nextClassname(n, "vr_fueltank_worn"))
     {

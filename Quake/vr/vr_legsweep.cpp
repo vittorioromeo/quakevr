@@ -624,6 +624,7 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
     lo -= glm::vec3{r};
     hi += glm::vec3{r};
     // (the monsters only: the edict index's FL_MONSTER)
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::legsweep, 0, FL_MONSTER); // EWCHECK
     for(int e = edictindex::nextFlagged(0, FL_MONSTER); e > 0; e = edictindex::nextFlagged(e, FL_MONSTER))
     {
         edict_t* m = EDICT_NUM(e);

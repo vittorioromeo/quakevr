@@ -1378,7 +1378,20 @@ void serverFrame()
     }
     // The targets (monsters) now and the edicts it left a track on (no longer targets: theirs cleared), in edict order;
     // every other edict's track has no model already (the edict index's FL_MONSTER: isTarget's).
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::hitmodel, 0, FL_MONSTER); // EWCHECK
     edictindex::flaggedOrKept(0, FL_MONSTER, trackNums, trackScan);
+    { // EWCHECK: every edict outside the scan has no track model already
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        za::SizeT ewK = 0;
+        for(int ewN = 1; ewN < qcvm->num_edicts; ewN++)
+        {
+            while(ewK < trackScan.size() && trackScan[ewK] < ewN) ewK++;
+            if(ewK < trackScan.size() && trackScan[ewK] == ewN) continue;
+            ewSame = ewSame && tracks[static_cast<za::SizeT>(ewN)].model == nullptr;
+        }
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::hitmodelKept, qvr::edictindex::ewcheck::now() - ewT0, 0.0, ewSame);
+    }
     for(const int num : trackScan)
     {
         edict_t* ent = EDICT_NUM(num);

@@ -570,11 +570,121 @@ void stats_f()
     return i < watch.numFloats ? i : -1;
 }
 
+// TEMPORARY CHECK (branch agent/edictwalks-check only): each converted walk, old vs new, per call.
+struct EwSite
+{
+    long long calls{0}, diffs{0};
+    double tOld{0.0}, tNew{0.0};
+};
+EwSite ewSites[ewcheck::numSites];
+int ewFrame0{0};
+const char* const ewNames[ewcheck::numSites] = {"flameprop(QC findflags)", "tank worn", "tank stubs", "tank ropes",
+    "corpse watch", "corpse settle", "footsteps", "limbmodel", "legsweep", "hitmodel", "slots before", "slots lift",
+    "slots corpselift", "slots publish", "skewer", "corpse kept", "hitmodel kept"};
+
+void ewReset_f()
+{
+    for(EwSite& s : ewSites)
+    {
+        s = EwSite{};
+    }
+    ewFrame0 = host_framecount;
+}
+
+void ewStats_f()
+{
+    const int frames = host_framecount - ewFrame0 > 1 ? host_framecount - ewFrame0 : 1;
+    Con_Printf("EWFRAMES %d\n", frames);
+    for(int i = 0; i < ewcheck::numSites; i++)
+    {
+        const EwSite& s = ewSites[i];
+        Con_Printf("EW %-24s calls %8lld (%.2f/f) diffs %lld | old %.2f us/f new %.2f us/f\n", ewNames[i], s.calls,
+            static_cast<double>(s.calls) / frames, s.diffs, s.tOld * 1e6 / frames, s.tNew * 1e6 / frames);
+    }
+}
+
 } // namespace
+
+namespace ewcheck
+{
+double now()
+{
+    return Sys_DoubleTime();
+}
+void add(int site, double tOld, double tNew, bool same)
+{
+    EwSite& s = ewSites[site];
+    s.calls++;
+    s.diffs += same ? 0 : 1;
+    s.tOld += tOld;
+    s.tNew += tNew;
+    if(!same && s.diffs <= 5)
+    {
+        Con_Printf("EWDIFF %s at frame %d\n", ewNames[site], host_framecount);
+    }
+}
+namespace
+{
+za::Vector<int> ewOld, ewNew;
+template <class Pred, class Next>
+void compare(int site, int from, Pred pred, Next next)
+{
+    ewOld.clear();
+    ewNew.clear();
+    const double t0 = now();
+    for(int e = from + 1; e < qcvm->num_edicts; e++)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        if(!ed->free && pred(ed))
+        {
+            ewOld.pushBack(e);
+        }
+    }
+    const double t1 = now();
+    for(int e = next(from); e > 0; e = next(e))
+    {
+        ewNew.pushBack(e);
+    }
+    const double t2 = now();
+    bool same = ewOld.size() == ewNew.size();
+    for(za::SizeT i = 0; same && i < ewOld.size(); i++)
+    {
+        same = ewOld[i] == ewNew[i];
+    }
+    add(site, t1 - t0, t2 - t1, same);
+}
+} // namespace
+void flagged(int site, int from, int bits)
+{
+    compare(site, from, [bits](const edict_t* ed) { return (static_cast<int>(ed->v.flags) & bits) != 0; },
+        [bits](int e) { return nextFlagged(e, bits); });
+}
+void classname(int site, int from, const char* a, const char* b)
+{
+    compare(site, from,
+        [a, b](const edict_t* ed)
+        {
+            const char* t = PR_GetString(fieldInt(ed, classField));
+            return t && (!strcmp(t, a) || (b && !strcmp(t, b)));
+        },
+        [a, b](int e)
+        {
+            const int x = nextClassname(e, a), y = b ? nextClassname(e, b) : 0;
+            return x > 0 && y > 0 ? (x < y ? x : y) : (x > y ? x : y);
+        });
+}
+void nonzero(int site, int from, int field)
+{
+    compare(site, from, [field](const edict_t* ed) { return fieldFloat(ed, field) != 0.f; },
+        [field](int e) { return nextNonzero(e, field); });
+}
+} // namespace ewcheck
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_edictindex_stats", stats_f);
+    Cmd_AddCommand("ew_reset", ewReset_f);
+    Cmd_AddCommand("ew_stats", ewStats_f);
 }
 
 int nextNonzero(int from, int field)

@@ -522,8 +522,30 @@ void PF_particle2()
 // skipped) whose `field` has any of `flags` set; world when there is none (DP's extension). The frame's loops over the
 // monsters (VR_Liquids_Frame, VR_Wounds_Frame) step through them alone, instead of every entity in the VM.
 // findflags()'s answer: the next edict after `from` (in use) with any of `flags` in the float `field`; 0 when none.
+int ewFlameField = -2; // EWCHECK
 [[nodiscard]] int nextFlagged(int from, int field, int flags)
 {
+    if(ewFlameField == -2)
+    {
+        const char* ewName = "vr_flameprop";
+        ewFlameField = ED_FindFieldOffset(ewName);
+    }
+    if(qcvm == &sv.qcvm && field == ewFlameField) // EWCHECK: old walk vs the index
+    {
+        const double t0 = qvr::edictindex::ewcheck::now();
+        int w = 0;
+        for(int i = from + 1; i < qcvm->num_edicts && !w; i++)
+        {
+            edict_t* e = EDICT_NUM(i);
+            if(!e->free && (static_cast<int>(E_FLOAT(e, field)) & flags))
+            {
+                w = i;
+            }
+        }
+        const double t1 = qvr::edictindex::ewcheck::now();
+        const int x = VR_EdictIndex_FindFlags(from, field, flags);
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::flame, t1 - t0, qvr::edictindex::ewcheck::now() - t1, x == w);
+    }
     if(qcvm == &sv.qcvm)
     {
         // (the edict index's fields: the same edict as the walk; vr_edictindex.cpp)

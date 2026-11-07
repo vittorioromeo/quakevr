@@ -34,4 +34,19 @@ void fieldStored(struct edict_s* ed, int field);
 // ones it left state on last time), below num_edicts. Every other edict's state is cleared already.
 void flaggedOrKept(int from, int bits, const za::Vector<int>& kept, za::Vector<int>& out);
 
+// TEMPORARY CHECK (branch agent/edictwalks-check only).
+namespace ewcheck
+{
+enum Site
+{
+    flame, tankWorn, tankStubs, tankRopes, corpseWatch, corpseSettle, footsteps, limbmodel, legsweep, hitmodel,
+    slotsBefore, slotsLift, slotsCorpseLift, slotsPublish, skewer, corpseKept, hitmodelKept, numSites
+};
+[[nodiscard]] double now();
+void add(int site, double tOld, double tNew, bool same);
+void flagged(int site, int from, int bits);
+void classname(int site, int from, const char* a, const char* b);
+void nonzero(int site, int from, int field);
+} // namespace ewcheck
+
 } // namespace qvr::edictindex

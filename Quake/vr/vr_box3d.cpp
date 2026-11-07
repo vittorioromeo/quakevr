@@ -792,6 +792,7 @@ void syncPropRopes()
         const int b = qvr::edictindex::nextClassname(from, "vr_flailhead");
         return a > 0 && b > 0 ? za::min(a, b) : za::max(a, b);
     };
+    qvr::edictindex::ewcheck::classname(qvr::edictindex::ewcheck::tankRopes, svs.maxclients, "vr_fueltank", "vr_flailhead"); // EWCHECK
     for(int n = nextEnd(svs.maxclients); n > 0; n = nextEnd(n))
     {
         edict_t* t = EDICT_NUM(n);

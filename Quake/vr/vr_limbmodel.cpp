@@ -1012,6 +1012,7 @@ void spawnFrame()
         newMap();
     }
     // (the monsters only: the edict index's FL_MONSTER)
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::limbmodel, svs.maxclients, FL_MONSTER); // EWCHECK
     for(int num = edictindex::nextFlagged(svs.maxclients, FL_MONSTER); num > 0; num = edictindex::nextFlagged(num, FL_MONSTER))
     {
         edict_t* ent = EDICT_NUM(num);

@@ -736,6 +736,7 @@ extern "C" void VR_Footsteps_Frame(void)
     int numDue = 0;
 
     // (the monsters only: the edict index's FL_MONSTER)
+    qvr::edictindex::ewcheck::flagged(qvr::edictindex::ewcheck::footsteps, svs.maxclients, FL_MONSTER); // EWCHECK
     for(int i = edictindex::nextFlagged(svs.maxclients, FL_MONSTER); i > 0; i = edictindex::nextFlagged(i, FL_MONSTER))
     {
         edict_t* e = EDICT_NUM(i);

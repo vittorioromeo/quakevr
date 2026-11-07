@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_arenawaves.hpp"
+#include "vr_edictindex.hpp" // EWCHECK
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
 #include "vr_bloodstream.hpp"

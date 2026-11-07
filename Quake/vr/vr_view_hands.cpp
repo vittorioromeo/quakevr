@@ -2508,16 +2508,30 @@ SkewerPin skewerPins[2];
     }
     const progs::ServerVm vm;
     const int mine = EDICT_TO_PROG(player);
-    // (the gripped ones only: the edict index's .vr_skewer_grip, the edicts it is not 0 on)
-    for(int i = edictindex::nextNonzero(svs.maxclients, grip); i > 0; i = edictindex::nextNonzero(i, grip))
+    // EWCHECK: the old walk's answer
+    const double ewT0 = edictindex::ewcheck::now();
+    int ewOld = 0;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !ewOld; i++)
     {
         edict_t* const e = EDICT_NUM(i);
         if(!e->free && progs::fieldInt(e, on) == mine && progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1))
         {
-            return i;
+            ewOld = i;
         }
     }
-    return 0;
+    const double ewT1 = edictindex::ewcheck::now();
+    int ewNew = 0;
+    // (the gripped ones only: the edict index's .vr_skewer_grip, the edicts it is not 0 on)
+    for(int i = edictindex::nextNonzero(svs.maxclients, grip); i > 0 && !ewNew; i = edictindex::nextNonzero(i, grip))
+    {
+        edict_t* const e = EDICT_NUM(i);
+        if(!e->free && progs::fieldInt(e, on) == mine && progs::fieldFloatOr(e, grip, 0.f) == static_cast<float>(hand + 1))
+        {
+            ewNew = i;
+        }
+    }
+    edictindex::ewcheck::add(edictindex::ewcheck::skewer, ewT1 - ewT0, edictindex::ewcheck::now() - ewT1, ewOld == ewNew);
+    return ewNew;
 }
 
 void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot)

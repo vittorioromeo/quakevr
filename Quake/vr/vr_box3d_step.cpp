@@ -182,6 +182,28 @@ void beforeStep(float dt)
 {
     const float g = sv_gravity.value;
     // (the slots with a body only: World::slotsActive; every other's arrival and lift are 0 already)
+    { // EWCHECK
+        const int ewEnd = static_cast<int>(world->slots.size()) < qcvm->num_edicts ? static_cast<int>(world->slots.size()) : qcvm->num_edicts;
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        int ewCount = 0;
+        for(int ewN = 1; ewN < ewEnd; ewN++)
+        {
+            const Slot& ewS = world->slots[ewN];
+            const bool ewInert = ewS.kind == Kind::None && ewS.ragdoll < 0 && ewS.arrival == glm::vec3{0.f} && ewS.lift == 0.f;
+            const auto ewW = static_cast<za::SizeT>(ewN) >> 6;
+            const bool ewActive = ewW < world->slotsActive.size() && ((world->slotsActive[ewW] >> (ewN & 63)) & 1);
+            ewSame = ewSame && (ewActive || ewInert);
+            ewCount += ewInert ? 0 : 1;
+        }
+        const double ewT1 = qvr::edictindex::ewcheck::now();
+        for(int ewN = nextActiveSlot(0); ewN > 0 && ewN < ewEnd; ewN = nextActiveSlot(ewN))
+        {
+            ewCount--;
+        }
+        ewSame = ewSame && ewCount <= 0;
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::slotsBefore, ewT1 - ewT0, qvr::edictindex::ewcheck::now() - ewT1, ewSame);
+    }
     for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
         num = nextActiveSlot(num))
     {
@@ -327,6 +349,28 @@ void beforeStep(float dt)
 // pieces a frame, floating crates sank to the bottom).
 void liftAgain()
 {
+    { // EWCHECK
+        const int ewEnd = static_cast<int>(world->slots.size()) < qcvm->num_edicts ? static_cast<int>(world->slots.size()) : qcvm->num_edicts;
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        int ewCount = 0;
+        for(int ewN = 1; ewN < ewEnd; ewN++)
+        {
+            const Slot& ewS = world->slots[ewN];
+            const bool ewInert = ewS.kind == Kind::None && ewS.ragdoll < 0 && ewS.arrival == glm::vec3{0.f} && ewS.lift == 0.f;
+            const auto ewW = static_cast<za::SizeT>(ewN) >> 6;
+            const bool ewActive = ewW < world->slotsActive.size() && ((world->slotsActive[ewW] >> (ewN & 63)) & 1);
+            ewSame = ewSame && (ewActive || ewInert);
+            ewCount += ewInert ? 0 : 1;
+        }
+        const double ewT1 = qvr::edictindex::ewcheck::now();
+        for(int ewN = nextActiveSlot(0); ewN > 0 && ewN < ewEnd; ewN = nextActiveSlot(ewN))
+        {
+            ewCount--;
+        }
+        ewSame = ewSame && ewCount <= 0;
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::slotsLift, ewT1 - ewT0, qvr::edictindex::ewcheck::now() - ewT1, ewSame);
+    }
     for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
         num = nextActiveSlot(num))
     {
@@ -468,6 +512,28 @@ void ragdollsInLiquids(float dt)
         }
     }
     // (A corpse's one body: Corpse Collision's pushable corpses, ragdolls off.)
+    { // EWCHECK
+        const int ewEnd = static_cast<int>(world->slots.size()) < qcvm->num_edicts ? static_cast<int>(world->slots.size()) : qcvm->num_edicts;
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        int ewCount = 0;
+        for(int ewN = 1; ewN < ewEnd; ewN++)
+        {
+            const Slot& ewS = world->slots[ewN];
+            const bool ewInert = ewS.kind == Kind::None && ewS.ragdoll < 0 && ewS.arrival == glm::vec3{0.f} && ewS.lift == 0.f;
+            const auto ewW = static_cast<za::SizeT>(ewN) >> 6;
+            const bool ewActive = ewW < world->slotsActive.size() && ((world->slotsActive[ewW] >> (ewN & 63)) & 1);
+            ewSame = ewSame && (ewActive || ewInert);
+            ewCount += ewInert ? 0 : 1;
+        }
+        const double ewT1 = qvr::edictindex::ewcheck::now();
+        for(int ewN = nextActiveSlot(0); ewN > 0 && ewN < ewEnd; ewN = nextActiveSlot(ewN))
+        {
+            ewCount--;
+        }
+        ewSame = ewSame && ewCount <= 0;
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::slotsCorpseLift, ewT1 - ewT0, qvr::edictindex::ewcheck::now() - ewT1, ewSame);
+    }
     for(int num = nextActiveSlot(0);
         num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num = nextActiveSlot(num))
     {
@@ -1486,6 +1552,28 @@ extern "C" void VR_PhysicsFrameEnd(void)
         const bool scrapes = physsound::scrapesWanted();
         const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
         // (the slots with a body only: World::slotsActive)
+        { // EWCHECK
+        const int ewEnd = static_cast<int>(world->slots.size()) < qcvm->num_edicts ? static_cast<int>(world->slots.size()) : qcvm->num_edicts;
+        const double ewT0 = qvr::edictindex::ewcheck::now();
+        bool ewSame = true;
+        int ewCount = 0;
+        for(int ewN = 1; ewN < ewEnd; ewN++)
+        {
+            const Slot& ewS = world->slots[ewN];
+            const bool ewInert = ewS.kind == Kind::None && ewS.ragdoll < 0 && ewS.arrival == glm::vec3{0.f} && ewS.lift == 0.f;
+            const auto ewW = static_cast<za::SizeT>(ewN) >> 6;
+            const bool ewActive = ewW < world->slotsActive.size() && ((world->slotsActive[ewW] >> (ewN & 63)) & 1);
+            ewSame = ewSame && (ewActive || ewInert);
+            ewCount += ewInert ? 0 : 1;
+        }
+        const double ewT1 = qvr::edictindex::ewcheck::now();
+        for(int ewN = nextActiveSlot(0); ewN > 0 && ewN < ewEnd; ewN = nextActiveSlot(ewN))
+        {
+            ewCount--;
+        }
+        ewSame = ewSame && ewCount <= 0;
+        qvr::edictindex::ewcheck::add(qvr::edictindex::ewcheck::slotsPublish, ewT1 - ewT0, qvr::edictindex::ewcheck::now() - ewT1, ewSame);
+    }
         for(int num = nextActiveSlot(0); num > 0 && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts;
             num = nextActiveSlot(num))
         {
