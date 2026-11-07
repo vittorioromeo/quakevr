@@ -156,6 +156,8 @@ struct Decal
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
 // their buffers for the next mark laid there.
 Ring<Decal> decals;
+constexpr za::SizeT slotCorners = 12; // a slot's room made at the map's load (prepare): its mark's triangles' corners,
+constexpr za::SizeT slotBuckets = 16; // ... the world grid's buckets it is listed in
 int dropCount = 0; // the blood drops among them
 
 [[nodiscard]] bool isDrop(const Decal& d)
@@ -2749,6 +2751,21 @@ void prepare()
     if(!atlas && vr_decals.value)
     {
         makeAtlas();
+    }
+    // The ring made vr_decal_max long, each slot's buffers with a mark's room: in play, each slot's first marks grew
+    // them (2 to 4 heap events a new mark until every slot had been used; 200 marks of an E1M1 fight and an arena wave,
+    // 2026-11-07: 12 corners at most, 97% in 8 grid buckets or fewer, 9 at most). A bigger mark still grows its slot's.
+    const int max = static_cast<int>(vr_decal_max.value);
+    if(vr_decals.value && max > 0)
+    {
+        if(decals.capacity() != static_cast<za::SizeT>(max))
+        {
+            decals.setCapacity(static_cast<za::SizeT>(max));
+        }
+        decals.forEachSlot([](Decal& d) {
+            d.tris.reserve(slotCorners);
+            d.buckets.reserve(slotBuckets);
+        });
     }
     // The world's shader with the decals' retro code (their retro set), made at the first mark otherwise: the first
     // punch's 8 ms hitch (ROUND22.md, "Gore hitches").

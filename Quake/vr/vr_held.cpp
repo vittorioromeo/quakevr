@@ -305,11 +305,23 @@ void buildMeshNodes(DrawnMesh& m, int first, int count)
     {
         return it->second.ok ? &it->second : nullptr;
     }
+    DrawnMesh* made = nullptr;
     if(it != meshes.end())
     {
-        meshes.erase(it); // (another's with the same hash: made again)
+        // (another's with the same hash: made again in its place, its vectors' room kept)
+        made = &it->second;
+        made->model = model;
+        made->pose = pose;
+        made->xf = xf;
+        made->nodes.clear();
+        made->hull.points = 0; // (drawnHull makes it again: disarmhull::make empties it keeping its room)
+        made->hull.ok = false;
     }
-    DrawnMesh& m = meshes.try_emplace(h, model, pose, xf).first->second;
+    else
+    {
+        made = &meshes.try_emplace(h, model, pose, xf).first->second;
+    }
+    DrawnMesh& m = *made;
     m.ok = drawnTriangles(ent, model, m.tris);
     if(m.ok)
     {
