@@ -413,6 +413,7 @@ void(entity g, float k) VR_DRPT_BStart =
     if(k != 8)
     {
         g.vr_melee_begun = time;
+        vr_melee_begun_last = time;
     }
     if(k == 0) { knight_atk1(); }
     else if(k == 1) { ogre_swing1(); }

@@ -21,6 +21,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
 #include "vr_edictindex.hpp"
+#include "vr_findradius.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
@@ -2143,6 +2144,7 @@ extern "C" void VR_Init()
     blowline::registerCommands();
     temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
+    findradius::registerCommands(); // vr_findradius_stats (vr_findradius.cpp)
     weapons::registerCvars();
     props::registerCvars();
     monsterdata::registerCvars(); // the monsters' per-class values, quakevr/data/monsters.txt; vr_monster_dump

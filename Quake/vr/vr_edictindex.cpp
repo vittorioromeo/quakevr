@@ -15,11 +15,14 @@
 //   listed under its text; any other (a temp string, a zoned one, an engine pointer) can change under the same
 //   string_t without a write, so its edict is "volatile": its text is compared at the query, as find() did.
 // - A load, a map, the progs: everything is read again at the next query (VR_EdictIndex_Reset).
+// The same stores of .origin, .mins, .maxs and .solid (watchGeometry) mark the edict for findradius instead
+// (vr_findradius.cpp), as do the engine's changes above (VR_EdictIndex_Touch).
 // Checked against the walk (vr_edictindex_verify, removed 2026-10-09): 0 differences in 839,217 searches
 // (PERF_DECISIONS.md 9).
 
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
+#include "vr_findradius.hpp"
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 
@@ -58,6 +61,15 @@ constexpr WatchedFloat watchedFloats[] = {
 constexpr int maxFloats = static_cast<int>(sizeof(watchedFloats) / sizeof(watchedFloats[0]));
 constexpr int classField = static_cast<int>(offsetof(entvars_t, classname) / 4);
 constexpr unsigned char watchClassname = 1; // fieldwatch's value for .classname; 2 + i for watchedFloats[i]
+// fieldwatch's value for .origin, .mins, .maxs (each component) and .solid: not indexed here, but a store marks the
+// edict for findradius (vr_findradius.cpp: tested by itself until it is linked again). Its Recorded mask is 0.
+constexpr unsigned char watchGeometry = 0x80;
+constexpr int geometryFields[] = {
+    static_cast<int>(offsetof(entvars_t, origin) / 4), static_cast<int>(offsetof(entvars_t, origin) / 4) + 1,
+    static_cast<int>(offsetof(entvars_t, origin) / 4) + 2, static_cast<int>(offsetof(entvars_t, mins) / 4),
+    static_cast<int>(offsetof(entvars_t, mins) / 4) + 1, static_cast<int>(offsetof(entvars_t, mins) / 4) + 2,
+    static_cast<int>(offsetof(entvars_t, maxs) / 4), static_cast<int>(offsetof(entvars_t, maxs) / 4) + 1,
+    static_cast<int>(offsetof(entvars_t, maxs) / 4) + 2, static_cast<int>(offsetof(entvars_t, solid) / 4)};
 constexpr unsigned char allFields = 0xff;   // an edict's pending mask: every watched field
 
 // A classname's text looked up without making a za::String of it (a transparent hash).
@@ -328,6 +340,18 @@ void markPending(int e, unsigned char mask)
     return ofs / sv.qcvm.edict_size;
 }
 
+// A recorded store done (or its call over): the index reads the edict again, or (mask 0, watchGeometry) findradius
+// tests it by itself until it is linked again.
+void markStored(int e, unsigned char mask)
+{
+    if(mask == 0)
+    {
+        findradius::markDirty(e);
+        return;
+    }
+    markPending(e, mask);
+}
+
 } // namespace
 
 void VR_EdictIndex_ProgsLoaded()
@@ -336,6 +360,10 @@ void VR_EdictIndex_ProgsLoaded()
     watch.fieldwatch.assign(static_cast<za::SizeT>(qcvm->progs->entityfields), 0);
     watch.recorded.clear();
     watch.fieldwatch[classField] = watchClassname;
+    for(const int f : geometryFields)
+    {
+        watch.fieldwatch[f] = watchGeometry;
+    }
     int n = 0;
     for(const WatchedFloat& w : watchedFloats)
     {
@@ -377,6 +405,7 @@ extern "C" void VR_EdictIndex_Reset()
 
 extern "C" void VR_EdictIndex_Touch(edict_t* ed)
 {
+    VR_FindRadius_Dirty(ed); // (freed, taken, cleared, parsed: any field may have changed)
     if(!edictIndex.valid || !sv.qcvm.edicts)
     {
         return;
@@ -413,7 +442,9 @@ extern "C" void VR_EdictIndex_StringSlot(int slot, int stable)
 
 extern "C" void VR_EdictIndex_Address(int ofs, int watched)
 {
-    watch.recorded.pushBack(Recorded{ofs, static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2))});
+    const unsigned char mask = watched == watchGeometry ? 0
+                               : static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2));
+    watch.recorded.pushBack(Recorded{ofs, mask});
     sv.qcvm.watchpending = static_cast<int>(watch.recorded.size());
 }
 
@@ -423,7 +454,7 @@ extern "C" void VR_EdictIndex_Stored(int ofs)
     {
         if(watch.recorded[i].ofs == ofs)
         {
-            markPending(edictOfOffset(ofs), watch.recorded[i].mask);
+            markStored(edictOfOffset(ofs), watch.recorded[i].mask);
             watch.recorded.erase(watch.recorded.begin() + static_cast<za::PtrDiffT>(i));
             break;
         }
@@ -435,7 +466,7 @@ extern "C" void VR_EdictIndex_TopLevelDone()
 {
     for(const Recorded& r : watch.recorded)
     {
-        markPending(edictOfOffset(r.ofs), r.mask);
+        markStored(edictOfOffset(r.ofs), r.mask);
     }
     watch.recorded.clear();
     sv.qcvm.watchpending = 0;
@@ -527,11 +558,15 @@ void registerCommands()
 
 void fieldStored(edict_t* ed, int field)
 {
-    if(!edictIndex.valid || !sv.qcvm.edicts || field < 0 || field >= static_cast<int>(watch.fieldwatch.size()))
+    if(!sv.qcvm.edicts || field < 0 || field >= static_cast<int>(watch.fieldwatch.size()))
     {
         return;
     }
     const unsigned char watched = watch.fieldwatch[field];
+    if(!edictIndex.valid && watched != watchGeometry)
+    {
+        return; // (not built: it will be read whole)
+    }
     const byte* p = reinterpret_cast<const byte*>(ed);
     const byte* base = reinterpret_cast<const byte*>(sv.qcvm.edicts);
     if(watched == 0 || p < base || p >= base + static_cast<size_t>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
@@ -539,8 +574,8 @@ void fieldStored(edict_t* ed, int field)
         return;
     }
     // (the mask VR_EdictIndex_Address records for that field's STOREP)
-    markPending(static_cast<int>((p - base) / sv.qcvm.edict_size),
-        static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2)));
+    markStored(static_cast<int>((p - base) / sv.qcvm.edict_size),
+        watched == watchGeometry ? 0 : static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2)));
 }
 
 } // namespace qvr::edictindex
