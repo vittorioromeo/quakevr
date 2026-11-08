@@ -96,7 +96,7 @@ GUNS = {
                 for s in (1.0, -1.0)],                                                       # the muzzle cone's vents
     ),
     'v_enfrifle.mdl': dict(
-        src='enforcer.mdl', counts=(479, 984), tris=118,
+        src='enforcer.mdl', counts=(479, 924), tris=112,  # (924, 112: 60 zero-area triangles gone, 6 in the rifle: ROUND24.md "Model topology fixes")
         verts=[22, 23, 100] + list(range(400, 431)) + list(range(455, 479)),
         length=52.0,          # (x 0.4: about 75 cm)
         grip_x=-9.0,
