@@ -93,6 +93,7 @@ vr_enemy_melee_arc|0|VR Settings - Gameplay|Melee Arc|VR Settings > Gameplay > M
 vr_knockdown|0|VR Settings - Gameplay|Knockdowns|VR Settings > Gameplay > Knockdowns
 vr_foegrab|0|VR Settings - Gameplay|Holding Enemies|VR Settings > Gameplay > Holding Enemies
 vr_embed|0|VR Settings - Gameplay|Embedded Blades|VR Settings > Gameplay > Embedded Blades
+vr_embed_hold_strength|0|VR Settings - Gameplay|Blade Hold Strength|VR Settings > Gameplay > Blade Hold Strength
 vr_parry|0|VR Settings - Gameplay|Parry|VR Settings > Gameplay > Parry
 vr_bash|0|VR Settings - Gameplay|Bash|VR Settings > Gameplay > Bash
 vr_parry_stamina|0|VR Settings - Gameplay|Parry Stamina|VR Settings > Gameplay > Parry Stamina
@@ -814,6 +815,7 @@ vr_headbutt_speed|1|Melee|Headbutt Speed|Advanced VR Options > Combat > Melee > 
 |1|Melee|Reset This Page|Advanced VR Options > Combat > Melee > Reset This Page
 @page|1|Embedded Blades||Advanced VR Options > Combat > Embedded Blades
 vr_embed|1|Embedded Blades|Embedded Blades|Advanced VR Options > Combat > Embedded Blades > Embedded Blades
+vr_embed_hold_strength|1|Embedded Blades|Blade Hold Strength|Advanced VR Options > Combat > Embedded Blades > Blade Hold Strength
 |1|Embedded Blades|Reset This Page|Advanced VR Options > Combat > Embedded Blades > Reset This Page
 @page|1|Parry and Bash||Advanced VR Options > Combat > Parry and Bash
 vr_parry|1|Parry and Bash|Parry|Advanced VR Options > Combat > Parry and Bash > Parry
@@ -4231,6 +4233,8 @@ vr_melee_body_min_part|2|Tunables|Melee: Body Speed, Blade Part|Advanced VR Opti
 vr_embed_move_sword_force|2|Tunables|Moving: Sword's Force|Advanced VR Options > Debug > Tunables > Moving: Sword's Force
 vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Force, Deep
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
+vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > Tunables > Moving: Stiffness
+vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
 vr_embed_move_sword_lift|2|Tunables|Moving: Sword's Lift|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift
@@ -4904,6 +4908,7 @@ vr_debug_stick|2|Debug - Tests|Stick: Show Speed|Advanced VR Options > Debug > T
 vr_display_clock|2|Debug - Tests|Game Time From the Display Clock|Advanced VR Options > Debug > Tests > Game Time From the Display Clock
 |2|Debug - Tests|Stick: Curve Table|Advanced VR Options > Debug > Tests > Stick: Curve Table
 |2|Debug - Tests|Stick: Run Steadiness|Advanced VR Options > Debug > Tests > Stick: Run Steadiness
+|2|Debug - Tests|Teleport: Smooth + Teleport|Advanced VR Options > Debug > Tests > Teleport: Smooth + Teleport
 |2|Debug - Tests|Doom: Info|Advanced VR Options > Debug > Tests > Doom: Info
 vr_debug_touch|2|Debug - Tests|Doom: Show Touches|Advanced VR Options > Debug > Tests > Doom: Show Touches
 vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > Doom: Debug
@@ -5235,6 +5240,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Wound Stream Check|Advanced VR Options > Debug > Tests > Wound Stream Check
 |2|Debug - Tests|Held Stabs and Swung Axes Check|Advanced VR Options > Debug > Tests > Held Stabs and Swung Axes Check
 |2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
+|2|Debug - Tests|Blade Hold Strength Check|Advanced VR Options > Debug > Tests > Blade Hold Strength Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
@@ -5829,6 +5835,13 @@ vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Com
 vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Plates Stop Cuts
 vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Push Through Plates
 vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Broken Plates Last
+vr_agarmor_split|1|Armour|Broken Plates Split|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Broken Plates Split
+vr_agarmor_split_impulse|1|Armour|Halves Fly Apart|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Halves Fly Apart
+vr_agarmor_split_cuirass|1|Armour|Cuirass Splits|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Cuirass Splits
+vr_agarmor_split_pauldron|1|Armour|Pauldrons Split|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pauldrons Split
+vr_agarmor_split_bracer|1|Armour|Bracers Split|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Bracers Split
+vr_agarmor_split_thigh|1|Armour|Thigh Plates Split|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Thigh Plates Split
+vr_agarmor_split_shin|1|Armour|Shin Plates Split|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Shin Plates Split
 vr_agarmor_skill0|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Chance Armoured
 vr_agarmor_skill0_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Best Armour
 vr_agarmor_skill0_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pieces
@@ -9180,4 +9193,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page

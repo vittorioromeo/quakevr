@@ -819,6 +819,26 @@ QVR_SLIDER(vr_agarmor_impulse, "Push Through Plates", 0.f, 1.f, 0.05f, "%.2f", n
     "much of what the same hit on a bare limb would: 0 not at all, 1 fully.")
 QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s", noExt,
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
+QVR_TOGGLE(vr_agarmor_split, "Broken Plates Split",
+    "On: a plate shot off (a humanoid's or yours) falls as two halves, each its own prop with half its weight, its "
+    "dents and scorches kept, its seam jagged. The helmet always falls whole, and so do the plates a gibbing or a cut "
+    "knocks off. Off: one whole piece.")
+QVR_SLIDER(vr_agarmor_split_impulse, "Halves Fly Apart", 0.f, 200.f, 10.f, "%.0f u/s", noExt,
+    "How fast a split plate's two halves fly away from each other as they fall.")
+QVR_CYCLE_BYNAME(vr_agarmor_split_cuirass, "Cuirass Splits", "Where a broken cuirass splits.",
+    {0.f, "Across (Upper, Lower)"}, {1.f, "Down the Middle"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_pauldron, "Pauldrons Split",
+    "Where a broken pauldron splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_bracer, "Bracers Split",
+    "Where a broken bracer splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_thigh, "Thigh Plates Split",
+    "Where a broken thigh plate splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_shin, "Shin Plates Split",
+    "Where a broken shin plate splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
 
 // vr_menu_gameplay.inc: pageArmedPacks
 QVR_SLIDER(vr_worn_backpack_lift_force, "Pull That Lifts", 500.f, 4000.f, 100.f, "%.0f N", noExt,

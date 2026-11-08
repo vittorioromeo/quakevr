@@ -370,7 +370,7 @@ void PF_limbpiece()
         o[2] = w.z;
         return;
     }
-    if(what >= 10 && what <= 15)
+    if(what >= 10 && what <= 17) // (16, 17: a split plate's halves' middles: vr_agarmor_split)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;
@@ -411,9 +411,18 @@ void PF_limbpiece()
 }
 
 // string limbmodel(entity e, float bone): the model of e's limb at joint `bone` (vr_limbmodel.cpp), "" none.
+constexpr int armorHalfCode = -2000; // QC QVR_ARMOR_HALF
 void PF_limbmodel()
 {
-    G_INT(OFS_RETURN) = PR_SetEngineString(box3d::limbModel(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+    // (QVR_ARMOR_HALF - (2 * piece + half): a broken plate's half's model, vr_agarmor_split; the builtins' table is full)
+    const int bone = static_cast<int>(G_FLOAT(OFS_PARM1));
+    if(bone <= armorHalfCode && bone > armorHalfCode - 2 * agarmor::NumPieces)
+    {
+        const int code = armorHalfCode - bone;
+        G_INT(OFS_RETURN) = PR_SetEngineString(agarmor::halfModel(G_EDICT(OFS_PARM0), code / 2, code % 2));
+        return;
+    }
+    G_INT(OFS_RETURN) = PR_SetEngineString(box3d::limbModel(G_EDICT(OFS_PARM0), bone));
 }
 
 // vector limbplace(entity e, float bone, float what): where e's limb at `bone` is now: 0 its model's origin, 1 its

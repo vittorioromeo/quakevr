@@ -140,9 +140,32 @@ void(entity p) VR_PPT_Hits =
     VR_Test_Check(VR_PP_CountOf(p.vr_pp_mask) == 9 && (i == 2 || i == 4 || i == 6 || i == 8), sprintf("a hit from the left: one piece, on the left (piece %g, armour %g)", i, p.armorvalue));
     VR_Test_Check(vr_pp_cracks == cracks + 1, "... its crack");
     VR_Test_Check(vr_pp_pulses > pulses, "... a pulse in the hands");
-    VR_Test_Check(vr_ar_debris_made == made + 1, "... its debris");
+    float halves = cvar_hget(cvarh_vr_agarmor_split) ? 2 : 1;
+    VR_Test_Check(vr_ar_debris_made == made + halves, sprintf("... its debris (%g, %g)", vr_ar_debris_made - made, halves));
     entity d = find(world, classname, "vr_ar_debris");
     VR_Test_Check(d != world && vlen(d.origin - p.origin) < 80, sprintf("... where it was (%g from you)", d != world ? vlen(d.origin - p.origin) : -1));
+
+    // Broken armour splits in two (vr_agarmor_split): each piece but the helmet shed in turn falls as two halves, their
+    // masses the whole plate's; vr_agarmor_split 0: whole.
+    float split0 = cvar_hget(cvarh_vr_agarmor_split);
+    cvar_set("vr_agarmor_split", "1");
+    VR_PPT_Set(p, 2, 150);
+    VR_PP_Frame(p);
+    VR_PPT_CleanDebris(); // (the hit's above: its piece's halves)
+    for(float sp = 0; sp < VR_AR_PIECES; sp++)
+    {
+        if(sp != VR_AR_HELMET && (p.vr_pp_mask & VR_AgArmor_Bit(sp)))
+        {
+            VR_PP_Shed(p, sp, 2, FALSE);
+            VR_ART_SplitCheckBy(VR_Test_Check, "your plates", "progs/vrbody.mdl", sp);
+        }
+    }
+    cvar_set("vr_agarmor_split", "0");
+    VR_PPT_Set(p, 2, 150);
+    VR_PP_Frame(p);
+    VR_PP_Shed(p, 0, 2, FALSE);
+    VR_ART_SplitCheckBy(VR_Test_Check, "your plates, vr_agarmor_split 0", "progs/vrbody.mdl", 0);
+    cvar_set("vr_agarmor_split", ftos(split0));
 
     VR_PPT_Set(p, 1, 100);
     VR_PP_Frame(p);
@@ -469,7 +492,7 @@ entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWea
 
 void(entity p) VR_PPT_Look =
 {
-    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : 12;
+    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : vr_ppt_on == 16 ? 3 : 12;
     float k = vr_ppt_shot;
     // (they stand where they were put, whatever their AI wants: the same picture every run)
     if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
@@ -535,6 +558,21 @@ void(entity p) VR_PPT_Look =
                     vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
                 }
             }
+        }
+        else if(vr_ppt_on == 16)
+        {
+            // (broken armour splits in two, vr_agarmor_split: you in yellow from the front, hit from each side till four
+            // pieces fell; a grunt in yellow with five broken off, from the front and from above; each broken once the
+            // body has been drawn a moment: state 4)
+            VR_PPT_Set(p, k == 0 ? 2 : 0, k == 0 ? 150 : 0);
+            localcmd(k == 0 ? "vr_mock_camera 0 0.95 -1.95 0 180\n" : k == 1 ? "vr_mock_camera 0 0.95 -0.9 0 0\n" : "vr_mock_camera 0 1.0 -2.0 35 0\n");
+            if(k > 0)
+            {
+                vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 2, 0, 100);
+            }
+            vr_ppt_at0 = vr_ppt_g0.origin;
+            VR_PPT_To(4, 36);
+            return;
         }
         else if(vr_ppt_on == 15)
         {
@@ -620,6 +658,29 @@ void(entity p) VR_PPT_Look =
             bprint("ppshot: FAIL timed out: the corpse never settled\n");
             VR_PPT_To(1, 0);
         }
+    }
+    else if(vr_ppt_s == 4)
+    {
+        // (vr_pp_test 16: the plates broken off, then a second and a half for the halves to land)
+        if(k == 0)
+        {
+            makevectors([0, p.angles_y, 0]);
+            for(float h = 0; h < 4; h++)
+            {
+                VR_PPT_Hit(p, p.origin + v_up * 8 + v_right * (h % 2 ? 400 : -400), 30);
+                VR_PP_Frame(p);
+            }
+        }
+        else if(vr_ppt_g0)
+        {
+            VR_AgArmor_Break(vr_ppt_g0, 0);
+            VR_AgArmor_Break(vr_ppt_g0, 3);
+            VR_AgArmor_Break(vr_ppt_g0, 4);
+            VR_AgArmor_Break(vr_ppt_g0, 7);
+            VR_AgArmor_Break(vr_ppt_g0, 8);
+        }
+        dprint(sprintf("ppshot: split %g: %g plates split so far, %g debris made\n", k, vr_ar_split_made, vr_ar_debris_made));
+        VR_PPT_To(1, rint(1.5 * 72));
     }
     else if(vr_ppt_s == 1)
     {
@@ -733,7 +794,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14 || ask == 15)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14 || ask == 15 || ask == 16)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -752,7 +813,7 @@ void() VR_PP_TestFrame =
     {
         VR_PPT_Live(p);
     }
-    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13 || vr_ppt_on == 15)
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13 || vr_ppt_on == 15 || vr_ppt_on == 16)
     {
         VR_PPT_Look(p);
     }

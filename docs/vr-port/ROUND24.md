@@ -4852,3 +4852,31 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
+
+## Broken armour splits in two (branch `agent/armoursplit`, 2026-11-08)
+
+His note: every armour piece but the helmet looked too big when it came off whole; he wanted two halves.
+
+- **What:** a plate shot off (`VR_AgArmor_Break`, an armed humanoid's; `VR_PP_Shed`, yours) falls as two props
+  (`VR_AgArmor_DebrisBroken`): each its own model `<model>#plate<piece>h<half>s<axis>` (vr_agarmor.cpp `derivedFile`,
+  `splitHalf`), its own hull (box3d's hull of its model), half the whole's `.vr_prop_mass` (cuirass 2 + 2, others
+  0.75 + 0.75), the fall's velocity plus `vr_agarmor_split_impulse` apart, the same skin (dents, scorches). The helmet is
+  always whole; a gibbing (`VR_AgArmor_Shed`) and a cut (`VR_AgArmor_CutDone`) still drop plates whole (not broken).
+- **The line:** across the piece's length (its tube's `up`) or down it (its tube's `left`: the cuirass's left/right), per
+  kind. Each small plate (a tile and its rims; a hero plate's columns each) goes whole to one side, so the seam follows
+  the plates' edges, zigzagging (3 teeth, 15% of the piece's size deep) so it reads jagged; the halves get as many
+  triangles each (the line at their median). A piece shorter than 0.6 of its width (the player's bracers) always splits
+  down its length (cut across, they fell as two thin rings 0.9 units apart). The line is fixed per piece kind: the hit
+  point does not move it (that needs a model per seam; not cheap). The seam is open (no bent edge modelled).
+- **Cvars** (Combat > Armed Grunts > Armour > Broken Plates): `vr_agarmor_split` 1, `vr_agarmor_split_impulse` 50 u/s,
+  `vr_agarmor_split_cuirass` 1 (down the middle), `_pauldron`, `_bracer`, `_thigh`, `_shin` 0 (across). The half models'
+  names come from `limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))` (the builtins' table is full), their places from
+  `limbpiece(e, piece, 16 / 17)`. `developer 1` prints each half model's line normal as it is made, and each split.
+- **Performance:** the halves are precached with the wholes at the level's load (`VR_AgArmor_PrecacheOf`: 18 more models
+  per wearer kind; test 13 shows no late precache). Twice the debris entities, under the same fade
+  (`vr_agarmor_debris_time`); no other cap applies to plate debris.
+- **Tests:** `vr_agarmor_test 1`: every piece of a full grunt set breaks into 2 props (the helmet 1), their masses add up
+  to the whole's, `vr_agarmor_split 0` whole; the enforcer's and the knights' (`7`) pauldrons the same: **38 passed**,
+  test 7 **16 passed**; test 13's count updated (19 debris). `vr_pp_test 1`: each of your 9 pieces into 2, split 0
+  whole: **63 passed, 0 failed**. `vr_pp_test 16`: the sheet (you and a grunt with plates shot off, the halves about).
+- **Checklist scene:** `agarmor_tiers` (shoot the grunts' plates off; god mode, so let them shoot yours too).

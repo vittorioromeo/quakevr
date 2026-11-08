@@ -62,7 +62,13 @@ void debugDraw();
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
+// 6, 7: half 0 / 1 of its split's middle (halfModel's model's origin; its angles 1's); '0 0 0' none.
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);
+// A broken plate's half (vr_agarmor_split; QC limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))): the model of half
+// `half` (0, 1) of piece `piece` of `ent` (a player: vrbody.mdl's, its plates' debris) split along its kind's line
+// (vr_agarmor_split_<kind>): "<model>#plate<piece>h<half>s<axis>" (derivedFile), a name kept for good; "" none (the
+// helmet, no shell, too few plates to share).
+[[nodiscard]] const char* halfModel(struct edict_s* ent, int piece, int half);
 // The worn backpack (QC vr_wornpack.qc; box3d's wornPack): progs/backpack.mdl on `ent`'s back as its body is drawn now
 // (its chest bone: drawnpose::bone, the authored rig's pose or its ragdoll's part as drawn; `drawn` false, or not drawn
 // lately: the chest's frame as hitmodel's frame poses it, else its rest pose where it stands), behind its back's surface at

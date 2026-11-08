@@ -405,6 +405,14 @@ void armedGripsDragMode()
         row(opt::vr_agarmor_block_cuts),
         row(opt::vr_agarmor_impulse),
         row(opt::vr_agarmor_debris_time),
+        header("Broken Plates"),
+        row(opt::vr_agarmor_split),
+        row(opt::vr_agarmor_split_impulse),
+        row(opt::vr_agarmor_split_cuirass),
+        row(opt::vr_agarmor_split_pauldron),
+        row(opt::vr_agarmor_split_bracer),
+        row(opt::vr_agarmor_split_thigh),
+        row(opt::vr_agarmor_split_shin),
     };
     skillRows(items, "Easy", vr_agarmor_skill0, vr_agarmor_skill0_type, vr_agarmor_skill0_pieces);
     skillRows(items, "Normal", vr_agarmor_skill1, vr_agarmor_skill1_type, vr_agarmor_skill1_pieces);
