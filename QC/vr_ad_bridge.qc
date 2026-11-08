@@ -1087,6 +1087,13 @@ void(string xModel) AD_EnsureVRModel =
     entity e = spawn();
     setmodel(e, xModel);
     remove(e);
+    // An upgraded weapon first drawn on this server (picked up, carried into a new level, a loaded game): its shots' and
+    // hits' assets too, now and not at its first shot (outside AD's maps nothing else precaches them: the Plasma Gun's
+    // ball and hit sprites; vr_ad_test 104-105, Misc/quakevr/plasma_ball_test.sh).
+    if(!AD_Rules())
+    {
+        AD_WeaponsOnDemand();
+    }
 };
 
 // The model a weapon of kind `xWid` with flags `xFlags` and record `xInst` is drawn with (WeaponIdToModel's, or its

@@ -329,11 +329,27 @@ extern "C" int VR_AD_SpawnsOutside(const char* classname)
 // map's own backpacks keep AD's rule (AD's maps only: ARCANE_DIMENSIONS.md 16.1).
 constexpr const char* toolgunAnywhereClasses[] = {"item_backpack", "item_backpack_armour"};
 
+// AD's monsters whose classnames a map's own spawn as AD's only in AD's maps (vr_ad_spawns.inc QVR_AD_SPAWN_MAP: id's
+// knight, Quoth's death guard, death lord and sentinel share them): the toolgun's explicit ad_ entries make them in any
+// map under everywhereClasses' rule (his request, 2026-11-08: "spawnable in non-AD maps if AD is detected").
+constexpr const char* toolgunEverywhereClasses[] = {
+#define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice)
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) &classname[3],
+#include "vr_ad_spawns.inc"
+#undef QVR_AD_SPAWN_MAP
+#undef QVR_AD_SPAWN
+};
+
 extern "C" int VR_AD_ToolgunSpawnsOutside(const char* classname)
 {
     if(VR_AD_SpawnsOutside(classname))
     {
         return 1;
+    }
+    if(!mapState.rules && qvr::vr_ad_everywhere.value != 0.f && listed(toolgunEverywhereClasses, classname) &&
+        qvr::vr_ad_mounted.value != 0.f && VR_ED_FindFunction(va("ad_%s", classname)))
+    {
+        return VR_AD_SpawnOutsideNow();
     }
     if(mapState.rules || !listed(toolgunAnywhereClasses, classname) || qvr::vr_ad_mounted.value == 0.f ||
         !VR_ED_FindFunction(va("ad_%s", classname)))

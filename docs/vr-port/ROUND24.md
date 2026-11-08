@@ -4140,6 +4140,48 @@ their own share (hand shares unchanged), and rockets are their own kind.
 - Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
   (they fly a little faster); grenades and the flamethrower as before.
 
+## Toolgun spawns: AD's map-only monsters anywhere, one weapon per spawn, the Plasma Gun's model (branch `agent/embed5`, 2026-11-08)
+
+His overnight list (W2): AD's Quoth death guard, death lord, sentinel and knight greyed out of the toolgun outside AD
+maps; a toolgun burst rifle (and enforcer rifle) made a working prop plus a floating static copy; the AD Plasma Gun drawn
+as the Thunderbolt, and a big hitch at its first ball's hit.
+
+- **AD monsters.** Those four were `MAPS_ONLY` in `ad_monsters_gen.py` (`QVR_AD_SPAWN_MAP`: toolgun `needs` 2, the debug
+  spawner refused 258-261 outside AD's rules) because their classnames are shared: id's `monster_knight`, Quoth's
+  `monster_death_guard`/`death_lord`/`sentinel`. A map's own still spawn as AD's only in AD's maps (a Quoth map's sentinel
+  is not turned into AD's); the toolgun's explicit `ad_` entries and the debug spawner now make them in any map under
+  the other AD monsters' rule (AD data mounted, Additional Content Everywhere): `vr_ad.cpp` `toolgunEverywhereClasses`
+  (from the inc's `QVR_AD_SPAWN_MAP` monsters) in `VR_AD_ToolgunSpawnsOutside`; toolgun entries `needs` 0. None needed
+  refusing: all four spawn and run in e1m1 (`vr_toolgun_spawn_test 111 114`: 4 spawned, alive; the sentinel seen in a
+  screenshot). (`ad_monsters_gen.py` matches the QC again: the upgrades' dispenser rows (`UPGRADES_QC`: AD's pickup
+  model, `AD_UpgradeProp`) and the flail 346 (`QC_ONLY_GUNS`: its toolgun entry is in `vr_toolgun_packs.inc`);
+  regenerating changes no file.)
+- **One spawn, one weapon.** `VR_WeaponClass_Spawn` (the `weapon_*` classnames, buttons.qc) set the spawner's `model` to
+  the weapon's, and `func_weapon_grabbable` drew its spawner (`setmodel`, MOVETYPE_NONE): a static copy beside the real
+  prop, for every `weapon_*` class (axe, swords, chainsaw, burst rifle, enforcer rifle) from the toolgun, `vr_physics_spawn`
+  and maps. Now the spawner draws nothing (its model precached, then cleared); the toolgun's own `func_weapon_grabbable`
+  entries already had no model. `vr_pickup_test 9` checks each spawner's modelindex is 0: 21 passed.
+- **The Plasma Gun's model.** `vr_adweapons.cpp` grafts Quake VR's grip from `v_light.mdl` (the Widowmaker's from
+  `v_shot2.mdl`), pinned to exact vertex/triangle counts. The sights rework (`agent/regfix`, today; the super shotgun's
+  on 11-06) appended vertices, the pin failed, and the stand-in, `v_light.mdl` itself, loaded under the `#vr` name:
+  toolgun ghost, prop, hands and holsters all showed the Thunderbolt. The donors' Sources are now counts 0 ("Quake VR's
+  own: read its counts"); the seed vertices are unchanged in both (checked against the old files: same index, position
+  and piece). A failed make whose AD source was found now prints a console warning; `vr_adweapon_models` ends with
+  "N made, M not made, K without AD's data" (now 3, 0, 0). (The Widowmaker in hand uses its hand-made art file when there.)
+- **The first ball's hitch.** Outside AD's maps nothing precached the plasma ball (`proj_pgplasma.mdl`) or its hit's
+  sprites and bits (`s_exp_electric.spr` ...): late precaches at the first shot and the first hit (server 4-5 ms + the
+  client's load each; headless frames stayed under 10 ms, so his bigger hitch on a real GPU is probably those loads plus
+  first-use costs I can't see here). `AD_WeaponsOnDemand` (run when an AD gun or upgrade is laid or picked up: the
+  toolgun's prop via `AD_UpgradeGate`) now precaches them. Test `vr_ad_test 103` (Debug > Tests: "Plasma Gun's First
+  Ball"): the toolgun's Plasma Gun laid (model `v_plasma.mdl#vr`), a ball down onto the floor: "adplasmahit: 2 passed";
+  with `developer 1`, no "late precache:" after "adplasmahit: fired" (before: `proj_pgplasma.mdl`, `s_exp_electric.spr`).
+  A Plasma Gun carried into a new non-AD level or a loaded game: `AD_EnsureVRModel` (once a server, when a hand or
+  holster first draws an upgraded weapon) runs `AD_WeaponsOnDemand` too. `vr_ad_test 104` (the gun into the main hand)
+  and `105` (a ball down onto the floor, verdict as 103's); `Misc/quakevr/plasma_ball_test.sh <agent>`: a save and a
+  load, and a change to e1m2, each with no "late precache:" after the shot: 6 passed.
+- Test it in VR: in a non-AD map with AD installed, toolgun the four monsters; toolgun a burst rifle and an enforcer
+  rifle (one each, nothing floating left after taking them); the AD Plasma Gun's ghost and prop (AD's gun, not the
+  Thunderbolt), fire its first ball at the floor (no hitch).
 ## Flat two-handed holds, the chainsaw, the punch and the shove at the crosshair (W4, 2026-11-08)
 
 His flat notes: AD's plasma gun, Widowmaker and the soldiers' plasma rifle held in one hand; the crossbow's off hand wrong
