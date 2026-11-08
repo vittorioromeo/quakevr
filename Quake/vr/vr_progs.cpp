@@ -1106,6 +1106,87 @@ void restoreLateSounds()
     saveInfo.sounds.clear();
 }
 
+// Our models renamed since a save could have been made: the old name, today's. The Thunderbolt's plasma variant and its
+// cell's parts were Rogue's name, progs/v_plasma.mdl, which shadowed AD's Plasma Gun (and Rogue's own) in the lookup:
+// in a save made before, that name is always ours.
+struct RenamedModel
+{
+    const char* before;
+    const char* now;
+};
+constexpr RenamedModel renamedModels[] = {
+    {"progs/v_plasma.mdl", "progs/v_light_plasma.mdl"},
+    {"progs/vr_mag_on_v_plasma.mdl", "progs/vr_mag_on_v_light_plasma.mdl"},
+    {"progs/vr_magwell_on_v_plasma.mdl", "progs/vr_magwell_on_v_light_plasma.mdl"},
+};
+
+[[nodiscard]] bool saveListHas(const char* name)
+{
+    for(const za::String& m : saveInfo.models)
+    {
+        if(!q_strcasecmp(m.cStr(), name))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// A save made before a rename (its model list has the old name and not the new one; every game since precaches the new
+// one, world.qc): the old name becomes today's in the save's model list and in every string field and global that
+// holds it exactly (the hands' .weaponmodel, the holsters', .model), so the loaded game names the model it had. A save
+// made since keeps its names: there "progs/v_plasma.mdl" is Rogue's or AD's own file.
+void renameOldModels()
+{
+    for(const RenamedModel& r : renamedModels)
+    {
+        if(!saveListHas(r.before) || saveListHas(r.now))
+        {
+            continue;
+        }
+        for(za::String& m : saveInfo.models)
+        {
+            if(!q_strcasecmp(m.cStr(), r.before))
+            {
+                m = za::String{r.now};
+            }
+        }
+        int strings = 0;
+        const auto rename = [&](string_t& s) {
+            if(s && !q_strcasecmp(PR_GetString(s), r.before))
+            {
+                s = PR_SetEngineString(r.now); // (a literal: lasts)
+                strings++;
+            }
+        };
+        for(int num = 1; num < qcvm->num_edicts; num++)
+        {
+            edict_t* ent = EDICT_NUM(num);
+            if(ent->free)
+            {
+                continue;
+            }
+            for(int i = 0; i < qcvm->progs->numfielddefs; i++)
+            {
+                const ddef_t& d = qcvm->fielddefs[i];
+                if((d.type & ~DEF_SAVEGLOBAL) == ev_string)
+                {
+                    rename(reinterpret_cast<string_t*>(&ent->v)[d.ofs]);
+                }
+            }
+        }
+        for(int i = 0; i < qcvm->progs->numglobaldefs; i++)
+        {
+            const ddef_t& d = qcvm->globaldefs[i];
+            if((d.type & ~DEF_SAVEGLOBAL) == ev_string)
+            {
+                rename(reinterpret_cast<string_t*>(qcvm->globals)[d.ofs]);
+            }
+        }
+        Con_Printf("load: an older save: %s is now %s (%d strings)\n", r.before, r.now, strings);
+    }
+}
+
 // The saved .modelindex values index the precache list of the game that was saved, and the map loaded now precaches
 // its models again, in its own order: the same only if every spawn function precached the same models in the same
 // order (the training dummy precaches the enemy vr_dummy_type names: changed since, every model after it moved one way
@@ -1117,6 +1198,7 @@ void restoreLateSounds()
 // (A save without the list, made before it was saved, is refused: VR_ReadSaveInfo.)
 void rebindLoadedModels()
 {
+    renameOldModels();
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);

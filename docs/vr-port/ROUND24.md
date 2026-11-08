@@ -4662,6 +4662,33 @@ resizing it.
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
 
+## The Thunderbolt's plasma model renamed v_light_plasma.mdl (branch `agent/plasmarename`, 2026-11-08)
+
+His request: our plasma-ammo Thunderbolt was `progs/v_plasma.mdl`, Rogue's name, shadowing AD's Plasma Gun model.
+- **Renamed** (git mv, content unchanged): `quakevr/progs/v_light_plasma.mdl`, `vr_mag_on_v_light_plasma.mdl`,
+  `vr_magwell_on_v_light_plasma.mdl` and their `_0_norm.png`; the source .blends and skins under
+  `src_models/blend/<new name>/` (inside: object, mesh, material, image, `qvr_name`, `qvr_norms` renamed by a headless
+  Blender pass; `blend_export.py --out` writes the shipped model, norm map and magazine byte for byte);
+  `src_models/v_light_plasma.mdl` and `r21/` (the generators' inputs). References: weapons.txt slot 15's `id`,
+  world.qc's precache, vr_weaponutil.qc's row, modelmeta `VPlasma`, vr_view.cpp's magazine table, sight rules
+  (vr_sightalign.cpp, vr_sights.cpp, the add-on's sights.py), vr_gunfx.cpp, the generators (improve_weapons2/_alt,
+  polish_weapons, reuv_weapons, sight_picture, barrel_masks), generated.json, both FGDs, MODELS_IN_BLENDER.md.
+- **AD and Rogue:** AD's `#vr` names (`progs/v_plasma.mdl#vr` and its cell's parts, slot 35) stay. AD's
+  `v_plasma.mdl` is still skipped in AD's folder (vr_ad_data.inc: an id1-pak name), so: AD's `MODEL_VWEAP_UPLG`
+  precache (ad_worldspawn) now names `v_light_plasma.mdl` (ad_import.py patch; QC/ad edited to the same output, the
+  release's `ad_1_8.fgd` not at hand for `--check`; the patch's match checked against AD's paks) instead of failing
+  without Rogue; `ad::spawnAvailable` takes a `#vr` model as always there (`adweapons::isMade`: made, or its stand-in),
+  as it was when ours answered the name; vr_gunfx keeps `v_plasma.mdl` for AD's gun; the muzzle light's colour checks
+  the plasma names before `v_light`. Rogue: our QC never asked for Rogue's model (ours shadowed it); the Rogue pack
+  check keeps Rogue's `progs/v_plasma.mdl`.
+- **Compatibility:** weapon settings are by slot (`vr_wofs_*_16`), so his values stay; `vr_wofs_version` 75 renames a
+  config's slot ID still naming the old file. A save from before (its model list has the old name, not the new):
+  vr_progs.cpp `renameOldModels` maps the list and every string field and global holding the old name exactly
+  (`load: an older save: ... is now ...`).
+- **Test:** `Misc/quakevr/plasma_rename_test.sh <agent>` (VR mock and flat: model, slot 16 and barrel mask, painted
+  sights, magazine and well loaded, plasma selected, flat a round fired; an old save loads with the new model):
+  22 passed. plasma_ball_test 6/0, flattwohand_test 9/0, `vr_adweapon_models` in AD's start: 3 made, 0 not made
+  (612 triangles for the Plasma Gun, AD's own file).
 ## A lower box for lying down (branch `agent/pronebox`, 2026-11-08)
 
 His request: "add a new collision box for the prone height". Until now lying down was a value (24) of the crouch's

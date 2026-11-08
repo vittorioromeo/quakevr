@@ -25,6 +25,9 @@ inline constexpr const char* suffix = "#vr";
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a model named so (allocated with VR_HeapMalloc), or null. Not
 // made (another release of AD's model, AD's data missing): the Quake VR weapon's own model under its name.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);
+// Whether `name` is one of these models: always loads (made from AD's file, which is read wherever it is, even skipped
+// in AD's folder as an official pak's name, AD's v_plasma.mdl; or its stand-in), so its file need not be on the lookup.
+[[nodiscard]] bool isMade(const char* name);
 
 // vr_adweapon_models: each model made now: triangles, holes left, box, the corner kept, its muzzle (the blade's edge).
 void info_f();

@@ -1245,13 +1245,14 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     // The weapon's colour.
     const qmodel_t* model = weapons::heldModel(hand);
     const char* n = model ? model->name : "";
-    if(strstr(n, "v_light"))
-    {
-        color(0.55f, 0.7f, 1.f);
-    }
-    else if(strstr(n, "v_plasma"))
+    // (the plasma ones first: our Thunderbolt's plasma variant is v_light_plasma.mdl; AD's Plasma Gun v_plasma.mdl#vr)
+    if(strstr(n, "v_light_plasma") || strstr(n, "v_plasma"))
     {
         color(0.6f, 0.8f, 1.f);
+    }
+    else if(strstr(n, "v_light"))
+    {
+        color(0.55f, 0.7f, 1.f);
     }
     else if(strstr(n, "v_laserg"))
     {
