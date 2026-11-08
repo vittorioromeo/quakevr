@@ -5,9 +5,9 @@ and `QC/build.sh` on Windows). It is FTEQCC with a few speed patches: on Quake V
 ~2 s instead of ~8 s, and the `-Fwasm` listing the precedence check reads ~3 s instead of ~25 s. It also has the
 `fte32` flag our QC needs (below).
 
-- **Source:** https://github.com/vittorioromeo/fteqw, branch `qcc-perf-parseerror-null`, commit `c1c874d`
+- **Source:** https://github.com/vittorioromeo/fteqw, branch `qcc-perf-parseerror-null`, commit `6cfe93f4`
   (five speed commits on top of upstream `fte-team/fteqw` `f937b9d88`, then one fix; see each commit's message),
-  plus `fte32.patch` here (not yet a commit on that branch: apply it with `git apply` in the fteqw checkout).
+  then the `fte32` flag (`6cfe93f4`, the same change as `fte32.patch` here).
 - **The fix (`c1c874d`):** stock FTEQCC crashes (no message after the real error, exit 0xC0000005 / 0xC0000409) when
   a compile error is followed by any `#include`, or on a "X is not a member of Y" error: `QCC_PR_ParseError(0, NULL)`,
   the silent abort, passed its NULL format to `vsnprintf`. It now ends with the error and "compilation errors".
