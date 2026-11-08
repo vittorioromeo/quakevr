@@ -4957,7 +4957,11 @@ Brief `qvr-kit/scratch/brief_embed1108b.md`: items 5, 13 and 14 of part one's br
   crate 24.4 units, 30 up raises it 3.6 (tipped), let go it stays and rides the crate pushed 76 units (0.2 off), pulled back
   out into the hand, broken: back in the hand, an axe swing into a barrel stays, Blades Stick off: none. 11/0. Scenario
   `embed_crates` (sword and axe, two crates, two barrels).
-- **Not done:** item 3 of the brief (Box3D's slot for a reused edict): not looked at.
+- **Box3D's slot for a reused edict (item 3):** a prop's body now knows when it was made (`Slot::madeAt`); a body made
+  before its edict was last freed (`edict_t::freetime`) is the old thing's, and `box3d::contactPoint` doesn't read its
+  contacts (the stale body stays until the next sync remakes it). Test 1's second sword, thrown into the same wound 0.3 s
+  after the first was removed, read the first's touch there (within the blade's reach, so part one's distance check let it
+  through): "hit something with the hilt", never stuck, and the next 12 checks with it.
 ## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
 
 QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
