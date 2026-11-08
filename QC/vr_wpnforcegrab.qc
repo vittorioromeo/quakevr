@@ -390,6 +390,21 @@ void() VR_Forcegrab_FlatGrab =
     VR_Forcegrab_SetPulled(xHand, g);
 };
 
+// Flatscreen play: the outline on what the grab key would take now (vr_flat_grab_preview; the headset's aimed state:
+// the engine's glow, vr_fgfx.cpp), on the hand VR_Forcegrab_FlatGrab would take it with. `xHand` is free (its caller's
+// check); the other hand's target is cleared by its own call.
+void(float xHand) VR_Forcegrab_FlatPreview =
+{
+    entity best = world;
+    if(cvar_hget(cvarh_vr_flat_grab_preview) && !VR_Forcegrab_IsPulling(xHand) &&
+       (xHand == cVR_MainHand || !VR_Hand_Free(self, cVR_MainHand, VR_HANDFREE_LOCKED)))
+    {
+        makeforward(self.v_angle);
+        best = VR_Forcegrab_FindTargetAlong(VRGetHeadPos(self), v_forward);
+    }
+    VR_Forcegrab_Set(xHand, best, FALSE);
+};
+
 // Flatscreen play (-flatscreenmode): G. What `xHand` holds goes down, TRUE if it held something. A weapon: the game's own
 // path of a hand losing one (VRTryHandOff first, so a weapon held in both hands goes to the other hand; else
 // DropWeaponInHand, vr_wpnholster.qc — the hand empty, his ammo as it was). A box or a prop carried in the hand: let go of
@@ -778,6 +793,14 @@ void(float xHand) VR_Forcegrab_HandFrame =
        !VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
     {
         VR_Forcegrab_Set(xHand, world, FALSE);
+        return;
+    }
+    // Flatscreen play: no hand points (the free hand hangs, and searching along it found what lay at his feet). The
+    // preview is on what the grab key would take (VR_Forcegrab_FlatGrab: the same search along the view, the same hand),
+    // and the fire button never locks on.
+    if(VR_FlatPlay(self))
+    {
+        VR_Forcegrab_FlatPreview(xHand);
         return;
     }
 

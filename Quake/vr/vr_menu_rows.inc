@@ -6074,6 +6074,9 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
     "the status bar as Ironwail draws it (vr_flat_hud).")
+QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
+    "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
+    "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "

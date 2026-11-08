@@ -3991,7 +3991,8 @@ QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both 
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
-QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)        // a second key that force-grabs the same (the old R), by its bind name; "" none
+QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 what the grab key (mouse 4) would take now glows with the force grab's outline, as an open hand's aim shows it in the headset (QC VR_Forcegrab_FlatPreview); 0 no preview
+QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)       // a second key that force-grabs the same (the old R), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
