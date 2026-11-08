@@ -1831,6 +1831,15 @@ QVR_TUNABLE(vr_flat_gun_out_up, "-4") // Gun Out looking straight up (-30..30), 
 QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-30..30), by how deep the crouch is; looking up or down goes from it to their own
 QVR_TUNABLE(vr_flat_gun_down_crouch, "-5") // Gun Down crouched (-30..30; positive is lower): vr_flat_gun_down's place while crouched, blended in by how deep the crouch is, as vr_flat_gun_out_crouch is
 QVR_TUNABLE(vr_flat_gun_ahead_crouch, "16.5") // Gun Forward crouched (-30..30): vr_flat_gun_ahead's place while crouched, blended in the same way
+QVR_TUNABLE(vr_flat_gun_out_prone, "1") // Gun Out lying down (vr_flat_key_prone), at a level look, by how far down he is; looking down or up goes from it to vr_flat_gun_out_prone_down / _up (-30..30)
+QVR_TUNABLE(vr_flat_gun_down_prone, "2") // Gun Down lying down, at a level look, taking over from the standing or crouched one by how far down he is (-30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_ahead_prone, "16.5") // Gun Forward lying down, at a level look, the same way (-30..30)
+QVR_TUNABLE(vr_flat_gun_out_prone_down, "-4") // Gun Out lying down, looking straight down (-30..30): from vr_flat_gun_out_prone along the same smooth curve as vr_flat_gun_out_down
+QVR_TUNABLE(vr_flat_gun_out_prone_up, "-4") // Gun Out lying down, looking straight up (-30..30)
+QVR_TUNABLE(vr_flat_gun_down_prone_down, "2") // Gun Down lying down, looking straight down (-30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_down_prone_up, "2") // Gun Down lying down, looking straight up (-30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_ahead_prone_down, "16.5") // Gun Forward lying down, looking straight down (-30..30)
+QVR_TUNABLE(vr_flat_gun_ahead_prone_up, "16.5") // Gun Forward lying down, looking straight up (-30..30)
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
@@ -1875,6 +1884,8 @@ QVR_TUNABLE(vr_flat_wall_slide_from, "15") // all along the wall up to this angl
 QVR_TUNABLE(vr_flat_wall_slide_to, "40") // and none from this angle (head-on: back and up); one smooth curve between (degrees)
 QVR_TUNABLE(vr_flat_wall_slide_time, "0.12") // the slide's share and turn ease over about this many seconds (0..1; 0: at once)
 QVR_TUNABLE(vr_flat_wall_block_ads, "1") // no ironsight while the gun is tilted up at a wall: the aim key waits until it comes down (0: the ironsight as ever)
+QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into the floor (looking down) lies flush on it instead: turned up out of it as at a wall (vr_flat_wall_tilt's turn, its fire and ironsight blocks: vr_flat_wall_block_fire / _ads); 0 off, its end in the floor
+QVR_TUNABLE(vr_flat_prone_floor_margin, "1") // the flush gun keeps this far off the floor (0..6 units)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
@@ -1949,6 +1960,8 @@ QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the p
 QVR_TUNABLE(vr_flat_lean_time, "0.18") // the lean: seconds into a full lean and back
 QVR_TUNABLE(vr_flat_lean_speed, "0.6") // the lean: his move keys' speed at a full lean, a share of their own (0.2..1)
 QVR_TUNABLE(vr_flat_lean_margin, "6") // the lean: units the eye and the weapon keep off a wall at its side (the lean stops shorter)
+QVR_TUNABLE(vr_flat_lean_prone_angle, "8") // the lean lying down: degrees the view and the held weapon roll at a full lean, the lying body rolling with them in place (0..35)
+QVR_TUNABLE(vr_flat_lean_prone_dist, "3") // the lean lying down: how far the eye moves sideways at a full lean (units, 0..30)
 QVR_TUNABLE(vr_flat_lean_hit, "1") // the lean: shots and missiles hit the leant upper body (two boxes from the hips to the head), out of his box; his box against the world stays as it was. 0: his box only
 
 // Flatscreen > Looks

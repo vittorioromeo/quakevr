@@ -98,10 +98,18 @@ constexpr const char* melee[] = {
     return (i >= 224 && i <= 239) || i == 252 || i == 253; // as vr_sights.cpp
 }
 
-// The model file's sight texels, as points on its first frame (model space, as the frames' vertices).
-[[nodiscard]] za::Vector<glm::vec3> sightTexels(const char* modelName)
+// A sight texel: its point on the first frame (model space, as the frames' vertices), and the top of the triangle it is
+// painted on (the iron's top: a glowing insert sits a little under the top of the face it is painted on, 2026-11).
+struct SightTexel
 {
-    za::Vector<glm::vec3> pts;
+    glm::vec3 p;
+    float faceTop;
+};
+
+// The model file's sight texels, on its first frame.
+[[nodiscard]] za::Vector<SightTexel> sightTexels(const char* modelName)
+{
+    za::Vector<SightTexel> pts;
     byte* data = COM_LoadMallocFile(modelName, nullptr);
     if(!data)
     {
@@ -203,6 +211,7 @@ constexpr const char* melee[] = {
             continue;
         }
         const glm::vec3 p0 = vertex(vi[0]), p1 = vertex(vi[1]), p2 = vertex(vi[2]);
+        const float faceTop = za::fmax(p0.z, za::fmax(p1.z, p2.z));
         const int x0 = za::max(0, static_cast<int>(za::floor(za::min(uv[0].x, uv[1].x, uv[2].x))) - 1);
         const int x1 = za::min(sw - 1, static_cast<int>(za::ceil(za::max(uv[0].x, uv[1].x, uv[2].x))) + 1);
         const int y0 = za::max(0, static_cast<int>(za::floor(za::min(uv[0].y, uv[1].y, uv[2].y))) - 1);
@@ -223,7 +232,7 @@ constexpr const char* melee[] = {
                 {
                     continue;
                 }
-                pts.pushBack(l0 * p0 + l1 * p1 + l2 * p2);
+                pts.pushBack({l0 * p0 + l1 * p1 + l2 * p2, faceTop});
             }
         }
     }
@@ -232,22 +241,24 @@ constexpr const char* melee[] = {
 }
 
 // The sight line from the painted sights: the texels split along the barrel into the rear sight (the first group) and
-// the front one (the last), where more than 1.5 units separate them.
+// the front one (the last), where more than 1.5 units separate them. The heights are the irons' tops: the tops of the
+// faces the inserts are painted on (where the inserts are painted to their faces' tops, as the lightning gun's blocks'
+// tops, the same as the texels' own). The irons line up in the sight picture, the inserts a little under them.
 [[nodiscard]] SightLine fromTexels(const char* modelName, Rear rearKind)
 {
-    za::Vector<glm::vec3> pts = sightTexels(modelName);
+    za::Vector<SightTexel> pts = sightTexels(modelName);
     if(pts.size() < 8)
     {
         return {};
     }
-    za::quickSort(pts.begin(), pts.end(), [](const glm::vec3& a, const glm::vec3& b) { return a.x < b.x; });
+    za::quickSort(pts.begin(), pts.end(), [](const SightTexel& a, const SightTexel& b) { return a.p.x < b.p.x; });
     za::SizeT rearEnd = 1;
-    while(rearEnd < pts.size() && pts[rearEnd].x - pts[rearEnd - 1].x <= 1.5f)
+    while(rearEnd < pts.size() && pts[rearEnd].p.x - pts[rearEnd - 1].p.x <= 1.5f)
     {
         rearEnd++;
     }
     za::SizeT frontBegin = pts.size() - 1;
-    while(frontBegin > 0 && pts[frontBegin].x - pts[frontBegin - 1].x <= 1.5f)
+    while(frontBegin > 0 && pts[frontBegin].p.x - pts[frontBegin - 1].p.x <= 1.5f)
     {
         frontBegin--;
     }
@@ -262,19 +273,21 @@ constexpr const char* melee[] = {
     float top = -1e9f;
     for(za::SizeT i = frontBegin; i < pts.size(); i++)
     {
-        sum += pts[i];
-        top = za::fmax(top, pts[i].z);
+        sum += pts[i].p;
+        top = za::fmax(top, pts[i].faceTop);
     }
     const glm::vec3 mid = sum / static_cast<float>(pts.size() - frontBegin);
     line.front = {mid.x, mid.y, top};
 
     // The rear sight, near the middle (the double shotgun's skin had marks at the sides of the same face, until 2026-11).
     za::Vector<glm::vec3> rear;
+    float rearTop = -1e9f;
     for(za::SizeT i = 0; i < rearEnd; i++)
     {
-        if(za::fabs(pts[i].y - line.front.y) < 1.5f)
+        if(za::fabs(pts[i].p.y - line.front.y) < 1.5f)
         {
-            rear.pushBack(pts[i]);
+            rear.pushBack(pts[i].p);
+            rearTop = za::fmax(rearTop, pts[i].faceTop);
         }
     }
     if(rear.size() < 4)
@@ -292,11 +305,9 @@ constexpr const char* melee[] = {
     {
         // The widest gap across between the texels is the notch; its middle, at the posts' tops.
         za::Vector<float> ys;
-        float rearTop = -1e9f;
         for(const glm::vec3& p : rear)
         {
             ys.pushBack(p.y);
-            rearTop = za::fmax(rearTop, p.z);
         }
         za::quickSort(ys.begin(), ys.end());
         float gap = 0.f, gapMid = 0.f;

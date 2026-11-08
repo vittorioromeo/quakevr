@@ -1406,7 +1406,8 @@ float gridCacheCell = 0.f; // (another spacing: the entries' cells are other cel
             // A step in what is read: from one set of corners to another. A step into another clear cell is none: the
             // two cells share the corners that count there.
             const bool stepped = c.valid && !teleported && (sameCell ? seen != c.seen : !(clear && (grid.cells[c.cell] & GRID_CLEAR)));
-            const float settings = lighting::ambientFloor() * 4096.f + vr_model_ambient_contrast.value * 16.f + lighting::lightContrast();
+            const float settings = lighting::ambientFloor() * 4096.f + vr_model_ambient_contrast.value * 16.f + lighting::lightContrast() +
+                                   lighting::capKey() * 65536.f;
             if(!c.valid || settings != c.settings || memcmp(&read, &c.read, sizeof(GridRead)) != 0)
             {
                 Cube faces{};
@@ -2000,7 +2001,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
             }
             // Flickering or switched lights: read every frame, in step with the world's.
             const float settings = lighting::ambientFloor() * 4096.f + vr_model_ambient_contrast.value * 16.f +
-                                   lighting::lightContrast(); // the settings shade() reads, as one number
+                                   lighting::lightContrast() + lighting::capKey() * 65536.f; // the settings shade() reads, as one number
             // (Each probe's shading is kept while its light styles hold still: easing only mixes them.)
             if(reshade || (c.current.animated && !shadeFresh(c.currentShaded, c.current)) ||
                (c.blend < 1.f && c.previous.animated) || settings != c.settings)

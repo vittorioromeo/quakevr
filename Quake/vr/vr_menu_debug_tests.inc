@@ -680,8 +680,14 @@ za::Vector<Item> pageDebugTests()
                   "Let go of +forward after (-forward)."),
         command("Flat Lean Test", "vr_flatlean_test")
             .help("vr_flatlean_test (-flatscreenmode only, room ahead and a wall at a side): leans right (the eye, the roll, "
-                  "a shot across the leant head), walks leant and upright, then leans into the nearer wall (flatlean: "
-                  "lines, a verdict). It moves you with setpos (noclip on: noclip again to walk)."),
+                  "a shot across the leant head), walks leant and upright, then leans into the nearer wall, away from it, "
+                  "and facing it both ways (flatlean: lines, a verdict). It moves you with setpos (noclip on: noclip "
+                  "again to walk)."),
+        command("Flat Prone Test", "vr_flatprone_test")
+            .help("vr_flatprone_test (-flatscreenmode only, a gun held, room around): lies down and leans right (the "
+                  "smaller lean, the body's roll), presses the crouch (up into a crouch, the gun without a jump), lies "
+                  "down again and looks down with the ironsight asked for (the gun flush on the floor, no shot, the "
+                  "ironsight waits), then looks level (flatprone: lines, a verdict)."),
         command("Flat Lean / Slide Status", "vr_flatmove_status")
             .help("vr_flatmove_status: the lean's share, the eye's move and the roll, whether you slide and its pose."),
         command("Flat Keys", "vr_flatkeys_test 1")

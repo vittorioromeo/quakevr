@@ -377,6 +377,7 @@ za::Vector<Item> pageDebugViews()
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
         row(opt::vr_debug_model_collide),
         row(opt::vr_foveated_debug),
+        row(opt::vr_skin_edge_fill),
         row(opt::vr_temporal_debug),
         command("Print Reprojection Error", "vr_temporal_error")
             .help("vr_temporal_error: with Reprojection Test on, each eye's mean error of the last frame moved by the vectors, "

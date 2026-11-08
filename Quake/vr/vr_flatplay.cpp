@@ -160,7 +160,8 @@ struct FlatKeys
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
     bool keyProne{false};   // X (vr_flat_key_prone), last frame
-    bool prone{false};      // lying down asked for (vr_flat_key_prone, vr_prone_toggle): a toggle
+    bool crouchWas{false};  // the crouch held (Left Ctrl or +flatcrouch), last frame: a press while lying down gets up to it
+    bool prone{false};     // lying down asked for (vr_flat_key_prone, vr_prone_toggle): a toggle
     float proneRatio{0.f};  // lying down's share now: 0 up .. 1 down, eased over vr_prone_body_time (crouchShape)
     float proneLin{0.f};    // its ease's even progress
 
@@ -532,6 +533,21 @@ constexpr float lookMost = 85.f;      // a look straight down, for the arm's mov
 constexpr float stanceFadeFrom = 10.f; // the look's degrees off level the stance starts fading at, and has gone by
 constexpr float stanceFadeTo = 55.f;
 
+// Lying down's share of the held weapon's pose (vr_flat_gun_*_prone): how far down he is, with the body pose on.
+[[nodiscard]] float proneShare()
+{
+    return bodyPose() ? keyState.proneRatio : 0.f;
+}
+
+// A lying-down gun pose number at the look `pitch` (Quake's: positive down): `level` at a level look, going to `down`
+// looking straight down and `up` straight up along the same smooth curve as Gun Out's (gunOutAt).
+[[nodiscard]] float proneAt(const Tunable& level, const Tunable& down, const Tunable& up, float pitch)
+{
+    const float l = poseNum(level);
+    const float w = geom::smooth01(za::clamp(glm::abs(pitch) / lookMost, 0.f, 1.f));
+    return l + (poseNum(pitch >= 0.f ? down : up) - l) * w;
+}
+
 // The held weapon's Gun Out at the look `pitch` (Quake's: positive down): vr_flat_gun_out at a level look (crouched,
 // vr_flat_gun_out_crouch, by how deep), going to vr_flat_gun_out_down looking straight down and vr_flat_gun_out_up straight up
 // along a smooth curve (no corner at level or at the ends): the gun comes in towards the middle looking up or down, as his
@@ -542,7 +558,10 @@ constexpr float stanceFadeTo = 55.f;
     const float level = poseNum(vr_flat_gun_out) + (poseNum(vr_flat_gun_out_crouch) - poseNum(vr_flat_gun_out)) * crouched;
     const float end = poseNum(pitch >= 0.f ? vr_flat_gun_out_down : vr_flat_gun_out_up);
     const float w = geom::smooth01(za::clamp(glm::abs(pitch) / lookMost, 0.f, 1.f));
-    return level + (end - level) * w;
+    const float upright = level + (end - level) * w;
+    // (Lying down, its own: vr_flat_gun_out_prone, going to _prone_down / _prone_up the same way, by how far down he is.)
+    return upright + (proneAt(vr_flat_gun_out_prone, vr_flat_gun_out_prone_down, vr_flat_gun_out_prone_up, pitch) - upright) *
+                         proneShare();
 }
 
 // Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_ahead / _down /
@@ -574,8 +593,13 @@ constexpr float stanceFadeTo = 55.f;
         // (Gun Forward and Gun Down crouched take over from the standing ones by how deep the crouch is, as Gun Out
         // Crouched does in gunOutAt: vr_flat_gun_ahead_crouch, vr_flat_gun_down_crouch.)
         const float deep = bodyPose() ? keyState.ratio : 0.f;
-        const float ahead = poseNum(vr_flat_gun_ahead) + (poseNum(vr_flat_gun_ahead_crouch) - poseNum(vr_flat_gun_ahead)) * deep;
-        const float below = poseNum(vr_flat_gun_down) + (poseNum(vr_flat_gun_down_crouch) - poseNum(vr_flat_gun_down)) * deep;
+        const float aheadUp = poseNum(vr_flat_gun_ahead) + (poseNum(vr_flat_gun_ahead_crouch) - poseNum(vr_flat_gun_ahead)) * deep;
+        const float belowUp = poseNum(vr_flat_gun_down) + (poseNum(vr_flat_gun_down_crouch) - poseNum(vr_flat_gun_down)) * deep;
+        // (Lying down, Gun Forward / Down Prone take over by how far down he is, each going to its own looking straight
+        // down or up: vr_flat_gun_ahead_prone(_down, _up), vr_flat_gun_down_prone(_down, _up).)
+        const float prone = proneShare();
+        const float ahead = aheadUp + (proneAt(vr_flat_gun_ahead_prone, vr_flat_gun_ahead_prone_down, vr_flat_gun_ahead_prone_up, pitch) - aheadUp) * prone;
+        const float below = belowUp + (proneAt(vr_flat_gun_down_prone, vr_flat_gun_down_prone_down, vr_flat_gun_down_prone_up, pitch) - belowUp) * prone;
         return {(ahead - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
             -(below - lift * upBy) * reach};
     }
@@ -999,6 +1023,19 @@ void pollKeysFlat()
         toggleProne("flatscreen key");
     }
     keyState.keyProne = proneDown;
+    // The crouch pressed while lying down (Left Ctrl, +flatcrouch): up out of it into the crouch, the one easing out as the
+    // other eases in (the eyes take the deeper of the two: crouchDrop), the gun's pose from the prone one to the crouch
+    // one (targetOffset). It used to keep him lying down with the crouch's gun pose on top.
+    const bool crouchNow = ctrl || keyState.cmdHeld;
+    if(crouchNow && !keyState.crouchWas && keyState.prone)
+    {
+        keyState.prone = false;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: crouch while lying down: up to a crouch\n");
+        }
+    }
+    keyState.crouchWas = crouchNow;
     // Mouse 5 (vr_flat_key_shove): a shove.
     const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
     const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && keydown[shoveKey] != 0;

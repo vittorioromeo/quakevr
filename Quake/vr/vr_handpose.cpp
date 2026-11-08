@@ -503,6 +503,29 @@ float gunDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm:
     return deepest;
 }
 
+float gunFloorDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
+    float margin)
+{
+    makeShape(hand, rot, muzzle);
+    const glm::vec3 drop{0.f, 0.f, za::max(margin, 0.f)};
+    float deepest = 0.f;
+    for(const glm::vec3& o : shape[hand])
+    {
+        const glm::vec3 end = pos + o - drop; // (the point `margin` lower: a floor that near counts as under it)
+        const auto tr = lineTrace(from, end);
+        if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 n = worldtrace::normal(*tr);
+        if(n.z > wallSteep)
+        {
+            deepest = za::max(deepest, glm::dot(worldtrace::endPos(*tr) - end, n));
+        }
+    }
+    return deepest;
+}
+
 float gunNearest(int hand, const glm::vec3& eye, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
     const hands::State* s, float* torsoDepth)
 {

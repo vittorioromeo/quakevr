@@ -38,6 +38,9 @@ void frame(bool on);
 [[nodiscard]] float leanRoll();
 // The lean's signed share now, -1 (full left) .. 1 (full right), the wall's clamp in it (the tests, the status).
 [[nodiscard]] float leanShare();
+// Lying down, the lean's roll the lying body takes (degrees, + right: the view's roll times how far down he is): the
+// avatar rolls its lying trunk in place about its long axis by it (vr_avatar_pitch.cpp bodyLeanRollTurn). 0 otherwise.
+[[nodiscard]] float proneLeanRoll();
 
 // The local player sliding (the local server's word; a client of another server: his crouch held at a slide's speed
 // on the ground), and the slide pose's eased share 0..1 (the view's extra drop: vr_flat_slide_drop).
