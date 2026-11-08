@@ -114,10 +114,15 @@ QVR_SLIDER(vr_body_swim_tilt_ledge, "Straighten Near a Way Out", 0.f, 160.f, 8.f
     "Swimming towards a ledge you can climb out at, the body straightens from this far away, so your legs are under you "
     "when you climb out (0: it stays leaning).")
 QVR_SLIDER(vr_prone_body_angle, "Lying Down Body Angle", 0.f, 100.f, 5.f, "%.0f deg", ext(),
-    "Lying down (Player Hitbox > Lying Down), how far forward the body turns about your neck: 90 flat behind your head "
-    "(propped up higher, the hips slope down to the floor). 0: it stays upright.")
+    "Lying down (Player Hitbox > Lying Down), the most the body turns forward about your neck: 90 flat behind your head. "
+    "It turns until the hips rest on the floor (Lying Down Hips Over Floor). 0: it stays upright.")
 QVR_SLIDER(vr_prone_body_time, "Lying Down Time", 0.1f, 3.f, 0.1f, "%.1f s", ext(),
     "How long the body takes to lie down and to get up again (flat-screen: the view's drop too).")
+QVR_SLIDER(vr_prone_hip_floor, "Lying Down Hips Over Floor", 0.f, 10.f, 0.5f, "%.1f units", ext(),
+    "Lying down, how high the hips rest over the floor: the body turns about your neck until they are there, the chest "
+    "propped up when your eyes are higher (never past Lying Down Body Angle).")
+QVR_SLIDER(vr_prone_leg_reach, "Lying Down Leg Reach", 0.85f, 1.f, 0.005f, "%.3f", ext(),
+    "Lying down, how straight the legs are: the share of their length from the hip to the feet on the floor behind (1: dead straight).")
 QVR_TOGGLE(vr_body_climb_feet, "Climbing Footholds",
     "Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
     "you climb; with none, they hang. Off: they hang as in the air.")

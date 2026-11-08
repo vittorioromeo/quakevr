@@ -349,7 +349,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     top += flatplay::crouchNeck(nf, s.headAngles.x) * w;
     // Sliding (flat-screen play, vr_flatmove.cpp): the leant-back trunk hangs off a neck further back than the eye (the
     // chin to the chest): the chest under the view, the legs out in front seen past it (vr_flat_slide_neck_back).
-    top -= b.fwd * (flatmove::slideNeckBack() * bodyPitch.sliding);
+    // (Not the reference poses: the Follower's upright reference moved back with it, the holsters and pouches it carries
+    // ended up that far forward on the slid body, the ammo pouch in front of the camera: his note 2026-11-08.)
+    top -= b.fwd * (crouchPose ? flatmove::slideNeckBack() * bodyPitch.sliding : 0.f);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
     const float tilt =
@@ -423,6 +425,17 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         sp.rot = spineTurn * sp.rot;
         c.pos = sp.pos + spineTurn * chestFromSpine;
         c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
+        // Sliding with the hips and legs to the slide's way (vr_flat_slide_legs; flatplay::trunkTwist): the chest turned back
+        // to the view about the trunk, half of it in the spine.
+        if(const float twist = flatplay::trunkTwist(); twist != 0.f)
+        {
+            const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
+            const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
+            const glm::vec3 fromSpine = c.pos - sp.pos;
+            sp.rot = half * sp.rot;
+            c.pos = sp.pos + half * fromSpine;
+            c.rot = half * half * c.rot;
+        }
     }
     // The tracked chest's twist from the hips (the hips face bodyYaw: bodytrack::bodyYaw), half in the spine.
     if(tracked.weight > 0.f && tracked.twist != 0.f)
@@ -1531,6 +1544,13 @@ bool Follower::thigh(int side, ThighMotion& out) const
     const glm::mat3 still = p.rot * posed.thighStill[side];
     out.down = still[0];
     out.turn = p.rot * posed.thighNow[side] * glm::transpose(posed.thighStill[side]) * glm::transpose(p.rot);
+    // Lying down and sliding (BodyPitch::lying, ::sliding): the gear stays on the hips and the belt (the legs out in front
+    // swung the hip holsters and the ammo pouch up in front of the camera: his note 2026-11-08), by their share.
+    if(const float lie = za::max(bodyPitch.lying, bodyPitch.sliding); lie > 0.f)
+    {
+        const glm::quat q = glm::normalize(glm::quat_cast(out.turn));
+        out.turn = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, q, 1.f - za::min(1.f, lie)));
+    }
     return true;
 }
 
@@ -1622,6 +1642,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     solveLeg(b, stand, 1, legs, still[1]);
     logClimbing(b);
     traceLean(b, s);
+    captureLieProbe(b, s);
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
     posed.legs = legs;

@@ -253,14 +253,19 @@ struct SwimPitchIn
     float climb{0.f};        // Climbing::weight: holding on takes the tilt out
 };
 [[nodiscard]] float swimPitchTarget(const SwimPitchIn& in);
-// Lying down's target: `angle` (vr_prone_body_angle) and more as the eyes stand higher over the floor than a body
-// lying flat has them (eyeOverFloor, units), so the hips go down to the floor behind (at most 30 more); torso: the
-// pelvis to the neck's top, units.
-[[nodiscard]] float pronePitchTarget(float angle, float eyeOverFloor, float torso);
+// Lying down's target: the turn (degrees) that puts the pelvis `drop` units under the neck's top (the neck's top over
+// where the hips rest on the floor: vr_prone_hip_floor), the straight trunk `torso` long (the pelvis to the neck's top)
+// with the pelvis `torsoBack` behind the neck; never past `most` (vr_prone_body_angle).
+[[nodiscard]] float pronePitchTarget(float most, float drop, float torso, float torsoBack);
 void easePitch(float& angle, float& rate, float target, float easeTime, float dt);
 
 // The trunk's turn now (about the body's left; identity upright), `share` of it (the legs': BodyPitch::legs).
 [[nodiscard]] glm::mat3 bodyPitchTurn(const Body& b, float share = 1.f);
 void updateBodyPitch(const hands::State& s, float dt);
+
+// The lying body's probe (vr_avatar_lie.cpp): pose() hands it each posed body (kept only while vr_body_lie_report or
+// vr_body_lie_test asks); initLie registers those commands.
+void captureLieProbe(const Body& b, const hands::State& s);
+void initLie();
 
 } // namespace qvr::avatar::detail
