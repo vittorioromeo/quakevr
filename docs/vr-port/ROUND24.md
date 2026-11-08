@@ -4973,7 +4973,42 @@ His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-
 - Mantle: its grunt played 0-0.1 s after the jump grunt and was masked; it now waits vr_flat_mantle_grunt_delay (0.35 s) after the jump. vr_flat_mantle_look 30, vr_flat_mantle_look_max 90 (his).
 - Flat VR-style menu zoom: 1.05 a step (buttons, wheel while dragging); headset and classic stay 1.1.
 - Body height: units::eyeHeight() is vr_flat_body_height (1.55) in -flatscreenmode; Height rows dimmed there.
-- Not done in this round: hands on the ledge in the mantle (3b), empty-hand and melee wall pullback (5), two-handed wider shove with tunables (6), force-grab outline preview (7).
+- Not done in this round: hands on the ledge in the mantle (3b), empty-hand and melee wall pullback (5), two-handed wider shove with tunables (6), force-grab outline preview (7): done in part two below.
+
+## Flat-screen feedback 2026-11-08, part two (agent/flat1108d)
+
+- **Hands on the ledge (3b):** as a flat mantle starts, each empty hand gets a hold on the lip (vr_climb.cpp flatMantleHands,
+  Mantle Hands On The Ledge `vr_flat_mantle_hands` 1, tunable `vr_flat_mantle_hand_spread` 14 u apart), sent as a grip's
+  hold in STAT_QVR_CLIMB while the mantle runs, so the drawn hand is put there by the headset's climbing code
+  (climb::drawnHand: eased on, off after the mantle). No grip is taken (the mantle has let go of all). Both empty: both;
+  one empty: that one, and a free hand on the other's gun lets go of the hotspot while it is on the ledge
+  (vr_view_hands.cpp: the grip's blend times 1 - climb::drawnShare); dual wielding: none. Test: vr_flatmantle_test
+  checks the hold bits against the hands empty as it starts (both 4 mantles both hands; gun in the main hand: off 1 main
+  0; dual: none), flatslide_test.sh. Looking up 35 the hands are below the view in a screenshot: for his eyes.
+- **Empty hands and swings at walls (5):** an empty hand (both empty, at rest or in the guard; or any empty hand
+  punching or shoving) goes back towards its shoulder until clear of walls and props (vr_flatplay.cpp handOffWall:
+  handpose::pointWallDepth from the eye, Keep Off Distance + 2, back at once, out eased 12/s). A punch or a shove stops
+  on the surface; a melee weapon's swing stops via gunBack in flatsight's pushBack, at once. Tunables
+  `vr_flat_hand_collide` 1, `vr_flat_punch_wall_margin` -0.5 (half a unit into it: at 1 short the fist's wall blow
+  never landed; 0 and below it lands). Tests (flatinput_test.sh): wallguard (guard pushed to the arm's reach: posed 4.6
+  u in, 0 after), wallpunch (stops 0.5 in, "a wall" blow lands), wallswing (axe, 0.1 in, blow lands). Probe: "flatwall:"
+  lines at vr_flatplay_debug 2. At vrtesthall's plain wall the default guard does not reach the wall; his case was
+  likely props, leans or looking down.
+- **Shove (6):** both hands free: both push (impulse 56; the flat reload took 55), QC VR_FlatShove's two-handed shove:
+  the palms' line across 0.3 m, the headset's two-hand damage and push. Shove Reach 1 -> 1.15 and the sweep's pad
+  x1.15 (`vr_flat_shove_width`). Tunables: `vr_flat_shove_both` 1, `vr_flat_shove_both_apart` 8 u,
+  `vr_flat_shove_anim_speed` 1 (divides Shove Time), each hand's target nudge at full push
+  `vr_flat_shove_main_fwd/_out/_up`, `vr_flat_shove_off_fwd/_out/_up` (0). Tests: flatinput shove (two hands),
+  shove1 (axe in main: the off hand alone), shovereach (a grunt at 55: 1 misses, 1.15 lands). His `vr_flat_shove_anim_reach
+  64` is clamped to 40 by the code and the slider: not changed.
+- **Force-grab preview (7):** in flat play the hands' force-grab frame no longer searches along the hanging hand (it
+  found things at his feet and the fire button could lock on): the hand the grab key would use searches along the view
+  (VR_Forcegrab_FlatPreview, the same search as VR_Forcegrab_FlatGrab) and shows the aimed glow; no beam
+  (Force Grab Preview `vr_flat_grab_preview` 1, Desktop Screen Play page). Test: flatitems test 1 checks the preview
+  names what E takes, on that hand (6 items).
+- **Known, not from this work** (the same with the new settings off): flatslide's "a jump in the slide keeps its speed"
+  (30 of 375 u/s), flatslide's "keys: R force-grabs" (R reloads now; the test still greps an R grab), flatplay_test's
+  "the free hand on a grip punches: the knight takes it".
 ## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
 
 Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:

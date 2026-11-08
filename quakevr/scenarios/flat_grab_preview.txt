@@ -1,0 +1,11 @@
+# flat_grab_preview: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The flat-screen force grab's preview (-flatscreenmode, mouse 4): things to look at and pull, near and far, with a free hand.
+title Force grab preview: weapons and crates ahead to look at, both hands empty
+map vrtesthall
+god
+notarget
+spawn "Shotgun" 120 0
+spawn "Axe" 200 60
+spawn "Wooden Crate" 160 -80
+spawn "Nail Pistol" 260 -20
+cmd impulse 150
+cmd impulse 170
