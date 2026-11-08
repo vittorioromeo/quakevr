@@ -1032,6 +1032,12 @@ void lookCheck_f()
         {
             for(int tx = 0; tx < 5; tx++)
             {
+                // (not the emblem's tile, 28 (vr_agarmor.cpp tileEmblem): its rune is a second colour on purpose, red on green
+                // and yellow; ROUND24.md, "Armour look: fewer, bigger plates")
+                if(ty * 5 + tx == 28)
+                {
+                    continue;
+                }
                 double tile[3]{0.0, 0.0, 0.0};
                 const int x0 = xEnd * tx / 5, x1 = xEnd * (tx + 1) / 5, y0 = h * ty / 6, y1 = h * (ty + 1) / 6;
                 for(int y = y0; y < y1; y++)

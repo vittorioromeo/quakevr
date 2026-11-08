@@ -3807,3 +3807,52 @@ His note: "The enforcer's right elbow leather connector has a similar issue to t
   left, `bracer_l`, the one that jumped) while it stands, aims, shoots, walks and swings: the leather stays round the
   elbow, no ring spinning, the inner-elbow lump easing rather than pumping. Grunts' and knights' elbows and knees: no
   new lumps or skin through the leather on the inside of a bend.
+
+## Armour look: fewer, bigger plates (branch `agent/regfix`, 2026-11-08)
+
+His note: the armoured knight "a bit too plain/boring/repetitive"; ChatGPT's mockup (few big plates, a recessed chest panel, a
+rune on a pauldron, vented bracers and shins, knee cops, gold-brown trim, a dark layer between plates). He approved the low-risk
+steps 1-3 (the plate system kept); step 4 (hero plates: a row's plates merged) after he sees this.
+
+- **Fewer, bigger plates** (`vr_agarmor.cpp`): rows' wanted heights 2.5 / 2.9 -> torso 3.4, arms 4.2, legs 3.6 (`plateHighLeg`,
+  new), most rows 6 / 5 / 3 -> 5 / 4 / 2 (torso, legs, arms). Rows now: grunt cuirass 6 (was 7), upper arm 3 (armour.txt, see
+  below), forearm 2, thigh 2 (3), shin 2 (4); enforcer 6/2/2/4/3 (7/3/3/5/3); knight 6/2/2/5/2 (7/3/3/5/3); death knight
+  6/2/2/3/2 (7/2/2/4/3). Triangles 1960-2296 a body (2488-2968).
+- **armour.txt** (shipped defaults): grunt `shin_l rows "4"` dropped (both shins the generator's); grunt `pauldron rows "3"`
+  (at 2 rows his left elbow's leather ring spun 14 degrees in a frame: `vr_agarmor_bridge_check` 87/1; the bridge code is
+  another worker's); knight `thigh rows "5"` (at 3 or 4 rows a thigh row stood 11.7-12 units wider than his skin:
+  `vr_agarmor_look_check`'s width limit 7.5); `kind "progs/vrbody_brawny.mdl"` `cuirass rows "7"` (the brawny build's chest
+  row 5.78 units wide at 6 rows, limit 5.5; the other player builds take the new rows).
+- **Details by place** (`plateLook`, `vr_agarmor_details 1`): the two plates either side of the cuirass's seam in its chest row
+  get a recessed panel tile, flipped so each recess sits on the seam's side and the two make one panel (variants: plain, a slot
+  across, two rivets); the front plates below it down to the waist row a recessed ribbed tile; the forearm's last row (the
+  cuff) and the shin's last row vents on their three front plates; a cop tile on the back plate of the forearm's first row (the
+  elbow) and the front plate of the shin's first row (the knee), its step 1.5 times a plate's (`copRaise`); the emblem on the
+  upper arm's top-row plate most to the outside (`vr_agarmor_emblem`: 1 right arm (default), 2 left, 3 both, 0 none). The
+  knight's shoulder dome keeps a plain tile (its disc's UV now within the tile's face). Shells made again when either cvar
+  changes (the relink key). Both in Debug > Tools by the leather rows (Armour Plate Details, Armour Emblem).
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): the 30 tiles are now 20 plain, 3 panel, 3
+  vent, 2 rib, the emblem, the cop (TILE_* = vr_agarmor.cpp tile*). Every tile: brighter faces (shade 1.06 + 0.1 v), a
+  near-black under-layer on its top 15% (the gap under the row above: rows read as separate pieces), a darker trim (the paint
+  x0.55 and towards gold-brown: TRIM_TINT green 0.25, yellow 0.45, red 0.3; TRIM_SHARE 0.85, TRIM_REACH 1.15 bevels) round
+  its sides and lower edge, rivets at its four corners only, less bare steel on the edges at wear 0 (0.8 -> 0.6). The emblem:
+  our own rune (a ring, a stem, two raised arms; not id's logo), dark red on green and yellow (its texels quantised with the
+  palette's reds, EMBLEM_REDS), near black on red, scuffed. Vents' and grooves' insides are the tier's paint darkened (its
+  tiles stay one hue).
+- **Fixed on the way:** the engine's `Mod_FloodFillSkin` flooded the region of the atlas's top-left texel's colour with black
+  (it took the under-layer along the atlas's top); the top-left texel is now black, which it leaves alone.
+- **Checks:** `vr_agarmor_look_check`'s one-hue-per-tile check skips tile 28 (the emblem's red is on purpose).
+
+Tests (low-impact runs): `vr_agarmor_check` 20/0, `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0, `vr_armour_test`
+30/0. `vr_agarmor_look_check` 89/25: the 25 failures were there before (coverage on every player build and the humanoids,
+the enforcer's and knight's bent coverage now 56% and 59% against 62% and 65%, both failing before); none new; the death
+knight's width and the knight's taper now pass, and the tiers' hues pass (green 13 degrees across its tiles, limit 14).
+Renders: `scratch/al_k_pair.png` (knights, before over after), `al_ge_pair.png` (grunt and enforcer), `al_tiers_worn.png`
+(green, yellow, red; wear 2), `al_k_front_Rc.png`, `al_k_chest.png`, `al_k_side_c.png`, `skin_b.png` (the atlas: yellow,
+green, red, yellow at wear 2).
+
+Not done: trim strength and rivet style aren't cvars (baked in the 8-bit skins; TRIM_SHARE, TRIM_REACH in the generator).
+Step 4 (hero plates): merge the chest row's front plates into one wider plate (and the pauldron's top row into two) at grid
+time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
+wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
+(plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
