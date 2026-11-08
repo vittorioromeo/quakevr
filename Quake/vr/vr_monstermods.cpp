@@ -153,7 +153,7 @@ const KnownSword knownSwords[] = {
     {qvr::modelmeta::Id::Knight, 655, 697, {{334, 3}, {363, 3}, {524, 1}, {535, 6}, {557, 92}}, 76, 96, "sword"},
     // (The hell knight's blade, and its guard: a piece of its own his hand holds, the dropped sword has its own hilt.)
     {qvr::modelmeta::Id::Hknight, 538, 1000, {{42, 17}, {332, 34}, {525, 8}}, -1, -1, "sword"},
-    {qvr::modelmeta::Id::Ogre, 497, 1290, {{416, 81}}, -1, -1, "chainsaw"},
+    {qvr::modelmeta::Id::Ogre, 497, 952, {{416, 81}}, -1, -1, "chainsaw"}, // (952: 338 zero-area triangles gone, ROUND24.md "Model topology fixes")
     {qvr::modelmeta::Id::Soldier, 555, 810, {{463, 86}}, 8, 28, "shotgun"},
     {qvr::modelmeta::Id::Enforcer, 479, 984, {{22, 2}, {100, 1}, {400, 31}, {455, 24}}, -1, -1, "laser rifle"},
     // Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl, read in place): the chainsaw in his right hand
