@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ssg_checks.py -- reload_test.sh section 7's checks that read files (numpy, Pillow):
-#   ssg_checks.py ring                 the super shotgun's rear sight ring is on its barrels part, not its frame
+#   ssg_checks.py ring                 the super shotgun's rear sight (its notch sight since 2026-11; a ring before) is on its barrels part, not its frame
 #                                      (make_ssg_open.py: it swings open with them): "ring barrels N frame M"
 #   ssg_checks.py sights <png> ...     the sights' colour in screenshots: per shot, the pixels of the sights as recoloured
 #                                      (the player's hue, yellow by default: within 12 degrees of 60) and as painted
@@ -33,7 +33,7 @@ def sight_tris(path):
     n = 0
     for tri in m.tris:
         c = P[list(tri[1:])].mean(0)
-        if not (12.0 < c[0] < 12.7 and c[2] > 6.9 and abs(c[1]) < 0.6):
+        if not (12.0 < c[0] < 13.4 and c[2] > 6.9 and abs(c[1]) < 0.6):  # (the notch sight: x 12.82-13.28)
             continue
         uv = mp.tri_uv(m, tri).mean(0)
         if 224 <= sk[int(min(m.sh - 1, uv[1])), int(min(m.sw - 1, uv[0]))] <= 239:
