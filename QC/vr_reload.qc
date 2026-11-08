@@ -190,9 +190,10 @@ float(float xWeapon) VR_Reload_ManualFor =
 };
 
 // The same of the weapon `p` holds in `xHand`.
+// (Never a flat-screen player's: his guns reload at the hips, vr_flatreload.qc.)
 float(entity p, float xHand) VR_Reload_ManualInHand =
 {
-    return VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
+    return !VR_FlatPlay(p) && VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 };
 
 // Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand).
@@ -252,7 +253,7 @@ float(entity p, float xHand) VR_Reload_MagIn =
 {
     float w = VRGetEntWeapon(p, xHand);
     float f = VRGetEntWeaponFlags(p, xHand);
-    return p.ishuman && VR_Reload_ImmersiveForInst(w, VRGetEntWeaponInst(p, xHand)) && VR_Reload_UsesMag(w) &&
+    return p.ishuman && !VR_FlatPlay(p) && VR_Reload_ImmersiveForInst(w, VRGetEntWeaponInst(p, xHand)) && VR_Reload_UsesMag(w) &&
            !(f & QVR_WPNFLAG_NOMAG);
 };
 

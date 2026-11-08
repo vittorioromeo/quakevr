@@ -1846,6 +1846,12 @@ QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.
 QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
+// Flatscreen > Reload
+QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload.cpp): seconds the gun's hand takes to the nearest hip holster (the rounds go in as it gets there)
+QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
+QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
+QVR_TUNABLE(vr_flat_reload_angle, "90") // degrees the gun turns muzzle-down at the holster (0..150)
+
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
 QVR_TUNABLE(vr_flat_empty_down, "1") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 off the old anchor)

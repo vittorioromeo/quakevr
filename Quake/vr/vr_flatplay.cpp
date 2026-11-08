@@ -7,13 +7,14 @@
 //   - the hands are posed from the view angles, the weapon in each hand and the player's own movement: they hold a gun
 //     the way a first-person viewmodel does, aim at the crosshair, trail a turn, bob on a walk and breathe at rest
 //     (poseHands, called from vr_hands.cpp in place of the straight-out-in-front pose);
-//   - R (vr_flat_key_grab) force-grabs what the view is pointed at, V punches with the right hand, and either hand's fire button punches
+//   - mouse 4 (vr_flat_key_grab) force-grabs what the view is pointed at, V punches with the right hand, and either hand's fire button punches
 //     with a weapon a swing strikes with: all of it goes through the game's own force grab and melee, a punch being a
 //     real motion of the hand, so the melee rules decide whether it lands (vr_flat_punch drives either hand's punch from
 //     the console);
 //   - 1 and 2 cycle the weapons collected, into the left and the right hand (QC weapons.qc, on the flag);
-//   - reloading is off, the flashlight is worn on the head (F switches it off and on), and the body presses the buttons it
-//     walks into.
+//   - R reloads (vr_flat_key_reload), and an empty clip does by itself (vr_flat_autoreload): the gun's hand goes down to the
+//     nearest hip holster and back (vr_flatreload.cpp; QC vr_flatreload.qc), the flashlight is worn on the head (F
+//     switches it off and on), and the body presses the buttons it walks into.
 //
 // The keys are read from the keyboard state, not from bindings, with one exception named below: Left Ctrl is the engine's
 // fire key by default (Quake/default_cfg.h binds CTRL +attack) and the mode's crouch key, so while the mode runs CTRL is
@@ -37,6 +38,7 @@
 #include "vr_flathud.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatsweep.hpp"
@@ -867,7 +869,8 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, R).
+    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, none: R
+    // reloads now, vr_flatreload.cpp).
     const auto down = [inGame](const cvar_t& c) {
         const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
         return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
@@ -1424,7 +1427,8 @@ FireRoute routeFire(bool lmb, bool rmb)
     FireRoute r = routeButtons(lmb, rmb);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        if(r.fire[h] && !punchesWith(h) && flatsight::wallBlocksFire(h))
+        // (Nor a gun on its way to the hip and back to reload: vr_flatreload.cpp; the game stops it too.)
+        if(r.fire[h] && !punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))
         {
             r.fire[h] = false;
         }
@@ -1567,6 +1571,7 @@ void init()
     flycam::init(); // vr_flat_flycam_toggle, vr_flat_flycam_test (vr_flycam.cpp)
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
+    flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
@@ -1595,7 +1600,7 @@ void frame()
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
                    "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
-                   "switches the flashlight, G drops what a hand holds, Q swaps the hands, Z starts bullet time. With one weapon "
+                   "switches the flashlight, G drops what a hand holds, Q swaps the hands, Z starts bullet time, R reloads. With one weapon "
                    "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
                    "the mode is doing.\n");
     }
@@ -1626,6 +1631,7 @@ void frame()
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         flatmove::frame(false);
         slidesound::frame(false);
+        flatreload::frame(false);
         return;
     }
 
@@ -1636,6 +1642,7 @@ void frame()
     }
     pollKeys();
     pollKeysFlat();
+    flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
     slidesound::frame(true); // its scrape (vr_slidesound.cpp)
 }
@@ -2174,6 +2181,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
     flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z);
+    // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
+    flatreload::apply(s);
     traceHandZ = s.pos[HAND_MAIN].z;
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
@@ -2558,8 +2567,9 @@ void status_f()
         (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
         za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f),
         keybindings[K_CTRL] ? keybindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
-    Con_Printf("  the game code: reloading off, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
-               "the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n");
+    Con_Printf("  the game code: reloading %s (R; auto %s), body interactions on, 1, 2 and the wheel cycle (empty hand "
+               "included) the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n",
+        vr_flat_reload.value != 0.f ? "at the hip holsters" : "off", vr_flat_autoreload.value != 0.f ? "on" : "off");
     Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
                "game).\n");
     flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)

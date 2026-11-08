@@ -98,6 +98,11 @@ void(float xHand, float xAid) updateAmmoCounter =
     }
 }
 
+float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
+void() VR_FlatReload_Key;
+void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
+void(float xHand) VR_FlatReload_CycleIn;
+
 float(float xHand) getCurrentAmmoCount =
 {
     float ammoId = WeaponIdToAmmoId(VRGetWeapon(xHand), VRGetWeaponFlags(xHand));
@@ -4247,8 +4252,12 @@ void(float xHand,
 
     if(newWeapon != xWeapon)
     {
+        // Flat-screen play (vr_flatreload.qc): the clip of the gun put away goes back into the reserve, and the gun taken
+        // comes loaded from it, as a pickup does (the hand's magazine isn't carried from one gun to the next).
+        VR_FlatReload_CycleOut(xHand, xWeapon, xWeaponFlags);
         *xOutWeapon = newWeapon;
         VRCycleEntWeaponInst(self, xHand, newWeapon);
+        VR_FlatReload_CycleIn(xHand);
 
         W_SetCurrentAmmoFor(xHand);
     }
@@ -4686,6 +4695,14 @@ void() ImpulseCommands =
         return;
     }
 
+    // Flatscreen play: R reloads (vr_flatplay.cpp reads the key, vr_flat_key_reload; vr_flatreload.qc).
+    if(self.impulse == 55 && VR_FlatPlay(self))
+    {
+        self.impulse = 0;
+        VR_FlatReload_Key();
+        return;
+    }
+
     if(self.impulse == 48 && VR_FlatPlay(self))
     {
         self.impulse = 0;
@@ -4954,7 +4971,8 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     // check for attack
-    if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand))
+    // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc.)
+    if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand))
     {
         // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
         // (VR_QuadSound, combat.qc).

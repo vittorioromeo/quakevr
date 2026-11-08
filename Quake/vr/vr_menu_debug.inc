@@ -824,11 +824,16 @@ za::Vector<Item> pageDebugReports()
         header("Flatscreen Play"),
         command("Flatscreen Play Status", "vr_flatplay_status")
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
-                  "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
+                  "stands in for (R reloading at the hips, the flashlight worn, 1 and 2 cycling the weapons collected)."),
         command("Flatscreen Status Bar Report", "vr_flathud_report")
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
         row(opt::vr_flatplay_debug),
+        command("Flatscreen Reload Report", "vr_flatreload_report")
+            .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
+                  "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        row(opt::vr_flat_reload_debug),
+        row(opt::vr_flat_reload_pose),
         row(opt::vr_handsource_debug),
         row(opt::vr_handsource_force),
         command("Flatscreen Flick Test", "vr_flat_flick_test")

@@ -87,6 +87,8 @@ void(float xHolster, float v) setHolsterWeaponFlags =
     bprint("\n");
 }
 
+void(float xHand) VR_FlatReload_HandFrame; // (vr_flatreload.qc)
+
 float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 {
     float mode = VR_Reload_ModeOfInst(xWeapon, xInst); // (the weapon's own override, else the global)
@@ -1148,10 +1150,21 @@ VRUnloadWeapon =
     VRSetEntWeaponClip(entPlayer, xHand, 0);
 }
 
+// Set while flat-screen play's reload moves the rounds (vr_flatreload.qc VR_FlatReload_HandFrame): for a flat-screen
+// player that is the only reload. A holster his hand passes (a pose, the look, the trip to the hip itself), a flick, a
+// button reload no gun of his (his words 2026-11-08: "reloading should only happen when R is pressed or during the
+// automatic reload").
+float vr_flatreload_go;
+
 void(entity entPlayer, float xHand, float xWeapon, float xWeaponFlags)
 VRTryReloadWeapon =
 {
-    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualForInst(xWeapon, VRGetEntWeaponInst(entPlayer, xHand)) &&
+    if(VR_FlatPlay(entPlayer) && !vr_flatreload_go)
+    {
+        return;
+    }
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) &&
+       (VR_FlatPlay(entPlayer) || !VR_Reload_ManualForInst(xWeapon, VRGetEntWeaponInst(entPlayer, xHand))) &&
        (VRGetEntWeaponClip(entPlayer, xHand) < VR_ClipSizeIn(entPlayer, xHand)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
@@ -1734,6 +1747,8 @@ void() W_Frame =
     VR_Reload_PlayerFrame(); // what the ammo pouch gives and shows (vr_reload.qc)
     VR_Reload_HandFrame(cVR_MainHand); // a round taken from the ammo pouch on the belt (vr_reload.qc)
     VR_Reload_HandFrame(cVR_OffHand);
+    VR_FlatReload_HandFrame(cVR_MainHand); // flat-screen play's reload: R, the empty clip, the trip to the hip (vr_flatreload.qc)
+    VR_FlatReload_HandFrame(cVR_OffHand);
 
     UpdateHolsterHover(self);
 

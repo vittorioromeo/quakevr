@@ -533,12 +533,16 @@ float(entity p, float xHand) VR_HandMotionTracked =
 
 float(entity ent) VRIsWeaponReloadingEnabled =
 {
-    // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it
-    // empties, with no handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
+    // Flatscreen play (-flatscreenmode): every gun reloads at the hip holsters (VR's Hip Holsters mode, whatever the
+    // headset's mode and the guns' own), with vr_flat_reload; started only by R or the empty clip (vr_flatreload.qc), never
+    // by a holster, a flick or a button. Off: no clips, every shot from the reserve, as before 2026-11-08.
+    if(VR_FlatPlay(ent))
+    {
+        return cvar_hget(cvarh_vr_flat_reload) && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+    }
     // (Whether any gun reloads: the global mode, or a gun's own override.)
     return (VR_Reload_BestMode() != QVR_RELOADMODE_NONE) &&
-           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE) &&
-           !VR_FlatPlay(ent);
+           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
 }
 
 // The same of the weapon `wid` alone (its own reloading mode: the Per-Weapon Reload Overrides).
@@ -547,7 +551,7 @@ float(entity ent, float wid, entity inst) VRIsWeaponReloadingEnabledForInst =
 {
     return VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReload(wid) &&
-           VR_Reload_ModeOfInst(wid, inst) != QVR_RELOADMODE_NONE;
+           (VR_FlatPlay(ent) || VR_Reload_ModeOfInst(wid, inst) != QVR_RELOADMODE_NONE); // (flat: every gun, at the hips)
 }
 
 float(entity ent, float wid) VRIsWeaponReloadingEnabledForWeapon =
@@ -564,7 +568,7 @@ float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 // (Not the Widowmaker: a super shotgun that never breaks open.)
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
-    return VRIsWeaponReloadingEnabledFor(ent, xHand) &&
+    return VRIsWeaponReloadingEnabledFor(ent, xHand) && !VR_FlatPlay(ent) && // (flat: R and the empty clip only)
            WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand)) && !AD_WidowmakerIn(ent, xHand);
 }
 
