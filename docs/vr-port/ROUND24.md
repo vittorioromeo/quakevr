@@ -3514,6 +3514,45 @@ rear's ears as the shotgun has.)
   at once, 46/0 later; the sights stay yellow); the blood check keeps the side camera.
 - **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.
 
+## Irons level: the shotguns' and the lightning gun's sights (branch `agent/selfshot`, 2026-11-08)
+
+His note, with flat ADS screenshots (`scratch/shotsight_mockup/ads_shot_misaligned.webp`, `ads_ssg_misaligned.webp` in the
+kit): the glowing inserts lined up on the aim, the irons didn't (the rear ears' metal tops well over the front post's);
+"in real guns, people look for the alignment of the irons, not of the glowy bits". Then the lightning gun
+(`lightning_ads.webp`): rear posts asymmetric, their gap off centre, the glow sitting on top, the front post lopsided.
+
+- **The sight line is the irons' tops** (`vr_sightalign.cpp` `fromTexels`, `sights.py` `sight_line`): the rear and front
+  heights are the highest corner of the triangles the sight texels are painted on (the faces the inserts are on), not the
+  texels' own. One rule for every painted gun, no per-model number: where an insert is painted to its face's top (the
+  old lightning gun's blocks) the two are the same. The nail pistol has no painted texels and keeps its table line.
+- **Shotgun** (`v_shot.blend`): the ears' tops lowered one z step (0.0666) to 6.6116, the front post unchanged (6.2784):
+  the iron line is the old insert line raised 0.0666 at both ends, so it is parallel: -0.843 deg up, 0.115 left, as before
+  (turned 0.000). The ears' back faces keep their texel size (their top corners' UVs two rows down). Inserts: the rear
+  ones' tops 1 row (0.033) under the ears' tops (the patch moved up a row: dark line on the top edge, insert, lip), the
+  front one's 4 rows (0.133) under the post's top (two core rows fewer). In the sight picture (eye ~11 units behind the
+  rear, ~34 from the front) those are about the same angle under the iron line (0.003-0.004 rad), so the inserts' tops
+  line up too. The relief PNG moved with them.
+- **Super shotgun** (`v_shot2.blend`): the ears' tops lowered 4 z steps (0.2226) to 7.7781 = the old insert line + one
+  step; the post unchanged (8.1676): 1.488 deg up, 0.140 left, as before. Rear inserts' tops 1 row (0.028) under the
+  ears' tops, the front one's 3 rows (0.083) under the post's (one core row fewer). The ears now just clear the barrels'
+  backs (their humps reach the same height): the inserts show whole in the notch's sides, as before.
+- **Lightning gun and plasma gun** (`v_light.blend`, `v_plasma.blend`: the same sight geometry, one script for both):
+  a rear housing like the shotgun's, a closed solid across the receiver (x -2.378..-1.354, 1.76 wide, its bottom sunk),
+  centred on the barrel's line (y -0.098, the muzzle's; the old notch was at -0.1715 and the posts' bottoms lopsided):
+  a square U notch 0.44 wide, its floor 0.274 under the tops, between two ears 0.293 wide, their tops at 11.4806 (the box
+  top, as the old posts'); the old posts sunk inside it (the receiver's slope that ran up to them now comes out of its
+  front face). Front: a square post 0.293 wide on the same line, top 11.3435 (the old pyramid's apex, removed), its back
+  face at x 31.0765. Each ear's and the post's back face a metal frame round a 5-wide glowing insert (234 rim, 235, 236
+  core), the rear ones' tops 1 row (0.034) under the ears' tops, the front's 2 rows (its top 4 rows show over the
+  barrel); new UV patches in free skin (v_light s 22-52, v_plasma s 144-174, t 94-102); the old glow (s 145-158,
+  t 133-143) repainted metal. Line: rear -2.378 -0.098 11.4806, front 31.0765 -0.098 11.3435: -0.235 deg up, 0.000 left
+  (was -0.238, 0.012 left: turned 0.012 deg; no shot offsets in weapons.txt for these slots). Barrel masks "948:..." for
+  both (were 865), written by the export. Holes as before (6 open loops, 4 cracks, none see-through).
+- **sight_picture.py**: the lines updated; the shotgun's ears now +0.003 over the line (were +0.070), the post 0.000; the
+  super shotgun's front 0.000 (the rear "ears top" +0.234 it prints is the barrels' backs at x 12.37, not the ears).
+- **Flat ADS screenshots** (`scratch/` of the worktree): `ads_iron_after.png` (shotgun, super shotgun),
+  `light_ads_after.png` (lightning gun).
+
 ## Black slivers on the shotgun (branch `agent/regfix`, 2026-11-08)
 
 His note: two small black triangles on the flat top of the shotgun's receiver behind the rear sight, on every map,
