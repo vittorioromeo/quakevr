@@ -3704,6 +3704,28 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
 
+## Model topology audit (branch `agent/flatwall`, 2026-11-08)
+
+His note: model topology has "unnecessarily complex surfaces, or overlapping triangles that lead to Z-fighting"; can it be
+fixed and simplified without changing the look? Phase 1 of 3 (audit; then gated automatic fixes; then a list for him).
+No model changed.
+
+- **Scanned:** 270 alias models, every pose, on the stored byte grid: ours (181, 74,295 triangles), id1 pak0/1, hipnotic,
+  rogue, MG1. AD is an optional download (not scanned).
+- **Ours, totals:** 1,920 degenerate triangles (1,064 in three models inherited from the old Quake VR pak10: h_zombie 490
+  of 586, ogre 338, quaddama 212), 119 duplicate triangles, 428 z-fighting pairs built into the mesh (coincident in every
+  pose; 411 show different texels), 1,847 more that only meet in some animation poses, 5,312 weldable duplicate
+  vertices, 46 T-junction cracks, 458 non-manifold and 45 flipped edges, 5 hidden triangles. Zero-error simplification
+  (removing vertices inside one plane and one texture chart) saves only 63 triangles (611 if half-texel shifts are
+  accepted): the meshes are split by UV seams, not over-tessellated. About 2,100 triangles (2.9%) are fixable with no
+  visible change.
+- **Found on the way:** v_nailpistol.mdl's shipped fx_gfx_mask is for 841 triangles; the model has 518, so the barrel
+  mask reads as none.
+- **Tools:** `Misc/quakevr/mdltopo/` (run with Blender's Python, it has numpy): `compare.py A.mdl B.mdl` (the fix-phase
+  gate: an exact software rasteriser, 26 views x every pose, nearest texels, numbering-independent; PASS/FAIL),
+  `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
+  flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
+  and highlighted pictures: `scratch/topo/` in this worktree.
 ## Enforcer's elbow leather jumping (branch `agent/blendmd5`, worktree blendmodels, 2026-11-08)
 
 His note: "The enforcer's right elbow leather connector has a similar issue to the knight one you fixed". Files:
