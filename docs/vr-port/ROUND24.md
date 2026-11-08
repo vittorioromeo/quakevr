@@ -4430,3 +4430,31 @@ triangles, positions and texture coordinates are unchanged (compared as triangle
 - **Test it in VR:** hold each next to the shotgun: the nail pistol's body the same deep blue-black steel with the silver
   bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
   dirtier, its details still readable; grunts' rifles alike.
+
+## Model topology pass 2, job B: static z-fights with different texels (branch `agent/zfight`, 2026-11-08)
+
+Scope: the audit's 25 models with static different-texel z-fights, minus Job A's (v_shot and its parts, v_shot2 and
+its barrels, the nail pistol models, the widowmaker and revolver models with generators). 13 models, 177 pairs on the
+current (post steps 1-5) files: g_shot0 3, h_demon 1, hook 1, legholster 25, v_enfrifle 36, v_grpple 7, v_laserg 16,
+v_light 11, v_plasma 11, v_toolgun 3, vr_adrifle_base 5, vr_shell_pair 10, vrpouch 48.
+
+- **Tools** (Misc/quakevr/mdltopo, Blender's Python): `zfpairs.py` lists a model's pairs (audit.py's risk_static_diff);
+  `zffix.py` decides and fixes; `zfgate.py` gates; `zfsheet.py` draws crops (where | first wins | second wins).
+  Contested pixels: rendered with one of the pair hidden, the other right there at the same depth (26 views x 3 poses,
+  384 px); "visible" = the two looks differ by >= 16 RGB.
+- **Decisions:** 130 pairs invisible (fewer than 8 visibly different px in all 78 renders: dark-on-dark texels or
+  slivers): left as is. 16 fixed (legholster 9, v_grpple 5, v_toolgun 2): partial overlaps of separate parts at
+  corners/edges (strap edges on the holster, the claws at the hub, a bracket's two bars) whose two looks are nearly the
+  same: the smaller part's flat face moved out one grid step (whole-step vector along the normal, every pose), so the
+  depth test always picks it. 31 left for Vittorio: `C:/OHWorkspace/qvr-kit/scratch/zfight_his_call.md` + crops.
+- **Folds don't remove:** a triangle inside a bigger coplanar one that shares an edge with it (v_light 16 in 22, five on
+  vrpouch's buckles) compares pixel-exact when removed, but check_mdl_holes then finds a new see-through loop (and
+  cracks on vrpouch): it is part of a closed surface. Reverted; on the his-call list.
+- **Gate** (zfgate.py): the new render against the old one with the kept face winning its contested pixels: no change
+  outside the moved faces (+2 px) except 27 outline px on legholster, every change inside them explained by a slide of
+  at most 2 px (the face moved a grid step); compare.py: legholster 2,625 texel px (mean rgb 0.017), v_grpple 8,752 over
+  9 poses (0.006), v_toolgun 324 (0.002), all on the moved faces. Re-audit: the 16 pairs gone, none new
+  (legholster 25 -> 13, v_grpple 7 -> 1, v_toolgun 3 -> 0). Holes check unchanged; no anchors on these models; no
+  fx_gfx_mask change (no triangle renumbered); .blend rebuilt with blend_build.py, `blend_export.py --out` byte-identical.
+- **Test it in VR:** nothing should look different; the holster's strap edges, the grapple's hub and the tool gun's
+  corner bracket no longer shimmer when moved slowly.
