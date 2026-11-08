@@ -214,6 +214,14 @@ constexpr float grabLever = 0.04f;      // m: its most torque, the most force at
 constexpr float grabStuck = 40.f;       // units: a limb this far from its hand
 constexpr double grabStuckTime = 0.5;   // s: this long is let go of (behind a wall, a door shut on it)
 
+// A blade's spring's rate (Hz; ragdollTug what 12): Moving: Stiffness, its N per m times Blade Hold Strength (the Hz by
+// its square root). (At a limb grab's 8 it held a grunt's chest 15-40 cm off a hand moving it, its pull a tenth to half of
+// its most: the forces barely mattered. vr_embed_test 27, 2026-11-08.)
+[[nodiscard]] float bladeHertz()
+{
+    return za::max(vr_embed_move_hertz.value * std::sqrt(za::max(vr_embed_hold_strength.value, 0.f)), 0.5f);
+}
+
 [[nodiscard]] int grabIndex(int player, int hand)
 {
     for(int i = 0; i < static_cast<int>(world->ragdollGrabs.size()); i++)
@@ -398,6 +406,7 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     glm::vec3 at;
     glm::quat turn;
     handPose(player, g.hand, at, turn);
+    at += g.bladeReach; // (a blade's held at its wound: its anchor there)
     if(fit)
     {
         const b3BodyId body = r.body[static_cast<za::SizeT>(g.part)];
@@ -884,6 +893,15 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         bg.force = za::max(force, 0.f);
         bg.tug = true;
         bg.blade = true;
+        // (Held at the wound, the spring's pull goes into the body where the blade is; held at the hand, a point out at the
+        // hilt a blade's length away, the body hung and swung from there on the hold's small torque (grabLever): a lift or a
+        // swing moved the wound only some 70% of the hand's way, whatever the force. Measured 2026-11-08, vr_embed_test 27.)
+        bg.hertz = bladeHertz();
+        if(vr_embed_move_at_wound.value >= 1.f)
+        {
+            bg.bladeReach = grip - bgs.at;
+            bgs.at = grip;
+        }
         beginGrab(bg, bgs, player, hand, bpart);
         if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
         {
@@ -909,6 +927,17 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
             g->bladeShift = grip;
         }
         return ours ? 1.f : 0.f;
+    }
+    if(what == 16)
+    {
+        // (The tests: how far the held limb's point is from where that spring pulls it, units; -1 none.)
+        if(!ours || !r || g->part < 0 || g->part >= r->count || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint) ||
+           B3_IS_NULL(g->anchor) || !b3Body_IsValid(g->anchor))
+        {
+            return -1.f;
+        }
+        const glm::vec3 held = world->toU(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(g->part)], b3Joint_GetLocalFrameB(g->joint).p));
+        return glm::distance(held, world->toU(b3Body_GetWorldPoint(g->anchor, b3Joint_GetLocalFrameA(g->joint).p)));
     }
     GrabStart gs;
     if(!r || !r->rig || !r->active.on || !r->active.stagger.on || !grabStart(ent, player, hand, gs))
@@ -1236,7 +1265,7 @@ void syncRagdollGrabs(float dt)
         glm::vec3 at;
         glm::quat turn;
         handPose(player, g.hand, at, turn);
-        at += g.bladeShift;
+        at += g.bladeShift + g.bladeReach;
         const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
         if(B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
         {
@@ -1266,10 +1295,12 @@ void syncRagdollGrabs(float dt)
         const float tugGo = g.tugBack > 0.f ? za::max(letGo, g.stuck) : letGo;
         if(g.blade)
         {
-            // (A blade's: how far is the QC's. Staggering, its stance gives way to what the hold passes on to its pelvis.)
+            // (A blade's: how far is the QC's. Its spring's stiffness as tuned now. Staggering, its stance gives way to what the
+            // hold passes on to its pelvis.)
+            b3MotorJoint_SetLinearHertz(g.joint, bladeHertz());
             if(RagdollBodies* moved = ragdollOf(g.num); moved && moved->active.on && moved->active.stagger.on)
             {
-                moved->active.stagger.ledGive = za::max(vr_embed_move_give.value, 0.01f);
+                moved->active.stagger.ledGive = za::max(vr_embed_move_give.value * za::max(vr_embed_hold_strength.value, 0.f), 0.01f);
             }
         }
         else if(glm::distance(held, at) > (g.tug ? tugGo : g.stuck > 0.f ? g.stuck : grabStuck))

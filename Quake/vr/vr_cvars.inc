@@ -165,6 +165,10 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "0", CVAR_ARCHIVE)                // off for 1.1 (needs work: BACKLOG); on
+// Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
+// force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
+// m times this).
+QVR_CVAR(vr_embed_hold_strength, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_embed_test, "0", CVAR_NONE)              // 1 the embedded blades' test (QC/vr_embed_test.qc; 2, 3, 4 its scenes)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in

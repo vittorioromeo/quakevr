@@ -1288,6 +1288,10 @@ za::Vector<Item> pageDebugTests()
             .help("Stabs and swings that stagger or don't, pulling and pushing a staggering body, knocked down with it held, dragging "
                   "a standing body, past arm's reach, your speed, a dead body, a heavy one, a boss, vr_embed 0. Prints embedmove: N "
                   "passed, M failed."),
+        command("Blade Hold Strength Check", "vr_embed_test 27")
+            .help("How closely a body follows the hand on a stuck blade, by Blade Hold Strength and the Moving: tunables: a staggering "
+                  "grunt and a dead one, a deep sword and an axe, swung sideways, lifted over your head, pulled slowly. Prints each "
+                  "case's follow and lag, then embedforce: N passed, M failed."),
         command("Embedded Blades: Skewering Check", "vr_embed_test 21")
             .help("Destructive: in the open with god and notarget (vrtesthall): stabs gibs onto a held sword, up to its most, slashes "
                   "another, takes one off with the other hand, switches weapon. Prints embedskewer: N passed, M failed."),

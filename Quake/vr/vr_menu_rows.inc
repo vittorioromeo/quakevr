@@ -3779,6 +3779,10 @@ QVR_TOGGLE(vr_embed, "Embedded Blades",
     "Swords thrown point first stick in walls and bodies, Super Axes stick as axes do, a stuck blade stays in a dead "
     "body until you tug it out. Off: only thrown axes stick, and they fall out when the body dies. Its numbers: "
     "Debug > Tunables > Combat > Embedded Blades.")
+QVR_SLIDER(vr_embed_hold_strength, "Blade Hold Strength", 0.25f, 4.f, 0.05f, "x%.2f", ext(0.f, 10.f),
+    "How hard your hand on a blade stuck in a body moves it: drag, swing or lift a staggering or dead body on "
+    "your sword or axe. More: it follows your hand more closely and you can hold heavier bodies up; less: "
+    "it lags and weighs more. Heavier monsters stay harder either way.")
 QVR_TOGGLE(vr_prop_impact_damage, "Flung Props Hurt",
     "A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
     "into fast enough. Off: only what you throw by hand.")

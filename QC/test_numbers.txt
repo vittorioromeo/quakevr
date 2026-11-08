@@ -59,6 +59,7 @@ vr_embed_test    23       vr_embed_test.qc                 a closed fist held st
 vr_embed_test    24       vr_embed_test.qc                 his 11-05 notes: axe tug (distance, force, shake), eased out, leeway, no ghost, 2H hotspot, arm stretch, lift, handle freed
 vr_embed_test    25       vr_embed_test.qc                 his 11-06 notes: the axe tugged out eased in the drawn hand (one move), a beheading or limb-cutting axe blow leaves no blade in empty space
 vr_embed_test    26       vr_embed_test.qc                 a head or limb an axe swing cuts off stays on the axe (live, corpse): rides it, weighs, flung off by a stop, tugged off by the other hand
+vr_embed_test    27       vr_embed_test.qc                 how closely a body follows a hand on a stuck blade (test 11's cases 35-41 alone): staggering and dead, deep sword and axe, swung, lifted, pulled
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
 vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)
