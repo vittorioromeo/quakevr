@@ -4713,6 +4713,251 @@ uint32_t pieceBones(edict_t* ent, int piece)
     return m;
 }
 
+namespace
+{
+// ---- A broken plate in two halves (vr_agarmor_split; ROUND24.md, "Broken armour splits in two") ----
+// Its line across its length (its vertices' longest spread: two shorter halves) or down it (the second longest: two long
+// halves, the cuirass's left and right), by its kind (vr_agarmor_split_<kind>). Each small plate (a tile, its rims, a hero
+// plate's columns each) goes whole to one side, so the seam follows the plates' edges; the line zigzags (splitJag,
+// splitTeeth) so the seam is jagged; a joint's leather (one big piece) is torn along its triangles. The halves as many
+// triangles each (the line at their median), each its own model ("<model>#plate<piece>h<half>s<axis>", derivedFile).
+constexpr float splitJag = 0.15f; // the zigzag's depth either side of the line: this share of the piece's size across it
+constexpr float splitTeeth = 3.f; // its teeth along the line
+constexpr int splitWhole = 2 * plateVerts; // a joined run of vertices at most this many goes whole to one side
+constexpr float splitShortest = 0.6f; // cut across its length only if it is at least this long for its width (else down it)
+
+[[nodiscard]] int splitAxisOf(int piece)
+{
+    const cvar_t& v = piece == Cuirass       ? vr_agarmor_split_cuirass
+                      : piece <= PauldronR ? vr_agarmor_split_pauldron
+                      : piece <= BracerR   ? vr_agarmor_split_bracer
+                      : piece <= ThighR    ? vr_agarmor_split_thigh
+                                           : vr_agarmor_split_shin;
+    return v.value >= 0.5f ? 1 : 0;
+}
+
+struct SplitUnit
+{
+    float key{0.f};
+    int id{0}, tris{0};
+};
+
+int compareSplitUnits(const void* a, const void* b)
+{
+    const float ka = static_cast<const SplitUnit*>(a)->key, kb = static_cast<const SplitUnit*>(b)->key;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+}
+
+[[nodiscard]] int splitRoot(za::Vector<int>& parent, int i)
+{
+    while(at(parent, i) != i)
+    {
+        at(parent, i) = at(parent, at(parent, i));
+        i = at(parent, i);
+    }
+    return i;
+}
+
+// The covariance `m`'s strongest direction from `x` (power iteration).
+[[nodiscard]] glm::vec3 splitPrincipal(const glm::mat3& m, glm::vec3 x)
+{
+    for(int i = 0; i < 48; i++)
+    {
+        x = geom::safeNormalize(m * x, x, 1e-12f);
+    }
+    return x;
+}
+
+// Piece `piece`'s triangles on half `half` (0, 1) of its split along `axis` (0 across its length, 1 down it): `out` each
+// one's first index into s.tris; `mid` that half's middle (rest space: its triangles' corners averaged). False: it has
+// fewer than two plates to share (no split).
+[[nodiscard]] bool splitHalf(const Shell& s, int piece, int axis, int half, za::Vector<int>& out, glm::vec3& mid,
+    glm::vec3* cutNormal = nullptr)
+{
+    out.clear();
+    glm::vec3 c{0.f};
+    int n = 0;
+    for(const Vert& v : s.verts)
+    {
+        c += v.piece == piece ? v.p : glm::vec3{0.f};
+        n += v.piece == piece ? 1 : 0;
+    }
+    if(n < 6)
+    {
+        return false;
+    }
+    c /= static_cast<float>(n);
+    glm::mat3 cov{0.f};
+    for(const Vert& v : s.verts)
+    {
+        const glm::vec3 d = v.piece == piece ? v.p - c : glm::vec3{0.f};
+        cov += glm::outerProduct(d, d);
+    }
+    const glm::vec3 e1 = splitPrincipal(cov, glm::normalize(glm::vec3{0.3f, 0.5f, 1.f}));
+    const glm::mat3 rest2 = cov - glm::dot(e1, cov * e1) * glm::outerProduct(e1, e1);
+    glm::vec3 e2 = splitPrincipal(rest2, geom::safeNormalize(glm::cross(e1, glm::vec3{0.3f, 1.f, 0.2f}), glm::vec3{0.f, 1.f, 0.f}));
+    e2 = geom::safeNormalize(e2 - e1 * glm::dot(e2, e1), glm::vec3{0.f, 1.f, 0.f});
+    // (its length: its tube's axis, its rings up it, where it has one; else its vertices' longest spread)
+    const PlateTube& tube = s.tubes[piece];
+    const bool tubed = tube.length > 0.f && glm::length(glm::cross(tube.up, tube.left)) > 0.5f;
+    const glm::vec3 lengthWay = tubed ? glm::normalize(tube.up) : e1, acrossWay = tubed ? glm::normalize(tube.left) : e2;
+    // (a piece shorter than it is wide (the player's bracers: the elbow's half alone) cut across would fall as two thin
+    // rings: down its length instead)
+    float lLo = 1e9f, lHi = -1e9f, wLo = 1e9f, wHi = -1e9f;
+    for(const Vert& v : s.verts)
+    {
+        const bool on = v.piece == piece;
+        lLo = on ? za::min(lLo, glm::dot(v.p, lengthWay)) : lLo;
+        lHi = on ? za::max(lHi, glm::dot(v.p, lengthWay)) : lHi;
+        wLo = on ? za::min(wLo, glm::dot(v.p, acrossWay)) : wLo;
+        wHi = on ? za::max(wHi, glm::dot(v.p, acrossWay)) : wHi;
+    }
+    axis = lHi - lLo < splitShortest * (wHi - wLo) ? 1 : axis;
+    const glm::vec3 nrm = axis ? acrossWay : lengthWay, along = axis ? lengthWay : acrossWay;
+    if(cutNormal)
+    {
+        *cutNormal = nrm;
+    }
+    float nLo = 1e9f, nHi = -1e9f, aLo = 1e9f, aHi = -1e9f;
+    for(const Vert& v : s.verts)
+    {
+        const bool on = v.piece == piece;
+        nLo = on ? za::min(nLo, glm::dot(v.p, nrm)) : nLo;
+        nHi = on ? za::max(nHi, glm::dot(v.p, nrm)) : nHi;
+        aLo = on ? za::min(aLo, glm::dot(v.p, along)) : aLo;
+        aHi = on ? za::max(aHi, glm::dot(v.p, along)) : aHi;
+    }
+    const float jag = splitJag * (nHi - nLo), period = za::max((aHi - aLo) / splitTeeth, 1e-3f);
+    // Its plates: the runs of vertices its triangles join.
+    const int numVerts = count(s.verts);
+    za::Vector<int> parent(s.verts.size(), 0);
+    za::Vector<int> size(s.verts.size(), 0);
+    for(int v = 0; v < numVerts; v++)
+    {
+        at(parent, v) = v;
+    }
+    for(int i = 0; i + 2 < count(s.tris); i += 3)
+    {
+        if(at(s.verts, at(s.tris, i)).piece != piece)
+        {
+            continue;
+        }
+        const int a = splitRoot(parent, at(s.tris, i));
+        const int b = splitRoot(parent, at(s.tris, i + 1));
+        const int d = splitRoot(parent, at(s.tris, i + 2));
+        at(parent, b) = a;
+        at(parent, splitRoot(parent, d)) = a;
+    }
+    for(int v = 0; v < numVerts; v++)
+    {
+        at(size, splitRoot(parent, v)) += at(s.verts, v).piece == piece ? 1 : 0;
+    }
+    // Each plate one unit (a big run: each of its triangles one), its key its middle's place across the zigzag line.
+    za::Vector<int> unitOf(s.verts.size(), -1);
+    za::Vector<int> triUnit;
+    za::Vector<glm::vec3> unitSum;
+    za::Vector<int> unitTris;
+    for(int i = 0; i + 2 < count(s.tris); i += 3)
+    {
+        if(at(s.verts, at(s.tris, i)).piece != piece)
+        {
+            continue;
+        }
+        const int r = splitRoot(parent, at(s.tris, i));
+        int u = at(size, r) <= splitWhole ? at(unitOf, r) : -1;
+        if(u < 0)
+        {
+            u = count(unitSum);
+            unitSum.pushBack(glm::vec3{0.f});
+            unitTris.pushBack(0);
+            at(unitOf, r) = at(size, r) <= splitWhole ? u : -1;
+        }
+        at(unitSum, u) += (at(s.verts, at(s.tris, i)).p + at(s.verts, at(s.tris, i + 1)).p + at(s.verts, at(s.tris, i + 2)).p) / 3.f;
+        at(unitTris, u) += 1;
+        triUnit.pushBack(u);
+    }
+    const int numUnits = count(unitSum);
+    if(numUnits < 2)
+    {
+        return false;
+    }
+    za::Vector<SplitUnit> units(static_cast<za::SizeT>(numUnits), SplitUnit{});
+    for(int u = 0; u < numUnits; u++)
+    {
+        const glm::vec3 m = at(unitSum, u) / static_cast<float>(at(unitTris, u));
+        const float x = glm::dot(m, along) / period;
+        const float zig = 1.f - 4.f * za::abs(x - floorf(x) - 0.5f); // (-1..1, a triangle wave)
+        at(units, u) = SplitUnit{glm::dot(m, nrm) - jag * zig, u, at(unitTris, u)};
+    }
+    qsort(units.data(), static_cast<size_t>(numUnits), sizeof(SplitUnit), compareSplitUnits);
+    // The first units up to half the triangles one side (at least one either side).
+    za::Vector<int> sideOf(static_cast<za::SizeT>(numUnits), 1);
+    const int total = count(triUnit);
+    int sum = 0;
+    for(int k = 0; k < numUnits - 1 && (k == 0 || 2 * sum + at(units, k).tris <= total); k++)
+    {
+        at(sideOf, at(units, k).id) = 0;
+        sum += at(units, k).tris;
+    }
+    mid = glm::vec3{0.f};
+    int t = 0;
+    for(int i = 0, k = 0; i + 2 < count(s.tris); i += 3)
+    {
+        if(at(s.verts, at(s.tris, i)).piece != piece)
+        {
+            continue;
+        }
+        if(at(sideOf, at(triUnit, k++)) == half)
+        {
+            out.pushBack(i);
+            mid += at(s.verts, at(s.tris, i)).p + at(s.verts, at(s.tris, i + 1)).p + at(s.verts, at(s.tris, i + 2)).p;
+            t += 3;
+        }
+    }
+    mid /= static_cast<float>(za::max(t, 1));
+    return !out.empty();
+}
+
+// Names made for halfModel (PR_SetEngineString keeps their pointers: never moved, never freed).
+constexpr int maxHalfNames = 512;
+char halfNames[maxHalfNames][MAX_QPATH]{};
+int numHalfNames = 0;
+} // namespace
+
+const char* halfModel(edict_t* ent, int piece, int half)
+{
+    const int num = ent ? NUM_FOR_EDICT(ent) : 0;
+    // (the player's plates' debris: vrbody.mdl's, whatever build is drawn, as QC's VR_PP_Shed names them)
+    const char* base = num >= 1 && num <= svs.maxclients ? "progs/vrbody.mdl" : baseOf(ent);
+    if(!base || piece < 0 || piece >= NumPieces || piece == Helmet || half < 0 || half > 1)
+    {
+        return "";
+    }
+    const Shell* s = serverShell(base);
+    const int axis = splitAxisOf(piece);
+    za::Vector<int> tris;
+    glm::vec3 mid;
+    if(!s || !plateFrameOf(*s, piece).ok || !splitHalf(*s, piece, axis, half, tris, mid))
+    {
+        return "";
+    }
+    char want[MAX_QPATH];
+    q_snprintf(want, sizeof(want), "%s#plate%dh%ds%d", base, piece, half, axis);
+    for(int i = 0; i < numHalfNames; i++)
+    {
+        if(!strcmp(halfNames[i], want))
+        {
+            return halfNames[i];
+        }
+    }
+    if(numHalfNames >= maxHalfNames)
+    {
+        return "";
+    }
+    q_strlcpy(halfNames[numHalfNames], want, MAX_QPATH);
+    return halfNames[numHalfNames++];
+}
+
 void plateWhere(edict_t* ent, int piece, int what, float* out)
 {
     out[0] = out[1] = out[2] = 0.f;
@@ -4729,12 +4974,19 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
             return;
         }
         const float* m = skin + pf.bone * 12;
-        if(what == 0)
+        if(what == 0 || what == 6 || what == 7)
         {
+            // (6, 7: a split half's middle, halfModel's)
+            glm::vec3 p = pf.mid;
+            za::Vector<int> tris;
+            if(what != 0 && !splitHalf(*mine, piece, splitAxisOf(piece), what - 6, tris, p))
+            {
+                return;
+            }
             const float k = avatar::modelScale(body); // (the skinning matrices stop short of the body's scale)
             for(int i = 0; i < 3; i++)
             {
-                out[i] = body->origin[i] + k * (m[i * 4] * pf.mid.x + m[i * 4 + 1] * pf.mid.y + m[i * 4 + 2] * pf.mid.z + m[i * 4 + 3]);
+                out[i] = body->origin[i] + k * (m[i * 4] * p.x + m[i * 4 + 1] * p.y + m[i * 4 + 2] * p.z + m[i * 4 + 3]);
             }
         }
         else if(what == 1)
@@ -4760,6 +5012,20 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
     posedAnchors(ent, *s, pf, posed);
     const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
     const glm::mat3 turn = now * glm::transpose(pf.rest);
+    if(what == 6 || what == 7)
+    {
+        // A split half's middle (halfModel's model's origin), as drawn.
+        glm::vec3 p;
+        za::Vector<int> tris;
+        if(splitHalf(*s, piece, splitAxisOf(piece), what - 6, tris, p))
+        {
+            const glm::vec3 o = posed[0] + turn * (p - at(s->body.mdlRest, pf.anchor[0]));
+            out[0] = o.x;
+            out[1] = o.y;
+            out[2] = o.z;
+        }
+        return;
+    }
     if(what == 0 || (what >= 2 && what <= 5))
     {
         const glm::vec3 restA = at(s->body.mdlRest, pf.anchor[0]);
@@ -5193,6 +5459,11 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     char base[MAX_QPATH];
     q_strlcpy(base, name, za::min(sizeof(base), static_cast<size_t>(hash - name) + 1));
     const int piece = Q_atoi(hash + 6);
+    // ("<model>#plate<piece>h<half>s<axis>": a split half, halfModel's)
+    const char* halfAt = strchr(hash + 6, 'h');
+    const int half = halfAt ? Q_atoi(halfAt + 1) : -1;
+    const char* axisAt = halfAt ? strchr(halfAt, 's') : nullptr;
+    const int axis = axisAt ? Q_atoi(axisAt + 1) : 0;
     const Shell* s = isWearer(base) ? serverShell(base) : nullptr;
     if(!s || piece < 0 || piece >= NumPieces)
     {
@@ -5214,6 +5485,27 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
         VR_HeapFree(skin);
         return nullptr;
     }
+    // A half: its triangles and their vertices alone, round its own middle (plateWhere 6 / 7 puts it there).
+    za::Vector<int> halfTris;
+    glm::vec3 mid = pf.mid;
+    glm::vec3 cutNormal{0.f};
+    const bool split = half >= 0 && splitHalf(*s, piece, axis, half, halfTris, mid, &cutNormal);
+    if(half >= 0)
+    {
+        // (developer 1: each half's line, its normal in the body's rest space: the cuirass down the middle +-y)
+        Con_DPrintf("agarmor: %s: %s, %d triangles, its line's normal %.2f %.2f %.2f\n", name, split ? "a half" : "no split (whole)",
+            count(halfTris), cutNormal.x, cutNormal.y, cutNormal.z);
+    }
+    za::Vector<char> used(s->verts.size(), split ? 0 : 1);
+    za::Vector<char> triUsed(s->tris.size() / 3u, split ? 0 : 1);
+    for(const int i : halfTris)
+    {
+        at(triUsed, i / 3) = 1;
+        for(int k = 0; k < 3; k++)
+        {
+            at(used, at(s->tris, i + k)) = 1;
+        }
+    }
     // Its vertices in its own frame (rest -> the frame's axes, round its middle).
     za::Vector<int> map(s->verts.size(), -1);
     za::Vector<glm::vec3> local;
@@ -5221,10 +5513,10 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int v = 0; v < count(s->verts); v++)
     {
-        if(at(s->verts, v).piece == piece)
+        if(at(s->verts, v).piece == piece && at(used, v))
         {
             at(map, v) = count(local);
-            const glm::vec3 q = glm::transpose(pf.rest) * (at(s->verts, v).p - pf.mid);
+            const glm::vec3 q = glm::transpose(pf.rest) * (at(s->verts, v).p - mid);
             local.pushBack(q);
             st.pushBack(at(s->verts, v).st);
             lo = glm::min(lo, q);
@@ -5234,7 +5526,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     za::Vector<int> tris;
     for(int i = 0; i + 2 < count(s->tris); i += 3)
     {
-        if(at(map, at(s->tris, i)) >= 0)
+        if(at(map, at(s->tris, i)) >= 0 && at(triUsed, i / 3))
         {
             tris.pushBack(at(map, at(s->tris, i)));
             tris.pushBack(at(map, at(s->tris, s->body.nativeFlip ? i + 2 : i + 1)));

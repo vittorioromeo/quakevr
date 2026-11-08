@@ -3029,6 +3029,13 @@ QVR_CVAR(vr_agarmor_rule, "1", CVAR_ARCHIVE)          // armour on armed humanoi
 QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
 QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut or popped under an unbroken plate
 QVR_CVAR(vr_agarmor_debris_time, "12", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
+QVR_CVAR(vr_agarmor_split, "1", CVAR_ARCHIVE)         // armour: a plate shot off (an armed humanoid's or yours) falls as two halves, each its own prop with half its mass (the helmet always whole; a gibbing or a cut drops plates whole); 0 one whole piece
+QVR_CVAR(vr_agarmor_split_impulse, "50", CVAR_ARCHIVE) // armour: a split plate's halves fly apart this fast (units/s each, away from each other, over the plate's own fall)
+QVR_CVAR(vr_agarmor_split_cuirass, "1", CVAR_ARCHIVE) // armour: the cuirass's split line: 0 across its length (two shorter halves: upper and lower), 1 down its length (two long halves: left and right)
+QVR_CVAR(vr_agarmor_split_pauldron, "0", CVAR_ARCHIVE) // armour: a pauldron's split line: 0 across its length, 1 down its length
+QVR_CVAR(vr_agarmor_split_bracer, "0", CVAR_ARCHIVE)  // armour: a bracer's split line: 0 across its length (two shorter rings), 1 down its length (two long halves)
+QVR_CVAR(vr_agarmor_split_thigh, "0", CVAR_ARCHIVE)   // armour: a thigh plate's split line: 0 across its length, 1 down its length
+QVR_CVAR(vr_agarmor_split_shin, "0", CVAR_ARCHIVE)    // armour: a shin plate's split line: 0 across its length, 1 down its length
 QVR_CVAR(vr_agarmor_impulse, "0.5", CVAR_ARCHIVE)     // armour: a shot a plate absorbs still pushes the body (a ragdoll's limb) this much of a bare hit's push (0..1)
 QVR_CVAR(vr_agarmor_debug, "0", CVAR_NONE)            // debug (Debug > Show Armour Plates): every armoured body's unbroken plates drawn as the shot test poses them, a colour per plate
 QVR_CVAR(vr_worn_backpack_grunt_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Grunt: the pack's size on the back (times the backpack model's)

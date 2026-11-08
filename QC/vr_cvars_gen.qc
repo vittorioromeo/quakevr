@@ -113,6 +113,8 @@ float cvarh_vr_agarmor_skill2_type;
 float cvarh_vr_agarmor_skill3;
 float cvarh_vr_agarmor_skill3_pieces;
 float cvarh_vr_agarmor_skill3_type;
+float cvarh_vr_agarmor_split;
+float cvarh_vr_agarmor_split_impulse;
 float cvarh_vr_agarmor_test;
 float cvarh_vr_agarms_shoulder;
 float cvarh_vr_agdknight;
@@ -2058,6 +2060,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agarmor_skill3 = VR_CVar_Make("vr_agarmor_skill3");
     cvarh_vr_agarmor_skill3_pieces = VR_CVar_Make("vr_agarmor_skill3_pieces");
     cvarh_vr_agarmor_skill3_type = VR_CVar_Make("vr_agarmor_skill3_type");
+    cvarh_vr_agarmor_split = VR_CVar_Make("vr_agarmor_split");
+    cvarh_vr_agarmor_split_impulse = VR_CVar_Make("vr_agarmor_split_impulse");
     cvarh_vr_agarmor_test = VR_CVar_Make("vr_agarmor_test");
     cvarh_vr_agarms_shoulder = VR_CVar_Make("vr_agarms_shoulder");
     cvarh_vr_agdknight = VR_CVar_Make("vr_agdknight");

@@ -477,6 +477,10 @@ float QVR_ARMOR_PIECE_AT = -1000;
 // first (vr_agarmor.cpp shotPiece: each plate's triangles as drawn, on the shot's line up to where it crosses the skin);
 // -1 none (bare skin), -2 no shell.
 float QVR_ARMOR_SHOT = -1005;
+// limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half)): half 0 / 1 of e's piece split in two (vr_agarmor_split; a
+// player: vrbody.mdl's plates), "<model>#plate<piece>h<half>s<axis>", a name the engine keeps; "" none (the helmet).
+// limbpiece(e, piece, 16 / 17) that half's model's origin now, as drawn (its angles the whole plate's, 11).
+float QVR_ARMOR_HALF = -2000;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 // The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
 // QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that

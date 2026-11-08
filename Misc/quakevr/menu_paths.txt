@@ -1337,12 +1337,14 @@ vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Loc
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
 vr_flat_death_vomit|1|Locomotion|Vomit Mode on Death|Advanced VR Options > Movement > Locomotion > Vomit Mode on Death
 vr_flat_death_vomit_look|1|Locomotion|Vomit Mode Mouse Look|Advanced VR Options > Movement > Locomotion > Vomit Mode Mouse Look
+vr_flat_body_height|1|Locomotion|Body Height|Advanced VR Options > Movement > Locomotion > Body Height
 vr_flat_mantle|1|Locomotion|Mantle|Advanced VR Options > Movement > Locomotion > Mantle
 vr_flat_mantle_reach|1|Locomotion|Mantle Reach|Advanced VR Options > Movement > Locomotion > Mantle Reach
 vr_flat_mantle_height|1|Locomotion|Mantle Height|Advanced VR Options > Movement > Locomotion > Mantle Height
 vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement > Locomotion > Mantle Look Up
 vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
+vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
@@ -4182,6 +4184,7 @@ vr_embed_skewer_mass_limb|2|Tunables|Skewered Gibs: Limb Weight|Advanced VR Opti
 vr_embed_skewer_mass_head|2|Tunables|Skewered Gibs: Head Weight|Advanced VR Options > Debug > Tunables > Skewered Gibs: Head Weight
 vr_embed_cuton|2|Tunables|Cut-Off Parts: Stay on the Blade|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Stay on the Blade
 vr_embed_cuton_fling|2|Tunables|Cut-Off Parts: Fling Speed|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Fling Speed
+vr_embed_cuton_depth|2|Tunables|Cut-Off Parts: In the Blade|Advanced VR Options > Debug > Tunables > Cut-Off Parts: In the Blade
 vr_embed_swing_speed|2|Tunables|Axe Swing: Least Speed|Advanced VR Options > Debug > Tunables > Axe Swing: Least Speed
 vr_embed_swing_angle|2|Tunables|Axe Swing: Most Off Its Plane|Advanced VR Options > Debug > Tunables > Axe Swing: Most Off Its Plane
 vr_embed_axe_depth|2|Tunables|Axe: Depth|Advanced VR Options > Debug > Tunables > Axe: Depth
@@ -4240,6 +4243,8 @@ vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > T
 vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
+vr_embed_brake|2|Tunables|Running Stab: Brake|Advanced VR Options > Debug > Tunables > Running Stab: Brake
+vr_embed_brake_speed|2|Tunables|Running Stab: Speed|Advanced VR Options > Debug > Tunables > Running Stab: Speed
 vr_embed_move_sword_lift|2|Tunables|Moving: Sword's Lift|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift
 vr_embed_move_sword_lift_deep|2|Tunables|Moving: Sword's Lift, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift, Deep
 vr_embed_lean_sword|2|Tunables|Hold: Sword's Leeway|Advanced VR Options > Debug > Tunables > Hold: Sword's Leeway
@@ -4979,6 +4984,10 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Death Knights Wearing Packs There|Advanced VR Options > Debug > Tests > Death Knights Wearing Packs There
 |2|Debug - Tests|Worn Backpacks: Pulling Lifts|Advanced VR Options > Debug > Tests > Worn Backpacks: Pulling Lifts
 |2|Debug - Tests|Enforcer's Lift Zone|Advanced VR Options > Debug > Tests > Enforcer's Lift Zone
+|2|Debug - Tests|Removed With Its Pack and Tank|Advanced VR Options > Debug > Tests > Removed With Its Pack and Tank
+|2|Debug - Tests|Back Tanks Beside the Packs|Advanced VR Options > Debug > Tests > Back Tanks Beside the Packs
+|2|Debug - Tests|The Gib Rule on Corpses|Advanced VR Options > Debug > Tests > The Gib Rule on Corpses
+|2|Debug - Tests|Shoves While Getting Up|Advanced VR Options > Debug > Tests > Shoves While Getting Up
 |2|Debug - Tests|Your Armour Plates: the Test|Advanced VR Options > Debug > Tests > Your Armour Plates: the Test
 |2|Debug - Tests|Your Armour Plates: Which Model|Advanced VR Options > Debug > Tests > Your Armour Plates: Which Model
 |2|Debug - Tests|Your Armour Plates: Full|Advanced VR Options > Debug > Tests > Your Armour Plates: Full
@@ -5838,6 +5847,13 @@ vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Com
 vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts > Armour > Plates Stop Cuts
 vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts > Armour > Push Through Plates
 vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts > Armour > Broken Plates Last
+vr_agarmor_split|1|Armour|Broken Plates Split|Advanced VR Options > Combat > Armed Grunts > Armour > Broken Plates Split
+vr_agarmor_split_impulse|1|Armour|Halves Fly Apart|Advanced VR Options > Combat > Armed Grunts > Armour > Halves Fly Apart
+vr_agarmor_split_cuirass|1|Armour|Cuirass Splits|Advanced VR Options > Combat > Armed Grunts > Armour > Cuirass Splits
+vr_agarmor_split_pauldron|1|Armour|Pauldrons Split|Advanced VR Options > Combat > Armed Grunts > Armour > Pauldrons Split
+vr_agarmor_split_bracer|1|Armour|Bracers Split|Advanced VR Options > Combat > Armed Grunts > Armour > Bracers Split
+vr_agarmor_split_thigh|1|Armour|Thigh Plates Split|Advanced VR Options > Combat > Armed Grunts > Armour > Thigh Plates Split
+vr_agarmor_split_shin|1|Armour|Shin Plates Split|Advanced VR Options > Combat > Armed Grunts > Armour > Shin Plates Split
 vr_agarmor_skill0|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts > Armour > Chance Armoured
 vr_agarmor_skill0_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts > Armour > Best Armour
 vr_agarmor_skill0_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts > Armour > Pieces
