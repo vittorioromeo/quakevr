@@ -567,6 +567,7 @@ Config version 129 (his bash, shove and parry values compiled in): `bash Misc/qu
 Flatscreen hit feedback (FLATPLAY.md, "Hit feedback"): `bash Misc/quakevr/flathit_test.sh <agent>`: a grunt's real hits
 from the right, the punch (aim and picture), the marks' side, the ironsight's shares of the knock and punch, low health's
 edges (`flathit_check.py`).
+`bash Misc/quakevr/flattwohand_test.sh <agent>`: flat two-handed holds with AD mounted (ROUND24.md, "Flat two-handed holds"): the Widowmaker, Plasma Gun and plasma rifle in the stance (learnt sight lines), the crossbow's still grips, the chainsaw started by itself and held by its front handle; `vr_ad_test 184` puts the AD crossbow in the main hand.
 Flatscreen play (FLATPLAY.md): `bash Misc/quakevr/flatplay_test.sh <agent>`: the hands locked to the view (sway, bob and
 turn lag 0: the drawn weapon within 0.05 units and degrees of its still place strafing and turning), their looks bounded
 and settling, the shots on the crosshair (`Misc/quakevr/flatplay_lock.py`), the mode per player (`reload: the player reloads ...`).

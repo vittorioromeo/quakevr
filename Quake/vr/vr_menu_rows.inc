@@ -6075,6 +6075,28 @@ QVR_TOGGLE(vr_flat_death_vomit, "Vomit Mode on Death",
     "Playing on the desktop screen (-flatscreenmode) with Death View on Immersive: when you die, the view is your "
     "ragdoll's eyes, turned exactly as its head tumbles (Vomit Mode), whatever the Vomit Mode setting is. Your own "
     "setting is kept for the headset. Off: the Vomit Mode setting decides (vr_flat_death_vomit).")
+QVR_TOGGLE(vr_flat_death_vomit_look, "Vomit Mode Mouse Look",
+    "Playing on the desktop screen (-flatscreenmode), dead in Vomit Mode: on, moving the mouse turns the view on top of "
+    "the ragdoll head's turn. Off: the view always points exactly where the head points, the mouse ignored "
+    "(vr_flat_death_vomit_look).")
+QVR_TOGGLE(vr_flat_mantle, "Mantle",
+    "Playing on the desktop screen (-flatscreenmode): after a jump, keep the jump key held and look slightly up at a "
+    "ledge in reach to pull yourself up onto it, as a headset's climbing mantle does (needs Climbing on; "
+    "vr_flat_mantle).")
+QVR_SLIDER(vr_flat_mantle_reach, "Mantle Reach", 2.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen: how far ahead of you a ledge's edge may be to mantle onto it "
+    "(vr_flat_mantle_reach).")
+QVR_SLIDER(vr_flat_mantle_height, "Mantle Height", -32.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen: how high over your eyes a ledge may be, as you rise in the jump, to mantle onto "
+    "it (vr_flat_mantle_height).")
+QVR_SLIDER(vr_flat_mantle_look, "Mantle Look Up", -90.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen: how far up you must look for a mantle, from straight ahead "
+    "(vr_flat_mantle_look).")
+QVR_SLIDER(vr_flat_mantle_look_max, "Mantle Look Up Most", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen: looking up further than this, no mantle (vr_flat_mantle_look_max).")
+QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
+    "key held all along (vr_flat_mantle_time).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

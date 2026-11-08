@@ -1331,6 +1331,13 @@ vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Move
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
 vr_flat_death_vomit|1|Locomotion|Vomit Mode on Death|Advanced VR Options > Movement > Locomotion > Vomit Mode on Death
+vr_flat_death_vomit_look|1|Locomotion|Vomit Mode Mouse Look|Advanced VR Options > Movement > Locomotion > Vomit Mode Mouse Look
+vr_flat_mantle|1|Locomotion|Mantle|Advanced VR Options > Movement > Locomotion > Mantle
+vr_flat_mantle_reach|1|Locomotion|Mantle Reach|Advanced VR Options > Movement > Locomotion > Mantle Reach
+vr_flat_mantle_height|1|Locomotion|Mantle Height|Advanced VR Options > Movement > Locomotion > Mantle Height
+vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement > Locomotion > Mantle Look Up
+vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
+vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
@@ -4308,6 +4315,9 @@ vr_agrunt_shotdisarm_debug|2|Debug - Views|Show Shot Disarms|Advanced VR Options
 vr_agarmor|2|Debug - Views|Armed Humanoids' Armour (P0)|Advanced VR Options > Debug > Views > Armed Humanoids' Armour (P0)
 vr_agarmor_pieces|2|Debug - Views|Armour Pieces|Advanced VR Options > Debug > Views > Armour Pieces
 vr_agarmor_bridge|2|Debug - Views|Elbow and Knee Leather|Advanced VR Options > Debug > Views > Elbow and Knee Leather
+vr_agarmor_details|2|Debug - Views|Armour Plate Details|Advanced VR Options > Debug > Views > Armour Plate Details
+vr_agarmor_hero|2|Debug - Views|Armour Hero Plates|Advanced VR Options > Debug > Views > Armour Hero Plates
+vr_agarmor_emblem|2|Debug - Views|Armour Emblem|Advanced VR Options > Debug > Views > Armour Emblem
 vr_agarmor_folds|2|Debug - Views|Leather Folds|Advanced VR Options > Debug > Views > Leather Folds
 vr_agarmor_fold_depth|2|Debug - Views|Leather Fold Depth|Advanced VR Options > Debug > Views > Leather Fold Depth
 vr_agarmor_bend|2|Debug - Views|Bend Armoured Elbows and Knees|Advanced VR Options > Debug > Views > Bend Armoured Elbows and Knees
@@ -8482,6 +8492,7 @@ vr_armourstudio_rows|2|Armour Studio|Rows|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_taper_start|2|Armour Studio|Taper at Start|Advanced VR Options > Debug > Tools > Armour Studio > Taper at Start
 vr_armourstudio_taper_end|2|Armour Studio|Taper at End|Advanced VR Options > Debug > Tools > Armour Studio > Taper at End
 vr_armourstudio_leather|2|Armour Studio|Leather Sleeve Shown|Advanced VR Options > Debug > Tools > Armour Studio > Leather Sleeve Shown
+vr_armourstudio_hero|2|Armour Studio|Hero Plates|Advanced VR Options > Debug > Tools > Armour Studio > Hero Plates
 vr_armourstudio_anim|2|Armour Studio|Play an Animation|Advanced VR Options > Debug > Tools > Armour Studio > Play an Animation
 vr_armourstudio_anim_group|2|Armour Studio|Animation|Advanced VR Options > Debug > Tools > Armour Studio > Animation
 vr_armourstudio_anim_play|2|Armour Studio|Playing|Advanced VR Options > Debug > Tools > Armour Studio > Playing

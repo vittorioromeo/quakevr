@@ -317,14 +317,18 @@ void flatView(glm::vec3& origin, glm::vec3& angles)
     const float w = weight();
     if(vomit())
     {
-        // The bone's whole turn, the mouse's look on top of it (its yaw from where it faced as the view went there).
+        // The bone's whole turn, exactly (the author's note 2026-11-08: the mouse must not move this camera at all);
+        // vr_flat_death_vomit_look 1 puts the mouse's look back on top of it (its yaw from where it faced as the view
+        // went there), as before.
         if(!state.vomitRefSet)
         {
             state.vomitRefSet = true;
             state.vomitYawRef = angles.y;
         }
         const glm::mat3 own = hands::basisOf(angles);
-        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), 0.f});
+        const glm::mat3 rel = vr_flat_death_vomit_look.value != 0.f
+                                  ? hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), 0.f})
+                                  : glm::mat3{1.f};
         const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
         const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), full, w));
         origin = glm::mix(origin, state.anchor, w);
