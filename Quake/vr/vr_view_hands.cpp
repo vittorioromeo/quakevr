@@ -3077,7 +3077,8 @@ void setupHand(const hands::State& s, int hand)
         // (Down the fore-end towards the other hand where the arm can't take the hotspot itself: flatsight::lookSlide.)
         lookPoint -= anglesBasis(s.visualRot[other])[0] * flatsight::lookSlide(hand);
     }
-    const float gripBlend = lookSpot >= 0 ? lookBlend : realBlend;
+    // (Off it while the hand is drawn on a hold: a flat mantle's free hand goes from the gun to the ledge and back.)
+    const float gripBlend = (lookSpot >= 0 ? lookBlend : realBlend) * (1.f - climb::drawnShare(hand));
     const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
     // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
     const WorldHotspot* heldSpot = nullptr;

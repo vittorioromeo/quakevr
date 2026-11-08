@@ -4024,6 +4024,7 @@ QVR_CVAR(vr_flat_mantle_look, "30", CVAR_ARCHIVE)       // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle; 90 his, 2026-11-08, from 80)
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
+QVR_CVAR(vr_flat_mantle_hands, "1", CVAR_ARCHIVE)       // flatscreen mantle: 1 each empty hand goes onto the ledge as it mantles, as a headset's hands hold it (both empty: both; a free hand on the other's gun lets go of it for the mantle; both holding weapons: none; vr_climb.cpp flatMantleHands); 0 the hands stay as they are
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 

@@ -6141,6 +6141,10 @@ QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt
 QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
     "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
+QVR_TOGGLE(vr_flat_mantle_hands, "Mantle Hands On The Ledge",
+    "Playing on the desktop screen: as you mantle, each empty hand goes onto the ledge, as your hands hold it in VR: both "
+    "when both are empty, the free one when the other holds a weapon (it lets go of that weapon's grip for the mantle), "
+    "none when both hold weapons (vr_flat_mantle_hands).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

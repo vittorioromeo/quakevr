@@ -16,7 +16,9 @@
 #          ironsight waits), looking level the ironsight comes.
 #   mantle vr_flatmantle_test in vrmantle (Misc/quakevr/climb/make_vrmantle_map.py): a jump at each block, the jump key
 #          held, looking up 35 degrees (vr_flat_mantle_look 30): mantled onto the 48, 64, 80 and 96 high ones, not the 128 and 160 ones; looking up
-#          only 20 at the 64 one, no mantle (vr_climb.cpp flatMantle).
+#          only 20 at the 64 one, no mantle (vr_climb.cpp flatMantle). Each mantle: its empty hands on the ledge (the
+#          drawn hands' hold bits, STAT_QVR_CLIMB), the others not (flatMantleHands): both hands empty, both; then the
+#          64 one alone with a gun in the main hand (the off hand on it), and dual wielding (none).
 #   sights e1m1, the shotgun on the ironsight: the sights on the drawn ray upright, leant right, leant right crouched
 #          and leant left (vr_flat_sight_check), and the shot along the view (flataim).
 #   keys   E and Q lean (vr_mock_key), 3 swaps the hands, R force-grabs; an old config's binds on E and 3 do not run
@@ -53,6 +55,13 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Ti
     -Script "map vrmantle; wait60; god; notarget; vr_climb_debug 1; vr_flatmantle_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatmantle.*FAIL"
 expect_verdict "$out" "flatmantle" "mantle: after a jump, looking up 35, onto ledges 48..96 high; not 128 or 160, nor looking up only 20"
+check $([ "$(echo "$out" | grep -ac "^flatmantle: PASS lip [0-9]*: hands on the ledge off 1 main 1")" = 4 ] && echo 1 || echo 0) "mantle: both hands empty, both on the ledge at each of the 4 mantles"
+for lo in "154; wait5; impulse 170|off 1 main 0|a gun in the main hand: the off hand alone" "152; wait5; impulse 172|off 0 main 0|dual wielding: no hand"; do
+    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle" \
+        -Script "map vrmantle; wait60; god; notarget; impulse ${lo%%|*}; wait20; vr_flatmantle_test 1; wait3000; toggleconsole; quit" 2>&1)
+    rest=${lo#*|}
+    check $(echo "$out" | grep -aq "^flatmantle: PASS lip 64: hands on the ledge ${rest%%|*} " && echo 1 || echo 0) "mantle: ${rest#*|} on the ledge (${rest%%|*})"
+done
 
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
