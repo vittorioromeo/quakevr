@@ -940,10 +940,10 @@ QVR_TUNABLE(vr_agrunt_parry_count, "2") // its stamina: the parry that spends it
 QVR_TUNABLE(vr_agrunt_parry_recover, "0.35") // stamina it recovers a second
 QVR_TUNABLE(vr_agrunt_seek_timeout, "6") // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_TUNABLE(vr_agrunt_seek_shun, "20") // s it leaves a weapon it gave up on before trying it again
-QVR_TUNABLE(vr_agrunt_second_range, "160") // units: with Pick Up a Second, out of a fight it goes for a second weapon only this near (its own lost one: vr_agrunt_rearm_range)
-QVR_TUNABLE(vr_agrunt_second_time, "4") // s: ... and only if the trip (walk and reaching down) is estimated at no more than this, and it gives up on it past this
-QVR_TUNABLE(vr_agrunt_second_combat_range, "72") // units: with a target in sight it goes for a second weapon only this near (and only one in the target's sight, so it keeps shooting)
-QVR_TUNABLE(vr_agrunt_second_combat_time, "2") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
+QVR_TUNABLE(vr_agrunt_second_range, "128") // units: with Pick Up a Second, out of a fight it goes for a second weapon only this near (its own lost one: vr_agrunt_rearm_range)
+QVR_TUNABLE(vr_agrunt_second_time, "3") // s: ... and only if the trip (walk and reaching down) is estimated at no more than this, and it gives up on it past this
+QVR_TUNABLE(vr_agrunt_second_combat_range, "56") // units: with a target in sight it goes for a second weapon only this near (and only one in the target's sight, so it keeps shooting)
+QVR_TUNABLE(vr_agrunt_second_combat_time, "1") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
 QVR_TUNABLE(vr_agrunt_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
 QVR_TUNABLE(vr_enemy_melee_ag_reach, "16") // units: an armed humanoid's blow reaches its weapon's real reach (shoulder, arm, weapon length, your body's front) plus this (its lean and step in; never less than 62); the melee arc decides the rest (vr_armedgrunt.qc VR_AG_BlowBase)
@@ -2071,8 +2071,8 @@ QVR_TUNABLE(vr_embed_hold_axe_tug_time, "0.15") // s that average is over (not t
 QVR_TUNABLE(vr_embed_tug_shake, "2.5") // degrees the axe (and the hand on it) shakes at most as the tug nears its distance (0: none)
 QVR_TUNABLE(vr_embed_tug_shake_from, "0.4") // share of the tug distance from which it starts to shake
 QVR_TUNABLE(vr_embed_lean_axe, "6") // degrees an axe held in a body turns with the hand on its handle, any way (0: rigid)
-QVR_TUNABLE(vr_embed_move_axe_lift, "1.2") // times the body's weight an axe in it lifts at least (Skewer 1)
-QVR_TUNABLE(vr_embed_move_axe_force, "300") // N an axe does
+QVR_TUNABLE(vr_embed_move_axe_lift, "1.5") // times the body's weight an axe in it lifts at least (Skewer 1)
+QVR_TUNABLE(vr_embed_move_axe_force, "600") // N an axe does
 // Embedded Blades: Hold
 QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
 QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis before a sword moves, barely in
@@ -2111,13 +2111,15 @@ QVR_TUNABLE(vr_embed_move_twohand, "2.5") // times that force with both hands on
 QVR_TUNABLE(vr_melee_body_speed, "1") // of your body's speed towards what you hit, how much a melee blow's or a punch's speed gets for hitting and sticking
 QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
 QVR_TUNABLE(vr_melee_body_min_part, "0.5") // a blade's blow that lands only for your body's speed counts on this outer share of the blade (0 any part)
-QVR_TUNABLE(vr_embed_move_sword_force, "200") // N a sword barely in moves a body with at most, one hand, Skewer 1
-QVR_TUNABLE(vr_embed_move_sword_force_deep, "900") // ... in as far as it goes
-QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
+QVR_TUNABLE(vr_embed_move_sword_force, "400") // N a sword barely in moves a body with at most, one hand, Skewer 1
+QVR_TUNABLE(vr_embed_move_sword_force_deep, "1500") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_move_give, "0.4") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
+QVR_TUNABLE(vr_embed_move_hertz, "24") // Hz: the stiffness of the hand's spring on the body (a limb grab's 8)
+QVR_TUNABLE(vr_embed_move_at_wound, "1") // 1: the spring holds the body at the wound (follows closely); 0: at a point out at the hand, as before 2026-11-08 (it hung and swung from there: some 70% of a lift)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
-QVR_TUNABLE(vr_embed_move_sword_lift, "0.8") // times the body's weight a sword barely in lifts at least (Skewer 1; its force is the more of that and Moving: Sword's Force)
-QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2") // ... in as far as it goes: a grunt held up over your head
+QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword barely in lifts (Skewer 1; Moving: Sword's Force on top of it)
+QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2.5") // ... in as far as it goes: a grunt held up over your head
 QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)
 QVR_TUNABLE(vr_embed_free_ease, "0.25") // s the hand and the blade take from where it was in the body to the hand's own place once it comes out
 QVR_TUNABLE(vr_embed_arm_stretch, "1.3") // how far the arm may stretch to a hand held on a blade in a body (vr_body_arm_stretch elsewhere; eased back)

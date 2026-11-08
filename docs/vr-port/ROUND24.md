@@ -4431,6 +4431,69 @@ triangles, positions and texture coordinates are unchanged (compared as triangle
   bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
   dirtier, its details still readable; grunts' rifles alike.
 
+## Model topology pass 2, job B: static z-fights with different texels (branch `agent/zfight`, 2026-11-08)
+
+Scope: the audit's 25 models with static different-texel z-fights, minus Job A's (v_shot and its parts, v_shot2 and
+its barrels, the nail pistol models, the widowmaker and revolver models with generators). 13 models, 177 pairs on the
+current (post steps 1-5) files: g_shot0 3, h_demon 1, hook 1, legholster 25, v_enfrifle 36, v_grpple 7, v_laserg 16,
+v_light 11, v_plasma 11, v_toolgun 3, vr_adrifle_base 5, vr_shell_pair 10, vrpouch 48.
+
+- **Tools** (Misc/quakevr/mdltopo, Blender's Python): `zfpairs.py` lists a model's pairs (audit.py's risk_static_diff);
+  `zffix.py` decides and fixes; `zfgate.py` gates; `zfsheet.py` draws crops (where | first wins | second wins).
+  Contested pixels: rendered with one of the pair hidden, the other right there at the same depth (26 views x 3 poses,
+  384 px); "visible" = the two looks differ by >= 16 RGB.
+- **Decisions:** 130 pairs invisible (fewer than 8 visibly different px in all 78 renders: dark-on-dark texels or
+  slivers): left as is. 16 fixed (legholster 9, v_grpple 5, v_toolgun 2): partial overlaps of separate parts at
+  corners/edges (strap edges on the holster, the claws at the hub, a bracket's two bars) whose two looks are nearly the
+  same: the smaller part's flat face moved out one grid step (whole-step vector along the normal, every pose), so the
+  depth test always picks it. 31 left for Vittorio: `C:/OHWorkspace/qvr-kit/scratch/zfight_his_call.md` + crops.
+- **Folds don't remove:** a triangle inside a bigger coplanar one that shares an edge with it (v_light 16 in 22, five on
+  vrpouch's buckles) compares pixel-exact when removed, but check_mdl_holes then finds a new see-through loop (and
+  cracks on vrpouch): it is part of a closed surface. Reverted; on the his-call list.
+- **Gate** (zfgate.py): the new render against the old one with the kept face winning its contested pixels: no change
+  outside the moved faces (+2 px) except 27 outline px on legholster, every change inside them explained by a slide of
+  at most 2 px (the face moved a grid step); compare.py: legholster 2,625 texel px (mean rgb 0.017), v_grpple 8,752 over
+  9 poses (0.006), v_toolgun 324 (0.002), all on the moved faces. Re-audit: the 16 pairs gone, none new
+  (legholster 25 -> 13, v_grpple 7 -> 1, v_toolgun 3 -> 0). Holes check unchanged; no anchors on these models; no
+  fx_gfx_mask change (no triangle renumbered); .blend rebuilt with blend_build.py, `blend_export.py --out` byte-identical.
+- **Test it in VR:** nothing should look different; the holster's strap edges, the grapple's hub and the tool gun's
+  corner bracket no longer shimmer when moved slowly.
+## Model topology pass 2: the models skipped last time (branch `agent/selfshot`, 2026-11-08)
+
+The skipped models of "Model topology fixes, steps 1-5" (same tools, same gates: compare.py at the model's noise floor,
+all poses x 26 views; check_mdl_holes no worse; anchors; fx_gfx_mask remapped; .blend rebuilt and re-exported
+byte-identical). One commit per model.
+
+- **source.py export crash fixed:** checks.py's findings (a monster's knownSwords counts) are (what, amount), and the
+  anchor loop unpacked them as (what, text, dist): now warnings carrying the CHECK lines.
+- **Generators keep the fixes:** `Misc/quakevr/mdltopo/clean.py` (fix.py's degen + weld steps, no render gate: both
+  invisible by construction); `mdlgen.write_mdl(..., clean=True)`, passed by the widowmaker, revolver and flare gun
+  export_mdl.py. Their exports now reproduce every shipped fixed file byte for byte; vr_widowmaker_preview gets its fix
+  from it (16 zero-area triangles, 2 welds; its 2 hidden triangles stay: removing them opens cracks). vr_flare.mdl's
+  export differs from the shipped file before this change too (same counts, 391k px: not topology; left).
+- **enforcer, hknight:** 60 and 4 zero-area triangles (no welds, so vertex numbers, rig weights and knownSwords' vertex
+  ranges are unchanged); vrenforcer/vrhknight follow their .blend exports (0 px). The counts the code keys them by:
+  vr_monstermods.cpp knownSwords (Enforcer 479/924, Hknight 538/996), checks.py KNIGHTS, make_vrgrunt.py (vrenforcer's
+  gun 112 triangles), make_enemyguns.py (the rifle 112: the six it dropped as degenerate are gone at the source).
+  `vr_ragdoll_rig_sweep`: 23 rigged, 0 failed.
+- **v_nailpistol:** 328 welds (518 triangles kept); slot 36's barrel mask is already for 518 (fixed in 4b9a6369c). Its
+  magMounts point is 0.152 off the surface in the original too (unmoved). The magazines and the preview: nothing to fix.
+- **v_shot2:** 2 zero-area triangles, 35 welds; the open halves follow (0 px). The barrels' normal map rebakes: 1418
+  texels, all within 10 map pixels of the two removed triangles' skin footprints (never-drawn normals no longer vote
+  in the bake's per-texel agreement). The 3 duplicate triangles stay (make_ssg_open sends the copies to different
+  halves: 215 px).
+- **v_shot: not done.** With or without welds, rebuilding v_shot.blend re-bakes vr_pumpbody_on_v_shot's normal map
+  widely (no welds: 16,836 texels, 1,157 of the drawn ones by over 2 degrees, 308 over 10; most far from the removed
+  triangles), while the geometry compares 0 px. Not explained yet (the part's re-cut has 24 fewer unused vertices),
+  so not shipped. The attempts are in the worktree's `scratch/topo2/vshot_noweld` (and `vshot_weld`).
+- **Z-fights (Job B's step on these models):** 94 static different-texel pairs (v_shot 25 and its pump parts 23,
+  v_shot2 6 and its barrels 9, vr_widowmaker_preview 16, vr_nailpistol_preview 14, v_nailpistol 1; enforcer and
+  hknight none). None decidable automatically: no triangle is covered (at most 94%), none hidden, none a duplicate.
+  Listed in `C:/OHWorkspace/qvr-kit/scratch/zfight_jobA_pairs.md` for the nudge/cut tool; nothing changed.
+- **Tests:** build ok; e1m2, e2m3, e3m3 load clean; flatsight_test 12 passed 0 failed.
+- **To try (VR):** the super shotgun broken open (the barrels' shading near the hinge, as before); enforcers and hell
+  knights dropping their rifle/sword on death as before; the nail pistol and the widowmaker preview unchanged.
+
 ## Checklist rework: 210 lines to 83, sections in play-test order, Test buttons (branch `agent/clrework`, 2026-11-08)
 
 His ask: drop redundant items, coalesce what one scene tests, a working Test button on most lines, proper sections.
@@ -4471,6 +4534,109 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
 - **Found, not fixed:** with Arcane Dimensions running (scenario_check's `-game ad`), the toolgun's "Axe" entry
   (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
+  failed`).
+
+## Embedded blades: easier to move a body through a held blade, Blade Hold Strength (branch `agent/embed5`, 2026-11-08)
+
+His note: "It still feels extremely hard to impart force on the ragdolls ... the expert tunables didn't really make a big
+difference." Measured with the new `vr_embed_test 27` (`embedforce: N passed, M failed`; test 11's cases 35-41): a grunt,
+staggering and dead, a deep sword and an axe, one hand: sideways 40 cm in 0.4 s, lifted 50 cm in 1 s, a slow pull back
+30 cm in 1 s. Follow: the wound's way of the hand's at the move's end / settled 0.4 s later; lag: the most the hand got
+ahead (cm); strain: the spring's pull of its most.
+
+- **Why it was hard:** the hand's spring on the body was a limb grab's (8 Hz), held at a point out at the hilt, a blade's
+  length from the body. It sat 15-45 cm off the hand pulling at only 0.06-0.5 of its most, so the Moving: forces never
+  bound: 10x the forces changed nothing (lift 70% either way). The stiffness and the lever were the caps. Two more:
+  the stance's give was inverted (mass times the give, so more give stood its ground more), and the lift was the more
+  of force and lift (a grunt's 2 weights, about 4900 N, hid any Force under it).
+- **Fixed:** Moving: Stiffness (`vr_embed_move_hertz`, 24 Hz), Moving: Held At (`vr_embed_move_at_wound` 1: the spring
+  at the wound; 0 the old hilt), the give's formula (mass over give; default 0.4 = the old behaviour, which test 11 case
+  23 "pulled along its axis, the body stays" needs), Force now on top of the lift. Defaults: Sword's Force 200 -> 400,
+  Deep 900 -> 1500, Axe's Force 300 -> 600, Sword's Lift 0.8 -> 1, Deep 2 -> 2.5, Axe's Lift 1.2 -> 1.5. Slider ranges
+  about 10x the defaults (forces to 4000/15000/6000 N, lifts to 10/25/15 weights, Two Hands to 25, give 0.05-10,
+  stiffness 1-240 Hz, drag slack to 50 cm).
+- **Blade Hold Strength** (`vr_embed_hold_strength`, x1, 0.25-4, CVAR_ARCHIVE): Advanced VR Options > Combat > Embedded
+  Blades and VR Settings > Gameplay (Hands On). Times every Moving: force and lift (QC VR_Embed_Spring), the give, and
+  the spring's N per m (its Hz by the square root). Debug > Tests: Blade Hold Strength Check.
+
+| case (follow end/settled, lag cm) | before (old defaults) | after (defaults) |
+|---|---|---|
+| staggering, sword, sideways | 55/117, 17 | 87/105, 12 |
+| staggering, sword, lifted | 70/74, 13 | 84/86, 12 |
+| staggering, axe, pulled back | 87/100, 24 | 84/103, 6 |
+| dead, sword, slow pull | 92/95, 2 | 93/97, 2 |
+| dead, sword, lifted overhead | 71/80, 14 | 89/93, 7 |
+| dead, sword, sideways | 92/104, 7 | 91/100, 4 |
+| dead, axe, slow pull | 50/143, 48 | 98/101, 2 |
+
+Effect of each (low / default / high; follow end%, lag cm; from runs with one value changed, the rest at the new
+defaults; physics varies some 5% between runs):
+
+| tunable | low | high |
+|---|---|---|
+| Blade Hold Strength 0.25 / 4 | dead lift 12%, 58 cm; stag. sideways 63% | dead lift 95%, 2 cm; stag. sideways 91%, 7.5 cm |
+| Stiffness 4 / 240 Hz | dead lift 21%, 42 cm; dead sideways 31%, 28 cm | dead lift 96%, 5 cm; staggering lift 95% |
+| Sword's Lift, Deep 0.25 / 25 | dead lift 12%, 48 cm (strain 1); stag. sideways settles 170% | no change (strain 0.02): stiffness-bound |
+| Axe's Force + Lift 0.1x | dead axe pull 0%, 31 cm; stag. axe 177% settled | Axe's Force 6000: no change (strain 0.04) |
+| Sword's Force, Deep 0 / 15000 (lift 0.25) | 2 cm more lag on a dead lift | with lift 0.25 the dead pull's strain 0.10 |
+| Stance Gives Way 0.1 / 10 | staggering lift settles 87% | staggering lift settles 109%, axe 111% (a slide on) |
+| Held At: The Hilt | dead axe pull 72%, 12 cm; staggering axe 159% settled | - |
+
+The forces and lifts bind only at low values for a grunt now: above the defaults the spring's stiffness is what limits a
+grunt's follow, which is why Blade Hold Strength scales the stiffness too. Heavier monsters (Skewer < 1: an ogre 0.4)
+still get the forces times their Skewer. Not measured here: Sword's Force barely in (the same path, by depth), Two Hands
+(test 11 case 25), Dragging: Slack (test 11 case 12).
+
+Tests: `vr_embed_test 27` 22/0 at the defaults (old defaults: 21/1). `vr_embed_test 11`: 119/6 against 91/10 before
+(it now runs 35-41 too); the failures are the known ones (the standing drag, its penalty, the run-in stab and punch)
+and they vary by run (104-122 passed across five runs).
+## VR menu layout on a flat screen, zoom buttons (branch `agent/flatwall`, 2026-11-08)
+
+His ask: the VR menu layout as a flat-screen option; small "+" and "-" square buttons at the end of the shortcut list
+to zoom the menu, in both layouts; on the flat screen the panel's corners dragged to move it, the wheel while dragging
+resizing it.
+
+- **The option:** `vr_menu_flat_vr_style` (archived, default 0; Advanced VR Options > HUD and Menus > Menu > VR Menu
+  Layout on a Flat Screen). With VR off, `menuui::active()` (the layout: the canvas filling the panel, spaced rows, the
+  styled widgets, the corner's column beside the menu, the bottom left rows, the banner column) is now true too;
+  `menuui::inHeadset()` is the old meaning, for the laser, hands, haptics, the panel in the world, New Panel, the
+  spectator switch and its preview (left out on the flat panel: the rows above it a row lower).
+- **How it draws:** the panel has the window's shape, `vr_menu_flat_scale` (0.9; 0.4 to 1) of its size, its middle at
+  `vr_menu_flat_x` / `_y` (0.5, shares of the window). The menu is laid out exactly as on the whole window (the
+  headset's canvas has the window's shape too) and the CANVAS_MENU viewport is that rect (gl_draw.c GL_SetCanvas, with
+  a flush; Draw_SetClipRect clips inside it; GL_Set2D resets it). No offscreen texture: every size is drawn crisp.
+  `VR_MenuDrawFlatPanel` paints the panel's dark face before the page (the window's fade is under and round it);
+  `VR_MenuDrawFlatFrame` (after M_Draw, back on the window's viewport) a thin frame and an L handle outside each corner.
+- **The mouse:** M_Mousemove maps the window's mouse through the same rect (`VR_MenuFlatViewport`), so hover, clicks,
+  slider drags and the wheel on lists work as the desktop mouse always did; vr_mock_mouse's spots go through it too.
+  The keys are untouched.
+- **Zoom buttons:** two small squares ("-", "+") in a slot of their own under the column's last button (the headset
+  and the flat panel), or after the flat row's last icon (the classic flat menus). They come first for clicks
+  (`zoomAt` before `toolAt`); the laser lights them with a pulse. Steps of 1.1 in the layout shown: the headset's
+  `vr_menu_scale` (0.02 to 1.5, the slider's extent), the flat panel's `vr_menu_flat_scale` round the mouse (the button
+  stays under it for the next press), the classic menus' `scr_menuscale` (1 to what the canvas fits, stepping from the
+  value in effect). Resets: "Reset Menu Zoom" under Menu Scale, "Reset Flat Menu Panel" (size and place) under the new
+  rows; `vr_menu_zoom [in|out|reset] [vr|flat|classic]` (alone: MENUZOOM, each layout's zoom; Debug > Reports > Menu
+  Zoom: Where). The column's fit (short panels) counts the zoom slot.
+- **Moving and resizing (flat):** a corner's grab zone runs from 14 px outside the corner to the buttons' margin inside
+  it (never over a button); over it the cursor is SDL's move cursor (`MOUSECURSOR_MOVE`, new), the handle lit. A press
+  there (VR_MenuKey, first) takes hold: the panel follows the mouse (`VR_MenuFlatMouse`, at M_Mousemove's top) until
+  the button is up (`keydown[K_MOUSE1]` seen at the next move or frame); the wheel while held zooms round the mouse.
+  The middle stays on the window and the panel is never bigger than it, so a corner is always on screen; shares of the
+  window keep it sensible on a resize. All three cvars are archived.
+- **Test:** `Misc/quakevr/menu_flat_panel_test.py <agent>` (two runs, each ending on its `MENUFLAT done` line): flat,
+  the column beside the menu, the panel 0.9 of the window, a mouse click on the column's VR Settings through the panel,
+  - then + + (0.9, 0.818, 0.99) and writeconfig keeping 0.99, the bottom right corner dragged by -120 -60 (the rect
+  moved exactly that), the wheel twice while held (0.744, the corner still at the mouse within 2 px), released, dragged
+  far off (middle 0 0, a corner on), the arrow keys moving the main menu's selection, the classic row's - (scr_menuscale
+  from the canvas's 1.69 to 1.534); VR, the laser and trigger on + (vr_menu_scale 0.275, the panel 160 to 176 tall) and
+  on - (0.25), the reset. `menu flat panel: 24 passed, 0 failed`. Screenshots: `scratch/flatmenu_flat.png` (0.9 in the
+  middle, 0.55 off-centre, 1.0) and `scratch/flatmenu_vr.png` (0.25, 0.2, 0.3), from a low-impact run (his game was
+  open: small eyes, so the VR shots are blurry).
+- **Scenes:** `menu_flat_panel` (the option on for the test; Escape opens it) and `menu_zoom`; neither opens the menu
+  itself (an open menu pauses the game and runall's scenes run on game time: `SCNRUNSUM|2 run|0 failed` flat).
+- **Not done:** the zoom buttons are not reachable by the sticks' corner-button selection (laser and mouse only).
+  menu_paths.txt regenerated (it was behind: other rows came in too); `vr_menu_path_check`: 0 missing.
   failed`). (Fixed by agent/cfgtrim, below.)
 
 ## Config migration cut at 1.0.1; the toolgun's Axe holdable under AD (branch `agent/cfgtrim`, 2026-11-08)
@@ -4539,3 +4705,36 @@ His request: "add a new collision box for the prone height". Until now lying dow
   line: `prone: y .. stuck .. water ..`. Not regressed: crouch_test.sh's cases as documented (tunnel, gap, rise, gates,
   cover 0 damage crouched / 48 standing), swimtilt 12, crawl 8, flatmove 10, flatcrouch 3, crouch_speed 4, teleporters
   6 PASS 0 FAIL (low-impact runs).
+## Teleport and smooth locomotion together (branch `agent/teleboth`, 2026-11-08)
+
+His words: "add the ability to use both teleportation locomotion and normal locomotion in VR at the same time? There
+should be a user-facing option for it in vr settings, ensure that they do not conflict".
+
+- **What there was:** `vr_teleport_enabled` 1 never stopped the stick walking; it only let `+teleport` aim, and no
+  controller key was bound to it (FEATURES.md said to bind one yourself). So there was no teleport-only mode to keep.
+- **The option:** VR Settings > Comfort, Teleport and Turning > *Teleport* (and Advanced > Locomotion > Teleport, the
+  setup board's TELEPORT button) is now a choice: *Off* (0, the default, unchanged), *Bound Button* (1: exactly as
+  before), *Smooth + Teleport* (2). Row name kept, so no menu path or calibration board changes. Comfort presets still
+  set 1.
+- **Input mapping (2):** the moving stick walks as always. The turning stick (`1 - hands::moveHand()`: the right one,
+  the left with Swap Stick Functions) pushed forward (y > 0.7, within about 27 degrees of straight) aims with that
+  stick's hand; back to the middle (< 0.3) lands on a valid spot; pulled back (y < -0.5) cancels and the stick stays the
+  teleport's until it is back in the middle. While it aims: no turn, no `+moveup`/`+movedown`, the moving stick does
+  not walk. A push that starts as a turn (|x| > 0.3) never becomes an aim until the stick is back in the middle; the
+  snap is re-armed only from the middle after an aim. Swimming (waterlevel 2+) the turning stick's forward is `+moveup`
+  as before. `+teleport` also works (off hand). A menu, the toolgun, posing or any other stick owner cancels an aim
+  (vr_input.cpp `teleportStick`, `teleportStickOff`). Jump (A), sprint (left stick click), crouch, seated crouch toggle,
+  bullet time (stick clicks), holsters and the arm crawl use no stick axis: untouched.
+- **No fighting (2 only):** the aim is red unless on the ground, not swimming and no hand on a ledge
+  (vr_teleport.cpp `standing`); the server (VR_ClientTeleport) refuses one not FL_ONGROUND or swimming, and zeroes
+  the velocity and an enemy shove's slide (`vr_eshove_speed`) on arrival. Teleport 1 keeps today's rules (it still
+  carries momentum and works in the air) as asked; making 1 zero velocity too is a one-line change if he wants it.
+  `developer 1` prints each teleport asked and why one is refused. Flat-screen: no VR sticks, no change.
+- **Test:** `vr_teleport_both_test [here]` (Debug > Tests > Teleport: Smooth + Teleport), headless
+  `run.sh <name> -Script "map vrtesthall;vr_teleport_both_test" -Filter "teleport both" -QuitOn "teleport both: [0-9]+ passed"`:
+  walk 135 units with no aim or teleport; aim while running (no turn, no `+moveup`, speed 302 -> 191: not walking);
+  land on the aimed spot (79+ units away, 0.0 off) at speed 0 from 191; pull back cancels; a 45-degree snap still
+  turns; red in the air and nothing sent; Teleport 1: forward is `+moveup`, `+teleport` aims with the off hand and
+  lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
+  **14 passed, 0 failed.**
+- **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).

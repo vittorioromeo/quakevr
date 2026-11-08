@@ -33,6 +33,9 @@
 //   selection kept where it is while it stays in view. It never changes a setting: its left and
 //   right do nothing in menus, only the off hand's stick (and the laser) change values
 //   (vr_input.cpp).
+// - On a flat screen with vr_menu_flat_vr_style the same layout draws on a panel in the window (FlatPanel: the menu
+//   canvas's viewport), the desktop mouse as the laser; its corners dragged move it, the wheel while dragging resizes
+//   it. The "-" and "+" buttons under the corner's buttons zoom the menu in every layout (zoomMenu).
 
 #include "vr_checklist.hpp"
 #include "vr_cvars.hpp"
@@ -70,6 +73,7 @@
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
+extern qboolean keydown[MAX_KEYS]; // keys.c: the left button still held (the flat panel's corner dragged)
 extern cvar_t ui_mouse;           // menu.c: the desktop mouse in the menus
 int Key_StringToKeynum(const char* str); // keys.c: a key's number from its name (vr_mock_key)
 void Char_Event(int key);                // keys.c: a letter typed (vr_mock_key text)
@@ -642,16 +646,23 @@ SaveDefaultsButton saveDefaultsButton;
 }
 
 // The bottom left corner's top row: 1 the Recording button, 2 OBS's row while it shows, the RenderDoc button above them.
+// Those rows from the bottom: the flat screen's VR layout has no spectator camera's switch (its window shows no headset's
+// mirror), so the rest are a row lower.
+[[nodiscard]] int cornerRowShift()
+{
+    return qvr::menuui::inHeadset() ? 0 : 1;
+}
+
 [[nodiscard]] int cornerTopRow()
 {
-    return (qvr::obs::banner().shown ? 2 : 1) + (renderdocShown() ? 1 : 0);
+    return (qvr::obs::banner().shown ? 2 : 1) + (renderdocShown() ? 1 : 0); // (as bannerRowLayout takes it)
 }
 
 // New Panel only in the headset (its panels are): on a flat screen's row it is left out, the buttons after it a place
 // nearer (toolSlot).
 [[nodiscard]] bool toolHidden(int tool)
 {
-    return tool == ToolNewPanel && !qvr::menuui::active();
+    return tool == ToolNewPanel && !qvr::menuui::inHeadset();
 }
 
 [[nodiscard]] int toolSlot(int tool)
@@ -721,7 +732,7 @@ QuickSaveSeen quickSaveSeen;
     if(tool == ToolNewPanel)
     {
         glm::vec3 corner, xAxis, yAxis;
-        if(!qvr::menuui::active() || !panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
+        if(!qvr::menuui::inHeadset() || !panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
         {
             return "Only with the menu in the headset";
         }
@@ -817,16 +828,36 @@ struct ToolbarLayout
     [[nodiscard]] float yc(int tool) const
     {
         return row ? top + (rowCorner + rowHalf) / k :
-                     top + (corner + columnHalf + tool * (2.f * columnHalf + buttonGap)) / k;
+                     top + (corner + columnHalf + toolSlot(tool) * (2.f * columnHalf + buttonGap)) / k;
     }
 
     // A button's left and right edges.
     [[nodiscard]] float bx0(int tool) const { return row ? x0 + toolSlot(tool) * (iconButton + rowGap) : x0; }
     [[nodiscard]] float bx1(int tool) const { return row ? bx0(tool) + iconButton : x1; }
 
-    // The last button's bottom edge (menu y), and the buttons' right edge.
-    [[nodiscard]] float buttonsBottom() const { return yc(lastTool()) + bh() / k; }
-    [[nodiscard]] float right() const { return bx1(lastTool()); }
+    // The zoom buttons at the list's end (zoomOut "-", zoomIn "+"): small squares, side by side in a slot of their own
+    // under the column's last button, or after the row's last icon. Their middle (menu y), left edge, side (menu x).
+    [[nodiscard]] float zoomYc() const { return row ? yc(0) : yc(lastTool()) + (2.f * columnHalf + buttonGap) / k; }
+    [[nodiscard]] float zoomSide() const { return 2.f * bh(); }
+    [[nodiscard]] float zoomGap() const { return row ? rowGap : buttonGap; }
+    [[nodiscard]] float zoomX0(int button) const
+    {
+        const float first = row ? bx1(lastTool()) + rowGap : x0;
+        return first + static_cast<float>(button) * (zoomSide() + zoomGap());
+    }
+    // What a click on one takes: half the gap round it.
+    [[nodiscard]] bool zoomHit(int button, float x, float y) const
+    {
+        const float g = zoomGap() * 0.5f;
+        const float half = (bh() + g) / k;
+        return x >= zoomX0(button) - g && x <= zoomX0(button) + zoomSide() + g && y >= zoomYc() - half &&
+               y <= zoomYc() + half;
+    }
+
+    // The last button's bottom edge (menu y: the zoom buttons' in the column), and the buttons' right edge (the
+    // row's zoom buttons').
+    [[nodiscard]] float buttonsBottom() const { return zoomYc() + bh() / k; }
+    [[nodiscard]] float right() const { return row ? zoomX0(1) + zoomSide() : bx1(lastTool()); }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
@@ -875,16 +906,16 @@ struct ToolbarLayout
         l.x1 = l.x0 + width;
     }
     l.labels = l.x1 <= l.limit;
-    l.row = !qvr::menuui::active(); // (a flat screen)
+    l.row = !qvr::menuui::active(); // (a flat screen's own menus)
     if(!l.row)
     {
         // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
         // Normal panels keep the author's large targets; constrained panels fit the column as a whole.
-        const int bottomRow = cornerTopRow();
+        const int bottomRow = cornerTopRow() - cornerRowShift();
         const float reserve = ToolbarLayout::corner + ToolbarLayout::labelReserve + 2.f * ToolbarLayout::half +
                               bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
         const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
-        const float height = toolsShown() * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap;
+        const float height = (toolsShown() + 1) * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap; // (+1: the zoom buttons)
         const float fit = za::fmin(1.f, za::fmax(0.1f, room / height));
         l.columnHalf *= fit;
         l.buttonGap *= fit;
@@ -902,6 +933,7 @@ struct Toolbar
 {
     int menu{m_none};  // the menu it was last drawn over (m_none: not drawn)
     int hovered{-1};   // the button under the laser
+    int zoomHovered{-1}; // the zoom button under it (0 "-", 1 "+")
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
     bool bannerHovered{false}; // the spectator camera's switch under the laser
     bool obsHovered{false};    // OBS's row above it (vr_obs.cpp)
@@ -955,10 +987,28 @@ struct FlatMouse
 };
 FlatMouse flatMouse;
 
-// The button at a spot of the menu (-1: none).
-[[nodiscard]] int toolAt(float x, float y)
+// The zoom button at a spot of the menu (0 "-", 1 "+"; -1: none).
+[[nodiscard]] int zoomAt(float x, float y)
 {
     if(tb().menu != m_state)
+    {
+        return -1;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    for(int z = 0; z < 2; z++)
+    {
+        if(l.zoomHit(z, x, y))
+        {
+            return z;
+        }
+    }
+    return -1;
+}
+
+// The button at a spot of the menu (-1: none; the zoom buttons come first, the row's last icon's click reaching them).
+[[nodiscard]] int toolAt(float x, float y)
+{
+    if(tb().menu != m_state || zoomAt(x, y) >= 0)
     {
         return -1;
     }
@@ -1052,6 +1102,7 @@ constexpr float bannerTextX = ToolbarLayout::pad + 6.f + ToolbarLayout::labelGap
     float textX = bannerTextX)
 {
     BannerLayout b;
+    row -= cornerRowShift();
     b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::labelReserve + ToolbarLayout::half + static_cast<float>(row) * (2.f * ToolbarLayout::half +
                                                                                                     ToolbarLayout::gap)) /
                           l.k;
@@ -1107,12 +1158,16 @@ constexpr int obsRow = 2;
 {
     const float reach = (ToolbarLayout::half + ToolbarLayout::gap * 0.5f) / l.k;
     return tb().menu == m_state && qvr::menuui::active() && x >= l.left && x <= b.x1 + 2.f && y >= b.yc - reach &&
-           (row == 0 ? y <= l.bottom : y < b.yc + reach);
+           (row == cornerRowShift() ? y <= l.bottom : y < b.yc + reach);
 }
 
-// The spectator camera's switch.
+// The spectator camera's switch (in the headset only).
 [[nodiscard]] bool bannerAt(float x, float y)
 {
+    if(!qvr::menuui::inHeadset())
+    {
+        return false;
+    }
     const ToolbarLayout l = toolbarLayout();
     return cornerRowAt(l, bannerLayout(l), 0, x, y);
 }
@@ -1370,14 +1425,256 @@ void drawPreview(const hands::State& s)
         {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, texture);
 }
 
+// ----------------------------------------------------------------------------
+// The zoom buttons, and the flat screen's VR layout (vr_menu_flat_vr_style)
+// ----------------------------------------------------------------------------
+
+// The zoom buttons' step, and each layout's limits: the headset's Menu Scale (as far as its slider's row takes it: its
+// extent), the flat screen's panel (a share of the window: all of it at most, so that a corner of it is always on the
+// window), the flat menus' scr_menuscale (1 up to what their canvas fits: gl_draw.c, CANVAS_MENU).
+constexpr float zoomStep = 1.1f;
+constexpr float vrScaleMin = 0.02f;
+constexpr float vrScaleMax = 1.5f;
+constexpr float flatScaleMin = 0.4f;
+constexpr float flatScaleMax = 1.f;
+
+// The flat screen's panel: the window's shape, vr_menu_flat_scale of its size, its middle at vr_menu_flat_x, _y (shares
+// of the window, 0 to 1: with the panel no bigger than the window, a corner of it always on the window). The menu canvas
+// is laid out as on the whole window and drawn into the panel's rect (gl_draw.c GL_SetCanvas: the viewport), so the
+// layout is the headset's whatever its size; the desktop mouse goes through the same rect (menu.c M_Mousemove). Its
+// corners take the mouse: pressed, the panel follows it; the wheel while held resizes it round the mouse (the zoom
+// buttons' step), as the Weapon Studio's window moves and keeps its rect.
+struct FlatPanel
+{
+    static constexpr float grabOutside = 14.f; // a corner's grab zone: this many window pixels outside the panel's corner
+    static constexpr float handle = 18.f;      // a corner handle's arms (window pixels)
+    bool dragging{false};
+    glm::vec2 grab{0.f};    // the mouse from the panel's middle while dragging (window pixels)
+    glm::vec2 mouse{-1e4f}; // the window's mouse as last seen (window pixels, from the 2D viewport's top left)
+    int corner{-1};         // the corner under the mouse, or held (0 top left, 1 top right, 2 bottom left, 3 bottom right)
+    int cursor{-1};         // the mouse cursor set for it (MOUSECURSOR_MOVE; -1: the engine's own)
+    int moves{0};           // the drags' moves, and the wheel's steps while dragging (MENUZOOM, for the tests)
+    int wheelZooms{0};
+};
+FlatPanel flatPanelState;
+
+struct WindowRect
+{
+    float x{0.f}, y{0.f}, w{0.f}, h{0.f}; // window pixels: its top left, its size
+};
+
+[[nodiscard]] float flatScale()
+{
+    return CLAMP(flatScaleMin, vr_menu_flat_scale.value, flatScaleMax);
+}
+
+[[nodiscard]] glm::vec2 flatCentre()
+{
+    return {CLAMP(0.f, vr_menu_flat_x.value, 1.f) * static_cast<float>(glwidth),
+        CLAMP(0.f, vr_menu_flat_y.value, 1.f) * static_cast<float>(glheight)};
+}
+
+// In whole pixels (the viewport's).
+[[nodiscard]] WindowRect flatRect()
+{
+    const float s = flatScale();
+    const glm::vec2 c = flatCentre();
+    WindowRect r;
+    r.w = static_cast<float>(za::lround(static_cast<float>(glwidth) * s));
+    r.h = static_cast<float>(za::lround(static_cast<float>(glheight) * s));
+    r.x = static_cast<float>(za::lround(c.x - r.w * 0.5f));
+    r.y = static_cast<float>(za::lround(c.y - r.h * 0.5f));
+    return r;
+}
+
+// The corner whose grab zone a window spot is in (-1: none): from grabOutside outside the corner to the corner buttons'
+// margin inside it (ToolbarLayout::corner: never over a button).
+[[nodiscard]] int flatCornerAt(const glm::vec2& m)
+{
+    const WindowRect r = flatRect();
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    const float inside = za::fmax(4.f, ToolbarLayout::corner * t.scale[0] * r.w * 0.5f);
+    for(int c = 0; c < 4; c++)
+    {
+        const bool right = (c & 1) != 0, bottom = (c & 2) != 0;
+        const float out_x = right ? m.x - (r.x + r.w) : r.x - m.x; // (outwards from the corner: positive)
+        const float out_y = bottom ? m.y - (r.y + r.h) : r.y - m.y;
+        if(out_x >= -inside && out_x <= FlatPanel::grabOutside && out_y >= -inside && out_y <= FlatPanel::grabOutside)
+        {
+            return c;
+        }
+    }
+    return -1;
+}
+
+void setFlatPlace(float scale, const glm::vec2& centre)
+{
+    Cvar_SetValueQuick(&vr_menu_flat_scale, za::lround(CLAMP(flatScaleMin, scale, flatScaleMax) * 1000.f) / 1000.f);
+    Cvar_SetValueQuick(&vr_menu_flat_x, za::lround(CLAMP(0.f, centre.x / static_cast<float>(glwidth), 1.f) * 1000.f) / 1000.f);
+    Cvar_SetValueQuick(&vr_menu_flat_y, za::lround(CLAMP(0.f, centre.y / static_cast<float>(glheight), 1.f) * 1000.f) / 1000.f);
+}
+
+// The flat panel zoomed by `factor` round a window spot (what is there on the panel stays there, within the limits):
+// false if it was at the limit already.
+bool zoomFlatAround(const glm::vec2& at, float factor)
+{
+    const float s0 = flatScale();
+    const float s1 = CLAMP(flatScaleMin, s0 * factor, flatScaleMax);
+    if(za::fabs(s1 - s0) < 1e-4f)
+    {
+        return false;
+    }
+    setFlatPlace(s1, at + (flatCentre() - at) * (s1 / s0));
+    return true;
+}
+
+// The mouse cursor over a corner, or while dragging one: the move cursor (set only when it changes).
+void showFlatCursor(bool move)
+{
+    FlatPanel& f = flatPanelState;
+    if(move ? f.cursor == MOUSECURSOR_MOVE : f.cursor < 0)
+    {
+        return;
+    }
+    VID_SetMouseCursor(move ? MOUSECURSOR_MOVE : MOUSECURSOR_DEFAULT);
+    f.cursor = move ? MOUSECURSOR_MOVE : -1;
+}
+
+// Which layout the zoom buttons step: the headset's (with VR on, either menu style: Menu Scale), the flat screen's panel,
+// or the flat menus.
+enum class ZoomLayout
+{
+    Headset,
+    Flat,
+    Classic
+};
+
+[[nodiscard]] ZoomLayout zoomLayoutShown()
+{
+    return vrActive() ? ZoomLayout::Headset : vr_menu_flat_vr_style.value ? ZoomLayout::Flat : ZoomLayout::Classic;
+}
+
+[[nodiscard]] float classicScaleMax()
+{
+    return za::fmax(1.f, za::fmin(static_cast<float>(vid.guiwidth) / 420.f, static_cast<float>(vid.guiheight) / 320.f));
+}
+
+// A zoom step (dir 1 in, -1 out) in that layout, the flat panel's round `at` (window pixels); dir 0 back to the shipped
+// size (the flat panel also to the window's middle). False: at the limit already.
+bool zoomMenu(ZoomLayout layout, int dir, const glm::vec2& at)
+{
+    const float f = dir > 0 ? zoomStep : 1.f / zoomStep;
+    const auto step = [&](cvar_t& var, float lo, float hi) {
+        // (From the value in effect: a scr_menuscale past what the canvas fits zooms out at the first press.)
+        const float v = CLAMP(lo, za::lround(CLAMP(lo, var.value, hi) * f * 1000.f) / 1000.f, hi);
+        if(za::fabs(v - var.value) < 1e-4f)
+        {
+            return false;
+        }
+        Cvar_SetValueQuick(&var, v);
+        return true;
+    };
+    switch(layout)
+    {
+        case ZoomLayout::Headset:
+            if(dir == 0)
+            {
+                Cvar_SetQuick(&vr_menu_scale, vr_menu_scale.default_string);
+                return true;
+            }
+            return step(vr_menu_scale, vrScaleMin, vrScaleMax);
+        case ZoomLayout::Flat:
+            if(dir == 0)
+            {
+                Cvar_SetQuick(&vr_menu_flat_scale, vr_menu_flat_scale.default_string);
+                Cvar_SetQuick(&vr_menu_flat_x, vr_menu_flat_x.default_string);
+                Cvar_SetQuick(&vr_menu_flat_y, vr_menu_flat_y.default_string);
+                return true;
+            }
+            return zoomFlatAround(at, f);
+        case ZoomLayout::Classic:
+            if(dir == 0)
+            {
+                Cvar_SetQuick(&scr_menuscale, scr_menuscale.default_string);
+                return true;
+            }
+            return step(scr_menuscale, 1.f, classicScaleMax());
+    }
+    return false;
+}
+
+// A press of a zoom button (0 "-", 1 "+"): the panel zoomed round the button (the flat panel's: it stays under the
+// mouse, for the next press), a sound, a pulse in the pointing hand.
+void pressZoom(int button, int hand)
+{
+    const bool done = zoomMenu(zoomLayoutShown(), button > 0 ? 1 : -1, flatPanelState.mouse);
+    qvr::menuui::uiSound(done ? qvr::menuui::UiSound::Adjust : qvr::menuui::UiSound::Deny);
+    if(done)
+    {
+        haptics::pulse(hand, 0.02f, 0.3f, 200.f);
+    }
+}
+
 } // namespace
 
 namespace qvr::menuui
 {
 
-bool active()
+void zoom_f()
+{
+    const char* names[3]{"vr", "flat", "classic"};
+    if(Cmd_Argc() >= 2)
+    {
+        const char* what = Cmd_Argv(1);
+        const int dir = !q_strcasecmp(what, "in") ? 1 : !q_strcasecmp(what, "out") ? -1 : !q_strcasecmp(what, "reset") ? 0 : 2;
+        ZoomLayout layout = zoomLayoutShown();
+        bool named = Cmd_Argc() < 3;
+        for(int i = 0; i < 3 && !named; i++)
+        {
+            if(!q_strcasecmp(Cmd_Argv(2), names[i]))
+            {
+                layout = static_cast<ZoomLayout>(i);
+                named = true;
+            }
+        }
+        if(dir == 2 || !named)
+        {
+            Con_Printf("vr_menu_zoom [in | out | reset] [vr | flat | classic]\n");
+            return;
+        }
+        // (Round the flat panel's middle: a command has no mouse.)
+        const glm::vec2 at = flatCentre();
+        const bool done = zoomMenu(layout, dir, at);
+        Con_Printf("vr_menu_zoom: %s %s%s\n", names[static_cast<int>(layout)], what, done ? "" : " (at its limit)");
+    }
+    const FlatPanel& f = flatPanelState;
+    const WindowRect r = flatRect();
+    Con_Printf("MENUZOOM vr: vr_menu_scale %.3f (%.2f to %.2f, shipped %s)\n", vr_menu_scale.value, vrScaleMin, vrScaleMax,
+        vr_menu_scale.default_string);
+    Con_Printf("MENUZOOM flat: %s, vr_menu_flat_scale %.3f (%.2f to %.2f), middle %.3f %.3f, rect %.0f %.0f %.0f x %.0f of "
+               "%d x %d, %s, moves %d, wheel %d\n",
+        vr_menu_flat_vr_style.value ? "on" : "off", vr_menu_flat_scale.value, flatScaleMin, flatScaleMax, vr_menu_flat_x.value,
+        vr_menu_flat_y.value, r.x, r.y, r.w, r.h, glwidth, glheight, f.dragging ? "dragging" : "not dragging", f.moves,
+        f.wheelZooms);
+    Con_Printf("MENUZOOM classic: scr_menuscale %.3f (1 to %.2f)\n", scr_menuscale.value, classicScaleMax());
+    Con_Printf("MENUZOOM buttons: %s, shown %s\n", names[static_cast<int>(zoomLayoutShown())],
+        tb().menu == m_state && key_dest == key_menu ? "yes" : "no");
+}
+
+bool inHeadset()
 {
     return vr_menu_vr_style.value && vrActive() && key_dest == key_menu && m_state != m_none;
+}
+
+bool flatPanel()
+{
+    return vr_menu_flat_vr_style.value && !vrActive() && key_dest == key_menu && m_state != m_none;
+}
+
+bool active()
+{
+    return inHeadset() || flatPanel();
 }
 
 bool toolbarShown()
@@ -1392,7 +1689,7 @@ bool toolbarShown()
 
 float panelHeight()
 {
-    return active() ? vid.guiheight / canvasScale() * vr_menu_scale.value : 0.f;
+    return inHeadset() ? vid.guiheight / canvasScale() * vr_menu_scale.value : 0.f;
 }
 
 float styledPanelHeight()
@@ -1431,6 +1728,12 @@ bool pointTo(int hand)
         haptics::pulse(hand, 0.01f, 0.15f, 200.f);
     }
     tb().hovered = hovered;
+    const int zoomHovered = zoomAt(m_mousex, m_mousey);
+    if(zoomHovered >= 0 && zoomHovered != tb().zoomHovered)
+    {
+        haptics::pulse(hand, 0.01f, 0.15f, 200.f);
+    }
+    tb().zoomHovered = zoomHovered;
 
     // And the spectator camera's switch, OBS's row above it, the Recording button between them, the version box's Ko-fi
     // link (or the update notice above it).
@@ -1452,7 +1755,7 @@ bool pointTo(int hand)
 void update(const hands::State& s)
 {
     menu::tidyInstances(); // (the menu closed, or a panel after the first left the VR pages)
-    const bool on = active(); // (the laser meets the panel in the eyes, or the runtime's: intersect)
+    const bool on = inHeadset(); // (the laser meets the panel in the eyes, or the runtime's: intersect)
     for(int h = 0; h < HAND_COUNT; h++)
     {
         hits[h] = on ? intersect(s, h) : Hit{};
@@ -1480,7 +1783,7 @@ void update(const hands::State& s)
         {
             // Nothing lit under a laser on a panel no laser is on.
             Toolbar& t = toolbars[i];
-            t.hovered = -1;
+            t.hovered = t.zoomHovered = -1;
             t.bannerHovered = t.obsHovered = t.renderdocHovered = t.recordingHovered = t.linkHovered = false;
         }
     }
@@ -1591,6 +1894,15 @@ void mockLaser_f()
             pointingHand = hand;
             return;
         }
+        if(argc == 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout")))
+        {
+            const ToolbarLayout l = toolbarLayout();
+            const int z = q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
+            m = {true, {l.zoomX0(z) + l.zoomSide() * 0.5f, l.zoomYc()}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
         if(argc == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
         {
             const BannerLayout b = bannerLayout(toolbarLayout());
@@ -1621,7 +1933,7 @@ void mockLaser_f()
             return;
         }
         Con_Printf("vr_mock_laser <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-                   "toolgun | savedefaults | checklist | spectator | recording | obs | kofi | update | yes | no | frame | off [panel <n>] [hand off]: a hand's laser (the main one's; hand off: the other's) on that spot of the menu (panel <n>: of that menu panel) "
+                   "toolgun | savedefaults | checklist | zoomin | zoomout | spectator | recording | obs | kofi | update | yes | no | frame | off [panel <n>] [hand off]: a hand's laser (the main one's; hand off: the other's) on that spot of the menu (panel <n>: of that menu panel) "
                    "(yes, no: a confirmation dialog's buttons)\n");
     }();
     menu::selectInstance(was);
@@ -1629,6 +1941,54 @@ void mockLaser_f()
 
 void mockMouse_f()
 {
+    // The window's own mouse (tests of the flat screen's VR layout): press / release (the left button, as the window
+    // sends it), wheel <up | down>, window <x> <y> (window pixels), corner <tl | tr | bl | br> (in that corner's grab
+    // zone, just outside the panel's corner).
+    FlatPanel& f = flatPanelState;
+    if(Cmd_Argc() == 2 && (!q_strcasecmp(Cmd_Argv(1), "press") || !q_strcasecmp(Cmd_Argv(1), "release")))
+    {
+        Key_Event(K_MOUSE1, !q_strcasecmp(Cmd_Argv(1), "press"));
+        Con_Printf("vr_mock_mouse: %s, menu %d, %s\n", Cmd_Argv(1), m_state, f.dragging ? "dragging the panel" : "not dragging");
+        return;
+    }
+    if(Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(1), "wheel"))
+    {
+        const int key = q_strcasecmp(Cmd_Argv(2), "down") ? K_MWHEELUP : K_MWHEELDOWN;
+        Key_Event(key, true);
+        Key_Event(key, false);
+        Con_Printf("vr_mock_mouse: wheel %s, menu %d, panel size %.3f\n", key == K_MWHEELUP ? "up" : "down", m_state,
+            vr_menu_flat_scale.value);
+        return;
+    }
+    glm::vec2 window{0.f};
+    bool byWindow = false;
+    if(Cmd_Argc() == 4 && (!q_strcasecmp(Cmd_Argv(1), "window") || !q_strcasecmp(Cmd_Argv(1), "by")))
+    {
+        window = glm::vec2{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))} + (q_strcasecmp(Cmd_Argv(1), "by") ? glm::vec2{0.f} : f.mouse);
+        byWindow = true;
+    }
+    else if(Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(1), "corner"))
+    {
+        const char* names[4]{"tl", "tr", "bl", "br"};
+        for(int c = 0; c < 4; c++)
+        {
+            if(!q_strcasecmp(Cmd_Argv(2), names[c]))
+            {
+                const WindowRect r = flatRect();
+                const float out = FlatPanel::grabOutside * 0.5f;
+                window = {(c & 1) ? r.x + r.w + out : r.x - out, (c & 2) ? r.y + r.h + out : r.y - out};
+                byWindow = true;
+            }
+        }
+    }
+    if(byWindow)
+    {
+        M_Mousemove(glx + static_cast<int>(za::lround(window.x)), gly + static_cast<int>(za::lround(window.y)));
+        Con_Printf("vr_mock_mouse: window %.0f %.0f, menu at %.1f %.1f, corner %d, %s\n", window.x, window.y, m_mousex,
+            m_mousey, f.corner, f.dragging ? "dragging the panel" : "not dragging");
+        return;
+    }
+
     glm::vec2 spot{0.f};
     int next = 0;
     if(Cmd_Argc() >= 3 && (Cmd_Argv(1)[0] == '-' || (Cmd_Argv(1)[0] >= '0' && Cmd_Argv(1)[0] <= '9')))
@@ -1668,6 +2028,13 @@ void mockMouse_f()
         }
         next = 2;
     }
+    else if(Cmd_Argc() >= 2 && (!q_strcasecmp(Cmd_Argv(1), "zoomin") || !q_strcasecmp(Cmd_Argv(1), "zoomout")))
+    {
+        const ToolbarLayout l = toolbarLayout();
+        const int z = q_strcasecmp(Cmd_Argv(1), "zoomin") ? 0 : 1;
+        spot = {l.zoomX0(z) + l.zoomSide() * 0.5f, l.zoomYc()};
+        next = 2;
+    }
     else if(Cmd_Argc() >= 2)
     {
         const ToolbarLayout l = toolbarLayout();
@@ -1683,18 +2050,28 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-                   "toolgun | savedefaults | checklist | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
-                   "confirmation dialog's buttons), clicked with click\n");
+                   "toolgun | savedefaults | checklist | zoomin | zoomout | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
+                   "confirmation dialog's buttons), clicked with click. vr_mock_mouse window <x> <y> | by <dx> <dy> | corner <tl | tr | bl | br> | press | release | wheel <up | down>: "
+                   "the window's mouse (window pixels; a corner of the flat screen's VR menu panel), its left button, its wheel\n");
         return;
     }
 
-    // The window position M_Mousemove takes back to that spot (its sums the other way round).
+    // The window position M_Mousemove takes back to that spot (its sums the other way round; the flat screen's VR
+    // menu panel: its rect of the window).
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
     const float nx = spot.x * t.scale[0] + t.offset[0];
     const float ny = spot.y * t.scale[1] + t.offset[1];
-    M_Mousemove(glx + static_cast<int>(za::lround((nx + 1.f) * 0.5f * static_cast<float>(glwidth))),
-        gly + static_cast<int>(za::lround((1.f - ny) * 0.5f * static_cast<float>(glheight))));
+    int px = glx, py = gly, pw = glwidth, ph = glheight, fx, fy, fw, fh;
+    if(VR_MenuFlatViewport(&fx, &fy, &fw, &fh))
+    {
+        px = glx + fx;
+        py = gly + fy;
+        pw = fw;
+        ph = fh;
+    }
+    M_Mousemove(px + static_cast<int>(za::lround((nx + 1.f) * 0.5f * static_cast<float>(pw))),
+        py + static_cast<int>(za::lround((1.f - ny) * 0.5f * static_cast<float>(ph))));
     Con_Printf("vr_mock_mouse: at %.1f %.1f, menu %d\n", m_mousex, m_mousey, m_state);
     if(Cmd_Argc() > next && !q_strcasecmp(Cmd_Argv(next), "click"))
     {
@@ -1782,7 +2159,7 @@ void printLaser()
 
 bool pointerOn(bool hover)
 {
-    if(active())
+    if(inHeadset())
     {
         return hits[pointingHand].valid && hits[pointingHand].menu == menu::currentInstance();
     }
@@ -2073,7 +2450,7 @@ int triggerKey(int hand, bool down, int key)
     }
 
     // Binding a key takes the trigger as itself.
-    if(!active() || M_WaitingForKeyBinding())
+    if(!inHeadset() || M_WaitingForKeyBinding())
     {
         return key;
     }
@@ -2102,14 +2479,14 @@ int triggerKey(int hand, bool down, int key)
 
 bool spectatorPreviewWanted()
 {
-    return active() && previewPlaced();
+    return inHeadset() && previewPlaced();
 }
 
 void drawHandLaser(const hands::State& s, int h); // (a hand's laser and the frame it lights)
 
 void drawInEye(const hands::State& s)
 {
-    if(!active() || !s.valid)
+    if(!inHeadset() || !s.valid)
     {
         return;
     }
@@ -2184,7 +2561,7 @@ bool gripButton(int hand, bool down)
     }
 
     const Hit& hit = hits[hand];
-    if(grabMode() <= 0 || !active() || M_WaitingForKeyBinding() || panelGrab.hand >= 0 || hit.onRuntimePanel)
+    if(grabMode() <= 0 || !inHeadset() || M_WaitingForKeyBinding() || panelGrab.hand >= 0 || hit.onRuntimePanel)
     {
         return false;
     }
@@ -2277,6 +2654,105 @@ extern "C" int VR_MenuCanvas(float* scalex, float* scaley)
     *scalex = s;
     *scaley = s * rowSpacing();
     return 1;
+}
+
+extern "C" int VR_MenuFlatViewport(int* x, int* y, int* w, int* h)
+{
+    if(!menuui::flatPanel() || glwidth <= 0 || glheight <= 0)
+    {
+        return 0;
+    }
+    const WindowRect r = flatRect();
+    *x = static_cast<int>(r.x);
+    *y = static_cast<int>(r.y);
+    *w = static_cast<int>(r.w);
+    *h = static_cast<int>(r.h);
+    return 1;
+}
+
+extern "C" int VR_MenuFlatMouse(int screenx, int screeny)
+{
+    FlatPanel& f = flatPanelState;
+    f.mouse = {static_cast<float>(screenx - glx), static_cast<float>(screeny - gly)};
+    if(f.dragging && (!keydown[K_MOUSE1] || !menuui::flatPanel()))
+    {
+        f.dragging = false; // (let go: VR_MenuDrawFlatPanel notices it too, without a move)
+    }
+    if(!menuui::flatPanel())
+    {
+        f.corner = -1;
+        showFlatCursor(false);
+        return 0;
+    }
+    if(f.dragging)
+    {
+        setFlatPlace(flatScale(), f.mouse - f.grab);
+        f.moves++;
+        return 1;
+    }
+    f.corner = flatCornerAt(f.mouse);
+    showFlatCursor(f.corner >= 0);
+    return 0;
+}
+
+extern "C" void VR_MenuDrawFlatPanel()
+{
+    FlatPanel& f = flatPanelState;
+    if(f.dragging && (!keydown[K_MOUSE1] || !menuui::flatPanel()))
+    {
+        f.dragging = false;
+        f.corner = flatCornerAt(f.mouse);
+        showFlatCursor(f.corner >= 0 && menuui::flatPanel());
+    }
+    if(!menuui::flatPanel() || glcanvas.type != CANVAS_MENU)
+    {
+        return;
+    }
+    // The panel's face: as dark as the headset's panel over the game (the window's fade is under it, all round it).
+    const Painter p;
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float left, top, right, bottom;
+    Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
+    p.rect(left, right, (top + bottom) * 0.5f, (bottom - top) * p.k * 0.5f, {0.035f, 0.028f, 0.022f, 0.88f});
+}
+
+extern "C" void VR_MenuDrawFlatFrame()
+{
+    if(!menuui::flatPanel())
+    {
+        return;
+    }
+    GL_SetCanvas(CANVAS_DEFAULT); // (the window's viewport again: the handles reach outside the panel)
+    const FlatPanel& f = flatPanelState;
+    const WindowRect r = flatRect();
+    // Window pixels to the default canvas's units (the window's virtual screen).
+    const float gx = static_cast<float>(vid.guiwidth) / static_cast<float>(glwidth);
+    const float gy = static_cast<float>(vid.guiheight) / static_cast<float>(glheight);
+    const auto fill = [gx, gy](float x, float y, float w, float h, const glm::vec4& c) {
+        const float rgb[3]{c.r, c.g, c.b};
+        Draw_FillEx(x * gx, y * gy, w * gx, h * gy, rgb, c.a);
+    };
+    // Its frame, a line round it.
+    glm::vec4 edge = colors::boxBorder;
+    edge.a = 0.8f;
+    fill(r.x - 1.f, r.y - 1.f, r.w + 2.f, 1.f, edge);
+    fill(r.x - 1.f, r.y + r.h, r.w + 2.f, 1.f, edge);
+    fill(r.x - 1.f, r.y, 1.f, r.h, edge);
+    fill(r.x + r.w, r.y, 1.f, r.h, edge);
+    // Each corner's handle just outside it: an L, lit under the mouse and while held.
+    constexpr float thick = 3.f, off = 3.f, arm = FlatPanel::handle;
+    for(int c = 0; c < 4; c++)
+    {
+        const bool right = (c & 1) != 0, bottomSide = (c & 2) != 0;
+        const bool lit = f.corner == c && (f.dragging || ui_mouse.value);
+        glm::vec4 ink = lit ? colors::highlightEdge : colors::fill;
+        ink.a = lit ? 1.f : 0.55f;
+        const float ox = right ? r.x + r.w + off : r.x - off; // the L's inner corner (off the panel's)
+        const float oy = bottomSide ? r.y + r.h + off : r.y - off;
+        fill(right ? ox + thick - arm : ox - thick, bottomSide ? oy : oy - thick, arm, thick, ink); // its arm across
+        fill(right ? ox : ox - thick, bottomSide ? oy + thick - arm : oy - thick, thick, arm, ink); // and down
+    }
 }
 
 namespace
@@ -2760,7 +3236,7 @@ extern "C" void VR_MenuDrawOverlay()
 {
     tb().menu = m_none;
     flatRecording.leftOut = menuui::active() ? "the headset's row instead" : "the corner's buttons not drawn";
-    if(!menuui::active() && key_dest == key_menu)
+    if(!menuui::inHeadset() && key_dest == key_menu)
     {
         // (Whether or not the buttons are shown: the version box's link lights up under the mouse too.)
         const glm::vec2 mouse{m_mousex, m_mousey};
@@ -2776,15 +3252,23 @@ extern "C" void VR_MenuDrawOverlay()
 
     const Painter p;
     const ToolbarLayout l = toolbarLayout();
-    if(!menuui::active())
+    if(!menuui::inHeadset())
     {
         const FlatMouse& fm = flatMouse;
-        tb().hovered = -1;
+        tb().hovered = tb().zoomHovered = -1;
         for(int t = 0; fm.moved && ui_mouse.value && t < toolsShown(); t++)
         {
             if(!toolHidden(t) && l.hit(t, m_mousex, m_mousey))
             {
                 tb().hovered = t;
+            }
+        }
+        for(int z = 0; fm.moved && ui_mouse.value && z < 2; z++)
+        {
+            if(l.zoomHit(z, m_mousex, m_mousey))
+            {
+                tb().zoomHovered = z;
+                tb().hovered = -1; // (the row's last icon's click reaches to them: they come first, as in toolAt)
             }
         }
     }
@@ -2829,6 +3313,22 @@ extern "C" void VR_MenuDrawOverlay()
         }
     }
 
+    // The zoom buttons at the list's end: "-" and "+", small squares (the menu panel zoomed out and in: zoomMenu).
+    for(int z = 0; z < 2; z++)
+    {
+        const bool hot = tb().zoomHovered == z;
+        const float x0 = l.zoomX0(z), x1 = x0 + l.zoomSide(), yc = l.zoomYc();
+        p.rounded(x0, x1, yc, l.bh(), 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+        p.rounded(x0 + 1.f, x1 - 1.f, yc, l.bh() - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
+        const glm::vec4 ink = hot ? colors::thumb : colors::fill;
+        const float cx = (x0 + x1) * 0.5f, arm = l.bh() * 0.5f, bar = za::fmax(0.75f, l.bh() * 0.1f);
+        p.rect(cx - arm, cx + arm, yc, bar, ink);
+        if(z == 1)
+        {
+            p.rect(cx - bar, cx + bar, yc, arm, ink);
+        }
+    }
+
     // The row's icons have no labels: the one under the mouse (or selected) names itself in a box under it.
     const int named = tb().hovered >= 0 ? tb().hovered : menuui::toolbarFocused() ? tb().focused : -1;
     if(l.row && named >= 0 && named < toolsShown())
@@ -2848,20 +3348,32 @@ extern "C" void VR_MenuDrawOverlay()
     tb().menu = m_state;
 
     // The spectator camera's switch (the headset's menus: the window's view is the headset's mirror), bottom left.
+    // (The flat screen's VR layout: the rows above it, a row lower; no switch, no preview.)
     if(menuui::active())
     {
-        const BannerLayout b = bannerLayout(l);
-        const bool hot = tb().bannerHovered;
-        const bool on = spectatorOn();
-        p.rounded(b.x0, b.x1, b.yc, ToolbarLayout::half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
-        p.rounded(b.x0 + 1.f, b.x1 - 1.f, b.yc, ToolbarLayout::half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
-        p.disc(b.x0 + bannerLightX, b.yc, 2.5f, on ? colors::recording : colors::boxBorder); // as a camera's recording light
-        float x = b.x0 + bannerTextX;
-        const char* state = strchr(b.text, ':');
-        for(const char* c = b.text; *c; c++, x += 8.f)
+        if(menuui::inHeadset())
         {
-            // The label in the menus' tan, On or Off white (all white under the laser).
-            Draw_CharacterEx(x, b.yc - 4.f, 8.f, 8.f, hot || (state && c > state) ? *c : (*c | 128));
+            const BannerLayout b = bannerLayout(l);
+            const bool hot = tb().bannerHovered;
+            const bool on = spectatorOn();
+            p.rounded(b.x0, b.x1, b.yc, ToolbarLayout::half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+            p.rounded(b.x0 + 1.f, b.x1 - 1.f, b.yc, ToolbarLayout::half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
+            p.disc(b.x0 + bannerLightX, b.yc, 2.5f, on ? colors::recording : colors::boxBorder); // as a camera's recording light
+            float x = b.x0 + bannerTextX;
+            const char* state = strchr(b.text, ':');
+            for(const char* c = b.text; *c; c++, x += 8.f)
+            {
+                // The label in the menus' tan, On or Off white (all white under the laser).
+                Draw_CharacterEx(x, b.yc - 4.f, 8.f, 8.f, hot || (state && c > state) ? *c : (*c | 128));
+            }
+        }
+        else
+        {
+            // The flat screen's: lit under the desktop mouse (the headset's laser lights them: pointTo).
+            const bool on = menuui::pointerOn(true);
+            tb().recordingHovered = on && recordingAt(m_mousex, m_mousey);
+            tb().obsHovered = on && obsBannerAt(m_mousex, m_mousey);
+            tb().renderdocHovered = on && renderdocAt(m_mousex, m_mousey);
         }
 
         // The Recording button above it: a camera, the label as the corner's buttons'.
@@ -2920,7 +3432,7 @@ extern "C" void VR_MenuDrawOverlay()
             }
             top.yc = db.yc;
         }
-        if(menu::currentInstance() == 0)
+        if(menu::currentInstance() == 0 && menuui::inHeadset())
         {
             placePreview(l, top); // (on the first panel only)
         }
@@ -2960,6 +3472,27 @@ extern "C" void VR_MenuDrawOverlay()
 // other end), A or Enter presses, B gives it back; a click of either stick takes it (or gives it back).
 extern "C" int VR_MenuKey(int key, int repeat)
 {
+    // The flat screen's VR layout: a press on a corner of its panel takes hold of it (it follows the mouse while held:
+    // VR_MenuFlatMouse); the wheel while held resizes it round the mouse.
+    if(FlatPanel& f = flatPanelState; menuui::flatPanel() && !M_WaitingForKeyBinding() && ui_mouse.value)
+    {
+        if(key == K_MOUSE1 && !repeat && (f.corner = flatCornerAt(f.mouse)) >= 0)
+        {
+            f.dragging = true;
+            f.grab = f.mouse - flatCentre();
+            showFlatCursor(true);
+            return 1;
+        }
+        if(f.dragging && (key == K_MWHEELUP || key == K_MWHEELDOWN))
+        {
+            if(zoomFlatAround(f.mouse, key == K_MWHEELUP ? zoomStep : 1.f / zoomStep))
+            {
+                f.wheelZooms++;
+            }
+            f.grab = f.mouse - flatCentre();
+            return 1;
+        }
+    }
     if(key == K_MOUSE1 && !repeat && !M_WaitingForKeyBinding() && menuui::versionLinkPress())
     {
         tb().focused = -1;
@@ -3001,6 +3534,12 @@ extern "C" int VR_MenuKey(int key, int repeat)
     {
         tb().focused = -1;
         toggleSpectator(pointingHand);
+        return 1;
+    }
+    if(const int z = zoomAt(m_mousex, m_mousey); key == K_MOUSE1 && !repeat && z >= 0 && menuui::pointerOn(false))
+    {
+        tb().focused = -1;
+        pressZoom(z, pointingHand);
         return 1;
     }
     if(key == K_MOUSE1)

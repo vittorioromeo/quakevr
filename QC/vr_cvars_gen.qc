@@ -782,6 +782,7 @@ float cvarh_vr_embed_hold_reach;
 float cvarh_vr_embed_hold_reach_corpse;
 float cvarh_vr_embed_hold_reach_down;
 float cvarh_vr_embed_hold_slide_damage;
+float cvarh_vr_embed_hold_strength;
 float cvarh_vr_embed_hold_sword_most;
 float cvarh_vr_embed_hold_sword_rate;
 float cvarh_vr_embed_hold_sword_rate_deep;
@@ -2714,6 +2715,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_embed_hold_reach_corpse = VR_CVar_Make("vr_embed_hold_reach_corpse");
     cvarh_vr_embed_hold_reach_down = VR_CVar_Make("vr_embed_hold_reach_down");
     cvarh_vr_embed_hold_slide_damage = VR_CVar_Make("vr_embed_hold_slide_damage");
+    cvarh_vr_embed_hold_strength = VR_CVar_Make("vr_embed_hold_strength");
     cvarh_vr_embed_hold_sword_most = VR_CVar_Make("vr_embed_hold_sword_most");
     cvarh_vr_embed_hold_sword_rate = VR_CVar_Make("vr_embed_hold_sword_rate");
     cvarh_vr_embed_hold_sword_rate_deep = VR_CVar_Make("vr_embed_hold_sword_rate_deep");

@@ -8,6 +8,7 @@ import math
 import os
 import re
 import struct
+import sys
 
 # mdl_t: ident, version, scale, origin, radius, eye position, numskins, skin width and height,
 # numverts, numtris, numframes, synctype, flags, size.
@@ -109,11 +110,12 @@ def read_skins(data, off, num_skins, w, h):
     return skins, off
 
 
-def write_mdl(path, mesh, skins, name, frames=None, names=None, origin=None):
+def write_mdl(path, mesh, skins, name, frames=None, names=None, origin=None, clean=False):
     """`mesh` as an MDL with `skins` (palette indices, skin_w x skin_h each): one frame, or `mesh` then each of
     `frames` (meshes of the same vertices and triangles, moved). `names`: each frame's name (else `name`, name1, ...);
     `origin`: the scale_origin to pack from (a corner the settings scale about; every vertex at or past it), else the
-    vertices' least."""
+    vertices' least. `clean`: the file then cleaned by mdltopo/clean.py (returns its (triangles dropped, vertices
+    welded))."""
     assert mesh.check_winding() == 0, "counter-clockwise triangles"
     table = anorms()
     all_frames = [mesh] + list(frames or [])
@@ -148,6 +150,13 @@ def write_mdl(path, mesh, skins, name, frames=None, names=None, origin=None):
             data += bytes((q[0], q[1], q[2], best))
     with open(path, "wb") as f:
         f.write(data)
+    if clean:
+        # mdltopo/clean.py: zero-area triangles dropped, identical vertices welded (as fix.py does to a shipped
+        # model: a script-made one gets it here, or the next export would undo it). Needs numpy (Blender's Python).
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "mdltopo"))
+        import clean as mdltopo_clean
+        return mdltopo_clean.clean_file(path)
+    return None
 
 
 def dithered_skin(w, h, regions, ramps, seed, extra=None):
