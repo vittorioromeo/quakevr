@@ -139,7 +139,9 @@ constexpr Spawnable spawnables[] = {
     {"Props", "Small Explosive Box", "misc_explobox2", "maps/b_exbox2.bsp", 0.f, nullptr, 0.f, 0, false},
     {"Props", "Rock", "vr_debris_piece", "progs/vr_rock1.mdl", 0.f, nullptr, 0.f, 0, true},
     {"Props", "Brick", "vr_debris_piece", "progs/vr_brick1.mdl", 0.f, nullptr, 0.f, 0, true},
-    {"Weapons", "Axe", "weapon_axe", "progs/v_axe.mdl", 8.f, nullptr, 0.f, 0, false},
+    // (func_weapon_grabbable, not weapon_axe: in AD's maps weapon_axe is AD's own pickup, which a hand can't take -
+    // vr_ad.cpp adOwnedClashes; the scenes' give "Axe" and the toolgun want Quake VR's holdable axe in every map)
+    {"Weapons", "Axe", "func_weapon_grabbable", "progs/v_axe.mdl", 8.f, "weapon", 2.f, 0, false},
     {"Weapons", "Crowbar", "func_weapon_grabbable", "progs/v_crowbar.mdl", 8.f, "weapon", 17.f, 0, false},
     {"Weapons", "Knight's Sword", "weapon_knight_sword", "progs/v_ksword.mdl", 8.f, nullptr, 0.f, 0, false},
     {"Weapons", "Death Knight's Sword", "weapon_hknight_sword", "progs/v_hksword.mdl", 8.f, nullptr, 0.f, 0, false, false,

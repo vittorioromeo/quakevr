@@ -4471,4 +4471,27 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
 - **Found, not fixed:** with Arcane Dimensions running (scenario_check's `-game ad`), the toolgun's "Axe" entry
   (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
-  failed`).
+  failed`). (Fixed by agent/cfgtrim, below.)
+
+## Config migration cut at 1.0.1; the toolgun's Axe holdable under AD (branch `agent/cfgtrim`, 2026-11-08)
+
+- **Cut at 1.0.1 (his decision):** a config older than 1.0.1 (`vr_cfg_version` < 126) is reset to the defaults
+  (`oldestMigrated` 122 -> 126; message "older than 1.0.1"). Dropped only what no 1.0.1-or-later config can use:
+  `defaultChanges` 9 rows (123, 125, 126 x7: a row of version v applies only to configs below v, so rows up to 126
+  are dead once 125 resets), with their comments (20 lines); `retiredCvars` the 8 names already in 1.0.1's own retired
+  list (vr_throw_lookahead, vr_throw_slowmo_flick_spin, vr_foegrab_throw_topple_hold, vr_knockdown_shove_* x4,
+  vr_hub_map; 10 lines); `cvarAliases` the 6 vr_slipgate* names (renamed 2026-10-08, before 1.0.0: in no 1.0.1
+  config; qvrbench renames them on its own side). Kept: every other retired name (all absent from 1.0.1's source:
+  added and retired since), the two carry aliases (1.0.1 names), `namedDefaultChanges` (all 164+) and
+  `retiredPackFits` (221).
+- **Check:** full configs as 1.0.1 (126, from v1.0.1's archived cvars and vr_defaults.cfg) and 1.1 beta 4 (207)
+  saved them, executed with `vr_migrate_config` and dumped (`vr_config_test dumpfull`, 25109 settings) before and
+  after: byte-identical. A 125 config resets, a 126 one migrates. `config_sparse_test.sh`: 16 passed, 0 failed;
+  `config123_test.sh` PASS (its 1.0.0 config now reaches the same values by the reset).
+- **Seen, not fixed:** loading those configs prints `Unknown command` for `vr_walltorch_pull`,
+  `vr_revolver_eject_tilt` (gone without a retiredCvars entry) and `vr_carry_two_hands_window` (an alias, yet unknown
+  as a config line); harmless, the values unchanged either way.
+- **AD axe:** the toolgun's "Axe" (and so the scenes' `give "Axe"`) is `func_weapon_grabbable` with weapon 2 again,
+  not `weapon_axe`, which AD's maps keep for AD's own pickup (vr_ad.cpp adOwnedClashes). The six scenes under
+  `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
+  (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
