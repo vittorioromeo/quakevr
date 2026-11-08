@@ -3837,3 +3837,33 @@ No model changed.
   `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
   flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
   and highlighted pictures: `scratch/topo/` in this worktree.
+
+## Model topology fixes, steps 1-5 (branch `agent/selfshot`, 2026-11-08)
+
+The audit's automatic fixes, approved by Vittorio, on our models (quakevr/progs only). Tool: `Misc/quakevr/mdltopo/fix.py
+in.mdl out.mdl` (Blender's Python): each step only when `compare.py` against the original still passes at the model's
+own noise floor (its renumbered copy's result) in every pose and 26 views; a group that differs is retried one change
+at a time. Then: `check_mdl_holes.py` no worse, `anchors.py check new old`, `fx_gfx_mask` rewritten in weapons.txt
+from the triangle map, rig2 weights remapped on welds (none were needed: the six rigged models had nothing to weld),
+and for a model with a source .blend the .blend rebuilt from the fixed model (`blend_build.py`) and exported again
+(`blend_export.py --out`): byte-identical to the fixed file, parts and derived models gated the same way. One commit
+per model (`git log 62c8a8017..`), its message has the counts and the compare result. Vittorio's config has no saved
+`vr_wofs_fx_gfx_mask_NN`, so no saved mask is stale.
+
+- **Done (62 models):** 1,670 degenerate triangles removed, 15 exact duplicates, 3,865 identical vertices welded, 1
+  zero-width T-junction split (vr_adrifle_base). Re-audit of the 62 (before -> after): degenerate 1,670 -> 0, pure
+  duplicate vertices 3,865 -> 0, triangles 37,574 -> 35,890, vertices 55,816 -> 51,952; every compare 0 texel px.
+- **What turned out not auto-fixable:** the audit's "exact duplicates" are mostly back-to-back pairs (opposite
+  winding: two-sided cards, spike, s_spike, vr_muzzleflash): kept. The "same-texel static z-fights" left (v_widowmaker,
+  v_enfrifle, v_light, v_plasma, v_laserg, vr_widowmaker_preview) overlap only partly: neither triangle is covered, so
+  none can go (v_light/v_plasma show 1 more "different texel" pair: the audit's texel sampling is seeded by triangle
+  number, a borderline pair moved class; compare is 0 px). Hidden: vr_widowmaker_preview's removal made 2 cracks
+  (holes check): not taken. T-junctions: only exact on-line ones at whole texels qualify; v_lava2's 3 change shading.
+- **Skipped, for a later pass:** v_shot (the auto pump's parts' normal maps change with the welds: 28k px of
+  vr_pump_on_v_shot's map differ), v_shot2 (the open halves made from it change: 215 px), enforcer and hknight (their
+  triangle counts are keyed in vr_monstermods.cpp knownSwords, make_vrgrunt.py, make_enemyguns.py, checks.py: enforcer
+  was fixed then reverted), vr_widowmaker_preview (holes), the nail pistol models (another worker), flat savings (no
+  retriangulation tool yet). The ogre's count is keyed too: knownSwords, checks.py and make_chainsaw.py now say 952.
+- **Generators:** blend-owned models were fixed in their .blend (rebuilt). Script-made ones are fixed in the .mdl
+  only: v_widowmaker, v_revolver, v_revolver_frame, v_revolver_cyl, vr_revolver_preview, v_flaregun,
+  vr_flaregun_preview (their hand-made sources' export_mdl.py would undo it on the next export: run fix.py again after one).
