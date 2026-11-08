@@ -118,6 +118,9 @@ Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / 
 - [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
 - [ ] An AD map with a weapon_axe still has AD's axe pickup
 Armoured enforcers' elbow leather (both arms) while they stand, aim, shoot, walk and swing: stays round the elbow, no ring spinning or jumping, the inner-elbow lump easing in and out rather than pumping; grunts' and knights' elbows and knees unchanged {test:agarmor_enforcer_elbow}
+[ ] Projectiles keep less of your motion: strafe left/right firing the nailgun, super nailgun and rocket launcher at a monster: shots fly where the gun points (Weapons > Aiming > Projectiles Keep Your Motion: fast 0 / 0).
+[ ] Lobbed shots: grenades fired running land a little ahead (lobbed 0.5); a flick of the launcher still throws them further (hand 2.5). Flares the same. Flamethrower stream feels as before (spray 0.6 / 2).
+[ ] Flat-screen: a fast mouse turn while firing grenades adds nothing to them (Debug > Tests > Projectiles: Flat Turn passes).
 [ ] Flat: F7 toolgun, mouse 3 opens its panel over the screen with a mouse cursor (the view stays still); LMB clicks items, Esc or mouse 3 closes. Spawn an armed grunt and a Grunt Burst Rifle from it.
 [ ] Flat: toolgun panel size/place/cursor speed OK? (vr_flat_toolgun_panel_size 0.75, _x/_y 0.5, vr_flat_toolgun_cursor_speed 1)
 [ ] Flat: physgun holding a prop, hold B: mouse up/down pushes it out/in, left/right turns it (vr_flat_toolgun_push_scale 0.5, _turn_scale 0.4); angles snap while B is held.

@@ -206,7 +206,7 @@ void(float xHand) W_FireNailPistol =
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = VR_NailPistol_SpikeTouch;
     newmis.velocity = dir * max(100, cvar_hget(cvarh_vr_nailpistol_speed));
-    vector carried = vrProjectileVelocity(xHand, 1.0); // (the hand's and yours, as the other projectiles')
+    vector carried = vrProjectileVelocity(xHand, VR_PROJK_FAST); // (the hand's and yours, as the other projectiles')
     newmis.velocity += carried;
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 

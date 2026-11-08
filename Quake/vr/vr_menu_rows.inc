@@ -2595,6 +2595,23 @@ QVR_SLIDER(vr_2h_sticky_fast_from, "Swing From", 0.f, 5.f, 0.1f, "%.1f m/s", ext
 QVR_SLIDER(vr_2h_sticky_fast_full, "Swing Full At", 0.5f, 10.f, 0.1f, "%.1f m/s", ext(0.1f, 30.f), "The faster hand's speed at which all of it applies.")
 QVR_SLIDER(vr_2h_sticky_fast_hold, "Swing Fades Over", 0.f, 2.f, 0.05f, "%.2f s", ext(0.f, 10.f),
     "How long it takes to fade once the hands slow (a swing's end and the way back).")
+QVR_SLIDER(vr_proj_inherit_fast, "Fast Shots: Your Motion", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of your own velocity nails, rockets, lasers, plasma, bolts and the grappling hook keep (0: none, as in "
+    "Quake: they fly where you aim while you strafe; 1: all of it).")
+QVR_SLIDER(vr_proj_inherit_fast_hand, "Fast Shots: Hand Swing", 0.f, 4.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep (1: the hand's own speed; 0: none). Only a tracked controller's "
+    "motion, never the flat-screen hands'.")
+QVR_SLIDER(vr_proj_inherit_lobbed, "Lobbed Shots: Your Motion", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of your own velocity grenades (multi and proximity too) and flares keep (0.5: a grenade lobbed running "
+    "lands a little ahead).")
+QVR_SLIDER(vr_proj_inherit_lobbed_hand, "Lobbed Shots: Hand Flick", 0.f, 5.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep: flick the launcher to lob them further (1: the hand's own speed; "
+    "the muzzle of a flicked gun moves faster). Only a tracked controller's motion, never the flat-screen hands'.")
+QVR_SLIDER(vr_proj_inherit_spray, "Sprays: Your Motion", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of your own velocity the flamethrower's stream keeps (short range: it keeps up with you).")
+QVR_SLIDER(vr_proj_inherit_spray_hand, "Sprays: Hand Swing", 0.f, 4.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing the stream keeps (sweeping it whips the flames). Only a tracked controller's "
+    "motion.")
 QVR_TOGGLE(vr_weight_stamina, "Heavier When Tired",
     "As your stamina (Parry Stamina) runs low, what you hold gets heavier.")
 

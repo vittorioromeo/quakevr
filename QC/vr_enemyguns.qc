@@ -359,7 +359,7 @@ void(float xHand) VR_FireEnforcerRifle =
     // As your nails (launch_spike): a missile's move, which meets corpses and gibs too (SV_Move's MOVE_MISSILE), from
     // behind what the muzzle is inside, the hand's swing carried; VR_RifleLaser_Touch deals its damage.
     laser.movetype = MOVETYPE_FLYMISSILE;
-    laser.velocity = dir * max(100, cvar_hget(cvarh_vr_enfrifle_speed)) + vrProjectileVelocity(xHand, 1.0);
+    laser.velocity = dir * max(100, cvar_hget(cvarh_vr_enfrifle_speed)) + vrProjectileVelocity(xHand, VR_PROJK_FAST);
     laser.angles = vectoangles(laser.velocity);
     laser.touch = VR_RifleLaser_Touch;
     laser.classname = "rifle_laser";
