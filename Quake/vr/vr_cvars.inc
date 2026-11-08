@@ -1097,16 +1097,25 @@ QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping ha
 // of your motion"), by kind: the share of your own velocity, and of the firing hand's swing (_hand: 1 the hand's own
 // speed; a tracked controller's only, never the flat-screen hands' synthesized motion). Was 0.8 of your velocity and
 // 110 u/s per m/s of the hand for every kind, scaled down a little by kind: a strafe threw nails off the aim (2026-11-08).
-// Fast: nails, super and lava nails, the nail pistol, rockets and multi rockets, lasers, plasma, crossbow bolts, the
-// grappling hook: none, as in Quake (at 320 u/s a nail kept 14 degrees of a strafe).
-QVR_CVAR(vr_proj_inherit_fast, "0", CVAR_ARCHIVE)
+// The player's velocity is split by the projectile's aim: _along (the part along the aim direction) and _across (the
+// part across it, a strafe) have their own shares.
+// Fast: nails, super and lava nails, the nail pistol, lasers, plasma, crossbow bolts, the grappling hook: a little (at
+// 1000 u/s any share is an angle: the strafe's 0.05 is 0.9 degrees at 320 u/s).
+QVR_CVAR(vr_proj_inherit_fast_along, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_across, "0.05", CVAR_ARCHIVE)
 QVR_CVAR(vr_proj_inherit_fast_hand, "0", CVAR_ARCHIVE)
+// Rockets and multi rockets: slower, so more.
+QVR_CVAR(vr_proj_inherit_rocket_along, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_across, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_hand, "0", CVAR_ARCHIVE)
 // Lobbed: grenades, multi and proximity grenades, flares: half your velocity (a grenade lobbed running lands ahead), and
 // the flick as before (the grenade's 66 u/s per m/s of the hand, at world scale 1).
-QVR_CVAR(vr_proj_inherit_lobbed, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_along, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_across, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_proj_inherit_lobbed_hand, "2.5", CVAR_ARCHIVE)
 // Sprays: the flamethrower's stream (short range: it keeps up with you as before).
-QVR_CVAR(vr_proj_inherit_spray, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_along, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_across, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_proj_inherit_spray_hand, "2", CVAR_ARCHIVE)
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the

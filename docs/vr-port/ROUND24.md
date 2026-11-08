@@ -3907,3 +3907,23 @@ and use reasonable values for the projectile kinds".
 - **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
   the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
   flamethrower feels as before.
+
+### Split by direction, and a rocket kind (branch `agent/embed5`, 2026-11-08)
+
+Vittorio: the player-velocity share is split by the projectile's aim, the part along it and the part across it each with
+their own share (hand shares unchanged), and rockets are their own kind.
+
+- `vrProjectileVelocity(hand, kind)` (weapons.qc) still the one place; the aim is `VRGetWeaponFireRotFwd(hand)`:
+  `velocity = along * (v . aim) aim + across * (v - (v . aim) aim)`, plus the hand's swing share as before.
+- Kinds and defaults, `vr_proj_inherit_<kind>_along` / `_across` / `_hand`: fast (nails, super/lava nails, nail pistol,
+  Hipnotic laser, enforcer rifle, AD plasma and crossbow bolt, grappling hook) 0.1 / 0.05 / 0; rocket (rockets, multi
+  rockets: `VR_PROJK_ROCKET`) 0.2 / 0.2 / 0; lobbed (grenades, multi/proximity grenades, flares) 0.5 / 0.5 / 2.5; spray
+  (AD flamethrower, poison sprayer) 0.6 / 0.6 / 2. Old `vr_proj_inherit_fast|lobbed|spray` are in retiredCvars (the
+  old unsplit share is not carried over). Menu rows: Weapons > Aiming > "Projectiles Keep Your Motion" (12 sliders).
+- A nail launches at about 2065 u/s here, not 1000: strafing at 320 it flies 0.44 degrees off (0.05 * 320 / 2065 =
+  0.44), a rocket (1000 u/s) 3.67 degrees (0.2 * 320 / 1000 = 3.67 degrees).
+- Test `vr_projinherit_test 1` (needs `developer 1`): strafe nail 0.44 deg (want 0.46), rocket 3.66 (3.67), grenade
+  kept 163 (160), rocket across 1 keeps 320.0; forward along the aim at 320: nail +32.0 and rocket +64.0, both 0.00 deg
+  off; flick: grenade 577 (577), rocket 0.00 deg: 8 passed. `vr_projinherit_test 2` (flat turn adds nothing): 2 passed.
+- Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
+  (they fly a little faster); grenades and the flamethrower as before.

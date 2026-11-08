@@ -2,9 +2,11 @@
 // vr_projinherit_test.qc -- what a projectile keeps of the player's motion (weapons.qc vrProjectileVelocity; ROUND24.md,
 // "Projectiles keep less of your motion"). Any map. Ends `projinherit: N passed, M failed`.
 // `vr_projinherit_test 1` (the mock headset): strafing at 320 u/s with the hand still, a nail and a rocket fly within
-//   0.5 degrees of the aim and a grenade keeps vr_proj_inherit_lobbed of the strafe; vr_proj_inherit_fast 1 gives the
-//   rocket all of it; then the main hand swung (vr_mock_swing), a grenade keeps vr_proj_inherit_lobbed_hand of the
-//   hand's velocity and a rocket none of it.
+//   a nail (2000 u/s) flies 0.05 * 320 / 2000 = 0.46 degrees off the aim and a rocket 3.7 degrees (vr_proj_inherit_fast_across,
+//   _rocket_across), a grenade keeps vr_proj_inherit_lobbed_across of the strafe; vr_proj_inherit_rocket_across 1 gives
+//   the rocket all of it; running forward along the aim at 320 the nail gains 32 u/s (_fast_along 0.1) and the rocket 64 (0.2), both
+//   on the aim; then the main hand swung (vr_mock_swing), a grenade keeps vr_proj_inherit_lobbed_hand of the hand's
+//   velocity and a rocket none of it.
 // `vr_projinherit_test 2` (-flatscreenmode): the view turned fast (+right), the flat-screen hands swinging round with it
 //   (their motion synthesized; the caller holds +right with cl_yawspeed 1440 first): the hand reports no velocity, VR_HandMotionTracked says no, and a grenade fired with the
 //   player still keeps nothing of the swing; then, for the record, the hand's velocity with vr_handsource_gate 0.
@@ -13,14 +15,15 @@ float vr_pit_on;    // the running test's number
 float vr_pit_s;     // its state
 float vr_pit_t0;    // when the state began (a stuck test: FAIL "timed out")
 float vr_pit_wait;  // frames left before the state goes on
-float vr_pit_fast;  // vr_proj_inherit_fast as it was (put back)
+float vr_pit_rocket; // vr_proj_inherit_rocket_across as it was (put back)
 float vr_pit_n;     // (2) frames the hand has swung fast
 vector vr_pit_rel;  // (2) the main hand's place from the player's origin when last seen
 float vr_pit_relt;  // (2) and when
 
 float VR_PIT_GIVEUP = 6;    // seconds a state may last
 float VR_PIT_STRAFE = 320;  // u/s: a running strafe
-float VR_PIT_AIM_DEG = 0.5; // degrees a fast shot may be off the aim
+float VR_PIT_NAILSPEED = 2000; // u/s: a nail's launch speed
+float VR_PIT_AIM_DEG = 0.5; // degrees a fast shot may be off the aim (and off what its share of a strafe gives)
 float VR_PIT_SPREAD = 15;   // u/s: a grenade's own spread (10 right and 10 up, at most) and rounding
 float VR_PIT_SWING = 2;     // m/s: a hand swinging fast enough to tell
 
@@ -36,7 +39,7 @@ void() VR_PIT_End =
     cvar_set("vr_mock_swing", "0"); // (cvars set at once: a localcmd waits behind the rest of a run's script)
     cvar_set("vr_handsource_gate", "1");
     if(vr_pit_on == 2) { localcmd("-right\n"); }
-    cvar_set("vr_proj_inherit_fast", ftos(vr_pit_fast));
+    cvar_set("vr_proj_inherit_rocket_across", ftos(vr_pit_rocket));
     VR_Test_Verdict();
     vr_pit_on = 0;
     cvar_set("vr_projinherit_test", "0");
@@ -83,7 +86,9 @@ vector() VR_PIT_LobbedWant =
 {
     if(!VRHandsTracked(self)) { return VEC_ORIGIN; }
     vector hv = VR_HandMotionTracked(self, cVR_MainHand) ? VRGetHandVel(cVR_MainHand) : VEC_ORIGIN;
-    return self.velocity * cvar_hget(cvarh_vr_proj_inherit_lobbed) +
+    vector aim = VRGetWeaponFireRotFwd(cVR_MainHand);
+    vector va = aim * (self.velocity * aim);
+    return va * cvar_hget(cvarh_vr_proj_inherit_lobbed_along) + (self.velocity - va) * cvar_hget(cvarh_vr_proj_inherit_lobbed_across) +
            hv * (VRMetersToUnits() * cvar_hget(cvarh_vr_proj_inherit_lobbed_hand));
 };
 
@@ -109,29 +114,67 @@ void(entity p) VR_PIT_Strafe =
     else
     {
         float dn = VR_DegreesBetween(n.velocity, fwd);
-        VR_Test_Check(dn <= VR_PIT_AIM_DEG, sprintf("strafe: nail %.2f deg off the aim (speed %.0f)", dn, vlen(n.velocity)));
+        float wn = cvar_hget(cvarh_vr_proj_inherit_fast_across) * VR_PIT_STRAFE / VR_PIT_NAILSPEED * 57.29578;
+        VR_Test_Check(fabs(dn - wn) <= 0.2, sprintf("strafe: nail %.2f deg off the aim (want %.2f; speed %.0f)", dn, wn, vlen(n.velocity)));
         remove(n);
     }
     entity r = VR_FireRocketMissile(cVR_MainHand);
     float dr = VR_DegreesBetween(r.velocity, fwd);
-    VR_Test_Check(dr <= VR_PIT_AIM_DEG, sprintf("strafe: rocket %.2f deg off the aim", dr));
+    float wr = cvar_hget(cvarh_vr_proj_inherit_rocket_across) * VR_PIT_STRAFE / 1000 * 57.29578;
+    VR_Test_Check(fabs(dr - wr) <= VR_PIT_AIM_DEG, sprintf("strafe: rocket %.2f deg off the aim (want %.2f)", dr, wr));
     remove(r);
 
     entity g = VR_FireGrenadeMissile(cVR_MainHand);
     vector kept = VR_PIT_Kept(g);
     vector want = VR_PIT_LobbedWant();
-    VR_Test_Check(vlen(kept - want) <= VR_PIT_SPREAD && fabs(kept * right - VR_PIT_STRAFE * cvar_hget(cvarh_vr_proj_inherit_lobbed)) <= VR_PIT_SPREAD,
+    VR_Test_Check(vlen(kept - want) <= VR_PIT_SPREAD && fabs(kept * right - VR_PIT_STRAFE * cvar_hget(cvarh_vr_proj_inherit_lobbed_across)) <= VR_PIT_SPREAD,
         sprintf("strafe: grenade kept %.0f u/s of the strafe (want %.0f; off by %.1f)", kept * right, want * right,
             vlen(kept - want)));
     remove(g);
 
     // The cvar is read: all of it for fast shots.
-    cvar_set("vr_proj_inherit_fast", "1");
+    cvar_set("vr_proj_inherit_rocket_across", "1");
     r = VR_FireRocketMissile(cVR_MainHand);
     float side = (r.velocity - fwd * 1000) * right;
-    VR_Test_Check(fabs(side - VR_PIT_STRAFE) <= 1, sprintf("strafe: vr_proj_inherit_fast 1: rocket kept %.1f u/s", side));
+    VR_Test_Check(fabs(side - VR_PIT_STRAFE) <= 1, sprintf("strafe: vr_proj_inherit_rocket_across 1: rocket kept %.1f u/s", side));
     remove(r);
-    cvar_set("vr_proj_inherit_fast", ftos(vr_pit_fast));
+    cvar_set("vr_proj_inherit_rocket_across", ftos(vr_pit_rocket));
+    p.velocity = vel0;
+};
+
+// Running forward along the aim at 320: a nail gains 32 u/s and a rocket 64, neither leaves the aim.
+void(entity p) VR_PIT_Forward =
+{
+    VR_PIT_Arm(p);
+    vector fwd = VRGetWeaponFireRotFwd(cVR_MainHand);
+    vector vel0 = p.velocity;
+    p.velocity = VEC_ORIGIN;
+    entity n0 = VR_PIT_Nail(); // (its own speed: the launch is not exactly VR_PIT_NAILSPEED)
+    float base = n0 != world ? vlen(n0.velocity) : VR_PIT_NAILSPEED;
+    if(n0 != world) { remove(n0); }
+    p.velocity = fwd * VR_PIT_STRAFE;
+
+    entity n = VR_PIT_Nail();
+    if(n == world)
+    {
+        VR_Test_Check(FALSE, "forward: no nail fired");
+    }
+    else
+    {
+        float gn = (n.velocity - fwd * base) * fwd;
+        float wn = VR_PIT_STRAFE * cvar_hget(cvarh_vr_proj_inherit_fast_along);
+        float dn = VR_DegreesBetween(n.velocity, fwd);
+        VR_Test_Check(fabs(gn - wn) <= 1 && dn <= 0.2,
+            sprintf("forward: nail gains %.1f u/s (want %.1f), %.2f deg off the aim", gn, wn, dn));
+        remove(n);
+    }
+    entity r = VR_FireRocketMissile(cVR_MainHand);
+    float gr = (r.velocity - fwd * 1000) * fwd;
+    float wr = VR_PIT_STRAFE * cvar_hget(cvarh_vr_proj_inherit_rocket_along);
+    float dr = VR_DegreesBetween(r.velocity, fwd);
+    VR_Test_Check(fabs(gr - wr) <= 1 && dr <= 0.2,
+        sprintf("forward: rocket gains %.1f u/s (want %.1f), %.2f deg off the aim", gr, wr, dr));
+    remove(r);
     p.velocity = vel0;
 };
 
@@ -164,6 +207,7 @@ void(entity p) VR_PIT_Mock =
     if(vr_pit_s == 0)
     {
         VR_PIT_Strafe(p);
+        VR_PIT_Forward(p);
         cvar_set("vr_mock_swing", "0.35");
         VR_PIT_To(1, 2);
     }
@@ -232,7 +276,7 @@ void() VR_ProjInheritTest_Frame =
     {
         VR_Test_Begin("projinherit");
         vr_pit_on = ask;
-        vr_pit_fast = cvar_hget(cvarh_vr_proj_inherit_fast);
+        vr_pit_rocket = cvar_hget(cvarh_vr_proj_inherit_rocket_across);
         vr_pit_rel = VRGetHandPos(cVR_MainHand) - p.origin;
         vr_pit_relt = time;
         VR_PIT_To(0, 2);
