@@ -2979,6 +2979,7 @@ QVR_CVAR(vr_armourstudio_taper_end, "1", CVAR_NONE)   // debug: ... at its last 
 QVR_CVAR(vr_armourstudio_leather, "1", CVAR_NONE)     // debug: a sleeve part's leather drawn (1) or hidden (0)
 QVR_CVAR(vr_armourstudio_folds, "4", CVAR_NONE)       // debug: a joint's leather's bellows folds (0-4; as vr_agarmor_folds: not written)
 QVR_CVAR(vr_armourstudio_fold_depth, "0.3", CVAR_NONE) // debug: ... their depth on the inside of a bend (units; as vr_agarmor_fold_depth: not written)
+QVR_CVAR(vr_armourstudio_hero, "1", CVAR_NONE)        // debug: the part's hero plates (1, as made: not written) or every plate its own (0)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index
 QVR_CVAR(vr_armourstudio_anim_play, "1", CVAR_NONE)   // debug: 1 playing, 0 paused (vr_armourstudio_anim_frame picks the frame)
@@ -2993,7 +2994,10 @@ QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates'
 QVR_CVAR(vr_agarmor_seed, "0", CVAR_NONE)            // vr_agarmor: the plates' variation (their sizes, tilts, tiles; the same seed, the same armour; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_bridge, "1", CVAR_NONE)           // vr_agarmor: the elbows' and knees' leather made each frame, one bending tube from plate row to plate row (1), or the old sleeves made once at load, two rigid halves (0; for comparison)
-QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)            // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
+QVR_CVAR(vr_agarmor_details, "1", CVAR_NONE)          // vr_agarmor: the plates' painted details by place (1: the chest's panel, the belly's ribs, the cuffs' and shins' vents, the elbows' and knees' raised cops, the emblem; 0 every plate a plain tile by chance; the shells made again when it changes)
+QVR_CVAR(vr_agarmor_hero, "1", CVAR_NONE)             // vr_agarmor: hero plates, a row's plates drawn as one big plate (the breastplate, the pauldrons' top row as two, the elbows' and knees' cops; armour.txt's `hero` per part); 0 every plate its own (the shells made again when it changes)
+QVR_CVAR(vr_agarmor_emblem, "1", CVAR_NONE)          // vr_agarmor: the rune emblem on an upper arm's outer top plate: 1 the right, 2 the left, 3 both, 0 none (with vr_agarmor_details; the shells made again when it changes)
+QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)           // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
 QVR_CVAR(vr_agarmor_fold_depth, "0.3", CVAR_NONE)     // vr_agarmor: how far its folds stand on the inside of a bend, flattening on the outside (units; armour.txt's `fold_depth`)
 QVR_CVAR(vr_agarmor_bend, "0", CVAR_NONE)             // debug (the Debug menu, by Check the Armour's Fit): every armoured body drawn on the authored rig in its rest pose with its elbows and knees bent this many degrees (0 off; the leather's look and tests)
 QVR_CVAR(vr_agarmor_pose_frame, "-1", CVAR_NONE)      // debug (the Debug menu, by Check the Elbow and Knee Leather): every armoured body drawn on the authored rig held in its animation at this frame (a fraction lerped to the next as the game draws it: vr_agarmor_bridge_check's worst steps seen; over vr_agarmor_bend; -1 off)
@@ -3995,6 +3999,13 @@ QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
+QVR_CVAR(vr_flat_death_vomit_look, "0", CVAR_ARCHIVE)   // flatscreen play in Vomit Mode on death (vr_deathview.cpp flatView): 0 the view is exactly the ragdoll head's turn, the mouse ignored (the author's note 2026-11-08); 1 the mouse's look added on top of the head's turn (the old behaviour)
+QVR_CVAR(vr_flat_mantle, "1", CVAR_ARCHIVE)             // flatscreen play: 1 mantling (vr_climb.cpp flatMantle; needs vr_climb): after a jump, the jump key held and the view looking up (vr_flat_mantle_look), a ledge in reach ahead pulls him up onto it -- the headset's mantle (its search for room, its way up and over, its grunt); 0 off
+QVR_CVAR(vr_flat_mantle_reach, "20", CVAR_ARCHIVE)      // flatscreen mantle: units, how far ahead of his box's front a ledge's lip may be (2..64)
+QVR_CVAR(vr_flat_mantle_height, "24", CVAR_ARCHIVE)     // flatscreen mantle: units, the highest a ledge's top may be over his eyes, as he rises in the jump (-32..64; the lowest is vr_climb_min_height over the feet)
+QVR_CVAR(vr_flat_mantle_look, "5", CVAR_ARCHIVE)        // flatscreen mantle: degrees, the least the view must look up (-90..90; 0: level counts, negative: a little down too)
+QVR_CVAR(vr_flat_mantle_look_max, "80", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle)
+QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 

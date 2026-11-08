@@ -43,6 +43,7 @@ kind "grunt"
         offset "0 0 0"
         scale "1"
         standoff "0"
+        rows "3"
         taper_start "1"
         taper_end "0.975"
     }
@@ -101,7 +102,6 @@ kind "grunt"
     shin_l
     {
         end "-0.25"
-        rows "4"
     }
     bracer_sleeve
     {
@@ -213,6 +213,7 @@ kind "knight"
         standoff "0.17"
         start "-3.51"
         end "0.35"
+        rows "5"
     }
     shin_r
     {
@@ -260,5 +261,12 @@ kind "death_knight"
     shin
     {
         standoff "-0.1"
+    }
+}
+kind "progs/vrbody_brawny.mdl"
+{
+    cuirass
+    {
+        rows "7"
     }
 }

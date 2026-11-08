@@ -654,9 +654,13 @@ void() VR_ClassTest_SaveTake =
     VR_Test_Verdict();
 };
 
+void() VR_LMTest_Start; // (vr_load_models_test.qc: every weapon through a save and a load)
+void() VR_LMTest_Frame;
+
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
+    VR_LMTest_Frame(); // (its next step, once a load's first frames ran)
     float ask = cvar_hget(cvarh_vr_pickup_test);
     if(!ask)
     {
@@ -713,6 +717,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 11)
     {
         VR_ClassTest_SaveTake();
+    }
+    else if(ask == 12)
+    {
+        VR_LMTest_Start();
     }
     self = oself;
 };

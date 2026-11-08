@@ -3868,6 +3868,55 @@ His note: "The enforcer's right elbow leather connector has a similar issue to t
   left, `bracer_l`, the one that jumped) while it stands, aims, shoots, walks and swings: the leather stays round the
   elbow, no ring spinning, the inner-elbow lump easing rather than pumping. Grunts' and knights' elbows and knees: no
   new lumps or skin through the leather on the inside of a bend.
+
+## Armour look: fewer, bigger plates (branch `agent/regfix`, 2026-11-08)
+
+His note: the armoured knight "a bit too plain/boring/repetitive"; ChatGPT's mockup (few big plates, a recessed chest panel, a
+rune on a pauldron, vented bracers and shins, knee cops, gold-brown trim, a dark layer between plates). He approved the low-risk
+steps 1-3 (the plate system kept); step 4 (hero plates: a row's plates merged) after he sees this.
+
+- **Fewer, bigger plates** (`vr_agarmor.cpp`): rows' wanted heights 2.5 / 2.9 -> torso 3.4, arms 4.2, legs 3.6 (`plateHighLeg`,
+  new), most rows 6 / 5 / 3 -> 5 / 4 / 2 (torso, legs, arms). Rows now: grunt cuirass 6 (was 7), upper arm 3 (armour.txt, see
+  below), forearm 2, thigh 2 (3), shin 2 (4); enforcer 6/2/2/4/3 (7/3/3/5/3); knight 6/2/2/5/2 (7/3/3/5/3); death knight
+  6/2/2/3/2 (7/2/2/4/3). Triangles 1960-2296 a body (2488-2968).
+- **armour.txt** (shipped defaults): grunt `shin_l rows "4"` dropped (both shins the generator's); grunt `pauldron rows "3"`
+  (at 2 rows his left elbow's leather ring spun 14 degrees in a frame: `vr_agarmor_bridge_check` 87/1; the bridge code is
+  another worker's); knight `thigh rows "5"` (at 3 or 4 rows a thigh row stood 11.7-12 units wider than his skin:
+  `vr_agarmor_look_check`'s width limit 7.5); `kind "progs/vrbody_brawny.mdl"` `cuirass rows "7"` (the brawny build's chest
+  row 5.78 units wide at 6 rows, limit 5.5; the other player builds take the new rows).
+- **Details by place** (`plateLook`, `vr_agarmor_details 1`): the two plates either side of the cuirass's seam in its chest row
+  get a recessed panel tile, flipped so each recess sits on the seam's side and the two make one panel (variants: plain, a slot
+  across, two rivets); the front plates below it down to the waist row a recessed ribbed tile; the forearm's last row (the
+  cuff) and the shin's last row vents on their three front plates; a cop tile on the back plate of the forearm's first row (the
+  elbow) and the front plate of the shin's first row (the knee), its step 1.5 times a plate's (`copRaise`); the emblem on the
+  upper arm's top-row plate most to the outside (`vr_agarmor_emblem`: 1 right arm (default), 2 left, 3 both, 0 none). The
+  knight's shoulder dome keeps a plain tile (its disc's UV now within the tile's face). Shells made again when either cvar
+  changes (the relink key). Both in Debug > Tools by the leather rows (Armour Plate Details, Armour Emblem).
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): the 30 tiles are now 20 plain, 3 panel, 3
+  vent, 2 rib, the emblem, the cop (TILE_* = vr_agarmor.cpp tile*). Every tile: brighter faces (shade 1.06 + 0.1 v), a
+  near-black under-layer on its top 15% (the gap under the row above: rows read as separate pieces), a darker trim (the paint
+  x0.55 and towards gold-brown: TRIM_TINT green 0.25, yellow 0.45, red 0.3; TRIM_SHARE 0.85, TRIM_REACH 1.15 bevels) round
+  its sides and lower edge, rivets at its four corners only, less bare steel on the edges at wear 0 (0.8 -> 0.6). The emblem:
+  our own rune (a ring, a stem, two raised arms; not id's logo), dark red on green and yellow (its texels quantised with the
+  palette's reds, EMBLEM_REDS), near black on red, scuffed. Vents' and grooves' insides are the tier's paint darkened (its
+  tiles stay one hue).
+- **Fixed on the way:** the engine's `Mod_FloodFillSkin` flooded the region of the atlas's top-left texel's colour with black
+  (it took the under-layer along the atlas's top); the top-left texel is now black, which it leaves alone.
+- **Checks:** `vr_agarmor_look_check`'s one-hue-per-tile check skips tile 28 (the emblem's red is on purpose).
+
+Tests (low-impact runs): `vr_agarmor_check` 20/0, `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0, `vr_armour_test`
+30/0. `vr_agarmor_look_check` 89/25: the 25 failures were there before (coverage on every player build and the humanoids,
+the enforcer's and knight's bent coverage now 56% and 59% against 62% and 65%, both failing before); none new; the death
+knight's width and the knight's taper now pass, and the tiers' hues pass (green 13 degrees across its tiles, limit 14).
+Renders: `scratch/al_k_pair.png` (knights, before over after), `al_ge_pair.png` (grunt and enforcer), `al_tiers_worn.png`
+(green, yellow, red; wear 2), `al_k_front_Rc.png`, `al_k_chest.png`, `al_k_side_c.png`, `skin_b.png` (the atlas: yellow,
+green, red, yellow at wear 2).
+
+Not done: trim strength and rivet style aren't cvars (baked in the 8-bit skins; TRIM_SHARE, TRIM_REACH in the generator).
+Step 4 (hero plates): merge the chest row's front plates into one wider plate (and the pauldron's top row into two) at grid
+time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
+wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
+(plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
 - **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
   `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
   hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
@@ -3979,6 +4028,58 @@ post's glowing cube misaligned and stuck into the post; both sights' tops to tap
 - **Test it in VR:** look along the lightning gun's top and round the rear housing while moving the head: no shimmer;
   the ears and the post a little narrower at the top; in the ironsight the front insert centred in the notch between
   the rear inserts, the irons level.
+## Model topology audit (branch `agent/flatwall`, 2026-11-08)
+
+His note: model topology has "unnecessarily complex surfaces, or overlapping triangles that lead to Z-fighting"; can it be
+fixed and simplified without changing the look? Phase 1 of 3 (audit; then gated automatic fixes; then a list for him).
+No model changed.
+
+- **Scanned:** 270 alias models, every pose, on the stored byte grid: ours (181, 74,295 triangles), id1 pak0/1, hipnotic,
+  rogue, MG1. AD is an optional download (not scanned).
+- **Ours, totals:** 1,920 degenerate triangles (1,064 in three models inherited from the old Quake VR pak10: h_zombie 490
+  of 586, ogre 338, quaddama 212), 119 duplicate triangles, 428 z-fighting pairs built into the mesh (coincident in every
+  pose; 411 show different texels), 1,847 more that only meet in some animation poses, 5,312 weldable duplicate
+  vertices, 46 T-junction cracks, 458 non-manifold and 45 flipped edges, 5 hidden triangles. Zero-error simplification
+  (removing vertices inside one plane and one texture chart) saves only 63 triangles (611 if half-texel shifts are
+  accepted): the meshes are split by UV seams, not over-tessellated. About 2,100 triangles (2.9%) are fixable with no
+  visible change.
+- **Found on the way:** v_nailpistol.mdl's shipped fx_gfx_mask is for 841 triangles; the model has 518, so the barrel
+  mask reads as none.
+- **Tools:** `Misc/quakevr/mdltopo/` (run with Blender's Python, it has numpy): `compare.py A.mdl B.mdl` (the fix-phase
+  gate: an exact software rasteriser, 26 views x every pose, nearest texels, numbering-independent; PASS/FAIL),
+  `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
+  flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
+  and highlighted pictures: `scratch/topo/` in this worktree.
+
+## Model topology fixes, steps 1-5 (branch `agent/selfshot`, 2026-11-08)
+
+The audit's automatic fixes, approved by Vittorio, on our models (quakevr/progs only). Tool: `Misc/quakevr/mdltopo/fix.py
+in.mdl out.mdl` (Blender's Python): each step only when `compare.py` against the original still passes at the model's
+own noise floor (its renumbered copy's result) in every pose and 26 views; a group that differs is retried one change
+at a time. Then: `check_mdl_holes.py` no worse, `anchors.py check new old`, `fx_gfx_mask` rewritten in weapons.txt
+from the triangle map, rig2 weights remapped on welds (none were needed: the six rigged models had nothing to weld),
+and for a model with a source .blend the .blend rebuilt from the fixed model (`blend_build.py`) and exported again
+(`blend_export.py --out`): byte-identical to the fixed file, parts and derived models gated the same way. One commit
+per model (`git log 62c8a8017..`), its message has the counts and the compare result. Vittorio's config has no saved
+`vr_wofs_fx_gfx_mask_NN`, so no saved mask is stale.
+
+- **Done (62 models):** 1,670 degenerate triangles removed, 15 exact duplicates, 3,865 identical vertices welded, 1
+  zero-width T-junction split (vr_adrifle_base). Re-audit of the 62 (before -> after): degenerate 1,670 -> 0, pure
+  duplicate vertices 3,865 -> 0, triangles 37,574 -> 35,890, vertices 55,816 -> 51,952; every compare 0 texel px.
+- **What turned out not auto-fixable:** the audit's "exact duplicates" are mostly back-to-back pairs (opposite
+  winding: two-sided cards, spike, s_spike, vr_muzzleflash): kept. The "same-texel static z-fights" left (v_widowmaker,
+  v_enfrifle, v_light, v_plasma, v_laserg, vr_widowmaker_preview) overlap only partly: neither triangle is covered, so
+  none can go (v_light/v_plasma show 1 more "different texel" pair: the audit's texel sampling is seeded by triangle
+  number, a borderline pair moved class; compare is 0 px). Hidden: vr_widowmaker_preview's removal made 2 cracks
+  (holes check): not taken. T-junctions: only exact on-line ones at whole texels qualify; v_lava2's 3 change shading.
+- **Skipped, for a later pass:** v_shot (the auto pump's parts' normal maps change with the welds: 28k px of
+  vr_pump_on_v_shot's map differ), v_shot2 (the open halves made from it change: 215 px), enforcer and hknight (their
+  triangle counts are keyed in vr_monstermods.cpp knownSwords, make_vrgrunt.py, make_enemyguns.py, checks.py: enforcer
+  was fixed then reverted), vr_widowmaker_preview (holes), the nail pistol models (another worker), flat savings (no
+  retriangulation tool yet). The ogre's count is keyed too: knownSwords, checks.py and make_chainsaw.py now say 952.
+- **Generators:** blend-owned models were fixed in their .blend (rebuilt). Script-made ones are fixed in the .mdl
+  only: v_widowmaker, v_revolver, v_revolver_frame, v_revolver_cyl, vr_revolver_preview, v_flaregun,
+  vr_flaregun_preview (their hand-made sources' export_mdl.py would undo it on the next export: run fix.py again after one).
 ## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
 
 Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
@@ -4067,3 +4168,178 @@ close; the punch low and beside the target; the shove not at the crosshair.
   shove land).
 - Test: `bash Misc/quakevr/flattwohand_test.sh <agent>` (AD mounted, one run: 9 checks); `vr_ad_test 184` puts the AD
   crossbow in the main hand.
+## Quickload crash: a hand's derived model not precached (branch `agent/release`, 2026-11-08)
+
+- Crash: `Sys_Error: SV_ModelIndex: model progs/v_shot3.mdl#vr not precached` on a quickload (vrragtriggers, flat).
+  `progs/v_shot3.mdl#vr` is the Widowmaker (AD's SSG upgrade), a model the engine makes (vr_adweapons.cpp). A hand's
+  or holster's model string (`.weaponmodel`, `.weaponmodel2`, `.holsterweaponmodel0..5`) is sent by precache index
+  (SV_CalcStats, VR_CalcStats). The saved game had precached it late (AD_EnsureVRModel); the load spawns the map again,
+  which doesn't precache it. OnLoadGame made the AD soldiers' guns and the AD melee weapons again
+  (VR_ADGun_EnsureCarried, VR_ADMelee_EnsureCarried), but not the three AD upgrades (Shadow Axe, Widowmaker, Plasma
+  Gun). Their models were synced back only in PlayerPostThink, and the first frame's stats come before that (the
+  server is paused after a load).
+- Fix, general (engine, vr_progs.cpp): the load's model rebinding (rebindLoadedModels) also precaches every model a
+  live edict's hand or holster string field names (`ensureModelPrecached`: loaded first, so a missing file is a warning
+  and no model, never an error). Any derived (`#vr`, `#gun`, `#melee`, ...) or late-precached model is covered, so it
+  is in the serverinfo the client gets. Safety net (sv_main.c SV_ModelIndex -> `VR_ModelIndexNotPrecached`, Quake VR
+  progs only): a name no path precached is precached late with a warning
+  `SV_ModelIndex: model X not precached: precached late` instead of ending the game.
+- Test `bash Misc/quakevr/load_models_test.sh <agent>` (`vr_pickup_test 12`, QC/vr_load_models_test.qc): 44 weapons
+  (ids 1..31 but 24, the 11 AD melee kinds, the 3 AD upgrades) go round the 8 slots (2 hands, 6 holsters), one save
+  and load per batch: "loadmodels: 352 passed, 0 failed", no "not precached" line, 4 passed. With both fixes turned
+  off it ends in the crash (`progs/v_shadaxe3.mdl#vr not precached`). With only the safety net, 24 "precached late"
+  warnings (the 3 upgrades x 8 slots), and nothing else. Toolgun Widowmaker (`vr_ad_test 148`), the pickup and the
+  weapon_* classnames (`vr_pickup_test 9`: 15 passed) need no late precache.
+- Test it: hold the Widowmaker (and the Shadow Axe, the AD Plasma Gun) in a hand and holstered, quicksave, quickload.
+  No crash, and they are drawn as themselves.
+## Armour look: fewer, bigger plates (branch `agent/regfix`, 2026-11-08)
+
+His note: the armoured knight "a bit too plain/boring/repetitive"; ChatGPT's mockup (few big plates, a recessed chest panel, a
+rune on a pauldron, vented bracers and shins, knee cops, gold-brown trim, a dark layer between plates). He approved the low-risk
+steps 1-3 (the plate system kept); step 4 (hero plates: a row's plates merged) after he sees this.
+
+- **Fewer, bigger plates** (`vr_agarmor.cpp`): rows' wanted heights 2.5 / 2.9 -> torso 3.4, arms 4.2, legs 3.6 (`plateHighLeg`,
+  new), most rows 6 / 5 / 3 -> 5 / 4 / 2 (torso, legs, arms). Rows now: grunt cuirass 6 (was 7), upper arm 3 (armour.txt, see
+  below), forearm 2, thigh 2 (3), shin 2 (4); enforcer 6/2/2/4/3 (7/3/3/5/3); knight 6/2/2/5/2 (7/3/3/5/3); death knight
+  6/2/2/3/2 (7/2/2/4/3). Triangles 1960-2296 a body (2488-2968).
+- **armour.txt** (shipped defaults): grunt `shin_l rows "4"` dropped (both shins the generator's); grunt `pauldron rows "3"`
+  (at 2 rows his left elbow's leather ring spun 14 degrees in a frame: `vr_agarmor_bridge_check` 87/1; the bridge code is
+  another worker's); knight `thigh rows "5"` (at 3 or 4 rows a thigh row stood 11.7-12 units wider than his skin:
+  `vr_agarmor_look_check`'s width limit 7.5); `kind "progs/vrbody_brawny.mdl"` `cuirass rows "7"` (the brawny build's chest
+  row 5.78 units wide at 6 rows, limit 5.5; the other player builds take the new rows).
+- **Details by place** (`plateLook`, `vr_agarmor_details 1`): the two plates either side of the cuirass's seam in its chest row
+  get a recessed panel tile, flipped so each recess sits on the seam's side and the two make one panel (variants: plain, a slot
+  across, two rivets); the front plates below it down to the waist row a recessed ribbed tile; the forearm's last row (the
+  cuff) and the shin's last row vents on their three front plates; a cop tile on the back plate of the forearm's first row (the
+  elbow) and the front plate of the shin's first row (the knee), its step 1.5 times a plate's (`copRaise`); the emblem on the
+  upper arm's top-row plate most to the outside (`vr_agarmor_emblem`: 1 right arm (default), 2 left, 3 both, 0 none). The
+  knight's shoulder dome keeps a plain tile (its disc's UV now within the tile's face). Shells made again when either cvar
+  changes (the relink key). Both in Debug > Tools by the leather rows (Armour Plate Details, Armour Emblem).
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): the 30 tiles are now 20 plain, 3 panel, 3
+  vent, 2 rib, the emblem, the cop (TILE_* = vr_agarmor.cpp tile*). Every tile: brighter faces (shade 1.06 + 0.1 v), a
+  near-black under-layer on its top 15% (the gap under the row above: rows read as separate pieces), a darker trim (the paint
+  x0.55 and towards gold-brown: TRIM_TINT green 0.25, yellow 0.45, red 0.3; TRIM_SHARE 0.85, TRIM_REACH 1.15 bevels) round
+  its sides and lower edge, rivets at its four corners only, less bare steel on the edges at wear 0 (0.8 -> 0.6). The emblem:
+  our own rune (a ring, a stem, two raised arms; not id's logo), dark red on green and yellow (its texels quantised with the
+  palette's reds, EMBLEM_REDS), near black on red, scuffed. Vents' and grooves' insides are the tier's paint darkened (its
+  tiles stay one hue).
+- **Fixed on the way:** the engine's `Mod_FloodFillSkin` flooded the region of the atlas's top-left texel's colour with black
+  (it took the under-layer along the atlas's top); the top-left texel is now black, which it leaves alone.
+- **Checks:** `vr_agarmor_look_check`'s one-hue-per-tile check skips tile 28 (the emblem's red is on purpose).
+
+Tests (low-impact runs): `vr_agarmor_check` 20/0, `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0, `vr_armour_test`
+30/0. `vr_agarmor_look_check` 89/25: the 25 failures were there before (coverage on every player build and the humanoids,
+the enforcer's and knight's bent coverage now 56% and 59% against 62% and 65%, both failing before); none new; the death
+knight's width and the knight's taper now pass, and the tiers' hues pass (green 13 degrees across its tiles, limit 14).
+Renders: `scratch/al_k_pair.png` (knights, before over after), `al_ge_pair.png` (grunt and enforcer), `al_tiers_worn.png`
+(green, yellow, red; wear 2), `al_k_front_Rc.png`, `al_k_chest.png`, `al_k_side_c.png`, `skin_b.png` (the atlas: yellow,
+green, red, yellow at wear 2).
+
+Not done: trim strength and rivet style aren't cvars (baked in the 8-bit skins; TRIM_SHARE, TRIM_REACH in the generator).
+Step 4 (hero plates): merge the chest row's front plates into one wider plate (and the pauldron's top row into two) at grid
+time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
+wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
+(plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
+
+## Armour look: hero plates (branch `agent/flatwall`, 2026-11-08)
+
+He approved step 4 of "Armour look: fewer, bigger plates": a row's plates merged into one big plate where the mockup has one.
+
+- **How** (`vr_agarmor.cpp` heroRuns, platesOf, addPlate's PlateSpan): a hero plate is a run of a row's columns, each still its own
+  28-vertex slab on the grid (so the hits, the broken piece's debris, the wear skins, plateWhere and every check that walks plates
+  by plateVerts are unchanged), but the sides inside the run are open: no seam, no side bevel, no trim, each lower corner down its
+  own column's line, so the neighbours' faces and lips meet (a hair apart, `plateFootApart`, each slab still closed for
+  `vr_agarmor_check`), their normals shared along the line (one curved face, a crease down it), one step for the whole run (its
+  first column's), and one wide tile over the run (each column its share of u). Not one quad over the span: the plates stay on
+  the body's radii, so nothing needed raising and no chest got bulkier.
+- **Which**: the cuirass's chest row (row 1, under the collar) its plates facing forward (way out's x > `heroChestFront` 0.6: the
+  two either side of the seam), the breastplate; an upper arm's top row as two plates of half its columns (3 of 6), the outer
+  one round the emblem's column; the forearm's first row's three plates round the elbow's point and the shin's round the knee,
+  raised as the cops were (`copRaise`). A run with a plate cut off (`backCut`, an enforcer's pack) is left as plates.
+- **Switches**: `vr_agarmor_hero` (1; Debug > Tools, Armour Hero Plates; the shells made again when it changes); armour.txt's
+  `hero "0"` per part (cuirass, pauldron, bracer, shin; the Armour Studio's Hero Plates checkbox, both studios) turns one part's off.
+  `vr_agarmor_details 0`: the hero plates keep their shape on the plain wide tile.
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): atlas tiles 10-11, 12-13, 15-16, 17-18 are now four
+  2:1 tiles (TILE_WIDE_*; vr_agarmor.cpp tileWide*): the breastplate (a recessed panel in its middle on the seam, a slot across it,
+  rivets at its lower corners), a plain big plate (a small recessed window with two bars: the pauldrons' other half), the emblem's
+  (the rune bigger, round on a plate 0.4 as tall as wide), a cop (a boss across it, a big rivet). Every tier and wear level the
+  same (the wear's dents and chips are atlas-wide). Trim, bevel and rivets the size of a plain tile's; the other tiles' chances drawn
+  in the same order, so they are byte-for-byte as before; plain tiles now 12 (`plainTiles`).
+- **Checks**: `vr_agarmor_check` per armoured humanoid "hero plates whole": 17 lines where two plates' faces meet, every one
+  shading as one (0 with `vr_agarmor_hero 0`); `vr_agarmor_look_check`'s one-hue-per-tile skips the wide emblem's cells (15, 16).
+
+Tests (low-impact runs): `vr_agarmor_check` 24/0 (20 + the 4 new), `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0,
+`vr_armour_test` 30/0, `vr_agarmor_look_check` 89/25 (the same 25 as at d6f340df4, by name), `vr_agarmor_pop_check` 10/0,
+`vr_agarmor_test 12` 2/0, `vr_agarmor_test 10` 21/1 ("a clear line to most plates' faces", 36 of 40; the same with
+`vr_agarmor_hero 0`, so not the hero plates'). The bridge code untouched: the end rows' feet are the grid's, as before.
+Renders (qvr-kit `scratch/armourlook/`): `hero_k_pair.png` (knights, before over after, the mockup's angle), `hero_ge_pair.png`
+(grunt, enforcer), `hero_tiers_worn.png` (green, yellow, red; grunt and enforcer at wear 2), `hero_k_worn.png`, `hero_kf_Rc.png`
+(the knight's breastplate from the front), `nohero_k.png` (vr_agarmor_hero 0), `skin_hero.png` (the atlas).
+
+Not done: a breastplate two rows tall (the mockup's): a run down the rows needs the upper row's lip opened onto the lower's top,
+a 2 x 2 tile and the side rims closed by hand; the breastplate is the chest row's two front plates (four would be a 6 : 1 strip).
+
+## Flatscreen: the Vomit Mode death cam ignores the mouse; mantling (branch `agent/flatwall`, 2026-11-08)
+
+**Death cam.** His note: in flatscreen Vomit Mode the mouse must not turn the ragdoll camera at all. Cause:
+`deathview::flatView` put the mouse's look (its yaw from where it faced as the view went in, its pitch) on top of the head
+bone's turn, as the headset's `eyeView` puts the head's own turn. Fix: flat Vomit Mode takes the bone's turn alone
+(`vr_flat_death_vomit_look`, 0, archived; Desktop Screen Play > Vomit Mode Mouse Look: 1 is the old behaviour). The headset's
+Vomit Mode is untouched. `flatvisuals_test.sh` now turns the dead view with `+right` for 20 frames and checks the camera's
+angles against `vr_death_view_status`'s head bone angles (0.00 deg off; 8/0).
+
+**Mantle.** His request: after a jump, the jump key held, looking slightly up at a ledge in reach, mantle onto it, reusing the
+VR climbing. `vr_climb.cpp flatMantle` (called from `climbPreThink` for a free climber, flat clients only: `hull::isFlat`):
+a jump is the first airborne frame after a grounded one going up over 60 u/s; while the jump key (`.button2`) stays held,
+within `vr_flat_mantle_time` of it, the view looking up between `vr_flat_mantle_look` and `_look_max`, a column of points
+ahead of the box's front (`vr_flat_mantle_reach`) asks `findHold` (the hand grip's search and checks: room over the hold,
+reached, in sight) for the highest facing ledge between `vr_climb_min_height` over the feet and `vr_flat_mantle_height` over
+the eyes; the Grip is filled by `holdLedge` (split out of `takeHold`, which now calls it), then the headset's `findMantle`
+(room on top, level or sloped), `startMantle` and `mantleStep` (the same way up and over in 0.3 s, the same grunt, the same
+0.4 s without a new hold after it). Needs `vr_climb` (its letGoIfForced would end a mantle with climbing off).
+Cvars (archived; Desktop Screen Play rows): `vr_flat_mantle` 1, `vr_flat_mantle_reach` 20 units, `vr_flat_mantle_height` 24
+units, `vr_flat_mantle_look` 5 deg, `vr_flat_mantle_look_max` 80 deg, `vr_flat_mantle_time` 1 s. `vr_climb_debug 1` prints
+"climb: flat mantle onto ...", 3 every search.
+
+Test: `vr_flatmantle_test` (vr_flatmove.cpp) on the new map `vrmantle` (`Misc/quakevr/climb/make_vrmantle_map.py --compile`:
+level blocks 48, 64, 80, 96, 128, 160 high): mantled onto 48 (0.00 s after the jump), 64 (0.00), 80 (0.03), 96 (0.11, at
+the eyes + 23); not 128, 160, nor 64 looking level: 7/0, in `flatslide_test.sh` as "mantle". VR: `slopes_test.sh` 8/8 as
+before (the headset's mantle through the refactored `takeHold`).
+## Gun skins: nail pistol blue steel, flare gun toned down, grunt rifle grimier (branch `agent/regfix`, 2026-11-08)
+
+His notes: the nail pistol's dark metal "closer to the shotgun and super shotgun ... deep dark blue steel", the slide's end
+kept silvery (further than 4b9a6369c's half-way shift); the flare gun "a bit darker and a tiny bit less saturated", its
+front sight "a little bit too bright", not overdone; the grunt burst rifle "a bit too bright and too clean": darker and a
+bit grimier, not overdone. Reference: v_shot/v_shot2 (visible texels: palette rows 0-2 dark end, 1/16/17/32-35/48/49,
+mean luminance 18 and 16). One-off repaint scripts (not kept: the PNGs are the sources), skins only: every model's
+triangles, positions and texture coordinates are unchanged (compared as triangle sets, every frame).
+
+- **Nail pistol** (`v_nailpistol_skin0.png`; its top half byte for byte into `v_nailpistol_mag`, `vr_mag_npistol`,
+  `vr_mag_on_v_nailpistol`, `vr_nailpistol_preview`). The steel texels (greys 0-6, browns, the dark warm greys) at 0.6 of
+  their brightness on the blue-grey ramp (32-40, with 0/1/2), warm ones keeping a fifth of their hue (dark browns 16-18,
+  as the shotgun's), Floyd-Steinberg so the mottling stays. Kept as they were: the silvery slide bar (warm greys 160-172
+  and their shading), the light greys 7-15 and texels beside them (frames, grilles, rivets), the label and accents (rows
+  3-6, 11), fullbrights, and the sight-insert patches (rows 468-490, s 8-68) whole. Visible luminance 45.7 -> 34.0 (the
+  kept silver lifts it; the steel alone ~18), saturation (blue) 0.16 -> 0.26. All five exported with blend_export.py.
+- **Flare gun** (`flaregun_skin.png`, `flaregun_skin_pal.png`): saturation x0.88, brightness x0.88, the front blade's own
+  bright texels (127/124/160/15: not shared with other faces) a further x0.82, then dithered onto the source row plus rows
+  0/1/7/10. Visible luminance 48.7 -> 42.9, saturation 0.60 -> 0.53; the blade top 127/160 -> 164/165/167. The topology
+  fixer (agent/selfshot) welded the shipped v_flaregun/vr_flaregun_preview in the .mdl only (1528 vertices; the generator
+  writes 1565): so export_mdl.py was run into scratch and its three skins (fired overlays composited on the new skin 0) and
+  the preview's skin spliced into the shipped files; everything after the skins is byte for byte the fixer's.
+  (Re-running export_mdl.py into quakevr/progs would undo the weld, not the repaint.)
+- **Grunt burst rifle** (`v_gruntgun_skin0.png`; the #adv variants are made from it at load): x0.8, low-frequency grime
+  blotches (up to 42% toward a dark brown), dirt along the painted panel lines (up to 30% darker), dithered within the
+  texel's own row plus rows 0/1/10; fullbrights, the red and the green rows kept, and the flat area at the corner
+  (Mod_FloodFillSkin's background) untouched. Visible luminance 65.1 -> 49.2 (the shotgun 18: "don't overdo it").
+  blend_export.py rebakes `v_gruntgun.mdl_0_norm.png` (its paint heights read the skin): no extra noise, its tilt
+  14.4 -> 13.9 and high-frequency energy 7.4 -> 6.8 (an undithered repaint gave 6.9, so the dither adds none).
+- **Kept:** barrel masks (vr_barrelmask_report: nail pistol 74/518, rifle 236/816, flare gun 249/860), sight lines
+  (vr_sight_lines: nail pistol painted rear -1.63 0 6.38 front 8.93 0 6.38; flare gun and rifle table lines as before),
+  the inserts' texels. flatsight_test 12 passed, 0 failed.
+- **Renders** (scratch of the worktree, offline rasteriser, left / right / 3-quarter, the shotgun on top):
+  `w3_np_before_after.png` (shotgun, ssg, pistol before/after, preview before/after), `w3_fg_before_after.png`,
+  `w3_gg_before_after.png`.
+- **Test it in VR:** hold each next to the shotgun: the nail pistol's body the same deep blue-black steel with the silver
+  bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
+  dirtier, its details still readable; grunts' rifles alike.

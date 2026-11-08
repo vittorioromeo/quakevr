@@ -389,7 +389,7 @@ KNIGHTS = {"knight.mdl": (655, 697, (334, 335, 336, 363, 364, 365, 524, 535, 536
                                      613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646)),
            "hknight.mdl": (538, 1000, (43, 45, 46, 47, 48, 526, 527, 531, 532)),
            # The ogre's chainsaw (the same knownSwords table; make_chainsaw.py cuts v_chainsaw.mdl from it).
-           "ogre.mdl": (497, 1290, tuple(range(416, 497))),
+           "ogre.mdl": (497, 952, tuple(range(416, 497))),
            # The grunt's shotgun and the enforcer's laser rifle (the same table; make_enemyguns.py cuts v_gruntgun.mdl
            # and v_enfrifle.mdl from them).
            "soldier.mdl": (555, 810, tuple(range(463, 549))),

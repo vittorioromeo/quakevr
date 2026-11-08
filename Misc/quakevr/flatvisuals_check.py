@@ -68,6 +68,21 @@ else:
 
 log = open(sys.argv[2], "rb").read().decode("latin-1").replace("\r", "").replace("\n", "") # (run.sh wraps long lines at a space)
 st = re.findall(r"deathview: mode (\d+) health (-?\d+) doll (\d+) ragdoll (\d) head (\d).*?immersive (\d).*?camera (\S+) (\S+) (\S+) \((-?[\d.]+) from the eyes\).*?vomit (\d) camangles (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)", log)
+bones = re.findall(r"deathview: head bone angles (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)", log)
+def angOff(a, b):
+    return max(abs((float(x) - float(y) + 180.0) % 360.0 - 180.0) for x, y in zip(a, b))
+if len(st) < 4:
+    check(False, "four death view statuses printed (got %d)" % len(st))
+else:
+    # (the third: Vomit Mode turned by +right, as the mouse would: the view still the head bone's turn, its last line's)
+    turned = st.pop(2)
+    if len(bones) < 2:
+        check(False, "head bone angles printed twice in Vomit Mode (got %d)" % len(bones))
+    else:
+        off = angOff(turned[11:14], bones[1])
+        check(turned[10] == "1" and off < 1.5,
+              "Vomit Mode turned by the keys (vr_flat_death_vomit_look 0): the view %s %s %s, the head bone's %s %s %s (%.2f deg off)"
+              % (turned[11], turned[12], turned[13], bones[1][0], bones[1][1], bones[1][2], off))
 if len(st) < 3:
     check(False, "three death view statuses printed (got %d)" % len(st))
 else:

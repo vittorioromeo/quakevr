@@ -134,6 +134,11 @@ Game, one `downarrow` selects Quicksave, two select Quickload; `enter` presses. 
 press prints why without closing the menu. Set Menu Height and Row Spacing to 1 to check the column stays above
 Recording and the spectator switch; normal panels keep their large targets.
 
+Weapons through a save and a load: `bash Misc/quakevr/load_models_test.sh <agent>` (`vr_pickup_test 12`,
+`vr_load_models_test.qc`): every holdable weapon (ids, AD melee kinds, AD upgrades) in each hand and each holster, one
+save and load per batch (44 batches with AD: "loadmodels: 352 passed, 0 failed"), and no "SV_ModelIndex: ... not
+precached" line (ROUND24.md, "Quickload crash: a hand's derived model not precached").
+
 Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the author is asked to test, edit
 `quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
 rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
