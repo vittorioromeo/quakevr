@@ -2265,7 +2265,7 @@ QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's 
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always
 QVR_CVAR(vr_water_waves, "1.5", CVAR_ARCHIVE)           // waves on water, slime and lava (normal-mapped, in the shader: the faces stay flat): strength
 QVR_CVAR(vr_water_fresnel, "0.5", CVAR_ARCHIVE)         // water more see-through looking down, reflecting the room at grazing angles
-QVR_CVAR(vr_teleporters, "1", CVAR_ARCHIVE)           // the whole see-through teleporter feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - teleporters are Quake's plain ones exactly as before the feature (vr_portals and vr_portals_walk then do nothing). vr_slipgates until 2026-10-08, still a silent alias (VR_CvarAlias), as are the other vr_slipgate_* below
+QVR_CVAR(vr_teleporters, "1", CVAR_ARCHIVE)           // the whole see-through teleporter feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - teleporters are Quake's plain ones exactly as before the feature (vr_portals and vr_portals_walk then do nothing). vr_slipgates until 2026-10-08
 QVR_CVAR(vr_portals_debug_split, "0", CVAR_NONE)   // debug: each frame, every entity drawn cut by a teleporter (vr_portals.cpp VR_PortalAlias): its place, the gate and how far through; -1 also the main hand's held object every frame, N>0 also entity N every frame; and each tossed or rigid thing's middle and velocity, and why a gate did not take it (VR_PortalToss)
 QVR_CVAR(vr_portals_ai_test, "0", CVAR_NONE)          // disposable mock fixture controls (vr_portal_ai_test.qc)
 QVR_CVAR(vr_portals_ai, "1", CVAR_ARCHIVE)            // monsters see and fire at one-hop player images; melee/navigation stay local
@@ -2494,7 +2494,7 @@ QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE)        // 1: each new start of a
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
-QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand
+QVR_CVAR(vr_agrunt_dual_pickup, "1", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand
 QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off at most (each shot, besides the weapon's own spread)
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
 QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand

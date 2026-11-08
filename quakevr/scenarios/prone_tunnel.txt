@@ -1,0 +1,6 @@
+# prone_tunnel: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrteleporters' crouching room (east of the hub, docs/vr-port/HULLS.md): facing its 40-high tunnel.
+title The 40-high tunnel in vrteleporters' crouching room, ahead of you
+map vrteleporters
+start 480 -320 24 0
+god
+notarget

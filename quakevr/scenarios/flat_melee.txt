@@ -1,5 +1,5 @@
 # flat_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flatscreen play: an axe in each hand, calm foes, a gun and a chainsaw to try.
-title Flatscreen melee: an axe in each hand, calm grunts in reach, a shotgun and a chainsaw at your feet
+title Flatscreen melee: an axe in each hand, calm grunts in reach, a shotgun, a chainsaw, a revolver and a super shotgun at your feet
 map vrtesthall
 god
 notarget
@@ -9,4 +9,6 @@ spawn "Grunt" 70 25
 spawn "Armed Grunt: Shotgun" 80 -40
 spawn "Shotgun" 40 70
 spawn "Chainsaw" 40 -70
+spawn "Heavy Revolver" 50 110
+spawn "Super Shotgun" 50 -110
 cmd impulse 9
