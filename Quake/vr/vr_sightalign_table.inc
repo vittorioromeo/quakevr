@@ -17,8 +17,6 @@
 {"progs/v_laserg.mdl", {50.00f, 0.f, -7.86f}, {105.17f, 0.f, -7.86f}},
 {"progs/v_gruntgun.mdl", {-2.15f, 0.f, 11.600f}, {28.15f, 0.f, 11.600f}},
 {"progs/v_enfrifle.mdl", {6.30f, 0.f, 10.799f}, {23.00f, 0.f, 10.659f}},
-// The nail pistol: its modelled sights (build_nailpistol.py, the Body's frame), the rear ears' tops level with the front post's.
-{"progs/v_nailpistol.mdl", {-1.25f, 0.f, 6.376f}, {9.07f, 0.f, 6.376f}},
 // The flare gun: its modelled sights (build_flaregun.py, the Body's frame), the rear notch's top (its cheeks' top) and the
 // front blade's top (raised level with them, 2026-11-06) on one line parallel to both bores.
 {"progs/v_flaregun.mdl", {1.15f, 0.f, 6.412f}, {11.75f, 0.f, 6.412f}},

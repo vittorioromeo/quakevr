@@ -3704,6 +3704,219 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
 
+## The nail pistol: cleaner blue steel, glowing sight inserts, its barrel mask (branch `agent/loadjobs`, worktree phases, 2026-11-08)
+
+His notes: the texture "a bit too rusty and noisy": cleaner, its colours nearer the shotguns' and the nailgun's dark
+blue-grey steel, the silvery part at the slide's end kept, its identity kept; and glowing bits in its iron sights as the
+shotgun's and the super shotgun's, texture only (the geometry is fine).
+
+- **Repaint** (`v_nailpistol_skin0.png`; a one-off script, not kept: the PNG is the source). The mottled rust texels
+  (warm colours, and greys amid them) are smoothed (an edge-preserving filter: panel lines, slots and rivets kept), their
+  leftover mottling halved toward a wide local mean, then moved half-way to the blue-grey ramp (palette 32-47) at the same
+  brightness and quantised to greys 0-15, dark browns 16-23, the blue-grey row and the warm greys 162-175 (no fire
+  colours). Kept as they were: neutral greys (the silvery slide end, the frames, the grilles), black, the flat orange
+  accents, the yellow label on the slide's left side; the top half (the classic skin: the grip's checkering, the trigger
+  guard, the magazines' and the preview's parts) only has its speckles softened before the same shift, so the grip stays
+  as it was drawn. Some warm wear remains on the steel (his "don't overdo it"). The four other sources sharing the skin
+  (`v_nailpistol_mag`, `vr_mag_npistol`, `vr_mag_on_v_nailpistol`, `vr_nailpistol_preview`: 256x256, the pistol skin's top
+  half byte for byte) get the same top half.
+- **Sight inserts.** The ears' back faces (a steep face, x -1.68..-1.65, and a chamfer up to the top at -1.49) and the
+  post's back face (x 8.932) read only 2x7, 1x6 and 4x9 texels: too few for a framed insert. Their UVs (10 triangles, 20
+  file vertices; no vertex moved) now point at new patches in free skin (rows 468..490, s 8..68), ~0.04 units a texel:
+  each ear 17x11 middles (the chamfer and the steep face one strip), the post 9x22. Painted as the shotguns': steel
+  (blue-grey 35 with a little grey 4), the top edge lit, a dark recess line over and beside the insert, a lit lip under,
+  the insert 234 rim / 235 / 236 core (ears 7x6, centred on each ear; post 5x6). The notch floor is untouched. Depths:
+  the ears' inserts start 2 rows (0.045) under the ears' tops, the post's 2 rows (0.079): with the eye ~9 units behind the
+  rear (relief 4 at scale 0.45) and 19.5 from the front they sit at about the same angle under the iron line. The post's
+  insert ends 0.30 under its top: the slide's top hides the post lower than that from the eye (sight_picture.py: the
+  front seen down to 0.29). The post patch is 21 texel steps tall (not 20) so no insert texel sits on the face's diagonal
+  (a texel counted in both triangles moved the front's mean y 0.002 left).
+- **Sight line.** `vr_sight_lines`: "progs/v_nailpistol.mdl sights rear -1.63 -0.00 6.38 front 8.93 -0.00 6.38 (0.00 deg
+  up, 0.00 left)". The table's line was rear -1.25 0 6.376, front 9.07 0 6.376: the same direction and height (the irons'
+  tops at 6.3763, level), the points on the faces the inserts are on. So weapons.txt's `shot_pitch` 0.28 keeps its
+  relation to the sights; no offset changed, no align run. The table entry (vr_sightalign_table.inc) is gone (the painted
+  line is read); vr_sightalign.cpp's comment and sight_picture.py's line updated.
+- **Barrel mask** (the coordinator's audit): weapons.txt's `fx_gfx_mask` was for 841 triangles (an older model) on a
+  518-triangle model, so the engine read none. `barrel_masks.py` now gives the nail pistol `back` 9.25 (the nozzle in
+  front of the slide; without it the bore's radius took the slide's lower half, 229 triangles): 74 of 518 marked, x
+  9.9..11.3. The export carries it ("74 of 518 triangles marked, by their places in the shipped file").
+  `vr_barrelmask_report 37`: "tris 518 marked 74 mask 1"; 30 shots in flat play: heat 1.0, 235 frames glowing, each
+  drawn with its mask ("masked 1").
+- **Checks.** The export: holes as before (1 open loop, 0 see-through, 0 cracks), every vertex in both frames unchanged
+  (20 vertices' s/t changed), an untouched export of the old .blend writes the shipped file byte for byte. Fire-colour
+  texels: 114, all in the patches (234-236), none on the magazines' or the preview's skins. Flat ADS:
+  `vr_flat_sight_check` rear 0.0000 front 0.0000 off the ray; `vr_sight_hue 200` turns the three inserts blue and nothing
+  else. flatsight_test 12/0 (16 guns with sights, the nail pistol now among them); flatsweep 383 passed, 27 known, 0
+  failed; reload_test.sh 115/0 (its QC self-test 77/0; the nail magazines' checks 24/0).
+- **Screenshots** (`scratch/` of the worktree): `np_body_before_after.png` (Blender: both sides and from behind, before
+  over after), `np_sights_before_after.png` (the ears, the post, the flat sight picture), `np_ads_crop.png` (in game,
+  flat ADS, the player's hue), `np_ads_hue200_crop.png` (hue 200).
+- **Test it in VR:** the pistol in hand: steel nearer the shotgun's, still its own (the label, the grip, the silver
+  end); in ADS the irons' tops level, the three inserts glowing at about the same height, the aim as before; fire a
+  string: the nozzle glows.
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.
+## Model topology audit (branch `agent/flatwall`, 2026-11-08)
+
+His note: model topology has "unnecessarily complex surfaces, or overlapping triangles that lead to Z-fighting"; can it be
+fixed and simplified without changing the look? Phase 1 of 3 (audit; then gated automatic fixes; then a list for him).
+No model changed.
+
+- **Scanned:** 270 alias models, every pose, on the stored byte grid: ours (181, 74,295 triangles), id1 pak0/1, hipnotic,
+  rogue, MG1. AD is an optional download (not scanned).
+- **Ours, totals:** 1,920 degenerate triangles (1,064 in three models inherited from the old Quake VR pak10: h_zombie 490
+  of 586, ogre 338, quaddama 212), 119 duplicate triangles, 428 z-fighting pairs built into the mesh (coincident in every
+  pose; 411 show different texels), 1,847 more that only meet in some animation poses, 5,312 weldable duplicate
+  vertices, 46 T-junction cracks, 458 non-manifold and 45 flipped edges, 5 hidden triangles. Zero-error simplification
+  (removing vertices inside one plane and one texture chart) saves only 63 triangles (611 if half-texel shifts are
+  accepted): the meshes are split by UV seams, not over-tessellated. About 2,100 triangles (2.9%) are fixable with no
+  visible change.
+- **Found on the way:** v_nailpistol.mdl's shipped fx_gfx_mask is for 841 triangles; the model has 518, so the barrel
+  mask reads as none.
+- **Tools:** `Misc/quakevr/mdltopo/` (run with Blender's Python, it has numpy): `compare.py A.mdl B.mdl` (the fix-phase
+  gate: an exact software rasteriser, 26 views x every pose, nearest texels, numbering-independent; PASS/FAIL),
+  `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
+  flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
+  and highlighted pictures: `scratch/topo/` in this worktree.
+## Enforcer's elbow leather jumping (branch `agent/blendmd5`, worktree blendmodels, 2026-11-08)
+
+His note: "The enforcer's right elbow leather connector has a similar issue to the knight one you fixed". Files:
+`vr_agarmor_bridge.cpp` (evalBridge, the checks, bridgeTrace), `vr_agarmor.cpp` (benchPose, headcam view 5).
+
+- **Reproduced** live with `vr_agarmor_bridge_trace` (new, below) on three armed enforcers in yellow attacking
+  (scene `agarmor_enforcer_elbow`), and offline through every frame and a degree-at-a-time sweep of each joint.
+  Two causes, both general (any joint, any humanoid):
+  - **The tangents' size switched where it should have eased.** Each end's tangent was the circle's arc's below a
+    tenth of the chord of joint reach and the "round" one (three times the reach) above 0.15: at the switch they differ
+    by most of a chord, so a joint reach crossing it (the enforcer's left elbow at frame 104, the grunt's left elbow at
+    116, the knight's right knee) changed a tangent by up to two units in a step and the middle rings turned 12-21 degrees
+    while the rows turned 3-4. And the knight fix's easing (tangents cut towards half a chord as the curve turned back)
+    is itself steep: on the knight's sword arm the tangents went 3 -> 14 units within a frame, the rings turning 36
+    degrees against the rows' 3.
+  - **The crease's push let go over a narrow bend.** The enforcer's inner elbow has a lump of skin 3.4 units outside
+    the leather; it was pushed out in full below 26 degrees of bend and let go by 52, and the push (corners kept at the
+    most any sample asks) dropped 2 units in about 8 degrees: the leather moved 8 times as far as its rows (sweep 0.372
+    against 0.048 a degree), pumping in and out as his arms swung through 27-48 degrees (live: 2.07 against 0.39 in a
+    frame, 44 frames in 25 seconds over twice the rows').
+- **Fix.** Each tangent is now the smooth larger of the arc's and the round one (`bridgeSoftMax` 0.2 of the chord: they
+  meet with no step), then both are scaled down together as far as needed for the curve's middle leg (its Bezier's two
+  inner points apart) to run forwards along the middle ring's direction (the rows' directions halved;
+  `bridgeForwardLeast` 0.05 of the chord): the chord's reach that way over the inner points', smooth in the pose and
+  never divided by nothing short of straight back. The old back-easing stays as a net (no sweep turns back now). The
+  crease's push fades over 26 to 90 degrees of bend (`bridgeCreaseFrom` 0.3, `bridgeCreaseBend` 0.75 of 86 degrees).
+  Shapes change little: the tangents the same away from a reach near a tenth of the chord or a curve that turned back;
+  the enforcer's inner-elbow lump held longer (to ~60 degrees) and let go more slowly.
+- **Checks, tightened** (`vr_agarmor_bridge_check`): through the frames a vertex may move 2x its rows plus 0.25 (was 3x
+  plus 0.5); new, no middle ring may turn more than 2x its rows plus the bend's change plus 2 degrees in a step; new,
+  each joint swept a degree at a time (rest pose, `vr_agarmor_bend`'s), no vertex moving more than 2.5x its rows plus
+  0.1. `developer 1` prints each joint's worst step and its push and crease; `developer 2` every sweep step and every
+  failing frame step (tangents, fit, back, push).
+  - Before: 78 passed, 10 failed: enforcer left elbow 2.25 against 0.72 through the frames and 0.372 against 0.048 in
+    the sweep; knight right elbow 2.06 / 0.57 and turn 35.9 / 3.1, its sweep 0.239; knight right knee 1.12 / 0.39 and
+    turn 8.3; grunt left elbow turn 20.8 / 3.0, right 4.4 / 0.9; enforcer right knee turn 5.0 / 0.8.
+  - After: 88 passed, 0 failed (every joint of grunt, enforcer, knight, death knight; enforcer left elbow sweep 0.173,
+    its right 0.111; knight right 0.107).
+  - Live, the same scene (the AI differs run to run): frames over twice the rows' + 0.25 on the left elbows 44 -> 5,
+    worst excess 1.29 -> 0.53 (an 8-degree-a-frame swing through 63-87 degrees, the lump letting go 1.2 units).
+- **Debug aids** (Debug > the armour rows by Check the Elbow and Knee Leather): `vr_agarmor_bridge_trace` (mask: 1
+  left elbow, 2 right, 4 left knee, 8 right; a console line a frame per armoured body: its furthest vertex move against
+  its rows', its rings' turn against theirs, the curve's numbers); `vr_agarmor_pose_frame` (-1 off: every armoured
+  body held in its animation at that frame, fractions lerped as drawn: step through a check's worst step);
+  `vr_agarmor_headcam` view 5 (its left side).
+- **Shots** (low-impact run, low-res): `scratch/enfelbow_before_after.png`, the enforcer at frame 104 -> 104.125 (the
+  left elbow's worst step), rows: before left side, after left side, before right side, after right side.
+- **Open:** a lump this big still changes visibly when an arm swings 8 degrees a frame through 60-80 degrees of bend;
+  the push's max-over-samples makes the let-go happen over about 20 degrees whatever the fade's width.
+- **Test in VR:** scene `agarmor_enforcer_elbow`: each enforcer's elbows (both sides; his "right" may be the enforcer's
+  left, `bracer_l`, the one that jumped) while it stands, aims, shoots, walks and swings: the leather stays round the
+  elbow, no ring spinning, the inner-elbow lump easing rather than pumping. Grunts' and knights' elbows and knees: no
+  new lumps or skin through the leather on the inside of a bend.
+
+## Armour look: fewer, bigger plates (branch `agent/regfix`, 2026-11-08)
+
+His note: the armoured knight "a bit too plain/boring/repetitive"; ChatGPT's mockup (few big plates, a recessed chest panel, a
+rune on a pauldron, vented bracers and shins, knee cops, gold-brown trim, a dark layer between plates). He approved the low-risk
+steps 1-3 (the plate system kept); step 4 (hero plates: a row's plates merged) after he sees this.
+
+- **Fewer, bigger plates** (`vr_agarmor.cpp`): rows' wanted heights 2.5 / 2.9 -> torso 3.4, arms 4.2, legs 3.6 (`plateHighLeg`,
+  new), most rows 6 / 5 / 3 -> 5 / 4 / 2 (torso, legs, arms). Rows now: grunt cuirass 6 (was 7), upper arm 3 (armour.txt, see
+  below), forearm 2, thigh 2 (3), shin 2 (4); enforcer 6/2/2/4/3 (7/3/3/5/3); knight 6/2/2/5/2 (7/3/3/5/3); death knight
+  6/2/2/3/2 (7/2/2/4/3). Triangles 1960-2296 a body (2488-2968).
+- **armour.txt** (shipped defaults): grunt `shin_l rows "4"` dropped (both shins the generator's); grunt `pauldron rows "3"`
+  (at 2 rows his left elbow's leather ring spun 14 degrees in a frame: `vr_agarmor_bridge_check` 87/1; the bridge code is
+  another worker's); knight `thigh rows "5"` (at 3 or 4 rows a thigh row stood 11.7-12 units wider than his skin:
+  `vr_agarmor_look_check`'s width limit 7.5); `kind "progs/vrbody_brawny.mdl"` `cuirass rows "7"` (the brawny build's chest
+  row 5.78 units wide at 6 rows, limit 5.5; the other player builds take the new rows).
+- **Details by place** (`plateLook`, `vr_agarmor_details 1`): the two plates either side of the cuirass's seam in its chest row
+  get a recessed panel tile, flipped so each recess sits on the seam's side and the two make one panel (variants: plain, a slot
+  across, two rivets); the front plates below it down to the waist row a recessed ribbed tile; the forearm's last row (the
+  cuff) and the shin's last row vents on their three front plates; a cop tile on the back plate of the forearm's first row (the
+  elbow) and the front plate of the shin's first row (the knee), its step 1.5 times a plate's (`copRaise`); the emblem on the
+  upper arm's top-row plate most to the outside (`vr_agarmor_emblem`: 1 right arm (default), 2 left, 3 both, 0 none). The
+  knight's shoulder dome keeps a plain tile (its disc's UV now within the tile's face). Shells made again when either cvar
+  changes (the relink key). Both in Debug > Tools by the leather rows (Armour Plate Details, Armour Emblem).
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): the 30 tiles are now 20 plain, 3 panel, 3
+  vent, 2 rib, the emblem, the cop (TILE_* = vr_agarmor.cpp tile*). Every tile: brighter faces (shade 1.06 + 0.1 v), a
+  near-black under-layer on its top 15% (the gap under the row above: rows read as separate pieces), a darker trim (the paint
+  x0.55 and towards gold-brown: TRIM_TINT green 0.25, yellow 0.45, red 0.3; TRIM_SHARE 0.85, TRIM_REACH 1.15 bevels) round
+  its sides and lower edge, rivets at its four corners only, less bare steel on the edges at wear 0 (0.8 -> 0.6). The emblem:
+  our own rune (a ring, a stem, two raised arms; not id's logo), dark red on green and yellow (its texels quantised with the
+  palette's reds, EMBLEM_REDS), near black on red, scuffed. Vents' and grooves' insides are the tier's paint darkened (its
+  tiles stay one hue).
+- **Fixed on the way:** the engine's `Mod_FloodFillSkin` flooded the region of the atlas's top-left texel's colour with black
+  (it took the under-layer along the atlas's top); the top-left texel is now black, which it leaves alone.
+- **Checks:** `vr_agarmor_look_check`'s one-hue-per-tile check skips tile 28 (the emblem's red is on purpose).
+
+Tests (low-impact runs): `vr_agarmor_check` 20/0, `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0, `vr_armour_test`
+30/0. `vr_agarmor_look_check` 89/25: the 25 failures were there before (coverage on every player build and the humanoids,
+the enforcer's and knight's bent coverage now 56% and 59% against 62% and 65%, both failing before); none new; the death
+knight's width and the knight's taper now pass, and the tiers' hues pass (green 13 degrees across its tiles, limit 14).
+Renders: `scratch/al_k_pair.png` (knights, before over after), `al_ge_pair.png` (grunt and enforcer), `al_tiers_worn.png`
+(green, yellow, red; wear 2), `al_k_front_Rc.png`, `al_k_chest.png`, `al_k_side_c.png`, `skin_b.png` (the atlas: yellow,
+green, red, yellow at wear 2).
+
+Not done: trim strength and rivet style aren't cvars (baked in the 8-bit skins; TRIM_SHARE, TRIM_REACH in the generator).
+Step 4 (hero plates): merge the chest row's front plates into one wider plate (and the pauldron's top row into two) at grid
+time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
+wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
+(plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
 - **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
   `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
   hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
@@ -3867,3 +4080,149 @@ per model (`git log 62c8a8017..`), its message has the counts and the compare re
 - **Generators:** blend-owned models were fixed in their .blend (rebuilt). Script-made ones are fixed in the .mdl
   only: v_widowmaker, v_revolver, v_revolver_frame, v_revolver_cyl, vr_revolver_preview, v_flaregun,
   vr_flaregun_preview (their hand-made sources' export_mdl.py would undo it on the next export: run fix.py again after one).
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.
+
+### Split by direction, and a rocket kind (branch `agent/embed5`, 2026-11-08)
+
+Vittorio: the player-velocity share is split by the projectile's aim, the part along it and the part across it each with
+their own share (hand shares unchanged), and rockets are their own kind.
+
+- `vrProjectileVelocity(hand, kind)` (weapons.qc) still the one place; the aim is `VRGetWeaponFireRotFwd(hand)`:
+  `velocity = along * (v . aim) aim + across * (v - (v . aim) aim)`, plus the hand's swing share as before.
+- Kinds and defaults, `vr_proj_inherit_<kind>_along` / `_across` / `_hand`: fast (nails, super/lava nails, nail pistol,
+  Hipnotic laser, enforcer rifle, AD plasma and crossbow bolt, grappling hook) 0.1 / 0.05 / 0; rocket (rockets, multi
+  rockets: `VR_PROJK_ROCKET`) 0.2 / 0.2 / 0; lobbed (grenades, multi/proximity grenades, flares) 0.5 / 0.5 / 2.5; spray
+  (AD flamethrower, poison sprayer) 0.6 / 0.6 / 2. Old `vr_proj_inherit_fast|lobbed|spray` are in retiredCvars (the
+  old unsplit share is not carried over). Menu rows: Weapons > Aiming > "Projectiles Keep Your Motion" (12 sliders).
+- A nail launches at about 2065 u/s here, not 1000: strafing at 320 it flies 0.44 degrees off (0.05 * 320 / 2065 =
+  0.44), a rocket (1000 u/s) 3.67 degrees (0.2 * 320 / 1000 = 3.67 degrees).
+- Test `vr_projinherit_test 1` (needs `developer 1`): strafe nail 0.44 deg (want 0.46), rocket 3.66 (3.67), grenade
+  kept 163 (160), rocket across 1 keeps 320.0; forward along the aim at 320: nail +32.0 and rocket +64.0, both 0.00 deg
+  off; flick: grenade 577 (577), rocket 0.00 deg: 8 passed. `vr_projinherit_test 2` (flat turn adds nothing): 2 passed.
+- Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
+  (they fly a little faster); grenades and the flamethrower as before.
+
+## Armour look: fewer, bigger plates (branch `agent/regfix`, 2026-11-08)
+
+His note: the armoured knight "a bit too plain/boring/repetitive"; ChatGPT's mockup (few big plates, a recessed chest panel, a
+rune on a pauldron, vented bracers and shins, knee cops, gold-brown trim, a dark layer between plates). He approved the low-risk
+steps 1-3 (the plate system kept); step 4 (hero plates: a row's plates merged) after he sees this.
+
+- **Fewer, bigger plates** (`vr_agarmor.cpp`): rows' wanted heights 2.5 / 2.9 -> torso 3.4, arms 4.2, legs 3.6 (`plateHighLeg`,
+  new), most rows 6 / 5 / 3 -> 5 / 4 / 2 (torso, legs, arms). Rows now: grunt cuirass 6 (was 7), upper arm 3 (armour.txt, see
+  below), forearm 2, thigh 2 (3), shin 2 (4); enforcer 6/2/2/4/3 (7/3/3/5/3); knight 6/2/2/5/2 (7/3/3/5/3); death knight
+  6/2/2/3/2 (7/2/2/4/3). Triangles 1960-2296 a body (2488-2968).
+- **armour.txt** (shipped defaults): grunt `shin_l rows "4"` dropped (both shins the generator's); grunt `pauldron rows "3"`
+  (at 2 rows his left elbow's leather ring spun 14 degrees in a frame: `vr_agarmor_bridge_check` 87/1; the bridge code is
+  another worker's); knight `thigh rows "5"` (at 3 or 4 rows a thigh row stood 11.7-12 units wider than his skin:
+  `vr_agarmor_look_check`'s width limit 7.5); `kind "progs/vrbody_brawny.mdl"` `cuirass rows "7"` (the brawny build's chest
+  row 5.78 units wide at 6 rows, limit 5.5; the other player builds take the new rows).
+- **Details by place** (`plateLook`, `vr_agarmor_details 1`): the two plates either side of the cuirass's seam in its chest row
+  get a recessed panel tile, flipped so each recess sits on the seam's side and the two make one panel (variants: plain, a slot
+  across, two rivets); the front plates below it down to the waist row a recessed ribbed tile; the forearm's last row (the
+  cuff) and the shin's last row vents on their three front plates; a cop tile on the back plate of the forearm's first row (the
+  elbow) and the front plate of the shin's first row (the knee), its step 1.5 times a plate's (`copRaise`); the emblem on the
+  upper arm's top-row plate most to the outside (`vr_agarmor_emblem`: 1 right arm (default), 2 left, 3 both, 0 none). The
+  knight's shoulder dome keeps a plain tile (its disc's UV now within the tile's face). Shells made again when either cvar
+  changes (the relink key). Both in Debug > Tools by the leather rows (Armour Plate Details, Armour Emblem).
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): the 30 tiles are now 20 plain, 3 panel, 3
+  vent, 2 rib, the emblem, the cop (TILE_* = vr_agarmor.cpp tile*). Every tile: brighter faces (shade 1.06 + 0.1 v), a
+  near-black under-layer on its top 15% (the gap under the row above: rows read as separate pieces), a darker trim (the paint
+  x0.55 and towards gold-brown: TRIM_TINT green 0.25, yellow 0.45, red 0.3; TRIM_SHARE 0.85, TRIM_REACH 1.15 bevels) round
+  its sides and lower edge, rivets at its four corners only, less bare steel on the edges at wear 0 (0.8 -> 0.6). The emblem:
+  our own rune (a ring, a stem, two raised arms; not id's logo), dark red on green and yellow (its texels quantised with the
+  palette's reds, EMBLEM_REDS), near black on red, scuffed. Vents' and grooves' insides are the tier's paint darkened (its
+  tiles stay one hue).
+- **Fixed on the way:** the engine's `Mod_FloodFillSkin` flooded the region of the atlas's top-left texel's colour with black
+  (it took the under-layer along the atlas's top); the top-left texel is now black, which it leaves alone.
+- **Checks:** `vr_agarmor_look_check`'s one-hue-per-tile check skips tile 28 (the emblem's red is on purpose).
+
+Tests (low-impact runs): `vr_agarmor_check` 20/0, `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0, `vr_armour_test`
+30/0. `vr_agarmor_look_check` 89/25: the 25 failures were there before (coverage on every player build and the humanoids,
+the enforcer's and knight's bent coverage now 56% and 59% against 62% and 65%, both failing before); none new; the death
+knight's width and the knight's taper now pass, and the tiers' hues pass (green 13 degrees across its tiles, limit 14).
+Renders: `scratch/al_k_pair.png` (knights, before over after), `al_ge_pair.png` (grunt and enforcer), `al_tiers_worn.png`
+(green, yellow, red; wear 2), `al_k_front_Rc.png`, `al_k_chest.png`, `al_k_side_c.png`, `skin_b.png` (the atlas: yellow,
+green, red, yellow at wear 2).
+
+Not done: trim strength and rivet style aren't cvars (baked in the 8-bit skins; TRIM_SHARE, TRIM_REACH in the generator).
+Step 4 (hero plates): merge the chest row's front plates into one wider plate (and the pauldron's top row into two) at grid
+time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
+wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
+(plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
+
+## Armour look: hero plates (branch `agent/flatwall`, 2026-11-08)
+
+He approved step 4 of "Armour look: fewer, bigger plates": a row's plates merged into one big plate where the mockup has one.
+
+- **How** (`vr_agarmor.cpp` heroRuns, platesOf, addPlate's PlateSpan): a hero plate is a run of a row's columns, each still its own
+  28-vertex slab on the grid (so the hits, the broken piece's debris, the wear skins, plateWhere and every check that walks plates
+  by plateVerts are unchanged), but the sides inside the run are open: no seam, no side bevel, no trim, each lower corner down its
+  own column's line, so the neighbours' faces and lips meet (a hair apart, `plateFootApart`, each slab still closed for
+  `vr_agarmor_check`), their normals shared along the line (one curved face, a crease down it), one step for the whole run (its
+  first column's), and one wide tile over the run (each column its share of u). Not one quad over the span: the plates stay on
+  the body's radii, so nothing needed raising and no chest got bulkier.
+- **Which**: the cuirass's chest row (row 1, under the collar) its plates facing forward (way out's x > `heroChestFront` 0.6: the
+  two either side of the seam), the breastplate; an upper arm's top row as two plates of half its columns (3 of 6), the outer
+  one round the emblem's column; the forearm's first row's three plates round the elbow's point and the shin's round the knee,
+  raised as the cops were (`copRaise`). A run with a plate cut off (`backCut`, an enforcer's pack) is left as plates.
+- **Switches**: `vr_agarmor_hero` (1; Debug > Tools, Armour Hero Plates; the shells made again when it changes); armour.txt's
+  `hero "0"` per part (cuirass, pauldron, bracer, shin; the Armour Studio's Hero Plates checkbox, both studios) turns one part's off.
+  `vr_agarmor_details 0`: the hero plates keep their shape on the plain wide tile.
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): atlas tiles 10-11, 12-13, 15-16, 17-18 are now four
+  2:1 tiles (TILE_WIDE_*; vr_agarmor.cpp tileWide*): the breastplate (a recessed panel in its middle on the seam, a slot across it,
+  rivets at its lower corners), a plain big plate (a small recessed window with two bars: the pauldrons' other half), the emblem's
+  (the rune bigger, round on a plate 0.4 as tall as wide), a cop (a boss across it, a big rivet). Every tier and wear level the
+  same (the wear's dents and chips are atlas-wide). Trim, bevel and rivets the size of a plain tile's; the other tiles' chances drawn
+  in the same order, so they are byte-for-byte as before; plain tiles now 12 (`plainTiles`).
+- **Checks**: `vr_agarmor_check` per armoured humanoid "hero plates whole": 17 lines where two plates' faces meet, every one
+  shading as one (0 with `vr_agarmor_hero 0`); `vr_agarmor_look_check`'s one-hue-per-tile skips the wide emblem's cells (15, 16).
+
+Tests (low-impact runs): `vr_agarmor_check` 24/0 (20 + the 4 new), `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0,
+`vr_armour_test` 30/0, `vr_agarmor_look_check` 89/25 (the same 25 as at d6f340df4, by name), `vr_agarmor_pop_check` 10/0,
+`vr_agarmor_test 12` 2/0, `vr_agarmor_test 10` 21/1 ("a clear line to most plates' faces", 36 of 40; the same with
+`vr_agarmor_hero 0`, so not the hero plates'). The bridge code untouched: the end rows' feet are the grid's, as before.
+Renders (qvr-kit `scratch/armourlook/`): `hero_k_pair.png` (knights, before over after, the mockup's angle), `hero_ge_pair.png`
+(grunt, enforcer), `hero_tiers_worn.png` (green, yellow, red; grunt and enforcer at wear 2), `hero_k_worn.png`, `hero_kf_Rc.png`
+(the knight's breastplate from the front), `nohero_k.png` (vr_agarmor_hero 0), `skin_hero.png` (the atlas).
+
+Not done: a breastplate two rows tall (the mockup's): a run down the rows needs the upper row's lip opened onto the lower's top,
+a 2 x 2 tile and the side rims closed by hand; the breastplate is the chest row's two front plates (four would be a 6 : 1 strip).

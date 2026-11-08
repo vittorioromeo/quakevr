@@ -843,7 +843,7 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
     ad_launch_plasma(VRGetMuzzlePos(xHand), dir, kind, speed);
     entity m = ad_newmis;
     m.touch = VR_ADGun_PlasmaTouch;
-    m.velocity = dir * speed + vrProjectileVelocity(xHand, 0.4);
+    m.velocity = dir * speed + vrProjectileVelocity(xHand, VR_PROJK_FAST);
     m.angles = vectoangles(m.velocity);
     m.vr_adgun_wid = xWid;
     m.vr_adgun_dmg = VR_ADGun_Value(xWid, "damage");
@@ -935,7 +935,7 @@ void(float xHand) VR_ADGun_FireCrossbow =
         dprint(sprintf("adgun: crossbow bolt launched at %v way %v (from the muzzle %v)\n", org, dir, ofs));
     }
     m.touch = VR_ADGun_BoltTouch;
-    m.velocity = dir * speed + vrProjectileVelocity(xHand, 0.4);
+    m.velocity = dir * speed + vrProjectileVelocity(xHand, VR_PROJK_FAST);
     m.angles = vectoangles(m.velocity);
     m.vr_adgun_wid = WID_ADCROSSBOW;
     m.vr_adgun_dmg = VR_ADGun_Value(WID_ADCROSSBOW, "damage");
@@ -1801,7 +1801,7 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     setsize(f, '0 0 0', '0 0 0');
     float speed = max(100, VR_ADGun_Value(xWid, "speed"));
     f.movedir = dir * speed + randomVec(10);
-    f.velocity = f.movedir + vrProjectileVelocity(xHand, 0.5);
+    f.velocity = f.movedir + vrProjectileVelocity(xHand, VR_PROJK_SPRAY);
     f.angles_z = anglemod(350 + random() * 20);
     f.cnt = 0;
     f.attack_finished = time + VR_ADGun_FlameLife(VR_ADGun_Value(xWid, "range"), speed);

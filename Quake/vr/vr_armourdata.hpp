@@ -37,14 +37,16 @@ enum Field : int
     Leather,    // a sleeve's leather drawn (1, as made) or not at all (0): the sleeve parts' alone
     Folds,      // a joint's leather's bellows: its folds (0-4; not set: vr_agarmor_folds), the sleeve parts' alone (the upper's first)
     FoldDepth,  // ... how deep they stand on the inside of a bend (units; not set: vr_agarmor_fold_depth)
+    Hero,       // its hero plates (a row's plates merged into one: the breastplate, the pauldrons' top row, the elbows' and knees'
+                // cops; vr_agarmor_hero): 1 (as made) or 0, every plate its own; the cuirass's and the limbs' plates
     NumFields
 };
 inline constexpr const char* fieldNames[NumFields] = {"offset_x", "offset_y", "offset_z", "pitch", "yaw", "roll", "scale",
-    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth"};
+    "standoff", "start", "end", "rows", "taper_start", "taper_end", "leather", "folds", "fold_depth", "hero"};
 // A field's value where nothing is set.
 [[nodiscard]] constexpr float fieldDefault(int field)
 {
-    return field == Scale || field == TaperStart || field == TaperEnd || field == Leather ? 1.f : 0.f;
+    return field == Scale || field == TaperStart || field == TaperEnd || field == Leather || field == Hero ? 1.f : 0.f;
 }
 
 enum Part : int

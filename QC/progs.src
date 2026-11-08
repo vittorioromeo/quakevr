@@ -177,6 +177,7 @@ vr_flatkeys_test.qc
 vr_flatitems_test.qc
 vr_flatgate_test.qc
 vr_selfshot_test.qc
+vr_projinherit_test.qc
 vr_flatmove_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc

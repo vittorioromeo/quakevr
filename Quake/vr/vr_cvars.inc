@@ -1093,6 +1093,30 @@ QVR_CVAR(vr_2h_sticky_fast_from, "1.5", CVAR_ARCHIVE)  // m/s: the faster hand's
 QVR_CVAR(vr_2h_sticky_fast_full, "4", CVAR_ARCHIVE)    // m/s: all of it from this speed
 QVR_CVAR(vr_2h_sticky_fast_hold, "0.6", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
 QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping hand taking a weapon's grip, and why it let go (and the stickiness then); 2: and where the grip is, four times a second
+// What a projectile you fire keeps of your motion (QC weapons.qc vrProjectileVelocity; ROUND24.md, "Projectiles keep less
+// of your motion"), by kind: the share of your own velocity, and of the firing hand's swing (_hand: 1 the hand's own
+// speed; a tracked controller's only, never the flat-screen hands' synthesized motion). Was 0.8 of your velocity and
+// 110 u/s per m/s of the hand for every kind, scaled down a little by kind: a strafe threw nails off the aim (2026-11-08).
+// The player's velocity is split by the projectile's aim: _along (the part along the aim direction) and _across (the
+// part across it, a strafe) have their own shares.
+// Fast: nails, super and lava nails, the nail pistol, lasers, plasma, crossbow bolts, the grappling hook: a little (at
+// 1000 u/s any share is an angle: the strafe's 0.05 is 0.9 degrees at 320 u/s).
+QVR_CVAR(vr_proj_inherit_fast_along, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_across, "0.05", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_hand, "0", CVAR_ARCHIVE)
+// Rockets and multi rockets: slower, so more.
+QVR_CVAR(vr_proj_inherit_rocket_along, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_across, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_hand, "0", CVAR_ARCHIVE)
+// Lobbed: grenades, multi and proximity grenades, flares: half your velocity (a grenade lobbed running lands ahead), and
+// the flick as before (the grenade's 66 u/s per m/s of the hand, at world scale 1).
+QVR_CVAR(vr_proj_inherit_lobbed_along, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_across, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_hand, "2.5", CVAR_ARCHIVE)
+// Sprays: the flamethrower's stream (short range: it keeps up with you as before).
+QVR_CVAR(vr_proj_inherit_spray_along, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_across, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_hand, "2", CVAR_ARCHIVE)
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
 // flashlight) follows it through a damped spring, by its mass, balance and length. The Spring is the only model.
@@ -2105,6 +2129,7 @@ QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
+QVR_CVAR(vr_projinherit_test, "0", CVAR_NONE)           // what projectiles keep of your motion (vr_projinherit_test.qc; Debug > Tests > Projectiles Keep Your Motion): 1 mock headset: strafe and hand swing; 2 flat-screen (-flatscreenmode): a fast turn adds nothing
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
 QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
@@ -2954,6 +2979,7 @@ QVR_CVAR(vr_armourstudio_taper_end, "1", CVAR_NONE)   // debug: ... at its last 
 QVR_CVAR(vr_armourstudio_leather, "1", CVAR_NONE)     // debug: a sleeve part's leather drawn (1) or hidden (0)
 QVR_CVAR(vr_armourstudio_folds, "4", CVAR_NONE)       // debug: a joint's leather's bellows folds (0-4; as vr_agarmor_folds: not written)
 QVR_CVAR(vr_armourstudio_fold_depth, "0.3", CVAR_NONE) // debug: ... their depth on the inside of a bend (units; as vr_agarmor_fold_depth: not written)
+QVR_CVAR(vr_armourstudio_hero, "1", CVAR_NONE)        // debug: the part's hero plates (1, as made: not written) or every plate its own (0)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index
 QVR_CVAR(vr_armourstudio_anim_play, "1", CVAR_NONE)   // debug: 1 playing, 0 paused (vr_armourstudio_anim_frame picks the frame)
@@ -2968,9 +2994,14 @@ QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates'
 QVR_CVAR(vr_agarmor_seed, "0", CVAR_NONE)            // vr_agarmor: the plates' variation (their sizes, tilts, tiles; the same seed, the same armour; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_bridge, "1", CVAR_NONE)           // vr_agarmor: the elbows' and knees' leather made each frame, one bending tube from plate row to plate row (1), or the old sleeves made once at load, two rigid halves (0; for comparison)
-QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)            // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
+QVR_CVAR(vr_agarmor_details, "1", CVAR_NONE)          // vr_agarmor: the plates' painted details by place (1: the chest's panel, the belly's ribs, the cuffs' and shins' vents, the elbows' and knees' raised cops, the emblem; 0 every plate a plain tile by chance; the shells made again when it changes)
+QVR_CVAR(vr_agarmor_hero, "1", CVAR_NONE)             // vr_agarmor: hero plates, a row's plates drawn as one big plate (the breastplate, the pauldrons' top row as two, the elbows' and knees' cops; armour.txt's `hero` per part); 0 every plate its own (the shells made again when it changes)
+QVR_CVAR(vr_agarmor_emblem, "1", CVAR_NONE)          // vr_agarmor: the rune emblem on an upper arm's outer top plate: 1 the right, 2 the left, 3 both, 0 none (with vr_agarmor_details; the shells made again when it changes)
+QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)           // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
 QVR_CVAR(vr_agarmor_fold_depth, "0.3", CVAR_NONE)     // vr_agarmor: how far its folds stand on the inside of a bend, flattening on the outside (units; armour.txt's `fold_depth`)
 QVR_CVAR(vr_agarmor_bend, "0", CVAR_NONE)             // debug (the Debug menu, by Check the Armour's Fit): every armoured body drawn on the authored rig in its rest pose with its elbows and knees bent this many degrees (0 off; the leather's look and tests)
+QVR_CVAR(vr_agarmor_pose_frame, "-1", CVAR_NONE)      // debug (the Debug menu, by Check the Elbow and Knee Leather): every armoured body drawn on the authored rig held in its animation at this frame (a fraction lerped to the next as the game draws it: vr_agarmor_bridge_check's worst steps seen; over vr_agarmor_bend; -1 off)
+QVR_CVAR(vr_agarmor_bridge_trace, "0", CVAR_NONE)     // debug (the Debug menu, by Check the Elbow and Knee Leather): a mask of joints (1 left elbow, 2 right, 4 left knee, 8 right; 15 all): each drawn armoured body's leather there, a console line a frame (its furthest vertex move and its rows', its rings' turn and its rows', the curve's numbers; 0 off)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_rule, "1", CVAR_ARCHIVE)          // armour on armed humanoids (vr_agarmor.qc; Combat > Armed Grunts > Armour): 0 the player's rule (a plate saves its type's share of a hit, 30/60/80%, from its pool), 1 a plate stops the whole hit until its pool is gone
 QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)

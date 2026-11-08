@@ -2595,6 +2595,34 @@ QVR_SLIDER(vr_2h_sticky_fast_from, "Swing From", 0.f, 5.f, 0.1f, "%.1f m/s", ext
 QVR_SLIDER(vr_2h_sticky_fast_full, "Swing Full At", 0.5f, 10.f, 0.1f, "%.1f m/s", ext(0.1f, 30.f), "The faster hand's speed at which all of it applies.")
 QVR_SLIDER(vr_2h_sticky_fast_hold, "Swing Fades Over", 0.f, 2.f, 0.05f, "%.2f s", ext(0.f, 10.f),
     "How long it takes to fade once the hands slow (a swing's end and the way back).")
+QVR_SLIDER(vr_proj_inherit_fast_along, "Fast Shots: Your Motion Along", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity along the aim (running forward or back) nails, lasers, plasma, bolts and the grappling hook keep (0: none, as in Quake; 1: all of it).")
+QVR_SLIDER(vr_proj_inherit_fast_across, "Fast Shots: Your Motion Across", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity across the aim (strafing) nails, lasers, plasma, bolts and the grappling hook keep: any share bends the shot off the aim.")
+QVR_SLIDER(vr_proj_inherit_fast_hand, "Fast Shots: Hand Swing", 0.f, 4.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep (1: the hand's own speed; 0: none). Only a tracked controller's "
+    "motion, never the flat-screen hands'.")
+QVR_SLIDER(vr_proj_inherit_rocket_along, "Rockets: Your Motion Along", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity along the aim (running forward or back) rockets and multi rockets keep (0: none, as in Quake; 1: all of it).")
+QVR_SLIDER(vr_proj_inherit_rocket_across, "Rockets: Your Motion Across", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity across the aim (strafing) rockets and multi rockets keep: any share bends the shot off the aim.")
+QVR_SLIDER(vr_proj_inherit_rocket_hand, "Rockets: Hand Swing", 0.f, 4.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep (1: the hand's own speed; 0: none). Only a tracked controller's "
+    "motion, never the flat-screen hands'.")
+QVR_SLIDER(vr_proj_inherit_lobbed_along, "Lobbed Shots: Your Motion Along", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity along the aim (running forward or back) grenades (multi and proximity too) and flares keep (0: none, as in Quake; 1: all of it).")
+QVR_SLIDER(vr_proj_inherit_lobbed_across, "Lobbed Shots: Your Motion Across", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity across the aim (strafing) grenades (multi and proximity too) and flares keep: any share bends the shot off the aim.")
+QVR_SLIDER(vr_proj_inherit_lobbed_hand, "Lobbed Shots: Hand Swing", 0.f, 5.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep (1: the hand's own speed; 0: none). Only a tracked controller's "
+    "motion, never the flat-screen hands'.")
+QVR_SLIDER(vr_proj_inherit_spray_along, "Sprays: Your Motion Along", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity along the aim (running forward or back) the flamethrower's and sprayer's stream keep (0: none, as in Quake; 1: all of it).")
+QVR_SLIDER(vr_proj_inherit_spray_across, "Sprays: Your Motion Across", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much of the part of your velocity across the aim (strafing) the flamethrower's and sprayer's stream keep: any share bends the shot off the aim.")
+QVR_SLIDER(vr_proj_inherit_spray_hand, "Sprays: Hand Swing", 0.f, 4.f, 0.1f, "%.1fx", noExt,
+    "How much of the firing hand's swing they keep (1: the hand's own speed; 0: none). Only a tracked controller's "
+    "motion, never the flat-screen hands'.")
 QVR_TOGGLE(vr_weight_stamina, "Heavier When Tired",
     "As your stamina (Parry Stamina) runs low, what you hold gets heavier.")
 
@@ -5441,6 +5469,19 @@ QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
     "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
     "load (for comparison). The shells are made again when it changes.",
     {1.f, "Bending"}, {0.f, "Old Sleeves"})
+QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
+    "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
+    "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
+    "Off: every plate a plain one by chance. The shells are made again when it changes.")
+QVR_TOGGLE(vr_agarmor_hero, "Armour Hero Plates",
+    "vr_agarmor_hero: a row's plates drawn as one big plate where the armour wants one: the breastplate across the "
+    "chest, the pauldrons' top row as two (one with the emblem), the elbows' and knees' raised cops. Off: every plate "
+    "its own. armour.txt's hero \"0\" (the Armour Studio's Hero Plates) turns one part's off. The shells are made "
+    "again when it changes.")
+QVR_CYCLE(vr_agarmor_emblem, "Armour Emblem",
+    "vr_agarmor_emblem: the rune emblem on an upper arm's outer top plate (with Armour Plate Details). The shells "
+    "are made again when it changes.",
+    {1.f, "Right Arm"}, {2.f, "Left Arm"}, {3.f, "Both Arms"}, {0.f, "None"})
 QVR_SLIDER(vr_agarmor_folds, "Leather Folds", 0.f, 4.f, 1.f, "%.0f", noExt,
     "vr_agarmor_folds: the bellows folds in the elbow and knee leather (armour.txt's `folds` on a sleeve part, or "
     "the Armour Studio's Leather Folds, over it for one kind).")
@@ -5450,6 +5491,15 @@ QVR_SLIDER(vr_agarmor_fold_depth, "Leather Fold Depth", 0.f, 1.f, 0.05f, "%.2f",
 QVR_SLIDER(vr_agarmor_bend, "Bend Armoured Elbows and Knees", 0.f, 150.f, 10.f, "%.0f deg", noExt,
     "vr_agarmor_bend (debug): every armoured body drawn on the authored rig stands in its rest pose with its "
     "elbows and knees bent this far (within their limits), to look at the leather over the joints. 0: off.")
+QVR_SLIDER(vr_agarmor_pose_frame, "Hold Armoured Bodies at Frame", -1.f, 166.f, 0.125f, "%.3f", noExt,
+    "vr_agarmor_pose_frame (debug): every armoured body stands held in its own animation at this frame (between "
+    "two frames lerped as the game draws them, an eighth at a time), to step through the elbow and knee leather "
+    "where Check the Elbow and Knee Leather finds its worst step. -1: off.")
+QVR_CYCLE(vr_agarmor_bridge_trace, "Trace the Joints' Leather",
+    "vr_agarmor_bridge_trace (debug): each armoured body's elbow or knee leather, a console line a frame: its "
+    "furthest vertex move against its plate rows', its rings' turn against the rows', the curve's numbers (a jump "
+    "or a spinning ring shows as a move or a turn far over the rows').",
+    {0.f, "Off"}, {1.f, "Left Elbow"}, {2.f, "Right Elbow"}, {4.f, "Left Knee"}, {8.f, "Right Knee"}, {15.f, "All"})
 QVR_TOGGLE(vr_debug_hand_bones, "Show Hand Bones",
     "Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
     "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm).")
