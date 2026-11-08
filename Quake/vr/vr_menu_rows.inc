@@ -6132,6 +6132,12 @@ QVR_SLIDER(vr_flat_mantle_look_max, "Mantle Look Up Most", 0.f, 90.f, 1.f, "%.0f
 QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
     "key held all along (vr_flat_mantle_time).")
+QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt,
+    "Playing on the desktop screen: the body's eye height. The body, its poses and the weapons you hold are sized to "
+    "it; the headset's Height (VR Settings) is for VR only (vr_flat_body_height).")
+QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
+    "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

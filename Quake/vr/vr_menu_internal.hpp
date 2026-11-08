@@ -225,11 +225,15 @@ struct Item
     }
 
     // Dimmed, shown off and not changed, `why` its help (what it needs: See-Through Liquids without VisPatch's data).
+    // (`why` null: unchanged, as it is.)
     [[nodiscard]] Item unavailableBecause(const char* why) const
     {
         Item i = *this;
-        i.unavailable = true;
-        i.helpText = why;
+        if(why)
+        {
+            i.unavailable = true;
+            i.helpText = why;
+        }
         return i;
     }
 

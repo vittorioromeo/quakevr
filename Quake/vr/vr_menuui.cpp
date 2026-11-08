@@ -1433,6 +1433,7 @@ void drawPreview(const hands::State& s)
 // extent), the flat screen's panel (a share of the window: all of it at most, so that a corner of it is always on the
 // window), the flat menus' scr_menuscale (1 up to what their canvas fits: gl_draw.c, CANVAS_MENU).
 constexpr float zoomStep = 1.1f;
+constexpr float flatZoomStep = 1.05f; // the flat screen's VR-style panel: half the step (his note 2026-11-08: 1.1 was coarse)
 constexpr float vrScaleMin = 0.02f;
 constexpr float vrScaleMax = 1.5f;
 constexpr float flatScaleMin = 0.4f;
@@ -1564,7 +1565,8 @@ enum class ZoomLayout
 // size (the flat panel also to the window's middle). False: at the limit already.
 bool zoomMenu(ZoomLayout layout, int dir, const glm::vec2& at)
 {
-    const float f = dir > 0 ? zoomStep : 1.f / zoomStep;
+    const float by = layout == ZoomLayout::Flat ? flatZoomStep : zoomStep;
+    const float f = dir > 0 ? by : 1.f / by;
     const auto step = [&](cvar_t& var, float lo, float hi) {
         // (From the value in effect: a scr_menuscale past what the canvas fits zooms out at the first press.)
         const float v = CLAMP(lo, za::lround(CLAMP(lo, var.value, hi) * f * 1000.f) / 1000.f, hi);
@@ -3485,7 +3487,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         }
         if(f.dragging && (key == K_MWHEELUP || key == K_MWHEELDOWN))
         {
-            if(zoomFlatAround(f.mouse, key == K_MWHEELUP ? zoomStep : 1.f / zoomStep))
+            if(zoomFlatAround(f.mouse, key == K_MWHEELUP ? flatZoomStep : 1.f / flatZoomStep))
             {
                 f.wheelZooms++;
             }
