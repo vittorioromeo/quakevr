@@ -280,12 +280,24 @@ void() VR_ET_Step =
         {
             VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade out, it stops (%.2f s)", bladewoundage(vr_et_w)));
             remove(vr_et_w);
-            vr_et_w = VR_ET_SwordAt(VR_ET_Chest(vr_et_m), 72, TRUE);
+            vr_et_w = world;
+            VR_ET_To(19);
+        }
+        else if(vr_et_s == 19 && t > 0.3)
+        {
+            // (Thrown from before you: the first one's stagger may have brought the body nearer, and 72 units back from it was then
+            // behind your hands, the hilt meeting them first: "hit something with the hilt", never stuck. A test's own fault.)
+            vector chestAgain = VR_ET_Chest(vr_et_m);
+            vector flat = chestAgain - (self.origin + '0 0 22');
+            flat_z = 0;
+            vr_et_w = VR_ET_SwordAt(chestAgain, max(24, min(72, vlen(flat) - 24)), TRUE);
+            vr_et_at = vr_et_w.origin;
             VR_ET_To(9);
         }
         else if(vr_et_s == 9 && VR_ET_Resolved(vr_et_w))
         {
-            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it sticks in a live body again (kind %g)", vr_et_w.vr_stick_kind));
+            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it sticks in a live body again (kind %g; you at %v, the body at %v, staggering %g, thrown from %v)", vr_et_w.vr_stick_kind,
+                p.origin, vr_et_m.origin, vr_et_m.vr_knockdown, vr_et_at));
             VR_ET_To(10);
         }
         else if(vr_et_s == 10 && t > 0.1)

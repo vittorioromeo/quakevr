@@ -1230,8 +1230,12 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const glm::vec3 lastVel = fieldVec(ent, f.vr_stick_vel), lastSpin = fieldVec(ent, f.vr_stick_spin);
     setFieldVec(ent, f.vr_stick_vel, vel);
     setFieldVec(ent, f.vr_stick_spin, spin);
-    glm::vec3 touch;
-    const bool touched = box3d::contactPoint(NUM_FOR_EDICT(ent), touch);
+    glm::vec3 touch{0.f};
+    // (A touch out of its reach is another body's: a thrown blade given the edict number of one just removed read that one's
+    // last contact, far off, as its own on its first step, and never stuck -- test 1's second sword, "hit something with the
+    // hilt" 1000 units away.)
+    const float reachOf = glm::distance(blade->tip, blade->handle) + glm::distance(blade->head, blade->handle) + 16.f;
+    const bool touched = box3d::contactPoint(NUM_FOR_EDICT(ent), touch) && glm::distance(touch, com) <= reachOf;
     const glm::vec3 dv = vel - lastVel;
     const float fall = sv_gravity.value * dt * 1.5f;
     const bool changed = lastVel != glm::vec3{0.f} &&
@@ -1239,8 +1243,8 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     if(touched || changed)
     {
         setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(Out));
-        reason(ent, "hit something with %s (%.0f u/s, spin %.1f rad/s changed): never sticks now",
-            touched ? partOf(ent, *blade, touch) : "?", glm::length(dv), glm::length(spin - lastSpin));
+        reason(ent, "hit something with %s at %.0f %.0f %.0f (%.0f u/s, spin %.1f rad/s changed): never sticks now",
+            touched ? partOf(ent, *blade, touch) : "?", touch.x, touch.y, touch.z, glm::length(dv), glm::length(spin - lastSpin));
         return false;
     }
 

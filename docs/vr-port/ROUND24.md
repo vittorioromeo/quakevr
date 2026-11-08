@@ -4753,7 +4753,9 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 6, 8, 9, 11; 1
   for that body (QC vr_wpnforcegrab.qc).
 - **Cut-off parts harder to shake off (item 6):** Cut-Off Parts: Fling Speed (`vr_embed_cuton_fling`) 2.5 -> 4 m/s (5.5 was past what the mock hand reaches at the part: test 26 at 7-8 m/s moves did not fling).
   The other hand's tug (Tug Speed 4 m/s, Tug Stretch 30 cm) and bursting on a wall (Swing Burst Speed 3) unchanged.
-  Test 26 now flings at 7 and 8 m/s (was 4 and 5).
+  Test 26 now flings with 40 cm moves at 8 m/s (was 30 cm at 4, 40 cm at 5): the mock hand eases its glide in and out,
+  so a 30 cm move "at 8 m/s" moves the part at 3.7 m/s at most, 40 cm at 4.9-5.5 (the test prints it). The game reads
+  the speed right; the short move was the test's. 27/0.
 - **Running into a stab brakes you (item 11):** Running Stab: Brake (`vr_embed_brake`, 25 /s, 0 off) and Running Stab:
   Speed (`vr_embed_brake_speed`, 0.5 m/s): while a hand holds the blade in any body (alive or killed by the stab), your
   level speed along the blade into the body eases down to that speed (QC VR_Embed_Brake, from the hold's think).
@@ -4763,6 +4765,9 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 6, 8, 9, 11; 1
   Brake 0 nothing (the mock's player stops from a run within 5 frames either way, so speed alone can't tell); a force
   grab finds a blade in its host from in front. Not in the Debug menu yet.
 - **Test 1 (coordinator's question):** "sticks in a live body again", "that wound runs its own stream", "stays in the
-  dead body", "riding the body 390 units" are one failure: the second sword thrown at the same grunt (state 9) comes
-  back with kind -1 (Out) and no engine stick or bounce line under `vr_debug_axestick 1`, so something frees it before
-  the engine decides. Not found yet. "the real hand back to the drawn one moves nothing" (4.00 to 3.55) is separate.
+  dead body", "riding the body 390 units" were one real engine bug: a thrown blade given the edict number of one just
+  removed read that one's last Box3D contact (about 1000 units off, by the wall of an earlier case) as its own on its
+  first step: "hit something with the hilt", Out, never stuck. Fixed in `beforeStep`: a touch beyond the blade's reach
+  isn't its own. (Box3D's slot for a reused edict number still answers with the removed one's body for a step: worth a
+  look in vr_box3d_api.cpp, not done.) The test now also throws the second sword 0.3 s after the first is removed and
+  from before you. Test 1: 61 passed, 0 failed ("the real hand back to the drawn one" passed in that run; it varied).
