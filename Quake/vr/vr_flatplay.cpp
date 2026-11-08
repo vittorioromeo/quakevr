@@ -42,6 +42,7 @@
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_handpose.hpp"
 #include "vr_handsource.hpp"
 #include "vr_hull.hpp"
 #include "vr_main.hpp"
@@ -112,6 +113,8 @@ struct FlatState
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
     float guard[2]{0.f, 0.f}; // that rest's share of the guard (vr_flat_empty_hand_pose: 1 the guard, 0 relaxed), eased
+    float wallBack[2]{0.f, 0.f}; // how far an empty hand is back towards its shoulder off a wall (units; handOffWall)
+    float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
     bool shouldersKnown{false};
     bool localSeen[2]{false, false};
@@ -459,6 +462,14 @@ constexpr float handEase = 15.f;
 constexpr float hangPitch = 60.f; // an empty hand at rest: its fingers this far below level (degrees)
 constexpr float guardFwd = 12.f;  // the guard a free hand beside a gun punches from (punchSwing): forward of its shoulder,
 constexpr float guardDown = 11.f; // and below it, before the reach
+
+// An empty hand off walls and props (handOffWall): kept vr_flat_wall_margin and this much more off them at rest (the fist
+// round its point, as flatsight's freeRoom), found in this many halvings of the way to its shoulder, and eased back out
+// at this rate (1/s, as flatsight's backOut: no jump as the wall clears; it goes back at once).
+constexpr float handRoom = 2.f;
+constexpr int handOffHalvings = 8;
+constexpr float handBackOut = 12.f;
+constexpr float handMarginMax = 24.f;
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
 constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
@@ -1952,6 +1963,68 @@ float torsoGap(const hands::State& s, const glm::vec3& rear, const glm::vec3& ha
     return active() && bodyPose() ? torsoClearance(torsoCaps(s), rear, hand) : 1e9f;
 }
 
+// An empty hand off walls and props (his notes 2026-11-08: the guard's fists went into them; a punch went through): back
+// along its way to its shoulder (`root`) until its point, seen from the eye, is vr_flat_wall_margin and handRoom off them,
+// as a held weapon goes back (flatsight's push back: handpose's traces, monsters not counted). A punch or a shove stops at
+// the surface: only vr_flat_punch_wall_margin off it, at once, so the blow still meets the wall. Not a free hand beside
+// the other's gun at rest (flatsight's freeOffWall and its grip). vr_flat_hand_collide 0, or Gun Against Walls off: none.
+namespace
+{
+void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
+{
+    const bool acting = punching(h) || shoving(h);
+    const glm::vec3 way = root - s.pos[h];
+    const float len = glm::length(way);
+    const bool mine = vr_flat_hand_collide.value != 0.f && vr_flat_gun_collide.value != 0.f && heldIn(h) < 0 &&
+                      (acting || heldIn(1 - h) < 0) && len > 0.01f;
+    fs.wallDepth[h] = 0.f;
+    if(!mine)
+    {
+        fs.wallBack[h] = 0.f;
+        return;
+    }
+    // (A punch's margin may be negative: that far into the surface, its bite: stopped on it, the fist's blow line never
+    // reached the wall and QC's wall rule had no blow to land.)
+    const float punchMargin = za::clamp(vr_flat_punch_wall_margin.value, -handMarginMax, handMarginMax);
+    const float margin = acting ? za::max(0.f, punchMargin) : za::clamp(vr_flat_wall_margin.value, 0.f, handMarginMax) + handRoom;
+    const float bite = acting ? za::max(0.f, -punchMargin) : 0.f;
+    const auto depthAt = [&](float t) { return handpose::pointWallDepth(s.head, s.pos[h] + way * t, margin); };
+    float need = 0.f;
+    fs.wallDepth[h] = depthAt(0.f);
+    if(fs.wallDepth[h] > 0.f)
+    {
+        float lo = 0.f, hi = 1.f;
+        if(depthAt(1.f) <= 0.f)
+        {
+            for(int i = 0; i < handOffHalvings; i++)
+            {
+                const float mid = 0.5f * (lo + hi);
+                (depthAt(mid) > 0.f ? lo : hi) = mid;
+            }
+        }
+        need = za::max(0.f, hi * len - bite);
+    }
+    // (Back at once; out eased, from the pose's first making each frame: the move's and the view's remakes keep it.)
+    if(need >= fs.wallBack[h] || acting)
+    {
+        fs.wallBack[h] = need;
+    }
+    else if(dt > 0.f)
+    {
+        fs.wallBack[h] += (need - fs.wallBack[h]) * ease(handBackOut, dt);
+    }
+    s.pos[h] += way * (za::min(fs.wallBack[h], len) / len);
+    // The tests' probe (vr_flatplay_debug 2): how deep the pose had the hand (its margin in), how far back it went, and how
+    // deep its point is now (0: clear of the surface; its margin not counted), each frame it met a wall.
+    if(vr_flatplay_debug.value >= 2 && dt > 0.f && (fs.wallDepth[h] > 0.f || fs.wallBack[h] > 0.f))
+    {
+        Con_Printf("flatwall: %s hand t %.3f %s in %.2f back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
+            punching(h) ? "punch" : shoving(h) ? "shove" : "rest", fs.wallDepth[h], fs.wallBack[h],
+            handpose::pointWallDepth(s.head, s.pos[h], 0.f));
+    }
+}
+} // namespace
+
 float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keepAsked)
 {
     glm::vec3 stock;
@@ -2193,6 +2266,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
             s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
         }
+        handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt));
     }
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the

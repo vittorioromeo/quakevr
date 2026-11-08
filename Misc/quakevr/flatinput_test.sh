@@ -11,12 +11,18 @@
 #              vr_flat_shove_both); again at once: the cooldown, nothing; again after it: it lands
 #   shove1     an axe in the main hand: the off hand alone shoves (impulse 53), and lands
 #   shovereach a grunt 55 units ahead: Shove Reach 1 (the old reach) misses it, 1.15 (the default, his 15% more) reaches it
+#   wallguard  both hands empty in the guard, against vrtesthall's wall (y 640), the guard pushed out to the arm's whole
+#              reach (vr_flat_guard_fwd 1: its fists in the wall): they go back out of it (vr_flat_hand_collide; the
+#              "flatwall:" probe, vr_flatplay_debug 2: met it, and its point never in it)
+#   wallpunch  V's punch at that wall: the fist stops on it (half a unit in at most: vr_flat_punch_wall_margin -0.5) and
+#              the wall blow still lands ("a wall")
+#   wallswing  the same with an axe: its swing stops at the wall (its points half a unit in at most) and its blow lands
 #   vr         the mock headset: the hands are tracked (no synthesized mark; a headset's gestures untouched)
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatinput
 mkdir -p "$S"
-FILTER="^(flatflick|flatinput|melee|flick reload|ssg:|revolver:|flatplay: shove|handsource)"
+FILTER="^(flatflick|flatinput|melee|flick reload|ssg:|revolver:|flatplay: shove|handsource|flatwall)"
 run() { local tag=$1 extra=$2 script=$3 quit=$4
         bash $KIT/run.sh $AGENT $extra -Script "$script" -QuitOn "$quit" -Timeout 120 -Filter "$FILTER" > "$S/$tag.log" 2>&1; }
 # A grunt 16 units ahead, facing you (vr_test_spawn 0: QC vr_impulse_test.qc, impulse 241), on vrtesthall's open floor.
@@ -64,7 +70,22 @@ run shovereach "$FLAT" "$BASE; $FAR; vr_flat_shove_reach 1; vr_flat_shove_width 
 check $(grep -a "^melee event: \(flat \)\?shove" "$S/shovereach.log" | head -2 | tr '\n' '|' | grep -q "nothing in reach.*two hands, 1 hit" && echo 1 || echo 0) "shovereach: a grunt 55 ahead: reach 1 misses, 1.15 lands ($(grep -a "^melee event: \(flat \)\?shove" "$S/shovereach.log" | head -2 | tr '\n' '|'))"
 check $(grep -aq "^flatplay: shove (vr_flat_shove_now): cooling down" "$S/shove.log" && echo 1 || echo 0) "shove: the press within the cooldown does nothing"
 
-run vr "" "$BASE; impulse 152; wait10; vr_handsource_debug 1; wait5; echo flatinput: vr done" "^flatinput: vr done"
+# Empty hands and swings at vrtesthall's wall (y 640), standing against it. The probe's lines: how deep the pose had the
+# hand, how far back it went, and how deep its point is now (0: clear; a swing's: its weapon's deepest point).
+WALL="map vrtesthall; god; notarget; developer 1; wait5; setpos 0 620 25 0 90 0; wait30; vr_flatplay_debug 2; wait3"
+deepest() { grep -a "^flatwall: .* $2 " "$S/$1.log" | sed 's/.* now \([-0-9.]*\).*/\1/' | sort -g | tail -1; }
+run wallguard "$FLAT" "$WALL; vr_flat_guard_fwd 1; wait40; echo flatinput: wallguard done" "^flatinput: wallguard done"
+gin=$(grep -a "^flatwall: .* rest " "$S/wallguard.log" | sed 's/.* in \([-0-9.]*\).*/\1/' | sort -g | tail -1)
+gnow=$(deepest wallguard rest)
+check $(awk -v i="$gin" -v n="$gnow" 'BEGIN{exit !(i>1 && n<=0.01)}' && echo 1 || echo 0) "wallguard: the guard's fists, posed ${gin:-?} units into the wall (margin in), go back out of it (deepest after: ${gnow:-?})"
+run wallpunch "$FLAT" "$WALL; vr_flat_punch main; wait60; echo flatinput: wallpunch done" "^flatinput: wallpunch done"
+pnow=$(deepest wallpunch punch)
+check $(awk -v n="$pnow" 'BEGIN{exit !(n!="" && n<=0.51)}' && grep -aq "^melee event: punch.* a wall" "$S/wallpunch.log" && echo 1 || echo 0) "wallpunch: the punch stops on the wall (deepest ${pnow:-?} units in) and its wall blow lands"
+run wallswing "$FLAT" "$WALL; impulse 152; wait30; vr_flat_punch main; wait60; echo flatinput: wallswing done" "^flatinput: wallswing done"
+snow=$(deepest wallswing swing)
+check $(awk -v n="$snow" 'BEGIN{exit !(n!="" && n<=0.51)}' && grep -aq "^melee event: .* a wall" "$S/wallswing.log" && echo 1 || echo 0) "wallswing: the axe's swing stops at the wall (deepest point ${snow:-?} units in) and its wall blow lands"
+
+run vr "" "$BASE; impulse 152; wait10;vr_handsource_debug 1; wait5; echo flatinput: vr done" "^flatinput: vr done"
 check $(grep -aq "^flatinput: vr done" "$S/vr.log" && ! grep -aq "^handsource:.*synthesized" "$S/vr.log" && echo 1 || echo 0) "vr: the mock headset's hands are never synthesized"
 
 verdict; exit $fail
