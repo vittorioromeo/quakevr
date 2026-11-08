@@ -573,6 +573,18 @@ za::Vector<Item> pageDebugTests()
         command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
             .help("An enforcer has a lift zone on the pack in its model, whatever it holds; nothing takes "
                   "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
+        command("Removed With Its Pack and Tank", "developer 1; vr_rag1108_test 1")
+            .help("Three armed grunts ahead: one removed by the toolgun's remover, one killed and cleaned up, one removed "
+                  "raw: their packs, weapons and back tanks go with them, none torn off later (vr_rag1108_test 1)."),
+        command("Back Tanks Beside the Packs", "vr_rag1108_test 2")
+            .help("A grunt, a knight, a death knight and an enforcer with flamethrowers and a grunt with a poison sprayer, "
+                  "their backs to you: each tank to the right of the pack, off it (vr_rag1108_test 2)."),
+        command("The Gib Rule on Corpses", "developer 1; vr_rag1108_test 3")
+            .help("Corpses ahead: small hits wear one out but never gib it; a solid hit then does; one big hit gibs a "
+                  "fresh one; blasts by its pool (vr_rag1108_test 3; vr_corpse_gib_overkill, _hit_min)."),
+        command("Shoves While Getting Up", "developer 1; vr_rag1108_test 4")
+            .help("A grunt knocked down and shoved as it rises: back down; again late in the rise with one hand: a "
+                  "balance step or down; one rising the old way: down again (vr_rag1108_test 4; vr_knockdown_getup_shove)."),
         command("Your Armour Plates: the Test", "vr_pp_test 1")
             .help("vr_pp_test 1 (no god): the pieces against the armour for each tier, hits from each side, a shard, new armour and "
                   "an upgrade through the morph, the damage the same on and off, the helmet from the eyes. Ends on \"pptest: N passed, M failed\". "

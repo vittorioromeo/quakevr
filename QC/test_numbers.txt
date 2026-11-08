@@ -300,6 +300,13 @@ dispatch vr_smallgibs_test QC/vr_smallgibs_test.qc VR_SmallGib_TestStart xCase l
 dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
 dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
 dispatch vr_ragsmash_test QC/vr_ragsmash_test.qc VR_RagSmash_TestFrame request loose
+dispatch vr_rag1108_test QC/vr_rag1108_test.qc VR_Rag1108_TestFrame request loose
+
+vr_rag1108_test 1         vr_rag1108_test.qc               (removed outright: an armed one's worn pack, weapon and back tank go with it, never torn off later)
+vr_rag1108_test 2         vr_rag1108_test.qc               (the back tanks beside the worn packs, every kind: off the pack, to the right; a screenshot)
+vr_rag1108_test 3         vr_rag1108_test.qc               (the gib rule: small hits never fully gib a corpse, one big hit or explosions do)
+vr_rag1108_test 4         vr_rag1108_test.qc               (shoves on ones getting up: back down, a balance step, the old get-up's frames)
+vr_rag1108_test 5         vr_rag1108_test.qc               (test 4, its one-hand shove later in the rise: nearly up, a balance step)
 
 vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks, grunts: on, none on melee or fists, shots, blows, knockdowns, landings, deaths)
 vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
