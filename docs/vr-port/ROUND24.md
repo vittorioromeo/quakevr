@@ -3704,6 +3704,67 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
 
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.
+## Model topology audit (branch `agent/flatwall`, 2026-11-08)
+
+His note: model topology has "unnecessarily complex surfaces, or overlapping triangles that lead to Z-fighting"; can it be
+fixed and simplified without changing the look? Phase 1 of 3 (audit; then gated automatic fixes; then a list for him).
+No model changed.
+
+- **Scanned:** 270 alias models, every pose, on the stored byte grid: ours (181, 74,295 triangles), id1 pak0/1, hipnotic,
+  rogue, MG1. AD is an optional download (not scanned).
+- **Ours, totals:** 1,920 degenerate triangles (1,064 in three models inherited from the old Quake VR pak10: h_zombie 490
+  of 586, ogre 338, quaddama 212), 119 duplicate triangles, 428 z-fighting pairs built into the mesh (coincident in every
+  pose; 411 show different texels), 1,847 more that only meet in some animation poses, 5,312 weldable duplicate
+  vertices, 46 T-junction cracks, 458 non-manifold and 45 flipped edges, 5 hidden triangles. Zero-error simplification
+  (removing vertices inside one plane and one texture chart) saves only 63 triangles (611 if half-texel shifts are
+  accepted): the meshes are split by UV seams, not over-tessellated. About 2,100 triangles (2.9%) are fixable with no
+  visible change.
+- **Found on the way:** v_nailpistol.mdl's shipped fx_gfx_mask is for 841 triangles; the model has 518, so the barrel
+  mask reads as none.
+- **Tools:** `Misc/quakevr/mdltopo/` (run with Blender's Python, it has numpy): `compare.py A.mdl B.mdl` (the fix-phase
+  gate: an exact software rasteriser, 26 views x every pose, nearest texels, numbering-independent; PASS/FAIL),
+  `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
+  flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
+  and highlighted pictures: `scratch/topo/` in this worktree.
 ## Enforcer's elbow leather jumping (branch `agent/blendmd5`, worktree blendmodels, 2026-11-08)
 
 His note: "The enforcer's right elbow leather connector has a similar issue to the knight one you fixed". Files:
