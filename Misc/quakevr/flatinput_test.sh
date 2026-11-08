@@ -50,8 +50,10 @@ check $([ "$(grep -a "^melee event:" "$S/punch.log" | grep -ac "m/s")" -ge 1 ] &
 check $(grep -aq "^handsource: main hand action (punch)" "$S/punch.log" && echo 1 || echo 0) "punch: the punch is marked an action"
 
 # The shove: lands as the hand reaches out (a third of vr_flat_shove_time 0.4 s); again at once: the cooldown (0.8 s);
-# again after it (60 frames: 0.83 s), at a second grunt (the first was thrown back): it lands. Each wait is the shove's own timing.
-run shove "$FLAT" "$BASE; $GRUNT; vr_flat_shove_now; wait20; vr_flat_shove_now; wait60; $GRUNT; vr_flat_shove_now; wait20; echo flatinput: shove done" "^flatinput: shove done"
+# again after it (60 frames: 0.83 s), at a second grunt 96 units to the left (he steps there: the first, thrown back about
+# 20 units, stays at the edge of the shove's reach, and whether it counts too varied with the hands' rest pose): it lands
+# on that one alone. Each wait is the shove's own timing.
+run shove "$FLAT" "$BASE; $GRUNT; vr_flat_shove_now; wait20; vr_flat_shove_now; wait60; setpos -96 300 25 0 90 0; wait5; $GRUNT; vr_flat_shove_now; wait20; echo flatinput: shove done" "^flatinput: shove done"
 check $([ "$(grep -ac "^melee event: shove, hand 0, one hand, 1 hit" "$S/shove.log")" = 2 ] && echo 1 || echo 0) "shove: two shoves land on the grunt ($(grep -ac "^melee event: shove" "$S/shove.log"))"
 check $(grep -aq "^flatplay: shove (vr_flat_shove_now): cooling down" "$S/shove.log" && echo 1 || echo 0) "shove: the press within the cooldown does nothing"
 

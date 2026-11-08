@@ -130,7 +130,13 @@ void updateFingerFrames()
         const int flatSlot = flatplay::active() ? weapons::heldSlot(hand) : -1;
         const bool flatGrips =
             flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand));
-        const HandInput& in = holder || flatGrips ? holding : input.hands[hand];
+        // (An empty hand in flatscreen play closes into a fist by its share of the guard, and while it punches:
+        // flatplay::fistShare.)
+        HandInput fist = input.hands[hand];
+        const float fistShare = flatplay::active() && !holder && !flatGrips ? flatplay::fistShare(hand) : 0.f;
+        fist.gripValue = za::fmax(fist.gripValue, fistShare);
+        fist.triggerValue = za::fmax(fist.triggerValue, fistShare);
+        const HandInput& in = holder || flatGrips ? holding : fistShare > 0.f ? fist : input.hands[hand];
         // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
         // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
         const bool holdsOther = posingHotspot ? !holder

@@ -248,7 +248,12 @@ struct BridgeDiag
     int atRows{0};               // outside within half a ring of either row (the plates' own fit there: not counted above)
     // (the curve: the rows' turn between them, the joint's reach along each row's line, their middles apart, the most pushed)
     float theta{0.f}, a0{0.f}, a1{0.f}, chord{0.f}, pushMost{0.f};
-    float roundOf{0.f}, keep{0.f}, back{0.f}; // (round tangents' share, their lengths kept, the curve against its rings' frames)
+    float fit{0.f}, keep{0.f}, back{0.f}; // (the tangents' share kept for a forward middle, kept, the curve against its rings' frames)
+    float m0{0.f}, m1{0.f};                   // (the tangents' lengths drawn)
+    float creaseCut{0.f}, needMost{0.f};      // (the push the crease gave up, the most any skin sample asked: after the pushes)
+    float firstNeed{0.f}, firstCrease{0.f};   // (the most a sample asked before any push, and that sample's crease share)
+    int rings{0};
+    glm::vec3 ringX[bridgeMostRings]{}, ringZ[bridgeMostRings]{}; // (each ring's frame: its x, its normal)
 };
 
 struct Shell
@@ -300,6 +305,9 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* skins);
 void bridgeCheck_f(); // vr_agarmor_bridge_check [model]: the end rings on the rows and the skin under it over each joint's range
 void bridgeStats_f(); // vr_agarmor_bridge_stats: the bridges made lately and their cost
 void bridgeStatsAdd(double seconds, int joints);
+// vr_agarmor_bridge_trace (debug, a mask of joints): each drawn armoured body's leather against its last frame's, a console
+// line a joint a frame (its furthest vertex move and its rows', its rings' and its rows' turn, the curve's numbers).
+void bridgeTrace(const Shell& s, int ent, const char* model, int pieces, const float* bones, int have);
 
 // vr_agarmor_check.cpp: the vr_agarmor_check command.
 void check_f();

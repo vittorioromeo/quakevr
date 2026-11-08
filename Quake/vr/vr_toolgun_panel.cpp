@@ -23,6 +23,7 @@
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menupaint.hpp"
@@ -131,6 +132,8 @@ struct PanelState
     int hovered{-1};       // the widget under the laser (its number), the last input pass
     bool mock{false};      // vr_toolgun_mock_laser: the laser on this spot whatever the hand's pose
     glm::vec2 mockSpot{0.f};
+    glm::vec2 flatCursor{panelWidth * 0.5f, panelHeight * 0.5f}; // flatscreen play's mouse cursor on it (flatMouse)
+    float flatScale{2.f}; // the overlay's window pixels a panel pixel, as last drawn (drawFlat)
 
     gfx::Target target;
     za::InPlaceVector<Spot, 96> spots;
@@ -190,6 +193,13 @@ struct Ui
 {
     glm::vec3 corner, xAxis, yAxis, origin, dir, r, u;
     const int hand = laserHand();
+    if(hand >= 0 && flatplay::active())
+    {
+        // Flatscreen play: the panel is a screen overlay (drawFlat), the desktop mouse's cursor its pointer (flatMouse).
+        cursor = ps.mock ? ps.mockSpot : ps.flatCursor;
+        point = glm::vec3{0.f};
+        return true;
+    }
     if(hand < 0 || !quadOf(s, corner, xAxis, yAxis))
     {
         return false;
@@ -1496,6 +1506,23 @@ void layout(Ui& ui)
         }
     }
     listOverlay(ui); // (last: over the rest)
+    if(ui.mode == Mode::Draw && flatplay::active())
+    {
+        // Flatscreen play's mouse cursor (the headset has the laser): an arrow's outline, dark edged, its tip the spot.
+        const glm::vec2 c = ps.mock ? ps.mockSpot : ps.flatCursor;
+        const glm::vec4 dark{0.f, 0.f, 0.f, 1.f}, light{1.f, 0.95f, 0.8f, 1.f};
+        for(int pass = 0; pass < 2; pass++)
+        {
+            const float e = pass == 0 ? 0.6f : 0.f; // (the dark edge first, a little larger)
+            const glm::vec4& col = pass == 0 ? dark : light;
+            for(int row = 0; row < 9; row++)
+            {
+                const float w = row < 7 ? static_cast<float>(row) * 0.6f + 1.f : 1.f; // the arrow's head, then its tail
+                const float x0 = row < 7 ? c.x : c.x + static_cast<float>(row - 5) * 0.8f;
+                fill(Rect{x0 - e, c.y + static_cast<float>(row) - e, x0 + w + e, c.y + static_cast<float>(row) + 1.f + e}, col);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1546,6 +1573,47 @@ void dump_f()
         const Spot& s = ps.spots[i];
         Con_Printf("  %d \"%s\" %.0f %.0f %.0f %.0f\n", i, s.name, s.r.x0, s.r.y0, s.r.x1, s.r.y1);
     }
+}
+
+// vr_flat_mouse_move <dx> <dy> | to <widget's name> (tests): the desktop mouse moved by that many counts, as
+// IN_MouseMotion hands them on in flatscreen play (VR_FlatToolgunMouse: the panel's cursor, the tool's adjust); "to"
+// moves it the counts that bring the panel's cursor onto that widget's middle (vr_toolgun_panel_dump names them).
+void flatMouseMove_f()
+{
+    int dx = 0, dy = 0;
+    if(Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(1), "to"))
+    {
+        const char* name = Cmd_Args() + 3;
+        const Spot* found = nullptr;
+        for(const Spot& spot : ps.spots)
+        {
+            if(!q_strcasecmp(spot.name, name))
+            {
+                found = &spot;
+            }
+        }
+        if(!found)
+        {
+            Con_Printf("vr_flat_mouse_move: no \"%s\" on the panel\n", name);
+            return;
+        }
+        const float k = za::max(ps.flatScale, 0.1f) / za::max(vr_flat_toolgun_cursor_speed.value, 0.01f);
+        dx = static_cast<int>(za::round((found->r.cx() - ps.flatCursor.x) * k));
+        dy = static_cast<int>(za::round((found->r.cy() - ps.flatCursor.y) * k));
+    }
+    else if(Cmd_Argc() == 3)
+    {
+        dx = Q_atoi(Cmd_Argv(1));
+        dy = Q_atoi(Cmd_Argv(2));
+    }
+    else
+    {
+        Con_Printf("vr_flat_mouse_move <dx> <dy> | to <widget's name>\n");
+        return;
+    }
+    const int taken = VR_FlatToolgunMouse(dx, dy);
+    Con_Printf("vr_flat_mouse_move: %d %d, %s, cursor %.0f %.0f\n", dx, dy, taken ? "taken" : "the view's", ps.flatCursor.x,
+        ps.flatCursor.y);
 }
 
 void icons_f()
@@ -1685,10 +1753,67 @@ void drawInEye(const hands::State& s)
     menuui::drawLaser(origin, on ? point : origin + fwd * 8.f, on, ps.held, za::clamp(vr_toolgun_laser_size.value, 0.05f, 2.f));
 }
 
+bool flatShown()
+{
+    return shown() && flatplay::active();
+}
+
+bool flatMouse(int dx, int dy)
+{
+    if(!flatShown())
+    {
+        return false;
+    }
+    // vr_flat_toolgun_cursor_speed 1: the cursor keeps up with the desktop's pointer (a count a window pixel).
+    const float k = za::max(vr_flat_toolgun_cursor_speed.value, 0.f) / za::max(ps.flatScale, 0.1f);
+    ps.flatCursor.x = za::clamp(ps.flatCursor.x + static_cast<float>(dx) * k, 0.f, panelWidth - 1.f);
+    ps.flatCursor.y = za::clamp(ps.flatCursor.y + static_cast<float>(dy) * k, 0.f, panelHeight - 1.f);
+    return true;
+}
+
+bool flatClick(bool down)
+{
+    return trigger(laserHand(), down);
+}
+
+void drawFlat()
+{
+    if(!flatShown())
+    {
+        return;
+    }
+    render();
+    if(!ps.target.texture || vid.width <= 0 || vid.height <= 0)
+    {
+        return;
+    }
+    // vr_flat_toolgun_panel_size of the window's height (narrowed to fit its width), its middle at _x, _y (shares of the
+    // window across and down).
+    const float W = static_cast<float>(vid.width), H = static_cast<float>(vid.height);
+    float h = za::clamp(vr_flat_toolgun_panel_size.value, 0.1f, 1.f) * H;
+    float w = h * panelWidth / panelHeight;
+    if(w > W * 0.98f)
+    {
+        w = W * 0.98f;
+        h = w * panelHeight / panelWidth;
+    }
+    ps.flatScale = h / panelHeight;
+    const float cx = za::clamp(vr_flat_toolgun_panel_x.value, 0.f, 1.f) * W, cy = za::clamp(vr_flat_toolgun_panel_y.value, 0.f, 1.f) * H;
+    const float x0 = za::clamp(cx - w * 0.5f, 0.f, W - w), y0 = za::clamp(cy - h * 0.5f, 0.f, H - h); // (its top left, pixels down)
+    const auto ndc = [W, H](float x, float y) { return glm::vec3{x / W * 2.f - 1.f, 1.f - y / H * 2.f, 0.f}; };
+    const glm::vec4 white{1.f};
+    const gfx::Vertex c[4] = {{ndc(x0, y0 + h), {0.f, 0.f}, white}, {ndc(x0 + w, y0 + h), {1.f, 0.f}, white},
+        {ndc(x0 + w, y0), {1.f, 1.f}, white}, {ndc(x0, y0), {0.f, 1.f}, white}};
+    const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
+    gfx::draw(quad, glm::mat4{1.f}, {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false},
+        ps.target.texture);
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_toolgun_mock_laser", mockLaser_f);
     Cmd_AddCommand("vr_toolgun_panel_dump", dump_f);
+    Cmd_AddCommand("vr_flat_mouse_move", flatMouseMove_f);
     Cmd_AddCommand("vr_toolgun_icons", icons_f);
 }
 
