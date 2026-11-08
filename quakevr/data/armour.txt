@@ -17,6 +17,8 @@
 //   taper_start "s"  the plate rows' size round its line at its first row (1 as made), lerped row by row to ...
 //   taper_end   "s"  ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)
 //   leather  "0"       a sleeve's leather not drawn at all (1 or unset: drawn)
+//   hero     "0"       its hero plates off, every plate its own (1 or unset: the breastplate, the pauldrons' top row,
+//                      the elbows' and knees' cops each one plate over several columns; vr_agarmor_hero 0: off everywhere)
 // (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)
 
 kind "grunt"
@@ -101,7 +103,12 @@ kind "grunt"
     }
     shin_l
     {
-        end "-0.25"
+        end "0.15"
+        taper_end "0.95"
+    }
+    pauldron_sleeve
+    {
+        standoff "0"
     }
     bracer_sleeve
     {
@@ -123,6 +130,8 @@ kind "enforcer"
         scale "1"
         standoff "0.15"
         start "7"
+        taper_start "1.1"
+        taper_end "0.85"
     }
     helmet
     {
@@ -151,6 +160,10 @@ kind "enforcer"
         standoff "1"
         start "-4"
         end "0.2"
+    }
+    thigh_r
+    {
+        start "-6"
     }
     pauldron_sleeve_r
     {
@@ -255,14 +268,16 @@ kind "death_knight"
     }
     thigh
     {
-        start "-4"
-        taper_start "1"
+        start "-8"
+        taper_start "1.5"
     }
     shin
     {
         standoff "-0.1"
+        taper_end "0.98"
     }
 }
+
 kind "progs/vrbody_brawny.mdl"
 {
     cuirass
