@@ -427,8 +427,45 @@ void() AD_PlasmaHitRun =
     remove(self);
 };
 
+// The ball's timer (AD_PlasmaHitRun) started a little later (`xDelay` s).
+void(entity p, float xDelay) AD_PlasmaHitStart =
+{
+    vr_adph_frames = 0;
+    entity t = spawn();
+    t.classname = "vr_adsa_timer";
+    t.owner = p;
+    t.think = AD_PlasmaHitRun;
+    t.nextthink = time + xDelay;
+};
+
 void(float request, entity p) AD_UpgradesTest =
 {
+    // 104: the Plasma Gun into the main hand (then save and load, or change level: Misc/quakevr/plasma_ball_test.sh);
+    // 105: carried still, a ball of the player's down onto the floor ahead: nothing loads then (AD_EnsureVRModel's
+    // AD_WeaponsOnDemand precached its assets when the new server first drew it). Verdict as 103's.
+    if(request == 104)
+    {
+        entity os5 = self;
+        self = p;
+        VR_WeaponUtil_EntAddWeapon(p, WID_LIGHTNING);
+        VRGiveEntWeapon(p, cVR_MainHand, WID_LIGHTNING, 0, WeaponIdToBaseClipSize(WID_LIGHTNING));
+        p.weaponinst.wi_adup = ad_IT_UPGRADE_LG;
+        p.weaponmodel = WeaponIdToModel(WID_LIGHTNING, 0); // (AD_SyncWeaponModels: the upgraded one)
+        p.ammo_cells = 100;
+        AD_SyncWeaponModels(p);
+        self = os5;
+        bprint(sprintf("adplasmahit: the Plasma Gun in the main hand, model %s\n", p.weaponmodel));
+        return;
+    }
+    if(request == 105)
+    {
+        VR_Test_BeginFlags("adplasmahit", VR_TEST_LOUD);
+        VR_Test_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_LIGHTNING && (p.weaponinst.wi_adup & ad_IT_UPGRADE_LG) &&
+            p.weaponmodel == "progs/v_plasma.mdl#vr", sprintf("the Plasma Gun still in the main hand (weapon %g, model %s)",
+            VRGetEntWeapon(p, cVR_MainHand), p.weaponmodel));
+        AD_PlasmaHitStart(p, 0);
+        return;
+    }
     if(request == 103)
     {
         VR_Test_BeginFlags("adplasmahit", VR_TEST_LOUD);
@@ -449,12 +486,7 @@ void(float request, entity p) AD_UpgradesTest =
         }
         VR_Test_Check(w4 != world && w4.model == "progs/v_plasma.mdl#vr", sprintf("the toolgun's Plasma Gun laid, model %s",
             w4 != world ? w4.model : "(none)"));
-        vr_adph_frames = 0;
-        entity t4 = spawn();
-        t4.classname = "vr_adsa_timer";
-        t4.owner = p;
-        t4.think = AD_PlasmaHitRun;
-        t4.nextthink = time + 0.05;
+        AD_PlasmaHitStart(p, 0.05);
         return;
     }
     if(request == 148)
