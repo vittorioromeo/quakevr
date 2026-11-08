@@ -925,7 +925,11 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_REVOLVERCYL2, f.vr_rv_cyl2);
     // The highest of the global mode and the guns' own (vr_reload_mode_<gun>; -1 follows the global): the clients draw the
     // pouch and the magazines if any gun reloads by hand.
-    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? reloadModeBest() : 0;
+    // A flat-screen player (.vr_flatscreen) reloads at the hip holsters whatever the headset's mode (vr_flat_reload; QC
+    // VRIsWeaponReloadingEnabled): 2, so his ammo screens show the clip and no pouch or magazine is drawn for him.
+    const bool flatPlayer = fieldFloatOr(ent, f.vr_flatscreen, 0.f) != 0.f;
+    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value != 0.f ? 0 : flatPlayer ? (vr_flat_reload.value != 0.f ? 2 : 0) : reloadModeBest();
+    stat(STAT_QVR_FLATRELOAD, f.vr_flatrl);
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
