@@ -496,6 +496,8 @@ int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmin
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
+float VR_HullTouchTop (struct edict_s *ent); // SV_TouchLinks: the top triggers meet (lying down: the lying box's; else absmax)
+float VR_HullWaistZ (struct edict_s *ent); // SV_CheckWater's middle point's height (lying down: the lying box's middle)
 int VR_HullHitBox (struct edict_s *touch, float *boxmins, float *boxmaxs, int projectile); // ... and as a shot or missile meets it (vr_hull_hit_width; a bullet or missile, `projectile`: to his head, vr_hull_hit_head): nonzero if changed
 // A player's body against monsters' (vr_bodycontact.cpp; ROUND22.md, "Closer to enemies").
 int VR_BodyContactHull (struct edict_s *mover, struct edict_s *touch, const float *mins, const float *maxs,

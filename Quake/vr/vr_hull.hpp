@@ -79,6 +79,9 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 [[nodiscard]] bool isCrouched(const edict_t* ent);
 // Whether a client lies down (vr_prone: updateCrouch; his box then vr_prone_height tall, a crouched box to the rest).
 [[nodiscard]] bool isProne(const edict_t* ent);
+// Whether a client has the lying box (its own slot), vr_prone on or not (switched off while lying under a low ceiling
+// he keeps it until he can get up): the triggers' and the water's checks follow it (VR_HullTouchTop, VR_HullWaistZ).
+[[nodiscard]] bool hasLyingBox(const edict_t* ent);
 // The local player (client 1 of this server) lying down: 1, 0; -1 with no server here (a client of another one).
 [[nodiscard]] int localProne();
 // A client playing flat-screen (-flatscreenmode: .vr_flatscreen, as his last move said), and whether that move held his

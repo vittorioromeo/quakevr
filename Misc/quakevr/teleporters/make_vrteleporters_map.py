@@ -391,9 +391,19 @@ ent("item_rockets", origin="-200 -200 0")
 CR = Room("cr", 384, -384, 1152, 192, z1=192)
 c_hub_cr = Room("c_hub_cr", 272, -224, 368, -144, z1=160)
 hub.door("e", -224, -144); c_hub_cr.door("w", -224, -144); c_hub_cr.door("e", -224, -144); CR.door("w", -224, -144)
-# The wall across the south half (x 560..688, y -384..-64): the tunnel at y -352..-288, the gap at y -224..-160.
-for y0, y1, z0 in ((-384, -352, 0), (-352, -288, 40), (-288, -224, 0), (-224, -160, 48), (-160, -64, 0)):
+# The wall across the south half (x 560..688, y -384..-64): the tunnel at y -352..-288, the gap at y -224..-160, the
+# vent at y -144..-80 (20 high: lying down's 16 box passes, the lowest crouched 24 doesn't; ROUND24.md, "A lower box for
+# lying down"; prone_test.py).
+for y0, y1, z0 in ((-384, -352, 0), (-352, -288, 40), (-288, -224, 0), (-224, -160, 48), (-160, -144, 0),
+                   (-144, -80, 20), (-80, -64, 0)):
     WORLD.append(box(560, y0, z0, 688, y1, 192, T_WALL))
+ent("func_worldtext_banner", origin="556 -112 44", angle="180", worldtext_halign="1", worldtext_scale="0.3",
+    worldtext="VENT 20 high\nlie down and crawl")
+# In the vent: shells to pick up crawling, and over it (in the wall, 24..56 over the floor: a standing box's height,
+# not the lying box's) a teleporter to the hub that a lying player must not touch (prone_test.py's trigger check).
+ent("item_shells", origin="608 -128 0")
+ent("trigger_teleport", [box(600, -128, 24, 648, -96, 56, "trigger")], target="to_vent_check")
+ent("info_teleport_destination", origin="0 -160 24", angle="90", targetname="to_vent_check")
 ent("func_worldtext_banner", origin="556 -320 64", angle="180", worldtext_halign="1", worldtext_scale="0.3",
     worldtext="LOW TUNNEL\n40 high: crouch")
 ent("func_worldtext_banner", origin="556 -192 72", angle="180", worldtext_halign="1", worldtext_scale="0.3",
