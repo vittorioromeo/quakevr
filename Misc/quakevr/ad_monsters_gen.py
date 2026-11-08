@@ -95,6 +95,14 @@ ITEMS = [
     (311, 'Weapons', 'AD Plasma Gun', 'toolgun_upgrade_lg', 'progs/v_plasma.mdl#vr', '8.f', 'true'),
 ]
 
+# The upgrades in the debug spawner (QC VR_AD_DispenserSpawn): their AD pickup model (the "installed" check: the "#vr"
+# model is made, no file) and the weapon AD_UpgradeProp lays (the toolgun's prop, its upgrade on its record).
+UPGRADES_QC = {
+    309: ('progs/g_shadaxe.mdl', 'WID_AXE'),
+    310: ('progs/g_shot3.mdl', 'WID_SUPER_SHOTGUN'),
+    311: ('progs/g_plasma.mdl', 'WID_LIGHTNING'),
+}
+
 # Pickups only in an AD map (Quake's backpack rules outside them: vr_ad.cpp), each with a field set before its spawn
 # function: spawner number, section, menu name, classname, model, lift, field, value, the ghost's skin.
 MAP_ITEMS = [
@@ -131,6 +139,12 @@ GUNS = [
     (345, "AD Hunter Ogre's Mace", 13, "progs/w_ogremac.mdl#melee", "progs/w_ogremac.mdl", 1536),
 ]
 
+# Weapons in the debug spawner (QC) only: the toolgun's entry is hand-written at the end of vr_toolgun_packs.inc (the
+# entries' numbers stay), so none in vr_ad_spawnguns.inc. As GUNS.
+QC_ONLY_GUNS = [
+    (346, "AD Death Sergeant's Flail", 13, "progs/w_blueflail.mdl#melee", "progs/w_blueflail.mdl", 2816),
+]
+
 
 def replace(path, begin, end, body):
     s = open(path, encoding="utf-8").read()
@@ -146,10 +160,10 @@ def main():
     for n, c, m, *_ in MONSTERS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
     for n, section, label, c, m, lift, rules in ITEMS:
-        qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
+        qc.append('    if(choice == %d) { return "%s"; }' % (n, UPGRADES_QC[n][0] if n in UPGRADES_QC else m))
     for n, section, label, c, m, *_ in MAP_ITEMS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
-    for n, label, wid, m, base, *fl in GUNS:
+    for n, label, wid, m, base, *fl in GUNS + QC_ONLY_GUNS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, base))
     qc.append('    return "";\n};\n')
     qc.append("float(float choice) VR_AD_DispenserSpawn =\n{\n    if(choice < 200 || choice >= 400)\n    {\n        return FALSE;\n    }")
@@ -161,13 +175,16 @@ def main():
     for i, (n, c, m, *_) in enumerate(MONSTERS):
         qc.append('    %sif(choice == %d) { self.classname = "%s"; ad_%s(); }' % ("" if i == 0 else "else ", n, c, c))
     for n, section, label, c, m, lift, rules in ITEMS:
-        # (the upgrades and the health vials are Quake VR's pickups with AD's look: vr_ad_items.qc item_healthvial)
+        if n in UPGRADES_QC:
+            qc.append('    else if(choice == %d) { AD_UpgradeProp(%s); }' % (n, UPGRADES_QC[n][1]))
+            continue
+        # (the health vials are Quake VR's pickups with AD's look: vr_ad_items.qc item_healthvial)
         fn = c if section == "Weapons" or c in ("item_healthvial", "item_healthgem") else "ad_" + c
         call = '%s();' % fn  # (an upgrade's pickup removes itself outside Weapon Upgrades' scope: AD_UpgradeItem)
         qc.append('    else if(choice == %d) { self.classname = "%s"; %s }' % (n, c, call))
     for n, section, label, c, m, lift, key, value, skin in MAP_ITEMS:
         qc.append('    else if(choice == %d) { self.classname = "%s"; self.%s = %d; ad_%s(); }' % (n, c, key, value, c))
-    for n, label, wid, m, base, *fl in GUNS:
+    for n, label, wid, m, base, *fl in GUNS + QC_ONLY_GUNS:
         flags = (' self.weaponflags = %d;' % fl[0]) if fl else ''
         qc.append('    else if(choice == %d) { self.classname = "func_weapon_grabbable"; self.weapon = %d;%s func_weapon_grabbable(); }'
                   % (n, wid, flags))
