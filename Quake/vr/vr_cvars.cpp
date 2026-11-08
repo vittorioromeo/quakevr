@@ -148,7 +148,8 @@ const DefaultChange defaultChanges[] = {
     // 142: one throw for props and weapons (2026-10-16, R2 review #13; ROUND22.md, "One throw for props and weapons"):
     // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
     // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set
-    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
+    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones (the
+    // window is a tuning constant now, vr_throw_2h_window: its old name is retired, an old line ignored).
     {142, &vr_throw_inherit, "1"},                  // 0.9
     // 143: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
     // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
@@ -1035,6 +1036,8 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-10-16: the props' two-handed throw window, now the tuning constant vr_throw_2h_window (0.2; no cvar to alias)
+    "vr_carry_two_hands_window",
     // 2026-11-08: split into _along and _across (and a rocket kind)
     "vr_proj_inherit_fast",
     "vr_proj_inherit_lobbed",
@@ -1337,7 +1340,8 @@ constexpr CvarAlias cvarAliases[] = {
     {"vr_slipgate_surface_opacity", "vr_teleporter_surface_opacity"},
     {"vr_slipgate_surface_fade", "vr_teleporter_surface_fade"},
     // 2026-10-16: one throw for props and weapons (config 142; ROUND22.md, "One throw for props and weapons").
-    {"vr_carry_two_hands_window", "vr_throw_2h_window"},
+    // (vr_carry_two_hands_window's new home, vr_throw_2h_window, is a tuning constant, not a cvar: an alias to it found
+    // nothing and an old config's line printed "Unknown command"; the old name is in retiredCvars now.)
     {"vr_carry_throw_inherit", "vr_throw_inherit"},
 };
 
