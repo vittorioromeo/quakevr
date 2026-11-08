@@ -45,7 +45,8 @@ namespace
 // FROZEN at 218: configs are sparse since (VR_ConfigSaves: a vr_ setting's line only when it differs from its default),
 // so a changed default reaches every player who left the setting alone with no row. These rows stay for the configs
 // written before 218; a new row only to override a player's own choice on purpose (CODE_STYLE.md, "Settings and the
-// config").
+// config"). The rows up to 126 (1.0.1's version: 123 the loading notice, 125 the knocked body's launch, 126 his 1.0.1
+// values) were dropped with the cut at 1.0.1 (2026-11-08): an older config is reset (oldestMigrated).
 struct DefaultChange
 {
     int version;
@@ -54,26 +55,6 @@ struct DefaultChange
 };
 
 const DefaultChange defaultChanges[] = {
-    // 123: the "Loading..." notice back on (1.0.1: its campaign-switch crash found and fixed, ROUND21.md, "The
-    // Loading... crash, root cause"): a 1.0.0 config (122) at 1.0.0's 0 takes it.
-    {123, &vr_loading_notice, "0"},
-    // 124: the author's judo throw (1.0.1, his config of 2026-10-11: "I've tweaked the judo throw values a little bit
-    // to make them feel even better"): launched further along the throw and less up, toppled slower, the feet swept
-    // back slower, the grunt a little louder. A config at the old defaults takes them.
-    // 125: the knocked body's launch 1 -> 1.3 (the author, 2026-10-11, with 124's judo throw values: every shove and
-    // throw launches further). A config at the old 1 takes it.
-    {125, &vr_knockdown_push, "1"},
-    // 126: the author's values after his 1.0.1 test (his config of 2026-10-11 15:29: "I tweaked some values, please make
-    // them the new defaults"; ROUND22.md, "The author's 1.0.1 values are the defaults"): the flashlight's head zones
-    // further forward, lower and wider, its belt clip a little forward, a slightly softer flick; Doom's CRT look
-    // stronger; the comfort vignette a little lighter. A config at the old defaults takes them.
-    {126, &vr_flashlight_head_zone_forward, "0.05"}, // 0.07 (vr_defaults.cfg)
-    {126, &vr_flashlight_head_zone_up, "0.19"},      // 0.15 (vr_defaults.cfg)
-    {126, &vr_flashlight_head_zone_radius, "0.105"}, // 0.125 (vr_defaults.cfg)
-    {126, &vr_flashlight_forward, "0.02"},           // 0.025 (vr_defaults.cfg)
-    {126, &vr_flashlight_flick_speed, "800"},        // 750
-    {126, &vr_doom_crt, "1"},                        // 2
-    {126, &vr_comfort_vignette_strength, "0.6"},     // 0.5
     // 127: the guns in the shoulder holsters (on the back, the highest pair) not drawn: "Sometimes the holstered model
     // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
     // them drawn (1) takes it.
@@ -505,8 +486,9 @@ RetiredPackFit retiredPackFits[] = {
     {"vr_worn_backpack_yaw", vr_worn_backpack_grunt_yaw, vr_worn_backpack_knight_yaw, vr_worn_backpack_dknight_yaw, 0.f, false, 0.f},
     {"vr_worn_backpack_roll", vr_worn_backpack_grunt_roll, vr_worn_backpack_knight_roll, vr_worn_backpack_dknight_roll, 0.f, false, 0.f},
 };
-// 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
-constexpr int oldestMigrated = 122;
+// 1.0.1's version (the author's decision of 2026-11-08: migration cut at 1.0.1): an older config is reset
+// (resetOldConfig), not migrated; its changes' rows were dropped (122 was the cut until then, 1.0.0's).
+constexpr int oldestMigrated = 126;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -676,8 +658,8 @@ void trackConfig(const char* path)
 void migrateConfig();
 [[nodiscard]] bool personal(const cvar_t* var);
 
-// A config older than 1.0.0 (vr_cfg_version < 122; the author's decision of 2026-10-16: "ignore compatibility with any
-// pre-1.0.0 configs"): its Quake VR settings go back to the shipped defaults instead of being migrated, except the
+// A config older than 1.0.1 (vr_cfg_version < 126; the author's decisions of 2026-10-16, "ignore compatibility with any
+// pre-1.0.0 configs", and of 2026-11-08, the cut moved to 1.0.1): its Quake VR settings go back to the shipped defaults instead of being migrated, except the
 // per-player ones (personal: the body measured, the runtime, the tips seen...). The weapons' and the held objects'
 // settings are vr_ settings too: their versions become today's. The engine's own settings (r_*, gl_*...) are kept.
 void resetOldConfig(int from)
@@ -693,7 +675,7 @@ void resetOldConfig(int from)
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
     Cvar_SetQuick(&vr_props_version, vr_props_version.default_string);
     weapons::markCurrent();
-    Con_Printf("Quake VR: this config is older than 1.0.0 (version %d): its VR settings are reset to the defaults\n", from);
+    Con_Printf("Quake VR: this config is older than 1.0.1 (version %d): its VR settings are reset to the defaults\n", from);
 }
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
@@ -1033,7 +1015,8 @@ void registerCvars()
 // Host_WriteConfigurationToFile, before the game folder's config is written over: the settings another copy of the
 // game changed in it since this copy read or wrote it, and this copy left alone, are taken (configTrack).
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
-// "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
+// "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out. Names gone
+// before 1.0.1 (in its own list; no 1.0.1 config has them) went with the migration's cut at 1.0.1 (2026-11-08).
 constexpr const char* retiredCvars[] = {
     // 2026-11-08: split into _along and _across (and a rocket kind)
     "vr_proj_inherit_fast",
@@ -1164,16 +1147,6 @@ constexpr const char* retiredCvars[] = {
     // 2026-10-27: the enforcer's pistols in one hand, now the Weapon Holds' Auto (vr_agrunt_hold_enforcer_*; its default
     // 1 was Auto's, it was never in his config; ROUND22.md, "Armed humanoids' weapon holds").
     "vr_agrunt_enforcer_one_hand",
-    "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
-    "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
-    "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")
-    // 2026-10-09: vr_knockdown_shove_travel, _topple_angle, _topple_time, _feet_lag, _max_spin (ROUND21.md, "A shove's
-    // knockdown: travel and a quarter turn").
-    "vr_knockdown_shove_topple",
-    "vr_knockdown_shove_topple_push",
-    "vr_knockdown_shove_feet_speed",
-    "vr_knockdown_shove_feet_hold",
-    "vr_hub_map", // 2026-10-09: the hub is vrstart, the only one (the old hub, vrstart_old, removed)
     // 2026-10-15: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's
     // tempo only"); its switch and the older rules' settings.
     "vr_throw_slowmo_stroke",
@@ -1322,20 +1295,14 @@ constexpr const char* retiredCvars[] = {
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
 // an old config's lines set the new settings as it is executed (the next config write has the new names), as do
-// binds, scripts and benchmark setups. Never listed, completed or written. The teleporters were "slipgates" until
-// 2026-10-08 (in Quake the slipgate is id's machine; ROUND21.md, "Teleporters, not slipgates").
+// binds, scripts and benchmark setups. Never listed, completed or written. (The vr_slipgate* names, renamed to
+// vr_teleporter* on 2026-10-08, before 1.0.0, went with the cut at 1.0.1: no 1.0.1 config has them.)
 struct CvarAlias
 {
     const char* old;
     const char* now;
 };
 constexpr CvarAlias cvarAliases[] = {
-    {"vr_slipgates", "vr_teleporters"},
-    {"vr_slipgate_pair_exits", "vr_teleporter_pair_exits"},
-    {"vr_slipgate_self_head", "vr_teleporter_self_head"},
-    {"vr_slipgate_surface_size", "vr_teleporter_surface_size"},
-    {"vr_slipgate_surface_opacity", "vr_teleporter_surface_opacity"},
-    {"vr_slipgate_surface_fade", "vr_teleporter_surface_fade"},
     // 2026-10-16: one throw for props and weapons (config 142; ROUND22.md, "One throw for props and weapons").
     {"vr_carry_two_hands_window", "vr_throw_2h_window"},
     {"vr_carry_throw_inherit", "vr_throw_inherit"},
