@@ -4662,6 +4662,53 @@ resizing it.
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
 
+## Water drips off wet things; wounded enemies drip blood (branch `agent/blendmodels`, 2026-11-08)
+
+His words: water droplets like blood droplets from wet entities, fewer as they dry, only once out of the water,
+tunable, reusing the blood drip logic; and (extra) wounded enemies drip blood too.
+
+- **What existed:** blood drips from ceilings and hanging gibs (vr_gore.cpp `Source`/`fall`/`Landing`), from your own
+  wounded arms (vr_bodyblood.cpp, flung by a swing), and a water drip in vr_wounds.cpp (`drips`: masked monsters and
+  your hands, grey drops with no landing, dripping while still in the water). Wounded living monsters dripped nothing
+  (only bullet-hole streams for a moment: vr_bloodstream.cpp).
+- **Shared drip source:** gore's `fall` and its landings take a liquid (`gore::dropFrom(liquid, p, size, rgba,
+  markChance)`; 0 blood, 1 water, 2 slime). Blood lands as before (specks, a mark, the gore's drip sound); water and
+  slime land in `drips::landed` (2-3 specks in the drop's colour, `vr_drips_splash`; a soft drip, no decal), and a
+  drop falling into a liquid makes a small ripple at its surface. `particles::bloodDrip`/`bloodSpecks` take an alpha
+  (default 1: blood unchanged). New goresound kind `WaterDrip` (the drip wavs, its own volume `vr_drips_volume`,
+  rate-limited by `vr_drips_sound_gap`, heard with the gore off).
+- **vr_drips.cpp (new):** a wetness 0..1 per thing: every alias model the client has (monsters, corpses, gibs, props,
+  dropped weapons; ten times a second, its box's bottom in water/slime: point contents incl. func_water), and your
+  body (feet to eyes), hands, held weapons (handle to muzzle) and holstered weapons each frame. In the liquid: 1, the
+  waterline found by bisection and kept relative to the thing's bottom (a half-submerged thing drips under it, and
+  carries it out). Out of it (0.3 s grace): dries in `vr_wounds_wet_time` (the wet coat's: they agree), faster
+  moving (`vr_drips_dry_motion`); drips `vr_drips_rate * wet^vr_drips_curve` a second (monsters by their height, your
+  own times `vr_drips_view`), from downward triangles under the waterline (`wounds::dripPoint`: the old wounds code,
+  moved), a gun's barrel towards the muzzle, a hand, the body's legs/hem (none within 0.5 m under the eyes). A swung
+  wet hand or weapon over 2.2 m/s throws drops (`vr_drips_fling`, as bodyblood flings blood). Lava dries at once;
+  nothing drips in or under a liquid. Only drawn things within 1536 units drip; everything shares `vr_drips_max`
+  drops a frame, round robin. The old `wounds::drips` is gone (the coat and `handWetLeft` stay).
+- **Wounded enemies:** `drips::onWound` (from the wound events, vr_wounds_net.cpp; not the clean dummy's) keeps the
+  last four hit points of a living monster in its yaw frame; it drips `vr_drips_blood_rate * (lost health share +
+  burst)` (the health from the local server's edict, the start its health before the first hit; a hit adds
+  `vr_drips_blood_hit * damage / 20`, fading in 1.5 s), from those points, blood marks with `vr_drips_blood_marks`.
+  Forgotten when dead (the gore's pools take over) or healed. Off with `vr_gore 0`.
+- **Settings:** `vr_drips 1` (Water Drips, Graphics > Particles), `vr_gore_wound_drips 1` (Wounded Enemies Drip,
+  Gore, by Dripping). Tunables (Debug > Tunables > Particles > Water Drips): `vr_drips_rate 3`, `_curve 2`,
+  `_dry_motion 1`, `_size 0.3`, `_color "0.62 0.74 0.88"`, `_slime_color "0.32 0.55 0.1"`, `_alpha 0.6`, `_splash 1`,
+  `_volume 0.3`, `_sound_gap 0.2`, `_max 8`, `_view 0.4`, `_fling 1`, `_blood_rate 1.2`, `_blood_hit 1`,
+  `_blood_marks 0.25`. Debug: `vr_drips_debug` (Debug page), `vr_drips_soak` (Debug button: everything within 512
+  soaked), `vr_drips_info`.
+- **Test:** `vr_drips_test` (needs vrtesthall: `-Script "vr_scenario waterdrips;vr_drips_test" -QuitOn
+  "drips_test: [0-9]+ passed"`): a probe under the pool soaked with no drops; out, 22/10/2 drops in three 2 s windows
+  (test rate 12, dry time 6), dry at 6 s, none after; 20 wet things at the shipped rate: 9.5 us a frame average, 28 us
+  at most (low-impact run), 153 drops in 144 frames, at most 8 a frame (the cap); a gore blood drop still lands as
+  blood; the scenario's dry grunt hurt to 30% drips 12 blood drops in 3 s, none with `vr_gore 0`. 11 passed, 0 failed.
+- **Scenario:** `waterdrips` (vrtesthall pool, a grunt in it and one beside it, a shotgun); `SCNRUN|waterdrips|OK`.
+- **Not done:** no wet spots on the floor (every decal kind is blood; a fading water mark needs its own atlas cell
+  and colour): the splash specks stand in. Your arms' water drops are the drips module's point drops, not
+  bodyblood's hanging drops along the forearm. Screenshots were taken in a low-impact run (small eyes): the drops are
+  sub-pixel there; judge them in the headset.
 ## The Thunderbolt's plasma model renamed v_light_plasma.mdl (branch `agent/plasmarename`, 2026-11-08)
 
 His request: our plasma-ammo Thunderbolt was `progs/v_plasma.mdl`, Rogue's name, shadowing AD's Plasma Gun model.

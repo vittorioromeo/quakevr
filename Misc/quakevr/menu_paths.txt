@@ -354,6 +354,7 @@ vr_gore_spray|1|Gore|Blood Sprays|Advanced VR Options > Gore > Blood Sprays
 vr_gore_size|1|Gore|Splat Size|Advanced VR Options > Gore > Splat Size
 vr_gore_pools|1|Gore|Blood Pools|Advanced VR Options > Gore > Blood Pools
 vr_gore_drips|1|Gore|Dripping|Advanced VR Options > Gore > Dripping
+vr_gore_wound_drips|1|Gore|Wounded Enemies Drip|Advanced VR Options > Gore > Wounded Enemies Drip
 vr_gore_stick_thrown|1|Gore|Thrown Gibs Stick|Advanced VR Options > Gore > Thrown Gibs Stick
 vr_head_flies|1|Gore|Flies on Heads|Advanced VR Options > Gore > Flies on Heads
 vr_gib_speed_melee|2|Gore|Gib Speed: Melee|Advanced VR Options > Gore > Gib Speed: Melee
@@ -2394,6 +2395,7 @@ vr_explosion_particles|1|Particles|Large Fireballs per Explosion|Advanced VR Opt
 r_particles|1|Particles|Particle Effects|Advanced VR Options > Graphics > Particles > Particle Effects
 vr_particles|1|Particles|Quake VR Particles|Advanced VR Options > Graphics > Particles > Quake VR Particles
 vr_particle_mult|1|Particles|Particle Multiplier|Advanced VR Options > Graphics > Particles > Particle Multiplier
+vr_drips|1|Particles|Water Drips|Advanced VR Options > Graphics > Particles > Water Drips
 |1|Particles|Reset This Page|Advanced VR Options > Graphics > Particles > Reset This Page
 @page|1|Transparency||Advanced VR Options > Graphics > Transparency
 r_novis|1|Transparency|(!) No Vis|Advanced VR Options > Graphics > Transparency > (!) No Vis
@@ -4240,6 +4242,20 @@ vr_embed_arm_stretch_ease|2|Tunables|Hold: Arm Stretch Ease|Advanced VR Options 
 vr_embed_arm_letgo|2|Tunables|Hold: Let Go Past|Advanced VR Options > Debug > Tunables > Hold: Let Go Past
 vr_embed_handle_free|2|Tunables|Hold: Free Stuck Handles|Advanced VR Options > Debug > Tunables > Hold: Free Stuck Handles
 vr_embed_tether_far|2|Tunables|Tether: Dead Body|Advanced VR Options > Debug > Tunables > Tether: Dead Body
+vr_drips_rate|2|Tunables|Water Drips: Rate|Advanced VR Options > Debug > Tunables > Water Drips: Rate
+vr_drips_curve|2|Tunables|Water Drips: Curve|Advanced VR Options > Debug > Tunables > Water Drips: Curve
+vr_drips_dry_motion|2|Tunables|Water Drips: Moving Dries|Advanced VR Options > Debug > Tunables > Water Drips: Moving Dries
+vr_drips_size|2|Tunables|Water Drips: Size|Advanced VR Options > Debug > Tunables > Water Drips: Size
+vr_drips_alpha|2|Tunables|Water Drips: Opacity|Advanced VR Options > Debug > Tunables > Water Drips: Opacity
+vr_drips_splash|2|Tunables|Water Drips: Splashes|Advanced VR Options > Debug > Tunables > Water Drips: Splashes
+vr_drips_volume|2|Tunables|Water Drips: Volume|Advanced VR Options > Debug > Tunables > Water Drips: Volume
+vr_drips_sound_gap|2|Tunables|Water Drips: Sound Gap|Advanced VR Options > Debug > Tunables > Water Drips: Sound Gap
+vr_drips_max|2|Tunables|Water Drips: Most a Frame|Advanced VR Options > Debug > Tunables > Water Drips: Most a Frame
+vr_drips_view|2|Tunables|Water Drips: Your Own|Advanced VR Options > Debug > Tunables > Water Drips: Your Own
+vr_drips_fling|2|Tunables|Water Drips: Swing Throws|Advanced VR Options > Debug > Tunables > Water Drips: Swing Throws
+vr_drips_blood_rate|2|Tunables|Wounded Drips: Rate|Advanced VR Options > Debug > Tunables > Wounded Drips: Rate
+vr_drips_blood_hit|2|Tunables|Wounded Drips: After a Hit|Advanced VR Options > Debug > Tunables > Wounded Drips: After a Hit
+vr_drips_blood_marks|2|Tunables|Wounded Drips: Marks|Advanced VR Options > Debug > Tunables > Wounded Drips: Marks
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4421,6 +4437,8 @@ vr_debug_buttons|2|Debug - Logging|Controller Buttons|Advanced VR Options > Debu
 |2|Debug - Logging|Restore Controller Bindings|Advanced VR Options > Debug > Logging > Restore Controller Bindings
 vr_foreign_configs|2|Debug - Logging|Other Ports' Startup Configs|Advanced VR Options > Debug > Logging > Other Ports' Startup Configs
 vr_wounds_debug|2|Debug - Logging|Wounds|Advanced VR Options > Debug > Logging > Wounds
+vr_drips_debug|2|Debug - Logging|Water Drips|Advanced VR Options > Debug > Logging > Water Drips
+|2|Debug - Logging|Water Drips: Soak Everything Near|Advanced VR Options > Debug > Logging > Water Drips: Soak Everything Near
 vr_debug_grasp|2|Debug - Logging|Grasp|Advanced VR Options > Debug > Logging > Grasp
 vr_debug_collect_fx|2|Debug - Logging|Put-Away Transition|Advanced VR Options > Debug > Logging > Put-Away Transition
 |2|Debug - Logging|Check Last Pose|Advanced VR Options > Debug > Logging > Check Last Pose

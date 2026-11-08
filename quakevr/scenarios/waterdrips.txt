@@ -1,0 +1,9 @@
+# waterdrips: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Water drips: the vrtesthall pool, a grunt in it and one beside it, a shotgun
+map vrtesthall
+start 150 -264 40 0
+god
+give "Shotgun" main
+spawn "Grunt" 120 0
+spawn "Grunt" 20 90
+hint Wade into the pool with the shotgun held under, then climb out: your hands, gun and body drip, fast at first, tapering off over about half a minute. The grunt in the pool drips once out; shoot the dry one: it drips blood from its wounds while hurt.
