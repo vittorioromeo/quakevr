@@ -103,7 +103,7 @@ void PF_ragdollstagger()
         return;
     }
     // (`sure` 3, QC VR_Knockdown_GetUpShove: a shove on one rising through its get-up, box3d::ragdollRiseShove: `push` the
-    // shove's, `balance` the push under which one nearly up takes a balance step, `reach` how upright that is. 0: not
+    // shove's, `balance` the push under which one nearly up takes a balance step, `reach` how far through its get-up (0..1) that is. 0: not
     // rising; 1 back down, falling; 2 a balance step, a stagger.)
     if(qcvm->argc > 6 && G_FLOAT(OFS_PARM6) == 3.f)
     {

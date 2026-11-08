@@ -526,10 +526,19 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             // Its legs up onto the top (one leading, by its seed; the other as it goes in), drawn in after its pelvis (their
             // thighs not caught on the lip).
             const int leadLeg = roll(e.seed, 53u) < 0.5f ? 2 : 3;
+            const bool scrabble = !k.released && vr_ragdoll_active_hang_kick.value > 0.f;
+            if(scrabble)
+            {
+                hangStruggle(s, p, c, L, 0.5f); // (its feet scrabbling at the wall until they reach up for the top)
+            }
             for(int leg = 2; leg < 4; leg++)
             {
                 Reach& r = s.reach[static_cast<za::SizeT>(leg)];
                 const float w = leg == leadLeg ? smooth01((k.prog - 0.4f) / 0.6f) : u2;
+                if(scrabble && w < 0.3f)
+                {
+                    continue; // (not reaching up for the top yet: still scrabbling)
+                }
                 r.goal = k.lip + wall * ((0.15f + 0.5f * u2) * L) + up * (0.1f * L);
                 r.weight = limbWhole(s, p, leg) ? 0.8f * w : 0.f;
                 r.strength = 0.8f;

@@ -975,7 +975,7 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 // you keep shoving an enemy as they're getting back up, they should still always be shoved. They're very vulnerable in
 // that state"): vr_knockdown_getup_shove on, it always lands. Its body rising (vr_ragdoll_active_getup): back down as an
 // active ragdoll falling along the shove, or, a weaker shove (under vr_knockdown_getup_shove_step) on one nearly up (its
-// chest past vr_knockdown_getup_shove_upright), a balance step: a stagger along the shove, more likely to go over the more
+// get-up past vr_knockdown_getup_shove_late), a balance step: a stagger along the shove, more likely to go over the more
 // bent over it is. Rising the old way (its get-up's frames, .vr_knockdown 2): knocked down again, toppled along the shove.
 // Down again, its down time begins anew. TRUE if it did (VR_Bash_Hit then skips the knockdown's chance).
 float vr_kd_getup_shoves; // shoves on ones getting up that landed (the tests)
@@ -992,7 +992,7 @@ float(entity e, vector xForward, float xPush) VR_Knockdown_GetUpShove =
     {
         // (ragdollstagger's `sure` 3: the rise shove, box3d::ragdollRiseShove; the builtins' table is full.)
         how = ragdollstagger(e, xForward, xPush, max(0, cvar_hget(cvarh_vr_knockdown_getup_shove_step)),
-            cvar_hget(cvarh_vr_knockdown_getup_shove_upright), 0, 3);
+            cvar_hget(cvarh_vr_knockdown_getup_shove_late), 0, 3);
         if(how == 2)
         {
             e.vr_kd_stagger = 1;

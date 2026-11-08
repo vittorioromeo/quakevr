@@ -813,7 +813,7 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     return true;
 }
 
-int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepBelow, float uprightMin)
+int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepBelow, float lateFrom)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp || !rp->rig || !rp->active.on || !rp->active.rise.on || !activeLiving(ent))
@@ -831,20 +831,28 @@ int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepB
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0]));
     const glm::vec3 head = glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(r.rig->head)]));
     const float upright = glm::length(head - pelvis) > 1e-4f ? glm::normalize(head - pelvis).z : 0.f;
+    // How far through its get-up it is (its clip from the prep's end to its end): a grunt's chest stays low until the last
+    // moments (pelvis to head 0.34 upright 1.8 s into its rise), so the step is reached by the rise's progress, its
+    // balance lessened the earlier and the more bent over it is.
+    const ragactive::State& a = r.active;
+    const double from = a.clip.t0 + static_cast<double>(a.rise.prep);
+    const float done =
+        a.rise.done ? 1.f : za::clamp(static_cast<float>((qcvm->time - from) / za::max(a.rise.end - from, 0.05)), 0.f, 1.f);
     r.riseAsked = false; // (not a lapse: the QC's down time begins anew)
     r.riseStuck = -1.0;
-    const float most = za::clamp(uprightMin, 0.f, 0.99f);
-    if(stepBelow > 0.f && push < stepBelow && upright >= most && ragdollCanStagger(ent))
+    const float late = za::clamp(lateFrom, 0.f, 0.99f);
+    if(stepBelow > 0.f && push < stepBelow && done >= late && ragdollCanStagger(ent))
     {
-        // A balance step: a stagger along the shove (its feet stepping after its pelvis, back or aside as it was turned),
-        // its balance the less the more bent over it is (it may still go over).
-        const float balance = 0.8f * za::clamp((upright - most) / za::max(1.f - most, 0.01f), 0.f, 1.f);
+        // A balance step: a stagger along the shove (its feet stepping after its pelvis, back or aside as it was turned).
+        // It may still go over.
+        const float balance = 0.8f * za::clamp((done - late) / za::max(1.f - late, 0.01f), 0.25f, 1.f) *
+                              (0.5f + 0.5f * za::clamp(upright, 0.f, 1.f));
         if(ragdollStagger(ent, d, push, balance, 24.f * za::max(push, 0.3f), -1.f, false, 1.f))
         {
             if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
             {
-                Con_Printf("getup: %d shoved rising (push %.2f, upright %.2f): a balance step (balance %.2f)\n", r.num, push,
-                    upright, balance);
+                Con_Printf("getup: %d shoved rising (push %.2f, %.0f%% up, upright %.2f): a balance step (balance %.2f)\n",
+                    r.num, push, done * 100.f, upright, balance);
             }
             return 2;
         }
@@ -866,7 +874,8 @@ int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepB
     }
     if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
     {
-        Con_Printf("getup: %d shoved rising (push %.2f, upright %.2f): back down, falling\n", r.num, push, upright);
+        Con_Printf("getup: %d shoved rising (push %.2f, %.0f%% up, upright %.2f): back down, falling\n", r.num, push,
+            done * 100.f, upright);
     }
     return 1;
 }

@@ -320,7 +320,9 @@ void(entity p) VR_R18_ShoveFrame =
     entity g = vr_r18_a;
     if(vr_r18_frames > 1440)
     {
-        VR_Test_Check(FALSE, sprintf("timed out in state %g", vr_r18_state));
+        entity tb = vr_r18_state >= 45 ? vr_r18_b : vr_r18_a;
+        VR_Test_Check(FALSE, sprintf("timed out in state %g (knockdown %g, rise %g, ragdoll %g, health %g, until %.1f now %.1f)",
+            vr_r18_state, tb.vr_knockdown, tb.vr_kd_rise, isragdoll(tb), tb.health, tb.vr_kd_until, time));
         vr_r18_state = 49;
     }
     if(vr_r18_state == 40 && vr_r18_frames >= 3)
