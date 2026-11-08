@@ -459,7 +459,10 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 2h_fgr_open, 2h_fgr_thumb, 2h_blade, length, 2h_fxd_mh_ox/_oy/_oz: round 21's fitted hands, vr_grasp.cpp) are out of
 // the store; their stand-ins are gone, so an old config's lines for them are dropped by VR_RetiredCvar (weapons::
 // removedKeyLine) rather than printed as unknown commands. Nothing to convert: nothing read their values.
-constexpr int configVersion = 222;
+// 223: vr_prone_crawl_plant_height's meaning changed (the controller's place over the feet, a pull on under twice it ->
+// the hand's lowest point, the knuckles or fingers, a pull on 1.5 over it): whatever was saved goes back to the default
+// (his 4 of 2026-11-08 too: "I can sort of swim in the air", his note vrtesthall_2026-11-08_16-54-47).
+constexpr int configVersion = 223;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -886,6 +889,12 @@ void migrateConfig()
                 Con_DPrintf("VR: %s %g on each kind's pack fit\n", r.name, r.value);
             }
         }
+    }
+    if(from < 223)
+    {
+        Con_DPrintf("VR: vr_prone_crawl_plant_height: %s for %s (its meaning changed)\n",
+            vr_prone_crawl_plant_height.default_string, vr_prone_crawl_plant_height.string);
+        Cvar_SetQuick(&vr_prone_crawl_plant_height, vr_prone_crawl_plant_height.default_string);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

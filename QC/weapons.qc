@@ -440,6 +440,11 @@ float PositionalPointRegion(entity xTarget, vector rest, float part) =
 // the angle, rather than by pushing the entry point a fixed depth into the box.
 float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
 {
+    // VR: your own shot into your own head (vr_selfshot.qc): a headshot.
+    if(cvar_hget(cvarh_vr_positional_damage) != 0 && VR_SelfShot_Head(xTarget, xEndpos))
+    {
+        return VR_REGION_HEAD;
+    }
     // A monster's head thrown off (vr_gib) keeps its classname, not its head.
     if(cvar_hget(cvarh_vr_positional_damage) == 0 || (xTarget.vr_gib && !(xTarget.flags & FL_CLIENT)) ||
        !PositionalHead(xTarget))

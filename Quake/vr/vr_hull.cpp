@@ -3293,20 +3293,23 @@ float proneHeight(const qmodel_t* world)
     return za::clamp(vr_prone_height.value, lowestBoxHeight, za::max(lowestBoxHeight, levels[0] - 4.f));
 }
 
-// The eyes' height over the feet under which he lies down: vr_prone_eye, 8 up to the lowest crouched box's top less 2
-// (not the lying box's: lower than the eyes of a body propped on its elbows, it would ask him to lie flatter than that).
+// The eyes' height over the feet under which he lies down: vr_prone_eye, 8 up to the tallest crouched box's top less 4
+// (48 at the defaults: on all fours, nearly kneeling; never at a standing player's eyes). Not the lying box's top: lower
+// than the eyes of a body propped on its elbows, it would ask him to lie flatter than that. (Until 2026-11-08 the lowest
+// crouched box's top less 2, 34: his 22 was still too low, his note vrtesthall_2026-11-08_16-58-24. Over the lowest
+// crouched box's top, getting up still needs that box to fit; his eyes then over it, the crouch rises on from there
+// as from any crouched box.)
 float proneEyeLimit(const qmodel_t* world)
 {
-    float levels[maxCrouchLevels];
-    crouchLevels(world, levels);
-    return za::clamp(vr_prone_eye.value, 8.f, levels[0] - 2.f);
+    // (the tallest crouched box's top whatever vr_crouch_step: crouchLevels' most)
+    return za::clamp(vr_prone_eye.value, 8.f, za::max(8.f, hull1Height(world) - 8.f));
 }
 
-// The eyes' height over the feet he asks to get up at: crouchStandMargin over the lying box's top or the lying limit,
-// the higher.
+// The eyes' height over the feet he asks to get up at: vr_prone_rise_margin (2 at least: crouchStandMargin) over the
+// lying box's top or the lying limit, the higher: a hysteresis, wider for a high limit his head bobs round.
 float proneRiseEye(const qmodel_t* world)
 {
-    return za::max(proneHeight(world), proneEyeLimit(world)) + crouchStandMargin;
+    return za::max(proneHeight(world), proneEyeLimit(world)) + za::clamp(vr_prone_rise_margin.value, crouchStandMargin, 16.f);
 }
 
 // The client's box's height: lying down's (its own slot), else the crouched one's (0: standing).

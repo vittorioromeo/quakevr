@@ -497,8 +497,8 @@ QVR_TUNABLE(vr_knockdown_ledge_backpedal_past, "32") // units: ... this far on o
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_vary, "0.2") // its first speed and how far it goes, each times 1 plus or minus up to this, by chance
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_carry, "2") // how far it goes at least, times the way to past the edge (its speed slows evenly to none over it: more goes over the edge faster), times up to the vary's more
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_balance, "0.7") // its balance, from this to 1 by chance (its torso's tone: how it flails going back; under about this it sags too far to keep going)
-QVR_TUNABLE(vr_knockdown_ledge_topple, "32") // units: a shove with a ledge this near ahead of its middle topples it over at once (the old launch); further, up to vr_knockdown_ledge_backpedal_reach, it backpedals (his note, 2026-11-05)
-QVR_TUNABLE(vr_knockdown_ledge_backpedal_reach, "80") // units: ... with a ledge further than this ahead of its middle, the shove is an ordinary one (no ledge)
+QVR_TUNABLE(vr_knockdown_ledge_topple, "56") // units: a shove with a ledge this near ahead of its middle topples it over at once (the old launch); further, up to vr_knockdown_ledge_backpedal_reach, it backpedals (his note, 2026-11-05)
+QVR_TUNABLE(vr_knockdown_ledge_backpedal_reach, "92") // units: ... with a ledge further than this ahead of its middle, the shove is an ordinary one (no ledge)
 QVR_TUNABLE(vr_knockdown_ledge_backpedal_yaw, "6") // degrees: its way off the shove's, up to this either way, by chance
 QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
 QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
@@ -766,10 +766,11 @@ QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
 QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
 QVR_TUNABLE(vr_gunfx_wisp_pixels, "1.5") // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
-QVR_TUNABLE(vr_smoke_blow_threshold, "0.06") // blowing on smoke: the microphone's level (RMS, 0..1) that counts as a blow
-QVR_TUNABLE(vr_smoke_blow_hold, "0.12") // ... seconds above it before it does
-QVR_TUNABLE(vr_smoke_blow_reach, "0.35") // ... metres from your mouth the smoke feels it (fading from half of this)
-QVR_TUNABLE(vr_smoke_blow_push, "4") // ... metres a second squared it pushes the smoke the way you face, at twice the threshold (half at the threshold)
+QVR_TUNABLE(vr_gunfx_wisp_near, "5") // cm from the eye within which the smoke wisps fade out (from a third of it; 0.5-30; 18 until 2026-11-08: a gun at your mouth hid its smoke)
+QVR_TUNABLE(vr_smoke_blow_threshold, "0.015") // blowing on smoke: the microphone's level (RMS, 0..1) that counts as a blow
+QVR_TUNABLE(vr_smoke_blow_hold, "0.06") // ... seconds above it before it does
+QVR_TUNABLE(vr_smoke_blow_reach, "0.375") // ... metres from your mouth the smoke feels it (fading from half of this)
+QVR_TUNABLE(vr_smoke_blow_push, "20") // ... metres a second squared it pushes the smoke the way you face, at twice the threshold (half at the threshold)
 QVR_TUNABLE(vr_smoke_blow_fade, "2") // ... extra seconds the smoke ages each second, likewise
 
 // Weapons > Weapon Offsets - Flashlight
@@ -940,9 +941,9 @@ QVR_TUNABLE(vr_agrunt_parry_count, "2") // its stamina: the parry that spends it
 QVR_TUNABLE(vr_agrunt_parry_recover, "0.35") // stamina it recovers a second
 QVR_TUNABLE(vr_agrunt_seek_timeout, "6") // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_TUNABLE(vr_agrunt_seek_shun, "20") // s it leaves a weapon it gave up on before trying it again
-QVR_TUNABLE(vr_agrunt_second_range, "128") // units: with Pick Up a Second, out of a fight it goes for a second weapon only this near (its own lost one: vr_agrunt_rearm_range)
-QVR_TUNABLE(vr_agrunt_second_time, "3") // s: ... and only if the trip (walk and reaching down) is estimated at no more than this, and it gives up on it past this
-QVR_TUNABLE(vr_agrunt_second_combat_range, "56") // units: with a target in sight it goes for a second weapon only this near (and only one in the target's sight, so it keeps shooting)
+QVR_TUNABLE(vr_agrunt_second_range, "192") // units: with Pick Up a Second, out of a fight it goes for a second weapon only this near (its own lost one: vr_agrunt_rearm_range)
+QVR_TUNABLE(vr_agrunt_second_time, "3.5") // s: ... and only if the trip (walk and reaching down) is estimated at no more than this, and it gives up on it past this
+QVR_TUNABLE(vr_agrunt_second_combat_range, "64") // units: with a target in sight it goes for a second weapon only this near (and only one in the target's sight, so it keeps shooting)
 QVR_TUNABLE(vr_agrunt_second_combat_time, "1") // s: ... and only if the trip is estimated at no more than this (its downtime not firing); it gives up on it past this
 QVR_TUNABLE(vr_agrunt_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
@@ -1333,7 +1334,7 @@ QVR_TUNABLE(vr_legsweep_feet, "0.5") // its feet slide along the sweep at this s
 QVR_TUNABLE(vr_legsweep_align, "45") // degrees: a sweep within this of its own facing's axes (forward, back, its sides) falls straight along that axis (from its side: forward or backward, as the swing goes); 0: as swept
 QVR_TUNABLE(vr_legsweep_legs, "0.5") // s: swept (or its legs pulled) to fall backward, its legs stay straight this long (its knees do not fold under it, its feet stay where they slid); 0: they give at once
 QVR_TUNABLE(vr_knockdown_ledge_drop, "16") // how high (units) a drop must be to count as a ledge (stairs and steps do not)
-QVR_TUNABLE(vr_knockdown_ledge_reach, "1.25") // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)
+QVR_TUNABLE(vr_knockdown_ledge_reach, "0.5") // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)
 QVR_TUNABLE(vr_knockdown_ledge_margin, "24") // units past that travel (times vr_knockdown_ledge_reach) where a ledge still counts
 QVR_TUNABLE(vr_knockdown_wiggle_pause, "0.5") // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
 
@@ -1812,7 +1813,7 @@ QVR_TUNABLE(vr_gore_sound_vol_drip, "0.35") // drops of blood hitting the floor:
 
 // Graphics > Models and Effects > Light Grid (vr_ambient.cpp, "The light grid")
 QVR_TUNABLE(vr_model_light_grid_intensity, "1") // the probes' light on models and what's drawn beside them, times this
-QVR_TUNABLE(vr_model_light_grid_cell, "48") // the probes' spacing, in world units (16..256; a change builds the map's grid again; a huge map's doubles until it fits)
+QVR_TUNABLE(vr_model_light_grid_cell, "32") // the probes' spacing, in world units (16..256; a change builds the map's grid again; a huge map's doubles until it fits)
 QVR_TUNABLE(vr_model_light_grid_near, "64") // each surface's say over a probe is over its distance + this: less, the nearest surfaces count more (a change builds the map's grid again)
 QVR_TUNABLE(vr_model_light_grid_mix, "0.5") // 0: only the map's lights' directional shading on models, 0.5: half of it under the light around them, 1: only the light around them
 QVR_TUNABLE(vr_model_light_lava, "1") // how much lava lights models and what's drawn beside them, in its colour (0: none)
@@ -1832,7 +1833,7 @@ QVR_TUNABLE(vr_flat_gun_out_crouch, "-2") // Gun Out at a level look crouched (-
 QVR_TUNABLE(vr_flat_gun_down_crouch, "-5") // Gun Down crouched (-30..30; positive is lower): vr_flat_gun_down's place while crouched, blended in by how deep the crouch is, as vr_flat_gun_out_crouch is
 QVR_TUNABLE(vr_flat_gun_ahead_crouch, "16.5") // Gun Forward crouched (-30..30): vr_flat_gun_ahead's place while crouched, blended in the same way
 QVR_TUNABLE(vr_flat_gun_out_prone, "1") // Gun Out lying down (vr_flat_key_prone), at a level look, by how far down he is; looking down or up goes from it to vr_flat_gun_out_prone_down / _up (-30..30)
-QVR_TUNABLE(vr_flat_gun_down_prone, "2") // Gun Down lying down, at a level look, taking over from the standing or crouched one by how far down he is (-30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_down_prone, "6") // Gun Down lying down, at a level look, taking over from the standing or crouched one by how far down he is (-30..30; positive is lower)
 QVR_TUNABLE(vr_flat_gun_ahead_prone, "16.5") // Gun Forward lying down, at a level look, the same way (-30..30)
 QVR_TUNABLE(vr_flat_gun_out_prone_down, "-4") // Gun Out lying down, looking straight down (-30..30): from vr_flat_gun_out_prone along the same smooth curve as vr_flat_gun_out_down
 QVR_TUNABLE(vr_flat_gun_out_prone_up, "-4") // Gun Out lying down, looking straight up (-30..30)
@@ -1879,9 +1880,9 @@ QVR_TUNABLE(vr_flat_stance_pistol, "1") // a pistol (a gun with a two-handed hot
 QVR_TUNABLE(vr_flat_sight_learn, "1") // a gun with no known sights (the AD Widowmaker, Plasma Gun, soldiers' rifles): a sight line learnt from its mesh, so the flat stance holds it in both hands and the ironsight works (0: those stay one-handed, no ironsight)
 QVR_TUNABLE(vr_flat_saw_autostart, "1") // flatscreen: the chainsaw's engine starts by itself with fuel in it, no ripcord (QC vr_chainsaw.qc; 0: the cord as in VR)
 QVR_TUNABLE(vr_flat_melee_two_hand, "1") // flatscreen: a melee weapon with a grip ahead of the hand (the chainsaw's front handle) is held there by the free hand too, even off to its side (0: only grips in line with the hand)
-QVR_TUNABLE(vr_flat_punch_aim, "1") // flatscreen: how much a punch's fist is thrown at what the crosshair is on (0: straight ahead from its side, kept near its own height, as before; 1: at it)
+QVR_TUNABLE(vr_flat_punch_aim, "0.7") // flatscreen: how much a punch's fist is thrown at what the crosshair is on (0: straight ahead from its side, kept near its own height, as before; 1: at it)
 QVR_TUNABLE(vr_flat_shove_aim, "1") // flatscreen: how much the shove's hand pushes towards what the crosshair is on (0: ahead and a little in, as before)
-QVR_TUNABLE(vr_flat_punch_aim_dist, "28") // the point on the crosshair's ray the punch and the shove go for: this far from the eye (units, 8..96)
+QVR_TUNABLE(vr_flat_punch_aim_dist, "96") // the point on the crosshair's ray the punch and the shove go for: this far from the eye (units, 8..96)
 QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
 QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
@@ -1969,20 +1970,20 @@ QVR_TUNABLE(vr_flat_crouch_time, "0.25") // Left Ctrl / +flatcrouch: the seconds
 QVR_TUNABLE(vr_flat_crouch_smooth, "1") // the crouch's ease: 1 starts and ends gently (smoothstep: the view, the body, the arms and the weapon all follow it), 0 at an even speed
 QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
 QVR_TUNABLE(vr_flat_slide_min, "220") // the slide (vr_flat_slide): the least speed along the floor (units/s) a crouch starts a slide at; slower, it is a plain crouch (a walk is 200, a run 320)
-QVR_TUNABLE(vr_flat_slide_boost, "60") // the slide: units/s added to his speed as it starts (never past vr_flat_slide_max)
-QVR_TUNABLE(vr_flat_slide_friction, "260") // the slide: units/s it loses each second on flat ground (a run's 380 slides about a second, 190 units)
+QVR_TUNABLE(vr_flat_slide_boost, "80") // the slide: units/s added to his speed as it starts (never past vr_flat_slide_max)
+QVR_TUNABLE(vr_flat_slide_friction, "180") // the slide: units/s it loses each second on flat ground (a run's 380 slides about a second, 190 units)
 QVR_TUNABLE(vr_flat_slide_slope, "900") // the slide: units/s gained each second down a slope, times the slope's sine (a 20 degree slope: 308, more than the friction: faster); up a slope the same is lost
 QVR_TUNABLE(vr_flat_slide_max, "560") // the slide: the most speed along the floor it reaches downhill (units/s)
 QVR_TUNABLE(vr_flat_slide_end, "130") // the slide: under this speed (units/s) it ends in a crouch
 QVR_TUNABLE(vr_flat_slide_cooldown, "0.5") // the slide: seconds after one ends before a crouch starts the next
-QVR_TUNABLE(vr_flat_slide_steer, "40") // the slide: degrees a second the move keys turn it (0: straight on)
+QVR_TUNABLE(vr_flat_slide_steer, "45") // the slide: degrees a second the move keys turn it (0: straight on)
 QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the crouch his eyes go down (units, 0..14)
 QVR_TUNABLE(vr_flat_slide_body_angle, "80") // the slide: the trunk leant back at most this many degrees from upright (vr_avatar_pitch.cpp): it leans back until the hips sit vr_flat_slide_hip_floor over the floor, the legs out in front along it (45 until his 80, 2026-11-08: then the lean itself, which floated the body)
 QVR_TUNABLE(vr_flat_slide_hip_floor, "4.5") // the slide: units the hips (the pelvis joint) sit over the floor, the buttocks on it: the trunk leans back about the neck until they are there (0..12)
 QVR_TUNABLE(vr_flat_slide_turn_smooth, "0.15") // the slide: seconds the hips and legs take to follow a change of the slide's way or of the view (95%; 0: at once, the old steps)
 QVR_TUNABLE(vr_flat_gun_ahead_slide, "0") // the held weapon in a slide: moved this far forward of its pose (units, -30..30), by the slide's share; vr_flat_gun_down_slide, vr_flat_gun_out_slide the same down and out
-QVR_TUNABLE(vr_flat_gun_down_slide, "0") // the held weapon in a slide: moved this far down (units, -30..30; positive is lower)
-QVR_TUNABLE(vr_flat_gun_out_slide, "0") // the held weapon in a slide: moved this far out at the holding hand's side (units, -30..30)
+QVR_TUNABLE(vr_flat_gun_down_slide, "6") // the held weapon in a slide: moved this far down (units, -30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_out_slide, "2") // the held weapon in a slide: moved this far out at the holding hand's side (units, -30..30)
 QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
 QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in front reach this share of their length from hip to foot, the foot on the floor (0.85..1; 1: dead straight, less bends the knees up)

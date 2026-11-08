@@ -4887,3 +4887,93 @@ camera moves; only R or the auto reload; a switch mid-reload breaks nothing.
 - **Tests.** `Misc/quakevr/flatreload_test.sh` (FLATREL_RESULT). Checklist scene `flat_reload`.
 - **Decisions.** R reloads both hands when dual wielding. A weapon switch loads the gun taken at once (as a pickup), no
   trip. The hip is the nearer of the two to the hand when the trip starts.
+## Player body: crawl, prone limit, self-shot head and pain, flashlight trigger, smoke near the eye (branch `agent/player1108`, 2026-11-08)
+
+His notes vrtesthall_2026-11-08_16-54-47, _16-56-44, _16-58-24, _17-29-05, vrstart_2026-11-08_17-00-44, _17-01-11,
+vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
+
+- **Arm crawl from the hand's real bottom** (`vr_physics_water.cpp` VR_AfterCrawlMove, crawlHandBottom): a hand's
+  height is the lowest point of its fist as the client posed it (held::fist's spheres, turned by the hand's angles: the
+  knuckles or fingers), not the controller's place. It starts a pull under `vr_prone_crawl_plant_height` (default
+  10 -> **1**; slider 0..12 in 0.25 steps), coming down under 1.5 more, goes on under 1.5 over it (was twice the
+  height each: 8 units of air at his 4). configVersion **223** resets a saved value (its meaning changed).
+- **Hand pose** (`vr_prone_crawl_hand`, Player Hitbox > Empty Hand Crawls When: **1 Closed** default, 2 Open, 0
+  Either): an empty hand (fists, nothing carried) pulls in that pose; closed = grip or trigger held. A hand holding a
+  weapon or a thing always pulls unless it fires. Measured cause of "only the open hand crawls": every firing hand was
+  out, and a closed empty fist holds the trigger (+offhandattack / +attack), so it never pulled; the grip never mattered.
+- **Any direction:** the body goes against the hand's motion along the floor (the 66-degree "back only" cone removed).
+- **Lying Down Below** (`vr_prone_eye`): limit 8 .. the tallest crouched box's top less 4 (hull height less 8: 48),
+  was the lowest crouched box's top less 2 (34); slider 8..48. Default 18 -> **22** (his). Getting up at the limit (or
+  the lying box's top) plus **`vr_prone_rise_margin`** (new, default 2, slider 2..16: Getting Up Margin). Over the
+  lowest crouched box's top, getting up still needs that box to fit; the crouch rises on from there.
+- **Sliders widened:** Lying Down Height 12..48, Crawling Speed step 0.02, Arm Crawl Strength 0.25..10 (default 2.5 ->
+  **1.25**, his), Pull Speed 0..2, Friction 0..20, Top Speed 20..400.
+- **Pain sound while firing** (`player.qc` player_pain; his follow-up): Quake's early return on weaponframe /
+  weaponframe2 skipped the pain frames and with them PainSound, so any hit taken mid-fire was silent (your own shot is
+  always mid-fire). Now it skips only the frames: PainSound plays (its pain_finished half second still limits it), the
+  axhitme reset kept. A first version special-cased self-hits only (VR_SelfShot_Pain): removed, self-hits scream
+  through this path. (Invisible, Ring of Shadows: still no pain sound, as Quake.)
+- **Self-shot head** (vr_selfshot.cpp current(): PartHead 6, QC QVR_SS_PART_HEAD): an upright capsule round the skull
+  (middle 8 cm behind and 2 cm under the eyes, radius 8.5 cm, 13 cm under to 10.5 cm over the eyes; its front 0.5 cm
+  ahead of them). Only your own shots' capsules: the wounds' (build) have none, no wound painted on the head. Damage:
+  his answer, the headshot multiplier: PositionalRegion returns VR_REGION_HEAD for a self-hit on the head part (with
+  vr_positional_damage on), so pellets, missiles and the lightning take vr_headshot_mult (1.5) as a monster's head does.
+- **Flashlight trigger** (vr_flashlight.cpp triggerAtLamp): the trigger at the lamp switches it only from an empty
+  hand (or the hand holding the torch); a hand holding any weapon, melee included, fires or swings as anywhere.
+- **Smoke at the mouth** (vr_muzzlewisps.cpp): the wisps' ribbons faded out within 6 units (about 18 cm) of the eye
+  (ribbons::View::nearFade), so a gun at your mouth showed no smoke to blow on. Now `vr_gunfx_wisp_near` (Tunables >
+  Wisps Near the Eye, default **5 cm**, fading from a third of it). The blow itself had no minimum distance.
+- **Vent hint:** `quakevr/scenarios/prone_vent.txt` gains a `hint` (straight ahead, about 2 m east, the slot at the foot
+  of the east wall under the teleporter).
+- **Tests:** `crawl_test.py` **18 passed, 0 failed** (strokes 175 units; Closed: open 0, grip 175, trigger 175; Open:
+  open 176, grip 0.5; Either 175 both; push back 90; side 56 right, 0.7 along x; 8 cm over the floor 0; the floor
+  strokes at y 0.015 now, the fist 0.7 units over the floor; grip and trigger by +graboff / +offhandattack: a
+  vr_mock_button press is a key the open console takes). New `prone_eye_test.py` **6 passed** (limit 48 at 60; 40:
+  lying at 37, still at 40 and, margin 8, at 44; up at 49; 22 at 37: crouched 44). `prone_test.py` **32 passed**.
+  `vr_selfshot_test 1` **29 passed** (head met; a head pellet 6 = 4 x 1.5 against the palm's 3; pain sound mid-fire;
+  a grunt's hit mid-fire: pain sound, no pain frames, a second hit at once rate-limited;
+  a line ahead from the face not met), `2` **1 passed** (no self-hit in ordinary firing). New
+  `flashgrab/flash_trigger_test.py` **6 passed** (shotgun hand's trigger at the lamp: unchanged; empty hand: switches).
+  `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing; menu_paths.txt regenerated.
+- **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
+## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
+
+QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
+Nothing published, tagged, uploaded or pushed.
+
+- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
+  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
+  none of the stretched faces).
+- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
+  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
+  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
+  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
+  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
+  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
+  (warning; his call).
+- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
+  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
+- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
+  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
+  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
+  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
+  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
+  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
+  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
+    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
+    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
+    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
+  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
+    console name), so it found nothing: now retired, with the other two.
+  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
+    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
+- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
+  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
+  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
+  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
+- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
+  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
+  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
+- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).

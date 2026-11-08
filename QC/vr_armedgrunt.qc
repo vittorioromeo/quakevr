@@ -2,7 +2,7 @@
 //
 //
 // ----------------------------------------------------------------------------
-// Armed grunts (experimental; docs/vr-port/ROUND22.md, "Armed grunts")
+// Armed grunts (docs/vr-port/ROUND22.md, "Armed grunts")
 // ----------------------------------------------------------------------------
 //
 // monster_vr_grunt: a grunt holding one of your weapons, drawn as the weapon lying about is (its model at the grunt's

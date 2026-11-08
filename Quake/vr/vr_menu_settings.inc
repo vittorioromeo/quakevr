@@ -860,7 +860,7 @@ za::Vector<Item> pageCombat()
             .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
         open("Enemy Shoves", pageIndex(pageEnemyShoves))
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
-        open("Armed Grunts (Experimental)", pageIndex(pageArmedGrunts))
+        open("Armed Grunts", pageIndex(pageArmedGrunts))
             .help("Grunts holding one of your weapons (the toolgun's Armed Grunts, a map's monster_vr_grunt): which "
                   "weapons, their damage to you, their ammo, disarming them."),
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
