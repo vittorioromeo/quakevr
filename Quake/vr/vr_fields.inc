@@ -263,6 +263,7 @@ QVR_FIELD(vr_flail_taken) // ... QC: when the main hand took a flail lying about
 QVR_FIELD(vr_flail_offtaken)
 QVR_FIELD(vr_skewer_p) // a gib on a blade: whose (QC vr_skewer.qc; 0: none)
 QVR_FIELD(vr_skewer_grip) // the hand holding it on the blade, + 1 (0: none)
+QVR_FIELD(vr_skewer_hand) // the hand whose blade it is on (vr_held.cpp skewerFrame)
 QVR_FIELD(vr_skewer_w) // a gib on a thrown blade
 QVR_FIELD(vr_skewer_at) // its middle in the blade's frame
 QVR_FIELD(vr_skewer_mass) // its kg
