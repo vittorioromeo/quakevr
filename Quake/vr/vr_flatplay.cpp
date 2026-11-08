@@ -670,7 +670,9 @@ constexpr float stanceFadeTo = 55.f;
 // what the hand holds must sweep through the thing in front of it, at vr_melee_speed (3.2 m/s, a weapon's swing 1.25
 // times that, a stab 0.75: QC vr_melee.qc), and a fist thrown over what it was aimed at sweeps nothing: the punch used
 // to rise into an upper-cut and dealt no damage at all to a knight standing in front of the player.
-[[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest)
+// `target`: what the crosshair is on (the point vr_flat_punch_aim_dist along its ray), off the same shoulder in the same
+// frame as `rest`: the fist is thrown at it by vr_flat_punch_aim (his notes 2026-11-08: it hit low, beside the target).
+[[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest, const glm::vec3& target)
 {
     const double t = vr_gametime - fs.punchAt[h];   // the press's own clock: seconds since the punch was started. Each
                                                     // phase's start is on that same clock, so a phase eased from its
@@ -692,7 +694,13 @@ constexpr float stanceFadeTo = 55.f;
     const glm::vec3 wound{plane.x * wound_share, rest.y, plane.y * wound_share - punchWindBack};
     const glm::vec2 throwDir{plane.x, plane.y * punchLevel};                   // thrown along the aim, kept near its own height
     const float hit_share = za::min(span, r0 + punchReach) / za::max(0.05f, glm::length(throwDir));
-    const glm::vec3 thrown{plane.x * hit_share, rest.y, plane.y * punchLevel * hit_share};
+    glm::vec3 thrown{plane.x * hit_share, rest.y, plane.y * punchLevel * hit_share};
+    if(const float aimShare = za::clamp(vr_flat_punch_aim.value, 0.f, 1.f); aimShare > 0.f && glm::length(target) > 1.f)
+    {
+        // At the target, out to what the arm reaches (as far as the old throw went), never past the target itself.
+        const float reachTo = za::min(glm::length(target), za::min(span, r0 + punchReach));
+        thrown += (glm::normalize(target) * reachTo - thrown) * aimShare;
+    }
     if(t < punchWind)
     {
         return punchPoint(rest, wound, slide(t, 0.0, punchWind));
@@ -753,10 +761,19 @@ void startPunch(int h, const char* from)
 }
 
 // The shove's hand offset in the view's frame (forward, right, up): pushed out ahead and in towards the middle.
-[[nodiscard]] glm::vec3 shoveOffset(int h)
+// `toTarget`: from where the hand rests to what the crosshair is on, in the same frame: the push goes there by
+// vr_flat_shove_aim (his notes 2026-11-08).
+[[nodiscard]] glm::vec3 shoveOffset(int h, const glm::vec3& toTarget)
 {
     const float out = shoveOut(h) * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 40.f);
-    return {out, (h == HAND_OFF ? 0.35f : -0.35f) * out, 0.15f * out};
+    const glm::vec3 plain{out, (h == HAND_OFF ? 0.35f : -0.35f) * out, 0.15f * out};
+    const float aimShare = za::clamp(vr_flat_shove_aim.value, 0.f, 1.f);
+    if(out <= 0.f || aimShare <= 0.f || glm::length(toTarget) < 1.f)
+    {
+        return plain;
+    }
+    const glm::vec3 aimed = glm::normalize(toTarget) * za::min(glm::length(plain), glm::length(toTarget));
+    return plain + (aimed - plain) * aimShare;
 }
 
 // A shove (the shove key, vr_flat_shove_now): an open hand pushed out in front of him. The game's one-hand shove lands
@@ -2070,7 +2087,16 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         {
             handsource::mark(h, handsource::Source::Action, "punch");
         }
-        const glm::vec3 swing = punchSwing(h, restOld) - restOld + shoveOffset(h);
+        // What the crosshair is on, off this shoulder in the frame the hands are placed in: the punch and the shove go there.
+        glm::vec3 target{0.f};
+        if(punching(h) || shoving(h))
+        {
+            glm::vec3 org, dir;
+            crosshairRay(s, aim, org, dir);
+            const glm::vec3 at = org + dir * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f) - (shoulder(s, h) + nudge);
+            target = {glm::dot(at, fwd), glm::dot(at, right), glm::dot(at, up)};
+        }
+        const glm::vec3 swing = punchSwing(h, restOld, target) - restOld + shoveOffset(h, target - restOld);
         const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
         if(onBody)
         {

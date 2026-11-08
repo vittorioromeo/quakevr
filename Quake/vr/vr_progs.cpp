@@ -990,6 +990,39 @@ namespace
     return -1;
 }
 
+// A model named by a string that the engine sends by its precache index (SV_ModelIndex), precached now if it is not:
+// its index, or 0 (no model: a file that can't be loaded, warned about) when it can't be. Loads it first, so a missing
+// file is never an error. The name is copied (the list keeps the pointer; a QC string may not last).
+[[nodiscard]] int ensureModelPrecached(const char* name)
+{
+    if(!name || !name[0] || name[0] == '*')
+    {
+        return 0; // (none, or a brush model: the map's, precached with it)
+    }
+    const int index = modelPrecacheIndex(name);
+    if(index >= 0)
+    {
+        return index;
+    }
+    if(!VR_AllowLatePrecache() || !Mod_ForName(name, false))
+    {
+        Con_Warning("model %s can't be loaded: drawn as none\n", name);
+        return 0;
+    }
+    return za::max(VR_LatePrecacheModel(Hunk_Strdup(name, "precache")), 0);
+}
+
+// The string fields whose model the engine sends by index: the hands' (.weaponmodel, .weaponmodel2) and the
+// holsters' (.holsterweaponmodel0..5).
+[[nodiscard]] bool namesSentModel(const ddef_t& d)
+{
+    if((d.type & ~DEF_SAVEGLOBAL) != ev_string)
+    {
+        return false;
+    }
+    const char* name = PR_GetString(d.s_name);
+    return !strcmp(name, "weaponmodel") || !strcmp(name, "weaponmodel2") || !strncmp(name, "holsterweaponmodel", 18);
+}
 
 // Today's precache index of the model the save's list had at `saved` (precached now if need be); -1: the save's list
 // has no model there (the value left alone).
@@ -1098,6 +1131,12 @@ void rebindLoadedModels()
             if(holdsModelIndex(d))
             {
                 remapModelValue(reinterpret_cast<float*>(&ent->v)[d.ofs], "entity", num);
+            }
+            else if(namesSentModel(d))
+            {
+                // A hand's or holster's model, set by name without setmodel (precached late in the saved game: a
+                // derived "#vr" model, the Widowmaker's): precached with the load, before the first stats name it.
+                (void)ensureModelPrecached(PR_GetString(reinterpret_cast<int*>(&ent->v)[d.ofs]));
             }
         }
         if(static_cast<int>(ent->v.modelindex) != saved)
@@ -1211,6 +1250,19 @@ extern "C" int VR_LatePrecacheModel(const char* name)
 
     PR_RunError("VR_LatePrecacheModel: overflow");
     return -1;
+}
+
+extern "C" int VR_ModelIndexNotPrecached(const char* name)
+{
+    if(!VR_AllowLatePrecache() || !sv.active)
+    {
+        return -1;
+    }
+    // A model named by a hand's, a holster's or an entity's string that no path precached (it set the name without
+    // setmodel, precache_model or its own ensure): precached now, or none, instead of ending the game. A bug to fix
+    // where the name was set (vr_load_models_test checks no load or give needs this).
+    Con_Warning("SV_ModelIndex: model %s not precached: precached late\n", name);
+    return ensureModelPrecached(name);
 }
 
 // PF_random while the probes spawn (VR_OnSpawnServerSpawned): its own numbers, in 0..0x7fff as rand()'s; -1 otherwise.

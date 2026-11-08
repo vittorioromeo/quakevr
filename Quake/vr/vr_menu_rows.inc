@@ -5474,6 +5474,19 @@ QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
     "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
     "load (for comparison). The shells are made again when it changes.",
     {1.f, "Bending"}, {0.f, "Old Sleeves"})
+QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
+    "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
+    "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
+    "Off: every plate a plain one by chance. The shells are made again when it changes.")
+QVR_TOGGLE(vr_agarmor_hero, "Armour Hero Plates",
+    "vr_agarmor_hero: a row's plates drawn as one big plate where the armour wants one: the breastplate across the "
+    "chest, the pauldrons' top row as two (one with the emblem), the elbows' and knees' raised cops. Off: every plate "
+    "its own. armour.txt's hero \"0\" (the Armour Studio's Hero Plates) turns one part's off. The shells are made "
+    "again when it changes.")
+QVR_CYCLE(vr_agarmor_emblem, "Armour Emblem",
+    "vr_agarmor_emblem: the rune emblem on an upper arm's outer top plate (with Armour Plate Details). The shells "
+    "are made again when it changes.",
+    {1.f, "Right Arm"}, {2.f, "Left Arm"}, {3.f, "Both Arms"}, {0.f, "None"})
 QVR_SLIDER(vr_agarmor_folds, "Leather Folds", 0.f, 4.f, 1.f, "%.0f", noExt,
     "vr_agarmor_folds: the bellows folds in the elbow and knee leather (armour.txt's `folds` on a sleeve part, or "
     "the Armour Studio's Leather Folds, over it for one kind).")
@@ -6067,6 +6080,28 @@ QVR_TOGGLE(vr_flat_death_vomit, "Vomit Mode on Death",
     "Playing on the desktop screen (-flatscreenmode) with Death View on Immersive: when you die, the view is your "
     "ragdoll's eyes, turned exactly as its head tumbles (Vomit Mode), whatever the Vomit Mode setting is. Your own "
     "setting is kept for the headset. Off: the Vomit Mode setting decides (vr_flat_death_vomit).")
+QVR_TOGGLE(vr_flat_death_vomit_look, "Vomit Mode Mouse Look",
+    "Playing on the desktop screen (-flatscreenmode), dead in Vomit Mode: on, moving the mouse turns the view on top of "
+    "the ragdoll head's turn. Off: the view always points exactly where the head points, the mouse ignored "
+    "(vr_flat_death_vomit_look).")
+QVR_TOGGLE(vr_flat_mantle, "Mantle",
+    "Playing on the desktop screen (-flatscreenmode): after a jump, keep the jump key held and look slightly up at a "
+    "ledge in reach to pull yourself up onto it, as a headset's climbing mantle does (needs Climbing on; "
+    "vr_flat_mantle).")
+QVR_SLIDER(vr_flat_mantle_reach, "Mantle Reach", 2.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen: how far ahead of you a ledge's edge may be to mantle onto it "
+    "(vr_flat_mantle_reach).")
+QVR_SLIDER(vr_flat_mantle_height, "Mantle Height", -32.f, 64.f, 1.f, "%.0f units", noExt,
+    "Playing on the desktop screen: how high over your eyes a ledge may be, as you rise in the jump, to mantle onto "
+    "it (vr_flat_mantle_height).")
+QVR_SLIDER(vr_flat_mantle_look, "Mantle Look Up", -90.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen: how far up you must look for a mantle, from straight ahead "
+    "(vr_flat_mantle_look).")
+QVR_SLIDER(vr_flat_mantle_look_max, "Mantle Look Up Most", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen: looking up further than this, no mantle (vr_flat_mantle_look_max).")
+QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
+    "key held all along (vr_flat_mantle_time).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

@@ -917,7 +917,7 @@ float(float choice) VR_AD_DispenserSpawn =
         remove(self);
         return TRUE;
     }
-    if(!AD_Rules() && (choice == 258 || choice == 259 || choice == 260 || choice == 261 || choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
+    if(!AD_Rules() && (choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
     {
         remove(self);
         return TRUE;

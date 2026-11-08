@@ -392,6 +392,30 @@ void checkModel(const char* modelName, int randoms, int& passed, int& failed)
         }
         Con_Printf("agarmor check: edges not shared by exactly two triangles: %d\n", open);
         verdict(open == 0, "each shell closed");
+    }
+    // The hero plates (vr_agarmor_hero; ROUND24.md, "Armour look: hero plates"): two plates of a piece whose faces meet along a side
+    // (a's corners 1, 2 on b's 0, 3, their normals one) are one hero plate's columns. Every armoured humanoid: the breastplate's one
+    // line, each pauldron's top row's two plates of three (two lines each), each elbow's and knee's cop of three (two each): 17.
+    {
+        int seams = 0, smooth = 0, firstVert = 0;
+        for(int piece = 0; piece < NumPieces; piece++)
+        {
+            const int end = firstVert + s.pieceVerts[piece];
+            for(int a = firstVert; piece != Helmet && a + plateVerts <= end && at(s.verts, a).layer != 3; a += plateVerts)
+            {
+                for(int b = firstVert; b + plateVerts <= end && at(s.verts, b).layer != 3; b += plateVerts)
+                {
+                    const bool meet = a != b && glm::distance(at(s.verts, a + 1).p, at(s.verts, b).p) < 0.02f &&
+                                      glm::distance(at(s.verts, a + 2).p, at(s.verts, b + 3).p) < 0.02f;
+                    seams += meet ? 1 : 0;
+                    smooth += meet && glm::distance(at(s.verts, a + 2).n, at(s.verts, b + 3).n) < 1e-3f ? 1 : 0;
+                }
+            }
+            firstVert = end;
+        }
+        const int want = vr_agarmor_hero.value != 0.f ? 17 : 0;
+        Con_Printf("agarmor check: hero plates' lines: %d (%d shading as one; want %d)\n", seams, smooth, want);
+        verdict(seams == want && smooth == seams, "hero plates whole");
         verdict(count(s.tris) / 3 <= 4000, "at most 4000 triangles a body (the full set)");
     }
     // What is measured against what: body vertices near each piece at rest; regions by heaviest bone.
@@ -1032,6 +1056,13 @@ void lookCheck_f()
         {
             for(int tx = 0; tx < 5; tx++)
             {
+                // (not the emblem's tile, 28 (vr_agarmor.cpp tileEmblem): its rune is a second colour on purpose, red on green
+                // and yellow; ROUND24.md, "Armour look: fewer, bigger plates"; nor the hero plates' wide emblem's, 15 and 16:
+                // tileWideEmblem)
+                if(ty * 5 + tx == 28 || ty * 5 + tx == 15 || ty * 5 + tx == 16)
+                {
+                    continue;
+                }
                 double tile[3]{0.0, 0.0, 0.0};
                 const int x0 = xEnd * tx / 5, x1 = xEnd * (tx + 1) / 5, y0 = h * ty / 6, y1 = h * (ty + 1) / 6;
                 for(int y = y0; y < y1; y++)

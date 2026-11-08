@@ -4,6 +4,7 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp"
+#include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -170,6 +171,20 @@ struct ProneTest
     float pitch{0.f};
 };
 
+// vr_flatmantle_test (maps/vrmantle.bsp): a jump at each block's face, the jump key held, looking up or level; mantled
+// onto it or not (vr_climb.cpp flatMantle).
+struct MantleTest
+{
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    int index{0};         // the case
+    int frames{0};        // frames settled (on the ground, before the jump; landed, after it)
+    bool airborne{false}; // the jump has left the ground
+    int mantlesBefore{0};
+    float pitch{0.f};
+};
+
 struct ClientState
 {
     Lean lean;
@@ -177,6 +192,7 @@ struct ClientState
     SlideTest slideTest;
     LeanTest leanTest;
     ProneTest proneTest;
+    MantleTest mantleTest;
 };
 
 ClientState client;
@@ -797,6 +813,134 @@ void proneTestFrame()
 }
 
 // vr_flatslide_selftest: the slide's step on made-up floors, 72 steps a second.
+// vrmantle.map's blocks (Misc/quakevr/climb/make_vrmantle_map.py): along x, each 96 wide with a 64 gap, the lip along
+// y 0 facing -y, the floor at z 0. A case: the block, the look up (degrees), whether it mantles.
+struct MantleCase
+{
+    int block;
+    float lip;
+    float up;
+    bool mantles;
+};
+constexpr MantleCase mantleCases[] = {
+    {0, 48.f, 15.f, true},   // waist high
+    {1, 64.f, 15.f, true},
+    {2, 80.f, 15.f, true},   // over the eyes
+    {3, 96.f, 15.f, true},   // reached at the top of the jump
+    {4, 128.f, 15.f, false}, // too high
+    {5, 160.f, 15.f, false},
+    {1, 64.f, 0.f, false},   // looking level: no mantle (vr_flat_mantle_look 5)
+};
+constexpr float mantleBlockStep = 160.f; // the blocks' width and gap
+constexpr float mantleStandY = -18.f;    // his place in front of a block: its lip 2 units ahead of his box
+
+void mantleTestFrame()
+{
+    MantleTest& t = client.mantleTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const char* tag = "flatmantle";
+    const double now = qcvm->time;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+        t.frames = 0;
+    };
+    cl.viewangles[PITCH] = t.pitch;
+    cl.viewangles[YAW] = 90.f;
+    const bool ground = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    bool mantling = false;
+    const int mantles = climb::flatMantles(pl, mantling);
+    constexpr int caseCount = static_cast<int>(sizeof(mantleCases) / sizeof(mantleCases[0]));
+    if(t.phase != 1 && now - t.phaseAt > 6.0)
+    {
+        char line[160];
+        q_snprintf(line, sizeof(line), "case %d timed out (step %d, ground %d, mantling %d)", t.index, t.phase, ground ? 1 : 0,
+            mantling ? 1 : 0);
+        testCheck(t.tally, tag, false, line);
+        Cbuf_InsertText("-jump\n");
+        t.index++;
+        next(1);
+        return;
+    }
+    switch(t.phase)
+    {
+    case 1: // placed in front of the next block
+        if(t.index >= caseCount)
+        {
+            Cbuf_InsertText("-jump\n");
+            t.tally.verdict(tag);
+            t = MantleTest{};
+            return;
+        }
+        {
+            const MantleCase& k = mantleCases[t.index];
+            t.pitch = -k.up;
+            const float x = static_cast<float>(k.block) * mantleBlockStep + 48.f;
+            pl->v.origin[0] = x;
+            pl->v.origin[1] = mantleStandY;
+            pl->v.origin[2] = 24.f;
+            pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+            SV_LinkEdict(pl, false);
+        }
+        next(2);
+        break;
+    case 2: // settled on the floor, the look held: the jump
+        // (40 frames: past the climb's 0.4 s without a new hold after the last mantle, as a player's next jump would be)
+        t.frames = ground ? t.frames + 1 : 0;
+        if(t.frames >= 40)
+        {
+            t.mantlesBefore = mantles;
+            t.airborne = false;
+            Cbuf_InsertText("+jump\n");
+            next(3);
+        }
+        break;
+    case 3: // in the air, mantling or not, until he stands again
+        if(!ground)
+        {
+            t.airborne = true;
+        }
+        t.frames = t.airborne && ground && !mantling ? t.frames + 1 : 0;
+        if(t.frames >= 5)
+        {
+            const MantleCase& k = mantleCases[t.index];
+            const float feet = pl->v.origin[2] + pl->v.mins[2];
+            const bool mantled = mantles > t.mantlesBefore;
+            const bool ok = k.mantles ? mantled && za::abs(feet - k.lip) < 2.f : !mantled && za::abs(feet) < 2.f;
+            char line[200];
+            q_snprintf(line, sizeof(line), "lip %.0f, looking up %.0f: %s (feet at %.1f; wanted %s)", k.lip, k.up,
+                mantled ? "mantled" : "no mantle", feet, k.mantles ? "a mantle" : "none");
+            testCheck(t.tally, tag, ok, line);
+            Cbuf_InsertText("-jump\n");
+            t.index++;
+            next(1);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void mantleTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatmantle_test: flat-screen play (-flatscreenmode) in a game you host, on map vrmantle\n");
+        return;
+    }
+    client.mantleTest = MantleTest{};
+    client.mantleTest.phase = 1;
+}
+
 void slideSelftest_f()
 {
     testkit::Tally tally;
@@ -962,6 +1106,7 @@ void init()
     Cmd_AddCommand("vr_flatslide_test", slideTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
     Cmd_AddCommand("vr_flatprone_test", proneTest_f);
+    Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
     Cmd_AddCommand("vr_flatmove_status", status_f);
 }
 
@@ -978,6 +1123,7 @@ void frame(bool on)
         slideTestFrame();
         leanTestFrame();
         proneTestFrame();
+        mantleTestFrame();
     }
 }
 

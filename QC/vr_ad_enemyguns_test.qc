@@ -1569,8 +1569,13 @@ void(float request, entity p) AD_GunTest =
         VR_Test_Verdict();
         return;
     }
-    if(request >= 73 && request <= 80)
+    if((request >= 73 && request <= 80) || request == 184)
     {
+        // (184: the crossbow, past the range: the flat two-handed hold's look, flattwohand_test.sh.)
+        if(request == 184)
+        {
+            request = 73 + WID_ADCROSSBOW - WID_ADROCKET;
+        }
         // The gun `request - 73` (in WID_ADROCKET's order) in your main hand, full (with vr_weapon_grip_mode 1, or the
         // grip held, else it drops at once): a look at it held.
         float gw = WID_ADROCKET + request - 73;

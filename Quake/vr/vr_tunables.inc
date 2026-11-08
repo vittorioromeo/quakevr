@@ -1858,7 +1858,7 @@ QVR_TUNABLE(vr_flat_relaxed_pitch, "80") // and its fingers this far below level
 QVR_TUNABLE(vr_flat_relaxed_roll, "0") // and rolled this far, its palm turned in towards the body (degrees, -180..180; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_guard_fwd, "0.5") // the guard's fist: how far in front of its shoulder, a share of the arm's reach (-1..1)
 QVR_TUNABLE(vr_flat_guard_down, "-0.08") // and how far below it (-1..1; positive is lower: negative raises it to the chin)
-QVR_TUNABLE(vr_flat_guard_out, "-0.12") // and how far out at its own side (-1..1; negative brings it in before the face)
+QVR_TUNABLE(vr_flat_guard_out, "-0.04") // and how far out at its own side (-1..1; negative brings it in before the face; -0.12 until his notes 2026-11-08: the fists too close together)
 QVR_TUNABLE(vr_flat_guard_pitch, "-30") // and its knuckles this far below level (degrees, -90..90; negative points them up)
 QVR_TUNABLE(vr_flat_guard_roll, "0") // and rolled this far, turned in (degrees, -180..180; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_empty_take_time, "0.1") // a weapon taken into a hand at rest: seconds it comes up from the relaxed or guard pose to its own (0: at once, as before)
@@ -1870,6 +1870,12 @@ QVR_TUNABLE(vr_flat_stance_back, "4") // the gun's hand in the stance: this much
 QVR_TUNABLE(vr_flat_stance_in, "2") // and this much nearer the middle of the chest than Gun Out
 QVR_TUNABLE(vr_flat_stance_up, "4") // and this much higher than Gun Down
 QVR_TUNABLE(vr_flat_stance_pistol, "1") // a pistol (a gun with a two-handed hotspot, its muzzle under 9.5 from the hand) held with the other hand free: held in both hands too, in its own stance below (0: one hand, the other hangs)
+QVR_TUNABLE(vr_flat_sight_learn, "1") // a gun with no known sights (the AD Widowmaker, Plasma Gun, soldiers' rifles): a sight line learnt from its mesh, so the flat stance holds it in both hands and the ironsight works (0: those stay one-handed, no ironsight)
+QVR_TUNABLE(vr_flat_saw_autostart, "1") // flatscreen: the chainsaw's engine starts by itself with fuel in it, no ripcord (QC vr_chainsaw.qc; 0: the cord as in VR)
+QVR_TUNABLE(vr_flat_melee_two_hand, "1") // flatscreen: a melee weapon with a grip ahead of the hand (the chainsaw's front handle) is held there by the free hand too, even off to its side (0: only grips in line with the hand)
+QVR_TUNABLE(vr_flat_punch_aim, "1") // flatscreen: how much a punch's fist is thrown at what the crosshair is on (0: straight ahead from its side, kept near its own height, as before; 1: at it)
+QVR_TUNABLE(vr_flat_shove_aim, "1") // flatscreen: how much the shove's hand pushes towards what the crosshair is on (0: ahead and a little in, as before)
+QVR_TUNABLE(vr_flat_punch_aim_dist, "28") // the point on the crosshair's ray the punch and the shove go for: this far from the eye (units, 8..96)
 QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
 QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the chest than Gun Out: both hands in front of him

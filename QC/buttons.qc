@@ -836,7 +836,11 @@ void() func_weapon_grabbable =
 {
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
-    setmodel(self, self.model);
+    // The spawner draws nothing: only the weapon it lays is seen (a model left on it stood floating where it was made
+    // beside its weapon, untouchable: the weapon_* classnames' from the toolgun, his report 2026-11-08).
+    if(self.model != NULLSTR) { precache_model(self.model); }
+    self.model = NULLSTR;
+    setmodel(self, NULLSTR);
     VR_WeaponGrabbable_Make(self);
 }
 
@@ -849,8 +853,7 @@ void(float xWid, float xFlags) VR_WeaponClass_Spawn =
     if(!VR_Pack_WeaponAvailable(xWid)) { remove(self); return; }
     self.weapon = xWid;
     self.weaponflags = xFlags;
-    self.model = WeaponIdToModel(xWid, xFlags);
-    precache_model(self.model);
+    precache_model(WeaponIdToModel(xWid, xFlags)); // (the weapon's; the spawner itself draws nothing)
     func_weapon_grabbable();
 };
 

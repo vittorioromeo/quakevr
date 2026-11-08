@@ -228,6 +228,7 @@ void(float request, entity p) AD_RulesTest =
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
     if(request >= 150 && request <= 164) { AD_GunTest(request, p); return; } // the fuelled guns' tanks lying about: vr_ad_enemyguns_test.qc (161-164: bursting)
     if(request >= 191 && request <= 197) { AD_GunTest(request, p); return; } // the hose cut: vr_ad_enemyguns_test.qc
+    if(request == 184) { AD_GunTest(request, p); return; } // the crossbow in your main hand: vr_ad_enemyguns_test.qc
     if(request == 183) { AD_PelletMatTest(p); return; } // AD's projectile pellets into a tank, a crate, a grunt: vr_ad_shots_test.qc
     if(request >= 175 && request <= 182) { AD_GunTest(request, p); return; } // the tanks' burst field, armed monsters' tanks (182: their loops on death), no blood: vr_ad_enemyguns_test.qc
     if(request >= 70 && request <= 102) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (102: Freddie gibbed drops his super nailgun; 91: the flamethrowers draw no blood, 101: their flames hurt a monster, a big one too; 93, 94: the crossbow; 95: Freddie's super nailgun; 96-100: the upgraded weapons' VR models)
@@ -235,7 +236,7 @@ void(float request, entity p) AD_RulesTest =
     if(request >= 131 && request <= 139) { AD_MeleeTest(request, p); return; } // the four monster swords: vr_ad_melee.qc (131-134 killed and swung, 135 the holsters, 136-139 held)
     if(request >= 145 && request <= 147) { AD_MeleeTest(request, p); return; } // the death sergeant's flail: vr_ad_melee.qc (145 killed and taken, 146 in the main hand, 147 the main hand's hold)
     if(request >= 165 && request <= 170) { AD_MeleeTest(request, p); return; } // the flail lying about with its head: vr_ad_melee.qc VR_FlailHead_Test
-    if(request == 140 || request == 141 || request == 148 || request == 149) { AD_UpgradesTest(request, p); return; } // the upgrades' rules: vr_ad_upgrades_test.qc (148: the toolgun's Widowmaker loaded)
+    if((request >= 103 && request <= 105) || request == 140 || request == 141 || request == 148 || request == 149) { AD_UpgradesTest(request, p); return; } // the upgrades' rules: vr_ad_upgrades_test.qc (148: the toolgun's Widowmaker loaded)
 
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;

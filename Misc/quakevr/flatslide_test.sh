@@ -12,6 +12,9 @@
 #          and rolls the view and the body vr_flat_lean_prone_angle; the crouch pressed lying down gets up into the
 #          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
 #          ironsight waits), looking level the ironsight comes.
+#   mantle vr_flatmantle_test in vrmantle (Misc/quakevr/climb/make_vrmantle_map.py): a jump at each block, the jump key
+#          held, looking up 15 degrees: mantled onto the 48, 64, 80 and 96 high ones, not the 128 and 160 ones; looking
+#          level at the 64 one, no mantle (vr_climb.cpp flatMantle).
 #   sights e1m1, the shotgun on the ironsight: the sights on the drawn ray upright, leant right, leant right crouched
 #          and leant left (vr_flat_sight_check), and the shot along the view (flataim).
 #   keys   E and Q lean (vr_mock_key), 3 swaps the hands, R force-grabs; an old config's binds on E and 3 do not run
@@ -38,6 +41,11 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Tim
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatprone.*FAIL"
 expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor"
+
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle|^climb: flat" \
+    -Script "map vrmantle; wait60; god; notarget; vr_climb_debug 1; vr_flatmantle_test; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatmantle.*FAIL"
+expect_verdict "$out" "flatmantle" "mantle: after a jump, looking up, onto ledges 48..96 high; not 128 or 160, nor looking level"
 
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
