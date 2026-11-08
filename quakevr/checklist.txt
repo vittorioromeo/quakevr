@@ -127,6 +127,13 @@ Projectiles keep a share of your motion split by direction (Weapons > Aiming > P
 - [ ] Armour worn states (vr_agarmor_wear 1, 2): dents, chips and soot still read over the new trim and details.
 - [ ] Your own armour (player body, mirror or third person): fewer rows on arms and legs; the brawny build keeps its old chest rows. Anything bulky or poking through?
 - [ ] Armour step 4 (hero plates: merged chest/pauldron plates): want it, now that you've seen this?
+Ogre: looks and animates as before, and still hides/drops its chainsaw on death (topology fix)
+Zombie heads, quad damage and the other cleaned models look the same as before
+Guns with rewritten barrel masks (nailguns, lightning, plasma, laser, lava, revolver, flare gun): barrel heat/wisps on the right parts
+Nail pistol: its dark steel now the shotgun's deep dark blue (gun, magazines, preview alike); the silvery slide bar and frames, the label and the glowing sight inserts as before.
+Flare gun: skin a little darker and less saturated, the front blade's brass top less bright; not overdone, still its orange-brown self (preview and fired skins too).
+Grunt burst rifle: darker and grimier (blotches, dirt in the panel lines), nearer the shotgun's contrast without being black; the #adv variants and grunts' rifles follow.
+[ ] Quickload crash fixed (SV_ModelIndex: v_shot3.mdl#vr not precached): hold the Widowmaker, the Shadow Axe and the AD Plasma Gun in either hand and holstered, quicksave, quickload: no crash, each drawn as itself (bash Misc/quakevr/load_models_test.sh)
 [ ] Armour hero plates (agent/flatwall): an armoured knight, grunt and enforcer up close: one breastplate across the chest row (recessed panel, slot, a crease down the seam), each pauldron's top row two big plates (the right one with the red rune), a raised cop over each elbow and knee as one plate; no gaps or flicker along the lines inside a hero plate.
 [ ] Armour hero plates, all tiers: green, yellow and red armour, whole and battered (wear 2): the big plates keep the tier's colour, trim and corner rivets; dents and chips on them like the other plates.
 [ ] Armour hero plates, hits: shoot and axe a grunt's breastplate and pauldron: the cuirass takes it (dents at its wear steps, knocked off whole when broken, its debris showing the breastplate).
