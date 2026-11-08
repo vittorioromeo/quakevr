@@ -428,7 +428,7 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
         if(follow.thigh(leg, m))
         {
             const glm::vec3 anchor = pos + m.down * za::max(0.f, strap - glm::dot(pos - m.joint, m.down));
-            moved += m.joint + m.turn * (anchor - m.joint) - anchor;
+            moved += (m.joint + m.turn * (anchor - m.joint) - anchor) * (1.f - m.sliding); // (sliding: on the belt)
             legs++;
         }
     }

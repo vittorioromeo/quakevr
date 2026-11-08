@@ -5,6 +5,8 @@
 #         has no stance turn, straighter legs, feet on the floor, no bob (body and view), nothing worn in front of the
 #         camera, its sound (started once, fading as it slows, stopped after); a second slide with the view turned 40
 #         degrees: the legs point the slide's way, the chest the view's.
+#         Also (Lying body 2): the chest low, knees and feet not sunk, the sighted shotgun's elbows under the eye; the slide's
+#         buttocks on the floor, hip holsters by the legs, ammo pouch at the belt, the hips eased round a 60-degree turn.
 #   vr    vr_body_lie_test vr: the headset's mock head lowered to 0.28 m: the same lying-down checks.
 AGENT=${1:-embed5}
 QT_NAME=bodylie

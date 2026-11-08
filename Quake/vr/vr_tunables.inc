@@ -1898,6 +1898,8 @@ QVR_TUNABLE(vr_flat_wall_slide_time, "0.12") // the slide's share and turn ease 
 QVR_TUNABLE(vr_flat_wall_block_ads, "1") // no ironsight while the gun is tilted up at a wall: the aim key waits until it comes down (0: the ironsight as ever)
 QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into the floor (looking down) lies flush on it instead: turned up out of it as at a wall (vr_flat_wall_tilt's turn, its fire and ironsight blocks: vr_flat_wall_block_fire / _ads); 0 off, its end in the floor
 QVR_TUNABLE(vr_flat_prone_floor_margin, "1") // the flush gun keeps this far off the floor (0..6 units)
+QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units over his feet (6..vr_prone_eye less 2; until 2026-11-08 vr_prone_eye less 4, the same 14): the view, and the gun's poses with it (lower, a gun looking down cannot clear the floor)
+QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 
@@ -1963,7 +1965,12 @@ QVR_TUNABLE(vr_flat_slide_end, "130") // the slide: under this speed (units/s) i
 QVR_TUNABLE(vr_flat_slide_cooldown, "0.5") // the slide: seconds after one ends before a crouch starts the next
 QVR_TUNABLE(vr_flat_slide_steer, "40") // the slide: degrees a second the move keys turn it (0: straight on)
 QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the crouch his eyes go down (units, 0..14)
-QVR_TUNABLE(vr_flat_slide_body_angle, "45") // the slide: the trunk leant back this many degrees from upright, the legs out in front along the floor (vr_avatar_pitch.cpp)
+QVR_TUNABLE(vr_flat_slide_body_angle, "80") // the slide: the trunk leant back at most this many degrees from upright (vr_avatar_pitch.cpp): it leans back until the hips sit vr_flat_slide_hip_floor over the floor, the legs out in front along it (45 until his 80, 2026-11-08: then the lean itself, which floated the body)
+QVR_TUNABLE(vr_flat_slide_hip_floor, "4.5") // the slide: units the hips (the pelvis joint) sit over the floor, the buttocks on it: the trunk leans back about the neck until they are there (0..12)
+QVR_TUNABLE(vr_flat_slide_turn_smooth, "0.15") // the slide: seconds the hips and legs take to follow a change of the slide's way or of the view (95%; 0: at once, the old steps)
+QVR_TUNABLE(vr_flat_gun_ahead_slide, "0") // the held weapon in a slide: moved this far forward of its pose (units, -30..30), by the slide's share; vr_flat_gun_down_slide, vr_flat_gun_out_slide the same down and out
+QVR_TUNABLE(vr_flat_gun_down_slide, "0") // the held weapon in a slide: moved this far down (units, -30..30; positive is lower)
+QVR_TUNABLE(vr_flat_gun_out_slide, "0") // the held weapon in a slide: moved this far out at the holding hand's side (units, -30..30)
 QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
 QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in front reach this share of their length from hip to foot, the foot on the floor (0.85..1; 1: dead straight, less bends the knees up)

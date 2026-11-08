@@ -123,6 +123,11 @@ QVR_SLIDER(vr_prone_hip_floor, "Lying Down Hips Over Floor", 0.f, 10.f, 0.5f, "%
     "propped up when your eyes are higher (never past Lying Down Body Angle).")
 QVR_SLIDER(vr_prone_leg_reach, "Lying Down Leg Reach", 0.85f, 1.f, 0.005f, "%.3f", ext(),
     "Lying down, how straight the legs are: the share of their length from the hip to the feet on the floor behind (1: dead straight).")
+QVR_SLIDER(vr_prone_foot_lift, "Lying Down Feet Over Floor", 0.f, 6.f, 0.5f, "%.1f units", ext(),
+    "Lying down, how high the ankles rest over the floor: the shins and feet lie on it instead of sinking into it.")
+QVR_SLIDER(vr_prone_elbow_out, "Lying Down Elbows Out", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Lying down, how much the elbows flare out to the sides and down to the floor, as when aiming lying down, instead of "
+    "rising up beside the head (0: as standing).")
 QVR_TOGGLE(vr_body_climb_feet, "Climbing Footholds",
     "Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
     "you climb; with none, they hang. Off: they hang as in the air.")

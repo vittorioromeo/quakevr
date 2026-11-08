@@ -3,7 +3,10 @@
 // player and the drawn eye. vr_body_lie_report prints it once; vr_body_lie_test lies down, gets up and slides (a
 // flat-screen game you host, a long gun held, the script holding +forward) and checks the pose: the trunk on the floor
 // lying down, the legs straight, the feet on the floor, the holsters and pouches carried with the body (never in front
-// of the camera), sliding with no two-handed stance turn and no walk bob. Prints "body_lie_test: N passed, M failed".
+// of the camera), sliding with no two-handed stance turn and no walk bob. Since "Lying body 2" (ROUND24.md): flat, the
+// chest low, the knees and feet resting on the floor (not sunk), the shotgun sighted lying down with its elbows under
+// the eye; the slide's buttocks on the floor, the hips' holsters by the legs, the ammo pouch at the belt, the hips
+// eased round after a turn of the view past the legs' most twist. Prints "body_lie_test: N passed, M failed".
 
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
@@ -36,9 +39,10 @@ namespace
 constexpr int ITEMS = body::HolsterCount + 2;
 constexpr const char* itemNames[ITEMS] = {"lshoulder", "rshoulder", "lhip", "rhip", "lupper", "rupper", "grenpouch", "ammopouch"};
 
+// (The hips' holsters ride the thighs, about the hip joints: in a slide they turn with the legs out in front.)
 [[nodiscard]] int carrierOf(int item)
 {
-    return item == body::LeftHip || item == body::RightHip || item >= body::HolsterCount ? Pelvis : Chest;
+    return item == body::LeftHip ? ThighL : item == body::RightHip ? ThighR : item >= body::HolsterCount ? Pelvis : Chest;
 }
 
 struct Probe
@@ -60,6 +64,8 @@ struct Measure
     float itemDist[ITEMS]{}; // each item from its carrying bone, units
     float itemCone[ITEMS]{}; // degrees off the view's forward
     float itemNear[ITEMS]{}; // units from the eye
+    float itemZ[ITEMS]{};    // over the floor
+    float elbowZ[2]{}, elbowCone[2]{}, elbowNear[2]{}; // the elbows (the forearms' joints): over the floor, off the view, from the eye
     float m2w{1.f};
     float yawOff{0.f};       // the body's yaw off the view's, degrees
     glm::vec3 ride{0.f};     // the posed head off the state's (flatplay::bodyRide: the drawn body's ride on the view)
@@ -114,6 +120,14 @@ struct Measure
         m.itemDist[i] = glm::distance(items[i], b.bones[carrierOf(i)].pos);
         m.itemCone[i] = angleDeg(items[i] - eye, fwd);
         m.itemNear[i] = glm::distance(items[i], eye);
+        m.itemZ[i] = items[i].z - m.floorZ;
+    }
+    for(int side = 0; side < 2; side++)
+    {
+        const glm::vec3 e = b.bones[side == 0 ? ForearmL : ForearmR].pos;
+        m.elbowZ[side] = e.z - m.floorZ;
+        m.elbowCone[side] = angleDeg(e - eye, fwd);
+        m.elbowNear[side] = glm::distance(e, eye);
     }
     m.yawOff = geom::yawDelta(geom::yawOf(b.fwd), cl.viewangles[YAW]);
     m.ride = probe.eye - s.head;
@@ -130,10 +144,12 @@ void printMeasure(const char* tag, const Measure& m)
                "deg; body yaw off the view %.1f; m2w %.1f; eye %.1f; ride %.1f %.1f %.1f; follower off %.1f %.1f\n",
         tag, m.pelvis, m.spine, m.chest, m.knee[0], m.knee[1], m.foot[0], m.foot[1], m.bend[0], m.bend[1], m.yawOff, m.m2w,
         m.eyeOverFloor, m.ride.x, m.ride.y, m.ride.z, m.followOff[0], m.followOff[1]);
+    Con_Printf("%s: elbows over the floor %.1f %.1f, off the view %.0f %.0f deg, from the eye %.1f %.1f\n", tag, m.elbowZ[0],
+        m.elbowZ[1], m.elbowCone[0], m.elbowCone[1], m.elbowNear[0], m.elbowNear[1]);
     for(int i = 0; i < ITEMS; i++)
     {
-        Con_Printf("%s:   %s: %.1f from its bone, %.1f from the eye, %.0f deg off the view\n", tag, itemNames[i], m.itemDist[i],
-            m.itemNear[i], m.itemCone[i]);
+        Con_Printf("%s:   %s: %.1f from its bone, %.1f from the eye, %.0f deg off the view, %.1f over the floor\n", tag, itemNames[i],
+            m.itemDist[i], m.itemNear[i], m.itemCone[i], m.itemZ[i]);
     }
 }
 
@@ -163,6 +179,11 @@ struct LieTest
     // The second slide, the view turned off its way: the legs' yaw off the slide's, the chest's off the view's (degrees).
     int turnFrames{0};
     float legsOffMax{0.f}, chestOffMax{0.f};
+    // Then the view turned 60 more, past the legs' most twist: the hips dragged round, eased (vr_flat_slide_turn_smooth):
+    // their largest step in a frame, and how far they went.
+    bool turned2{false};
+    int turn2Frames{0};
+    float hipYawLast{0.f}, hipYawFrom{0.f}, hipStepMax{0.f}, hipWent{0.f};
     bool frontSeen{false};
     char frontWhat[96]{};
 };
@@ -265,9 +286,48 @@ void testFrame()
                 check(za::max(m.foot[0], m.foot[1]) < 0.16f * k && za::max(m.knee[0], m.knee[1]) < 0.16f * k,
                     "prone: the knees and feet on the floor (knees %.1f %.1f, feet %.1f %.1f)", m.knee[0], m.knee[1], m.foot[0],
                     m.foot[1]);
+                // (The ankles vr_prone_foot_lift up: the shins and feet resting on the floor, not sunk in: his note 2026-11-08.)
+                const float lowest = za::min(za::min(m.foot[0], m.foot[1]), za::min(m.knee[0], m.knee[1]));
+                const float lift = vr_prone_foot_lift.value;
+                check(lift <= 0.f || lowest > 0.4f * lift, "prone: the knees and feet not sunk into the floor (lowest joint %.1f over it, "
+                    "the ankles asked %.1f)", lowest, lift);
+                if(!test.vr)
+                {
+                    // (The flat eye at vr_flat_prone_eye: the chest almost on the floor: his note 2026-11-08, 8.7 before.)
+                    check(m.chest < 0.22f * k, "prone: the chest low, almost on the floor (chest %.1f over it, under %.1f; eye %.1f)",
+                        m.chest, 0.22f * k, m.eyeOverFloor);
+                }
                 (void)itemsOnBody(m, "prone");
-                Cbuf_InsertText(test.vr ? "vr_mock_hand head\n" : "vr_prone_toggle\n");
-                next(test.vr ? 99 : 3);
+                // (Flat: the shotgun in the main hand for the next step, his screenshots' gun.)
+                Cbuf_InsertText(test.vr ? "vr_mock_hand head\n" : "impulse 154\n");
+                next(test.vr ? 99 : 21);
+            }
+            break;
+        case 21: // flat, lying down, the shotgun down the sights (the gun at the eye): the elbows out and down, not over the view
+            if(++test.settle == 20)
+            {
+                Cbuf_InsertText("vr_flat_aim 1\n");
+            }
+            if(test.settle >= 70)
+            {
+                const Measure m = measure();
+                printMeasure("body_lie_test prone sighted", m);
+                const float eyeZ = m.eyeOverFloor;
+                const float high = za::max(m.elbowZ[0], m.elbowZ[1]);
+                check(high < eyeZ - 1.f, "prone, sighted: the elbows under the eye (%.1f %.1f over the floor; the eye %.1f)", m.elbowZ[0],
+                    m.elbowZ[1], eyeZ);
+                int front = -1;
+                for(int side = 0; side < 2; side++)
+                {
+                    if(m.elbowCone[side] < FRONT_CONE && m.elbowNear[side] < FRONT_NEAR)
+                    {
+                        front = side;
+                    }
+                }
+                check(front < 0, "prone, sighted: no elbow in front of the camera (off the view %.0f %.0f deg, %.1f %.1f from the eye)",
+                    m.elbowCone[0], m.elbowCone[1], m.elbowNear[0], m.elbowNear[1]);
+                Cbuf_InsertText("vr_flat_aim 0\nimpulse 3\nvr_prone_toggle\n"); // (the super shotgun back: the slide's stance turn)
+                next(3);
             }
             break;
         case 3: // up again
@@ -320,6 +380,17 @@ void testFrame()
                 {
                     printMeasure("body_lie_test slide", m);
                     (void)itemsOnBody(m, "slide");
+                    // (His note 2026-11-08: the whole body floated, the holsters and the pouch high in front of the view.)
+                    const float hip = vr_flat_slide_hip_floor.value;
+                    check(za::abs(m.pelvis - hip) < 1.f || bodyPitch.angle <= -vr_flat_slide_body_angle.value + 0.5f,
+                        "slide: the buttocks on the floor (pelvis %.1f over it, %.1f wanted; lean back %.1f deg)", m.pelvis, hip,
+                        -bodyPitch.angle);
+                    const float holsters = za::max(m.itemZ[body::LeftHip], m.itemZ[body::RightHip]);
+                    check(holsters < m.pelvis + 1.f, "slide: the hips' holsters down by the legs (%.1f %.1f over the floor, the pelvis %.1f)",
+                        m.itemZ[body::LeftHip], m.itemZ[body::RightHip], m.pelvis);
+                    const float pouch = m.itemZ[body::HolsterCount + 1];
+                    check(pouch < m.spine + 1.f, "slide: the ammo pouch at the belt (%.1f over the floor; the pelvis %.1f, spine %.1f)", pouch,
+                        m.pelvis, m.spine);
                 }
                 test.slideFrames++;
                 test.pelvisMin = za::min(test.pelvisMin, m.pelvis);
@@ -383,6 +454,11 @@ void testFrame()
                     test.legsOffMax);
                 check(test.chestOffMax < 8.f, "slide, the view turned 40: the chest turns back to the view (at most %.1f deg off it)",
                     test.chestOffMax);
+                // (His note 2026-11-08: turning, the body's rotation stepped, not smoothed.)
+                const float smooth = vr_flat_slide_turn_smooth.value;
+                check(test.turn2Frames >= 10 && test.hipWent > 20.f && (smooth <= 0.f || test.hipStepMax < 6.f),
+                    "slide, the view turned 60 more: the hips follow, eased (they went %.1f deg in %d frames, at most %.1f in one; "
+                    "under 6 eased over %.2f s)", test.hipWent, test.turn2Frames, test.hipStepMax, smooth);
                 Cbuf_InsertText("-flatcrouch\n");
                 next(99);
                 break;
@@ -390,8 +466,18 @@ void testFrame()
             if(bodyPitch.sliding > 0.995f && in > 0.3)
             {
                 const Body& b = probe.body;
+                const float hipYaw = geom::yawOf(b.fwd);
+                if(test.turned2)
+                {
+                    // The hips dragged round past the twist's most, a step a frame at most so big.
+                    test.turn2Frames++;
+                    test.hipStepMax = za::max(test.hipStepMax, za::abs(geom::yawDelta(hipYaw, test.hipYawLast)));
+                    test.hipWent = za::abs(geom::yawDelta(hipYaw, test.hipYawFrom));
+                    test.hipYawLast = hipYaw;
+                    break;
+                }
                 const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
-                const float legsOff = geom::yawDelta(geom::yawOf(b.fwd), geom::yawOf(glm::vec3{vel, 0.f}));
+                const float legsOff = geom::yawDelta(hipYaw, geom::yawOf(glm::vec3{vel, 0.f}));
                 const float chestOff = geom::yawDelta(geom::yawOf(b.bones[Chest].rot[2]), cl.viewangles[YAW]);
                 if(test.turnFrames == 5)
                 {
@@ -400,6 +486,12 @@ void testFrame()
                 test.turnFrames++;
                 test.legsOffMax = za::max(test.legsOffMax, za::abs(legsOff));
                 test.chestOffMax = za::max(test.chestOffMax, za::abs(chestOff));
+                if(test.turnFrames == 15)
+                {
+                    test.turned2 = true;
+                    test.hipYawFrom = test.hipYawLast = hipYaw;
+                    cl.viewangles[YAW] += 60.f; // (100 off the slide's way: 30 past vr_flat_slide_legs_twist's 70)
+                }
             }
             break;
         default:

@@ -82,6 +82,9 @@ struct ThighMotion
     glm::vec3 joint{0.f};
     glm::vec3 down{0.f, 0.f, -1.f};
     glm::mat3 turn{1.f};
+    // Sliding's share (flat-screen play): the hips' holsters ride the legs out in front along the floor, the belt's gear
+    // (the ammo pouch, on both thighs) does not: it stays on the belt, `turn` times 1 - this.
+    float sliding{0.f};
 };
 
 // Where points given for the standing body (see standing()) are now, carried by a part as the

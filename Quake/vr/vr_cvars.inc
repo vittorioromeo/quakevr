@@ -52,6 +52,8 @@ QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... the most degrees t
 QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
 QVR_CVAR(vr_prone_hip_floor, "3.5", CVAR_ARCHIVE)      // ... units the hips (the pelvis joint) rest over the floor lying down: the body turns about the neck until they are there, the chest propped on the elbows when the eyes are higher (0 .. 10; at most vr_prone_body_angle)
 QVR_CVAR(vr_prone_leg_reach, "0.997", CVAR_ARCHIVE)    // ... lying down, the legs reach this share of their length from the hip to the feet on the floor behind (0.85 .. 1; 1: dead straight)
+QVR_CVAR(vr_prone_foot_lift, "2.5", CVAR_ARCHIVE)      // ... lying down, the ankles this many units over the floor, the shins and feet resting on it rather than sunk into it (0 .. 6; 0 until 2026-11-08, his note: the feet and lower legs overlapped the floor)
+QVR_CVAR(vr_prone_elbow_out, "1", CVAR_ARCHIVE)        // ... lying down, the elbows flare out to the sides and down to the floor instead of where the turned chest's own pole takes them (up past the head aiming down the sights: his note 2026-11-08), this share (0 .. 1)
 QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
