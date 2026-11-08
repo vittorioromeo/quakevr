@@ -1475,6 +1475,8 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+QVR_CVAR(vr_drips, "1", CVAR_ARCHIVE)                // water (and slime) dripping off what was in it once out: you, your hands and weapons, monsters, corpses, gibs, props (vr_drips.cpp; vr_drips_* tuning)
+QVR_CVAR(vr_drips_debug, "0", CVAR_NONE)            // 1: print each wet thing coming out of its liquid and drying; 2: each drop too
 // Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
 // burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
 // paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
@@ -2081,6 +2083,7 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
+QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded living monsters drip blood from where they were hit, the more the more hurt (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)

@@ -425,6 +425,10 @@ za::Vector<Item> pageDebugLogging()
                   "trigger jumping, the grips changing weapons)."),
         row(opt::vr_foreign_configs),
         row(opt::vr_wounds_debug),
+        row(opt::vr_drips_debug),
+        command("Water Drips: Soak Everything Near", "vr_drips_soak")
+            .help("vr_drips_soak: you, your hands and weapons and everything within 512 units soaked, as if just out of "
+                  "the water: their drips, tapering off as they dry. vr_drips_info lists what is wet."),
         row(opt::vr_debug_grasp),
         row(opt::vr_debug_collect_fx),
         command("Check Last Pose", "vr_pose_check")

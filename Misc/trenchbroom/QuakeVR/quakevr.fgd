@@ -2750,7 +2750,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		weapon == "9" -> "progs/v_prox.mdl",
 		weapon == "10" && (weaponflags & 1) == 1 -> "progs/v_multi2.mdl",
 		weapon == "10" -> "progs/v_rock2.mdl",
-		weapon == "11" && (weaponflags & 1) == 1 -> "progs/v_plasma.mdl",
+		weapon == "11" && (weaponflags & 1) == 1 -> "progs/v_light_plasma.mdl",
 		weapon == "11" -> "progs/v_light.mdl",
 		weapon == "12" -> "progs/v_laserg.mdl",
 		weapon == "13" && (weaponflags & 1) == 1 -> "progs/v_hksword.mdl",

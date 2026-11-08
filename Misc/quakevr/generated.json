@@ -563,13 +563,13 @@
   "by": "v_nailpistol_mag.blend",
   "source": "Misc/quakevr/src_models/blend/v_nailpistol_mag/v_nailpistol_mag.blend"
  },
- "quakevr/progs/v_plasma.mdl": {
-  "by": "v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/v_plasma/v_plasma.blend"
+ "quakevr/progs/v_light_plasma.mdl": {
+  "by": "v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/v_light_plasma/v_light_plasma.blend"
  },
- "quakevr/progs/v_plasma.mdl_0_norm.png": {
-  "by": "v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/v_plasma/v_plasma.blend"
+ "quakevr/progs/v_light_plasma.mdl_0_norm.png": {
+  "by": "v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/v_light_plasma/v_light_plasma.blend"
  },
  "quakevr/progs/v_prox.mdl": {
   "by": "v_prox.blend",
@@ -919,13 +919,13 @@
   "by": "vr_mag_on_v_nailpistol.blend",
   "source": "Misc/quakevr/src_models/blend/vr_mag_on_v_nailpistol/vr_mag_on_v_nailpistol.blend"
  },
- "quakevr/progs/vr_mag_on_v_plasma.mdl": {
-  "by": "vr_mag_on_v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/vr_mag_on_v_plasma/vr_mag_on_v_plasma.blend"
+ "quakevr/progs/vr_mag_on_v_light_plasma.mdl": {
+  "by": "vr_mag_on_v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_mag_on_v_light_plasma/vr_mag_on_v_light_plasma.blend"
  },
- "quakevr/progs/vr_mag_on_v_plasma.mdl_0_norm.png": {
-  "by": "vr_mag_on_v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/vr_mag_on_v_plasma/vr_mag_on_v_plasma.blend"
+ "quakevr/progs/vr_mag_on_v_light_plasma.mdl_0_norm.png": {
+  "by": "vr_mag_on_v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_mag_on_v_light_plasma/vr_mag_on_v_light_plasma.blend"
  },
  "quakevr/progs/vr_mag_snail.mdl": {
   "by": "vr_mag_snail.blend",
@@ -975,13 +975,13 @@
   "by": "vr_magwell_on_v_nail2.blend",
   "source": "Misc/quakevr/src_models/blend/vr_magwell_on_v_nail2/vr_magwell_on_v_nail2.blend"
  },
- "quakevr/progs/vr_magwell_on_v_plasma.mdl": {
-  "by": "vr_magwell_on_v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/vr_magwell_on_v_plasma/vr_magwell_on_v_plasma.blend"
+ "quakevr/progs/vr_magwell_on_v_light_plasma.mdl": {
+  "by": "vr_magwell_on_v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_magwell_on_v_light_plasma/vr_magwell_on_v_light_plasma.blend"
  },
- "quakevr/progs/vr_magwell_on_v_plasma.mdl_0_norm.png": {
-  "by": "vr_magwell_on_v_plasma.blend",
-  "source": "Misc/quakevr/src_models/blend/vr_magwell_on_v_plasma/vr_magwell_on_v_plasma.blend"
+ "quakevr/progs/vr_magwell_on_v_light_plasma.mdl_0_norm.png": {
+  "by": "vr_magwell_on_v_light_plasma.blend",
+  "source": "Misc/quakevr/src_models/blend/vr_magwell_on_v_light_plasma/vr_magwell_on_v_light_plasma.blend"
  },
  "quakevr/progs/vr_muzzleflash.mdl": {
   "by": "vr_muzzleflash.blend",
@@ -2207,7 +2207,7 @@
   "sha256": "0fbf69c60c3bef9892e436d7bc5a4b6c1a32067c5daaf3153a52e39837ab6501",
   "by": "make_nailpistol_mags.py"
  },
- "scratch/magfill_base/vr_mag_on_v_plasma.mdl": {
+ "scratch/magfill_base/vr_mag_on_v_light_plasma.mdl": {
   "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
   "by": "make_mags.py"
  },
@@ -2235,7 +2235,7 @@
   "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
   "by": "make_mags.py"
  },
- "scratch/magfill_base/vr_magwell_on_v_plasma.mdl": {
+ "scratch/magfill_base/vr_magwell_on_v_light_plasma.mdl": {
   "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
   "by": "make_mags.py"
  },
@@ -2275,7 +2275,7 @@
   "sha256": "638ba2d7a70cf2ee4e2f5c9c938e668bb986a19a1720e13e652b41fa7a6fc749",
   "by": "make_nailpistol_mags.py"
  },
- "scratch/magfill_new/vr_mag_on_v_plasma.mdl": {
+ "scratch/magfill_new/vr_mag_on_v_light_plasma.mdl": {
   "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
   "by": "make_mags.py"
  },
@@ -2303,7 +2303,7 @@
   "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
   "by": "make_mags.py"
  },
- "scratch/magfill_new/vr_magwell_on_v_plasma.mdl": {
+ "scratch/magfill_new/vr_magwell_on_v_light_plasma.mdl": {
   "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
   "by": "make_mags.py"
  }

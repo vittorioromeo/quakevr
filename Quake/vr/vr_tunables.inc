@@ -2127,3 +2127,19 @@ QVR_TUNABLE(vr_embed_arm_stretch_ease, "0.2") // s it takes to come in and to go
 QVR_TUNABLE(vr_embed_arm_letgo, "1") // cm past that stretch the drawn hand may be off its arm before the hand lets go of the blade
 QVR_TUNABLE(vr_embed_handle_free, "1") // 1: a handle stuck in the body's model is turned out of it about the wound (checked 4 times a second), so a hand can take it
 QVR_TUNABLE(vr_embed_tether_far, "10") // cm further from a dead body's wound than the hand held it, for that body to count: dragging it
+QVR_TUNABLE(vr_drips_rate, "3") // water drops a second off a soaked thing out of its liquid (a monster's size; times the wetness on vr_drips_curve)
+QVR_TUNABLE(vr_drips_curve, "2") // the rate's curve over the wetness (1 .. 0 as it dries in vr_wounds_wet_time): rate * wetness^this (1 linear; more: tapering off sooner)
+QVR_TUNABLE(vr_drips_dry_motion, "1") // moving dries faster: times (1 + this * speed / 400 u/s, at most 1.5 more)
+QVR_TUNABLE(vr_drips_size, "0.3") // a water drop's size (a particle's scale)
+QVR_TUNABLE(vr_drips_color, "0.62 0.74 0.88") // a water drop's colour (lit as the place is, a little brighter)
+QVR_TUNABLE(vr_drips_slime_color, "0.32 0.55 0.1") // a slime drop's
+QVR_TUNABLE(vr_drips_alpha, "0.6") // a water or slime drop's opacity
+QVR_TUNABLE(vr_drips_splash, "1") // 1: a water drop landing splashes a few tiny specks (no mark is left)
+QVR_TUNABLE(vr_drips_volume, "0.3") // a water drop landing: its soft drip's volume (0 silent)
+QVR_TUNABLE(vr_drips_sound_gap, "0.2") // real seconds at least between two water drips heard
+QVR_TUNABLE(vr_drips_max, "8") // drops a frame at most from everything wet and wounded (round robin: many wet monsters share)
+QVR_TUNABLE(vr_drips_view, "0.4") // your own body, hands and weapons drip this share of the rate (none close under the eyes)
+QVR_TUNABLE(vr_drips_fling, "1") // a wet weapon or hand swung fast throws drops off: how many (0 none)
+QVR_TUNABLE(vr_drips_blood_rate, "1.2") // blood drops a second off a wounded living monster at its last breath (times the health it lost, vr_gore_wound_drips)
+QVR_TUNABLE(vr_drips_blood_hit, "1") // ... a hit adds this many times its damage / 20 for a couple of seconds
+QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor

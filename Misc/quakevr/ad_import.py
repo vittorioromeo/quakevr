@@ -392,6 +392,12 @@ PATCHES += [
      "\tif (VR_ADGun_FlameDoused(self, 0.1)) { remove(self); return; }\n"
      "\tself.cnt = self.cnt + 1;\n\tif (self.cnt > 6) remove(self);\n", 1,
      Q + ": the pyro's flames go out in water"),
+    # AD's v_plasma.mdl is skipped in its folder (vr_ad_data.inc: an official pak's name), so this name was always our
+    # Thunderbolt's plasma model, now v_light_plasma.mdl: the same model, and no missing file without Rogue. The
+    # player's Plasma Gun is progs/v_plasma.mdl#vr (vr_ad_bridge.qc, vr_adweapons.cpp: AD's own file, read by its size).
+    ("defscustom.qc", 'string MODEL_VWEAP_UPLG = "progs/v_plasma.mdl";',
+     'string MODEL_VWEAP_UPLG = "progs/v_light_plasma.mdl";', 1,
+     Q + ": AD's view model name, our Thunderbolt's plasma model (renamed; AD's own is skipped)"),
 ]
 FUNC_PATCHES += [
     ("mon_pyro.qc", "pyroflame_touch", "\tif (other.solid == SOLID_TRIGGER) return;\n",

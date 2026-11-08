@@ -1,13 +1,16 @@
 # Backlog: agreed work for the next rounds
 
 Items the author approved or asked about, not yet started, grouped by area; each keeps a note on where it came from.
-Retired items are in git history (last cleanup 2026-11-06).
+Retired items are in git history (last cleanup 2026-11-08).
 
-## Proposed order (2026-11-05, waiting on his OK)
+## Proposed order (2026-11-05, waiting on his OK; status 2026-11-08)
 
 1. **Fixes:** done 2026-11-05.
-2. **The 1.1 release:** release pass (QUEUE.md), lower-end presets, a VR Tracy capture. Only on his word.
-3. **Flat-screen:** per-weapon pose, then procedural reloads, then the hotkey audit, the window's graphics, recorded motions.
+2. **The 1.1 release:** the Gameplay page, the installer's settings page, armed replacements on by default and a VR
+   Tracy capture are done; the release pass ran 2026-11-08 (ROUND24.md, "Release pass for 1.1"). Left: the installer
+   page's review, the lower-end presets on real hardware, a VR RenderDoc capture. Only on his word.
+3. **Flat-screen:** per-weapon pose done; left: procedural reloads, the hotkey audit (mostly covered), the window's
+   graphics (partly), recorded motions (phase 1 shipped).
 4. **Armed humanoids** (the key feature): the enforcer's real backpack, a design study for crouching and crawling;
    then gremlins, AD's humanoids and their packs.
 5. **Combat feel:** hit-confirm audio, crossed-sword parry, wounded monsters; embedded blades (finish, then props) and
@@ -15,8 +18,8 @@ Retired items are in git history (last cleanup 2026-11-06).
 6. **Weapons and content:** AD guns' models and own weapons, bloody shotguns, reliefs, ammo type
    from the magazine, AD inventory.
 7. **Refactors, right after 1.1:** formatting, Ironwail extraction, design review P3/P6/P8/P9/P10 (QUEUE.md).
-8. **Big features, each needing its own decision:** multiplayer, modelling formats and glTF, seated play, player
-   crawling, pillar climbing, TAA/DLSS, platforms, bHaptics.
+8. **Big features, each needing its own decision:** multiplayer, modelling formats and glTF, seated play, pillar
+   climbing, TAA/DLSS, platforms, bHaptics (player lying down and crawling landed, with its lower box).
 9. **Performance and parked items:** only when a capture makes one the top cost, or when a player hits it.
 
 Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
@@ -24,18 +27,13 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 ## 2. The 1.1 release
 
 - **Review the installer's settings page before 1.1** (Vittorio, 2026-11-06): go through every setting on the installer's "Set up the game" page (`Misc/installer/settings_page.txt`): which ones, their order, labels and help; decide whether "VR or flat screen" belongs there (today the page leaves it off: the game forces VR at every start).
-- **Gameplay page before 1.1** (Vittorio, 2026-11-06): VR Settings must have a "Gameplay" section that tweaks every major gameplay decision from one simple menu (armed replacements, embedded blades, knockdowns, melee and parry, bullet time, arena, difficulty-like toggles...); check vr_menu_gameplay.inc covers them all, plainly named.
-- **Armed replacements on by default in 1.1** (Vittorio, 2026-11-06): `vr_agrunt_repl` 1 (already the default; keep it).
-- **Installer settings page** (users' request, 2026-11-06): after installing, a page to set the most common settings before the first launch; his call on scope and timing.
-- **Release pass:** QUEUE.md lists it (release build tests, real packaging, beta4 upgrade path, mods, notes).
-- **A VR Tracy capture** (`vr_tracy_preset full`) and a VR RenderDoc capture, to confirm the perf work on real hardware.
+- **A VR RenderDoc capture**, to confirm the perf work on real hardware (the VR Tracy capture is done).
 - **Lower-end graphics settings before a release** (the author, round 20: "maybe later on before release, you can
   prepare some lower-end graphics settings as well"): the shipped defaults (`quakevr/vr_defaults.cfg`) are the
   author's RTX 4090 settings; the presets (`vr_graphics_preset`) exist, but their low/mid tuning is unverified.
 
 ## 3. Flat-screen
 
-- **Per-weapon flat-screen pose** (Vittorio, 2026-11-05): an easy way to tweak each weapon's pose in flat-screen; some should be held differently (pistols, rifles, shoulder launchers). Tweaking must keep sight alignment and the ironsight working.
 - **Flat-screen immersive reloading** (Vittorio, 2026-11-05): on by default, from pre-recorded or procedural animation depending on the weapon. To start, make all reloads procedural with simple rules: e.g. the shotgun rolls a bit so the shell port is more accessible, and the off hand goes smoothly back and forth between the ammo pouch and the port until the reload is interrupted or the weapon is full.
 - **Flat-screen hotkeys for VR interactions** (Vittorio, 2026-11-05): support most VR-specific interactions with proper hotkeys: parrying, switching ammo type, throwing, shoving, climbing and so on. Harder ones can stay VR-only. Audit each and propose a solution or suggestion for it.
 - **Flat-screen left-handed mode** (Vittorio, 2026-11-05: "We can add a 'flatscreen lefthanded mode' later"): the mouse's
@@ -47,10 +45,6 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 
 ## 4. Armed humanoids
 
-### Pick Up a Second's default (the author, 2026-11-03)
-
-The smarter pickup shipped (ROUND24.md, "Pick Up a Second, smarter": only a cheap trip, tighter in a fight);
-`vr_agrunt_dual_pickup` is still 0. Left: his call on the default once he has played with it on.
 
 ### The enforcer's backpack made a real one (author, 2026-11-02)
 
@@ -77,11 +71,6 @@ pack a frame): each wearer costs a little.
 - **Gremlins as armed humanoids** (Vittorio, 2026-11-02): Scourge of Armagon's gremlin already steals the player's weapon and fires it, so an armed gremlin fits its character: a small body with a full-size gun. Check its rig and hands first (a kind's fit on the grunt's keys may not carry over).
 
 ## 5. Combat and feel
-
-### Small
-
-- **Shooting yourself in VR** (Vittorio, 2026-11-06): the player can hurt themselves by pointing a weapon at their own limbs or body and firing: shots and blades hit the player's own body (limb hit, blood, damage), headset only.
-
 
 ### Dual-wield parry: crossed swords (the author, 2026-10-18)
 With a sword in each hand (e.g. the Death Fury's pair), crossing the two blades in front of the body should be a valid
@@ -183,8 +172,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ### Native AD inventory and interface (author, 2026-10-12 11:27:41)
 
-Audited and the gadget's AD page added (ROUND22.md, same section). Left: the custom keys' names on it (strings, not
-stats), the jump boots' power level, coop.
+Left: the custom keys' names on the gadget's AD page (strings, not stats) and the jump boots' power level.
 
 ### Reliefs
 
@@ -194,7 +182,8 @@ stats), the jump boots' power level, coop.
 
 ### Art (ROUND21.md, "For the author": Blender)
 
-- **Stretched UVs left** (ROUND21.md, "Patch 1.0.1: stretched skins re-mapped"): the grappling hook's claws (10% of it:
+- **Stretched UVs left (check: may be stale; the 2026-11-08 topology rounds welded and cleaned faces but re-mapped
+  none of these, so ask him whether they still show)** (ROUND21.md, "Patch 1.0.1: stretched skins re-mapped"): the grappling hook's claws (10% of it:
   their strips do not unwrap flat), the rocket launcher's and plasma gun's few faces whose strips would not unwrap
   flat; the same few on the lava super nailgun and multi rocket launcher (re-mapped too: ROUND22.md, "Patch 1.0.1:
   the lava super nailgun and multi rocket launcher re-mapped").
@@ -246,12 +235,6 @@ without leaning, chosen automatically from the seated calibration (vr_setup seat
   .blend and export on save (ROUND24.md, "The shotgun as a source .blend", "Blender: export on save"); the audit and
   the other models are left.
 - **glTF (.glb) for the hand and body models, after 1.1** (Vittorio, 2026-11-03): so modellers can work in Blender with no add-on. A small parser (cgltf; ask before downloading) fills the structure the MD5 loader fills; MD5 stays as the fallback; a .glb loads only when present; vr_hand_reload and vr_model_reload read it. Watch: Y-up metres to Z-up Quake units, seams split, 4 weights, bone rest pose and roll against the engine's axis convention, a simple material rule (one base colour texture), skins' damage and armour variants stay separate files. Bone names and grip fits still apply. Weapons and other .mdl models stay out: frame numbers in QuakeC, triangle-keyed masks and anchors.
-- **Player lying down and physical crawling** (Vittorio, 2026-11-03): the player can lie down and crawl by moving their body and arms.
-  The body's pitch (`vr_avatar_pitch.cpp`, `BodyPitch`; ROUND24.md, "Swimming tilt") is the pose state to reuse: a second
-  source with its own target (about 90), the same pivot (the head stays at the headset) and ease; the legs on the floor.
-  Lying down landed (ROUND24.md, "Lying down and crawling": `vr_prone`, its own 16 box ("A lower box for lying down"),
-  the crawl's speed, no jumps, the body flat, flat-screen's X); left: moving by pulling with the arms (the stick crawls
-  today).
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
@@ -324,7 +307,8 @@ better lighting effects. Not yet reviewed: licence, base engine and what is reus
 
 ### Loading and builds
 
-- **Model loading in parallel** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
+- **Model loading in parallel (check: partly covered by "Map-load work off the main thread", ROUND24.md: skins' normal
+  maps now go to jobs; its "Not done" keeps authored normal maps' PNG decode and the limb models' wait)** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
   decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into
   a decode into its own buffers (on the pool) and a commit in order on the main thread. Two exact pieces done instead.
 - **Drop the remaining kept copies** (ROUND21.md, "The hull build's memory"): the last level's kept copies, 550 MB at
