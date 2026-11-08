@@ -657,9 +657,12 @@ void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
 
 void(entity attacker, float damage) player_pain =
 {
-    // (No pain sound now: a blade's mark ends with this blow, not left for the next pain of any kind to grunt for it.)
+    // Firing: the gun's frames play on, no pain frames. VR: the pain sound still plays (PainSound's own pain_finished
+    // limits it), any damage, your own shots too (his note 2026-11-08; Quake skipped it with the frames). A blade's mark
+    // ends with this blow either way, not left for the next pain of any kind to grunt for it.
     if(self.weaponframe || self.weaponframe2)
     {
+        PainSound();
         self.axhitme = 0;
         return;
     }

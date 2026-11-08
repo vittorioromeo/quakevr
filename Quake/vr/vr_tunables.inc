@@ -766,6 +766,7 @@ QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
 QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
 QVR_TUNABLE(vr_gunfx_wisp_pixels, "1.5") // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
+QVR_TUNABLE(vr_gunfx_wisp_near, "5") // cm from the eye within which the smoke wisps fade out (from a third of it; 0.5-30; 18 until 2026-11-08: a gun at your mouth hid its smoke)
 QVR_TUNABLE(vr_smoke_blow_threshold, "0.015") // blowing on smoke: the microphone's level (RMS, 0..1) that counts as a blow
 QVR_TUNABLE(vr_smoke_blow_hold, "0.06") // ... seconds above it before it does
 QVR_TUNABLE(vr_smoke_blow_reach, "0.375") // ... metres from your mouth the smoke feels it (fading from half of this)

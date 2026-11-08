@@ -3,7 +3,7 @@
 // vr_selfshot.hpp -- shooting yourself in VR (vr_selfshot; ROUND24.md, "Shooting yourself"). The player's own drawn
 // body and hands as capsules (the wounds' hit geometry, vr_wounds.cpp: where an enemy's hit is painted on you), and a
 // segment's first meeting with them: a hand's shots (QC selfhit_segment) and its missiles' flights (SV_PushEntity:
-// VR_SelfShotMove) meet the shooter's own torso, legs, forearms and hands. The head is not one (seen from inside it).
+// VR_SelfShotMove) meet the shooter's own torso, legs, forearms and hands, and his head (round the eyes, current()).
 
 #include "vr_engine.hpp" // entity_t, edict_t, trace_t
 
@@ -21,6 +21,7 @@ enum Part : int
     PartOffHand = 3,
     PartMainForearm = 4,
     PartMainHand = 5,
+    PartHead = 6, // (your own shots only: current(); the wounds' capsules, build(), have none)
 };
 
 struct Capsule
@@ -30,13 +31,13 @@ struct Capsule
     int part{PartTorso};
 };
 
-using Capsules = za::InPlaceVector<Capsule, 6>;
+using Capsules = za::InPlaceVector<Capsule, 7>;
 
 // The capsules round the drawn body (own[0], its origin the pelvis) and hands (own[1 + hand]; the posed forearms when
 // the body is posed): the torso and the legs, each forearm from the elbow to the wrist, each hand past the wrist.
 [[nodiscard]] Capsules build(entity_t* const own[3]);
 
-// As drawn now (view::woundTargets).
+// As drawn now (view::woundTargets), and the head round the eyes (the view's place and angles: PartHead).
 [[nodiscard]] Capsules current();
 
 struct Hit
