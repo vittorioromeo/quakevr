@@ -1970,6 +1970,10 @@ QVR_TOGGLE(vr_wounds, "Dynamic Wounds",
     "Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off.")
 QVR_TOGGLE(vr_wounds_burns, "Burns",
     "Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment.")
+QVR_TOGGLE(vr_drips, "Water Drips",
+    "Water drips off what was in it once it is out: you, your hands and weapons, monsters, corpses, gibs and props. Many drops at first, fewer as it dries (Wet Duration); slime drips green.")
+QVR_TOGGLE(vr_gore_wound_drips, "Wounded Enemies Drip",
+    "Hurt monsters drip blood from where they were hit, more the more hurt they are and just after a hit.")
 QVR_TOGGLE(vr_wounds_wet, "Wet from Liquids",
     "Monsters and you get wet up to where water or slime came, drip, and dry (Wet Duration).")
 QVR_SLIDER(vr_wounds_wet_coat, "Wet Sheen", 0.f, 2.f, 0.1f, "%.1fx", noExt,
@@ -5260,31 +5264,42 @@ QVR_TOGGLE(vr_prone, "Lie Down and Crawl",
     "Lie down for real (your eyes under Lying Down Below) and your box is very low: you crawl under what even a "
     "crouch can't pass, slowly, and you can't jump. Getting up needs room for a crouch over you. Flat-screen: the "
     "prone key (X) lies down and gets up. Needs the Crouched Hitbox. Off: never lying down (vr_prone).")
-QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 22.f, 1.f, "%.0f units", noExt,
-    "Your eyes' height over your feet under which you lie down (18 is about half a metre: propped on your elbows, "
-    "not on all fours). Up again with them 2 units over this or your lying box's top, the higher (vr_prone_eye).")
-QVR_SLIDER(vr_prone_height, "Lying Down Height", 12.f, 32.f, 1.f, "%.0f units", noExt,
+QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 48.f, 1.f, "%.0f units", noExt,
+    "Your eyes' height over your feet under which you lie down (22 is about 0.6 m: propped on your elbows; 30 or "
+    "more: on all fours; at most 48). Up again with them Getting Up Margin over this or your lying box's top, the "
+    "higher, where a crouch fits (vr_prone_eye).")
+QVR_SLIDER(vr_prone_rise_margin, "Getting Up Margin", 2.f, 16.f, 1.f, "%.0f units", noExt,
+    "How far your eyes rise over Lying Down Below before you get up: wider, a high Lying Down Below doesn't flicker "
+    "between lying and crouching as your head bobs (vr_prone_rise_margin).")
+QVR_SLIDER(vr_prone_height, "Lying Down Height", 12.f, 48.f, 1.f, "%.0f units", noExt,
     "Your box's height lying down: 16 (about half a metre) passes under gaps a crouch can't; at most the lowest "
     "crouched height less 4 (vr_prone_height).")
-QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
+QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.02f, "%.2fx", noExt,
     "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
 QVR_TOGGLE(vr_prone_crawl, "Crawl With Your Arms",
-    "Lying down in VR, drag yourself along the floor: reach ahead, put your hand down and pull it back towards you. "
-    "A hand moving through the air or firing does nothing. Off: the stick alone, at full crawling speed (vr_prone_crawl).")
+    "Lying down in VR, drag yourself along the floor: put your hand down and pull it back towards you to go "
+    "forward, push it ahead to go back, sideways to go sideways. A hand moving through the air or firing does "
+    "nothing. Off: the stick alone, at full crawling speed (vr_prone_crawl).")
+QVR_CYCLE(vr_prone_crawl_hand, "Empty Hand Crawls When",
+    "Which pose of an empty hand drags you along the floor: Closed, a fist (its grip or trigger held: an open hand "
+    "resting on the floor doesn't start a crawl), Open, or Either. A hand holding a weapon always does "
+    "(vr_prone_crawl_hand).",
+    {1.f, "Closed"}, {2.f, "Open"}, {0.f, "Either"})
 QVR_SLIDER(vr_prone_stick_scale, "Stick While Crawling", 0.f, 1.f, 0.05f, "%.2fx", noExt,
     "With Crawl With Your Arms on, the stick's share of the crawling speed: small, the arms do most of it, as in "
     "swimming. 0: the stick does nothing lying down (vr_prone_stick_scale).")
-QVR_SLIDER(vr_prone_crawl_gain, "Arm Crawl Strength", 0.5f, 6.f, 0.25f, "%.2fx", noExt,
+QVR_SLIDER(vr_prone_crawl_gain, "Arm Crawl Strength", 0.25f, 10.f, 0.05f, "%.2fx", noExt,
     "How far a pull drags you, times your hand's own travel along the floor (1: exactly as far, a hand gripping it) "
     "(vr_prone_crawl_gain).")
-QVR_SLIDER(vr_prone_crawl_min_speed, "Arm Crawl Pull Speed", 0.1f, 1.5f, 0.05f, "%.2f m/s", noExt,
-    "How fast a hand must move back along the floor to pull you: slower is resting or aiming (vr_prone_crawl_min_speed).")
-QVR_SLIDER(vr_prone_crawl_plant_height, "Arm Crawl Floor Height", 4.f, 24.f, 1.f, "%.0f units", noExt,
-    "A hand under this height over your feet is on the floor and can start a pull (coming down to it, under twice "
-    "this); a pull goes on under twice this (vr_prone_crawl_plant_height).")
-QVR_SLIDER(vr_prone_crawl_friction, "Arm Crawl Friction", 0.5f, 10.f, 0.5f, "%.1f /s", noExt,
+QVR_SLIDER(vr_prone_crawl_min_speed, "Arm Crawl Pull Speed", 0.f, 2.f, 0.02f, "%.2f m/s", noExt,
+    "How fast a hand must move along the floor to pull you: slower is resting or aiming (vr_prone_crawl_min_speed).")
+QVR_SLIDER(vr_prone_crawl_plant_height, "Arm Crawl Floor Height", 0.f, 12.f, 0.25f, "%.2f units", noExt,
+    "A hand whose lowest point (its knuckles or fingertips) is under this height over your feet is on the floor and "
+    "can start a pull (coming down to it, 1.5 higher); a pull goes on under 1.5 over this. 0: touching the floor "
+    "(vr_prone_crawl_plant_height).")
+QVR_SLIDER(vr_prone_crawl_friction, "Arm Crawl Friction", 0.f, 20.f, 0.25f, "%.2f /s", noExt,
     "How quickly you stop between pulls: lower glides further (vr_prone_crawl_friction).")
-QVR_SLIDER(vr_prone_crawl_max_speed, "Arm Crawl Top Speed", 40.f, 320.f, 10.f, "%.0f u/s", noExt,
+QVR_SLIDER(vr_prone_crawl_max_speed, "Arm Crawl Top Speed", 20.f, 400.f, 10.f, "%.0f u/s", noExt,
     "The most speed the arms' crawl reaches (vr_prone_crawl_max_speed).")
 QVR_SLIDER(vr_prone_crawl_haptic, "Arm Crawl Haptics", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A short pulse in the hand as it plants on the floor for a pull, with its palm's slap: this strong (0 none) "
@@ -5690,6 +5705,7 @@ QVR_TOGGLE(vr_foreign_configs, "Other Ports' Startup Configs",
     "folder (in id1 next to a GOG or Steam Quake, a re-release folder: another source port's) runs too. Off "
     "(the default): only quakevr's own; a skipped one is named in the console. Exec by hand runs any.")
 QVR_TOGGLE(vr_wounds_debug, "Wounds", "Each wound painted on a model.")
+QVR_TOGGLE(vr_drips_debug, "Water Drips", "Each wet thing coming out of its liquid and drying off.")
 QVR_CYCLE(vr_debug_grasp, "Grasp",
     "Each grasp solve of the jointed hands (and each finger's stops).",
     {0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"})
@@ -6116,6 +6132,12 @@ QVR_SLIDER(vr_flat_mantle_look_max, "Mantle Look Up Most", 0.f, 90.f, 1.f, "%.0f
 QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
     "key held all along (vr_flat_mantle_time).")
+QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt,
+    "Playing on the desktop screen: the body's eye height. The body, its poses and the weapons you hold are sized to "
+    "it; the headset's Height (VR Settings) is for VR only (vr_flat_body_height).")
+QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
+    "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

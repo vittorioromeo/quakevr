@@ -48,6 +48,7 @@
 .float  vr_skewer_cut;     // TRUE: on the edge at its cut
 .float  vr_skewer_cutt;    // when it went on
 .vector vr_skewer_gripv;   // the other hand's hold, in the blade hand's frame from it
+.vector vr_skewer_gripd;   // and from its middle, on its surface (world): where the hand has it once taken off (VR_Skewer_Take)
 .float  vr_skewer_peak;    // its fastest own speed lately (m/s) ...
 .vector vr_skewer_peakv;   // ... that move (units/s) ...
 .float  vr_skewer_peakt;   // ... and when
@@ -118,6 +119,7 @@ float(entity g) VR_Skewer_Radius =
     return max(2, (size_x + size_y + size_z) / 6);
 };
 
+float VR_SKEWER_PALM = 2; // units: a hand on a gib's surface, its palm's middle that far out (the engine's skewerPalm)
 float VR_SKEWER_MIDDLING = 5; // units: the radius of a gib or limb of the middling size, the weights' (VR_Skewer_Mass)
 
 // Its weight, kg: a head's; a gib's or a limb's by its size.
@@ -279,6 +281,12 @@ void(entity g) VR_Skewer_Off =
 // `xHand` of `p` takes it off the blade, held as a gib is.
 void(entity g, entity p, float xHand) VR_Skewer_Take =
 {
+    // Into the hand where it held it (his note 2026-11-08 17:08: the hand had torn it off yards from it and held it there, a gap):
+    // the gib comes to the hand, the hand on its surface where it took hold.
+    if(g.vr_skewer_grip == xHand + 1 && g.vr_skewer_gripd != '0 0 0')
+    {
+        setorigin(g, g.origin + (VRGetEntHandPos(p, xHand) - g.vr_skewer_gripd - g.vr_skewer_c));
+    }
     VR_Skewer_Clear(g);
     VR_Carry_Start(p, xHand, g);
     dprint(sprintf("skewer: %s taken by hand %g\n", g.classname, xHand));
@@ -419,6 +427,10 @@ float(entity g) VR_Skewer_Grip =
             g.vr_skewer_grip = h + 1;
             g.vr_skewer_gripat = VR_Skewer_Back(g, len) - along;
             g.vr_skewer_gripoff = vlen(d + vr_skewer_way * along);
+            // (On its surface, not inside it: the engine draws the hand so, vr_view_hands.cpp skewerDrawnHand.)
+            vector gd = VRGetEntHandPos(p, h) - g.vr_skewer_c;
+            float gr = VR_Skewer_Radius(g) + VR_SKEWER_PALM;
+            g.vr_skewer_gripd = vlen(gd) < gr ? (vlen(gd) > 0.01 ? normalize(gd) : '0 0 1') * gr : gd;
             if(g.vr_skewer_cut)
             {
                 VR_Skewer_Basis(g);
@@ -488,6 +500,20 @@ float(entity g) VR_Skewer_Grip =
         }
     }
     g.vr_skewer_shift = want - VR_Skewer_Place0(g);
+    // Slid along the blade: flesh on steel, in both hands (his note 2026-11-08 17:10), as a blade sliding in a body
+    // (VR_Embed_SlideFlesh: every Slide Sound cm a squelch).
+    float slid = want - now;
+    if(fabs(slid) > 0.01)
+    {
+        VR_Embed_SlideFlesh(g, slid, 0.01 * VRMetersToUnits());
+        if(time >= g.vr_hold_buzz)
+        {
+            g.vr_hold_buzz = time + 0.06;
+            float buzz = min(0.6, 0.2 + fabs(slid) / max(0.001, frametime) / VRMetersToUnits() * 0.3); // (by its speed along)
+            VR_Embed_Haptic(p, h, 0.05, 45, buzz);
+            VR_Embed_Haptic(p, g.vr_skewer_hand, 0.05, 45, buzz * 0.6);
+        }
+    }
     if(want <= -VR_Skewer_Radius(g))
     {
         dprint(sprintf("skewer: %s slid off the tip\n", g.classname));
@@ -874,6 +900,30 @@ float(entity g, entity c, entity by, float xHow, vector xCut) VR_Skewer_CutOn =
     }
     VR_Head_StopFlies(g);
     setorigin(g, g.origin + (on - xCut)); // (its cut end on the edge)
+    // In the blade, not beside it (his note 2026-11-08 17:03): its middle ahead of the edge the way the swing went (else the side
+    // it is on), the edge in it by vr_embed_cuton_depth of its radius.
+    float depthShare = max(0, min(1, cvar_hget(cvarh_vr_embed_cuton_depth)));
+    if(depthShare > 0 && VR_Melee_Line(by, hand, VR_Melee_Thing(by, hand)))
+    {
+        vector lw = normalize(vr_mline_far - vr_mline_grip);
+        vector a0 = g.angles;
+        a0_x = -a0_x;
+        makevectors(a0);
+        vector mid0 = (g.mins + g.maxs) * 0.5;
+        vector cNow = g.origin + v_forward * mid0_x - v_right * mid0_y + v_up * mid0_z;
+        vector sw = VRGetEntHandVel(by, hand);
+        sw = sw - lw * (sw * lw);
+        if(vlen(sw) < 1) // (m/s: no swing to go by)
+        {
+            sw = cNow - on;
+            sw = sw - lw * (sw * lw);
+        }
+        if(vlen(sw) > 0.001)
+        {
+            vector want = on + normalize(sw) * (VR_Skewer_Radius(g) * (1 - depthShare));
+            setorigin(g, g.origin + (want - cNow));
+        }
+    }
     g.vr_skewer_cut = TRUE;
     g.vr_skewer_cutt = time;
     g.vr_skewer_peak = 0;

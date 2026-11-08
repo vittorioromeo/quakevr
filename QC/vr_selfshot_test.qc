@@ -3,7 +3,8 @@
 // (any map; God mode off). Ends `selfshot: N passed, M failed`.
 // `vr_selfshot_test 1`: aimed: the main hand's shot (FireBullets, one pellet) at the off hand's palm, the off forearm,
 //   the thigh: hit there (that part), damage taken, the hand struck buzzes, its wound painted within 1.5 units of the
-//   point; a nail at the off forearm; a nail started inside it (a muzzle pressed into it); the head is never met; with
+//   point; a nail at the off forearm; a nail started inside it (a muzzle pressed into it); the head is met (a shot at
+//   it mid-fire: the headshot multiplier on the palm's damage, the pain sound), not by a shot ahead from the face; with
 //   vr_selfshot 0 nothing; another entity than your own player never met.
 // `vr_selfshot_test 2`: ordinary firing: a grid of hand poses (one hand forward, dual side by side, arms crossed, the off
 //   hand cupping the gun, pointing down, kicked up, from the hip, turned out and in), each hand firing a shotgun blast,
@@ -19,6 +20,7 @@ float vr_sst_hp0;   // health and armour then
 float vr_sst_felt0; // vr_ss_felt then
 float vr_sst_wounds0; // precise wounds painted then (selfhit_info 1)
 entity vr_sst_nail; // the case's nail in flight
+float vr_sst_palm;  // the palm shot's damage (case 0): the head shot's reference
 
 float VR_SST_GIVEUP = 6; // seconds a state may last
 float VR_SST_POSE_FRAMES = 4; // frames for a mock pose to reach the drawn body (the next frame's input, then its pose)
@@ -107,7 +109,7 @@ void(entity p) VR_SST_Aimed =
     {
         p.health = 100;
         p.armorvalue = 0;
-        if(selfhit_info(4) < 6)
+        if(selfhit_info(4) < 7)
         {
             return; // (the body and both forearms posed: the next frames)
         }
@@ -154,6 +156,10 @@ void(entity p) VR_SST_Aimed =
         string n = VR_SST_Name(vr_sst_case);
         VR_Test_Check(vr_ss_part == part, sprintf("%s: struck part %g (aimed at %g)", n, vr_ss_part, part));
         VR_Test_Check(VR_SST_Hp(p) < vr_sst_hp0, sprintf("%s: damage taken %g", n, vr_sst_hp0 - VR_SST_Hp(p)));
+        if(vr_sst_case == 0)
+        {
+            vr_sst_palm = vr_sst_hp0 - VR_SST_Hp(p); // (the head's reference)
+        }
         if(part != QVR_SS_PART_LEGS)
         {
             VR_Test_Check(vr_ss_felt > vr_sst_felt0 && vr_ss_felt_hand == cVR_OffHand,
@@ -171,12 +177,56 @@ void(entity p) VR_SST_Aimed =
     }
     if(vr_sst_s == 3)
     {
-        // The head (a line through the eyes, side to side): never met (no part: seen from inside it).
+        // The head (his note 2026-11-08: shooting yourself in the head): a line through it, side to side, meets it; a
+        // shot at it from the hand, mid-fire, takes the palm's damage times the headshot multiplier and cries out.
         vector m = VRGetMuzzlePos(cVR_MainHand);
-        vector head = p.origin + p.view_ofs + '0 0 3';
+        vector head = selfhit_point(QVR_SS_PART_HEAD, 0.5);
         makevectors(p.v_angle);
         float fh = selfhit_segment(p, head + v_right * 24, head - v_right * 24, 0, 0);
-        VR_Test_Check(fh < 0, sprintf("a line through your own head: not met (%g)", fh));
+        VR_Test_Check(fh >= 0 && selfhit_info(0) == QVR_SS_PART_HEAD,
+            sprintf("a line through your own head: met (%g, part %g)", fh, selfhit_info(0)));
+        p.health = 100;
+        p.weaponframe = 2; // (mid-fire: player_pain skips its frames)
+        p.pain_finished = 0;
+        VR_SST_Mark(p);
+        VR_SST_Shoot(p, normalize(head - m));
+        float headDmg = vr_sst_hp0 - VR_SST_Hp(p);
+        // (a pellet's 4, times Shooting Yourself's damage and the headshot multiplier; the palm's has the limbs')
+        float want = 4 * cvar_hget(cvarh_vr_selfshot_damage) *
+            (cvar_hget(cvarh_vr_positional_damage) ? cvar_hget(cvarh_vr_headshot_mult) : 1);
+        VR_Test_Check(vr_ss_hits > vr_sst_hits0 && vr_ss_part == QVR_SS_PART_HEAD,
+            sprintf("a shot at your head: struck part %g", vr_ss_part));
+        VR_Test_Check(fabs(headDmg - want) <= 1 && headDmg > vr_sst_palm,
+            sprintf("your head: damage %g (a pellet's times the headshot multiplier: %g; the palm's %g)", headDmg, want,
+                vr_sst_palm));
+        VR_Test_Check(p.pain_finished > time, sprintf("your head, mid-fire: the pain sound played (%s)", p.noise));
+        // Any damage mid-fire (a grunt's shot while the gun fires): the pain sound plays (player_pain skips only the
+        // frames), and a second hit within pain_finished's half second does not play it again.
+        entity grunt = spawn();
+        grunt.classname = "monster_army";
+        grunt.flags = FL_MONSTER;
+        p.health = 100;
+        p.weaponframe = 3;
+        p.pain_finished = 0;
+        p.noise = "";
+        float frame0 = p.frame;
+        T_Damage(p, grunt, grunt, 1);
+        string firstNoise = p.noise;
+        float firstFinished = p.pain_finished;
+        float firstFrame = p.frame;
+        p.noise = "none";
+        T_Damage(p, grunt, grunt, 1);
+        remove(grunt);
+        VR_Test_Check(firstFinished > time && firstNoise != "" && firstFrame == frame0 && p.weaponframe == 3,
+            sprintf("a grunt's hit mid-fire: the pain sound played (%s), no pain frames (frame %g, was %g)", firstNoise,
+                firstFrame, frame0));
+        VR_Test_Check(p.noise == "none" && p.pain_finished == firstFinished,
+            sprintf("a second hit at once: rate-limited, not played again (%s)", p.noise));
+        p.weaponframe = 0;
+        p.health = 100;
+        // A gun held at the eyes aiming ahead (its line from in front of the face): not met.
+        float fa = selfhit_segment(p, head + v_forward * 8, head + v_forward * 600, 0, 0);
+        VR_Test_Check(fa < 0, sprintf("a shot ahead from in front of your face: not met (%g)", fa));
         // The option off: nothing.
         cvar_set("vr_selfshot", "0");
         VR_SST_Mark(p);
@@ -243,7 +293,7 @@ void(entity p) VR_SST_Ordinary =
     if(vr_sst_s == 1)
     {
         p.health = 100;
-        if(selfhit_info(4) < 6)
+        if(selfhit_info(4) < 7)
         {
             return;
         }

@@ -4536,6 +4536,46 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
   failed`).
 
+## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
+
+QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
+Nothing published, tagged, uploaded or pushed.
+
+- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
+  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
+  none of the stretched faces).
+- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
+  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
+  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
+  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
+  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
+  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
+  (warning; his call).
+- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
+  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
+- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
+  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
+  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
+  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
+  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
+  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
+  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
+    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
+    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
+    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
+  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
+    console name), so it found nothing: now retired, with the other two.
+  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
+    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
+- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
+  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
+  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
+  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
+- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
+  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
+  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
+- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
 ## Embedded blades: easier to move a body through a held blade, Blade Hold Strength (branch `agent/embed5`, 2026-11-08)
 
 His note: "It still feels extremely hard to impart force on the ragdolls ... the expert tunables didn't really make a big
@@ -4662,6 +4702,80 @@ resizing it.
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
 
+## Water drips off wet things; wounded enemies drip blood (branch `agent/blendmodels`, 2026-11-08)
+
+His words: water droplets like blood droplets from wet entities, fewer as they dry, only once out of the water,
+tunable, reusing the blood drip logic; and (extra) wounded enemies drip blood too.
+
+- **What existed:** blood drips from ceilings and hanging gibs (vr_gore.cpp `Source`/`fall`/`Landing`), from your own
+  wounded arms (vr_bodyblood.cpp, flung by a swing), and a water drip in vr_wounds.cpp (`drips`: masked monsters and
+  your hands, grey drops with no landing, dripping while still in the water). Wounded living monsters dripped nothing
+  (only bullet-hole streams for a moment: vr_bloodstream.cpp).
+- **Shared drip source:** gore's `fall` and its landings take a liquid (`gore::dropFrom(liquid, p, size, rgba,
+  markChance)`; 0 blood, 1 water, 2 slime). Blood lands as before (specks, a mark, the gore's drip sound); water and
+  slime land in `drips::landed` (2-3 specks in the drop's colour, `vr_drips_splash`; a soft drip, no decal), and a
+  drop falling into a liquid makes a small ripple at its surface. `particles::bloodDrip`/`bloodSpecks` take an alpha
+  (default 1: blood unchanged). New goresound kind `WaterDrip` (the drip wavs, its own volume `vr_drips_volume`,
+  rate-limited by `vr_drips_sound_gap`, heard with the gore off).
+- **vr_drips.cpp (new):** a wetness 0..1 per thing: every alias model the client has (monsters, corpses, gibs, props,
+  dropped weapons; ten times a second, its box's bottom in water/slime: point contents incl. func_water), and your
+  body (feet to eyes), hands, held weapons (handle to muzzle) and holstered weapons each frame. In the liquid: 1, the
+  waterline found by bisection and kept relative to the thing's bottom (a half-submerged thing drips under it, and
+  carries it out). Out of it (0.3 s grace): dries in `vr_wounds_wet_time` (the wet coat's: they agree), faster
+  moving (`vr_drips_dry_motion`); drips `vr_drips_rate * wet^vr_drips_curve` a second (monsters by their height, your
+  own times `vr_drips_view`), from downward triangles under the waterline (`wounds::dripPoint`: the old wounds code,
+  moved), a gun's barrel towards the muzzle, a hand, the body's legs/hem (none within 0.5 m under the eyes). A swung
+  wet hand or weapon over 2.2 m/s throws drops (`vr_drips_fling`, as bodyblood flings blood). Lava dries at once;
+  nothing drips in or under a liquid. Only drawn things within 1536 units drip; everything shares `vr_drips_max`
+  drops a frame, round robin. The old `wounds::drips` is gone (the coat and `handWetLeft` stay).
+- **Wounded enemies:** `drips::onWound` (from the wound events, vr_wounds_net.cpp; not the clean dummy's) keeps the
+  last four hit points of a living monster in its yaw frame; it drips `vr_drips_blood_rate * (lost health share +
+  burst)` (the health from the local server's edict, the start its health before the first hit; a hit adds
+  `vr_drips_blood_hit * damage / 20`, fading in 1.5 s), from those points, blood marks with `vr_drips_blood_marks`.
+  Forgotten when dead (the gore's pools take over) or healed. Off with `vr_gore 0`.
+- **Settings:** `vr_drips 1` (Water Drips, Graphics > Particles), `vr_gore_wound_drips 1` (Wounded Enemies Drip,
+  Gore, by Dripping). Tunables (Debug > Tunables > Particles > Water Drips): `vr_drips_rate 3`, `_curve 2`,
+  `_dry_motion 1`, `_size 0.3`, `_color "0.62 0.74 0.88"`, `_slime_color "0.32 0.55 0.1"`, `_alpha 0.6`, `_splash 1`,
+  `_volume 0.3`, `_sound_gap 0.2`, `_max 8`, `_view 0.4`, `_fling 1`, `_blood_rate 1.2`, `_blood_hit 1`,
+  `_blood_marks 0.25`. Debug: `vr_drips_debug` (Debug page), `vr_drips_soak` (Debug button: everything within 512
+  soaked), `vr_drips_info`.
+- **Test:** `vr_drips_test` (needs vrtesthall: `-Script "vr_scenario waterdrips;vr_drips_test" -QuitOn
+  "drips_test: [0-9]+ passed"`): a probe under the pool soaked with no drops; out, 22/10/2 drops in three 2 s windows
+  (test rate 12, dry time 6), dry at 6 s, none after; 20 wet things at the shipped rate: 9.5 us a frame average, 28 us
+  at most (low-impact run), 153 drops in 144 frames, at most 8 a frame (the cap); a gore blood drop still lands as
+  blood; the scenario's dry grunt hurt to 30% drips 12 blood drops in 3 s, none with `vr_gore 0`. 11 passed, 0 failed.
+- **Scenario:** `waterdrips` (vrtesthall pool, a grunt in it and one beside it, a shotgun); `SCNRUN|waterdrips|OK`.
+- **Not done:** no wet spots on the floor (every decal kind is blood; a fading water mark needs its own atlas cell
+  and colour): the splash specks stand in. Your arms' water drops are the drips module's point drops, not
+  bodyblood's hanging drops along the forearm. Screenshots were taken in a low-impact run (small eyes): the drops are
+  sub-pixel there; judge them in the headset.
+## The Thunderbolt's plasma model renamed v_light_plasma.mdl (branch `agent/plasmarename`, 2026-11-08)
+
+His request: our plasma-ammo Thunderbolt was `progs/v_plasma.mdl`, Rogue's name, shadowing AD's Plasma Gun model.
+- **Renamed** (git mv, content unchanged): `quakevr/progs/v_light_plasma.mdl`, `vr_mag_on_v_light_plasma.mdl`,
+  `vr_magwell_on_v_light_plasma.mdl` and their `_0_norm.png`; the source .blends and skins under
+  `src_models/blend/<new name>/` (inside: object, mesh, material, image, `qvr_name`, `qvr_norms` renamed by a headless
+  Blender pass; `blend_export.py --out` writes the shipped model, norm map and magazine byte for byte);
+  `src_models/v_light_plasma.mdl` and `r21/` (the generators' inputs). References: weapons.txt slot 15's `id`,
+  world.qc's precache, vr_weaponutil.qc's row, modelmeta `VPlasma`, vr_view.cpp's magazine table, sight rules
+  (vr_sightalign.cpp, vr_sights.cpp, the add-on's sights.py), vr_gunfx.cpp, the generators (improve_weapons2/_alt,
+  polish_weapons, reuv_weapons, sight_picture, barrel_masks), generated.json, both FGDs, MODELS_IN_BLENDER.md.
+- **AD and Rogue:** AD's `#vr` names (`progs/v_plasma.mdl#vr` and its cell's parts, slot 35) stay. AD's
+  `v_plasma.mdl` is still skipped in AD's folder (vr_ad_data.inc: an id1-pak name), so: AD's `MODEL_VWEAP_UPLG`
+  precache (ad_worldspawn) now names `v_light_plasma.mdl` (ad_import.py patch; QC/ad edited to the same output, the
+  release's `ad_1_8.fgd` not at hand for `--check`; the patch's match checked against AD's paks) instead of failing
+  without Rogue; `ad::spawnAvailable` takes a `#vr` model as always there (`adweapons::isMade`: made, or its stand-in),
+  as it was when ours answered the name; vr_gunfx keeps `v_plasma.mdl` for AD's gun; the muzzle light's colour checks
+  the plasma names before `v_light`. Rogue: our QC never asked for Rogue's model (ours shadowed it); the Rogue pack
+  check keeps Rogue's `progs/v_plasma.mdl`.
+- **Compatibility:** weapon settings are by slot (`vr_wofs_*_16`), so his values stay; `vr_wofs_version` 75 renames a
+  config's slot ID still naming the old file. A save from before (its model list has the old name, not the new):
+  vr_progs.cpp `renameOldModels` maps the list and every string field and global holding the old name exactly
+  (`load: an older save: ... is now ...`).
+- **Test:** `Misc/quakevr/plasma_rename_test.sh <agent>` (VR mock and flat: model, slot 16 and barrel mask, painted
+  sights, magazine and well loaded, plasma selected, flat a round fired; an old save loads with the new model):
+  22 passed. plasma_ball_test 6/0, flattwohand_test 9/0, `vr_adweapon_models` in AD's start: 3 made, 0 not made
+  (612 triangles for the Plasma Gun, AD's own file).
 ## A lower box for lying down (branch `agent/pronebox`, 2026-11-08)
 
 His request: "add a new collision box for the prone height". Until now lying down was a value (24) of the crouch's
@@ -4788,3 +4902,173 @@ His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-
   force 2378 N, physics); agrunt 2 2/2 (rearm takes no guns, drop finds nothing), 74 0/1 (downtug, on the 11-06
   night's new-fails list); `stagger_test.sh` 5 FAIL (ragdoll_stagger is on QUEUE's pre-existing list). agrunt 2 is not
   proven unrelated: re-run it on a clean origin/next.
+## Flat-screen feedback 2026-11-08 evening (agent/flat1108c)
+
+- Slide: stairs stopped it (Quake steps up only with FL_ONGROUND, off every other move at slide speed; the step face zeroed the speed), and on the first step the eye (a frame behind) dropped under the prone limit and laid him down. A grounded slide now steps up every move (VR_FlatSlideStepUp), costs vr_flat_slide_slope * rise / speed per step, and cannot enter prone. Up a ramp vz > 60 counted as a jump: a jump now needs the jump key. A/D alone asked 90+ degrees off the slide and never steered: any way but within 20 degrees of straight back steers. Test: vr_flatslide_rough_test (flatslide_test.sh), 4/4 (with the step-up alone, the prone entry still ended it on the first step: rose 16).
+- Mantle: its grunt played 0-0.1 s after the jump grunt and was masked; it now waits vr_flat_mantle_grunt_delay (0.35 s) after the jump. vr_flat_mantle_look 30, vr_flat_mantle_look_max 90 (his).
+- Flat VR-style menu zoom: 1.05 a step (buttons, wheel while dragging); headset and classic stay 1.1.
+- Body height: units::eyeHeight() is vr_flat_body_height (1.55) in -flatscreenmode; Height rows dimmed there.
+- Not done in this round: hands on the ledge in the mantle (3b), empty-hand and melee wall pullback (5), two-handed wider shove with tunables (6), force-grab outline preview (7).
+## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
+
+Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:
+5, 13, 14. Tests at the end: 1 61/0, 11 117/8 (103/15 before), 21 41/2 (the known 2), 26 27/0, 27 22/0, 28 13/0;
+7 74/8 and 13 52/8 not examined case by case (see below).
+
+- **Dents where a blade strikes a dead ragdoll (item 12, note 17:07):** a hand's blow on a corpse (VR_Corpse_Struck)
+  began its hit record with the point but never named the corpse (VR_Hit_SetZone), so VR_Hit_Where took the middle of
+  the corpse's box: the wound and dent went from there along the blow, anywhere on a ragdoll lying (29 units off in
+  the test). Now the strike point. Blunt blows on corpses had the same fault.
+- **A cut-off head or limb sits in the blade (item 7, note 17:03):** Cut-Off Parts: In the Blade
+  (`vr_embed_cuton_depth`, 0.6; 0 the old place, its cut end on the edge, beside the blade): its middle ahead of the
+  edge the way the swing went (the hand's speed off the blade's line; under 1 m/s the side it was on), the edge in it by
+  that share of its radius. Test 26: middles 1.6-2.6 units from the axe's end, 27/0.
+- **The other hand on a skewered gib (items 1, 2, notes 17:08, 17:11):** the hand drawn on the gib is pinned on its
+  surface, not where the controller closed inside it (vr_view_hands.cpp skewerDrawnHand: out from the model's middle to
+  its size plus 2 units). Torn off or slid off the tip, the gib comes to the hand where it held it (QC VR_Skewer_Take,
+  .vr_skewer_gripd), no gap. The other hand still passes through a skewered gib before it grips (not solid on the blade:
+  see item 3). Not measured in the mock (the probe measures the pin, not the surface); for his eyes.
+- **Sliding a gib along the blade (item 4, note 17:10):** the flesh squelch every Slide Sound cm (VR_Embed_SlideFlesh)
+  and a buzz in both hands by its speed. Test 21: "sliding it along the blade squelches (4)".
+- **Shots and the other hand's blows hit a skewered gib (item 3, note 17:10):** it stays `SOLID_NOT` on the blade (its
+  own blade's sweeps, the drawn hands, the force grab pass it). The player's pellets and hitscan lines
+  (FireBulletsImpl, the second hitscan path: VR_Gib_TraceHeld) now check every skewered gib on their line before what
+  they hit: the nearest comes off the blade and takes the hit as a loose gib (bursts or is hurt as anywhere). The other
+  hand's fist or weapon (VR_Gib_HeldFrameHand, as for a gib held in that hand) strikes the nearest gib on the blade in
+  the other hand at Melee Speed or more: off the blade, the blow's impact. Not from inside it (a hand drawn on it to take
+  hold) and not over 15 m/s (a jump of the hand's place: the mock's hand put next to it read 21.9 m/s and burst it in
+  test 26). Not covered: monsters' shots, missiles at a skewered gib, the blade hand's own other weapon. Test 28 case 5
+  (a shot across it).
+- **Not done:** Item 5 (lag when turning or moving with the stick): the
+  gib is placed on the server from the hand each frame and drawn a frame late against the hands, which the client
+  draws from the newest pose; it needs a client-side correction like the held weapon's, not started. Items 13-14
+  (crates and barrels) not started.
+
+- **A stab that kills leaves the blade floating (item 8, notes 17:16, 17:17):** the cause is the stab killing the target,
+  not two hands or running. The blow is dealt before the blade is put in (VR_Embed_BlowsDone), so the body is already
+  dead and not solid; when the engine's `stickHeld` didn't meet the drawn model at once it fell back to the monster's
+  box (kind 4, "no model to go by") because `hitmodel::target` is false for a non-solid body. In its box the blade stays
+  where the body stood while the ragdoll falls, and a force grab still tugs it as embedded. Fixed: the box only for a
+  body with no mesh at all (`hitmodel::hasMesh`); otherwise QC waits for the blade to touch the model as for a live one.
+- **Force grab through its own host (item 9):** `vr_forcegrab_bodies_block` no longer skips a blade stuck in a body
+  for that body (QC vr_wpnforcegrab.qc).
+- **Cut-off parts harder to shake off (item 6):** Cut-Off Parts: Fling Speed (`vr_embed_cuton_fling`) 2.5 -> 4 m/s (5.5 was past what the mock hand reaches at the part: test 26 at 7-8 m/s moves did not fling).
+  The other hand's tug (Tug Speed 4 m/s, Tug Stretch 30 cm) and bursting on a wall (Swing Burst Speed 3) unchanged.
+  Test 26 now flings with 40 cm moves at 8 m/s (was 30 cm at 4, 40 cm at 5): the mock hand eases its glide in and out,
+  so a 30 cm move "at 8 m/s" moves the part at 3.7 m/s at most, 40 cm at 4.9-5.5 (the test prints it). The game reads
+  the speed right; the short move was the test's. 27/0.
+- **Running into a stab brakes you (item 11):** Running Stab: Brake (`vr_embed_brake`, 25 /s, 0 off) and Running Stab:
+  Speed (`vr_embed_brake_speed`, 0.5 m/s): while a hand holds the blade in any body (alive or killed by the stab), your
+  level speed along the blade into the body eases down to that speed (QC VR_Embed_Brake, from the hold's think).
+- **Grip on an embedded sword (item 10):** test 27 22/0 with Blade Hold Strength x1; nothing changed.
+- **Test `vr_embed_test 28`** (QC/vr_embed_1108_test.qc, `embed1108: N passed, M failed`): a killing stab stays in the
+  model (kind 3) and lies with the fallen body (wound 10.9 units from the torso); the brake takes speed off in a frame,
+  Brake 0 nothing (the mock's player stops from a run within 5 frames either way, so speed alone can't tell); a force
+  grab finds a blade in its host from in front. Not in the Debug menu yet.
+- **Test 1 (coordinator's question):** "sticks in a live body again", "that wound runs its own stream", "stays in the
+  dead body", "riding the body 390 units" were one real engine bug: a thrown blade given the edict number of one just
+  removed read that one's last Box3D contact (about 1000 units off, by the wall of an earlier case) as its own on its
+  first step: "hit something with the hilt", Out, never stuck. Fixed in `beforeStep`: a touch beyond the blade's reach
+  isn't its own. (Box3D's slot for a reused edict number still answers with the removed one's body for a step: worth a
+  look in vr_box3d_api.cpp, not done.) The test now also throws the second sword 0.3 s after the first is removed and
+  from before you. Test 1: 61 passed, 0 failed ("the real hand back to the drawn one" passed in that run; it varied).
+- **Tests 7 and 13 (not fixed, looked at only):** test 7 74/8: "a stab at 2.8 m/s isn't stuck (holds 0)", "a blow 60 deg
+  off its line isn't stuck (holds 0)", "pulled hard off its axis: free, in the hand (holds 0)", "a tug: in the hand
+  (holds 0)": the hand holds nothing when the check runs (the first case before the weapon is in the hand, the others
+  checked before the freed blade's ease back into the hand ends, it seems: timing, likely the test's); "pushed: it slides
+  deeper", "sliding deeper sounds/spurts", "the real hand back to the drawn one" are the known slide numbers. Test 13
+  52/8 ("vr_embed off during a hold: no blade left behind (2)", "the body teleported", "case 8/9: stuck (holds 13)"):
+  not examined; the brief noted most of 13's failures are the test's own.
+- **Next (not started):** item 5 (a client-side correction of skewered gibs to the drawn hand, as the held weapon has);
+  items 13-14 (blades in wooden crates and barrels: the hold code takes a monster host and hitmodel; a prop host needs
+  its own anchor (kind Prop exists for thrown axes) and its own Moving: forces).
+## Player body: crawl, prone limit, self-shot head and pain, flashlight trigger, smoke near the eye (branch `agent/player1108`, 2026-11-08)
+
+His notes vrtesthall_2026-11-08_16-54-47, _16-56-44, _16-58-24, _17-29-05, vrstart_2026-11-08_17-00-44, _17-01-11,
+vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
+
+- **Arm crawl from the hand's real bottom** (`vr_physics_water.cpp` VR_AfterCrawlMove, crawlHandBottom): a hand's
+  height is the lowest point of its fist as the client posed it (held::fist's spheres, turned by the hand's angles: the
+  knuckles or fingers), not the controller's place. It starts a pull under `vr_prone_crawl_plant_height` (default
+  10 -> **1**; slider 0..12 in 0.25 steps), coming down under 1.5 more, goes on under 1.5 over it (was twice the
+  height each: 8 units of air at his 4). configVersion **223** resets a saved value (its meaning changed).
+- **Hand pose** (`vr_prone_crawl_hand`, Player Hitbox > Empty Hand Crawls When: **1 Closed** default, 2 Open, 0
+  Either): an empty hand (fists, nothing carried) pulls in that pose; closed = grip or trigger held. A hand holding a
+  weapon or a thing always pulls unless it fires. Measured cause of "only the open hand crawls": every firing hand was
+  out, and a closed empty fist holds the trigger (+offhandattack / +attack), so it never pulled; the grip never mattered.
+- **Any direction:** the body goes against the hand's motion along the floor (the 66-degree "back only" cone removed).
+- **Lying Down Below** (`vr_prone_eye`): limit 8 .. the tallest crouched box's top less 4 (hull height less 8: 48),
+  was the lowest crouched box's top less 2 (34); slider 8..48. Default 18 -> **22** (his). Getting up at the limit (or
+  the lying box's top) plus **`vr_prone_rise_margin`** (new, default 2, slider 2..16: Getting Up Margin). Over the
+  lowest crouched box's top, getting up still needs that box to fit; the crouch rises on from there.
+- **Sliders widened:** Lying Down Height 12..48, Crawling Speed step 0.02, Arm Crawl Strength 0.25..10 (default 2.5 ->
+  **1.25**, his), Pull Speed 0..2, Friction 0..20, Top Speed 20..400.
+- **Pain sound while firing** (`player.qc` player_pain; his follow-up): Quake's early return on weaponframe /
+  weaponframe2 skipped the pain frames and with them PainSound, so any hit taken mid-fire was silent (your own shot is
+  always mid-fire). Now it skips only the frames: PainSound plays (its pain_finished half second still limits it), the
+  axhitme reset kept. A first version special-cased self-hits only (VR_SelfShot_Pain): removed, self-hits scream
+  through this path. (Invisible, Ring of Shadows: still no pain sound, as Quake.)
+- **Self-shot head** (vr_selfshot.cpp current(): PartHead 6, QC QVR_SS_PART_HEAD): an upright capsule round the skull
+  (middle 8 cm behind and 2 cm under the eyes, radius 8.5 cm, 13 cm under to 10.5 cm over the eyes; its front 0.5 cm
+  ahead of them). Only your own shots' capsules: the wounds' (build) have none, no wound painted on the head. Damage:
+  his answer, the headshot multiplier: PositionalRegion returns VR_REGION_HEAD for a self-hit on the head part (with
+  vr_positional_damage on), so pellets, missiles and the lightning take vr_headshot_mult (1.5) as a monster's head does.
+- **Flashlight trigger** (vr_flashlight.cpp triggerAtLamp): the trigger at the lamp switches it only from an empty
+  hand (or the hand holding the torch); a hand holding any weapon, melee included, fires or swings as anywhere.
+- **Smoke at the mouth** (vr_muzzlewisps.cpp): the wisps' ribbons faded out within 6 units (about 18 cm) of the eye
+  (ribbons::View::nearFade), so a gun at your mouth showed no smoke to blow on. Now `vr_gunfx_wisp_near` (Tunables >
+  Wisps Near the Eye, default **5 cm**, fading from a third of it). The blow itself had no minimum distance.
+- **Vent hint:** `quakevr/scenarios/prone_vent.txt` gains a `hint` (straight ahead, about 2 m east, the slot at the foot
+  of the east wall under the teleporter).
+- **Tests:** `crawl_test.py` **18 passed, 0 failed** (strokes 175 units; Closed: open 0, grip 175, trigger 175; Open:
+  open 176, grip 0.5; Either 175 both; push back 90; side 56 right, 0.7 along x; 8 cm over the floor 0; the floor
+  strokes at y 0.015 now, the fist 0.7 units over the floor; grip and trigger by +graboff / +offhandattack: a
+  vr_mock_button press is a key the open console takes). New `prone_eye_test.py` **6 passed** (limit 48 at 60; 40:
+  lying at 37, still at 40 and, margin 8, at 44; up at 49; 22 at 37: crouched 44). `prone_test.py` **32 passed**.
+  `vr_selfshot_test 1` **29 passed** (head met; a head pellet 6 = 4 x 1.5 against the palm's 3; pain sound mid-fire;
+  a grunt's hit mid-fire: pain sound, no pain frames, a second hit at once rate-limited;
+  a line ahead from the face not met), `2` **1 passed** (no self-hit in ordinary firing). New
+  `flashgrab/flash_trigger_test.py` **6 passed** (shotgun hand's trigger at the lamp: unchanged; empty hand: switches).
+  `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing; menu_paths.txt regenerated.
+- **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
+## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
+
+QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
+Nothing published, tagged, uploaded or pushed.
+
+- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
+  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
+  none of the stretched faces).
+- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
+  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
+  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
+  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
+  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
+  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
+  (warning; his call).
+- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
+  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
+- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
+  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
+  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
+  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
+  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
+  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
+  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
+    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
+    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
+    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
+  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
+    console name), so it found nothing: now retired, with the other two.
+  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
+    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
+- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
+  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
+  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
+  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
+- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
+  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
+  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
+- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).

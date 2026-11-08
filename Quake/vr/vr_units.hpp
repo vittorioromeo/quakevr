@@ -27,9 +27,20 @@ inline constexpr float modelEyeHeight = 1.646f;
     return perMetre * worldScale();
 }
 
-// The player's calibrated eye height (vr_height_calibration), in metres.
+// Flat-screen play (-flatscreenmode, no headset): the body's fixed height, vr_flat_body_height (the author's decision
+// 2026-11-08: the body, its poses and the held weapons were tuned at 1.55 m and a headset's Height changed them); 0
+// outside the mode (vr_flatplay.cpp).
+[[nodiscard]] float flatEyeHeight();
+
+// The player's eye height in metres: calibrated (vr_height_calibration) in the headset, vr_flat_body_height playing on
+// the desktop screen.
 [[nodiscard]] inline float eyeHeight()
 {
+    const float flat = flatEyeHeight();
+    if(flat > 0.f)
+    {
+        return flat;
+    }
     return vr_height_calibration.value > 0.5f ? vr_height_calibration.value : modelEyeHeight;
 }
 

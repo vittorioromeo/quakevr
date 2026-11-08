@@ -2764,10 +2764,14 @@ bool button(int hand, Button b, bool pressed)
             static_cast<int>(s.hotspot[hand]), otherWeaponNear(s, hand) ? ", at the other hand's weapon" : "");
     }
 
+    // The trigger at the lamp switches it only from an empty hand: a hand holding a weapon (a gun, a melee weapon) fires
+    // or swings it there, as anywhere (his note vrtesthall_2026-11-08_17-29-05: the shotgun over the chest lamp
+    // switched it instead of firing).
+    const bool triggerAtLamp = atLamp && handEmpty(hand);
     // Always on Head: only the trigger at it, switching it; nothing takes it off (the grip and B/Y are the game's).
     if(headMode())
     {
-        if(b == Button::Trigger && atLamp && deliberate(hand, b))
+        if(b == Button::Trigger && triggerAtLamp && deliberate(hand, b))
         {
             toggle(hand);
             swallowed = true;
@@ -2846,7 +2850,7 @@ bool button(int hand, Button b, bool pressed)
         swallowed = true;
         return true;
     }
-    if(!grip && (holding || (atLamp && deliberate(hand, b))))
+    if(!grip && (holding || (triggerAtLamp && deliberate(hand, b))))
     {
         toggle(hand);
         swallowed = true;

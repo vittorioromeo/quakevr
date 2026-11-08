@@ -1,5 +1,6 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
+#include "vr_drips.hpp"
 #include "vr_view_internal.hpp"
 #include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
 #include "vr_agarmor.hpp"
@@ -188,7 +189,7 @@ constexpr MagMount magMounts[] = {
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
     {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
-    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
+    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_light_plasma.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_light_plasma.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
     // AD support: AD's Plasma Gun (vr_adweapons.cpp): the lightning gun's cell and well turned out of its inner side (+y),
     // into the receiver made there; it pops out sideways (QC VR_Reload_MagOutWay: the way the well faces). Seated 0.6 further
@@ -5379,4 +5380,5 @@ extern "C" void VR_SetupViewEntities()
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
     QVR_PROFILE("view wounds");
     wounds::frame();
+    drips::frame(s.head); // water off the wet, blood off the wounded (vr_drips.cpp)
 }

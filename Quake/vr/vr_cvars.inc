@@ -36,18 +36,20 @@ QVR_CVAR(vr_crouch_step, "8", CVAR_ARCHIVE)            // ... then a box every t
 QVR_CVAR(vr_crouch_speed, "1", CVAR_ARCHIVE)           // crouched (your eyes under the tallest crouched box, vr_crouch_height/_step: 52; fully 8 units lower), the stick's most speed is vr_crouch_speed_scale of it, and always under the stealth AI's footsteps (vr_stealth_run_speed, 90% of it); eased in and out (vr_hull.cpp VR_CrouchSpeedMax); jumps, falls, knockback, movers untouched
 QVR_CVAR(vr_crouch_speed_scale, "0.75", CVAR_ARCHIVE)  // ... times the most speed (sv_maxspeed after stamina and carrying) crouched (0.2-1)
 QVR_CVAR(vr_prone, "1", CVAR_ARCHIVE)                  // lying down (needs vr_crouch_hull): your eyes under vr_prone_eye over your feet (a headset: lie down for real; flat-screen: vr_flat_key_prone / vr_prone_toggle), your box is vr_prone_height, you crawl at vr_prone_speed_scale, no jumping, the body lies flat behind your head (vr_hull.cpp, vr_avatar_pitch.cpp; ROUND24 "Lying down and crawling"); 0: never
-QVR_CVAR(vr_prone_eye, "18", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to the lowest crouched height less 2; 18 is about 0.5 m); up again once they are 2 over this or the box's top (the higher) and the lowest crouched box fits
+QVR_CVAR(vr_prone_eye, "22", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to the tallest crouched height less 4, 48 at the defaults; until 2026-11-08 the lowest crouched height less 2, and 18: his 22; 18 is about 0.5 m); up again once they are vr_prone_rise_margin over this or the box's top (the higher) and the lowest crouched box fits
+QVR_CVAR(vr_prone_rise_margin, "2", CVAR_ARCHIVE)     // ... units your eyes rise over vr_prone_eye (or the lying box's top, the higher) before you get up (2 to 16): a wider gap keeps a high Lying Down Below from flickering
 QVR_CVAR(vr_prone_height, "16", CVAR_ARCHIVE)          // ... your box's height lying down, in units: its own box (12 to the lowest crouched height less 4; until 2026-11-08 24, the crouch's lowest)
 QVR_CVAR(vr_prone_speed_scale, "0.3", CVAR_ARCHIVE)    // ... the stick's most speed lying down, times your top speed (0.1-1), eased in and out like the crouch's
-QVR_CVAR(vr_prone_crawl, "1", CVAR_ARCHIVE)            // ... VR: crawl with the arms: a hand planted on the floor (or coming down to it) and pulled back towards you drags you forward along the pull (vr_physics_water.cpp VR_AfterCrawlMove; ROUND24 "Crawling with the arms"); tracked hand motion only (vr_handsource_gate), not a hand whose trigger fires; 0: the stick alone
+QVR_CVAR(vr_prone_crawl, "1", CVAR_ARCHIVE)            // ... VR: crawl with the arms: a hand planted on the floor (or coming down to it) and pulled back towards you drags you the other way (pulled back: forward; pushed ahead: back; sideways: sideways; vr_physics_water.cpp VR_AfterCrawlMove; ROUND24 "Crawling with the arms"); tracked hand motion only (vr_handsource_gate), not a weapon's hand whose trigger fires, an empty hand in the pose vr_prone_crawl_hand says; 0: the stick alone
+QVR_CVAR(vr_prone_crawl_hand, "1", CVAR_ARCHIVE)       // ... an empty hand pulls: 1 closed (its grip or trigger held: a fist; his note 2026-11-08), 2 open, 0 either; a hand holding a weapon or a thing always does
 QVR_CVAR(vr_prone_stick_scale, "0.25", CVAR_ARCHIVE)   // ... VR, lying down with vr_prone_crawl on: the stick's crawl speed times this (on top of vr_prone_speed_scale; 0 none, 1 all; like vr_swim_stick_speed): the arms do most of it
-QVR_CVAR(vr_prone_crawl_gain, "2.5", CVAR_ARCHIVE)     // ... how far a pull drags you, times the hand's own travel (1: as a hand gripping the floor, exactly)
-QVR_CVAR(vr_prone_crawl_min_speed, "0.3", CVAR_ARCHIVE) // ... m/s a hand must move back along the floor to pull (slower: resting, aiming)
-QVR_CVAR(vr_prone_crawl_plant_height, "10", CVAR_ARCHIVE) // ... units over your feet under which a hand is on the floor and can start a pull (or coming down to it under twice this); a pull goes on under twice this
+QVR_CVAR(vr_prone_crawl_gain, "1.25", CVAR_ARCHIVE)    // ... how far a pull drags you, times the hand's own travel (1: as a hand gripping the floor, exactly; 2.5 until 2026-11-08: his 1.25)
+QVR_CVAR(vr_prone_crawl_min_speed, "0.3", CVAR_ARCHIVE) // ... m/s a hand must move along the floor to pull (slower: resting, aiming)
+QVR_CVAR(vr_prone_crawl_plant_height, "1", CVAR_ARCHIVE) // ... units over your feet under which a hand's lowest point (its knuckles or fingers) is on the floor and can start a pull (coming down to it, 1.5 more); a pull goes on under 1.5 over this (0 .. 12; until 2026-11-08 10 from the controller, its height and twice it: configVersion 223 resets it)
 QVR_CVAR(vr_prone_crawl_friction, "3", CVAR_ARCHIVE)   // ... how quickly the crawl's momentum dies between pulls (per second: 3 glides about a third of a second)
 QVR_CVAR(vr_prone_crawl_max_speed, "120", CVAR_ARCHIVE) // ... units/second the arms' crawl can reach
 QVR_CVAR(vr_prone_crawl_haptic, "0.3", CVAR_ARCHIVE)   // ... a short pulse in the hand as it plants for a pull, this strong (0 none); its palm's slap on the floor too (vr_physsound_grab)
-QVR_CVAR(vr_prone_crawl_debug, "0", CVAR_NONE)         // ... 1: print each pull (hand, how far it went, the speed it gave) and each hand's height over the feet as it plants
+QVR_CVAR(vr_prone_crawl_debug, "0", CVAR_NONE)         // ... 1: print each pull (hand, how far it went, the speed it gave) and each hand's lowest point over the feet as it plants (its pose: empty or holding, open or closed); 2: every frame each hand's lowest point; 3: and the gates (speed, synthesized, pose, ground, the move's bits)
 QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... the most degrees the body turns forward about the neck lying down (0 .. 100): it turns until the hips rest vr_prone_hip_floor over the floor (90: flat behind the head)
 QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
 QVR_CVAR(vr_prone_hip_floor, "3.5", CVAR_ARCHIVE)      // ... units the hips (the pelvis joint) rest over the floor lying down: the body turns about the neck until they are there, the chest propped on the elbows when the eyes are higher (0 .. 10; at most vr_prone_body_angle)
@@ -164,7 +166,7 @@ QVR_CVAR(vr_throw_inherit, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
-QVR_CVAR(vr_embed, "0", CVAR_ARCHIVE)                // off for 1.1 (needs work: BACKLOG); on
+QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE)                // on (his decision 2026-11-08); 0: axes alone
 // Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
 // force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
 // m times this).
@@ -854,7 +856,7 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
-QVR_CVAR(vr_menu_flat_vr_style, "0", CVAR_ARCHIVE)     // with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
+QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
 QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
 QVR_CVAR(vr_menu_flat_y, "0.5", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
@@ -1475,6 +1477,8 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+QVR_CVAR(vr_drips, "1", CVAR_ARCHIVE)                // water (and slime) dripping off what was in it once out: you, your hands and weapons, monsters, corpses, gibs, props (vr_drips.cpp; vr_drips_* tuning)
+QVR_CVAR(vr_drips_debug, "0", CVAR_NONE)            // 1: print each wet thing coming out of its liquid and drying; 2: each drop too
 // Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
 // burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
 // paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
@@ -2081,6 +2085,7 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
+QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded living monsters drip blood from where they were hit, the more the more hurt (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)
@@ -2478,7 +2483,7 @@ QVR_CVAR(vr_chainsaw_model_handle, "1", CVAR_ARCHIVE)    // the cord's handle in
 // dangles 1-2 cm about its seat, swung by the hand's motion and swaying a little at rest (vr_chainsaw.cpp).
 QVR_CVAR(vr_gruntgun_damage, "6", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too
-// Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
+// Armed grunts (QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause); at 2 each weapon's own count (QC VR_AG_SpareClips: the double-barrelled shotgun 8, the flare gun 4, the super nailgun 3), scaled by this / 2
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
@@ -4022,11 +4027,13 @@ QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crou
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
 QVR_CVAR(vr_flat_death_vomit_look, "0", CVAR_ARCHIVE)   // flatscreen play in Vomit Mode on death (vr_deathview.cpp flatView): 0 the view is exactly the ragdoll head's turn, the mouse ignored (the author's note 2026-11-08); 1 the mouse's look added on top of the head's turn (the old behaviour)
+QVR_CVAR(vr_flat_body_height, "1.55", CVAR_ARCHIVE)      // flatscreen play: the body's eye height in metres (1..2.2; vr_units.hpp eyeHeight): the body, its poses and the held weapons are sized to it, not to the headset's Height (vr_height_calibration, kept for VR; the author's decision 2026-11-08)
 QVR_CVAR(vr_flat_mantle, "1", CVAR_ARCHIVE)             // flatscreen play: 1 mantling (vr_climb.cpp flatMantle; needs vr_climb): after a jump, the jump key held and the view looking up (vr_flat_mantle_look), a ledge in reach ahead pulls him up onto it -- the headset's mantle (its search for room, its way up and over, its grunt); 0 off
 QVR_CVAR(vr_flat_mantle_reach, "20", CVAR_ARCHIVE)      // flatscreen mantle: units, how far ahead of his box's front a ledge's lip may be (2..64)
 QVR_CVAR(vr_flat_mantle_height, "24", CVAR_ARCHIVE)     // flatscreen mantle: units, the highest a ledge's top may be over his eyes, as he rises in the jump (-32..64; the lowest is vr_climb_min_height over the feet)
-QVR_CVAR(vr_flat_mantle_look, "5", CVAR_ARCHIVE)        // flatscreen mantle: degrees, the least the view must look up (-90..90; 0: level counts, negative: a little down too)
-QVR_CVAR(vr_flat_mantle_look_max, "80", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle)
+QVR_CVAR(vr_flat_mantle_look, "30", CVAR_ARCHIVE)       // flatscreen mantle: degrees, the least the view must look up (-90..90; 0: level counts, negative: a little down too; 30 his, 2026-11-08, from 5)
+QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle; 90 his, 2026-11-08, from 80)
+QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 

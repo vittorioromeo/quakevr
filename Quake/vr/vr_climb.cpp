@@ -1118,6 +1118,7 @@ struct Climber
     za::String handsLine[2];  // vr_debug_hands: the lines last printed
     // Flatscreen play's mantle (flatMantle): the jump it follows.
     double flatJumpAt{-1.0};  // when the jump left the ground (-1: none since landing, or the jump key let go)
+    double gruntAt{-1.0};     // the flat mantle's grunt, put off until the jump's own has ended (-1: none waiting)
     bool flatGrounded{false}; // on the ground at the last frame
     int flatMantles{0};       // mantles it started (vr_flat_mantle_test)
     // Hanging or slipping: holding on with one hand or both.
@@ -2385,7 +2386,10 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
     case Phase::Mantling:
         c.grips[0].active = c.grips[1].active = false;
         c.owed = glm::vec3{0.f};
-        mantleGrunt(ent);
+        if(c.gruntAt < 0.0)
+        {
+            mantleGrunt(ent); // (a flat mantle's waits for the jump's grunt to end: climbPreThink plays it at gruntAt)
+        }
         return;
     }
 }
@@ -2449,6 +2453,11 @@ static void climbPreThink(edict_t* ent)
         c = Climber{};
     }
     c.lastTime = time;
+    if(c.gruntAt >= 0.0 && time >= c.gruntAt)
+    {
+        c.gruntAt = -1.0;
+        mantleGrunt(ent); // the flat mantle's, put off past the jump's grunt (flatMantle)
+    }
     c.draining = false; // (VR_ClientClimb's hang says otherwise)
     if(fields().vr_climb_drain >= 0)
     {
@@ -3076,6 +3085,10 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
             best->top, best->top - feet, best->top - eye.z, up, time - c.flatJumpAt);
     }
     c.lastOrigin = origin;
+    // The grunt: the jump's (QC PlayerJump, CHAN_BODY) is still playing this soon after it, and the two together sounded
+    // as the jump's alone (the author's note 2026-11-08): put off until vr_flat_mantle_grunt_delay after the jump.
+    const double gruntAt = c.flatJumpAt + za::clamp(vr_flat_mantle_grunt_delay.value, 0.f, 1.f);
+    c.gruntAt = gruntAt > time ? gruntAt : -1.0;
     c.flatJumpAt = -1.0;
     c.flatMantles++;
     startMantle(ent, c, g, mid, to, eye.z - best->top, time);

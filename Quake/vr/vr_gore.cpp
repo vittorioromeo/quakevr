@@ -9,6 +9,7 @@
 #include "vr_goresound.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
+#include "vr_drips.hpp"
 #include "vr_engine.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -139,6 +140,8 @@ struct Landing
     glm::vec3 where, normal, color;
     float size;       // its mark's (0: none)
     float puddleGrow; // > 0: a puddle spreading over this long, not a drop's mark
+    int liquid = 0;   // drips::Liquid: 0 blood (the gore's own), 1 water, 2 slime (drips::landed: no decal)
+    float alpha = 1.f;
 };
 
 za::Vector<Landing> landings;
@@ -179,14 +182,19 @@ void addSource(int ent, const glm::vec3& pos, float seconds, float spread, float
 
 // A drop falls from `p`: one trace down for where it lands and when (it falls straight: real
 // enough for blood from a ceiling), the falling drop a particle, its landing later.
-bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float markSize, float puddleGrow)
+// (`liquid`, `alpha`: a drop of water or slime from something wet, vr_drips.cpp: no cloud, no mark; 0 the gore's blood.)
+bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float markSize, float puddleGrow, int liquid = 0,
+    float alpha = 1.f)
 {
     glm::vec3 where, normal;
     float f;
     if(inLiquid(p))
     {
         // Let in the liquid (you wading, bleeding): a cloud on its surface (vr_water_blood), no drop.
-        (void)water::addBlood(p, 0.12f * dropSize, 0.f);
+        if(liquid == 0)
+        {
+            (void)water::addBlood(p, 0.12f * dropSize, 0.f);
+        }
         return false;
     }
     if(landings.size() >= maxLandings || !decals::trace(p, p - glm::vec3{0.f, 0.f, 768.f}, where, normal, f))
@@ -195,8 +203,23 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
     }
     if(inLiquid(where + normal * 2.f))
     {
-        // Into a liquid on its way down: gone at its surface, a cloud there (no mark under it).
+        // Into a liquid on its way down: gone at its surface, a cloud there (no mark under it); water: a ripple.
         float surface = where.z;
+        if(liquid != 0)
+        {
+            float hi = p.z; // (the surface between the floor under it and `p`, to a unit: a ripple's place)
+            for(int i = 0; i < 10 && hi - surface > 1.f; i++)
+            {
+                const float mid = 0.5f * (surface + hi);
+                (inLiquid({p.x, p.y, mid}) ? surface : hi) = mid;
+            }
+            if(surface < p.z)
+            {
+                particles::bloodDrip(p, za::sqrt(2.f * (p.z - surface) / gravity()), surface, dropSize, color, alpha);
+                water::addRipple({p.x, p.y, surface}, 0.4f);
+            }
+            return true;
+        }
         if(water::addBlood(where + normal * 2.f, 0.15f * dropSize, 0.f, &surface) && surface > where.z && surface < p.z)
         {
             particles::bloodDrip(p, za::sqrt(2.f * (p.z - surface) / gravity()), surface, dropSize, color);
@@ -205,8 +228,8 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
     }
     const float h = za::max(0.f, p.z - where.z);
     const float t = za::sqrt(2.f * h / gravity());
-    particles::bloodDrip(p, t, where.z, dropSize, color);
-    landings.pushBack({cl.time + t, where, normal, color, markSize, puddleGrow});
+    particles::bloodDrip(p, t, where.z, dropSize, color, alpha);
+    landings.pushBack({cl.time + t, where, normal, color, markSize, puddleGrow, liquid, alpha});
     return true;
 }
 
@@ -714,6 +737,17 @@ void gibHanging(int ent, const glm::vec3& org)
         static_cast<int>(24.f * dripMult()));
 }
 
+bool dropFrom(int liquid, const glm::vec3& p, float size, const glm::vec4& color, float markChance)
+{
+    const bool mark = liquid == 0 && markChance > 0.f && vrand::range(rng, 0.f, 1.f) < markChance && markBudget();
+    return fall(p, size, glm::vec3{color}, mark ? vrand::range(rng, 2.f, 3.5f) * sizeMult() : 0.f, 0.f, liquid, color.a);
+}
+
+glm::vec3 bloodColorAt(const glm::vec3& p)
+{
+    return dropColor(p);
+}
+
 void frame()
 {
     QVR_PROFILE("gore");
@@ -780,8 +814,16 @@ void frame()
             i++;
             continue;
         }
-        if(l.normal.z > 0.6f && cl.worldmodel)
+        if(l.liquid != 0)
         {
+            if(cl.time - l.time < 0.5) // (not one long overdue: a time jump)
+            {
+                drips::landed(l.liquid, l.where, l.normal, glm::vec4{l.color, l.alpha});
+            }
+        }
+        else if(l.normal.z > 0.6f && cl.worldmodel)
+        {
+            drips::noteBloodLanding(); // (the drips' test: blood still lands as blood)
             if(l.puddleGrow > 0.f)
             {
                 MarkOptions o;

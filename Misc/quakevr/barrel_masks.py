@@ -41,7 +41,7 @@ SPECS = {
     "progs/v_rock2.mdl": {},
     "progs/v_multi2.mdl": {},
     "progs/v_light.mdl": {},
-    "progs/v_plasma.mdl": {},
+    "progs/v_light_plasma.mdl": {},
     "progs/v_laserg.mdl": {},
     "progs/v_gruntgun.mdl": {},
     "progs/v_enfrifle.mdl": {},

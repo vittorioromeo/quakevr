@@ -3,6 +3,7 @@
 // vr_wounds_internal.hpp.
 
 #include "vr_random.hpp"
+#include "vr_drips.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_wounds_internal.hpp"
@@ -301,6 +302,10 @@ void parseEvent()
     {
         bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount,
             melee);
+    }
+    if(!ev.clean)
+    {
+        drips::onWound(ev.num, ev.org, ev.amount, ev.kind); // a living monster's wound drips (vr_gore_wound_drips)
     }
     if(enabled() && events.size() < 512)
     {

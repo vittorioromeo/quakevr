@@ -135,7 +135,8 @@ constexpr ModelId modelIds[] = {
     {"progs/v_rock2.mdl", WID_ROCKET_LAUNCHER},
     {"progs/v_multi2.mdl", WID_ROCKET_LAUNCHER},
     {"progs/v_light.mdl", WID_LIGHTNING},
-    {"progs/v_plasma.mdl", WID_LIGHTNING},
+    {"progs/v_light_plasma.mdl", WID_LIGHTNING}, // its plasma ammo
+    {"progs/v_plasma.mdl", WID_LIGHTNING},       // AD's Plasma Gun ("progs/v_plasma.mdl#vr")
     {"progs/v_laserg.mdl", WID_LASER_CANNON},
     {"progs/v_gruntgun.mdl", WID_GRUNTGUN},
     {"progs/v_enfrifle.mdl", WID_ENFRIFLE},

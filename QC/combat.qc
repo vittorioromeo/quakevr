@@ -1325,6 +1325,9 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     SpawnBlood(at, dir * 40, dmg);
 
     VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, at, dir);
+    // Where it struck, this body's (VR_Hit_Where): without it the wound and dent went from the middle of the corpse's box, on a
+    // ragdoll lying anywhere but where the blade struck (his note 2026-11-08 17:07).
+    VR_Hit_SetZone(c, -1, at);
     vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
     T_Damage(c, self, self, dmg);
     vr_melee_blunt = FALSE;
