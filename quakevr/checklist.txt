@@ -118,6 +118,7 @@ Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / 
 - [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
 - [ ] An AD map with a weapon_axe still has AD's axe pickup
 Armoured enforcers' elbow leather (both arms) while they stand, aim, shoot, walk and swing: stays round the elbow, no ring spinning or jumping, the inner-elbow lump easing in and out rather than pumping; grunts' and knights' elbows and knees unchanged {test:agarmor_enforcer_elbow}
+Projectiles keep a share of your motion split by direction (Weapons > Aiming > Projectiles Keep Your Motion): strafing while firing nails barely bends them and rockets drift a few degrees; running forward adds a little speed to nails (+10%) and rockets (+20%); grenades and flames as before.
 [ ] Projectiles keep less of your motion: strafe left/right firing the nailgun, super nailgun and rocket launcher at a monster: shots fly where the gun points (Weapons > Aiming > Projectiles Keep Your Motion: fast 0 / 0).
 [ ] Lobbed shots: grenades fired running land a little ahead (lobbed 0.5); a flick of the launcher still throws them further (hand 2.5). Flares the same. Flamethrower stream feels as before (spray 0.6 / 2).
 [ ] Flat-screen: a fast mouse turn while firing grenades adds nothing to them (Debug > Tests > Projectiles: Flat Turn passes).
