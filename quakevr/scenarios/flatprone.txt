@@ -1,0 +1,7 @@
+# flatprone: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Lying down flat-screen (-flatscreenmode, X): a shotgun in hand, a calm grunt to aim at.
+title Lying down: a shotgun in hand, a calm grunt ahead to aim at
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Grunt" 300 0

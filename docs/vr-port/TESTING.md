@@ -218,6 +218,10 @@ hint Swing at them: ...                             # optional; default the chec
   running campaign (Play > Official Campaigns; headless: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`
   and the scene first, as loading a Quake map switches the campaign back); elsewhere its Test says "start Arcane
   Dimensions first".
+- Flat-screen lines: the game's mode is picked at start-up (`-flatscreenmode`), not by the scene, so a flat line's
+  scene is an ordinary one; check it headless with `-ExtraArgs "-flatscreenmode"` (`vr_scenario runall quit <id>...`).
+- Offline (no game): `python Misc/quakevr/checklist_tests_check.py` -- every tag's file exists and parses (known
+  directives, one map that exists, `give` main|off, `spawn` offsets), the untagged lines and the unused scenes listed.
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
   every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn for 3 s of game time,
   SCNRUN OK/FAIL with the first problem: an entry not available here, a spot in a wall, a QC error, a given weapon no

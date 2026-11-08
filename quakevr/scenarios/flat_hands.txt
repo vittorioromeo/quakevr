@@ -1,0 +1,10 @@
+# flat_hands: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Empty hands flat-screen (-flatscreenmode): fists, punches, shoves and force grabs on calm grunts, things to take.
+title Empty hands: calm grunts in reach, a shotgun at your feet, a crate and a rock to force grab
+map vrtesthall
+god
+notarget
+spawn "Grunt" 70 25
+spawn "Armed Grunt: Shotgun" 90 -40
+spawn "Shotgun" 40 70
+spawn "Wooden Crate" 220 80
+spawn "Rock" 180 -80
