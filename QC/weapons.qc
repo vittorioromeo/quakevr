@@ -22,17 +22,45 @@ void(vector org) BroadcastGunshotEffect =
     WriteVec3(MSG_BROADCAST, org);
 }
 
-vector(float xHand, float factor) vrProjectileVelocity =
+// The kinds of projectile a player fires, for the share of his motion each keeps (vrProjectileVelocity; ROUND24.md,
+// "Projectiles keep less of your motion"): fast ones flying straight (nails, rockets, lasers, plasma, bolts, the grappling
+// hook), lobbed ones arcing (grenades, proximity and multi grenades, flares), sprays (the flamethrower's stream).
+float VR_PROJK_FAST = 0;
+float VR_PROJK_LOBBED = 1;
+float VR_PROJK_SPRAY = 2;
+
+// What a projectile of kind `xKind` fired by `self` from hand `xHand` adds to its own velocity: shares of the player's
+// velocity (vr_proj_inherit_<kind>) and of the hand's swing (vr_proj_inherit_<kind>_hand, 1 = the hand's own speed).
+// Vanilla Quake adds nothing; a fast shot keeping the player's strafe flew off the aim (2026-11-08). The hand's velocity
+// is the tracked controller's alone: a hand whose motion is synthesized (flat-screen hands following the look, a lean,
+// the wall tilt) comes with none (the engine's vr_handsource gate, vr_client.cpp handMove), and VR_HandMotionTracked is
+// the same rule on the server.
+vector(float xHand, float xKind) vrProjectileVelocity =
 {
-    if(VRHandsTracked(self))
+    if(!VRHandsTracked(self))
     {
-        // VR: Add hand velocity and player velocity to the final projectile
-        // velocity, in order to carry momentum
-        return (VRGetHandVel(xHand) * (110 * factor)) +
-               ((self.velocity * 0.8) * pow(factor, 0.4));
+        return VEC_ORIGIN;
     }
 
-    return VEC_ORIGIN;
+    float player = cvar_hget(cvarh_vr_proj_inherit_fast);
+    float hand = cvar_hget(cvarh_vr_proj_inherit_fast_hand);
+    if(xKind == VR_PROJK_LOBBED)
+    {
+        player = cvar_hget(cvarh_vr_proj_inherit_lobbed);
+        hand = cvar_hget(cvarh_vr_proj_inherit_lobbed_hand);
+    }
+    else if(xKind == VR_PROJK_SPRAY)
+    {
+        player = cvar_hget(cvarh_vr_proj_inherit_spray);
+        hand = cvar_hget(cvarh_vr_proj_inherit_spray_hand);
+    }
+
+    vector out = self.velocity * max(0, player);
+    if(VR_HandMotionTracked(self, xHand))
+    {
+        out += VRGetHandVel(xHand) * (VRMetersToUnits() * max(0, hand));
+    }
+    return out;
 }
 
 void(float xHand, float xAid) updateAmmoCounter =
@@ -832,7 +860,7 @@ void(float xHand, float stat) HIP_FireLaser =
     entity newmis;
     vector extraVel;
 
-    extraVel = vrProjectileVelocity(xHand, 0.9);
+    extraVel = vrProjectileVelocity(xHand, VR_PROJK_FAST);
 
     if(stat == 0)
     {
@@ -2581,7 +2609,7 @@ entity(float xHand) VR_FireRocketMissile =
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
-    missile.velocity += vrProjectileVelocity(xHand, 0.4);
+    missile.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
 
     // set missile duration
     missile.nextthink = time + 5;
@@ -3127,7 +3155,7 @@ entity(float xHand) VR_FireGrenadeMissile =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity += vrProjectileVelocity(xHand, 0.6);
+        missile.velocity += vrProjectileVelocity(xHand, VR_PROJK_LOBBED);
     }
     else
     {
@@ -3322,7 +3350,7 @@ void(float xHand) W_FireProximityGrenade =
             missile.velocity = v_forward * 600;
         }
 
-        missile.velocity += vrProjectileVelocity(xHand, 0.4);
+        missile.velocity += vrProjectileVelocity(xHand, VR_PROJK_LOBBED);
     }
     else
     {
@@ -3425,7 +3453,7 @@ void(float xHand) W_FireSuperSpikes =
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
-    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 
     self.punchangle_x = -2;
@@ -3460,7 +3488,7 @@ void(float xHand, float ox) W_FireSpikes =
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
-    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 
     self.punchangle_x = -2;

@@ -641,6 +641,14 @@ za::Vector<Item> pageDebugTests()
         command("Shoot Yourself: Ordinary Firing", "developer 1; vr_selfshot_test 2")
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
+        command("Projectiles Keep Your Motion", "developer 1; vr_projinherit_test 1")
+            .help("vr_projinherit_test 1: fired strafing at 320 u/s, a nail and a rocket fly on the aim, a grenade keeps "
+                  "its share of the strafe (Weapons > Aiming > Projectiles Keep Your Motion); then the main hand swung, "
+                  "a grenade keeps its share of the swing, a rocket none. With the mock headset (in a headset: hold the "
+                  "hand still, then swing it)."),
+        command("Projectiles: Flat Turn", "developer 1; cl_yawspeed 1440; +right; vr_projinherit_test 2")
+            .help("vr_projinherit_test 2, in flat-screen play: the view turns fast, the hands swinging round with it (made "
+                  "up by the game, not a controller's): the hand reports no velocity and a grenade keeps none of it."),
         command("Crouch Shots", "developer 1; vr_crouch_test 12")
             .help("vr_crouch_test 12: a grunt put ahead of you fires 12 bullets at you as it aims them, then goes: whether "
                   "you are crouched (Player Hitbox > Crouching), your eyes' height, the aim's height over your feet and "

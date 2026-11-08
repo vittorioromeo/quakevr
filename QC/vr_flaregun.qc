@@ -470,7 +470,7 @@ void(float xHand) W_FireFlareGun =
     // Its shot: the grenade launcher's thump pitched up (a light pistol's charge) and the rocket's whoosh, quieter.
     sound_pitch(self, VRGetGunChannel(xHand), "weapons/grenade.wav", vol, ATTN_NORM, 122 + crandom() * 4);
     sound_pitch(self, CHAN_AUTO, "weapons/sgun1.wav", vol * 0.35, ATTN_NORM, 140 + crandom() * 6);
-    vector carried = player ? vrProjectileVelocity(xHand, 1.0) : '0 0 0';
+    vector carried = player ? vrProjectileVelocity(xHand, VR_PROJK_LOBBED) : '0 0 0';
     entity f = VR_Flare_Launch(from, dir, speed, carried);
     if(player)
     {
