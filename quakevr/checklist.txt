@@ -117,6 +117,7 @@ Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / 
 - [ ] Debug > Cheats > Spawn Pickup Weapons: Axe, Knight's Sword, Death Knight's Sword, Ogre's Chainsaw, Grunt Burst Rifle, Enforcer's Rifle, Super Axe each spawn, pick up and work {test:vr_pickup_test 9}
 - [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
 - [ ] An AD map with a weapon_axe still has AD's axe pickup
+Armoured enforcers' elbow leather (both arms) while they stand, aim, shoot, walk and swing: stays round the elbow, no ring spinning or jumping, the inner-elbow lump easing in and out rather than pumping; grunts' and knights' elbows and knees unchanged {test:agarmor_enforcer_elbow}
 [ ] Flat: F7 toolgun, mouse 3 opens its panel over the screen with a mouse cursor (the view stays still); LMB clicks items, Esc or mouse 3 closes. Spawn an armed grunt and a Grunt Burst Rifle from it.
 [ ] Flat: toolgun panel size/place/cursor speed OK? (vr_flat_toolgun_panel_size 0.75, _x/_y 0.5, vr_flat_toolgun_cursor_speed 1)
 [ ] Flat: physgun holding a prop, hold B: mouse up/down pushes it out/in, left/right turns it (vr_flat_toolgun_push_scale 0.5, _turn_scale 0.4); angles snap while B is held.
