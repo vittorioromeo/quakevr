@@ -57,6 +57,8 @@ struct Hit
 
 // Whether `ent`'s model is what is hit (a monster or a corpse with a Quake .mdl).
 [[nodiscard]] bool target(edict_s* ent);
+// Whether `ent` has a model hitmodel can draw (a Quake .mdl), solid or not: a body dying keeps it.
+[[nodiscard]] bool hasMesh(edict_s* ent);
 
 [[nodiscard]] float tolerance(Class c);
 
