@@ -65,8 +65,10 @@
 #include "vr_geom.hpp"
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
+#include "vr_protocol.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_trace.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -571,12 +573,20 @@ void oneHanded(int& holding, int& helping)
 // free one past the dot twohand asks for (vr_2h_angle_threshold) against the held hand's forward. A cup (grip2HCup)
 // and a palm grip (grip2HPalm) are held by twohand's own rules rather than by an arrival here, so those keep
 // flatplay's support pose as it is today.
-bool gripArrival(const hands::State& s, float& offGrip, float& dot)
+// `cupTaken`: a melee weapon's cup the pose carries the hand to (vr_flat_melee_two_hand: the chainsaw's front handle) is
+// pressed for on arrival too, with no line to measure (a cup has no two-handed aim): twohand's own rules take it.
+bool gripArrival(const hands::State& s, float& offGrip, float& dot, bool cupTaken)
 {
     offGrip = dot = 0.f;
-    if(st.helping < 0 || st.holding < 0 || !s.grip2HValid[st.holding] || s.grip2HCup[st.holding] || s.grip2HPalm[st.holding])
+    if(st.helping < 0 || st.holding < 0 || !s.grip2HValid[st.holding] || (s.grip2HCup[st.holding] && !cupTaken) ||
+        s.grip2HPalm[st.holding])
     {
         return false;
+    }
+    if(s.grip2HCup[st.holding])
+    {
+        offGrip = glm::distance(s.pos[st.helping], s.grip2H[st.holding]) - s.grip2HBias[st.holding];
+        return offGrip < twohand::gripTakeUnits;
     }
     offGrip = glm::distance(s.pos[st.helping], s.grip2H[st.holding]) - s.grip2HBias[st.holding];
     glm::vec3 fwd, right, up;
@@ -1684,8 +1694,13 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // super shotgun's, the nail gun's: measured 5 units off it, 3 to 5 units to the rear) is not a place a second hand
     // can go, and a cup or a palm grip is held by vr_twohand's own rules. Both keep the support pose flatplay gives them
     // today, with the hands where that pose puts them.
-    const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] && !s.grip2HCup[st.holding] &&
-                             !s.grip2HPalm[st.holding] && st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
+    // A melee weapon's grip ahead but off to its side (the chainsaw's front handle: 9.6 ahead, 6.3 right, 3.5 up of the
+    // trigger hand, held as a cup) is taken too (vr_flat_melee_two_hand; his notes 2026-11-08): no sight line, so no
+    // stance puts the free hand on it, and it has no aim for the two hands to spoil.
+    const bool meleeCup = st.holding >= 0 && flatplay::meleeIn(st.holding) && vr_flat_melee_two_hand.value != 0.f;
+    const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] &&
+                             (!s.grip2HCup[st.holding] || meleeCup) && !s.grip2HPalm[st.holding] &&
+                             st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping);
@@ -1697,7 +1712,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
-    const bool inside = gripArrival(s, st.gripOff, st.gripDot);
+    const bool inside = gripArrival(s, st.gripOff, st.gripDot, carryToGrip && meleeCup);
     st.handGap = st.muzzleGap = 0.f;
     if(st.holding >= 0 && st.helping >= 0)
     {
@@ -1793,6 +1808,17 @@ void noteDrawn(const hands::State& s)
             const glm::mat3 untilt = glm::transpose(wallTurn(h, viewAxes));
             st.stock[h] = glm::transpose(viewAxes) * (untilt * (rear - s.pos[h]));
             st.stockModel[h] = wf.model;
+        }
+        // A gun no list knows the sights of (the AD Widowmaker's, the Plasma Gun's, the soldiers' rifles' models made as
+        // they load): a line learnt along its top, from the holding hand to the muzzle (sightalign::learnLine), so it
+        // aims at a point, takes the stance and the free hand on its hotspot, and has an ironsight.
+        if(s.muzzleValid[h] && flatplay::heldIn(h) >= 0 && !flatplay::meleeIn(h) &&
+            cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] != WID_TOOLGUN)
+        {
+            const glm::mat4 toModel = glm::inverse(wf.modelToWorld);
+            const float handX = glm::vec3{toModel * glm::vec4{s.pos[h], 1.f}}.x;
+            const float muzzleX = glm::vec3{toModel * glm::vec4{s.muzzle[h], 1.f}}.x;
+            (void)sightalign::learnLine(wf.model, handX, muzzleX);
         }
         const sightalign::SightLine line = sightalign::sightLine(wf.model);
         if(!line.valid)

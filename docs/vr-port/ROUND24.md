@@ -4140,6 +4140,34 @@ their own share (hand shares unchanged), and rockets are their own kind.
 - Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
   (they fly a little faster); grenades and the flamethrower as before.
 
+## Flat two-handed holds, the chainsaw, the punch and the shove at the crosshair (W4, 2026-11-08)
+
+His flat notes: AD's plasma gun, Widowmaker and the soldiers' plasma rifle held in one hand; the crossbow's off hand wrong
+and moving with its animation; the chainsaw unusable (the ripcord) and its front handle not taken; the guard's fists too
+close; the punch low and beside the target; the shove not at the crosshair.
+
+- **AD guns one-handed:** the flat stance (vr_flatsight.cpp stanceAndLook) asks `aimsAtPoint`, which needs a sight line;
+  the models made as they load (`progs/v_shot3.mdl#vr`, `progs/v_plasma.mdl#vr`, `progs/v_gruntgun.mdl#adv<n>`) were in
+  no list (vr_sightalign.cpp), so no stance and no ironsight. Now `sightalign::learnLine` gives such a gun (not melee, not
+  the toolgun) a line the way sightline_table.py makes the table's: on y 0, from the holding hand's x to the muzzle's, just
+  over the mesh's top between (first pose), learnt once a model from flatsight::noteDrawn. Tunable `vr_flat_sight_learn` 1
+  (Tunables > Flatscreen). Measured: Widowmaker x 7.29..44.01 at z 11.95, Plasma Gun 3.87..31.54 at 11.39, plasma rifle
+  4.98..33.15 at 14.94 (over its add-ons: the burst rifle's own sights sit at 11.6).
+- **Crossbow:** its grips (slot 32, hs1/hs2) followed the firing animation's motion (the latch and limbs spring beside
+  them): `hs1_still`, `hs2_still` 1 in quakevr/data/weapons.txt. Its hand stays on hs2 (his VR grip, on the stock's right
+  side); not re-placed: check in the flat view whether the place itself still looks wrong.
+- **Chainsaw:** QC vr_chainsaw.qc starts the engine by itself in flatscreen play with fuel in it (`vr_flat_saw_autostart`
+  1; TODO in the code: a flatscreen ripcord). Its front handle is a cup (beside the hand: 9.6 ahead, 6.3 right), which the
+  flat pose never carried a hand to: a melee weapon's cup ahead is carried and taken now (`vr_flat_melee_two_hand` 1;
+  gripArrival presses for it, twohand holds it: helpKind 1).
+- **Guard fists:** `vr_flat_guard_out` -0.12 -> -0.04 (apart). The pose's three offsets already exist: Tunables >
+  Flatscreen > Free Hands, Guard Fist Forward / Out / Down (and Relaxed Hand ...).
+- **Punch / shove at the crosshair:** the thrown fist goes to the point `vr_flat_punch_aim_dist` (28) along the
+  crosshair's ray, out to the arm's reach (`vr_flat_punch_aim` 1; 0 the old straight throw kept near its height); the
+  shove's push goes from the resting hand towards it (`vr_flat_shove_aim` 1). flatinput_test.sh: 14 passed (punch and
+  shove land).
+- Test: `bash Misc/quakevr/flattwohand_test.sh <agent>` (AD mounted, one run: 9 checks); `vr_ad_test 184` puts the AD
+  crossbow in the main hand.
 ## Quickload crash: a hand's derived model not precached (branch `agent/release`, 2026-11-08)
 
 - Crash: `Sys_Error: SV_ModelIndex: model progs/v_shot3.mdl#vr not precached` on a quickload (vrragtriggers, flat).

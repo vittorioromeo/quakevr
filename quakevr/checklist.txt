@@ -133,6 +133,12 @@ Guns with rewritten barrel masks (nailguns, lightning, plasma, laser, lava, revo
 Nail pistol: its dark steel now the shotgun's deep dark blue (gun, magazines, preview alike); the silvery slide bar and frames, the label and the glowing sight inserts as before.
 Flare gun: skin a little darker and less saturated, the front blade's brass top less bright; not overdone, still its orange-brown self (preview and fired skins too).
 Grunt burst rifle: darker and grimier (blotches, dirt in the panel lines), nearer the shotgun's contrast without being black; the #adv variants and grunts' rifles follow.
+[ ] Flat, AD: Widowmaker, AD Plasma Gun and a grunt-dropped plasma rifle held in both hands (stance, off hand on the fore-end); right mouse gives an ironsight on them (vr_flat_sight_learn)
+[ ] Flat, AD crossbow: off hand stays put while it fires and re-cocks (hs1/hs2 still); say if its place on the stock still looks wrong
+[ ] Flat: chainsaw starts by itself when taken (no ripcord; vr_flat_saw_autostart) and the left hand holds its front handle (vr_flat_melee_two_hand)
+[ ] Flat: guard fists further apart (vr_flat_guard_out -0.04; Tunables > Flatscreen > Free Hands for fwd/out/down)
+[ ] Flat: V punch throws the fist at the crosshair (vr_flat_punch_aim, vr_flat_punch_aim_dist) and still lands on a grunt
+[ ] Flat: shove pushes toward the crosshair (vr_flat_shove_aim)
 [ ] Flat death cam, Vomit Mode (agent/flatwall): flatscreen, die with Death View on Immersive and Vomit Mode on Death on; move the mouse around while the ragdoll tumbles and lies still: the view does not turn at all, it always points exactly where the ragdoll's head points. (Desktop Screen Play > Vomit Mode Mouse Look on brings the old mouse look back; vr_flat_death_vomit_look.)
 [ ] Flat mantle (agent/flatwall): flatscreen, jump at a ledge about chest to head-and-a-bit high, keep Space held and look slightly up: you are pulled up onto it with the climbing mantle's grunt, quickly and smoothly. Try a waist-high crate, a head-high ledge and one just within the jump's reach (Test scenario: map vrmantle, blocks 48/64/80/96 high mantle, 128/160 don't).
 [ ] Flat mantle, refusals: jump without holding Space, or looking level or down, or at a ledge clearly too high, or with no room on top (a ledge under a low ceiling): no mantle, the jump as before. The headset's hand climbing and mantling unchanged.

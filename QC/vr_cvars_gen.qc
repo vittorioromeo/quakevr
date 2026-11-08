@@ -911,6 +911,7 @@ float cvarh_vr_flaregun_cooldown;
 float cvarh_vr_flaregun_gravity;
 float cvarh_vr_flaregun_speed;
 float cvarh_vr_flaregun_volume;
+float cvarh_vr_flat_saw_autostart;
 float cvarh_vr_flat_shove;
 float cvarh_vr_flat_shove_damage;
 float cvarh_vr_flat_shove_push;
@@ -2841,6 +2842,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flaregun_gravity = VR_CVar_Make("vr_flaregun_gravity");
     cvarh_vr_flaregun_speed = VR_CVar_Make("vr_flaregun_speed");
     cvarh_vr_flaregun_volume = VR_CVar_Make("vr_flaregun_volume");
+    cvarh_vr_flat_saw_autostart = VR_CVar_Make("vr_flat_saw_autostart");
     cvarh_vr_flat_shove = VR_CVar_Make("vr_flat_shove");
     cvarh_vr_flat_shove_damage = VR_CVar_Make("vr_flat_shove_damage");
     cvarh_vr_flat_shove_push = VR_CVar_Make("vr_flat_shove_push");
