@@ -796,9 +796,12 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's key (vr_flat_key_grab, R: E became the right lean, vr_flatmove.cpp).
-    const int grabKey = Key_StringToKeynum(vr_flat_key_grab.string);
-    const bool grab = inGame && grabKey > 0 && grabKey < MAX_KEYS && keydown[grabKey] != 0;
+    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, R).
+    const auto down = [inGame](const cvar_t& c) {
+        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    };
+    const bool grab = down(vr_flat_key_grab) || down(vr_flat_key_grab_alt);
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);

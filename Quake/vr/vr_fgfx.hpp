@@ -14,7 +14,8 @@ namespace qvr::fgfx
 {
 
 // Once a frame, before the eyes: fades the glows, queues the beams and the trail.
-void queue(const hands::State& s);
+// `flat`: flatscreen play's view (vr_view.cpp), the beams drawn in the scene's translucent pass.
+void queue(const hands::State& s, bool flat = false);
 
 // How much `e` glows (0..1), for the renderers.
 [[nodiscard]] float entityGlow(const entity_t* e);
