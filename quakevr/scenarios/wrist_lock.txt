@@ -1,0 +1,9 @@
+# wrist_lock: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The wrist gadget's lock while both hands hold one thing (VR): a shotgun in hand, a crate, a sword and a nailgun to take.
+title Wrist gadget lock: a shotgun in hand, a crate, a sword and a nailgun at your feet
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Wooden Crate" 50 45
+spawn "Knight's Sword" 40 -45
+spawn "Nailgun" 40 0

@@ -175,7 +175,7 @@ def export(out_dir=None, log=print):
     parts.sort(key=lambda ob: (ob is not body, ob.name))
     mesh = build_mesh([object_tris(ob, to_body, w, h, depsgraph) for ob in parts], w, h)
     os.makedirs(out_dir, exist_ok=True)
-    mdlgen.write_mdl(os.path.join(out_dir, GUN_MDL), mesh, skins, "rest")
+    mdlgen.write_mdl(os.path.join(out_dir, GUN_MDL), mesh, skins, "rest", clean=True)
     log("%s: %d triangles, %d vertices, %d skins %dx%d (%s)" % (
         GUN_MDL, len(mesh.tris), len(mesh.verts), len(skins), w, h, ", ".join(ob.name for ob in parts)))
     for name in MARKERS:
@@ -186,12 +186,12 @@ def export(out_dir=None, log=print):
 
     if flare is not None:
         fm = build_mesh([object_tris(flare, flare.matrix_world.inverted(), w, h, depsgraph)], w, h)
-        mdlgen.write_mdl(os.path.join(out_dir, FLARE_MDL), fm, [skins[0]], "flare")
+        mdlgen.write_mdl(os.path.join(out_dir, FLARE_MDL), fm, [skins[0]], "flare", clean=True)
         log("%s: %d triangles, %d vertices" % (FLARE_MDL, len(fm.tris), len(fm.verts)))
 
     k = float(body.get("preview_scale", 0.45))
     pre = build_mesh([object_tris(ob, Matrix.Scale(k, 4) @ to_body, w, h, depsgraph) for ob in parts], w, h)
-    mdlgen.write_mdl(os.path.join(out_dir, PREVIEW_MDL), pre, [skins[0]], "preview")
+    mdlgen.write_mdl(os.path.join(out_dir, PREVIEW_MDL), pre, [skins[0]], "preview", clean=True)
     log("%s: %d triangles (scale %.2f)" % (PREVIEW_MDL, len(pre.tris), k))
 
 

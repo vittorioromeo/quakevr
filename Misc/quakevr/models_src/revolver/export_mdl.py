@@ -177,7 +177,7 @@ def build(sources, poses, objs, to_frame, w, h):
 
 
 def write(out_dir, name, meshes, skins, label, log):
-    mdlgen.write_mdl(os.path.join(out_dir, name), meshes[0], skins, label, meshes[1:])
+    mdlgen.write_mdl(os.path.join(out_dir, name), meshes[0], skins, label, meshes[1:], clean=True)
     log("%s: %d triangles, %d vertices, %d frames, %d skins %dx%d" % (
         name, len(meshes[0].tris), len(meshes[0].verts), len(meshes), len(skins), meshes[0].skin_w,
         meshes[0].skin_h))

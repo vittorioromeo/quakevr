@@ -4458,3 +4458,103 @@ v_light 11, v_plasma 11, v_toolgun 3, vr_adrifle_base 5, vr_shell_pair 10, vrpou
   fx_gfx_mask change (no triangle renumbered); .blend rebuilt with blend_build.py, `blend_export.py --out` byte-identical.
 - **Test it in VR:** nothing should look different; the holster's strap edges, the grapple's hub and the tool gun's
   corner bracket no longer shimmer when moved slowly.
+## Model topology pass 2: the models skipped last time (branch `agent/selfshot`, 2026-11-08)
+
+The skipped models of "Model topology fixes, steps 1-5" (same tools, same gates: compare.py at the model's noise floor,
+all poses x 26 views; check_mdl_holes no worse; anchors; fx_gfx_mask remapped; .blend rebuilt and re-exported
+byte-identical). One commit per model.
+
+- **source.py export crash fixed:** checks.py's findings (a monster's knownSwords counts) are (what, amount), and the
+  anchor loop unpacked them as (what, text, dist): now warnings carrying the CHECK lines.
+- **Generators keep the fixes:** `Misc/quakevr/mdltopo/clean.py` (fix.py's degen + weld steps, no render gate: both
+  invisible by construction); `mdlgen.write_mdl(..., clean=True)`, passed by the widowmaker, revolver and flare gun
+  export_mdl.py. Their exports now reproduce every shipped fixed file byte for byte; vr_widowmaker_preview gets its fix
+  from it (16 zero-area triangles, 2 welds; its 2 hidden triangles stay: removing them opens cracks). vr_flare.mdl's
+  export differs from the shipped file before this change too (same counts, 391k px: not topology; left).
+- **enforcer, hknight:** 60 and 4 zero-area triangles (no welds, so vertex numbers, rig weights and knownSwords' vertex
+  ranges are unchanged); vrenforcer/vrhknight follow their .blend exports (0 px). The counts the code keys them by:
+  vr_monstermods.cpp knownSwords (Enforcer 479/924, Hknight 538/996), checks.py KNIGHTS, make_vrgrunt.py (vrenforcer's
+  gun 112 triangles), make_enemyguns.py (the rifle 112: the six it dropped as degenerate are gone at the source).
+  `vr_ragdoll_rig_sweep`: 23 rigged, 0 failed.
+- **v_nailpistol:** 328 welds (518 triangles kept); slot 36's barrel mask is already for 518 (fixed in 4b9a6369c). Its
+  magMounts point is 0.152 off the surface in the original too (unmoved). The magazines and the preview: nothing to fix.
+- **v_shot2:** 2 zero-area triangles, 35 welds; the open halves follow (0 px). The barrels' normal map rebakes: 1418
+  texels, all within 10 map pixels of the two removed triangles' skin footprints (never-drawn normals no longer vote
+  in the bake's per-texel agreement). The 3 duplicate triangles stay (make_ssg_open sends the copies to different
+  halves: 215 px).
+- **v_shot: not done.** With or without welds, rebuilding v_shot.blend re-bakes vr_pumpbody_on_v_shot's normal map
+  widely (no welds: 16,836 texels, 1,157 of the drawn ones by over 2 degrees, 308 over 10; most far from the removed
+  triangles), while the geometry compares 0 px. Not explained yet (the part's re-cut has 24 fewer unused vertices),
+  so not shipped. The attempts are in the worktree's `scratch/topo2/vshot_noweld` (and `vshot_weld`).
+- **Z-fights (Job B's step on these models):** 94 static different-texel pairs (v_shot 25 and its pump parts 23,
+  v_shot2 6 and its barrels 9, vr_widowmaker_preview 16, vr_nailpistol_preview 14, v_nailpistol 1; enforcer and
+  hknight none). None decidable automatically: no triangle is covered (at most 94%), none hidden, none a duplicate.
+  Listed in `C:/OHWorkspace/qvr-kit/scratch/zfight_jobA_pairs.md` for the nudge/cut tool; nothing changed.
+- **Tests:** build ok; e1m2, e2m3, e3m3 load clean; flatsight_test 12 passed 0 failed.
+- **To try (VR):** the super shotgun broken open (the barrels' shading near the hinge, as before); enforcers and hell
+  knights dropping their rifle/sword on death as before; the nail pistol and the widowmaker preview unchanged.
+
+## Checklist rework: 210 lines to 83, sections in play-test order, Test buttons (branch `agent/clrework`, 2026-11-08)
+
+His ask: drop redundant items, coalesce what one scene tests, a working Test button on most lines, proper sections.
+
+- **Retired by ticks:** none: no current line was ticked passed in his `checklist_ticks.txt`. Two were ticked failed and
+  had follow-up fix lines below them (the crate's wood sounds, shoves off a ledge): each pair became one new line (the
+  fix's wording), so they read untested again.
+- **Dropped:** exact duplicates (Late Image Acquire, the nail pistol sights, Grow the Box), lines a later one superseded
+  (the shotgun's first sights, the first projectile-motion split, the old death-cam line, "Armour step 4: want it?" now
+  that hero plates shipped, the manual `blend_export.py` pipeline now that Ctrl+S exports, the nail pistol's first
+  skin pass), "looks as before" lines (ogre topology, cleaned models, the headset's flicks), dev trivia (wave presets in
+  git status, Weapon Studio's id row colour, Late Image Acquire's menu move). All features named still exist (every
+  `vr_` cvar on the list checked against the code).
+- **Coalesced:** one line per flow and scene (the 13 embedded-blade lines into 8, 12 armour lines into 5 plus 3 Armour
+  Studio lines, 9 shotgun/super shotgun/lightning sight lines into 3, 10 slide lines into 3, 6 wall-pose lines into 1).
+- **Sections:** Flat-screen moving (8), Flat-screen weapons, hands and toolgun (8), Flat-screen camera and keys (4), VR
+  body, lying down and swimming (6), VR melee and embedded blades (10), VR armed humanoids (5), VR bodies, grabbing and
+  props (3), Weapons: sights, skins and shots (8), Monsters and AD (4), Visuals (7), Audio (1), Survival Arena (3),
+  Game: saves, seeds, setup and menus (5), Dev tools (11); the empty "Failed: waiting for your answer" kept.
+- **Tests:** 80 of 83 lines tagged, on 43 scenes. New: `flat_slide`, `flatprone`, `flatlean` (a crate stack to peek
+  round, an armed grunt behind it, no god), `flat_mantle` (vrmantle), `flat_wall` (the south wall, the burst rifle),
+  `flat_hands`, `flat_death` (5 health, a shooting grunt), `prone_floor`, `prone_tunnel` (vrteleporters' 40-high
+  tunnel), `self_shot`, `wrist_lock`, `gun_sights`, `gun_skins`, `projectile_motion`, `ad_lostsoul` (needs AD running),
+  `agarmor_tiers` (`vr_agarmor_test 2`); `flat_melee` gained a revolver and a super shotgun for the flick line. Three
+  stale tags fixed (`flatlean`/`flatprone` had no files; `vr_agarmor_test 2`/`8` and `vr_pickup_test 9` were commands,
+  not ids). Untagged: the installer, the Gameplay page's wording and the first-load times (menu, outside the game,
+  load time).
+- **Flat-screen:** the mode is a start-up switch (`-flatscreenmode`), so a flat line's scene is an ordinary one; no format
+  change needed. The 14 scenes flat lines use ran headless with `-flatscreenmode`: `SCNRUNSUM|14 run|0 failed`.
+- **Removed scenes:** 41 scene files no line uses and nothing but round notes names (moved out with the commit).
+  Kept though unused: the dev tools' setups (`pose_*`, `agrunt_grip_editor`, `agrunt_holds_enforcers`, `blade_editor`,
+  `blade_handles`, `fist_editor`, `leg_takes`, `lift_takes`, `rigstudio_strike`) and those code, scripts or living docs
+  name.
+- **Checks:** `Misc/quakevr/checklist_tests_check.py` (new, offline): every tag's file exists and parses (86 passed, 0
+  failed). `scenario_check.sh`: `SCNSUM|86 files|0 with errors|80 checklist tags|0 missing`, runall 80 of 86 OK; the 6
+  failures are one pre-existing bug, below. `checklist_fold_check.py`: 35 passed, 0 failed, after a fix: it counted the
+  empty Failed section's header, which the page never draws (it walks the items).
+- **Found, not fixed:** with Arcane Dimensions running (scenario_check's `-game ad`), the toolgun's "Axe" entry
+  (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
+  embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
+  failed`). (Fixed by agent/cfgtrim, below.)
+
+## Config migration cut at 1.0.1; the toolgun's Axe holdable under AD (branch `agent/cfgtrim`, 2026-11-08)
+
+- **Cut at 1.0.1 (his decision):** a config older than 1.0.1 (`vr_cfg_version` < 126) is reset to the defaults
+  (`oldestMigrated` 122 -> 126; message "older than 1.0.1"). Dropped only what no 1.0.1-or-later config can use:
+  `defaultChanges` 9 rows (123, 125, 126 x7: a row of version v applies only to configs below v, so rows up to 126
+  are dead once 125 resets), with their comments (20 lines); `retiredCvars` the 8 names already in 1.0.1's own retired
+  list (vr_throw_lookahead, vr_throw_slowmo_flick_spin, vr_foegrab_throw_topple_hold, vr_knockdown_shove_* x4,
+  vr_hub_map; 10 lines); `cvarAliases` the 6 vr_slipgate* names (renamed 2026-10-08, before 1.0.0: in no 1.0.1
+  config; qvrbench renames them on its own side). Kept: every other retired name (all absent from 1.0.1's source:
+  added and retired since), the two carry aliases (1.0.1 names), `namedDefaultChanges` (all 164+) and
+  `retiredPackFits` (221).
+- **Check:** full configs as 1.0.1 (126, from v1.0.1's archived cvars and vr_defaults.cfg) and 1.1 beta 4 (207)
+  saved them, executed with `vr_migrate_config` and dumped (`vr_config_test dumpfull`, 25109 settings) before and
+  after: byte-identical. A 125 config resets, a 126 one migrates. `config_sparse_test.sh`: 16 passed, 0 failed;
+  `config123_test.sh` PASS (its 1.0.0 config now reaches the same values by the reset).
+- **Seen, not fixed:** loading those configs prints `Unknown command` for `vr_walltorch_pull`,
+  `vr_revolver_eject_tilt` (gone without a retiredCvars entry) and `vr_carry_two_hands_window` (an alias, yet unknown
+  as a config line); harmless, the values unchanged either way.
+- **AD axe:** the toolgun's "Axe" (and so the scenes' `give "Axe"`) is `func_weapon_grabbable` with weapon 2 again,
+  not `weapon_axe`, which AD's maps keep for AD's own pickup (vr_ad.cpp adOwnedClashes). The six scenes under
+  `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
+  (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).

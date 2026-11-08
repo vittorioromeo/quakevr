@@ -160,8 +160,10 @@ check(after[0] == "HEAD" or after == ("", ""), f"none of its items listed (next 
 first_line = sections[A][1][0][:20]
 check(not any(first_line in label for label in labels), "its first item's text not on the page")
 check("Collapse All" in labels and "Expand All" in labels, "Collapse All and Expand All rows")
-heads = [label for kind, label in rows if kind == "HEAD" and any(label.startswith(n[:20]) for n, _ in sections)]
-check(len(heads) == len(sections), f"every section's header shown ({len(heads)} of {len(sections)})")
+# (A section with no items, such as an empty "Failed: waiting for your answer", has no rows: the page walks the items.)
+filled = [n for n, its in sections if its]
+heads = [label for kind, label in rows if kind == "HEAD" and any(label.startswith(n[:20]) for n in filled)]
+check(len(heads) == len(filled), f"every section with items has its header shown ({len(heads)} of {len(filled)})")
 want_head = f"  {secs[A][0]}/{secs[A][1]}" if A in secs else "?"
 check(header_at >= 0 and rows[header_at][1].endswith(want_head), f"its header's count ({rows[header_at][1] if header_at >= 0 else ''})")
 secs2, _ = listing(ph.get("reloaded", []))

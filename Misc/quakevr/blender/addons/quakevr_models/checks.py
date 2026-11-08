@@ -387,13 +387,13 @@ KNIGHTS = {"knight.mdl": (655, 697, (334, 335, 336, 363, 364, 365, 524, 535, 536
                                      560, 561, 562, 563, 564, 565, 566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591,
                                      592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 607, 608, 609, 612,
                                      613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646)),
-           "hknight.mdl": (538, 1000, (43, 45, 46, 47, 48, 526, 527, 531, 532)),
+           "hknight.mdl": (538, 996, (43, 45, 46, 47, 48, 526, 527, 531, 532)),
            # The ogre's chainsaw (the same knownSwords table; make_chainsaw.py cuts v_chainsaw.mdl from it).
            "ogre.mdl": (497, 952, tuple(range(416, 497))),
            # The grunt's shotgun and the enforcer's laser rifle (the same table; make_enemyguns.py cuts v_gruntgun.mdl
            # and v_enfrifle.mdl from them).
            "soldier.mdl": (555, 810, tuple(range(463, 549))),
-           "enforcer.mdl": (479, 984, (22, 23, 100) + tuple(range(400, 431)) + tuple(range(455, 479)))}
+           "enforcer.mdl": (479, 924, (22, 23, 100) + tuple(range(400, 431)) + tuple(range(455, 479)))}
 
 # What each of those monsters drops, and the generator that cuts it out.
 DROPPED = {"knight.mdl": ("sword", "v_ksword.mdl", "make_swords.py"),

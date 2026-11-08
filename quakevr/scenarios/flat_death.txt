@@ -1,0 +1,5 @@
+# flat_death: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dying flat-screen (-flatscreenmode): low health, an armed grunt that shoots (the death view).
+title Dying: 5 health, an armed grunt shooting at you
+map vrtesthall
+health 5
+spawn "Armed Grunt: Shotgun" 260 0
