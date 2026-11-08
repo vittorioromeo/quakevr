@@ -4853,6 +4853,89 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
 
+## Broken armour splits in two (branch `agent/armoursplit`, 2026-11-08)
+
+His note: every armour piece but the helmet looked too big when it came off whole; he wanted two halves.
+
+- **What:** a plate shot off (`VR_AgArmor_Break`, an armed humanoid's; `VR_PP_Shed`, yours) falls as two props
+  (`VR_AgArmor_DebrisBroken`): each its own model `<model>#plate<piece>h<half>s<axis>` (vr_agarmor.cpp `derivedFile`,
+  `splitHalf`), its own hull (box3d's hull of its model), half the whole's `.vr_prop_mass` (cuirass 2 + 2, others
+  0.75 + 0.75), the fall's velocity plus `vr_agarmor_split_impulse` apart, the same skin (dents, scorches). The helmet is
+  always whole; a gibbing (`VR_AgArmor_Shed`) and a cut (`VR_AgArmor_CutDone`) still drop plates whole (not broken).
+- **The line:** across the piece's length (its tube's `up`) or down it (its tube's `left`: the cuirass's left/right), per
+  kind. Each small plate (a tile and its rims; a hero plate's columns each) goes whole to one side, so the seam follows
+  the plates' edges, zigzagging (3 teeth, 15% of the piece's size deep) so it reads jagged; the halves get as many
+  triangles each (the line at their median). A piece shorter than 0.6 of its width (the player's bracers) always splits
+  down its length (cut across, they fell as two thin rings 0.9 units apart). The line is fixed per piece kind: the hit
+  point does not move it (that needs a model per seam; not cheap). The seam is open (no bent edge modelled).
+- **Cvars** (Combat > Armed Grunts > Armour > Broken Plates): `vr_agarmor_split` 1, `vr_agarmor_split_impulse` 50 u/s,
+  `vr_agarmor_split_cuirass` 1 (down the middle), `_pauldron`, `_bracer`, `_thigh`, `_shin` 0 (across). The half models'
+  names come from `limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))` (the builtins' table is full), their places from
+  `limbpiece(e, piece, 16 / 17)`. `developer 1` prints each half model's line normal as it is made, and each split.
+- **Performance:** the halves are precached with the wholes at the level's load (`VR_AgArmor_PrecacheOf`: 18 more models
+  per wearer kind; test 13 shows no late precache). Twice the debris entities, under the same fade
+  (`vr_agarmor_debris_time`); no other cap applies to plate debris.
+- **Tests:** `vr_agarmor_test 1`: every piece of a full grunt set breaks into 2 props (the helmet 1), their masses add up
+  to the whole's, `vr_agarmor_split 0` whole; the enforcer's and the knights' (`7`) pauldrons the same: **38 passed**,
+  test 7 **16 passed**; test 13's count updated (19 debris). `vr_pp_test 1`: each of your 9 pieces into 2, split 0
+  whole: **63 passed, 0 failed**. `vr_pp_test 16`: the sheet (you and a grunt with plates shot off, the halves about).
+- **Checklist scene:** `agarmor_tiers` (shoot the grunts' plates off; god mode, so let them shoot yours too).
+## Ragdolls and armed humanoids, 11-08 (branch `agent/rag1108`, 2026-11-08)
+
+His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-04-50 and 17-14-18.
+
+- **Removed outright, its pack goes with it (start_16-51-19).** The cause: `ED_Free` keeps an edict's fields until the
+  slot is reused, so a removed wearer still pointed at its pack. The pack's think took it for a hidden wearer
+  (`model ""`) and only noticed it was gone when the edict was reused, then tore the pack off with its rip: "after
+  some time ... out of nowhere". `VR_AG_RemoveWith` (vr_wornpack.qc) removes the worn pack (living or dead), the held
+  weapons and their back tanks, quietly. It is called by `VR_Scene_Remove` (the toolgun's remover, `vr_scene_clean`)
+  and by `VR_Knockdown_RemoveBody`. `VR_AG_Freed` (vr_armedgrunt_defs.qc: model index 0, think -1, not solid,
+  untouchable) is the backstop in the pack's and the weapon's thinks for any other `remove`. Worn packs no longer count
+  as props for Clear Props. The toolgun has no undo for removals; the panel's Remove page has only Clear Props. A faded
+  corpse's pack now goes with it too (it used to drop later, the same bug).
+- **Hanging struggle (vrclimb_17-20-00).** `hangStruggle` (vr_ragactive_hold.cpp): the legs kick back and forth out of
+  step, kept out from the wall's face, a knee drawn up on the way in, a little aside. Each hanger has its own pace, beat
+  and wander from its seed. The body sways along the lip by a capped push on the pelvis (4 % of its weight). It runs at
+  full strength in the Hang phase, at half while it pulls itself up, and while it goes over the lip until its feet
+  reach for the top. The holds are not touched. Cvars: `vr_ragdoll_active_hang_kick` 2 (0..3; 0 off), `_hz` 1.4,
+  `_random` 0.6, `vr_ragdoll_active_hang_sway` 1. The climb's end line (`vr_knockdown_debug 1`) gives its feet's travel.
+  `climb_test.sh` takes `KICK=0|1` for a before/after. Not done: a grip shuffle (it risks the hold), and dying hangers.
+- **Shoves while getting up (vrclimb_17-20-42).** `VR_Knockdown_GetUpShove` (vr_knockdown.qc), called by `VR_Bash_Hit`
+  before the knockdown's chance, when `vr_knockdown_getup_shove` is 1. A body rising as an active ragdoll
+  (`box3d::ragdollRiseShove`, reached through `ragdollstagger`'s `sure` 3 because the builtins table is full) goes back
+  into an active fall along the shove, pushed at 2.2 m/s times the push; its down time starts again and the shove is
+  not counted as a lapse. A shove weaker than `vr_knockdown_getup_shove_step` (0.8: one hand) on one past
+  `vr_knockdown_getup_shove_late` (0.6) of its get-up is a balance step instead: a stagger along the shove whose
+  balance is lower the earlier it is in the rise and the more bent over it is, so it may still go over. Progress counts
+  rather than how upright the chest is: a grunt's pelvis-to-head is only 0.3 upright at 1.8 s into its rise. One
+  rising the old way (its get-up's frames, `.vr_knockdown` 2) is knocked down again and toppled along the shove.
+- **Gib rule (vrragtriggers_17-04-50).** In `VR_Corpse_Damage`, explosions (kind explosions or a splash) still gib once
+  their damage wears the corpse's pool out. Any other hit gibs only if it alone deals `vr_corpse_gib_overkill` (50) or
+  more, or if the pool is already worn out and it deals `vr_corpse_gib_hit_min` (35) or more. Lesser hits keep wearing
+  the pool and popping limbs and heads, but never gib it whole. `vr_corpse_gib_overkill 0` restores the old rule.
+- **Tanks beside the packs (vrragtriggers_17-14-18).** `VR_FuelTank_WornPlace` moves the worn tank
+  `vr_adgun_tank_worn_side` (7) units to the wearer's right (the weapon hand's side; the back's own frame:
+  forward x up) and `vr_adgun_tank_worn_back` (0) farther out. Same rule for every kind; an enforcer's tank sits
+  right of its model's power pack.
+- **Test:** `vr_rag1108_test 1..5` (Debug > Tests, four rows; ends on `rag1108<part>: N passed, M failed`).
+  Results: removal 5/0; gib rule 6/0; shoves 4/0 in four runs (test 5's one-hand shove 100 % up: a balance step,
+  balance 0.51; an earlier old-style timeout in state 46 did not come back in three runs); tanks 9/0 (each 6.8-7.9
+  units right, 1.7-2.0 off the pack's box). The hang struggle (vrtesthall west lip, grunt, hang then drop, seed 7): its
+  feet's travel 194 units at kick 0, 213 at 1, 265 at 2, 297 at 3; the hold let go at 2.42 s every time (its timer, not
+  the kicks). `climb_test.sh` (grunt, knight, enforcer; pull and drop; 2 seeds): the same outcomes and times with
+  KICK 0 and 1 (the grunt's pull "too weak to rise" and the enforcer's "no grab" in both: not from this). Default
+  raised to 2. No tank screenshot: the author's game was running (low-impact runs only).
+- **Regressions run (low-impact, no baseline build at hand):** wornpack 1 25/0, 5 7/0, 3 11/1 (a gentle pull's
+  force 2378 N, physics); agrunt 2 2/2 (rearm takes no guns, drop finds nothing), 74 0/1 (downtug, on the 11-06
+  night's new-fails list); `stagger_test.sh` 5 FAIL (ragdoll_stagger is on QUEUE's pre-existing list). agrunt 2 is not
+  proven unrelated: re-run it on a clean origin/next.
+## Flat-screen feedback 2026-11-08 evening (agent/flat1108c)
+
+- Slide: stairs stopped it (Quake steps up only with FL_ONGROUND, off every other move at slide speed; the step face zeroed the speed), and on the first step the eye (a frame behind) dropped under the prone limit and laid him down. A grounded slide now steps up every move (VR_FlatSlideStepUp), costs vr_flat_slide_slope * rise / speed per step, and cannot enter prone. Up a ramp vz > 60 counted as a jump: a jump now needs the jump key. A/D alone asked 90+ degrees off the slide and never steered: any way but within 20 degrees of straight back steers. Test: vr_flatslide_rough_test (flatslide_test.sh), 4/4 (with the step-up alone, the prone entry still ended it on the first step: rose 16).
+- Mantle: its grunt played 0-0.1 s after the jump grunt and was masked; it now waits vr_flat_mantle_grunt_delay (0.35 s) after the jump. vr_flat_mantle_look 30, vr_flat_mantle_look_max 90 (his).
+- Flat VR-style menu zoom: 1.05 a step (buttons, wheel while dragging); headset and classic stay 1.1.
+- Body height: units::eyeHeight() is vr_flat_body_height (1.55) in -flatscreenmode; Height rows dimmed there.
+- Not done in this round: hands on the ledge in the mantle (3b), empty-hand and melee wall pullback (5), two-handed wider shove with tunables (6), force-grab outline preview (7).
 ## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
 
 Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:
@@ -4968,6 +5051,56 @@ Brief `qvr-kit/scratch/brief_embed1108b.md`: items 5, 13 and 14 of part one's br
 - **Tests at the end:** 1 61/0; 11 102/16 and 115/10 (the merged tree without these changes: 120/5 once; part one 103/15
   and 117/8: it varies run to run; no blade went into a crate in it); 21 41/2 (the known 2); 26 27/0; 27 22/0; 28 13/0;
   29 10/0; 30 11/0.
+## Player body: crawl, prone limit, self-shot head and pain, flashlight trigger, smoke near the eye (branch `agent/player1108`, 2026-11-08)
+
+His notes vrtesthall_2026-11-08_16-54-47, _16-56-44, _16-58-24, _17-29-05, vrstart_2026-11-08_17-00-44, _17-01-11,
+vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
+
+- **Arm crawl from the hand's real bottom** (`vr_physics_water.cpp` VR_AfterCrawlMove, crawlHandBottom): a hand's
+  height is the lowest point of its fist as the client posed it (held::fist's spheres, turned by the hand's angles: the
+  knuckles or fingers), not the controller's place. It starts a pull under `vr_prone_crawl_plant_height` (default
+  10 -> **1**; slider 0..12 in 0.25 steps), coming down under 1.5 more, goes on under 1.5 over it (was twice the
+  height each: 8 units of air at his 4). configVersion **223** resets a saved value (its meaning changed).
+- **Hand pose** (`vr_prone_crawl_hand`, Player Hitbox > Empty Hand Crawls When: **1 Closed** default, 2 Open, 0
+  Either): an empty hand (fists, nothing carried) pulls in that pose; closed = grip or trigger held. A hand holding a
+  weapon or a thing always pulls unless it fires. Measured cause of "only the open hand crawls": every firing hand was
+  out, and a closed empty fist holds the trigger (+offhandattack / +attack), so it never pulled; the grip never mattered.
+- **Any direction:** the body goes against the hand's motion along the floor (the 66-degree "back only" cone removed).
+- **Lying Down Below** (`vr_prone_eye`): limit 8 .. the tallest crouched box's top less 4 (hull height less 8: 48),
+  was the lowest crouched box's top less 2 (34); slider 8..48. Default 18 -> **22** (his). Getting up at the limit (or
+  the lying box's top) plus **`vr_prone_rise_margin`** (new, default 2, slider 2..16: Getting Up Margin). Over the
+  lowest crouched box's top, getting up still needs that box to fit; the crouch rises on from there.
+- **Sliders widened:** Lying Down Height 12..48, Crawling Speed step 0.02, Arm Crawl Strength 0.25..10 (default 2.5 ->
+  **1.25**, his), Pull Speed 0..2, Friction 0..20, Top Speed 20..400.
+- **Pain sound while firing** (`player.qc` player_pain; his follow-up): Quake's early return on weaponframe /
+  weaponframe2 skipped the pain frames and with them PainSound, so any hit taken mid-fire was silent (your own shot is
+  always mid-fire). Now it skips only the frames: PainSound plays (its pain_finished half second still limits it), the
+  axhitme reset kept. A first version special-cased self-hits only (VR_SelfShot_Pain): removed, self-hits scream
+  through this path. (Invisible, Ring of Shadows: still no pain sound, as Quake.)
+- **Self-shot head** (vr_selfshot.cpp current(): PartHead 6, QC QVR_SS_PART_HEAD): an upright capsule round the skull
+  (middle 8 cm behind and 2 cm under the eyes, radius 8.5 cm, 13 cm under to 10.5 cm over the eyes; its front 0.5 cm
+  ahead of them). Only your own shots' capsules: the wounds' (build) have none, no wound painted on the head. Damage:
+  his answer, the headshot multiplier: PositionalRegion returns VR_REGION_HEAD for a self-hit on the head part (with
+  vr_positional_damage on), so pellets, missiles and the lightning take vr_headshot_mult (1.5) as a monster's head does.
+- **Flashlight trigger** (vr_flashlight.cpp triggerAtLamp): the trigger at the lamp switches it only from an empty
+  hand (or the hand holding the torch); a hand holding any weapon, melee included, fires or swings as anywhere.
+- **Smoke at the mouth** (vr_muzzlewisps.cpp): the wisps' ribbons faded out within 6 units (about 18 cm) of the eye
+  (ribbons::View::nearFade), so a gun at your mouth showed no smoke to blow on. Now `vr_gunfx_wisp_near` (Tunables >
+  Wisps Near the Eye, default **5 cm**, fading from a third of it). The blow itself had no minimum distance.
+- **Vent hint:** `quakevr/scenarios/prone_vent.txt` gains a `hint` (straight ahead, about 2 m east, the slot at the foot
+  of the east wall under the teleporter).
+- **Tests:** `crawl_test.py` **18 passed, 0 failed** (strokes 175 units; Closed: open 0, grip 175, trigger 175; Open:
+  open 176, grip 0.5; Either 175 both; push back 90; side 56 right, 0.7 along x; 8 cm over the floor 0; the floor
+  strokes at y 0.015 now, the fist 0.7 units over the floor; grip and trigger by +graboff / +offhandattack: a
+  vr_mock_button press is a key the open console takes). New `prone_eye_test.py` **6 passed** (limit 48 at 60; 40:
+  lying at 37, still at 40 and, margin 8, at 44; up at 49; 22 at 37: crouched 44). `prone_test.py` **32 passed**.
+  `vr_selfshot_test 1` **29 passed** (head met; a head pellet 6 = 4 x 1.5 against the palm's 3; pain sound mid-fire;
+  a grunt's hit mid-fire: pain sound, no pain frames, a second hit at once rate-limited;
+  a line ahead from the face not met), `2` **1 passed** (no self-hit in ordinary firing). New
+  `flashgrab/flash_trigger_test.py` **6 passed** (shotgun hand's trigger at the lamp: unchanged; empty hand: switches).
+  `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing; menu_paths.txt regenerated.
+- **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
 ## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
 
 QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.

@@ -25,6 +25,39 @@ Lie down in front of the 20-high vent and crawl through it (no crouch fits): the
 Water drips: wade into the pool with the gun held under, climb out: hands, gun (towards the muzzle) and legs drip, many at first, tapering off over about half a minute; nothing drips while in the water; a fast swing throws drops {test:waterdrips}
 Water drips: the grunt that was in the pool drips once out (only below how deep it was), tiny splashes and a soft drip where drops land, no marks {test:waterdrips}
 Wounded enemies drip: shoot the dry grunt without killing it: blood drips from where it was hit, more the more hurt and just after a hit; none with Gore off {test:waterdrips}
+Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
+Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}
+Crawl any way: pull back to go forward, push ahead to go back, pull sideways to slide sideways {test:prone_floor}
+Lying Down Below now goes to 48: try 26-30 (on all fours) and see you lie down without lying flat; getting up still works, and Getting Up Margin (default 2) stops flicker if your head bobs at the limit {test:prone_floor}
+The 20-high vent: the scene's hint says where it is (straight ahead, at the foot of the east wall under the teleporter); lie down, crawl through, get up inside (you stay lying), stand once out {test:prone_vent}
+Shoot yourself while firing (palm, forearm, thigh): the pain scream plays every time, as for any other hit {test:self_shot}
+Shoot yourself in the head (muzzle at the temple or under the chin): it hits, 1.5x a body shot (the headshot multiplier); aiming normally past your face never does {test:self_shot}
+Shotgun hand over the chest flashlight: the trigger fires the gun, the lamp stays as it was; an empty hand there still switches the lamp {test:prone_floor}
+Blowing on gun smoke with the gun at your mouth: the smoke stays visible right up to your face (Tunables > Wisps Near the Eye, 5 cm) and the blow pushes it away (vr_smoke_blow 1) {test:prone_floor}
+Get shot by a grunt while holding the nailgun's trigger: you hear the pain grunt (not on every pellet), and the gun keeps firing smoothly.
+Broken armour splits in two: shoot a pauldron, a bracer, a thigh or shin plate and the cuirass off the grunts: each falls as two halves with a jagged seam, flying a little apart (the cuirass down the middle), each one you can pick up and throw; the helmet still falls whole. Let them shoot your own plates off: yours split too. Armour > Broken Plates has the toggle, the push apart and each kind's split line. {test:agarmor_tiers}
+[Ragdolls and armed humanoids, 11-08] (branch agent/rag1108)
+- Remove an armed grunt carrying a flamethrower with the toolgun: its backpack, weapon and back tank go with it; wait 10 s: no backpack drops, no rip sound. Same for a dead one via Debug > Cheats > Corpses and Ragdolls. (Test: developer 1; vr_rag1108_test 1)
+- A grunt hanging from a ledge (vrclimb, shove one off the long ledge) kicks and wiggles its legs and sways a little, and still holds on and pulls up. Tunables: vr_ragdoll_active_hang_kick 2, _hz 1.4, _random 0.6, _sway 1. (Test: map vrclimb; vr_ragdoll_act pullup)
+- Shove a knocked-down grunt while it is getting up: it always goes back down as an active ragdoll (two hands or one). vr_knockdown_getup_shove 1; a weaker shove on one nearly up should take a balance step (vr_knockdown_getup_shove_step 0.8, _late 0.6: past 60% of its get-up). (Test: developer 1; vr_rag1108_test 4)
+- Punch or pistol a grunt's ragdoll torso many times: limbs/head may pop, but it never bursts into gibs; a point-blank super shotgun or a rocket still gibs it. vr_corpse_gib_overkill 50, vr_corpse_gib_hit_min 35. (Test: developer 1; vr_rag1108_test 3)
+- Flamethrower / poison sprayer grunts, knights, death knights, enforcers: the back tank sits to the right of the backpack (weapon-hand side), not through it, and still bursts when shot. vr_adgun_tank_worn_side 7, _back 0. (Test: vr_rag1108_test 2)
+[0. Flatscreen play (-flatscreenmode)]
+Slide up vrtesthall's stairs (north-east, beside the platform) and up its ramp (north-west): the slide climbs the steps and the ramp and slows as it goes up, ending only when it is slow (not at the first step, not as you start up the ramp); jump mid-slide still ends it. {test:flat_slide}
+Slide and steer with A alone or D alone (forward let go), also after turning the mouse a little: the slide curves to that side every time, for the whole slide; holding S does not brake or turn it. {test:flat_slide}
+Mantle (jump at a ledge, jump held, look up at least 30 degrees: Mantle Look Up's new default): you hear the jump's grunt and then the mantle's own grunt a moment later (Mantle Grunt Delay 0.35 s, Desktop Screen Play page). {test:flat_mantle}
+The VR-style menu on the desktop screen: the + and - zoom buttons and the mouse wheel while dragging the panel change its size in finer steps (5% a step, was 10%). {test:menu_flat_panel}
+Desktop screen play: the body, its poses and your weapons look the same whatever VR Settings > Height says (try 1.9 m): they are sized to Desktop Screen Play > Body Height 1.55 m; the headset's Height rows are dimmed in this mode with a note, and in VR they work as before. {test:flat_slide}
+[5. VR: melee and embedded blades] Two hands on a sword like a spear, run at a grunt and stab it dead: let go, the sword lies in the falling body, not floating where it stood; a force grab pulls it out of the body. {test:embed_stab}
+[5. VR: melee and embedded blades] Run into a grunt with a held stab: the blade pushes back and you stop in front of it instead of running past (Tunables: Running Stab: Brake, Running Stab: Speed). {test:embed_stab}
+[5. VR: melee and embedded blades] A blade left in a grunt: a force grab at it from in front, through the body, finds it every time. {test:embed_stab}
+[5. VR: melee and embedded blades] A head or limb on the axe: an ordinary shake or a light swing no longer throws it off; a hard shake or hard swing that stops does (Tunables: Cut-Off Parts: Fling Speed, now 4 m/s). {test:embed_stab}
+[5. VR: melee and embedded blades] Stab a grunt and keep holding while it goes active ragdoll: the grip holds (Blade Hold Strength x1; raise it if it still slips). {test:embed_stab}
+[5. VR: melee and embedded blades] Behead a grunt with the axe: the head sits in the blade, on the side the swing went, not stuck to either face of it (Tunables: Cut-Off Parts: In the Blade). {test:embed_stab}
+[5. VR: melee and embedded blades] Grab a gib or head on the blade with the other hand: the hand rests on its surface, not inside it; tear it off: it is in that hand with no gap. {test:embed_stab}
+[5. VR: melee and embedded blades] Slide a gib up and down the blade with the other hand: squelches and a buzz in both hands. {test:embed_stab}
+[5. VR: melee and embedded blades] Shoot, punch or strike with the other hand's weapon a gib on the blade: it comes off and bursts or takes the hit like any gib. {test:embed_stab}
+[5. VR: melee and embedded blades] Hit a dead ragdoll with the sword or axe: the dent and wound are where the blade struck. {test:embed_stab}
 
 [2. Flat-screen: weapons, hands and the toolgun]
 Walls: walk along the wall with the rifle, then the shotgun and nail pistol, turning slowly towards it: the gun lies flat along it, no jitter or flicker, and fires through the crosshair; facing it steeply it tilts up (0.3 s) and won't fire or ironsight until you step back, then the sight comes on by itself. Wall rows: Flatscreen > Free Hands. {test:flat_wall}

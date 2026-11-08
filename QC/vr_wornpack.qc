@@ -381,6 +381,56 @@ void(entity pk) VR_WP_Dead =
     VR_WP_Log(sprintf("its wearer dead: takeable (shells %g nails %g)", pk.ammo_shells, pk.ammo_nails));
 };
 
+float vr_ag_removed_with; // things removed with their wearer so far (the tests)
+
+// `e` removed outright (the toolgun, the scene's cleanup, a test's clean slate): what it wears and holds goes with it,
+// quietly: its worn pack (on it alive or dead, never torn off nor dropped), its weapons as held and their back tanks
+// (no tank burst, no weapon dropped), its fists' pose sender. A pack torn off already is a backpack item: it stays.
+void(entity e) VR_AG_RemoveWith =
+{
+    entity pk = e.vr_wp_pack;
+    if(pk && pk.vr_wp_wearer == e && pk.vr_wp_state != VR_WP_OFF)
+    {
+        VR_WP_Log(sprintf("%s removed: its pack with it", e.classname));
+        remove(pk);
+        vr_ag_removed_with++;
+    }
+    e.vr_wp_pack = world;
+    e.vr_wp_worn = 0;
+    for(float i = 0; i < 2; i++)
+    {
+        entity w = i == 0 ? e.vr_ag_prop : e.vr_ag_prop2;
+        if(w && w.owner == e && w.classname == "vr_ag_weapon")
+        {
+            if(w.weapon == WID_CHAINSAW)
+            {
+                sound(w, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop)
+            }
+            w.weaponinst = world;
+            remove(w);
+            vr_ag_removed_with++;
+        }
+    }
+    e.vr_ag_prop = e.vr_ag_prop2 = world;
+    // (Its back tanks: placed by its weapons' think, gone with them; any left, its own.)
+    for(entity t = find(world, classname, "vr_fueltank_worn"); t; t = find(t, classname, "vr_fueltank_worn"))
+    {
+        if(t.owner == e)
+        {
+            VR_FuelTank_Hush(t);
+            t.vr_fuellink = world;
+            t.classname = "vr_fueltank_gone"; // (find goes on past it)
+            remove(t);
+            vr_ag_removed_with++;
+        }
+    }
+    if(e.vr_ag_poser && e.vr_ag_poser.owner == e)
+    {
+        remove(e.vr_ag_poser);
+        e.vr_ag_poser = world;
+    }
+};
+
 // Every frame while worn: on its wearer's back (hidden while it is), pulled at, or torn off as its wearer goes.
 void() VR_WP_Think =
 {
@@ -388,6 +438,12 @@ void() VR_WP_Think =
     entity g = pk.vr_wp_wearer;
     if(pk.vr_wp_state == VR_WP_OFF)
     {
+        return;
+    }
+    if(VR_AG_Freed(g) && g.vr_wp_pack == pk)
+    {
+        VR_WP_Log("its wearer removed: the pack with it"); // (removed outright, not dying: never a pack left behind)
+        remove(pk);
         return;
     }
     pk.nextthink = time;

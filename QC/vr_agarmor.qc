@@ -315,6 +315,7 @@ string VR_AR_BREAK_SOUND = "vr/armor_crack.wav";
 // piece's first break, each one cost a hitch of ~80 ms (his note, 2026-11-01). Called at the level's load
 // (VR_AGR_PrecacheArmour, worldspawn) for the armed kinds' bodies and at each wearer's spawn (VR_AgArmor_Spawn).
 float vr_ar_precached; // the tests: the plate models precached so far (each call's own count)
+float vr_ar_half_precached; // ... and their halves' (vr_agarmor_split)
 void(string base) VR_AgArmor_PrecacheOf =
 {
     if(deathmatch || VR_AgArmor_ModelOf(base, 0) == "")
@@ -326,6 +327,22 @@ void(string base) VR_AgArmor_PrecacheOf =
     {
         precache_model(VR_AgArmor_ModelOf(base, i));
         vr_ar_precached = vr_ar_precached + 1;
+    }
+    // (and the halves a plate shot off splits into, vr_agarmor_split: the engine names them for a body of `base`)
+    if(cvar_hget(cvarh_vr_agarmor_split))
+    {
+        entity t = spawn();
+        t.model = base;
+        for(i = 0; i < VR_AR_PIECES * 2; i++)
+        {
+            string hm = limbmodel(t, QVR_ARMOR_HALF - i);
+            if(hm != "")
+            {
+                precache_model(hm);
+                vr_ar_half_precached = vr_ar_half_precached + 1;
+            }
+        }
+        remove(t);
     }
     precache_sound("items/armor1.wav");
     precache_sound(VR_AR_BREAK_SOUND);
@@ -418,13 +435,59 @@ entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt
     return VR_AgArmor_DebrisOf(VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, ang, vel);
 };
 
+// A plate shot off (its pool gone: VR_AgArmor_Break, the player's VR_PP_Shed): piece `i` of `e` (whole: model `whole`
+// at `at`) falls as two halves (vr_agarmor_split; ROUND24.md, "Broken armour splits in two"): each its own prop where it
+// lay on the body (limbpiece 16 / 17), half the whole's mass, its own hull (its model's), the fall's `vel` and
+// vr_agarmor_split_impulse apart along the line between them; the same skin (its dents and scorches). The helmet, a
+// piece with no halves: whole. The debris made (0..2).
+float vr_ar_split_made;   // the tests: plates split
+float vr_ar_split_mass;   // the tests: the last split's halves' masses summed
+float vr_ar_split_whole;  // ... and the whole plate's they came from
+float(entity e, string whole, float type, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisBroken =
+{
+    if(cvar_hget(cvarh_vr_agarmor_split) && i != VR_AR_HELMET)
+    {
+        string m0 = limbmodel(e, QVR_ARMOR_HALF - 2 * i);
+        string m1 = limbmodel(e, QVR_ARMOR_HALF - 2 * i - 1);
+        vector a0 = limbpiece(e, i, 16);
+        vector a1 = limbpiece(e, i, 17);
+        if(m0 != "" && m1 != "" && a0 != '0 0 0' && a1 != '0 0 0')
+        {
+            vector apart = normalize(a1 - a0) * max(0, cvar_hget(cvarh_vr_agarmor_split_impulse));
+            entity h0 = VR_AgArmor_DebrisOf(m0, type, i, a0, ang, vel - apart);
+            entity h1 = VR_AgArmor_DebrisOf(m1, type, i, a1, ang, vel + apart);
+            float n = 0;
+            vr_ar_split_mass = 0;
+            if(h0 != world)
+            {
+                vr_ar_split_whole = h0.vr_prop_mass;
+                h0.vr_prop_mass = h0.vr_prop_mass * 0.5;
+                vr_ar_split_mass = vr_ar_split_mass + h0.vr_prop_mass;
+                n = n + 1;
+            }
+            if(h1 != world)
+            {
+                vr_ar_split_whole = h1.vr_prop_mass;
+                h1.vr_prop_mass = h1.vr_prop_mass * 0.5;
+                vr_ar_split_mass = vr_ar_split_mass + h1.vr_prop_mass;
+                n = n + 1;
+            }
+            vr_ar_split_made = vr_ar_split_made + 1;
+            dprint(sprintf("agarmor: piece %g split in two (%s, %s), %g apart\n", i, m0, m1, vlen(a1 - a0)));
+            return n;
+        }
+    }
+    return VR_AgArmor_DebrisOf(whole, type, i, at, ang, vel) != world;
+};
+
 // Piece `i` of `e` falls off as debris where it is: out from the body and up.
-entity(entity e, float i) VR_AgArmor_Debris =
+float(entity e, float i) VR_AgArmor_Debris =
 {
     vector at = limbpiece(e, i, 10);
     vector out = at - (e.absmin + e.absmax) * 0.5;
     out_z = 0;
-    return VR_AgArmor_DebrisAt(e, i, at, limbpiece(e, i, 11), e.velocity + normalize(out) * (60 + 40 * random()) + '0 0 120');
+    return VR_AgArmor_DebrisBroken(e, VR_AgArmor_Model(e, i), e.vr_ar_type, i, at, limbpiece(e, i, 11),
+        e.velocity + normalize(out) * (60 + 40 * random()) + '0 0 120');
 };
 
 void(entity e, float i) VR_AgArmor_Break =

@@ -1080,10 +1080,15 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 // Lying down (hull::isProne), a VR player drags himself along the floor as he would for real: a hand reaches ahead
 // through the air (nothing), comes down to the floor and pulls back towards him (the body goes the other way, along the
 // pull, level with the floor), lifts and reaches again. The swimming strokes' kin and their gate (strokingMove: tracked
-// hands, not flat-screen, not noclip); the floor is no water, so its own simpler rule: a hand pulls while it moves back
-// (against where you look, vr_prone_crawl_min_speed or faster) on the floor (under vr_prone_crawl_plant_height over the
-// feet to start, or coming down to it under twice that; it goes on under twice that). A hand whose motion the game
-// made up (.handsynth: vr_handsource_gate) or whose trigger fires (aiming from the floor) never pulls. A pull gives the
+// hands, not flat-screen, not noclip); the floor is no water, so its own simpler rule: a hand pulls while it moves along
+// the floor any way (vr_prone_crawl_min_speed or faster; the body goes the other way: pulled back, forward; pushed
+// ahead, back; sideways, sideways), its lowest point (the fist's knuckles or fingers, crawlHandBottom) under
+// vr_prone_crawl_plant_height over the feet to start, or coming down to it a little higher (crawlComeDown); it goes on
+// under crawlKeepOn over that. A hand whose motion the game made up (.handsynth: vr_handsource_gate) never pulls; a
+// hand holding a weapon or a thing pulls unless it fires (aiming from the floor); an empty hand pulls in the pose
+// vr_prone_crawl_hand says (closed: its grip or trigger held; open; either). (Until 2026-11-08: back only, from the
+// controller's place under twice the plant height, every firing hand out: a closed fist, its trigger held, never
+// pulled, his notes vrtesthall_2026-11-08_16-54-47 and _16-56-44.) A pull gives the
 // crawl a speed: the hand's own back along the floor times vr_prone_crawl_gain (1: a hand gripping the floor), reached
 // quickly and never braking what the crawl already has; between pulls it glides out (vr_prone_crawl_friction),
 // at most vr_prone_crawl_max_speed. On the ground, the player's speed along it is kept up to the crawl's (whatever the
@@ -1093,10 +1098,64 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 namespace
 {
 
-// A pull's way: its hand's motion along the floor within about 66 degrees of straight back (cos).
-constexpr float crawlBackCos = 0.4f;
-// A hand coming down at this many m/s (or faster) plants for a pull under twice vr_prone_crawl_plant_height.
+// A hand coming down at this many m/s (or faster) plants for a pull under vr_prone_crawl_plant_height + crawlComeDown;
+// a pull goes on under vr_prone_crawl_plant_height + crawlKeepOn (units: a hand dragged along the floor bobs a little).
+// (Until 2026-11-08 twice the plant height each: 8 at his 4, swimming in the air, his note.)
 constexpr float crawlPlantDown = 0.2f;
+constexpr float crawlComeDown = 1.5f;
+constexpr float crawlKeepOn = 1.5f;
+// The grip held (QC QVR_VRBITS0_*HAND_GRABBING, vr_client.cpp gripping).
+constexpr int crawlGripOff = 1 << 1;
+constexpr int crawlGripMain = 1 << 3;
+// No fist known (no jointed hand model): the hand's lowest point this many metres under its place.
+constexpr float crawlFallbackDrop = 0.03f;
+
+// vr_prone_crawl_hand: the empty hand's pose that pulls (0 either, 1 closed, 2 open).
+[[nodiscard]] bool crawlPoseOk(bool closed)
+{
+    const int mode = static_cast<int>(vr_prone_crawl_hand.value);
+    return mode == 1 ? closed : mode == 2 ? !closed : true;
+}
+
+// Whether a hand of `ent` holds nothing: no weapon (the fists), nothing carried.
+[[nodiscard]] bool crawlHandEmpty(edict_t* ent, int h)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    if(!progs::bindings().isVrProgs)
+    {
+        return h == 0; // another mod's progs: the main hand holds its weapon
+    }
+    const float weapon = h == HAND_MAIN ? ent->v.weapon : progs::fieldFloatOr(ent, f.weapon2, 0.f);
+    if(weapon != 0.f)
+    {
+        return false;
+    }
+    const int held = progs::handFields(h == HAND_MAIN).held;
+    if(held < 0)
+    {
+        return true;
+    }
+    const int v = progs::fieldInt(ent, held);
+    return v == 0 || PROG_TO_EDICT(v)->free;
+}
+
+// The hand's lowest point in the world (z): the bottom of its fist's spheres as the client posed them (held::fist: the
+// knuckles or the fingers, whichever is lowest as it is turned), not the controller's place.
+[[nodiscard]] float crawlHandBottom(const VrHandMove& hand, int h)
+{
+    const za::Vector<glm::vec4>& fist = held::fist(h);
+    if(fist.empty())
+    {
+        return hand.pos.z - crawlFallbackDrop * units::metresToUnits();
+    }
+    const glm::mat3 axes = held::axesFromAngles(&hand.rot[0], true);
+    float lowest = hand.pos.z;
+    for(const glm::vec4& s : fist)
+    {
+        lowest = za::min(lowest, hand.pos.z + (axes * glm::vec3{s}).z - s.w);
+    }
+    return lowest;
+}
 // How quickly (per second) the crawl reaches a pull's speed: a hand gripping the floor, a few frames.
 constexpr float crawlGrip = 15.f;
 
@@ -1175,7 +1234,7 @@ extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemov
     const float feet = ent->v.origin[2] + ent->v.mins[2];
     const bool onGround = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
 
-    // Where you look, along the floor: a pull goes back against it.
+    // Where you look, along the floor: the stick's frame.
     const float yaw = glm::radians(VR_MoveAngles(ent, ent->v.v_angle)[YAW]);
     const glm::vec2 look{za::cos(yaw), za::sin(yaw)};
 
@@ -1201,18 +1260,34 @@ extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemov
         CrawlHand& state = c.hands[h];
         const float speedMs = glm::length(hand.vel); // m/s, the hand's own motion (not the player's)
         const bool fires = h == HAND_MAIN ? ent->v.button0 != 0.f : (move->buttons & protocol::QVR_BUTTON_OFFHANDATTACK) != 0;
-        if(!(speedMs <= glitchSpeed) || (move->handSynth & (1 << h)) || fires || !onGround)
+        // A hand holding something (a weapon, a carried thing) always pulls, not while it fires (aiming from the
+        // floor); an empty one as vr_prone_crawl_hand says: closed (its grip or trigger held: the fist), open, either.
+        const bool empty = crawlHandEmpty(ent, h);
+        const bool closed = fires || (move->vrBits0 & (h == HAND_MAIN ? crawlGripMain : crawlGripOff)) != 0;
+        const bool poseOk = empty ? crawlPoseOk(closed) : !fires;
+        if(vr_prone_crawl_debug.value >= 3.f)
+        {
+            Con_Printf("crawl: %s hand gates: %.2f m/s synth %d pose %d ground %d bits %d buttons %d empty %d\n",
+                h ? "main" : "off", speedMs, (move->handSynth >> h) & 1, poseOk ? 1 : 0, onGround ? 1 : 0,
+                static_cast<int>(move->vrBits0), static_cast<int>(move->buttons), empty ? 1 : 0);
+        }
+        if(!(speedMs <= glitchSpeed) || (move->handSynth & (1 << h)) || !poseOk || !onGround)
         {
             endPull(ent, state, h);
             continue;
         }
+        // Any way along the floor (his note 2026-11-08: pulled back, forward; pushed ahead, back; sideways, sideways).
         const glm::vec2 level{hand.vel.x, hand.vel.y};
         const float levelSpeed = glm::length(level);
-        const float back = levelSpeed > 0.f ? -glm::dot(level / levelSpeed, look) : 0.f;
-        const float height = hand.pos.z - feet;
-        const bool moving = levelSpeed > minSpeed && back >= crawlBackCos;
-        const bool planted = height < plant || (hand.vel.z <= -crawlPlantDown && height < 2.f * plant);
-        if(!moving || height >= 2.f * plant || (!state.pulling && !planted))
+        const float height = crawlHandBottom(hand, h) - feet; // (its lowest point: the knuckles or the fingers)
+        if(vr_prone_crawl_debug.value >= 2.f)
+        {
+            Con_Printf("crawl: %s hand lowest %.1f over the feet (its place %.1f), %.2f m/s, %s%s\n", h ? "main" : "off",
+                height, hand.pos.z - feet, levelSpeed, empty ? "empty" : "holding", closed ? " closed" : " open");
+        }
+        const bool moving = levelSpeed > minSpeed;
+        const bool planted = height < plant || (hand.vel.z <= -crawlPlantDown && height < plant + crawlComeDown);
+        if(!moving || height >= plant + crawlKeepOn || (!state.pulling && !planted))
         {
             endPull(ent, state, h);
             continue;
@@ -1230,7 +1305,8 @@ extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemov
             }
             if(vr_prone_crawl_debug.value)
             {
-                Con_Printf("crawl: %s hand plants %.1f over the feet, %.2f m/s back\n", h ? "main" : "off", height, levelSpeed);
+                Con_Printf("crawl: %s hand plants %.1f over the feet (its place %.1f), %.2f m/s, %s%s\n", h ? "main" : "off",
+                    height, hand.pos.z - feet, levelSpeed, empty ? "empty" : "holding", closed ? " closed" : " open");
             }
         }
         want -= level * gain; // the body goes against the hand

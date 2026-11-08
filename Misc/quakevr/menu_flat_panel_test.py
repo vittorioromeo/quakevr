@@ -4,7 +4,7 @@ headless (ROUND24.md, "VR menu layout on a flat screen, zoom buttons").
   flat run (vr_enabled 0):
     1. the layout: the corner's buttons a column beside the menu (menu_vr pos "beside"), the panel's rect (MENUZOOM)
     2. the mouse through the panel: a click on the column's VR Settings opens it (vr_mock_mouse settings click)
-    3. the zoom buttons: - then + + step vr_menu_flat_scale by 1.1 (0.9 -> 0.818 -> 0.9 -> 0.99), the button staying
+    3. the zoom buttons: - then + + step vr_menu_flat_scale by 1.05 (0.9 -> 0.857 -> 0.9 -> 0.945), the button staying
        under the mouse; writeconfig has the last value (it persists)
     4. a corner dragged: the bottom right corner pressed, the mouse moved by -120 -60: the panel's middle moves as much;
        the wheel twice while held: smaller round the mouse (the corner still at the mouse); released: no longer dragging
@@ -149,15 +149,15 @@ check(m is not None, f"flat: the mouse landed on the button's spot: {m.group(0) 
 # 3
 zo = flatzoom(after(fl, "zoomout"))
 zi = flatzoom(after(fl, "zoomin"))
-check(bool(zo) and abs(zo[-1][0] - 0.818) < 0.002, f"flat: - steps 0.9 to {zo[-1][0] if zo else None}")
-check(bool(zi) and abs(zi[-1][0] - 0.99) < 0.002, f"flat: + + steps on to {zi[-1][0] if zi else None}")
+check(bool(zo) and abs(zo[-1][0] - 0.857) < 0.002, f"flat: - steps 0.9 to {zo[-1][0] if zo else None}")
+check(bool(zi) and abs(zi[-1][0] - 0.945) < 0.002, f"flat: + + steps on to {zi[-1][0] if zi else None}")
 cfg = os.path.join(ROOT, "quakevr", "flatzoom_test.cfg")
 saved = ""
 if os.path.exists(cfg):
     saved = next((l.strip() for l in open(cfg, encoding="latin-1") if l.startswith("vr_menu_flat_scale")), "")
     os.makedirs(os.path.join(ROOT, "scratch"), exist_ok=True)
     os.replace(cfg, os.path.join(ROOT, "scratch", "flatzoom_test.cfg"))
-check("0.99" in saved, f"flat: the zoom persists in the config: {saved}")
+check("0.945" in saved, f"flat: the zoom persists in the config: {saved}")
 # 4
 d = flatzoom(after(fl, "drag"))
 ok = len(d) >= 4
@@ -167,7 +167,7 @@ if ok:
     dx, dy = mx - sx, my - sy
     check(abs(dx + 120) <= 1 and abs(dy + 60) <= 1 and moved[4], f"flat: corner drag moved the panel by {dx} {dy}")
     wx, wy, ww, wh = wheeled[3]
-    check(abs(wheeled[0] - round(0.9 / 1.21, 3)) < 0.003, f"flat: wheel twice while dragging: size {wheeled[0]}")
+    check(abs(wheeled[0] - round(0.9 / 1.1025, 3)) < 0.003, f"flat: wheel twice while dragging: size {wheeled[0]}")
     # the bottom right corner stayed by the mouse: the mouse 7 px outside it (vr_mock_mouse corner), that gap scaled with
     # the panel
     mouse = (sx + sw + 7 - 120, sy + sh + 7 - 60)

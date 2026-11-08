@@ -303,6 +303,13 @@ dispatch vr_smallgibs_test QC/vr_smallgibs_test.qc VR_SmallGib_TestStart xCase l
 dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
 dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
 dispatch vr_ragsmash_test QC/vr_ragsmash_test.qc VR_RagSmash_TestFrame request loose
+dispatch vr_rag1108_test QC/vr_rag1108_test.qc VR_Rag1108_TestFrame request loose
+
+vr_rag1108_test 1         vr_rag1108_test.qc               (removed outright: an armed one's worn pack, weapon and back tank go with it, never torn off later)
+vr_rag1108_test 2         vr_rag1108_test.qc               (the back tanks beside the worn packs, every kind: off the pack, to the right; a screenshot)
+vr_rag1108_test 3         vr_rag1108_test.qc               (the gib rule: small hits never fully gib a corpse, one big hit or explosions do)
+vr_rag1108_test 4         vr_rag1108_test.qc               (shoves on ones getting up: back down, a balance step, the old get-up's frames)
+vr_rag1108_test 5         vr_rag1108_test.qc               (test 4, its one-hand shove later in the rise: nearly up, a balance step)
 
 vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks, grunts: on, none on melee or fists, shots, blows, knockdowns, landings, deaths)
 vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
@@ -660,6 +667,7 @@ vr_pp_test       8        vr_playerplates_test.qc          the picture sheet
 vr_pp_test       13       vr_playerplates_test.qc          the joints' sheet: a grunt whole, an elbow and a knee close to, each part of a limb alone; yours bent
 vr_pp_test       14       vr_playerplates_test.qc          the body against the plates in live poses (vr_agarmor_pop_sample, _report)
 vr_pp_test       15       vr_playerplates_test.qc          armour round five's sheet: his angles (each kind front and back; hands and feet close to; a corpse's legs)
+vr_pp_test       16       vr_playerplates_test.qc          broken armour splits in two: you and a grunt with plates shot off, their halves (the sheet)
 vr_pp_test       9        vr_playerplates_test.qc          full red from the eyes, looking down
 vr_shockarcs_test 1 vr_shockarcs_test.qc struck by a bolt from behind, looking level: the arcs on the arms (sa_shockarcs_test.sh)
 vr_shockarcs_test 2 vr_shockarcs_test.qc the same, looking down
@@ -679,7 +687,7 @@ vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks th
 vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
 vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level change starts level
 
-vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; head, option off, another player: never
+vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; the head met (headshot multiplier, pain sound mid-fire); a grunt's hit mid-fire: pain sound, rate-limited; option off, another player: never
 vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only

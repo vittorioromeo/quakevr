@@ -5,9 +5,12 @@
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_progs.hpp"
+#include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 
 namespace qvr::selfshot
 {
@@ -26,6 +29,12 @@ struct Record
 Record record;
 
 constexpr float chinUnderEyes = 6.f; // units: the torso's top below the eyes (the view's height) for your own shots
+// Your own head for your own shots (metres): its middle this far behind the eyes and under them, its axis's half
+// height, its radius (the front 0.5 cm ahead of the eyes; from 13 cm under them to 10.5 cm over).
+constexpr float headBack = 0.08f;
+constexpr float headDown = 0.02f;
+constexpr float headHalfHeight = 0.04f;
+constexpr float headRadius = 0.085f;
 
 // The distance from p to the capsule's axis, less its radius (and the swept sphere's): <= 0 inside.
 [[nodiscard]] float gap(const Capsule& c, const glm::vec3& p, float radius)
@@ -71,7 +80,7 @@ Capsules current()
     view::woundTargets(own);
     Capsules caps = build(own);
     // The torso's top under the chin (the wounds' reaches round the head: an enemy's hit there is painted on the
-    // body): your own shot at your face is not met (the head is no part).
+    // body): your own shot at your face meets the head below, not the torso.
     const float chin = r_refdef.vieworg[2] - chinUnderEyes;
     for(Capsule& c : caps)
     {
@@ -80,6 +89,17 @@ Capsules current()
             c.b.z = za::max(c.a.z, chin - c.r);
         }
     }
+    // The head (his note vrstart_2026-11-08_17-01-11: you could not shoot yourself in the head): an upright capsule round
+    // the skull, its middle headBack behind the eyes along where they look (level) and headDown under them, from the chin
+    // to the crown; its front just ahead of the eyes, so a gun aimed ahead from the face never meets it, a muzzle at the
+    // temple, under the chin or at the forehead does. The wounds' capsules (build) have none: no wound is painted there.
+    const float m2u = units::metresToUnits();
+    const float yaw = glm::radians(r_refdef.viewangles[YAW]);
+    const glm::vec3 look{za::cos(yaw), za::sin(yaw), 0.f};
+    const glm::vec3 eyes{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 middle = eyes - look * (headBack * m2u) - glm::vec3{0.f, 0.f, headDown * m2u};
+    const glm::vec3 halfUp{0.f, 0.f, headHalfHeight * m2u};
+    caps.pushBack({middle - halfUp, middle + halfUp, headRadius * m2u, PartHead});
     return caps;
 }
 

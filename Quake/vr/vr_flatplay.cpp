@@ -2821,3 +2821,9 @@ extern "C" float VR_FlatPitchClamp(float pitch)
 {
     return qvr::flatplay::pitchClamp(pitch);
 }
+
+// vr_units.hpp: the mode's fixed body height (vr_flat_body_height), whatever the headset's Height says; 0 outside it.
+float qvr::units::flatEyeHeight()
+{
+    return qvr::flatplay::active() ? za::clamp(vr_flat_body_height.value, 1.f, 2.2f) : 0.f;
+}

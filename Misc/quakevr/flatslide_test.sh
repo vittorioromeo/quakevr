@@ -3,7 +3,9 @@
 # "Leaning"; Quake/vr/vr_flatmove.cpp), headless. Prints PASS/FAIL lines and a verdict, exits 1 on a failure.
 #   slide  vr_flatslide_selftest (the slide's step on made-up floors: flat friction, downhill to the top speed, uphill
 #          to a stop), then vr_flatslide_test in vrtesthall: running, the crouch starts a slide (the boost), it lasts
-#          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air.
+#          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air. Then
+#          vr_flatslide_rough_test: up vrtesthall's stairs and ramp, no step nor ramp ending it; A alone and D alone
+#          curve it, the view turned 10 degrees off its way.
 #   lean   vr_flatlean_test in vrtesthall: a full lean right moves the eye vr_flat_lean_dist and rolls the view; a shot
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
 #          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
@@ -13,8 +15,8 @@
 #          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
 #          ironsight waits), looking level the ironsight comes.
 #   mantle vr_flatmantle_test in vrmantle (Misc/quakevr/climb/make_vrmantle_map.py): a jump at each block, the jump key
-#          held, looking up 15 degrees: mantled onto the 48, 64, 80 and 96 high ones, not the 128 and 160 ones; looking
-#          level at the 64 one, no mantle (vr_climb.cpp flatMantle).
+#          held, looking up 35 degrees (vr_flat_mantle_look 30): mantled onto the 48, 64, 80 and 96 high ones, not the 128 and 160 ones; looking up
+#          only 20 at the 64 one, no mantle (vr_climb.cpp flatMantle).
 #   sights e1m1, the shotgun on the ironsight: the sights on the drawn ray upright, leant right, leant right crouched
 #          and leant left (vr_flat_sight_check), and the shot along the view (flataim).
 #   keys   E and Q lean (vr_mock_key), 3 swaps the hands, R force-grabs; an old config's binds on E and 3 do not run
@@ -32,6 +34,11 @@ echo "$out" | grep -a "^flatslide.*\(FAIL\|passed\)"
 expect_verdict "$out" "flatslide_selftest" "slide: the step on flat, downhill and uphill floors"
 expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a crouch, the jump keeps the speed"
 
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_rough" \
+    -Script "$H; vr_flatslide_rough_test; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatslide_rough.*FAIL"
+expect_verdict "$out" "flatslide_rough" "slide: up stairs and a ramp (no step, no ramp ends it), A alone and D alone curve it"
+
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatlean.*FAIL"
@@ -45,7 +52,7 @@ expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the cr
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle|^climb: flat" \
     -Script "map vrmantle; wait60; god; notarget; vr_climb_debug 1; vr_flatmantle_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatmantle.*FAIL"
-expect_verdict "$out" "flatmantle" "mantle: after a jump, looking up, onto ledges 48..96 high; not 128 or 160, nor looking level"
+expect_verdict "$out" "flatmantle" "mantle: after a jump, looking up 35, onto ledges 48..96 high; not 128 or 160, nor looking up only 20"
 
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
