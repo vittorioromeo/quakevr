@@ -353,6 +353,17 @@ glm::mat3 bodyPitchTurn(const Body& b, float share)
     return glm::mat3_cast(glm::angleAxis(glm::radians(angle), b.left));
 }
 
+glm::mat3 bodyLeanRollTurn(const Body& b)
+{
+    // (+ right: about the forward, a positive turn takes the left side up and the right side down.)
+    const float roll = flatmove::proneLeanRoll() * bodyPitch.lying;
+    if(roll == 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    return glm::mat3_cast(glm::angleAxis(glm::radians(roll), b.fwd));
+}
+
 void updateBodyPitch(const hands::State& s, float dt)
 {
     BodyPitch& p = bodyPitch;

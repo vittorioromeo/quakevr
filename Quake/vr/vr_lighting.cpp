@@ -2408,14 +2408,46 @@ void lighting::lightCurve(float* lightcolor)
 {
     const float c = lightContrast();
     const float a = ambientFloor();
-    if(c == 1.f && a == 0.f)
+    const float cap = lightCap();
+    if(c != 1.f || a != 0.f)
     {
-        return;
+        for(int i = 0; i < 3; i++)
+        {
+            lightcolor[i] = 128.f * za::pow(za::max(0.f, lightcolor[i]) / 128.f + a, c);
+        }
     }
-    for(int i = 0; i < 3; i++)
+    if(cap > 0.f)
     {
-        lightcolor[i] = 128.f * za::pow(za::max(0.f, lightcolor[i]) / 128.f + a, c);
+        // The ceiling (vr_light_cap), as the world shader does: the brightest channel above the knee eased into the cap,
+        // the others scaled with it (the hue stays).
+        const float m = za::max(lightcolor[0], za::max(lightcolor[1], lightcolor[2])) / 128.f;
+        const float knee = cap * (1.f - lightCapSoft());
+        if(m > knee)
+        {
+            const float room = za::max(cap - knee, 1e-4f);
+            const float out = knee + room * (1.f - std::exp(-(m - knee) / room));
+            const float k = out / m;
+            for(int i = 0; i < 3; i++)
+            {
+                lightcolor[i] *= k;
+            }
+        }
     }
+}
+
+float lighting::lightCap()
+{
+    return vr_light_cap.value <= 0.f ? 0.f : za::clamp(vr_light_cap.value, 0.3f, 2.f);
+}
+
+float lighting::lightCapSoft()
+{
+    return za::clamp(vr_light_cap_soft.value, 0.f, 1.f);
+}
+
+float lighting::capKey()
+{
+    return lightCap() * 64.f + lightCapSoft();
 }
 
 // A model's baked light (128 is Quake's full light): the same fill light and contrast as the world's.
@@ -2465,7 +2497,9 @@ extern "C" void VR_PushMapLights(void)
     // The room's own fill light (vr_ambient_light): the world shader adds it to the lightmap before the
     // contrast above, so the shade reads lit and the lamps stay as bright (qvr::lighting::ambientFloor).
     r_framedata.ambient[0] = lighting::ambientFloor();
-    r_framedata.ambient[1] = r_framedata.ambient[2] = r_framedata.ambient[3] = 0.f;
+    r_framedata.ambient[1] = lighting::lightCap(); // the ceiling of the baked light (vr_light_cap; 0 off) and how softly it is reached
+    r_framedata.ambient[2] = lighting::lightCapSoft();
+    r_framedata.ambient[3] = 0.f;
     // Parallax occlusion mapping on the world (the heights are in the normal maps' alpha): how deep, how far it
     // reaches, and the most steps along a ray.
     const bool parallax = vr_parallax.value != 0.f && vr_normalmaps.value != 0.f;

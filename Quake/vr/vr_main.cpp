@@ -171,6 +171,7 @@
 #include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
+#include "vr_skinedge.hpp"
 #include "vr_rangerhead.hpp"
 #include "vr_voice.hpp"
 #include "vr_closequarters.hpp"
@@ -2199,6 +2200,7 @@ extern "C" void VR_Init()
     lootbeams::init();
     proposedefaults::init();
     cleanskins::init();
+    skinedge::init();
     voice::init();
     closequarters::init();
     rangerhead::init();

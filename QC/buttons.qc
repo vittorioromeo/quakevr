@@ -840,6 +840,56 @@ void() func_weapon_grabbable =
     VR_WeaponGrabbable_Make(self);
 }
 
+// Map classnames for the weapons a player holds that had none (his decision, 2026-11-08): each a func_weapon_grabbable
+// of its weapon id and flags, its model the weapon table's (WeaponIdToModel), gone where its pack is missing
+// (VR_Pack_WeaponAvailable). The names are permanent map API (quakevr.fgd; ROUND24.md "weapon_* classnames"). The axe's
+// is AD's (in an AD map AD's own pickup still spawns: vr_ad.cpp adOwnedClashes).
+void(float xWid, float xFlags) VR_WeaponClass_Spawn =
+{
+    if(!VR_Pack_WeaponAvailable(xWid)) { remove(self); return; }
+    self.weapon = xWid;
+    self.weaponflags = xFlags;
+    self.model = WeaponIdToModel(xWid, xFlags);
+    precache_model(self.model);
+    func_weapon_grabbable();
+};
+
+/*QUAKED weapon_axe (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+The axe lying ready to be picked up (Quake VR): a melee weapon. It falls from its origin and settles on the floor, a
+physics object as func_weapon_grabbable's weapons (the same as one with weapon 2). In an Arcane Dimensions map AD's
+own axe pickup spawns instead. AS_PLACED: it lies as "angles" turn it (none: any way).
+*/
+void() weapon_axe = { VR_WeaponClass_Spawn(WID_AXE, 0); };
+/*QUAKED weapon_knight_sword (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A knight's sword lying ready to be picked up (Quake VR): a melee weapon, one hand or two. It falls from its origin and
+settles on the floor (func_weapon_grabbable with weapon 13). AS_PLACED: it lies as "angles" turn it (none: any way).
+*/
+void() weapon_knight_sword = { VR_WeaponClass_Spawn(WID_SWORD, 0); };
+/*QUAKED weapon_hknight_sword (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A death knight's sword lying ready to be picked up (Quake VR): a melee weapon, one hand or two. It falls from its
+origin and settles on the floor (func_weapon_grabbable with weapon 13, weaponflags 1). AS_PLACED: it lies as "angles"
+turn it (none: any way).
+*/
+void() weapon_hknight_sword = { VR_WeaponClass_Spawn(WID_SWORD, QVR_WPNFLAG_USE_SECONDARY_AMMO); };
+/*QUAKED weapon_chainsaw (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+An ogre's chainsaw lying ready to be picked up (Quake VR): a melee weapon with a full tank of fuel. It falls from its
+origin and settles on the floor (func_weapon_grabbable with weapon 14). AS_PLACED: it lies as "angles" turn it (none:
+any way).
+*/
+void() weapon_chainsaw = { VR_WeaponClass_Spawn(WID_CHAINSAW, 0); };
+/*QUAKED weapon_gruntgun (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A grunt's burst rifle lying ready to be picked up (Quake VR): a 3-round burst, its magazine full (it takes no ammunition
+of yours). It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 15). AS_PLACED: it lies
+as "angles" turn it (none: any way).
+*/
+void() weapon_gruntgun = { VR_WeaponClass_Spawn(WID_GRUNTGUN, 0); };
+/*QUAKED weapon_enfrifle (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+An enforcer's laser rifle lying ready to be picked up (Quake VR): its cell full (it takes no ammunition of yours). It
+falls from its origin and settles on the floor (func_weapon_grabbable with weapon 16). AS_PLACED: it lies as "angles"
+turn it (none: any way).
+*/
+void() weapon_enfrifle = { VR_WeaponClass_Spawn(WID_ENFRIFLE, 0); };
+
 // A monster dispenser (vrfiringrange's monster buttons): when used, spawns the monster "weapon" at its
 // origin. 0..4 are the map's own row of buttons (west railing), the rest the second row its entity file
 // adds (east edge):

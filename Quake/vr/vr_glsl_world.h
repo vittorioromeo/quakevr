@@ -726,6 +726,16 @@ QVR_PERMDECAL_FUNCTIONS \
 "	}\n" \
 "	total_light *= LiquidCaustics(in_pos, facing); // QVR: under water (vr_water_caustics)\n" \
 "	total_light *= DynamicAO(in_pos, AONormal(facing, luxdir), in_aoself, in_coord, in_depth); // QVR: what moves darkens the baked light near it (vr/vr_ao.cpp)\n" \
+"	if (AmbientLight.y > 0.) // QVR: a ceiling for the baked light (vr_light_cap): the brightest channel above the knee eased into the cap, the hue kept\n" \
+"	{\n" \
+"		float cap_m = max(total_light.r, max(total_light.g, total_light.b)) * 2.0;\n" \
+"		float cap_knee = AmbientLight.y * (1.0 - AmbientLight.z);\n" \
+"		if (cap_m > cap_knee)\n" \
+"		{\n" \
+"			float cap_room = max(AmbientLight.y - cap_knee, 1e-4);\n" \
+"			total_light *= (cap_knee + cap_room * (1.0 - exp(-(cap_m - cap_knee) / cap_room))) / cap_m;\n" \
+"		}\n" \
+"	}\n" \
 "#else\n" \
 "	bumped = LiquidNormal(waves, facing); // QVR: the waves', for the lights' glints\n" \
 "#endif\n" \

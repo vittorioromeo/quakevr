@@ -3559,3 +3559,147 @@ straight. Plus: a slide sound; the legs pointing the slide's way, not the camera
   Volume.
 - **Not done:** the flat prone eye stays 14 over the floor (its drop is the camera's, not the body's): lying down is propped
   on the elbows rather than flat on the chest; lower `vr_prone_hip_floor` or the eye for flatter.
+## Flat tools: force grab key, F7 toolgun, weapon_* classnames (worker C, 2026-11-08)
+
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar).
+## Flat-screen: the lean at a wall, the prone lean, the prone gun (branch `agent/loadjobs`, worktree phases, 2026-11-08)
+
+His report: leaning against a wall only rolled the view; lean while lying down (smaller, the body rolling in place);
+tunables for the prone gun pose; the crouch pressed lying down changed the gun pose; looking down lying down the gun
+went into the floor.
+
+- **The lean at a wall: the cause.** `leanRoom` (vr_flatmove.cpp) traces three lines sideways: from the eye, 8 under it
+  and from the weapon's place 20 units ahead of the eye. Facing a wall he stands against (his box's front 16 off his
+  middle, the wall 17), that third line started inside the wall, `startsolid` gave it room 0, and the lean's eye move
+  was cut to nothing: the view rolled, the eye stayed. Leaning away from a side wall was fine. **Fix:** the weapon's
+  line starts only as far ahead as is open (a line forward first, stopped 2 short of what it meets); a line from under
+  the eye or from ahead that starts in something (a ledge, a step) is skipped, not taken as a wall at the side (the eye's
+  own still counts). Only the way the lean goes is ever traced, so away from and along a wall it goes all the way.
+- **Lean lying down.** Allowed now; its full eye move and roll blend to `vr_flat_lean_prone_dist` (3) and
+  `vr_flat_lean_prone_angle` (8) by `flatplay::proneRatio`. The lying trunk rolls in place by the same:
+  `flatmove::proneLeanRoll()` (the roll times the prone share), applied by `detail::bodyLeanRollTurn` (vr_avatar_pitch.cpp,
+  about `b.fwd`) composed onto `bodyPitchTurn` at one place only, the trunk's turn in vr_avatar.cpp (`bodyLeanRollTurn(b)
+  * bodyPitchTurn(b)`); the legs and the lying pose itself are untouched (worker A's). `leanShare` now divides by the
+  current full move (the walk's lean slowdown reads it).
+- **Prone gun pose tunables** (Debug > Tunables > Flatscreen > Held Weapon): `vr_flat_gun_ahead_prone` / `_down_prone` /
+  `_out_prone` at a level look, and `..._prone_down` / `..._prone_up` looking straight down / up, along Gun Out's smooth
+  curve (`proneAt`, vr_flatplay.cpp), taking over from the standing/crouched ones by the prone share. Defaults are the
+  standing values (16.5, 2, 1; out -4 at either end), so nothing moves until he tunes them.
+- **Crouch from prone.** A crouch press (Left Ctrl or `+flatcrouch`) while lying down clears the prone ask: the prone
+  share eases out while the crouch's eases in (the eye takes the deeper of the two), the gun from the prone pose to the
+  crouch one. Before, he stayed lying down and the crouch's gun pose came on top.
+- **The gun flush on the floor** (`vr_flat_prone_floor` 1, `vr_flat_prone_floor_margin` 1; Debug > Tunables > Flatscreen
+  > Wall). `handpose::gunDepth` skips floors on purpose (standing, the gun's end in the floor is hidden); lying down
+  (prone share over 0.5) `gunDepthFloor` adds `handpose::gunFloorDepth` (the weapon's points against floors only, the
+  margin under each) to the wall tilt's and the room's measures. When the floor is what the gun is in, the tilt is
+  all of it (sighted too, up to 85 whatever `vr_flat_wall_tilt` says), so the existing wall-tilt blocks hold: no shot
+  (`vr_flat_wall_block_fire`), the ironsight waits (`vr_flat_wall_block_ads`). The status's `flatwallturn:` line ends
+  with `floor 0/1`. e1m1, shotgun, prone, looking down: before tilt 0, wall state on with the gun's end in the floor;
+  after tilt 44.7 deg, block 1, 0.23 left (under the 0.25 the tilt counts as clear).
+- **Tests.** `vr_flatlean_test` gains: leant away from the side wall (16.0 of 16), facing the wall leant right and left
+  (16.0 of 16 each): 7/0. New `vr_flatprone_test` (Debug > Tests: Flat Prone Test): lying down leant right (eye 3.0,
+  roll 8.0, body roll 8.0); crouch pressed lying down: up into the crouch in 0.61 s, the gun's largest frame step 0.64
+  units; looking down (80) with the ironsight asked: flush (47.8 deg, 0.20 left), no shot, ironsight 0.00; looking level:
+  off the floor, shots, ironsight 1.00: 4/0. `flatslide_test.sh` runs both: 11/0.
+- **Not done / not checked:** VR is untouched (the lean and the flush are flat-screen only). The prone lean's eye move
+  is not clamped by the floor (3 units sideways). The body roll is a few degrees and was only glanced at from the fly
+  camera.
+## Irons level: the shotguns' and the lightning gun's sights (branch `agent/selfshot`, 2026-11-08)
+
+His note, with flat ADS screenshots (`scratch/shotsight_mockup/ads_shot_misaligned.webp`, `ads_ssg_misaligned.webp` in the
+kit): the glowing inserts lined up on the aim, the irons didn't (the rear ears' metal tops well over the front post's);
+"in real guns, people look for the alignment of the irons, not of the glowy bits". Then the lightning gun
+(`lightning_ads.webp`): rear posts asymmetric, their gap off centre, the glow sitting on top, the front post lopsided.
+
+- **The sight line is the irons' tops** (`vr_sightalign.cpp` `fromTexels`, `sights.py` `sight_line`): the rear and front
+  heights are the highest corner of the triangles the sight texels are painted on (the faces the inserts are on), not the
+  texels' own. One rule for every painted gun, no per-model number: where an insert is painted to its face's top (the
+  old lightning gun's blocks) the two are the same. The nail pistol has no painted texels and keeps its table line.
+- **Shotgun** (`v_shot.blend`): the ears' tops lowered one z step (0.0666) to 6.6116, the front post unchanged (6.2784):
+  the iron line is the old insert line raised 0.0666 at both ends, so it is parallel: -0.843 deg up, 0.115 left, as before
+  (turned 0.000). The ears' back faces keep their texel size (their top corners' UVs two rows down). Inserts: the rear
+  ones' tops 1 row (0.033) under the ears' tops (the patch moved up a row: dark line on the top edge, insert, lip), the
+  front one's 4 rows (0.133) under the post's top (two core rows fewer). In the sight picture (eye ~11 units behind the
+  rear, ~34 from the front) those are about the same angle under the iron line (0.003-0.004 rad), so the inserts' tops
+  line up too. The relief PNG moved with them.
+- **Super shotgun** (`v_shot2.blend`): the ears' tops lowered 4 z steps (0.2226) to 7.7781 = the old insert line + one
+  step; the post unchanged (8.1676): 1.488 deg up, 0.140 left, as before. Rear inserts' tops 1 row (0.028) under the
+  ears' tops, the front one's 3 rows (0.083) under the post's (one core row fewer). The ears now just clear the barrels'
+  backs (their humps reach the same height): the inserts show whole in the notch's sides, as before.
+- **Lightning gun and plasma gun** (`v_light.blend`, `v_plasma.blend`: the same sight geometry, one script for both):
+  a rear housing like the shotgun's, a closed solid across the receiver (x -2.378..-1.354, 1.76 wide, its bottom sunk),
+  centred on the barrel's line (y -0.098, the muzzle's; the old notch was at -0.1715 and the posts' bottoms lopsided):
+  a square U notch 0.44 wide, its floor 0.274 under the tops, between two ears 0.293 wide, their tops at 11.4806 (the box
+  top, as the old posts'); the old posts sunk inside it (the receiver's slope that ran up to them now comes out of its
+  front face). Front: a square post 0.293 wide on the same line, top 11.3435 (the old pyramid's apex, removed), its back
+  face at x 31.0765. Each ear's and the post's back face a metal frame round a 5-wide glowing insert (234 rim, 235, 236
+  core), the rear ones' tops 1 row (0.034) under the ears' tops, the front's 2 rows (its top 4 rows show over the
+  barrel); new UV patches in free skin (v_light s 22-52, v_plasma s 144-174, t 94-102); the old glow (s 145-158,
+  t 133-143) repainted metal. Line: rear -2.378 -0.098 11.4806, front 31.0765 -0.098 11.3435: -0.235 deg up, 0.000 left
+  (was -0.238, 0.012 left: turned 0.012 deg; no shot offsets in weapons.txt for these slots). Barrel masks "948:..." for
+  both (were 865), written by the export. Holes as before (6 open loops, 4 cracks, none see-through).
+- **sight_picture.py**: the lines updated; the shotgun's ears now +0.003 over the line (were +0.070), the post 0.000; the
+  super shotgun's front 0.000 (the rear "ears top" +0.234 it prints is the barrels' backs at x 12.37, not the ears).
+- **Flat ADS screenshots** (`scratch/` of the worktree): `ads_iron_after.png` (shotgun, super shotgun),
+  `light_ads_after.png` (lightning gun).
+
+## Black slivers on the shotgun (branch `agent/regfix`, 2026-11-08)
+
+His note: two small black triangles on the flat top of the shotgun's receiver behind the rear sight, on every map,
+not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `vr_foveated 2`, auto pump on).
+
+- **Reproduced** headless in vrtesthall (his map in the picture) with his graphics cvars: `vr_weapon_grip_mode 1;
+  impulse 154; vr_mock_hand main 0.0 1.345 -0.30 55 0 0; vr_mock_camera 0.03 1.405 -0.235 35 0; vr_eyeshot 1` (the
+  mock hand's pitch 55 holds the gun about level: 70 is level). The slivers: 43 near-black pixels in the eyeshot's box
+  570-610 x 565-610.
+- **Bisected** (one run, a cvar toggled between eyeshots): no change with `vr_foveated 0`, `r_oit 0`, `vr_autopump 0`,
+  `vr_normalmaps 0`, `vr_parallax_models 0`, `vr_specular_aa 0`, `vr_rim_light 0`, `vr_weapon_reflections 0`,
+  `vr_retrolight 0`, `gl_fullbrights 0`, `vr_sight_saturation 0`, `r_lerpmodels 0`, anisotropy 1, `GL_NEAREST`,
+  `GL_NEAREST_MIPMAP_NEAREST`; gone with any linear magnification (`GL_LINEAR*`). So: the skin's own texels read nearest.
+- **Root cause.** A shader that wrote each pixel's skin texel and `gl_PrimitiveID` (temporary) put the black pixels on
+  v_shot.mdl's triangle 1849 (the receiver's top, x 3.8-6.9, z 6.2), reading texels (368-373, 39-40). The triangle's
+  corners sit on texel middles (gl_mesh.c's + 0.5: (362.5, 42.5), (381.5, 37.5), (377.5, 42.5)); its slanted top
+  edge runs through texels whose middles lie outside it, and the painted part of the skin steps back there: those
+  texels are the skin's black background. Nearest filtering reads them along the edge (the slivers); linear blends
+  them in (Blender). The skin, not the renderer: the same holds for every model whose UV islands are painted only up
+  to the texel middles (v_shot.mdl 3350 such texels, 122 of them dark against a lit inside; the id soldier 1231 / 183).
+- **Fix (general):** `vr_skin_edge_fill` (default 1, archived; a Debug menu toggle "Fill Skin Edges" beside Show
+  Foveation, to compare) and
+  `vr/vr_skinedge.cpp`. As an MDL loads (Mod_LoadAliasModel, before its skins upload), every texel a triangle's skin
+  hull touches (more than 0.001 of a texel) whose middle no triangle has gets the neighbour (sides first, then
+  corners) the touching triangle has inside, else any neighbour some triangle has inside; a list of (texel, source)
+  pairs per model (146 models, 81524 texels in e1m1's set). TexMgr_LoadImage8 / LoadImage32 apply it after the clean
+  skins' patch to the 8-bit skin, its fullbright mask and a full-colour replacement of the same size (a replacement of
+  another size, normal maps and MF_HOLEY skins untouched). No texel any triangle covers at its middle changes, so the
+  art inside the islands is as painted. Toggling the cvar re-uploads the models' skins. `vr_skin_edges [model [x y]]`
+  lists the models, their edge texels and the uploads filled.
+- **Checks.** The box: 43 dark pixels -> 0 (and 0 with plain `GL_NEAREST`); `vr_skin_edge_fill 0` brings them back (44).
+  Close-ups (before | after): `scratch/slivers_before_after.png`, full eyeshots `scratch/slivers_before_full.png`,
+  `scratch/slivers_after_full.png`.
+- **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
+  no black slivers at triangle edges; nothing inside the painted parts looks different.

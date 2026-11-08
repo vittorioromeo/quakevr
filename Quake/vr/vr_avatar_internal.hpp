@@ -261,6 +261,9 @@ void easePitch(float& angle, float& rate, float target, float easeTime, float dt
 
 // The trunk's turn now (about the body's left; identity upright), `share` of it (the legs': BodyPitch::legs).
 [[nodiscard]] glm::mat3 bodyPitchTurn(const Body& b, float share = 1.f);
+// Lying down, the flat-screen lean's roll of the lying trunk in place (flatmove::proneLeanRoll): about the body's forward
+// through the top of the neck, after bodyPitchTurn; identity otherwise. Kept apart from the lying pose itself.
+[[nodiscard]] glm::mat3 bodyLeanRollTurn(const Body& b);
 void updateBodyPitch(const hands::State& s, float dt);
 
 // The lying body's probe (vr_avatar_lie.cpp): pose() hands it each posed body (kept only while vr_body_lie_report or

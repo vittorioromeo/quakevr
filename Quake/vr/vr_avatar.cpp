@@ -477,7 +477,8 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // the reference poses).
     if(crouchPose && bodyPitch.angle != 0.f)
     {
-        const glm::mat3 pitch = bodyPitchTurn(b);
+        // (Lying down, the flat-screen lean rolls the lying trunk in place: bodyLeanRollTurn, identity otherwise.)
+        const glm::mat3 pitch = bodyLeanRollTurn(b) * bodyPitchTurn(b);
         for(Bone* bone : {&p, &sp, &c})
         {
             bone->pos = top + pitch * (bone->pos - top);

@@ -84,6 +84,10 @@ void noteDrawn(const hands::State& s);
 // (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
 [[nodiscard]] bool wallBlocksFire(int h);
 
+// Lying down (vr_flat_prone_floor): hand `h`'s gun met the floor this frame and its tilt is the floor's (laid flush on
+// it); `left` (if given): how deep in it the tilt left it (units, the tilt's own measure; the room past it does the rest).
+[[nodiscard]] bool floorFlush(int h, float* left = nullptr);
+
 // A shot's drawn recoil of a hand (weaponfx::recoilOffset), kept at vr_flat_ads_recoil of itself as far as the ironsight
 // has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.
 void keepRecoil(glm::vec3& pos, glm::vec3& angles);

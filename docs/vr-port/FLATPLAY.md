@@ -238,14 +238,29 @@ from the leant pose (shooting round a corner the unleant gun would be raised at)
 the drawn hands keep (flatplay's drawnOffset), so the weapon rolls with the camera and the ironsight's sights stay
 on the crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched). Three lines sideways from
 the eye, under it and from where the weapon is ahead stop the lean `vr_flat_lean_margin` (6) short of a wall: the eye
-never goes in, at once, and comes back out at the lean's speed. Standing and crouched; not lying down, sliding,
-swimming or dead (it straightens). Walking leant is `vr_flat_lean_speed` (0.6) of the speed (`VR_FlatMoveScale`,
+never goes in, at once, and comes back out at the lean's speed. Only the way the lean goes is measured, so leaning away
+from a wall or along it goes all the way; the weapon's line starts only as far ahead as is open (facing a wall he
+stood against it started inside it and the lean got nothing: the view rolled, the eye stayed). Standing, crouched and
+lying down; lying down it is smaller, `vr_flat_lean_prone_dist` (3) and `vr_flat_lean_prone_angle` (8 degrees, by
+how far down he is), and the lying trunk rolls in place with the view (`flatmove::proneLeanRoll`, applied by
+`bodyLeanRollTurn` in `vr_avatar_pitch.cpp`, after the lying pose's own turn). Not sliding, swimming or dead (it
+straightens). Walking leant is `vr_flat_lean_speed` (0.6) of the speed (`VR_FlatMoveScale`,
 `Quake/cl_input.c`). The server meets shots and missiles with the leant upper body: two boxes, the head and the
 chest half way to the hips, out of his box (`VR_LeanHitBoxes`; `SV_ClipToLeanBoxes`, `Quake/world.c`, after the
 entities: a shot's, a missile's or a point's trace, never a body's move), so a grunt can shoot the head round the
 corner; his box against the world is unchanged, and his own shots pass them. `vr_flat_lean_hit 0`: his box only.
 `vr_flat_lean 0` (Desktop Screen Play > Lean) turns it off, `vr_flat_lean_toggle 1` makes the keys toggles; the rest
 is in Debug > Tunables > Flatscreen > Lean. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatlean_test`).
+
+**Lying down's gun.** The held weapon's pose lying down has its own numbers, taking over by how far down he is:
+`vr_flat_gun_ahead_prone` / `_down_prone` / `_out_prone` at a level look, each going to its `_prone_down` /
+`_prone_up` looking straight down or up along Gun Out's smooth curve (defaults: the standing ones, so nothing moved).
+The crouch pressed lying down gets him up into the crouch, the one easing out as the other eases in, the gun from the
+prone pose to the crouch one (it used to stay lying down with the crouch's gun pose). Lying down and looking down, the
+floor is a wall to the gun (`vr_flat_prone_floor` 1): the wall's tilt lays it flush on it (`vr_flat_prone_floor_margin`
+1 off it; all of the tilt, sighted too), the room takes it back out, and the tilt's blocks hold: no shot
+(`vr_flat_wall_block_fire`) and the ironsight waits (`vr_flat_wall_block_ads`) until he looks up off the floor.
+Standing the gun's end in the floor stays hidden there, as before. Test: `vr_flatprone_test` (the same script).
 
 **Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
 looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge

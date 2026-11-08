@@ -3212,6 +3212,10 @@ QVR_SLIDER_BYNAME(vr_agarms_lod_margin, "Arms' Detail: View Margin", 0.f, 60.f, 
 // vr_menu_pages.inc: pageGraphicsLights
 QVR_SLIDER_BYNAME(vr_light_contrast, "Light Contrast", 1.f, 2.5f, 0.02f, "%.2f", ext(),
     "Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's).")
+QVR_SLIDER_BYNAME(vr_light_cap, "Maximum Light", 0.f, 2.f, 0.05f, "%.2f", ext(),
+    "A ceiling for the baked light, to tame overbright maps (relit ones too): world and models alike, at once. 1: Quake's full light, 2: its brightest. The brightest colour is held under it, the hue kept. 0: off (no ceiling).")
+QVR_SLIDER_BYNAME(vr_light_cap_soft, "Maximum Light Softness", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "How the ceiling is reached: 0 a hard stop, 1 a smooth roll-off that eases all the bright light towards it (keeps the shape of the lighting). Only with a Maximum Light.")
 QVR_SLIDER_BYNAME(vr_ambient_light, "Ambient Light", 0.f, 0.4f, 0.01f, "%.2f", ext(),
     "The room's own fill light: how much light the places no lamp reaches have, so a map reads clearly lit without the flashlight. A companion to Light Contrast, which still shapes the shade at any level of it (0: none).")
 QVR_TOGGLE_BYNAME(vr_colored_lights, "Coloured Lights",
@@ -5515,6 +5519,10 @@ QVR_TOGGLE(vr_model_light_grid_show, "Show Light Probes",
 QVR_TOGGLE(vr_foveated_debug, "Show Foveation",
     "The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
     "sharp circle (cyan).")
+QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
+    "Models' skins: a texel a triangle touches only at its edge takes the colour of its neighbour inside (no thin "
+    "black slivers of the skin's background along triangle edges with a nearest texture mode). Off: the skins as "
+    "painted, to compare. vr_skin_edges in the console lists the models and their edge texels.")
 QVR_CYCLE(vr_temporal_debug, "Show Motion Vectors",
     "vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
     "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "

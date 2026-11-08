@@ -16,6 +16,7 @@
 #include "vr_hotblade.hpp"
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
+#include "vr_fgfx.hpp"
 #include "vr_flail.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
@@ -5352,6 +5353,7 @@ extern "C" void VR_SetupViewEntities()
     if(flatplay::active() && !stereo::isRenderingEye())
     {
         crosshair::queueFlat(s); // flatscreen play: the headset's crosshair (vr_crosshair), the weapons as just placed
+        fgfx::queue(s, true);    // and the force grab's glow, beam, tendril and trail, as in the headset (vr_fgfx.cpp)
     }
 
     {

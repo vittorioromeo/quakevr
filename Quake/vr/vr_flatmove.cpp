@@ -3,9 +3,11 @@
 #include "vr_flatmove.hpp"
 
 #include "vr_api.h"
+#include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
@@ -39,6 +41,8 @@ constexpr float jumpedUp = 60.f;       // u/s up off the ground: a jump (it ends
 constexpr float leanMinHit = 6.f;      // units the head must stand off his box's middle before the leant body is boxed
 constexpr float leanDistMost = 30.f;
 constexpr float leanAngleMost = 35.f;
+constexpr float leanGunAhead = 20.f;   // leanRoom: the weapon's place this far ahead of the eye, where it is open
+constexpr float leanAheadKeep = 2.f;   // and this far short of a wall ahead
 
 // ------------------------------------------------------------------------------------------------------------- server
 
@@ -119,6 +123,7 @@ struct Lean
     float lin{0.f};        // the signed share's even progress -1..1
     float dist{0.f};       // the eye's move sideways now (signed units, + right): the clamp in it
     float roll{0.f};       // the view's roll now (degrees, + right)
+    float full{0.f};       // a full lean's eye move now (leanFullDist: smaller lying down)
     glm::vec3 shift{0.f};  // the eye's move in the world this frame
     double lastTime{-1e9};
 };
@@ -153,12 +158,25 @@ struct LeanTest
     float wallSide{-1.f};
 };
 
+// vr_flatprone_test: lying down, its lean; the crouch out of it; the gun flush on the floor looking down.
+struct ProneTest
+{
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    glm::vec3 handWas{0.f};  // the main hand off the eye in the view's frame, last frame
+    float biggestStep{0.f};  // the largest frame's move of it, the crouch out of lying down
+    bool pitchHeld{false};   // the look held at `pitch` each frame
+    float pitch{0.f};
+};
+
 struct ClientState
 {
     Lean lean;
     SlideView slide;
     SlideTest slideTest;
     LeanTest leanTest;
+    ProneTest proneTest;
 };
 
 ClientState client;
@@ -191,19 +209,49 @@ ClientState client;
 
 // The lean that fits at his side (units, 0..dist): lines from the eye, under it and from the weapon's place ahead,
 // sideways to vr_flat_lean_margin past the lean, each stopped short of what it meets by the margin.
+// (The weapon's place ahead is only as far ahead as is open: facing a wall he stands against, 20 units ahead was inside
+// it, that line started in the solid and the lean got no room at all -- the view rolled and the eye stayed (his report,
+// 2026-11-08). The gun there is the wall's to pull back and tilt (vr_flatsight.cpp); the lean only needs the side open.
+// A line from under the eye that starts in something -- a ledge, a step -- is not a side wall and is not counted.)
 [[nodiscard]] float leanRoom(const glm::vec3& eye, float yaw, float side, float dist)
 {
     const float margin = za::clamp(vr_flat_lean_margin.value, 0.f, 16.f);
     const glm::vec3 way = levelRight(yaw) * side;
     const glm::vec3 fwd = levelFwd(yaw);
+    const glm::vec3 low{0.f, 0.f, 8.f};
+    const glm::vec3 gunDrop{0.f, 0.f, 6.f};
+    const trace_t open = worldtrace::world(eye - gunDrop, eye - gunDrop + fwd * leanGunAhead);
+    const float ahead = open.startsolid ? 0.f : za::max(0.f, open.fraction * leanGunAhead - leanAheadKeep);
     float room = dist;
-    for(const glm::vec3& p : {eye, eye - glm::vec3{0.f, 0.f, 8.f}, eye + fwd * 20.f - glm::vec3{0.f, 0.f, 6.f}})
+    const glm::vec3 from[3] = {eye, eye - low, eye - gunDrop + fwd * ahead};
+    for(int i = 0; i < 3; i++)
     {
+        const glm::vec3& p = from[i];
         const trace_t tr = worldtrace::world(p, p + way * (dist + margin));
+        if(tr.startsolid && i > 0)
+        {
+            continue;
+        }
         const float got = tr.startsolid ? 0.f : tr.fraction * (dist + margin) - margin;
         room = za::min(room, za::max(0.f, got));
     }
     return room;
+}
+
+// The lean's full eye move and roll now: lying down (vr_flat_key_prone), by how far down he is, its own smaller ones
+// (vr_flat_lean_prone_dist / _angle: the lying body rolls in place).
+[[nodiscard]] float leanFullDist()
+{
+    const float stand = za::clamp(vr_flat_lean_dist.value, 0.f, leanDistMost);
+    const float prone = za::clamp(vr_flat_lean_prone_dist.value, 0.f, leanDistMost);
+    return stand + (prone - stand) * flatplay::proneRatio();
+}
+
+[[nodiscard]] float leanFullAngle()
+{
+    const float stand = za::clamp(vr_flat_lean_angle.value, 0.f, leanAngleMost);
+    const float prone = za::clamp(vr_flat_lean_prone_angle.value, 0.f, leanAngleMost);
+    return stand + (prone - stand) * flatplay::proneRatio();
 }
 
 [[nodiscard]] bool deadOrAway()
@@ -239,11 +287,11 @@ void stepLean(bool on, float dt)
     }
     l.keyL = kl;
     l.keyR = kr;
-    // Upright and crouched only: not lying down, not sliding, not dead, not swimming.
+    // Upright, crouched and lying down (its own smaller lean: leanFullDist / leanFullAngle); not sliding, not dead, not
+    // swimming.
     const edict_t* local = progs::localPlayer();
     const bool swimming = local && local->v.waterlevel >= 2;
-    const bool allowed =
-        on && vr_flat_lean.value != 0.f && flatplay::proneRatio() < 0.01f && !sliding() && !deadOrAway() && !swimming;
+    const bool allowed = on && vr_flat_lean.value != 0.f && !sliding() && !deadOrAway() && !swimming;
     if(!allowed)
     {
         want = 0;
@@ -259,7 +307,8 @@ void stepLean(bool on, float dt)
         l.lin += za::clamp(static_cast<float>(want) - l.lin, -step, step);
     }
     const float share = l.lin < 0.f ? -geom::smoothstep(0.f, 1.f, -l.lin) : geom::smoothstep(0.f, 1.f, l.lin);
-    const float full = za::clamp(vr_flat_lean_dist.value, 0.f, leanDistMost);
+    const float full = leanFullDist();
+    l.full = full;
     const float asked = share * full;
     float target = asked;
     if(on && target != 0.f && cl.viewentity)
@@ -286,8 +335,7 @@ void stepLean(bool on, float dt)
     {
         l = Lean{};
     }
-    const float angle = za::clamp(vr_flat_lean_angle.value, 0.f, leanAngleMost);
-    l.roll = share * angle;
+    l.roll = share * leanFullAngle();
     const float yaw = cl.viewangles[YAW];
     l.shift = levelRight(yaw) * l.dist - glm::vec3{0.f, 0.f, leanDropFor(l.dist)};
 }
@@ -569,12 +617,181 @@ void leanTestFrame()
                     t.wallSide < 0.f ? "left" : "right", gap, margin, gap + leant, leant, full);
                 testCheck(t.tally, tag, gap > margin - 0.6f && leant > 0.f && leant < full - 1.f, line);
                 client.lean.cmdL = client.lean.cmdR = false;
-                next(99);
+                next(8);
+            }
+            break;
+        case 8: // straight again by the wall: lean away from it
+        case 10:
+        case 12:
+            if(inPhase > 0.1 && client.lean.dist == 0.f)
+            {
+                if(t.phase == 10)
+                {
+                    // Face the wall he stands against (it was at his side, 17 units off): the line from the gun's place
+                    // 20 ahead started inside it, and the lean got no room either way (his report, 2026-11-08).
+                    cl.viewangles[YAW] = anglemod(cl.viewangles[YAW] - 90.f * t.wallSide);
+                }
+                const bool right = t.phase == 8 ? t.wallSide < 0.f : t.phase == 10;
+                (right ? client.lean.cmdR : client.lean.cmdL) = true;
+                next(t.phase + 1);
+            }
+            break;
+        case 9:
+        case 11:
+        case 13:
+            if(inPhase > time + 0.2)
+            {
+                const hands::State& s = hands::current();
+                const entity_t& pl = cl_entities[cl.viewentity];
+                const glm::vec3 straight{pl.origin[0], pl.origin[1], pl.origin[2] + cl.viewheight - flatplay::crouchDrop()};
+                const float way = client.lean.cmdR ? 1.f : -1.f;
+                const float out = way * glm::dot(s.head - straight, levelRight(cl.viewangles[YAW]));
+                q_snprintf(line, sizeof(line), "%s, leant %s: the eye %.1f units out (of %.0f)",
+                    t.phase == 9 ? "a wall at his side" : "facing a wall he stands against", way > 0.f ? "right" : "left", out, full);
+                testCheck(t.tally, tag, za::abs(out - full) < 0.5f, line);
+                client.lean.cmdL = client.lean.cmdR = false;
+                next(t.phase == 13 ? 99 : t.phase + 1);
             }
             break;
         default:
             t.tally.verdict(tag);
             t = LeanTest{};
+            break;
+    }
+}
+
+// vr_flatprone_test (a weapon in the main hand, room around): lying down, a full lean right moves the eye
+// vr_flat_lean_prone_dist and rolls the view and the lying body vr_flat_lean_prone_angle; the crouch pressed lying down
+// gets up into the crouch, the gun's pose without a jump; lying down and looking down, the gun lies flush on the floor:
+// no shot, the ironsight waits; looking level again the ironsight comes.
+void proneTestFrame()
+{
+    ProneTest& t = client.proneTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    const char* tag = "flatprone";
+    const double now = vr_gametime;
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+    };
+    if(t.pitchHeld)
+    {
+        cl.viewangles[PITCH] = t.pitch;
+    }
+    const float time = za::clamp(vr_flat_lean_time.value, 0.05f, 1.f);
+    char line[256];
+    if(inPhase > 8.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "timed out (step %d)", t.phase);
+        testCheck(t.tally, tag, false, line);
+        next(99);
+    }
+    const hands::State& s = hands::current();
+    const auto handInView = [&]() {
+        const glm::vec3 d = s.pos[HAND_MAIN] - s.head;
+        const float yaw = cl.viewangles[YAW];
+        return glm::vec3{glm::dot(d, levelFwd(yaw)), glm::dot(d, levelRight(yaw)), d.z};
+    };
+    switch(t.phase)
+    {
+        case 1:
+            Cbuf_InsertText("vr_prone_toggle\n");
+            next(2);
+            break;
+        case 2: // lying down: lean right
+            if(inPhase > 0.3 && flatplay::proneRatio() >= 1.f)
+            {
+                client.lean.cmdR = true;
+                next(3);
+            }
+            break;
+        case 3:
+            if(inPhase > time + 0.2)
+            {
+                const entity_t& pl = cl_entities[cl.viewentity];
+                const glm::vec3 straight{pl.origin[0], pl.origin[1], pl.origin[2] + cl.viewheight - flatplay::crouchDrop()};
+                const float side = glm::dot(s.head - straight, levelRight(cl.viewangles[YAW]));
+                const float dist = za::clamp(vr_flat_lean_prone_dist.value, 0.f, leanDistMost);
+                const float angle = za::clamp(vr_flat_lean_prone_angle.value, 0.f, leanAngleMost);
+                q_snprintf(line, sizeof(line), "lying down, leant right: the eye %.1f units right (of %.0f), roll %.1f (of %.0f), the body's roll %.1f",
+                    side, dist, client.lean.roll, angle, proneLeanRoll());
+                testCheck(t.tally, tag,
+                    za::abs(side - dist) < 0.3f && za::abs(client.lean.roll - angle) < 0.1f && za::abs(proneLeanRoll() - angle) < 0.1f, line);
+                client.lean.cmdR = false;
+                next(4);
+            }
+            break;
+        case 4: // straight again: the crouch pressed
+            if(inPhase > 0.1 && client.lean.dist == 0.f)
+            {
+                t.handWas = handInView();
+                t.biggestStep = 0.f;
+                Cbuf_InsertText("+flatcrouch\n");
+                next(5);
+            }
+            break;
+        case 5:
+        {
+            const glm::vec3 h = handInView();
+            t.biggestStep = za::max(t.biggestStep, glm::distance(h, t.handWas));
+            t.handWas = h;
+            if(inPhase > 0.2 && flatplay::proneRatio() <= 0.f && flatplay::crouchRatio() >= 1.f)
+            {
+                q_snprintf(line, sizeof(line), "the crouch lying down: up into the crouch (prone %.2f, crouch %.2f) in %.2f s, the gun's largest step %.2f units a frame",
+                    flatplay::proneRatio(), flatplay::crouchRatio(), inPhase, t.biggestStep);
+                testCheck(t.tally, tag, t.biggestStep < 1.5f, line);
+                Cbuf_InsertText("-flatcrouch\n");
+                next(6);
+            }
+            break;
+        }
+        case 6: // standing again: lie down, look down
+            if(inPhase > 0.2 && flatplay::crouchRatio() <= 0.f)
+            {
+                Cbuf_InsertText("vr_prone_toggle\n");
+                next(7);
+            }
+            break;
+        case 7:
+            if(inPhase > 0.3 && flatplay::proneRatio() >= 1.f)
+            {
+                t.pitch = 80.f;
+                t.pitchHeld = true;
+                Cbuf_InsertText("vr_flat_aim 1\n");
+                next(8);
+            }
+            break;
+        case 8: // looking down lying down, the ironsight asked for
+            if(inPhase > 0.8)
+            {
+                float left = 0.f;
+                const bool flush = flatsight::floorFlush(HAND_MAIN, &left);
+                q_snprintf(line, sizeof(line), "lying down, looking down: the gun flush on the floor (%d, tilted %.1f deg, left %.2f in it), no shot (%d), the ironsight waits (%.2f)",
+                    flush ? 1 : 0, flatsight::wallTilt(HAND_MAIN), left, flatsight::wallBlocksFire(HAND_MAIN) ? 1 : 0, flatsight::adsShare());
+                testCheck(t.tally, tag,
+                    flush && flatsight::wallTilt(HAND_MAIN) > 5.f && left < 0.5f && flatsight::wallBlocksFire(HAND_MAIN) && flatsight::adsShare() < 0.01f, line);
+                t.pitch = 0.f;
+                next(9);
+            }
+            break;
+        case 9: // looking level: off the floor, the ironsight comes
+            if(inPhase > 1.0)
+            {
+                q_snprintf(line, sizeof(line), "lying down, looking level: off the floor (%d), shots (%d), the ironsight on (%.2f)",
+                    flatsight::floorFlush(HAND_MAIN) ? 1 : 0, flatsight::wallBlocksFire(HAND_MAIN) ? 0 : 1, flatsight::adsShare());
+                testCheck(t.tally, tag, !flatsight::floorFlush(HAND_MAIN) && !flatsight::wallBlocksFire(HAND_MAIN) && flatsight::adsShare() > 0.9f, line);
+                Cbuf_InsertText("vr_flat_aim 0; vr_prone_toggle\n");
+                t.pitchHeld = false;
+                next(99);
+            }
+            break;
+        default:
+            t.tally.verdict(tag);
+            t = ProneTest{};
             break;
     }
 }
@@ -662,6 +879,18 @@ void leanTest_f()
     client.leanTest.phaseAt = vr_gametime;
 }
 
+void proneTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatprone_test: flat-screen play (-flatscreenmode) in a game you host, a weapon held\n");
+        return;
+    }
+    client.proneTest = ProneTest{};
+    client.proneTest.phase = 1;
+    client.proneTest.phaseAt = vr_gametime;
+}
+
 void status_f()
 {
     Con_Printf("flatmove: lean %.2f (eye %.1f %.1f %.1f, roll %.1f), sliding %d (pose %.2f, drop %.1f)",
@@ -732,6 +961,7 @@ void init()
     Cmd_AddCommand("vr_flatslide_selftest", slideSelftest_f);
     Cmd_AddCommand("vr_flatslide_test", slideTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
+    Cmd_AddCommand("vr_flatprone_test", proneTest_f);
     Cmd_AddCommand("vr_flatmove_status", status_f);
 }
 
@@ -747,6 +977,7 @@ void frame(bool on)
     {
         slideTestFrame();
         leanTestFrame();
+        proneTestFrame();
     }
 }
 
@@ -762,8 +993,13 @@ float leanRoll()
 
 float leanShare()
 {
-    const float full = za::clamp(vr_flat_lean_dist.value, 0.f, leanDistMost);
+    const float full = client.lean.full;
     return full > 0.f ? client.lean.dist / full : 0.f;
+}
+
+float proneLeanRoll()
+{
+    return flatplay::active() ? client.lean.roll * flatplay::proneRatio() : 0.f;
 }
 
 bool sliding()
@@ -918,8 +1154,8 @@ extern "C" int VR_FlatKeyOwned(int key)
     {
         return 0;
     }
-    for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab,
-            &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam})
+    for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_grab_alt,
+            &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu})
     {
         if(c->string[0] && Key_StringToKeynum(c->string) == key)
         {
