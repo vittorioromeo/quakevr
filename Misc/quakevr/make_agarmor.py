@@ -11,7 +11,7 @@
 # The atlas's layout is shared with vr_agarmor.cpp: keep both alike.
 #
 #   plates  (0, 0)-(160, 128): TILES_X x TILES_Y tiles, one plate each: the bevel on the tile's outer BEVEL share, the
-#            top of the tile the plate's top (the end under the plate above)
+#            top of the tile the plate's top (the end under the plate above); the hero plates' (WIDE) tiles two of a row each
 #   helmet  (160, 0)-(256, 64): the helmet's walls (vr_agarmor.cpp `helmetOf`: the Ranger's helmet), mirrored left
 #            and right: a from the front's middle (0) round the side to the back's (1), b down its rows; the columns'
 #            and rows' places are HELM_U and HELM_V (vr_agarmor.cpp's helmU and helmV: keep them alike)
@@ -78,7 +78,14 @@ LEATHER_BROWN = (62, 42, 26)
 # at each tile's top (the gap under the row above, so the rows read as separate pieces), and the tiles' kinds, which vr_agarmor.cpp
 # puts by place (its tile* constants: keep both alike): plain ones (by chance), the chest's panel (its recess on the tile's u = 0
 # side: the seam's), the belly's ribs (likewise), the cuffs' and shins' vents, the emblem, the elbows' and knees' cop.
-TILE_PLAINS, TILE_PANEL, TILE_PANELS, TILE_VENT, TILE_VENTS, TILE_RIB, TILE_RIBS, TILE_EMBLEM, TILE_COP = 20, 20, 3, 23, 3, 26, 2, 28, 29
+TILE_PANEL, TILE_PANELS, TILE_VENT, TILE_VENTS, TILE_RIB, TILE_RIBS, TILE_EMBLEM, TILE_COP = 20, 3, 23, 3, 26, 2, 28, 29
+# The hero plates' wide tiles (ROUND24.md, "Armour look: hero plates"; vr_agarmor.cpp tileWide*, heroSpan): WIDE_SPAN tiles of a row
+# each, named by the first: the breastplate (a recessed panel in its middle, on the cuirass's seam), a plain one (a pauldron's: a small
+# recessed window), the emblem's, a cop's (a boss across it). The rest of tiles 0-19 plain (vr_agarmor.cpp plainTiles).
+TILE_WIDE_BREAST, TILE_WIDE_PLAIN, TILE_WIDE_EMBLEM, TILE_WIDE_COP = 10, 12, 15, 17
+WIDE_SPAN = 2
+WIDE = (TILE_WIDE_BREAST, TILE_WIDE_PLAIN, TILE_WIDE_EMBLEM, TILE_WIDE_COP)
+WIDE_HIGH = 0.4  # a pauldron's big plate's height over its width (three of six columns round the upper arm): the emblem round on it
 UNDER_V = 0.15            # the under-layer's share of a tile's top
 UNDER = (30, 25, 18)      # (not the armour's paint: the same under every tier)
 TRIM_DARK = 0.55          # the trim: the paint this much darker ...
@@ -226,6 +233,19 @@ def recess(lay, ys, xs, u, v, u1, v0, v1, floor):
     return m
 
 
+def recess_box(lay, ys, xs, u, v, u0, u1, v0, v1, floor):
+    """A recessed panel u0..u1, v0..v1 inside a tile (a hero plate's: its middle): its floor darker, a shadow under its top edge and
+    inside its left side, its lower lip and right side lit; the trim and the worn edge off it. Returns its mask."""
+    m = band(u, u0, u1) * band(v, v0, v1)
+    lay.shade[ys, xs] *= 1.0 - (1.0 - floor) * m
+    lay.shade[ys, xs] *= 1.0 - 0.4 * m * band(v, v0, v0 + 0.07) - 0.25 * m * band(u, u0, u0 + 0.05)
+    lay.shade[ys, xs] *= 1.0 + 0.3 * band(v, v1, v1 + 0.05) * band(u, u0 - 0.03, u1 + 0.03) + 0.2 * band(u, u1, u1 + 0.04) * band(v, v0, v1)
+    lay.trim[ys, xs] *= 1.0 - m
+    lay.edge[ys, xs] *= 1.0 - m
+    lay.height[ys, xs] -= 0.45 * m
+    return m
+
+
 def paint_tiles(lay):
     """One plate a tile: its own tone, a bright face with a shadow under the lip above and the dark under-layer at its very top, the
     darker trim round its sides and lower edge with the worn metal on its bevel, dirt in its corners, rivets at its corners, its
@@ -236,24 +256,33 @@ def paint_tiles(lay):
     for ty in range(TILES_Y):
         for tx in range(TILES_X):
             tile = ty * TILES_X + tx
-            ax, ay = x0 + tx * tw, y0 + ty * th
-            xs, ys = np.meshgrid(np.arange(int(ax), int(ax + tw)), np.arange(int(ay), int(ay + th)))
-            u, v = (xs + 0.5 - ax) / tw, (ys + 0.5 - ay) / th
-            e = np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v))  # 0 the tile's edge
-            side = np.minimum(np.minimum(u, 1 - u), 1 - v)              # (its sides and lower edge: its top's under the row above)
-            # The plate's own tone: a little darker or lighter, warmer or cooler.
+            # (each tile's chances drawn in the same order whatever it is: a wide tile's second half draws its own and is skipped,
+            # so the other tiles stay as they were)
             tone = rng.uniform(0.93, 1.05)
             warm = rng.uniform(-0.012, 0.012)
+            dx, dy = rng.uniform(0.25, 0.75), rng.uniform(0.3, 0.8)
+            dr = rng.uniform(0.1, 0.22)
+            dent = rng.uniform(0.2, 1.0)
+            patch = rng.uniform() < 0.4
+            px, py, pr = (rng.uniform(0.2, 0.8), rng.uniform(0.3, 0.85), rng.uniform(0.12, 0.22)) if patch else (0.0, 0.0, 1.0)
+            if tile - 1 in WIDE:
+                continue
+            # (u across the tile in a plain tile's widths: 0 .. span; a wide tile's bevel, trim and rivets the size of a plain one's)
+            span = WIDE_SPAN if tile in WIDE else 1
+            ax, ay = x0 + tx * tw, y0 + ty * th
+            xs, ys = np.meshgrid(np.arange(int(ax), int(ax + tw * span)), np.arange(int(ay), int(ay + th)))
+            u, v = (xs + 0.5 - ax) / tw, (ys + 0.5 - ay) / th
+            e = np.minimum(np.minimum(u, span - u), np.minimum(v, 1 - v))  # 0 the tile's edge
+            side = np.minimum(np.minimum(u, span - u), 1 - v)              # (its sides and lower edge: its top's under the row above)
+            # The plate's own tone: a little darker or lighter, warmer or cooler.
             lay.tone[ys, xs] = (tone * (1 + warm), tone, tone * (1 - warm))
             # A bright face, lighter to its lower lip; the shadow of the lip above just under the under-layer.
             lay.shade[ys, xs] = 1.06 + 0.1 * v - 0.42 * smooth(UNDER_V + 0.2, UNDER_V, v)
-            corner = np.minimum(np.minimum(np.hypot(u, v), np.hypot(1 - u, v)), np.minimum(np.hypot(u, 1 - v), np.hypot(1 - u, 1 - v)))
+            corner = np.minimum(np.minimum(np.hypot(u, v), np.hypot(span - u, v)), np.minimum(np.hypot(u, 1 - v), np.hypot(span - u, 1 - v)))
             lay.shade[ys, xs] *= 1.0 - 0.25 * smooth(0.22, 0.05, corner)
             # A dent or a crease, its own for each plate.
-            dx, dy = rng.uniform(0.25, 0.75), rng.uniform(0.3, 0.8)
-            dr = rng.uniform(0.1, 0.22)
-            dd = smooth(1.0, 0.0, np.hypot(u - dx, v - dy) / dr)
-            lay.height[ys, xs] -= 0.35 * dd * rng.uniform(0.2, 1.0)
+            dd = smooth(1.0, 0.0, np.hypot(u - dx * span, v - dy) / dr)
+            lay.height[ys, xs] -= 0.35 * dd * dent
             # The bevel's worn metal; the trim over the bevel and a little way onto the face, and a thin line of it under the
             # under-layer (the face's top edge).
             lay.edge[ys, xs] = smooth(BEVEL * 1.0, BEVEL * 0.45, side)
@@ -263,10 +292,9 @@ def paint_tiles(lay):
             lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.42 * smooth(0.36, 0.08, corner))
             lay.grime[ys, xs] = np.maximum(lay.grime[ys, xs], 0.5 * smooth(UNDER_V + 0.14, UNDER_V, v))
             # The rust's reach: along its edges, a low corner; a patch on some plates.
-            r = 0.55 * smooth(BEVEL * 2.8, BEVEL * 0.8, e) + 0.5 * smooth(0.5, 0.15, np.hypot(1 - v, np.minimum(u, 1 - u)))
-            if rng.uniform() < 0.4:
-                px, py = rng.uniform(0.2, 0.8), rng.uniform(0.3, 0.85)
-                r = r + 0.9 * smooth(1.0, 0.2, np.hypot(u - px, v - py) / rng.uniform(0.12, 0.22))
+            r = 0.55 * smooth(BEVEL * 2.8, BEVEL * 0.8, e) + 0.5 * smooth(0.5, 0.15, np.hypot(1 - v, np.minimum(u, span - u)))
+            if patch:
+                r = r + 0.9 * smooth(1.0, 0.2, np.hypot(u - px * span, v - py) / pr)
             lay.rust[ys, xs] = r
             # The bevel's height: down to the tile's edge (the geometry's bevel a little further).
             lay.height[ys, xs] -= 0.5 * smooth(BEVEL * 1.5, BEVEL * 0.4, e)
@@ -277,9 +305,43 @@ def paint_tiles(lay):
             lay.height[ys, xs] -= 0.6 * under
             # Rivets: at its corners alone (not on a recess's seam side).
             seam = TILE_PANEL <= tile < TILE_PANEL + TILE_PANELS or TILE_RIB <= tile < TILE_RIB + TILE_RIBS
-            spots = [(0.84, UNDER_V + 0.09), (0.84, 0.84)] + ([] if seam else [(0.16, UNDER_V + 0.09), (0.16, 0.84)])
+            spots = [(span - 0.16, UNDER_V + 0.09), (span - 0.16, 0.84)] + ([] if seam else [(0.16, UNDER_V + 0.09), (0.16, 0.84)])
+            mid = span * 0.5
             # The kind's detail.
-            if TILE_PANEL <= tile < TILE_PANEL + TILE_PANELS:
+            if tile == TILE_WIDE_BREAST:
+                # The breastplate: a recessed panel in its middle (on the cuirass's seam: the plate's crease runs down it), a slot
+                # across its top, two rivets at its lower corners.
+                recess_box(lay, ys, xs, u, v, mid - 0.46, mid + 0.46, 0.3, 0.82, 0.68)
+                lay.vent[ys, xs] = np.maximum(lay.vent[ys, xs], band(u, mid - 0.3, mid + 0.3) * band(v, 0.4, 0.46))
+                lay.shade[ys, xs] *= 1.0 + 0.3 * band(u, mid - 0.3, mid + 0.3) * band(v, 0.46, 0.5)
+                spots += [(mid - 0.34, 0.72), (mid + 0.34, 0.72)]
+            elif tile == TILE_WIDE_PLAIN:
+                # A pauldron's big plate: a small recessed window in its middle, two bars across it.
+                recess_box(lay, ys, xs, u, v, mid - 0.24, mid + 0.24, 0.38, 0.8, 0.66)
+                for gv in (0.52, 0.66):
+                    lay.vent[ys, xs] = np.maximum(lay.vent[ys, xs], band(u, mid - 0.16, mid + 0.16) * band(v, gv - 0.03, gv + 0.01))
+                    lay.shade[ys, xs] *= 1.0 + 0.35 * band(u, mid - 0.16, mid + 0.16) * band(v, gv + 0.01, gv + 0.05)
+            elif tile == TILE_WIDE_EMBLEM:
+                # The emblem on a pauldron's big plate: bigger than a plate's own, round on a plate WIDE_HIGH times as tall as wide.
+                cu, cv, rv = mid, 0.58, 0.3
+                ru = rv * span * WIDE_HIGH
+                ring = np.abs(np.hypot((u - cu) / ru, (v - cv) / rv) - 1.0) * rv
+                d = np.minimum(ring, seg_dist(u, v, (cu, cv - rv * 0.8), (cu, cv + rv * 0.85)))
+                d = np.minimum(d, seg_dist(u, v, (cu, cv), (cu - ru * 0.55, cv - rv * 0.6)))
+                d = np.minimum(d, seg_dist(u, v, (cu, cv), (cu + ru * 0.55, cv - rv * 0.6)))
+                glyph = smooth(0.06, 0.04, d)
+                lay.emblem[ys, xs] = glyph * np.clip(0.55 + 1.2 * (lay.blotch[ys, xs] - 0.3), 0.35, 1.0)
+            elif tile == TILE_WIDE_COP:
+                # A cop over the elbow's or the knee's point: a raised boss across its middle (lit on its left, its right in shade, its
+                # edges lit above and dark below), a big rivet on it.
+                b0, b1 = 0.3, span - 0.3
+                m = band(u, b0, b1) * band(v, 0.3, 0.84)
+                lay.shade[ys, xs] *= 1.0 + m * (0.14 - 0.3 * smooth(mid - 0.08, mid + 0.08, u))
+                lay.shade[ys, xs] *= 1.0 + 0.3 * band(u, b0, b1) * band(v, 0.27, 0.3) - 0.35 * band(u, b0, b1) * band(v, 0.84, 0.88)
+                lay.trim[ys, xs] = np.maximum(lay.trim[ys, xs], 0.8 * (band(u, b0 - 0.03, b0) + band(u, b1, b1 + 0.03)) * band(v, 0.27, 0.88))
+                lay.height[ys, xs] += 0.4 * m
+                spots += [(mid, 0.57)]
+            elif TILE_PANEL <= tile < TILE_PANEL + TILE_PANELS:
                 k = tile - TILE_PANEL
                 u1, v0, v1 = (0.62, 0.66, 0.56)[k], (0.3, 0.34, 0.28)[k], (0.8, 0.78, 0.84)[k]
                 recess(lay, ys, xs, u, v, u1, v0, v1, 0.68)
@@ -325,7 +387,8 @@ def paint_tiles(lay):
                 lay.height[ys, xs] += 0.4 * m
                 spots += [(0.5, 0.57)]
             for su, sv in spots:
-                paint_rivet(lay, ax + su * tw, ay + sv * th, 3.2 if (tile == TILE_COP and su == 0.5) else 2.4)
+                big = (tile == TILE_COP and su == 0.5) or (tile == TILE_WIDE_COP and su == mid)
+                paint_rivet(lay, ax + su * tw, ay + sv * th, 3.6 if tile == TILE_WIDE_COP and big else 3.2 if big else 2.4)
 
 
 def helmet_shade(a, b):

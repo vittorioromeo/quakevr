@@ -5473,6 +5473,11 @@ QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
     "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
     "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
     "Off: every plate a plain one by chance. The shells are made again when it changes.")
+QVR_TOGGLE(vr_agarmor_hero, "Armour Hero Plates",
+    "vr_agarmor_hero: a row's plates drawn as one big plate where the armour wants one: the breastplate across the "
+    "chest, the pauldrons' top row as two (one with the emblem), the elbows' and knees' raised cops. Off: every plate "
+    "its own. armour.txt's hero \"0\" (the Armour Studio's Hero Plates) turns one part's off. The shells are made "
+    "again when it changes.")
 QVR_CYCLE(vr_agarmor_emblem, "Armour Emblem",
     "vr_agarmor_emblem: the rune emblem on an upper arm's outer top plate (with Armour Plate Details). The shells "
     "are made again when it changes.",

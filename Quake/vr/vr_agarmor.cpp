@@ -427,6 +427,7 @@ struct PieceFrame
     // (armour.txt's tweaks, planGrid: the first and last rows this many units further along the piece, its rows; 0 the generator's)
     float shiftStart{0.f}, shiftEnd{0.f};
     int rows{0};
+    bool hero{false}; // (its hero plates: vr_agarmor_hero and armour.txt's `hero`; heroRuns)
 };
 
 [[nodiscard]] float backCutOf(const char* model, int piece)
@@ -913,7 +914,15 @@ constexpr float plateBevelUv = 0.12f;           // (its BEVEL)
 // The tiles' kinds (make_agarmor.py's TILE_*; ROUND24.md, "Armour look: fewer, bigger plates"): the plain ones by chance, the
 // details by place (vr_agarmor_details): the chest's recessed panel either side of the seam, ribs down the belly, vents on the
 // forearms' cuffs and the shins, a cop on each elbow and knee (raised), the emblem on an upper arm's top plate (vr_agarmor_emblem).
-constexpr int tilePlains = 20, tilePanel = 20, tilePanels = 3, tileVent = 23, tileVents = 3, tileRib = 26, tileRibs = 2, tileEmblem = 28, tileCop = 29;
+constexpr int tilePanel = 20, tilePanels = 3, tileVent = 23, tileVents = 3, tileRib = 26, tileRibs = 2, tileEmblem = 28, tileCop = 29;
+// The plain tiles (rows 2 and 3 of the atlas hold the hero plates' wide tiles besides; 0-19 all plain till 2026-11-08).
+constexpr int plainTiles[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 19};
+constexpr int tilePlains = static_cast<int>(sizeof(plainTiles) / sizeof(plainTiles[0]));
+// The hero plates' tiles (ROUND24.md, "Armour look: hero plates"; make_agarmor.py's TILE_WIDE_*): heroSpan atlas tiles wide each,
+// named by their first: the breastplate (its recessed panel in the middle), a plain one (a pauldron's), the emblem's, a cop's.
+constexpr int heroSpan = 2, tileWideBreast = 10, tileWidePlain = 12, tileWideEmblem = 15, tileWideCop = 17;
+constexpr float heroChestFront = 0.6f; // the breastplate: the chest row's plates facing at least this far forward (their way out's x)
+constexpr int heroLimbRun = 3;         // a cop's columns, round the elbow's or the knee's point; a pauldron's top row: two runs, half each
 constexpr float copRaise = 1.5f; // a cop's step: this many times a plate's
 constexpr float plateFit = 0.12f;               // units off the skin: the rows' feet
 constexpr float plateStep = 0.62f;              // how far a plate's lower edge stands proud of its foot: the step to the row below
@@ -1350,33 +1359,55 @@ void mirrorRadii(PlateGrid& a, PlateGrid& b, Mirror how)
     }
 }
 
+// A plate's place in its tile, and in a hero plate (a run of a row's columns drawn as one, platesOf): u at its corners 0, 3's side
+// and at 1, 2's (of a tile `span` atlas tiles wide), and which sides are inside the run: no seam, bevel or trim there, its foot, lip
+// and face meeting its neighbour's on the column's line (so the run's plates make one face, one lip, one trim round its outside).
+struct PlateSpan
+{
+    int tile{0}, span{1};
+    float uL{0.f}, uR{1.f};
+    bool openL{false}, openR{false};
+};
+
 // One plate, a shingle: its foot on the grid's corners (0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left, seen from outside),
 // `outward` each corner's way out, `w` each corner's weights. Its top edge lies on its foot (under the row above); its lower edge
 // stands `proud` out, laps down past its row and is drawn in from its neighbours. Vertices: plateVerts, the face's first in
-// corner order (vr_agarmor.cpp plateWhere, vr_agarmor_look_check count on it).
-void addPlate(Shell& s, const glm::vec3* corners, const glm::vec3* outward, const W* w, const glm::vec3& out, float proud, int piece, int tile, bool flipU)
+// corner order (vr_agarmor.cpp plateWhere, vr_agarmor_look_check count on it), then its lower bevel's (edge 2, 3, face 2, 3).
+// `sp`: its tile and its share of it, its sides inside a hero plate.
+
+void addPlate(Shell& s, const glm::vec3* corners, const glm::vec3* outward, const W* w, const glm::vec3& out, float proud, int piece, const PlateSpan& sp)
 {
     glm::vec3 n = geom::safeNormalize(glm::cross(corners[2] - corners[0], corners[3] - corners[1]), out, 1e-6f);
     const bool reversed = glm::dot(n, out) < 0.f;
     n = reversed ? -n : n;
     const glm::vec3 across = geom::safeNormalize((corners[1] - corners[0]) + (corners[2] - corners[3]), glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
     const glm::vec3 down = geom::safeNormalize((corners[3] - corners[0]) + (corners[2] - corners[1]), glm::vec3{0.f, 0.f, -1.f}, 1e-6f);
+    // (a side inside a hero plate: down its own column's line, which its neighbour's side shares, not across)
+    const bool open[4] = {sp.openL, sp.openR, sp.openR, sp.openL};
+    const glm::vec3 sideDown[2] = {geom::safeNormalize(corners[3] - corners[0], down, 1e-6f), geom::safeNormalize(corners[2] - corners[1], down, 1e-6f)};
     glm::vec3 foot[4], edge[4], face[4];
     for(int c = 0; c < 4; c++)
     {
         const bool lower = c == 2 || c == 3;
         const float side = c == 0 || c == 3 ? 1.f : -1.f;
-        foot[c] = corners[c] + across * (side * plateFootApart) + down * (lower ? -plateFootApart : plateFootApart);
-        edge[c] = lower ? corners[c] + outward[c] * za::max(proud - plateBevelHigh, 0.05f) + across * (side * plateSeam) + down * plateLap : foot[c];
-        face[c] = lower ? edge[c] + outward[c] * plateBevelHigh + across * (side * plateBevelWide) - down * plateBevelWide : foot[c];
+        const glm::vec3 dn = open[c] ? sideDown[c == 0 || c == 3 ? 0 : 1] : down;
+        // (an open side: only the feet's hair apart from its neighbour's, each slab still closed by itself)
+        foot[c] = corners[c] + across * (side * plateFootApart) + dn * (lower ? -plateFootApart : plateFootApart);
+        edge[c] = lower ? corners[c] + outward[c] * za::max(proud - plateBevelHigh, 0.05f) + across * (side * (open[c] ? plateFootApart : plateSeam)) + dn * plateLap : foot[c];
+        face[c] = lower ? edge[c] + outward[c] * plateBevelHigh + across * (open[c] ? 0.f : side * plateBevelWide) - dn * plateBevelWide : foot[c];
     }
+    const int tile = sp.tile;
     const float tx = cuirassBlock.x0 + static_cast<float>(tile % plateTilesX) * (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX);
     const float ty = cuirassBlock.y0 + static_cast<float>((tile / plateTilesX) % plateTilesY) * (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
-    const float tw = (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX), th = (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
+    const float tw = (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX) * static_cast<float>(sp.span), th = (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
+    // (the face's lower corners in from the tile's sides by the bevel's share, an open side's not; a wide tile's share the narrower)
     const auto tileAt = [&](int c, float inset) {
         const bool lower = c == 2 || c == 3;
-        const float u = c == 1 || c == 2 ? 1.f : 0.f, v = lower ? 1.f - inset : 0.f;
-        const float us = (flipU ? 1.f - u : u) * (1.f - 2.f * (lower ? inset : 0.f)) + (lower ? inset : 0.f);
+        const bool right = c == 1 || c == 2;
+        const float v = lower ? 1.f - inset : 0.f;
+        const float uSide = right ? sp.uR : sp.uL, uOther = right ? sp.uL : sp.uR;
+        const float in = lower && !open[c] ? inset / static_cast<float>(sp.span) : 0.f;
+        const float us = uSide + (uOther > uSide ? in : -in);
         return glm::vec2{tx + (0.25f + us * (tw - 0.5f)), ty + (0.25f + v * (th - 0.5f))};
     };
     const auto put = [&](const glm::vec3& p, const glm::vec3& nrm, const glm::vec2& st, int layer, int c) {
@@ -1551,6 +1582,81 @@ template <typename DirAt>
     return k;
 }
 
+// A hero plate (vr_agarmor_hero, armour.txt's `hero`; ROUND24.md, "Armour look: hero plates"): `len` columns of a row from `first`
+// (round the piece) drawn as one plate on one wide tile, every column's step `raise` times the first's.
+struct HeroRun
+{
+    int first{0}, len{0}, tile{-1};
+    float raise{1.f};
+};
+
+// Row r's hero plates (at most two): the cuirass's chest row's front plates, the breastplate (the recessed panel in its middle, on
+// the seam); an upper arm's top row as two plates, half its columns each, the outer one round the emblem's column (the emblem's
+// tile where vr_agarmor_emblem puts it); a cop round the elbow's point (the back of the forearm's first row) and the knee's (the
+// front of the shin's), raised. `dirAt(col)`: as plateLook's. Without vr_agarmor_details: the plain wide tile.
+template <typename DirAt>
+[[nodiscard]] int heroRuns(const PlateGrid& g, int piece, int r, const DirAt& dirAt, HeroRun* out)
+{
+    const bool details = vr_agarmor_details.value != 0.f;
+    const bool right = piece >= PauldronL && (piece - PauldronL) % 2 == 1;
+    const auto wrap = [&](int c) { return ((c % g.cols) + g.cols) % g.cols; };
+    const auto bestBy = [&](const auto& score) {
+        int best = 0;
+        float most = -1e9f;
+        for(int col = 0; col < g.cols; col++)
+        {
+            const float sc = score(dirAt(col));
+            best = sc > most ? col : best;
+            most = za::max(most, sc);
+        }
+        return best;
+    };
+    if(piece == Cuirass)
+    {
+        if(r != 1 || g.rows < 3 || g.cols < 4)
+        {
+            return 0;
+        }
+        // (the run of plates facing forward: its first, the one whose left neighbour doesn't)
+        int n = 0, first = -1;
+        for(int col = 0; col < g.cols; col++)
+        {
+            const bool in = dirAt(col).x > heroChestFront;
+            n += in ? 1 : 0;
+            first = in && !(dirAt(wrap(col - 1)).x > heroChestFront) ? col : first;
+        }
+        if(n < 2 || n >= g.cols || first < 0)
+        {
+            return 0;
+        }
+        out[0] = HeroRun{first, n, details ? tileWideBreast : tileWidePlain, 1.f};
+        return 1;
+    }
+    const bool upperArm = piece == PauldronL || piece == PauldronR, forearm = piece == BracerL || piece == BracerR, shin = piece == ShinL || piece == ShinR;
+    if(r != 0 || g.cols < heroLimbRun + 2)
+    {
+        return 0;
+    }
+    if(upperArm)
+    {
+        // (round the plate most to the outside, leaning to the front: plateLook's emblem's)
+        const int best = bestBy([&](const glm::vec3& d) { return (right ? -d.y : d.y) + 0.35f * d.x; });
+        const int half = g.cols / 2;
+        const int e = static_cast<int>(vr_agarmor_emblem.value);
+        const bool emblem = details && (e == 3 || (e == 1 && right) || (e == 2 && !right));
+        out[0] = HeroRun{wrap(best - (half - 1) / 2), half, emblem ? tileWideEmblem : tileWidePlain, 1.f};
+        out[1] = HeroRun{wrap(best - (half - 1) / 2 + half), g.cols - half, tileWidePlain, 1.f};
+        return 2;
+    }
+    if(forearm || shin)
+    {
+        const int best = bestBy([&](const glm::vec3& d) { return forearm ? -d.x : d.x; });
+        out[0] = HeroRun{wrap(best - heroLimbRun / 2), heroLimbRun, details ? tileWideCop : tileWidePlain, copRaise};
+        return 1;
+    }
+    return 0;
+}
+
 // The piece's plates from its grid.
 void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g, int piece, uint32_t seed)
 {
@@ -1567,8 +1673,40 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
             at(weights, ring * g.cols + col) = plateWeights(L, cornerAt(ring, col));
         }
     }
+    const auto dirAt = [&](int col) {
+        const int col1 = (col + 1) % g.cols;
+        return dirOf(g.azOf(col) + za::atan2(za::sin(g.azOf(col1) - g.azOf(col)), za::cos(g.azOf(col1) - g.azOf(col))) * 0.5f);
+    };
+    const auto centreOf = [&](int r, int c) {
+        const int c1 = (c + 1) % g.cols;
+        return (cornerAt(r, c) + cornerAt(r, c1) + cornerAt(r + 1, c1) + cornerAt(r + 1, c)) * 0.25f;
+    };
+    // (behind where a wearer's cuirass stops: an enforcer's pack)
+    const auto cut = [&](int r, int c) { return glm::dot(centreOf(r, c), glm::vec3{1.f, 0.f, 0.f}) < f.backCut; };
+    za::Vector<int> plateFirst(static_cast<za::SizeT>(g.rows * g.cols), -1); // (each plate's first vertex: the hero plates' normals)
+    HeroRun runs[2];
+    za::Vector<int> runOf(static_cast<za::SizeT>(g.cols), -1), runAt(static_cast<za::SizeT>(g.cols), 0);
     for(int r = 0; r < g.rows; r++)
     {
+        // (this row's hero plates: each column's run and its place in it; a run with a plate cut off: none)
+        const int numRuns = f.hero ? heroRuns(g, piece, r, dirAt, runs) : 0;
+        for(int c = 0; c < g.cols; c++)
+        {
+            at(runOf, c) = -1;
+        }
+        for(int k = 0; k < numRuns; k++)
+        {
+            bool whole = true;
+            for(int i = 0; i < runs[k].len; i++)
+            {
+                whole = whole && !cut(r, (runs[k].first + i) % g.cols);
+            }
+            for(int i = 0; i < runs[k].len && whole; i++)
+            {
+                at(runOf, (runs[k].first + i) % g.cols) = k;
+                at(runAt, (runs[k].first + i) % g.cols) = i;
+            }
+        }
         for(int c = 0; c < g.cols; c++)
         {
             const int c1 = (c + 1) % g.cols;
@@ -1576,24 +1714,58 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
             const glm::vec3 outward[4] = {dirOf(g.azOf(c)), dirOf(g.azOf(c1)), dirOf(g.azOf(c1)), dirOf(g.azOf(c))};
             const W w[4] = {at(weights, r * g.cols + c), at(weights, r * g.cols + c1), at(weights, (r + 1) * g.cols + c1), at(weights, (r + 1) * g.cols + c)};
             const float azMid = g.azOf(c) + za::atan2(za::sin(g.azOf(c1) - g.azOf(c)), za::cos(g.azOf(c1) - g.azOf(c))) * 0.5f;
-            const glm::vec3 centre = (corner[0] + corner[1] + corner[2] + corner[3]) * 0.25f;
-            // (behind where a wearer's cuirass stops: an enforcer's pack)
-            if(glm::dot(centre, glm::vec3{1.f, 0.f, 0.f}) < f.backCut)
+            if(cut(r, c))
             {
                 continue;
             }
+            PlateSpan sp;
+            const int k = at(runOf, c);
+            if(k >= 0)
+            {
+                // (a hero plate's column: its share of the run's wide tile, its step the run's first's)
+                const HeroRun& run = runs[k];
+                const int i = at(runAt, c);
+                const float proud = (plateStep + (plateRand(seed, 3000 + piece * 16 + r, run.first, 0) - 0.5f) * 0.04f) * run.raise;
+                sp.tile = run.tile;
+                sp.span = heroSpan;
+                sp.uL = static_cast<float>(i) / static_cast<float>(run.len);
+                sp.uR = static_cast<float>(i + 1) / static_cast<float>(run.len);
+                sp.openL = i > 0;
+                sp.openR = i + 1 < run.len;
+                at(plateFirst, r * g.cols + c) = count(s.verts);
+                addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, sp);
+                continue;
+            }
             float proud = plateStep + (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.04f;
-            int tile = static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(tilePlains)) % tilePlains;
+            int tile = plainTiles[static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(tilePlains)) % tilePlains];
             bool flipU = plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f;
-            const auto dirAt = [&](int col) {
-                const int col1 = (col + 1) % g.cols;
-                return dirOf(g.azOf(col) + za::atan2(za::sin(g.azOf(col1) - g.azOf(col)), za::cos(g.azOf(col1) - g.azOf(col))) * 0.5f);
-            };
             const PlateLook look = plateLook(g, piece, r, c, dirAt, seed);
             tile = look.tile >= 0 ? look.tile : tile;
             flipU = look.flip >= 0 ? look.flip != 0 : flipU;
             proud *= look.raise;
-            addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, tile, flipU);
+            sp.tile = tile;
+            sp.uL = flipU ? 1.f : 0.f;
+            sp.uR = flipU ? 0.f : 1.f;
+            at(plateFirst, r * g.cols + c) = count(s.verts);
+            addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, sp);
+        }
+        // (a hero plate's faces one curved face: at each line inside it the two plates' face and lip normals shared)
+        for(int c = 0; c < g.cols; c++)
+        {
+            const int c1 = (c + 1) % g.cols;
+            const int a = at(plateFirst, r * g.cols + c), b = at(plateFirst, r * g.cols + c1);
+            if(at(runOf, c) < 0 || at(runOf, c) != at(runOf, c1) || at(runAt, c1) != at(runAt, c) + 1 || a < 0 || b < 0)
+            {
+                continue;
+            }
+            // (a's right side, b's left: face 1 with 0, face 2 with 3; the lip's edge 2 with 3 and face 2 with 3)
+            const int pairs[4][2] = {{a + 1, b + 0}, {a + 2, b + 3}, {a + 4, b + 5}, {a + 6, b + 7}};
+            for(const auto& pr : pairs)
+            {
+                const glm::vec3 m = geom::safeNormalize(at(s.verts, pr[0]).n + at(s.verts, pr[1]).n, at(s.verts, pr[0]).n, 1e-6f);
+                at(s.verts, pr[0]).n = m;
+                at(s.verts, pr[1]).n = m;
+            }
         }
     }
     // (a knight's upper arm: its top ring closed by a low dome over his shoulder pad, and a flat underside under it, so the cap is a
@@ -1616,7 +1788,7 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
         const glm::vec3 out = geom::safeNormalize(mid - next, -f.up, 1e-6f);
         const glm::vec3 apex = mid + out * (rad * f.cap + plateStep);
         const glm::vec3 inner = mid - out * rad; // (the dome's normals: from a point this far inside)
-        const int tile = static_cast<int>(plateRand(seed, 7000 + piece, 0, 0) * static_cast<float>(tilePlains)) % tilePlains;
+        const int tile = plainTiles[static_cast<int>(plateRand(seed, 7000 + piece, 0, 0) * static_cast<float>(tilePlains)) % tilePlains];
         const float tw = (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX), th = (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
         const float tx = cuirassBlock.x0 + static_cast<float>(tile % plateTilesX) * tw, ty = cuirassBlock.y0 + static_cast<float>(tile / plateTilesX) * th;
         const auto put = [&](const glm::vec3& p, const glm::vec3& n, float u, float v, const W& w) {
@@ -2635,6 +2807,7 @@ bool buildShell(qmodel_t* src, Shell& s)
         f.shiftStart = tweaked(tweak[piece], armourdata::Start) ? tweak[piece].v[armourdata::Start] : 0.f;
         f.shiftEnd = tweaked(tweak[piece], armourdata::End) ? tweak[piece].v[armourdata::End] : 0.f;
         f.rows = tweaked(tweak[piece], armourdata::Rows) ? static_cast<int>(tweak[piece].v[armourdata::Rows] + 0.5f) : 0;
+        f.hero = vr_agarmor_hero.value != 0.f && tweak[piece].v[armourdata::Hero] >= 0.5f;
         f.backCut = backCutOf(src->name, piece);
         f.yoke = piece == Cuirass && !skeletal ? wearerOf(src->name).yoke : -1.f;
         if(!skeletal && f.ok && (piece == PauldronL || piece == PauldronR))
@@ -2964,7 +3137,7 @@ float bridgeBonesOf[maxBridges][bridgeMostVerts * 12]{};
 // (the player's body's: vr_view_body.cpp's entity, made once a frame)
 float playerBridgeBones[bridgeMostVerts * 12]{};
 int playerBridgeFrame = -1, playerBridgePieces = -1;
-float bridgeKey[5]{-1.f, -1.f, -1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth, _details, _emblem as the shells were made with)
+float bridgeKey[6]{-1.f, -1.f, -1.f, -1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth, _details, _emblem, _hero as the shells were made with)
 
 // Whether a kind's armour is still the model it found: a campaign switch (Mod_ResetAll) empties the slots of the models
 // it does not keep, the "#armor" ones among them, and gives them to the next models loaded (a body it keeps finds its
@@ -3636,7 +3809,7 @@ void relink()
     numWorn = 0;
     numBridges = 0;
     // (the joints' leather's settings changed: every shell made again, as vr_agarmor_rebuild)
-    const float key[5] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value};
+    const float key[6] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value, vr_agarmor_hero.value};
     if(memcmp(key, bridgeKey, sizeof(key)))
     {
         const bool first = bridgeKey[0] < 0.f;

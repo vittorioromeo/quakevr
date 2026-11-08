@@ -127,6 +127,10 @@ Projectiles keep a share of your motion split by direction (Weapons > Aiming > P
 - [ ] Armour worn states (vr_agarmor_wear 1, 2): dents, chips and soot still read over the new trim and details.
 - [ ] Your own armour (player body, mirror or third person): fewer rows on arms and legs; the brawny build keeps its old chest rows. Anything bulky or poking through?
 - [ ] Armour step 4 (hero plates: merged chest/pauldron plates): want it, now that you've seen this?
+[ ] Armour hero plates (agent/flatwall): an armoured knight, grunt and enforcer up close: one breastplate across the chest row (recessed panel, slot, a crease down the seam), each pauldron's top row two big plates (the right one with the red rune), a raised cop over each elbow and knee as one plate; no gaps or flicker along the lines inside a hero plate.
+[ ] Armour hero plates, all tiers: green, yellow and red armour, whole and battered (wear 2): the big plates keep the tier's colour, trim and corner rivets; dents and chips on them like the other plates.
+[ ] Armour hero plates, hits: shoot and axe a grunt's breastplate and pauldron: the cuirass takes it (dents at its wear steps, knocked off whole when broken, its debris showing the breastplate).
+[ ] Armour hero plates, switches: Debug > Tools > Armour Hero Plates off: every plate its own again; Armour Studio > Cuirass > Hero Plates off (one kind) then Save: armour.txt gets hero "0" for that part alone.
 [ ] Projectiles keep less of your motion: strafe left/right firing the nailgun, super nailgun and rocket launcher at a monster: shots fly where the gun points (Weapons > Aiming > Projectiles Keep Your Motion: fast 0 / 0).
 [ ] Lobbed shots: grenades fired running land a little ahead (lobbed 0.5); a flick of the launcher still throws them further (hand 2.5). Flares the same. Flamethrower stream feels as before (spray 0.6 / 2).
 [ ] Flat-screen: a fast mouse turn while firing grenades adds nothing to them (Debug > Tests > Projectiles: Flat Turn passes).
