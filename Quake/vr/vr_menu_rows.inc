@@ -2358,7 +2358,12 @@ QVR_CYCLE(vr_snap_turn, "Turning",
 QVR_SLIDER(vr_turn_speed, "Turn Speed", 1.f, 8.f, 0.25f, "%.2f", ext(), "Smooth turning's speed.")
 QVR_TOGGLE_BYNAME(vr_enable_joystick_turn, "Enable Joystick Turn",
     "Allows turning using the thumbstick. Off: the stick never turns you, in any state (menus, climbing, swimming), so you turn in real life; the stick's other uses stay. The same as VR Settings' Turning Mode: Off.")
-QVR_TOGGLE(vr_teleport_enabled, "Teleport", "Jump to the spot you point at instead of walking there.")
+QVR_CYCLE(vr_teleport_enabled, "Teleport",
+    "Jump to the spot you point at. Bound Button: while a button you bind to +teleport is held, the off hand aims. "
+    "Smooth + Teleport: the moving stick walks; push the turning stick forward to aim with that hand, let it go back to "
+    "the middle to land there, pull it back to cancel (its left and right still turn). Only from the ground, and you "
+    "arrive standing still.",
+    {0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"})
 QVR_SLIDER(vr_teleport_range, "Teleport Range", 100.f, 800.f, 50.f, "%.0f", ext(100.f, 3000.f),
     "How far a teleport reaches, in Quake's units (one is about 3 cm).")
 QVR_SLIDER_BYNAME(vr_lean_radius, "Lean", 0.f, 14.f, 1.f, "%.0f units", ext(),

@@ -23,8 +23,8 @@ import sys
 
 MODELS = {
     'vrgrunt': dict(src='soldier.mdl', counts=(555, 810), gun=list(range(463, 549)), gun_tris=116),
-    'vrenforcer': dict(src='enforcer.mdl', counts=(479, 984),
-                       gun=[22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), gun_tris=118),
+    'vrenforcer': dict(src='enforcer.mdl', counts=(479, 924),  # (924, 112: 60 zero-area triangles gone, ROUND24.md)
+                       gun=[22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), gun_tris=112),
     # the knight (vr_agknight): his sword's vertices (vr_monstermods.cpp knownSwords: the blade's small pieces, the
     # handle and the guard) dropped; he holds the player's sword (WID_SWORD) as the armed humanoids hold their weapons
     'vrknight': dict(src='knight.mdl', counts=(655, 697),
@@ -32,7 +32,7 @@ MODELS = {
                      gun_tris=None),
     # the hell knight (the death knight, vr_agdknight): his sword's blade and its guard (vr_monstermods.cpp knownSwords:
     # 42.., 332.., 525..) dropped; he holds the player's sword and still casts his fireball volley
-    'vrhknight': dict(src='hknight.mdl', counts=(538, 1000),
+    'vrhknight': dict(src='hknight.mdl', counts=(538, 996),  # (996: 4 zero-area triangles gone, ROUND24.md)
                       gun=list(range(42, 59)) + list(range(332, 366)) + list(range(525, 533)), gun_tris=None),
 }
 

@@ -847,7 +847,8 @@ void() func_weapon_grabbable =
 // Map classnames for the weapons a player holds that had none (his decision, 2026-11-08): each a func_weapon_grabbable
 // of its weapon id and flags, its model the weapon table's (WeaponIdToModel), gone where its pack is missing
 // (VR_Pack_WeaponAvailable). The names are permanent map API (quakevr.fgd; ROUND24.md "weapon_* classnames"). The axe's
-// is AD's (in an AD map AD's own pickup still spawns: vr_ad.cpp adOwnedClashes).
+// is AD's (in an AD map AD's own pickup still spawns: vr_ad.cpp adOwnedClashes), so the toolgun's and the scenes' "Axe"
+// is a func_weapon_grabbable of weapon 2 (vr_toolgun.cpp), holdable in every map.
 void(float xWid, float xFlags) VR_WeaponClass_Spawn =
 {
     if(!VR_Pack_WeaponAvailable(xWid)) { remove(self); return; }

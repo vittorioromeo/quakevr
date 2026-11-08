@@ -680,7 +680,16 @@ def export(context, root, out_dir=None, allow_moved=False, allow_sights=False, r
     grid_tol = 0.0
     if tuple(new.scale) != tuple(old.scale) or tuple(new.origin) != tuple(old.origin):
         grid_tol = 0.5 * (math.hypot(*old.scale) + math.hypot(*new.scale))
-    for what, text, dist in moved:
+    # checks.py's (and the wrist gadget's) findings are (what, amount), not an anchor's (what, text, dist): a model the
+    # engine reads numbers from (a monster's triangle count in knownSwords, the holster's back...). Their CHECK lines
+    # say what to change in the code; a warning, not a refusal (a count that changes on purpose is a fix away).
+    checks_lines = [l.strip() for l in lines if l.strip().startswith("CHECK")]
+    for item in moved:
+        if len(item) == 3:
+            continue
+        warns.append("%s changed: %s" % (item[0], "; ".join(checks_lines) or "see the export report's checks"))
+        checks_lines = []
+    for what, text, dist in (m for m in moved if len(m) == 3):
         key = next((k for k in ANCHOR_KEYS if "vr_wofs_%s_" % k in what), None)
         if key in moved_keys:
             continue
