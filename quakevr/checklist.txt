@@ -117,6 +117,9 @@ Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / 
 - [ ] Debug > Cheats > Spawn Pickup Weapons: Axe, Knight's Sword, Death Knight's Sword, Ogre's Chainsaw, Grunt Burst Rifle, Enforcer's Rifle, Super Axe each spawn, pick up and work {test:vr_pickup_test 9}
 - [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
 - [ ] An AD map with a weapon_axe still has AD's axe pickup
+[ ] Lightning gun (and plasma gun): look along the top and round the rear sight housing while moving your head: no shimmering or z-fighting; the receiver top is flat and clean in front of the housing.
+[ ] Lightning gun front sight: one post (no little cube on it), its glowing insert painted on its back, centred; in the ironsight it sits centred in the rear notch, its insert level with the rear inserts, the irons' tops level.
+[ ] Lightning gun sights: the rear ears and the front post are a little narrower at the top (like the shotgun's); the notch stays square.
 [ ] Flat-screen, lie down (X) and look at yourself with the fly camera (F8): the hips and belly rest on the floor (propped on the elbows), the legs straight back with the feet on the floor, nothing floating. Tweak: VR Settings > Body > Lying Down Hips Over Floor (3.5), Lying Down Leg Reach (0.997).
 [ ] VR: lie down for real and look at your body (or the fly camera): the hips on the floor, the legs straight behind, no floating.
 [ ] Flat-screen slide with the super shotgun (two-handed stance) and watch it with the fly camera: no torso turn in the slide (the stance eases out quickly and back after), the legs nearly straight out front, feet on the floor. Tweak: Debug > Tunables > Flatscreen > Slide > Slide Leg Reach (0.993), Slide Stance Turn Time (0.12 s).
