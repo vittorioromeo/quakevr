@@ -1885,6 +1885,8 @@ int relightToolState = -1;
         row(opt::vr_relight_bounce),
         row(opt::vr_relight_ao),
         row(opt::vr_relight_minlight),
+        row(opt::vr_light_cap),
+        row(opt::vr_light_cap_soft),
         row(opt::vr_relight_quality),
         seeThrough ? row(opt::vr_relight_seethrough)
                    : toggle("See-Through Liquids", "vr_relight_seethrough").unavailableBecause("Needs VisPatch's data files, not part of Quake VR: id1.vis, hipnotic.vis and rogue.vis (in id1_vis.tgz, hipnotic_vis.tgz and rogue_vis.tgz, sourceforge.net/projects/vispatch, \"vispatch data\" 1.0) in quakevr/tools/vispatch. Without them id's liquids stay opaque (except in maps relight_maps.py made see-through)."),
