@@ -399,7 +399,13 @@ void updateBodyPitch(const hands::State& s, float dt)
         // head's bind, vr_body_torso_back behind the neck's top, that vr_body_eye_up under the eye).
         const float m2w = units::metresToUnits() * units::bodyScale();
         const float torso = glm::distance(bind().pos[Pelvis], bind().pos[Head]) * m2w;
-        const float neckOverFloor = eyeOverFloor - vr_body_eye_up.value * m2w;
+        // (Over the box's own floor where the server has him: the headset's calibrated height put the hips 2 units up.)
+        float eyeOverBox = eyeOverFloor;
+        if(const edict_t* pl = progs::localPlayer())
+        {
+            eyeOverBox = s.head.z - (pl->v.origin[2] + pl->v.mins[2]);
+        }
+        const float neckOverFloor = eyeOverBox - vr_body_eye_up.value * m2w;
         const float drop = neckOverFloor - CLAMP(0.f, vr_prone_hip_floor.value, 10.f);
         p.target = pronePitchTarget(vr_prone_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);
         p.source = PitchSource::Prone;

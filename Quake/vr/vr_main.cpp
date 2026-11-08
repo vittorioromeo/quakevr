@@ -17,6 +17,7 @@
 #include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
+#include "vr_slidesound.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
@@ -1948,6 +1949,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"auto pump", autopump::prepare},
     {"AD crossbow", adcrossbow::prepare}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare},   // AD support: its barrels' motor
+    {"slide sound", slidesound::prepare}, // flat-screen play's slide scrape (vr_slidesound.cpp)
     {"model light grid", ambient::prepareGrid},
     {"explosion debris", explosiondebris::prepare},
     {"muzzle flash", weaponfx::prepare},

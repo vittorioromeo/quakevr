@@ -427,8 +427,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.rot = bodyTurn(b, lean, 0.f, 0.f) * c.rot;
         // Sliding with the hips and legs to the slide's way (vr_flat_slide_legs; flatplay::trunkTwist): the chest turned back
         // to the view about the trunk, half of it in the spine.
-        if(const float twist = flatplay::trunkTwist(); twist != 0.f)
+        if(float twist = flatplay::trunkTwist(); twist != 0.f)
         {
+            // (Turned about the upright trunk, then leant back with it by the body's pitch: the chest's facing seen from
+            // above turns further, by 1 / cos(pitch). Less here, so that it faces the view.)
+            twist = glm::degrees(za::atan2(za::sin(glm::radians(twist)) * za::cos(glm::radians(bodyPitch.angle)), za::cos(glm::radians(twist))));
             const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
             const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * twist), axis));
             const glm::vec3 fromSpine = c.pos - sp.pos;

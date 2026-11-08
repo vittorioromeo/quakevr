@@ -48,6 +48,7 @@
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_slidesound.hpp"
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
@@ -1436,6 +1437,7 @@ void frame()
         feel = Feel{};
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         flatmove::frame(false);
+        slidesound::frame(false);
         return;
     }
 
@@ -1447,6 +1449,7 @@ void frame()
     pollKeys();
     pollKeysFlat();
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
+    slidesound::frame(true); // its scrape (vr_slidesound.cpp)
 }
 
 float trunkTwist()
@@ -1782,14 +1785,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
         if(slide && glm::length(vel) > 60.f)
         {
-            t.yaw = glm::degrees(glm::atan(vel.y, vel.x));
+            t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
         }
         const float share = geom::smooth01(t.lin);
         float off = 0.f;
         if(vr_flat_slide_legs.value != 0.f && share > 0.f)
         {
-            off = t.yaw - aim.y;
-            off -= 360.f * glm::round(off / 360.f);
+            off = geom::yawDelta(t.yaw, aim.y);
             const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
             off = za::clamp(off, -most, most) * share;
         }

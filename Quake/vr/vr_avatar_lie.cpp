@@ -14,6 +14,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
+#include "vr_slidesound.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
@@ -114,9 +115,7 @@ struct Measure
         m.itemCone[i] = angleDeg(items[i] - eye, fwd);
         m.itemNear[i] = glm::distance(items[i], eye);
     }
-    float yaw = glm::degrees(glm::atan(b.fwd.y, b.fwd.x)) - cl.viewangles[YAW];
-    yaw -= 360.f * glm::round(yaw / 360.f);
-    m.yawOff = yaw;
+    m.yawOff = geom::yawDelta(geom::yawOf(b.fwd), cl.viewangles[YAW]);
     m.ride = probe.eye - s.head;
     const Torso tr = torso(s);
     m.followOff[0] = glm::distance(tr.pelvis.pos, b.bones[Pelvis].pos);
@@ -147,6 +146,7 @@ struct LieTest
     int phase{0};
     double phaseAt{0.0};
     int settle{0};
+    bool vr{false}; // the headset (the mock's head lowered to the floor), lying down only
     testkit::Tally tally;
     Measure standing;
     // The slide's frames: the pelvis over the floor (its range: the bob), the eye over the box's origin.
@@ -157,6 +157,12 @@ struct LieTest
     int bendAt{0};
     float bendPelvis{0.f};
     float stanceBefore{0.f};
+    // The slide's sound: slides started before, the scrape's level at the first and last frames of the full pose.
+    int startsBefore{0};
+    float levelFirst{-1.f}, levelLast{0.f};
+    // The second slide, the view turned off its way: the legs' yaw off the slide's, the chest's off the view's (degrees).
+    int turnFrames{0};
+    float legsOffMax{0.f}, chestOffMax{0.f};
     bool frontSeen{false};
     char frontWhat[96]{};
 };
@@ -219,9 +225,9 @@ void testFrame()
         return;
     }
     const edict_t* pl = progs::localPlayer();
-    if(!pl || !flatplay::active())
+    if(!pl || flatplay::active() == test.vr)
     {
-        check(false, "a flat-screen game you host is needed");
+        check(false, test.vr ? "a headset game you host is needed (vr: not -flatscreenmode)" : "a flat-screen game you host is needed");
         next(99);
     }
     const double in = vr_gametime - test.phaseAt;
@@ -239,7 +245,8 @@ void testFrame()
             {
                 test.standing = measure();
                 printMeasure("body_lie_test standing", test.standing);
-                Cbuf_InsertText("vr_prone_toggle\n");
+                // (The headset: the mock's eyes 0.28 m over the floor, looking ahead: lying on the front, the head up.)
+                Cbuf_InsertText(test.vr ? "vr_mock_hand head 0 0.28 0 0 0 0\n" : "vr_prone_toggle\n");
                 next(2);
             }
             break;
@@ -259,8 +266,8 @@ void testFrame()
                     "prone: the knees and feet on the floor (knees %.1f %.1f, feet %.1f %.1f)", m.knee[0], m.knee[1], m.foot[0],
                     m.foot[1]);
                 (void)itemsOnBody(m, "prone");
-                Cbuf_InsertText("vr_prone_toggle\n");
-                next(3);
+                Cbuf_InsertText(test.vr ? "vr_mock_hand head\n" : "vr_prone_toggle\n");
+                next(test.vr ? 99 : 3);
             }
             break;
         case 3: // up again
@@ -276,6 +283,7 @@ void testFrame()
             if(speed > 300.f && (static_cast<int>(pl->v.flags) & FL_ONGROUND) && in > 0.5)
             {
                 test.stanceBefore = measure().yawOff;
+                test.startsBefore = slidesound::starts();
                 Cbuf_InsertText("+flatcrouch\n");
                 next(5);
             }
@@ -296,8 +304,13 @@ void testFrame()
                 check(test.eyeMax - test.eyeMin < 1.f, "slide: no view bob (the eye over the origin %.2f .. %.2f)", test.eyeMin,
                     test.eyeMax);
                 check(!test.frontSeen, "slide: nothing worn in front of the camera (%s)", test.frontSeen ? test.frontWhat : "none");
+                check(slidesound::starts() == test.startsBefore + 1 && slidesound::peakLevel() > 0.5f,
+                    "slide: its sound started once (%d) and scraped up to %.2f of full", slidesound::starts() - test.startsBefore,
+                    slidesound::peakLevel());
+                check(test.levelLast < test.levelFirst - 0.1f, "slide: the scrape faded as it slowed (%.2f at the start of the pose, %.2f at its end)",
+                    test.levelFirst, test.levelLast);
                 Cbuf_InsertText("-flatcrouch\n-forward\n");
-                next(99);
+                next(6);
                 break;
             }
             if(bodyPitch.sliding > 0.995f && flatmove::sliding())
@@ -322,6 +335,8 @@ void testFrame()
                     test.bendPelvis = m.pelvis;
                 }
                 test.footMax = za::max(test.footMax, za::max(m.foot[0], m.foot[1]));
+                test.levelFirst = test.levelFirst < 0.f ? slidesound::level() : test.levelFirst;
+                test.levelLast = slidesound::level();
                 for(int i = 0; i < ITEMS; i++)
                 {
                     if(m.itemCone[i] < FRONT_CONE && m.itemNear[i] < FRONT_NEAR && !test.frontSeen)
@@ -331,6 +346,60 @@ void testFrame()
                             m.itemNear[i]);
                     }
                 }
+            }
+            break;
+        case 6: // the scrape dies away once the slide is over
+            if(slidesound::level() < 0.01f)
+            {
+                check(in < 0.5, "slide: the scrape stopped %.2f s after the slide ended", in);
+                cl.viewangles[YAW] += 180.f; // (back the way he came: open floor)
+                Cbuf_InsertText("+forward\n");
+                next(7);
+            }
+            break;
+        case 7: // a second slide: up to speed again (past the cooldown)
+        {
+            const float speed = glm::length(glm::vec2{pl->v.velocity[0], pl->v.velocity[1]});
+            if(speed > 300.f && (static_cast<int>(pl->v.flags) & FL_ONGROUND) && in > 0.8)
+            {
+                Cbuf_InsertText("+flatcrouch\n");
+                next(8);
+            }
+            break;
+        }
+        case 8: // sliding: the keys let go (it runs straight on) and the view turned 40 degrees left off its way
+            if(flatmove::sliding() && in > 0.1)
+            {
+                Cbuf_InsertText("-forward\n");
+                cl.viewangles[YAW] += 40.f;
+                next(9);
+            }
+            break;
+        case 9: // the hips and legs the slide's way, the chest the view's
+            if(!flatmove::sliding())
+            {
+                check(test.turnFrames >= 10, "slide, the view turned: %d frames measured", test.turnFrames);
+                check(test.legsOffMax < 5.f, "slide, the view turned 40: the legs point the slide's way (at most %.1f deg off it)",
+                    test.legsOffMax);
+                check(test.chestOffMax < 8.f, "slide, the view turned 40: the chest turns back to the view (at most %.1f deg off it)",
+                    test.chestOffMax);
+                Cbuf_InsertText("-flatcrouch\n");
+                next(99);
+                break;
+            }
+            if(bodyPitch.sliding > 0.995f && in > 0.3)
+            {
+                const Body& b = probe.body;
+                const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
+                const float legsOff = geom::yawDelta(geom::yawOf(b.fwd), geom::yawOf(glm::vec3{vel, 0.f}));
+                const float chestOff = geom::yawDelta(geom::yawOf(b.bones[Chest].rot[2]), cl.viewangles[YAW]);
+                if(test.turnFrames == 5)
+                {
+                    Con_Printf("body_lie_test: turned: legs %.1f off the slide, chest %.1f off the view\n", legsOff, chestOff);
+                }
+                test.turnFrames++;
+                test.legsOffMax = za::max(test.legsOffMax, za::abs(legsOff));
+                test.chestOffMax = za::max(test.chestOffMax, za::abs(chestOff));
             }
             break;
         default:
@@ -354,9 +423,11 @@ void report_f()
         bodyPitch.angle, hull::localProne(), flatmove::sliding() ? 1 : 0);
 }
 
+// vr_body_lie_test [vr]: flat-screen play's lying down and slides; "vr": the headset's lying down (the mock's head).
 void test_f()
 {
     test = LieTest{};
+    test.vr = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "vr");
     probe.armed = true;
     probe.frames = 0;
     next(1);
