@@ -3464,5 +3464,6 @@ rear's ears as the shotgun has.)
 - **reload_test.sh** (section 7): the ring check reads the rear sight's box x 12.0-13.4 (ssg_checks.py); the sights'
   colour checks look from above and behind with the gun held level (both guns' inserts are on back faces now: the side
   camera saw 1-3 pixels of the super shotgun's and 12 of the shotgun's), at least 15 pixels (was 50), the ammo screen's
-  text white (its red "0/2" after firing sat next to the rear sight); the blood check keeps the side camera.
+  text white, and the fired shot 2 s after the shot (from above the barrels' red heat glow lies in the sights' box: 46/395
+  at once, 46/0 later; the sights stay yellow); the blood check keeps the side camera.
 - **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.

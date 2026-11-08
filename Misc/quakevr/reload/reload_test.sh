@@ -278,9 +278,10 @@ check $($PY "$SSGCHECKS" ring | grep -q "ring barrels [1-9][0-9]* frame 0" && ec
 # The sights' colour: recoloured (the player's hue) on the super shotgun shut, fired, open and shut again, and on the
 # shotgun's auto pump's parts (its fore-end held back), as on the gun itself. Seen from above and behind (the gun held level):
 # since 2026-11 both guns' glowing inserts are on their sights' back faces (a side view sees none); at least 15 pixels.
+# The fired shot waits out the barrels' heat glow (red, in the sights' box seen from above: 46/395 at once, 46/0 2 s on).
 SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots
 SEE="vr_weapon_screen 0;vr_gadget_screen_text_white 1;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 60 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera -0.1 1.62 -0.3 55 0;wait20"
-tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
+tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;wait140;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s1=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -4))
 check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
 tb_run_sh -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;wait30;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
