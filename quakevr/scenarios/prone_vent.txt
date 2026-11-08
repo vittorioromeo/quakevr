@@ -4,3 +4,4 @@ map vrteleporters
 start 480 -112 24 0
 god
 notarget
+hint The vent is straight ahead, about 2 m east: the low dark slot at the foot of the east wall, under the teleporter in the wall. Lie down and crawl in: shells inside; get up in it (you stay lying), crawl on out the far side and stand.

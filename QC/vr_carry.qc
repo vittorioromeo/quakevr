@@ -3603,9 +3603,43 @@ void(entity xPlayer, entity xGib) VR_Gib_KnockOut =
 // After a traceline of `self` (a player) from `xA` to `xB`, firing with hit_hand: a gib or head held
 // in the other hand in the way (before trace_fraction) is what the shot hits, knocked out of the hand
 // (the shots after it hit it as a loose one).
+void(entity g) VR_Skewer_Off; // (vr_skewer.qc)
 void(vector xA, vector xB) VR_Gib_TraceHeld =
 {
-    if(!(self.flags & FL_CLIENT) || hit_hand < 0)
+    if(!(self.flags & FL_CLIENT))
+    {
+        return;
+    }
+    // A gib skewered on a blade (not solid there, vr_skewer.qc) in the way: knocked off it and hit as a loose one, burst or hurt
+    // as a gib anywhere (his note 2026-11-08 17:10: shots went through it).
+    float best = trace_fraction;
+    entity sk = world;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.vr_gib && e.vr_skewer_p != world)
+        {
+            float te = VR_Gib_OnLine(e, xA, xB, 1);
+            if(te >= 0 && te < best)
+            {
+                best = te;
+                sk = e;
+            }
+        }
+    }
+    if(sk != world)
+    {
+        dprint(sprintf("skewer: %s shot on the blade\n", sk.classname));
+        VR_Skewer_Off(sk);
+        sk.takedamage = DAMAGE_YES;
+        trace_ent = sk;
+        trace_fraction = best;
+        trace_endpos = xA + (xB - xA) * best;
+        trace_plane_normal = normalize(xA - xB);
+        trace_allsolid = FALSE;
+        trace_startsolid = FALSE;
+        return;
+    }
+    if(hit_hand < 0)
     {
         return;
     }
@@ -3639,11 +3673,28 @@ void(vector xA, vector xB) VR_Gib_TraceHeld =
 void(float xHand) VR_Gib_HeldFrameHand =
 {
     entity g = VR_Gib_HeldByOther(self, xHand);
+    float holder = xHand == cVR_OffHand ? cVR_MainHand : cVR_OffHand;
+    // Else one skewered on the other hand's blade (his note 2026-11-08 17:10: punches and blows went through it), not one this hand
+    // grips: struck, it comes off the blade and takes the blow as a loose gib.
+    float skewered = FALSE;
+    if(g == world && (holder == cVR_MainHand ? self.vr_skewer_load_main_x : self.vr_skewer_load_off_x) > 0)
+    {
+        float near = 1000000;
+        for(entity s = nextent(world); s; s = nextent(s))
+        {
+            if(s.vr_gib && s.vr_skewer_p == self && s.vr_skewer_hand == holder && s.vr_skewer_w == world && s.vr_skewer_grip != xHand + 1 &&
+               vlen(s.vr_skewer_c - VRGetHandPos(xHand)) < near)
+            {
+                g = s; // (the nearest to the striking hand)
+                near = vlen(s.vr_skewer_c - VRGetHandPos(xHand));
+            }
+        }
+        skewered = g != world;
+    }
     if(g == world)
     {
         return;
     }
-    float holder = xHand == cVR_OffHand ? cVR_MainHand : cVR_OffHand;
     float m2u = VRMetersToUnits();
 
     // The striking hand's sweep this frame (its fist), or its weapon (from the hand to the muzzle).
@@ -3653,11 +3704,17 @@ void(float xHand) VR_Gib_HeldFrameHand =
     // it at their difference, 3-4 m/s: it burst in front of him. NOTES.md vrfiringrange_2026-10-03_02-02-13.)
     vector rel = VRGetHandVel(xHand) - VRGetHandVel(holder);
     float speed = vlen(rel);
-    if(speed >= max(0.1, cvar_hget(cvarh_vr_melee_speed)) &&
+    // (On a blade: no faster than a hand goes, 15 m/s -- past it a jump of the hand's place, a teleport or the mock's hand put
+    // there, no blow -- and not from inside it: a hand drawn on it to take hold.)
+    if(speed >= max(0.1, cvar_hget(cvarh_vr_melee_speed)) && !(skewered && speed > 15) &&
        !(time < g.vr_gib_releasetime + 0.4 && xHand == g.vr_gib_releasehand) && VR_Throw_HandMayStrike(self, xHand))
     {
         vector hand = VRGetHandPos(xHand);
         float t = VR_Gib_OnLine(g, hand - rel * (m2u * max(frametime, 0.011)), hand, 2.5);
+        if(skewered && t == 0)
+        {
+            t = -1; // (the hand was in it already)
+        }
         if(t < 0 && VRGetEntWeapon(self, xHand) != WID_FIST)
         {
             t = VR_Gib_OnLine(g, hand, VRGetMuzzlePos(xHand), 1);
@@ -3665,7 +3722,7 @@ void(float xHand) VR_Gib_HeldFrameHand =
         if(t >= 0)
         {
             dprint("gib: struck by the other hand at "); dprint(ftos(speed)); dprint("\n");
-            VR_Gib_KnockOut(self, g);
+            if(skewered) { VR_Skewer_Off(g); g.takedamage = DAMAGE_YES; } else { VR_Gib_KnockOut(self, g); }
             VRSetMeleeHitSoundPlayed(xHand, TRUE); // the blow landed (no punch as well)
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
@@ -3691,7 +3748,7 @@ void(float xHand) VR_Gib_HeldFrameHand =
             if(at >= 0)
             {
                 dprint("gib: "); dprint(e.classname); dprint(" through the other hand's\n");
-                VR_Gib_KnockOut(self, g);
+                if(skewered) { VR_Skewer_Off(g); g.takedamage = DAMAGE_YES; } else { VR_Gib_KnockOut(self, g); }
                 setorigin(e, from + (e.origin - from) * at);
                 entity oldSelf = self;
                 entity oldOther = other;
