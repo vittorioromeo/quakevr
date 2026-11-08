@@ -1466,6 +1466,7 @@ QVR_CVAR(vr_gore_spatter_range, "64", CVAR_ARCHIVE)   // ... a shot's hit this c
 QVR_CVAR(vr_gore_spatter_gibs, "1", CVAR_ARCHIVE)     // gibs flying into you bloody you where they strike: how much (0 none)
 QVR_CVAR(vr_gore_gear, "1", CVAR_ARCHIVE)             // the weapons and props you hold take blood: kept dropped and taken again, until water washes it
 QVR_CVAR(vr_gore_clean_skins, "1", CVAR_ARCHIVE)      // weapons whose skins have blood painted in (the axe, the swords, the chainsaw) start clean (vr_cleanskins.cpp)
+QVR_CVAR(vr_skin_edge_fill, "1", CVAR_ARCHIVE)        // models' skins: a texel a triangle's skin coordinates touch only at an edge takes its inside neighbour's colour (no black slivers of the skin's background with a nearest gl_texturemode; vr_skinedge.cpp)
 QVR_CVAR(vr_gore_gear_holstered, "1", CVAR_ARCHIVE)   // ... your holstered weapons too, near enough to the blood (as your body and hands are)
 QVR_CVAR(vr_gore_gear_nearby, "1", CVAR_ARCHIVE)      // weapons and props lying about take blood from hits, gibbings and bursts near them: how much (0 none)
 QVR_CVAR(vr_gore_gear_drops, "1", CVAR_ARCHIVE)       // what a gibbed monster drops (its gun, its backpack) comes out soaked: how much (0 as anything lying near)
@@ -2006,6 +2007,8 @@ QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light m
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
 QVR_CVAR(vr_dlight_uncapped, "1", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)
 QVR_CVAR(vr_light_contrast, "2.5", CVAR_ARCHIVE)         // lightmap contrast about Quake's full light: shade darker, lamps as bright (1: Quake's)
+QVR_CVAR(vr_light_cap, "0", CVAR_ARCHIVE)                // a ceiling for the baked light (relit maps too), in Quake's full light (1: Quake's full, 2: its brightest; 0 off): world and models alike, live (qvr::lighting::lightCap)
+QVR_CVAR(vr_light_cap_soft, "0.5", CVAR_ARCHIVE)         // how softly the ceiling is reached: 0 a hard clamp, 1 a roll-off that starts at nothing (the light above the knee eased into the cap)
 QVR_CVAR(vr_ambient_light, "0.1", CVAR_ARCHIVE)          // the room's own fill light: the baked light's floor, as a share of Quake's full light (0 none; the same curve as vr_light_contrast, which still shapes the shade: qvr::lighting::lightCurve)
 QVR_CVAR(vr_decals, "1", CVAR_ARCHIVE)                 // blood and scorch marks on the world
 QVR_CVAR(vr_decal_max, "512", CVAR_ARCHIVE)            // how many are kept (the oldest go first; each pixel of the world walks its cell's: PERF_DECISIONS 15)

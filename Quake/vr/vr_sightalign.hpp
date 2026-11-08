@@ -4,7 +4,8 @@
 //
 // Each weapon has a sight line: a rear and a front point in its model space (as its frames' vertices). The shotgun, the
 // double shotgun, the lightning gun and the plasma gun have painted sights (their skins' glowing fire colours,
-// vr_sights.cpp): the points are found on them (the rear notch's or ring's middle, the front post's top). The other guns
+// vr_sights.cpp): the points are found on them (the rear notch's or ring's middle, the front post's top; the heights are
+// the irons' tops, the tops of the faces the glowing inserts are painted on, the inserts a little under them). The other guns
 // have a line along the top of the barrel (a table), from above the grip to the muzzle; melee weapons have none.
 //
 // The capture: after a countdown, each time the weapon hand has been raised and held still (0.4 s), the dominant eye's

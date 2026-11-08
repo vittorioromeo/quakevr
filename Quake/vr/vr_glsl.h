@@ -120,7 +120,7 @@ QVR_TONE_GLSL
 "	vec4	PortalMax[8]; // QVR: ... its box (xyz)\n" \
 "	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
-"	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
+"	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); y the ceiling of the baked light (vr_light_cap, in Quake's full light; 0 none), z how softly it is reached (0 hard .. 1 soft), w unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
 "	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (0 its top, 1 its bottom: the world's); y the depth write's split\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \

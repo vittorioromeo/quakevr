@@ -3556,3 +3556,77 @@ went into the floor.
 - **Not done / not checked:** VR is untouched (the lean and the flush are flat-screen only). The prone lean's eye move
   is not clamped by the floor (3 units sideways). The body roll is a few degrees and was only glanced at from the fly
   camera.
+## Irons level: the shotguns' and the lightning gun's sights (branch `agent/selfshot`, 2026-11-08)
+
+His note, with flat ADS screenshots (`scratch/shotsight_mockup/ads_shot_misaligned.webp`, `ads_ssg_misaligned.webp` in the
+kit): the glowing inserts lined up on the aim, the irons didn't (the rear ears' metal tops well over the front post's);
+"in real guns, people look for the alignment of the irons, not of the glowy bits". Then the lightning gun
+(`lightning_ads.webp`): rear posts asymmetric, their gap off centre, the glow sitting on top, the front post lopsided.
+
+- **The sight line is the irons' tops** (`vr_sightalign.cpp` `fromTexels`, `sights.py` `sight_line`): the rear and front
+  heights are the highest corner of the triangles the sight texels are painted on (the faces the inserts are on), not the
+  texels' own. One rule for every painted gun, no per-model number: where an insert is painted to its face's top (the
+  old lightning gun's blocks) the two are the same. The nail pistol has no painted texels and keeps its table line.
+- **Shotgun** (`v_shot.blend`): the ears' tops lowered one z step (0.0666) to 6.6116, the front post unchanged (6.2784):
+  the iron line is the old insert line raised 0.0666 at both ends, so it is parallel: -0.843 deg up, 0.115 left, as before
+  (turned 0.000). The ears' back faces keep their texel size (their top corners' UVs two rows down). Inserts: the rear
+  ones' tops 1 row (0.033) under the ears' tops (the patch moved up a row: dark line on the top edge, insert, lip), the
+  front one's 4 rows (0.133) under the post's top (two core rows fewer). In the sight picture (eye ~11 units behind the
+  rear, ~34 from the front) those are about the same angle under the iron line (0.003-0.004 rad), so the inserts' tops
+  line up too. The relief PNG moved with them.
+- **Super shotgun** (`v_shot2.blend`): the ears' tops lowered 4 z steps (0.2226) to 7.7781 = the old insert line + one
+  step; the post unchanged (8.1676): 1.488 deg up, 0.140 left, as before. Rear inserts' tops 1 row (0.028) under the
+  ears' tops, the front one's 3 rows (0.083) under the post's (one core row fewer). The ears now just clear the barrels'
+  backs (their humps reach the same height): the inserts show whole in the notch's sides, as before.
+- **Lightning gun and plasma gun** (`v_light.blend`, `v_plasma.blend`: the same sight geometry, one script for both):
+  a rear housing like the shotgun's, a closed solid across the receiver (x -2.378..-1.354, 1.76 wide, its bottom sunk),
+  centred on the barrel's line (y -0.098, the muzzle's; the old notch was at -0.1715 and the posts' bottoms lopsided):
+  a square U notch 0.44 wide, its floor 0.274 under the tops, between two ears 0.293 wide, their tops at 11.4806 (the box
+  top, as the old posts'); the old posts sunk inside it (the receiver's slope that ran up to them now comes out of its
+  front face). Front: a square post 0.293 wide on the same line, top 11.3435 (the old pyramid's apex, removed), its back
+  face at x 31.0765. Each ear's and the post's back face a metal frame round a 5-wide glowing insert (234 rim, 235, 236
+  core), the rear ones' tops 1 row (0.034) under the ears' tops, the front's 2 rows (its top 4 rows show over the
+  barrel); new UV patches in free skin (v_light s 22-52, v_plasma s 144-174, t 94-102); the old glow (s 145-158,
+  t 133-143) repainted metal. Line: rear -2.378 -0.098 11.4806, front 31.0765 -0.098 11.3435: -0.235 deg up, 0.000 left
+  (was -0.238, 0.012 left: turned 0.012 deg; no shot offsets in weapons.txt for these slots). Barrel masks "948:..." for
+  both (were 865), written by the export. Holes as before (6 open loops, 4 cracks, none see-through).
+- **sight_picture.py**: the lines updated; the shotgun's ears now +0.003 over the line (were +0.070), the post 0.000; the
+  super shotgun's front 0.000 (the rear "ears top" +0.234 it prints is the barrels' backs at x 12.37, not the ears).
+- **Flat ADS screenshots** (`scratch/` of the worktree): `ads_iron_after.png` (shotgun, super shotgun),
+  `light_ads_after.png` (lightning gun).
+
+## Black slivers on the shotgun (branch `agent/regfix`, 2026-11-08)
+
+His note: two small black triangles on the flat top of the shotgun's receiver behind the rear sight, on every map,
+not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `vr_foveated 2`, auto pump on).
+
+- **Reproduced** headless in vrtesthall (his map in the picture) with his graphics cvars: `vr_weapon_grip_mode 1;
+  impulse 154; vr_mock_hand main 0.0 1.345 -0.30 55 0 0; vr_mock_camera 0.03 1.405 -0.235 35 0; vr_eyeshot 1` (the
+  mock hand's pitch 55 holds the gun about level: 70 is level). The slivers: 43 near-black pixels in the eyeshot's box
+  570-610 x 565-610.
+- **Bisected** (one run, a cvar toggled between eyeshots): no change with `vr_foveated 0`, `r_oit 0`, `vr_autopump 0`,
+  `vr_normalmaps 0`, `vr_parallax_models 0`, `vr_specular_aa 0`, `vr_rim_light 0`, `vr_weapon_reflections 0`,
+  `vr_retrolight 0`, `gl_fullbrights 0`, `vr_sight_saturation 0`, `r_lerpmodels 0`, anisotropy 1, `GL_NEAREST`,
+  `GL_NEAREST_MIPMAP_NEAREST`; gone with any linear magnification (`GL_LINEAR*`). So: the skin's own texels read nearest.
+- **Root cause.** A shader that wrote each pixel's skin texel and `gl_PrimitiveID` (temporary) put the black pixels on
+  v_shot.mdl's triangle 1849 (the receiver's top, x 3.8-6.9, z 6.2), reading texels (368-373, 39-40). The triangle's
+  corners sit on texel middles (gl_mesh.c's + 0.5: (362.5, 42.5), (381.5, 37.5), (377.5, 42.5)); its slanted top
+  edge runs through texels whose middles lie outside it, and the painted part of the skin steps back there: those
+  texels are the skin's black background. Nearest filtering reads them along the edge (the slivers); linear blends
+  them in (Blender). The skin, not the renderer: the same holds for every model whose UV islands are painted only up
+  to the texel middles (v_shot.mdl 3350 such texels, 122 of them dark against a lit inside; the id soldier 1231 / 183).
+- **Fix (general):** `vr_skin_edge_fill` (default 1, archived; a Debug menu toggle "Fill Skin Edges" beside Show
+  Foveation, to compare) and
+  `vr/vr_skinedge.cpp`. As an MDL loads (Mod_LoadAliasModel, before its skins upload), every texel a triangle's skin
+  hull touches (more than 0.001 of a texel) whose middle no triangle has gets the neighbour (sides first, then
+  corners) the touching triangle has inside, else any neighbour some triangle has inside; a list of (texel, source)
+  pairs per model (146 models, 81524 texels in e1m1's set). TexMgr_LoadImage8 / LoadImage32 apply it after the clean
+  skins' patch to the 8-bit skin, its fullbright mask and a full-colour replacement of the same size (a replacement of
+  another size, normal maps and MF_HOLEY skins untouched). No texel any triangle covers at its middle changes, so the
+  art inside the islands is as painted. Toggling the cvar re-uploads the models' skins. `vr_skin_edges [model [x y]]`
+  lists the models, their edge texels and the uploads filled.
+- **Checks.** The box: 43 dark pixels -> 0 (and 0 with plain `GL_NEAREST`); `vr_skin_edge_fill 0` brings them back (44).
+  Close-ups (before | after): `scratch/slivers_before_after.png`, full eyeshots `scratch/slivers_before_full.png`,
+  `scratch/slivers_after_full.png`.
+- **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
+  no black slivers at triangle edges; nothing inside the painted parts looks different.

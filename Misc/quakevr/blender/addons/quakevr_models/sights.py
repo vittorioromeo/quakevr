@@ -15,7 +15,8 @@ def is_sight_index(i):
 
 
 def sight_texels(model, pose=0):
-    """The sight texels as points on the pose's surface (model space)."""
+    """The sight texels as points on the pose's surface (model space), each (x, y, z, top): top is the highest corner of
+    the triangle it is painted on (the iron's top: an insert sits a little under its face's top, 2026-11)."""
     sw, sh = model.skin_size
     skin = model.skins[0][2][0]
     pb = model.pose_verts(model.poses()[pose])
@@ -38,6 +39,7 @@ def sight_texels(model, pose=0):
         if abs(den) < 1e-9:
             continue
         p = [vertex(v) for v in vi]
+        top = max(q[2] for q in p)
         x0 = max(0, int(math.floor(min(u[0] for u in uv))) - 1)
         x1 = min(sw - 1, int(math.ceil(max(u[0] for u in uv))) + 1)
         y0 = max(0, int(math.floor(min(u[1] for u in uv))) - 1)
@@ -52,7 +54,7 @@ def sight_texels(model, pose=0):
                 l2 = 1.0 - l0 - l1
                 if l0 < -1e-5 or l1 < -1e-5 or l2 < -1e-5:
                     continue
-                pts.append(tuple(l0 * p[0][k] + l1 * p[1][k] + l2 * p[2][k] for k in range(3)))
+                pts.append(tuple(l0 * p[0][k] + l1 * p[1][k] + l2 * p[2][k] for k in range(3)) + (top,))
     return pts
 
 
@@ -74,7 +76,7 @@ def sight_line(model, kind=None):
         return None
     fr = pts[front_begin:]
     mid = [sum(p[k] for p in fr) / len(fr) for k in range(3)]
-    front = (mid[0], mid[1], max(p[2] for p in fr))
+    front = (mid[0], mid[1], max(p[3] for p in fr))  # the irons' tops (the inserts' faces' tops)
     rear = [p for p in pts[:rear_end] if abs(p[1] - front[1]) < 1.5]
     if len(rear) < 4:
         return None
@@ -87,7 +89,7 @@ def sight_line(model, kind=None):
                 gap, gap_mid = ys[i] - ys[i - 1], 0.5 * (ys[i] + ys[i - 1])
         if gap < 0.15:
             return None
-        rear_pt = (x, gap_mid, max(p[2] for p in rear))
+        rear_pt = (x, gap_mid, max(p[3] for p in rear))
     else:
         import numpy as np
         A = np.array([[p[1], p[2], 1.0] for p in rear])
