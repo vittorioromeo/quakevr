@@ -3989,7 +3989,12 @@ QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both 
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
-QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)        // a second key that force-grabs the same (the old R), by its bind name; "" none
+QVR_CVAR(vr_flat_key_grab_alt, "", CVAR_ARCHIVE)         // a second key that force-grabs the same, by its bind name; "" none (R until 2026-11-08: R reloads now, vr_flat_key_reload)
+QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
+QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
+QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
+QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
+QVR_CVAR(vr_flat_autoreload, "1", CVAR_ARCHIVE)         // flat-screen play: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0: only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none

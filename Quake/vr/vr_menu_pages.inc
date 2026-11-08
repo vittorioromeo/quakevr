@@ -164,6 +164,8 @@
         header("Desktop Screen Play"),
         row(opt::vr_flat_aim_mode),
         row(opt::vr_flat_wall_block_fire),
+        row(opt::vr_flat_reload),
+        row(opt::vr_flat_autoreload),
         row(opt::vr_flat_shove),
         row(opt::vr_flat_shove_cooldown),
         row(opt::vr_flat_shove_push),

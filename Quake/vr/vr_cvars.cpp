@@ -528,6 +528,7 @@ const FullConfigChange fullConfigChanges[] = {
     {&vr_ammo_low_frac, "0.25"},
     {&vr_ammo_pouch_leg_follow, "0.5"},
     {&vr_deadzone_outer, "5"},
+    {&vr_flat_key_grab_alt, "r"}, // R reloads in flat-screen play now (2026-11-08); a sparse config never held the old default
     {&vr_ghost_hands_fade_from, "6"},
     {&vr_relight_ao, "1.5"},
     {&vr_relight_bounce, "0"},
