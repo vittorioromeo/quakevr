@@ -4258,7 +4258,7 @@ triangles, positions and texture coordinates are unchanged (compared as triangle
   14.4 -> 13.9 and high-frequency energy 7.4 -> 6.8 (an undithered repaint gave 6.9, so the dither adds none).
 - **Kept:** barrel masks (vr_barrelmask_report: nail pistol 74/518, rifle 236/816, flare gun 249/860), sight lines
   (vr_sight_lines: nail pistol painted rear -1.63 0 6.38 front 8.93 0 6.38; flare gun and rifle table lines as before),
-  the inserts' texels. flatsight_test: see the commit's report.
+  the inserts' texels. flatsight_test 12 passed, 0 failed.
 - **Renders** (scratch of the worktree, offline rasteriser, left / right / 3-quarter, the shotgun on top):
   `w3_np_before_after.png` (shotgun, ssg, pistol before/after, preview before/after), `w3_fg_before_after.png`,
   `w3_gg_before_after.png`.
