@@ -23,7 +23,8 @@ pool() { grep -a "^flathud: pools" "$S/$1.log" | sed -n "$2p" | sed 's/.*shells 
 
 # 1. counts: the shotgun, the revolver, the grunt's shotgun (clip only), then the nail gun in the left hand with them.
 R="vr_flathud_report; wait2"
-run counts "$P; impulse 154; wait10; $R; +attack; wait30; -attack; wait10; $R; vr_test_give_wid 31; impulse 149; wait10; +attack; wait30; -attack; wait10; $R; impulse 165; wait10; +attack; wait30; -attack; wait10; $R; give n 50; impulse 176; wait10; $R" "^flathud:"
+# (vr_flat_reload 0: the counters with no clips, every shot off the reserve; the clips' own numbers: flatreload_test.sh.)
+run counts "$P; vr_flat_reload 0; impulse 154; wait10; $R; +attack; wait30; -attack; wait10; $R; vr_test_give_wid 31; impulse 149; wait10; +attack; wait30; -attack; wait10; $R; impulse 165; wait10; +attack; wait30; -attack; wait10; $R; give n 50; impulse 176; wait10; $R" "^flathud:"
 s1=$(hand counts right 1); s2=$(hand counts right 2); p1=$(pool counts 1); p2=$(pool counts 2)
 check $([ "${s1%% *}" = 4 ] && [ "$(echo $s1 | cut -d' ' -f3)" = "$(echo $p1 | cut -d' ' -f1)" ] && [ "$(echo $s2 | cut -d' ' -f3)" = "$(echo $p2 | cut -d' ' -f1)" ] \
         && [ "$(echo $s2 | cut -d' ' -f3)" -lt "$(echo $s1 | cut -d' ' -f3)" ] && echo 1 || echo 0) \

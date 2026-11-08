@@ -53,6 +53,7 @@
 // None of it runs outside flatscreen play: every entry point says so, and a headset run is untouched.
 
 #include "vr_flatsight.hpp"
+#include "vr_flatreload.hpp"
 
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
@@ -605,7 +606,9 @@ bool adsApplies()
     // on once the tilt is down. Sighted the tilt is vr_flat_wall_tilt_sighted's share: none by default, so a sight taken
     // before the wall is kept.)
     const bool tilted = vr_flat_wall_block_ads.value != 0.f && st.holding >= 0 && st.upAngle[st.holding] > tiltBlocksFire;
-    return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding) && !tilted;
+    // (Nor while the gun goes to the hip to reload, vr_flatreload.cpp: the key's ask is kept, and the sight comes back after.)
+    return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding) && !tilted &&
+           !flatreload::busy(st.holding);
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the
@@ -1419,8 +1422,9 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     }
     // A gun held with the other hand free and a hotspot for it: a long gun's stance, or a pistol's (both hands in front of him). Not
     // dual wielding (the other hand holds), not a melee weapon (no sight line: aimsAtPoint), not a gun with no hotspot: one hand.
+    // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
     const bool twoHandGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                            st.spot[st.holding] >= 0;
+                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding);
     const bool pistol = twoHandGun && glm::length(st.muzzleLocal[st.holding]) < longGunMuzzle;
     const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
     st.armHip = st.armSight = 0.f;
@@ -1703,7 +1707,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
                              st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
-    st.gripWanted = carryToGrip && !flatplay::punching(st.helping);
+    // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
+    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding);
     pinToGrip(s, reach, carryToGrip);
     centreOnSight(s, aim);
     pushBack(s, aim);

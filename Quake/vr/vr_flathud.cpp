@@ -75,8 +75,10 @@ void report_f()
     {
         const bool main = hand == HAND_MAIN;
         const Counter c = counter(hand);
-        Con_Printf("flathud: %s hand: weapon %d shown %d count %d pic %d (raw: ammo type %d counter %d clip %d/%d)\n",
-            main ? "right" : "left", c.wid, c.shown ? 1 : 0, c.count, c.pic,
+        int clip = 0, size = 0;
+        const int clipShown = VR_FlatHudClip(main ? 0 : 1, &clip, &size);
+        Con_Printf("flathud: %s hand: weapon %d shown %d count %d pic %d big %d small %d (raw: ammo type %d counter %d clip %d/%d)\n",
+            main ? "right" : "left", c.wid, c.shown ? 1 : 0, c.count, c.pic, clipShown ? clip : c.count, clipShown ? c.count : -1,
             cl.stats[main ? STAT_QVR_AMMOTYPE : STAT_QVR_AMMO2], cl.stats[main ? STAT_QVR_AMMOCOUNTER : STAT_QVR_AMMOCOUNTER2],
             cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2],
             cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2]);
@@ -117,6 +119,25 @@ extern "C" int VR_FlatHudHand(int left, int* count, int* ammoPic)
     *count = c.count;
     *ammoPic = c.pic;
     return c.shown ? 1 : 0;
+}
+
+// A flat-screen player's gun with a clip (the server reloads for him: STAT_QVR_RELOADMODE, vr_flat_reload; not a gun whose
+// clip is its only ammo, whose counter is its clip already): its rounds and size. The status bars draw the clip in the big
+// numbers and the reserve (the hand's counter) in small type beside it (his words 2026-11-08: "the current ammunition in
+// the clip in big font, and the total ammunition in storage in small font"). Every hudstyle; flat-screen play only.
+extern "C" int VR_FlatHudClip(int left, int* clip, int* clipSize)
+{
+    using namespace protocol;
+    const bool main = left == 0;
+    const int wid = static_cast<int>(cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2]);
+    const int size = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
+    if(!flatplay::active() || cl.stats[STAT_QVR_RELOADMODE] == 0 || wid == WID_FIST || size <= 0 || flathud::clipOnly(wid))
+    {
+        return 0;
+    }
+    *clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
+    *clipSize = size;
+    return 1;
 }
 
 extern "C" int VR_FlatHudTime(float* level, int* state)

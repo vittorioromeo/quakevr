@@ -191,6 +191,10 @@ enum Stat : int
     // The hands whose gun's magazine is sliding out (QC .vr_mag_out, vr_reload.qc VR_Reload_MagOutStart; vr_view.cpp
     // magSlideStep): bit 0 the off hand, 1 the main. Cleared in the update that has the magazine loose.
     STAT_QVR_MAGOUT,
+    // Flat-screen play's reload (QC vr_flatreload.qc .vr_flatrl; vr_flatreload.cpp): the hands whose gun is on its trip to the
+    // hip holster and back, bit 0 the off hand, 1 the main. Set for the whole trip; cleared at its end or when it is
+    // cancelled (the weapon changed).
+    STAT_QVR_FLATRELOAD,
     STAT_QVR_END
 
 };
