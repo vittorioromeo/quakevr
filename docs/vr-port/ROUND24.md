@@ -3514,6 +3514,48 @@ rear's ears as the shotgun has.)
   at once, 46/0 later; the sights stay yellow); the blood check keeps the side camera.
 - **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.
 
+## Flat-screen: the lean at a wall, the prone lean, the prone gun (branch `agent/loadjobs`, worktree phases, 2026-11-08)
+
+His report: leaning against a wall only rolled the view; lean while lying down (smaller, the body rolling in place);
+tunables for the prone gun pose; the crouch pressed lying down changed the gun pose; looking down lying down the gun
+went into the floor.
+
+- **The lean at a wall: the cause.** `leanRoom` (vr_flatmove.cpp) traces three lines sideways: from the eye, 8 under it
+  and from the weapon's place 20 units ahead of the eye. Facing a wall he stands against (his box's front 16 off his
+  middle, the wall 17), that third line started inside the wall, `startsolid` gave it room 0, and the lean's eye move
+  was cut to nothing: the view rolled, the eye stayed. Leaning away from a side wall was fine. **Fix:** the weapon's
+  line starts only as far ahead as is open (a line forward first, stopped 2 short of what it meets); a line from under
+  the eye or from ahead that starts in something (a ledge, a step) is skipped, not taken as a wall at the side (the eye's
+  own still counts). Only the way the lean goes is ever traced, so away from and along a wall it goes all the way.
+- **Lean lying down.** Allowed now; its full eye move and roll blend to `vr_flat_lean_prone_dist` (3) and
+  `vr_flat_lean_prone_angle` (8) by `flatplay::proneRatio`. The lying trunk rolls in place by the same:
+  `flatmove::proneLeanRoll()` (the roll times the prone share), applied by `detail::bodyLeanRollTurn` (vr_avatar_pitch.cpp,
+  about `b.fwd`) composed onto `bodyPitchTurn` at one place only, the trunk's turn in vr_avatar.cpp (`bodyLeanRollTurn(b)
+  * bodyPitchTurn(b)`); the legs and the lying pose itself are untouched (worker A's). `leanShare` now divides by the
+  current full move (the walk's lean slowdown reads it).
+- **Prone gun pose tunables** (Debug > Tunables > Flatscreen > Held Weapon): `vr_flat_gun_ahead_prone` / `_down_prone` /
+  `_out_prone` at a level look, and `..._prone_down` / `..._prone_up` looking straight down / up, along Gun Out's smooth
+  curve (`proneAt`, vr_flatplay.cpp), taking over from the standing/crouched ones by the prone share. Defaults are the
+  standing values (16.5, 2, 1; out -4 at either end), so nothing moves until he tunes them.
+- **Crouch from prone.** A crouch press (Left Ctrl or `+flatcrouch`) while lying down clears the prone ask: the prone
+  share eases out while the crouch's eases in (the eye takes the deeper of the two), the gun from the prone pose to the
+  crouch one. Before, he stayed lying down and the crouch's gun pose came on top.
+- **The gun flush on the floor** (`vr_flat_prone_floor` 1, `vr_flat_prone_floor_margin` 1; Debug > Tunables > Flatscreen
+  > Wall). `handpose::gunDepth` skips floors on purpose (standing, the gun's end in the floor is hidden); lying down
+  (prone share over 0.5) `gunDepthFloor` adds `handpose::gunFloorDepth` (the weapon's points against floors only, the
+  margin under each) to the wall tilt's and the room's measures. When the floor is what the gun is in, the tilt is
+  all of it (sighted too, up to 85 whatever `vr_flat_wall_tilt` says), so the existing wall-tilt blocks hold: no shot
+  (`vr_flat_wall_block_fire`), the ironsight waits (`vr_flat_wall_block_ads`). The status's `flatwallturn:` line ends
+  with `floor 0/1`. e1m1, shotgun, prone, looking down: before tilt 0, wall state on with the gun's end in the floor;
+  after tilt 44.7 deg, block 1, 0.23 left (under the 0.25 the tilt counts as clear).
+- **Tests.** `vr_flatlean_test` gains: leant away from the side wall (16.0 of 16), facing the wall leant right and left
+  (16.0 of 16 each): 7/0. New `vr_flatprone_test` (Debug > Tests: Flat Prone Test): lying down leant right (eye 3.0,
+  roll 8.0, body roll 8.0); crouch pressed lying down: up into the crouch in 0.61 s, the gun's largest frame step 0.64
+  units; looking down (80) with the ironsight asked: flush (47.8 deg, 0.20 left), no shot, ironsight 0.00; looking level:
+  off the floor, shots, ironsight 1.00: 4/0. `flatslide_test.sh` runs both: 11/0.
+- **Not done / not checked:** VR is untouched (the lean and the flush are flat-screen only). The prone lean's eye move
+  is not clamped by the floor (3 units sideways). The body roll is a few degrees and was only glanced at from the fly
+  camera.
 ## Irons level: the shotguns' and the lightning gun's sights (branch `agent/selfshot`, 2026-11-08)
 
 His note, with flat ADS screenshots (`scratch/shotsight_mockup/ads_shot_misaligned.webp`, `ads_ssg_misaligned.webp` in the

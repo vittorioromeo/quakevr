@@ -6,7 +6,12 @@
 #          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air.
 #   lean   vr_flatlean_test in vrtesthall: a full lean right moves the eye vr_flat_lean_dist and rolls the view; a shot
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
-#          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it.
+#          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
+#          away from it, and facing a wall he stands against (either way), the eye goes all of vr_flat_lean_dist out.
+#   prone  vr_flatprone_test in vrtesthall, the shotgun: lying down a full lean moves the eye vr_flat_lean_prone_dist
+#          and rolls the view and the body vr_flat_lean_prone_angle; the crouch pressed lying down gets up into the
+#          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
+#          ironsight waits), looking level the ironsight comes.
 #   sights e1m1, the shotgun on the ironsight: the sights on the drawn ray upright, leant right, leant right crouched
 #          and leant left (vr_flat_sight_check), and the shot along the view (flataim).
 #   keys   E and Q lean (vr_mock_key), 3 swaps the hands, R force-grabs; an old config's binds on E and 3 do not run
@@ -27,7 +32,12 @@ expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatlean.*FAIL"
-expect_verdict "$out" "flatlean" "lean: the eye and the roll, the hit box, the slower walk, the wall's clamp"
+expect_verdict "$out" "flatlean" "lean: the eye and the roll, the hit box, the slower walk, the wall's clamp, away from and facing a wall"
+
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Timeout 120 -Filter "^flatprone" \
+    -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatprone.*FAIL"
+expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor"
 
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \

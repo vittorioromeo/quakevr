@@ -179,6 +179,7 @@ struct Sight
     float tiltAngle[2]{0.f, 0.f}; // the whole drawn turn (degrees: wallTilt, wallBlocksFire)
     float tiltDepth[2]{0.f, 0.f}; // how deep in the walls it stood before the tilt, and after it (units; the status prints them)
     float tiltLeft[2]{0.f, 0.f};
+    bool floorMet[2]{false, false}; // lying down, the gun in the floor this frame: its tilt is the floor's (vr_flat_prone_floor)
     glm::vec3 tiltPivot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // what it turns round, off the hand in the view's frame
     // Along a wall (vr_flat_wall_slide): met at a slant the weapon lies flat along it, turned level out of it, and goes out
     // along the wall's normal; met head-on it goes back and tilts up as above. One share between the two (slideFor).
@@ -288,10 +289,33 @@ constexpr float slideOutMost = 10.f; // along a wall, the push out of it goes th
 constexpr float slideEaseTimes = 3.f; // its ease's rate: this many over vr_flat_wall_slide_time (1/s: 95% there in that time)
 constexpr float sightTiltDownFrom = 0.5f; // sighted, the tilt fades out looking down from 30 degrees (the pitch's sine)...
 constexpr float sightTiltDownTo = 0.766f; // ... to none by 50
+constexpr float floorProneFrom = 0.5f;   // lying down past this share, the floor counts for the gun (vr_flat_prone_floor)
+constexpr float floorMarginMax = 6.f;    // vr_flat_prone_floor_margin's range (units)
 
 [[nodiscard]] float ease(float k, float dt)
 {
     return dt > 0.f ? 1.f - za::exp(-k * dt) : 1.f;
+}
+
+// Lying down (vr_flat_prone_floor), the floor is a wall to the gun: looking down, the gun's end in it showed (standing,
+// it is hidden there; lying down the eye is a hand's width over it). The tilt lays the gun flush on it, the room takes it
+// back out of it, and the tilt's blocks hold (his ask, 2026-11-08).
+[[nodiscard]] bool floorCounts()
+{
+    return vr_flat_prone_floor.value != 0.f && flatplay::proneRatio() > floorProneFrom;
+}
+
+[[nodiscard]] float floorMargin()
+{
+    return za::clamp(vr_flat_prone_floor_margin.value, 0.f, floorMarginMax);
+}
+
+// handpose::gunDepth, and lying down the floor's depth too (floorCounts).
+[[nodiscard]] float gunDepthFloor(int h, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
+    float margin, float handMargin)
+{
+    const float wall = handpose::gunDepth(h, from, pos, rot, muzzle, margin, handMargin);
+    return floorCounts() ? za::max(wall, handpose::gunFloorDepth(h, from, pos, rot, muzzle, floorMargin())) : wall;
 }
 
 // The view's frame as a matrix: forward, right, up (a point in that frame times this is that point in the world).
@@ -720,6 +744,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
 {
     st.tiltNeed[h] = st.tiltDepth[h] = st.tiltLeft[h] = 0.f;
     st.tiltWanted[h] = false;
+    st.floorMet[h] = false;
     if(flatplay::meleeIn(h))
     {
         return;
@@ -734,18 +759,27 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     // (And sighted, vr_flat_wall_tilt_sighted of it at most: tilted, the sights leave the ray.)
     const float downFade =
         1.f - geom::smooth01(za::clamp((down - sightTiltDownFrom) / (sightTiltDownTo - sightTiltDownFrom), 0.f, 1.f));
-    const float sightFade = 1.f - sight * (1.f - za::clamp(vr_flat_wall_tilt_sighted.value, 0.f, 1.f) * downFade);
-    const float most = za::min(za::clamp(vr_flat_wall_tilt.value, 0.f, wallTiltMax) * sightFade, offUp - tiltShortOfUp);
-    if(most <= 0.f)
-    {
-        return;
-    }
+    float sightFade = 1.f - sight * (1.f - za::clamp(vr_flat_wall_tilt_sighted.value, 0.f, 1.f) * downFade);
     const glm::vec3 muzzle = muzzleNow(s, h) - s.pos[h];
     // (As drawn so far along a wall: its level turn first, vr_flat_wall_slide.)
     const glm::mat3 flat = flatTurn(st.flatYaw[h]);
     const Turned level = turnedAt(s, h, at, flat);
+    // Lying down with the gun in the floor (vr_flat_prone_floor): all of the turn, sighted too, and at most all of
+    // wallTiltMax whatever vr_flat_wall_tilt says -- the gun lies flush on the floor, and the tilt's blocks (no shot, the
+    // ironsight waiting) hold while it does.
+    st.floorMet[h] = floorCounts() && handpose::gunFloorDepth(h, s.head, level.pos, level.rot, level.muzzle, floorMargin()) > tiltFrom;
+    if(st.floorMet[h])
+    {
+        sightFade = 1.f;
+    }
+    const float tiltMost = st.floorMet[h] ? wallTiltMax : za::clamp(vr_flat_wall_tilt.value, 0.f, wallTiltMax);
+    const float most = za::min(tiltMost * sightFade, offUp - tiltShortOfUp);
+    if(most <= 0.f)
+    {
+        return;
+    }
     st.probes++;
-    const float before = handpose::gunDepth(h, s.head, level.pos, level.rot, level.muzzle, margin, 0.f);
+    const float before = gunDepthFloor(h, s.head, level.pos, level.rot, level.muzzle, margin, 0.f);
     st.tiltDepth[h] = st.tiltLeft[h] = before;
     // It turns round a point between the hand and its shoulder (vr_flat_wall_tilt_pivot): at the shoulder the whole arm
     // swings the gun up and back, and the hand keeps its reach.
@@ -761,7 +795,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
         const glm::mat3 r = flat * tiltTurn(h, view, deg, sightFade);
         const glm::mat3 turned = r * hand;
         st.probes++;
-        return handpose::gunDepth(
+        return gunDepthFloor(
             h, s.head, at + pivot - r * pivot, hands::anglesFromVectors(turned[0], turned[2]), r * muzzle, margin, 0.f);
     };
     // Fixed (vr_flat_wall_tilt_fixed): all of it, however little would clear.
@@ -832,7 +866,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     // fist round it), less than tiltFrom deep. gunBack's whole margin round the hand took the rifle under the view.)
     const auto depthAt = [&](float d) {
         st.probes++;
-        return handpose::gunDepth(h, s.head, pos + way * d, rot, muzzle, margin, za::min(margin, wallHandRoom));
+        return gunDepthFloor(h, s.head, pos + way * d, rot, muzzle, margin, za::min(margin, wallHandRoom));
     };
     float need = 0.f;
     if(depthAt(0.f) > tiltFrom)
@@ -1860,6 +1894,19 @@ bool wallBlocksFire(int h)
     return vr_flat_wall_block_fire.value != 0.f && flatplay::active() && h >= 0 && h < HAND_COUNT && st.upAngle[h] > tiltBlocksFire;
 }
 
+bool floorFlush(int h, float* left)
+{
+    if(h < 0 || h >= HAND_COUNT || !flatplay::active())
+    {
+        return false;
+    }
+    if(left)
+    {
+        *left = st.tiltLeft[h];
+    }
+    return st.floorMet[h];
+}
+
 float drawnShare(int h)
 {
     return flatplay::active() && h == st.holding && sightKnown(h) ? za::clamp(st.adsT, 0.f, 1.f) : 0.f;
@@ -2101,7 +2148,7 @@ void print(const hands::State& s)
     Con_Printf("flatsight: t %.4f ads %s t %.2f fov %.2f x %.2f hand %s grip %s held %d helpKind %d transition %.2f "
                "muzzle off the crosshair %.2f -> %.2f units (%.2f deg) hand moved %.2f fov take %g relief %.2f back %.2f asked %.2f "
                "tilt %.1f need %.1f depth %.2f left %.2f\nflatwallturn: t %.4f on %.3f angle %.1f up %.3f side %.3f cant %.3f block %d "
-               "room %.2f raise %.2f eyecap %d wall %.3f probes %d\n",
+               "room %.2f raise %.2f eyecap %d wall %.3f probes %d floor %d\n",
         vr_gametime,
         adsApplies()                                                ? "on"
         : !st.ads                                                   ? "off"
@@ -2114,7 +2161,7 @@ void print(const hands::State& s)
         st.tiltNeed[st.holding], st.tiltDepth[st.holding], st.tiltLeft[st.holding], vr_gametime, geom::smooth01(st.tiltOn[st.holding]),
         st.tiltAngle[st.holding], turnUp, turnSide, turnCant, wallBlocksFire(st.holding) ? 1 : 0,
         st.roomNeed[st.holding], st.raise[st.holding], st.eyeCapped[st.holding] ? 1 : 0,
-        geom::smooth01(st.wallOn[st.holding]), st.probesLast);
+        geom::smooth01(st.wallOn[st.holding]), st.probesLast, st.floorMet[st.holding] ? 1 : 0);
     // The weapon as drawn last frame, in the view's frame: its model's origin (forward, right, up) and its forward's way
     // off the view's (yaw right and pitch up, degrees). What the pose's continuity at a wall is read from (flatwall e).
     view::WeaponFrame wf;
