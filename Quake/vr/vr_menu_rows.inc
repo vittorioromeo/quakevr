@@ -5469,6 +5469,14 @@ QVR_CYCLE(vr_agarmor_bridge, "Elbow and Knee Leather",
     "on the inside of the bend and stretched flat on the outside. Old Sleeves: the two rigid halves made once at "
     "load (for comparison). The shells are made again when it changes.",
     {1.f, "Bending"}, {0.f, "Old Sleeves"})
+QVR_TOGGLE(vr_agarmor_details, "Armour Plate Details",
+    "vr_agarmor_details: the plates' painted details by place: the chest's recessed panel, ribs down the belly, "
+    "vents on the forearms' cuffs and the shins, raised cops on the elbows and knees, the emblem on an upper arm. "
+    "Off: every plate a plain one by chance. The shells are made again when it changes.")
+QVR_CYCLE(vr_agarmor_emblem, "Armour Emblem",
+    "vr_agarmor_emblem: the rune emblem on an upper arm's outer top plate (with Armour Plate Details). The shells "
+    "are made again when it changes.",
+    {1.f, "Right Arm"}, {2.f, "Left Arm"}, {3.f, "Both Arms"}, {0.f, "None"})
 QVR_SLIDER(vr_agarmor_folds, "Leather Folds", 0.f, 4.f, 1.f, "%.0f", noExt,
     "vr_agarmor_folds: the bellows folds in the elbow and knee leather (armour.txt's `folds` on a sleeve part, or "
     "the Armour Studio's Leather Folds, over it for one kind).")
