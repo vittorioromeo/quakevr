@@ -111,6 +111,12 @@ Flat-screen: lying down (X), Q / E lean a little (8 degrees, 3 units) and your l
 Flat-screen: lying down, press Left Ctrl: you get up into a crouch smoothly, the gun going to the crouch pose without a jump. {test:flatprone}
 Flat-screen: lying down, look straight down: the gun lies flush on the floor, does not fire and the ironsight waits until you look up again (Debug > Tunables > Flatscreen > Wall > Prone: Gun Flush On Floor). {test:flatprone}
 Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / Out Prone (and Looking Down / Up) move the gun while lying down; they start at the standing values.
+- [ ] Flat force grab on mouse 4 (R still works): with both hands empty the right hand grabs; the headset's glow, tendril, trail, sparks and sound play
+- [ ] Flat force grab with the right hand holding a gun: the left hand grabs
+- [ ] Flat F7: the toolgun in the right hand; left click uses the tool; F7 again gives back what the hand held (magazine as it was)
+- [ ] Debug > Cheats > Spawn Pickup Weapons: Axe, Knight's Sword, Death Knight's Sword, Ogre's Chainsaw, Grunt Burst Rifle, Enforcer's Rifle, Super Axe each spawn, pick up and work {test:vr_pickup_test 9}
+- [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
+- [ ] An AD map with a weapon_axe still has AD's axe pickup
 [ ] Black slivers gone: look closely along the shotgun's receiver top behind the rear sight (and the other guns' tops) with your nearest texture mode: no thin black triangles at triangle edges, the painted parts unchanged (Debug > Fill Skin Edges off brings the slivers back, to compare)
 [ ] Shotgun: look at the sights in your hand: a raised metal housing with a U notch on the receiver and a ramp post on the muzzle, each with a glowing insert on its back (no more floating glowing blocks).
 [ ] Shotgun: aim down the sights (VR and flat): the front insert sits in the notch, its top level with the two rear inserts' tops; shots land on it.
