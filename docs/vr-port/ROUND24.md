@@ -3689,7 +3689,7 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - Tests: `Misc/quakevr/flattoolgun_test.sh` 11/0 (F7, mouse 3, Monsters > page 2 > Armed Humanoid > Choose with the
   cursor, Esc (no menu), LMB spawned `monster_vr_grunt`; Weapons > Grunt Burst Rifle, LMB spawned `weapon_gruntgun`; the
   physgun's grunt pushed 16 -> 36 and turned -20 with B and the mouse). flatwall 18/0, flatsight 12/0,
-  `vr_flatitems_test 1` 9/0, `vr_pickup_test 9` 15/0. flatinput 13/1: the second shove now hits 2 (the first grunt, thrown
-  back, still in reach) instead of 1; with `vr_flat_empty_hand_pose -1` it is 1 again. The shove's hit test is head-based
-  (QC `VR_FlatShove`), so the rest pose changes where the first grunt ends up (likely the off hand's body contact); not
-  chased.
+  `vr_flatitems_test 1` 9/0, `vr_pickup_test 9` 15/0, flatinput 14/0. Its shove case first gave 13/1 (the third shove hit
+  2): `edicts` showed the guard hands never moved the first grunt (at 316 before the shove in both poses); the shove
+  throws it to y 335-337 with either pose, at the edge of the head-based reach (QC `VR_FlatShove`), so counting it was a
+  legit borderline hit. The case now steps 96 units left before the second grunt: the third shove's one hit is its target.
