@@ -2179,6 +2179,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
+    Cmd_AddCommand("vr_menu_zoom", menuui::zoom_f);
     Cmd_AddCommand("vr_menu_panels", menu::panels_f);
     Cmd_AddCommand("vr_mock_mouse", menuui::mockMouse_f);
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);

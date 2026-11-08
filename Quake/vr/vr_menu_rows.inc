@@ -2182,6 +2182,10 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
+QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
+    "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
+QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
+    "With the VR Menu Layout on a Flat Screen: the panel's size, a share of the window's (1 fills it). The - and + buttons under the corner's buttons step it, as the wheel does while a corner is dragged.")
 QVR_TOGGLE_BYNAME(vr_menu_main_mods, "Mods on the Main Menu",
     "The main menu's Mods row (Ironwail's mods list). Off: only in Options > Mods.")
 QVR_SLIDER_BYNAME(vr_menu_fine_step, "Fine Step", 0.01f, 0.5f, 0.01f, "%.2fx", noExt,
@@ -2358,7 +2362,12 @@ QVR_CYCLE(vr_snap_turn, "Turning",
 QVR_SLIDER(vr_turn_speed, "Turn Speed", 1.f, 8.f, 0.25f, "%.2f", ext(), "Smooth turning's speed.")
 QVR_TOGGLE_BYNAME(vr_enable_joystick_turn, "Enable Joystick Turn",
     "Allows turning using the thumbstick. Off: the stick never turns you, in any state (menus, climbing, swimming), so you turn in real life; the stick's other uses stay. The same as VR Settings' Turning Mode: Off.")
-QVR_TOGGLE(vr_teleport_enabled, "Teleport", "Jump to the spot you point at instead of walking there.")
+QVR_CYCLE(vr_teleport_enabled, "Teleport",
+    "Jump to the spot you point at. Bound Button: while a button you bind to +teleport is held, the off hand aims. "
+    "Smooth + Teleport: the moving stick walks; push the turning stick forward to aim with that hand, let it go back to "
+    "the middle to land there, pull it back to cancel (its left and right still turn). Only from the ground, and you "
+    "arrive standing still.",
+    {0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"})
 QVR_SLIDER(vr_teleport_range, "Teleport Range", 100.f, 800.f, 50.f, "%.0f", ext(100.f, 3000.f),
     "How far a teleport reaches, in Quake's units (one is about 3 cm).")
 QVR_SLIDER_BYNAME(vr_lean_radius, "Lean", 0.f, 14.f, 1.f, "%.0f units", ext(),
@@ -3783,6 +3792,10 @@ QVR_TOGGLE(vr_embed, "Embedded Blades",
     "Swords thrown point first stick in walls and bodies, Super Axes stick as axes do, a stuck blade stays in a dead "
     "body until you tug it out. Off: only thrown axes stick, and they fall out when the body dies. Its numbers: "
     "Debug > Tunables > Combat > Embedded Blades.")
+QVR_SLIDER(vr_embed_hold_strength, "Blade Hold Strength", 0.25f, 4.f, 0.05f, "x%.2f", ext(0.f, 10.f),
+    "How hard your hand on a blade stuck in a body moves it: drag, swing or lift a staggering or dead body on "
+    "your sword or axe. More: it follows your hand more closely and you can hold heavier bodies up; less: "
+    "it lags and weighs more. Heavier monsters stay harder either way.")
 QVR_TOGGLE(vr_prop_impact_damage, "Flung Props Hurt",
     "A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
     "into fast enough. Off: only what you throw by hand.")
@@ -5253,9 +5266,10 @@ QVR_TOGGLE(vr_prone, "Lie Down and Crawl",
     "prone key (X) lies down and gets up. Needs the Crouched Hitbox. Off: never lying down (vr_prone).")
 QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 22.f, 1.f, "%.0f units", noExt,
     "Your eyes' height over your feet under which you lie down (18 is about half a metre: propped on your elbows, "
-    "not on all fours). Up again with them 2 units over your lying box (vr_prone_eye).")
-QVR_SLIDER(vr_prone_height, "Lying Down Height", 24.f, 32.f, 1.f, "%.0f units", noExt,
-    "Your box's height lying down, at most the lowest crouched height less 4 (vr_prone_height).")
+    "not on all fours). Up again with them 2 units over this or your lying box's top, the higher (vr_prone_eye).")
+QVR_SLIDER(vr_prone_height, "Lying Down Height", 12.f, 32.f, 1.f, "%.0f units", noExt,
+    "Your box's height lying down: 16 (about half a metre) passes under gaps a crouch can't; at most the lowest "
+    "crouched height less 4 (vr_prone_height).")
 QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
     "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
 QVR_TOGGLE(vr_prone_crawl, "Crawl With Your Arms",

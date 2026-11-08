@@ -2101,6 +2101,7 @@ vr_crosshairy|1|Crosshair|Crosshair Z Offset|Advanced VR Options > HUD and Menus
 |1|Crosshair|Reset This Page|Advanced VR Options > HUD and Menus > Crosshair > Reset This Page
 @page|1|Menu||Advanced VR Options > HUD and Menus > Menu
 vr_menu_scale|1|Menu|Menu Scale|Advanced VR Options > HUD and Menus > Menu > Menu Scale
+|1|Menu|Reset Menu Zoom|Advanced VR Options > HUD and Menus > Menu > Reset Menu Zoom
 vr_menu_distance|1|Menu|Menu Distance|Advanced VR Options > HUD and Menus > Menu > Menu Distance
 vr_menu_grab|1|Menu|Move the Panel|Advanced VR Options > HUD and Menus > Menu > Move the Panel
 vr_menu_resolution|1|Menu|Menu Resolution|Advanced VR Options > HUD and Menus > Menu > Menu Resolution
@@ -2109,6 +2110,9 @@ vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > St
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
+vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
+vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
+|1|Menu|Reset Flat Menu Panel|Advanced VR Options > HUD and Menus > Menu > Reset Flat Menu Panel
 vr_menu_main_mods|1|Menu|Mods on the Main Menu|Advanced VR Options > HUD and Menus > Menu > Mods on the Main Menu
 vr_menu_fine_step|1|Menu|Fine Step|Advanced VR Options > HUD and Menus > Menu > Fine Step
 vr_menu_section_gap|1|Menu|Section Gap|Advanced VR Options > HUD and Menus > Menu > Section Gap
@@ -4722,6 +4726,7 @@ vr_test_mic_level|2|Debug - Reports|Fake Microphone Level|Advanced VR Options > 
 |2|Debug - Reports|Relighting: Tool Lookup|Advanced VR Options > Debug > Reports > Relighting: Tool Lookup
 |2|Debug - Reports|Relighting: Batch's Maps|Advanced VR Options > Debug > Reports > Relighting: Batch's Maps
 |2|Debug - Reports|Menu Panel Place|Advanced VR Options > Debug > Reports > Menu Panel Place
+|2|Debug - Reports|Menu Zoom: Where|Advanced VR Options > Debug > Reports > Menu Zoom: Where
 |2|Debug - Reports|Menu Panel Back in Front|Advanced VR Options > Debug > Reports > Menu Panel Back in Front
 |2|Debug - Reports|Menu Panels|Advanced VR Options > Debug > Reports > Menu Panels
 |2|Debug - Reports|Open Another Menu Panel|Advanced VR Options > Debug > Reports > Open Another Menu Panel
@@ -9175,4 +9180,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing

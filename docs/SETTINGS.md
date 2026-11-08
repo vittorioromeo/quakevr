@@ -392,7 +392,7 @@ built-in ones.
 | `vr_movement_mode` | 1 | move towards: 1 the head, 0 the moving stick's hand, 2 the left hand, 3 the right hand, 4 the torso |
 | `vr_deadzone` | 10 | stick deadzone, percent |
 | `cl_alwaysrun`, `cl_forwardspeed`, `cl_movespeedkey` | | run by default, walk speed, run multiplier |
-| `vr_teleport_enabled`, `vr_teleport_range` | 0, 400 | teleport (bind `+teleport`) |
+| `vr_teleport_enabled`, `vr_teleport_range` | 0, 400 | teleport: 1 bind `+teleport`; 2 Smooth + Teleport (the turning stick's forward aims) |
 | `vr_roomscale_move_mult` | 1 | room-scale movement ratio |
 | `vr_roomscale_jump` | 1 | jump for real |
 | `vr_lean_radius` | 12 | how far (units) your head can lean before the body follows |

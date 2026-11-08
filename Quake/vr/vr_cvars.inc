@@ -36,8 +36,8 @@ QVR_CVAR(vr_crouch_step, "8", CVAR_ARCHIVE)            // ... then a box every t
 QVR_CVAR(vr_crouch_speed, "1", CVAR_ARCHIVE)           // crouched (your eyes under the tallest crouched box, vr_crouch_height/_step: 52; fully 8 units lower), the stick's most speed is vr_crouch_speed_scale of it, and always under the stealth AI's footsteps (vr_stealth_run_speed, 90% of it); eased in and out (vr_hull.cpp VR_CrouchSpeedMax); jumps, falls, knockback, movers untouched
 QVR_CVAR(vr_crouch_speed_scale, "0.75", CVAR_ARCHIVE)  // ... times the most speed (sv_maxspeed after stamina and carrying) crouched (0.2-1)
 QVR_CVAR(vr_prone, "1", CVAR_ARCHIVE)                  // lying down (needs vr_crouch_hull): your eyes under vr_prone_eye over your feet (a headset: lie down for real; flat-screen: vr_flat_key_prone / vr_prone_toggle), your box is vr_prone_height, you crawl at vr_prone_speed_scale, no jumping, the body lies flat behind your head (vr_hull.cpp, vr_avatar_pitch.cpp; ROUND24 "Lying down and crawling"); 0: never
-QVR_CVAR(vr_prone_eye, "18", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to vr_prone_height less 2; 18 is about 0.5 m); up again once they are 2 over the box's top and the lowest crouched box fits
-QVR_CVAR(vr_prone_height, "24", CVAR_ARCHIVE)          // ... your box's height lying down, in units (24 to the lowest crouched height less 4)
+QVR_CVAR(vr_prone_eye, "18", CVAR_ARCHIVE)             // ... lying down when your eyes are under this many units over your feet (8 to the lowest crouched height less 2; 18 is about 0.5 m); up again once they are 2 over this or the box's top (the higher) and the lowest crouched box fits
+QVR_CVAR(vr_prone_height, "16", CVAR_ARCHIVE)          // ... your box's height lying down, in units: its own box (12 to the lowest crouched height less 4; until 2026-11-08 24, the crouch's lowest)
 QVR_CVAR(vr_prone_speed_scale, "0.3", CVAR_ARCHIVE)    // ... the stick's most speed lying down, times your top speed (0.1-1), eased in and out like the crouch's
 QVR_CVAR(vr_prone_crawl, "1", CVAR_ARCHIVE)            // ... VR: crawl with the arms: a hand planted on the floor (or coming down to it) and pulled back towards you drags you forward along the pull (vr_physics_water.cpp VR_AfterCrawlMove; ROUND24 "Crawling with the arms"); tracked hand motion only (vr_handsource_gate), not a hand whose trigger fires; 0: the stick alone
 QVR_CVAR(vr_prone_stick_scale, "0.25", CVAR_ARCHIVE)   // ... VR, lying down with vr_prone_crawl on: the stick's crawl speed times this (on top of vr_prone_speed_scale; 0 none, 1 all; like vr_swim_stick_speed): the arms do most of it
@@ -165,6 +165,10 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "0", CVAR_ARCHIVE)                // off for 1.1 (needs work: BACKLOG); on
+// Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
+// force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
+// m times this).
+QVR_CVAR(vr_embed_hold_strength, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_embed_test, "0", CVAR_NONE)              // 1 the embedded blades' test (QC/vr_embed_test.qc; 2, 3, 4 its scenes)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
@@ -850,6 +854,10 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
+QVR_CVAR(vr_menu_flat_vr_style, "0", CVAR_ARCHIVE)     // with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
+QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
+QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
+QVR_CVAR(vr_menu_flat_y, "0.5", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
 QVR_CVAR(vr_menu_laser_hue, "-1", CVAR_ARCHIVE)        // that laser's colour: hue (degrees; 35 amber; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans and oranges (letters, pictures, sliders, panels) turned blood red by their hue alone, the Quake VR banner left as it is (vr_menubrand.cpp; gl_shaders.h's gui shader)
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
@@ -1075,7 +1083,7 @@ QVR_CVAR(vr_lean_turn, "2", CVAR_ARCHIVE)            // a stick turn while leani
 QVR_CVAR(vr_roomscale_jump, "1", CVAR_ARCHIVE)          // jumping in the room jumps in the game: the head rising faster than
 QVR_CVAR(vr_roomscale_jump_threshold, "0.8", CVAR_ARCHIVE) // this (m/s) above the standing height
 QVR_CVAR(vr_roomscale_move_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)     // 0 off; 1 Bound Button (+teleport held: the off hand aims); 2 Smooth + Teleport (vr_teleport.cpp: the moving stick walks, the turning stick's push forward aims with its hand, +teleport too; from the ground only, arriving still)
 QVR_CVAR(vr_teleport_range, "400", CVAR_ARCHIVE)
 QVR_CVAR(vr_teleport_hue, "-1", CVAR_ARCHIVE)         // the aiming arc's colour where it can land: hue (degrees; 220 blue; -1 vr_player_hue; red where it can't)
 QVR_CVAR(vr_2h_mode, "2", CVAR_ARCHIVE)

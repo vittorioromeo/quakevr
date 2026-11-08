@@ -122,6 +122,7 @@ static guivertex_t batchverts[4 * MAX_BATCH_QUADS];
 static GLushort batchindices[6 * MAX_BATCH_QUADS];
 
 glcanvas_t glcanvas;
+static qboolean glcanvas_menupanel; // QVR: the viewport is the flat screen's VR menu panel (VR_MenuFlatViewport)
 
 static float draw_menurecolor[4];			// QVR: the gui shader's MenuRecolor (Draw_SetMenuRecolor): zero while off
 static qboolean draw_menurecolor_on;		// QVR
@@ -1422,8 +1423,16 @@ void Draw_SetClipRect (float x, float y, float width, float height)
 	y2 = CLAMP (0.f, y2 * 0.5f + 0.5f, 1.f);
 	// 0..1 to screen
 	int px = glx, py = gly, pw = glwidth, ph = glheight;
+	int fx, fy, fw, fh;
 	if (VR_CanvasPixels (&pw, &ph)) // QVR: the headset's canvas, its own size (vr_menu_resolution)
 		px = py = 0;
+	else if (glcanvas_menupanel && VR_MenuFlatViewport (&fx, &fy, &fw, &fh)) // QVR: the flat screen's VR menu panel
+	{
+		px = glx + fx;
+		py = gly + glheight - fy - fh;
+		pw = fw;
+		ph = fh;
+	}
 	x  = floor (px + x  * pw + 0.5f);
 	x2 = floor (px + x2 * pw + 0.5f);
 	y  = floor (py + y  * ph + 0.5f);
@@ -1586,8 +1595,24 @@ GL_SetCanvas -- johnfitz -- support various canvas types
 */
 void GL_SetCanvas (canvastype newcanvas)
 {
+	int fx, fy, fw, fh;
+	qboolean panel;
+
 	if (newcanvas == glcanvas.type)
 		return;
+
+	// QVR: the flat screen's VR menu layout draws the menu canvas into its panel's rect of the window (the menu laid out
+	// as on the whole window, VR_MenuFlatViewport): the viewport changed going in and out of it (what is batched first).
+	panel = newcanvas == CANVAS_MENU && !VR_CanvasPixels (&fw, &fh) && VR_MenuFlatViewport (&fx, &fy, &fw, &fh);
+	if (panel || glcanvas_menupanel)
+	{
+		Draw_Flush ();
+		if (panel)
+			glViewport (glx + fx, gly + glheight - fy - fh, fw, fh);
+		else
+			glViewport (glx, gly, glwidth, glheight);
+		glcanvas_menupanel = panel;
+	}
 
 	glcanvas.type = newcanvas;
 	Draw_GetCanvasTransform (glcanvas.type, &glcanvas.transform);
@@ -1607,6 +1632,7 @@ void GL_Set2D (void)
 	glcanvas.colorstacktop = 0;
 	Draw_SetMenuRecolor (false); // QVR
 	glDisable (GL_SCISSOR_TEST); // QVR: each 2D pass starts unclipped (Draw_SetClipRect left on by the one before)
+	glcanvas_menupanel = false; // QVR: (the viewport set just below)
 	int canvasw, canvash;
 	if (VR_CanvasPixels (&canvasw, &canvash)) // QVR: the headset's canvas, its own size (vr_menu_resolution)
 		glViewport (0, 0, canvasw, canvash);

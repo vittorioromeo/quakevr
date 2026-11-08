@@ -9,6 +9,8 @@
 {
     za::Vector<Item> items{
         row(opt::vr_menu_scale),
+        command("Reset Menu Zoom", "vr_menu_zoom reset vr")
+            .help("Menu Scale back to its default (the - and + buttons under the corner's buttons step it in the headset)."),
         row(opt::vr_menu_distance),
         row(opt::vr_menu_grab),
         row(opt::vr_menu_resolution),
@@ -17,6 +19,10 @@
         row(opt::vr_menu_version),
         row(opt::vr_update_check),
         row(opt::vr_menu_flat_shortcuts),
+        row(opt::vr_menu_flat_vr_style),
+        row(opt::vr_menu_flat_scale),
+        command("Reset Flat Menu Panel", "vr_menu_zoom reset flat")
+            .help("The flat screen's VR menu panel back to its shipped size, in the window's middle."),
         row(opt::vr_menu_main_mods),
         row(opt::vr_menu_fine_step),
         row(opt::vr_menu_section_gap),

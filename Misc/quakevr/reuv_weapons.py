@@ -81,7 +81,7 @@ SHARPEN = 2.5          # the old skin's bilinear blend, this many times steeper 
 SPECS = {
     # After refine_light.py (its new sides, from triangle 711 on, are its own; its old ones are collapsed): the rest.
     # The ring of coil turns under the muzzle (its streaks across it are the turns) kept.
-    "v_plasma.mdl": {"faces_before": 711, "keep": [((20.0, -2.5, 6.5), (36.0, 2.5, 11.0))]},
+    "v_light_plasma.mdl": {"faces_before": 711, "keep": [((20.0, -2.5, 6.5), (36.0, 2.5, 11.0))]},
     "v_nail2.mdl": {},
     "v_lava2.mdl": {},   # the super nailgun's mesh, its own skin
     "v_rock2.mdl": {},

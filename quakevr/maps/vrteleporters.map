@@ -515,10 +515,26 @@
 }
 {
 ( 560 -160 0 ) ( 560 -96 0 ) ( 560 -160 64 ) tech06_1 [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( 688 -64 192 ) ( 688 -128 192 ) ( 688 -64 256 ) tech06_1 [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -144 192 ) ( 688 -208 192 ) ( 688 -144 256 ) tech06_1 [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( 560 -160 0 ) ( 496 -160 0 ) ( 560 -160 64 ) tech06_1 [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( 688 -64 192 ) ( 752 -64 192 ) ( 688 -64 256 ) tech06_1 [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -144 192 ) ( 752 -144 192 ) ( 688 -144 256 ) tech06_1 [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( 560 -160 0 ) ( 624 -160 0 ) ( 560 -96 0 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 688 -144 192 ) ( 752 -144 192 ) ( 688 -208 192 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+}
+{
+( 560 -144 20 ) ( 560 -80 20 ) ( 560 -144 84 ) tech06_1 [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -80 192 ) ( 688 -144 192 ) ( 688 -80 256 ) tech06_1 [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 560 -144 20 ) ( 496 -144 20 ) ( 560 -144 84 ) tech06_1 [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -80 192 ) ( 752 -80 192 ) ( 688 -80 256 ) tech06_1 [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 560 -144 20 ) ( 624 -144 20 ) ( 560 -80 20 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 688 -80 192 ) ( 752 -80 192 ) ( 688 -144 192 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+}
+{
+( 560 -80 0 ) ( 560 -16 0 ) ( 560 -80 64 ) tech06_1 [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -64 192 ) ( 688 -128 192 ) ( 688 -64 256 ) tech06_1 [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 560 -80 0 ) ( 496 -80 0 ) ( 560 -80 64 ) tech06_1 [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 688 -64 192 ) ( 752 -64 192 ) ( 688 -64 256 ) tech06_1 [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 560 -80 0 ) ( 624 -80 0 ) ( 560 -16 0 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 ( 688 -64 192 ) ( 752 -64 192 ) ( 688 -128 192 ) tech06_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 {
@@ -5143,13 +5159,47 @@
 // entity 204
 {
 "classname" "func_worldtext_banner"
+"origin" "556 -112 44"
+"angle" "180"
+"worldtext_halign" "1"
+"worldtext_scale" "0.3"
+"worldtext" "VENT 20 high\nlie down and crawl"
+}
+// entity 205
+{
+"classname" "item_shells"
+"origin" "608 -128 0"
+}
+// entity 206
+{
+"classname" "trigger_teleport"
+"target" "to_vent_check"
+{
+( 600 -128 24 ) ( 600 -64 24 ) ( 600 -128 88 ) trigger [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 648 -96 56 ) ( 648 -160 56 ) ( 648 -96 120 ) trigger [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 600 -128 24 ) ( 536 -128 24 ) ( 600 -128 88 ) trigger [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 648 -96 56 ) ( 712 -96 56 ) ( 648 -96 120 ) trigger [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 600 -128 24 ) ( 664 -128 24 ) ( 600 -64 24 ) trigger [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 648 -96 56 ) ( 712 -96 56 ) ( 648 -160 56 ) trigger [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+}
+}
+// entity 207
+{
+"classname" "info_teleport_destination"
+"origin" "0 -160 24"
+"angle" "90"
+"targetname" "to_vent_check"
+}
+// entity 208
+{
+"classname" "func_worldtext_banner"
 "origin" "556 -320 64"
 "angle" "180"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "worldtext" "LOW TUNNEL\n40 high: crouch"
 }
-// entity 205
+// entity 209
 {
 "classname" "func_worldtext_banner"
 "origin" "556 -192 72"
@@ -5158,7 +5208,7 @@
 "worldtext_scale" "0.3"
 "worldtext" "GAP 48 high\nhalf a crouch"
 }
-// entity 206
+// entity 210
 {
 "classname" "func_button"
 "angle" "90"
@@ -5176,14 +5226,14 @@
 ( 452 192 56 ) ( 516 192 56 ) ( 452 128 56 ) comp1_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 207
+// entity 211
 {
 "classname" "func_enemy_dispenser"
 "origin" "1088 -32 32"
 "targetname" "cr_grunt"
 "weapon" "0"
 }
-// entity 208
+// entity 212
 {
 "classname" "func_button"
 "angle" "90"
@@ -5201,14 +5251,14 @@
 ( 492 192 56 ) ( 556 192 56 ) ( 492 128 56 ) comp1_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 209
+// entity 213
 {
 "classname" "func_enemy_dispenser"
 "origin" "1088 16 32"
 "targetname" "cr_dog"
 "weapon" "7"
 }
-// entity 210
+// entity 214
 {
 "classname" "func_button"
 "angle" "90"
@@ -5226,14 +5276,14 @@
 ( 532 192 56 ) ( 596 192 56 ) ( 532 128 56 ) comp1_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 211
+// entity 215
 {
 "classname" "func_enemy_dispenser"
 "origin" "1088 64 32"
 "targetname" "cr_ogre"
 "weapon" "1"
 }
-// entity 212
+// entity 216
 {
 "classname" "func_button"
 "angle" "90"
@@ -5251,14 +5301,14 @@
 ( 572 192 56 ) ( 636 192 56 ) ( 572 128 56 ) comp1_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 213
+// entity 217
 {
 "classname" "func_enemy_dispenser"
 "origin" "1088 112 32"
 "targetname" "cr_shambler"
 "weapon" "3"
 }
-// entity 214
+// entity 218
 {
 "classname" "func_button"
 "angle" "90"
@@ -5276,14 +5326,14 @@
 ( 612 192 56 ) ( 676 192 56 ) ( 612 128 56 ) comp1_1 [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 215
+// entity 219
 {
 "classname" "func_enemy_dispenser"
 "origin" "1088 160 96"
 "targetname" "cr_scrag"
 "weapon" "4"
 }
-// entity 216
+// entity 220
 {
 "classname" "func_worldtext_banner"
 "origin" "520 188 84"
@@ -5292,7 +5342,7 @@
 "worldtext_scale" "0.35"
 "worldtext" "Spawn a monster\n(it appears by the far wall)"
 }
-// entity 217
+// entity 221
 {
 "classname" "func_worldtext_banner"
 "origin" "780 72 56"
@@ -5301,7 +5351,7 @@
 "worldtext_scale" "0.3"
 "worldtext" "COVER 32 high:\ncrouch behind it"
 }
-// entity 218
+// entity 222
 {
 "classname" "func_worldtext_banner"
 "origin" "924 16 72"
@@ -5310,7 +5360,7 @@
 "worldtext_scale" "0.3"
 "worldtext" "COVER 48 high"
 }
-// entity 219
+// entity 223
 {
 "classname" "trigger_teleport"
 "target" "to_cr_s448"
@@ -5323,7 +5373,7 @@
 ( 1156 -280 48 ) ( 1220 -280 48 ) ( 1156 -344 48 ) trigger [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 220
+// entity 224
 {
 "classname" "func_worldtext_banner"
 "origin" "1148 -304 68"
@@ -5332,14 +5382,14 @@
 "worldtext_scale" "0.4"
 "worldtext" "SMALL TELEPORTER 48x48\ncrouch through"
 }
-// entity 221
+// entity 225
 {
 "classname" "info_teleport_destination"
 "origin" "448 -336 1"
 "angle" "90"
 "targetname" "to_cr_s448"
 }
-// entity 222
+// entity 226
 {
 "classname" "trigger_teleport"
 "target" "to_cr_e-304"
@@ -5352,7 +5402,7 @@
 ( 472 -376 48 ) ( 536 -376 48 ) ( 472 -440 48 ) trigger [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
 }
 }
-// entity 223
+// entity 227
 {
 "classname" "func_worldtext_banner"
 "origin" "448 -380 68"
@@ -5361,14 +5411,14 @@
 "worldtext_scale" "0.4"
 "worldtext" "SMALL TELEPORTER 48x48\ncrouch through"
 }
-// entity 224
+// entity 228
 {
 "classname" "info_teleport_destination"
 "origin" "1104 -304 1"
 "angle" "180"
 "targetname" "to_cr_e-304"
 }
-// entity 225
+// entity 229
 {
 "classname" "func_worldtext_banner"
 "origin" "252 -184 148"
@@ -5377,13 +5427,13 @@
 "worldtext_scale" "0.35"
 "worldtext" "East: crouching\n(low tunnel, cover, small teleporters)"
 }
-// entity 226
+// entity 230
 {
 "classname" "info_player_start"
 "origin" "0 -160 24"
 "angle" "90"
 }
-// entity 227
+// entity 231
 {
 "classname" "func_worldtext_banner"
 "origin" "0 124 132"
@@ -5393,7 +5443,7 @@
 "speed" "0.085"
 "worldtext" "Teleporter test map$North: flush gates,\ngates in frames east$West of them: turns, a loop$South: heights and water"
 }
-// entity 228
+// entity 232
 {
 "classname" "func_worldtext_banner"
 "origin" "-252 -64 72"
@@ -5402,7 +5452,7 @@
 "worldtext_scale" "0.35"
 "worldtext" "Every gate goes both ways.\nButtons in each room spawn monsters."
 }
-// entity 229
+// entity 233
 {
 "classname" "func_worldtext_banner"
 "origin" "252 -64 72"
@@ -5411,7 +5461,7 @@
 "worldtext_scale" "0.35"
 "worldtext" "Grab, throw, push crates\nand boxes through the gates."
 }
-// entity 230
+// entity 234
 {
 "classname" "func_vr_tip"
 "origin" "0 -96 64"
@@ -5420,625 +5470,625 @@
 "distance" "200"
 "message" "Teleporter test map: every gate goes both ways.\nEach room's buttons spawn monsters."
 }
-// entity 231
+// entity 235
 {
 "classname" "light"
 "origin" "-128 -160 152"
 "light" "340"
 }
-// entity 232
+// entity 236
 {
 "classname" "light"
 "origin" "-128 32 152"
 "light" "340"
 }
-// entity 233
+// entity 237
 {
 "classname" "light"
 "origin" "128 -160 152"
 "light" "340"
 }
-// entity 234
+// entity 238
 {
 "classname" "light"
 "origin" "128 32 152"
 "light" "340"
 }
-// entity 235
+// entity 239
 {
 "classname" "light"
 "origin" "-534 352 216"
 "light" "340"
 }
-// entity 236
+// entity 240
 {
 "classname" "light"
 "origin" "-534 544 216"
 "light" "340"
 }
-// entity 237
+// entity 241
 {
 "classname" "light"
 "origin" "-320 352 216"
 "light" "340"
 }
-// entity 238
+// entity 242
 {
 "classname" "light"
 "origin" "-320 544 216"
 "light" "340"
 }
-// entity 239
+// entity 243
 {
 "classname" "light"
 "origin" "-107 352 216"
 "light" "340"
 }
-// entity 240
+// entity 244
 {
 "classname" "light"
 "origin" "-107 544 216"
 "light" "340"
 }
-// entity 241
+// entity 245
 {
 "classname" "light"
 "origin" "106 352 216"
 "light" "340"
 }
-// entity 242
+// entity 246
 {
 "classname" "light"
 "origin" "106 544 216"
 "light" "340"
 }
-// entity 243
+// entity 247
 {
 "classname" "light"
 "origin" "320 352 216"
 "light" "340"
 }
-// entity 244
+// entity 248
 {
 "classname" "light"
 "origin" "320 544 216"
 "light" "340"
 }
-// entity 245
+// entity 249
 {
 "classname" "light"
 "origin" "533 352 216"
 "light" "340"
 }
-// entity 246
+// entity 250
 {
 "classname" "light"
 "origin" "533 544 216"
 "light" "340"
 }
-// entity 247
+// entity 251
 {
 "classname" "light"
 "origin" "-534 1024 216"
 "light" "340"
 }
-// entity 248
+// entity 252
 {
 "classname" "light"
 "origin" "-534 1216 216"
 "light" "340"
 }
-// entity 249
+// entity 253
 {
 "classname" "light"
 "origin" "-320 1024 216"
 "light" "340"
 }
-// entity 250
+// entity 254
 {
 "classname" "light"
 "origin" "-320 1216 216"
 "light" "340"
 }
-// entity 251
+// entity 255
 {
 "classname" "light"
 "origin" "-107 1024 216"
 "light" "340"
 }
-// entity 252
+// entity 256
 {
 "classname" "light"
 "origin" "-107 1216 216"
 "light" "340"
 }
-// entity 253
+// entity 257
 {
 "classname" "light"
 "origin" "106 1024 216"
 "light" "340"
 }
-// entity 254
+// entity 258
 {
 "classname" "light"
 "origin" "106 1216 216"
 "light" "340"
 }
-// entity 255
+// entity 259
 {
 "classname" "light"
 "origin" "320 1024 216"
 "light" "340"
 }
-// entity 256
+// entity 260
 {
 "classname" "light"
 "origin" "320 1216 216"
 "light" "340"
 }
-// entity 257
+// entity 261
 {
 "classname" "light"
 "origin" "533 1024 216"
 "light" "340"
 }
-// entity 258
+// entity 262
 {
 "classname" "light"
 "origin" "533 1216 216"
 "light" "340"
 }
-// entity 259
+// entity 263
 {
 "classname" "light"
 "origin" "938 352 216"
 "light" "340"
 }
-// entity 260
+// entity 264
 {
 "classname" "light"
 "origin" "938 544 216"
 "light" "340"
 }
-// entity 261
+// entity 265
 {
 "classname" "light"
 "origin" "1152 352 216"
 "light" "340"
 }
-// entity 262
+// entity 266
 {
 "classname" "light"
 "origin" "1152 544 216"
 "light" "340"
 }
-// entity 263
+// entity 267
 {
 "classname" "light"
 "origin" "1365 352 216"
 "light" "340"
 }
-// entity 264
+// entity 268
 {
 "classname" "light"
 "origin" "1365 544 216"
 "light" "340"
 }
-// entity 265
+// entity 269
 {
 "classname" "light"
 "origin" "1578 352 216"
 "light" "340"
 }
-// entity 266
+// entity 270
 {
 "classname" "light"
 "origin" "1578 544 216"
 "light" "340"
 }
-// entity 267
+// entity 271
 {
 "classname" "light"
 "origin" "1792 352 216"
 "light" "340"
 }
-// entity 268
+// entity 272
 {
 "classname" "light"
 "origin" "1792 544 216"
 "light" "340"
 }
-// entity 269
+// entity 273
 {
 "classname" "light"
 "origin" "2005 352 216"
 "light" "340"
 }
-// entity 270
+// entity 274
 {
 "classname" "light"
 "origin" "2005 544 216"
 "light" "340"
 }
-// entity 271
+// entity 275
 {
 "classname" "light"
 "origin" "938 1024 216"
 "light" "340"
 }
-// entity 272
+// entity 276
 {
 "classname" "light"
 "origin" "938 1216 216"
 "light" "340"
 }
-// entity 273
+// entity 277
 {
 "classname" "light"
 "origin" "1152 1024 216"
 "light" "340"
 }
-// entity 274
+// entity 278
 {
 "classname" "light"
 "origin" "1152 1216 216"
 "light" "340"
 }
-// entity 275
+// entity 279
 {
 "classname" "light"
 "origin" "1365 1024 216"
 "light" "340"
 }
-// entity 276
+// entity 280
 {
 "classname" "light"
 "origin" "1365 1216 216"
 "light" "340"
 }
-// entity 277
+// entity 281
 {
 "classname" "light"
 "origin" "1578 1024 216"
 "light" "340"
 }
-// entity 278
+// entity 282
 {
 "classname" "light"
 "origin" "1578 1216 216"
 "light" "340"
 }
-// entity 279
+// entity 283
 {
 "classname" "light"
 "origin" "1792 1024 216"
 "light" "340"
 }
-// entity 280
+// entity 284
 {
 "classname" "light"
 "origin" "1792 1216 216"
 "light" "340"
 }
-// entity 281
+// entity 285
 {
 "classname" "light"
 "origin" "2005 1024 216"
 "light" "340"
 }
-// entity 282
+// entity 286
 {
 "classname" "light"
 "origin" "2005 1216 216"
 "light" "340"
 }
-// entity 283
+// entity 287
 {
 "classname" "light"
 "origin" "-1494 384 216"
 "light" "340"
 }
-// entity 284
+// entity 288
 {
 "classname" "light"
 "origin" "-1494 640 216"
 "light" "340"
 }
-// entity 285
+// entity 289
 {
 "classname" "light"
 "origin" "-1280 384 216"
 "light" "340"
 }
-// entity 286
+// entity 290
 {
 "classname" "light"
 "origin" "-1280 640 216"
 "light" "340"
 }
-// entity 287
+// entity 291
 {
 "classname" "light"
 "origin" "-1067 384 216"
 "light" "340"
 }
-// entity 288
+// entity 292
 {
 "classname" "light"
 "origin" "-1067 640 216"
 "light" "340"
 }
-// entity 289
+// entity 293
 {
 "classname" "light"
 "origin" "-1494 1168 216"
 "light" "340"
 }
-// entity 290
+// entity 294
 {
 "classname" "light"
 "origin" "-1494 1392 216"
 "light" "340"
 }
-// entity 291
+// entity 295
 {
 "classname" "light"
 "origin" "-1280 1168 216"
 "light" "340"
 }
-// entity 292
+// entity 296
 {
 "classname" "light"
 "origin" "-1280 1392 216"
 "light" "340"
 }
-// entity 293
+// entity 297
 {
 "classname" "light"
 "origin" "-1067 1168 216"
 "light" "340"
 }
-// entity 294
+// entity 298
 {
 "classname" "light"
 "origin" "-1067 1392 216"
 "light" "340"
 }
-// entity 295
+// entity 299
 {
 "classname" "light"
 "origin" "-410 -982 312"
 "light" "340"
 }
-// entity 296
+// entity 300
 {
 "classname" "light"
 "origin" "-410 -768 312"
 "light" "340"
 }
-// entity 297
+// entity 301
 {
 "classname" "light"
 "origin" "-410 -555 312"
 "light" "340"
 }
-// entity 298
+// entity 302
 {
 "classname" "light"
 "origin" "-205 -982 312"
 "light" "340"
 }
-// entity 299
+// entity 303
 {
 "classname" "light"
 "origin" "-205 -768 312"
 "light" "340"
 }
-// entity 300
+// entity 304
 {
 "classname" "light"
 "origin" "-205 -555 312"
 "light" "340"
 }
-// entity 301
+// entity 305
 {
 "classname" "light"
 "origin" "0 -982 312"
 "light" "340"
 }
-// entity 302
+// entity 306
 {
 "classname" "light"
 "origin" "0 -768 312"
 "light" "340"
 }
-// entity 303
+// entity 307
 {
 "classname" "light"
 "origin" "0 -555 312"
 "light" "340"
 }
-// entity 304
+// entity 308
 {
 "classname" "light"
 "origin" "204 -982 312"
 "light" "340"
 }
-// entity 305
+// entity 309
 {
 "classname" "light"
 "origin" "204 -768 312"
 "light" "340"
 }
-// entity 306
+// entity 310
 {
 "classname" "light"
 "origin" "204 -555 312"
 "light" "340"
 }
-// entity 307
+// entity 311
 {
 "classname" "light"
 "origin" "409 -982 312"
 "light" "340"
 }
-// entity 308
+// entity 312
 {
 "classname" "light"
 "origin" "409 -768 312"
 "light" "340"
 }
-// entity 309
+// entity 313
 {
 "classname" "light"
 "origin" "409 -555 312"
 "light" "340"
 }
-// entity 310
+// entity 314
 {
 "classname" "light"
 "origin" "0 192 120"
 "light" "340"
 }
-// entity 311
+// entity 315
 {
 "classname" "light"
 "origin" "-592 784 120"
 "light" "340"
 }
-// entity 312
+// entity 316
 {
 "classname" "light"
 "origin" "736 448 120"
 "light" "340"
 }
-// entity 313
+// entity 317
 {
 "classname" "light"
 "origin" "736 1136 120"
 "light" "340"
 }
-// entity 314
+// entity 318
 {
 "classname" "light"
 "origin" "2064 784 120"
 "light" "340"
 }
-// entity 315
+// entity 319
 {
 "classname" "light"
 "origin" "-800 336 120"
 "light" "340"
 }
-// entity 316
+// entity 320
 {
 "classname" "light"
 "origin" "-800 1136 120"
 "light" "340"
 }
-// entity 317
+// entity 321
 {
 "classname" "light"
 "origin" "0 -352 120"
 "light" "340"
 }
-// entity 318
+// entity 322
 {
 "classname" "light"
 "origin" "-2272 384 216"
 "light" "340"
 }
-// entity 319
+// entity 323
 {
 "classname" "light"
 "origin" "-2272 640 216"
 "light" "340"
 }
-// entity 320
+// entity 324
 {
 "classname" "light"
 "origin" "-2080 384 216"
 "light" "340"
 }
-// entity 321
+// entity 325
 {
 "classname" "light"
 "origin" "-2080 640 216"
 "light" "340"
 }
-// entity 322
+// entity 326
 {
 "classname" "light"
 "origin" "-1888 384 216"
 "light" "340"
 }
-// entity 323
+// entity 327
 {
 "classname" "light"
 "origin" "-1888 640 216"
 "light" "340"
 }
-// entity 324
+// entity 328
 {
 "classname" "light"
 "origin" "-1696 680 120"
 "light" "340"
 }
-// entity 325
+// entity 329
 {
 "classname" "light"
 "origin" "512 -288 152"
 "light" "340"
 }
-// entity 326
+// entity 330
 {
 "classname" "light"
 "origin" "512 -96 152"
 "light" "340"
 }
-// entity 327
+// entity 331
 {
 "classname" "light"
 "origin" "512 96 152"
 "light" "340"
 }
-// entity 328
+// entity 332
 {
 "classname" "light"
 "origin" "768 -288 152"
 "light" "340"
 }
-// entity 329
+// entity 333
 {
 "classname" "light"
 "origin" "768 -96 152"
 "light" "340"
 }
-// entity 330
+// entity 334
 {
 "classname" "light"
 "origin" "768 96 152"
 "light" "340"
 }
-// entity 331
+// entity 335
 {
 "classname" "light"
 "origin" "1024 -288 152"
 "light" "340"
 }
-// entity 332
+// entity 336
 {
 "classname" "light"
 "origin" "1024 -96 152"
 "light" "340"
 }
-// entity 333
+// entity 337
 {
 "classname" "light"
 "origin" "1024 96 152"
 "light" "340"
 }
-// entity 334
+// entity 338
 {
 "classname" "light"
 "origin" "320 -184 120"

@@ -1027,18 +1027,39 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     {
         return -1;
     }
+    Con_DPrintf("teleport: asked to %.0f %.0f %.0f from %.0f %.0f %.0f\n", move->teleportTarget.x, move->teleportTarget.y,
+        move->teleportTarget.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]);
 
     // The client picks the target: accept it only within the teleport range (with some slack for
     // the arc) and where the player fits. (Written to turn a NaN away too.)
     const glm::vec3 target = move->teleportTarget;
     if(!(glm::distance(vec(ent->v.origin), target) <= za::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f))
     {
+        Con_DPrintf("teleport refused: %.0f units away\n", glm::distance(vec(ent->v.origin), target));
         return 0;
     }
     vec3_t t{target.x, target.y, target.z};
     if(SV_Move(t, ent->v.mins, ent->v.maxs, t, MOVE_NOMONSTERS, ent).startsolid)
     {
+        Con_DPrintf("teleport refused: no room at %.0f %.0f %.0f\n", target.x, target.y, target.z);
         return 0;
+    }
+    // Smooth + Teleport (vr_teleport_enabled 2, vr_teleport.cpp): from the ground only (not in the air, swimming or
+    // hanging from a ledge, which is in the air too), arriving standing still: a walk's, a shove's or a fall's momentum
+    // never carried through. (Teleport 1 as it always was.)
+    const bool combined = static_cast<int>(vr_teleport_enabled.value) == 2;
+    if(combined && (!(static_cast<int>(ent->v.flags) & FL_ONGROUND) || ent->v.waterlevel >= 2.f))
+    {
+        Con_DPrintf("teleport refused: not on the ground (Smooth + Teleport)\n");
+        return 0;
+    }
+    if(combined)
+    {
+        VectorCopy(vec3_origin, ent->v.velocity);
+        if(f().vr_eshove_speed >= 0)
+        {
+            fieldFloat(ent, f().vr_eshove_speed) = 0.f; // (an enemy's shove sets the slide's velocity each frame: ended)
+        }
     }
 
     ent->v.teleport_time = static_cast<float>(qcvm->time) + 0.3f;
@@ -1332,7 +1353,9 @@ extern "C" int VR_TouchLinks(edict_t* ent)
             continue;
         }
 
-        if(absBoxesOverlap(ent, target) || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
+        // (The body: lying down, only up to the lying box's top, VR_HullTouchTop: no trigger over a vent he crawls in.)
+        const bool body = absBoxesOverlap(ent, target) && VR_HullTouchTop(ent) >= target->v.absmin[2];
+        if(body || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
         {
             list[count++] = target;
         }
