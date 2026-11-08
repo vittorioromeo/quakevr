@@ -3630,3 +3630,31 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
   `scratch/slivers_after_full.png`.
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
+## Flat tools: force grab key, F7 toolgun, weapon_* classnames (worker C, 2026-11-08)
+
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar).

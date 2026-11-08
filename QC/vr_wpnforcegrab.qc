@@ -355,10 +355,11 @@ void() VR_Forcegrab_FlatGrab =
         return;
     }
 
-    float xHand = cVR_OffHand;
+    // The dominant (main) hand when both are empty (his note, 2026-11-08), else the empty one.
+    float xHand = cVR_MainHand;
     if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
     {
-        xHand = cVR_MainHand;
+        xHand = cVR_OffHand;
         if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
         {
             dprint("flat grab: neither hand is free\n");
@@ -380,6 +381,9 @@ void() VR_Forcegrab_FlatGrab =
         VR_AxeStick_Tug(g, self, xHand);
         return;
     }
+    // The headset's lock-on sparks on it as it goes (VR_Forcegrab_HandFrame's), then its launch: the same sound
+    // (forcegrab.wav), and the engine's glow, tendril and trail from the pulled state (vr_fgfx.cpp).
+    particle2(VR_Forcegrab_GrabPoint(g), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
     VR_Forcegrab_Launch(g, xHand);
     VR_Forcegrab_SetPulled(xHand, g);
 };

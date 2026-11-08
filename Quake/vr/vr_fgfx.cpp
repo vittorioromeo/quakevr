@@ -47,6 +47,25 @@ struct Target
 ankerl::unordered_dense::map<int, float> glows; // entity -> current glow
 double lastTime = -1.0;
 
+// Flatscreen play (vr_flatplay.cpp) has no UI pass to draw the eyes' glow lines in: its beams go into the scene's
+// translucent pass instead (lines::sceneGlow), the same beams, tendril and trail as in the headset.
+bool flatPass = false;
+
+void beam(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& ca, const glm::vec4& cb)
+{
+    (flatPass ? lines::sceneGlow : lines::glow)(a, b, width, ca, cb);
+}
+
+void beamPoint(const glm::vec3& p, float size, const glm::vec4& c)
+{
+    if(flatPass)
+    {
+        lines::sceneGlow(p, p + glm::vec3{0.f, 0.f, size * 0.1f}, size, c, c);
+        return;
+    }
+    lines::glowPoint(p, size, c);
+}
+
 [[nodiscard]] Target target(int stat)
 {
     const int v = cl.stats[stat];
@@ -137,12 +156,12 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
             const float fade = strength * (strand == 0 ? 1.f : 0.5f);
             const glm::vec4 halo = haloColor * (0.22f * fade);
             const glm::vec4 core = coreColor * (0.9f * fade);
-            lines::glow(prev, p, 1.4f, halo, halo);
-            lines::glow(prev, p, 0.35f, core, core);
+            beam(prev, p, 1.4f, halo, halo);
+            beam(prev, p, 0.35f, core, core);
             prev = p;
         }
     }
-    lines::glowPoint(a, 2.5f * strength, tint(0.6f, 1.f, 1.f) * (0.5f * strength));
+    beamPoint(a,2.5f * strength, tint(0.6f, 1.f, 1.f) * (0.5f * strength));
 }
 
 // While the menu's colour settings that the force grab takes are selected: a tendril from the off
@@ -165,8 +184,9 @@ void previewInMenu(const hands::State& s)
 
 } // namespace
 
-void queue(const hands::State& s)
+void queue(const hands::State& s, bool flat)
 {
+    flatPass = flat;
     const double now = cl.time;
     const float dt = lastTime < 0.0 ? 0.f : static_cast<float>(za::clamp(now - lastTime, 0.0, 0.1));
     lastTime = now;
@@ -241,7 +261,7 @@ void queue(const hands::State& s)
         if(t.state == Aimed)
         {
             const glm::vec4 beam = tint(0.7f, 1.f, 1.f);
-            lines::glow(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
+            fgfx::beam(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
             continue;
         }
         const float pulse = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 17.0));
