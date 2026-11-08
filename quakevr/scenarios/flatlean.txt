@@ -1,0 +1,8 @@
+# flatlean: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Leaning flat-screen (-flatscreenmode, Q / E): a stack of crates ahead to lean round, an armed grunt behind it that shoots (no god: its hits on your leant head and chest count).
+title Leaning: a crate stack ahead to peek round, an armed grunt behind it (no god)
+map vrtesthall
+give "Shotgun" main
+spawn "Wooden Crate" 48 0
+spawn "Wooden Crate" 48 0 34
+spawn "Wooden Crate" 48 0 68
+spawn "Armed Grunt: Shotgun" 360 0

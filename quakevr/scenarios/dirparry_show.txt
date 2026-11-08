@@ -1,8 +1,0 @@
-# dirparry_show: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Directional Parry with its readout (Show Directional Parry) on: a sword grunt and an axe grunt swinging at you.
-title Directional Parry readout: a sword grunt and an axe grunt swinging at you, Show Directional Parry on, a sword in hand (god)
-map vrtesthall
-god
-cvar vr_dirparry_debug 1
-give "Knight's Sword" main
-spawn "Armed Grunt: Sword" 160 40
-spawn "Armed Grunt: Axe" 200 -60

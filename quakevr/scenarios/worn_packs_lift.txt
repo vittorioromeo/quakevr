@@ -1,9 +1,0 @@
-# worn_packs_lift: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Worn backpacks, Pulling the Pack: Lifts Its Wearer.
-title Worn backpacks, Pulling the Pack: Lifts Its Wearer: packed grunts, one with its back to you
-map vrtesthall
-god
-notarget
-give "Shotgun" off
-spawn "Armed Grunt: Shotgun" 70 0 0 0
-spawn "Armed Grunt: Nailgun" 200 80
-cmd impulse 9

@@ -4430,3 +4430,45 @@ triangles, positions and texture coordinates are unchanged (compared as triangle
 - **Test it in VR:** hold each next to the shotgun: the nail pistol's body the same deep blue-black steel with the silver
   bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
   dirtier, its details still readable; grunts' rifles alike.
+
+## Checklist rework: 210 lines to 83, sections in play-test order, Test buttons (branch `agent/clrework`, 2026-11-08)
+
+His ask: drop redundant items, coalesce what one scene tests, a working Test button on most lines, proper sections.
+
+- **Retired by ticks:** none: no current line was ticked passed in his `checklist_ticks.txt`. Two were ticked failed and
+  had follow-up fix lines below them (the crate's wood sounds, shoves off a ledge): each pair became one new line (the
+  fix's wording), so they read untested again.
+- **Dropped:** exact duplicates (Late Image Acquire, the nail pistol sights, Grow the Box), lines a later one superseded
+  (the shotgun's first sights, the first projectile-motion split, the old death-cam line, "Armour step 4: want it?" now
+  that hero plates shipped, the manual `blend_export.py` pipeline now that Ctrl+S exports, the nail pistol's first
+  skin pass), "looks as before" lines (ogre topology, cleaned models, the headset's flicks), dev trivia (wave presets in
+  git status, Weapon Studio's id row colour, Late Image Acquire's menu move). All features named still exist (every
+  `vr_` cvar on the list checked against the code).
+- **Coalesced:** one line per flow and scene (the 13 embedded-blade lines into 8, 12 armour lines into 5 plus 3 Armour
+  Studio lines, 9 shotgun/super shotgun/lightning sight lines into 3, 10 slide lines into 3, 6 wall-pose lines into 1).
+- **Sections:** Flat-screen moving (8), Flat-screen weapons, hands and toolgun (8), Flat-screen camera and keys (4), VR
+  body, lying down and swimming (6), VR melee and embedded blades (10), VR armed humanoids (5), VR bodies, grabbing and
+  props (3), Weapons: sights, skins and shots (8), Monsters and AD (4), Visuals (7), Audio (1), Survival Arena (3),
+  Game: saves, seeds, setup and menus (5), Dev tools (11); the empty "Failed: waiting for your answer" kept.
+- **Tests:** 80 of 83 lines tagged, on 43 scenes. New: `flat_slide`, `flatprone`, `flatlean` (a crate stack to peek
+  round, an armed grunt behind it, no god), `flat_mantle` (vrmantle), `flat_wall` (the south wall, the burst rifle),
+  `flat_hands`, `flat_death` (5 health, a shooting grunt), `prone_floor`, `prone_tunnel` (vrteleporters' 40-high
+  tunnel), `self_shot`, `wrist_lock`, `gun_sights`, `gun_skins`, `projectile_motion`, `ad_lostsoul` (needs AD running),
+  `agarmor_tiers` (`vr_agarmor_test 2`); `flat_melee` gained a revolver and a super shotgun for the flick line. Three
+  stale tags fixed (`flatlean`/`flatprone` had no files; `vr_agarmor_test 2`/`8` and `vr_pickup_test 9` were commands,
+  not ids). Untagged: the installer, the Gameplay page's wording and the first-load times (menu, outside the game,
+  load time).
+- **Flat-screen:** the mode is a start-up switch (`-flatscreenmode`), so a flat line's scene is an ordinary one; no format
+  change needed. The 14 scenes flat lines use ran headless with `-flatscreenmode`: `SCNRUNSUM|14 run|0 failed`.
+- **Removed scenes:** 41 scene files no line uses and nothing but round notes names (moved out with the commit).
+  Kept though unused: the dev tools' setups (`pose_*`, `agrunt_grip_editor`, `agrunt_holds_enforcers`, `blade_editor`,
+  `blade_handles`, `fist_editor`, `leg_takes`, `lift_takes`, `rigstudio_strike`) and those code, scripts or living docs
+  name.
+- **Checks:** `Misc/quakevr/checklist_tests_check.py` (new, offline): every tag's file exists and parses (86 passed, 0
+  failed). `scenario_check.sh`: `SCNSUM|86 files|0 with errors|80 checklist tags|0 missing`, runall 80 of 86 OK; the 6
+  failures are one pre-existing bug, below. `checklist_fold_check.py`: 35 passed, 0 failed, after a fix: it counted the
+  empty Failed section's header, which the page never draws (it walks the items).
+- **Found, not fixed:** with Arcane Dimensions running (scenario_check's `-game ad`), the toolgun's "Axe" entry
+  (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
+  embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
+  failed`).

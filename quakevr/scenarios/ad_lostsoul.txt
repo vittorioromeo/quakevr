@@ -1,0 +1,8 @@
+# ad_lostsoul: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's lost soul and seeker (needs Arcane Dimensions running): a crowbar to guard with, your back near the south wall.
+title AD lost soul and seeker coming at you; a crowbar in hand, the wall behind you (god)
+map vrtesthall
+start -400 -360 25 90
+god
+give "Crowbar" main
+spawn "AD Lost Soul" 400 60
+spawn "AD Seeker" 400 -60
