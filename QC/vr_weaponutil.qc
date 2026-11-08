@@ -220,11 +220,11 @@ vr_weapon_row VR_WEAPONS[WID_LAST + 1] =
     { "weapon_lightning", IID_LIGHTNING, AID_CELLS, AID_PLASMA, "progs/v_light.mdl", "progs/v_plasma.mdl", "Thunderbolt", 0.6, 25, 1.5, 15, 36, VR_WROW_RELOAD | VR_WROW_SECONDARY },
     { "weapon_laser_gun", IID_LASER_CANNON, AID_CELLS, AID_CELLS, "progs/v_laserg.mdl", "progs/v_laserg.mdl", "Laser Cannon", 0.4, 45, 2.4, 30, 0, 0 },
     // (the sword: AD's melee monsters' weapons have their own model and name, VR_ADMelee_*)
-    { "", IID_SWORD, AID_NONE, AID_NONE, "progs/v_ksword.mdl", "progs/v_hksword.mdl", "Knight's Sword", 0.8, 60, 2.4, 0, 0, 0 },
-    { "", IID_CHAINSAW, AID_NONE, AID_NONE, "progs/v_chainsaw.mdl", "progs/v_chainsaw.mdl", "Ogre's Chainsaw", 0.4, 50, 2.4, 0, VR_CHAINSAW_TANK, 0 },
+    { "weapon_knight_sword", IID_SWORD, AID_NONE, AID_NONE, "progs/v_ksword.mdl", "progs/v_hksword.mdl", "Knight's Sword", 0.8, 60, 2.4, 0, 0, 0 },
+    { "weapon_chainsaw", IID_CHAINSAW, AID_NONE, AID_NONE, "progs/v_chainsaw.mdl", "progs/v_chainsaw.mdl", "Ogre's Chainsaw", 0.4, 50, 2.4, 0, VR_CHAINSAW_TANK, 0 },
     // (our edited grunt's gun: a 3-round burst; its clip VR_GruntGun_ClipSize, a multiple of 3, vr_enemyguns.qc)
-    { "", IID_GRUNTGUN, AID_NONE, AID_NONE, "progs/v_gruntgun.mdl", "progs/v_gruntgun.mdl", "Grunt Burst Rifle", 0.7, 20, 1.6, 0, 0, 0 },
-    { "", IID_ENFRIFLE, AID_NONE, AID_NONE, "progs/v_enfrifle.mdl", "progs/v_enfrifle.mdl", "Enforcer's Laser Rifle", 0.6, 25, 1.8, 0, 0, 0 },
+    { "weapon_gruntgun", IID_GRUNTGUN, AID_NONE, AID_NONE, "progs/v_gruntgun.mdl", "progs/v_gruntgun.mdl", "Grunt Burst Rifle", 0.7, 20, 1.6, 0, 0, 0 },
+    { "weapon_enfrifle", IID_ENFRIFLE, AID_NONE, AID_NONE, "progs/v_enfrifle.mdl", "progs/v_enfrifle.mdl", "Enforcer's Laser Rifle", 0.6, 25, 1.8, 0, 0, 0 },
     { "", IID_CROWBAR, AID_NONE, AID_NONE, "progs/v_crowbar.mdl", "progs/v_crowbar.mdl", "Crowbar", 0.8, 40, 1.6, 0, 0, 0 },
     { "weapon_superaxe", IID_SUPERAXE, AID_CELLS, AID_CELLS, "owned/mg3/progs/v_hammer.mdl", "owned/mg3/progs/v_hammer.mdl", "Super Axe", 0.75, 50, 1.4, 0, 0, VR_WROW_STABILIZE },
     { "weapon_toolgun", IID_TOOLGUN, AID_NONE, AID_NONE, "progs/v_toolgun.mdl", "progs/v_toolgun.mdl", "Toolgun", 0.8, 10, 1.2, 0, 0, 0 },

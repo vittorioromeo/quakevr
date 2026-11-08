@@ -539,6 +539,16 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 // Weapons
 //
 
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_axe : "The axe lying ready to be picked up (Quake VR): a melee weapon. It falls from its origin and settles on the floor, a physics object as func_weapon_grabbable's weapons (the same as one with weapon 2). In an Arcane Dimensions map AD's own axe pickup spawns instead. AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
+]
+
 @PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
 	weapon_bloody_sg : "Dawn of the Machine's bloody shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at once). Taken: the shotgun and 30 shells, and every shotgun refires in 0.28 s for the rest of the game. 'target': fired when taken."
 [
@@ -550,6 +560,17 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 [
 ]
 
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_chainsaw : "An ogre's chainsaw lying ready to be picked up (Quake VR): a melee weapon with a full tank of fuel. It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 14). AS_PLACED: it lies as 'angles' turn it (none:
+any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
+]
+
 @PointClass base(Appearflags) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_crowbar.mdl" }) =
 	weapon_crowbar : "Crowbar (Quake VR)
 
@@ -558,6 +579,16 @@ its tape, or sliding along the bar). It drops from its origin and settles on the
 func_weapon_grabbable's weapons (the same as one with weapon 17). It gives no ammunition."
 [
 	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_enfrifle : "An enforcer's laser rifle lying ready to be picked up (Quake VR): its cell full (it takes no ammunition of yours). It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 16). AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
 ]
 
 @PointClass base(Appearflags) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_flaregun.mdl" }) =
@@ -577,9 +608,39 @@ Floats at torso height in VR (vr_item_float_height); taken by a hand's grip."
 [
 ]
 
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_gruntgun : "A grunt's burst rifle lying ready to be picked up (Quake VR): a 3-round burst, its magazine full (it takes no ammunition of yours). It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 15). AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
+]
+
 @PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
 	weapon_hammer : "Arcane Dimensions' name for its Shadow Axe (weapon_upgrade_axe), in its maps."
 [
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_hknight_sword : "A death knight's sword lying ready to be picked up (Quake VR): a melee weapon, one hand or two. It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 13, weaponflags 1). AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	weapon_knight_sword : "A knight's sword lying ready to be picked up (Quake VR): a melee weapon, one hand or two. It falls from its origin and settles on the floor (func_weapon_grabbable with weapon 13). AS_PLACED: it lies as 'angles' turn it (none: any way)."
+[
+	spawnflags(flags) =
+	[
+		1 : "AS PLACED" : 0
+		2 : "BY HANDLE" : 0
+	]
 ]
 
 @PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/g_laserg.mdl" }) =

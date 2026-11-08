@@ -34,6 +34,16 @@ za::Vector<Item> pageSpawnWeapons()
             .help("Quake VR's disposable flare gun lying ready to be picked up (two flares)."),
         command("Heavy Revolver", "vr_physics_spawn weapon_revolver reach")
             .help("Quake VR's heavy revolver lying ready to be picked up (with 12 shells)."),
+        command("Axe", "vr_physics_spawn weapon_axe reach"),
+        command("Knight's Sword", "vr_physics_spawn weapon_knight_sword reach"),
+        command("Death Knight's Sword", "vr_physics_spawn weapon_hknight_sword reach"),
+        command("Ogre's Chainsaw", "vr_physics_spawn weapon_chainsaw reach"),
+        command("Grunt Burst Rifle", "vr_physics_spawn weapon_gruntgun reach")
+            .help("The grunt's 3-round burst rifle lying ready to be picked up, its magazine full (weapon_gruntgun)."),
+        command("Enforcer's Rifle", "vr_physics_spawn weapon_enfrifle reach")
+            .help("The enforcer's laser rifle lying ready to be picked up, its cell full (weapon_enfrifle)."),
+        command("Super Axe (Dawn of the Machine)", "vr_physics_spawn weapon_superaxe reach")
+            .help("Dawn of the Machine's Super Axe (needs the pack: gone at once without it)."),
         command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
