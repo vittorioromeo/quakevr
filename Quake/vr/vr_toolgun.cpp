@@ -114,7 +114,7 @@ constexpr Spawnable spawnables[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
 #define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
-    {section, label, classname, model, lift, key, value, skin, false, true, false, choice, false, adBackpack(classname) ? 0 : 2}, // AD: its maps only
+    {section, label, classname, model, lift, key, value, skin, false, true, false, choice}, // AD: a map's own only in AD's maps; the toolgun's anywhere (vr_ad.cpp VR_AD_ToolgunSpawnsOutside)
 // (an AD melee weapon's kind is its weapon flags: without them it is Quake VR's plain knight's sword)
 #define QVR_AD_GUN(label, model, wid, choice, flags) \
     {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice, false, 0, \

@@ -387,6 +387,13 @@ za::Vector<Item> pageDebugTests()
             .help("The Plasma Gun in your off hand, your main hand free: its cell's well on the gun's inner side is "
                   "found, the cell pops out sideways, and a cell from your pouch brought to the well goes in (adplasma: "
                   "lines in the console). Then eject it (B/Y) and reload it by hand."),
+        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun's First Ball", "developer 1; vr_ad_test 103")) // AD support
+            .help("The toolgun's Plasma Gun laid ahead (AD's plasma gun model, not the Thunderbolt's), then a plasma ball "
+                  "straight down onto the floor: nothing loads as it flies or hits (no \"late precache:\" line after "
+                  "\"adplasmahit: fired\" in the console; developer 1 on). Then pick it up and fire: no hitch."),
+        command("Arcane Dimensions: Upgraded Weapon Models", "vr_adweapon_models") // AD support
+            .help("The Shadow Axe, Widowmaker and Plasma Gun as made from AD's models: each one's triangles and box, then "
+                  "\"N made, M not made\" (not made: a stand-in drawn instead, a bug; without AD's data: none made)."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Tube Test", "vr_ad_test 149")) // AD support
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "

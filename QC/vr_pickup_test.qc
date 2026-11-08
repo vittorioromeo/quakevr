@@ -528,6 +528,7 @@ float(float i) VR_ClassTest_Wid =
 
 // Classname `c` spawned at `at` as a map spawns it (its spawn function, self the new entity); the weapon it left lying
 // there (world: none).
+entity vr_classtest_spawner; // VR_ClassTest_Spawn's spawner entity (its last)
 entity(string c, vector at, float wid) VR_ClassTest_Spawn =
 {
     entity e = spawn();
@@ -542,6 +543,7 @@ entity(string c, vector at, float wid) VR_ClassTest_Spawn =
     else if(c == "weapon_gruntgun")      { weapon_gruntgun(); }
     else                                 { weapon_enfrifle(); }
     self = oself;
+    vr_classtest_spawner = e;
     entity w = nextent(world);
     while(w)
     {
@@ -600,6 +602,9 @@ void() VR_ClassTest_Run =
         float wid = VR_ClassTest_Wid(i);
         entity w = VR_ClassTest_Spawn(c, self.origin + v_forward * 40 + '0 0 8', wid);
         VR_Test_Check(w != world, sprintf("%s spawns a weapon %g lying ahead", c, wid));
+        // (one spawn, one weapon: the spawner left drawing nothing, no static copy floating beside it)
+        VR_Test_Check(vr_classtest_spawner.modelindex == 0, sprintf("%s: its spawner draws nothing (modelindex %g)", c,
+            vr_classtest_spawner.modelindex));
         if(w == world)
         {
             continue;

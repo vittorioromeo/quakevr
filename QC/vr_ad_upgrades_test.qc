@@ -394,8 +394,69 @@ void() AD_WidowTubeTestRun =
     self.nextthink = time + 0.01;
 };
 
+// 103 (Debug > Tests > Arcane Dimensions: Plasma Gun's First Ball): the toolgun's Plasma Gun laid ahead (as the toolgun
+// lays it: AD_UpgradeGate's assets), then a plasma ball of the player's straight down onto the floor ahead. Nothing it
+// shows on its way and at its hit may load then (the engine's "late precache:" lines, developer 1: none after
+// "adplasmahit: fired"); his first ball's hit was a big hitch outside AD's maps (2026-11-08). Verdict "adplasmahit: N
+// passed, M failed" when the ball is gone (its hit), or after 3 s (FAIL: it never hit).
+entity vr_adph_ball;
+float vr_adph_frames;
+void() AD_PlasmaHitRun =
+{
+    entity p = self.owner;
+    if(!vr_adph_frames)
+    {
+        // (a frame after the laying: its precaches sent)
+        entity os = self;
+        self = p;
+        makevectors('0 1 0' * p.angles_y);
+        ad_launch_plasma(p.origin + v_forward * 72 + '0 0 24', '0 0 -1', ad_CT_PLAYER, max(100, cvar_hget(cvarh_vr_ad_plasmagun_speed)));
+        vr_adph_ball = ad_newmis;
+        self = os;
+        bprint(sprintf("adplasmahit: fired, model %s\n", vr_adph_ball.model));
+    }
+    vr_adph_frames++;
+    float gone = vr_adph_ball.modelindex == 0 || vr_adph_ball.ad_touchedvoid; // (its hit: ad_entity_remove; or removed)
+    if(!gone && vr_adph_frames < 216)
+    {
+        self.nextthink = time; // (the next frame)
+        return;
+    }
+    VR_Test_Check(gone, sprintf("the ball hit the floor (%g frames)", vr_adph_frames));
+    VR_Test_Verdict();
+    remove(self);
+};
+
 void(float request, entity p) AD_UpgradesTest =
 {
+    if(request == 103)
+    {
+        VR_Test_BeginFlags("adplasmahit", VR_TEST_LOUD);
+        makevectors('0 1 0' * p.angles_y);
+        entity os4 = self;
+        self = spawn();
+        setorigin(self, p.origin + v_forward * 48 - v_right * 32 + '0 0 16');
+        vector at4 = self.origin;
+        toolgun_upgrade_lg();
+        self = os4;
+        entity w4 = world;
+        for(entity e4 = nextent(world); e4; e4 = nextent(e4))
+        {
+            if(e4 != p && e4.weaponinst != world && e4.weaponinst.wi_adup && vlen(e4.origin - at4) < 64)
+            {
+                w4 = e4;
+            }
+        }
+        VR_Test_Check(w4 != world && w4.model == "progs/v_plasma.mdl#vr", sprintf("the toolgun's Plasma Gun laid, model %s",
+            w4 != world ? w4.model : "(none)"));
+        vr_adph_frames = 0;
+        entity t4 = spawn();
+        t4.classname = "vr_adsa_timer";
+        t4.owner = p;
+        t4.think = AD_PlasmaHitRun;
+        t4.nextthink = time + 0.05;
+        return;
+    }
     if(request == 148)
     {
         // The toolgun's Widowmaker (toolgun_upgrade_ssg: a func_weapon_grabbable prop) comes with its tube full.

@@ -54,6 +54,7 @@ struct Rect
     bool swap;
 };
 constexpr Rect noRect{0.f, 0.f, 0.f, 0.f, false};
+constexpr const char* missingSourceWhy = "AD's model (the release measured) not found"; // (AD's data missing: no fault)
 
 struct Parts;
 void widowmakerParts(Parts& p);
@@ -111,11 +112,11 @@ const Recipe recipes[] = {
         {0.f, 0.f, 0.f}},
     {"progs/v_shot3.mdl#vr", {"progs/v_shot3.mdl", 206, 238, 256, 256}, "fire1", {12.85f, 0.f, -1.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.85f, {2.57f, 0.f, -8.6f}, {1.2f, 0.f, 2.8f}, {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f,
-        {"progs/v_shot2.mdl", 1207, 983, 512, 146}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
+        {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", false, noRect, widowmakerParts, -1, {0.f, 0.f, 0.f}},
     {"progs/v_plasma.mdl#vr", {"progs/v_plasma.mdl", 786, 427, 128, 128}, "base1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.55f,
-        {"progs/v_light.mdl", 1358, 865, 512, 178}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
+        {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts, 493, {0.f, 0.f, 0.6f}},
 };
 
@@ -165,14 +166,25 @@ struct Mesh
 {
     const byte* b = bytes.data();
     const size_t size = bytes.size();
-    if(size < headerSize || qvr::bytes::le32(b, 0) != IDPOLYHEADER || qvr::bytes::le32(b, 4) != ALIAS_VERSION || qvr::bytes::le32(b, 52) != src.skinW || qvr::bytes::le32(b, 56) != src.skinH ||
-        qvr::bytes::le32(b, 60) != src.numVerts || qvr::bytes::le32(b, 64) != src.numTris || qvr::bytes::le32(b, 48) < 1)
+    if(size < headerSize || qvr::bytes::le32(b, 0) != IDPOLYHEADER || qvr::bytes::le32(b, 4) != ALIAS_VERSION || qvr::bytes::le32(b, 48) < 1)
     {
         return false;
     }
-    const int numSkins = qvr::bytes::le32(b, 48), numFrames = qvr::bytes::le32(b, 68), nv = src.numVerts, nt = src.numTris;
+    // A Source of counts 0 is Quake VR's own model (a graft's donor): whatever its art is now, its counts read from it (its
+    // pieces found by their seed vertices, which its art's edits keep: new vertices are appended). Exact counts pin AD's
+    // release measured. (Pinned donors broke the Widowmaker on 2026-11-06 and the Plasma Gun on 2026-11-08 when the super
+    // shotgun's and the lightning gun's sights were redone: both fell back to their stand-ins.)
+    const bool any = src.numVerts == 0;
+    const int skinW = any ? qvr::bytes::le32(b, 52) : src.skinW, skinH = any ? qvr::bytes::le32(b, 56) : src.skinH;
+    const int nv = any ? qvr::bytes::le32(b, 60) : src.numVerts, nt = any ? qvr::bytes::le32(b, 64) : src.numTris;
+    if(qvr::bytes::le32(b, 52) != skinW || qvr::bytes::le32(b, 56) != skinH || qvr::bytes::le32(b, 60) != nv || qvr::bytes::le32(b, 64) != nt ||
+        skinW <= 0 || skinH <= 0 || nv <= 0 || nt <= 0 || skinW > 4096 || skinH > 4096 || nv > 65536 || nt > 65536)
+    {
+        return false;
+    }
+    const int numSkins = qvr::bytes::le32(b, 48), numFrames = qvr::bytes::le32(b, 68);
     const glm::vec3 scale{qvr::bytes::lef32(b, 8), qvr::bytes::lef32(b, 12), qvr::bytes::lef32(b, 16)}, origin{qvr::bytes::lef32(b, 20), qvr::bytes::lef32(b, 24), qvr::bytes::lef32(b, 28)};
-    const size_t skinBytes = static_cast<size_t>(src.skinW) * static_cast<size_t>(src.skinH);
+    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
     size_t at = headerSize;
     m.skin.clear();
     for(int s = 0; s < numSkins; s++)
@@ -206,8 +218,8 @@ struct Mesh
     {
         return false;
     }
-    m.skinW = src.skinW;
-    m.skinH = src.skinH;
+    m.skinW = skinW;
+    m.skinH = skinH;
     m.st.clear();
     for(int i = 0; i < nv * 3; i++)
     {
@@ -1088,7 +1100,7 @@ void plasmaParts(Parts& p)
     Mesh src;
     if(!load(r.source, r.frame, src, pathId))
     {
-        why = "AD's model (the release measured) not found";
+        why = missingSourceWhy;
         return false;
     }
     Mesh graft;
@@ -1096,6 +1108,14 @@ void plasmaParts(Parts& p)
     {
         why = "Quake VR's model to take the grip from not found";
         return false;
+    }
+    for(const int seed : r.graftSeeds)
+    {
+        if(r.graft.path && seed >= static_cast<int>(graft.pos.size()))
+        {
+            why = "Quake VR's model to take the grip from has fewer vertices than its seeds";
+            return false;
+        }
     }
 
     // The grafted pieces' texels: their rectangle of the Quake VR model's skin, copied under AD's.
@@ -1914,6 +1934,12 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     const char* why = "";
     if(!build(*r, b, why, path_id))
     {
+        // (AD's data missing: by design, quietly; AD's model there but not made: a bug of ours, said aloud: the Plasma
+        // Gun was drawn as the Thunderbolt when the lightning gun's art changed, 2026-11-08)
+        if(strcmp(why, missingSourceWhy) != 0)
+        {
+            Con_Warning("AD weapon model: %s not made (%s): %s stands in\n", name, why, r->standIn);
+        }
         Con_DPrintf("AD weapon model: %s: %s: %s stands in\n", name, why, r->standIn);
         return COM_LoadMallocFile(r->standIn, path_id);
     }
@@ -1928,6 +1954,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 void info_f()
 {
     Con_Printf("(the Widowmaker drawn: %s; below, the one made from AD's)\n", artLoaded ? widowmakerArtName : "made from AD's");
+    int made = 0, notMade = 0, noData = 0;
     for(const Recipe& r : recipes)
     {
         Built b;
@@ -1935,8 +1962,10 @@ void info_f()
         if(!build(r, b, why, nullptr))
         {
             Con_Printf("%s: %s\n", r.name, why);
+            ++(strcmp(why, missingSourceWhy) ? notMade : noData);
             continue;
         }
+        ++made;
         Con_Printf("%s: %d triangles, %d vertices (%d of AD's off, %d of Quake VR's grip on, %d made), %d holes closed, %d open "
                    "edges left, box %.2f %.2f %.2f .. %.2f %.2f %.2f%s, muzzle %.4f %.4f %.4f\n",
             r.name, b.tris, b.verts, b.dropped, b.grafted, b.made, b.sealed, b.openAfter, b.lo.x, b.lo.y, b.lo.z, b.hi.x, b.hi.y, b.hi.z,
@@ -1972,6 +2001,8 @@ void info_f()
                 spinPoses, frameCount);
         }
     }
+    // (a test's verdict line: "0 not made" is right; AD's data missing is no fault)
+    Con_Printf("vr_adweapon_models: %d made, %d not made, %d without AD's data\n", made, notMade, noData);
 }
 
 } // namespace qvr::adweapons

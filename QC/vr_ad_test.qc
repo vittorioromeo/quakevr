@@ -235,7 +235,7 @@ void(float request, entity p) AD_RulesTest =
     if(request >= 131 && request <= 139) { AD_MeleeTest(request, p); return; } // the four monster swords: vr_ad_melee.qc (131-134 killed and swung, 135 the holsters, 136-139 held)
     if(request >= 145 && request <= 147) { AD_MeleeTest(request, p); return; } // the death sergeant's flail: vr_ad_melee.qc (145 killed and taken, 146 in the main hand, 147 the main hand's hold)
     if(request >= 165 && request <= 170) { AD_MeleeTest(request, p); return; } // the flail lying about with its head: vr_ad_melee.qc VR_FlailHead_Test
-    if(request == 140 || request == 141 || request == 148 || request == 149) { AD_UpgradesTest(request, p); return; } // the upgrades' rules: vr_ad_upgrades_test.qc (148: the toolgun's Widowmaker loaded)
+    if(request == 103 || request == 140 || request == 141 || request == 148 || request == 149) { AD_UpgradesTest(request, p); return; } // the upgrades' rules: vr_ad_upgrades_test.qc (148: the toolgun's Widowmaker loaded)
 
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;

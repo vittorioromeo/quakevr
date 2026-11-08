@@ -105,6 +105,19 @@ void() AD_WeaponsOnDemand =
     precache_sound("weapons/bolt_hit1.wav");
     precache_sound("weapons/bolt_hit4.wav");
     precache_model(ad_MODEL_PROJ_BOLT1);
+    // The plasma balls (the Plasma Gun's, the soldiers' rifles') and what their hits show (ad_Touch_PlasmaProjectile: AD's
+    // sprites, smoke and flesh bits): outside AD's maps (its worldspawn precaches them) they loaded at the first shot and
+    // its first hit, a hitch (his note 2026-11-08: the toolgun's Plasma Gun's first ball into the floor).
+    precache_model(ad_MODEL_PROJ_PGPLASMA);
+    precache_model(ad_MODEL_PROJ_PLASMA);
+    precache_model(ad_MODEL_PROJ_PLASMAGRN);
+    precache_model(ad_SEXP_ELECTRIC);
+    precache_model(ad_SEXP_PLASMA_SMALL);
+    precache_model(ad_SEXP_POISON_SMALL);
+    precache_model(ad_SBURST_SMOKE);
+    precache_model(ad_MODEL_PROJ_SMOKE);
+    precache_model(ad_MODEL_PROJ_FLESH);
+    precache_model(ad_MODEL_PROJ_FLESHP);
 };
 
 // func_weapon_grabbable (a map's or the toolgun's) laying one of AD's soldiers' guns (`wid`): its model made and its
