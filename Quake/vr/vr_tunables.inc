@@ -1847,6 +1847,12 @@ QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.
 QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
 QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
 
+// Flatscreen > Reload
+QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload.cpp): seconds the gun's hand takes to the nearest hip holster (the rounds go in as it gets there)
+QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
+QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
+QVR_TUNABLE(vr_flat_reload_angle, "90") // degrees the gun turns muzzle-down at the holster (0..150)
+
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
 QVR_TUNABLE(vr_flat_empty_down, "1") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 off the old anchor)
@@ -2135,6 +2141,11 @@ QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
 QVR_TUNABLE(vr_embed_brake, "25") // 1/s: running into a stab you hold, your speed along the blade into the body falls to Brake: Speed this fast (0: never; his note 2026-11-08)
 QVR_TUNABLE(vr_embed_brake_speed, "0.5") // m/s along the blade into the body you keep at most while braked
+QVR_TUNABLE(vr_embed_props, "1") // 1: held stabs and swings stay in wooden crates and barrels as in bodies (his notes 2026-11-08; QC vr_embedhold.qc VR_Embed_PropHost)
+QVR_TUNABLE(vr_embed_prop_force, "700") // N a blade held in a crate or barrel pulls it with at most along the floor, one hand (Moving: Two Hands with both; Blade Hold Strength): a small crate (40 kg) weighs some 830 N
+QVR_TUNABLE(vr_embed_prop_lift, "0.5") // times its weight that pull lifts at most, one hand (two: Moving: Two Hands' times): dragged and tipped, not hoisted on one blade
+QVR_TUNABLE(vr_embed_prop_hertz, "4") // Hz: how stiffly that pull holds the crate to the blade before its cap
+QVR_TUNABLE(vr_embed_prop_stick, "2") // times how hard a blade in a crate slides, of in a body (and its slide's speed over it)
 QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword barely in lifts (Skewer 1; Moving: Sword's Force on top of it)
 QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2.5") // ... in as far as it goes: a grunt held up over your head
 QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)

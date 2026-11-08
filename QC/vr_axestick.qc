@@ -294,8 +294,10 @@ void() VR_AxeStick_Think =
     entity h = self.vr_stick_ent;
     // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed; or the part it is in is cut
     // off, whatever cut it.)
+    // (A crate broken, its boards flung: it falls at once, not with the crate's removal a moment on; held, into the hand.)
     if(!VR_AxeStick_On(self) ||
        (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
+       (self.vr_stick_kind == AXESTICK_PROP && h.classname == "vr_crate_broken") ||
        (cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && VR_AxeStick_BoneCut(h, self.vr_stick_bone)) ||
        (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
     {

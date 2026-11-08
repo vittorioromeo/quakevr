@@ -127,7 +127,8 @@ void(entity p, float i, float tier, float crack) VR_PP_Shed =
         vector at = limbpiece(p, i, 10);
         vector out = at - p.origin;
         out_z = 0;
-        VR_AgArmor_DebrisOf(VR_AgArmor_ModelOf("progs/vrbody.mdl", i), tier, i, at, limbpiece(p, i, 11),
+        // (in two halves: vr_agarmor_split)
+        VR_AgArmor_DebrisBroken(p, VR_AgArmor_ModelOf("progs/vrbody.mdl", i), tier, i, at, limbpiece(p, i, 11),
             p.velocity + normalize(out) * (60 + 40 * random()) + '0 0 90');
     }
 };

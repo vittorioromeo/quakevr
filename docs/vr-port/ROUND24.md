@@ -4853,6 +4853,120 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
 
+## Flat-screen reloading (branch `agent/flatreload`, 2026-11-08)
+
+His words: R for reloading (mouse 4 the only force-grab key), an auto reload when a clip empties (on by default), the
+"simple hip holster" reload for every gun with the hand animated to the nearest hip holster and back (~90 degrees down,
+times and angle tunable), a two-handed gun's off hand relaxed during it, the guns' ammo screens as in VR, the status bar's
+clip big and reserve small. And (his extra note): no reload from a holster the gun touches as its pose changes or the
+camera moves; only R or the auto reload; a switch mid-reload breaks nothing.
+
+- **Keys.** `vr_flat_key_reload` (`r`, archived) sends `impulse 55`; `vr_flat_key_grab_alt` `r` -> `""` (mouse 4,
+  `vr_flat_key_grab`, stays). Migration: a sparse config never wrote the old default, so it takes the new one; a full
+  config's `r` is moved by a `fullConfigChanges` row. R reloads every hand whose gun can take rounds (dual wield: both).
+- **Settings.** VR Settings > Locomotion > Desktop Screen Play: *Reloading* (`vr_flat_reload` 1; 0 the old no-clip play)
+  and *Auto Reload* (`vr_flat_autoreload` 1). Tunables > Flatscreen > Reload: `vr_flat_reload_down` 0.3, `_hold` 0.2,
+  `_up` 0.3 (s), `vr_flat_reload_angle` 90.
+- **Game side** (`QC/vr_flatreload.qc`): a flat-screen player reloads at the hips whatever the headset's mode
+  (`VRIsWeaponReloadingEnabled`, every gun, no per-gun overrides); the rounds go in through `VRTryReloadWeapon`
+  (VR's sums, sounds, haptics) when the hand reaches the hip. `VRTryReloadWeapon` returns for a flat-screen player unless
+  `vr_flatreload_go` is set: no holster contact (the flat gun at rest sits in the right upper holster's zone: hotspot 9),
+  no flick, no reload button. The immersive pieces are never his (`VR_Reload_ManualInHand`, `VR_Reload_MagIn`, the nail
+  pistol's magazine-out, flick reload). Fire is blocked for the trip (`weapons.qc`); a weapon change cancels it. The cycle
+  (1, 2) gives the clip back to the reserve and loads the next gun from it (the hand's magazine record used to carry
+  over: rounds were lost, or loaded into the wrong gun).
+- **Drawn side** (`Quake/vr/vr_flatreload.cpp`): `STAT_QVR_FLATRELOAD` (`.vr_flatrl`) drives each hand's share of the way
+  to the nearer hip holster (`body::holsterPosition`), muzzle down; the ironsight waits and the free hand leaves the
+  hotspot (`vr_flatsight.cpp` stance and grip, `vr_twohand.cpp`), so it hangs relaxed.
+- **Ammo screens.** Why they were wrong: flat play had no clips, but `STAT_QVR_RELOADMODE` came from the global mode (3),
+  so the screens drew a clip row that nothing filled. Now that stat is per player (2 for a flat-screen player with
+  Reloading on, 0 off: `vr_server.cpp`), and his clips are real: "7/8" over "17", as in VR.
+- **Status bar.** `VR_FlatHudClip` (`vr_flathud.cpp`) and `Sbar_DrawHandAmmo` (`sbar.c`): the clip in the big numbers,
+  the reserve small beside them, in every hudstyle (flat layout both corners, modern, QuakeWorld, classic).
+- **Debug.** Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`, `vr_flat_reload_pose`.
+- **Tests.** `Misc/quakevr/flatreload_test.sh`: **26 passed, 0 failed** (R: 7 of 8 + 17 shells -> 8 + 16; the headset's
+  holster: 6 + 17 -> 8 + 15, the same sums; the hand at the hip at 0.29 s, back at 0.79 s of 0.8, pitch 89.8; switches
+  and Q before and after the hip keep clip + shells). After the merge of origin/next: flathud 11/0, flatkeys 37/0,
+  flatinput 14/0, flatmove 10/0; flatplay 26/2: the same two melee knight checks (and the lock line) fail on origin/next
+  itself. Checklist scene `flat_reload`.
+- **Decisions.** R reloads both hands when dual wielding. A weapon switch loads the gun taken at once (as a pickup), no
+  trip. The hip is the nearer of the two to the hand when the trip starts.
+## Broken armour splits in two (branch `agent/armoursplit`, 2026-11-08)
+
+His note: every armour piece but the helmet looked too big when it came off whole; he wanted two halves.
+
+- **What:** a plate shot off (`VR_AgArmor_Break`, an armed humanoid's; `VR_PP_Shed`, yours) falls as two props
+  (`VR_AgArmor_DebrisBroken`): each its own model `<model>#plate<piece>h<half>s<axis>` (vr_agarmor.cpp `derivedFile`,
+  `splitHalf`), its own hull (box3d's hull of its model), half the whole's `.vr_prop_mass` (cuirass 2 + 2, others
+  0.75 + 0.75), the fall's velocity plus `vr_agarmor_split_impulse` apart, the same skin (dents, scorches). The helmet is
+  always whole; a gibbing (`VR_AgArmor_Shed`) and a cut (`VR_AgArmor_CutDone`) still drop plates whole (not broken).
+- **The line:** across the piece's length (its tube's `up`) or down it (its tube's `left`: the cuirass's left/right), per
+  kind. Each small plate (a tile and its rims; a hero plate's columns each) goes whole to one side, so the seam follows
+  the plates' edges, zigzagging (3 teeth, 15% of the piece's size deep) so it reads jagged; the halves get as many
+  triangles each (the line at their median). A piece shorter than 0.6 of its width (the player's bracers) always splits
+  down its length (cut across, they fell as two thin rings 0.9 units apart). The line is fixed per piece kind: the hit
+  point does not move it (that needs a model per seam; not cheap). The seam is open (no bent edge modelled).
+- **Cvars** (Combat > Armed Grunts > Armour > Broken Plates): `vr_agarmor_split` 1, `vr_agarmor_split_impulse` 50 u/s,
+  `vr_agarmor_split_cuirass` 1 (down the middle), `_pauldron`, `_bracer`, `_thigh`, `_shin` 0 (across). The half models'
+  names come from `limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half))` (the builtins' table is full), their places from
+  `limbpiece(e, piece, 16 / 17)`. `developer 1` prints each half model's line normal as it is made, and each split.
+- **Performance:** the halves are precached with the wholes at the level's load (`VR_AgArmor_PrecacheOf`: 18 more models
+  per wearer kind; test 13 shows no late precache). Twice the debris entities, under the same fade
+  (`vr_agarmor_debris_time`); no other cap applies to plate debris.
+- **Tests:** `vr_agarmor_test 1`: every piece of a full grunt set breaks into 2 props (the helmet 1), their masses add up
+  to the whole's, `vr_agarmor_split 0` whole; the enforcer's and the knights' (`7`) pauldrons the same: **38 passed**,
+  test 7 **16 passed**; test 13's count updated (19 debris). `vr_pp_test 1`: each of your 9 pieces into 2, split 0
+  whole: **63 passed, 0 failed**. `vr_pp_test 16`: the sheet (you and a grunt with plates shot off, the halves about).
+- **Checklist scene:** `agarmor_tiers` (shoot the grunts' plates off; god mode, so let them shoot yours too).
+## Ragdolls and armed humanoids, 11-08 (branch `agent/rag1108`, 2026-11-08)
+
+His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-04-50 and 17-14-18.
+
+- **Removed outright, its pack goes with it (start_16-51-19).** The cause: `ED_Free` keeps an edict's fields until the
+  slot is reused, so a removed wearer still pointed at its pack. The pack's think took it for a hidden wearer
+  (`model ""`) and only noticed it was gone when the edict was reused, then tore the pack off with its rip: "after
+  some time ... out of nowhere". `VR_AG_RemoveWith` (vr_wornpack.qc) removes the worn pack (living or dead), the held
+  weapons and their back tanks, quietly. It is called by `VR_Scene_Remove` (the toolgun's remover, `vr_scene_clean`)
+  and by `VR_Knockdown_RemoveBody`. `VR_AG_Freed` (vr_armedgrunt_defs.qc: model index 0, think -1, not solid,
+  untouchable) is the backstop in the pack's and the weapon's thinks for any other `remove`. Worn packs no longer count
+  as props for Clear Props. The toolgun has no undo for removals; the panel's Remove page has only Clear Props. A faded
+  corpse's pack now goes with it too (it used to drop later, the same bug).
+- **Hanging struggle (vrclimb_17-20-00).** `hangStruggle` (vr_ragactive_hold.cpp): the legs kick back and forth out of
+  step, kept out from the wall's face, a knee drawn up on the way in, a little aside. Each hanger has its own pace, beat
+  and wander from its seed. The body sways along the lip by a capped push on the pelvis (4 % of its weight). It runs at
+  full strength in the Hang phase, at half while it pulls itself up, and while it goes over the lip until its feet
+  reach for the top. The holds are not touched. Cvars: `vr_ragdoll_active_hang_kick` 2 (0..3; 0 off), `_hz` 1.4,
+  `_random` 0.6, `vr_ragdoll_active_hang_sway` 1. The climb's end line (`vr_knockdown_debug 1`) gives its feet's travel.
+  `climb_test.sh` takes `KICK=0|1` for a before/after. Not done: a grip shuffle (it risks the hold), and dying hangers.
+- **Shoves while getting up (vrclimb_17-20-42).** `VR_Knockdown_GetUpShove` (vr_knockdown.qc), called by `VR_Bash_Hit`
+  before the knockdown's chance, when `vr_knockdown_getup_shove` is 1. A body rising as an active ragdoll
+  (`box3d::ragdollRiseShove`, reached through `ragdollstagger`'s `sure` 3 because the builtins table is full) goes back
+  into an active fall along the shove, pushed at 2.2 m/s times the push; its down time starts again and the shove is
+  not counted as a lapse. A shove weaker than `vr_knockdown_getup_shove_step` (0.8: one hand) on one past
+  `vr_knockdown_getup_shove_late` (0.6) of its get-up is a balance step instead: a stagger along the shove whose
+  balance is lower the earlier it is in the rise and the more bent over it is, so it may still go over. Progress counts
+  rather than how upright the chest is: a grunt's pelvis-to-head is only 0.3 upright at 1.8 s into its rise. One
+  rising the old way (its get-up's frames, `.vr_knockdown` 2) is knocked down again and toppled along the shove.
+- **Gib rule (vrragtriggers_17-04-50).** In `VR_Corpse_Damage`, explosions (kind explosions or a splash) still gib once
+  their damage wears the corpse's pool out. Any other hit gibs only if it alone deals `vr_corpse_gib_overkill` (50) or
+  more, or if the pool is already worn out and it deals `vr_corpse_gib_hit_min` (35) or more. Lesser hits keep wearing
+  the pool and popping limbs and heads, but never gib it whole. `vr_corpse_gib_overkill 0` restores the old rule.
+- **Tanks beside the packs (vrragtriggers_17-14-18).** `VR_FuelTank_WornPlace` moves the worn tank
+  `vr_adgun_tank_worn_side` (7) units to the wearer's right (the weapon hand's side; the back's own frame:
+  forward x up) and `vr_adgun_tank_worn_back` (0) farther out. Same rule for every kind; an enforcer's tank sits
+  right of its model's power pack.
+- **Test:** `vr_rag1108_test 1..5` (Debug > Tests, four rows; ends on `rag1108<part>: N passed, M failed`).
+  Results: removal 5/0; gib rule 6/0; shoves 4/0 in four runs (test 5's one-hand shove 100 % up: a balance step,
+  balance 0.51; an earlier old-style timeout in state 46 did not come back in three runs); tanks 9/0 (each 6.8-7.9
+  units right, 1.7-2.0 off the pack's box). The hang struggle (vrtesthall west lip, grunt, hang then drop, seed 7): its
+  feet's travel 194 units at kick 0, 213 at 1, 265 at 2, 297 at 3; the hold let go at 2.42 s every time (its timer, not
+  the kicks). `climb_test.sh` (grunt, knight, enforcer; pull and drop; 2 seeds): the same outcomes and times with
+  KICK 0 and 1 (the grunt's pull "too weak to rise" and the enforcer's "no grab" in both: not from this). Default
+  raised to 2. No tank screenshot: the author's game was running (low-impact runs only).
+- **Regressions run (low-impact, no baseline build at hand):** wornpack 1 25/0, 5 7/0, 3 11/1 (a gentle pull's
+  force 2378 N, physics); agrunt 2 2/2 (rearm takes no guns, drop finds nothing), 74 0/1 (downtug, on the 11-06
+  night's new-fails list); `stagger_test.sh` 5 FAIL (ragdoll_stagger is on QUEUE's pre-existing list). agrunt 2 is not
+  proven unrelated: re-run it on a clean origin/next.
 ## Flat-screen feedback 2026-11-08 evening (agent/flat1108c)
 
 - Slide: stairs stopped it (Quake steps up only with FL_ONGROUND, off every other move at slide speed; the step face zeroed the speed), and on the first step the eye (a frame behind) dropped under the prone limit and laid him down. A grounded slide now steps up every move (VR_FlatSlideStepUp), costs vr_flat_slide_slope * rise / speed per step, and cannot enter prone. Up a ramp vz > 60 counted as a jump: a jump now needs the jump key. A/D alone asked 90+ degrees off the slide and never steered: any way but within 20 degrees of straight back steers. Test: vr_flatslide_rough_test (flatslide_test.sh), 4/4 (with the step-up alone, the prone entry still ended it on the first step: rose 16).
@@ -4933,6 +5047,48 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6,
 - **Next (not started):** item 5 (a client-side correction of skewered gibs to the drawn hand, as the held weapon has);
   items 13-14 (blades in wooden crates and barrels: the hold code takes a monster host and hitmodel; a prop host needs
   its own anchor (kind Prop exists for thrown axes) and its own Moving: forces).
+
+## Embedded blades: his 11-08 notes, part three (branch `agent/embed1108b`, worktree phases, 2026-11-08)
+
+Brief `qvr-kit/scratch/brief_embed1108b.md`: items 5, 13 and 14 of part one's brief.
+
+- **Skewered gibs locked to the blade on stick turns and moves (item 5):** a gib, head or limb on a blade in the local
+  player's hand is drawn as a held prop is (vr_held.cpp skewerFrame, with vr_carry_local): its place in the server's hand
+  (both as the server's last frame left them) put on the hand drawn this frame, shaken and knocked as the weapon. Walks the
+  edicts only while the player's skewer load (QC VR_Skewer_Tally) is not 0. New field `vr_skewer_hand` read by the engine.
+  Probe `vr_embed_probe_skew` (cm the drawn gib off its place on the drawn blade, measured in vr_view_weapon.cpp against the
+  weapon entity as drawn) and `_skewn` (frames). **Test `vr_embed_test 29`** (`embed1108b`, Debug menu): smooth turn, one
+  snap turn (45 deg), a 219-unit move, a turn and a move: 0.00 cm off in 55 frames each; vr_carry_local 0 (as before):
+  28.4 cm. 10/0.
+- **Blades in wooden crates and barrels (items 13, 14):** a held stab or swing that would stay in a body stays in a crate or
+  barrel (QC VR_Embed_PropHost: `vr_embed_props`, a crate lying loose, not in a hand), by the same speeds and angles. The
+  engine's stickHeld takes a Box3D prop host (propMeets: the blade's line cast at its body from the root or along this
+  frame's way, else its nearest point within vr_embed_touch; kind Prop, riding the crate's origin and angles; no second push,
+  the melee's blow pushed it). The hold is a body's but for moving it: no ragdoll spring, no drag, but
+  VR_Embed_PropSpring: the new builtin `embedproppull` pulls the crate's body at the wound towards the handle hand plus the
+  wound's offset as it took hold (less the blade's own slide), a critically damped spring on its mass (`vr_embed_prop_hertz`
+  4 Hz) capped level at `vr_embed_prop_force` (700 N) and up at `vr_embed_prop_lift` (0.5 of its weight), both times
+  Moving: Two Hands with both hands and Blade Hold Strength: one hand drags a small crate (40 kg, some 830 N) and tips it,
+  can't hoist it; both lift it. Applied through each step piece as a force (box3d::propPull, the climbing pulls' list); the
+  held blade thinks every frame for it (vr_wpnholster.qc). Wood slides harder: `vr_embed_prop_stick` (x2 the stick, half
+  the rate). A slide in wood knocks wood, not flesh. Gripping a blade stuck in a crate (a throw's too) takes hold on its
+  axis as in a body. Breaking the crate drops it at once (VR_AxeStick_Think: the host now `vr_crate_broken`), held: back in
+  the hand; a blow that broke the crate leaves none in. Tunables rows: Crates: Blades Stick, Pull, Lift, Stiffness, Wood's
+  Grip. **Test `vr_embed_test 30`** (`embedprops`, Debug menu): stab stays in (kind 2), the hand 30 units aside drags the
+  crate 24.4 units, 30 up raises it 3.6 (tipped), let go it stays and rides the crate pushed 76 units (0.2 off), pulled back
+  out into the hand, broken: back in the hand, an axe swing into a barrel stays, Blades Stick off: none. 11/0. Scenario
+  `embed_crates` (sword and axe, two crates, two barrels).
+- **Box3D's slot for a reused edict (item 3):** a prop's body now knows when it was made (`Slot::madeAt`); a body made
+  before its edict was last freed (`edict_t::freetime`) is the old thing's, and `box3d::contactPoint` doesn't read its
+  contacts (the stale body stays until the next sync remakes it). Test 1 on the merged tree before it: 49/12 and 48/13 (its
+  second sword never stuck in the live body: "struck monster_army first, -0.40 of the step", thrown from 13 units off a body
+  standing nearer than in part one; the chain of checks after it failed with it); after: 61/0. Not proven to be the cause
+  (the run's positions differ from part one's), but the run is clean.
+- **A prop host is not a body:** stickHeld's prop path takes only a Box3D prop that is no monster and no ragdoll (a
+  staggering or dead body is a rigid toss too).
+- **Tests at the end:** 1 61/0; 11 102/16 and 115/10 (the merged tree without these changes: 120/5 once; part one 103/15
+  and 117/8: it varies run to run; no blade went into a crate in it); 21 41/2 (the known 2); 26 27/0; 27 22/0; 28 13/0;
+  29 10/0; 30 11/0.
 ## Player body: crawl, prone limit, self-shot head and pain, flashlight trigger, smoke near the eye (branch `agent/player1108`, 2026-11-08)
 
 His notes vrtesthall_2026-11-08_16-54-47, _16-56-44, _16-58-24, _17-29-05, vrstart_2026-11-08_17-00-44, _17-01-11,

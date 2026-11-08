@@ -227,6 +227,10 @@ vector(entity player, float hand, float what) weapondrawnpose = #0;
 // `vel` (units/s), from where `hand`'s weapon is drawn: 1 if it stuck (VR_AxeStick_Stuck called), 0 not, -1 not yet: the blade as drawn
 // doesn't touch its drawn model, its .vr_stick_depth how far off (units).
 float(entity w, entity host, vector at, vector vel, float hand) embedstick = #0;
+// float embedproppull(entity prop, vector at, vector target, vector targetVel, float force, float hertz, float lift): a hand's blade
+// in a crate pulls its point `at` towards `target` (a spring of `hertz` on its mass, level `force` N at most, up `lift` times its
+// weight at most; vr_embedhold.qc VR_Embed_PropSpring). The pull, N; -1 not a solid Box3D prop.
+float(entity prop, vector at, vector target, vector targetVel, float force, float hertz, float lift) embedproppull = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,
@@ -477,6 +481,10 @@ float QVR_ARMOR_PIECE_AT = -1000;
 // first (vr_agarmor.cpp shotPiece: each plate's triangles as drawn, on the shot's line up to where it crosses the skin);
 // -1 none (bare skin), -2 no shell.
 float QVR_ARMOR_SHOT = -1005;
+// limbmodel(e, QVR_ARMOR_HALF - (2 * piece + half)): half 0 / 1 of e's piece split in two (vr_agarmor_split; a
+// player: vrbody.mdl's plates), "<model>#plate<piece>h<half>s<axis>", a name the engine keeps; "" none (the helmet).
+// limbpiece(e, piece, 16 / 17) that half's model's origin now, as drawn (its angles the whole plate's, 11).
+float QVR_ARMOR_HALF = -2000;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 // The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
 // QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that

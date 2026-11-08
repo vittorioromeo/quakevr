@@ -1,0 +1,11 @@
+# flat_reload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) reloading: R, the empty clip, the trip to the hip and back (docs/vr-port/FLATPLAY.md, "Reloading").
+title Flat-screen reload: a shotgun in the right hand, a nail gun and a super nailgun to take, grunts to shoot at
+hint Play with -flatscreenmode. Fire, then R: the gun goes down to the right hip holster muzzle-down and back, the clip refills (status bar: the clip big, your shells small beside it; the gun's ammo screen the same). Fire it dry: it reloads by itself (Desktop Screen Play > Auto Reload). Take the nail gun (two hands): the left hand lets go and hangs while it reloads. Switch weapons (1, 2) mid-reload: nothing breaks. Look around and walk: no reload unless you press R.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Nailgun" 40 70
+spawn "Super Nailgun" 40 -70
+spawn "Grunt" 260 30
+spawn "Grunt" 260 -30

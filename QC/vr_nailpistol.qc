@@ -302,7 +302,7 @@ float(float xHand) VR_NailPistol_Empty =
 {
     if(VRIsWeaponReloadingEnabledFor(self, xHand))
     {
-        return VRGetWeaponClip(xHand) < 1 || (VR_Reload_ImmersiveFor(WID_NAILPISTOL) && self.ishuman &&
+        return VRGetWeaponClip(xHand) < 1 || (VR_Reload_ImmersiveFor(WID_NAILPISTOL) && self.ishuman && !VR_FlatPlay(self) &&
                (VRGetWeaponFlags(xHand) & QVR_WPNFLAG_NOMAG));
     }
     return getCurrentAmmoCount(xHand) < 1;

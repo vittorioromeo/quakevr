@@ -819,6 +819,26 @@ QVR_SLIDER(vr_agarmor_impulse, "Push Through Plates", 0.f, 1.f, 0.05f, "%.2f", n
     "much of what the same hit on a bare limb would: 0 not at all, 1 fully.")
 QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s", noExt,
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
+QVR_TOGGLE(vr_agarmor_split, "Broken Plates Split",
+    "On: a plate shot off (a humanoid's or yours) falls as two halves, each its own prop with half its weight, its "
+    "dents and scorches kept, its seam jagged. The helmet always falls whole, and so do the plates a gibbing or a cut "
+    "knocks off. Off: one whole piece.")
+QVR_SLIDER(vr_agarmor_split_impulse, "Halves Fly Apart", 0.f, 200.f, 10.f, "%.0f u/s", noExt,
+    "How fast a split plate's two halves fly away from each other as they fall.")
+QVR_CYCLE_BYNAME(vr_agarmor_split_cuirass, "Cuirass Splits", "Where a broken cuirass splits.",
+    {0.f, "Across (Upper, Lower)"}, {1.f, "Down the Middle"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_pauldron, "Pauldrons Split",
+    "Where a broken pauldron splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_bracer, "Bracers Split",
+    "Where a broken bracer splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_thigh, "Thigh Plates Split",
+    "Where a broken thigh plate splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
+QVR_CYCLE_BYNAME(vr_agarmor_split_shin, "Shin Plates Split",
+    "Where a broken shin plate splits: across its length, or down it (a short plate always splits down it).",
+    {0.f, "Across"}, {1.f, "Lengthwise"})
 
 // vr_menu_gameplay.inc: pageArmedPacks
 QVR_SLIDER(vr_worn_backpack_lift_force, "Pull That Lifts", 500.f, 4000.f, 100.f, "%.0f N", noExt,
@@ -6070,6 +6090,13 @@ QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
     "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
     "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
     "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
+QVR_TOGGLE(vr_flat_reload, "Reloading",
+    "Playing on the desktop screen (-flatscreenmode): on, every gun has its clip, filled from your ammo by the hip-holster "
+    "reload: R (vr_flat_key_reload), or an empty clip with Auto Reload, takes the gun down to the nearest hip holster and "
+    "back. Off: no clips, every shot from your ammo (vr_flat_reload).")
+QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
+    "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
+    "rounds for it. Off: only R reloads (vr_flat_autoreload).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
@@ -6174,6 +6201,13 @@ QVR_SLIDER(vr_flat_flycam_accel, "Fly Camera Acceleration", 0.f, 8000.f, 100.f, 
     "How quickly the fly camera speeds up and brakes, units a second each second; 0 at once (vr_flat_flycam_accel).")
 QVR_SLIDER(vr_flat_flycam_fast, "Fly Camera Shift Speed", 1.f, 10.f, 0.5f, "x%.1f", noExt,
     "The fly camera's speed with Shift held, times its speed (vr_flat_flycam_fast).")
+QVR_TOGGLE(vr_flat_reload_debug, "Flatscreen Reload Print",
+    "vr_flat_reload_debug: the flat-screen reload's drawn trip printed step by step (R, the trip's start, the hand at the hip "
+    "with its distance and pitch, the hand back); with developer 1 the game's own steps too (flat reload: ...).")
+QVR_CYCLE(vr_flat_reload_pose, "Flatscreen: Hold Gun At Hip",
+    "vr_flat_reload_pose (test aid): the main hand held at its hip holster, muzzle down, as a reload's trip takes it, with no "
+    "reload: look around and walk to check that a holster the hand is at reloads nothing (only R and the empty clip do).",
+    {-1.f, "Off"}, {0.5f, "Half Way"}, {1.f, "At The Hip"})
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",

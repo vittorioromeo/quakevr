@@ -2135,6 +2135,91 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     hd.drawn = true;
 }
 
+// Gibs, heads and limbs on a blade in the local player's hand (QC vr_skewer.qc; his note 2026-11-08 17:0x, item 5): the
+// server places each on the blade from its hand every frame, and drawn where its last message left it one lagged the
+// drawn hand and blade (drawn from this frame's controllers, the body's stick turn and move since carried) by that turn
+// and move. Drawn as a held prop is: its place in the server's hand (as the server's last frame left both: exact) put on
+// the hand drawn this frame, shaken and knocked as it is. With vr_carry_local, as the held props. A gib on a thrown or
+// dropped blade, or another player's, is drawn where the server has it.
+struct SkewerDrawn
+{
+    int ent{0};
+    int hand{0};
+    glm::vec3 pos{0.f}; // its origin in the server's hand's frame
+    glm::mat3 rot{1.f}; // its axes there
+};
+constexpr int skewerDrawnMost = 16;
+SkewerDrawn skewerDrawn[skewerDrawnMost];
+int skewerDrawnCount = 0;
+
+void skewerFrame(const hands::State& s)
+{
+    skewerDrawnCount = 0;
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    if(!sv.active || !s.valid || playerFrames < handsInWorld || f.vr_skewer_p < 0 || f.vr_skewer_w < 0 ||
+        f.vr_skewer_hand < 0 || f.handpos < 0 || f.handrot < 0 || f.offhandpos < 0 || f.offhandrot < 0)
+    {
+        return;
+    }
+    const ServerVm vm;
+    edict_t* const player = localPlayer();
+    if(!player || NUM_FOR_EDICT(player) != cl.viewentity)
+    {
+        return;
+    }
+    // (Only with gibs on a blade in a hand: their weight's tally, QC VR_Skewer_Tally, is not 0. No walk otherwise.)
+    const bool loaded = (f.vr_skewer_load_main >= 0 && fieldVec(player, f.vr_skewer_load_main).x > 0.f) ||
+                        (f.vr_skewer_load_off >= 0 && fieldVec(player, f.vr_skewer_load_off).x > 0.f);
+    if(!loaded)
+    {
+        return;
+    }
+    const int mine = EDICT_TO_PROG(player);
+    glm::mat3 serverHand[2];
+    glm::vec3 serverPos[2];
+    glm::mat3 drawnAxes[2];
+    glm::vec3 drawnPos[2];
+    for(int h = 0; h < 2; h++)
+    {
+        const glm::vec3 angles = fieldVec(player, h == 0 ? f.offhandrot : f.handrot);
+        serverHand[h] = held::axesFromAngles(&angles[0], true);
+        serverPos[h] = fieldVec(player, h == 0 ? f.offhandpos : f.handpos);
+        // (shaken and knocked as the held props and the weapon are: holdFrame)
+        glm::vec3 shakePos, shakeAngles, painPos, painAngles;
+        fatigue::shake(h, shakePos, shakeAngles);
+        painknock::offset(h, painPos, painAngles);
+        const glm::vec3 shakenRot = s.rot[h] + shakeAngles + painAngles;
+        drawnAxes[h] = held::axesFromAngles(&shakenRot[0], true);
+        drawnPos[h] = s.pos[h] + shakePos + painPos;
+    }
+    const int last = za::min(sv.qcvm.num_edicts, cl.num_entities);
+    for(int i = svs.maxclients + 1; i < last && skewerDrawnCount < skewerDrawnMost; i++)
+    {
+        edict_t* const ed = EDICT_NUM(i);
+        if(ed->free || fieldInt(ed, f.vr_skewer_p) != mine || fieldInt(ed, f.vr_skewer_w) != 0)
+        {
+            continue;
+        }
+        const int h = fieldFloatOr(ed, f.vr_skewer_hand, 1.f) == 0.f ? 0 : 1;
+        const int index = static_cast<int>(ed->v.modelindex);
+        entity_t& e = cl_entities[i];
+        if(index <= 0 || index >= MAX_MODELS || !sv.models[index] || e.model != sv.models[index] || e.model->type != mod_alias)
+        {
+            continue;
+        }
+        SkewerDrawn& d = skewerDrawn[skewerDrawnCount++];
+        d.ent = i;
+        d.hand = h;
+        d.pos = glm::transpose(serverHand[h]) * (geom::vec(ed->v.origin) - serverPos[h]);
+        d.rot = glm::transpose(serverHand[h]) * held::axesFromAngles(ed->v.angles, false);
+        if(vr_carry_local.value)
+        {
+            place(e, drawnPos[h] + drawnAxes[h] * d.pos, drawnAxes[h] * d.rot, true);
+        }
+    }
+}
+
 // After both hands' holdFrame: props held one in each hand kept apart, or a prop and the other hand's weapon (Meet).
 void meetFrame(const hands::State& s)
 {
@@ -2657,6 +2742,28 @@ int placeInHand(int hand, glm::vec3& origin, glm::mat3& axes, bool& bothHands, g
     return hd.ent;
 }
 
+float skewerDrawnOff(int hand, const glm::mat4& weapon, const glm::mat4& handPose)
+{
+    // Its place on the blade: its place in the server's hand, carried into the weapon's frame by the weapon's place in
+    // the hand as drawn. Against where it is drawn, in the drawn weapon's frame (rigid both: units as in the world).
+    const glm::mat4 weaponFromHand = glm::inverse(glm::inverse(handPose) * weapon);
+    const glm::mat4 weaponFromWorld = glm::inverse(weapon);
+    float most = -1.f;
+    for(int k = 0; k < skewerDrawnCount; k++)
+    {
+        const SkewerDrawn& d = skewerDrawn[k];
+        if(d.hand != hand || d.ent <= 0 || d.ent >= cl.num_entities)
+        {
+            continue;
+        }
+        const entity_t& e = cl_entities[d.ent];
+        const glm::vec3 drawn{weaponFromWorld * glm::vec4{e.origin[0], e.origin[1], e.origin[2], 1.f}};
+        const glm::vec3 slot{weaponFromHand * glm::vec4{d.pos, 1.f}};
+        most = za::fmax(most, glm::distance(drawn, slot) / units::metresToUnits() * 100.f);
+    }
+    return most;
+}
+
 bool drawnInHands(int num)
 {
     if(num <= 0) { return false; }
@@ -2921,6 +3028,7 @@ extern "C" void VR_RelinkHeld(void)
     {
         reset();
         carried[0] = carried[1] = 0;
+        skewerDrawnCount = 0;
         return;
     }
 
@@ -2956,6 +3064,7 @@ extern "C" void VR_RelinkHeld(void)
         trace(s);
         drawnFrom = s;
     }
+    skewerFrame(s); // (with vr_carry_local 0 only noted, for vr_embed_probe_skew)
 
     // Held in both hands: its centre (as drawn: in the hands this frame, or where the server has it) from the middle
     // of the hands, for a two-handed throw.

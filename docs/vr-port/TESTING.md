@@ -582,6 +582,11 @@ turn lag 0: the drawn weapon within 0.05 units and degrees of its still place st
 and settling, the shots on the crosshair (`Misc/quakevr/flatplay_lock.py`), the mode per player (`reload: the player reloads ...`).
 `bash Misc/quakevr/flashglow_test.sh <agent>`: the flat-screen torch hidden (`vr_flat_flashlight_hide`), its lit lens is
 not drawn either (`vr_flashlight_probe`'s `lens drawn` line), shown again with the option off and in the VR mock.
+`bash Misc/quakevr/flatreload_test.sh <agent>`: the flat-screen reload (FLATPLAY.md, "Reloading"): R's sums against a
+headset's holster reload, the trip's times and pose, the empty clip with Auto Reload on and off, no fire during the trip,
+a two-handed gun's free hand hanging for it, weapon switches and Q mid-trip, and a hand at a holster that reloads nothing
+(`flatreload_check.py` reads the runs; `flatreload: N passed, M failed`). Checklist scene `flat_reload`.
+
 `bash Misc/quakevr/flatmove_test.sh <agent>`: the flat-screen crouch's slowing against the headset's, Quake's swimming by look
 and jump in e1m4's deep water, and the water jump out of the start map's pool (`vr_flatmove_test`; FLATPLAY.md, "Swimming").
 `bash Misc/quakevr/flatslide_test.sh <agent>`: the flat-screen slide (its step's self-test, a run's slide, the jump out of it) and lean (the eye and the roll, the hit box, the slower walk, the wall's clamp, the sights leant, the keys Q / E / 3 / R and the old binds they skip); FLATPLAY.md, "Sliding" and "Leaning".

@@ -95,7 +95,9 @@ console.
 | `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now mouse 4, `R` too) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
 | `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
-| Mouse 4, `R` | force-grabs what the view is pointed at (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab, with the headset's sparks, glow outline, tendril, trail and sound). With both hands empty the dominant hand grabs (`vr_lefthanded`; the right by default), else the empty one; with both hands holding weapons there is no hand to collect with and it does nothing. The keys are `vr_flat_key_grab` (default `mouse4`, the side button the shove leaves) and `vr_flat_key_grab_alt` (default `r`); `""` none |
+| `R` | reloads (Reloading, below): `vr_flat_key_reload` (default `r`; `""` none) |
+| Mouse 4 | force-grabs what the view is pointed at (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab, with the headset's sparks, glow outline, tendril, trail and sound). With both hands empty the dominant hand grabs (`vr_lefthanded`; the right by default), else the empty one; with both hands holding weapons there is no hand to collect with and it does nothing. The keys are `vr_flat_key_grab` (default `mouse4`, the side button the shove leaves) and `vr_flat_key_grab_alt` (default `""`: it was `r` until R became the reload key, 2026-11-08; a full config's old `r` is
+moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | `F7` | the toolgun in the right hand; again, gives back what that hand held (`impulse 49` → `VR_FlatToolgun_Toggle`; `vr_flat_key_toolgun`). With it held the left button is its trigger, mouse 3 opens its panel and `B` held is its X/A: see The toolgun below |
 | `F8` | the fly camera (below) |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
@@ -118,8 +120,34 @@ upkeep in `QC/vr_carry.qc`), and with an open hand everything a flatscreen playe
 it arrives in. With it, what the mode puts in a hand stays there: `E` takes, `1` and `2` move weapons between the hands,
 and a hand lets go of nothing by itself (`G` is the key for letting go).
 
-**No reloading.** `VRIsWeaponReloadingEnabled` (`QC/vr_util.qc`) is off: a magazine is refilled from the reserve as it
-empties, with no handling step.
+**Reloading** (his words 2026-11-08; VR Settings > Locomotion > Desktop Screen Play > Reloading, Auto Reload).
+`vr_flat_reload 1`: every gun has its clip, whatever the headset's Reloading mode and the guns' own overrides
+(`VRIsWeaponReloadingEnabled`, `QC/vr_util.qc`), refilled as VR's Hip Holsters mode refills it (`VRTryReloadWeapon` /
+`VRReloadWeapon`: the same clip and reserve sums, sounds and haptics). It starts only from `R` (`vr_flat_key_reload`,
+`impulse 55`: every hand whose gun's clip has room and whose ammo has rounds, both when dual wielding) or from an empty
+clip (`vr_flat_autoreload 1`). Never from a holster a hand passes (the flat gun at rest sits in the right upper holster's
+zone; the reload's own trip goes through it to the hip), a flick or a button: `VRTryReloadWeapon` returns at once for a
+flat-screen player unless `QC/vr_flatreload.qc` set `vr_flatreload_go`. The immersive pieces (the pouch, magazines, the
+super shotgun broken open, hand-loaded guns: `VR_Reload_ManualInHand`, `VR_Reload_MagIn`) are never a flat-screen
+player's, and his clients' `STAT_QVR_RELOADMODE` is 2 (`vr_server.cpp`): no pouch or magazine drawn, and the guns' ammo
+screens read clip/size over the reserve, as in VR.
+
+The trip (`QC/vr_flatreload.qc`, `Quake/vr/vr_flatreload.cpp`): the gun's hand goes to the nearer hip holster
+(`body::holsterPosition`, chosen as the trip starts) over `vr_flat_reload_down` (0.3 s), turning muzzle-down to
+`vr_flat_reload_angle` (90), and the rounds go in as it gets there; it stays `vr_flat_reload_hold` (0.2 s) and comes back
+over `vr_flat_reload_up` (0.3 s) (Tunables > Flatscreen > Reload). The server holds `.vr_flatrl` (`STAT_QVR_FLATRELOAD`)
+up for the whole trip and the client draws it from that bit with the same times. The hand fires nothing for the trip
+(`weapons.qc`, and `flatplay::routeFire`); the ironsight waits, and a two-handed gun's free hand leaves its hotspot and
+hangs relaxed until the gun is back (`vr_flatsight.cpp`, `vr_twohand.cpp`). Another weapon in the hand cancels it
+(before the hip nothing moved). The weapon cycle (`1`, `2`) puts a gun's clip back into the reserve and takes the next gun
+loaded from it, as a pickup comes (`VR_FlatReload_CycleOut` / `CycleIn`): the hand's magazine record is carried from one
+gun to the next (`VRCycleEntWeaponInst`), so its rounds were lost or loaded into the wrong gun. `vr_flat_reload 0`: no
+clips, every shot from the reserve, as before.
+
+The status bars (every `hudstyle`, `vr_flat_hud` on and off; `VR_FlatHudClip`, `Quake/sbar.c`): a gun with a clip shows
+the clip in the big numbers and the reserve in small type beside them (the left hand's to their right, the right hand's
+and the classic bar's to their left). Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`,
+`vr_flat_reload_pose` (the main hand held at the hip with no reload). Test: `Misc/quakevr/flatreload_test.sh`.
 
 **A box grabbed with `E` is taken at once.** `VR_Carry_AutoCollect` (`QC/vr_carry.qc`) follows `vr_carry_autocollect`, the
 menu's Item Pickup Mode; for a player in the mode it counts as at least 1 â€” mode 1's collectable set, ammo and health
@@ -319,9 +347,9 @@ touch it does for an untracked player, whatever `vr_body_interactions` says.
 **Co-op: the mode is each player's own.** A client in the mode says so in its move (bit 15 of the VR block's
 `vrBits0`, `protocol::moveFlatplayBit`); the server takes it out of the QC's bits and sets that player's
 `.vr_flatscreen` (`Quake/vr/vr_server.cpp`). Every game-side gate asks for the player it is about (`VR_FlatPlay(player)`
-in `QC/vr_util.qc`: reloading, `E`'s grab, `1` and `2`, the grip-less catch; the body's hand touch in
-`vr_physics.cpp`). So a flatscreen host leaves reloading on for the VR players who join it, and a flatscreen client on a
-VR host gets `E`, `1` and `2` and no reloading. The punches need no gate of their own: they are a motion of the hand, and
+in `QC/vr_util.qc`: reloading at the hips, `E`'s grab, `1` and `2`, the grip-less catch; the body's hand touch in
+`vr_physics.cpp`). So a flatscreen host leaves the headset's reloading mode for the VR players who join it, and a flatscreen client on a
+VR host gets `E`, `1` and `2` and the hip-holster reload. The punches need no gate of their own: they are a motion of the hand, and
 `VR_Melee_Deal` / `VR_Melee_Strike` (`QC/weapons.qc`) deal the damage of whatever that hand holds, as they do for a hand
 in VR. The engine's `vr_flatplay` cvar is the local client's mode only (its
 hands, its flashlight, its keys).

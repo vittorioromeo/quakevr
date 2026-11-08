@@ -1179,6 +1179,8 @@ QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was draw
 QVR_CVAR(vr_embed_probe_grip, "-1", CVAR_NONE)         // cm the most the drawn hand was from where it holds the drawn weapon, easing off a blade
 QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn weapon's offset from its controller changed in a frame, off a blade (the blade's before)
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
+QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
+QVR_CVAR(vr_embed_probe_skewn, "0", CVAR_NONE)         // and the frames it was measured in
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
@@ -2746,6 +2748,8 @@ QVR_CVAR(vr_adgun_hose_arms, "1", CVAR_ARCHIVE) // ... kept out of the drawn arm
 QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, thrown, a monster's): the gun's tank beside it, a prop held to it by a rope, a hose between them (QC vr_ad_enemyguns.qc "Fuel tanks"; vr_box3d.cpp, vr_adtank.cpp); 0 none
 QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
 QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
+QVR_CVAR(vr_adgun_tank_worn_side, "7", CVAR_ARCHIVE) // ... that worn tank moved this many units to the wearer's right of its back's middle (beside the worn backpack, the weapon hand's side; 0: in the middle, through the pack)
+QVR_CVAR(vr_adgun_tank_worn_back, "0", CVAR_ARCHIVE) // ... and this many units farther out from the back (in: negative)
 QVR_CVAR(vr_adgun_hosecut, "1", CVAR_ARCHIVE) // ... a blade (a sword's, an axe's, a knife's, the chainsaw's) swung across the hose between a gun and its tank lying about cuts it: the gun spent, the tank a prop of its own (QC vr_ad_enemyguns.qc "Cutting the hose"); 0 never
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_fumigator_poison, "6", CVAR_ARCHIVE) // ... the poison it leaves: damage a second (0: none)
@@ -2850,6 +2854,8 @@ QVR_CVAR(vr_prop_impact_weight_ref, "3", CVAR_ARCHIVE)    // kg: the mass that d
 QVR_CVAR(vr_prop_impact_weight_max, "2.5", CVAR_ARCHIVE)  // the most mass multiplies the damage
 QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be destroyed (shot, blown up, struck, thrown hard): they burst in a mist of blood
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
+QVR_CVAR(vr_corpse_gib_overkill, "50", CVAR_ARCHIVE)   // a corpse or ragdoll is fully gibbed by explosions (their damage worn down to its corpse health), or by one other hit dealing this much at once (a point-blank super shotgun on the torso); 0: every hit wears it down to a gib, as before
+QVR_CVAR(vr_corpse_gib_hit_min, "35", CVAR_ARCHIVE)    // ... or, its corpse health worn out already, by one other hit of at least this much; lesser hits (a pistol, a punch, a blade, the chainsaw, fire, lightning) never fully gib it, however many (limbs, heads and small gibs as ever)
 QVR_CVAR(vr_corpse_nogib, "0", CVAR_ARCHIVE)          // never gibbed (testing): 0 off, 1 corpses and ragdolls (and dying bodies) take damage but never burst, 2 also monsters die whole (their death code never gibs them)
 QVR_CVAR(vr_corpse_collide, "4", CVAR_ARCHIVE)        // corpses in the physics (vr_box3d.cpp): 0 none (things pass through), 1 fixed box, 2 heavy pushable box, 3 fixed shape of its pose, 4 heavy pushable shape of its pose
 QVR_CVAR(vr_corpse_collide_props, "1", CVAR_ARCHIVE)  // loose props (boxes, weapons, gibs, heads lying or falling) meet corpses
@@ -2926,6 +2932,9 @@ QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body bl
 QVR_CVAR(vr_knockdown_getup_speed, "0.8", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
 QVR_CVAR(vr_knockdown_getup_slope, "30", CVAR_ARCHIVE)    // degrees: a knocked-down monster lying on a slope up to this steep gets up as on level ground (QC VR_Knockdown_Think)
 QVR_CVAR(vr_knockdown_getup_force, "4.5", CVAR_ARCHIVE)   // s: its get-up due this long and still down (a steeper slope it slides on, no room): it gets up where it lies, forced (never a ragdoll for ever); 0: never
+QVR_CVAR(vr_knockdown_getup_shove, "1", CVAR_ARCHIVE)     // a shove or bash on one getting up after a knockdown always lands: back down as an active ragdoll, its down time begun again; 0: it has no effect then, as before
+QVR_CVAR(vr_knockdown_getup_shove_step, "0.8", CVAR_ARCHIVE) // ... a shove weaker than this (one hand 0.7, two 1) on one nearly up (past _late of its get-up) is a balance step instead (it staggers along the shove, back or aside, and may still go over: the more bent over, the likelier); 0: every one down
+QVR_CVAR(vr_knockdown_getup_shove_late, "0.6", CVAR_ARCHIVE) // ... nearly up: this far through its get-up (0 its start, 1 standing) for the balance step (its balance the less the earlier and the more bent over)
 QVR_CVAR(vr_knockdown_push, "1.3", CVAR_ARCHIVE)          // (the author's 1.3, 2026-10-11) the knocked body's launch, times the shove's push
 QVR_CVAR(vr_knockdown_shove_travel, "0.8", CVAR_ARCHIVE)  // how far the shoved-down body goes, times how far the same shove carries a standing one (its pelvis, as it lies; box3d ragdollShove); 0: it falls where it stood
 QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE) // degrees it turns over about its feet along the shove (90: from standing to flat), head and chest first; 0: no turn (it falls as it will)
@@ -3022,6 +3031,13 @@ QVR_CVAR(vr_agarmor_rule, "1", CVAR_ARCHIVE)          // armour on armed humanoi
 QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
 QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut or popped under an unbroken plate
 QVR_CVAR(vr_agarmor_debris_time, "12", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
+QVR_CVAR(vr_agarmor_split, "1", CVAR_ARCHIVE)         // armour: a plate shot off (an armed humanoid's or yours) falls as two halves, each its own prop with half its mass (the helmet always whole; a gibbing or a cut drops plates whole); 0 one whole piece
+QVR_CVAR(vr_agarmor_split_impulse, "50", CVAR_ARCHIVE) // armour: a split plate's halves fly apart this fast (units/s each, away from each other, over the plate's own fall)
+QVR_CVAR(vr_agarmor_split_cuirass, "1", CVAR_ARCHIVE) // armour: the cuirass's split line: 0 across its length (two shorter halves: upper and lower), 1 down its length (two long halves: left and right)
+QVR_CVAR(vr_agarmor_split_pauldron, "0", CVAR_ARCHIVE) // armour: a pauldron's split line: 0 across its length, 1 down its length
+QVR_CVAR(vr_agarmor_split_bracer, "0", CVAR_ARCHIVE)  // armour: a bracer's split line: 0 across its length (two shorter rings), 1 down its length (two long halves)
+QVR_CVAR(vr_agarmor_split_thigh, "0", CVAR_ARCHIVE)   // armour: a thigh plate's split line: 0 across its length, 1 down its length
+QVR_CVAR(vr_agarmor_split_shin, "0", CVAR_ARCHIVE)    // armour: a shin plate's split line: 0 across its length, 1 down its length
 QVR_CVAR(vr_agarmor_impulse, "0.5", CVAR_ARCHIVE)     // armour: a shot a plate absorbs still pushes the body (a ragdoll's limb) this much of a bare hit's push (0..1)
 QVR_CVAR(vr_agarmor_debug, "0", CVAR_NONE)            // debug (Debug > Show Armour Plates): every armoured body's unbroken plates drawn as the shot test poses them, a colour per plate
 QVR_CVAR(vr_worn_backpack_grunt_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Grunt: the pack's size on the back (times the backpack model's)
@@ -3057,6 +3073,7 @@ QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks: N
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
 QVR_CVAR(vr_worn_backpack_volume, "0.5", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
+QVR_CVAR(vr_rag1108_test, "0", CVAR_NONE)             // the QC test of the 11-08 round's fixes (vr_rag1108_test.qc; Debug > Tests): 1 removal takes an armed one's pack, weapon and tank; 2 the back tanks beside the packs (a screenshot); 3 the gib rule; 4 shoves getting up; each ends on "rag1108<part>: N passed, M failed"
 QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
@@ -3212,6 +3229,10 @@ QVR_CVAR(vr_ragdoll_active_stagger_crouch, "0.08", CVAR_ARCHIVE) // of its pelvi
 QVR_CVAR(vr_ragdoll_active_stagger_arms, "1", CVAR_ARCHIVE) // a backpedalling monster's arms flailing for its balance, times this (0: none)
 QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the chance a grunt, enforcer, knight, death knight, ogre or zombie standing with its head under water, out of breath, struggles as a ragdoll: knocked down, it paddles frantically for the surface, its head up, towards where it can stand, and gets up there (0..1; needs Swim and Flail in Liquids); 0: it drowns standing, as before
 QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
+QVR_CVAR(vr_ragdoll_active_hang_kick, "2", CVAR_ARCHIVE) // a living one hanging from a ledge struggles: its legs kick and wiggle back and forth under it (this their size, 0..3; half as much as it pulls itself up); 0: it hangs still
+QVR_CVAR(vr_ragdoll_active_hang_kick_hz, "1.4", CVAR_ARCHIVE) // ... their kicks a second
+QVR_CVAR(vr_ragdoll_active_hang_kick_random, "0.6", CVAR_ARCHIVE) // ... how much each one's kicks are its own (0: every hanger alike, in step; 1: its pace, beat and wander its own)
+QVR_CVAR(vr_ragdoll_active_hang_sway, "1", CVAR_ARCHIVE) // ... and its body sways side to side along the lip (times a few percent of its weight; 0: none)
 QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
 QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 12 the ragdoll nearest you flung at the live monster nearest it (vr_kdtrig_test_speed); 13 the live monster nearest you killed (a corpse, 1 more damage than its health); 20 a grunt at vr_kdtrig_test_x _y _z; 21 one 160 units ahead of you; 22 every monster gone; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there; 44: those of a grunt corpse thrown at it at vr_kdtrig_test_speed, its push measured)
@@ -3992,7 +4013,12 @@ QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's m
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
 QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 what the grab key (mouse 4) would take now glows with the force grab's outline, as an open hand's aim shows it in the headset (QC VR_Forcegrab_FlatPreview); 0 no preview
-QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)       // a second key that force-grabs the same (the old R), by its bind name; "" none
+QVR_CVAR(vr_flat_key_grab_alt, "", CVAR_ARCHIVE)        // a second key that force-grabs the same, by its bind name; "" none (R until 2026-11-08: R reloads now, vr_flat_key_reload)
+QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
+QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
+QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
+QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
+QVR_CVAR(vr_flat_autoreload, "1", CVAR_ARCHIVE)         // flat-screen play: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0: only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none

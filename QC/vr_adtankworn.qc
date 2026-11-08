@@ -84,7 +84,13 @@ void(entity t, entity m) VR_FuelTank_WornPlace =
         up = '0 0 1';
     }
     vector f = normalize(fw - up * (fw * up));
-    setorigin(t, (lo + hi) * 0.5 - fw * (0.06 * VRMetersToUnits() + 1));
+    // Beside the worn backpack, to its right (the weapon hand's side; his note vrragtriggers_2026-11-08_17-14-18: in the
+    // middle of the back it went through the pack): vr_adgun_tank_worn_side units right of the back's middle, and
+    // vr_adgun_tank_worn_back farther out; still on the back, still shot there.
+    vector rt = [f_y * up_z - f_z * up_y, f_z * up_x - f_x * up_z, f_x * up_y - f_y * up_x]; // (f x up: its right)
+    float side = cvar_hget(cvarh_vr_adgun_tank_worn_side);
+    float out = cvar_hget(cvarh_vr_adgun_tank_worn_back);
+    setorigin(t, (lo + hi) * 0.5 - fw * (0.06 * VRMetersToUnits() + 1 + out) + rt * side);
     t.angles = vectoangles(f); // (an alias model: its pitch as vectoangles gives it; its up then along the back)
 };
 

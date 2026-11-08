@@ -97,6 +97,49 @@ void PF_embedstick()
     G_FLOAT(OFS_RETURN) = static_cast<float>(axestick::stickHeld(w, host, place, going, hand));
 }
 
+// float embedproppull(entity prop, vector at, vector target, vector targetVel, float force, float hertz, float lift): a hand's
+// blade in a wooden crate or barrel (QC vr_embedhold.qc VR_Embed_PropSpring) pulls its point `at` towards `target` going at
+// `targetVel` (units, units/s): a critically damped spring of `hertz` on its mass, its pull level (or down) `force` N at most,
+// up `lift` times its weight at most, through this frame's step
+// (box3d::climbPull: a force at the point, so a crate pulled high tips). The pull now, N; -1 not a solid Box3D prop.
+void PF_embedproppull()
+{
+    edict_t* prop = G_EDICT(OFS_PARM0);
+    const glm::vec3 at = geom::vec(G_VECTOR(OFS_PARM1));
+    const glm::vec3 target = geom::vec(G_VECTOR(OFS_PARM2));
+    const glm::vec3 targetVel = geom::vec(G_VECTOR(OFS_PARM3));
+    const float most = za::max(0.f, G_FLOAT(OFS_PARM4));
+    const float hertz = za::max(0.01f, G_FLOAT(OFS_PARM5));
+    const float lift = za::max(0.f, G_FLOAT(OFS_PARM6));
+    box3d::ClimbBody body;
+    const int num = NUM_FOR_EDICT(prop);
+    if(prop == qcvm->edicts || prop->free || !box3d::climbBody(num, body) || body.fixed)
+    {
+        G_FLOAT(OFS_RETURN) = -1.f;
+        return;
+    }
+    const float m2u = units::metresToUnits();
+    const float w = 2.f * glm::pi<float>() * hertz;
+    // (m/s^2: the spring and its damping, critical)
+    const glm::vec3 accel = (w * w * (target - at) + 2.f * w * (targetVel - body.pointVelocity(at))) / m2u;
+    glm::vec3 force = accel * za::max(body.mass, 1.f);
+    // Level (and down) at most `most`; up at most `lift` times its weight: a crate dragged, not hoisted on one blade.
+    glm::vec3 level{force.x, force.y, 0.f};
+    const float n = glm::length(level);
+    if(n > most)
+    {
+        level *= most / za::max(n, 1e-6f);
+    }
+    const float weight = za::max(body.mass, 1.f) * za::max(sv_gravity.value / m2u, 0.f); // N (Box3D's gravity is Quake's)
+    force = glm::vec3{level.x, level.y, force.z > 0.f ? za::min(force.z, lift * weight) : za::max(force.z, -most)};
+    const float applied = glm::length(force);
+    if(applied > 1e-3f)
+    {
+        box3d::propPull(num, at, force);
+    }
+    G_FLOAT(OFS_RETURN) = applied;
+}
+
 void PF_weaponanygrip()
 {
     edict_t* player = G_EDICT(OFS_PARM0);

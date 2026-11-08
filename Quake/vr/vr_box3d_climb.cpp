@@ -163,6 +163,16 @@ void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg)
     world->climbPulls.pushBack(World::ClimbPull{num, id, b3Body_GetLocalPoint(id, world->toM(at)), b3v(dir * (kg * g))});
 }
 
+void propPull(int num, const glm::vec3& at, const glm::vec3& force)
+{
+    if(!world || !solidProp(num))
+    {
+        return;
+    }
+    const b3BodyId id = world->slots[num].body;
+    world->climbPulls.pushBack(World::ClimbPull{num, id, b3Body_GetLocalPoint(id, world->toM(at)), b3v(force)});
+}
+
 bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip)
 {
     const glm::vec3 delta = to - from;

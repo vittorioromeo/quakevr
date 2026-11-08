@@ -1616,6 +1616,41 @@ static const float sb_flat_timecolors[4][3] = {
 };
 static const float sb_flat_timeback[3] = {0.f, 0.f, 0.f};
 
+// QVR: flatscreen play's reserve beside its clip (VR_FlatHudClip): small type, its bottom with the big numbers' at `y`
+// (Sbar coordinates, as Sbar_DrawNum's), starting at `x` (`alignRight`: ending there).
+static void Sbar_DrawReserveNum (int x, int y, int num, qboolean alignRight)
+{
+	char	str[16];
+	int		len;
+
+	q_snprintf (str, sizeof (str), "%d", num);
+	len = (int) strlen (str);
+	Sbar_DrawString (alignRight ? x - 8 * len : x, y + 16, str);
+}
+
+// QVR: where the first digit Sbar_DrawNum draws of `num` in 3 digits at `x` stands (it right-aligns them).
+static int Sbar_NumLeftEdge (int x, int num)
+{
+	int digits = num >= 100 || num <= -10 ? 3 : num >= 10 || num < 0 ? 2 : 1;
+	return x + 24 * (3 - digits);
+}
+
+// QVR: a hand's ammo number, `x` and `y` as Sbar_DrawNum's 3 digits: with a flat-screen player's clip (VR_FlatHudClip) the
+// clip in the big numbers and the reserve `count` in small type beside them (`smallLeft`: to their left, else their
+// right); otherwise `count` alone, as before.
+static void Sbar_DrawHandAmmo (int x, int y, int left, int count, qboolean smallLeft)
+{
+	int		clip, size;
+
+	if (!VR_FlatHudClip (left, &clip, &size))
+	{
+		Sbar_DrawNum (x, y, count, 3, count <= 10);
+		return;
+	}
+	Sbar_DrawNum (x, y, clip, 3, clip * 4 <= size);
+	Sbar_DrawReserveNum (smallLeft ? Sbar_NumLeftEdge (x, clip) - 3 : x + 72 + 3, y, count, smallLeft);
+}
+
 static void Sbar_DrawFlatHud (int armor, qboolean invuln)
 {
 	int		cx, rowtop, x, y, count, pic;
@@ -1649,14 +1684,14 @@ static void Sbar_DrawFlatHud (int armor, qboolean invuln)
 		x = (int)(glcanvas.left + SBAR2_MARGIN_X + 0.5f);
 		if (pic >= 0 && pic < 4)
 			Sbar_DrawPic (x, y - 24, sb_ammo[pic]);
-		Sbar_DrawNum (x + 32, y - 24, count, 3, count <= 10);
+		Sbar_DrawHandAmmo (x + 32, y - 24, 1, count, false);
 	}
 	if (VR_FlatHudHand (0, &count, &pic))
 	{
 		x = (int)(glcanvas.right - SBAR2_MARGIN_X - 24 + 0.5f);
 		if (pic >= 0 && pic < 4)
 			Sbar_DrawPic (x, y - 24, sb_ammo[pic]);
-		Sbar_DrawNum (x - 32 - 48, y - 24, count, 3, count <= 10);
+		Sbar_DrawHandAmmo (x - 32 - 48, y - 24, 0, count, true);
 	}
 }
 
@@ -1820,8 +1855,19 @@ void Sbar_Draw (void)
 			if (pic)
 				Sbar_DrawPic (224, 0, pic);
 
-			Sbar_DrawNum (248, 0, cl.stats[STAT_AMMO], 3,
-						  cl.stats[STAT_AMMO] <= 10);
+			{
+				// QVR: a flat-screen player's clip big, his reserve small just left of its digits (in the places a clip under
+				// 100 leaves free)
+				int clip, size;
+				if (VR_FlatHudClip (0, &clip, &size))
+				{
+					Sbar_DrawNum (248, 0, clip, 3, clip * 4 <= size);
+					Sbar_DrawReserveNum (Sbar_NumLeftEdge (248, clip) - 2, 0, cl.stats[STAT_AMMO], true);
+				}
+				else
+					Sbar_DrawNum (248, 0, cl.stats[STAT_AMMO], 3,
+								  cl.stats[STAT_AMMO] <= 10);
+			}
 		}
 
 		//johnfitz -- removed the vid.width > 320 check here
@@ -1869,7 +1915,7 @@ void Sbar_Draw (void)
 				Sbar_DrawPic (x, y, pic);
 				x -= 32;
 			}
-			Sbar_DrawNum (x - 48, y, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+			Sbar_DrawHandAmmo (x - 48, y, 0, cl.stats[STAT_AMMO], true); // QVR: a flat-screen player's clip big, his reserve small
 
 			Sbar_DrawInventory2 ();
 			if (cl.maxclients != 1)

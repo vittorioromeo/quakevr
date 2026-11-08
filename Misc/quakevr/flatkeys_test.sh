@@ -237,30 +237,30 @@ check $(ramped "$r4" 12 3 6 0.03 0.07) \
 # engine's own key path (vr_mock_key: Key_Event, the binds MOUSE1 +attack and MOUSE2 +offhandattack). One weapon, in
 # either hand: the left button fires it and the right is the ironsight (vr_flat_aim_mode 0: held; 1: a click on, the
 # next off) and fires nothing. A weapon in each hand: the left button the right hand's, the right the left hand's.
-# The shots are read off the pools (vr_flathud_report), the ironsight off its own print (vr_flatplay_debug 1).
+# (vr_flat_reload 0: no clips, every shot off the pools; the clips: flatreload_test.sh.) The shots are read off the pools (vr_flathud_report), the ironsight off its own print (vr_flatplay_debug 1).
 KEY() { echo "vr_mock_key $1 down; wait${2:-3}; vr_mock_key $1 up; wait10"; }
 REP="vr_flathud_report; wait2"
 pools() { grep -a "^flathud: pools" "$S/$1.log" | sed 's/.*shells \([0-9]*\) nails \([0-9]*\).*/\1:\2/' | tr '\n' ' '; }
-run mouseone flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $REP; $(KEY mouse1 30); $REP; vr_mock_key mouse2 down; wait20; vr_mock_key mouse2 up; wait10; $REP" "^(flathud: pools|flatsight: ironsight)"
+run mouseone flat "$P; vr_flat_reload 0; vr_flatplay_debug 1; impulse 154; wait10; $REP; $(KEY mouse1 30); $REP; vr_mock_key mouse2 down; wait20; vr_mock_key mouse2 up; wait10; $REP" "^(flathud: pools|flatsight: ironsight)"
 mo=$(pools mouseone); set -- $mo
 check $([ "${1%%:*}" -gt "${2%%:*}" ] && [ "${2%%:*}" = "${3%%:*}" ] \
         && grep -qa "ironsight on (right mouse button (held))" "$S/mouseone.log" && grep -qa "ironsight off (right mouse button (held))" "$S/mouseone.log" \
         && echo 1 || echo 0) \
     "mouse, one weapon in the right hand: LMB fires it, RMB holds the ironsight and fires nothing (shells:nails $mo; $(grep -ac 'flatsight: ironsight' "$S/mouseone.log") ironsight lines)"
 # Q (vr_mock_key q: the key itself, read from the keyboard's state) moves it to the left hand: still LMB fires, RMB aims.
-run mouseleft flat "$P; vr_flatplay_debug 1; impulse 154; wait10; $(KEY 3); vr_flathud_report; wait2; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 10); $REP" "^(flathud: (pools|left hand|right hand)|flatsight: ironsight|flat swap:|flatplay: 3)"
+run mouseleft flat "$P; vr_flat_reload 0; vr_flatplay_debug 1; impulse 154; wait10; $(KEY 3); vr_flathud_report; wait2; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 10); $REP" "^(flathud: (pools|left hand|right hand)|flatsight: ironsight|flat swap:|flatplay: 3)"
 ml=$(pools mouseleft); set -- $ml
 check $(grep -qa "^flat swap: main hand 4 -> 0, off hand 0 -> 4" "$S/mouseleft.log" && grep -qa "^flathud: left hand: weapon 4 shown 1" "$S/mouseleft.log" \
         && grep -qa "^flatplay: 3: swap hands" "$S/mouseleft.log" && echo 1 || echo 0) \
     "Q swaps the hands: the shotgun from the right hand to the left ($(grep -a '^flat swap:' "$S/mouseleft.log" | head -1))"
 check $([ "${2%%:*}" -gt "${3%%:*}" ] && [ "${3%%:*}" = "${4%%:*}" ] && grep -qa "ironsight on (right mouse button (held))" "$S/mouseleft.log" && echo 1 || echo 0) \
     "mouse, one weapon in the left hand: LMB still fires it, RMB still aims (shells:nails $ml)"
-run mousedual flat "$P; vr_flatplay_debug 1; impulse 154; wait5; give n 50; wait2; impulse 176; wait10; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 30); $REP" "^(flathud: pools|flatsight: ironsight)"
+run mousedual flat "$P; vr_flat_reload 0; vr_flatplay_debug 1; impulse 154; wait5; give n 50; wait2; impulse 176; wait10; $REP; $(KEY mouse1 30); $REP; $(KEY mouse2 30); $REP" "^(flathud: pools|flatsight: ironsight)"
 md=$(pools mousedual); set -- $md
 check $([ "${1%%:*}" -gt "${2%%:*}" ] && [ "${1##*:}" = "${2##*:}" ] && [ "${2%%:*}" = "${3%%:*}" ] && [ "${2##*:}" -gt "${3##*:}" ] \
         && ! grep -qa "ironsight on" "$S/mousedual.log" && echo 1 || echo 0) \
     "mouse, dual wielding: LMB fires the right hand's shotgun (shells), RMB the left hand's nail gun (nails), no ironsight (shells:nails $md)"
-run mousetoggle flat "$P; vr_flatplay_debug 1; vr_flat_aim_mode 1; impulse 154; wait10; $(KEY mouse2); wait20; $(KEY mouse2); vr_flat_aim_mode 0" "^flatsight: ironsight"
+run mousetoggle flat "$P; vr_flat_reload 0; vr_flatplay_debug 1; vr_flat_aim_mode 1; impulse 154; wait10; $(KEY mouse2); wait20; $(KEY mouse2); vr_flat_aim_mode 0" "^flatsight: ironsight"
 check $([ "$(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | sed 's/ (.*//' | tr '\n' ' ')" = "flatsight: ironsight on flatsight: ironsight off " ] \
         && grep -qa "(toggle)" "$S/mousetoggle.log" && echo 1 || echo 0) \
     "mouse, vr_flat_aim_mode 1: a click turns the ironsight on and stays, the next turns it off ($(grep -a '^flatsight: ironsight' "$S/mousetoggle.log" | tr '\n' ';'))"

@@ -198,6 +198,8 @@ struct Slot // what one edict is in the world (by its number)
     glm::vec3 origin{0.f}, angles{0.f}, velocity{0.f}, spin{0.f};
     glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
+    float madeAt{-1.f};     // props: the server's time its body was made (an edict freed after it, edict_t::freetime, is
+                            // another thing given its number: the body is stale until the next sync remakes it)
     float massSetting{0.f}; // props: the Mass set for its model when it was made (vr_props.inc; 0: none)
     float skewerGen{0.f};   // a thrown blade: its .vr_skewer_gen when it was made (the gibs on it: addSkeweredShapes)
     float massScale{1.f};   // props: its estimate's Mass x when it was made (props::massScale)

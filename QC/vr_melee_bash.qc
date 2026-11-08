@@ -925,8 +925,11 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     {
         VR_AD_Pain(e, self, dmg, stagger); // AD support: AD's pain function (vr_ad_monsters.qc)
     }
-    // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
-    VR_Knockdown_Try(e, xForward, xKind, xHand, push);
+    // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll; one getting up, for sure.
+    if(!VR_Knockdown_GetUpShove(e, xForward, push))
+    {
+        VR_Knockdown_Try(e, xForward, xKind, xHand, push);
+    }
     vr_kd_surprise = 0;
     vr_kd_stagger_far = 0;
     if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))
@@ -1407,7 +1410,7 @@ void() VR_Bash =
 // vr_flat_shove_reach) is shoved as a palm's push shoves it (VR_Bash_Land), its damage times vr_flat_shove_damage and its
 // push times vr_flat_shove_push. The bash's own cooldown holds too (VR_BASH_COOLDOWN); the key's is the engine's
 // (vr_flat_shove_cooldown). A push at the air shoves nothing and costs nothing.
-// Both hands free (impulse 55, vr_flat_shove_both): the headset's two-handed shove, both palms: its line runs across from
+// Both hands free (impulse 56, vr_flat_shove_both): the headset's two-handed shove, both palms: its line runs across from
 // one palm to the other (VR_FLATSHOVE_APART), and it lands as the headset's two hands land (their damage and push).
 // Its sweep is vr_flat_shove_width round its line (the headset's pad times it).
 float VR_FLATSHOVE_DOWN = 0.3; // m the push goes below the eyes

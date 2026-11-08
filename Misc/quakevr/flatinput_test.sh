@@ -7,7 +7,7 @@
 #   flickssg   the super shotgun held (its flick and pry break it open in the headset): no flick reload, no pry
 #   wall       the axe, walked into the wall and back out (the wall tilt in and out): no blow
 #   punch      V's punch (vr_flat_punch main) at the grunt: a blow lands (the button's motion is an action)
-#   shove      the shove (vr_flat_shove_now, mouse 5's) at the grunt, both hands empty: it lands with both hands (impulse 55,
+#   shove      the shove (vr_flat_shove_now, mouse 5's) at the grunt, both hands empty: it lands with both hands (impulse 56,
 #              vr_flat_shove_both); again at once: the cooldown, nothing; again after it: it lands
 #   shove1     an axe in the main hand: the off hand alone shoves (impulse 53), and lands
 #   shovereach a grunt 55 units ahead: Shove Reach 1 (the old reach) misses it, 1.15 (the default, his 15% more) reaches it
