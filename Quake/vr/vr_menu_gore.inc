@@ -173,6 +173,7 @@
         row(opt::vr_gore_size),
         row(opt::vr_gore_pools),
         row(opt::vr_gore_drips),
+        row(opt::vr_gore_wound_drips),
         row(opt::vr_gore_stick_thrown),
         row(opt::vr_head_flies),
         row(opt::vr_gib_speed_melee).developer(),

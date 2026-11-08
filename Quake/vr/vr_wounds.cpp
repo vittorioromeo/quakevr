@@ -3153,76 +3153,35 @@ void optionsChanged()
     }
 }
 
-// Water dripping off what is wet: from under its waterline (the monsters' triangles; the player's hands).
-void drips(double now)
-{
-    if(!vr_wounds_wet.value || !particles::enabled())
-    {
-        return;
-    }
-    for(int i = 0; i < maskCount(); i++)
-    {
-        Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.ent || m.wetLeft <= 0.f || now < m.dripNext || vr_gametime - m.lastDrawn > 0.5)
-        {
-            continue;
-        }
-        const float wet = m.wetLeft / dryTime();
-        m.dripNext = now + vrand::xorshiftRange(rng, 0.5f, 1.5f) / (0.4f + 5.f * wet * wet) * (m.view ? 2.5 : 1.0);
-        const glm::vec3 color = m.liquid == 1 ? glm::vec3{0.22f, 0.3f, 0.08f} : glm::vec3{0.3f, 0.34f, 0.38f};
-        glm::vec3 at;
-        float floorZ;
-        if(m.view)
-        {
-            // A hand (the body is under the view: its drips are the hands')
-            entity_t* own[3]{};
-            view::woundTargets(own);
-            const int hand = m.ent == own[1] ? 0 : m.ent == own[2] ? 1 : -1;
-            if(hand < 0 || handWetLeft[hand] <= 0.f) // (only a hand that went under the surface)
-            {
-                continue;
-            }
-            at = geom::vec(m.ent->origin) + glm::vec3{vrand::xorshiftRange(rng, -1.5f, 1.5f), vrand::xorshiftRange(rng, -1.5f, 1.5f), -1.f};
-            floorZ = cl_entities[cl.viewentity].origin[2] - 24.f;
-        }
-        else
-        {
-            Surface surf;
-            const int num = static_cast<int>(m.ent - cl_entities);
-            if(num <= 0 || num >= cl.num_entities || !surfaceOf(*m.ent, num, surf))
-            {
-                continue;
-            }
-            bool found = false;
-            const za::SizeT n = surf.tris.size() / 3;
-            for(int tries = 0; tries < 10 && !found; tries++)
-            {
-                const za::SizeT k = za::min(n - 1, static_cast<za::SizeT>(vrand::xorshift01(rng) * static_cast<float>(n))) * 3;
-                const glm::vec3 c = (surf.tris[k] + surf.tris[k + 1] + surf.tris[k + 2]) / 3.f;
-                const glm::vec3 nrm = outward(surf.tris[k], surf.tris[k + 1], surf.tris[k + 2]);
-                if(c.z < m.waterline && nrm.z < 0.3f)
-                {
-                    at = c + nrm * 0.6f;
-                    found = true;
-                }
-            }
-            if(!found)
-            {
-                continue;
-            }
-            floorZ = surf.lo.z;
-        }
-        const float h = za::max(at.z - floorZ, 1.f);
-        particles::bloodDrip(at, za::sqrt(2.f * h / za::max(sv_gravity.value, 100.f)), floorZ, 0.35f, color);
-    }
-}
-
 } // namespace
 
 int strikeTriangles(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
 {
     int tri = -1;
     return strikeTris(tris, org, dir, at, normal, tri) ? tri : -1;
+}
+
+bool dripPoint(const entity_t& e, int num, float below, glm::vec3& at, float& lowZ)
+{
+    Surface surf;
+    if(num <= 0 || num >= cl.num_entities || !surfaceOf(e, num, surf))
+    {
+        return false;
+    }
+    const za::SizeT n = surf.tris.size() / 3;
+    for(int tries = 0; tries < 10; tries++)
+    {
+        const za::SizeT k = za::min(n - 1, static_cast<za::SizeT>(vrand::xorshift01(rng) * static_cast<float>(n))) * 3;
+        const glm::vec3 c = (surf.tris[k] + surf.tris[k + 1] + surf.tris[k + 2]) / 3.f;
+        const glm::vec3 nrm = outward(surf.tris[k], surf.tris[k + 1], surf.tris[k + 2]);
+        if(c.z < below && nrm.z < 0.3f)
+        {
+            at = c + nrm * 0.6f;
+            lowZ = surf.lo.z;
+            return true;
+        }
+    }
+    return false;
 }
 
 void dummyReset_f()
@@ -3333,8 +3292,7 @@ void frame()
         wash(za::max(1, static_cast<int>(dt / tick + 0.5f)));
         lastTick = now;
     }
-    end();
-    drips(now);
+    end(); // (the water dripping off what is wet: vr_drips.cpp, its own frame)
     lastPaintMs = static_cast<float>((Sys_DoubleTime() - t0) * 1000.0);
     if(lastPaintMs > 4.f)
     {
