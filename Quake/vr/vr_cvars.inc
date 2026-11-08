@@ -2979,6 +2979,7 @@ QVR_CVAR(vr_armourstudio_taper_end, "1", CVAR_NONE)   // debug: ... at its last 
 QVR_CVAR(vr_armourstudio_leather, "1", CVAR_NONE)     // debug: a sleeve part's leather drawn (1) or hidden (0)
 QVR_CVAR(vr_armourstudio_folds, "4", CVAR_NONE)       // debug: a joint's leather's bellows folds (0-4; as vr_agarmor_folds: not written)
 QVR_CVAR(vr_armourstudio_fold_depth, "0.3", CVAR_NONE) // debug: ... their depth on the inside of a bend (units; as vr_agarmor_fold_depth: not written)
+QVR_CVAR(vr_armourstudio_hero, "1", CVAR_NONE)        // debug: the part's hero plates (1, as made: not written) or every plate its own (0)
 QVR_CVAR(vr_armourstudio_anim, "0", CVAR_NONE)        // debug: 1 its subject plays one of its model's animations (below), 0 it stands still
 QVR_CVAR(vr_armourstudio_anim_group, "0", CVAR_NONE)  // debug: the animation: its model's frames grouped by name (stand, run, pain...), by index
 QVR_CVAR(vr_armourstudio_anim_play, "1", CVAR_NONE)   // debug: 1 playing, 0 paused (vr_armourstudio_anim_frame picks the frame)
@@ -2994,7 +2995,8 @@ QVR_CVAR(vr_agarmor_seed, "0", CVAR_NONE)            // vr_agarmor: the plates' 
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_bridge, "1", CVAR_NONE)           // vr_agarmor: the elbows' and knees' leather made each frame, one bending tube from plate row to plate row (1), or the old sleeves made once at load, two rigid halves (0; for comparison)
 QVR_CVAR(vr_agarmor_details, "1", CVAR_NONE)          // vr_agarmor: the plates' painted details by place (1: the chest's panel, the belly's ribs, the cuffs' and shins' vents, the elbows' and knees' raised cops, the emblem; 0 every plate a plain tile by chance; the shells made again when it changes)
-QVR_CVAR(vr_agarmor_emblem, "1", CVAR_NONE)           // vr_agarmor: the rune emblem on an upper arm's outer top plate: 1 the right, 2 the left, 3 both, 0 none (with vr_agarmor_details; the shells made again when it changes)
+QVR_CVAR(vr_agarmor_hero, "1", CVAR_NONE)             // vr_agarmor: hero plates, a row's plates drawn as one big plate (the breastplate, the pauldrons' top row as two, the elbows' and knees' cops; armour.txt's `hero` per part); 0 every plate its own (the shells made again when it changes)
+QVR_CVAR(vr_agarmor_emblem, "1", CVAR_NONE)          // vr_agarmor: the rune emblem on an upper arm's outer top plate: 1 the right, 2 the left, 3 both, 0 none (with vr_agarmor_details; the shells made again when it changes)
 QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)           // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
 QVR_CVAR(vr_agarmor_fold_depth, "0.3", CVAR_NONE)     // vr_agarmor: how far its folds stand on the inside of a bend, flattening on the outside (units; armour.txt's `fold_depth`)
 QVR_CVAR(vr_agarmor_bend, "0", CVAR_NONE)             // debug (the Debug menu, by Check the Armour's Fit): every armoured body drawn on the authored rig in its rest pose with its elbows and knees bent this many degrees (0 off; the leather's look and tests)

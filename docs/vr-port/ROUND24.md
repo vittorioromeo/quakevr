@@ -4087,3 +4087,41 @@ Step 4 (hero plates): merge the chest row's front plates into one wider plate (a
 time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
 wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
 (plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
+
+## Armour look: hero plates (branch `agent/flatwall`, 2026-11-08)
+
+He approved step 4 of "Armour look: fewer, bigger plates": a row's plates merged into one big plate where the mockup has one.
+
+- **How** (`vr_agarmor.cpp` heroRuns, platesOf, addPlate's PlateSpan): a hero plate is a run of a row's columns, each still its own
+  28-vertex slab on the grid (so the hits, the broken piece's debris, the wear skins, plateWhere and every check that walks plates
+  by plateVerts are unchanged), but the sides inside the run are open: no seam, no side bevel, no trim, each lower corner down its
+  own column's line, so the neighbours' faces and lips meet (a hair apart, `plateFootApart`, each slab still closed for
+  `vr_agarmor_check`), their normals shared along the line (one curved face, a crease down it), one step for the whole run (its
+  first column's), and one wide tile over the run (each column its share of u). Not one quad over the span: the plates stay on
+  the body's radii, so nothing needed raising and no chest got bulkier.
+- **Which**: the cuirass's chest row (row 1, under the collar) its plates facing forward (way out's x > `heroChestFront` 0.6: the
+  two either side of the seam), the breastplate; an upper arm's top row as two plates of half its columns (3 of 6), the outer
+  one round the emblem's column; the forearm's first row's three plates round the elbow's point and the shin's round the knee,
+  raised as the cops were (`copRaise`). A run with a plate cut off (`backCut`, an enforcer's pack) is left as plates.
+- **Switches**: `vr_agarmor_hero` (1; Debug > Tools, Armour Hero Plates; the shells made again when it changes); armour.txt's
+  `hero "0"` per part (cuirass, pauldron, bracer, shin; the Armour Studio's Hero Plates checkbox, both studios) turns one part's off.
+  `vr_agarmor_details 0`: the hero plates keep their shape on the plain wide tile.
+- **The skins** (`make_agarmor.py`, regenerated `vragarmor.mdl` and its relief): atlas tiles 10-11, 12-13, 15-16, 17-18 are now four
+  2:1 tiles (TILE_WIDE_*; vr_agarmor.cpp tileWide*): the breastplate (a recessed panel in its middle on the seam, a slot across it,
+  rivets at its lower corners), a plain big plate (a small recessed window with two bars: the pauldrons' other half), the emblem's
+  (the rune bigger, round on a plate 0.4 as tall as wide), a cop (a boss across it, a big rivet). Every tier and wear level the
+  same (the wear's dents and chips are atlas-wide). Trim, bevel and rivets the size of a plain tile's; the other tiles' chances drawn
+  in the same order, so they are byte-for-byte as before; plain tiles now 12 (`plainTiles`).
+- **Checks**: `vr_agarmor_check` per armoured humanoid "hero plates whole": 17 lines where two plates' faces meet, every one
+  shading as one (0 with `vr_agarmor_hero 0`); `vr_agarmor_look_check`'s one-hue-per-tile skips the wide emblem's cells (15, 16).
+
+Tests (low-impact runs): `vr_agarmor_check` 24/0 (20 + the 4 new), `vr_agarmor_bridge_check` 88/0, `vr_agarmor_test 1` 26/0,
+`vr_armour_test` 30/0, `vr_agarmor_look_check` 89/25 (the same 25 as at d6f340df4, by name), `vr_agarmor_pop_check` 10/0,
+`vr_agarmor_test 12` 2/0, `vr_agarmor_test 10` 21/1 ("a clear line to most plates' faces", 36 of 40; the same with
+`vr_agarmor_hero 0`, so not the hero plates'). The bridge code untouched: the end rows' feet are the grid's, as before.
+Renders (qvr-kit `scratch/armourlook/`): `hero_k_pair.png` (knights, before over after, the mockup's angle), `hero_ge_pair.png`
+(grunt, enforcer), `hero_tiers_worn.png` (green, yellow, red; grunt and enforcer at wear 2), `hero_k_worn.png`, `hero_kf_Rc.png`
+(the knight's breastplate from the front), `nohero_k.png` (vr_agarmor_hero 0), `skin_hero.png` (the atlas).
+
+Not done: a breastplate two rows tall (the mockup's): a run down the rows needs the upper row's lip opened onto the lower's top,
+a 2 x 2 tile and the side rims closed by hand; the breastplate is the chest row's two front plates (four would be a 6 : 1 strip).

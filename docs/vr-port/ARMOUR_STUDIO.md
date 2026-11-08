@@ -83,6 +83,7 @@ each tier, then the build switched 2 -> 1 -> 3 -> 2, then the kind another (noth
 | Leather Sleeve Shown | `leather` | a sleeve part's leather (over an elbow or a knee, one half of it) drawn, or `"0"`: not made at all (with the bending leather, `vr_agarmor_bridge 1`: `"0"` on either of a joint's sleeve parts, that joint's whole leather) |
 | Leather Folds | `folds` | the joint's leather's bellows folds, 0-4 (the upper sleeve part's, else the lower's, else `vr_agarmor_folds`, 4) |
 | Fold Depth | `fold_depth` | how far they stand on the inside of a bend, in units (flat on its outside; else `vr_agarmor_fold_depth`, 0.3) |
+| Hero Plates | `hero` | `"0"`: the part's hero plates off, every plate its own (1 or unset: the cuirass's breastplate, the pauldrons' top row as two plates, the bracers' elbow cop, the shins' knee cop, each one plate over several columns; `vr_agarmor_hero 0` turns them off everywhere) |
 
 With the bending leather (`vr_agarmor_bridge 1`, the default; ROUND24.md, "Leather bridge at elbows and knees") a joint's
 leather is one tube made each frame from the upper part's last row to the lower part's first: a sleeve part's tapers size
