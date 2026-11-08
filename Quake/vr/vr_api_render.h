@@ -366,6 +366,14 @@ unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
 // the upload's mark) with its blood replaced by its patch (vr_gore_clean_skins).
 unsigned char* VR_CleanSkin(const char* name, unsigned char* data, int width, int height, int bpp);
 
+// Skin edge fill (vr_skinedge.cpp; see vr_skinedge.hpp). Mod_LoadAliasModel, before its skins upload: the texels of
+// the model's skin (width x height) its triangles' skin coordinates touch only at an edge (no triangle has the texel's
+// middle), each with the texel it copies; `st` numverts (onseam, s, t), `tris` numtris (facesfront, v0, v1, v2), ints
+// in the host's order. TexMgr_LoadImage8 / TexMgr_LoadImage32: the pixels texture `name` uploads with, as VR_CleanSkin
+// (`data`, or a copy in the hunk above the upload's mark with those texels filled: vr_skin_edge_fill).
+void VR_SkinEdgesModel(const char* model, int holey, int width, int height, const int* st, int numverts, const int* tris, int numtris);
+unsigned char* VR_SkinEdgeFill(const char* name, unsigned char* data, int width, int height, int bpp);
+
 // The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
 unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
 unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's depth/stencil format (the eyes' float one: vr_depth_float; flatscreen play's too)

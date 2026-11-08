@@ -5510,6 +5510,10 @@ QVR_TOGGLE(vr_model_light_grid_show, "Show Light Probes",
 QVR_TOGGLE(vr_foveated_debug, "Show Foveation",
     "The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
     "sharp circle (cyan).")
+QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
+    "Models' skins: a texel a triangle touches only at its edge takes the colour of its neighbour inside (no thin "
+    "black slivers of the skin's background along triangle edges with a nearest texture mode). Off: the skins as "
+    "painted, to compare. vr_skin_edges in the console lists the models and their edge texels.")
 QVR_CYCLE(vr_temporal_debug, "Show Motion Vectors",
     "vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
     "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "

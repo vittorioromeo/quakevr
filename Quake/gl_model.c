@@ -3666,6 +3666,29 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 // load the skins
 //
 	pskintype = (daliasskintype_t *)&pinmodel[1];
+	{ // QVR: the skin's texels the triangles touch only at an edge, filled as the skins upload (vr/vr_skinedge.cpp)
+		const byte *p = (const byte *) pskintype;
+		int		mark = Hunk_LowMark (), *st, *tr, sz = pheader->skinwidth * pheader->skinheight;
+		for (i = 0; i < pheader->numskins; i++)
+		{
+			if (LittleLong (((const daliasskintype_t *) p)->type) == ALIAS_SKIN_SINGLE)
+				p += sizeof (daliasskintype_t) + sz;
+			else
+			{
+				int n = LittleLong (((const daliasskingroup_t *) (p + sizeof (daliasskintype_t)))->numskins);
+				p += sizeof (daliasskintype_t) + sizeof (daliasskingroup_t) + n * (sizeof (daliasskininterval_t) + sz);
+			}
+		}
+		st = (int *) Hunk_AllocNoFill (pheader->numverts * 3 * sizeof (int));
+		tr = (int *) Hunk_AllocNoFill (pheader->numtris * 4 * sizeof (int));
+		for (i = 0; i < pheader->numverts * 3; i++)
+			st[i] = LittleLong (((const int *) p)[i]);
+		p += pheader->numverts * sizeof (stvert_t);
+		for (i = 0; i < pheader->numtris * 4; i++)
+			tr[i] = LittleLong (((const int *) p)[i]);
+		VR_SkinEdgesModel (mod->name, (mod->flags & MF_HOLEY) != 0, pheader->skinwidth, pheader->skinheight, st, pheader->numverts, tr, pheader->numtris);
+		Hunk_FreeToLowMark (mark);
+	}
 	{
 		VR_TRACY_SCOPE("alias skins");
 		VR_TIMED ("  their skins (textures, normal maps)", pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype)); // QVR: load timing
