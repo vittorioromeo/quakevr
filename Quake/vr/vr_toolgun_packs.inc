@@ -113,7 +113,7 @@ QVR_PACK("Props", "Honey", "Honey Tree", "misc_tree", "progs/tree1.mdl", 0.f, nu
 QVR_PACK("Fire", nullptr, "Fireball Spout", "misc_fireball", "progs/lavaball.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
 QVR_PACK("Fire", "MG", "MG Gas Flare", "light_flame_gas", "owned/mg1/progs/flame3.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
-// Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding any of your weapons, its
+// Armed grunts (QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding any of your weapons, its
 // "weapon" key the weapon (QC's WID_*; 0 one from Combat > Armed Grunts' pool, -1 its fists).
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt (Pool)", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, nullptr, 0.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Fists", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", -1.f, 0, 0, nullptr, 0)

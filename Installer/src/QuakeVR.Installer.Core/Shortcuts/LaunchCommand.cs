@@ -4,7 +4,7 @@ public enum LaunchVariant
 {
     /// <summary>In the headset.</summary>
     Vr,
-    /// <summary>On the monitor, no headset (<c>+vr_enabled 0</c>, run after quakevr.cfg's <c>vr_enabled 1</c>).</summary>
+    /// <summary>On the monitor, no headset (<c>-flatscreenmode</c>: the game's flat-screen mode, Quake/vr/vr_flatplay.cpp).</summary>
     Flat,
     /// <summary>In the headset, writing qconsole.log for a bug report (<c>-condebug</c>).</summary>
     Log,
@@ -35,7 +35,7 @@ public static class LaunchCommand
         var args = $"-basedir {Quote(quakeDir)} -basedir {Quote(qvrDir)} -game quakevr";
         args += variant switch
         {
-            LaunchVariant.Flat => " +vr_enabled 0",
+            LaunchVariant.Flat => " -flatscreenmode",
             LaunchVariant.Log => " -condebug",
             LaunchVariant.Diagnostics => " -diagnostics",
             LaunchVariant.BugReport => " -bugreport",
