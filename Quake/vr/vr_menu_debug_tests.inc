@@ -678,6 +678,14 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flatslide_test (-flatscreenmode only, open level ground ahead, cl_alwaysrun 1): runs you forward, "
                   "crouches at full speed (a slide), lets go, slides again and jumps in it (flatslide: lines, a verdict). "
                   "Let go of +forward after (-forward)."),
+        command("Lying Body Test", "vr_body_lie_test")
+            .help("vr_body_lie_test (-flatscreenmode, open level ground ahead and behind, a long gun held): lies down (the hips "
+                  "on the floor, straight legs, the gear with its bones), gets up, slides twice (no stance turn or bob, straight "
+                  "legs, the scrape, the legs the slide's way with the view turned). In a headset game: vr_body_lie_test vr "
+                  "(the mock's head lowered). Lines and a verdict (body_lie_test)."),
+        command("Lying Body Report", "vr_body_lie_report")
+            .help("vr_body_lie_report (run it twice: the first arms it): the body's joints over the real floor, the knees' "
+                  "bend, each holster and pouch from its bone and from the eye (body_lie: lines)."),
         command("Flat Lean Test", "vr_flatlean_test")
             .help("vr_flatlean_test (-flatscreenmode only, room ahead and a wall at a side): leans right (the eye, the roll, "
                   "a shot across the leant head), walks leant and upright, then leans into the nearer wall, away from it, "

@@ -219,8 +219,15 @@ fast over the floor the flag is off every other move. The client reads the local
 (`vr_avatar_pitch.cpp`) leans the trunk back `vr_flat_slide_body_angle` (45) about a neck `vr_flat_slide_neck_back` (10)
 behind the eye, straight like lying down's, the chest's share of the look off, the legs out in front along the floor
 (`vr_avatar_legs.cpp`, `BodyPitch::sliding`), eased over `vr_flat_slide_body_time` (0.2 s): looking down he sees his
-legs past his chest. All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play >
-Slide) turns it off. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`).
+legs past his chest. The legs reach `vr_flat_slide_leg_reach` (0.993) of their length to the floor (nearly straight);
+the two-handed stance's torso turn goes in `vr_flat_slide_turn_time` (0.12 s); with `vr_flat_slide_legs` (1) the hips
+and legs point the slide's way and the chest turns back to the view, at most `vr_flat_slide_legs_twist` (70) degrees;
+`vr_flat_slide_bob` (0) of the walk's bob stays (the view's, the hands', the body's ride). Its sound
+(`vr_slidesound.cpp`, `Misc/quakevr/make_slide_sounds.py`): a scuff as it starts, a scrape following the speed that
+fades as it slows and stops when it ends, `vr_flat_slide_sound` (0.6) loud. All of it is in Debug > Tunables >
+Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
+Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`), `bash
+Misc/quakevr/body_lie_test.sh <agent>` (`vr_body_lie_test`: the slid and lying body).
 
 **Leaning.** Q and E (Prey's, Rainbow Six Siege's) lean the view, the weapon and the body sideways round a corner:
 the eye moves `vr_flat_lean_dist` (16) units out and, swinging round a point `vr_flat_lean_pivot` (30) under it, a

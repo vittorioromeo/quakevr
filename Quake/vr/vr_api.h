@@ -467,6 +467,7 @@ int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself 
 int VR_FlatToolgunMouse (int dx, int dy); // IN_MouseMotion: 1 the mouse is flatscreen play's toolgun's (its panel's cursor, its adjust key held; vr_flatplay.cpp): the view does not turn
 int VR_FlatToolgunEscape (void); // Key_Event's Esc in the game: 1 it closed flatscreen play's toolgun panel (no menu)
 void VR_FlatMoveScale (float *forwardmove, float *sidemove); // CL_BaseMove: leaning, the move keys slower (vr_flat_lean_speed; vr_flatmove.cpp)
+float VR_FlatBobScale (void); // V_CalcRefdef: Quake's view bob times this (sliding: vr_flat_slide_bob of it; vr_flatplay.cpp)
 void VR_FlatViewLean (float *vieworg, float *viewangles); // V_CalcRefdef, after VR_FlatViewDrop: the lean's eye moved sideways and the view rolled (vr_flatmove.cpp)
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)

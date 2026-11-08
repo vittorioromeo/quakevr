@@ -124,6 +124,10 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // bends for this look's pitch (degrees, + forward: vr_flat_chest_down, _up), and the neck's move off the eye a full crouch
 // makes, `levelFwd` being the level look's forward (world units: vr_flat_crouch_shoulder_down, _fwd).
 [[nodiscard]] float chestPitch(float pitch);
+// The slide's turn of the chest back to the view (degrees about the trunk, + left): with vr_flat_slide_legs the hips and legs
+// face the slide's way (the body's yaw, poseHands) and the chest turns back towards the view, at most
+// vr_flat_slide_legs_twist. 0 outside a slide and the mode.
+[[nodiscard]] float trunkTwist();
 [[nodiscard]] glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch);
 // The free hand `h` hanging: the move from where it stands to where it would stand off the gun in its other hand had the look been
 // level (what chooses the grip: vr_view_weapon.cpp). 0 outside the mode, with vr_flat_body_pose 0, and for a hand doing anything else.
