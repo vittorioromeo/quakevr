@@ -49,7 +49,7 @@ public static class ShortcutPlanner
         {
             if (o.Flat)
             {
-                list.Add(Launch(variants, Name + " (flat screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
+                list.Add(Launch(variants, Name + " (Flat Screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
             }
             if (o.Log)
             {

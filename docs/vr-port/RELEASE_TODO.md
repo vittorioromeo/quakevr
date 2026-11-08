@@ -18,13 +18,13 @@ pass on `agent/relpass`.
 - [ ] **Flat-screen launch:** only `-flatscreenmode` starts it; no shortcut, no installer choice. Ship a "Quake VR
   (flat screen)" shortcut, or leave it to the notes?
 - [ ] **The installer's settings page:** review its rows, order and labels (BACKLOG.md, section 2).
-- [ ] **"Armed Grunts (Experimental)":** the Combat page's name still says experimental while the feature is on by
-  default; keep or rename.
-- [ ] **Developer files in the package:** by the allowlist rule (every tracked file under `quakevr\`) the zip ships
+- [x] **"Armed Grunts":** "(Experimental)" removed from menu titles, rows, help and docs (decided 2026-11-08).
+- [x] **Developer files in the package (decided 2026-11-08: keep the dev maps and scenarios in the zip for now, no change):** by the allowlist rule (every tracked file under `quakevr\`) the zip ships
   `checklist.txt`, the 88 `scenarios\*.txt` (bench ones too) and `vrtesthall`. Keep (the in-game checklist and its
   Test buttons use them) or add them to `$devOnly`.
-- [ ] **Pick Up a Second** (`vr_agrunt_dual_pickup` 0) and **Embedded blades** (`vr_embed` 0): off for 1.1 as listed
-  in the notes' Experimental section.
+- [ ] **Pick Up a Second** (`vr_agrunt_dual_pickup` 0): off for 1.1 as listed in the notes' Experimental section.
+- [x] **Embedded blades:** `vr_embed` 1 by default (decided 2026-11-08); in the notes' Armed humanoids section.
+- [x] **Tunables:** all 19 of his `tunables.cfg` values promoted to `vr_tunables.inc` (2026-11-08).
 - [ ] **Release branch:** `master` is fast-forwarded by `-Final` (RELEASING.md, "Branches").
 - [ ] **Debug symbols:** `ironwail.pdb` stays inside the game zip (crash reports name functions with it).
 
@@ -58,7 +58,8 @@ The one command and what it does: [RELEASING.md](RELEASING.md), "One command".
 - **SmartScreen:** no code-signing certificate; the notes explain "More info > Run anyway".
 - **Arcane Dimensions:** experimental (a prompt says so); sky and light flicker in VR when turning; the hub's lower
   slipgates go nowhere.
-- **Embedded blades:** off; tests 14-20 not run, tests 7 and 13 failing.
+- **Embedded blades:** on by default since 2026-11-08; tests 14-20 not run.
+- **Known test failures, accepted 2026-11-08:** autopump, cellcord, xr_runtime, secret_hits, animsmooth. The release command is `-RunTests -AllowFlaky -FlakyTests autopump,cellcord,xr_runtime,secret_hits,animsmooth`.
 - **Flat screen:** wrists bend 44-51 degrees on some holds; a gun's end can poke 4-7 cm into a wall at the limit.
 - **Armed humanoids:** a knocked-down one aiming high may pull its arm in.
 - **Old saves:** a save from a build before 2026-10-05 (no campaign keys) is refused with a message; saves from the
