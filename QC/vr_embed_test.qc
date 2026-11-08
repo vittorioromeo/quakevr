@@ -3771,6 +3771,7 @@ vector vr_la_c0;   // the part's middle as the ride began
 vector vr_la_h0;   // and the hand's
 vector vr_la_side; // the way across
 vector vr_la_home; // where you stood as the test began
+float vr_la_peak;  // case 0, 2, 3: the part's own speed as the fling reads it, the most while the move goes
 entity() VR_LA_Gib =
 {
     for(entity e = nextent(world); e; e = nextent(e))
@@ -3935,12 +3936,18 @@ void() VR_LA_Step =
         else
         {
             float sp = 8; // (past Fling Speed, 4 m/s since 2026-11-08: a hard swing, a hard shake)
-            float go = vr_et_case == 2 ? 40 : 30;
+            // (40 cm: the mock hand eases its glide in and out, so a 30 cm move "at 8 m/s" moves the part at 3.7 m/s at most, 40 cm at 5.3.)
+            float go = 40;
             // (Across and up, in the air: across at the floor, the part meets it or the body and bursts, as a skewered gib.)
             VR_EH_HandTo(vr_la_h0 + normalize(vr_la_side + '0 0 1') * go * cm, go * cm / VRMetersToUnits() / sp);
+            vr_la_peak = 0;
             VR_ET_To(12);
         }
         return;
+    }
+    if(vr_et_s == 12 && g != world)
+    {
+        vr_la_peak = max(vr_la_peak, g.vr_skewer_lastsp); // (its own speed as the fling reads it, the most)
     }
     if(vr_et_s == 12 && (g == world || t > 0.6))
     {
@@ -3954,7 +3961,8 @@ void() VR_LA_Step =
             }
         }
         VR_Test_Check(g == world && off != world && vlen(off.velocity) > 1.5 * VRMetersToUnits(),
-            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s)", vr_et_case == 2 ? "hard swing (8 m/s)" : "fast move (8 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits()));
+            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s; its own speed read at most %.1f m/s, Fling Speed %.1f)",
+                vr_et_case == 2 ? "hard swing (8 m/s)" : "fast move (8 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits(), vr_la_peak, cvar_hget(cvarh_vr_embed_cuton_fling)));
         VR_LA_Next();
         return;
     }
