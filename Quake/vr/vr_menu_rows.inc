@@ -3207,6 +3207,10 @@ QVR_SLIDER_BYNAME(vr_agarms_lod_margin, "Arms' Detail: View Margin", 0.f, 60.f, 
 // vr_menu_pages.inc: pageGraphicsLights
 QVR_SLIDER_BYNAME(vr_light_contrast, "Light Contrast", 1.f, 2.5f, 0.02f, "%.2f", ext(),
     "Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's).")
+QVR_SLIDER_BYNAME(vr_light_cap, "Maximum Light", 0.f, 2.f, 0.05f, "%.2f", ext(),
+    "A ceiling for the baked light, to tame overbright maps (relit ones too): world and models alike, at once. 1: Quake's full light, 2: its brightest. The brightest colour is held under it, the hue kept. 0: off (no ceiling).")
+QVR_SLIDER_BYNAME(vr_light_cap_soft, "Maximum Light Softness", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "How the ceiling is reached: 0 a hard stop, 1 a smooth roll-off that eases all the bright light towards it (keeps the shape of the lighting). Only with a Maximum Light.")
 QVR_SLIDER_BYNAME(vr_ambient_light, "Ambient Light", 0.f, 0.4f, 0.01f, "%.2f", ext(),
     "The room's own fill light: how much light the places no lamp reaches have, so a map reads clearly lit without the flashlight. A companion to Light Contrast, which still shapes the shade at any level of it (0: none).")
 QVR_TOGGLE_BYNAME(vr_colored_lights, "Coloured Lights",

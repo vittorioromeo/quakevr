@@ -45,6 +45,11 @@ void init();
 float lightContrast();
 float ambientFloor();
 void lightCurve(float* lightcolor);
+// lightCap: vr_light_cap (0: off), the ceiling of the baked light in Quake's full light (after the contrast, brightest
+// channel, hue kept); lightCapSoft: vr_light_cap_soft, 0 (hard) .. 1 (soft roll-off). capKey: both as one number (caches).
+float lightCap();
+float lightCapSoft();
+float capKey();
 
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
 void shadowCounts(int& dlights, int& mapLights);
