@@ -1093,6 +1093,30 @@ QVR_CVAR(vr_2h_sticky_fast_from, "1.5", CVAR_ARCHIVE)  // m/s: the faster hand's
 QVR_CVAR(vr_2h_sticky_fast_full, "4", CVAR_ARCHIVE)    // m/s: all of it from this speed
 QVR_CVAR(vr_2h_sticky_fast_hold, "0.6", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
 QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping hand taking a weapon's grip, and why it let go (and the stickiness then); 2: and where the grip is, four times a second
+// What a projectile you fire keeps of your motion (QC weapons.qc vrProjectileVelocity; ROUND24.md, "Projectiles keep less
+// of your motion"), by kind: the share of your own velocity, and of the firing hand's swing (_hand: 1 the hand's own
+// speed; a tracked controller's only, never the flat-screen hands' synthesized motion). Was 0.8 of your velocity and
+// 110 u/s per m/s of the hand for every kind, scaled down a little by kind: a strafe threw nails off the aim (2026-11-08).
+// The player's velocity is split by the projectile's aim: _along (the part along the aim direction) and _across (the
+// part across it, a strafe) have their own shares.
+// Fast: nails, super and lava nails, the nail pistol, lasers, plasma, crossbow bolts, the grappling hook: a little (at
+// 1000 u/s any share is an angle: the strafe's 0.05 is 0.9 degrees at 320 u/s).
+QVR_CVAR(vr_proj_inherit_fast_along, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_across, "0.05", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_hand, "0", CVAR_ARCHIVE)
+// Rockets and multi rockets: slower, so more.
+QVR_CVAR(vr_proj_inherit_rocket_along, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_across, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_rocket_hand, "0", CVAR_ARCHIVE)
+// Lobbed: grenades, multi and proximity grenades, flares: half your velocity (a grenade lobbed running lands ahead), and
+// the flick as before (the grenade's 66 u/s per m/s of the hand, at world scale 1).
+QVR_CVAR(vr_proj_inherit_lobbed_along, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_across, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_hand, "2.5", CVAR_ARCHIVE)
+// Sprays: the flamethrower's stream (short range: it keeps up with you as before).
+QVR_CVAR(vr_proj_inherit_spray_along, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_across, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_hand, "2", CVAR_ARCHIVE)
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
 // flashlight) follows it through a damped spring, by its mass, balance and length. The Spring is the only model.
@@ -2105,6 +2129,7 @@ QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
+QVR_CVAR(vr_projinherit_test, "0", CVAR_NONE)           // what projectiles keep of your motion (vr_projinherit_test.qc; Debug > Tests > Projectiles Keep Your Motion): 1 mock headset: strafe and hand swing; 2 flat-screen (-flatscreenmode): a fast turn adds nothing
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
 QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
@@ -2971,6 +2996,8 @@ QVR_CVAR(vr_agarmor_bridge, "1", CVAR_NONE)           // vr_agarmor: the elbows'
 QVR_CVAR(vr_agarmor_folds, "4", CVAR_NONE)            // vr_agarmor: that leather's bellows folds (0-4; armour.txt's `folds` on a sleeve part over it)
 QVR_CVAR(vr_agarmor_fold_depth, "0.3", CVAR_NONE)     // vr_agarmor: how far its folds stand on the inside of a bend, flattening on the outside (units; armour.txt's `fold_depth`)
 QVR_CVAR(vr_agarmor_bend, "0", CVAR_NONE)             // debug (the Debug menu, by Check the Armour's Fit): every armoured body drawn on the authored rig in its rest pose with its elbows and knees bent this many degrees (0 off; the leather's look and tests)
+QVR_CVAR(vr_agarmor_pose_frame, "-1", CVAR_NONE)      // debug (the Debug menu, by Check the Elbow and Knee Leather): every armoured body drawn on the authored rig held in its animation at this frame (a fraction lerped to the next as the game draws it: vr_agarmor_bridge_check's worst steps seen; over vr_agarmor_bend; -1 off)
+QVR_CVAR(vr_agarmor_bridge_trace, "0", CVAR_NONE)     // debug (the Debug menu, by Check the Elbow and Knee Leather): a mask of joints (1 left elbow, 2 right, 4 left knee, 8 right; 15 all): each drawn armoured body's leather there, a console line a frame (its furthest vertex move and its rows', its rings' turn and its rows', the curve's numbers; 0 off)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_rule, "1", CVAR_ARCHIVE)          // armour on armed humanoids (vr_agarmor.qc; Combat > Armed Grunts > Armour): 0 the player's rule (a plate saves its type's share of a hit, 30/60/80%, from its pool), 1 a plate stops the whole hit until its pool is gone
 QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
@@ -3949,8 +3976,15 @@ QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)        // a second key that fo
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
-QVR_CVAR(vr_flat_key_toolgun, "F7", CVAR_ARCHIVE)        // the key that puts the toolgun in the right hand, and again gives back what that hand held (vr_flat_toolgun_toggle; vr_toolgun_flat.cpp), by its bind name; "" none
-QVR_CVAR(vr_flat_key_toolgun_menu, "mouse3", CVAR_ARCHIVE) // with the toolgun in hand: the key that opens and closes its panel on the screen (the mouse moves its pointer, the left button clicks; vr_toolgun_flat.cpp), by its bind name; "" none
+QVR_CVAR(vr_flat_key_toolgun, "F7", CVAR_ARCHIVE)        // the key that puts the toolgun in the right hand, and again gives back what that hand held (impulse 49; vr_flatplay.cpp toolgunKeys), by its bind name; "" none
+QVR_CVAR(vr_flat_key_toolgun_menu, "mouse3", CVAR_ARCHIVE) // with the toolgun in hand: the key that opens and closes its panel on the screen (the mouse moves its cursor, the left button clicks, Esc closes it too; vr_toolgun_panel.cpp drawFlat), by its bind name; "" none
+QVR_CVAR(vr_flat_key_toolgun_adjust, "b", CVAR_ARCHIVE)  // with the toolgun in hand: held, the headset's X/A on its hand (the physgun's angles snap; the mouse is the tool's instead of the view's: up/down pushes the held prop out/in (the brush's push, the scale tool's size), left/right turns it), by its bind name; "" none
+QVR_CVAR(vr_flat_toolgun_push_scale, "0.5", CVAR_ARCHIVE) // vr_flat_key_toolgun_adjust held: units the mouse's up/down pushes out or pulls in a count
+QVR_CVAR(vr_flat_toolgun_turn_scale, "0.4", CVAR_ARCHIVE) // vr_flat_key_toolgun_adjust held: degrees the mouse's left/right turns the held prop a count (vr_toolgun_turn_axis's way)
+QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's height on the window, a share of the window's (narrowed to fit its width)
+QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
+QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
+QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)
 QVR_CVAR(vr_flat_flycam, "0", CVAR_NONE)                // flatscreen play's fly camera (vr_flycam.cpp): 1 the view flies free (mouse looks, W A S D, Space up, Ctrl down, Shift faster) while you stand exactly as you were, nothing of yours moving; 0 back in your eyes. Not saved; a headset ignores it
 QVR_CVAR(vr_flat_flycam_pause, "1", CVAR_ARCHIVE)       // the fly camera: 1 the game is paused while it flies (single player, or a game this client's server runs alone); 0 the world runs on (you still stand still: no key reaches you). Multiplayer never pauses
 QVR_CVAR(vr_flat_flycam_speed, "320", CVAR_ARCHIVE)     // the fly camera's speed, units a second

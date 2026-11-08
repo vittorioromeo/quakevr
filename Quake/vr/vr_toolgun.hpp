@@ -64,6 +64,11 @@ void forget(int num);
 bool button(int hand, posing::Button b, bool down);
 [[nodiscard]] bool sticksTaken();
 void sticks(const glm::vec2& off, const glm::vec2& main);
+// Flatscreen play's stand-in for the gun stick while X/A is held (vr_flatplay.cpp: the adjust key, the mouse moving):
+// `push` units out (the physgun's distance, the brush's push, the scale tool's 1% a unit) and `turn` degrees (the
+// physgun's turn), gathered and used on the next frame as the sticks are. True: the adjust takes the mouse (not the
+// spawn tool: its ghost turns with the aim).
+bool flatNudge(float push, float turn);
 
 // Once a host frame, after the hands (vr_main.cpp): the aim, the tools' work, their lines and texts.
 void frame(const hands::State& s);
@@ -168,6 +173,13 @@ void frame(const hands::State& s);
 void render();
 // In each eye, after the scene (vr_panel.cpp drawInEye): the panel and the laser.
 void drawInEye(const hands::State& s);
+// Flatscreen play (no headset): the panel shown as an overlay on the window (drawFlat, from the flat 2D pass's end:
+// vr_flat_toolgun_panel_size, _x, _y), the desktop mouse moving a cursor on it (flatMouse, from IN_MouseMotion: true
+// taken, the view does not turn) and the left button clicking (flatClick: true taken).
+[[nodiscard]] bool flatShown();
+bool flatMouse(int dx, int dy);
+bool flatClick(bool down);
+void drawFlat();
 void registerCommands();
 } // namespace panel
 
