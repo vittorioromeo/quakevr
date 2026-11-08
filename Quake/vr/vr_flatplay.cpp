@@ -53,6 +53,7 @@
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -902,12 +903,16 @@ void proneToggle_f()
 
 // The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
 // main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
-// left mouse button) is its trigger, and mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel.
+// left mouse button) is its trigger, mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel, a screen overlay with the
+// mouse's cursor while open (vr_toolgun_panel.cpp drawFlat, flatMouse), the left button clicking on it; and B
+// (vr_flat_key_toolgun_adjust) held its X/A: the mouse the tool's (toolgun::flatNudge) instead of the view's.
 struct FlatToolgunKeys
 {
-    bool key{false};  // vr_flat_key_toolgun, last frame
-    bool menu{false}; // vr_flat_key_toolgun_menu, last frame
-    bool fire{false}; // the main hand's fire, last frame, while the toolgun was held
+    bool key{false};    // vr_flat_key_toolgun, last frame
+    bool menu{false};   // vr_flat_key_toolgun_menu, last frame
+    bool fire{false};   // the main hand's fire, last frame, while the toolgun was held
+    bool click{false};  // that press went to the panel (its release goes there too)
+    bool adjust{false}; // vr_flat_key_toolgun_adjust held, last frame, while the toolgun was held
 };
 FlatToolgunKeys flatTg;
 
@@ -939,10 +944,67 @@ void toolgunKeys()
     const bool fire = held && client::attacking(HAND_MAIN);
     if(fire != flatTg.fire)
     {
-        (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, fire);
+        if(fire)
+        {
+            // With the panel open a press is a click on it (where the cursor is), else the toolgun's trigger.
+            flatTg.click = toolgun::panel::flatShown() && toolgun::panel::flatClick(true);
+            if(!flatTg.click)
+            {
+                (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, true);
+            }
+        }
+        else
+        {
+            (void)(za::exchange(flatTg.click, false) ? toolgun::panel::flatClick(false)
+                                                     : toolgun::button(HAND_MAIN, posing::Button::Trigger, false));
+        }
     }
     flatTg.fire = fire;
+    const bool adjust = held && down(vr_flat_key_toolgun_adjust);
+    if(adjust != flatTg.adjust)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Primary, adjust);
+    }
+    flatTg.adjust = adjust;
 }
+
+} // namespace
+
+// IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
+// (flatTg.adjust): the mouse is theirs, the view stays.
+extern "C" int VR_FlatToolgunMouse(int dx, int dy)
+{
+    if(!flatplay::active())
+    {
+        return 0;
+    }
+    if(toolgun::panel::flatMouse(dx, dy))
+    {
+        return 1;
+    }
+    if(flatTg.adjust)
+    {
+        return toolgun::flatNudge(-static_cast<float>(dy) * vr_flat_toolgun_push_scale.value,
+                   -static_cast<float>(dx) * vr_flat_toolgun_turn_scale.value)
+                   ? 1
+                   : 0;
+    }
+    return 0;
+}
+
+// Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
+extern "C" int VR_FlatToolgunEscape(void)
+{
+    if(!toolgun::panel::flatShown())
+    {
+        return 0;
+    }
+    toolgun::panel::close();
+    return 1;
+}
+
+namespace
+{
 
 void pollKeysFlat()
 {

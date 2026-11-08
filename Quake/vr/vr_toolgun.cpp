@@ -370,6 +370,8 @@ struct ToolgunState
     glm::vec3 handRot{0.f};    // the toolgun's hand's angles this frame (the physgun's wrist)
     bool taken[HAND_COUNT][6]{}; // presses taken (their releases are too)
     glm::vec2 stick[HAND_COUNT]{glm::vec2{0.f}, glm::vec2{0.f}};
+    float flatPush{0.f}; // flatscreen play's mouse with the adjust key held since the last frame (flatNudge): units out
+    float flatTurn{0.f}; // and degrees turned (the gun stick's x's way)
 
     Aim aim;
     bool ghost{false};
@@ -1163,6 +1165,17 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
 {
     tg.stick[HAND_OFF] = off;
     tg.stick[HAND_MAIN] = main;
+}
+
+bool flatNudge(float push, float turn)
+{
+    if(!adjustTakesSticks() || heldHand() < 0 || key_dest != key_game)
+    {
+        return false;
+    }
+    tg.flatPush += push;
+    tg.flatTurn += turn;
+    return true;
 }
 
 void frame(const hands::State& s)
@@ -2201,6 +2214,11 @@ void status_f()
     Con_Printf("toolgun: hand %d, tool %s, panel %s, adjust %d, screen \"%s\"\n", toolgun::heldHand(),
         toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg.adjust ? 1 : 0,
         toolgun::screenText());
+    if(tg.drag.num)
+    {
+        Con_Printf("toolgun: physgun holds %d, distance %.1f, turn %.1f %.1f %.1f\n", tg.drag.num, tg.drag.distance,
+            tg.drag.turn[0], tg.drag.turn[1], tg.drag.turn[2]);
+    }
     if(a.valid)
     {
         Con_Printf("toolgun: aim from %.1f %.1f %.1f dir %.2f %.2f %.2f, world at %.0f, target %d %s at %.0f\n", a.from.x, a.from.y,

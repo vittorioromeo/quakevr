@@ -1269,6 +1269,9 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			return;
 		}
 
+		if (key_dest == key_game && VR_FlatToolgunEscape ()) // QVR: closes flatscreen play's toolgun panel, no menu
+			return;
+
 		switch (key_dest)
 		{
 		case key_message:
