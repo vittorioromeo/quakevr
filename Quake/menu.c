@@ -8445,6 +8445,7 @@ void M_Draw (void)
 {
 	int was = VR_MenuDrawSelect ();
 	M_DrawPanel ();
+	VR_MenuDrawFlatFrame (); // QVR: the flat screen's VR menu panel's frame and corner handles, on the window (out of its viewport)
 	if (VR_MenuDrawRestore (was))
 		M_RefreshBounds ();
 }
@@ -8483,6 +8484,7 @@ void M_DrawPanel (void)
 	}
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
+	VR_MenuDrawFlatPanel (); // QVR: the flat screen's VR menu panel's background (vr_menu_flat_vr_style)
 	VR_MenuDrawBannerColumn (); // QVR: the VR menu style's banner, under the corner's buttons
 	VR_MenuDrawVersion (); // QVR: the version label in the bottom right corner (under the page: what opens over it hides it)
 
@@ -8758,12 +8760,23 @@ void M_Mousemove (int screenx, int screeny)
 	drawtransform_t transform;
 	float x, y;
 
+	int px = glx, py = gly, pw = glwidth, ph = glheight, fx, fy, fw, fh; // QVR
+
 	if (bind_grab || !ui_mouse.value)
 		return;
+	if (VR_MenuFlatMouse (screenx, screeny)) // QVR: a corner of the flat screen's VR menu panel dragged
+		return;
+	if (VR_MenuFlatViewport (&fx, &fy, &fw, &fh)) // QVR: the menu canvas is that panel's rect of the window
+	{
+		px = glx + fx;
+		py = gly + fy;
+		pw = fw;
+		ph = fh;
+	}
 
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
-	x = (screenx - glx) * 2.f / (float) glwidth - 1.f;
-	y = (screeny - gly) * 2.f / (float) glheight - 1.f;
+	x = (screenx - px) * 2.f / (float) pw - 1.f;
+	y = (screeny - py) * 2.f / (float) ph - 1.f;
 	y = -y;
 	x = (x - transform.offset[0]) / transform.scale[0];
 	y = (y - transform.offset[1]) / transform.scale[1];

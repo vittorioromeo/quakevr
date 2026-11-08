@@ -53,7 +53,8 @@ void(entity missile, float mspeed, float accuracy) LaunchMissile =
     makevectors(self.angles);
 
 // set missile speed
-    vec = VR_AI_Origin(self.enemy) + self.enemy.mins + self.enemy.size * 0.7 - missile.origin;
+    vec = VR_AI_Origin(self.enemy) - missile.origin; // QVR: lying down (.vr_prone), his lying box's middle
+    if(!self.enemy.vr_prone) { vec = vec + self.enemy.mins + self.enemy.size * 0.7; }
 
 // calc aproximate time for missile to reach vec
     fly = vlen(vec) / mspeed;

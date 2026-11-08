@@ -218,8 +218,10 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
   hand (*Move Towards*). Run or walk by default (*Default Speed*); clicking the off-hand stick switches to the other.
 - **Turning:** smooth, or snap 30, 45 or 90 degrees. *Comfort* (Locomotion) sets turning, teleport and speed
   together.
-- **Teleport** (off by default): turn on *Teleport* and bind a button to `+teleport`, for example
-  `bind LTHUMB +teleport`. Aim with the off hand and let go on a blue spot.
+- **Teleport** (off by default): *Teleport* > *Bound Button*: bind a button to `+teleport`, for example
+  `bind LTHUMB +teleport`, aim with the off hand and let go on a blue spot. *Smooth + Teleport*: walk with the moving
+  stick as usual, push the turning stick forward to aim with that hand and let it go back to the middle to land (pull
+  it back to cancel; its left and right still turn). Only from the ground, and you arrive standing still.
 - **Room-scale:** walking in your room moves you in the game, with collision (*Room Scale* sets the ratio). Jumping
   for real jumps (*Roomscale Jump*). You can crouch, and lean up to a wall or over a railing before your body
   follows (*Lean*).

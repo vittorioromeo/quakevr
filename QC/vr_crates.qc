@@ -624,6 +624,11 @@ vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
     {
         most = xEnemy.absmin_z + 0.7 * (xEnemy.headpos_z + VR_SHOT_OVER_HEAD - xEnemy.absmin_z);
     }
+    if(crouched && xEnemy.vr_prone)
+    {
+        // lying down (the engine's .vr_prone: his own lower box, vr_prone_height)
+        most = min(most, xEnemy.absmin_z + 0.6 * min(32, max(12, cvar_hget(cvarh_vr_prone_height))));
+    }
     if(crouched)
     {
         most = min(most, xEnemy.absmin_z + 0.6 * cvar_hget(cvarh_vr_crouch_height));

@@ -805,7 +805,7 @@ qboolean SV_CheckWater (edict_t *ent)
 	{
 		ent->v.watertype = cont;
 		ent->v.waterlevel = 1;
-		point[2] = ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2])*0.5;
+		point[2] = VR_HullWaistZ (ent); // QVR: lying down, the lying box's middle (vr_prone); else the box's
 		cont = SV_PointContents (point);
 		if (cont <= CONTENTS_WATER)
 		{

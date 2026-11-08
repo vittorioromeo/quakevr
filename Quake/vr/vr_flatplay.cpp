@@ -915,8 +915,11 @@ void pollKeys()
 // for lying down (vr_hull.cpp updateCrouch) as it does a headset player whose eyes are that low.
 [[nodiscard]] float proneDrop()
 {
-    // (vr_flat_prone_eye, under the server's vr_prone_eye by 2 at least; until 2026-11-08 vr_prone_eye less 4, 14.)
-    const float eye = za::clamp(vr_flat_prone_eye.value, 6.f, za::max(6.f, vr_prone_eye.value - 2.f));
+    // (vr_flat_prone_eye, under the server's vr_prone_eye by 2 at least; until 2026-11-08 vr_prone_eye less 4, 14. And
+    // Quake's near plane, 4, under the lying box's top (vr_prone_height, 12 at least: vr_hull.cpp proneHeight), so the
+    // view never reaches into the ceiling of a vent the box just passes: 12 at the default 16.)
+    const float boxTop = za::max(12.f, vr_prone_height.value);
+    const float eye = za::clamp(vr_flat_prone_eye.value, 6.f, za::max(6.f, za::min(vr_prone_eye.value - 2.f, boxTop - 4.f)));
     return za::clamp(cl.viewheight + 24.f - eye, 0.f, 44.f);
 }
 

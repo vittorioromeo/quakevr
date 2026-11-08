@@ -58,7 +58,7 @@ constexpr Option options[] = {
     {"movedir", "Move Towards", "vr_movement_mode", {{1.f, "Head"}, {0.f, "Hand"}}, 2},
     {"sticks", "Swap Stick Functions", "vr_stick_swap", {{0.f, "Left moves"}, {1.f, "Right moves"}}, 2},
     {"run", "Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}, 2},
-    {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "On"}}, 2},
+    {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"}}, 3},
     {"grip", "Weapon Grip", "vr_weapon_grip_mode", {{0.f, "Hold"}, {1.f, "Sticky"}}, 2},
     {"gadget", "Wrist Gadget Arm", "vr_gadget_arm", {{0.f, "Left"}, {1.f, "Right"}}, 2},
     {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left"}, {1.f, "Right"}}, 2},
