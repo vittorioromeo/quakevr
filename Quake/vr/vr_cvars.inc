@@ -4004,7 +4004,7 @@ QVR_CVAR(vr_flat_shove, "1", CVAR_ARCHIVE)            // flatscreen play: 1 the 
 QVR_CVAR(vr_flat_shove_cooldown, "0.8", CVAR_ARCHIVE) // seconds after a shove before the key shoves again (a press meanwhile does nothing)
 QVR_CVAR(vr_flat_shove_push, "1", CVAR_ARCHIVE)       // how hard it throws what it reaches back, times the headset's one-hand shove (vr_shove_push_onehand)
 QVR_CVAR(vr_flat_shove_damage, "1", CVAR_ARCHIVE)     // its damage, times the headset's one-hand shove's
-QVR_CVAR(vr_flat_shove_reach, "1", CVAR_ARCHIVE)      // how far ahead of the hand it reaches, times the headset shove's (VR_BASH_REACH)
+QVR_CVAR(vr_flat_shove_reach, "1.15", CVAR_ARCHIVE)   // how far ahead of the hand it reaches, times the headset shove's (VR_BASH_REACH; 1.15: his notes 2026-11-08, 15% more lenient)
 QVR_CVAR(vr_flat_shove_time, "0.4", CVAR_ARCHIVE)     // seconds the hand's push takes, out and back (the shove lands as the hand reaches its furthest, a third of the way in)
 QVR_CVAR(vr_flat_shove_anim_reach, "14", CVAR_ARCHIVE) // units the hand pushes out ahead of where it rests (the animation only)
 QVR_CVAR(vr_handsource_gate, "1", CVAR_ARCHIVE)        // 1: hand motion the game makes up (the flat-screen look, a lean, the wall tilt: vr_handsource.cpp) triggers no gesture (a swing, a flick, a pry); 0: every motion does, as before (a test's comparison, a way back)
@@ -4012,7 +4012,8 @@ QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both 
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
 QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
-QVR_CVAR(vr_flat_key_grab_alt, "", CVAR_ARCHIVE)         // a second key that force-grabs the same, by its bind name; "" none (R until 2026-11-08: R reloads now, vr_flat_key_reload)
+QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 what the grab key (mouse 4) would take now glows with the force grab's outline, as an open hand's aim shows it in the headset (QC VR_Forcegrab_FlatPreview); 0 no preview
+QVR_CVAR(vr_flat_key_grab_alt, "", CVAR_ARCHIVE)        // a second key that force-grabs the same, by its bind name; "" none (R until 2026-11-08: R reloads now, vr_flat_key_reload)
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
@@ -4049,6 +4050,7 @@ QVR_CVAR(vr_flat_mantle_look, "30", CVAR_ARCHIVE)       // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle; 90 his, 2026-11-08, from 80)
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
+QVR_CVAR(vr_flat_mantle_hands, "1", CVAR_ARCHIVE)       // flatscreen mantle: 1 each empty hand goes onto the ledge as it mantles, as a headset's hands hold it (both empty: both; a free hand on the other's gun lets go of it for the mantle; both holding weapons: none; vr_climb.cpp flatMantleHands); 0 the hands stay as they are
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 

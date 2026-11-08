@@ -1324,6 +1324,9 @@ vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
+vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
+vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
 vr_flat_shove|1|Locomotion|Shove Key (Mouse 5)|Advanced VR Options > Movement > Locomotion > Shove Key (Mouse 5)
 vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movement > Locomotion > Shove Cooldown
 vr_flat_shove_push|1|Locomotion|Shove Strength|Advanced VR Options > Movement > Locomotion > Shove Strength
@@ -1345,6 +1348,7 @@ vr_flat_mantle_look|1|Locomotion|Mantle Look Up|Advanced VR Options > Movement >
 vr_flat_mantle_look_max|1|Locomotion|Mantle Look Up Most|Advanced VR Options > Movement > Locomotion > Mantle Look Up Most
 vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > Locomotion > Mantle Window
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
+vr_flat_mantle_hands|1|Locomotion|Mantle Hands On The Ledge|Advanced VR Options > Movement > Locomotion > Mantle Hands On The Ledge
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
@@ -3992,6 +3996,10 @@ vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug >
 vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
 vr_flat_pose_pitch|2|Tunables|Hand Pitch|Advanced VR Options > Debug > Tunables > Hand Pitch
 vr_flat_arm_hold|2|Tunables|Arm Hold|Advanced VR Options > Debug > Tunables > Arm Hold
+vr_flat_reload_down|2|Tunables|Reload: Down Time|Advanced VR Options > Debug > Tunables > Reload: Down Time
+vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > Tunables > Reload: Hold Time
+vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
+vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug > Tunables > Reload: Muzzle Down
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
@@ -4021,6 +4029,16 @@ vr_flat_melee_two_hand|2|Tunables|Two-Handed Melee|Advanced VR Options > Debug >
 vr_flat_punch_aim|2|Tunables|Punch At Crosshair|Advanced VR Options > Debug > Tunables > Punch At Crosshair
 vr_flat_shove_aim|2|Tunables|Shove At Crosshair|Advanced VR Options > Debug > Tunables > Shove At Crosshair
 vr_flat_punch_aim_dist|2|Tunables|Punch Target Distance|Advanced VR Options > Debug > Tunables > Punch Target Distance
+vr_flat_shove_both|2|Tunables|Two-Handed Shove|Advanced VR Options > Debug > Tunables > Two-Handed Shove
+vr_flat_shove_both_apart|2|Tunables|Two-Handed Shove Hands Apart|Advanced VR Options > Debug > Tunables > Two-Handed Shove Hands Apart
+vr_flat_shove_width|2|Tunables|Shove Width|Advanced VR Options > Debug > Tunables > Shove Width
+vr_flat_shove_anim_speed|2|Tunables|Shove Animation Speed|Advanced VR Options > Debug > Tunables > Shove Animation Speed
+vr_flat_shove_main_fwd|2|Tunables|Shove Main Hand Forward|Advanced VR Options > Debug > Tunables > Shove Main Hand Forward
+vr_flat_shove_main_out|2|Tunables|Shove Main Hand Out|Advanced VR Options > Debug > Tunables > Shove Main Hand Out
+vr_flat_shove_main_up|2|Tunables|Shove Main Hand Up|Advanced VR Options > Debug > Tunables > Shove Main Hand Up
+vr_flat_shove_off_fwd|2|Tunables|Shove Off Hand Forward|Advanced VR Options > Debug > Tunables > Shove Off Hand Forward
+vr_flat_shove_off_out|2|Tunables|Shove Off Hand Out|Advanced VR Options > Debug > Tunables > Shove Off Hand Out
+vr_flat_shove_off_up|2|Tunables|Shove Off Hand Up|Advanced VR Options > Debug > Tunables > Shove Off Hand Up
 vr_flat_pistol_turn|2|Tunables|Pistol Torso Turn|Advanced VR Options > Debug > Tunables > Pistol Torso Turn
 vr_flat_pistol_back|2|Tunables|Pistol Back|Advanced VR Options > Debug > Tunables > Pistol Back
 vr_flat_pistol_in|2|Tunables|Pistol In|Advanced VR Options > Debug > Tunables > Pistol In
@@ -4032,6 +4050,9 @@ vr_flat_up_elbow_out|2|Tunables|Look Up: Elbow Out|Advanced VR Options > Debug >
 vr_flat_wall_arm_keep|2|Tunables|Wall: Push Back Keeps Arm|Advanced VR Options > Debug > Tunables > Wall: Push Back Keeps Arm
 vr_flat_wall_fold|2|Tunables|Wall: Fold Arm To|Advanced VR Options > Debug > Tunables > Wall: Fold Arm To
 vr_flat_wall_margin|2|Tunables|Wall: Keep Off Distance|Advanced VR Options > Debug > Tunables > Wall: Keep Off Distance
+vr_flat_mantle_hand_spread|2|Tunables|Mantle Hands Apart|Advanced VR Options > Debug > Tunables > Mantle Hands Apart
+vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
+vr_flat_punch_wall_margin|2|Tunables|Wall: Swing Stops Short|Advanced VR Options > Debug > Tunables > Wall: Swing Stops Short
 vr_flat_wall_tilt|2|Tunables|Wall: Muzzle Tilt Up|Advanced VR Options > Debug > Tunables > Wall: Muzzle Tilt Up
 vr_flat_wall_tilt_fixed|2|Tunables|Wall: Tilt Pitch|Advanced VR Options > Debug > Tunables > Wall: Tilt Pitch
 vr_flat_wall_tilt_yaw|2|Tunables|Wall: Tilt Yaw|Advanced VR Options > Debug > Tunables > Wall: Tilt Yaw
@@ -4245,6 +4266,11 @@ vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tun
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
 vr_embed_brake|2|Tunables|Running Stab: Brake|Advanced VR Options > Debug > Tunables > Running Stab: Brake
 vr_embed_brake_speed|2|Tunables|Running Stab: Speed|Advanced VR Options > Debug > Tunables > Running Stab: Speed
+vr_embed_props|2|Tunables|Crates: Blades Stick|Advanced VR Options > Debug > Tunables > Crates: Blades Stick
+vr_embed_prop_force|2|Tunables|Crates: Pull|Advanced VR Options > Debug > Tunables > Crates: Pull
+vr_embed_prop_lift|2|Tunables|Crates: Lift|Advanced VR Options > Debug > Tunables > Crates: Lift
+vr_embed_prop_hertz|2|Tunables|Crates: Stiffness|Advanced VR Options > Debug > Tunables > Crates: Stiffness
+vr_embed_prop_stick|2|Tunables|Crates: Wood's Grip|Advanced VR Options > Debug > Tunables > Crates: Wood's Grip
 vr_embed_move_sword_lift|2|Tunables|Moving: Sword's Lift|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift
 vr_embed_move_sword_lift_deep|2|Tunables|Moving: Sword's Lift, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Lift, Deep
 vr_embed_lean_sword|2|Tunables|Hold: Sword's Leeway|Advanced VR Options > Debug > Tunables > Hold: Sword's Leeway
@@ -4622,6 +4648,9 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
+|2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
+vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+vr_flat_reload_pose|2|Debug - Reports|Flatscreen: Hold Gun At Hip|Advanced VR Options > Debug > Reports > Flatscreen: Hold Gun At Hip
 vr_handsource_debug|2|Debug - Reports|Print Hand Motion Source|Advanced VR Options > Debug > Reports > Print Hand Motion Source
 vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Options > Debug > Reports > Force Hands Synthesized
 |2|Debug - Reports|Flatscreen Flick Test|Advanced VR Options > Debug > Reports > Flatscreen Flick Test
@@ -5253,6 +5282,8 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Held Stabs and Swung Axes Check|Advanced VR Options > Debug > Tests > Held Stabs and Swung Axes Check
 |2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
 |2|Debug - Tests|Blade Hold Strength Check|Advanced VR Options > Debug > Tests > Blade Hold Strength Check
+|2|Debug - Tests|Skewered Gibs Through Stick Turns Check|Advanced VR Options > Debug > Tests > Skewered Gibs Through Stick Turns Check
+|2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse

@@ -769,17 +769,19 @@ float(float xHand, entity b, vector xFwd, float xSpeed) VR_Bash_Pushing =
 // swept forward, against monsters' boxes. Into vr_bash_victims (a chain), how many.
 entity vr_bash_victims;
 float vr_bash_reach_mul; // VR_Bash_Find's reach times this (0: 1; flatscreen's shove: vr_flat_shove_reach, VR_FlatShove)
+float vr_bash_pad_mul;   // and its pad round the line (0: 1; flatscreen's shove: vr_flat_shove_width)
+vector vr_bash_across;   // an open palm's line across (half of it, '0 0 0': none; flatscreen's two-handed shove: palm to palm)
 float(float xHand, entity b, vector xForward) VR_Bash_Find =
 {
     vector a = b.mh_near;
     vector c = b.mh_far;
     if(b.mh_stance == 2)
     {
-        a = b.mh_grip - xForward * 2;
-        c = b.mh_grip + xForward * 2;
+        a = b.mh_grip - xForward * 2 - vr_bash_across;
+        c = b.mh_grip + xForward * 2 + vr_bash_across;
     }
     float reach = VR_BASH_REACH * VRMetersToUnits() * (vr_bash_reach_mul > 0 ? vr_bash_reach_mul : 1);
-    float pad = 6;
+    float pad = 6 * (vr_bash_pad_mul > 0 ? vr_bash_pad_mul : 1);
     float hits = 0;
     vr_bash_victims = world;
     entity e = findradius((a + c) * 0.5 + xForward * reach * 0.5, reach + vlen(c - a) * 0.5 + 64);
@@ -1408,9 +1410,13 @@ void() VR_Bash =
 // vr_flat_shove_reach) is shoved as a palm's push shoves it (VR_Bash_Land), its damage times vr_flat_shove_damage and its
 // push times vr_flat_shove_push. The bash's own cooldown holds too (VR_BASH_COOLDOWN); the key's is the engine's
 // (vr_flat_shove_cooldown). A push at the air shoves nothing and costs nothing.
+// Both hands free (impulse 56, vr_flat_shove_both): the headset's two-handed shove, both palms: its line runs across from
+// one palm to the other (VR_FLATSHOVE_APART), and it lands as the headset's two hands land (their damage and push).
+// Its sweep is vr_flat_shove_width round its line (the headset's pad times it).
 float VR_FLATSHOVE_DOWN = 0.3; // m the push goes below the eyes
 float VR_FLATSHOVE_OUT = 0.3;  // m ahead of them it starts from
-void(float xHand) VR_FlatShove =
+float VR_FLATSHOVE_APART = 0.3; // m between the palms of a two-handed one
+void(float xHand, float xBoth) VR_FlatShove =
 {
     if(!VR_FlatPlay(self) || !cvar_hget(cvarh_vr_flat_shove) || !cvar_hget(cvarh_vr_bash) || !self.ishuman ||
        self.health <= 0)
@@ -1424,6 +1430,11 @@ void(float xHand) VR_FlatShove =
     }
     float m2u = VRMetersToUnits();
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
+    if(xBoth)
+    {
+        makevectors('0 1 0' * self.v_viewangle_y);
+        vr_bash_across = v_right * (VR_FLATSHOVE_APART * 0.5 * m2u);
+    }
     entity b = VR_Blow(xHand);
     float oldStance = b.mh_stance;
     vector oldGrip = b.mh_grip;
@@ -1431,8 +1442,11 @@ void(float xHand) VR_FlatShove =
     b.mh_grip = VRGetHeadPos(self) - '0 0 1' * (VR_FLATSHOVE_DOWN * m2u) + fwd * (VR_FLATSHOVE_OUT * m2u);
     vector at = b.mh_grip;
     vr_bash_reach_mul = max(0.1, cvar_hget(cvarh_vr_flat_shove_reach));
+    vr_bash_pad_mul = max(0.1, cvar_hget(cvarh_vr_flat_shove_width));
     float hits = VR_Bash_Find(xHand, b, fwd);
     vr_bash_reach_mul = 0;
+    vr_bash_pad_mul = 0;
+    vr_bash_across = '0 0 0';
     b.mh_stance = oldStance;
     b.mh_grip = oldGrip;
     self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
@@ -1442,8 +1456,8 @@ void(float xHand) VR_FlatShove =
         VR_Melee_Event(sprintf("flat shove, hand %g, nothing in reach", xHand));
         return;
     }
-    VR_Bash_Land(xHand, FALSE, FALSE, hits, at, fwd, VR_BASH_ONE_DAMAGE * max(0, cvar_hget(cvarh_vr_flat_shove_damage)),
-                 VR_Shove_HandsPush(FALSE) * max(0, cvar_hget(cvarh_vr_flat_shove_push)), 0, 0);
+    VR_Bash_Land(xHand, xBoth, FALSE, hits, at, fwd, (xBoth ? 1 : VR_BASH_ONE_DAMAGE) * max(0, cvar_hget(cvarh_vr_flat_shove_damage)),
+                 VR_Shove_HandsPush(xBoth) * max(0, cvar_hget(cvarh_vr_flat_shove_push)), 0, 0);
 };
 
 // ----------------------------------------------------------------------------

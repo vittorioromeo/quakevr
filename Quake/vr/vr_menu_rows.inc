@@ -6101,6 +6101,9 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
     "the status bar as Ironwail draws it (vr_flat_hud).")
+QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
+    "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
+    "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
@@ -6165,6 +6168,10 @@ QVR_SLIDER(vr_flat_body_height, "Body Height", 1.f, 2.2f, 0.01f, "%.2f m", noExt
 QVR_SLIDER(vr_flat_mantle_grunt_delay, "Mantle Grunt Delay", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump the mantle's grunt plays, so the jump's own grunt has ended "
     "and both are heard (vr_flat_mantle_grunt_delay; 0: as the mantle starts).")
+QVR_TOGGLE(vr_flat_mantle_hands, "Mantle Hands On The Ledge",
+    "Playing on the desktop screen: as you mantle, each empty hand goes onto the ledge, as your hands hold it in VR: both "
+    "when both are empty, the free one when the other holds a weapon (it lets go of that weapon's grip for the mantle), "
+    "none when both hold weapons (vr_flat_mantle_hands).")
 QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "

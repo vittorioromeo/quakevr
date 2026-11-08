@@ -260,6 +260,10 @@ void queue(const hands::State& s, bool flat)
         }
         if(t.state == Aimed)
         {
+            if(flat)
+            {
+                continue; // (flatscreen play's preview: the outline alone; no hand points, the free one hangs)
+            }
             const glm::vec4 beam = tint(0.7f, 1.f, 1.f);
             fgfx::beam(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
             continue;

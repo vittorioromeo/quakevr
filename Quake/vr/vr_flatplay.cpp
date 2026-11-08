@@ -44,6 +44,7 @@
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_handpose.hpp"
 #include "vr_handsource.hpp"
 #include "vr_hull.hpp"
 #include "vr_main.hpp"
@@ -102,6 +103,7 @@ struct FlatState
     // The shove (vr_flat_key_shove, vr_flat_shove_now): the hand pushing, when its push started, whether the game has been
     // told yet (QC VR_FlatShove, as the hand reaches out), and when the key shoves again (vr_flat_shove_cooldown).
     int shoveHand{HAND_OFF};
+    bool shoveBoth{false};       // both hands push (both were free: QC's two-handed shove)
     double shoveAt{-1e9};
     bool shoveSent{true};
     double shoveReady{-1e9};
@@ -113,6 +115,8 @@ struct FlatState
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
     float guard[2]{0.f, 0.f}; // that rest's share of the guard (vr_flat_empty_hand_pose: 1 the guard, 0 relaxed), eased
+    float wallBack[2]{0.f, 0.f}; // how far an empty hand is back towards its shoulder off a wall (units; handOffWall)
+    float wallDepth[2]{0.f, 0.f}; // and how deep in it the pose had it this frame (units, its margin in; the status prints it)
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
     bool shouldersKnown{false};
     bool localSeen[2]{false, false};
@@ -461,6 +465,14 @@ constexpr float hangPitch = 60.f; // an empty hand at rest: its fingers this far
 constexpr float guardFwd = 12.f;  // the guard a free hand beside a gun punches from (punchSwing): forward of its shoulder,
 constexpr float guardDown = 11.f; // and below it, before the reach
 
+// An empty hand off walls and props (handOffWall): kept vr_flat_wall_margin and this much more off them at rest (the fist
+// round its point, as flatsight's freeRoom), found in this many halvings of the way to its shoulder, and eased back out
+// at this rate (1/s, as flatsight's backOut: no jump as the wall clears; it goes back at once).
+constexpr float handRoom = 2.f;
+constexpr int handOffHalvings = 8;
+constexpr float handBackOut = 12.f;
+constexpr float handMarginMax = 24.f;
+
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
 constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
 
@@ -744,12 +756,24 @@ void startPunch(int h, const char* from)
     }
 }
 
-// The shove's push (vr_flat_shove_time, out a third of it and back): 0 .. 1 .. 0, 0 when `h` is not pushing.
+// The shove's push, out a third of it and back, in vr_flat_shove_time over vr_flat_shove_anim_speed (seconds).
+[[nodiscard]] float shoveTotal()
+{
+    return za::fmax(0.1f, vr_flat_shove_time.value) / za::clamp(vr_flat_shove_anim_speed.value, 0.25f, 4.f);
+}
+
+// Whether `h` pushes in the shove (the one hand, or both).
+[[nodiscard]] bool inShove(int h)
+{
+    return h == fs.shoveHand || fs.shoveBoth;
+}
+
+// The shove's push: 0 .. 1 .. 0, 0 when `h` is not pushing.
 [[nodiscard]] float shoveOut(int h)
 {
     const double t = vr_gametime - fs.shoveAt;
-    const float total = za::fmax(0.1f, vr_flat_shove_time.value);
-    if(h != fs.shoveHand || t < 0.0 || t > total)
+    const float total = shoveTotal();
+    if(!inShove(h) || t < 0.0 || t > total)
     {
         return 0.f;
     }
@@ -759,29 +783,38 @@ void startPunch(int h, const char* from)
 
 [[nodiscard]] bool shoving(int h)
 {
-    return shoveOut(h) > 0.f || (h == fs.shoveHand && !fs.shoveSent);
+    return shoveOut(h) > 0.f || (inShove(h) && !fs.shoveSent);
 }
 
 // The shove's hand offset in the view's frame (forward, right, up): pushed out ahead and in towards the middle.
 // `toTarget`: from where the hand rests to what the crosshair is on, in the same frame: the push goes there by
-// vr_flat_shove_aim (his notes 2026-11-08).
+// vr_flat_shove_aim (his notes 2026-11-08). Both hands pushing: each at its own side of it, vr_flat_shove_both_apart
+// apart. Then the hand's own nudge at full push (vr_flat_shove_<main|off>_fwd / _out / _up: forward, out at its own
+// side, up; units), by how far out it is.
 [[nodiscard]] glm::vec3 shoveOffset(int h, const glm::vec3& toTarget)
 {
-    const float out = shoveOut(h) * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 40.f);
-    const glm::vec3 plain{out, (h == HAND_OFF ? 0.35f : -0.35f) * out, 0.15f * out};
+    const float share = shoveOut(h);
+    const float out = share * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 40.f);
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const glm::vec3 plain{out, -side * 0.35f * out, 0.15f * out};
+    const bool main = h == HAND_MAIN;
+    const glm::vec3 nudge = share * glm::vec3{poseNum(main ? vr_flat_shove_main_fwd : vr_flat_shove_off_fwd),
+                                        side * poseNum(main ? vr_flat_shove_main_out : vr_flat_shove_off_out),
+                                        poseNum(main ? vr_flat_shove_main_up : vr_flat_shove_off_up)};
     const float aimShare = za::clamp(vr_flat_shove_aim.value, 0.f, 1.f);
-    if(out <= 0.f || aimShare <= 0.f || glm::length(toTarget) < 1.f)
+    const glm::vec3 aimAt = toTarget + glm::vec3{0.f, fs.shoveBoth ? side * 0.5f * za::clamp(vr_flat_shove_both_apart.value, 0.f, 24.f) : 0.f, 0.f};
+    if(out <= 0.f || aimShare <= 0.f || glm::length(aimAt) < 1.f)
     {
-        return plain;
+        return plain + nudge;
     }
-    const glm::vec3 aimed = glm::normalize(toTarget) * za::min(glm::length(plain), glm::length(toTarget));
-    return plain + (aimed - plain) * aimShare;
+    const glm::vec3 aimed = glm::normalize(aimAt) * za::min(glm::length(plain), glm::length(aimAt));
+    return plain + (aimed - plain) * aimShare + nudge;
 }
 
 // A shove (the shove key, vr_flat_shove_now): an open hand pushed out in front of him. The game's one-hand shove lands
 // as the hand reaches out (QC VR_FlatShove, impulse 53 the off hand, 54 the main); the push itself is only drawn, and is
 // synthesized motion (vr_handsource.hpp): the melee rules do not read it as a slap or a shove of their own. With an
-// empty hand, the off hand's first; with none, the off hand (what it holds pushes with it).
+// empty hand, the off hand's first; with none, the off hand (what it holds pushes with it); with both empty, both (56).
 void startShove(const char* from)
 {
     if(vr_flat_shove.value == 0.f)
@@ -798,25 +831,27 @@ void startShove(const char* from)
     }
     const int h = heldIn(HAND_OFF) < 0 || heldIn(HAND_MAIN) >= 0 ? HAND_OFF : HAND_MAIN;
     fs.shoveHand = h;
+    // Both hands free: both push (his notes 2026-11-08), the headset's two-handed shove (vr_flat_shove_both 0: the one).
+    fs.shoveBoth = vr_flat_shove_both.value != 0.f && heldIn(HAND_OFF) < 0 && heldIn(HAND_MAIN) < 0;
     fs.shoveAt = vr_gametime;
     fs.shoveSent = false;
-    fs.shoveReady = vr_gametime + za::fmax(vr_flat_shove_cooldown.value, za::fmax(0.1f, vr_flat_shove_time.value));
+    fs.shoveReady = vr_gametime + za::fmax(vr_flat_shove_cooldown.value, shoveTotal());
     fs.shoves++;
     if(vr_flatplay_debug.value)
     {
-        Con_Printf("flatplay: shove (%s): %s hand\n", from, h == HAND_MAIN ? "main" : "off");
+        Con_Printf("flatplay: shove (%s): %s\n", from, fs.shoveBoth ? "both hands" : h == HAND_MAIN ? "main hand" : "off hand");
     }
 }
 
-// Each frame: the shove told to the game as its hand reaches out.
+// Each frame: the shove told to the game as its hand reaches out (QC: impulse 53 the off hand, 54 the main, 56 both).
 void shoveFrame()
 {
-    if(fs.shoveSent || vr_gametime - fs.shoveAt < za::fmax(0.1f, vr_flat_shove_time.value) / 3.f)
+    if(fs.shoveSent || vr_gametime - fs.shoveAt < shoveTotal() / 3.f)
     {
         return;
     }
     fs.shoveSent = true;
-    Cbuf_InsertText(fs.shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
+    Cbuf_InsertText(fs.shoveBoth ? "impulse 56\n" : fs.shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
 }
 
 // E's reach with the collecting hand.
@@ -1935,6 +1970,68 @@ float torsoGap(const hands::State& s, const glm::vec3& rear, const glm::vec3& ha
     return active() && bodyPose() ? torsoClearance(torsoCaps(s), rear, hand) : 1e9f;
 }
 
+// An empty hand off walls and props (his notes 2026-11-08: the guard's fists went into them; a punch went through): back
+// along its way to its shoulder (`root`) until its point, seen from the eye, is vr_flat_wall_margin and handRoom off them,
+// as a held weapon goes back (flatsight's push back: handpose's traces, monsters not counted). A punch or a shove stops at
+// the surface: only vr_flat_punch_wall_margin off it, at once, so the blow still meets the wall. Not a free hand beside
+// the other's gun at rest (flatsight's freeOffWall and its grip). vr_flat_hand_collide 0, or Gun Against Walls off: none.
+namespace
+{
+void handOffWall(hands::State& s, int h, const glm::vec3& root, float dt)
+{
+    const bool acting = punching(h) || shoving(h);
+    const glm::vec3 way = root - s.pos[h];
+    const float len = glm::length(way);
+    const bool mine = vr_flat_hand_collide.value != 0.f && vr_flat_gun_collide.value != 0.f && heldIn(h) < 0 &&
+                      (acting || heldIn(1 - h) < 0) && len > 0.01f;
+    fs.wallDepth[h] = 0.f;
+    if(!mine)
+    {
+        fs.wallBack[h] = 0.f;
+        return;
+    }
+    // (A punch's margin may be negative: that far into the surface, its bite: stopped on it, the fist's blow line never
+    // reached the wall and QC's wall rule had no blow to land.)
+    const float punchMargin = za::clamp(vr_flat_punch_wall_margin.value, -handMarginMax, handMarginMax);
+    const float margin = acting ? za::max(0.f, punchMargin) : za::clamp(vr_flat_wall_margin.value, 0.f, handMarginMax) + handRoom;
+    const float bite = acting ? za::max(0.f, -punchMargin) : 0.f;
+    const auto depthAt = [&](float t) { return handpose::pointWallDepth(s.head, s.pos[h] + way * t, margin); };
+    float need = 0.f;
+    fs.wallDepth[h] = depthAt(0.f);
+    if(fs.wallDepth[h] > 0.f)
+    {
+        float lo = 0.f, hi = 1.f;
+        if(depthAt(1.f) <= 0.f)
+        {
+            for(int i = 0; i < handOffHalvings; i++)
+            {
+                const float mid = 0.5f * (lo + hi);
+                (depthAt(mid) > 0.f ? lo : hi) = mid;
+            }
+        }
+        need = za::max(0.f, hi * len - bite);
+    }
+    // (Back at once; out eased, from the pose's first making each frame: the move's and the view's remakes keep it.)
+    if(need >= fs.wallBack[h] || acting)
+    {
+        fs.wallBack[h] = need;
+    }
+    else if(dt > 0.f)
+    {
+        fs.wallBack[h] += (need - fs.wallBack[h]) * ease(handBackOut, dt);
+    }
+    s.pos[h] += way * (za::min(fs.wallBack[h], len) / len);
+    // The tests' probe (vr_flatplay_debug 2): how deep the pose had the hand (its margin in), how far back it went, and how
+    // deep its point is now (0: clear of the surface; its margin not counted), each frame it met a wall.
+    if(vr_flatplay_debug.value >= 2 && dt > 0.f && (fs.wallDepth[h] > 0.f || fs.wallBack[h] > 0.f))
+    {
+        Con_Printf("flatwall: %s hand t %.3f %s in %.2f back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
+            punching(h) ? "punch" : shoving(h) ? "shove" : "rest", fs.wallDepth[h], fs.wallBack[h],
+            handpose::pointWallDepth(s.head, s.pos[h], 0.f));
+    }
+}
+} // namespace
+
 float stockBackMost(const hands::State& s, int h, const glm::vec3& way, float most, float keepAsked)
 {
     glm::vec3 stock;
@@ -2176,6 +2273,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
             s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
         }
+        handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt));
     }
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the

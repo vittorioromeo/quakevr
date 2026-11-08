@@ -5,6 +5,7 @@
 #include "vr_api.h"
 #include "vr_backend.hpp"
 #include "vr_climb.hpp"
+#include "vr_protocol.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -187,6 +188,9 @@ struct MantleTest
     bool airborne{false}; // the jump has left the ground
     int mantlesBefore{0};
     float pitch{0.f};
+    int only{-1};      // vr_flatmantle_test <case>: that case alone
+    int onLedge{0};    // the hands drawn on the ledge while it mantled (STAT_QVR_CLIMB's bits: 1 the off hand, 2 the main)
+    int empty{-1};     // and the hands empty as it started (climb::handFree), the same bits
 };
 
 // vr_flatslide_rough_test (maps/vrtesthall.bsp): slides up its stairs and its ramp, then curves with A alone and D alone,
@@ -1046,7 +1050,7 @@ void mantleTestFrame()
     switch(t.phase)
     {
     case 1: // placed in front of the next block
-        if(t.index >= caseCount)
+        if(t.index >= caseCount || (t.only >= 0 && t.index > t.only))
         {
             Cbuf_InsertText("-jump\n");
             t.tally.verdict(tag);
@@ -1072,6 +1076,8 @@ void mantleTestFrame()
         {
             t.mantlesBefore = mantles;
             t.airborne = false;
+            t.onLedge = 0;
+            t.empty = -1;
             Cbuf_InsertText("+jump\n");
             next(3);
         }
@@ -1080,6 +1086,15 @@ void mantleTestFrame()
         if(!ground)
         {
             t.airborne = true;
+        }
+        if(mantling)
+        {
+            // (Its hands on the ledge: the bits the drawn hands are put on holds by; vr_climb.cpp flatMantleHands.)
+            if(t.empty < 0)
+            {
+                t.empty = (climb::handFree(pl, 0, false) ? 1 : 0) | (climb::handFree(pl, 1, false) ? 2 : 0);
+            }
+            t.onLedge |= cl.stats[protocol::STAT_QVR_CLIMB] & 3;
         }
         t.frames = t.airborne && ground && !mantling ? t.frames + 1 : 0;
         if(t.frames >= 5)
@@ -1092,6 +1107,14 @@ void mantleTestFrame()
             q_snprintf(line, sizeof(line), "lip %.0f, looking up %.0f: %s (feet at %.1f; wanted %s)", k.lip, k.up,
                 mantled ? "mantled" : "no mantle", feet, k.mantles ? "a mantle" : "none");
             testCheck(t.tally, tag, ok, line);
+            if(mantled)
+            {
+                // The empty hands on the ledge, the others not (vr_flat_mantle_hands; his notes 2026-11-08).
+                const int want = vr_flat_mantle_hands.value != 0.f ? za::max(t.empty, 0) : 0;
+                q_snprintf(line, sizeof(line), "lip %.0f: hands on the ledge off %d main %d (empty: off %d main %d)", k.lip,
+                    t.onLedge & 1, (t.onLedge >> 1) & 1, za::max(t.empty, 0) & 1, (za::max(t.empty, 0) >> 1) & 1);
+                testCheck(t.tally, tag, t.empty >= 0 && t.onLedge == want, line);
+            }
             Cbuf_InsertText("-jump\n");
             t.index++;
             next(1);
@@ -1111,6 +1134,11 @@ void mantleTest_f()
     }
     client.mantleTest = MantleTest{};
     client.mantleTest.phase = 1;
+    if(Cmd_Argc() > 1)
+    {
+        client.mantleTest.only = za::max(0, Q_atoi(Cmd_Argv(1)));
+        client.mantleTest.index = client.mantleTest.only;
+    }
 }
 
 void slideSelftest_f()

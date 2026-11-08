@@ -159,6 +159,7 @@ struct Sight
     float relief{0.f};         // this pose's eye relief: vr_flat_ads_relief, as far as the arm allows (reliefFor)
 
     float backNeed[2]{0.f, 0.f}; // how far each hand's weapon must go back to be out of the walls, this pose's measure
+    float swingStop[2]{0.f, 0.f}; // how far a melee weapon's swing was stopped short of the walls this pose (pushBack)
     float back[2]{0.f, 0.f};     // and how far it is back, eased once a frame (pushBack)
     glm::vec3 backWay[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the way it goes, in the view's frame
     float tiltNeed[2]{0.f, 0.f}; // how far each drawn weapon's muzzle must tilt up to be out of what the way back can't clear
@@ -1167,6 +1168,27 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         {
             s.grip2H[h] += moved;
             s.pos[st.helping] += moved * st.pinShare;
+        }
+        // A melee weapon's swing (flatplay's punch) stops at the surface (his notes 2026-11-08: it went through walls and
+        // props): back along the way to its shoulder at once, no ease, as far as keeps its points vr_flat_punch_wall_margin
+        // off them, so the blow still meets the wall (QC's wall blows) and goes no further. An empty hand's punch:
+        // flatplay's handOffWall.
+        st.swingStop[h] = 0.f;
+        if(flatplay::punching(h) && flatplay::meleeIn(h) && vr_flat_hand_collide.value != 0.f)
+        {
+            const Turned at = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
+            const glm::vec3 handNow = glm::transpose(view) * (s.pos[h] - org);
+            // (A negative margin: that far into it, the swing's bite, as flatplay's handOffWall.)
+            const float m = za::clamp(vr_flat_punch_wall_margin.value, -wallMarginMax, wallMarginMax);
+            st.swingStop[h] = za::max(0.f, handpose::gunBack(h, s.head, at.pos, at.rot, at.muzzle, view * way,
+                                               glm::distance(handNow, shoulder), za::max(0.f, m)) - za::max(0.f, -m));
+            s.pos[h] += view * way * st.swingStop[h];
+            if(vr_flatplay_debug.value >= 2 && st.swingStop[h] > 0.f)
+            {
+                const Turned now = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
+                Con_Printf("flatwall: %s hand t %.3f swing back %.2f now %.2f\n", h == HAND_MAIN ? "main" : "off", vr_gametime,
+                    st.swingStop[h], handpose::gunDepth(h, s.head, now.pos, now.rot, now.muzzle, 0.f, 0.f));
+            }
         }
     }
 }

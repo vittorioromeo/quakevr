@@ -1121,6 +1121,17 @@ struct Climber
     double gruntAt{-1.0};     // the flat mantle's grunt, put off until the jump's own has ended (-1: none waiting)
     bool flatGrounded{false}; // on the ground at the last frame
     int flatMantles{0};       // mantles it started (vr_flat_mantle_test)
+    // And its hands on the ledge while it mantles (vr_flat_mantle_hands): each empty hand's place on the lip, drawn there
+    // as a grip's hold is (calcStats, drawnHand); no grip (the mantle has let go of them all).
+    struct FlatHold
+    {
+        bool on{false};
+        glm::vec3 hold{0.f};
+        glm::vec3 out{0.f};
+        int entNum{0};             // the ledge's brush model (0: the world), and where it was: the hold moves with it
+        glm::vec3 entOrigin{0.f};
+    };
+    FlatHold flatHolds[2];
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -2385,6 +2396,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         return;
     case Phase::Mantling:
         c.grips[0].active = c.grips[1].active = false;
+        c.flatHolds[0].on = c.flatHolds[1].on = false; // (a flat mantle puts its own after: flatMantle)
         c.owed = glm::vec3{0.f};
         if(c.gruntAt < 0.0)
         {
@@ -3003,6 +3015,39 @@ void tryMantle(Hang& hang)
     }
 }
 
+// The flat mantle's hands (his notes 2026-11-08): each empty hand on the ledge as the mantle starts, as a headset's hands
+// hold it -- both empty, both; one empty (a free hand on the other's gun's hotspot is empty: it lets go of the hotspot
+// for the mantle and goes back after, drawn so: vr_view_hands.cpp), that one; both holding something, none. Each at its
+// own side of where the ledge was found, vr_flat_mantle_hand_spread apart along the lip, its hand's place on it as a
+// grip's (holdLedge: on the edge's line); a new hold to the drawn hand (its serial), eased on from where it was drawn.
+void flatMantleHands(edict_t* ent, Climber& c, const VrMove* move, const Grip& g)
+{
+    if(vr_flat_mantle_hands.value == 0.f)
+    {
+        return;
+    }
+    const glm::vec3 right{-g.ledge.out.y, g.ledge.out.x, 0.f}; // (facing the ledge, away from `out`: his right)
+    const float half = 0.5f * za::clamp(vr_flat_mantle_hand_spread.value, 0.f, 32.f);
+    for(int h = 0; h < 2; h++)
+    {
+        Climber::FlatHold& f = c.flatHolds[h];
+        f.on = handEmpty(ent, move, h);
+        if(!f.on)
+        {
+            continue;
+        }
+        f.hold = g.hold + right * (h == 1 ? half : -half);
+        f.out = g.ledge.out;
+        f.entNum = g.prop ? 0 : g.entNum;
+        f.entOrigin = g.entOrigin;
+        c.grips[h].serial++;
+    }
+    if(debug())
+    {
+        Con_Printf("climb: flat mantle's hands on the ledge: off %d, main %d\n", c.flatHolds[0].on ? 1 : 0, c.flatHolds[1].on ? 1 : 0);
+    }
+}
+
 // Flatscreen play's mantle (vr_flat_mantle; the author's note 2026-11-08). No hands to hang from: after a jump, the jump
 // key still held and the view looking up by vr_flat_mantle_look .. vr_flat_mantle_look_max degrees, within
 // vr_flat_mantle_time seconds of leaving the ground, a ledge ahead is taken as a hand's grip takes one (findHold, its
@@ -3092,6 +3137,7 @@ void flatMantle(edict_t* ent, Climber& c, const VrMove* move, double time)
     c.flatJumpAt = -1.0;
     c.flatMantles++;
     startMantle(ent, c, g, mid, to, eye.z - best->top, time);
+    flatMantleHands(ent, c, move, g);
 }
 } // namespace
 
@@ -3509,12 +3555,24 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     {
         const int first = h ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
         glm::vec3 hold{0.f};
-        if(c && c->grips[h].active)
+        // (A flat mantle's hand on the ledge: as a grip's hold, while the mantle runs: flatMantleHands.)
+        const Climber::FlatHold* flat = c && !c->grips[h].active && c->phase == Phase::Mantling && c->flatHolds[h].on
+                                            ? &c->flatHolds[h]
+                                            : nullptr;
+        if(c && (c->grips[h].active || flat))
         {
-            const glm::vec3& out = c->grips[h].ledge.out;
+            const glm::vec3& out = flat ? flat->out : c->grips[h].ledge.out;
             const int yaw = static_cast<int>(za::lround(za::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
             bits |= (1 << h) | ((c->grips[h].serial & 63) << (2 + 6 * h)) | (yaw << (14 + 8 * h));
-            hold = holdNow(c->grips[h]);
+            if(flat)
+            {
+                const bool moves = flat->entNum > 0 && flat->entNum < qcvm->num_edicts;
+                hold = flat->hold + (moves ? vec(EDICT_NUM(flat->entNum)->v.origin) - flat->entOrigin : glm::vec3{0.f});
+            }
+            else
+            {
+                hold = holdNow(c->grips[h]);
+            }
         }
         for(int i = 0; i < 3; i++)
         {
@@ -3632,6 +3690,16 @@ int qvr::climb::heldProp(edict_t* ent, int hand)
     }
     const Grip& g = c->grips[hand];
     return g.active && g.prop ? g.entNum : 0;
+}
+
+float qvr::climb::drawnShare(int hand)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    {
+        return 0.f;
+    }
+    const float w = pins[hand].weight;
+    return w * w * (3.f - 2.f * w);
 }
 
 int qvr::climb::flatMantles(edict_t* ent, bool& mantling)

@@ -1883,6 +1883,16 @@ QVR_TUNABLE(vr_flat_melee_two_hand, "1") // flatscreen: a melee weapon with a gr
 QVR_TUNABLE(vr_flat_punch_aim, "0.7") // flatscreen: how much a punch's fist is thrown at what the crosshair is on (0: straight ahead from its side, kept near its own height, as before; 1: at it)
 QVR_TUNABLE(vr_flat_shove_aim, "1") // flatscreen: how much the shove's hand pushes towards what the crosshair is on (0: ahead and a little in, as before)
 QVR_TUNABLE(vr_flat_punch_aim_dist, "96") // the point on the crosshair's ray the punch and the shove go for: this far from the eye (units, 8..96)
+QVR_TUNABLE(vr_flat_shove_both, "1") // flatscreen: with both hands free the shove pushes with both, the headset's two-handed shove (QC VR_FlatShove; 0: one hand, as before)
+QVR_TUNABLE(vr_flat_shove_both_apart, "8") // both hands pushing: their places this far apart across the view at full push (units, 0..24)
+QVR_TUNABLE(vr_flat_shove_width, "1.15") // the shove's sweep is this much wider round its line than the headset's (its pad; with Shove Reach 1.15 his notes' 15% more lenient)
+QVR_TUNABLE(vr_flat_shove_anim_speed, "1") // the shove's push plays this much faster than Shove Time (0.25..4); it lands as the hand reaches out, and the cooldown is at least its time
+QVR_TUNABLE(vr_flat_shove_main_fwd, "0") // the main hand at full push: this much further forward (units)
+QVR_TUNABLE(vr_flat_shove_main_out, "0") // and out at its own side (units; negative: in towards the middle)
+QVR_TUNABLE(vr_flat_shove_main_up, "0") // and up (units)
+QVR_TUNABLE(vr_flat_shove_off_fwd, "0") // the off hand at full push: this much further forward (units)
+QVR_TUNABLE(vr_flat_shove_off_out, "0") // and out at its own side (units; negative: in towards the middle)
+QVR_TUNABLE(vr_flat_shove_off_up, "0") // and up (units)
 QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
 QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the chest than Gun Out: both hands in front of him
@@ -1894,6 +1904,9 @@ QVR_TUNABLE(vr_flat_up_elbow_out, "0.5") // and that elbow's way out at its own 
 QVR_TUNABLE(vr_flat_wall_arm_keep, "9") // a wall pushes a hipfire gun back towards its shoulder until the hand is this far from it (0..20 units; less: further back)
 QVR_TUNABLE(vr_flat_wall_fold, "5") // in the wall state (a hipfire gun pushed back or tilted at a wall) the arm may fold further, to this far from the shoulder (0..20 units; more than vr_flat_wall_arm_keep: no further), the stock to the chest; less: the gun comes nearer the eyes, more: it tilts more
 QVR_TUNABLE(vr_flat_wall_margin, "4") // a hipfire gun, and the hand on it, counts as clear of a wall only this far off it: the push back and the tilt start this much sooner (0..24 units; 0: only once in it)
+QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on the ledge this far apart along its lip (units, 0..32: about his shoulders' width)
+QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
+QVR_TUNABLE(vr_flat_punch_wall_margin, "-0.5") // a punch, a shove or a weapon's swing stops this far short of a wall (-12..12 units; negative: this far into it, so the blow still meets it: at 1 short the fist's wall blow never landed)
 QVR_TUNABLE(vr_flat_wall_tilt, "85") // what that push back can't clear, the drawn muzzle tilts up out of, at most this far and never past straight up (0..85 degrees; 0: off). Drawn only: the shots still go through the crosshair
 QVR_TUNABLE(vr_flat_wall_tilt_fixed, "0") // the tilt's pitch: 0 the least that clears the wall (at most vr_flat_wall_tilt); 1 always all of vr_flat_wall_tilt once the wall is met
 QVR_TUNABLE(vr_flat_wall_tilt_yaw, "0") // and the tilted gun also turns this far across the body, muzzle inwards (-60..60 degrees; the left hand mirrored)

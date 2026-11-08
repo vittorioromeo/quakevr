@@ -65,4 +65,8 @@ void calcStats(edict_t* ent, int* statsi);
 float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift);
 
+// Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
+// other hand's gun for it (vr_view_hands.cpp).
+[[nodiscard]] float drawnShare(int hand);
+
 } // namespace qvr::climb

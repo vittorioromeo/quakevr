@@ -184,12 +184,26 @@ void(entity p) VR_FFX_Hold =
         if(VR_FFX_Placed(vr_ffx_item))
         {
             VR_FFX_LookAt(p, vr_ffx_item);
-            VR_FFX_To(3, 0);
+            VR_FFX_To(3, 2); // (two frames: the hands' frame has searched along the view since: the preview)
         }
         return;
     }
     if(vr_ffx_s == 3) // E
     {
+        // The preview (vr_flat_grab_preview): the outline on what E takes (its own search: the suit, too near the eye's
+        // line, is found by neither), on the hand E takes it with (the main if free); none on the other.
+        float grabMain = VR_Hand_Free(p, cVR_MainHand, VR_HANDFREE_LOCKED);
+        entity onGrab = grabMain ? p.mainhand_fgtarget : p.offhand_fgtarget;
+        entity onOther = grabMain ? p.offhand_fgtarget : p.mainhand_fgtarget;
+        makeforward(p.v_angle);
+        entity oldSelf = self;
+        self = p; // (the search's traces pass its self)
+        entity eTakes = VR_Forcegrab_FindTargetAlong(VRGetHeadPos(p), v_forward);
+        self = oldSelf;
+        VR_Test_Check(onGrab == eTakes && !p.offhand_fglocked && !p.mainhand_fglocked && onOther == world,
+            sprintf("the force grab preview is on what E takes (%s), the %s hand's, placed %s (off %s, main %s)",
+            eTakes.classname, grabMain ? "main" : "off", vr_ffx_item.classname, p.offhand_fgtarget.classname,
+            p.mainhand_fgtarget.classname));
         dprint(sprintf("flatitems: hands %g %g, off hand free %g, grabbing %s\n", VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeapon(p, cVR_OffHand),
             VR_Hand_Free(p, cVR_OffHand, VR_HANDFREE_LOCKED), vr_ffx_item.classname));
         p.impulse = 46;
