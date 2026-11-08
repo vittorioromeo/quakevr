@@ -45,7 +45,7 @@ SPECS = {
     "progs/v_laserg.mdl": {},
     "progs/v_gruntgun.mdl": {},
     "progs/v_enfrifle.mdl": {},
-    "progs/v_nailpistol.mdl": {},
+    "progs/v_nailpistol.mdl": {"back": 9.25},  # the nozzle in front of the slide (the slide is the body)
     "progs/v_flaregun.mdl": {},
     "progs/v_revolver.mdl": {"back": 8.5},
 }

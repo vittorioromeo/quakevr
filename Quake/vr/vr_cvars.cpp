@@ -1035,6 +1035,10 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-08: split into _along and _across (and a rocket kind)
+    "vr_proj_inherit_fast",
+    "vr_proj_inherit_lobbed",
+    "vr_proj_inherit_spray",
     // 2026-11-08: switches whose other side was retired (cruft_report H2, H3, H7): the default kept.
     "vr_gunsfx_punch",
     "vr_agrunt_aim_converge",

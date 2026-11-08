@@ -51,7 +51,7 @@ void(float xHand) W_FireSuperLavaSpikes =
 
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
-    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
     newmis.touch = superlavaspike_touch;
     newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
 
@@ -90,7 +90,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
     dir = v_forward;
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
-    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    newmis.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
 
     self.punchangle_x = -2;
 

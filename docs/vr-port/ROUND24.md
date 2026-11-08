@@ -3704,56 +3704,117 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
 
-## Lightning and plasma gun sights: clean topology (branch `agent/regfix`, 2026-11-08)
+## The nail pistol: cleaner blue steel, glowing sight inserts, its barrel mask (branch `agent/loadjobs`, worktree phases, 2026-11-08)
 
-His note, with Blender screenshots (kit `scratch/shotsight_mockup/light_topo_top.webp`, `light_front_post.png`): the
-top of v_light round the new rear housing a mess of slivers and overlapping faces, z-fighting in the game; the front
-post's glowing cube misaligned and stuck into the post; both sights' tops to taper a little, as the shotgun's.
+His notes: the texture "a bit too rusty and noisy": cleaner, its colours nearer the shotguns' and the nailgun's dark
+blue-grey steel, the silvery part at the slide's end kept, its identity kept; and glowing bits in its iron sights as the
+shotgun's and the super shotgun's, texture only (the geometry is fine).
 
-- **What was wrong.** The original model's receiver top (x -2.72..4.79, z 10.8636) is two big triangles with the old
-  rear hump's faces lying on it (three of them facing down in the same plane, two degenerate pairs duplicated,
-  T-junctions); the last round sank the old posts into the new housing (the slivers fanning from them) and stood the
-  housing in it. The barrel top's diamond under the front sight (z 9.8352) the same: a fan over a fan, two down-facing
-  faces in its plane, the old lopsided stem with a cap inside its apex, the little cube on top. `scratch/lt/coplanar.py`
-  (pairs of triangles in one plane that overlap, frame 0 as the engine decodes it): 41 such pairs round the rear sight.
-- **Rebuilt** (`scratch/lt/bl_lighttopo.py`, both .blends; `S0` 21 v_light, 143 v_plasma): every face of the hump, the
-  old posts, the sunk housing, the top's overlapping faces, the stem, its caps and the cube deleted.
-  - Rear housing: one profile extruded along x, standing on the receiver top, its back flush with the receiver's rear
-    face (x -2.7194..-1.6952, 6 steps long as before): a base the receiver's full width, 3 z steps tall; over it a tower
-    16 y steps wide at the shoulders whose outer sides taper 2 steps in to the ears' tops (19 deg); a square U notch 6
-    steps wide and 4 deep (0.44 x 0.274, as before) on y -0.0982; ears 3 steps wide at the top (0.22), their tops at
-    11.4806 as before. Back and front faces: each ear two triangles, both with a top corner (the sight reader's iron
-    top); the rest as the triangulation with the largest smallest angle (back 13.1 deg, front 6.2: its bottom edge is
-    one edge with the top's); the rear face's top edge split under the shoulders to match (4 triangles, 8.4 deg).
-  - Receiver top: the quad from the housing's front to the receiver's front edge, 2 triangles (23 deg); each side slope
-    re-cut at the housing's front corner (3 triangles, 18.5 deg). No vertex lies on an edge it doesn't end (no
-    T-junctions): the housing's bottom edges are the top's and the rear face's edges.
-  - Front post: one solid, a block 6 steps wide (0.44) from the barrel top to 4 steps under its top, its front ramped (4
-    x steps deep at the foot, 2 at the waist); over it the top, tapered to 4 steps (0.293, the cube's width) in 4 z steps
-    (14 deg); back face x 31.0765, top 11.3435 as before. It stands in a rectangular hole cut in the diamond: 12
-    triangles round it (two points on the barrel's line behind and ahead of the foot keep them at 13.5 deg or more).
-  - UVs: the top, the slopes, the rear face and the diamond take their old maps (sampled at the new corners); the
-    housing's and the post's other faces the metal patch.
-- **Paint** (`scratch/lt/paint_lighttopo.py`), new patches in the same free skin, 3 texels a grid step: the ears' back
-  faces (13 x 13 at s S0+1, t 94; mirrored for the right ear, so both read outwards from the notch): a 6-wide glowing
-  insert (234 rim, 235, 236 core) centred on the ear's top, its top 1 row (0.023) under the ear's top, in a recess (a
-  dark line over it and on its inner side, a lit outer side, a lit lip under it); the post's top back face (19 x 13 at
-  S0+15): a 7-wide insert centred on the post, its top 2 rows (0.046) under the post's top, a lit top edge; metal 9 x 9
-  at S0+35. These guns have no relief source (their normal maps are baked from the model): the recess is paint only.
-- **Sight line:** rear -2.7194 -0.0982 11.4806, front 31.0765 -0.0987 11.3435: -0.232 deg up, -0.001 left (was -0.235,
-  0.000): the rear point is the housing's back face, now 0.34 further back. Flat ADS `flatsightcheck`: rear off 0.0000,
-  front off 0.0002, far off 0.067 (0.0009 deg). `sight_picture.py` updated.
-- **Counts:** 948 -> 877 triangles (both guns; the original model 865). Barrel masks 877: the diamond's 12 new
-  triangles marked, as its 8 old ones were (`scratch/lt/maskfix.py`: the export marks by the shipped file's corners, and
-  the diamond's are new), the post not, as the stem wasn't. Overlapping coplanar pairs round both sights 41 -> 0 (63
-  remain elsewhere in the original model, untouched). Holes (check_mdl_holes.py): open loops 6 (0 see-through) as
-  before, cracks 4 -> 2 (none in the sights), pieces 18 -> 16.
-- **Pictures** (worktree `scratch/lt/`): `top_before_after.png` (his angle), `front_before_after.png`,
-  `light_ads_crop.png` and `light_ads_zoom.png` (flat ADS), `zf_new_ab.png` (two eyeshots looking down at the rear
-  sight, the head moved 3 mm between them: the top slides, no stripes).
-- **Test it in VR:** look along the lightning gun's top and round the rear housing while moving the head: no shimmer;
-  the ears and the post a little narrower at the top; in the ironsight the front insert centred in the notch between
-  the rear inserts, the irons level.
+- **Repaint** (`v_nailpistol_skin0.png`; a one-off script, not kept: the PNG is the source). The mottled rust texels
+  (warm colours, and greys amid them) are smoothed (an edge-preserving filter: panel lines, slots and rivets kept), their
+  leftover mottling halved toward a wide local mean, then moved half-way to the blue-grey ramp (palette 32-47) at the same
+  brightness and quantised to greys 0-15, dark browns 16-23, the blue-grey row and the warm greys 162-175 (no fire
+  colours). Kept as they were: neutral greys (the silvery slide end, the frames, the grilles), black, the flat orange
+  accents, the yellow label on the slide's left side; the top half (the classic skin: the grip's checkering, the trigger
+  guard, the magazines' and the preview's parts) only has its speckles softened before the same shift, so the grip stays
+  as it was drawn. Some warm wear remains on the steel (his "don't overdo it"). The four other sources sharing the skin
+  (`v_nailpistol_mag`, `vr_mag_npistol`, `vr_mag_on_v_nailpistol`, `vr_nailpistol_preview`: 256x256, the pistol skin's top
+  half byte for byte) get the same top half.
+- **Sight inserts.** The ears' back faces (a steep face, x -1.68..-1.65, and a chamfer up to the top at -1.49) and the
+  post's back face (x 8.932) read only 2x7, 1x6 and 4x9 texels: too few for a framed insert. Their UVs (10 triangles, 20
+  file vertices; no vertex moved) now point at new patches in free skin (rows 468..490, s 8..68), ~0.04 units a texel:
+  each ear 17x11 middles (the chamfer and the steep face one strip), the post 9x22. Painted as the shotguns': steel
+  (blue-grey 35 with a little grey 4), the top edge lit, a dark recess line over and beside the insert, a lit lip under,
+  the insert 234 rim / 235 / 236 core (ears 7x6, centred on each ear; post 5x6). The notch floor is untouched. Depths:
+  the ears' inserts start 2 rows (0.045) under the ears' tops, the post's 2 rows (0.079): with the eye ~9 units behind the
+  rear (relief 4 at scale 0.45) and 19.5 from the front they sit at about the same angle under the iron line. The post's
+  insert ends 0.30 under its top: the slide's top hides the post lower than that from the eye (sight_picture.py: the
+  front seen down to 0.29). The post patch is 21 texel steps tall (not 20) so no insert texel sits on the face's diagonal
+  (a texel counted in both triangles moved the front's mean y 0.002 left).
+- **Sight line.** `vr_sight_lines`: "progs/v_nailpistol.mdl sights rear -1.63 -0.00 6.38 front 8.93 -0.00 6.38 (0.00 deg
+  up, 0.00 left)". The table's line was rear -1.25 0 6.376, front 9.07 0 6.376: the same direction and height (the irons'
+  tops at 6.3763, level), the points on the faces the inserts are on. So weapons.txt's `shot_pitch` 0.28 keeps its
+  relation to the sights; no offset changed, no align run. The table entry (vr_sightalign_table.inc) is gone (the painted
+  line is read); vr_sightalign.cpp's comment and sight_picture.py's line updated.
+- **Barrel mask** (the coordinator's audit): weapons.txt's `fx_gfx_mask` was for 841 triangles (an older model) on a
+  518-triangle model, so the engine read none. `barrel_masks.py` now gives the nail pistol `back` 9.25 (the nozzle in
+  front of the slide; without it the bore's radius took the slide's lower half, 229 triangles): 74 of 518 marked, x
+  9.9..11.3. The export carries it ("74 of 518 triangles marked, by their places in the shipped file").
+  `vr_barrelmask_report 37`: "tris 518 marked 74 mask 1"; 30 shots in flat play: heat 1.0, 235 frames glowing, each
+  drawn with its mask ("masked 1").
+- **Checks.** The export: holes as before (1 open loop, 0 see-through, 0 cracks), every vertex in both frames unchanged
+  (20 vertices' s/t changed), an untouched export of the old .blend writes the shipped file byte for byte. Fire-colour
+  texels: 114, all in the patches (234-236), none on the magazines' or the preview's skins. Flat ADS:
+  `vr_flat_sight_check` rear 0.0000 front 0.0000 off the ray; `vr_sight_hue 200` turns the three inserts blue and nothing
+  else. flatsight_test 12/0 (16 guns with sights, the nail pistol now among them); flatsweep 383 passed, 27 known, 0
+  failed; reload_test.sh 115/0 (its QC self-test 77/0; the nail magazines' checks 24/0).
+- **Screenshots** (`scratch/` of the worktree): `np_body_before_after.png` (Blender: both sides and from behind, before
+  over after), `np_sights_before_after.png` (the ears, the post, the flat sight picture), `np_ads_crop.png` (in game,
+  flat ADS, the player's hue), `np_ads_hue200_crop.png` (hue 200).
+- **Test it in VR:** the pistol in hand: steel nearer the shotgun's, still its own (the label, the grip, the silver
+  end); in ADS the irons' tops level, the three inserts glowing at about the same height, the aim as before; fire a
+  string: the nozzle glows.
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.
+## Model topology audit (branch `agent/flatwall`, 2026-11-08)
+
+His note: model topology has "unnecessarily complex surfaces, or overlapping triangles that lead to Z-fighting"; can it be
+fixed and simplified without changing the look? Phase 1 of 3 (audit; then gated automatic fixes; then a list for him).
+No model changed.
+
+- **Scanned:** 270 alias models, every pose, on the stored byte grid: ours (181, 74,295 triangles), id1 pak0/1, hipnotic,
+  rogue, MG1. AD is an optional download (not scanned).
+- **Ours, totals:** 1,920 degenerate triangles (1,064 in three models inherited from the old Quake VR pak10: h_zombie 490
+  of 586, ogre 338, quaddama 212), 119 duplicate triangles, 428 z-fighting pairs built into the mesh (coincident in every
+  pose; 411 show different texels), 1,847 more that only meet in some animation poses, 5,312 weldable duplicate
+  vertices, 46 T-junction cracks, 458 non-manifold and 45 flipped edges, 5 hidden triangles. Zero-error simplification
+  (removing vertices inside one plane and one texture chart) saves only 63 triangles (611 if half-texel shifts are
+  accepted): the meshes are split by UV seams, not over-tessellated. About 2,100 triangles (2.9%) are fixable with no
+  visible change.
+- **Found on the way:** v_nailpistol.mdl's shipped fx_gfx_mask is for 841 triangles; the model has 518, so the barrel
+  mask reads as none.
+- **Tools:** `Misc/quakevr/mdltopo/` (run with Blender's Python, it has numpy): `compare.py A.mdl B.mdl` (the fix-phase
+  gate: an exact software rasteriser, 26 views x every pose, nearest texels, numbering-independent; PASS/FAIL),
+  `audit.py model.mdl` (the counts as JSON), `make_variants.py` and `harness_proof.sh` (v_shot: self, renumbered and a
+  flipped flat diagonal compare 0 px; a moved vertex 380 px, a removed triangle 22,432 px). Inventory, per-model results
+  and highlighted pictures: `scratch/topo/` in this worktree.
 ## Enforcer's elbow leather jumping (branch `agent/blendmd5`, worktree blendmodels, 2026-11-08)
 
 His note: "The enforcer's right elbow leather connector has a similar issue to the knight one you fixed". Files:
@@ -3856,3 +3917,173 @@ Step 4 (hero plates): merge the chest row's front plates into one wider plate (a
 time: a plate across 2-4 columns is a quad over a curved row, so its corners need raising (fillRadii's chord rule over the
 wider span) and its tile one wide texture (new atlas tiles at 2:1); the hits, debris and look checks count plates per column
 (plateVerts, plateNear), so those need a merged plate's columns. A day's work with its tests; bulkier chests are the risk.
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar). (Done in "Flat tools 2" below.)
+
+## Flat tools 2: the toolgun panel in flat, the physgun's adjust key, empty-hand poses (2026-11-08)
+
+- **Toolgun panel in flat** (`vr_toolgun_panel.cpp` flat section): with the panel open (mouse 3) and no headset it is drawn
+  over the window at the flat 2D pass's end (`drawFlat`, from `VR_End2D`'s flat branch: the panel's own render, then its
+  texture as a screen quad: `vr_flat_toolgun_panel_size` 0.75 of the window's height, `_x` / `_y` 0.5). The desktop mouse
+  moves a cursor drawn into the panel image (an arrow); `IN_MouseMotion` hands its counts to `VR_FlatToolgunMouse` first
+  (true: taken, the view does not turn; `vr_flat_toolgun_cursor_speed` 1 = the desktop pointer's speed). `laserHit` in
+  flat is the cursor (the mock laser still wins), so every widget, dropdown and slider works as with the laser. The left
+  button while the panel is open is a panel click (`panel::flatClick` → `trigger`), not the gun's trigger; its release
+  goes the same way. Esc closes it (`VR_FlatToolgunEscape` in Key_Event's Esc, before the menu), mouse 3 too.
+- **Adjust key** `vr_flat_key_toolgun_adjust` (`b`, flat-owned): the headset's X/A on the gun's hand
+  (`toolgun::button(Primary)`: snap, the sticks the tool's). Held, the mouse is the tool's (`toolgun::flatNudge`, gathered
+  and spent in `sticksFrame` with the sticks): up/down pushes the physgun's prop out/in (`vr_flat_toolgun_push_scale` 0.5
+  units a count; the brush's push; the scale tool 1% a unit), left/right turns it (`vr_flat_toolgun_turn_scale` 0.4 deg a
+  count). Not with the spawn tool (its ghost turns with the aim). Keys checked against his: Q/E, V, G, 3, R/mouse 4,
+  mouse 5, F7, F8, F (flashlight), X (prone), Z (bullet time), C (+movedown), T (messagemode): B was free.
+- **Empty-hand pose** `vr_flat_empty_hand_pose` (tunable, Flatscreen > Free Hands): 2 (default) guard with both hands
+  empty, relaxed while the other holds a weapon; 0 relaxed; 1 guard; -1 the old place. The hang block of `poseHands` now
+  blends to the pose's offset (shares of `armSpan()` off the shoulder, level with the body; `vr_flat_relaxed_*`,
+  `vr_flat_guard_*` fwd/down/out/pitch/roll) instead of the old empty/support offset with fingers 60 down; `fs.guard[h]`
+  eases relaxed/guard as the other hand takes or drops a weapon; a weapon taken eases up out of the pose over
+  `vr_flat_empty_take_time` (0.1 s; 0 = the old snap). The guard closes the fingers (`flatplay::fistShare`, read by
+  `vr_view.cpp`'s finger targets; also 1 while punching). Punch and shove leave the pose (the hang eases out) as before.
+- Debug > Reports: **Flatscreen Fly Camera: Look at Me** (`vr_flat_flycam_place [fwd right up [pitch]]`): the fly camera put
+  in front of you looking back. Test aid `vr_flat_mouse_move <dx> <dy> | to <widget>`; `vr_toolgun_status` prints the
+  physgun's distance and turn.
+- Force grab effects in flat checked by eye: the gun's glow outline, the tendril and the lock-on sparks show while it flies.
+- Tests: `Misc/quakevr/flattoolgun_test.sh` 11/0 (F7, mouse 3, Monsters > page 2 > Armed Humanoid > Choose with the
+  cursor, Esc (no menu), LMB spawned `monster_vr_grunt`; Weapons > Grunt Burst Rifle, LMB spawned `weapon_gruntgun`; the
+  physgun's grunt pushed 16 -> 36 and turned -20 with B and the mouse). flatwall 18/0, flatsight 12/0,
+  `vr_flatitems_test 1` 9/0, `vr_pickup_test 9` 15/0, flatinput 14/0. Its shove case first gave 13/1 (the third shove hit
+  2): `edicts` showed the guard hands never moved the first grunt (at 316 before the shove in both poses); the shove
+  throws it to y 335-337 with either pose, at the edge of the head-based reach (QC `VR_FlatShove`), so counting it was a
+  legit borderline hit. The case now steps 96 units left before the second grunt: the third shove's one hit is its target.
+## Lightning and plasma gun sights: clean topology (branch `agent/regfix`, 2026-11-08)
+
+His note, with Blender screenshots (kit `scratch/shotsight_mockup/light_topo_top.webp`, `light_front_post.png`): the
+top of v_light round the new rear housing a mess of slivers and overlapping faces, z-fighting in the game; the front
+post's glowing cube misaligned and stuck into the post; both sights' tops to taper a little, as the shotgun's.
+
+- **What was wrong.** The original model's receiver top (x -2.72..4.79, z 10.8636) is two big triangles with the old
+  rear hump's faces lying on it (three of them facing down in the same plane, two degenerate pairs duplicated,
+  T-junctions); the last round sank the old posts into the new housing (the slivers fanning from them) and stood the
+  housing in it. The barrel top's diamond under the front sight (z 9.8352) the same: a fan over a fan, two down-facing
+  faces in its plane, the old lopsided stem with a cap inside its apex, the little cube on top. `scratch/lt/coplanar.py`
+  (pairs of triangles in one plane that overlap, frame 0 as the engine decodes it): 41 such pairs round the rear sight.
+- **Rebuilt** (`scratch/lt/bl_lighttopo.py`, both .blends; `S0` 21 v_light, 143 v_plasma): every face of the hump, the
+  old posts, the sunk housing, the top's overlapping faces, the stem, its caps and the cube deleted.
+  - Rear housing: one profile extruded along x, standing on the receiver top, its back flush with the receiver's rear
+    face (x -2.7194..-1.6952, 6 steps long as before): a base the receiver's full width, 3 z steps tall; over it a tower
+    16 y steps wide at the shoulders whose outer sides taper 2 steps in to the ears' tops (19 deg); a square U notch 6
+    steps wide and 4 deep (0.44 x 0.274, as before) on y -0.0982; ears 3 steps wide at the top (0.22), their tops at
+    11.4806 as before. Back and front faces: each ear two triangles, both with a top corner (the sight reader's iron
+    top); the rest as the triangulation with the largest smallest angle (back 13.1 deg, front 6.2: its bottom edge is
+    one edge with the top's); the rear face's top edge split under the shoulders to match (4 triangles, 8.4 deg).
+  - Receiver top: the quad from the housing's front to the receiver's front edge, 2 triangles (23 deg); each side slope
+    re-cut at the housing's front corner (3 triangles, 18.5 deg). No vertex lies on an edge it doesn't end (no
+    T-junctions): the housing's bottom edges are the top's and the rear face's edges.
+  - Front post: one solid, a block 6 steps wide (0.44) from the barrel top to 4 steps under its top, its front ramped (4
+    x steps deep at the foot, 2 at the waist); over it the top, tapered to 4 steps (0.293, the cube's width) in 4 z steps
+    (14 deg); back face x 31.0765, top 11.3435 as before. It stands in a rectangular hole cut in the diamond: 12
+    triangles round it (two points on the barrel's line behind and ahead of the foot keep them at 13.5 deg or more).
+  - UVs: the top, the slopes, the rear face and the diamond take their old maps (sampled at the new corners); the
+    housing's and the post's other faces the metal patch.
+- **Paint** (`scratch/lt/paint_lighttopo.py`), new patches in the same free skin, 3 texels a grid step: the ears' back
+  faces (13 x 13 at s S0+1, t 94; mirrored for the right ear, so both read outwards from the notch): a 6-wide glowing
+  insert (234 rim, 235, 236 core) centred on the ear's top, its top 1 row (0.023) under the ear's top, in a recess (a
+  dark line over it and on its inner side, a lit outer side, a lit lip under it); the post's top back face (19 x 13 at
+  S0+15): a 7-wide insert centred on the post, its top 2 rows (0.046) under the post's top, a lit top edge; metal 9 x 9
+  at S0+35. These guns have no relief source (their normal maps are baked from the model): the recess is paint only.
+- **Sight line:** rear -2.7194 -0.0982 11.4806, front 31.0765 -0.0987 11.3435: -0.232 deg up, -0.001 left (was -0.235,
+  0.000): the rear point is the housing's back face, now 0.34 further back. Flat ADS `flatsightcheck`: rear off 0.0000,
+  front off 0.0002, far off 0.067 (0.0009 deg). `sight_picture.py` updated.
+- **Counts:** 948 -> 877 triangles (both guns; the original model 865). Barrel masks 877: the diamond's 12 new
+  triangles marked, as its 8 old ones were (`scratch/lt/maskfix.py`: the export marks by the shipped file's corners, and
+  the diamond's are new), the post not, as the stem wasn't. Overlapping coplanar pairs round both sights 41 -> 0 (63
+  remain elsewhere in the original model, untouched). Holes (check_mdl_holes.py): open loops 6 (0 see-through) as
+  before, cracks 4 -> 2 (none in the sights), pieces 18 -> 16.
+- **Pictures** (worktree `scratch/lt/`): `top_before_after.png` (his angle), `front_before_after.png`,
+  `light_ads_crop.png` and `light_ads_zoom.png` (flat ADS), `zf_new_ab.png` (two eyeshots looking down at the rear
+  sight, the head moved 3 mm between them: the top slides, no stripes).
+- **Test it in VR:** look along the lightning gun's top and round the rear housing while moving the head: no shimmer;
+  the ears and the post a little narrower at the top; in the ironsight the front insert centred in the notch between
+  the rear inserts, the irons level.
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.
+
+### Split by direction, and a rocket kind (branch `agent/embed5`, 2026-11-08)
+
+Vittorio: the player-velocity share is split by the projectile's aim, the part along it and the part across it each with
+their own share (hand shares unchanged), and rockets are their own kind.
+
+- `vrProjectileVelocity(hand, kind)` (weapons.qc) still the one place; the aim is `VRGetWeaponFireRotFwd(hand)`:
+  `velocity = along * (v . aim) aim + across * (v - (v . aim) aim)`, plus the hand's swing share as before.
+- Kinds and defaults, `vr_proj_inherit_<kind>_along` / `_across` / `_hand`: fast (nails, super/lava nails, nail pistol,
+  Hipnotic laser, enforcer rifle, AD plasma and crossbow bolt, grappling hook) 0.1 / 0.05 / 0; rocket (rockets, multi
+  rockets: `VR_PROJK_ROCKET`) 0.2 / 0.2 / 0; lobbed (grenades, multi/proximity grenades, flares) 0.5 / 0.5 / 2.5; spray
+  (AD flamethrower, poison sprayer) 0.6 / 0.6 / 2. Old `vr_proj_inherit_fast|lobbed|spray` are in retiredCvars (the
+  old unsplit share is not carried over). Menu rows: Weapons > Aiming > "Projectiles Keep Your Motion" (12 sliders).
+- A nail launches at about 2065 u/s here, not 1000: strafing at 320 it flies 0.44 degrees off (0.05 * 320 / 2065 =
+  0.44), a rocket (1000 u/s) 3.67 degrees (0.2 * 320 / 1000 = 3.67 degrees).
+- Test `vr_projinherit_test 1` (needs `developer 1`): strafe nail 0.44 deg (want 0.46), rocket 3.66 (3.67), grenade
+  kept 163 (160), rocket across 1 keeps 320.0; forward along the aim at 320: nail +32.0 and rocket +64.0, both 0.00 deg
+  off; flick: grenade 577 (577), rocket 0.00 deg: 8 passed. `vr_projinherit_test 2` (flat turn adds nothing): 2 passed.
+- Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
+  (they fly a little faster); grenades and the flamethrower as before.
