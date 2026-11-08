@@ -4472,3 +4472,58 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
   (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
   failed`).
+
+## Embedded blades: easier to move a body through a held blade, Blade Hold Strength (branch `agent/embed5`, 2026-11-08)
+
+His note: "It still feels extremely hard to impart force on the ragdolls ... the expert tunables didn't really make a big
+difference." Measured with the new `vr_embed_test 27` (`embedforce: N passed, M failed`; test 11's cases 35-41): a grunt,
+staggering and dead, a deep sword and an axe, one hand: sideways 40 cm in 0.4 s, lifted 50 cm in 1 s, a slow pull back
+30 cm in 1 s. Follow: the wound's way of the hand's at the move's end / settled 0.4 s later; lag: the most the hand got
+ahead (cm); strain: the spring's pull of its most.
+
+- **Why it was hard:** the hand's spring on the body was a limb grab's (8 Hz), held at a point out at the hilt, a blade's
+  length from the body. It sat 15-45 cm off the hand pulling at only 0.06-0.5 of its most, so the Moving: forces never
+  bound: 10x the forces changed nothing (lift 70% either way). The stiffness and the lever were the caps. Two more:
+  the stance's give was inverted (mass times the give, so more give stood its ground more), and the lift was the more
+  of force and lift (a grunt's 2 weights, about 4900 N, hid any Force under it).
+- **Fixed:** Moving: Stiffness (`vr_embed_move_hertz`, 24 Hz), Moving: Held At (`vr_embed_move_at_wound` 1: the spring
+  at the wound; 0 the old hilt), the give's formula (mass over give; default 0.4 = the old behaviour, which test 11 case
+  23 "pulled along its axis, the body stays" needs), Force now on top of the lift. Defaults: Sword's Force 200 -> 400,
+  Deep 900 -> 1500, Axe's Force 300 -> 600, Sword's Lift 0.8 -> 1, Deep 2 -> 2.5, Axe's Lift 1.2 -> 1.5. Slider ranges
+  about 10x the defaults (forces to 4000/15000/6000 N, lifts to 10/25/15 weights, Two Hands to 25, give 0.05-10,
+  stiffness 1-240 Hz, drag slack to 50 cm).
+- **Blade Hold Strength** (`vr_embed_hold_strength`, x1, 0.25-4, CVAR_ARCHIVE): Advanced VR Options > Combat > Embedded
+  Blades and VR Settings > Gameplay (Hands On). Times every Moving: force and lift (QC VR_Embed_Spring), the give, and
+  the spring's N per m (its Hz by the square root). Debug > Tests: Blade Hold Strength Check.
+
+| case (follow end/settled, lag cm) | before (old defaults) | after (defaults) |
+|---|---|---|
+| staggering, sword, sideways | 55/117, 17 | 87/105, 12 |
+| staggering, sword, lifted | 70/74, 13 | 84/86, 12 |
+| staggering, axe, pulled back | 87/100, 24 | 84/103, 6 |
+| dead, sword, slow pull | 92/95, 2 | 93/97, 2 |
+| dead, sword, lifted overhead | 71/80, 14 | 89/93, 7 |
+| dead, sword, sideways | 92/104, 7 | 91/100, 4 |
+| dead, axe, slow pull | 50/143, 48 | 98/101, 2 |
+
+Effect of each (low / default / high; follow end%, lag cm; from runs with one value changed, the rest at the new
+defaults; physics varies some 5% between runs):
+
+| tunable | low | high |
+|---|---|---|
+| Blade Hold Strength 0.25 / 4 | dead lift 12%, 58 cm; stag. sideways 63% | dead lift 95%, 2 cm; stag. sideways 91%, 7.5 cm |
+| Stiffness 4 / 240 Hz | dead lift 21%, 42 cm; dead sideways 31%, 28 cm | dead lift 96%, 5 cm; staggering lift 95% |
+| Sword's Lift, Deep 0.25 / 25 | dead lift 12%, 48 cm (strain 1); stag. sideways settles 170% | no change (strain 0.02): stiffness-bound |
+| Axe's Force + Lift 0.1x | dead axe pull 0%, 31 cm; stag. axe 177% settled | Axe's Force 6000: no change (strain 0.04) |
+| Sword's Force, Deep 0 / 15000 (lift 0.25) | 2 cm more lag on a dead lift | with lift 0.25 the dead pull's strain 0.10 |
+| Stance Gives Way 0.1 / 10 | staggering lift settles 87% | staggering lift settles 109%, axe 111% (a slide on) |
+| Held At: The Hilt | dead axe pull 72%, 12 cm; staggering axe 159% settled | - |
+
+The forces and lifts bind only at low values for a grunt now: above the defaults the spring's stiffness is what limits a
+grunt's follow, which is why Blade Hold Strength scales the stiffness too. Heavier monsters (Skewer < 1: an ogre 0.4)
+still get the forces times their Skewer. Not measured here: Sword's Force barely in (the same path, by depth), Two Hands
+(test 11 case 25), Dragging: Slack (test 11 case 12).
+
+Tests: `vr_embed_test 27` 22/0 at the defaults (old defaults: 21/1). `vr_embed_test 11`: 119/6 against 91/10 before
+(it now runs 35-41 too); the failures are the known ones (the standing drag, its penalty, the run-in stab and punch)
+and they vary by run (104-122 passed across five runs).

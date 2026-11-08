@@ -2113,12 +2113,12 @@ QVR_TUNABLE(vr_melee_body_damage, "0.25") // ... and for its damage
 QVR_TUNABLE(vr_melee_body_min_part, "0.5") // a blade's blow that lands only for your body's speed counts on this outer share of the blade (0 any part)
 QVR_TUNABLE(vr_embed_move_sword_force, "400") // N a sword barely in moves a body with at most, one hand, Skewer 1
 QVR_TUNABLE(vr_embed_move_sword_force_deep, "1500") // ... in as far as it goes
-QVR_TUNABLE(vr_embed_move_give, "1") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
+QVR_TUNABLE(vr_embed_move_give, "0.4") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_move_hertz, "24") // Hz: the stiffness of the hand's spring on the body (a limb grab's 8)
 QVR_TUNABLE(vr_embed_move_at_wound, "1") // 1: the spring holds the body at the wound (follows closely); 0: at a point out at the hand, as before 2026-11-08 (it hung and swung from there: some 70% of a lift)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
-QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword barely in lifts at least (Skewer 1; its force is the more of that and Moving: Sword's Force)
+QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword barely in lifts (Skewer 1; Moving: Sword's Force on top of it)
 QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2.5") // ... in as far as it goes: a grunt held up over your head
 QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)
 QVR_TUNABLE(vr_embed_free_ease, "0.25") // s the hand and the blade take from where it was in the body to the hand's own place once it comes out

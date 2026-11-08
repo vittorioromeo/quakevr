@@ -504,7 +504,9 @@ float(entity e, entity p, entity h, float xIn, float xAxial) VR_Embed_Spring =
     }
     // (Its weight under the physics' own gravity: sv_gravity in m/s^2, about 3 times Earth's, not 9.81.)
     float kg = ragdolltug(h, p, hand, 15);
-    force = max(force, max(0, lift) * kg * cvar_hget(cvarh_sv_gravity) / VRMetersToUnits());
+    // (The force on top of the lift: as the more of the two, the lift's 2.5 weights, 6100 N for a grunt, hid any Force under it.
+    // 2026-11-08.)
+    force = max(0, force) + max(0, lift) * kg * cvar_hget(cvarh_sv_gravity) / VRMetersToUnits();
     force = force * skewer * (e.vr_hold_hands == 3 ? max(1, cvar_hget(cvarh_vr_embed_move_twohand)) : 1);
     force = force * max(0, cvar_hget(cvarh_vr_embed_hold_strength)); // (Blade Hold Strength: the player's own, all of it)
     if(cvar_hget(cvarh_vr_debug_axestick) >= 3)
