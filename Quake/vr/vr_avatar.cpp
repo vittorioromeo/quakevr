@@ -352,6 +352,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // (Not the reference poses: the Follower's upright reference moved back with it, the holsters and pouches it carries
     // ended up that far forward on the slid body, the ammo pouch in front of the camera: his note 2026-11-08.)
     top -= b.fwd * (crouchPose ? flatmove::slideNeckBack() * bodyPitch.sliding : 0.f);
+    // Flat-screen lying down: the trunk hangs from further under the eye (vr_flat_prone_neck_drop; the head and the neck
+    // are not drawn), so the body lies lower than the view, the chest almost on the floor (his note 2026-11-08: the torso
+    // too high), the view and the gun's poses (made for that eye: their floor clearance) as they were.
+    top -= UP * (crouchPose ? flatplay::proneNeckDrop() * bodyPitch.lying : 0.f);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
     const float tilt =
@@ -1085,6 +1089,16 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         pole = glm::mix(pole, way * glm::length(pole), flatElbow);
     }
+    // Lying down (BodyPitch::lying; vr_prone_elbow_out): the elbows out to the sides and down to the floor, as a person
+    // aiming lying on his front plants them. The pole above is the chest's: turned forward with the laid trunk, its back
+    // (the tuck's, the elbow's own) points up, which stood a sighted gun's elbow up past the head, over the view (his note
+    // 2026-11-08). Before the wrist's ease, which still swings it as little as eases the wrist.
+    if(const float flare = bodyPitch.lying * CLAMP(0.f, vr_prone_elbow_out.value, 1.f); flare > 0.f)
+    {
+        const glm::vec3 side = safeNormalize(lateral - UP * glm::dot(lateral, UP), lateral);
+        const glm::vec3 planted = side - UP * 0.25f;
+        pole = glm::mix(pole, planted * (glm::length(pole) / glm::length(planted)), flare);
+    }
     glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
@@ -1548,13 +1562,16 @@ bool Follower::thigh(int side, ThighMotion& out) const
     const glm::mat3 still = p.rot * posed.thighStill[side];
     out.down = still[0];
     out.turn = p.rot * posed.thighNow[side] * glm::transpose(posed.thighStill[side]) * glm::transpose(p.rot);
-    // Lying down and sliding (BodyPitch::lying, ::sliding): the gear stays on the hips and the belt (the legs out in front
-    // swung the hip holsters and the ammo pouch up in front of the camera: his note 2026-11-08), by their share.
-    if(const float lie = za::max(bodyPitch.lying, bodyPitch.sliding); lie > 0.f)
+    // Lying down (BodyPitch::lying): the gear stays on the hips and the belt, by its share. Sliding (::sliding), the hips'
+    // holsters ride the legs, down on the floor in front where they are drawn (with the hips, leant back with the trunk,
+    // they stood out from the body in front of the camera, high: his note 2026-11-08); the belt's ammo pouch stays on the
+    // belt (out.sliding: onBothThighs).
+    if(const float lie = bodyPitch.lying; lie > 0.f)
     {
         const glm::quat q = glm::normalize(glm::quat_cast(out.turn));
         out.turn = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, q, 1.f - za::min(1.f, lie)));
     }
+    out.sliding = za::min(1.f, bodyPitch.sliding);
     return true;
 }
 

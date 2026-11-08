@@ -4140,6 +4140,51 @@ their own share (hand shares unchanged), and rockets are their own kind.
 - Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
   (they fly a little faster); grenades and the flamethrower as before.
 
+## Lying body 2: the slide sits on the floor, prone lies lower, elbows out (branch `agent/blendmd5`, 2026-11-08)
+
+His notes on the flat slide (screenshots slide1/slide2: the whole body floating, the holsters and pouch high in the
+view, the turn in steps) and on prone (prone_side*, prone_ads_*: the feet and shins in the floor, the torso high, the
+sighted shotgun's elbow up past the head).
+
+- Slide, floating: the cause was his `vr_flat_slide_body_angle 80` (tunables.cfg): the trunk was leant back exactly that
+  far about the neck, which at 80 put the hips at the neck's height and the legs reaching down to the floor. Now the
+  lean is solved (vr_avatar_pitch.cpp `slidePitchTarget`, the mirror of `pronePitchTarget`): the trunk leans back
+  about the neck until the pelvis sits `vr_flat_slide_hip_floor` (4.5) over the floor, the buttocks and legs on it,
+  only the trunk up; `vr_flat_slide_body_angle` is now its most (default 80, his value; 45 before). The lean follows
+  the eye down as the crouch eases in (the trunk starts upright and reclines as he sits).
+- Slide gear: the hips' holsters ride the thighs again while sliding (`Follower::thigh` no longer drops the thigh's
+  turn by the slide's share, only by lying's), so they lie along the legs on the floor; the ammo pouch, which rides
+  both thighs, ignores the turn by the slide's share (`ThighMotion::sliding`) and stays on the belt.
+- Slide turn: the hips' yaw is eased after where it is asked to face (vr_flatplay.cpp `SlideTurn`, a critically
+  damped spring, `vr_flat_slide_turn_smooth` 0.15 s, 0 = the old steps); the chest stays on the view (the twist takes
+  the lag too). The slide's way follows the velocity, which steps with the server's frames and the steering, and a
+  look past `vr_flat_slide_legs_twist` dragged the hips round at once.
+- Slide gun pose: `vr_flat_gun_ahead_slide` / `_down_slide` / `_out_slide` (0), added to the held weapon's pose by the
+  slide's share (Debug > Tunables). Position only: the gun's aim stays on the crosshair (the shots go along it).
+- Prone torso: lowering the flat eye (tried `vr_flat_prone_eye` 9.5) laid the chest low but a shotgun looking straight
+  down no longer cleared the floor (flatslide_test prone: 3.4 units in it at the full tilt). Instead the drawn trunk
+  hangs `vr_flat_prone_neck_drop` (4.5) further under the eye (the head and neck are not drawn), so the body lies lower
+  than the view; the flat poses are made off the shoulders lifted back by as much (vr_flatplay.cpp after
+  `restShoulders`), so the gun stays where it was and the arms reach up to it. `vr_flat_prone_eye` (14, as before)
+  sets the view itself. Chest 8.7 -> 6.4 units over the floor.
+- Prone legs: `vr_prone_foot_lift` (2.5, cvar, VR Settings > Body): the ankles that far over the floor; knees 0.4 ->
+  1.7, feet -0.4 -> 2.1.
+- Prone elbows: the arm's pole is the chest's; laid forward, its back (the elbow's own and the sighting tuck's) points
+  up, which stood the sighted shotgun's elbow up past the head. `vr_prone_elbow_out` (1, cvar, VR Settings > Body):
+  lying down, the pole turns out to the side and a little down (before the wrist's ease). Sighted shotgun: elbows 4.9 /
+  4.6 -> 4.1 / 6.1 over the floor, out at the sides (eye 14). VR uses it too; the mock's VR lying test is unchanged
+  (its arms reach to the standing mock hands).
+- Test: `vr_body_lie_test` (body_lie_test.sh): 28 checks flat (was 20): the chest low, the knees and feet not sunk,
+  the sighted shotgun's elbows under the eye and not in front of the camera, the slide's buttocks on the floor, the hips'
+  holsters by the legs, the ammo pouch at the belt, and a second turn of the view (60 more, past the twist's most): the
+  hips follow, at most 4.8 deg a frame (with the smoothing off the whole 30 would come in one frame). VR 6. The hips' holsters are measured against the thighs now.
+- Screenshots (fly camera; slide side and front-above, prone side, sighted front and side, his own view):
+  scratch/lie_before.png (origin/next), scratch/lie_after.png.
+- Not his: the ammo pouch and the hips' holsters lying down sit under the floor (pelvis frame laid flat, the belly's
+  front down), as before.
+- Test it: slide with `tune vr_flat_slide_body_angle 80` (his) and the default: buttocks and legs on the floor, the
+  holsters by the legs, the pouch at the belt, nothing high in the view; turn the mouse while sliding (smooth hips).
+  Prone: chest near the floor, feet and shins on it, aim down the shotgun's sights: elbows out at the sides.
 ## Toolgun spawns: AD's map-only monsters anywhere, one weapon per spawn, the Plasma Gun's model (branch `agent/embed5`, 2026-11-08)
 
 His overnight list (W2): AD's Quoth death guard, death lord, sentinel and knight greyed out of the toolgun outside AD

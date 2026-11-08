@@ -94,6 +94,23 @@ float pronePitchTarget(float most, float drop, float torso, float torsoBack)
     return CLAMP(0.f, a, cap);
 }
 
+float slidePitchTarget(float most, float drop, float torso, float torsoBack)
+{
+    const float cap = CLAMP(0.f, most, 80.f);
+    if(torso <= 1.f || cap <= 0.f)
+    {
+        return cap;
+    }
+    // Leant back by b (the pitch -b), the pelvis comes -(torsoBack sin b + torso cos b) = -r cos(b - psi) under the neck,
+    // psi = atan2(torsoBack, torso): lowest at b = psi, rising past it; -drop at b = psi + acos(drop / r). (Until
+    // 2026-11-08 the lean was vr_flat_slide_body_angle itself: at his 80 the hips rose to the neck's height, the legs
+    // reaching down to the floor, the whole body floating: his note.)
+    const float r = za::sqrt(torso * torso + torsoBack * torsoBack);
+    const float psi = glm::atan(torsoBack, torso);
+    const float b = glm::degrees(psi + glm::acos(CLAMP(-1.f, drop / r, 1.f)));
+    return CLAMP(0.f, b, cap);
+}
+
 } // namespace detail
 
 namespace
@@ -404,20 +421,22 @@ void updateBodyPitch(const hands::State& s, float dt)
     const float eyeOverFloor = flatplay::active() ? s.head.z - (s.playerOrigin.z - 24.f) : s.headHeight * units::metresToUnits();
     const bool lying = vr_prone.value != 0.f && vr_crouch_hull.value != 0.f &&
                        (served >= 0 ? served == 1 : eyeOverFloor < vr_prone_eye.value);
+    // The drawn trunk's own lengths (solveTorso: the pelvis to the head's bind, vr_body_torso_back behind the neck's top,
+    // that vr_body_eye_up under the eye) and the neck's top over the floor: lying down and sliding turn the trunk about it
+    // until the hips are where they rest.
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    const float torso = glm::distance(bind().pos[Pelvis], bind().pos[Head]) * m2w;
+    // (Over the box's own floor where the server has him: the headset's calibrated height put the hips 2 units up.)
+    float eyeOverBox = eyeOverFloor;
+    if(const edict_t* pl = progs::localPlayer())
+    {
+        eyeOverBox = s.head.z - (pl->v.origin[2] + pl->v.mins[2]);
+    }
+    const float neckOverFloor = eyeOverBox - vr_body_eye_up.value * m2w;
     if(lying && !swimming)
     {
-        // The hips down to vr_prone_hip_floor over the floor: the drawn trunk's own lengths (solveTorso: the pelvis to the
-        // head's bind, vr_body_torso_back behind the neck's top, that vr_body_eye_up under the eye).
-        const float m2w = units::metresToUnits() * units::bodyScale();
-        const float torso = glm::distance(bind().pos[Pelvis], bind().pos[Head]) * m2w;
-        // (Over the box's own floor where the server has him: the headset's calibrated height put the hips 2 units up.)
-        float eyeOverBox = eyeOverFloor;
-        if(const edict_t* pl = progs::localPlayer())
-        {
-            eyeOverBox = s.head.z - (pl->v.origin[2] + pl->v.mins[2]);
-        }
-        const float neckOverFloor = eyeOverBox - vr_body_eye_up.value * m2w;
-        const float drop = neckOverFloor - CLAMP(0.f, vr_prone_hip_floor.value, 10.f);
+        // The hips down to vr_prone_hip_floor over the floor (flat-screen, from the neck vr_flat_prone_neck_drop lower).
+        const float drop = neckOverFloor - flatplay::proneNeckDrop() - CLAMP(0.f, vr_prone_hip_floor.value, 10.f);
         p.target = pronePitchTarget(vr_prone_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);
         p.source = PitchSource::Prone;
         p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f);
@@ -432,11 +451,13 @@ void updateBodyPitch(const hands::State& s, float dt)
     {
         p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f); // getting up: lying down's own time
     }
-    // Sliding (flat-screen play, vr_flatmove.cpp): the trunk leant back vr_flat_slide_body_angle about the neck, so the
-    // hips come forward under the lowered eyes and the legs go out in front along the floor (solveLeg).
+    // Sliding (flat-screen play, vr_flatmove.cpp): the trunk leant back about the neck until the hips sit
+    // vr_flat_slide_hip_floor over the floor (at most vr_flat_slide_body_angle), so the hips come forward under the lowered
+    // eyes, the buttocks and the legs on the floor in front (solveLeg), only the trunk held up.
     if(flatplay::active() && flatmove::sliding() && !swimming && !lying)
     {
-        p.target = -CLAMP(0.f, vr_flat_slide_body_angle.value, 80.f);
+        const float drop = neckOverFloor - za::clamp(vr_flat_slide_hip_floor.value, 0.f, 12.f);
+        p.target = -slidePitchTarget(vr_flat_slide_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);
         p.source = PitchSource::Slide;
         p.easeTime = CLAMP(0.05f, vr_flat_slide_body_time.value, 1.f);
         p.slidingFrom = 1.f;

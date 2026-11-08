@@ -257,6 +257,10 @@ struct SwimPitchIn
 // where the hips rest on the floor: vr_prone_hip_floor), the straight trunk `torso` long (the pelvis to the neck's top)
 // with the pelvis `torsoBack` behind the neck; never past `most` (vr_prone_body_angle).
 [[nodiscard]] float pronePitchTarget(float most, float drop, float torso, float torsoBack);
+// Sliding's target: the lean back (degrees, positive; the pitch is its negative) that puts the pelvis `drop` units under
+// the neck's top (the buttocks on the floor: vr_flat_slide_hip_floor), the same trunk; never past `most`
+// (vr_flat_slide_body_angle). A neck too high for the hips to reach the floor: the lean that takes them lowest.
+[[nodiscard]] float slidePitchTarget(float most, float drop, float torso, float torsoBack);
 void easePitch(float& angle, float& rate, float target, float easeTime, float dt);
 
 // The trunk's turn now (about the body's left; identity upright), `share` of it (the legs': BodyPitch::legs).

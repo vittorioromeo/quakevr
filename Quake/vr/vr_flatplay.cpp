@@ -285,6 +285,12 @@ struct SlideTurn
     float lin{0.f};
     float yaw{0.f};
     float twist{0.f};
+    // The hips' yaw eased after where they are asked to face (vr_flat_slide_turn_smooth): its lag behind it (degrees) and
+    // the lag's rate, a critically damped spring; `easing` while a slide's share holds it.
+    float lag{0.f};
+    float lagRate{0.f};
+    float yaw0{0.f}; // the eased yaw last frame
+    bool easing{false};
 };
 SlideTurn slideTurn;
 
@@ -620,8 +626,11 @@ constexpr float stanceFadeTo = 55.f;
         const float prone = proneShare();
         const float ahead = aheadUp + (proneAt(vr_flat_gun_ahead_prone, vr_flat_gun_ahead_prone_down, vr_flat_gun_ahead_prone_up, pitch) - aheadUp) * prone;
         const float below = belowUp + (proneAt(vr_flat_gun_down_prone, vr_flat_gun_down_prone_down, vr_flat_gun_down_prone_up, pitch) - belowUp) * prone;
-        return {(ahead - stance * back) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut) * reach,
-            -(below - lift * upBy) * reach};
+        // (In a slide, its own nudges by the slide's share: vr_flat_gun_ahead_slide, _down_slide, _out_slide.)
+        const float slid = bodyPose() ? flatmove::slideShare() : 0.f;
+        const glm::vec3 slideBy{poseNum(vr_flat_gun_ahead_slide), poseNum(vr_flat_gun_out_slide), poseNum(vr_flat_gun_down_slide)};
+        return {(ahead - stance * back + slid * slideBy.x) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut + slid * slideBy.y) * reach,
+            -(below - lift * upBy + slid * slideBy.z) * reach};
     }
     const glm::vec3 empty{
         poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
@@ -902,11 +911,12 @@ void pollKeys()
 // holds. Read from the keyboard state like E and V, and only while the game has the keys. (+flatcrouch / -flatcrouch hold
 // the crouch the same way, for the console and the mode's own Ctrl bind: CtrlBind above.)
 // Lying down's drop of the eyes (vr_prone): from Quake's standing eyes (cl.viewheight over the origin, 24 over the feet)
-// to 4 units under vr_prone_eye over the feet (at the defaults 46 to 14: 32), where the server takes him for lying
-// down (vr_hull.cpp updateCrouch) as it does a headset player whose eyes are that low.
+// to vr_flat_prone_eye over the feet (at the defaults 46 to 9.5: 36.5), under vr_prone_eye, where the server takes him
+// for lying down (vr_hull.cpp updateCrouch) as it does a headset player whose eyes are that low.
 [[nodiscard]] float proneDrop()
 {
-    const float eye = za::clamp(vr_prone_eye.value - 4.f, 6.f, 40.f);
+    // (vr_flat_prone_eye, under the server's vr_prone_eye by 2 at least; until 2026-11-08 vr_prone_eye less 4, 14.)
+    const float eye = za::clamp(vr_flat_prone_eye.value, 6.f, za::max(6.f, vr_prone_eye.value - 2.f));
     return za::clamp(cl.viewheight + 24.f - eye, 0.f, 44.f);
 }
 
@@ -1632,6 +1642,11 @@ float trunkTwist()
     return active() && bodyPose() ? slideTurn.twist : 0.f;
 }
 
+float proneNeckDrop()
+{
+    return active() && bodyPose() ? za::clamp(vr_flat_prone_neck_drop.value, 0.f, 10.f) : 0.f;
+}
+
 float chestPitch(float pitch)
 {
     if(!bodyPose())
@@ -1970,8 +1985,39 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
             off = za::clamp(off, -most, most) * share;
         }
-        t.twist = -off;
-        s.bodyYaw = aim.y + flatsight::stanceYaw() * (1.f - share) + off;
+        // The hips eased after it (his note 2026-11-08: the body turned in abrupt steps sliding): the slide's way follows the
+        // velocity, which steps with the server's frames and the steering, and a look past the twist's limit drags them
+        // round at once. The lag fades with the slide's share; the chest stays on the view (the twist takes the lag too).
+        const float want = aim.y + flatsight::stanceYaw() * (1.f - share) + off;
+        const float smooth = za::clamp(vr_flat_slide_turn_smooth.value, 0.f, 1.f);
+        if(share > 0.f && smooth > 0.f)
+        {
+            if(!t.easing)
+            {
+                t.easing = true;
+                t.lag = t.lagRate = 0.f;
+                t.yaw0 = want;
+            }
+            else if(dt > 0.0)
+            {
+                const float step = static_cast<float>(dt);
+                const float omega = 4.74f / za::max(0.02f, smooth); // (95% of a step in `smooth`: vr_avatar_pitch.cpp's easePitch)
+                const float x = za::clamp(geom::yawDelta(t.yaw0, want), -120.f, 120.f);
+                const float temp = (t.lagRate + omega * x) * step;
+                const float decay = za::exp(-omega * step);
+                t.lagRate = (t.lagRate - omega * temp) * decay;
+                t.lag = (x + temp) * decay;
+                t.yaw0 = want + t.lag;
+            }
+        }
+        else
+        {
+            t.easing = false;
+            t.lag = t.lagRate = 0.f;
+        }
+        const float lag = t.lag * share;
+        t.twist = -(off + lag);
+        s.bodyYaw = want + lag;
     }
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
@@ -1982,6 +2028,12 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     if(onBody)
     {
         avatar::restShoulders(s, fs.shoulders);
+        // (Lying down, the body hangs vr_flat_prone_neck_drop lower than the view, its shoulders with it: the poses are
+        // made off where they were, up by as much, so the gun stays where the eye's poses put it, clear of the floor; the
+        // drawn arms reach up to it from the lower shoulders.)
+        const float lift = proneNeckDrop() * proneShare();
+        fs.shoulders[0].z += lift;
+        fs.shoulders[1].z += lift;
     }
 
     // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
