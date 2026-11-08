@@ -4852,3 +4852,38 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
+
+## Flat-screen reloading (branch `agent/flatreload`, 2026-11-08)
+
+His words: R for reloading (mouse 4 the only force-grab key), an auto reload when a clip empties (on by default), the
+"simple hip holster" reload for every gun with the hand animated to the nearest hip holster and back (~90 degrees down,
+times and angle tunable), a two-handed gun's off hand relaxed during it, the guns' ammo screens as in VR, the status bar's
+clip big and reserve small. And (his extra note): no reload from a holster the gun touches as its pose changes or the
+camera moves; only R or the auto reload; a switch mid-reload breaks nothing.
+
+- **Keys.** `vr_flat_key_reload` (`r`, archived) sends `impulse 55`; `vr_flat_key_grab_alt` `r` -> `""` (mouse 4,
+  `vr_flat_key_grab`, stays). Migration: a sparse config never wrote the old default, so it takes the new one; a full
+  config's `r` is moved by a `fullConfigChanges` row. R reloads every hand whose gun can take rounds (dual wield: both).
+- **Settings.** VR Settings > Locomotion > Desktop Screen Play: *Reloading* (`vr_flat_reload` 1; 0 the old no-clip play)
+  and *Auto Reload* (`vr_flat_autoreload` 1). Tunables > Flatscreen > Reload: `vr_flat_reload_down` 0.3, `_hold` 0.2,
+  `_up` 0.3 (s), `vr_flat_reload_angle` 90.
+- **Game side** (`QC/vr_flatreload.qc`): a flat-screen player reloads at the hips whatever the headset's mode
+  (`VRIsWeaponReloadingEnabled`, every gun, no per-gun overrides); the rounds go in through `VRTryReloadWeapon`
+  (VR's sums, sounds, haptics) when the hand reaches the hip. `VRTryReloadWeapon` returns for a flat-screen player unless
+  `vr_flatreload_go` is set: no holster contact (the flat gun at rest sits in the right upper holster's zone: hotspot 9),
+  no flick, no reload button. The immersive pieces are never his (`VR_Reload_ManualInHand`, `VR_Reload_MagIn`, the nail
+  pistol's magazine-out, flick reload). Fire is blocked for the trip (`weapons.qc`); a weapon change cancels it. The cycle
+  (1, 2) gives the clip back to the reserve and loads the next gun from it (the hand's magazine record used to carry
+  over: rounds were lost, or loaded into the wrong gun).
+- **Drawn side** (`Quake/vr/vr_flatreload.cpp`): `STAT_QVR_FLATRELOAD` (`.vr_flatrl`) drives each hand's share of the way
+  to the nearer hip holster (`body::holsterPosition`), muzzle down; the ironsight waits and the free hand leaves the
+  hotspot (`vr_flatsight.cpp` stance and grip, `vr_twohand.cpp`), so it hangs relaxed.
+- **Ammo screens.** Why they were wrong: flat play had no clips, but `STAT_QVR_RELOADMODE` came from the global mode (3),
+  so the screens drew a clip row that nothing filled. Now that stat is per player (2 for a flat-screen player with
+  Reloading on, 0 off: `vr_server.cpp`), and his clips are real: "7/8" over "17", as in VR.
+- **Status bar.** `VR_FlatHudClip` (`vr_flathud.cpp`) and `Sbar_DrawHandAmmo` (`sbar.c`): the clip in the big numbers,
+  the reserve small beside them, in every hudstyle (flat layout both corners, modern, QuakeWorld, classic).
+- **Debug.** Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`, `vr_flat_reload_pose`.
+- **Tests.** `Misc/quakevr/flatreload_test.sh` (FLATREL_RESULT). Checklist scene `flat_reload`.
+- **Decisions.** R reloads both hands when dual wielding. A weapon switch loads the gun taken at once (as a pickup), no
+  trip. The hip is the nearer of the two to the hand when the trip starts.
