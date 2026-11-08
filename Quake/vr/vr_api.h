@@ -496,6 +496,8 @@ int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmin
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
+float VR_HullTouchTop (struct edict_s *ent); // SV_TouchLinks: the top triggers meet (lying down: the lying box's; else absmax)
+float VR_HullWaistZ (struct edict_s *ent); // SV_CheckWater's middle point's height (lying down: the lying box's middle)
 int VR_HullHitBox (struct edict_s *touch, float *boxmins, float *boxmaxs, int projectile); // ... and as a shot or missile meets it (vr_hull_hit_width; a bullet or missile, `projectile`: to his head, vr_hull_hit_head): nonzero if changed
 // A player's body against monsters' (vr_bodycontact.cpp; ROUND22.md, "Closer to enemies").
 int VR_BodyContactHull (struct edict_s *mover, struct edict_s *touch, const float *mins, const float *maxs,
@@ -574,6 +576,11 @@ int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's butt
 // there; "Advanced VR" and "Levels" jumping to those from any page.
 void VR_MenuDrawStatus (void);							// M_Draw, last: the status box (vr_menu_status) in the top right corner
 void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the buttons
+// The flat screen's VR menu layout (vr_menu_flat_vr_style; vr_menuui.cpp, FlatPanel): the menu canvas in a panel of the window.
+int VR_MenuFlatViewport (int *x, int *y, int *w, int *h);	// GL_SetCanvas, Draw_SetClipRect, M_Mousemove: nonzero while it is shown, its rect in the window's pixels (x, y its top left, from glx, gly's top)
+int VR_MenuFlatMouse (int screenx, int screeny);		// M_Mousemove, first: the window's mouse seen; nonzero if it took the move (a corner of the panel dragged)
+void VR_MenuDrawFlatPanel (void);						// M_Draw, before the page: the panel's background
+void VR_MenuDrawFlatFrame (void);						// M_Draw, last: the panel's frame and corner handles, on the window (CANVAS_DEFAULT, out of the panel's viewport)
 int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
 // The menus' branding (vr_menubrand.cpp): the Quake VR banner in place of Quake's plaque, and their browns turned red.
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
@@ -596,7 +603,7 @@ int VR_TunablesWrite (void);							// Host_WriteConfiguration: tunables.cfg, the
 int VR_TunableCommand (void);					// Cmd_ExecuteString, an unknown name: a tuning constant typed bare ("vr_x 0.2" sets, "vr_x" shows); nonzero if it was one
 void VR_TunableTabList (const char *partial);	// BuildTabList: the tuning constants matching partial
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
-const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
+const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_carry_throw_inherit: vr_throw_inherit), or NULL
 struct cvar_s *VR_CvarStandIn (const char *name);		// Cvar_FindVar, a name not found nor renamed: a data table value's stand-in by its old cvar name (vr_wofs_<key>_NN, vr_prop_<key>_NN: quakevr/data/weapons.txt, props.txt), or NULL
 int VR_StandInSet (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered nor a tuning constant's: nonzero if it is a data table value's stand-in, now set
 void VR_ConfigWriteTables (FILE *f);					// Cvar_WriteVariables, last: the data tables' values changed from their data files (`vr_wofs_<key>_NN "value"`, `vr_prop_<key>_NN "value"` lines)

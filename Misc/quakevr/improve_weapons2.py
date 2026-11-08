@@ -12,7 +12,7 @@
 #                               grip. The gun sits 2.5 model units higher over the hand (the fist
 #                               used to be half inside its body).
 #   quakevr/progs/v_nail.mdl    the nailgun: a trigger guard round the index finger and a trigger.
-#   quakevr/progs/v_lava2.mdl, v_plasma.mdl, v_lava.mdl: their alternates (the secondary ammo), the
+#   quakevr/progs/v_lava2.mdl, v_light_plasma.mdl, v_lava.mdl: their alternates (the secondary ammo), the
 #                               same builders on their own sources, placed as they are
 #                               (improve_weapons_alt.py; round 18); v_lava2.mdl's painted lava windows
 #                               on the barrels are sunk into them (lava2_windows).
@@ -687,7 +687,7 @@ def light(m, V=IDENTITY):
 # two rear posts over the back of the body, and the front post's tip over the muzzle) glowed in the pale
 # cyan of its electrodes. They take the shotguns' sight gradient now, in the same fullbright fire indices
 # (vr_sights.cpp recolours those on the skins of the models it lists, which now include v_light.mdl and
-# v_plasma.mdl): a patch painted as recolor_shotgun_sight.py paints the shotgun's (light orange at each
+# v_light_plasma.mdl): a patch painted as recolor_shotgun_sight.py paints the shotgun's (light orange at each
 # sight's top, deep red at its edge), under new UVs for the sights' own vertices (no other triangle uses
 # them: no vertex or triangle index changes, so the anchors stay). The rest of each skin must show no fire
 # index, or it would take the sight hue too: the plasma gun's coils (224..233) move to the nearest other
@@ -1033,7 +1033,7 @@ def seal_light(m):
     row = m.grow_skin(16)
     R = {"cap": (0, row, 64, row + 16)}
     paint_panel(m, R["cap"], [16, 16, 174, 173, 172, 171], 41)
-    seal(m, R["cap"], None, "v_light/v_plasma", fix_flips=True)
+    seal(m, R["cap"], None, "v_light/v_light_plasma", fix_flips=True)
 
 
 NAIL_HINGE = (7.4, 0.1, 1.6)   # the hinge block between the barrels (x 6 .. 8.8, z 1.59 .. 2.32)
@@ -1099,7 +1099,7 @@ MODELS = [  # file, builder, vr_weapons.inc slot, the hand anchor's vertex in th
 
 ALTERNATES = [  # the alternate models (the secondary ammo; improve_weapons_alt.py): normal file, file, slot, builder
     ("v_nail2.mdl", "v_lava2.mdl", 12, lava2),
-    ("v_light.mdl", "v_plasma.mdl", 15, light),
+    ("v_light.mdl", "v_light_plasma.mdl", 15, light),
     ("v_nail.mdl", "v_lava.mdl", 11, nail),
 ]
 

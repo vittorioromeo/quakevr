@@ -502,7 +502,7 @@ void() worldspawn =
     precache_model("progs/v_lava2.mdl");
     precache_model("progs/v_multi.mdl");
     precache_model("progs/v_multi2.mdl");
-    precache_model("progs/v_plasma.mdl");
+    precache_model("progs/v_light_plasma.mdl");
     precache_model("progs/mervup.mdl");
     //ZOID-- hook for CTF
     precache_model("progs/hook.mdl");

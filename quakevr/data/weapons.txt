@@ -670,7 +670,7 @@ weapon 2
     fx_gfx_wisp_charge "1"
     fx_gfx_wisp_alpha "0.32"
     fx_gfx_wisp_barrels "2"
-    fx_gfx_mask "915:f-5__TO__gfoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAA8AwPA8gPA8DAPAQA8___________________________Bw_______PAAAAAAAAAwQPAAwQPAAAANAAAANAAw__w_B4____fAAAAAAAAA"
+    fx_gfx_mask "913:f-5__TO__wPUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAeA4HAewHA-BgHAIA-___________________________A4_______HAAAAAAAAAYoHAAYoHAAAgGAAAgGAA4_f8fA-____HAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -1648,7 +1648,7 @@ weapon 14
     fx_gfx_mask "811:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAA"
 }
 
-// slot 15: progs/v_plasma.mdl (vr_wofs_*_16)
+// slot 15: progs/v_light_plasma.mdl (vr_wofs_*_16)
 weapon 15
 {
     2h_fxd_hp "0.0"
@@ -1668,7 +1668,7 @@ weapon 15
     hand_y "0.7647"
     hand_z "-1.891204"
     hide_hand "0.0"
-    id "progs/v_plasma.mdl"
+    id "progs/v_light_plasma.mdl"
     muzzle_av "33.8075 -0.0982 9.6295"
     muzzle_x "-0.000005"
     muzzle_y "-0.000014"

@@ -1,0 +1,6 @@
+# prone_vent: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrteleporters' crouching room (east of the hub, docs/vr-port/HULLS.md): facing its 20-high vent (lying down's 16 box passes, no crouch does).
+title The 20-high vent in vrteleporters' crouching room, ahead of you
+map vrteleporters
+start 480 -112 24 0
+god
+notarget

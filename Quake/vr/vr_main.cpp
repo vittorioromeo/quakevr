@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_drips.hpp"
 #include "vr_animrec.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_dynres.hpp"
@@ -2178,6 +2179,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
+    Cmd_AddCommand("vr_menu_zoom", menuui::zoom_f);
     Cmd_AddCommand("vr_menu_panels", menu::panels_f);
     Cmd_AddCommand("vr_mock_mouse", menuui::mockMouse_f);
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
@@ -2294,6 +2296,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
     goresound::registerCommands(); // vr_gore_sound_stats, vr_gore_sound_test
+    drips::registerCommands(); // vr_drips_info, vr_drips_soak, vr_drips_test
     bloodprints::registerCommands(); // vr_bloodprints_test, vr_bloodprints_info
     Cmd_AddCommand("vr_gore_streams_info", bloodstream::info_f);
     Cmd_AddCommand("vr_dummy_gore_reset", wounds::dummyReset_f);

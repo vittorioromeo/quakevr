@@ -552,6 +552,8 @@ void SV_TouchLinks (edict_t *ent)
 		|| ent->v.absmax[1] < touch->v.absmin[1]
 		|| ent->v.absmax[2] < touch->v.absmin[2] )
 			continue;
+		if (VR_HullTouchTop (ent) < touch->v.absmin[2]) // QVR: lying down, the lying box's top (vr_prone)
+			continue;
 		old_self = pr_global_struct->self;
 		old_other = pr_global_struct->other;
 

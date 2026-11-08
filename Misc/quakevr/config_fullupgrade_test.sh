@@ -8,11 +8,11 @@
 AGENT=${1:?worktree name}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
-printf 'vr_cfg_version "207"\nvr_agrunt_repl "0"\nvr_agrunt_repl_common "0"\nvr_relight_minlight "0"\nvr_deadzone_outer "7"\nvr_carry_two_hands_window "0.1"\nvr_walltorch_pull "1"\nvr_revolver_eject_tilt "30"\n' > "$TREE/quakevr/cfgtest_full217.cfg"
-SHOW="vr_agrunt_repl;vr_agrunt_repl_common;vr_relight_minlight;vr_deadzone_outer"
+printf 'vr_cfg_version "207"\nvr_agrunt_repl "0"\nvr_agrunt_repl_common "0"\nvr_relight_minlight "0"\nvr_deadzone_outer "7"\nvr_agrunt_dual_pickup "0"\nvr_carry_two_hands_window "0.1"\nvr_walltorch_pull "1"\nvr_revolver_eject_tilt "30"\n' > "$TREE/quakevr/cfgtest_full217.cfg"
+SHOW="vr_agrunt_dual_pickup;vr_agrunt_repl;vr_agrunt_repl_common;vr_relight_minlight;vr_deadzone_outer"
 S="wait5;echo === FULL;exec cfgtest_full217.cfg;vr_migrate_config;$SHOW"
 S="$S;echo === SPARSE;vr_cfg_version 219;vr_agrunt_repl 0;vr_migrate_config;vr_agrunt_repl"
-S="$S;vr_agrunt_repl 1;vr_agrunt_repl_common 0.5;vr_relight_minlight 32;vr_deadzone_outer 20;echo === END"
+S="$S;vr_agrunt_repl 1;vr_agrunt_repl_common 0.5;vr_relight_minlight 32;vr_deadzone_outer 20;vr_agrunt_dual_pickup 1;echo === END"
 out=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "===|\" is \"|Unknown command" -QuitOn "=== END" -Timeout 60)
 echo "$out" | python -c "
 import re, sys
@@ -23,6 +23,7 @@ def val(block, var):
 checks = [('full: replacements on', val('FULL', 'vr_agrunt_repl') == 1),
           ('full: common tier', val('FULL', 'vr_agrunt_repl_common') == 0.5),
           ('full: relight ambient', val('FULL', 'vr_relight_minlight') == 32),
+          ('full: Pick Up a Second on', val('FULL', 'vr_agrunt_dual_pickup') == 1),
           ('full: his dead zone kept', val('FULL', 'vr_deadzone_outer') == 7),
           ('sparse: his off kept', val('SPARSE', 'vr_agrunt_repl') == 0),
           ('no unknown lines', 'Unknown command' not in t)]

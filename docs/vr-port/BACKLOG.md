@@ -19,7 +19,7 @@ Retired items are in git history (last cleanup 2026-11-08).
    from the magazine, AD inventory.
 7. **Refactors, right after 1.1:** formatting, Ironwail extraction, design review P3/P6/P8/P9/P10 (QUEUE.md).
 8. **Big features, each needing its own decision:** multiplayer, modelling formats and glTF, seated play, pillar
-   climbing, TAA/DLSS, platforms, bHaptics (player lying down and crawling landed; a lower box is left).
+   climbing, TAA/DLSS, platforms, bHaptics (player lying down and crawling landed, with its lower box).
 9. **Performance and parked items:** only when a capture makes one the top cost, or when a player hits it.
 
 Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib and berserk pack, TAA/DLSS.
@@ -45,9 +45,6 @@ Staying in the backlog by his decision (2026-11-05): pickup thinks, heart gib an
 
 ## 4. Armed humanoids
 
-### Pick Up a Second's default (the author, 2026-11-03)
-
-Left: his call on the default (`vr_agrunt_dual_pickup`, 0 today) once he has played with it on.
 
 ### The enforcer's backpack made a real one (author, 2026-11-02)
 
@@ -238,8 +235,6 @@ without leaning, chosen automatically from the seated calibration (vr_setup seat
   .blend and export on save (ROUND24.md, "The shotgun as a source .blend", "Blender: export on save"); the audit and
   the other models are left.
 - **glTF (.glb) for the hand and body models, after 1.1** (Vittorio, 2026-11-03): so modellers can work in Blender with no add-on. A small parser (cgltf; ask before downloading) fills the structure the MD5 loader fills; MD5 stays as the fallback; a .glb loads only when present; vr_hand_reload and vr_model_reload read it. Watch: Y-up metres to Z-up Quake units, seams split, 4 weights, bone rest pose and roll against the engine's axis convention, a simple material rule (one base colour texture), skins' damage and armour variants stay separate files. Bone names and grip fits still apply. Weapons and other .mdl models stay out: frame numbers in QuakeC, triangle-keyed masks and anchors.
-- **Lying down: a box lower than 24** (Vittorio, 2026-11-03): lying down and the arm-pull crawl landed (ROUND24.md,
-  "Lying down and crawling", "Crawling with the arms", "Lying body 2"); left: a player box lower than `vr_prone`'s 24.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 

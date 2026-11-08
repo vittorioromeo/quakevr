@@ -3667,7 +3667,8 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
                 const float offLen = glm::length(off);
                 if(offLen > 1e-5f)
                 {
-                    led.led += off * (glm::length(load) / za::max(s.totalMass * led.ledGive, 1.f) * c.dt / offLen);
+                    // (Its mass over the give: it was its mass times it, so more give stood its ground more. 2026-11-08.)
+                    led.led += off * (glm::length(load) / za::max(s.totalMass / led.ledGive, 1.f) * c.dt / offLen);
                 }
             }
             led.ledGive = 0.f;

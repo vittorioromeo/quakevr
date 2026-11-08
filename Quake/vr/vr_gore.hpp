@@ -55,6 +55,15 @@ void gibRest(const glm::vec3& where, const glm::vec3& normal);
 // entity `ent` at `org`: it drips (until it bleeds dry).
 void gibHanging(int ent, const glm::vec3& org);
 
+// One drop of `liquid` (drips::Liquid as int: 0 blood, 1 water, 2 slime) falling from `p` (vr_drips.cpp: the wet and
+// the wounded): the gore's own drops' fall (a trace down, the falling particle, its landing later). Blood lands as the
+// gore's drops do (specks, a mark with chance `markChance`, a drip heard); water and slime as drips::landed (a splash,
+// a soft drip, no decal), and into a liquid on the way: a ripple there. `color`'s alpha is the drop's. False: none (it
+// starts in a liquid, no floor under it, the landings full).
+bool dropFrom(int liquid, const glm::vec3& p, float size, const glm::vec4& color, float markChance = 0.f);
+// The colour the gore's blood drops have at `p` (as lit there).
+[[nodiscard]] glm::vec3 bloodColorAt(const glm::vec3& p);
+
 // Once a frame (decals::draw): the queued lines of blood, drips, landings, pools and the player's.
 void frame();
 

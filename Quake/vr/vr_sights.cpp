@@ -31,7 +31,7 @@ constexpr const char* sightedModels[] = {
     "progs/v_shot2.mdl",  // the double shotgun: three inserts (the rear notch sight's two ears, the front post)
     "progs/g_shot0.mdl",  // the shotgun's pickup: its sights (Quake's dark red)
     "progs/v_light.mdl",  // the lightning gun: two rear posts, a front post (round 20)
-    "progs/v_plasma.mdl", // its alternate, the plasma gun: the same (its coils in other reds)
+    "progs/v_light_plasma.mdl", // its alternate, the plasma gun: the same (its coils in other reds)
     // The nail pistol (2026-11-07): its modelled sights (two rear ears, a front post) painted to glow. It is its own
     // pickup (QC impl_weapon_item); the art preview carries the same skin's colours. Its magazines' skins have no sights.
     "progs/v_nailpistol.mdl",

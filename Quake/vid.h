@@ -90,6 +90,7 @@ typedef enum
 	MOUSECURSOR_DEFAULT,
 	MOUSECURSOR_HAND,
 	MOUSECURSOR_IBEAM,
+	MOUSECURSOR_MOVE, // QVR: the flat screen's VR menu panel's corners (vr_menuui.cpp)
 } mousecursor_t;
 
 void		*VID_GetWindow (void);

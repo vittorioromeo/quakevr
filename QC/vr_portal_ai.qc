@@ -12,11 +12,23 @@ float() VR_AI_PortalEligible =
            self.classname != "monster_fish" && self.classname != "monster_knight";
 };
 
+// A player lying down (the engine's .vr_prone: his box vr_prone_height tall, 16) is aimed at his box's middle, not his
+// origin (24 over his feet: over the lying box, every shot at it flew over him). ROUND24.md, "A lower box for lying down".
+vector(entity targ) VR_AI_AimOrigin =
+{
+    vector o = targ.origin;
+    if(targ.vr_prone && targ.classname == "player")
+    {
+        o_z = min(o_z, targ.origin_z + targ.mins_z + 0.5 * min(32, max(12, cvar_hget(cvarh_vr_prone_height))));
+    }
+    return o;
+};
+
 vector(entity targ) VR_AI_Origin =
 {
     if(targ == self.vr_ai_target && self.vr_ai_gate > 0)
-        return portal_ai_map(self.vr_ai_gate, targ.origin, FALSE);
-    return targ.origin;
+        return portal_ai_map(self.vr_ai_gate, VR_AI_AimOrigin(targ), FALSE);
+    return VR_AI_AimOrigin(targ);
 };
 vector(vector point) VR_AI_Point = { return portal_ai_map(self.vr_ai_gate, point, FALSE); };
 vector(vector velocity) VR_AI_Vector = { return portal_ai_map(self.vr_ai_gate, velocity, TRUE); };

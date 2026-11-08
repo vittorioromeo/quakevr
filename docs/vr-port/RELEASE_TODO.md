@@ -23,8 +23,8 @@ pass on `agent/relpass`.
 - [ ] **Developer files in the package:** by the allowlist rule (every tracked file under `quakevr\`) the zip ships
   `checklist.txt`, the 88 `scenarios\*.txt` (bench ones too) and `vrtesthall`. Keep (the in-game checklist and its
   Test buttons use them) or add them to `$devOnly`.
-- [ ] **Pick Up a Second** (`vr_agrunt_dual_pickup` 0) and **Embedded blades** (`vr_embed` 0): off for 1.1 as listed
-  in the notes' Experimental section.
+- [ ] **Embedded blades** (`vr_embed` 0): off for 1.1 as listed in the notes' Experimental section. (Pick Up a Second
+  is on since 2026-11-08, `vr_agrunt_dual_pickup` 1; a 1.0.x or beta config at 0 takes it.)
 - [ ] **Release branch:** `master` is fast-forwarded by `-Final` (RELEASING.md, "Branches").
 - [ ] **Debug symbols:** `ironwail.pdb` stays inside the game zip (crash reports name functions with it).
 
