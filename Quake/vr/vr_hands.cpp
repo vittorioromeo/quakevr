@@ -785,7 +785,7 @@ void placeFlat(const glm::vec3& aim, float yaw)
     state.standingHeight = units::eyeHeight();
     state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
     state.headAngles = aim;
-    state.headHeight = vr_height_calibration.value;
+    state.headHeight = units::eyeHeight(); // (vr_flat_body_height: the mode's fixed height)
 
     // -flatscreenmode holding his crouch (Left Ctrl, +flatcrouch: vr_flatplay.cpp) puts his head down by the eased
     // vr_flat_crouch_drop, and his height with it: crouchRatio (below, the same way a tracked crouch reads), the body's
@@ -796,7 +796,7 @@ void placeFlat(const glm::vec3& aim, float yaw)
     if(crouchDown > 0.f)
     {
         state.head[2] -= crouchDown;
-        state.headHeight = vr_height_calibration.value - crouchDown / units::metresToUnits();
+        state.headHeight = units::eyeHeight() - crouchDown / units::metresToUnits();
     }
     // Leaning (Q / E, vr_flatmove.cpp): his head moved sideways and a little down as it swings, and the body's lean
     // toward it (the trunk tilts from the hips: vr_avatar.cpp solveTorso, as a headset player's lean). The hands, the
@@ -921,7 +921,7 @@ void update()
                                          : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
-                            ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)
+                            ? CLAMP(0.f, units::eyeHeight() / state.headHeight - 1.f, 1.f)
                             : 0.f;
 
     body::updateHotspots(state);
@@ -1150,7 +1150,7 @@ glm::vec3 bodyAnchor(const State& s, const glm::vec3& offsets)
     origin.z += 2.f - s.crouchRatio * 18.f;
 
     return origin + right * offsets.y + fwd * offsets.x +
-           up * vr_height_calibration.value * offsets.z;
+           up * units::eyeHeight() * offsets.z;
 }
 
 glm::vec3 forward(const glm::vec3& angles)

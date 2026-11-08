@@ -177,6 +177,7 @@
         row(opt::vr_flat_pitch_down),
         row(opt::vr_flat_death_vomit),
         row(opt::vr_flat_death_vomit_look),
+        row(opt::vr_flat_body_height),
         row(opt::vr_flat_mantle),
         row(opt::vr_flat_mantle_reach),
         row(opt::vr_flat_mantle_height),

@@ -97,11 +97,15 @@ za::Vector<Item> pageSaves()
     };
 }
 
+// Playing on the desktop screen the Height rows do nothing there: the body has its own height (vr_flat_body_height).
+constexpr const char* flatHeightWhy = "Playing on the desktop screen the body has its own height: Locomotion > Desktop Screen Play > Body "
+                                      "Height (vr_flat_body_height). This Height is the headset's.";
+
 // VR Settings' sections, merged into the pages linked from it (titled "VR Settings - <section>").
 [[nodiscard]] za::Vector<Item> pageVrsHeight()
 {
     return {
-        row(opt::vr_height_calibration),
+        row(opt::vr_height_calibration).unavailableBecause(flatplay::active() ? flatHeightWhy : nullptr),
         action("Set Height Now", calibrateHeight)
             .help("Stand up straight, look straight ahead and press: your height is taken from the headset."),
         row(opt::vr_world_scale),
@@ -280,7 +284,8 @@ void resetBodyEquipment()
         header("Fit"),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your eyes' height standing (Height and Hand Calibration > Set Height Now measures it). The body is "
-                  "sized to it; with Legs Fit Your Height the legs still reach the floor if it is off."),
+                  "sized to it; with Legs Fit Your Height the legs still reach the floor if it is off.")
+            .unavailableBecause(flatplay::active() ? flatHeightWhy : nullptr),
         row(opt::vr_body_leg_fit),
         row(opt::vr_body_gear_fit),
         open("Body Calibration", pageIndex(pageBodyCalibration))
