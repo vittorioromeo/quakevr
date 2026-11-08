@@ -4530,3 +4530,37 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
   not `weapon_axe`, which AD's maps keep for AD's own pickup (vr_ad.cpp adOwnedClashes). The six scenes under
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
+
+## Teleport and smooth locomotion together (branch `agent/teleboth`, 2026-11-08)
+
+His words: "add the ability to use both teleportation locomotion and normal locomotion in VR at the same time? There
+should be a user-facing option for it in vr settings, ensure that they do not conflict".
+
+- **What there was:** `vr_teleport_enabled` 1 never stopped the stick walking; it only let `+teleport` aim, and no
+  controller key was bound to it (FEATURES.md said to bind one yourself). So there was no teleport-only mode to keep.
+- **The option:** VR Settings > Comfort, Teleport and Turning > *Teleport* (and Advanced > Locomotion > Teleport, the
+  setup board's TELEPORT button) is now a choice: *Off* (0, the default, unchanged), *Bound Button* (1: exactly as
+  before), *Smooth + Teleport* (2). Row name kept, so no menu path or calibration board changes. Comfort presets still
+  set 1.
+- **Input mapping (2):** the moving stick walks as always. The turning stick (`1 - hands::moveHand()`: the right one,
+  the left with Swap Stick Functions) pushed forward (y > 0.7, within about 27 degrees of straight) aims with that
+  stick's hand; back to the middle (< 0.3) lands on a valid spot; pulled back (y < -0.5) cancels and the stick stays the
+  teleport's until it is back in the middle. While it aims: no turn, no `+moveup`/`+movedown`, the moving stick does
+  not walk. A push that starts as a turn (|x| > 0.3) never becomes an aim until the stick is back in the middle; the
+  snap is re-armed only from the middle after an aim. Swimming (waterlevel 2+) the turning stick's forward is `+moveup`
+  as before. `+teleport` also works (off hand). A menu, the toolgun, posing or any other stick owner cancels an aim
+  (vr_input.cpp `teleportStick`, `teleportStickOff`). Jump (A), sprint (left stick click), crouch, seated crouch toggle,
+  bullet time (stick clicks), holsters and the arm crawl use no stick axis: untouched.
+- **No fighting (2 only):** the aim is red unless on the ground, not swimming and no hand on a ledge
+  (vr_teleport.cpp `standing`); the server (VR_ClientTeleport) refuses one not FL_ONGROUND or swimming, and zeroes
+  the velocity and an enemy shove's slide (`vr_eshove_speed`) on arrival. Teleport 1 keeps today's rules (it still
+  carries momentum and works in the air) as asked; making 1 zero velocity too is a one-line change if he wants it.
+  `developer 1` prints each teleport asked and why one is refused. Flat-screen: no VR sticks, no change.
+- **Test:** `vr_teleport_both_test [here]` (Debug > Tests > Teleport: Smooth + Teleport), headless
+  `run.sh <name> -Script "map vrtesthall;vr_teleport_both_test" -Filter "teleport both" -QuitOn "teleport both: [0-9]+ passed"`:
+  walk 135 units with no aim or teleport; aim while running (no turn, no `+moveup`, speed 302 -> 191: not walking);
+  land on the aimed spot (79+ units away, 0.0 off) at speed 0 from 191; pull back cancels; a 45-degree snap still
+  turns; red in the air and nothing sent; Teleport 1: forward is `+moveup`, `+teleport` aims with the off hand and
+  lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
+  **14 passed, 0 failed.**
+- **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
