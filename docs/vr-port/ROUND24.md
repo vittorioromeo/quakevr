@@ -4884,7 +4884,11 @@ camera moves; only R or the auto reload; a switch mid-reload breaks nothing.
 - **Status bar.** `VR_FlatHudClip` (`vr_flathud.cpp`) and `Sbar_DrawHandAmmo` (`sbar.c`): the clip in the big numbers,
   the reserve small beside them, in every hudstyle (flat layout both corners, modern, QuakeWorld, classic).
 - **Debug.** Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`, `vr_flat_reload_pose`.
-- **Tests.** `Misc/quakevr/flatreload_test.sh` (FLATREL_RESULT). Checklist scene `flat_reload`.
+- **Tests.** `Misc/quakevr/flatreload_test.sh`: **26 passed, 0 failed** (R: 7 of 8 + 17 shells -> 8 + 16; the headset's
+  holster: 6 + 17 -> 8 + 15, the same sums; the hand at the hip at 0.29 s, back at 0.79 s of 0.8, pitch 89.8; switches
+  and Q before and after the hip keep clip + shells). After the merge of origin/next: flathud 11/0, flatkeys 37/0,
+  flatinput 14/0, flatmove 10/0; flatplay 26/2: the same two melee knight checks (and the lock line) fail on origin/next
+  itself. Checklist scene `flat_reload`.
 - **Decisions.** R reloads both hands when dual wielding. A weapon switch loads the gun taken at once (as a pickup), no
   trip. The hip is the nearer of the two to the hand when the trip starts.
 ## Player body: crawl, prone limit, self-shot head and pain, flashlight trigger, smoke near the eye (branch `agent/player1108`, 2026-11-08)
