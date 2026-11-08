@@ -642,7 +642,7 @@ za::Vector<Item> pageDebugTests()
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
         command("Projectiles Keep Your Motion", "developer 1; vr_projinherit_test 1")
-            .help("vr_projinherit_test 1: fired strafing at 320 u/s, a nail and a rocket fly on the aim, a grenade keeps "
+            .help("vr_projinherit_test 1: fired strafing at 320 u/s, a nail and a rocket fly off the aim by their strafe share only, running along the aim adds their along share, a grenade keeps "
                   "its share of the strafe (Weapons > Aiming > Projectiles Keep Your Motion); then the main hand swung, "
                   "a grenade keeps its share of the swing, a rocket none. With the mock headset (in a headset: hold the "
                   "hand still, then swing it)."),

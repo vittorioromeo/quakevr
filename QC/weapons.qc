@@ -23,14 +23,16 @@ void(vector org) BroadcastGunshotEffect =
 }
 
 // The kinds of projectile a player fires, for the share of his motion each keeps (vrProjectileVelocity; ROUND24.md,
-// "Projectiles keep less of your motion"): fast ones flying straight (nails, rockets, lasers, plasma, bolts, the grappling
-// hook), lobbed ones arcing (grenades, proximity and multi grenades, flares), sprays (the flamethrower's stream).
+// "Projectiles keep less of your motion"): fast ones flying straight (nails, lasers, plasma, bolts, the grappling hook),
+// rockets, lobbed ones arcing (grenades, proximity and multi grenades, flares), sprays (the flamethrower's stream).
 float VR_PROJK_FAST = 0;
 float VR_PROJK_LOBBED = 1;
 float VR_PROJK_SPRAY = 2;
+float VR_PROJK_ROCKET = 3;
 
 // What a projectile of kind `xKind` fired by `self` from hand `xHand` adds to its own velocity: shares of the player's
-// velocity (vr_proj_inherit_<kind>) and of the hand's swing (vr_proj_inherit_<kind>_hand, 1 = the hand's own speed).
+// velocity, the part along the hand's aim (vr_proj_inherit_<kind>_along) and the part across it (_across, a strafe)
+// apart, and of the hand's swing (vr_proj_inherit_<kind>_hand, 1 = the hand's own speed).
 // Vanilla Quake adds nothing; a fast shot keeping the player's strafe flew off the aim (2026-11-08). The hand's velocity
 // is the tracked controller's alone: a hand whose motion is synthesized (flat-screen hands following the look, a lean,
 // the wall tilt) comes with none (the engine's vr_handsource gate, vr_client.cpp handMove), and VR_HandMotionTracked is
@@ -42,20 +44,31 @@ vector(float xHand, float xKind) vrProjectileVelocity =
         return VEC_ORIGIN;
     }
 
-    float player = cvar_hget(cvarh_vr_proj_inherit_fast);
+    float along = cvar_hget(cvarh_vr_proj_inherit_fast_along);
+    float across = cvar_hget(cvarh_vr_proj_inherit_fast_across);
     float hand = cvar_hget(cvarh_vr_proj_inherit_fast_hand);
-    if(xKind == VR_PROJK_LOBBED)
+    if(xKind == VR_PROJK_ROCKET)
     {
-        player = cvar_hget(cvarh_vr_proj_inherit_lobbed);
+        along = cvar_hget(cvarh_vr_proj_inherit_rocket_along);
+        across = cvar_hget(cvarh_vr_proj_inherit_rocket_across);
+        hand = cvar_hget(cvarh_vr_proj_inherit_rocket_hand);
+    }
+    else if(xKind == VR_PROJK_LOBBED)
+    {
+        along = cvar_hget(cvarh_vr_proj_inherit_lobbed_along);
+        across = cvar_hget(cvarh_vr_proj_inherit_lobbed_across);
         hand = cvar_hget(cvarh_vr_proj_inherit_lobbed_hand);
     }
     else if(xKind == VR_PROJK_SPRAY)
     {
-        player = cvar_hget(cvarh_vr_proj_inherit_spray);
+        along = cvar_hget(cvarh_vr_proj_inherit_spray_along);
+        across = cvar_hget(cvarh_vr_proj_inherit_spray_across);
         hand = cvar_hget(cvarh_vr_proj_inherit_spray_hand);
     }
 
-    vector out = self.velocity * max(0, player);
+    vector aim = VRGetWeaponFireRotFwd(xHand);
+    vector vAlong = aim * (self.velocity * aim);
+    vector out = vAlong * max(0, along) + (self.velocity - vAlong) * max(0, across);
     if(VR_HandMotionTracked(self, xHand))
     {
         out += VRGetHandVel(xHand) * (VRMetersToUnits() * max(0, hand));
@@ -2609,7 +2622,7 @@ entity(float xHand) VR_FireRocketMissile =
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
-    missile.velocity += vrProjectileVelocity(xHand, VR_PROJK_FAST);
+    missile.velocity += vrProjectileVelocity(xHand, VR_PROJK_ROCKET);
 
     // set missile duration
     missile.nextthink = time + 5;

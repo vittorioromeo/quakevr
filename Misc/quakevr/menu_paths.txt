@@ -488,6 +488,8 @@ vr_body_swim_tilt_time|1|Body|Under Water Lean Time|Advanced VR Options > Body >
 vr_body_swim_tilt_ledge|1|Body|Straighten Near a Way Out|Advanced VR Options > Body > Straighten Near a Way Out
 vr_prone_body_angle|1|Body|Lying Down Body Angle|Advanced VR Options > Body > Lying Down Body Angle
 vr_prone_body_time|1|Body|Lying Down Time|Advanced VR Options > Body > Lying Down Time
+vr_prone_hip_floor|1|Body|Lying Down Hips Over Floor|Advanced VR Options > Body > Lying Down Hips Over Floor
+vr_prone_leg_reach|1|Body|Lying Down Leg Reach|Advanced VR Options > Body > Lying Down Leg Reach
 vr_body_climb_feet|1|Body|Climbing Footholds|Advanced VR Options > Body > Climbing Footholds
 vr_body_climb_feet_reach|1|Body|Foothold Reach|Advanced VR Options > Body > Foothold Reach
 vr_body_climb_feet_speed|1|Body|Foothold Step Speed|Advanced VR Options > Body > Foothold Step Speed
@@ -1841,11 +1843,17 @@ vr_2h_sticky_fast|1|Aiming|While Swinging|Advanced VR Options > Weapons > Aiming
 vr_2h_sticky_fast_from|1|Aiming|Swing From|Advanced VR Options > Weapons > Aiming > Swing From
 vr_2h_sticky_fast_full|1|Aiming|Swing Full At|Advanced VR Options > Weapons > Aiming > Swing Full At
 vr_2h_sticky_fast_hold|1|Aiming|Swing Fades Over|Advanced VR Options > Weapons > Aiming > Swing Fades Over
-vr_proj_inherit_fast|1|Aiming|Fast Shots: Your Motion|Advanced VR Options > Weapons > Aiming > Fast Shots: Your Motion
+vr_proj_inherit_fast_along|1|Aiming|Fast Shots: Your Motion Along|Advanced VR Options > Weapons > Aiming > Fast Shots: Your Motion Along
+vr_proj_inherit_fast_across|1|Aiming|Fast Shots: Your Motion Across|Advanced VR Options > Weapons > Aiming > Fast Shots: Your Motion Across
 vr_proj_inherit_fast_hand|1|Aiming|Fast Shots: Hand Swing|Advanced VR Options > Weapons > Aiming > Fast Shots: Hand Swing
-vr_proj_inherit_lobbed|1|Aiming|Lobbed Shots: Your Motion|Advanced VR Options > Weapons > Aiming > Lobbed Shots: Your Motion
-vr_proj_inherit_lobbed_hand|1|Aiming|Lobbed Shots: Hand Flick|Advanced VR Options > Weapons > Aiming > Lobbed Shots: Hand Flick
-vr_proj_inherit_spray|1|Aiming|Sprays: Your Motion|Advanced VR Options > Weapons > Aiming > Sprays: Your Motion
+vr_proj_inherit_rocket_along|1|Aiming|Rockets: Your Motion Along|Advanced VR Options > Weapons > Aiming > Rockets: Your Motion Along
+vr_proj_inherit_rocket_across|1|Aiming|Rockets: Your Motion Across|Advanced VR Options > Weapons > Aiming > Rockets: Your Motion Across
+vr_proj_inherit_rocket_hand|1|Aiming|Rockets: Hand Swing|Advanced VR Options > Weapons > Aiming > Rockets: Hand Swing
+vr_proj_inherit_lobbed_along|1|Aiming|Lobbed Shots: Your Motion Along|Advanced VR Options > Weapons > Aiming > Lobbed Shots: Your Motion Along
+vr_proj_inherit_lobbed_across|1|Aiming|Lobbed Shots: Your Motion Across|Advanced VR Options > Weapons > Aiming > Lobbed Shots: Your Motion Across
+vr_proj_inherit_lobbed_hand|1|Aiming|Lobbed Shots: Hand Swing|Advanced VR Options > Weapons > Aiming > Lobbed Shots: Hand Swing
+vr_proj_inherit_spray_along|1|Aiming|Sprays: Your Motion Along|Advanced VR Options > Weapons > Aiming > Sprays: Your Motion Along
+vr_proj_inherit_spray_across|1|Aiming|Sprays: Your Motion Across|Advanced VR Options > Weapons > Aiming > Sprays: Your Motion Across
 vr_proj_inherit_spray_hand|1|Aiming|Sprays: Hand Swing|Advanced VR Options > Weapons > Aiming > Sprays: Hand Swing
 vr_weight_stamina|1|Aiming|Heavier When Tired|Advanced VR Options > Weapons > Aiming > Heavier When Tired
 |1|Aiming|Reset This Page|Advanced VR Options > Weapons > Aiming > Reset This Page
@@ -3965,6 +3973,18 @@ vr_flat_arm_hold|2|Tunables|Arm Hold|Advanced VR Options > Debug > Tunables > Ar
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
+vr_flat_empty_hand_pose|2|Tunables|Empty Hand Pose|Advanced VR Options > Debug > Tunables > Empty Hand Pose
+vr_flat_relaxed_fwd|2|Tunables|Relaxed Hand Forward|Advanced VR Options > Debug > Tunables > Relaxed Hand Forward
+vr_flat_relaxed_down|2|Tunables|Relaxed Hand Down|Advanced VR Options > Debug > Tunables > Relaxed Hand Down
+vr_flat_relaxed_out|2|Tunables|Relaxed Hand Out|Advanced VR Options > Debug > Tunables > Relaxed Hand Out
+vr_flat_relaxed_pitch|2|Tunables|Relaxed Hand Pitch|Advanced VR Options > Debug > Tunables > Relaxed Hand Pitch
+vr_flat_relaxed_roll|2|Tunables|Relaxed Hand Roll|Advanced VR Options > Debug > Tunables > Relaxed Hand Roll
+vr_flat_guard_fwd|2|Tunables|Guard Fist Forward|Advanced VR Options > Debug > Tunables > Guard Fist Forward
+vr_flat_guard_down|2|Tunables|Guard Fist Down|Advanced VR Options > Debug > Tunables > Guard Fist Down
+vr_flat_guard_out|2|Tunables|Guard Fist Out|Advanced VR Options > Debug > Tunables > Guard Fist Out
+vr_flat_guard_pitch|2|Tunables|Guard Fist Pitch|Advanced VR Options > Debug > Tunables > Guard Fist Pitch
+vr_flat_guard_roll|2|Tunables|Guard Fist Roll|Advanced VR Options > Debug > Tunables > Guard Fist Roll
+vr_flat_empty_take_time|2|Tunables|Weapon Taken: Rise Time|Advanced VR Options > Debug > Tunables > Weapon Taken: Rise Time
 vr_flat_support_fwd|2|Tunables|Both Hands Forward|Advanced VR Options > Debug > Tunables > Both Hands Forward
 vr_flat_support_down|2|Tunables|Both Hands Down|Advanced VR Options > Debug > Tunables > Both Hands Down
 vr_flat_stance|2|Tunables|Two-Handed Stance|Advanced VR Options > Debug > Tunables > Two-Handed Stance
@@ -4059,6 +4079,12 @@ vr_flat_slide_drop|2|Tunables|Slide Eye Drop|Advanced VR Options > Debug > Tunab
 vr_flat_slide_body_angle|2|Tunables|Slide Body Lean Back|Advanced VR Options > Debug > Tunables > Slide Body Lean Back
 vr_flat_slide_neck_back|2|Tunables|Slide Neck Back|Advanced VR Options > Debug > Tunables > Slide Neck Back
 vr_flat_slide_body_time|2|Tunables|Slide Pose Time|Advanced VR Options > Debug > Tunables > Slide Pose Time
+vr_flat_slide_leg_reach|2|Tunables|Slide Leg Reach|Advanced VR Options > Debug > Tunables > Slide Leg Reach
+vr_flat_slide_turn_time|2|Tunables|Slide Stance Turn Time|Advanced VR Options > Debug > Tunables > Slide Stance Turn Time
+vr_flat_slide_legs|2|Tunables|Slide Legs Follow Slide|Advanced VR Options > Debug > Tunables > Slide Legs Follow Slide
+vr_flat_slide_legs_twist|2|Tunables|Slide Legs Most Twist|Advanced VR Options > Debug > Tunables > Slide Legs Most Twist
+vr_flat_slide_bob|2|Tunables|Slide Walk Bob|Advanced VR Options > Debug > Tunables > Slide Walk Bob
+vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > Tunables > Slide Sound Volume
 vr_flat_lean_angle|2|Tunables|Lean Roll|Advanced VR Options > Debug > Tunables > Lean Roll
 vr_flat_lean_dist|2|Tunables|Lean Distance|Advanced VR Options > Debug > Tunables > Lean Distance
 vr_flat_lean_pivot|2|Tunables|Lean Pivot|Advanced VR Options > Debug > Tunables > Lean Pivot
@@ -4285,6 +4311,8 @@ vr_agarmor_bridge|2|Debug - Views|Elbow and Knee Leather|Advanced VR Options > D
 vr_agarmor_folds|2|Debug - Views|Leather Folds|Advanced VR Options > Debug > Views > Leather Folds
 vr_agarmor_fold_depth|2|Debug - Views|Leather Fold Depth|Advanced VR Options > Debug > Views > Leather Fold Depth
 vr_agarmor_bend|2|Debug - Views|Bend Armoured Elbows and Knees|Advanced VR Options > Debug > Views > Bend Armoured Elbows and Knees
+vr_agarmor_pose_frame|2|Debug - Views|Hold Armoured Bodies at Frame|Advanced VR Options > Debug > Views > Hold Armoured Bodies at Frame
+vr_agarmor_bridge_trace|2|Debug - Views|Trace the Joints' Leather|Advanced VR Options > Debug > Views > Trace the Joints' Leather
 |2|Debug - Views|Check the Elbow and Knee Leather|Advanced VR Options > Debug > Views > Check the Elbow and Knee Leather
 |2|Debug - Views|Check the Armour's Fit|Advanced VR Options > Debug > Views > Check the Armour's Fit
 |2|Debug - Views|Print the Authored Rig's Drawing|Advanced VR Options > Debug > Views > Print the Authored Rig's Drawing
@@ -4545,6 +4573,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Flatscreen Back In His Eyes|Advanced VR Options > Debug > Reports > Flatscreen Back In His Eyes
 |2|Debug - Reports|Flatscreen Fly Camera|Advanced VR Options > Debug > Reports > Flatscreen Fly Camera
 |2|Debug - Reports|Flatscreen Fly Camera Test|Advanced VR Options > Debug > Reports > Flatscreen Fly Camera Test
+|2|Debug - Reports|Flatscreen Fly Camera: Look at Me|Advanced VR Options > Debug > Reports > Flatscreen Fly Camera: Look at Me
 |2|Debug - Reports|Flatscreen Pose Sweep|Advanced VR Options > Debug > Reports > Flatscreen Pose Sweep
 |2|Debug - Reports|Flatscreen Sight Check|Advanced VR Options > Debug > Reports > Flatscreen Sight Check
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
@@ -4936,6 +4965,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
+|2|Debug - Tests|Lying Body Test|Advanced VR Options > Debug > Tests > Lying Body Test
+|2|Debug - Tests|Lying Body Report|Advanced VR Options > Debug > Tests > Lying Body Report
 |2|Debug - Tests|Flat Lean Test|Advanced VR Options > Debug > Tests > Flat Lean Test
 |2|Debug - Tests|Flat Prone Test|Advanced VR Options > Debug > Tests > Flat Prone Test
 |2|Debug - Tests|Flat Lean / Slide Status|Advanced VR Options > Debug > Tests > Flat Lean / Slide Status
