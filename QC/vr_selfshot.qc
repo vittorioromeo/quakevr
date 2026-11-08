@@ -155,22 +155,6 @@ float(entity xTarget, vector xAt) VR_SelfShot_Head =
     return VR_SelfShot_Live(xTarget) && vr_ss_part == QVR_SS_PART_HEAD && vlen(xAt - vr_ss_at) < 2;
 };
 
-// player_pain (self the player): a self-hit cries out as any other pain, while firing too (the shot that struck him is
-// always mid-fire: player_pain skips its frames and their PainSound then; his note vrstart_2026-11-08_17-00-44).
-void() PainSound; // (player.qc)
-float() VR_SelfShot_Pain =
-{
-    if(!VR_SelfShot_Live(self))
-    {
-        return FALSE;
-    }
-    if(self.weaponframe || self.weaponframe2 || self.invisible_finished > time)
-    {
-        PainSound(); // (no pain frames: the gun's own play on)
-        return TRUE;
-    }
-    return FALSE;
-};
 
 // T_Damage, as `take` (and `save`, the armour's) is taken from the player by his own shot: the hand it struck buzzes
 // (a forearm or a hand; the body's hits buzz as any other's: the client's pain haptics).

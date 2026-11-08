@@ -4760,9 +4760,11 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   lowest crouched box's top, getting up still needs that box to fit; the crouch rises on from there.
 - **Sliders widened:** Lying Down Height 12..48, Crawling Speed step 0.02, Arm Crawl Strength 0.25..10 (default 2.5 ->
   **1.25**, his), Pull Speed 0..2, Friction 0..20, Top Speed 20..400.
-- **Self-shot pain** (`player.qc` player_pain, vr_selfshot.qc VR_SelfShot_Pain): your own shot is always mid-fire, where
-  Quake skips the pain frames and with them PainSound; a self-hit now plays PainSound there (frames still skipped).
-  Other damage while firing stays silent as in Quake (not changed).
+- **Pain sound while firing** (`player.qc` player_pain; his follow-up): Quake's early return on weaponframe /
+  weaponframe2 skipped the pain frames and with them PainSound, so any hit taken mid-fire was silent (your own shot is
+  always mid-fire). Now it skips only the frames: PainSound plays (its pain_finished half second still limits it), the
+  axhitme reset kept. A first version special-cased self-hits only (VR_SelfShot_Pain): removed, self-hits scream
+  through this path. (Invisible, Ring of Shadows: still no pain sound, as Quake.)
 - **Self-shot head** (vr_selfshot.cpp current(): PartHead 6, QC QVR_SS_PART_HEAD): an upright capsule round the skull
   (middle 8 cm behind and 2 cm under the eyes, radius 8.5 cm, 13 cm under to 10.5 cm over the eyes; its front 0.5 cm
   ahead of them). Only your own shots' capsules: the wounds' (build) have none, no wound painted on the head. Damage:
@@ -4780,7 +4782,8 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   strokes at y 0.015 now, the fist 0.7 units over the floor; grip and trigger by +graboff / +offhandattack: a
   vr_mock_button press is a key the open console takes). New `prone_eye_test.py` **6 passed** (limit 48 at 60; 40:
   lying at 37, still at 40 and, margin 8, at 44; up at 49; 22 at 37: crouched 44). `prone_test.py` **32 passed**.
-  `vr_selfshot_test 1` **27 passed** (head met; a head pellet 6 = 4 x 1.5 against the palm's 3; pain sound mid-fire;
+  `vr_selfshot_test 1` **29 passed** (head met; a head pellet 6 = 4 x 1.5 against the palm's 3; pain sound mid-fire;
+  a grunt's hit mid-fire: pain sound, no pain frames, a second hit at once rate-limited;
   a line ahead from the face not met), `2` **1 passed** (no self-hit in ordinary firing). New
   `flashgrab/flash_trigger_test.py` **6 passed** (shotgun hand's trigger at the lamp: unchanged; empty hand: switches).
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0

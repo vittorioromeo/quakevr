@@ -200,6 +200,28 @@ void(entity p) VR_SST_Aimed =
             sprintf("your head: damage %g (a pellet's times the headshot multiplier: %g; the palm's %g)", headDmg, want,
                 vr_sst_palm));
         VR_Test_Check(p.pain_finished > time, sprintf("your head, mid-fire: the pain sound played (%s)", p.noise));
+        // Any damage mid-fire (a grunt's shot while the gun fires): the pain sound plays (player_pain skips only the
+        // frames), and a second hit within pain_finished's half second does not play it again.
+        entity grunt = spawn();
+        grunt.classname = "monster_army";
+        grunt.flags = FL_MONSTER;
+        p.health = 100;
+        p.weaponframe = 3;
+        p.pain_finished = 0;
+        p.noise = "";
+        float frame0 = p.frame;
+        T_Damage(p, grunt, grunt, 1);
+        string firstNoise = p.noise;
+        float firstFinished = p.pain_finished;
+        float firstFrame = p.frame;
+        p.noise = "none";
+        T_Damage(p, grunt, grunt, 1);
+        remove(grunt);
+        VR_Test_Check(firstFinished > time && firstNoise != "" && firstFrame == frame0 && p.weaponframe == 3,
+            sprintf("a grunt's hit mid-fire: the pain sound played (%s), no pain frames (frame %g, was %g)", firstNoise,
+                firstFrame, frame0));
+        VR_Test_Check(p.noise == "none" && p.pain_finished == firstFinished,
+            sprintf("a second hit at once: rate-limited, not played again (%s)", p.noise));
         p.weaponframe = 0;
         p.health = 100;
         // A gun held at the eyes aiming ahead (its line from in front of the face): not met.
