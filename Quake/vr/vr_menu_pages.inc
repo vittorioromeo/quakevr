@@ -132,6 +132,7 @@
         row(opt::r_particles),
         row(opt::vr_particles),
         row(opt::vr_particle_mult),
+        row(opt::vr_drips),
     };
 }
 

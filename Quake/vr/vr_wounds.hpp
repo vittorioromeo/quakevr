@@ -92,6 +92,11 @@ bool gripPrint(int hand, const glm::vec3& at, float radius, float strength);
     glm::vec3& normal);
 
 // vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds cleared (Gore > Training Dummy).
+// A point a drop may fall from on `e` (entity `num`, a Quake alias model; as drawn this frame): a downward-facing
+// triangle's middle under `below` (its waterline), a little off it; `lowZ` the model's lowest point. False: none found
+// (ten tries) or not one the wounds can pose (vr_drips.cpp then takes its box).
+bool dripPoint(const entity_s& e, int num, float below, glm::vec3& at, float& lowZ);
+
 void dummyReset_f();
 
 // The test and report commands (vr_wounds_test, _dump, _info; vr_gore_hands_test, vr_wrist_blood_test, vr_gore_wash_test,

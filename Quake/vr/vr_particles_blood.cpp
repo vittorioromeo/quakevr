@@ -222,7 +222,7 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
     }
 }
 
-void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color)
+void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color, float alpha)
 {
     if(!vr_particles.value || !ensureAtlas())
     {
@@ -233,7 +233,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
     {
         Particle p;
         p.cell = CellCircle;
-        p.color = glm::vec4{color, i == 0 ? 0.95f : 0.55f - 0.2f * i};
+        p.color = glm::vec4{color, (i == 0 ? 0.95f : 0.55f - 0.2f * i) * alpha};
         p.scale = size * (1.f - 0.2f * i);
         p.type = Static;
         p.acc = gravity(1.f);
@@ -244,7 +244,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
     }
 }
 
-void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color)
+void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color, float alpha)
 {
     if(!vr_particles.value || !ensureAtlas())
     {
@@ -254,7 +254,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
     {
         Particle p;
         p.cell = CellCircle;
-        p.color = glm::vec4{color, 0.85f};
+        p.color = glm::vec4{color, 0.85f * alpha};
         p.scale = vrand::range(rng, 0.12f, 0.22f);
         p.type = Static;
         p.acc = gravity(1.f);
