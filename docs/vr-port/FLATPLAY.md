@@ -92,10 +92,12 @@ console.
 |---|---|
 | mouse LMB | with **one weapon held, in either hand**, fires it; with a weapon in each hand, or none, fires the right hand (as in VR). With a weapon a swing strikes with in the hand it drives â€” an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe â€” it is also the punch `V` makes |
 | mouse RMB | with **one weapon held, in either hand**, the ironsight: held while the button is held (`vr_flat_aim_mode 0`, the default) or a click on and the next off (`1`; VR Settings > Locomotion, Desktop Screen Play > Right Click Ironsight), and it fires nothing; with a weapon in each hand, or none, fires the left hand (as in VR; the same punch with a swinging weapon or the fist) |
-| `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now `R`) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
+| `Q`, `E` | lean left and right while held (`vr_flat_lean_toggle 1`: a press leans, the next stands straight): see Leaning below. The keys are `vr_flat_key_lean_left` and `vr_flat_key_lean_right` (default `q`, `e`; `""` none); `+flatleanleft` / `+flatleanright` hold them from the console. E was the force grab (now mouse 4, `R` too) and Quake's `+moveup` (dropped from the default binds: jump swims up) |
 | `3` | swaps what the two hands hold (`impulse 48` â†’ `VR_FlatSwapHands`, `QC/vr_wpnholster.qc`): each weapon with its magazine and its next shot's time; one weapon goes to the empty hand. A hand carrying a box or a prop keeps it and nothing swaps (`G` lets it go). The key is `vr_flat_key_swap` (a bind name, default `3`; `""` none). 3 was the third weapon's slot key (`impulse 3`): in the mode the weapons are reached with `1`, `2` and the mouse wheel, which cycle through every weapon collected, the third included |
 | `Z` | starts and stops bullet time (`vr_bullettime.cpp keyPress`): the headset's own rules â€” `vr_bullettime_enabled`, a single-player game, the meter's `vr_bullettime_min`, the cooldown, the bounce guard `vr_bullettime_trigger_cooldown` â€” and its meter is the status bar's bar (below). The key is `vr_flat_key_bullettime` (default `z`). Z was bound to nothing before |
-| `R` | force-grabs what the view is pointed at, with the free hand (`impulse 46` Ã¢â€ â€™ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and R does nothing. The key is `vr_flat_key_grab` (default `r`; `""` none). |
+| Mouse 4, `R` | force-grabs what the view is pointed at (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab, with the headset's sparks, glow outline, tendril, trail and sound). With both hands empty the dominant hand grabs (`vr_lefthanded`; the right by default), else the empty one; with both hands holding weapons there is no hand to collect with and it does nothing. The keys are `vr_flat_key_grab` (default `mouse4`, the side button the shove leaves) and `vr_flat_key_grab_alt` (default `r`); `""` none |
+| `F7` | the toolgun in the right hand; again, gives back what that hand held (`impulse 49` → `VR_FlatToolgun_Toggle`; `vr_flat_key_toolgun`). With it held the left button is its trigger, mouse 3 opens its panel and `B` held is its X/A: see The toolgun below |
+| `F8` | the fly camera (below) |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
@@ -623,6 +625,39 @@ on, and he still stands still. `vr_flat_flycam_speed` (320 units/s), `vr_flat_fl
 at once), `vr_flat_flycam_fast` (Shift: x3). Off again, the view is back in his eye exactly. A headset ignores it (the
 toggle says so). Rows: Movement > Locomotion > Desktop Screen Play; Debug > Reports: Flatscreen Fly Camera (and its
 test). Test: `vr_flat_flycam_test` (`Misc/quakevr/flatflycam_test.sh`).
+
+## The toolgun
+
+**F7** (`vr_flat_key_toolgun`) puts the toolgun in the right hand (what it held is kept), F7 again gives that back
+(`impulse 49`, QC `VR_FlatToolgun_Toggle`). With it in hand:
+
+- **Left button**: its trigger (the chosen tool on what the crosshair points at: spawn, remove, the physgun's hold, ...).
+- **Mouse 3** (`vr_flat_key_toolgun_menu`): opens and closes its panel (the headset's B/Y). In flat the panel is drawn over
+  the window (`vr_flat_toolgun_panel_size` 0.75 of its height, its middle at `vr_flat_toolgun_panel_x` / `_y`, 0.5 0.5)
+  with a cursor the desktop mouse moves (`vr_flat_toolgun_cursor_speed` 1: as the desktop's pointer); the view does not
+  turn while it is open (`IN_MouseMotion` → `VR_FlatToolgunMouse`). The left button clicks where the cursor is
+  (`toolgun::panel::flatClick`, the headset's laser click), a drag moves a slider. **Esc** closes it too (no menu).
+- **B held** (`vr_flat_key_toolgun_adjust`): the headset's X/A on the gun's hand. The physgun's angles snap
+  (`vr_toolgun_snap`), and the mouse is the tool's instead of the view's: up and down push what the physgun holds out and
+  pull it in (`vr_flat_toolgun_push_scale`, 0.5 units a count; the brush tool's push, the scale tool's size by 1% a unit),
+  left and right turn it (`vr_flat_toolgun_turn_scale`, 0.4 degrees a count, about `vr_toolgun_turn_axis`). The spawn tool's
+  ghost keeps turning with the aim (B held: it turns as the hand does, as in the headset).
+
+Test: `Misc/quakevr/flattoolgun_test.sh` (F7, the panel opened with mouse 3, an armed humanoid and the Grunt Burst Rifle
+chosen with the cursor and spawned; Esc; B and the mouse moving and turning the physgun's grunt). Test aid:
+`vr_flat_mouse_move <dx> <dy> | to <widget>` (the mouse's counts handed on as `IN_MouseMotion` does).
+
+## The empty hands
+
+A hand holding nothing rests in `vr_flat_empty_hand_pose` (Debug > Tunables > Flatscreen > Free Hands): **2** (the
+default) fists up in a guard while both hands are empty, and the arm relaxed down the body while the other hand holds a
+weapon; **0** always relaxed; **1** always the guard; **-1** the old place (Empty Hand Forward/Down/Out, fingers down). The
+poses are shares of the arm's reach off its shoulder, level with the body: `vr_flat_relaxed_fwd` / `_down` / `_out` /
+`_pitch` / `_roll` (0.06, 0.94, 0.16, 80, 0) and `vr_flat_guard_*` (0.5, -0.08, -0.12, -30, 0; the guard's fingers close
+into fists). One eases into the other as the other hand takes or drops a weapon; a weapon taken into a resting hand comes
+up out of the pose over `vr_flat_empty_take_time` (0.1 s; 0 at once, as before). A punch (`V`) or a shove starts from the
+pose: the hand leaves the rest for it and comes back after. Debug > Reports: Flatscreen Fly Camera: Look at Me
+(`vr_flat_flycam_place`) puts the fly camera in front of you to look at the pose.
 
 ## The model FOV
 

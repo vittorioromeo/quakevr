@@ -51,6 +51,9 @@ struct FireRoute
 // Whether this hand's punch is running (its clock: flatplay's own, so never in a headset). The free hand on a grip lets go
 // of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
 [[nodiscard]] bool punching(int h);
+// How far empty hand `h`'s fingers close into a fist (0 open .. 1): its rest's share of the guard
+// (vr_flat_empty_hand_pose), and all the way while it punches.
+[[nodiscard]] float fistShare(int h);
 
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
