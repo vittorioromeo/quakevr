@@ -4226,3 +4226,42 @@ Renders (qvr-kit `scratch/armourlook/`): `hero_k_pair.png` (knights, before over
 
 Not done: a breastplate two rows tall (the mockup's): a run down the rows needs the upper row's lip opened onto the lower's top,
 a 2 x 2 tile and the side rims closed by hand; the breastplate is the chest row's two front plates (four would be a 6 : 1 strip).
+
+## Gun skins: nail pistol blue steel, flare gun toned down, grunt rifle grimier (branch `agent/regfix`, 2026-11-08)
+
+His notes: the nail pistol's dark metal "closer to the shotgun and super shotgun ... deep dark blue steel", the slide's end
+kept silvery (further than 4b9a6369c's half-way shift); the flare gun "a bit darker and a tiny bit less saturated", its
+front sight "a little bit too bright", not overdone; the grunt burst rifle "a bit too bright and too clean": darker and a
+bit grimier, not overdone. Reference: v_shot/v_shot2 (visible texels: palette rows 0-2 dark end, 1/16/17/32-35/48/49,
+mean luminance 18 and 16). One-off repaint scripts (not kept: the PNGs are the sources), skins only: every model's
+triangles, positions and texture coordinates are unchanged (compared as triangle sets, every frame).
+
+- **Nail pistol** (`v_nailpistol_skin0.png`; its top half byte for byte into `v_nailpistol_mag`, `vr_mag_npistol`,
+  `vr_mag_on_v_nailpistol`, `vr_nailpistol_preview`). The steel texels (greys 0-6, browns, the dark warm greys) at 0.6 of
+  their brightness on the blue-grey ramp (32-40, with 0/1/2), warm ones keeping a fifth of their hue (dark browns 16-18,
+  as the shotgun's), Floyd-Steinberg so the mottling stays. Kept as they were: the silvery slide bar (warm greys 160-172
+  and their shading), the light greys 7-15 and texels beside them (frames, grilles, rivets), the label and accents (rows
+  3-6, 11), fullbrights, and the sight-insert patches (rows 468-490, s 8-68) whole. Visible luminance 45.7 -> 34.0 (the
+  kept silver lifts it; the steel alone ~18), saturation (blue) 0.16 -> 0.26. All five exported with blend_export.py.
+- **Flare gun** (`flaregun_skin.png`, `flaregun_skin_pal.png`): saturation x0.88, brightness x0.88, the front blade's own
+  bright texels (127/124/160/15: not shared with other faces) a further x0.82, then dithered onto the source row plus rows
+  0/1/7/10. Visible luminance 48.7 -> 42.9, saturation 0.60 -> 0.53; the blade top 127/160 -> 164/165/167. The topology
+  fixer (agent/selfshot) welded the shipped v_flaregun/vr_flaregun_preview in the .mdl only (1528 vertices; the generator
+  writes 1565): so export_mdl.py was run into scratch and its three skins (fired overlays composited on the new skin 0) and
+  the preview's skin spliced into the shipped files; everything after the skins is byte for byte the fixer's.
+  (Re-running export_mdl.py into quakevr/progs would undo the weld, not the repaint.)
+- **Grunt burst rifle** (`v_gruntgun_skin0.png`; the #adv variants are made from it at load): x0.8, low-frequency grime
+  blotches (up to 42% toward a dark brown), dirt along the painted panel lines (up to 30% darker), dithered within the
+  texel's own row plus rows 0/1/10; fullbrights, the red and the green rows kept, and the flat area at the corner
+  (Mod_FloodFillSkin's background) untouched. Visible luminance 65.1 -> 49.2 (the shotgun 18: "don't overdo it").
+  blend_export.py rebakes `v_gruntgun.mdl_0_norm.png` (its paint heights read the skin): no extra noise, its tilt
+  14.4 -> 13.9 and high-frequency energy 7.4 -> 6.8 (an undithered repaint gave 6.9, so the dither adds none).
+- **Kept:** barrel masks (vr_barrelmask_report: nail pistol 74/518, rifle 236/816, flare gun 249/860), sight lines
+  (vr_sight_lines: nail pistol painted rear -1.63 0 6.38 front 8.93 0 6.38; flare gun and rifle table lines as before),
+  the inserts' texels. flatsight_test: see the commit's report.
+- **Renders** (scratch of the worktree, offline rasteriser, left / right / 3-quarter, the shotgun on top):
+  `w3_np_before_after.png` (shotgun, ssg, pistol before/after, preview before/after), `w3_fg_before_after.png`,
+  `w3_gg_before_after.png`.
+- **Test it in VR:** hold each next to the shotgun: the nail pistol's body the same deep blue-black steel with the silver
+  bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
+  dirtier, its details still readable; grunts' rifles alike.
