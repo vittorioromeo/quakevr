@@ -102,6 +102,15 @@ void PF_ragdollstagger()
                                   : 0.f;
         return;
     }
+    // (`sure` 3, QC VR_Knockdown_GetUpShove: a shove on one rising through its get-up, box3d::ragdollRiseShove: `push` the
+    // shove's, `balance` the push under which one nearly up takes a balance step, `reach` how far through its get-up (0..1) that is. 0: not
+    // rising; 1 back down, falling; 2 a balance step, a stagger.)
+    if(qcvm->argc > 6 && G_FLOAT(OFS_PARM6) == 3.f)
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollRiseShove(G_EDICT(OFS_PARM0), geom::vec(d), G_FLOAT(OFS_PARM2),
+            G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4)));
+        return;
+    }
     const float recover = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : -1.f;
     const bool sure = qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f;
     const float farther = qcvm->argc > 7 ? G_FLOAT(OFS_PARM7) : 1.f;

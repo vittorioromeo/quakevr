@@ -560,6 +560,7 @@ vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
 vr_wornpack_test.qc
+vr_rag1108_test.qc // the 11-08 round's ragdoll fixes: removal, back tanks, the gib rule, shoves getting up (vr_rag1108_test)
 vr_ragsmash_test.qc // a ragdoll smashed into a wall: its sound and blood (vr_ragsmash_test)
 vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc

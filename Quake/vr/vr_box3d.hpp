@@ -339,6 +339,10 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
 // u/s at first and slowing evenly, on its feet until the floor is gone from under its pelvis; it never goes over before
 // that. False: it can't.
 bool ragdollBackpedal(edict_t* ent, const glm::vec3& dir, float push, float balance, float carry, float speed);
+// A shove along `dir` (its push `push`: one hand 0.7, two 1) on a living one rising through its get-up (QC
+// VR_Knockdown_GetUpShove; vr_knockdown_getup_shove): 1 back down, a fall along it; 2 a balance step (a stagger: a shove
+// weaker than `stepBelow` on one at least `late` through its get-up, 0..1); 0 not rising (nothing done).
+int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepBelow, float late);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no

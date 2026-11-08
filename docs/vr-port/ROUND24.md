@@ -4853,6 +4853,55 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
 
+## Ragdolls and armed humanoids, 11-08 (branch `agent/rag1108`, 2026-11-08)
+
+His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-04-50 and 17-14-18.
+
+- **Removed outright, its pack goes with it (start_16-51-19).** The cause: `ED_Free` keeps an edict's fields until the
+  slot is reused, so a removed wearer still pointed at its pack. The pack's think took it for a hidden wearer
+  (`model ""`) and only noticed it was gone when the edict was reused, then tore the pack off with its rip: "after
+  some time ... out of nowhere". `VR_AG_RemoveWith` (vr_wornpack.qc) removes the worn pack (living or dead), the held
+  weapons and their back tanks, quietly. It is called by `VR_Scene_Remove` (the toolgun's remover, `vr_scene_clean`)
+  and by `VR_Knockdown_RemoveBody`. `VR_AG_Freed` (vr_armedgrunt_defs.qc: model index 0, think -1, not solid,
+  untouchable) is the backstop in the pack's and the weapon's thinks for any other `remove`. Worn packs no longer count
+  as props for Clear Props. The toolgun has no undo for removals; the panel's Remove page has only Clear Props. A faded
+  corpse's pack now goes with it too (it used to drop later, the same bug).
+- **Hanging struggle (vrclimb_17-20-00).** `hangStruggle` (vr_ragactive_hold.cpp): the legs kick back and forth out of
+  step, kept out from the wall's face, a knee drawn up on the way in, a little aside. Each hanger has its own pace, beat
+  and wander from its seed. The body sways along the lip by a capped push on the pelvis (4 % of its weight). It runs at
+  full strength in the Hang phase, at half while it pulls itself up, and while it goes over the lip until its feet
+  reach for the top. The holds are not touched. Cvars: `vr_ragdoll_active_hang_kick` 2 (0..3; 0 off), `_hz` 1.4,
+  `_random` 0.6, `vr_ragdoll_active_hang_sway` 1. The climb's end line (`vr_knockdown_debug 1`) gives its feet's travel.
+  `climb_test.sh` takes `KICK=0|1` for a before/after. Not done: a grip shuffle (it risks the hold), and dying hangers.
+- **Shoves while getting up (vrclimb_17-20-42).** `VR_Knockdown_GetUpShove` (vr_knockdown.qc), called by `VR_Bash_Hit`
+  before the knockdown's chance, when `vr_knockdown_getup_shove` is 1. A body rising as an active ragdoll
+  (`box3d::ragdollRiseShove`, reached through `ragdollstagger`'s `sure` 3 because the builtins table is full) goes back
+  into an active fall along the shove, pushed at 2.2 m/s times the push; its down time starts again and the shove is
+  not counted as a lapse. A shove weaker than `vr_knockdown_getup_shove_step` (0.8: one hand) on one past
+  `vr_knockdown_getup_shove_late` (0.6) of its get-up is a balance step instead: a stagger along the shove whose
+  balance is lower the earlier it is in the rise and the more bent over it is, so it may still go over. Progress counts
+  rather than how upright the chest is: a grunt's pelvis-to-head is only 0.3 upright at 1.8 s into its rise. One
+  rising the old way (its get-up's frames, `.vr_knockdown` 2) is knocked down again and toppled along the shove.
+- **Gib rule (vrragtriggers_17-04-50).** In `VR_Corpse_Damage`, explosions (kind explosions or a splash) still gib once
+  their damage wears the corpse's pool out. Any other hit gibs only if it alone deals `vr_corpse_gib_overkill` (50) or
+  more, or if the pool is already worn out and it deals `vr_corpse_gib_hit_min` (35) or more. Lesser hits keep wearing
+  the pool and popping limbs and heads, but never gib it whole. `vr_corpse_gib_overkill 0` restores the old rule.
+- **Tanks beside the packs (vrragtriggers_17-14-18).** `VR_FuelTank_WornPlace` moves the worn tank
+  `vr_adgun_tank_worn_side` (7) units to the wearer's right (the weapon hand's side; the back's own frame:
+  forward x up) and `vr_adgun_tank_worn_back` (0) farther out. Same rule for every kind; an enforcer's tank sits
+  right of its model's power pack.
+- **Test:** `vr_rag1108_test 1..5` (Debug > Tests, four rows; ends on `rag1108<part>: N passed, M failed`).
+  Results: removal 5/0; gib rule 6/0; shoves 4/0 in four runs (test 5's one-hand shove 100 % up: a balance step,
+  balance 0.51; an earlier old-style timeout in state 46 did not come back in three runs); tanks 9/0 (each 6.8-7.9
+  units right, 1.7-2.0 off the pack's box). The hang struggle (vrtesthall west lip, grunt, hang then drop, seed 7): its
+  feet's travel 194 units at kick 0, 213 at 1, 265 at 2, 297 at 3; the hold let go at 2.42 s every time (its timer, not
+  the kicks). `climb_test.sh` (grunt, knight, enforcer; pull and drop; 2 seeds): the same outcomes and times with
+  KICK 0 and 1 (the grunt's pull "too weak to rise" and the enforcer's "no grab" in both: not from this). Default
+  raised to 2. No tank screenshot: the author's game was running (low-impact runs only).
+- **Regressions run (low-impact, no baseline build at hand):** wornpack 1 25/0, 5 7/0, 3 11/1 (a gentle pull's
+  force 2378 N, physics); agrunt 2 2/2 (rearm takes no guns, drop finds nothing), 74 0/1 (downtug, on the 11-06
+  night's new-fails list); `stagger_test.sh` 5 FAIL (ragdoll_stagger is on QUEUE's pre-existing list). agrunt 2 is not
+  proven unrelated: re-run it on a clean origin/next.
 ## Flat-screen feedback 2026-11-08 evening (agent/flat1108c)
 
 - Slide: stairs stopped it (Quake steps up only with FL_ONGROUND, off every other move at slide speed; the step face zeroed the speed), and on the first step the eye (a frame behind) dropped under the prone limit and laid him down. A grounded slide now steps up every move (VR_FlatSlideStepUp), costs vr_flat_slide_slope * rise / speed per step, and cannot enter prone. Up a ramp vz > 60 counted as a jump: a jump now needs the jump key. A/D alone asked 90+ degrees off the slide and never steered: any way but within 20 degrees of straight back steers. Test: vr_flatslide_rough_test (flatslide_test.sh), 4/4 (with the step-up alone, the prone entry still ended it on the first step: rose 16).

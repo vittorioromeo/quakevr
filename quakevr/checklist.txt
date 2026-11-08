@@ -35,6 +35,12 @@ Shoot yourself in the head (muzzle at the temple or under the chin): it hits, 1.
 Shotgun hand over the chest flashlight: the trigger fires the gun, the lamp stays as it was; an empty hand there still switches the lamp {test:prone_floor}
 Blowing on gun smoke with the gun at your mouth: the smoke stays visible right up to your face (Tunables > Wisps Near the Eye, 5 cm) and the blow pushes it away (vr_smoke_blow 1) {test:prone_floor}
 Get shot by a grunt while holding the nailgun's trigger: you hear the pain grunt (not on every pellet), and the gun keeps firing smoothly.
+[Ragdolls and armed humanoids, 11-08] (branch agent/rag1108)
+- Remove an armed grunt carrying a flamethrower with the toolgun: its backpack, weapon and back tank go with it; wait 10 s: no backpack drops, no rip sound. Same for a dead one via Debug > Cheats > Corpses and Ragdolls. (Test: developer 1; vr_rag1108_test 1)
+- A grunt hanging from a ledge (vrclimb, shove one off the long ledge) kicks and wiggles its legs and sways a little, and still holds on and pulls up. Tunables: vr_ragdoll_active_hang_kick 2, _hz 1.4, _random 0.6, _sway 1. (Test: map vrclimb; vr_ragdoll_act pullup)
+- Shove a knocked-down grunt while it is getting up: it always goes back down as an active ragdoll (two hands or one). vr_knockdown_getup_shove 1; a weaker shove on one nearly up should take a balance step (vr_knockdown_getup_shove_step 0.8, _late 0.6: past 60% of its get-up). (Test: developer 1; vr_rag1108_test 4)
+- Punch or pistol a grunt's ragdoll torso many times: limbs/head may pop, but it never bursts into gibs; a point-blank super shotgun or a rocket still gibs it. vr_corpse_gib_overkill 50, vr_corpse_gib_hit_min 35. (Test: developer 1; vr_rag1108_test 3)
+- Flamethrower / poison sprayer grunts, knights, death knights, enforcers: the back tank sits to the right of the backpack (weapon-hand side), not through it, and still bursts when shot. vr_adgun_tank_worn_side 7, _back 0. (Test: vr_rag1108_test 2)
 [0. Flatscreen play (-flatscreenmode)]
 Slide up vrtesthall's stairs (north-east, beside the platform) and up its ramp (north-west): the slide climbs the steps and the ramp and slows as it goes up, ending only when it is slow (not at the first step, not as you start up the ramp); jump mid-slide still ends it. {test:flat_slide}
 Slide and steer with A alone or D alone (forward let go), also after turning the mouse a little: the slide curves to that side every time, for the whole slide; holding S does not brake or turn it. {test:flat_slide}
