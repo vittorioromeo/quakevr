@@ -4741,8 +4741,9 @@ should be a user-facing option for it in vr settings, ensure that they do not co
 
 ## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
 
-Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:
-3, 5, 13, 14.
+Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:
+5, 13, 14. Tests at the end: 1 61/0, 11 117/8 (103/15 before), 21 41/2 (the known 2), 26 27/0, 27 22/0, 28 13/0;
+7 74/8 and 13 52/8 not examined case by case (see below).
 
 - **Dents where a blade strikes a dead ragdoll (item 12, note 17:07):** a hand's blow on a corpse (VR_Corpse_Struck)
   began its hit record with the point but never named the corpse (VR_Hit_SetZone), so VR_Hit_Where took the middle of
@@ -4801,3 +4802,13 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 4, 6, 7,
   isn't its own. (Box3D's slot for a reused edict number still answers with the removed one's body for a step: worth a
   look in vr_box3d_api.cpp, not done.) The test now also throws the second sword 0.3 s after the first is removed and
   from before you. Test 1: 61 passed, 0 failed ("the real hand back to the drawn one" passed in that run; it varied).
+- **Tests 7 and 13 (not fixed, looked at only):** test 7 74/8: "a stab at 2.8 m/s isn't stuck (holds 0)", "a blow 60 deg
+  off its line isn't stuck (holds 0)", "pulled hard off its axis: free, in the hand (holds 0)", "a tug: in the hand
+  (holds 0)": the hand holds nothing when the check runs (the first case before the weapon is in the hand, the others
+  checked before the freed blade's ease back into the hand ends, it seems: timing, likely the test's); "pushed: it slides
+  deeper", "sliding deeper sounds/spurts", "the real hand back to the drawn one" are the known slide numbers. Test 13
+  52/8 ("vr_embed off during a hold: no blade left behind (2)", "the body teleported", "case 8/9: stuck (holds 13)"):
+  not examined; the brief noted most of 13's failures are the test's own.
+- **Next (not started):** item 5 (a client-side correction of skewered gibs to the drawn hand, as the held weapon has);
+  items 13-14 (blades in wooden crates and barrels: the hold code takes a monster host and hitmodel; a prop host needs
+  its own anchor (kind Prop exists for thrown axes) and its own Moving: forces).

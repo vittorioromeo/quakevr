@@ -3,8 +3,10 @@
 // his 11-08 notes"), by the mock hand's real stabs (vr_embed_test.qc's VR_EH_Blow):
 // 0  a stab that kills the grunt (17:16): the blade stays in its model (not its box) and, let go of, lies with the body as it falls,
 //    not floating where it stood.
-// 1  a stab held, you running on into it (17:17): Running Stab: Brake cuts your speed along the blade; with Brake 0, only friction.
-// 2  a blade left in a body (17:09): a force grab finds it from in front, through its own host.
+// 1, 2 a stab held, you running on into it (17:17), Brake on and Brake 0.
+// 3  a blade left in a body (17:09): a force grab finds it from in front, through its own host.
+// 4  a blade's strike on a dead ragdoll (17:07): its wound where it struck, not from its box's middle.
+// 5  a shot across a gib skewered on the blade in the hand (17:10): it hits it, off the blade.
 // Ends `embed1108: N passed, M failed`.
 
 float vr_e8_v;     // a number kept across states
