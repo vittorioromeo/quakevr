@@ -47,6 +47,7 @@
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
@@ -820,9 +821,12 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's key (vr_flat_key_grab, R: E became the right lean, vr_flatmove.cpp).
-    const int grabKey = Key_StringToKeynum(vr_flat_key_grab.string);
-    const bool grab = inGame && grabKey > 0 && grabKey < MAX_KEYS && keydown[grabKey] != 0;
+    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, R).
+    const auto down = [inGame](const cvar_t& c) {
+        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    };
+    const bool grab = down(vr_flat_key_grab) || down(vr_flat_key_grab_alt);
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
@@ -894,6 +898,50 @@ void proneToggle_f()
         return;
     }
     toggleProne("vr_prone_toggle");
+}
+
+// The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
+// main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
+// left mouse button) is its trigger, and mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel.
+struct FlatToolgunKeys
+{
+    bool key{false};  // vr_flat_key_toolgun, last frame
+    bool menu{false}; // vr_flat_key_toolgun_menu, last frame
+    bool fire{false}; // the main hand's fire, last frame, while the toolgun was held
+};
+FlatToolgunKeys flatTg;
+
+void toolgunKeys()
+{
+    const bool inGame = key_dest == key_game;
+    const auto down = [inGame](const cvar_t& c) {
+        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    };
+    const bool key = down(vr_flat_key_toolgun);
+    if(key && !flatTg.key)
+    {
+        Cbuf_InsertText("impulse 49\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: the toolgun\n", vr_flat_key_toolgun.string);
+        }
+    }
+    flatTg.key = key;
+    const bool held = toolgun::heldHand() == HAND_MAIN;
+    const bool menu = down(vr_flat_key_toolgun_menu);
+    if(menu && !flatTg.menu && held)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, true);
+        (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, false);
+    }
+    flatTg.menu = menu;
+    const bool fire = held && client::attacking(HAND_MAIN);
+    if(fire != flatTg.fire)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, fire);
+    }
+    flatTg.fire = fire;
 }
 
 void pollKeysFlat()
@@ -997,6 +1045,7 @@ void pollKeysFlat()
     }
     fs.keyShove = shove;
     shoveFrame();
+    toolgunKeys();
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,

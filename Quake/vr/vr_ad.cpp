@@ -58,6 +58,7 @@ constexpr Shadowed shadowedFiles[] = {
 // Quake VR keeps (monster_, item_): the names that are another entity in Rogue or Hipnotic (section 5.4).
 constexpr const char* adOwnedClashes[] = {
     "item_artifact_wetsuit", "item_plasma", "monster_eel", "monster_mummy",
+    "weapon_axe", // (Quake VR has a weapon_axe since 2026-11-08: a grabbable axe; AD maps keep AD's pickup)
 };
 
 // Classnames that are not AD signals although only AD has them (shared with Quoth, Copper, compilers; id's stray
