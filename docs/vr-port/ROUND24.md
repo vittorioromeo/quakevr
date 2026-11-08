@@ -3553,3 +3553,38 @@ kit): the glowing inserts lined up on the aim, the irons didn't (the rear ears' 
 - **Flat ADS screenshots** (`scratch/` of the worktree): `ads_iron_after.png` (shotgun, super shotgun),
   `light_ads_after.png` (lightning gun).
 
+## Black slivers on the shotgun (branch `agent/regfix`, 2026-11-08)
+
+His note: two small black triangles on the flat top of the shotgun's receiver behind the rear sight, on every map,
+not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `vr_foveated 2`, auto pump on).
+
+- **Reproduced** headless in vrtesthall (his map in the picture) with his graphics cvars: `vr_weapon_grip_mode 1;
+  impulse 154; vr_mock_hand main 0.0 1.345 -0.30 55 0 0; vr_mock_camera 0.03 1.405 -0.235 35 0; vr_eyeshot 1` (the
+  mock hand's pitch 55 holds the gun about level: 70 is level). The slivers: 43 near-black pixels in the eyeshot's box
+  570-610 x 565-610.
+- **Bisected** (one run, a cvar toggled between eyeshots): no change with `vr_foveated 0`, `r_oit 0`, `vr_autopump 0`,
+  `vr_normalmaps 0`, `vr_parallax_models 0`, `vr_specular_aa 0`, `vr_rim_light 0`, `vr_weapon_reflections 0`,
+  `vr_retrolight 0`, `gl_fullbrights 0`, `vr_sight_saturation 0`, `r_lerpmodels 0`, anisotropy 1, `GL_NEAREST`,
+  `GL_NEAREST_MIPMAP_NEAREST`; gone with any linear magnification (`GL_LINEAR*`). So: the skin's own texels read nearest.
+- **Root cause.** A shader that wrote each pixel's skin texel and `gl_PrimitiveID` (temporary) put the black pixels on
+  v_shot.mdl's triangle 1849 (the receiver's top, x 3.8-6.9, z 6.2), reading texels (368-373, 39-40). The triangle's
+  corners sit on texel middles (gl_mesh.c's + 0.5: (362.5, 42.5), (381.5, 37.5), (377.5, 42.5)); its slanted top
+  edge runs through texels whose middles lie outside it, and the painted part of the skin steps back there: those
+  texels are the skin's black background. Nearest filtering reads them along the edge (the slivers); linear blends
+  them in (Blender). The skin, not the renderer: the same holds for every model whose UV islands are painted only up
+  to the texel middles (v_shot.mdl 3350 such texels, 122 of them dark against a lit inside; the id soldier 1231 / 183).
+- **Fix (general):** `vr_skin_edge_fill` (default 1, archived; a Debug menu toggle "Fill Skin Edges" beside Show
+  Foveation, to compare) and
+  `vr/vr_skinedge.cpp`. As an MDL loads (Mod_LoadAliasModel, before its skins upload), every texel a triangle's skin
+  hull touches (more than 0.001 of a texel) whose middle no triangle has gets the neighbour (sides first, then
+  corners) the touching triangle has inside, else any neighbour some triangle has inside; a list of (texel, source)
+  pairs per model (146 models, 81524 texels in e1m1's set). TexMgr_LoadImage8 / LoadImage32 apply it after the clean
+  skins' patch to the 8-bit skin, its fullbright mask and a full-colour replacement of the same size (a replacement of
+  another size, normal maps and MF_HOLEY skins untouched). No texel any triangle covers at its middle changes, so the
+  art inside the islands is as painted. Toggling the cvar re-uploads the models' skins. `vr_skin_edges [model [x y]]`
+  lists the models, their edge texels and the uploads filled.
+- **Checks.** The box: 43 dark pixels -> 0 (and 0 with plain `GL_NEAREST`); `vr_skin_edge_fill 0` brings them back (44).
+  Close-ups (before | after): `scratch/slivers_before_after.png`, full eyeshots `scratch/slivers_before_full.png`,
+  `scratch/slivers_after_full.png`.
+- **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
+  no black slivers at triangle edges; nothing inside the painted parts looks different.
