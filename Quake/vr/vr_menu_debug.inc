@@ -265,6 +265,8 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_agarmor_folds),
         row(opt::vr_agarmor_fold_depth),
         row(opt::vr_agarmor_bend),
+        row(opt::vr_agarmor_pose_frame),
+        row(opt::vr_agarmor_bridge_trace),
         command("Check the Elbow and Knee Leather", "vr_agarmor_bridge_check")
             .help("vr_agarmor_bridge_check [model]: each armed humanoid's elbows and knees swept through their range: the "
                   "leather's end rings on the plates' rows (and with one part worn alone), the skin between kept under it "
