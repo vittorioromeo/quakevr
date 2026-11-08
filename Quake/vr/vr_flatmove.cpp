@@ -995,13 +995,13 @@ struct MantleCase
     bool mantles;
 };
 constexpr MantleCase mantleCases[] = {
-    {0, 48.f, 15.f, true},   // waist high
-    {1, 64.f, 15.f, true},
-    {2, 80.f, 15.f, true},   // over the eyes
-    {3, 96.f, 15.f, true},   // reached at the top of the jump
-    {4, 128.f, 15.f, false}, // too high
-    {5, 160.f, 15.f, false},
-    {1, 64.f, 0.f, false},   // looking level: no mantle (vr_flat_mantle_look 5)
+    {0, 48.f, 35.f, true},   // waist high
+    {1, 64.f, 35.f, true},
+    {2, 80.f, 35.f, true},   // over the eyes
+    {3, 96.f, 35.f, true},   // reached at the top of the jump
+    {4, 128.f, 35.f, false}, // too high
+    {5, 160.f, 35.f, false},
+    {1, 64.f, 20.f, false},  // looking up 20: under vr_flat_mantle_look (30), no mantle
 };
 constexpr float mantleBlockStep = 160.f; // the blocks' width and gap
 constexpr float mantleStandY = -18.f;    // his place in front of a block: its lip 2 units ahead of his box
