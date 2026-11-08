@@ -4174,3 +4174,30 @@ Renders (qvr-kit `scratch/armourlook/`): `hero_k_pair.png` (knights, before over
 
 Not done: a breastplate two rows tall (the mockup's): a run down the rows needs the upper row's lip opened onto the lower's top,
 a 2 x 2 tile and the side rims closed by hand; the breastplate is the chest row's two front plates (four would be a 6 : 1 strip).
+
+## Flatscreen: the Vomit Mode death cam ignores the mouse; mantling (branch `agent/flatwall`, 2026-11-08)
+
+**Death cam.** His note: in flatscreen Vomit Mode the mouse must not turn the ragdoll camera at all. Cause:
+`deathview::flatView` put the mouse's look (its yaw from where it faced as the view went in, its pitch) on top of the head
+bone's turn, as the headset's `eyeView` puts the head's own turn. Fix: flat Vomit Mode takes the bone's turn alone
+(`vr_flat_death_vomit_look`, 0, archived; Desktop Screen Play > Vomit Mode Mouse Look: 1 is the old behaviour). The headset's
+Vomit Mode is untouched. `flatvisuals_test.sh` now turns the dead view with `+right` for 20 frames and checks the camera's
+angles against `vr_death_view_status`'s head bone angles (0.00 deg off; 8/0).
+
+**Mantle.** His request: after a jump, the jump key held, looking slightly up at a ledge in reach, mantle onto it, reusing the
+VR climbing. `vr_climb.cpp flatMantle` (called from `climbPreThink` for a free climber, flat clients only: `hull::isFlat`):
+a jump is the first airborne frame after a grounded one going up over 60 u/s; while the jump key (`.button2`) stays held,
+within `vr_flat_mantle_time` of it, the view looking up between `vr_flat_mantle_look` and `_look_max`, a column of points
+ahead of the box's front (`vr_flat_mantle_reach`) asks `findHold` (the hand grip's search and checks: room over the hold,
+reached, in sight) for the highest facing ledge between `vr_climb_min_height` over the feet and `vr_flat_mantle_height` over
+the eyes; the Grip is filled by `holdLedge` (split out of `takeHold`, which now calls it), then the headset's `findMantle`
+(room on top, level or sloped), `startMantle` and `mantleStep` (the same way up and over in 0.3 s, the same grunt, the same
+0.4 s without a new hold after it). Needs `vr_climb` (its letGoIfForced would end a mantle with climbing off).
+Cvars (archived; Desktop Screen Play rows): `vr_flat_mantle` 1, `vr_flat_mantle_reach` 20 units, `vr_flat_mantle_height` 24
+units, `vr_flat_mantle_look` 5 deg, `vr_flat_mantle_look_max` 80 deg, `vr_flat_mantle_time` 1 s. `vr_climb_debug 1` prints
+"climb: flat mantle onto ...", 3 every search.
+
+Test: `vr_flatmantle_test` (vr_flatmove.cpp) on the new map `vrmantle` (`Misc/quakevr/climb/make_vrmantle_map.py --compile`:
+level blocks 48, 64, 80, 96, 128, 160 high): mantled onto 48 (0.00 s after the jump), 64 (0.00), 80 (0.03), 96 (0.11, at
+the eyes + 23); not 128, 160, nor 64 looking level: 7/0, in `flatslide_test.sh` as "mantle". VR: `slopes_test.sh` 8/8 as
+before (the headset's mantle through the refactored `takeHold`).

@@ -46,6 +46,10 @@ bool heldAt(int hand, glm::vec3& at, glm::vec3& out);
 // props"), 0 none: its hand's bodies don't push it (vr_box3d.cpp).
 [[nodiscard]] int heldProp(edict_t* ent, int hand);
 
+// Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
+// looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).
+[[nodiscard]] int flatMantles(edict_t* ent, bool& mantling);
+
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
 void reset();

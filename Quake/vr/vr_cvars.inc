@@ -3999,6 +3999,13 @@ QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
+QVR_CVAR(vr_flat_death_vomit_look, "0", CVAR_ARCHIVE)   // flatscreen play in Vomit Mode on death (vr_deathview.cpp flatView): 0 the view is exactly the ragdoll head's turn, the mouse ignored (the author's note 2026-11-08); 1 the mouse's look added on top of the head's turn (the old behaviour)
+QVR_CVAR(vr_flat_mantle, "1", CVAR_ARCHIVE)             // flatscreen play: 1 mantling (vr_climb.cpp flatMantle; needs vr_climb): after a jump, the jump key held and the view looking up (vr_flat_mantle_look), a ledge in reach ahead pulls him up onto it -- the headset's mantle (its search for room, its way up and over, its grunt); 0 off
+QVR_CVAR(vr_flat_mantle_reach, "20", CVAR_ARCHIVE)      // flatscreen mantle: units, how far ahead of his box's front a ledge's lip may be (2..64)
+QVR_CVAR(vr_flat_mantle_height, "24", CVAR_ARCHIVE)     // flatscreen mantle: units, the highest a ledge's top may be over his eyes, as he rises in the jump (-32..64; the lowest is vr_climb_min_height over the feet)
+QVR_CVAR(vr_flat_mantle_look, "5", CVAR_ARCHIVE)        // flatscreen mantle: degrees, the least the view must look up (-90..90; 0: level counts, negative: a little down too)
+QVR_CVAR(vr_flat_mantle_look_max, "80", CVAR_ARCHIVE)   // flatscreen mantle: degrees, the most the view may look up (over it: no mantle)
+QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 
 
