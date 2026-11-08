@@ -923,8 +923,11 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     {
         VR_AD_Pain(e, self, dmg, stagger); // AD support: AD's pain function (vr_ad_monsters.qc)
     }
-    // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
-    VR_Knockdown_Try(e, xForward, xKind, xHand, push);
+    // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll; one getting up, for sure.
+    if(!VR_Knockdown_GetUpShove(e, xForward, push))
+    {
+        VR_Knockdown_Try(e, xForward, xKind, xHand, push);
+    }
     vr_kd_surprise = 0;
     vr_kd_stagger_far = 0;
     if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))

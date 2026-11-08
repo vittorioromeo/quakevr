@@ -220,9 +220,9 @@ void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* w
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {
         Con_Printf("climb: %d %s (%s) after %.2f s: its chest %.0f units over the lip at most; its pelvis %.0f units in from the "
-                   "lip, %.0f over the top\n",
+                   "lip, %.0f over the top; its feet kicked %.0f units\n",
             c.num, up ? "pulled itself up" : "dropped", why, c.now - k.since0, k.rose * p.m2u,
-            -glm::dot(pelvis - k.lip, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u);
+            -glm::dot(pelvis - k.lip, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u, k.kick * p.m2u);
     }
     if(up)
     {
@@ -235,6 +235,83 @@ void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* w
     else
     {
         beginFall(s, p, k.out, 0u, 0.f, false, c.now);
+    }
+}
+
+// A hanger's struggle (his note vrclimb_2026-11-08_17-20-00: hanging from a ledge "they feel like they're just standing
+// there"): its legs kick and wiggle back and forth under it, out of step, against the wall and out over the drop, a knee
+// drawn up on the way in, a little aside; each hanger its own pace, beat and wander (its seed, by
+// vr_ragdoll_active_hang_kick_random), eased in as it catches the lip. Its body sways a little along the lip (a capped
+// push on its pelvis, a few percent of its weight: vr_ragdoll_active_hang_sway). Its holds are left alone (the legs' reaches
+// and a small push only). `vigour`: 1 hanging, less while it pulls itself up. Its legs' travel (against its pelvis) is
+// counted for the tests (Climb::kick).
+void hangStruggle(State& s, const Parts& p, const Context& c, float L, float vigour)
+{
+    Climb& k = s.climb;
+    const float amp = za::clamp(vr_ragdoll_active_hang_kick.value, 0.f, 3.f) * vigour;
+    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    for(int leg = 2; leg < 4; leg++)
+    {
+        // (The tests: how far its feet went, against its pelvis.)
+        const glm::vec3 rel = limbEnd(s, p, leg) - pelvis;
+        za::SizeT i = static_cast<za::SizeT>(leg - 2);
+        if(k.footSeen)
+        {
+            k.kick += glm::distance(rel, k.footRel[i]);
+        }
+        k.footRel[i] = rel;
+    }
+    k.footSeen = true;
+    if(amp <= 0.f || L <= 0.f)
+    {
+        return; // (its legs as they were: hanging still)
+    }
+    const float hz = za::clamp(vr_ragdoll_active_hang_kick_hz.value, 0.1f, 6.f);
+    const float rnd = za::clamp(vr_ragdoll_active_hang_kick_random.value, 0.f, 1.f);
+    const uint32_t seed = s.env.seed;
+    const float age = static_cast<float>(c.now - k.since0);
+    const float ease = smooth01(age / 0.35f);
+    const float pace = hz * (1.f + 0.6f * rnd * (roll(seed, 61u) - 0.5f)); // (its own: up to 30 % either way)
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    const glm::vec3 along = glm::normalize(glm::cross(up, k.out));
+    constexpr float tau = 6.2831853f;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        Reach& r = s.reach[static_cast<za::SizeT>(leg)];
+        if(!limbWhole(s, p, leg))
+        {
+            r.weight = 0.f;
+            continue;
+        }
+        const int u = s.chain[static_cast<za::SizeT>(leg)][0];
+        const glm::vec3 hip = worldPoint(p, u, p.rig->bones[u].pivot);
+        const float len = limbLength(s, p, leg);
+        const float sgn = leg == 2 ? 1.f : -1.f;
+        // (Half a turn from the other leg, a start and a wander of its own.)
+        const float ph = tau * pace * age + (leg == 2 ? 0.f : 3.14159265f) + rnd * tau * roll(seed, 62u + static_cast<uint32_t>(leg));
+        const float wob = rnd * za::sin(0.37f * ph + tau * roll(seed, 66u + static_cast<uint32_t>(leg)));
+        const float swing = za::sin(ph) + 0.3f * wob;
+        const float lift = 0.5f * (1.f + za::sin(ph + 1.2f)); // (its knee drawn up as it swings in)
+        glm::vec3 goal = hip + (-up * (0.92f - za::min(0.4f * amp * lift, 0.5f)) + k.out * (0.32f * amp * swing) +
+                                   along * (sgn * 0.08f + 0.1f * amp * wob)) *
+                                   len;
+        // (Never into the wall: its feet kept a little out from the lip's face.)
+        const float outOf = glm::dot(goal - k.lip, k.out);
+        if(outOf < 0.05f * L)
+        {
+            goal += k.out * (0.05f * L - outOf);
+        }
+        r.goal = goal;
+        r.weight = ease * za::min(1.f, 0.45f + 0.35f * amp);
+        r.strength = 0.6f;
+    }
+    // Its body swaying along the lip, slowly (half its kicks' pace), a few percent of its weight.
+    const float sway = za::clamp(vr_ragdoll_active_hang_sway.value, 0.f, 3.f) * vigour;
+    if(sway > 0.f)
+    {
+        const float f = 0.04f * sway * s.totalMass * c.gravity * ease *
+                        za::sin(tau * 0.5f * pace * age + tau * roll(seed, 70u));
+        pushPart(p, 0, along * f);
     }
 }
 
@@ -311,6 +388,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     {
         case ClimbPhase::Hang:
         {
+            hangStruggle(s, p, c, L, 1.f); // (its legs kicking, its body swaying: alive and holding on)
             if(holding > 0 && k.pullFrom <= 0.0)
             {
                 k.pullFrom = c.now + hangBefore * (1.f + roll(e.seed, 52u));
@@ -402,6 +480,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             k.pinAt = glm::mix(k.from, under, u);
             climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * (0.3f * L) + k.out * (0.25f * L), u)); // (off the wall)
             k.turnBlend = u;
+            hangStruggle(s, p, c, L, 0.5f); // (its feet scrabbling as it pulls)
             if(k.prog >= 1.f && (glm::distance(pelvis, under) < climbLag * L || pelvis.z > under.z - 0.2f * L))
             {
                 phaseTo(ClimbPhase::Over);

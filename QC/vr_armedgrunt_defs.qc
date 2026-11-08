@@ -250,6 +250,7 @@ void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a p
 .entity vr_wp_pack;   // a wearer's pack (on it or torn off; world: none)
 .float vr_wp_had;     // a wearer's: it was given one (it drops no backpack as it dies)
 .float vr_wp_state;   // a pack's: 1 worn by the living, 2 worn by the dead (takeable), 3 off
+#define VR_WP_STATE_OFF 3 // (vr_wornpack.qc VR_WP_OFF, for the files before it)
 .entity vr_wp_wearer; // a pack's wearer
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
 float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop: left without a pack by the rule: no backpack
@@ -262,4 +263,13 @@ void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR
 void(entity m, vector xAt, float xSpeed) VR_WP_Impact;                    // VR_RagImpact_Hit: a hard landing tears it off
 void(entity e) VR_WP_Taken;                                              // VR_Carry_Start, VR_Forcegrab_Launch: a dead one's pack taken
 float(entity m, entity pl, float hand) VR_WP_HandOnPack;                  // VR_Ragdoll_Handtouch: the hand on a dead one's pack takes the pack
+void(entity e) VR_AG_RemoveWith;                                         // VR_Scene_Remove: removed outright, what it wears and holds with it
+
+// A freed edict (ED_Free: no model, its think -1, not solid, untouchable) whose fields are kept until it is reused: a
+// wearer or holder removed outright. (His note start_2026-11-08_16-51-19: a grunt the toolgun removed dropped its pack
+// "after some time ... out of nowhere", with the rip: its pack saw it gone only once its edict was made again.)
+float(entity e) VR_AG_Freed =
+{
+    return e != world && !e.modelindex && e.nextthink == -1 && e.solid == SOLID_NOT && e.takedamage == DAMAGE_NO;
+};
 float() VR_WP_DeathLoot;                                                 // VR_AG_SoldierDrop: its loot in its pack (TRUE: no backpack dropped)

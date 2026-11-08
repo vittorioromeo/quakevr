@@ -813,6 +813,64 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     return true;
 }
 
+int ragdollRiseShove(edict_t* ent, const glm::vec3& dir, float push, float stepBelow, float uprightMin)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig || !rp->active.on || !rp->active.rise.on || !activeLiving(ent))
+    {
+        return 0;
+    }
+    RagdollBodies& r = *rp;
+    glm::vec3 d{dir.x, dir.y, 0.f};
+    if(glm::length(d) < 1e-3f)
+    {
+        return 0;
+    }
+    d = glm::normalize(d);
+    // How upright it is now: its pelvis to its head (1 straight up, 0 lying).
+    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0]));
+    const glm::vec3 head = glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(r.rig->head)]));
+    const float upright = glm::length(head - pelvis) > 1e-4f ? glm::normalize(head - pelvis).z : 0.f;
+    r.riseAsked = false; // (not a lapse: the QC's down time begins anew)
+    r.riseStuck = -1.0;
+    const float most = za::clamp(uprightMin, 0.f, 0.99f);
+    if(stepBelow > 0.f && push < stepBelow && upright >= most && ragdollCanStagger(ent))
+    {
+        // A balance step: a stagger along the shove (its feet stepping after its pelvis, back or aside as it was turned),
+        // its balance the less the more bent over it is (it may still go over).
+        const float balance = 0.8f * za::clamp((upright - most) / za::max(1.f - most, 0.01f), 0.f, 1.f);
+        if(ragdollStagger(ent, d, push, balance, 24.f * za::max(push, 0.3f), -1.f, false, 1.f))
+        {
+            if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+            {
+                Con_Printf("getup: %d shoved rising (push %.2f, upright %.2f): a balance step (balance %.2f)\n", r.num, push,
+                    upright, balance);
+            }
+            return 2;
+        }
+    }
+    // Back down: a fall along the shove from here, its body pushed along it (a shove's speed at its push).
+    ragactive::beginFall(r.active, activeParts(r), d, 0u, 0.f, false, qcvm->time);
+    const glm::vec3 kick = d * (2.2f * za::clamp(push, 0.2f, 2.f)) + glm::vec3{0.f, 0.f, 0.4f}; // m/s
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        // (Its top more than its feet: it goes over backwards, not slid along.)
+        const float share = r.rig->bones[b].joint == ragdoll::Joint::Loose ? 0.f : (b == 0 ? 0.6f : 1.f);
+        b3Body_SetLinearVelocity(body, b3v(glmv(b3Body_GetLinearVelocity(body)) + kick * share));
+        b3Body_SetAwake(body, true);
+    }
+    if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+    {
+        Con_Printf("getup: %d shoved rising (push %.2f, upright %.2f): back down, falling\n", r.num, push, upright);
+    }
+    return 1;
+}
+
 // A backpedal over a ledge (ragdollBackpedal) gone over the lip, its feet on the floor behind it and its pelvis on air:
 // its middle kept going at the speed it has (at least vr_knockdown_ledge_backpedal_tip) until
 // vr_knockdown_ledge_backpedal_past units on or it has dropped (a slow one sat on the lip otherwise). Its turn its own.

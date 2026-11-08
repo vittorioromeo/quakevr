@@ -126,6 +126,7 @@ float() VR_Knockdown_Interval =
 void(entity e) VR_Knockdown_RemoveBody =
 {
     VR_Head_StopFlies(e);
+    VR_AG_RemoveWith(e); // (its worn pack and weapons with it)
     remove(e);
 };
 
@@ -967,6 +968,72 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     // feet a quarter turn (vr_knockdown_shove_topple_*); over a ledge, pushed whole so it goes off, turned as it falls
     // (vr_knockdown_shove_ledge_*).
     ragdollshovetopple(e, xForward, xPush, ledge, reach);
+    return TRUE;
+};
+
+// A shove (or a bash) by self that landed on `e` getting up after a knockdown (his note vrclimb_2026-11-08_17-20-42: "if
+// you keep shoving an enemy as they're getting back up, they should still always be shoved. They're very vulnerable in
+// that state"): vr_knockdown_getup_shove on, it always lands. Its body rising (vr_ragdoll_active_getup): back down as an
+// active ragdoll falling along the shove, or, a weaker shove (under vr_knockdown_getup_shove_step) on one nearly up (its
+// chest past vr_knockdown_getup_shove_upright), a balance step: a stagger along the shove, more likely to go over the more
+// bent over it is. Rising the old way (its get-up's frames, .vr_knockdown 2): knocked down again, toppled along the shove.
+// Down again, its down time begins anew. TRUE if it did (VR_Bash_Hit then skips the knockdown's chance).
+float vr_kd_getup_shoves; // shoves on ones getting up that landed (the tests)
+float vr_kd_getup_shove_how; // the last one's: 1 back down (a rising body's), 2 a balance step, 3 down from its get-up's frames
+float(entity e, vector xForward, float xPush) VR_Knockdown_GetUpShove =
+{
+    if(!cvar_hget(cvarh_vr_knockdown_getup_shove) || !cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) ||
+       e.health <= 0 || !(e.flags & FL_MONSTER) || !e.vr_knockdown || (VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored)))
+    {
+        return FALSE;
+    }
+    float how = 0;
+    if(e.vr_knockdown == 1 && e.vr_kd_rise && !e.vr_kd_stagger && isragdoll(e))
+    {
+        // (ragdollstagger's `sure` 3: the rise shove, box3d::ragdollRiseShove; the builtins' table is full.)
+        how = ragdollstagger(e, xForward, xPush, max(0, cvar_hget(cvarh_vr_knockdown_getup_shove_step)),
+            cvar_hget(cvarh_vr_knockdown_getup_shove_upright), 0, 3);
+        if(how == 2)
+        {
+            e.vr_kd_stagger = 1;
+            e.vr_kd_since = time;
+            e.vr_kd_dir = xForward;
+            e.vr_kd_balance = 0;
+            e.nextthink = time + 0.05;
+        }
+    }
+    else if(e.vr_knockdown == 2 && VR_Knockdown_MakeRoom(e))
+    {
+        float reach = VR_Shove_Reach(e);
+        if(VR_Knockdown_Start(e))
+        {
+            ragdollshovetopple(e, xForward, xPush, FALSE, reach);
+            how = 3;
+        }
+    }
+    if(!how)
+    {
+        return FALSE;
+    }
+    if(how != 2)
+    {
+        // Down again: its down time from now (a rising body's begun anew, as VR_Knockdown_Start's).
+        float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min)) * VR_KD_DownScale(e);
+        float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max) * VR_KD_DownScale(e));
+        e.vr_kd_since = time;
+        e.vr_kd_until = time + lo + random() * (hi - lo);
+        e.vr_kd_due = e.vr_kd_until;
+        e.vr_kd_rise = 0;
+        e.think = VR_Knockdown_Think;
+        e.nextthink = time + 0.1;
+    }
+    vr_kd_getup_shoves++;
+    vr_kd_getup_shove_how = how;
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s shoved getting up (push %.2f): %s\n", e.classname, xPush,
+            how == 2 ? "a balance step" : how == 3 ? "down again from its get-up" : "back down, an active ragdoll"));
+    }
     return TRUE;
 };
 
