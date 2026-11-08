@@ -389,7 +389,7 @@ RECIPES = {
     "v_rock2.mdl": rocket,
     "v_multi2.mdl": rocket,
     "v_light.mdl": lightning,
-    "v_plasma.mdl": lightning,
+    "v_light_plasma.mdl": lightning,
     "v_axe.mdl": axe,
 }
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
@@ -404,7 +404,7 @@ POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix, "v_lig
 # their old paint (reuv_weapons.py: the positions, triangles and anchors stay; UVs and texels change); the plasma gun
 # (the thunderbolt's mesh) first through refine_light.py (its sides), then reuv_weapons.py (the rest).
 POST.update({name: reuv_weapons.fix for name in reuv_weapons.SPECS})
-POST["v_plasma.mdl"] = lambda path: (refine_light.fix(path), reuv_weapons.fix(path))
+POST["v_light_plasma.mdl"] = lambda path: (refine_light.fix(path), reuv_weapons.fix(path))
 
 
 # ----------------------------------------------------------------------------
