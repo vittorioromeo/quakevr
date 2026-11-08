@@ -910,13 +910,18 @@ void addTri(Shell& s, int a, int b, int c)
 // between plates in any pose. 12 triangles a plate (no top edge to bevel: it's under the lip): the detail is in the paint and relief.
 constexpr int plateTilesX = 5, plateTilesY = 6; // (make_agarmor.py's TILES_X, TILES_Y)
 constexpr float plateBevelUv = 0.12f;           // (its BEVEL)
+// The tiles' kinds (make_agarmor.py's TILE_*; ROUND24.md, "Armour look: fewer, bigger plates"): the plain ones by chance, the
+// details by place (vr_agarmor_details): the chest's recessed panel either side of the seam, ribs down the belly, vents on the
+// forearms' cuffs and the shins, a cop on each elbow and knee (raised), the emblem on an upper arm's top plate (vr_agarmor_emblem).
+constexpr int tilePlains = 20, tilePanel = 20, tilePanels = 3, tileVent = 23, tileVents = 3, tileRib = 26, tileRibs = 2, tileEmblem = 28, tileCop = 29;
+constexpr float copRaise = 1.5f; // a cop's step: this many times a plate's
 constexpr float plateFit = 0.12f;               // units off the skin: the rows' feet
 constexpr float plateStep = 0.62f;              // how far a plate's lower edge stands proud of its foot: the step to the row below
 constexpr float plateSeam = 0.1f;               // units each side of a seam between neighbours in a row, at the lower edge
 constexpr float plateFootApart = 0.003f;        // the feet's corners off the grid's: each slab closed by itself, nothing to see between
 constexpr float plateLap = 0.34f;               // how far a plate's lower edge reaches past its row, over the row below
 constexpr float plateBevelWide = 0.3f, plateBevelHigh = 0.16f;
-constexpr float plateHighTorso = 2.5f, plateHighLimb = 2.9f; // wanted rows' heights (units)
+constexpr float plateHighTorso = 3.4f, plateHighLimb = 4.2f, plateHighLeg = 3.6f; // wanted rows' heights (units; 2.5 and 2.9 (legs too) till 2026-11-08: fewer, bigger plates, his mockup)
 constexpr float plateJointReach = 0.25f;        // a limb's plates past its region's ends, over the joint (units)
 constexpr float plateRidge = 1.1f;              // a corner raised over the skin's vertices at most this much over its rays' radius
 constexpr float plateShoulderReach = 1.2f;      // an upper arm's plates past its region's top, over the shoulder's ball
@@ -944,7 +949,7 @@ constexpr float capBulge = 1.18f;    // a knight's pauldron's dome (Wearer::shou
 // cuirass and the upper arm, a buttock over the thigh) push its plates out over them too, if a plate needn't swell past
 // plateRidge for them (else they're left to show: a little overlap rather than a bulky plate).
 constexpr float plateFringe = 0.2f;
-constexpr int plateMostRowsTorso = 6, plateMostRowsLong = 5, plateMostRowsArm = 3; // (8 and 6 columns: within the budget)
+constexpr int plateMostRowsTorso = 5, plateMostRowsLong = 4, plateMostRowsArm = 2; // (8 and 6 columns: within the budget; 6, 5 and 3 till 2026-11-08)
 
 [[nodiscard]] float plateRand(uint32_t seed, int a, int b, int c)
 {
@@ -1008,7 +1013,7 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     g.hBottom = f.shiftEnd != 0.f ? g.hBottom + along * f.shiftEnd : g.hBottom;
     const float tall = za::abs(g.hBottom - g.hTop);
     const bool leg = piece >= ThighL;
-    g.rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : plateHighLimb) + 0.5f), 2, torso ? plateMostRowsTorso : leg ? plateMostRowsLong : plateMostRowsArm);
+    g.rows = za::clamp(static_cast<int>(tall / (torso ? plateHighTorso : leg ? plateHighLeg : plateHighLimb) + 0.5f), 2, torso ? plateMostRowsTorso : leg ? plateMostRowsLong : plateMostRowsArm);
     g.rows += torso ? 1 : 0;
     g.rows = f.rows > 0 ? za::clamp(f.rows, 2, torso ? 12 : 10) : g.rows;
     g.yoke = torso ? (f.yoke >= 0.f ? f.yoke : plateYoke) : 0.f;
@@ -1470,6 +1475,82 @@ void addPlate(Shell& s, const glm::vec3* corners, const glm::vec3* outward, cons
     return w;
 }
 
+// A plate's detail by its place (vr_agarmor_details): its tile (-1: a plain one by chance), its tile flipped (-1: by chance), its
+// step's factor. `dirAt(col)`: that column's plate's way out, in the model's axes (x forward, y left).
+struct PlateLook
+{
+    int tile{-1}, flip{-1};
+    float raise{1.f};
+};
+
+template <typename DirAt>
+[[nodiscard]] PlateLook plateLook(const PlateGrid& g, int piece, int r, int c, const DirAt& dirAt, uint32_t seed)
+{
+    PlateLook k;
+    if(vr_agarmor_details.value == 0.f || g.rows < 1)
+    {
+        return k;
+    }
+    const bool right = piece >= PauldronL && (piece - PauldronL) % 2 == 1;
+    const auto outerOf = [&](const glm::vec3& d) { return right ? -d.y : d.y; };
+    const glm::vec3 dir = dirAt(c);
+    const float front = dir.x;
+    const int last = g.rows - 1;
+    // (a row's details all one variant)
+    const auto pick = [&](int first, int n) { return first + static_cast<int>(plateRand(seed, 8000 + piece * 16 + r, 0, 0) * static_cast<float>(n)) % n; };
+    if(piece == Cuirass)
+    {
+        // (the two plates either side of the seam: the panel's recess on the seam's side of each, so the two make one panel; ribs
+        // below it down to the waist's row)
+        if(front > 0.6f && r == 1 && last >= 2)
+        {
+            k.tile = pick(tilePanel, tilePanels);
+            k.flip = c == 0 ? 0 : 1;
+        }
+        else if(front > 0.6f && r >= 2 && r < last)
+        {
+            k.tile = pick(tileRib, tileRibs);
+            k.flip = c == 0 ? 0 : 1;
+        }
+        return k;
+    }
+    const bool upperArm = piece == PauldronL || piece == PauldronR, forearm = piece == BracerL || piece == BracerR, shin = piece == ShinL || piece == ShinR;
+    if(upperArm && r == 0)
+    {
+        const int e = static_cast<int>(vr_agarmor_emblem.value);
+        if(!(e == 3 || (e == 1 && right) || (e == 2 && !right)))
+        {
+            return k;
+        }
+        // (the plate most to the outside, leaning to the front)
+        int best = 0;
+        float most = -1e9f;
+        for(int col = 0; col < g.cols; col++)
+        {
+            const glm::vec3 d = dirAt(col);
+            const float score = outerOf(d) + 0.35f * d.x;
+            best = score > most ? col : best;
+            most = za::max(most, score);
+        }
+        k.tile = c == best ? tileEmblem : -1;
+        k.flip = c == best ? 0 : -1;
+        return k;
+    }
+    // (a cop over the elbow's point, the back of the forearm's first row; over the knee, the front of the shin's)
+    if((forearm && r == 0 && front < -0.8f) || (shin && r == 0 && front > 0.8f))
+    {
+        k.tile = tileCop;
+        k.raise = copRaise;
+        return k;
+    }
+    // (vents round the front of the forearm's cuff, its last row, and of the shin's last row)
+    if((forearm || shin) && r == last && r > 0 && front > 0.3f)
+    {
+        k.tile = pick(tileVent, tileVents);
+    }
+    return k;
+}
+
 // The piece's plates from its grid.
 void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g, int piece, uint32_t seed)
 {
@@ -1501,9 +1582,18 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
             {
                 continue;
             }
-            const float proud = plateStep + (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.04f;
-            const int tile = static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(plateTilesX * plateTilesY)) % (plateTilesX * plateTilesY);
-            addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, tile, plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f);
+            float proud = plateStep + (plateRand(seed, 3000 + piece * 16 + r, c, 0) - 0.5f) * 0.04f;
+            int tile = static_cast<int>(plateRand(seed, 5000 + piece * 16 + r, c, 0) * static_cast<float>(tilePlains)) % tilePlains;
+            bool flipU = plateRand(seed, 6000 + piece * 16 + r, c, 0) < 0.5f;
+            const auto dirAt = [&](int col) {
+                const int col1 = (col + 1) % g.cols;
+                return dirOf(g.azOf(col) + za::atan2(za::sin(g.azOf(col1) - g.azOf(col)), za::cos(g.azOf(col1) - g.azOf(col))) * 0.5f);
+            };
+            const PlateLook look = plateLook(g, piece, r, c, dirAt, seed);
+            tile = look.tile >= 0 ? look.tile : tile;
+            flipU = look.flip >= 0 ? look.flip != 0 : flipU;
+            proud *= look.raise;
+            addPlate(s, corner, outward, w, dirOf(azMid), proud, piece, tile, flipU);
         }
     }
     // (a knight's upper arm: its top ring closed by a low dome over his shoulder pad, and a flat underside under it, so the cap is a
@@ -1526,7 +1616,7 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
         const glm::vec3 out = geom::safeNormalize(mid - next, -f.up, 1e-6f);
         const glm::vec3 apex = mid + out * (rad * f.cap + plateStep);
         const glm::vec3 inner = mid - out * rad; // (the dome's normals: from a point this far inside)
-        const int tile = static_cast<int>(plateRand(seed, 7000 + piece, 0, 0) * static_cast<float>(plateTilesX * plateTilesY)) % (plateTilesX * plateTilesY);
+        const int tile = static_cast<int>(plateRand(seed, 7000 + piece, 0, 0) * static_cast<float>(tilePlains)) % tilePlains;
         const float tw = (cuirassBlock.x1 - cuirassBlock.x0) / static_cast<float>(plateTilesX), th = (cuirassBlock.y1 - cuirassBlock.y0) / static_cast<float>(plateTilesY);
         const float tx = cuirassBlock.x0 + static_cast<float>(tile % plateTilesX) * tw, ty = cuirassBlock.y0 + static_cast<float>(tile / plateTilesX) * th;
         const auto put = [&](const glm::vec3& p, const glm::vec3& n, float u, float v, const W& w) {
@@ -1552,7 +1642,7 @@ void platesOf(Shell& s, const Local& L, const PieceFrame& f, const PlateGrid& g,
                 const float az = 6.2831853f * static_cast<float>(c) / static_cast<float>(g.cols);
                 const glm::vec3 rim = cornerAt(0, c);
                 const glm::vec3 p = k == 0 ? rim : mid + (rim - mid) * capBulge + out * ((rad * f.cap + plateStep) * 0.5f);
-                const float uv = k == 0 ? 0.5f : 0.35f;
+                const float uv = k == 0 ? 0.3f : 0.2f; // (within the tile's face: clear of the under-layer at its top)
                 put(p, geom::safeNormalize(p - inner, out, 1e-6f), 0.5f + uv * za::cos(az), 0.5f + uv * za::sin(az),
                     k == 0 ? at(weights, c) : plateWeights(L, p));
             }
@@ -2874,7 +2964,7 @@ float bridgeBonesOf[maxBridges][bridgeMostVerts * 12]{};
 // (the player's body's: vr_view_body.cpp's entity, made once a frame)
 float playerBridgeBones[bridgeMostVerts * 12]{};
 int playerBridgeFrame = -1, playerBridgePieces = -1;
-float bridgeKey[3]{-1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth as the shells were made with)
+float bridgeKey[5]{-1.f, -1.f, -1.f, -1.f, -1.f}; // (vr_agarmor_bridge, _folds, _fold_depth, _details, _emblem as the shells were made with)
 
 // Whether a kind's armour is still the model it found: a campaign switch (Mod_ResetAll) empties the slots of the models
 // it does not keep, the "#armor" ones among them, and gives them to the next models loaded (a body it keeps finds its
@@ -3546,7 +3636,7 @@ void relink()
     numWorn = 0;
     numBridges = 0;
     // (the joints' leather's settings changed: every shell made again, as vr_agarmor_rebuild)
-    const float key[3] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value};
+    const float key[5] = {vr_agarmor_bridge.value != 0.f ? 1.f : 0.f, vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value};
     if(memcmp(key, bridgeKey, sizeof(key)))
     {
         const bool first = bridgeKey[0] < 0.f;

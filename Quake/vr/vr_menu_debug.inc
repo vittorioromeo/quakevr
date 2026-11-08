@@ -262,6 +262,8 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_agarmor),
         row(opt::vr_agarmor_pieces),
         row(opt::vr_agarmor_bridge),
+        row(opt::vr_agarmor_details),
+        row(opt::vr_agarmor_emblem),
         row(opt::vr_agarmor_folds),
         row(opt::vr_agarmor_fold_depth),
         row(opt::vr_agarmor_bend),
