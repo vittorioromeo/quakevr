@@ -4662,6 +4662,49 @@ resizing it.
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
 
+## A lower box for lying down (branch `agent/pronebox`, 2026-11-08)
+
+His request: "add a new collision box for the prone height". Until now lying down was a value (24) of the crouch's
+`crouchBox` slot, 24 being the lowest box the clip recovery's height growth covered.
+
+- **Its own slot (vr_hull.cpp).** `proneNow` is the lying box: `crouchTopNum` gives `proneHeight` while it is set, and
+  `crouchBox` keeps the crouched box he gets up into (`boxFitsAt` asks the crouch's slot with the lying box cleared).
+  moveBox, entBox, touchBox, hitBox and bit 23 (crouched: monsters' sight at his real eyes) follow it as before.
+- **The height: `vr_prone_height` 16** (12 to the lowest crouched height less 4; slider 12..32). Measured on the lying
+  body (`vr_body_lie_report`, m2w 29.6 units a metre): flat-screen chest joint 5.3, eye 12.0; VR mock (head 0.4 m) chest
+  9.0, eye 14.6. The back's surface (chest joint plus half a chest's depth, about 4) is 9..13 and the propped head's top
+  about 16: 16 units (0.54 m) holds the body. Configs are sparse, so the new default reaches everyone who left it alone.
+- **The clip recovery** (`recoverClips`): its moved faces' bounds grow for `lowestBoxHeight` 12 (22 in z, 44 across;
+  were 16 and 32 for the 24 box); `buildVersion` 2 (cached brushes rebuilt). The slab check (hull 1 solid 32 past the
+  face) is unchanged (decision: deepening it would change which faces move for the crouch too).
+- **Getting up** needs the lowest crouched box to fit (unchanged): in a vent lower than 24 he stays lying, whatever his
+  head or key says, and `vr_prone 0` there keeps the lying box until he can rise. **Decision:** the lying limit
+  (`vr_prone_eye` 18) is no longer capped under the box (it was box less 2): it is capped under the lowest crouched box
+  less 2, and getting up asks for the eyes 2 over the higher of the box's top and that limit (`proneRiseEye`, 20 at the
+  defaults), so a headset player propped on his elbows (eyes 0.45-0.5 m) still lies down.
+- **Flat-screen:** the lying eye (`vr_flat_prone_eye` 14) is capped 4 (Quake's near plane) under the lying box's top:
+  12 at the default; kept down under a ceiling his view stops 4 under the box's top (`localEyeCap`, 8 for a crouch).
+- **Triggers, teleporters, pickups** meet the lying box's top, not the standing absmax (`VR_HullTouchTop`: world.c
+  SV_TouchLinks and vr_physics.cpp VR_TouchLinks' body test; the hands reach as before). **Water and slime:**
+  SV_CheckWater's middle point is the lying box's middle (`VR_HullWaistZ`): his head under water lying in a shallow
+  pool is waterlevel 2-3 (drowning, slime), not 1. Both only for the lying box (the crouch's behaviour unchanged).
+- **Aiming at him (QC):** `VR_AI_Origin` (monsters' aim, 110 uses) aims at the lying box's middle (`VR_AI_AimOrigin`),
+  bullets (`VR_Crate_ShotAim`) no higher than 60% of it; the scrag's spit and the shambler's lightning drop their
+  upward offsets for him. Not done: the mission packs' and AD's own aim offsets (they aim at his origin's lower point,
+  plus their own offsets).
+- **Costs:** one tree, as before (the 16x24 tree is now 16x16): e1m1 9127 nodes, 1125 planes, 56 ms on the pool
+  (low-impact run); e4m3 8674 nodes, 15 ms; about 0.13 MB a tree kept (12-byte clipnodes, the planes), about 19 MB while
+  it compiles (as every tree).
+- **Map:** vrteleporters' crouching room has a 20-high vent (y -144..-80 through the x 560..688 wall), shells in it and
+  a teleporter to the hub in the wall over it (24..56 up: only a standing box's top reaches it). Scenario `prone_vent`.
+- **Tests:** `prone_test.py` 33/33 (VR mock and flat): box 16 everywhere it was 24; the vent: crawled in (not
+  teleported; flat picks the shells up), up in it stays lying (flat view 12 or lower), `vr_prone 0` in it keeps the box,
+  crawled out standing; never stuck (the status's new `stuck`: the box as it is starts in no solid). The body's angle
+  check now follows its target (over 45: since "Lying body 2" the target comes from the eyes' height alone, 55 for the
+  VR mock's propped 14.6 eyes, 78 flat; the old "about 90 or more" no longer held). `vr_prone_status` prints a second
+  line: `prone: y .. stuck .. water ..`. Not regressed: crouch_test.sh's cases as documented (tunnel, gap, rise, gates,
+  cover 0 damage crouched / 48 standing), swimtilt 12, crawl 8, flatmove 10, flatcrouch 3, crouch_speed 4, teleporters
+  6 PASS 0 FAIL (low-impact runs).
 ## Teleport and smooth locomotion together (branch `agent/teleboth`, 2026-11-08)
 
 His words: "add the ability to use both teleportation locomotion and normal locomotion in VR at the same time? There

@@ -1353,7 +1353,9 @@ extern "C" int VR_TouchLinks(edict_t* ent)
             continue;
         }
 
-        if(absBoxesOverlap(ent, target) || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
+        // (The body: lying down, only up to the lying box's top, VR_HullTouchTop: no trigger over a vent he crawls in.)
+        const bool body = absBoxesOverlap(ent, target) && VR_HullTouchTop(ent) >= target->v.absmin[2];
+        if(body || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
         {
             list[count++] = target;
         }

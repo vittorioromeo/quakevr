@@ -202,7 +202,7 @@ void() CastLightning =
 
     org = self.origin + '0 0 40';
 
-    dir = VR_AI_Origin(self.enemy) + '0 0 16' - org;
+    dir = VR_AI_Origin(self.enemy) + (self.enemy.vr_prone ? '0 0 0' : '0 0 16') - org; // QVR: lying down, his box's middle
     dir = VR_AimCone_Bend(normalize(dir), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     VR_AI_Lightning(org, dir, 600, TE_LIGHTNING1, 10);

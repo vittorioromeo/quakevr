@@ -5262,9 +5262,10 @@ QVR_TOGGLE(vr_prone, "Lie Down and Crawl",
     "prone key (X) lies down and gets up. Needs the Crouched Hitbox. Off: never lying down (vr_prone).")
 QVR_SLIDER(vr_prone_eye, "Lying Down Below", 8.f, 22.f, 1.f, "%.0f units", noExt,
     "Your eyes' height over your feet under which you lie down (18 is about half a metre: propped on your elbows, "
-    "not on all fours). Up again with them 2 units over your lying box (vr_prone_eye).")
-QVR_SLIDER(vr_prone_height, "Lying Down Height", 24.f, 32.f, 1.f, "%.0f units", noExt,
-    "Your box's height lying down, at most the lowest crouched height less 4 (vr_prone_height).")
+    "not on all fours). Up again with them 2 units over this or your lying box's top, the higher (vr_prone_eye).")
+QVR_SLIDER(vr_prone_height, "Lying Down Height", 12.f, 32.f, 1.f, "%.0f units", noExt,
+    "Your box's height lying down: 16 (about half a metre) passes under gaps a crouch can't; at most the lowest "
+    "crouched height less 4 (vr_prone_height).")
 QVR_SLIDER(vr_prone_speed_scale, "Crawling Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
     "Lying down, the most speed the stick moves you at, times your top speed (vr_prone_speed_scale).")
 QVR_TOGGLE(vr_prone_crawl, "Crawl With Your Arms",

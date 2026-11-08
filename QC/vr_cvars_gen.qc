@@ -1399,6 +1399,7 @@ float cvarh_vr_proj_inherit_spray_across;
 float cvarh_vr_proj_inherit_spray_along;
 float cvarh_vr_proj_inherit_spray_hand;
 float cvarh_vr_projinherit_test;
+float cvarh_vr_prone_height;
 float cvarh_vr_prop_blow_wear;
 float cvarh_vr_prop_break_explosive;
 float cvarh_vr_prop_break_glass;
@@ -3331,6 +3332,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_proj_inherit_spray_along = VR_CVar_Make("vr_proj_inherit_spray_along");
     cvarh_vr_proj_inherit_spray_hand = VR_CVar_Make("vr_proj_inherit_spray_hand");
     cvarh_vr_projinherit_test = VR_CVar_Make("vr_projinherit_test");
+    cvarh_vr_prone_height = VR_CVar_Make("vr_prone_height");
     cvarh_vr_prop_blow_wear = VR_CVar_Make("vr_prop_blow_wear");
     cvarh_vr_prop_break_explosive = VR_CVar_Make("vr_prop_break_explosive");
     cvarh_vr_prop_break_glass = VR_CVar_Make("vr_prop_break_glass");
