@@ -3594,7 +3594,7 @@ weapon 36
     fx_gfx_wisp_charge "0.2"
     fx_gfx_wisp_alpha "0.22"
     fx_gfx_wisp_barrels "1"
-    fx_gfx_mask "841:8AAAAAAAgBAAAAAAAAAAwAwAAA-_HAAAAAAg____HAAAAAAAAAAAAAAAAAAAAAAAAAAA-HAAAAAAAAAAA4__________________________________________________________B"
+    fx_gfx_mask "518:________AAAAAAAAAAAAAAAAAAAAAAAAAA_DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8_PAAAAAAPAAAAAAA"
 }
 
 // slot 37: progs/v_flaregun.mdl (vr_wofs_*_38)

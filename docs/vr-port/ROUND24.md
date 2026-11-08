@@ -3703,3 +3703,54 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
   `scratch/slivers_after_full.png`.
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
+
+## The nail pistol: cleaner blue steel, glowing sight inserts, its barrel mask (branch `agent/loadjobs`, worktree phases, 2026-11-08)
+
+His notes: the texture "a bit too rusty and noisy": cleaner, its colours nearer the shotguns' and the nailgun's dark
+blue-grey steel, the silvery part at the slide's end kept, its identity kept; and glowing bits in its iron sights as the
+shotgun's and the super shotgun's, texture only (the geometry is fine).
+
+- **Repaint** (`v_nailpistol_skin0.png`; a one-off script, not kept: the PNG is the source). The mottled rust texels
+  (warm colours, and greys amid them) are smoothed (an edge-preserving filter: panel lines, slots and rivets kept), their
+  leftover mottling halved toward a wide local mean, then moved half-way to the blue-grey ramp (palette 32-47) at the same
+  brightness and quantised to greys 0-15, dark browns 16-23, the blue-grey row and the warm greys 162-175 (no fire
+  colours). Kept as they were: neutral greys (the silvery slide end, the frames, the grilles), black, the flat orange
+  accents, the yellow label on the slide's left side; the top half (the classic skin: the grip's checkering, the trigger
+  guard, the magazines' and the preview's parts) only has its speckles softened before the same shift, so the grip stays
+  as it was drawn. Some warm wear remains on the steel (his "don't overdo it"). The four other sources sharing the skin
+  (`v_nailpistol_mag`, `vr_mag_npistol`, `vr_mag_on_v_nailpistol`, `vr_nailpistol_preview`: 256x256, the pistol skin's top
+  half byte for byte) get the same top half.
+- **Sight inserts.** The ears' back faces (a steep face, x -1.68..-1.65, and a chamfer up to the top at -1.49) and the
+  post's back face (x 8.932) read only 2x7, 1x6 and 4x9 texels: too few for a framed insert. Their UVs (10 triangles, 20
+  file vertices; no vertex moved) now point at new patches in free skin (rows 468..490, s 8..68), ~0.04 units a texel:
+  each ear 17x11 middles (the chamfer and the steep face one strip), the post 9x22. Painted as the shotguns': steel
+  (blue-grey 35 with a little grey 4), the top edge lit, a dark recess line over and beside the insert, a lit lip under,
+  the insert 234 rim / 235 / 236 core (ears 7x6, centred on each ear; post 5x6). The notch floor is untouched. Depths:
+  the ears' inserts start 2 rows (0.045) under the ears' tops, the post's 2 rows (0.079): with the eye ~9 units behind the
+  rear (relief 4 at scale 0.45) and 19.5 from the front they sit at about the same angle under the iron line. The post's
+  insert ends 0.30 under its top: the slide's top hides the post lower than that from the eye (sight_picture.py: the
+  front seen down to 0.29). The post patch is 21 texel steps tall (not 20) so no insert texel sits on the face's diagonal
+  (a texel counted in both triangles moved the front's mean y 0.002 left).
+- **Sight line.** `vr_sight_lines`: "progs/v_nailpistol.mdl sights rear -1.63 -0.00 6.38 front 8.93 -0.00 6.38 (0.00 deg
+  up, 0.00 left)". The table's line was rear -1.25 0 6.376, front 9.07 0 6.376: the same direction and height (the irons'
+  tops at 6.3763, level), the points on the faces the inserts are on. So weapons.txt's `shot_pitch` 0.28 keeps its
+  relation to the sights; no offset changed, no align run. The table entry (vr_sightalign_table.inc) is gone (the painted
+  line is read); vr_sightalign.cpp's comment and sight_picture.py's line updated.
+- **Barrel mask** (the coordinator's audit): weapons.txt's `fx_gfx_mask` was for 841 triangles (an older model) on a
+  518-triangle model, so the engine read none. `barrel_masks.py` now gives the nail pistol `back` 9.25 (the nozzle in
+  front of the slide; without it the bore's radius took the slide's lower half, 229 triangles): 74 of 518 marked, x
+  9.9..11.3. The export carries it ("74 of 518 triangles marked, by their places in the shipped file").
+  `vr_barrelmask_report 37`: "tris 518 marked 74 mask 1"; 30 shots in flat play: heat 1.0, 235 frames glowing, each
+  drawn with its mask ("masked 1").
+- **Checks.** The export: holes as before (1 open loop, 0 see-through, 0 cracks), every vertex in both frames unchanged
+  (20 vertices' s/t changed), an untouched export of the old .blend writes the shipped file byte for byte. Fire-colour
+  texels: 114, all in the patches (234-236), none on the magazines' or the preview's skins. Flat ADS:
+  `vr_flat_sight_check` rear 0.0000 front 0.0000 off the ray; `vr_sight_hue 200` turns the three inserts blue and nothing
+  else. flatsight_test 12/0 (16 guns with sights, the nail pistol now among them); flatsweep 383 passed, 27 known, 0
+  failed; reload_test.sh 115/0 (its QC self-test 77/0; the nail magazines' checks 24/0).
+- **Screenshots** (`scratch/` of the worktree): `np_body_before_after.png` (Blender: both sides and from behind, before
+  over after), `np_sights_before_after.png` (the ears, the post, the flat sight picture), `np_ads_crop.png` (in game,
+  flat ADS, the player's hue), `np_ads_hue200_crop.png` (hue 200).
+- **Test it in VR:** the pistol in hand: steel nearer the shotgun's, still its own (the label, the grip, the silver
+  end); in ADS the irons' tops level, the three inserts glowing at about the same height, the aim as before; fire a
+  string: the nozzle glows.
