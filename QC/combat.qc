@@ -567,6 +567,7 @@ void(entity targ) VR_Decap_After;
 void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
 void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
+float(entity e, vector xForward, float xPush) VR_Knockdown_GetUpShove; // (a shove on one getting up: back down)
 void() VR_Knockdown_FastForwardDeath;
 float(entity e, entity xBy) VR_Knockdown_ZombieFall; // (a zombie's own fall as a ragdoll: zombie_pain, VR_AD_ZombiePain)
 // Hits that unbalance (vr_hitstagger.qc): a melee blow's (T_Damage_VRMelee), a thrown thing's (vr_carry.qc VR_Prop_Flung).
@@ -1098,6 +1099,8 @@ entity vr_limb_wear_ent;
 float vr_limb_wear_time;
 
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
+float vr_corpse_last_hit;    // the last hit's damage on a corpse's pool (the tests)
+float vr_corpse_last_gibbed; // and whether it gibbed it
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
 {
     if(!cvar_hget(cvarh_vr_corpse_gib))
@@ -1184,10 +1187,24 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     }
 
     targ.vr_corpse_hp = targ.vr_corpse_hp - damage;
-    dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, %.1f left\n", targ.classname,
+    // Who fully gibs it (his note vrragtriggers_2026-11-08_17-04-50: "repeated melee attacks or repeated pistol shots
+    // should probably never do that"): explosions, as their damage wears its corpse health out; any other hit only as one
+    // big one (vr_corpse_gib_overkill: a point-blank super shotgun on the torso), or, its corpse health worn out already, a
+    // solid one (vr_corpse_gib_hit_min). Lesser hits wear it on, its limbs and head popped as ever, but never gib it whole.
+    float overkill = cvar_hget(cvarh_vr_corpse_gib_overkill);
+    float blast = ((kind == QVR_CDMG_EXPLOSIONS) || (hit_kind == QVR_HITKIND_SPLASH));
+    float gibs = (targ.vr_corpse_hp <= 0);
+    if((overkill > 0) && !blast)
+    {
+        float hitMin = max(0, cvar_hget(cvarh_vr_corpse_gib_hit_min));
+        gibs = ((damage >= overkill) || (gibs && (damage >= hitMin)));
+    }
+    vr_corpse_last_hit = damage;
+    vr_corpse_last_gibbed = gibs;
+    dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, %.1f left%s\n", targ.classname,
         inflictor.classname != "" ? inflictor.classname : inflictor.model, kindName, kindMult, damage,
-        max(0, targ.vr_corpse_hp)));
-    if(targ.vr_corpse_hp <= 0)
+        max(0, targ.vr_corpse_hp), ((targ.vr_corpse_hp <= 0) && !gibs) ? " (worn out, but too small a hit to gib it)" : ""));
+    if(gibs)
     {
         VR_Corpse_Gib(targ, inflictor, attacker, damage);
     }
@@ -1308,6 +1325,9 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     SpawnBlood(at, dir * 40, dmg);
 
     VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, at, dir);
+    // Where it struck, this body's (VR_Hit_Where): without it the wound and dent went from the middle of the corpse's box, on a
+    // ragdoll lying anywhere but where the blade struck (his note 2026-11-08 17:07).
+    VR_Hit_SetZone(c, -1, at);
     vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
     T_Damage(c, self, self, dmg);
     vr_melee_blunt = FALSE;

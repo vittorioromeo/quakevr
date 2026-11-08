@@ -280,12 +280,24 @@ void() VR_ET_Step =
         {
             VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade out, it stops (%.2f s)", bladewoundage(vr_et_w)));
             remove(vr_et_w);
-            vr_et_w = VR_ET_SwordAt(VR_ET_Chest(vr_et_m), 72, TRUE);
+            vr_et_w = world;
+            VR_ET_To(19);
+        }
+        else if(vr_et_s == 19 && t > 0.3)
+        {
+            // (Thrown from before you: the first one's stagger may have brought the body nearer, and 72 units back from it was then
+            // behind your hands, the hilt meeting them first: "hit something with the hilt", never stuck. A test's own fault.)
+            vector chestAgain = VR_ET_Chest(vr_et_m);
+            vector flat = chestAgain - (self.origin + '0 0 22');
+            flat_z = 0;
+            vr_et_w = VR_ET_SwordAt(chestAgain, max(24, min(72, vlen(flat) - 24)), TRUE);
+            vr_et_at = vr_et_w.origin;
             VR_ET_To(9);
         }
         else if(vr_et_s == 9 && VR_ET_Resolved(vr_et_w))
         {
-            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it sticks in a live body again (kind %g)", vr_et_w.vr_stick_kind));
+            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it sticks in a live body again (kind %g; you at %v, the body at %v, staggering %g, thrown from %v)", vr_et_w.vr_stick_kind,
+                p.origin, vr_et_m.origin, vr_et_m.vr_knockdown, vr_et_at));
             VR_ET_To(10);
         }
         else if(vr_et_s == 10 && t > 0.1)
@@ -2947,6 +2959,7 @@ void() VR_ETS_Step =
         vr_ets_way = vr_skewer_way;
         vr_ets_hb = vr_ets_peak;
         vr_ets_ho = 0;
+        vr_eh_sounds = vr_embed_slidesounds;
         VR_ET_To(13);
     }
     else if(vr_et_s == 13)
@@ -2962,6 +2975,7 @@ void() VR_ETS_Step =
         vector c13 = vr_skewer_tip - vr_skewer_way * VR_Skewer_Back(g, l13);
         VR_Test_Check(fabs(VR_Skewer_Back(g, l13) - (vr_ets_peak - 4)) < 1 && vlen(g.vr_skewer_c - c13) < 1, sprintf("it slides along the blade with the hand: %.1f back from the tip, was %.1f; %.2f off its line", VR_Skewer_Back(g, l13), vr_ets_peak, vlen(g.vr_skewer_c - c13)));
         VR_Test_Check(g.vr_skewer_p == p, "not off the blade for it");
+        VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding it along the blade squelches (%g; his note 2026-11-08)", vr_embed_slidesounds - vr_eh_sounds));
         // Towards the hilt: the next along stops it.
         VR_ET_To(14);
     }
@@ -3764,13 +3778,14 @@ void() VR_EC_Step =
 // ---- vr_embed_test 26 (limbonaxe): his note of 2026-11-06, "the cut off limb should get stuck on the blade that cut it off" (vr_skewer.qc
 // VR_Skewer_CutOn), by the mock hand's real killing axe blows. 0 a live grunt's head, 1 a live grunt's limb, 2 a corpse's limb, 3 a
 // corpse's head: the part is on the axe (no blade left in the body, the axe in the hand), rides it rigidly as the hand moves (25 cm up at
-// 0.5 m/s), weighs in the hand; then off: 0 and 3 a fast move (4 m/s) that stops, 2 a hard swing (5 m/s) that stops, 1 the other hand's grip
+// 0.5 m/s), weighs in the hand; then off: 0 and 3 a fast move (8 m/s) that stops, 2 a hard swing (8 m/s) that stops, 1 the other hand's grip
 // and a 35 cm tug (into that hand). Ends `limbonaxe: N passed, M failed`. (A blow that didn't land as the case wants is dealt again, at most 3
 // times, as test 25's.)
 vector vr_la_c0;   // the part's middle as the ride began
 vector vr_la_h0;   // and the hand's
 vector vr_la_side; // the way across
 vector vr_la_home; // where you stood as the test began
+float vr_la_peak;  // case 0, 2, 3: the part's own speed as the fling reads it, the most while the move goes
 entity() VR_LA_Gib =
 {
     for(entity e = nextent(world); e; e = nextent(e))
@@ -3934,13 +3949,19 @@ void() VR_LA_Step =
         }
         else
         {
-            float sp = vr_et_case == 2 ? 5 : 4;
-            float go = vr_et_case == 2 ? 40 : 30;
+            float sp = 8; // (past Fling Speed, 4 m/s since 2026-11-08: a hard swing, a hard shake)
+            // (40 cm: the mock hand eases its glide in and out, so a 30 cm move "at 8 m/s" moves the part at 3.7 m/s at most, 40 cm at 5.3.)
+            float go = 40;
             // (Across and up, in the air: across at the floor, the part meets it or the body and bursts, as a skewered gib.)
             VR_EH_HandTo(vr_la_h0 + normalize(vr_la_side + '0 0 1') * go * cm, go * cm / VRMetersToUnits() / sp);
+            vr_la_peak = 0;
             VR_ET_To(12);
         }
         return;
+    }
+    if(vr_et_s == 12 && g != world)
+    {
+        vr_la_peak = max(vr_la_peak, g.vr_skewer_lastsp); // (its own speed as the fling reads it, the most)
     }
     if(vr_et_s == 12 && (g == world || t > 0.6))
     {
@@ -3954,7 +3975,8 @@ void() VR_LA_Step =
             }
         }
         VR_Test_Check(g == world && off != world && vlen(off.velocity) > 1.5 * VRMetersToUnits(),
-            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s)", vr_et_case == 2 ? "hard swing (5 m/s)" : "fast move (4 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits()));
+            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s; its own speed read at most %.1f m/s, Fling Speed %.1f)",
+                vr_et_case == 2 ? "hard swing (8 m/s)" : "fast move (8 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits(), vr_la_peak, cvar_hget(cvarh_vr_embed_cuton_fling)));
         VR_LA_Next();
         return;
     }
@@ -3981,12 +4003,20 @@ void() VR_LA_Step =
     }
 };
 
+void() VR_E8_Begin; // (vr_embed_1108_test.qc: test 28)
+void() VR_E8_Step;
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
     if(ask)
     {
         cvar_set("vr_embed_test", "0");
+        if(ask == 28)
+        {
+            cvar_set("vr_embed", "1");
+            VR_E8_Begin();
+            return;
+        }
         if(ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17 || ask == 18 || ask == 19 || ask == 20)
         {
             VR_EE_Ask(ask);
@@ -4227,6 +4257,15 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_LA_Next();
         }
         VR_LA_Step();
+    }
+    else if(vr_et_on == 28)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: case %g state %g", vr_et_case, vr_et_s));
+            VR_EH_NextCase();
+        }
+        VR_E8_Step();
     }
     else if(vr_et_on == 8)
     {

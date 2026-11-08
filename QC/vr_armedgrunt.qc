@@ -2,7 +2,7 @@
 //
 //
 // ----------------------------------------------------------------------------
-// Armed grunts (experimental; docs/vr-port/ROUND22.md, "Armed grunts")
+// Armed grunts (docs/vr-port/ROUND22.md, "Armed grunts")
 // ----------------------------------------------------------------------------
 //
 // monster_vr_grunt: a grunt holding one of your weapons, drawn as the weapon lying about is (its model at the grunt's
@@ -901,8 +901,20 @@ void() VR_AG_PropThink =
         }
         return;
     }
-    if(g.vr_ag_prop != self || !g.vr_ag || g.health <= 0)
+    if(g.vr_ag_prop != self || !g.vr_ag || g.health <= 0 || VR_AG_Freed(g)) // (its holder removed outright: gone with it)
     {
+        if(VR_AG_Freed(g))
+        {
+            entity tk = self.vr_fuellink;
+            if(tk && tk.classname == "vr_fueltank_worn" && tk.owner == g)
+            {
+                VR_FuelTank_Hush(tk);
+                remove(tk);
+            }
+            self.weaponinst = world;
+            remove(self);
+            return;
+        }
         if(g.vr_ag_tug_pl && (g.vr_ag_prop == self || !g.vr_ag_prop))
         {
             VR_AG_TugEnd(g, FALSE, "its weapon gone"); // (never left on: its hold, its stagger)

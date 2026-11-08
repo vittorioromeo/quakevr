@@ -38,7 +38,8 @@ namespace
 {
 
 constexpr int slots = 17;              // the server's client numbers 1..16 (edicts 1..maxclients)
-constexpr float jumpedUp = 60.f;       // u/s up off the ground: a jump (it ends a slide), not a step off a ledge
+constexpr float jumpedUp = 60.f;       // u/s up off the ground, the jump key held: a jump (it ends a slide)
+constexpr float steerBack = 0.35f;     // radians (20 degrees) round straight back where the move keys don't steer a slide
 constexpr float leanMinHit = 6.f;      // units the head must stand off his box's middle before the leant body is boxed
 constexpr float leanDistMost = 30.f;
 constexpr float leanAngleMost = 35.f;
@@ -59,6 +60,9 @@ struct Slide
     int starts{0};
     int groundSteps{0};      // this slide's moves on the ground and off it (the tests)
     int airSteps{0};
+    int jumpEnds{0};         // slides a jump ended (the tests: a ramp or a step is no jump)
+    const char* endWhy{""};  // why the last one ended (the tests, vr_flatmove_status)
+    float lastZ{0.f};        // his height at the last move (a step up's rise)
     float startSpeed{0.f};
 };
 
@@ -185,11 +189,27 @@ struct MantleTest
     float pitch{0.f};
 };
 
+// vr_flatslide_rough_test (maps/vrtesthall.bsp): slides up its stairs and its ramp, then curves with A alone and D alone,
+// the view turned 10 degrees off the slide's way so the side key asks a little behind it.
+struct RoughTest
+{
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    int index{0};         // the case
+    int frames{0};
+    float z0{0.f};        // the slide's start height
+    float zTop{0.f};      // the highest it got while sliding
+    float heading0{0.f};  // the slide's way when the side key went down (degrees)
+    int jumpsBefore{0};
+};
+
 struct ClientState
 {
     Lean lean;
     SlideView slide;
     SlideTest slideTest;
+    RoughTest roughTest;
     LeanTest leanTest;
     ProneTest proneTest;
     MantleTest mantleTest;
@@ -496,6 +516,158 @@ void slideTestFrame()
         default:
             t.tally.verdict(tag);
             t = SlideTest{};
+            break;
+    }
+}
+
+// vr_flatslide_rough_test: each case places him (setpos), runs him its way (+forward), crouches at speed and watches the
+// slide. 0: east at vrtesthall's stairs (16 high, 16 deep): it climbs at least three steps sliding. 1: north up its
+// 22 degree ramp: it goes up the ramp sliding and no jump ends it. 2, 3: east in the open, the forward key let go, the
+// view turned 10 degrees left (right) of the slide's way, A (D) alone held 0.5 s: it turns left (right) at least half
+// of vr_flat_slide_steer's degrees in that time.
+void roughTestFrame()
+{
+    RoughTest& t = client.roughTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const char* tag = "flatslide_rough";
+    const double now = qcvm->time;
+    const Slide& s = server.slide[1];
+    const float speed = groundSpeed(pl);
+    const bool ground = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    const glm::vec3 at{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]};
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+        t.frames = 0;
+    };
+    struct Case
+    {
+        float x, y, yaw; // the start (on the floor) and the run's way
+        float go;        // crouch once this far along the run's way (x east, y north)
+        int side;        // 0: none; 1 A (left), -1 D (right)
+    };
+    static constexpr Case cases[] = {
+        {-50.f, 592.f, 0.f, -20.f, 0},   // the stairs (x 96.. rising east, y 544..640)
+        {-160.f, 300.f, 90.f, 380.f, 0}, // the ramp (x -240..-80, y 460..620 rising north)
+        {-580.f, -440.f, 0.f, -520.f, 1},
+        {-580.f, -440.f, 0.f, -520.f, -1},
+    };
+    static constexpr int caseCount = static_cast<int>(sizeof(cases) / sizeof(cases[0]));
+    const Case& c = cases[t.index < caseCount ? t.index : 0];
+    const float along = c.yaw == 0.f ? at.x : at.y;
+    const float heading = glm::degrees(za::atan2(pl->v.velocity[1], pl->v.velocity[0]));
+    char line[256];
+    if(inPhase > 6.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "case %d timed out (step %d: speed %.0f, ground %d, sliding %d, crouch held %d, starts %d)", t.index,
+            t.phase, speed, ground ? 1 : 0, s.on ? 1 : 0, hull::flatCrouchHeld(pl) ? 1 : 0, s.starts);
+        testCheck(t.tally, tag, false, line);
+        Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
+        t.index++;
+        next(t.index < caseCount ? 1 : 99);
+        return;
+    }
+    switch(t.phase)
+    {
+        case 1: // place him, the keys let go (not setpos: it turns noclip on)
+            Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
+            pl->v.origin[0] = c.x;
+            pl->v.origin[1] = c.y;
+            pl->v.origin[2] = 24.f;
+            pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+            SV_LinkEdict(pl, false);
+            next(2);
+            break;
+        case 2: // settled on the floor, the last slide's cooldown past: run
+            cl.viewangles[YAW] = c.yaw;
+            cl.viewangles[PITCH] = 0.f;
+            if(++t.frames > 10 && ground && !s.on && now > s.cooldownUntil)
+            {
+                Cbuf_InsertText("+forward\n");
+                next(3);
+            }
+            break;
+        case 3: // at speed, past the mark: crouch
+            cl.viewangles[YAW] = c.yaw;
+            if(ground && speed > 300.f && along > c.go)
+            {
+                t.z0 = t.zTop = at.z;
+                t.jumpsBefore = s.jumpEnds;
+                Cbuf_InsertText("+flatcrouch\n");
+                next(4);
+            }
+            break;
+        case 4: // sliding
+            if(!s.on)
+            {
+                break;
+            }
+            t.zTop = za::max(t.zTop, at.z);
+            if(c.side != 0 && inPhase > 0.15)
+            {
+                cl.viewangles[YAW] = anglemod(heading + 10.f * static_cast<float>(c.side));
+                t.heading0 = heading;
+                Cbuf_InsertText(c.side > 0 ? "-forward\n+moveleft\n" : "-forward\n+moveright\n");
+                next(5);
+            }
+            else if(c.side == 0 && inPhase > 0.1)
+            {
+                next(6);
+            }
+            break;
+        case 5: // the side key held: the view kept 10 degrees off the slide's way it started from
+            cl.viewangles[YAW] = anglemod(t.heading0 + 10.f * static_cast<float>(c.side));
+            if(inPhase >= 0.5 || !s.on)
+            {
+                float turned = heading - t.heading0;
+                turned = turned > 180.f ? turned - 360.f : (turned < -180.f ? turned + 360.f : turned);
+                const float want = 0.5f * za::clamp(vr_flat_slide_steer.value, 0.f, 180.f) * static_cast<float>(inPhase);
+                q_snprintf(line, sizeof(line), "%s alone, the view 10 degrees %s of the slide: turned %.1f degrees in %.2f s (at least %.1f), sliding %d",
+                    c.side > 0 ? "A" : "D", c.side > 0 ? "left" : "right", turned, inPhase, want, s.on ? 1 : 0);
+                testCheck(t.tally, tag, turned * static_cast<float>(c.side) >= want && want > 0.f, line);
+                t.index++;
+                next(t.index < caseCount ? 1 : 99);
+            }
+            break;
+        case 6: // up the stairs or the ramp, until it ends
+            if(s.on)
+            {
+                t.zTop = za::max(t.zTop, at.z);
+                break;
+            }
+            {
+                const float rose = t.zTop - t.z0;
+                const int jumps = s.jumpEnds - t.jumpsBefore;
+                if(t.index == 0)
+                {
+                    q_snprintf(line, sizeof(line), "the stairs: it rose %.0f units sliding (at least 48: three steps), %d jump ends, ends at %.0f u/s (%s)",
+                        rose, jumps, speed, s.endWhy);
+                    testCheck(t.tally, tag, rose >= 48.f && jumps == 0, line);
+                }
+                else
+                {
+                    q_snprintf(line, sizeof(line), "the ramp: it rose %.0f units sliding (at least 16), %d jump ends, ends at %.0f u/s (%s)", rose,
+                        jumps, speed, s.endWhy);
+                    testCheck(t.tally, tag, rose >= 16.f && jumps == 0, line);
+                }
+                t.index++;
+                next(t.index < caseCount ? 1 : 99);
+            }
+            break;
+        default:
+            Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
+            t.tally.verdict(tag);
+            t = RoughTest{};
             break;
     }
 }
@@ -823,13 +995,13 @@ struct MantleCase
     bool mantles;
 };
 constexpr MantleCase mantleCases[] = {
-    {0, 48.f, 15.f, true},   // waist high
-    {1, 64.f, 15.f, true},
-    {2, 80.f, 15.f, true},   // over the eyes
-    {3, 96.f, 15.f, true},   // reached at the top of the jump
-    {4, 128.f, 15.f, false}, // too high
-    {5, 160.f, 15.f, false},
-    {1, 64.f, 0.f, false},   // looking level: no mantle (vr_flat_mantle_look 5)
+    {0, 48.f, 35.f, true},   // waist high
+    {1, 64.f, 35.f, true},
+    {2, 80.f, 35.f, true},   // over the eyes
+    {3, 96.f, 35.f, true},   // reached at the top of the jump
+    {4, 128.f, 35.f, false}, // too high
+    {5, 160.f, 35.f, false},
+    {1, 64.f, 20.f, false},  // looking up 20: under vr_flat_mantle_look (30), no mantle
 };
 constexpr float mantleBlockStep = 160.f; // the blocks' width and gap
 constexpr float mantleStandY = -18.f;    // his place in front of a block: its lip 2 units ahead of his box
@@ -1001,6 +1173,19 @@ void slideTest_f()
     client.slideTest.phaseAt = qcvm->time;
 }
 
+void roughTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatslide_rough_test: flat-screen play (-flatscreenmode) in a game you host, in vrtesthall\n");
+        return;
+    }
+    client.roughTest = RoughTest{};
+    client.roughTest.phase = 1;
+    progs::ServerVm vm;
+    client.roughTest.phaseAt = qcvm->time;
+}
+
 void leanTest_f()
 {
     if(!flatplay::active() || !sv.active)
@@ -1080,8 +1265,11 @@ SlideStep slideStep(const glm::vec2& vel, const glm::vec3& normal, const glm::ve
         {
             want += 2.f * glm::pi<float>();
         }
-        // (Only toward a way ahead of it: a key held back is no brake and no turn round.)
-        if(za::abs(want) < 0.5f * glm::pi<float>())
+        // Toward any way but straight back: A or D alone ask for 90 degrees off the view, and the slide's way is seldom
+        // the view's (he turned the mouse, or it already curved), so a side key often asked a little behind it and
+        // the old "only ahead of it" turned nothing. A key held straight back (within steerBack of it) is no brake
+        // and no turn round.
+        if(za::abs(want) < glm::pi<float>() - steerBack)
         {
             const float turn = have + za::clamp(want, -steer, steer);
             out.vel = glm::vec2{za::cos(turn), za::sin(turn)} * speed;
@@ -1104,6 +1292,7 @@ void init()
     Cmd_AddCommand("-flatleanright", leanRightUp_f);
     Cmd_AddCommand("vr_flatslide_selftest", slideSelftest_f);
     Cmd_AddCommand("vr_flatslide_test", slideTest_f);
+    Cmd_AddCommand("vr_flatslide_rough_test", roughTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
     Cmd_AddCommand("vr_flatprone_test", proneTest_f);
     Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
@@ -1121,6 +1310,7 @@ void frame(bool on)
     if(on)
     {
         slideTestFrame();
+        roughTestFrame();
         leanTestFrame();
         proneTestFrame();
         mantleTestFrame();
@@ -1200,25 +1390,34 @@ extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir
     const bool pressed = held && !s.held;
     // On the ground: Quake's flag, or the floor right under him and not going up (moving fast, the flag is off every
     // other move: the walk's clip down to the floor sets it only on the moves that meet it).
+    // A jump: going up with the jump key held since it (QC PlayerJump clears FL_JUMPRELEASED until the key is let go).
+    // Going up alone is no jump: up a ramp or a step at a slide's speed the floor's clip gives him more than jumpedUp.
+    const int flags = static_cast<int>(ent->v.flags);
+    const bool jumped = velocity[2] > flatmove::jumpedUp && (ent->v.button2 != 0.f || !(flags & FL_JUMPRELEASED));
     bool floorFound = false;
     const glm::vec3 normal = flatmove::floorNormal(ent, floorFound);
-    const bool ground = onground || (floorFound && velocity[2] <= flatmove::jumpedUp);
+    const bool ground = onground || (floorFound && !jumped);
     const bool landed = ground && !s.grounded;
     s.held = held;
     s.grounded = ground;
+    const float zWas = s.lastZ;
+    s.lastZ = ent->v.origin[2];
     const glm::vec2 vel{velocity[0], velocity[1]};
     const float speed = glm::length(vel);
 
     if(!flatmove::slideOn() || !held || !hull::isFlat(ent) || hull::isProne(ent) || ent->v.waterlevel >= 2 ||
        static_cast<int>(ent->v.movetype) != MOVETYPE_WALK)
     {
+        s.endWhy = s.on ? (!held ? "the key let go" : hull::isProne(ent) ? "prone" : ent->v.waterlevel >= 2 ? "water" : "not a flat-screen walk") : s.endWhy;
         flatmove::endSlide(s, now);
         return 0;
     }
     if(s.on && !ground)
     {
-        if(velocity[2] > flatmove::jumpedUp && !s.airborne)
+        if(jumped && !s.airborne)
         {
+            s.jumpEnds++;
+            s.endWhy = "a jump";
             flatmove::endSlide(s, now); // a jump: Quake's air move keeps the speed
         }
         else
@@ -1251,15 +1450,36 @@ extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir
     }
     const glm::vec2 wish = wishspeed > 1.f ? glm::vec2{wishdir[0], wishdir[1]} : glm::vec2{0.f};
     s.groundSteps++;
+    // Up a step (the last move rose on a level floor: a ramp's rise is its slope's): the speed a ramp as steep would
+    // have taken over the step's length, vr_flat_slide_slope * rise / speed. Stairs slow it as a ramp does.
+    glm::vec2 stepped = vel;
+    const float rise = ent->v.origin[2] - zWas;
+    if(rise > 1.f && rise < 24.f && glm::length(glm::vec2{normal.x, normal.y}) <= 0.02f && speed > 1.f)
+    {
+        const float loss = za::clamp(vr_flat_slide_slope.value, 0.f, 2000.f) * rise / za::max(speed, 100.f);
+        stepped *= za::max(0.f, speed - loss) / speed;
+    }
     const flatmove::SlideStep st =
-        flatmove::slideStep(vel, normal, wish, static_cast<float>(host_frametime));
+        flatmove::slideStep(stepped, normal, wish, static_cast<float>(host_frametime));
     velocity[0] = st.vel.x;
     velocity[1] = st.vel.y;
     if(st.ended)
     {
+        s.endWhy = "slowed";
         flatmove::endSlide(s, now); // into the crouch: the walk's friction from the next move
     }
     return 1;
+}
+
+extern "C" int VR_FlatSlideStepUp(edict_t* ent)
+{
+    const int num = flatmove::clientSlot(ent);
+    if(num < 0)
+    {
+        return 0;
+    }
+    const flatmove::Slide& s = flatmove::server.slide[num];
+    return s.on && !s.airborne && s.grounded ? 1 : 0;
 }
 
 extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])

@@ -593,6 +593,31 @@ void(entity e, float xMoved, float xCm) VR_Embed_SlideFlesh =
     }
 };
 
+// Running into a stab you hold (his note 2026-11-08 17:17, "I very often overshoot my run"): the blade, which can't go further in,
+// pushes back. Your speed along its way into the body (level) eases down to vr_embed_brake_speed at vr_embed_brake per second, so you
+// stay before the body. Any body the blade is in, living or one the stab killed; your speed off that way is left alone.
+float vr_embed_braked; // (for the test: m/s taken off your speed by the last brake)
+void(entity e, entity p, entity h) VR_Embed_Brake =
+{
+    float rate = cvar_hget(cvarh_vr_embed_brake);
+    vector way = e.vr_stick_dir;
+    way_z = 0;
+    if(rate <= 0 || !(h.flags & FL_MONSTER) || vlen(way) < 0.1)
+    {
+        return;
+    }
+    way = normalize(way);
+    float along = p.velocity * way;
+    float most = max(0, cvar_hget(cvarh_vr_embed_brake_speed)) * VRMetersToUnits();
+    if(along <= most)
+    {
+        return;
+    }
+    float now = most + (along - most) * max(0, 1 - rate * frametime);
+    p.velocity = p.velocity - way * (along - now);
+    vr_embed_braked = (along - now) / VRMetersToUnits();
+};
+
 // The hold, each think of a blade held (self). TRUE: it is gone (in the hand).
 float() VR_Embed_HoldThink =
 {
@@ -648,6 +673,7 @@ float() VR_Embed_HoldThink =
     e.vr_hold_last = time;
     float cm = 0.01 * VRMetersToUnits(); // units a cm
     vector dir = e.vr_stick_dir;
+    VR_Embed_Brake(e, p, h);
 
     // Going on to its depth, after the stab struck: the blow's speed takes it, the hand drawn with it. Its place from there is
     // where the hand's is from the blade as it gets there.

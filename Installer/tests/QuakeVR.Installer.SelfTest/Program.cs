@@ -415,7 +415,7 @@ var tests = new List<(string Name, Action Body)>
     {
         Eq("-basedir \"C:\\Games\\Quake\" -basedir \"C:\\Users\\p\\QuakeVR\" -game quakevr",
             LaunchCommand.Arguments(@"C:\Games\Quake\", @"C:\Users\p\QuakeVR", LaunchVariant.Vr), "vr (trailing backslash dropped)");
-        True(LaunchCommand.Arguments("a", "b", LaunchVariant.Flat).EndsWith(" +vr_enabled 0"), "flat");
+        True(LaunchCommand.Arguments("a", "b", LaunchVariant.Flat).EndsWith(" -flatscreenmode"), "flat");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Log).EndsWith(" -condebug"), "log");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Diagnostics).EndsWith(" -diagnostics"), "diagnostics");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.BugReport).EndsWith(" -bugreport"), "bug report");
@@ -425,7 +425,7 @@ var tests = new List<(string Name, Action Body)>
         Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (Create Bug Report).lnk", all[5].LinkPath, "bug report in the Start menu");
         True(all[5].Arguments.EndsWith(" -bugreport", StringComparison.Ordinal), "the bug report shortcut's -bugreport");
         True(all[4].Arguments.EndsWith(" -diagnostics", StringComparison.Ordinal), "the diagnostics shortcut's -diagnostics");
-        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
+        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (Flat Screen).lnk", all[2].LinkPath, "flat in the Start menu");
         Eq(@"T:\QVR", all[0].WorkingDirectory, "start in the Quake VR folder");
         var desktopOnly = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenu = false, Log = false }, @"Q:\Quake", @"T:\QVR");
         Eq(2, desktopOnly.Count, "desktop: VR + flat (no diagnostics shortcut on the desktop)");
@@ -517,7 +517,7 @@ var tests = new List<(string Name, Action Body)>
         True(File.Exists(Path.Combine(target, "quakevr", "newfile.txt")), "new file");
         Eq("player config", File.ReadAllText(Path.Combine(target, "quakevr", "ironwail.cfg")), "config kept");
         True(File.Exists(Path.Combine(target, "quakevr", "s0.sav")), "save kept");
-        True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (flat screen).lnk")), "stale shortcut removed");
+        True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (Flat Screen).lnk")), "stale shortcut removed");
         Eq(6, r2.Shortcuts.Count, "shortcuts after update");
         Eq(record.InstalledAt, r2.InstalledAt, "install date kept");
 

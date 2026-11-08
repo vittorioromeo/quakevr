@@ -334,7 +334,7 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
-// Combat > Armed Grunts (Experimental) (QC vr_armedgrunt.qc; ROUND22.md, "Armed grunts"): grunts holding your weapons.
+// Combat > Armed Grunts (QC vr_armedgrunt.qc; ROUND22.md, "Armed grunts"): grunts holding your weapons.
 [[nodiscard]] const char* armedGripSubject()
 {
     return aggrip::subjectLine();
