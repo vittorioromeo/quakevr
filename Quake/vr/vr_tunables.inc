@@ -1954,6 +1954,12 @@ QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the cro
 QVR_TUNABLE(vr_flat_slide_body_angle, "45") // the slide: the trunk leant back this many degrees from upright, the legs out in front along the floor (vr_avatar_pitch.cpp)
 QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
+QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in front reach this share of their length from hip to foot, the foot on the floor (0.85..1; 1: dead straight, less bends the knees up)
+QVR_TUNABLE(vr_flat_slide_turn_time, "0.12") // the slide: seconds the two-handed stance's turn of the torso takes to go (and come back after): sliding, the trunk faces the view or the slide's way
+QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the slide's way, the chest turned back to the view (at most vr_flat_slide_legs_twist); 0: the whole body faces the view
+QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
+QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
+QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
 QVR_TUNABLE(vr_flat_lean_angle, "15") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
 QVR_TUNABLE(vr_flat_lean_dist, "16") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
 QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot

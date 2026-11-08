@@ -48,8 +48,10 @@ QVR_CVAR(vr_prone_crawl_friction, "3", CVAR_ARCHIVE)   // ... how quickly the cr
 QVR_CVAR(vr_prone_crawl_max_speed, "120", CVAR_ARCHIVE) // ... units/second the arms' crawl can reach
 QVR_CVAR(vr_prone_crawl_haptic, "0.3", CVAR_ARCHIVE)   // ... a short pulse in the hand as it plants for a pull, this strong (0 none); its palm's slap on the floor too (vr_physsound_grab)
 QVR_CVAR(vr_prone_crawl_debug, "0", CVAR_NONE)         // ... 1: print each pull (hand, how far it went, the speed it gave) and each hand's height over the feet as it plants
-QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... degrees the body turns forward about the neck lying down (0 .. 100; the eyes over the floor tip the hips down more, so they rest on it)
+QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... the most degrees the body turns forward about the neck lying down (0 .. 100): it turns until the hips rest vr_prone_hip_floor over the floor (90: flat behind the head)
 QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
+QVR_CVAR(vr_prone_hip_floor, "3.5", CVAR_ARCHIVE)      // ... units the hips (the pelvis joint) rest over the floor lying down: the body turns about the neck until they are there, the chest propped on the elbows when the eyes are higher (0 .. 10; at most vr_prone_body_angle)
+QVR_CVAR(vr_prone_leg_reach, "0.997", CVAR_ARCHIVE)    // ... lying down, the legs reach this share of their length from the hip to the feet on the floor behind (0.85 .. 1; 1: dead straight)
 QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
