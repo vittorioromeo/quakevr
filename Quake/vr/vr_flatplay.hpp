@@ -51,6 +51,9 @@ struct FireRoute
 // Whether this hand's punch is running (its clock: flatplay's own, so never in a headset). The free hand on a grip lets go
 // of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
 [[nodiscard]] bool punching(int h);
+// How far empty hand `h`'s fingers close into a fist (0 open .. 1): its rest's share of the guard
+// (vr_flat_empty_hand_pose), and all the way while it punches.
+[[nodiscard]] float fistShare(int h);
 
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
@@ -121,6 +124,10 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // bends for this look's pitch (degrees, + forward: vr_flat_chest_down, _up), and the neck's move off the eye a full crouch
 // makes, `levelFwd` being the level look's forward (world units: vr_flat_crouch_shoulder_down, _fwd).
 [[nodiscard]] float chestPitch(float pitch);
+// The slide's turn of the chest back to the view (degrees about the trunk, + left): with vr_flat_slide_legs the hips and legs
+// face the slide's way (the body's yaw, poseHands) and the chest turns back towards the view, at most
+// vr_flat_slide_legs_twist. 0 outside a slide and the mode.
+[[nodiscard]] float trunkTwist();
 [[nodiscard]] glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch);
 // The free hand `h` hanging: the move from where it stands to where it would stand off the gun in its other hand had the look been
 // level (what chooses the grip: vr_view_weapon.cpp). 0 outside the mode, with vr_flat_body_pose 0, and for a hand doing anything else.

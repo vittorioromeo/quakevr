@@ -574,10 +574,15 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     const float lying = bodyPitch.lying * (1.f - swim);
     if(lying > 1e-3f)
     {
+        // Straight (vr_prone_leg_reach of the leg from the hip to the foot), back along the floor behind the body's
+        // facing, the foot down on the floor however high the hip is (his note 2026-11-08: the legs bent, the feet up).
         const glm::mat3 pitch = bodyPitchTurn(b);
-        const glm::vec3 back = safeNormalize(pitch * -UP, -b.fwd);
-        glm::vec3 lie = t.pos + back * ((a + l) * 0.96f) + outward * (0.04f * (a + l));
-        lie.z = za::max(footZ, za::min(lie.z, t.pos.z));
+        const float reach = (a + l) * CLAMP(0.85f, vr_prone_leg_reach.value, 1.f);
+        const float dz = CLAMP(0.f, t.pos.z - footZ, reach);
+        const float spread = 0.04f * (a + l);
+        const float along = za::sqrt(za::max(0.f, reach * reach - dz * dz - spread * spread));
+        glm::vec3 lie = t.pos - b.fwd * along + (side == 0 ? b.left : -b.left) * spread; // (out across the body: the foot's own yaw lengthened one leg, shortened the other)
+        lie.z = t.pos.z - dz;
         target = glm::mix(target, lie, lying);
         kneeDir = safeNormalize(glm::mix(kneeDir, safeNormalize(pitch * b.fwd, -UP), lying), b.fwd);
     }
@@ -590,8 +595,13 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     const float sliding = bodyPitch.sliding * (1.f - swim);
     if(sliding > 1e-3f)
     {
-        glm::vec3 out = t.pos + b.fwd * ((a + l) * 0.93f) + outward * (0.08f * (a + l));
-        out.z = footZ;
+        // vr_flat_slide_leg_reach of the leg from the hip to the foot on the floor (his note 2026-11-08: straighter).
+        const float reach = (a + l) * CLAMP(0.85f, vr_flat_slide_leg_reach.value, 1.f);
+        const float spread = 0.06f * (a + l);
+        const float dz = CLAMP(0.f, t.pos.z - footZ, reach);
+        const float along = za::sqrt(za::max(0.f, reach * reach - dz * dz - spread * spread));
+        glm::vec3 out = t.pos + b.fwd * along + (side == 0 ? b.left : -b.left) * spread;
+        out.z = t.pos.z - dz;
         target = glm::mix(target, out, sliding);
         kneeDir = safeNormalize(glm::mix(kneeDir, UP + b.fwd * 0.3f, sliding), b.fwd);
     }

@@ -847,6 +847,9 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Fly Camera Test", "vr_flat_flycam_test")
             .help("vr_flat_flycam_test: on, turned round, flown 200 units off and shot; checks nothing of his moved, the "
                   "game's time held (and ran with pause 0), no button reached him, and the view back in his eye exactly."),
+        command("Flatscreen Fly Camera: Look at Me", "vr_flat_flycam_place")
+            .help("vr_flat_flycam_place [forward right up [pitch]]: the fly camera put 60 units in front of you, looking back at "
+                  "you (the hands' rest pose, the body); F8 back in your eyes. Flatscreen play only."),
         command("Flatscreen Pose Sweep", "vr_flat_sweep menu")
             .help("The look taken from straight up to straight down, standing and crouching, per weapon stance, hipfire and "
                   "ironsight: one row a step in screenshots/flatsweep_menu.csv, with a picture at each end and level. It holds the "

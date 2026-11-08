@@ -3514,6 +3514,51 @@ rear's ears as the shotgun has.)
   at once, 46/0 later; the sights stay yellow); the blood check keeps the side camera.
 - **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.
 
+## Lying body: slide and prone, on the floor (branch `agent/embed5`, 2026-11-08)
+
+His flat-screen notes (fly camera shots): sliding, the legs bent, the holsters and ammo pouch floating up by the head and on
+screen, the walk's bob making the feet go through the floor; lying down, the body floating above the floor, the legs not
+straight. Plus: a slide sound; the legs pointing the slide's way, not the camera's.
+
+- **Measured first** (`vr_body_lie_test`, `vr_avatar_lie.cpp`: the posed body against a trace down to the real floor and the
+  drawn eye). Before: prone pelvis 20.4, chest 16.7 units over the floor, knees bent 51/56 deg, feet 20.7 up; slide knees
+  35 deg, the body yaw 15 deg off the view (the stance), the pelvis bobbing 4.0 .. 9.3 and the eye -3.3 .. 2.0, the ammo
+  pouch 15 units from the eye 28 deg off the view, the gear up to 10 units off where it sits on the standing body.
+- **Prone float: the target's sign.** `pronePitchTarget` went past 90 as the eyes stood higher, meant to slope the hips
+  down to the floor; turning the hanging trunk forward past 90 lifts the pelvis above the neck instead (the flat eye is
+  14 over the floor: 111.7 deg, the hips 20 up). Now it is the turn that puts the pelvis `vr_prone_hip_floor` (3.5) over
+  the box's floor: `a = atan2(torso, torsoBack) + asin(-drop / r)` from the drawn trunk's own lengths (the pelvis to the
+  head's bind, `vr_body_torso_back`, `vr_body_eye_up` under the eye), capped by `vr_prone_body_angle` (now the most, 90).
+  Flat (eye 14): about 60 deg, propped on the elbows, the hips on the floor. The headset too (its floor from the server's
+  box: the calibrated height had the hips 2 units up): the mock's head at 0.28 m gives pelvis 3.5.
+- **Straight legs.** Lying down and sliding, the foot's target is `reach` (`vr_prone_leg_reach` 0.997,
+  `vr_flat_slide_leg_reach` 0.993) of the leg from the hip, down to the floor, along the body's facing; the spread across
+  the body is out along its own left (it was the foot's yaw, off the body's by the stance: one leg 2% long, one short:
+  bends 0 and 19). Knee bend: prone 9/9, slide 14 (was 51/56 and 35).
+- **The gear on the slid body.** The slide's neck-back move (`vr_flat_slide_neck_back`) also moved the Follower's upright
+  reference (solveTorso's reference poses), so everything it carries came out 10 units forward: the ammo pouch in front
+  of the camera. Reference poses no longer take it. And the hip holsters and ammo pouch no longer ride the thighs by the
+  lying and sliding share (`Follower::thigh`: the legs out in front swung them up). Every item now sits as far from its
+  bone as standing (0.0 off).
+- **2H stance in a slide.** The stance's torso turn (`flatsight::stanceYaw`) eases out over `vr_flat_slide_turn_time`
+  (0.12 s) while sliding (flatplay poseHands).
+- **Legs the slide's way** (`vr_flat_slide_legs` 1, `vr_flat_slide_legs_twist` 70): the body's yaw goes to the slide's
+  velocity, the chest turns back to the view about the trunk (`flatplay::trunkTwist`, half in the spine; less by
+  cos(pitch) so that seen from above it faces the view once leant back). Test: the view turned 40 deg in a slide, legs
+  0.0 off the slide, chest 0.6 off the view.
+- **No bob in a slide** (`vr_flat_slide_bob` 0): Quake's view bob (`V_CalcBob`, view.c through `VR_FlatBobScale`) and
+  flatplay's walk bob (hands, body ride) go by the slide pose's share. Pelvis 5.17 .. 5.25, eye constant.
+- **Slide sound** (`vr_slidesound.cpp`, `quakevr/sound/vr/slide_start.wav` and `slide_loop.wav` from
+  `Misc/quakevr/make_slide_sounds.py`, synthesised, seeded): a thump and scuff as the slide starts, a looped gritty scrape
+  (cue point) whose volume and pitch follow the speed (full at 480 u/s), fading as it slows and 0.18 s after it ends;
+  `vr_flat_slide_sound` (0.6). Test: started once, up to 0.77, 0.63 -> 0.27 over the pose, stopped 0.06 s after.
+- **Test:** `bash Misc/quakevr/body_lie_test.sh <agent>`: flat 20/0, vr 5/0. `vr_body_pitch_test` 30/0 (the prone target's
+  checks rewritten), `flatslide_test.sh` 10/0. Debug > Tests: Lying Body Test, Lying Body Report.
+- **Rows:** VR Settings > Body: Lying Down Hips Over Floor, Lying Down Leg Reach; Debug > Tunables > Flatscreen > Slide:
+  Slide Leg Reach, Slide Stance Turn Time, Slide Legs Follow Slide, Slide Legs Most Twist, Slide Walk Bob, Slide Sound
+  Volume.
+- **Not done:** the flat prone eye stays 14 over the floor (its drop is the camera's, not the body's): lying down is propped
+  on the elbows rather than flat on the chest; lower `vr_prone_hip_floor` or the eye for flatter.
 ## Flat tools: force grab key, F7 toolgun, weapon_* classnames (worker C, 2026-11-08)
 
 - **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
@@ -3712,3 +3757,114 @@ His note: "The enforcer's right elbow leather connector has a similar issue to t
   left, `bracer_l`, the one that jumped) while it stands, aims, shoots, walks and swings: the leather stays round the
   elbow, no ring spinning, the inner-elbow lump easing rather than pumping. Grunts' and knights' elbows and knees: no
   new lumps or skin through the leather on the inside of a bend.
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar). (Done in "Flat tools 2" below.)
+
+## Flat tools 2: the toolgun panel in flat, the physgun's adjust key, empty-hand poses (2026-11-08)
+
+- **Toolgun panel in flat** (`vr_toolgun_panel.cpp` flat section): with the panel open (mouse 3) and no headset it is drawn
+  over the window at the flat 2D pass's end (`drawFlat`, from `VR_End2D`'s flat branch: the panel's own render, then its
+  texture as a screen quad: `vr_flat_toolgun_panel_size` 0.75 of the window's height, `_x` / `_y` 0.5). The desktop mouse
+  moves a cursor drawn into the panel image (an arrow); `IN_MouseMotion` hands its counts to `VR_FlatToolgunMouse` first
+  (true: taken, the view does not turn; `vr_flat_toolgun_cursor_speed` 1 = the desktop pointer's speed). `laserHit` in
+  flat is the cursor (the mock laser still wins), so every widget, dropdown and slider works as with the laser. The left
+  button while the panel is open is a panel click (`panel::flatClick` → `trigger`), not the gun's trigger; its release
+  goes the same way. Esc closes it (`VR_FlatToolgunEscape` in Key_Event's Esc, before the menu), mouse 3 too.
+- **Adjust key** `vr_flat_key_toolgun_adjust` (`b`, flat-owned): the headset's X/A on the gun's hand
+  (`toolgun::button(Primary)`: snap, the sticks the tool's). Held, the mouse is the tool's (`toolgun::flatNudge`, gathered
+  and spent in `sticksFrame` with the sticks): up/down pushes the physgun's prop out/in (`vr_flat_toolgun_push_scale` 0.5
+  units a count; the brush's push; the scale tool 1% a unit), left/right turns it (`vr_flat_toolgun_turn_scale` 0.4 deg a
+  count). Not with the spawn tool (its ghost turns with the aim). Keys checked against his: Q/E, V, G, 3, R/mouse 4,
+  mouse 5, F7, F8, F (flashlight), X (prone), Z (bullet time), C (+movedown), T (messagemode): B was free.
+- **Empty-hand pose** `vr_flat_empty_hand_pose` (tunable, Flatscreen > Free Hands): 2 (default) guard with both hands
+  empty, relaxed while the other holds a weapon; 0 relaxed; 1 guard; -1 the old place. The hang block of `poseHands` now
+  blends to the pose's offset (shares of `armSpan()` off the shoulder, level with the body; `vr_flat_relaxed_*`,
+  `vr_flat_guard_*` fwd/down/out/pitch/roll) instead of the old empty/support offset with fingers 60 down; `fs.guard[h]`
+  eases relaxed/guard as the other hand takes or drops a weapon; a weapon taken eases up out of the pose over
+  `vr_flat_empty_take_time` (0.1 s; 0 = the old snap). The guard closes the fingers (`flatplay::fistShare`, read by
+  `vr_view.cpp`'s finger targets; also 1 while punching). Punch and shove leave the pose (the hang eases out) as before.
+- Debug > Reports: **Flatscreen Fly Camera: Look at Me** (`vr_flat_flycam_place [fwd right up [pitch]]`): the fly camera put
+  in front of you looking back. Test aid `vr_flat_mouse_move <dx> <dy> | to <widget>`; `vr_toolgun_status` prints the
+  physgun's distance and turn.
+- Force grab effects in flat checked by eye: the gun's glow outline, the tendril and the lock-on sparks show while it flies.
+- Tests: `Misc/quakevr/flattoolgun_test.sh` 11/0 (F7, mouse 3, Monsters > page 2 > Armed Humanoid > Choose with the
+  cursor, Esc (no menu), LMB spawned `monster_vr_grunt`; Weapons > Grunt Burst Rifle, LMB spawned `weapon_gruntgun`; the
+  physgun's grunt pushed 16 -> 36 and turned -20 with B and the mouse). flatwall 18/0, flatsight 12/0,
+  `vr_flatitems_test 1` 9/0, `vr_pickup_test 9` 15/0, flatinput 14/0. Its shove case first gave 13/1 (the third shove hit
+  2): `edicts` showed the guard hands never moved the first grunt (at 316 before the shove in both poses); the shove
+  throws it to y 335-337 with either pose, at the edge of the head-based reach (QC `VR_FlatShove`), so counting it was a
+  legit borderline hit. The case now steps 96 units left before the second grunt: the third shove's one hit is its target.
+## Lightning and plasma gun sights: clean topology (branch `agent/regfix`, 2026-11-08)
+
+His note, with Blender screenshots (kit `scratch/shotsight_mockup/light_topo_top.webp`, `light_front_post.png`): the
+top of v_light round the new rear housing a mess of slivers and overlapping faces, z-fighting in the game; the front
+post's glowing cube misaligned and stuck into the post; both sights' tops to taper a little, as the shotgun's.
+
+- **What was wrong.** The original model's receiver top (x -2.72..4.79, z 10.8636) is two big triangles with the old
+  rear hump's faces lying on it (three of them facing down in the same plane, two degenerate pairs duplicated,
+  T-junctions); the last round sank the old posts into the new housing (the slivers fanning from them) and stood the
+  housing in it. The barrel top's diamond under the front sight (z 9.8352) the same: a fan over a fan, two down-facing
+  faces in its plane, the old lopsided stem with a cap inside its apex, the little cube on top. `scratch/lt/coplanar.py`
+  (pairs of triangles in one plane that overlap, frame 0 as the engine decodes it): 41 such pairs round the rear sight.
+- **Rebuilt** (`scratch/lt/bl_lighttopo.py`, both .blends; `S0` 21 v_light, 143 v_plasma): every face of the hump, the
+  old posts, the sunk housing, the top's overlapping faces, the stem, its caps and the cube deleted.
+  - Rear housing: one profile extruded along x, standing on the receiver top, its back flush with the receiver's rear
+    face (x -2.7194..-1.6952, 6 steps long as before): a base the receiver's full width, 3 z steps tall; over it a tower
+    16 y steps wide at the shoulders whose outer sides taper 2 steps in to the ears' tops (19 deg); a square U notch 6
+    steps wide and 4 deep (0.44 x 0.274, as before) on y -0.0982; ears 3 steps wide at the top (0.22), their tops at
+    11.4806 as before. Back and front faces: each ear two triangles, both with a top corner (the sight reader's iron
+    top); the rest as the triangulation with the largest smallest angle (back 13.1 deg, front 6.2: its bottom edge is
+    one edge with the top's); the rear face's top edge split under the shoulders to match (4 triangles, 8.4 deg).
+  - Receiver top: the quad from the housing's front to the receiver's front edge, 2 triangles (23 deg); each side slope
+    re-cut at the housing's front corner (3 triangles, 18.5 deg). No vertex lies on an edge it doesn't end (no
+    T-junctions): the housing's bottom edges are the top's and the rear face's edges.
+  - Front post: one solid, a block 6 steps wide (0.44) from the barrel top to 4 steps under its top, its front ramped (4
+    x steps deep at the foot, 2 at the waist); over it the top, tapered to 4 steps (0.293, the cube's width) in 4 z steps
+    (14 deg); back face x 31.0765, top 11.3435 as before. It stands in a rectangular hole cut in the diamond: 12
+    triangles round it (two points on the barrel's line behind and ahead of the foot keep them at 13.5 deg or more).
+  - UVs: the top, the slopes, the rear face and the diamond take their old maps (sampled at the new corners); the
+    housing's and the post's other faces the metal patch.
+- **Paint** (`scratch/lt/paint_lighttopo.py`), new patches in the same free skin, 3 texels a grid step: the ears' back
+  faces (13 x 13 at s S0+1, t 94; mirrored for the right ear, so both read outwards from the notch): a 6-wide glowing
+  insert (234 rim, 235, 236 core) centred on the ear's top, its top 1 row (0.023) under the ear's top, in a recess (a
+  dark line over it and on its inner side, a lit outer side, a lit lip under it); the post's top back face (19 x 13 at
+  S0+15): a 7-wide insert centred on the post, its top 2 rows (0.046) under the post's top, a lit top edge; metal 9 x 9
+  at S0+35. These guns have no relief source (their normal maps are baked from the model): the recess is paint only.
+- **Sight line:** rear -2.7194 -0.0982 11.4806, front 31.0765 -0.0987 11.3435: -0.232 deg up, -0.001 left (was -0.235,
+  0.000): the rear point is the housing's back face, now 0.34 further back. Flat ADS `flatsightcheck`: rear off 0.0000,
+  front off 0.0002, far off 0.067 (0.0009 deg). `sight_picture.py` updated.
+- **Counts:** 948 -> 877 triangles (both guns; the original model 865). Barrel masks 877: the diamond's 12 new
+  triangles marked, as its 8 old ones were (`scratch/lt/maskfix.py`: the export marks by the shipped file's corners, and
+  the diamond's are new), the post not, as the stem wasn't. Overlapping coplanar pairs round both sights 41 -> 0 (63
+  remain elsewhere in the original model, untouched). Holes (check_mdl_holes.py): open loops 6 (0 see-through) as
+  before, cracks 4 -> 2 (none in the sights), pieces 18 -> 16.
+- **Pictures** (worktree `scratch/lt/`): `top_before_after.png` (his angle), `front_before_after.png`,
+  `light_ads_crop.png` and `light_ads_zoom.png` (flat ADS), `zf_new_ab.png` (two eyeshots looking down at the rear
+  sight, the head moved 3 mm between them: the top slides, no stripes).
+- **Test it in VR:** look along the lightning gun's top and round the rear housing while moving the head: no shimmer;
+  the ears and the post a little narrower at the top; in the ironsight the front insert centred in the notch between
+  the rear inserts, the irons level.

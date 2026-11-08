@@ -117,6 +117,22 @@ Flat-screen: Debug > Tunables > Flatscreen > Held Weapon > Gun Forward / Down / 
 - [ ] Debug > Cheats > Spawn Pickup Weapons: Axe, Knight's Sword, Death Knight's Sword, Ogre's Chainsaw, Grunt Burst Rifle, Enforcer's Rifle, Super Axe each spawn, pick up and work {test:vr_pickup_test 9}
 - [ ] Toolgun Weapons tab: the six weapons spawn as before (now through their weapon_* classnames)
 - [ ] An AD map with a weapon_axe still has AD's axe pickup
+[ ] Flat: F7 toolgun, mouse 3 opens its panel over the screen with a mouse cursor (the view stays still); LMB clicks items, Esc or mouse 3 closes. Spawn an armed grunt and a Grunt Burst Rifle from it.
+[ ] Flat: toolgun panel size/place/cursor speed OK? (vr_flat_toolgun_panel_size 0.75, _x/_y 0.5, vr_flat_toolgun_cursor_speed 1)
+[ ] Flat: physgun holding a prop, hold B: mouse up/down pushes it out/in, left/right turns it (vr_flat_toolgun_push_scale 0.5, _turn_scale 0.4); angles snap while B is held.
+[ ] Flat: empty hands -- both empty: fists up in a guard; one weapon held: the other arm relaxed down the body (vr_flat_empty_hand_pose 2; 0 relaxed, 1 guard, -1 old). Check from F8 / Debug > Reports > Flatscreen Fly Camera: Look at Me.
+[ ] Flat: taking/dropping a weapon eases the hand between its pose and the rest (vr_flat_empty_take_time 0.1); V punch and mouse 5 shove from both stances.
+[ ] Flat: force grab (mouse 4 / R) shows the glow outline, tendril and sparks and plays the sound.
+[ ] Lightning gun (and plasma gun): look along the top and round the rear sight housing while moving your head: no shimmering or z-fighting; the receiver top is flat and clean in front of the housing.
+[ ] Lightning gun front sight: one post (no little cube on it), its glowing insert painted on its back, centred; in the ironsight it sits centred in the rear notch, its insert level with the rear inserts, the irons' tops level.
+[ ] Lightning gun sights: the rear ears and the front post are a little narrower at the top (like the shotgun's); the notch stays square.
+[ ] Flat-screen, lie down (X) and look at yourself with the fly camera (F8): the hips and belly rest on the floor (propped on the elbows), the legs straight back with the feet on the floor, nothing floating. Tweak: VR Settings > Body > Lying Down Hips Over Floor (3.5), Lying Down Leg Reach (0.997).
+[ ] VR: lie down for real and look at your body (or the fly camera): the hips on the floor, the legs straight behind, no floating.
+[ ] Flat-screen slide with the super shotgun (two-handed stance) and watch it with the fly camera: no torso turn in the slide (the stance eases out quickly and back after), the legs nearly straight out front, feet on the floor. Tweak: Debug > Tunables > Flatscreen > Slide > Slide Leg Reach (0.993), Slide Stance Turn Time (0.12 s).
+[ ] Slide and look down and around: the holsters and the ammo pouch stay on the hips and belt of the leant-back body, never floating up by the head or covering the screen.
+[ ] Slide at speed: no up-down bob (the view, the hands, the body); the feet never go through the floor. Slide Walk Bob (0) brings some back.
+[ ] Slide: a scuff as it starts and a scrape that follows the speed, fading as it slows, gone when it ends. Volume: Slide Sound Volume (0.6). The sounds are synthesised (Misc/quakevr/make_slide_sounds.py): say if they need a different character.
+[ ] Slide, then turn the view to the side: the hips and legs keep pointing the way you slide, the chest turns with the view (at most 70 degrees: Slide Legs Most Twist); Slide Legs Follow Slide 0 turns it off.
 [ ] Black slivers gone: look closely along the shotgun's receiver top behind the rear sight (and the other guns' tops) with your nearest texture mode: no thin black triangles at triangle edges, the painted parts unchanged (Debug > Fill Skin Edges off brings the slivers back, to compare)
 [ ] Shotgun: look at the sights in your hand: a raised metal housing with a U notch on the receiver and a ramp post on the muzzle, each with a glowing insert on its back (no more floating glowing blocks).
 [ ] Shotgun: aim down the sights (VR and flat): the front insert sits in the notch, its top level with the two rear inserts' tops; shots land on it.
