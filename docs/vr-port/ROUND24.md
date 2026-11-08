@@ -4153,8 +4153,9 @@ as the Thunderbolt, and a big hitch at its first ball's hit.
   the other AD monsters' rule (AD data mounted, Additional Content Everywhere): `vr_ad.cpp` `toolgunEverywhereClasses`
   (from the inc's `QVR_AD_SPAWN_MAP` monsters) in `VR_AD_ToolgunSpawnsOutside`; toolgun entries `needs` 0. None needed
   refusing: all four spawn and run in e1m1 (`vr_toolgun_spawn_test 111 114`: 4 spawned, alive; the sentinel seen in a
-  screenshot). (`ad_monsters_gen.py` has drifted from `vr_ad_monsters.qc` in other places, the upgrades 309-311 and the
-  flail 346: regenerating would undo them, so the QC line was edited by hand; the generator's cvar line was updated.)
+  screenshot). (`ad_monsters_gen.py` matches the QC again: the upgrades' dispenser rows (`UPGRADES_QC`: AD's pickup
+  model, `AD_UpgradeProp`) and the flail 346 (`QC_ONLY_GUNS`: its toolgun entry is in `vr_toolgun_packs.inc`);
+  regenerating changes no file.)
 - **One spawn, one weapon.** `VR_WeaponClass_Spawn` (the `weapon_*` classnames, buttons.qc) set the spawner's `model` to
   the weapon's, and `func_weapon_grabbable` drew its spawner (`setmodel`, MOVETYPE_NONE): a static copy beside the real
   prop, for every `weapon_*` class (axe, swords, chainsaw, burst rifle, enforcer rifle) from the toolgun, `vr_physics_spawn`
@@ -4174,8 +4175,10 @@ as the Thunderbolt, and a big hitch at its first ball's hit.
   toolgun's prop via `AD_UpgradeGate`) now precaches them. Test `vr_ad_test 103` (Debug > Tests: "Plasma Gun's First
   Ball"): the toolgun's Plasma Gun laid (model `v_plasma.mdl#vr`), a ball down onto the floor: "adplasmahit: 2 passed";
   with `developer 1`, no "late precache:" after "adplasmahit: fired" (before: `proj_pgplasma.mdl`, `s_exp_electric.spr`).
-  Left: a Plasma Gun carried into a new non-AD level (or a loaded game) still loads them at its first shot; the call
-  belongs in `AD_EnsureVRModel` (W1's quickload work is in that code).
+  A Plasma Gun carried into a new non-AD level or a loaded game: `AD_EnsureVRModel` (once a server, when a hand or
+  holster first draws an upgraded weapon) runs `AD_WeaponsOnDemand` too. `vr_ad_test 104` (the gun into the main hand)
+  and `105` (a ball down onto the floor, verdict as 103's); `Misc/quakevr/plasma_ball_test.sh <agent>`: a save and a
+  load, and a change to e1m2, each with no "late precache:" after the shot: 6 passed.
 - Test it in VR: in a non-AD map with AD installed, toolgun the four monsters; toolgun a burst rifle and an enforcer
   rifle (one each, nothing floating left after taking them); the AD Plasma Gun's ghost and prop (AD's gun, not the
   Thunderbolt), fire its first ball at the floor (no hitch).
