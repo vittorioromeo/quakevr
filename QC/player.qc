@@ -657,6 +657,12 @@ void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
 
 void(entity attacker, float damage) player_pain =
 {
+    // VR: your own shot cries out while firing too (vr_selfshot.qc); its frames are skipped as below.
+    if(VR_SelfShot_Pain())
+    {
+        self.axhitme = 0;
+        return;
+    }
     // (No pain sound now: a blade's mark ends with this blow, not left for the next pain of any kind to grunt for it.)
     if(self.weaponframe || self.weaponframe2)
     {

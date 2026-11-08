@@ -676,7 +676,7 @@ vr_flatgate_test 1        vr_flatgate_test.qc              flat-screen: walks th
 vr_flatgate_test 2        vr_flatgate_test.qc              flat-screen: a plain teleporter (vr_portals_walk 0) still sets the view
 vr_flatgate_test 3        vr_flatgate_test.qc              flat-screen: a level change starts level
 
-vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; head, option off, another player: never
+vr_selfshot_test 1        vr_selfshot_test.qc              shooting yourself: shots and nails aimed at your palm, forearm, thigh: hit there, damage, buzz, wound at the point; the head met (headshot multiplier, pain sound mid-fire); option off, another player: never
 vr_selfshot_test 2        vr_selfshot_test.qc              shooting yourself: ordinary firing from a grid of hand poses, both hands: no self-hit
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only

@@ -2,8 +2,10 @@
 // VR: shooting yourself (vr_selfshot, vr_selfshot_damage; ROUND24.md, "Shooting yourself").
 //
 // In a headset, a hand's shots and missiles meet the shooter's own body as it is drawn: the torso, the legs, each
-// forearm and hand (the engine's vr_selfshot.cpp: the capsules your wounds are painted by). Not the head: the eyes are
-// inside it, and a gun at your face is never seen hitting it. The hand that fires is never met (its gun points away
+// forearm and hand (the engine's vr_selfshot.cpp: the capsules your wounds are painted by), and the head (round your
+// eyes, a little behind them: a muzzle at your temple or under your chin; his note vrstart_2026-11-08_17-01-11), which
+// takes the headshot multiplier monsters' heads take (vr_headshot_mult, with vr_positional_damage on; his answer
+// 2026-11-08). The hand that fires is never met (its gun points away
 // from it), nor the other hand while it steadies the gun (two-handed: the shot's line starts past it). A hitscan shot is
 // met from its muzzle on (what lies along the gun behind the muzzle is the gun's own: the grip, the hand on its
 // fore-end); a missile from where it starts, so a muzzle pressed into your forearm hits it.
@@ -20,6 +22,7 @@ float QVR_SS_PART_OFF_FOREARM  = 2;
 float QVR_SS_PART_OFF_HAND     = 3;
 float QVR_SS_PART_MAIN_FOREARM = 4;
 float QVR_SS_PART_MAIN_HAND    = 5;
+float QVR_SS_PART_HEAD         = 6;
 
 float QVR_WOUND_PRECISE = 128; // added to a wound's kind (vr_wounds.qc): at its point exactly (the engine's Event::precise)
 
@@ -143,6 +146,30 @@ void(entity xMissile, float xHand) VR_SelfShot_Launched =
 void(entity xMissile) VR_SelfShot_MissileStruck =
 {
     VR_SelfShot_Note(xMissile.owner, xMissile.origin, normalize(xMissile.velocity), selfhit_info(0), -1);
+};
+
+// PositionalRegion (weapons.qc: a pellet's, a missile's, the lightning's hit, at `xAt`): your own shot that struck your
+// head there is a headshot (the headshot multiplier, as a monster's head takes it), whatever the box's own reckoning.
+float(entity xTarget, vector xAt) VR_SelfShot_Head =
+{
+    return VR_SelfShot_Live(xTarget) && vr_ss_part == QVR_SS_PART_HEAD && vlen(xAt - vr_ss_at) < 2;
+};
+
+// player_pain (self the player): a self-hit cries out as any other pain, while firing too (the shot that struck him is
+// always mid-fire: player_pain skips its frames and their PainSound then; his note vrstart_2026-11-08_17-00-44).
+void() PainSound; // (player.qc)
+float() VR_SelfShot_Pain =
+{
+    if(!VR_SelfShot_Live(self))
+    {
+        return FALSE;
+    }
+    if(self.weaponframe || self.weaponframe2 || self.invisible_finished > time)
+    {
+        PainSound(); // (no pain frames: the gun's own play on)
+        return TRUE;
+    }
+    return FALSE;
 };
 
 // T_Damage, as `take` (and `save`, the armour's) is taken from the player by his own shot: the hand it struck buzzes
