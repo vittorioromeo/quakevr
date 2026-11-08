@@ -4038,3 +4038,28 @@ their own share (hand shares unchanged), and rockets are their own kind.
   off; flick: grenade 577 (577), rocket 0.00 deg: 8 passed. `vr_projinherit_test 2` (flat turn adds nothing): 2 passed.
 - Test it in VR: strafe firing nails and rockets (a rocket drifts a little, a nail hardly); run forward firing rockets
   (they fly a little faster); grenades and the flamethrower as before.
+
+## Quickload crash: a hand's derived model not precached (branch `agent/release`, 2026-11-08)
+
+- Crash: `Sys_Error: SV_ModelIndex: model progs/v_shot3.mdl#vr not precached` on a quickload (vrragtriggers, flat).
+  `progs/v_shot3.mdl#vr` is the Widowmaker (AD's SSG upgrade), a model the engine makes (vr_adweapons.cpp). A hand's
+  or holster's model string (`.weaponmodel`, `.weaponmodel2`, `.holsterweaponmodel0..5`) is sent by precache index
+  (SV_CalcStats, VR_CalcStats). The saved game had precached it late (AD_EnsureVRModel); the load spawns the map again,
+  which doesn't precache it. OnLoadGame made the AD soldiers' guns and the AD melee weapons again
+  (VR_ADGun_EnsureCarried, VR_ADMelee_EnsureCarried), but not the three AD upgrades (Shadow Axe, Widowmaker, Plasma
+  Gun). Their models were synced back only in PlayerPostThink, and the first frame's stats come before that (the
+  server is paused after a load).
+- Fix, general (engine, vr_progs.cpp): the load's model rebinding (rebindLoadedModels) also precaches every model a
+  live edict's hand or holster string field names (`ensureModelPrecached`: loaded first, so a missing file is a warning
+  and no model, never an error). Any derived (`#vr`, `#gun`, `#melee`, ...) or late-precached model is covered, so it
+  is in the serverinfo the client gets. Safety net (sv_main.c SV_ModelIndex -> `VR_ModelIndexNotPrecached`, Quake VR
+  progs only): a name no path precached is precached late with a warning
+  `SV_ModelIndex: model X not precached: precached late` instead of ending the game.
+- Test `bash Misc/quakevr/load_models_test.sh <agent>` (`vr_pickup_test 12`, QC/vr_load_models_test.qc): 44 weapons
+  (ids 1..31 but 24, the 11 AD melee kinds, the 3 AD upgrades) go round the 8 slots (2 hands, 6 holsters), one save
+  and load per batch: "loadmodels: 352 passed, 0 failed", no "not precached" line, 4 passed. With both fixes turned
+  off it ends in the crash (`progs/v_shadaxe3.mdl#vr not precached`). With only the safety net, 24 "precached late"
+  warnings (the 3 upgrades x 8 slots), and nothing else. Toolgun Widowmaker (`vr_ad_test 148`), the pickup and the
+  weapon_* classnames (`vr_pickup_test 9`: 15 passed) need no late precache.
+- Test it: hold the Widowmaker (and the Shadow Axe, the AD Plasma Gun) in a hand and holstered, quicksave, quickload.
+  No crash, and they are drawn as themselves.

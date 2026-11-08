@@ -1615,7 +1615,12 @@ int SV_ModelIndex (const char *name)
 		if (!strcmp(sv.model_precache[i], name))
 			return i;
 	if (i==MAX_MODELS || !sv.model_precache[i])
+	{
+		int late = VR_ModelIndexNotPrecached (name); // QVR: a name set without its precache: late, not a crash
+		if (late >= 0)
+			return late;
 		Sys_Error ("SV_ModelIndex: model %s not precached", name);
+	}
 	return i;
 }
 
