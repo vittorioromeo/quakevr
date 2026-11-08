@@ -1877,6 +1877,16 @@ QVR_TUNABLE(vr_flat_melee_two_hand, "1") // flatscreen: a melee weapon with a gr
 QVR_TUNABLE(vr_flat_punch_aim, "0.7") // flatscreen: how much a punch's fist is thrown at what the crosshair is on (0: straight ahead from its side, kept near its own height, as before; 1: at it)
 QVR_TUNABLE(vr_flat_shove_aim, "1") // flatscreen: how much the shove's hand pushes towards what the crosshair is on (0: ahead and a little in, as before)
 QVR_TUNABLE(vr_flat_punch_aim_dist, "96") // the point on the crosshair's ray the punch and the shove go for: this far from the eye (units, 8..96)
+QVR_TUNABLE(vr_flat_shove_both, "1") // flatscreen: with both hands free the shove pushes with both, the headset's two-handed shove (QC VR_FlatShove; 0: one hand, as before)
+QVR_TUNABLE(vr_flat_shove_both_apart, "8") // both hands pushing: their places this far apart across the view at full push (units, 0..24)
+QVR_TUNABLE(vr_flat_shove_width, "1.15") // the shove's sweep is this much wider round its line than the headset's (its pad; with Shove Reach 1.15 his notes' 15% more lenient)
+QVR_TUNABLE(vr_flat_shove_anim_speed, "1") // the shove's push plays this much faster than Shove Time (0.25..4); it lands as the hand reaches out, and the cooldown is at least its time
+QVR_TUNABLE(vr_flat_shove_main_fwd, "0") // the main hand at full push: this much further forward (units)
+QVR_TUNABLE(vr_flat_shove_main_out, "0") // and out at its own side (units; negative: in towards the middle)
+QVR_TUNABLE(vr_flat_shove_main_up, "0") // and up (units)
+QVR_TUNABLE(vr_flat_shove_off_fwd, "0") // the off hand at full push: this much further forward (units)
+QVR_TUNABLE(vr_flat_shove_off_out, "0") // and out at its own side (units; negative: in towards the middle)
+QVR_TUNABLE(vr_flat_shove_off_up, "0") // and up (units)
 QVR_TUNABLE(vr_flat_pistol_turn, "10") // the pistol's stance: how far the torso turns (degrees, 0..45)
 QVR_TUNABLE(vr_flat_pistol_back, "2") // the pistol's hand: this much nearer the shoulder than Gun Forward (units, times the reach)
 QVR_TUNABLE(vr_flat_pistol_in, "2") // and this much nearer the middle of the chest than Gun Out: both hands in front of him

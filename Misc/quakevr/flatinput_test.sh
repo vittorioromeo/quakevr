@@ -7,8 +7,10 @@
 #   flickssg   the super shotgun held (its flick and pry break it open in the headset): no flick reload, no pry
 #   wall       the axe, walked into the wall and back out (the wall tilt in and out): no blow
 #   punch      V's punch (vr_flat_punch main) at the grunt: a blow lands (the button's motion is an action)
-#   shove      the shove (vr_flat_shove_now, mouse 5's) at the grunt: it lands; again at once: the cooldown, nothing; again
-#              after it: it lands
+#   shove      the shove (vr_flat_shove_now, mouse 5's) at the grunt, both hands empty: it lands with both hands (impulse 55,
+#              vr_flat_shove_both); again at once: the cooldown, nothing; again after it: it lands
+#   shove1     an axe in the main hand: the off hand alone shoves (impulse 53), and lands
+#   shovereach a grunt 55 units ahead: Shove Reach 1 (the old reach) misses it, 1.15 (the default, his 15% more) reaches it
 #   vr         the mock headset: the hands are tracked (no synthesized mark; a headset's gestures untouched)
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -54,7 +56,12 @@ check $(grep -aq "^handsource: main hand action (punch)" "$S/punch.log" && echo 
 # 20 units, stays at the edge of the shove's reach, and whether it counts too varied with the hands' rest pose): it lands
 # on that one alone. Each wait is the shove's own timing.
 run shove "$FLAT" "$BASE; $GRUNT; vr_flat_shove_now; wait20; vr_flat_shove_now; wait60; setpos -96 300 25 0 90 0; wait5; $GRUNT; vr_flat_shove_now; wait20; echo flatinput: shove done" "^flatinput: shove done"
-check $([ "$(grep -ac "^melee event: shove, hand 0, one hand, 1 hit" "$S/shove.log")" = 2 ] && echo 1 || echo 0) "shove: two shoves land on the grunt ($(grep -ac "^melee event: shove" "$S/shove.log"))"
+check $([ "$(grep -ac "^melee event: shove, hand 1, two hands, 1 hit" "$S/shove.log")" = 2 ] && echo 1 || echo 0) "shove: two two-handed shoves land on the grunt ($(grep -ac "^melee event: shove" "$S/shove.log"))"
+run shove1 "$FLAT" "$BASE; impulse 152; wait10; $GRUNT; vr_flat_shove_now; wait20; echo flatinput: shove1 done" "^flatinput: shove1 done"
+check $(grep -aq "^melee event: shove, hand 0, one hand, 1 hit" "$S/shove1.log" && grep -aq "^flatplay: shove (vr_flat_shove_now): off hand" "$S/shove1.log" && echo 1 || echo 0) "shove1: an axe in the main hand, the off hand alone shoves and lands"
+FAR="vr_test_spawn 0; vr_test_spawn_dist 55; impulse 241; wait5"
+run shovereach "$FLAT" "$BASE; $FAR; vr_flat_shove_reach 1; vr_flat_shove_width 1; vr_flat_shove_now; wait60; vr_flat_shove_reach 1.15; vr_flat_shove_width 1.15; vr_flat_shove_now; wait20; echo flatinput: shovereach done" "^flatinput: shovereach done"
+check $(grep -a "^melee event: \(flat \)\?shove" "$S/shovereach.log" | head -2 | tr '\n' '|' | grep -q "nothing in reach.*two hands, 1 hit" && echo 1 || echo 0) "shovereach: a grunt 55 ahead: reach 1 misses, 1.15 lands ($(grep -a "^melee event: \(flat \)\?shove" "$S/shovereach.log" | head -2 | tr '\n' '|'))"
 check $(grep -aq "^flatplay: shove (vr_flat_shove_now): cooling down" "$S/shove.log" && echo 1 || echo 0) "shove: the press within the cooldown does nothing"
 
 run vr "" "$BASE; impulse 152; wait10; vr_handsource_debug 1; wait5; echo flatinput: vr done" "^flatinput: vr done"

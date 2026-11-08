@@ -921,6 +921,7 @@ float cvarh_vr_flat_shove;
 float cvarh_vr_flat_shove_damage;
 float cvarh_vr_flat_shove_push;
 float cvarh_vr_flat_shove_reach;
+float cvarh_vr_flat_shove_width;
 float cvarh_vr_flatgate_test;
 float cvarh_vr_flatitems_test;
 float cvarh_vr_flatkeys_test;
@@ -2858,6 +2859,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_shove_damage = VR_CVar_Make("vr_flat_shove_damage");
     cvarh_vr_flat_shove_push = VR_CVar_Make("vr_flat_shove_push");
     cvarh_vr_flat_shove_reach = VR_CVar_Make("vr_flat_shove_reach");
+    cvarh_vr_flat_shove_width = VR_CVar_Make("vr_flat_shove_width");
     cvarh_vr_flatgate_test = VR_CVar_Make("vr_flatgate_test");
     cvarh_vr_flatitems_test = VR_CVar_Make("vr_flatitems_test");
     cvarh_vr_flatkeys_test = VR_CVar_Make("vr_flatkeys_test");

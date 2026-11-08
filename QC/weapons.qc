@@ -4683,10 +4683,10 @@ void() ImpulseCommands =
     // Flatscreen play (-flatscreenmode): Q swaps what the hands hold (vr_flatplay.cpp reads the key, vr_flat_key_swap;
     // vr_wpnholster.qc VR_FlatSwapHands). Nobody else's impulse.
     // Flatscreen play: mouse 5 shoves (vr_flatplay.cpp reads the key, vr_flat_key_shove, and sends 53 for the off hand, 54
-    // the main as the drawn push reaches out; vr_melee_bash.qc VR_FlatShove).
-    if((self.impulse == 53 || self.impulse == 54) && VR_FlatPlay(self))
+    // the main, 55 both hands, as the drawn push reaches out; vr_melee_bash.qc VR_FlatShove).
+    if(self.impulse >= 53 && self.impulse <= 55 && VR_FlatPlay(self))
     {
-        VR_FlatShove(self.impulse == 54 ? cVR_MainHand : cVR_OffHand);
+        VR_FlatShove(self.impulse == 53 ? cVR_OffHand : cVR_MainHand, self.impulse == 55);
         self.impulse = 0;
         return;
     }
