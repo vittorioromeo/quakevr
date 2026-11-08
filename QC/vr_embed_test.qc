@@ -22,7 +22,9 @@ float vr_eh_travel; // units of pull so far
 // (`embedshot: done`; nothing behind it in the script: its waits would hold back the test's own commands).
 // `vr_embed_test 11`: moving the body (stage 3): strong and weak stabs, axes, depth; pulling and pushing a staggering body; off its
 // axis; knocked down; dragging a standing one; past reach; your speed; a dead one; a heavy one, a boss; vr_embed 0. Ends `embedmove: N
-// passed, M failed`. `vr_embed_test 12`: a body being moved, for the eyes (`embedshot: done`).
+// passed, M failed`. `vr_embed_test 27`: its cases 35-41 alone, how closely a body follows the hand on a stuck blade (Blade Hold
+// Strength), each case's follow and lag printed. Ends `embedforce: N passed, M failed`. `vr_embed_test 12`: a body being moved, for
+// the eyes (`embedshot: done`).
 // `vr_embed_test 3`: the same plus one in a live grunt, each one's pose noted; then `vr_embed_test 4` after a save's load
 // checks them (`embedload: N passed, M failed`).
 
@@ -2550,6 +2552,105 @@ void() VR_EM_Step =
         }
         return;
     }
+    // ---- 35 to 41 (test 27 alone): how closely a body follows a hand on a stuck blade (his 2026-11-08 "extremely hard to impart
+    // force"): staggering, a deep sword swung sideways (35), lifted over your head (36), an axe swung sideways (37); dead, a deep
+    // sword pulled slowly (38), lifted (39), swung sideways (40), an axe pulled slowly (41). One hand. Follow: how far the wound
+    // went along the hand's way of the hand's distance, at the move's end and once settled; lag: the most the hand got ahead.
+    if(c >= 35 && c <= 41)
+    {
+        float dead = c >= 38;
+        float axeF = c == 37 || c == 41;
+        float cmF = 0.01 * VRMetersToUnits();
+        if(vr_et_s < 10)
+        {
+            if(vr_et_s == 0)
+            {
+                // (A long sure-footed stagger: the hand moves it, not its own fall or getting up.)
+                localcmd("tune vr_embed_stagger_sword 6\ntune vr_embed_stagger_axe 6\ntune vr_embed_stagger_amount 0.3\n");
+            }
+            vr_et_up = axeF ? 0 : 6;
+            float blownF = axeF ? VR_EH_Blow(WID_AXE, 13, 0, TRUE, t) : VR_EM_Blow(WID_SWORD, 9, t);
+            if(blownF)
+            {
+                VR_Test_Check(w != world && (dead || m.vr_kd_stagger), sprintf("case %g: stuck%s (%g, %g)", c, dead ? "" : " and staggering", w != world, m.vr_kd_stagger));
+                if(w == world)
+                {
+                    VR_EM_NextCase();
+                    return;
+                }
+                vr_et_w = w;
+                VR_ET_To(10);
+            }
+        }
+        else if(vr_et_s == 10 && (w == world || w.vr_stick_goal == 0) && t > (axeF ? 0.1 : 0))
+        {
+            if(!axeF)
+            {
+                w.vr_stick_slide = max(1, w.vr_stick_bladelen) * cvar_hget(cvarh_vr_embed_hold_sword_most) * 0.01 - w.vr_stick_depth; // (as deep as it goes)
+            }
+            if(dead)
+            {
+                m.health = 1;
+                T_Damage(m, p, p, 5);
+            }
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && t > (dead ? 1.2 : 0.05))
+        {
+            // The move: sideways 40 cm in 0.4 s; up 50 cm in 1 s; a slow pull back 30 cm in 1 s.
+            float liftF = c == 36 || c == 39;
+            float pullF = c == 38 || c == 41;
+            vr_em_org = liftF ? '0 0 1' : (pullF ? vr_eh_fw * -1 : VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90));
+            if(axeF)
+            {
+                // (An axe swung across faces across: along its way is its tug. Back towards you, off its way.)
+                vr_em_org = vr_eh_fw * -1;
+                vr_em_org = normalize(vr_em_org - vr_et_w.vr_stick_dir * (vr_em_org * vr_et_w.vr_stick_dir));
+            }
+            vr_et_v = (liftF ? 50 : (pullF ? 30 : 40)) * cmF;
+            vr_eh_for = (liftF || pullF) ? 1 : 0.4;
+            vr_et_at = vr_et_w.vr_stick_at;
+            vr_eh_start = VRGetHandPos(h);
+            vr_ef_max = 0;
+            vr_ef_at_x = 0;
+            vr_et_v2 = 0;
+            VR_EH_HandTo(vr_eh_start + vr_em_org * vr_et_v, vr_eh_for);
+            VR_ET_To(12);
+        }
+        else if(vr_et_s == 12 || vr_et_s == 13)
+        {
+            vector handWent = VRGetHandPos(h) - vr_eh_start;
+            vector woundWent = vr_et_w.vr_stick_at - vr_et_at;
+            vr_ef_max = max(vr_ef_max, vlen(handWent - woundWent));
+            vr_ef_at_x = max(vr_ef_at_x, ragdolltug(m, p, h, 16)); // (the spring's own stretch at most)
+            float follow = (woundWent * vr_em_org) / vr_et_v;
+            if(vr_et_s == 12 && t >= vr_eh_for)
+            {
+                vr_et_v2 = follow;
+                vr_ef_hand_x = (handWent * vr_em_org) / vr_et_v; // (the hand's own share of its move by then)
+                vr_ef_hand_y = vr_et_w.vr_hold_strain;
+                VR_ET_To(13);
+            }
+            else if(vr_et_s == 13 && (t >= 0.4 || VR_EH_Blade() == world))
+            {
+                string what = c == 35 ? "staggering, sword, sideways" : (c == 36 ? "staggering, sword, lifted" : (c == 37 ? "staggering, axe, pulled back" :
+                    (c == 38 ? "dead, sword, slow pull" : (c == 39 ? "dead, sword, lifted" : (c == 40 ? "dead, sword, sideways" : "dead, axe, slow pull")))));
+                // (end/settled: the body's follow; lag: cm; strain: the spring's pull now of its most, as the move ended.)
+                VR_Test_Print(strcat(sprintf("%s: case %g %s: end %.0f%% settled %.0f%% ", vr_test_tag, c, what, vr_et_v2 * 100, follow * 100),
+                    sprintf("lag %.1f spring %.1f strain %.2f hand %.0f%%\n", vr_ef_max / cmF, vr_ef_at_x / cmF, vr_ef_hand_y, vr_ef_hand_x * 100)));
+                VR_Test_Check(VR_EH_Blade() != world, sprintf("case %g: %s: still held", c, what));
+                // (By the defaults: a deep sword follows closely; an axe, a dead body pulled slowly, still well.)
+                float leastF = axeF ? 0.5 : 0.75;
+                VR_Test_Check(follow >= leastF, sprintf("case %g: %s: it follows (%.0f%% settled, at least %.0f%%)", c, what, follow * 100, leastF * 100));
+                if(c == 36)
+                {
+                    VR_Test_Check(vr_et_v2 >= 0.6, sprintf("one hand lifts a grunt on a deep sword (%.0f%% of the hand's 50 cm by the move's end)", vr_et_v2 * 100));
+                }
+                VR_EM_NextCase();
+            }
+        }
+        return;
+    }
     vr_et_up = 0;
     vr_eh_ahead = 0;
     localcmd("tune_reset vr_embed_stagger_axe_speed\ntune_reset vr_embed_stagger_push\ntune_reset vr_embed_stagger_sword\ntune_reset vr_embed_stagger_axe\ntune_reset vr_embed_stagger_amount\n");
@@ -3943,9 +4044,9 @@ void() VR_Embed_TestFrame =
             vr_et_case = 0;
             VR_ET_To(0);
         }
-        if(ask == 11 || ask == 23) // (23: its last cases alone, the fist run into a grunt)
+        if(ask == 11 || ask == 23 || ask == 27) // (23: its last cases alone, the fist run into a grunt; 27: how closely a body follows)
         {
-            VR_Test_BeginFlags("embedmove", VR_TEST_LOUD);
+            VR_Test_BeginFlags(ask == 27 ? "embedforce" : "embedmove", VR_TEST_LOUD);
 cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stagger here)
             cvar_set("vr_kdtrig", "0");
             vr_eh_home = VR_Player().origin;
@@ -3957,7 +4058,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             // (Short sure-footed staggers in the first cases, by these; the cases by each kind of body take the defaults.)
             localcmd("tune vr_embed_stagger_axe_speed 8\ntune vr_embed_stagger_push 0\ntune vr_embed_stagger_sword 0.6\ntune vr_embed_stagger_axe 0.3\ntune vr_embed_stagger_amount 0.3\n");
             vr_et_on = 11;
-            vr_et_case = ask == 23 ? 32 : 0;
+            vr_et_case = ask == 23 ? 32 : (ask == 27 ? 35 : 0);
             VR_ET_To(0);
         }
         if(ask == 24)

@@ -212,6 +212,7 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
         row(opt::vr_knockdown),
         row(opt::vr_foegrab),
         row(opt::vr_embed),
+        row(opt::vr_embed_hold_strength),
         header("Melee and Parry"),
         row(opt::vr_parry),
         row(opt::vr_bash),
@@ -834,6 +835,7 @@ za::Vector<Item> pageEmbeddedBlades()
 {
     return {
         row(opt::vr_embed),
+        row(opt::vr_embed_hold_strength),
     };
 }
 

@@ -775,6 +775,9 @@ struct World
         // never let go of for how far it is (the QC's `far`), not a hold on a limb to anything else (ragdollHold).
         bool blade{false};
         glm::vec3 bladeShift{0.f}; // a blade's: from the hand to what the spring pulls to (ragdollTug what 14)
+        // ... and from the hand to the wound as it took hold (vr_embed_move_at_wound; world units, kept as the hand turns):
+        // the spring holds the limb at the wound, not at a point out at the hilt.
+        glm::vec3 bladeReach{0.f};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};
