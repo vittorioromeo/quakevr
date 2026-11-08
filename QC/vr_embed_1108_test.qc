@@ -34,7 +34,45 @@ void() VR_E8_Step =
     entity p = self;
     float t = time - vr_et_t0;
     entity w = VR_EH_Blade();
-    if(vr_et_case > 3)
+    // ---- 4: a blade's strike on a dead ragdoll (17:07): its wound and dent where it struck, not from its box's middle
+    if(vr_et_case == 4)
+    {
+        if(vr_et_s == 0)
+        {
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            vr_et_m = VR_ET_Grunt(54);
+            VR_ET_To(1);
+        }
+        else if(vr_et_s == 1 && vr_et_m.takedamage && t > 0.1)
+        {
+            vr_et_m.health = 1;
+            T_Damage(vr_et_m, p, p, 2);
+            VR_ET_To(2);
+        }
+        else if(vr_et_s == 2 && t > 2)
+        {
+            // (A limb: off the box's middle as the body lies.)
+            vector at = limbplace(vr_et_m, 0, 3);
+            float b = ragdolllimbs(vr_et_m, 0);
+            for(float k = 0; k < VR_LIMB_JOINTS; k++)
+            {
+                if(b & VR_AgArmor_Bit(k))
+                {
+                    at = limbplace(vr_et_m, k, 3);
+                }
+            }
+            vector mid = (vr_et_m.absmin + vr_et_m.absmax) * 0.5;
+            vector eye = p.origin + p.view_ofs;
+            hit_where = '0 0 0';
+            VR_Corpse_Struck(cVR_MainHand, vr_et_m, at, normalize(at - eye), 400, FALSE);
+            VR_Test_Check(vlen(hit_where - at) < 1,
+                sprintf("case 4: a blade's strike on a dead ragdoll wounds where it struck (%.1f units off it; its box's middle %.1f off)", vlen(hit_where - at), vlen(mid - at)));
+            VR_E8_Next();
+        }
+        return;
+    }
+    if(vr_et_case > 4)
     {
         VR_Test_Verdict();
         vr_et_on = 0;
