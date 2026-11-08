@@ -5011,7 +5011,10 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
         prone = false;
         c = levels[0];
     }
-    else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2)
+    // (Not in a flat-screen slide: his eyes, sent a frame behind, sit low and a stair's step up drops them under the
+    // limit for a frame -- it lay him down and ended the slide on the first step.)
+    else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2 &&
+            !(flatscreen && VR_FlatSlideStepUp(const_cast<edict_t*>(ent))))
     {
         prone = true;
         float levels[maxCrouchLevels];

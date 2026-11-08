@@ -3,7 +3,9 @@
 # "Leaning"; Quake/vr/vr_flatmove.cpp), headless. Prints PASS/FAIL lines and a verdict, exits 1 on a failure.
 #   slide  vr_flatslide_selftest (the slide's step on made-up floors: flat friction, downhill to the top speed, uphill
 #          to a stop), then vr_flatslide_test in vrtesthall: running, the crouch starts a slide (the boost), it lasts
-#          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air.
+#          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air. Then
+#          vr_flatslide_rough_test: up vrtesthall's stairs and ramp, no step nor ramp ending it; A alone and D alone
+#          curve it, the view turned 10 degrees off its way.
 #   lean   vr_flatlean_test in vrtesthall: a full lean right moves the eye vr_flat_lean_dist and rolls the view; a shot
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
 #          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
@@ -31,6 +33,11 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide: [0-9]+ passed" -Tim
 echo "$out" | grep -a "^flatslide.*\(FAIL\|passed\)"
 expect_verdict "$out" "flatslide_selftest" "slide: the step on flat, downhill and uphill floors"
 expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a crouch, the jump keeps the speed"
+
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_rough" \
+    -Script "$H; vr_flatslide_rough_test; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatslide_rough.*FAIL"
+expect_verdict "$out" "flatslide_rough" "slide: up stairs and a ramp (no step, no ramp ends it), A alone and D alone curve it"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)
