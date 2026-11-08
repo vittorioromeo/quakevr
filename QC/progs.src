@@ -513,6 +513,8 @@ vr_ad_enemyguns.qc
 vr_ad_enemyguns_test.qc
 // AD's melee monsters' weapons: dropped (VR_AD_Dying), their tests (after the guns' test harness: its target).
 vr_ad_melee.qc
+// Every holdable weapon in each hand and holster through a save and a load (after AD's upgrades, guns and melee).
+vr_load_models_test.qc
 // The held guns' models the map can give (the engine prepares their convex pieces at load).
 vr_gunprep.qc
 vr_ad_monsters_test.qc

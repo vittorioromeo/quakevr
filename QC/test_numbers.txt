@@ -232,6 +232,7 @@ vr_pickup_test   7        vr_pickup_test.qc                the hand slot's busy 
 vr_pickup_test   8        vr_pickup_test.qc                one busy-hand check: the force grab and the weapon grabs refuse a busy hand (VR_FgBusyTest_Run)
 vr_pickup_test   9        vr_pickup_test.qc                the weapon_* classnames: each spawns, is picked up and fires (VR_ClassTest_Run)
 vr_pickup_test   10-11    vr_pickup_test.qc                a weapon_gruntgun lying ahead; after a save and a load, picked up and fired (VR_ClassTest_SaveTake)
+vr_pickup_test   12       vr_pickup_test.qc                every holdable weapon in each hand and holster through a save and a load (vr_load_models_test.qc)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
