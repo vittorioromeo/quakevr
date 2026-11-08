@@ -133,6 +133,10 @@ Guns with rewritten barrel masks (nailguns, lightning, plasma, laser, lava, revo
 Nail pistol: its dark steel now the shotgun's deep dark blue (gun, magazines, preview alike); the silvery slide bar and frames, the label and the glowing sight inserts as before.
 Flare gun: skin a little darker and less saturated, the front blade's brass top less bright; not overdone, still its orange-brown self (preview and fired skins too).
 Grunt burst rifle: darker and grimier (blotches, dirt in the panel lines), nearer the shotgun's contrast without being black; the #adv variants and grunts' rifles follow.
+[ ] Toolgun, non-AD map with AD installed: AD Quoth Death Guard, AD Death Lord, AD Sentinel and AD's Knight are no longer greyed out and spawn and fight (agent/embed5)
+[ ] Toolgun: Grunt Burst Rifle, Enforcer's Rifle, Chainsaw, Axe, Knight's/Death Knight's Sword make one weapon each; nothing floating left after picking it up (also map-placed weapon_* classnames) (agent/embed5)
+[ ] Toolgun: AD Plasma Gun's ghost, the laid prop, in hand and holstered show AD's plasma gun (riveted panel, its own skin), not the Thunderbolt (agent/embed5)
+[ ] AD Plasma Gun from the toolgun: the first ball fired into the floor causes no hitch (agent/embed5)
 [ ] Flat, AD: Widowmaker, AD Plasma Gun and a grunt-dropped plasma rifle held in both hands (stance, off hand on the fore-end); right mouse gives an ironsight on them (vr_flat_sight_learn)
 [ ] Flat, AD crossbow: off hand stays put while it fires and re-cocks (hs1/hs2 still); say if its place on the stock still looks wrong
 [ ] Flat: chainsaw starts by itself when taken (no ripcord; vr_flat_saw_autostart) and the left hand holds its front handle (vr_flat_melee_two_hand)
