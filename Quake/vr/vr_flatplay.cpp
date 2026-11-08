@@ -54,6 +54,7 @@
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -109,6 +110,7 @@ struct FlatState
     // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
+    float guard[2]{0.f, 0.f}; // that rest's share of the guard (vr_flat_empty_hand_pose: 1 the guard, 0 relaxed), eased
     glm::vec3 shoulders[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the arms' joints this pose stands on (avatar::restShoulders)
     bool shouldersKnown{false};
     bool localSeen[2]{false, false};
@@ -920,12 +922,16 @@ void proneToggle_f()
 
 // The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
 // main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
-// left mouse button) is its trigger, and mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel.
+// left mouse button) is its trigger, mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel, a screen overlay with the
+// mouse's cursor while open (vr_toolgun_panel.cpp drawFlat, flatMouse), the left button clicking on it; and B
+// (vr_flat_key_toolgun_adjust) held its X/A: the mouse the tool's (toolgun::flatNudge) instead of the view's.
 struct FlatToolgunKeys
 {
-    bool key{false};  // vr_flat_key_toolgun, last frame
-    bool menu{false}; // vr_flat_key_toolgun_menu, last frame
-    bool fire{false}; // the main hand's fire, last frame, while the toolgun was held
+    bool key{false};    // vr_flat_key_toolgun, last frame
+    bool menu{false};   // vr_flat_key_toolgun_menu, last frame
+    bool fire{false};   // the main hand's fire, last frame, while the toolgun was held
+    bool click{false};  // that press went to the panel (its release goes there too)
+    bool adjust{false}; // vr_flat_key_toolgun_adjust held, last frame, while the toolgun was held
 };
 FlatToolgunKeys flatTg;
 
@@ -957,10 +963,67 @@ void toolgunKeys()
     const bool fire = held && client::attacking(HAND_MAIN);
     if(fire != flatTg.fire)
     {
-        (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, fire);
+        if(fire)
+        {
+            // With the panel open a press is a click on it (where the cursor is), else the toolgun's trigger.
+            flatTg.click = toolgun::panel::flatShown() && toolgun::panel::flatClick(true);
+            if(!flatTg.click)
+            {
+                (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, true);
+            }
+        }
+        else
+        {
+            (void)(za::exchange(flatTg.click, false) ? toolgun::panel::flatClick(false)
+                                                     : toolgun::button(HAND_MAIN, posing::Button::Trigger, false));
+        }
     }
     flatTg.fire = fire;
+    const bool adjust = held && down(vr_flat_key_toolgun_adjust);
+    if(adjust != flatTg.adjust)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Primary, adjust);
+    }
+    flatTg.adjust = adjust;
 }
+
+} // namespace
+
+// IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
+// (flatTg.adjust): the mouse is theirs, the view stays.
+extern "C" int VR_FlatToolgunMouse(int dx, int dy)
+{
+    if(!flatplay::active())
+    {
+        return 0;
+    }
+    if(toolgun::panel::flatMouse(dx, dy))
+    {
+        return 1;
+    }
+    if(flatTg.adjust)
+    {
+        return toolgun::flatNudge(-static_cast<float>(dy) * vr_flat_toolgun_push_scale.value,
+                   -static_cast<float>(dx) * vr_flat_toolgun_turn_scale.value)
+                   ? 1
+                   : 0;
+    }
+    return 0;
+}
+
+// Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
+extern "C" int VR_FlatToolgunEscape(void)
+{
+    if(!toolgun::panel::flatShown())
+    {
+        return 0;
+    }
+    toolgun::panel::close();
+    return 1;
+}
+
+namespace
+{
 
 void pollKeysFlat()
 {
@@ -1362,6 +1425,15 @@ bool punching(int h)
 {
     const double t = vr_gametime - fs.punchAt[h];
     return t >= 0.0 && t <= punchTotal;
+}
+
+float fistShare(int h)
+{
+    if(h < 0 || h >= HAND_COUNT || heldIn(h) >= 0)
+    {
+        return 0.f;
+    }
+    return punching(h) ? 1.f : za::clamp(fs.guard[h] * fs.hang[h], 0.f, 1.f);
 }
 
 glm::vec3 aimRotAt(const glm::vec3& angles, int h)
@@ -1968,22 +2040,53 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
         const bool hangs = heldIn(h) < 0 && !punching(h) && !shoving(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
                            !(flatsight::adsHelper(h));
-        if(heldIn(h) >= 0)
+        // The rest's pose (vr_flat_empty_hand_pose): relaxed, the arm down the body, or fists up in a guard (2: the guard
+        // with both hands empty), eased from one to the other as the other hand takes or lets go of a weapon.
+        const int restPose = static_cast<int>(za::round(poseNum(vr_flat_empty_hand_pose)));
+        const bool guardWanted = restPose == 1 || (restPose == 2 && !mainHolds && !offHolds);
+        const float takeTime = poseNum(vr_flat_empty_take_time);
+        if(heldIn(h) >= 0 && (restPose < 0 || takeTime <= 0.f))
         {
             fs.hang[h] = 0.f; // (a weapon's shots go along the crosshair from the frame it is taken)
         }
         else if(dt > 0.0)
         {
-            fs.hang[h] += ((hangs ? 1.f : 0.f) - fs.hang[h]) * ease(handEase, static_cast<float>(dt));
+            // (A weapon taken comes up out of the rest over vr_flat_empty_take_time: 95% of the way in that time.)
+            const float k = heldIn(h) >= 0 ? 3.f / takeTime : handEase;
+            fs.hang[h] += ((hangs ? 1.f : 0.f) - fs.hang[h]) * ease(k, static_cast<float>(dt));
+            if(heldIn(h) < 0 || fs.hang[h] < 0.01f)
+            {
+                fs.guard[h] += ((guardWanted ? 1.f : 0.f) - fs.guard[h]) * ease(handEase, static_cast<float>(dt));
+            }
+            if(fs.hang[h] < 0.01f && heldIn(h) >= 0)
+            {
+                fs.hang[h] = 0.f;
+            }
         }
         if(fs.hang[h] > 0.f)
         {
             glm::vec3 levelFwd, levelRight, levelUp;
             hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
-            const glm::vec3 level = shoulder(s, h) + nudge + levelFwd * off.x + levelRight * off.y + levelUp * off.z;
+            glm::vec3 at = off;
+            float pitchTo = hangPitch, rollTo = 0.f;
+            if(restPose >= 0)
+            {
+                // (Shares of the arm's reach off the shoulder, level with the body; the punch's or shove's swing on top.)
+                const float span = armSpan(), g = fs.guard[h];
+                const auto mixed = [g](const Tunable& relaxed, const Tunable& guard) {
+                    return poseNum(relaxed) + (poseNum(guard) - poseNum(relaxed)) * g;
+                };
+                at = glm::vec3{mixed(vr_flat_relaxed_fwd, vr_flat_guard_fwd), sideOf * mixed(vr_flat_relaxed_out, vr_flat_guard_out),
+                         -mixed(vr_flat_relaxed_down, vr_flat_guard_down)} *
+                         span +
+                     swing;
+                pitchTo = mixed(vr_flat_relaxed_pitch, vr_flat_guard_pitch);
+                rollTo = sideOf * mixed(vr_flat_relaxed_roll, vr_flat_guard_roll);
+            }
+            const glm::vec3 level = shoulder(s, h) + nudge + levelFwd * at.x + levelRight * at.y + levelUp * at.z;
             s.pos[h] += (level - s.pos[h]) * fs.hang[h];
-            s.rot[h].x += (hangPitch - s.rot[h].x) * fs.hang[h];
-            s.rot[h].z *= 1.f - fs.hang[h];
+            s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
+            s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
         }
     }
 

@@ -758,6 +758,8 @@ void IN_MouseMotion(int dx, int dy)
 		total_dy = 0;
 		return;
 	}
+	if (VR_FlatToolgunMouse (dx, dy)) // QVR: flatscreen play's toolgun panel cursor, or its adjust key held: not the view's
+		return;
 	total_dx += dx;
 	total_dy += dy;
 }

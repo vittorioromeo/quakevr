@@ -3704,6 +3704,67 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
 
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar). (Done in "Flat tools 2" below.)
+
+## Flat tools 2: the toolgun panel in flat, the physgun's adjust key, empty-hand poses (2026-11-08)
+
+- **Toolgun panel in flat** (`vr_toolgun_panel.cpp` flat section): with the panel open (mouse 3) and no headset it is drawn
+  over the window at the flat 2D pass's end (`drawFlat`, from `VR_End2D`'s flat branch: the panel's own render, then its
+  texture as a screen quad: `vr_flat_toolgun_panel_size` 0.75 of the window's height, `_x` / `_y` 0.5). The desktop mouse
+  moves a cursor drawn into the panel image (an arrow); `IN_MouseMotion` hands its counts to `VR_FlatToolgunMouse` first
+  (true: taken, the view does not turn; `vr_flat_toolgun_cursor_speed` 1 = the desktop pointer's speed). `laserHit` in
+  flat is the cursor (the mock laser still wins), so every widget, dropdown and slider works as with the laser. The left
+  button while the panel is open is a panel click (`panel::flatClick` → `trigger`), not the gun's trigger; its release
+  goes the same way. Esc closes it (`VR_FlatToolgunEscape` in Key_Event's Esc, before the menu), mouse 3 too.
+- **Adjust key** `vr_flat_key_toolgun_adjust` (`b`, flat-owned): the headset's X/A on the gun's hand
+  (`toolgun::button(Primary)`: snap, the sticks the tool's). Held, the mouse is the tool's (`toolgun::flatNudge`, gathered
+  and spent in `sticksFrame` with the sticks): up/down pushes the physgun's prop out/in (`vr_flat_toolgun_push_scale` 0.5
+  units a count; the brush's push; the scale tool 1% a unit), left/right turns it (`vr_flat_toolgun_turn_scale` 0.4 deg a
+  count). Not with the spawn tool (its ghost turns with the aim). Keys checked against his: Q/E, V, G, 3, R/mouse 4,
+  mouse 5, F7, F8, F (flashlight), X (prone), Z (bullet time), C (+movedown), T (messagemode): B was free.
+- **Empty-hand pose** `vr_flat_empty_hand_pose` (tunable, Flatscreen > Free Hands): 2 (default) guard with both hands
+  empty, relaxed while the other holds a weapon; 0 relaxed; 1 guard; -1 the old place. The hang block of `poseHands` now
+  blends to the pose's offset (shares of `armSpan()` off the shoulder, level with the body; `vr_flat_relaxed_*`,
+  `vr_flat_guard_*` fwd/down/out/pitch/roll) instead of the old empty/support offset with fingers 60 down; `fs.guard[h]`
+  eases relaxed/guard as the other hand takes or drops a weapon; a weapon taken eases up out of the pose over
+  `vr_flat_empty_take_time` (0.1 s; 0 = the old snap). The guard closes the fingers (`flatplay::fistShare`, read by
+  `vr_view.cpp`'s finger targets; also 1 while punching). Punch and shove leave the pose (the hang eases out) as before.
+- Debug > Reports: **Flatscreen Fly Camera: Look at Me** (`vr_flat_flycam_place [fwd right up [pitch]]`): the fly camera put
+  in front of you looking back. Test aid `vr_flat_mouse_move <dx> <dy> | to <widget>`; `vr_toolgun_status` prints the
+  physgun's distance and turn.
+- Force grab effects in flat checked by eye: the gun's glow outline, the tendril and the lock-on sparks show while it flies.
+- Tests: `Misc/quakevr/flattoolgun_test.sh` 11/0 (F7, mouse 3, Monsters > page 2 > Armed Humanoid > Choose with the
+  cursor, Esc (no menu), LMB spawned `monster_vr_grunt`; Weapons > Grunt Burst Rifle, LMB spawned `weapon_gruntgun`; the
+  physgun's grunt pushed 16 -> 36 and turned -20 with B and the mouse). flatwall 18/0, flatsight 12/0,
+  `vr_flatitems_test 1` 9/0, `vr_pickup_test 9` 15/0, flatinput 14/0. Its shove case first gave 13/1 (the third shove hit
+  2): `edicts` showed the guard hands never moved the first grunt (at 316 before the shove in both poses); the shove
+  throws it to y 335-337 with either pose, at the edge of the head-based reach (QC `VR_FlatShove`), so counting it was a
+  legit borderline hit. The case now steps 96 units left before the second grunt: the third shove's one hit is its target.
 ## Lightning and plasma gun sights: clean topology (branch `agent/regfix`, 2026-11-08)
 
 His note, with Blender screenshots (kit `scratch/shotsight_mockup/light_topo_top.webp`, `light_front_post.png`): the

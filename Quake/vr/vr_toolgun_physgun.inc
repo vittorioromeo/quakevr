@@ -456,6 +456,8 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
 
 void sticksFrame(float dt)
 {
+    // (Flatscreen play's mouse with the adjust key held, gathered since the last frame: flatNudge.)
+    const float flatPush = za::exchange(tg.flatPush, 0.f), flatTurn = za::exchange(tg.flatTurn, 0.f);
     if(!(adjustTakesSticks() || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
     {
         return;
@@ -463,8 +465,10 @@ void sticksFrame(float dt)
     const glm::vec2 gun = tg.stick[tg.hand], other = tg.stick[1 - tg.hand];
     const float move = vr_toolgun_move_speed.value * dt, spin = vr_toolgun_turn_speed.value * dt;
     const int axis = za::clamp(static_cast<int>(vr_toolgun_turn_axis.value), 0, 2);
-    const float push = deadzone(gun.y) * move, turn = -deadzone(gun.x) * spin;
+    const float push = deadzone(gun.y) * move + flatPush, turn = -deadzone(gun.x) * spin + flatTurn;
     const float side = deadzone(other.x) * move, lift = deadzone(other.y) * move;
+    // (The scale tool's rate: the stick's share a second; the flat mouse's push as 1% a unit.)
+    const float scaleBy = deadzone(gun.y) * dt + flatPush * 0.01f;
     switch(currentTool())
     {
     case Tool::Physgun:
@@ -486,9 +490,9 @@ void sticksFrame(float dt)
     case Tool::Scale:
     {
         const int num = tg.gizmo.num;
-        if(num > 0 && deadzone(gun.y) != 0.f && tg.gizmo.held < 0)
+        if(num > 0 && scaleBy != 0.f && tg.gizmo.held < 0)
         {
-            setScale(num, scaleOf(EDICT_NUM(num)) * (1.f + deadzone(gun.y) * dt));
+            setScale(num, scaleOf(EDICT_NUM(num)) * (1.f + scaleBy));
         }
         break;
     }

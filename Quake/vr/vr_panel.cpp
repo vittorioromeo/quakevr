@@ -701,6 +701,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     if(!drawingToCanvas)
     {
         text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
+        toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
         return;
     }
     drawingToCanvas = false;
