@@ -183,6 +183,7 @@
         row(opt::vr_flat_mantle_look),
         row(opt::vr_flat_mantle_look_max),
         row(opt::vr_flat_mantle_time),
+        row(opt::vr_flat_mantle_grunt_delay),
         row(opt::vr_flat_slide),
         row(opt::vr_flat_lean),
         row(opt::vr_flat_lean_toggle),
