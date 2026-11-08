@@ -913,6 +913,16 @@ bool target(edict_t* ent)
     return meshOf(static_cast<int>(ent->v.modelindex), modelOf(ent), hdr) != nullptr;
 }
 
+bool hasMesh(edict_t* ent)
+{
+    if(!ent || ent->free)
+    {
+        return false;
+    }
+    const aliashdr_t* hdr = nullptr;
+    return meshOf(static_cast<int>(ent->v.modelindex), modelOf(ent), hdr) != nullptr;
+}
+
 float tolerance(Class c)
 {
     switch(c)

@@ -281,7 +281,9 @@ entity(vector handPos, vector aim) VR_Forcegrab_FindTargetAlong =
         if(cvar_hget(cvarh_vr_forcegrab_bodies_block))
         {
             traceline(handPos, c, MOVE_PORTALS, self);
-            if(trace_ent != world && trace_ent != e && ((trace_ent.flags & FL_MONSTER) || isragdoll(trace_ent)))
+            // (A blade stuck in a body: never behind its own host, its middle being inside it; his note 2026-11-08 17:09.)
+            if(trace_ent != world && trace_ent != e && ((trace_ent.flags & FL_MONSTER) || isragdoll(trace_ent)) &&
+               !(trace_ent == e.vr_stick_ent && (e.vr_stick_kind == 3 || e.vr_stick_kind == 4))) // (a monster's model or box)
             {
                 if(cvar_hget(cvarh_developer) >= 2) // (every frame an open hand points at it)
                 {

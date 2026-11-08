@@ -1624,8 +1624,10 @@ int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3&
         best.normal = hit.normal;
         best.anchor = glm::vec3{static_cast<float>(hit.tri), hit.u, hit.v};
     }
-    else if((static_cast<int>(host->v.flags) & FL_MONSTER) && !hitmodel::target(host))
+    else if((static_cast<int>(host->v.flags) & FL_MONSTER) && !hitmodel::hasMesh(host))
     {
+        // (Only a body with no model to go by. One the stab itself killed is no target any more, not solid, but still drawn:
+        // by its box, the blade would stay where the body stood as it falls, floating at the hand (his note 2026-11-08 17:16).)
         best.kind = MonsterBox;
         best.point = at;
         best.normal = -way;

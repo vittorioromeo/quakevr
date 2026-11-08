@@ -4738,3 +4738,31 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
+
+## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
+
+Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 6, 8, 9, 11; 10 checked. Not done: 1-5, 7, 12-14.
+
+- **A stab that kills leaves the blade floating (item 8, notes 17:16, 17:17):** the cause is the stab killing the target,
+  not two hands or running. The blow is dealt before the blade is put in (VR_Embed_BlowsDone), so the body is already
+  dead and not solid; when the engine's `stickHeld` didn't meet the drawn model at once it fell back to the monster's
+  box (kind 4, "no model to go by") because `hitmodel::target` is false for a non-solid body. In its box the blade stays
+  where the body stood while the ragdoll falls, and a force grab still tugs it as embedded. Fixed: the box only for a
+  body with no mesh at all (`hitmodel::hasMesh`); otherwise QC waits for the blade to touch the model as for a live one.
+- **Force grab through its own host (item 9):** `vr_forcegrab_bodies_block` no longer skips a blade stuck in a body
+  for that body (QC vr_wpnforcegrab.qc).
+- **Cut-off parts harder to shake off (item 6):** Cut-Off Parts: Fling Speed (`vr_embed_cuton_fling`) 2.5 -> 4 m/s (5.5 was past what the mock hand reaches at the part: test 26 at 7-8 m/s moves did not fling).
+  The other hand's tug (Tug Speed 4 m/s, Tug Stretch 30 cm) and bursting on a wall (Swing Burst Speed 3) unchanged.
+  Test 26 now flings at 7 and 8 m/s (was 4 and 5).
+- **Running into a stab brakes you (item 11):** Running Stab: Brake (`vr_embed_brake`, 25 /s, 0 off) and Running Stab:
+  Speed (`vr_embed_brake_speed`, 0.5 m/s): while a hand holds the blade in any body (alive or killed by the stab), your
+  level speed along the blade into the body eases down to that speed (QC VR_Embed_Brake, from the hold's think).
+- **Grip on an embedded sword (item 10):** test 27 22/0 with Blade Hold Strength x1; nothing changed.
+- **Test `vr_embed_test 28`** (QC/vr_embed_1108_test.qc, `embed1108: N passed, M failed`): a killing stab stays in the
+  model (kind 3) and lies with the fallen body (wound 10.9 units from the torso); the brake takes speed off in a frame,
+  Brake 0 nothing (the mock's player stops from a run within 5 frames either way, so speed alone can't tell); a force
+  grab finds a blade in its host from in front. Not in the Debug menu yet.
+- **Test 1 (coordinator's question):** "sticks in a live body again", "that wound runs its own stream", "stays in the
+  dead body", "riding the body 390 units" are one failure: the second sword thrown at the same grunt (state 9) comes
+  back with kind -1 (Out) and no engine stick or bounce line under `vr_debug_axestick 1`, so something frees it before
+  the engine decides. Not found yet. "the real hand back to the drawn one moves nothing" (4.00 to 3.55) is separate.

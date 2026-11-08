@@ -3764,7 +3764,7 @@ void() VR_EC_Step =
 // ---- vr_embed_test 26 (limbonaxe): his note of 2026-11-06, "the cut off limb should get stuck on the blade that cut it off" (vr_skewer.qc
 // VR_Skewer_CutOn), by the mock hand's real killing axe blows. 0 a live grunt's head, 1 a live grunt's limb, 2 a corpse's limb, 3 a
 // corpse's head: the part is on the axe (no blade left in the body, the axe in the hand), rides it rigidly as the hand moves (25 cm up at
-// 0.5 m/s), weighs in the hand; then off: 0 and 3 a fast move (4 m/s) that stops, 2 a hard swing (5 m/s) that stops, 1 the other hand's grip
+// 0.5 m/s), weighs in the hand; then off: 0 and 3 a fast move (8 m/s) that stops, 2 a hard swing (8 m/s) that stops, 1 the other hand's grip
 // and a 35 cm tug (into that hand). Ends `limbonaxe: N passed, M failed`. (A blow that didn't land as the case wants is dealt again, at most 3
 // times, as test 25's.)
 vector vr_la_c0;   // the part's middle as the ride began
@@ -3934,7 +3934,7 @@ void() VR_LA_Step =
         }
         else
         {
-            float sp = vr_et_case == 2 ? 5 : 4;
+            float sp = 8; // (past Fling Speed, 4 m/s since 2026-11-08: a hard swing, a hard shake)
             float go = vr_et_case == 2 ? 40 : 30;
             // (Across and up, in the air: across at the floor, the part meets it or the body and bursts, as a skewered gib.)
             VR_EH_HandTo(vr_la_h0 + normalize(vr_la_side + '0 0 1') * go * cm, go * cm / VRMetersToUnits() / sp);
@@ -3954,7 +3954,7 @@ void() VR_LA_Step =
             }
         }
         VR_Test_Check(g == world && off != world && vlen(off.velocity) > 1.5 * VRMetersToUnits(),
-            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s)", vr_et_case == 2 ? "hard swing (5 m/s)" : "fast move (4 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits()));
+            sprintf("a %s that stops: it flies off the blade (on it %g, going %.1f m/s)", vr_et_case == 2 ? "hard swing (8 m/s)" : "fast move (8 m/s)", g != world, vlen(off.velocity) / VRMetersToUnits()));
         VR_LA_Next();
         return;
     }
@@ -3981,12 +3981,20 @@ void() VR_LA_Step =
     }
 };
 
+void() VR_E8_Begin; // (vr_embed_1108_test.qc: test 28)
+void() VR_E8_Step;
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
     if(ask)
     {
         cvar_set("vr_embed_test", "0");
+        if(ask == 28)
+        {
+            cvar_set("vr_embed", "1");
+            VR_E8_Begin();
+            return;
+        }
         if(ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17 || ask == 18 || ask == 19 || ask == 20)
         {
             VR_EE_Ask(ask);
@@ -4227,6 +4235,15 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_LA_Next();
         }
         VR_LA_Step();
+    }
+    else if(vr_et_on == 28)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: case %g state %g", vr_et_case, vr_et_s));
+            VR_EH_NextCase();
+        }
+        VR_E8_Step();
     }
     else if(vr_et_on == 8)
     {
