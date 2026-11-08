@@ -283,6 +283,9 @@ struct ClimbBody
 // A climbing hand's pull on the prop `num` (a light one): the weight of `kg` (Box3D's gravity: Quake's) along `dir` (unit,
 // world) at `at` (units), through this frame's step.
 void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
+// A pull of `force` (N, world) on the solid prop `num` at `at` (units), through this frame's step, as climbPull's (a blade
+// held in a crate: QC embedproppull).
+void propPull(int num, const glm::vec3& at, const glm::vec3& force);
 // Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
 [[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
 // As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one

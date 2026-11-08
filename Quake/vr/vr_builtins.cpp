@@ -54,6 +54,7 @@
 #include "vr_stealth.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
+#include "vr_units.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tips.hpp"
 #include "vr_gadget.hpp"
@@ -812,6 +813,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
     {"embedstick", PF_embedstick},
+    {"embedproppull", PF_embedproppull},
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},

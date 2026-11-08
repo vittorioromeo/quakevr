@@ -4926,6 +4926,38 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 3, 4, 6,
 - **Next (not started):** item 5 (a client-side correction of skewered gibs to the drawn hand, as the held weapon has);
   items 13-14 (blades in wooden crates and barrels: the hold code takes a monster host and hitmodel; a prop host needs
   its own anchor (kind Prop exists for thrown axes) and its own Moving: forces).
+
+## Embedded blades: his 11-08 notes, part three (branch `agent/embed1108b`, worktree phases, 2026-11-08)
+
+Brief `qvr-kit/scratch/brief_embed1108b.md`: items 5, 13 and 14 of part one's brief.
+
+- **Skewered gibs locked to the blade on stick turns and moves (item 5):** a gib, head or limb on a blade in the local
+  player's hand is drawn as a held prop is (vr_held.cpp skewerFrame, with vr_carry_local): its place in the server's hand
+  (both as the server's last frame left them) put on the hand drawn this frame, shaken and knocked as the weapon. Walks the
+  edicts only while the player's skewer load (QC VR_Skewer_Tally) is not 0. New field `vr_skewer_hand` read by the engine.
+  Probe `vr_embed_probe_skew` (cm the drawn gib off its place on the drawn blade, measured in vr_view_weapon.cpp against the
+  weapon entity as drawn) and `_skewn` (frames). **Test `vr_embed_test 29`** (`embed1108b`, Debug menu): smooth turn, one
+  snap turn (45 deg), a 219-unit move, a turn and a move: 0.00 cm off in 55 frames each; vr_carry_local 0 (as before):
+  28.4 cm. 10/0.
+- **Blades in wooden crates and barrels (items 13, 14):** a held stab or swing that would stay in a body stays in a crate or
+  barrel (QC VR_Embed_PropHost: `vr_embed_props`, a crate lying loose, not in a hand), by the same speeds and angles. The
+  engine's stickHeld takes a Box3D prop host (propMeets: the blade's line cast at its body from the root or along this
+  frame's way, else its nearest point within vr_embed_touch; kind Prop, riding the crate's origin and angles; no second push,
+  the melee's blow pushed it). The hold is a body's but for moving it: no ragdoll spring, no drag, but
+  VR_Embed_PropSpring: the new builtin `embedproppull` pulls the crate's body at the wound towards the handle hand plus the
+  wound's offset as it took hold (less the blade's own slide), a critically damped spring on its mass (`vr_embed_prop_hertz`
+  4 Hz) capped level at `vr_embed_prop_force` (700 N) and up at `vr_embed_prop_lift` (0.5 of its weight), both times
+  Moving: Two Hands with both hands and Blade Hold Strength: one hand drags a small crate (40 kg, some 830 N) and tips it,
+  can't hoist it; both lift it. Applied through each step piece as a force (box3d::propPull, the climbing pulls' list); the
+  held blade thinks every frame for it (vr_wpnholster.qc). Wood slides harder: `vr_embed_prop_stick` (x2 the stick, half
+  the rate). A slide in wood knocks wood, not flesh. Gripping a blade stuck in a crate (a throw's too) takes hold on its
+  axis as in a body. Breaking the crate drops it at once (VR_AxeStick_Think: the host now `vr_crate_broken`), held: back in
+  the hand; a blow that broke the crate leaves none in. Tunables rows: Crates: Blades Stick, Pull, Lift, Stiffness, Wood's
+  Grip. **Test `vr_embed_test 30`** (`embedprops`, Debug menu): stab stays in (kind 2), the hand 30 units aside drags the
+  crate 24.4 units, 30 up raises it 3.6 (tipped), let go it stays and rides the crate pushed 76 units (0.2 off), pulled back
+  out into the hand, broken: back in the hand, an axe swing into a barrel stays, Blades Stick off: none. 11/0. Scenario
+  `embed_crates` (sword and axe, two crates, two barrels).
+- **Not done:** item 3 of the brief (Box3D's slot for a reused edict): not looked at.
 ## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
 
 QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
