@@ -4852,3 +4852,11 @@ should be a user-facing option for it in vr settings, ensure that they do not co
   lands; Teleport 0: nothing aims; sticks swapped: the off hand's stick aims and lands, the main one walks.
   **14 passed, 0 failed.**
 - **Checklist scene:** `quakevr/scenarios/teleport_both.txt` (vrtesthall's open floor, Teleport 2).
+
+## Flat-screen feedback 2026-11-08 evening (agent/flat1108c)
+
+- Slide: stairs stopped it (Quake steps up only with FL_ONGROUND, off every other move at slide speed; the step face zeroed the speed), and on the first step the eye (a frame behind) dropped under the prone limit and laid him down. A grounded slide now steps up every move (VR_FlatSlideStepUp), costs vr_flat_slide_slope * rise / speed per step, and cannot enter prone. Up a ramp vz > 60 counted as a jump: a jump now needs the jump key. A/D alone asked 90+ degrees off the slide and never steered: any way but within 20 degrees of straight back steers. Test: vr_flatslide_rough_test (flatslide_test.sh), 4/4 (with the step-up alone, the prone entry still ended it on the first step: rose 16).
+- Mantle: its grunt played 0-0.1 s after the jump grunt and was masked; it now waits vr_flat_mantle_grunt_delay (0.35 s) after the jump. vr_flat_mantle_look 30, vr_flat_mantle_look_max 90 (his).
+- Flat VR-style menu zoom: 1.05 a step (buttons, wheel while dragging); headset and classic stay 1.1.
+- Body height: units::eyeHeight() is vr_flat_body_height (1.55) in -flatscreenmode; Height rows dimmed there.
+- Not done in this round: hands on the ledge in the mantle (3b), empty-hand and melee wall pullback (5), two-handed wider shove with tunables (6), force-grab outline preview (7).
