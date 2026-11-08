@@ -125,7 +125,12 @@ buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_moc
 next start (the kit puts `ironwail.cfg` back after each run). Flat screen (`vr_enabled 0`; ROUND21.md, "Corner buttons
 on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | checklist | recording [click]`
 moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` presses a key (`uparrow`, `enter`,
-`rthumb`...) and prints the menu and the corner button selected; `vid_unlock` before `vid_width`/`vid_restart` changes
+`rthumb`...) and prints the menu and the corner button selected. The zoom buttons: `vr_mock_mouse zoomin|zoomout click`
+(`vr_mock_laser zoomin|zoomout` in the headset); `vr_menu_zoom` prints each layout's zoom (MENUZOOM). The flat screen's
+VR layout (`vr_menu_flat_vr_style 1`): `vr_mock_mouse window <x> <y> | by <dx> <dy> | corner tl|tr|bl|br | press |
+release | wheel up|down` drives the window's mouse (a corner dragged, the wheel while held);
+`Misc/quakevr/menu_flat_panel_test.py <agent>` runs it all, flat and VR (ROUND24.md, "VR menu layout on a flat
+screen"). `vid_unlock` before `vid_width`/`vid_restart` changes
 the kit's window size.
 Quicksave and Quickload (ROUND22.md, "Menu quicksave and quickload shortcuts") are below Back to Game in the top-left
 shortcuts. `vr_mock_laser quicksave|quickload` points at them; trigger clicks use the same `quick.sav` slot as the key

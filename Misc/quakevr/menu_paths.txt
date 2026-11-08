@@ -490,6 +490,8 @@ vr_prone_body_angle|1|Body|Lying Down Body Angle|Advanced VR Options > Body > Ly
 vr_prone_body_time|1|Body|Lying Down Time|Advanced VR Options > Body > Lying Down Time
 vr_prone_hip_floor|1|Body|Lying Down Hips Over Floor|Advanced VR Options > Body > Lying Down Hips Over Floor
 vr_prone_leg_reach|1|Body|Lying Down Leg Reach|Advanced VR Options > Body > Lying Down Leg Reach
+vr_prone_foot_lift|1|Body|Lying Down Feet Over Floor|Advanced VR Options > Body > Lying Down Feet Over Floor
+vr_prone_elbow_out|1|Body|Lying Down Elbows Out|Advanced VR Options > Body > Lying Down Elbows Out
 vr_body_climb_feet|1|Body|Climbing Footholds|Advanced VR Options > Body > Climbing Footholds
 vr_body_climb_feet_reach|1|Body|Foothold Reach|Advanced VR Options > Body > Foothold Reach
 vr_body_climb_feet_speed|1|Body|Foothold Step Speed|Advanced VR Options > Body > Foothold Step Speed
@@ -2098,6 +2100,7 @@ vr_crosshairy|1|Crosshair|Crosshair Z Offset|Advanced VR Options > HUD and Menus
 |1|Crosshair|Reset This Page|Advanced VR Options > HUD and Menus > Crosshair > Reset This Page
 @page|1|Menu||Advanced VR Options > HUD and Menus > Menu
 vr_menu_scale|1|Menu|Menu Scale|Advanced VR Options > HUD and Menus > Menu > Menu Scale
+|1|Menu|Reset Menu Zoom|Advanced VR Options > HUD and Menus > Menu > Reset Menu Zoom
 vr_menu_distance|1|Menu|Menu Distance|Advanced VR Options > HUD and Menus > Menu > Menu Distance
 vr_menu_grab|1|Menu|Move the Panel|Advanced VR Options > HUD and Menus > Menu > Move the Panel
 vr_menu_resolution|1|Menu|Menu Resolution|Advanced VR Options > HUD and Menus > Menu > Menu Resolution
@@ -2106,6 +2109,9 @@ vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > St
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
+vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
+vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
+|1|Menu|Reset Flat Menu Panel|Advanced VR Options > HUD and Menus > Menu > Reset Flat Menu Panel
 vr_menu_main_mods|1|Menu|Mods on the Main Menu|Advanced VR Options > HUD and Menus > Menu > Mods on the Main Menu
 vr_menu_fine_step|1|Menu|Fine Step|Advanced VR Options > HUD and Menus > Menu > Fine Step
 vr_menu_section_gap|1|Menu|Section Gap|Advanced VR Options > HUD and Menus > Menu > Section Gap
@@ -4000,6 +4006,12 @@ vr_flat_stance_back|2|Tunables|Stance Gun Back|Advanced VR Options > Debug > Tun
 vr_flat_stance_in|2|Tunables|Stance Gun In|Advanced VR Options > Debug > Tunables > Stance Gun In
 vr_flat_stance_up|2|Tunables|Stance Gun Up|Advanced VR Options > Debug > Tunables > Stance Gun Up
 vr_flat_stance_pistol|2|Tunables|Two-Handed Pistols|Advanced VR Options > Debug > Tunables > Two-Handed Pistols
+vr_flat_sight_learn|2|Tunables|Learn Missing Sights|Advanced VR Options > Debug > Tunables > Learn Missing Sights
+vr_flat_saw_autostart|2|Tunables|Chainsaw Starts Itself|Advanced VR Options > Debug > Tunables > Chainsaw Starts Itself
+vr_flat_melee_two_hand|2|Tunables|Two-Handed Melee|Advanced VR Options > Debug > Tunables > Two-Handed Melee
+vr_flat_punch_aim|2|Tunables|Punch At Crosshair|Advanced VR Options > Debug > Tunables > Punch At Crosshair
+vr_flat_shove_aim|2|Tunables|Shove At Crosshair|Advanced VR Options > Debug > Tunables > Shove At Crosshair
+vr_flat_punch_aim_dist|2|Tunables|Punch Target Distance|Advanced VR Options > Debug > Tunables > Punch Target Distance
 vr_flat_pistol_turn|2|Tunables|Pistol Torso Turn|Advanced VR Options > Debug > Tunables > Pistol Torso Turn
 vr_flat_pistol_back|2|Tunables|Pistol Back|Advanced VR Options > Debug > Tunables > Pistol Back
 vr_flat_pistol_in|2|Tunables|Pistol In|Advanced VR Options > Debug > Tunables > Pistol In
@@ -4028,6 +4040,8 @@ vr_flat_wall_slide_time|2|Tunables|Wall: Slide Ease|Advanced VR Options > Debug 
 vr_flat_wall_block_ads|2|Tunables|Wall: No Ironsight Tilted|Advanced VR Options > Debug > Tunables > Wall: No Ironsight Tilted
 vr_flat_prone_floor|2|Tunables|Prone: Gun Flush On Floor|Advanced VR Options > Debug > Tunables > Prone: Gun Flush On Floor
 vr_flat_prone_floor_margin|2|Tunables|Prone: Floor Margin|Advanced VR Options > Debug > Tunables > Prone: Floor Margin
+vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tunables > Prone: Eye Height
+vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
 vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
@@ -4083,7 +4097,12 @@ vr_flat_slide_end|2|Tunables|Slide End Speed|Advanced VR Options > Debug > Tunab
 vr_flat_slide_cooldown|2|Tunables|Slide Cooldown|Advanced VR Options > Debug > Tunables > Slide Cooldown
 vr_flat_slide_steer|2|Tunables|Slide Steering|Advanced VR Options > Debug > Tunables > Slide Steering
 vr_flat_slide_drop|2|Tunables|Slide Eye Drop|Advanced VR Options > Debug > Tunables > Slide Eye Drop
-vr_flat_slide_body_angle|2|Tunables|Slide Body Lean Back|Advanced VR Options > Debug > Tunables > Slide Body Lean Back
+vr_flat_slide_body_angle|2|Tunables|Slide Body Most Lean Back|Advanced VR Options > Debug > Tunables > Slide Body Most Lean Back
+vr_flat_slide_hip_floor|2|Tunables|Slide Hips Over Floor|Advanced VR Options > Debug > Tunables > Slide Hips Over Floor
+vr_flat_slide_turn_smooth|2|Tunables|Slide Turn Smoothing|Advanced VR Options > Debug > Tunables > Slide Turn Smoothing
+vr_flat_gun_ahead_slide|2|Tunables|Gun Forward Slide|Advanced VR Options > Debug > Tunables > Gun Forward Slide
+vr_flat_gun_down_slide|2|Tunables|Gun Down Slide|Advanced VR Options > Debug > Tunables > Gun Down Slide
+vr_flat_gun_out_slide|2|Tunables|Gun Out Slide|Advanced VR Options > Debug > Tunables > Gun Out Slide
 vr_flat_slide_neck_back|2|Tunables|Slide Neck Back|Advanced VR Options > Debug > Tunables > Slide Neck Back
 vr_flat_slide_body_time|2|Tunables|Slide Pose Time|Advanced VR Options > Debug > Tunables > Slide Pose Time
 vr_flat_slide_leg_reach|2|Tunables|Slide Leg Reach|Advanced VR Options > Debug > Tunables > Slide Leg Reach
@@ -4689,6 +4708,7 @@ vr_test_mic_level|2|Debug - Reports|Fake Microphone Level|Advanced VR Options > 
 |2|Debug - Reports|Relighting: Tool Lookup|Advanced VR Options > Debug > Reports > Relighting: Tool Lookup
 |2|Debug - Reports|Relighting: Batch's Maps|Advanced VR Options > Debug > Reports > Relighting: Batch's Maps
 |2|Debug - Reports|Menu Panel Place|Advanced VR Options > Debug > Reports > Menu Panel Place
+|2|Debug - Reports|Menu Zoom: Where|Advanced VR Options > Debug > Reports > Menu Zoom: Where
 |2|Debug - Reports|Menu Panel Back in Front|Advanced VR Options > Debug > Reports > Menu Panel Back in Front
 |2|Debug - Reports|Menu Panels|Advanced VR Options > Debug > Reports > Menu Panels
 |2|Debug - Reports|Open Another Menu Panel|Advanced VR Options > Debug > Reports > Open Another Menu Panel
@@ -4877,6 +4897,8 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|Arcane Dimensions: Widowmaker in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker in Hand
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun in Hand|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun in Hand
 |2|Debug - Tests|Arcane Dimensions: Plasma Gun Cell Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun Cell Test
+|2|Debug - Tests|Arcane Dimensions: Plasma Gun's First Ball|Advanced VR Options > Debug > Tests > Arcane Dimensions: Plasma Gun's First Ball
+|2|Debug - Tests|Arcane Dimensions: Upgraded Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapon Models
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Tube Test|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Tube Test
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Info|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Info
 vr_ad_widowmaker_spin_at|2|Debug - Tests|Arcane Dimensions: Widowmaker Barrels Held At|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Barrels Held At
@@ -9140,4 +9162,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing

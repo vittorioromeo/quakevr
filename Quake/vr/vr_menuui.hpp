@@ -70,8 +70,18 @@ void printRecordingButton();
 [[nodiscard]] bool pointerOn(bool hover);
 // Opens Ironwail's menu `state` (m_main, m_singleplayer, m_options...) as its own way in does; m_none closes the menu.
 void openMenu(int state);
-// A menu is open in the headset with vr_menu_vr_style on.
+// A menu is open in the VR menu style's layout: in the headset with vr_menu_vr_style on, or on a flat screen (VR off)
+// with vr_menu_flat_vr_style on (a panel in the window, the desktop mouse as the laser: flatPanel()).
 [[nodiscard]] bool active();
+// The first of those: the headset's (the laser, the hands, the panel in the world).
+[[nodiscard]] bool inHeadset();
+// The second: the flat screen's panel.
+[[nodiscard]] bool flatPanel();
+
+// vr_menu_zoom [in | out | reset] [vr | flat | classic]: the menu's zoom (the corner's - and + buttons) stepped by 1.1
+// or back to the shipped size, in the layout shown (or the one named): the headset's vr_menu_scale, the flat screen's
+// VR layout panel (vr_menu_flat_scale, and its place on reset), the flat menus' scr_menuscale. Alone: MENUZOOM, each.
+void zoom_f();
 
 // The menu panel's height in world units while the style is active (0 otherwise): one menu pixel
 // (a character is 8) is vr_menu_scale units, as in the old engine, whatever the canvas's size.
@@ -162,7 +172,9 @@ void mockLaser_f();
 
 // vr_mock_mouse <x> <y> | <button> [click] (tests, flat screen): the desktop mouse moved to a spot of the menu (menu
 // coordinates) or onto one of the corner's buttons (as vr_mock_laser names them), as the window's mouse motion moves
-// it (M_Mousemove), and with `click` a left click there (K_MOUSE1 pressed and released).
+// it (M_Mousemove), and with `click` a left click there (K_MOUSE1 pressed and released). The window's own mouse (the flat
+// screen's VR layout: its panel's corners): window <x> <y> | by <dx> <dy> (window pixels; by: from where it is) | corner
+// <tl | tr | bl | br> (in that corner's grab zone) | press | release (the left button) | wheel <up | down>.
 void mockMouse_f();
 
 // vr_mock_key <key> (tests): that key pressed and released (as Key_Event; its name as bind takes it), then the menu and

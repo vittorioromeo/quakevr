@@ -4534,6 +4534,55 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
 - **Found, not fixed:** with Arcane Dimensions running (scenario_check's `-game ad`), the toolgun's "Axe" entry
   (`weapon_axe`, agent/embed5) spawns AD's own axe pickup, which no hand can take: `give "Axe"` fails in embed_stab,
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
+  failed`).
+
+## VR menu layout on a flat screen, zoom buttons (branch `agent/flatwall`, 2026-11-08)
+
+His ask: the VR menu layout as a flat-screen option; small "+" and "-" square buttons at the end of the shortcut list
+to zoom the menu, in both layouts; on the flat screen the panel's corners dragged to move it, the wheel while dragging
+resizing it.
+
+- **The option:** `vr_menu_flat_vr_style` (archived, default 0; Advanced VR Options > HUD and Menus > Menu > VR Menu
+  Layout on a Flat Screen). With VR off, `menuui::active()` (the layout: the canvas filling the panel, spaced rows, the
+  styled widgets, the corner's column beside the menu, the bottom left rows, the banner column) is now true too;
+  `menuui::inHeadset()` is the old meaning, for the laser, hands, haptics, the panel in the world, New Panel, the
+  spectator switch and its preview (left out on the flat panel: the rows above it a row lower).
+- **How it draws:** the panel has the window's shape, `vr_menu_flat_scale` (0.9; 0.4 to 1) of its size, its middle at
+  `vr_menu_flat_x` / `_y` (0.5, shares of the window). The menu is laid out exactly as on the whole window (the
+  headset's canvas has the window's shape too) and the CANVAS_MENU viewport is that rect (gl_draw.c GL_SetCanvas, with
+  a flush; Draw_SetClipRect clips inside it; GL_Set2D resets it). No offscreen texture: every size is drawn crisp.
+  `VR_MenuDrawFlatPanel` paints the panel's dark face before the page (the window's fade is under and round it);
+  `VR_MenuDrawFlatFrame` (after M_Draw, back on the window's viewport) a thin frame and an L handle outside each corner.
+- **The mouse:** M_Mousemove maps the window's mouse through the same rect (`VR_MenuFlatViewport`), so hover, clicks,
+  slider drags and the wheel on lists work as the desktop mouse always did; vr_mock_mouse's spots go through it too.
+  The keys are untouched.
+- **Zoom buttons:** two small squares ("-", "+") in a slot of their own under the column's last button (the headset
+  and the flat panel), or after the flat row's last icon (the classic flat menus). They come first for clicks
+  (`zoomAt` before `toolAt`); the laser lights them with a pulse. Steps of 1.1 in the layout shown: the headset's
+  `vr_menu_scale` (0.02 to 1.5, the slider's extent), the flat panel's `vr_menu_flat_scale` round the mouse (the button
+  stays under it for the next press), the classic menus' `scr_menuscale` (1 to what the canvas fits, stepping from the
+  value in effect). Resets: "Reset Menu Zoom" under Menu Scale, "Reset Flat Menu Panel" (size and place) under the new
+  rows; `vr_menu_zoom [in|out|reset] [vr|flat|classic]` (alone: MENUZOOM, each layout's zoom; Debug > Reports > Menu
+  Zoom: Where). The column's fit (short panels) counts the zoom slot.
+- **Moving and resizing (flat):** a corner's grab zone runs from 14 px outside the corner to the buttons' margin inside
+  it (never over a button); over it the cursor is SDL's move cursor (`MOUSECURSOR_MOVE`, new), the handle lit. A press
+  there (VR_MenuKey, first) takes hold: the panel follows the mouse (`VR_MenuFlatMouse`, at M_Mousemove's top) until
+  the button is up (`keydown[K_MOUSE1]` seen at the next move or frame); the wheel while held zooms round the mouse.
+  The middle stays on the window and the panel is never bigger than it, so a corner is always on screen; shares of the
+  window keep it sensible on a resize. All three cvars are archived.
+- **Test:** `Misc/quakevr/menu_flat_panel_test.py <agent>` (two runs, each ending on its `MENUFLAT done` line): flat,
+  the column beside the menu, the panel 0.9 of the window, a mouse click on the column's VR Settings through the panel,
+  - then + + (0.9, 0.818, 0.99) and writeconfig keeping 0.99, the bottom right corner dragged by -120 -60 (the rect
+  moved exactly that), the wheel twice while held (0.744, the corner still at the mouse within 2 px), released, dragged
+  far off (middle 0 0, a corner on), the arrow keys moving the main menu's selection, the classic row's - (scr_menuscale
+  from the canvas's 1.69 to 1.534); VR, the laser and trigger on + (vr_menu_scale 0.275, the panel 160 to 176 tall) and
+  on - (0.25), the reset. `menu flat panel: 24 passed, 0 failed`. Screenshots: `scratch/flatmenu_flat.png` (0.9 in the
+  middle, 0.55 off-centre, 1.0) and `scratch/flatmenu_vr.png` (0.25, 0.2, 0.3), from a low-impact run (his game was
+  open: small eyes, so the VR shots are blurry).
+- **Scenes:** `menu_flat_panel` (the option on for the test; Escape opens it) and `menu_zoom`; neither opens the menu
+  itself (an open menu pauses the game and runall's scenes run on game time: `SCNRUNSUM|2 run|0 failed` flat).
+- **Not done:** the zoom buttons are not reachable by the sticks' corner-button selection (laser and mouse only).
+  menu_paths.txt regenerated (it was behind: other rows came in too); `vr_menu_path_check`: 0 missing.
   failed`). (Fixed by agent/cfgtrim, below.)
 
 ## Config migration cut at 1.0.1; the toolgun's Axe holdable under AD (branch `agent/cfgtrim`, 2026-11-08)

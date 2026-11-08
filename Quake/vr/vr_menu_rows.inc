@@ -2178,6 +2178,10 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
+QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
+    "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
+QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
+    "With the VR Menu Layout on a Flat Screen: the panel's size, a share of the window's (1 fills it). The - and + buttons under the corner's buttons step it, as the wheel does while a corner is dragged.")
 QVR_TOGGLE_BYNAME(vr_menu_main_mods, "Mods on the Main Menu",
     "The main menu's Mods row (Ironwail's mods list). Off: only in Options > Mods.")
 QVR_SLIDER_BYNAME(vr_menu_fine_step, "Fine Step", 0.01f, 0.5f, 0.01f, "%.2fx", noExt,
