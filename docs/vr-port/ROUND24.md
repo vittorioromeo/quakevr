@@ -3658,3 +3658,57 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
   `scratch/slivers_after_full.png`.
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
+
+## Enforcer's elbow leather jumping (branch `agent/blendmd5`, worktree blendmodels, 2026-11-08)
+
+His note: "The enforcer's right elbow leather connector has a similar issue to the knight one you fixed". Files:
+`vr_agarmor_bridge.cpp` (evalBridge, the checks, bridgeTrace), `vr_agarmor.cpp` (benchPose, headcam view 5).
+
+- **Reproduced** live with `vr_agarmor_bridge_trace` (new, below) on three armed enforcers in yellow attacking
+  (scene `agarmor_enforcer_elbow`), and offline through every frame and a degree-at-a-time sweep of each joint.
+  Two causes, both general (any joint, any humanoid):
+  - **The tangents' size switched where it should have eased.** Each end's tangent was the circle's arc's below a
+    tenth of the chord of joint reach and the "round" one (three times the reach) above 0.15: at the switch they differ
+    by most of a chord, so a joint reach crossing it (the enforcer's left elbow at frame 104, the grunt's left elbow at
+    116, the knight's right knee) changed a tangent by up to two units in a step and the middle rings turned 12-21 degrees
+    while the rows turned 3-4. And the knight fix's easing (tangents cut towards half a chord as the curve turned back)
+    is itself steep: on the knight's sword arm the tangents went 3 -> 14 units within a frame, the rings turning 36
+    degrees against the rows' 3.
+  - **The crease's push let go over a narrow bend.** The enforcer's inner elbow has a lump of skin 3.4 units outside
+    the leather; it was pushed out in full below 26 degrees of bend and let go by 52, and the push (corners kept at the
+    most any sample asks) dropped 2 units in about 8 degrees: the leather moved 8 times as far as its rows (sweep 0.372
+    against 0.048 a degree), pumping in and out as his arms swung through 27-48 degrees (live: 2.07 against 0.39 in a
+    frame, 44 frames in 25 seconds over twice the rows').
+- **Fix.** Each tangent is now the smooth larger of the arc's and the round one (`bridgeSoftMax` 0.2 of the chord: they
+  meet with no step), then both are scaled down together as far as needed for the curve's middle leg (its Bezier's two
+  inner points apart) to run forwards along the middle ring's direction (the rows' directions halved;
+  `bridgeForwardLeast` 0.05 of the chord): the chord's reach that way over the inner points', smooth in the pose and
+  never divided by nothing short of straight back. The old back-easing stays as a net (no sweep turns back now). The
+  crease's push fades over 26 to 90 degrees of bend (`bridgeCreaseFrom` 0.3, `bridgeCreaseBend` 0.75 of 86 degrees).
+  Shapes change little: the tangents the same away from a reach near a tenth of the chord or a curve that turned back;
+  the enforcer's inner-elbow lump held longer (to ~60 degrees) and let go more slowly.
+- **Checks, tightened** (`vr_agarmor_bridge_check`): through the frames a vertex may move 2x its rows plus 0.25 (was 3x
+  plus 0.5); new, no middle ring may turn more than 2x its rows plus the bend's change plus 2 degrees in a step; new,
+  each joint swept a degree at a time (rest pose, `vr_agarmor_bend`'s), no vertex moving more than 2.5x its rows plus
+  0.1. `developer 1` prints each joint's worst step and its push and crease; `developer 2` every sweep step and every
+  failing frame step (tangents, fit, back, push).
+  - Before: 78 passed, 10 failed: enforcer left elbow 2.25 against 0.72 through the frames and 0.372 against 0.048 in
+    the sweep; knight right elbow 2.06 / 0.57 and turn 35.9 / 3.1, its sweep 0.239; knight right knee 1.12 / 0.39 and
+    turn 8.3; grunt left elbow turn 20.8 / 3.0, right 4.4 / 0.9; enforcer right knee turn 5.0 / 0.8.
+  - After: 88 passed, 0 failed (every joint of grunt, enforcer, knight, death knight; enforcer left elbow sweep 0.173,
+    its right 0.111; knight right 0.107).
+  - Live, the same scene (the AI differs run to run): frames over twice the rows' + 0.25 on the left elbows 44 -> 5,
+    worst excess 1.29 -> 0.53 (an 8-degree-a-frame swing through 63-87 degrees, the lump letting go 1.2 units).
+- **Debug aids** (Debug > the armour rows by Check the Elbow and Knee Leather): `vr_agarmor_bridge_trace` (mask: 1
+  left elbow, 2 right, 4 left knee, 8 right; a console line a frame per armoured body: its furthest vertex move against
+  its rows', its rings' turn against theirs, the curve's numbers); `vr_agarmor_pose_frame` (-1 off: every armoured
+  body held in its animation at that frame, fractions lerped as drawn: step through a check's worst step);
+  `vr_agarmor_headcam` view 5 (its left side).
+- **Shots** (low-impact run, low-res): `scratch/enfelbow_before_after.png`, the enforcer at frame 104 -> 104.125 (the
+  left elbow's worst step), rows: before left side, after left side, before right side, after right side.
+- **Open:** a lump this big still changes visibly when an arm swings 8 degrees a frame through 60-80 degrees of bend;
+  the push's max-over-samples makes the let-go happen over about 20 degrees whatever the fade's width.
+- **Test in VR:** scene `agarmor_enforcer_elbow`: each enforcer's elbows (both sides; his "right" may be the enforcer's
+  left, `bracer_l`, the one that jumped) while it stands, aims, shoots, walks and swings: the leather stays round the
+  elbow, no ring spinning, the inner-elbow lump easing rather than pumping. Grunts' and knights' elbows and knees: no
+  new lumps or skin through the leather on the inside of a bend.
