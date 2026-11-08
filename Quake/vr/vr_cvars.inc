@@ -854,6 +854,10 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
+QVR_CVAR(vr_menu_flat_vr_style, "0", CVAR_ARCHIVE)     // with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
+QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
+QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
+QVR_CVAR(vr_menu_flat_y, "0.5", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
 QVR_CVAR(vr_menu_laser_hue, "-1", CVAR_ARCHIVE)        // that laser's colour: hue (degrees; 35 amber; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans and oranges (letters, pictures, sliders, panels) turned blood red by their hue alone, the Quake VR banner left as it is (vr_menubrand.cpp; gl_shaders.h's gui shader)
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
@@ -1079,7 +1083,7 @@ QVR_CVAR(vr_lean_turn, "2", CVAR_ARCHIVE)            // a stick turn while leani
 QVR_CVAR(vr_roomscale_jump, "1", CVAR_ARCHIVE)          // jumping in the room jumps in the game: the head rising faster than
 QVR_CVAR(vr_roomscale_jump_threshold, "0.8", CVAR_ARCHIVE) // this (m/s) above the standing height
 QVR_CVAR(vr_roomscale_move_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)     // 0 off; 1 Bound Button (+teleport held: the off hand aims); 2 Smooth + Teleport (vr_teleport.cpp: the moving stick walks, the turning stick's push forward aims with its hand, +teleport too; from the ground only, arriving still)
 QVR_CVAR(vr_teleport_range, "400", CVAR_ARCHIVE)
 QVR_CVAR(vr_teleport_hue, "-1", CVAR_ARCHIVE)         // the aiming arc's colour where it can land: hue (degrees; 220 blue; -1 vr_player_hue; red where it can't)
 QVR_CVAR(vr_2h_mode, "2", CVAR_ARCHIVE)
@@ -2269,7 +2273,7 @@ QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's 
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always
 QVR_CVAR(vr_water_waves, "1.5", CVAR_ARCHIVE)           // waves on water, slime and lava (normal-mapped, in the shader: the faces stay flat): strength
 QVR_CVAR(vr_water_fresnel, "0.5", CVAR_ARCHIVE)         // water more see-through looking down, reflecting the room at grazing angles
-QVR_CVAR(vr_teleporters, "1", CVAR_ARCHIVE)           // the whole see-through teleporter feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - teleporters are Quake's plain ones exactly as before the feature (vr_portals and vr_portals_walk then do nothing). vr_slipgates until 2026-10-08, still a silent alias (VR_CvarAlias), as are the other vr_slipgate_* below
+QVR_CVAR(vr_teleporters, "1", CVAR_ARCHIVE)           // the whole see-through teleporter feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - teleporters are Quake's plain ones exactly as before the feature (vr_portals and vr_portals_walk then do nothing). vr_slipgates until 2026-10-08
 QVR_CVAR(vr_portals_debug_split, "0", CVAR_NONE)   // debug: each frame, every entity drawn cut by a teleporter (vr_portals.cpp VR_PortalAlias): its place, the gate and how far through; -1 also the main hand's held object every frame, N>0 also entity N every frame; and each tossed or rigid thing's middle and velocity, and why a gate did not take it (VR_PortalToss)
 QVR_CVAR(vr_portals_ai_test, "0", CVAR_NONE)          // disposable mock fixture controls (vr_portal_ai_test.qc)
 QVR_CVAR(vr_portals_ai, "1", CVAR_ARCHIVE)            // monsters see and fire at one-hop player images; melee/navigation stay local

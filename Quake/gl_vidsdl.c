@@ -69,6 +69,7 @@ static SDL_GLContext	gl_context;
 static SDL_Cursor		*cursor_arrow;
 static SDL_Cursor		*cursor_hand;
 static SDL_Cursor		*cursor_ibeam;
+static SDL_Cursor		*cursor_move; // QVR: the flat screen's VR menu panel's corners
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean vid_changed = false;
@@ -222,6 +223,7 @@ static void VID_InitMouseCursors (void)
 	cursor_arrow = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_ARROW);
 	cursor_hand = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_HAND);
 	cursor_ibeam = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_IBEAM);
+	cursor_move = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_SIZEALL); // QVR
 }
 
 static void VID_FreeMouseCursors (void)
@@ -229,9 +231,11 @@ static void VID_FreeMouseCursors (void)
 	SDL_FreeCursor (cursor_arrow);
 	SDL_FreeCursor (cursor_hand);
 	SDL_FreeCursor (cursor_ibeam);
+	SDL_FreeCursor (cursor_move); // QVR
 	cursor_arrow = NULL;
 	cursor_hand = NULL;
 	cursor_ibeam = NULL;
+	cursor_move = NULL; // QVR
 }
 
 void VID_SetMouseCursor (mousecursor_t cursor)
@@ -248,6 +252,10 @@ void VID_SetMouseCursor (mousecursor_t cursor)
 
 	case MOUSECURSOR_IBEAM:
 		SDL_SetCursor (cursor_ibeam);
+		return;
+
+	case MOUSECURSOR_MOVE: // QVR
+		SDL_SetCursor (cursor_move);
 		return;
 
 	default:

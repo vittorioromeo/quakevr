@@ -102,7 +102,7 @@ def export(out_dir=None, log=print):
     frames = [mesh] * (STILL_FRAMES - 1) + [spun(mesh, spin_count, k) for k in range(SPIN_POSES)]
     names = ["vr%d" % i for i in range(STILL_FRAMES)] + ["spin%d" % k for k in range(SPIN_POSES)]
     os.makedirs(out_dir, exist_ok=True)
-    mdlgen.write_mdl(os.path.join(out_dir, GUN_MDL), mesh, skins, "vr0", frames, names, CORNER)
+    mdlgen.write_mdl(os.path.join(out_dir, GUN_MDL), mesh, skins, "vr0", frames, names, CORNER, clean=True)
     log("%s: %d triangles, %d vertices (%d turning), %d frames, skin %dx%d (%s; turning: %s)" % (
         GUN_MDL, len(mesh.tris), len(mesh.verts), spin_count, len(names), w, h, ", ".join(ob.name for ob in still),
         ", ".join(ob.name for ob in turning)))
@@ -121,7 +121,7 @@ def export(out_dir=None, log=print):
     k = float(body.get("preview_scale", 0.48))
     pre = fg.build_mesh([fg.object_tris(ob, Matrix.Scale(k, 4) @ to_body, w, h, depsgraph) for ob in turning + still],
                         w, h)
-    mdlgen.write_mdl(os.path.join(out_dir, PREVIEW_MDL), pre, [skins[0]], "preview")
+    mdlgen.write_mdl(os.path.join(out_dir, PREVIEW_MDL), pre, [skins[0]], "preview", clean=True)
     log("%s: %d triangles (scale %.2f)" % (PREVIEW_MDL, len(pre.tris), k))
 
 

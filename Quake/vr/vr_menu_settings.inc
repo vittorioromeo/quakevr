@@ -363,8 +363,12 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsTeleport()
 {
     return {
-        toggle("Teleport", vr_teleport_enabled)
-            .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
+        cycle("Teleport", vr_teleport_enabled, {{0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"}})
+            .help("Jump to the spot you point at: the gentlest way to get around. Bound Button: hold a button you bind "
+                  "to +teleport and aim with the off hand. Smooth + Teleport: walk with the moving stick as usual, and "
+                  "push the turning stick forward to aim with that hand; let it go back to the middle to land there, "
+                  "pull it back to cancel. Its left and right still turn. You teleport only from the ground, and arrive "
+                  "standing still."),
         row(opt::vr_teleport_range),
     };
 }

@@ -33,6 +33,7 @@
 #include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
+#include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
@@ -305,6 +306,19 @@ bool primaryDown[HAND_COUNT] = {};
 
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
+
+// Smooth + Teleport (vr_teleport_enabled 2; vr_teleport.cpp; ROUND24.md "Teleport and smooth locomotion together"): the
+// turning stick pushed forward aims a teleport with its hand, back to the middle lands, pulled back cancels. Its left and
+// right still turn, never while it aims nor until it is back in the middle after a cancel; the moving stick doesn't walk
+// while it aims; a push that began as a turn never becomes an aim. Swimming, its forward swims up as ever (+moveup).
+struct TeleportStick
+{
+    bool armed{false};    // back in the middle since the last turn or aim: a push forward may aim
+    bool aiming{false};
+    bool settling{false}; // cancelled: the stick is the teleport's until back in the middle
+    bool ran{false};      // routeSticks's walking branch ran this frame
+};
+TeleportStick teleStick;
 
 // The comfort vignette (vr_comfort_vignette): how much the sticks move and turn you now (0 .. 1, eased), this frame's
 // smooth turn (0 .. 1), and the seconds left of a snap turn's pulse.
@@ -1723,8 +1737,84 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     }
 }
 
+// The turning stick taken from aiming (a menu, a mode, swimming, another Teleport choice): an aim under way cancelled.
+void teleportStickOff()
+{
+    if(teleStick.aiming)
+    {
+        teleport::stickAim(1 - hands::moveHand(), false, true);
+    }
+    teleStick = TeleportStick{};
+}
+
+// The turning stick `st` of hand `hand` in the game (TeleportStick): true while it is the teleport's (no turning, no
+// +moveup, no walking).
+[[nodiscard]] bool teleportStick(glm::vec2 st, int hand)
+{
+    TeleportStick& t = teleStick;
+    t.ran = true;
+    const edict_t* p = progs::localPlayer(); // (the aim's sweep needs this machine's server)
+    if(!teleport::stickMode() || !p || p->v.waterlevel >= 2.f)
+    {
+        teleportStickOff();
+        t.ran = true;
+        return false;
+    }
+    const float len = glm::length(st);
+    if(len < 0.3f)
+    {
+        t.armed = true;
+        t.settling = false;
+    }
+    if(t.settling)
+    {
+        return true;
+    }
+    if(!t.aiming)
+    {
+        if(!t.armed || st.y <= 0.7f || za::fabs(st.x) >= 0.5f * st.y)
+        {
+            if(za::fabs(st.x) > 0.3f)
+            {
+                t.armed = false; // turning: no aim until back in the middle
+            }
+            return false;
+        }
+        t.aiming = true;
+        t.armed = false;
+        snapTurnArmed = false;
+    }
+    if(st.y < -0.5f)
+    {
+        t.aiming = false;
+        t.settling = true;
+        teleport::stickAim(hand, false, true);
+        return true;
+    }
+    if(len < 0.3f)
+    {
+        t.aiming = false;
+        teleport::stickAim(hand, false, false);
+        return false;
+    }
+    teleport::stickAim(hand, true, false);
+    return true;
+}
+
+void routeSticksTo(const InputState& in, const HandInput& off, const HandInput& main, bool active);
+
 // The sticks: the menu's keys, a tool's or mode's, or walking and turning.
 void routeSticks(const InputState& in, const HandInput& off, const HandInput& main, bool active)
+{
+    teleStick.ran = false;
+    routeSticksTo(in, off, main, active);
+    if(!teleStick.ran)
+    {
+        teleportStickOff();
+    }
+}
+
+void routeSticksTo(const InputState& in, const HandInput& off, const HandInput& main, bool active)
 {
     const bool menu = key_dest != key_game;
     if(menu)
@@ -1829,17 +1919,19 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
     }
     else
     {
-        stickKey(stickKeys[0], main.stick.y, false);
-        stickKey(stickKeys[1], -main.stick.y, false);
+        // (Smooth + Teleport: the turning stick aiming is no +moveup or +movedown, no turn and no walk.)
+        const bool aims = teleportStick(main.stick, 1 - hands::moveHand());
+        stickKey(stickKeys[0], aims ? 0.f : main.stick.y, false);
+        stickKey(stickKeys[1], aims ? 0.f : -main.stick.y, false);
         stickKey(stickKeys[2], 0.f, false);
         stickKey(stickKeys[3], 0.f, false);
         // (vr_stick_curve_test drives the moving stick while it runs.)
-        const glm::vec2 moving = stickTest.active ? stickTest.stick : off.stick;
+        const glm::vec2 moving = aims ? glm::vec2{0.f} : stickTest.active ? stickTest.stick : off.stick;
         moveAxes = vr_move_legacy.value != 0.f
                        ? glm::vec2{deadzone(moving.x), deadzone(moving.y)}
                        : moveHold(moveStick(moving), CLAMP(0.f, static_cast<float>(host_frametime), 0.1f));
         stickDebug(off.stick);
-        if(active)
+        if(active && !aims)
         {
             turn(main.stick.x);
         }
