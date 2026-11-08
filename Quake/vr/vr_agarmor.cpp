@@ -21,6 +21,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
@@ -3216,12 +3217,12 @@ void info_f()
 // the nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not; set 1: the nearest
 // death knight's, the screenshot's eye, and knight's: vr_agarmor_test 8), `distance` units off
 // (default 22) at the helmet's middle (its rest pose where the body stands): view 1 front, 2 side (its right), 3
-// three-quarter (front right), 4 behind; 0 (or none) the eyes from the head again.
+// three-quarter (front right), 4 behind, 5 side (its left); 0 (or none) the eyes from the head again.
 void headcam_f()
 {
     const int view = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0;
     const float dist = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 22.f;
-    if(view <= 0 || view > 4)
+    if(view <= 0 || view > 5)
     {
         setMockEyeCameras(false);
         Con_Printf("agarmor headcam: off\n");
@@ -3265,8 +3266,8 @@ void headcam_f()
         const glm::vec3 fw{za::cos(y), za::sin(y), 0.f}, left{-za::sin(y), za::cos(y), 0.f};
         // (`drop`: the eyes this many units lower, on the same level line: the elbows' and the knees' leather)
         const glm::vec3 head = geom::vec(e.origin) + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z - drop};
-        const glm::vec3 dirs[4] = {fw, -left, glm::normalize(fw - left), -fw};
-        const float yaws[4] = {180.f, 90.f, 135.f, 0.f};
+        const glm::vec3 dirs[5] = {fw, -left, glm::normalize(fw - left), -fw, left};
+        const float yaws[5] = {180.f, 90.f, 135.f, 0.f, -90.f};
         camAt[k] = head + dirs[view - 1] * dist;
         yaw[k] = e.angles[1] + yaws[view - 1];
         Con_Printf("agarmor headcam: %s (entity %d) head at %.1f %.1f %.1f, view %d\n", wanted[k], found, static_cast<double>(head.x),
@@ -3663,6 +3664,10 @@ int bonePoses(const entity_t* e, const float** matrices)
             const float* src = nullptr;
             const int have = VR_AliasBonePoses(&cl_entities[bridgeSource[k]], &src);
             (void)bridgeBones(*s, bridgePieces[k], src, src ? have : 0, bridgeBonesOf[k]);
+            if(vr_agarmor_bridge_trace.value > 0.f && src)
+            {
+                bridgeTrace(*s, bridgeSource[k], s->model.cStr(), bridgePieces[k], src, have);
+            }
         }
         *matrices = bridgeBonesOf[k];
         return n;
@@ -4853,8 +4858,8 @@ int playerBridgePoses(const qmodel_t* body, int pieces, const float* bones, int 
 
 void benchPose()
 {
-    const float bend = vr_agarmor_bend.value;
-    if(bend == 0.f || cls.state != ca_connected || !cl_entities)
+    const float bend = vr_agarmor_bend.value, frameAt = vr_agarmor_pose_frame.value;
+    if((bend == 0.f && frameAt < 0.f) || cls.state != ca_connected || !cl_entities)
     {
         return;
     }
@@ -4874,6 +4879,17 @@ void benchPose()
         {
             continue;
         }
+        rigpose::Rigid F[rig2::maxBones];
+        const ragdoll::Rig* rr = frameAt >= 0.f ? ragdoll::rigFor(e->model) : nullptr;
+        if(rr && rr->authored && rr->numBones == rig->numBones && rr->numPoses > 1)
+        {
+            // (vr_agarmor_pose_frame: its animation's frames as the game lerps them, held at one place: the leather's
+            // steps, vr_agarmor_bridge_check's worst, seen)
+            const int p = za::min(static_cast<int>(frameAt), rr->numPoses - 2);
+            rig2::posedBetween(*rr, p, p + 1, za::min(frameAt - static_cast<float>(p), 1.f), F);
+            rig2::drawPosed(num, e->model, F, rig->numBones);
+            continue;
+        }
         rig2::Pose pose = rig2::restPose(*rig);
         for(const char* name : {"forearm_l", "forearm_r", "shin_l", "shin_r"})
         {
@@ -4885,7 +4901,6 @@ void benchPose()
             const glm::vec2 r = rig->bones[b].range;
             pose.a[b].x = r.y >= -r.x ? za::min(za::abs(bend), r.y) : za::max(-za::abs(bend), r.x);
         }
-        rigpose::Rigid F[rig2::maxBones];
         rig2::forward(*rig, pose, F);
         rig2::drawPosed(num, e->model, F, rig->numBones);
     }

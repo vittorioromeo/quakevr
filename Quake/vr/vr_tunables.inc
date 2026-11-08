@@ -1850,6 +1850,18 @@ QVR_TUNABLE(vr_flat_arm_hold, "1") // how far a drawn hand may sit from its arm'
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
 QVR_TUNABLE(vr_flat_empty_down, "1") // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 off the old anchor)
 QVR_TUNABLE(vr_flat_empty_out, "4") // an empty hand: how far out at its own side it hangs (-30..30; 7 off the old anchor)
+QVR_TUNABLE(vr_flat_empty_hand_pose, "2") // an empty hand at rest: 0 relaxed, the arm down the body; 1 fists up, a guard; 2 the guard with both hands empty, relaxed while the other holds a weapon; -1 as before (Empty Hand Forward/Down/Out, fingers down)
+QVR_TUNABLE(vr_flat_relaxed_fwd, "0.06") // the relaxed empty hand: how far in front of its shoulder, a share of the arm's reach (-1..1)
+QVR_TUNABLE(vr_flat_relaxed_down, "0.94") // and how far below it (-1..1; positive is lower)
+QVR_TUNABLE(vr_flat_relaxed_out, "0.16") // and how far out at its own side (-1..1)
+QVR_TUNABLE(vr_flat_relaxed_pitch, "80") // and its fingers this far below level (degrees, -90..90)
+QVR_TUNABLE(vr_flat_relaxed_roll, "0") // and rolled this far, its palm turned in towards the body (degrees, -180..180; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_guard_fwd, "0.5") // the guard's fist: how far in front of its shoulder, a share of the arm's reach (-1..1)
+QVR_TUNABLE(vr_flat_guard_down, "-0.08") // and how far below it (-1..1; positive is lower: negative raises it to the chin)
+QVR_TUNABLE(vr_flat_guard_out, "-0.12") // and how far out at its own side (-1..1; negative brings it in before the face)
+QVR_TUNABLE(vr_flat_guard_pitch, "-30") // and its knuckles this far below level (degrees, -90..90; negative points them up)
+QVR_TUNABLE(vr_flat_guard_roll, "0") // and rolled this far, turned in (degrees, -180..180; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_empty_take_time, "0.1") // a weapon taken into a hand at rest: seconds it comes up from the relaxed or guard pose to its own (0: at once, as before)
 QVR_TUNABLE(vr_flat_support_fwd, "8.5") // the free hand beside the other hand's gun: how far in front of its shoulder it rests (-30..30; 6 off the old anchor)
 QVR_TUNABLE(vr_flat_support_down, "3") // the same free hand: how far below its shoulder (-30..30; positive is lower; 15 off the old anchor)
 QVR_TUNABLE(vr_flat_stance, "1") // a long gun with a two-handed hotspot (Weapon Offsets): the torso turns, the free hand's shoulder forward, and the free hand is drawn on that hotspot with its pose, as a look: no grip, two-handed aim, recoil or weight (vr_flatsight.cpp stanceAndLook; 0: the hand hangs, the torso faces the view)
@@ -1954,6 +1966,12 @@ QVR_TUNABLE(vr_flat_slide_drop, "6") // the slide: how much further than the cro
 QVR_TUNABLE(vr_flat_slide_body_angle, "45") // the slide: the trunk leant back this many degrees from upright, the legs out in front along the floor (vr_avatar_pitch.cpp)
 QVR_TUNABLE(vr_flat_slide_neck_back, "10") // the slide: how far behind the eye the leant-back trunk hangs from (units, 0..20): the chest under the view, the legs in front seen past it
 QVR_TUNABLE(vr_flat_slide_body_time, "0.2") // the slide: seconds the body and the view take into the slide pose and out of it
+QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in front reach this share of their length from hip to foot, the foot on the floor (0.85..1; 1: dead straight, less bends the knees up)
+QVR_TUNABLE(vr_flat_slide_turn_time, "0.12") // the slide: seconds the two-handed stance's turn of the torso takes to go (and come back after): sliding, the trunk faces the view or the slide's way
+QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the slide's way, the chest turned back to the view (at most vr_flat_slide_legs_twist); 0: the whole body faces the view
+QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
+QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
+QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
 QVR_TUNABLE(vr_flat_lean_angle, "15") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
 QVR_TUNABLE(vr_flat_lean_dist, "16") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
 QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot
