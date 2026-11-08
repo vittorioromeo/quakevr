@@ -106,6 +106,7 @@ vr_ad_test       150-164  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       165-170  vr_ad_test.qc                    (AD_MeleeTest)
 vr_ad_test       175-182  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       183      vr_ad_test.qc                    (AD_PelletMatTest)
+vr_ad_test       184      vr_ad_test.qc                    the AD crossbow in the main hand (AD_GunTest; flattwohand_test.sh)
 vr_ad_test       191-197  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       198      vr_ad_test.qc                    armed humanoids in AD (vr_agrunt_repl_ad): plain ones replaced, AD's variants skipped
 

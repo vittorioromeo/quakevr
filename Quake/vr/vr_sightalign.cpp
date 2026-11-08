@@ -8,6 +8,7 @@
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_text3d.hpp"
@@ -373,6 +374,13 @@ struct SightTexel
 }
 
 ankerl::unordered_dense::map<za::String, SightLine> lines;
+ankerl::unordered_dense::map<za::String, bool> learnTried; // learnLine's models, each tried once (resetCaches)
+
+// learnLine: the mesh within this of the model's middle (y 0) counts for the top (units, as sightline_table.py), the line
+// this far over it, and a line shorter than this is none.
+constexpr float learnHalfWidth = 0.5f;
+constexpr float learnOver = 0.05f;
+constexpr float learnShortest = 4.f;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Frames and angles
@@ -1110,9 +1118,66 @@ SightLine sightLine(const qmodel_t* model)
     return line;
 }
 
+bool learnLine(const qmodel_t* model, float handX, float muzzleX)
+{
+    if(!model || model->type != mod_alias || vr_flat_sight_learn.value == 0.f || sightLine(model).valid)
+    {
+        return false;
+    }
+    const za::String name = model->name;
+    if(learnTried.find(name) != learnTried.end())
+    {
+        return false;
+    }
+    learnTried[name] = true;
+    for(const char* m : melee)
+    {
+        if(!q_strcasecmp(m, name.cStr()))
+        {
+            return false;
+        }
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        return false;
+    }
+    const float x0 = za::min(handX, muzzleX), x1 = za::max(handX, muzzleX);
+    if(x1 - x0 < learnShortest)
+    {
+        return false;
+    }
+    mdldequant::prepare(model);
+    const int pose = hdr->frames[0].firstpose;
+    float top = -1e9f;
+    int found = 0;
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        const glm::vec3 v = mdldequant::modelVertex(hdr, pose, pose, 0.f, i);
+        if(za::fabs(v.y) <= learnHalfWidth && v.x >= x0 && v.x <= x1)
+        {
+            top = za::fmax(top, v.z);
+            found++;
+        }
+    }
+    if(found < 3)
+    {
+        Con_DPrintf("sight line: none learnt for %s (no mesh on its middle between %.1f and %.1f)\n", name.cStr(), x0, x1);
+        return false;
+    }
+    SightLine line;
+    line.valid = true;
+    line.rear = {x0, 0.f, top + learnOver};
+    line.front = {x1, 0.f, top + learnOver};
+    lines[name] = line;
+    Con_DPrintf("sight line: learnt for %s: x %.2f to %.2f at z %.2f\n", name.cStr(), x0, x1, line.rear.z);
+    return true;
+}
+
 void resetCaches()
 {
     lines.clear();
+    learnTried.clear();
 }
 
 void init()

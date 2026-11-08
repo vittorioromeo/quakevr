@@ -37,6 +37,13 @@ struct SightLine
 };
 [[nodiscard]] SightLine sightLine(const qmodel_t* model);
 
+// A gun no list knows (neither painted, tabled nor melee: the AD Widowmaker's, the Plasma Gun's and the AD soldiers'
+// rifles' models made as they load), given a line the way sightline_table.py makes the table's: on the model's middle
+// (y 0), parallel to its x, from `handX` (the holding hand's place, model units) to `muzzleX`, just over the highest part
+// of its first pose between them. Once a model (sightLine has it from then on); true when it learnt one now. The flat
+// two-handed stance and the ironsight need a sight line (vr_flatsight.cpp aimsAtPoint). vr_flat_sight_learn 0: none learnt.
+bool learnLine(const qmodel_t* model, float handX, float muzzleX);
+
 void init(); // the commands
 // Forgets the models' sight lines (a game directory change).
 void resetCaches();

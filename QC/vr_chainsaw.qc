@@ -571,6 +571,20 @@ void(float xHand) VR_Chainsaw_Frame =
         }
     }
 
+    // Flatscreen play (his notes 2026-11-08: the ripcord made it unusable there): the engine starts by itself with fuel in
+    // it, as a good pull does (vr_flat_saw_autostart; 0: the cord as in VR).
+    // TODO: a flatscreen ripcord (a key held and the mouse drawn back, say) in place of this.
+    if(!running && fuel > 0 && VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_saw_autostart))
+    {
+        running = TRUE;
+        if(xHand == cVR_OffHand) self.vr_saw_pulls2 = 0;
+        else                     self.vr_saw_pulls = 0;
+        sound(self, chan, "vr/saw_start.wav", 1, ATTN_NORM);
+        VR_Saw_SetLoop(xHand, VR_SAW_LOOP_START);
+        loop = VR_SAW_LOOP_START;
+        VR_Saw_Debug(sprintf("chainsaw: %s hand's started by itself (flatscreen), fuel %g\n", VR_Saw_HandName(xHand), fuel));
+    }
+
     float chain = FALSE;
     float cutting = FALSE;
     if(running)

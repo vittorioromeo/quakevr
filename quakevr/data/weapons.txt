@@ -3191,6 +3191,10 @@ weapon 32
     hs3_roll "-75.887856"
     overlap "0.8"
     hs1_overlap "0.8"
+    // The string's latch and the limbs spring beside both grips as it fires and is cocked again: the off hand ignores the
+    // animation (frame 0's place), as the super nailgun's (his flat notes 2026-11-08: it moved with the firing animation).
+    hs1_still "1"
+    hs2_still "1"
     shot_pitch "7.92"
     shot_yaw "0"
     hol_hip_x "1.1"
