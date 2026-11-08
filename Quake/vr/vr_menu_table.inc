@@ -442,7 +442,7 @@ inline constexpr Page pages[] = {
     {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
     {"VR Settings - Gameplay", pageVrsGameplay, pageMain, LevelStandard}, // (BACKLOG "Gameplay page before 1.1")
-    {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
+    {"Armed Grunts", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
     {"Armed Grunts - Grip Editor", pageArmedGrips, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_aggrip.cpp)
     {"Embedded Blades", pageEmbeddedBlades, pageCombat}, // (vr_menu_settings.inc)
     {"Armed Humanoid Replacements", pageArmedRepl, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedrepl.qc)

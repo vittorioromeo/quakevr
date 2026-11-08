@@ -60,13 +60,14 @@ constexpr KindInfo kinds[kindCount] = {
     {"slap", {"vr/gore/slap1.wav", "vr/gore/slap2.wav", "vr/gore/slap3.wav"}, 3, 0.7f, 3, 0.1f, 1.f, 1000.f, 0.2f},
     {"splash", {"vr/gore/splash1.wav", "vr/gore/splash2.wav", "vr/gore/splash3.wav"}, 3, 0.55f, 1, 0.25f, 1.f, 0.f, 0.3f},
     {"drip", {"vr/gore/drip1.wav", "vr/gore/drip2.wav", "vr/gore/drip3.wav"}, 3, 0.3f, 4, 0.03f, 2.f, 500.f, 0.1f},
+    {"waterdrip", {"vr/gore/drip1.wav", "vr/gore/drip2.wav", "vr/gore/drip3.wav"}, 3, 0.3f, 2, 0.f, 2.f, 400.f, 0.1f},
 };
 
 // Each kind's own volume (the tuning constants vr_gore_sound_vol_<kind>, times the Gore Volume setting vr_gore_sound), in
 // Kind's order.
 const Tunable* const kindVolumes[kindCount] = {&vr_gore_sound_vol_spurt, &vr_gore_sound_vol_pour, &vr_gore_sound_vol_choke,
     &vr_gore_sound_vol_tear, &vr_gore_sound_vol_squelch, &vr_gore_sound_vol_step, &vr_gore_sound_vol_slap,
-    &vr_gore_sound_vol_splash, &vr_gore_sound_vol_drip};
+    &vr_gore_sound_vol_splash, &vr_gore_sound_vol_drip, &vr_drips_volume};
 
 constexpr float nearerShare = 0.5f;   // within a kind's gap, one this much nearer than the last played still plays
 constexpr int chanVoice = 2;          // QC CHAN_VOICE: the cries
@@ -164,6 +165,7 @@ struct State
     int testKey = 0;
     Pending pending[maxPending]{};
     int pendingCount = 0;
+    double lastWaterDrip = -1e9; // realtime of the last water drip heard (waterDrip: vr_drips_sound_gap)
     float dripShare = 0.f; // the drops' share heard (vr_gore_sound_drips), gathered: one heard each time it reaches 1
 };
 State st;
@@ -553,6 +555,22 @@ void drip(const glm::vec3& at, float strength)
     play(Kind::Drip, 0, at, strength);
 }
 
+void waterDrip(const glm::vec3& at, float strength)
+{
+    if(vr_drips_volume.value <= 0.f || cls.state != ca_connected || !cl.worldmodel)
+    {
+        return;
+    }
+    const double gap = za::clamp(vr_drips_sound_gap.value, 0.f, 5.f);
+    if(realtime - st.lastWaterDrip < gap && realtime >= st.lastWaterDrip)
+    {
+        st.stats[static_cast<int>(Kind::WaterDrip)].rated++;
+        return;
+    }
+    st.lastWaterDrip = realtime;
+    play(Kind::WaterDrip, 0, at, strength);
+}
+
 namespace
 {
 
@@ -563,10 +581,11 @@ void playNow(Kind kind, int ent, const glm::vec3& at, float strength)
     const KindInfo& ki = kinds[k];
     Stats& s = st.stats[k];
     const float pitch = slowPitch() * jitter();
-    const float vol = za::clamp(vr_gore_sound.value, 0.f, 2.f) * za::clamp(kindVolumes[k]->value, 0.f, 2.f) * ki.gain *
-                      za::clamp(strength, 0.f, 1.f);
+    const bool water = kind == Kind::WaterDrip; // (not the gore's: its own volume, on with the gore off)
+    const float vol = (water ? 1.f : za::clamp(vr_gore_sound.value, 0.f, 2.f)) * za::clamp(kindVolumes[k]->value, 0.f, 2.f) *
+                      ki.gain * za::clamp(strength, 0.f, 1.f);
     const float dist = glm::distance(at, listener());
-    if(!clientOn() || vol < 0.01f)
+    if(!(water ? cls.state == ca_connected && cl.worldmodel : clientOn()) || vol < 0.01f)
     {
         s.silenced++;
         log(k, "off", ent, at, dist, vol, pitch);

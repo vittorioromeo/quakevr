@@ -292,7 +292,8 @@ struct Mesh
 }
 
 // The search paths' first `src.path` that is the release measured (its pak's entry or its folder's file), whatever
-// shadows it in the game's lookup (AD's v_plasma.mdl is Rogue's name too: vr_ad_data.inc skips AD's).
+// shadows it in the game's lookup (AD's v_plasma.mdl is Rogue's name too, and an official pak's: vr_ad_data.inc skips
+// AD's; our Thunderbolt's plasma model, which had the name too, is v_light_plasma.mdl since 2026-11-08).
 [[nodiscard]] bool load(const Source& src, const char* frame, Mesh& m, unsigned int* pathId)
 {
     za::Vector<byte> bytes;
@@ -1902,6 +1903,11 @@ void spinInfo_f()
 void registerCommands()
 {
     Cmd_AddCommand("vr_ad_widowmaker_spin_info", spinInfo_f);
+}
+
+bool isMade(const char* name)
+{
+    return name && strstr(name, suffix) && recipeOf(name);
 }
 
 byte* derivedFile(const char* name, unsigned int* path_id)

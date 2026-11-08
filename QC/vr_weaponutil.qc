@@ -217,7 +217,7 @@ vr_weapon_row VR_WEAPONS[WID_LAST + 1] =
     { "weapon_grenadelauncher", IID_GRENADE_LAUNCHER, AID_ROCKETS, AID_MULTI_ROCKETS, "progs/v_rock.mdl", "progs/v_multi.mdl", "Grenade Launcher", 0.6, 30, 1.5, 5, 4, VR_WROW_RELOAD | VR_WROW_SECONDARY },
     { "weapon_proximity_gun", IID_PROXIMITY_GUN, AID_ROCKETS, AID_ROCKETS, "progs/v_prox.mdl", "progs/v_prox.mdl", "Proximity Gun", 0.6, 30, 1.5, 6, 4, VR_WROW_RELOAD },
     { "weapon_rocketlauncher", IID_ROCKET_LAUNCHER, AID_ROCKETS, AID_MULTI_ROCKETS, "progs/v_rock2.mdl", "progs/v_multi2.mdl", "Rocket Launcher", 0.6, 30, 1.7, 5, 4, VR_WROW_RELOAD | VR_WROW_SECONDARY },
-    { "weapon_lightning", IID_LIGHTNING, AID_CELLS, AID_PLASMA, "progs/v_light.mdl", "progs/v_plasma.mdl", "Thunderbolt", 0.6, 25, 1.5, 15, 36, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_lightning", IID_LIGHTNING, AID_CELLS, AID_PLASMA, "progs/v_light.mdl", "progs/v_light_plasma.mdl", "Thunderbolt", 0.6, 25, 1.5, 15, 36, VR_WROW_RELOAD | VR_WROW_SECONDARY },
     { "weapon_laser_gun", IID_LASER_CANNON, AID_CELLS, AID_CELLS, "progs/v_laserg.mdl", "progs/v_laserg.mdl", "Laser Cannon", 0.4, 45, 2.4, 30, 0, 0 },
     // (the sword: AD's melee monsters' weapons have their own model and name, VR_ADMelee_*)
     { "weapon_knight_sword", IID_SWORD, AID_NONE, AID_NONE, "progs/v_ksword.mdl", "progs/v_hksword.mdl", "Knight's Sword", 0.8, 60, 2.4, 0, 0, 0 },

@@ -15,6 +15,7 @@
 
 #include "vr_strings.hpp"
 #include "vr_ad.hpp"
+#include "vr_adweapons.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_protocol.hpp"
@@ -387,9 +388,11 @@ bool spawnAvailable(const char* model, bool rulesOnly)
     const float upgrades = vr_ad_upgrades.value;
     // (the upgrades: QC AD_UpgradeScope, "With AD Content" any map while Additional Content is Everywhere)
     const bool scope = rulesOnly ? (upgrades == 2.f || (upgrades == 1.f && (rules || everywhere))) : (rules || everywhere);
-    // A soldier's gun ("<monster model>#gun<skin>": vr_adguns.cpp) is made from its monster's file.
+    // A soldier's gun ("<monster model>#gun<skin>": vr_adguns.cpp) is made from its monster's file. An upgraded weapon
+    // ("<AD view model>#vr") always loads: AD's v_plasma.mdl is skipped in AD's folder (an official pak's name), and was
+    // found as ours until our Thunderbolt's plasma model became v_light_plasma.mdl (2026-11-08).
     char file[MAX_QPATH] = {};
-    if(model)
+    if(model && !adweapons::isMade(model))
     {
         q_strlcpy(file, model, sizeof(file));
         if(char* cut = strchr(file, '#')) { *cut = '\0'; }

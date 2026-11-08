@@ -563,7 +563,10 @@ void drawTranslucent()
     QVR_GPU_PROFILE("muzzle wisps");
     za::Vector<gfx::Vertex>& out = scratch.triangles;
     out.clear();
-    const ribbons::View view = ribbons::sceneView(za::clamp(vr_gunfx_wisp_pixels.value, 0.5f, 8.f));
+    ribbons::View view = ribbons::sceneView(za::clamp(vr_gunfx_wisp_pixels.value, 0.5f, 8.f));
+    // Faded out only this near the eye (vr_gunfx_wisp_near; the ribbons' own 6 units, about 18 cm, hid the smoke of a
+    // gun held at the mouth, where you blow on it: his message, 2026-11-08).
+    view.nearFade = za::clamp(vr_gunfx_wisp_near.value, 0.5f, 30.f) * 0.01f * units::metresToUnits();
     for(HandWisps& h : hands)
     {
         int drawn = 0;

@@ -66,7 +66,8 @@ and 2,048 triangles. Every model is MDL v6 and every sprite is SPR v1: there are
 - `maps/start.bsp` and `progs.dat`.
 
 25 of these names also exist in `quakevr/`, so our copies win once AD is mounted below quakevr. One name is a true
-semantic clash: `progs/v_plasma.mdl` is Rogue's plasma lightning gun for us and AD's Plasma Gun for AD.
+semantic clash: `progs/v_plasma.mdl` is Rogue's plasma lightning gun for us and AD's Plasma Gun for AD. (Since
+2026-11-08 our Thunderbolt's plasma model is `progs/v_light_plasma.mdl`, so `v_plasma.mdl` is only Rogue's and AD's.)
 
 ### 2.2 QuakeC
 
