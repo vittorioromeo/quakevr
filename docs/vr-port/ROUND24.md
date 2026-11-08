@@ -4759,9 +4759,16 @@ Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 4, 6, 7,
   see item 3). Not measured in the mock (the probe measures the pin, not the surface); for his eyes.
 - **Sliding a gib along the blade (item 4, note 17:10):** the flesh squelch every Slide Sound cm (VR_Embed_SlideFlesh)
   and a buzz in both hands by its speed. Test 21: "sliding it along the blade squelches (4)".
-- **Not done:** item 3 (shots and blows through a skewered gib): it is `SOLID_NOT` on the blade by design (its own
-  blade's sweeps, the drawn hands, the force grab pass it); there is no `SOLID_CORPSE`, so a hit needs its own route
-  (a trace check in the shot and melee paths), not started. Item 5 (lag when turning or moving with the stick): the
+- **Shots and the other hand's blows hit a skewered gib (item 3, note 17:10):** it stays `SOLID_NOT` on the blade (its
+  own blade's sweeps, the drawn hands, the force grab pass it). The player's pellets and hitscan lines
+  (FireBulletsImpl, the second hitscan path: VR_Gib_TraceHeld) now check every skewered gib on their line before what
+  they hit: the nearest comes off the blade and takes the hit as a loose gib (bursts or is hurt as anywhere). The other
+  hand's fist or weapon (VR_Gib_HeldFrameHand, as for a gib held in that hand) strikes the nearest gib on the blade in
+  the other hand at Melee Speed or more: off the blade, the blow's impact. Not from inside it (a hand drawn on it to take
+  hold) and not over 15 m/s (a jump of the hand's place: the mock's hand put next to it read 21.9 m/s and burst it in
+  test 26). Not covered: monsters' shots, missiles at a skewered gib, the blade hand's own other weapon. Test 28 case 5
+  (a shot across it).
+- **Not done:** Item 5 (lag when turning or moving with the stick): the
   gib is placed on the server from the hand each frame and drawn a frame late against the hands, which the client
   draws from the newest pose; it needs a client-side correction like the held weapon's, not started. Items 13-14
   (crates and barrels) not started.

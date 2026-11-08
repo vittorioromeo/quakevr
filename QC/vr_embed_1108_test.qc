@@ -10,6 +10,7 @@
 float vr_e8_v;     // a number kept across states
 vector vr_e8_at;
 float vr_e8_brake; // Running Stab: Brake as the test began
+entity vr_e8_g;    // case 5's gib
 
 void() VR_E8_Begin =
 {
@@ -72,7 +73,51 @@ void() VR_E8_Step =
         }
         return;
     }
-    if(vr_et_case > 4)
+    // ---- 5: a shot through a gib skewered on the blade in the hand (17:10): it hits it, off the blade, not through it
+    if(vr_et_case == 5)
+    {
+        if(vr_et_s == 0)
+        {
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            localcmd("+grabmain\n");
+            VR_ET_To(1);
+        }
+        else if(vr_et_s == 1 && VR_HandGrabUtil_IsHandGrabbing(p, cVR_MainHand) && t > 0.1)
+        {
+            VR_EH_Give(WID_SWORD, 0);
+            VR_ET_To(2);
+        }
+        else if(vr_et_s == 2 && t > 0.3)
+        {
+            vr_e8_g = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+            VR_ETS_PutOn(vr_e8_g, 0);
+            VR_ETS_Blow(p, vr_e8_g, VR_MKIND_STAB, 6);
+            VR_ET_To(3);
+        }
+        else if(vr_et_s == 3 && t > 0.2)
+        {
+            VR_Test_Check(vr_e8_g.vr_skewer_p == p, "case 5: a gib skewered on the blade in the hand");
+            if(vr_e8_g.vr_skewer_p == p)
+            {
+                makevectors(p.angles);
+                vector from = vr_e8_g.vr_skewer_c + v_right * 60;
+                vector to = vr_e8_g.vr_skewer_c - v_right * 60;
+                traceline(from, to, MOVE_HITGIBS | MOVE_HITMODEL, p);
+                float before = trace_ent == vr_e8_g;
+                // (As if the pellet's trace met nothing: it is the gib alone that is asked about, not this spot's walls.)
+                trace_fraction = 1;
+                trace_ent = world;
+                VR_Gib_TraceHeld(from, to); // (FireBulletsImpl's, after its traceline)
+                VR_Test_Check(trace_ent == vr_e8_g && vr_e8_g.vr_skewer_p == world && vr_e8_g.takedamage,
+                    sprintf("a shot across it hits it, off the blade (the trace alone met it %g; it hit %s)", before, trace_ent.classname));
+            }
+            remove(vr_e8_g); // (loose now, or still on the blade: nothing removed it)
+            VR_E8_Next();
+        }
+        return;
+    }
+    if(vr_et_case > 5)
     {
         VR_Test_Verdict();
         vr_et_on = 0;
