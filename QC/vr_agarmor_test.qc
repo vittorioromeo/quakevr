@@ -45,6 +45,65 @@ void(float ok, string what) VR_ART_Check =
 entity vr_art_c;          // P2: the armoured enforcer
 float vr_art_cwear;       // its wear the server set (the client's word awaited in state 2)
 
+// Broken armour splits in two (vr_agarmor_split): the debris of `base`'s piece `i` made this frame (the whole plate's
+// model or its halves', "<whole>h<half>s<axis>"): how many; vr_art_deb the first, vr_art_deb2 the second, their masses
+// summed in vr_art_deb_mass, vr_art_deb_bad the ones not rigid or force-grabbable or with no box. Shared with
+// vr_playerplates_test.qc.
+entity vr_art_deb, vr_art_deb2;
+float vr_art_deb_mass, vr_art_deb_bad;
+float(string base, float i) VR_ART_PieceDebris =
+{
+    string whole = VR_AgArmor_ModelOf(base, i);
+    float n = 0;
+    vr_art_deb = world;
+    vr_art_deb2 = world;
+    vr_art_deb_mass = 0;
+    vr_art_deb_bad = 0;
+    for(entity h = find(world, classname, "vr_ar_debris"); h != world; h = find(h, classname, "vr_ar_debris"))
+    {
+        float mine = h.model == whole || substring(h.model, 0, strlen(whole) + 1) == strcat(whole, "h");
+        if(!mine || h.nextthink < time + VR_AgArmor_DebrisTime() - 0.01 || h.cnt == -77)
+        {
+            continue; // (another's, or older: made before this frame, or checked already: VR_ART_SplitCheckBy)
+        }
+        n = n + 1;
+        vr_art_deb2 = vr_art_deb != world ? h : world;
+        vr_art_deb = vr_art_deb == world ? h : vr_art_deb;
+        vr_art_deb_mass = vr_art_deb_mass + h.vr_prop_mass;
+        vr_art_deb_bad = vr_art_deb_bad + (h.vr_rigid != 1 || (h.flags & FL_FORCEGRABBABLE) || vlen(h.maxs - h.mins) < 1);
+    }
+    return n;
+};
+
+// The split's checks for `base`'s piece `i` just broken off (its debris made this frame): two halves, each its own model
+// and box, both rigid props you can't force-grab, apart where they lay, their masses the whole plate's (4 the cuirass,
+// 1.5 another); with vr_agarmor_split 0, or the helmet, one whole piece. `who` names it in the line; `check` the test's own
+// (VR_ART_Check, VR_Test_Check).
+void(void(float ok, string what) check, string who, string base, float i) VR_ART_SplitCheckBy =
+{
+    float n = VR_ART_PieceDebris(base, i);
+    float whole = i == 0 ? 4 : 1.5;
+    if(vr_art_deb != world)
+    {
+        vr_art_deb.cnt = -77; // (checked: a later break of the same piece this frame counts its own)
+    }
+    if(vr_art_deb2 != world)
+    {
+        vr_art_deb2.cnt = -77;
+    }
+    if(!cvar_hget(cvarh_vr_agarmor_split) || i == VR_AR_HELMET)
+    {
+        check(n == 1 && vr_art_deb.model == VR_AgArmor_ModelOf(base, i) && vr_art_deb_bad == 0 && vr_art_deb_mass == whole,
+            sprintf("%s: piece %g broke off whole (%g piece: %s, mass %g of %g)", who, i, n, vr_art_deb.model, vr_art_deb_mass, whole));
+        return;
+    }
+    float apart = vr_art_deb2 != world ? vlen(vr_art_deb2.origin - vr_art_deb.origin) : 0;
+    check(n == 2 && vr_art_deb.model != vr_art_deb2.model && vr_art_deb_bad == 0 && apart > 1 &&
+        fabs(vr_art_deb_mass - whole) < 0.001 && vr_art_deb.vr_prop_mass == vr_art_deb2.vr_prop_mass,
+        sprintf("%s: piece %g broke into %g halves (%s, %s), %g apart, masses summed %g (the whole's)",
+            who, i, n, vr_art_deb.model, vr_art_deb2.model, apart, vr_art_deb_mass));
+};
+
 // An armed humanoid of `kind` (0 the grunt, 1 the enforcer) ahead of the player, `side` to the right, `ahead` out.
 entity(entity p, float side, float kind, float ahead) VR_ART_SpawnKind =
 {
@@ -125,11 +184,29 @@ void() VR_ART_Run =
     // (Plate Blocks All: the whole hit stopped even as the plate breaks; its overflow no longer goes through)
     VR_ART_Check(d == 0 && !VR_AgArmor_On(a, 0) && a.vr_ar_mask == 1022,
         sprintf("rule 1: 60 past a pool of %g takes %g (0), the cuirass broken (mask %g)", hp, d, a.vr_ar_mask));
-    entity deb = find(world, classname, "vr_ar_debris");
-    VR_ART_Check(vr_ar_debris_made == made + 1 && deb != world && deb.model == "progs/vrgrunt.mdl#plate0" && deb.vr_rigid == 1 &&
+    float pieces = VR_ART_PieceDebris("progs/vrgrunt.mdl", 0);
+    entity deb = vr_art_deb;
+    VR_ART_Check(vr_ar_debris_made == made + pieces && deb != world && deb.vr_rigid == 1 &&
         deb.movetype == MOVETYPE_BOUNCE && !(deb.flags & FL_FORCEGRABBABLE),
         sprintf("the broken cuirass falls as a physics prop (%s, rigid %g), not force-grabbable", deb.model, deb.vr_rigid));
+    VR_ART_SplitCheckBy(VR_ART_Check, "grunt", "progs/vrgrunt.mdl", 0);
     cvar_set("vr_agarmor_rule", "0");
+
+    // Broken armour splits in two: every piece of a full set broken off in turn: two halves each, the helmet whole;
+    // vr_agarmor_split 0: whole.
+    float split0 = cvar_hget(cvarh_vr_agarmor_split);
+    cvar_set("vr_agarmor_split", "1");
+    VR_AgArmor_Give(a, 2, 1023);
+    for(float sp = 1; sp < VR_AR_PIECES; sp++)
+    {
+        VR_AgArmor_Break(a, sp);
+        VR_ART_SplitCheckBy(VR_ART_Check, "grunt", "progs/vrgrunt.mdl", sp);
+    }
+    cvar_set("vr_agarmor_split", "0");
+    VR_AgArmor_Give(a, 2, 1023);
+    VR_AgArmor_Break(a, 4);
+    VR_ART_SplitCheckBy(VR_ART_Check, "grunt, vr_agarmor_split 0", "progs/vrgrunt.mdl", 4);
+    cvar_set("vr_agarmor_split", ftos(split0));
 
     // Headshots: the helmet halves the multiplier's extra and stops the pop; without it, all of it and the pop stands.
     float m = cvar_hget(cvarh_vr_headshot_mult);
@@ -303,13 +380,12 @@ void() VR_ART_RunEnforcer =
     float made = vr_ar_debris_made;
     c.frame = f0;
     d = VR_ART_Hit(c, pp, 2, 60);
-    entity deb = find(world, classname, "vr_ar_debris");
-    while(deb != world && deb.model != "progs/vrenforcer.mdl#plate3")
-    {
-        deb = find(deb, classname, "vr_ar_debris");
-    }
-    VR_ART_Check(!VR_AgArmor_On(c, 3) && vr_ar_debris_made == made + 1 && deb != world && deb.skin == 1 + 6,
+    float pieces = VR_ART_PieceDebris("progs/vrenforcer.mdl", 3);
+    entity deb = vr_art_deb;
+    VR_ART_Check(!VR_AgArmor_On(c, 3) && vr_ar_debris_made == made + pieces && deb != world && deb.skin == 1 + 6 &&
+        (vr_art_deb2 == world || vr_art_deb2.skin == deb.skin),
         sprintf("enforcer: the right pauldron broken, its debris %s (skin %g: the battered yellow)", deb.model, deb.skin));
+    VR_ART_SplitCheckBy(VR_ART_Check, "enforcer", "progs/vrenforcer.mdl", 3);
     cvar_set("vr_agarmor_rule", "0");
     // The skill's roll dresses enforcers too (this skill's chance at 1 for one spawn).
     string base = strcat("vr_agarmor_skill", ftos(max(0, min(3, floor(skill)))));
@@ -368,14 +444,11 @@ float(entity c, string mdl, string who) VR_ART_RunKnight =
     float made = vr_ar_debris_made;
     c.frame = f0;
     d = VR_ART_Hit(c, pp, 2, 60);
-    string want = strcat(mdl, "#plate3");
-    entity deb = find(world, classname, "vr_ar_debris");
-    while(deb != world && deb.model != want)
-    {
-        deb = find(deb, classname, "vr_ar_debris");
-    }
-    VR_ART_Check(!VR_AgArmor_On(c, 3) && vr_ar_debris_made == made + 1 && deb != world && deb.skin == 1 + 6,
+    float pieces = VR_ART_PieceDebris(mdl, 3);
+    entity deb = vr_art_deb;
+    VR_ART_Check(!VR_AgArmor_On(c, 3) && vr_ar_debris_made == made + pieces && deb != world && deb.skin == 1 + 6,
         sprintf("%s: the right pauldron broken, its debris %s (skin %g: the battered yellow)", who, deb.model, deb.skin));
+    VR_ART_SplitCheckBy(VR_ART_Check, who, mdl, 3);
     // A blade's blow on the cuirass (VR_HitBlood: the melee's blood asks the plate): sparks, no blood.
     VR_AgArmor_Give(c, 3, 1023);
     makevectors(c.angles);
@@ -651,8 +724,10 @@ void() VR_AgArmor_TestFrame =
         {
             return;
         }
-        VR_ART_Check(vr_ar_debris_made == vr_art_made0 + VR_AR_PIECES, sprintf("every piece broke into debris (%g)",
-            vr_ar_debris_made - vr_art_made0));
+        // (each but the helmet in two halves: vr_agarmor_split; their models precached at the load too, vr_ar_half_precached)
+        float want = cvar_hget(cvarh_vr_agarmor_split) ? VR_AR_PIECES * 2 - 1 : VR_AR_PIECES;
+        VR_ART_Check(vr_ar_debris_made == vr_art_made0 + want, sprintf("every piece broke into debris (%g of %g; %g half models precached)",
+            vr_ar_debris_made - vr_art_made0, want, vr_ar_half_precached));
         VR_ART_Check(vr_art_pre0 >= VR_AR_PIECES * 4, sprintf("the level's load precached the armed kinds' plates (%g)",
             vr_art_pre0));
         remove(vr_art_a);

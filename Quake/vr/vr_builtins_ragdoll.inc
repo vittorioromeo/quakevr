@@ -102,6 +102,15 @@ void PF_ragdollstagger()
                                   : 0.f;
         return;
     }
+    // (`sure` 3, QC VR_Knockdown_GetUpShove: a shove on one rising through its get-up, box3d::ragdollRiseShove: `push` the
+    // shove's, `balance` the push under which one nearly up takes a balance step, `reach` how far through its get-up (0..1) that is. 0: not
+    // rising; 1 back down, falling; 2 a balance step, a stagger.)
+    if(qcvm->argc > 6 && G_FLOAT(OFS_PARM6) == 3.f)
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollRiseShove(G_EDICT(OFS_PARM0), geom::vec(d), G_FLOAT(OFS_PARM2),
+            G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4)));
+        return;
+    }
     const float recover = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : -1.f;
     const bool sure = qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f;
     const float farther = qcvm->argc > 7 ? G_FLOAT(OFS_PARM7) : 1.f;
@@ -370,7 +379,7 @@ void PF_limbpiece()
         o[2] = w.z;
         return;
     }
-    if(what >= 10 && what <= 15)
+    if(what >= 10 && what <= 17) // (16, 17: a split plate's halves' middles: vr_agarmor_split)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;
@@ -411,9 +420,18 @@ void PF_limbpiece()
 }
 
 // string limbmodel(entity e, float bone): the model of e's limb at joint `bone` (vr_limbmodel.cpp), "" none.
+constexpr int armorHalfCode = -2000; // QC QVR_ARMOR_HALF
 void PF_limbmodel()
 {
-    G_INT(OFS_RETURN) = PR_SetEngineString(box3d::limbModel(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+    // (QVR_ARMOR_HALF - (2 * piece + half): a broken plate's half's model, vr_agarmor_split; the builtins' table is full)
+    const int bone = static_cast<int>(G_FLOAT(OFS_PARM1));
+    if(bone <= armorHalfCode && bone > armorHalfCode - 2 * agarmor::NumPieces)
+    {
+        const int code = armorHalfCode - bone;
+        G_INT(OFS_RETURN) = PR_SetEngineString(agarmor::halfModel(G_EDICT(OFS_PARM0), code / 2, code % 2));
+        return;
+    }
+    G_INT(OFS_RETURN) = PR_SetEngineString(box3d::limbModel(G_EDICT(OFS_PARM0), bone));
 }
 
 // vector limbplace(entity e, float bone, float what): where e's limb at `bone` is now: 0 its model's origin, 1 its

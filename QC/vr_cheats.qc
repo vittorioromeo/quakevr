@@ -135,6 +135,10 @@ float(entity e) VR_Scene_IsRuntimeProp =
     {
         return FALSE;
     }
+    if(e.classname == "vr_wornpack" && e.vr_wp_state != VR_WP_STATE_OFF)
+    {
+        return FALSE; // (a pack on a wearer's back, living or dead: part of it, gone with it)
+    }
     if(e.vr_rigid || e.classname == "thrown_weapon" || e.classname == "vr_crate_piece" || e.model == "progs/backpack.mdl")
     {
         return TRUE;
@@ -208,6 +212,7 @@ void(entity e) VR_Scene_Remove =
         return;
     }
     VR_AD_RemoveAttachments(e);
+    VR_AG_RemoveWith(e); // (an armed one's worn pack, weapons and back tanks with it: vr_wornpack.qc)
     e.nextthink2 = 0;
     remove(e);
 };

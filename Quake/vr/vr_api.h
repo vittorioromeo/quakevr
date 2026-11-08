@@ -463,6 +463,7 @@ int VR_NoclipAngles (struct edict_s *ent, float *out); // SV_NoclipMove: a heads
 float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink, before SV_WaterMove / SV_AirMove: the stick's speed in water
 float VR_CarryMoveScale (struct edict_s *ent); // solid held props: mass/bulk stick locomotion fraction
 float VR_CrouchSpeedMax (struct edict_s *ent, float maxspeed); // SV_AirMove: crouched, slower (vr_crouch_speed; vr_hull.cpp)
+int VR_FlatSlideStepUp (struct edict_s *ent); // SV_WalkMove: nonzero while a flat-screen player's slide is on the ground: a step it meets is climbed on every move (Quake's "don't stair up while jumping" took FL_ONGROUND, off every other move at a slide's speed, and the step's face stopped the slide)
 int VR_FlatSlideMove (struct edict_s *ent, int onground, const float *wishdir, float wishspeed, float *velocity); // SV_AirMove: a flat-screen player's slide (vr_flat_slide; vr_flatmove.cpp): nonzero when it moved him on the ground this frame (no friction, no walk)
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flat_keys_own; vr_flatmove.cpp): its bind does not run while the mode runs

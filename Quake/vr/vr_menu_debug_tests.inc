@@ -573,6 +573,18 @@ za::Vector<Item> pageDebugTests()
         command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
             .help("An enforcer has a lift zone on the pack in its model, whatever it holds; nothing takes "
                   "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
+        command("Removed With Its Pack and Tank", "developer 1; vr_rag1108_test 1")
+            .help("Three armed grunts ahead: one removed by the toolgun's remover, one killed and cleaned up, one removed "
+                  "raw: their packs, weapons and back tanks go with them, none torn off later (vr_rag1108_test 1)."),
+        command("Back Tanks Beside the Packs", "vr_rag1108_test 2")
+            .help("A grunt, a knight, a death knight and an enforcer with flamethrowers and a grunt with a poison sprayer, "
+                  "their backs to you: each tank to the right of the pack, off it (vr_rag1108_test 2)."),
+        command("The Gib Rule on Corpses", "developer 1; vr_rag1108_test 3")
+            .help("Corpses ahead: small hits wear one out but never gib it; a solid hit then does; one big hit gibs a "
+                  "fresh one; blasts by its pool (vr_rag1108_test 3; vr_corpse_gib_overkill, _hit_min)."),
+        command("Shoves While Getting Up", "developer 1; vr_rag1108_test 4")
+            .help("A grunt knocked down and shoved as it rises: back down; again late in the rise with one hand: a "
+                  "balance step or down; one rising the old way: down again (vr_rag1108_test 4; vr_knockdown_getup_shove)."),
         command("Your Armour Plates: the Test", "vr_pp_test 1")
             .help("vr_pp_test 1 (no god): the pieces against the armour for each tier, hits from each side, a shard, new armour and "
                   "an upgrade through the morph, the damage the same on and off, the helmet from the eyes. Ends on \"pptest: N passed, M failed\". "
@@ -1298,6 +1310,13 @@ za::Vector<Item> pageDebugTests()
             .help("How closely a body follows the hand on a stuck blade, by Blade Hold Strength and the Moving: tunables: a staggering "
                   "grunt and a dead one, a deep sword and an axe, swung sideways, lifted over your head, pulled slowly. Prints each "
                   "case's follow and lag, then embedforce: N passed, M failed."),
+        command("Skewered Gibs Through Stick Turns Check", "vr_embed_test 29")
+            .help("A gib on the sword in the hand, then a smooth turn, snap turns, a move and both with the sticks: the drawn gib stays "
+                  "on the drawn blade (vr_embed_probe_skew). Prints embed1108b: N passed, M failed."),
+        command("Blades in Crates and Barrels Check", "vr_embed_test 30")
+            .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a crate, held, dragged, lifted, let "
+                  "go of, pulled out, the crate broken; an axe into a barrel; Crates: Blades Stick off. Prints embedprops: N passed, M "
+                  "failed."),
         command("Embedded Blades: Skewering Check", "vr_embed_test 21")
             .help("Destructive: in the open with god and notarget (vrtesthall): stabs gibs onto a held sword, up to its most, slashes "
                   "another, takes one off with the other hand, switches weapon. Prints embedskewer: N passed, M failed."),

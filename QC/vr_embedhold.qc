@@ -73,6 +73,28 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .float  vr_embed_quiet_off;  // on a player: the hand strikes nothing until then (it just came out)
 .float  vr_embed_quiet_main;
 
+// Wooden crates and barrels (his notes 2026-11-08, items 13 and 14; vr_embed_props): a held stab or swing hard enough stays in one as in
+// a body (the engine's stickHeld: its Box3D body met, kind AXESTICK_PROP, riding its origin and angles). The hold is a body's but for its
+// moving: no ragdoll to hold, no monster to drag, but a pull on the crate's body at the wound towards where the hand has it
+// (VR_Embed_PropSpring: the engine's embedproppull, a spring capped at vr_embed_prop_force, so a heavy crate lags the hand and a blade
+// can't lift it one-handed), and it slides harder in wood (vr_embed_prop_stick). Breaking the crate frees it (VR_AxeStick_Think).
+.float  vr_hold_propon;   // the pull's hold taken (its offset): from the hand's next think on
+.vector vr_hold_propoff;  // the wound's place from the handle hand as it took hold
+.vector vr_hold_proptgt;  // where the pull wanted the wound last think
+.float  vr_hold_proppull; // its pull then, N (the test's)
+
+// Whether a blow may leave a blade in `m`: a wooden crate or barrel lying loose (not in a hand), with vr_embed_props.
+float(entity m) VR_Embed_PropHost =
+{
+    return cvar_hget(cvarh_vr_embed_props) && VR_Crate_Is(m) && m.carry_player == world && m.solid == SOLID_BBOX;
+};
+
+// Whether the blade `e` is in one (stuck there by a hand's blow or a throw).
+float(entity e) VR_Embed_InProp =
+{
+    return e.vr_stick_kind == AXESTICK_PROP && cvar_hget(cvarh_vr_embed_props) && VR_Crate_Is(e.vr_stick_ent);
+};
+
 float VR_EMBED_QUIET = 0.25;     // s a hand that just pulled a blade out strikes nothing
 float VR_EMBED_OFF_RELAX = 1.5;  // 1/s: a hand slowly drifting off the axis is forgiven; a hard pull isn't
 float VR_EMBED_JUMP = 9;         // m/s: the hand's place moving faster is a jump (a stop against the body let go of it), no pull
@@ -139,6 +161,11 @@ void(entity e, entity p, float xHand) VR_Embed_SetG0 =
         e.vr_hold_off = gap - e.vr_stick_dir * e.vr_hold_err;
         e.vr_hold_slack = e.vr_hold_err;
         e.vr_hold_offslack = vlen(e.vr_hold_off);
+        if(VR_Embed_InProp(e))
+        {
+            e.vr_hold_propon = FALSE; // (the crate's pull takes its hold again: VR_Embed_PropSpring)
+            e.vr_hold_axial = 0;
+        }
     }
 };
 
@@ -297,7 +324,7 @@ void(entity e, string xWhy) VR_Embed_Free =
 // on). In a wall, a door, a prop: as before, it comes.
 float(entity e, entity xPlayer, float xHand) VR_Embed_Grip =
 {
-    if(!VR_AxeStick_IsStuck(e) || !cvar_hget(cvarh_vr_embed) || !VR_AxeStick_InMonster(e) || VR_AxeStick_Tugging(e) ||
+    if(!VR_AxeStick_IsStuck(e) || !cvar_hget(cvarh_vr_embed) || !(VR_AxeStick_InMonster(e) || VR_Embed_InProp(e)) || VR_AxeStick_Tugging(e) ||
        (e.vr_hold_player != world && e.vr_hold_player != xPlayer))
     {
         return FALSE;
@@ -525,6 +552,41 @@ float(entity e, entity p, entity h, float xIn, float xAxial) VR_Embed_Spring =
     return ragdolltug(h, p, hand, 12, e.vr_stick_at, 0, force) > 0;
 };
 
+// A crate or barrel (VR_Embed_InProp) held by the blade `e`: its body pulled at the wound towards where the hand on the handle has it (the
+// wound's place from that hand as it took hold), less `xAxial`'s worth along the blade (the hand's way out, and in while the blade can go
+// deeper: that is the blade sliding, as a body's VR_Embed_Spring), at vr_embed_prop_force N at most (Moving: Two Hands with both, Blade Hold
+// Strength). TRUE: it is (FALSE: no body to pull, the hold goes as a standing body's).
+float(entity e, entity p, entity h, float xAxial, float xDt) VR_Embed_PropSpring =
+{
+    float hand = (e.vr_hold_handle ? e.vr_hold_handle : e.vr_hold_hands) == 2 ? cVR_MainHand : cVR_OffHand;
+    vector at = VRGetEntHandPos(p, hand);
+    if(!e.vr_hold_propon)
+    {
+        e.vr_hold_propon = TRUE;
+        e.vr_hold_propoff = e.vr_stick_at - at;
+        e.vr_hold_axial = 0;
+        e.vr_hold_proptgt = e.vr_stick_at;
+    }
+    e.vr_hold_axial = e.vr_hold_axial + xAxial;
+    vector target = at + e.vr_hold_propoff - e.vr_stick_dir * e.vr_hold_axial;
+    vector going = xDt > 0.0005 ? (target - e.vr_hold_proptgt) * (1 / xDt) : '0 0 0';
+    if(vlen(going) > VR_EMBED_JUMP * VRMetersToUnits())
+    {
+        going = '0 0 0'; // (a jump of the hand: no throw)
+    }
+    e.vr_hold_proptgt = target;
+    float by = (e.vr_hold_hands == 3 ? max(1, cvar_hget(cvarh_vr_embed_move_twohand)) : 1) * max(0, cvar_hget(cvarh_vr_embed_hold_strength));
+    float force = max(0, cvar_hget(cvarh_vr_embed_prop_force)) * by;
+    float pull = embedproppull(h, e.vr_stick_at, target, going, force, cvar_hget(cvarh_vr_embed_prop_hertz), max(0, cvar_hget(cvarh_vr_embed_prop_lift)) * by);
+    e.vr_hold_proppull = max(0, pull);
+    e.vr_hold_strain = (pull >= 0 && force > 0) ? pull / force : 0;
+    if(cvar_hget(cvarh_vr_debug_axestick) >= 3)
+    {
+        dprint(sprintf("embedprop: %s pulls %s %.0f N of %.0f, the wound %.1f units off its place\n", e.netname, h.classname, pull, force, vlen(target - e.vr_stick_at)));
+    }
+    return pull >= 0;
+};
+
 // A body standing, light enough, its holder's walk `xWalk` this frame: going away from it, past the slack, it comes along, as a monster steps
 // (no further off a ledge than it would walk; blocked, the hand gets `far` and the blade comes out).
 void(entity e, entity h, vector xHand, float xFar, vector xWalk) VR_Embed_Drag =
@@ -581,7 +643,13 @@ void(entity e, float xMoved, float xCm) VR_Embed_SlideFlesh =
     e.vr_hold_sndgo = (e.vr_hold_sndgo * xMoved < 0 ? 0 : e.vr_hold_sndgo) + xMoved; // (a new way: its own distance)
     if(fabs(e.vr_hold_sndgo) >= every)
     {
-        VR_SoundVaried(e, CHAN_AUTO, xMoved > 0 ? "vr/blade_flesh_in.wav" : "vr/blade_flesh_out.wav", max(0, min(1, cvar_hget(cvarh_vr_embed_slide_sound_vol))), ATTN_NORM);
+        // (In a crate: wood's creak, not flesh.)
+        string snd = xMoved > 0 ? "vr/blade_flesh_in.wav" : "vr/blade_flesh_out.wav";
+        if(VR_Embed_InProp(e))
+        {
+            snd = "vr/phys/wood_m1.wav";
+        }
+        VR_SoundVaried(e, CHAN_AUTO, snd, max(0, min(1, cvar_hget(cvarh_vr_embed_slide_sound_vol))), ATTN_NORM);
         e.vr_hold_sndgo = 0;
         vr_embed_slidesounds = vr_embed_slidesounds + 1;
         float blood = cvar_hget(cvarh_vr_embed_slide_blood);
@@ -591,6 +659,31 @@ void(entity e, float xMoved, float xCm) VR_Embed_SlideFlesh =
             vr_embed_slidebloods = vr_embed_slidebloods + 1;
         }
     }
+};
+
+// Running into a stab you hold (his note 2026-11-08 17:17, "I very often overshoot my run"): the blade, which can't go further in,
+// pushes back. Your speed along its way into the body (level) eases down to vr_embed_brake_speed at vr_embed_brake per second, so you
+// stay before the body. Any body the blade is in, living or one the stab killed; your speed off that way is left alone.
+float vr_embed_braked; // (for the test: m/s taken off your speed by the last brake)
+void(entity e, entity p, entity h) VR_Embed_Brake =
+{
+    float rate = cvar_hget(cvarh_vr_embed_brake);
+    vector way = e.vr_stick_dir;
+    way_z = 0;
+    if(rate <= 0 || !(h.flags & FL_MONSTER) || vlen(way) < 0.1)
+    {
+        return;
+    }
+    way = normalize(way);
+    float along = p.velocity * way;
+    float most = max(0, cvar_hget(cvarh_vr_embed_brake_speed)) * VRMetersToUnits();
+    if(along <= most)
+    {
+        return;
+    }
+    float now = most + (along - most) * max(0, 1 - rate * frametime);
+    p.velocity = p.velocity - way * (along - now);
+    vr_embed_braked = (along - now) / VRMetersToUnits();
 };
 
 // The hold, each think of a blade held (self). TRUE: it is gone (in the hand).
@@ -648,6 +741,7 @@ float() VR_Embed_HoldThink =
     e.vr_hold_last = time;
     float cm = 0.01 * VRMetersToUnits(); // units a cm
     vector dir = e.vr_stick_dir;
+    VR_Embed_Brake(e, p, h);
 
     // Going on to its depth, after the stab struck: the blow's speed takes it, the hand drawn with it. Its place from there is
     // where the hand's is from the blade as it gets there.
@@ -701,7 +795,9 @@ float() VR_Embed_HoldThink =
     float jump = VR_EMBED_JUMP * VRMetersToUnits() * max(dt, 0.001);
     vector walk = p.origin - e.vr_hold_lastorg;
     // (Standing, where it stands: the wound on its drawn model comes a tenth of a second after a monster's step.)
-    vector wound = (h.health > 0 && !h.vr_knockdown) ? h.origin - e.vr_hold_lasthost : e.vr_stick_at - e.vr_hold_lastwound;
+    // (A crate: where the wound itself went, as it turns and tips.)
+    float inProp = VR_Embed_InProp(e);
+    vector wound = (h.health > 0 && !h.vr_knockdown && !inProp) ? h.origin - e.vr_hold_lasthost : e.vr_stick_at - e.vr_hold_lastwound;
     e.vr_hold_lastorg = p.origin;
     e.vr_hold_lastwound = e.vr_stick_at;
     e.vr_hold_lasthost = h.origin;
@@ -784,7 +880,8 @@ float() VR_Embed_HoldThink =
         e.vr_hold_carried = 0;
     }
     e.vr_hold_carrying = carry;
-    float sprung = VR_Embed_Spring(e, p, h, inShare, (carry && armAlong < 0) ? 0 : (((armAlong < 0 || e.vr_stick_slide < deepest - 0.01) ? armAlong : 0) + carriedNow));
+    float axialNow = (carry && armAlong < 0) ? 0 : (((armAlong < 0 || e.vr_stick_slide < deepest - 0.01) ? armAlong : 0) + carriedNow);
+    float sprung = inProp ? VR_Embed_PropSpring(e, p, h, axialNow, dt) : VR_Embed_Spring(e, p, h, inShare, axialNow);
     // Off the axis: a ragdoll comes along; only a yank tears it out of one. What stands can't: the hand's gone too far.
     float across = armLen / max(0.001, dt) / VRMetersToUnits();
     if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm && (!sprung || across >= cvar_hget(cvarh_vr_embed_hold_yank)))
@@ -825,6 +922,13 @@ float() VR_Embed_HoldThink =
     }
     float stick = VR_Embed_Stick(e, inShare, corpse) * cm;
     float rate = VR_Embed_Rate(e, inShare, corpse) * cm;
+    if(inProp)
+    {
+        // (Wood: harder to slide than flesh, slower.)
+        float woodBy = max(0.01, cvar_hget(cvarh_vr_embed_prop_stick));
+        stick = stick * woodBy;
+        rate = rate / woodBy;
+    }
     e.vr_hold_stick = stick / cm;
     float over = fabs(along) - stick;
     // An axe's tug: barely in, it stays until the hand has pulled on past its depth by this.
@@ -968,7 +1072,7 @@ string(entity b, vector xAt, vector xDir, float xSpeed, float xLeast, float xKin
 void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow =
 {
     if(!cvar_hget(cvarh_vr_embed) || vr_embed_host != world || m == world || m.vr_gib || !self.ishuman ||
-       !((m.flags & FL_MONSTER) || VR_Melee_CorpseTarget(m)))
+       !((m.flags & FL_MONSTER) || VR_Melee_CorpseTarget(m) || VR_Embed_PropHost(m)))
     {
         return;
     }
@@ -1030,6 +1134,11 @@ float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try
     if(m.vr_gib || m.modelindex != xModel || m.model == string_null || VRIsHandWeaponless(self, xHand))
     {
         VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));
+        return 0;
+    }
+    if(VR_MaterialOf(m) == VR_MAT_WOOD && !VR_Embed_PropHost(m))
+    {
+        VR_Embed_Say("NOT STUCK: the blow broke the crate, or it was taken up"); // (a crate's blow is dealt before: VR_Crate_Break)
         return 0;
     }
     // A blow that cut off a head or a limb went through it: not in the body (his note 2026-11-06: left where the part was, in nothing,

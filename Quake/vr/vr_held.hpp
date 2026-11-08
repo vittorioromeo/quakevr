@@ -88,6 +88,12 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles);
 // the hand's place by meeting the other hand's prop or weapon, and the walls (`drawnOffset`, units).
 [[nodiscard]] int heldAlone(int hand, glm::vec3* drawnOffset = nullptr);
 
+// Client side, for vr_embed_probe (vr_view_weapon.cpp, as the weapon in `hand` is drawn: `weapon`, its entity's rigid
+// place in the world; `handPose`, the hand's pose it was drawn from): the most a gib skewered on that blade (QC
+// vr_skewer.qc, in the hand) is drawn off its place on the drawn blade, cm (its place in the server's hand against its
+// place in the drawn hand); -1 none.
+[[nodiscard]] float skewerDrawnOff(int hand, const glm::mat4& weapon, const glm::mat4& handPose);
+
 // Client side: how far the weapon in `hand` is drawn moved back, pressed against the prop in the other hand (units;
 // the view moves the hand by it, with vr_model_collide's push: modelcollide::beginView).
 [[nodiscard]] glm::vec3 drawnPush(int hand);

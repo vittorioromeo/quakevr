@@ -477,6 +477,15 @@ void recordDrawnWeapon(const hands::State& s, int hand)
         d.inHand = glm::inverse(handPose) * entity;
         d.when = vr_gametime;
         d.mag = nullptr; // (magazineBox: its magazine, if one is in)
+        if(vr_embed_probe.string[0])
+        {
+            // (vr_embed_test 29: the gibs on this blade, drawn off their places on it)
+            if(const float off = held::skewerDrawnOff(hand, entity, handPose); off >= 0.f)
+            {
+                Cvar_SetValueQuick(&vr_embed_probe_skew, za::fmax(vr_embed_probe_skew.value, off));
+                Cvar_SetValueQuick(&vr_embed_probe_skewn, vr_embed_probe_skewn.value + 1.f);
+            }
+        }
     }
 }
 } // namespace

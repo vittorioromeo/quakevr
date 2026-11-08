@@ -542,6 +542,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         }
     }
     s.body = b3CreateBody(world->id, &def);
+    s.madeAt = static_cast<float>(qcvm->time);
 
     switch(kind)
     {

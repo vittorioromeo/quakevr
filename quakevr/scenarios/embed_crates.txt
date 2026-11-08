@@ -1,0 +1,14 @@
+# embed_crates: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Blades stuck in wooden crates and barrels (his notes 2026-11-08, items 13 and 14; vr_embed_test 30).
+title Embedded blades in crates and barrels: stab with the sword, swing the axe
+cvar vr_embed 1
+cvar vr_embed_props 1
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Axe" off
+spawn "Wooden Crate" 70 -40
+spawn "Large Crate" 80 30
+spawn "Barrel" 70 90
+spawn "Barrel" 130 0
+hint Stab a crate hard, tip first, or swing the axe hard into a barrel, edge first: the blade stays in. Holding it, move your hand aside: the crate drags along, heavily; lift: one hand only tips it, both hands lift it. Open your hand: the blade stays in, and rides the crate when you push it. Grip it again and pull it straight back: it slides out, harder than out of a body. Break the crate with a blade in it: the blade falls free (held: back in your hand). Reset to try again.
