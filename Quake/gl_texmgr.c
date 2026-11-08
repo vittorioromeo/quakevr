@@ -1514,7 +1514,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 
 	if (glt->source_format == SRC_RGBA && !normalmap) // QVR: a full-colour weapon skin without its painted blood (vr_gore_clean_skins)
+	{
 		data = (unsigned *) VR_CleanSkin (glt->name, (byte *) data, glt->width, glt->height, 4);
+		data = (unsigned *) VR_SkinEdgeFill (glt->name, (byte *) data, glt->width, glt->height, 4); // QVR: its triangles' edge texels filled (vr_skin_edge_fill)
+	}
 
 	// HASALPHA detection
 	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS) && !normalmap) // QVR: normal maps are opaque
@@ -1663,6 +1666,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	int i;
 
 	data = VR_CleanSkin (glt->name, data, glt->width, glt->height, 1); // QVR: a weapon's skin without its painted blood (vr_gore_clean_skins)
+	data = VR_SkinEdgeFill (glt->name, data, glt->width, glt->height, 1); // QVR: its triangles' edge texels filled (vr_skin_edge_fill)
 
 	// HACK HACK HACK -- taken from tomazquake
 	if (strstr(glt->name, "shot1sid") &&
