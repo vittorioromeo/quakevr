@@ -3658,3 +3658,43 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
   `scratch/slivers_after_full.png`.
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
+
+## Projectiles keep less of your motion (branch `agent/release`, 2026-11-08)
+
+Vittorio: player momentum went fully into nails and rockets, so strafing threw shots off the aim. Agreed: "please do,
+and use reasonable values for the projectile kinds".
+
+- **Before.** `vrProjectileVelocity(hand, factor)` (QC weapons.qc) added `handvel * 110 * factor + velocity * 0.8 *
+  factor^0.4` to every player projectile when `VRHandsTracked` (true in flat-screen play too). Vanilla adds nothing. At
+  320 u/s a nail (factor 1) kept 256 u/s of the strafe: 14 degrees off at 1000 u/s; a rocket 177 u/s, 10 degrees.
+- **Now.** `vrProjectileVelocity(hand, kind)`, one place, three kinds (`VR_PROJK_FAST`, `_LOBBED`, `_SPRAY`): the share
+  of the player's velocity `vr_proj_inherit_<kind>` and of the hand's `vr_proj_inherit_<kind>_hand` (1 = the hand's own
+  speed, converted with `VRMetersToUnits`, so it follows the world scale). Menu: Weapons > Aiming > "Projectiles Keep
+  Your Motion" (six sliders).
+  - fast (nails, super nails, lava nails, the nail pistol, rockets and multi rockets, the Hipnotic laser, the
+    enforcer's rifle, AD plasma and crossbow bolts, the grappling hook): **0 / 0**, as in Quake: fast shots go where the
+    gun points; at these speeds any share is visible as an angle (0.1 is still 1.8 degrees at 1000 u/s).
+  - lobbed (grenades, multi grenades, proximity grenades, flares): **0.5 / 2.5**: half the strafe (a grenade lobbed
+    running lands a little ahead; was 0.65 for grenades), and the flick as before (the grenade's 110 * 0.6 = 66 u/s per
+    m/s of the hand is 2.5x at world scale 1; proximity was 1.7x, flares 4.2x).
+  - spray (the AD flamethrower/poison sprayer stream): **0.6 / 2**, today's feel (short range: the stream keeps up with
+    you; aim error doesn't matter).
+  - Every caller: weapons.qc (W_FireSpikes, W_FireSuperSpikes, VR_FireRocketMissile, VR_FireGrenadeMissile, the
+    proximity grenade, HIP_FireLaser), rogue_lava_wpn.qc (both), rogue_mult_wpn.qc (multi grenade, multi rocket x2),
+    vr_nailpistol.qc, vr_enemyguns.qc (enforcer rifle), vr_ad_enemyguns.qc (plasma, crossbow, flame),
+    vr_flaregun.qc, vr_grapple.qc, and the AD gun test's ogre grenade. No other projectile adds its owner's velocity
+    (the engine has none; vr_carry.qc / vr_wpnholster.qc throws use `vr_throw_inherit`, left alone).
+- **Flat-screen hand velocity.** Already gated: the engine's `handMove` (vr_client.cpp) sends zero velocity for a hand
+  that fails `handsource::gestures` (synthesized motion, `vr_handsource_gate 1`), so a mouse flick never reached a
+  projectile. The player share did apply in flat (0.8 to nails). The QC now also asks `VR_HandMotionTracked` (the same
+  rule on the server) before it adds a hand's velocity. Measured: a fast flat turn swings the hand 11.6 m/s, it reports
+  0.00; with `vr_handsource_gate 0` it would report 11.4 m/s.
+- **Test.** `vr_projinherit_test` (QC/vr_projinherit_test.qc; Debug > Tests > "Projectiles Keep Your Motion",
+  "Projectiles: Flat Turn"): 1 (mock): strafing at 320, nail and rocket 0.00 degrees off the aim, grenade kept 157-163
+  (want 160); `vr_proj_inherit_fast 1` gives the rocket 320.0; `vr_mock_swing 0.35` hand at 7.1 m/s: grenade kept 558
+  (want 559), rocket 0.00 degrees: 6 passed. 2 (`-flatscreenmode`, `cl_yawspeed 1440; +right`): hand reports 0, motion
+  tracked 0, grenade kept 4.9 (spread only): 2 passed. vr_np_test 1 and vr_flare_test 1 fail the same checks on
+  origin/next (the trigger-held cases; not this change).
+- **Test it in VR:** strafe left and right firing the nailgun and the rocket launcher at a monster: the shots fly where
+  the gun points. Lob grenades running and with a flick of the launcher: a flick still throws them further. The
+  flamethrower feels as before.

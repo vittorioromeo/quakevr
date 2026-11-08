@@ -1091,6 +1091,21 @@ QVR_CVAR(vr_2h_sticky_fast_from, "1.5", CVAR_ARCHIVE)  // m/s: the faster hand's
 QVR_CVAR(vr_2h_sticky_fast_full, "4", CVAR_ARCHIVE)    // m/s: all of it from this speed
 QVR_CVAR(vr_2h_sticky_fast_hold, "0.6", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
 QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping hand taking a weapon's grip, and why it let go (and the stickiness then); 2: and where the grip is, four times a second
+// What a projectile you fire keeps of your motion (QC weapons.qc vrProjectileVelocity; ROUND24.md, "Projectiles keep less
+// of your motion"), by kind: the share of your own velocity, and of the firing hand's swing (_hand: 1 the hand's own
+// speed; a tracked controller's only, never the flat-screen hands' synthesized motion). Was 0.8 of your velocity and
+// 110 u/s per m/s of the hand for every kind, scaled down a little by kind: a strafe threw nails off the aim (2026-11-08).
+// Fast: nails, super and lava nails, the nail pistol, rockets and multi rockets, lasers, plasma, crossbow bolts, the
+// grappling hook: none, as in Quake (at 320 u/s a nail kept 14 degrees of a strafe).
+QVR_CVAR(vr_proj_inherit_fast, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_fast_hand, "0", CVAR_ARCHIVE)
+// Lobbed: grenades, multi and proximity grenades, flares: half your velocity (a grenade lobbed running lands ahead), and
+// the flick as before (the grenade's 66 u/s per m/s of the hand, at world scale 1).
+QVR_CVAR(vr_proj_inherit_lobbed, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_lobbed_hand, "2.5", CVAR_ARCHIVE)
+// Sprays: the flamethrower's stream (short range: it keeps up with you as before).
+QVR_CVAR(vr_proj_inherit_spray, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_proj_inherit_spray_hand, "2", CVAR_ARCHIVE)
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
 // flashlight) follows it through a damped spring, by its mass, balance and length. The Spring is the only model.
@@ -2103,6 +2118,7 @@ QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
 QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_selfshot_test, "0", CVAR_NONE)               // shooting yourself (vr_selfshot_test.qc; Debug > Tests > Shoot Yourself): 1 aimed at your palm, forearm, thigh; 2 ordinary firing never hits you
+QVR_CVAR(vr_projinherit_test, "0", CVAR_NONE)           // what projectiles keep of your motion (vr_projinherit_test.qc; Debug > Tests > Projectiles Keep Your Motion): 1 mock headset: strafe and hand swing; 2 flat-screen (-flatscreenmode): a fast turn adds nothing
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
 QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)

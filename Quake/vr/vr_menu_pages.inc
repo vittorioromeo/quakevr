@@ -492,6 +492,13 @@ void resetHandMoves()
         row(opt::vr_2h_sticky_fast_from),
         row(opt::vr_2h_sticky_fast_full),
         row(opt::vr_2h_sticky_fast_hold),
+        header("Projectiles Keep Your Motion"),
+        row(opt::vr_proj_inherit_fast),
+        row(opt::vr_proj_inherit_fast_hand),
+        row(opt::vr_proj_inherit_lobbed),
+        row(opt::vr_proj_inherit_lobbed_hand),
+        row(opt::vr_proj_inherit_spray),
+        row(opt::vr_proj_inherit_spray_hand),
         header("Weight"),
         info([]() -> const char* {
             return "What you hold follows on a spring.";
