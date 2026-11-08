@@ -788,7 +788,7 @@ void V_CalcRefdef (void)
 	ent->angles[YAW] = cl.viewangles[YAW];	// the model should face the view dir
 	ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face the view dir
 
-	bob = V_CalcBob ();
+	bob = V_CalcBob () * VR_FlatBobScale (); // QVR: flatscreen play's slide has no walk bob (vr_flat_slide_bob; vr/vr_flatplay.cpp)
 
 // refresh position
 	VectorCopy (ent->origin, r_refdef.vieworg);

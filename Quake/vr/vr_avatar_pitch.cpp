@@ -8,8 +8,8 @@
 // wall from there). VR and flat-screen play pose the body through the same avatar::pose, so both tilt.
 //
 // Lying down (vr_prone; ROUND24.md, "Lying down and crawling") is the second source: while the server has the local
-// player lying down (vr_hull.cpp: his eyes under vr_prone_eye, his box low) the target is vr_prone_body_angle (90), more
-// as his eyes stand higher over the floor (the hips slope down to it: pronePitchTarget), eased over vr_prone_body_time;
+// player lying down (vr_hull.cpp: his eyes under vr_prone_eye, his box low) the target turns the trunk until the hips
+// rest vr_prone_hip_floor over the floor (pronePitchTarget; at most vr_prone_body_angle), eased over vr_prone_body_time;
 // the same pivot (the head stays where the headset or the flat-screen eye is). BodyPitch::lying, its share, straightens
 // the crouched trunk (solveTorso) and lays the legs on the floor behind (solveLeg); the arms follow the controllers from
 // wherever the turned chest puts the shoulders.
@@ -33,6 +33,7 @@
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -76,18 +77,21 @@ float swimPitchTarget(const SwimPitchIn& in)
     return CLAMP(0.f, in.angle, 80.f) * share * (1.f - CLAMP(0.f, in.climb, 1.f));
 }
 
-float pronePitchTarget(float angle, float eyeOverFloor, float torso)
+float pronePitchTarget(float most, float drop, float torso, float torsoBack)
 {
-    const float base = CLAMP(0.f, angle, 100.f);
-    if(torso <= 1.f || base <= 0.f)
+    const float cap = CLAMP(0.f, most, 100.f);
+    if(torso <= 1.f || cap <= 0.f)
     {
-        return base;
+        return cap;
     }
-    // The eyes of a body lying flat on its front, its head up: about PRONE_FLAT_EYE units over the floor. Higher (propped
-    // on the elbows, on all fours), the trunk from the neck down slopes to the floor behind: asin(rise / torso).
-    constexpr float PRONE_FLAT_EYE = 8.f;
-    const float rise = CLAMP(0.f, (eyeOverFloor - PRONE_FLAT_EYE) / torso, 0.5f);
-    return base + glm::degrees(za::asin(rise)) * za::min(1.f, base / 90.f);
+    // The straight trunk hangs from the neck's top: the pelvis `torso` under it and `torsoBack` behind. Turned forward by
+    // a about the body's left, the pelvis comes torsoBack sin a - torso cos a above the neck (Ry: z' = -x sin a + z cos a);
+    // that is -drop at a = phi + asin(-drop / r), phi = atan2(torso, torsoBack). (Until 2026-11-08 the target went past
+    // 90 as the eyes stood higher, which lifted the hips off the floor: the body floated, his note.)
+    const float r = za::sqrt(torso * torso + torsoBack * torsoBack);
+    const float phi = glm::atan(torso, torsoBack);
+    const float a = glm::degrees(phi + za::asin(CLAMP(-1.f, -drop / r, 1.f)));
+    return CLAMP(0.f, a, cap);
 }
 
 } // namespace detail
@@ -98,7 +102,6 @@ namespace
 using namespace detail;
 
 constexpr float LEDGE_WATER_BELOW = 40.f; // units under the lip the water may start (higher, the top is out of reach)
-constexpr float PRONE_TORSO_M = 0.55f;    // metres from the pelvis to the neck's top, roughly (lying down's hip slope)
 
 [[nodiscard]] bool liquidAt(const glm::vec3& p)
 {
@@ -286,15 +289,19 @@ void bodyPitchTest_f()
     }
     check(highest <= ANGLE + 0.01f, "bobbing: highest %.3f (<= %.0f)", highest, ANGLE);
 
-    // Lying down (vr_prone): flat on the floor 90, propped up higher (the hips slope down to the floor), never past 30
-    // more; off at 0; and the ease down to it and back up as smooth as the swimming one's.
-    const float flatT = pronePitchTarget(90.f, 8.f, 20.f);
-    const float proppedT = pronePitchTarget(90.f, 14.f, 20.f);
-    const float highT = pronePitchTarget(90.f, 60.f, 20.f);
+    // Lying down (vr_prone): the neck's top as high as the hips should rest, flat 90; higher, propped up (the trunk
+    // slopes down to the hips on the floor: less than 90); never past the most; off at 0; and the ease down to it and back
+    // up as smooth as the swimming one's.
+    const float flatT = pronePitchTarget(90.f, 0.f, 20.f, 0.f);
+    const float proppedT = pronePitchTarget(90.f, 10.f, 20.f, 0.f);
+    const float backT = pronePitchTarget(100.f, 0.f, 20.f, 2.f);
     check(za::abs(flatT - 90.f) < 0.01f, "lying flat: target %.2f (90)", flatT);
-    check(proppedT > 105.f && proppedT < 110.f, "propped up (eyes 14 over the floor): target %.2f (about 107.5)", proppedT);
-    check(za::abs(highT - 120.f) < 0.01f, "eyes high: target %.2f (at most 120)", highT);
-    const float offT = pronePitchTarget(0.f, 14.f, 20.f);
+    check(za::abs(proppedT - 60.f) < 0.01f, "propped up (the neck 10 over the hips' place, a 20 trunk): target %.2f (60)", proppedT);
+    check(za::abs(backT - (90.f - glm::degrees(za::asin(2.f / za::sqrt(404.f))))) < 0.01f,
+        "the pelvis behind the neck: target %.2f (a little short of 90, level)", backT);
+    const float cappedT = pronePitchTarget(45.f, 0.f, 20.f, 0.f);
+    check(za::abs(cappedT - 45.f) < 0.01f, "capped by vr_prone_body_angle: target %.2f (45)", cappedT);
+    const float offT = pronePitchTarget(0.f, 10.f, 20.f, 0.f);
     check(offT == 0.f, "lying down's angle 0: target %.2f (0)", offT);
     angle = rate = 0.f;
     const auto runTo = [&](float target, float seconds) {
@@ -330,6 +337,7 @@ void init()
 {
     Cmd_AddCommand("vr_body_pitch", bodyPitch_f);
     Cmd_AddCommand("vr_body_pitch_test", bodyPitchTest_f);
+    initLie();
 }
 
 namespace detail
@@ -398,8 +406,19 @@ void updateBodyPitch(const hands::State& s, float dt)
                        (served >= 0 ? served == 1 : eyeOverFloor < vr_prone_eye.value);
     if(lying && !swimming)
     {
-        const float torso = PRONE_TORSO_M * units::metresToUnits() * units::bodyScale();
-        p.target = pronePitchTarget(vr_prone_body_angle.value, eyeOverFloor, torso);
+        // The hips down to vr_prone_hip_floor over the floor: the drawn trunk's own lengths (solveTorso: the pelvis to the
+        // head's bind, vr_body_torso_back behind the neck's top, that vr_body_eye_up under the eye).
+        const float m2w = units::metresToUnits() * units::bodyScale();
+        const float torso = glm::distance(bind().pos[Pelvis], bind().pos[Head]) * m2w;
+        // (Over the box's own floor where the server has him: the headset's calibrated height put the hips 2 units up.)
+        float eyeOverBox = eyeOverFloor;
+        if(const edict_t* pl = progs::localPlayer())
+        {
+            eyeOverBox = s.head.z - (pl->v.origin[2] + pl->v.mins[2]);
+        }
+        const float neckOverFloor = eyeOverBox - vr_body_eye_up.value * m2w;
+        const float drop = neckOverFloor - CLAMP(0.f, vr_prone_hip_floor.value, 10.f);
+        p.target = pronePitchTarget(vr_prone_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);
         p.source = PitchSource::Prone;
         p.easeTime = CLAMP(0.1f, vr_prone_body_time.value, 3.f);
         p.lyingFrom = 1.f;

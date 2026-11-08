@@ -3514,6 +3514,79 @@ rear's ears as the shotgun has.)
   at once, 46/0 later; the sights stay yellow); the blood check keeps the side camera.
 - **Not done:** `g_shot.mdl` (the pickup) keeps its old look; nobody aims through it.
 
+## Lying body: slide and prone, on the floor (branch `agent/embed5`, 2026-11-08)
+
+His flat-screen notes (fly camera shots): sliding, the legs bent, the holsters and ammo pouch floating up by the head and on
+screen, the walk's bob making the feet go through the floor; lying down, the body floating above the floor, the legs not
+straight. Plus: a slide sound; the legs pointing the slide's way, not the camera's.
+
+- **Measured first** (`vr_body_lie_test`, `vr_avatar_lie.cpp`: the posed body against a trace down to the real floor and the
+  drawn eye). Before: prone pelvis 20.4, chest 16.7 units over the floor, knees bent 51/56 deg, feet 20.7 up; slide knees
+  35 deg, the body yaw 15 deg off the view (the stance), the pelvis bobbing 4.0 .. 9.3 and the eye -3.3 .. 2.0, the ammo
+  pouch 15 units from the eye 28 deg off the view, the gear up to 10 units off where it sits on the standing body.
+- **Prone float: the target's sign.** `pronePitchTarget` went past 90 as the eyes stood higher, meant to slope the hips
+  down to the floor; turning the hanging trunk forward past 90 lifts the pelvis above the neck instead (the flat eye is
+  14 over the floor: 111.7 deg, the hips 20 up). Now it is the turn that puts the pelvis `vr_prone_hip_floor` (3.5) over
+  the box's floor: `a = atan2(torso, torsoBack) + asin(-drop / r)` from the drawn trunk's own lengths (the pelvis to the
+  head's bind, `vr_body_torso_back`, `vr_body_eye_up` under the eye), capped by `vr_prone_body_angle` (now the most, 90).
+  Flat (eye 14): about 60 deg, propped on the elbows, the hips on the floor. The headset too (its floor from the server's
+  box: the calibrated height had the hips 2 units up): the mock's head at 0.28 m gives pelvis 3.5.
+- **Straight legs.** Lying down and sliding, the foot's target is `reach` (`vr_prone_leg_reach` 0.997,
+  `vr_flat_slide_leg_reach` 0.993) of the leg from the hip, down to the floor, along the body's facing; the spread across
+  the body is out along its own left (it was the foot's yaw, off the body's by the stance: one leg 2% long, one short:
+  bends 0 and 19). Knee bend: prone 9/9, slide 14 (was 51/56 and 35).
+- **The gear on the slid body.** The slide's neck-back move (`vr_flat_slide_neck_back`) also moved the Follower's upright
+  reference (solveTorso's reference poses), so everything it carries came out 10 units forward: the ammo pouch in front
+  of the camera. Reference poses no longer take it. And the hip holsters and ammo pouch no longer ride the thighs by the
+  lying and sliding share (`Follower::thigh`: the legs out in front swung them up). Every item now sits as far from its
+  bone as standing (0.0 off).
+- **2H stance in a slide.** The stance's torso turn (`flatsight::stanceYaw`) eases out over `vr_flat_slide_turn_time`
+  (0.12 s) while sliding (flatplay poseHands).
+- **Legs the slide's way** (`vr_flat_slide_legs` 1, `vr_flat_slide_legs_twist` 70): the body's yaw goes to the slide's
+  velocity, the chest turns back to the view about the trunk (`flatplay::trunkTwist`, half in the spine; less by
+  cos(pitch) so that seen from above it faces the view once leant back). Test: the view turned 40 deg in a slide, legs
+  0.0 off the slide, chest 0.6 off the view.
+- **No bob in a slide** (`vr_flat_slide_bob` 0): Quake's view bob (`V_CalcBob`, view.c through `VR_FlatBobScale`) and
+  flatplay's walk bob (hands, body ride) go by the slide pose's share. Pelvis 5.17 .. 5.25, eye constant.
+- **Slide sound** (`vr_slidesound.cpp`, `quakevr/sound/vr/slide_start.wav` and `slide_loop.wav` from
+  `Misc/quakevr/make_slide_sounds.py`, synthesised, seeded): a thump and scuff as the slide starts, a looped gritty scrape
+  (cue point) whose volume and pitch follow the speed (full at 480 u/s), fading as it slows and 0.18 s after it ends;
+  `vr_flat_slide_sound` (0.6). Test: started once, up to 0.77, 0.63 -> 0.27 over the pose, stopped 0.06 s after.
+- **Test:** `bash Misc/quakevr/body_lie_test.sh <agent>`: flat 20/0, vr 5/0. `vr_body_pitch_test` 30/0 (the prone target's
+  checks rewritten), `flatslide_test.sh` 10/0. Debug > Tests: Lying Body Test, Lying Body Report.
+- **Rows:** VR Settings > Body: Lying Down Hips Over Floor, Lying Down Leg Reach; Debug > Tunables > Flatscreen > Slide:
+  Slide Leg Reach, Slide Stance Turn Time, Slide Legs Follow Slide, Slide Legs Most Twist, Slide Walk Bob, Slide Sound
+  Volume.
+- **Not done:** the flat prone eye stays 14 over the floor (its drop is the camera's, not the body's): lying down is propped
+  on the elbows rather than flat on the chest; lower `vr_prone_hip_floor` or the eye for flatter.
+## Flat tools: force grab key, F7 toolgun, weapon_* classnames (worker C, 2026-11-08)
+
+- **Force grab (flat)**: `vr_flat_key_grab` now `mouse4` (the side button the shove's `mouse5` leaves); the old R stays as
+  `vr_flat_key_grab_alt` (`r`; no clash with Q/E/V/G/3/F7/F8). Both are flat-owned keys (`vr_flat_keys_own`). With both
+  hands empty the main (dominant) hand grabs, else the empty one (QC `VR_Forcegrab_FlatGrab`). Effects are the headset's:
+  the lock-on sparks (`QVR_PARTICLE_PRESET_GUNFORCEGRAB`) at the grab, then `VR_Forcegrab_Launch` (forcegrab.wav), and the
+  flat view now queues `fgfx::queue(s, true)` (glow outline, tendril, trail; its glow lines go to the scene pass:
+  `lines::sceneGlow`, flat has no UI pass). Checked: `vr_flatitems_test 1` 9/0 (the off hand still takes with the main
+  hand busy).
+- **F7 toolgun**: `vr_flat_key_toolgun` (`F7`) sends impulse 49 (QC `VR_FlatToolgun_Toggle`): the toolgun in the main hand,
+  what it held kept (weapon, flags, its record entity); F7 again gives it back. With the toolgun in the main hand the left
+  mouse button (the main hand's fire) is its trigger (`toolgun::button(Trigger)`), and `vr_flat_key_toolgun_menu`
+  (`mouse3`) is its B/Y (opens/closes the panel). NOT DONE: the panel is still drawn only in the headset's eyes and
+  pointed at with the other hand's laser, so in flat it opens unseen; the plan is a screen overlay (the panel's texture
+  drawn centred over the 2D pass, the desktop mouse moving a cursor via an `IN_MouseMotion` hook while it is open, the
+  left button as `panel::trigger`).
+- **weapon_* classnames** (his decision): `weapon_axe` (AD's name for the same weapon; AD maps keep AD's own pickup via
+  `adOwnedClashes`), `weapon_knight_sword`, `weapon_hknight_sword` (flags 1), `weapon_chainsaw`, `weapon_gruntgun`,
+  `weapon_enfrifle` (named after their WID_ and models, as weapon_nailpistol/revolver). Each a one-line wrapper over
+  `VR_WeaponClass_Spawn` (buttons.qc: func_weapon_grabbable with the table's model, `VR_Pack_WeaponAvailable` gate); the
+  weapon table's classname column and `VR_GunPrep_ClassWid` name them; quakevr.fgd regenerated. None clashes with
+  vanilla, Rogue, Hipnotic, MG3 (weapon_superaxe, weapon_bloody_*) or AD names other than the axe. The AD soldiers'
+  guns keep their AD spawn rows (pack-gated, no new names); the grapple has none (a hook, not a lying weapon).
+  Toolgun Weapons entries for these six use the classnames; Debug > Cheats > Spawn Pickup Weapons gains Axe, both
+  swords, Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe. Tests: `vr_pickup_test 9` (classtest 15/0: each
+  spawns, is picked up into the main hand, the two guns fire), `vr_pickup_test 10`/`11` around a save and load
+  (classsave 3/0).
+- NOT DONE: the empty-hand pose (relaxed / guard cvar).
 ## Flat-screen: the lean at a wall, the prone lean, the prone gun (branch `agent/loadjobs`, worktree phases, 2026-11-08)
 
 His report: leaning against a wall only rolled the view; lean while lying down (smaller, the body rolling in place);

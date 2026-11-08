@@ -465,6 +465,7 @@ int VR_FlatSlideMove (struct edict_s *ent, int onground, const float *wishdir, f
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flat_keys_own; vr_flatmove.cpp): its bind does not run while the mode runs
 void VR_FlatMoveScale (float *forwardmove, float *sidemove); // CL_BaseMove: leaning, the move keys slower (vr_flat_lean_speed; vr_flatmove.cpp)
+float VR_FlatBobScale (void); // V_CalcRefdef: Quake's view bob times this (sliding: vr_flat_slide_bob of it; vr_flatplay.cpp)
 void VR_FlatViewLean (float *vieworg, float *viewangles); // V_CalcRefdef, after VR_FlatViewDrop: the lean's eye moved sideways and the view rolled (vr_flatmove.cpp)
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)

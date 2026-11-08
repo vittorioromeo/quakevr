@@ -506,6 +506,154 @@ void() VR_FgBusyTest_Run =
     VR_Test_Verdict();
 };
 
+// The weapon_* classnames of 2026-11-08 (buttons.qc VR_WeaponClass_Spawn), and their weapons.
+string(float i) VR_ClassTest_Name =
+{
+    if(i == 0) { return "weapon_axe"; }
+    if(i == 1) { return "weapon_knight_sword"; }
+    if(i == 2) { return "weapon_hknight_sword"; }
+    if(i == 3) { return "weapon_chainsaw"; }
+    if(i == 4) { return "weapon_gruntgun"; }
+    return "weapon_enfrifle";
+};
+float VR_CLASSTEST_COUNT = 6;
+float(float i) VR_ClassTest_Wid =
+{
+    if(i == 0) { return WID_AXE; }
+    if(i <= 2) { return WID_SWORD; }
+    if(i == 3) { return WID_CHAINSAW; }
+    if(i == 4) { return WID_GRUNTGUN; }
+    return WID_ENFRIFLE;
+};
+
+// Classname `c` spawned at `at` as a map spawns it (its spawn function, self the new entity); the weapon it left lying
+// there (world: none).
+entity(string c, vector at, float wid) VR_ClassTest_Spawn =
+{
+    entity e = spawn();
+    e.classname = c;
+    setorigin(e, at);
+    entity oself = self;
+    self = e;
+         if(c == "weapon_axe")           { weapon_axe(); }
+    else if(c == "weapon_knight_sword")  { weapon_knight_sword(); }
+    else if(c == "weapon_hknight_sword") { weapon_hknight_sword(); }
+    else if(c == "weapon_chainsaw")      { weapon_chainsaw(); }
+    else if(c == "weapon_gruntgun")      { weapon_gruntgun(); }
+    else                                 { weapon_enfrifle(); }
+    self = oself;
+    entity w = nextent(world);
+    while(w)
+    {
+        if(w != self && w.weapon == wid && w.handtouch && vlen(w.origin - at) < 48)
+        {
+            return w;
+        }
+        w = nextent(w);
+    }
+    return world;
+};
+
+// `w` taken into the main hand (emptied first) by its own touch, as a grip takes it (VR_PickupTest_Take).
+void(entity w) VR_ClassTest_Take =
+{
+    VRSetEntWeapon(self, cVR_MainHand, WID_FIST);
+    entity oldSelf = self;
+    entity oldOther = other;
+    self.touchinghand = cVR_MainHand;
+    w.handtouch_hand = cVR_MainHand;
+    w.handtouch_ent = self;
+    other = self;
+    self = w;
+    float oldCatching = forcegrabCatching;
+    forcegrabCatching = TRUE;
+    w.handtouch();
+    forcegrabCatching = oldCatching;
+    self = oldSelf;
+    other = oldOther;
+};
+
+// A shot from the main hand: TRUE if it fired (a gun's magazine went down, a melee weapon's swing started: its
+// attack_finished ahead).
+float(string what) VR_ClassTest_Fire =
+{
+    float clip = VRGetEntWeaponClip(self, cVR_MainHand);
+    self.attack_finished = 0;
+    W_Attack();
+    float clipAfter = VRGetEntWeaponClip(self, cVR_MainHand);
+    float fired = self.attack_finished > time || clipAfter < clip;
+    VR_Test_Check(fired, sprintf("%s fires: magazine %g -> %g, attack_finished %g ahead", what, clip, clipAfter,
+        self.attack_finished - time));
+    self.attack_finished = 0;
+    return fired;
+};
+
+// vr_pickup_test 9: each weapon_* classname above spawned ahead of you, taken into the main hand, and fired; verdict
+// "classtest: N passed, M failed".
+void() VR_ClassTest_Run =
+{
+    VR_Test_BeginFlags("classtest", VR_TEST_LOUD);
+    makevectors(self.v_angle);
+    for(float i = 0; i < VR_CLASSTEST_COUNT; i++)
+    {
+        string c = VR_ClassTest_Name(i);
+        float wid = VR_ClassTest_Wid(i);
+        entity w = VR_ClassTest_Spawn(c, self.origin + v_forward * 40 + '0 0 8', wid);
+        VR_Test_Check(w != world, sprintf("%s spawns a weapon %g lying ahead", c, wid));
+        if(w == world)
+        {
+            continue;
+        }
+        float flags = w.weaponflags;
+        VR_ClassTest_Take(w);
+        float held = VRGetEntWeapon(self, cVR_MainHand);
+        VR_Test_Check(held == wid, sprintf("%s picked up: the main hand holds %g (%s)", c, held, WeaponIdToWeaponName(held)));
+        if(i == 2)
+        {
+            VR_Test_Check(flags & QVR_WPNFLAG_USE_SECONDARY_AMMO, sprintf("%s: the hell knight's sword (flags %g)", c, flags));
+        }
+        if(wid == WID_GRUNTGUN || wid == WID_ENFRIFLE)
+        {
+            VR_ClassTest_Fire(c); // (the melee weapons strike by their swing, not the trigger: nothing to fire)
+        }
+        VRSetEntWeapon(self, cVR_MainHand, WID_FIST);
+    }
+    VR_Test_Verdict();
+};
+
+// vr_pickup_test 10: a weapon_gruntgun lying ahead (for a save and a load); 11: the grunt's gun lying nearest taken
+// into the main hand and fired: verdict "classsave: N passed, M failed".
+void() VR_ClassTest_SaveSpawn =
+{
+    makevectors(self.v_angle);
+    entity w = VR_ClassTest_Spawn("weapon_gruntgun", self.origin + v_forward * 40 + '0 0 8', WID_GRUNTGUN);
+    bprint(sprintf("classsave: weapon_gruntgun %s\n", w != world ? "lying ahead" : "missing"));
+};
+
+void() VR_ClassTest_SaveTake =
+{
+    VR_Test_BeginFlags("classsave", VR_TEST_LOUD);
+    entity best = world;
+    entity w = nextent(world);
+    while(w)
+    {
+        if(w != self && w.weapon == WID_GRUNTGUN && w.handtouch &&
+           (best == world || vlen(w.origin - self.origin) < vlen(best.origin - self.origin)))
+        {
+            best = w;
+        }
+        w = nextent(w);
+    }
+    VR_Test_Check(best != world, "the grunt's gun is still lying there after the load");
+    if(best != world)
+    {
+        VR_ClassTest_Take(best);
+        VR_Test_Check(VRGetEntWeapon(self, cVR_MainHand) == WID_GRUNTGUN, "and is picked up into the main hand");
+        VR_ClassTest_Fire("weapon_gruntgun");
+    }
+    VR_Test_Verdict();
+};
+
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
@@ -553,6 +701,18 @@ void() VR_PickupTest_Frame =
     else if(ask == 8)
     {
         VR_FgBusyTest_Run(); // (the force grab refuses a busy hand: VR_Hand_Free)
+    }
+    else if(ask == 9)
+    {
+        VR_ClassTest_Run(); // the weapon_* classnames (buttons.qc VR_WeaponClass_Spawn)
+    }
+    else if(ask == 10)
+    {
+        VR_ClassTest_SaveSpawn();
+    }
+    else if(ask == 11)
+    {
+        VR_ClassTest_SaveTake();
     }
     self = oself;
 };

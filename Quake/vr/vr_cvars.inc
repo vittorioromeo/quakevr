@@ -48,8 +48,10 @@ QVR_CVAR(vr_prone_crawl_friction, "3", CVAR_ARCHIVE)   // ... how quickly the cr
 QVR_CVAR(vr_prone_crawl_max_speed, "120", CVAR_ARCHIVE) // ... units/second the arms' crawl can reach
 QVR_CVAR(vr_prone_crawl_haptic, "0.3", CVAR_ARCHIVE)   // ... a short pulse in the hand as it plants for a pull, this strong (0 none); its palm's slap on the floor too (vr_physsound_grab)
 QVR_CVAR(vr_prone_crawl_debug, "0", CVAR_NONE)         // ... 1: print each pull (hand, how far it went, the speed it gave) and each hand's height over the feet as it plants
-QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... degrees the body turns forward about the neck lying down (0 .. 100; the eyes over the floor tip the hips down more, so they rest on it)
+QVR_CVAR(vr_prone_body_angle, "90", CVAR_ARCHIVE)      // ... the most degrees the body turns forward about the neck lying down (0 .. 100): it turns until the hips rest vr_prone_hip_floor over the floor (90: flat behind the head)
 QVR_CVAR(vr_prone_body_time, "0.6", CVAR_ARCHIVE)      // ... seconds lying down and getting up take (the body's turn; flat-screen, the view's drop too) (0.1 .. 3)
+QVR_CVAR(vr_prone_hip_floor, "3.5", CVAR_ARCHIVE)      // ... units the hips (the pelvis joint) rest over the floor lying down: the body turns about the neck until they are there, the chest propped on the elbows when the eyes are higher (0 .. 10; at most vr_prone_body_angle)
+QVR_CVAR(vr_prone_leg_reach, "0.997", CVAR_ARCHIVE)    // ... lying down, the legs reach this share of their length from the hip to the feet on the floor behind (0.85 .. 1; 1: dead straight)
 QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
@@ -3942,10 +3944,13 @@ QVR_CVAR(vr_handsource_gate, "1", CVAR_ARCHIVE)        // 1: hand motion the gam
 QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both hands' motion synthesized every frame (as the flat-screen pose's), in a headset too: no gesture may fire on it (vr_handsource.cpp; crawl_test.py)
 QVR_CVAR(vr_handsource_debug, "0", CVAR_NONE)         // 1: prints each hand's motion source as it changes (vr_handsource.cpp: tracked, synthesized, action; motion-triggered gestures read tracked and action motion only)
 QVR_CVAR(vr_flat_key_bullettime, "z", CVAR_ARCHIVE)     // the key that starts and stops bullet time (the gadget tap's rules: vr_bullettime_trigger_cooldown, the meter, the cooldown), by its bind name; "" none
-QVR_CVAR(vr_flat_key_grab, "r", CVAR_ARCHIVE)           // the key that force-grabs what the view is pointed at (impulse 46), by its bind name; "" none (was E until E became the right lean)
+QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-grabs what the view is pointed at (impulse 46: the dominant hand when both are empty, else the empty one), by its bind name; "" none (mouse 4: the side button the shove (mouse 5) leaves; was R, before that E)
+QVR_CVAR(vr_flat_key_grab_alt, "r", CVAR_ARCHIVE)        // a second key that force-grabs the same (the old R), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
+QVR_CVAR(vr_flat_key_toolgun, "F7", CVAR_ARCHIVE)        // the key that puts the toolgun in the right hand, and again gives back what that hand held (vr_flat_toolgun_toggle; vr_toolgun_flat.cpp), by its bind name; "" none
+QVR_CVAR(vr_flat_key_toolgun_menu, "mouse3", CVAR_ARCHIVE) // with the toolgun in hand: the key that opens and closes its panel on the screen (the mouse moves its pointer, the left button clicks; vr_toolgun_flat.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_flycam, "0", CVAR_NONE)                // flatscreen play's fly camera (vr_flycam.cpp): 1 the view flies free (mouse looks, W A S D, Space up, Ctrl down, Shift faster) while you stand exactly as you were, nothing of yours moving; 0 back in your eyes. Not saved; a headset ignores it
 QVR_CVAR(vr_flat_flycam_pause, "1", CVAR_ARCHIVE)       // the fly camera: 1 the game is paused while it flies (single player, or a game this client's server runs alone); 0 the world runs on (you still stand still: no key reaches you). Multiplayer never pauses
 QVR_CVAR(vr_flat_flycam_speed, "320", CVAR_ARCHIVE)     // the fly camera's speed, units a second

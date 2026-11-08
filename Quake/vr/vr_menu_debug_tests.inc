@@ -34,6 +34,16 @@ za::Vector<Item> pageSpawnWeapons()
             .help("Quake VR's disposable flare gun lying ready to be picked up (two flares)."),
         command("Heavy Revolver", "vr_physics_spawn weapon_revolver reach")
             .help("Quake VR's heavy revolver lying ready to be picked up (with 12 shells)."),
+        command("Axe", "vr_physics_spawn weapon_axe reach"),
+        command("Knight's Sword", "vr_physics_spawn weapon_knight_sword reach"),
+        command("Death Knight's Sword", "vr_physics_spawn weapon_hknight_sword reach"),
+        command("Ogre's Chainsaw", "vr_physics_spawn weapon_chainsaw reach"),
+        command("Grunt Burst Rifle", "vr_physics_spawn weapon_gruntgun reach")
+            .help("The grunt's 3-round burst rifle lying ready to be picked up, its magazine full (weapon_gruntgun)."),
+        command("Enforcer's Rifle", "vr_physics_spawn weapon_enfrifle reach")
+            .help("The enforcer's laser rifle lying ready to be picked up, its cell full (weapon_enfrifle)."),
+        command("Super Axe (Dawn of the Machine)", "vr_physics_spawn weapon_superaxe reach")
+            .help("Dawn of the Machine's Super Axe (needs the pack: gone at once without it)."),
         command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
@@ -668,6 +678,14 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flatslide_test (-flatscreenmode only, open level ground ahead, cl_alwaysrun 1): runs you forward, "
                   "crouches at full speed (a slide), lets go, slides again and jumps in it (flatslide: lines, a verdict). "
                   "Let go of +forward after (-forward)."),
+        command("Lying Body Test", "vr_body_lie_test")
+            .help("vr_body_lie_test (-flatscreenmode, open level ground ahead and behind, a long gun held): lies down (the hips "
+                  "on the floor, straight legs, the gear with its bones), gets up, slides twice (no stance turn or bob, straight "
+                  "legs, the scrape, the legs the slide's way with the view turned). In a headset game: vr_body_lie_test vr "
+                  "(the mock's head lowered). Lines and a verdict (body_lie_test)."),
+        command("Lying Body Report", "vr_body_lie_report")
+            .help("vr_body_lie_report (run it twice: the first arms it): the body's joints over the real floor, the knees' "
+                  "bend, each holster and pouch from its bone and from the eye (body_lie: lines)."),
         command("Flat Lean Test", "vr_flatlean_test")
             .help("vr_flatlean_test (-flatscreenmode only, room ahead and a wall at a side): leans right (the eye, the roll, "
                   "a shot across the leant head), walks leant and upright, then leans into the nearer wall, away from it, "

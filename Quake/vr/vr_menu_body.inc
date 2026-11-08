@@ -32,6 +32,8 @@ const char* bodytrackAvailability(int)
         row(opt::vr_body_swim_tilt_ledge),
         row(opt::vr_prone_body_angle),
         row(opt::vr_prone_body_time),
+        row(opt::vr_prone_hip_floor),
+        row(opt::vr_prone_leg_reach),
         row(opt::vr_body_climb_feet),
         row(opt::vr_body_climb_feet_reach),
         row(opt::vr_body_climb_feet_speed),

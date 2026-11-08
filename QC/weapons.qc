@@ -4522,6 +4522,46 @@ void(float xHand) VR_Impulse_WeaponButton =
     else                                  { ToggleSecondaryAmmo(xHand); }
 };
 void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
+
+// Flatscreen play's F7 (vr_flat_key_toolgun; impulse 49): the toolgun in the main (right) hand at once, and pressed
+// again what that hand held before (its weapon, flags and record: the magazine as it was). What it held is kept here
+// meanwhile (a weapon id 0: the bare hand).
+.float vr_flattg_on;
+.float vr_flattg_wid;
+.float vr_flattg_flags;
+.entity vr_flattg_inst;
+void() VR_FlatToolgun_Toggle =
+{
+    if(!self.ishuman || self.health <= 0)
+    {
+        return;
+    }
+    if(self.weapon == WID_TOOLGUN && self.vr_flattg_on)
+    {
+        VRSetEntWeapon(self, cVR_MainHand, self.vr_flattg_wid);
+        VRSetEntWeaponFlags(self, cVR_MainHand, self.vr_flattg_flags);
+        VRSetEntWeaponInst(self, cVR_MainHand, self.vr_flattg_inst);
+        self.vr_flattg_on = FALSE;
+        self.vr_flattg_inst = world;
+        W_SetCurrentAmmo();
+        dprint(sprintf("flat toolgun: put away, back to weapon %g\n", self.weapon));
+        return;
+    }
+    if(self.weapon == WID_TOOLGUN)
+    {
+        return; // (a toolgun taken by hand: it stays)
+    }
+    self.vr_flattg_on = TRUE;
+    self.vr_flattg_wid = self.weapon;
+    self.vr_flattg_flags = self.weaponflags;
+    self.vr_flattg_inst = VRGetEntWeaponInst(self, cVR_MainHand);
+    VRSetEntWeapon(self, cVR_MainHand, WID_TOOLGUN);
+    VRSetEntWeaponFlags(self, cVR_MainHand, 0);
+    VRSetEntWeaponInst(self, cVR_MainHand, WeaponInst_New(0));
+    W_SetCurrentAmmo();
+    dprint(sprintf("flat toolgun: in the main hand (weapon %g kept)\n", self.vr_flattg_wid));
+};
+
 void() ImpulseCommands =
 {
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
@@ -4575,6 +4615,13 @@ void() ImpulseCommands =
         {
             VR_Forcegrab_FlatGrab();
         }
+        return;
+    }
+    // Flatscreen play's F7 (vr_flatplay.cpp sends it): the toolgun in the main hand, and back.
+    if(self.impulse == 49)
+    {
+        self.impulse = 0;
+        VR_FlatToolgun_Toggle();
         return;
     }
 

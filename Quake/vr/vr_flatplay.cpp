@@ -47,7 +47,9 @@
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_slidesound.hpp"
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
@@ -273,6 +275,23 @@ constexpr float bobEase = 6.f;
 constexpr float breathRate = 1.6f; // rad/s
 constexpr float breathUp = 0.2f;
 constexpr float breathSide = 0.1f;
+
+// The slide's turn of the body (poseHands): its eased share (no stance turn, the hips and legs to the slide's way), the
+// slide's way (degrees, kept from the last frame it was moving) and the chest's turn back to the view (trunkTwist).
+struct SlideTurn
+{
+    float lin{0.f};
+    float yaw{0.f};
+    float twist{0.f};
+};
+SlideTurn slideTurn;
+
+// Sliding: the walk's bob (the drawn view's, the hands', the body's ride) times this, vr_flat_slide_bob of it at a full
+// slide pose (no walk: the feet stayed on the floor while the body bobbed through it).
+[[nodiscard]] float slideBobScale()
+{
+    return 1.f - (1.f - za::clamp(vr_flat_slide_bob.value, 0.f, 1.f)) * flatmove::slideShare();
+}
 constexpr float breathPitch = 0.15f;
 
 // The camera the hands are kept on: the drawn view, unless it is somewhere else (the chase camera, the ragdoll tool's
@@ -820,9 +839,12 @@ void shoveFrame()
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
-    // The force grab's key (vr_flat_key_grab, R: E became the right lean, vr_flatmove.cpp).
-    const int grabKey = Key_StringToKeynum(vr_flat_key_grab.string);
-    const bool grab = inGame && grabKey > 0 && grabKey < MAX_KEYS && keydown[grabKey] != 0;
+    // The force grab's keys (vr_flat_key_grab, mouse 4: the side button the shove leaves; vr_flat_key_grab_alt, R).
+    const auto down = [inGame](const cvar_t& c) {
+        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    };
+    const bool grab = down(vr_flat_key_grab) || down(vr_flat_key_grab_alt);
     const bool v = inGame && keydown['v'] != 0;
     bool fire[2];
     fire[HAND_OFF] = client::attacking(HAND_OFF);
@@ -894,6 +916,50 @@ void proneToggle_f()
         return;
     }
     toggleProne("vr_prone_toggle");
+}
+
+// The toolgun in flatscreen play (vr_toolgun.cpp has the headset's buttons): F7 (vr_flat_key_toolgun) puts it in the
+// main hand and back (impulse 49, QC weapons.qc VR_FlatToolgun_Toggle); with it held, the main hand's fire button (the
+// left mouse button) is its trigger, and mouse 3 (vr_flat_key_toolgun_menu) its B/Y: the panel.
+struct FlatToolgunKeys
+{
+    bool key{false};  // vr_flat_key_toolgun, last frame
+    bool menu{false}; // vr_flat_key_toolgun_menu, last frame
+    bool fire{false}; // the main hand's fire, last frame, while the toolgun was held
+};
+FlatToolgunKeys flatTg;
+
+void toolgunKeys()
+{
+    const bool inGame = key_dest == key_game;
+    const auto down = [inGame](const cvar_t& c) {
+        const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
+        return inGame && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    };
+    const bool key = down(vr_flat_key_toolgun);
+    if(key && !flatTg.key)
+    {
+        Cbuf_InsertText("impulse 49\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: the toolgun\n", vr_flat_key_toolgun.string);
+        }
+    }
+    flatTg.key = key;
+    const bool held = toolgun::heldHand() == HAND_MAIN;
+    const bool menu = down(vr_flat_key_toolgun_menu);
+    if(menu && !flatTg.menu && held)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, true);
+        (void)toolgun::button(HAND_MAIN, posing::Button::Secondary, false);
+    }
+    flatTg.menu = menu;
+    const bool fire = held && client::attacking(HAND_MAIN);
+    if(fire != flatTg.fire)
+    {
+        (void)toolgun::button(HAND_MAIN, posing::Button::Trigger, fire);
+    }
+    flatTg.fire = fire;
 }
 
 void pollKeysFlat()
@@ -997,6 +1063,7 @@ void pollKeysFlat()
     }
     fs.keyShove = shove;
     shoveFrame();
+    toolgunKeys();
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -1193,7 +1260,9 @@ void stepFeel()
 
     // The walk's bob: its size eased with the speed on the ground, its cycle with the speed.
     const float speed = glm::length(glm::vec2{vel.x, vel.y});
-    const float ampTarget = cl.onground && !noclip_anglehack ? za::clamp(speed / runSpeed, 0.f, 1.3f) : 0.f;
+    // (Sliding: no walk, no bob, vr_flat_slide_bob of it: slideBobScale.)
+    const float ampTarget =
+        cl.onground && !noclip_anglehack ? za::clamp(speed / runSpeed, 0.f, 1.3f) * slideBobScale() : 0.f;
     feel.amp += (ampTarget - feel.amp) * ease(bobEase, dt);
     if(feel.amp > 1e-3f)
     {
@@ -1454,6 +1523,7 @@ void frame()
         feel = Feel{};
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         flatmove::frame(false);
+        slidesound::frame(false);
         return;
     }
 
@@ -1465,6 +1535,12 @@ void frame()
     pollKeys();
     pollKeysFlat();
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
+    slidesound::frame(true); // its scrape (vr_slidesound.cpp)
+}
+
+float trunkTwist()
+{
+    return active() && bodyPose() ? slideTurn.twist : 0.f;
 }
 
 float chestPitch(float pitch)
@@ -1781,7 +1857,33 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     dt = za::clamp(dt, 0.0, 0.1);
 
     // The flat branch turns the body to the view the same way; a long gun's stance turns it off the view (the view stays).
-    s.bodyYaw = aim.y + flatsight::stanceYaw();
+    // Sliding (vr_flatmove.cpp; his words 2026-11-08): no stance turn (the leant-back trunk turned off the view bent the
+    // legs), eased out over vr_flat_slide_turn_time; and with vr_flat_slide_legs the hips and legs face the slide's way,
+    // the chest turned back to the view (trunkTwist), at most vr_flat_slide_legs_twist off it.
+    {
+        SlideTurn& t = slideTurn;
+        const bool slide = flatmove::sliding();
+        if(dt > 0.0)
+        {
+            const float step = static_cast<float>(dt) / za::clamp(vr_flat_slide_turn_time.value, 0.02f, 1.f);
+            t.lin += za::clamp((slide ? 1.f : 0.f) - t.lin, -step, step);
+        }
+        const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
+        if(slide && glm::length(vel) > 60.f)
+        {
+            t.yaw = geom::yawOf(glm::vec3{vel, 0.f});
+        }
+        const float share = geom::smooth01(t.lin);
+        float off = 0.f;
+        if(vr_flat_slide_legs.value != 0.f && share > 0.f)
+        {
+            off = geom::yawDelta(t.yaw, aim.y);
+            const float most = za::clamp(vr_flat_slide_legs_twist.value, 0.f, 90.f);
+            off = za::clamp(off, -most, most) * share;
+        }
+        t.twist = -off;
+        s.bodyYaw = aim.y + flatsight::stanceYaw() * (1.f - share) + off;
+    }
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
@@ -2443,6 +2545,12 @@ void traceCrouch(float eyeZ)
 // set here and drawnOffset keeps the drawn hands on it, so the crosshair moves with the eye and the gun stays on the
 // crosshair. His own origin, his collision box and the crouch's box are not touched (vr_hull.cpp, vr_server.cpp measure
 // them from where he stands). Outside the mode, and in a chase view, the view is left exactly as it was.
+// V_CalcRefdef: Quake's view bob (cl_bob) times this: sliding, vr_flat_slide_bob of it (slideBobScale); 1 outside the mode.
+extern "C" float VR_FlatBobScale()
+{
+    return qvr::flatplay::active() ? qvr::flatplay::slideBobScale() : 1.f;
+}
+
 extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
 {
     if(!qvr::flatplay::active() || chase_active.value)
