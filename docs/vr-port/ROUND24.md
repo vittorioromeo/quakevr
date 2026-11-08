@@ -4959,9 +4959,15 @@ Brief `qvr-kit/scratch/brief_embed1108b.md`: items 5, 13 and 14 of part one's br
   `embed_crates` (sword and axe, two crates, two barrels).
 - **Box3D's slot for a reused edict (item 3):** a prop's body now knows when it was made (`Slot::madeAt`); a body made
   before its edict was last freed (`edict_t::freetime`) is the old thing's, and `box3d::contactPoint` doesn't read its
-  contacts (the stale body stays until the next sync remakes it). Test 1's second sword, thrown into the same wound 0.3 s
-  after the first was removed, read the first's touch there (within the blade's reach, so part one's distance check let it
-  through): "hit something with the hilt", never stuck, and the next 12 checks with it.
+  contacts (the stale body stays until the next sync remakes it). Test 1 on the merged tree before it: 49/12 and 48/13 (its
+  second sword never stuck in the live body: "struck monster_army first, -0.40 of the step", thrown from 13 units off a body
+  standing nearer than in part one; the chain of checks after it failed with it); after: 61/0. Not proven to be the cause
+  (the run's positions differ from part one's), but the run is clean.
+- **A prop host is not a body:** stickHeld's prop path takes only a Box3D prop that is no monster and no ragdoll (a
+  staggering or dead body is a rigid toss too).
+- **Tests at the end:** 1 61/0; 11 102/16 and 115/10 (the merged tree without these changes: 120/5 once; part one 103/15
+  and 117/8: it varies run to run; no blade went into a crate in it); 21 41/2 (the known 2); 26 27/0; 27 22/0; 28 13/0;
+  29 10/0; 30 11/0.
 ## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
 
 QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.

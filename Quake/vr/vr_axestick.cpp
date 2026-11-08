@@ -1671,7 +1671,10 @@ int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3&
     constexpr float nearEnough = 32.f; // units
     // A wooden crate or barrel (QC VR_Embed_PropHost): its Box3D body, the blade riding its origin and angles (kind Prop).
     glm::vec3 propPoint{0.f};
-    const bool prop = isProp(host);
+    // (Not a body: a ragdoll, staggering or dead, is a rigid toss too, and its model is what a blade goes into.)
+    const int hostNum = NUM_FOR_EDICT(host);
+    const bool prop = isProp(host) && !(static_cast<int>(host->v.flags) & FL_MONSTER) && !box3d::isRagdoll(hostNum) &&
+                      box3d::isBox3DProp(hostNum);
     if(prop && hand < 0)
     {
         propPoint = at;
