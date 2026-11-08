@@ -1075,7 +1075,7 @@ QVR_CVAR(vr_lean_turn, "2", CVAR_ARCHIVE)            // a stick turn while leani
 QVR_CVAR(vr_roomscale_jump, "1", CVAR_ARCHIVE)          // jumping in the room jumps in the game: the head rising faster than
 QVR_CVAR(vr_roomscale_jump_threshold, "0.8", CVAR_ARCHIVE) // this (m/s) above the standing height
 QVR_CVAR(vr_roomscale_move_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_teleport_enabled, "0", CVAR_ARCHIVE)     // 0 off; 1 Bound Button (+teleport held: the off hand aims); 2 Smooth + Teleport (vr_teleport.cpp: the moving stick walks, the turning stick's push forward aims with its hand, +teleport too; from the ground only, arriving still)
 QVR_CVAR(vr_teleport_range, "400", CVAR_ARCHIVE)
 QVR_CVAR(vr_teleport_hue, "-1", CVAR_ARCHIVE)         // the aiming arc's colour where it can land: hue (degrees; 220 blue; -1 vr_player_hue; red where it can't)
 QVR_CVAR(vr_2h_mode, "2", CVAR_ARCHIVE)
