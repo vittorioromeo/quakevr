@@ -4777,4 +4777,14 @@ His voice notes start_16-51-19, vrclimb_17-20-00 and 17-20-42, vrragtriggers_17-
   forward x up) and `vr_adgun_tank_worn_back` (0) farther out. Same rule for every kind; an enforcer's tank sits
   right of its model's power pack.
 - **Test:** `vr_rag1108_test 1..5` (Debug > Tests, four rows; ends on `rag1108<part>: N passed, M failed`).
-  RESULTS_PLACEHOLDER
+  Results: removal 5/0; gib rule 6/0; shoves 4/0 in four runs (test 5's one-hand shove 100 % up: a balance step,
+  balance 0.51; an earlier old-style timeout in state 46 did not come back in three runs); tanks 9/0 (each 6.8-7.9
+  units right, 1.7-2.0 off the pack's box). The hang struggle (vrtesthall west lip, grunt, hang then drop, seed 7): its
+  feet's travel 194 units at kick 0, 213 at 1, 265 at 2, 297 at 3; the hold let go at 2.42 s every time (its timer, not
+  the kicks). `climb_test.sh` (grunt, knight, enforcer; pull and drop; 2 seeds): the same outcomes and times with
+  KICK 0 and 1 (the grunt's pull "too weak to rise" and the enforcer's "no grab" in both: not from this). Default
+  raised to 2. No tank screenshot: the author's game was running (low-impact runs only).
+- **Regressions run (low-impact, no baseline build at hand):** wornpack 1 25/0, 5 7/0, 3 11/1 (a gentle pull's
+  force 2378 N, physics); agrunt 2 2/2 (rearm takes no guns, drop finds nothing), 74 0/1 (downtug, on the 11-06
+  night's new-fails list); `stagger_test.sh` 5 FAIL (ragdoll_stagger is on QUEUE's pre-existing list). agrunt 2 is not
+  proven unrelated: re-run it on a clean origin/next.
