@@ -73,6 +73,7 @@ const Row fieldRows[NumFields] = {
     {"Leather", &vr_armourstudio_leather, 0.f, 1.f, 1.f, "%.0f"},
     {"Leather Folds", &vr_armourstudio_folds, 0.f, 4.f, 1.f, "%.0f"},
     {"Fold Depth", &vr_armourstudio_fold_depth, 0.f, 1.f, 0.02f, "%.2f"},
+    {"Hero Plates", &vr_armourstudio_hero, 0.f, 1.f, 1.f, "%.0f"},
 };
 constexpr const char* kindLabels[NumKinds] = {"Grunt", "Enforcer", "Knight", "Death Knight", "Player (Your Body)"};
 constexpr const char* tierLabels[3] = {"Green", "Yellow", "Red"};
@@ -191,6 +192,23 @@ void valueRow(const Row& r, const int field)
         if(ImGui::IsItemHovered())
         {
             ImGui::SetTooltip("%s: this sleeve part's leather (elbow or knee) drawn, or not at all (leather \"0\" in the file)", r.cvar->name);
+        }
+        ImGui::PopID();
+        return;
+    }
+    if(field == Hero)
+    {
+        // (the piece's hero plates: on or off, a checkbox)
+        bool on = v > 0.5f;
+        if(ImGui::Checkbox("Hero Plates", &on))
+        {
+            Cvar_SetValueQuick(r.cvar, on ? 1.f : 0.f);
+        }
+        noteSpot("hero");
+        if(ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("%s: this part's hero plates (a row's plates as one: the breastplate, the pauldrons' top row, the elbows' "
+                              "and knees' cops), or every plate its own (hero \"0\" in the file)", r.cvar->name);
         }
         ImGui::PopID();
         return;
@@ -455,10 +473,11 @@ void drawWindow()
         for(int f = 0; f < NumFields; f++)
         {
             // (the plates' rows: not the helmet's or a sleeve's; the tapers: not the helmet's (a sleeve's leather tapers too);
-            // leather: the sleeves' alone)
+            // leather: the sleeves' alone; hero plates: the parts that have them)
             const bool plates = partNow != PartHelmet && partNow < PartPauldronSleeve;
+            const bool heroPart = partNow == PartCuirass || partNow == PartPauldron || partNow == PartBracer || partNow == PartShin;
             if(((f == Leather || f == Folds || f == FoldDepth) && partNow < PartPauldronSleeve) || ((f == Start || f == End || f == Rows) && !plates) ||
-                ((f == TaperStart || f == TaperEnd) && partNow == PartHelmet))
+                ((f == TaperStart || f == TaperEnd) && partNow == PartHelmet) || (f == Hero && !heroPart))
             {
                 continue;
             }

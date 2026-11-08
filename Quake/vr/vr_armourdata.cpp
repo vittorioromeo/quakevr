@@ -57,6 +57,8 @@ constexpr const char* fileHead =
     "//   taper_start \"s\"  the plate rows' size round its line at its first row (1 as made), lerped row by row to ...\n"
     "//   taper_end   \"s\"  ... this at its last row (a thigh wider at the hip, narrower at the knee: 1.15 and 0.9)\n"
     "//   leather  \"0\"       a sleeve's leather not drawn at all (1 or unset: drawn)\n"
+    "//   hero     \"0\"       its hero plates off, every plate its own (1 or unset: the breastplate, the pauldrons' top row,\n"
+    "//                      the elbows' and knees' cops each one plate over several columns; vr_agarmor_hero 0: off everywhere)\n"
     "// (start, end, rows and the tapers: the cuirass and the limbs' plates; not the helmet or the sleeves; leather: the sleeves)\n";
 
 [[nodiscard]] Entry* find(const char* name)
@@ -287,7 +289,7 @@ void parse(const char* text, za::Vector<Entry>& into)
                 if(field < 0)
                 {
                     Con_Printf("\x02%s: no key \"%s\" (offset, rotate, scale, standoff, start, end, rows, taper_start, taper_end, "
-                               "leather, folds, fold_depth): ignored\n", pathText, key.cStr());
+                               "leather, folds, fold_depth, hero): ignored\n", pathText, key.cStr());
                     problems++;
                     continue;
                 }

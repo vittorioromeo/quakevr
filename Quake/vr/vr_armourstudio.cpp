@@ -45,7 +45,7 @@ constexpr int subjectKinds = 4;        // (QC's VR_AM_GRUNT .. VR_AM_DKNIGHT; th
 cvar_t* const fieldCvars[NumFields] = {&vr_armourstudio_offset_x, &vr_armourstudio_offset_y, &vr_armourstudio_offset_z,
     &vr_armourstudio_pitch, &vr_armourstudio_yaw, &vr_armourstudio_roll, &vr_armourstudio_scale, &vr_armourstudio_standoff,
     &vr_armourstudio_start, &vr_armourstudio_end, &vr_armourstudio_rows, &vr_armourstudio_taper_start, &vr_armourstudio_taper_end,
-    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth};
+    &vr_armourstudio_leather, &vr_armourstudio_folds, &vr_armourstudio_fold_depth, &vr_armourstudio_hero};
 
 // The subject's model's animations: its frames grouped by name ("stand1".."stand8": stand).
 constexpr int maxAnims = 64;
@@ -224,6 +224,10 @@ void syncFields()
         // (leather 1, or on a part with no sleeve: as made; 0 hides a sleeve's)
         o->v[Leather] = f == Leather ? (o->v[Leather] < 0.5f ? 0.f : 1.f) : o->v[Leather];
         o->has &= f == Leather && (o->v[Leather] > 0.5f || part < PartPauldronSleeve) ? ~(1u << static_cast<unsigned>(Leather)) : ~0u;
+        // (hero plates 1, or on a part with none (the helmet, the thighs, the sleeves): as made; 0 every plate its own)
+        o->v[Hero] = f == Hero ? (o->v[Hero] < 0.5f ? 0.f : 1.f) : o->v[Hero];
+        const bool heroPart = part == PartCuirass || part == PartPauldron || part == PartBracer || part == PartShin;
+        o->has &= f == Hero && (o->v[Hero] > 0.5f || !heroPart) ? ~(1u << static_cast<unsigned>(Hero)) : ~0u;
         // (the folds: whole, 0-4; as the global settings, or on a part with no leather: not written)
         o->v[Folds] = f == Folds ? za::clamp(static_cast<float>(static_cast<int>(o->v[Folds] + 0.5f)), 0.f, 4.f) : o->v[Folds];
         const float global = f == Folds ? vr_agarmor_folds.value : vr_agarmor_fold_depth.value;

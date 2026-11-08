@@ -262,6 +262,9 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_agarmor),
         row(opt::vr_agarmor_pieces),
         row(opt::vr_agarmor_bridge),
+        row(opt::vr_agarmor_details),
+        row(opt::vr_agarmor_hero),
+        row(opt::vr_agarmor_emblem),
         row(opt::vr_agarmor_folds),
         row(opt::vr_agarmor_fold_depth),
         row(opt::vr_agarmor_bend),
@@ -1127,6 +1130,10 @@ za::Vector<Item> pageArmourStudio()
         toggle("Leather Sleeve Shown", vr_armourstudio_leather)
             .help("vr_armourstudio_leather: a sleeve part's leather (over the elbow or the knee) drawn, or not at all (saved as "
                   "leather \"0\"). Pick a sleeve part and a side to hide one strap alone."),
+        toggle("Hero Plates", vr_armourstudio_hero)
+            .help("vr_armourstudio_hero: the part's hero plates, a row's plates drawn as one: the cuirass's breastplate, the "
+                  "pauldrons' top row as two big plates, the bracers' elbow cop, the shins' knee cop. Off: every plate its own "
+                  "(saved as hero \"0\"). The thighs, the helmet and the sleeves have none."),
         header("Animation"),
         info(armourStudioAnimStatus),
         toggle("Play an Animation", vr_armourstudio_anim)

@@ -324,6 +324,7 @@ extern cvar_t sv_random_seed;			// pr_cmds.c: the server's random numbers' seed 
 int VR_ProbeRandom (void);			// QC's random() while the kinds that can appear are made as a map loads (vr_progs.cpp): its own numbers, 0..0x7fff; -1 otherwise
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
+int VR_ModelIndexNotPrecached (const char *name); // SV_ModelIndex of a name never precached: late (0: unloadable), -1: the error
 int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
 void VR_OnMakeStatic (edict_t *ent);	// PF_makestatic, before the entity is freed (a static torch or flame: vr_debris.cpp)
 int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the ground: nonzero to stay

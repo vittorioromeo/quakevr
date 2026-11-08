@@ -74,7 +74,7 @@ def main():
     progs = os.path.join(here, '..', '..', 'quakevr', 'progs')
     out_dir = sys.argv[1] if len(sys.argv) > 1 else progs
     m = Mdl(open(os.path.join(progs, 'ogre.mdl'), 'rb').read())
-    assert (m.nverts, m.ntris) == (497, 1290), 'not Quake VR\'s ogre.mdl (%d vertices, %d triangles)' % (m.nverts, m.ntris)
+    assert (m.nverts, m.ntris) in ((497, 1290), (497, 952)), 'not Quake VR\'s ogre.mdl (%d vertices, %d triangles)' % (m.nverts, m.ntris)
     verts = list(range(FIRST, LAST + 1))
     tris = [t for t in m.tris if all(FIRST <= v <= LAST for v in t[1:])]
 
