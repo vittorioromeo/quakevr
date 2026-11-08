@@ -2122,6 +2122,11 @@ QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
 QVR_TUNABLE(vr_embed_brake, "25") // 1/s: running into a stab you hold, your speed along the blade into the body falls to Brake: Speed this fast (0: never; his note 2026-11-08)
 QVR_TUNABLE(vr_embed_brake_speed, "0.5") // m/s along the blade into the body you keep at most while braked
+QVR_TUNABLE(vr_embed_props, "1") // 1: held stabs and swings stay in wooden crates and barrels as in bodies (his notes 2026-11-08; QC vr_embedhold.qc VR_Embed_PropHost)
+QVR_TUNABLE(vr_embed_prop_force, "700") // N a blade held in a crate or barrel pulls it with at most along the floor, one hand (Moving: Two Hands with both; Blade Hold Strength): a small crate (40 kg) weighs some 830 N
+QVR_TUNABLE(vr_embed_prop_lift, "0.5") // times its weight that pull lifts at most, one hand (two: Moving: Two Hands' times): dragged and tipped, not hoisted on one blade
+QVR_TUNABLE(vr_embed_prop_hertz, "4") // Hz: how stiffly that pull holds the crate to the blade before its cap
+QVR_TUNABLE(vr_embed_prop_stick, "2") // times how hard a blade in a crate slides, of in a body (and its slide's speed over it)
 QVR_TUNABLE(vr_embed_move_sword_lift, "1") // times the body's weight a sword barely in lifts (Skewer 1; Moving: Sword's Force on top of it)
 QVR_TUNABLE(vr_embed_move_sword_lift_deep, "2.5") // ... in as far as it goes: a grunt held up over your head
 QVR_TUNABLE(vr_embed_lean_sword, "3") // degrees a sword held in a body turns with the hand on its handle, any way (0: rigid)

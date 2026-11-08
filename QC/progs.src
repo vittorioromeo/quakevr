@@ -171,6 +171,7 @@ vr_embed_test.qc
 vr_playerplates_test.qc
 vr_embed_edge_test.qc
 vr_embed_1108_test.qc
+vr_embed_1108b_test.qc
 vr_agarmor_fx_test.qc
 vr_agarmor_shot_test.qc
 vr_crouch_test.qc

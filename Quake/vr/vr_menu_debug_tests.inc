@@ -1310,6 +1310,13 @@ za::Vector<Item> pageDebugTests()
             .help("How closely a body follows the hand on a stuck blade, by Blade Hold Strength and the Moving: tunables: a staggering "
                   "grunt and a dead one, a deep sword and an axe, swung sideways, lifted over your head, pulled slowly. Prints each "
                   "case's follow and lag, then embedforce: N passed, M failed."),
+        command("Skewered Gibs Through Stick Turns Check", "vr_embed_test 29")
+            .help("A gib on the sword in the hand, then a smooth turn, snap turns, a move and both with the sticks: the drawn gib stays "
+                  "on the drawn blade (vr_embed_probe_skew). Prints embed1108b: N passed, M failed."),
+        command("Blades in Crates and Barrels Check", "vr_embed_test 30")
+            .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a crate, held, dragged, lifted, let "
+                  "go of, pulled out, the crate broken; an axe into a barrel; Crates: Blades Stick off. Prints embedprops: N passed, M "
+                  "failed."),
         command("Embedded Blades: Skewering Check", "vr_embed_test 21")
             .help("Destructive: in the open with god and notarget (vrtesthall): stabs gibs onto a held sword, up to its most, slashes "
                   "another, takes one off with the other hand, switches weapon. Prints embedskewer: N passed, M failed."),

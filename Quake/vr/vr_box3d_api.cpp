@@ -758,7 +758,9 @@ bool contactPoint(int num, glm::vec3& point)
         return false;
     }
     const Slot& s = world->slots[num];
-    if(s.kind != Kind::Prop || b3Body_GetContactCapacity(s.body) <= 0)
+    // (A body made before its edict was last freed is the thing that had its number before: its contacts aren't this one's.
+    // A thrown blade given the number of one just removed read that one's last touch in the same wound: vr_embed_test 1.)
+    if(s.kind != Kind::Prop || B3_IS_NULL(s.body) || EDICT_NUM(num)->freetime > s.madeAt || b3Body_GetContactCapacity(s.body) <= 0)
     {
         return false;
     }

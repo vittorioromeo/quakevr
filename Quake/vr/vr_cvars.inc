@@ -1179,6 +1179,8 @@ QVR_CVAR(vr_embed_probe_on, "0", CVAR_NONE)            // frames a hand was draw
 QVR_CVAR(vr_embed_probe_grip, "-1", CVAR_NONE)         // cm the most the drawn hand was from where it holds the drawn weapon, easing off a blade
 QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn weapon's offset from its controller changed in a frame, off a blade (the blade's before)
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
+QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
+QVR_CVAR(vr_embed_probe_skewn, "0", CVAR_NONE)         // and the frames it was measured in
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)

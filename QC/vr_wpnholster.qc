@@ -126,6 +126,8 @@ void(entity xProp) VR_Saw_PropTaken;
 void() VR_Saw_PropThink;
 void(entity xNew) VR_EnemyWeapons_MakeRoom;
 
+float(entity e) VR_Embed_Held; // (vr_embedhold.qc)
+
 void() wpnthrow_think =
 {
     if(deathmatch && time > GetThrownWeaponTimeout(self))
@@ -142,7 +144,8 @@ void() wpnthrow_think =
         VR_AxeStick_Think(); // stuck in something by its blade (vr_axestick.qc)
         if(self.think == wpnthrow_think)
         {
-            self.nextthink = time + 0.02;
+            // (Held in a crate: every frame, its pull on the crate's body a steady force: vr_embedhold.qc VR_Embed_PropSpring.)
+            self.nextthink = (self.vr_stick_kind == 2 && VR_Embed_Held(self)) ? time : time + 0.02; // (2: AXESTICK_PROP)
         }
         return;
     }
