@@ -4430,3 +4430,38 @@ triangles, positions and texture coordinates are unchanged (compared as triangle
 - **Test it in VR:** hold each next to the shotgun: the nail pistol's body the same deep blue-black steel with the silver
   bar and frames bright; the flare gun a touch darker and browner, its front blade no longer glaring; the rifle darker and
   dirtier, its details still readable; grunts' rifles alike.
+## Model topology pass 2: the models skipped last time (branch `agent/selfshot`, 2026-11-08)
+
+The skipped models of "Model topology fixes, steps 1-5" (same tools, same gates: compare.py at the model's noise floor,
+all poses x 26 views; check_mdl_holes no worse; anchors; fx_gfx_mask remapped; .blend rebuilt and re-exported
+byte-identical). One commit per model.
+
+- **source.py export crash fixed:** checks.py's findings (a monster's knownSwords counts) are (what, amount), and the
+  anchor loop unpacked them as (what, text, dist): now warnings carrying the CHECK lines.
+- **Generators keep the fixes:** `Misc/quakevr/mdltopo/clean.py` (fix.py's degen + weld steps, no render gate: both
+  invisible by construction); `mdlgen.write_mdl(..., clean=True)`, passed by the widowmaker, revolver and flare gun
+  export_mdl.py. Their exports now reproduce every shipped fixed file byte for byte; vr_widowmaker_preview gets its fix
+  from it (16 zero-area triangles, 2 welds; its 2 hidden triangles stay: removing them opens cracks). vr_flare.mdl's
+  export differs from the shipped file before this change too (same counts, 391k px: not topology; left).
+- **enforcer, hknight:** 60 and 4 zero-area triangles (no welds, so vertex numbers, rig weights and knownSwords' vertex
+  ranges are unchanged); vrenforcer/vrhknight follow their .blend exports (0 px). The counts the code keys them by:
+  vr_monstermods.cpp knownSwords (Enforcer 479/924, Hknight 538/996), checks.py KNIGHTS, make_vrgrunt.py (vrenforcer's
+  gun 112 triangles), make_enemyguns.py (the rifle 112: the six it dropped as degenerate are gone at the source).
+  `vr_ragdoll_rig_sweep`: 23 rigged, 0 failed.
+- **v_nailpistol:** 328 welds (518 triangles kept); slot 36's barrel mask is already for 518 (fixed in 4b9a6369c). Its
+  magMounts point is 0.152 off the surface in the original too (unmoved). The magazines and the preview: nothing to fix.
+- **v_shot2:** 2 zero-area triangles, 35 welds; the open halves follow (0 px). The barrels' normal map rebakes: 1418
+  texels, all within 10 map pixels of the two removed triangles' skin footprints (never-drawn normals no longer vote
+  in the bake's per-texel agreement). The 3 duplicate triangles stay (make_ssg_open sends the copies to different
+  halves: 215 px).
+- **v_shot: not done.** With or without welds, rebuilding v_shot.blend re-bakes vr_pumpbody_on_v_shot's normal map
+  widely (no welds: 16,836 texels, 1,157 of the drawn ones by over 2 degrees, 308 over 10; most far from the removed
+  triangles), while the geometry compares 0 px. Not explained yet (the part's re-cut has 24 fewer unused vertices),
+  so not shipped. The attempts are in the worktree's `scratch/topo2/vshot_noweld` (and `vshot_weld`).
+- **Z-fights (Job B's step on these models):** 94 static different-texel pairs (v_shot 25 and its pump parts 23,
+  v_shot2 6 and its barrels 9, vr_widowmaker_preview 16, vr_nailpistol_preview 14, v_nailpistol 1; enforcer and
+  hknight none). None decidable automatically: no triangle is covered (at most 94%), none hidden, none a duplicate.
+  Listed in `C:/OHWorkspace/qvr-kit/scratch/zfight_jobA_pairs.md` for the nudge/cut tool; nothing changed.
+- **Tests:** build ok; e1m2, e2m3, e3m3 load clean; flatsight_test 12 passed 0 failed.
+- **To try (VR):** the super shotgun broken open (the barrels' shading near the hinge, as before); enforcers and hell
+  knights dropping their rifle/sword on death as before; the nail pistol and the widowmaker preview unchanged.
