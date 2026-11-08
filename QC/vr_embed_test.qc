@@ -2959,6 +2959,7 @@ void() VR_ETS_Step =
         vr_ets_way = vr_skewer_way;
         vr_ets_hb = vr_ets_peak;
         vr_ets_ho = 0;
+        vr_eh_sounds = vr_embed_slidesounds;
         VR_ET_To(13);
     }
     else if(vr_et_s == 13)
@@ -2974,6 +2975,7 @@ void() VR_ETS_Step =
         vector c13 = vr_skewer_tip - vr_skewer_way * VR_Skewer_Back(g, l13);
         VR_Test_Check(fabs(VR_Skewer_Back(g, l13) - (vr_ets_peak - 4)) < 1 && vlen(g.vr_skewer_c - c13) < 1, sprintf("it slides along the blade with the hand: %.1f back from the tip, was %.1f; %.2f off its line", VR_Skewer_Back(g, l13), vr_ets_peak, vlen(g.vr_skewer_c - c13)));
         VR_Test_Check(g.vr_skewer_p == p, "not off the blade for it");
+        VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding it along the blade squelches (%g; his note 2026-11-08)", vr_embed_slidesounds - vr_eh_sounds));
         // Towards the hilt: the next along stops it.
         VR_ET_To(14);
     }

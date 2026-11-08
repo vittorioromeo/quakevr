@@ -4741,7 +4741,30 @@ should be a user-facing option for it in vr settings, ensure that they do not co
 
 ## Embedded blades: his 11-08 notes, part one (branch `agent/embed1108`, worktree embed5, 2026-11-08)
 
-Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 6, 8, 9, 11; 10 checked. Not done: 1-5, 7, 12-14.
+Brief `qvr-kit/scratch/brief_embed1108.md` (14 items). Done here: 1, 2, 4, 6, 7, 8, 9, 11, 12; 10 checked. Not done:
+3, 5, 13, 14.
+
+- **Dents where a blade strikes a dead ragdoll (item 12, note 17:07):** a hand's blow on a corpse (VR_Corpse_Struck)
+  began its hit record with the point but never named the corpse (VR_Hit_SetZone), so VR_Hit_Where took the middle of
+  the corpse's box: the wound and dent went from there along the blow, anywhere on a ragdoll lying (29 units off in
+  the test). Now the strike point. Blunt blows on corpses had the same fault.
+- **A cut-off head or limb sits in the blade (item 7, note 17:03):** Cut-Off Parts: In the Blade
+  (`vr_embed_cuton_depth`, 0.6; 0 the old place, its cut end on the edge, beside the blade): its middle ahead of the
+  edge the way the swing went (the hand's speed off the blade's line; under 1 m/s the side it was on), the edge in it by
+  that share of its radius. Test 26: middles 1.6-2.6 units from the axe's end, 27/0.
+- **The other hand on a skewered gib (items 1, 2, notes 17:08, 17:11):** the hand drawn on the gib is pinned on its
+  surface, not where the controller closed inside it (vr_view_hands.cpp skewerDrawnHand: out from the model's middle to
+  its size plus 2 units). Torn off or slid off the tip, the gib comes to the hand where it held it (QC VR_Skewer_Take,
+  .vr_skewer_gripd), no gap. The other hand still passes through a skewered gib before it grips (not solid on the blade:
+  see item 3). Not measured in the mock (the probe measures the pin, not the surface); for his eyes.
+- **Sliding a gib along the blade (item 4, note 17:10):** the flesh squelch every Slide Sound cm (VR_Embed_SlideFlesh)
+  and a buzz in both hands by its speed. Test 21: "sliding it along the blade squelches (4)".
+- **Not done:** item 3 (shots and blows through a skewered gib): it is `SOLID_NOT` on the blade by design (its own
+  blade's sweeps, the drawn hands, the force grab pass it); there is no `SOLID_CORPSE`, so a hit needs its own route
+  (a trace check in the shot and melee paths), not started. Item 5 (lag when turning or moving with the stick): the
+  gib is placed on the server from the hand each frame and drawn a frame late against the hands, which the client
+  draws from the newest pose; it needs a client-side correction like the held weapon's, not started. Items 13-14
+  (crates and barrels) not started.
 
 - **A stab that kills leaves the blade floating (item 8, notes 17:16, 17:17):** the cause is the stab killing the target,
   not two hands or running. The blow is dealt before the blade is put in (VR_Embed_BlowsDone), so the body is already

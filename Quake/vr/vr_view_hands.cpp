@@ -2534,6 +2534,20 @@ void skewerDrawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3&
         pin.ent = num;
         pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
         pin.localTurn = turn * anglesBasis(s.rot[hand]);
+        // On its surface, not inside it (his note 2026-11-08 17:11: a hand closed in the gib was drawn deep in it): out from the
+        // model's middle to its size, as QC's VR_Skewer_Grip has it (its VR_Skewer_Radius plus the palm).
+        constexpr float skewerPalm = 2.f; // units (QC VR_SKEWER_PALM)
+        const glm::vec3 lo{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
+        const glm::vec3 hi{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+        const glm::vec3 mid = (lo + hi) * 0.5f;
+        const glm::vec3 size = hi - lo;
+        const float reach = za::fmax(2.f, (size.x + size.y + size.z) / 6.f) + skewerPalm;
+        const glm::vec3 out = pin.local - mid;
+        const float len = glm::length(out);
+        if(len < reach)
+        {
+            pin.local = mid + (len > 1e-3f ? out / len : glm::vec3{0.f, 0.f, 1.f}) * reach;
+        }
     }
     pin.weight = usable ? za::fmin(1.f, pin.weight + dt / embedPinIn) : 0.f;
     if(pin.weight <= 0.f)

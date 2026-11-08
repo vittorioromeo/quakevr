@@ -765,6 +765,7 @@ float cvarh_vr_embed_arm_stretch_ease;
 float cvarh_vr_embed_brake;
 float cvarh_vr_embed_brake_speed;
 float cvarh_vr_embed_cuton;
+float cvarh_vr_embed_cuton_depth;
 float cvarh_vr_embed_cuton_fling;
 float cvarh_vr_embed_drag_slack;
 float cvarh_vr_embed_enter_time;
@@ -2700,6 +2701,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_embed_brake = VR_CVar_Make("vr_embed_brake");
     cvarh_vr_embed_brake_speed = VR_CVar_Make("vr_embed_brake_speed");
     cvarh_vr_embed_cuton = VR_CVar_Make("vr_embed_cuton");
+    cvarh_vr_embed_cuton_depth = VR_CVar_Make("vr_embed_cuton_depth");
     cvarh_vr_embed_cuton_fling = VR_CVar_Make("vr_embed_cuton_fling");
     cvarh_vr_embed_drag_slack = VR_CVar_Make("vr_embed_drag_slack");
     cvarh_vr_embed_enter_time = VR_CVar_Make("vr_embed_enter_time");
