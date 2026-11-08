@@ -6,7 +6,7 @@ Delete this comment before publishing: -Publish refuses notes with the DRAFT mar
 
 ## Highlights
 
-- **Armed humanoids, on by default**: grunts, enforcers, knights and death knights now carry real weapons, including yours, and use them with the player weapons' own code. Grab a grunt's shotgun and fight him for it in a physical tug-of-war, knock it out of his hand with a strike or a shot, then turn it on him. They parry your blows (and you theirs), keep their distance, mind their friends, dual-wield, wear backpacks you can lift off and drop what they hold when they die. Turn it off with Gameplay > Replace All Humanoids (`vr_agrunt_repl 0`).
+- **Armed humanoids, on by default**: grunts, enforcers, knights and death knights now carry real weapons, including yours, and use them with the player weapons' own code. Grab a grunt's shotgun and fight him for it in a physical tug-of-war, knock it out of his hand with a strike or a shot, then turn it on him. They parry your blows (and you theirs), keep their distance, mind their friends, dual-wield (one holding a weapon that pairs picks up a second), wear backpacks you can lift off and drop what they hold when they die. Turn it off with Gameplay > Replace All Humanoids (`vr_agrunt_repl 0`).
 - **Euphoria-style active ragdolls**: enemies stagger, keep their balance on bent knees, topple on stairs, ledges and from heavy blows, grab ledges and scramble back up. Shove them off a ledge and they backpedal and fight for their footing. Lift them, throw them into their friends, sweep their legs, drag them by the ankles, or land on them from a height.
 - **Brutal melee and gore you can hear**: one swing hits everything its edge passes through; neck snaps, judo throws, heads and limbs popping, flesh dents and blade grooves, blood streams, back-splatter, bloody footprints and handprints, and a severed head or limb stays stuck on the axe. A full set of gore sounds, each with its own volume.
 - **Flat-screen shortcut**: the installer adds "Quake VR Unleashed (Flat Screen)" (`-flatscreenmode`) next to the VR one in the Start menu folder (and beside the desktop shortcut without a Start menu); uninstall removes it.
@@ -25,7 +25,6 @@ Delete this comment before publishing: -Publish refuses notes with the DRAFT mar
 These are in the build for testing. Expect bugs, and expect their balance and settings to change.
 
 - **Arcane Dimensions support (experimental)**: start it from Play > Official Campaigns, after a prompt saying it is still experimental. Armed humanoids appear in AD's maps too.
-- **Pick Up a Second (off)**: an armed humanoid holding a weapon that pairs picks up a second one for its other hand (`vr_agrunt_dual_pickup 1`).
 - **Creator and developer tools (flat-screen or dev only)**: the Rig Studio, Pose Studio and Grip Editor, the Weapon Studio and Armour Studio (flat-screen windows), the Ragdoll Tool (`-ragtool`), the animation recorder and the Blade Shape editor. They are meant for tuning, not for play.
 - Still experimental: single-pass stereo, TAA, full-body tracking (Quest 3 body tracking through Virtual Desktop).
 

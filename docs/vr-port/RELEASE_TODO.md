@@ -9,22 +9,20 @@ pass on `agent/relpass`.
 - [x] **Version:** `VERSION` says `1.1.0` (stable; the betas were `1.1.0-betaN`).
 - [x] **Armed replacements on by default** (`vr_agrunt_repl` 1; decided 2026-11-06). Configs from 1.0.x and the betas
   take it too unless the player had turned them on or off himself (fullConfigChanges, 2026-11-08).
-- [ ] **Unpromoted tunables:** your `quakevr\tunables.cfg` holds 14 tuning values the release would lose (smoke blow,
+- [x] **Unpromoted tunables (all 19 promoted 2026-11-08):** your `quakevr\tunables.cfg` holds 14 tuning values the release would lose (smoke blow,
   `vr_knockdown_ledge_reach`, `vr_model_light_grid_cell`, flat-screen gun/punch/slide values). Promote them
   (`python Misc\quakevr\tune_promote.py <your tunables.cfg>`, then commit `vr_tunables.inc`) or release with
   `-AllowUnpromotedTunables`.
 - [ ] **Release notes:** the draft is `docs/vr-port/RELEASE_NOTES_1.1.md`: edit, delete its DRAFT comment, pass it with
   `-Notes docs\vr-port\RELEASE_NOTES_1.1.md`.
-- [ ] **Flat-screen launch:** only `-flatscreenmode` starts it; no shortcut, no installer choice. Ship a "Quake VR
-  (flat screen)" shortcut, or leave it to the notes?
+- [x] **Flat-screen launch:** the installer creates "Quake VR Unleashed (Flat Screen)" (`-flatscreenmode`), in the same places as the VR one (2026-11-08).
 - [ ] **The installer's settings page:** review its rows, order and labels (BACKLOG.md, section 2).
 - [x] **"Armed Grunts":** "(Experimental)" removed from menu titles, rows, help and docs (decided 2026-11-08).
 - [x] **Developer files in the package (decided 2026-11-08: keep the dev maps and scenarios in the zip for now, no change):** by the allowlist rule (every tracked file under `quakevr\`) the zip ships
   `checklist.txt`, the 88 `scenarios\*.txt` (bench ones too) and `vrtesthall`. Keep (the in-game checklist and its
   Test buttons use them) or add them to `$devOnly`.
-- [ ] **Pick Up a Second** (`vr_agrunt_dual_pickup` 0): off for 1.1 as listed in the notes' Experimental section.
-- [x] **Embedded blades:** `vr_embed` 1 by default (decided 2026-11-08); in the notes' Armed humanoids section.
-- [x] **Tunables:** all 19 of his `tunables.cfg` values promoted to `vr_tunables.inc` (2026-11-08).
+- [x] **Embedded blades:** `vr_embed` 1 by default (decided 2026-11-08). (Pick Up a Second
+  is on since 2026-11-08, `vr_agrunt_dual_pickup` 1; a 1.0.x or beta config at 0 takes it.)
 - [ ] **Release branch:** `master` is fast-forwarded by `-Final` (RELEASING.md, "Branches").
 - [ ] **Debug symbols:** `ironwail.pdb` stays inside the game zip (crash reports name functions with it).
 
@@ -58,7 +56,7 @@ The one command and what it does: [RELEASING.md](RELEASING.md), "One command".
 - **SmartScreen:** no code-signing certificate; the notes explain "More info > Run anyway".
 - **Arcane Dimensions:** experimental (a prompt says so); sky and light flicker in VR when turning; the hub's lower
   slipgates go nowhere.
-- **Embedded blades:** on by default since 2026-11-08; tests 14-20 not run.
+- **Embedded blades:** on by default since 2026-11-08; tests 14-20 not run, tests 7 and 13 failing.
 - **Known test failures, accepted 2026-11-08:** autopump, cellcord, xr_runtime, secret_hits, animsmooth. The release command is `-RunTests -AllowFlaky -FlakyTests autopump,cellcord,xr_runtime,secret_hits,animsmooth`.
 - **Flat screen:** wrists bend 44-51 degrees on some holds; a gun's end can poke 4-7 cm into a wall at the limit.
 - **Armed humanoids:** a knocked-down one aiming high may pull its arm in.
