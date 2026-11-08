@@ -133,6 +133,13 @@ Guns with rewritten barrel masks (nailguns, lightning, plasma, laser, lava, revo
 Nail pistol: its dark steel now the shotgun's deep dark blue (gun, magazines, preview alike); the silvery slide bar and frames, the label and the glowing sight inserts as before.
 Flare gun: skin a little darker and less saturated, the front blade's brass top less bright; not overdone, still its orange-brown self (preview and fired skins too).
 Grunt burst rifle: darker and grimier (blotches, dirt in the panel lines), nearer the shotgun's contrast without being black; the #adv variants and grunts' rifles follow.
+[ ] Flat slide: buttocks and legs on the floor, only the torso up (also with your vr_flat_slide_body_angle 80; it is now the most lean, the hips sit vr_flat_slide_hip_floor 4.5 over the floor)
+[ ] Flat slide: hip holsters lie along the legs, the ammo pouch stays at the belt, nothing high in front of the view
+[ ] Flat slide: turning the mouse or steering, the hips and legs turn smoothly (vr_flat_slide_turn_smooth 0.15 s)
+[ ] Flat slide: weapon pose tunables Gun Forward / Down / Out Slide (Debug > Tunables, vr_flat_gun_*_slide) move the held gun while sliding
+[ ] Flat prone: chest almost on the floor, view and gun where they were (vr_flat_prone_neck_drop 4.5; vr_flat_prone_eye 14 = the view)
+[ ] Prone: feet and shins rest on the floor, not sunk in (VR Settings > Body: Lying Down Feet Over Floor 2.5)
+[ ] Prone: shotgun down the sights, elbows out at the sides and low, none over the view (Lying Down Elbows Out 1); VR prone no worse
 [ ] Toolgun, non-AD map with AD installed: AD Quoth Death Guard, AD Death Lord, AD Sentinel and AD's Knight are no longer greyed out and spawn and fight (agent/embed5)
 [ ] Toolgun: Grunt Burst Rifle, Enforcer's Rifle, Chainsaw, Axe, Knight's/Death Knight's Sword make one weapon each; nothing floating left after picking it up (also map-placed weapon_* classnames) (agent/embed5)
 [ ] Toolgun: AD Plasma Gun's ghost, the laid prop, in hand and holstered show AD's plasma gun (riveted panel, its own skin), not the Thunderbolt (agent/embed5)
