@@ -3630,3 +3630,54 @@ not in Blender (his `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`, anisotropy 16, `v
   `scratch/slivers_after_full.png`.
 - **Test it in VR:** the shotgun (and the other guns) looked at closely along their tops with his nearest texture mode:
   no black slivers at triangle edges; nothing inside the painted parts looks different.
+
+## Lightning and plasma gun sights: clean topology (branch `agent/regfix`, 2026-11-08)
+
+His note, with Blender screenshots (kit `scratch/shotsight_mockup/light_topo_top.webp`, `light_front_post.png`): the
+top of v_light round the new rear housing a mess of slivers and overlapping faces, z-fighting in the game; the front
+post's glowing cube misaligned and stuck into the post; both sights' tops to taper a little, as the shotgun's.
+
+- **What was wrong.** The original model's receiver top (x -2.72..4.79, z 10.8636) is two big triangles with the old
+  rear hump's faces lying on it (three of them facing down in the same plane, two degenerate pairs duplicated,
+  T-junctions); the last round sank the old posts into the new housing (the slivers fanning from them) and stood the
+  housing in it. The barrel top's diamond under the front sight (z 9.8352) the same: a fan over a fan, two down-facing
+  faces in its plane, the old lopsided stem with a cap inside its apex, the little cube on top. `scratch/lt/coplanar.py`
+  (pairs of triangles in one plane that overlap, frame 0 as the engine decodes it): 41 such pairs round the rear sight.
+- **Rebuilt** (`scratch/lt/bl_lighttopo.py`, both .blends; `S0` 21 v_light, 143 v_plasma): every face of the hump, the
+  old posts, the sunk housing, the top's overlapping faces, the stem, its caps and the cube deleted.
+  - Rear housing: one profile extruded along x, standing on the receiver top, its back flush with the receiver's rear
+    face (x -2.7194..-1.6952, 6 steps long as before): a base the receiver's full width, 3 z steps tall; over it a tower
+    16 y steps wide at the shoulders whose outer sides taper 2 steps in to the ears' tops (19 deg); a square U notch 6
+    steps wide and 4 deep (0.44 x 0.274, as before) on y -0.0982; ears 3 steps wide at the top (0.22), their tops at
+    11.4806 as before. Back and front faces: each ear two triangles, both with a top corner (the sight reader's iron
+    top); the rest as the triangulation with the largest smallest angle (back 13.1 deg, front 6.2: its bottom edge is
+    one edge with the top's); the rear face's top edge split under the shoulders to match (4 triangles, 8.4 deg).
+  - Receiver top: the quad from the housing's front to the receiver's front edge, 2 triangles (23 deg); each side slope
+    re-cut at the housing's front corner (3 triangles, 18.5 deg). No vertex lies on an edge it doesn't end (no
+    T-junctions): the housing's bottom edges are the top's and the rear face's edges.
+  - Front post: one solid, a block 6 steps wide (0.44) from the barrel top to 4 steps under its top, its front ramped (4
+    x steps deep at the foot, 2 at the waist); over it the top, tapered to 4 steps (0.293, the cube's width) in 4 z steps
+    (14 deg); back face x 31.0765, top 11.3435 as before. It stands in a rectangular hole cut in the diamond: 12
+    triangles round it (two points on the barrel's line behind and ahead of the foot keep them at 13.5 deg or more).
+  - UVs: the top, the slopes, the rear face and the diamond take their old maps (sampled at the new corners); the
+    housing's and the post's other faces the metal patch.
+- **Paint** (`scratch/lt/paint_lighttopo.py`), new patches in the same free skin, 3 texels a grid step: the ears' back
+  faces (13 x 13 at s S0+1, t 94; mirrored for the right ear, so both read outwards from the notch): a 6-wide glowing
+  insert (234 rim, 235, 236 core) centred on the ear's top, its top 1 row (0.023) under the ear's top, in a recess (a
+  dark line over it and on its inner side, a lit outer side, a lit lip under it); the post's top back face (19 x 13 at
+  S0+15): a 7-wide insert centred on the post, its top 2 rows (0.046) under the post's top, a lit top edge; metal 9 x 9
+  at S0+35. These guns have no relief source (their normal maps are baked from the model): the recess is paint only.
+- **Sight line:** rear -2.7194 -0.0982 11.4806, front 31.0765 -0.0987 11.3435: -0.232 deg up, -0.001 left (was -0.235,
+  0.000): the rear point is the housing's back face, now 0.34 further back. Flat ADS `flatsightcheck`: rear off 0.0000,
+  front off 0.0002, far off 0.067 (0.0009 deg). `sight_picture.py` updated.
+- **Counts:** 948 -> 877 triangles (both guns; the original model 865). Barrel masks 877: the diamond's 12 new
+  triangles marked, as its 8 old ones were (`scratch/lt/maskfix.py`: the export marks by the shipped file's corners, and
+  the diamond's are new), the post not, as the stem wasn't. Overlapping coplanar pairs round both sights 41 -> 0 (63
+  remain elsewhere in the original model, untouched). Holes (check_mdl_holes.py): open loops 6 (0 see-through) as
+  before, cracks 4 -> 2 (none in the sights), pieces 18 -> 16.
+- **Pictures** (worktree `scratch/lt/`): `top_before_after.png` (his angle), `front_before_after.png`,
+  `light_ads_crop.png` and `light_ads_zoom.png` (flat ADS), `zf_new_ab.png` (two eyeshots looking down at the rear
+  sight, the head moved 3 mm between them: the top slides, no stripes).
+- **Test it in VR:** look along the lightning gun's top and round the rear housing while moving the head: no shimmer;
+  the ears and the post a little narrower at the top; in the ironsight the front insert centred in the notch between
+  the rear inserts, the irons level.
