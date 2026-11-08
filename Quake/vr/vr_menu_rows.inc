@@ -1970,6 +1970,10 @@ QVR_TOGGLE(vr_wounds, "Dynamic Wounds",
     "Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off.")
 QVR_TOGGLE(vr_wounds_burns, "Burns",
     "Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment.")
+QVR_TOGGLE(vr_drips, "Water Drips",
+    "Water drips off what was in it once it is out: you, your hands and weapons, monsters, corpses, gibs and props. Many drops at first, fewer as it dries (Wet Duration); slime drips green.")
+QVR_TOGGLE(vr_gore_wound_drips, "Wounded Enemies Drip",
+    "Hurt monsters drip blood from where they were hit, more the more hurt they are and just after a hit.")
 QVR_TOGGLE(vr_wounds_wet, "Wet from Liquids",
     "Monsters and you get wet up to where water or slime came, drip, and dry (Wet Duration).")
 QVR_SLIDER(vr_wounds_wet_coat, "Wet Sheen", 0.f, 2.f, 0.1f, "%.1fx", noExt,
@@ -5701,6 +5705,7 @@ QVR_TOGGLE(vr_foreign_configs, "Other Ports' Startup Configs",
     "folder (in id1 next to a GOG or Steam Quake, a re-release folder: another source port's) runs too. Off "
     "(the default): only quakevr's own; a skipped one is named in the console. Exec by hand runs any.")
 QVR_TOGGLE(vr_wounds_debug, "Wounds", "Each wound painted on a model.")
+QVR_TOGGLE(vr_drips_debug, "Water Drips", "Each wet thing coming out of its liquid and drying off.")
 QVR_CYCLE(vr_debug_grasp, "Grasp",
     "Each grasp solve of the jointed hands (and each finger's stops).",
     {0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"})

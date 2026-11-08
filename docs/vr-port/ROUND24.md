@@ -4536,6 +4536,46 @@ His ask: drop redundant items, coalesce what one scene tests, a working Test but
   embed_throw, flat_keys, flat_melee, blade_editor_axe and ad_breakables. In id1 they all pass (`SCNRUNSUM|7 run|0
   failed`).
 
+## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
+
+QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
+Nothing published, tagged, uploaded or pushed.
+
+- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
+  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
+  none of the stretched faces).
+- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
+  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
+  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
+  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
+  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
+  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
+  (warning; his call).
+- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
+  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
+- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
+  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
+  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
+  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
+  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
+  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
+  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
+    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
+    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
+    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
+  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
+    console name), so it found nothing: now retired, with the other two.
+  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
+    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
+- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
+  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
+  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
+  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
+- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
+  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
+  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
+- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
 ## Embedded blades: easier to move a body through a held blade, Blade Hold Strength (branch `agent/embed5`, 2026-11-08)
 
 His note: "It still feels extremely hard to impart force on the ragdolls ... the expert tunables didn't really make a big
@@ -4662,6 +4702,80 @@ resizing it.
   `-game ad`: `SCNRUNSUM|6 run|0 failed`, each given axe HELD after 3 s; under id1 the five Quake-map ones OK
   (ad_breakables needs AD). Debug > Spawn Pickup Weapons > Axe still spawns `weapon_axe` (AD's pickup in an AD map).
 
+## Water drips off wet things; wounded enemies drip blood (branch `agent/blendmodels`, 2026-11-08)
+
+His words: water droplets like blood droplets from wet entities, fewer as they dry, only once out of the water,
+tunable, reusing the blood drip logic; and (extra) wounded enemies drip blood too.
+
+- **What existed:** blood drips from ceilings and hanging gibs (vr_gore.cpp `Source`/`fall`/`Landing`), from your own
+  wounded arms (vr_bodyblood.cpp, flung by a swing), and a water drip in vr_wounds.cpp (`drips`: masked monsters and
+  your hands, grey drops with no landing, dripping while still in the water). Wounded living monsters dripped nothing
+  (only bullet-hole streams for a moment: vr_bloodstream.cpp).
+- **Shared drip source:** gore's `fall` and its landings take a liquid (`gore::dropFrom(liquid, p, size, rgba,
+  markChance)`; 0 blood, 1 water, 2 slime). Blood lands as before (specks, a mark, the gore's drip sound); water and
+  slime land in `drips::landed` (2-3 specks in the drop's colour, `vr_drips_splash`; a soft drip, no decal), and a
+  drop falling into a liquid makes a small ripple at its surface. `particles::bloodDrip`/`bloodSpecks` take an alpha
+  (default 1: blood unchanged). New goresound kind `WaterDrip` (the drip wavs, its own volume `vr_drips_volume`,
+  rate-limited by `vr_drips_sound_gap`, heard with the gore off).
+- **vr_drips.cpp (new):** a wetness 0..1 per thing: every alias model the client has (monsters, corpses, gibs, props,
+  dropped weapons; ten times a second, its box's bottom in water/slime: point contents incl. func_water), and your
+  body (feet to eyes), hands, held weapons (handle to muzzle) and holstered weapons each frame. In the liquid: 1, the
+  waterline found by bisection and kept relative to the thing's bottom (a half-submerged thing drips under it, and
+  carries it out). Out of it (0.3 s grace): dries in `vr_wounds_wet_time` (the wet coat's: they agree), faster
+  moving (`vr_drips_dry_motion`); drips `vr_drips_rate * wet^vr_drips_curve` a second (monsters by their height, your
+  own times `vr_drips_view`), from downward triangles under the waterline (`wounds::dripPoint`: the old wounds code,
+  moved), a gun's barrel towards the muzzle, a hand, the body's legs/hem (none within 0.5 m under the eyes). A swung
+  wet hand or weapon over 2.2 m/s throws drops (`vr_drips_fling`, as bodyblood flings blood). Lava dries at once;
+  nothing drips in or under a liquid. Only drawn things within 1536 units drip; everything shares `vr_drips_max`
+  drops a frame, round robin. The old `wounds::drips` is gone (the coat and `handWetLeft` stay).
+- **Wounded enemies:** `drips::onWound` (from the wound events, vr_wounds_net.cpp; not the clean dummy's) keeps the
+  last four hit points of a living monster in its yaw frame; it drips `vr_drips_blood_rate * (lost health share +
+  burst)` (the health from the local server's edict, the start its health before the first hit; a hit adds
+  `vr_drips_blood_hit * damage / 20`, fading in 1.5 s), from those points, blood marks with `vr_drips_blood_marks`.
+  Forgotten when dead (the gore's pools take over) or healed. Off with `vr_gore 0`.
+- **Settings:** `vr_drips 1` (Water Drips, Graphics > Particles), `vr_gore_wound_drips 1` (Wounded Enemies Drip,
+  Gore, by Dripping). Tunables (Debug > Tunables > Particles > Water Drips): `vr_drips_rate 3`, `_curve 2`,
+  `_dry_motion 1`, `_size 0.3`, `_color "0.62 0.74 0.88"`, `_slime_color "0.32 0.55 0.1"`, `_alpha 0.6`, `_splash 1`,
+  `_volume 0.3`, `_sound_gap 0.2`, `_max 8`, `_view 0.4`, `_fling 1`, `_blood_rate 1.2`, `_blood_hit 1`,
+  `_blood_marks 0.25`. Debug: `vr_drips_debug` (Debug page), `vr_drips_soak` (Debug button: everything within 512
+  soaked), `vr_drips_info`.
+- **Test:** `vr_drips_test` (needs vrtesthall: `-Script "vr_scenario waterdrips;vr_drips_test" -QuitOn
+  "drips_test: [0-9]+ passed"`): a probe under the pool soaked with no drops; out, 22/10/2 drops in three 2 s windows
+  (test rate 12, dry time 6), dry at 6 s, none after; 20 wet things at the shipped rate: 9.5 us a frame average, 28 us
+  at most (low-impact run), 153 drops in 144 frames, at most 8 a frame (the cap); a gore blood drop still lands as
+  blood; the scenario's dry grunt hurt to 30% drips 12 blood drops in 3 s, none with `vr_gore 0`. 11 passed, 0 failed.
+- **Scenario:** `waterdrips` (vrtesthall pool, a grunt in it and one beside it, a shotgun); `SCNRUN|waterdrips|OK`.
+- **Not done:** no wet spots on the floor (every decal kind is blood; a fading water mark needs its own atlas cell
+  and colour): the splash specks stand in. Your arms' water drops are the drips module's point drops, not
+  bodyblood's hanging drops along the forearm. Screenshots were taken in a low-impact run (small eyes): the drops are
+  sub-pixel there; judge them in the headset.
+## The Thunderbolt's plasma model renamed v_light_plasma.mdl (branch `agent/plasmarename`, 2026-11-08)
+
+His request: our plasma-ammo Thunderbolt was `progs/v_plasma.mdl`, Rogue's name, shadowing AD's Plasma Gun model.
+- **Renamed** (git mv, content unchanged): `quakevr/progs/v_light_plasma.mdl`, `vr_mag_on_v_light_plasma.mdl`,
+  `vr_magwell_on_v_light_plasma.mdl` and their `_0_norm.png`; the source .blends and skins under
+  `src_models/blend/<new name>/` (inside: object, mesh, material, image, `qvr_name`, `qvr_norms` renamed by a headless
+  Blender pass; `blend_export.py --out` writes the shipped model, norm map and magazine byte for byte);
+  `src_models/v_light_plasma.mdl` and `r21/` (the generators' inputs). References: weapons.txt slot 15's `id`,
+  world.qc's precache, vr_weaponutil.qc's row, modelmeta `VPlasma`, vr_view.cpp's magazine table, sight rules
+  (vr_sightalign.cpp, vr_sights.cpp, the add-on's sights.py), vr_gunfx.cpp, the generators (improve_weapons2/_alt,
+  polish_weapons, reuv_weapons, sight_picture, barrel_masks), generated.json, both FGDs, MODELS_IN_BLENDER.md.
+- **AD and Rogue:** AD's `#vr` names (`progs/v_plasma.mdl#vr` and its cell's parts, slot 35) stay. AD's
+  `v_plasma.mdl` is still skipped in AD's folder (vr_ad_data.inc: an id1-pak name), so: AD's `MODEL_VWEAP_UPLG`
+  precache (ad_worldspawn) now names `v_light_plasma.mdl` (ad_import.py patch; QC/ad edited to the same output, the
+  release's `ad_1_8.fgd` not at hand for `--check`; the patch's match checked against AD's paks) instead of failing
+  without Rogue; `ad::spawnAvailable` takes a `#vr` model as always there (`adweapons::isMade`: made, or its stand-in),
+  as it was when ours answered the name; vr_gunfx keeps `v_plasma.mdl` for AD's gun; the muzzle light's colour checks
+  the plasma names before `v_light`. Rogue: our QC never asked for Rogue's model (ours shadowed it); the Rogue pack
+  check keeps Rogue's `progs/v_plasma.mdl`.
+- **Compatibility:** weapon settings are by slot (`vr_wofs_*_16`), so his values stay; `vr_wofs_version` 75 renames a
+  config's slot ID still naming the old file. A save from before (its model list has the old name, not the new):
+  vr_progs.cpp `renameOldModels` maps the list and every string field and global holding the old name exactly
+  (`load: an older save: ... is now ...`).
+- **Test:** `Misc/quakevr/plasma_rename_test.sh <agent>` (VR mock and flat: model, slot 16 and barrel mask, painted
+  sights, magazine and well loaded, plasma selected, flat a round fired; an old save loads with the new model):
+  22 passed. plasma_ball_test 6/0, flattwohand_test 9/0, `vr_adweapon_models` in AD's start: 3 made, 0 not made
+  (612 triangles for the Plasma Gun, AD's own file).
 ## A lower box for lying down (branch `agent/pronebox`, 2026-11-08)
 
 His request: "add a new collision box for the prone height". Until now lying down was a value (24) of the crouch's
@@ -4789,3 +4903,43 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
   missing; menu_paths.txt regenerated.
 - **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
+## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
+
+QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
+Nothing published, tagged, uploaded or pushed.
+
+- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
+  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
+  none of the stretched faces).
+- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
+  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
+  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
+  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
+  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
+  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
+  (warning; his call).
+- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
+  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
+- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
+  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
+  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
+  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
+  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
+  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
+  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
+    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
+    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
+    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
+  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
+    console name), so it found nothing: now retired, with the other two.
+  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
+    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
+- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
+  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
+  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
+  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
+- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
+  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
+  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
+- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).

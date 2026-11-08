@@ -10,13 +10,13 @@
 #   super nailgun      v_nail2.mdl  (slot 4)  lava nails     v_lava2.mdl  (slot 12)  improve_weapons2.py
 #   grenade launcher   v_rock.mdl   (slot 5)  multi grenades v_multi.mdl  (slot 13)  improve_weapons3.py
 #   rocket launcher    v_rock2.mdl  (slot 6)  multi rockets  v_multi2.mdl (slot 14)  improve_weapons.py
-#   lightning gun      v_light.mdl  (slot 7)  plasma         v_plasma.mdl (slot 15)  improve_weapons2.py
+#   lightning gun      v_light.mdl  (slot 7)  plasma         v_light_plasma.mdl (slot 15)  improve_weapons2.py
 #
 # (The knight's sword's v_hksword.mdl is the hell knight's sword, not an ammo toggle.)
 #
 # Measured (Misc/quakevr/src_models/ keeps the alternates as they were, byte for byte): each
 # alternate is its normal model with another skin, re-exported:
-# - v_lava.mdl, v_plasma.mdl: the same triangles, in the same order, at the same positions in every
+# - v_lava.mdl, v_light_plasma.mdl: the same triangles, in the same order, at the same positions in every
 #   frame; only the UVs and the skin differ (and so some vertices are split along more seams).
 # - v_lava2.mdl: the same parts, re-quantised: the body and the hand's core 0.23 units further
 #   forward (one quantisation step) and 0.03 higher and to the left; the barrels where they were.

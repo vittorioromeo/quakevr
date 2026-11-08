@@ -239,7 +239,8 @@ namespace
 // 72: his flare gun and heavy revolver (slots 37, 38): grip poses, cup hotspots, the revolver's Two-Handed (takeHis72).
 // 73: Quake's guns' programmatic recoil, where a full config still holds the old "off" (takeRecoil73).
 // 74: the recoil in cm, degrees and seconds, the old multipliers converted (takeRecoilUnits74).
-constexpr int settingsVersion = 74;
+// 75: the Thunderbolt's plasma model's new name, v_light_plasma.mdl, for a config's old slot ID (takeLightPlasma75).
+constexpr int settingsVersion = 75;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1048,6 +1049,21 @@ void takeRecoilUnits74()
                 "kept)\n", changed, punched);
 }
 
+// 75: the Thunderbolt's plasma model renamed (progs/v_plasma.mdl, Rogue's and AD's name, is v_light_plasma.mdl): a
+// slot whose ID a config still holds as the old name names the new one (its values, vr_wofs_*_16, are its slot's).
+void takeLightPlasma75()
+{
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        cvar_t& id = cvarAt(slot, Key::ID);
+        if(!q_strcasecmp(id.string, "progs/v_plasma.mdl"))
+        {
+            Cvar_SetQuick(&id, "progs/v_light_plasma.mdl");
+            Con_DPrintf("Weapon settings: slot %d's model is progs/v_light_plasma.mdl (was progs/v_plasma.mdl)\n", slot);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1089,6 +1105,7 @@ constexpr Step steps[] = {
     {72, takeHis72},
     {73, takeRecoil73},
     {74, takeRecoilUnits74},
+    {75, takeLightPlasma75},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

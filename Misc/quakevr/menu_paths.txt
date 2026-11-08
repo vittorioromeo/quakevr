@@ -355,6 +355,7 @@ vr_gore_spray|1|Gore|Blood Sprays|Advanced VR Options > Gore > Blood Sprays
 vr_gore_size|1|Gore|Splat Size|Advanced VR Options > Gore > Splat Size
 vr_gore_pools|1|Gore|Blood Pools|Advanced VR Options > Gore > Blood Pools
 vr_gore_drips|1|Gore|Dripping|Advanced VR Options > Gore > Dripping
+vr_gore_wound_drips|1|Gore|Wounded Enemies Drip|Advanced VR Options > Gore > Wounded Enemies Drip
 vr_gore_stick_thrown|1|Gore|Thrown Gibs Stick|Advanced VR Options > Gore > Thrown Gibs Stick
 vr_head_flies|1|Gore|Flies on Heads|Advanced VR Options > Gore > Flies on Heads
 vr_gib_speed_melee|2|Gore|Gib Speed: Melee|Advanced VR Options > Gore > Gib Speed: Melee
@@ -940,81 +941,81 @@ vr_enemy_shove_distance|1|Enemy Shoves|Push Distance|Advanced VR Options > Comba
 vr_agrunt_shove|1|Enemy Shoves|Armed Humanoids' Shove|Advanced VR Options > Combat > Enemy Shoves > Armed Humanoids' Shove
 vr_enemy_shove_vore|1|Enemy Shoves|Vores Shove|Advanced VR Options > Combat > Enemy Shoves > Vores Shove
 |1|Enemy Shoves|Reset This Page|Advanced VR Options > Combat > Enemy Shoves > Reset This Page
-@page|1|Armed Grunts (Experimental)||Advanced VR Options > Combat > Armed Grunts (Experimental)
-vr_agrunt_grab_leniency|1|Armed Grunts (Experimental)|Grab Leniency|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grab Leniency
-vr_agrunt_vol_shot_weapon|1|Armed Grunts (Experimental)|Shot Leniency: Weapon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shot Leniency: Weapon
-vr_agrunt_vol_shot_hand|1|Armed Grunts (Experimental)|Shot Leniency: Hand|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shot Leniency: Hand
-vr_agrunt_vol_strike|1|Armed Grunts (Experimental)|Melee Strike Leniency|Advanced VR Options > Combat > Armed Grunts (Experimental) > Melee Strike Leniency
-vr_agrunt_vol_blow|1|Armed Grunts (Experimental)|Body Blow Leniency|Advanced VR Options > Combat > Armed Grunts (Experimental) > Body Blow Leniency
-vr_agrunt_damage_scale|1|Armed Grunts (Experimental)|Damage to You|Advanced VR Options > Combat > Armed Grunts (Experimental) > Damage to You
-vr_agrunt_reserve|1|Armed Grunts (Experimental)|Spare Clips|Advanced VR Options > Combat > Armed Grunts (Experimental) > Spare Clips
-vr_agrunt_dual_penalty|1|Armed Grunts (Experimental)|Dual Guns' Penalty|Advanced VR Options > Combat > Armed Grunts (Experimental) > Dual Guns' Penalty
-vr_agrunt_strike_torso|1|Armed Grunts (Experimental)|Torso Twist|Advanced VR Options > Combat > Armed Grunts (Experimental) > Torso Twist
-vr_agrunt_strike_shoulder|1|Armed Grunts (Experimental)|Shoulder Drive|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shoulder Drive
-vr_agrunt_disarm|1|Armed Grunts (Experimental)|Hits Disarm|Advanced VR Options > Combat > Armed Grunts (Experimental) > Hits Disarm
-vr_agrunt_disarm_yank|1|Armed Grunts (Experimental)|Grab Its Weapon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grab Its Weapon
-vr_agrunt_disarm_deliberate|1|Armed Grunts (Experimental)|Deliberate Blows Only|Advanced VR Options > Combat > Armed Grunts (Experimental) > Deliberate Blows Only
-vr_agrunt_tug|1|Armed Grunts (Experimental)|Tug-of-War|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug-of-War
-vr_agrunt_tug_break_force|1|Armed Grunts (Experimental)|Tug: Break Force|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Force
-vr_agrunt_tug_break_impulse|1|Armed Grunts (Experimental)|Tug: Break Impulse|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Break Impulse
-vr_agrunt_tug_pull_time|1|Armed Grunts (Experimental)|Tug: Least Pull Time|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Least Pull Time
-vr_agrunt_tug_let_go|1|Armed Grunts (Experimental)|Tug: Let Go Past|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Let Go Past
-vr_agrunt_tug_downed_scale|1|Armed Grunts (Experimental)|Tug: Staggering or Down|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Staggering or Down
-vr_agrunt_tug_second_grab|1|Armed Grunts (Experimental)|Tug: Your Other Hand's Grab|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Your Other Hand's Grab
-vr_agrunt_tug_strike|1|Armed Grunts (Experimental)|Tug: Other Fist Strikes It Free|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Other Fist Strikes It Free
-vr_agrunt_grab_speed|1|Armed Grunts (Experimental)|Grab: Fastest Hand|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grab: Fastest Hand
-vr_agrunt_tug_strength|1|Armed Grunts (Experimental)|Tug: Its Pull|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Its Pull
-vr_agrunt_tug_sway|1|Armed Grunts (Experimental)|Tug: Torso Sway|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Torso Sway
-vr_agrunt_tug_flail|1|Armed Grunts (Experimental)|Tug: Free Arm Flail|Advanced VR Options > Combat > Armed Grunts (Experimental) > Tug: Free Arm Flail
-vr_agrunt_parry_disarm|1|Armed Grunts (Experimental)|Parry Disarm Chance|Advanced VR Options > Combat > Armed Grunts (Experimental) > Parry Disarm Chance
-vr_agrunt_fall_drop|1|Armed Grunts (Experimental)|Drops It When Floored|Advanced VR Options > Combat > Armed Grunts (Experimental) > Drops It When Floored
-vr_agrunt_fall_keep|1|Armed Grunts (Experimental)|Keeps It in a Gentle Fall|Advanced VR Options > Combat > Armed Grunts (Experimental) > Keeps It in a Gentle Fall
-vr_agrunt_fall_keep_impact|1|Armed Grunts (Experimental)|Fall: Drops It on Impact|Advanced VR Options > Combat > Armed Grunts (Experimental) > Fall: Drops It on Impact
-vr_agrunt_saw_drop_running|1|Armed Grunts (Experimental)|Drops Its Chainsaw Running|Advanced VR Options > Combat > Armed Grunts (Experimental) > Drops Its Chainsaw Running
-vr_agrunt_shotdisarm|1|Armed Grunts (Experimental)|Shoot Weapons Out|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shoot Weapons Out
-vr_agrunt_shotdisarm_parts|1|Armed Grunts (Experimental)|What Counts|Advanced VR Options > Combat > Armed Grunts (Experimental) > What Counts
-vr_agrunt_shotdisarm_chance|1|Armed Grunts (Experimental)|Chance a Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Chance a Roll
-vr_agrunt_shotdisarm_chance_scale|1|Armed Grunts (Experimental)|Chance Past the Threshold|Advanced VR Options > Combat > Armed Grunts (Experimental) > Chance Past the Threshold
-vr_agrunt_shotdisarm_block|1|Armed Grunts (Experimental)|Weapon Stops the Shot|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Stops the Shot
-vr_agrunt_shotdisarm_proj|1|Armed Grunts (Experimental)|Nails and Rockets Roll Each|Advanced VR Options > Combat > Armed Grunts (Experimental) > Nails and Rockets Roll Each
-vr_agrunt_shotdisarm_proj_chance|1|Armed Grunts (Experimental)|Projectile: Chance|Advanced VR Options > Combat > Armed Grunts (Experimental) > Projectile: Chance
-vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts (Experimental)|Projectile: Reference Damage|Advanced VR Options > Combat > Armed Grunts (Experimental) > Projectile: Reference Damage
-vr_agrunt_shotdisarm_proj_near|1|Armed Grunts (Experimental)|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts (Experimental) > Projectile: Near Miss
-vr_agrunt_shotdisarm_proj_max|1|Armed Grunts (Experimental)|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts (Experimental) > Projectile: Most Chance
-vr_agrunt_ik|1|Armed Grunts (Experimental)|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts (Experimental) > Hands on the Grips
-vr_agrunt_w_fists|1|Armed Grunts (Experimental)|Fists|Advanced VR Options > Combat > Armed Grunts (Experimental) > Fists
-vr_agrunt_w_axe|1|Armed Grunts (Experimental)|Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Axe
-vr_agrunt_w_sword|1|Armed Grunts (Experimental)|Knight's Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Knight's Sword
-vr_agrunt_w_crowbar|1|Armed Grunts (Experimental)|Crowbar|Advanced VR Options > Combat > Armed Grunts (Experimental) > Crowbar
-vr_agrunt_w_chainsaw|1|Armed Grunts (Experimental)|Ogre's Chainsaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Ogre's Chainsaw
-vr_agrunt_w_shotgun|1|Armed Grunts (Experimental)|Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shotgun
-vr_agrunt_w_ssg|1|Armed Grunts (Experimental)|Super Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Super Shotgun
-vr_agrunt_w_nailgun|1|Armed Grunts (Experimental)|Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Nailgun
-vr_agrunt_w_sng|1|Armed Grunts (Experimental)|Super Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Super Nailgun
-vr_agrunt_w_gl|1|Armed Grunts (Experimental)|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grenade Launcher
-vr_agrunt_w_rl|1|Armed Grunts (Experimental)|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Rocket Launcher
-vr_agrunt_w_lg|1|Armed Grunts (Experimental)|Thunderbolt|Advanced VR Options > Combat > Armed Grunts (Experimental) > Thunderbolt
-vr_agrunt_w_gruntgun|1|Armed Grunts (Experimental)|Grunt's Burst Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grunt's Burst Rifle
-vr_agrunt_w_enfrifle|1|Armed Grunts (Experimental)|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Enforcer's Laser Rifle
-vr_agrunt_w_packs|1|Armed Grunts (Experimental)|Mission Packs' (Each)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Mission Packs' (Each)
-vr_agrunt_w_adrocket|1|Armed Grunts (Experimental)|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Rocket Soldier's Launcher
-vr_agrunt_w_adgrenade|1|Armed Grunts (Experimental)|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grenade Soldier's Launcher
-vr_agrunt_w_adplasma|1|Armed Grunts (Experimental)|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Plasma Soldier's Rifle
-vr_agrunt_w_addefender|1|Armed Grunts (Experimental)|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Defender's Shotgun
-vr_agrunt_w_adcenturion|1|Armed Grunts (Experimental)|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Centurion's Plasma Gun
-vr_agrunt_w_adpyro|1|Armed Grunts (Experimental)|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts (Experimental) > Pyro's Flamethrower
-vr_agrunt_w_adfumigator|1|Armed Grunts (Experimental)|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts (Experimental) > Fumigator's Poison Sprayer
-vr_agrunt_w_adcrossbow|1|Armed Grunts (Experimental)|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts (Experimental) > Crossbow Knight's Crossbow
-vr_agrunt_w_shadowaxe|1|Armed Grunts (Experimental)|Shadow Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Shadow Axe
-vr_agrunt_w_widowmaker|1|Armed Grunts (Experimental)|Widowmaker|Advanced VR Options > Combat > Armed Grunts (Experimental) > Widowmaker
-vr_agrunt_w_plasmagun|1|Armed Grunts (Experimental)|Plasma Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Plasma Gun
-vr_agrunt_w_adsword|1|Armed Grunts (Experimental)|AD Swords (Each)|Advanced VR Options > Combat > Armed Grunts (Experimental) > AD Swords (Each)
-vr_agrunt_w_adheavy|1|Armed Grunts (Experimental)|Hammer and Mace (Each)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Hammer and Mace (Each)
-vr_agrunt_w_dprince|1|Armed Grunts (Experimental)|Dark Prince's Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Dark Prince's Sword
-vr_agrunt_w_justice|1|Armed Grunts (Experimental)|Justice Knight's Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Justice Knight's Sword
-vr_agrunt_w_judge|1|Armed Grunts (Experimental)|Judicator's Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Judicator's Sword
-vr_agrunt_w_phantom|1|Armed Grunts (Experimental)|Phantom Sword (Rogue's Data)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Phantom Sword (Rogue's Data)
-|1|Armed Grunts (Experimental)|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Reset This Page
+@page|1|Armed Grunts||Advanced VR Options > Combat > Armed Grunts
+vr_agrunt_grab_leniency|1|Armed Grunts|Grab Leniency|Advanced VR Options > Combat > Armed Grunts > Grab Leniency
+vr_agrunt_vol_shot_weapon|1|Armed Grunts|Shot Leniency: Weapon|Advanced VR Options > Combat > Armed Grunts > Shot Leniency: Weapon
+vr_agrunt_vol_shot_hand|1|Armed Grunts|Shot Leniency: Hand|Advanced VR Options > Combat > Armed Grunts > Shot Leniency: Hand
+vr_agrunt_vol_strike|1|Armed Grunts|Melee Strike Leniency|Advanced VR Options > Combat > Armed Grunts > Melee Strike Leniency
+vr_agrunt_vol_blow|1|Armed Grunts|Body Blow Leniency|Advanced VR Options > Combat > Armed Grunts > Body Blow Leniency
+vr_agrunt_damage_scale|1|Armed Grunts|Damage to You|Advanced VR Options > Combat > Armed Grunts > Damage to You
+vr_agrunt_reserve|1|Armed Grunts|Spare Clips|Advanced VR Options > Combat > Armed Grunts > Spare Clips
+vr_agrunt_dual_penalty|1|Armed Grunts|Dual Guns' Penalty|Advanced VR Options > Combat > Armed Grunts > Dual Guns' Penalty
+vr_agrunt_strike_torso|1|Armed Grunts|Torso Twist|Advanced VR Options > Combat > Armed Grunts > Torso Twist
+vr_agrunt_strike_shoulder|1|Armed Grunts|Shoulder Drive|Advanced VR Options > Combat > Armed Grunts > Shoulder Drive
+vr_agrunt_disarm|1|Armed Grunts|Hits Disarm|Advanced VR Options > Combat > Armed Grunts > Hits Disarm
+vr_agrunt_disarm_yank|1|Armed Grunts|Grab Its Weapon|Advanced VR Options > Combat > Armed Grunts > Grab Its Weapon
+vr_agrunt_disarm_deliberate|1|Armed Grunts|Deliberate Blows Only|Advanced VR Options > Combat > Armed Grunts > Deliberate Blows Only
+vr_agrunt_tug|1|Armed Grunts|Tug-of-War|Advanced VR Options > Combat > Armed Grunts > Tug-of-War
+vr_agrunt_tug_break_force|1|Armed Grunts|Tug: Break Force|Advanced VR Options > Combat > Armed Grunts > Tug: Break Force
+vr_agrunt_tug_break_impulse|1|Armed Grunts|Tug: Break Impulse|Advanced VR Options > Combat > Armed Grunts > Tug: Break Impulse
+vr_agrunt_tug_pull_time|1|Armed Grunts|Tug: Least Pull Time|Advanced VR Options > Combat > Armed Grunts > Tug: Least Pull Time
+vr_agrunt_tug_let_go|1|Armed Grunts|Tug: Let Go Past|Advanced VR Options > Combat > Armed Grunts > Tug: Let Go Past
+vr_agrunt_tug_downed_scale|1|Armed Grunts|Tug: Staggering or Down|Advanced VR Options > Combat > Armed Grunts > Tug: Staggering or Down
+vr_agrunt_tug_second_grab|1|Armed Grunts|Tug: Your Other Hand's Grab|Advanced VR Options > Combat > Armed Grunts > Tug: Your Other Hand's Grab
+vr_agrunt_tug_strike|1|Armed Grunts|Tug: Other Fist Strikes It Free|Advanced VR Options > Combat > Armed Grunts > Tug: Other Fist Strikes It Free
+vr_agrunt_grab_speed|1|Armed Grunts|Grab: Fastest Hand|Advanced VR Options > Combat > Armed Grunts > Grab: Fastest Hand
+vr_agrunt_tug_strength|1|Armed Grunts|Tug: Its Pull|Advanced VR Options > Combat > Armed Grunts > Tug: Its Pull
+vr_agrunt_tug_sway|1|Armed Grunts|Tug: Torso Sway|Advanced VR Options > Combat > Armed Grunts > Tug: Torso Sway
+vr_agrunt_tug_flail|1|Armed Grunts|Tug: Free Arm Flail|Advanced VR Options > Combat > Armed Grunts > Tug: Free Arm Flail
+vr_agrunt_parry_disarm|1|Armed Grunts|Parry Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Parry Disarm Chance
+vr_agrunt_fall_drop|1|Armed Grunts|Drops It When Floored|Advanced VR Options > Combat > Armed Grunts > Drops It When Floored
+vr_agrunt_fall_keep|1|Armed Grunts|Keeps It in a Gentle Fall|Advanced VR Options > Combat > Armed Grunts > Keeps It in a Gentle Fall
+vr_agrunt_fall_keep_impact|1|Armed Grunts|Fall: Drops It on Impact|Advanced VR Options > Combat > Armed Grunts > Fall: Drops It on Impact
+vr_agrunt_saw_drop_running|1|Armed Grunts|Drops Its Chainsaw Running|Advanced VR Options > Combat > Armed Grunts > Drops Its Chainsaw Running
+vr_agrunt_shotdisarm|1|Armed Grunts|Shoot Weapons Out|Advanced VR Options > Combat > Armed Grunts > Shoot Weapons Out
+vr_agrunt_shotdisarm_parts|1|Armed Grunts|What Counts|Advanced VR Options > Combat > Armed Grunts > What Counts
+vr_agrunt_shotdisarm_chance|1|Armed Grunts|Chance a Roll|Advanced VR Options > Combat > Armed Grunts > Chance a Roll
+vr_agrunt_shotdisarm_chance_scale|1|Armed Grunts|Chance Past the Threshold|Advanced VR Options > Combat > Armed Grunts > Chance Past the Threshold
+vr_agrunt_shotdisarm_block|1|Armed Grunts|Weapon Stops the Shot|Advanced VR Options > Combat > Armed Grunts > Weapon Stops the Shot
+vr_agrunt_shotdisarm_proj|1|Armed Grunts|Nails and Rockets Roll Each|Advanced VR Options > Combat > Armed Grunts > Nails and Rockets Roll Each
+vr_agrunt_shotdisarm_proj_chance|1|Armed Grunts|Projectile: Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Chance
+vr_agrunt_shotdisarm_proj_ref|1|Armed Grunts|Projectile: Reference Damage|Advanced VR Options > Combat > Armed Grunts > Projectile: Reference Damage
+vr_agrunt_shotdisarm_proj_near|1|Armed Grunts|Projectile: Near Miss|Advanced VR Options > Combat > Armed Grunts > Projectile: Near Miss
+vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR Options > Combat > Armed Grunts > Projectile: Most Chance
+vr_agrunt_ik|1|Armed Grunts|Hands on the Grips|Advanced VR Options > Combat > Armed Grunts > Hands on the Grips
+vr_agrunt_w_fists|1|Armed Grunts|Fists|Advanced VR Options > Combat > Armed Grunts > Fists
+vr_agrunt_w_axe|1|Armed Grunts|Axe|Advanced VR Options > Combat > Armed Grunts > Axe
+vr_agrunt_w_sword|1|Armed Grunts|Knight's Sword|Advanced VR Options > Combat > Armed Grunts > Knight's Sword
+vr_agrunt_w_crowbar|1|Armed Grunts|Crowbar|Advanced VR Options > Combat > Armed Grunts > Crowbar
+vr_agrunt_w_chainsaw|1|Armed Grunts|Ogre's Chainsaw|Advanced VR Options > Combat > Armed Grunts > Ogre's Chainsaw
+vr_agrunt_w_shotgun|1|Armed Grunts|Shotgun|Advanced VR Options > Combat > Armed Grunts > Shotgun
+vr_agrunt_w_ssg|1|Armed Grunts|Super Shotgun|Advanced VR Options > Combat > Armed Grunts > Super Shotgun
+vr_agrunt_w_nailgun|1|Armed Grunts|Nailgun|Advanced VR Options > Combat > Armed Grunts > Nailgun
+vr_agrunt_w_sng|1|Armed Grunts|Super Nailgun|Advanced VR Options > Combat > Armed Grunts > Super Nailgun
+vr_agrunt_w_gl|1|Armed Grunts|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts > Grenade Launcher
+vr_agrunt_w_rl|1|Armed Grunts|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts > Rocket Launcher
+vr_agrunt_w_lg|1|Armed Grunts|Thunderbolt|Advanced VR Options > Combat > Armed Grunts > Thunderbolt
+vr_agrunt_w_gruntgun|1|Armed Grunts|Grunt's Burst Rifle|Advanced VR Options > Combat > Armed Grunts > Grunt's Burst Rifle
+vr_agrunt_w_enfrifle|1|Armed Grunts|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Enforcer's Laser Rifle
+vr_agrunt_w_packs|1|Armed Grunts|Mission Packs' (Each)|Advanced VR Options > Combat > Armed Grunts > Mission Packs' (Each)
+vr_agrunt_w_adrocket|1|Armed Grunts|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Rocket Soldier's Launcher
+vr_agrunt_w_adgrenade|1|Armed Grunts|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Grenade Soldier's Launcher
+vr_agrunt_w_adplasma|1|Armed Grunts|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts > Plasma Soldier's Rifle
+vr_agrunt_w_addefender|1|Armed Grunts|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts > Defender's Shotgun
+vr_agrunt_w_adcenturion|1|Armed Grunts|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts > Centurion's Plasma Gun
+vr_agrunt_w_adpyro|1|Armed Grunts|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts > Pyro's Flamethrower
+vr_agrunt_w_adfumigator|1|Armed Grunts|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts > Fumigator's Poison Sprayer
+vr_agrunt_w_adcrossbow|1|Armed Grunts|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts > Crossbow Knight's Crossbow
+vr_agrunt_w_shadowaxe|1|Armed Grunts|Shadow Axe|Advanced VR Options > Combat > Armed Grunts > Shadow Axe
+vr_agrunt_w_widowmaker|1|Armed Grunts|Widowmaker|Advanced VR Options > Combat > Armed Grunts > Widowmaker
+vr_agrunt_w_plasmagun|1|Armed Grunts|Plasma Gun|Advanced VR Options > Combat > Armed Grunts > Plasma Gun
+vr_agrunt_w_adsword|1|Armed Grunts|AD Swords (Each)|Advanced VR Options > Combat > Armed Grunts > AD Swords (Each)
+vr_agrunt_w_adheavy|1|Armed Grunts|Hammer and Mace (Each)|Advanced VR Options > Combat > Armed Grunts > Hammer and Mace (Each)
+vr_agrunt_w_dprince|1|Armed Grunts|Dark Prince's Sword|Advanced VR Options > Combat > Armed Grunts > Dark Prince's Sword
+vr_agrunt_w_justice|1|Armed Grunts|Justice Knight's Sword|Advanced VR Options > Combat > Armed Grunts > Justice Knight's Sword
+vr_agrunt_w_judge|1|Armed Grunts|Judicator's Sword|Advanced VR Options > Combat > Armed Grunts > Judicator's Sword
+vr_agrunt_w_phantom|1|Armed Grunts|Phantom Sword (Rogue's Data)|Advanced VR Options > Combat > Armed Grunts > Phantom Sword (Rogue's Data)
+|1|Armed Grunts|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Reset This Page
 @page|1|Armed Humanoid Replacements||Advanced VR Options > Combat > Armed Humanoid Replacements
 vr_agrunt_repl|1|Armed Humanoid Replacements|Replace All Humanoids|Advanced VR Options > Combat > Armed Humanoid Replacements > Replace All Humanoids
 vr_agknight|1|Armed Humanoid Replacements|Armed Knights|Advanced VR Options > Combat > Armed Humanoid Replacements > Armed Knights
@@ -2398,6 +2399,7 @@ vr_explosion_particles|1|Particles|Large Fireballs per Explosion|Advanced VR Opt
 r_particles|1|Particles|Particle Effects|Advanced VR Options > Graphics > Particles > Particle Effects
 vr_particles|1|Particles|Quake VR Particles|Advanced VR Options > Graphics > Particles > Quake VR Particles
 vr_particle_mult|1|Particles|Particle Multiplier|Advanced VR Options > Graphics > Particles > Particle Multiplier
+vr_drips|1|Particles|Water Drips|Advanced VR Options > Graphics > Particles > Water Drips
 |1|Particles|Reset This Page|Advanced VR Options > Graphics > Particles > Reset This Page
 @page|1|Transparency||Advanced VR Options > Graphics > Transparency
 r_novis|1|Transparency|(!) No Vis|Advanced VR Options > Graphics > Transparency > (!) No Vis
@@ -4247,6 +4249,20 @@ vr_embed_arm_stretch_ease|2|Tunables|Hold: Arm Stretch Ease|Advanced VR Options 
 vr_embed_arm_letgo|2|Tunables|Hold: Let Go Past|Advanced VR Options > Debug > Tunables > Hold: Let Go Past
 vr_embed_handle_free|2|Tunables|Hold: Free Stuck Handles|Advanced VR Options > Debug > Tunables > Hold: Free Stuck Handles
 vr_embed_tether_far|2|Tunables|Tether: Dead Body|Advanced VR Options > Debug > Tunables > Tether: Dead Body
+vr_drips_rate|2|Tunables|Water Drips: Rate|Advanced VR Options > Debug > Tunables > Water Drips: Rate
+vr_drips_curve|2|Tunables|Water Drips: Curve|Advanced VR Options > Debug > Tunables > Water Drips: Curve
+vr_drips_dry_motion|2|Tunables|Water Drips: Moving Dries|Advanced VR Options > Debug > Tunables > Water Drips: Moving Dries
+vr_drips_size|2|Tunables|Water Drips: Size|Advanced VR Options > Debug > Tunables > Water Drips: Size
+vr_drips_alpha|2|Tunables|Water Drips: Opacity|Advanced VR Options > Debug > Tunables > Water Drips: Opacity
+vr_drips_splash|2|Tunables|Water Drips: Splashes|Advanced VR Options > Debug > Tunables > Water Drips: Splashes
+vr_drips_volume|2|Tunables|Water Drips: Volume|Advanced VR Options > Debug > Tunables > Water Drips: Volume
+vr_drips_sound_gap|2|Tunables|Water Drips: Sound Gap|Advanced VR Options > Debug > Tunables > Water Drips: Sound Gap
+vr_drips_max|2|Tunables|Water Drips: Most a Frame|Advanced VR Options > Debug > Tunables > Water Drips: Most a Frame
+vr_drips_view|2|Tunables|Water Drips: Your Own|Advanced VR Options > Debug > Tunables > Water Drips: Your Own
+vr_drips_fling|2|Tunables|Water Drips: Swing Throws|Advanced VR Options > Debug > Tunables > Water Drips: Swing Throws
+vr_drips_blood_rate|2|Tunables|Wounded Drips: Rate|Advanced VR Options > Debug > Tunables > Wounded Drips: Rate
+vr_drips_blood_hit|2|Tunables|Wounded Drips: After a Hit|Advanced VR Options > Debug > Tunables > Wounded Drips: After a Hit
+vr_drips_blood_marks|2|Tunables|Wounded Drips: Marks|Advanced VR Options > Debug > Tunables > Wounded Drips: Marks
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4428,6 +4444,8 @@ vr_debug_buttons|2|Debug - Logging|Controller Buttons|Advanced VR Options > Debu
 |2|Debug - Logging|Restore Controller Bindings|Advanced VR Options > Debug > Logging > Restore Controller Bindings
 vr_foreign_configs|2|Debug - Logging|Other Ports' Startup Configs|Advanced VR Options > Debug > Logging > Other Ports' Startup Configs
 vr_wounds_debug|2|Debug - Logging|Wounds|Advanced VR Options > Debug > Logging > Wounds
+vr_drips_debug|2|Debug - Logging|Water Drips|Advanced VR Options > Debug > Logging > Water Drips
+|2|Debug - Logging|Water Drips: Soak Everything Near|Advanced VR Options > Debug > Logging > Water Drips: Soak Everything Near
 vr_debug_grasp|2|Debug - Logging|Grasp|Advanced VR Options > Debug > Logging > Grasp
 vr_debug_collect_fx|2|Debug - Logging|Put-Away Transition|Advanced VR Options > Debug > Logging > Put-Away Transition
 |2|Debug - Logging|Check Last Pose|Advanced VR Options > Debug > Logging > Check Last Pose
@@ -5814,173 +5832,173 @@ vr_mgrp_other_health|1|Monster Groups - Health|Others|Advanced VR Options > Comb
 @page|2|Chainsaw Engine||Advanced VR Options > Combat > Enemy Weapons > Chainsaw Engine
 vr_chainsaw_model_handle|2|Chainsaw Engine|Model Handle in the Hand|Advanced VR Options > Combat > Enemy Weapons > Chainsaw Engine > Model Handle in the Hand
 |2|Chainsaw Engine|Reset This Page|Advanced VR Options > Combat > Enemy Weapons > Chainsaw Engine > Reset This Page
-@page|1|Armour||Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour
-vr_agarmor_rule|1|Armour|Absorb|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Absorb
-vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Helmets Stop Headshots
-vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Plates Stop Cuts
-vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Push Through Plates
-vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Broken Plates Last
-vr_agarmor_skill0|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Chance Armoured
-vr_agarmor_skill0_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Best Armour
-vr_agarmor_skill0_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pieces
-vr_agarmor_skill1|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Chance Armoured
-vr_agarmor_skill1_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Best Armour
-vr_agarmor_skill1_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pieces
-vr_agarmor_skill2|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Chance Armoured
-vr_agarmor_skill2_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Best Armour
-vr_agarmor_skill2_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pieces
-vr_agarmor_skill3|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Chance Armoured
-vr_agarmor_skill3_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Best Armour
-vr_agarmor_skill3_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Pieces
-|1|Armour|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Reset This Page
-@page|1|Worn Backpacks||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks
-vr_worn_backpack_lift_force|1|Worn Backpacks|Pull That Lifts|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Pull That Lifts
-vr_worn_backpack_two_hand_mult|1|Worn Backpacks|Two-Hand Pull|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Two-Hand Pull
-vr_worn_backpack_pool|1|Worn Backpacks|Damage That Tears It|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Damage That Tears It
-vr_worn_backpack_pool_blast|1|Worn Backpacks|Explosions' Share|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Explosions' Share
-vr_worn_backpack_pool_fire|1|Worn Backpacks|Fire's Share|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Fire's Share
-vr_worn_backpack_hit_roll|1|Worn Backpacks|Extra Hit Chance|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Extra Hit Chance
-vr_worn_backpack_hit_ref|1|Worn Backpacks|Hit Damage|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Hit Damage
-vr_worn_backpack_impact|1|Worn Backpacks|Landing That Tears It|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Landing That Tears It
-vr_worn_backpack_reserve|1|Worn Backpacks|Spare Ammo in It|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Spare Ammo in It
-vr_worn_backpack_volume|1|Worn Backpacks|Rip Volume|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Rip Volume
-vr_worn_backpack_mass|1|Worn Backpacks|Weight|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Weight
-|1|Worn Backpacks|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Reset This Page
-@page|1|Armed Grunts - Weapon Holds||Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds
-|1|Armed Grunts - Weapon Holds|Reset to Defaults|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Reset to Defaults
-vr_agrunt_hold_grunt_axe|1|Armed Grunts - Weapon Holds|Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Axe
-vr_agrunt_hold_grunt_shadowaxe|1|Armed Grunts - Weapon Holds|Shadow Axe (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shadow Axe (AD)
-vr_agrunt_hold_grunt_crowbar|1|Armed Grunts - Weapon Holds|Crowbar|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crowbar
-vr_agrunt_hold_grunt_sword|1|Armed Grunts - Weapon Holds|Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Sword
-vr_agrunt_hold_grunt_mjolnir|1|Armed Grunts - Weapon Holds|Mjolnir|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Mjolnir
-vr_agrunt_hold_grunt_superaxe|1|Armed Grunts - Weapon Holds|Super Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Axe
-vr_agrunt_hold_grunt_chainsaw|1|Armed Grunts - Weapon Holds|Chainsaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Chainsaw
-vr_agrunt_hold_grunt_adhammer|1|Armed Grunts - Weapon Holds|Hammer (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Hammer (AD)
-vr_agrunt_hold_grunt_admace|1|Armed Grunts - Weapon Holds|Mace (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Mace (AD)
-vr_agrunt_hold_grunt_phantomsword|1|Armed Grunts - Weapon Holds|Phantom Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Phantom Sword
-vr_agrunt_hold_grunt_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nail Pistol
-vr_agrunt_posecat_grunt_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nail Pistol: Poses
-vr_agrunt_hold_grunt_revolver|1|Armed Grunts - Weapon Holds|Revolver|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Revolver
-vr_agrunt_posecat_grunt_revolver|1|Armed Grunts - Weapon Holds|Revolver: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Revolver: Poses
-vr_agrunt_hold_grunt_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Flare Gun
-vr_agrunt_posecat_grunt_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Flare Gun: Poses
-vr_agrunt_hold_grunt_shotgun|1|Armed Grunts - Weapon Holds|Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shotgun
-vr_agrunt_posecat_grunt_shotgun|1|Armed Grunts - Weapon Holds|Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shotgun: Poses
-vr_agrunt_hold_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Double-Barrelled Shotgun
-vr_agrunt_posecat_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Double-Barrelled Shotgun: Poses
-vr_agrunt_hold_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Widowmaker (AD)
-vr_agrunt_posecat_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Widowmaker (AD): Poses
-vr_agrunt_hold_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grunt's Shotgun
-vr_agrunt_posecat_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grunt's Shotgun: Poses
-vr_agrunt_hold_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Enforcer's Laser Rifle
-vr_agrunt_posecat_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Enforcer's Laser Rifle: Poses
-vr_agrunt_hold_grunt_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nailgun
-vr_agrunt_posecat_grunt_nailgun|1|Armed Grunts - Weapon Holds|Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nailgun: Poses
-vr_agrunt_hold_grunt_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Nailgun
-vr_agrunt_posecat_grunt_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Nailgun: Poses
-vr_agrunt_hold_grunt_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Launcher
-vr_agrunt_posecat_grunt_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Launcher: Poses
-vr_agrunt_hold_grunt_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Proximity Gun
-vr_agrunt_posecat_grunt_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Proximity Gun: Poses
-vr_agrunt_hold_grunt_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Launcher
-vr_agrunt_posecat_grunt_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Launcher: Poses
-vr_agrunt_hold_grunt_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Thunderbolt
-vr_agrunt_posecat_grunt_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Thunderbolt: Poses
-vr_agrunt_hold_grunt_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Gun (AD)
-vr_agrunt_posecat_grunt_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD): Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Gun (AD): Poses
-vr_agrunt_hold_grunt_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Laser Cannon
-vr_agrunt_posecat_grunt_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Laser Cannon: Poses
-vr_agrunt_hold_grunt_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Soldier's Launcher
-vr_agrunt_posecat_grunt_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Soldier's Launcher: Poses
-vr_agrunt_hold_grunt_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Soldier's Launcher
-vr_agrunt_posecat_grunt_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Soldier's Launcher: Poses
-vr_agrunt_hold_grunt_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Soldier's Rifle
-vr_agrunt_posecat_grunt_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Soldier's Rifle: Poses
-vr_agrunt_hold_grunt_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Defender's Shotgun
-vr_agrunt_posecat_grunt_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Defender's Shotgun: Poses
-vr_agrunt_hold_grunt_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Centurion's Plasma Gun
-vr_agrunt_posecat_grunt_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Centurion's Plasma Gun: Poses
-vr_agrunt_hold_grunt_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Pyro's Flamethrower
-vr_agrunt_posecat_grunt_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Pyro's Flamethrower: Poses
-vr_agrunt_hold_grunt_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Fumigator's Poison Sprayer
-vr_agrunt_posecat_grunt_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Fumigator's Poison Sprayer: Poses
-vr_agrunt_hold_grunt_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crossbow Knight's Crossbow
-vr_agrunt_posecat_grunt_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crossbow Knight's Crossbow: Poses
-vr_agrunt_hold_enforcer_axe|1|Armed Grunts - Weapon Holds|Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Axe
-vr_agrunt_hold_enforcer_shadowaxe|1|Armed Grunts - Weapon Holds|Shadow Axe (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shadow Axe (AD)
-vr_agrunt_hold_enforcer_crowbar|1|Armed Grunts - Weapon Holds|Crowbar|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crowbar
-vr_agrunt_hold_enforcer_sword|1|Armed Grunts - Weapon Holds|Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Sword
-vr_agrunt_hold_enforcer_mjolnir|1|Armed Grunts - Weapon Holds|Mjolnir|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Mjolnir
-vr_agrunt_hold_enforcer_superaxe|1|Armed Grunts - Weapon Holds|Super Axe|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Axe
-vr_agrunt_hold_enforcer_chainsaw|1|Armed Grunts - Weapon Holds|Chainsaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Chainsaw
-vr_agrunt_hold_enforcer_adhammer|1|Armed Grunts - Weapon Holds|Hammer (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Hammer (AD)
-vr_agrunt_hold_enforcer_admace|1|Armed Grunts - Weapon Holds|Mace (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Mace (AD)
-vr_agrunt_hold_enforcer_phantomsword|1|Armed Grunts - Weapon Holds|Phantom Sword|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Phantom Sword
-vr_agrunt_hold_enforcer_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nail Pistol
-vr_agrunt_posecat_enforcer_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nail Pistol: Poses
-vr_agrunt_hold_enforcer_revolver|1|Armed Grunts - Weapon Holds|Revolver|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Revolver
-vr_agrunt_posecat_enforcer_revolver|1|Armed Grunts - Weapon Holds|Revolver: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Revolver: Poses
-vr_agrunt_hold_enforcer_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Flare Gun
-vr_agrunt_posecat_enforcer_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Flare Gun: Poses
-vr_agrunt_hold_enforcer_shotgun|1|Armed Grunts - Weapon Holds|Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shotgun
-vr_agrunt_posecat_enforcer_shotgun|1|Armed Grunts - Weapon Holds|Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Shotgun: Poses
-vr_agrunt_hold_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Double-Barrelled Shotgun
-vr_agrunt_posecat_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Double-Barrelled Shotgun: Poses
-vr_agrunt_hold_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Widowmaker (AD)
-vr_agrunt_posecat_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Widowmaker (AD): Poses
-vr_agrunt_hold_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grunt's Shotgun
-vr_agrunt_posecat_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grunt's Shotgun: Poses
-vr_agrunt_hold_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Enforcer's Laser Rifle
-vr_agrunt_posecat_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Enforcer's Laser Rifle: Poses
-vr_agrunt_hold_enforcer_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nailgun
-vr_agrunt_posecat_enforcer_nailgun|1|Armed Grunts - Weapon Holds|Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Nailgun: Poses
-vr_agrunt_hold_enforcer_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Nailgun
-vr_agrunt_posecat_enforcer_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Super Nailgun: Poses
-vr_agrunt_hold_enforcer_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Launcher
-vr_agrunt_posecat_enforcer_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Launcher: Poses
-vr_agrunt_hold_enforcer_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Proximity Gun
-vr_agrunt_posecat_enforcer_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Proximity Gun: Poses
-vr_agrunt_hold_enforcer_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Launcher
-vr_agrunt_posecat_enforcer_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Launcher: Poses
-vr_agrunt_hold_enforcer_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Thunderbolt
-vr_agrunt_posecat_enforcer_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Thunderbolt: Poses
-vr_agrunt_hold_enforcer_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Gun (AD)
-vr_agrunt_posecat_enforcer_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD): Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Gun (AD): Poses
-vr_agrunt_hold_enforcer_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Laser Cannon
-vr_agrunt_posecat_enforcer_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Laser Cannon: Poses
-vr_agrunt_hold_enforcer_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Soldier's Launcher
-vr_agrunt_posecat_enforcer_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Rocket Soldier's Launcher: Poses
-vr_agrunt_hold_enforcer_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Soldier's Launcher
-vr_agrunt_posecat_enforcer_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Grenade Soldier's Launcher: Poses
-vr_agrunt_hold_enforcer_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Soldier's Rifle
-vr_agrunt_posecat_enforcer_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Plasma Soldier's Rifle: Poses
-vr_agrunt_hold_enforcer_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Defender's Shotgun
-vr_agrunt_posecat_enforcer_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Defender's Shotgun: Poses
-vr_agrunt_hold_enforcer_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Centurion's Plasma Gun
-vr_agrunt_posecat_enforcer_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Centurion's Plasma Gun: Poses
-vr_agrunt_hold_enforcer_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Pyro's Flamethrower
-vr_agrunt_posecat_enforcer_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Pyro's Flamethrower: Poses
-vr_agrunt_hold_enforcer_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Fumigator's Poison Sprayer
-vr_agrunt_posecat_enforcer_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Fumigator's Poison Sprayer: Poses
-vr_agrunt_hold_enforcer_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crossbow Knight's Crossbow
-vr_agrunt_posecat_enforcer_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow: Poses|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Crossbow Knight's Crossbow: Poses
-|1|Armed Grunts - Weapon Holds|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds > Reset This Page
-@page|1|Armed Grunts - IK Stretch||Advanced VR Options > Combat > Armed Grunts (Experimental) > IK Stretch
-|1|Armed Grunts - IK Stretch|Reset to Defaults|Advanced VR Options > Combat > Armed Grunts (Experimental) > IK Stretch > Reset to Defaults
-@page|1|Armed Grunts - Grip Editor||Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor
-|1|Armed Grunts - Grip Editor|Drag Mode (Grab and Place)|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Drag Mode (Grab and Place)
-vr_agrunt_freeze|1|Armed Grunts - Grip Editor|Freeze Them|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Freeze Them
-vr_agrunt_grip_hand|1|Armed Grunts - Grip Editor|Hand|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Hand
-vr_agrunt_grip_scope|1|Armed Grunts - Grip Editor|Edits|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Edits
-vr_agrunt_grip_x|1|Armed Grunts - Grip Editor|Forward|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Forward
-vr_agrunt_grip_y|1|Armed Grunts - Grip Editor|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Left
-vr_agrunt_grip_z|1|Armed Grunts - Grip Editor|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Up
-vr_agrunt_grip_pitch|1|Armed Grunts - Grip Editor|Pitch|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Pitch
-vr_agrunt_grip_yaw|1|Armed Grunts - Grip Editor|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Yaw
-vr_agrunt_grip_roll|1|Armed Grunts - Grip Editor|Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Roll
-|1|Armed Grunts - Grip Editor|Print as Defaults|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Print as Defaults
-|1|Armed Grunts - Grip Editor|Reset This One|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Reset This One
-|1|Armed Grunts - Grip Editor|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Grip Editor > Reset This Page
+@page|1|Armour||Advanced VR Options > Combat > Armed Grunts > Armour
+vr_agarmor_rule|1|Armour|Absorb|Advanced VR Options > Combat > Armed Grunts > Armour > Absorb
+vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Combat > Armed Grunts > Armour > Helmets Stop Headshots
+vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts > Armour > Plates Stop Cuts
+vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts > Armour > Push Through Plates
+vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts > Armour > Broken Plates Last
+vr_agarmor_skill0|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts > Armour > Chance Armoured
+vr_agarmor_skill0_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts > Armour > Best Armour
+vr_agarmor_skill0_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts > Armour > Pieces
+vr_agarmor_skill1|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts > Armour > Chance Armoured
+vr_agarmor_skill1_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts > Armour > Best Armour
+vr_agarmor_skill1_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts > Armour > Pieces
+vr_agarmor_skill2|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts > Armour > Chance Armoured
+vr_agarmor_skill2_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts > Armour > Best Armour
+vr_agarmor_skill2_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts > Armour > Pieces
+vr_agarmor_skill3|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts > Armour > Chance Armoured
+vr_agarmor_skill3_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts > Armour > Best Armour
+vr_agarmor_skill3_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts > Armour > Pieces
+|1|Armour|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Armour > Reset This Page
+@page|1|Worn Backpacks||Advanced VR Options > Combat > Armed Grunts > Worn Backpacks
+vr_worn_backpack_lift_force|1|Worn Backpacks|Pull That Lifts|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Pull That Lifts
+vr_worn_backpack_two_hand_mult|1|Worn Backpacks|Two-Hand Pull|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Two-Hand Pull
+vr_worn_backpack_pool|1|Worn Backpacks|Damage That Tears It|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Damage That Tears It
+vr_worn_backpack_pool_blast|1|Worn Backpacks|Explosions' Share|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Explosions' Share
+vr_worn_backpack_pool_fire|1|Worn Backpacks|Fire's Share|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Fire's Share
+vr_worn_backpack_hit_roll|1|Worn Backpacks|Extra Hit Chance|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Extra Hit Chance
+vr_worn_backpack_hit_ref|1|Worn Backpacks|Hit Damage|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Hit Damage
+vr_worn_backpack_impact|1|Worn Backpacks|Landing That Tears It|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Landing That Tears It
+vr_worn_backpack_reserve|1|Worn Backpacks|Spare Ammo in It|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Spare Ammo in It
+vr_worn_backpack_volume|1|Worn Backpacks|Rip Volume|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Rip Volume
+vr_worn_backpack_mass|1|Worn Backpacks|Weight|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Weight
+|1|Worn Backpacks|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Reset This Page
+@page|1|Armed Grunts - Weapon Holds||Advanced VR Options > Combat > Armed Grunts > Weapon Holds
+|1|Armed Grunts - Weapon Holds|Reset to Defaults|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Reset to Defaults
+vr_agrunt_hold_grunt_axe|1|Armed Grunts - Weapon Holds|Axe|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Axe
+vr_agrunt_hold_grunt_shadowaxe|1|Armed Grunts - Weapon Holds|Shadow Axe (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shadow Axe (AD)
+vr_agrunt_hold_grunt_crowbar|1|Armed Grunts - Weapon Holds|Crowbar|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crowbar
+vr_agrunt_hold_grunt_sword|1|Armed Grunts - Weapon Holds|Sword|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Sword
+vr_agrunt_hold_grunt_mjolnir|1|Armed Grunts - Weapon Holds|Mjolnir|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Mjolnir
+vr_agrunt_hold_grunt_superaxe|1|Armed Grunts - Weapon Holds|Super Axe|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Axe
+vr_agrunt_hold_grunt_chainsaw|1|Armed Grunts - Weapon Holds|Chainsaw|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Chainsaw
+vr_agrunt_hold_grunt_adhammer|1|Armed Grunts - Weapon Holds|Hammer (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Hammer (AD)
+vr_agrunt_hold_grunt_admace|1|Armed Grunts - Weapon Holds|Mace (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Mace (AD)
+vr_agrunt_hold_grunt_phantomsword|1|Armed Grunts - Weapon Holds|Phantom Sword|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Phantom Sword
+vr_agrunt_hold_grunt_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nail Pistol
+vr_agrunt_posecat_grunt_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nail Pistol: Poses
+vr_agrunt_hold_grunt_revolver|1|Armed Grunts - Weapon Holds|Revolver|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Revolver
+vr_agrunt_posecat_grunt_revolver|1|Armed Grunts - Weapon Holds|Revolver: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Revolver: Poses
+vr_agrunt_hold_grunt_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Flare Gun
+vr_agrunt_posecat_grunt_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Flare Gun: Poses
+vr_agrunt_hold_grunt_shotgun|1|Armed Grunts - Weapon Holds|Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shotgun
+vr_agrunt_posecat_grunt_shotgun|1|Armed Grunts - Weapon Holds|Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shotgun: Poses
+vr_agrunt_hold_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun
+vr_agrunt_posecat_grunt_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun: Poses
+vr_agrunt_hold_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD)
+vr_agrunt_posecat_grunt_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD): Poses
+vr_agrunt_hold_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun
+vr_agrunt_posecat_grunt_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun: Poses
+vr_agrunt_hold_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle
+vr_agrunt_posecat_grunt_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle: Poses
+vr_agrunt_hold_grunt_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun
+vr_agrunt_posecat_grunt_nailgun|1|Armed Grunts - Weapon Holds|Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun: Poses
+vr_agrunt_hold_grunt_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Nailgun
+vr_agrunt_posecat_grunt_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Nailgun: Poses
+vr_agrunt_hold_grunt_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Launcher
+vr_agrunt_posecat_grunt_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Launcher: Poses
+vr_agrunt_hold_grunt_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Proximity Gun
+vr_agrunt_posecat_grunt_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Proximity Gun: Poses
+vr_agrunt_hold_grunt_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Launcher
+vr_agrunt_posecat_grunt_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Launcher: Poses
+vr_agrunt_hold_grunt_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Thunderbolt
+vr_agrunt_posecat_grunt_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Thunderbolt: Poses
+vr_agrunt_hold_grunt_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Gun (AD)
+vr_agrunt_posecat_grunt_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Gun (AD): Poses
+vr_agrunt_hold_grunt_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Laser Cannon
+vr_agrunt_posecat_grunt_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Laser Cannon: Poses
+vr_agrunt_hold_grunt_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Soldier's Launcher
+vr_agrunt_posecat_grunt_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Soldier's Launcher: Poses
+vr_agrunt_hold_grunt_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Soldier's Launcher
+vr_agrunt_posecat_grunt_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Soldier's Launcher: Poses
+vr_agrunt_hold_grunt_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Soldier's Rifle
+vr_agrunt_posecat_grunt_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Soldier's Rifle: Poses
+vr_agrunt_hold_grunt_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Defender's Shotgun
+vr_agrunt_posecat_grunt_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Defender's Shotgun: Poses
+vr_agrunt_hold_grunt_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Centurion's Plasma Gun
+vr_agrunt_posecat_grunt_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Centurion's Plasma Gun: Poses
+vr_agrunt_hold_grunt_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Pyro's Flamethrower
+vr_agrunt_posecat_grunt_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Pyro's Flamethrower: Poses
+vr_agrunt_hold_grunt_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Fumigator's Poison Sprayer
+vr_agrunt_posecat_grunt_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Fumigator's Poison Sprayer: Poses
+vr_agrunt_hold_grunt_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crossbow Knight's Crossbow
+vr_agrunt_posecat_grunt_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crossbow Knight's Crossbow: Poses
+vr_agrunt_hold_enforcer_axe|1|Armed Grunts - Weapon Holds|Axe|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Axe
+vr_agrunt_hold_enforcer_shadowaxe|1|Armed Grunts - Weapon Holds|Shadow Axe (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shadow Axe (AD)
+vr_agrunt_hold_enforcer_crowbar|1|Armed Grunts - Weapon Holds|Crowbar|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crowbar
+vr_agrunt_hold_enforcer_sword|1|Armed Grunts - Weapon Holds|Sword|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Sword
+vr_agrunt_hold_enforcer_mjolnir|1|Armed Grunts - Weapon Holds|Mjolnir|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Mjolnir
+vr_agrunt_hold_enforcer_superaxe|1|Armed Grunts - Weapon Holds|Super Axe|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Axe
+vr_agrunt_hold_enforcer_chainsaw|1|Armed Grunts - Weapon Holds|Chainsaw|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Chainsaw
+vr_agrunt_hold_enforcer_adhammer|1|Armed Grunts - Weapon Holds|Hammer (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Hammer (AD)
+vr_agrunt_hold_enforcer_admace|1|Armed Grunts - Weapon Holds|Mace (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Mace (AD)
+vr_agrunt_hold_enforcer_phantomsword|1|Armed Grunts - Weapon Holds|Phantom Sword|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Phantom Sword
+vr_agrunt_hold_enforcer_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nail Pistol
+vr_agrunt_posecat_enforcer_nailpistol|1|Armed Grunts - Weapon Holds|Nail Pistol: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nail Pistol: Poses
+vr_agrunt_hold_enforcer_revolver|1|Armed Grunts - Weapon Holds|Revolver|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Revolver
+vr_agrunt_posecat_enforcer_revolver|1|Armed Grunts - Weapon Holds|Revolver: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Revolver: Poses
+vr_agrunt_hold_enforcer_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Flare Gun
+vr_agrunt_posecat_enforcer_flaregun|1|Armed Grunts - Weapon Holds|Flare Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Flare Gun: Poses
+vr_agrunt_hold_enforcer_shotgun|1|Armed Grunts - Weapon Holds|Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shotgun
+vr_agrunt_posecat_enforcer_shotgun|1|Armed Grunts - Weapon Holds|Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Shotgun: Poses
+vr_agrunt_hold_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun
+vr_agrunt_posecat_enforcer_supershotgun|1|Armed Grunts - Weapon Holds|Double-Barrelled Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Double-Barrelled Shotgun: Poses
+vr_agrunt_hold_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD)
+vr_agrunt_posecat_enforcer_widowmaker|1|Armed Grunts - Weapon Holds|Widowmaker (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Widowmaker (AD): Poses
+vr_agrunt_hold_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun
+vr_agrunt_posecat_enforcer_gruntgun|1|Armed Grunts - Weapon Holds|Grunt's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grunt's Shotgun: Poses
+vr_agrunt_hold_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle
+vr_agrunt_posecat_enforcer_enfrifle|1|Armed Grunts - Weapon Holds|Enforcer's Laser Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Enforcer's Laser Rifle: Poses
+vr_agrunt_hold_enforcer_nailgun|1|Armed Grunts - Weapon Holds|Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun
+vr_agrunt_posecat_enforcer_nailgun|1|Armed Grunts - Weapon Holds|Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Nailgun: Poses
+vr_agrunt_hold_enforcer_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Nailgun
+vr_agrunt_posecat_enforcer_supernailgun|1|Armed Grunts - Weapon Holds|Super Nailgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Super Nailgun: Poses
+vr_agrunt_hold_enforcer_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Launcher
+vr_agrunt_posecat_enforcer_grenade|1|Armed Grunts - Weapon Holds|Grenade Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Launcher: Poses
+vr_agrunt_hold_enforcer_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Proximity Gun
+vr_agrunt_posecat_enforcer_proximity|1|Armed Grunts - Weapon Holds|Proximity Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Proximity Gun: Poses
+vr_agrunt_hold_enforcer_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Launcher
+vr_agrunt_posecat_enforcer_rocket|1|Armed Grunts - Weapon Holds|Rocket Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Launcher: Poses
+vr_agrunt_hold_enforcer_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Thunderbolt
+vr_agrunt_posecat_enforcer_lightning|1|Armed Grunts - Weapon Holds|Thunderbolt: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Thunderbolt: Poses
+vr_agrunt_hold_enforcer_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD)|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Gun (AD)
+vr_agrunt_posecat_enforcer_plasmagun|1|Armed Grunts - Weapon Holds|Plasma Gun (AD): Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Gun (AD): Poses
+vr_agrunt_hold_enforcer_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Laser Cannon
+vr_agrunt_posecat_enforcer_lasercannon|1|Armed Grunts - Weapon Holds|Laser Cannon: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Laser Cannon: Poses
+vr_agrunt_hold_enforcer_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Soldier's Launcher
+vr_agrunt_posecat_enforcer_adrocket|1|Armed Grunts - Weapon Holds|Rocket Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Rocket Soldier's Launcher: Poses
+vr_agrunt_hold_enforcer_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Soldier's Launcher
+vr_agrunt_posecat_enforcer_adgrenade|1|Armed Grunts - Weapon Holds|Grenade Soldier's Launcher: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Grenade Soldier's Launcher: Poses
+vr_agrunt_hold_enforcer_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Soldier's Rifle
+vr_agrunt_posecat_enforcer_adplasma|1|Armed Grunts - Weapon Holds|Plasma Soldier's Rifle: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Plasma Soldier's Rifle: Poses
+vr_agrunt_hold_enforcer_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Defender's Shotgun
+vr_agrunt_posecat_enforcer_addefender|1|Armed Grunts - Weapon Holds|Defender's Shotgun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Defender's Shotgun: Poses
+vr_agrunt_hold_enforcer_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Centurion's Plasma Gun
+vr_agrunt_posecat_enforcer_adcenturion|1|Armed Grunts - Weapon Holds|Centurion's Plasma Gun: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Centurion's Plasma Gun: Poses
+vr_agrunt_hold_enforcer_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Pyro's Flamethrower
+vr_agrunt_posecat_enforcer_adpyro|1|Armed Grunts - Weapon Holds|Pyro's Flamethrower: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Pyro's Flamethrower: Poses
+vr_agrunt_hold_enforcer_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Fumigator's Poison Sprayer
+vr_agrunt_posecat_enforcer_adfumigator|1|Armed Grunts - Weapon Holds|Fumigator's Poison Sprayer: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Fumigator's Poison Sprayer: Poses
+vr_agrunt_hold_enforcer_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crossbow Knight's Crossbow
+vr_agrunt_posecat_enforcer_adcrossbow|1|Armed Grunts - Weapon Holds|Crossbow Knight's Crossbow: Poses|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Crossbow Knight's Crossbow: Poses
+|1|Armed Grunts - Weapon Holds|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Weapon Holds > Reset This Page
+@page|1|Armed Grunts - IK Stretch||Advanced VR Options > Combat > Armed Grunts > IK Stretch
+|1|Armed Grunts - IK Stretch|Reset to Defaults|Advanced VR Options > Combat > Armed Grunts > IK Stretch > Reset to Defaults
+@page|1|Armed Grunts - Grip Editor||Advanced VR Options > Combat > Armed Grunts > Grip Editor
+|1|Armed Grunts - Grip Editor|Drag Mode (Grab and Place)|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Drag Mode (Grab and Place)
+vr_agrunt_freeze|1|Armed Grunts - Grip Editor|Freeze Them|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Freeze Them
+vr_agrunt_grip_hand|1|Armed Grunts - Grip Editor|Hand|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Hand
+vr_agrunt_grip_scope|1|Armed Grunts - Grip Editor|Edits|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Edits
+vr_agrunt_grip_x|1|Armed Grunts - Grip Editor|Forward|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Forward
+vr_agrunt_grip_y|1|Armed Grunts - Grip Editor|Left|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Left
+vr_agrunt_grip_z|1|Armed Grunts - Grip Editor|Up|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Up
+vr_agrunt_grip_pitch|1|Armed Grunts - Grip Editor|Pitch|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Pitch
+vr_agrunt_grip_yaw|1|Armed Grunts - Grip Editor|Yaw|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Yaw
+vr_agrunt_grip_roll|1|Armed Grunts - Grip Editor|Roll|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Roll
+|1|Armed Grunts - Grip Editor|Print as Defaults|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Print as Defaults
+|1|Armed Grunts - Grip Editor|Reset This One|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Reset This One
+|1|Armed Grunts - Grip Editor|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Grip Editor > Reset This Page
 @page|1|Ragdoll Triggers - Ledges||Advanced VR Options > Combat > Ragdoll Triggers > Ledges
 vr_kdtrig_ledge_on|1|Ragdoll Triggers - Ledges|Ledges|Advanced VR Options > Combat > Ragdoll Triggers > Ledges > Ledges
 |1|Ragdoll Triggers - Ledges|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Ledges > Reset This Page
@@ -8977,33 +8995,33 @@ vr_mg3_aggro_groups|2|Dawn of the Machine Tests|Aggro Groups|Advanced VR Options
 |2|Dawn of the Machine: Chthon|Chthon Report|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of the Machine: Chthon > Chthon Report
 |2|Dawn of the Machine: Chthon|Chthon Test|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of the Machine: Chthon > Chthon Test
 |2|Dawn of the Machine: Chthon|The Boss Map's Fight|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of the Machine: Chthon > The Boss Map's Fight
-@page|1|Worn Backpacks - Grunts||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts
-vr_worn_backpack_grunt_x|1|Worn Backpacks - Grunts|Forward|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Forward
-vr_worn_backpack_grunt_y|1|Worn Backpacks - Grunts|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Left
-vr_worn_backpack_grunt_z|1|Worn Backpacks - Grunts|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Up
-vr_worn_backpack_grunt_scale|1|Worn Backpacks - Grunts|Size|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Size
-vr_worn_backpack_grunt_pitch|1|Worn Backpacks - Grunts|Pitch|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Pitch
-vr_worn_backpack_grunt_yaw|1|Worn Backpacks - Grunts|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Yaw
-vr_worn_backpack_grunt_roll|1|Worn Backpacks - Grunts|Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Roll
-|1|Worn Backpacks - Grunts|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Grunts > Reset This Page
-@page|1|Worn Backpacks - Knights||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights
-vr_worn_backpack_knight_x|1|Worn Backpacks - Knights|Forward|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Forward
-vr_worn_backpack_knight_y|1|Worn Backpacks - Knights|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Left
-vr_worn_backpack_knight_z|1|Worn Backpacks - Knights|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Up
-vr_worn_backpack_knight_scale|1|Worn Backpacks - Knights|Size|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Size
-vr_worn_backpack_knight_pitch|1|Worn Backpacks - Knights|Pitch|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Pitch
-vr_worn_backpack_knight_yaw|1|Worn Backpacks - Knights|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Yaw
-vr_worn_backpack_knight_roll|1|Worn Backpacks - Knights|Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Roll
-|1|Worn Backpacks - Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Knights > Reset This Page
-@page|1|Worn Backpacks - Death Knights||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights
-vr_worn_backpack_dknight_x|1|Worn Backpacks - Death Knights|Forward|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Forward
-vr_worn_backpack_dknight_y|1|Worn Backpacks - Death Knights|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Left
-vr_worn_backpack_dknight_z|1|Worn Backpacks - Death Knights|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Up
-vr_worn_backpack_dknight_scale|1|Worn Backpacks - Death Knights|Size|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Size
-vr_worn_backpack_dknight_pitch|1|Worn Backpacks - Death Knights|Pitch|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Pitch
-vr_worn_backpack_dknight_yaw|1|Worn Backpacks - Death Knights|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Yaw
-vr_worn_backpack_dknight_roll|1|Worn Backpacks - Death Knights|Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Roll
-|1|Worn Backpacks - Death Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > Death Knights > Reset This Page
+@page|1|Worn Backpacks - Grunts||Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts
+vr_worn_backpack_grunt_x|1|Worn Backpacks - Grunts|Forward|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Forward
+vr_worn_backpack_grunt_y|1|Worn Backpacks - Grunts|Left|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Left
+vr_worn_backpack_grunt_z|1|Worn Backpacks - Grunts|Up|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Up
+vr_worn_backpack_grunt_scale|1|Worn Backpacks - Grunts|Size|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Size
+vr_worn_backpack_grunt_pitch|1|Worn Backpacks - Grunts|Pitch|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Pitch
+vr_worn_backpack_grunt_yaw|1|Worn Backpacks - Grunts|Yaw|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Yaw
+vr_worn_backpack_grunt_roll|1|Worn Backpacks - Grunts|Roll|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Roll
+|1|Worn Backpacks - Grunts|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Grunts > Reset This Page
+@page|1|Worn Backpacks - Knights||Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights
+vr_worn_backpack_knight_x|1|Worn Backpacks - Knights|Forward|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Forward
+vr_worn_backpack_knight_y|1|Worn Backpacks - Knights|Left|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Left
+vr_worn_backpack_knight_z|1|Worn Backpacks - Knights|Up|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Up
+vr_worn_backpack_knight_scale|1|Worn Backpacks - Knights|Size|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Size
+vr_worn_backpack_knight_pitch|1|Worn Backpacks - Knights|Pitch|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Pitch
+vr_worn_backpack_knight_yaw|1|Worn Backpacks - Knights|Yaw|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Yaw
+vr_worn_backpack_knight_roll|1|Worn Backpacks - Knights|Roll|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Roll
+|1|Worn Backpacks - Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Knights > Reset This Page
+@page|1|Worn Backpacks - Death Knights||Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights
+vr_worn_backpack_dknight_x|1|Worn Backpacks - Death Knights|Forward|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Forward
+vr_worn_backpack_dknight_y|1|Worn Backpacks - Death Knights|Left|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Left
+vr_worn_backpack_dknight_z|1|Worn Backpacks - Death Knights|Up|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Up
+vr_worn_backpack_dknight_scale|1|Worn Backpacks - Death Knights|Size|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Size
+vr_worn_backpack_dknight_pitch|1|Worn Backpacks - Death Knights|Pitch|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Pitch
+vr_worn_backpack_dknight_yaw|1|Worn Backpacks - Death Knights|Yaw|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Yaw
+vr_worn_backpack_dknight_roll|1|Worn Backpacks - Death Knights|Roll|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Roll
+|1|Worn Backpacks - Death Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts > Worn Backpacks > Death Knights > Reset This Page
 @page|2|Ragdolls - Grunt||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Grunt
 vr_ragdoll_army_start|2|Ragdolls - Grunt|Go Limp At|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Grunt > Go Limp At
 vr_ragdoll_army_mass|2|Ragdolls - Grunt|Mass|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Grunt > Mass

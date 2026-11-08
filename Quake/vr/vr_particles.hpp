@@ -111,9 +111,10 @@ void clear();
 
 // The gore's drops (vr_gore.cpp): one falling straight down from `org` for `fall` seconds (Quake's
 // gravity) until it reaches `floorZ`, `size` about as big as a particle's scale, in `color` (lit
-// already); and `count` tiny specks thrown up off `normal` where one lands.
-void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color);
-void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color);
+// already); and `count` tiny specks thrown up off `normal` where one lands. `alpha`: times their own (the water drips',
+// vr_drips.cpp: one drop of any liquid).
+void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color, float alpha = 1.f);
+void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color, float alpha = 1.f);
 // A drop of blood flying (the blood streams' spurts and splashes, vr_bloodstream.cpp): `size` units, fading and shrinking
 // over its `life` seconds as it falls, in `color` (lit already); gone below `floorZ`. From the pool (no allocation).
 // `wet`: let in a liquid (the caller's one test, water::bloodInLiquid): slowed to a slowly sinking cloud, its own life.

@@ -1695,7 +1695,7 @@ string ad_MODEL_VWEAP_SNG = "progs/v_nail2.mdl";
 string ad_MODEL_VWEAP_GL = "progs/v_rock.mdl";
 string ad_MODEL_VWEAP_RL = "progs/v_rock2.mdl";
 string ad_MODEL_VWEAP_LG = "progs/v_light.mdl";
-string ad_MODEL_VWEAP_UPLG = "progs/v_plasma.mdl";		// LG Upgrade
+string ad_MODEL_VWEAP_UPLG = "progs/v_light_plasma.mdl";		// LG Upgrade
 //string MODEL_VWEAP_ZSSG = "progs/v_zershot.mdl";
 
 //----------------------------------------------------------------------

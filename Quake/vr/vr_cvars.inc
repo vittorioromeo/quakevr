@@ -166,7 +166,7 @@ QVR_CVAR(vr_throw_inherit, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
-QVR_CVAR(vr_embed, "0", CVAR_ARCHIVE)                // off for 1.1 (needs work: BACKLOG); on
+QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE)                // on (his decision 2026-11-08); 0: axes alone
 // Blade Hold Strength (his 2026-11-08): how hard a hand on a blade stuck in a body moves it, all at once: times every Moving:
 // force and lift (QC VR_Embed_Spring), the stance's give, and the spring's stiffness (its Hz by the square root: its N per
 // m times this).
@@ -856,7 +856,7 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
-QVR_CVAR(vr_menu_flat_vr_style, "0", CVAR_ARCHIVE)     // with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
+QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
 QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
 QVR_CVAR(vr_menu_flat_y, "0.5", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
@@ -1477,6 +1477,8 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+QVR_CVAR(vr_drips, "1", CVAR_ARCHIVE)                // water (and slime) dripping off what was in it once out: you, your hands and weapons, monsters, corpses, gibs, props (vr_drips.cpp; vr_drips_* tuning)
+QVR_CVAR(vr_drips_debug, "0", CVAR_NONE)            // 1: print each wet thing coming out of its liquid and drying; 2: each drop too
 // Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
 // burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
 // paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
@@ -2083,6 +2085,7 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
+QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded living monsters drip blood from where they were hit, the more the more hurt (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)
@@ -2480,7 +2483,7 @@ QVR_CVAR(vr_chainsaw_model_handle, "1", CVAR_ARCHIVE)    // the cord's handle in
 // dangles 1-2 cm about its seat, swung by the hand's motion and swaying a little at rest (vr_chainsaw.cpp).
 QVR_CVAR(vr_gruntgun_damage, "6", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too
-// Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
+// Armed grunts (QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause); at 2 each weapon's own count (QC VR_AG_SpareClips: the double-barrelled shotgun 8, the flare gun 4, the super nailgun 3), scaled by this / 2
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and

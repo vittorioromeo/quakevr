@@ -129,7 +129,8 @@ const DefaultChange defaultChanges[] = {
     // 142: one throw for props and weapons (2026-10-16, R2 review #13; ROUND22.md, "One throw for props and weapons"):
     // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
     // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set
-    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
+    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones (the
+    // window is a tuning constant now, vr_throw_2h_window: its old name is retired, an old line ignored).
     {142, &vr_throw_inherit, "1"},                  // 0.9
     // 143: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
     // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
@@ -489,6 +490,59 @@ RetiredPackFit retiredPackFits[] = {
     {"vr_worn_backpack_yaw", vr_worn_backpack_grunt_yaw, vr_worn_backpack_knight_yaw, vr_worn_backpack_dknight_yaw, 0.f, false, 0.f},
     {"vr_worn_backpack_roll", vr_worn_backpack_grunt_roll, vr_worn_backpack_knight_roll, vr_worn_backpack_dknight_roll, 0.f, false, 0.f},
 };
+
+// Defaults changed after the last full configs (configVersion 217, 1.0.x and every 1.1 beta), with each one's value
+// then. defaultChanges is frozen at 218 because a sparse config's line is the player's choice; but a full config holds
+// every setting, so without these a player upgrading from 1.0.1 or a beta kept the 217 defaults (armed replacements off,
+// the relight's old ambient...). Applied only to a full config (vr_cfg_version < sparseConfigVersion), to a setting still
+// at its 217 value. (Release pass 2026-11-08: the defaults of 155989a1d^ against today's; vr_body_step_rate is 220's
+// own step in migrateConfig.) A default changed later, of a setting a 217 config already held, needs its row here too
+// (`python scratch/diff217.py`-style: 155989a1d^'s vr_cvars.inc against today's).
+// Independent of defaultChanges' rows (those move what changed up to 217; these only what changed after), so the cut
+// at 1.0.1 (oldestMigrated 126) leaves them whole: they reach configs 126 to 217.
+struct FullConfigChange
+{
+    cvar_t* var;
+    const char* before;
+};
+const FullConfigChange fullConfigChanges[] = {
+    {&vr_ad_upgrades, "1"},
+    {&vr_agarmor_debris_time, "10"},
+    {&vr_agarmor_rule, "0"},
+    {&vr_agarmor_skill1_pieces, "2"},
+    {&vr_agarmor_skill2_pieces, "5"},
+    {&vr_agrunt_dual_chance, "0.25"},
+    {&vr_agrunt_dual_pickup, "0"}, // Pick Up a Second on (next, 2026-11-08)
+    {&vr_agrunt_fall_keep_impact, "4.5"},
+    {&vr_agrunt_parry_disarm, "0.35"},
+    {&vr_agrunt_repl, "0"}, // armed replacements on by default in 1.1 (his decision, 2026-11-06)
+    {&vr_agrunt_repl_ad, "0"},
+    {&vr_agrunt_repl_common, "0"},
+    {&vr_agrunt_repl_dual, "0"},
+    {&vr_agrunt_repl_gunaxe, "0"},
+    {&vr_agrunt_repl_rare, "0"},
+    {&vr_agrunt_repl_uncommon, "0"},
+    {&vr_agrunt_strafe_turn, "28"},
+    {&vr_agrunt_tug_break_force, "900"},
+    {&vr_agrunt_tug_break_impulse, "350"},
+    {&vr_agrunt_tug_let_go, "50"},
+    {&vr_agrunt_tug_pull_time, "0.5"},
+    {&vr_agrunt_tug_strength, "1.5"},
+    {&vr_ammo_low_frac, "0.25"},
+    {&vr_ammo_pouch_leg_follow, "0.5"},
+    {&vr_deadzone_outer, "5"},
+    {&vr_ghost_hands_fade_from, "6"},
+    {&vr_relight_ao, "1.5"},
+    {&vr_relight_bounce, "0"},
+    {&vr_relight_minlight, "0"},
+    {&vr_relight_reload, "0"},
+    {&vr_revolver_eject_rod_reach, "1"},
+    {&vr_revolver_eject_rod_speed, "0.35"},
+    {&vr_revolver_spin_hold, "0.6"},
+    {&vr_revolver_spin_speed, "0.8"},
+    {&vr_water_foam_particles, "2"},
+};
+
 // 1.0.1's version (the author's decision of 2026-11-08: migration cut at 1.0.1): an older config is reset
 // (resetOldConfig), not migrated; its changes' rows were dropped (122 was the cut until then, 1.0.0's).
 constexpr int oldestMigrated = 126;
@@ -724,6 +778,17 @@ void migrateConfig()
         {
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
+        }
+    }
+    if(from < sparseConfigVersion)
+    {
+        for(const FullConfigChange& c : fullConfigChanges)
+        {
+            if(sameValue(c.var->string, c.before))
+            {
+                Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
+                Cvar_SetQuick(c.var, c.var->default_string);
+            }
         }
     }
     if(from < 190 && retiredStruggleSeen)
@@ -1027,6 +1092,11 @@ void registerCvars()
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out. Names gone
 // before 1.0.1 (in its own list; no 1.0.1 config has them) went with the migration's cut at 1.0.1 (2026-11-08).
 constexpr const char* retiredCvars[] = {
+    // 2026-10-16: the props' two-handed throw window, now the tuning constant vr_throw_2h_window (0.2; no cvar to alias)
+    "vr_carry_two_hands_window",
+    // Removed without a line here (a beta 4 config printed "Unknown command" for them; release pass 2026-11-08):
+    "vr_walltorch_pull",      // 2026-10-31: a wall torch's pull (the grab query's weapon tug took it)
+    "vr_revolver_eject_tilt", // 2026-11-03: the revolver ejects by a push of the hand, not a tilt
     // 2026-11-08: split into _along and _across (and a rocket kind)
     "vr_proj_inherit_fast",
     "vr_proj_inherit_lobbed",
@@ -1313,7 +1383,8 @@ struct CvarAlias
 };
 constexpr CvarAlias cvarAliases[] = {
     // 2026-10-16: one throw for props and weapons (config 142; ROUND22.md, "One throw for props and weapons").
-    {"vr_carry_two_hands_window", "vr_throw_2h_window"},
+    // (vr_carry_two_hands_window's new home, vr_throw_2h_window, is a tuning constant, not a cvar: an alias to it found
+    // nothing and an old config's line printed "Unknown command"; the old name is in retiredCvars now.)
     {"vr_carry_throw_inherit", "vr_throw_inherit"},
 };
 

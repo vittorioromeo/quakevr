@@ -6,7 +6,7 @@
 import math
 
 # The models with painted sights and how their rear sight is read (vr_sightalign.cpp `painted`).
-PAINTED = {"v_shot.mdl": "notch", "v_shot2.mdl": "notch", "v_light.mdl": "notch", "v_plasma.mdl": "notch",
+PAINTED = {"v_shot.mdl": "notch", "v_shot2.mdl": "notch", "v_light.mdl": "notch", "v_light_plasma.mdl": "notch",
            "v_nailpistol.mdl": "notch"}
 
 
