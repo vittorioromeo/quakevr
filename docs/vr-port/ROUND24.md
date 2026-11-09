@@ -6267,7 +6267,10 @@ and bob". Then: make it the default; a glitch at a hit, fog under water, low-hea
 - **Results:** visor_test 12/0; flathud 11/0 (status bar pinned); vr_pp_test 1: 62/0 flat, 63/0 VR; flathit 11/0,
   flatlook 4/0, flatads 7/0; scenario_check 94 run, 1 failed (ad_lostsoul: what it placed gone after 3 s, not the
   visor); checklist_tests_check 85/0. flatpose 17/4 (the nudged eye's and hipfire's shot-point checks: server traces,
-  not pictures; not shown to be the visor's). Proof (`scratch/visor/`): 16:9 start (the visor, the old status bar, low
+  not pictures): not the visor's -- origin/next 0ae7e01d2 without it fails the same 4 (17/4) with the same muzzle
+  numbers (6.26 / 1.02 against the limit of 1), and this branch with `vr_flat_visor 0` 18/3 (the hipfire knight-300
+  check flaky). The view's rectangle is unchanged: hudstyle 2 and scr_sbaralpha 0.75 already keep no status bar room.
+  Proof (`scratch/visor/`): 16:9 start (the visor, the old status bar, low
   health and empty, a hit, under water, surfaced, booting); 21:9 e1m1 and its low state; 4:3 with messages and the menu;
   the sway strip; full-size 21:9 panels.
 ## The ammo screen: the magazine big and bright, the total small and dim (branch `agent/ammotext2`, 2026-11-09)
