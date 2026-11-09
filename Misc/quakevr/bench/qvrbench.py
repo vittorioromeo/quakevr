@@ -390,6 +390,16 @@ def scenarios():
     add("load_e1m1_qrp", ["loading", "textures"], "E1M1 loaded cold and warm on QRP (external textures, normal maps)",
         None, "load_e1m1's cold and warm loads on the QRP base: the replacement textures' and their material maps' share.",
         base="qrp", setup=LOADS, warm=30, body=loads_body([("cold", "map e1m1"), ("warm", "map e1m1")]), loads=2, frames=0)
+    for suffix, flat in (("", False), ("_flat", True)):
+        add(f"load_session_qrp{suffix}", ["loading", "textures"] + (["flat"] if flat else []),
+            "a session's first maps on QRP: the hub cold, then E1M1 and E1M2 by changelevel"
+            + (", flat" if flat else ""), None,
+            "`map start` (cold), `changelevel e1m1`, `changelevel e1m2`, `changelevel e1m1` (back: its images "
+            "decoded before, vr_image_cache): a play session's loads (each map new but the last) on the QRP base, and "
+            "the frames after each (the hub's portals in its first view)." + (" Flat mode (vr_enabled 0)." if flat else ""),
+            base="qrp", flat=flat, setup=LOADS, warm=30,
+            body=loads_body([("start", "map start"), ("e1m1", "changelevel e1m1"), ("e1m2", "changelevel e1m2"),
+                ("back", "changelevel e1m1")]), loads=4, frames=0)
     add("load_e4m7", ["loading"], "E4M7, id's biggest BSP, loaded cold and warm", None,
         "`map e4m7` cold, then again: the largest of id's maps (1.5 MB BSP).", setup=LOADS, warm=30,
         body=loads_body([("cold", "map e4m7"), ("warm", "map e4m7")]), loads=2, frames=0)

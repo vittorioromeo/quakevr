@@ -6873,3 +6873,108 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
 - **Test.** `flatxhair_test.sh` (31 checks): turn1/turn2 at 144 fps one and two guns (still, on the centre), flush and
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
+
+## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
+
+His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
+the keycard ... the keycard must be collected and not brought to the door, it's a common mistake users make."
+
+- **How a key is collected.** In VR (vr_item_objects, the default) a key is never taken by touch or trigger: a hand
+  grips it and lets go of it at a holster (hip or shoulder: VR_Carry_HandFrame -> VR_PickupObj_Holster); a door only
+  checks the player's items, so a key carried in the hand does nothing there. Flat play: taken at once (E on an
+  object pickup: VR_Carry_AutoCollect's flat objects; the crate's card is a plain touch pickup there), so there is
+  nothing to teach and the tip never shows.
+- **The tip.** `t2_key_held` in room 6: "Don't carry it to the door: let go of it / at a holster first, to keep it."
+  On the card, with its cable, the moment a hand takes it (ANYANGLE, delay 0, range 173), once (tips_seen; the
+  tutorial resets its tips each start); gone as the card is kept (the entity freed: the engine's gone-entity rule).
+- **New mapper feature, shared.** func_vr_tip's GRABBED flag (16): waits until a hand takes what it follows (its
+  `target`: an item's targetname). vr_crate's new `contents_name` names what a crate holds (the card is made as the
+  crate breaks, so it had no name to follow). The hook is one call in VR_Carry_HandFrame after the auto-collect
+  (VR_Tips_Grabbed): the same carry path serves VR grips, force-grab catches and flat E, so flat needs no code of its
+  own (taken at once there, the hook never runs). A loaded game puts a let-out GRABBED tip back on its thing, or
+  leaves it waiting if the thing is gone.
+- **Engine (vr_tips.cpp).** A tip let out of its wait (TRIGGERED fired, GRABBED taken) is considered first and makes
+  the panel showing fade (0.4 s) for it: the crate's own "A keycard!" tip (fired as the crate breaks) used to hold the
+  screen for vr_tips_time while the player already held the card. This applies to every TRIGGERED tip (the rifle's,
+  the crate's): what just happened comes first. New dev prints: `"<a>" makes way for "<b>"`, `its entity gone, it fades`.
+- **Map.** vrtutorial_gen.py has the tip and the crate's key; the .map regenerated; the .bsp's entity lump replaced
+  with `bsp_set_entities.py --from-file` (no recompile: geometry, .lit and .lux untouched; the lump checked against
+  the .map, 353 entities, 0 differ). FGD: entities.fgd documents flags 8 and 16, quakevr.fgd regenerated.
+- **Test.** `vr_pickup_test 13` (vrtutorial; with `+grabmain` held): crate broken, card in the main hand, the tip let
+  out then and not before, on the card (`tips: "t2_key" makes way for "t2_key_held"`, `"t2_key_held" by entity N`),
+  kept at a holster, `its entity gone, it fades`; 8/0. Flat (`-flatscreenmode`): the crate's card is a touch pickup
+  there (its handtouch; no carry), taken at once, the tip never let out; 5/0. Scenario `tutorial_keycard_tip` (room
+  6, the crate ahead): validate 0 missing, runall OK. vr_pp_test 1 63/0, checklist_tests_check 101/0.
+- **Seen in the mock.** With the hand held low (the mock's standing pose) the panel sits below and right of the card,
+  out of the desktop view; held up in front (as one looks at a card) it shows beside it. The panel's placement is the
+  tips' usual one, unchanged.
+## Faster map loads (branch `agent/perf_load`, 2026-11-09)
+
+From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with
+265-358 ms on the main thread in no zone. Measured here on the QRP base (his `id1/textures` pack) with his
+`ironwail.cfg` (PBR, parallax, normal maps), `vr_startup_times` per load and a Tracy capture of start -> e1m1 -> e1m2.
+
+- **Where the world model's time went** (e1m2, a map new to the session, no-LTO, shared machine): 357 ms, of which the
+  textures' loop 330: **vr_pbr's content hash of every world texture 170 ms** (`pbr::sourceHash`: SHA-256 of each
+  replacement image, 128 of them, portable code at ~200 MB/s; the companion bundle is keyed by it, so every new texture
+  is hashed, and E1M1/E1M2 have no companions: all of it to find nothing), texture processing and upload 70 (460
+  uploads: CPU mip chains, glTexImage), the made normal maps' processing and upload ~45, the prefetch's finding and
+  reading 35-38 (1,421 file lookups, 13 ms), external pack maps 31 + attached 19, image decode waits and opens 35. The
+  BSP lumps themselves (vertexes to submodels) take under 1 ms together.
+- **Going back to a map** (e1m1 after e1m2): 187 of e1m1's 265 images decoded again on the main thread (266 ms): the
+  prefetch skipped them as "in vr_image_cache" (by name), then the load's own new images pushed them out of the 512 MB
+  LRU before the loop got to them.
+- **The item boxes** (b_*.bsp, 19 of them: the toolgun precaches them at every worldspawn, VR_Toolgun_Precache) cost
+  70-75 ms of every load ("entities spawned"): their textures loaded, processed and uploaded again each map (brush
+  models live on the hunk; Mod_ClearAll frees their textures). Not changed (see Left).
+
+Changes:
+1. **SHA-256 with the processor's SHA extensions** (vr_sha256.cpp, detected with CPUID at start; the portable blocks
+   otherwise): 4 MB in 1.6 ms against 9.5 (`vr_sha256_test`: the FIPS vectors, and both paths the same digest for every
+   length 0-300 bytes and 4 MB, 302/302). Used by vr_pbr's texture hashes and the Map Library's download check alike.
+   PBR's hashing in e1m2's load 170 -> 33 ms.
+2. **Decoded images a load is about to use kept** (vr_imgcache.cpp `VR_ImageCacheHasName`): the prefetch's question
+   marks the image used now, so this load's new images push out other maps' first. E1M1 after E1M2: images decoded
+   on the main thread 187 -> 0 (decode time 287 -> 35 ms).
+3. **Tracy zones for every step of a brush model's load** (gl_model.c `MOD_STEP`: the lumps, the textures' prefetch,
+   each texture's external maps found/attached, its normal map), so the world model has no unzoned time left (the
+   rest of the textures loop's self time is TexMgr's own zones' parents).
+4. **Benchmarks**: `load_session_qrp` and `load_session_qrp_flat` (qvrbench.py): `map start`, `changelevel e1m1`,
+   `changelevel e1m2`, `changelevel e1m1` on QRP, the frames after each.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3 runs, ms from the command to the first frame;
+`qvr-kit/benchresults/perfload_base` against `perfload_after`; baseline = origin/next's engine files):
+
+| load | VR before | VR after | flat before | flat after |
+|---|---|---|---|---|
+| `map start` (cold, the session's first) | 2046 | 1872 | 1974 | 1827 |
+| `changelevel e1m1` (new to the session) | 651 | 506 | 599 | 536 |
+| `changelevel e1m2` (new) | 649 | 503 | 636 | 503 |
+| `changelevel e1m1` (back) | 360 | 386 | 358 | 387 |
+| `load_changelevel` (no pack) e1m2 / e1m1 | 321 / 236 | 334 / 207 | | |
+
+The back-to-E1M1 row is within run-to-run noise (355-461 both ways): in this session the three maps' images fit the
+512 MB cache, so nothing was pushed out. Where the cache overflows (the console's `map e1m1; map e1m2; map e1m1` from
+a cold start, his settings, no-LTO): e1m1's second load 685 -> 360 ms, its world model 455 -> 165. The worst frame of
+the 90 after each load is unchanged (VR 13 ms, flat 3-6 ms here at 960x540). Target ~0.4 s warm: 0.50 now for a map
+new to the session; the item boxes' 70 ms (Left) would bring it to ~0.43.
+
+Tests: `vr_sha256_test` 13/13 (incl. SHA extensions against portable 302/302), `vr_pp_test 1` 63/0,
+`checklist_tests_check` 99/0. No screenshot diffs: nothing drawn changes (the hashes are bit-identical, the cache only
+keeps different images; the textures are the same files decoded the same way).
+
+After the load (Tracy, flat, 960x540): the changelevel loads' first frames are small here (server ticks 7-11 ms: the
+hit models' poses 2.6-6.5, Box3D's first sync 3.6-3.9, QC StartFrame 3.2; the first view's `lights` 3.7: 42 alias mesh
+uploads); the session's first map (cold) has the big one, 194 ms: the player's own models loaded at their first
+draw (`view body` 59, `view entities` 103 in all), the hub's text boards' first layout (`vr opaque (text3d)` 19 + 12 in
+the portal view), 260 alias mesh uploads (`lights` 17: the AO bakes' vertex buffers), the first portal view 42.
+No prewarm added (see Left): his 13-60 ms post-load frames at 3440x1441 are mostly the GPU-bound frame plus these.
+
+Left (proposals):
+- Keep the item boxes' textures across maps (b_*.bsp: the same files every map; ~70 ms a load): needs their
+  gltextures not freed by Mod_ClearAll and a reuse path in TexMgr_LoadImage by owner, name and source CRC (Ironwail
+  has one only for TEXPREF_OVERWRITE), and every per-texture VR table (normal maps, ext maps, PBR uses) kept with them.
+- vr_pbr's remaining hashes (33 ms) on the prefetch's decode tasks (the image's hash next to its pixels).
+- The world's made normal maps on jobs like the skins' (VR_SkinNormalsPost: one path for both).
+- First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
+  the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.

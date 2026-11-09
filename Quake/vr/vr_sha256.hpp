@@ -1,7 +1,8 @@
 #pragma once
 
 // vr_sha256.hpp -- SHA-256 (FIPS 180-4), for checking a download against the hash its index gives (the Map Library's
-// zips: vr_mapinstall.cpp). Portable, no dependencies; about 200 MB/s, so it runs on the job's thread.
+// zips: vr_mapinstall.cpp; vr_pbr.cpp's content hash of each world texture). Portable, about 200 MB/s; with the processor's SHA
+// extensions (vr_sha256.cpp: detected at start) 7-8 times that.
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"

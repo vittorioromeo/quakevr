@@ -240,10 +240,23 @@ extern "C" int VR_ImageCacheHas(const char* name, FILE* f, int length)
     return it != cache.byName.end() && cache.images[it->second].key == key;
 }
 
-// ... whether it holds an image looked up as `name` at all (the file not opened: most likely the same one).
+// ... whether it holds an image looked up as `name` at all (the file not opened: most likely the same one). Asked for
+// the map's textures before their loop: such an image counts as used now, so the images this load decodes push out
+// other maps' first, not the ones the loop is about to find here (E1M1 after E1M2 on QRP: 187 of its images were
+// dropped between this question and their turn, then decoded on the main thread, 266 ms).
 extern "C" int VR_ImageCacheHasName(const char* name)
 {
-    return capBytes() != 0 && cache.byName.contains(za::StringView{name});
+    if(capBytes() == 0)
+    {
+        return 0;
+    }
+    const auto it = cache.byName.find(za::StringView{name});
+    if(it == cache.byName.end())
+    {
+        return 0;
+    }
+    cache.images[it->second].used = ++useCounter;
+    return 1;
 }
 
 // ... and what it decoded there (malloc'd RGBA, `width` x `height`): kept (true: the cache frees it) or not (false: the

@@ -1180,7 +1180,8 @@ def build_room6():
     skylight(5152, 1280, 5280, 1408, 64)
     checkpoint("cp6", 5024, 1216, LOW, 0)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], 64, 2, 2)
-    ent("vr_crate", 5216, 1344, LOW + 2, spawnflags=1, angle=20, skin=1, contents="item_key1", target="r6_crate")
+    ent("vr_crate", 5216, 1344, LOW + 2, spawnflags=1, angle=20, skin=1, contents="item_key1", contents_name="r6_key",
+        target="r6_crate")
     for (x, y, a) in ((5408, 1408, 5), (5400, 1160, 40)):
         ent("vr_crate", x, y, LOW + 2, angle=a, skin=2)
     banner(N.join(["LESSON 6: MELEE", "", "Make a fist and punch the crate", "until it breaks. Swing hard!", "",
@@ -1190,6 +1191,10 @@ def build_room6():
         LOW + 60, 200)
     tip("t2_key", "A keycard! Grip it, then hold it" + N + "to a holster to keep it.", 5216, 1320, LOW + 40, 300,
         delay=0, trig="r6_crate")
+    # On the card once it is in a hand (GRABBED 16, ANYANGLE 4; gone as it is kept): players carried it to the door
+    # instead of keeping it (the author, 2026-11-09: "a common mistake users make").
+    tip("t2_key_held", "Don't carry it to the door: let go of it" + N + "at a holster first, to keep it.", 5216, 1344,
+        LOW + 40, 150, target="r6_key", flags=4 | 16, delay=0)
     d = doorway("room6_exit", 5152, r["y0"] - 16, 5280, r["y0"], LOW, out)
     sliding_door(d, None, keys={"spawnflags": 16})
     banner(N.join(["KEYCARD DOOR", "Walk up to it with the card."]), 5216, r["y0"] + 4, LOW + 156, 90, "0.3")
