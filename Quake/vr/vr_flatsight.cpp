@@ -512,7 +512,8 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
     }
     glm::vec3 org, dir, viewFwd, viewRight, viewUp;
     flatplay::crosshairRay(s, aim, org, dir);
-    hands::angleVectors(aim, viewFwd, viewRight, viewUp);
+    // (Leaning, the gun's up rolled as the pose rolls it: flatplay::gunLeanRoll.)
+    hands::angleVectors(aim + glm::vec3{0.f, 0.f, flatplay::gunLeanRoll()}, viewFwd, viewRight, viewUp);
     const glm::vec3 point = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -2170,6 +2171,26 @@ void statusLine()
     {
         Con_Printf("  two hands: nothing held in one hand alone (both full, or both free)\n");
     }
+}
+
+bool shotOff(const hands::State& s, int h, float& degrees, float& apart)
+{
+    if(!aimsAtPoint(s, h))
+    {
+        return false;
+    }
+    // (As print's flataim line below: the shot's way against what the crosshair is on, and where its line stops.)
+    glm::vec3 org, dir;
+    const glm::vec3 viewAim = geom::vec(cl.viewangles);
+    flatplay::crosshairRay(s, viewAim, org, dir);
+    const glm::vec3 point = crosshairPoint(s, viewAim);
+    const glm::vec3 m = muzzleNow(s, h);
+    const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[h], flatplay::heldIn(h), h == HAND_OFF));
+    const glm::vec3 from = shotFrom(org, dir, point, m, st.aimBlocked[h]);
+    const glm::vec3 stop = lineStop(from - shot * glm::distance(m, s.pos[h]), from + shot * aimFar);
+    degrees = degreesApart(shot, aimWay(dir, point, from, st.aimBlocked[h]));
+    apart = glm::distance(stop, point);
+    return true;
 }
 
 void print(const hands::State& s)

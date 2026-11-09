@@ -179,5 +179,8 @@ struct SweepNumbers
 
 // Tests (vr_flatplay_debug 2, the move pass, next to flatplay::printMove): what the two parts did to this frame's shot.
 void print(const hands::State& s);
+// Tests (vr_flatleanpose_test): hand `h`'s shot against what the crosshair is on -- the angle between its way and the way
+// to that point, and how far from the point its line stops. False: the hand holds no gun that aims at the point.
+[[nodiscard]] bool shotOff(const hands::State& s, int h, float& degrees, float& apart);
 
 } // namespace qvr::flatsight
