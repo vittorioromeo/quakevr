@@ -1590,6 +1590,31 @@ void Draw_GetTransformBounds (const drawtransform_t *transform, float *left, flo
 
 /*
 ================
+Draw_CanvasToPixels -- QVR
+
+A spot of the canvas in effect (x, y in its units) in pixels of what the 2D pass draws into, from its top left: the
+window (the flat screen's VR menu panel's rect inside it included), or the headset's canvas (VR_CanvasPixels). For the
+tests: where the menus' dialogs were drawn (M_DialogBox).
+================
+*/
+void Draw_CanvasToPixels (float x, float y, float *px, float *py)
+{
+	int fx = 0, fy = 0, fw = glwidth, fh = glheight;
+
+	if (VR_CanvasPixels (&fw, &fh))
+		fx = fy = 0;
+	else if (!glcanvas_menupanel || !VR_MenuFlatViewport (&fx, &fy, &fw, &fh))
+	{
+		fx = fy = 0;
+		fw = glwidth;
+		fh = glheight;
+	}
+	*px = fx + (x * glcanvas.transform.scale[0] + glcanvas.transform.offset[0] + 1.f) * 0.5f * fw;
+	*py = fy + (1.f - (y * glcanvas.transform.scale[1] + glcanvas.transform.offset[1])) * 0.5f * fh;
+}
+
+/*
+================
 GL_SetCanvas -- johnfitz -- support various canvas types
 ================
 */

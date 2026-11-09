@@ -5702,3 +5702,30 @@ and nail pistol `LIP` 0.07 -> 0.09 -> 0.07: every vertex place and skin coordina
 split the other way (8 and 6 triangles) are re-made each way: they move to the end of the triangle list and leave
 16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
 grown box (and its weapons.txt offsets) when changed back, as every grown export does.
+
+## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
+
+His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
+window's top left corner.
+
+- **Cause:** on a flat screen Quit is Quake's own message (m_quit; the headset's is M_Confirm). Over a menu its
+  M_Quit_Draw draws the menu under it with M_Draw, which now ends with the flat panel's frame on the window's canvas
+  (VR_MenuDrawFlatFrame, CANVAS_DEFAULT): the message's box at Quake's 320x200 spot then landed on the window at scale
+  1. M_Confirm's dialogs (New Game, Reset to Defaults, VR Calibration, the hub, AD's question, `vr_test_confirm`) set
+  CANVAS_MENU themselves after their M_Draw: already right; SCR_ModalMessage draws on CANVAS_MENU with no M_Draw.
+- **Fix (menu.c M_Quit_Draw):** back on CANVAS_MENU after the menu under it (the panel's viewport, the menu's scale),
+  and, in the VR layout only, the menu faded under it as under M_Confirm's (the classic flat menus look as before).
+  Escape (and the mouse on the corner buttons) under Quit's message no longer go to the corner buttons (VR_MenuKey,
+  VR_MenuMouseOnButtons skip m_quit as they skip m_confirm): Escape goes back to the menu under it, as in Quake; before,
+  in the VR layout it closed the whole menu. VR: unchanged (Quit there is M_Confirm; no headset code path touched).
+- **Test aid:** `menu_vr pos` under a dialog prints its box as drawn and the menu's area and scale (`dialog box`,
+  `dialog area` lines: Draw_CanvasToPixels in gl_draw.c, M_DialogBox in menu.c). `menu_flat_panel_test.py` checks
+  Quit's message and `vr_test_confirm`'s centred on the flat panel at the menu's scale, Escape back to the main menu,
+  and Quit in the headset still M_Confirm: `menu flat panel: 28 passed, 0 failed`.
+- **Numbers** (flat, panel 0.9): 1920x1080: Quit's box middle 960.1 545.9 (Quake's box sits 4 units low), New Game's
+  and the test confirmation's 960.1 539.9, the panel's middle 960 540, all 1.52 px per unit as the menu; 1280x720:
+  640.1 363.9 / 359.9 against 640 360, 1.01 px per unit. Before: the box in the window's top left at scale 1. The
+  classic flat menu (style 0) unchanged: 640.2 368.8 on the window, 2.25 px per unit as its menu. Shots:
+  `scratch/flatquit_before.png`, `scratch/flatquit_after.png` (1080 Quit, 1080 confirmation, 720 Quit, 720 New Game),
+  `scratch/flatmenu_vr.png` (the headset's; its last the Quit dialog).
+- **Scene:** `flat_menu_quit` (the VR layout on; the scene leaves the menu closed).
