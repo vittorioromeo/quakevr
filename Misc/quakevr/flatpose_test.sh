@@ -72,13 +72,24 @@ check $(awk -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(n > 20 && d <= 0.1
 # knight: moved, then at the defaults (the control), then the eye relief alone, far out.
 log=$HERE/scratch/pose_ads.log
 bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait30; tune vr_flat_ads_relief 16; tune vr_flat_ads_screen_x 2; tune vr_flat_ads_screen_y -2; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune_reset vr_flat_ads_relief; tune vr_flat_ads_screen_x 0; tune vr_flat_ads_screen_y 0; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_ads_relief 20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait10; wait; tune_reset; toggleconsole; quit" -Filter "test spawn: |test hurt: |^flatsight: |^flataim: |^  ironsight: " > "$log" 2>&1
-read -r a0 a1 <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "relief 16.00" | tail -4 | offasked)"
-read -r c0 c1 <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "relief 10.00" | tail -4 | offasked)"
-read -r w0 w1 <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "relief 20.00" | tail -4 | offasked)"
+# The three shots' sights, each the last settled "ads on" record before its group's vr_flatplay_status line (the
+# printed relief is the solved one, scaled by the fov and the arm: it never reads as the cvar's 16 or 20, and a grep on
+# "relief 16.00" read nothing and passed on the empty value).
+group() { awk -v g="$2" '
+    function flush() { if (rec != "" && rec ~ / ads on / && grp == g) last = rec; rec = "" }
+    /^flatsight: / { flush(); rec = $0; next }
+    /^  ironsight: / { flush(); grp++; next }
+    /^[a-z]+( [a-z]+)?: / { flush(); next }
+    { if (rec != "") rec = rec " " $0 }
+    END { flush(); print last }' "$1"; }
+read -r a0 a1 <<<"$(group "$log" 0 | offasked)"
+read -r c0 c1 <<<"$(group "$log" 1 | offasked)"
+read -r w0 w1 <<<"$(group "$log" 2 | offasked)"
+nsight=$(for g in 0 1 2; do group "$log" $g; done | grep -ac "asked")
 deg=$(shotdeg "$log"); read -r s1 s2 s3 <<<"$(gaps "$log")"
 echo "  vr_flat_ads_relief 16 and the picture moved: the muzzle $a1 units off the crosshair's ray ($a0 off what its place asks), the knight on the crosshair took $s1 units; the same sight at the defaults: $c1 off it ($c0 off what is asked), $s2 units; vr_flat_ads_relief 20 alone: $w1 off it ($w0 off what is asked), $s3 units; the shots at most ${deg% *} deg off the point the crosshair is on, over ${deg#* } records, $log"
 check $(awk -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(n > 20 && d <= 0.1) }' && echo 1 || echo 0) "pose: the ironsight's numbers, and every shot still points at what the crosshair is on"
-check $(awk -v a="$a0" -v c="$c0" -v w="$w0" -v o="$w1" -v s1="$s1" -v s2="$s2" -v s3="$s3" 'BEGIN { exit !(a <= 0.5 && c <= 0.5 && w <= 0.5 && s2 + 0 > 0) }' && echo 1 || echo 0) "pose: the muzzle stands where the solved gun's does, and the foe at 24 is hit by the shipped sight (the moved ones printed: the gun's muzzle stands inside his box there; section f gates moved sights at 64 and 300)"
+check $(awk -v a="$a0" -v c="$c0" -v w="$w0" -v o="$w1" -v s1="$s1" -v s2="$s2" -v s3="$s3" -v n="$nsight" 'BEGIN { exit !(n == 3 && a <= 0.5 && c <= 0.5 && w <= 0.5 && s2 + 0 > 0) }' && echo 1 || echo 0) "pose: the muzzle stands where the solved gun's does, and the foe at 24 is hit by the shipped sight (the moved ones printed: the gun's muzzle stands inside his box there; section f gates moved sights at 64 and 300)"
 
 # d. the eye nudged, with the sight on: one shot at a fresh knight 24 units down the line the game aims along before the
 #    nudges, and one at another after them, printed: their 12 forward carries the gun past a knight at 24. Section f gates
@@ -86,18 +97,21 @@ check $(awk -v a="$a0" -v c="$c0" -v w="$w0" -v o="$w1" -v s1="$s1" -v s2="$s2" 
 log=$HERE/scratch/pose_cam.log
 bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; vr_flat_aim 1; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait5; vr_test_kill 1; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up 6; tune vr_flat_cam_side 4; vr_test_spawn 5; vr_test_spawn_dist 64; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait10; vr_test_hurt 1; wait10; vr_flatplay_status; wait; tune_reset; toggleconsole; quit" -Filter "^flatsight: |^flatcam: |test spawn: |test hurt: |^  ironsight: " > "$log" 2>&1
 read -r eye0 org0 nx ny nz <<<"$(recs "$log" | grep -a "^flatcam: " | tail -4 | camread)"
-read -r n0b n0a n1b n1a <<<"$(recs "$log" | awk '
+# (k: what the sight's place asks the muzzle to be off the ray, "asked": the bore stands under the sights, by the model's
+# own sight line -- the shotgun's 0.98 became 1.02 when its irons' tops became the aim line, c91b135b6 -- so the muzzle
+# is gated against that, not against a fixed 1 unit.)
+read -r n0b n0a n1b n1a n1k <<<"$(recs "$log" | awk '
     /^flatcam: / { for (i = 1; i <= NF; i++) if ($i == "nudge") { nudged = $(i+1) + 0 != 0 || $(i+2) + 0 != 0 || $(i+3) + 0 != 0 }
                   next }
     /^flatsight: / { if ($0 !~ / ads on /) next
-                  for (i = 1; i <= NF; i++) if ($i == "crosshair") { b = $(i+1) + 0; a = $(i+3) + 0 }
-                  if (nudged) { b2 = b; a2 = a } else { b1 = b; a1 = a } }
-    END { printf "%.2f %.2f %.2f %.2f", b1 + 0, a1 + 0, b2 + 0, a2 + 0 }')"
+                  for (i = 1; i <= NF; i++) { if ($i == "crosshair") { b = $(i+1) + 0; a = $(i+3) + 0 } if ($i == "asked") k = $(i+1) + 0 }
+                  if (nudged) { b2 = b; a2 = a; k2 = k } else { b1 = b; a1 = a } }
+    END { printf "%.2f %.2f %.2f %.2f %.2f", b1 + 0, a1 + 0, b2 + 0, a2 + 0, k2 + 0 }')"
 read -r dmg0 dmg1 <<<"$(gaps "$log")"
-echo "  vr_flat_cam_fwd 12 vr_flat_cam_up 6 vr_flat_cam_side 4: the drawn eye $eye0 units above his origin, the nudges read as $nx $ny $nz in the world at this look, his origin $org0; the muzzle $n0a units off the crosshair's ray with the sight settled before the nudges and $n1b / $n1a after them; the knight on the crosshair took ${dmg0:-no read} units from the shot before the nudges and ${dmg1:-no read} from the one after them, $log"
+echo "  vr_flat_cam_fwd 12 vr_flat_cam_up 6 vr_flat_cam_side 4: the drawn eye $eye0 units above his origin, the nudges read as $nx $ny $nz in the world at this look, his origin $org0; the muzzle $n0a units off the crosshair's ray with the sight settled before the nudges and $n1b / $n1a after them (the sight asks $n1k: the bore under the sights); the knight on the crosshair took ${dmg0:-no read} units from the shot before the nudges and ${dmg1:-no read} from the one after them, $log"
 check $(awk -v o="$org0" 'BEGIN { exit o == 88 }' && echo 1 || echo 0) "view: the nudges move the drawn eye and leave his origin at 88"
 check $(awk -v e="$eye0" -v x="$nx" -v y="$ny" -v z="$nz" 'BEGIN { exit !(e > 27 && e < 29 && x == 12 && y == 4 && z == 6) }' && echo 1 || echo 0) "view: at this look the nudges read as 12 forward, 4 to the world's east and 6 up"
-check $(awk -v b="$n1b" -v a="$n1a" 'BEGIN { exit !(a < 1 && b > 4) }' && echo 1 || echo 0) "view: the sight closes the muzzle back onto the nudged camera's crosshair ray"
+check $(awk -v b="$n1b" -v a="$n1a" -v k="$n1k" 'BEGIN { d = a - k; exit !((d < 0 ? -d : d) <= 0.25 && k < 2 && b > 4) }' && echo 1 || echo 0) "view: the sight closes the muzzle back onto the nudged camera's crosshair ray (to what the bore under the sights asks)"
 check $(awk -v d0="${dmg0:-0}" 'BEGIN { exit !(d0 + 0 > 0) }' && echo 1 || echo 0) "view: the foe standing on the crosshair is hit by the shot fired before the nudges"
 
 # e. the same nudges with Left Ctrl held: the crouch comes down on top of them. The game's own report (vr_flatkeys_test 1)
@@ -120,15 +134,24 @@ check $(awk -v a="$h0" -v b="$h1" -v c="$k1" 'BEGIN { exit !(c == 1 && a - b > 1
 # hipfire -- a shot at a knight 64 away, one at a knight 300 away, and one at the wall. vr_debug_shots' line says where the
 # server's shot left from and along what; the last flataim: line says what the crosshair was on. Then the control: the first
 # aim's offsets with vr_flat_aim_point 0, a shot along the view, at the knight at 64.
-AT="tune vr_flat_sway 0; tune vr_flat_bob 0; tune vr_flat_turnlag 0"
+# Two things keep it the same every run (2026-11-09): the shots come from the reserve (vr_flat_reload 0, put back at the
+# end): with the clips of 2026-11-08 the shotgun's 8 ran dry before the hipfire wall and the control, which never fired;
+# and the look is 2 degrees down (setpos at the hall's start), so the crosshair crosses the knight at 300 at his chest:
+# level, at the eye's 22 units, it grazed the top of his animated head, and his idle frames took it off him now and then
+# (the hipfire and nudged-eye knight at 300 failing at random). The wall at 900 is still the wall (the floor is 1300 away).
+AT="tune vr_flat_sway 0; tune vr_flat_bob 0; tune vr_flat_turnlag 0; vr_flat_reload 0; setpos 0 -288 25 2 90 0"
 K() { echo "vr_test_spawn 5; vr_test_spawn_dist $1; impulse 241; wait25; +attack; wait3; -attack; wait30; vr_test_kill 1; wait10"; }
 W="wait10; +attack; wait3; -attack; wait30"
 ALL="$(K 64); $(K 300); $W"
 log=$HERE/scratch/pose_point.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_debug_shots 1; impulse 154; $AT; wait60; vr_flatplay_debug 2; vr_flat_aim 1; tune vr_flat_ads_screen_y -1; tune vr_flat_ads_screen_x 1; wait40; $ALL; tune vr_flat_ads_screen_y 0; tune vr_flat_ads_screen_x 0; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up -6; tune vr_flat_cam_side 4; wait30; $ALL; tune vr_flat_cam_fwd 0; tune vr_flat_cam_up 0; tune vr_flat_cam_side 0; vr_flat_aim 0; wait40; $ALL; vr_flat_aim 1; tune vr_flat_ads_screen_y -15; tune vr_flat_ads_screen_x 25; tune vr_flat_aim_point 0; wait40; $(K 64); tune_reset; toggleconsole; quit" -Filter "^flataim: main|^shot: from" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_debug_shots 1; impulse 154; $AT; wait60; vr_flatplay_debug 2; vr_flat_aim 1; tune vr_flat_ads_screen_y -1; tune vr_flat_ads_screen_x 1; wait40; $ALL; tune vr_flat_ads_screen_y 0; tune vr_flat_ads_screen_x 0; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up -6; tune vr_flat_cam_side 4; wait30; $ALL; tune vr_flat_cam_fwd 0; tune vr_flat_cam_up 0; tune vr_flat_cam_side 0; vr_flat_aim 0; wait40; $ALL; vr_flat_aim 1; tune vr_flat_ads_screen_y -15; tune vr_flat_ads_screen_x 25; tune vr_flat_aim_point 0; wait40; $(K 64); tune_reset; vr_flat_reload 1; toggleconsole; quit" -Filter "^flataim: main|^shot: from" > "$log" 2>&1
 # One line a shot: how far the point stands off the line it left on, what was at that point, how far, what the pellets hit.
+# (A flataim: record whose point is under 1 unit away is skipped: the crosshair's ray started inside something at his
+# head for that frame -- seen for a few frames now and then on next 2026-11-09, the server's shot unaffected -- and it says
+# nothing of what the crosshair is on. Their count is printed.)
 shots() { grep -aE "^(flataim: main|shot: from)" "$1" | tr -d "'" | awk '
-    /^flataim:/ { for (i = 1; i <= NF; i++) { if ($i == "at") { x = $(i+1); y = $(i+2); z = $(i+3) } if ($i == "away") a = $(i+1) } next }
+    /^flataim:/ { for (i = 1; i <= NF; i++) if ($i == "away") aw = $(i+1) + 0; if (aw < 1) next
+                  for (i = 1; i <= NF; i++) { if ($i == "at") { x = $(i+1); y = $(i+2); z = $(i+3) } if ($i == "away") a = $(i+1) } next }
     /^shot:/ { sx = $3; sy = $4; sz = $5; dx = $7; dy = $8; d3 = $9; sub(":", "", d3)
       t = (x - sx) * dx + (y - sy) * dy + (z - sz) * d3
       ex = x - sx - dx * t; ey = y - sy - dy * t; ez = z - sz - d3 * t
@@ -139,8 +162,9 @@ pointline() { sed -n "$1p" "$HERE/scratch/pose_point.txt"; }
 i=0
 for name in $names; do
   i=$((i + 1)); read -r off away on <<<"$(pointline $i)"
-  echo "  $name: the crosshair on something $away away, $off units off the line the server's shot left on, $on pellets on the knight"
+  echo "  $name: the crosshair on something ${away:-(no shot)} away, ${off:-(no shot)} units off the line the server's shot left on, ${on:-no} pellets on the knight"
 done
+echo "  $(grep -ac . "$HERE/scratch/pose_point.txt") shots read of the 10 fired; $(grep -ac "^flataim: main.* away 0\.[0-9] " "$log") crosshair records skipped (the ray started inside something), $log"
 gate() { read -r off away on <<<"$(pointline $1)"; awk -v o="${off:-999}" -v a="${away:-0}" -v p="${on:-0}" -v w="$2" -v k="$3" 'BEGIN { exit !(o <= 1.5 && a > w * 0.5 && (k == 0 || p + 0 > 0)) }' && echo 1 || echo 0; }
 check $(gate 1 48 1) "point: the picture moved, a knight 64 away: the server's shot goes through the crosshair's point, and hits him"
 check $(gate 2 280 1) "point: the picture moved, a knight 300 away: the same"
@@ -152,7 +176,7 @@ check $(gate 7 48 1) "point: hipfire, a knight 64 away: the same"
 check $(gate 8 280 1) "point: hipfire, a knight 300 away: the same"
 check $(gate 9 500 0) "point: hipfire, the far wall: the same"
 read -r coff caway con <<<"$(pointline 10)"
-check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes ${coff:-?} units off the crosshair's point"
+check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes more than 8 units off the crosshair's point"
 
 # g. The near plane at a gun held at the camera: the sight at its nearest eye relief, pinned here ($CLOSE) -- the case came from the pose his
 # 2026-11-03 tuning shipped (vr_flat_gun_ahead 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn
