@@ -10,7 +10,8 @@
 // them: extra 1). The flames sit on the model as drawn (hitmodel_any), fitted again a few times a second as it moves,
 // dies and falls. Out when its time is up (the flames shrink away), in water, gibbed or gone.
 // Wood (VR_Burn_Wood: a crate, a piece of one) burns its time without damage and breaks (a crate: charred pieces) or
-// burns away (a piece), setting the wood near it on fire; an explosive box is metal (VR_Burn_Metal): it never catches.
+// burns away (a piece), setting the wood near it on fire; what the material table (vr_material.qc) says is not
+// flammable never catches: an explosive box is metal.
 // Your own torch's flame on you (vr_burn_self) sets you on fire; held upside down, on its hand, it is dropped
 // (vr_burn_drop): VR_Burn_OnYou (ROUND21.md, "Torch flames: upright from the head's top, swings, smoke, burning you").
 // `vr_burn_test <n>` (Debug > Burning Tests): 1 a torch's blow, 2 a lava nail, 3 a touch, on the nearest monster or
@@ -76,18 +77,13 @@ float(entity e) VR_Burn_Wood =
     return VR_Crate_Is(e) || VR_CratePiece_Is(e);
 };
 
-// An explosive box (misc_explobox, misc_explobox2; blowing up: explo_box): metal.
-float(entity e) VR_Burn_Metal =
-{
-    return VR_Prop_Metal(e); // (vr_crates.qc)
-};
-
-// Whether `e` can be set on fire: a monster or a player alive, a monster's corpse (dying or lying: vr_corpse_gib), a
-// wooden crate (vr_burn_crates), a piece of one not charred (vr_burn_pieces). Never an explosive box: it is metal
-// (NOTES.md vrfiringrange_2026-10-03_02-29-24); nothing burning sets one off.
+// Whether `e` can be set on fire: what its material is flammable (the material table, vr_material.qc: wood, flesh;
+// never an explosive box: it is metal, NOTES.md vrfiringrange_2026-10-03_02-29-24; nothing burning sets one off), and of
+// those a monster or a player alive, a monster's corpse (dying or lying: vr_corpse_gib), a wooden crate
+// (vr_burn_crates), a piece of one not charred (vr_burn_pieces).
 float(entity e) VR_Burn_Can =
 {
-    if(e == world || !e.modelindex || e.vr_gib || VR_Burn_Fireproof(e) || VR_Burn_Metal(e))
+    if(e == world || !e.modelindex || e.vr_gib || VR_Burn_Fireproof(e) || !VR_Mat_Has(e, VR_MATP_FLAMMABLE))
     {
         return FALSE;
     }

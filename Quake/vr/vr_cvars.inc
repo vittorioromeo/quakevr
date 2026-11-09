@@ -1260,7 +1260,8 @@ QVR_CVAR(vr_burn_water_douse, "1", CVAR_ARCHIVE)       // 1: water and slime put
 QVR_CVAR(vr_burn_self, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
 QVR_CVAR(vr_burn_self_time, "0.6", CVAR_ARCHIVE)         // s a held torch's flame must stay on you before you catch fire (haptic warnings till then)
 QVR_CVAR(vr_burn_drop, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): a torch held upside down whose flame stays on the hand holding it for vr_burn_drop_time is dropped (a burn on the hand)
-QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns (and how far its flames sit off its surface); 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame; 13 sets you on fire (a hit at your chest), 14 prints how far your flames sit off your body (Debug)
+QVR_CVAR(vr_systems_test, "0", CVAR_NONE)                // the shared systems' tests and dumps (QC vr_systems_test.qc: 1 every entity's material answers; Debug > Systems Tests)
+QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                 // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns (and how far its flames sit off its surface); 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame; 13 sets you on fire (a hit at your chest), 14 prints how far your flames sit off your body (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 // Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,

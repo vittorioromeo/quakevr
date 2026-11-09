@@ -1817,6 +1817,7 @@ float cvarh_vr_strike_stamina_cost_2h;
 float cvarh_vr_strike_stamina_punch;
 float cvarh_vr_superaxe_burst_window;
 float cvarh_vr_sword_damage_mult;
+float cvarh_vr_systems_test;
 float cvarh_vr_teeth;
 float cvarh_vr_teeth_blunt;
 float cvarh_vr_teeth_hardness;
@@ -3779,6 +3780,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_strike_stamina_punch = VR_CVar_Make("vr_strike_stamina_punch");
     cvarh_vr_superaxe_burst_window = VR_CVar_Make("vr_superaxe_burst_window");
     cvarh_vr_sword_damage_mult = VR_CVar_Make("vr_sword_damage_mult");
+    cvarh_vr_systems_test = VR_CVar_Make("vr_systems_test");
     cvarh_vr_teeth = VR_CVar_Make("vr_teeth");
     cvarh_vr_teeth_blunt = VR_CVar_Make("vr_teeth_blunt");
     cvarh_vr_teeth_hardness = VR_CVar_Make("vr_teeth_hardness");
