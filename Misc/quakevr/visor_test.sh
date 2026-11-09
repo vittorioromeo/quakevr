@@ -2,7 +2,8 @@
 # visor_test.sh <agent> -- flatscreen play's visor HUD (vr_flat_visor; Quake/vr/vr_visor.cpp, vr_gadget_visor.inc;
 # docs/vr-port/ROUND24.md, "Flat-screen visor HUD"), headless, in fast mode (the visor's clock is the frames' own).
 # Reads vr_flat_visor_report through one run of e1m1 and the start map:
-#   rest      standing still: the three panels drawn inside the view's corners and bottom, no sway at all
+#   rest      standing still: the seven panels inside the view, each in its place, left and right mirrored, no sway;
+#             every mount meets the screen's edges (report: contact), at rest, turning and walking too
 #   turn      +right held: the panels lag the turn (a fraction of a degree, never more than 0.6 at sway 1)
 #   settle    let go: back to exactly 0 within half a second
 #   walk      +forward: the walk's bob moves them (at most a few tenths of a degree), then still again standing

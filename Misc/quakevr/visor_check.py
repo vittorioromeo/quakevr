@@ -24,10 +24,11 @@ for line in log.split("\n"):
         phases[phase].update(active=int(v[0]), sway=(v[1], v[2]), glitch=v[6], fog=v[7], underwater=int(v[8]),
                              boot=(v[11], v[12], v[13]))
         continue
-    m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) \(view (\d+) x (\d+)\)", line.strip())
+    m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) contact (\d) "
+                 r"\(view (\d+) x (\d+)\)", line.strip())
     if m and m.group(1) not in phases[phase]["panels"]:
         phases[phase]["panels"][m.group(1)] = (int(m.group(2)), *(float(x) for x in m.groups()[2:6]),
-                                               int(m.group(7)), int(m.group(8)))
+                                               int(m.group(8)), int(m.group(9)), int(m.group(7)))
 
 passed = failed = 0
 
@@ -51,14 +52,28 @@ def sway(p):
 
 
 rest = phases.get("rest", {"panels": {}})
-inside = len(rest["panels"]) == 3 and all(
-    d == 1 and 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h for (d, x0, y0, x1, y1, w, h) in rest["panels"].values())
-check(get("rest", "active") == 1 and inside, f"rest: the visor on by default, its three panels inside the view ({rest['panels']})")
+NAMES = ("vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright")
+inside = len(rest["panels"]) == 7 and all(
+    d == 1 and 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h for (d, x0, y0, x1, y1, w, h, c) in rest["panels"].values())
+check(get("rest", "active") == 1 and inside, f"rest: the visor on by default, its seven panels inside the view ({rest['panels']})")
 if inside:
-    v, a, lo = rest["panels"]["vitals"], rest["panels"]["ammo"], rest["panels"]["log"]
-    check(v[1] < v[5] * 0.2 and v[2] < v[6] * 0.2 and a[3] > a[5] * 0.8 and a[2] < a[6] * 0.2 and lo[4] > lo[6] * 0.85
-          and abs((lo[1] + lo[3]) * 0.5 - lo[5] * 0.5) < 2,
-          "rest: health top left, ammo top right, the low panel at the bottom's middle")
+    P = rest["panels"]
+    cx = lambda q: (q[1] + q[3]) * 0.5 / q[5]  # noqa: E731 (its middle, in shares of the view)
+    cy = lambda q: (q[2] + q[4]) * 0.5 / q[6]  # noqa: E731
+    where = {"vitals": (cx(P["vitals"]) < 0.2 and cy(P["vitals"]) < 0.2), "status": (cx(P["status"]) > 0.8 and cy(P["status"]) < 0.2),
+             "lefthand": (cx(P["lefthand"]) < 0.2 and cy(P["lefthand"]) > 0.8),
+             "righthand": (cx(P["righthand"]) > 0.8 and cy(P["righthand"]) > 0.8),
+             "log": (abs(cx(P["log"]) - 0.5) < 0.01 and cy(P["log"]) > 0.85),
+             "sideleft": (cx(P["sideleft"]) < 0.1 and abs(cy(P["sideleft"]) - 0.5) < 0.02),
+             "sideright": (cx(P["sideright"]) > 0.9 and abs(cy(P["sideright"]) - 0.5) < 0.02)}
+    check(all(where.values()), f"rest: each panel in its place ({where})")
+    mirror = all(abs(P[a][1] + P[b][3] - P[a][5]) < 1.5 and abs(P[a][2] - P[b][2]) < 1.5
+                 for a, b in (("lefthand", "righthand"), ("sideleft", "sideright")))
+    check(mirror, "rest: left and right mirrored (the hands' panels, the side mounts)")
+for ph in ("rest", "turn", "walk"):
+    pan = phases.get(ph, {"panels": {}})["panels"]
+    check(len(pan) == 7 and all(v[7] == 1 for v in pan.values()),
+          f"{ph}: every mount meets the screen's edges with no gap ({ {k: v[7] for k, v in pan.items()} })")
 check(sway("rest") == 0, f"rest: standing still, no sway ({get('rest', 'sway')})")
 check(0.05 < sway("turn") <= 0.6001, f"turn: the panels lag the turn a fraction of a degree ({get('turn', 'sway')})")
 check(sway("settle") == 0, f"settle: let go, back to rest within half a second ({get('settle', 'sway')})")

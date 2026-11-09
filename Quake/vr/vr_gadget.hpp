@@ -92,32 +92,44 @@ void tapFeedback(bool activation);
 void useBrightFont(bool on);
 
 // The flat-screen visor's panels (vr_visor.cpp; vr_gadget_visor.inc): the HUD in the screen's own palette, font, numbers
-// and icons (and its made-up readings, vr_gadget_test_state) in three small images, drawn at the end of the 2D pass
-// (renderVisor) and shown by vr_visor.cpp as 3D panels near the view's corners. Kept here so that a headset's visor could
-// take the same images later.
+// and icons (and its made-up readings, vr_gadget_test_state) in seven small images, drawn at the end of the 2D pass
+// (renderVisor) on a black face (Shade::Screen's inkAlpha leaves it clear: the mount behind is the face) and shown by
+// vr_visor.cpp inside mounts on the screen's edges. Kept here so that a headset's visor could take the same images later.
 enum VisorPanel : int
 {
-    VisorVitals, // health and armour (top left)
-    VisorAmmo,   // each hand's ammo, the keys and powerups (top right)
-    VisorLog,    // the console's notify lines and bullet time's meter (low in the middle)
+    VisorVitals,     // health and armour (top left)
+    VisorStatus,     // bullet time's and stamina's bars, the ammo carried in a grid (top right)
+    VisorLeftAmmo,   // the left hand's weapon's ammo (bottom left; HAND_OFF is the left hand)
+    VisorRightAmmo,  // the right hand's (bottom right)
+    VisorLog,        // the console's notify lines (low in the middle)
+    VisorSideLeft,   // keys, sigils, AD's custom keys (the left edge's middle)
+    VisorSideRight,  // powerups with their seconds, AD's artifacts and debuffs (the right edge's middle)
     VisorPanelCount
 };
 struct VisorInput
 {
-    float boot[VisorPanelCount]{1.f, 1.f, 1.f}; // each panel's power-on sweep (0 .. 1: done)
-    float alarm{0.f};                           // the health panel's low-health pulse now (0 .. 1)
-    bool log{false};                            // the notify lines in the low panel (vr_flat_visor_log)
+    float boot[VisorPanelCount]{1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f}; // each panel's power-on sweep (0 .. 1: done)
+    float alarm{0.f};                                                // the health panel's low-health pulse now (0 .. 1)
+    bool log{false};                                                 // the notify lines in the low panel (vr_flat_visor_log)
 };
 struct VisorImage
 {
     unsigned texture{0};
     glm::vec2 size{0.f}; // its virtual screen, pixels
-    glm::vec2 band{0.f}; // the rows of it in use (top, bottom): shown alone (the low panel's meter without the log)
-    bool shown{false};   // drawn, with something to show (the low panel: a log line or bullet time's meter)
+    bool shown{false};   // drawn (its contents: an empty hand's panel, an empty side mount's, are drawn empty)
+};
+// The mounts' colours, the screens' own: the face, its frame line, the warning red, the values.
+struct VisorColors
+{
+    glm::vec3 face{0.f};
+    glm::vec3 line{0.f};
+    glm::vec3 warn{0.f};
+    glm::vec3 value{0.f};
 };
 void renderVisor(const VisorInput& in);
 [[nodiscard]] VisorImage visorImage(int panel);
 [[nodiscard]] glm::vec4 visorPhosphor(); // the screens' colour at full strength (Shade::Screen's static)
+[[nodiscard]] VisorColors visorColors();
 [[nodiscard]] int visorLogLines();       // the notify lines the low panel shows
 
 // Draws the texture over the model's screen, in one phosphor colour and as a small CRT

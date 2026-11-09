@@ -195,6 +195,9 @@ enum Stat : int
     // hip holster and back, bit 0 the off hand, 1 the main. Set for the whole trip; cleared at its end or when it is
     // cancelled (the weapon changed).
     STAT_QVR_FLATRELOAD,
+    STAT_QVR_AMMOLAVA,   // Rogue's lava nails, multi-rockets and plasma carried (QC .ammo_lava_nails, .ammo_multi_rockets, .ammo_plasma): the
+    STAT_QVR_AMMOMULTI,  // flat-screen visor's ammo grid (vr_gadget_visor.inc); 0 outside the mission pack
+    STAT_QVR_AMMOPLASMA,
     STAT_QVR_END
 
 };

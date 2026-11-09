@@ -932,6 +932,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_FLATRELOAD, f.vr_flatrl);
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
+    stat(STAT_QVR_AMMOLAVA, f.ammo_lava_nails); // Rogue's ammo: the flat-screen visor's ammo grid
+    stat(STAT_QVR_AMMOMULTI, f.ammo_multi_rockets);
+    stat(STAT_QVR_AMMOPLASMA, f.ammo_plasma);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
     stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
     stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);

@@ -33,6 +33,7 @@
 #include "vr_relight.hpp"
 #include "vr_text3d.hpp"
 #include "vr_visor.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
 
@@ -1381,7 +1382,6 @@ VisorImage visorImage(int panel)
     }
     out.texture = visor.targets[panel].texture;
     out.size = {visorSizes[panel][0], visorSizes[panel][1]};
-    out.band = visor.band[panel];
     out.shown = visor.shown[panel] && out.texture != 0;
     return out;
 }
@@ -1389,6 +1389,12 @@ VisorImage visorImage(int panel)
 glm::vec4 visorPhosphor()
 {
     return palette().text;
+}
+
+VisorColors visorColors()
+{
+    const Palette pal = palette();
+    return {.face = pal.background, .line = pal.line, .warn = pal.warn, .value = pal.value};
 }
 
 int visorLogLines()
