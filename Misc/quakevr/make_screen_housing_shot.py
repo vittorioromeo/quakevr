@@ -3,12 +3,21 @@
 # as part of the gun"; his mockup: a bevelled metal bezel round the screen with four corner bolts on the receiver's
 # end face, the glass set in).
 #
-# Usage: blender -b --factory-startup Misc/quakevr/src_models/blend/v_shot/v_shot.blend
-#            --python Misc/quakevr/make_screen_housing_shot.py -- [--save other.blend]
+# Usage, from the repository root (the options after the separator: [--dry] [--save other.blend]):
+#   Git Bash:   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup \
+#                   Misc/quakevr/src_models/blend/v_shot/v_shot.blend \
+#                   --python Misc/quakevr/make_screen_housing_shot.py -- --dry
+#   PowerShell: & "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup `
+#                   Misc\quakevr\src_models\blend\v_shot\v_shot.blend `
+#                   --python Misc\quakevr\make_screen_housing_shot.py '--' --dry
+#   (PowerShell eats a bare --: quote it. Leave out `-- --dry` to export and save.)
 # Builds or moves the housing, exports the model as blend_export.py does (quakevr/progs, weapons.txt's barrel mask)
-# and saves the .blend (in place, or as --save) as the export left it. Ends with "housing_shot: ok, ...".
+# and saves the .blend (in place, or as --save) as the export left it. Ends with "housing_shot: ok, ..." or
+# "housing_shot: REFUSED: ..." (exit code 1). --dry: builds and checks it, exports and saves nothing.
 # A new housing is built a grid step back and exported, then moved into place and exported again: new vertices follow
 # the face in every frame and can't be held inside the box at the recoil's peak until the file has them (main's end).
+# The three housing scripts work alike (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo
+# screen housings").
 #
 # One definition: the opening's half size and corner (`opening`, `radius`, in font pixels) are read from the "shot"
 # entry of Quake/vr/vr_screenstyle.cpp, the table the engine shapes the glass by, so the bezel's opening and the glass
@@ -34,16 +43,14 @@
 
 import math
 import os
-import re
-import struct
 import sys
 
-import bmesh
 import bpy
 from mathutils import Vector
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import housing_common as hc  # noqa: E402
+
 STEM = "shot"
 MODEL = "v_shot"
 
@@ -53,9 +60,9 @@ MODEL = "v_shot"
 PX = 0.07102
 CENTRE_Y = -0.03
 CENTRE_Z = 2.48
-FRAME = 0.20      # the bezel's flat front, wide (model units)
-BEVEL = 0.15      # its outer bevel, wide (and one grid step deep)
-LIP = 0.3         # the opening's front edge outside the glass (font pixels)
+FRAME = 0.10      # the bezel's flat front, wide (model units)
+BEVEL = 0.12      # its outer bevel, wide (and one grid step deep)
+LIP = 0.2         # the opening's front edge outside the glass (font pixels)
 WALL_IN = 0.7     # the opening's back edge inside the glass (font pixels): halfway down, the glass 0.2 px in the walls
 CORNER_PTS = 4    # points on each rounded corner
 BOLT_SIDES = 8
@@ -72,28 +79,6 @@ PROFILE_ROWS = (64.0, 54.5, 58.5, 61.5, 70.5)  # each ring's row: the walls' bac
 #                                                 outer edge, the opening's lip, inside the opening (and its back)
 BOLT_X = 120.0
 BOLT_ROWS = (52.0, 58.0, 61.0)  # base ring, top ring, top centre
-
-
-def read_style():
-    """The "shot" entry's opening (half width, half height) and radius, in font pixels."""
-    src = open(os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp"), encoding="utf-8").read()
-    m = re.search(r'\{"%s",(.*?)\n\s*(?:\{"|\};)' % STEM, src, re.S)  # (up to the next entry or the table's end)
-    if not m:
-        raise SystemExit("housing_shot: no \"%s\" entry in vr_screenstyle.cpp" % STEM)
-    body = m.group(1)
-    op = re.search(r"\.opening\s*=\s*\{\s*([-0-9.]+)f?\s*,\s*([-0-9.]+)f?\s*\}", body)
-    rad = re.search(r"\.radius\s*=\s*([-0-9.]+)f?", body)
-    if not op or not rad:
-        raise SystemExit("housing_shot: the \"%s\" entry needs .radius and .opening" % STEM)
-    return float(op.group(1)), float(op.group(2)), float(rad.group(1))
-
-
-def grid_x():
-    """The model file's X grid: x of step k."""
-    d = open(os.path.join(ROOT, "quakevr", "progs", MODEL + ".mdl"), "rb").read()
-    sx = struct.unpack_from("<f", d, 8)[0]
-    ox = struct.unpack_from("<f", d, 20)[0]
-    return lambda k: ox + sx * k, sx, ox
 
 
 def outline(hw, hh, r, n):
@@ -124,12 +109,16 @@ def offset_outline(hw, hh, r, d, n):
     return outline(hw + d, hh + d, min(r - d * 0.4142, -1e-4), n)
 
 
-def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    save = argv[argv.index("--save") + 1] if "--save" in argv else bpy.data.filepath
+def main(h):
+    (ow, oh), orad = h.style["opening"], h.style["radius"]
+    if ow <= 0 or oh <= 0:
+        h.fail("the \"%s\" entry needs .opening" % STEM)
+    (step, _, _), (ox, _, _) = hc.mdl_grid(MODEL)
 
-    ow, oh, orad = read_style()
-    gx, step, _ = grid_x()
+    def gx(k):
+        """The model file's X grid: x of step k."""
+        return ox + step * k
+
     # The grid steps the housing stands on (the end face's bottom edge is x 1.3966: step k_face).
     k_face = round((1.3966 - gx(0)) / step)
     x_face = gx(k_face)                 # the bolts' bases, the end face's bottom edge
@@ -243,91 +232,35 @@ def main():
                 "outback": radial + Vector((-1, 0, 0))}[kind]
         return (i, j, k) if nrm.dot(want) >= 0.0 else (i, k, j)
 
-    def apply(me):
-        """Adds the housing (a grid step back) or, when the mesh has it with this shape, moves it into place and maps
-        it again. Returns whether it moved an existing one."""
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        lay_house = bm.verts.layers.int.get("qvr_housing") or bm.verts.layers.int.new("qvr_housing")
-        lay_vert = bm.verts.layers.int.get("qvr_vert")
-        lay_tri = bm.faces.layers.int.get("qvr_tri")
-        lay_part = bm.faces.layers.int.get("qvr_part")
-        lay_vid = bm.loops.layers.int.get("qvr_vid")
-        lay_uv = bm.loops.layers.uv.active
-        shapes = list(bm.verts.layers.shape.values())
-        old = [v for v in bm.verts if v[lay_house] == 1]
-        reuse = len(old) == len(verts)
-        if old and not reuse:
-            bmesh.ops.delete(bm, geom=old, context='VERTS')
-            old = []
-        if reuse:
-            old.sort(key=lambda v: v.index)
-            for v, co in zip(old, verts):
-                v.co = co  # (the frames follow frame 0: the export carries the move into them)
-            oldset = set(old)
-            faces = [f for f in bm.faces if all(v in oldset for v in f.verts)]
-            if len(faces) != len(tris):
-                raise SystemExit("housing_shot: the old housing has %d faces, not %d" % (len(faces), len(tris)))
-            lookup = {v: i for i, v in enumerate(old)}
-            mode_of = {frozenset(t[:3]): t[5] for t in tris}
-            for f in faces:
-                ids = [lookup[v] for v in f.verts]
-                mode = mode_of.get(frozenset(ids), "steel")
-                for loop in f.loops:
-                    loop[lay_uv].uv = uv_at(*tex_of(lookup[loop.vert], mode, wraps(ids)))
-        else:
-            # New: built a grid step back, inside the box in every frame: the export carries new vertices along with
-            # the face and doesn't read their own frames, so they can't be held in the box at the recoil's peak until
-            # the file has them (exported, then moved into place: main).
-            sunk = Vector((step, 0.0, 0.0))
-            bv = []
-            for co in verts:
-                v = bm.verts.new(co + sunk)
-                v[lay_house] = 1
-                if lay_vert is not None:
-                    v[lay_vert] = -1
-                for sl in shapes:
-                    v[sl] = co + sunk
-                bv.append(v)
-            for t in tris:
-                i, j, k = oriented(t)
-                f = bm.faces.new((bv[i], bv[j], bv[k]))
-                f.material_index = 0
-                f.smooth = True
-                if lay_tri is not None:
-                    f[lay_tri] = -1
-                if lay_part is not None:
-                    f[lay_part] = 0  # the gun, not the pump
-                for loop in f.loops:
-                    if lay_vid is not None:
-                        loop[lay_vid] = -1
-                    loop[lay_uv].uv = uv_at(*tex_of(bv.index(loop.vert), t[5], wraps(t[:3])))
-        bm.to_mesh(me)
-        me.update()
-        bm.free()
-        return reuse
+    # The triangles, wound and mapped.
+    built = []
+    for t in tris:
+        ijk = oriented(t)
+        wrap = wraps(t[:3])
+        built.append(ijk + (tuple(uv_at(*tex_of(vi, t[5], wrap)) for vi in ijk),))
 
-    sys.path.insert(0, os.path.join(HERE, "blender", "addons"))
-    from quakevr_models import mdl_blender, source
-
-    def export():
-        try:
-            written, _ = source.export(bpy.context, ROOT, None)
-        except source.SourceError as e:
-            raise SystemExit("housing_shot: the export REFUSED:\n  " + str(e).replace("\n", "\n  "))
-        return len(written)
-
-    moved = apply(me)
-    if not moved:
-        export()  # (the housing's vertices are now the file's)
-        apply(me)
+    hs = me.attributes.get(hc.TAG)
+    old = 0
+    if hs is not None:
+        flags = [0] * len(me.vertices)
+        hs.data.foreach_get("value", flags)
+        old = sum(1 for f in flags if f > 0)
+    if old != len(verts):
+        # New: built a grid step back, inside the box in every frame: the export carries new vertices along with the
+        # face and doesn't read their own frames, so they can't be held in the box at the recoil's peak until the
+        # file has them (exported, then moved into place below).
+        sunk = Vector((step, 0.0, 0.0))
+        h.apply(me, [co + sunk for co in verts], built, smooth=True)
+        h.export()  # (the housing's vertices are now the file's)
+    h.apply(me, verts, built, smooth=True)
 
     # The frames: the housing carried along with the end face as the export does it, then kept inside the model's box:
     # at the recoil's peak (shot3) the receiver's top back corner is on the box's low X, and the bezel's front, standing
     # in front of it, would be past it (0.1..0.18 units). Those places are held on the box's edge in that frame (a frame
     # edited on its own: the export keeps it) rather than growing the box (every vertex of the gun moved).
+    _, mdl_blender = hc.addon()
     mdl_blender.carry_frames(ob)
-    hs = me.attributes["qvr_housing"]
+    hs = me.attributes[hc.TAG]
     flags = [0] * len(me.vertices)
     hs.data.foreach_get("value", flags)
     low_x = gx(0) + 1e-3
@@ -338,13 +271,9 @@ def main():
                 kb.data[i].co.x = low_x
                 held += 1
     me.update()
-    files = export()
-    bpy.context.preferences.filepaths.save_version = 0  # (no .blend1 beside it)
-    bpy.ops.wm.save_as_mainfile(filepath=save, compress=True)
-    print("housing_shot: ok, %d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f; x %.3f / %.3f / %.3f; "
-          "%d frame places held in the box); exported %d files, saved %s"
-          % (len(verts), len(tris), ow, oh, orad, x_front, x_mid, x_face, held, files, save))
+    h.finish("%d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f; x %.3f / %.3f / %.3f; %d frame places "
+             "held in the box)" % (len(verts), len(tris), ow, oh, orad, x_front, x_mid, x_face, held))
 
 
 if __name__ == "__main__":
-    main()
+    hc.Run(STEM, MODEL).main(main)

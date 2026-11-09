@@ -1,10 +1,23 @@
 # make_screen_housing_nailpistol.py -- the nail pistol's ammo screen housing, modelled on its source .blend.
 #
-# Usage (Git Bash, from the repository root):
-#   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b \
-#       Misc/quakevr/src_models/blend/v_nailpistol/v_nailpistol.blend \
-#       --python Misc/quakevr/make_screen_housing_nailpistol.py [-- --dry]
-#   then export it: the same Blender line with --python Misc/quakevr/blend_export.py -- --grow
+# Usage, from the repository root (the options after the separator: [--dry] [--save other.blend]):
+#   Git Bash:   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup \
+#                   Misc/quakevr/src_models/blend/v_nailpistol/v_nailpistol.blend \
+#                   --python Misc/quakevr/make_screen_housing_nailpistol.py -- --dry
+#   PowerShell: & "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup `
+#                   Misc\quakevr\src_models\blend\v_nailpistol\v_nailpistol.blend `
+#                   --python Misc\quakevr\make_screen_housing_nailpistol.py '--' --dry
+#   (PowerShell eats a bare --: quote it. Leave out `-- --dry` to export and save.)
+# Builds or moves the housing, exports the model as blend_export.py -- --grow does (quakevr/progs, weapons.txt: the
+# housing is past the model's first box) and saves the .blend (in place, or as --save) as the export left it. Ends with
+# "housing_nailpistol: ok, ..." or "housing_nailpistol: REFUSED: ..." (exit code 1). --dry: builds and checks it,
+# exports and saves nothing.
+# The three housing scripts work alike (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo
+# screen housings"): run again on a .blend that has the housing (its vertices carry the point attribute `qvr_housing`;
+# a .blend from before the tag: its faces did), with the same shape (as many vertices) its vertices are moved and
+# re-mapped in place, so the model's file keeps its vertices; otherwise the old housing is deleted and built anew (its
+# old vertices then stay in the .mdl unused: start from the .blend before the housing, in git history, to keep the
+# file lean).
 #
 # What it builds (his mockup, 2026-11-09: a chunky bevelled housing on the slide's rear face, a rounded window with the
 # glass recessed in it, a grille plate under it; the slide's rear sight ears stand on top as the mockup's two posts):
@@ -17,10 +30,8 @@
 # `wpntxt_scale` for slot 36 give its size in model units (a font pixel: PIXEL_AT_0205 at wpntxt_scale 0.205, as
 # `vr_debug_screen_where 1` prints it). Change the table and run this again: the window follows.
 #
-# Re-runnable: the faces it made before (face attribute qvr_housing = 1) are removed first. It saves the .blend; it
-# never exports (run blend_export.py after it: the housing is past the model's old box, hence --grow). New vertices
-# follow the slide in every frame (the export makes a new vertex ride its nearest old one: checked here, each new
-# vertex's nearest old vertex must be on the slide).
+# The housing moves with the slide in every frame: the export makes a new vertex ride its nearest old one, so each
+# new vertex's nearest vertex of the gun must be the slide's (refused otherwise).
 #
 # Textures: the gun's own skin (no new texels): the back face and the sides on its rusted iron, the bevel and the lip
 # on its worn pale edge strip, the walls on dark iron, the grille's floor black, bolt heads on dark iron.
@@ -32,11 +43,12 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
-STYLE_CPP = os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp")
-WEAPONS_TXT = os.path.join(ROOT, "quakevr", "data", "weapons.txt")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import housing_common as hc  # noqa: E402
+
+WEAPONS_TXT = os.path.join(hc.ROOT, "quakevr", "data", "weapons.txt")
 STEM = "nailpistol"
+MODEL = "v_nailpistol"
 SLOT = 36
 PIXEL_AT_0205 = 0.04068  # a font pixel in model units at wpntxt_scale 0.205, style size 1 (vr_debug_screen_where)
 
@@ -73,30 +85,6 @@ REGION = {
     "floor": (150, 446, 236, 496),  # black
     "bolt": (33, 263, 49, 285),     # dark iron (the old rear face's middle)
 }
-
-
-def table_entry():
-    src = open(STYLE_CPP, encoding="utf-8").read()
-    m = re.search(r'\{"%s",\s*\{(.*?)\}\},' % STEM, src, re.S)
-    if not m:
-        raise SystemExit("make_screen_housing: no \"%s\" entry in %s" % (STEM, STYLE_CPP))
-    body = m.group(1)
-
-    def num(name, default):
-        n = re.search(r"\.%s\s*=\s*(-?[0-9.]+)f?" % name, body)
-        return float(n.group(1)) if n else default
-
-    op = re.search(r"\.opening\s*=\s*\{\s*(-?[0-9.]+)f?\s*,\s*(-?[0-9.]+)f?\s*\}", body)
-    if not op:
-        raise SystemExit("make_screen_housing: the entry has no .opening")
-    return num("radius", 4.0), num("size", 1.0), (float(op.group(1)), float(op.group(2)))
-
-
-def wpntxt_scale():
-    txt = open(WEAPONS_TXT, encoding="utf-8").read()
-    m = re.search(r"^weapon %d\s*\{(.*?)^\}" % SLOT, txt, re.S | re.M)
-    s = re.search(r'wpntxt_scale "([0-9.]+)"', m.group(1))
-    return float(s.group(1))
 
 
 def rounded_rect(cy, cz, hw, hh, r, segs):
@@ -152,38 +140,17 @@ def inside(poly, y, z):
     return c
 
 
-def main():
-    dry = "--dry" in sys.argv
-    radius_px, size, (open_w, open_h) = table_entry()
-    pix = PIXEL_AT_0205 * wpntxt_scale() / 0.205 * size
-    win_hw, win_hh, win_r = open_w * pix, open_h * pix, radius_px * pix
-    print("housing: font pixel %.5f, window half %.3f x %.3f, corner %.3f (%s)" % (
-        pix, win_hw, win_hh, win_r, "rounded" if radius_px > 0 else "chamfered"))
+def wpntxt_scale():
+    txt = open(WEAPONS_TXT, encoding="utf-8").read()
+    m = re.search(r"^weapon %d\s*\{(.*?)^\}" % SLOT, txt, re.S | re.M)
+    s = re.search(r'wpntxt_scale "([0-9.]+)"', m.group(1))
+    return float(s.group(1))
 
-    ob = bpy.data.objects["v_nailpistol"]
-    me = ob.data
+
+def build(h, win_hw, win_hh, win_r):
+    """The housing on its own: its vertices (in the order made) and triangles (housing_common's (i, j, k, uvs))."""
     bm = bmesh.new()
-    bm.from_mesh(me)
-    tag = bm.faces.layers.int.get("qvr_housing") or bm.faces.layers.int.new("qvr_housing")
-    old_faces = [f for f in bm.faces if f[tag] == 1]
-    old_verts = {v for f in old_faces for v in f.verts if all(g[tag] == 1 for g in v.link_faces)}
-    bmesh.ops.delete(bm, geom=old_faces, context='FACES_ONLY')
-    bmesh.ops.delete(bm, geom=list(old_verts), context='VERTS')
-    print("housing: removed %d faces of a housing before" % len(old_faces))
-    old = list(bm.verts)
-    nold = len(old)
-
-    lay_vert = bm.verts.layers.int.get("qvr_vert")
-    lay_tri = bm.faces.layers.int.get("qvr_tri")
-    lay_vid = bm.loops.layers.int.get("qvr_vid")
-    refs = [bm.verts.layers.float_vector.get("qvr_ref%d" % p) for p in range(2)]
-    shapes = list(bm.verts.layers.shape.values())
-    uvl = bm.loops.layers.uv.active
-
-    # The slide: the old vertices that move between the frames (the export makes new ones follow their nearest).
-    slide = set(i for i, v in enumerate(old) if (v[shapes[1]] - v[shapes[0]]).length > 1e-4)
-    delta = Vector(old[next(iter(slide))][shapes[1]] - old[next(iter(slide))][shapes[0]])
-
+    uvl = bm.loops.layers.uv.new()
     new_verts, groups = [], {}
 
     def vert(x, y, z):
@@ -232,8 +199,7 @@ def main():
                            CORNER_SEGS)
     for (y, z) in win_lip:
         if not inside(back_outline, y, z):
-            raise SystemExit("make_screen_housing: the window (%.2f %.2f) is past the back face: a smaller opening "
-                             "or a bigger housing" % (y, z))
+            h.fail("the window (%.2f %.2f) is past the back face: a smaller opening or a bigger housing" % (y, z))
 
     def to_axis(zc):
         return lambda c: Vector((0, -c.y, zc - c.z)).normalized()
@@ -251,9 +217,9 @@ def main():
     r_vfloor = ring(X_BACK + VENT_DEPTH, vent)
     bridge(r_vent, r_vfloor, to_axis(VENT_ZC), "wall")
     face(r_vfloor, (-1, 0, 0), "floor", shared=True)
-    h = 2 * VENT_HH / 5
+    hs = 2 * VENT_HH / 5
     for k in (1, 3):
-        z0, z1 = VENT_ZC - VENT_HH + h * k, VENT_ZC - VENT_HH + h * (k + 1)
+        z0, z1 = VENT_ZC - VENT_HH + hs * k, VENT_ZC - VENT_HH + hs * (k + 1)
         xb, xf = X_BACK + SLAT_DEPTH, X_BACK + VENT_DEPTH
         a = [vert(xb, VENT_HW, z0), vert(xb, -VENT_HW, z0), vert(xb, -VENT_HW, z1), vert(xb, VENT_HW, z1)]
         b = [vert(xf, VENT_HW, z0), vert(xf, -VENT_HW, z0), vert(xf, -VENT_HW, z1), vert(xf, VENT_HW, z1)]
@@ -298,36 +264,11 @@ def main():
 
     for (y, z) in BOLTS:
         if not inside(back_outline, y + BOLT_HALF, z) or not inside(back_outline, y - BOLT_HALF, z):
-            raise SystemExit("make_screen_housing: bolt %.2f %.2f past the back face" % (y, z))
+            h.fail("bolt %.2f %.2f past the back face" % (y, z))
         stud((X_BACK + 0.002, y, z), (-1, 0, 0), Vector((0, 1, 0)), Vector((0, 0, 1)), BOLT_HALF, BOLT_UP)
     for s in (1, -1):
         stud((RIVET_X, s * (HALF_W - 0.002), RIVET_Z), (0, s, 0), Vector((1, 0, 0)), Vector((0, 0, 1)), RIVET_HALF,
              RIVET_UP)
-
-    # Attributes: new everything (the export appends them), tagged as the housing.
-    hfaces = [f for f in groups if f.is_valid]
-    for v in new_verts:
-        v[lay_vert] = -1
-        for r in refs:
-            if r is not None:
-                v[r] = v.co
-    # The export's rule: a new vertex rides its nearest old vertex. Each must be the slide's.
-    bad = 0
-    for v in new_verts:
-        best, bi = 1e9, -1
-        for i, o in enumerate(old):
-            d = (o.co - v.co).length_squared
-            if d < best:
-                best, bi = d, i
-        if bi not in slide:
-            bad += 1
-            print("housing: new vertex %s rides %s (not the slide's)" % (tuple(round(c, 2) for c in v.co),
-                                                                       tuple(round(c, 2) for c in old[bi].co)))
-        v[shapes[0]] = v.co
-        v[shapes[1]] = v.co + (delta if bi in slide else Vector())
-    if bad:
-        raise SystemExit("make_screen_housing: %d new vertices are nearer the frame than the slide: they would not "
-                         "move with it" % bad)
 
     # UVs: each group on its skin rectangle, planar (the back face and the floor shared, so they don't break up).
     def plane(f):
@@ -362,24 +303,77 @@ def main():
             pa = (hi[0] - l.vert.co[a]) * ka if a == 1 else (l.vert.co[a] - lo[0]) * ka
             pb = (hi[1] - l.vert.co[b]) * kb
             l[uvl].uv = ((x0 + pa) / SKIN_W, 1.0 - (y0 + pb) / SKIN_H)
-            if lay_vid is not None:
-                l[lay_vid] = -1
-        f[tag] = 1
-        if lay_tri is not None:
-            f[lay_tri] = -1
-    tri = bmesh.ops.triangulate(bm, faces=hfaces)
-    ntri = sum(1 for f in bm.faces if f[tag] == 1)
-    print("housing: %d new vertices, %d triangles (the gun's own: %d)" % (len(new_verts), ntri,
-                                                                         len(bm.faces) - ntri))
+    bmesh.ops.triangulate(bm, faces=[f for f in groups if f.is_valid])
+    index = {v: i for i, v in enumerate(new_verts)}
+    cos = [v.co.copy() for v in new_verts]
+    tris = []
+    for f in bm.faces:
+        ids = [index[l.vert] for l in f.loops]
+        tris.append((ids[0], ids[1], ids[2], tuple(l[uvl].uv.copy() for l in f.loops)))
+    bm.free()
+    return cos, tris
+
+
+def main(h):
+    radius_px, size, (open_w, open_h) = h.style["radius"], h.style["size"], h.style["opening"]
+    if open_w <= 0 or open_h <= 0:
+        h.fail("the \"%s\" entry has no .opening" % STEM)
+    pix = PIXEL_AT_0205 * wpntxt_scale() / 0.205 * size
+    win_hw, win_hh, win_r = open_w * pix, open_h * pix, radius_px * pix
+    print("housing: font pixel %.5f, window half %.3f x %.3f, corner %.3f (%s)" % (
+        pix, win_hw, win_hh, win_r, "rounded" if radius_px > 0 else "chamfered"))
+    cos, tris = build(h, win_hw, win_hh, win_r)
+
+    ob = bpy.data.objects[MODEL]
+    me = ob.data
+
+    def legacy(bm):
+        """A housing made before the vertex tag: its faces carried it (a face attribute, dropped here)."""
+        lay = bm.faces.layers.int.get(hc.TAG)
+        if lay is None:
+            return None
+        faces = [f for f in bm.faces if f[lay] == 1]
+        old = sorted({v for f in faces for v in f.verts if all(g[lay] == 1 for g in v.link_faces)},
+                     key=lambda v: v.index)
+        ids = [v.index for v in old]
+        bm.faces.layers.int.remove(lay)
+        bm.verts.ensure_lookup_table()
+        return [bm.verts[i] for i in ids]
+
+    # The slide: the gun's vertices that move between the frames (the housing's own left out). The export's rule: a new
+    # vertex rides its nearest old vertex: each of the housing's must be the slide's.
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    tag = bm.verts.layers.int.get(hc.TAG)
+    house = set(v for v in bm.verts if v[tag] > 0) if tag is not None else set(legacy(bm) or [])
+    shapes = list(bm.verts.layers.shape.values())
+    old = [(v.co.copy(), (v[shapes[1]] - v[shapes[0]]).length > 1e-4) for v in bm.verts if v not in house]
+    delta = next(Vector(v[shapes[1]] - v[shapes[0]]) for v in bm.verts
+                 if v not in house and (v[shapes[1]] - v[shapes[0]]).length > 1e-4)
+    bm.free()
+    rides, bad = [], 0
+    for co in cos:
+        near_co, on_slide = min(old, key=lambda o: (o[0] - co).length_squared)
+        rides.append(on_slide)
+        if not on_slide:
+            bad += 1
+            print("housing: new vertex %s rides %s (not the slide's)" % (tuple(round(c, 2) for c in co),
+                                                                       tuple(round(c, 2) for c in near_co)))
+    if bad:
+        h.fail("%d of the housing's vertices are nearer the frame than the slide: they would not move with it" % bad)
+
+    def new_vert(bm, v, i):
+        sl = list(bm.verts.layers.shape.values())
+        v[sl[0]] = cos[i]
+        v[sl[1]] = cos[i] + (delta if rides[i] else Vector())
+        for p in range(len(sl)):
+            r = bm.verts.layers.float_vector.get("qvr_ref%d" % p)
+            if r is not None:
+                v[r] = cos[i]
+
+    h.apply(me, cos, tris, new_vert=new_vert, legacy=legacy)
     print("housing: glass centre %.3f 0 %.3f (its plane %.3f behind the back face), half %.3f x %.3f" % (
         X_BACK + GLASS_DEPTH, WIN_ZC, GLASS_DEPTH, win_hw, win_hh))
-    if dry:
-        bm.free()
-        print("housing: --dry, not saved")
-        return
-    bm.to_mesh(me)
-    bm.free()
-    me.update()
     # The ammo screen's and button's anchors were 0.107 off the slide's left side (y 1.3 on a side at 1.2): the grown
     # box's grid moves the surface under them a little, and the export then refuses an anchor off the surface. On it.
     for name in ("av wpntxt_av", "av wpnbtn_av"):
@@ -387,8 +381,8 @@ def main():
         if e is not None and abs(e.location.y - 1.3) < 1e-3:
             e.location.y = 1.2
             print("housing: %s put on the slide's side: %s" % (name, tuple(round(c, 3) for c in e.location)))
-    bpy.ops.wm.save_mainfile(compress=True)
-    print("housing: saved %s" % bpy.data.filepath)
+    h.finish("%d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f)" % (
+        len(cos), len(tris), open_w, open_h, radius_px), grow=True)
 
 
-main()
+hc.Run(STEM, MODEL).main(main)

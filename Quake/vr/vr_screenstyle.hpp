@@ -29,7 +29,8 @@ struct Style
     bool housing;      // the model has the screen's housing (its bezel and bolts): the offset fits the glass into it
     // The housing's opening, half its width and height in font pixels (0: the glass sized by its text). The glass is
     // then always this size and shape (its text centred, made finer when it needs more room), so that it fills the
-    // bezel's opening: Misc/quakevr/make_screen_housing.py reads this table (the opening and `radius`) to model it.
+    // bezel's opening: Misc/quakevr/make_screen_housing_<gun>.py (shot, ssg, nailpistol) read this table (the
+    // opening, `radius`, the SSG's `offset`) to model it: change it, rebuild the engine and run the gun's script.
     glm::vec2 opening{0.f, 0.f};
 };
 

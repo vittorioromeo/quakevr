@@ -301,10 +301,11 @@ vec4 screen()
     {
         // Deep glass set in its frame (the ammo screens: vr_screenstyle.hpp). The opening's shape: Frame.x > 0 rounded
         // corners of that radius, < 0 corners chamfered by that much (pixels of the virtual screen; a housing's opening
-        // on the model is the same shape: make_screen_housing.py). Outside it nothing: the frame behind shows. Inside,
-        // the face is replaced: near-black glass of the phosphor's hue (Glass.rgb, lighter low in the middle: depth),
-        // the digits pale, whitish phosphor with a soft halo inside the glass; then an inset shadow under the top edge
-        // and an inner bevel all round (dark, a faint lit lip along the bottom), a vignette and a faint diagonal sheen.
+        // on the model is the same shape: make_screen_housing_<gun>.py). Outside it nothing: the frame behind shows.
+        // Inside, the face is replaced: near-black glass of the phosphor's hue (Glass.rgb, lighter low in the middle:
+        // depth), the digits pale, whitish phosphor with a soft halo inside the glass; then an inset shadow under the
+        // top edge and an inner bevel all round (dark, a faint lit lip along the bottom), a vignette and a faint
+        // diagonal sheen.
         vec2 px = uv * Size.xy, h = Size.xy * 0.5;
         float r = min(abs(Frame.x), min(h.x, h.y) - 0.5);
         vec2 q = abs(px - h) - h;
