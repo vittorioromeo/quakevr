@@ -1,5 +1,0 @@
-# flat_mantle: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Mantling flat-screen (-flatscreenmode): vrmantle's blocks, 48, 64, 80 and 96 high to mantle, 128 and 160 not.
-title Mantling: vrmantle's blocks, 48 to 96 high to mantle onto, 128 and 160 too high
-map vrmantle
-god
-notarget

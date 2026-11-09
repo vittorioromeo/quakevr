@@ -1,7 +1,0 @@
-# menu_zoom: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". For the headset menu's zoom buttons
-# (- and + under the corner's buttons: Menu Scale). (No `cmd togglemenu`: an open menu pauses the game, and runall's
-# scenes run on game time.)
-title The headset menu's - and + zoom buttons
-map start
-god
-hint Open the menu, point the laser at - or + under the corner's buttons and pull the trigger: the panel shrinks or grows a step.
