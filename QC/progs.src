@@ -63,6 +63,7 @@ vr_material.qc
 vr_crates.qc
 vr_crates_test.qc
 vr_smallgibs.qc
+vr_mount.qc
 vr_walltorch.qc
 vr_walltorch_test.qc
 vr_mg_defs.qc

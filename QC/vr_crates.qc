@@ -138,7 +138,8 @@ float(entity e) VR_Hit_Armoured =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer" || c == "monster_ranged_knight" ||
-           (e.vr_ad_mon & VR_ADM_ARMOUR); // AD support: AD's monsters in plate (vr_ad_monsters.qc)
+           (e.vr_ad_mon & VR_ADM_ARMOUR) || // AD support: AD's monsters in plate (vr_ad_monsters.qc)
+           e.vr_ar_mask != 0; // anyone wearing plates (vr_agarmor.qc; an armoured grunt clangs)
 };
 
 // What `e` is made of, for its hits (VR_MAT_*): a wall torch, a grenade shots set off, metal (VR_Hit_Metal), wood

@@ -174,6 +174,7 @@ void(entity t) VR_WallTorch_Box =
 void(entity t) VR_WallTorch_Take =
 {
     t.wt_state = 1;
+    t.vr_mount = 0; // (off its wall, however: a hand, a hit, an impact)
     t.wt_hits = 0;
     t.wt_dying = 0;
     t.wt_fire = 1;
@@ -223,6 +224,14 @@ vector(entity t, entity by) VR_WallTorch_HitDir =
     }
     vector from = (by.flags & FL_CLIENT) ? (by.origin + by.view_ofs) : 0.5 * (by.absmin + by.absmax);
     return t.origin - from;
+};
+
+void(entity t, entity by, vector dir) VR_WallTorch_KnockOff;
+
+// Its mount's detach (vr_mount.qc; self the torch): knocked off along the way the thing came (a grenade: its flight).
+void(entity xBy, vector xDir) VR_WallTorch_MountOff =
+{
+    VR_WallTorch_KnockOff(self, xBy, VR_Grenade_Is(xBy) ? xDir : VR_WallTorch_HitDir(self, xBy));
 };
 
 void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
@@ -702,26 +711,19 @@ void() VR_WallTorch_Touch =
         // and VR_TouchLinks takes it: a player's or a monster's body, a prop resting against it, one carried or pushed
         // slowly); a hand takes it by its handtouch, never here. What knocks it off is a thing thrown into it at the
         // speed a throw of that thing counts as a throw (VR_Thrown_HitSpeed): what has already hit something is not in
-        // a throw, and what is not in one is resting against it.
-        if(other == world || other.classname == "player" ||
-           (other.flags & FL_MONSTER))
+        // a throw, and what is not in one is resting against it. Its mount's rule (vr_mount.qc): a physics object of
+        // any origin (thrown, dropped, flung by a blast) heavy and fast enough; a ragdoll's body by the engine's body
+        // hits (VR_Mount_BodyHit). Never a player or a monster walking past.
+        if(other == world || other.classname == "player" || (other.flags & FL_MONSTER))
         {
             return;
         }
         if(VR_Grenade_Is(other))
         {
-            VR_WallTorch_KnockOff(self, other, normalize(other.velocity));
+            VR_Mount_Detach(self, other, normalize(other.velocity));
             return; // a grenade contacts the touchable torch without detonating
         }
-        float need = VR_Thrown_HitSpeed(other);
-        float near = VR_Prop_Approach(other, self, other.velocity);
-        if(other.throwhit != QVR_THROWHIT_NEVER_HIT || near < need)
-        {
-            dprint(sprintf("walltorch: %s past it at %g u/s (a throw of it from %g), throwhit %g\n",
-                other.classname, near, need, other.throwhit));
-            return;
-        }
-        VR_WallTorch_KnockOff(self, other, VR_WallTorch_HitDir(self, other));
+        VR_Mount_Touch(self, other);
         return;
     }
     if(self.wt_state == 1 && self.wt_fire > 0 && self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
@@ -912,6 +914,7 @@ void() VR_WallTorch_Setup =
     precache_sound("ambience/fire1.wav");
     precache_sound("misc/null.wav");
     self.wt_state = 0;
+    VR_Mount_Attach(self, VR_WallTorch_MountOff); // (on its wall: vr_mount.qc's detach rule knocks it off)
     self.wt_home = self.origin;
     self.wt_fire = 1;
     self.solid = SOLID_NOT_BUT_TOUCHABLE;

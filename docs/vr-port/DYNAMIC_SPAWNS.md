@@ -153,4 +153,47 @@ ideas above: most spawn ideas lean on one of them.
 
 Built 2026-11-09 (branch `agent/systems1`). Use these instead of new classname checks.
 
-(Filled in below as each piece lands.)
+### Material and property table (built)
+
+- **What:** one material id per entity (`VR_MaterialOf(e)`, QC/vr_crates.qc: `VR_MAT_*` from vr_impact_shared.h) and
+  one property row per material (`Quake/vr/vr_material_shared.h`: `VR_MATP_FLAMMABLE`, `_CONDUCTIVE`, `_BLEEDS`,
+  `_SINKS`, `_SPLINTERS`, `_SPARKS`; the armour plates' buoyancy rate). Both the QC and the engine include the header.
+- **Use (QC, QC/vr_material.qc):** `VR_Mat_Has(e, VR_MATP_FLAMMABLE)`, `VR_Mat_Is(m, bit)`, `VR_Mat_Row(m)`,
+  `VR_Mat_Plates(e)` (plates worn). A new kind of thing gets a material in `VR_MaterialOf` and nothing else; a new
+  property is a bit in the header and a column in the rows.
+- **Consumers switched:** fire (`VR_Burn_Can`: the flammable bit replaces `VR_Burn_Metal`), hits (`VR_Material_Fleshy`,
+  `VR_ImpactFx`'s sparks and splinters), armour (`VR_Hit_Armoured`: plates worn count), buoyancy (`ownFloat`,
+  vr_box3d_step.cpp: plates worn times the header's rate). Not yet: `physsound::materialOf` (model recordings),
+  `debris::materialOf` and `audiosim` (world textures): they classify models and wall textures, not entities.
+- **Proof:** `vr_systems_test 1` (Debug > Systems Tests) prints every entity's answers; identical before and after
+  the switch on e1m1, e2m1 and e4m1 with `sv_random_seed 1` (1142 lines).
+
+### Wall mounts (built)
+
+- **What:** QC/vr_mount.qc. `.vr_mount` (the engine reads it), `.vr_mount_detach` (the thing's own detach),
+  `VR_Mount_Attach(e, fn)`, `VR_Mount_Detach(e, by, dir)`. One detach rule: a physics object of any origin (thrown,
+  dropped, flung by a blast) whose mass and speed towards it pass a throw's speed for that mass (`VR_Mount_Strong`,
+  the same curve as `VR_Thrown_HitSpeed`), and a ragdoll's body by the same rule through the engine's body hits
+  (`VR_Mount_BodyHit`). Never a player or a living monster walking past. A hand's grab and shots stay the thing's own.
+- **Users:** wall torches (`VR_WallTorch_MountOff`). A new mounted thing calls `VR_Mount_Attach` at spawn and
+  `VR_Mount_Touch(self, other)` from its touch.
+- **Test:** `vr_test_walltorch_shot 25` (a crate flung, not thrown, at a torch: knocked off), `26` (the same at a
+  fifth of the speed: stays), `20` (a hand's throw: knocked off, as before).
+
+### Momentum, not "thrown by a hand" (partly built)
+
+- Ragdolls: `vr_kdtrig_flung 1` (engine, vr_box3d_step.cpp callBodyHits): a body no hand holds, flung by anything,
+  strikes monsters (knockdowns: QC `VR_KdTrig_BodyHit`) and wall-mounted things by its momentum, as a thrown one.
+- Props: `VR_Prop_Flung` (vr_carry.qc) already hurt by speed and mass whatever moved them; a wall mount now detaches by
+  the same rule. **Open:** credit for blast-flung props (the explosion's attacker) and the stagger/knockdown of a
+  monster struck by a prop no hand threw (`VR_HitStagger_Can` wants a player attacker).
+
+### Status component (open)
+
+Planned: `VR_Status(e)` bits (burning from `.burn_fire`, wet mirroring vr_drips' rule, shocked from
+`.vr_shock_until`, stunned, bleeding) on every entity incl. the player. Not built in this round.
+
+### Style detection (open)
+
+Planned: per-area map style from the surrounding textures (base, medieval, runic, liquids), a debug command and a
+builtin. Not built in this round.

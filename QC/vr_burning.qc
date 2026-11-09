@@ -709,6 +709,45 @@ void(entity xFire, string xWhy) VR_Burn_Out =
 // Burning wood (a crate, a piece), every 0.5 s once it has burnt vr_burn_crate_spread s: the crates and pieces touching it
 // catch fire, where they are nearest it: two crates' boxes within vr_burn_crate_gap units, a piece and a crate or another
 // piece within vr_burn_piece_gap (pieces lie about: near, not touching).
+// An explosion (T_RadiusDamage: `xDamage` its radius's damage) by `xAttacker` sets what is flammable within
+// vr_burn_blast of its radius on fire, and in its sight: wood always (a crate, a piece); a body by
+// vr_burn_blast_flesh's chance (default 0: a rocket is not a flamethrower). Never an explosive box (metal).
+void(entity e, entity xInflictor, entity xAttacker, float xDamage) VR_Burn_Blast =
+{
+    float share = cvar_hget(cvarh_vr_burn_blast);
+    if(share <= 0 || e.burn_fire != world || e == xInflictor || !VR_Burn_Can(e))
+    {
+        return;
+    }
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    if(vlen(mid - xInflictor.origin) > share * (xDamage + 40))
+    {
+        return;
+    }
+    if(VR_Mat_Has(e, VR_MATP_BLEEDS) && random() >= cvar_hget(cvarh_vr_burn_blast_flesh))
+    {
+        return;
+    }
+    traceline(xInflictor.origin, mid, TRUE, world);
+    if(trace_fraction < 1)
+    {
+        return;
+    }
+    dprint(sprintf("burning: %s set on fire by a blast %.0f units off\n", e.classname, vlen(mid - xInflictor.origin)));
+    VR_Burn_Ignite(e, xAttacker, mid, mid - xInflictor.origin, VR_BURN_TOUCH);
+};
+
+// Whether flammable `e`, touching a fire, catches this time: wood always; flesh (a body, alive or not, the player too)
+// by vr_burn_flesh_catch's chance (each half second it touches).
+float(entity e) VR_Burn_CatchRoll =
+{
+    if(!VR_Mat_Has(e, VR_MATP_BLEEDS))
+    {
+        return TRUE;
+    }
+    return random() < cvar_hget(cvarh_vr_burn_flesh_catch);
+};
+
 void(entity xFire) VR_Burn_CrateCatch =
 {
     entity v = xFire.enemy;
@@ -722,7 +761,7 @@ void(entity xFire) VR_Burn_CrateCatch =
     while(e)
     {
         float gap = max(0, cvar_hget((vpiece || VR_CratePiece_Is(e)) ? cvarh_vr_burn_piece_gap : cvarh_vr_burn_crate_gap));
-        if(e != v && VR_Burn_Wood(e) && e.burn_fire == world && VR_Burn_Can(e) &&
+        if(e != v && e.burn_fire == world && VR_Burn_Can(e) && VR_Burn_CatchRoll(e) &&
            e.absmin_x <= v.absmax_x + gap && e.absmax_x >= v.absmin_x - gap &&
            e.absmin_y <= v.absmax_y + gap && e.absmax_y >= v.absmin_y - gap &&
            e.absmin_z <= v.absmax_z + gap && e.absmax_z >= v.absmin_z - gap)
@@ -858,7 +897,7 @@ void() VR_Burn_Think =
     {
         return; // (shrinking away: no more spreading or damage)
     }
-    if(wood && time >= self.burn_catch_next)
+    if(time >= self.burn_catch_next) // (anything burning: VR_Burn_CrateCatch)
     {
         self.burn_catch_next = time + 0.5;
         VR_Burn_CrateCatch(self);

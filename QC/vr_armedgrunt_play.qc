@@ -885,7 +885,9 @@ void() VR_AG_PlayPrecache =
 float vr_ag_tries; // disarm attempts (VR_AG_DisarmTry; the tests)
 
 // Who threw `e` (a weapon, a prop, a gib) at its weapon: its owner when a player (world: not known).
-entity(entity e) VR_AG_Thrower = { return (e.owner.flags & FL_CLIENT) ? e.owner : world; };
+// Who threw `e`: a player or a monster (a grunt's thrown thing disarms another grunt in infighting: the player is not
+// special; DYNAMIC_SPAWNS.md, the 2026-11-09 audit's quick wins).
+entity(entity e) VR_AG_Thrower = { return (e.owner.flags & (FL_CLIENT | FL_MONSTER)) ? e.owner : world; };
 
 // Every try at its weapon, whatever came of it (his notes 2026-11-01 18:03, 18:37: a shot or a parried strike on one
 // that hadn't seen you left it calm). It turns on whoever tried (VR_Provoke: you unseen or with notarget too, it knows
