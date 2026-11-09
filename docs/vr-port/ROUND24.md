@@ -5214,3 +5214,37 @@ Nothing published, tagged, uploaded or pushed.
 - **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
   `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
 - Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
+
+## Ammo screens as part of the gun (agent/ammoscreen, 2026-11-09; pilot: the shotgun)
+
+From his ChatGPT mockups (the shotgun's screen set in a bolted bezel on the end face, rounded green glass, soft digits,
+contact shadows). Done in this branch: the screen look and the texel AO bake. Not done (out of budget): the shotgun's
+modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
+
+- **Screen look (every weapon):** Shade::Screen draws an ammo screen as rounded glass when State::frame/glass are set
+  (vr_gfx_gl.cpp mode 4, uniforms 18/19): nothing outside the rounded corners (the darker box behind frames it), the
+  glass's own dark colour (the phosphor's, faint) under the face, a vignette, a thin dark inner bevel (darker at the
+  top, a faint highlight along the bottom), a soft reflection high on the left, the digits a little softer; the CRT
+  look and the outer glow are toned down. `vr_weapon_screen_style` (1; Screens > Weapons' Ammo Screens > Rounded Glass
+  Ammo Screens) 0: the old square screen.
+- **Per-weapon table:** `Quake/vr/vr_screenstyle.cpp` (`table[]`, by the model's stem: v_shot/g_shot are "shot"):
+  radius, bevel, vignette, sheen, softness, glass, tint, CRT share, size, offset (right/up/out units), box width,
+  housing. text3d::queue takes the style (vr_view_weapon.cpp held guns, vr_view.cpp holstered/world guns); the pouch
+  counter, tool gun and setup screens take the default.
+- **Recipe for another gun's housing:** model the bezel and bolts on its `.blend` (the end face round its `av wpntxt_av`
+  anchor; its own UVs on the gun's metal, frame 0 and each shape key moved with the face), Ctrl+S exports; give it a
+  table entry with `.housing = true`, `.box` small or 0 and the `.offset` that sits the glass in the inset; check with
+  `vr_flat_flycam_place -2 3 -2 42 -10` at `fov 40` in `-flatscreenmode` (place now takes a yaw: 5th argument).
+- **Texel AO bake (`vr_skinao.cpp`):** on top of vr_ao_models' per-vertex bake (its rays, reach, near cut), each skin
+  texel a drawn triangle covers is rasterised in UV space (the vertex buffer's st: onseam halves as drawn), its point
+  and face normal cast the same 24 cosine rays against the model's own faces (each face's neighbours within reach
+  found first); shared texels (mirrored/reused skin) average their uses; uncovered texels take their neighbours' two
+  texels out. Applied as the 8-bit skin is expanded to colour (TexMgr_LoadImage8 -> VR_SkinAOApply, so palette and
+  gamma reloads keep it), fullbright texels (224..255) untouched. Cvars: `vr_ao_skin_weapons` (0 for now),
+  `vr_ao_skin_models` (0), `vr_ao_skin_strength` (1), `vr_ao_skin_radius` (1), `vr_ao_skin_debug`.
+  Result: it adds contact shading the vertex bake can't (the sight bridge's base, the rivets' rings): the shotgun's
+  texels round its 26 rivets average 0.613 visibility against 0.749 on like-facing faces away from them; on screen
+  the gain over vr_ao_models is modest (mean pixel change 1.3/255 on the gun's top). Cost: v_shot ~90-240 ms, a map's
+  50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
+  vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
+- **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.

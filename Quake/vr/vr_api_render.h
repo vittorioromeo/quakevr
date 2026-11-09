@@ -327,6 +327,8 @@ void VR_FillSurfaceLux (struct msurface_s *surf, unsigned *lux_data, int lightma
 void VR_ItemTextureClamp (struct qmodel_s *mod);			// Mod_LoadBrushModel: an item box's faces' texture ranges (maps/b_*: parallax stops at their edges)
 void VR_PrecompilePrograms (void);						// GL_Init, after GL_CreateShaders: the VR passes' programs (vr_gfx_gl.cpp), none compiled at a first draw
 void VR_SkinsBegin (void);								// Mod_LoadAllSkins, first
+void VR_SkinAOModel (struct qmodel_s *mod, const void *aliashdr); // Mod_LoadAliasModel, its draw lists made: its skins' texel occlusion baked, the skins made again with it (vr_skinao.cpp)
+void VR_SkinAOApply (const char *name, unsigned char *rgba, const unsigned char *src8, int stride, int w, int h); // TexMgr_LoadImage8, its colours made: a skin darkened by its baked occlusion
 void VR_ExternalSkin (struct qmodel_s *mod, void *hdr, struct gltexture_s **skin, struct gltexture_s **fb, unsigned texflags,
 	unsigned char *texels, int size, src_offset_t offset, int i, int j); // Mod_LoadAllSkins: skin i (frame j of a group, -1 none) replaced by a full-colour one, its normal map queued
 void VR_LoadSkinNormalMaps (struct qmodel_s *mod, void *hdr, const stvert_t *verts, const dtriangle_t *tris); // Mod_LoadAliasModel: the queued skins' normal maps, their islands from the triangles
