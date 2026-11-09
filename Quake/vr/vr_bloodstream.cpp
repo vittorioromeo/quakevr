@@ -14,6 +14,7 @@
 #include "vr_goresound.hpp"
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
+#include "vr_playergore.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
@@ -102,6 +103,8 @@ struct Stream
     glm::vec3 smoothOut{0.f}; // (zero: not yet)
     double start = 0.0;
     float duration = 6.f;
+    bool own = false;        // one of yours (vr_player_gore_streams: startOwn): bound to `spot` on your drawn body
+    playergore::Spot spot;
     int blade = -1;          // the blade in the wound it runs from, while it does: no duration, no weakening (onBladeWound)
     double bladeUntil = 0.0; // as far as its last word goes
     float power = 1.f;  // how hard it pours (the hit's damage)
@@ -447,6 +450,19 @@ int rebinds = 0, unbound = 0; // since the map began
 // as its dents push the corners (the vertex shader's push: dents::pushAt), a little under it.
 [[nodiscard]] bool locate(Stream& s)
 {
+    if(s.own)
+    {
+        // Yours: its spot on your capsule as drawn (vr_playergore.cpp); its way out turns with your view.
+        glm::vec3 n;
+        if(s.ent != cl.viewentity || !playergore::where(s.spot, s.wound, n))
+        {
+            return false;
+        }
+        s.surfN = n;
+        s.push = 0.f;
+        s.outWorld = yawTurn(s.outLocal, r_refdef.viewangles[YAW]);
+        return true;
+    }
     const entity_t* e = entityOf(s.ent, s.model);
     if(!e)
     {
@@ -982,7 +998,8 @@ void update(Stream& s, float dt)
     {
         s.blade = -1; // (its next word, if the blade is still in, starts it afresh)
     }
-    if(s.emitting)
+    // (Yours raised close to the eyes or over them: it doesn't pour there, what fell falls on; vr_player_gore_eye_clear.)
+    if(s.emitting && !(s.own && playergore::nearEyes(s.wound)))
     {
         // The body's motion at the wound: clamped, low-passed over vr_gore_streams_smooth (the animation moves it in
         // jumps, a new velocity each frame of it), and only vr_gore_streams_inherit of it taken.
@@ -1241,6 +1258,82 @@ bool anchorNow(int ent, int vertex, int kind, glm::vec3& at)
     }
     at = scratchNow[static_cast<za::SizeT>(vertex)];
     return true;
+}
+
+bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::vec3& way, int amount)
+{
+    if(!enabled() || cl.viewentity <= 0)
+    {
+        return false;
+    }
+    // A slot: free (within the cap in all), else past vr_player_gore_stream_max your weakest, else the weakest of all.
+    const int most = za::max(1, static_cast<int>(vr_player_gore_stream_max.value));
+    int mine = 0;
+    Stream* weakestMine = nullptr;
+    auto left = [](const Stream& s) { return s.emitting ? s.start + s.duration - cl.time : -1.0; };
+    for(Stream& s : streams)
+    {
+        if(s.used && s.own)
+        {
+            mine++;
+            weakestMine = !weakestMine || left(s) < left(*weakestMine) ? &s : weakestMine;
+        }
+    }
+    Stream* slot = mine >= most ? weakestMine : slotFor(cl.viewentity, false);
+    if(!slot)
+    {
+        return false;
+    }
+    Stream& s = *slot;
+    s = Stream{};
+    s.used = true;
+    s.emitting = true;
+    s.ent = cl.viewentity;
+    s.own = true;
+    s.spot = spot;
+    for(int i = 0; i < 3; i++)
+    {
+        s.thkFreq[i] = i == 0 ? vrand::range(rng, 0.55f, 0.9f) : i == 1 ? vrand::range(rng, 1.3f, 2.1f) : vrand::range(rng, 2.9f, 4.4f);
+        s.thkPhase[i] = vrand::range(rng, 0.f, 1.f);
+    }
+    // Out of the wound's face, back toward the blow, a little up (as an enemy's), turning with your view after.
+    const glm::vec3 back = glm::length(way) > 0.01f ? -glm::normalize(way) : normal;
+    const glm::vec3 out = normal * 0.7f + back * 0.4f +
+                          glm::vec3{vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, 0.05f, 0.3f)};
+    s.outWorld = inCone(glm::length(out) > 0.01f ? glm::normalize(out) : glm::vec3{0.f, 0.f, 1.f},
+        za::clamp(vr_gore_streams_spread.value, 0.f, 90.f));
+    s.outLocal = yawTurn(s.outWorld, -r_refdef.viewangles[YAW]);
+    s.pose = Pose::None;
+    const float speedVar = za::clamp(vr_gore_streams_speed_var.value, 0.f, 0.9f);
+    s.speedMul = vrand::range(rng, 1.f - speedVar, 1.f + speedVar);
+    for(int i = 0; i < 4; i++)
+    {
+        s.wobFreq[i] = (i % 2 == 0) ? vrand::range(rng, 0.7f, 1.3f) : vrand::range(rng, 1.7f, 2.6f);
+        s.wobPhase[i] = vrand::range(rng, 0.f, 1.f);
+    }
+    s.start = cl.time;
+    s.duration = za::clamp(vr_gore_streams_time.value * za::clamp(vr_player_gore_stream_time.value, 0.05f, 5.f), 0.5f, 30.f) *
+                 vrand::range(rng, 0.75f, 1.25f);
+    s.power = za::clamp(0.7f + amount / 40.f, 0.7f, 1.4f);
+    s.phase = vrand::range(rng, 0.f, 1.f);
+    s.nextArc = 0.0;
+    s.nextPaint = cl.time + 0.2;
+    if(!locate(s))
+    {
+        s.used = false;
+        return false;
+    }
+    return true;
+}
+
+int ownStreams()
+{
+    int n = 0;
+    for(const Stream& s : streams)
+    {
+        n += s.used && s.own && s.emitting ? 1 : 0;
+    }
+    return n;
 }
 
 void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength)
