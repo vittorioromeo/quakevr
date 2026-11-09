@@ -2633,12 +2633,19 @@ void printDrawn(const float* origin, const float* angles)
     const glm::vec3 camAngles{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]};
     hands::angleVectors(camAngles, f, r, u);
     const glm::vec3 d = geom::vec(origin) - cam;
-    const float dyaw = za::remainder(angles[1] - camAngles.y, 360.f);
-    Con_Printf("flatview: t %.4f local %.3f %.3f %.3f yaw %.3f pitch %.3f view %.2f %.2f speed %.0f bob %.2f ground %d "
-               "lag %.2f\n",
-        vr_gametime,
-        glm::dot(d, f), glm::dot(d, r), glm::dot(d, u), dyaw, angles[0] + camAngles.x, camAngles.x, camAngles.y,
-        glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), feel.amp, cl.onground ? 1 : 0, feel.lag.y);
+    // The weapon's turn in the camera's own frame (forward, left, up), not its angles less the camera's: those differ
+    // whenever the camera rolls -- strafing does, cl_rollangle's 2 degrees -- and a gun pitched 7 degrees off the view
+    // read a quarter of a degree of yaw off it while it stood rigidly in the rolled view (2026-11-09; the entity's pitch
+    // is the model's, negated: held::axesFromAngles).
+    glm::vec3 gf, gr, gu;
+    hands::angleVectors(glm::vec3{-angles[0], angles[1], angles[2]}, gf, gr, gu);
+    const auto inCam = [&](const glm::vec3& v) { return glm::vec3{glm::dot(v, f), -glm::dot(v, r), glm::dot(v, u)}; };
+    const glm::vec3 rel = hands::anglesFromVectors(inCam(gf), inCam(gu));
+    Con_Printf("flatview: t %.4f local %.3f %.3f %.3f yaw %.3f pitch %.3f roll %.3f view %.2f %.2f speed %.0f bob %.2f "
+               "ground %d lag %.2f\n",
+        vr_gametime, glm::dot(d, f), glm::dot(d, r), glm::dot(d, u), za::remainder(rel.y, 360.f), -rel.x,
+        za::remainder(rel.z, 360.f), camAngles.x, camAngles.y, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}),
+        feel.amp, cl.onground ? 1 : 0, feel.lag.y);
     // The camera this frame is drawn from, and the player it is drawn for: the eye's place and the eye's own nudges
     // (vr_flat_cam_fwd forward, vr_flat_cam_side the view's right, vr_flat_cam_up), against the origin he really stands
     // at -- which these do not touch (his box and his server-side position are measured from there: vr_hull.cpp,

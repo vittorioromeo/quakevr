@@ -77,7 +77,8 @@ the aim's turn, 18/s, where the game's hand has it at once: the crosshair crossi
 
 These are tuning constants (`tune <name> <value>`; **Debug > Tunables > Flatscreen > Looks**, saved in `tunables.cfg`). Debug
 > Reports > Flatscreen Play has Status, Print (`vr_flatplay_debug`: prints each E and V press, each hand's punch and where
-the hands are; 2: each frame the drawn weapon in the camera's frame, `flatview:`, each move's shot against the view,
+the hands are; 2: each frame the drawn weapon in the camera's frame, `flatview:` (its place, and its yaw, pitch and roll as a turn in that
+frame, so the camera's strafing roll reads none), each move's shot against the view,
 `flatmove:`, each gun's aim, `flataim:`, and each drawn hand against the arm the body poses for it, `flatarm:` -- how far its
 wrist is off the body's wrist, how far the hand is past what the arm can hold it at, its speed and its wrist's bend), and
 Punch (`vr_flat_punch`). Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
