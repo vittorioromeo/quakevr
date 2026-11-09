@@ -229,8 +229,14 @@ struct BodyPitch
     // Sliding's share (flat-screen play's slide, vr_flat_slide_body_angle: a negative angle, the trunk leant back about
     // the neck so the hips come forward), kept like lying down's: solveTorso straightens the trunk by it, solveLeg lays
     // the legs out in front along the floor.
+    // Its own spring (the angle's ease, towards 1 while sliding, 0 after): not the angle's share of the target, whose
+    // target jumps where the neck comes low enough for the hips to reach the floor (6 to 23 degrees in a frame down
+    // e1m1's ramp: the share dropped from 0.62 to 0.31, the shoulders and the gun 3.7 units forward in one frame).
+    // For a target that holds still the two are the same (the spring is linear).
     float sliding{0.f};
     float slidingFrom{0.f};
+    float slidingShare{0.f};
+    float slidingRate{0.f};
     float slidingAngle{45.f};
     // Swimming's inputs, as last seen (vr_body_pitch prints them).
     int waterlevel{0};
@@ -240,7 +246,6 @@ struct BodyPitch
 };
 
 extern BodyPitch bodyPitch;
-
 // Swimming's target (the self-test feeds it directly).
 struct SwimPitchIn
 {
