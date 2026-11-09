@@ -12,9 +12,10 @@ AGENT=${1:-armourstudio}
 source "$(dirname "$0")/qvrtest.sh"
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 SECTIONS=${SECTIONS:-abc}
+# (The visor HUD off, vr_flat_visor 0: its panels stand still over the view and held the measured shift back: 10/1.)
 # (Quake's own view kick, its red flash, dynamic lights and the headset's blood at the edges off, so the pictures show the
 # punch and the marks alone.)
-P="map e1m1; wait10; developer 1; r_norefresh 0; setpos 480 -352 88 0 90 0; give h 250; vr_blood_hit 0; v_kickpitch 0; v_kickroll 0; gl_polyblend 0; r_dynamic 0; impulse 154; wait20; vr_test_spawn 0; vr_test_spawn_dist 200; impulse 241; wait10; setpos 480 -352 88 0 180 0; wait2"
+P="map e1m1; wait10; developer 1; r_norefresh 0; vr_flat_visor 0; setpos 480 -352 88 0 90 0; give h 250; vr_blood_hit 0; v_kickpitch 0; v_kickroll 0; gl_polyblend 0; r_dynamic 0; impulse 154; wait20; vr_test_spawn 0; vr_test_spawn_dist 200; impulse 241; wait10; setpos 480 -352 88 0 180 0; wait2"
 # (The safety net: a run with no hit by then ends on this line, and its checks fail.)
 END="wait900; echo flathit_timeout; toggleconsole; quit"
 shots() { grep -a "full size in" "$1" | sed 's/.*full size in //' | tr -d '\r' | tail -1; }
@@ -40,7 +41,7 @@ fi
 
 if [[ $SECTIONS == *c* ]]; then
   log=$HERE/scratch/flathit_c.log
-  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait10; r_norefresh 0; setpos 480 -352 88 0 90 0; give h 100; wait30; screenshot; give h 10; wait2; vr_blood_info; screenshot; give h 100; wait2; echo flathit_done; toggleconsole; quit" -Filter "^blood|flathit_done" -QuitOn "flathit_done" -Out flathit_c.png -Timeout 60 > "$log" 2>&1
+  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait10; r_norefresh 0; vr_flat_visor 0; setpos 480 -352 88 0 90 0; give h 100; wait30; screenshot; give h 10; wait2; vr_blood_info; screenshot; give h 100; wait2; echo flathit_done; toggleconsole; quit" -Filter "^blood|flathit_done" -QuitOn "flathit_done" -Out flathit_c.png -Timeout 60 > "$log" 2>&1
   grep -a "^blood" "$log" | sed 's/^/  /'
   dir=$(shots "$log"); mapfile -t png < <(ls "$dir"/*.png 2>/dev/null | sort | tail -2)
   judge c "$log" "${png[@]}"

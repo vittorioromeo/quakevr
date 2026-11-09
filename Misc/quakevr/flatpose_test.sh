@@ -146,12 +146,8 @@ ALL="$(K 64); $(K 300); $W"
 log=$HERE/scratch/pose_point.log
 bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map vrtesthall; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_debug_shots 1; impulse 154; $AT; wait60; vr_flatplay_debug 2; vr_flat_aim 1; tune vr_flat_ads_screen_y -1; tune vr_flat_ads_screen_x 1; wait40; $ALL; tune vr_flat_ads_screen_y 0; tune vr_flat_ads_screen_x 0; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up -6; tune vr_flat_cam_side 4; wait30; $ALL; tune vr_flat_cam_fwd 0; tune vr_flat_cam_up 0; tune vr_flat_cam_side 0; vr_flat_aim 0; wait40; $ALL; vr_flat_aim 1; tune vr_flat_ads_screen_y -15; tune vr_flat_ads_screen_x 25; tune vr_flat_aim_point 0; wait40; $(K 64); tune_reset; vr_flat_reload 1; toggleconsole; quit" -Filter "^flataim: main|^shot: from" > "$log" 2>&1
 # One line a shot: how far the point stands off the line it left on, what was at that point, how far, what the pellets hit.
-# (A flataim: record whose point is under 1 unit away is skipped: the crosshair's ray started inside something at his
-# head for that frame -- seen for a few frames now and then on next 2026-11-09, the server's shot unaffected -- and it says
-# nothing of what the crosshair is on. Their count is printed.)
 shots() { grep -aE "^(flataim: main|shot: from)" "$1" | tr -d "'" | awk '
-    /^flataim:/ { for (i = 1; i <= NF; i++) if ($i == "away") aw = $(i+1) + 0; if (aw < 1) next
-                  for (i = 1; i <= NF; i++) { if ($i == "at") { x = $(i+1); y = $(i+2); z = $(i+3) } if ($i == "away") a = $(i+1) } next }
+    /^flataim:/ { for (i = 1; i <= NF; i++) { if ($i == "at") { x = $(i+1); y = $(i+2); z = $(i+3) } if ($i == "away") a = $(i+1) } next }
     /^shot:/ { sx = $3; sy = $4; sz = $5; dx = $7; dy = $8; d3 = $9; sub(":", "", d3)
       t = (x - sx) * dx + (y - sy) * dy + (z - sz) * d3
       ex = x - sx - dx * t; ey = y - sy - dy * t; ez = z - sz - d3 * t
@@ -164,7 +160,12 @@ for name in $names; do
   i=$((i + 1)); read -r off away on <<<"$(pointline $i)"
   echo "  $name: the crosshair on something ${away:-(no shot)} away, ${off:-(no shot)} units off the line the server's shot left on, ${on:-no} pellets on the knight"
 done
-echo "  $(grep -ac . "$HERE/scratch/pose_point.txt") shots read of the 10 fired; $(grep -ac "^flataim: main.* away 0\.[0-9] " "$log") crosshair records skipped (the ray started inside something), $log"
+zero=$(grep -ac "^flataim: main.* away 0\.[0-9] " "$log")
+echo "  $(grep -ac . "$HERE/scratch/pose_point.txt") shots read of the 10 fired; $zero frames with the crosshair's point at the head, $log"
+# The point at the head: the hit model's clip read a line from 70-300 units off a knight (or his ragdoll) as starting inside
+# him when its first crossing was a back face (a seam, the grown mesh's folds); the drawn gun dropped its aim at the point for
+# those frames (0.8-8.7 degrees). Fixed 2026-11-09 (vr_hitmodel.cpp, segment: a start outside the drawn bounds is not inside).
+check $( [ "$zero" = 0 ] && echo 1 || echo 0) "point: the crosshair's ray never reads as starting inside a monster far ahead"
 gate() { read -r off away on <<<"$(pointline $1)"; awk -v o="${off:-999}" -v a="${away:-0}" -v p="${on:-0}" -v w="$2" -v k="$3" 'BEGIN { exit !(o <= 1.5 && a > w * 0.5 && (k == 0 || p + 0 > 0)) }' && echo 1 || echo 0; }
 check $(gate 1 48 1) "point: the picture moved, a knight 64 away: the server's shot goes through the crosshair's point, and hits him"
 check $(gate 2 280 1) "point: the picture moved, a knight 300 away: the same"

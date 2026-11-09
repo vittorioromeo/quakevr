@@ -6154,8 +6154,36 @@ QVR_SLIDER(vr_flat_visor_crt, "Visor CRT Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
 QVR_SLIDER(vr_flat_visor_sway, "Visor Sway", 0.f, 2.f, 0.1f, "x%.1f", noExt,
     "The visor's panels lag a turn by a fraction of a degree and bob a little with the walk, like a helmet on your head. "
     "0: rigid. Standing still they never move (vr_flat_visor_sway).")
-QVR_SLIDER(vr_flat_visor_warp, "Visor Lens", 0.f, 0.3f, 0.01f, "%.2f", noExt,
-    "The visor's glass bends its panels round the middle of the screen, like a curved visor; the mounts stay on the screen's edges. 0: flat (vr_flat_visor_warp).")
+QVR_SLIDER(vr_flat_visor_zoom, "Visor Zoom", 0.85f, 1.2f, 0.01f, "x%.2f", noExt,
+    "The whole visor moved towards or away from you about the screen's middle: over 1 the panels further off the edges, "
+    "less of their empty face seen; under 1 further in. With a lens bending the panels in, a little over 1; bending "
+    "them out, a little under (vr_flat_visor_zoom).")
+QVR_SLIDER(vr_flat_visor_depth, "Visor Depth", 0.f, 3.f, 0.1f, "%.1f", noExt,
+    "The visor's panels as thick glass in metal: a back plate a little behind each face that lags as you move, the "
+    "readings a touch behind the glass. 0: flat (vr_flat_visor_depth).")
+QVR_SLIDER(vr_flat_visor_bevel, "Visor Bevel", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "The visor's frames lit from above, brighter on top and darker below, with a thin inner highlight. 0: flat "
+    "(vr_flat_visor_bevel).")
+QVR_SLIDER(vr_flat_visor_sheen, "Visor Sheen", 0.f, 3.f, 0.1f, "%.1f", noExt,
+    "The glass's sheen down each panel and a soft glint across it. 0: none (vr_flat_visor_sheen).")
+QVR_SLIDER(vr_flat_visor_glow_outer, "Visor Outer Glow", 0.f, 2.f, 0.05f, "%.2f", noExt,
+    "A glow outside each panel's frame, in its colour (red with low health). 0: none (vr_flat_visor_glow_outer).")
+QVR_SLIDER(vr_flat_visor_glow_inner, "Visor Inner Glow", 0.f, 2.f, 0.05f, "%.2f", noExt,
+    "A glow inside each panel's frame. 0: none (vr_flat_visor_glow_inner).")
+QVR_SLIDER(vr_flat_visor_glow_width, "Visor Glow Width", 1.f, 60.f, 1.f, "%.0f px", noExt,
+    "How far the visor's glows reach, in pixels at 1080p (vr_flat_visor_glow_width).")
+QVR_SLIDER(vr_flat_visor_edge, "Visor Edge Thickness", 0.f, 8.f, 0.25f, "%.2f px", noExt,
+    "The visor's frame lines' thickness, in pixels at 1080p. 0: none (vr_flat_visor_edge).")
+QVR_SLIDER(vr_flat_visor_scanlines, "Visor Scanlines", 0.f, 1.f, 0.02f, "%.2f", noExt,
+    "Moving scanlines over the visor's panels (never the game's view) and a faint band rolling down them. 0: none "
+    "(vr_flat_visor_scanlines).")
+QVR_SLIDER(vr_flat_visor_scanline_speed, "Visor Scanline Speed", 0.f, 60.f, 1.f, "%.0f px/s", noExt,
+    "How fast the visor's scanlines drift (vr_flat_visor_scanline_speed).")
+QVR_SLIDER(vr_flat_visor_ss, "Visor Supersampling", 1.f, 4.f, 1.f, "x%.0f", noExt,
+    "The visor drawn at this many times the screen's resolution and brought down, for smooth edges (its lines are "
+    "antialiased at 1 too). 1: the screen's own (vr_flat_visor_ss).")
+QVR_SLIDER(vr_flat_visor_warp, "Visor Lens", -0.2f, 0.2f, 0.01f, "%.2f", noExt,
+    "The visor's glass bends its panels round the middle of the screen, like a curved visor; the mounts stay on the screen's edges; negative bends it the other way. 0: flat (vr_flat_visor_warp).")
 QVR_SLIDER(vr_flat_visor_frame, "Visor Glass", 0.f, 3.f, 0.1f, "%.1f", noExt,
     "The visor's glass: a faint dark rim at the screen's edges and a reflection streak. 0: none (vr_flat_visor_frame).")
 QVR_SLIDER(vr_flat_visor_damage, "Visor Hit Glitch", 0.f, 2.f, 0.1f, "%.1f", noExt,

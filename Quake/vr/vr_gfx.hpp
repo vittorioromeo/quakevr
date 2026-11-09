@@ -75,7 +75,8 @@ struct State
     glm::vec4 glass{0.f}; // and the glass's own colour under the face (rgb) and the digits' softness (a, 0..1)
     float taper{1.f}; // and its shape: a trapezoid, its top's width this fraction of its bottom's (1: the rectangle)
     // Shade::Screen translucent (the flat-screen visor's panels, vr_visor.cpp): > 0 the face at the vertex alpha, what is lit
-    // on it towards opaque by its brightness, all of it times this (a fade). 0: the vertex alpha throughout.
+    // on it towards opaque by its brightness, all of it times this (a fade); premultiplied (Blend::Premultiplied). 0: the
+    // vertex alpha throughout.
     float inkAlpha{0.f};
     // Soft (premultiplied blends): the opaque scene's distances along the view (vr_water.hpp's opaqueSceneDistances,
     // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
