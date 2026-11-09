@@ -5942,6 +5942,19 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   .blend, .mdl and mask. Holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a no-change re-run
   writes the files byte for byte; vr_pp_test 1 63 passed, 0 failed. Before/after from his angle (behind and above):
   `scratch/housing_nail/gussets2_before_after.png`, brightened corners `gussets2_closeup.png` (embed5 worktree).
+- **Gussets textured as the same part as the bezel (branch `agent/nail_gussets3`, his note: "the texture lacks
+  continuity with the existing enclosure"):** geometry unchanged, UVs only, all from the bezel's own regions (no new
+  texels). Each gusset's outer face takes the bezel side wall's mapping carried straight down: the wall's rows across
+  it by depth (the worn rim, rows 80.3-83.5) and its columns along it at the wall's own rate (the outline's perimeter
+  share), extended past the side's lower end (outline point 7 right, 4 left). Its front takes the bezel front's own
+  planar mapping (the brown rusted metal at 312, 170, 14 texels a unit), so the plate runs on from the bezel into the
+  gusset; the bezel's front band along the bottom (the lower chamfers and the bottom edge) now takes that same planar
+  mapping too, so no band line crosses the joint, and the bezel's walls there (covered by the gussets and the
+  receiver) are dark with their own UVs: the file's normals are per file vertex (split by UV), so the visible front and
+  side faces keep flat, matching shading across the joint. The sides and top of the bezel keep their worn band.
+  Re-run byte-identical, holes as before (0 see-through, 0 cracks), frames 0.0000, vr_pp_test 1 63 passed, 0 failed.
+  Images (blendmodels worktree): `scratch/gussets3/gussets3_before_after.png` (behind and above),
+  `gussets3_joint_left.png` / `_right.png` (each joint, before | after, brightened 2.4x).
 ## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
 
 His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
@@ -6014,6 +6027,8 @@ He wanted the bezel to stand out from the receiver's end face about half as far,
   lines). flatreload 26/0, flatramp 1/0 (flatslide_ramp 6/0), flatgate 5/0, vr_pp_test 1 63/0.
 ## The super nailgun's screen housing on top (branch `agent/housing_nail2_top`, 2026-11-09)
 
+(Reshaped the same day: "The super nailgun's screen in a wedge", below.)
+
 His new mockup (kit `scratch/mockups/nail2_top.webp`): the screen moved to the top of the gun, in a raised block at the
 receiver's back end with a slanted rear face; the back of the gun round the handle free (no plate). Images in the
 flatwall worktree: `scratch/hn2t/panel_nail2_top.png` (next / this / the mockup, the fly camera behind, above and right),
@@ -6058,6 +6073,38 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
   the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
 
+## The super nailgun's screen in a wedge (branch `agent/nail2_wedge`, 2026-11-09)
+
+His two shots on the block above (kit `scratch/mockups/nail2_side.webp`, green lines: "much more slanted", the back
+sloping onto the second big ridge instead of a vertical front; `nail2_front.png`, green circles: the block's sides
+stand out past the gun's). Panel (phases worktree): `scratch/nw/panel_nail2_wedge.png`, top row the side (next, this,
+his shot), bottom row from behind and above (next, this, his shot); flat 4K, the fly camera.
+
+- **The shape** (`make_screen_housing_nail2.py`, same interface; rebuilt from the .blend before any housing, `b382c0e9c^`:
+  1421 vertices, 1154 triangles, none unused): a wedge, a triangle seen from the side. The face rises at 19 degrees from
+  the rear band's rear top edge (was 50), 3.70 long, to a peak at x 0.92, z 8.81 (1.21 over the band; the block's top
+  was 2.88 over it); the front slope runs from the peak down to the second ridge's front top edge (x 6.00, 13 degrees),
+  bridging the groove; the bottom lies on the band and the ridge (a closed solid; no vertical face, no flat top). His
+  lines measure about 16-19 degrees taken with the old block's 50 for scale; the brief's estimate was 25-30. 19 is as
+  steep as the bezel allows with flush sides: the sides are now the receiver's own side planes carried on up (5.85 wide
+  at the band's top, flush there, leaning in 21.6 degrees to 4.89 at the peak; no overhang, no ledge, no corner
+  pieces), so the bezel's top corners (their height set by the slope) must stay inside them: 0.049 inside at 19 degrees,
+  none left past about 21. The window, bezel and digits are unchanged.
+- **Rounding:** the flatter face suits the coarse X grid: off the plane at most 0.04 (was 0.11). The face's strip below
+  the bezel is 0.08h and above it 0.1h, and the script refuses when either rounds to nothing (at 0.05h the bottom one
+  did: a folded triangle); the window's walls go 0.05h into the wedge (0.1h would reach below the receiver's top at the
+  window's bottom edge). The rivets got an underside (4 x 10 triangles): one ring's rounding opened a see-through gap
+  (check_mdl_holes: 1 see-through loop; now `ok`, 4 hidden loops, 18 cracks none wider than 0.01). The box grew less:
+  Z scale 0.0689 (was 0.0746).
+- **The glass:** weapons.txt slot 4 `wpntxt_pitch` 39.5 -> 70.5 (its up (0.9455, 0, 0.3256): the face's), `wpntxt_x`
+  -3.65 -> -3.4, `wpntxt_z` 4.48 -> 4.13; the "nail2" offset {0.0255, 0.0031, 0.0013}. screenwhere -0.8965 -0.1123 8.3283
+  (the window's -0.8962 -0.1122 8.3281). The three lines updated in every qvr-agents worktree's `ironwail.cfg.baseline`
+  and in quakevr-iw-cleanup's `ironwail.cfg`.
+- **Clearances:** barrels up to z 6.85 under the wedge's lowest 7.61 (every frame); the off hand's grip spot 8.8 away;
+  frames carry it with the rear face (0.0000). A re-run in place writes the same .mdl, normal map and weapons.txt.
+- **Tests:** `vr_pp_test 1` 63/0; `vr_scenario runall quit nail2_housing` OK in VR and flat; checklist_tests_check.py
+  83/0. Scene hint updated.
+- **Not verified:** the headset; the panel's runs were low-impact (his game was running).
 ## The super shotgun's housing: the bevel's texels, round rivets (branch `agent/ssg_fix`, 2026-11-09)
 
 His screenshot (looking straight down at the breech top): "the textures of the bevel are very stretched", "the rivets
@@ -6149,3 +6196,27 @@ on, from the side, from above-left; a rivet straight on and from the eye's side;
   vr_show_weapon_text 0); from the side the rivet cones read as small teeth (0.075 world units).
 - **Tests:** vr_pp_test 1 63/0; checklist_tests_check 83/0; the export's own checks passed. Scene `rocket_housing`.
 - **Not verified:** the headset (flat shots and Blender only).
+## The ammo screen's text: its own size and place (branch `agent/ammotext`, 2026-11-09)
+
+His words: "per-weapon tweakable options for the ammo screen? Font size multiplier; text x/y offsets ... should only
+affect the text itself, not the screen or enclosure."
+
+- **Keys (`vr_weapons.inc`, appended; `vr_wofs_<key>_NN`):** `wpntxt_font` (the text's size, times the font's; 1),
+  `wpntxt_tx` and `wpntxt_ty` (its centre moved right and up on the glass, in shares of the glass's width and height: 0.5
+  puts the centre on the edge; 0). Defaults in `weapons.txt`'s defaults block (`wpntxt_font "1"`), `weapons_data.py`'s
+  GLOBALS. New keys: no migration. Weapon Offsets > Ammo Screen: Text Size (0.3..2.5, extended 0.05..10), Text Right and
+  Text Up (-0.5..0.5, extended -2..2). Weapon Studio's Ammo page lists them by prefix (Text Size as a scale, 0.02..4;
+  the shifts as shares, -1..1).
+- **How (`text3d::Glyphs`, a new last argument of `text3d::queue`; the held guns' and the holstered/lying ones' screens,
+  `view_detail::screenGlyphs`):** the glass, its dark box, the glow and the CRT quad are laid out as before from
+  `wpntxt_scale` and the style; only the glyphs change. Through the CRT (the default), the text is drawn into the
+  screen's image at its size and shift, so what falls past the glass is cut off at its edge; the image cache keys on
+  the size and shift too (two guns with one text but another size don't share an image). CRT off (plain glyph quads)
+  the text is resized and moved the same but spills past the glass (as the plain path's glyphs already could).
+- **Defaults unchanged:** at 1, 0, 0 every expression reduces to the old one (the image's left/top and the glyphs'
+  size and places are the same numbers; not shot against an old build).
+- **Proof (`scratch/ammotext/`, flat, vrtesthall, the shotgun, reloading on: "8/8" over "17"):** `panel1.png` default,
+  Text Size 1.4 (cut off at the glass), 0.7, Right 0.15 Up 0.1. Two default runs: 0 pixels differ; every variant's
+  changed pixels lie inside the glass (bbox 1248..1493 x 493..589 of the glass's ~1240..1500 x 470..600), the frame and
+  housing identical. CRT off: `panel_crt0.png`. vr_pp_test 1: 63 passed, 0 failed; scenarios ammoscreen_glass and
+  shotgun_screen OK; checklist_tests_check: 83 passed, 0 failed.

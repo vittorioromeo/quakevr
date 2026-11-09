@@ -56,7 +56,7 @@ for _n in range(1, 5):
 for _k in ("SpringStiffness SpringDamping SpringStrength SpringSag SpringSwing SpringTwoHanded SpringSnap SpringRoll "
            "MeleeDamage ThrowDamage SpinAlign ThrowMinSpeed ThrowCurve MeleeMinSpeed MeleeCurve "
            "HapticPunch Recoil2hKick Recoil2hRise Recoil2hTime Recoil2hHaptic FlashSize TracerSpeed TracerLength "
-           "TracerWidth TracerChance TracerRed GunfxSparks GunfxSparkSize GunfxSmoke GunfxSmokeSize GunfxWisps GunfxHeat GunfxCool "
+           "TracerWidth TracerChance TracerRed GunfxSparks GunfxSparkSize GunfxSmoke GunfxSmokeSize GunfxWisps GunfxHeat GunfxCool WpnTextFont "
            "TorchClip Droop HeavyRecoil BladeWidth").split():
     GLOBALS[_k] = "1"
 GLOBALS.update({"GunfxBarrel": "0.5", "RecoilReturn": "0.115","FlashTime": "0.06", "TracerGreen": "0.8", "TracerBlue": "0.45",
