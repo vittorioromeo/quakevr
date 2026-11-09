@@ -40,6 +40,8 @@ int VR_PortalDrawing (void); // the offscreen pass requires a composite target i
 int VR_PortalHideTeleport (void); // in a view through a teleporter, its teleport faces left out (vr_portals_recursion 0)
 void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
+void VR_WindowViewBegin (void);						// SCR_UpdateScreen: around the flat screen's V_RenderView (the models' set-up shared with the shadow pass)
+void VR_WindowViewEnd (void);
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to check the bind cache and clip rectangle against GL (vr_debug_glstate)
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)

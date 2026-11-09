@@ -2233,6 +2233,39 @@ void writeRagdoll(edict_t* ent, Slot& s)
     QVR_TRACY_SCOPE(tracyScope, "ragdoll publish");
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const ragdoll::Rig& rig = *r.rig;
+    // The local player's hands holding its limbs (drawn following them between steps: vr_ragdoll_held_local).
+    int heldBy = 0;
+    for(const World::RagdollGrab& g : world->ragdollGrabs)
+    {
+        if(g.num == r.num && g.player == cl.viewentity && (g.hand == 0 || g.hand == 1))
+        {
+            heldBy |= 1 << g.hand;
+        }
+    }
+    // Asleep since its last write, every part still asleep where it was, its entity as written: nothing to write again
+    // (the step's message time moves on: ragdoll::republish). A wake, a cut, a grab, a new frame, the QC moving its
+    // entity or its fields write it in full as before.
+    if(vr_ragdoll_sleep_skip.value != 0.f && s.asleep && r.written.valid && heldBy == 0 && r.written.heldBy == 0 && !(r.knocked && ent->v.health <= 0.f) &&
+        r.count == r.written.count && r.cut == r.written.cut && ent->v.frame == r.written.frame &&
+        vec(ent->v.origin) == r.written.origin && vec(ent->v.mins) == r.written.mins && vec(ent->v.maxs) == r.written.maxs &&
+        ent->v.velocity[0] == 0.f && ent->v.velocity[1] == 0.f && ent->v.velocity[2] == 0.f &&
+        (static_cast<int>(ent->v.flags) & FL_ONGROUND) && limbsBleed(ent) == r.written.bleeds)
+    {
+        bool still = true;
+        for(int b = 0; b < r.count && still; b++)
+        {
+            still = !b3Body_IsAwake(r.body[static_cast<za::SizeT>(b)]);
+        }
+        if(still)
+        {
+            const b3WorldTransform xf = b3Body_GetTransform(r.body[0]);
+            still = world->toU(xf.p) == r.written.rootPos && fromB3(xf.q) == r.written.rootRot;
+        }
+        if(still && ragdoll::republish(r.num, r.rig, qcvm->time + host_frametime))
+        {
+            return;
+        }
+    }
     {
         // (vr_ragdoll_speeds: how fast it goes after this step.)
         glm::vec3 momentum{0.f};
@@ -2336,17 +2369,21 @@ void writeRagdoll(edict_t* ent, Slot& s)
     SV_LinkEdict(ent, false);
     s.origin = origin;
     s.asleep = !awake;
-    // The local player's hands holding its limbs (drawn following them between steps: vr_ragdoll_held_local), and the
-    // time of the message after this step (qcvm->time is advanced after the physics: SV_Physics).
-    int heldBy = 0;
-    for(const World::RagdollGrab& g : world->ragdollGrabs)
-    {
-        if(g.num == r.num && g.player == cl.viewentity && (g.hand == 0 || g.hand == 1))
-        {
-            heldBy |= 1 << g.hand;
-        }
-    }
+    // (The time of the message after this step: qcvm->time is advanced after the physics, SV_Physics.)
+    const bool bleeds = limbsBleed(ent);
     ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut,
-        limbsBleed(ent));
+        bleeds);
+    RagdollBodies::Written& w = r.written;
+    w.valid = r.count > 0;
+    w.count = r.count;
+    w.heldBy = heldBy;
+    w.cut = r.cut;
+    w.frame = ent->v.frame;
+    w.bleeds = bleeds;
+    w.origin = vec(ent->v.origin);
+    w.mins = vec(ent->v.mins);
+    w.maxs = vec(ent->v.maxs);
+    w.rootPos = pos[0];
+    w.rootRot = rot[0];
 }
 } // namespace box3d::detail

@@ -2664,7 +2664,8 @@ this tip. Try one with vr_tips_test <tipname>."
 		1 : "Show every time" : 0 : "Not remembered: it shows again whenever he comes near. (The map's worldspawn Repeat map tips makes every tip in the map do this.)"
 		2 : "Wrist hologram" : 0 : "In the wrist gadget's hologram instead of the floating screen (the screen when there is no hologram)."
 		4 : "Ignore sight and view" : 0 : "Shown even out of the view angle or hidden behind the world."
-		8 : "TRIGGERED" : 0
+		8 : "Triggered" : 0 : "Not shown until its targetname is fired (a monster's death, a crate broken...); then it takes over from the tip showing."
+		16 : "When grabbed" : 0 : "Not shown until a hand takes what it follows (its target: an item's targetname, a vr_crate's contents_name); then on it at once, over the tip showing, and gone with it. Set Ignore sight and view and Delay 0 with it."
 	]
 	message(string) : "Text" :  : "The tip's text. \n starts a new line."
 	distance(float) : "Range (units)" : 0 : "How near the player must come for it to show (0: his own setting)."
@@ -3477,7 +3478,8 @@ Pushes the player in the direction specified by angles.
 
 @PointClass color(153 115 64) size(-16 -16 0, 16 16 32) =
 	vr_crate : "Quake VR: a wooden crate, placed by hand: a heavy physics prop (pushed, tipped, stacked, stood on, carried by hand) that breaks into light pieces when shot, struck, blown up or hit hard, sometimes holding a small box of ammo or health (Crates' settings), and hides the player from monsters behind it. Small: 32 units a side; LARGE: 40 x 40 x 48. 'angle':
-its yaw; 'skin': 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are. 'contents': what it holds instead of the random box (a classname, as func_vr_restock's: item_key1, item_health...; 'none': nothing); 'target': fired as it breaks (the activator: what broke it)."
+its yaw; 'skin': 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are. 'contents': what it holds instead of the random box (a classname, as func_vr_restock's: item_key1, item_health...; 'none': nothing); 'contents_name': the targetname given to what it holds (a GRABBED func_vr_tip's
+target: a tip on it once a hand takes it); 'target': fired as it breaks (the activator: what broke it)."
 [
 	spawnflags(flags) =
 	[

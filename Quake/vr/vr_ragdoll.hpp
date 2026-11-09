@@ -177,6 +177,9 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // a shove alone draws no blood).
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
     int heldBy, uint32_t cut, bool bleeds);
+// The same pose as its last publish at a later step's `time` (box3d: a ragdoll asleep, unchanged): drawn still, and its
+// next real publish lerps from it as from any step before (no snap when it wakes). False: nothing to carry on (publish).
+[[nodiscard]] bool republish(int num, const Rig* rig, double time);
 void unpublish(int num);
 [[nodiscard]] bool published(int num); // edict `num` has a ragdoll published (drawn with it, not its animation)
 void unpublishAll();

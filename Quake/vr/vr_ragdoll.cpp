@@ -2861,6 +2861,7 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
         p.prevHeldBy = 0;
     }
     p.rig = rig;
+    p.still = false;
     p.bodies = bodies;
     p.cut = cut;
     p.bleeds = bleeds;
@@ -2883,6 +2884,32 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     {
         p.hand[h] = (p.heldBy & (1 << h)) ? hs.pos[h] : glm::vec3{0.f};
     }
+}
+
+bool republish(int num, const Rig* rig, double time)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()))
+    {
+        return false;
+    }
+    Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(p.rig != rig || !(time > p.time) || time - p.time >= 0.1 || p.heldBy != 0)
+    {
+        return false; // (as publish's keep: the full publish decides)
+    }
+    // publish's keep with the same pose again: the step before is the last one (its pose copied once: after that they
+    // are the same), the hands none.
+    if(!p.still)
+    {
+        p.prevRot = p.rot;
+        p.prevPos = p.pos;
+        p.prevHeldBy = 0;
+        p.prevHand[0] = p.prevHand[1] = glm::vec3{0.f};
+        p.still = true;
+    }
+    p.prevTime = p.time;
+    p.time = time;
+    return true;
 }
 
 bool published(int num)

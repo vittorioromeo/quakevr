@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: the frame loop's zones
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -203,22 +204,23 @@ int main(int argc, char *argv[])
 		// test run in the background (its hidden window), unless vr_debug_window_unfocused acts out a lost focus
 		const qboolean testbg = getenv ("QVR_TEST_BACKGROUND") != NULL;
 		const qboolean unfocused = VR_DebugWindowUnfocused () || (!testbg && !VID_HasMouseOrInputFocus ());
+		// QVR: profiling builds: the loop's waits outside the host frame as zones (perf 2026-11-09: hitches between frames)
 		if ((unfocused || (cl.paused && !testbg)) && !VR_IsActive ())
 		{
-			SDL_Delay(16);
+			VR_TRACY_DETAIL (1, "frame: unfocused sleep", SDL_Delay(16));
 		}
 		/* If we're minimised, sleep a bit more */
 		if (VID_IsMinimized() && !VR_IsActive () && !getenv ("QVR_TEST_BACKGROUND")) // QVR: a test run's hidden window draws too
 		{
 			scr_skipupdate = 1;
-			SDL_Delay(32);
+			VR_TRACY_DETAIL (1, "frame: minimized sleep", SDL_Delay(32));
 		}
 		else
 		{
 			scr_skipupdate = 0;
 		}
 
-		newtime = Sys_Throttle (oldtime);
+		VR_TRACY_DETAIL (1, "frame: throttle", newtime = Sys_Throttle (oldtime));
 		time = newtime - oldtime;
 
 		Host_Frame (time);

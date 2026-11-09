@@ -6662,6 +6662,50 @@ by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolle
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
 
+
+## Big fights' CPU (agent/perf_fight, 2026-11-09)
+
+From his flat trace of 2026-11-09 (qvr-kit/scratch/perf_1109.md). Measured with Tracy (Release-Tracy ThinLTO,
+`vr_tracy_preset full`, his settings, flat 3440x1441 fsaa 4, fixed 125 Hz game clock, unpaced, exclusive): ms a frame,
+before -> after. Scenarios: `play_gore_fight_flat`, `play_e1m1_fight_flat` (new, Misc/quakevr/bench/qvrbench.py,
+group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
+
+- **Sleeping ragdolls not written again** (`vr_ragdoll_sleep_skip 1`, box3d writeRagdoll): a ragdoll whose every part
+  sleeps, whose root body has not moved and whose entity (origin, box, frame, velocity, on-ground, cut, bleeding, held)
+  is as last written is skipped: no transforms, AABBs, SV_LinkEdict nor publish copy; `ragdoll::republish` only moves
+  its message time on (the step before set to the same pose once), so the next real publish lerps from it (no snap on
+  waking). Its slide check (noteBodySlide) is skipped too (it looked at awake parts only). ragdolls_32_settled
+  (29 ragdolls): `ragdoll publish` 0.013 -> 0.007, `box3d` 0.633 -> 0.515. **writeRagdoll itself is cheap** (0.8 us a
+  call awake, 14-16 calls a frame: 0.01 ms a frame), and so is everything else in `box3d publish bodies` in these
+  scenarios (0.08-0.12 ms a frame: prop writes 0.03-0.04, body slides 0.03-0.05); his trace's 1-2.7 ms per tick of
+  `box3d publish bodies` self time did not reproduce headless. Its parts now have zones (`box3d recoveries`, `box3d
+  body slide`, `box3d corpse write`, `box3d prop write`, `box3d prop slide`, `box3d ride standing`): his next capture
+  names it. Determinism: `vr_physics_hash ragdolls` of the same blast script differs run to run even with the skip off
+  (part counts 96-98: the scenario is not deterministic), so no A/B by hash; the skip writes nothing that differs
+  (every compared field exact) except the relink order of an unchanged edict.
+- **Server catch-up spread** (`host_fixedtick_spread 1`, host.c Host_FixedTicks). Quake's own loop gave a server frame
+  all the time built up once 1/72 s had passed (one long tick); Quake VR's fixed tick (`host_fixedtick 1`) runs as many
+  1/72 s ticks as the time holds, up to `host_fixedtick_max` 8, so a 30-40 ms frame was followed by a frame with 3
+  ticks (his hitches: 2.87 ticks at 3.2 ms). Now a frame runs at most floor(1.5 x the recent frames' length in ticks) +
+  1 (1 at 125 fps, 2 at 90 or 72 Hz, 4 at 30 fps), the rest carried to the next frames (each tick still 1/72 s; time
+  dropped only past `host_fixedtick_max` as before); `host_tickstats` counts the spread frames. Fixed-frame test runs
+  (one tick a frame) never reach the cap. Not measurable in the fixed-clock bench (no catch-up there): needs his play.
+  Frame-loop zones added for the hitches outside every zone: `frame: throttle`, `frame: unfocused sleep`,
+  `frame: minimized sleep`, `frame: console log` (LOG_Tick's file write), `frame: async drain`, `frame: profile
+  begin/end`, `frame: end` (all ~0.03 ms a frame here).
+- **The flat view shares the shadow pass's model set-ups** (gl_screen.c/vr_stereo.cpp `VR_WindowViewBegin/End`: the
+  flat screen's one view runs as the headset's first eye, `R_AliasEyeCacheBegin(1)`, the same code path): before, only
+  VR's first eye took the shadow pass's lerp and matrices; the flat view set every model up again. `vr_shadow_setup_share
+  2` in flat: 9458 set-ups checked, 0 differ. `alias transform` gore 0.096 -> 0.068, e1m1 fight 0.022 -> 0.015,
+  ragdolls 0.100 -> 0.082 / 0.113 -> 0.086. Posing was already once a frame elsewhere: the lights share one set-up a
+  pass (aliasdepthcache), VR's second eye takes the first's (vr_alias_eye_cache), the skinning matrices are made once a
+  frame (ragdoll::bonePoses, avatar posed.skin). What is left per light is the per-draw overhead (`alias shadow model`
+  ~1.2 us a draw on a hit).
+- **What grows per tick in fights** (gore flat, QC detail 1): `SV edict none` 1.47 ms a tick, of which the armed
+  humanoids' gun props' think `VR_AG_PropThink` 1.35 ms a tick (40 calls: `VR_AG_PlaceProp` + `VR_AGP_Pose` QC, 0.83
+  ms): the next target for cheaper fight ticks (QC). Not done here.
+- Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
+  microseconds per entity: not worth a job's dispatch).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
@@ -6880,6 +6924,40 @@ specular AA, alpha to coverage in flat, TAA for flat.
   only). TAA reprojection in flat: `vr_temporal_error` turning, 0.66 against 4.5 not reprojected (mean |luma|).
 - **Tests**: flathud 11/0, visor_test 24/0, flatxhair_test 31/0, vr_pp_test 1 VR 63/0, flat 62/0, flat with
   `vr_flat_taa 1` 62/0, checklist_tests_check 101/0. Scene `flat_taa`.
+## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
+
+His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
+the keycard ... the keycard must be collected and not brought to the door, it's a common mistake users make."
+
+- **How a key is collected.** In VR (vr_item_objects, the default) a key is never taken by touch or trigger: a hand
+  grips it and lets go of it at a holster (hip or shoulder: VR_Carry_HandFrame -> VR_PickupObj_Holster); a door only
+  checks the player's items, so a key carried in the hand does nothing there. Flat play: taken at once (E on an
+  object pickup: VR_Carry_AutoCollect's flat objects; the crate's card is a plain touch pickup there), so there is
+  nothing to teach and the tip never shows.
+- **The tip.** `t2_key_held` in room 6: "Don't carry it to the door: let go of it / at a holster first, to keep it."
+  On the card, with its cable, the moment a hand takes it (ANYANGLE, delay 0, range 173), once (tips_seen; the
+  tutorial resets its tips each start); gone as the card is kept (the entity freed: the engine's gone-entity rule).
+- **New mapper feature, shared.** func_vr_tip's GRABBED flag (16): waits until a hand takes what it follows (its
+  `target`: an item's targetname). vr_crate's new `contents_name` names what a crate holds (the card is made as the
+  crate breaks, so it had no name to follow). The hook is one call in VR_Carry_HandFrame after the auto-collect
+  (VR_Tips_Grabbed): the same carry path serves VR grips, force-grab catches and flat E, so flat needs no code of its
+  own (taken at once there, the hook never runs). A loaded game puts a let-out GRABBED tip back on its thing, or
+  leaves it waiting if the thing is gone.
+- **Engine (vr_tips.cpp).** A tip let out of its wait (TRIGGERED fired, GRABBED taken) is considered first and makes
+  the panel showing fade (0.4 s) for it: the crate's own "A keycard!" tip (fired as the crate breaks) used to hold the
+  screen for vr_tips_time while the player already held the card. This applies to every TRIGGERED tip (the rifle's,
+  the crate's): what just happened comes first. New dev prints: `"<a>" makes way for "<b>"`, `its entity gone, it fades`.
+- **Map.** vrtutorial_gen.py has the tip and the crate's key; the .map regenerated; the .bsp's entity lump replaced
+  with `bsp_set_entities.py --from-file` (no recompile: geometry, .lit and .lux untouched; the lump checked against
+  the .map, 353 entities, 0 differ). FGD: entities.fgd documents flags 8 and 16, quakevr.fgd regenerated.
+- **Test.** `vr_pickup_test 13` (vrtutorial; with `+grabmain` held): crate broken, card in the main hand, the tip let
+  out then and not before, on the card (`tips: "t2_key" makes way for "t2_key_held"`, `"t2_key_held" by entity N`),
+  kept at a holster, `its entity gone, it fades`; 8/0. Flat (`-flatscreenmode`): the crate's card is a touch pickup
+  there (its handtouch; no carry), taken at once, the tip never let out; 5/0. Scenario `tutorial_keycard_tip` (room
+  6, the crate ahead): validate 0 missing, runall OK. vr_pp_test 1 63/0, checklist_tests_check 101/0.
+- **Seen in the mock.** With the hand held low (the mock's standing pose) the panel sits below and right of the card,
+  out of the desktop view; held up in front (as one looks at a card) it shows beside it. The panel's placement is the
+  tips' usual one, unchanged.
 ## Faster map loads (branch `agent/perf_load`, 2026-11-09)
 
 From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with
