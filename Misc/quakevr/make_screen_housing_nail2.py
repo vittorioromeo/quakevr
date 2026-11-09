@@ -36,16 +36,16 @@
 import math
 import os
 import re
-import struct
 import sys
 
-import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+import housing_common as hc  # noqa: E402
 STEM = "nail2"
 MODEL = "v_nail2"
 TAG = "housing_" + STEM
@@ -74,26 +74,11 @@ RIVET_X = 481.0
 RIVET_ROWS = (38.0, 33.5, 33.0)      # base ring, top ring, top centre
 
 
+RUN = []  # (the housing_common.Run of this run: its refusals)
+
+
 def fail(msg):
-    raise SystemExit("%s: %s" % (TAG, msg))
-
-
-def read_style():
-    """The entry's opening (half width, half height), radius, size and offset."""
-    src = open(os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp"), encoding="utf-8").read()
-    m = re.search(r'\{"%s",(.*?)\n\s*(?:\{"|\};)' % STEM, src, re.S)  # (up to the next entry or the table's end)
-    if not m:
-        fail("no \"%s\" entry in vr_screenstyle.cpp" % STEM)
-    body = m.group(1)
-    num = r"([-0-9.]+)f?"
-    op = re.search(r"\.opening\s*=\s*\{\s*%s\s*,\s*%s\s*\}" % (num, num), body)
-    rad = re.search(r"\.radius\s*=\s*" + num, body)
-    size = re.search(r"\.size\s*=\s*" + num, body)
-    off = re.search(r"\.offset\s*=\s*\{\s*%s\s*,\s*%s\s*,\s*%s\s*\}" % (num, num, num), body)
-    if not (op and rad and size and off):
-        fail("the \"%s\" entry needs .radius, .size, .offset and .opening" % STEM)
-    return ((float(op.group(1)), float(op.group(2))), float(rad.group(1)), float(size.group(1)),
-            tuple(float(off.group(i)) for i in (1, 2, 3)))
+    RUN[0].fail(msg)
 
 
 def wpntxt_scale():
@@ -107,8 +92,8 @@ def wpntxt_scale():
 
 def grid():
     """The model file's grid: origin and scale (x, y, z)."""
-    d = open(os.path.join(ROOT, "quakevr", "progs", MODEL + ".mdl"), "rb").read()
-    return np.array(struct.unpack_from("<3f", d, 20)), np.array(struct.unpack_from("<3f", d, 8))
+    sc, org = hc.mdl_grid(MODEL)
+    return np.array(org), np.array(sc)
 
 
 def chamfered(hw, hh, c):
@@ -285,21 +270,18 @@ class Design:
                    RIVET_R * h, RIVET_R, ru, rv, ru / h, rv / h, self.x_front - self.x_head, edge, clear))
 
 
-def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    save = argv[argv.index("--save") + 1] if "--save" in argv else bpy.data.filepath
-    dry = "--dry" in argv
-
-    opening, radius, size, offset = read_style()
+def main(h):
+    RUN[:] = [h]
+    st = h.style
+    opening, radius, size, offset = st["opening"], st["radius"], st["size"], st["offset"]
+    if len(opening) != 2:
+        fail("the \"%s\" entry has no .opening" % STEM)
     pix = PIXEL_AT_04 * wpntxt_scale() / 0.4 * size
     ob = bpy.data.objects[MODEL]
     me = ob.data
     img = bpy.data.images.get(MODEL + "_skin0")
     sw, sh = img.size
     keys = me.shape_keys.key_blocks
-
-    def uv_at(tx, ty):
-        return (tx / sw, 1.0 - ty / sh)
 
     def housing_flags():
         a = me.attributes.get("qvr_housing")
@@ -325,79 +307,22 @@ def main():
         return Design(opening, radius, pix, org, sc, x0)
 
     d = design()
-    print("%s: %s" % (TAG, d.report()))
-    glass = (d.glass_x, d.cy, d.cz)
-    want_off = ((GLASS_AT_ZERO[1] - glass[1]) / MODEL_PER_WORLD,  # right = -Y
-                (glass[2] - GLASS_AT_ZERO[2]) / MODEL_PER_WORLD,
-                (GLASS_AT_ZERO[0] - glass[0]) / MODEL_PER_WORLD)  # out = -X
-    if dry:
-        print("%s: dry run, the glass at %.4f %.4f %.4f (the table's offset for it: {%.4f, %.4f, %.4f}); nothing "
-              "written" % (TAG, glass[0], glass[1], glass[2], *want_off))
-        return
+    h.say(d.report())
 
-    def apply(d):
-        """Adds the housing or, when the mesh has it with this shape, moves it into place and maps it again. Returns
-        whether it moved an existing one."""
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        lay_house = bm.verts.layers.int.get("qvr_housing") or bm.verts.layers.int.new("qvr_housing")
-        lay_vert = bm.verts.layers.int.get("qvr_vert")
-        lay_tri = bm.faces.layers.int.get("qvr_tri")
-        lay_vid = bm.loops.layers.int.get("qvr_vid")
-        lay_uv = bm.loops.layers.uv.active
-        shapes = list(bm.verts.layers.shape.values())
-        old = [v for v in bm.verts if v[lay_house] == 1]
-        reuse = len(old) == len(d.verts)
-        if old and not reuse:
-            bmesh.ops.delete(bm, geom=old, context='VERTS')
-            old = []
-        if reuse:
-            old.sort(key=lambda v: v.index)
-            for v, co in zip(old, d.verts):
-                v.co = co
-                for sl in shapes:
-                    v[sl] = co  # (the frames: set from the receiver's motion below)
-            oldset = set(old)
-            faces = [f for f in bm.faces if all(v in oldset for v in f.verts)]
-            if len(faces) != len(d.tris):
-                fail("the old housing has %d faces, not %d" % (len(faces), len(d.tris)))
-            lookup = {v: i for i, v in enumerate(old)}
-            mode_of = {frozenset(t[:3]): t[4] for t in d.tris}
-            for f in faces:
-                ids = [lookup[v] for v in f.verts]
-                mode = mode_of.get(frozenset(ids))
-                if mode is None:
-                    fail("the old housing's faces don't match this shape")
-                for loop in f.loops:
-                    loop[lay_uv].uv = uv_at(*d.texel(lookup[loop.vert], mode, ids))
-        else:
-            bv = []
-            for co in d.verts:
-                v = bm.verts.new(co)
-                v[lay_house] = 1
-                if lay_vert is not None:
-                    v[lay_vert] = -1
-                for sl in shapes:
-                    v[sl] = co
-                bv.append(v)
-            for t in d.tris:
-                i, j, k = d.oriented(t)
-                f = bm.faces.new((bv[i], bv[j], bv[k]))
-                f.material_index = 0
-                f.smooth = True
-                if lay_tri is not None:
-                    f[lay_tri] = -1
-                for loop in f.loops:
-                    if lay_vid is not None:
-                        loop[lay_vid] = -1
-                    loop[lay_uv].uv = uv_at(*d.texel(bv.index(loop.vert), t[4], (i, j, k)))
-        bm.to_mesh(me)
-        me.update()
-        bm.free()
-        return reuse
+    def uv_at(tx, ty):
+        return (tx / sw, 1.0 - ty / sh)
+
+    def build(d):
+        """The housing for housing_common's apply: positions, triangles wound outward with each corner's UV."""
+        tris = []
+        for t in d.tris:
+            ids = d.oriented(t)
+            tris.append((ids[0], ids[1], ids[2], tuple(uv_at(*d.texel(i, t[4], ids)) for i in ids)))
+        return list(d.verts), tris
 
     def receiver_motion():
         """Per frame, the rear face's rigid motion (R, its centre in frame 0, in that frame) and the fit's residual."""
+        _, mdl_blender = hc.addon()
         ids, _ = rear_face()
         n = len(me.vertices)
         buf = np.empty(n * 3, np.float32)
@@ -416,75 +341,79 @@ def main():
             fail("the rear face doesn't move as one piece (fit off by %.3f)" % worst)
         return out, worst
 
-    def set_frames():
-        """The housing's place in every frame: frame 0's moved with the rear face."""
+    def housing_frames():
+        """The housing's vertices and, per frame, where the rear face's motion puts frame 0's."""
         motion, worst = receiver_motion()
-        flags = housing_flags()
-        hid = np.nonzero(flags)[0]
+        hid = np.nonzero(housing_flags())[0]
         n = len(me.vertices)
         buf = np.empty(n * 3, np.float32)
         keys[0].data.foreach_get("co", buf)
         P0 = buf.reshape(n, 3)[hid].astype(np.float64)
-        for kb, (R, c0, c1) in zip(keys, motion):
+        return hid, [(P0 - c0) @ R.T + c1 for R, c0, c1 in motion], worst
+
+    def set_frames():
+        """The housing's place in every frame: frame 0's moved with the rear face (not the nearest vertex the export
+        would pick: the barrels spin)."""
+        hid, places, worst = housing_frames()
+        n = len(me.vertices)
+        buf = np.empty(n * 3, np.float32)
+        for kb, p in zip(keys, places):
             kb.data.foreach_get("co", buf)
             co = buf.reshape(n, 3)
-            co[hid] = (P0 - c0) @ R.T + c1
+            co[hid] = p
             kb.data.foreach_set("co", co.ravel())
         me.update()
-        return motion, worst
+        return worst
 
-    sys.path.insert(0, os.path.join(HERE, "blender", "addons"))
-    from quakevr_models import mdl_blender, source
-
-    def export():
-        try:
-            written, _ = source.export(bpy.context, ROOT, None, grow=True)
-        except source.SourceError as e:
-            fail("the export REFUSED:\n  " + str(e).replace("\n", "\n  "))
-        return len(written)
-
+    # New vertices ride their nearest old one in the export whatever their shape keys say: a new housing is exported
+    # once (the box grows: the kick's peak), then laid on the grown grid with its own frames. Moved in place, the frames
+    # are set and the last export (finish) writes them.
     passes = 0
     while True:
-        moved = apply(d)
-        set_frames()
-        files = export()
-        passes += 1
-        d2 = design()  # (the grid the export left: grown the first time)
-        same = all((a - b).length < 1e-5 for a, b in zip(d.verts, d2.verts))
-        d = d2
-        if moved and same:
+        verts, tris = build(d)
+        moved = h.apply(me, verts, tris, smooth=True)
+        fit = set_frames()
+        if moved or h.dry:
             break
-        if passes >= 4:
+        h.export(grow=True)
+        h.grid = hc.mdl_grid(MODEL)
+        d = design()
+        passes += 1
+        if passes > 3:
             fail("the housing's grid didn't settle in %d exports" % passes)
 
-    # Check: what the export wrote for the housing in every frame is the rear face's motion of frame 0's housing.
-    mdl_blender.carry_frames(ob)
-    motion, worst = receiver_motion()
-    hid = np.nonzero(housing_flags())[0]
-    n = len(me.vertices)
-    buf = np.empty(n * 3, np.float32)
-    keys[0].data.foreach_get("co", buf)
-    P0 = buf.reshape(n, 3)[hid].astype(np.float64)
+    # Check: what the export writes for the housing in every frame is the rear face's motion of frame 0's housing.
     off = 0.0
-    for kb, (R, c0, c1) in zip(keys, motion):
-        kb.data.foreach_get("co", buf)
-        off = max(off, np.abs(buf.reshape(n, 3)[hid] - ((P0 - c0) @ R.T + c1)).max())
-    if off > 1e-3:
-        fail("the exported frames don't carry the housing with the rear face (off by %.4f)" % off)
+    if not h.dry:
+        _, mdl_blender = hc.addon()
+        mdl_blender.carry_frames(ob)
+        hid, places, _ = housing_frames()
+        n = len(me.vertices)
+        buf = np.empty(n * 3, np.float32)
+        for kb, p in zip(keys, places):
+            kb.data.foreach_get("co", buf)
+            off = max(off, np.abs(buf.reshape(n, 3)[hid] - p).max())
+        if off > 1e-3:
+            fail("the exported frames wouldn't carry the housing with the rear face (off by %.4f)" % off)
 
     glass = (d.glass_x, d.cy, d.cz)
-    want_off = ((GLASS_AT_ZERO[1] - glass[1]) / MODEL_PER_WORLD, (glass[2] - GLASS_AT_ZERO[2]) / MODEL_PER_WORLD,
-                (GLASS_AT_ZERO[0] - glass[0]) / MODEL_PER_WORLD)
+    want_off = ((GLASS_AT_ZERO[1] - glass[1]) / MODEL_PER_WORLD,  # right = -Y
+                (glass[2] - GLASS_AT_ZERO[2]) / MODEL_PER_WORLD,
+                (GLASS_AT_ZERO[0] - glass[0]) / MODEL_PER_WORLD)  # out = -X
     if max(abs(a - b) for a, b in zip(want_off, offset)) > 0.002:
-        print("%s: WARNING the table's offset {%.4f, %.4f, %.4f} doesn't put the glass at %.4f %.4f %.4f: use "
-              "{%.4ff, %.4ff, %.4ff}" % (TAG, *offset, *glass, *want_off))
-    bpy.context.preferences.filepaths.save_version = 0  # (no .blend1 beside it)
-    bpy.ops.wm.save_as_mainfile(filepath=save, compress=True)
-    print("%s: ok, %d vertices, %d triangles (bezel %d, rivets %d); %s; the glass at %.4f %.4f %.4f; frames carried "
-          "with the rear face (its fit %.4f, the export %.4f off); %d exports, %d files; saved %s"
-          % (TAG, len(d.verts), len(d.tris), d.n_bezel, len(d.tris) - d.n_bezel, d.report(), *glass, worst, off,
-             passes, files, save))
+        h.say("WARNING the table's offset {%.4f, %.4f, %.4f} doesn't put the glass at %.4f %.4f %.4f: use "
+              "{%.4ff, %.4ff, %.4ff}" % (*offset, *glass, *want_off))
+    grid_before = h.grid
+
+    def after_export():
+        if hc.mdl_grid(MODEL) != grid_before:
+            h.say("WARNING the export changed the model's grid: run this again to lay the housing on it")
+
+    h.finish("%d vertices, %d triangles (bezel %d, rivets %d); the glass at %.4f %.4f %.4f; frames with the rear "
+             "face (its fit %.4f, the export's %.4f off)" % (len(d.verts), len(d.tris), d.n_bezel,
+                                                             len(d.tris) - d.n_bezel, *glass, fit, off),
+             grow=True, after_export=after_export)
 
 
 if __name__ == "__main__":
-    main()
+    hc.Run(STEM, MODEL).main(main)

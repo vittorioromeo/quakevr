@@ -5714,7 +5714,12 @@ this branch / the kick frame) in the phases worktree.
 - **Hand and magazine:** the magazine's mount and well are on the side box (x 4.7, y 4.8), nowhere near; the hand comes
   through the opening under the bezel, its thumb over the bezel's lower-left corner in the flat pose (drawn in front:
   nothing hidden).
-- **Tests:** see the report (vr_ammocolor_test 1, vr_pp_test 1, flatreload). Checklist scene `nail2_housing`.
+- **Tests:** `vr_pp_test 1` 63/0; flatreload_test.sh 26/0; `vr_scenario runall quit nail2_housing` OK (the gun held
+  after 3 s). `vr_ammocolor_test 1` never reached its verdict in two low-impact runs (TIMEOUT after 400 s): it stalls
+  after its 21st case (the off-hand nailgun with the option off), with the shotgun and nailgun only; the super nailgun
+  isn't in it. Not checked against next. The script, run again, writes the same model; run on the .blend before the
+  housing it builds it the same (the .mdl and weapons.txt byte for byte). Uses `housing_common.py` (Run: the table
+  entry, apply, export, finish). Checklist scene `nail2_housing`.
 - **Not verified:** the VR-mock view and the headset; the glass's colour against the mockup's green (the shots show the
   red empty-magazine warning: impulse 9 doesn't fill the magazine).
 ## Ammo screen housings: one workflow for the three scripts (branch `agent/housing_unify`)
