@@ -31,10 +31,6 @@ namespace
 
 using gadget::VisorPanelCount;
 
-// The panels' height on the screen (a share of the view's height at scale 1: the low one as dense, 40 of 62 pixels),
-// their margin from its edges.
-constexpr float panelHeight[VisorPanelCount] = {0.115f, 0.115f, 0.115f * 40.f / 62.f};
-constexpr float margin = 0.025f;
 
 // The sway (at vr_flat_visor_sway 1): the panels lag a turn by this share of it, at most `lagMost` degrees, a spring
 // settling in about 0.2 s; they bob with the walk by at most `bobSide` and `bobUp` degrees at a run (320 units/s).
@@ -52,8 +48,9 @@ constexpr int gridY = 18;
 
 struct Panel
 {
-    glm::vec4 rect{0.f}; // where it was drawn last: pixels from the view's top left (x0, y0, x1, y1)
+    glm::vec4 rect{0.f}; // where its contents were drawn last: pixels from the view's top left (x0, y0, x1, y1)
     bool drawn{false};
+    bool contact{false}; // its mount met the screen's edges with no gap (edgeContact)
 };
 
 struct State
@@ -219,22 +216,10 @@ void update()
     const float boot = vr_flat_visor_boot.value;
     for(int p = 0; p < VisorPanelCount; p++)
     {
-        s.input.boot[p] = boot > 0.f ? za::clamp((s.clock - s.bootAt - boot * 0.15f * static_cast<float>(p)) / (boot * 0.7f), 0.f, 1.f) : 1.f;
+        s.input.boot[p] = boot > 0.f ? za::clamp((s.clock - s.bootAt - boot * 0.05f * static_cast<float>(p)) / (boot * 0.7f), 0.f, 1.f) : 1.f;
     }
     s.input.alarm = s.alarm;
     s.input.log = vr_flat_visor_log.value != 0.f;
-}
-
-// The view's own frame (x right, y up, z ahead, the eye at 0) to clip space at the view's field of view: the panels attached
-// to the head, never jittered by the scene's temporal AA. Depth: halfway (no depth test).
-[[nodiscard]] glm::mat4 headProjection(float tx, float ty)
-{
-    glm::mat4 m{0.f};
-    m[0][0] = 1.f / tx;
-    m[1][1] = 1.f / ty;
-    m[2][2] = 0.5f;
-    m[2][3] = 1.f;
-    return m;
 }
 
 // The glass: a faint dark rim at the edges, the fog towards them, a reflection streak. In clip space (x, y -1..1).
@@ -305,83 +290,64 @@ void drawGlass(float aspect)
     }
 }
 
-// The panels: each a quad hinged at the screen's edge and turned in towards the eye (vr_flat_visor_curve), on the screen
-// as `panelHeight` of its height (vr_flat_visor_scale, shrunk to fit), moved by the sway.
-void drawPanels(int viewW, int viewH, float tx, float ty)
+#include "vr_visor_mounts.inc" // the mounts on the edges and the lens
+
+// The mounts and their contents (vr_flat_visor_panels: which), the sway moving them all, through the lens.
+void drawPanels(int viewW, int viewH, float tx)
 {
-    const glm::mat4 mvp = headProjection(tx, ty);
-    const float full = 2.f * ty; // the view's height at depth 1
+    Layer L;
+    L.w = static_cast<float>(viewW);
+    L.h = static_cast<float>(viewH);
     const float scale = za::clamp(vr_flat_visor_scale.value, 0.5f, 2.f);
-    const float m = margin * full;
-    const float curve = glm::radians(za::clamp(vr_flat_visor_curve.value, 0.f, 40.f));
-    const float tilt = curve * 0.4f;
+    // A virtual pixel: the vitals' 62 rows 11.5% of the view's height at scale 1; smaller where the bottom's three
+    // mounts (527 across with their gaps) or the top's two (318) would not fit across.
+    L.unit = za::min(za::min(static_cast<float>(viewH) * 0.115f * scale / 62.f, L.w / 527.f), L.w / 318.f);
+    L.k = za::clamp(vr_flat_visor_warp.value, 0.f, 0.3f);
+    L.overhang = {0.3f * L.w / L.unit, 0.3f * L.h / L.unit}; // (past 1 + k and the sway at every aspect)
+    // The sway: degrees to pixels at this field of view, never more than most of the contents' inset.
     const glm::vec2 sway{glm::tan(glm::radians(state.sway.x)), glm::tan(glm::radians(state.sway.y))};
-    const glm::vec2 shift = glm::clamp(sway, glm::vec2{-0.8f * m}, glm::vec2{0.8f * m}); // (never off the screen)
+    const float most = 0.8f * mountInset * L.unit;
+    L.shift = glm::clamp(glm::vec2{sway.x, -sway.y} / tx * (L.w * 0.5f), glm::vec2{-most}, glm::vec2{most});
+
     const float crt = za::clamp(vr_flat_visor_crt.value, 0.f, 2.f);
     const float time = static_cast<float>(za::fmod(realtime, 1000.0));
     const float g = state.glitch;
     const float flicker = g > 0.f ? 1.f - 0.45f * g * hash(static_cast<unsigned>(host_framecount) * 2654435761u) : 1.f;
-    const glm::vec4 phosphor{glm::vec3{gadget::visorPhosphor()}, za::clamp(vr_flat_visor_opacity.value, 0.f, 1.f)};
+    const glm::vec4 phosphor{glm::vec3{gadget::visorPhosphor()}, 0.f}; // (alpha 0: the image's face clear, the mount's)
+    const gadget::VisorColors colors = gadget::visorColors();
+    const float opacity = za::clamp(vr_flat_visor_opacity.value, 0.f, 1.f);
+    const int shownMask = static_cast<int>(vr_flat_visor_panels.value);
+    const float width = za::max(1.5f, L.unit * 0.8f);
 
     for(int p = 0; p < VisorPanelCount; p++)
     {
         Panel& out = state.panels[p];
         out.drawn = false;
         const gadget::VisorImage img = gadget::visorImage(p);
-        const float b = state.input.boot[p];
-        float fade = state.fade * flicker * (b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + p) < 0.4f ? 0.35f : 1.f);
-        if(!img.shown || img.size.y <= 0.f || fade <= 0.f)
+        if(!(shownMask & (1 << p)) || !img.shown || img.size.y <= 0.f)
         {
             continue;
         }
-        // Its size: a virtual pixel `unit` across, shrunk to fit beside the other; only the rows in use (img.band).
-        float unit = panelHeight[p] * scale * full / img.size.y;
-        const float most = p == gadget::VisorLog ? 2.f * tx - 2.f * m : (2.f * tx - 3.f * m) * 0.5f;
-        unit = za::min(unit, most / img.size.x);
-        const float w = img.size.x * unit, h = za::max(1.f, img.band.y - img.band.x) * unit;
-        const float v0 = 1.f - img.band.y / img.size.y, v1 = 1.f - img.band.x / img.size.y;
-        // The corners (bottom left, bottom right, top right, top left) round the anchor, in the head's frame.
-        glm::vec3 c[4];
-        if(p == gadget::VisorLog)
+        const float b = state.input.boot[p];
+        const float stutter = b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
+        const float fade = state.fade * flicker * stutter;
+        const float mountFade = fade * smoothstep(0.f, 0.2f, b);
+        if(fade <= 0.f)
         {
-            const glm::vec3 a{shift.x, -ty + m + shift.y, 1.f}; // its bottom's middle, hinged there
-            const glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, glm::cos(tilt), glm::sin(tilt)};
-            c[0] = a - x * (w * 0.5f);
-            c[1] = a + x * (w * 0.5f);
-            c[2] = c[1] + y * h;
-            c[3] = c[0] + y * h;
+            continue;
         }
-        else
-        {
-            const bool left = p == gadget::VisorVitals;
-            const glm::vec3 a{(left ? -tx + m : tx - m) + shift.x, ty - m + shift.y, 1.f}; // its outer top corner, hinged there
-            const glm::vec3 x{glm::cos(curve), 0.f, left ? glm::sin(curve) : -glm::sin(curve)};
-            const glm::vec3 y{0.f, glm::cos(tilt), -glm::sin(tilt)};
-            const glm::vec3 topLeft = left ? a : a - x * w;
-            c[3] = topLeft;
-            c[2] = topLeft + x * w;
-            c[0] = topLeft - y * h;
-            c[1] = c[2] - y * h;
-        }
-        const gfx::Vertex v[4] = {{c[0], {0.f, v0}, phosphor}, {c[1], {1.f, v0}, phosphor}, {c[2], {1.f, v1}, phosphor},
-            {c[3], {0.f, v1}, phosphor}};
-        const gfx::Vertex quad[6] = {v[0], v[1], v[2], v[0], v[2], v[3]};
-        gfx::draw(quad, mvp,
+        const Mount m = mountOf(L, p, img.size);
+        // The vitals' mount pulses red at low health (its face and its line).
+        const float alarm = p == gadget::VisorVitals ? state.alarm : 0.f;
+        const glm::vec3 faceRgb = glm::mix(colors.face, glm::vec3{0.16f, 0.015f, 0.01f}, za::clamp(alarm, 0.f, 1.f) * 0.85f);
+        const glm::vec3 lineRgb = glm::mix(colors.line, colors.warn, za::clamp(alarm * 1.5f, 0.f, 1.f));
+        drawMount(L, p, m, {faceRgb, opacity * mountFade}, {lineRgb, 0.9f * mountFade}, width);
+        drawContents(L, p, m, img,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false,
                 .params = {time, crt, g, gadget::textGlow()}, .screen = {img.size.x, img.size.y, 0.5f}, .trueColor = true,
                 .inkAlpha = fade},
-            img.texture);
-
-        // Where it landed (pixels from the view's top left), for the report.
-        glm::vec2 lo{1e9f}, hi{-1e9f};
-        for(const glm::vec3& q : c)
-        {
-            const glm::vec2 ndc{q.x / (q.z * tx), q.y / (q.z * ty)};
-            const glm::vec2 px{(ndc.x * 0.5f + 0.5f) * static_cast<float>(viewW), (0.5f - ndc.y * 0.5f) * static_cast<float>(viewH)};
-            lo = glm::min(lo, px);
-            hi = glm::max(hi, px);
-        }
-        out.rect = {lo, hi};
+            phosphor, out.rect);
+        out.contact = edgeContact(L, p, m);
         out.drawn = true;
     }
 }
@@ -400,7 +366,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     const float ty = glm::tan(glm::radians(za::clamp(r_refdef.fov_y, 10.f, 170.f)) * 0.5f);
     const float aspect = static_cast<float>(w) / static_cast<float>(h);
     drawGlass(aspect);
-    drawPanels(w, h, ty * aspect, ty);
+    drawPanels(w, h, ty * aspect);
     GL_EndGroup();
 }
 
@@ -410,13 +376,13 @@ void report_f()
     Con_Printf("visor: active %d frame %d; sway %.3f %.3f (lag %.3f %.3f, bob %.3f); glitch %.3f fog %.3f underwater %d "
                "fade %.3f alarm %.3f boot %.2f %.2f %.2f; log lines %d\n",
         active() ? 1 : 0, host_framecount, s.sway.x, s.sway.y, s.lag.x, s.lag.y, s.bobAmp, s.glitch, s.fog,
-        s.underwater ? 1 : 0, s.fade, s.alarm, s.input.boot[0], s.input.boot[1], s.input.boot[2], gadget::visorLogLines());
-    constexpr const char* names[VisorPanelCount] = {"vitals", "ammo", "log"};
+        s.underwater ? 1 : 0, s.fade, s.alarm, s.input.boot[0], s.input.boot[3], s.input.boot[6], gadget::visorLogLines());
+    constexpr const char* names[VisorPanelCount] = {"vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright"};
     for(int p = 0; p < VisorPanelCount; p++)
     {
         const Panel& q = s.panels[p];
-        Con_Printf("visor: panel %s drawn %d rect %.1f %.1f %.1f %.1f (view %d x %d)\n", names[p], q.drawn ? 1 : 0, q.rect.x,
-            q.rect.y, q.rect.z, q.rect.w, r_refdef.vrect.width, r_refdef.vrect.height);
+        Con_Printf("visor: panel %s drawn %d rect %.1f %.1f %.1f %.1f contact %d (view %d x %d)\n", names[p], q.drawn ? 1 : 0,
+            q.rect.x, q.rect.y, q.rect.z, q.rect.w, q.contact ? 1 : 0, r_refdef.vrect.width, r_refdef.vrect.height);
     }
 }
 

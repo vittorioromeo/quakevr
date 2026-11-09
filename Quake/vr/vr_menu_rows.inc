@@ -6138,9 +6138,9 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "the status bar as Ironwail draws it (vr_flat_hud).")
 QVR_TOGGLE(vr_flat_visor, "Visor HUD",
     "Playing on the desktop screen (-flatscreenmode): the HUD as a helmet's visor, the wrist gadget's screens in small "
-    "panels near the corners: health and armour top left, each hand's ammo, the keys and powerups top right, the "
-    "messages and bullet time's meter low in the middle. Off: the status bar (hudstyle, Desktop Status Bar) "
-    "(vr_flat_visor).")
+    "panels mounted on the screen's edges: health and armour top left; bullet time, stamina and every ammo carried top "
+    "right; each hand's ammo at its own bottom corner; the messages low in the middle; keys and sigils on the left "
+    "edge, powerups on the right. Off: the status bar (hudstyle, Desktop Status Bar) (vr_flat_visor).")
 QVR_SLIDER(vr_flat_visor_scale, "Visor Panel Size", 0.5f, 2.f, 0.05f, "x%.2f", noExt,
     "The visor's panels' size (shrunk to fit a narrow screen) (vr_flat_visor_scale).")
 QVR_SLIDER(vr_flat_visor_opacity, "Visor Panel Backing", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -6152,8 +6152,8 @@ QVR_SLIDER(vr_flat_visor_crt, "Visor CRT Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
 QVR_SLIDER(vr_flat_visor_sway, "Visor Sway", 0.f, 2.f, 0.1f, "x%.1f", noExt,
     "The visor's panels lag a turn by a fraction of a degree and bob a little with the walk, like a helmet on your head. "
     "0: rigid. Standing still they never move (vr_flat_visor_sway).")
-QVR_SLIDER(vr_flat_visor_curve, "Visor Curve", 0.f, 40.f, 1.f, "%.0f deg", noExt,
-    "How far the visor's corner panels turn in towards your eye, like a curved visor (vr_flat_visor_curve).")
+QVR_SLIDER(vr_flat_visor_warp, "Visor Lens", 0.f, 0.3f, 0.01f, "%.2f", noExt,
+    "The visor's glass bends its panels round the middle of the screen, like a curved visor; the mounts stay on the screen's edges. 0: flat (vr_flat_visor_warp).")
 QVR_SLIDER(vr_flat_visor_frame, "Visor Glass", 0.f, 3.f, 0.1f, "%.1f", noExt,
     "The visor's glass: a faint dark rim at the screen's edges and a reflection streak. 0: none (vr_flat_visor_frame).")
 QVR_SLIDER(vr_flat_visor_damage, "Visor Hit Glitch", 0.f, 2.f, 0.1f, "%.1f", noExt,

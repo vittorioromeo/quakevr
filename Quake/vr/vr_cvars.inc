@@ -4077,12 +4077,13 @@ QVR_CVAR(vr_flat_mantle_hands, "1", CVAR_ARCHIVE)       // flatscreen mantle: 1 
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.
-QVR_CVAR(vr_flat_visor, "1", CVAR_ARCHIVE)              // flatscreen play's HUD: 1 the visor (health and armour top left, ammo top right, the log and bullet time low in the middle); 0 the status bar (hudstyle, vr_flat_hud)
+QVR_CVAR(vr_flat_visor, "1", CVAR_ARCHIVE)              // flatscreen play's HUD: 1 the visor (panels in mounts on the screen's edges: health and armour top left, bullet time, stamina and the ammo carried top right, each hand's ammo at its bottom corner, the log low in the middle, keys and powerups at the sides' middles); 0 the status bar (hudstyle, vr_flat_hud)
 QVR_CVAR(vr_flat_visor_scale, "1", CVAR_ARCHIVE)        // the visor's panels' size (0.5..2; shrunk to fit a narrow screen)
 QVR_CVAR(vr_flat_visor_opacity, "0.55", CVAR_ARCHIVE)   // the panels' dark backing over the view (0 clear .. 1 solid; the values always opaque)
 QVR_CVAR(vr_flat_visor_crt, "0.6", CVAR_ARCHIVE)        // the panels' CRT look (scanlines, flicker, static: 0..2; the gadget's vr_gadget_crt)
 QVR_CVAR(vr_flat_visor_sway, "1", CVAR_ARCHIVE)         // the panels' sway: lagging a turn a fraction of a degree, bobbing with the walk (0 rigid .. 2); never moving standing still
-QVR_CVAR(vr_flat_visor_curve, "8", CVAR_ARCHIVE)        // degrees the panels turn in towards the eye, hinged at the screen's edge, like a curved visor (0 flat .. 40)
+QVR_CVAR(vr_flat_visor_warp, "0.08", CVAR_ARCHIVE)     // the visor's lens: the mounts and their panels bowed round the middle like a curved glass, the edges still met (0 flat .. 0.3)
+QVR_CVAR(vr_flat_visor_panels, "127", CVAR_ARCHIVE)    // the visor's panels shown, a bit each: 1 health, 2 the bars and ammo grid, 4 the left hand, 8 the right hand, 16 the log, 32 the left side (keys), 64 the right side (powerups); 127 all
 QVR_CVAR(vr_flat_visor_frame, "1", CVAR_ARCHIVE)        // the visor's glass: a faint dark rim at the screen's edges and a reflection streak (0 none .. 3)
 QVR_CVAR(vr_flat_visor_damage, "1", CVAR_ARCHIVE)       // a hit glitches the panels for a moment, more for more damage (0 never .. 2)
 QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor's edges fog up, clearing over vr_flat_visor_fog_clear seconds after surfacing (0 never .. 2)
