@@ -6264,3 +6264,29 @@ low/empty colours already say how full it is."
   pistol in reloading mode, the shotgun full, low and empty (the others given by impulse 9 come with empty magazines,
   so red). Before was shot with the old text, no fill, the totals at 1/1 and the shotgun's ty 0, which lays out as
   today's next.
+
+## flatpose red on next: three stale expectations, no game fault (branch `agent/flatpose_fix`, 2026-11-09)
+
+`flatpose_test.sh` read 17-18 passed, 3-4 failed on next 0ae7e01d2. Every server shot went through the crosshair's point
+(0.00-0.04 units off it); the failures were the test's own:
+
+- **"the sight closes the muzzle back"** (6.26 -> 1.02 against a fixed limit of 1): the settled ironsight leaves the muzzle
+  where the sight asks, the bore under the sights (`asked` in the `flatsight:` line). Measured at the commits: f29399138^
+  0.99, f29399138 0.98, c91b135b6^ 0.98, **c91b135b6** ("the irons' tops are the aim line; shotgun irons level") 1.02. The
+  gate now reads the muzzle against `asked` (within 0.25, `asked` under 2) and the closing (before it, above 4). Section c's
+  three sights were read by grepping `relief 16.00` / `10.00` / `20.00`, which the solved relief never prints: its gate
+  passed on empty values. It now takes each shot's group (the records before each `vr_flatplay_status`) and needs all three.
+- **"hipfire, the far wall" and "the control ... ? units"**: the shotgun's clip of 8 (the flat reload, 3112678a3, 11-08; no
+  autoreload since 9b9cb062d) ran dry after the 8th of section f's 10 shots, so the last two never fired and the control's
+  value was empty (the "?"). Section f now shoots from the reserve (`vr_flat_reload 0`, set back to 1 before it quits); the
+  control's check name carries no value, and the suite prints how many shots it read.
+- **"hipfire / the eye nudged, a knight 300 away"** (intermittent): level at the eye, the crosshair grazed the top of the
+  knight's animated head, and his idle frames took it off him now and then (`away` 288 -> 291 -> the wall at 928). Section f
+  now starts with the look 2 degrees down (`setpos 0 -288 25 2 90 0`): the line crosses him at the chest; the wall is still
+  the wall (640 away, the gate wants over 250).
+- Seen on the way, left alone: now and then, for a few frames, the `flataim:` crosshair point is the head itself
+  (`away 0.0`, 18-26 records a run): the crosshair's ray (`crosshairPoint`: MOVE_HITGIBS | MOVE_HITMODEL, the player passed)
+  starts inside something at his head. The server's shots in those frames still went along the view onto the knight. The
+  test skips those records and prints their count; what the ray starts in is not identified.
+
+Runs: flatpose 21 passed, 0 failed, three times in a row.

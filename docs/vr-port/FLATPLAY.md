@@ -590,7 +590,11 @@ fixes it and how bad it may be, and prints `flatsweep: N passed, K known failing
 crosshair, the eye's nudges, the nudges held with the crouch keys, and section f: the server's own shot (`vr_debug_shots`' line)
 against the crosshair's point (`flataim:`), for a moved sight, a nudged eye and hipfire, at a knight 64 and 300 away and the
 far wall of `vrtesthall` (at most 0.09 units off the line, and every pellet count above 0 at the knights), and the control:
-the moved sight with `vr_flat_aim_point 0` passes 26.4 units off the point and misses him.
+the moved sight with `vr_flat_aim_point 0` passes 26.4 units off the point and misses him. Section f shoots from the reserve
+(`vr_flat_reload 0`: the shotgun's clip of 8 would run dry before its last two shots) with the look 2 degrees down, so the
+crosshair crosses the knight at 300 at his chest rather than grazing his animated head. The settled sight's muzzle is gated
+against what the sight asks (`asked`: the bore under the sights, 1.02 units for the shotgun since its irons' tops became the
+aim line), not a fixed 1 unit.
 
 **The off hand's axe in the suite's order.** `flatplay_test`'s off-hand axe case read 0 damage when it stood third in a run, and
 was put down to two corpses at one spot. Measured on its own run on `origin/next` and on this: 0 in every order, alone included,
