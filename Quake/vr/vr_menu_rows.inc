@@ -6121,9 +6121,9 @@ QVR_SLIDER(vr_flat_shove_damage, "Shove Damage", 0.f, 3.f, 0.05f, "x%.2f", noExt
 QVR_SLIDER(vr_flat_shove_time, "Shove Time", 0.1f, 1.5f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: seconds the hand's push takes, out and back; the shove lands as the hand "
     "reaches its furthest, a third of the way in (vr_flat_shove_time). The cooldown is at least this long.")
-QVR_SLIDER(vr_flat_shove_anim_reach, "Shove Hand Travel", 0.f, 40.f, 1.f, "%.0f u", noExt,
+QVR_SLIDER(vr_flat_shove_anim_reach, "Shove Hand Travel", 0.f, 96.f, 1.f, "%.0f u", noExt,
     "Playing on the desktop screen: how far the hand pushes out ahead of where it rests, in game units. The "
-    "animation only: how far the shove reaches is Shove Reach (vr_flat_shove_anim_reach).")
+    "animation only: how far the shove reaches is Shove Reach (vr_flat_shove_reach).")
 QVR_TOGGLE(vr_handsource_debug, "Print Hand Motion Source",
     "Prints each hand's motion source as it changes: tracked (a controller), synthesized (the flat-screen look, a lean, "
     "the wall tilt: no gesture reads it) or action (the V punch) (vr_handsource_debug).")

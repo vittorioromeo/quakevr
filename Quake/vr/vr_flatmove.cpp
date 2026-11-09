@@ -505,8 +505,10 @@ void slideTestFrame()
                 next(5);
             }
             break;
-        case 5: // in the air
-            if(!ground && pl->v.velocity[2] > 0.f && inPhase > 0.2)
+        case 5: // in the air: read a few moves after the jump, still rising (a jump's 270 u/s up, not a step off). Read
+                // 0.2 s in, the second slide's jump met vrtesthall's north wall first (y 344) and the read was the 30 u/s
+                // the air move gives after the wall took the speed.
+            if(!ground && pl->v.velocity[2] > 150.f && inPhase > 0.04)
             {
                 char line[256];
                 q_snprintf(line, sizeof(line), "a jump in the slide keeps its speed: %.0f u/s in the air of %.0f", speed, t.jumpSpeed);
