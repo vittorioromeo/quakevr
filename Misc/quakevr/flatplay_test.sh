@@ -47,7 +47,8 @@ for MODE in locked feel; do
   # (setpos turns noclip on, noclip off again: walking. The waits are the phases' frames: strafe, stop, turn, settle.)
   bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; setpos 480 -352 88 0 0 0; noclip; impulse 2; $SET cl_yawspeed 360; wait30; vr_flatplay_debug 2; wait20; +moveleft; wait80; -moveleft; wait30; +right; wait60; -right; wait80; vr_flatplay_debug 0; tune_reset; toggleconsole; quit" -Filter "^flat(view|move):" > "$HERE/scratch/flatlock_$MODE.log" 2>&1
   while read -r line; do
-    echo "$line"; case "$line" in FAIL*) fail=1;; esac
+    # (Each PASS/FAIL line is a check of its own, counted in the verdict: a FAIL here fails the suite. 2026-11-09.)
+    case "$line" in PASS\ *) check 1 "${line#PASS }";; FAIL\ *) check 0 "${line#FAIL }";; *) echo "$line";; esac
   done < <(python "$HERE/flatplay_lock.py" "$HERE/scratch/flatlock_$MODE.log" $MODE)
 done
 # (Flat-screen play reloads at the hips since 2026-11-08: vr_flat_reload 1, the default; 0 no clips, as before.)

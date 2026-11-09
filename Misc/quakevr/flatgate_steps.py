@@ -10,7 +10,7 @@ view, frame by frame (flatgate_test.sh). Prints key=value words.
 import re
 import sys
 
-LINE = re.compile(r"^flatview: t (\S+) local (\S+) (\S+) (\S+) yaw \S+ pitch \S+ view (\S+) (\S+)")
+LINE = re.compile(r"^flatview: t (\S+) local (\S+) (\S+) (\S+) yaw \S+ pitch \S+ roll \S+ view (\S+) (\S+)")
 
 
 def off(a, b):
