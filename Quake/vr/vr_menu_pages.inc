@@ -227,6 +227,7 @@
         row(opt::vr_flat_slide),
         row(opt::vr_flat_lean),
         row(opt::vr_flat_lean_toggle),
+        row(opt::vr_flat_lean_mouse),
         row(opt::vr_flat_keys_own),
         row(opt::vr_flat_flycam),
         row(opt::vr_flat_flycam_pause),

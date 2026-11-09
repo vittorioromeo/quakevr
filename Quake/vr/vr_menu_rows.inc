@@ -6308,6 +6308,10 @@ QVR_CYCLE(vr_flat_lean_toggle, "Lean Keys",
     "Hold: you lean while Q or E is held. Toggle: a press leans, the next press stands you straight "
     "(vr_flat_lean_toggle).",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_TOGGLE(vr_flat_lean_mouse, "Mouse Follows Lean",
+    "On: while the view is rolled (a lean, strafing, a hit) the mouse moves it along the tilted screen -- straight up "
+    "on the mouse is straight up on the screen. Off: Quake's way, the mouse turns and pitches as if level, so leant it "
+    "moves the view at a slant (vr_flat_lean_mouse).")
 QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
     "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
     "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
