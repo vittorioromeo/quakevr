@@ -33,9 +33,13 @@
 #   walls going back into the gun; inside, the opening's walls go down one grid step to a dark back behind the glass;
 # - four bolts beside it on the end face (the face is a trapezoid, wider at the top: the top pair further out).
 # The model's X is coarse (the file's grid: 0.22 units a step), so every depth is a whole number of steps: the
-# bezel's front 2 steps in front of the end face's bottom edge (1 at its top: the face leans back 5.9 degrees), the
-# opening's back 1 step in, the bolts' heads 1 step proud of their bases. The glass is upright (weapons.txt pitch)
-# halfway down the opening (the table's offset), a little bigger than the walls there so no gap shows.
+# bezel's front DEPTH_STEPS in front of the end face's bottom edge (the face leans back 5.9 degrees: a step forward at
+# its top, so at 1 step the front clears it at the bezel's top by 0.036), the bevel's foot and the opening's back 1
+# step behind the front (at 1 step: on the bottom edge's step, behind the face over the opening: the face is the
+# opening's back there and the dark back is hidden), the bolts' heads 1 step proud of their bases (at most flush with
+# the front). The glass is upright (weapons.txt pitch) at the table's offset, between the bezel's front and the face
+# at the glass's top edge (the script refuses otherwise); the opening's walls slope in from the lip to WALL_GRIP inside
+# the glass at its depth, so no gap shows round it.
 # Texture, all from the gun's own skin: the bezel's profile mapped across the shaded metal tube strip (x 104..146, rows
 # 54..70) and its length along it, as if the tube were bent round the opening (darker at the bevel's foot, lit at the
 # lip, dark down the opening's walls and on its back); the walls into the gun on the blue-grey steel plate (52..78 x
@@ -60,11 +64,22 @@ MODEL = "v_shot"
 PX = 0.07102
 CENTRE_Y = -0.03
 CENTRE_Z = 2.48
+DEPTH_STEPS = 1   # the bezel's front this many grid steps (0.22 units) in front of the end face's bottom edge (2: the
+#                   first housing's, twice as deep); the bevel and the opening go one step back from it. Then set the
+#                   table's out as this script's REFUSED line says (it sits the glass between the front and the face)
 FRAME = 0.10      # the bezel's flat front, wide (model units)
 BEVEL = 0.12      # its outer bevel, wide (and one grid step deep)
 LIP = 0.2         # the opening's front edge outside the glass (font pixels)
-WALL_IN = 0.7     # the opening's back edge inside the glass (font pixels): halfway down, the glass 0.2 px in the walls
+WALL_GRIP = 0.25  # the glass this far inside the opening's walls at its depth (font pixels): the walls slope to it
 CORNER_PTS = 4    # points on each rounded corner
+# The end face (measured on the .blend): its bottom edge on step k_face at z 1.414, its top edge a step forward at
+# z 3.546 (it leans back 5.9 degrees). The glass: weapons.txt's place (model x 0.862) moved by the table's out (2.029
+# model units a world unit; vr_debug_screen_where), drawn 0.04 of a character (0.32 px) further in (vr_text3d.cpp's gap).
+FACE_Z = (1.414, 3.546)
+GLASS0_X = 0.862
+MODEL_PER_UNIT = 2.029
+GLASS_GAP = 0.32 * PX
+CLEAR = 0.01      # the least room (model units) between the glass or the bezel's front and the end face behind it
 BOLT_SIDES = 8
 # The bolts: (u, v) from the centre, the head's radius at its base and top.
 BOLTS = [(-1.38, -0.68), (1.38, -0.68), (-1.50, 0.67), (1.50, 0.67)]
@@ -121,10 +136,32 @@ def main(h):
 
     # The grid steps the housing stands on (the end face's bottom edge is x 1.3966: step k_face).
     k_face = round((1.3966 - gx(0)) / step)
-    x_face = gx(k_face)                 # the bolts' bases, the end face's bottom edge
-    x_mid = gx(k_face - 1)              # the bevel's foot, the opening's back, the bolts' heads
-    x_front = gx(k_face - 2)            # the bezel's front
-    x_back = gx(k_face + 1)             # the bezel's walls end inside the gun
+    if DEPTH_STEPS < 1:
+        h.fail("DEPTH_STEPS must be 1 or more")
+    x_face = gx(k_face)                     # the bolts' bases, the end face's bottom edge
+    x_front = gx(k_face - DEPTH_STEPS)      # the bezel's front
+    x_mid = x_front + step                  # the bevel's foot, the opening's back (behind the face at 1 step)
+    x_bolt = max(x_front, gx(k_face - 1))   # the bolts' heads: a step proud of the face, at most flush with the front
+    x_back = gx(k_face + 1)                 # the bezel's walls end inside the gun
+
+    def face_x(z):
+        """The end face's x at height z (it leans back: a step forward at its top)."""
+        return x_face - step * (z - FACE_Z[0]) / (FACE_Z[1] - FACE_Z[0])
+
+    # The glass: upright, its top edge nearest the leaning face. It has to sit behind the bezel's front and in front
+    # of the face; the opening's walls slope in from the lip to WALL_GRIP inside it at its depth.
+    (ow, oh) = h.style["opening"]
+    x_glass = GLASS0_X - h.style["offset"][2] * MODEL_PER_UNIT + GLASS_GAP
+    x_room = min(face_x(CENTRE_Z + oh * PX), x_mid)
+    if not x_front + CLEAR <= x_glass <= x_room - CLEAR:
+        want = (x_front + x_room) * 0.5
+        h.fail("the glass (x %.3f) is not between the bezel's front (%.3f) and the end face (%.3f): set the \"%s\" "
+               "entry's offset out to %.4ff" % (x_glass, x_front, x_room, STEM,
+                                               -(want - GLASS_GAP - GLASS0_X) / MODEL_PER_UNIT))
+    t_glass = (x_glass - x_front) / (x_mid - x_front)
+    wall_in = (LIP + WALL_GRIP) / t_glass - LIP
+    if wall_in >= min(ow, oh):
+        h.fail("the glass (x %.3f) too near the bezel's front for its walls: move it in" % x_glass)
 
     ob = bpy.data.objects[MODEL]
     me = ob.data
@@ -141,9 +178,12 @@ def main(h):
     gw, gh, gr = ow * PX, oh * PX, orad * PX
     n = CORNER_PTS
     lip = offset_outline(gw, gh, gr, LIP * PX, n)
-    wall = offset_outline(gw, gh, gr, -WALL_IN * PX, n)
+    wall = offset_outline(gw, gh, gr, -wall_in * PX, n)
     front_out = offset_outline(gw, gh, gr, LIP * PX + FRAME, n)
     foot = offset_outline(gw, gh, gr, LIP * PX + FRAME + BEVEL, n)
+    top_clear = face_x(CENTRE_Z + gh + LIP * PX + FRAME) - x_front
+    if top_clear < CLEAR:
+        h.fail("the bezel's front is not in front of the end face at its top (%.3f): DEPTH_STEPS too small" % top_clear)
     rings = [(foot, x_back), (foot, x_mid), (front_out, x_front), (lip, x_front), (wall, x_mid)]
     # (normals expected: walls out, bevel out and back, front back, the opening's walls in)
     strips = ["out", "outback", "back", "in"]
@@ -181,9 +221,9 @@ def main(h):
         base = [add(place(bu + BOLT_R[0] * math.cos(2 * math.pi * i / BOLT_SIDES),
                           bv + BOLT_R[0] * math.sin(2 * math.pi * i / BOLT_SIDES), x_face)) for i in range(BOLT_SIDES)]
         top = [add(place(bu + BOLT_R[1] * math.cos(2 * math.pi * i / BOLT_SIDES),
-                         bv + BOLT_R[1] * math.sin(2 * math.pi * i / BOLT_SIDES), x_mid)) for i in range(BOLT_SIDES)]
-        tip = add(place(bu, bv, x_mid))
-        bc = place(bu, bv, x_mid)
+                         bv + BOLT_R[1] * math.sin(2 * math.pi * i / BOLT_SIDES), x_bolt)) for i in range(BOLT_SIDES)]
+        tip = add(place(bu, bv, x_bolt))
+        bc = place(bu, bv, x_bolt)
         for i in range(BOLT_SIDES):
             j = (i + 1) % BOLT_SIDES
             tris.append((base[i], base[j], top[j], "out", bc, "bolt"))
@@ -271,8 +311,11 @@ def main(h):
                 kb.data[i].co.x = low_x
                 held += 1
     me.update()
-    h.finish("%d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f; x %.3f / %.3f / %.3f; %d frame places "
-             "held in the box)" % (len(verts), len(tris), ow, oh, orad, x_front, x_mid, x_face, held))
+    h.finish("%d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f; depth %d: x %.3f / %.3f / %.3f, the "
+             "glass at %.3f (%.3f behind the front, %.3f before the face), the bezel's top %.3f before the face, walls "
+             "in %.2f px; %d frame places held in the box)" % (
+                 len(verts), len(tris), ow, oh, orad, DEPTH_STEPS, x_front, x_mid, x_face, x_glass, x_glass - x_front,
+                 x_room - x_glass, top_clear, wall_in, held))
 
 
 if __name__ == "__main__":
