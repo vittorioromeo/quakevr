@@ -4073,7 +4073,8 @@ void menuExpectCommand(const char* text)
 
 // menu_vr links (with the VR menu open; Misc/quakevr/menu_shortcuts_test.sh): every link on every page (a row opening
 // a page: the groups' pages, the settings' homes on other pages) pressed as Enter presses it, from its page shown, and
-// every Search entry opened as a picked result opens it; each must land on its own page. Prints the failures and
+// every Search entry opened as a picked result opens it; each must land on its own page (a tunable: its Tunables
+// submenu, on its row). Prints the failures and
 // "menu links: N links and M search entries opened, F failed". Leaves the menu on VR Settings.
 void checkLinks()
 {
@@ -4116,9 +4117,21 @@ void checkLinks()
         showPage(pageIndex(pageSearch));
         const int target = search.index[e].page;
         const za::String label = search.index[e].label;
+        const cvar_t* const cvar = search.index[e].isPage ? nullptr : search.index[e].cvar;
         openEntry(e);
         entries++;
-        if(key_dest != key_menu || m_state != m_vr || ui().page != target)
+        bool landed = key_dest == key_menu && m_state == m_vr && ui().page == target;
+#ifndef QVR_RELEASE
+        if(!landed && target == pageIndex(pageTunables) && cvar && key_dest == key_menu && m_state == m_vr)
+        {
+            // A tunable opens its submenu (tunablesSearchTarget), on its row; the page's own rows (Show), the page.
+            const int shown = ui().page;
+            const auto list = items(shown);
+            const int at = ui().cursors[shown];
+            landed = tunablesTitle(shown) && at >= 0 && at < static_cast<int>(list.size()) && list[at].cvar == cvar;
+        }
+#endif
+        if(!landed)
         {
             Con_Printf("menu links: FAIL search entry \"%s\": want page %d \"%s\", got %s\n", label.cStr(), target,
                 target >= 0 && target < pageCount ? pages[target].title : "?", menuShownName());

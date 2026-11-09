@@ -5790,3 +5790,19 @@ and nail pistol `LIP` 0.07 -> 0.09 -> 0.07: every vertex place and skin coordina
 split the other way (8 and 6 triangles) are re-made each way: they move to the end of the triangle list and leave
 16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
 grown box (and its weapons.txt offsets) when changed back, as every grown export does.
+
+## Three test failures on next (branch `agent/testfix1109`, 2026-11-09)
+
+- **vr_ammocolor_test 1 "stalled"**: it never stalled. Its case lines and verdict were `dprint`s (developer 1 only), so a
+  run script without `developer 1` never saw the verdict and ran into its timeout; the last lines shown were the engine's
+  own `vr_ammo_color_debug` prints ("off hand ... normal"), read as cases 18 and 21. With developer 1 it passed 25/0 on
+  six runs (8 s each). The test now starts with `VR_TEST_LOUD` (its lines broadcast): 25/0 on three runs at developer 0.
+- **menu_shortcuts_test, "menu links"**: the check was stale. Since the Tunables submenus (3aa8dfe7e) a tunable's Search
+  entry opens its submenu on its row (`tunablesSearchTarget`), not page 302; `checkLinks` wanted 302 and counted the
+  submenu shown ("Other", "Ragdolls", ...) as a failure, 1877 of them. A tunable's entry now counts as landed when a
+  Tunables submenu is shown with the cursor on that tunable's row (the page's own rows, Show, still land on 302): 14/0.
+- **Scene embed_crates**: `vr_embed_props` is a tunable (`vr_tunables.inc`, default 1), not a cvar, so the scene's `cvar`
+  line failed validation. The line is dropped (the feature is on by default): validate 0 with errors (AD mounted),
+  `vr_scenario runall quit embed_crates` OK.
+- Seen, not fixed: flatplay_test.sh prints "FAIL flatscreen hands locked to the view (sway, bob, turn lag 0)" (turning
+  0.246 deg against 0.05) yet ends "28 passed, 0 failed": the lock check's FAIL is not counted in the tally.
