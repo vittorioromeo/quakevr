@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_flatxhair.hpp"
 #include "vr_flycam.hpp"
 #include "vr_painknock.hpp"
@@ -355,6 +356,9 @@ void handMove(VrMove& move, const hands::State& hs, int h)
 
     // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
     move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
+    // Flatscreen play: a gun a wall turned shoots the way its muzzle points (vr_flat_wall_shot; its muzzle is the drawn one:
+    // flatsight's keepMuzzle).
+    move.shotRot[h] = flatsight::wallShotAngles(h, move.shotRot[h]);
 }
 
 // The VR bits (current state only).

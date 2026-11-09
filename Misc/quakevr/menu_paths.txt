@@ -1332,6 +1332,7 @@ vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
+vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
 vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
 vr_flat_xhair_style|1|Locomotion|Visor Crosshair Style|Advanced VR Options > Movement > Locomotion > Visor Crosshair Style
 vr_flat_xhair_size|1|Locomotion|Visor Crosshair Size|Advanced VR Options > Movement > Locomotion > Visor Crosshair Size
@@ -1342,6 +1343,7 @@ vr_flat_xhair_outline|1|Locomotion|Visor Crosshair Outline|Advanced VR Options >
 vr_flat_xhair_glow|1|Locomotion|Visor Crosshair Glow|Advanced VR Options > Movement > Locomotion > Visor Crosshair Glow
 vr_flat_xhair_snap|1|Locomotion|Visor Crosshair Centring|Advanced VR Options > Movement > Locomotion > Visor Crosshair Centring
 vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Smoothing
+vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
@@ -9351,4 +9353,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page

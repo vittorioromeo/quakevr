@@ -1786,6 +1786,7 @@ void frame()
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
     slidesound::frame(true); // its scrape (vr_slidesound.cpp)
+    flatxhair::frame(); // vr_flat_xhair_turntest's mouse (vr_flatxhair.cpp)
 }
 
 float trunkTwist()

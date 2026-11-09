@@ -6151,6 +6151,13 @@ QVR_SLIDER(vr_flat_xhair_snap, "Visor Crosshair Centring", 0.f, 200.f, 1.f, "%.0
     "points this near each other share one crosshair (pixels at 1080 rows; vr_flat_xhair_snap).")
 QVR_SLIDER(vr_flat_xhair_smooth, "Visor Crosshair Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How long it takes to follow a point off the centre: no jitter, still truthful. 0: at once (vr_flat_xhair_smooth).")
+QVR_SLIDER(vr_flat_xhair_reload_alpha, "Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "A gun away reloading: its crosshair at this share of its opacity, as one the wall stops from firing; 0 hidden, "
+    "1 as ever (vr_flat_xhair_reload_alpha).")
+QVR_TOGGLE(vr_flat_wall_shot, "Shots Follow Gun At Walls",
+    "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is turned out of it. On: it shoots "
+    "from its muzzle the way it points, and the visor crosshair moves to that hit. Off: its shots still go through the "
+    "crosshair (vr_flat_wall_shot).")
 QVR_TOGGLE(vr_flat_reload, "Reloading",
     "Playing on the desktop screen (-flatscreenmode): on, every gun has its clip, filled from your ammo by the hip-holster "
     "reload: R (vr_flat_key_reload), or an empty clip with Auto Reload, takes the gun down to the nearest hip holster and "
