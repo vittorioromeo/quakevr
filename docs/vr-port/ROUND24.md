@@ -5174,47 +5174,6 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
   missing; menu_paths.txt regenerated.
 - **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
-## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
-
-QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
-Nothing published, tagged, uploaded or pushed.
-
-- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
-  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
-  none of the stretched faces).
-- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
-  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
-  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
-  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
-  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
-  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
-  (warning; his call).
-- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
-  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
-- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
-  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
-  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
-  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
-  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
-  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
-  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
-    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
-    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
-    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
-  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
-    console name), so it found nothing: now retired, with the other two.
-  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
-    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
-- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
-  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
-  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
-  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
-- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
-  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
-- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
-  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
-- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
-
 ## Flat test fixes, Shove Hand Travel (branch `agent/flatfix1109`, worktree blendmodels, 2026-11-09)
 
 Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` existed already, merged: this branch is
