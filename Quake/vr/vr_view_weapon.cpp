@@ -311,8 +311,8 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style);
     if(main && vr_debug_screen_where.value != 0.f)
     {
-        // Where the screen is on its model (make_screen_housing.py's numbers; Debug > Reports > Ammo Screen on Model):
-        // the glass's centre (the style's offset in), its right and up, a font pixel, in the model's own units.
+        // Where the screen is on its model (make_screen_housing_<gun>.py's numbers; Debug > Reports > Ammo Screen on
+        // Model): the glass's centre (the style's offset in), its right and up, a font pixel, in the model's own units.
         Cvar_SetValueQuick(&vr_debug_screen_where, 0.f);
         const glm::vec3 o = view::modelPoint(ve, glm::vec3{0.f});
         const glm::mat3 a{view::modelPoint(ve, {1.f, 0.f, 0.f}) - o, view::modelPoint(ve, {0.f, 1.f, 0.f}) - o,
