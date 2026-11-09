@@ -507,7 +507,7 @@ file and redo your edits, or keep yours and pass `--keep-edited`.
 
 ### Tweaking the ammo screen housings
 
-Three guns have their ammo screen's housing modelled on them, each by its own script in `Misc/quakevr`, all run the
+Four guns have their ammo screen's housing modelled on them, each by its own script in `Misc/quakevr`, all run the
 same way on the gun's source .blend (`housing_common.py` holds what they share):
 
 | Gun | Script | Its .blend | Table entry |
@@ -515,6 +515,7 @@ same way on the gun's source .blend (`housing_common.py` holds what they share):
 | shotgun | `make_screen_housing_shot.py` | `src_models/blend/v_shot/v_shot.blend` | `"shot"` |
 | super shotgun | `make_screen_housing_ssg.py` | `src_models/blend/v_shot2/v_shot2.blend` | `"shot2"` |
 | nail pistol | `make_screen_housing_nailpistol.py` | `src_models/blend/v_nailpistol/v_nailpistol.blend` | `"nailpistol"` |
+| nailgun | `make_screen_housing_nail.py` | `src_models/blend/v_nail/v_nail.blend` | `"nail"` |
 
 From the repository root, in PowerShell (the separator `--` before the script's own options must be quoted, `'--'`:
 PowerShell drops a bare one):

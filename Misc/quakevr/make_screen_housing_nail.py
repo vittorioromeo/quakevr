@@ -81,12 +81,12 @@ GLASS_RECESS = 0.08
 CHAMFER = 0.20
 FASTENER_R = 0.14
 # The layout round it (glass heights): the fasteners' centres this far above and below the window's middle, their
-# edge this far outside the bezel's frame, the front this far outside them; the front's top this many z steps under
-# the block's top (the block shows above it, as in the mockup).
+# edge this far outside the bezel's frame, the front this far outside them (the mockup's ears). The front is wider
+# than the block (it overhangs its sides, a closed solid) but stays clear of the hex barrels' inner sides.
 FASTENER_V = 0.27
-FASTENER_GAP = 0.06
-SIDE_MARGIN = 0.10
-TOP_GAP_STEPS = 1
+FASTENER_GAP = 0.03
+SIDE_MARGIN = 0.06
+BARRELS_Y = 1.6
 FASTENER_SIDES = 8
 FASTENER_TOP = 0.55  # the head's top ring, a share of its radius (the dome's shoulder)
 
@@ -154,16 +154,19 @@ def main(h):
     x_in = gx(k_face + 1)      # the walls end inside the block
 
     # The window, snapped: its centre on the block's middle (y) and in the front's middle (z); the front stands on the
-    # receiver's top (its bottom the grid line just under it) and its top TOP_GAP_STEPS under the block's.
+    # receiver's top (its bottom the grid line just under it) and rises as high as the window and the frame need (above
+    # the block's top: the red light shows behind and over it, as in the mockup).
     cy = sy((BLOCK_Y[0] + BLOCK_Y[1]) * 0.5)
     if abs(cy - (BLOCK_Y[0] + BLOCK_Y[1]) * 0.5) > stp.y * 0.26:  # (on a half step: the edges land on whole ones)
         cy = cy + stp.y * 0.5 if cy < (BLOCK_Y[0] + BLOCK_Y[1]) * 0.5 else cy - stp.y * 0.5
+    hh_steps = round(op_h * px / stp.z)
+    frame_steps = round(FRAME * 2.0 * hh_steps)
     k_bot = math.floor((TOP_Z - org.z) / stp.z)
-    k_top = round((BLOCK_Z[1] - org.z) / stp.z) - TOP_GAP_STEPS
+    k_top = k_bot + 2 * (hh_steps + frame_steps)
     z_bot, z_top = org.z + k_bot * stp.z, org.z + k_top * stp.z
     cz = (z_bot + z_top) * 0.5
     hw = sy(cy + op_w * px) - cy           # the window's half width and height (model units, on the grid)
-    hh = sz(cz + op_h * px) - cz
+    hh = hh_steps * stp.z
     H = 2.0 * hh                           # a visible glass height
     cut = -radius * px
     cu, cv = sy(cy + cut) - cy, sz(cz + cut) - cz
@@ -175,8 +178,8 @@ def main(h):
     fv = sz(cz + FASTENER_V * H) - cz
     ow = sy(cy + fu + fr + SIDE_MARGIN * H) - cy
     oh = (z_top - z_bot) * 0.5
-    if cy + ow > BLOCK_Y[1] + 1e-3 or cy - ow < BLOCK_Y[0] - 1e-3:
-        h.fail("the front (half width %.3f) is wider than the block" % ow)
+    if ow > BARRELS_Y - 0.1:
+        h.fail("the front (half width %.3f) reaches the hex barrels (|y| %.2f)" % (ow, BARRELS_Y))
     co_u, co_v = sy(cy + cu + (oh - hh) * 0.4142) - cy, sz(cz + cv + (oh - hh) * 0.4142) - cz
     band_u, band_v = stp.y, stp.z
 
@@ -232,11 +235,12 @@ def main(h):
             j = (i + 1) % m
             tris.append((a[i], a[j], b[j], kind, centre, mode))
             tris.append((a[i], b[j], b[i], kind, centre, mode))
-    # The lip's end inside the block, closed (no crack for the holes check; nothing sees it).
-    c_end = add(place(0.0, 0.0, x_in))
-    k = ring_idx["back"]
+    # The back, a step inside the block: from the walls' end to the lip's (a closed solid where it overhangs the block).
+    a, b = ring_idx["inner"], ring_idx["back"]
     for i in range(m):
-        tris.append((k[i], k[(i + 1) % m], c_end, "back", centre, "dark"))
+        j = (i + 1) % m
+        tris.append((a[i], b[j], a[j], "front", centre, "dark"))
+        tris.append((a[i], b[i], b[j], "front", centre, "dark"))
     fasteners = [(su * fu, sv * fv) for su in (-1.0, 1.0) for sv in (1.0, -1.0)]
     for bu, bv in fasteners:
         base = [add(place(bu + fr * math.cos(2 * math.pi * (i + 0.5) / FASTENER_SIDES),
@@ -297,7 +301,7 @@ def main(h):
         if radial.length > 1e-6:
             radial.normalize()
         back_dir = Vector((-1, 0, 0))
-        want = {"back": back_dir, "out": radial, "inback": back_dir - radial, "outback": radial + back_dir}[kind]
+        want = {"back": back_dir, "front": -back_dir, "out": radial, "inback": back_dir - radial, "outback": radial + back_dir}[kind]
         return (i, j, k) if nrm.dot(want) >= 0.0 else (i, k, j)
 
     # The triangles as the helper takes them: wound as they should face, a UV per corner.

@@ -4,4 +4,4 @@ start 0 -288 25 90
 god
 notarget
 give "Nailgun" main
-hint Look at the nailgun's back between the barrels: the screen in a bevelled bezel, square window with cut corners, two fasteners each side; fire a burst.
+hint Look at the nailgun's back between the barrels: the screen in a wide bevelled bezel, a 2:1 window with cut corners, two fasteners each side; fire a burst.

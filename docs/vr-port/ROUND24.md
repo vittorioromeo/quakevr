@@ -5739,4 +5739,16 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   with its nearest old one). The script checks it after every export.
 - **Decision:** the spec's square window, as the brief says, though the mockup's picture shows a wider one (about 2:1):
   "24/24" then fits at about half today's digit size. Wider is one table change (`opening`) and a re-run.
-- **Not done:** a row for the nailgun in MODELS_IN_BLENDER.md's housing table (the brief kept that file out of scope).
+- **Rework (same day): the picture wins over the written spec.** Next to the mockup the square window was far too
+  small, so the window is now as the mockup draws it: `opening` 22 x 11 font px (2:1, size 1: "24/24" at today's digit
+  size), `radius` -4.4, `offset` {0.0132, -0.0024, 0.0014}; on the grid 1.627 x 0.814 (H 0.814), cuts 0.163 / 0.153.
+  The front is 2.56 x 1.12 (1.49x the block's width), from 0.02 under the receiver's top to 0.05 over the block's top,
+  overhanging the block's sides (a closed solid: a back strip a step inside the block joins the walls to the lip); it
+  stays clear of the hex barrels (the script refuses past |y| 1.5). Frame 0.19 H top, 0.16 H bottom, 0.20 H sides to
+  the fasteners; fasteners radius 0.114 at u +-1.09, v +-0.20, domed heads one x step proud (they read as domes, not
+  pegs, at this size). 108 vertices, 176 triangles (the gun 1364); holes: 4 new open loops (the fasteners' feet), 0
+  see-through, 0 cracks; frames 0.0000; `vr_debug_screen_where` centre 0.9055 0.0334 4.8584 (want 0.9057 0.0335
+  4.8586). MODELS_IN_BLENDER.md's housing table has the nailgun row. The sizes above for the square window are
+  superseded. A re-export after a shape change must start from a weapons.txt whose slot 3 mask matches the .blend's
+  reference or the shipped file (else the export warns "not carried over"): the rework started from the pre-housing
+  .blend, .mdl and mask.

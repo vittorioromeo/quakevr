@@ -87,11 +87,12 @@ constexpr Entry table[] = {
             .opening = {24.f, 14.f}}},
     // The nailgun: a bevelled bezel with two round fasteners each side on the receiver's rear, between the barrels, in
     // front of the block with the red light (v_nail.blend, Misc/quakevr/make_screen_housing_nail.py reads `opening`,
-    // `radius`, `size` and `offset` from here to model it). His spec: a square window, its corners cut at 45 degrees;
-    // on the model's byte grid it is 0.697 x 0.712 model units (a font pixel 0.0372 at wpntxt_scale 0.2), the cut
-    // 0.16. The offset (right, up, out; world units) centres the glass in the window, 0.057 behind the bezel's front.
+    // `radius`, `size` and `offset` from here to model it). As his mockup draws it: a wide window (2:1), its corners cut
+    // at 45 degrees, the digits at today's size; on the model's byte grid 1.627 x 0.814 model units (a font pixel 0.0372
+    // at wpntxt_scale 0.2), the cut 0.16. The offset (right, up, out; world units) centres the glass in the window,
+    // 0.065 behind the bezel's front.
     {"nail",
-        {.radius = -4.2f,
+        {.radius = -4.4f,
             .bevel = 1.6f,
             .vignette = 0.4f,
             .sheen = 0.6f,
@@ -100,10 +101,10 @@ constexpr Entry table[] = {
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
             .size = 1.f,
-            .offset = {0.0132f, -0.0296f, 0.0057f},
+            .offset = {0.0132f, -0.0024f, 0.0014f},
             .box = 0.f,
             .housing = true,
-            .opening = {9.37f, 9.57f}}},
+            .opening = {22.f, 11.f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
