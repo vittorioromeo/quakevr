@@ -841,6 +841,15 @@ za::Vector<Item> pageWofsScreen()
         s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
         s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
+        s("Text Size", Key::WpnTextFont, 0.3f, 2.5f, 0.05f, "%.2fx").extend(0.05f, 10.f)
+            .help("The numbers' size on the screen, times the font's: the glass and its housing stay as they are. With "
+                  "the CRT look, text larger than the glass is cut off at its edge."),
+        s("Text Right", Key::WpnTextShiftX, -0.5f, 0.5f, 0.01f, "%.2f").extend(-2.f, 2.f)
+            .help("Moves the numbers right on the glass (left if negative), in shares of the glass's width: the glass "
+                  "stays."),
+        s("Text Up", Key::WpnTextShiftY, -0.5f, 0.5f, 0.01f, "%.2f").extend(-2.f, 2.f)
+            .help("Moves the numbers up on the glass (down if negative), in shares of the glass's height: the glass "
+                  "stays."),
         cycle("Ammo Screen", weapons::cvar(slot, Key::WpnTextMode), {{1.f, "Shown"}, {0.f, "Hidden"}})
             .help("Whether this weapon shows its ammunition screen (every weapon's: Screens, Weapon Ammo Screen).")
     );

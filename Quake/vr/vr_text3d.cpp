@@ -56,6 +56,7 @@ struct Queued
     bool tinted{false}; // a screen's text in `tint`, not the screen's colour (queue's `tint`)
     glm::vec3 tint{1.f};
     const screenstyle::Style* style{nullptr}; // a screen's look (queue's `style`; null: the default)
+    Glyphs glyphs;                            // a screen's text resized and moved on its glass (queue's `glyphs`)
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
     za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
@@ -105,6 +106,7 @@ struct ScreenImage
     int drawnAlign{-1};
     glm::vec3 drawnFace{-1.f}, drawnText{-1.f};
     int drawnFont{-1};     // and the font's style (fontstyle::generation(Ammo))
+    glm::vec3 drawnGlyphs{-1.f}; // and its text's size and shift on the glass (queue's `glyphs`: size, right, up)
     bool trueColor{false}; // drawn in its own colours (its text whitened: vr_ammo_screen_text_white)
 };
 za::Array<ScreenImage, maxScreenImages> screenImages;
@@ -649,14 +651,21 @@ struct ScreenLook
 }
 
 // The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
-[[nodiscard]] int findScreenImage(za::StringView text, int align, const ScreenLook& look, const ImageFit& fit)
+[[nodiscard]] glm::vec3 glyphsKey(const Glyphs& g)
 {
+    return {g.size, g.shift.x, g.shift.y};
+}
+
+[[nodiscard]] int findScreenImage(za::StringView text, int align, const ScreenLook& look, const ImageFit& fit,
+    const Glyphs& glyphs)
+{
+    const glm::vec3 key = glyphsKey(glyphs);
     for(int i = 0; i < maxScreenImages; i++)
     {
         const ScreenImage& image = screenImages[static_cast<size_t>(i)];
         if(image.width == fit.width && image.height == fit.height && image.target.texture && image.drawnAlign == align &&
             image.drawnFace == look.face && image.drawnText == look.text && image.drawnFont == look.font &&
-            image.drawn == text)
+            image.drawnGlyphs == key && image.drawn == text)
         {
             return i;
         }
@@ -665,7 +674,8 @@ struct ScreenLook
 }
 
 void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles, Align align, float scale,
-    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* styleIn = nullptr)
+    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* styleIn = nullptr,
+    const Glyphs& glyphSize = {})
 {
     // A screen's look (vr_screenstyle.hpp): its weapon's, else the default; off (vr_weapon_screen_style 0) the old one.
     const bool styled = screen && screenstyle::enabled();
@@ -704,11 +714,11 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
     }
 
     const float charSize = 8.f * scale;
-    const glm::vec3 hInc = right * charSize;
-    const glm::vec3 vInc = -up * charSize;
-
-    const glm::vec3 topLeft =
-        pos - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(textLines.size())) * 0.5f;
+    // The glyphs' own size and centre (a screen's `glyphs`: moved by shares of its glass, set below).
+    const float glyphChar = screen ? charSize * glyphSize.size : charSize;
+    const glm::vec3 hInc = right * glyphChar;
+    const glm::vec3 vInc = -up * glyphChar;
+    glm::vec3 textCentre = pos;
 
     // The screen: a bezel box behind the text and its lit face just behind the text, the readable
     // side facing the viewer (right x up points at them); the gadget's palette. As a CRT
@@ -740,6 +750,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
                                     : charSize * (static_cast<float>(longest) * 0.5f + static_cast<float>(padPixels) / 8.f);
         const float glassH = fitted ? charSize / 8.f * opening.y
                                     : charSize * (static_cast<float>(textLines.size()) * 0.5f + static_cast<float>(padPixels) / 8.f);
+        textCentre += right * (2.f * glassW * glyphSize.shift.x) + up * (2.f * glassH * glyphSize.shift.y);
         const float bezel = charSize * 0.3f * (styled ? style.box : 1.f);
         const float depth = charSize * 0.5f;
         const float gap = charSize * 0.04f;
@@ -757,7 +768,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         const glm::vec3 tl = c - right * glassW + up * glassH;
 
         const float crt = screenCrt() * (styled ? style.crt : 1.f);
-        int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint), fit);
+        int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint), fit, glyphSize);
         if(slot < 0 && index < maxScreenImages)
         {
             slot = screenSlots.byOrder[static_cast<size_t>(index)]; // (its text changed: last frame's, stretched)
@@ -802,6 +813,8 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         }
     }
 
+    const glm::vec3 topLeft =
+        textCentre - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(textLines.size())) * 0.5f;
     for(size_t i = 0; i < textLines.size() && !imaged; i++)
     {
         glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * indent(align, longest, textLines[i].size());
@@ -1290,7 +1303,7 @@ void drawOverlay()
 }
 
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen,
-    const glm::vec3* tint, const screenstyle::Style* style)
+    const glm::vec3* tint, const screenstyle::Style* style, const Glyphs& glyphs)
 {
     Queued& q = nextQueued();
     q.text = text;
@@ -1302,6 +1315,7 @@ void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, A
     q.tinted = tint != nullptr;
     q.tint = tint ? *tint : glm::vec3{1.f};
     q.style = style;
+    q.glyphs = {CLAMP(0.05f, glyphs.size, 20.f), glm::clamp(glyphs.shift, glm::vec2{-2.f}, glm::vec2{2.f})};
     q.overlay = false;
     q.bars.clear();
     builtFrame = -1;
@@ -1318,6 +1332,7 @@ void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& an
     q.scale = scale;
     q.screen = false;
     q.tinted = false;
+    q.glyphs = {};
     q.overlay = true;
     q.bars.assignRange(bars.begin(), bars.end());
     q.backing = backing;
@@ -1388,7 +1403,7 @@ void renderScreens()
         }
         const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
         const int slot = findScreenImage(q.text, static_cast<int>(q.align), look,
-            imageFit(columns, textLines.size(), pad, styledOpening(q.style)));
+            imageFit(columns, textLines.size(), pad, styledOpening(q.style)), q.glyphs);
         if(slot >= 0)
         {
             if(screenImages[static_cast<size_t>(slot)].frame == host_framecount)
@@ -1433,7 +1448,7 @@ void renderScreens()
         const int textTop = (height - static_cast<int>(textLines.size()) * 8) / 2;
         // Shown since an earlier screen of this frame drew it (two screens with one new text)?
         const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
-        int slot = findScreenImage(q.text, static_cast<int>(q.align), look, fit);
+        int slot = findScreenImage(q.text, static_cast<int>(q.align), look, fit, q.glyphs);
         if(slot >= 0)
         {
             screenSlots.shared++;
@@ -1479,6 +1494,7 @@ void renderScreens()
         image.drawnFace = look.face;
         image.drawnText = look.text;
         image.drawnFont = look.font;
+        image.drawnGlyphs = glyphsKey(q.glyphs);
         screenSlots.draws++;
         static constexpr const char* names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
             "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
@@ -1498,12 +1514,19 @@ void renderScreens()
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), look.face);
         gfx::draw2D::color(glm::vec4{look.text, 1.f});
         gadget::useBrightFont(look.trueColor);
+        // The text's own size and shift on the glass (queue's `glyphs`: the block kept centred where it was, moved by
+        // shares of the image, which is the glass; what falls past its edges is cut off). At 1 and 0 the old places.
+        const float g = q.glyphs.size;
+        const float left = static_cast<float>(textLeft) + 4.f * static_cast<float>(longest) * (1.f - g) +
+                           q.glyphs.shift.x * static_cast<float>(width);
+        const float top = static_cast<float>(textTop) + 4.f * static_cast<float>(textLines.size()) * (1.f - g) -
+                          q.glyphs.shift.y * static_cast<float>(height);
         for(size_t i = 0; i < textLines.size(); i++)
         {
             za::String& line = lineText;
             line = textLines[i];
-            const float x = static_cast<float>(textLeft) + 8.f * indent(q.align, longest, line.size());
-            gfx::draw2D::text(x, static_cast<float>(textTop) + 8.f * static_cast<float>(i), 8.f, line.cStr());
+            const float x = left + 8.f * g * indent(q.align, longest, line.size());
+            gfx::draw2D::text(x, top + 8.f * g * static_cast<float>(i), 8.f * g, line.cStr());
         }
         gadget::useBrightFont(false);
         gfx::draw2D::color(glm::vec4{1.f});
@@ -1743,7 +1766,8 @@ extern "C" void VR_DrawSceneOpaque()
                 }
                 else
                 {
-                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen, q.tinted ? &q.tint : nullptr, q.style);
+                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen, q.tinted ? &q.tint : nullptr, q.style,
+                        q.glyphs);
                 }
             }
         }

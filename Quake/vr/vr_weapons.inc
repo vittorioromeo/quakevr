@@ -512,6 +512,14 @@ QVR_WEAPON_KEY(EmbedHeadZ, "em_head_z")
 QVR_WEAPON_KEY(EmbedButtX, "em_butt_x")
 QVR_WEAPON_KEY(EmbedButtY, "em_butt_y")
 QVR_WEAPON_KEY(EmbedButtZ, "em_butt_z")
+// The ammo screen's text alone (the author, 2026-11-09: "should only affect the text itself, not the screen or
+// enclosure"; text3d::Glyphs): its font's size, times (1 by default: weapons.txt's defaults), and its centre moved on the
+// glass, right and up, in shares of the glass's width and height (0 by default: centred). The glass, its box, the
+// housing and the glow stay where wpntxt_scale/_x/_y/_z put them; the CRT's image cuts the text off at the glass's
+// edge. Weapon Offsets > Ammo Screen (Text Size, Text Right, Text Up). New keys: no migration.
+QVR_WEAPON_KEY(WpnTextFont, "wpntxt_font")
+QVR_WEAPON_KEY(WpnTextShiftX, "wpntxt_tx")
+QVR_WEAPON_KEY(WpnTextShiftY, "wpntxt_ty")
 #endif
 
 

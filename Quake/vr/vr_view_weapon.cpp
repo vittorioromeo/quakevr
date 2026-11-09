@@ -241,6 +241,17 @@ za::Array<za::String, 2> ammoWarnPrinted;
     return warning;
 }
 
+} // namespace
+
+// The ammo screen's text alone resized and moved on its glass (wpntxt_font, wpntxt_tx, wpntxt_ty).
+text3d::Glyphs screenGlyphs(int slot)
+{
+    return {weapons::value(slot, Key::WpnTextFont),
+        glm::vec2{weapons::value(slot, Key::WpnTextShiftX), weapons::value(slot, Key::WpnTextShiftY)}};
+}
+
+namespace
+{
 void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const view::ViewEntity& ve, int slot)
 {
     // The view may be set up more than once per frame; queue once.
@@ -308,7 +319,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
 
     const screenstyle::Style& style = screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr);
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style);
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style, screenGlyphs(slot));
     if(main && vr_debug_screen_where.value != 0.f)
     {
         // Where the screen is on its model (make_screen_housing_<gun>.py's numbers; Debug > Reports > Ammo Screen on
