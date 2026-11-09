@@ -7,4 +7,4 @@ god
 notarget
 give "Rocket Launcher" main
 cmd impulse 9
-hint Look down the rocket launcher from where you hold it: just in front of your hand the screen sits in a raised bronze enclosure on the sloped shoulder, the glass a little sunk in it with rounded corners, two round rivets stacked on each side of the window; the bezel is the gun's own metal, the enclosure clear of both hands, and the glass stays in it when you fire and reload.
+hint Look down the rocket launcher from where you hold it: just in front of your hand the screen sits in a low raised bronze enclosure on the sloped shoulder, leaning back towards you, its outline rounded and its edges chamfered all round, the glass a little sunk in it with rounded corners, two round rivets stacked on each side of the window; the bezel is the gun's own metal, the enclosure clear of both hands, and the glass stays in it when you fire and reload.

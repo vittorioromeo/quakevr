@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # make_screen_housing_rocket.py -- the rocket launcher's ammo screen housing, modelled on v_rock2.blend (ROUND24.md, "The
-# rocket launcher's ammo screen housing"; his mockup, kit scratch/mockups/rocket_housing.webp: the screen in a raised
-# bronze enclosure on the sloped shoulder where the tube steps down to the rear exhaust, near the grip, two round
-# rivets each side of the window, made symmetric).
+# rocket launcher's ammo screen housing" and its second pass, "less steep, softer"; his mockup, kit
+# scratch/mockups/rocket_housing.webp: the screen in a raised bronze enclosure on the sloped shoulder where the tube
+# steps down to the rear exhaust, near the grip, two round rivets each side of the window, made symmetric).
 #
 # Usage: blender -b --factory-startup Misc/quakevr/src_models/blend/v_rock2/v_rock2.blend
 #            --python Misc/quakevr/make_screen_housing_rocket.py -- [--save other.blend] [--dry]
@@ -12,33 +12,34 @@
 # (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo screen housings").
 #
 # One definition: the window's half size (`opening`, font pixels), the glass's corner `radius`, `size` and `offset` are
-# the "rock2" entry of Quake/vr/vr_screenstyle.cpp (the table the engine shapes and places the glass by). The script
-# refuses when the window it builds or the glass's place disagree with the table (by more than 0.3 font pixels, or
-# 0.01 units), printing the entry that matches.
+# the "rock2" entry of Quake/vr/vr_screenstyle.cpp (the table the engine shapes and places the glass by), and the
+# glass's lean is weapons.txt slot 6's wpntxt_pitch (51.26: the face's). The script refuses when the window it builds or
+# the glass's place disagree with the table (by more than 0.3 font pixels, or 0.01 units), printing the entry that
+# matches.
 #
-# The grid. The model's vertices are bytes: X 0.393 a step (coarse), Y 0.085, Z 0.105. The glass leans back 28 degrees
-# (weapons.txt slot 6's wpntxt_pitch), and a plane at that lean holds grid points only on "rows" 0.834 apart up the
-# plane (one X step and seven Z steps: 61.9 degrees from level, the glass's 62.0); one X step forward and two Z steps
-# down is square to it (0.446 deep). A grid plane at a lean is never mirror-symmetric top to bottom, so every vertex
-# of the front is chosen on that row lattice (exactly symmetric), and the few that can't be are said below.
-# The shape (u up the glass, d out of it towards the eye, y across; in the window's height h = 2 rows = 1.669):
-# - The window: rows -1..+1 (1h), 24 Y steps wide (1.22h, the digits at today's size: "4/4 / 96" fits unscaled), its
-#   walls straight back square to the glass (0.27h) to a dark floor; the glass GLASS_IN h behind the front, its corners
-#   rounded by the shader (the table's radius), the near-black box behind it showing in them.
-# - The bezel's front: the two side bands, flat (the window's height, 6 Y steps wide), each holding two rivets; above
-#   and below the window an angled bevel from the window's edge out and back to the plate's edge (0.28h out; 0.12h
-#   back above, 0.15h below: the one top/bottom difference the grid forces, the outline itself is symmetric); the
-#   side bands' outer bevels (4 Y steps) meet them at mitred corners.
-# - The enclosure: from the plate's top edge an upright back wall down into the tube, its sides upright, from the
-#   bottom edge a skirt square to the glass into the shoulder; closed underneath (inside the gun).
-# - 4 round rivets, two each side at +-0.25h (identical: the lower pair is the upper moved one row down, a grid move),
-#   in the side bands' middles: a cone from a point RIVET_UP in front of the band to a ring sunk behind it, its
-#   points picked on the grid so that where the cone comes through the band it is a circle of RIVET_R (printed:
-#   width / height and the worst point).
+# The grid. The model's vertices are bytes: X 0.393 a step (coarse), Y 0.085, Z 0.105. The face leans 38.7 degrees
+# from level: one X step and three Z steps make a "row" up it (0.504), and every grid point on the face is on a row.
+# Off the face the grid points come in "levels" one Z step apart (0.082 out, 0.066 up the face each). A grid plane at
+# a lean is never mirror-symmetric top to bottom, so the face is built on rows (exact), and what can't be is said.
+# The shape (u up the face, d out of it towards the eye, y across; the window's height h = 4 rows = 2.016):
+# - The window: rows -2..+2 (1h), 24 Y steps wide (1.01h): square; its walls back to a dark floor; the glass GLASS_IN h
+#   behind the front, rounded by the shader (the table's radius), the near-black box behind it showing in its corners.
+# - The front: the two side bands, flat (8 Y steps), each holding two rivets; their outer corners cut across a row.
+# - Softened edges: from the front's outline (the window's top and bottom edges, the bands' cut corners) a chamfer
+#   all round out and back to a foot 4 levels behind the face (0.33 back, 0.25 out above and below, 3 Y steps out at
+#   the sides), whose outline seen face on is a rounded rectangle (corner radius FOOT_R, ARC_N points between): each
+#   foot point the grid point nearest its place on that outline (within DEPTHS back: the corners' points sit a
+#   little deeper above, a little shallower below, the grid's lean). Then the enclosure's walls straight back from the
+#   foot (one X step, five Z steps: 2 degrees off square) into the gun, closed there (inside the gun).
+# - 4 round rivets, two each side at +-0.25h (on rows +-1: identical, the lower pair the upper moved two rows down;
+#   right and left mirror images), in the side bands' middles: a cone from a point one level in front of the band to a
+#   ring of grid points sunk behind it, the ring's points searched so that the cone comes through the band on a circle
+#   of RIVET_R h (printed: width / height and the worst point).
 # Texture, all from the gun's own skin: the bezel and the enclosure's walls in the shoulder's own texels (the pyramid's
-# island, 289..327 x 14..59) at the shoulder's own scale: the front as the shoulder under it maps, seen face on, each
-# wall unfolded from the front's edge it leaves (no stretched strips); the window's walls and floor on the dark row
-# (62); the rivets' points on the shoulder's lit streak, their rings on its darker bronze.
+# island, 289..327 x 14..59) at the shoulder's own scale: the front as the shoulder under it maps, seen face on; the
+# chamfers and the walls unfolded outward from the front's edge, each at its true length (no stretched texels); the
+# window's walls and floor on the dark row (62); the rivets' points on the shoulder's lit streak, their rings on its
+# darker bronze.
 
 import math
 import os
@@ -54,36 +55,38 @@ import housing_common as hc  # noqa: E402
 STEM = "rock2"
 MODEL = "v_rock2"
 
-# Measured with vr_debug_screen_where 1 (weapons.txt slot 6's wpntxt offsets and pitch 28, the table's offset 0): the
-# glass's centre, right and up, and a font pixel (wpntxt_scale 0.25, size 1) in model units.
-BASE_CENTRE = Vector((0.8195, -0.0512, 7.5943))
-BASE_RIGHT = Vector((0.0041, -1.0, 0.0077)).normalized()
-BASE_UP = Vector((0.4694, 0.0087, 0.8829)).normalized()
+# Measured with vr_debug_screen_where 1 (weapons.txt slot 6's wpntxt offsets and pitch 51.26, the table's offset 0):
+# the glass's centre, right and up, and a font pixel (wpntxt_scale 0.25, size 1) in model units.
+BASE_CENTRE = Vector((0.6940, -0.0511, 7.4683))
+BASE_RIGHT = Vector((0.0068, -1.0, 0.0055)).normalized()
+BASE_UP = Vector((0.7800, 0.0087, 0.6258)).normalized()
 PIXEL1 = 0.06565
 MPU = PIXEL1 / (0.1 * 0.25)  # model units a world unit (the offset's unit)
 
-# The design, in grid steps (X, Y, Z) from the window's centre on the front (a grid point; Y the gun's middle line).
+# The design, in grid steps (X, Y, Z) from the window's centre on the face (a grid point; Y the gun's middle line).
 CENTRE = (50, 129, 194)
-ROW = (1, 7)          # one row up the front
-SQUARE = (1, -2)      # one step square to the front, into the gun
-WIN_Y = 12            # the window's half width, Y steps
-BAND_Y = 18           # the side bands' outer edge
-PLATE_Y = 22          # the plate's outer edge (the side bevels' foot)
-TOP_OUT = (2, 10)     # the top bevel's foot (X, Z steps from the centre): row 2 less 4 Z steps
-BOT_OUT = (-1, -12)   # the bottom bevel's foot: row -1 less 5 Z steps
-BACK_FOOT = (2, -11)  # the back wall's foot (straight down from the top bevel's foot, inside the tube)
-SKIRT_END = (1, -16)  # the bottom skirt's end (2 steps square to the front from the bottom bevel's foot)
-GLASS_IN = 0.02       # the glass behind the front, in window heights
-RIVET_Y = 15          # the rivets' middles, Y steps out
+ROW = (1, 3)          # one row up the face
+BACK = (1, -5)        # the walls' step back into the gun (0.656; 0.022 down the face)
+WIN_ROWS = 2          # the window's half height, rows
+WIN_Y = 12            # its half width, Y steps
+BAND_Y = 21          # the side bands' outer edge
+CUT_Y = 3             # the bands' outer corners cut this far across (and one row up)
+FOOT_Y = 24          # the foot's sides
+FOOT_LEVEL = -4       # the foot above and below: this many levels from the row past the window's edge
+FOOT_R = 0.45         # the foot outline's corner radius (units, face on)
+ARC_N = 2             # points between a corner's ends
+DEPTHS = (-0.55, -0.15)  # how far back a foot point may sit (units)
+GLASS_IN = 0.02       # the glass behind the face, in window heights
+RIVET_Y = 16          # the rivets' middles, Y steps out
+RIVET_ROW = 1         # their rows (+-)
 RIVET_R = 0.08        # their radius where they come through the band, in window heights
-RIVET_TIP = (0, 4)    # the upper rivets' point (X, Z steps): 4 Z steps up from the centre row (0.198 in front)
 RIVET_ANGLES = 8      # points round each rivet's ring
 # Skin places (texels).
-PYRAMID = (289.0, 327.0, 14.0, 59.0)        # the shoulder's island (the fit's sanity box)
 INNER_ROWS = (62.5, 64.5)                   # the window's walls (front edge, back) on the dark row
 INNER_COLS = (292.0, 330.0)
 RIVET_TEX = (297.5, 33.5, 2.5)              # the lit streak (the point) and the ring's radius round it
 SHOULDER_POINT = Vector((-0.8935, -0.0402, 4.7805))   # the shoulder pyramid's point (behind the rim, on the middle)
+TUBE_TOP = 7.8293                           # the tube's top line (for the printout)
 
 
 def main(h):
@@ -102,7 +105,7 @@ def main(h):
     centre = P(0, 0)
     row = P(*ROW) - centre
     up = row.normalized()
-    out = Vector((-up.z, 0.0, up.x))          # square to the front, towards the eye
+    out = Vector((-up.z, 0.0, up.x))          # square to the face, towards the eye
     right = Vector((0.0, -1.0, 0.0))
 
     def uvd(co):
@@ -110,27 +113,32 @@ def main(h):
         rel = co - centre
         return rel.dot(right), rel.dot(up), rel.dot(out)
 
-    hgt = 2 * row.length
+    def ab_uvd(a, b):
+        return uvd(P(a, b))[1:]
+
+    rows = lambda r: (ROW[0] * r, ROW[1] * r)  # noqa: E731
+    hgt = 2 * WIN_ROWS * row.length
     wwin = WIN_Y * sc[1]
-    sq = P(*SQUARE) - centre
-    if abs(sq.normalized().dot(up)) > 1e-3:
-        h.fail("SQUARE isn't square to the rows")
     glass = centre - out * (GLASS_IN * hgt)
 
     # The table against the window: the glass must be the window's size and sit in it.
     off_px = (abs(wwin - ow * px) / px, abs(hgt / 2 - oh * px) / px, abs(0.15 * hgt - orad * px) / px)
     out_base = BASE_RIGHT.cross(BASE_UP).normalized()
     have = BASE_CENTRE + (BASE_RIGHT * offset[0] + BASE_UP * offset[1] + out_base * offset[2]) * MPU
-    d = glass - BASE_CENTRE
-    h.say("font pixel %.5f; window %d x 2 rows = %.4f x %.4f (%.2f x %.2f px, h %.4f), rows %.4f apart, square step "
-          "%.4f; glass %.4f behind the front at %.4f %.4f %.4f; the glass's up %.2f degrees off the front's"
-          % (px, 2 * WIN_Y, 2 * wwin, hgt, 2 * wwin / px, hgt / px, hgt, row.length, sq.length, GLASS_IN * hgt,
-             *glass, math.degrees(BASE_UP.angle(up))))
+    dg = glass - BASE_CENTRE
+    lean = math.degrees(math.atan2(row.z, row.x))
+    h.say("font pixel %.5f; face %.2f degrees from level (the glass's %.2f); window %d Y steps x %d rows = %.4f x %.4f "
+          "(%.2f x %.2f px, h %.4f), rows %.4f apart; glass %.4f behind the face at %.4f %.4f %.4f"
+          % (px, lean, math.degrees(math.atan2(BASE_UP.z, BASE_UP.x)), 2 * WIN_Y, 2 * WIN_ROWS, 2 * wwin, hgt, 2 * wwin / px,
+             hgt / px, hgt, row.length, GLASS_IN * hgt, *glass))
     if max(off_px) > 0.3 or (glass - have).length > 0.01:
         h.fail("the table disagrees with the window (off %.2f %.2f %.2f px, the glass %.4f units off); a matching "
                "entry: .radius = %.2ff, .opening = {%.2ff, %.2ff}, .offset = {%.4ff, %.4ff, %.4ff}"
                % (off_px + ((glass - have).length, 0.15 * hgt / px, wwin / px, hgt / 2 / px,
-                            d.dot(BASE_RIGHT) / MPU, d.dot(BASE_UP) / MPU, d.dot(out_base) / MPU)))
+                            dg.dot(BASE_RIGHT) / MPU, dg.dot(BASE_UP) / MPU, dg.dot(out_base) / MPU)))
+    if abs(BASE_UP.angle(up)) > math.radians(0.6):
+        h.fail("the glass leans %.2f degrees off the face: weapons.txt slot 6 wpntxt_pitch %.2f"
+               % (math.degrees(BASE_UP.angle(up)), 90 - lean))
 
     ob = bpy.data.objects[MODEL]
     if ob.mode != 'OBJECT':
@@ -144,15 +152,12 @@ def main(h):
     flags = [0] * len(me.vertices)
     if tag is not None:
         tag.data.foreach_get("value", flags)
-    gun_tris, gun_vs = [], [v.co.copy() for v in me.vertices]
-    uvl = me.uv_layers.active.data
-    for p in me.polygons:
-        if any(flags[i] > 0 for i in p.vertices):
-            continue
-        gun_tris.append(list(p.vertices))
+    gun_vs = [v.co.copy() for v in me.vertices]
+    gun_tris = [list(p.vertices) for p in me.polygons if not any(flags[i] > 0 for i in p.vertices)]
     bvh = BVHTree.FromPolygons(gun_vs, gun_tris)
+    uvl = me.uv_layers.active.data
 
-    # The shoulder's pyramid (four faces round a point behind the rim): its two upper faces' texels as seen face on.
+    # The shoulder's pyramid: its two upper faces' texels as seen face on (an affine fit).
     apex = min(range(len(gun_vs)), key=lambda i: (gun_vs[i] - SHOULDER_POINT).length)
     if (gun_vs[apex] - SHOULDER_POINT).length > 1e-3:
         h.fail("the shoulder's point (%.4f %.4f %.4f) wasn't found" % tuple(SHOULDER_POINT))
@@ -160,12 +165,11 @@ def main(h):
     for p in me.polygons:
         if apex in p.vertices and p.normal.z > 0.3 and not any(flags[i] > 0 for i in p.vertices):
             for vi, li in zip(p.vertices, p.loop_indices):
-                y_, u_, d_ = uvd(me.vertices[vi].co)
+                y_, u_, _ = uvd(me.vertices[vi].co)
                 fit[vi] = (y_, u_, uvl[li].uv[0] * sw, (1.0 - uvl[li].uv[1]) * sh)
     fit = list(fit.values())
     if len(fit) != 4:
         h.fail("the shoulder's two upper faces weren't found (%d corners)" % len(fit))
-    # least squares: texel = a*y + b*u + c (each texel axis)
     import numpy as np
     m = np.array([[f[0], f[1], 1.0] for f in fit])
     cs = np.linalg.lstsq(m, np.array([f[2] for f in fit]), rcond=None)[0]
@@ -175,29 +179,15 @@ def main(h):
     def shoulder_tex(yy, uu):
         return float(cs @ (yy, uu, 1.0)), float(ct @ (yy, uu, 1.0))
 
-    verts, tris = [], []   # tris: (i, j, k, want_normal, mode)
+    verts, tris, index = [], [], {}
+    unf = {}   # vertex -> its place unfolded onto the face (across, up), for the texels
 
-    def add(co):
-        verts.append(co)
-        return len(verts) - 1
-
-    def pt(ab, j):
-        return add(P(ab[0], ab[1], j))
-
-    r1, rm1 = ROW, (-ROW[0], -ROW[1])
-    # The front ring: per side s (+1 left = -right, -1 right), the crest points.
-    V = {}
-    for s in (1, -1):
-        V[("wt", s)] = pt(r1, s * WIN_Y)       # window top corner
-        V[("wb", s)] = pt(rm1, s * WIN_Y)
-        V[("bt", s)] = pt(r1, s * BAND_Y)      # side band's outer top corner
-        V[("bb", s)] = pt(rm1, s * BAND_Y)
-        V[("ot", s)] = pt(TOP_OUT, s * PLATE_Y)   # the plate's corners (the bevels' feet)
-        V[("ob", s)] = pt(BOT_OUT, s * PLATE_Y)
-        V[("ft", s)] = pt((ROW[0] + SQUARE[0], ROW[1] + SQUARE[1]), s * WIN_Y)   # the window's floor
-        V[("fb", s)] = pt((-ROW[0] + SQUARE[0], -ROW[1] + SQUARE[1]), s * WIN_Y)
-        V[("kf", s)] = pt(BACK_FOOT, s * PLATE_Y)   # the back wall's foot
-        V[("ke", s)] = pt(SKIRT_END, s * PLATE_Y)   # the skirt's end
+    def vid(a, b, j):
+        key = (a, b, j)
+        if key not in index:
+            index[key] = len(verts)
+            verts.append(P(a, b, j))
+        return index[key]
 
     def tri(a, b, c, want, mode):
         tris.append((a, b, c, want, mode))
@@ -206,90 +196,176 @@ def main(h):
         tri(a, b, c, want, mode)
         tri(a, c, e, want, mode)
 
-    OUT, UPV = out, up
-    for s in (1, -1):
-        lat = right * -s  # (towards this side)
-        # side band (flat front)
-        quad(V[("wt", s)], V[("bt", s)], V[("bb", s)], V[("wb", s)], OUT, "front")
-        # side bevel: crest (bt, bb) to the plate's edge (ot, ob)
-        quad(V[("bt", s)], V[("ot", s)], V[("ob", s)], V[("bb", s)], OUT + lat, "front")
-        # window side wall
-        quad(V[("wt", s)], V[("wb", s)], V[("fb", s)], V[("ft", s)], -lat, "inner")
-        # side wall of the enclosure: (ob, ot, kf, ke), convex
-        tri(V[("ob", s)], V[("ot", s)], V[("kf", s)], lat, "side")
-        tri(V[("ob", s)], V[("kf", s)], V[("ke", s)], lat, "side")
-    # the top and bottom bevels: the crest (b+, w+, w-, b-) to the feet (o-, o+), mirror-symmetric triangles
-    for c, w, o, want in (("bt", "wt", "ot", OUT + UPV), ("bb", "wb", "ob", OUT - UPV)):
-        for s in (1, -1):
-            tri(V[(c, s)], V[(w, s)], V[(o, s)], want, "front")
-        quad(V[(w, 1)], V[(w, -1)], V[(o, -1)], V[(o, 1)], want, "front")
-    # window top/bottom walls and floor
-    quad(V[("wt", 1)], V[("wt", -1)], V[("ft", -1)], V[("ft", 1)], -UPV, "inner")
-    quad(V[("wb", 1)], V[("wb", -1)], V[("fb", -1)], V[("fb", 1)], UPV, "inner")
-    quad(V[("ft", 1)], V[("ft", -1)], V[("fb", -1)], V[("fb", 1)], OUT, "inner")
-    # the enclosure: back wall (ot, kf), skirt (ob, ke), underside (ke, kf)
-    fwd = Vector((1.0, 0.0, 0.0))
-    quad(V[("ot", 1)], V[("ot", -1)], V[("kf", -1)], V[("kf", 1)], fwd, "back")
-    quad(V[("ob", 1)], V[("ob", -1)], V[("ke", -1)], V[("ke", 1)], -UPV, "under")
-    quad(V[("ke", 1)], V[("ke", -1)], V[("kf", -1)], V[("kf", 1)], Vector((0.0, 0.0, -1.0)), "under")
+    # The front's outline (on the face, d 0), counter-clockwise seen face on (from the left middle, down first):
+    # (a, b, j) of each point. Y steps go left (+j), so "right" is -j.
+    r2, r1 = rows(WIN_ROWS), rows(WIN_ROWS - 1)
+    m1, m2 = (-r1[0], -r1[1]), (-r2[0], -r2[1])
+    crest = [(r1, BAND_Y), (m1, BAND_Y), (m2, BAND_Y - CUT_Y), (m2, WIN_Y),        # left side down, bottom left
+             (m2, -WIN_Y), (m2, -(BAND_Y - CUT_Y)), (m1, -BAND_Y), (r1, -BAND_Y),  # bottom right, right side up
+             (r2, -(BAND_Y - CUT_Y)), (r2, -WIN_Y), (r2, WIN_Y), (r2, BAND_Y - CUT_Y)]  # the top, right to left
+    crest_ids = [vid(ab[0], ab[1], j) for ab, j in crest]
 
-    # The rivets: per rivet the point and a ring of grid points behind the band, chosen so that the cone meets the
-    # band's plane (d 0) on a circle of RIVET_R h round its middle.
-    rr = RIVET_R * hgt
-    tip_u, _, tip_d = None, None, None
-    tip = P(*RIVET_TIP, RIVET_Y)
-    _, tip_u, tip_d = uvd(tip)
-    if tip_d <= 0.02:
-        h.fail("the rivets' point isn't in front of the band")
-    mid_u = row.length / 2
-    # Where each candidate ring point (a grid point behind the band, under it) puts the cone's edge in the band's
-    # plane: (across to the right from the rivet's middle, up), for the left rivet (Y steps go left).
+    # The foot: a rounded rectangle face on; each point the grid point nearest its place, DEPTHS back.
+    top_u = ab_uvd(r2[0] + ROW[0], r2[1] + ROW[1] + FOOT_LEVEL)
+    bot_u = ab_uvd(-r2[0], -r2[1] + FOOT_LEVEL)
     cands = []
-    for a in range(-2, 4):
-        for b in range(-24, 25):
-            _, qu, qd = uvd(P(a, b))
-            if not -0.6 < qd < -0.02 or abs(qu) > 0.79:
+    for a in range(-6, 8):
+        for b in range(-30, 31):
+            u_, d_ = ab_uvd(a, b)
+            if DEPTHS[0] <= d_ <= DEPTHS[1]:
+                cands.append((u_, d_, a, b))
+    wfoot = FOOT_Y * sc[1]
+    targets = []   # (across to the right, up), counter-clockwise from the left middle going down
+    for quarter in range(4):
+        # corners: bottom-left, bottom-right, top-right, top-left
+        sy_, su = ((-1, -1), (1, -1), (1, 1), (-1, 1))[quarter]
+        edge_u = top_u[0] if su > 0 else bot_u[0]
+        cy, cu = sy_ * (wfoot - FOOT_R), edge_u - su * FOOT_R
+        for k in range(ARC_N + 2):
+            # from the side's end to the top/bottom's end (for the left-bottom: from the left side down to the bottom)
+            ph = math.pi / 2 * k / (ARC_N + 1)
+            if quarter in (0, 2):
+                ang = ph
+            else:
+                ang = math.pi / 2 - ph
+            targets.append((cy + sy_ * FOOT_R * math.cos(ang), cu + su * FOOT_R * math.sin(ang)))
+    foot = []
+    worst_foot = 0.0
+    for ty, tu in targets:
+        jj = round(-ty / sc[1])
+        u_, d_, a, b = min(cands, key=lambda c: (round(abs(c[0] - tu), 3), abs(c[1] + 0.33)))
+        worst_foot = max(worst_foot, abs(u_ - tu))
+        foot.append((a, b, jj))
+    foot_ids = [vid(a, b, j) for a, b, j in foot]
+
+    def ang2(vi):
+        y_, u_, _ = uvd(verts[vi])
+        return math.atan2(u_ / (top_u[0] - bot_u[0]), y_ / (2 * wfoot))
+
+    # The side bands (flat), the window's walls and floor.
+    for s in (1, -1):
+        band = [vid(*r2, s * WIN_Y), vid(*r2, s * (BAND_Y - CUT_Y)), vid(*r1, s * BAND_Y),
+                vid(-r1[0], -r1[1], s * BAND_Y), vid(-r2[0], -r2[1], s * (BAND_Y - CUT_Y)),
+                vid(-r2[0], -r2[1], s * WIN_Y)]
+        for n_ in range(1, len(band) - 1):
+            tri(band[0], band[n_], band[n_ + 1], out, "front")
+    win = {}
+    for su in (1, -1):
+        for s in (1, -1):
+            ab = r2 if su > 0 else (-r2[0], -r2[1])
+            win[(su, s)] = vid(ab[0], ab[1], s * WIN_Y)
+            win[(su, s, "f")] = vid(ab[0] + BACK[0], ab[1] + BACK[1], s * WIN_Y)
+    quad(win[(1, 1)], win[(1, -1)], win[(1, -1, "f")], win[(1, 1, "f")], -up, "inner")
+    quad(win[(-1, 1)], win[(-1, -1)], win[(-1, -1, "f")], win[(-1, 1, "f")], up, "inner")
+    for s in (1, -1):
+        lat = right * -s
+        quad(win[(1, s)], win[(-1, s)], win[(-1, s, "f")], win[(1, s, "f")], -lat, "inner")
+    quad(win[(1, 1, "f")], win[(1, -1, "f")], win[(-1, -1, "f")], win[(-1, 1, "f")], out, "inner")
+
+    # The chamfer: the ring between the front's outline and the foot, walked round by angle.
+    def unwrap(ids):
+        start = min(range(len(ids)), key=lambda i: ang2(ids[i]))
+        seq = ids[start:] + ids[:start]
+        angs, prev = [], None
+        for v in seq:
+            a_ = ang2(v)
+            while prev is not None and a_ < prev:
+                a_ += 2 * math.pi
+            angs.append(a_)
+            prev = a_
+        return seq, angs
+
+    cseq, cang = unwrap(crest_ids)
+    fseq, fang = unwrap(foot_ids)
+    cseq.append(cseq[0])
+    cang.append(cang[0] + 2 * math.pi)
+    fseq.append(fseq[0])
+    fang.append(fang[0] + 2 * math.pi)
+    i = k = 0
+    while i < len(cseq) - 1 or k < len(fseq) - 1:
+        if k >= len(fseq) - 1 or (i < len(cseq) - 1 and cang[i + 1] <= fang[k + 1]):
+            tri(cseq[i], cseq[i + 1], fseq[k], None, "front")
+            i += 1
+        else:
+            tri(cseq[i], fseq[k + 1], fseq[k], None, "front")
+            k += 1
+
+    # The enclosure's walls: the foot moved straight back into the gun, as few steps as put it all inside.
+    def inside(co):
+        hits = 0
+        for dirv in (Vector((0.0, 0.0, 1.0)), Vector((0.31, 0.2, 0.93)).normalized(),
+                     Vector((-0.3, -0.25, 0.92)).normalized()):
+            loc, nrm, _, _ = bvh.ray_cast(co, dirv, 50.0)
+            hits += 1 if loc is not None and nrm.dot(dirv) > 0 else 0
+        return hits >= 2
+
+    steps = None
+    for kk in range(1, 6):
+        if all(inside(P(a + kk * BACK[0], b + kk * BACK[1], j)) for a, b, j in foot):
+            steps = kk
+            break
+    if steps is None:
+        h.fail("the enclosure's walls don't reach inside the gun in 5 steps")
+    back_ids = [vid(a + steps * BACK[0], b + steps * BACK[1], j) for a, b, j in foot]
+    nf = len(foot_ids)
+    for n_ in range(nf):
+        a_, b_ = foot_ids[n_], foot_ids[(n_ + 1) % nf]
+        quad(a_, b_, back_ids[(n_ + 1) % nf], back_ids[n_], None, "wall")
+    for n_ in range(1, nf - 1):
+        tri(back_ids[0], back_ids[n_], back_ids[n_ + 1], -out, "under")
+
+    # The rivets: per rivet a point one level in front of the band and a ring of grid points behind it, chosen so
+    # that the cone meets the band's plane (d 0) on a circle of RIVET_R h round its middle (the row).
+    rr = RIVET_R * hgt
+    tip_ab = (ROW[0] * RIVET_ROW, ROW[1] * RIVET_ROW + 1)
+    tip_u, tip_d = ab_uvd(*tip_ab)
+    mid_u = RIVET_ROW * row.length
+    rcands = []
+    for a in range(-3, 5):
+        for b in range(-20, 21):
+            qu, qd = ab_uvd(a, b)
+            if not -0.7 < qd < -0.02:
                 continue
             t = tip_d / (tip_d - qd)
-            for dj in range(-6, 7):
-                if WIN_Y <= RIVET_Y + dj <= PLATE_Y - 1:
-                    cands.append((t * (-dj * sc[1]), tip_u + t * (qu - tip_u), a, b, dj))
+            for dj in range(-8, 9):
+                if WIN_Y - 2 <= RIVET_Y + dj <= BAND_Y - 1:
+                    rcands.append((t * (-dj * sc[1]), tip_u + t * (qu - tip_u), a, b, dj))
     best_ring = None
-    for rot in range(0, 45, 3):   # the ring's angles turned, the roundest kept
+    for rot in range(0, 45, 3):
         ring, seen, worst = [], [], 0.0
-        for k in range(RIVET_ANGLES):
-            th = math.radians(90 - rot) - 2 * math.pi * k / RIVET_ANGLES
+        for k_ in range(RIVET_ANGLES):
+            th = math.radians(90 - rot) - 2 * math.pi * k_ / RIVET_ANGLES
             want = (rr * math.cos(th), mid_u + rr * math.sin(th))
-            hy, hu, a, b, dj = min(cands, key=lambda c: math.hypot(c[0] - want[0], c[1] - want[1]))
+            hy, hu, a, b, dj = min(rcands, key=lambda c: math.hypot(c[0] - want[0], c[1] - want[1]))
             worst = max(worst, math.hypot(hy - want[0], hu - want[1]))
             ring.append((a, b, dj))
             seen.append((hy, hu))
         if best_ring is None or worst < best_ring[0]:
             best_ring = (worst, rot, ring, seen)
     worst, rot, ring, seen = best_ring
-    ys = [p[0] for p in seen]
-    us = [p[1] for p in seen]
+    ys = [p_[0] for p_ in seen]
+    us = [p_[1] for p_ in seen]
     ratio = (max(ys) - min(ys)) / (max(us) - min(us))
     cen_u = (max(us) + min(us)) / 2
+    tips = []
     for s in (1, -1):
-        for drow in (0, -1):
-            sh_ = (ROW[0] * drow, ROW[1] * drow)
-            t_i = pt((RIVET_TIP[0] + sh_[0], RIVET_TIP[1] + sh_[1]), s * RIVET_Y)
-            # (found for the left one, s 1; the right one its mirror image across the gun's middle)
-            base = [pt((a + sh_[0], b + sh_[1]), s * (RIVET_Y + dj)) for a, b, dj in ring]
+        for rsign in (1, -1):
+            shift = (0, 0) if rsign > 0 else rows(-2 * RIVET_ROW)
+            t_i = vid(tip_ab[0] + shift[0], tip_ab[1] + shift[1], s * RIVET_Y)
+            tips.append(t_i)
+            base = [vid(a + shift[0], b + shift[1], s * (RIVET_Y + dj)) for a, b, dj in ring]
             ring_mid = sum((verts[b_] for b_ in base), Vector()) / len(base)
             for n_ in range(len(base)):
                 mid = (verts[base[n_]] + verts[base[(n_ + 1) % len(base)]] + verts[t_i]) / 3.0
                 tri(base[n_], base[(n_ + 1) % len(base)], t_i, mid - ring_mid, "rivet")
-    h.say("rivets: r %.4f (%.3fh), point %.4f in front, %.4f %s the middle; ring %s; through the band: width/height "
-          "%.3f, middle %.4f off, worst point %.4f off the circle (ring turned %d deg)" % (
-              rr, RIVET_R, tip_d, abs(tip_u - mid_u), "below" if tip_u < mid_u else "above", ring, ratio,
-              cen_u - mid_u, worst, rot))
+    h.say("rivets: r %.4f (%.3fh), point %.4f in front, %.4f %s the middle; through the band: width/height %.3f, "
+          "middle %.4f off, worst point %.4f off the circle (ring turned %d deg)" % (
+              rr, RIVET_R, tip_d, abs(tip_u - mid_u), "below" if tip_u < mid_u else "above", ratio, cen_u - mid_u,
+              worst, rot))
     if not 0.9 <= ratio <= 1.1:
         h.fail("the rivets aren't round (width / height %.3f)" % ratio)
 
-    # Checks: nothing of the gun in front of the glass (rays out from it), and the enclosure's hidden edges inside
-    # the gun (rays from them hit the gun's inside: a back face).
+    # Checks: nothing of the gun in front of the glass (rays out from it).
     for fy in (-0.95, -0.5, 0.0, 0.5, 0.95):
         for fu in (-0.95, -0.5, 0.0, 0.5, 0.95):
             o = glass + right * (fy * wwin) + up * (fu * hgt / 2)
@@ -297,21 +373,30 @@ def main(h):
             if hit[0] is not None:
                 h.fail("the gun is in front of the glass at (%.2f, %.2f): %.3f out" % (fy, fu, hit[3]))
 
-    def inside(co):
-        hits = 0
-        for dirv in (Vector((0.0, 0.0, 1.0)), Vector((0.31, 0.2, 0.93)).normalized(), Vector((-0.3, -0.25, 0.92)).normalized()):
-            loc, nrm, _, _ = bvh.ray_cast(co, dirv, 50.0)
-            hits += 1 if loc is not None and nrm.dot(dirv) > 0 else 0
-        return hits >= 2
+    # Texels: each vertex's place unfolded onto the face (the chamfer and the walls laid out flat beyond the
+    # front's outline, at their true lengths).
+    crest2 = [uvd(verts[v])[:2] for v in crest_ids]
 
-    buried = [k for k in ("kf", "ke") for s in (1, -1) if not inside(verts[V[(k, s)]])]
-    if buried:
-        h.fail("the enclosure's feet %s aren't inside the gun" % buried)
+    def nearest_on_crest(p2):
+        best = None
+        for n_ in range(len(crest2)):
+            a2, b2 = Vector(crest2[n_]), Vector(crest2[(n_ + 1) % len(crest2)])
+            ab_ = b2 - a2
+            t = max(0.0, min(1.0, (p2 - a2).dot(ab_) / ab_.length_squared))
+            q = a2 + ab_ * t
+            if best is None or (p2 - q).length < best[0]:
+                best = ((p2 - q).length, q)
+        return best[1]
 
-    # Texture.
-    lo_u, hi_u = uvd(verts[V[("ob", 1)]])[1], uvd(verts[V[("ot", 1)]])[1]
-    plate_w = PLATE_Y * sc[1]
-    d_top, d_bot = uvd(verts[V[("ot", 1)]])[2], uvd(verts[V[("ob", 1)]])[2]
+    for n_, fv in enumerate(foot_ids):
+        y_, u_, d_ = uvd(verts[fv])
+        p2 = Vector((y_, u_))
+        q = nearest_on_crest(p2)
+        dirn = (p2 - q).normalized()
+        flat = (p2 - q).length
+        unf[fv] = q + dirn * math.hypot(flat, d_)
+        bv = back_ids[n_]
+        unf[bv] = unf[fv] + dirn * (verts[bv] - verts[fv]).length
 
     def tex(vi, mode, nrm):
         co = verts[vi]
@@ -323,44 +408,47 @@ def main(h):
         if mode == "rivet":
             best = None
             for s in (1, -1):
-                for drow in (0, -1):
+                for rsign in (1, -1):
                     cy = -s * RIVET_Y * sc[1]
-                    cu = mid_u + drow * row.length
+                    cu = rsign * mid_u
                     dist = math.hypot(yy - cy, uu - cu)
                     if best is None or dist < best[0]:
-                        best = (dist, yy - cy, uu - cu, dd)
-            dist, dy, du, ddd = best
-            if ddd > tip_d - 1e-3:
+                        best = (dist, yy - cy, uu - cu)
+            dist, dy, du = best
+            if vi in tips:
                 return RIVET_TEX[0], RIVET_TEX[1]
             return (RIVET_TEX[0] + RIVET_TEX[2] * dy / max(dist, 1e-6),
                     RIVET_TEX[1] - RIVET_TEX[2] * du / max(dist, 1e-6))
-        ny, nu, nd = nrm.dot(right), nrm.dot(up), nrm.dot(out)
-        if abs(nd) >= max(abs(ny), abs(nu)) or mode == "back":
-            return shoulder_tex(yy, uu)
-        if abs(ny) >= abs(nu):   # a side wall: unfolded across from the side bevel's foot
-            edge_d = d_top + (d_bot - d_top) * (uu - hi_u) / (lo_u - hi_u)
-            return shoulder_tex(math.copysign(plate_w + (edge_d - dd), yy), uu)
-        edge = (hi_u, d_top) if uu > 0 else (lo_u, d_bot)   # the skirt / underside: unfolded from the bevel's foot
-        return shoulder_tex(yy, math.copysign(abs(edge[0]) + (edge[1] - dd), uu))
+        if vi in unf:
+            return shoulder_tex(*unf[vi])
+        return shoulder_tex(yy, uu)
 
     built = []
-    for i, j, k, want, mode in tris:
-        p0, p1, p2 = verts[i], verts[j], verts[k]
+    for i_, j_, k_, want, mode in tris:
+        p0, p1, p2 = verts[i_], verts[j_], verts[k_]
         nrm = (p1 - p0).cross(p2 - p0)
         if nrm.length < 1e-9:
-            h.fail("a degenerate triangle (%d %d %d, %s)" % (i, j, k, mode))
-        ijk = (i, j, k) if nrm.dot(want) >= 0.0 else (i, k, j)
+            h.fail("a degenerate triangle (%d %d %d, %s)" % (i_, j_, k_, mode))
+        if want is None:   # the chamfer and the walls: out of the face's middle
+            mid = (p0 + p1 + p2) / 3.0
+            y_, u_, _ = uvd(mid)
+            want = right * y_ / wfoot + up * u_ / (top_u[0] - bot_u[0]) * 2 + (out * 0.5 if mode == "front" else
+                                                                             Vector())
+        ijk = (i_, j_, k_) if nrm.dot(want) >= 0.0 else (i_, k_, j_)
         nrm = nrm if nrm.dot(want) >= 0.0 else -nrm
         built.append(ijk + (tuple(((tx / sw), 1.0 - ty / sh) for tx, ty in
                                   (tex(vi, mode, nrm.normalized()) for vi in ijk)),))
 
     lo = [min(c[i] for c in verts) for i in range(3)]
     hi = [max(c[i] for c in verts) for i in range(3)]
-    h.say("plate %.4f wide (%.2fh), %.4f tall up the glass (%.2fh): bevels %.4f out (%.2fh), %.4f / %.4f back; side "
-          "bands %.4f (%.2fh), bevels %.4f; the box x %.3f..%.3f y %.3f..%.3f z %.3f..%.3f; shoulder fit %.2f texels"
-          % (2 * plate_w, 2 * plate_w / hgt, hi_u - lo_u, (hi_u - lo_u) / hgt, hi_u - hgt / 2, (hi_u - hgt / 2) / hgt,
-             -d_top, -d_bot, (BAND_Y - WIN_Y) * sc[1], (BAND_Y - WIN_Y) * sc[1] / hgt, (PLATE_Y - BAND_Y) * sc[1],
-             lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], resid))
+    fu_ = [uvd(verts[v])[1] for v in foot_ids]
+    fd_ = [uvd(verts[v])[2] for v in foot_ids]
+    h.say("plate (the foot) %.4f wide (%.2fh), %.4f tall up the face (%.2fh, top %.4f / bottom %.4f: %.4f off "
+          "symmetric); foot points %.4f..%.4f back, worst %.4f off the outline; walls %d steps back; the highest "
+          "point %.3f above the tube's top line; the box x %.3f..%.3f y %.3f..%.3f z %.3f..%.3f; shoulder fit %.2f "
+          "texels" % (2 * wfoot, 2 * wfoot / hgt, max(fu_) - min(fu_), (max(fu_) - min(fu_)) / hgt, max(fu_), min(fu_),
+                      max(fu_) + min(fu_), -max(fd_), -min(fd_), worst_foot, steps, hi[2] - TUBE_TOP, lo[0], hi[0],
+                      lo[1], hi[1], lo[2], hi[2], resid))
 
     moved = h.apply(me, verts, built, smooth=True)
     if not moved:

@@ -6196,6 +6196,41 @@ on, from the side, from above-left; a rivet straight on and from the eye's side;
   vr_show_weapon_text 0); from the side the rivet cones read as small teeth (0.075 world units).
 - **Tests:** vr_pp_test 1 63/0; checklist_tests_check 83/0; the export's own checks passed. Scene `rocket_housing`.
 - **Not verified:** the headset (flat shots and Blender only).
+
+### Second pass: less steep, softer (branch `agent/housing_rocket2`, 2026-11-09)
+
+He: a good start, but a bit less steep, with softer, rounded edges. Panel (rows: the game from the eye, e1m1, before /
+after; Blender from the side, before / after; straight on without the glass, before / after):
+`scratch/hr2/panel_rocket2.png` in the selfshot worktree.
+
+- **Less steep:** the face leans 38.7 degrees from level (was 61.9: 37% less steep), the grid's next row plane (one X
+  step, three Z steps: rows 0.504 apart). The glass leans with it: weapons.txt slot 6 `wpntxt_pitch` 28 -> 51.26,
+  `wpntxt_x` -0.1 -> -0.15, `wpntxt_z` 1.7 -> 1.65; the same three `vr_wofs_wpntxt_*_07` lines in every qvr-agents
+  worktree's `ironwail.cfg.baseline` and in quakevr-iw-cleanup's `ironwail.cfg` (only those). Its highest point 0.42
+  above the tube's top line (was 0.84); the window's bottom edge just over the rear exhaust's top.
+- **The window:** 4 rows (h 2.016) x 24 Y steps: square (1.01:1, the spec's), opening 15.54 x 15.35 px, radius 4.61,
+  offset {-0.0039, 0.0315, 0.033}; screenwhere 0.7037 -0.0402 7.5876 (designed 0.7042 -0.0402 7.5876). The digits
+  fill the glass as the ammo text now does, a little larger than before (the glass 21% taller).
+- **Softer edges:** the front (the flat side bands, 9 Y steps, and the window's top and bottom edges) has its outer
+  corners cut across a row; from that outline a chamfer runs all round out and back to a foot 4 levels (0.33) behind
+  the face: 0.25 out above and below, 3 Y steps at the sides. Face on the foot is a rounded rectangle (corner radius
+  0.45, two points between each corner's ends), each point the grid point nearest its place within 0.15..0.55 back
+  (worst 0.09 off the outline; the corners sit a little deeper above and shallower below, the grid's lean). Smooth
+  shading over the chamfer. Then the walls straight back into the gun (5 steps of 1 X, -5 Z: 2 degrees off square),
+  closed inside. Top and bottom feet 1.249 / 1.271 from the window's middle (0.022 off symmetric); left and right
+  exact. 78 vertices, 124 triangles (rebuilt from the .blend before the first housing, 92b37b5fb's: no unused
+  vertices left in the .mdl).
+- **Rivets:** on rows +-1 (+-0.25h), the point now one level (0.082) in front of the band (was 0.198: lower studs);
+  width/height 1.012, worst point 0.031 off the circle, centred on the row exactly. Their rings stay under the flat band
+  (the chamfer would show them).
+- **Texels:** the shoulder's island as before; the chamfer and the walls unfolded outward from the front's outline at
+  their true lengths (no stretched texels on the bevels).
+- **Clearance:** the main hand's grip spot (hand_av) 3.61 model units from the housing's nearest outside vertex (its
+  lowest outside point z 6.46); the off-hand's 31.9.
+- **Checks:** re-run in place: 0 moved, 124 kept, every file byte-identical; the gun's own UVs unchanged; export checks
+  passed; vr_pp_test 1 63/0; checklist_tests_check 85/0 (scene `rocket_housing`'s hint updated).
+- **Not verified:** the headset (flat shots and Blender only).
+
 ## The ammo screen's text: its own size and place (branch `agent/ammotext`, 2026-11-09)
 
 His words: "per-weapon tweakable options for the ammo screen? Font size multiplier; text x/y offsets ... should only
