@@ -6830,6 +6830,40 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
 
+## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
+
+His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
+the keycard ... the keycard must be collected and not brought to the door, it's a common mistake users make."
+
+- **How a key is collected.** In VR (vr_item_objects, the default) a key is never taken by touch or trigger: a hand
+  grips it and lets go of it at a holster (hip or shoulder: VR_Carry_HandFrame -> VR_PickupObj_Holster); a door only
+  checks the player's items, so a key carried in the hand does nothing there. Flat play: taken at once (E on an
+  object pickup: VR_Carry_AutoCollect's flat objects; the crate's card is a plain touch pickup there), so there is
+  nothing to teach and the tip never shows.
+- **The tip.** `t2_key_held` in room 6: "Don't carry it to the door: let go of it / at a holster first, to keep it."
+  On the card, with its cable, the moment a hand takes it (ANYANGLE, delay 0, range 173), once (tips_seen; the
+  tutorial resets its tips each start); gone as the card is kept (the entity freed: the engine's gone-entity rule).
+- **New mapper feature, shared.** func_vr_tip's GRABBED flag (16): waits until a hand takes what it follows (its
+  `target`: an item's targetname). vr_crate's new `contents_name` names what a crate holds (the card is made as the
+  crate breaks, so it had no name to follow). The hook is one call in VR_Carry_HandFrame after the auto-collect
+  (VR_Tips_Grabbed): the same carry path serves VR grips, force-grab catches and flat E, so flat needs no code of its
+  own (taken at once there, the hook never runs). A loaded game puts a let-out GRABBED tip back on its thing, or
+  leaves it waiting if the thing is gone.
+- **Engine (vr_tips.cpp).** A tip let out of its wait (TRIGGERED fired, GRABBED taken) is considered first and makes
+  the panel showing fade (0.4 s) for it: the crate's own "A keycard!" tip (fired as the crate breaks) used to hold the
+  screen for vr_tips_time while the player already held the card. This applies to every TRIGGERED tip (the rifle's,
+  the crate's): what just happened comes first. New dev prints: `"<a>" makes way for "<b>"`, `its entity gone, it fades`.
+- **Map.** vrtutorial_gen.py has the tip and the crate's key; the .map regenerated; the .bsp's entity lump replaced
+  with `bsp_set_entities.py --from-file` (no recompile: geometry, .lit and .lux untouched; the lump checked against
+  the .map, 353 entities, 0 differ). FGD: entities.fgd documents flags 8 and 16, quakevr.fgd regenerated.
+- **Test.** `vr_pickup_test 13` (vrtutorial; with `+grabmain` held): crate broken, card in the main hand, the tip let
+  out then and not before, on the card (`tips: "t2_key" makes way for "t2_key_held"`, `"t2_key_held" by entity N`),
+  kept at a holster, `its entity gone, it fades`; 8/0. Flat (`-flatscreenmode`): the crate's card is a touch pickup
+  there (its handtouch; no carry), taken at once, the tip never let out; 5/0. Scenario `tutorial_keycard_tip` (room
+  6, the crate ahead): validate 0 missing, runall OK. vr_pp_test 1 63/0, checklist_tests_check 101/0.
+- **Seen in the mock.** With the hand held low (the mock's standing pose) the panel sits below and right of the card,
+  out of the desktop view; held up in front (as one looks at a card) it shows beside it. The panel's placement is the
+  tips' usual one, unchanged.
 ## Faster map loads (branch `agent/perf_load`, 2026-11-09)
 
 From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with

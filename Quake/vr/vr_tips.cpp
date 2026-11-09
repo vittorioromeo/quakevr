@@ -91,6 +91,7 @@ struct Showing
 };
 Showing showing;
 int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the menu or the console closed)
+int firedTip = -1;    // the map tip last let out of its wait (fired, or its thing taken in a hand): considered first
 bool centerHeld = false; // new tips held back by a centre print (frame(); for its dev messages)
 
 // The tips, in the order they are considered: the built-in ones, then the map's. `t` indexes both.
@@ -489,6 +490,10 @@ void show(int t, const Subject& s, bool count)
     }
     Con_DPrintf("tips: \"%s\" %s\n", tipName(t),
         s.ent ? va("by entity %d", s.ent) : va("at %.0f %.0f %.0f", s.point.x, s.point.y, s.point.z));
+    if(t == firedTip)
+    {
+        firedTip = -1;
+    }
     showing.tip = t;
     showing.ent = s.ent;
     showing.start = realtime;
@@ -507,6 +512,7 @@ void drawShowing()
     if(!e && showing.ent && showing.until > realtime + 0.4)
     {
         showing.until = realtime + 0.4; // taken (or gone): it fades now
+        Con_DPrintf("tips: \"%s\": its entity gone, it fades\n", tipName(showing.tip));
     }
     if(realtime >= showing.until)
     {
@@ -825,11 +831,32 @@ void clientReset()
     showing.tip = -1;
     candidate.tip = -1;
     pendingTest = -1;
+    firedTip = -1;
+}
+
+// Map tip `handle` let out of its wait (a TRIGGERED tip fired, a GRABBED one's thing taken in a hand: QC, vr_tips.qc): it
+// is about what just happened, so it comes first, and the tip showing (another) fades now to make way for it. Not when it
+// has been shown already (once-only): nothing would take its place.
+void fired(int handle)
+{
+    const int t = tipCount + handle;
+    const MapTip& mt = mapTips[static_cast<size_t>(handle)];
+    if((mt.flags & Repeat) == 0 && seen(seenKeyOf(t)))
+    {
+        return;
+    }
+    firedTip = t;
+    if(showing.tip >= 0 && showing.tip != t && showing.until > realtime + 0.4)
+    {
+        Con_DPrintf("tips: \"%s\" makes way for \"%s\"\n", tipName(showing.tip), tipName(t));
+        showing.until = realtime + 0.4;
+    }
 }
 
 void clientParse(int subcmd)
 {
-    MapTip& mt = clientTip(MSG_ReadShort());
+    const int handle = MSG_ReadShort();
+    MapTip& mt = clientTip(handle);
 
     switch(subcmd)
     {
@@ -846,7 +873,16 @@ void clientParse(int subcmd)
         case QVR_SVC_TIP_DISTANCE: mt.distance = MSG_ReadFloat(); break;
         case QVR_SVC_TIP_SIZE: mt.size = MSG_ReadFloat(); break;
         case QVR_SVC_TIP_DELAY: mt.delay = MSG_ReadFloat(); break;
-        case QVR_SVC_TIP_FLAGS: mt.flags = MSG_ReadByte(); break;
+        case QVR_SVC_TIP_FLAGS:
+        {
+            const bool wasWaiting = (mt.flags & Waiting) != 0;
+            mt.flags = MSG_ReadByte();
+            if(wasWaiting && (mt.flags & Waiting) == 0)
+            {
+                fired(handle);
+            }
+            break;
+        }
         default: Host_Error("svc_quakevr: bad tip command %d", subcmd);
     }
 }
@@ -906,9 +942,19 @@ void frame()
         Con_DPrintf("tips: the centre print gone (at %.1f)\n", cl.time);
         centerHeld = false;
     }
-    // The first tip not shown yet whose subject is near and seen; it shows once it has been so for its delay.
-    for(int t = 0; t < tipTotal(); t++)
+    // The first tip not shown yet whose subject is near and seen (a tip just fired before the others: fired()); it shows
+    // once it has been so for its delay.
+    if(firedTip >= tipTotal())
     {
+        firedTip = -1; // (its map changed)
+    }
+    for(int k = -1; k < tipTotal(); k++)
+    {
+        const int t = k < 0 ? firedTip : k;
+        if(t < 0 || (k >= 0 && t == firedTip))
+        {
+            continue;
+        }
         MapTip* mt = mapTipOf(t);
         if(mt && (mt->flags & Repeat) != 0)
         {

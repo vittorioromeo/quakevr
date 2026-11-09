@@ -938,6 +938,10 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
         if(crate.contents != "none")
         {
             entity e = VR_Tut_Make(crate.contents, at, 0, NULLSTR, '0 0 0');
+            if(e != world && crate.contents_name != NULLSTR)
+            {
+                e.targetname = crate.contents_name; // (what a GRABBED tip follows: vr_tips.qc)
+            }
             dprint(sprintf("crate: holds %s (its contents)%s\n", crate.contents, e == world ? ", not made" : ""));
         }
         return;
@@ -1070,7 +1074,8 @@ breaks into light pieces when shot, struck, blown up or hit hard, sometimes hold
 (Crates' settings), and hides the player from monsters behind it. Small: 32 units a side; LARGE: 40 x 40 x 48. "angle":
 its yaw; "skin": 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever
 Crates' options are. "contents": what it holds instead of the random box (a classname, as func_vr_restock's: item_key1,
-item_health...; "none": nothing); "target": fired as it breaks (the activator: what broke it).
+item_health...; "none": nothing); "contents_name": the targetname given to what it holds (a GRABBED func_vr_tip's
+target: a tip on it once a hand takes it); "target": fired as it breaks (the activator: what broke it).
 */
 void() vr_crate =
 {
