@@ -713,6 +713,13 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flatslide_test (-flatscreenmode only, open level ground ahead, cl_alwaysrun 1): runs you forward, "
                   "crouches at full speed (a slide), lets go, slides again and jumps in it (flatslide: lines, a verdict). "
                   "Let go of +forward after (-forward)."),
+        command("Flat Speed FOV: Walk, Run, Slide, Hop", "vr_flat_speed_fov_test")
+            .help("vr_flat_speed_fov_test (-flatscreenmode only, open level ground ahead): walks, runs (the view its own "
+                  "field of view), slides (it widens), stands (it eases back), then strafe-jumps a bunny hop chain (it "
+                  "widens) (flatspeedfov: lines, the measured speeds and fields of view, a verdict)."),
+        command("Flat Speed FOV Status", "vr_flat_speed_fov_status")
+            .help("vr_flat_speed_fov_status: the speed along the floor, the speed FOV's multiplier now and the speed's "
+                  "own, the field of view drawn."),
         command("Lying Body Test", "vr_body_lie_test")
             .help("vr_body_lie_test (-flatscreenmode, open level ground ahead and behind, a long gun held): lies down (the hips "
                   "on the floor, straight legs, the gear with its bones), gets up, slides twice (no stance turn or bob, straight "

@@ -38,10 +38,12 @@
 #include "vr_flathud.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatxhair.hpp"
+#include "vr_flatleanpose.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatspeedfov.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
@@ -156,6 +158,7 @@ struct Feel
     double gunTurnAt[2]{-1e9, -1e9};
     glm::mat3 wallTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}}; // each drawn hand's tilt at a wall, as last drawn (drawnWallTurn),
     glm::vec3 wallShift[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and the hand's move by it (round a point behind the hand)
+    glm::vec3 drawnAt[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // each drawn hand, as last drawn (before a wall's tilt): drawnHand
 };
 
 Feel feel;
@@ -1714,6 +1717,8 @@ void init()
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
+    flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
+    flatleanpose::init(); // vr_flatleanpose_test (vr_flatleanpose.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -1731,6 +1736,7 @@ void frame()
     if(!frozen)
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
+        flatspeedfov::frame(on); // the speed FOV's ease (vr_flat_speed_fov); gone at once when the mode is off
         flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
     }
 
@@ -1785,6 +1791,7 @@ void frame()
     pollKeysFlat();
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
+    flatleanpose::frame(); // vr_flatleanpose_test's next step, when one runs
     slidesound::frame(true); // its scrape (vr_slidesound.cpp)
     flatxhair::frame(); // vr_flat_xhair_turntest's mouse (vr_flatxhair.cpp)
 }
@@ -1926,13 +1933,58 @@ struct TorsoCaps
 // off its shoulder (forward, right, up: targetOffset). The arm turns about the shoulder by its share of the look, then the limits,
 // each eased in so no look shows a corner: its hotspot within the free arm (the stance's), clear of the chest, clear of the eye, on
 // the screen, within its own arm.
-[[nodiscard]] glm::vec3 handOnBody(
-    const hands::State& s, int h, const glm::vec3& aim, const glm::vec3& local, const glm::vec3& eye, const glm::vec3& carry)
+// The lean's turn of the upper body (vr_flat_lean_arms, vr_flat_lean_arms_pivot; his words 2026-11-09: "as we apply the torso
+// rotation, we rotate and move the arms at the same time as the torso so that everything gets rotated/tilted with the torso
+// as a pivot. Then we ensure that the weapons are still aiming at the right spot"). The arms and the guns are posed as he
+// stands upright, then moved with the eye as one rigid body: the move that takes the upright eye to the leant one
+// (vr_flatmove.cpp leanShift), turning about the level forward by the upper body's tilt -- at vr_flat_lean_arms_pivot 0 the
+// view's own lean roll (the guns keep their place on the screen while the room tilts), else the eye's sideways move's angle
+// that far under it (at vr_flat_lean_pivot's 30, the eye's own arc: 32 degrees at a full lean, the guns 17 degrees round on
+// the screen) -- vr_flat_lean_arms of it. The guns then aim again from where their hands are (the crosshair's point:
+// aimRotAtCrosshair, flatsight's aimAtPoint) and roll vr_flat_lean_gun_roll of the view's lean roll. Before it
+// (agent/lean_pose), the shoulders came off the body leant from its hips, the hands off them unturned, and the drawn hands
+// were turned round the eye by the view's roll on top: on the screen the lower gun went 2 down and 4 in, the upper 4 up.
+constexpr float armsPivotMost = 120.f; // vr_flat_lean_arms_pivot's most
+
+struct LeanRig
+{
+    bool on{false};
+    glm::vec3 shift{0.f}; // the eye's move (flatmove::leanShift)
+    glm::vec3 eye{0.f};   // the leant head (the pose's s.head)
+    glm::mat3 turn{1.f};
+
+    // Where a point of the upright pose goes leant.
+    [[nodiscard]] glm::vec3 operator()(const glm::vec3& p) const { return on ? eye + turn * (p - (eye - shift)) : p; }
+};
+
+[[nodiscard]] LeanRig leanRig(const hands::State& s, float yaw)
+{
+    LeanRig r;
+    r.shift = flatmove::leanShift();
+    if(r.shift == glm::vec3{0.f} && flatmove::leanRoll() == 0.f)
+    {
+        return r;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
+    const float pivot = za::clamp(vr_flat_lean_arms_pivot.value, 0.f, armsPivotMost);
+    const float tilt = pivot >= 1.f ? za::asin(za::clamp(glm::dot(r.shift, right) / pivot, -1.f, 1.f)) : glm::radians(flatmove::leanRoll());
+    const float angle = tilt * za::clamp(vr_flat_lean_arms.value, 0.f, 1.f);
+    // (Round the level forward, + to the right: the top goes the way he leans.)
+    r.turn = glm::mat3_cast(glm::angleAxis(angle, fwd));
+    r.eye = s.head;
+    r.on = true;
+    return r;
+}
+
+// `roots`: the shoulders, as `s` (the upright pose while leaning: leanRig turns the result) has them.
+[[nodiscard]] glm::vec3 handOnBody(const hands::State& s, const glm::vec3 (&roots)[2], int h, const glm::vec3& aim, const glm::vec3& local,
+    const glm::vec3& eye, const glm::vec3& carry)
 {
     glm::vec3 levelFwd, levelRight, levelUp;
     hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
     const float side = h == HAND_OFF ? -1.f : 1.f;
-    const glm::vec3 root = shoulder(s, h);
+    const glm::vec3 root = roots[h];
     const float span = armSpan();
 
     const float turn = glm::radians(-aim.x * za::clamp(aim.x > 0.f ? vr_flat_arm_down.value : vr_flat_arm_up.value, 0.f, 1.5f));
@@ -1954,7 +2006,7 @@ struct TorsoCaps
         glm::vec3 vf, vr, vu;
         hands::angleVectors(aim, vf, vr, vu);
         // (From its rest shoulder, as the free hand's own need is measured: flatsight's armShare.)
-        const glm::vec3 otherRoot = shoulder(s, 1 - h);
+        const glm::vec3 otherRoot = roots[1 - h];
         const float keep = span * za::clamp(vr_flat_keep_grip.value, 0.3f, 1.5f);
         // Across the view first, as far as keeps the most of the way back along it (the gun out at its side by the crouch, say)...
         glm::vec3 to = p + axes(aim) * spot - otherRoot;
@@ -2236,18 +2288,36 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
+    // Leaning: the hands are posed as he stands upright (`upright`: the head back where the lean took it from, the body
+    // unleant) and turned with the upper body (leanRig).
+    const LeanRig rig = leanRig(s, aim.y);
+    hands::State unleant;
+    if(rig.on)
+    {
+        unleant = s;
+        unleant.head -= rig.shift;
+        unleant.headHeight -= rig.shift.z / units::metresToUnits();
+        unleant.lean = glm::vec3{0.f};
+        unleant.leanHold = 0.f;
+    }
+    const hands::State& upright = rig.on ? unleant : s;
+
     // The arms' joints as the body stands this frame: the chest's share and the crouch in them, the stance's turn just made.
     const bool onBody = bodyPose();
     fs.shouldersKnown = onBody;
+    glm::vec3 roots[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // upright
     if(onBody)
     {
-        avatar::restShoulders(s, fs.shoulders);
+        avatar::restShoulders(upright, roots);
         // (Lying down, the body hangs vr_flat_prone_neck_drop lower than the view, its shoulders with it: the poses are
         // made off where they were, up by as much, so the gun stays where the eye's poses put it, clear of the floor; the
         // drawn arms reach up to it from the lower shoulders.)
         const float lift = proneNeckDrop() * proneShare();
-        fs.shoulders[0].z += lift;
-        fs.shoulders[1].z += lift;
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            roots[h].z += lift;
+            fs.shoulders[h] = rig(roots[h]);
+        }
     }
 
     // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
@@ -2319,14 +2389,19 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                                                     : viewFwd * za::clamp(vr_flat_gun_view_fwd.value, -poseTweakMax, poseTweakMax) +
                                                           viewRight * za::clamp(vr_flat_gun_view_right.value, -poseTweakMax, poseTweakMax) +
                                                           viewUp * za::clamp(vr_flat_gun_view_up.value, -poseTweakMax, poseTweakMax);
-            // (The nudge and the gun's own view offsets carry the hand after the body's limits: the stock's is measured with them.)
-            s.pos[h] = handOnBody(s, h, aim, fs.local[h], eye, nudge + gunView) + nudge + gunView + fwd * swing.x + right * swing.y + up * swing.z;
+            // (The nudge and the gun's own view offsets carry the hand after the body's limits: the stock's is measured with them.
+            // Leaning, posed upright and turned with the body; a punch's or a shove's swing after it, on the crosshair's point.)
+            s.pos[h] = rig(handOnBody(upright, roots, h, aim, fs.local[h], eye - rig.shift, nudge + gunView) + nudge + gunView) +
+                       fwd * swing.x + right * swing.y + up * swing.z;
         }
         else
         {
-            s.pos[h] = shoulder(s, h) + nudge + fwd * off.x + right * off.y + up * off.z;
+            const glm::vec3 still = off - swing;
+            s.pos[h] = rig(shoulder(upright, h) + nudge + fwd * still.x + right * still.y + up * still.z) + fwd * swing.x + right * swing.y +
+                       up * swing.z;
         }
-        s.rot[h] = aimRotAtCrosshair(aim, h);
+        // (Leaning, the hand's turn rolled vr_flat_lean_gun_roll of the view's lean roll: aimed again from where the turn took it.)
+        s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunLeanRoll()}, h);
         s.rot[h].z += vr_fakevr_handroll.value;
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
@@ -2510,7 +2585,9 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap) * looks, softCap(feel.lag.y * lagShown * lagAmount, lagCap) * looks};
 
-    const glm::mat3 poseAxes = axes(aim);
+    // (Leaning, the pose is already turned with the body and its guns rolled (poseHands' leanRig): the view's lean roll is the pose's
+    // own, not a turn of the drawn hands round the eye on top of it.)
+    const glm::mat3 poseAxes = axes(aim + glm::vec3{0.f, 0.f, onCam ? flatmove::leanRoll() : 0.f});
     const glm::mat3 drawnAxes = axes(camAngles + glm::vec3{lag.x, lag.y, 0.f});
     const glm::mat3 camAxes = axes(camAngles);
     const glm::mat3 turn = drawnAxes * glm::transpose(poseAxes);
@@ -2557,6 +2634,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     drawn += (view + forwardBob + camAxes * (sightHand + adsLocal) - drawn) * onSight;
 
     pos = drawn - s.pos[h];
+    feel.drawnAt[h] = drawn;
 
     // The hand's turn in the view's frame (the pose's: onto what the crosshair is on), eased as gunTurnEase says.
     const glm::quat gunTurn = glm::quat_cast(glm::transpose(poseAxes) * axes(s.rot[h]));
@@ -2612,6 +2690,16 @@ void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, g
 {
     org = viewIsHisOwn(s) ? s.head + camShiftWorld(aim) : s.head;
     dir = flatsight::rayDir(aim); // (forward, unless the ironsight's picture is moved on the screen, the crosshair with it)
+}
+
+glm::vec3 drawnHand(int h)
+{
+    return feel.drawnAt[h];
+}
+
+float gunLeanRoll()
+{
+    return active() ? flatmove::leanRoll() * za::clamp(vr_flat_lean_gun_roll.value, 0.f, 1.f) : 0.f;
 }
 
 glm::vec3 shoulderOf(const hands::State& s, int h)

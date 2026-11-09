@@ -12,6 +12,10 @@
 #          away from it, and facing a wall he stands against (either way), the eye goes all of vr_flat_lean_dist out.
 #          vr_flatleanmouse_test: leant (right and left, level and pitched) a pure up, down or across mouse move moves
 #          the middle of the screen along the rolled screen's axis; upright and with vr_flat_lean_mouse 0, Quake's own.
+#   pose   vr_flatleanpose_test in vrtesthall (a shotgun alone, two shotguns, two nail pistols, two grunt's guns): leant
+#          full left and right each gun's pose and drawn hand stay within 1 unit of the upright one moved rigidly with the
+#          eye (vr_flat_lean_arms, vr_flat_lean_arms_pivot), fire, the shot on the crosshair's point; leant into and away
+#          from a side wall 17 units off, no gun stopped that fires upright there.
 #   prone  vr_flatprone_test in vrtesthall, the shotgun: lying down a full lean moves the eye vr_flat_lean_prone_dist
 #          and rolls the view and the body vr_flat_lean_prone_angle; the crouch pressed lying down gets up into the
 #          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
@@ -60,6 +64,11 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Tim
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatprone.*FAIL"
 expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor"
+
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanpose: [0-9]+ passed" -Timeout 300 -Filter "^flatleanpose: (FAIL|[0-9]+ passed)" \
+    -Script "$H; vr_flatleanpose_test; wait30000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatleanpose.*FAIL"
+expect_verdict "$out" "flatleanpose" "lean pose: guns move rigidly with the eye and fire on the crosshair, alone and dual; none stopped at a wall"
 
 for where in "vrtesthall|" "vrslopes|setpos 208 24 80 0 90 0"; do
     out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatpronedual: [0-9]+ passed" -Timeout 300 -Filter "^flatpronedual" \

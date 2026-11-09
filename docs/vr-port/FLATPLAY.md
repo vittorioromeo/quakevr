@@ -265,13 +265,24 @@ little down (4.6 at the defaults), the view rolls `vr_flat_lean_angle` (15) degr
 body's lean toward it (`hands::State::lean`: the trunk tilts from the hips as a headset player's does), and the drawn
 view by the same (`VR_FlatViewLean`, `Quake/view.c`): the hands, the crosshair's ray, the ironsight and the wall's
 tilt (`vr_flatsight.cpp`) all stand on that head, so the gun leans out with the eye and a wall's tilt is measured
-from the leant pose (shooting round a corner the unleant gun would be raised at). The roll is the drawn view's, which
-the drawn hands keep (flatplay's drawnOffset), so the weapon rolls with the camera and the ironsight's sights stay
-on the crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched). Three lines sideways from
+from the leant pose (shooting round a corner the unleant gun would be raised at). The arms and the guns lean as one
+rigid body with the eye (`flatplay::poseHands`' `leanRig`; his words 2026-11-09): posed as he stands upright, then moved
+by the rigid move that takes the upright eye to the leant one, turned about the level forward by the upper body's tilt
+-- at `vr_flat_lean_arms_pivot` 0 (default) the view's own roll, so the guns keep their place on the screen while the
+room tilts; a pivot that many units under the eye instead turns them by the eye's sideways move's angle there (30, the
+eye's own swing: 32 degrees, the guns 17 degrees round on the screen) -- `vr_flat_lean_arms` (1) of it (0: carried with
+the eye, unturned). Each gun then aims again from where its hand is (the crosshair's point) and rolls
+`vr_flat_lean_gun_roll` (1) of the view's roll, so it tilts with the screen and the ironsight's sights stay on the
+crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched); the drawn hands add no roll of their
+own (drawnOffset). `vr_flatleanpose_test` checks it (below). Three lines sideways from
 the eye, under it and from where the weapon is ahead stop the lean `vr_flat_lean_margin` (6) short of a wall: the eye
 never goes in, at once, and comes back out at the lean's speed. Only the way the lean goes is measured, so leaning away
 from a wall or along it goes all the way; the weapon's line starts only as far ahead as is open (facing a wall he
-stood against it started inside it and the lean got nothing: the view rolled, the eye stayed). Standing, crouched and
+stood against it started inside it and the lean got nothing: the view rolled, the eye stayed). `vr_flatleanpose_test
+[main:off ...]` (`flatslide_test.sh`, vrtesthall; default a shotgun alone, two shotguns, two nail pistols, two grunt's
+guns): upright, full left and full right, each gun's pose and drawn hand within 1 unit of the upright one moved
+rigidly as above, firing, its shot within 0.05 degrees of the crosshair's point; then 17 units off the nearer side wall,
+leant into it and away, no gun stopped that fires upright there. Standing, crouched and
 lying down; lying down it is smaller, `vr_flat_lean_prone_dist` (3) and `vr_flat_lean_prone_angle` (8 degrees, by
 how far down he is), and the lying trunk rolls in place with the view (`flatmove::proneLeanRoll`, applied by
 `bodyLeanRollTurn` in `vr_avatar_pitch.cpp`, after the lying pose's own turn). Not sliding, swimming or dead (it
@@ -734,6 +745,24 @@ into fists). One eases into the other as the other hand takes or drops a weapon;
 up out of the pose over `vr_flat_empty_take_time` (0.1 s; 0 at once, as before). A punch (`V`) or a shove starts from the
 pose: the hand leaves the rest for it and comes back after. Debug > Reports: Flatscreen Fly Camera: Look at Me
 (`vr_flat_flycam_place`) puts the fly camera in front of you to look at the pose.
+
+## The speed FOV
+
+`vr_flat_speed_fov 1` (Locomotion > Desktop Screen Play; `vr_flatspeedfov.cpp`): faster than a run along the floor the
+view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (320, the run), rises on a smoothstep to
+`vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400: a slide's start, the run plus its boost) and stays
+there above it; `vr_flat_slide_fov_bonus` (0) adds to it while sliding. It eases towards the speed's value with time
+constant `vr_flat_speed_fov_ease` (0.15 s) widening and `vr_flat_speed_fov_ease_out` (0.6 s) narrowing, so landing,
+stopping or hitting a wall never pops it. The speed is the client's (`cl.velocity`), so a slide and a bunny hop chain
+both get it, hosting or joined.
+
+It multiplies the field of view after the ironsight's narrowing (`flatsight::fov`, `VR_FlatAdsFov`): the ironsight wins,
+the widening scaled by one minus its travel (none while sighted). The visor crosshair projects with the frame's own
+view-projection and `vr_flat_model_fov` scales against `r_refdef.basefov`, so both follow it; the look's speed does not
+(`in_sdl.c IN_FovScale` reads `VR_FlatLookFov`, the field of view without the widening: a degree of mouse stays a degree
+of turn). In a headset nothing changes. `vr_flat_speed_fov_status` prints the speed and the multiplier;
+`vr_flat_speed_fov_test` (Debug > Tests; `Misc/quakevr/flatspeedfov_test.sh`) measures walk, run, slide and a bunny hop
+chain.
 
 ## The model FOV
 

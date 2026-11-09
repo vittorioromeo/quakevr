@@ -341,6 +341,14 @@ void fill(float x, float y, float w, float h, const glm::vec3& rgb);
 void pic(float x, float y, const char* wadName, float scale = 1.f); // a gfx.wad picture
 void text(float x, float y, float size, const char* text);  // the console font
 void picture(const Picture& picture, float x, float y, float w, float h); // whole, stretched over the rectangle
+
+// A dry run's signature (a canvas drawn again only when what it would draw changed: the flat-screen visor's panels):
+// between beginSignature and endSignature the calls above draw nothing and fold what they would draw (and `sign`'s
+// bytes: a caller's own drawing, such as Draw_SubPic's) into a hash.
+void beginSignature();
+[[nodiscard]] unsigned long long endSignature();
+[[nodiscard]] bool signing();
+void sign(const void* bytes, size_t size);
 } // namespace draw2D
 
 // The engine's 2D pass (menus, console, HUD) redirected into `canvas`, cleared to transparent
