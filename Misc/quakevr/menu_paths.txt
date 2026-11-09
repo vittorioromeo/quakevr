@@ -1349,6 +1349,17 @@ vr_flat_visor_opacity|1|Locomotion|Visor Panel Backing|Advanced VR Options > Mov
 vr_flat_visor_crt|1|Locomotion|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor CRT Look
 vr_flat_visor_sway|1|Locomotion|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor Sway
 vr_flat_visor_warp|1|Locomotion|Visor Lens|Advanced VR Options > Movement > Locomotion > Visor Lens
+vr_flat_visor_zoom|1|Locomotion|Visor Zoom|Advanced VR Options > Movement > Locomotion > Visor Zoom
+vr_flat_visor_depth|1|Locomotion|Visor Depth|Advanced VR Options > Movement > Locomotion > Visor Depth
+vr_flat_visor_bevel|1|Locomotion|Visor Bevel|Advanced VR Options > Movement > Locomotion > Visor Bevel
+vr_flat_visor_sheen|1|Locomotion|Visor Sheen|Advanced VR Options > Movement > Locomotion > Visor Sheen
+vr_flat_visor_glow_outer|1|Locomotion|Visor Outer Glow|Advanced VR Options > Movement > Locomotion > Visor Outer Glow
+vr_flat_visor_glow_inner|1|Locomotion|Visor Inner Glow|Advanced VR Options > Movement > Locomotion > Visor Inner Glow
+vr_flat_visor_glow_width|1|Locomotion|Visor Glow Width|Advanced VR Options > Movement > Locomotion > Visor Glow Width
+vr_flat_visor_edge|1|Locomotion|Visor Edge Thickness|Advanced VR Options > Movement > Locomotion > Visor Edge Thickness
+vr_flat_visor_scanlines|1|Locomotion|Visor Scanlines|Advanced VR Options > Movement > Locomotion > Visor Scanlines
+vr_flat_visor_scanline_speed|1|Locomotion|Visor Scanline Speed|Advanced VR Options > Movement > Locomotion > Visor Scanline Speed
+vr_flat_visor_ss|1|Locomotion|Visor Supersampling|Advanced VR Options > Movement > Locomotion > Visor Supersampling
 vr_flat_visor_frame|1|Locomotion|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor Glass
 vr_flat_visor_damage|1|Locomotion|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor Hit Glitch
 vr_flat_visor_fog|1|Locomotion|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor Fog Under Water

@@ -6419,3 +6419,44 @@ then "rendering them as rectangles and then applying a curvature/distortion effe
   test skips those records and prints their count; what the ray starts in is not identified.
 
 Runs: flatpose 21 passed, 0 failed, three times in a row.
+
+## Flat-screen visor HUD, third pass: depth, glows, lens both ways, antialiasing (branch `agent/visor3`, 2026-11-09)
+
+His notes: negative warp; a zoom of the whole visor about the middle; "the panels look a bit too flat"; outer and inner
+glow; edge thickness; subtle moving scanlines; "the visor needs antialiasing, the lines are very jagged".
+
+- **The layer:** the panels are now drawn premultiplied into an offscreen layer at `vr_flat_visor_ss` (2) times the
+  view's pixels (at most 8192 across), brought down onto the view by a small pass of its own (the mean of each pixel's
+  ss x ss texels: a box filter), which also lays the scanlines over the panels alone. Shade::Screen's inkAlpha output is
+  premultiplied now (the visor is its only user). The frame lines and glows are bands along the outline with feathered
+  edges (a pixel of falloff each side), so they are smooth at ss 1 too; the faces' fan edges lie under the line's core.
+  The glass's rim and fog are drawn straight onto the view as before. Window-only program: allowlisted
+  (canonical_allowlist.txt, gl-program-no-twin).
+- **Lens both ways (`vr_flat_visor_warp` -0.2 .. 0.2, 0.08):** q = p (1 + k (|p|^2 - 1)) can't be inverted past
+  r* = sqrt((1 - k) / (-3 k)) for k < 0; at k >= -0.2, r* is past the screen's corners, so on screen it is exact
+  (bisection), and off it a straight continuation keeps off-screen points off. Negative bends the panels out toward the
+  corners (pincushion), positive in (barrel). (-0.3 would fold the corners: the range stops at -0.2.)
+- **Zoom (`vr_flat_visor_zoom` 0.85 .. 1.2, 1):** the layer scaled about the view's middle before the lens. A barrel lens
+  pairs with a little over 1, a pincushion one with a little under (at -0.15 about 0.85 to keep the corners' numbers on
+  screen). Past about 1.08 the small side mounts slide off the edges (their inner side passes the edge): the range stops
+  at 1.2. The mounts' 30%-of-the-view overhang covers zoom 0.85 with a barrel of 0.2.
+- **The 3D look (each its own knob, 0 the second pass's flat look):** `vr_flat_visor_depth` 1: a back plate behind each
+  face, 3 px (at 1080p) towards the view's middle (a deeper thing seen from the eye) and lagging the sway (0.65 of it),
+  darker with a dim line; the contents lag 0.12 of the sway behind the glass. `vr_flat_visor_bevel` 1: the frame lit from
+  above (brighter where its outward side faces up, darker facing down) and a thin pale highlight just inside it.
+  `vr_flat_visor_sheen` 1: the face brightening towards its top and a soft diagonal glint across the contents. The CRT
+  treatment on the contents is the gadget's (vr_flat_visor_crt). Not taken: bloom on the panels (the visor is drawn after
+  the flat look, which would also grade and vignette them).
+- **Glows, edge, scanlines:** `vr_flat_visor_glow_outer` 0.35 and `_inner` 0.25 (added, in the frame's colour, red with
+  the low-health pulse), `_glow_width` 8 px at 1080p; `vr_flat_visor_edge` 2 px at 1080p (scaled with the screen; the
+  first passes drew max(1.5, 0.8 virtual px)); `vr_flat_visor_scanlines` 0.12 (dark lines every 3 px at 1080p drifting
+  at `vr_flat_visor_scanline_speed` 6 px/s, and a faint band rolling down every 8 s), over the panels' pixels only.
+- **flathit 10/1 on next since the visor:** its punch check measures the picture's sideways shift from column sums over
+  the screen's top half, which the visor's still panels and side mounts held back (-1 px for -9.2). The game is right
+  (the visor is drawn over the view, the punch moves the view); `flathit_test.sh` now runs with `vr_flat_visor 0`: 11/0.
+- **Tests:** visor_test 18/0 (adds the lens at -0.15 zoomed 0.92 and at 0.15 zoomed 1.05: every mount still meets the
+  edges; the contact points a quarter of the mount's span from the corner, was half); flathud 11/0; flathit 11/0;
+  vr_pp_test 1: 62/0 flat, 63/0 VR; checklist_tests_check 91/0. Proof: `scratch/visor3/` (aa_edges_before_after: the
+  second pass, now, now at ss 1, 3x; depth_flat_vs_default: every new knob at 0 over the defaults; warp_m015_0_p015;
+  glow_edge_scanlines: glows 1 / 0.8 with edge 4, scanlines 0.5, the defaults; 16x9_all_variants; 16x9_e1m1_dark;
+  before_16x9_second_pass).
