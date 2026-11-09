@@ -5434,3 +5434,42 @@ this file once; the duplicate was "Release pass for 1.1", in twice: the second c
   moment (something switches when the crouch ratio reaches 1, or the server's crouch box drops a level then).
   flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
 - Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.
+
+## The shotgun's ammo screen housing (agent/housing_shot, 2026-11-09)
+
+His mockup (round one's `mock_shot.png`): the screen set in a bevelled bezel with four corner bolts on the receiver's end
+face. Panel (today's next / this branch / the mockup, 4K flat, the fly camera at about the mockup's angle):
+`scratch/housing_shot/panel_shot.png` in the embed5 worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_shot.py` (Blender, headless) builds it on `v_shot.blend` and exports:
+  a rounded bezel round the opening (its flat front, a 45-degree bevel, walls back into the gun), the opening one grid
+  step deep with a dark back behind the glass, four domed bolt heads beside it (the end face is a trapezoid: the top
+  pair further out). 149 vertices, 240 triangles (the gun 1928 -> 2168). The opening's size and corner come from the
+  "shot" entry of `vr_screenstyle.cpp` (`opening` 11 x 8.5 font px, `radius` 3), so the glass and the bezel are one
+  shape. Textured from the gun's own skin: the bezel's profile across the shaded metal tube strip (as if the tube were
+  bent round the opening: dark at the foot, lit along the lip, dark inside), the bolts dark with a lit head.
+- **The grid:** v_shot's X is 0.22 model units a step, so depths are whole steps: the bezel's front 2 steps in front of
+  the end face's bottom edge (1 at its top: the face leans 5.9 degrees), the opening 1 step deep, the bolt heads 1 step.
+  The bezel is upright (not leaning with the face) so every front vertex is on one step.
+- **The box:** at the recoil's peak (frame shot3) the receiver's top back corner is on the model box's low X; the bezel's
+  front would be past it by up to 0.18. Rather than growing the box (every vertex of the gun re-gridded), the script
+  holds those 15 places on the box's edge in that frame (a frame edited on its own; the export keeps it). New vertices
+  can't be edited per frame until the file has them (the export carries a new vertex with its nearest old one and
+  ignores its own frames), so a new housing is built a step back, exported, moved into place and exported again; the
+  .blend is saved as the export left it.
+- **The glass:** upright (`wpntxt_pitch` 2: measured, pitch p tilts the glass 17.6 - (p + 15.6) degrees from upright),
+  `wpntxt_scale` 0.35 (his own value, now the default: a font pixel 0.07102 model units), its centre 1.066 -0.03 2.48
+  halfway down the opening, through the table's offset (-0.0185, -0.0505, -0.1004 world units right/up/out), so
+  configs that hold `vr_wofs_wpntxt_x/y/z_02` still land. Table: box 0 (the bezel frames it), radius 3.
+  `vr_debug_screen_where`: centre 1.0656 -0.0282 2.4799, up 0 0 1.
+- **His config:** the kit's copy holds `vr_wofs_wpntxt_pitch_02 "-15.6"` (the glass 17.6 degrees off upright: it would
+  stick out of the bezel at the top and sink at the bottom). Reset it to 2 (or delete the line); scale 0.35 already
+  matches.
+- **Checks:** the anchors unchanged (wpntxt_av still on triangle 68, 0.0000 off), the sight line unchanged (its 0.131
+  warning is the pristine .blend's own: exporting it untouched gives the same), holes as before (2 see-through, 8 wide
+  cracks; 5 new open loops are the bezel's back and the bolts' bases, inside the gun). The script regenerates the shipped
+  files byte for byte. vr_ammocolor_test 25 passed; flatreload 26 passed.
+- **VR mock:** with the mock hand at the eye's height the main hand's thumb covers the lower half of the end face (the
+  grip pose, not the housing); the glass shows above it in the bezel. Holding a weapon frame (`vr_debug_weapon_frame`)
+  changed nothing visible in either mode, so the frames were checked in the export instead (the housing rides the end
+  face's vertices in every frame).

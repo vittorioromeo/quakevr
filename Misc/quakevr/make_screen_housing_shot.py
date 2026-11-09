@@ -27,8 +27,10 @@
 # bezel's front 2 steps in front of the end face's bottom edge (1 at its top: the face leans back 5.9 degrees), the
 # opening's back 1 step in, the bolts' heads 1 step proud of their bases. The glass is upright (weapons.txt pitch)
 # halfway down the opening (the table's offset), a little bigger than the walls there so no gap shows.
-# Texture: the bezel on the gun's own blue-grey steel (the skin's plate at 52..78 x 54..70), the opening's walls
-# and back on the dark lower edge of the cylinder strip (row 70), the bolts darker (that strip's dark rows).
+# Texture, all from the gun's own skin: the bezel's profile mapped across the shaded metal tube strip (x 104..146, rows
+# 54..70) and its length along it, as if the tube were bent round the opening (darker at the bevel's foot, lit at the
+# lip, dark down the opening's walls and on its back); the walls into the gun on the blue-grey steel plate (52..78 x
+# 54..70); the bolts on the tube's dark rows at their base, lit on the head.
 
 import math
 import os
