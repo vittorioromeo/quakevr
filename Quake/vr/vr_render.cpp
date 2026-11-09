@@ -791,6 +791,28 @@ void skinMasksValidate()
 
 void gloveLayersUpdate(const entity_t* const* own, int count); // (below)
 
+// A skin mask's texture (kind 1 a hand's, 2 the body's), found by name or read from its file; null if it has none.
+[[nodiscard]] gltexture_t* skinMaskTexture(int kind, int skin)
+{
+    char path[MAX_QPATH];
+    q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
+    gltexture_t* texture = TexMgr_FindTexture(nullptr, path);
+    if(!texture)
+    {
+        const int mark = Hunk_LowMark();
+        int width, height;
+        enum srcformat format;
+        byte* pixels = Image_LoadImage(path, &width, &height, &format);
+        if(pixels)
+        {
+            texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
+                TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA); // (A: the skin's shading, the gloves')
+        }
+        Hunk_FreeToLowMark(mark);
+    }
+    return texture;
+}
+
 } // namespace
 
 // The masks are loaded before any alias batches hold pointers into the movable model cache. Drawing only
@@ -817,23 +839,7 @@ void VR_PrecacheSkinMasks()
         {
             continue;
         }
-        char path[MAX_QPATH];
-        q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
-        gltexture_t* texture = TexMgr_FindTexture(nullptr, path);
-        if(!texture)
-        {
-            const int mark = Hunk_LowMark();
-            int width, height;
-            enum srcformat format;
-            byte* pixels = Image_LoadImage(path, &width, &height, &format);
-            if(pixels)
-            {
-                texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
-                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA); // (A: the skin's shading, the gloves')
-            }
-            Hunk_FreeToLowMark(mark);
-        }
-        skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, texture};
+        skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, skinMaskTexture(kind, skin)};
     }
     gloveLayersUpdate(own, 3);
 }
@@ -1035,6 +1041,25 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
 }
 
 } // namespace
+
+// The prewarm's step (VR_NewMap, in the load): no view entity is set up yet, so the textures the first frame's
+// VR_PrecacheSkinMasks finds by name are made now: the jointed hands' mask and glove layers (paint, relief, nails) and
+// the body's mask, skin 0 (whole hands, no armour: a map's start), after the glove layers' reload for the new map (their
+// files read again). They were the first frame's `view skin masks` (17-75 ms), every map for the glove layers.
+void VR_PrewarmSkinMasks()
+{
+    gloveLayersUpdate(nullptr, 0); // (the new map's reload: their old textures freed)
+    (void)skinMaskTexture(1, 0);
+    (void)skinMaskTexture(2, 0);
+    if(gloveTexture(0, "glove")) // (as gloveLayersUpdate looks them up)
+    {
+        (void)gloveTexture(0, "glove_height");
+    }
+    if(vr_nails.value > 0.f)
+    {
+        (void)gloveTexture(0, "nails");
+    }
+}
 
 void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[3])
 {

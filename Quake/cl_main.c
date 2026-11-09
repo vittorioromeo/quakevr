@@ -272,6 +272,7 @@ void CL_SignonReply (void)
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, "begin");
 		Cache_Report ();		// print remaining memory
+		VR_SignonPrewarm ();	// QVR: the first frame's first-use work, still behind the loading screen
 		break;
 
 	case 4:
