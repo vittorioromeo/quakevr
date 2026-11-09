@@ -312,6 +312,7 @@ struct MenuReadouts
 {
     za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
     za::String modeHelp;               // itemHelp: a row for the other mode (rowMode)
+    za::String aimSensHelp;            // aimSensHelp: the ironsight's look speed now
     za::String checklistUndoHelp;      // checklistUndoHelp
     za::String checklistItemHelp;      // checklistHelp
     za::String checklistSectionHelp;   // checklistSectionHelp
@@ -331,7 +332,7 @@ struct MenuReadouts
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
-        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, modeHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, modeHelp, aimSensHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
             weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistSection, checklistUndoHelp, checklistItemHelp, checklistSectionHelp, stamina, renderScaleHelp, buildVersion);
     }
 };

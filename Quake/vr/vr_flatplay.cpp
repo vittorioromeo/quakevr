@@ -43,6 +43,7 @@
 #include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flataimsens.hpp"
 #include "vr_flatspeedfov.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -1718,6 +1719,7 @@ void init()
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
+    flataimsens::init(); // vr_flat_aim_sens_test, _status (vr_flataimsens.cpp)
     flatleanpose::init(); // vr_flatleanpose_test (vr_flatleanpose.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
@@ -1733,6 +1735,7 @@ void frame()
     const bool frozen = on && flycam::on();
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flickTestFrame();   // vr_flat_flick_test's next flick, when one runs: likewise
+    flataimsens::frame(); // vr_flat_aim_sens_test's next step, when one runs
     if(!frozen)
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off

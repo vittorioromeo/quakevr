@@ -72,11 +72,28 @@
     return text.cStr();
 }
 
+// Aim Sensitivity's and Aim Sensitivity Match's help: their own, then what the two make of the look sighted at this fov
+// (vr_flataimsens.cpp; the travel all done).
+[[nodiscard]] const char* aimSensHelp(const char* own)
+{
+    za::String& text = readouts.aimSensHelp;
+    char line[160];
+    q_snprintf(line, sizeof(line), " Now: sighted, %.2fx of hipfire's speed at fov %.0f (the field of view %.0f there).",
+        flataimsens::sightedScale(scr_fov.value), scr_fov.value, flatsight::adsFovAt(scr_fov.value));
+    text = own ? own : "";
+    text += line;
+    return text.cStr();
+}
+
 // A row's help as drawn under the list: its own (or its function's), a server rule's note, an extendable slider's
 // hint (null: none).
 const char* itemHelp(const Item& item)
 {
     const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
+    if(item.cvar == &vr_flat_aim_sens || item.cvar == &vr_flat_aim_sens_match)
+    {
+        help = aimSensHelp(help);
+    }
     if(otherModeItem(item))
     {
         // The other mode's setting (rowMode): why it is dimmed, first.

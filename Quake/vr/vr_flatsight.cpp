@@ -2189,6 +2189,16 @@ float fov(float basefov)
     return flatplay::active() ? flatspeedfov::widen(sighted, adsShare()) : sighted;
 }
 
+float adsFovAt(float base)
+{
+    return za::min(base, adsFovFor(base));
+}
+
+float hipFov()
+{
+    return st.baseFov;
+}
+
 void statusLine()
 {
     Con_Printf("  ironsight: %s (vr_flat_aim, or the right mouse button with one weapon held, vr_flat_aim_mode %g; vr_flat_aim_fov %g off the field of view, "
