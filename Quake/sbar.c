@@ -1752,6 +1752,18 @@ void Sbar_Draw (void)
 	if (cl.intermission)
 		return; //johnfitz -- never draw sbar during intermission
 
+	if (VR_VisorOn ()) // QVR: flatscreen play's visor is the HUD (vr/vr_visor.cpp); the scores still on TAB and at death
+	{
+		if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+		{
+			GL_SetCanvas (CANVAS_SBAR);
+			Sbar_DrawPicAlpha (0, 0, sb_scorebar, scr_sbaralpha.value);
+			Sbar_DrawScoreboard ();
+			sb_updates = 0;
+		}
+		return;
+	}
+
 	if (sb_updates >= vid.numpages && !gl_clear.value && scr_sbaralpha.value >= 1 //johnfitz -- gl_clear, scr_sbaralpha
         && vid_gamma.value == 1)                         //ericw -- must draw sbar every frame if doing glsl gamma
 		return;

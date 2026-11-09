@@ -1,0 +1,8 @@
+# flat_visor_hit: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen visor HUD: hits glitch the panels, low health pulses the health panel red (vr_flat_visor_damage, vr_flat_visor_low_health).
+title Flat-screen visor HUD: hits and low health, two grunts shooting at you
+hint Play with -flatscreenmode. Let the grunts shoot you: each hit glitches the panels for a moment, more for a bigger hit, the numbers readable again at once. At 25 health and under the health panel pulses red, faster and stronger under 13. Kill them before you die; if you die the panels fade out and power on again at the respawn.
+map vrtesthall
+health 40
+give "Shotgun" main
+spawn "Grunt" 300 40
+spawn "Grunt" 300 -40

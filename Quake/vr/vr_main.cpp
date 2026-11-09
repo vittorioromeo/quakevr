@@ -134,6 +134,7 @@
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatlook.hpp"
+#include "vr_visor.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flycam.hpp"
 #include "vr_ragtool.hpp"
@@ -2311,6 +2312,7 @@ extern "C" void VR_Init()
     lighting::init();
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
+    visor::init();    // vr_flat_visor_report, vr_flat_visor_fx (vr_visor.cpp)
     stereosingle::init(); // vr_stereo_single_info
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
