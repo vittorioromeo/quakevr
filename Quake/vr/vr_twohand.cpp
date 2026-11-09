@@ -1158,7 +1158,13 @@ bool aiming()
         const FreeGrip& g = freeGrips[h];
         return g.on && g.counts && g.t >= 0.5f;
     };
-    return aimTransition[HAND_OFF] >= 0.5f || aimTransition[HAND_MAIN] >= 0.5f || freeAims(HAND_OFF) || freeAims(HAND_MAIN);
+    // (Flatscreen: the free hand's punch lets go of the grip at once for the game, while its drawn hand eases off it. The
+    // easing kept the two-handed bit on into the punch's throw, and QC took the punching hand for the one steadying the
+    // gun (VR_Melee_Thing: no striking thing): the fist never landed, 2026-11-09.)
+    const auto hotspotAims = [](int holding) {
+        return aimTransition[holding] >= 0.5f && !flatplay::punching(holding == HAND_MAIN ? HAND_OFF : HAND_MAIN);
+    };
+    return hotspotAims(HAND_OFF) || hotspotAims(HAND_MAIN) || freeAims(HAND_OFF) || freeAims(HAND_MAIN);
 }
 
 float transition(int hand)
