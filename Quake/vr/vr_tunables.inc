@@ -2168,6 +2168,16 @@ QVR_TUNABLE(vr_drips_sound_gap, "0.2") // real seconds at least between two wate
 QVR_TUNABLE(vr_drips_max, "8") // drops a frame at most from everything wet and wounded (round robin: many wet monsters share)
 QVR_TUNABLE(vr_drips_view, "0.4") // your own body, hands and weapons drip this share of the rate (none close under the eyes)
 QVR_TUNABLE(vr_drips_fling, "1") // a wet weapon or hand swung fast throws drops off: how many (0 none)
-QVR_TUNABLE(vr_drips_blood_rate, "1.2") // blood drops a second off a wounded living monster at its last breath (times the health it lost, vr_gore_wound_drips)
+QVR_TUNABLE(vr_drips_blood_rate, "3") // blood drops a second off a wounded living monster at its last breath (vr_gore_wound_drips; less the less hurt: vr_drips_blood_min)
+QVR_TUNABLE(vr_drips_blood_min, "0.3") // ... a barely wounded one drips this share of that rate (the rest grows with the health it lost); it never stops while wounded
+QVR_TUNABLE(vr_drips_blood_health, "1") // ... it drips while its health is under this share of its full health (1: any wound)
+QVR_TUNABLE(vr_drips_blood_size, "1.25") // ... its drops' size, times the gore's drip's
+QVR_TUNABLE(vr_drips_blood_ragdoll, "20") // ... seconds its corpse or ragdoll drips on after it dies (tapering; a hit on it starts again; 0 none)
 QVR_TUNABLE(vr_drips_blood_hit, "1") // ... a hit adds this many times its damage / 20 for a couple of seconds
+QVR_TUNABLE(vr_player_gore_stream_chance, "0.5") // your own gore (vr_player_gore_streams): the chance a shot, a nail or a blade on you opens a stream
+QVR_TUNABLE(vr_player_gore_stream_time, "0.6") // ... how long it pours, times an enemy's (vr_gore_streams_time)
+QVR_TUNABLE(vr_player_gore_stream_max, "3") // ... streams on you at once (the weakest makes way)
+QVR_TUNABLE(vr_player_gore_drip_rate, "0.6") // ... your wounds' drips (vr_player_gore_drips), times an enemy's rate (vr_drips_blood_rate; your arms' own drips too: vr_body_blood)
+QVR_TUNABLE(vr_player_gore_splash_amount, "1") // ... drops a hit splashes out of the wound, times 6 (vr_player_gore_splash)
+QVR_TUNABLE(vr_player_gore_eye_clear, "0.35") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them
 QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor

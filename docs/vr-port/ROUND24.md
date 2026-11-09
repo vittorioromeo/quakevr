@@ -5174,46 +5174,11 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
   missing; menu_paths.txt regenerated.
 - **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
-## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
 
-QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
-Nothing published, tagged, uploaded or pushed.
+## Wounded enemies drip all the while; player gore parity (branch `agent/gore1109`, 2026-11-09)
 
-- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
-  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
-  none of the stretched faces).
-- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
-  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
-  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
-  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
-  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
-  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
-  (warning; his call).
-- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
-  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
-- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
-  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
-  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
-  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
-  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
-  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
-  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
-    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
-    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
-    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
-  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
-    console name), so it found nothing: now retired, with the other two.
-  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
-    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
-- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
-  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
-  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
-  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
-- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
-  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
-- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
-  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
-- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
+His words: enemy blood drips don't seem to work (too rare, end too soon); wounded enemies should drip constantly as you
+do. And gore parity: your arms, hands and body bleed as the enemies do, tweakable and toggleable.
 
 ## Ammo screens as part of the gun (agent/ammoscreen, 2026-11-09; pilot: the shotgun)
 
@@ -5268,6 +5233,51 @@ modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
   50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
   vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
 - **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.
+- **Why the drips didn't show:** `drips::bleed` forgot a wounded monster for good the first frame it was missing from
+  the server's message (`msgtime != cl.mtime[0]`: out of sight a moment); the rate was `1.2 * share lost` drops a
+  second (a grunt at half health: 0.6/s of 0.5-0.75 unit drops); a shotgun blast's first pellet set the "health
+  before" from the health after the whole blast (4 damage counted of 24: the share lost looked small); a corpse
+  stopped at once. (A test aid's blow dealt from a client frame never reached the client: the server datagram is
+  cleared at the start of its frame. The new test hurts through QC's `vr_test_hurt`, in the server's frame.)
+- **Now (vr_drips.cpp):** `vr_drips_blood_rate 3` times (`vr_drips_blood_min 0.3` + the rest times the share lost),
+  never stopping while the health is under `vr_drips_blood_health 1` of full; out of sight it waits (10 s, then
+  forgotten); the first frame's hits all add to the health before; drops `vr_drips_blood_size 1.25` times; each wound's
+  drops bound to its model as drawn (`bloodstream::anchorPoint/anchorNow`: the nearest vertex of the animated model,
+  the armed humanoid's mesh or the ragdoll, bound again from its last place when the body is drawn another way); its
+  corpse drips on `vr_drips_blood_ragdoll 20` s, tapering (a hit on the corpse starts it again; gone when gibbed or
+  removed). Tunables page: Wounded Drips: Rate / Barely Hurt / Below Health / Size / Corpse Time.
+- **Test:** `vr_drips_bleed_test` (`-Script "vr_scenario waterdrips;vr_drips_bleed_test" -QuitOn "drips_bleed_test:
+  [0-9]+ passed"`): the grunt shot from 30 to 7: 17/13/12/13/13/12 drops in the six 5 s windows, still bleeding at
+  30 s; the unhurt one dripped nothing; killed: 7 drops from its corpse in 2 s, stopped after the test's 4 s corpse
+  time. 5 passed, 0 failed. `vr_drips_test` 11 passed (unchanged).
+- **Your own gore (vr_playergore.cpp, new):** the spot the wounds paint on you (vr_wounds.cpp's strike on your capsules,
+  `selfshot::build`: torso, legs, each forearm, each hand; your own shot's exact point), handed over once the event is
+  painted (`ownStruck`, not a re-opened wound's paint), bound to its capsule (`Spot`: along its axis, its offset
+  across in the axis' frame, level with the view's yaw) and carried with it:
+  - streams (`vr_player_gore_streams`): `bloodstream::startOwn`, the enemies' streams (ribbons, spurts, pools, sound)
+    located on the spot each frame, its way out turning with the view; a shot, nail or blade at
+    `vr_player_gore_stream_chance 0.5`, `vr_player_gore_stream_time 0.6` of an enemy's duration, `vr_player_gore_stream_max 3`;
+  - drips (`vr_player_gore_drips`): your last four wounds drip the gore's drops at `vr_drips_blood_rate *
+    vr_player_gore_drip_rate 0.6 * (min + rest * health lost)`; washed off when healed to 100 or dead (as the paint);
+  - splash (`vr_player_gore_splash`): 6 * `vr_player_gore_splash_amount 1` drops out of the wound at the hit.
+  - View clear: nothing pours, splashes or drips within `vr_player_gore_eye_clear 0.35` m in front of the eyes or from
+    over them within 0.6 m (a stream pauses there, what fell falls on). No head capsule: a head hit paints nothing, so
+    nothing bleeds there. All of it off with `vr_gore 0` (streams also with `vr_gore_streams 0`).
+  - Settings: `vr_player_gore 1` (master), `vr_player_gore_streams/_drips/_splash 1` (Gore page, "Your Own Gore
+    (Experimental)"; on by default: his change of plan). New cvars: no config migration needed (sparse configs take
+    new defaults; fullConfigChanges only covers settings a 217 config held). The painted wounds (`vr_wounds`) and your
+    arms' own drips (`vr_body_blood`) are as before.
+- **Test:** `vr_player_gore_test` (`-Script "map e1m1;vr_player_gore_test" -QuitOn "player_gore_test: [0-9]+ passed"`):
+  in the headset it runs `vr_selfshot_test 1` (stream chance 1): 8 wounds bound, 8 streams opened (3 pouring), 23
+  splash drops; then hurt to 40: drips; a splash at the eyes or over them makes nothing; `vr_player_gore 0` nothing.
+  6 passed, 0 failed. Under `-flatscreenmode` (no self-shots there) it makes a nail's wound on each capsule drawn: 7
+  bound, 7 streams, 39 splash drops, drips: 6 passed. (Flat: the forearms sit about 14 units under the eyes and 8 out,
+  inside the clearance: they don't pour; the hands do.) Debug: `vr_player_gore_info`.
+- **Scenario:** `playergore` (vrtesthall, a grunt that shoots you, shotgun and nailgun, your own gore on):
+  `SCNRUN|playergore|OK`.
+- **Not verified:** how the streams look on your arms in the headset (the screenshots were low-impact, tiny); the
+  spot's frame ignores a forearm's roll (a wound on the inside of the wrist stays on the inside as the view turns, not
+  as the arm rolls).
 ## Armour halves' geometry; elbow leather patches (branch `agent/geo1109`, 2026-11-09)
 
 His notes: "some broken off pieces have messy geometry (long and thin spiky parts, missing faces)"; "the leather patch of
@@ -5331,3 +5341,96 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
   pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
+
+## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
+
+His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and
+the "This hall selects HARD skill" trigger are start's), the super shotgun in hand. Scene `flat_look` (start 820 600 24
+96; `fov 95` as his) reproduces the view closely enough (his camera is a little further back-left); the hall's bridge is
+up or down depending on when the shot is taken, so the comparisons below take every variant in one run, one scene state.
+
+**What the existing settings did in flat (step 1).** Flat defaults vs every effect off-but-bloom/tonemap/grade
+(`vr_bloom 0; vr_tonemap 0; vr_grade 0`): mean difference 0.16/255, noise. Bloom, tone mapping, exposure and the
+colour grade run only for the eyes (`VR_PostProcessBloom`, `VR_PostProcessTone` return early for the window), so in
+flat they did nothing. Ultra preset + `vr_detail 1` + `vr_specular 0.5` vs defaults: 0.5/255: bump mapping, PBR,
+parallax and the AO are already on in the flat defaults (they are world/model shading, shared with the eyes). His own
+config (`gamma 0.95; contrast 1.2`, his relight values) is 7.7/255 off the defaults and slightly darker (luma 30.8 vs
+31.8); he had no effect off. The mockup's gap: brighter (luma 44 vs 32 at the spot), warmer highlights, glow round the
+torches and lava, darkened corners; its creases (pillar feet, under ledges) are not darker than ours, so no AO tuning
+and no screen-space AO. Its wet sheen on the floor and the sharper textures need assets: not attempted.
+
+**Added (step 2), `vr_flatlook.cpp`.** One pass after `R_WarpScaleView` in `R_RenderView` (so the HUD drawn after it is
+never graded), flatscreen play only (`flatplay::active()`, not an eye, not a teleporter's camera): the view's rectangle
+is blitted to an RGB10_A2 copy, the bloom chain runs on the copy (`bloom::applyFlat`, its own third chain, vr_bloom's
+threshold/size/weights), and a full-screen triangle writes it back with the glow added, graded and vignetted. The
+grade: exposure with the eyes' tone curve (`QvrTonemap`, knee 0.7) rolling off its top, shadows (black point raised =
+crushed, or lifted), an S curve about 0.45 with the ends kept, a split tone by luma (highlights amber, shadows blue),
+saturation. The window's post-process then dithers it into 8 bits as the eyes do (`vr_dither`). `GL_NeedsPostprocess`
+asks `VR_FlatLook()` so the window always has the composite target while it is on.
+
+Cvars (defaults = the proposed flat look): `vr_flat_bloom 0.1`, `vr_flat_grade 1`, `vr_flat_grade_exposure 1.25`,
+`vr_flat_grade_contrast 1.05`, `vr_flat_grade_shadows 0.1`, `vr_flat_grade_warmth 0.5`, `vr_flat_grade_saturation
+1.05`, `vr_flat_vignette 0.3`, `vr_flat_vignette_size 0.5`. Rows: VR Settings > Graphics, Post page, "Flat Screen"
+header. `vr_flatlook_info` prints the passes run. At the spot: luma 35.6 -> 42.8 (mockup 44.3), R/G/B 50/32/18 ->
+59/38/22 (mockup 64/38/24). Tuning notes: lifting the shadows a lot washes the hall out (luma sd stays high: the
+mockup is flatter overall); more saturation turns QRP's already orange hall red; bloom 0.2+ turns the torch into a
+white blob.
+
+**Cost (step 5)**, `vr_profile` GPU scopes, ThinLTO not rebuilt, low-impact runs while his game ran (the GPU shared:
+upper bounds): 1920x1080 0.21 ms a frame (bloom 0.11, copy + grade 0.10); 2560x1440 0.43 ms (bloom 0.25, copy +
+grade 0.18). Small, so the look is on by default in flat; take exclusive timings when his game is closed.
+
+**Tests.** `Misc/quakevr/flatlook_test.sh <agent>`: the mock headset, paused, eyeshots with the look's cvars off and
+at their extremes are the same (0 pixels off by more than 2) and no pass ran; in `-flatscreenmode` the pass runs and
+exposure 2 brightens the view (luma x1.8). `flatlook: 4 passed, 0 failed`. flatbt, flathud, hazepreset still pass.
+Scene `flat_look`: `SCNRUN|flat_look|OK`.
+
+Screenshots (worktree `scratch/`): `flatlook_step1.png` (defaults, defaults without bloom/tonemap/grade, his config,
+everything at best, the mockup, his original), `flatlook_compare.png` (the spot off/on, his config, the mockup; two E1M1
+spots off/on).
+## Flat fixes, round 2 (branch `agent/flatfix1109b`, worktree blendmodels, 2026-11-09)
+
+Brief `qvr-kit/scratch/brief_flatfix2.md`: the five items left over from `agent/flatfix1109`. (Its section was in
+this file once; the duplicate was "Release pass for 1.1", in twice: the second copy removed.)
+
+- **Prone in the 20-unit vent:** the server already kept the lying box where the lowest crouched box (36) does not fit,
+  but the client let go of lying down at once. The crouch pressed while lying lifted his eyes 28 over his feet (the
+  view's cap, `hull::localEyeCap`, says nothing while the crouch key holds him down): through the vent's 20-high top
+  to the teleporter in the wall over it. Now every way out of lying down in flat play (the prone key, `vr_prone_toggle`,
+  the crouch pressed) asks `hull::localRiseFits()` (the server's own rise test) first: no room, he stays lying (view,
+  body, box) and the get-up waits, done by itself once he has crawled out to where it fits; the prone key pressed again
+  while it waits takes the wish back (vr_flatplay.cpp `getUp`, `toggleProne`). Death and map changes still clear it.
+  Test `Misc/quakevr/prone_vent_test.sh` (new): **9 passed** (crouch and key in the vent: lying, x 624, eye 12; out:
+  up by itself; the wish taken back: still lying; the key in the open: up). Before the fix the crouch case read eye 28.
+  flatslide (incl. flatprone) 17/17.
+  (Follow-up: `setpos` turns noclip on, so the test now turns it off after each one: with it on the teleporter was
+  never touched. 9 passed again.)
+- **`vr_flat_autoreload` default 0** (his call): only R reloads. No migration row: the setting came after the sparse
+  configs (218), so a config holds it only if he set it; his own config untouched. Menu help and FLATPLAY.md say "off
+  by default"; flatreload's cases set it explicitly: **26 passed**.
+- **The nail pistol's empty reload assert:** not the nail pistol. R with nothing to reload printed both hands'
+  storage (a dprint, its arguments evaluated at any developer level), and the empty off hand's ammo id is AID_NONE,
+  which `VR_AmmoUtil_GetAmmoCountByAmmoId` asserts on (vr_ammoutil.qc:34). `VR_FlatReload_Storage` is 0 for a
+  weaponless hand or AID_NONE (vr_flatreload.qc). Test `Misc/quakevr/emptyreload_test.sh` (new): every weapon id
+  0..19 and 29..31 given, all ammo 0, fired 1.5 s, R twice, flat and VR mock: before 66 assertions (flat), now
+  **4 passed** (no assertion, all 23 weapons reached, both modes).
+- **ESC in the flat-screen menu:** `vr_menu_flat_esc_game` (1; Advanced VR Options > HUD and Menus > Menu, "Escape
+  Returns to the Game"): with VR off and a game running, Escape on any menu page is Back to game (closes it,
+  resumes, reopens on that page), in both the classic and the VR-style layout (vr_menuui.cpp `VR_MenuKey`). Not while
+  a drop-down is open or a slider or scrollbar is held (`menu::escapeLocal`), nor waiting for a key bind, nor without
+  a game (Quake's main menu then). 0: Escape goes back a page, as before. The headset is unchanged (its menu button
+  already was Back to game). Test `Misc/quakevr/flatmenu_esc_test.sh` (new): **9 passed** (main menu and Options
+  close in both layouts, togglemenu reopens Options, 0 goes back a page, the VR mock goes back a page).
+  menu_paths.txt regenerated (it also restores the autoreload row's second column: that is the menu detail level,
+  not the default; the autoreload commit had changed it by mistake).
+- **Ramp slide jitter (measured, NOT fixed):** `vr_flatslide_ramp_test [1]` (e1m1, the spiral room's 13-degree ramp,
+  x 896..1120 at y 2048) and `Misc/quakevr/flatramp_test.sh`: frame by frame down the ramp, the view's height, his
+  origin's and the drawn gun from the view (largest second difference, at most 0.5). His origin is smooth (on the
+  ground every frame, bend 0.001: no ground bounce in fast mode) and the view too (0.30, the drop easing in). The gun
+  is not: **it jumps 3.4 units forward from the view in one frame** at the slide's 16th frame, then eases back over
+  ten frames. It follows the crouch's ease: with `vr_flat_crouch_time 0.6` (default 0.25) it does not happen on the
+  ramp. The pose head equals the view (so it is the hand's offset), and neither `vr_flat_clear_stock 0` nor
+  `vr_flat_gun_collide 0` removes it. Next: print `targetOffset`'s terms and `handOnBody`'s limits per frame at that
+  moment (something switches when the crouch ratio reaches 1, or the server's crouch box drops a level then).
+  flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
+- Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.

@@ -4,6 +4,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatlook.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_files.hpp"
 #include "vr_input.hpp"
@@ -225,7 +226,8 @@ extern "C" void VR_PostProcessTone(void)
     if(!stereo::isRenderingEye())
     {
         GL_Uniform4fFunc(7, 0.f, 0.f, 0.f, 0.f);
-        GL_Uniform4fFunc(8, 0.f, 0.f, 0.f, 0.f);
+        // Flatscreen play's graded view (vr_flatlook.cpp) dithered into the 8-bit window as the eyes are (vr_dither; fixed)
+        GL_Uniform4fFunc(8, flatlook::active() && vr_dither.value > 0.f ? 1.f / 255.f : 0.f, 0.f, 0.f, 0.f);
         if(flatplay::active()) // flatscreen play: the window gets bullet time's look, the same tunables and easing as the eyes
         {
             const bullettime::Look slow = bullettime::look();

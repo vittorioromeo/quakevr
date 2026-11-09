@@ -1993,7 +1993,15 @@ QVR_TOGGLE(vr_wounds_burns, "Burns",
 QVR_TOGGLE(vr_drips, "Water Drips",
     "Water drips off what was in it once it is out: you, your hands and weapons, monsters, corpses, gibs and props. Many drops at first, fewer as it dries (Wet Duration); slime drips green.")
 QVR_TOGGLE(vr_gore_wound_drips, "Wounded Enemies Drip",
-    "Hurt monsters drip blood from where they were hit, more the more hurt they are and just after a hit.")
+    "Hurt monsters drip blood from where they were hit all the while they are hurt, more the more hurt they are and just after a hit; their corpses drip on a while.")
+QVR_TOGGLE(vr_player_gore, "Your Own Gore",
+    "Experimental: your body, arms and hands bleed as the enemies do, from where you are hit (the effects below). Nothing close to your eyes.")
+QVR_TOGGLE(vr_player_gore_streams, "Your Blood Streams",
+    "A shot, a nail or a blade that hits your body, arm or hand may open a blood stream pouring from the wound, as on an enemy.")
+QVR_TOGGLE(vr_player_gore_drips, "Your Wounds Drip",
+    "While you are hurt, your wounds drip blood from where you were hit, as a wounded enemy's do.")
+QVR_TOGGLE(vr_player_gore_splash, "Your Hit Splashes",
+    "A hit splashes drops of blood out of the wound on your body, arm or hand.")
 QVR_TOGGLE(vr_wounds_wet, "Wet from Liquids",
     "Monsters and you get wet up to where water or slime came, drip, and dry (Wet Duration).")
 QVR_SLIDER(vr_wounds_wet_coat, "Wet Sheen", 0.f, 2.f, 0.1f, "%.1fx", noExt,
@@ -2202,6 +2210,8 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
+QVR_TOGGLE_BYNAME(vr_menu_flat_esc_game, "Escape Returns to the Game",
+    "With VR off, in a game: Escape in any menu closes it and resumes, from whatever page (as Back to game does; the menu opens again on that page). Off: Escape goes back a page, as in Quake.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
     "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
 QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
@@ -3544,6 +3554,22 @@ QVR_SLIDER_BYNAME(vr_grade_strength, "Grade Strength", 0.f, 1.f, 0.05f, "%.2f", 
 QVR_CYCLE_BYNAME(vr_dither, "Dither",
     "A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water).",
     {0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"})
+// vr_menu_pages.inc: pageGraphicsPost, "Flat Screen" (vr_flatlook.cpp; the headset never uses these)
+QVR_SLIDER_BYNAME(vr_flat_bloom, "Flat: Bloom", 0.f, 1.5f, 0.02f, "%.2f", ext(),
+    "Flat-screen play: glow around lamps, lava and flashes (0 off). Its threshold, size and weights are the Bloom rows'.")
+QVR_SLIDER_BYNAME(vr_flat_grade, "Flat: Colour Grade", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "Flat-screen play: how much of the colour grade below (0 off). The HUD is not graded.")
+QVR_SLIDER_BYNAME(vr_flat_grade_exposure, "Flat: Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before the grade's curve (1: unchanged).")
+QVR_SLIDER_BYNAME(vr_flat_grade_contrast, "Flat: Contrast", 0.5f, 2.f, 0.05f, "%.2f", ext(),
+    "An S curve: darker shade and brighter light, black and white kept (1: none).")
+QVR_SLIDER_BYNAME(vr_flat_grade_shadows, "Flat: Shadows", -1.f, 1.f, 0.05f, "%+.2f", ext(),
+    "The darkest parts: below 0 crushed to black, above 0 lifted towards grey.")
+QVR_SLIDER_BYNAME(vr_flat_grade_warmth, "Flat: Warmth", -1.f, 1.f, 0.05f, "%+.2f", ext(),
+    "Warm highlights and cool shadows (below 0 the other way round).")
+QVR_SLIDER_BYNAME(vr_flat_grade_saturation, "Flat: Saturation", 0.f, 2.f, 0.05f, "%.2f", ext(), "Colourfulness (1: unchanged, 0: grey).")
+QVR_SLIDER_BYNAME(vr_flat_vignette, "Flat: Vignette", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Flat-screen play: the screen's corners darkened (0 off). Not the headset's comfort vignette.")
+QVR_SLIDER_BYNAME(vr_flat_vignette_size, "Flat: Vignette Size", 0.05f, 1.f, 0.05f, "%.2f", ext(), "How far in from the corners it reaches.")
 
 // vr_menu_pages.inc: pageGraphicsModels
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
@@ -6096,7 +6122,7 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
     "back. Off: no clips, every shot from your ammo (vr_flat_reload).")
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
-    "rounds for it. Off: only R reloads (vr_flat_autoreload).")
+    "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

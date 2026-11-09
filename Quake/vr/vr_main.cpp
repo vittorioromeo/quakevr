@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_drips.hpp"
+#include "vr_playergore.hpp"
 #include "vr_animrec.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_dynres.hpp"
@@ -132,6 +133,7 @@
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatlook.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flycam.hpp"
 #include "vr_ragtool.hpp"
@@ -2296,7 +2298,8 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
     goresound::registerCommands(); // vr_gore_sound_stats, vr_gore_sound_test
-    drips::registerCommands(); // vr_drips_info, vr_drips_soak, vr_drips_test
+    drips::registerCommands(); // vr_drips_info, vr_drips_soak, vr_drips_test, vr_drips_bleed_test
+    playergore::registerCommands(); // vr_player_gore_info, vr_player_gore_test
     bloodprints::registerCommands(); // vr_bloodprints_test, vr_bloodprints_info
     Cmd_AddCommand("vr_gore_streams_info", bloodstream::info_f);
     Cmd_AddCommand("vr_dummy_gore_reset", wounds::dummyReset_f);
@@ -2307,6 +2310,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
     gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
+    flatlook::init(); // vr_flatlook_info (vr_flatlook.cpp)
     stereosingle::init(); // vr_stereo_single_info
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again

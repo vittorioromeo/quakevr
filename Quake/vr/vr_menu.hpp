@@ -160,6 +160,9 @@ void selectEnd(int dir);
 // Scrolls the page shown by `rows` (the selection kept in view, moved only if it would leave it);
 // false, doing nothing, when the page fits (or a slider or the scrollbar is held). 0: only asks.
 bool scroll(int rows);
+// Whether Escape belongs to the VR page itself now: a drop-down list open, a slider or the scrollbar held (it closes or
+// lets go of that, not the menu: the flat screen's Escape as Back to game, vr_menuui.cpp VR_MenuKey, leaves it alone).
+[[nodiscard]] bool escapeLocal();
 
 // The setting selected on the page shown (null when the VR Settings are not shown, or the selected
 // row is not a setting): effects preview themselves while their settings are chosen.

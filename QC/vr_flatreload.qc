@@ -42,10 +42,14 @@ float() VR_FlatReload_DownTime = { return max(0.05, cvar_hget(cvarh_vr_flat_relo
 float() VR_FlatReload_HoldTime = { return max(0, cvar_hget(cvarh_vr_flat_reload_hold)); };
 float() VR_FlatReload_UpTime = { return max(0.05, cvar_hget(cvarh_vr_flat_reload_up)); };
 
-// The reserve the gun in `xHand` of self loads from.
+// The reserve the gun in `xHand` of self loads from; 0 for a hand with none (empty, a fist, a melee weapon: AID_NONE,
+// which VR_AmmoUtil_GetAmmoCountByAmmoId asserts on). Until 2026-11-09 R with nothing to reload (the nail pistol with
+// no nails) printed both hands' storage, the empty off hand's too: "Assertion failure! ... at 34".
 float(float xHand) VR_FlatReload_Storage =
 {
-    return VR_AmmoUtil_GetAmmoCountByAmmoId(self, WeaponIdToAmmoId(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand)));
+    if(VRIsHandWeaponless(self, xHand)) { return 0; }
+    float aid = WeaponIdToAmmoId(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand));
+    return aid == AID_NONE ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid);
 };
 
 // Whether the gun in `xHand` of self can take rounds now: a flat-screen player's, reloading (a gun with a clip), held by

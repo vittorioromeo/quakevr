@@ -856,6 +856,7 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
+QVR_CVAR(vr_menu_flat_esc_game, "1", CVAR_ARCHIVE)    // with VR off, in a game: Escape in any menu is Back to game (closes it from any page, reopens there; vr_menuui.cpp VR_MenuKey); 0: Escape goes back a page, as Quake's
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
 QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
@@ -2088,7 +2089,13 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
-QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded living monsters drip blood from where they were hit, the more the more hurt (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
+QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded monsters drip blood from where they were hit all the while they are hurt, more the more hurt; their corpses a while (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
+// Your own gore as the enemies' (ROUND24.md, "Player gore parity"; experimental): your body, arms and hands bleed from where
+// you are hit (the wound events' points on them as drawn). None with vr_gore 0; none close to the eyes (vr_player_gore_eye_clear).
+QVR_CVAR(vr_player_gore, "1", CVAR_ARCHIVE)            // on (each its own below too)
+QVR_CVAR(vr_player_gore_streams, "1", CVAR_ARCHIVE)    // ... a shot, a nail or a blade may open a blood stream from the wound (vr_gore_streams' look; vr_player_gore_stream_*)
+QVR_CVAR(vr_player_gore_drips, "1", CVAR_ARCHIVE)      // ... your wounds drip blood from where you were hit while you are hurt, as a wounded enemy's (vr_player_gore_drip_rate)
+QVR_CVAR(vr_player_gore_splash, "1", CVAR_ARCHIVE)     // ... a hit splashes drops of blood out of the wound (vr_player_gore_splash_amount)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)
@@ -2272,6 +2279,16 @@ QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the t
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
+// Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
+QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
+QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
+QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)
+QVR_CVAR(vr_flat_grade_contrast, "1.05", CVAR_ARCHIVE) // ... an S curve's slope at mid grey, black and white kept (1 none)
+QVR_CVAR(vr_flat_grade_shadows, "0.1", CVAR_ARCHIVE)   // ... the darkest parts: below 0 crushed to black, above 0 lifted (-1 .. 1)
+QVR_CVAR(vr_flat_grade_warmth, "0.5", CVAR_ARCHIVE)    // ... warm highlights and cool shadows (split tone; 0 none, below 0 the other way)
+QVR_CVAR(vr_flat_grade_saturation, "1.05", CVAR_ARCHIVE) // ... colourfulness (1 unchanged, 0 grey)
+QVR_CVAR(vr_flat_vignette, "0.3", CVAR_ARCHIVE)        // flat-screen vignette: the corners darkened by this much (0 off; not the headset's comfort vignette)
+QVR_CVAR(vr_flat_vignette_size, "0.5", CVAR_ARCHIVE)   // ... how far in from the corners it reaches (0.05 .. 1)
 // Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
@@ -4020,7 +4037,7 @@ QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads 
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
-QVR_CVAR(vr_flat_autoreload, "1", CVAR_ARCHIVE)         // flat-screen play: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0: only R reloads
+QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE)         // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none

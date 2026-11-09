@@ -125,7 +125,7 @@ and a hand lets go of nothing by itself (`G` is the key for letting go).
 (`VRIsWeaponReloadingEnabled`, `QC/vr_util.qc`), refilled as VR's Hip Holsters mode refills it (`VRTryReloadWeapon` /
 `VRReloadWeapon`: the same clip and reserve sums, sounds and haptics). It starts only from `R` (`vr_flat_key_reload`,
 `impulse 55`: every hand whose gun's clip has room and whose ammo has rounds, both when dual wielding) or from an empty
-clip (`vr_flat_autoreload 1`). Never from a holster a hand passes (the flat gun at rest sits in the right upper holster's
+clip (`vr_flat_autoreload 1`; off by default since 2026-11-09). Never from a holster a hand passes (the flat gun at rest sits in the right upper holster's
 zone; the reload's own trip goes through it to the hip), a flick or a button: `VRTryReloadWeapon` returns at once for a
 flat-screen player unless `QC/vr_flatreload.qc` set `vr_flatreload_go`. The immersive pieces (the pouch, magazines, the
 super shotgun broken open, hand-loaded guns: `VR_Reload_ManualInHand`, `VR_Reload_MagIn`) are never a flat-screen
