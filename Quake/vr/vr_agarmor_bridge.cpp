@@ -57,6 +57,7 @@ constexpr float bridgeSoftMax = 0.2f;    // the round tangent and the arc's ease
 constexpr float bridgeForwardLeast = 0.05f; // the curve's middle leg: at least this far forward along each row (of the chord)
 constexpr float bridgeBackFrom = -0.5f;   // the curve's tangent against its rings' frames (cosine): the tangents a half chord's here...
 constexpr float bridgeBackTo = 0.f;       // ... their own from here
+constexpr float bridgeTangentTurn = 0.35f; // the middle rings turned this share of the way from their slerped frames onto the curve (1 before)
 constexpr float bridgePushShare = 0.25f;  // a sample's corners' weights' squares summed: at least this (a cell's middle's)
 
 constexpr int ringVerts = bridgeCols + 1; // (a ring's corners and its seam's copy)
@@ -296,6 +297,11 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     m0 = hug + (m0 - hug) * keep;
     m1 = hug + (m1 - hug) * keep;
     const glm::vec3 t0 = axis[0] * m0, t1 = axis[1] * m1;
+    // (each middle ring turned only part way from its slerped frame onto the curve's tangent: turned fully, a short sheared tube
+    // (the rows offset across the limb, the curve an S) tilted its rings by more than their spacing allows, they cut through
+    // each other and the cells between faced in: holes in every elbow and knee with the limb straight, worst the enforcer's
+    // (his notes, 2026-11-09; ROUND24.md, "Elbow leather at rest"). Not at all: the enforcer's and the knight's elbows bent
+    // folded in more than before; bridgeTangentTurn is the share that does neither)
     for(int i = 0; i < rg.n; i++)
     {
         const float t = tOf[i], t2 = t * t, t3 = t2 * t;
@@ -304,8 +310,8 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
         const glm::quat q = frameOf[i];
         const glm::vec3 zq = q * glm::vec3{0.f, 0.f, 1.f};
         const glm::vec3 zt = geom::safeNormalize(d, zq, 1e-8f);
-        rg.turn[i] = i == 0 ? frameTurn[0] : i == last ? frameTurn[1] : glm::normalize(turnBetween(zq, zt) * q);
-        rg.along[i] = i == 0 ? axis[0] : i == last ? axis[1] : zt;
+        rg.turn[i] = i == 0 ? frameTurn[0] : i == last ? frameTurn[1] : glm::normalize(glm::slerp(q, turnBetween(zq, zt) * q, bridgeTangentTurn));
+        rg.along[i] = rg.turn[i] * glm::vec3{0.f, 0.f, 1.f};
         const glm::vec3 in = turnDir - rg.along[i] * glm::dot(turnDir, rg.along[i]);
         rg.inside[i] = glm::length(in) > 1e-4f ? glm::normalize(in) : glm::vec3{0.f};
         // (the bellows: a fold's top on every other ring, none at the ends; armour.txt's taper and stand-off, none at the ends)
@@ -879,6 +885,7 @@ constexpr float turnSlack = 2.f;         // ... and this much more (degrees)
 constexpr float sweepStep = 1.f;         // the joint swept through its range in steps of this (degrees)
 constexpr float sweepShare = 2.5f;       // a vertex may move this many times its rows' furthest in a sweep's step...
 constexpr float sweepSlack = 0.1f;       // ... and this much more (units)
+constexpr float bridgeRestSlack = 0.05f; // the skin at rest may be this far outside the leather (units)
 constexpr float bridgeInFacing = 0.25f;  // a cell turned in: its face this far (a cosine) against the way out (a fold's side, edge on: no)
 
 // A step of the leather: its furthest vertex move against its end rings' (the rows', carried by the bones), its middle
@@ -915,6 +922,200 @@ void bonesOfRig(const rig2::Rig& rig, const rig2::Pose& pose, float* bones)
     rigpose::Rigid F[rig2::maxBones];
     rig2::forward(rig, pose, F);
     bonesOfPose(F, rig.numBones, bones);
+}
+
+// The leather at rest (the joints straight), each joint: its cells facing in (against the way out from its rings' middle by
+// more than bridgeInFacing: drawn from behind, a hole) and the skin of its two limb bones between its end rings outside it
+// (the arm cutting through), each ring's corners' reach and their turn round it, for the left and the right side alike.
+template <typename Check>
+void restCheck(const char* model, const Shell& s, const rig2::Rig& rig, const Check& check)
+{
+    constexpr int most = bridgeMostRings * ringVerts;
+    glm::vec3 P[most], N[most];
+    float bones[rig2::maxBones * 12]{};
+    char what[400];
+    // (twice: the bind pose, then the joint straight (its hinge at 0, or the nearest its range allows): his report, the enforcer's
+    // right elbow and the grunt's left, holed with the arm straight; the enforcer's gun arm is bent at the bind pose)
+    for(int jj = 0; jj < NumJoints * 2; jj++)
+    {
+        const int j = jj % NumJoints;
+        const bool straight = jj >= NumJoints;
+        const Bridge& br = s.bridges[j];
+        const int hinge = br.ok ? br.plates[1].bone : -1;
+        if(hinge < 0 || hinge >= rig.numBones)
+        {
+            continue;
+        }
+        rig2::Pose pose = rig2::restPose(rig);
+        const float bindDeg = pose.a[hinge].x;
+        pose.a[hinge].x = straight ? za::clamp(0.f, rig.bones[hinge].range.x, rig.bones[hinge].range.y) : bindDeg;
+        bonesOfRig(rig, pose, bones);
+        if(!evalBridge(s, j, bones, rig.numBones, true, true, P, N, nullptr))
+        {
+            continue;
+        }
+        const int last = br.rings - 1;
+        glm::vec3 C[bridgeMostRings];
+        for(int i = 0; i < br.rings; i++)
+        {
+            C[i] = glm::vec3{0.f};
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                C[i] += P[i * ringVerts + c] / static_cast<float>(bridgeCols);
+            }
+        }
+        // (the drawn winding: bridgeRest's, the way most cells face at the bind pose)
+        float facing = 0.f, signs[bridgeMostRings * bridgeCols]{};
+        for(int i = 0; i < last; i++)
+        {
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const int a = i * ringVerts + c;
+                const glm::vec3 mid = (P[a] + P[a + 1] + P[a + ringVerts] + P[a + ringVerts + 1]) * 0.25f;
+                const glm::vec3 n = glm::cross(P[a + 1] - P[a], P[a + ringVerts + 1] - P[a]) + glm::cross(P[a + ringVerts + 1] - P[a], P[a + ringVerts] - P[a]);
+                signs[i * bridgeCols + c] = glm::dot(geom::safeNormalize(n, glm::vec3{0.f}, 1e-12f), geom::safeNormalize(mid - (C[i] + C[i + 1]) * 0.5f, glm::vec3{0.f}, 1e-12f));
+                facing += signs[i * bridgeCols + c];
+            }
+        }
+        // (developer 1: the two parts' grids' radii at the rows the ends sit on, then each ring's corners round its middle,
+        // angle and reach in the upper row's frame)
+        for(int e = 0; e < 2 && developer.value >= 1.f; e++)
+        {
+            const PlateGrid& g = s.tubes[e == 0 ? br.upper : br.lower].grid;
+            const int ring = e == 0 ? g.rows : 0;
+            Con_Printf("agarmor bridge rest: %s %s grid %d ring %d of %d: %.2f %.2f %.2f %.2f %.2f %.2f axis %.2f %.2f, h %.2f\n", model,
+                pieceNames[e == 0 ? br.upper : br.lower], g.cols, ring, g.rows, static_cast<double>(g.at2(ring, 0)), static_cast<double>(g.at2(ring, 1)),
+                static_cast<double>(g.at2(ring, 2)), static_cast<double>(g.at2(ring, 3)), static_cast<double>(g.at2(ring, 4)),
+                static_cast<double>(g.at2(ring, 5)), static_cast<double>(at(g.axis, ring).x), static_cast<double>(at(g.axis, ring).y),
+                static_cast<double>(g.hAt(ring)));
+            for(int r = 0; r <= g.rows && e == 1; r++)
+            {
+                Con_Printf("agarmor bridge rest: %s %s ring %d axis %.2f %.2f radii %.2f %.2f %.2f %.2f %.2f %.2f\n", model, pieceNames[br.lower], r,
+                    static_cast<double>(at(g.axis, r).x), static_cast<double>(at(g.axis, r).y), static_cast<double>(g.at2(r, 0)),
+                    static_cast<double>(g.at2(r, 1)), static_cast<double>(g.at2(r, 2)), static_cast<double>(g.at2(r, 3)), static_cast<double>(g.at2(r, 4)),
+                    static_cast<double>(g.at2(r, 5)));
+            }
+        }
+        for(int i = 0; i < br.rings && developer.value >= 1.f; i++)
+        {
+            const glm::vec3 x = geom::safeNormalize(P[0] - C[0], glm::vec3{1.f, 0.f, 0.f}, 1e-8f);
+            const glm::vec3 z = geom::safeNormalize(C[last] - C[0], glm::vec3{0.f, 0.f, 1.f}, 1e-8f);
+            const glm::vec3 y = glm::cross(z, x);
+            char line[256];
+            int at0 = q_snprintf(line, sizeof(line), "ring %d:", i);
+            for(int c = 0; c < bridgeCols && at0 < static_cast<int>(sizeof(line)) - 24; c++)
+            {
+                const glm::vec3 q = P[i * ringVerts + c] - C[i];
+                at0 += q_snprintf(line + at0, sizeof(line) - static_cast<size_t>(at0), " %4.0f/%.2f/%.2f", static_cast<double>(za::atan2(glm::dot(q, y), glm::dot(q, x)) * (180.f / pi)),
+                    static_cast<double>(glm::length(q - z * glm::dot(q, z))), static_cast<double>(glm::dot(P[i * ringVerts + c] - C[0], z)));
+            }
+            Con_Printf("agarmor bridge rest: %s %s %s\n", model, pieceNames[br.lower], line);
+        }
+        int in = 0;
+        char map[96]{};
+        int w = 0;
+        for(int q = 0; q < last * bridgeCols; q++)
+        {
+            const bool turned = facing > 0.f ? signs[q] < -bridgeInFacing : signs[q] > bridgeInFacing;
+            in += turned ? 1 : 0;
+            map[w++] = turned ? 'x' : '.';
+            if(q % bridgeCols == bridgeCols - 1 && w + 2 < static_cast<int>(sizeof(map)))
+            {
+                map[w++] = '/';
+            }
+        }
+        map[w] = 0;
+        // The skin between the end rings outside the leather: each vertex of the two limb bones (mostly), found on the rings'
+        // centre line, against the polygon there in its direction (the two rings' polygons in the segment's plane, lerped).
+        const int boneA = s.tubes[br.upper].bone, boneB = s.tubes[br.lower].bone;
+        int outside = 0, tested = 0;
+        float worst = 0.f, worstAt = 0.f;
+        for(int v = 0; v < count(s.body.p); v++)
+        {
+            const W& wv = at(s.body.w, v);
+            const int b = heaviest(wv);
+            if(b != boneA && b != boneB)
+            {
+                continue;
+            }
+            glm::vec3 p;
+            if(!posedOf(skinnedOf(at(s.body.p, v), wv), bones, rig.numBones, p))
+            {
+                continue;
+            }
+            for(int i = 0; i < last; i++)
+            {
+                const glm::vec3 d = C[i + 1] - C[i];
+                const float len2 = glm::dot(d, d);
+                const float t = len2 > 1e-8f ? glm::dot(p - C[i], d) / len2 : -1.f;
+                if(t < 0.f || t > 1.f)
+                {
+                    continue;
+                }
+                const glm::vec3 axis = d / sqrtf(len2);
+                const glm::vec3 o = C[i] + d * t;
+                glm::vec3 rel = p - o;
+                rel -= axis * glm::dot(rel, axis);
+                const float ru = glm::length(rel);
+                // (the polygons' reach that way: each ring's corners in the plane, the edge it crosses)
+                float reach[2] = {0.f, 0.f};
+                for(int e = 0; e < 2; e++)
+                {
+                    glm::vec2 poly[bridgeCols];
+                    const glm::vec3 u = geom::safeNormalize(rel, geom::safeNormalize(glm::cross(axis, glm::vec3{0.f, 0.f, 1.f}), glm::vec3{1.f, 0.f, 0.f}, 1e-6f), 1e-6f);
+                    const glm::vec3 vv = glm::cross(axis, u);
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        const glm::vec3 q = P[(i + e) * ringVerts + c] - C[i + e];
+                        poly[c] = glm::vec2{glm::dot(q, u), glm::dot(q, vv)};
+                    }
+                    int edge = 0;
+                    float along = 0.f;
+                    reach[e] = polygonReach(poly, glm::vec2{1.f, 0.f}, edge, along);
+                }
+                const float r = reach[0] + (reach[1] - reach[0]) * t;
+                if(r <= 0.f || ru > 1.6f * r)
+                {
+                    break; // (not under this leather: the chest, the other limb)
+                }
+                tested++;
+                if(ru > r + bridgeRestSlack)
+                {
+                    outside++;
+                    worstAt = ru - r > worst ? static_cast<float>(i) + t : worstAt;
+                    worst = za::max(worst, ru - r);
+                }
+                break;
+            }
+        }
+        // Each ring's corners' least reach over its mean, and the most a ring's corner turned round its middle against the
+        // upper row's (the lerp crossing itself: a twist).
+        float thin = 1e9f, twist = 0.f;
+        for(int i = 0; i < br.rings; i++)
+        {
+            const glm::vec3 axis = geom::safeNormalize(i < last ? C[i + 1] - C[i] : C[i] - C[i - 1], glm::vec3{0.f, 0.f, 1.f}, 1e-8f);
+            float lo = 1e9f, mean = 0.f;
+            for(int c = 0; c < bridgeCols; c++)
+            {
+                const float r = glm::distance(P[i * ringVerts + c], C[i]);
+                lo = za::min(lo, r);
+                mean += r / static_cast<float>(bridgeCols);
+                glm::vec3 a = P[c] - C[0], bq = P[i * ringVerts + c] - C[i];
+                a -= axis * glm::dot(a, axis);
+                bq -= axis * glm::dot(bq, axis);
+                const float cosT = glm::dot(geom::safeNormalize(a, glm::vec3{1.f, 0.f, 0.f}, 1e-8f), geom::safeNormalize(bq, glm::vec3{1.f, 0.f, 0.f}, 1e-8f));
+                twist = za::max(twist, za::acos(za::clamp(cosT, -1.f, 1.f)) * (180.f / pi));
+            }
+            thin = za::min(thin, mean > 1e-6f ? lo / mean : 0.f);
+        }
+        q_snprintf(what, sizeof(what), "%s %s at rest (%s, %.0f deg): no cell turned in (%d of %d: %s), the arm not through it (%d of %d skin vertices out, "
+                                       "furthest %.2f at ring %.1f of %d); thinnest ring %.2f, most twist %.0f deg",
+            model, pieceNames[br.lower], straight ? "straight" : "bind", static_cast<double>(pose.a[hinge].x), in, last * bridgeCols, map, outside,
+            tested, static_cast<double>(worst), static_cast<double>(worstAt), last, static_cast<double>(thin), static_cast<double>(twist));
+        // (a measure for now, not a verdict: every joint has some; ROUND24.md, "Elbow leather at rest")
+        (void)check;
+        Con_Printf("agarmor bridge check: (info) %s\n", what);
+    }
 }
 
 // The leather as each joint is swept through its range a degree at a time, the rest of the body at rest (vr_agarmor_bend's
@@ -1323,6 +1524,7 @@ void bridgeCheck_f()
         }
         continuityCheck(src, *s, *rig, check);
         sweepCheck(model, *s, *rig, check);
+        restCheck(model, *s, *rig, check);
     }
     // armour.txt's settings on the leather: the grunt's left knee's sleeve parts (the table's entries put back after).
     qmodel_t* grunt = !only || !strcmp(only, checked[0]) ? Mod_ForName(checked[0], false) : nullptr;

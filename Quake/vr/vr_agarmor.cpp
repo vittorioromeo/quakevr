@@ -984,6 +984,114 @@ constexpr int plateMostRowsTorso = 5, plateMostRowsLong = 4, plateMostRowsArm = 
 
 [[nodiscard]] bool bodyExit(const Body& b, const glm::vec3& o, const glm::vec3& d, float most, float& t, W& w);
 
+constexpr float plateJointSunk = 0.7f;     // a joint row's corner under this share of its mirror image's: sunk (mirrorRadii)
+constexpr int planMostRings = 16;          // (a limb's rings: 10 rows at most)
+constexpr float planAxisJump = 0.3f;       // a forearm's or shin's ring middle this far (of the limb's girth there) off the others'...
+constexpr float planAxisJumpLeast = 0.5f;  // ... or this far (units), whichever is more: a jump, not the limb's own line
+
+// A humanoid's forearm's and shin's rings' middles smooth along the limb: a ring whose middle jumps from the others' (their
+// median) is put back on the line through its good neighbours, the elbow's ring (0) extrapolated from rings 1 and 2. The whole
+// skin's slice near an elbow bent at the bind pose (the enforcer's gun arm) cut into the upper arm and the bicep: his right
+// forearm's first ring sat 3.7 units off his arm, its radii 1.45 to 9.12, and the elbow leather's end ring there crossed itself
+// (holes with the arm straight); the grunt's left forearm's middle ring 2.6 off, one corner of its first row sunk (his notes,
+// 2026-11-09; ROUND24.md, "Elbow leather at rest").
+void smoothAxis(PlateGrid& g, const float* reachOf)
+{
+    const int n = za::min(g.rows + 1, planMostRings);
+    if(n < 3)
+    {
+        return;
+    }
+    float xs[planMostRings], ys[planMostRings];
+    for(int i = 0; i < n; i++)
+    {
+        xs[i] = at(g.axis, i).x;
+        ys[i] = at(g.axis, i).y;
+    }
+    for(int i = 1; i < n; i++) // (a few: insertion)
+    {
+        for(int k = i; k > 0 && xs[k - 1] > xs[k]; k--)
+        {
+            const float t = xs[k];
+            xs[k] = xs[k - 1];
+            xs[k - 1] = t;
+        }
+        for(int k = i; k > 0 && ys[k - 1] > ys[k]; k--)
+        {
+            const float t = ys[k];
+            ys[k] = ys[k - 1];
+            ys[k - 1] = t;
+        }
+    }
+    const glm::vec2 ref = n % 2 ? glm::vec2{xs[n / 2], ys[n / 2]} : glm::vec2{xs[n / 2 - 1] + xs[n / 2], ys[n / 2 - 1] + ys[n / 2]} * 0.5f;
+    float girth = 0.f;
+    int girths = 0;
+    for(int i = 0; i < n; i++)
+    {
+        girth += reachOf[i];
+        girths += reachOf[i] > 0.f ? 1 : 0;
+    }
+    girth = girths ? girth / static_cast<float>(girths) : 0.f;
+    const auto jumpAt = [&](int i) { return za::max(planAxisJumpLeast, planAxisJump * (reachOf[i] > 0.f ? reachOf[i] : girth)); };
+    bool good[planMostRings];
+    int goods = 0;
+    for(int i = 0; i < n; i++)
+    {
+        good[i] = glm::distance(at(g.axis, i), ref) <= jumpAt(i);
+    }
+    // (the elbow's or the knee's ring against its two neighbours' line: the slice there is the one that crosses the joint)
+    good[0] = good[0] && !(good[1] && good[2] && glm::distance(at(g.axis, 0), 2.f * at(g.axis, 1) - at(g.axis, 2)) > jumpAt(0));
+    for(int i = 0; i < n; i++)
+    {
+        goods += good[i] ? 1 : 0;
+    }
+    glm::vec2 fixed[planMostRings];
+    for(int i = 0; i < n; i++)
+    {
+        fixed[i] = at(g.axis, i);
+        if(good[i])
+        {
+            continue;
+        }
+        int lo = -1, hi = -1;
+        for(int k = i - 1; k >= 0 && lo < 0; k--)
+        {
+            lo = good[k] ? k : lo;
+        }
+        for(int k = i + 1; k < n && hi < 0; k++)
+        {
+            hi = good[k] ? k : hi;
+        }
+        // (between two good rings: on their line; past them: on the line through the nearest two, its step no more than a jump)
+        int lo2 = -1, hi2 = -1;
+        for(int k = (hi >= 0 ? hi + 1 : n); k < n && hi2 < 0; k++)
+        {
+            hi2 = good[k] ? k : hi2;
+        }
+        for(int k = (lo >= 0 ? lo - 1 : -1); k >= 0 && lo2 < 0; k--)
+        {
+            lo2 = good[k] ? k : lo2;
+        }
+        const auto lineAt = [&](int a, int b) {
+            const glm::vec2 pa = at(g.axis, a), pb = at(g.axis, b);
+            const glm::vec2 p = pa + (pb - pa) * (static_cast<float>(i - a) / static_cast<float>(b - a));
+            const glm::vec2 step = p - (za::abs(i - a) < za::abs(i - b) ? pa : pb);
+            const float most = jumpAt(i), len = glm::length(step);
+            const bool past = i < za::min(a, b) || i > za::max(a, b);
+            return past && len > most ? p - step * (1.f - most / len) : p;
+        };
+        fixed[i] = goods == 0 ? ref
+                   : lo >= 0 && hi >= 0 ? lineAt(lo, hi)
+                   : hi >= 0 && hi2 >= 0 ? lineAt(hi, hi2)
+                   : lo >= 0 && lo2 >= 0 ? lineAt(lo2, lo)
+                   : at(g.axis, hi >= 0 ? hi : lo);
+    }
+    for(int i = 0; i < n; i++)
+    {
+        at(g.axis, i) = fixed[i];
+    }
+}
+
 // The grid's shape from the piece's extent: its rows and columns, its rings' middles.
 void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
 {
@@ -1033,6 +1141,7 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
     // (a humanoid's forearm's and shin's middles from their own skin, not the hand's or the foot's past the bone's end: an enforcer's
     // hand drew his wrist ring aside, its row 8.4 units wider than his arm)
     const float bandEnd = f.ends && (forearm || shin) ? f.length : 1e9f;
+    float reachOf[planMostRings]{}; // (each ring's whole-skin exits' mean distance from its middle: the limb's girth there)
     for(int ring = 0; ring <= g.rows; ring++)
     {
         glm::vec2 bl{1e9f}, bh{-1e9f};
@@ -1077,9 +1186,14 @@ void planGrid(const Local& L, const PieceFrame& f, int piece, PlateGrid& g)
                 break;
             }
             at(g.axis, ring) = found >= g.cols * (thigh ? 1 : 2) ? mid / static_cast<float>(found) : at(g.axis, ring);
+            reachOf[za::min(ring, planMostRings - 1)] = found > 0 ? 0.25f * ((eh.x - el.x) + (eh.y - el.y)) : 0.f;
         }
         // (the torso's middle on the body's centre line: its seam)
         at(g.axis, ring).y = torso ? 0.f : at(g.axis, ring).y;
+    }
+    if(f.ends && (forearm || shin) && f.body)
+    {
+        smoothAxis(g, reachOf);
     }
     g.radius.clear();
     g.radius.resize(static_cast<za::SizeT>((g.rows + 1) * g.cols), 0.f);
@@ -1318,14 +1432,18 @@ enum class Mirror
     Corners,   // a humanoid's other limbs: corner by corner, alike or each its own (a knight's and an enforcer's sides differ)
     ShouldersMost // a knight's upper arms: always, the larger (Wearer::shoulderRidge: over his shoulder pads)
 };
-void mirrorRadii(PlateGrid& a, PlateGrid& b, Mirror how)
+// `jointRing`: the row at the joint the leather's end ring sits on (-1 none): there, in Corners, a corner sunk well under its
+// mirror image's takes its image's (the grunt's left forearm's first row, one corner at 1.17 against his right's 2.76: the
+// leather's end ring dented there, its cells turned in; his notes, 2026-11-09).
+void mirrorRadii(PlateGrid& a, PlateGrid& b, Mirror how, int jointRing)
 {
     for(int ring = 0; how != Mirror::Whole && ring <= za::min(a.rows, b.rows); ring++)
     {
         for(int col = 0; col < a.cols; col++)
         {
             const float x = a.at2(ring, col), y = b.at2(ring, b.mirrorOf(col));
-            const bool alike = za::abs(x - y) < 0.5f || how == Mirror::ShouldersMost;
+            const bool sunk = how == Mirror::Corners && ring == jointRing && za::min(x, y) < plateJointSunk * za::max(x, y);
+            const bool alike = za::abs(x - y) < 0.5f || how == Mirror::ShouldersMost || sunk;
             a.at2(ring, col) = alike ? za::max(x, y) : how == Mirror::Shoulders ? (x + y) * 0.5f : x;
             b.at2(ring, b.mirrorOf(col)) = alike ? za::max(x, y) : how == Mirror::Shoulders ? (x + y) * 0.5f : y;
         }
@@ -2923,7 +3041,8 @@ bool buildShell(qmodel_t* src, Shell& s)
         if(grids[piece].rows && grids[piece + 1].rows)
         {
             // (a knight's: the larger, so the pad's side's push isn't halved)
-            mirrorRadii(grids[piece], grids[piece + 1], skeletal ? Mirror::Whole : piece != PauldronL ? Mirror::Corners : wearerOf(src->name).shoulderRidge >= 0.f ? Mirror::ShouldersMost : Mirror::Shoulders);
+            mirrorRadii(grids[piece], grids[piece + 1], skeletal ? Mirror::Whole : piece != PauldronL ? Mirror::Corners : wearerOf(src->name).shoulderRidge >= 0.f ? Mirror::ShouldersMost : Mirror::Shoulders,
+                piece == ThighL ? za::min(grids[piece].rows, grids[piece + 1].rows) : piece == BracerL || piece == ShinL ? 0 : -1);
         }
     }
     // (armour.txt's stand-off: every corner further off the skin)
@@ -3475,7 +3594,8 @@ void info_f()
     Con_Printf("agarmor: %d drawn last frame\n", numWorn);
 }
 
-// vr_agarmor_headcam [view] [distance] [set] [drop]: (the mock headset; the helmet's eyeshots; drop: units lower, the
+// vr_agarmor_headcam [view] [distance] [set] [drop] [elbow]: (elbow 1 / 2: on its left / right elbow, not its head)
+// (the mock headset; the helmet's eyeshots; drop: units lower, the
 // joints' leather's) the eyes on two heads: the left on
 // the nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not; set 1: the nearest
 // death knight's, the screenshot's eye, and knight's: vr_agarmor_test 8), `distance` units off
@@ -3492,7 +3612,8 @@ void headcam_f()
         return;
     }
     const bool knights = Cmd_Argc() > 3 && atoi(Cmd_Argv(3)) == 1;
-    const float drop = Cmd_Argc() > 4 ? static_cast<float>(atof(Cmd_Argv(4))) : 0.f;
+    const int elbow = Cmd_Argc() > 5 ? atoi(Cmd_Argv(5)) : 0;
+    const float drop = Cmd_Argc() > 4 && elbow == 0 ? static_cast<float>(atof(Cmd_Argv(4))) : 0.f;
     const char* wanted[2] = {knights ? "progs/vrhknight.mdl" : "progs/vrgrunt.mdl", knights ? "progs/vrknight.mdl" : "progs/vrenforcer.mdl"};
     const glm::vec3 me = cl.viewentity > 0 && cl.viewentity < cl.num_entities ?
         glm::vec3{cl_entities[cl.viewentity].origin[0], cl_entities[cl.viewentity].origin[1], cl_entities[cl.viewentity].origin[2]} :
@@ -3518,6 +3639,11 @@ void headcam_f()
             mid += at(s->verts, v).piece == Helmet ? at(s->verts, v).p : glm::vec3{0.f};
             n += at(s->verts, v).piece == Helmet ? 1 : 0;
         }
+        // (`elbow` 1 or 2: the eyes on that body's left or right elbow instead, its joint's rest place, `drop` ignored:
+        // vr_pp_test 17's elbows, the head's cameras sat too high and far for them; ROUND24.md, "Elbow leather at rest")
+        const int joint = elbow == 1 ? ElbowL : elbow == 2 ? ElbowR : -1;
+        mid = s && joint >= 0 && s->bridges[joint].ok ? s->bridges[joint].pivot : mid;
+        n = s && joint >= 0 && !s->bridges[joint].ok ? 0 : n;
         if(n == 0)
         {
             Con_Printf("agarmor headcam: no %s with a helmet in view\n", wanted[k]);

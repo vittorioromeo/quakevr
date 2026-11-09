@@ -5180,6 +5180,59 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
 His words: enemy blood drips don't seem to work (too rare, end too soon); wounded enemies should drip constantly as you
 do. And gore parity: your arms, hands and body bleed as the enemies do, tweakable and toggleable.
 
+## Ammo screens as part of the gun (agent/ammoscreen, 2026-11-09; pilot: the shotgun)
+
+From his ChatGPT mockups (the shotgun's screen set in a bolted bezel on the end face, rounded green glass, soft digits,
+contact shadows). Done in this branch: the screen look and the texel AO bake. Not done (out of budget): the shotgun's
+modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
+
+- **Screen look (every weapon):** Shade::Screen draws an ammo screen as rounded glass when State::frame/glass are set
+  (vr_gfx_gl.cpp mode 4, uniforms 18/19): nothing outside the rounded corners (the darker box behind frames it), the
+  glass's own dark colour (the phosphor's, faint) under the face, a vignette, a thin dark inner bevel (darker at the
+  top, a faint highlight along the bottom), a soft reflection high on the left, the digits a little softer; the CRT
+  look and the outer glow are toned down. `vr_weapon_screen_style` (1; Screens > Weapons' Ammo Screens > Rounded Glass
+  Ammo Screens) 0: the old square screen.
+- **Per-weapon table:** `Quake/vr/vr_screenstyle.cpp` (`table[]`, by the model's stem: v_shot/g_shot are "shot"):
+  radius, bevel, vignette, sheen, softness, glass, tint, CRT share, size, offset (right/up/out units), box width,
+  housing. text3d::queue takes the style (vr_view_weapon.cpp held guns, vr_view.cpp holstered/world guns); the pouch
+  counter, tool gun and setup screens take the default.
+- **Round two (2026-11-09):** he could barely see round one's change. **The texel skin AO bake is reverted** (6025f34e2,
+  with its cvars and test): about 1/255 over vr_ao_models for ~2 s a map; not worth moving onto the worker. **The glass
+  restyled until it reads like his mockup** (side by side, 4K flat shots: `scratch/ammoscreen/panel_shot.png` in the
+  worktree): the shader now replaces the face in the glass (vr_gfx_gl.cpp mode 4, State::frame/glass): grey-green
+  near-black glass, lighter low in the middle; the digits pale green-white (the phosphor's hue half towards white),
+  softened by half a font pixel, with a halo kept inside the glass; an inset shadow under the top edge (the opening's
+  own shape moved up), a dark inner bevel all round with a thin pale lip catching the light, a vignette and a faint
+  diagonal sheen; the edge's last pixel fades into the frame. The outer glow quad (vr_screen_glow) is off for styled
+  screens: no green outline beyond the frame. The frame box is near black and 1.5x wider. Table: default radius 4, glass
+  0.13, crt 0.4, box 1.5; shot radius 4.5, box 1.2.
+- **Opening shapes:** `radius` > 0 rounds the corners, < 0 chamfers them; a style's `opening` (half size in font pixels)
+  fixes the glass's size and shape whatever its text (the text centred, the image made finer when the text needs more
+  room: text3d imageFit; images are matched by their size too), so that a housing's opening and the glass are one
+  shape. `vr_debug_screen_where 1` (Debug > Reports > Ammo Screen on Model) prints the held screen's centre, right, up
+  and font pixel in the model's units. Measured on v_shot: the offsets `wpntxt_x/y/z` are model +X/+Y/+Z at 1.948 model
+  units a unit (zero puts the glass on the anchor), a font pixel is 0.0710 model units, and pitch -2 tilts the glass
+  17.6 degrees from upright (the end face is 5.8 degrees; pitch 9.8 gives +7.8).
+- **Not done (budget):** the housings (shotgun bezel with four bolts, nail pistol housing with grille and sight posts,
+  SSG inset window with a rivet each side and a sight block), their table entries and three-panel images; the nail
+  pistol / SSG / VR-mock checks of the new look.
+- **Recipe for another gun's housing:** model the bezel and bolts on its `.blend` (the end face round its `av wpntxt_av`
+  anchor; its own UVs on the gun's metal, frame 0 and each shape key moved with the face), Ctrl+S exports; give it a
+  table entry with `.housing = true`, `.box` small or 0 and the `.offset` that sits the glass in the inset; check with
+  `vr_flat_flycam_place -2 3 -2 42 -10` at `fov 40` in `-flatscreenmode` (place now takes a yaw: 5th argument).
+- **Texel AO bake (`vr_skinao.cpp`):** on top of vr_ao_models' per-vertex bake (its rays, reach, near cut), each skin
+  texel a drawn triangle covers is rasterised in UV space (the vertex buffer's st: onseam halves as drawn), its point
+  and face normal cast the same 24 cosine rays against the model's own faces (each face's neighbours within reach
+  found first); shared texels (mirrored/reused skin) average their uses; uncovered texels take their neighbours' two
+  texels out. Applied as the 8-bit skin is expanded to colour (TexMgr_LoadImage8 -> VR_SkinAOApply, so palette and
+  gamma reloads keep it), fullbright texels (224..255) untouched. Cvars: `vr_ao_skin_weapons` (0 for now),
+  `vr_ao_skin_models` (0), `vr_ao_skin_strength` (1), `vr_ao_skin_radius` (1), `vr_ao_skin_debug`.
+  Result: it adds contact shading the vertex bake can't (the sight bridge's base, the rivets' rings): the shotgun's
+  texels round its 26 rivets average 0.613 visibility against 0.749 on like-facing faces away from them; on screen
+  the gain over vr_ao_models is modest (mean pixel change 1.3/255 on the gun's top). Cost: v_shot ~90-240 ms, a map's
+  50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
+  vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
+- **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.
 - **Why the drips didn't show:** `drips::bleed` forgot a wounded monster for good the first frame it was missing from
   the server's message (`msgtime != cl.mtime[0]`: out of sight a moment); the rate was `1.2 * share lost` drops a
   second (a grunt at half health: 0.6/s of 0.5-0.75 unit drops); a shotgun blast's first pellet set the "health
@@ -5289,6 +5342,107 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
 
+## Elbow leather at rest (branch `agent/geo1109b`, 2026-11-09; diagnosis, not fixed)
+
+His answer: the holes show with the elbow straight, from any view; the enforcer's right elbow and the grunt's left are bad,
+their other elbows good.
+
+- **New measure** (`vr_agarmor_bridge_check`, an `(info)` line per joint, `restCheck` in vr_agarmor_bridge.cpp): the
+  leather in the rig's rest pose: cells facing in (cosine below -0.25 against the way out, as drawn: holes), which ones,
+  skin vertices of the two limb bones outside the tube between its end rings, the thinnest ring, the most twist.
+  `developer 1` adds each part's grid radii and axis at every ring and every bridge ring's corners (angle / reach / z).
+  Not a verdict yet: every joint scores some inward cells (5-14 of 48), the good sides too, so the count alone does not
+  separate them.
+- **What separates the bad sides: the forearm's first row (the bridge's lower end ring).** Its grid at ring 0:
+  - enforcer bracer_l: radii 5.37 4.60 4.73 6.14 4.79 5.02, axis (0.08, -0.60). Regular.
+  - enforcer bracer_r: radii 5.52 9.12 4.36 1.45 1.64 1.97, axis (1.21, -3.52). Lopsided, 3.5 units off. The bridge's
+    end ring seen from its own middle crosses itself: two corners at 2 and 14 degrees, one 0.72 from the middle, its z
+    spread 3.6-7.9 against 0.8-4.3 on the left.
+  - grunt bracer_l: 1.17 2.53 2.62 2.37 2.76 2.65 (one corner sunk) against bracer_r, mirrored, 1.84 1.67 2.62 2.37
+    1.81 2.65. They differ by more than 0.5, so `mirrorRadii` (Corners mode) keeps each side's own.
+  - The pauldrons' end rings are exact mirror images on both kinds (Shoulders mode), the bracers' are not.
+- **Likely cause:** `planGrid`'s whole-skin middle for a humanoid forearm (the second loop, `bodyExit` rays from the
+  previous middle). Near an elbow bent in the bind pose (the enforcer's gun arm) the slice crosses into the upper arm.
+  The middles also jump between rings (enforcer bracer_l ring 1 (1.61, 2.66), ring 2 (-0.02, -0.63)), so the plates'
+  rows carry that too. His enforcer `bracer_r start -1.13` moves that row further into the elbow.
+- **Next:** make the forearm's (and shin's) ring middles smooth along the limb (reject a ring whose middle jumps from
+  its neighbours'; ring 0 extrapolated from rings 1-2) and for the Corners mirror at the joint's row take the good side
+  where one side's radius sinks far under its mirror. Then make the rest measure a verdict (0 inward, 0 out) and add
+  eyeshots (`vr_pp_test 17`'s head cameras sit badly for elbows: they need a camera placed off the elbow itself).
+- Tried and dropped: easing the corners' axial place (smoothstep instead of lerp): no change in any count.
+
+### Elbow leather at rest: the fix (2026-11-09 night, branch `agent/geo1109b`)
+
+- **The real cause: the middle rings turned onto the curve.** `vr_agarmor_bridge_check`'s rest line now also measures the joint
+  straight (hinge 0; the bind pose bends every elbow 45-76 degrees, the enforcer's gun arm 75). With each middle ring turned
+  fully onto the Hermite curve's tangent, a short sheared tube (the rows offset across the limb: the curve an S) tilted its rings
+  more than their spacing allows, they cut through each other and the cells between faced in, at every elbow and knee.
+  `evalBridge` now turns them `bridgeTangentTurn` 0.35 of the way from their slerped frames (1 before). 0 (no turn) was best at
+  rest but folded the enforcer's and the knight's elbows in more when bent; 0.35 leaves no joint's bent sweep worse.
+- **Forearm and shin ring middles smoothed** (`smoothAxis` in vr_agarmor.cpp, after `planGrid`'s whole-skin middles): a ring
+  whose middle is more than 0.3 x the limb's girth (at least 0.5 units) off the rings' median, or ring 0 off the line through
+  rings 1-2, is put back on its good neighbours' line. The enforcer's right forearm row 0 radii 1.45-9.12 became 4.02-6.15, his
+  left's middle ring (axis 1.61, 2.66) back on the line, the grunt's left middle ring (2.6 off) back.
+- **Joint rows' sunk corners** (`mirrorRadii`, Corners mode): at the row the leather ends on, a corner under 0.7 x its mirror
+  image takes the image's (the grunt's left forearm's 1.17 against 2.76).
+- **Tried and dropped:** the end rings' frames from their own posed plane (Newell) instead of the bone: no gain; the folds
+  scaled down per column where a column steps backwards: no gain, and 8 continuity failures; a per-pose turn share from a
+  no-crossing bound: about the same as 0.
+- **Numbers** (cells turned in / skin vertices out, summed over grunt, enforcer, knight, death knight, bind + straight + the
+  sweeps' worst): 407 / 52 before, 202 / 49 after. Straight: grunt 1/0, 0/0, 2/2, 4/1 (bracer_l, bracer_r, shin_l, shin_r; were
+  8/1, 5/0, 10/1, 10/1); enforcer 8/2, 7/0, 4/0, 0/1 (were 10/1, 14/0, 15/0, 5/1). Sweeps' worst never above before
+  (enforcer bracer_r 13 (14), knight bracer_r 9 (9)). `vr_agarmor_bridge_check` 88/0.
+- **Not done:** the rest line is still an info line, not a verdict: 0 in / 0 out is not reached (the enforcer's elbows keep 7-12
+  cells, his forearm's first row tilts against the upper arm's last when straightened from 75 degrees: the rows 1 unit apart on
+  the inner side). The skin-out count also counts skin under the plates' lapping rows. vrbody is not in the bridge check's
+  models. No before/after eyeshots yet: `vr_pp_test 17` now places the side shots off the elbow itself
+  (`vr_agarmor_headcam view dist set drop elbow`, elbow 1 left / 2 right), but at 18 units they are too close; try 30.
+## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
+
+His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and
+the "This hall selects HARD skill" trigger are start's), the super shotgun in hand. Scene `flat_look` (start 820 600 24
+96; `fov 95` as his) reproduces the view closely enough (his camera is a little further back-left); the hall's bridge is
+up or down depending on when the shot is taken, so the comparisons below take every variant in one run, one scene state.
+
+**What the existing settings did in flat (step 1).** Flat defaults vs every effect off-but-bloom/tonemap/grade
+(`vr_bloom 0; vr_tonemap 0; vr_grade 0`): mean difference 0.16/255, noise. Bloom, tone mapping, exposure and the
+colour grade run only for the eyes (`VR_PostProcessBloom`, `VR_PostProcessTone` return early for the window), so in
+flat they did nothing. Ultra preset + `vr_detail 1` + `vr_specular 0.5` vs defaults: 0.5/255: bump mapping, PBR,
+parallax and the AO are already on in the flat defaults (they are world/model shading, shared with the eyes). His own
+config (`gamma 0.95; contrast 1.2`, his relight values) is 7.7/255 off the defaults and slightly darker (luma 30.8 vs
+31.8); he had no effect off. The mockup's gap: brighter (luma 44 vs 32 at the spot), warmer highlights, glow round the
+torches and lava, darkened corners; its creases (pillar feet, under ledges) are not darker than ours, so no AO tuning
+and no screen-space AO. Its wet sheen on the floor and the sharper textures need assets: not attempted.
+
+**Added (step 2), `vr_flatlook.cpp`.** One pass after `R_WarpScaleView` in `R_RenderView` (so the HUD drawn after it is
+never graded), flatscreen play only (`flatplay::active()`, not an eye, not a teleporter's camera): the view's rectangle
+is blitted to an RGB10_A2 copy, the bloom chain runs on the copy (`bloom::applyFlat`, its own third chain, vr_bloom's
+threshold/size/weights), and a full-screen triangle writes it back with the glow added, graded and vignetted. The
+grade: exposure with the eyes' tone curve (`QvrTonemap`, knee 0.7) rolling off its top, shadows (black point raised =
+crushed, or lifted), an S curve about 0.45 with the ends kept, a split tone by luma (highlights amber, shadows blue),
+saturation. The window's post-process then dithers it into 8 bits as the eyes do (`vr_dither`). `GL_NeedsPostprocess`
+asks `VR_FlatLook()` so the window always has the composite target while it is on.
+
+Cvars (defaults = the proposed flat look): `vr_flat_bloom 0.1`, `vr_flat_grade 1`, `vr_flat_grade_exposure 1.25`,
+`vr_flat_grade_contrast 1.05`, `vr_flat_grade_shadows 0.1`, `vr_flat_grade_warmth 0.5`, `vr_flat_grade_saturation
+1.05`, `vr_flat_vignette 0.3`, `vr_flat_vignette_size 0.5`. Rows: VR Settings > Graphics, Post page, "Flat Screen"
+header. `vr_flatlook_info` prints the passes run. At the spot: luma 35.6 -> 42.8 (mockup 44.3), R/G/B 50/32/18 ->
+59/38/22 (mockup 64/38/24). Tuning notes: lifting the shadows a lot washes the hall out (luma sd stays high: the
+mockup is flatter overall); more saturation turns QRP's already orange hall red; bloom 0.2+ turns the torch into a
+white blob.
+
+**Cost (step 5)**, `vr_profile` GPU scopes, ThinLTO not rebuilt, low-impact runs while his game ran (the GPU shared:
+upper bounds): 1920x1080 0.21 ms a frame (bloom 0.11, copy + grade 0.10); 2560x1440 0.43 ms (bloom 0.25, copy +
+grade 0.18). Small, so the look is on by default in flat; take exclusive timings when his game is closed.
+
+**Tests.** `Misc/quakevr/flatlook_test.sh <agent>`: the mock headset, paused, eyeshots with the look's cvars off and
+at their extremes are the same (0 pixels off by more than 2) and no pass ran; in `-flatscreenmode` the pass runs and
+exposure 2 brightens the view (luma x1.8). `flatlook: 4 passed, 0 failed`. flatbt, flathud, hazepreset still pass.
+Scene `flat_look`: `SCNRUN|flat_look|OK`.
+
+Screenshots (worktree `scratch/`): `flatlook_step1.png` (defaults, defaults without bloom/tonemap/grade, his config,
+everything at best, the mockup, his original), `flatlook_compare.png` (the spot off/on, his config, the mockup; two E1M1
+spots off/on).
 ## Flat fixes, round 2 (branch `agent/flatfix1109b`, worktree blendmodels, 2026-11-09)
 
 Brief `qvr-kit/scratch/brief_flatfix2.md`: the five items left over from `agent/flatfix1109`. (Its section was in

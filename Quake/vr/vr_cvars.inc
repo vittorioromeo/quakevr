@@ -1731,6 +1731,7 @@ QVR_CVAR(vr_recoil_2h_time, "0.725", CVAR_ARCHIVE)
 QVR_CVAR(vr_recoil_2h_haptic, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_draw_blend, "0", CVAR_NONE)         // debug: 1 each frame of a hand's weapon blend printed (vr_drawblend.cpp; Debug > Tests)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
+QVR_CVAR(vr_debug_screen_where, "0", CVAR_NONE)       // debug: set to 1, the main hand's ammo screen prints where it is on its model once (centre, right, up, a font pixel, in model units: make_screen_housing.py; Debug > Reports > Ammo Screen on Model)
 QVR_CVAR(vr_blender_path, "", CVAR_ARCHIVE)            // vr_edit_in_blender's Blender (its blender.exe); empty: the newest in Program Files/Blender Foundation (vr_blender.cpp)
 QVR_CVAR(vr_blender_link, "1", CVAR_NONE)             // developer: 1 the Blender add-on's Show in Game heard: quakevr/blender_request.txt read every half second, only `show <model>` and `reload <model>` run (vr_blender.cpp; Debug > Tests)
 QVR_CVAR(vr_model_watch, "1", CVAR_NONE)               // developer: 1 the loaded models' files watched on disk, a changed one read again as vr_model_reload reads it (vr_modelwatch.cpp; Blender's export on save; Debug > Tests)
@@ -2278,6 +2279,16 @@ QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the t
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
+// Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
+QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
+QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
+QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)
+QVR_CVAR(vr_flat_grade_contrast, "1.05", CVAR_ARCHIVE) // ... an S curve's slope at mid grey, black and white kept (1 none)
+QVR_CVAR(vr_flat_grade_shadows, "0.1", CVAR_ARCHIVE)   // ... the darkest parts: below 0 crushed to black, above 0 lifted (-1 .. 1)
+QVR_CVAR(vr_flat_grade_warmth, "0.5", CVAR_ARCHIVE)    // ... warm highlights and cool shadows (split tone; 0 none, below 0 the other way)
+QVR_CVAR(vr_flat_grade_saturation, "1.05", CVAR_ARCHIVE) // ... colourfulness (1 unchanged, 0 grey)
+QVR_CVAR(vr_flat_vignette, "0.3", CVAR_ARCHIVE)        // flat-screen vignette: the corners darkened by this much (0 off; not the headset's comfort vignette)
+QVR_CVAR(vr_flat_vignette_size, "0.5", CVAR_ARCHIVE)   // ... how far in from the corners it reaches (0.05 .. 1)
 // Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
@@ -3782,6 +3793,7 @@ QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_weapon_screen_crt, "1", CVAR_ARCHIVE)      // it looks like a small CRT, as the wrist gadget's (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
+QVR_CVAR(vr_weapon_screen_style, "1", CVAR_ARCHIVE)    // 1: rounded dark glass set in its frame (rounded corners, a vignette, an inner bevel, softer digits; per weapon: vr_screenstyle.cpp's table, the shotgun's in its modelled housing); 0: the old square screen
 QVR_CVAR(vr_ammo_screen_text_white, "1", CVAR_ARCHIVE) // the ammo screens' and the ammo pouch counter's text: 1 near-white (the wrist gadget's), 0 the screen's colour (between: a mix); their face and glow stay the screen's colour
 // A held gun's ammo screen warns (vr_view_weapon.cpp ammoWarning): its text turns vr_ammo_color_empty when no round is
 // loaded (the magazine, clip or chamber; with reloading off, the ammo it fires from) and vr_ammo_color_low when fewer than
