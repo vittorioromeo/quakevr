@@ -261,7 +261,33 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
         return 1;
     }
     const int group = VR_ViewEntityGroup(e);
-    return group == VR_DRAW_BODY || group == VR_DRAW_MIRROR;
+    if(group == VR_DRAW_BODY || group == VR_DRAW_MIRROR)
+    {
+        return 1;
+    }
+    // Your hands and what they hold (vr_alias_prepass_own): the glove's shell over the hand and the fingers over the
+    // palm shaded the hands' pixels about twice, a gun's own parts about 1.4 times (vr_model_fragments). Not while a
+    // morph shows a gun only in part (its shader discards the rest, which a depth-only pass would not).
+    if(vr_alias_prepass_own.value == 0.f || (group != VR_DRAW_HANDS && group != VR_DRAW_HELD))
+    {
+        return 0;
+    }
+    const view::ViewEntity* ve = view::find(e);
+    return ve && ve->morph == 0.f;
+}
+
+extern "C" int VR_AliasPlayerFirst(const entity_t* e)
+{
+    // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip
+    // the pixels they cover (at 4x sample shading the world's shader is the frame's largest cost). Not the mirror's
+    // image, gear lying about or the rest: they stand among the world's surfaces like any model.
+    if(vr_alias_player_first.value == 0.f || !VR_IsViewEntity(e))
+    {
+        return 0;
+    }
+    const int group = VR_ViewEntityGroup(e);
+    return group == VR_DRAW_HANDS || group == VR_DRAW_BODY || group == VR_DRAW_HELD || group == VR_DRAW_HOLSTERED ||
+           group == VR_DRAW_WORN;
 }
 
 // Flatscreen play's model FOV (flatplay::modelFov): the player's own models, what moves with him. Not what lies in the

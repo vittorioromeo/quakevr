@@ -1223,12 +1223,93 @@ R_DrawEntitiesOnList
 =============
 */
 static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
-#ifdef QVR_TRACY
+static entity_t *r_first_alias[MAX_VISEDICTS], *r_rest_alias[MAX_VISEDICTS]; // QVR: those drawn before the world and after (R_AliasDrawsFirst)
 static entity_t *r_zoned_world[MAX_VISEDICTS], *r_zoned_player[MAX_VISEDICTS]; // QVR: R_DrawAliasModelsZoned's parts
 static const char *const r_zoned_player_parts[VR_DRAW_GROUPS] = { // QVR: the player's models' GPU sub-zones (VR_DRAW_*)
 	"player: hands", "player: body", "player: held", "player: holstered", "player: worn", "player: lying gear",
 	"player: mirror image", "player: other"};
-#endif
+
+/*
+=============
+R_ModelFragments_f -- QVR
+
+vr_model_fragments [passes] (a debug tool: Debug > Profiling and Memory): over the next passes (16) of the opaque alias
+models, each part's (the world's models: monsters, gibs, corpses, props; the player's own by VR_DRAW_* group) GPU time,
+vertex shader runs, triangles in, fragment shader runs and samples kept (the depth pre-passes' included), a pass's
+average, in the console. Each part's counts are read at once (a stall: for counts and shares, not frame times).
+=============
+*/
+#define QVR_GL_VERTEX_SHADER_INVOCATIONS	0x82F0 // GL 4.6 / ARB_pipeline_statistics_query
+#define QVR_GL_FRAGMENT_SHADER_INVOCATIONS	0x82F4
+#define QVR_GL_CLIPPING_INPUT_PRIMITIVES	0x82F6
+enum { MF_WORLD = VR_DRAW_GROUPS, MF_BRUSH, MF_PARTS, MF_QUERIES = 6, MF_STATS = 6 };
+typedef struct
+{
+	int		left, passes;
+	GLuint	queries[MF_QUERIES];		// timestamps (begin, end), vertices, triangles, fragments, samples passed
+	double	sum[MF_PARTS][MF_STATS];	// ms, vertices, triangles, fragments, samples, entities
+} modelfragments_t;
+static modelfragments_t modelfragments;
+
+void R_ModelFragments_f (void)
+{
+	if (modelfragments.queries[0])
+		GL_DeleteQueriesFunc (MF_QUERIES, modelfragments.queries);
+	memset (&modelfragments, 0, sizeof (modelfragments));
+	GL_GenQueriesFunc (MF_QUERIES, modelfragments.queries);
+	modelfragments.left = Cmd_Argc () > 1 ? q_max (1, atoi (Cmd_Argv (1))) : 16;
+	Con_Printf ("vr_model_fragments: counting the next %d opaque model passes\n", modelfragments.left);
+}
+
+static void R_ModelFragmentsBegin (void)
+{
+	GLuint *q = modelfragments.queries;
+	GL_QueryCounterFunc (q[0], GL_TIMESTAMP);
+	GL_BeginQueryFunc (QVR_GL_VERTEX_SHADER_INVOCATIONS, q[2]);
+	GL_BeginQueryFunc (QVR_GL_CLIPPING_INPUT_PRIMITIVES, q[3]);
+	GL_BeginQueryFunc (QVR_GL_FRAGMENT_SHADER_INVOCATIONS, q[4]);
+	GL_BeginQueryFunc (GL_SAMPLES_PASSED, q[5]);
+}
+
+static void R_ModelFragmentsEnd (int part, int count)
+{
+	GLuint64 v[MF_QUERIES] = {0};
+	int i;
+	GLuint *q = modelfragments.queries;
+	GL_EndQueryFunc (QVR_GL_VERTEX_SHADER_INVOCATIONS);
+	GL_EndQueryFunc (QVR_GL_CLIPPING_INPUT_PRIMITIVES);
+	GL_EndQueryFunc (QVR_GL_FRAGMENT_SHADER_INVOCATIONS);
+	GL_EndQueryFunc (GL_SAMPLES_PASSED);
+	GL_QueryCounterFunc (q[1], GL_TIMESTAMP);
+	for (i = 0; i < MF_QUERIES; i++)
+		GL_GetQueryObjectui64vFunc (q[i], GL_QUERY_RESULT, &v[i]);
+	modelfragments.sum[part][0] += (double)(v[1] - v[0]) * 1e-6;
+	for (i = 2; i < MF_QUERIES; i++)
+		modelfragments.sum[part][i - 1] += (double)v[i];
+	modelfragments.sum[part][5] += count;
+}
+
+static void R_ModelFragmentsPassDone (void)
+{
+	int part;
+	double n;
+	modelfragments.passes++;
+	if (--modelfragments.left > 0)
+		return;
+	n = modelfragments.passes;
+	Con_Printf ("vr_model_fragments: %d passes; a pass's ms, vertices, triangles, fragments, samples kept, models:\n", modelfragments.passes);
+	for (part = 0; part < MF_PARTS; part++)
+	{
+		const double *s = modelfragments.sum[part];
+		if (s[5] <= 0.0)
+			continue;
+		Con_Printf ("vr_model_fragments: %-20s %.3f ms, %.0f, %.0f, %.0f, %.0f, %.1f\n",
+			part == MF_WORLD ? "world models" : part == MF_BRUSH ? "world+brush" : r_zoned_player_parts[part], s[0] / n, s[1] / n, s[2] / n, s[3] / n, s[4] / n, s[5] / n);
+	}
+	Con_Printf ("vr_model_fragments: done\n");
+	GL_DeleteQueriesFunc (MF_QUERIES, modelfragments.queries);
+	modelfragments.queries[0] = 0;
+}
 
 /*
 =============
@@ -1265,12 +1346,9 @@ the gloves, what is held and holstered: VR_IsViewEntity), each its own GPU zone.
 */
 static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapass)
 {
-#ifndef QVR_TRACY
-	(void)alphapass;
-	R_DrawAliasModels (ents, count);
-#else
 	int i, world = 0, player = 0;
-	if (!vr_tracy_gpu_zones || alphapass || count < 2)
+	const qboolean counting = modelfragments.left > 0 && !alphapass; // (vr_model_fragments)
+	if ((!vr_tracy_gpu_zones || alphapass || count < 2) && !counting)
 	{
 		R_DrawAliasModels (ents, count);
 		return;
@@ -1283,7 +1361,11 @@ static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapa
 			r_zoned_world[world++] = ents[i];
 	}
 	VR_GPUZoneBegin ("alias: world models");
+	if (counting)
+		R_ModelFragmentsBegin ();
 	R_DrawAliasModels (r_zoned_world, world);
+	if (counting)
+		R_ModelFragmentsEnd (MF_WORLD, world);
 	VR_GPUZoneEnd ();
 	VR_GPUZoneBegin ("alias: player models");
 	for (i = 0; i < player; ) // its parts (VR_ViewEntityGroup), each run of one a zone of its own, in the drawn order
@@ -1291,13 +1373,17 @@ static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapa
 		int group = VR_ViewEntityGroup (r_zoned_player[i]), j;
 		for (j = i + 1; j < player && VR_ViewEntityGroup (r_zoned_player[j]) == group; j++)
 			;
-		VR_GPUZoneBegin (r_zoned_player_parts[group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER]);
+		group = group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER;
+		VR_GPUZoneBegin (r_zoned_player_parts[group]);
+		if (counting)
+			R_ModelFragmentsBegin ();
 		R_DrawAliasModels (r_zoned_player + i, j - i);
+		if (counting)
+			R_ModelFragmentsEnd (group, j - i);
 		VR_GPUZoneEnd ();
 		i = j;
 	}
 	VR_GPUZoneEnd ();
-#endif
 }
 
 void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
@@ -1305,28 +1391,59 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	int		*ofs;
 	int		stereophase; // QVR
 	entity_t **entlist = cl_sorted_visedicts;
+	entity_t **aliasents; // QVR
+	int		aliascount, firstcount = 0; // QVR
 
 	GL_BeginGroup (alphapass ? "Translucent entities" : "Opaque entities");
 
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
 	stereophase = alphapass ? 0 : VR_StereoSinglePhase (); // QVR: single-pass stereo: the multiview pass (1) draws the opaque
 	// world, brush models and the alias models away from the eyes; an eye's own view after it (2) the rest
-	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
-	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
-		R_DrawBrushModelsZoned (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
-	VR_ProfileEnd (); // QVR
-	VR_ProfileBeginGPU ("alias"); // QVR: profile
+	aliasents = entlist + ofs[2*mod_alias]; // QVR: the alias models this pass draws after the world
+	aliascount = ofs[2*mod_alias +1] - ofs[2*mod_alias ];
 	if (stereophase) // QVR: the alias models each pass takes
 	{
-		int i, n = 0, count = ofs[2*mod_alias +1] - ofs[2*mod_alias ];
-		for (i = 0; i < count; i++)
-			if (!VR_StereoSingleTakesAlias (entlist[ofs[2*mod_alias ] + i]) == (stereophase == 2))
-				r_stereo_alias[n++] = entlist[ofs[2*mod_alias ] + i];
-		R_DrawAliasModelsZoned (r_stereo_alias, n, alphapass);
+		int i, n = 0;
+		for (i = 0; i < aliascount; i++)
+			if (!VR_StereoSingleTakesAlias (aliasents[i]) == (stereophase == 2))
+				r_stereo_alias[n++] = aliasents[i];
+		aliasents = r_stereo_alias;
+		aliascount = n;
 	}
-	else
-	R_DrawAliasModelsZoned (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ], alphapass);
+	else if (!alphapass) // QVR: your own opaque models drawn before the world (vr_alias_player_first, R_AliasDrawsFirst)
+	{
+		int i, n = 0;
+		for (i = 0; i < aliascount; i++)
+			if (R_AliasDrawsFirst (aliasents[i]))
+				r_first_alias[firstcount++] = aliasents[i];
+			else
+				r_rest_alias[n++] = aliasents[i];
+		if (firstcount)
+		{
+			aliasents = r_rest_alias;
+			aliascount = n;
+			VR_ProfileBeginGPU ("alias"); // QVR: profile
+			VR_GPUZoneBegin ("alias: player models first");
+			R_DrawAliasModelsZoned (r_first_alias, firstcount, alphapass);
+			VR_GPUZoneEnd ();
+			VR_ProfileEnd (); // QVR
+		}
+	}
+	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
+	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
+	{
+		if (modelfragments.left > 0 && !alphapass) // QVR: (vr_model_fragments)
+			R_ModelFragmentsBegin ();
+		R_DrawBrushModelsZoned (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
+		if (modelfragments.left > 0 && !alphapass)
+			R_ModelFragmentsEnd (MF_BRUSH, 1);
+	}
 	VR_ProfileEnd (); // QVR
+	VR_ProfileBeginGPU ("alias"); // QVR: profile
+	R_DrawAliasModelsZoned (aliasents, aliascount, alphapass);
+	VR_ProfileEnd (); // QVR
+	if (modelfragments.left > 0 && !alphapass) // QVR: (vr_model_fragments)
+		R_ModelFragmentsPassDone ();
 	VR_ProfileBeginGPU ("sprite models"); // QVR: profile
 	if (!alphapass && stereophase != 1) // QVR: (per eye)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
