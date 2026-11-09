@@ -546,7 +546,12 @@ Three ways to change a housing:
 1. **The opening** (its size, `opening`; its corners, `radius`; the SSG's glass `offset`): edit the gun's entry in
    `Quake/vr/vr_screenstyle.cpp`, rebuild the engine (the glass is drawn from the same table) and run the script.
 2. **The rest of its shape** (the bezel's width, depths, bolts, the textures' places): the constants at the top of the
-   script; run it again.
+   script; run it again. The shotgun's depth is `DEPTH_STEPS` in `make_screen_housing_shot.py`: how many grid steps
+   (0.22 units) the bezel's front stands in front of the end face's bottom edge (1, the default; 2, twice as far, the
+   first housing's). Its bevel and opening go one step back from the front; the bolts' heads stand a step proud, at
+   most flush with the front. The glass has to sit between the bezel's front and the leaning end face (its top edge is
+   nearest): after a depth change the script refuses and prints the `offset` out value for the "shot" entry that puts
+   it there; set it, rebuild and run again (the opening's walls then slope to just inside the glass).
 3. **By hand in Blender**: edit the .blend and export it (`blend_export.py`, or Export on Save). Don't run the script
    after that: it would put its own shape back.
 
