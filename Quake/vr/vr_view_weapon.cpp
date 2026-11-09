@@ -306,8 +306,29 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         }
     }
 
+    const screenstyle::Style& style = screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr);
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr);
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style);
+    if(main && vr_debug_screen_where.value != 0.f)
+    {
+        // Where the screen is on its model (make_screen_housing.py's numbers; Debug > Reports > Ammo Screen on Model):
+        // the glass's centre (the style's offset in), its right and up, a font pixel, in the model's own units.
+        Cvar_SetValueQuick(&vr_debug_screen_where, 0.f);
+        const glm::vec3 o = view::modelPoint(ve, glm::vec3{0.f});
+        const glm::mat3 a{view::modelPoint(ve, {1.f, 0.f, 0.f}) - o, view::modelPoint(ve, {0.f, 1.f, 0.f}) - o,
+            view::modelPoint(ve, {0.f, 0.f, 1.f}) - o};
+        const glm::mat3 inv = glm::inverse(a);
+        vec3_t av{angles.x, angles.y, angles.z}, f, r, u;
+        AngleVectors(av, f, r, u);
+        const glm::vec3 right{r[0], r[1], r[2]}, up{u[0], u[1], u[2]};
+        const glm::vec3 centre = pos + right * style.offset.x + up * style.offset.y +
+                                 glm::normalize(glm::cross(right, up)) * style.offset.z;
+        const glm::vec3 c = inv * (centre - o), mr = inv * right, mu = inv * up;
+        const float px = 0.1f * weapons::value(slot, Key::WpnTextScale) * style.size * glm::length(mr); // (8 * scale / 8)
+        Con_Printf("screenwhere: %s centre %.4f %.4f %.4f right %.4f %.4f %.4f up %.4f %.4f %.4f pixel %.5f\n",
+            ve.ent.model ? ve.ent.model->name : "?", c.x, c.y, c.z, mr.x / glm::length(mr), mr.y / glm::length(mr),
+            mr.z / glm::length(mr), mu.x / glm::length(mu), mu.y / glm::length(mu), mu.z / glm::length(mu), px);
+    }
     if(vr_weapon_screen.value != 0.f)
     {
         emissive::weaponScreenLight(hand, pos, angles); // its faint glow (vr_weapon_screen_light)

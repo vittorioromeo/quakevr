@@ -5174,52 +5174,65 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
   missing; menu_paths.txt regenerated.
 - **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
-## Release pass for 1.1 (branch `agent/relpass`, 2026-11-08)
-
-QUEUE.md's "Release pass offered": the release-build tests, real packaging, the upgrade path, the campaigns, the notes.
-Nothing published, tagged, uploaded or pushed.
-
-- **Backlog retired** (first commit): the done items out, the mostly-done ones trimmed, "Model loading in parallel" and
-  "Stretched UVs left" kept, marked "check" (loadjobs covers the skins' normal maps only; the topology rounds re-mapped
-  none of the stretched faces).
-- **Packaging:** `make_release.ps1 -Local -QuakeDir <kit qbase> -AllowUnpromotedTunables` end to end into
-  `out\release\1.1.0-local` (twice; the last on f81f96c59): statics, QC precedence, release QC, FGD; ThinLTO
-  QVR_RELEASE build; 4047 files, exactly the allowlist, no id files; installer self-tests 41/41; latest.json read as the
-  installer reads it; the packaged QuakeVR-Setup.exe's off-screen install + `verify` intact; the smoke launch (the zip's
-  exe, hidden, mock headset) ran `map start` and quit cleanly. Allowlist rule (every tracked file under `quakevr\`):
-  `checklist.txt`, 88 `scenarios\*.txt` and `vrtesthall` ship, as before. His `tunables.cfg` holds 14 unpromoted values
-  (warning; his call).
-- **Release-build tests:** `run_test_suite.py release` on the ThinLTO Release build: 39 passed, 5 failed (autopump 7/7,
-  cellcord 7/3, xr_runtime 2, secret_hits, animsmooth), all five in QUEUE.md's pre-existing list; nothing new.
-- **Upgrade path.** `scratch/gen_oldcfg.py` writes a tag's full config (every archived QVR_CVAR at the tag's default, the
-  shipped `vr_defaults.cfg` over it as 1.0.1 executed it, `vr_cfg_version` the tag's) plus changed values;
-  `upgrade_check.py` starts the game on it and lists settings still at the tag's old default ("stale"), changed values
-  not kept, and "Unknown command" lines. On the packaged release exe before the fixes, a beta 4 config kept
-  `vr_agrunt_repl 0` (armed replacements off), the tiers 0, `vr_relight_minlight 0`... and printed "Unknown command"
-  for `vr_carry_two_hands_window`, `vr_walltorch_pull`, `vr_revolver_eject_tilt`.
-  - **Cause:** `defaultChanges` froze at 218 (sparse configs), but every 1.0.x and beta config is full (207 for beta 4,
-    126 for 1.0.1): the 34 defaults changed after 217 never reached them. **Fix:** `fullConfigChanges` (vr_cvars.cpp):
-    the 217 values (`155989a1d^`'s defaults against today's), applied only when `vr_cfg_version` < 218 and only to a
-    setting still at its 217 value; a sparse config's line stays the player's. `vr_body_step_rate` keeps 220's own step.
-  - The alias `vr_carry_two_hands_window` -> `vr_throw_2h_window` pointed at a tuning constant (no cvar: in a release no
-    console name), so it found nothing: now retired, with the other two.
-  - After: beta 4 config 4/4 changed values kept, 0 stale, 0 unknown; 1.0.1 config 2/2, 0 stale, 0 unknown; both on the
-    dev build and on the packaged QVR_RELEASE exe. Test: `Misc/quakevr/config_fullupgrade_test.sh <agent>` (6 passed).
-- **Saves:** no beta 4 build is at hand, so the closest: a save made now (e1m1, skill 1) with every vr field and global
-  beta 4's QC did not declare dropped and beta 4's 12 removed fields added to the player (`scratch/oldsave.py`): loads,
-  the 12 print "is not a field" and are skipped, fighting, a resave and its load work. The kit's two old saves
-  (2026-10-12, 11-02) are another engine's: refused with the "lacks the mission-pack and campaign keys" message.
-- **Campaigns:** headless `vr_campaign_select` hipnotic, rogue, dopa (e5start), mg1, mg3, id1, and AD through
-  `vr_campaign_native ad` (game `...;ad;quakevr`): each to its first map, fired a weapon, no error.
-- **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
-  `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
-- Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
 
 ## Wounded enemies drip all the while; player gore parity (branch `agent/gore1109`, 2026-11-09)
 
 His words: enemy blood drips don't seem to work (too rare, end too soon); wounded enemies should drip constantly as you
 do. And gore parity: your arms, hands and body bleed as the enemies do, tweakable and toggleable.
 
+## Ammo screens as part of the gun (agent/ammoscreen, 2026-11-09; pilot: the shotgun)
+
+From his ChatGPT mockups (the shotgun's screen set in a bolted bezel on the end face, rounded green glass, soft digits,
+contact shadows). Done in this branch: the screen look and the texel AO bake. Not done (out of budget): the shotgun's
+modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
+
+- **Screen look (every weapon):** Shade::Screen draws an ammo screen as rounded glass when State::frame/glass are set
+  (vr_gfx_gl.cpp mode 4, uniforms 18/19): nothing outside the rounded corners (the darker box behind frames it), the
+  glass's own dark colour (the phosphor's, faint) under the face, a vignette, a thin dark inner bevel (darker at the
+  top, a faint highlight along the bottom), a soft reflection high on the left, the digits a little softer; the CRT
+  look and the outer glow are toned down. `vr_weapon_screen_style` (1; Screens > Weapons' Ammo Screens > Rounded Glass
+  Ammo Screens) 0: the old square screen.
+- **Per-weapon table:** `Quake/vr/vr_screenstyle.cpp` (`table[]`, by the model's stem: v_shot/g_shot are "shot"):
+  radius, bevel, vignette, sheen, softness, glass, tint, CRT share, size, offset (right/up/out units), box width,
+  housing. text3d::queue takes the style (vr_view_weapon.cpp held guns, vr_view.cpp holstered/world guns); the pouch
+  counter, tool gun and setup screens take the default.
+- **Round two (2026-11-09):** he could barely see round one's change. **The texel skin AO bake is reverted** (6025f34e2,
+  with its cvars and test): about 1/255 over vr_ao_models for ~2 s a map; not worth moving onto the worker. **The glass
+  restyled until it reads like his mockup** (side by side, 4K flat shots: `scratch/ammoscreen/panel_shot.png` in the
+  worktree): the shader now replaces the face in the glass (vr_gfx_gl.cpp mode 4, State::frame/glass): grey-green
+  near-black glass, lighter low in the middle; the digits pale green-white (the phosphor's hue half towards white),
+  softened by half a font pixel, with a halo kept inside the glass; an inset shadow under the top edge (the opening's
+  own shape moved up), a dark inner bevel all round with a thin pale lip catching the light, a vignette and a faint
+  diagonal sheen; the edge's last pixel fades into the frame. The outer glow quad (vr_screen_glow) is off for styled
+  screens: no green outline beyond the frame. The frame box is near black and 1.5x wider. Table: default radius 4, glass
+  0.13, crt 0.4, box 1.5; shot radius 4.5, box 1.2.
+- **Opening shapes:** `radius` > 0 rounds the corners, < 0 chamfers them; a style's `opening` (half size in font pixels)
+  fixes the glass's size and shape whatever its text (the text centred, the image made finer when the text needs more
+  room: text3d imageFit; images are matched by their size too), so that a housing's opening and the glass are one
+  shape. `vr_debug_screen_where 1` (Debug > Reports > Ammo Screen on Model) prints the held screen's centre, right, up
+  and font pixel in the model's units. Measured on v_shot: the offsets `wpntxt_x/y/z` are model +X/+Y/+Z at 1.948 model
+  units a unit (zero puts the glass on the anchor), a font pixel is 0.0710 model units, and pitch -2 tilts the glass
+  17.6 degrees from upright (the end face is 5.8 degrees; pitch 9.8 gives +7.8).
+- **Not done (budget):** the housings (shotgun bezel with four bolts, nail pistol housing with grille and sight posts,
+  SSG inset window with a rivet each side and a sight block), their table entries and three-panel images; the nail
+  pistol / SSG / VR-mock checks of the new look.
+- **Recipe for another gun's housing:** model the bezel and bolts on its `.blend` (the end face round its `av wpntxt_av`
+  anchor; its own UVs on the gun's metal, frame 0 and each shape key moved with the face), Ctrl+S exports; give it a
+  table entry with `.housing = true`, `.box` small or 0 and the `.offset` that sits the glass in the inset; check with
+  `vr_flat_flycam_place -2 3 -2 42 -10` at `fov 40` in `-flatscreenmode` (place now takes a yaw: 5th argument).
+- **Texel AO bake (`vr_skinao.cpp`):** on top of vr_ao_models' per-vertex bake (its rays, reach, near cut), each skin
+  texel a drawn triangle covers is rasterised in UV space (the vertex buffer's st: onseam halves as drawn), its point
+  and face normal cast the same 24 cosine rays against the model's own faces (each face's neighbours within reach
+  found first); shared texels (mirrored/reused skin) average their uses; uncovered texels take their neighbours' two
+  texels out. Applied as the 8-bit skin is expanded to colour (TexMgr_LoadImage8 -> VR_SkinAOApply, so palette and
+  gamma reloads keep it), fullbright texels (224..255) untouched. Cvars: `vr_ao_skin_weapons` (0 for now),
+  `vr_ao_skin_models` (0), `vr_ao_skin_strength` (1), `vr_ao_skin_radius` (1), `vr_ao_skin_debug`.
+  Result: it adds contact shading the vertex bake can't (the sight bridge's base, the rivets' rings): the shotgun's
+  texels round its 26 rivets average 0.613 visibility against 0.749 on like-facing faces away from them; on screen
+  the gain over vr_ao_models is modest (mean pixel change 1.3/255 on the gun's top). Cost: v_shot ~90-240 ms, a map's
+  50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
+  vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
+- **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.
 - **Why the drips didn't show:** `drips::bleed` forgot a wounded monster for good the first frame it was missing from
   the server's message (`msgtime != cl.mtime[0]`: out of sight a moment); the rate was `1.2 * share lost` drops a
   second (a grunt at half health: 0.6/s of 0.5-0.75 unit drops); a shotgun blast's first pellet set the "health
@@ -5384,3 +5397,95 @@ their other elbows good.
   the inner side). The skin-out count also counts skin under the plates' lapping rows. vrbody is not in the bridge check's
   models. No before/after eyeshots yet: `vr_pp_test 17` now places the side shots off the elbow itself
   (`vr_agarmor_headcam view dist set drop elbow`, elbow 1 left / 2 right), but at 18 units they are too close; try 30.
+## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
+
+His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and
+the "This hall selects HARD skill" trigger are start's), the super shotgun in hand. Scene `flat_look` (start 820 600 24
+96; `fov 95` as his) reproduces the view closely enough (his camera is a little further back-left); the hall's bridge is
+up or down depending on when the shot is taken, so the comparisons below take every variant in one run, one scene state.
+
+**What the existing settings did in flat (step 1).** Flat defaults vs every effect off-but-bloom/tonemap/grade
+(`vr_bloom 0; vr_tonemap 0; vr_grade 0`): mean difference 0.16/255, noise. Bloom, tone mapping, exposure and the
+colour grade run only for the eyes (`VR_PostProcessBloom`, `VR_PostProcessTone` return early for the window), so in
+flat they did nothing. Ultra preset + `vr_detail 1` + `vr_specular 0.5` vs defaults: 0.5/255: bump mapping, PBR,
+parallax and the AO are already on in the flat defaults (they are world/model shading, shared with the eyes). His own
+config (`gamma 0.95; contrast 1.2`, his relight values) is 7.7/255 off the defaults and slightly darker (luma 30.8 vs
+31.8); he had no effect off. The mockup's gap: brighter (luma 44 vs 32 at the spot), warmer highlights, glow round the
+torches and lava, darkened corners; its creases (pillar feet, under ledges) are not darker than ours, so no AO tuning
+and no screen-space AO. Its wet sheen on the floor and the sharper textures need assets: not attempted.
+
+**Added (step 2), `vr_flatlook.cpp`.** One pass after `R_WarpScaleView` in `R_RenderView` (so the HUD drawn after it is
+never graded), flatscreen play only (`flatplay::active()`, not an eye, not a teleporter's camera): the view's rectangle
+is blitted to an RGB10_A2 copy, the bloom chain runs on the copy (`bloom::applyFlat`, its own third chain, vr_bloom's
+threshold/size/weights), and a full-screen triangle writes it back with the glow added, graded and vignetted. The
+grade: exposure with the eyes' tone curve (`QvrTonemap`, knee 0.7) rolling off its top, shadows (black point raised =
+crushed, or lifted), an S curve about 0.45 with the ends kept, a split tone by luma (highlights amber, shadows blue),
+saturation. The window's post-process then dithers it into 8 bits as the eyes do (`vr_dither`). `GL_NeedsPostprocess`
+asks `VR_FlatLook()` so the window always has the composite target while it is on.
+
+Cvars (defaults = the proposed flat look): `vr_flat_bloom 0.1`, `vr_flat_grade 1`, `vr_flat_grade_exposure 1.25`,
+`vr_flat_grade_contrast 1.05`, `vr_flat_grade_shadows 0.1`, `vr_flat_grade_warmth 0.5`, `vr_flat_grade_saturation
+1.05`, `vr_flat_vignette 0.3`, `vr_flat_vignette_size 0.5`. Rows: VR Settings > Graphics, Post page, "Flat Screen"
+header. `vr_flatlook_info` prints the passes run. At the spot: luma 35.6 -> 42.8 (mockup 44.3), R/G/B 50/32/18 ->
+59/38/22 (mockup 64/38/24). Tuning notes: lifting the shadows a lot washes the hall out (luma sd stays high: the
+mockup is flatter overall); more saturation turns QRP's already orange hall red; bloom 0.2+ turns the torch into a
+white blob.
+
+**Cost (step 5)**, `vr_profile` GPU scopes, ThinLTO not rebuilt, low-impact runs while his game ran (the GPU shared:
+upper bounds): 1920x1080 0.21 ms a frame (bloom 0.11, copy + grade 0.10); 2560x1440 0.43 ms (bloom 0.25, copy +
+grade 0.18). Small, so the look is on by default in flat; take exclusive timings when his game is closed.
+
+**Tests.** `Misc/quakevr/flatlook_test.sh <agent>`: the mock headset, paused, eyeshots with the look's cvars off and
+at their extremes are the same (0 pixels off by more than 2) and no pass ran; in `-flatscreenmode` the pass runs and
+exposure 2 brightens the view (luma x1.8). `flatlook: 4 passed, 0 failed`. flatbt, flathud, hazepreset still pass.
+Scene `flat_look`: `SCNRUN|flat_look|OK`.
+
+Screenshots (worktree `scratch/`): `flatlook_step1.png` (defaults, defaults without bloom/tonemap/grade, his config,
+everything at best, the mockup, his original), `flatlook_compare.png` (the spot off/on, his config, the mockup; two E1M1
+spots off/on).
+## Flat fixes, round 2 (branch `agent/flatfix1109b`, worktree blendmodels, 2026-11-09)
+
+Brief `qvr-kit/scratch/brief_flatfix2.md`: the five items left over from `agent/flatfix1109`. (Its section was in
+this file once; the duplicate was "Release pass for 1.1", in twice: the second copy removed.)
+
+- **Prone in the 20-unit vent:** the server already kept the lying box where the lowest crouched box (36) does not fit,
+  but the client let go of lying down at once. The crouch pressed while lying lifted his eyes 28 over his feet (the
+  view's cap, `hull::localEyeCap`, says nothing while the crouch key holds him down): through the vent's 20-high top
+  to the teleporter in the wall over it. Now every way out of lying down in flat play (the prone key, `vr_prone_toggle`,
+  the crouch pressed) asks `hull::localRiseFits()` (the server's own rise test) first: no room, he stays lying (view,
+  body, box) and the get-up waits, done by itself once he has crawled out to where it fits; the prone key pressed again
+  while it waits takes the wish back (vr_flatplay.cpp `getUp`, `toggleProne`). Death and map changes still clear it.
+  Test `Misc/quakevr/prone_vent_test.sh` (new): **9 passed** (crouch and key in the vent: lying, x 624, eye 12; out:
+  up by itself; the wish taken back: still lying; the key in the open: up). Before the fix the crouch case read eye 28.
+  flatslide (incl. flatprone) 17/17.
+  (Follow-up: `setpos` turns noclip on, so the test now turns it off after each one: with it on the teleporter was
+  never touched. 9 passed again.)
+- **`vr_flat_autoreload` default 0** (his call): only R reloads. No migration row: the setting came after the sparse
+  configs (218), so a config holds it only if he set it; his own config untouched. Menu help and FLATPLAY.md say "off
+  by default"; flatreload's cases set it explicitly: **26 passed**.
+- **The nail pistol's empty reload assert:** not the nail pistol. R with nothing to reload printed both hands'
+  storage (a dprint, its arguments evaluated at any developer level), and the empty off hand's ammo id is AID_NONE,
+  which `VR_AmmoUtil_GetAmmoCountByAmmoId` asserts on (vr_ammoutil.qc:34). `VR_FlatReload_Storage` is 0 for a
+  weaponless hand or AID_NONE (vr_flatreload.qc). Test `Misc/quakevr/emptyreload_test.sh` (new): every weapon id
+  0..19 and 29..31 given, all ammo 0, fired 1.5 s, R twice, flat and VR mock: before 66 assertions (flat), now
+  **4 passed** (no assertion, all 23 weapons reached, both modes).
+- **ESC in the flat-screen menu:** `vr_menu_flat_esc_game` (1; Advanced VR Options > HUD and Menus > Menu, "Escape
+  Returns to the Game"): with VR off and a game running, Escape on any menu page is Back to game (closes it,
+  resumes, reopens on that page), in both the classic and the VR-style layout (vr_menuui.cpp `VR_MenuKey`). Not while
+  a drop-down is open or a slider or scrollbar is held (`menu::escapeLocal`), nor waiting for a key bind, nor without
+  a game (Quake's main menu then). 0: Escape goes back a page, as before. The headset is unchanged (its menu button
+  already was Back to game). Test `Misc/quakevr/flatmenu_esc_test.sh` (new): **9 passed** (main menu and Options
+  close in both layouts, togglemenu reopens Options, 0 goes back a page, the VR mock goes back a page).
+  menu_paths.txt regenerated (it also restores the autoreload row's second column: that is the menu detail level,
+  not the default; the autoreload commit had changed it by mistake).
+- **Ramp slide jitter (measured, NOT fixed):** `vr_flatslide_ramp_test [1]` (e1m1, the spiral room's 13-degree ramp,
+  x 896..1120 at y 2048) and `Misc/quakevr/flatramp_test.sh`: frame by frame down the ramp, the view's height, his
+  origin's and the drawn gun from the view (largest second difference, at most 0.5). His origin is smooth (on the
+  ground every frame, bend 0.001: no ground bounce in fast mode) and the view too (0.30, the drop easing in). The gun
+  is not: **it jumps 3.4 units forward from the view in one frame** at the slide's 16th frame, then eases back over
+  ten frames. It follows the crouch's ease: with `vr_flat_crouch_time 0.6` (default 0.25) it does not happen on the
+  ramp. The pose head equals the view (so it is the hand's offset), and neither `vr_flat_clear_stock 0` nor
+  `vr_flat_gun_collide 0` removes it. Next: print `targetOffset`'s terms and `handOnBody`'s limits per frame at that
+  moment (something switches when the crouch ratio reaches 1, or the server's crouch box drops a level then).
+  flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
+- Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.

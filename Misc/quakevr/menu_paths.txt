@@ -2124,6 +2124,7 @@ vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > St
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner Buttons on a Flat Screen
+vr_menu_flat_esc_game|1|Menu|Escape Returns to the Game|Advanced VR Options > HUD and Menus > Menu > Escape Returns to the Game
 vr_menu_flat_vr_style|1|Menu|VR Menu Layout on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen
 vr_menu_flat_scale|1|Menu|Flat Menu Panel Size|Advanced VR Options > HUD and Menus > Menu > Flat Menu Panel Size
 |1|Menu|Reset Flat Menu Panel|Advanced VR Options > HUD and Menus > Menu > Reset Flat Menu Panel
