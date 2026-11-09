@@ -8,18 +8,18 @@ namespace qvr::screenstyle
 namespace
 {
 
-// The default: every weapon's screen without a housing of its own. A thin bezel box still frames it.
-constexpr Style defaultStyle{.radius = 3.f,
+// The default: every weapon's screen without a housing of its own. A thick near-black frame (the box) round it.
+constexpr Style defaultStyle{.radius = 4.f,
     .bevel = 1.6f,
     .vignette = 0.35f,
     .sheen = 0.6f,
     .soft = 0.5f,
-    .glass = 0.07f,
+    .glass = 0.13f,
     .tint = {1.f, 1.f, 1.f},
-    .crt = 0.6f,
+    .crt = 0.4f,
     .size = 1.f,
     .offset = {0.f, 0.f, 0.f},
-    .box = 1.f,
+    .box = 1.5f,
     .housing = false};
 
 struct Entry
@@ -34,17 +34,17 @@ constexpr Entry table[] = {
     // The shotgun: the bezel with four bolts on the receiver's end face (v_shot.blend, make_screen_housing.py); the glass
     // a little smaller, sat in the bezel's inset, its own box only a hairline lip.
     {"shot",
-        {.radius = 3.5f,
+        {.radius = 4.5f,
             .bevel = 2.f,
             .vignette = 0.4f,
             .sheen = 0.7f,
             .soft = 0.55f,
-            .glass = 0.08f,
+            .glass = 0.13f,
             .tint = {0.9f, 1.f, 0.9f},
-            .crt = 0.5f,
+            .crt = 0.4f,
             .size = 1.f,
             .offset = {0.f, 0.f, 0.f},
-            .box = 0.35f,
+            .box = 1.2f,
             .housing = true}},
 };
 

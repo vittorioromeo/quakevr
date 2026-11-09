@@ -5231,6 +5231,26 @@ modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
   radius, bevel, vignette, sheen, softness, glass, tint, CRT share, size, offset (right/up/out units), box width,
   housing. text3d::queue takes the style (vr_view_weapon.cpp held guns, vr_view.cpp holstered/world guns); the pouch
   counter, tool gun and setup screens take the default.
+- **Round two (2026-11-09):** he could barely see round one's change. **The texel skin AO bake is reverted** (6025f34e2,
+  with its cvars and test): about 1/255 over vr_ao_models for ~2 s a map; not worth moving onto the worker. **The glass
+  restyled until it reads like his mockup** (side by side, 4K flat shots: `scratch/ammoscreen/panel_shot.png` in the
+  worktree): the shader now replaces the face in the glass (vr_gfx_gl.cpp mode 4, State::frame/glass): grey-green
+  near-black glass, lighter low in the middle; the digits pale green-white (the phosphor's hue half towards white),
+  softened by half a font pixel, with a halo kept inside the glass; an inset shadow under the top edge (the opening's
+  own shape moved up), a dark inner bevel all round with a thin pale lip catching the light, a vignette and a faint
+  diagonal sheen; the edge's last pixel fades into the frame. The outer glow quad (vr_screen_glow) is off for styled
+  screens: no green outline beyond the frame. The frame box is near black and 1.5x wider. Table: default radius 4, glass
+  0.13, crt 0.4, box 1.5; shot radius 4.5, box 1.2.
+- **Opening shapes:** `radius` > 0 rounds the corners, < 0 chamfers them; a style's `opening` (half size in font pixels)
+  fixes the glass's size and shape whatever its text (the text centred, the image made finer when the text needs more
+  room: text3d imageFit; images are matched by their size too), so that a housing's opening and the glass are one
+  shape. `vr_debug_screen_where 1` (Debug > Reports > Ammo Screen on Model) prints the held screen's centre, right, up
+  and font pixel in the model's units. Measured on v_shot: the offsets `wpntxt_x/y/z` are model +X/+Y/+Z at 1.948 model
+  units a unit (zero puts the glass on the anchor), a font pixel is 0.0710 model units, and pitch -2 tilts the glass
+  17.6 degrees from upright (the end face is 5.8 degrees; pitch 9.8 gives +7.8).
+- **Not done (budget):** the housings (shotgun bezel with four bolts, nail pistol housing with grille and sight posts,
+  SSG inset window with a rivet each side and a sight block), their table entries and three-panel images; the nail
+  pistol / SSG / VR-mock checks of the new look.
 - **Recipe for another gun's housing:** model the bezel and bolts on its `.blend` (the end face round its `av wpntxt_av`
   anchor; its own UVs on the gun's metal, frame 0 and each shape key moved with the face), Ctrl+S exports; give it a
   table entry with `.housing = true`, `.box` small or 0 and the `.offset` that sits the glass in the inset; check with

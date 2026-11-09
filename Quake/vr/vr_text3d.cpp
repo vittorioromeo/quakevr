@@ -155,6 +155,34 @@ struct ScreenShape
     return static_cast<int>(za::lround(8.f * 0.35f * za::max(0.f, vr_weapon_screen_padding.value)));
 }
 
+// A screen's image (its virtual screen, in font pixels) and how much finer than the font it is: sized by its text, or
+// a styled screen with an opening of its own (vr_screenstyle.hpp: a housing's) the opening's size and shape, its text
+// centred in it, k times finer when the text needs more room than the opening has. `opening`: the glass's half size in
+// font pixels (0: none).
+struct ImageFit
+{
+    int width{0}, height{0};
+    float k{1.f};
+};
+
+[[nodiscard]] ImageFit imageFit(size_t longest, size_t rows, int pad, const glm::vec2& opening)
+{
+    const int w = static_cast<int>(longest) * 8 + pad * 2;
+    const int h = static_cast<int>(rows) * 8 + pad * 2;
+    if(opening.x <= 0.f || opening.y <= 0.f)
+    {
+        return {w, h, 1.f};
+    }
+    const float k = za::max(1.f, za::max(static_cast<float>(w) / (2.f * opening.x), static_cast<float>(h) / (2.f * opening.y)));
+    return {static_cast<int>(za::lround(2.f * opening.x * k)), static_cast<int>(za::lround(2.f * opening.y * k)), k};
+}
+
+// The opening a queued screen's style gives it (none unless styled: vr_weapon_screen_style).
+[[nodiscard]] glm::vec2 styledOpening(const screenstyle::Style* style)
+{
+    return style && screenstyle::enabled() ? style->opening : glm::vec2{0.f};
+}
+
 // The screens' palette (the wrist gadget's, by default the player's hue): its text, and its face behind it.
 [[nodiscard]] glm::vec3 screenText()
 {
@@ -614,12 +642,12 @@ struct ScreenLook
 }
 
 // The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
-[[nodiscard]] int findScreenImage(za::StringView text, int align, const ScreenLook& look)
+[[nodiscard]] int findScreenImage(za::StringView text, int align, const ScreenLook& look, const ImageFit& fit)
 {
     for(int i = 0; i < maxScreenImages; i++)
     {
         const ScreenImage& image = screenImages[static_cast<size_t>(i)];
-        if(image.width > 0 && image.target.texture && image.drawnAlign == align &&
+        if(image.width == fit.width && image.height == fit.height && image.target.texture && image.drawnAlign == align &&
             image.drawnFace == look.face && image.drawnText == look.text && image.drawnFont == look.font &&
             image.drawn == text)
         {
@@ -696,24 +724,30 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         inkColor = glm::vec4{tint ? tintedText(*tint) : screenInk(), 1.f};
         glyphs = screenWhiteness() > 0.f ? &screenGlyphs : &screenInkGlyphs;
 
-        const float halfW = charSize * static_cast<float>(longest) * 0.5f;
-        const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
-        const float pad = charSize / 8.f * static_cast<float>(screenPad());
+        // The glass's half size: its text's and the padding round it, or a housing's opening (vr_screenstyle.hpp).
+        const int padPixels = screenPad();
+        const glm::vec2 opening = styled ? style.opening : glm::vec2{0.f};
+        const ImageFit fit = imageFit(longest, textLines.size(), padPixels, opening);
+        const bool fitted = opening.x > 0.f && opening.y > 0.f;
+        const float glassW = fitted ? charSize / 8.f * opening.x
+                                    : charSize * (static_cast<float>(longest) * 0.5f + static_cast<float>(padPixels) / 8.f);
+        const float glassH = fitted ? charSize / 8.f * opening.y
+                                    : charSize * (static_cast<float>(textLines.size()) * 0.5f + static_cast<float>(padPixels) / 8.f);
         const float bezel = charSize * 0.3f * (styled ? style.box : 1.f);
         const float depth = charSize * 0.5f;
         const float gap = charSize * 0.04f;
 
-        // (Styled, the box is the glass's frame: darker, and the glass's rounded corners show it.)
-        box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
-            styled ? glm::vec3{0.07f, 0.07f, 0.075f} : glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
+        // (Styled, the box is the glass's thick frame: near black, and the glass's rounded corners show it.)
+        box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, glassW + bezel, glassH + bezel, depth * 0.5f,
+            styled ? glm::vec3{0.035f, 0.036f, 0.04f} : glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
         const glm::vec3 c = pos - n * gap;
-        const glm::vec3 bl = c - right * (halfW + pad) - up * (halfH + pad);
-        const glm::vec3 br = c + right * (halfW + pad) - up * (halfH + pad);
-        const glm::vec3 tr = c + right * (halfW + pad) + up * (halfH + pad);
-        const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
+        const glm::vec3 bl = c - right * glassW - up * glassH;
+        const glm::vec3 br = c + right * glassW - up * glassH;
+        const glm::vec3 tr = c + right * glassW + up * glassH;
+        const glm::vec3 tl = c - right * glassW + up * glassH;
 
         const float crt = screenCrt() * (styled ? style.crt : 1.f);
-        int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint));
+        int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint), fit);
         if(slot < 0 && index < maxScreenImages)
         {
             slot = screenSlots.byOrder[static_cast<size_t>(index)]; // (its text changed: last frame's, stretched)
@@ -738,7 +772,8 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
                 .texture = image->target.texture,
                 .trueColor = image->trueColor,
-                .frame = styled ? glm::vec4{style.radius, style.bevel, style.vignette, style.sheen} : glm::vec4{0.f},
+                .frame = styled ? glm::vec4{style.radius * fit.k, style.bevel * fit.k, style.vignette, style.sheen}
+                                : glm::vec4{0.f},
                 .glass = styled ? glm::vec4{glm::vec3{textColor} * style.glass * style.tint, style.soft} : glm::vec4{0.f}});
         }
         else
@@ -747,11 +782,11 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         }
 
         // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face (dimmed: the gear lights).
-        // (Styled: set in its frame, the glass glows less beyond it.)
-        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light() * (styled ? 0.45f : 1.f);
+        // (Styled: none. Set in its frame, the glass's light stays inside its opening: the shader's glow round the digits.)
+        const float k = styled && imaged ? 0.f : CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light();
         if(k > 0.f && bright > 0.f)
         {
-            glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},
+            glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {glassW, glassH},
                 .spread = bezel + charSize * 0.6f, .color = glm::vec4{glm::vec3{textColor}, 0.22f * k}}, screenGlows);
         }
     }
@@ -1335,12 +1370,14 @@ void renderScreens()
         }
         const int at = count++;
         byOrder[static_cast<size_t>(at)] = -1;
-        if(splitLines(q.text) == 0)
+        const size_t columns = splitLines(q.text);
+        if(columns == 0)
         {
             continue;
         }
         const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
-        const int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
+        const int slot = findScreenImage(q.text, static_cast<int>(q.align), look,
+            imageFit(columns, textLines.size(), pad, styledOpening(q.style)));
         if(slot >= 0)
         {
             if(screenImages[static_cast<size_t>(slot)].frame == host_framecount)
@@ -1377,12 +1414,15 @@ void renderScreens()
         {
             continue;
         }
-        // Its virtual screen of font pixels.
-        const int width = static_cast<int>(longest) * 8 + pad * 2;
-        const int height = static_cast<int>(textLines.size()) * 8 + pad * 2;
+        // Its virtual screen of font pixels (a housing's opening: its shape, the text centred in it).
+        const ImageFit fit = imageFit(longest, textLines.size(), pad, styledOpening(q.style));
+        const int width = fit.width;
+        const int height = fit.height;
+        const int textLeft = (width - static_cast<int>(longest) * 8) / 2;
+        const int textTop = (height - static_cast<int>(textLines.size()) * 8) / 2;
         // Shown since an earlier screen of this frame drew it (two screens with one new text)?
         const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
-        int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
+        int slot = findScreenImage(q.text, static_cast<int>(q.align), look, fit);
         if(slot >= 0)
         {
             screenSlots.shared++;
@@ -1451,8 +1491,8 @@ void renderScreens()
         {
             za::String& line = lineText;
             line = textLines[i];
-            const float x = static_cast<float>(pad) + 8.f * indent(q.align, longest, line.size());
-            gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.cStr());
+            const float x = static_cast<float>(textLeft) + 8.f * indent(q.align, longest, line.size());
+            gfx::draw2D::text(x, static_cast<float>(textTop) + 8.f * static_cast<float>(i), 8.f, line.cStr());
         }
         gadget::useBrightFont(false);
         gfx::draw2D::color(glm::vec4{1.f});

@@ -297,27 +297,67 @@ vec4 screen()
     rgb += color.rgb * (0.05 * k * exp(-d * d * 400.0));
     float noise = hash(floor(uv * Size.xy) + vec2(seed, seed * 0.37));
     rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
-    if(Frame.x > 0.0 || Frame.y > 0.0)
+    if(Frame.x != 0.0 || Frame.y > 0.0)
     {
-        // Rounded glass set in its frame (the ammo screens: vr_screenstyle.hpp). Outside the rounded corners nothing
-        // (the frame behind shows); inside, the glass's own dark colour under the face, a vignette, a thin dark inner
-        // bevel (the frame's lip shading the glass, darker at the top), a faint highlight along the bottom edge and a
-        // soft reflection high on the left.
+        // Deep glass set in its frame (the ammo screens: vr_screenstyle.hpp). The opening's shape: Frame.x > 0 rounded
+        // corners of that radius, < 0 corners chamfered by that much (pixels of the virtual screen; a housing's opening
+        // on the model is the same shape: make_screen_housing.py). Outside it nothing: the frame behind shows. Inside,
+        // the face is replaced: near-black glass of the phosphor's hue (Glass.rgb, lighter low in the middle: depth),
+        // the digits pale, whitish phosphor with a soft halo inside the glass; then an inset shadow under the top edge
+        // and an inner bevel all round (dark, a faint lit lip along the bottom), a vignette and a faint diagonal sheen.
         vec2 px = uv * Size.xy, h = Size.xy * 0.5;
-        float r = min(Frame.x, min(h.x, h.y));
-        vec2 q = abs(px - h) - (h - vec2(r));
-        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; // < 0 inside
+        float r = min(abs(Frame.x), min(h.x, h.y) - 0.5);
+        vec2 q = abs(px - h) - h;
+        float d; // < 0 inside, in pixels from the opening's edge
+        if(Frame.x > 0.0)
+        {
+            vec2 qr = q + vec2(r);
+            d = length(max(qr, 0.0)) + min(max(qr.x, qr.y), 0.0) - r;
+        }
+        else
+            d = max(max(q.x, q.y), (q.x + q.y + r) * 0.7071068);
         if(d > 0.0)
             discard;
-        float l = max(max(rgb.r, rgb.g), rgb.b);
-        rgb += Glass.rgb * (1.0 - clamp(l * 2.0, 0.0, 1.0));
+        // The same shape's distance from a point a little higher: what the top edge's lip shades.
+        float lift = max(Frame.y, 1.0) * 1.6;
+        vec2 qs = abs(px + vec2(0.0, lift) - h) - h;
+        float ds;
+        if(Frame.x > 0.0)
+        {
+            vec2 qr = qs + vec2(r);
+            ds = length(max(qr, 0.0)) + min(max(qr.x, qr.y), 0.0) - r;
+        }
+        else
+            ds = max(max(qs.x, qs.y), (qs.x + qs.y + r) * 0.7071068);
+
+        // The digits: sharp strokes and their halo, from the phosphor's brightness less the face's.
+        float lod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
+        vec2 o = Glass.a * 0.45 / Size.xy; // (the strokes softened by about half a font pixel)
+        float soft = (2.0 * lit(at, lod) + lit(at + vec2(o.x, 0.0), lod) + lit(at - vec2(o.x, 0.0), lod) +
+                      lit(at + vec2(0.0, o.y), lod) + lit(at - vec2(0.0, o.y), lod)) / 6.0;
+        float ink = smoothstep(0.14, 0.75, soft);
+        float halo = max(lit(at, lod + 1.5) - 0.14, 0.0) * 1.2 + max(lit(at, lod + 2.6) - 0.14, 0.0) * 0.9;
+        vec3 hue = max(color.rgb, vec3(1e-3)); // (the phosphor's: whitened text too, vr_ammo_screen_text_white)
+        hue /= max(max(hue.r, hue.g), hue.b);
+        vec3 digit = mix(hue, vec3(1.0), 0.5) * 0.88;
         vec2 c = (px - h) / h;
-        rgb *= 1.0 - Frame.z * smoothstep(0.25, 1.45, length(c));
-        float lip = Frame.y > 0.0 ? 1.0 - smoothstep(0.0, Frame.y, -d) : 0.0;
-        rgb *= 1.0 - lip * (0.45 + 0.4 * uv.y);
-        rgb += vec3(0.06) * lip * smoothstep(0.5, 0.0, uv.y) * smoothstep(0.0, 0.5, -d / max(Frame.y, 1e-3));
-        float sheen = 1.0 - smoothstep(0.0, 0.75, length((uv - vec2(0.18, 0.92)) * vec2(1.0, 1.7)));
-        rgb += Frame.w * 0.07 * sheen * mix(vec3(1.0), Glass.rgb * 8.0, 0.3);
+        vec3 base = mix(Glass.rgb, vec3(dot(Glass.rgb, vec3(0.3333))), 0.4);
+        vec3 glass = base * (0.6 + 0.8 * smoothstep(1.3, 0.0, length(c * vec2(0.75, 1.0) + vec2(0.0, 0.25))));
+        vec3 g2 = glass + hue * (Glass.a * halo * 0.6) + digit * ink;
+        g2 = mix(g2, max(g2, rgb * 0.5), 0.25 * k); // (a trace of the CRT's scanlines and static)
+        rgb = g2 * mix(1.0, scan * grille, 0.5);
+
+        rgb *= 1.0 - Frame.z * smoothstep(0.3, 1.5, length(c));
+        float shadow = smoothstep(-lift * 1.2, 0.5, ds);
+        rgb *= 1.0 - 0.7 * shadow;
+        float bevel = Frame.y > 0.0 ? 1.0 - smoothstep(0.0, Frame.y, -d) : 0.0;
+        rgb *= 1.0 - 0.55 * bevel;
+        // The lip's edge catching the light: a thin pale line round the opening, brighter along the bottom and sides.
+        float rim = 1.0 - smoothstep(0.0, max(Frame.y * 0.45, 0.8), -d);
+        rgb += vec3(0.16, 0.17, 0.16) * rim * (0.35 + 0.65 * smoothstep(0.8, 0.1, uv.y));
+        float sheen = smoothstep(0.30, 0.0, abs(uv.x * 0.8 - uv.y + 0.55)) * smoothstep(0.2, 0.8, uv.y);
+        rgb += Frame.w * 0.035 * sheen * mix(vec3(1.0), hue, 0.4);
+        rgb *= smoothstep(0.0, 1.0, -d); // (the edge's last pixel: into the frame's black, not a hard step)
     }
     return vec4(rgb, color.a); // (opaque but for the tips' fading screens over the scene: text3d::queueOverlayScreen)
 }
