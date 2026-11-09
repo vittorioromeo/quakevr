@@ -6374,6 +6374,28 @@ low/empty colours already say how full it is."
 - Seen on the way, left alone: now and then, for a few frames, the `flataim:` crosshair point is the head itself
   (`away 0.0`, 18-26 records a run): the crosshair's ray (`crosshairPoint`: MOVE_HITGIBS | MOVE_HITMODEL, the player passed)
   starts inside something at his head. The server's shots in those frames still went along the view onto the knight. The
-  test skips those records and prints their count; what the ray starts in is not identified.
+  test skips those records and prints their count; what the ray starts in is not identified (found: the next section).
 
 Runs: flatpose 21 passed, 0 failed, three times in a row.
+
+## The crosshair's point at the head: a far knight read as "started inside" (branch `agent/crosshair_probe`, 2026-11-09)
+
+The `away 0.0` frames above, found: a probe on the crosshair's trace named the edict every time: a **monster_knight**
+(progs/knight.mdl, owner world) 70-310 units ahead, the eye well out of his box, `startsolid 1`, fraction 0; once his
+ragdoll (solid 5) at the far wall. The cause is the hit model's narrow phase (`vr_hitmodel.cpp`, `segment`): "started inside"
+was decided by the facing of the first triangle crossed alone. A line that comes in through a seam of the knight's mesh or a
+fold of the mesh grown by the tolerance meets a back face first, and that read as a start inside him, the hit at the line's
+own start. Every MOVE_HITMODEL trace shares it (the flat crosshair, the server's shots, melee, thrown): a probe in the fixed
+build counted 259 such back-face-first crossings in one section f run (237 on the frame-posed knight, 22 on ragdolls), from
+the eye, from behind the muzzle (the client's `lineStop`) and from the server's shot starts.
+
+**Seen by the player:** yes, in flat play. `aimAtPoint` turns the drawn gun onto the crosshair's point; with the point at the
+eye it turned it straight along the view instead, and the shot was handed a start on the ray. Measured frame by frame (the gun's
+shot line off the view): 0.8 degrees -> 0 -> 0.8 with the sight moved, and 8.7 -> 0 in hipfire at the knight 64 away, for one
+to seven frames at a time (20 frames a run). A twitch of the gun towards straight ahead, then back.
+
+**Fix:** `segment` takes a back-face first crossing as a start inside only when the start is within the model's drawn bounds
+(`withinBounds`: the frame's and the next's, grown, or a ragdoll's skinned bounds); otherwise the line meets the model there,
+from behind (its normal turned to face the line). A point genuinely inside the model is unchanged. After: 0 such frames; the
+gun's largest frame-to-frame turns in the run are the knights' own spawns, as before. `flatpose_test.sh` gates it ("the
+crosshair's ray never reads as starting inside a monster far ahead": the count must be 0); its skip is gone.

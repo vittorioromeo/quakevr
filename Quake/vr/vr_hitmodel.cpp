@@ -745,12 +745,19 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
     return found;
 }
 
-// Whether `p` is inside the model grown by `grow`: a ray onwards along `dir` first crosses its surface on the way out.
-bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
+// Whether `p` is within the model's bounds as drawn (the frame's and the next's, or a ragdoll's skinned ones, grown by
+// `grow`).
+bool withinBounds(const Drawn& d, const glm::vec3& p, float grow)
 {
     if(d.skinned)
     {
-        return false; // (a ragdoll: only its surface's crossings)
+        const SkinBounds* sk = skinBoundsOf(d);
+        if(!sk)
+        {
+            return true; // (not known: as before, a crossing on the way out is a start inside)
+        }
+        const glm::vec3 g = glm::abs(sk[0].n) * za::fabs(grow) + glm::vec3{0.05f};
+        return glm::all(glm::greaterThanEqual(p, sk[0].lo - g)) && glm::all(glm::lessThanEqual(p, sk[0].hi + g));
     }
     const Mesh& m = *d.mesh;
     const za::SizeT nn = m.nodes.size();
@@ -758,7 +765,6 @@ bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
     const Bounds& r2 = m.bounds[nn * static_cast<za::SizeT>(d.pose2)];
     const glm::vec3 lo = glm::min(glm::vec3{r1.lo[0], r1.lo[1], r1.lo[2]}, glm::vec3{r2.lo[0], r2.lo[1], r2.lo[2]});
     const glm::vec3 hi = glm::max(glm::vec3{r1.hi[0], r1.hi[1], r1.hi[2]}, glm::vec3{r2.hi[0], r2.hi[1], r2.hi[2]});
-    // In its bounds at all (grown)?
     const glm::vec3 pb = d.Ainv * (p - d.b);
     for(int i = 0; i < 3; i++)
     {
@@ -768,6 +774,26 @@ bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
             return false;
         }
     }
+    return true;
+}
+
+// Whether `p` is inside the model grown by `grow`: a ray onwards along `dir` first crosses its surface on the way out.
+bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
+{
+    if(d.skinned)
+    {
+        return false; // (a ragdoll: only its surface's crossings)
+    }
+    if(!withinBounds(d, p, grow))
+    {
+        return false;
+    }
+    const Mesh& m = *d.mesh;
+    const za::SizeT nn = m.nodes.size();
+    const Bounds& r1 = m.bounds[nn * static_cast<za::SizeT>(d.pose1)];
+    const Bounds& r2 = m.bounds[nn * static_cast<za::SizeT>(d.pose2)];
+    const glm::vec3 lo = glm::min(glm::vec3{r1.lo[0], r1.lo[1], r1.lo[2]}, glm::vec3{r2.lo[0], r2.lo[1], r2.lo[2]});
+    const glm::vec3 hi = glm::max(glm::vec3{r1.hi[0], r1.hi[1], r1.hi[2]}, glm::vec3{r2.hi[0], r2.hi[1], r2.hi[2]});
     const float len = glm::length(dir);
     dir = len > 1e-6f ? dir / len : glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 wlo = d.A * lo, whi = d.A * hi;
@@ -951,8 +977,11 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
     const glm::vec3 dir = b - a;
     Found f;
     const bool crossed = firstCrossing(d, a, dir, radius, za::min(maxT, 1.f), f);
-    // Started inside: its first crossing is on the way out, or it has none and a ray onwards leaves the model.
-    const bool in = crossed ? !f.front : inside(d, a, dir, radius);
+    // Started inside: its first crossing is on the way out, or it has none and a ray onwards leaves the model. A first
+    // crossing on the way out from a start outside the model's bounds is not that: the line came in through a seam or
+    // the grown mesh's folds (a knight's head from 70-300 units, 2026-11-09: a shot's or the flat crosshair's line read
+    // as starting inside him, its point at its own start), and it meets the model there, from behind.
+    const bool in = crossed ? !f.front && withinBounds(d, a, radius) : inside(d, a, dir, radius);
     const bool hit = crossed || in;
     out = Hit{};
     if(in)
@@ -971,6 +1000,10 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
         out.point = a + dir * f.t;
         const float len = glm::length(f.faceN);
         out.normal = len > 1e-9f ? f.faceN / len : glm::vec3{0.f, 0.f, 1.f};
+        if(!f.front)
+        {
+            out.normal = -out.normal; // (met from behind: the side it came from)
+        }
         const Verts vs = vertsOf(d);
         const auto& t = d.mesh->tris[f.tri];
         const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
