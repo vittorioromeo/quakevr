@@ -85,6 +85,24 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {24.f, 14.f}}},
+    // The super nailgun: a riveted bezel bridging the top of the receiver's rear opening, above the hand (v_nail2.blend,
+    // Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and offset). His build spec,
+    // in window heights h: the window 1.6h x 1h (h 28.56 font pixels), corners chamfered 0.25h; the glass 0.05h behind
+    // the bezel's front (the offset: from weapons.txt's place onto it, world units right/up/out). No box.
+    {"nail2",
+        {.radius = -7.2f,
+            .bevel = 1.6f,
+            .vignette = 0.45f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.1f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.f, -0.0023f, 0.0253f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {23.02f, 14.28f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
