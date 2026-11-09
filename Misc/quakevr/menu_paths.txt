@@ -4022,6 +4022,18 @@ vr_flat_gun_down_prone_down|2|Tunables|Gun Down Prone Looking Down|Advanced VR O
 vr_flat_gun_down_prone_up|2|Tunables|Gun Down Prone Looking Up|Advanced VR Options > Debug > Tunables > Gun Down Prone Looking Up
 vr_flat_gun_ahead_prone_down|2|Tunables|Gun Forward Prone Looking Down|Advanced VR Options > Debug > Tunables > Gun Forward Prone Looking Down
 vr_flat_gun_ahead_prone_up|2|Tunables|Gun Forward Prone Looking Up|Advanced VR Options > Debug > Tunables > Gun Forward Prone Looking Up
+vr_flat_dual_prone_main_fwd|2|Tunables|Dual Prone Main GunForward|Advanced VR Options > Debug > Tunables > Dual Prone Main GunForward
+vr_flat_dual_prone_main_out|2|Tunables|Dual Prone Main GunOut|Advanced VR Options > Debug > Tunables > Dual Prone Main GunOut
+vr_flat_dual_prone_main_up|2|Tunables|Dual Prone Main GunUp|Advanced VR Options > Debug > Tunables > Dual Prone Main GunUp
+vr_flat_dual_prone_main_pitch|2|Tunables|Dual Prone Main GunPitch|Advanced VR Options > Debug > Tunables > Dual Prone Main GunPitch
+vr_flat_dual_prone_main_yaw|2|Tunables|Dual Prone Main GunYaw|Advanced VR Options > Debug > Tunables > Dual Prone Main GunYaw
+vr_flat_dual_prone_main_roll|2|Tunables|Dual Prone Main GunRoll|Advanced VR Options > Debug > Tunables > Dual Prone Main GunRoll
+vr_flat_dual_prone_off_fwd|2|Tunables|Dual Prone Off GunForward|Advanced VR Options > Debug > Tunables > Dual Prone Off GunForward
+vr_flat_dual_prone_off_out|2|Tunables|Dual Prone Off GunOut|Advanced VR Options > Debug > Tunables > Dual Prone Off GunOut
+vr_flat_dual_prone_off_up|2|Tunables|Dual Prone Off GunUp|Advanced VR Options > Debug > Tunables > Dual Prone Off GunUp
+vr_flat_dual_prone_off_pitch|2|Tunables|Dual Prone Off GunPitch|Advanced VR Options > Debug > Tunables > Dual Prone Off GunPitch
+vr_flat_dual_prone_off_yaw|2|Tunables|Dual Prone Off GunYaw|Advanced VR Options > Debug > Tunables > Dual Prone Off GunYaw
+vr_flat_dual_prone_off_roll|2|Tunables|Dual Prone Off GunRoll|Advanced VR Options > Debug > Tunables > Dual Prone Off GunRoll
 vr_flat_gun_collide|2|Tunables|Gun Against Walls|Advanced VR Options > Debug > Tunables > Gun Against Walls
 vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug > Tunables > Gun With The Crosshair
 vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
@@ -5119,6 +5131,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Lean Test|Advanced VR Options > Debug > Tests > Flat Lean Test
 |2|Debug - Tests|Flat Lean Mouse Test|Advanced VR Options > Debug > Tests > Flat Lean Mouse Test
 |2|Debug - Tests|Flat Prone Test|Advanced VR Options > Debug > Tests > Flat Prone Test
+|2|Debug - Tests|Flat Prone Dual Wield Test|Advanced VR Options > Debug > Tests > Flat Prone Dual Wield Test
 |2|Debug - Tests|Flat Lean / Slide Status|Advanced VR Options > Debug > Tests > Flat Lean / Slide Status
 |2|Debug - Tests|Flat Keys|Advanced VR Options > Debug > Tests > Flat Keys
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test

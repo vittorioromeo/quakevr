@@ -306,6 +306,17 @@ floor is a wall to the gun (`vr_flat_prone_floor` 1): the wall's tilt lays it fl
 1 off it; all of the tilt, sighted too), the room takes it back out, and the tilt's blocks hold: no shot
 (`vr_flat_wall_block_fire`) and the ironsight waits (`vr_flat_wall_block_ads`) until he looks up off the floor.
 Standing the gun's end in the floor stays hidden there, as before. Test: `vr_flatprone_test` (the same script).
+Dual wielding lying down, no stance lifts the guns as it lifts one gun onto the eye, and at Gun Down Prone they hung a
+hand's width over the floor: their grips met it at a level look, the floor's tilt turned them up 65 to 85 degrees (a
+tilt round the hand cannot lift what is under it) and stopped both triggers. Each hand has its own nudge on top of the
+prone pose, by how far down he is (Debug > Tunables > Flatscreen > Held Weapon, "Dual Prone ..."):
+`vr_flat_dual_prone_main_fwd` / `_out` / `_up` (units: forward, out at its side, up) and `_pitch` / `_yaw` / `_roll`
+(degrees: the muzzle up, the muzzle out, the top canted out; the drawn gun only, the shots keep the crosshair), the same
+`vr_flat_dual_prone_off_*` for the off hand. Defaults: up 8 and back 2, the rest 0. Test: `vr_flatpronedual_test
+[main:off ...]` (weapon ids; none: the common pairs) lies down where he stands and sweeps the look from 60 up to 75 down
+for each pair, printing per look and hand whether it fires, its depth in the floor or a wall and its deepest point off
+the hand; it passes when every gun fires from 45 up to 15 down (one gun lying down stops from 30 down). In
+`flatslide_test.sh`, on the flat and on vrslopes' 10-degree slope.
 
 **Swimming.** A flat-screen player swims as in Quake: the move keys at Quake's water speed (0.7 of the run) where he looks,
 looking up and forward rises and down sinks, jump held rises (`PlayerJump`, QC `client.qc`), and swimming against a low edge

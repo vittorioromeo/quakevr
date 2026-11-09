@@ -6519,6 +6519,50 @@ from behind (its normal turned to face the line). A point genuinely inside the m
 gun's largest frame-to-frame turns in the run are the knights' own spawns, as before. `flatpose_test.sh` gates it ("the
 crosshair's ray never reads as starting inside a monster far ahead": the count must be 0); its skip is gone.
 
+## Flat-screen: lying down while dual wielding, the guns off the floor (branch `agent/prone_dual`, 2026-11-09)
+
+His note: prone with one gun works; dual wielding, most poses had the guns "detecting a collision with the terrain" and
+no shot. **Cause:** one gun lying down is lifted by the stance (its hotspot onto the eye line); two guns have no stance,
+so each hung at Gun Down Prone, a hand's width over the floor (the shoulders 4.5 under the eye at 14 over the feet). The
+floor check (`vr_flat_prone_floor`, `handpose::gunFloorDepth`: every point of the gun traced from the eye) met the grip's
+underside 5 under the hand already at a level look (0.6 deep, margin included). The floor's tilt then turned each gun up
+65 degrees at a level look, 84 at 15 down, and `vr_flat_wall_block_fire` stopped both triggers: a tilt round a pivot near
+the hand cannot lift a point under the hand, so the search found nothing that cleared and took all of it.
+
+**Fix:** per-hand nudges on top of the prone pose, by how far down he is, only while both hands hold a weapon:
+`vr_flat_dual_prone_main_fwd` / `_out` / `_up` (units) and `_pitch` / `_yaw` / `_roll` (degrees, the drawn gun only:
+the muzzle up, out, the top canted out; the shots keep the crosshair), and `vr_flat_dual_prone_off_*` the same; rows in
+Debug > Tunables > Flatscreen > Held Weapon ("Dual Prone Main/Off Gun ..."). Defaults: up 8 and forward -2 for each hand,
+the rest 0 (up 6 alone cleared the shotguns but left the rocket launchers stopped at 15 down on the flat). The turn eases
+in with the second gun (handEase), the position with the hands' own ease.
+
+**Measured** (`vr_flatpronedual_test`, new, `vr_flatmove.cpp`: lies down, gives each main:off pair, sweeps the look -60
+.. +75; per look and hand: fires or not, the depth in the floor or a wall before the tilt, the deepest point off the hand
+in the gun's frame). Stopped triggers at the looks that must fire (45 up .. 15 down, both hands counted) / at all ten
+looks, before -> after:
+
+| pair (main:off) | flat floor | vrslopes 10 deg, facing up | 15 deg across |
+|---|---|---|---|
+| 4:0 one shotgun (reference) | 0/4 -> 0/4 | 0/3 -> 0/3 | 0/2 -> 0/2 |
+| 4:4 shotguns | 4/12 -> 0/6 | 0/6 -> 0/4 | 2/6 -> 0/4 |
+| 6:6 nail guns | 4/10 -> 0/4 | 2/6 -> 0/2 | 0/2 -> 0/2 |
+| 10:10 rocket launchers | 2/10 -> 0/8 | 2/10 -> 0/6 | 0/8 -> 0/6 |
+| 15:15 grunt's guns | 4/10 -> 0/4 | 0/4 -> 0/2 | 0/4 -> 0/2 |
+| 29:29 nail pistols | 4/12 -> 0/4 | 0/8 -> 0/2 | 0/6 -> 0/0 |
+
+The stops left are looking 30 down and further, where the guns lie flush on the floor as one gun does (one shotgun stops
+from 30 down too). On the slopes his box rests on its uphill edge (or high side), so his eye stands 3-4 units higher than
+on the flat: they were easier than the flat floor even before.
+
+**The check itself (not changed, a proposal):** the floor's tilt takes all of `wallTiltMax` when no tilt clears the gun,
+which is right for a muzzle in the floor but useless for a point at or under the hand (the grip, the magazine), which a
+turn round the hand never lifts: the gun points at the sky and stops for nothing. Proposed: for the floor, when the
+deepest point is not ahead of the hand (its forward under a few units) or the best tilt leaves it as deep, take no tilt
+(or the tilt that reduced the depth most) and let the hand rise instead (the room's push up). With the new defaults no
+common pair reaches that case on flat ground or gentle slopes, so it is left as it was.
+
+Test: `flatslide_test.sh` runs `vr_flatpronedual_test 4:4 15:15 29:29` on vrtesthall's floor and on vrslopes' 10-degree
+slope (a verdict each); the Debug > Tests page has "Flat Prone Dual Wield Test". Scene: `flat_prone_dual`.
 ## Flat-screen visor HUD, fourth pass: the log on top, depth knobs, shake, frosted glass (branch `agent/visor4`, 2026-11-09)
 
 His notes: customise the depth (opacity, colour, size, lag, a bevel on the back plate); the sheen only covered the

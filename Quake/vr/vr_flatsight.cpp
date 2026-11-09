@@ -184,6 +184,8 @@ struct Sight
     float tiltDepth[2]{0.f, 0.f}; // how deep in the walls it stood before the tilt, and after it (units; the status prints them)
     float tiltLeft[2]{0.f, 0.f};
     bool floorMet[2]{false, false}; // lying down, the gun in the floor this frame: its tilt is the floor's (vr_flat_prone_floor)
+    float floorDepth[2]{0.f, 0.f};  // and how deep its deepest point was, before the tilt (units; floorHit)
+    glm::vec3 floorAt[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // that point off the hand, in the gun's frame (forward, right, up)
     glm::vec3 tiltPivot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // what it turns round, off the hand in the view's frame
     // Along a wall (vr_flat_wall_slide): met at a slant the weapon lies flat along it, turned level out of it, and goes out
     // along the wall's normal; met head-on it goes back and tilts up as above. One share between the two (slideFor).
@@ -759,6 +761,7 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     st.tiltNeed[h] = st.tiltDepth[h] = st.tiltLeft[h] = 0.f;
     st.tiltWanted[h] = false;
     st.floorMet[h] = false;
+    st.floorDepth[h] = 0.f;
     if(flatplay::meleeIn(h))
     {
         return;
@@ -781,7 +784,10 @@ void tiltNeedFor(const hands::State& s, int h, const glm::mat3& view, const glm:
     // Lying down with the gun in the floor (vr_flat_prone_floor): all of the turn, sighted too, and at most all of
     // wallTiltMax whatever vr_flat_wall_tilt says -- the gun lies flush on the floor, and the tilt's blocks (no shot, the
     // ironsight waiting) hold while it does.
-    st.floorMet[h] = floorCounts() && handpose::gunFloorDepth(h, s.head, level.pos, level.rot, level.muzzle, floorMargin()) > tiltFrom;
+    glm::vec3 floorAt{0.f};
+    st.floorDepth[h] = floorCounts() ? handpose::gunFloorDepth(h, s.head, level.pos, level.rot, level.muzzle, floorMargin(), &floorAt) : 0.f;
+    st.floorAt[h] = glm::transpose(axesOf(level.rot)) * floorAt; // (the gun's own frame: forward, right, up)
+    st.floorMet[h] = st.floorDepth[h] > tiltFrom;
     if(st.floorMet[h])
     {
         sightFade = 1.f;
@@ -1958,6 +1964,23 @@ bool floorFlush(int h, float* left)
         *left = st.tiltLeft[h];
     }
     return st.floorMet[h];
+}
+
+float wallDepth(int h, float* floorDepth, glm::vec3* floorAt)
+{
+    if(h < 0 || h >= HAND_COUNT || !flatplay::active())
+    {
+        return 0.f;
+    }
+    if(floorDepth)
+    {
+        *floorDepth = st.floorDepth[h];
+    }
+    if(floorAt)
+    {
+        *floorAt = st.floorAt[h];
+    }
+    return st.tiltDepth[h];
 }
 
 float drawnShare(int h)

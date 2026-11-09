@@ -88,6 +88,11 @@ void noteDrawn(const hands::State& s);
 // it); `left` (if given): how deep in it the tilt left it (units, the tilt's own measure; the room past it does the rest).
 [[nodiscard]] bool floorFlush(int h, float* left = nullptr);
 
+// How deep hand `h`'s gun stood in the walls (the floor too, lying down) before its tilt this frame (units, the tilt's
+// measure; 0 clear); `floorDepth`: the floor's part alone, `floorAt`: its deepest point off the hand in the gun's frame
+// (forward, right, up: the stock is behind, the magazine under). The prone tests' and the status's.
+[[nodiscard]] float wallDepth(int h, float* floorDepth = nullptr, glm::vec3* floorAt = nullptr);
+
 // A shot's drawn recoil of a hand (weaponfx::recoilOffset), kept at vr_flat_ads_recoil of itself as far as the ironsight
 // has come (adsShare, smoothed); untouched outside the mode (a headset's recoil is its own). vr_flat_recoil_probe reads it.
 void keepRecoil(glm::vec3& pos, glm::vec3& angles);
