@@ -5753,6 +5753,8 @@ worktree.
 
 ## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
 
+(Replaced the same day: "The super nailgun's screen housing on top", below. The bezel on the rear face is gone.)
+
 His mockup (kit `scratch/mockups/nail2_housing.webp`, with a build spec in window heights h): the screen in a riveted
 bezel on the receiver's rear face, above the opening the hand grips in. Images (flat 4K, the fly camera behind and
 above): `scratch/hn2/panel_nail2.png` (today / this branch / the mockup) and `scratch/hn2/closeup_nail2.png` (today /
@@ -5949,3 +5951,49 @@ He wanted the bezel to stand out from the receiver's end face about half as far,
 - **Proof:** panel `scratch/depth/panel_depth.png` (top: front, next then this; bottom: a side angle), close-up of the
   top edge `scratch/depth/closeup_depth.png` (worktree selfshot). A re-run writes the same .mdl, part and normal-map
   files. vr_pp_test 1: 63 passed, 0 failed. Scene `shotgun_screen`.
+
+## The super nailgun's screen housing on top (branch `agent/housing_nail2_top`, 2026-11-09)
+
+His new mockup (kit `scratch/mockups/nail2_top.webp`): the screen moved to the top of the gun, in a raised block at the
+receiver's back end with a slanted rear face; the back of the gun round the handle free (no plate). Images in the
+flatwall worktree: `scratch/hn2t/panel_nail2_top.png` (next / this / the mockup, the fly camera behind, above and right),
+`scratch/hn2t/closeup_nail2_top.png` (from the side: next, this; this face at 4K) and `scratch/hn2t/vrmock3.png` (the
+VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact run, small eyes).
+
+- **Rebuilt from the .blend before any housing** (5c63e5cdd..aa0ba1aa4's, `b382c0e9c^`), so the rear bezel's
+  vertices are gone from the .mdl: 1432 vertices, 1130 triangles (the pre-housing 938 + 192).
+- **The shape** (`make_screen_housing_nail2.py`, rewritten; same interface): on the rear top band (x -2.58..0.70, top z
+  7.60, 5.85 wide) a block whose rear face rises at 50 degrees from the band's rear top edge (3.76 long, 2.88 high,
+  top z 10.47), then a flat top to the band's front (x -0.16..0.70). Its sides lean in 15 degrees (6.56 wide at the band's
+  top, 5.02 at its own), standing 0.36 past the band's edges so the bezel's top corners keep 0.05h inside; they come
+  down 0.25 below the top, where a ledge underside meets the receiver's sloped sides; small faces in the rear face's
+  plane close the corners outside the gun's rear outline (the rear face itself is untouched). In the sloped face, the
+  same window and bezel as before (h 2.684: window 1.6h x 1h, chamfer from the entry's radius; bezel 1.8h x 1.2h, 0.1h
+  proud), the window's walls 0.1h into the block to a dark floor, the glass 0.05h behind the bezel's front; four rivets
+  at (+-0.78h, +-0.45h). **Decision:** the rivets' radius 0.11h, not 0.12h: measured against the exact chamfer (the old
+  script used the snapped one) 0.12h left them 0.016 from the window; now 0.043 inside the bezel's edge and clear of
+  the window.
+- **The grid:** X is 0.252 a step, so points on the slanted face snap to the grid point nearest the face's plane (off it
+  counts double): up to 0.11 off the plane and 0.19 within it (the rivets a little lumpy); the window's outline snaps
+  toward its centre (2.51 of the glass's 2.68 high: the glass's edge tucks behind the walls). The block's top grew the
+  box in Z (scale 0.0632 -> 0.0746, origin kept: weapons.txt's `x` back to its pre-housing 1.3, `z` unchanged; his
+  config has no vr_wofs_x_05).
+- **The glass:** weapons.txt slot 4 `wpntxt_pitch` 0 -> 39.5 (the glass's up (0.643, 0, 0.766): the face's, 40 degrees
+  from upright), `wpntxt_x` -4.2 -> -3.65, `wpntxt_z` 3 -> 4.48 (a wpntxt unit is 2.2556 model units); the "nail2"
+  entry's offset {0.0255, -0.0002, 0.0013} seats it (screenwhere: -1.4734 -0.1124 9.1183, the window's -1.4733 -0.1122
+  9.1181). Opening, radius and size unchanged: the digits are today's size. His config has no vr_wofs_wpntxt_*_05
+  lines. The kit base's `ironwail.cfg`/`.baseline` in this worktree had every vr_wofs value written out (the old
+  ones): updated to the new three, else the tests see the glass at the old place.
+- **Clearances (the script checks):** the barrels (with the receiver's own motion taken out, every frame) reach z 6.85
+  under the block, whose lowest point is 7.37; the off hand's grip spot (hs1) is 9.2 units away; the frames carry the
+  housing with the rear face exactly (0.0000). The aim line (muzzle forward) is untouched; the block stands 2.9 units
+  over the band at the very back, behind everything the eye looks along.
+- **Skin** (the gun's own): the block on the band's top paint (432..464 x 87..105) and sloped-side paint (420..430),
+  the bezel, walls and rivets as before.
+- A re-run in place writes the same .mdl, normal map and weapons.txt (md5 checked).
+- **Tests:** `vr_pp_test 1` 63/0; flatreload_test.sh 26/0; `vr_scenario runall quit nail2_housing` OK in VR and flat
+  (held after 3 s); checklist_tests_check.py 68/0 (`nail2_housing` is unused until the replacement checklist line
+  lands). `vr_ammocolor_test 1` (on the tree before merging next's fix) stalled after its 21st report (the off-hand
+  nailgun) and timed out at 400 s, as known; after merging next (its verdict fix) 25 passed, 0 failed. After the merge
+  the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
+- **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).

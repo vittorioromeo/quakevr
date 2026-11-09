@@ -1,10 +1,10 @@
 # nail2_housing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super nailgun's ammo screen
-# in its riveted bezel on the receiver's rear face (ROUND24.md, "The super nailgun's screen housing"): the gun in the
-# main hand, nails to fire.
+# in the slanted block on the receiver's top, at its back end (ROUND24.md, "The super nailgun's screen housing on
+# top"): the gun in the main hand, nails to fire.
 title Super nailgun's screen housing
 map vrtesthall
 god
 notarget
 give "Super Nailgun" main
 cmd impulse 9
-hint Look at the super nailgun's rear: the screen sits in a riveted bezel above your hand. Fire a burst and reload: the bezel and glass stay with the gun.
+hint Look down at the back of the super nailgun's top: the screen sits in a slanted, riveted block, and the back round your hand is free. Fire a burst and reload: the block and glass stay with the gun.
