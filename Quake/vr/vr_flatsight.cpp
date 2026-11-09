@@ -54,6 +54,7 @@
 
 #include "vr_flatsight.hpp"
 #include "vr_flatreload.hpp"
+#include "vr_flatspeedfov.hpp"
 
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
@@ -2183,7 +2184,9 @@ float fov(float basefov)
     // is never taken under 20 degrees, where the engine's own view stops making sense.
     st.baseFov = basefov;
     const float narrow = fovNarrowNow();
-    return narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
+    const float sighted = narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
+    // Then the speed FOV's widening (vr_flat_speed_fov), which the ironsight wins over: it goes as the travel comes.
+    return flatplay::active() ? flatspeedfov::widen(sighted, adsShare()) : sighted;
 }
 
 void statusLine()
