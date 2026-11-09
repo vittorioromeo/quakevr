@@ -5994,5 +5994,6 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
 - **Tests:** `vr_pp_test 1` 63/0; flatreload_test.sh 26/0; `vr_scenario runall quit nail2_housing` OK in VR and flat
   (held after 3 s); checklist_tests_check.py 68/0 (`nail2_housing` is unused until the replacement checklist line
   lands). `vr_ammocolor_test 1` (on the tree before merging next's fix) stalled after its 21st report (the off-hand
-  nailgun) and timed out at 400 s, as known. Scene hint updated.
+  nailgun) and timed out at 400 s, as known; after merging next (its verdict fix) 25 passed, 0 failed. After the merge
+  the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
