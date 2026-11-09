@@ -17,6 +17,7 @@
 #include "vr_random.hpp"
 #include "vr_menu_internal.hpp"
 #include "vr_armourdata.hpp"
+#include "vr_flatplay.hpp"
 
 namespace menu_detail
 {
@@ -2899,6 +2900,58 @@ void goBack()
     return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)); // AD support: unavailable spawn actions are locked too
 }
 
+// The settings one mode only uses (the graphics audit, 2026-11-09: they do nothing in the other), by their cvar's name
+// wherever a row shows them; a trailing '*' takes the names starting so. The headset's eyes only: their scaling, TAA,
+// gamma and contrast, bloom strength, tone curve and grade, underwater look. Flatscreen play only: its look and visor.
+constexpr const char* vrOnlyCvars[] = {"vr_render_scale", "vr_dynres*", "vr_upscale*", "vr_foveated*", "vr_taa*",
+    "vr_gamma", "vr_contrast", "vr_bloom", "vr_tonemap", "vr_exposure", "vr_grade*", "vr_water_underwater",
+    "vr_water_wobble"};
+constexpr const char* flatOnlyCvars[] = {"vr_flat_tonemap", "vr_flat_bloom", "vr_flat_grade*", "vr_flat_vignette*",
+    "vr_flat_visor*"};
+
+[[nodiscard]] bool cvarNamed(const cvar_t* cvar, const char* pattern)
+{
+    const size_t n = strlen(pattern);
+    return n > 0 && pattern[n - 1] == '*' ? strncmp(cvar->name, pattern, n - 1) == 0 : strcmp(cvar->name, pattern) == 0;
+}
+
+// The mode a row's setting is for: its own (vrOnly(), flatOnly()), else its cvar's (the lists above).
+[[nodiscard]] Item::Mode rowMode(const Item& item)
+{
+    if(item.mode != Item::AnyMode || !item.cvar || item.kind == Item::Action)
+    {
+        return item.mode;
+    }
+    for(const char* name : vrOnlyCvars)
+    {
+        if(cvarNamed(item.cvar, name))
+        {
+            return Item::VrOnly;
+        }
+    }
+    for(const char* name : flatOnlyCvars)
+    {
+        if(cvarNamed(item.cvar, name))
+        {
+            return Item::FlatOnly;
+        }
+    }
+    return Item::AnyMode;
+}
+
+// A row for the other mode than the game runs in (rowMode): dimmed, its help saying so; still changed from here.
+// The headset's: no headset session (flatscreen play, or the desktop without one). Flatscreen play's: not in it.
+[[nodiscard]] bool otherModeItem(const Item& item)
+{
+    switch(rowMode(item))
+    {
+        case Item::VrOnly: return !vrActive();
+        case Item::FlatOnly: return !flatplay::active();
+        case Item::AnyMode: break;
+    }
+    return false;
+}
+
 [[nodiscard]] int currentChoice(const Item& item)
 {
     const float cur = valueOf(item);
@@ -3225,6 +3278,38 @@ void keepCursorVisible()
 // menu_vr rows (tests, Debug > Tools): the VR page shown, its rows as drawn: MROW|row|top y|label (menu coordinates), then
 // MROWS with the rows shown, the scroll and its most, the section gap, and whether the mouse finds each row where it is
 // drawn (rowAt, the laser's and the desktop mouse's) and nothing in the gaps.
+// menu_vr modes [page] (tests, Debug > Tools): the rows for one mode only (rowMode) on that page (none: every page):
+// MMODE|page|label|vr or flat|dimmed now, then "menu modes: <n> VR only, <n> flat only, <n> dimmed (headset <0|1>,
+// flatscreen play <0|1>)".
+void printModes(const int only)
+{
+    if(only >= pageCount)
+    {
+        Con_Printf("menu_vr modes: no page %d\n", only);
+        return;
+    }
+    int vr = 0, flat = 0, dimmed = 0;
+    for(int page = only < 0 ? 0 : only; page < (only < 0 ? pageCount : only + 1); page++)
+    {
+        for(const Item& item : items(page))
+        {
+            const Item::Mode mode = rowMode(item);
+            if(mode == Item::AnyMode)
+            {
+                continue;
+            }
+            const bool dim = otherModeItem(item);
+            vr += mode == Item::VrOnly;
+            flat += mode == Item::FlatOnly;
+            dimmed += dim;
+            Con_Printf("MMODE|%d|%s|%s|%d\n", page, item.label ? item.label : "", mode == Item::VrOnly ? "vr" : "flat",
+                dim ? 1 : 0);
+        }
+    }
+    Con_Printf("menu modes: %d VR only, %d flat only, %d dimmed (headset %d, flatscreen play %d)\n", vr, flat, dimmed,
+        vrActive() ? 1 : 0, flatplay::active() ? 1 : 0);
+}
+
 void printRows()
 {
     if(m_state != m_vr)
@@ -3702,7 +3787,8 @@ void drawItem(const Item& item, int y, bool selected)
 
     const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
     const bool locked = lockedItem(item); // the remote server's rule (or unavailable()): dimmed, its value shown
-    if(locked)
+    const bool dimmed = locked || otherModeItem(item); // (the other mode's setting: dimmed alike, still changed here)
+    if(dimmed)
     {
         GL_PushCanvasColor(1.f, 1.f, 1.f, 0.5f);
     }
@@ -3752,7 +3838,7 @@ void drawItem(const Item& item, int y, bool selected)
         case Item::Action: M_Print(midPos - 4, y, "..."); break;
         default: break;
     }
-    if(locked)
+    if(dimmed)
     {
         GL_PopCanvasColor();
     }
@@ -4234,6 +4320,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
     {
         printRows();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "modes"))
+    {
+        printModes(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1);
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "recent"))

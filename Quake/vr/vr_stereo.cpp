@@ -11,6 +11,7 @@
 
 #include "vr_bench.hpp"
 #include "vr_fgfx.hpp"
+#include "vr_flatlook.hpp"
 #include "vr_gfx.hpp"
 #include "vr_glutil.hpp"
 #include "vr_bloom.hpp"
@@ -892,6 +893,11 @@ extern "C" int VR_RenderView()
         return 0; // the backend ends the frame without layers
     }
 
+    // Ironwail's r_scale (the 3D view drawn at 1/N) is the flat screen's: the eyes' size is vr_render_scale's (and dynres),
+    // and r_scale would shrink them on top of it and turn foveated rendering off. The frame's view at full size, for the
+    // eyes, the gates and the spectator (vr_spectator_scale); SCR_UpdateScreen sets it from r_scale again next frame.
+    r_refdef.scale = 1;
+
     // The runtime's menu has the focus (vr_xr_unfocused): its last frame shown again, the GPU left to the menu. The
     // window keeps its last image.
     if(frame.hold)
@@ -1215,7 +1221,8 @@ extern "C" void VR_DrawHiddenArea()
 
 extern "C" unsigned VR_SceneColorFormat(unsigned format)
 {
-    return stereo::creatingSceneTargets ? stereo::creatingFormat : format;
+    // The window's own targets: float in flatscreen play with vr_flat_tonemap (vr_flatlook.cpp).
+    return stereo::creatingSceneTargets ? stereo::creatingFormat : flatlook::windowSceneFormat(format);
 }
 
 extern "C" unsigned VR_SceneDepthFormat(unsigned format)

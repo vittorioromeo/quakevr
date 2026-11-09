@@ -1060,6 +1060,7 @@ za::Vector<Item> pageDebugReports()
         command("Menu Panel Back in Front", "vr_menu_panel reset").help("vr_menu_panel reset: the menu panel, moved by a grip, back in front of your head, as it opens."),
         command("Menu Panels", "vr_menu_panels").help("vr_menu_panels: the menu panels open (MENUPANELS: each one's menu, page, selected row and its value as last drawn). vr_menu_panels open, close <n> or focus <n>: another opened (as the corner's New Panel), one closed or given the keys."),
         command("Open Another Menu Panel", "vr_menu_panels open").help("vr_menu_panels open: another menu panel beside this one, on this page (as the corner's New Panel; three at most, in the headset)."),
+        command("Menu Rows by Mode", "menu_vr modes").help("menu_vr modes [page]: every VR page's rows only the headset or only flatscreen play uses (MMODE: page, label, vr or flat, dimmed now), and the counts. Those rows are dimmed in the other mode, their help saying so."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         row(opt::vr_menu_link_dryrun),
         command("Check for Updates Now", "vr_update_check_now")

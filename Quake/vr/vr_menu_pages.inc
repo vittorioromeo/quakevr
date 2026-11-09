@@ -1730,6 +1730,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_grade_strength),
         row(opt::vr_dither),
         header("Flat Screen"),
+        row(opt::vr_flat_tonemap),
         row(opt::vr_flat_bloom),
         row(opt::vr_flat_grade),
         row(opt::vr_flat_grade_exposure),
