@@ -49,14 +49,14 @@ PIXEL = PIXEL1                       # times the style's size (main)
 
 # The bezel (model units; "rows" along UP are the grid's x steps).
 TUCK = 0.02     # the glass this much bigger than the opening all round: the walls hide its last pixel
-RIM_R = 0.16    # the bezel's flat top beside the opening
+RIM_R = 0.18    # the bezel's flat top beside the opening
 RIM_U = 1       # and over and under it, in rows
 TOP = 0.10      # the top over the glass
 FLOOR = 0.06    # the dark floor under the glass
 SKIRT = 0.45    # the skirt down from the glass, sunk into the gun
 
 # The rivets (a hexagon two grid steps long in x).
-RIVET_HALF_Y = 0.17
+RIVET_HALF_Y = 0.18
 RIVET_GAP = 0.05  # from the bezel's outer edge to the rivet's nearest point
 
 # The skin patch (texels; Blender's image rows are bottom-up: the patch is the image's bottom 24 rows).
@@ -71,7 +71,7 @@ REGIONS = {  # x0, y0, x1, y1 within the patch
     "rivettop": (40, 8, 48, 16),
 }
 METAL_SRC = (90, 118)  # a 16x16 block of the sloped face's own metal (its UVs: texels 88-108 x 108-145 bottom-up)
-SHADES = {"top": 1.5, "wall": 0.6, "skirt": 0.9, "floor": 0.0, "rivet": 0.55, "rivettop": 0.6}
+SHADES = {"top": 1.8, "wall": 0.6, "skirt": 0.9, "floor": 0.0, "rivet": 0.7, "rivettop": 0.8}
 
 
 def style_entry():
@@ -227,7 +227,7 @@ def paint(image):
                 if name == "floor":
                     rgb = [0.05, 0.06, 0.055]
                 elif name == "top" and y - y0 < 2:
-                    rgb = [c * 2.0 for c in src]  # the lit inner edge (the band's inner ring is v 0)
+                    rgb = [c * 2.4 for c in src]  # the lit inner edge (the band's inner ring is v 0)
                 elif name == "rivettop" and (x - x0) + (y - y0) >= 9:
                     rgb = [c * 2.3 for c in src]  # the lit upper edge of the head
                 else:
@@ -334,7 +334,7 @@ def main():
 
         base, rim = bld.verts(lift(-0.06)), bld.verts(lift(SCALE.z * 1.5))
         zc = surface_z(ob, dg, xc, yc)
-        apex = snap(Vector((xc, yc, zc + SCALE.z * 3.2)))
+        apex = snap(Vector((xc, yc, zc + SCALE.z * 3.6)))
         bottom = snap(Vector((xc, yc, zc - 0.06)))
         up_n = Vector((-0.3, 0.0, 0.95))
 
