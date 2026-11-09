@@ -731,6 +731,12 @@ za::Vector<Item> pageDebugTests()
                   "smaller lean, the body's roll), presses the crouch (up into a crouch, the gun without a jump), lies "
                   "down again and looks down with the ironsight asked for (the gun flush on the floor, no shot, the "
                   "ironsight waits), then looks level (flatprone: lines, a verdict)."),
+        command("Flat Prone Dual Wield Test", "vr_flatpronedual_test 4:4 15:15 29:29")
+            .help("vr_flatpronedual_test [main:off ...] (-flatscreenmode only, room around): lies down where you are and "
+                  "puts each pair of weapons in your hands (two shotguns, two grunt's guns, two nail pistols), sweeps "
+                  "the look from 60 up to 75 down and prints per look and hand whether it fires and what it meets "
+                  "(flatpronedual: lines); every gun must fire from 45 up to 15 down (vr_flat_dual_prone_*). Replaces "
+                  "what your hands hold."),
         command("Flat Lean / Slide Status", "vr_flatmove_status")
             .help("vr_flatmove_status: the lean's share, the eye's move and the roll, whether you slide and its pose."),
         command("Flat Keys", "vr_flatkeys_test 1")

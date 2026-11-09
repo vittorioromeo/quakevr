@@ -1841,6 +1841,22 @@ QVR_TUNABLE(vr_flat_gun_down_prone_down, "2") // Gun Down lying down, looking st
 QVR_TUNABLE(vr_flat_gun_down_prone_up, "2") // Gun Down lying down, looking straight up (-30..30; positive is lower)
 QVR_TUNABLE(vr_flat_gun_ahead_prone_down, "16.5") // Gun Forward lying down, looking straight down (-30..30)
 QVR_TUNABLE(vr_flat_gun_ahead_prone_up, "16.5") // Gun Forward lying down, looking straight up (-30..30)
+// Lying down with a gun in each hand (no stance lifts them as it lifts one gun), on top of the prone pose above, by how far
+// down he is, each hand its own: units forward, out at its own side and up (-30..30), and the drawn gun's turn in degrees
+// (-45..45: pitch muzzle up, yaw muzzle out, roll its top out; drawn only, the shots keep the crosshair). Until 2026-11-09
+// none: the guns hung a hand's width over the floor, their grips in it at a level look, tilted up and stopped.
+QVR_TUNABLE(vr_flat_dual_prone_main_fwd, "-2") // the main hand's gun, dual wielding lying down: further forward (units)
+QVR_TUNABLE(vr_flat_dual_prone_main_out, "0") // ... out at its side (units; negative: in)
+QVR_TUNABLE(vr_flat_dual_prone_main_up, "8") // ... up (units)
+QVR_TUNABLE(vr_flat_dual_prone_main_pitch, "0") // ... the drawn gun's muzzle turned up (degrees)
+QVR_TUNABLE(vr_flat_dual_prone_main_yaw, "0") // ... turned out (degrees)
+QVR_TUNABLE(vr_flat_dual_prone_main_roll, "0") // ... its top canted out (degrees)
+QVR_TUNABLE(vr_flat_dual_prone_off_fwd, "-2") // the off hand's gun, the same
+QVR_TUNABLE(vr_flat_dual_prone_off_out, "0")
+QVR_TUNABLE(vr_flat_dual_prone_off_up, "8")
+QVR_TUNABLE(vr_flat_dual_prone_off_pitch, "0")
+QVR_TUNABLE(vr_flat_dual_prone_off_yaw, "0")
+QVR_TUNABLE(vr_flat_dual_prone_off_roll, "0")
 QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size

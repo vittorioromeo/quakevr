@@ -90,6 +90,7 @@ struct FlatState
     bool announced{false};       // its console line was printed
     bool backendNoted{false};    // the "-flatscreenmode implies no VR backend" line was printed
     bool wasOn{false};           // last frame: to say so when a headset takes the game back
+    float dualT{0.f};            // a gun in each hand, eased as the hands are (handEase): the drawn turn of dualProneTurn
 
     bool keyGrab{false};         // E, last frame (press edges)
     bool keyV{false};            // V, last frame
@@ -595,6 +596,26 @@ constexpr float stanceFadeTo = 55.f;
     return l + (poseNum(pitch >= 0.f ? down : up) - l) * w;
 }
 
+// Dual wielding lying down, hand `h`'s gun's own nudge (vr_flat_dual_prone_main_* / _off_*): forward, out at its side, up.
+[[nodiscard]] glm::vec3 dualProneMove(int h)
+{
+    return h == HAND_OFF ? glm::vec3{poseNum(vr_flat_dual_prone_off_fwd), poseNum(vr_flat_dual_prone_off_out), poseNum(vr_flat_dual_prone_off_up)}
+                         : glm::vec3{poseNum(vr_flat_dual_prone_main_fwd), poseNum(vr_flat_dual_prone_main_out), poseNum(vr_flat_dual_prone_main_up)};
+}
+
+// And its drawn turn (degrees: the muzzle up, out at its side, the top canted out), as Quake's angles of the hand's own
+// frame (pitch down, yaw left, roll the right side down).
+constexpr float dualProneTurnMost = 45.f;
+[[nodiscard]] glm::vec3 dualProneTurn(int h)
+{
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto deg = [](const Tunable& c) { return za::clamp(c.value, -dualProneTurnMost, dualProneTurnMost); };
+    const bool off = h == HAND_OFF;
+    return {-deg(off ? vr_flat_dual_prone_off_pitch : vr_flat_dual_prone_main_pitch),
+        -side * deg(off ? vr_flat_dual_prone_off_yaw : vr_flat_dual_prone_main_yaw),
+        side * deg(off ? vr_flat_dual_prone_off_roll : vr_flat_dual_prone_main_roll)};
+}
+
 // The held weapon's Gun Out at the look `pitch` (Quake's: positive down): vr_flat_gun_out at a level look (crouched,
 // vr_flat_gun_out_crouch, by how deep), going to vr_flat_gun_out_down looking straight down and vr_flat_gun_out_up straight up
 // along a smooth curve (no corner at level or at the ends): the gun comes in towards the middle looking up or down, as his
@@ -650,8 +671,12 @@ constexpr float stanceFadeTo = 55.f;
         // (In a slide, its own nudges by the slide's share: vr_flat_gun_ahead_slide, _down_slide, _out_slide.)
         const float slid = bodyPose() ? flatmove::slideShare() : 0.f;
         const glm::vec3 slideBy{poseNum(vr_flat_gun_ahead_slide), poseNum(vr_flat_gun_out_slide), poseNum(vr_flat_gun_down_slide)};
-        return {(ahead - stance * back + slid * slideBy.x) * reach, side * (gunOutAt(pitch) - stance * in + crouchOut + slid * slideBy.y) * reach,
-            -(below - lift * upBy + slid * slideBy.z) * reach};
+        // (Dual wielding lying down, each hand's own nudge by how far down he is: no stance lifts two guns, and at Gun Down
+        // Prone they hung a hand's width over the floor, their grips in it: vr_flat_dual_prone_main_* / _off_*.)
+        const glm::vec3 dual = otherHolds ? dualProneMove(h) * prone : glm::vec3{0.f};
+        return {(ahead - stance * back + slid * slideBy.x + dual.x) * reach,
+            side * (gunOutAt(pitch) - stance * in + crouchOut + slid * slideBy.y + dual.y) * reach,
+            -(below - lift * upBy + slid * slideBy.z - dual.z) * reach};
     }
     const glm::vec3 empty{
         poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
@@ -2235,6 +2260,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
+    fs.dualT += ((mainHolds && offHolds ? 1.f : 0.f) - fs.dualT) * (dt > 0.0 ? ease(handEase, static_cast<float>(dt)) : 0.f);
 
     // The eye's nudge (vr_flat_cam_*) carries the hands: the drawn hands stay where they are on the screen, and these are
     // the drawn hands, so the muzzle the shots go from is the one he sees, and it stands where the crosshair's ray is read.
@@ -2556,7 +2582,10 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         feel.wallShift[h] = pivot - wallTurn * pivot - drawnAxes[2] * drop;
         pos += feel.wallShift[h];
     }
-    const glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn);
+    // Dual wielding lying down, the drawn gun's own turn in its hand (vr_flat_dual_prone_*_pitch / _yaw / _roll): drawn only.
+    const float dualShare = heldIn(h) >= 0 ? proneShare() * fs.dualT : 0.f;
+    const glm::mat3 dualTurn = dualShare > 0.f ? axes(dualProneTurn(h) * dualShare) : glm::mat3{1.f};
+    const glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn) * dualTurn;
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {

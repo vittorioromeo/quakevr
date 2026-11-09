@@ -176,6 +176,25 @@ struct ProneTest
     float pitch{0.f};
 };
 
+// vr_flatpronedual_test [main:off ...]: lying down with a gun in each hand, each pair of weapon ids given in turn, the look
+// swept from up to down: which poses stop a gun's trigger (the floor, a wall), and why.
+constexpr int proneDualPairsMost = 12;
+constexpr float proneDualPitches[] = {-60.f, -45.f, -30.f, -15.f, 0.f, 15.f, 30.f, 45.f, 60.f, 75.f};
+constexpr int proneDualPitchCount = static_cast<int>(sizeof(proneDualPitches) / sizeof(proneDualPitches[0]));
+struct ProneDualTest
+{
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    int pairs[proneDualPairsMost][2]{};
+    int pairCount{0};
+    int pair{0};       // the pair under test
+    int pitch{0};      // its look, an index into proneDualPitches
+    int blocked{0};    // this pair's stopped triggers at the looks that must fire (both hands counted)
+    int blockedAll{0}; // and at every look
+    int blockedTotal{0}; // every pair's, at the looks that must fire
+};
+
 // vr_flatmantle_test (maps/vrmantle.bsp): a jump at each block's face, the jump key held, looking up or level; mantled
 // onto it or not (vr_climb.cpp flatMantle).
 struct MantleTest
@@ -237,6 +256,7 @@ struct ClientState
     RampTest rampTest;
     LeanTest leanTest;
     ProneTest proneTest;
+    ProneDualTest proneDualTest;
     MantleTest mantleTest;
 };
 
@@ -1219,6 +1239,143 @@ void proneTestFrame()
     }
 }
 
+// vr_flatpronedual_test: lying down where he is, each pair of weapons in his hands (main:off ids; 0 an empty off hand, a
+// one-gun reference), the look swept over proneDualPitches, each look held for the pose's eases to settle: per look and
+// hand, whether its trigger fires (flatplay::routeFire: a gun turned up out of the floor or a wall does not), the depth
+// it stood in them before its tilt, the floor's part and its deepest point off the hand (forward, right, up in the
+// gun's frame: behind is the stock, under the magazine). A check per pair: every gun fires at the looks from
+// proneDualFireUp up to proneDualFireDown down.
+constexpr float proneDualFireUp = -45.f;   // the looks that must fire: up this far (Quake's pitch: negative is up)...
+constexpr float proneDualFireDown = 15.f;  // ... to down this far (one gun lying down: stopped from 30 down, flush on the floor)
+constexpr double proneDualSettle = 1.0;    // seconds a look is held before it is read: the hand's and the tilt's eases
+constexpr double proneDualDraw = 0.5;      // seconds after the pair is in his hands (the draw, the hands' ease)
+
+void proneDualTestFrame()
+{
+    ProneDualTest& t = client.proneDualTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    const char* tag = "flatpronedual";
+    const double now = vr_gametime;
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+    };
+    char line[400];
+    if(inPhase > 8.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "timed out (step %d, pair %d: holding %d:%d)", t.phase, t.pair, cl.stats[protocol::STAT_QVR_WEAPON],
+            cl.stats[protocol::STAT_QVR_WEAPON2]);
+        testCheck(t.tally, tag, false, line);
+        cl.viewangles[PITCH] = 0.f;
+        next(99);
+    }
+    const int (&p)[2] = t.pairs[za::min(t.pair, proneDualPairsMost - 1)];
+    switch(t.phase)
+    {
+        case 1:
+            if(flatplay::proneRatio() <= 0.f)
+            {
+                Cbuf_InsertText("vr_prone_toggle\n");
+            }
+            next(2);
+            break;
+        case 2:
+            if(inPhase > 0.3 && flatplay::proneRatio() >= 1.f)
+            {
+                next(3);
+            }
+            break;
+        case 3: // the pair into his hands: the off hand's first (a weapon past 19 by the main hand and the swap, impulse 48)
+        {
+            char give[160];
+            const int off = p[1], main = p[0];
+            const int n = off < 20 ? q_snprintf(give, sizeof(give), "impulse %d; wait; wait; ", 170 + off)
+                                   : q_snprintf(give, sizeof(give), "vr_test_give_wid %d; impulse 149; wait; wait; impulse 48; wait; wait; ", off);
+            if(main < 20)
+            {
+                q_snprintf(give + n, sizeof(give) - n, "impulse %d\n", 150 + main);
+            }
+            else
+            {
+                q_snprintf(give + n, sizeof(give) - n, "vr_test_give_wid %d; impulse 149\n", main);
+            }
+            Cbuf_InsertText(give); // (ahead of what the script still waits on)
+            cl.viewangles[PITCH] = 0.f;
+            t.blocked = t.blockedAll = 0;
+            next(4);
+            break;
+        }
+        case 4:
+            if(cl.stats[protocol::STAT_QVR_WEAPON] == p[0] && cl.stats[protocol::STAT_QVR_WEAPON2] == p[1])
+            {
+                t.pitch = 0;
+                next(5);
+            }
+            break;
+        case 5: // the pair drawn
+            if(inPhase > proneDualDraw)
+            {
+                next(6);
+            }
+            break;
+        case 6:
+        {
+            const float pitch = proneDualPitches[t.pitch];
+            cl.viewangles[PITCH] = pitch;
+            if(inPhase < proneDualSettle)
+            {
+                break;
+            }
+            const flatplay::FireRoute r = flatplay::routeFire(true, true);
+            const bool mustFire = pitch >= proneDualFireUp && pitch <= proneDualFireDown;
+            int n = q_snprintf(line, sizeof(line), "%d:%d look %+3.0f", p[0], p[1], pitch);
+            for(int h = HAND_MAIN; h >= HAND_OFF; h--)
+            {
+                if(flatplay::heldIn(h) < 0 || flatplay::meleeIn(h))
+                {
+                    continue;
+                }
+                float floor = 0.f;
+                glm::vec3 at{0.f};
+                const float depth = flatsight::wallDepth(h, &floor, &at);
+                const bool fires = r.fire[h];
+                t.blockedAll += fires ? 0 : 1;
+                t.blocked += !fires && mustFire ? 1 : 0;
+                n += q_snprintf(line + n, sizeof(line) - n, " | %s %s depth %.1f floor %.1f at %.0f %.0f %.0f tilt %.0f", h == HAND_MAIN ? "main" : "off",
+                    fires ? "fires" : "STOPPED", depth, floor, at.x, at.y, at.z, flatsight::wallTilt(h));
+            }
+            Con_Printf("%s: %s\n", tag, line);
+            if(++t.pitch < proneDualPitchCount)
+            {
+                next(6);
+                break;
+            }
+            const entity_t& pl = cl_entities[cl.viewentity];
+            q_snprintf(line, sizeof(line), "%d:%d lying down at %.0f %.0f %.0f: every gun fires looking from %.0f up to %.0f down (stopped %d there, %d at all %d looks)",
+                p[0], p[1], pl.origin[0], pl.origin[1], pl.origin[2], -proneDualFireUp, proneDualFireDown, t.blocked, t.blockedAll, proneDualPitchCount);
+            testCheck(t.tally, tag, t.blocked == 0, line);
+            t.blockedTotal += t.blocked;
+            cl.viewangles[PITCH] = 0.f;
+            if(++t.pair < t.pairCount)
+            {
+                next(3);
+                break;
+            }
+            Con_Printf("%s: stopped triggers at the looks that must fire, every pair: %d\n", tag, t.blockedTotal);
+            next(99);
+            break;
+        }
+        default:
+            t.tally.verdict(tag);
+            t = ProneDualTest{};
+            break;
+    }
+}
+
 // vr_flatslide_selftest: the slide's step on made-up floors, 72 steps a second.
 // vrmantle.map's blocks (Misc/quakevr/climb/make_vrmantle_map.py): along x, each 96 wide with a 64 gap, the lip along
 // y 0 facing -y, the floor at z 0. A case: the block, the look up (degrees), whether it mantles.
@@ -1493,6 +1650,45 @@ void proneTest_f()
     client.proneTest.phaseAt = vr_gametime;
 }
 
+void proneDualTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatpronedual_test: flat-screen play (-flatscreenmode) in a game you host, room to lie down\n");
+        return;
+    }
+    client.proneDualTest = ProneDualTest{};
+    ProneDualTest& t = client.proneDualTest;
+    // (The pairs asked for, main:off weapon ids; none: the common ones, the shotguns, the nail guns, the launchers, the
+    // lightning gun, the grunt's gun, a mixed pair, the nail pistols.)
+    constexpr int common[][2] = {{4, 4}, {5, 5}, {6, 6}, {7, 7}, {8, 8}, {10, 10}, {11, 11}, {15, 15}, {4, 6}, {29, 29}};
+    for(int i = 1; i < Cmd_Argc() && t.pairCount < proneDualPairsMost; i++)
+    {
+        const char* a = Cmd_Argv(i);
+        const char* colon = strchr(a, ':');
+        if(!colon)
+        {
+            Con_Printf("vr_flatpronedual_test: pairs are main:off weapon ids (\"%s\")\n", a);
+            client.proneDualTest = ProneDualTest{};
+            return;
+        }
+        t.pairs[t.pairCount][0] = atoi(a);
+        t.pairs[t.pairCount][1] = atoi(colon + 1);
+        t.pairCount++;
+    }
+    if(t.pairCount == 0)
+    {
+        for(const auto& c : common)
+        {
+            t.pairs[t.pairCount][0] = c[0];
+            t.pairs[t.pairCount][1] = c[1];
+            t.pairCount++;
+        }
+    }
+    t.phase = 1;
+    t.phaseAt = vr_gametime;
+}
+
 void status_f()
 {
     Con_Printf("flatmove: lean %.2f (eye %.1f %.1f %.1f, roll %.1f), sliding %d (pose %.2f, drop %.1f)",
@@ -1569,6 +1765,7 @@ void init()
     Cmd_AddCommand("vr_flatslide_ramp_test", rampTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
     Cmd_AddCommand("vr_flatprone_test", proneTest_f);
+    Cmd_AddCommand("vr_flatpronedual_test", proneDualTest_f);
     Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
     Cmd_AddCommand("vr_flatmove_status", status_f);
 }
@@ -1588,6 +1785,7 @@ void frame(bool on)
         rampTestFrame();
         leanTestFrame();
         proneTestFrame();
+        proneDualTestFrame();
         mantleTestFrame();
     }
 }

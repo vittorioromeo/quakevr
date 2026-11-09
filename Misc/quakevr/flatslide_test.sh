@@ -14,6 +14,9 @@
 #          and rolls the view and the body vr_flat_lean_prone_angle; the crouch pressed lying down gets up into the
 #          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
 #          ironsight waits), looking level the ironsight comes.
+#   dual   vr_flatpronedual_test, lying down with a gun in each hand (two shotguns, two grunt's guns, two nail pistols),
+#          on vrtesthall's floor and on vrslopes' 10-degree slope facing up it: every gun fires (no tilt out of the floor
+#          stops it) looking from 45 up to 15 down (vr_flat_dual_prone_*).
 #   mantle vr_flatmantle_test in vrmantle (Misc/quakevr/climb/make_vrmantle_map.py): a jump at each block, the jump key
 #          held, looking up 35 degrees (vr_flat_mantle_look 30): mantled onto the 48, 64, 80 and 96 high ones, not the 128 and 160 ones; looking up
 #          only 20 at the 64 one, no mantle (vr_climb.cpp flatMantle). Each mantle: its empty hands on the ledge (the
@@ -50,6 +53,13 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Tim
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatprone.*FAIL"
 expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor"
+
+for where in "vrtesthall|" "vrslopes|setpos 208 24 80 0 90 0"; do
+    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatpronedual: [0-9]+ passed" -Timeout 300 -Filter "^flatpronedual" \
+        -Script "map ${where%%|*}; wait60; god; notarget; ${where#*|}; wait60; vr_flatpronedual_test 4:4 15:15 29:29; wait30000; toggleconsole; quit" 2>&1)
+    echo "$out" | grep -a "^flatpronedual.*FAIL"
+    expect_verdict "$out" "flatpronedual" "prone, dual wielding (${where%%|*}): both guns fire looking from 45 up to 15 down"
+done
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle|^climb: flat" \
     -Script "map vrmantle; wait60; god; notarget; vr_climb_debug 1; vr_flatmantle_test; wait3000; toggleconsole; quit" 2>&1)

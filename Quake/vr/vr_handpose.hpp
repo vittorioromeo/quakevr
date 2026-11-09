@@ -39,8 +39,9 @@ void weightDirections(hands::State& s, float turnYaw);
 // The same weapon's points against floors only (a surface whose normal's up is more than gunDepth's wall limit): how deep
 // the deepest is under the first floor on the line from `from` to it, counted `margin` deeper (0: all `margin` or more
 // over it). Flatscreen play lying down: the gun laid flush on the floor (vr_flatsight.cpp, vr_flat_prone_floor).
+// `deepest` (if given): that point off the hand (world axes; the hand itself is 0, the muzzle `muzzle`), for the status.
 [[nodiscard]] float gunFloorDepth(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot,
-    const glm::vec3& muzzle, float margin);
+    const glm::vec3& muzzle, float margin, glm::vec3* deepest = nullptr);
 
 // The same weapon's points: the nearest's distance from `eye` (units), and (with `s`) the deepest one's depth in his torso
 // (`torsoDepth`, units, 0 out; flatplay::torsoGap). No traces.
