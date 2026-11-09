@@ -834,6 +834,12 @@ za::Vector<Item> pageDebugReports()
                   "readings follow Gadget Screen Readings (low health, an empty hand)."),
         command("Visor: Hit Glitch", "vr_flat_visor_fx damage 40")
             .help("vr_flat_visor_fx damage 40: the visor's panels glitch as from a hit of 40, nothing hurt."),
+        command("Visor: Real Hit Message", "vr_flat_visor_fx hit 30")
+            .help("vr_flat_visor_fx hit 30: the server sends you a damage message of 30 with no health taken (the shake and "
+                  "glitch come only from these, never from health going down by itself, as a megahealth's overheal does)."),
+        command("Visor: Cache On / Off", "toggle vr_flat_visor_cache")
+            .help("toggle vr_flat_visor_cache: 1 (the default) the visor's panels and layer drawn again only when what they show "
+                  "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
             .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
         command("Visor: Fog Up", "vr_flat_visor_fx fog 2")
@@ -860,7 +866,13 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Crosshair Probe", "vr_flat_xhair_probe")
             .help("vr_flat_xhair_probe: the visor crosshair (vr_flat_xhair): each gun's shot's hit, its place on the screen, "
                   "whether it is on the centre and where it is drawn; and since the last probe, where your pellets landed "
-                  "against it (in pixels from the drawn crosshair and from the centre)."),
+                  "against it (in pixels from the drawn crosshair and from the centre, and from the drawn barrel's own "
+                  "line), the wall's share of the shot (vr_flat_wall_shot) and the reload's dimming."),
+        command("Flatscreen Crosshair Turn Test", "vr_flat_xhair_turntest 360 216 36")
+            .help("vr_flat_xhair_turntest [degrees a second] [frames] [frames each way] [1: a line a frame]: the mouse turns "
+                  "the view back and forth, and the visor crosshair is measured each frame: how far each one moves from the "
+                  "frame before (its jitter, RMS and most) and how far its hit is off the centre, in pixels at 1080 rows "
+                  "(flatxhair turn: lines). It turns your view."),
         command("Flatscreen Guns Shoot Straight Ahead", "tune vr_flat_aim_point 0")
             .help("tune vr_flat_aim_point 0: each gun shoots along the view from its own muzzle instead of at what the crosshair "
                   "is on, so near a wall its shots land beside the middle: the visor crosshair follows them (two when dual "

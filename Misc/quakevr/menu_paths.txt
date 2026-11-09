@@ -1332,6 +1332,7 @@ vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
+vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
 vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
 vr_flat_xhair_style|1|Locomotion|Visor Crosshair Style|Advanced VR Options > Movement > Locomotion > Visor Crosshair Style
 vr_flat_xhair_size|1|Locomotion|Visor Crosshair Size|Advanced VR Options > Movement > Locomotion > Visor Crosshair Size
@@ -1342,6 +1343,7 @@ vr_flat_xhair_outline|1|Locomotion|Visor Crosshair Outline|Advanced VR Options >
 vr_flat_xhair_glow|1|Locomotion|Visor Crosshair Glow|Advanced VR Options > Movement > Locomotion > Visor Crosshair Glow
 vr_flat_xhair_snap|1|Locomotion|Visor Crosshair Centring|Advanced VR Options > Movement > Locomotion > Visor Crosshair Centring
 vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Smoothing
+vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
@@ -1369,6 +1371,13 @@ vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > 
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
 vr_flat_mantle_hands|1|Locomotion|Mantle Hands On The Ledge|Advanced VR Options > Movement > Locomotion > Mantle Hands On The Ledge
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
+vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
+vr_flat_speed_fov_max|1|Locomotion|Speed FOV Most|Advanced VR Options > Movement > Locomotion > Speed FOV Most
+vr_flat_speed_fov_from|1|Locomotion|Speed FOV From Speed|Advanced VR Options > Movement > Locomotion > Speed FOV From Speed
+vr_flat_speed_fov_top|1|Locomotion|Speed FOV Full Speed|Advanced VR Options > Movement > Locomotion > Speed FOV Full Speed
+vr_flat_slide_fov_bonus|1|Locomotion|Speed FOV Slide Extra|Advanced VR Options > Movement > Locomotion > Speed FOV Slide Extra
+vr_flat_speed_fov_ease|1|Locomotion|Speed FOV Ease In|Advanced VR Options > Movement > Locomotion > Speed FOV Ease In
+vr_flat_speed_fov_ease_out|1|Locomotion|Speed FOV Ease Out|Advanced VR Options > Movement > Locomotion > Speed FOV Ease Out
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
 vr_flat_lean_mouse|1|Locomotion|Mouse Follows Lean|Advanced VR Options > Movement > Locomotion > Mouse Follows Lean
@@ -4187,6 +4196,9 @@ vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > 
 vr_flat_lean_angle|2|Tunables|Lean Roll|Advanced VR Options > Debug > Tunables > Lean Roll
 vr_flat_lean_dist|2|Tunables|Lean Distance|Advanced VR Options > Debug > Tunables > Lean Distance
 vr_flat_lean_pivot|2|Tunables|Lean Pivot|Advanced VR Options > Debug > Tunables > Lean Pivot
+vr_flat_lean_arms|2|Tunables|Lean Arms Follow|Advanced VR Options > Debug > Tunables > Lean Arms Follow
+vr_flat_lean_arms_pivot|2|Tunables|Lean Arms Pivot|Advanced VR Options > Debug > Tunables > Lean Arms Pivot
+vr_flat_lean_gun_roll|2|Tunables|Lean Gun Roll|Advanced VR Options > Debug > Tunables > Lean Gun Roll
 vr_flat_lean_time|2|Tunables|Lean Time|Advanced VR Options > Debug > Tunables > Lean Time
 vr_flat_lean_speed|2|Tunables|Lean Move Speed|Advanced VR Options > Debug > Tunables > Lean Move Speed
 vr_flat_lean_margin|2|Tunables|Lean Wall Margin|Advanced VR Options > Debug > Tunables > Lean Wall Margin
@@ -4702,6 +4714,8 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
 |2|Debug - Reports|Visor HUD Report|Advanced VR Options > Debug > Reports > Visor HUD Report
 |2|Debug - Reports|Visor: Hit Glitch|Advanced VR Options > Debug > Reports > Visor: Hit Glitch
+|2|Debug - Reports|Visor: Real Hit Message|Advanced VR Options > Debug > Reports > Visor: Real Hit Message
+|2|Debug - Reports|Visor: Cache On / Off|Advanced VR Options > Debug > Reports > Visor: Cache On / Off
 |2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
@@ -4714,6 +4728,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Flatscreen Shove|Advanced VR Options > Debug > Reports > Flatscreen Shove
 |2|Debug - Reports|Flatscreen Test Hit From The Right|Advanced VR Options > Debug > Reports > Flatscreen Test Hit From The Right
 |2|Debug - Reports|Flatscreen Crosshair Probe|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Probe
+|2|Debug - Reports|Flatscreen Crosshair Turn Test|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Turn Test
 |2|Debug - Reports|Flatscreen Guns Shoot Straight Ahead|Advanced VR Options > Debug > Reports > Flatscreen Guns Shoot Straight Ahead
 |2|Debug - Reports|Flatscreen Guns Back At The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Guns Back At The Crosshair
 |2|Debug - Reports|Flatscreen Hit Probe|Advanced VR Options > Debug > Reports > Flatscreen Hit Probe
@@ -5126,6 +5141,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
+|2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
+|2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
 |2|Debug - Tests|Lying Body Test|Advanced VR Options > Debug > Tests > Lying Body Test
 |2|Debug - Tests|Lying Body Report|Advanced VR Options > Debug > Tests > Lying Body Report
 |2|Debug - Tests|Flat Lean Test|Advanced VR Options > Debug > Tests > Flat Lean Test
@@ -9351,4 +9368,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page

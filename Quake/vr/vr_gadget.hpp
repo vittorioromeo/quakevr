@@ -117,6 +117,7 @@ struct VisorImage
     unsigned texture{0};
     glm::vec2 size{0.f}; // its virtual screen, pixels
     bool shown{false};   // drawn (its contents: an empty hand's panel, an empty side mount's, are drawn empty)
+    unsigned version{0}; // how many times its texture was drawn (the visor's layer drawn again when it changes)
 };
 // The mounts' colours, the screens' own: the face, its frame line, the warning red, the values.
 struct VisorColors
