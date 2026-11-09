@@ -6481,3 +6481,17 @@ to seven frames at a time (20 frames a run). A twitch of the gun towards straigh
 from behind (its normal turned to face the line). A point genuinely inside the model is unchanged. After: 0 such frames; the
 gun's largest frame-to-frame turns in the run are the knights' own spawns, as before. `flatpose_test.sh` gates it ("the
 crosshair's ray never reads as starting inside a monster far ahead": the count must be 0); its skip is gone.
+
+## Flat-screen: the mouse follows the lean's roll (branch `agent/lean_mouse`, 2026-11-09)
+
+His report: leant, moving the mouse straight up moved the view diagonally across the lean. Now `VR_FlatLookTurn`
+(`vr_flatmove.cpp`) turns the mouse's (and the stick's, the gyro's) move by the roll last drawn before it becomes yaw
+and pitch: the move Quake gives level (across: yaw times cos pitch; up and down: pitch) is rotated by the roll and
+turned back (yaw = across / cos pitch, held at 4x past about 75 degrees). Rolls counted: everything on the drawn view
+by `VR_FlatViewLean` -- the lean's, `cl_rollangle`'s strafe roll (2 degrees: it only turns the move's way, adds no
+motion, so strafing straight stays steady), a hit's kick. None dead, in the chase or fly camera. The flick stick is
+left alone (it sets the yaw outright). Roll exactly 0 or `vr_flat_lean_mouse 0` (default 1; Desktop Screen Play >
+Mouse Follows Lean): Quake's own code path, untouched. Test `vr_flatleanmouse_test` (`flatslide_test.sh`; the mouse fed
+by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolled up axis for up and down, 0.17-0.29
+across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
+rolled".

@@ -33,6 +33,7 @@ void IN_Commands (void);
 
 // mouse moved by dx and dy pixels
 void IN_MouseMotion(int dx, int dy);
+void IN_MockMouseMotion (int dx, int dy); // QVR: the tests' mouse (focus aside; vr_flatleanmouse_test)
 
 //
 // controller gyro

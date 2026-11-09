@@ -764,6 +764,16 @@ void IN_MouseMotion(int dx, int dy)
 	total_dy += dy;
 }
 
+// QVR: the tests' mouse (vr_flatleanmouse_test; vr/vr_flatmove.cpp): counts as if the mouse moved, the window's focus
+// aside (the headless window has none).
+void IN_MockMouseMotion (int dx, int dy)
+{
+	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game)
+		return;
+	total_dx += dx;
+	total_dy += dy;
+}
+
 typedef struct joyaxis_s
 {
 	float x;
@@ -1188,10 +1198,22 @@ void IN_JoyMove (usercmd_t *cmd)
 	}
 	else // traditional joystick look
 	{
+		float right, down;
+
 		IN_ResetFlickState ();
 
-		cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_rawframetime;
-		cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime;
+		right = lookEased.x * joy_sensitivity_yaw.value * host_rawframetime;
+		down = lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime;
+		if (VR_FlatLookTurn (&right, &down)) // QVR: flatscreen play's view rolled: along the rolled screen (see IN_MouseMove)
+		{
+			cl.viewangles[YAW] -= right;
+			cl.viewangles[PITCH] += down;
+		}
+		else
+		{
+			cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_rawframetime;
+			cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime;
+		}
 
 		if (lookEased.x != 0 || lookEased.y != 0)
 			V_StopPitchDrift();
@@ -1244,8 +1266,20 @@ void IN_GyroMove(usercmd_t *cmd)
 	}
 
 	// apply gyro
-	cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
-	cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
+	{
+		float right = -(scale * gyro_yaw * gyro_yawsensitivity.value);
+		float down = -(scale * gyro_pitch * gyro_pitchsensitivity.value);
+		if (VR_FlatLookTurn (&right, &down)) // QVR: flatscreen play's view rolled: along the rolled screen (see IN_MouseMove)
+		{
+			cl.viewangles[YAW] -= right;
+			cl.viewangles[PITCH] += down;
+		}
+		else
+		{
+			cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
+			cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
+		}
+	}
 
 	// Default pitch drift code tries to move towards the ideal pitch
 	// every frame, which means it is always fighting the player's input.
@@ -1297,6 +1331,25 @@ void IN_MouseMove(usercmd_t *cmd)
 
 	total_dx = 0;
 	total_dy = 0;
+
+	if (mlook && !(in_strafe.state & 1) && !lookstrafe.value)
+	{
+		// QVR: flatscreen play's view rolled (a lean, a strafe, a hit): the mouse turns it along the rolled screen, straight
+		// up the tilted screen for straight up (vr_flat_lean_mouse; vr/vr_flatmove.cpp). Not rolled: Quake's own, below.
+		float right = m_yaw.value * dmx, down = m_pitch.value * dmy;
+		if (VR_FlatLookTurn (&right, &down))
+		{
+			cl.viewangles[YAW] -= right;
+			if (dmx || dmy)
+				V_StopPitchDrift ();
+			cl.viewangles[PITCH] += down;
+			if (cl.viewangles[PITCH] > cl_maxpitch.value)
+				cl.viewangles[PITCH] = cl_maxpitch.value;
+			if (cl.viewangles[PITCH] < cl_minpitch.value)
+				cl.viewangles[PITCH] = cl_minpitch.value;
+			return;
+		}
+	}
 
 	if ((in_strafe.state & 1) || (lookstrafe.value && mlook))
 		cmd->sidemove += m_side.value * dmx;

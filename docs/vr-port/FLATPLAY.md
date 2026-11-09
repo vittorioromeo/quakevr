@@ -283,6 +283,20 @@ corner; his box against the world is unchanged, and his own shots pass them. `vr
 `vr_flat_lean 0` (Desktop Screen Play > Lean) turns it off, `vr_flat_lean_toggle 1` makes the keys toggles; the rest
 is in Debug > Tunables > Flatscreen > Lean. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatlean_test`).
 
+**The mouse while rolled.** Leant, the mouse moves the view along the tilted screen: straight up on the mouse is
+straight up on the screen, across is across it (`vr_flat_lean_mouse` 1, Desktop Screen Play > Mouse Follows Lean; 0 is
+Quake's yaw and pitch as if level, which leant slid the view at the lean's slant). `VR_FlatLookTurn`
+(`vr_flatmove.cpp`, called from `IN_MouseMove`, the stick's look and the gyro in `Quake/in_sdl.c`; not the flick stick,
+which sets the yaw outright) takes the move Quake gives level -- across, the yaw times the pitch's cosine, up and down
+the pitch -- turns it by the roll last drawn (`VR_FlatViewLean` keeps V_CalcRefdef's angles: the lean's roll,
+`cl_rollangle`'s strafe roll and a hit's kick all count, the screen is as tilted by each and the turn only changes the
+mouse's way, never adds motion) and back into yaw and pitch. Near straight up or down the yaw a tilted screen's up asks
+for grows as 1 / cos(pitch); past about 75 degrees it is held at 4 times. Not rolled (roll exactly 0), dead, the chase
+or fly camera: Quake's own code path, to the bit. Test: `vr_flatleanmouse_test` (in `flatslide_test.sh`): leant right and
+left at pitch 0, 40 and -30 a pure up, down or across move moves the middle of the screen along the rolled axis (within
+0.5 degrees; 0.0 up and down, 0.2-0.3 across from the yaw's own swing); upright and switched off, the other angle
+untouched to the bit (off, 15 degrees off the screen's up, the old slant).
+
 **Lying down's gun.** The held weapon's pose lying down has its own numbers, taking over by how far down he is:
 `vr_flat_gun_ahead_prone` / `_down_prone` / `_out_prone` at a level look, each going to its `_prone_down` /
 `_prone_up` looking straight down or up along Gun Out's smooth curve (defaults: the standing ones, so nothing moved).
