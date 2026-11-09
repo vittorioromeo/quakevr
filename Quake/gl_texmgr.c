@@ -1741,11 +1741,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// convert to 32bit
-	{
-		byte *src8 = data; // QVR: the palette's indices, for a skin's baked occlusion (VR_SkinAOApply)
-		data = (byte *)TexMgr_8to32(data, glt->width * glt->height * glt->depth, usepal);
-		VR_SkinAOApply (glt->name, data, src8, glt->width, glt->source_width, glt->source_height);
-	}
+	data = (byte *)TexMgr_8to32(data, glt->width * glt->height * glt->depth, usepal);
 
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)

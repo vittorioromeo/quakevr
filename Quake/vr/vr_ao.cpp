@@ -5,7 +5,6 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
 #include "vr_ao_internal.hpp"
-#include "vr_skinao.hpp"
 #include "vr_portals.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
@@ -1848,7 +1847,6 @@ void ao::shutdown()
 void ao::onGameDirChanged()
 {
     baked.clear(); // (a bake still on the worker files its result afterwards: checked by hash before use)
-    skinao::clear();
     brushDrawable.clear();
     brushGeneration = -1;
     bakedSubmodels.clear();
@@ -2016,7 +2014,6 @@ void ao::init()
     Cmd_AddCommand("vr_ao_show", show_f);
     Cmd_AddCommand("vr_ao_cache_info", cacheInfo_f);
     Cmd_AddCommand("vr_ao_finish", finish_f);
-    skinao::init(); // (the texel bake: vr_skinao.cpp)
 }
 
 void ao::upload()

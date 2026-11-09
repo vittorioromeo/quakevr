@@ -3770,7 +3770,6 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 		VR_TRACY_SCOPE("alias draw lists");
 		VR_TIMED ("  their draw lists", GL_MakeAliasModelDisplayLists (mod, pheader)); // QVR: load timing
 	}
-	VR_TIMED ("  their skins' texel occlusion", VR_SkinAOModel (mod, pheader)); // QVR: vr_ao_skin_weapons / _models
 
 //
 // move the complete, relocatable alias model to the cache

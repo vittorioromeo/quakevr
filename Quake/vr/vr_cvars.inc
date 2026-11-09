@@ -1990,14 +1990,6 @@ QVR_CVAR(vr_ao_dynamic, "1.5", CVAR_ARCHIVE)            // ellipsoids round mons
 QVR_CVAR(vr_ao_dynamic_range, "4", CVAR_ARCHIVE)    // how far their darkening reaches, in their radii (1.25 .. 5)
 QVR_CVAR(vr_ao_brush, "1", CVAR_ARCHIVE)              // boxes round doors, lifts, platforms and the item boxes: strength (0 off .. 2)
 QVR_CVAR(vr_ao_models, "1.5", CVAR_ARCHIVE)             // models' own occlusion, baked per vertex as they load (armpits, under guns): strength (0 off .. 2)
-// The same occlusion baked per skin texel as a model loads (vr_skinao.cpp): contact shadows smaller than a triangle
-// (round rivets, under sights, in grooves), darkening the skin as it is uploaded (fullbright texels left alone). Read as
-// a model loads (a change shows on the next map or vid_restart).
-QVR_CVAR(vr_ao_skin_weapons, "0", CVAR_ARCHIVE)        // the weapons' view models (progs/v_*, their parts). Off by default till it bakes on the worker with a disk cache (vr_ao.cpp's): ~2 s of load for a map's 50 weapon models
-QVR_CVAR(vr_ao_skin_models, "0", CVAR_ARCHIVE)         // every other model (monsters, items, world models)
-QVR_CVAR(vr_ao_skin_strength, "1", CVAR_ARCHIVE)       // how much darker an occluded texel is (0 .. 2)
-QVR_CVAR(vr_ao_skin_radius, "1", CVAR_ARCHIVE)         // the rays' reach, times the vertex bake's (0.1 .. 4)
-QVR_CVAR(vr_ao_skin_debug, "0", CVAR_NONE)             // 1: print each model's bake (texels, time)
 QVR_CVAR(vr_ao_cache, "1", CVAR_NONE)                 // models' own occlusion bakes kept on disk (cache/ao: the same bytes; a second session's loads bake nothing); 0 baked every time; 2 baked and compared with the file (vr_ao_cache_info)
 QVR_CVAR(vr_water_splash, "1", CVAR_ARCHIVE)          // splashes (drops, foam, rings) where shots, things, you and your hands hit water, slime and lava: 0 off .. 2 more
 QVR_CVAR(vr_water_splash_size, "1", CVAR_ARCHIVE)     // ... how big their drops, spray, foam and rings are (times)
