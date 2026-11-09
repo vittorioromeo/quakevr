@@ -6220,3 +6220,36 @@ affect the text itself, not the screen or enclosure."
   changed pixels lie inside the glass (bbox 1248..1493 x 493..589 of the glass's ~1240..1500 x 470..600), the frame and
   housing identical. CRT off: `panel_crt0.png`. vr_pp_test 1: 63 passed, 0 failed; scenarios ammoscreen_glass and
   shotgun_screen OK; checklist_tests_check: 83 passed, 0 failed.
+
+## The ammo screen: the magazine big and bright, the total small and dim (branch `agent/ammotext2`, 2026-11-09)
+
+His pick: "magazine rounds big and bright, the total smaller (~0.6x) and dimmer underneath; drop the '/8' since the
+low/empty colours already say how full it is."
+
+- **The look:** reloading on (a gun with a magazine size), the screen shows "<loaded>\n<total>": the loaded count at
+  the full digit size (times wpntxt_font), the total under it at `vr_ammo_total_scale` (0.6) of that size and
+  `vr_ammo_total_bright` (0.6: that share of the way from the screen's face colour to the text's). A low or empty
+  warning colours both, the total dimmed the same way. Reloading off: the one number, unchanged. Holstered and lying
+  guns the same (`idleWeaponText`: a lying gun's clip alone, no "/size"). Menu: Tips > Wrist Gadget Messages, Ammo
+  Total Size and Ammo Total Brightness, after White Ammo Screen Text.
+- **How (`text3d::Glyphs::restSize`, `restBright`: the lines after the first):** the block of lines (the first at 1,
+  the rest at restSize; `textBlock`) is what is centred, shifted (wpntxt_tx/_ty) and fitted to a housing's glass
+  (`imageFit`: a block too large for the glass is drawn smaller as a whole, as before). Both the CRT image and the plain
+  glyphs (CRT off: the total's colour times restBright) lay out per line. The image cache keys on restSize/restBright.
+  At 1 and 1 every expression reduces to the old one.
+- **Fit (scratch/ammotext/fit.py, each housing's fullest text, padding 1):** the shotgun's glass (17 font pixels
+  tall) still shrinks the block to 89% (before: "8/8" over a total, 73%); the super shotgun's and nailgun's no longer
+  shrink (95%, 96% before); the nail pistol, super nailgun, lightning gun and rocket launcher never did. So the
+  magazine digit is today's full font size on every gun but the shotgun, where it is larger than today's. The guns
+  without a housing (grenade launcher, mission packs) size their glass by the text, as before.
+- **The shotgun's text nudged up (weapons.txt slot 1 `wpntxt_ty 0.1`, a tenth of the glass's height):** its bezel's
+  lower lip hides the glass's bottom strip seen square on; the total sat under it. No other gun needed it.
+- **Debug > Reports > Look at Ammo Screen (`vr_debug_screen_cam N`, flatscreen play):** the fly camera goes square in
+  front of the held gun's glass, N of its font pixels away (`flycam::lookAt`). Used for the shots.
+- **Tests:** `Misc/quakevr/reload/gunshape_test.sh` check 5 now expects the lying shotgun's screen "0"/"1" (was
+  "0/8"/"1/8"; not re-run: its profiling part needs an exclusive run). vr_ammocolor_test 1: 25 passed, 0 failed;
+  vr_pp_test 1: 63 passed, 0 failed; scenarios ammoscreen_glass and shotgun_screen OK; checklist_tests_check: 85
+  passed, 0 failed.
+- **Proof:** `scratch/ammotext/panel_guns.png` (worktree embed5): before/after, square on, every id gun and the nail
+  pistol in reloading mode, the shotgun full, low and empty (the others given by impulse 9 come with empty magazines,
+  so red). Before was shot with the old text and the totals at 1/1, which lays out as the old code.

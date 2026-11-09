@@ -576,7 +576,7 @@ inline twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::
 [[nodiscard]] text3d::Glyphs screenGlyphs(int slot);
 
 // Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
-// in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.
+// in R_DrawViewModels): the clip big over the ammo left, smaller and dimmer, when reloading is on, else the ammo.
 // What is done once a frame however often the view is set up: the frame each last ran in (host_framecount).
 struct OncePerFrame
 {

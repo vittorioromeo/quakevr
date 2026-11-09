@@ -11,7 +11,7 @@
 #   4. the Box3D step's time with guns lying in a heap and a held gun among them, pieces and one hull (vr_profile).
 #   5. the author's note vrfiringrange_2026-10-08_14-18-22: the shotgun lying as a prop, a shell held at its load point
 #      slides in as into a held gun (vr_collectfx.cpp, QVR_CFX_INTO_PROP: from the port into its tube, carried by the
-#      lying gun); its ammo screen shows its clip and size alone ("0/8", then "1/8"), not the reserve.
+#      lying gun); its ammo screen shows its clip alone ("0", then "1"; no "/8" since 2026-11-09), not the reserve.
 #   6. the author's note of 2026-10-08 (a shell dropped onto a lying shotgun or thrown into it went in at once): loose
 #      rounds loading by contact slide in too, on every client that can see the gun (server::sendCollectSeen): a shell
 #      tossed into the lying shotgun and one dropped onto it (vr_reload_test 26), the pair into the super shotgun lying
@@ -91,8 +91,8 @@ first=$(echo "$log" | grep -m1 "in gun $gun (lying) t 0.00" | sed -E 's/.* t 0.0
 last=$(echo "$log" | grep "in gun $gun (lying)" | tail -1 | sed -E 's/.* t ([0-9.]+), ([0-9.]+) off its port.*/\1 \2/')
 check $( (echo "$log" | grep -q "^reload: $2 into the Shotgun lying about (from a hand)" && echo "$log" | grep -qE "collect fx: progs/vr_shell_[a-z_]*\.mdl gone in" && awk -v f="$first" -v l="$last" 'BEGIN { split(l, x, " "); print (f != "" && f < 1 && x[1] > 0.9 && x[2] > 2.5) ? 1 : 0 }') || echo 0) "pairs $1: the lying shotgun: $2 in, the shell slides in from its port ($first units off) into its tube (t, units: $last)"
 screens=$(echo "$log" | grep "^world gun $gun " | sed -E 's/.*its screen "([^"]*)".*/\1/' | sort -u | tr '\n' ' ')
-# (Its empty screen, 0/8, is sampled only if a report falls before the load: under load it may not.)
-check $( ([ "$screens" = "0/8 $2/8 " ] || [ "$screens" = "$2/8 " ]) && echo 1 || echo 0) "pairs $1: the lying shotgun's screen: its clip and size alone ($screens)"
+# (Its empty screen, 0, is sampled only if a report falls before the load: under load it may not.)
+check $( ([ "$screens" = "0 $2 " ] || [ "$screens" = "$2 " ]) && echo 1 || echo 0) "pairs $1: the lying shotgun's screen: its clip alone ($screens)"
 }
 lying 0 1
 lying 1 2
