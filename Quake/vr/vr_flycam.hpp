@@ -27,6 +27,8 @@ void frame(bool flatOn);
 
 // The camera flies (and so has his keys, his mouse and his buttons).
 [[nodiscard]] bool on();
+// Tests: the camera on (flatscreen play, in a game), at `pos` looking at `target` (no roll). False: not now.
+bool lookAt(const glm::vec3& pos, const glm::vec3& target);
 
 // The game held for it (vr_flat_flycam_pause, and a single-player game this client's server runs).
 [[nodiscard]] bool holds();

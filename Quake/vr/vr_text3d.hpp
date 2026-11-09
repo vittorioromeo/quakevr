@@ -43,10 +43,22 @@ enum class Align : int
 // wpntxt_ty); the glass, its box and its glow stay as `scale` and the style make them. `size` times the font's size;
 // `shift` the text's centre moved right and up, in shares of the glass's width and height. Shown through the CRT's
 // image (vr_weapon_screen_crt), text past the glass is cut off at its edge; drawn plain (CRT off), it spills.
+// `restSize` and `restBright`: the lines after the first, their size times the first's and their brightness (1 the
+// text's, 0 the face's: an ammo screen's total under its magazine, vr_ammo_total_scale and _bright). The block of lines
+// is what is centred and fitted to a housing's glass (a glass too small for it: the whole block smaller).
+// `fillCols` (a screen with a housing's opening; 0 0 none): the block grown (or shrunk) to fill the glass, less
+// `fillMargin` of its width and height each side and the room its shift takes, sized for the widest text it can show
+// (a first line of fillCols.x characters over one of fillCols.y; 0: none), so its size holds as the numbers change;
+// times `fill` (vr_ammo_mag_scale), then `size`.
 struct Glyphs
 {
     float size{1.f};
     glm::vec2 shift{0.f};
+    float restSize{1.f};
+    float restBright{1.f};
+    glm::vec2 fillCols{0.f};
+    float fill{1.f};
+    float fillMargin{0.08f};
 };
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* style = nullptr,
