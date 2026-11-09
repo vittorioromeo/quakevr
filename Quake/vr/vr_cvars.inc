@@ -2281,6 +2281,7 @@ QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither i
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
 // Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
+QVR_CVAR(vr_flat_tonemap, "1", CVAR_ARCHIVE)           // flat-screen tone mapping: the window's scene in floats, its brightest rolled off by the eyes' curve (vr_flat_grade_exposure before it) instead of clipped; 0: Quake's clamp
 QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
 QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
 QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)

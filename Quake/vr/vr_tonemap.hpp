@@ -9,6 +9,15 @@
 namespace qvr::tonemap
 {
 
+// The curve (QvrTonemap): unchanged up to the knee, 1 at the white point. Quake's brightest colours (fullbright
+// lamps, lit sky) are about 1 and most of a frame is under 0.6, so a knee of 0.8 leaves nearly all of it as tuned;
+// a white point of 4 (the brightest lightmaps doubled, coloured dynamic lights up to 4) keeps what they add apart.
+// The eyes' and flat-screen tone mapping's (vr_flatlook.cpp).
+inline constexpr float knee = 0.8f;
+inline constexpr float white = 4.f;
+// What the world and models may write into the float scene (SceneTone.x): past the white point is white anyway.
+inline constexpr float sceneMax = 8.f;
+
 // Whether the eyes' scene is a float target whose brightest the post-process rolls off (vr_tonemap).
 [[nodiscard]] bool active();
 
