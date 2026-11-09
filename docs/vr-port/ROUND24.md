@@ -5992,6 +5992,8 @@ He wanted the bezel to stand out from the receiver's end face about half as far,
   lines). flatreload 26/0, flatramp 1/0 (flatslide_ramp 6/0), flatgate 5/0, vr_pp_test 1 63/0.
 ## The super nailgun's screen housing on top (branch `agent/housing_nail2_top`, 2026-11-09)
 
+(Reshaped the same day: "The super nailgun's screen in a wedge", below.)
+
 His new mockup (kit `scratch/mockups/nail2_top.webp`): the screen moved to the top of the gun, in a raised block at the
 receiver's back end with a slanted rear face; the back of the gun round the handle free (no plate). Images in the
 flatwall worktree: `scratch/hn2t/panel_nail2_top.png` (next / this / the mockup, the fly camera behind, above and right),
@@ -6035,3 +6037,36 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
   nailgun) and timed out at 400 s, as known; after merging next (its verdict fix) 25 passed, 0 failed. After the merge
   the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
+
+## The super nailgun's screen in a wedge (branch `agent/nail2_wedge`, 2026-11-09)
+
+His two shots on the block above (kit `scratch/mockups/nail2_side.webp`, green lines: "much more slanted", the back
+sloping onto the second big ridge instead of a vertical front; `nail2_front.png`, green circles: the block's sides
+stand out past the gun's). Panel (phases worktree): `scratch/nw/panel_nail2_wedge.png`, top row the side (next, this,
+his shot), bottom row from behind and above (next, this, his shot); flat 4K, the fly camera.
+
+- **The shape** (`make_screen_housing_nail2.py`, same interface; rebuilt from the .blend before any housing, `b382c0e9c^`:
+  1421 vertices, 1154 triangles, none unused): a wedge, a triangle seen from the side. The face rises at 19 degrees from
+  the rear band's rear top edge (was 50), 3.70 long, to a peak at x 0.92, z 8.81 (1.21 over the band; the block's top
+  was 2.88 over it); the front slope runs from the peak down to the second ridge's front top edge (x 6.00, 13 degrees),
+  bridging the groove; the bottom lies on the band and the ridge (a closed solid; no vertical face, no flat top). His
+  lines measure about 16-19 degrees taken with the old block's 50 for scale; the brief's estimate was 25-30. 19 is as
+  steep as the bezel allows with flush sides: the sides are now the receiver's own side planes carried on up (5.85 wide
+  at the band's top, flush there, leaning in 21.6 degrees to 4.89 at the peak; no overhang, no ledge, no corner
+  pieces), so the bezel's top corners (their height set by the slope) must stay inside them: 0.049 inside at 19 degrees,
+  none left past about 21. The window, bezel and digits are unchanged.
+- **Rounding:** the flatter face suits the coarse X grid: off the plane at most 0.04 (was 0.11). The face's strip below
+  the bezel is 0.08h and above it 0.1h, and the script refuses when either rounds to nothing (at 0.05h the bottom one
+  did: a folded triangle); the window's walls go 0.05h into the wedge (0.1h would reach below the receiver's top at the
+  window's bottom edge). The rivets got an underside (4 x 10 triangles): one ring's rounding opened a see-through gap
+  (check_mdl_holes: 1 see-through loop; now `ok`, 4 hidden loops, 18 cracks none wider than 0.01). The box grew less:
+  Z scale 0.0689 (was 0.0746).
+- **The glass:** weapons.txt slot 4 `wpntxt_pitch` 39.5 -> 70.5 (its up (0.9455, 0, 0.3256): the face's), `wpntxt_x`
+  -3.65 -> -3.4, `wpntxt_z` 4.48 -> 4.13; the "nail2" offset {0.0255, 0.0031, 0.0013}. screenwhere -0.8965 -0.1123 8.3283
+  (the window's -0.8962 -0.1122 8.3281). The three lines updated in every qvr-agents worktree's `ironwail.cfg.baseline`
+  and in quakevr-iw-cleanup's `ironwail.cfg`.
+- **Clearances:** barrels up to z 6.85 under the wedge's lowest 7.61 (every frame); the off hand's grip spot 8.8 away;
+  frames carry it with the rear face (0.0000). A re-run in place writes the same .mdl, normal map and weapons.txt.
+- **Tests:** `vr_pp_test 1` 63/0; `vr_scenario runall quit nail2_housing` OK in VR and flat; checklist_tests_check.py
+  83/0. Scene hint updated.
+- **Not verified:** the headset; the panel's runs were low-impact (his game was running).

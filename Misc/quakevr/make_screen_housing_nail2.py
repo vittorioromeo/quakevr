@@ -21,14 +21,15 @@
 # z 7.6, 5.85 wide; a groove; the second ridge x 3.23..6.00 at the same top; the receiver's sides below the top lean
 # in 21.6 degrees):
 # - the wedge, a triangle seen from the side: its rear face rises at SLOPE degrees from the band's rear top edge (the
-#   edge of the gun's rear face: nothing on the rear face itself), MARGIN_LOW below the bezel, MARGIN_HIGH above it to a peak; its front slope
-#   runs from the peak down to the second ridge's front top edge (x 6.00), over the groove. Its sides are the
-#   receiver's sides carried on up (flush with them at the top edges, leaning in as they do: narrower at the peak); the
-#   bezel's top corners keep at least EDGE inside them (else refused). Its bottom lies on the band and the ridge
-#   (bridging the groove): a closed solid.
+#   edge of the gun's rear face: nothing on the rear face itself), MARGIN_LOW below the bezel and MARGIN_HIGH above it
+#   to a peak; its front slope runs from the peak down to the second ridge's front top edge (x 6.00), over the groove.
+#   Its sides are the receiver's sides carried on up (flush with them at the top edges, leaning in as they do: narrower
+#   at the peak); the bezel's top corners keep at least EDGE inside them (else refused). Its bottom lies on the band and
+#   the ridge (bridging the groove): a closed solid.
 # - in the sloped face: the bezel 1.8h x 1.2h (a 0.1h frame) standing 0.1h proud, the window 1.6h x 1h with its corners
-#   chamfered (the entry's radius), its walls going 0.1h into the block to a near-black floor, the glass 0.05h behind
-#   the bezel's front; four round rivets at (+-0.78h, +-0.45h) on the bezel, radius 0.11h, heads 0.08h proud.
+#   chamfered (the entry's radius), its walls going 0.05h into the wedge to a near-black floor, the glass 0.05h behind
+#   the bezel's front; four round rivets at (+-0.78h, +-0.45h) on the bezel, radius 0.11h, heads 0.08h proud, closed
+#   underneath. The face's strips below and above the bezel must stay open once rounded (else refused).
 # The model's grid is coarse in X (0.25) and fine in Y and Z: points on the sloped face snap to the grid point nearest
 # the face's plane (the window's outline toward its centre: the glass tucks behind its walls).
 #
@@ -155,7 +156,7 @@ class Design:
         bw, bh = hw + FRAME * h, hh + FRAME * h
         self.bw, self.bh = bw, bh
         self.vc = MARGIN_LOW * h + bh                       # the bezel's (and window's) centre up the face
-        self.lf = (MARGIN_LOW + MARGIN_HIGH) * h + 2.0 * bh              # the face's length, from the rear top edge to the peak
+        self.lf = (MARGIN_LOW + MARGIN_HIGH) * h + 2.0 * bh  # the face's length, from the rear top edge to the peak
         self.z_top = z_t + self.lf * self.D.z
         self.x_ts = x_r + self.lf * self.D.x            # the peak
         self.x_f = RIDGE_FRONT
@@ -390,12 +391,14 @@ class Design:
         low, high = min(vs[2:4]) - max(vs[0:2]), min(vs[6:8]) - max(vs[4:6])
         if min(low, high) < 0.05:
             fail("the face's strip below the bezel (%.3f) or above it (%.3f) rounds to nothing" % (low, high))
-        return ("strips below and above the bezel %.3f, %.3f; window %.3f x %.3f as snapped (h %.3f); bezel %.3f x %.3f, %.3f proud; glass %.3f behind its front; "
+        return ("strips below and above the bezel %.3f, %.3f; window %.3f x %.3f as snapped (h %.3f); bezel %.3f x "
+                "%.3f, %.3f proud; glass %.3f behind its front; "
                 "face %.1f deg, %.3f long, the peak at x %.3f z %.3f (%.3f over the band), the front slope to x %.3f "
                 "(%.1f deg); %.3f wide at the band's top, %.3f at the peak (the receiver's sides carried up); the "
                 "bezel's top corners %.3f inside the sides; face points off the plane <= %.3f, moved in it <= %.3f; "
                 "rivets %.3f inside the bezel's edge, %.3f clear of the window"
-                % (low, high, 2 * wu, 2 * wv, h, 2 * self.bw, 2 * self.bh, PROUD * h, GLASS_BACK * h, SLOPE, self.lf, self.x_ts,
+                % (low, high, 2 * wu, 2 * wv, h, 2 * self.bw, 2 * self.bh, PROUD * h, GLASS_BACK * h, SLOPE, self.lf,
+                   self.x_ts,
                    self.z_top, self.z_top - self.z_t, self.x_f,
                    math.degrees(math.atan2(self.z_top - self.z_t, self.x_f - self.x_ts)), 2 * self.half(self.z_t),
                    2 * self.half(self.z_top), self.edge, off, inplane, edge, clear))
