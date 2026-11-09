@@ -6226,24 +6226,34 @@ affect the text itself, not the screen or enclosure."
 His pick: "magazine rounds big and bright, the total smaller (~0.6x) and dimmer underneath; drop the '/8' since the
 low/empty colours already say how full it is."
 
-- **The look:** reloading on (a gun with a magazine size), the screen shows "<loaded>\n<total>": the loaded count at
-  the full digit size (times wpntxt_font), the total under it at `vr_ammo_total_scale` (0.6) of that size and
-  `vr_ammo_total_bright` (0.6: that share of the way from the screen's face colour to the text's). A low or empty
+- **The look:** reloading on (a gun with a magazine size), the screen shows "<loaded>\n<total>": the loaded count as
+  big as the gun's glass allows (below), the total under it at `vr_ammo_total_scale` (0.6) of that size and
+  `vr_ammo_total_bright` (0.8: that share of the way from the screen's face colour to the text's). A low or empty
   warning colours both, the total dimmed the same way. Reloading off: the one number, unchanged. Holstered and lying
   guns the same (`idleWeaponText`: a lying gun's clip alone, no "/size"). Menu: Tips > Wrist Gadget Messages, Ammo
-  Total Size and Ammo Total Brightness, after White Ammo Screen Text.
+  Numbers Size, Ammo Total Size and Ammo Total Brightness, after White Ammo Screen Text.
+- **Filling the glass (second pass, the coordinator's: "magazine BIG"; `text3d::Glyphs::fillCols`, `fillSize`):** on a
+  gun with a housing's opening, the two lines are drawn as large as fits its glass less 8% of its width and height
+  each side and the room its wpntxt_tx/_ty shift takes (the trapezoid's narrower top as `imageFit`), sized once per
+  gun for its widest numbers: the magazine's size's digits (the rounds' if more) over at least three (a full 100 or
+  200; more if the total has more), so the size holds as the numbers change. Times `vr_ammo_mag_scale` (1: fill; less
+  shrinks), then wpntxt_font. The margins replace the padding there. The image cache keys on the fill. Guns without
+  a housing (grenade launcher, mission packs) keep sizing their glass by the text. The magazine digit against today's
+  (`scratch/ammotext/fill.py`, glass font pixels): super shotgun 11.7 (7.6), nail pistol 14.7 (8.0), nailgun 11.6
+  (7.7), super nailgun 15.0 (8.0), lightning gun 16.5 (8.0), rocket launcher 13.3 (8.0); the shotgun 6.2 (5.9): its
+  small glass, and the lip below.
+- **The total's brightness (0.8):** measured on the shotgun (`contrast.py`: the total's 95th-percentile luminance
+  against the glass's median) at 0.7/0.8/0.9/1: empty red 1.85/2.38/3.11/4.12 (the magazine number's own red: 2.93);
+  low yellow 10.0/11.6/14.3/17.5; normal (near-white text) 15.3 at every level (saturated). 0.8 is the lowest where the
+  red total keeps 0.8 of the magazine number's contrast and still reads dimmer than it in yellow and red.
 - **How (`text3d::Glyphs::restSize`, `restBright`: the lines after the first):** the block of lines (the first at 1,
   the rest at restSize; `textBlock`) is what is centred, shifted (wpntxt_tx/_ty) and fitted to a housing's glass
   (`imageFit`: a block too large for the glass is drawn smaller as a whole, as before). Both the CRT image and the plain
   glyphs (CRT off: the total's colour times restBright) lay out per line. The image cache keys on restSize/restBright.
   At 1 and 1 every expression reduces to the old one.
-- **Fit (scratch/ammotext/fit.py, each housing's fullest text, padding 1):** the shotgun's glass (17 font pixels
-  tall) still shrinks the block to 89% (before: "8/8" over a total, 73%); the super shotgun's and nailgun's no longer
-  shrink (95%, 96% before); the nail pistol, super nailgun, lightning gun and rocket launcher never did. So the
-  magazine digit is today's full font size on every gun but the shotgun, where it is larger than today's. The guns
-  without a housing (grenade launcher, mission packs) size their glass by the text, as before.
-- **The shotgun's text nudged up (weapons.txt slot 1 `wpntxt_ty 0.1`, a tenth of the glass's height):** its bezel's
-  lower lip hides the glass's bottom strip seen square on; the total sat under it. No other gun needed it.
+- **The shotgun's text nudged up (weapons.txt slot 1 `wpntxt_ty 0.13` of the glass's height):** its bezel's lower lip
+  hides about the glass's bottom quarter seen square on; the total sat under it (0.1 still cut it once the block
+  filled the glass). The fill keeps the block inside the glass round that shifted centre. No other gun needed it.
 - **Debug > Reports > Look at Ammo Screen (`vr_debug_screen_cam N`, flatscreen play):** the fly camera goes square in
   front of the held gun's glass, N of its font pixels away (`flycam::lookAt`). Used for the shots.
 - **Tests:** `Misc/quakevr/reload/gunshape_test.sh` check 5 now expects the lying shotgun's screen "0"/"1" (was
@@ -6252,4 +6262,5 @@ low/empty colours already say how full it is."
   passed, 0 failed.
 - **Proof:** `scratch/ammotext/panel_guns.png` (worktree embed5): before/after, square on, every id gun and the nail
   pistol in reloading mode, the shotgun full, low and empty (the others given by impulse 9 come with empty magazines,
-  so red). Before was shot with the old text and the totals at 1/1, which lays out as the old code.
+  so red). Before was shot with the old text, no fill, the totals at 1/1 and the shotgun's ty 0, which lays out as
+  today's next.

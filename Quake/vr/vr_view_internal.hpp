@@ -572,8 +572,10 @@ inline twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::
 // Clip sizes seen on the guns in the hands (the stats only give the held guns'), for the holstered ones' screens.
 [[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, int clipSize, bool total);
 [[nodiscard]] bool idleAmmoWarning(const qmodel_t* model, int clip, int clipSize, glm::vec3& tint, const char* seenCvar);
-// The ammo screen's text alone resized and moved on its glass (wpntxt_font, wpntxt_tx, wpntxt_ty: text3d::Glyphs).
-[[nodiscard]] text3d::Glyphs screenGlyphs(int slot);
+// The ammo screen's text alone resized and moved on its glass (wpntxt_font, wpntxt_tx, wpntxt_ty: text3d::Glyphs), the
+// total's size and brightness, and, reloading on (`clip` >= 0 of `clipSize`), grown to fill the glass for the gun's widest
+// numbers (`ammo`: the total shown, -1 unknown; vr_ammo_mag_scale).
+[[nodiscard]] text3d::Glyphs screenGlyphs(int slot, int clip, int clipSize, int ammo);
 
 // Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
 // in R_DrawViewModels): the clip big over the ammo left, smaller and dimmer, when reloading is on, else the ammo.

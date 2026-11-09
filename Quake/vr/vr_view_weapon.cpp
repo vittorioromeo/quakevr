@@ -244,13 +244,35 @@ za::Array<za::String, 2> ammoWarnPrinted;
 
 } // namespace
 
+namespace
+{
+[[nodiscard]] float digits(int n)
+{
+    int d = 1;
+    for(n = n < 0 ? -n : n; n >= 10; n /= 10)
+    {
+        d++;
+    }
+    return static_cast<float>(d);
+}
+} // namespace
+
 // The ammo screen's text alone resized and moved on its glass (wpntxt_font, wpntxt_tx, wpntxt_ty).
-text3d::Glyphs screenGlyphs(int slot)
+text3d::Glyphs screenGlyphs(int slot, int clip, int clipSize, int ammo)
 {
     // (The total under the magazine's rounds, reloading on: vr_ammo_total_scale and _bright.)
-    return {weapons::value(slot, Key::WpnTextFont),
+    text3d::Glyphs g{weapons::value(slot, Key::WpnTextFont),
         glm::vec2{weapons::value(slot, Key::WpnTextShiftX), weapons::value(slot, Key::WpnTextShiftY)},
         vr_ammo_total_scale.value, vr_ammo_total_bright.value};
+    // Reloading on, the magazine's rounds over the total fill the glass (vr_ammo_mag_scale), sized once for the gun: its
+    // magazine's size's digits (the rounds' if more) over at least three (a full 100 or 200; more if it has more), so
+    // the numbers keep their size as they change.
+    if(cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 && clip >= 0 && clipSize != 0)
+    {
+        g.fillCols = {za::max(digits(clipSize), digits(clip)), za::max(3.f, ammo >= 0 ? digits(ammo) : 0.f)};
+        g.fill = vr_ammo_mag_scale.value;
+    }
+    return g;
 }
 
 namespace
@@ -324,7 +346,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
 
     const screenstyle::Style& style = screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr);
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style, screenGlyphs(slot));
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr, &style, screenGlyphs(slot, clip, clipSize, ammo));
     if(main && vr_debug_screen_where.value != 0.f)
     {
         // Where the screen is on its model (make_screen_housing_<gun>.py's numbers; Debug > Reports > Ammo Screen on
@@ -360,8 +382,11 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         const glm::vec3 centre = screenstyle::enabled()
                                      ? pos + right * style.offset.x + up * style.offset.y + n * style.offset.z
                                      : pos;
-        Con_Printf("screencam: %s %s\n", ve.ent.model ? ve.ent.model->name : "?",
-            flycam::lookAt(centre + n * away, centre) ? "placed" : "not in flatscreen play");
+        const text3d::Glyphs g = screenGlyphs(slot, clip, clipSize, ammo);
+        Con_Printf("screencam: %s %s (text \"%d %d %d\", fill for %g over %g characters, %g)\n",
+            ve.ent.model ? ve.ent.model->name : "?",
+            flycam::lookAt(centre + n * away, centre) ? "placed" : "not in flatscreen play", clip, clipSize, ammo,
+            static_cast<double>(g.fillCols.x), static_cast<double>(g.fillCols.y), static_cast<double>(g.fill));
     }
     if(vr_weapon_screen.value != 0.f)
     {

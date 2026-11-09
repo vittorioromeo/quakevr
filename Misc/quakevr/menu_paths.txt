@@ -779,6 +779,7 @@ vr_weapon_screen_padding|1|Screens|Ammo Screen Margin|Advanced VR Options > Tips
 vr_weapon_screen_crt|1|Screens|Ammo Screen CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen CRT Look
 vr_weapon_screen_style|1|Screens|Rounded Glass Ammo Screens|Advanced VR Options > Tips > Wrist Gadget Messages > Rounded Glass Ammo Screens
 vr_ammo_screen_text_white|1|Screens|White Ammo Screen Text|Advanced VR Options > Tips > Wrist Gadget Messages > White Ammo Screen Text
+vr_ammo_mag_scale|1|Screens|Ammo Numbers Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Numbers Size
 vr_ammo_total_scale|1|Screens|Ammo Total Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Total Size
 vr_ammo_total_bright|1|Screens|Ammo Total Brightness|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Total Brightness
 vr_ammo_color_warn|1|Screens|Low Ammo Colours|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Colours

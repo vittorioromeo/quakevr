@@ -3794,8 +3794,9 @@ QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_weapon_screen_crt, "1", CVAR_ARCHIVE)      // it looks like a small CRT, as the wrist gadget's (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
-QVR_CVAR(vr_ammo_total_scale, "0.6", CVAR_ARCHIVE)     // reloading on, an ammo screen's total (the line under the magazine's rounds): its size, times the magazine number's (0.1 .. 4)
-QVR_CVAR(vr_ammo_total_bright, "0.6", CVAR_ARCHIVE)    // and its brightness: 1 the magazine number's, 0 the screen's face (0 .. 1; a low or empty warning dims the same way)
+QVR_CVAR(vr_ammo_mag_scale, "1", CVAR_ARCHIVE)        // reloading on, an ammo screen's numbers (the magazine's rounds over the total) on a gun with a housing: 1 as big as fills its glass (the gun's widest numbers, a margin round them), less shrinks them (0.1 .. 4; times the gun's wpntxt_font)
+QVR_CVAR(vr_ammo_total_scale, "0.6", CVAR_ARCHIVE)    // reloading on, an ammo screen's total (the line under the magazine's rounds): its size, times the magazine number's (0.1 .. 4)
+QVR_CVAR(vr_ammo_total_bright, "0.8", CVAR_ARCHIVE)    // and its brightness: 1 the magazine number's, 0 the screen's face (0 .. 1; a low or empty warning dims the same way; 0.8: in the empty red still 0.8 of the magazine number's contrast on the glass, ROUND24.md)
 QVR_CVAR(vr_weapon_screen_style, "1", CVAR_ARCHIVE)    // 1: rounded dark glass set in its frame (rounded corners, a vignette, an inner bevel, softer digits; per weapon: vr_screenstyle.cpp's table, the shotgun's in its modelled housing); 0: the old square screen
 QVR_CVAR(vr_ammo_screen_text_white, "1", CVAR_ARCHIVE) // the ammo screens' and the ammo pouch counter's text: 1 near-white (the wrist gadget's), 0 the screen's colour (between: a mix); their face and glow stay the screen's colour
 // A held gun's ammo screen warns (vr_view_weapon.cpp ammoWarning): its text turns vr_ammo_color_empty when no round is

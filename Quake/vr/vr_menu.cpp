@@ -716,6 +716,7 @@ void hologramTestMessage()
         row(opt::vr_weapon_screen_crt),
         toggle("Rounded Glass Ammo Screens", "vr_weapon_screen_style").help("The ammo screens as rounded dark glass set in the gun (a vignette, an inner bevel, softer digits; the shotgun's in its own bezel). Off: the old square screens."),
         toggle("White Ammo Screen Text", "vr_ammo_screen_text_white").help("The numbers on the ammo screens (and the ammo pouch's counter) near-white, as the wrist gadget's, for readability; their frame and glow keep the screen's colour. Off: in the screen's colour."),
+        row(opt::vr_ammo_mag_scale),
         row(opt::vr_ammo_total_scale),
         row(opt::vr_ammo_total_bright),
         row(opt::vr_ammo_color_warn),
