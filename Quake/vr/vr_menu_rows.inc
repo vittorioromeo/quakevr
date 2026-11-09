@@ -5676,7 +5676,8 @@ QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
 QVR_CYCLE(vr_temporal_debug, "Show Motion Vectors",
     "vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
     "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "
-    "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away).",
+    "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away). "
+    "Flat-screen play: the window's, with Flat: TAA on.",
     {0.f, "Off"}, {1.f, "Vectors"}, {2.f, "Reactive Mask"}, {3.f, "Reprojection Test"})
 QVR_TOGGLE_BYNAME(vr_parallax_debug, "Show Parallax Depth",
     "vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
