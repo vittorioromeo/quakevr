@@ -794,7 +794,7 @@ void startPunch(int h, const char* from)
 [[nodiscard]] glm::vec3 shoveOffset(int h, const glm::vec3& toTarget)
 {
     const float share = shoveOut(h);
-    const float out = share * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 40.f);
+    const float out = share * za::clamp(vr_flat_shove_anim_reach.value, 0.f, 96.f);
     const float side = h == HAND_OFF ? -1.f : 1.f;
     const glm::vec3 plain{out, -side * 0.35f * out, 0.15f * out};
     const bool main = h == HAND_MAIN;

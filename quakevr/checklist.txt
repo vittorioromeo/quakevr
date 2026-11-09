@@ -2,104 +2,29 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
 # Sections run in play-test order: flat-screen first, then the headset, monsters, visuals, audio, the arena, the game's setup, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
-# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before" (2026-11-08 rework: 210 lines down to 83, duplicates and superseded lines dropped, what one scene tests coalesced into one line; 80 of the 83 have a Test button, the other 3 are menu, installer and load-time checks). Misc/quakevr/checklist_tests_check.py checks every tag's scene file.
+# Lines are only for something new or changed you can see or feel: one line per flow, never "works as before" (2026-11-08 rework: 210 lines down to 83, duplicates and superseded lines dropped, what one scene tests coalesced into one line; 2026-11-09 cleanup: every line he ticked as passed retired, 139 lines down to 66, sections merged and renumbered, empty ones dropped; the lines without a Test button are menu, installer, load-time and in-play checks). Misc/quakevr/checklist_tests_check.py checks every tag's scene file.
 
 [Failed: waiting for your answer]
 
-[1. Flat-screen: moving (slide, lying down, lean, mantle)]
-Slide: running, hold Left Ctrl: you slide faster than the run for about a second, eyes low, legs out in front, no bob, ending in a crouch (walking, Ctrl is a plain crouch); down a ramp it speeds up, up one it slows into a crouch; jump mid-slide and the speed carries. {test:flat_slide}
-Slide seen with the fly camera (F8) and looking down: buttocks and legs on the floor, feet never through it, only the torso up; holsters along the legs, the pouch at the belt, nothing up by the view; with the super shotgun no torso turn; turn the view: legs keep the slide's way, the chest follows (up to 70 degrees), all smooth. {test:flat_slide}
-Slide sound: a scuff as it starts, a scrape that follows the speed and fades as it ends (Slide Sound Volume 0.6; synthesised, say if it needs another character); Debug > Tunables > Flatscreen > Slide: Gun Forward / Down / Out Slide move the held gun. {test:flat_slide}
-Lie down (X), watch with F8: hips and belly on the floor propped on the elbows, legs straight back, feet resting on the floor, view and gun where they were; shotgun down the sights: elbows out and low, none over the view; Left Ctrl gets you up into a crouch smoothly, the gun easing to the crouch pose. {test:flatprone}
-Lying down: Q / E lean a little (8 degrees, 3 units) and the body rolls with it; look straight down: the gun lies flush on the floor, won't fire, and the ironsight waits till you look up; Tunables > Flatscreen > Held Weapon > Gun ... Prone rows move the gun lying down. {test:flatprone}
-Lean: hold Q / E: the view rolls and the eye moves out sideways, gun and body with it, smoothly back on release; crouched too, slower walking while leant; standing against the crates, the view still moves out past their edge and never into them; Lean Keys = Toggle makes Q / E toggles. {test:flatlean}
-Lean round the crates: ironsight while leant: the gun rolls with the view and the sights still hit the crosshair; the armed grunt behind them can shoot and hurt your leant head and chest though your feet stay behind cover. {test:flatlean}
-Mantle: jump at a block, Space held, looking slightly up: you're pulled up onto it quickly with the mantle's grunt (48 to 96 high yes, 128 and 160 no); no mantle without Space, looking level or down, or with no room on top; Desktop Screen Play > Mantle rows (Reach 20, Height 24, Look Up 5 / 80, Window 1 s) change what you can mantle. {test:flat_mantle}
+[1. Flat-screen: weapons, hands and reload]
+Flat-screen: fire a gun until its clip is empty: with Desktop Screen Play > Auto Reload off (the default) it stays empty until you press R; with it on it reloads by itself. Holding fire through a reload fires nothing until the gun is back. {test:flat_reload}
+Flat: a rifle-type gun with the off hand on its grip (rocket launcher), V punches with that hand: the fist lands on a knight right in front (and stops at a wall).
+Flat: the two-handed shove (mouse 5, both hands empty) reaches further out (Shove Hand Travel 64, slider up to 96): looks right, still knocks a grunt.
+
+[2. VR: body, lying down and swimming]
 Smooth + Teleport (VR Settings > Comfort, Teleport and Turning > Teleport): the moving stick walks as before; push the turning stick forward to aim (blue/red arc from that hand, no turning, no walking meanwhile), let it go back to the middle to land standing still; pull it back to cancel; left/right still snap or smooth turn; jumping, crouching, sprinting, bullet time and the holsters as usual; in the air or hanging from a ledge the arc is red and nothing happens; with Swap Stick Functions the left stick aims {test:teleport_both}
-Flat screen: Advanced VR Options > HUD and Menus > Menu > VR Menu Layout on a Flat Screen on, press Escape: the menu sits on a panel in the window (90% of it, a thin frame, an L handle at each corner) with the headset's layout: the corner's buttons in a column beside the menu, spaced rows, modern sliders and switches. The mouse hovers, clicks, drags sliders and the wheel scrolls lists as the laser does; the arrow keys still move the selection. {test:menu_flat_panel}
-Flat screen, VR menu layout: the - and + squares under the corner's buttons shrink and grow the panel a step (x1.1) round the mouse, so the button stays under it for the next press; it stays that size after a restart. Flat Menu Panel Size and Reset Flat Menu Panel (Menu page) set and undo it. {test:menu_flat_panel}
-Flat screen, VR menu layout: press a corner handle (the cursor turns to a move cursor over it) and drag: the panel follows; turn the wheel while still holding: it shrinks or grows round the mouse. Dragged far off the window, a corner always stays on it; the place is kept after a restart. {test:menu_flat_panel}
-VR: the - and + squares under the menu's corner buttons: the laser and trigger shrink or grow the panel a step (Menu Scale x1.1); Reset Menu Zoom under Menu Scale puts it back. On a flat screen's own menus (the row of icons), - and + step the menu's size too. {test:menu_zoom}
-Stab a grunt deep and hold the sword: swing your hand sideways, pull it back, lift it over your head with one hand: the staggering body (and a dead one) follows your hand closely, a little behind, and hangs on the blade overhead; an axe the same, a bit less; an ogre much harder. Blade Hold Strength (Advanced VR Options > Combat > Embedded Blades, and VR Settings > Gameplay) at x0.25 it lags and sags, at x4 it is glued to the blade. {test:embed_stab}
-Lie down in front of the 20-high vent and crawl through it (no crouch fits): the shells inside are picked up, the teleporter in the wall over it never takes you; getting up inside keeps you lying, and you stand once out. {test:prone_vent}
-Water drips: wade into the pool with the gun held under, climb out: hands, gun (towards the muzzle) and legs drip, many at first, tapering off over about half a minute; nothing drips while in the water; a fast swing throws drops {test:waterdrips}
-Water drips: the grunt that was in the pool drips once out (only below how deep it was), tiny splashes and a soft drip where drops land, no marks {test:waterdrips}
-Wounded enemies drip: shoot the dry grunt without killing it: blood drips from where it was hit, more the more hurt and just after a hit; none with Gore off {test:waterdrips}
+Lie down in front of the 20-high vent (the scene's hint says where: straight ahead, at the foot of the east wall under the teleporter) and crawl through it, no crouch fits: the shells inside are picked up, the teleporter in the wall over it never takes you; getting up inside keeps you lying, and pressing crouch while lying does not stand you up into the teleporter; you stand once out. {test:prone_vent}
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}
 Crawl any way: pull back to go forward, push ahead to go back, pull sideways to slide sideways {test:prone_floor}
 Lying Down Below now goes to 48: try 26-30 (on all fours) and see you lie down without lying flat; getting up still works, and Getting Up Margin (default 2) stops flicker if your head bobs at the limit {test:prone_floor}
-The 20-high vent: the scene's hint says where it is (straight ahead, at the foot of the east wall under the teleporter); lie down, crawl through, get up inside (you stay lying), stand once out {test:prone_vent}
+Crawl into the 40-high tunnel lying down and get up: only to a crouch; with Lowest Crouched Height 44, getting up inside keeps you lying until you crawl out. {test:prone_tunnel}
 Shoot yourself while firing (palm, forearm, thigh): the pain scream plays every time, as for any other hit {test:self_shot}
 Shoot yourself in the head (muzzle at the temple or under the chin): it hits, 1.5x a body shot (the headshot multiplier); aiming normally past your face never does {test:self_shot}
 Shotgun hand over the chest flashlight: the trigger fires the gun, the lamp stays as it was; an empty hand there still switches the lamp {test:prone_floor}
-Blowing on gun smoke with the gun at your mouth: the smoke stays visible right up to your face (Tunables > Wisps Near the Eye, 5 cm) and the blow pushes it away (vr_smoke_blow 1) {test:prone_floor}
 Get shot by a grunt while holding the nailgun's trigger: you hear the pain grunt (not on every pellet), and the gun keeps firing smoothly.
-Broken armour splits in two: shoot a pauldron, a bracer, a thigh or shin plate and the cuirass off the grunts: each falls as two halves with a jagged seam, flying a little apart (the cuirass down the middle), each one you can pick up and throw; the helmet still falls whole. Let them shoot your own plates off: yours split too. Armour > Broken Plates has the toggle, the push apart and each kind's split line. {test:agarmor_tiers}
-Skewer a gib on the sword, then turn with the stick (smooth and snap) and walk: the gib stays locked on the blade, no lag or lead behind it. {test:embed_stab}
-Stab a crate hard with the sword, or swing the axe hard into a barrel: the blade stays in. Holding it, move aside: the crate drags along, heavily; lift: one hand only tips it, both lift it. Open your hand: it stays in and rides the crate pushed away; grip it again and pull it straight out (harder than out of a body). Break the crate: the blade falls free, back in your hand if held. {test:embed_crates}
-Flat-screen: fire the shotgun a few times, then press R: the gun goes down to the right hip holster, turning muzzle-down, and comes back; the clip refills from your shells (status bar: clip big, shells small beside it). R with a full clip or no shells does nothing. {test:flat_reload}
-Flat-screen: fire a gun until its clip is empty: it reloads by itself; with Desktop Screen Play > Auto Reload off it stays empty until you press R. Holding fire through a reload fires nothing until the gun is back. {test:flat_reload}
-Flat-screen: take the nail gun (both hands on it) and press R: the left hand lets go and hangs relaxed during the reload, then goes back on the gun. {test:flat_reload}
-Flat-screen: press R and switch weapons (1, 2, Q) during the reload, before and after the gun reaches the hip: nothing breaks, no ammo lost; the guns come back loaded. {test:flat_reload}
-Flat-screen: look around, walk and crouch with a gun that isn't full: it never reloads by itself at a holster; only R or an empty clip reloads. {test:flat_reload}
-Flat-screen: the guns' ammo screens show the clip over your total ammo, as in VR; the status bar shows the clip big and the total small in the classic, modern and QuakeWorld layouts (hudstyle 0-3). {test:flat_reload}
-Flat-screen: mouse 4 still force-grabs; R no longer does. {test:flat_hands}
-[0. Flatscreen play (-flatscreenmode)]
-Mantle with both hands empty (jump at a ledge, jump held, look up): both hands go onto the ledge as you climb over, then come back. With a gun in one hand: only the free hand goes to the ledge (leaving the gun's grip) and returns to the grip after. Dual wielding: no hand on the ledge (Mantle Hands On The Ledge, Desktop Screen Play page). {test:flat_mantle}
-Both hands empty in the guard, walk up to a wall, a crate or a prop, look a little down and lean into it: the fists stay out of it, pulled back like a held gun (Debug > Tunables: Wall: Empty Hands And Swings). {test:flat_wall_hands}
-Punch (V or the fire button with an empty hand) and swing an axe at a wall from close: the fist or axe stops at the surface instead of passing through, and the wall hit still sounds (Wall: Swing Stops Short). {test:flat_wall_hands}
-Shove (mouse 5) with both hands empty: both hands push together and it hits harder; with a weapon in one hand the free hand shoves alone. Its reach feels a little longer and more forgiving. Tune the push in Debug > Tunables (Shove Animation Speed, Shove Main/Off Hand Forward/Out/Up, Two-Handed Shove Hands Apart). {test:flat_shove}
-Look at a weapon or an item you could force-grab: it glows with the force grab's outline (the thing mouse 4 would take) before you press mouse 4; nothing glows at your feet any more (Force Grab Preview, Desktop Screen Play page). {test:flat_grab_preview}
-[Ragdolls and armed humanoids, 11-08] (branch agent/rag1108)
-- Remove an armed grunt carrying a flamethrower with the toolgun: its backpack, weapon and back tank go with it; wait 10 s: no backpack drops, no rip sound. Same for a dead one via Debug > Cheats > Corpses and Ragdolls. (Test: developer 1; vr_rag1108_test 1)
-- A grunt hanging from a ledge (vrclimb, shove one off the long ledge) kicks and wiggles its legs and sways a little, and still holds on and pulls up. Tunables: vr_ragdoll_active_hang_kick 2, _hz 1.4, _random 0.6, _sway 1. (Test: map vrclimb; vr_ragdoll_act pullup)
-- Shove a knocked-down grunt while it is getting up: it always goes back down as an active ragdoll (two hands or one). vr_knockdown_getup_shove 1; a weaker shove on one nearly up should take a balance step (vr_knockdown_getup_shove_step 0.8, _late 0.6: past 60% of its get-up). (Test: developer 1; vr_rag1108_test 4)
-- Punch or pistol a grunt's ragdoll torso many times: limbs/head may pop, but it never bursts into gibs; a point-blank super shotgun or a rocket still gibs it. vr_corpse_gib_overkill 50, vr_corpse_gib_hit_min 35. (Test: developer 1; vr_rag1108_test 3)
-- Flamethrower / poison sprayer grunts, knights, death knights, enforcers: the back tank sits to the right of the backpack (weapon-hand side), not through it, and still bursts when shot. vr_adgun_tank_worn_side 7, _back 0. (Test: vr_rag1108_test 2)
-[0. Flatscreen play (-flatscreenmode)]
-Slide up vrtesthall's stairs (north-east, beside the platform) and up its ramp (north-west): the slide climbs the steps and the ramp and slows as it goes up, ending only when it is slow (not at the first step, not as you start up the ramp); jump mid-slide still ends it. {test:flat_slide}
-Slide and steer with A alone or D alone (forward let go), also after turning the mouse a little: the slide curves to that side every time, for the whole slide; holding S does not brake or turn it. {test:flat_slide}
-Mantle (jump at a ledge, jump held, look up at least 30 degrees: Mantle Look Up's new default): you hear the jump's grunt and then the mantle's own grunt a moment later (Mantle Grunt Delay 0.35 s, Desktop Screen Play page). {test:flat_mantle}
-The VR-style menu on the desktop screen: the + and - zoom buttons and the mouse wheel while dragging the panel change its size in finer steps (5% a step, was 10%). {test:menu_flat_panel}
-Desktop screen play: the body, its poses and your weapons look the same whatever VR Settings > Height says (try 1.9 m): they are sized to Desktop Screen Play > Body Height 1.55 m; the headset's Height rows are dimmed in this mode with a note, and in VR they work as before. {test:flat_slide}
-[5. VR: melee and embedded blades] Two hands on a sword like a spear, run at a grunt and stab it dead: let go, the sword lies in the falling body, not floating where it stood; a force grab pulls it out of the body. {test:embed_stab}
-[5. VR: melee and embedded blades] Run into a grunt with a held stab: the blade pushes back and you stop in front of it instead of running past (Tunables: Running Stab: Brake, Running Stab: Speed). {test:embed_stab}
-[5. VR: melee and embedded blades] A blade left in a grunt: a force grab at it from in front, through the body, finds it every time. {test:embed_stab}
-[5. VR: melee and embedded blades] A head or limb on the axe: an ordinary shake or a light swing no longer throws it off; a hard shake or hard swing that stops does (Tunables: Cut-Off Parts: Fling Speed, now 4 m/s). {test:embed_stab}
-[5. VR: melee and embedded blades] Stab a grunt and keep holding while it goes active ragdoll: the grip holds (Blade Hold Strength x1; raise it if it still slips). {test:embed_stab}
-[5. VR: melee and embedded blades] Behead a grunt with the axe: the head sits in the blade, on the side the swing went, not stuck to either face of it (Tunables: Cut-Off Parts: In the Blade). {test:embed_stab}
-[5. VR: melee and embedded blades] Grab a gib or head on the blade with the other hand: the hand rests on its surface, not inside it; tear it off: it is in that hand with no gap. {test:embed_stab}
-[5. VR: melee and embedded blades] Slide a gib up and down the blade with the other hand: squelches and a buzz in both hands. {test:embed_stab}
-[5. VR: melee and embedded blades] Shoot, punch or strike with the other hand's weapon a gib on the blade: it comes off and bursts or takes the hit like any gib. {test:embed_stab}
-[5. VR: melee and embedded blades] Hit a dead ragdoll with the sword or axe: the dent and wound are where the blade struck. {test:embed_stab}
 
-[2. Flat-screen: weapons, hands and the toolgun]
-Walls: walk along the wall with the rifle, then the shotgun and nail pistol, turning slowly towards it: the gun lies flat along it, no jitter or flicker, and fires through the crosshair; facing it steeply it tilts up (0.3 s) and won't fire or ironsight until you step back, then the sight comes on by itself. Wall rows: Flatscreen > Free Hands. {test:flat_wall}
-Empty hands: both empty, fists up in a guard (a little further apart); one weapon held, the other arm hangs relaxed; taking or dropping a weapon eases the hand between poses (0.1 s); check from F8. {test:flat_hands}
-V punches at the crosshair and lands on a grunt at arm's length; Mouse 5 shoves toward the crosshair (the grunt thrown back, staggering, the shove sound), again only after the 0.8 s cooldown, from both stances; Shove damage, reach and time rows on Desktop Screen Play. {test:flat_hands}
-Force grab (Mouse 4 or R): both hands empty, the right hand grabs; the right hand holding a gun, the left grabs; the glow outline, tendril, trail, sparks and sound play. {test:flat_hands}
-Mouse flicks: flick hard holding the axe next to a grunt or wall: no chop, no whoosh; with the revolver or super shotgun nothing opens, ejects or spins; walking into a wall and back swings nothing; the fire button still swings the axe; the chainsaw starts by itself when taken, your left hand on its front handle. {test:flat_melee}
-AD guns: Widowmaker, AD Plasma Gun and a grunt's plasma rifle held two-handed (off hand on the fore-end), right mouse gives an ironsight; the AD crossbow's off hand stays put as it fires and re-cocks (say if its place on the stock looks wrong). {test:ad_weapon_pickups}
-Toolgun: F7 puts it in the right hand, F7 again gives back what the hand held; Mouse 3 opens its panel with a cursor (view still), LMB clicks, Esc or Mouse 3 closes: spawn an armed grunt and a burst rifle; physgun a prop and hold B: the mouse pushes and turns it, angles snap. Panel size and cursor speed OK? {test:toolgun_bench}
-Torch on (F) with Hide Torch Model: no torch model and no floating bright circle at walls or in the open, the beam still lights the walls; in the headset the torch's lens still glows when on. {test:armor_look}
-
-[3. Flat-screen: camera and keys]
-Keys: 3 swaps what the hands hold, R force-grabs, V melee and G drop; your old config's E (+moveup) and 3 binds do nothing while playing flat-screen but still work in the headset; weapon 3 is reached with 1, 2 or the wheel. {test:flat_keys}
-Fly camera: F8, mouse looks, W A S D fly, Space / Ctrl up and down, Shift faster, through walls; your body, hands and weapon stay as they were, the game paused (no plaque), no crosshair; F8 again: nothing changed. With vr_flat_flycam_pause 0 the monsters fight on and nothing you press moves you. {test:enemy_gunfire}
-Die (Death View Immersive, Vomit Mode on Death on): the view tumbles with the ragdoll's head and ignores the mouse until it lies still; Vomit Mode Mouse Look on brings the mouse look back. {test:flat_death}
-Your 15 tuned values are the defaults: is Turn Lag 5 too strong (you tuned it while it was clamped at 3)? {test:flat_keys}
-
-[4. VR: body, lying down and swimming]
-Lie down for real on open floor: the body lies flat behind your head, hips on the floor, legs straight, feet resting (not sunk), arms reaching your controllers (mirror, or Debug body view 3); the stick crawls slowly, jump does nothing, guns fire with the elbows low. Does 18 units feel right for Lying Down Below? {test:prone_floor}
-Arm crawl lying down: put a hand on the floor ahead and pull it back: you slide along the pull with a buzz and a palm slap, alternate hands for a smooth crawl; reaching through the air, aiming or firing doesn't move you, nor the same motion standing; the stick barely moves you (0.25), Crawl With Your Arms off gives it back. {test:prone_floor}
-Crawl into the 40-high tunnel lying down and get up: only to a crouch; with Lowest Crouched Height 44, getting up inside keeps you lying until you crawl out. {test:prone_tunnel}
-Dive under water and swim: the body leans about 45 degrees forward, legs trailing, easing in over a second; head out and it straightens; swim to a ledge to climb out: upright before your hands reach the lip, the feet going onto the wall (Body: Under Water Lean rows). {test:foam_pool}
-Shoot your other palm, forearm and thigh: it hurts, that hand buzzes, the wound is where you aimed and follows the arm; normal firing (dual, crossed arms, two-handed, from the hip) never hits you; Shoot Yourself off (Damage and Knockback): nothing. {test:self_shot}
-Wrist gadget: holding the shotgun two-handed, or the crate or sword in both hands, double-tap the gadget's screen: no slow motion (side button nothing); let go, double-tap after a moment: it works; one weapon in each hand: it works (Lock While Both Hands Hold One Thing). {test:wrist_lock}
-
-[5. VR: melee and embedded blades]
-Stab a grunt hard, tip first: the sword stays in, your hand on the hilt, no second hit, fast stabs reliably; slow, off the blade's line or a few cm short doesn't. Swing the axe hard, edge first: it sticks deeper; head first along its handle it doesn't. Hold a blade still and run in: only the outer half stabs and stays. {test:embed_stab}
+[3. VR: melee and embedded blades]
 Pull a stuck blade along its axis: it slides (harder the deeper) and comes out 1:1, hand and blade gliding back together; an axe only past its depth plus 20 cm with a firm pull (slow: your hand comes off), shaking and buzzing as you near it; hard sideways frees it, across it moves the body and only a fast yank tears it out. {test:embed_stab}
 Open your hand: the blade stays in, bleeding; grip it: back on the same axis, no ghost hand; force grab from afar tugs it out to you; the second hand takes the two-handed grip and stays; turning your hand turns a stuck axe a few degrees, a sword less; a sunk handle turns out to be grabbed. {test:embed_stab}
 Kill a grunt with the blade held: you keep it, a slow pull carries the corpse (overhead on a sword, dragged by an axe), a firm tug frees it, gibbed it's back in your hand; on a falling body your arm stretches, then lets go. Behead or de-limb with the axe, or cut off a part holding a stuck axe: the axe never floats where it was. {test:embed_stab}
@@ -108,61 +33,55 @@ A wound with a blade in it bleeds: sliding the blade makes flesh sounds and spur
 Kill a grunt messily, stab a gib or its head tip first: it rides the blade (up to 3), the blade heavier; the other hand slides one off or takes it; a slash bursts a loose one; dropped or switched they stay or fall unbroken; a hard gib-first throw or the gib's part hitting a wall bursts it. {test:embed_stab}
 An axe swing that cuts off a head or limb keeps it on the axe at the cut (it adds a little weight); a hard stopped swing or a sharp shake flings it off; the other hand pulls it off (about 30 cm); swords don't keep parts (vr_embed_cuton 2). {test:embed_stab}
 Throw a sword into a grunt: it bleeds; kill it and the blade rides the corpse; gib it or cut off that limb: the blade falls. Combat > Embedded Blades off: only axes stick, falling out when the body dies. {test:embed_throw}
-Punch while running at a grunt: it lands easier and slightly harder; a still fist run into it lands a weak punch; open hands don't. {test:closequarters}
+Stab a grunt deep and hold the sword: swing your hand sideways, pull it back, lift it over your head with one hand: the staggering body (and a dead one) follows your hand closely, a little behind, and hangs on the blade overhead; an axe the same, a bit less; an ogre much harder. Blade Hold Strength (Advanced VR Options > Combat > Embedded Blades, and VR Settings > Gameplay) at x0.25 it lags and sags, at x4 it is glued to the blade. {test:embed_stab}
+Skewer a gib on the sword, then turn with the stick (smooth and snap) and walk: the gib stays locked on the blade, no lag or lead behind it. {test:embed_stab}
+Stab a crate hard with the sword, or swing the axe hard into a barrel: the blade stays in. Holding it, move aside: the crate drags along, heavily; lift: one hand only tips it, both lift it. Open your hand: it stays in and rides the crate pushed away; grip it again and pull it straight out (harder than out of a body). Break the crate: the blade falls free, back in your hand if held. {test:embed_crates}
+Two hands on a sword like a spear, run at a grunt and stab it dead: let go, the sword lies in the falling body, not floating where it stood; a force grab pulls it out of the body. {test:embed_stab}
+Run into a grunt with a held stab: the blade pushes back and you stop in front of it instead of running past (Tunables: Running Stab: Brake, Running Stab: Speed). {test:embed_stab}
+A blade left in a grunt: a force grab at it from in front, through the body, finds it every time. {test:embed_stab}
+A head or limb on the axe: an ordinary shake or a light swing no longer throws it off; a hard shake or hard swing that stops does (Tunables: Cut-Off Parts: Fling Speed, now 4 m/s). {test:embed_stab}
+Stab a grunt and keep holding while it goes active ragdoll: the grip holds (Blade Hold Strength x1; raise it if it still slips). {test:embed_stab}
+Behead a grunt with the axe: the head sits in the blade, on the side the swing went, not stuck to either face of it (Tunables: Cut-Off Parts: In the Blade). {test:embed_stab}
+Grab a gib or head on the blade with the other hand: the hand rests on its surface, not inside it; tear it off: it is in that hand with no gap. {test:embed_stab}
+Slide a gib up and down the blade with the other hand: squelches and a buzz in both hands. {test:embed_stab}
+Shoot, punch or strike with the other hand's weapon a gib on the blade: it comes off and bursts or takes the hit like any gib. {test:embed_stab}
+Hit a dead ragdoll with the sword or axe: the dent and wound are where the blade struck. {test:embed_stab}
 
-[6. VR: armed humanoids]
-Armed sword or axe grunt: side-step its swing as it winds up and it misses; stand in front and it lands (fist 14, axe 22, sword 22, hammer 26, chainsaw 18, gun butt 18). {test:agrunt_melee_spacing}
-Shove grunts towards the lip, one hand, two hands and running: they stumble back at a speed that follows the shove and tip over, each differently, no flying off; with Debug > Show Ledge Shove Zones: red topples straight over, yellow backpedals a few steps and folds, grey ignores the ledge. {test:shove_ledge}
-Armed Grunts, Pick Up a Second on: a grunt with one gun takes a second lying close when idle, ignores one 3 m or more away, mid-fight only one at its feet, with a short pause. {test:agrunt_pickup}
-Shove an armed grunt onto a high surface, or throw one hard against the ground: does it still drop its weapon with Fall Keeps Weapon Below 12 m/s? If it does, tell me. {test:agrunt_tug}
-Walk 600+ units from armed humanoids: their arms still smooth; two-handed ones' off hand takes and keeps the second grip; try vr_agarms_warm 1: free hands and fists better or worse? {test:agrunt_holds_grunts}
-
-[7. VR: bodies, grabbing and props]
+[4. VR: ragdolls, bodies and armed humanoids]
+Remove an armed grunt carrying a flamethrower with the toolgun: its backpack, weapon and back tank go with it; wait 10 s: no backpack drops, no rip sound. Same for a dead one via Debug > Cheats > Corpses and Ragdolls. {test:rag_remove}
+A grunt hanging from a ledge (vrclimb, shove one off the long ledge) kicks and wiggles its legs and sways a little, and still holds on and pulls up. Tunables: vr_ragdoll_active_hang_kick 2, _hz 1.4, _random 0.6, _sway 1. {test:rag_hang}
+Shove a knocked-down grunt while it is getting up: it always goes back down as an active ragdoll (two hands or one). vr_knockdown_getup_shove 1; a weaker shove on one nearly up should take a balance step (vr_knockdown_getup_shove_step 0.8, _late 0.6: past 60% of its get-up). {test:rag_getup_shove}
+Punch or pistol a grunt's ragdoll torso many times: limbs/head may pop, but it never bursts into gibs; a point-blank super shotgun or a rocket still gibs it. vr_corpse_gib_overkill 50, vr_corpse_gib_hit_min 35. {test:rag_gib}
+Flamethrower / poison sprayer grunts, knights, death knights, enforcers: the back tank sits to the right of the backpack (weapon-hand side), not through it, and still bursts when shot. vr_adgun_tank_worn_side 7, _back 0. {test:rag_tank}
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. Hold one with both hands: no crash. {test:grunts_to_throw}
 Knock a grunt off a ledge: it grabs the lip, hangs, pulls up (or drops). Into the pool: it swims to where it can stand; killed in water: it paddles weakly, then goes limp. {test:ragdoll_behaviours}
-Grab a rock or a falling magazine with your hand turned well off it: it eases into your palm over a split second instead of snapping (Grab: Ease Into the Hand, 0.12 s). {test:magthrow}
 
-[8. Weapons: sights, skins and shots (VR and flat-screen)]
-Shotgun: a raised housing with a U notch and a ramp post, glowing inserts on their backs; aim down the sights: the post's top level with the ears', centred, shots on its top; Sight Hue 73 recolours the inserts; sights stay on through kick and pump; no black slivers on the receiver top (Debug > Fill Skin Edges off shows them). {test:gun_sights}
-Super shotgun: a blocky notch sight on the rib (two square ears) and a slim ramp post; aimed: the post centred in the notch, tops level, shots on it; broken open, both sights swing with the barrels, inserts keeping their colour; your own Align Sights to My Aim still lands (shipped 3.11 / 0.22). {test:gun_sights}
-Lightning gun and plasma gun: a rear housing with a square notch and one front post on the barrel's line, inserts on their back faces; aimed: irons level, shots on the post's top; no shimmer or z-fighting along the top as you move your head; right from the side too? {test:gun_sights}
-Nail pistol: its steel now the shotgun's deep blue (gun, magazines, holster and wheel preview), slide, label and checkering kept; only the ear and post inserts glow, recoloured by Sight Hue; aimed, tops and inserts level, shots where the sights look; a quick string of shots makes the nozzle glow. {test:nail_targets}
-Flare gun a little darker and less saturated (its blade's brass top less bright); the burst rifle's new model (rod stock, wooden grip, front post level in the notch, red lamp, real muzzle holes) darker and grimier; grunts' rifles and the #adv variants follow. {test:gun_skins}
-Fire the nailgun and super nailgun in each hand: sparks, smoke, flash and nail leave the barrel that fires, alternating with the animation; barrel heat and wisps on the right parts of the nailguns, lightning, plasma, laser, lava gun, revolver and flare gun. {test:gunfire_range}
-Strafe firing nails and rockets at the ogre: shots fly where the gun points; grenades fired running land a little ahead, a flick of the launcher throws them further, flares the same; flat-screen, a fast mouse turn adds nothing to grenades. {test:projectile_motion}
-Ammo boxes: a nail pistol turns up on nail boxes on any map (rare); the heavy revolver on shell boxes only after you've held the super shotgun or a revolver. {test:autosave_e1m1}
+[5. Weapons: sights, skins and shots (VR and flat-screen)]
+Blowing on gun smoke with the gun at your mouth: the smoke stays visible right up to your face (Tunables > Wisps Near the Eye, 5 cm) and the blow pushes it away (vr_smoke_blow 1) {test:prone_floor}
 
-[9. Monsters and Arcane Dimensions]
+[6. Monsters and Arcane Dimensions]
 AD lost soul: it rams from range and circles when near; back to a wall, its bite after a ram lands and your crowbar's guard parries it; a seeker's bite parries too. {test:ad_lostsoul}
 Toolgun on a non-AD map with AD installed: AD Death Guard, Death Lord, Sentinel and AD's Knight spawn and fight; burst rifle, enforcer's rifle, chainsaw, axe and swords make one weapon each, nothing floating after pickup; the AD Plasma Gun shows its own model everywhere and its first ball causes no hitch. {test:toolgun_bench}
 Debug > Cheats > Spawn Pickup Weapons: Axe, Knight's Sword, Death Knight's Sword, Ogre's Chainsaw, Grunt Burst Rifle, Enforcer's Rifle and Super Axe each spawn, pick up and work; an AD map's weapon_axe is still AD's axe. {test:toolgun_bench}
 Hold the Widowmaker, the Shadow Axe and the AD Plasma Gun in either hand and holstered, quicksave, quickload: no crash, each drawn as itself. {test:ad_weapon_pickups}
 
-[10. Visuals: armour, skins and lighting]
-Armour up close (your armour.txt tweaks now ship): fewer, bigger plates, bright faces with gold-brown trim, dark gaps, corner rivets; one breastplate, two big pauldron plates (red rune on the right), raised elbow and knee cops, chest panel, ribbed belly, vents; green, yellow and red still read, whole and worn (vr_agarmor_wear 2). Too busy? {test:armor_look}
-Armoured humanoids walking and fighting: the elbow and knee leather is one bending tube from plate to plate, no skin, seam, gap, spin or pop (the knight's right elbow, the enforcer's both); a limb worn alone ends at its joint; hands and feet bare; thighs covered hip to knee; the knight's red pad hidden under domes not too big. {test:agarmor_enforcer_elbow}
-Debug menu by Check the Armour's Fit: Bend Armoured Elbows and Knees 100: the knee leather joins the plate rows, folds bunched inside, flat over the kneecap; Elbow and Knee Leather: Old Sleeves vs Bending compares the old halves. {test:agarmor_tiers}
-Shoot and axe a grunt's breastplate and pauldron: the cuirass dents at its wear steps, comes off whole when broken, its debris the breastplate. {test:agarmor_guns}
-Your own armour in a mirror or flat-screen: fewer rows on arms and legs (brawny keeps its chest rows), the leather bending with your joints; then an id1 map and Dissolution's R2M6, take the armour by the entrance: plates, not a gib or a piece of wall (each build). {test:armor_look}
-Gloves up close in VR: texel blocks and a few colour steps like your arm's skin, no fine grain, the wrist seamless (Gloves > Quake-Style Leather toggles the old look). {test:armor_look}
-Graphics > Relighting > The Map's Light > Maximum Light 0.8 to 1.2: the brightest areas flatten, live, world and monsters alike; Softness 0 hard, 1 smooth; hue the same, no banding, lamps and flashes still add on top. {test:vrarena_calm}
+[7. Visuals: armour, skins and lighting]
+Wounded enemies drip: shoot the dry grunt without killing it: blood drips from where it was hit, plenty of drops (they were too rare), more the more hurt and just after a hit; none with Gore off {test:waterdrips}
+Broken armour splits in two: shoot a pauldron, a bracer, a thigh or shin plate and the cuirass off the grunts: each falls as two clean halves (no holes or messy geometry) with a jagged seam, flying a little apart (the cuirass down the middle), each one you can pick up and throw; the helmet still falls whole. Let them shoot your own plates off: yours split too. Armour > Broken Plates has the toggle, the push apart and each kind's split line. {test:agarmor_tiers}
+Elbow and knee patches on armoured humanoids walking and fighting (no holes): the elbow and knee leather is one bending tube from plate to plate, no skin, seam, gap, spin or pop (the knight's right elbow, the enforcer's both); a limb worn alone ends at its joint; hands and feet bare; thighs covered hip to knee; the knight's red pad hidden under domes not too big. {test:agarmor_enforcer_elbow}
 
-[11. Audio]
-Hit a crate with the crowbar, then break it: the wood's knock clearly audible over the weapon's hit, the break loud with boards clattering down (Debug > Tunables: Knock Volume 2.5, Break Volume 2). {test:vrarena_crate}
-
-[12. Survival Arena (Play > Survival Arena)]
+[8. Survival Arena (Play > Survival Arena)]
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 Stand on the dais, then on the floor: walkers come up and down the stairs to you instead of wandering the edge (they may dither right beside a flight's side). {test:arena_run}
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save, assign it to Normal, Play from wave 1: the panel readable, laser, stick scrolling and panel keys work. {test:vrarena_calm}
 
-[13. Game: saves, seeds, setup and menus]
-Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
+[9. Game: saves, seeds, setup and menus]
 Fresh map seeds (Gameplay > Maps > New Each Time): restart e1m1: the first crates, barrels and armed grunts' guns differ; quicksave, play, quickload: exactly as saved; off, restart twice: the same both times; vr_map_seed_info prints the seed. {test:autosave_e1m1}
 Installer: install into a fresh folder; the "Set up the game" page shows the settings tree; pick Snap 45, Left-handed and Medium: set in the game. Change Turning in the game, run Update, change only Turn Speed: Turning stays as you set it.
 VR Settings > Gameplay: the big gameplay switches (replacements, drops, melee, knockdowns, holding enemies, bullet time, gore, arena) on one page: check each row's wording.
 First load after clearing vr_cache_dir: an AD map loads faster with the same skins (normal maps may pop in on the first frame); vrfiringrange's guns pick up at once, solid, no hitch.
 
-[14. Dev tools: Weapon Studio, Armour Studio, Blender]
+[10. Dev tools: Weapon Studio, Armour Studio, Blender]
 Weapon Studio (flat screen, Debug > Tools): drag, resize, close and reopen it: back where and as big as you left it (at least 560x360); wheel up zooms in; copying another slot keeps the model and hand offset; are its pages easier to work in than the Weapon Offsets and Weights menus? {test:gunfire_range}
 Weapon Studio, `vr_weaponstudio preview <kind> <weapon> [weapon2]`: an armed humanoid holds the weapon before you, posed from the shipped arms solve: as you expect, and like your own hands' IK? {test:gunfire_range}
 An older config (configVersion 221) loads with no unknown-setting spam (16 dead weapon keys gone, 12 renamed); the shotgun's off hand and your reach for a holstered shotgun unchanged. {test:gunfire_range}

@@ -5251,3 +5251,30 @@ intersects with the arm".
   an end) against the eyeshots of `vr_pp_test 17`, then a fix in `evalBridge`.
 - **Tests:** `vr_agarmor_test 1` 38/0, `vr_agarmor_test 7` 16/0, `vr_pp_test 1` 63/0, `vr_agarmor_bridge_check`
   88/0, `vr_agarmor_split_check` 90/0 (low-impact runs).
+## Flat test fixes, Shove Hand Travel (branch `agent/flatfix1109`, worktree blendmodels, 2026-11-09)
+
+Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` existed already, merged: this branch is
+`agent/flatfix1109`.)
+
+- **flatslide "a jump in the slide keeps its speed" (30 of 375):** the test, not the slide. Traced per frame: the jump
+  keeps 372 u/s for 6 moves, then vrtesthall's north wall (y 344) takes it all while vz falls on as a jump's (the 30
+  is the air move's after the wall). The check read 0.2 s into the air; it now reads 3 moves in, still rising
+  (vz > 150) (vr_flatmove.cpp slideTestFrame, case 5).
+- **flatslide "keys: R force-grabs":** R reloads (`vr_flat_key_reload`), mouse 4 is the grab (`vr_flat_key_grab`,
+  `_alt` empty). The keys case presses R and mouse 4: R prints a reload and no grab, mouse 4 a grab and no reload.
+- **flatplay "the free hand on a grip punches: the knight takes it":** neither part 2 nor the reload. Bisected
+  (first-parent of next, 11-06 to 11-08): it went at the flatinput merge (feb7b31b8, hand motion source gate). With
+  the gate off the 14 damage is `melee event: gun, hand 1, jab with the muzzle`: the launcher jerked into the knight
+  as the off hand let go, a made-up motion the gate rightly no longer lets strike. The fist itself never landed
+  because the case's `vr_test_hurt 1` read 3 frames before the punch made the knight flinch back out of its way
+  (0 at 24..48 units; without that read: `punch (straight) with the knuckles, 8.2 m/s`, 12 damage). The case now
+  reads once after the punch against his 75. Also in vr_twohand.cpp `aiming()`: a hotspot no longer counts while the
+  free hand punches (the 2H bit dropped at once for the game; the drawn hand still eases off), so QC never takes the
+  punching hand for the one steadying the gun (VR_Melee_Thing). Walls: flatinput wallpunch, unchanged.
+- **Shove Hand Travel:** `vr_flat_shove_anim_reach` clamp and slider 0..96 (were 0..40), default 14 -> 64 (his
+  value); the slider's help named itself for the reach, now `vr_flat_shove_reach`. At 64 both palms go out ahead
+  with the arms reaching (screenshot), the shove cases land (flatinput).
+- Known, not from this work: flatplay "+attack (LMB) punches with the axe in the main hand" (the same flinch read
+  pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
+- Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
+  the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
