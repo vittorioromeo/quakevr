@@ -46,6 +46,11 @@ void frame(bool on);
 // on the ground), and the slide pose's eased share 0..1 (the view's extra drop: vr_flat_slide_drop).
 [[nodiscard]] bool sliding();
 [[nodiscard]] float slideShare();
+// The slide's pose wanted: sliding, or off a ledge or a ramp's lip mid-slide (the slide goes on when he lands). The body's
+// lean back, the view's drop, the slide's turn: held through the air, not dropped and taken again (2026-11-09: off the
+// lip of e1m1's button ramp, a third of a second in the air, the view rose 3.7 units over the body and fell on landing,
+// the gun and the body with it). sliding() is the slide on the ground (its sound, the tests).
+[[nodiscard]] bool slidePose();
 // How much further down the slide puts his eyes now (units; flatplay::crouchDrop adds it).
 [[nodiscard]] float slideDrop();
 // How far behind the eye the slide's leant-back trunk hangs from (units: vr_flat_slide_neck_back; the avatar takes it by

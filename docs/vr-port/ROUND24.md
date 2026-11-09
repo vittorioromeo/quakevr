@@ -5342,6 +5342,61 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
 
+## Elbow leather at rest (branch `agent/geo1109b`, 2026-11-09; diagnosis, not fixed)
+
+His answer: the holes show with the elbow straight, from any view; the enforcer's right elbow and the grunt's left are bad,
+their other elbows good.
+
+- **New measure** (`vr_agarmor_bridge_check`, an `(info)` line per joint, `restCheck` in vr_agarmor_bridge.cpp): the
+  leather in the rig's rest pose: cells facing in (cosine below -0.25 against the way out, as drawn: holes), which ones,
+  skin vertices of the two limb bones outside the tube between its end rings, the thinnest ring, the most twist.
+  `developer 1` adds each part's grid radii and axis at every ring and every bridge ring's corners (angle / reach / z).
+  Not a verdict yet: every joint scores some inward cells (5-14 of 48), the good sides too, so the count alone does not
+  separate them.
+- **What separates the bad sides: the forearm's first row (the bridge's lower end ring).** Its grid at ring 0:
+  - enforcer bracer_l: radii 5.37 4.60 4.73 6.14 4.79 5.02, axis (0.08, -0.60). Regular.
+  - enforcer bracer_r: radii 5.52 9.12 4.36 1.45 1.64 1.97, axis (1.21, -3.52). Lopsided, 3.5 units off. The bridge's
+    end ring seen from its own middle crosses itself: two corners at 2 and 14 degrees, one 0.72 from the middle, its z
+    spread 3.6-7.9 against 0.8-4.3 on the left.
+  - grunt bracer_l: 1.17 2.53 2.62 2.37 2.76 2.65 (one corner sunk) against bracer_r, mirrored, 1.84 1.67 2.62 2.37
+    1.81 2.65. They differ by more than 0.5, so `mirrorRadii` (Corners mode) keeps each side's own.
+  - The pauldrons' end rings are exact mirror images on both kinds (Shoulders mode), the bracers' are not.
+- **Likely cause:** `planGrid`'s whole-skin middle for a humanoid forearm (the second loop, `bodyExit` rays from the
+  previous middle). Near an elbow bent in the bind pose (the enforcer's gun arm) the slice crosses into the upper arm.
+  The middles also jump between rings (enforcer bracer_l ring 1 (1.61, 2.66), ring 2 (-0.02, -0.63)), so the plates'
+  rows carry that too. His enforcer `bracer_r start -1.13` moves that row further into the elbow.
+- **Next:** make the forearm's (and shin's) ring middles smooth along the limb (reject a ring whose middle jumps from
+  its neighbours'; ring 0 extrapolated from rings 1-2) and for the Corners mirror at the joint's row take the good side
+  where one side's radius sinks far under its mirror. Then make the rest measure a verdict (0 inward, 0 out) and add
+  eyeshots (`vr_pp_test 17`'s head cameras sit badly for elbows: they need a camera placed off the elbow itself).
+- Tried and dropped: easing the corners' axial place (smoothstep instead of lerp): no change in any count.
+
+### Elbow leather at rest: the fix (2026-11-09 night, branch `agent/geo1109b`)
+
+- **The real cause: the middle rings turned onto the curve.** `vr_agarmor_bridge_check`'s rest line now also measures the joint
+  straight (hinge 0; the bind pose bends every elbow 45-76 degrees, the enforcer's gun arm 75). With each middle ring turned
+  fully onto the Hermite curve's tangent, a short sheared tube (the rows offset across the limb: the curve an S) tilted its rings
+  more than their spacing allows, they cut through each other and the cells between faced in, at every elbow and knee.
+  `evalBridge` now turns them `bridgeTangentTurn` 0.35 of the way from their slerped frames (1 before). 0 (no turn) was best at
+  rest but folded the enforcer's and the knight's elbows in more when bent; 0.35 leaves no joint's bent sweep worse.
+- **Forearm and shin ring middles smoothed** (`smoothAxis` in vr_agarmor.cpp, after `planGrid`'s whole-skin middles): a ring
+  whose middle is more than 0.3 x the limb's girth (at least 0.5 units) off the rings' median, or ring 0 off the line through
+  rings 1-2, is put back on its good neighbours' line. The enforcer's right forearm row 0 radii 1.45-9.12 became 4.02-6.15, his
+  left's middle ring (axis 1.61, 2.66) back on the line, the grunt's left middle ring (2.6 off) back.
+- **Joint rows' sunk corners** (`mirrorRadii`, Corners mode): at the row the leather ends on, a corner under 0.7 x its mirror
+  image takes the image's (the grunt's left forearm's 1.17 against 2.76).
+- **Tried and dropped:** the end rings' frames from their own posed plane (Newell) instead of the bone: no gain; the folds
+  scaled down per column where a column steps backwards: no gain, and 8 continuity failures; a per-pose turn share from a
+  no-crossing bound: about the same as 0.
+- **Numbers** (cells turned in / skin vertices out, summed over grunt, enforcer, knight, death knight, bind + straight + the
+  sweeps' worst): 407 / 52 before, 202 / 49 after. Straight: grunt 1/0, 0/0, 2/2, 4/1 (bracer_l, bracer_r, shin_l, shin_r; were
+  8/1, 5/0, 10/1, 10/1); enforcer 8/2, 7/0, 4/0, 0/1 (were 10/1, 14/0, 15/0, 5/1). Sweeps' worst never above before
+  (enforcer bracer_r 13 (14), knight bracer_r 9 (9)). `vr_agarmor_bridge_check` 88/0.
+- **Not done:** the rest line is still an info line, not a verdict: 0 in / 0 out is not reached (the enforcer's elbows keep 7-12
+  cells, his forearm's first row tilts against the upper arm's last when straightened from 75 degrees: the rows 1 unit apart on
+  the inner side). The skin-out count also counts skin under the plates' lapping rows. vrbody is not in the bridge check's
+  models. No before/after eyeshots yet: `vr_pp_test 17` now places the side shots off the elbow itself
+  (`vr_agarmor_headcam view dist set drop elbow`, elbow 1 left / 2 right), but at 18 units they are too close; try 30.
 ## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
 
 His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and
@@ -5473,3 +5528,97 @@ face. Panel (today's next / this branch / the mockup, 4K flat, the fly camera at
   grip pose, not the housing); the glass shows above it in the bezel. Holding a weapon frame (`vr_debug_weapon_frame`)
   changed nothing visible in either mode, so the frames were checked in the export instead (the housing rides the end
   face's vertices in every frame).
+## The super shotgun's screen housing (branch `agent/housing_ssg`, 2026-11-09)
+
+His mockup (53.webp): a small inset window on the angled breech block, the sight block above it, a rivet each side
+(symmetrical: the mockup's single rivet was a slip).
+
+- **Geometry** (`Misc/quakevr/make_screen_housing_ssg.py`, run headless on the .blend before it; the .blend is the
+  source from then on, the script refuses one that has the housing): on the breech block's two sloped top faces (x
+  1.9-6.0, under the rib's front end, the "sight block"), a low bezel: an inner wall from 0.06 under the glass to 0.10
+  over it, a flat top 0.18 wide at the sides and a row (0.25) over and under, its outer corners cut, a skirt sunk 0.45
+  into the gun, a dark floor under the glass; the top stands about 0.1-0.2 proud of the faces. Two rivets level with
+  the window's middle, 0.05 outside the bezel: low hexagonal domes (two x steps long, 0.36 wide, 0.2 high) on the
+  surface. 112 triangles (bezel 64, rivets 48), closed solids; the export: no holes or flips, the sights unchanged,
+  the barrel mask re-carried (1025 triangles), the new vertices ride the frame part (the barrels' open cut untouched).
+- **The grid.** v_shot2's vertices are bytes: 0.227 units in x, 0.037 in y, 0.056 in z. Along the window's up (mostly
+  x) a row is 0.248: a rounded or chamfered window corner can't be modelled finer than that (round one's octagon read
+  far from the mockup), so the window is square-cornered (`radius 0`, the glass too) and only the bezel's outside is
+  cut. The script snaps the bezel itself, measures the opening its walls make at the glass's depth, and searches the
+  design nearest the table's `opening` and `offset`; it refuses when they still disagree by 0.3 font pixels (printing
+  the table that matches). One definition: the table's "shot2" entry.
+- **Table** (`vr_screenstyle.cpp` "shot2"): opening 14.2 x 11.15 font pixels, radius 0, size 1.36 (a font pixel 0.063
+  model units: the window 1.76 x 1.37 units), offset {-0.01, -0.018, -0.032} (the glass sunk 0.06 model units under
+  where weapons.txt put it), box 0, glass 0.05 and vignette 0.5 (darker glass, as the mockup), the shotgun's tint.
+  weapons.txt's wpntxt offsets and pitch unchanged (his config has no `vr_wofs_wpntxt_*_03`): the glass's tilt (23.5
+  deg from the gun's axis) sits between the two faces' (27.6, 17.3), and the bezel is built in the glass's plane.
+- **Skin:** a patch in free texels (200-248 x 122-146 from the top): the sloped face's own metal, the bezel top 1.8x
+  with a lit inner edge, walls 0.6x, near-black floor, rivet heads 0.7-0.8x with a lit upper edge.
+- **Images:** `scratch/hs/panel_ssg.png` in the worktree (today's next / this branch / the mockup, flat, the start
+  map, 4K cropped to 1080); the kick frame 4 (`vr_debug_weapon_frame 4`) keeps the glass in the bezel.
+- **Tests:** vr_ammocolor_test 25 passed, 0 failed; flatreload_test.sh 26/26.
+- **Not verified:** the VR-mock shot (the low-impact mock's arm hid the gun); the look in the headset.
+## The nail pistol's ammo screen housing (agent/housing_nailpistol, 2026-11-09)
+
+His mockup (a chunky bevelled housing on the slide's back, a rounded glass window, a grille plate under it, the sight
+posts on top). Panel (today's next / this branch / the mockup, flat 4K): `scratch/housing/panel_nailpistol.png`.
+
+- **Model:** `Misc/quakevr/make_screen_housing_nailpistol.py` builds it on `v_nailpistol.blend` (re-runnable: the faces
+  it made before carry the face attribute `qvr_housing` 1 and are removed first; it saves the .blend, then
+  `blend_export.py -- --grow` exports). A block on the slide's rear face (x -1.87), 2.76 wide (the slide 2.4), standing
+  0.43 proud (back face at x -2.30), its back edges bevelled 0.14 (pale worn edge texels); a window (pale lip, dark
+  walls, a dark back behind the glass), a grille (a 0.16 deep recess, black floor, two slats), four bolt heads (dark, pale
+  sides) and a rivet each side. 172 vertices, 284 triangles (the gun 518). Textured from the gun's own skin (no new
+  texels, none fullbright). The rear sight's ears stay the mockup's two posts.
+- **One definition:** the window is the table's opening: the script reads `vr_screenstyle.cpp`'s "nailpistol" entry
+  (`.opening` 24 x 14 font pixels, `.radius` 4: rounded; < 0 would chamfer) and weapons.txt's `wpntxt_scale` (a font
+  pixel 0.0407 model units at 0.205): window half 0.976 x 0.570, corners 0.163. The walls stand 0.012 inside the glass's
+  edge, so the glass tucks behind them (no gap, nothing poking out). Change the table, run the script, export.
+- **Slide:** the housing rides the slide (the export moves a new vertex with its nearest old one; the script refuses if
+  any is nearer the frame than the slide). The screen already rides the slide (vr_nailslide.cpp screenShift): fired
+  with `vr_nailpistol_slide_travel 3`, the glass stays in the window.
+- **Box:** the housing is past the model's old box: grown (origin -2.58 -1.30 -> -3.00 -1.43), and weapons.txt's
+  slot 36 `x` -0.18 -> 0.0553, `y` 0.75 -> 0.8205 keep the gun where it was (the export's own numbers). The screen and
+  button anchors were 0.107 off the slide's side (y 1.3 on a 1.2 side): the grown grid moved the surface under them,
+  so the export refused; the script puts them on it (`wpntxt_av`/`wpnbtn_av` "-1.4 1.2 4.6").
+- **Screen:** table entry "nailpistol" (`.box` 0, `.housing` true, tint 0.9 1 0.9, the shotgun's glass otherwise);
+  weapons.txt `wpntxt_x` -0.42, `wpntxt_y` -0.6263, `wpntxt_z` 0.105, `wpntxt_yaw` 0 (offsets: 1.905 model units a
+  unit). `vr_debug_screen_where 1`: centre -2.200 -0.007 4.800 (target -2.2 0 4.8: 0.10 behind the back face), right
+  -Y, up +Z (0.15 degrees off), a font pixel 0.04067. His config has no `vr_wofs_*_37` overrides: nothing to reset.
+- **Tests:** vr_ammocolor_test 1 22/0, `vr_np_test 1` 39/0, flatreload 26/0 (`vr_np_test 6` is a scene to look at with no verdict: the self-test's step 11 covers it). Export: sight
+  line unchanged (0.000 deg), holes check: 9 open loops (bolt and rivet bases, slat ends, the block's join), 0
+  see-through, 1 crack (not wide).
+- **Not checked:** a VR-mock view of the held gun (the mock hand stayed empty with `impulse 149` in the headset; flat
+  shots only), the glass's colour against the mockup's darker green (the shared round-two glass, unchanged).
+### Ramp slide jitter (agent/flatramp, 2026-11-09)
+
+His report: sliding down E1M1's ramps, the flat body and the gun jitter. Three causes, all in the drawn body (the gun is
+posed off its shoulders, so it moved with them); the origin and the view were smooth.
+
+- **The slide's body share jumped** (vr_avatar_pitch.cpp `updateBodyPitch`): `BodyPitch::sliding` was the lean-back
+  angle over the slide's target, the target floored at 10 degrees. Down the spiral ramp the target sits at 6.4 (the neck
+  too high for the hips to reach the floor) and then, as the crouch lowers the neck past the trunk's reach, jumps to 23
+  in one frame (the `acos` near 1); the share went 0.62 -> 0.31 in a frame, the neck came 3.7 units forward under the
+  eye, the shoulders and the gun with it (the 3.4 jump flatfix1109b measured). Now the share is its own critically damped
+  spring on the angle's clock, to 1 while sliding and 0 after: for a target that holds still the same numbers (the spring
+  is linear), and it reaches 1 (it stopped at 0.64 under the 10-degree floor before).
+- **The crouched trunk near the squat floor** (vr_avatar.cpp `solveTorso`): lying down or sliding straightened the
+  trunk by mixing the pelvis's height towards the straight trunk's. Sliding, the crouch tilt was multiplied out, so the
+  trunk stood nearly straight when the pelvis met the squat floor, and its forward lean (the square root of what the
+  height leaves of the trunk) went 0.13 -> 1.73 in a frame (0.9 a frame of shoulder bend). Now the crouched trunk is
+  solved as standing crouched (its full tilt) and its lean is taken off by the share; the pelvis follows. Same at 0 and 1.
+- **Off a ramp's lip the slide pose dropped and came back**: met at slide speed from the level floor, the button ramp
+  under the bridge throws him off its lip for a third of a second (Quake's own move). `flatmove::sliding()` is false in
+  the air, so the body's lean back, the view's drop (slideShare) and the slide's turn eased out and in again: the view
+  rose 3.7 units over the body and fell 2.5 in a frame on landing. New `flatmove::slidePose()` (the slide on, the air
+  included) for those three and for the lean's lock-out; the slide's sound keeps `sliding()`.
+
+Test: `vr_flatslide_ramp_test [1]` now runs the spiral's first flight (down east) and the button ramp (down south, off
+the lip), and checks per run: slid, on the ground (the spiral), on the slope the view's and the origin's height bend at
+most 0.5 a frame, the whole slide the gun and the drawn body (main shoulder, pelvis via avatar::Follower; new
+`flatplay::traceBody / lastMainShoulder / lastPelvis`) from the view at most 0.5 on any axis. `flatramp_test.sh`
+**6/6** (was 2/3, the gun 3.28; now gun and body 0.36, the slide's start). `flatramp_test.sh <agent> -RealTime`: also
+6/6, but at the real clock (uncapped frames shorter than a tick) Quake's walk down the slope leaves the ground now and
+then: the origin bends 1.36, 4 frames off the ground, the view 0.13 (hidden); those two are printed and not counted at
+the real clock. Not covered: sliding up a ramp (a slide up 13 degrees ends at once, "slowed"); the spiral's second flight
+from its landing (the slide begins at the lip, in the air: gun bend 0.56 at the slide's start, left out of the test).
