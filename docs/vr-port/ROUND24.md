@@ -5942,6 +5942,19 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   .blend, .mdl and mask. Holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a no-change re-run
   writes the files byte for byte; vr_pp_test 1 63 passed, 0 failed. Before/after from his angle (behind and above):
   `scratch/housing_nail/gussets2_before_after.png`, brightened corners `gussets2_closeup.png` (embed5 worktree).
+- **Gussets textured as the same part as the bezel (branch `agent/nail_gussets3`, his note: "the texture lacks
+  continuity with the existing enclosure"):** geometry unchanged, UVs only, all from the bezel's own regions (no new
+  texels). Each gusset's outer face takes the bezel side wall's mapping carried straight down: the wall's rows across
+  it by depth (the worn rim, rows 80.3-83.5) and its columns along it at the wall's own rate (the outline's perimeter
+  share), extended past the side's lower end (outline point 7 right, 4 left). Its front takes the bezel front's own
+  planar mapping (the brown rusted metal at 312, 170, 14 texels a unit), so the plate runs on from the bezel into the
+  gusset; the bezel's front band along the bottom (the lower chamfers and the bottom edge) now takes that same planar
+  mapping too, so no band line crosses the joint, and the bezel's walls there (covered by the gussets and the
+  receiver) are dark with their own UVs: the file's normals are per file vertex (split by UV), so the visible front and
+  side faces keep flat, matching shading across the joint. The sides and top of the bezel keep their worn band.
+  Re-run byte-identical, holes as before (0 see-through, 0 cracks), frames 0.0000, vr_pp_test 1 63 passed, 0 failed.
+  Images (blendmodels worktree): `scratch/gussets3/gussets3_before_after.png` (behind and above),
+  `gussets3_joint_left.png` / `_right.png` (each joint, before | after, brightened 2.4x).
 ## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
 
 His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
