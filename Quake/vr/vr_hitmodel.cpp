@@ -1,6 +1,7 @@
 // vr_hitmodel.cpp -- see vr_hitmodel.hpp.
 
 #include "vr_geom.hpp"
+#include "vr_tracy.h"
 #include "vr_hitmodel_internal.hpp"
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
@@ -505,11 +506,40 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     d.build = 0u;
     // A ragdoll: its mesh as its parts carry it (the triangles tested one by one: the hierarchy's bounds are its
     // frames').
-    if(ragdoll::skinnedVertices(NUM_FOR_EDICT(ent), ragdollScratch.pos, &ragdollScratch.nor) &&
-        ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+    // (Both kept while unchanged, not copied: ragdoll::skinnedView, drawnpose::armedMeshView. The same vertices as made
+    // afresh, bit for bit; `build` names the making, so the hierarchy refit to it is kept too: skinBoundsOf.)
+    QVR_TRACY_SCOPE(zoneSkinnedOf, "hit model: skinned/armed");
+    const glm::vec3* skinPos = nullptr;
+    const glm::vec3* skinNor = nullptr;
+    za::SizeT skinCount = 0;
+    za::U32 skinBuild = 0u;
+    if(vr_hitmodel_skin_keep.value == 0.f)
     {
-        d.skinned = ragdollScratch.pos.data();
-        d.skinnedN = ragdollScratch.nor.data();
+        if(ragdoll::skinnedVertices(NUM_FOR_EDICT(ent), ragdollScratch.pos, &ragdollScratch.nor) &&
+            ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+        {
+            d.skinned = ragdollScratch.pos.data();
+            d.skinnedN = ragdollScratch.nor.data();
+            d.pose2 = d.pose1;
+            d.blend = 0.f;
+        }
+        else if(asDrawn && !checkNoLerp &&
+            drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor, &d.build) &&
+            ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+        {
+            d.skinned = ragdollScratch.pos.data();
+            d.skinnedN = ragdollScratch.nor.data();
+            d.pose2 = d.pose1;
+            d.blend = 0.f;
+        }
+        return true;
+    }
+    if(ragdoll::skinnedView(NUM_FOR_EDICT(ent), skinPos, skinNor, skinCount, skinBuild) &&
+        skinCount >= static_cast<za::SizeT>(d.mesh->numverts))
+    {
+        d.skinned = skinPos;
+        d.skinnedN = skinNor;
+        d.build = skinBuild;
         d.pose2 = d.pose1;
         d.blend = 0.f;
     }
@@ -517,12 +547,12 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     // its hit reactions), not its animation frame: a shot at its drawn arm meets that arm (ROUND23.md, "Armed humanoids:
     // shots and grip spheres from the drawn pose"). Not for `asDrawn` false (vertexPoint: the frame's own vertices, its
     // arms' inputs) nor vr_hitmodel_check's frame comparison.
-    else if(asDrawn && !checkNoLerp &&
-        drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor, &d.build) &&
-        ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+    else if(asDrawn && !checkNoLerp && drawnpose::armedMeshView(ent, skinPos, skinNor, skinCount, skinBuild) &&
+        skinCount >= static_cast<za::SizeT>(d.mesh->numverts))
     {
-        d.skinned = ragdollScratch.pos.data();
-        d.skinnedN = ragdollScratch.nor.data();
+        d.skinned = skinPos;
+        d.skinnedN = skinNor;
+        d.build = skinBuild;
         d.pose2 = d.pose1;
         d.blend = 0.f;
     }
@@ -2035,6 +2065,7 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
     float tolerance, float maxfraction, trace_t* trace)
 {
     using namespace qvr::hitmodel;
+    QVR_TRACY_SCOPE(zoneHitModelClip, "hit model clip");
     const glm::vec3 a{start[0], start[1], start[2]}, b{end[0], end[1], end[2]};
     Hit h;
     const Class c = static_cast<Class>((type >> MOVE_HITMODEL_CLASS_SHIFT) & 3);

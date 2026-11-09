@@ -437,6 +437,7 @@ extern filelist_item_t	*savelist;
 extern filelist_item_t	*skylist;
 
 void Host_ClearMemory (void);
+void Host_KeepMapModels (void); // QVR
 void Host_ServerFrame (void);
 void Host_InitCommands (void);
 void Host_Init (void);

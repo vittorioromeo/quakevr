@@ -225,6 +225,8 @@
         row(opt::vr_slope_walk),
         header("Desktop Screen Play"),
         row(opt::vr_flat_aim_mode),
+        row(opt::vr_flat_aim_sens),
+        row(opt::vr_flat_aim_sens_match),
         row(opt::vr_flat_wall_block_fire),
         row(opt::vr_flat_wall_shot),
         row(opt::vr_flat_xhair),

@@ -174,6 +174,8 @@ const char *VR_RelightIndicator (float *fraction);
 // -- a headset's field of view is its own, and there the answer is the base fov given, whatever the player pressed.
 float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on, then widened by the speed FOV (vr_flat_speed_fov; vr_flatspeedfov.cpp); basefov unchanged when neither is on, and outside flatscreen play
 float VR_FlatLookFov (float basefov);	// in_sdl.c IN_FovScale: basefov without the speed FOV's widening, so the look turns the same degrees at any speed
+float VR_FlatAimSens (float lookfov, float hipfov);	// in_sdl.c IN_FovScale: its tangent ratio times this in the flatscreen ironsight (vr_flat_aim_sens, vr_flat_aim_sens_match; vr_flataimsens.cpp); exactly 1 otherwise and at their defaults
+float VR_FlatAimStickScale (float lookfov);	// in_sdl.c IN_JoyMove: the stick's look slowed in the flatscreen ironsight as the mouse is; exactly 1 otherwise
 float VR_FlatCrosshairAlpha (void);	// the crosshair's opacity: 1, faded to 0 over the flatscreen ironsight's travel; 1 outside it
 void VR_FlatCrosshairShift (float* x, float* y);	// where the crosshair stands off the screen's centre: the flatscreen ironsight's picture moved (fractions of its height); 0 0 outside it
 int VR_FlatXhairOn (void);	// SCR_DrawCrosshair: 1 while flatscreen play's visor crosshair (vr_flat_xhair; vr_flatxhair.cpp) is the crosshair: the 2D one is not drawn
@@ -413,6 +415,10 @@ void VR_ModelsKeepDecide (void);					// ... after: the alias models every lookup
 int VR_ModelKept (const struct qmodel_s *mod);			// nonzero: kept (Mod_ResetAll, Cache_FlushExcept, TexMgr_NewGame, GLMesh_DeleteVertexBuffers leave it)
 qboolean VR_ModelCacheKept (cache_user_t *c);			// Cache_FlushExcept's test: a kept model's cache entry
 void VR_ModelsKeepEnd (void);						// ... the switch done: none kept any more (their records stay)
+// Every map keeps the item boxes' brush models (maps/b_*.bsp) and their textures, under host_hunklevel (vr_modelkeep.cpp)
+int VR_MapModelsLoad (void);					// SV_SpawnServer, after Host_ClearMemory: none kept, they are loaded now; nonzero if any (the hunk's floor goes over them)
+int VR_MapModelsCheck (void);					// Host_ClearMemory, before Mod_ClearAll: nonzero if the kept ones stay (the game's search paths and their files the same); 0: forgotten
+int VR_MapModelKept (const struct qmodel_s *mod);			// Mod_ClearAll: nonzero for a kept one (left loaded, its textures too)
 int VR_SyntheticModel (struct qmodel_s *mod);				// Mod_LoadModel: a model made in memory from another ("<model>#rag": a ragdoll's skinned body, vr_ragdoll.cpp); nonzero if made
 int VR_RuntimeBrushModel (struct qmodel_s *mod);			// Mod_LoadModel: a runtime brush's model ("*qvrbrush/<id>", vr_brushes.cpp), made from its brush; nonzero if one
 void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's ragdolls drawn with their skinned models (vr_ragdoll.cpp)

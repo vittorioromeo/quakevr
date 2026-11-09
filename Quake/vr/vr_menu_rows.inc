@@ -6010,6 +6010,10 @@ QVR_CYCLE_BYNAME(vr_probe_test_spawn, "Ready the Debug Spawner's",
     "The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
     "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn).",
     {0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"})
+QVR_TOGGLE(vr_keep_item_boxes, "Maps Keep the Item Boxes",
+    "On: the item boxes' models (health, ammo, explosive boxes) and their textures are loaded once and kept from map "
+    "to map while the game's files stay the same, instead of being loaded again with every map (~70 ms a load; "
+    "vr_keep_item_boxes). The next map load.")
 QVR_TOGGLE(vr_campaign_keep_models, "Campaign Switch Keeps Models",
     "On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
     "its folders (each file their load looked for is found the same again), instead of loading every one "
@@ -6144,6 +6148,15 @@ QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a click aims, the next stops "
     "(vr_flat_aim_mode). With a weapon in each hand the right button fires the left hand's.",
     {0.f, "Hold"}, {1.f, "Toggle"})
+QVR_SLIDER(vr_flat_aim_sens, "Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
+    "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
+    "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
+QVR_CYCLE(vr_flat_aim_sens_match, "Aim Sensitivity Match",
+    "Playing on the desktop screen, aiming down the sights: the mouse move that puts a point on the crosshair at hipfire "
+    "does it sighted too, for a point this far out, in half screen heights from the centre. Centre: the zoom's own ratio "
+    "(slowest). 1.33: the 4:3 edge (Battlefield's uniform aiming, CS:GO-like). 1.78: a 16:9 screen's edge (fastest) "
+    "(vr_flat_aim_sens_match, 0..4 from the console).",
+    {0.f, "Centre"}, {0.75f, "0.75"}, {1.33f, "1.33 (4:3 Edge)"}, {1.78f, "1.78 (16:9 Edge)"})
 QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
     "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
     "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "

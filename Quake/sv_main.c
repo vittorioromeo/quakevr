@@ -2062,6 +2062,8 @@ static void SV_SpawnServerRun (const char *server)
 	//memset (&sv, 0, sizeof(sv));
 	VR_TRACY_DETAIL (1, "spawn: clear memory", Host_ClearMemory ()); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: clear memory"); // QVR
+	VR_TRACY_DETAIL (1, "spawn: item boxes kept", Host_KeepMapModels ()); // QVR: loaded once, kept across maps (vr/vr_modelkeep.cpp)
+	VR_TimeMark ("server: item boxes kept across maps"); // QVR
 	VR_ServerRandomMapLoad (); // QVR: the server's random numbers seeded (sv_random_seed), before anything spawns
 	VR_Rig2Latch (); // QVR: vr_rig2 read for this map (the grunt's rig: vr/vr_rig2.cpp)
 

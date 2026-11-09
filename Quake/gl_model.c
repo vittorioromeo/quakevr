@@ -311,7 +311,7 @@ void Mod_ClearAll (void)
 
 	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
 	{
-		if (mod->type != mod_alias)
+		if (mod->type != mod_alias && !VR_MapModelKept (mod)) // QVR: the item boxes stay, under host_hunklevel (vr/vr_modelkeep.cpp)
 		{
 			mod->needload = true;
 			TexMgr_FreeTexturesForOwner (mod); //johnfitz

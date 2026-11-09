@@ -660,10 +660,11 @@ za::Vector<Item> pageDebugProfiling()
                   "prepare), writes and checks; then the warm-up's progress."),
         row(opt::vr_probe_kinds),
         row(opt::vr_probe_test_spawn),
+        row(opt::vr_keep_item_boxes),
         row(opt::vr_campaign_keep_models),
         command("Kept Models Info", "vr_model_keep_info")
             .help("vr_model_keep_info: how many models the last campaign switch kept, of how many, and the time its check "
-                  "took (console)."),
+                  "took; the item boxes kept across maps, their loads and the last check (console)."),
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),

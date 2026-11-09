@@ -23,6 +23,7 @@
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -79,7 +80,8 @@ struct KeepState
     za::Vector<Lookup> before; // the palette's and colormap's, before the switch's new folders
     ankerl::unordered_dense::set<const qmodel_t*> kept; // the switch's (VR_ModelsKeepDecide to VR_ModelsKeepEnd)
     ankerl::unordered_dense::set<const cache_user_t*> keptCaches;
-    auto members() { return qvr::mem::list(sources, recording, pakTimes, before, kept, keptCaches); }
+    za::Vector<qmodel_t*> boxes; // the item boxes kept across maps (VR_MapModelsLoad), in their hunk layer
+    auto members() { return qvr::mem::list(sources, recording, pakTimes, before, kept, keptCaches, boxes); }
 };
 qvr::mem::Cache<KeepState> state{"campaign switch: models' files", qvr::mem::Never};
 
@@ -91,6 +93,24 @@ double lastMs = 0.0;
 const char* lastWhy = "no campaign switch yet";
 
 constexpr const char* globalFiles[] = {"gfx/palette.lmp", "gfx/colormap.lmp"};
+
+// The item boxes every map precaches (QC VR_Toolgun_Precache: the toolgun's health, ammo and explosive boxes; the
+// expansions' where their pak is): small brush models, the same files every map, whose load was ~70 ms of each (their
+// textures made and uploaded again: a brush model lives on the hunk, Mod_ClearAll frees its textures). Loaded once
+// before the map's own models, under host_hunklevel (Host_KeepMapModels), they stay with their textures, as alias
+// models do, until the game's files change: each map's Host_ClearMemory compares the search paths (every game folder
+// and pak, in order) and the files the boxes, the palette and the colormap are found in with those of their load (a
+// load looks for ~420 files a box, mostly replacement images that aren't there: not looked for again); any other, or
+// vr_keep_item_boxes 0, and they are freed and loaded again (or not). A campaign switch (Mod_ResetAll) empties them.
+constexpr const char* itemBoxes[] = {"maps/b_bh10.bsp", "maps/b_bh25.bsp", "maps/b_bh100.bsp", "maps/b_shell0.bsp",
+    "maps/b_shell1.bsp", "maps/b_nail0.bsp", "maps/b_nail1.bsp", "maps/b_rock0.bsp", "maps/b_rock1.bsp",
+    "maps/b_batt0.bsp", "maps/b_batt1.bsp", "maps/b_explob.bsp", "maps/b_exbox2.bsp", "maps/b_lnail0.bsp",
+    "maps/b_lnail1.bsp", "maps/b_mrock0.bsp", "maps/b_mrock1.bsp", "maps/b_plas0.bsp", "maps/b_plas1.bsp"};
+za::U64 boxesFiles = 0; // the boxes' load's filesNow()
+// The last load and check (vr_model_keep_info)
+int boxLoads = 0, boxKeeps = 0;
+double boxCheckMs = 0.0, boxLoadMs = 0.0;
+const char* boxWhy = "";
 
 [[nodiscard]] za::I64 pakTime(const char* pak)
 {
@@ -139,6 +159,45 @@ constexpr const char* globalFiles[] = {"gfx/palette.lmp", "gfx/colormap.lmp"};
     return lastFound(name, found);
 }
 
+// The item boxes' files as the game finds them now (a hash): the search paths in order, and the file each box, the
+// palette and the colormap is found in.
+[[nodiscard]] za::U64 filesNow()
+{
+    za::U64 h = 14695981039346656037ull; // FNV-1a
+    const auto mix = [&h](const void* p, za::SizeT n)
+    {
+        for(za::SizeT i = 0; i < n; ++i)
+        {
+            h = (h ^ static_cast<const unsigned char*>(p)[i]) * 1099511628211ull;
+        }
+    };
+    const auto mixString = [&mix](const char* s) { mix(s, strlen(s) + 1); };
+    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    {
+        mixString(s->pack ? s->pack->filename : s->filename);
+        mix(&s->path_id, sizeof(s->path_id));
+    }
+    const auto mixFile = [&](const char* name)
+    {
+        const FileId f = findNow(name);
+        mixString(name);
+        mix(&f.found, sizeof(f.found));
+        mixString(f.source.cStr());
+        mix(&f.offset, sizeof(f.offset));
+        mix(&f.size, sizeof(f.size));
+        mix(&f.writeTime, sizeof(f.writeTime));
+    };
+    for(const char* name : globalFiles)
+    {
+        mixFile(name);
+    }
+    for(const char* name : itemBoxes)
+    {
+        mixFile(name);
+    }
+    return h;
+}
+
 void info_f()
 {
     if(Cmd_Argc() > 1) // a model's recorded lookups
@@ -161,6 +220,10 @@ void info_f()
                "%d models' files recorded (vr_campaign_keep_models %s)\n",
         lastKept, lastLoaded, lastChecks, lastMs, lastWhy[0] ? ": " : "", lastWhy,
         static_cast<int>(state.sources.size()), qvr::vr_campaign_keep_models.string);
+    Con_Printf("vr_model_keep: %d item boxes kept across maps (vr_keep_item_boxes %s); %d loads of them (the last %.1f ms), "
+               "%d kept by the last check (%.2f ms)%s%s\n",
+        static_cast<int>(state.boxes.size()), qvr::vr_keep_item_boxes.string, boxLoads, boxLoadMs, boxKeeps, boxCheckMs,
+        boxWhy[0] ? ": " : "", boxWhy);
 }
 
 } // namespace
@@ -342,4 +405,60 @@ extern "C" void VR_ModelsKeepEnd()
     state.keptCaches.clear();
     state.before.clear();
     campaign = false;
+}
+
+extern "C" int VR_MapModelKept(const qmodel_t* mod)
+{
+    return za::find(state.boxes.begin(), state.boxes.end(), mod) != state.boxes.end() ? 1 : 0;
+}
+
+extern "C" int VR_MapModelsCheck()
+{
+    if(state.boxes.empty())
+    {
+        return 0;
+    }
+    const double t0 = Sys_DoubleTime();
+    const bool on = qvr::vr_keep_item_boxes.value != 0.f;
+    bool same = on && filesNow() == boxesFiles;
+    for(za::SizeT i = 0; same && i < state.boxes.size(); ++i)
+    {
+        same = !state.boxes[i]->needload && state.boxes[i]->type == mod_brush; // (Mod_ResetAll empties their slots)
+    }
+    boxCheckMs = (Sys_DoubleTime() - t0) * 1000.0;
+    boxKeeps = same ? static_cast<int>(state.boxes.size()) : 0;
+    if(!same)
+    {
+        boxWhy = on ? "a file of theirs is found elsewhere now: loaded again" : "vr_keep_item_boxes 0";
+        Con_DPrintf("vr_model_keep: the item boxes freed (%s)\n", boxWhy);
+        state.boxes.clear(); // (Mod_ClearAll frees them as any brush model)
+        return 0;
+    }
+    boxWhy = "";
+    return 1;
+}
+
+extern "C" int VR_MapModelsLoad()
+{
+    if(!state.boxes.empty() || qvr::vr_keep_item_boxes.value == 0.f)
+    {
+        return 0;
+    }
+    const double t0 = Sys_DoubleTime();
+    boxesFiles = filesNow();
+    for(const char* name : itemBoxes)
+    {
+        if(!COM_FileExists(name, nullptr))
+        {
+            continue;
+        }
+        qmodel_t* mod = Mod_ForName(name, false);
+        if(mod && mod->type == mod_brush)
+        {
+            state.boxes.pushBack(mod);
+        }
+    }
+    boxLoadMs = (Sys_DoubleTime() - t0) * 1000.0;
+    ++boxLoads;
+    return state.boxes.empty() ? 0 : 1;
 }
