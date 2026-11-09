@@ -5752,3 +5752,13 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   superseded. A re-export after a shape change must start from a weapons.txt whose slot 3 mask matches the .blend's
   reference or the shipped file (else the export warns "not carried over"): the rework started from the pre-housing
   .blend, .mdl and mask.
+- **Gussets (his annotated shot `kit/scratch/mockups/nail_gussets.webp`):** under each end of the bezel's bottom edge
+  (u +-1.07), where the front overhangs the receiver's sloped shoulders, a closed triangular wedge (6 vertices, 8
+  triangles) the bezel's depth: its inner corner at u +-0.55 just inside the receiver's flat top, its lower corner 0.05
+  under the shoulder, found by a ray down onto the gun (the housing left out): the shoulder is 0.49 (left, model +Y)
+  and 0.39 (right) under the bezel's bottom, the receiver being a little asymmetric. Its front and outer side on the
+  worn rim (as the bezel's edge band), the hidden faces dark. The housing is now 120 vertices, 192 triangles (the gun
+  1380; slot 3's mask carried over to 1380); holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a
+  no-change re-run writes the .mdl, normal map and weapons.txt byte for byte. They fill the dark gaps under the
+  bezel's corners; from above they are mostly hidden by the receiver, from the mockup's lower angle they read as
+  brackets (`scratch/housing_nail/closeup_gussets.png`).

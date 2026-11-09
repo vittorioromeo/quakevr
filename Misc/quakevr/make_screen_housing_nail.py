@@ -50,7 +50,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Vector, bvhtree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -87,6 +87,8 @@ FASTENER_V = 0.27
 FASTENER_GAP = 0.03
 SIDE_MARGIN = 0.06
 BARRELS_Y = 1.6
+GUSSET_IN = 0.55    # a gusset's inner corner (model units from the centre: inside the receiver's flat top, |y| < 0.66)
+GUSSET_SINK = 0.05  # its lower corner this far under the shoulder
 FASTENER_SIDES = 8
 FASTENER_TOP = 0.55  # the head's top ring, a share of its radius (the dome's shoulder)
 
@@ -241,6 +243,41 @@ def main(h):
         j = (i + 1) % m
         tris.append((a[i], b[j], a[j], "front", centre, "dark"))
         tris.append((a[i], b[i], b[j], "front", centre, "dark"))
+    # The gussets (his annotated shot nail_gussets.webp): under each end of the bezel's bottom edge, where the front
+    # overhangs the receiver's sloped shoulders, a triangular wedge from the bottom edge down to the shoulder, the
+    # bezel's depth (front to a step inside the block). Its inner corner sits just inside the receiver's flat top, its
+    # lower corner GUSSET_SINK under the shoulder (found by a ray down onto the gun, the housing left out), so its
+    # sloped underside is inside the body and the visible parts are its front, its outer side and its back.
+    keep = [p for p in me.polygons]
+    hs_old = me.attributes.get(hc.TAG)
+    if hs_old is not None:
+        flag = [0] * len(me.vertices)
+        hs_old.data.foreach_get("value", flag)
+        keep = [p for p in keep if not any(flag[i] for i in p.vertices)]
+    tree = bvhtree.BVHTree.FromPolygons([v.co for v in me.vertices], [list(p.vertices) for p in keep])
+    v_bot = z_bot - cz
+    gusset_corner = set()  # each gusset's front corner under the bezel (its face's dark end)
+    for g in (-1.0, 1.0):
+        u_c = g * (ow - co_u)
+        hit = tree.ray_cast(place(u_c, v_bot, x_face), Vector((0.0, 0.0, -1.0)))
+        if hit[0] is None or v_bot - (hit[0].z - cz) > 2.0:
+            h.fail("no shoulder under the bezel's lower corner at u %.2f" % u_c)
+        v_low = hit[0].z - cz - GUSSET_SINK
+        pts = [(g * GUSSET_IN, v_bot), (u_c, v_bot), (u_c, v_low)]
+        h.say("gusset at u %+.3f: the shoulder %.3f under the bezel's bottom (hit at y %.3f z %.3f)"
+              % (u_c, v_bot - (hit[0].z - cz), hit[0].y, hit[0].z))
+        f = [add(place(u, v, x_front)) for u, v in pts]
+        k = [add(place(u, v, x_in)) for u, v in pts]
+        mid = place(g * (GUSSET_IN + abs(u_c)) * 0.5, (2 * v_bot + v_low) / 3.0, x_face)
+        side = Vector((0.0, -g, 0.0))                       # (u right = model -Y)
+        slope = Vector((0.0, g, -1.0)).normalized()          # the underside: down and in
+        gusset_corner.add(f[1])
+        tris.append((f[0], f[1], f[2], "back", mid, "gusset"))
+        tris.append((k[0], k[1], k[2], "front", mid, "dark"))
+        for (i0, i1), want_n, mode in (((0, 1), Vector((0.0, 0.0, 1.0)), "dark"), ((1, 2), side, "edge"),
+                                       ((2, 0), slope, "dark")):
+            tris.append((f[i0], f[i1], k[i1], want_n, mid, mode))
+            tris.append((f[i0], k[i1], k[i0], want_n, mid, mode))
     fasteners = [(su * fu, sv * fv) for su in (-1.0, 1.0) for sv in (1.0, -1.0)]
     for bu, bv in fasteners:
         base = [add(place(bu + fr * math.cos(2 * math.pi * (i + 0.5) / FASTENER_SIDES),
@@ -275,6 +312,11 @@ def main(h):
             return FRONT[0] + u * FRONT[2], FRONT[1] - v * FRONT[2]
         if mode == "dark":
             return (RIM_SPAN[0] + RIM_SPAN[1]) * 0.5 + u * 8.0, ROW_DARK - v * 8.0
+        if mode == "gusset":  # a gusset's front: the worn rim (as the bezel's edge band), lit along its slope
+            return RIM_SPAN[0] + 40.0 - v * 20.0, ROW_RIM_IN if vi in gusset_corner else ROW_RIM
+        if mode == "edge":  # a gusset's outer side: the worn rim, along it by height, across it by depth
+            return (RIM_SPAN[0] + 20.0 - v * 12.0,
+                    ROW_RIM + (ROW_WALL_BACK - ROW_RIM) * (co.x - x_front) / (x_in - x_front))
         if mode in ("rim", "lip"):
             name, i = ring_of[vi]
             col = RIM_SPAN[0] + (RIM_SPAN[1] - RIM_SPAN[0]) * perimeter_share(name, i, wrap)
@@ -301,7 +343,11 @@ def main(h):
         if radial.length > 1e-6:
             radial.normalize()
         back_dir = Vector((-1, 0, 0))
-        want = {"back": back_dir, "front": -back_dir, "out": radial, "inback": back_dir - radial, "outback": radial + back_dir}[kind]
+        if isinstance(kind, Vector):
+            want = kind
+        else:
+            want = {"back": back_dir, "front": -back_dir, "out": radial, "inback": back_dir - radial,
+                    "outback": radial + back_dir}[kind]
         return (i, j, k) if nrm.dot(want) >= 0.0 else (i, k, j)
 
     # The triangles as the helper takes them: wound as they should face, a UV per corner.
