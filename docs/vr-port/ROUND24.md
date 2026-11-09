@@ -6706,6 +6706,58 @@ group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
   ms): the next target for cheaper fight ticks (QC). Not done here.
 - Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
   microseconds per entity: not worth a job's dispatch).
+
+## Big fights' CPU, part 2 (agent/perf_fight2, 2026-11-09)
+
+Same method as above (Release-Tracy ThinLTO, `vr_tracy_preset full`, his cfg, flat 3440x1441 fsaa 4, exclusive);
+scripts in the worktree's `scratch/pf` (F.sh, bt.sh, ab.sh/ab.py/fcmp.py for the A/B state checks, cmp.py).
+
+- **The flat hands' cost is the crosshair's lines, not the pose.** New zones (`hands: place flat`, `hands: flat pose`,
+  `flat pose: sight`, `flatsight: aim at point`, `flatsight: line stop`, ...; `hit model clip`, `hit model:
+  skinned/armed`): in the gore flat fight all of `hands` (0.86 ms a frame, 2.56 calls) was `flatsight::apply`, and in
+  it the crosshair's MOVE_HITMODEL lines (`lineStop`, 2.9 a pose, ~0.1 ms each): each long line meets ~33 bodies'
+  boxes, and each precise test re-skinned a ragdoll (`ragdoll::skinnedVertices` and the hierarchy's refit, every call)
+  or copied an armed humanoid's memo (its vertices and normals). The pose itself (shoulders, hands, walls, reload) is
+  ~0.01 ms. Everything the relatches recompute is view-dependent (the aim, the crosshair's point, the muzzle's line),
+  so "once a frame plus a cheap re-aim" would change the poses; made cheaper instead, bit for bit:
+  - **Precise hits keep skinned bodies** (`vr_hitmodel_skin_keep 1`, Ragdolls page "Keep Skinned Bodies"; 0 the old
+    path): a ragdoll's skinned vertices and normals are kept while its pose, cut, scale and rig are unchanged
+    (`ragdoll::skinnedView`, compared bit for bit), an armed humanoid's are read from drawnpose's memo, not copied
+    (`drawnpose::armedMeshView`); both carry a making number (`drawnpose::newBuild`), so the triangle hierarchy refit
+    to them is kept too. Every trace benefits (shots, nails, blows, the flat crosshair), VR too.
+  - **The crosshair's line traced once a pose** (flatsight `crossMemo`): aimAtPoint and the shot's point traced the
+    same line (same start and end, bit for bit) twice in one `apply`.
+  - Gore flat, ms a frame (calls): `hands` 0.861 -> 0.690 (skin keep) -> 0.612 (both); `flatsight: line stop` 7.46 ->
+    4.91 calls; `hit model clip` 0.54 -> 0.47 ms (250 -> 177 calls) after the keep (0.81 before it, its first zoned
+    capture); `vr frame setup` 0.261 -> 0.152. E1M1 fight (few bodies): `hands` 0.30, unchanged.
+  - Plain runs, keep 0 vs 1, two each alternated (exclusive, but the frame times swung ~1 ms between like runs, GPU
+    `3D` 2.3-3.5 ms in the same scenario: frame p50/p95/p99 inconclusive): VR combat_48 `server` CPU 1.79/1.84 -> 1.53/
+    1.48 ms a frame (crowd shots), VR play_gore_fight 1.51/1.48 -> 1.55/1.81 (noise), flat gore 1.04/1.02 -> 1.06/1.19.
+  - Proof: `vr_bench_statehash fields` (a hash per QC field over every edict) at four points of play_gore_fight_flat
+    (1500 frames, 8 ragdolls at the end): keep 0 vs keep 1 and vs the crosshair memo, every field the same (16104
+    hashes), ragdoll hashes the same. In VR (play_gore_fight, 900 frames) two keep-0 runs already differ in 125 fields,
+    all the melee history's (`mh_*`: hand speeds from the mock's real-clock tracking times) and `bat_why_v`; keep 0 vs 1
+    differs in 121, all of that family (one, `mh_hgrip[8]`, not among the control's 125), ragdoll hashes the same.
+    Tests: vr_pp_test 1 VR 63/0 and flat 62/0, flatpose 22/0, flatxhair 31/0, flathud 11/0, ragdoll_test exit 0,
+    checklist_tests_check 103/0, scenario_check 8 failed (all AD content missing from the kit's game folder), eval
+    full 162/171 with 14 PASS -> PASS differences of 0.1 in melee numbers (one stab 15.6 -> 54.4, still no decap). (Two fields differ between ANY two runs and are left out:
+    `vr_posetime` and QC `mh_ptime`, the hands' pose time, which is `vr_gametime` = realtime: it carries the process
+    start's clock even in fixed-frame runs. The melee reads only differences of it, but a replay compares it raw:
+    worth a fix of its own.)
+- **Armed grunts' prop think** (`VR_AG_PropThink`, QC detail, gore flat): 0.76 ms a frame inclusive with QC zones on
+  (their own cost roughly doubles QC time: `QC VM` 1.5 here vs 0.69 in his detail-0 trace), spread thin: self times
+  `VR_AGP_Pose` 5.5 us a call, `VR_AGS_Projectiles` 3.3 us (a findradius of 128 round each weapon every tick, for the
+  player's nails and rockets through it), `VR_AGPar_Frame` 3.5 us, `VR_AG_WeaponStruck` 1.9, `VR_AGP_ArmsGun` 1.9,
+  `VR_AGK_Mode` 1.2 (2 a prop), `VR_AGP_TurnPose` 1.6, `VR_AGK_Keys` 1.5, then many under 1 us. No single hot spot;
+  not changed here (budget). Next steps: skip `VR_AGS_Projectiles`' search when no player projectile is in flight (a
+  count kept by the projectiles' spawns), and move `VR_AGP_Pose`'s math to a builtin.
+- **Job pool: not used.** The candidates' whole cost a frame in the gore flat fight: `alias transform` 0.071 ms (380
+  set-ups), `dlight casters` 0.036 (4.4 lights), `shadow caster faces` 0.015, `ragdoll publish` 0.001-0.01: each under a
+  job dispatch and join's cost; nothing to gain, so no change (determinism untouched).
+- **Ragdoll hashes run to run** (perf_fight's open question): the blast script set no seed, so the server's random
+  stream (`sv_random_seed 0`) came from the clock: which grunts gib, how many parts (96-98). With `sv_random_seed 1` the
+  hashes are the same every run and with `vr_ragdoll_sleep_skip` 0 or 1 (5bb1e1bd693bc292, 04cd5a73109d1004,
+  c1e68802763cdaec). `vr_physics_hash` now says when the seed was the clock's (`srvrandom::clockSeeded`).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
