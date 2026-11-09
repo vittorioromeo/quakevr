@@ -4105,6 +4105,18 @@ QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under wh
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 
+// Flatscreen play's visor crosshair (vr_flatxhair.cpp; FLATPLAY.md, "The visor crosshair"). Sizes in pixels at 1080 rows.
+QVR_CVAR(vr_flat_xhair, "1", CVAR_ARCHIVE)              // 1 the visor crosshair: at the true screen place each gun's shot will hit (centred when near it), in the visor's colours; 0 the classic crosshair (crosshair; its own 0, the game's default, hides it)
+QVR_CVAR(vr_flat_xhair_style, "2", CVAR_ARCHIVE)        // 0 dot, 1 cross, 2 cross and dot, 3 circle, 4 circle and dot, 5 T, 6 chevron, 7 corner brackets
+QVR_CVAR(vr_flat_xhair_size, "10", CVAR_ARCHIVE)        // how far its lines reach from the point (1..64; the circle's radius, the brackets' half width)
+QVR_CVAR(vr_flat_xhair_thickness, "2", CVAR_ARCHIVE)    // its lines' width (0.5..12)
+QVR_CVAR(vr_flat_xhair_gap, "4", CVAR_ARCHIVE)          // the cross's empty middle, from the point (0..48)
+QVR_CVAR(vr_flat_xhair_opacity, "0.9", CVAR_ARCHIVE)    // (0..1)
+QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round its lines, this wide (0 none .. 6)
+QVR_CVAR(vr_flat_xhair_glow, "0.5", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
+QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
+QVR_CVAR(vr_flat_xhair_smooth, "0.03", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
+
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
