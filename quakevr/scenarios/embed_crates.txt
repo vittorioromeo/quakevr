@@ -1,7 +1,6 @@
 # embed_crates: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Blades stuck in wooden crates and barrels (his notes 2026-11-08, items 13 and 14; vr_embed_test 30).
 title Embedded blades in crates and barrels: stab with the sword, swing the axe
 cvar vr_embed 1
-cvar vr_embed_props 1
 map vrtesthall
 god
 notarget

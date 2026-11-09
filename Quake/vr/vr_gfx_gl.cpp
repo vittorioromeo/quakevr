@@ -94,6 +94,7 @@ layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels acros
 layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
 layout(location = 18) uniform vec4 Frame; // Mode 4 as rounded glass (State::frame): corner radius, bevel (pixels), vignette, sheen
 layout(location = 19) uniform vec4 Glass; // and the glass's colour under the face (rgb), the digits' softness (a)
+layout(location = 20) uniform float Taper; // and its shape (State::taper): a trapezoid, its top this much of its bottom
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
 #if MODE == 1
 layout(location = 17) uniform vec2 Band; // the falloffs drawn: above x, up to y (State::once's bands; else all)
@@ -236,6 +237,35 @@ vec3 glowColor(vec2 at, float s)
     outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
     return s * (0.35 * inner + 0.45 * outer);
 }
+// The glass's opening (Frame, Taper): how far `px` is from its edge, in pixels of the virtual screen `size` (< 0
+// inside). A rectangle: its corners rounded (Frame.x > 0, that radius) or chamfered (< 0, cut that much along both
+// edges). Tapered (Taper < 1): a trapezoid wider at the bottom, its slanted sides from the bottom corners to the top's
+// (the bottom's width times Taper, centred), its corners chamfered (cut |Frame.x| along both edges; also when rounded).
+float opening(vec2 px, vec2 size)
+{
+    vec2 h = size * 0.5;
+    float r = min(abs(Frame.x), min(h.x, h.y) - 0.5);
+    if(Taper < 0.999)
+    {
+        // The side's outward normal (from (h.x, 0) to (Taper h.x, size.y), about the middle), the top's and bottom's.
+        vec2 ns = normalize(vec2(size.y, (1.0 - Taper) * h.x));
+        float side = dot(vec2(abs(px.x - h.x) - h.x, px.y), ns);
+        float top = px.y - size.y, bottom = -px.y;
+        float d = max(side, max(top, bottom));
+        // A corner's chamfer: the plane through the corner along the two normals' middle, r back along each edge.
+        vec2 nt = ns + vec2(0.0, 1.0), nb = ns + vec2(0.0, -1.0);
+        float lt = length(nt), lb = length(nb);
+        d = max(d, (side + top) / lt + r * sqrt(max(1.0 - 0.25 * lt * lt, 0.0)));
+        return max(d, (side + bottom) / lb + r * sqrt(max(1.0 - 0.25 * lb * lb, 0.0)));
+    }
+    vec2 q = abs(px - h) - h;
+    if(Frame.x > 0.0)
+    {
+        vec2 qr = q + vec2(r);
+        return length(max(qr, 0.0)) + min(max(qr.x, qr.y), 0.0) - r;
+    }
+    return max(max(q.x, q.y), (q.x + q.y + r) * 0.7071068);
+}
 vec4 screen()
 {
     float t = Params.x, k = Params.y, g = Params.z;
@@ -306,30 +336,14 @@ vec4 screen()
         // depth), the digits pale, whitish phosphor with a soft halo inside the glass; then an inset shadow under the
         // top edge and an inner bevel all round (dark, a faint lit lip along the bottom), a vignette and a faint
         // diagonal sheen.
+        // (Tapered, Taper < 1: a trapezoid, and the glass's shading, the vignette too, follows its slanted sides.)
         vec2 px = uv * Size.xy, h = Size.xy * 0.5;
-        float r = min(abs(Frame.x), min(h.x, h.y) - 0.5);
-        vec2 q = abs(px - h) - h;
-        float d; // < 0 inside, in pixels from the opening's edge
-        if(Frame.x > 0.0)
-        {
-            vec2 qr = q + vec2(r);
-            d = length(max(qr, 0.0)) + min(max(qr.x, qr.y), 0.0) - r;
-        }
-        else
-            d = max(max(q.x, q.y), (q.x + q.y + r) * 0.7071068);
+        float d = opening(px, Size.xy); // < 0 inside, in pixels from the opening's edge
         if(d > 0.0)
             discard;
         // The same shape's distance from a point a little higher: what the top edge's lip shades.
         float lift = max(Frame.y, 1.0) * 1.6;
-        vec2 qs = abs(px + vec2(0.0, lift) - h) - h;
-        float ds;
-        if(Frame.x > 0.0)
-        {
-            vec2 qr = qs + vec2(r);
-            ds = length(max(qr, 0.0)) + min(max(qr.x, qr.y), 0.0) - r;
-        }
-        else
-            ds = max(max(qs.x, qs.y), (qs.x + qs.y + r) * 0.7071068);
+        float ds = opening(px + vec2(0.0, lift), Size.xy);
 
         // The digits: sharp strokes and their halo, from the phosphor's brightness less the face's.
         float lod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0);
@@ -341,7 +355,7 @@ vec4 screen()
         vec3 hue = max(color.rgb, vec3(1e-3)); // (the phosphor's: whitened text too, vr_ammo_screen_text_white)
         hue /= max(max(hue.r, hue.g), hue.b);
         vec3 digit = mix(hue, vec3(1.0), 0.5) * 0.88;
-        vec2 c = (px - h) / h;
+        vec2 c = (px - h) / vec2(h.x * mix(1.0, min(Taper, 1.0), uv.y), h.y); // (across: of the width at its height)
         vec3 base = mix(Glass.rgb, vec3(dot(Glass.rgb, vec3(0.3333))), 0.4);
         vec3 glass = base * (0.6 + 0.8 * smoothstep(1.3, 0.0, length(c * vec2(0.75, 1.0) + vec2(0.0, 0.25))));
         vec3 g2 = glass + hue * (Glass.a * halo * 0.6) + digit * ink;
@@ -1216,6 +1230,7 @@ void flatFovUniforms(bool on)
     {
         GL_Uniform4fFunc(18, state.frame.x, state.frame.y, state.frame.z, state.frame.w);
         GL_Uniform4fFunc(19, state.glass.x, state.glass.y, state.glass.z, state.glass.w);
+        GL_Uniform1fFunc(20, state.taper);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
     if(state.shade == Shade::SoftEdge)

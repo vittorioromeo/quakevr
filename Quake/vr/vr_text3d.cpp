@@ -131,6 +131,7 @@ struct ScreenQuad
     bool board{false}; // a map's board: stands in the world
     bool trueColor{false}; // its text whitened (vr_ammo_screen_text_white): the image in its own colours
     glm::vec4 frame{0.f}, glass{0.f}; // its rounded glass (vr_screenstyle.hpp; State::frame, State::glass)
+    float taper{1.f};                 // and its trapezoid (State::taper)
 };
 za::Vector<ScreenQuad> screenQuads;
 int screenCount = 0; // screen texts laid out this frame
@@ -158,14 +159,15 @@ struct ScreenShape
 // A screen's image (its virtual screen, in font pixels) and how much finer than the font it is: sized by its text, or
 // a styled screen with an opening of its own (vr_screenstyle.hpp: a housing's) the opening's size and shape, its text
 // centred in it, k times finer when the text needs more room than the opening has. `opening`: the glass's half size in
-// font pixels (0: none).
+// font pixels (0: none), and its taper (vr_screenstyle.hpp: a trapezoid's top over its bottom, 1 the rectangle; the
+// text's block, centred, must fit the width at its top line).
 struct ImageFit
 {
     int width{0}, height{0};
     float k{1.f};
 };
 
-[[nodiscard]] ImageFit imageFit(size_t longest, size_t rows, int pad, const glm::vec2& opening)
+[[nodiscard]] ImageFit imageFit(size_t longest, size_t rows, int pad, const glm::vec3& opening)
 {
     const int w = static_cast<int>(longest) * 8 + pad * 2;
     const int h = static_cast<int>(rows) * 8 + pad * 2;
@@ -173,14 +175,19 @@ struct ImageFit
     {
         return {w, h, 1.f};
     }
-    const float k = za::max(1.f, za::max(static_cast<float>(w) / (2.f * opening.x), static_cast<float>(h) / (2.f * opening.y)));
+    // The width at the block's top, (H + h) / 2 up a glass H = 2 opening.y k tall, is 2 opening.x k (1 - (1 - t) (H + h)
+    // / 2H): at least w when k >= (w + opening.x (1 - t) h / 2 opening.y) / (opening.x (1 + t)) (t 1: w / 2 opening.x).
+    const float t = CLAMP(0.1f, opening.z, 1.f);
+    const float fw = static_cast<float>(w), fh = static_cast<float>(h);
+    const float kw = (fw + opening.x * (1.f - t) * fh / (2.f * opening.y)) / (opening.x * (1.f + t));
+    const float k = za::max(1.f, za::max(kw, fh / (2.f * opening.y)));
     return {static_cast<int>(za::lround(2.f * opening.x * k)), static_cast<int>(za::lround(2.f * opening.y * k)), k};
 }
 
-// The opening a queued screen's style gives it (none unless styled: vr_weapon_screen_style).
-[[nodiscard]] glm::vec2 styledOpening(const screenstyle::Style* style)
+// The opening a queued screen's style gives it, and its taper (none unless styled: vr_weapon_screen_style).
+[[nodiscard]] glm::vec3 styledOpening(const screenstyle::Style* style)
 {
-    return style && screenstyle::enabled() ? style->opening : glm::vec2{0.f};
+    return style && screenstyle::enabled() ? glm::vec3{style->opening, style->taper} : glm::vec3{0.f, 0.f, 1.f};
 }
 
 // The screens' palette (the wrist gadget's, by default the player's hue): its text, and its face behind it.
@@ -727,7 +734,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         // The glass's half size: its text's and the padding round it, or a housing's opening (vr_screenstyle.hpp).
         const int padPixels = screenPad();
         const glm::vec2 opening = styled ? style.opening : glm::vec2{0.f};
-        const ImageFit fit = imageFit(longest, textLines.size(), padPixels, opening);
+        const ImageFit fit = imageFit(longest, textLines.size(), padPixels, glm::vec3{opening, styled ? style.taper : 1.f});
         const bool fitted = opening.x > 0.f && opening.y > 0.f;
         const float glassW = fitted ? charSize / 8.f * opening.x
                                     : charSize * (static_cast<float>(longest) * 0.5f + static_cast<float>(padPixels) / 8.f);
@@ -774,7 +781,8 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
                 .trueColor = image->trueColor,
                 .frame = styled ? glm::vec4{style.radius * fit.k, style.bevel * fit.k, style.vignette, style.sheen}
                                 : glm::vec4{0.f},
-                .glass = styled ? glm::vec4{glm::vec3{textColor} * style.glass * style.tint, style.soft} : glm::vec4{0.f}});
+                .glass = styled ? glm::vec4{glm::vec3{textColor} * style.glass * style.tint, style.soft} : glm::vec4{0.f},
+                .taper = styled ? style.taper : 1.f});
         }
         else
         {
@@ -1786,7 +1794,7 @@ extern "C" void VR_DrawSceneOpaque()
         gfx::draw(q.vertices, viewProjection,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
                 .params = q.params, .screen = q.size, .trueColor = q.trueColor, .frame = q.frame, .glass = q.glass,
-                .flatModelFov = !q.board},
+                .taper = q.taper, .flatModelFov = !q.board},
             q.texture);
     }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no

@@ -29,7 +29,8 @@ TAG = "qvr_housing"
 
 
 def style_entry(stem):
-    """The table entry `stem` of Quake/vr/vr_screenstyle.cpp: {"radius", "size", "opening": (w, h), "offset": (r, u, o)}
+    """The table entry `stem` of Quake/vr/vr_screenstyle.cpp: {"radius", "size", "opening": (w, h), "offset": (r, u, o),
+    "taper"}
     (fields left out: their defaults)."""
     src = open(os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp"), encoding="utf-8").read()
     m = re.search(r'\{"%s",(.*?)\n\s*(?:\{"|\};)' % re.escape(stem), src, re.S)  # (up to the next entry or the end)
@@ -46,7 +47,7 @@ def style_entry(stem):
         return tuple(float(x.strip().rstrip("f")) for x in v.group(1).split(",")) if v else (0.0,) * n
 
     return {"radius": num("radius", 4.0), "size": num("size", 1.0), "opening": vec("opening", 2),
-            "offset": vec("offset", 3)}
+            "offset": vec("offset", 3), "taper": num("taper", 1.0)}
 
 
 def mdl_grid(model):
