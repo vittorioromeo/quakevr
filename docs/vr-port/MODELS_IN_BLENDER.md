@@ -505,6 +505,55 @@ generator's own run, records it again.
 **Keep your .blend.** It is the source of your edits. If a generator's own model changes (a new round), import the new
 file and redo your edits, or keep yours and pass `--keep-edited`.
 
+### Tweaking the ammo screen housings
+
+Three guns have their ammo screen's housing modelled on them, each by its own script in `Misc/quakevr`, all run the
+same way on the gun's source .blend (`housing_common.py` holds what they share):
+
+| Gun | Script | Its .blend | Table entry |
+|---|---|---|---|
+| shotgun | `make_screen_housing_shot.py` | `src_models/blend/v_shot/v_shot.blend` | `"shot"` |
+| super shotgun | `make_screen_housing_ssg.py` | `src_models/blend/v_shot2/v_shot2.blend` | `"shot2"` |
+| nail pistol | `make_screen_housing_nailpistol.py` | `src_models/blend/v_nailpistol/v_nailpistol.blend` | `"nailpistol"` |
+
+From the repository root, in PowerShell (the separator `--` before the script's own options must be quoted, `'--'`:
+PowerShell drops a bare one):
+
+```
+& "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup Misc\quakevr\src_models\blend\v_shot\v_shot.blend --python Misc\quakevr\make_screen_housing_shot.py
+& "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup Misc\quakevr\src_models\blend\v_shot\v_shot.blend --python Misc\quakevr\make_screen_housing_shot.py '--' --dry
+```
+
+In Git Bash:
+
+```
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/make_screen_housing_shot.py
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup Misc/quakevr/src_models/blend/v_shot/v_shot.blend --python Misc/quakevr/make_screen_housing_shot.py -- --dry
+```
+
+The other guns: their .blend and script from the table.
+
+The script builds the housing (or moves the one already there: the same shape keeps its vertices and triangles in the
+model file), exports the model as `blend_export.py` does (the nail pistol's with `--grow`), saves the .blend and ends
+with `housing_<entry>: ok, ...`, or `housing_<entry>: REFUSED: ...` with nothing written. After `--`: `--dry` builds
+and checks it without exporting or saving; `--save other.blend` saves there instead of in place. Run on an unchanged
+.blend it writes the same files (git shows no change).
+
+Three ways to change a housing:
+
+1. **The opening** (its size, `opening`; its corners, `radius`; the SSG's glass `offset`): edit the gun's entry in
+   `Quake/vr/vr_screenstyle.cpp`, rebuild the engine (the glass is drawn from the same table) and run the script.
+2. **The rest of its shape** (the bezel's width, depths, bolts, the textures' places): the constants at the top of the
+   script; run it again.
+3. **By hand in Blender**: edit the .blend and export it (`blend_export.py`, or Export on Save). Don't run the script
+   after that: it would put its own shape back.
+
+The model's vertices are bytes on a grid (on the super shotgun a quarter of a unit along the gun): a small change can
+land on the same grid places and change nothing, and the SSG's script snaps its opening to the grid and refuses
+unless the table's `opening`, `radius` and `offset` match what the snapped walls make (it prints the values that do).
+A change that splits a quad the other way re-makes those triangles (the old file vertices stay, unused). Reload the
+map to see the new model in the game.
+
 ## 7. When the export says no
 
 | Message | What to do |

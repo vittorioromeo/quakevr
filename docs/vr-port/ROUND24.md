@@ -5713,3 +5713,31 @@ next / this branch / the mockup, flat 4K, the fly camera behind and above; a clo
   `vr_pp_test 1` 63/0, flatreload_test.sh 26/0. Checklist scene `light_housing` (vrtesthall, the Thunderbolt in the main
   hand, cells).
 - **Not verified:** the VR-mock view and the headset (flat shots only); the plasma variant.
+
+## Ammo screen housings: one workflow for the three scripts (branch `agent/housing_unify`)
+
+`make_screen_housing_shot.py`, `_ssg.py` and `_nailpistol.py` now work alike, on the gun's current .blend (the shared
+part in `Misc/quakevr/housing_common.py`): build or move the housing, export as `blend_export.py` does (the nail
+pistol with `--grow`), save the .blend (in place or `-- --save other.blend`), end with `housing_<entry>: ok, ...` or
+`housing_<entry>: REFUSED: ...` (exit 1); `-- --dry` builds and checks only. The SSG's snapped-opening check and the
+nail pistol's slide-follow rule stay refusals. How to tweak them: MODELS_IN_BLENDER.md, "Tweaking the ammo screen
+housings".
+
+- The housing's vertices carry the point attribute `qvr_housing` = their place in the build + 1, so a re-run finds
+  them in build order (a rebuild that deletes and adds vertices fills freed memory first: the mesh's order is not the
+  order made; the nail pistol's .blend had that). The SSG's and nail pistol's .blends from before the tag (the
+  object's property; a face attribute) are matched to the build by place, then tagged: both .blends were run once in
+  place (no change to any shipped file) and committed tagged.
+- A vertex already on the grid place of where it should be isn't moved: the shotgun's script moved each to its exact
+  (off-grid) place on every run, and the export carried that sub-step move into the recoil frames, rounded again each
+  time, so every re-run drifted 22-28 frame places by a byte.
+- Faces still the build's keep their triangle in the file (UVs mapped again); only changed ones are re-made.
+
+Proof (each script twice: on the committed .blend, then on the one it saved): all .mdl, part and normal-map files
+byte-identical to HEAD (git shows no change). Round trips (a constant changed, run, back, run): shotgun `FRAME`
+0.20 -> 0.26 -> 0.20: frame 0, skins, st and triangles identical, 11 housing places in recoil frames 2-8 one byte off
+(the export carries a move into the other frames by the gun's rotation, rounded). SSG `RIM_R` 0.18 -> 0.22 -> 0.18
+and nail pistol `LIP` 0.07 -> 0.09 -> 0.07: every vertex place and skin coordinate identical, but quads the change
+split the other way (8 and 6 triangles) are re-made each way: they move to the end of the triangle list and leave
+16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
+grown box (and its weapons.txt offsets) when changed back, as every grown export does.
