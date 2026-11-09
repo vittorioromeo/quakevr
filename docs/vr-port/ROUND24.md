@@ -5716,6 +5716,41 @@ next / this branch / the mockup, flat 4K, the fly camera behind and above; a clo
   hand, cells).
 - **Not verified:** the VR-mock view and the headset (flat shots only); the plasma variant.
 
+### Second pass: trapezoids (branch `agent/housing_light2`, 2026-11-09)
+
+His markup (kit `scratch/mockups/light_trapezoid.webp`): the enclosure the receiver's whole rear face (red), the screen a
+trapezoid slightly sunk into it (blue), the rivets in the side triangles (orange). Panel (this branch / his mockup, flat
+4K, behind and above; close-ups behind, from the left, from the right): `scratch/hl2/panel_light2.png` in the selfshot
+worktree.
+
+- **Engine: tapered glass.** `screenstyle::Style::taper` (default 1, the rectangle): the glass a trapezoid, its top this
+  fraction of its bottom (`opening.x` the bottom's half width). Carried as `State::taper` (uniform 20) into Shade::Screen:
+  `opening()` in the shader is the one shape for the discard, the inner bevel, the lip, the inset shadow (the same
+  shape lifted), and the vignette and depth gradient measure across by the width at their height; a tapered window's
+  corners are chamfered (`radius` < 0: cut that much along both edges; a rounded radius is taken as a chamfer).
+  `imageFit` makes the text finer only when its block's top line wouldn't fit the narrower top (the text stays upright
+  and centred). Every other entry keeps taper 1: unchanged.
+- **Model** (`make_screen_housing_light.py` rewritten, re-run from the .blend before the first housing, 8f4c503d3, so the
+  old 68 vertices aren't left in the file; the slot 7 barrel mask re-carried 844 -> 924): the plate is the end face's own
+  outline (96 y steps at the bottom on the ledge, 38 at the top, 32 z steps; 7.04 x 2.19 units, 2.79 at the top), one X
+  step proud (0.171), a closed solid (front, 4 outer walls, the window's 8 walls, a culled closing ring on the face). The
+  window: 52 y steps at the bottom, 38 at the top (taper 0.7308), 28 z steps (1.920 x 3.815 at the bottom, 2.788 at the
+  top), 2 z steps of plate above and below; its sides 1 y step every 4 z steps so the chamfers' points are grid points
+  on them: cut 1 slope step along the side (0.284) and 4 y steps along the top and bottom (0.294), 4.71 font px. The glass
+  0.06 window heights (0.115) behind the plate's front, 0.056 in front of the face. Rivets (2 steps, octagon + point):
+  at 7 and 19 z steps up the face, each as far from the window's side as from the plate's edge (the script searches the
+  grid): (32 y steps out, 0.37 clear of both) and (26, 0.15 / 0.11 clear); refuses under 0.03. 60 vertices, 80 triangles
+  (the gun 844 -> 924). Re-run in place: 0 vertices moved, the .mdl byte for byte the same.
+- **Table** ("light"): opening 31.15 x 15.68 px, taper 0.7308, radius -4.71, size 0.8 (was 0.68: the digits 18% bigger;
+  the "36/36 / 164" block, 3 px padding, still fits the top at k 0.96), offset {-0.0184, 0.002, -0.0742}.
+  `vr_debug_screen_where`: centre -2.7749 -0.1717 9.7665 (designed -2.7749 -0.1715 9.7666).
+- **Tests:** `vr_ammocolor_test 1` (developer 1) 22/0 (reached its verdict, Widowmaker skipped); `vr_pp_test 1`,
+  flatreload_test.sh: see the commit; checklist_tests_check.py 70/0. The scene `light_housing`'s hint updated.
+- **Decision:** the window's sides follow his markup's blue lines (taper 0.73: steeper than the plate's 44-degree edges),
+  not parallel to the plate's: parallel sides at full height would make a 0.4 taper and shrink the digits to fit the top.
+- **Not verified:** the VR-mock view and the headset (flat shots only). The fly camera's old place (`setpos` pitch 60,
+  `-6 0.5 2 35 -20`) no longer shows the gun on today's next; pitch 20 and `-5 0 4 45 -8` do.
+
 ## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
 
 His mockup (kit `scratch/mockups/nail2_housing.webp`, with a build spec in window heights h): the screen in a riveted

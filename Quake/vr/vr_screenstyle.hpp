@@ -32,6 +32,11 @@ struct Style
     // bezel's opening: Misc/quakevr/make_screen_housing_<gun>.py (shot, ssg, nailpistol) read this table (the
     // opening, `radius`, the SSG's `offset`) to model it: change it, rebuild the engine and run the gun's script.
     glm::vec2 opening{0.f, 0.f};
+    // The glass as a trapezoid, wider at the bottom: its top edge's width as a fraction of the bottom's (1: the
+    // rectangle). `opening.x` is then the bottom's half width, `radius` < 0 chamfers its corners (cut that much along
+    // both edges; a rounded radius is taken as a chamfer), and the text, upright and centred, is made finer when its
+    // top line wouldn't fit the narrower top (make_screen_housing_light.py reads it).
+    float taper{1.f};
 };
 
 // The style of the weapon whose model is `model` (a model's name, "progs/v_shot.mdl"; null or unknown: the default).

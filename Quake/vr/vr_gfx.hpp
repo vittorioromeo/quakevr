@@ -73,6 +73,7 @@ struct State
     // virtual screen's pixels; outside the corners nothing is drawn), vignette, glass sheen. 0: the plain square screen.
     glm::vec4 frame{0.f};
     glm::vec4 glass{0.f}; // and the glass's own colour under the face (rgb) and the digits' softness (a, 0..1)
+    float taper{1.f}; // and its shape: a trapezoid, its top's width this fraction of its bottom's (1: the rectangle)
     // Soft (premultiplied blends): the opaque scene's distances along the view (vr_water.hpp's opaqueSceneDistances,
     // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
     // (0 to 1, smoothly). 0: not soft.
