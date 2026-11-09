@@ -89,6 +89,7 @@ BOLT_R = (0.18, 0.135)
 # (centre column, texels per unit, middle row, rows per unit), the bevel on the brightest row, the opening's lip
 # bright going down to the dark row inside. The bolts on the same strip: dark base, lit head.
 STEEL = (65.0, 62.0, 7.0)
+FACE_TEXELS = 5.5  # the end face's own two triangles on the same plate (texels a unit: the face inside its oval)
 TUBE_SPAN = (104.0, 146.0)
 PROFILE_ROWS = (64.0, 54.5, 58.5, 61.5, 70.5)  # each ring's row: the walls' back, the bevel's foot, the front's
 #                                                 outer edge, the opening's lip, inside the opening (and its back)
@@ -122,6 +123,47 @@ def offset_outline(hw, hh, r, d, n):
     if r >= 0:
         return outline(hw + d, hh + d, max(r + d, 0.0), n)
     return outline(hw + d, hh + d, min(r - d * 0.4142, -1e-4), n)
+
+
+def face_skin(h, me, face_x, size):
+    """The receiver's end face, the gun's own two triangles: id's skin paints them as two islands that don't match (the
+    upper one, along the face's top edge, blue-grey metal; the lower one, along its bottom edge, a smoother brown with an
+    orange band), each squeezed into a dozen texels, which the bezel on the face shows up as a triangle of another
+    texture. Both are mapped flat onto the steel plate (the bezel's walls' skin) at FACE_TEXELS texels a unit, centred
+    on the face: one paint, no seam, no stretch. The rest of the gun's UVs are kept as they are (Run.check_uvs)."""
+    lay = me.attributes.get(hc.TAG)
+    flags = [0] * len(me.vertices)
+    if lay is not None:
+        lay.data.foreach_get("value", flags)
+    top_z = FACE_Z[1]
+
+    def on_face(vi):
+        co = me.vertices[vi].co
+        return abs(co.x - face_x(co.z)) < 0.03 and FACE_Z[0] - 0.05 < co.z < top_z + 0.05 and abs(co.y) < 1.7
+
+    tris = [p for p in me.polygons if len(p.vertices) == 3 and not any(flags[i] for i in p.vertices)
+            and all(on_face(i) for i in p.vertices)]
+    upper = [p for p in tris if sum(1 for i in p.vertices if abs(me.vertices[i].co.z - top_z) < 0.02) == 2]
+    if len(tris) != 2 or len(upper) != 1 or len(set(tris[0].vertices) & set(tris[1].vertices)) != 2:
+        h.fail("the end face is not the two triangles this script re-skins (%d found): the .blend's face changed" %
+               len(tris))
+    ys = [me.vertices[i].co.y for p in tris for i in p.vertices]
+    mid_y, mid_z = (min(ys) + max(ys)) * 0.5, (FACE_Z[0] + FACE_Z[1]) * 0.5
+    sw, sh = size
+    uv = me.uv_layers.active.data
+    changed = 0
+    for p in tris:
+        for li in p.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            tx = STEEL[0] - (co.y - mid_y) * FACE_TEXELS   # (u right = model -Y, as the housing's)
+            ty = STEEL[1] - (co.z - mid_z) * FACE_TEXELS
+            want = (tx / sw, 1.0 - ty / sh)
+            if max(abs(uv[li].uv[0] - want[0]), abs(uv[li].uv[1] - want[1])) > 1e-6:
+                uv[li].uv = want
+                changed += 1
+    me.update()
+    h.keep_uvs()  # (the gun's UVs from now on: this face's included)
+    return changed
 
 
 def main(h):
@@ -167,6 +209,7 @@ def main(h):
     me = ob.data
     img = bpy.data.images.get(MODEL + "_skin0")
     sw, sh = img.size
+    reskinned = face_skin(h, me, face_x, (sw, sh))
 
     def uv_at(tx, ty):
         return (tx / sw, 1.0 - ty / sh)
@@ -313,9 +356,9 @@ def main(h):
     me.update()
     h.finish("%d vertices, %d triangles (opening %.1f x %.1f px, radius %.1f; depth %d: x %.3f / %.3f / %.3f, the "
              "glass at %.3f (%.3f behind the front, %.3f before the face), the bezel's top %.3f before the face, walls "
-             "in %.2f px; %d frame places held in the box)" % (
+             "in %.2f px; %d frame places held in the box; the end face: %d corners re-skinned)" % (
                  len(verts), len(tris), ow, oh, orad, DEPTH_STEPS, x_front, x_mid, x_face, x_glass, x_glass - x_front,
-                 x_room - x_glass, top_clear, wall_in, held))
+                 x_room - x_glass, top_clear, wall_in, held, reskinned))
 
 
 if __name__ == "__main__":
