@@ -5791,6 +5791,65 @@ split the other way (8 and 6 triangles) are re-made each way: they move to the e
 16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
 grown box (and its weapons.txt offsets) when changed back, as every grown export does.
 
+## The nailgun's ammo screen housing (branch `agent/housing_nail`, 2026-11-09)
+
+His mockup (`kit/scratch/mockups/nail_housing.webp`, he likes it) and its build spec in visible glass heights H: a
+square window with 0.20 corner cuts at 45 degrees, a bezel 0.18 each side standing 0.18 proud, the glass 0.08 behind
+its front, four round domed fasteners (radius 0.14) two each side, no grille or plate; materials from the gun's skin.
+Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about the mockup's angle) and a close-up:
+`scratch/housing_nail/panel_nail.png`, `closeup_nail.png` in the embed5 worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_nail.py` on `v_nail.blend`, through `housing_common.py` like the other
+  three (re-runnable in place, `-- --dry`, `-- --save`, exports and saves, "housing_nail: ok, ..."). On the receiver's
+  rear between the barrels, against the block with the red light (rear face x 0.997), standing on the receiver's top
+  (its bottom 0.02 under it) with one grid row of the block showing above: the front (1.63 x 1.02, chamfered corners),
+  a worn-edge band round it and walls into the block, the window's lip bevelling 45 degrees through the block's face
+  (the face is the window's back; the lip's end capped inside the block), four 8-sided fasteners. 109 vertices, 168
+  triangles (the gun 1188 -> 1356). Holes check: 5 new open loops (the fasteners' feet on the front, the walls' end
+  inside the block), 0 see-through, 0 cracks. The mag/magwell (x 6.9-8.8, z < 0) and the hands' points are far from it
+  (housing x 0.68-1.15, z 4.30-5.32).
+- **The grid (bytes: x 0.156, y 0.0465, z 0.0509; H = 0.712 model units):** window 0.697 x 0.712 (0.98 x 1.00 H),
+  corner cuts 0.163 / 0.153 (0.23 / 0.21 H, 47 degrees); proud one x step 0.156 (0.22 H: the nearest step; 0 is none);
+  the glass 0.057 behind the front (0.08 H, not a vertex: the table's offset); the frame 0.21 H top, 0.19 H bottom over
+  the receiver's top, the sides wider (0.25 H to the fasteners, as the mockup's ears); fasteners radius 0.0997
+  (0.14 H, each point snapped), heads one x step proud (0.156: taller than "slightly domed"; the only other choice is
+  flat). H itself is what fits between the receiver's top and the block's top with the spec's frame.
+- **One definition:** `vr_screenstyle.cpp` "nail" (`opening` 9.37 x 9.57 font px, `radius` -4.2: a chamfer, `size` 1,
+  `offset` {0.0132, -0.0296, 0.0057}, box 0, `housing` true; g_nail matches the stem too, as g_shot does) and
+  weapons.txt slot 3 (`wpntxt_scale` 0.2: a font pixel 0.0372; pitch/yaw/roll 0) give the window and the glass's
+  place; the script refuses (printing the offset that fits) when the glass is more than 0.01 off the window's centre
+  at its depth. `vr_debug_screen_where`: centre 0.8974 0.0333 4.8079 (want 0.8976 0.0335 4.8078). Measured: weapons.txt
+  wpntxt offsets 1.786 model units a unit, the table's 1.86.
+- **Skin (no new texels, no fullbright under any UV, checked by the script):** front the brown rusted metal at
+  300..324 x 163..177; the band and walls the worn rim along the framed panels' top (x 151..244, rows 80-83); the lip
+  from that rim to the panel's dark inside; fasteners a bronze-brown foot (404, 179) and silver heads (246, 128..135).
+- **Frames:** the housing follows the block's face in all 8 other frames (0.0000; the export carries each new vertex
+  with its nearest old one). The script checks it after every export.
+- **Decision:** the spec's square window, as the brief says, though the mockup's picture shows a wider one (about 2:1):
+  "24/24" then fits at about half today's digit size. Wider is one table change (`opening`) and a re-run.
+- **Rework (same day): the picture wins over the written spec.** Next to the mockup the square window was far too
+  small, so the window is now as the mockup draws it: `opening` 22 x 11 font px (2:1, size 1: "24/24" at today's digit
+  size), `radius` -4.4, `offset` {0.0132, -0.0024, 0.0014}; on the grid 1.627 x 0.814 (H 0.814), cuts 0.163 / 0.153.
+  The front is 2.56 x 1.12 (1.49x the block's width), from 0.02 under the receiver's top to 0.05 over the block's top,
+  overhanging the block's sides (a closed solid: a back strip a step inside the block joins the walls to the lip); it
+  stays clear of the hex barrels (the script refuses past |y| 1.5). Frame 0.19 H top, 0.16 H bottom, 0.20 H sides to
+  the fasteners; fasteners radius 0.114 at u +-1.09, v +-0.20, domed heads one x step proud (they read as domes, not
+  pegs, at this size). 108 vertices, 176 triangles (the gun 1364); holes: 4 new open loops (the fasteners' feet), 0
+  see-through, 0 cracks; frames 0.0000; `vr_debug_screen_where` centre 0.9055 0.0334 4.8584 (want 0.9057 0.0335
+  4.8586). MODELS_IN_BLENDER.md's housing table has the nailgun row. The sizes above for the square window are
+  superseded. A re-export after a shape change must start from a weapons.txt whose slot 3 mask matches the .blend's
+  reference or the shipped file (else the export warns "not carried over"): the rework started from the pre-housing
+  .blend, .mdl and mask.
+- **Gussets (his annotated shot `kit/scratch/mockups/nail_gussets.webp`):** under each end of the bezel's bottom edge
+  (u +-1.07), where the front overhangs the receiver's sloped shoulders, a closed triangular wedge (6 vertices, 8
+  triangles) the bezel's depth: its inner corner at u +-0.55 just inside the receiver's flat top, its lower corner 0.05
+  under the shoulder, found by a ray down onto the gun (the housing left out): the shoulder is 0.49 (left, model +Y)
+  and 0.39 (right) under the bezel's bottom, the receiver being a little asymmetric. Its front and outer side on the
+  worn rim (as the bezel's edge band), the hidden faces dark. The housing is now 120 vertices, 192 triangles (the gun
+  1380; slot 3's mask carried over to 1380); holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a
+  no-change re-run writes the .mdl, normal map and weapons.txt byte for byte. They fill the dark gaps under the
+  bezel's corners; from above they are mostly hidden by the receiver, from the mockup's lower angle they read as
+  brackets (`scratch/housing_nail/closeup_gussets.png`).
 ## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
 
 His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
