@@ -1,0 +1,10 @@
+# flat_taa: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen TAA (vr_flat_taa;
+# ROUND24.md, "Antialiasing: flat TAA, fractional sample shading, specular AA"): e1m1's computer room with its four
+# grunts ahead (the qvrbench fight's spot), a dog, the shotgun in hand. A flat line: start the game with -flatscreenmode.
+title Flat TAA: e1m1's computer room fight
+map e1m1
+start 1312 1150 -240 270
+spawn "Rottweiler" 120 0
+cvar vr_flat_taa 1
+cmd impulse 2
+hint Turn and fight: edges and shiny walls stay smooth and steady, no trails behind the gun, the grunts, gibs or particles, the visor and crosshair sharp. Compare Post-processing > Flat: TAA off (MSAA).

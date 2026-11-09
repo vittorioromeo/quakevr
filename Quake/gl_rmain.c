@@ -927,7 +927,7 @@ GL_NeedsSceneEffects
 */
 qboolean GL_NeedsSceneEffects (void)
 {
-	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1 || VR_BloodActive (); // QVR
+	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1 || VR_BloodActive () || VR_FlatTaaActive (); // QVR
 }
 
 /*
@@ -2391,7 +2391,8 @@ void R_WarpScaleView (void)
 	srcw = r_refdef.vrect.width / r_refdef.scale;
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
-	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (v_blend[3] && gl_polyblend.value && !softemu);
+	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (v_blend[3] && gl_polyblend.value && !softemu)
+		|| VR_FlatTaaActive (); // QVR: flat TAA's scene in its own target: copied to the window here (vr/vr_temporal.cpp)
 	fbodest = GL_NeedsPostprocess () ? framebufs.composite.fbo : 0;
 
 	if (msaa)

@@ -94,8 +94,11 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | `target_vr_message` | `message` floating in the middle of every player's view (at eye level, as VR Calibration's text; not in the wrist's hologram; its first line gold when a blank line follows) for `wait` s (8); a flat screen centre-prints it that long. No new tip shows while it is up. With no `targetname` it starts by itself `delay` s (1) after the map starts | `message`, `wait`, `delay`, `targetname` |
 
 Also: `vr_crate`'s **`contents`** (what it holds instead of the random box: a classname as `func_vr_restock`'s, or
-`none`) and **`target`** (fired as it breaks); `func_vr_tip`'s **TRIGGERED** flag (8: not shown until its
-`targetname` is fired, a monster's death or a crate broken; a saved game keeps it shown).
+`none`), **`contents_name`** (the targetname given to what it holds: a tip's `target`) and **`target`** (fired as it
+breaks); `func_vr_tip`'s **TRIGGERED** flag (8: not shown until its `targetname` is fired, a monster's death or a
+crate broken; a saved game keeps it shown) and **GRABBED** flag (16: not shown until a hand takes what it follows, its
+`target`; then on it at once, gone with it: the tutorial's keycard, `t2_key_held`, with ANYANGLE and `tip_delay` 0).
+A tip let out either way takes over from the tip showing.
 
 **Climbing (what counts as a ledge).** With Climbing on, a hand takes hold of a ledge (ROUND21.md, "Ledge map"; the
 engine finds them when the map loads, `vr_debug_ledges 1` shows them):

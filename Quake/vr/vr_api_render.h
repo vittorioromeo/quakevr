@@ -40,6 +40,8 @@ int VR_PortalDrawing (void); // the offscreen pass requires a composite target i
 int VR_PortalHideTeleport (void); // in a view through a teleporter, its teleport faces left out (vr_portals_recursion 0)
 void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
+void VR_WindowViewBegin (void);						// SCR_UpdateScreen: around the flat screen's V_RenderView (the models' set-up shared with the shadow pass)
+void VR_WindowViewEnd (void);
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to check the bind cache and clip rectangle against GL (vr_debug_glstate)
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
@@ -130,6 +132,8 @@ void VR_TemporalBrushPrev (const struct entity_s *e, const float world[12], floa
 void VR_TemporalMotionWrites (int on); // the following draws write the motion target (the eye's scene bound)
 void VR_TemporalReactive (int on); // the following draws mark their pixels reactive (stencil bit 4)
 void VR_TemporalResolve (unsigned fbo, unsigned color, unsigned depth); // R_RenderView: after the scene
+void VR_FlatRenderView (void); // SCR_UpdateScreen: the window's V_RenderView, with flat-screen play's TAA (vr_flat_taa) around it
+int VR_FlatTaaActive (void); // GL_NeedsSceneEffects: 1 while the window's view is drawn under it (the scene in its own target)
 void VR_DebugAliasPose (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, const float matrix[16]); // vr_debug_pose_check (vr_posecheck.cpp)
 // The alias instance's Quake VR data, after Ironwail's (r_alias.c's aliasinstance_t; the shaders' InstanceData).
 typedef struct vraliasinstance_s

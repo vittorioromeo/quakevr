@@ -1482,7 +1482,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     const double tWrite = Sys_DoubleTime();
     {
         QVR_TRACY_SCOPE(tracyScope, "box3d publish bodies");
-        updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
+        QVR_TRACY_CALL("box3d recoveries", updateRecoveries()); // (knocked-down monsters getting up: Knockdowns)
         const bool scrapes = physsound::scrapesWanted();
         const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
         // (the slots with a body only: World::slotsActive)
@@ -1492,37 +1492,39 @@ extern "C" void VR_PhysicsFrameEnd(void)
             Slot& s = world->slots[num];
             if(s.ragdoll >= 0)
             {
-                writeRagdoll(EDICT_NUM(num), s); // (every frame: a part may be awake in an island of its own, his shotgun)
-                if(bodyScrapes && s.ragdoll >= 0 && !EDICT_NUM(num)->free)
+                // (every tick while a part is awake, a part may be awake in an island of its own, his shotgun; none
+                // while all of it sleeps unchanged: writeRagdoll)
+                writeRagdoll(EDICT_NUM(num), s);
+                if(bodyScrapes && s.ragdoll >= 0 && !s.asleep && !EDICT_NUM(num)->free)
                 {
-                    noteBodySlide(num, s, dt / static_cast<float>(pieces));
+                    QVR_TRACY_CALL("box3d body slide", noteBodySlide(num, s, dt / static_cast<float>(pieces)));
                 }
                 continue;
             }
             if(s.kind == Kind::Corpse && s.corpseDynamic && (!s.asleep || b3Body_IsAwake(s.body)))
             {
-                writeCorpse(EDICT_NUM(num), s);
+                QVR_TRACY_CALL("box3d corpse write", writeCorpse(EDICT_NUM(num), s));
                 if(bodyScrapes && !s.asleep && !EDICT_NUM(num)->free)
                 {
-                    noteBodySlide(num, s, dt / static_cast<float>(pieces));
+                    QVR_TRACY_CALL("box3d body slide", noteBodySlide(num, s, dt / static_cast<float>(pieces)));
                 }
                 continue;
             }
             if(s.kind == Kind::Prop && (!s.asleep || b3Body_IsAwake(s.body)))
             {
                 edict_t* ent = EDICT_NUM(num);
-                writeProp(ent, s);
+                QVR_TRACY_CALL("box3d prop write", writeProp(ent, s));
                 if(ent->free)
                 {
                     destroyBody(s);
                 }
                 else if(scrapes && !s.asleep && s.sound != physsound::Material::None)
                 {
-                    noteSlide(num, s, dt / static_cast<float>(pieces));
+                    QVR_TRACY_CALL("box3d prop slide", noteSlide(num, s, dt / static_cast<float>(pieces)));
                 }
             }
         }
-        rideStanding();
+        QVR_TRACY_CALL("box3d ride standing", rideStanding());
     }
     const double tAfter = Sys_DoubleTime();
 

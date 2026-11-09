@@ -8,7 +8,12 @@
 float QVR_TIP_REPEAT = 1;   // shown every time you come near, not remembered (func_vr_tip's REPEAT)
 float QVR_TIP_HOLOGRAM = 2; // in the wrist gadget's hologram, not the floating screen (HOLOGRAM)
 float QVR_TIP_ANYANGLE = 4; // shown even out of the view angle or hidden from the eyes (ANYANGLE)
-float QVR_TIP_WAITING = 8;  // not shown until used (TRIGGERED, until its targetname is fired)
+float QVR_TIP_WAITING = 8;  // not shown until used (TRIGGERED, until its targetname is fired; GRABBED, until a hand takes
+                            // what it follows)
+
+// func_vr_tip's spawnflags that are QC's own (the others are the engine's QVR_TIP_* above)
+float VR_TIP_TRIGGERED = 8; // not shown until its targetname is fired
+float VR_TIP_GRABBED = 16;  // not shown until a hand takes what it follows (VR_Tips_Grabbed)
 
 // The entity `tip` follows: the one its `target` names (world: none, it stays at its own origin). Its targetname is
 // only its name: cleared as it spawns (func_vr_tip), so a teleporter's destination or a monster's path looked up by
@@ -53,7 +58,7 @@ float(entity xTip) VR_Tip_Flags =
         flags = flags + QVR_TIP_HOLOGRAM;
     if(xTip.spawnflags & 4)
         flags = flags + QVR_TIP_ANYANGLE;
-    if((xTip.spawnflags & 8) && !xTip.tip_on)
+    if((xTip.spawnflags & (VR_TIP_TRIGGERED | VR_TIP_GRABBED)) && !xTip.tip_on)
         flags = flags + QVR_TIP_WAITING;
     return flags;
 };
@@ -67,17 +72,49 @@ void() VR_Tip_Use =
     vr_tip_setflags(self.tiphandle, VR_Tip_Flags(self));
 };
 
-// A saved game loaded: its tips were made afresh as the map spawned (WAITING); the ones used before are shown again.
+// A thing a hand has taken, still held once a grab that takes it at once has had its turn (VR_Carry_Frame: flat play's E
+// takes a key at once, so it never shows there; vr_carry_autocollect's boxes likewise): the GRABBED tips that follow it
+// (their target, its targetname: a vr_crate's contents_name) shown from now on, on it. Once a thing. Gone (taken at a
+// holster), the engine's tip goes with it (vr_tips.cpp's serverFrame).
+void(entity xThing) VR_Tips_Grabbed =
+{
+    if(xThing.tip_grabbed || xThing.targetname == NULLSTR)
+        return;
+    xThing.tip_grabbed = TRUE;
+    entity oself = self;
+    for(entity e = find(world, classname, "func_vr_tip"); e; e = find(e, classname, "func_vr_tip"))
+    {
+        if((e.spawnflags & VR_TIP_GRABBED) && !e.tip_on && e.target == xThing.targetname)
+        {
+            dprint(sprintf("tips: %s taken in a hand: tip \"%s\" on it\n", xThing.classname, e.tipname));
+            vr_tip_setentity(e.tiphandle, xThing); // (before its flags: on it as it shows)
+            self = e;
+            VR_Tip_Use();
+        }
+    }
+    self = oself;
+};
+
+// A saved game loaded: its tips were made afresh as the map spawned (WAITING); the ones used before are shown again. A
+// GRABBED one on its thing again, if it is still there (gone, taken: it stays waiting, never at its own origin).
 void() VR_Tips_Reapply =
 {
     for(entity e = find(world, classname, "func_vr_tip"); e; e = find(e, classname, "func_vr_tip"))
     {
-        if(e.tip_on)
-            vr_tip_setflags(e.tiphandle, VR_Tip_Flags(e));
+        if(!e.tip_on)
+            continue;
+        if(e.spawnflags & VR_TIP_GRABBED)
+        {
+            entity t = VR_Tip_FollowTarget(e);
+            if(t == world)
+                continue;
+            vr_tip_setentity(e.tiphandle, t);
+        }
+        vr_tip_setflags(e.tiphandle, VR_Tip_Flags(e));
     }
 };
 
-/*QUAKED func_vr_tip (0.2 0.7 0.9) (-8 -8 -8) (8 8 8) REPEAT HOLOGRAM ANYANGLE TRIGGERED
+/*QUAKED func_vr_tip (0.2 0.7 0.9) (-8 -8 -8) (8 8 8) REPEAT HOLOGRAM ANYANGLE TRIGGERED GRABBED
 Quake VR: a tip for new players, placed by hand. A small CRT screen floating near the player, with a cable to what it
 is about, shown when he comes within `distance` of it: the first time only, unless REPEAT or the map's worldspawn
 _vr_tips_repeat (the worldspawn's _vr_tips_reset_on_start: once in each play of the map from its start). "message": its text (\n starts a new line). "distance": how near in units (0: the player's own
@@ -88,7 +125,10 @@ tips_seen.txt; use it when two tips follow the same thing, or to try it with vr_
 size (0: the player's setting). "tip_delay": seconds he must stay near before it shows (0: at once; -1 or unset: the
 player's setting). REPEAT: shown every time he comes near. HOLOGRAM: in the wrist gadget's hologram instead of the
 floating screen. ANYANGLE: shown even out of the view angle or hidden from his eyes. TRIGGERED: not shown until its "targetname" is
-fired (a monster's death, a crate broken...); then as any tip (the tutorial's "take its rifle").
+fired (a monster's death, a crate broken...); then as any tip (the tutorial's "take its rifle"). GRABBED: not shown
+until a hand takes what it follows (its target: an item's targetname, a vr_crate's contents_name), then on it at once
+(set ANYANGLE and "tip_delay" 0 with it); gone with it (the tutorial's keycard: keep it, don't carry it to the door).
+A fired or grabbed tip takes over from the one showing.
 */
 void() func_vr_tip =
 {
@@ -116,10 +156,12 @@ void() func_vr_tip =
     else if(self.targetname != NULLSTR)
         vr_tip_setname(h, self.targetname);
 
-    if(self.spawnflags & 8)
+    if(self.spawnflags & (VR_TIP_TRIGGERED | VR_TIP_GRABBED))
     {
-        // TRIGGERED: its targetname is what shows it (kept), not a name nor a thing to follow
-        self.use = VR_Tip_Use;
+        // TRIGGERED: its targetname is what shows it (kept), not a name nor a thing to follow. GRABBED: a hand taking
+        // what it follows (VR_Tips_Grabbed); that may come later (a crate's contents): the retry below finds nothing then.
+        if(self.spawnflags & VR_TIP_TRIGGERED)
+            self.use = VR_Tip_Use;
         if(self.distance != 0)
             vr_tip_setdistance(h, self.distance);
         if(self.tip_size != 0)
