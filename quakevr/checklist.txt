@@ -26,6 +26,7 @@ Shotgun ammo screen housing (agent/housing_shot): hold the shotgun and look at t
 Super shotgun ammo screen housing (agent/housing_ssg): hold the SSG and look at the breech block's sloped top: the ammo screen sits in a low bezel (square window, cut outer corners) with a rivet each side, the glass flush in the opening (no gap, nothing poking past the bezel), the digits readable; fire and reload (the kick, the barrels opening): the housing and glass stay together. Compare with your mockup 53.webp (panel: qvr-agents/flatwall/scratch/hs/panel_ssg.png).
 Flat-screen: slide down E1M1's ramps (the spiral room's, and the one under the bridge's buttons, off its lip): the gun, the body and the view stay steady, no jump or shake partway down or on landing (agent/flatramp; flatramp_test.sh)
 Look down at the lightning gun's back end: its ammo screen sits in a flat bronze bezel with cut corners and two rivets on each side, the glass filling the window with no gap; fire and reload and check the glass stays in the bezel. {test:light_housing}
+Hold the super nailgun and look at the receiver's rear: the ammo screen sits in a riveted bezel with a chamfered window above your hand, like your mockup; the glass fills the window with no gap or overhang, and bezel and glass stay with the gun while you fire and reload. {test:nail2_housing}
 
 [0. Flatscreen play (-flatscreenmode)]
 Your own gore in flat play: let the grunt shoot you: your hands/arms bleed from the hit spots as in the headset (streams, splashes, drips), nothing across the middle of the screen {test:playergore}

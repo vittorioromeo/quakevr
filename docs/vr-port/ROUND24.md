@@ -5716,6 +5716,53 @@ next / this branch / the mockup, flat 4K, the fly camera behind and above; a clo
   hand, cells).
 - **Not verified:** the VR-mock view and the headset (flat shots only); the plasma variant.
 
+## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
+
+His mockup (kit `scratch/mockups/nail2_housing.webp`, with a build spec in window heights h): the screen in a riveted
+bezel on the receiver's rear face, above the opening the hand grips in. Images (flat 4K, the fly camera behind and
+above): `scratch/hn2/panel_nail2.png` (today / this branch / the mockup) and `scratch/hn2/closeup_nail2.png` (today /
+this branch / the kick frame) in the phases worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_nail2.py` (Blender, headless, on `v_nail2.blend`; `-- --save x.blend`,
+  `-- --dry` prints the snapped sizes and stops) builds it, exports (`--grow`) and saves; re-run in place it moves the
+  same vertices (the shipped files come out byte for byte). The rear face is a frame round a tall opening (y -2.44..2.27,
+  z -6.17..6.85; the face's top 7.6), so the bezel bridges the opening's top: a closed solid (front, sides and back 1 step
+  into the gun, the window's walls, a near-black floor behind the glass), 44 triangles, and four round rivets (10 sides,
+  a flat head one step proud), 120. 108 vertices, 164 triangles. Its centre is where weapons.txt already put the glass
+  (y -0.0525, z 5.7727: grid points): the bezel's top 0.18 under the face's top edge, its bottom (z 4.19) at the hand's
+  fingertips.
+- **One definition:** the table's "nail2" entry: `opening` 23.02 x 14.28 font pixels, `radius` -7.2 (chamfer), size 1
+  (a font pixel 0.09398 model units at wpntxt_scale 0.4), offset {0, -0.0023, 0.0253}, box 0, glass 0.1, vignette 0.45.
+  The script reads opening/radius/size/offset and weapons.txt's wpntxt_scale, snaps the window's walls toward the centre
+  (inside the glass: 0.015 at the sides) and warns with the right offset when the table's doesn't put the glass 0.05h
+  behind the bezel's front.
+- **The spec, snapped** (Y/Z grid 0.060/0.063, X 0.254): window 4.296 x 2.654 = 1.60h x 0.99h (h = the glass's 2.684),
+  chamfer 0.27h (0.25h asked); bezel 4.893 x 3.160 = 1.82h x 1.18h; one X step proud = 0.254 (0.095h; 0.1h asked); the
+  glass 0.134 behind the front (0.05h); rivets r 0.322 (0.12h). **Decision:** the rivets at (+-0.78h, +-0.45h), not the
+  spec's (+-0.8h, +-0.4h): there they cut into the chamfered window (by 0.04) and overhang the bezel's edge; moved into
+  the corners they are 0.036 inside the edge and 0.057 clear of the window (the script refuses otherwise). The bezel's
+  outer corners square (the spec gives no chamfer outside; the rivets fill them).
+- **Skin** (the gun's own, no new texels): the bezel on the receiver's brown-green paint (424..452 x 24..36), the
+  window's walls a darker patch of it (428..444 x 41..46), the rivets on the worn grey strip (472..490 x 32..39).
+- **Frames:** the receiver kicks back 1.27-2.54 units in the firing frames (the barrels spin as well). The script sets
+  the housing's frames to the rear face's own rigid motion (its fit 0.0000) instead of the export's nearest-vertex
+  carry, and checks the written model: every frame, the housing moves exactly with the face (0.0000 off). At the kick's
+  peak the rivets are 0.5 past the old box, so the box grew: X origin -5.1023 -> -5.6094, scale 0.25241 -> 0.25440
+  (every vertex re-gridded, up to 0.127 in X); weapons.txt slot 4 `x` 1.3 -> 1.6144 keeps the gun in place (his config
+  has no vr_wofs_x_05), fx_gfx_mask re-carried. The anchors (hand, screen, button) stay; the re-grid left them 0.095 off
+  their triangle (the export's warning, within the grid's 0.27). The glass is anchored as before, so it rides the kick
+  in the bezel (`vr_debug_weapon_frame 2`: the close-up's third panel).
+- **Hand and magazine:** the magazine's mount and well are on the side box (x 4.7, y 4.8), nowhere near; the hand comes
+  through the opening under the bezel, its thumb over the bezel's lower-left corner in the flat pose (drawn in front:
+  nothing hidden).
+- **Tests:** `vr_pp_test 1` 63/0; flatreload_test.sh 26/0; `vr_scenario runall quit nail2_housing` OK (the gun held
+  after 3 s). `vr_ammocolor_test 1` never reached its verdict in two low-impact runs (TIMEOUT after 400 s): it stalls
+  after its 21st case (the off-hand nailgun with the option off), with the shotgun and nailgun only; the super nailgun
+  isn't in it. Not checked against next. The script, run again, writes the same model; run on the .blend before the
+  housing it builds it the same (the .mdl and weapons.txt byte for byte). Uses `housing_common.py` (Run: the table
+  entry, apply, export, finish). Checklist scene `nail2_housing`.
+- **Not verified:** the VR-mock view and the headset; the glass's colour against the mockup's green (the shots show the
+  red empty-magazine warning: impulse 9 doesn't fill the magazine).
 ## Ammo screen housings: one workflow for the three scripts (branch `agent/housing_unify`)
 
 `make_screen_housing_shot.py`, `_ssg.py` and `_nailpistol.py` now work alike, on the gun's current .blend (the shared
