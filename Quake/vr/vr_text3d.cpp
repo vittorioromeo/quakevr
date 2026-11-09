@@ -744,8 +744,11 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         const float depth = charSize * 0.5f;
         const float gap = charSize * 0.04f;
 
-        // (Styled, the box is the glass's thick frame: near black, and the glass's rounded corners show it.)
-        box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, glassW + bezel, glassH + bezel, depth * 0.5f,
+        // (Styled, the box is the glass's thick frame: near black, and the glass's rounded corners show it. Tapered
+        // glass, vr_screenstyle.hpp: as wide as its narrow top, so that it stays inside the housing's opening; as wide
+        // as the bottom, its top corners stuck out past the housing's slanted sides, two black ears.)
+        const float boxW = (styled ? glassW * CLAMP(0.1f, style.taper, 1.f) : glassW) + bezel;
+        box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, boxW, glassH + bezel, depth * 0.5f,
             styled ? glm::vec3{0.035f, 0.036f, 0.04f} : glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
         const glm::vec3 c = pos - n * gap;
         const glm::vec3 bl = c - right * glassW - up * glassH;
