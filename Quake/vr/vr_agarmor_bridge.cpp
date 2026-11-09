@@ -879,6 +879,7 @@ constexpr float turnSlack = 2.f;         // ... and this much more (degrees)
 constexpr float sweepStep = 1.f;         // the joint swept through its range in steps of this (degrees)
 constexpr float sweepShare = 2.5f;       // a vertex may move this many times its rows' furthest in a sweep's step...
 constexpr float sweepSlack = 0.1f;       // ... and this much more (units)
+constexpr float bridgeInFacing = 0.25f;  // a cell turned in: its face this far (a cosine) against the way out (a fold's side, edge on: no)
 
 // A step of the leather: its furthest vertex move against its end rings' (the rows', carried by the bones), its middle
 // rings' furthest turn against its end rings'.
@@ -939,6 +940,9 @@ void sweepCheck(const char* model, const Shell& s, const rig2::Rig& rig, const C
         BridgeDiag d, dWas, worstD, worstWas;
         Step worst;
         float worstExcess = -1e9f, worstDeg = 0.f;
+        int worstIn = -1, worstInOf = 0;
+        char worstMap[96]{};
+        float worstInDeg = 0.f, worstThin = 1e9f;
         bool had = false;
         for(int k = 0; k <= steps; k++)
         {
@@ -949,6 +953,70 @@ void sweepCheck(const char* model, const Shell& s, const rig2::Rig& rig, const C
             {
                 had = false;
                 continue;
+            }
+            // (its cells turned in: a cell's face against the way out from its rings' middle, against the way most face
+            // (the model's winding, bridgeRest): drawn from behind, a hole; and its thinnest ring, its corners' least reach
+            // from its middle over its mean)
+            {
+                int in = 0, total = 0;
+                float facing = 0.f;
+                float signs[bridgeMostRings * bridgeCols]{};
+                for(int i = 0; i + 1 < br.rings; i++)
+                {
+                    glm::vec3 c0{0.f}, c1{0.f};
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        c0 += P[i * ringVerts + c] / static_cast<float>(bridgeCols);
+                        c1 += P[(i + 1) * ringVerts + c] / static_cast<float>(bridgeCols);
+                    }
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        const int a = i * ringVerts + c;
+                        const glm::vec3 mid = (P[a] + P[a + 1] + P[a + ringVerts] + P[a + ringVerts + 1]) * 0.25f;
+                        const glm::vec3 n = glm::cross(P[a + 1] - P[a], P[a + ringVerts + 1] - P[a]) +
+                                            glm::cross(P[a + ringVerts + 1] - P[a], P[a + ringVerts] - P[a]);
+                        signs[i * bridgeCols + c] = glm::dot(geom::safeNormalize(n, glm::vec3{0.f}, 1e-12f), geom::safeNormalize(mid - (c0 + c1) * 0.5f, glm::vec3{0.f}, 1e-12f));
+                        facing += signs[i * bridgeCols + c];
+                    }
+                }
+                for(int q = 0; q < (br.rings - 1) * bridgeCols; q++)
+                {
+                    in += (facing > 0.f ? signs[q] < -bridgeInFacing : signs[q] > bridgeInFacing) ? 1 : 0;
+                    total++;
+                }
+                float thin = 1e9f;
+                for(int i = 0; i < br.rings; i++)
+                {
+                    glm::vec3 c0{0.f};
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        c0 += P[i * ringVerts + c] / static_cast<float>(bridgeCols);
+                    }
+                    float lo = 1e9f, mean = 0.f;
+                    for(int c = 0; c < bridgeCols; c++)
+                    {
+                        const float r = glm::distance(P[i * ringVerts + c], c0);
+                        lo = za::min(lo, r);
+                        mean += r / static_cast<float>(bridgeCols);
+                    }
+                    thin = za::min(thin, mean > 1e-6f ? lo / mean : 0.f);
+                }
+                if(in > worstIn || (k == 0 && worstIn < 0))
+                {
+                    worstIn = in;
+                    worstInDeg = pose.a[hinge].x;
+                    worstInOf = total;
+                    // (which: a ring's cells a character each, x turned in, / between rings)
+                    int w = 0;
+                    for(int q = 0; q < (br.rings - 1) * bridgeCols && w + 2 < static_cast<int>(sizeof(worstMap)); q++)
+                    {
+                        worstMap[w++] = (facing > 0.f ? signs[q] < -bridgeInFacing : signs[q] > bridgeInFacing) ? 'x' : '.';
+                        worstMap[w] = q % bridgeCols == bridgeCols - 1 ? '/' : worstMap[w];
+                        w += q % bridgeCols == bridgeCols - 1 ? 1 : 0;
+                    }
+                    worstMap[w] = 0;
+                }
+                worstThin = za::min(worstThin, thin);
             }
             if(had)
             {
@@ -984,6 +1052,10 @@ void sweepCheck(const char* model, const Shell& s, const rig2::Rig& rig, const C
             model, pieceNames[br.lower], static_cast<double>(range.x), static_cast<double>(range.y), static_cast<double>(worst.jump),
             static_cast<double>(worst.ref), static_cast<double>(sweepShare), static_cast<double>(sweepSlack), static_cast<double>(worstDeg));
         check(worstExcess <= sweepSlack, what);
+        // (a measure, not a verdict yet: every joint of every kind has some, ROUND24.md "Elbow leather patches")
+        Con_Printf("agarmor bridge check: (info) %s %s: swept, cells of the leather turned in: worst %d of %d at %.0f deg (rings / cells, x in: "
+                   "%s); its thinnest ring's least corner %.2f of its mean\n",
+            model, pieceNames[br.lower], za::max(worstIn, 0), worstInOf, static_cast<double>(worstInDeg), worstMap, static_cast<double>(worstThin));
     }
 }
 

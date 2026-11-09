@@ -1993,7 +1993,15 @@ QVR_TOGGLE(vr_wounds_burns, "Burns",
 QVR_TOGGLE(vr_drips, "Water Drips",
     "Water drips off what was in it once it is out: you, your hands and weapons, monsters, corpses, gibs and props. Many drops at first, fewer as it dries (Wet Duration); slime drips green.")
 QVR_TOGGLE(vr_gore_wound_drips, "Wounded Enemies Drip",
-    "Hurt monsters drip blood from where they were hit, more the more hurt they are and just after a hit.")
+    "Hurt monsters drip blood from where they were hit all the while they are hurt, more the more hurt they are and just after a hit; their corpses drip on a while.")
+QVR_TOGGLE(vr_player_gore, "Your Own Gore",
+    "Experimental: your body, arms and hands bleed as the enemies do, from where you are hit (the effects below). Nothing close to your eyes.")
+QVR_TOGGLE(vr_player_gore_streams, "Your Blood Streams",
+    "A shot, a nail or a blade that hits your body, arm or hand may open a blood stream pouring from the wound, as on an enemy.")
+QVR_TOGGLE(vr_player_gore_drips, "Your Wounds Drip",
+    "While you are hurt, your wounds drip blood from where you were hit, as a wounded enemy's do.")
+QVR_TOGGLE(vr_player_gore_splash, "Your Hit Splashes",
+    "A hit splashes drops of blood out of the wound on your body, arm or hand.")
 QVR_TOGGLE(vr_wounds_wet, "Wet from Liquids",
     "Monsters and you get wet up to where water or slime came, drip, and dry (Wet Duration).")
 QVR_SLIDER(vr_wounds_wet_coat, "Wet Sheen", 0.f, 2.f, 0.1f, "%.1fx", noExt,
