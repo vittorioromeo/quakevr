@@ -5769,6 +5769,19 @@ He: the shape is right, but the plate's texture doesn't match the gun's rear; it
   bytes differ only by its save data). `vr_pp_test 1` 63/0, checklist_tests_check.py 83/0.
 - **Not verified:** the headset (flat shots only).
 
+### The window's black ears (branch `agent/light_ears`, 2026-11-09)
+
+He (kit `scratch/mockups/light_ears.webp`): two black triangles poke out of the plate beside the window's top corners.
+**Cause:** the near-black backing box text3d draws behind every screen's glass (`layout`: a cuboid from 0.04 to 0.29
+units behind the glass). It was as wide as the glass's quad, which for tapered glass is the trapezoid's *bottom*
+(half 1.91 units). At the window's top the plate's slanted sides are only about 1.5 out, so the box's top corners
+reached past them and through the receiver's sloped top behind the face. **Fix** (`vr_text3d.cpp`): for tapered glass
+the box is as wide as the narrow top (half 1.39), which keeps it inside the opening at every height. The box is only a
+backing: the glass is opaque, and its discarded corners lie inside the plate. Untapered screens are unchanged. Panel
+(before / after from his angle, behind and above looking down the gun; each top corner's close-up):
+`scratch/le/panel_light_ears.png` in the regfix worktree. The model is untouched: the script's re-run gives the same
+.mdl (65ffdd627867). `vr_pp_test 1` 63/0.
+
 ## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
 
 (Replaced the same day: "The super nailgun's screen housing on top", below. The bezel on the rear face is gone.)
