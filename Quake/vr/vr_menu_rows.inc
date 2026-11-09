@@ -3250,6 +3250,12 @@ QVR_TOGGLE_BYNAME(vr_ammo_pouch_wobble_each, "Wobble Each Round",
 QVR_CYCLE_BYNAME(vid_fsaa, "Anti-aliasing",
     "Multisampling: smoother edges; thin lines such as the gaps between planks stop crawling as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more.",
     {0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"})
+QVR_CYCLE_BYNAME(vid_fsaamode, "Anti-aliasing Shading",
+    "How many of Anti-aliasing's samples each pixel shades (vid_fsaamode). Edges only (the default): polygon edges "
+    "smoothed for little GPU time. Full: every sample shaded, which also smooths shimmer inside surfaces, but costs up to "
+    "the samples' count times the shading (4x Full at 3440x1440: about 2.5 ms more a frame). 25% and 50%: a quarter or half "
+    "of the samples (with 4x, 25% is Edges only). Sheen Anti-Aliasing removes most shimmer for free.",
+    {0.f, "Edges only"}, {0.25f, "25%"}, {0.5f, "50%"}, {1.f, "Full"})
 QVR_CYCLE_BYNAME(vr_texture_smooth, "Smooth Textures",
     "Smooth filtering for high-resolution replacement textures, or for all textures.",
     {0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"})
