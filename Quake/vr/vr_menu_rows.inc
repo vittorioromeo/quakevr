@@ -6360,6 +6360,28 @@ QVR_TOGGLE(vr_flat_slide, "Slide",
     "Playing on the desktop screen (-flatscreenmode): crouching (Left Ctrl) while running starts a slide, faster at "
     "first, down a slope faster still, up one slowing to a crouch; jump out of it to keep the speed. Tuning: Debug > "
     "Tunables > Flatscreen > Slide (vr_flat_slide).")
+QVR_TOGGLE(vr_flat_speed_fov, "Speed FOV",
+    "Playing on the desktop screen: faster than a run along the floor -- a slide, a bunny hop chain -- the view widens "
+    "smoothly, up to Speed FOV Most at Speed FOV Full Speed, and eases back as you slow. Aiming down the sights takes "
+    "it away; the mouse turns the same at any speed (vr_flat_speed_fov).")
+QVR_SLIDER(vr_flat_speed_fov_max, "Speed FOV Most", 1.f, 1.5f, 0.01f, "x%.2f", noExt,
+    "Playing on the desktop screen: the field of view times this at Speed FOV Full Speed and faster (1: never wider; "
+    "vr_flat_speed_fov_max).")
+QVR_SLIDER(vr_flat_speed_fov_from, "Speed FOV From Speed", 200.f, 600.f, 10.f, "%.0f u/s", noExt,
+    "Playing on the desktop screen: the speed along the floor the view starts widening from; a run is 320, so 320 "
+    "keeps a run's view as it is (vr_flat_speed_fov_from).")
+QVR_SLIDER(vr_flat_speed_fov_top, "Speed FOV Full Speed", 250.f, 1000.f, 10.f, "%.0f u/s", noExt,
+    "Playing on the desktop screen: the speed along the floor at which the view is all of Speed FOV Most wider, on a "
+    "smooth curve from Speed FOV From Speed (a slide starts at about 400; vr_flat_speed_fov_top).")
+QVR_SLIDER(vr_flat_slide_fov_bonus, "Speed FOV Slide Extra", 0.f, 0.5f, 0.01f, "+%.2f", noExt,
+    "Playing on the desktop screen: added to the speed FOV's multiplier while you slide, on top of what the slide's "
+    "speed gives (0: the speed alone; vr_flat_slide_fov_bonus).")
+QVR_SLIDER(vr_flat_speed_fov_ease, "Speed FOV Ease In", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how quickly the view widens as you speed up, a time constant in seconds (0: at "
+    "once; vr_flat_speed_fov_ease).")
+QVR_SLIDER(vr_flat_speed_fov_ease_out, "Speed FOV Ease Out", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "Playing on the desktop screen: how slowly the view narrows back as you slow down, land or stop, a time constant "
+    "in seconds (0: at once; vr_flat_speed_fov_ease_out).")
 QVR_TOGGLE(vr_flat_lean, "Lean (Q / E)",
     "Playing on the desktop screen (-flatscreenmode): Q and E lean left and right round a corner -- the view, the "
     "weapon and the body tilt and the eye moves out, never into a wall. Enemies can hit what leans out. Standing and "
