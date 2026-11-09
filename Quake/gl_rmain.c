@@ -940,6 +940,7 @@ qboolean GL_NeedsPostprocess (void)
 	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT
 		|| VR_RenderingEye () || VR_PortalDrawing () // QVR: an offscreen camera always has a target
 		|| VR_FlatBulletTimeLook () // QVR: flatscreen play's bullet time look, drawn by the post-process
+		|| VR_FlatLook () // QVR: flatscreen play's look, drawn over the view in the post-process's target (vr/vr_flatlook.cpp)
 		|| VR_FlatNearPlane () > 0.f; // QVR: the window's own depth is not the float one flatscreen play's near plane asks
 }
 
@@ -2403,6 +2404,7 @@ void R_RenderView (void)
 	VR_ProfileBeginGPU ("resolve/warp"); // QVR: profile
 	R_WarpScaleView ();
 	VR_ProfileEnd (); // QVR
+	VR_FlatLookApply (); // QVR: flatscreen play's glow, grade and vignette, before the HUD (vr/vr_flatlook.cpp)
 
 	memcpy (cl_visedicts, r_view_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
 	cl_numvisedicts = view_numvisedicts;
