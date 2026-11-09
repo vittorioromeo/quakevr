@@ -537,25 +537,37 @@ int rebinds = 0, unbound = 0; // since the map began
     return true;
 }
 
-// `ent`'s model's vertices as drawn now (the world) into scratchNow; false if none.
-[[nodiscard]] bool posedNow(int ent)
+// `ent`'s model's vertices as drawn now (the world) into scratchNow; -1 if none, else how it is drawn: 0 animated, 1 an
+// armed humanoid's mesh, 2 a ragdoll (each numbers its vertices its own way).
+[[nodiscard]] int posedKindNow(int ent)
 {
     za::Vector<glm::vec3>& now = scratchNow;
-    if(!ragdoll::skinnedVertices(ent, now, nullptr, true) && !armedAsDrawn(ent, now))
+    int kind = 2;
+    if(!ragdoll::skinnedVertices(ent, now, nullptr, true))
     {
-        const entity_t* e = entityOf(ent, nullptr);
-        if(!e || !anchor::posedVertices(*e, 0.f, scratchRest, now))
+        kind = 1;
+        if(!armedAsDrawn(ent, now))
         {
-            return false;
-        }
-        float m[16];
-        render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
-        for(glm::vec3& p : now)
-        {
-            p = bytePoint(m, p);
+            kind = 0;
+            const entity_t* e = entityOf(ent, nullptr);
+            if(!e || !anchor::posedVertices(*e, 0.f, scratchRest, now))
+            {
+                return -1;
+            }
+            float m[16];
+            render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
+            for(glm::vec3& p : now)
+            {
+                p = bytePoint(m, p);
+            }
         }
     }
-    return !now.empty();
+    return now.empty() ? -1 : kind;
+}
+
+[[nodiscard]] bool posedNow(int ent)
+{
+    return posedKindNow(ent) >= 0;
 }
 
 // The vertex of scratchNow (posedNow) nearest `at`; -1 if none within `reach`.
@@ -1212,6 +1224,23 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
     {
         pending[pendingCount++] = {ent, at, dir, amount};
     }
+}
+
+bool anchorPoint(int ent, const glm::vec3& at, float reach, int& vertex, int& kind)
+{
+    kind = entityOf(ent, nullptr) ? posedKindNow(ent) : -1;
+    vertex = kind >= 0 ? nearestVertex(at, reach) : -1;
+    return vertex >= 0;
+}
+
+bool anchorNow(int ent, int vertex, int kind, glm::vec3& at)
+{
+    if(vertex < 0 || !entityOf(ent, nullptr) || posedKindNow(ent) != kind || static_cast<za::SizeT>(vertex) >= scratchNow.size())
+    {
+        return false;
+    }
+    at = scratchNow[static_cast<za::SizeT>(vertex)];
+    return true;
 }
 
 void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength)

@@ -15,9 +15,11 @@
 // rate). Swinging a wet weapon or hand fast throws drops off it (vr_drips_fling). Lava dries at once; nothing drips in
 // or under a liquid.
 //
-// A wounded living monster (vr_gore_wound_drips; nothing with vr_gore 0) drips blood from where it was hit (its last
-// four wounds, carried with its turning), vr_drips_blood_rate times the share of its health lost, more for a couple of
-// seconds after a hit (vr_drips_blood_hit). Everything shares one budget: vr_drips_max drops a frame, round robin.
+// A wounded monster (vr_gore_wound_drips; nothing with vr_gore 0) drips blood from where it was hit (its last four
+// wounds, bound to its model as drawn: bloodstream::anchorPoint, a ragdoll's too) all the while its health is under
+// vr_drips_blood_health of full: vr_drips_blood_rate times (vr_drips_blood_min + the rest times the share lost), more for
+// a couple of seconds after a hit (vr_drips_blood_hit); out of sight it waits (10 s, then forgotten); its corpse drips on
+// for vr_drips_blood_ragdoll s, tapering. Everything shares one budget: vr_drips_max drops a frame, round robin.
 
 #include <glm/glm.hpp>
 
@@ -55,7 +57,7 @@ void noteBloodLanding();
 // All gone (a new map, vr_drips 0).
 void clear();
 
-// vr_drips_info, vr_drips_soak, vr_drips_test.
+// vr_drips_info, vr_drips_soak, vr_drips_test, vr_drips_bleed_test.
 void registerCommands();
 
 } // namespace qvr::drips

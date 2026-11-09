@@ -45,6 +45,12 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
 void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength);
 void stopBladeWound(int blade);
 
+// A point bound to a body as drawn (vr_drips.cpp's wounded): the vertex of entity `ent`'s model as drawn now (animated,
+// an armed humanoid's mesh, or its ragdoll: `kind`) nearest `at` within `reach`; false if none. anchorNow: where it is
+// drawn now; false if `ent` is gone or now drawn another way (bind it again then).
+[[nodiscard]] bool anchorPoint(int ent, const glm::vec3& at, float reach, int& vertex, int& kind);
+[[nodiscard]] bool anchorNow(int ent, int vertex, int kind, glm::vec3& at);
+
 // How long the stream of the wound `blade` is in has been pouring, s; 0: none (the test's).
 [[nodiscard]] float bladeWoundAge(int blade);
 

@@ -2168,6 +2168,10 @@ QVR_TUNABLE(vr_drips_sound_gap, "0.2") // real seconds at least between two wate
 QVR_TUNABLE(vr_drips_max, "8") // drops a frame at most from everything wet and wounded (round robin: many wet monsters share)
 QVR_TUNABLE(vr_drips_view, "0.4") // your own body, hands and weapons drip this share of the rate (none close under the eyes)
 QVR_TUNABLE(vr_drips_fling, "1") // a wet weapon or hand swung fast throws drops off: how many (0 none)
-QVR_TUNABLE(vr_drips_blood_rate, "1.2") // blood drops a second off a wounded living monster at its last breath (times the health it lost, vr_gore_wound_drips)
+QVR_TUNABLE(vr_drips_blood_rate, "3") // blood drops a second off a wounded living monster at its last breath (vr_gore_wound_drips; less the less hurt: vr_drips_blood_min)
+QVR_TUNABLE(vr_drips_blood_min, "0.3") // ... a barely wounded one drips this share of that rate (the rest grows with the health it lost); it never stops while wounded
+QVR_TUNABLE(vr_drips_blood_health, "1") // ... it drips while its health is under this share of its full health (1: any wound)
+QVR_TUNABLE(vr_drips_blood_size, "1.25") // ... its drops' size, times the gore's drip's
+QVR_TUNABLE(vr_drips_blood_ragdoll, "20") // ... seconds its corpse or ragdoll drips on after it dies (tapering; a hit on it starts again; 0 none)
 QVR_TUNABLE(vr_drips_blood_hit, "1") // ... a hit adds this many times its damage / 20 for a couple of seconds
 QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor
