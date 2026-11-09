@@ -5942,6 +5942,19 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   .blend, .mdl and mask. Holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a no-change re-run
   writes the files byte for byte; vr_pp_test 1 63 passed, 0 failed. Before/after from his angle (behind and above):
   `scratch/housing_nail/gussets2_before_after.png`, brightened corners `gussets2_closeup.png` (embed5 worktree).
+- **Gussets textured as the same part as the bezel (branch `agent/nail_gussets3`, his note: "the texture lacks
+  continuity with the existing enclosure"):** geometry unchanged, UVs only, all from the bezel's own regions (no new
+  texels). Each gusset's outer face takes the bezel side wall's mapping carried straight down: the wall's rows across
+  it by depth (the worn rim, rows 80.3-83.5) and its columns along it at the wall's own rate (the outline's perimeter
+  share), extended past the side's lower end (outline point 7 right, 4 left). Its front takes the bezel front's own
+  planar mapping (the brown rusted metal at 312, 170, 14 texels a unit), so the plate runs on from the bezel into the
+  gusset; the bezel's front band along the bottom (the lower chamfers and the bottom edge) now takes that same planar
+  mapping too, so no band line crosses the joint, and the bezel's walls there (covered by the gussets and the
+  receiver) are dark with their own UVs: the file's normals are per file vertex (split by UV), so the visible front and
+  side faces keep flat, matching shading across the joint. The sides and top of the bezel keep their worn band.
+  Re-run byte-identical, holes as before (0 see-through, 0 cracks), frames 0.0000, vr_pp_test 1 63 passed, 0 failed.
+  Images (blendmodels worktree): `scratch/gussets3/gussets3_before_after.png` (behind and above),
+  `gussets3_joint_left.png` / `_right.png` (each joint, before | after, brightened 2.4x).
 ## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
 
 His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
@@ -6014,6 +6027,8 @@ He wanted the bezel to stand out from the receiver's end face about half as far,
   lines). flatreload 26/0, flatramp 1/0 (flatslide_ramp 6/0), flatgate 5/0, vr_pp_test 1 63/0.
 ## The super nailgun's screen housing on top (branch `agent/housing_nail2_top`, 2026-11-09)
 
+(Reshaped the same day: "The super nailgun's screen in a wedge", below.)
+
 His new mockup (kit `scratch/mockups/nail2_top.webp`): the screen moved to the top of the gun, in a raised block at the
 receiver's back end with a slanted rear face; the back of the gun round the handle free (no plate). Images in the
 flatwall worktree: `scratch/hn2t/panel_nail2_top.png` (next / this / the mockup, the fly camera behind, above and right),
@@ -6058,6 +6073,66 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
   the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
 
+## The super nailgun's screen in a wedge (branch `agent/nail2_wedge`, 2026-11-09)
+
+His two shots on the block above (kit `scratch/mockups/nail2_side.webp`, green lines: "much more slanted", the back
+sloping onto the second big ridge instead of a vertical front; `nail2_front.png`, green circles: the block's sides
+stand out past the gun's). Panel (phases worktree): `scratch/nw/panel_nail2_wedge.png`, top row the side (next, this,
+his shot), bottom row from behind and above (next, this, his shot); flat 4K, the fly camera.
+
+- **The shape** (`make_screen_housing_nail2.py`, same interface; rebuilt from the .blend before any housing, `b382c0e9c^`:
+  1421 vertices, 1154 triangles, none unused): a wedge, a triangle seen from the side. The face rises at 19 degrees from
+  the rear band's rear top edge (was 50), 3.70 long, to a peak at x 0.92, z 8.81 (1.21 over the band; the block's top
+  was 2.88 over it); the front slope runs from the peak down to the second ridge's front top edge (x 6.00, 13 degrees),
+  bridging the groove; the bottom lies on the band and the ridge (a closed solid; no vertical face, no flat top). His
+  lines measure about 16-19 degrees taken with the old block's 50 for scale; the brief's estimate was 25-30. 19 is as
+  steep as the bezel allows with flush sides: the sides are now the receiver's own side planes carried on up (5.85 wide
+  at the band's top, flush there, leaning in 21.6 degrees to 4.89 at the peak; no overhang, no ledge, no corner
+  pieces), so the bezel's top corners (their height set by the slope) must stay inside them: 0.049 inside at 19 degrees,
+  none left past about 21. The window, bezel and digits are unchanged.
+- **Rounding:** the flatter face suits the coarse X grid: off the plane at most 0.04 (was 0.11). The face's strip below
+  the bezel is 0.08h and above it 0.1h, and the script refuses when either rounds to nothing (at 0.05h the bottom one
+  did: a folded triangle); the window's walls go 0.05h into the wedge (0.1h would reach below the receiver's top at the
+  window's bottom edge). The rivets got an underside (4 x 10 triangles): one ring's rounding opened a see-through gap
+  (check_mdl_holes: 1 see-through loop; now `ok`, 4 hidden loops, 18 cracks none wider than 0.01). The box grew less:
+  Z scale 0.0689 (was 0.0746).
+- **The glass:** weapons.txt slot 4 `wpntxt_pitch` 39.5 -> 70.5 (its up (0.9455, 0, 0.3256): the face's), `wpntxt_x`
+  -3.65 -> -3.4, `wpntxt_z` 4.48 -> 4.13; the "nail2" offset {0.0255, 0.0031, 0.0013}. screenwhere -0.8965 -0.1123 8.3283
+  (the window's -0.8962 -0.1122 8.3281). The three lines updated in every qvr-agents worktree's `ironwail.cfg.baseline`
+  and in quakevr-iw-cleanup's `ironwail.cfg`.
+- **Clearances:** barrels up to z 6.85 under the wedge's lowest 7.61 (every frame); the off hand's grip spot 8.8 away;
+  frames carry it with the rear face (0.0000). A re-run in place writes the same .mdl, normal map and weapons.txt.
+- **Tests:** `vr_pp_test 1` 63/0; `vr_scenario runall quit nail2_housing` OK in VR and flat; checklist_tests_check.py
+  83/0. Scene hint updated.
+- **Not verified:** the headset; the panel's runs were low-impact (his game was running).
+## The super shotgun's housing: the bevel's texels, round rivets (branch `agent/ssg_fix`, 2026-11-09)
+
+His screenshot (looking straight down at the breech top): "the textures of the bevel are very stretched", "the rivets
+seem to be elliptical rather than circular".
+
+- **Bevel** (`make_screen_housing_ssg.py`): the old bands mapped a whole ring (about 6 units round) across a 16 x 8
+  texel region: 2.7 texels a unit along it, 44 across the 0.18 rim. Now the top and both walls map into a copy (the
+  "plate", 27 x 27 texels at the patch's corner) of the sloped faces' own texels (their island 88-108 x 101-145
+  bottom-up), each point mapped as the face under it is, seen along the glass's out (`FaceMap`: the faces' 6
+  triangles; points off them carry the nearest one's map on, the copy clamps to the island's edge). Each wall quad is
+  unfolded from its top edge (its texels run on past the edge as if laid flat): the skirt outward, the inner wall into
+  the window. So the frame is the breech's metal at the breech's texel size (about 7 x 8.5 texels a unit), continuous
+  with it; the texels on the opening's edge are lit (2.0x: the top's inner edge and the inner wall's lip), those inside
+  the opening darker (0.55, the inner wall); the old 1.8x bezel top is gone. The patch grew to 50 x 32 texels (free
+  skin, all repainted each run); floor and rivet regions moved beside the plate. The .mdl gains 74 seam vertices.
+- **Rivets:** the old hexagon was two x steps long (0.454) but 0.36 across, its points snapped one by one (0.293
+  across): width/length 0.58 seen along the glass's out (the eye), 0.64 from straight above. The grid allows no more
+  sides at this size (three x levels), so it stays a hexagon, now as wide as it is long: its middle on a half y step,
+  the tips 6.5 y steps out (0.24), the side points 3.5 (0.13), so every point lands exactly on the grid. Width/length
+  0.94 from the eye, 1.05 from above (printed by the script). Its middle moved 0.04 outward (`RIVET_AT` 0.27 from the
+  bezel's outer edge, was 0.23) to keep a 0.018 gap to the bezel; still symmetrical, level with the window's middle.
+- Window, glass, depth, table entry unchanged (the script's opening check passes as before). A re-run writes the same
+  .mdl, open halves, normal maps and skin byte for byte (the compressed .blend's bytes differ only by its save data).
+- **Images** (flat 4K, vrtesthall, the fly camera straight down over the breech: the top, a close-up of the left rivet
+  and the bevel's side, one of the bevel's far side): `scratch/ssg/ssg_fix_before_after.png` in the flatwall worktree
+  (before above, after below).
+- **Tests:** `vr_pp_test 1` 63 passed, 0 failed; checklist_tests_check.py 83/0. Scene hint (`housing_ssg`) updated.
+- **Not verified:** the VR-mock shot (the low-impact mock's view doesn't reach the gun); the headset.
 ## The shotgun's end face: two mismatched triangles (branch `agent/shot_tri`, 2026-11-09)
 
 His report: on the receiver's end face a large triangle (apex at the top, base along the bottom edge, the bezel inside

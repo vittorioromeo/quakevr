@@ -23,7 +23,8 @@
 # - a low bezel round a small chamfered window: an inner wall from under the glass to the top, a flat top (its inner
 #   edge lit), a skirt sunk into the gun (the top stands about 0.1-0.2 units proud of the sloped faces); a dark floor
 #   under the glass;
-# - one rivet each side of the window, level with its middle (symmetrical): a low domed hexagon on the surface.
+# - one rivet each side of the window, level with its middle (symmetrical): a low domed hexagon on the surface, two x
+#   steps long and as wide across, so its snapped outline reads round (width / length about 1, printed).
 #
 # One definition with the glass: the window's size and chamfer are the "shot2" entry's `opening` and `radius` in
 # Quake/vr/vr_screenstyle.cpp, and its `offset` (out) the glass's depth. The model's vertices are bytes, and this gun's
@@ -32,9 +33,11 @@
 # walls make at the glass's depth, and refuses unless the table's opening, chamfer and offset (right, up) match it
 # (printing the values that do; --any: build it anyway). The glass's place and axes on the model with the table's
 # offset 0 are measured in the game (vr_debug_screen_where 1: GLASS0, RIGHT, UP, PIXEL below).
-# Texture: a patch in free skin (texels 200-248 x 122-146 from the top): the gun's own metal (copied from the sloped
-# face's texels), lit on the bezel top's inner edge, darker on the walls, near black under the glass, darker rivet heads
-# with a lit edge. Painted again on every run (the skin's .png written only when that changes it).
+# Texture: a patch in free skin (texels 200-250 x 114-146 from the top). The bezel's top and walls map into a copy of
+# the sloped faces' own texels as the faces under them map (the same metal at the same texel size, continuous with the
+# breech; the walls unfolded from their top edges), lit on the opening's edge and darker inside it; near black under
+# the glass, darker rivet heads with a lit edge. Painted again on every run (the skin's .png written only when that
+# changes it).
 
 import math
 import os
@@ -68,23 +71,32 @@ TOP = 0.10      # the top over the glass
 FLOOR = 0.06    # the dark floor under the glass
 SKIRT = 0.45    # the skirt down from the glass, sunk into the gun
 
-# The rivets (a hexagon two grid steps long in x).
-RIVET_HALF_Y = 0.18
-RIVET_GAP = 0.05  # from the bezel's outer edge to the rivet's nearest point
+# The rivets: a hexagon two x steps long (the grid's x levels allow no more sides at this size), as wide across in y
+# as it is long on the face. Its middle sits on a half y step so the tips land 6.5 steps out each side (the snapped
+# outline's width / length about 1.0 on the face, from the eye and from above: the script prints them).
+RIVET_AT = 0.27        # the rivet's middle this far outside the bezel's outer edge
+RIVET_TIP_STEPS = 6.5  # the tips (across the gun), in y steps from the middle
+RIVET_SIDE_STEPS = 3.5  # the four side points, in y steps from the middle (at one x step either way)
 
-# The skin patch (texels; Blender's image rows are bottom-up: the patch is the image's bottom 24 rows).
+# The skin patch (texels; Blender's image rows are bottom-up: the patch is the image's bottom PATCH_SIZE[1] rows).
 SKIN_W, SKIN_H = 512, 146
 PATCH = (200, 0)
+PATCH_SIZE = (50, 32)  # all painted on every run (texels the regions don't use: the plain metal)
+# The bezel's top and walls: the sloped faces' own texels (their island ISLAND, bottom-up, inclusive) copied into a
+# plate at the patch's corner and mapped as the faces under them are (projected along the glass's out), so the frame
+# is the breech's metal at the breech's scale, continuous with it. Each wall quad is unfolded from its top edge (its
+# texels run on past the edge as if it were laid flat): the skirt outward, the inner wall into the window, whose
+# texels are darker (HOLE). The texels on the opening's edge are lit (LIT).
+ISLAND = (88, 101, 108, 145)
+PLATE_MAX = (32, 32)
+LIT, HOLE = 2.0, 0.55
 REGIONS = {  # x0, y0, x1, y1 within the patch
-    "top": (0, 0, 16, 8),
-    "wall": (16, 0, 32, 8),
-    "skirt": (0, 8, 16, 16),
-    "floor": (32, 0, 40, 8),
-    "rivet": (40, 0, 48, 8),
-    "rivettop": (40, 8, 48, 16),
+    "floor": (34, 0, 42, 8),
+    "rivet": (42, 0, 50, 8),
+    "rivettop": (42, 8, 50, 16),
 }
-METAL_SRC = (90, 118)  # a 16x16 block of the sloped face's own metal (its UVs: texels 88-108 x 108-145 bottom-up)
-SHADES = {"top": 1.8, "wall": 0.6, "skirt": 0.9, "floor": 0.0, "rivet": 0.7, "rivettop": 0.8}
+METAL_SRC = (90, 118)  # a 16x16 block of the sloped face's own metal (in ISLAND)
+SHADES = {"floor": 0.0, "rivet": 0.7, "rivettop": 0.8}
 
 SCALE, ORIGIN = (Vector(v) for v in hc.mdl_grid(MODEL))
 ROW = SCALE.x / UP.x  # one x step along UP
@@ -140,15 +152,14 @@ class Builder:
             print("housing: a bad triangle at %.2f %.2f %.2f" % tuple((p[0] + p[1] + p[2]) / 3))
         self.tris.append((vs[0], vs[1], vs[2], tuple(uvs)))
 
-    def band(self, inner, outer, region, want_fn):
-        """Quads between two rings of equal length; want_fn(i) the outward direction of the i-th quad."""
+    def band(self, inner, outer, uv_fn, want_fn):
+        """Quads between two rings of equal length; uv_fn(i) the i-th quad's corners' UVs (inner i, inner i+1, outer
+        i+1, outer i), want_fn(i) its outward direction."""
         n = len(inner)
         for i in range(n):
             j = (i + 1) % n
-            u0, u1 = i / n, (i + 1) / n
             a, b, c, d = inner[i], inner[j], outer[j], outer[i]
-            ua, ub, uc, ud = (region_uv(region, u0, 0), region_uv(region, u1, 0), region_uv(region, u1, 1),
-                              region_uv(region, u0, 1))
+            ua, ub, uc, ud = uv_fn(i)
             want = want_fn(i)
             # split along the shorter diagonal
             if (self.co[a] - self.co[c]).length <= (self.co[b] - self.co[d]).length:
@@ -174,8 +185,56 @@ class Builder:
             self.tri([c, loop[i], loop[j]], [uv_of(c), uv_of(loop[i]), uv_of(loop[j])], want)
 
 
-def paint(image):
-    """Paints the skin patch. Returns whether that changed the image."""
+def region_quad(name):
+    """A band quad's corners mapped over the whole region (the parts no one sees)."""
+    return lambda i: (region_uv(name, 0, 0), region_uv(name, 1, 0), region_uv(name, 1, 1), region_uv(name, 0, 1))
+
+
+class FaceMap:
+    """The sloped faces' own map: their triangles in the glass's plane (right, up from GLASS0, i.e. seen along OUT)
+    and their texels (bottom-up). Points off the faces take the nearest triangle's map, carried on."""
+
+    def __init__(self, me, tag, sw, sh):
+        uvl = me.uv_layers.active.data
+        self.tris = []
+        for p in me.polygons:
+            if len(p.vertices) != 3 or p.normal.dot(OUT) < 0.7:
+                continue
+            if tag is not None and any(tag.data[i].value > 0 for i in p.vertices):
+                continue
+            tx = [(uvl[li].uv.x * sw, uvl[li].uv.y * sh) for li in p.loop_indices]
+            if not all(ISLAND[0] <= t[0] <= ISLAND[2] + 1 and ISLAND[1] <= t[1] <= ISLAND[3] + 1 for t in tx):
+                continue
+            pl = [((me.vertices[i].co - GLASS0).dot(RIGHT), (me.vertices[i].co - GLASS0).dot(UP)) for i in p.vertices]
+            self.tris.append((pl, tx))
+
+    @staticmethod
+    def _carry(tris, src, dst, q):
+        best = None
+        for t in tris:
+            (a, b, c) = t[src]
+            den = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+            if abs(den) < 1e-12:
+                continue
+            l0 = ((b[1] - c[1]) * (q[0] - c[0]) + (c[0] - b[0]) * (q[1] - c[1])) / den
+            l1 = ((c[1] - a[1]) * (q[0] - c[0]) + (a[0] - c[0]) * (q[1] - c[1])) / den
+            l2 = 1.0 - l0 - l1
+            out = -min(l0, l1, l2)
+            if best is None or out < best[0] - 1e-9:
+                ta, tb, tc = t[dst]
+                best = (out, (l0 * ta[0] + l1 * tb[0] + l2 * tc[0], l0 * ta[1] + l1 * tb[1] + l2 * tc[1]))
+        return best[1]
+
+    def texel(self, r, u):
+        return self._carry(self.tris, 0, 1, (r, u))
+
+    def plane(self, tx, ty):
+        return self._carry(self.tris, 1, 0, (tx, ty))
+
+
+def paint(image, plate):
+    """Paints the skin patch; `plate`: (the plate's first source texel, its size, shade(source x, y)). Returns
+    whether that changed the image."""
     w, h = image.size
     before = list(image.pixels[:])
     px = list(before)
@@ -188,6 +247,16 @@ def paint(image):
         i = 4 * (y * w + x)
         px[i:i + 4] = [min(1.0, max(0.0, c)) for c in rgb] + [1.0]
 
+    def metal(sx, sy):
+        return get(min(ISLAND[2], max(ISLAND[0], sx)), min(ISLAND[3], max(ISLAND[1], sy)))
+
+    (s0x, s0y), (pw, ph), shade = plate
+    for y in range(PATCH_SIZE[1]):
+        for x in range(PATCH_SIZE[0]):
+            if x < pw and y < ph:
+                put(PATCH[0] + x, PATCH[1] + y, [c * shade(s0x + x, s0y + y) for c in metal(s0x + x, s0y + y)])
+            else:  # (the regions below paint theirs over it)
+                put(PATCH[0] + x, PATCH[1] + y, metal(METAL_SRC[0] + x % 16, METAL_SRC[1] + y % 16))
     for name, (x0, y0, x1, y1) in REGIONS.items():
         s = SHADES[name]
         for y in range(y0, y1):
@@ -195,8 +264,6 @@ def paint(image):
                 src = get(METAL_SRC[0] + (x - x0) % 16, METAL_SRC[1] + (y - y0) % 16)
                 if name == "floor":
                     rgb = [0.05, 0.06, 0.055]
-                elif name == "top" and y - y0 < 2:
-                    rgb = [c * 2.4 for c in src]  # the lit inner edge (the band's inner ring is v 0)
                 elif name == "rivettop" and (x - x0) + (y - y0) >= 9:
                     rgb = [c * 2.3 for c in src]  # the lit upper edge of the head
                 else:
@@ -297,21 +364,82 @@ def main(h):
         m -= OUT * m.dot(OUT)
         return m.normalized()
 
-    bld.band(floor_v, wall_v, "wall", lambda i: -radial(i, floor))
-    bld.band(wall_v, top_v, "top", lambda i: OUT)
-    bld.band(top_v, skirt_v, "skirt", lambda i: radial(i, top_out))
+    # The bezel's texels: the sloped faces' own, under each point (seen along OUT); the walls unfolded (ISLAND).
+    fmap = FaceMap(me, me.attributes.get(hc.TAG), SKIN_W, SKIN_H)
+    if len(fmap.tris) < 2:
+        h.fail("the sloped faces' triangles weren't found (ISLAND)")
+
+    def flat(p):
+        d = p - GLASS0
+        return d.dot(RIGHT), d.dot(UP)
+
+    c2 = flat(centre)
+
+    def edge_out(loop, i):
+        """The i-th edge's outward normal in the glass's plane."""
+        (ax, ay), (bx, by) = flat(loop[i]), flat(loop[(i + 1) % len(loop)])
+        n = Vector((by - ay, -(bx - ax)))
+        n.normalize()
+        return n if n.dot(Vector(((ax + bx) / 2 - c2[0], (ay + by) / 2 - c2[1]))) > 0 else -n
+
+    def unfold(top, other, n):
+        """`other` (along the wall from `top`) laid flat past `top` along n."""
+        f = Vector(flat(top)) + n * (top - other).length
+        return f.x, f.y
+
+    quads = {"wall": [], "top": [], "skirt": []}
+    for i in range(8):
+        j = (i + 1) % 8
+        n_in, n_out = -edge_out(wall_top, i), edge_out(top_out, i)
+        quads["wall"].append((unfold(wall_top[i], floor[i], n_in), unfold(wall_top[j], floor[j], n_in),
+                              flat(wall_top[j]), flat(wall_top[i])))
+        quads["top"].append((flat(wall_top[i]), flat(wall_top[j]), flat(top_out[j]), flat(top_out[i])))
+        quads["skirt"].append((flat(top_out[i]), flat(top_out[j]), unfold(top_out[j], skirt[j], n_out),
+                               unfold(top_out[i], skirt[i], n_out)))
+    tex = {k: [[fmap.texel(*p) for p in q] for q in v] for k, v in quads.items()}
+    every = [t for v in tex.values() for q in v for t in q]
+    s0 = (math.floor(min(t[0] for t in every)) - 1, math.floor(min(t[1] for t in every)) - 1)
+    plate = (math.ceil(max(t[0] for t in every)) + 1 - s0[0], math.ceil(max(t[1] for t in every)) + 1 - s0[1])
+    if plate[0] > PLATE_MAX[0] or plate[1] > PLATE_MAX[1]:
+        h.fail("the bezel's plate needs %d x %d texels (PLATE_MAX %d x %d)" % (plate + PLATE_MAX))
+
+    def plate_uv(t):
+        return Vector(((t[0] - s0[0] + PATCH[0]) / SKIN_W, (t[1] - s0[1] + PATCH[1]) / SKIN_H))
+
+    # The opening's edge (the inner wall's top, in the glass's plane) for the plate's shading.
+    rs, us = [flat(p)[0] for p in wall_top], [flat(p)[1] for p in wall_top]
+    edge = (min(rs), max(rs), min(us), max(us))
+
+    def shade(sx_, sy_):
+        """The plate's source texel (sx_, sy_): lit on the opening's edge, darker inside it."""
+        r, u = fmap.plane(sx_ + 0.5, sy_ + 0.5)
+        tr = abs(fmap.plane(sx_ + 1.5, sy_ + 0.5)[0] - r)
+        tu = abs(fmap.plane(sx_ + 0.5, sy_ + 1.5)[1] - u)
+        d = max(max(edge[0] - r, r - edge[1]) / tr, max(edge[2] - u, u - edge[3]) / tu)  # outside it, in texels
+        return LIT if -0.5 < d < 0.5 else (HOLE if d <= -0.5 else 1.0)
+
+    for name, want_fn in (("wall", lambda i: -radial(i, floor)), ("top", lambda i: OUT),
+                          ("skirt", lambda i: radial(i, top_out))):
+        inner, outer = {"wall": (floor_v, wall_v), "top": (wall_v, top_v), "skirt": (top_v, skirt_v)}[name]
+        bld.band(inner, outer, lambda i, name=name: tuple(plate_uv(t) for t in tex[name][i]), want_fn)
     bld.fan(floor_v, snap(centre - OUT * FLOOR), "floor", OUT, ((RIGHT, a), (UP, b)))
-    bld.fan(skirt_v, snap(centre - OUT * SKIRT), "skirt", -OUT, ((RIGHT, a_out), (UP, b_out)))  # closed
+    bld.fan(skirt_v, snap(centre - OUT * SKIRT), "floor", -OUT, ((RIGHT, a_out), (UP, b_out)))  # closed, unseen
     bezel_tris = len(bld.tris)
+    print("housing: the bezel's plate: source texels %d,%d, %d x %d (bottom-up), at the patch's corner"
+          % (s0 + plate))
 
     # The rivets, one each side, level with the window's middle: a hexagon two x steps long, on the surface.
-    sx = SCALE.x
+    sx, sy = SCALE.x, SCALE.y
+    frac = RIVET_TIP_STEPS % 1.0
+    if abs((RIVET_SIDE_STEPS - RIVET_TIP_STEPS) % 1.0) > 1e-6:
+        h.fail("RIVET_TIP_STEPS and RIVET_SIDE_STEPS must differ by whole steps")
+    hy, hs = RIVET_TIP_STEPS * sy, RIVET_SIDE_STEPS * sy
     for side in (-1.0, 1.0):
-        p = glass + UP * mid_u + RIGHT * (side * (a_out + RIVET_GAP + RIVET_HALF_Y) + mid_r)
-        xc, yc = snap(p).x, p.y
-        hy = RIVET_HALF_Y
-        foot = [(xc + sx, yc - hy * 0.5), (xc + sx, yc + hy * 0.5), (xc, yc + hy),
-                (xc - sx, yc + hy * 0.5), (xc - sx, yc - hy * 0.5), (xc, yc - hy)]
+        p = glass + UP * mid_u + RIGHT * (side * (a_out + RIVET_AT) + mid_r)
+        xc = snap(p).x
+        yc = ORIGIN.y + (round((p.y - ORIGIN.y) / sy - frac) + frac) * sy  # the tips land on the grid
+        foot = [(xc + sx, yc - hs), (xc + sx, yc + hs), (xc, yc + hy),
+                (xc - sx, yc + hs), (xc - sx, yc - hs), (xc, yc - hy)]
 
         def lift(dz):
             return [snap(Vector((x, y, surface_z(x, y) + dz))) for x, y in foot]
@@ -327,10 +455,18 @@ def main(h):
             m = Vector(((foot[i][0] + foot[j][0]) / 2 - xc, (foot[i][1] + foot[j][1]) / 2 - yc, 0.0))
             return m.normalized()
 
-        bld.band(base, rim, "rivet", out_of)
+        bld.band(base, rim, region_quad("rivet"), out_of)
         bld.fan(rim, apex, "rivettop", up_n, ((Vector((1, 0, 0)), sx), (Vector((0, 1, 0)), hy)))
         bld.fan(base, bottom, "rivet", -up_n, ((Vector((1, 0, 0)), sx), (Vector((0, 1, 0)), hy)))  # closed
-        print("housing: rivet %+d at %.3f %.3f %.3f" % (side, xc, yc, zc))
+        # Its outline's width (across the gun) over its length: seen along OUT (the glass faces the eye), from above.
+        ring_pts = [bld.co[i] for i in rim]  # (the base is the same outline, sunk)
+        fr = [flat(q) for q in ring_pts]
+        eye = (max(q[0] for q in fr) - min(q[0] for q in fr)) / (max(q[1] for q in fr) - min(q[1] for q in fr))
+        above = (max(q.y for q in ring_pts) - min(q.y for q in ring_pts)) / (
+            max(q.x for q in ring_pts) - min(q.x for q in ring_pts))
+        gap = min(side * (q[0] - mid_r) for q in fr) - a_out
+        print("housing: rivet %+d at %.3f %.3f %.3f, width/length %.2f from the eye, %.2f from above; %.3f from the "
+              "bezel" % (side, xc, yc, zc, eye, above, gap))
 
     h.apply(me, bld.co, bld.tris, legacy=legacy)
     ob["qvr_housing"] = "ssg screen housing (make_screen_housing_ssg.py)"
@@ -338,7 +474,7 @@ def main(h):
     # The skin patch: painted again; its .png written after the export when that changed it.
     image = bpy.data.images[MODEL + "_skin0"]
     image.pixels[0]  # (loads it)
-    painted = paint(image)
+    painted = paint(image, (s0, plate, shade))
 
     def save_skin():
         if painted:
