@@ -626,8 +626,8 @@ void(entity p) VR_PPT_Look =
         {
             // (the halves: the grunt's, the enforcer's, the knight's, the death knight's, each from the front and turned
             // round (0-7); then the elbows, the left eye on a grunt's, the right on an enforcer's (vr_agarmor_headcam, the
-            // eyes' shot: vr_eyeshot): from their right side, their left, behind, at rest and bent 100 degrees
-            // (vr_agarmor_bend, the rest pose): 8-13, yellow)
+            // eyes' shot: vr_eyeshot): from their right side, their left, behind, straight and bent 100 degrees
+            // (vr_agarmor_bend on the rest pose: 0.01 is straight, his holes; 0 would be the game's own pose): 8-13, yellow)
             VR_PPT_Set(p, 0, 0);
             localcmd("vr_mock_camera\n");
             if(k < 8)
@@ -639,7 +639,7 @@ void(entity p) VR_PPT_Look =
             }
             else
             {
-                localcmd(k >= 11 ? "vr_agarmor_bend 100; vr_eyeshot 1\n" : "vr_agarmor_bend 0; vr_eyeshot 1\n");
+                localcmd(k >= 11 ? "vr_agarmor_bend 100; vr_eyeshot 1\n" : "vr_agarmor_bend 0.01; vr_eyeshot 1\n");
                 vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 2, -40, 80);
                 vr_ppt_g1 = VR_PPT_LookWearer(p, 1, 2, 40, 80);
                 vr_ppt_at0 = vr_ppt_g0.origin;
@@ -760,9 +760,10 @@ void(entity p) VR_PPT_Look =
     else if(vr_ppt_s == 6)
     {
         // (vr_pp_test 17's elbows: the mock eyes 26 units off each one's elbow height (17 under its helmet's middle))
-        // (from the sides: a camera off that elbow itself, 18 units out (vr_agarmor_headcam's elbow); behind: both, off the head)
+        // (from the sides: a camera off that elbow itself, 30 units out (vr_agarmor_headcam's elbow; 18 was too close to see the
+        // joint whole); behind: both, off the head)
         float view = k % 3 == 0 ? 2 : k % 3 == 1 ? 5 : 4;
-        localcmd(view == 4 ? "vr_agarmor_headcam 4 26 0 17\n" : sprintf("vr_agarmor_headcam %g 18 0 0 %g\n", view, view == 2 ? 2 : 1));
+        localcmd(view == 4 ? "vr_agarmor_headcam 4 26 0 17\n" : sprintf("vr_agarmor_headcam %g 30 0 0 %g\n", view, view == 2 ? 2 : 1));
         VR_PPT_To(1, 3);
     }
     else if(vr_ppt_s == 1)

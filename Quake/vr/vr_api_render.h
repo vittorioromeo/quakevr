@@ -116,6 +116,7 @@ int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimu
 enum { VR_DRAW_HANDS, VR_DRAW_BODY, VR_DRAW_HELD, VR_DRAW_HOLSTERED, VR_DRAW_WORN, VR_DRAW_LYING, VR_DRAW_MIRROR, VR_DRAW_OTHER, VR_DRAW_GROUPS };
 int VR_ViewEntityGroup (const struct entity_s *e);	// -1: not a view entity
 int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
+int VR_AliasTwoSided (const struct entity_s *e);		// drawn from both sides: the armour's joint leather (vr_agarmor_bridge.cpp; its sheet laps where the plates' rows cross)
 int VR_AliasNearEye (const struct entity_s *e, const float matrix[16], const void *aliashdr); // R_DrawAliasModel: a held item at the eyes: 1 depth clamp, 2 both sides (vr_nearclip_held)
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
