@@ -181,7 +181,7 @@
         row(opt::vr_flat_visor_opacity),
         row(opt::vr_flat_visor_crt),
         row(opt::vr_flat_visor_sway),
-        row(opt::vr_flat_visor_curve),
+        row(opt::vr_flat_visor_warp),
         row(opt::vr_flat_visor_frame),
         row(opt::vr_flat_visor_damage),
         row(opt::vr_flat_visor_fog),

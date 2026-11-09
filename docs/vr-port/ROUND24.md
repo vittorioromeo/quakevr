@@ -6352,6 +6352,48 @@ low/empty colours already say how full it is."
   so red). Before was shot with the old text, no fill, the totals at 1/1 and the shotgun's ty 0, which lays out as
   today's next.
 
+## Flat-screen visor HUD, second pass: mounts on the edges (branch `agent/visor2`, 2026-11-09)
+
+His words: "every panel to connect/extend to the edges of the screen ... panels mounted on the edges of a visor/helmet";
+"two smaller panels at the bottom left and bottom right that contain the ammunition information for each equipped
+weapon"; the top right "a time bar, stamina bar, and ammunition storage recap ... a 4x4 grid", side panels for the rest;
+then "rendering them as rectangles and then applying a curvature/distortion effect on top". Mockup:
+`qvr-kit/scratch/mockups/visor_edges.webp`.
+
+- **Layout (seven panels, `vr_gadget_visor.inc`; which shown: `vr_flat_visor_panels`, a bit each, 127 all):** top left
+  the vitals (face and health, armour, the health bar); top right the status (TIME: bullet time's meter, STAM: parry
+  stamina's ten cells as the gadget's, CNTR/HANG/OUT as its states; under a rule the ammo grid: shells, nails, rockets,
+  cells, and in the mission pack (or once any is carried) Rogue's lava nails, multi-rockets and plasma, the hands' kinds
+  framed, empty dim); bottom left the left hand's gun (HAND_OFF is the left hand whatever the handedness), bottom right
+  the right hand's: its ammo's icon at the screen's side, the magazine big in the ammo screens' warning colours
+  (vr_ammo_color_low / _empty by vr_ammo_low_frac), the total under it at vr_ammo_total_scale's size and _bright's
+  brightness; an empty hand's mount stays empty; the log (three short notify lines) low in the middle; keys, sigils and
+  AD's custom keys on the left edge's middle, powerups with their seconds (thirty from the pickup, `cl.item_gettime`),
+  AD's artifacts with theirs and its debuffs on the right's. Bullet time moved out of the bottom middle (no duplicate).
+- **The 4x4 grid:** the client knows seven kinds (the base four, and Rogue's three: new stats `STAT_QVR_AMMOLAVA`,
+  `_AMMOMULTI`, `_AMMOPLASMA` from QC's `.ammo_lava_nails` etc., `vr_server.cpp`), so it is four across and one or two
+  rows. Hipnotic's guns use the base pools; AD's too (its own ammo is not carried separately). The 16 had nothing more to
+  fill them.
+- **Mounts (`vr_visor_mounts.inc`):** each panel's mount is a flat polygon on a screen-space layer in the view's pixels,
+  its outer sides 30% of the view past the edges: the corners' with their inner corner chamfered and an angled strut
+  back to the side (the mockup's), mirrored for the bottom corners; the bottom middle a trapezoid widening into the bottom
+  edge; the sides' narrowing to the middle. Face: the screens' background at vr_flat_visor_opacity; frame line: their
+  green (the vitals' both red with the low-health pulse). The contents are drawn on a black face that Shade::Screen's
+  inkAlpha leaves clear (vertex alpha 0), so the mount is the face.
+- **The lens (his and the coordinator's idea; `vr_flat_visor_warp` 0.08, replacing vr_flat_visor_curve):** the whole
+  layer after the sway goes through q = p (1 + k (|p|^2 - 1)) (p the drawn point, q the layer's, the view's -1..1): every
+  screen edge shows the layer at or beyond it, so the mounts can't leave their edges at any aspect; the middle a touch
+  magnified, lines near the edges bowed. Drawn by warping vertices (Newton along the ray), outlines subdivided every 8
+  pixels, contents as 12 x 6 grids: one draw per face, line and contents, no extra target. The text is warped with its
+  mount (mild at 0.08). Compared with the first pass's 3D turned panels (`scratch/visor/`): this keeps edge contact and
+  mirrors exactly; I kept it.
+- **Sway, effects:** as before; the sway moves the layer before the lens (at most 0.8 of the contents' inset); the hit's
+  glitch and flicker, the fade at death, the power-on sweep (each panel in turn, 0.05 of the time apart; the mounts fade
+  in with it) on all seven.
+- **Tests:** `visor_test.sh` 16 checks: seven panels inside the view and each in its place, left and right mirrored,
+  every mount meets the edges with no gap at rest, turning and walking (`vr_flat_visor_report`'s `contact`: the screen's
+  corner or edge middle and a point on each touching edge, looked up through the lens and the sway, inside the mount's
+  outline), and the first pass's sway, hit, fog, boot and off checks.
 ## flatpose red on next: three stale expectations, no game fault (branch `agent/flatpose_fix`, 2026-11-09)
 
 `flatpose_test.sh` read 17-18 passed, 3-4 failed on next 0ae7e01d2. Every server shot went through the crosshair's point

@@ -1348,7 +1348,7 @@ vr_flat_visor_scale|1|Locomotion|Visor Panel Size|Advanced VR Options > Movement
 vr_flat_visor_opacity|1|Locomotion|Visor Panel Backing|Advanced VR Options > Movement > Locomotion > Visor Panel Backing
 vr_flat_visor_crt|1|Locomotion|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor CRT Look
 vr_flat_visor_sway|1|Locomotion|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor Sway
-vr_flat_visor_curve|1|Locomotion|Visor Curve|Advanced VR Options > Movement > Locomotion > Visor Curve
+vr_flat_visor_warp|1|Locomotion|Visor Lens|Advanced VR Options > Movement > Locomotion > Visor Lens
 vr_flat_visor_frame|1|Locomotion|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor Glass
 vr_flat_visor_damage|1|Locomotion|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor Hit Glitch
 vr_flat_visor_fog|1|Locomotion|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor Fog Under Water

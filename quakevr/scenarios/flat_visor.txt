@@ -1,8 +1,9 @@
 # flat_visor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) visor HUD (vr_flat_visor; docs/vr-port/ROUND24.md, "Flat-screen visor HUD"): the start map's bright hall, the super shotgun in the right hand.
 title Flat-screen visor HUD: the start hall, the super shotgun in the right hand
-hint Play with -flatscreenmode. As the test starts the visor powers on: a bright line sweeps down each panel. Health and armour top left, the ammo top right, bullet time low in the middle, in the wrist gadget's colours, small and translucent; the screen's edges a touch darker. Turn hard and walk: the panels lag a hair and bob a little, never hard to read; stand still: they do not move. Desktop Screen Play > Visor HUD off: the status bar back.
+hint Play with -flatscreenmode. As the test starts the visor powers on: a bright line sweeps down each panel. Every panel sits in a mount running off the screen's edges, in the wrist gadget's colours: health and armour top left; bullet time, stamina and every ammo carried top right; each hand's ammo at its own bottom corner (the left hand's bottom left: empty now, the mount still there); messages low in the middle; keys and sigils on the left edge, powerups on the right. Pick up the nail gun beside you for the left hand. Turn hard and walk: the panels lag a hair and bob a little, never hard to read; stand still: they do not move. Desktop Screen Play > Visor HUD off: the status bar back.
 map start
 start 820 600 24 96
 god
 notarget
 give "Super Shotgun" main
+spawn "Nailgun" 40 -30
