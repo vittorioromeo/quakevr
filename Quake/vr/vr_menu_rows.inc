@@ -6225,6 +6225,58 @@ QVR_SLIDER(vr_flat_visor_boot, "Visor Power On", 0.f, 3.f, 0.1f, "%.1f s", noExt
 QVR_TOGGLE(vr_flat_visor_log, "Visor Messages",
     "The console's messages (pickups, a door's text) in the visor's low panel, its last three short lines, instead of "
     "the screen's top left (vr_flat_visor_log).")
+QVR_SLIDER(vr_flat_visor_scanline_width, "Visor Scanline Thickness", 1.5f, 16.f, 0.5f, "%.1f px", noExt,
+    "How thick the visor's scanlines are (a dark line and its gap), in pixels at 1080p (vr_flat_visor_scanline_width).")
+QVR_TOGGLE(vr_flat_visor_autohide_log, "Hide Empty Log Panel",
+    "The visor's message panel (top middle) fades away while it has no messages and comes back when one arrives. Off: "
+    "always shown (vr_flat_visor_autohide_log).")
+QVR_SLIDER(vr_flat_visor_log_width, "Log Panel Size", 0.3f, 2.f, 0.05f, "x%.2f", noExt,
+    "The visor's message panel's width at the top, its text smaller or larger with it; never wider than fits between "
+    "the top corners' panels (vr_flat_visor_log_width).")
+QVR_SLIDER(vr_flat_visor_log_out, "Log Panel Reach", 0.2f, 4.f, 0.05f, "x%.2f", noExt,
+    "How far the visor's message panel reaches down from the top edge: under 1 tucked against it, over 1 further down "
+    "(vr_flat_visor_log_out).")
+QVR_SLIDER(vr_flat_visor_side_out, "Side Panels Reach", 0.2f, 4.f, 0.05f, "x%.2f", noExt,
+    "How far the visor's side panels (keys on the left, powerups on the right) reach in from the screen's edges: under "
+    "1 tucked against them, over 1 further in. They always meet the edges (vr_flat_visor_side_out).")
+QVR_SLIDER(vr_flat_visor_depth_opacity, "Back Plate Opacity", 0.f, 2.f, 0.05f, "x%.2f", noExt,
+    "How solid each panel's back plate is, times the Visor Panel Backing (never past solid) "
+    "(vr_flat_visor_depth_opacity).")
+QVR_SLIDER(vr_flat_visor_depth_size, "Back Plate Size", 0.f, 60.f, 1.f, "%.0f px", noExt,
+    "How far each back plate reaches past its panel all round, in pixels at 1080p: a bigger, thicker-looking mount. 0: "
+    "the panel's own outline (vr_flat_visor_depth_size).")
+QVR_SLIDER(vr_flat_visor_depth_offset, "Back Plate Offset", 0.f, 20.f, 0.5f, "%.1f px", noExt,
+    "How far each back plate sits towards the screen's middle, as a deeper thing seen from the eye, in pixels at 1080p "
+    "times Visor Depth (vr_flat_visor_depth_offset).")
+QVR_SLIDER(vr_flat_visor_depth_lag, "Back Plate Lag", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How much each back plate lags the visor's sway and a hit's shake, times Visor Depth. 0: moves with the panel; 1: "
+    "stays put (vr_flat_visor_depth_lag).")
+QVR_SLIDER(vr_flat_visor_depth_content_lag, "Readings Lag", 0.f, 1.f, 0.02f, "%.2f", noExt,
+    "How much the readings behind the glass lag the visor's sway and a hit's shake, times Visor Depth "
+    "(vr_flat_visor_depth_content_lag).")
+QVR_SLIDER(vr_flat_visor_depth_bevel, "Back Plate Bevel", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "Each back plate's rim lit from above and shaded below, like the panels' frames. 0: flat "
+    "(vr_flat_visor_depth_bevel).")
+QVR_SLIDER(vr_flat_visor_depth_bevel_width, "Back Plate Bevel Width", 0.5f, 12.f, 0.5f, "%.1f px", noExt,
+    "How wide the back plates' bevel is, in pixels at 1080p (vr_flat_visor_depth_bevel_width).")
+QVR_SLIDER(vr_flat_visor_shake, "Visor Hit Shake", 0.f, 3.f, 0.1f, "%.1f", noExt,
+    "A hit shakes the visor, more for more damage; the back plates and the readings lag behind as with a turn. 0: "
+    "never (vr_flat_visor_shake).")
+QVR_SLIDER(vr_flat_visor_shake_time, "Visor Hit Shake Time", 0.1f, 2.f, 0.05f, "%.2f s", noExt,
+    "Seconds a hit's shake takes to settle (vr_flat_visor_shake_time).")
+QVR_TOGGLE(vr_flat_visor_no_bt_tint, "Visor Ignores Bullet Time Look",
+    "Bullet time drains and tints the view around the visor's panels, not the panels themselves. Off: they are tinted "
+    "with the view (vr_flat_visor_no_bt_tint).")
+QVR_SLIDER(vr_flat_visor_glass_blur, "Glass Blur", 0.f, 40.f, 1.f, "%.0f px", noExt,
+    "Frosted glass: the world behind each visor panel blurred this far, in pixels at 1080p. 0: none "
+    "(vr_flat_visor_glass_blur).")
+QVR_SLIDER(vr_flat_visor_glass_distort, "Glass Distortion", 0.f, 3.f, 0.05f, "%.2f", noExt,
+    "The world behind each panel bent by a ripple through the glass and towards its edges like a lens. 0: none "
+    "(vr_flat_visor_glass_distort).")
+QVR_SLIDER(vr_flat_visor_glass_tint, "Glass Tint", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "The world behind each panel tinted towards the screens' colour. 0: none (vr_flat_visor_glass_tint).")
+QVR_SLIDER(vr_flat_visor_glass_desat, "Glass Colour Drained", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "The colour drained from the world behind each panel. 0: none (vr_flat_visor_glass_desat).")
 QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
     "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
     "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")

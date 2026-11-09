@@ -6519,6 +6519,65 @@ from behind (its normal turned to face the line). A point genuinely inside the m
 gun's largest frame-to-frame turns in the run are the knights' own spawns, as before. `flatpose_test.sh` gates it ("the
 crosshair's ray never reads as starting inside a monster far ahead": the count must be 0); its skip is gone.
 
+## Flat-screen visor HUD, fourth pass: the log on top, depth knobs, shake, frosted glass (branch `agent/visor4`, 2026-11-09)
+
+His notes: customise the depth (opacity, colour, size, lag, a bevel on the back plate); the sheen only covered the
+readings' rectangle; scanline thickness; shake the visor on damage keeping its depth; hide an unused bottom panel; side
+panels popping out more or less; the visor untouched by bullet time's colours; the world behind the panels blurred or
+distorted. Then (mid-task, superseding the hide default): "put the bottom plate where messages show at the top, and keep
+it visible by default, but provide options to make it smaller or pop out less."
+
+The visor's settings moved to a page of their own, **Locomotion > Desktop Screen Play > Visor HUD Look** (headers Panels,
+Frames and Glow, Depth, Glass, Effects); only the Visor HUD toggle and the link stay on Locomotion. menu_paths.txt
+regenerated.
+
+- **The log at the top's middle:** the bottom middle mount (now `MountKind::Middle`) moved to the top edge, the same
+  trapezoid flaring into it. `vr_flat_visor_log_width` 1 (0.3 .. 2) scales the whole panel (the text with it, its three
+  lines kept); it is shrunk to fit 12 virtual px clear of the top corners' mounts at the edge (`logFit`: the trapezoid's
+  half width at the edge against the wider corner mount's reach), so nothing overlaps at 4:3, 16:9 or 21:9 even at
+  scale 2. `vr_flat_visor_log_out` 1 (0.2 .. 4) scales its gap to the edge (the mount still runs off it).
+  `vr_flat_visor_autohide_log` 0: 1 fades it out over 0.5 s with no lines and back in 0.15 s when one arrives (the last
+  frame's count: the gadget draws the lines after the view).
+- **Depth:** `_depth_opacity` 0.9 (times `vr_flat_visor_opacity`), `_depth_color` "" (empty: the face's colour times
+  0.55, as before; "r g b" its own, with three buttons: as shipped, gunmetal, black), `_depth_size` 0 px (the plate's
+  ring pushed out along its mitred normals), `_depth_offset` 3 px, `_depth_lag` 0.35 and `_depth_content_lag` 0.12 (both
+  "how much it lags", times `vr_flat_visor_depth`: the third pass's 0.65-of-the-sway plate is 1 - 0.35), `_depth_bevel`
+  0.6 with `_depth_bevel_width` 2 px: a light band on the plate's rim where it faces up and a shadow where it faces down
+  (`band(..., shadeAlpha)`: the premultiplied colour scaled, so the shadow's strength follows the light too).
+- **Sheen over the whole mount:** the face's sheen runs from the top to the bottom of what is seen of the mount (its
+  ring's box clamped to the view), and the glint is drawn on the face's own fan (Shade::SoftEdge, its uv linear in the
+  position, so exact over any triangles): clipped to the outline, over the readings too.
+- **Scanlines:** `vr_flat_visor_scanline_width` 3 px at 1080p (1.5 .. 16; at least 2 view px).
+- **Shake:** `vr_flat_visor_shake` 1 (0 .. 3), `_shake_time` 0.35 s: a hit's strength 0.25 + damage/50 (at most 1)
+  times the cvar, easing out as (1 - t)^2; two sine wobbles a direction (12.5 and 23 Hz across, 10.5 and 19 Hz up),
+  their phases the hit's own, at most 0.45 degrees at 1 and never past 1.2; added to the sway, so the back plate and the
+  readings lag it by their parallax, and the sway's clamp (0.8 of the readings' inset) keeps the text on the glass.
+- **Bullet time's look:** `vr_flat_visor_no_bt_tint` 1. The look is applied in the window's post-process (after the
+  visor is drawn into the composite), so the post-process now reads the visor's layer (binding 7, `VisorRect` at
+  location 11, set in VR_PostProcessTone's window branch, zero for the eyes) and mixes the untinted colour back by the
+  layer's alpha: the panels keep their colours, the world around (and faintly behind) them is tinted.
+- **Frosted glass:** after the visor's rim and fog, the view is blitted to half size and blurred by Kawase passes
+  (`ceil(sqrt(2 r))` passes, at most 6; r the blur at half size); the mounts' faces and back plates go into a half-size
+  R8 mask (each its fade). The layer pass lays, under the panels' layer, the blurred view where the mask is, offset by a
+  fixed ripple (2 px x `_glass_distort`) and towards the mounts' edges by the mask's gradient (8 px), drained
+  (`_glass_desat`) and tinted towards the screens' colour (`_glass_tint`). Defaults: `_glass_blur` 6 px at 1080p,
+  `_glass_distort` 0.4, tint 0, desat 0. Off (blur and distort 0): no copy, no passes. Second window-only program
+  (canonical_allowlist: 2).
+- **Cost at 3440x1440 (ThinLTO, `--exclusive`, e1m1 start, 400 frames each, `vr_profile`):** the visor's GPU section
+  0.87 / 0.91 ms with the glass off, 0.96 ms at the defaults (+0.07), 0.99 ms at blur 40 and distortion 3 (+0.10);
+  the frame's GPU 2.55 -> 2.64 ms. Its CPU section 0.86 -> 0.93 ms. Most of the visor's own ~0.9 ms is the third
+  pass's supersampled layer (ss 2: a 6880 x 2880 target cleared and filled each frame) and the lens solve on the CPU,
+  not this pass (`scratch/visor4/perf_3440x1440.log`).
+- **Tests:** visor_test 24/0 (new: the shake in the sway at a hit and gone 0.5 s later; the glass on by default;
+  `_side_out` 0.3 / 3 move the side readings in and out, edges met; the log at the top's middle clear of the corners'
+  readings, `_log_width` 0.5 / `_log_out` 3 smaller and lower, 2 / 0.2 fitted and nearer the edge, edges met; autohide:
+  gone with no lines, back with a message). flathud 11/0; flathit 11/0;
+  vr_pp_test 1: 63/0 VR, 62/0 flat; checklist_tests_check 91/0; `vr_menu_path_check maps/vrcalibration.map` 0
+  missing. Proof: `scratch/visor4/` (v4_depth_c: shipped, depth 2 with size 20, bevel 1.5 and gunmetal, the new knobs
+  at 0; v4_glass_c: the side mount at backing 0.1 with the glass off, the defaults, blur 20 + distortion 1.5, + tint
+  and drain; v4_sheen_c: sheen 0 and 3 over the whole mount; v4_scan_c: scanlines 0.6 at thickness 3 and 9;
+  v4_layout_c: side_out 0.3 with log 0.6 / out 2.5, side_out 3 with log 1.6 / out 0.4; v4_shake: a hit of 60 every
+  second frame; v4_bt_c: bullet time with the visor tinted (0) and not (1, the default)).
 ## Flat-screen visor crosshair (agent/visor_xhair, 2026-11-09)
 
 His words: "a new flatscreen-only crosshair option that follows the visor's style and colour scheme, and displays the target

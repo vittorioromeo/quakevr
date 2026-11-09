@@ -4104,6 +4104,26 @@ QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's f
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
+QVR_CVAR(vr_flat_visor_autohide_log, "0", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
+QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
+QVR_CVAR(vr_flat_visor_log_out, "1", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (0.2 .. 4; the edge still met)
+QVR_CVAR(vr_flat_visor_side_out, "1", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (0.2 .. 4; the edges still met)
+QVR_CVAR(vr_flat_visor_scanline_width, "3", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
+QVR_CVAR(vr_flat_visor_depth_opacity, "0.9", CVAR_ARCHIVE) // the back plate's opacity, times the panels' backing (vr_flat_visor_opacity) (0 .. 2, at most solid)
+QVR_CVAR(vr_flat_visor_depth_color, "", CVAR_ARCHIVE)   // the back plate's colour "r g b" (0 .. 1); empty: the face's own, darker (as shipped)
+QVR_CVAR(vr_flat_visor_depth_size, "0", CVAR_ARCHIVE)   // how far the back plate reaches past its face all round, pixels at 1080p (0 .. 60)
+QVR_CVAR(vr_flat_visor_depth_offset, "3", CVAR_ARCHIVE) // how far the back plate sits towards the screen's middle, pixels at 1080p times vr_flat_visor_depth (0 .. 20)
+QVR_CVAR(vr_flat_visor_depth_lag, "0.35", CVAR_ARCHIVE) // how much the back plate lags the sway and the shake, times vr_flat_visor_depth (0 moves with the face .. 1 still)
+QVR_CVAR(vr_flat_visor_depth_content_lag, "0.12", CVAR_ARCHIVE) // how much the readings lag the sway and the shake behind the glass, times vr_flat_visor_depth (0 .. 1)
+QVR_CVAR(vr_flat_visor_depth_bevel, "0.6", CVAR_ARCHIVE) // the back plate's bevel: its rim lit from above, shaded below, as the front frame (0 none .. 2)
+QVR_CVAR(vr_flat_visor_depth_bevel_width, "2", CVAR_ARCHIVE) // the back plate's bevel's width, pixels at 1080p (0.5 .. 12)
+QVR_CVAR(vr_flat_visor_shake, "1", CVAR_ARCHIVE)        // a hit shakes the visor, more for more damage, the back plate and the readings lagging as with a turn (0 never .. 3)
+QVR_CVAR(vr_flat_visor_shake_time, "0.35", CVAR_ARCHIVE) // seconds a hit's shake takes to settle (0.1 .. 2)
+QVR_CVAR(vr_flat_visor_no_bt_tint, "1", CVAR_ARCHIVE)   // the visor's panels keep their colours in bullet time (its drained, tinted look on the view around them alone); 0 tinted with the view
+QVR_CVAR(vr_flat_visor_glass_blur, "6", CVAR_ARCHIVE)   // frosted glass: the view behind each mount blurred this far, pixels at 1080p (0 none .. 40)
+QVR_CVAR(vr_flat_visor_glass_distort, "0.4", CVAR_ARCHIVE) // and bent: a ripple through the glass and its edges bending the view like a lens (0 none .. 3)
+QVR_CVAR(vr_flat_visor_glass_tint, "0", CVAR_ARCHIVE)   // and tinted towards the screens' colour (0 none .. 1)
+QVR_CVAR(vr_flat_visor_glass_desat, "0", CVAR_ARCHIVE)  // and its colour drained (0 none .. 1)
 
 // Flatscreen play's visor crosshair (vr_flatxhair.cpp; FLATPLAY.md, "The visor crosshair"). Sizes in pixels at 1080 rows.
 QVR_CVAR(vr_flat_xhair, "1", CVAR_ARCHIVE)              // 1 the visor crosshair: at the true screen place each gun's shot will hit (centred when near it), in the visor's colours; 0 the classic crosshair (crosshair; its own 0, the game's default, hides it)

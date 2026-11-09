@@ -344,9 +344,11 @@ restored state still forces the head-worn torch lit.
 **The visor HUD (the default).** With `vr_flat_visor 1` (VR Settings > Locomotion, Desktop Screen Play > Visor HUD) the
 HUD is a helmet's visor instead of the status bar: the wrist gadget's screens in seven small panels, each in a mount
 running off the screen's edges (health and armour top left; bullet time, stamina and every ammo carried top right; each
-hand's ammo at its own bottom corner; the console's notify lines low in the middle; keys and sigils on the left edge,
+hand's ammo at its own bottom corner; the console's notify lines at the top's middle; keys and sigils on the left edge,
 powerups and AD's artifacts on the right), bowed by the visor's lens (vr_flat_visor_warp), a faint rim on the glass, a lag and bob of a fraction of a
-degree, a glitch at a hit, fog under water, a red pulse at low health and a power-on sweep at a spawn
+degree, a glitch and a shake at a hit, fog under water, a red pulse at low health, a power-on sweep at a spawn, frosted
+glass behind the mounts (vr_flat_visor_glass_*) and its colours kept in bullet time; its settings on their own page,
+Desktop Screen Play > Visor HUD Look
 (`Quake/vr/vr_visor.cpp`, `vr_gadget_visor.inc`; ROUND24.md, "Flat-screen visor HUD"). `vr_flat_visor 0` puts the status
 bar below back (the TAB scores show with either). Test: `bash Misc/quakevr/visor_test.sh <agent>`.
 

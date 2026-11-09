@@ -228,7 +228,7 @@ gl-program-no-twin Quake/vr/vr_haze.cpp 2  # heat haze: reads each eye's scene c
 gl-program-no-twin Quake/vr/vr_water.cpp 1  # the scene's distances for the liquids: per eye's scene copy (stage 2's liquids, not ported)
 gl-program-no-twin Quake/vr/vr_bloom.cpp 4  # bloom: post on each eye's image (stage 5)
 gl-program-no-twin Quake/vr/vr_flatlook.cpp 1  # flatscreen play's look: the window's view only, never an eye (no multiview twin needed)
-gl-program-no-twin Quake/vr/vr_visor.cpp 1  # flatscreen play's visor HUD: its layer brought down onto the window's view only, never an eye (no multiview twin needed)
+gl-program-no-twin Quake/vr/vr_visor.cpp 2  # flatscreen play's visor HUD: its layer brought down onto the window's view and its frosted glass's blur, the window's view only, never an eye (no multiview twin needed)
 gl-program-no-twin Quake/vr/vr_temporal.cpp 1  # TAA: compute resolve and mask, apply over each eye's image (its program() wrapper's calls are not counted)
 gl-program-no-twin Quake/vr/vr_upscale.cpp 7  # FSR/NIS upscaling and compose: post on each eye's image (NIS is compute)
 gl-program-no-twin Quake/vr/vr_envmap.cpp 1  # environment map capture: a probe's cube faces, not an eye's view

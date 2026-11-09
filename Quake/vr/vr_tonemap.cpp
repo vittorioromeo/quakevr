@@ -9,6 +9,7 @@
 #include "vr_files.hpp"
 #include "vr_input.hpp"
 #include "vr_stereo.hpp"
+#include "vr_visor.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -231,10 +232,19 @@ extern "C" void VR_PostProcessTone(void)
             const bullettime::Look slow = bullettime::look();
             GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, 0.f);
             GL_Uniform3fFunc(10, slow.tint.x, slow.tint.y, slow.tint.z);
+            // The visor's panels keep their colours (vr_flat_visor_no_bt_tint): its layer's alpha leaves them alone.
+            glm::vec4 rect{0.f};
+            const unsigned mask = slow.strength > 0.f ? visor::tintMask(rect) : 0u;
+            if(mask)
+            {
+                GL_BindNative(GL_TEXTURE7, GL_TEXTURE_2D, mask);
+            }
+            GL_Uniform4fFunc(11, rect.x, rect.y, mask ? rect.z : 0.f, rect.w);
         }
         else
         {
             GL_Uniform4fFunc(9, 0.f, 0.f, 0.f, 0.f);
+            GL_Uniform4fFunc(11, 0.f, 0.f, 0.f, 0.f);
         }
         return;
     }
@@ -247,4 +257,5 @@ extern "C" void VR_PostProcessTone(void)
     const bullettime::Look slow = bullettime::look(); // bullet time's look (the eyes only: not the spectator camera)
     GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, input::comfortVignette()); // (and the comfort vignette)
     GL_Uniform3fFunc(10, slow.tint.x, slow.tint.y, slow.tint.z);
+    GL_Uniform4fFunc(11, 0.f, 0.f, 0.f, 0.f); // (the flat-screen visor's mask: never an eye's)
 }

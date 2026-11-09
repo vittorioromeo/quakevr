@@ -1,23 +1,25 @@
 // vr_visor_mounts.inc -- part of vr_visor.cpp: the panels' mounts on the screen's edges and the visor's lens.
 //
 // Each panel sits in a mount: a flat dark translucent face with a frame line in the screens' green, whose outer sides run
-// off the screen's edges (the corners' mounts with an angled strut back to the side, the bottom middle one a trapezoid
-// widening into the bottom edge, the side ones narrowing towards the middle), laid out on a flat layer in the view's
+// off the screen's edges (the corners' mounts with an angled strut back to the side, the top middle one (the log) a
+// trapezoid widening into the top edge, the side ones narrowing towards the middle), laid out on a flat layer in the view's
 // pixels, left and right exactly mirrored. The sway moves the whole layer (the helmet). Then the layer goes through the
 // visor's zoom about the middle (vr_flat_visor_zoom) and its lens (vr_flat_visor_warp): a point seen at p (the view's
 // -1..1) shows what the layer has at q = p (1 + k (|p|^2 - 1)): k > 0 the edges show the layer beyond them, the middle
 // a touch magnified (barrel); k < 0 the other way (pincushion); the mounts run far enough past the edges for either.
 // Drawn by warping the vertices (q to p, solved along the ray), the faces' outlines and the contents' grids finely
 // subdivided. The panels read as lit glass in metal mounts: a back plate a little behind and below the face that lags
-// the sway (vr_flat_visor_depth), a frame lit from above (vr_flat_visor_bevel) with an inner highlight, a sheen down
-// each face and a glint across the contents, which sit a little behind the glass (vr_flat_visor_sheen), glows outside
-// and inside the frame (vr_flat_visor_glow_outer, _inner, _width), the frame vr_flat_visor_edge across.
+// the sway (vr_flat_visor_depth; its _depth_* tweaks: opacity, colour, size, offset, lag, its own bevel), a frame lit
+// from above (vr_flat_visor_bevel) with an inner highlight, a sheen down each whole face and a glint across it, the
+// contents a little behind the glass (vr_flat_visor_sheen), glows outside and inside the frame (vr_flat_visor_glow_outer,
+// _inner, _width), the frame vr_flat_visor_edge across.
 
 constexpr float mountPad = 4.f;     // virtual pixels round a panel's contents
 constexpr float mountChamfer = 8.f; // its inner corners cut
 constexpr float mountInset = 7.f;   // the contents' distance from the screen's edges
 constexpr float strutSlope = 0.55f; // the corner mounts' strut: down (or up) this much a pixel back to the side
-constexpr float trapSlope = 0.45f;  // the bottom middle mount's sides: out this much a pixel down
+constexpr float trapSlope = 0.45f;  // the top middle mount's sides: out this much a pixel towards the edge
+constexpr float logGap = 12.f;      // at least this between the top middle mount and the corners' (virtual pixels, at the edge)
 
 // Where each panel's mount stands: its anchor on the screen (x, y in shares of the view: 0 left/top, 1 right/bottom),
 // which way its local x and y run into the screen (+1 right/down, -1 left/up), and its kind.
@@ -25,7 +27,7 @@ enum class MountKind
 {
     Corner, // a corner's: the contents at (inset, inset) from the corner, a strut back to the side
     Side,   // the middle of a side: the contents centred on the anchor's y
-    Bottom, // the bottom's middle: the contents centred on the anchor's x
+    Middle, // the middle of the top (or bottom) edge: the contents centred on the anchor's x
 };
 struct MountPlace
 {
@@ -38,7 +40,7 @@ constexpr MountPlace mountPlaces[VisorPanelCount] = {
     {{1.f, 0.f}, {-1.f, 1.f}, MountKind::Corner},  // status: top right
     {{0.f, 1.f}, {1.f, -1.f}, MountKind::Corner},  // the left hand: bottom left
     {{1.f, 1.f}, {-1.f, -1.f}, MountKind::Corner}, // the right hand: bottom right
-    {{0.5f, 1.f}, {1.f, -1.f}, MountKind::Bottom}, // the log: the bottom's middle
+    {{0.5f, 0.f}, {1.f, 1.f}, MountKind::Middle},  // the log: the top's middle (vr_flat_visor_log_width, _log_out)
     {{0.f, 0.5f}, {1.f, 1.f}, MountKind::Side},    // keys and sigils: the left side's middle
     {{1.f, 0.5f}, {-1.f, 1.f}, MountKind::Side},   // powerups: the right side's middle
 };
@@ -54,6 +56,9 @@ struct Layer
     float zoom{1.f};
     float px1080{1.f};
     glm::vec2 overhang{0.f}; // how far (virtual pixels) the mounts run past the edges, across and down
+    float sideOut{1.f};      // the side mounts' reach in from the edges (vr_flat_visor_side_out)
+    float logScale{1.f};     // the top middle mount's size (vr_flat_visor_log_width, shrunk to fit between the corners')
+    float logOut{1.f};       // and its gap to the top edge (vr_flat_visor_log_out)
 };
 
 // The lens: the layer's point a screen point shows (both in the view's -1..1, y up), and back (solved along the ray: the
@@ -164,21 +169,26 @@ struct Mount
         }
         case MountKind::Side:
         {
-            m.lo = {mountInset, -H * 0.5f};
-            m.hi = {mountInset + W, H * 0.5f};
-            const float R = m.hi.x + mountPad, T = H * 0.5f + mountPad;
+            // (vr_flat_visor_side_out: the gap to the edge and the inner padding scaled, the chamfer clear of the contents)
+            const float inset = za::max(1.5f, mountInset * L.sideOut), pad = mountPad * L.sideOut;
+            const float cut = mountChamfer * za::min(1.f, L.sideOut);
+            m.lo = {inset, -H * 0.5f};
+            m.hi = {inset + W, H * 0.5f};
+            const float R = m.hi.x + pad, T = H * 0.5f + mountPad;
             add(-ex, -T - ex * 0.5f);
-            add(R - c, -T);
-            add(R, -T + c);
-            add(R, T - c);
-            add(R - c, T);
+            add(R - cut, -T);
+            add(R, -T + cut);
+            add(R, T - cut);
+            add(R - cut, T);
             add(-ex, T + ex * 0.5f);
             break;
         }
-        case MountKind::Bottom:
+        case MountKind::Middle:
         {
-            m.lo = {-W * 0.5f, mountInset};
-            m.hi = {W * 0.5f, mountInset + H};
+            // (vr_flat_visor_log_out: its gap to the edge scaled)
+            const float inset = za::max(1.5f, mountInset * L.logOut);
+            m.lo = {-W * 0.5f, inset};
+            m.hi = {W * 0.5f, inset + H};
             const float X = W * 0.5f + mountPad, T = m.hi.y + mountPad;
             add(-X - (T + ey) * trapSlope, -ey);
             add(-X, T - c);
@@ -190,6 +200,17 @@ struct Mount
         }
     }
     return m;
+}
+
+// The top middle mount's size: vr_flat_visor_log_width, no larger than leaves it `logGap` clear of the top corners' mounts
+// where it meets the edge (its half width there: the contents' half, the padding, the trapezoid's flare over its depth).
+// `logSize`: its image's (virtual pixels); `cornerReach`: the wider top corner mount's reach in from its side.
+[[nodiscard]] float logFit(const Layer& L, const glm::vec2& logSize, float cornerReach, float wanted)
+{
+    const float inset = za::max(1.5f, mountInset * L.logOut);
+    const float room = L.w / L.unit * 0.5f - cornerReach - logGap - mountPad - (inset + mountPad) * trapSlope;
+    const float most = room / za::max(1.f, logSize.x * 0.5f + logSize.y * trapSlope);
+    return za::max(0.2f, za::min(wanted, most));
 }
 
 // Whether a local point is inside the outline (crossings).
@@ -209,7 +230,7 @@ struct Mount
 
 // The edge contact (vr_flat_visor_report, the test): the screen's points the mount must cover where it meets the edges --
 // a corner's corner and a point on each of its two edges, a side's middle and a point either side of it on its edge, the
-// bottom's middle and a point either side -- each looked up through the lens, the zoom and the sway into the layer: all
+// top's middle and a point either side -- each looked up through the lens, the zoom and the sway into the layer: all
 // inside its face (and its back plate's: the face is what meets the edge).
 [[nodiscard]] bool edgeContact(const Layer& L, int p, const Mount& m)
 {
@@ -221,7 +242,7 @@ struct Mount
     {
         case MountKind::Corner: pts = {a, a + glm::vec2{place.dir.x * span.x, 0.f}, a + glm::vec2{0.f, place.dir.y * span.y}}; break;
         case MountKind::Side: pts = {a, a + glm::vec2{0.f, span.y}, a - glm::vec2{0.f, span.y}}; break;
-        case MountKind::Bottom: pts = {a, a + glm::vec2{span.x, 0.f}, a - glm::vec2{span.x, 0.f}}; break;
+        case MountKind::Middle: pts = {a, a + glm::vec2{span.x, 0.f}, a - glm::vec2{span.x, 0.f}}; break;
     }
     const glm::vec2 mid{L.w * 0.5f, L.h * 0.5f};
     for(const glm::vec2& screen : pts)
@@ -288,10 +309,19 @@ void ringOf(const Layer& L, int p, const Mount& m, float parallax, const glm::ve
 }
 
 // A band along the ring between two offsets (view pixels, outwards positive) with a colour at each (premultiplied),
-// `shade` brightening the pieces facing up (the light from above) and darkening those facing down by that much.
+// `shade` brightening the pieces facing up (the light from above) and darkening those facing down by that much
+// (`shadeAlpha`: the whole premultiplied colour scaled, never past opaque, so a dark band's strength follows it too).
 void band(const Layer& L, const Ring& r, float off0, float off1, const glm::vec4& c0, const glm::vec4& c1, float shade,
-    za::Vector<gfx::Vertex>& out)
+    za::Vector<gfx::Vertex>& out, bool shadeAlpha = false)
 {
+    const auto scaled = [shadeAlpha](const glm::vec4& c, float l) {
+        if(!shadeAlpha)
+        {
+            return c * glm::vec4{glm::vec3{l}, 1.f};
+        }
+        const float k = za::max(0.f, l);
+        return c * (c.a * k > 1.f ? 1.f / c.a : k);
+    };
     for(int i = 0; i < r.n; i++)
     {
         const int j = (i + 1) % r.n;
@@ -300,10 +330,10 @@ void band(const Layer& L, const Ring& r, float off0, float off1, const glm::vec4
             return 1.f + shade * up;
         };
         const float li = lit(i), lj = lit(j);
-        const gfx::Vertex a0{clip(L, r.at[i] + r.out[i] * off0), {0.f, 0.f}, c0 * glm::vec4{glm::vec3{li}, 1.f}};
-        const gfx::Vertex a1{clip(L, r.at[i] + r.out[i] * off1), {0.f, 0.f}, c1 * glm::vec4{glm::vec3{li}, 1.f}};
-        const gfx::Vertex b0{clip(L, r.at[j] + r.out[j] * off0), {0.f, 0.f}, c0 * glm::vec4{glm::vec3{lj}, 1.f}};
-        const gfx::Vertex b1{clip(L, r.at[j] + r.out[j] * off1), {0.f, 0.f}, c1 * glm::vec4{glm::vec3{lj}, 1.f}};
+        const gfx::Vertex a0{clip(L, r.at[i] + r.out[i] * off0), {0.f, 0.f}, scaled(c0, li)};
+        const gfx::Vertex a1{clip(L, r.at[i] + r.out[i] * off1), {0.f, 0.f}, scaled(c1, li)};
+        const gfx::Vertex b0{clip(L, r.at[j] + r.out[j] * off0), {0.f, 0.f}, scaled(c0, lj)};
+        const gfx::Vertex b1{clip(L, r.at[j] + r.out[j] * off1), {0.f, 0.f}, scaled(c1, lj)};
         out.pushBack(a0);
         out.pushBack(b0);
         out.pushBack(b1);
@@ -325,8 +355,31 @@ void line(const Layer& L, const Ring& r, float offset, float width, const glm::v
     band(L, r, offset + half, offset + half + feather, c, clear, shade, out);
 }
 
+// The ring pushed out by `by` pixels all round (along its mitred normals: the back plate grown, vr_flat_visor_depth_size).
+void grow(Ring& r, float by)
+{
+    for(int i = 0; i < r.n; i++)
+    {
+        r.at[i] += r.out[i] * by;
+    }
+}
+
+// What of the ring is on the screen: its bounding box clamped to the view (x0, y0, x1, y1; view pixels).
+[[nodiscard]] glm::vec4 shownBox(const Layer& L, const Ring& r)
+{
+    glm::vec2 lo{1e9f}, hi{-1e9f};
+    for(int i = 0; i < r.n; i++)
+    {
+        lo = glm::min(lo, r.at[i]);
+        hi = glm::max(hi, r.at[i]);
+    }
+    lo = glm::clamp(lo, glm::vec2{0.f}, glm::vec2{L.w, L.h});
+    hi = glm::clamp(hi, glm::vec2{0.f}, glm::vec2{L.w, L.h});
+    return {lo, glm::max(hi, lo + glm::vec2{1.f})};
+}
+
 // The face: a fan from the ring's first point (far off the screen) over the rest, premultiplied; a sheen brightening it
-// towards its top (the light from above) by `sheen`.
+// towards its top (the light from above) by `sheen`, `topBottom` the face's top and bottom as seen.
 void face(const Layer& L, const Ring& r, const glm::vec4& c, const glm::vec2& topBottom, float sheen,
     za::Vector<gfx::Vertex>& out)
 {
@@ -343,11 +396,29 @@ void face(const Layer& L, const Ring& r, const glm::vec4& c, const glm::vec2& to
     }
 }
 
+// The glass's glint over the whole face (clipped to its outline: the face's own fan): a soft diagonal band
+// (Shade::SoftEdge, its falloff across uv.y, exact over any triangles: it is linear in the position) from the top left
+// of what is seen of it, `box`, a third of the way down to its bottom right.
+void glint(const Layer& L, const Ring& r, const glm::vec4& box, float strength, za::Vector<gfx::Vertex>& out)
+{
+    const glm::vec2 size{box.z - box.x, box.w - box.y};
+    const auto vertex = [&](const glm::vec2& px) {
+        const glm::vec2 t = (px - glm::vec2{box.x, box.y}) / size; // 0 the top left .. 1 the bottom right
+        return gfx::Vertex{clip(L, px), {0.f, ((t.x + t.y) * 0.5f - 0.3f) * 5.f}, glm::vec4{1.f, 1.f, 1.f, 0.05f * strength}};
+    };
+    const gfx::Vertex apex = vertex(r.at[0]);
+    for(int i = 1; i + 1 < r.n; i++)
+    {
+        out.pushBack(apex);
+        out.pushBack(vertex(r.at[i]));
+        out.pushBack(vertex(r.at[i + 1]));
+    }
+}
+
 // The contents: the panel's image over its rectangle as a grid through the zoom and the lens, as a small CRT, its face
-// clear (premultiplied out of Shade::Screen's inkAlpha); then the glass's diagonal glint over it (`glint`). `rect`: where
-// it landed (view pixels).
+// clear (premultiplied out of Shade::Screen's inkAlpha). `rect`: where it landed (view pixels).
 void drawContents(const Layer& L, int p, const Mount& m, const gadget::VisorImage& img, const gfx::State& state,
-    const glm::vec4& phosphor, float parallax, float glint, glm::vec4& rect)
+    const glm::vec4& phosphor, float parallax, glm::vec4& rect)
 {
     // The rectangle in layer pixels (the image never mirrored: its left at the screen's left).
     const glm::vec2 a = localToPx(L, p, m.lo, parallax), b = localToPx(L, p, m.hi, parallax);
@@ -382,18 +453,4 @@ void drawContents(const Layer& L, int p, const Mount& m, const gadget::VisorImag
     const int count = quads([&](int i, int j) { return grid[j * (gx + 1) + i]; });
     gfx::draw({tris.data(), static_cast<za::SizeT>(count)}, glm::mat4{1.f}, state, img.texture);
     rect = {drawnLo, drawnHi};
-
-    if(glint > 0.f)
-    {
-        // A soft diagonal band across the glass (Shade::SoftEdge: its falloff across uv.y), from the top's outer part down.
-        const int glintCount = quads([&](int i, int j) {
-            gfx::Vertex v = grid[j * (gx + 1) + i];
-            const float d = (v.uv.x + (1.f - v.uv.y)) * 0.5f; // 0 the top left .. 1 the bottom right
-            v.uv = {0.f, (d - 0.3f) * 5.f};
-            v.color = glm::vec4{1.f, 1.f, 1.f, 0.05f * glint};
-            return v;
-        });
-        gfx::draw({tris.data(), static_cast<za::SizeT>(glintCount)}, glm::mat4{1.f},
-            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = false, .depthWrite = false});
-    }
 }

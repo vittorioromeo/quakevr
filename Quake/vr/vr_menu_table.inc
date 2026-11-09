@@ -463,6 +463,7 @@ inline constexpr Page pages[] = {
     {"World Text Font", pageFontSurface<3>, pageScreens}, // (Surface::World)
     {"Armour Studio", pageArmourStudio, pageDebugTools, LevelDeveloper}, // (vr_menu_debug.inc; vr_armourstudio.cpp)
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
+    {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
     // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).

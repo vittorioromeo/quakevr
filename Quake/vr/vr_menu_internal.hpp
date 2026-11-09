@@ -712,6 +712,7 @@ za::Vector<Item> pageHudHub();
 [[nodiscard]] za::Vector<Item> pageImmersionSettings();
 za::Vector<Item> pageLightningWater();
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings();
+[[nodiscard]] za::Vector<Item> pageVisorSettings();
 za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageMeleeSettings();
 [[nodiscard]] za::Vector<Item> pageMenuSettings();
