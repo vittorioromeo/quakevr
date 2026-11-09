@@ -1,6 +1,6 @@
 #ifdef QVR_TESTS
 // vr_playerplates_test.qc -- the player's armour plates (vr_playerplates.qc; ROUND24.md, "The player's armour plates").
-// `map vrtesthall; vr_pp_test 1` (no god: real hits): the pieces against the armour for each tier, a hit from a side
+// `map vrtesthall; vr_pp_test 1` (real hits: it takes god mode and a Pentagram off while it runs): the pieces against the armour for each tier, a hit from a side
 // shedding the piece nearest it, the helmet's fall, the cuirass last; a shard, new armour and an upgrade through the morph
 // (over time, not at once); the damage taken the same with the plates on and off (and as the old rule has it); the helmet
 // never drawn from the eyes (VR and -flatscreenmode). Ends `pptest: N passed, M failed`.
@@ -21,6 +21,8 @@ float vr_ppt_prog;     // ... last seen
 float vr_ppt_case;     // which pickup
 float vr_ppt_mask;     // the pieces noted
 float vr_ppt_shot;     // the picture being taken
+float vr_ppt_god;      // test 1: FL_GODMODE as it found it (taken off for its real hits, given back at the end)
+float vr_ppt_invinc;   // ... invincible_finished, the same
 
 float VR_PPT_GIVEUP = 10; // seconds a state may last
 
@@ -398,19 +400,22 @@ void(entity p) VR_PPT_Main =
         }
         else
         {
-            localcmd("vr_mock_camera 0 1.3 -1.8 0 180\n");
+            // (ahead of the buffer: localcmd's would wait behind a run script's queued `wait`s, past the 4 frames)
+            localcmdfirst("vr_mock_camera 0 1.3 -1.8 0 180\n");
             VR_PPT_To(32, 4);
         }
     }
     else if(vr_ppt_s == 32)
     {
         VR_Test_Check((VR_PPT_Client(p, 16) & 2) != 0, sprintf("from outside: the helmet with the head (drawn %g)", VR_PPT_Client(p, 16)));
-        localcmd("vr_mock_camera\n");
+        localcmdfirst("vr_mock_camera\n");
         VR_PPT_To(100, 2);
     }
     else if(vr_ppt_s == 100)
     {
         VR_PPT_Set(p, 0, 0);
+        p.flags = p.flags | vr_ppt_god;
+        p.invincible_finished = vr_ppt_invinc;
         VR_Test_Verdict();
         vr_ppt_on = 0;
     }
@@ -833,6 +838,16 @@ void() VR_PP_TestFrame =
         {
             VR_Test_BeginFlags("pptest", VR_TEST_LOUD);
             vr_ppt_on = 1;
+            // Real hits: god mode or a Pentagram left on by an earlier command or test (`god` for a sheet's) takes the
+            // health off none of them, and the absorb check fails 23 of 24. Off for the test, back at its end.
+            vr_ppt_god = p.flags & FL_GODMODE;
+            vr_ppt_invinc = p.invincible_finished;
+            if(vr_ppt_god || vr_ppt_invinc > time)
+            {
+                bprint(sprintf("pptest: god mode (%g) and the Pentagram (%g s) off for the test\n", vr_ppt_god ? 1 : 0, max(0, vr_ppt_invinc - time)));
+            }
+            p.flags = p.flags - vr_ppt_god;
+            p.invincible_finished = 0;
             // (the body shown, its shell made, past the new level's settling second: setupPlates)
             VR_PPT_To(0, 110);
         }

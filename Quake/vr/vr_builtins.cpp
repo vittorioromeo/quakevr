@@ -799,6 +799,17 @@ void PF_WriteVec3()
 #include "vr_builtins_held.inc"
 #include "vr_builtins_hitmodel.inc"
 
+// ----------------------------------------------------------------------------
+// The console
+
+// localcmd's text, but ahead of what the command buffer holds: void(string s) localcmdfirst. It runs at the buffer's
+// next pass, as localcmd's does when the buffer is empty; localcmd's waits behind a script's queued `wait`s (a run's
+// `vr_x_test 1; wait600; quit`), this does not. Two in one frame run the later first: one call per step.
+void PF_localcmdfirst()
+{
+    Cbuf_InsertText(G_STRING(OFS_PARM0));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -1022,6 +1033,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponheft", PF_weaponheft},
     {"impact", impacts::PF_impact},
     {"impactsound", impacts::PF_impactsound},
+    {"localcmdfirst", PF_localcmdfirst},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,
