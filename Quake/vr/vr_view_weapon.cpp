@@ -307,7 +307,8 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     }
 
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr);
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr,
+        &screenstyle::forModel(ve.ent.model ? ve.ent.model->name : nullptr));
     if(vr_weapon_screen.value != 0.f)
     {
         emissive::weaponScreenLight(hand, pos, angles); // its faint glow (vr_weapon_screen_light)

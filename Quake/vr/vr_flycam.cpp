@@ -78,9 +78,10 @@ void enter()
                 : (vr_flat_flycam_pause.value != 0.f ? "not paused: multiplayer or a demo runs on" : "the game runs on"));
 }
 
-// vr_flat_flycam_place [<forward> <right> <up> [<pitch>]] (tests, and a look at his body): the fly camera on, put
+// vr_flat_flycam_place [<forward> <right> <up> [<pitch> [<yaw>]]] (tests, and a look at his body): the fly camera on, put
 // that many units off his eye along his level forward, right and up, and turned to look back at his eye (pitch: the
-// look down, else at the eye); no arguments, 60 in front, a little above, looking back at him.
+// look down, else at the eye; yaw: degrees left of his own view's, else at the eye: a look at his gun from over his
+// shoulder); no arguments, 60 in front, a little above, looking back at him.
 void place_f()
 {
     if(!flatplay::active() || !levelUp())
@@ -104,7 +105,8 @@ void place_f()
     const glm::vec3 back = eye - cam.pos;
     const float flat = glm::length(glm::vec2{back.x, back.y});
     const float pitch = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : glm::degrees(za::atan2(-back.z, za::max(flat, 0.01f)));
-    cam.turn = {za::clamp(pitch, -pitchMost, pitchMost), glm::degrees(za::atan2(back.y, back.x)), 0.f};
+    const float turnYaw = Cmd_Argc() > 5 ? yaw + Q_atof(Cmd_Argv(5)) : glm::degrees(za::atan2(back.y, back.x));
+    cam.turn = {za::clamp(pitch, -pitchMost, pitchMost), turnYaw, 0.f};
     cam.vel = glm::vec3{0.f};
     Con_Printf("vr_flat_flycam_place: at %.0f %.0f %.0f, turned %.0f %.0f\n", cam.pos.x, cam.pos.y, cam.pos.z, cam.turn.x, cam.turn.y);
 }

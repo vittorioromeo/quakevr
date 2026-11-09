@@ -23,6 +23,7 @@
 #include "vr_profile.hpp"
 #include "vr_rope.hpp"
 #include "vr_portals.hpp"
+#include "vr_screenstyle.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -54,6 +55,7 @@ struct Queued
     bool screen;
     bool tinted{false}; // a screen's text in `tint`, not the screen's colour (queue's `tint`)
     glm::vec3 tint{1.f};
+    const screenstyle::Style* style{nullptr}; // a screen's look (queue's `style`; null: the default)
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
     za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
@@ -128,6 +130,7 @@ struct ScreenQuad
     gfx::Texture texture;
     bool board{false}; // a map's board: stands in the world
     bool trueColor{false}; // its text whitened (vr_ammo_screen_text_white): the image in its own colours
+    glm::vec4 frame{0.f}, glass{0.f}; // its rounded glass (vr_screenstyle.hpp; State::frame, State::glass)
 };
 za::Vector<ScreenQuad> screenQuads;
 int screenCount = 0; // screen texts laid out this frame
@@ -626,9 +629,17 @@ struct ScreenLook
     return -1;
 }
 
-void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
-    bool screen = false, const glm::vec3* tint = nullptr)
+void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles, Align align, float scale,
+    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* styleIn = nullptr)
 {
+    // A screen's look (vr_screenstyle.hpp): its weapon's, else the default; off (vr_weapon_screen_style 0) the old one.
+    const bool styled = screen && screenstyle::enabled();
+    const screenstyle::Style& style = styleIn ? *styleIn : screenstyle::fallback();
+    glm::vec3 pos = posIn;
+    if(styled)
+    {
+        scale *= style.size;
+    }
     const fontstyle::Use font{screen ? fontstyle::Surface::Ammo : fontstyle::Surface::World}; // (Screens' font pages)
     const size_t longest = splitLines(text);
     if(longest == 0)
@@ -641,6 +652,10 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
     AngleVectors(a, f, r, u);
     right = {r[0], r[1], r[2]};
     up = {u[0], u[1], u[2]};
+    if(styled)
+    {
+        pos += right * style.offset.x + up * style.offset.y + glm::normalize(glm::cross(right, up)) * style.offset.z;
+    }
 
     // A sign read from behind is turned round rather than mirrored (screens have a back).
     if(!screen)
@@ -684,19 +699,20 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
         const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
         const float pad = charSize / 8.f * static_cast<float>(screenPad());
-        const float bezel = charSize * 0.3f;
+        const float bezel = charSize * 0.3f * (styled ? style.box : 1.f);
         const float depth = charSize * 0.5f;
         const float gap = charSize * 0.04f;
 
+        // (Styled, the box is the glass's frame: darker, and the glass's rounded corners show it.)
         box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
-            glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
+            styled ? glm::vec3{0.07f, 0.07f, 0.075f} : glm::vec3{0.13f, 0.13f, 0.14f}, screenPanels);
         const glm::vec3 c = pos - n * gap;
         const glm::vec3 bl = c - right * (halfW + pad) - up * (halfH + pad);
         const glm::vec3 br = c + right * (halfW + pad) - up * (halfH + pad);
         const glm::vec3 tr = c + right * (halfW + pad) + up * (halfH + pad);
         const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
 
-        const float crt = screenCrt();
+        const float crt = screenCrt() * (styled ? style.crt : 1.f);
         int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint));
         if(slot < 0 && index < maxScreenImages)
         {
@@ -721,7 +737,9 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
                 .params = {time, crt, gadget::glitch(realtime + offset) * za::min(crt, 1.f), gadget::textGlow()},
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
                 .texture = image->target.texture,
-                .trueColor = image->trueColor});
+                .trueColor = image->trueColor,
+                .frame = styled ? glm::vec4{style.radius, style.bevel, style.vignette, style.sheen} : glm::vec4{0.f},
+                .glass = styled ? glm::vec4{glm::vec3{textColor} * style.glass * style.tint, style.soft} : glm::vec4{0.f}});
         }
         else
         {
@@ -729,7 +747,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         }
 
         // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face (dimmed: the gear lights).
-        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light();
+        // (Styled: set in its frame, the glass glows less beyond it.)
+        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light() * (styled ? 0.45f : 1.f);
         if(k > 0.f && bright > 0.f)
         {
             glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},
@@ -1225,7 +1244,7 @@ void drawOverlay()
 }
 
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen,
-    const glm::vec3* tint)
+    const glm::vec3* tint, const screenstyle::Style* style)
 {
     Queued& q = nextQueued();
     q.text = text;
@@ -1236,6 +1255,7 @@ void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, A
     q.screen = screen;
     q.tinted = tint != nullptr;
     q.tint = tint ? *tint : glm::vec3{1.f};
+    q.style = style;
     q.overlay = false;
     q.bars.clear();
     builtFrame = -1;
@@ -1672,7 +1692,7 @@ extern "C" void VR_DrawSceneOpaque()
                 }
                 else
                 {
-                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen, q.tinted ? &q.tint : nullptr);
+                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen, q.tinted ? &q.tint : nullptr, q.style);
                 }
             }
         }
@@ -1725,7 +1745,8 @@ extern "C" void VR_DrawSceneOpaque()
     {
         gfx::draw(q.vertices, viewProjection,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-                .params = q.params, .screen = q.size, .trueColor = q.trueColor, .flatModelFov = !q.board},
+                .params = q.params, .screen = q.size, .trueColor = q.trueColor, .frame = q.frame, .glass = q.glass,
+                .flatModelFov = !q.board},
             q.texture);
     }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no

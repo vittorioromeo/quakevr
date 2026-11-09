@@ -92,6 +92,8 @@ constexpr const char* fragmentShader = R"(
 layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
+layout(location = 18) uniform vec4 Frame; // Mode 4 as rounded glass (State::frame): corner radius, bevel (pixels), vignette, sheen
+layout(location = 19) uniform vec4 Glass; // and the glass's colour under the face (rgb), the digits' softness (a)
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
 #if MODE == 1
 layout(location = 17) uniform vec2 Band; // the falloffs drawn: above x, up to y (State::once's bands; else all)
@@ -271,6 +273,13 @@ vec4 screen()
         rgb = mix(rgb, vec3(1.2 * lum), min(core, 0.9));
         rgb += glow(at, s);
     }
+    if(Glass.a > 0.0)
+    {
+        // Softer digits: the phosphor bleeding a little into the glass (a level and a half coarser, mixed in).
+        float lod = max(textureQueryLod(Tex, uv).y - 1.0, 0.0) + 1.5;
+        vec3 blurred = TrueColor > 0.5 ? textureLod(Tex, at, lod).rgb : color.rgb * lit(at, lod);
+        rgb = mix(rgb, max(rgb, blurred * 1.1), 0.6 * Glass.a);
+    }
     rgb *= 1.0 - 0.3 * g;
 
     float y = uv.y * Size.y * Size.z;
@@ -288,6 +297,28 @@ vec4 screen()
     rgb += color.rgb * (0.05 * k * exp(-d * d * 400.0));
     float noise = hash(floor(uv * Size.xy) + vec2(seed, seed * 0.37));
     rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
+    if(Frame.x > 0.0 || Frame.y > 0.0)
+    {
+        // Rounded glass set in its frame (the ammo screens: vr_screenstyle.hpp). Outside the rounded corners nothing
+        // (the frame behind shows); inside, the glass's own dark colour under the face, a vignette, a thin dark inner
+        // bevel (the frame's lip shading the glass, darker at the top), a faint highlight along the bottom edge and a
+        // soft reflection high on the left.
+        vec2 px = uv * Size.xy, h = Size.xy * 0.5;
+        float r = min(Frame.x, min(h.x, h.y));
+        vec2 q = abs(px - h) - (h - vec2(r));
+        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; // < 0 inside
+        if(d > 0.0)
+            discard;
+        float l = max(max(rgb.r, rgb.g), rgb.b);
+        rgb += Glass.rgb * (1.0 - clamp(l * 2.0, 0.0, 1.0));
+        vec2 c = (px - h) / h;
+        rgb *= 1.0 - Frame.z * smoothstep(0.25, 1.45, length(c));
+        float lip = Frame.y > 0.0 ? 1.0 - smoothstep(0.0, Frame.y, -d) : 0.0;
+        rgb *= 1.0 - lip * (0.45 + 0.4 * uv.y);
+        rgb += vec3(0.06) * lip * smoothstep(0.5, 0.0, uv.y) * smoothstep(0.0, 0.5, -d / max(Frame.y, 1e-3));
+        float sheen = 1.0 - smoothstep(0.0, 0.75, length((uv - vec2(0.18, 0.92)) * vec2(1.0, 1.7)));
+        rgb += Frame.w * 0.07 * sheen * mix(vec3(1.0), Glass.rgb * 8.0, 0.3);
+    }
     return vec4(rgb, color.a); // (opaque but for the tips' fading screens over the scene: text3d::queueOverlayScreen)
 }
 // Mode 5, the wrist gadget's hologram (premultiplied; the vertex colour's alpha: how shown). Params: time, the effect's
@@ -1139,6 +1170,11 @@ void flatFovUniforms(bool on)
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
         GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);
         GL_Uniform1fFunc(16, state.trueColor ? 1.f : 0.f);
+    }
+    if(state.shade == Shade::Screen)
+    {
+        GL_Uniform4fFunc(18, state.frame.x, state.frame.y, state.frame.z, state.frame.w);
+        GL_Uniform4fFunc(19, state.glass.x, state.glass.y, state.glass.z, state.glass.w);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
     if(state.shade == Shade::SoftEdge)
