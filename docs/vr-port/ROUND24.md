@@ -5517,6 +5517,106 @@ this file once; the duplicate was "Release pass for 1.1", in twice: the second c
   flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
 - Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.
 
+## The shotgun's ammo screen housing (agent/housing_shot, 2026-11-09)
+
+His mockup (round one's `mock_shot.png`): the screen set in a bevelled bezel with four corner bolts on the receiver's end
+face. Panel (today's next / this branch / the mockup, 4K flat, the fly camera at about the mockup's angle):
+`scratch/housing_shot/panel_shot.png` in the embed5 worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_shot.py` (Blender, headless) builds it on `v_shot.blend` and exports:
+  a rounded bezel round the opening (its flat front, a 45-degree bevel, walls back into the gun), the opening one grid
+  step deep with a dark back behind the glass, four domed bolt heads beside it (the end face is a trapezoid: the top
+  pair further out). 149 vertices, 240 triangles (the gun 1928 -> 2168). The opening's size and corner come from the
+  "shot" entry of `vr_screenstyle.cpp` (`opening` 11 x 8.5 font px, `radius` 3), so the glass and the bezel are one
+  shape. Textured from the gun's own skin: the bezel's profile across the shaded metal tube strip (as if the tube were
+  bent round the opening: dark at the foot, lit along the lip, dark inside), the bolts dark with a lit head.
+- **The grid:** v_shot's X is 0.22 model units a step, so depths are whole steps: the bezel's front 2 steps in front of
+  the end face's bottom edge (1 at its top: the face leans 5.9 degrees), the opening 1 step deep, the bolt heads 1 step.
+  The bezel is upright (not leaning with the face) so every front vertex is on one step.
+- **The box:** at the recoil's peak (frame shot3) the receiver's top back corner is on the model box's low X; the bezel's
+  front would be past it by up to 0.18. Rather than growing the box (every vertex of the gun re-gridded), the script
+  holds those 15 places on the box's edge in that frame (a frame edited on its own; the export keeps it). New vertices
+  can't be edited per frame until the file has them (the export carries a new vertex with its nearest old one and
+  ignores its own frames), so a new housing is built a step back, exported, moved into place and exported again; the
+  .blend is saved as the export left it.
+- **The glass:** upright (`wpntxt_pitch` 2: measured, pitch p tilts the glass 17.6 - (p + 15.6) degrees from upright),
+  `wpntxt_scale` 0.35 (his own value, now the default: a font pixel 0.07102 model units), its centre 1.066 -0.03 2.48
+  halfway down the opening, through the table's offset (-0.0185, -0.0505, -0.1004 world units right/up/out), so
+  configs that hold `vr_wofs_wpntxt_x/y/z_02` still land. Table: box 0 (the bezel frames it), radius 3.
+  `vr_debug_screen_where`: centre 1.0656 -0.0282 2.4799, up 0 0 1.
+- **His config:** the kit's copy holds `vr_wofs_wpntxt_pitch_02 "-15.6"` (the glass 17.6 degrees off upright: it would
+  stick out of the bezel at the top and sink at the bottom). Reset it to 2 (or delete the line); scale 0.35 already
+  matches.
+- **Checks:** the anchors unchanged (wpntxt_av still on triangle 68, 0.0000 off), the sight line unchanged (its 0.131
+  warning is the pristine .blend's own: exporting it untouched gives the same), holes as before (2 see-through, 8 wide
+  cracks; 5 new open loops are the bezel's back and the bolts' bases, inside the gun). The script regenerates the shipped
+  files byte for byte. vr_ammocolor_test 25 passed; flatreload 26 passed.
+- **VR mock:** with the mock hand at the eye's height the main hand's thumb covers the lower half of the end face (the
+  grip pose, not the housing); the glass shows above it in the bezel. Holding a weapon frame (`vr_debug_weapon_frame`)
+  changed nothing visible in either mode, so the frames were checked in the export instead (the housing rides the end
+  face's vertices in every frame).
+## The super shotgun's screen housing (branch `agent/housing_ssg`, 2026-11-09)
+
+His mockup (53.webp): a small inset window on the angled breech block, the sight block above it, a rivet each side
+(symmetrical: the mockup's single rivet was a slip).
+
+- **Geometry** (`Misc/quakevr/make_screen_housing_ssg.py`, run headless on the .blend before it; the .blend is the
+  source from then on, the script refuses one that has the housing): on the breech block's two sloped top faces (x
+  1.9-6.0, under the rib's front end, the "sight block"), a low bezel: an inner wall from 0.06 under the glass to 0.10
+  over it, a flat top 0.18 wide at the sides and a row (0.25) over and under, its outer corners cut, a skirt sunk 0.45
+  into the gun, a dark floor under the glass; the top stands about 0.1-0.2 proud of the faces. Two rivets level with
+  the window's middle, 0.05 outside the bezel: low hexagonal domes (two x steps long, 0.36 wide, 0.2 high) on the
+  surface. 112 triangles (bezel 64, rivets 48), closed solids; the export: no holes or flips, the sights unchanged,
+  the barrel mask re-carried (1025 triangles), the new vertices ride the frame part (the barrels' open cut untouched).
+- **The grid.** v_shot2's vertices are bytes: 0.227 units in x, 0.037 in y, 0.056 in z. Along the window's up (mostly
+  x) a row is 0.248: a rounded or chamfered window corner can't be modelled finer than that (round one's octagon read
+  far from the mockup), so the window is square-cornered (`radius 0`, the glass too) and only the bezel's outside is
+  cut. The script snaps the bezel itself, measures the opening its walls make at the glass's depth, and searches the
+  design nearest the table's `opening` and `offset`; it refuses when they still disagree by 0.3 font pixels (printing
+  the table that matches). One definition: the table's "shot2" entry.
+- **Table** (`vr_screenstyle.cpp` "shot2"): opening 14.2 x 11.15 font pixels, radius 0, size 1.36 (a font pixel 0.063
+  model units: the window 1.76 x 1.37 units), offset {-0.01, -0.018, -0.032} (the glass sunk 0.06 model units under
+  where weapons.txt put it), box 0, glass 0.05 and vignette 0.5 (darker glass, as the mockup), the shotgun's tint.
+  weapons.txt's wpntxt offsets and pitch unchanged (his config has no `vr_wofs_wpntxt_*_03`): the glass's tilt (23.5
+  deg from the gun's axis) sits between the two faces' (27.6, 17.3), and the bezel is built in the glass's plane.
+- **Skin:** a patch in free texels (200-248 x 122-146 from the top): the sloped face's own metal, the bezel top 1.8x
+  with a lit inner edge, walls 0.6x, near-black floor, rivet heads 0.7-0.8x with a lit upper edge.
+- **Images:** `scratch/hs/panel_ssg.png` in the worktree (today's next / this branch / the mockup, flat, the start
+  map, 4K cropped to 1080); the kick frame 4 (`vr_debug_weapon_frame 4`) keeps the glass in the bezel.
+- **Tests:** vr_ammocolor_test 25 passed, 0 failed; flatreload_test.sh 26/26.
+- **Not verified:** the VR-mock shot (the low-impact mock's arm hid the gun); the look in the headset.
+## The nail pistol's ammo screen housing (agent/housing_nailpistol, 2026-11-09)
+
+His mockup (a chunky bevelled housing on the slide's back, a rounded glass window, a grille plate under it, the sight
+posts on top). Panel (today's next / this branch / the mockup, flat 4K): `scratch/housing/panel_nailpistol.png`.
+
+- **Model:** `Misc/quakevr/make_screen_housing_nailpistol.py` builds it on `v_nailpistol.blend` (re-runnable: the faces
+  it made before carry the face attribute `qvr_housing` 1 and are removed first; it saves the .blend, then
+  `blend_export.py -- --grow` exports). A block on the slide's rear face (x -1.87), 2.76 wide (the slide 2.4), standing
+  0.43 proud (back face at x -2.30), its back edges bevelled 0.14 (pale worn edge texels); a window (pale lip, dark
+  walls, a dark back behind the glass), a grille (a 0.16 deep recess, black floor, two slats), four bolt heads (dark, pale
+  sides) and a rivet each side. 172 vertices, 284 triangles (the gun 518). Textured from the gun's own skin (no new
+  texels, none fullbright). The rear sight's ears stay the mockup's two posts.
+- **One definition:** the window is the table's opening: the script reads `vr_screenstyle.cpp`'s "nailpistol" entry
+  (`.opening` 24 x 14 font pixels, `.radius` 4: rounded; < 0 would chamfer) and weapons.txt's `wpntxt_scale` (a font
+  pixel 0.0407 model units at 0.205): window half 0.976 x 0.570, corners 0.163. The walls stand 0.012 inside the glass's
+  edge, so the glass tucks behind them (no gap, nothing poking out). Change the table, run the script, export.
+- **Slide:** the housing rides the slide (the export moves a new vertex with its nearest old one; the script refuses if
+  any is nearer the frame than the slide). The screen already rides the slide (vr_nailslide.cpp screenShift): fired
+  with `vr_nailpistol_slide_travel 3`, the glass stays in the window.
+- **Box:** the housing is past the model's old box: grown (origin -2.58 -1.30 -> -3.00 -1.43), and weapons.txt's
+  slot 36 `x` -0.18 -> 0.0553, `y` 0.75 -> 0.8205 keep the gun where it was (the export's own numbers). The screen and
+  button anchors were 0.107 off the slide's side (y 1.3 on a 1.2 side): the grown grid moved the surface under them,
+  so the export refused; the script puts them on it (`wpntxt_av`/`wpnbtn_av` "-1.4 1.2 4.6").
+- **Screen:** table entry "nailpistol" (`.box` 0, `.housing` true, tint 0.9 1 0.9, the shotgun's glass otherwise);
+  weapons.txt `wpntxt_x` -0.42, `wpntxt_y` -0.6263, `wpntxt_z` 0.105, `wpntxt_yaw` 0 (offsets: 1.905 model units a
+  unit). `vr_debug_screen_where 1`: centre -2.200 -0.007 4.800 (target -2.2 0 4.8: 0.10 behind the back face), right
+  -Y, up +Z (0.15 degrees off), a font pixel 0.04067. His config has no `vr_wofs_*_37` overrides: nothing to reset.
+- **Tests:** vr_ammocolor_test 1 22/0, `vr_np_test 1` 39/0, flatreload 26/0 (`vr_np_test 6` is a scene to look at with no verdict: the self-test's step 11 covers it). Export: sight
+  line unchanged (0.000 deg), holes check: 9 open loops (bolt and rivet bases, slat ends, the block's join), 0
+  see-through, 1 crack (not wide).
+- **Not checked:** a VR-mock view of the held gun (the mock hand stayed empty with `impulse 149` in the headset; flat
+  shots only), the glass's colour against the mockup's darker green (the shared round-two glass, unchanged).
 ### Ramp slide jitter (agent/flatramp, 2026-11-09)
 
 His report: sliding down E1M1's ramps, the flat body and the gun jitter. Three causes, all in the drawn body (the gun is
