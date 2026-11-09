@@ -216,7 +216,7 @@ class Design:
         for s in (-1, 1):
             sd = sides[s]
             ft, fb, tf = (ftr, fbr, tfr) if s > 0 else (ftl, fbl, tfl)
-            side_n = Vector((0.0, s * math.cos(math.radians(SIDE)), math.sin(math.radians(SIDE))))
+            side_n = Vector((0.0, -s * math.cos(math.radians(SIDE)), math.sin(math.radians(SIDE))))  # (s 1: the right, -Y)
             self.tri(sd["rb"], fb, ft, side_n, "side")
             self.tri(sd["rb"], ft, tf, side_n, "side")
             self.tri(sd["rb"], tf, sd["fb"], side_n, "side")
