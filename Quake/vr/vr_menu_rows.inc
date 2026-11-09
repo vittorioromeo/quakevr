@@ -3555,11 +3555,13 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
     "A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water).",
     {0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"})
 // vr_menu_pages.inc: pageGraphicsPost, "Flat Screen" (vr_flatlook.cpp; the headset never uses these)
+QVR_TOGGLE_BYNAME(vr_flat_tonemap, "Flat: Tone Mapping",
+    "Flat-screen play: bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (the headset's Tone Mapping curve; Flat: Exposure before it). The rest is unchanged. Off: Quake's.")
 QVR_SLIDER_BYNAME(vr_flat_bloom, "Flat: Bloom", 0.f, 1.5f, 0.02f, "%.2f", ext(),
     "Flat-screen play: glow around lamps, lava and flashes (0 off). Its threshold, size and weights are the Bloom rows'.")
 QVR_SLIDER_BYNAME(vr_flat_grade, "Flat: Colour Grade", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "Flat-screen play: how much of the colour grade below (0 off). The HUD is not graded.")
-QVR_SLIDER_BYNAME(vr_flat_grade_exposure, "Flat: Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before the grade's curve (1: unchanged).")
+QVR_SLIDER_BYNAME(vr_flat_grade_exposure, "Flat: Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before the tone curve (1: unchanged).")
 QVR_SLIDER_BYNAME(vr_flat_grade_contrast, "Flat: Contrast", 0.5f, 2.f, 0.05f, "%.2f", ext(),
     "An S curve: darker shade and brighter light, black and white kept (1: none).")
 QVR_SLIDER_BYNAME(vr_flat_grade_shadows, "Flat: Shadows", -1.f, 1.f, 0.05f, "%+.2f", ext(),

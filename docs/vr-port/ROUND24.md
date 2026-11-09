@@ -6419,3 +6419,41 @@ then "rendering them as rectangles and then applying a curvature/distortion effe
   test skips those records and prints their count; what the ray starts in is not identified.
 
 Runs: flatpose 21 passed, 0 failed, three times in a row.
+
+## Graphics settings: r_scale in the eyes, rows by mode, flat tone mapping (branch `agent/gfx_fixes`, 2026-11-09)
+
+From the graphics audit (VR vs flat screen); he picked the r_scale trap, greyed rows, and flat tone mapping.
+
+- **r_scale no longer shrinks the eyes.** Confirmed first with the mock: `r_scale 2` drew each eye at 512x512 of
+  1024x1024 (`r_refdef.scale` is global, set in SCR_UpdateScreen; the eyes' viewport and post-process divide by it) and
+  foveated rendering is off whenever it is not 1. `VR_RenderView` now sets `r_refdef.scale = 1` for the frame (eyes,
+  teleporter views, the spectator camera, which has `vr_spectator_scale`); after it the eyes drew 1024x1024 with `r_scale
+  2`. Flat play is unchanged. Ironwail's Render Scale row reads the cvar instead of `r_refdef.scale` (1 in VR), so it
+  still shows and steps the setting.
+- **Rows by mode.** `Item::mode` (`vrOnly()`, `flatOnly()`; vr_menu_internal.hpp), and for the settings themselves a list
+  by cvar name in vr_menu.cpp (`vrOnlyCvars`, `flatOnlyCvars`, `rowMode`), so every row showing one gets it, on any page:
+  the headset's scaling (`vr_render_scale`, `vr_dynres*`, `vr_upscale*`, `vr_foveated*`), `vr_taa*`, `vr_gamma`,
+  `vr_contrast`, `vr_bloom`, `vr_tonemap`, `vr_exposure`, `vr_grade*`, `vr_water_underwater`, `vr_water_wobble`; flat play's
+  `vr_flat_tonemap`, `vr_flat_bloom`, `vr_flat_grade*`, `vr_flat_vignette*`, `vr_flat_visor*`. In the other mode (VR only:
+  no headset session; flat only: not in flatscreen play) the row is dimmed as a locked one and its help starts "VR only: no
+  effect on the flat screen." / "Flat-screen only: no effect in the headset."; it is still changed from there (a headset's
+  settings set up on the desktop). Ironwail's Options (menu.c `M_Options_ModeNote`), in VR: Brightness, Contrast, Field Of
+  View, Gun Distortion, Vertical Sync, Underwater FX ("Flat screen only: no effect in VR"), Render Scale ("... VR uses VR
+  Scaling"), Resolution and Display Mode ("In VR: the desktop window only"), dimmed less than a disabled row (0.6) and
+  still selectable, the note under the list while selected. No row was renamed or moved: the boards' paths are unchanged.
+  `menu_vr modes [page]` (Debug > Tools > Menu Rows by Mode) prints the rows and whether each is dimmed now: 30 VR only, 23
+  flat only on all pages; flat: 30 dimmed; VR mock: 23 dimmed.
+- **Flat tone mapping** (`vr_flat_tonemap`, default 1; Post-processing > Flat Screen > Flat: Tone Mapping). The flat look
+  (vr_flatlook.cpp) already had the eyes' curve (`QvrTonemap`) for its exposure, but the window's scene, composite and
+  the look's copy were `GL_RGB10_A2`: the world clamped at 1 and highlights were clipped before the curve saw them. Now,
+  with `-flatscreenmode` and the cvar on, the window's targets are `GL_RGBA16F` (`VR_SceneColorFormat` ->
+  `flatlook::windowSceneFormat`), the world writes up to `tonemap::sceneMax` (`VR_SceneTone`), and the look's one curve
+  rolls the top off with the eyes' knee and white point (0.8, 4: `tonemap::knee`/`white`, moved to vr_tonemap.hpp), the
+  grade's exposure (`vr_flat_grade_exposure`) in it. One curve: what the grade's strength blends from is the same curve at
+  exposure 1. Off, or without the flag: the old path exactly (8-bit, the grade's own roll-off). Changing the cvar makes the
+  window's targets again. The bloom is added before the curve (as the eyes'); the visor HUD is drawn after the look, so it
+  is not tone-mapped; the window's gamma and contrast come after in GL_PostProcess as before. Under `r_softemu` the curve
+  runs before the palette, so 8-bit mode keeps it (the eyes still drop their tone curve under r_softemu: audit item 9).
+  Before/after, the same paused frame with 0 and 1 (`scratch/gfx_proof.sh`): corridor luma 33.1 -> 33.1, midtones' mean
+  change 1.05 levels; muzzle flash 33.8 -> 34.0; lava pixels clipped (two channels >= 250) 2.48% -> 0.63%; a rocket's
+  blast at the feet 6.57% -> 1.43%; r_softemu lava 3.26% -> 0.75%.

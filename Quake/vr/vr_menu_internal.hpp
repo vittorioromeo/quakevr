@@ -203,6 +203,31 @@ struct Item
     // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
     bool unavailable{false};
 
+    // A setting only one mode uses (vrOnly(), flatOnly(); most by their cvar: rowMode, vr_menu.cpp): dimmed while the
+    // game runs in the other mode, its help saying so, still changed from here (a headset's settings set up from the
+    // desktop). 0: both.
+    enum Mode : unsigned char
+    {
+        AnyMode,
+        VrOnly,  // the headset's eyes only (does nothing on the flat screen)
+        FlatOnly // flatscreen play only (does nothing in the headset)
+    };
+    Mode mode{AnyMode};
+
+    [[nodiscard]] Item vrOnly() const
+    {
+        Item i = *this;
+        i.mode = VrOnly;
+        return i;
+    }
+
+    [[nodiscard]] Item flatOnly() const
+    {
+        Item i = *this;
+        i.mode = FlatOnly;
+        return i;
+    }
+
     [[nodiscard]] Item advanced() const
     {
         Item i = *this;
@@ -286,6 +311,7 @@ private:
 struct MenuReadouts
 {
     za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
+    za::String modeHelp;               // itemHelp: a row for the other mode (rowMode)
     za::String checklistUndoHelp;      // checklistUndoHelp
     za::String checklistItemHelp;      // checklistHelp
     za::String checklistSectionHelp;   // checklistSectionHelp
@@ -305,7 +331,7 @@ struct MenuReadouts
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
-        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, modeHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
             weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistSection, checklistUndoHelp, checklistItemHelp, checklistSectionHelp, stamina, renderScaleHelp, buildVersion);
     }
 };

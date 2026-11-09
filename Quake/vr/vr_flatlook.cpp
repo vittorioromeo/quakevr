@@ -9,7 +9,7 @@
 #include "vr_glutil.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
-#include "vr_tonemap.h" // QVR_TONE_GLSL: the eyes' tone curve, the exposure's roll-off here
+#include "vr_tonemap.hpp" // QVR_TONE_GLSL and its knee and white point: the eyes' tone curve, used here too
 
 #include "Zancle/Math/Clamp.hpp"
 
@@ -28,6 +28,9 @@ void main()
 
 // The view's copy (Scene, at 0,0) back into the window's target at Rect.xy, the glow added, graded and vignetted. The
 // colours are Quake's as shown (gamma-encoded; the window's own gamma and contrast come after, in GL_PostProcess).
+// Tone mapping (vr_flat_tonemap: Tone.x 1, a float scene up to tonemap::sceneMax): the eyes' curve with their knee and
+// white point rolls the top off, once: at the grade's exposure in the grade, at 1 in what the grade's strength blends
+// from. Without it (Quake's clamp: an 8-bit scene) the grade's own roll-off of what its exposure pushes past 1.
 // The grade: exposure (its top rolled off by the eyes' tone curve, QvrTonemap); shadows (a black point raised: crushed; or the blacks lifted); an S curve about mid grey of
 // slope `contrast` there, black and white kept; a split tone by brightness (highlights towards amber, shadows towards
 // blue, luma about kept); saturation about the luma; all of it blended in by its strength. The vignette darkens the
@@ -39,6 +42,7 @@ layout(location = 0) uniform vec4 Grade;  // strength (0: none), warmth, saturat
 layout(location = 1) uniform vec4 Grade2; // shadows, exposure, vignette (0: none), vignette size
 layout(location = 2) uniform vec4 Rect;   // the view's corner in the target, 1 / its width, 1 / its height
 layout(location = 3) uniform float GlowOn; // 1: Glow added (the strength in it)
+layout(location = 4) uniform vec4 Tone;    // 1: the float scene tone-mapped (vr_flat_tonemap), knee, white point
 layout(location = 0) out vec4 Out;
 )" QVR_TONE_GLSL R"(
 void main()
@@ -48,10 +52,11 @@ void main()
     vec3 c = texelFetch(Scene, ivec2(p), 0).rgb;
     if (GlowOn > 0.0)
         c += texture(Glow, uv).rgb;
+    vec3 c0 = Tone.x > 0.0 ? QvrTonemap(max(c, 0.0), Tone.yz) : clamp(c, 0.0, 1.0); // as shown without the grade
     if (Grade.x > 0.0)
     {
-        vec3 c0 = clamp(c, 0.0, 1.0);
-        vec3 g = QvrTonemap(c * Grade2.y, vec2(0.7, max(1.5, 1.25 * Grade2.y))); // brightened, its top rolled off
+        vec2 kw = Tone.x > 0.0 ? vec2(Tone.y, max(Tone.z, 1.25 * Grade2.y)) : vec2(0.7, max(1.5, 1.25 * Grade2.y));
+        vec3 g = QvrTonemap(max(c, 0.0) * Grade2.y, kw); // brightened, its top rolled off
         g = clamp(g, 0.0, 1.0);
         float s = Grade2.x * 0.08;
         g = s < 0.0 ? max(g + s, 0.0) / (1.0 + s) : g + s * (1.0 - g);
@@ -64,8 +69,9 @@ void main()
         g *= mix(vec3(1.0), tint, Grade.y);
         l = dot(g, vec3(0.2126, 0.7152, 0.0722));
         g = max(mix(vec3(l), g, Grade.z), 0.0);
-        c = mix(c0, g, Grade.x);
+        c0 = mix(c0, g, Grade.x);
     }
+    c = c0;
     if (Grade2.z > 0.0)
     {
         vec2 v = uv * 2.0 - 1.0;
@@ -79,7 +85,20 @@ void main()
 GLuint program = 0;
 bool failed = false;
 gfx::RenderTarget copy; // the view, copied: what the pass reads
+GLenum copyFormat = 0;   // its format: the window's scene's (float with vr_flat_tonemap)
 long long passCount = 0;
+bool windowFloat = false; // the window's targets were last made float (windowSceneFormat)
+
+// vr_flat_tonemap changed: the window's targets made again in the format it asks for (as vid_fsaa's change does).
+void onToneChanged(cvar_t* /*var*/)
+{
+    if(!host_initialized || !flatplay::flagGiven() || windowFloat == (vr_flat_tonemap.value > 0.f))
+    {
+        return;
+    }
+    GL_DeleteFrameBuffers();
+    GL_CreateFrameBuffers();
+}
 
 [[nodiscard]] bool ensureProgram()
 {
@@ -104,8 +123,8 @@ long long passCount = 0;
 
 void info_f()
 {
-    Con_Printf("vr_flatlook_info: passes %lld, active %d, flatscreen play %d\n", passCount, active() ? 1 : 0,
-        flatplay::active() ? 1 : 0);
+    Con_Printf("vr_flatlook_info: passes %lld, active %d, flatscreen play %d, float scene %d\n", passCount,
+        active() ? 1 : 0, flatplay::active() ? 1 : 0, floatScene() ? 1 : 0);
 }
 
 // The pass, after the view is drawn into the window's target (R_RenderView, after R_WarpScaleView): x, y, w, h the
@@ -117,7 +136,14 @@ void apply(int x, int y, int w, int h)
         return;
     }
     QVR_GPU_PROFILE("flat look");
-    if(!copy.ensure(w, h, gfx::RenderTargetFormat{.internalFormat = GL_RGB10_A2}, "vr flat look copy"))
+    const bool tone = floatScene();
+    const GLenum format = tone ? GL_RGBA16F : GL_RGB10_A2; // (the float scene's top kept for the curve and the glow)
+    if(copyFormat != format)
+    {
+        copy.destroy();
+        copyFormat = format;
+    }
+    if(!copy.ensure(w, h, gfx::RenderTargetFormat{.internalFormat = format}, "vr flat look copy"))
     {
         Con_Warning("VR flat look: framebuffer incomplete\n");
         failed = true;
@@ -145,6 +171,7 @@ void apply(int x, int y, int w, int h)
         vignetteStrength(), za::clamp(vr_flat_vignette_size.value, 0.05f, 1.f));
     GL_Uniform4fFunc(2, static_cast<float>(x), static_cast<float>(y), 1.f / w, 1.f / h);
     GL_Uniform1fFunc(3, glow ? 1.f : 0.f);
+    GL_Uniform4fFunc(4, tone ? 1.f : 0.f, tonemap::knee, tonemap::white, 0.f);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     GL_EndGroup();
     ++passCount;
@@ -154,7 +181,19 @@ void apply(int x, int y, int w, int h)
 
 bool active()
 {
-    return flatplay::active() && (gradeStrength() > 0.f || vignetteStrength() > 0.f || vr_flat_bloom.value > 0.f);
+    return flatplay::active() &&
+           (gradeStrength() > 0.f || vignetteStrength() > 0.f || vr_flat_bloom.value > 0.f || floatScene());
+}
+
+unsigned windowSceneFormat(const unsigned format)
+{
+    windowFloat = flatplay::flagGiven() && vr_flat_tonemap.value > 0.f;
+    return windowFloat ? GL_RGBA16F : format;
+}
+
+bool floatScene()
+{
+    return windowFloat && flatplay::active();
 }
 
 long long passes()
@@ -165,6 +204,7 @@ long long passes()
 void init()
 {
     Cmd_AddCommand("vr_flatlook_info", info_f);
+    Cvar_SetCallback(&vr_flat_tonemap, onToneChanged);
 }
 
 } // namespace qvr::flatlook
