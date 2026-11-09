@@ -59,7 +59,8 @@ def sway(p):
 rest = phases.get("rest", {"panels": {}})
 NAMES = ("vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright")
 inside = len(rest["panels"]) == 7 and all(
-    d == 1 and 0 <= x0 < x1 <= w and 0 <= y0 < y1 <= h for (d, x0, y0, x1, y1, w, h, c) in rest["panels"].values())
+    d == 1 and -0.01 * w <= x0 < x1 <= 1.01 * w and -0.01 * h <= y0 < y1 <= 1.01 * h
+    for (d, x0, y0, x1, y1, w, h, c) in rest["panels"].values())  # (1%: a lens and a zoom can put a box a little past an edge)
 check(get("rest", "active") == 1 and inside, f"rest: the visor on by default, its seven panels inside the view ({rest['panels']})")
 if inside:
     P = rest["panels"]
@@ -108,13 +109,13 @@ def contact_all(p):
     return len(pn) == 7 and all(v[7] == 1 for k, v in pn.items() if v[0] == 1)
 
 
-R0, Ri, Ro = pan("rest", "sideleft"), pan("side in", "sideleft"), pan("side out", "sideleft")
-Rr0, Rri, Rro = pan("rest", "sideright"), pan("side in", "sideright"), pan("side out", "sideright")
+R0, Ri, Ro = pan("side mid", "sideleft"), pan("side in", "sideleft"), pan("side out", "sideleft")
+Rr0, Rri, Rro = pan("side mid", "sideright"), pan("side in", "sideright"), pan("side out", "sideright")
 ok = all((R0, Ri, Ro, Rr0, Rri, Rro)) and Ri[1] < R0[1] < Ro[1] and Rri[3] > Rr0[3] > Rro[3]
 check(ok and contact_all("side in") and contact_all("side out"),
       f"side: vr_flat_visor_side_out 0.3 / 1 / 3 the side readings' inner edge at {Ri and Ri[1]} / {R0 and R0[1]} / {Ro and Ro[1]}, "
       "mirrored on the right, the edges met")
-L0, Ls, Lb = pan("rest", "log"), pan("log small", "log"), pan("log big", "log")
+L0, Ls, Lb = pan("log mid", "log"), pan("log small", "log"), pan("log big", "log")
 V, S = pan("rest", "vitals"), pan("rest", "status")
 clear = all((L0, V, S)) and L0[1] > V[3] and L0[3] < S[1]
 check(clear, f"log: at the top's middle, clear of the corners' readings ({L0}, vitals {V}, status {S})")

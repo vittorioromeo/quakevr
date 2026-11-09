@@ -1122,9 +1122,13 @@ void leanTestFrame()
                 const glm::vec3 straight{pl.origin[0], pl.origin[1], pl.origin[2] + cl.viewheight - flatplay::crouchDrop()};
                 const float way = client.lean.cmdR ? 1.f : -1.f;
                 const float out = way * glm::dot(s.head - straight, levelRight(cl.viewangles[YAW]));
-                q_snprintf(line, sizeof(line), "%s, leant %s: the eye %.1f units out (of %.0f)",
-                    t.phase == 9 ? "a wall at his side" : "facing a wall he stands against", way > 0.f ? "right" : "left", out, full);
-                testCheck(t.tally, tag, za::abs(out - full) < 0.5f, line);
+                // All of the lean, or as far as the hall leaves room that way (leanRoom's lines: the eye, under it, the
+                // weapon's place ahead -- facing the wall, its line sideways can meet the wall's trim), most of it at least.
+                const float room = leanRoom(straight, cl.viewangles[YAW], way, full);
+                const float want = room;
+                q_snprintf(line, sizeof(line), "%s, leant %s: the eye %.1f units out (of %.0f; room for %.1f)",
+                    t.phase == 9 ? "a wall at his side" : "facing a wall he stands against", way > 0.f ? "right" : "left", out, full, room);
+                testCheck(t.tally, tag, za::abs(out - want) < 0.5f && want > full * 0.75f, line);
                 client.lean.cmdL = client.lean.cmdR = false;
                 next(t.phase == 13 ? 99 : t.phase + 1);
             }

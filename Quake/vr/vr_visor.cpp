@@ -169,7 +169,7 @@ void update()
         const float peak = za::clamp(vr_flat_visor_damage.value, 0.f, 2.f) * za::clamp(0.3f + static_cast<float>(lost) / 40.f, 0.f, 1.f);
         s.glitch = za::max(s.glitch, za::min(peak, 0.85f));
         // The shake: the stronger of this hit's and what is left of the last.
-        const float kick = za::clamp(vr_flat_visor_shake.value, 0.f, 3.f) * za::clamp(0.25f + static_cast<float>(lost) / 50.f, 0.f, 1.f);
+        const float kick = za::clamp(vr_flat_visor_shake.value, 0.f, 6.f) * za::clamp(0.25f + static_cast<float>(lost) / 50.f, 0.f, 1.f);
         if(kick > 0.f && kick >= shakeLeft(s))
         {
             s.shakePeak = kick;

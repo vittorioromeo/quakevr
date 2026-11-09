@@ -6259,7 +6259,7 @@ QVR_SLIDER(vr_flat_visor_depth_bevel, "Back Plate Bevel", 0.f, 2.f, 0.1f, "%.1f"
     "(vr_flat_visor_depth_bevel).")
 QVR_SLIDER(vr_flat_visor_depth_bevel_width, "Back Plate Bevel Width", 0.5f, 12.f, 0.5f, "%.1f px", noExt,
     "How wide the back plates' bevel is, in pixels at 1080p (vr_flat_visor_depth_bevel_width).")
-QVR_SLIDER(vr_flat_visor_shake, "Visor Hit Shake", 0.f, 3.f, 0.1f, "%.1f", noExt,
+QVR_SLIDER(vr_flat_visor_shake, "Visor Hit Shake", 0.f, 6.f, 0.1f, "%.1f", noExt,
     "A hit shakes the visor, more for more damage; the back plates and the readings lag behind as with a turn. 0: "
     "never (vr_flat_visor_shake).")
 QVR_SLIDER(vr_flat_visor_shake_time, "Visor Hit Shake Time", 0.1f, 2.f, 0.05f, "%.2f s", noExt,

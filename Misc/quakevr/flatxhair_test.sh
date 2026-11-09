@@ -23,7 +23,8 @@ X="vr_flat_xhair_probe"
 FIRE="+attack; wait3; -attack; wait20"
 FIRE2="+attack; +offhandattack; wait3; -attack; -offhandattack; wait20"
 STY="vr_flat_xhair_style 0; wait3; screenshot; vr_flat_xhair_style 1; wait3; screenshot; vr_flat_xhair_style 2; wait3; screenshot; vr_flat_xhair_style 3; wait3; screenshot; vr_flat_xhair_style 4; wait3; screenshot; vr_flat_xhair_style 5; wait3; screenshot; vr_flat_xhair_style 6; wait3; screenshot; vr_flat_xhair_style 7; wait3; screenshot; vr_flat_xhair 0; wait3; screenshot; vr_flat_xhair 1; vr_flat_xhair_style 2"
-SCRIPT="map e1m1; god; notarget; developer 1; r_norefresh 0; vr_flat_reload 0; setpos 480 -352 88; impulse 154; wait60; \
+# (vr_flat_xhair_smooth 0.03: the placement checks count frames for the glide to settle, at the old default's pace)
+SCRIPT="map e1m1; god; notarget; developer 1; r_norefresh 0; vr_flat_reload 0; vr_flat_xhair_smooth 0.03; setpos 480 -352 88; impulse 154; wait60; \
 echo flatxhair_test: open; $X; $FIRE; $X; screenshot; \
 tune vr_flat_aim_point 0; setpos 480 720 88; wait40; echo flatxhair_test: wall; $X; $FIRE; $X; screenshot; \
 impulse 174; wait40; echo flatxhair_test: dual; $X; $FIRE2; $X; screenshot; \
