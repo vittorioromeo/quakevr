@@ -540,7 +540,7 @@ entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWea
 
 void(entity p) VR_PPT_Look =
 {
-    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : vr_ppt_on == 16 ? 3 : vr_ppt_on == 17 ? 16 : 12;
+    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : vr_ppt_on == 16 ? 3 : vr_ppt_on == 17 ? 14 : 12;
     float k = vr_ppt_shot;
     // (they stand where they were put, whatever their AI wants: the same picture every run)
     if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
@@ -625,8 +625,9 @@ void(entity p) VR_PPT_Look =
         else if(vr_ppt_on == 17)
         {
             // (the halves: the grunt's, the enforcer's, the knight's, the death knight's, each from the front and turned
-            // round (0-7); then the enforcer's and the grunt's elbows, the right and the left side on, at rest and bent 100
-            // degrees (vr_agarmor_bend, the rest pose): 8-15, yellow)
+            // round (0-7); then the elbows, the left eye on a grunt's, the right on an enforcer's (vr_agarmor_headcam, the
+            // eyes' shot: vr_eyeshot): from their right side, their left, behind, at rest and bent 100 degrees
+            // (vr_agarmor_bend, the rest pose): 8-13, yellow)
             VR_PPT_Set(p, 0, 0);
             localcmd("vr_mock_camera\n");
             if(k < 8)
@@ -638,12 +639,14 @@ void(entity p) VR_PPT_Look =
             }
             else
             {
-                float e = k - 8;
-                localcmd(e % 4 >= 2 ? "vr_agarmor_bend 100\n" : "vr_agarmor_bend 0\n");
-                vr_ppt_g0 = VR_PPT_LookWearer(p, e < 4 ? 3 : 0, 2, 0, 64);
-                localcmd("vr_mock_camera 0 1.0 -1.0 0 0\n");
-                vr_ppt_g0.angles_y = vectoyaw(p.origin - vr_ppt_g0.origin) + (e % 2 ? -90 : 90);
-                vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
+                localcmd(k >= 11 ? "vr_agarmor_bend 100; vr_eyeshot 1\n" : "vr_agarmor_bend 0; vr_eyeshot 1\n");
+                vr_ppt_g0 = VR_PPT_LookWearer(p, 0, 2, -40, 80);
+                vr_ppt_g1 = VR_PPT_LookWearer(p, 1, 2, 40, 80);
+                vr_ppt_at0 = vr_ppt_g0.origin;
+                vr_ppt_at1 = vr_ppt_g1.origin;
+                // (the eyes put on them once the client has them: state 6)
+                VR_PPT_To(6, rint(1.3 * 72));
+                return;
             }
         }
         else if(vr_ppt_on == 15)
@@ -754,6 +757,13 @@ void(entity p) VR_PPT_Look =
         dprint(sprintf("ppshot: split %g: %g plates split so far, %g debris made\n", k, vr_ar_split_made, vr_ar_debris_made));
         VR_PPT_To(1, rint(1.5 * 72));
     }
+    else if(vr_ppt_s == 6)
+    {
+        // (vr_pp_test 17's elbows: the mock eyes 26 units off each one's elbow height (17 under its helmet's middle))
+        float view = k % 3 == 0 ? 2 : k % 3 == 1 ? 5 : 4;
+        localcmd(sprintf("vr_agarmor_headcam %g 26 0 17\n", view));
+        VR_PPT_To(1, 3);
+    }
     else if(vr_ppt_s == 1)
     {
         localcmd("screenshot\n");
@@ -767,7 +777,7 @@ void(entity p) VR_PPT_Look =
         {
             VR_PPT_LookClean();
             VR_PPT_Set(p, 0, 0);
-            localcmd(vr_ppt_on == 17 ? "vr_mock_camera; vr_agarmor_bend 0\n" : "vr_mock_camera\n");
+            localcmd(vr_ppt_on == 17 ? "vr_mock_camera; vr_agarmor_bend 0; vr_agarmor_headcam 0; vr_eyeshot 0\n" : "vr_mock_camera\n");
             bprint("ppshot: done\n");
             vr_ppt_on = 0;
         }

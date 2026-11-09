@@ -5214,3 +5214,40 @@ Nothing published, tagged, uploaded or pushed.
 - **Notes:** `docs/vr-port/RELEASE_NOTES_1.1.md` (draft, since 1.0.1; make_release took it with `-Notes`).
   `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
 - Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
+
+## Armour halves' geometry; elbow leather patches (branch `agent/geo1109`, 2026-11-09)
+
+His notes: "some broken off pieces have messy geometry (long and thin spiky parts, missing faces)"; "the leather patch of
+the enforcer's right elbow ... shows holes compared to the left elbow"; "the grunt's ... left elbow has some holes or
+intersects with the arm".
+
+- **Halves' cause:** `splitHalf` (vr_agarmor.cpp) found a piece's plates as the runs of vertices its triangles join. A
+  plate's face, bevels and rim share no vertex index (each has its own copies at the seams, for their own texture
+  places), so they were separate "plates" and each went to whichever side its own middle fell: a half took a plate's
+  face without its rim (open: 16-60 edges a half), and rims and bevels alone (long thin strips) stuck out of the other.
+- **Fix:** the vertices in one place (within `splitWeld`, 1e-4) are joined too, so a plate (28 vertices) goes whole to
+  one side; no plate is torn along its triangles (none is bigger than `splitWhole` now). The seam follows plate edges as
+  designed. Nothing else changed (the line, its zigzag, the median, the halves' models).
+- **The check, `vr_agarmor_split_check [model|all] [1: every line]`** (Debug > Tests: Armour Plates: Broken Halves
+  Check): grunt, enforcer, knight, death knight and the player's vrbody, every piece but the helmet, split both ways
+  (axis 0 and 1), each half model as `derivedFile` makes it, read back: every edge (by its quantised place) used an even
+  number of times and wound against its twin (closed, no face turned in), one island (plates within 0.6 units joined),
+  no island a strip (second spread at least 0.2 of the first), no triangle thinner than 0.05 (4 sqrt3 area over the
+  squared edges) unless the whole plate has one as thin (hero plates' long lips; half its thinnest as slack for the
+  quantising), triangles thinner than the model's byte step are counted as flat (drawn as lines) and allowed, and no
+  plate torn. Before: **15 passed, 75 failed** (open edges in nearly every half); after: **90 passed, 0 failed**.
+- **Sheet, `vr_pp_test 17`** (Debug > Tests: Armour Plates: Halves and Elbows Sheet): each armed kind's halves laid out
+  still, front and turned round (8 shots), then a grunt's (left eye) and an enforcer's (right eye) elbows through
+  `vr_agarmor_headcam` and `vr_eyeshot 1`, from the right, the left and behind, at rest and `vr_agarmor_bend 100` (6
+  shots); ends on `ppshot: done`. Before/after: `scratch/geo_halves_before.png`, `scratch/geo_halves_after.png` in the
+  phases worktree (the spikes stand out on the death knight's and the grunt's cuirass halves before).
+- **Elbows (not fixed):** the leather at the elbows is the per-frame bridge (`vr_agarmor_bridge.cpp`), made from the
+  plates' end rows, so there is no stored patch to mirror. `vr_agarmor_bridge_check` (88/0 as before) gains an info
+  line per joint: the most cells of the leather facing in (against the way out from its rings' middle by more than
+  a 0.25 cosine) over the sweep, which cells, and the thinnest ring. Every joint of both kinds shows some (5-16 of 48),
+  in patches 1-3 columns wide over 2-4 rings near an end, the folds not the cause (the same with
+  `vr_agarmor_fold_depth 0`), and the enforcer's two elbows score alike (13 / 15), so it does not yet single out what
+  he sees. Next: the cells' axial order (a corner's z lerped from row to row can run behind the ring before it near
+  an end) against the eyeshots of `vr_pp_test 17`, then a fix in `evalBridge`.
+- **Tests:** `vr_agarmor_test 1` 38/0, `vr_agarmor_test 7` 16/0, `vr_pp_test 1` 63/0, `vr_agarmor_bridge_check`
+  88/0, `vr_agarmor_split_check` 90/0 (low-impact runs).
