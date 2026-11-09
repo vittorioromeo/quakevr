@@ -11,6 +11,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_box3d_diag_internal.hpp"
 #include "vr_hands.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_units.hpp"
 
 namespace box3d::detail
@@ -59,6 +60,12 @@ void hullStats_f()
     }
 }
 
+// (A hash of a run whose server random stream came from the clock: not repeatable, said so.)
+[[nodiscard]] const char* clockNote()
+{
+    return srvrandom::clockSeeded() ? " (server random seed from the clock: set sv_random_seed for a repeatable run)" : "";
+}
+
 // vr_physics_hash [piles]: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests:
 // two runs of the same script print the same). `piles`: only what the stress tests spawned (vr_physics_bigpile), not the
 // map's own props. `ragdolls`: every ragdoll's parts instead (their transforms, velocities and spins; refactor proofs:
@@ -105,8 +112,8 @@ void hash_f()
             }
             count++;
         }
-        Con_Printf("vr_physics_hash ragdolls: %d ragdolls, %d parts, %016llx\n", count, parts,
-            static_cast<unsigned long long>(h));
+        Con_Printf("vr_physics_hash ragdolls: %d ragdolls, %d parts, %016llx%s\n", count, parts,
+            static_cast<unsigned long long>(h), clockNote());
         return;
     }
     for(edict_t* e : entitiesNamed("props"))
@@ -123,7 +130,7 @@ void hash_f()
         }
         count++;
     }
-    Con_Printf("vr_physics_hash: %d bodies, %016llx\n", count, static_cast<unsigned long long>(h));
+    Con_Printf("vr_physics_hash: %d bodies, %016llx%s\n", count, static_cast<unsigned long long>(h), clockNote());
 }
 } // namespace
 

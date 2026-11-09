@@ -2,6 +2,7 @@
 
 #include "vr_animrec.hpp"
 #include "vr_hands.hpp"
+#include "vr_tracy.h"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_body.hpp"
@@ -816,8 +817,8 @@ void placeFlat(const glm::vec3& aim, float yaw)
     {
         // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
         // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
-        flatplay::poseHands(state, aim);
-        animrec::applyPreview(state); // the animation recorder's preview (vr_ar_play), blended over the pose
+        QVR_TRACY_CALL("hands: flat pose", flatplay::poseHands(state, aim));
+        QVR_TRACY_CALL("hands: anim preview", animrec::applyPreview(state)); // the animation recorder's preview (vr_ar_play), blended over the pose
     }
     else
     {
@@ -906,11 +907,11 @@ void update()
     }
     else
     {
-        placeFlat(aim, yaw);
+        QVR_TRACY_CALL("hands: place flat", placeFlat(aim, yaw));
     }
 
-    updateVelocities(vrActive() ? &t : nullptr);
-    flick::update(state);
+    QVR_TRACY_CALL("hands: velocities", updateVelocities(vrActive() ? &t : nullptr));
+    QVR_TRACY_CALL("hands: flick", flick::update(state));
 
     // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
     // the tracked hips' (vr_bodytrack.cpp). Flatscreen play: the view's, turned by a long gun's stance (flatplay::poseHands set it,
@@ -924,8 +925,8 @@ void update()
                             ? CLAMP(0.f, units::eyeHeight() / state.headHeight - 1.f, 1.f)
                             : 0.f;
 
-    body::updateHotspots(state);
-    twohand::updateHotspots(state); // a carried gun's handle
+    QVR_TRACY_CALL("hands: body hotspots", body::updateHotspots(state));
+    QVR_TRACY_CALL("hands: twohand hotspots", twohand::updateHotspots(state)); // a carried gun's handle
 
     // The poses' own clock (vr_move.hpp: the melee and the legs' sweep measure a blow over these times when the client
     // sends them). A headset's poses carry the tracking's sample time; the flat game's are made from the view at the

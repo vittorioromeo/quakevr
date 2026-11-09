@@ -70,6 +70,7 @@
 #include "vr_protocol.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_trace.hpp"
+#include "vr_tracy.h"
 #include "vr_weapon_ids.h"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -218,6 +219,15 @@ struct Sight
 };
 
 Sight st;
+// The crosshair's stop within one pose (apply): its line traced once, asked for again (aimAtPoint, the shot's point,
+// the stance) with the same line and nothing in the world moved since: the same point. Each pose begins it afresh.
+struct CrossMemo
+{
+    bool armed{false}; // (apply under way)
+    bool valid{false};
+    glm::vec3 org{0.f}, end{0.f}, point{0.f};
+};
+CrossMemo crossMemo;
 
 constexpr float gripEase = 9.f;  // how fast an empty hand travels onto a grip, and back off it (1/s)
 constexpr float lookEase = 2.5f;      // how fast the free hand travels onto a long gun's hotspot and back off it (1/s): about 0.4 s
@@ -442,6 +452,7 @@ struct Sighted
 // left out): where it first stops. `b` when it stops nowhere, or with no world to trace (not hosting).
 [[nodiscard]] glm::vec3 lineStop(const glm::vec3& a, const glm::vec3& b)
 {
+    QVR_TRACY_SCOPE(zoneLineStop, "flatsight: line stop");
     const auto tr = worldtrace::move(a, glm::vec3{0.f}, glm::vec3{0.f}, b, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
     return tr ? worldtrace::endPos(*tr) : b;
 }
@@ -451,7 +462,21 @@ struct Sighted
 {
     glm::vec3 org, dir;
     flatplay::crosshairRay(s, aim, org, dir);
-    return lineStop(org, org + dir * aimFar);
+    const glm::vec3 end = org + dir * aimFar;
+    CrossMemo& m = crossMemo;
+    if(m.armed && m.valid && !memcmp(&m.org, &org, sizeof(org)) && !memcmp(&m.end, &end, sizeof(end)))
+    {
+        return m.point;
+    }
+    const glm::vec3 point = lineStop(org, end);
+    if(m.armed)
+    {
+        m.valid = true;
+        m.org = org;
+        m.end = end;
+        m.point = point;
+    }
+    return point;
 }
 
 // Where the shot from a muzzle at `m` starts. Its own place, with what the crosshair is on far enough past it. Nearer (a wall in his
@@ -1718,6 +1743,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // hands::placeFlat, which runs before hands::update raises that flag for the frame (vr_hands.cpp), and what is read
     // here is the pose flatplay just made and the hotspot and muzzle the view placed last frame -- the same thing
     // flatplay's own pose works on.
+    crossMemo = CrossMemo{};
+    crossMemo.armed = true;
     oneHanded(st.holding, st.helping);
     st.adsWanted = adsApplies();
     // The pose is made several times a frame in flatscreen play (flatplay::poseHands: at the frame's start, for the move,
@@ -1778,10 +1805,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding);
-    pinToGrip(s, reach, carryToGrip);
-    centreOnSight(s, aim);
-    pushBack(s, aim);
-    freeOffWall(s);
+    QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
+    QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
+    QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));
+    QVR_TRACY_CALL("flatsight: free off wall", freeOffWall(s));
 
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
@@ -1811,7 +1838,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The two-handed machinery over the pose -- the same vr_twohand.cpp apply a headset run runs, so the hold is real
     // for the game code (its helping flag, its transition, the aiming bits, the weight and recoil that follow them),
     // not a look.
-    twohand::apply(s);
+    QVR_TRACY_CALL("flatsight: twohand apply", twohand::apply(s));
 
     if(st.holding >= 0)
     {
@@ -1826,7 +1853,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     }
 
     // The muzzle may have moved through the frame's other poses' turns: this is the pose's, handed on to the shot.
-    aimAtPoint(s, aim);
+    QVR_TRACY_CALL("flatsight: aim at point", aimAtPoint(s, aim));
+    QVR_TRACY_SCOPE(zoneKeep, "flatsight: shot point, keep muzzle");
     const glm::vec3 shotPoint = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1834,7 +1862,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     }
 
     // Last, on the gun as this pose leaves it: the stance, and the free hand on the gun's hotspot, measure and move nothing above.
-    stanceAndLook(s, aim, reach, carryToGrip, freshFrame);
+    QVR_TRACY_CALL("flatsight: stance and look", stanceAndLook(s, aim, reach, carryToGrip, freshFrame));
+    crossMemo.armed = false;
 }
 
 void notePlaced(const hands::State& s)
@@ -2187,6 +2216,16 @@ float fov(float basefov)
     const float sighted = narrow > 0.f ? za::max(minFov, basefov - narrow) : basefov;
     // Then the speed FOV's widening (vr_flat_speed_fov), which the ironsight wins over: it goes as the travel comes.
     return flatplay::active() ? flatspeedfov::widen(sighted, adsShare()) : sighted;
+}
+
+float adsFovAt(float base)
+{
+    return za::min(base, adsFovFor(base));
+}
+
+float hipFov()
+{
+    return st.baseFov;
 }
 
 void statusLine()

@@ -745,8 +745,10 @@ extern cvar_t scr_fov;
 
 static float IN_FovScale (void)
 {
-	// QVR: without flatscreen play's speed FOV (vr_flatspeedfov.cpp): a degree of mouse stays a degree of turn at any speed
-	return tan (DEG2RAD (VR_FlatLookFov (r_refdef.basefov)) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f);
+	// QVR: without flatscreen play's speed FOV (vr_flatspeedfov.cpp): a degree of mouse stays a degree of turn at any speed.
+	// In its ironsight, times vr_flat_aim_sens and the match distance's correction (vr_flataimsens.cpp; 1 at their defaults).
+	const float lookfov = VR_FlatLookFov (r_refdef.basefov);
+	return tan (DEG2RAD (lookfov) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f) * VR_FlatAimSens (lookfov, scr_fov.value);
 }
 
 void IN_MouseMotion(int dx, int dy)
@@ -1200,11 +1202,13 @@ void IN_JoyMove (usercmd_t *cmd)
 	else // traditional joystick look
 	{
 		float right, down;
+		// QVR: flatscreen play's ironsight slows the stick as it does the mouse (vr_flataimsens.cpp); exactly 1 otherwise
+		const float aim = VR_FlatAimStickScale (VR_FlatLookFov (r_refdef.basefov));
 
 		IN_ResetFlickState ();
 
-		right = lookEased.x * joy_sensitivity_yaw.value * host_rawframetime;
-		down = lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime;
+		right = lookEased.x * joy_sensitivity_yaw.value * host_rawframetime * aim;
+		down = lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime * aim;
 		if (VR_FlatLookTurn (&right, &down)) // QVR: flatscreen play's view rolled: along the rolled screen (see IN_MouseMove)
 		{
 			cl.viewangles[YAW] -= right;
@@ -1212,8 +1216,8 @@ void IN_JoyMove (usercmd_t *cmd)
 		}
 		else
 		{
-			cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_rawframetime;
-			cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime;
+			cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_rawframetime * aim;
+			cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_rawframetime * aim;
 		}
 
 		if (lookEased.x != 0 || lookEased.y != 0)

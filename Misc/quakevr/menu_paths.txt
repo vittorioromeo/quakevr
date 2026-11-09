@@ -550,6 +550,7 @@ vr_flashlight_out|1|Flashlight|Out|Advanced VR Options > Flashlight > Out
 @page|1|HUD and Menus||Advanced VR Options > HUD and Menus
 @page|1|Graphics||Advanced VR Options > Graphics
 vid_fsaa|1|Graphics|Anti-aliasing|Advanced VR Options > Graphics > Anti-aliasing
+vid_fsaamode|1|Graphics|Anti-aliasing Shading|Advanced VR Options > Graphics > Anti-aliasing Shading
 vr_texture_smooth|1|Graphics|Smooth Textures|Advanced VR Options > Graphics > Smooth Textures
 gl_texture_anisotropy|1|Graphics|Anisotropic Filtering|Advanced VR Options > Graphics > Anisotropic Filtering
 vr_alpha_coverage|1|Graphics|Fence Coverage|Advanced VR Options > Graphics > Fence Coverage
@@ -1331,6 +1332,8 @@ vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
+vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
+vr_flat_aim_sens_match|1|Locomotion|Aim Sensitivity Match|Advanced VR Options > Movement > Locomotion > Aim Sensitivity Match
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
 vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
 vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
@@ -2363,6 +2366,7 @@ vr_flat_grade_warmth|1|Graphics - Post-processing|Flat: Warmth|Advanced VR Optio
 vr_flat_grade_saturation|1|Graphics - Post-processing|Flat: Saturation|Advanced VR Options > Graphics > Post-processing > Flat: Saturation
 vr_flat_vignette|1|Graphics - Post-processing|Flat: Vignette|Advanced VR Options > Graphics > Post-processing > Flat: Vignette
 vr_flat_vignette_size|1|Graphics - Post-processing|Flat: Vignette Size|Advanced VR Options > Graphics > Post-processing > Flat: Vignette Size
+vr_flat_taa|1|Graphics - Post-processing|Flat: TAA|Advanced VR Options > Graphics > Post-processing > Flat: TAA
 |1|Graphics - Post-processing|Reset This Page|Advanced VR Options > Graphics > Post-processing > Reset This Page
 @page|1|Graphics - Models and Effects||Advanced VR Options > Graphics > Models and Effects
 vr_model_lighting|1|Graphics - Models and Effects|Model Lighting|Advanced VR Options > Graphics > Models and Effects > Model Lighting
@@ -2812,6 +2816,7 @@ vr_ragdoll_hand_turn|2|Tunables|Hand Turns with Limb|Advanced VR Options > Debug
 vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug > Tunables > Palm Rests on Limb
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
+vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
 vr_ragdoll_held_local|2|Tunables|Held Limbs Follow the Hand|Advanced VR Options > Debug > Tunables > Held Limbs Follow the Hand
 vr_ragdoll_active_headshot|2|Tunables|Headshot Strength|Advanced VR Options > Debug > Tunables > Headshot Strength
@@ -4594,6 +4599,7 @@ vr_gl_markers|2|Debug - Profiling and Memory|GL Debug Groups|Advanced VR Options
 |2|Debug - Profiling and Memory|GL Debug Groups Report|Advanced VR Options > Debug > Profiling and Memory > GL Debug Groups Report
 |2|Debug - Profiling and Memory|Tracy Build Info|Advanced VR Options > Debug > Profiling and Memory > Tracy Build Info
 |2|Debug - Profiling and Memory|World Fragment Counts|Advanced VR Options > Debug > Profiling and Memory > World Fragment Counts
+|2|Debug - Profiling and Memory|Model Fragment Counts|Advanced VR Options > Debug > Profiling and Memory > Model Fragment Counts
 |2|Debug - Profiling and Memory|Log Next 3 Seconds|Advanced VR Options > Debug > Profiling and Memory > Log Next 3 Seconds
 |2|Debug - Profiling and Memory|Print Report|Advanced VR Options > Debug > Profiling and Memory > Print Report
 |2|Debug - Profiling and Memory|Dump Profile|Advanced VR Options > Debug > Profiling and Memory > Dump Profile
@@ -4621,6 +4627,8 @@ vr_wounds_budget|2|Debug - Profiling and Memory|Wound Painting Budget|Advanced V
 vr_place_keep|2|Debug - Profiling and Memory|Keep Crates' and Rocks' Layouts|Advanced VR Options > Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts
 |2|Debug - Profiling and Memory|Model Set-up Stats|Advanced VR Options > Debug > Profiling and Memory > Model Set-up Stats
 vr_alias_cull_posed|2|Debug - Profiling and Memory|Cull Posed Models|Advanced VR Options > Debug > Profiling and Memory > Cull Posed Models
+vr_alias_player_first|2|Debug - Profiling and Memory|Your Models First|Advanced VR Options > Debug > Profiling and Memory > Your Models First
+vr_alias_prepass_own|2|Debug - Profiling and Memory|Own Models Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Own Models Pre-pass
 |2|Debug - Profiling and Memory|Lazy OIT Clear Stats|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear Stats
 |2|Debug - Profiling and Memory|Model Cull Stats|Advanced VR Options > Debug > Profiling and Memory > Model Cull Stats
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared
@@ -5144,6 +5152,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
 |2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
 |2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
+|2|Debug - Tests|Flat Aim Sensitivity Test|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Test
+|2|Debug - Tests|Flat Aim Sensitivity Status|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Status
 |2|Debug - Tests|Lying Body Test|Advanced VR Options > Debug > Tests > Lying Body Test
 |2|Debug - Tests|Lying Body Report|Advanced VR Options > Debug > Tests > Lying Body Report
 |2|Debug - Tests|Flat Lean Test|Advanced VR Options > Debug > Tests > Flat Lean Test
@@ -5687,6 +5697,7 @@ vr_smallgibs_test_dummy|2|Debug - Automation & Self-Tests|On the Training Dummy|
 |2|Debug - Automation & Self-Tests|A Grunt's Ragdoll Ahead|Advanced VR Options > Debug > Automation & Self-Tests > A Grunt's Ragdoll Ahead
 |2|Debug - Automation & Self-Tests|Ragdolls' Fastest Since Last|Advanced VR Options > Debug > Automation & Self-Tests > Ragdolls' Fastest Since Last
 |2|Debug - Automation & Self-Tests|Blast Beside the Nearest Ragdoll|Advanced VR Options > Debug > Automation & Self-Tests > Blast Beside the Nearest Ragdoll
+|2|Debug - Automation & Self-Tests|Stall One Frame (40 ms)|Advanced VR Options > Debug > Automation & Self-Tests > Stall One Frame (40 ms)
 |2|Debug - Automation & Self-Tests|Ragdoll and Prop Drawn Motion|Advanced VR Options > Debug > Automation & Self-Tests > Ragdoll and Prop Drawn Motion
 |2|Debug - Automation & Self-Tests|Monsters' Drawn Motion|Advanced VR Options > Debug > Automation & Self-Tests > Monsters' Drawn Motion
 |2|Debug - Automation & Self-Tests|Drop the Nearest Prop on the Nearest Corpse|Advanced VR Options > Debug > Automation & Self-Tests > Drop the Nearest Prop on the Nearest Corpse

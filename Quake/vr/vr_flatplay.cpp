@@ -27,6 +27,7 @@
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
+#include "vr_tracy.h"
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
@@ -43,6 +44,7 @@
 #include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flataimsens.hpp"
 #include "vr_flatspeedfov.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
@@ -1718,6 +1720,7 @@ void init()
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
+    flataimsens::init(); // vr_flat_aim_sens_test, _status (vr_flataimsens.cpp)
     flatleanpose::init(); // vr_flatleanpose_test (vr_flatleanpose.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
@@ -1733,6 +1736,7 @@ void frame()
     const bool frozen = on && flycam::on();
     flatsweep::frame(); // vr_flat_sweep's next step, when one runs: before the pose reads the look
     flickTestFrame();   // vr_flat_flick_test's next flick, when one runs: likewise
+    flataimsens::frame(); // vr_flat_aim_sens_test's next step, when one runs
     if(!frozen)
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
@@ -2290,6 +2294,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     // Leaning: the hands are posed as he stands upright (`upright`: the head back where the lean took it from, the body
     // unleant) and turned with the upper body (leanRig).
+    QVR_TRACY_SCOPE(zoneFlatPoseRig, "flat pose: rig");
     const LeanRig rig = leanRig(s, aim.y);
     hands::State unleant;
     if(rig.on)
@@ -2308,7 +2313,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     glm::vec3 roots[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // upright
     if(onBody)
     {
-        avatar::restShoulders(upright, roots);
+        QVR_TRACY_CALL("flat pose: rest shoulders", avatar::restShoulders(upright, roots));
         // (Lying down, the body hangs vr_flat_prone_neck_drop lower than the view, its shoulders with it: the poses are
         // made off where they were, up by as much, so the gun stays where the eye's poses put it, clear of the floor; the
         // drawn arms reach up to it from the lower shoulders.)
@@ -2344,6 +2349,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     glm::vec3 viewFwd, viewRight, viewUp;
     hands::angleVectors(aim, viewFwd, viewRight, viewUp);
 
+    QVR_TRACY_SCOPE(zoneFlatPoseHands, "flat pose: hands");
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
@@ -2456,14 +2462,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
             s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
         }
-        handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt));
+        QVR_TRACY_CALL("flat pose: off wall", handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt)));
     }
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
-    flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z);
+    QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z));
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
-    flatreload::apply(s);
+    QVR_TRACY_CALL("flat pose: reload", flatreload::apply(s));
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];
     traceHead = s.head;
@@ -2471,6 +2477,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     if(traceBodyOn)
     {
         // (A point the standing pelvis carries, under the standing head: where the pelvis has taken it.)
+        QVR_TRACY_SCOPE(zoneTraceBody, "flat pose: trace body");
         const avatar::Follower body(s);
         const float below = 0.8f * units::metresToUnits() * units::bodyScale();
         tracePelvis = body(avatar::Part::Pelvis, avatar::standing(s).head - glm::vec3{0.f, 0.f, below});

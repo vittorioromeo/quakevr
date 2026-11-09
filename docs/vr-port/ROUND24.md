@@ -6706,6 +6706,58 @@ group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
   ms): the next target for cheaper fight ticks (QC). Not done here.
 - Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
   microseconds per entity: not worth a job's dispatch).
+
+## Big fights' CPU, part 2 (agent/perf_fight2, 2026-11-09)
+
+Same method as above (Release-Tracy ThinLTO, `vr_tracy_preset full`, his cfg, flat 3440x1441 fsaa 4, exclusive);
+scripts in the worktree's `scratch/pf` (F.sh, bt.sh, ab.sh/ab.py/fcmp.py for the A/B state checks, cmp.py).
+
+- **The flat hands' cost is the crosshair's lines, not the pose.** New zones (`hands: place flat`, `hands: flat pose`,
+  `flat pose: sight`, `flatsight: aim at point`, `flatsight: line stop`, ...; `hit model clip`, `hit model:
+  skinned/armed`): in the gore flat fight all of `hands` (0.86 ms a frame, 2.56 calls) was `flatsight::apply`, and in
+  it the crosshair's MOVE_HITMODEL lines (`lineStop`, 2.9 a pose, ~0.1 ms each): each long line meets ~33 bodies'
+  boxes, and each precise test re-skinned a ragdoll (`ragdoll::skinnedVertices` and the hierarchy's refit, every call)
+  or copied an armed humanoid's memo (its vertices and normals). The pose itself (shoulders, hands, walls, reload) is
+  ~0.01 ms. Everything the relatches recompute is view-dependent (the aim, the crosshair's point, the muzzle's line),
+  so "once a frame plus a cheap re-aim" would change the poses; made cheaper instead, bit for bit:
+  - **Precise hits keep skinned bodies** (`vr_hitmodel_skin_keep 1`, Ragdolls page "Keep Skinned Bodies"; 0 the old
+    path): a ragdoll's skinned vertices and normals are kept while its pose, cut, scale and rig are unchanged
+    (`ragdoll::skinnedView`, compared bit for bit), an armed humanoid's are read from drawnpose's memo, not copied
+    (`drawnpose::armedMeshView`); both carry a making number (`drawnpose::newBuild`), so the triangle hierarchy refit
+    to them is kept too. Every trace benefits (shots, nails, blows, the flat crosshair), VR too.
+  - **The crosshair's line traced once a pose** (flatsight `crossMemo`): aimAtPoint and the shot's point traced the
+    same line (same start and end, bit for bit) twice in one `apply`.
+  - Gore flat, ms a frame (calls): `hands` 0.861 -> 0.690 (skin keep) -> 0.612 (both); `flatsight: line stop` 7.46 ->
+    4.91 calls; `hit model clip` 0.54 -> 0.47 ms (250 -> 177 calls) after the keep (0.81 before it, its first zoned
+    capture); `vr frame setup` 0.261 -> 0.152. E1M1 fight (few bodies): `hands` 0.30, unchanged.
+  - Plain runs, keep 0 vs 1, two each alternated (exclusive, but the frame times swung ~1 ms between like runs, GPU
+    `3D` 2.3-3.5 ms in the same scenario: frame p50/p95/p99 inconclusive): VR combat_48 `server` CPU 1.79/1.84 -> 1.53/
+    1.48 ms a frame (crowd shots), VR play_gore_fight 1.51/1.48 -> 1.55/1.81 (noise), flat gore 1.04/1.02 -> 1.06/1.19.
+  - Proof: `vr_bench_statehash fields` (a hash per QC field over every edict) at four points of play_gore_fight_flat
+    (1500 frames, 8 ragdolls at the end): keep 0 vs keep 1 and vs the crosshair memo, every field the same (16104
+    hashes), ragdoll hashes the same. In VR (play_gore_fight, 900 frames) two keep-0 runs already differ in 125 fields,
+    all the melee history's (`mh_*`: hand speeds from the mock's real-clock tracking times) and `bat_why_v`; keep 0 vs 1
+    differs in 121, all of that family (one, `mh_hgrip[8]`, not among the control's 125), ragdoll hashes the same.
+    Tests: vr_pp_test 1 VR 63/0 and flat 62/0, flatpose 22/0, flatxhair 31/0, flathud 11/0, ragdoll_test exit 0,
+    checklist_tests_check 103/0, scenario_check 8 failed (all AD content missing from the kit's game folder), eval
+    full 162/171 with 14 PASS -> PASS differences of 0.1 in melee numbers (one stab 15.6 -> 54.4, still no decap). (Two fields differ between ANY two runs and are left out:
+    `vr_posetime` and QC `mh_ptime`, the hands' pose time, which is `vr_gametime` = realtime: it carries the process
+    start's clock even in fixed-frame runs. The melee reads only differences of it, but a replay compares it raw:
+    worth a fix of its own.)
+- **Armed grunts' prop think** (`VR_AG_PropThink`, QC detail, gore flat): 0.76 ms a frame inclusive with QC zones on
+  (their own cost roughly doubles QC time: `QC VM` 1.5 here vs 0.69 in his detail-0 trace), spread thin: self times
+  `VR_AGP_Pose` 5.5 us a call, `VR_AGS_Projectiles` 3.3 us (a findradius of 128 round each weapon every tick, for the
+  player's nails and rockets through it), `VR_AGPar_Frame` 3.5 us, `VR_AG_WeaponStruck` 1.9, `VR_AGP_ArmsGun` 1.9,
+  `VR_AGK_Mode` 1.2 (2 a prop), `VR_AGP_TurnPose` 1.6, `VR_AGK_Keys` 1.5, then many under 1 us. No single hot spot;
+  not changed here (budget). Next steps: skip `VR_AGS_Projectiles`' search when no player projectile is in flight (a
+  count kept by the projectiles' spawns), and move `VR_AGP_Pose`'s math to a builtin.
+- **Job pool: not used.** The candidates' whole cost a frame in the gore flat fight: `alias transform` 0.071 ms (380
+  set-ups), `dlight casters` 0.036 (4.4 lights), `shadow caster faces` 0.015, `ragdoll publish` 0.001-0.01: each under a
+  job dispatch and join's cost; nothing to gain, so no change (determinism untouched).
+- **Ragdoll hashes run to run** (perf_fight's open question): the blast script set no seed, so the server's random
+  stream (`sv_random_seed 0`) came from the clock: which grunts gib, how many parts (96-98). With `sv_random_seed 1` the
+  hashes are the same every run and with `vr_ragdoll_sleep_skip` 0 or 1 (5bb1e1bd693bc292, 04cd5a73109d1004,
+  c1e68802763cdaec). `vr_physics_hash` now says when the seed was the clock's (`srvrandom::clockSeeded`).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
@@ -7077,6 +7129,39 @@ Left (proposals):
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
 
+## Flat ADS sensitivity: multiplier and match distance (branch `agent/ads_sens`, worktree `selfshot`, 2026-11-09)
+
+His words: "Please add a flat ADS multiplier plus ADS sensitivity setting with a match-distance option, with menu items
+under the flatscreen menu."
+
+- **Before:** in_sdl.c IN_FovScale scaled the mouse and gyro by tan(look/2) / tan(scr_fov/2) (look: VR_FlatLookFov, the
+  ironsight's narrowing in, the speed FOV out): a zoom-ratio ("centre", monitor distance 0) match. At fov 95 with
+  vr_flat_aim_fov 45 the sighted fov is 50 and the scale 0.4273. The stick's look was never slowed.
+- **Now** (Quake/vr/vr_flataimsens.cpp): IN_FovScale multiplies that ratio by VR_FlatAimSens, and the stick's look
+  (IN_JoyMove, the traditional look; not the flick stick) by VR_FlatAimStickScale. Both are exactly 1 outside flatscreen
+  play, unsighted, and (the mouse's) at the defaults, so a headset and default play are bit-for-bit as before.
+  - `vr_flat_aim_sens_match` (default 0): scale = atan(m * T(sighted)) / atan(m * T(hip)), T the tangent of the vertical
+    half-fov (Quake's 4:3 fov times the view's own fov_y/basefov ratio), m in half screen heights from the centre.
+    0 is the tangent ratio exactly (no atan taken). Presets in the menu: Centre, 0.75, 1.33 (the 4:3 edge, Battlefield's
+    uniform aiming coefficient), 1.78 (the 16:9 edge); 0..4 from the console.
+  - `vr_flat_aim_sens` (default 1, 0.05..5): times 1 + (sens - 1) * travel, the ironsight's travel (adsShare) as the
+    fov's narrowing uses.
+  - Decision: the match is in half screen heights (vertical), not widths, so the brief's preset names hold (1.33 is the
+    4:3 edge, 1.78 the 16:9 edge on any screen of that shape); in width units 1.78 would be past the edge.
+  - Decision: the stick's look is now slowed in the ironsight like the mouse (the brief: mouse, gyro and stick); before
+    it turned at the same speed sighted.
+- **Menu:** Locomotion > Desktop Screen Play: Aim Sensitivity (slider 0.10..2.00, past it 0.05..5) and Aim Sensitivity
+  Match (Centre / 0.75 / 1.33 / 1.78), under Right Click Ironsight; their help ends with the sighted speed now, e.g.
+  "sighted, 0.43x of hipfire's speed at fov 95 (the field of view 50 there)". Both flat-only (dimmed in a headset).
+  menu_paths.txt regenerated.
+- **Shared:** the sighted fov is flatsight's own (adsFovAt, the same adsFovFor the view narrows by), the travel is
+  adsShare; the mouse, gyro and stick share one scale (scaleFor). The headset has no ironsight zoom, so nothing there to
+  share.
+- **Test:** `vr_flat_aim_sens_test` (Misc/quakevr/flataimsens_test.sh; `flataimsens: N passed, M failed`): 200 mock
+  mouse counts per step, the turned degrees against hipfire's. fov 95: hip 1.0000; sighted match 0 0.4273 (the old
+  ratio, factor exactly 1); match 1.78 0.5745; sens 0.5 0.2136; hip with both set 1.0000. fov 75: sighted 36.31, match
+  1.78 sens 0.5 0.2587; match 0 0.4273. The stick's scale and the menu's readout agree with each. 7 passed, 0 failed.
+  `vr_flat_aim_sens_status` prints the scale now. Scene: `flat_aim_sens`.
 ## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
 
 Part 1's leftovers (above). Each a commit of its own; every output checked identical.
@@ -7250,3 +7335,42 @@ image draws could go in VR_SignonPrewarm, the world texts are in by then), the w
 first draw), and the second frame's portal shadow maps (~30: the "worst after" column).
 Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0, changelevel_signon 10/0; scenario_check not run.
 Release-TracyFull builds.
+## Thread pool: Box3D, particles, gore (branch `agent/jobs_phys`, worktree `embed5`, 2026-11-09)
+
+His ask: "try out all the thread pool candidates ... without introducing indeterminism" (perf_1109.md: all 31 job
+threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` over the bench scenarios
+(`play_gore_fight_flat`, `play_gore_fight`: his settings, fixed 90 Hz clock, unpaced, 900 frames).
+
+- **Box3D was already on the pool** (vr_box3d.cpp: `b3WorldDef` workerCount / `enqueueStepTask` / `finishStepTask`,
+  ROUND21 "Box3D on the pool"), split only while 150 bodies or more are awake (`vr_box3d_threads_bodies`). The gore
+  fight has 25-125 awake (76-81 on average): one thread. Its step a frame (`vr_physics_steptime`, low-impact runs, so
+  relative): flat 0.121 ms (pairs 0.018, collide 0.028, solve 0.064), VR 0.154 (0.022 / 0.040 / 0.081); forced onto
+  4 threads (`vr_box3d_threads_bodies 0`) 0.159 and 0.199: slower, so the threshold stays. **Determinism:**
+  `vr_physics_mtbench <bodies> <steps> chains` (new: every third column a ragdoll's chain, capsules jointed with balls
+  and hinges, their limits, friction and springs, so the joints' solver is in the proof): 300 bodies, 300 steps, the
+  same hash `8cae5fb5e39bb51d` with 1, 2, 3, 4, 6, 8, 16 and 32 workers (boxes alone, 200: `eece2c3897006b67` at
+  every count). The game world itself can't be compared run to run (QC's random draws, the load's timing: agent
+  perf_fight2 looks at that), hence the bench world. Debug menu, Self-Tests and Benchmarks: Physics Threads Determinism.
+- **Particles on the pool** (vr_particles.cpp `simulate`, `fillInstances`; `vr_particle_threads` 1, Debug >
+  Particles: Particles on Threads). Each particle's motion and its instance record (its own slot: its index in the
+  pool) in chunks of 2048 on the game's threads; on the main thread after it, in the pool's order: the liquids' rise
+  (`water::surfaceRise` fills a cache: not thread-safe), the drops' rings, the dead taken out, the chunks' bounds merged,
+  and (only if a splash's lying ones are among them) the records closed up. No randomness in either pass (the rings'
+  random angle is drawn on the main thread, in order, as before). **Proof:** `vr_particle_jobs_test [count]` (Debug menu,
+  Self-Tests and Benchmarks: Particles on Threads Self-Test): the particles about plus a burst of every preset, 240 steps of 1/72 s
+  from the same start (particles, random sequence, time) on one thread, split in chunks of 2048 and in chunks of 64: a
+  hash of every particle and record after each step; PASS in vrfiringrange and over vrtesthall's pool (19k
+  particles, 12k lying seen: the liquid path), and with steady pools of 3k to 25k. Everything is put back after.
+  **Cost** (the same test's steady pools, exclusive, ms a step one thread / split): 3k 0.031 / 0.038, 6k 0.06 /
+  0.07, 9k 0.09 / 0.10, 12k 0.127 / 0.126-0.143, 18k 0.22 / 0.18-0.19, 25k 0.30-0.34 / 0.21-0.23. So it splits from
+  12288 particles: a saving of 0.03-0.1 ms in the biggest bursts only (his trace's max 25.9k; p50 1.7k, p95 5.4k:
+  untouched). The main thread's ordered pass (it reads every particle) is what is left. The lighting pass was already
+  split (`particle light`).
+- **Gore: not moved.** In the gore fight (2.5k particles on average) every gore zone is far under a job's dispatch
+  (20-40 us to wake a helper): `bloodstreams` 0.043 ms a frame (a handful of streams; traces, decals and sounds in
+  each), `wounds` 0.016, `decals on the world` 0.021 (its grid count 0.006), `gib trail` 0.001, `blood prints` 0.001;
+  dents and gib meshes have no measurable zone.
+- **Other per-entity work in the fight trace** (not done here): the flat hands' update three times a frame, model
+  posing, shadow casters' culling and ragdoll reads (agent perf_fight2), the armed grunts' prop think (QC, perf_fight2);
+  `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
+  visor's 1.26 ms CPU is the driver's, not ours to split.
