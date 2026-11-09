@@ -518,6 +518,7 @@ same way on the gun's source .blend (`housing_common.py` holds what they share):
 | super nailgun | `make_screen_housing_nail2.py` | `src_models/blend/v_nail2/v_nail2.blend` | `"nail2"` |
 | lightning gun | `make_screen_housing_light.py` | `src_models/blend/v_light/v_light.blend` | `"light"` |
 | nailgun | `make_screen_housing_nail.py` | `src_models/blend/v_nail/v_nail.blend` | `"nail"` |
+| rocket launcher | `make_screen_housing_rocket.py` | `src_models/blend/v_rock2/v_rock2.blend` | `"rock2"` |
 
 From the repository root, in PowerShell (the separator `--` before the script's own options must be quoted, `'--'`:
 PowerShell drops a bare one):

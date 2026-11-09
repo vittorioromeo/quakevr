@@ -6155,6 +6155,47 @@ it) has another texture, smoother with an orange band along the bottom.
 - **Proof:** `scratch/depth/panel_tri.png` (worktree selfshot; before / after, behind the gun looking at the face).
   Re-run: every file identical. vr_pp_test 1: 63 passed, 0 failed. checklist_tests_check: 83 passed, 0 failed.
 
+## The rocket launcher's ammo screen housing (branch `agent/housing_rocket`, 2026-11-09)
+
+His mockup (kit `scratch/mockups/rocket_housing.webp`): the screen in a riveted bronze enclosure on the rear body near
+the grip, made symmetric; the rivets part of the enclosure, the screen embedded between them. Panel (Blender: straight
+on, from the side, from above-left; a rivet straight on and from the eye's side; the game from the eye, e1m1):
+`scratch/hr/panel_rocket.png` in the regfix worktree (the bright test hall: `scratch/hr/a_1.png`).
+
+- **Where:** on the sloped shoulder (the pyramid where the tube steps down to the rear exhaust, x -0.89..1.07), where the
+  old screen floated; the glass keeps weapons.txt's pitch 28 (no weapons.txt change but the barrel mask's length).
+- **The grid decides the shape.** v_rock2's bytes are X 0.393, Y 0.085, Z 0.105 a step. A plane leaning like the glass
+  holds grid points only on rows 0.834 apart up it (1 X + 7 Z steps, 61.9 degrees from level, the glass's 62.0), and
+  a tilted grid plane is never mirror-symmetric top to bottom. So the front is built on the rows (exact) and on the
+  square step (1 X, -2 Z: 0.446 straight back), the window 2 rows tall (h 1.669 = 25.4 font px: "4/4 / 96" fits at
+  today's digit size, k 1) and 24 Y steps wide (1.22h, 31.1 px). The spec's 0.2h top/bottom bands can't sit on rows:
+  above and below the window the bezel is a bevel from the window's edge to the plate's edge, 0.28h out (equal: the
+  outline is symmetric) and 0.12h / 0.15h back (the one top/bottom difference the grid forces). The side bands are
+  flat (0.31h) with outer bevels (0.2h), mitred into the top and bottom ones. Window walls square to the glass 0.27h
+  deep to a dark floor; the glass 0.02h behind the front, rounded 0.15h by the shader in the square opening (the
+  near-black box shows in its corners). The enclosure: an upright back wall from the plate's top down into the tube,
+  upright sides, a skirt square to the glass into the shoulder, closed underneath. Plate 2.24h x 1.56h (3.74 x 2.60
+  model units), its top 0.84 above the tube's top line.
+- **Rivets:** two each side at +-0.25h, in the side bands' middles. On a leaning grid plane a rivet can't be a low dome;
+  each is a cone from a grid point 0.198 in front of the band to a ring of 8 grid points sunk behind it, the ring's
+  points searched so that the cone comes through the band on a circle of 0.08h: width/height 0.987, worst point 0.022
+  off the circle, middle 0.013 off. The lower pair is the upper moved one row down (a grid move: identical); right
+  and left mirror images. Lit-streak texels on the points. From the eye (the glass's normal +-20 degrees) about
+  0.93..1.05.
+- **Texture:** the bezel and the enclosure in the shoulder's own island (289..327 x 14..59): the front mapped as the
+  shoulder under it maps seen face on (an affine fit of its two upper faces, 1.7 texels off), each wall unfolded from the
+  front edge it leaves (no strips); window walls and floor on the dark row (62); rivets on the lit streak (297, 33).
+- **Script:** `Misc/quakevr/make_screen_housing_rocket.py` (housing_common, usual usage/ok/REFUSED; refuses a table
+  that disagrees, round-off rivets (outside 0.9..1.1), the gun in front of the glass, enclosure feet outside the gun).
+  56 vertices, 68 triangles (the gun 811 -> 879). Re-run in place: 0 moved, 68 kept, every file byte-identical.
+- **Table** (`"rock2"`): opening 15.54 x 12.71 px, radius 3.81 (rounded), size 1, offset {-0.0043, -0.0168, 0.039}, box 0.
+- **Clearance:** the main hand's grip anchor (hand_av 1.07 2.60 3.31) is 2.7 model units (1.0 world) from the
+  enclosure's nearest point (inside the gun; 3.2 from its lowest visible edge), the off-hand's (2h_hand_av x 33.3) 31.8
+  in front. From the eye neither hand touches it. The weapon button (on the tube's right side, x ~5.6) stays visible.
+- **Known:** inside the window the shoulder's ridge stands in front of the floor (seen only with the screen off:
+  vr_show_weapon_text 0); from the side the rivet cones read as small teeth (0.075 world units).
+- **Tests:** vr_pp_test 1 63/0; checklist_tests_check 83/0; the export's own checks passed. Scene `rocket_housing`.
+- **Not verified:** the headset (flat shots and Blender only).
 ## The ammo screen's text: its own size and place (branch `agent/ammotext`, 2026-11-09)
 
 His words: "per-weapon tweakable options for the ammo screen? Font size multiplier; text x/y offsets ... should only

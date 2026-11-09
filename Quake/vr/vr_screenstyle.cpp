@@ -148,6 +148,26 @@ constexpr Entry table[] = {
             .housing = true,
             .opening = {31.15f, 15.68f},
             .taper = 0.7308f}},
+    // The rocket launcher: a raised bronze enclosure on the sloped shoulder where the tube steps down to the rear
+    // exhaust, near the grip (v_rock2.blend, Misc/quakevr/make_screen_housing_rocket.py reads `opening`, `radius`,
+    // `size` and `offset` from here). The window 1h tall and 1.22h wide (h 1.669 model units: two of the grid's rows
+    // up the leaning front), the digits at today's size; the glass leans with it (weapons.txt wpntxt_pitch 28),
+    // rounded 0.15h in the square window, 0.02h behind the bezel's front (the offset: from weapons.txt's place onto
+    // it, world units right/up/out). Two round rivets each side. No box.
+    {"rock2",
+        {.radius = 3.81f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {-0.0043f, -0.0168f, 0.039f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {15.54f, 12.71f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
