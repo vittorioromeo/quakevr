@@ -1332,6 +1332,7 @@ vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
+vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
 vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
 vr_flat_xhair_style|1|Locomotion|Visor Crosshair Style|Advanced VR Options > Movement > Locomotion > Visor Crosshair Style
 vr_flat_xhair_size|1|Locomotion|Visor Crosshair Size|Advanced VR Options > Movement > Locomotion > Visor Crosshair Size
@@ -1342,6 +1343,7 @@ vr_flat_xhair_outline|1|Locomotion|Visor Crosshair Outline|Advanced VR Options >
 vr_flat_xhair_glow|1|Locomotion|Visor Crosshair Glow|Advanced VR Options > Movement > Locomotion > Visor Crosshair Glow
 vr_flat_xhair_snap|1|Locomotion|Visor Crosshair Centring|Advanced VR Options > Movement > Locomotion > Visor Crosshair Centring
 vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Smoothing
+vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
@@ -4194,6 +4196,9 @@ vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > 
 vr_flat_lean_angle|2|Tunables|Lean Roll|Advanced VR Options > Debug > Tunables > Lean Roll
 vr_flat_lean_dist|2|Tunables|Lean Distance|Advanced VR Options > Debug > Tunables > Lean Distance
 vr_flat_lean_pivot|2|Tunables|Lean Pivot|Advanced VR Options > Debug > Tunables > Lean Pivot
+vr_flat_lean_arms|2|Tunables|Lean Arms Follow|Advanced VR Options > Debug > Tunables > Lean Arms Follow
+vr_flat_lean_arms_pivot|2|Tunables|Lean Arms Pivot|Advanced VR Options > Debug > Tunables > Lean Arms Pivot
+vr_flat_lean_gun_roll|2|Tunables|Lean Gun Roll|Advanced VR Options > Debug > Tunables > Lean Gun Roll
 vr_flat_lean_time|2|Tunables|Lean Time|Advanced VR Options > Debug > Tunables > Lean Time
 vr_flat_lean_speed|2|Tunables|Lean Move Speed|Advanced VR Options > Debug > Tunables > Lean Move Speed
 vr_flat_lean_margin|2|Tunables|Lean Wall Margin|Advanced VR Options > Debug > Tunables > Lean Wall Margin
@@ -4709,6 +4714,8 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
 |2|Debug - Reports|Visor HUD Report|Advanced VR Options > Debug > Reports > Visor HUD Report
 |2|Debug - Reports|Visor: Hit Glitch|Advanced VR Options > Debug > Reports > Visor: Hit Glitch
+|2|Debug - Reports|Visor: Real Hit Message|Advanced VR Options > Debug > Reports > Visor: Real Hit Message
+|2|Debug - Reports|Visor: Cache On / Off|Advanced VR Options > Debug > Reports > Visor: Cache On / Off
 |2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
@@ -4721,6 +4728,7 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Flatscreen Shove|Advanced VR Options > Debug > Reports > Flatscreen Shove
 |2|Debug - Reports|Flatscreen Test Hit From The Right|Advanced VR Options > Debug > Reports > Flatscreen Test Hit From The Right
 |2|Debug - Reports|Flatscreen Crosshair Probe|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Probe
+|2|Debug - Reports|Flatscreen Crosshair Turn Test|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Turn Test
 |2|Debug - Reports|Flatscreen Guns Shoot Straight Ahead|Advanced VR Options > Debug > Reports > Flatscreen Guns Shoot Straight Ahead
 |2|Debug - Reports|Flatscreen Guns Back At The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Guns Back At The Crosshair
 |2|Debug - Reports|Flatscreen Hit Probe|Advanced VR Options > Debug > Reports > Flatscreen Hit Probe

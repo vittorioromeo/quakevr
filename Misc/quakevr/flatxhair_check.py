@@ -102,10 +102,50 @@ check(num(block("menu", 0).get("head", ""), "on")[0] == 0, "menu: not drawn with
 b0 = block("visor", 0).get("head", "")
 check(num(b0, "on")[0] == 1 and num(b0, "drawn")[0] == 1, "visor: drawn with the visor off (vr_flat_visor 0)")
 
+# turn1 / turn2: vr_flat_xhair_turntest's lines at 144 frames a second, one gun then two.
+turns, current = {}, None
+for line in text:
+    m = re.match(r"flatxhair_test: (\w+)", line)
+    if m:
+        current = m.group(1)
+        continue
+    m = re.match(r"flatxhair turn: (main|off) (step|off) rms ([\d.]+) max ([\d.]+)", line)
+    if m and current:
+        turns.setdefault(current, {})[(m.group(1), m.group(2))] = (float(m.group(3)), float(m.group(4)))
+for name, hands_in in (("turn1", ("main",)), ("turn2", ("main", "off"))):
+    for h in hands_in:
+        step = turns.get(name, {}).get((h, "step"), (float("nan"), 0))[0]
+        off = turns.get(name, {}).get((h, "off"), (float("nan"), 0))[1]
+        check(step <= 0.5 and off <= snap / scale, f"{name}: turning 360 deg/s at 144 fps, the {h} crosshair still ({step} px rms a frame) "
+              f"and its hit near the centre (at most {off} px at 1080 rows)")
+
+# flush: the gun turned out of a wall fires the way its barrel points; the crosshair on that hit, off the centre
+b0, b1 = block("flush", 0), block("flush", 1)
+wall = num(b0.get("main_dim", ""), "wall")[0]
+way = num(b0.get("main_gun", ""), "way")[0]
+gd = num(b0.get("main_gun", ""), "from drawn")[0]
+off = hand(b0, "main", "off")[0]
+check(wall >= 0.99 and way <= 1.0 and gd <= tol, f"flush: the shot along the drawn barrel ({way} deg apart), the crosshair on the "
+      f"barrel's hit ({gd} px; wall share {wall})")
+check(off > snap and num(b0.get("main_dim", ""), "dim")[0] >= 0.95, f"flush: off the centre ({off} px > {snap}), not dimmed (it fires)")
+fired = num(b1.get("main_fired", ""), "then")[0]
+fc = num(b1.get("main_pellets", ""), "from centre")[0]
+check(fired <= tol and fc > snap, f"flush: its pellets land on the crosshair drawn as they landed ({fired} px), not on the centre ({fc} px)")
+b1 = block("flushold", 1)
+fc = num(b1.get("main_pellets", ""), "from centre")[0]
+check(fc <= tol, f"flushold: vr_flat_wall_shot 0, the pellets on the centre as before ({fc} px)")
+
+# reload: the gun away on its trip, its crosshair held on the centre and dimmed (vr_flat_xhair_reload_alpha 0.35, eased in
+# over a few frames)
+b0 = block("reload", 0)
+line = b0.get("main_dim", "")
+check(num(line, "reload")[0] == 1 and num(line, "dim")[0] <= 0.5 and hand(b0, "main", "off")[0] <= snap,
+      f"reload: the gun away reloading, its crosshair on the centre ({hand(b0, 'main', 'off')[0]} px) and dimmed ({line[11:]})")
+
 # Pixels. The crosshair's green: well greener than red and blue.
 shots = sorted((os.path.join(shots_dir, f) for f in os.listdir(shots_dir) if f.lower().endswith(".png")), key=os.path.getmtime)
-check(len(shots) == 12, f"screenshots: 12 taken ({len(shots)})")
-if len(shots) == 12:
+check(len(shots) == 13, f"screenshots: 13 taken ({len(shots)})")
+if len(shots) == 13:
     imgs = [read_png(s) for s in shots]
     w, h, _ = imgs[0]
     k = w / view[0] if view[0] == view[0] else 1.0

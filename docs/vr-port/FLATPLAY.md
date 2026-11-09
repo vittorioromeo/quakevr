@@ -265,13 +265,24 @@ little down (4.6 at the defaults), the view rolls `vr_flat_lean_angle` (15) degr
 body's lean toward it (`hands::State::lean`: the trunk tilts from the hips as a headset player's does), and the drawn
 view by the same (`VR_FlatViewLean`, `Quake/view.c`): the hands, the crosshair's ray, the ironsight and the wall's
 tilt (`vr_flatsight.cpp`) all stand on that head, so the gun leans out with the eye and a wall's tilt is measured
-from the leant pose (shooting round a corner the unleant gun would be raised at). The roll is the drawn view's, which
-the drawn hands keep (flatplay's drawnOffset), so the weapon rolls with the camera and the ironsight's sights stay
-on the crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched). Three lines sideways from
+from the leant pose (shooting round a corner the unleant gun would be raised at). The arms and the guns lean as one
+rigid body with the eye (`flatplay::poseHands`' `leanRig`; his words 2026-11-09): posed as he stands upright, then moved
+by the rigid move that takes the upright eye to the leant one, turned about the level forward by the upper body's tilt
+-- at `vr_flat_lean_arms_pivot` 0 (default) the view's own roll, so the guns keep their place on the screen while the
+room tilts; a pivot that many units under the eye instead turns them by the eye's sideways move's angle there (30, the
+eye's own swing: 32 degrees, the guns 17 degrees round on the screen) -- `vr_flat_lean_arms` (1) of it (0: carried with
+the eye, unturned). Each gun then aims again from where its hand is (the crosshair's point) and rolls
+`vr_flat_lean_gun_roll` (1) of the view's roll, so it tilts with the screen and the ironsight's sights stay on the
+crosshair (`vr_flat_sight_check` within 0.001 units leant either way and crouched); the drawn hands add no roll of their
+own (drawnOffset). `vr_flatleanpose_test` checks it (below). Three lines sideways from
 the eye, under it and from where the weapon is ahead stop the lean `vr_flat_lean_margin` (6) short of a wall: the eye
 never goes in, at once, and comes back out at the lean's speed. Only the way the lean goes is measured, so leaning away
 from a wall or along it goes all the way; the weapon's line starts only as far ahead as is open (facing a wall he
-stood against it started inside it and the lean got nothing: the view rolled, the eye stayed). Standing, crouched and
+stood against it started inside it and the lean got nothing: the view rolled, the eye stayed). `vr_flatleanpose_test
+[main:off ...]` (`flatslide_test.sh`, vrtesthall; default a shotgun alone, two shotguns, two nail pistols, two grunt's
+guns): upright, full left and full right, each gun's pose and drawn hand within 1 unit of the upright one moved
+rigidly as above, firing, its shot within 0.05 degrees of the crosshair's point; then 17 units off the nearer side wall,
+leant into it and away, no gun stopped that fires upright there. Standing, crouched and
 lying down; lying down it is smaller, `vr_flat_lean_prone_dist` (3) and `vr_flat_lean_prone_angle` (8 degrees, by
 how far down he is), and the lying trunk rolls in place with the view (`flatmove::proneLeanRoll`, applied by
 `bodyLeanRollTurn` in `vr_avatar_pitch.cpp`, after the lying pose's own turn). Not sliding, swimming or dead (it
@@ -789,7 +800,21 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
   the server will trace it: the muzzle, the shot's angles and the hand this frame's move sent (`buildMove`, noted by
   `flatxhair::noteMove`), from behind the muzzle as QC's `VR_ShotBackPoint` (a wall between the hand and there: the hand),
   2048 past the muzzle, stopping on the world, monsters' models, gibs and heads (`MOVE_HITMODEL`). Where it stops is
-  projected with the window view's own camera (`r_matviewproj`): the true place of the hit on the screen.
+  projected with the window view's camera (`r_matviewproj`) of the frame that move was made in: the hit's place against
+  the view. A move goes with the server's tick (72 a second), not every frame drawn; projected with each frame's own camera
+  the move's hit lagged the view on the frames between ticks, and turning fast it swung off the centre and back every frame
+  (at 144 fps and 360 degrees a second: 22 px RMS, 32 at most; ROUND24.md, "Visor crosshair: jitter, reload, walls"). The
+  gun turns with the view, so the hit against the view is where its next move's shot goes.
+- **Against a wall** (`vr_flat_wall_shot`, 1; Desktop Screen Play > Shots Follow Gun At Walls). A gun the wall turns out of it
+  (`vr_flat_wall_tilt`, its yaw and roll, `vr_flat_wall_slide`'s level turn) shoots from its muzzle as drawn the way the
+  drawn barrel points: the move's shot angles get the drawn turn (`flatsight::wallShotAngles`), and its muzzle is the steady
+  one turned the same way round the drawn hand's pivot (`keepMuzzle`), in place of the start eased onto the crosshair's ray.
+  By the turn's angle: none level, all of it from 4 degrees, so it eases in and out with the turn (no snap leaving the wall).
+  The crosshair, tracing the move's line, shows that hit. 0: the shots go through the crosshair as before. With
+  `vr_flat_wall_block_fire` on a gun tilted up more than 5 degrees still doesn't fire; one laid along a wall does.
+- **Reloading.** A gun away on its reload trip (`flatreload::busy`) has its crosshair held on the centre (its muzzle points
+  at the floor by the hip) and dimmed to `vr_flat_xhair_reload_alpha` (0.35) of its opacity, as a gun the wall stops is
+  (0.35); both eased in and out over about 0.06 s.
 - **Centred.** Within `vr_flat_xhair_snap` (8 pixels at 1080 rows) of the crosshair's centre (the screen's middle, or where
   the ironsight's picture moved it) it is drawn exactly on the centre, and stays there until it is half as far again
   (no flicker at the edge). Since the guns point at what the crosshair is on (`vr_flat_aim_point`), that is nearly always.
@@ -813,5 +838,8 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
 
 Debug > Reports: "Flatscreen Crosshair Probe" (`vr_flat_xhair_probe`: each gun's hit, its place, snapped or not, where it is
 drawn; and where the pellets fired since the last probe landed, from the server's own tracer lines, in pixels from the drawn
-crosshair and from the centre). Test: `bash Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N
-passed, M failed`).
+crosshair and from the centre, from the drawn barrel's own line and from the crosshair drawn as they landed; the drawn
+barrel's way against the shot's, the wall's share, the dimming). "Flatscreen Crosshair Turn Test" (`vr_flat_xhair_turntest
+[deg/s] [frames] [frames each way] [1: a line a frame]`: the mock mouse turns the view back and forth; each crosshair's move
+from frame to frame, RMS and most, and its hit's distance off the centre, pixels at 1080 rows). Test: `bash
+Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed, M failed`).

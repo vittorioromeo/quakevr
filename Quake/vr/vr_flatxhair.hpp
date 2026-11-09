@@ -35,7 +35,10 @@ void noteMove(const VrMove& move);
 // crosshair).
 void noteTracer(int hand, const glm::vec3& to);
 
-// vr_flat_xhair_probe.
+// vr_flat_xhair_probe, vr_flat_xhair_turntest.
 void init();
+
+// Once a frame, from flatplay::frame before the move (the mode on): vr_flat_xhair_turntest's mouse.
+void frame();
 
 } // namespace qvr::flatxhair
