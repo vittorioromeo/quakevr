@@ -89,6 +89,7 @@ SIDE_MARGIN = 0.06
 BARRELS_Y = 1.6
 GUSSET_IN = 0.55    # a gusset's inner corner (model units from the centre: inside the receiver's flat top, |y| < 0.66)
 GUSSET_SINK = 0.05  # its lower corner this far under the shoulder
+BOTTOM_SEGMENTS = (4, 5, 6)  # the outline's lower-left chamfer, bottom edge, lower-right chamfer (point i to i + 1)
 FASTENER_SIDES = 8
 FASTENER_TOP = 0.55  # the head's top ring, a share of its radius (the dome's shoulder)
 
@@ -235,8 +236,17 @@ def main(h):
         a, b = ring_idx[a_name], ring_idx[b_name]
         for i in range(m):
             j = (i + 1) % m
-            tris.append((a[i], a[j], b[j], kind, centre, mode))
-            tris.append((a[i], b[j], b[i], kind, centre, mode))
+            # Along the bottom (the lower chamfers 4-5 and 6-7, the bottom edge 5-6) the bezel goes on down into the
+            # gussets: its front there is the flat front's own planar mapping (the gussets' fronts continue it, no
+            # band line across the joint) and its walls, covered by the gussets and the receiver, are dark (their own
+            # UVs: the file's normals there don't bend the visible faces' shading).
+            mi = mode
+            if i in BOTTOM_SEGMENTS and a_name == "outer":
+                mi = "front"
+            elif i in BOTTOM_SEGMENTS and a_name == "inner":
+                mi = "dark"
+            tris.append((a[i], a[j], b[j], kind, centre, mi))
+            tris.append((a[i], b[j], b[i], kind, centre, mi))
     # The back, a step inside the block: from the walls' end to the lip's (a closed solid where it overhangs the block).
     a, b = ring_idx["inner"], ring_idx["back"]
     for i in range(m):
@@ -256,26 +266,31 @@ def main(h):
         keep = [p for p in keep if not any(flag[i] for i in p.vertices)]
     tree = bvhtree.BVHTree.FromPolygons([v.co for v in me.vertices], [list(p.vertices) for p in keep])
     v_bot = z_bot - cz
-    gusset_corner = set()  # each gusset's front corner under the bezel (its face's dark end)
+    # Its outer face is flush with the bezel's side (his nail_gussets2.webp: from the enclosure's edge, not inset): the
+    # top follows the bezel's outline from the inner corner along the bottom edge and up the lower chamfer to the side
+    # edge's end, then the outer side goes straight down the side's plane to the shoulder.
     for g in (-1.0, 1.0):
-        u_c = g * (ow - co_u)
-        hit = tree.ray_cast(place(u_c, v_bot, x_face), Vector((0.0, 0.0, -1.0)))
+        u_c = g * (ow - co_u)  # the bottom edge's end (the chamfer's foot)
+        u_s = g * ow           # the bezel's side
+        hit = tree.ray_cast(place(u_s, v_bot, x_face), Vector((0.0, 0.0, -1.0)))
         if hit[0] is None or v_bot - (hit[0].z - cz) > 2.0:
-            h.fail("no shoulder under the bezel's lower corner at u %.2f" % u_c)
+            h.fail("no shoulder under the bezel's lower corner at u %.2f" % u_s)
         v_low = hit[0].z - cz - GUSSET_SINK
-        pts = [(g * GUSSET_IN, v_bot), (u_c, v_bot), (u_c, v_low)]
+        pts = [(g * GUSSET_IN, v_bot), (u_c, v_bot), (u_s, v_bot + co_v), (u_s, v_low)]
         h.say("gusset at u %+.3f: the shoulder %.3f under the bezel's bottom (hit at y %.3f z %.3f)"
-              % (u_c, v_bot - (hit[0].z - cz), hit[0].y, hit[0].z))
+              % (u_s, v_bot - (hit[0].z - cz), hit[0].y, hit[0].z))
         f = [add(place(u, v, x_front)) for u, v in pts]
         k = [add(place(u, v, x_in)) for u, v in pts]
-        mid = place(g * (GUSSET_IN + abs(u_c)) * 0.5, (2 * v_bot + v_low) / 3.0, x_face)
-        side = Vector((0.0, -g, 0.0))                       # (u right = model -Y)
-        slope = Vector((0.0, g, -1.0)).normalized()          # the underside: down and in
-        gusset_corner.add(f[1])
-        tris.append((f[0], f[1], f[2], "back", mid, "gusset"))
-        tris.append((k[0], k[1], k[2], "front", mid, "dark"))
-        for (i0, i1), want_n, mode in (((0, 1), Vector((0.0, 0.0, 1.0)), "dark"), ((1, 2), side, "edge"),
-                                       ((2, 0), slope, "dark")):
+        mid = place(g * (GUSSET_IN + abs(u_s)) * 0.5, (2 * v_bot + v_low) / 3.0, x_face)
+        up = Vector((0.0, 0.0, 1.0))
+        chamfer = Vector((0.0, g * co_v, co_u)).normalized()  # under the bezel's chamfer: up and in
+        side = Vector((0.0, -g, 0.0))                          # (u right = model -Y)
+        slope = Vector((0.0, g, -1.0)).normalized()             # the underside: down and in
+        for a_, b_, c_ in ((0, 1, 3), (1, 2, 3)):  # (the face is concave at the chamfer's foot: two triangles)
+            tris.append((f[a_], f[b_], f[c_], "back", mid, "front"))  # (the bezel's front, continued)
+            tris.append((k[a_], k[b_], k[c_], "front", mid, "dark"))
+        for (i0, i1), want_n, mode in (((0, 1), up, "dark"), ((1, 2), chamfer, "dark"), ((2, 3), side, "edge"),
+                                       ((3, 0), slope, "dark")):
             tris.append((f[i0], f[i1], k[i1], want_n, mid, mode))
             tris.append((f[i0], k[i1], k[i0], want_n, mid, mode))
     fasteners = [(su * fu, sv * fv) for su in (-1.0, 1.0) for sv in (1.0, -1.0)]
@@ -312,11 +327,18 @@ def main(h):
             return FRONT[0] + u * FRONT[2], FRONT[1] - v * FRONT[2]
         if mode == "dark":
             return (RIM_SPAN[0] + RIM_SPAN[1]) * 0.5 + u * 8.0, ROW_DARK - v * 8.0
-        if mode == "gusset":  # a gusset's front: the worn rim (as the bezel's edge band), lit along its slope
-            return RIM_SPAN[0] + 40.0 - v * 20.0, ROW_RIM_IN if vi in gusset_corner else ROW_RIM
-        if mode == "edge":  # a gusset's outer side: the worn rim, along it by height, across it by depth
-            return (RIM_SPAN[0] + 20.0 - v * 12.0,
-                    ROW_RIM + (ROW_WALL_BACK - ROW_RIM) * (co.x - x_front) / (x_in - x_front))
+        if mode == "edge":
+            # A gusset's outer side: the bezel's side wall carried straight down, the same texels at the same scale and
+            # orientation: across it by depth as the wall's rows, along it the wall's columns (the ring's perimeter
+            # share) extended past the side's lower end (point 7 on the right, 4 on the left) at the wall's own rate.
+            name = "outer"
+            lens = [math.dist(rings[name][0][q], rings[name][0][(q + 1) % m]) for q in range(m)]
+            rate = (RIM_SPAN[1] - RIM_SPAN[0]) / sum(lens)
+            end = 7 if u > 0.0 else 4
+            v_end = rings[name][0][end][1]
+            col = RIM_SPAN[0] + (RIM_SPAN[1] - RIM_SPAN[0]) * perimeter_share(name, end, False)
+            col += (v - v_end) * rate if end == 7 else (v_end - v) * rate
+            return col, ROW_RIM + (ROW_WALL_BACK - ROW_RIM) * (co.x - x_front) / (x_in - x_front)
         if mode in ("rim", "lip"):
             name, i = ring_of[vi]
             col = RIM_SPAN[0] + (RIM_SPAN[1] - RIM_SPAN[0]) * perimeter_share(name, i, wrap)

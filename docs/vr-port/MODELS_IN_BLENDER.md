@@ -540,7 +540,11 @@ The script builds the housing (or moves the one already there: the same shape ke
 model file), exports the model as `blend_export.py` does (the nail pistol's with `--grow`), saves the .blend and ends
 with `housing_<entry>: ok, ...`, or `housing_<entry>: REFUSED: ...` with nothing written. After `--`: `--dry` builds
 and checks it without exporting or saving; `--save other.blend` saves there instead of in place. Run on an unchanged
-.blend it writes the same files (git shows no change).
+.blend it writes the same files (git shows no change): a .blend whose content the run didn't change is not saved
+again (Blender's saves of the same content differ in their bytes). Every script refuses if the UVs of any of the
+gun's own faces change (only the housing's may), before and after the export; the shotgun's script re-skins its end
+face's own two triangles on purpose (one flat mapping onto the steel plate: id's skin paints them as two mismatched
+islands, which the bezel showed up) and the check covers the rest.
 
 Three ways to change a housing:
 
