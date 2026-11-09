@@ -230,125 +230,164 @@ struct Plink
 };
 za::Vector<Plink> plinks;
 
-void run()
+// The particles on the game's threads (simulate, fillInstances): each chunk writes only its own particles and instance
+// records (fixed slots), anything shared (the liquids' rise cache, the rings, the compaction, the bounds) after it on this
+// thread in the pool's order: the same results bit for bit whatever the threads (vr_particle_jobs_test). Split from
+// splitParticles particles on (below it a split costs more than it saves: ROUND24.md, "Particles on the thread pool").
+jobs::Site simSite{"particle sim"};
+jobs::Site instanceSite{"particle verts"};
+constexpr za::SizeT particleChunk = 2048;
+constexpr za::SizeT splitParticles = 12288;
+// The particle passes' split: as above, or (vr_particle_jobs_test) never, always in the usual chunks, or always in small
+// ones (so that a few particles split too).
+enum class Split
 {
-    if(vr_particle_freeze.value != 0.f || cl.time == lastRun)
-    {
-        return;
-    }
-    const float dt = lastRun < 0.0 ? 0.f : static_cast<float>(CLAMP(0.0, cl.time - lastRun, 0.1));
-    lastRun = cl.time;
-    if(dt <= 0.f)
-    {
-        return;
-    }
+    Auto,
+    Never,
+    Always,
+    AlwaysSmall
+};
+Split splitMode = Split::Auto;
 
+[[nodiscard]] bool splitNow(za::SizeT count)
+{
+    return splitMode == Split::Always || splitMode == Split::AlwaysSmall ||
+           (splitMode == Split::Auto && count >= splitParticles && vr_particle_threads.value != 0.f);
+}
+[[nodiscard]] za::SizeT chunkNow()
+{
+    return splitMode == Split::AlwaysSmall ? 64 : particleChunk;
+}
+
+void simulate(float dt)
+{
     const float time2 = dt * 10.f;
     const float time3 = dt * 15.f;
     const float dvel = 4.f * dt;
     const auto fade = [dt](Particle& p, float perSecond255) { p.color.a += perSecond255 / 255.f * dt; };
     const auto spin = [dt](Particle& p, float rate) { p.angle += rate * dt * (p.spinBack ? -1.f : 1.f); };
 
-    for(Particle& p : pool)
-    {
-        p.vel += p.acc * dt;
-        p.org += p.vel * dt;
-
-        switch(p.type)
+    jobs::parallelFor(simSite, pool.size(), chunkNow(), [&](za::SizeT begin, za::SizeT end) {
+        for(za::SizeT i = begin; i < end; i++)
         {
-            case Explode:
-                p.ramp += time2;
-                if(p.ramp >= 8.f)
-                {
-                    p.die = -1.0;
-                }
-                else
-                {
-                    p.color = glm::vec4{paletteColor(ramp1[static_cast<int>(p.ramp)]), p.color.a};
-                }
-                p.vel += p.vel * dvel;
-                break;
-            case Explode2:
-                p.ramp += time3;
-                if(p.ramp >= 8.f)
-                {
-                    p.die = -1.0;
-                }
-                else
-                {
-                    p.color = glm::vec4{paletteColor(ramp2[static_cast<int>(p.ramp)]), p.color.a};
-                }
-                p.vel -= p.vel * dt;
-                break;
-            case Blob: p.vel += p.vel * dvel; break;
-            case TxExplode:
-                fade(p, -345.f);
-                p.scale += 135.f * dt;
-                spin(p, 0.75f);
-                break;
-            case TxSmoke:
-                fade(p, -70.f);
-                p.scale += 47.f * dt;
-                break;
-            case TxBigSmoke:
-                fade(p, -35.f);
-                p.scale += 37.f * dt;
-                break;
-            case Lightning:
-                fade(p, -84.f);
-                p.scale -= 32.f * dt;
-                break;
-            case Rock: spin(p, 25.f); break;
-            case GunSmoke:
-                fade(p, -110.f);
-                p.scale += 69.f * dt;
-                p.org.z += 18.f * dt;
-                break;
-            case GunPickup:
-                fade(p, -80.f);
-                p.scale -= 0.1f * dt;
-                break;
-            case Drip: fade(p, -170.f); break;
-            case Custom:
-                // Fading in first (`ramp` seconds of it left: the shore's spray, as `fade` rises to its peak), then out
-                // to nothing by its end.
-                if(p.ramp > 0.f)
-                {
-                    p.ramp -= dt;
-                    if(p.ramp <= 0.f)
+            Particle& p = pool[i];
+            p.vel += p.acc * dt;
+            p.org += p.vel * dt;
+
+            switch(p.type)
+            {
+                case Explode:
+                    p.ramp += time2;
+                    if(p.ramp >= 8.f)
                     {
-                        p.color.a += p.fade * (dt + p.ramp);
-                        p.fade = -p.color.a / za::max(static_cast<float>(p.die - cl.time), 0.05f);
-                        p.ramp = 0.f;
+                        p.die = -1.0;
                     }
-                }
-                p.color.a += p.fade * dt;
-                p.scale += p.grow * dt;
-                if(p.turb > 0)
-                {
-                    const float phase = static_cast<float>(fmod(p.die * 7.31, 6.2831853));
-                    p.vel += swirl(p.org, phase) * (2.f * static_cast<float>(p.turb) * dt);
-                }
-                p.vel *= za::max(0.f, 1.f - p.drag * dt);
-                p.angle += p.spin * dt;
-                break;
-            default: break;
+                    else
+                    {
+                        p.color = glm::vec4{paletteColor(ramp1[static_cast<int>(p.ramp)]), p.color.a};
+                    }
+                    p.vel += p.vel * dvel;
+                    break;
+                case Explode2:
+                    p.ramp += time3;
+                    if(p.ramp >= 8.f)
+                    {
+                        p.die = -1.0;
+                    }
+                    else
+                    {
+                        p.color = glm::vec4{paletteColor(ramp2[static_cast<int>(p.ramp)]), p.color.a};
+                    }
+                    p.vel -= p.vel * dt;
+                    break;
+                case Blob: p.vel += p.vel * dvel; break;
+                case TxExplode:
+                    fade(p, -345.f);
+                    p.scale += 135.f * dt;
+                    spin(p, 0.75f);
+                    break;
+                case TxSmoke:
+                    fade(p, -70.f);
+                    p.scale += 47.f * dt;
+                    break;
+                case TxBigSmoke:
+                    fade(p, -35.f);
+                    p.scale += 37.f * dt;
+                    break;
+                case Lightning:
+                    fade(p, -84.f);
+                    p.scale -= 32.f * dt;
+                    break;
+                case Rock: spin(p, 25.f); break;
+                case GunSmoke:
+                    fade(p, -110.f);
+                    p.scale += 69.f * dt;
+                    p.org.z += 18.f * dt;
+                    break;
+                case GunPickup:
+                    fade(p, -80.f);
+                    p.scale -= 0.1f * dt;
+                    break;
+                case Drip: fade(p, -170.f); break;
+                case Custom:
+                    // Fading in first (`ramp` seconds of it left: the shore's spray, as `fade` rises to its peak), then out
+                    // to nothing by its end.
+                    if(p.ramp > 0.f)
+                    {
+                        p.ramp -= dt;
+                        if(p.ramp <= 0.f)
+                        {
+                            p.color.a += p.fade * (dt + p.ramp);
+                            p.fade = -p.color.a / za::max(static_cast<float>(p.die - cl.time), 0.05f);
+                            p.ramp = 0.f;
+                        }
+                    }
+                    p.color.a += p.fade * dt;
+                    p.scale += p.grow * dt;
+                    if(p.turb > 0)
+                    {
+                        const float phase = static_cast<float>(fmod(p.die * 7.31, 6.2831853));
+                        p.vel += swirl(p.org, phase) * (2.f * static_cast<float>(p.turb) * dt);
+                    }
+                    p.vel *= za::max(0.f, 1.f - p.drag * dt);
+                    p.angle += p.spin * dt;
+                    break;
+                default: break;
+            }
         }
-        // A drop falling to its liquid: the surface where it is, raised or sunk by the waves and ripples (close to it).
-        if(p.liquid && !p.flat && p.vel.z < 0.f && p.org.z < p.floor + 48.f)
-        {
-            p.rise = water::surfaceRise({p.org.x, p.org.y, p.floor + 0.5f}, p.liquid, geom::vec(r_refdef.vieworg));
-        }
-        // A drop going back into its liquid: a little ring where it went in (added after the loop).
-        if(p.plink && p.org.z < p.floor + p.rise && p.vel.z < 0.f && p.die >= cl.time && plinks.size() < 48)
-        {
-            plinks.pushBack({p.org.x, p.org.y, p.floor + 0.5f, p.scale, p.color, p.liquid});
-        }
-    }
+    }, splitNow(pool.size()));
 
-    za::vectorEraseIf(pool, [](const Particle& p) {
-        return p.die < cl.time || p.color.a <= 0.f || p.scale <= 0.f || (p.org.z < p.floor + p.rise && p.vel.z < 0.f);
-    });
+    // In the pool's order on this thread: the liquids' rise (water::surfaceRise fills a cache as it goes), the rings, and
+    // the dead ones taken out.
+    const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+    za::SizeT kept = 0;
+    for(za::SizeT i = 0; i < pool.size(); i++)
+    {
+        Particle& p = pool[i];
+        if(p.liquid || p.plink)
+        {
+            // A drop falling to its liquid: the surface where it is, raised or sunk by the waves and ripples (close to it).
+            if(p.liquid && !p.flat && p.vel.z < 0.f && p.org.z < p.floor + 48.f)
+            {
+                p.rise = water::surfaceRise({p.org.x, p.org.y, p.floor + 0.5f}, p.liquid, eye);
+            }
+            // A drop going back into its liquid: a little ring where it went in (added after the loop).
+            if(p.plink && p.org.z < p.floor + p.rise && p.vel.z < 0.f && p.die >= cl.time && plinks.size() < 48)
+            {
+                plinks.pushBack({p.org.x, p.org.y, p.floor + 0.5f, p.scale, p.color, p.liquid});
+            }
+        }
+        if(p.die < cl.time || p.color.a <= 0.f || p.scale <= 0.f || (p.org.z < p.floor + p.rise && p.vel.z < 0.f))
+        {
+            continue;
+        }
+        if(kept != i)
+        {
+            pool[kept] = p;
+        }
+        kept++;
+    }
+    pool.resize(kept);
 
     for(const Plink& k : plinks)
     {
@@ -372,6 +411,20 @@ void run()
         pool.pushBack(p);
     }
     plinks.clear();
+}
+
+void run()
+{
+    if(vr_particle_freeze.value != 0.f || cl.time == lastRun)
+    {
+        return;
+    }
+    const float dt = lastRun < 0.0 ? 0.f : static_cast<float>(CLAMP(0.0, cl.time - lastRun, 0.1));
+    lastRun = cl.time;
+    if(dt > 0.f)
+    {
+        simulate(dt);
+    }
 }
 
 // ---- Drawing --------------------------------------------------------------------------------
@@ -1512,57 +1565,118 @@ gfx::ParticleBatch batch;         // this frame's upload
 glm::vec3 boundsMin{0.f}, boundsMax{0.f}; // round all of this frame's quads (as far as each can reach)
 int builtFrame = -1;             // host_framecount of the last build
 
-void buildInstances()
+// A chunk's share of fillInstances (its own slot): its bounds, its lying ones, and whether any is trimmed.
+struct InstanceChunk
+{
+    glm::vec3 lo, hi;
+    za::SizeT lying;
+    bool trim;
+};
+za::Vector<InstanceChunk> instanceChunks; // (only grows)
+bool instancesTrim = false; // this frame's: a trimmed cell among them
+
+// The frame's instance records (instances, instanceCount, lying, the bounds), each particle's in its own slot (its index
+// in the pool) on the game's threads; then, if a splash's lying ones are among them, closed up in order on this thread.
+void fillInstances()
 {
     lying.clear();
     if(instances.size() < pool.size())
     {
         instances.resize(pool.size());
     }
-    glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
-    gfx::ParticleInstance* out = instances.data();
-    bool trim = false;
-    for(za::SizeT i = 0; i < pool.size(); i++)
+    const za::SizeT chunk = chunkNow();
+    const za::SizeT chunks = (pool.size() + chunk - 1) / chunk;
+    const bool split = splitNow(pool.size());
+    const za::SizeT step = split ? chunk : za::max(pool.size(), za::SizeT{1}); // (one chunk on this thread: one slot)
+    if(instanceChunks.size() < chunks + 1)
     {
-        Particle& p = pool[i];
-        if(p.flat && p.liquid)
-        {
-            lying.pushBack(static_cast<za::U32>(i)); // a splash's rings and foam (per view)
-            continue;
-        }
-        const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f);
-        lo = glm::min(lo, p.org - reach);
-        hi = glm::max(hi, p.org + reach);
-        // The quad's right and up, turned by the particle's angle about the view direction.
-        if(p.angle != p.csAngle)
-        {
-            p.cs = {za::cos(p.angle), za::sin(p.angle)};
-            p.csAngle = p.angle;
-        }
-        // Premultiplied: a glow's alpha 0 adds it.
-        const float a = za::min(p.color.a, 1.f);
-        const Softness sn = softness(p.cell, 0.75f * p.scale);
-        gfx::ParticleInstance& q = *out++;
-        q.org = p.org;
-        q.half = 0.75f * p.scale;
-        q.color = {glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a}; // (lit: lightParticles)
-        q.vel = p.vel;
-        q.streak = p.streak;
-        q.cos = p.cs.x;
-        q.sin = p.cs.y;
-        q.soft = sn.fade;
-        q.pull = sn.pull;
-        q.uv = cellUv[p.cell];
-        q.flat = p.flat ? 1.f : 0.f;
-        q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
-        q.kind = static_cast<float>(p.cell);
-        q.pad = 0.f; // (flags.w: the shader skips retro textures; none does since the shore's spray, round 23)
-        trim |= cellTrim[p.cell];
+        instanceChunks.resize(chunks + 1);
     }
-    instanceCount = static_cast<za::SizeT>(out - instances.data());
+    jobs::parallelFor(instanceSite, pool.size(), step, [&](za::SizeT begin, za::SizeT end) {
+        glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
+        za::SizeT lyingHere = 0;
+        bool trim = false;
+        for(za::SizeT i = begin; i < end; i++)
+        {
+            Particle& p = pool[i];
+            if(p.flat && p.liquid)
+            {
+                lyingHere++; // a splash's rings and foam (per view: buildLying)
+                continue;
+            }
+            const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f);
+            lo = glm::min(lo, p.org - reach);
+            hi = glm::max(hi, p.org + reach);
+            // The quad's right and up, turned by the particle's angle about the view direction.
+            if(p.angle != p.csAngle)
+            {
+                p.cs = {za::cos(p.angle), za::sin(p.angle)};
+                p.csAngle = p.angle;
+            }
+            // Premultiplied: a glow's alpha 0 adds it.
+            const float a = za::min(p.color.a, 1.f);
+            const Softness sn = softness(p.cell, 0.75f * p.scale);
+            gfx::ParticleInstance& q = instances[i];
+            q.org = p.org;
+            q.half = 0.75f * p.scale;
+            q.color = {glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a}; // (lit: lightParticles)
+            q.vel = p.vel;
+            q.streak = p.streak;
+            q.cos = p.cs.x;
+            q.sin = p.cs.y;
+            q.soft = sn.fade;
+            q.pull = sn.pull;
+            q.uv = cellUv[p.cell];
+            q.flat = p.flat ? 1.f : 0.f;
+            q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
+            q.kind = static_cast<float>(p.cell);
+            q.pad = 0.f; // (flags.w: the shader skips retro textures; none does since the shore's spray, round 23)
+            trim |= cellTrim[p.cell];
+        }
+        instanceChunks[begin / step] = {lo, hi, lyingHere, trim};
+    }, split);
+
+    glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
+    za::SizeT lyingAll = 0;
+    instancesTrim = false;
+    const za::SizeT used = (pool.size() + step - 1) / step;
+    for(za::SizeT c = 0; c < used; c++)
+    {
+        const InstanceChunk& k = instanceChunks[c];
+        lo = glm::min(lo, k.lo);
+        hi = glm::max(hi, k.hi);
+        lyingAll += k.lying;
+        instancesTrim |= k.trim;
+    }
     boundsMin = lo;
     boundsMax = hi;
-    batch = gfx::uploadParticles({instances.data(), instanceCount}, trim);
+    instanceCount = pool.size();
+    if(lyingAll)
+    {
+        // Closed up past the lying ones (in order), which go to their own list.
+        za::SizeT out = 0;
+        for(za::SizeT i = 0; i < pool.size(); i++)
+        {
+            const Particle& p = pool[i];
+            if(p.flat && p.liquid)
+            {
+                lying.pushBack(static_cast<za::U32>(i));
+                continue;
+            }
+            if(out != i)
+            {
+                instances[out] = instances[i];
+            }
+            out++;
+        }
+        instanceCount = out;
+    }
+}
+
+void buildInstances()
+{
+    fillInstances();
+    batch = gfx::uploadParticles({instances.data(), instanceCount}, instancesTrim);
 }
 
 // This view's lying ones (lieOnLiquid), those in its frustum.
@@ -1626,6 +1740,132 @@ void buildLying()
         const glm::vec4 color = glm::vec4{glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a} * nearFade;
         lieOnLiquid(p, r, u, cellUv[p.cell], color, eye);
     }
+}
+
+// vr_particle_jobs_test: the particle passes on the game's threads against this thread alone (ROUND24.md, "Particles on
+// the thread pool"). The particles as they are, and a burst of every preset before the view, stepped 240 times at 1/72 s
+// (simulate, then fillInstances) from the same start (the particles, the random sequence, the time) on this thread
+// alone, then split between the threads in the usual chunks and in small ones: a hash of every particle and instance
+// record after each step must be the same each way. Everything is put back as it was. Prints `vr_particle_jobs_test:
+// PASS` or `FAIL`. `vr_particle_jobs_test <count>`: a steady pool of that many (the bench: each way's time a step).
+void jobsTest_f()
+{
+    if(cls.state != ca_connected || !cl.worldmodel)
+    {
+        Con_Printf("vr_particle_jobs_test: FAIL (not in a map)\n");
+        return;
+    }
+    const za::Vector<Particle> saved = pool;
+    const za::FastNonCryptoRng savedRng = rng;
+    const double savedTime = cl.time;
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 eye = geom::vec(r_refdef.vieworg), f{fwd[0], fwd[1], fwd[2]}, r{right[0], right[1], right[2]};
+    rng = za::FastNonCryptoRng{za::U32{0x5eedu}};
+    for(int k = 0; k <= static_cast<int>(Preset::BloodTrail); k++)
+    {
+        const glm::vec3 at = eye + f * 160.f + r * (static_cast<float>(k) - 6.5f) * 24.f;
+        (void)spawn(at, glm::normalize(f + glm::vec3{0.f, 0.f, 0.5f}), static_cast<Preset>(k), 400);
+    }
+    explosion(eye + f * 220.f);
+    // `count`: a steady pool of that many instead (the burst's particles copied over and over, lasting, none falling
+    // into a liquid): the passes' time at that size on one thread and split (the time is the bench's; the hash the
+    // test's).
+    const int steady = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), static_cast<int>(maxParticles) - 64) : 0;
+    if(steady > 0 && !pool.empty())
+    {
+        const za::Vector<Particle> burst = pool;
+        pool.clear();
+        for(int i = 0; i < steady; i++)
+        {
+            Particle p = burst[static_cast<za::SizeT>(i) % burst.size()];
+            p.org += glm::vec3{0.f, 0.f, static_cast<float>(i / static_cast<int>(burst.size()))};
+            p.die = savedTime + 1000.0;
+            p.floor = -1e9f;
+            p.liquid = 0;
+            p.plink = false;
+            p.flat = false;
+            if(p.type != Custom && p.type != Static && p.type != Blob && p.type != Rock && p.type != TxSmoke &&
+               p.type != TxBigSmoke && p.type != Drip)
+            {
+                p.type = Custom;
+                p.fade = 0.f;
+                p.grow = 0.f;
+                p.ramp = 0.f;
+            }
+            p.color.a = 1.f;
+            pool.pushBack(p);
+        }
+    }
+    const za::Vector<Particle> start = pool;
+    const za::FastNonCryptoRng startRng = rng;
+    constexpr Split modes[] = {Split::Never, Split::Always, Split::AlwaysSmall};
+    constexpr const char* names[] = {"this thread alone", "split, chunks of 2048", "split, chunks of 64"};
+    za::U64 hashes[3]{};
+    za::SizeT most = 0, last = 0, lyingSeen = 0;
+    double ms[3]{};
+    for(int m = 0; m < 3; m++)
+    {
+        pool = start;
+        rng = startRng;
+        cl.time = savedTime;
+        splitMode = modes[m];
+        za::U64 h = 1469598103934665603ull;
+        const auto mix = [&h](const void* p, za::SizeT n) {
+            for(za::SizeT k = 0; k < n; k++)
+            {
+                h = (h ^ static_cast<const unsigned char*>(p)[k]) * 1099511628211ull;
+            }
+        };
+        za::I64 nanoseconds = 0; // (the passes alone: not the hashing)
+        for(int s = 0; s < 240; s++)
+        {
+            cl.time = savedTime + (s + 1) / 72.0;
+            if(lightOf.size() < pool.size() + 64)
+            {
+                lightOf.resize(pool.size() + 64); // (the rings simulate adds)
+            }
+            for(glm::vec3& l : lightOf)
+            {
+                l = glm::vec3{1.f};
+            }
+            const za::I64 t0 = za::Clock::nowNanoseconds();
+            simulate(1.f / 72.f);
+            fillInstances();
+            nanoseconds += za::Clock::nowNanoseconds() - t0;
+            for(const Particle& p : pool)
+            {
+                const float v[] = {p.org.x, p.org.y, p.org.z, p.vel.x, p.vel.y, p.vel.z, p.color.r, p.color.g, p.color.b,
+                    p.color.a, p.angle, p.scale, p.ramp, p.rise, p.cs.x, p.cs.y};
+                mix(v, sizeof(v));
+                mix(&p.die, sizeof(p.die));
+            }
+            mix(instances.data(), instanceCount * sizeof(gfx::ParticleInstance));
+            mix(&boundsMin, sizeof(boundsMin));
+            mix(&boundsMax, sizeof(boundsMax));
+            mix(lying.data(), lying.size() * sizeof(za::U32));
+            most = za::max(most, pool.size());
+            lyingSeen += lying.size();
+        }
+        ms[m] = static_cast<double>(nanoseconds) * 1e-6 / 240.0;
+        last = pool.size();
+        hashes[m] = h;
+    }
+    splitMode = Split::Auto;
+    pool = saved;
+    rng = savedRng;
+    cl.time = savedTime;
+    lying.clear();
+    instanceCount = 0;
+    for(int m = 0; m < 3; m++)
+    {
+        Con_Printf("vr_particle_jobs_test: %-22s hash %016llx (%.3f ms a step)\n", names[m], static_cast<unsigned long long>(hashes[m]),
+            ms[m]);
+    }
+    const bool same = hashes[0] == hashes[1] && hashes[0] == hashes[2];
+    Con_Printf("vr_particle_jobs_test: 240 steps, up to %d particles (%d at the end, %d lying seen), %d workers%s: %s\n",
+        static_cast<int>(most), static_cast<int>(last), static_cast<int>(lyingSeen), jobs::workers(),
+        jobs::parallel() ? "" : " (vr_jobs_parallel 0: nothing split)", same ? "PASS" : "FAIL");
 }
 
 } // namespace qvr::particles

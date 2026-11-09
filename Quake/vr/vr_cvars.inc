@@ -1980,6 +1980,7 @@ QVR_CVAR(vr_particle_halfres_pixels, "0", CVAR_NONE)  // tests: only those this 
 QVR_CVAR(vr_particle_halfres_upsample, "1", CVAR_ARCHIVE) // particles at half resolution are always blended in by the scene's depth (each pixel takes the half-size texels at its own distance: no gaps or halos round edges in front of smoke; filtered only with an MSAA scene); 2: the pixels that took texels by distance shown in green (Debug)
 QVR_CVAR(vr_particle_halfres_force, "0", CVAR_NONE) // tests: particles at half resolution (when allowed: vr_particle_halfres, vr_particle_retro_halfres) in every frame with some in view, however few (0: from a view and a half of them)
 QVR_CVAR(vr_particle_freeze, "0", CVAR_NONE) // debug: freeze particle simulation for same-state render comparisons
+QVR_CVAR(vr_particle_threads, "1", CVAR_NONE) // the particles' motion and records split between the game's threads from 12288 particles (vr_particles.cpp splitNow; the same results); 0: the main thread alone
 QVR_CVAR(vr_particle_trim, "0", CVAR_ARCHIVE) // opt-in conservative transparent-margin geometry; 0: full quads
 QVR_CVAR(vr_particle_near_fade, "30", CVAR_ARCHIVE) // cm from the eye at which particles start fading out (to nothing at vr_particle_near_cull; 0: no fade)
 QVR_CVAR(vr_particle_near_cull, "10", CVAR_ARCHIVE) // cm: particles nearer the eye than this are not drawn (0: all drawn)
