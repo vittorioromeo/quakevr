@@ -1343,6 +1343,19 @@ vr_flat_shove_damage|1|Locomotion|Shove Damage|Advanced VR Options > Movement > 
 vr_flat_shove_time|1|Locomotion|Shove Time|Advanced VR Options > Movement > Locomotion > Shove Time
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
+vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
+vr_flat_visor_scale|1|Locomotion|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor Panel Size
+vr_flat_visor_opacity|1|Locomotion|Visor Panel Backing|Advanced VR Options > Movement > Locomotion > Visor Panel Backing
+vr_flat_visor_crt|1|Locomotion|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor CRT Look
+vr_flat_visor_sway|1|Locomotion|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor Sway
+vr_flat_visor_curve|1|Locomotion|Visor Curve|Advanced VR Options > Movement > Locomotion > Visor Curve
+vr_flat_visor_frame|1|Locomotion|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor Glass
+vr_flat_visor_damage|1|Locomotion|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor Hit Glitch
+vr_flat_visor_fog|1|Locomotion|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor Fog Under Water
+vr_flat_visor_fog_clear|1|Locomotion|Visor Fog Clears In|Advanced VR Options > Movement > Locomotion > Visor Fog Clears In
+vr_flat_visor_low_health|1|Locomotion|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor Low Health
+vr_flat_visor_boot|1|Locomotion|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor Power On
+vr_flat_visor_log|1|Locomotion|Visor Messages|Advanced VR Options > Movement > Locomotion > Visor Messages
 vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
@@ -4675,6 +4688,10 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
+|2|Debug - Reports|Visor HUD Report|Advanced VR Options > Debug > Reports > Visor HUD Report
+|2|Debug - Reports|Visor: Hit Glitch|Advanced VR Options > Debug > Reports > Visor: Hit Glitch
+|2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
+|2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print

@@ -327,6 +327,14 @@ engine's own `vr_flashlight_toggle`, and in the mode the state the engine saves 
 restored (`restoreState`): a torch put out with `F` stays out, over a level change. A headset game is as it was â€” its
 restored state still forces the head-worn torch lit.
 
+**The visor HUD (the default).** With `vr_flat_visor 1` (VR Settings > Locomotion, Desktop Screen Play > Visor HUD) the
+HUD is a helmet's visor instead of the status bar: the wrist gadget's screens in three small translucent 3D panels near
+the view's corners (health and armour top left, each hand's ammo with the keys and powerups top right, the console's
+notify lines and bullet time's meter low in the middle), a faint rim on the glass, a lag and bob of a fraction of a
+degree, a glitch at a hit, fog under water, a red pulse at low health and a power-on sweep at a spawn
+(`Quake/vr/vr_visor.cpp`, `vr_gadget_visor.inc`; ROUND24.md, "Flat-screen visor HUD"). `vr_flat_visor 0` puts the status
+bar below back (the TAB scores show with either). Test: `bash Misc/quakevr/visor_test.sh <agent>`.
+
 **The status bar (hudstyle 1).** With the modern status bar's centred ammo (`hudstyle 1`) and `vr_flat_hud 1` (the
 default; VR Settings > Locomotion, Desktop Screen Play > Desktop Status Bar) the mode draws its own layout
 (`Sbar_DrawFlatHud`, `Quake/sbar.c`; the numbers from `Quake/vr/vr_flathud.cpp`): the portrait and the health in the

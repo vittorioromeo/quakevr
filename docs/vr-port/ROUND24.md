@@ -6256,6 +6256,58 @@ affect the text itself, not the screen or enclosure."
   housing identical. CRT off: `panel_crt0.png`. vr_pp_test 1: 63 passed, 0 failed; scenarios ammoscreen_glass and
   shotgun_screen OK; checklist_tests_check: 83 passed, 0 failed.
 
+## Flat-screen visor HUD (branch `agent/visor`, 2026-11-09)
+
+His words: "an immersive heads-up display, mainly for flat screen, that simulates having the player wear some sort of
+helmet or visor ... the same colour scheme and art style as the wrist gadget ... mostly not move ... a very subtle wiggle
+and bob". Then: make it the default; a glitch at a hit, fog under water, low-health warning colours, a boot-up sweep.
+
+- **What (`vr_flat_visor 1`, the default; 0 the status bar as before):** three small 3D panels near the view's edges:
+  health (the face) and armour with a health bar top left; each hand's ammo (the main hand big, a clip's reserve small
+  beside it, `VR_FlatHudClip`) with the keys, powerups and sigils top right; the console's notify lines (the last three,
+  33 columns, `vr_flat_visor_log`) and bullet time's meter low in the middle (only the meter's strip when there are no
+  lines; nothing when neither). The sbar is not drawn and keeps no room (`Sbar_Draw`, `SCR_CalcRefdef`); TAB's and
+  death's scoreboard still show. Hidden at viewsize 120, in intermission, with a CSQC HUD, outside flatscreen play.
+- **How:** `vr_gadget_visor.inc` (part of `vr_gadget.cpp`) draws the panels with the gadget's own code: its palette
+  (`vr_gadget_screen_hue`, brightness, text white), `drawText`, the grey status-bar numbers and icons, `readout()` (so
+  `vr_gadget_test_state` shows its made-up states here too), into three mipmapped targets (3 texels a virtual pixel) at
+  the end of the 2D pass (`VR_End2D`'s flat branch). `vr_visor.cpp` draws them the next frame in `R_RenderView` after
+  `VR_FlatLookApply` (so under the 2D pass: menu, console, centre prints over it; not graded or vignetted; no TAA jitter:
+  its own head-space projection, depth halfway, no depth test) with `Shade::Screen` (the CRT look, `vr_flat_visor_crt`
+  0.6; the text glow) and a new `State::inkAlpha` (uniform 21): the dark face at `vr_flat_visor_opacity` (0.55) over
+  the view, the lit strokes towards opaque by their brightness. Each corner panel is hinged at its outer top corner and
+  turned in by `vr_flat_visor_curve` (8 degrees; pitched by 0.4 of it), anchored by the view's tan(fov/2) so it stays in
+  its corner at any FOV and aspect (16:9, 21:9, 4:3 checked), its height 11.5% of the view's (`vr_flat_visor_scale`),
+  shrunk to fit side by side on a narrow screen.
+- **Motion (`vr_flat_visor_sway` 1):** a turn's lag (a quarter of each frame's yaw/pitch change, at most 0.6 degrees, a
+  damped spring settling in ~0.2 s) plus the walk's bob (0.25 / 0.2 degrees at a run, eased with the ground speed); the
+  sum clamped to 0.8 of the margin so nothing leaves the screen; exactly 0 standing still.
+- **Glass (`vr_flat_visor_frame` 1):** a squircle rim, at most 0.22 alpha in the corners, nothing inside 80% of the way
+  out; two faint additive streaks top left.
+- **Effects:** a hit (health plus armour lost) glitches the panels (`Screen`'s glitch and a flicker), 0.3 + loss/40
+  times `vr_flat_visor_damage`, at most 0.85, gone in 0.4 s. Eye in water, slime or lava: the edges fog up in 0.5 s
+  (smooth blotches, 0.34 alpha at most, nothing inside half way), clearing over `vr_flat_visor_fog_clear` (1.5 s).
+  Health at or under `vr_flat_visor_low_health` (25): the vitals panel's face, frame and backing pulse red (1.2 Hz;
+  2.2 Hz and stronger at half of it). Dead: the panels fade out in 0.6 s. A new map, a load or a respawn: each panel
+  powers on in turn, a bright line sweeping down (`vr_flat_visor_boot` 0.8 s).
+- **Tools:** `vr_flat_visor_report` (state, each panel's rectangle in pixels), `vr_flat_visor_fx damage N | boot | fog
+  S`; Debug > Reports: Visor HUD Report, Hit Glitch, Power On, Fog Up. Settings: VR Settings > Locomotion, Desktop Screen
+  Play, the Visor rows.
+- **A headset visor later:** the panels' images are already separate from their placement (`gadget::visorImage`); a VR
+  version would place the same quads head-locked in each eye's scene (from the HMD pose instead of the head-space
+  projection, a little further out, depth-tested against nothing), reusing `visor::update`'s effects.
+- **Tests:** `Misc/quakevr/visor_test.sh <agent>` (visor_check.py; 12 checks: on by default, placement, still at rest,
+  lag, settle, bob, hit, fog in and out, boot, off). `flathud_test.sh` now sets `vr_flat_visor 0` (it tests the status
+  bar). Scenes: `flat_visor`, `flat_visor_hit`, `flat_visor_water`.
+- **Results:** visor_test 12/0; flathud 11/0 (status bar pinned); vr_pp_test 1: 62/0 flat, 63/0 VR; flathit 11/0,
+  flatlook 4/0, flatads 7/0; scenario_check 94 run, 1 failed (ad_lostsoul: what it placed gone after 3 s, not the
+  visor); checklist_tests_check 85/0. flatpose 17/4 (the nudged eye's and hipfire's shot-point checks: server traces,
+  not pictures): not the visor's -- origin/next 0ae7e01d2 without it fails the same 4 (17/4) with the same muzzle
+  numbers (6.26 / 1.02 against the limit of 1), and this branch with `vr_flat_visor 0` 18/3 (the hipfire knight-300
+  check flaky). The view's rectangle is unchanged: hudstyle 2 and scr_sbaralpha 0.75 already keep no status bar room.
+  Proof (`scratch/visor/`): 16:9 start (the visor, the old status bar, low
+  health and empty, a hit, under water, surfaced, booting); 21:9 e1m1 and its low state; 4:3 with messages and the menu;
+  the sway strip; full-size 21:9 panels.
 ## The ammo screen: the magazine big and bright, the total small and dim (branch `agent/ammotext2`, 2026-11-09)
 
 His pick: "magazine rounds big and bright, the total smaller (~0.6x) and dimmer underneath; drop the '/8' since the

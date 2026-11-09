@@ -32,6 +32,7 @@
 #include "vr_protocol.hpp"
 #include "vr_relight.hpp"
 #include "vr_text3d.hpp"
+#include "vr_visor.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
 
@@ -1051,6 +1052,7 @@ int imageDraws = 0; // the hologram's and the frame rate's images drawn so far (
 #include "vr_gadget_holo.inc"
 #include "vr_gadget_fps.inc"
 #include "vr_gadget_panel.inc" // panel boards: the arena's banners
+#include "vr_gadget_visor.inc" // the flat-screen visor's panels (vr_visor.cpp)
 
 void messageTest_f();
 void gadgetInfo_f();
@@ -1361,6 +1363,37 @@ void renderScreen()
 int imageDrawCount()
 {
     return imageDraws;
+}
+
+void renderVisor(const VisorInput& in)
+{
+    QVR_GPU_PROFILE("visor panels");
+    const fontstyle::Use font{fontstyle::Surface::Gadget}; // (the gadget's font: Screens > Wrist Gadget Font)
+    visorRender(in);
+}
+
+VisorImage visorImage(int panel)
+{
+    VisorImage out;
+    if(panel < 0 || panel >= VisorPanelCount)
+    {
+        return out;
+    }
+    out.texture = visor.targets[panel].texture;
+    out.size = {visorSizes[panel][0], visorSizes[panel][1]};
+    out.band = visor.band[panel];
+    out.shown = visor.shown[panel] && out.texture != 0;
+    return out;
+}
+
+glm::vec4 visorPhosphor()
+{
+    return palette().text;
+}
+
+int visorLogLines()
+{
+    return visor.logLines;
 }
 
 bool togglePage()
@@ -1900,5 +1933,5 @@ extern "C" int VR_NotifyOnWrist()
 {
     using namespace qvr;
     using namespace qvr::gadget;
-    return vr_notify_wrist.value == 1.f && logShown();
+    return (vr_notify_wrist.value == 1.f && logShown()) || visor::logShown(); // (or the flat-screen visor's low panel)
 }
