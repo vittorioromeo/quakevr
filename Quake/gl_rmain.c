@@ -2407,6 +2407,8 @@ void R_RenderView (void)
 	VR_FlatLookApply (); // QVR: flatscreen play's glow, grade and vignette, before the HUD (vr/vr_flatlook.cpp)
 	VR_DrawVisor (GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u, glx + r_refdef.vrect.x, // QVR: flatscreen play's visor HUD (vr/vr_visor.cpp)
 		gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height);
+	VR_DrawFlatCrosshair (GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u, glx + r_refdef.vrect.x, // QVR: and its crosshair (vr/vr_flatxhair.cpp)
+		gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height);
 
 	memcpy (cl_visedicts, r_view_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
 	cl_numvisedicts = view_numvisedicts;

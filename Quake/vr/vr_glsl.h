@@ -45,6 +45,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(location=8) uniform vec4 Dither; // QVR: the eye's last dither: amplitude (0: none), the right eye's own noise (1), frame offset (0: fixed), unused\n" \
 "layout(location=9) uniform vec4 SlowLook; // QVR: bullet time's look (vr/vr_bullettime.cpp): strength (0: none), desaturation, vignette; w: the comfort vignette (vr_input.cpp)\n" \
 "layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
+"layout(binding=7) uniform sampler2D VisorMask; // QVR: the flat-screen visor's layer (vr/vr_visor.cpp): its alpha left out of bullet time's look\n" \
+"layout(location=11) uniform vec4 VisorRect; // QVR: ... the view's rectangle it covers (x, y, w, h; w 0: none)\n" \
 "\n" \
 QVR_TONE_GLSL
 
@@ -77,6 +79,12 @@ QVR_TONE_GLSL
 "		vec3 c = mix(out_fragcolor.rgb, vec3(luma), SlowLook.x * SlowLook.y);\n" \
 "		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
 "		c *= 1.0 - SlowLook.x * SlowLook.z * smoothstep(0.35, 1.7, dot(sv, sv));\n" \
+"		if (VisorRect.z > 0.0) // QVR: the flat-screen visor's panels keep their colours (vr_flat_visor_no_bt_tint)\n" \
+"		{\n" \
+"			vec2 vu = (gl_FragCoord.xy - VisorRect.xy) / VisorRect.zw;\n" \
+"			if (all(greaterThanEqual(vu, vec2(0.0))) && all(lessThan(vu, vec2(1.0))))\n" \
+"				c = mix(c, out_fragcolor.rgb, texture(VisorMask, vu).a);\n" \
+"		}\n" \
 "		out_fragcolor.rgb = c;\n" \
 "	}\n" \
 "	if (SlowLook.w > 0.0) // QVR: the comfort vignette (vr_comfort_vignette): the edges darkened while the sticks move or\n" \

@@ -175,6 +175,7 @@ const char *VR_RelightIndicator (float *fraction);
 float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on; basefov unchanged when it is off, and outside flatscreen play
 float VR_FlatCrosshairAlpha (void);	// the crosshair's opacity: 1, faded to 0 over the flatscreen ironsight's travel; 1 outside it
 void VR_FlatCrosshairShift (float* x, float* y);	// where the crosshair stands off the screen's centre: the flatscreen ironsight's picture moved (fractions of its height); 0 0 outside it
+int VR_FlatXhairOn (void);	// SCR_DrawCrosshair: 1 while flatscreen play's visor crosshair (vr_flat_xhair; vr_flatxhair.cpp) is the crosshair: the 2D one is not drawn
 
 // The flatscreen fly camera (vr_flycam.cpp, vr_flat_flycam): the view flown free while the player stands as he was.
 void VR_FlatFlycamView (float* vieworg, float* viewangles);	// V_CalcRefdef, last: his own eye remembered, then (on) the view put at the camera
@@ -473,6 +474,7 @@ int VR_FlatToolgunEscape (void); // Key_Event's Esc in the game: 1 it closed fla
 void VR_FlatMoveScale (float *forwardmove, float *sidemove); // CL_BaseMove: leaning, the move keys slower (vr_flat_lean_speed; vr_flatmove.cpp)
 float VR_FlatBobScale (void); // V_CalcRefdef: Quake's view bob times this (sliding: vr_flat_slide_bob of it; vr_flatplay.cpp)
 void VR_FlatViewLean (float *vieworg, float *viewangles); // V_CalcRefdef, after VR_FlatViewDrop: the lean's eye moved sideways and the view rolled (vr_flatmove.cpp)
+int VR_FlatLookTurn (float *right, float *down); // IN_MouseMove, IN_JoyMove, IN_GyroMove: the look's turn (degrees: right, down) along the screen as last seen rolled (vr_flat_lean_mouse; vr_flatmove.cpp); 0 left as it was (no roll, not the mode)
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)
 void VR_CloseQuartersMove (struct edict_s *ent, float *wishvel); // SV_AirMove, walking: near a live enemy, the move straight at it slowed (vr_closequarters.cpp)

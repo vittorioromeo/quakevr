@@ -4062,6 +4062,7 @@ QVR_CVAR(vr_flat_flycam_accel, "1600", CVAR_ARCHIVE)    // the fly camera's acce
 QVR_CVAR(vr_flat_flycam_fast, "3", CVAR_ARCHIVE)        // the fly camera's speed with Shift held, times vr_flat_flycam_speed
 QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E lean the view, the weapon and the body sideways round a corner (vr_flat_lean_*); 0 off
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
+QVR_CVAR(vr_flat_lean_mouse, "1", CVAR_ARCHIVE)         // flatscreen play: 1 the mouse (and the stick, the gyro) turn the view along the screen as it is rolled -- leant, strafing, hit -- straight up is up the tilted screen; 0 Quake's yaw and pitch, the roll ignored (vr_flatmove.cpp VR_FlatLookTurn)
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset
@@ -4103,6 +4104,38 @@ QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's f
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
+QVR_CVAR(vr_flat_visor_autohide_log, "0", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
+QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
+QVR_CVAR(vr_flat_visor_log_out, "1", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (0.2 .. 4; the edge still met)
+QVR_CVAR(vr_flat_visor_side_out, "1", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (0.2 .. 4; the edges still met)
+QVR_CVAR(vr_flat_visor_scanline_width, "3", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
+QVR_CVAR(vr_flat_visor_depth_opacity, "0.9", CVAR_ARCHIVE) // the back plate's opacity, times the panels' backing (vr_flat_visor_opacity) (0 .. 2, at most solid)
+QVR_CVAR(vr_flat_visor_depth_color, "", CVAR_ARCHIVE)   // the back plate's colour "r g b" (0 .. 1); empty: the face's own, darker (as shipped)
+QVR_CVAR(vr_flat_visor_depth_size, "0", CVAR_ARCHIVE)   // how far the back plate reaches past its face all round, pixels at 1080p (0 .. 60)
+QVR_CVAR(vr_flat_visor_depth_offset, "3", CVAR_ARCHIVE) // how far the back plate sits towards the screen's middle, pixels at 1080p times vr_flat_visor_depth (0 .. 20)
+QVR_CVAR(vr_flat_visor_depth_lag, "0.35", CVAR_ARCHIVE) // how much the back plate lags the sway and the shake, times vr_flat_visor_depth (0 moves with the face .. 1 still)
+QVR_CVAR(vr_flat_visor_depth_content_lag, "0.12", CVAR_ARCHIVE) // how much the readings lag the sway and the shake behind the glass, times vr_flat_visor_depth (0 .. 1)
+QVR_CVAR(vr_flat_visor_depth_bevel, "0.6", CVAR_ARCHIVE) // the back plate's bevel: its rim lit from above, shaded below, as the front frame (0 none .. 2)
+QVR_CVAR(vr_flat_visor_depth_bevel_width, "2", CVAR_ARCHIVE) // the back plate's bevel's width, pixels at 1080p (0.5 .. 12)
+QVR_CVAR(vr_flat_visor_shake, "1", CVAR_ARCHIVE)        // a hit shakes the visor, more for more damage, the back plate and the readings lagging as with a turn (0 never .. 3)
+QVR_CVAR(vr_flat_visor_shake_time, "0.35", CVAR_ARCHIVE) // seconds a hit's shake takes to settle (0.1 .. 2)
+QVR_CVAR(vr_flat_visor_no_bt_tint, "1", CVAR_ARCHIVE)   // the visor's panels keep their colours in bullet time (its drained, tinted look on the view around them alone); 0 tinted with the view
+QVR_CVAR(vr_flat_visor_glass_blur, "6", CVAR_ARCHIVE)   // frosted glass: the view behind each mount blurred this far, pixels at 1080p (0 none .. 40)
+QVR_CVAR(vr_flat_visor_glass_distort, "0.4", CVAR_ARCHIVE) // and bent: a ripple through the glass and its edges bending the view like a lens (0 none .. 3)
+QVR_CVAR(vr_flat_visor_glass_tint, "0", CVAR_ARCHIVE)   // and tinted towards the screens' colour (0 none .. 1)
+QVR_CVAR(vr_flat_visor_glass_desat, "0", CVAR_ARCHIVE)  // and its colour drained (0 none .. 1)
+
+// Flatscreen play's visor crosshair (vr_flatxhair.cpp; FLATPLAY.md, "The visor crosshair"). Sizes in pixels at 1080 rows.
+QVR_CVAR(vr_flat_xhair, "1", CVAR_ARCHIVE)              // 1 the visor crosshair: at the true screen place each gun's shot will hit (centred when near it), in the visor's colours; 0 the classic crosshair (crosshair; its own 0, the game's default, hides it)
+QVR_CVAR(vr_flat_xhair_style, "2", CVAR_ARCHIVE)        // 0 dot, 1 cross, 2 cross and dot, 3 circle, 4 circle and dot, 5 T, 6 chevron, 7 corner brackets
+QVR_CVAR(vr_flat_xhair_size, "10", CVAR_ARCHIVE)        // how far its lines reach from the point (1..64; the circle's radius, the brackets' half width)
+QVR_CVAR(vr_flat_xhair_thickness, "2", CVAR_ARCHIVE)    // its lines' width (0.5..12)
+QVR_CVAR(vr_flat_xhair_gap, "4", CVAR_ARCHIVE)          // the cross's empty middle, from the point (0..48)
+QVR_CVAR(vr_flat_xhair_opacity, "0.9", CVAR_ARCHIVE)    // (0..1)
+QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round its lines, this wide (0 none .. 6)
+QVR_CVAR(vr_flat_xhair_glow, "0.5", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
+QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
+QVR_CVAR(vr_flat_xhair_smooth, "0.03", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still

@@ -283,6 +283,20 @@ corner; his box against the world is unchanged, and his own shots pass them. `vr
 `vr_flat_lean 0` (Desktop Screen Play > Lean) turns it off, `vr_flat_lean_toggle 1` makes the keys toggles; the rest
 is in Debug > Tunables > Flatscreen > Lean. Test: `bash Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatlean_test`).
 
+**The mouse while rolled.** Leant, the mouse moves the view along the tilted screen: straight up on the mouse is
+straight up on the screen, across is across it (`vr_flat_lean_mouse` 1, Desktop Screen Play > Mouse Follows Lean; 0 is
+Quake's yaw and pitch as if level, which leant slid the view at the lean's slant). `VR_FlatLookTurn`
+(`vr_flatmove.cpp`, called from `IN_MouseMove`, the stick's look and the gyro in `Quake/in_sdl.c`; not the flick stick,
+which sets the yaw outright) takes the move Quake gives level -- across, the yaw times the pitch's cosine, up and down
+the pitch -- turns it by the roll last drawn (`VR_FlatViewLean` keeps V_CalcRefdef's angles: the lean's roll,
+`cl_rollangle`'s strafe roll and a hit's kick all count, the screen is as tilted by each and the turn only changes the
+mouse's way, never adds motion) and back into yaw and pitch. Near straight up or down the yaw a tilted screen's up asks
+for grows as 1 / cos(pitch); past about 75 degrees it is held at 4 times. Not rolled (roll exactly 0), dead, the chase
+or fly camera: Quake's own code path, to the bit. Test: `vr_flatleanmouse_test` (in `flatslide_test.sh`): leant right and
+left at pitch 0, 40 and -30 a pure up, down or across move moves the middle of the screen along the rolled axis (within
+0.5 degrees; 0.0 up and down, 0.2-0.3 across from the yaw's own swing); upright and switched off, the other angle
+untouched to the bit (off, 15 degrees off the screen's up, the old slant).
+
 **Lying down's gun.** The held weapon's pose lying down has its own numbers, taking over by how far down he is:
 `vr_flat_gun_ahead_prone` / `_down_prone` / `_out_prone` at a level look, each going to its `_prone_down` /
 `_prone_up` looking straight down or up along Gun Out's smooth curve (defaults: the standing ones, so nothing moved).
@@ -341,9 +355,11 @@ restored state still forces the head-worn torch lit.
 **The visor HUD (the default).** With `vr_flat_visor 1` (VR Settings > Locomotion, Desktop Screen Play > Visor HUD) the
 HUD is a helmet's visor instead of the status bar: the wrist gadget's screens in seven small panels, each in a mount
 running off the screen's edges (health and armour top left; bullet time, stamina and every ammo carried top right; each
-hand's ammo at its own bottom corner; the console's notify lines low in the middle; keys and sigils on the left edge,
+hand's ammo at its own bottom corner; the console's notify lines at the top's middle; keys and sigils on the left edge,
 powerups and AD's artifacts on the right), bowed by the visor's lens (vr_flat_visor_warp), a faint rim on the glass, a lag and bob of a fraction of a
-degree, a glitch at a hit, fog under water, a red pulse at low health and a power-on sweep at a spawn
+degree, a glitch and a shake at a hit, fog under water, a red pulse at low health, a power-on sweep at a spawn, frosted
+glass behind the mounts (vr_flat_visor_glass_*) and its colours kept in bullet time; its settings on their own page,
+Desktop Screen Play > Visor HUD Look
 (`Quake/vr/vr_visor.cpp`, `vr_gadget_visor.inc`; ROUND24.md, "Flat-screen visor HUD"). `vr_flat_visor 0` puts the status
 bar below back (the TAB scores show with either). Test: `bash Misc/quakevr/visor_test.sh <agent>`.
 
@@ -745,3 +761,39 @@ pose: the hand leaves the rest for it and comes back after. Debug > Reports: Fla
 Debug > Flatscreen Play: "Flatscreen Test Hit From The Right" (a made-up hit through the damage message) and "Flatscreen Hit
 Probe" (`vr_flat_hit_probe`). Tests: `bash Misc/quakevr/flathit_test.sh <agent>` (`vr_flat_hit_test` runs a test's commands
 at the next hit).
+
+## The visor crosshair
+
+`vr_flatxhair.cpp`; Desktop Screen Play > Visor Crosshair and the rows under it. His words (2026-11-09): a flatscreen-only
+crosshair "that follows the visor's style and colour scheme, and displays the target location in screen space".
+
+- **Where.** Each hand holding a gun (not the fist, not a weapon whose crosshair is forbidden: melee) has its shot traced as
+  the server will trace it: the muzzle, the shot's angles and the hand this frame's move sent (`buildMove`, noted by
+  `flatxhair::noteMove`), from behind the muzzle as QC's `VR_ShotBackPoint` (a wall between the hand and there: the hand),
+  2048 past the muzzle, stopping on the world, monsters' models, gibs and heads (`MOVE_HITMODEL`). Where it stops is
+  projected with the window view's own camera (`r_matviewproj`): the true place of the hit on the screen.
+- **Centred.** Within `vr_flat_xhair_snap` (8 pixels at 1080 rows) of the crosshair's centre (the screen's middle, or where
+  the ironsight's picture moved it) it is drawn exactly on the centre, and stays there until it is half as far again
+  (no flicker at the edge). Since the guns point at what the crosshair is on (`vr_flat_aim_point`), that is nearly always.
+- **Off the centre.** Past it, at the projected place, followed over `vr_flat_xhair_smooth` (0.03 s): no jitter, still on
+  the hit within a few frames. With the guns shooting straight ahead (`tune vr_flat_aim_point 0`, Debug > Reports >
+  Flatscreen Guns Shoot Straight Ahead) it moves to each gun's own hit near a wall.
+- **Two guns.** One crosshair while both places are within the snap of each other (or both on the centre); two when they part,
+  each with a short upright mark on its own hand's side. A gun the wall stops from firing (`vr_flat_wall_block_fire`) has
+  its crosshair dimmed.
+- **Look.** In the visor's colours (`gadget::visorColors`: the frame's green at full brightness, its dark face as the outline,
+  the frame's glow), antialiased by its own edge coverage (a one-pixel ramp across every edge). Drawn over the view right
+  after the visor (`VR_DrawFlatCrosshair`, `R_RenderView`) and outside its lens, zoom and sway, so it stays on the true point;
+  the menu and the console draw over it. The same with the visor off (`vr_flat_visor 0`).
+- **Styles.** `vr_flat_xhair_style`: 0 dot, 1 cross, 2 cross and dot (the default), 3 circle, 4 circle and dot, 5 T, 6 chevron,
+  7 corner brackets with a dot. `vr_flat_xhair_size` (10), `_thickness` (2), `_gap` (4): pixels at 1080 rows;
+  `_opacity` (0.9), `_outline` (1 pixel; 0 none), `_glow` (0.5; 0 none).
+- **Hidden** with the menu up, in an intermission or cutscene, dead, at viewsize 130, while the fly camera flies, and faded
+  with the ironsight as the old one was (`flatsight::crosshairFade`). `vr_flat_xhair 0` brings the classic crosshair back
+  (`crosshair`, whose own default 0 hides it); while it is on the classic one is not drawn, whatever `crosshair` is. A
+  headset's crosshair (`vr_crosshair`) is untouched.
+
+Debug > Reports: "Flatscreen Crosshair Probe" (`vr_flat_xhair_probe`: each gun's hit, its place, snapped or not, where it is
+drawn; and where the pellets fired since the last probe landed, from the server's own tracer lines, in pixels from the drawn
+crosshair and from the centre). Test: `bash Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N
+passed, M failed`).
