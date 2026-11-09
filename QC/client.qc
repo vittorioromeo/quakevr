@@ -1617,7 +1617,7 @@ void() WaterMove =
         return;
     if(self.health < 0)
         return;
-    if(self.watertype == CONTENT_WATER || self.watertype == CONTENT_SLIME)
+    if(VR_Liquid_IsWet(self.watertype))
         VR_Status_Soak(self, self.waterlevel); // VR: wet (the status component, vr_status.qc)
 
     if(self.waterlevel != 3)
@@ -1660,17 +1660,17 @@ void() WaterMove =
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;
             else
-                self.dmgtime = time + 0.2;
+                self.dmgtime = time + VR_Liquid_BurnEvery(CONTENT_LAVA); // VR: the liquids' one table (vr_liquids.qc)
 
-            T_Damage(self, world, world, 10*self.waterlevel);
+            T_Damage(self, world, world, VR_Liquid_BurnDamage(CONTENT_LAVA, self.waterlevel));
         }
     }
     else if(self.watertype == CONTENT_SLIME)
     {    // do damage
         if(self.dmgtime < time && self.radsuit_finished < time && self.lavasuit_finished < time) // (the lava suit too)
         {
-            self.dmgtime = time + 1;
-            T_Damage(self, world, world, 4*self.waterlevel);
+            self.dmgtime = time + VR_Liquid_BurnEvery(CONTENT_SLIME);
+            T_Damage(self, world, world, VR_Liquid_BurnDamage(CONTENT_SLIME, self.waterlevel));
         }
     }
 

@@ -34,7 +34,7 @@ float(entity e) VR_Status_Wet =
 {
     float level = (e.flags & FL_CLIENT) ? e.waterlevel : VR_Liquid_Level(e);
     float liquid = (e.flags & FL_CLIENT) ? e.watertype : vr_liquid_type;
-    if(liquid == CONTENT_WATER || liquid == CONTENT_SLIME)
+    if(VR_Liquid_IsWet(liquid))
     {
         VR_Status_Soak(e, level);
     }

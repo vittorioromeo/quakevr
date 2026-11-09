@@ -726,10 +726,9 @@ void() VR_WallTorch_Touch =
         VR_Mount_Touch(self, other);
         return;
     }
-    if(self.wt_state == 1 && self.wt_fire > 0 && self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
-       other != self.owner)
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage && other != self.owner)
     {
-        VR_Burn_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity, VR_BURN_BLOW); // (yours, past the grace too)
+        VR_Burn_FromThing(other, self, VR_Throw_Thrower(self), self.origin, self.velocity); // (yours, past the grace too)
     }
     forcegrabbable_touch();
 };
@@ -848,7 +847,7 @@ float(float xHand) VR_WallTorch_Melee =
         return TRUE;
     }
     vector org = trace_endpos - v_forward * 4;
-    float lit = t.wt_fire > 0;
+    float lit = VR_Burn_IsSource(t);
     VR_Melee_WallMark(xHand, xdmg, TRUE); // a club's dent on a wall (none on what bleeds; vr_decal_melee)
     float first = VRGetMeleeHitSoundPlayed(xHand) == FALSE;
     if(first)

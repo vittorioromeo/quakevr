@@ -42,6 +42,57 @@ float VR_LIQUID_LOOK = 0.1; // seconds between looks at a monster out of slime a
 
 float vr_liquid_type; // set by VR_Liquid_Level: the liquid at the feet
 
+// ----------------------------------------------------------------------------
+// The liquid tests, one place (DYNAMIC_SPAWNS.md, "Prerequisites available"; the systems audit's 1.1: lightning's,
+// fire's and the shove's own copies merged here, each answer unchanged).
+
+// A liquid's contents: water, slime or lava.
+float(float xContents) VR_Liquid_Is = { return xContents <= CONTENT_WATER && xContents >= CONTENT_LAVA; };
+
+// Water or slime (what douses fire, wets, carries lightning's shock as water): not lava.
+float(float xContents) VR_Liquid_IsWet = { return xContents == CONTENT_WATER || xContents == CONTENT_SLIME; };
+
+// Water or slime at `p` (fire put out: a flame, a lava nail; VR_Burn_*).
+float(vector p) VR_Liquid_WetAt = { return VR_Liquid_IsWet(pointcontents(p)); };
+
+// Whether `e` touches a liquid by its box (lightning's conduction, VR_LGWater_Spread): a player by its waterlevel (the
+// feet in it), anything else by the middle of its box or just over its bottom.
+float(entity e) VR_Liquid_Touches =
+{
+    if(e.flags & FL_CLIENT)
+    {
+        return e.waterlevel >= 1 && VR_Liquid_Is(e.watertype);
+    }
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    if(VR_Liquid_Is(pointcontents(mid)))
+    {
+        return TRUE;
+    }
+    mid_z = e.absmin_z + 2;
+    return VR_Liquid_Is(pointcontents(mid));
+};
+
+// What is at `e`'s feet (a unit over its box's bottom, under its origin: the middle of its box is above shallow slime).
+float(entity e) VR_Liquid_AtFeet = { return pointcontents(e.origin + '0 0 1' * (e.mins_z + 1)); };
+
+// The liquids' burns, the player's (WaterMove) and the monsters' (VR_Liquid_Monster): `xLevel` deep (1..3) in `xKind`,
+// a tick's damage (lava 10 a level, slime 4; 0 else) and how often (lava 0.2 s, slime 1 s).
+float(float xKind, float xLevel) VR_Liquid_BurnDamage =
+{
+    if(xKind == CONTENT_LAVA) return 10 * xLevel;
+    if(xKind == CONTENT_SLIME) return 4 * xLevel;
+    return 0;
+};
+float(float xKind) VR_Liquid_BurnEvery = { return xKind == CONTENT_LAVA ? 0.2 : 1; };
+
+// Landing in one (a shove's slide over a ledge, VR_Shove_Landed): lava 100, slime 30, else 0.
+float(float xKind) VR_Liquid_LandDamage =
+{
+    if(xKind == CONTENT_LAVA) return 100;
+    if(xKind == CONTENT_SLIME) return 30;
+    return 0;
+};
+
 float(entity e) VR_Knockdown_Drown; // (vr_knockdown.qc: a drowning monster struggles as a ragdoll)
 
 // How deep `e` is in liquid, as the engine measures the player's waterlevel: 0 out of it, 1 the feet, 2 the waist,
@@ -148,7 +199,7 @@ void(entity e, float hurt) VR_Liquid_Monster =
     }
 
     float level = VR_Liquid_Level(e);
-    if(vr_liquid_type == CONTENT_WATER || vr_liquid_type == CONTENT_SLIME)
+    if(VR_Liquid_IsWet(vr_liquid_type))
     {
         VR_Status_Soak(e, level); // (wet: the status component, vr_status.qc)
     }
@@ -212,8 +263,8 @@ void(entity e, float hurt) VR_Liquid_Monster =
     float dmg;
     if(kind == CONTENT_LAVA)
     {
-        e.vr_liquid_next = time + 0.2;
-        dmg = 10 * level;
+        e.vr_liquid_next = time + VR_Liquid_BurnEvery(kind);
+        dmg = VR_Liquid_BurnDamage(kind, level);
         if(e.health > 0 && e.classname == "monster_zombie")
         {
             dmg = e.health + 40; // burnt up: a zombie only dies of a hit its size (zombie_pain)
@@ -222,8 +273,8 @@ void(entity e, float hurt) VR_Liquid_Monster =
     }
     else
     {
-        e.vr_liquid_next = time + 1;
-        dmg = 4 * level;
+        e.vr_liquid_next = time + VR_Liquid_BurnEvery(kind);
+        dmg = VR_Liquid_BurnDamage(kind, level);
     }
 
     T_Damage(e, world, world, dmg);

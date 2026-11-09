@@ -1081,16 +1081,39 @@ void(entity xCrate, entity xPiece) VR_Burn_NewPiece =
     }
 };
 
+// Whether `xThing` sets on fire what it strikes: a lit torch (a wall torch taken, wt_state 1, its fire on) or a weapon
+// thrown whose blade is incandescent (vr_hotblade.qc). (The systems audit's 1.7: one test for every "lit thing strikes".)
+float(entity xThing) VR_Burn_IsSource =
+{
+    if(xThing == world)
+    {
+        return FALSE;
+    }
+    return (VR_WallTorch_IsTorch(xThing) && xThing.wt_state == 1 && xThing.wt_fire > 0) || VR_HotBlade_ThingHot(xThing);
+};
+
+// `xThing` striking `xVictim` (by `xBy`) at `xAt` going `xDir`: set on fire if it is a fire source (VR_Burn_IsSource).
+// TRUE: it was one. The callers keep their own gates (a throw in flight, a blow, the hot blade's settings).
+float(entity xVictim, entity xThing, entity xBy, vector xAt, vector xDir) VR_Burn_FromThing =
+{
+    if(!VR_Burn_IsSource(xThing))
+    {
+        return FALSE;
+    }
+    VR_Burn_Ignite(xVictim, xBy, xAt, xDir, VR_BURN_BLOW);
+    return TRUE;
+};
+
 // A piece struck by a hand at a swing's speed (VR_CratePiece_Struck): a lit torch in it sets the piece on fire instead
 // of bursting it (TRUE). A charred one bursts.
 float(entity xPlayer, float xHand, entity xPiece) VR_Burn_PieceStruck =
 {
     entity t = VR_Carry_Held(xPlayer, xHand);
-    if(t == world || !VR_WallTorch_IsTorch(t) || t.wt_state != 1 || t.wt_fire <= 0 || !VR_Burn_Can(xPiece))
+    if(!VR_Burn_IsSource(t) || !VR_Burn_Can(xPiece))
     {
         return FALSE;
     }
-    VR_Burn_Ignite(xPiece, xPlayer, (xPiece.absmin + xPiece.absmax) * 0.5, VRGetEntHandVel(xPlayer, xHand), VR_BURN_BLOW);
+    VR_Burn_FromThing(xPiece, t, xPlayer, (xPiece.absmin + xPiece.absmax) * 0.5, VRGetEntHandVel(xPlayer, xHand));
     return xPiece.burn_fire != world;
 };
 
@@ -1623,11 +1646,6 @@ void(entity n) VR_Burn_NailLaunched =
 // flamethrower's flame meeting the surface (vr_ad_enemyguns.qc VR_ADGun_FlameThink) and a lava nail going in (a nail
 // again: VR_Burn_LavaNailsWater) go out in a puff of steam with a hiss. Slime too; not lava.
 
-float(vector p) VR_Burn_InWater =
-{
-    float c = pointcontents(p);
-    return c == CONTENT_WATER || c == CONTENT_SLIME;
-};
 
 // The surface between `a` (out of the water) and `b` (in it): six halvings, within a unit of it for a step of 64.
 vector(vector a, vector b) VR_Burn_WaterSurface =
@@ -1635,7 +1653,7 @@ vector(vector a, vector b) VR_Burn_WaterSurface =
     for(float k = 0; k < 6; k++)
     {
         vector m = (a + b) * 0.5;
-        if(VR_Burn_InWater(m)) { b = m; }
+        if(VR_Liquid_WetAt(m)) { b = m; }
         else { a = m; }
     }
     return a;
@@ -1668,8 +1686,8 @@ void() VR_Burn_LavaNailsWater =
     {
         entity next = find(n, classname, "lava_spike");
         vector b = n.origin + n.velocity * frametime;
-        float now = VR_Burn_InWater(n.origin);
-        if(now || VR_Burn_InWater(b))
+        float now = VR_Liquid_WetAt(n.origin);
+        if(now || VR_Liquid_WetAt(b))
         {
             vector at = now ? n.origin : VR_Burn_WaterSurface(n.origin, b);
             float super = n.touch == superlavaspike_touch;
@@ -1770,7 +1788,7 @@ void(entity e) VR_Burn_MapBodyLook =
             got = VR_Burn_MapBodyFlame(e, t.origin, 0);
         }
     }
-    if(!got || VR_Burn_InWater((e.absmin + e.absmax) * 0.5))
+    if(!got || VR_Liquid_WetAt((e.absmin + e.absmax) * 0.5))
     {
         return;
     }

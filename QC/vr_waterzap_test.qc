@@ -37,7 +37,7 @@ float VR_WZ_REACH = 320; // how far along the water it looks for a stretch
 // Whether `xAt` is a point of an open surface: liquid under it, open over it.
 float(vector xAt) VR_WZ_WaterAt =
 {
-    return VR_LGWater_IsLiquid(pointcontents(xAt - '0 0 8')) && pointcontents(xAt + '0 0 8') == CONTENT_EMPTY;
+    return VR_Liquid_Is(pointcontents(xAt - '0 0 8')) && pointcontents(xAt + '0 0 8') == CONTENT_EMPTY;
 };
 
 // How far the water goes on from `xAt` along `xDir`.
