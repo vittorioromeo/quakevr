@@ -6035,3 +6035,32 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
   nailgun) and timed out at 400 s, as known; after merging next (its verdict fix) 25 passed, 0 failed. After the merge
   the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
+
+## The super shotgun's housing: the bevel's texels, round rivets (branch `agent/ssg_fix`, 2026-11-09)
+
+His screenshot (looking straight down at the breech top): "the textures of the bevel are very stretched", "the rivets
+seem to be elliptical rather than circular".
+
+- **Bevel** (`make_screen_housing_ssg.py`): the old bands mapped a whole ring (about 6 units round) across a 16 x 8
+  texel region: 2.7 texels a unit along it, 44 across the 0.18 rim. Now the top and both walls map into a copy (the
+  "plate", 27 x 27 texels at the patch's corner) of the sloped faces' own texels (their island 88-108 x 101-145
+  bottom-up), each point mapped as the face under it is, seen along the glass's out (`FaceMap`: the faces' 6
+  triangles; points off them carry the nearest one's map on, the copy clamps to the island's edge). Each wall quad is
+  unfolded from its top edge (its texels run on past the edge as if laid flat): the skirt outward, the inner wall into
+  the window. So the frame is the breech's metal at the breech's texel size (about 7 x 8.5 texels a unit), continuous
+  with it; the texels on the opening's edge are lit (2.0x: the top's inner edge and the inner wall's lip), those inside
+  the opening darker (0.55, the inner wall); the old 1.8x bezel top is gone. The patch grew to 50 x 32 texels (free
+  skin, all repainted each run); floor and rivet regions moved beside the plate. The .mdl gains 74 seam vertices.
+- **Rivets:** the old hexagon was two x steps long (0.454) but 0.36 across, its points snapped one by one (0.293
+  across): width/length 0.58 seen along the glass's out (the eye), 0.64 from straight above. The grid allows no more
+  sides at this size (three x levels), so it stays a hexagon, now as wide as it is long: its middle on a half y step,
+  the tips 6.5 y steps out (0.24), the side points 3.5 (0.13), so every point lands exactly on the grid. Width/length
+  0.94 from the eye, 1.05 from above (printed by the script). Its middle moved 0.04 outward (`RIVET_AT` 0.27 from the
+  bezel's outer edge, was 0.23) to keep a 0.018 gap to the bezel; still symmetrical, level with the window's middle.
+- Window, glass, depth, table entry unchanged (the script's opening check passes as before). A re-run writes the same
+  .mdl, open halves, normal maps and skin byte for byte (the compressed .blend's bytes differ only by its save data).
+- **Images** (flat 4K, vrtesthall, the fly camera straight down over the breech: the top, a close-up of the left rivet
+  and the bevel's side, one of the bevel's far side): `scratch/ssg/ssg_fix_before_after.png` in the flatwall worktree
+  (before above, after below).
+- **Tests:** `vr_pp_test 1` 63 passed, 0 failed; checklist_tests_check.py 83/0. Scene hint (`housing_ssg`) updated.
+- **Not verified:** the VR-mock shot (the low-impact mock's view doesn't reach the gun); the headset.
