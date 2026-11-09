@@ -760,8 +760,9 @@ void(entity p) VR_PPT_Look =
     else if(vr_ppt_s == 6)
     {
         // (vr_pp_test 17's elbows: the mock eyes 26 units off each one's elbow height (17 under its helmet's middle))
+        // (from the sides: a camera off that elbow itself, 18 units out (vr_agarmor_headcam's elbow); behind: both, off the head)
         float view = k % 3 == 0 ? 2 : k % 3 == 1 ? 5 : 4;
-        localcmd(sprintf("vr_agarmor_headcam %g 26 0 17\n", view));
+        localcmd(view == 4 ? "vr_agarmor_headcam 4 26 0 17\n" : sprintf("vr_agarmor_headcam %g 18 0 0 %g\n", view, view == 2 ? 2 : 1));
         VR_PPT_To(1, 3);
     }
     else if(vr_ppt_s == 1)
