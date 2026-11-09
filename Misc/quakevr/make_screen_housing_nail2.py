@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # make_screen_housing_nail2.py -- the super nailgun's ammo screen housing, modelled on v_nail2.blend (ROUND24.md, "The
-# super nailgun's screen housing on top"; his mockup, kit scratch/mockups/nail2_top.webp: a raised block on the
-# receiver's top at its back end, its rear face sloping up and forward with the screen in it; the back of the gun round
-# the handle left free).
+# super nailgun's screen in a wedge"; his mockups, kit scratch/mockups/nail2_top.webp, nail2_side.webp and
+# nail2_front.png: a wedge on the receiver's top at its back end, the screen in its long, low rear slope facing up to
+# the eye, its front slope running down onto the second big ridge, its sides flush with the gun's; the back of the gun
+# round the handle left free).
 #
 # Usage: blender -b --factory-startup Misc/quakevr/src_models/blend/v_nail2/v_nail2.blend
 #            --python Misc/quakevr/make_screen_housing_nail2.py -- [--save other.blend] [--dry]
@@ -16,14 +17,15 @@
 # this again. It also checks that weapons.txt's wpntxt_pitch tilts the glass with the sloped face and that the entry's
 # `offset` puts the glass where the window has it (else prints the one that does).
 #
-# The shape, in window heights h (the window's height), on the receiver's rear top band (x -2.58..0.70, its top z 7.6,
-# 5.85 wide; the receiver's sides below it slope out 21.6 degrees):
-# - the block: its rear face slopes up and forward at SLOPE degrees from the band's rear top edge (the edge of the gun's
-#   rear face: nothing on the rear face itself), MARGIN round the bezel, then a flat top to the band's front (x 0.70).
-#   Its sides lean in SIDE degrees (a trapezoid seen from behind, narrower at the top), standing OVERHANG past the
-#   band's edges at its top so the bezel's top corners keep EDGE inside them, and come down LEDGE below the top, where
-#   a ledge underside meets the receiver's sloped sides; small closing faces in the rear face's plane fill the corners
-#   outside the gun's rear outline.
+# The shape, in window heights h (the window's height), on the receiver's top (the rear band x -2.58..0.70, its top
+# z 7.6, 5.85 wide; a groove; the second ridge x 3.23..6.00 at the same top; the receiver's sides below the top lean
+# in 21.6 degrees):
+# - the wedge, a triangle seen from the side: its rear face rises at SLOPE degrees from the band's rear top edge (the
+#   edge of the gun's rear face: nothing on the rear face itself), MARGIN_LOW below the bezel, MARGIN_HIGH above it to a peak; its front slope
+#   runs from the peak down to the second ridge's front top edge (x 6.00), over the groove. Its sides are the
+#   receiver's sides carried on up (flush with them at the top edges, leaning in as they do: narrower at the peak); the
+#   bezel's top corners keep at least EDGE inside them (else refused). Its bottom lies on the band and the ridge
+#   (bridging the groove): a closed solid.
 # - in the sloped face: the bezel 1.8h x 1.2h (a 0.1h frame) standing 0.1h proud, the window 1.6h x 1h with its corners
 #   chamfered (the entry's radius), its walls going 0.1h into the block to a near-black floor, the glass 0.05h behind
 #   the bezel's front; four round rivets at (+-0.78h, +-0.45h) on the bezel, radius 0.11h, heads 0.08h proud.
@@ -63,24 +65,23 @@ TAG = "housing_" + STEM
 
 PIXEL_AT_04 = 0.09398  # a font pixel in model units at wpntxt_scale 0.4, style size 1 (vr_debug_screen_where)
 MODEL_PER_WORLD = PIXEL_AT_04 / 0.04  # (a font pixel is 0.1 * wpntxt_scale world units)
-# The receiver's rear top band (model units: its rear face's x, its top's z, its front's x; read and checked).
-BAND_FRONT = 0.703
-SIDE_SLOPE = 0.396  # the receiver's sides below the top: out this much a unit down
+# The receiver's top: its rear face's x and top z are read; the second big ridge's front top edge (the wedge's front
+# slope ends on it; checked: a vertex of the gun there at the same top).
+RIDGE_FRONT = 6.004
+SIDE_SLOPE = 0.396  # the receiver's sides below the top: in this much a unit up (21.6 degrees); the wedge's sides too
 # Where weapons.txt's wpntxt values put the glass with the table's offset 0 (vr_debug_screen_where on the exported
 # model), and the glass's up there: to check the table's offset and wpntxt_pitch.
-GLASS_AT_ZERO = (-1.4707, -0.0522, 9.1166)
-GLASS_UP = (0.6428, 0.0, 0.7660)
+GLASS_AT_ZERO = (-0.9020, -0.0522, 8.3229)
+GLASS_UP = (0.9455, 0.0, 0.3256)
 # The shape.
-SLOPE = 50.0      # the screen's face, degrees from level (its normal 40 degrees above straight back)
-SIDE = 15.0       # the block's sides, degrees from upright
-MARGIN = 0.1      # h: the sloped face round the bezel, below and above it
-EDGE = 0.05       # h: the bezel's top corners at least this far inside the block's sides
-LEDGE = 0.25      # model units: the block's sides come down this far below the band's top
-SINK = 0.1        # model units: the ledge's underside goes this far into the receiver's side
+SLOPE = 19.0      # the screen's face, degrees from level (its normal 71 degrees above straight back: up to the eye)
+MARGIN_LOW = 0.08  # h: the sloped face below the bezel (more than a grid point's rounding along the face)
+MARGIN_HIGH = 0.1  # h: above it, to the peak
+EDGE = 0.01       # h: the bezel's top corners at least this far inside the wedge's sides (else refused)
 FRAME = 0.1       # h: the bezel's frame round the window
 PROUD = 0.1       # h: the bezel's front off the sloped face
 GLASS_BACK = 0.05  # h: the glass behind the bezel's front
-WALL_DEEP = 0.1   # h: the window's walls into the block (past the face)
+WALL_DEEP = 0.05  # h: the window's walls into the wedge (past the face; it is low over the receiver's top)
 RIVET_R = 0.11  # (the spec 0.12: on the exact chamfer the ring would touch the window)
 RIVET_AT = (0.78, 0.45)
 RIVET_SIDES = 10
@@ -153,48 +154,37 @@ class Design:
         self.O = Vector((x_r, self.cy, z_t))
         bw, bh = hw + FRAME * h, hh + FRAME * h
         self.bw, self.bh = bw, bh
-        self.vc = MARGIN * h + bh                       # the bezel's (and window's) centre up the face
-        self.lf = 2.0 * (MARGIN * h + bh)               # the face's length
+        self.vc = MARGIN_LOW * h + bh                       # the bezel's (and window's) centre up the face
+        self.lf = (MARGIN_LOW + MARGIN_HIGH) * h + 2.0 * bh              # the face's length, from the rear top edge to the peak
         self.z_top = z_t + self.lf * self.D.z
-        self.x_ts = x_r + self.lf * self.D.x            # where the face meets the top
-        self.x_f = BAND_FRONT
-        if self.x_f - self.x_ts < 0.3:
-            fail("the sloped face (%.2f long) leaves %.2f of flat top on the band" % (self.lf, self.x_f - self.x_ts))
-        tan_side = math.tan(math.radians(SIDE))
-        z_bt = z_t + (MARGIN * h + 2.0 * bh) * self.D.z  # the bezel's top corners' height
-        self.over = max(0.1, bw + EDGE * h - self.hw_top + tan_side * (z_bt - z_t))
-        self.z_l = z_t - LEDGE
+        self.x_ts = x_r + self.lf * self.D.x            # the peak
+        self.x_f = RIDGE_FRONT
+        if self.x_f - self.x_ts < 1.0:
+            fail("the face (%.2f long) ends at x %.2f, past the ridge's front %.2f" % (self.lf, self.x_ts, self.x_f))
+        z_bt = z_t + (MARGIN_LOW * h + 2.0 * bh) * self.D.z  # the bezel's top corners' height
+        self.z_l = z_t
 
-        def half(z):  # the block's half width at z
-            return self.hw_top + self.over - tan_side * (z - z_t)
+        def half(z):  # the wedge's half width at z: the receiver's sides carried on up
+            return self.hw_top - SIDE_SLOPE * (z - z_t)
 
-        def rhalf(z):  # the receiver's below its top
-            return self.hw_top + SIDE_SLOPE * (z_t - z)
-
-        self.half, self.rhalf = half, rhalf
+        self.half = half
+        self.edge = half(z_bt) - bw
+        if self.edge < EDGE * h:
+            fail("the bezel's top corners are %.3f inside the wedge's sides (at least %.3f): flatten the face or "
+                 "narrow the window" % (self.edge, EDGE * h))
         self.glass_w = PROUD * h - GLASS_BACK * h
         self.verts = []   # Vector
         self.tris = []    # (i, j, k, wanted normal, uv mode)
         self.uvinfo = {}  # vertex -> (mode data)
         self.face_pts = []  # (vertex, wanted face coordinates): the sloped face's points, to report the rounding
 
-        # The block. Face corners: bottom (on the band's rear top edge) and top; the top's front; the sides' bottoms.
+        # The wedge: the face's corners on the band's rear top edge and at the peak, its front slope's end on the ridge.
         fbl = self.add_face(-half(z_t), 0.0, 0.0)
         fbr = self.add_face(half(z_t), 0.0, 0.0)
         ftl = self.add_face(-half(self.z_top), self.lf, 0.0)
         ftr = self.add_face(half(self.z_top), self.lf, 0.0)
-        tfl = self.add_xyz(self.x_f, -half(self.z_top), self.z_top)
-        tfr = self.add_xyz(self.x_f, half(self.z_top), self.z_top)
-        sides = {}
-        for s in (-1, 1):
-            # rear bottom, front bottom (outside), the ledge's inner ends (rear, front: into the receiver), and the
-            # receiver's outline at the ledge's height in the rear face's plane
-            sides[s] = dict(rb=self.add_xyz(x_r, s * half(self.z_l), self.z_l),
-                            fb=self.add_xyz(self.x_f, s * half(self.z_l), self.z_l),
-                            ri=self.add_xyz(x_r, s * (rhalf(self.z_l) - SINK), self.z_l),
-                            fi=self.add_xyz(self.x_f, s * (rhalf(self.z_l) - SINK), self.z_l),
-                            ro=self.add_xyz(x_r, s * rhalf(self.z_l), self.z_l, outward=True),
-                            re=self.add_xyz(x_r, s * rhalf(z_t), z_t))
+        el = self.add_xyz(self.x_f, -half(z_t), z_t)
+        er = self.add_xyz(self.x_f, half(z_t), z_t)
         self.n_block_v = len(self.verts)
         # The bezel's outline on the face (the face's hole) and at its front; the window at its front and floor.
         bo = [(bw, bh), (-bw, bh), (-bw, -bh), (bw, -bh)]
@@ -203,31 +193,20 @@ class Design:
         win = chamfered(hw, hh, c)
         wf = [self.add_face(u, self.vc + v, PROUD * h, inward=True) for u, v in win]
         wb = [self.add_face(u, self.vc + v, -WALL_DEEP * h, inward=True) for u, v in win]
+        self.margin_ids = (fbl, fbr, hole[2], hole[3], hole[0], hole[1], ftl, ftr)
         out = self.N
-        up = Vector((0, 0, 1))
         # The sloped face: a ring round the bezel (hole: top right, top left, bottom left, bottom right).
         self.quad(fbl, fbr, hole[3], hole[2], out, "top")
         self.quad(fbr, ftr, hole[0], hole[3], out, "top")
         self.quad(ftr, ftl, hole[1], hole[0], out, "top")
         self.quad(ftl, fbl, hole[2], hole[1], out, "top")
-        # The top, the front, the sides, the ledges, the corners in the rear face's plane.
-        self.quad(ftl, ftr, tfr, tfl, up, "top")
-        fwd = Vector((1, 0, 0))
-        for s in (-1, 1):
-            sd = sides[s]
-            ft, fb, tf = (ftr, fbr, tfr) if s > 0 else (ftl, fbl, tfl)
-            side_n = Vector((0.0, -s * math.cos(math.radians(SIDE)), math.sin(math.radians(SIDE))))  # (s 1: the right, -Y)
-            self.tri(sd["rb"], fb, ft, side_n, "side")
-            self.tri(sd["rb"], ft, tf, side_n, "side")
-            self.tri(sd["rb"], tf, sd["fb"], side_n, "side")
-            below = Vector((0, 0, -1))  # (the ledge's underside: a fan from its inner front end)
-            self.tri(sd["fi"], sd["fb"], sd["rb"], below, "end")
-            self.tri(sd["fi"], sd["rb"], sd["ro"], below, "end")
-            self.tri(sd["fi"], sd["ro"], sd["ri"], below, "end")
-            self.quad(sd["rb"], sd["ro"], sd["re"], fb, Vector((-1, 0, 0)), "end")
-            self.tri(tf, sd["fb"], sd["fi"], fwd, "end")
-        self.tri(tfl, tfr, sides[1]["fi"], fwd, "end")
-        self.tri(tfl, sides[1]["fi"], sides[-1]["fi"], fwd, "end")
+        # The front slope down to the ridge, the sides (in the receiver's side planes), the bottom (on the band, over
+        # the groove, on the ridge).
+        self.quad(ftl, ftr, er, el, Vector((self.z_top - z_t, 0.0, self.x_f - self.x_ts)), "top")
+        lean = math.atan(SIDE_SLOPE)
+        for s, (fb, ft, e) in ((1, (fbr, ftr, er)), (-1, (fbl, ftl, el))):
+            self.tri(fb, ft, e, Vector((0.0, -s * math.cos(lean), math.sin(lean))), "side")  # (s 1: the right, -Y)
+        self.quad(fbl, fbr, er, el, Vector((0, 0, -1)), "end")
         self.n_block = len(self.tris)
         # The bezel: its front (a triangle at each chamfer, a quad along each side), its sides down to the face, the
         # window's walls and its floor.
@@ -258,11 +237,14 @@ class Design:
             top = [self.add_face(ru + RIVET_TOP * r * a, self.vc + rv + RIVET_TOP * r * b, (PROUD + RIVET_PROUD) * h)
                    for a, b in ring]
             tip = self.add_face(ru, self.vc + rv, (PROUD + RIVET_PROUD) * h)
-            self.rivets.append((ru, rv))
+            foot = self.add_face(ru, self.vc + rv, PROUD * h)  # (its underside on the bezel: a closed piece, so no
+            self.rivets.append((ru, rv))                         # gap the rounding opens under its ring shows through)
             for i in range(RIVET_SIDES):
                 j = (i + 1) % RIVET_SIDES
                 self.quad(base[i], base[j], top[j], top[i], ("from", ru, rv), "rivet")
                 self.tri(top[i], top[j], tip, out, "rivet")
+                self.tri(base[j], base[i], foot, -out, "rivet")
+            self.uvinfo[foot] = ("rivet", ru, rv, 2)
             for vi in base:
                 self.uvinfo[vi] = ("rivet", ru, rv, 0)
             for vi in top:
@@ -275,7 +257,7 @@ class Design:
         return self.org[axis] + round((x - self.org[axis]) / self.sc[axis]) * self.sc[axis]
 
     def snap_face(self, p, inward=False):
-        """The grid point for the face point p: near the face's plane above all (off it counts double), and with
+        """The grid point for the face point p: near the face's plane first (off it counts 1.4 times), and with
         inward, no further from the window's centre in the face's u and v."""
         org, sc = self.org, self.sc
         k = [(p[i] - org[i]) / sc[i] for i in range(3)]
@@ -293,7 +275,7 @@ class Design:
                         gv = self.D.dot(g - self.O) - self.vc
                         if abs(gu) > abs(cu) + 1e-6 or abs(gv) > abs(cv) + 1e-6 or gu * cu < -1e-9 or gv * cv < -1e-9:
                             continue
-                    cost = 4.0 * dn * dn + (d - dn * self.N).length_squared
+                    cost = 2.0 * dn * dn + (d - dn * self.N).length_squared
                     if best is None or cost < best[0]:
                         best = (cost, g)
         if best is None:
@@ -347,7 +329,7 @@ class Design:
     def texel(self, vi, mode, tri_ids):
         co = self.verts[vi]
         u, v, w = self.face_uv(co)
-        hw_max = self.hw_top + self.over
+        hw_max = self.hw_top
         if mode == "top":  # the face up its length then the top to the front: down the band's skin
             along = v if co.x <= self.x_ts + 1e-3 and w < 0.05 else self.lf + (co.x - self.x_ts)
             total = self.lf + (self.x_f - self.x_ts)
@@ -403,18 +385,20 @@ class Design:
             clear = min(clear, max(u - hw_win, v - hh_win, (u + v - (hw_win + hh_win - cpx)) * 0.7071))
         if edge < -0.01 or clear < 0.02:
             fail("the rivets overhang the bezel (%.3f) or cut into the window (%.3f clear)" % (-edge, clear))
-        top_c = self.half(self.z_l)
-        return ("window %.3f x %.3f as snapped (h %.3f); bezel %.3f x %.3f, %.3f proud; glass %.3f behind its front; "
-                "face %.1f deg, %.3f long, the block %.3f high (top z %.3f), flat top x %.3f..%.3f, %.3f wide at the "
-                "band's top (the band %.3f), %.3f at its top (sides %.0f deg, %.3f past the band's edges), down to z "
-                "%.3f; the bezel's top corners %.3f inside the sides; face points off the plane <= %.3f, moved in it "
-                "<= %.3f; rivets %.3f inside the bezel's edge, %.3f clear of the window; the ledges %.3f wide"
-                % (2 * wu, 2 * wv, h, 2 * self.bw, 2 * self.bh, PROUD * h, GLASS_BACK * h, SLOPE, self.lf,
-                   self.z_top - self.z_t, self.z_top, self.x_ts, self.x_f, 2 * self.half(self.z_t), 2 * self.hw_top,
-                   2 * self.half(self.z_top), SIDE, self.over, self.z_l,
-                   self.half(self.z_t + (MARGIN * h + 2 * self.bh) * self.D.z) - self.bw, off, inplane, edge, clear,
-                   top_c - self.rhalf(self.z_l)))
-
+        # The face's strips below and above the bezel, as snapped (rounded through, a triangle would fold over).
+        vs = [self.face_uv(self.verts[i])[1] for i in self.margin_ids]
+        low, high = min(vs[2:4]) - max(vs[0:2]), min(vs[6:8]) - max(vs[4:6])
+        if min(low, high) < 0.05:
+            fail("the face's strip below the bezel (%.3f) or above it (%.3f) rounds to nothing" % (low, high))
+        return ("strips below and above the bezel %.3f, %.3f; window %.3f x %.3f as snapped (h %.3f); bezel %.3f x %.3f, %.3f proud; glass %.3f behind its front; "
+                "face %.1f deg, %.3f long, the peak at x %.3f z %.3f (%.3f over the band), the front slope to x %.3f "
+                "(%.1f deg); %.3f wide at the band's top, %.3f at the peak (the receiver's sides carried up); the "
+                "bezel's top corners %.3f inside the sides; face points off the plane <= %.3f, moved in it <= %.3f; "
+                "rivets %.3f inside the bezel's edge, %.3f clear of the window"
+                % (low, high, 2 * wu, 2 * wv, h, 2 * self.bw, 2 * self.bh, PROUD * h, GLASS_BACK * h, SLOPE, self.lf, self.x_ts,
+                   self.z_top, self.z_top - self.z_t, self.x_f,
+                   math.degrees(math.atan2(self.z_top - self.z_t, self.x_f - self.x_ts)), 2 * self.half(self.z_t),
+                   2 * self.half(self.z_top), self.edge, off, inplane, edge, clear))
 
 def main(h):
     RUN[:] = [h]
@@ -450,7 +434,7 @@ def main(h):
 
     def band():
         """The rear top band: the rear face's x, its top z and the top edge's two ends (Y), checked against the band's
-        front (BAND_FRONT, the same top)."""
+        front (RIDGE_FRONT, the same top)."""
         ids, x0, co = rear_face()
         f = co[ids]
         zt = f[:, 2].max()
@@ -458,9 +442,9 @@ def main(h):
         if len(top) != 2:
             fail("the rear face's top edge has %d vertices (expected 2)" % len(top))
         flags = housing_flags()
-        front = co[(flags == 0) & (np.abs(co[:, 0] - BAND_FRONT) < 0.02) & (np.abs(co[:, 2] - zt) < 0.02)]
+        front = co[(flags == 0) & (np.abs(co[:, 0] - RIDGE_FRONT) < 0.02) & (np.abs(co[:, 2] - zt) < 0.02)]
         if len(front) < 2:
-            fail("no top band front at x %.3f, z %.3f" % (BAND_FRONT, zt))
+            fail("no ridge front at x %.3f, z %.3f" % (RIDGE_FRONT, zt))
         return float(x0), float(zt), float(top[:, 1].max()), float(top[:, 1].min())
 
     def design():
