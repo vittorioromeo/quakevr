@@ -6154,3 +6154,28 @@ it) has another texture, smoother with an orange band along the bottom.
   no longer saved, so a no-change re-run is byte-identical (Blender's saves of the same content differ in their bytes).
 - **Proof:** `scratch/depth/panel_tri.png` (worktree selfshot; before / after, behind the gun looking at the face).
   Re-run: every file identical. vr_pp_test 1: 63 passed, 0 failed. checklist_tests_check: 83 passed, 0 failed.
+
+## The ammo screen's text: its own size and place (branch `agent/ammotext`, 2026-11-09)
+
+His words: "per-weapon tweakable options for the ammo screen? Font size multiplier; text x/y offsets ... should only
+affect the text itself, not the screen or enclosure."
+
+- **Keys (`vr_weapons.inc`, appended; `vr_wofs_<key>_NN`):** `wpntxt_font` (the text's size, times the font's; 1),
+  `wpntxt_tx` and `wpntxt_ty` (its centre moved right and up on the glass, in shares of the glass's width and height: 0.5
+  puts the centre on the edge; 0). Defaults in `weapons.txt`'s defaults block (`wpntxt_font "1"`), `weapons_data.py`'s
+  GLOBALS. New keys: no migration. Weapon Offsets > Ammo Screen: Text Size (0.3..2.5, extended 0.05..10), Text Right and
+  Text Up (-0.5..0.5, extended -2..2). Weapon Studio's Ammo page lists them by prefix (Text Size as a scale, 0.02..4;
+  the shifts as shares, -1..1).
+- **How (`text3d::Glyphs`, a new last argument of `text3d::queue`; the held guns' and the holstered/lying ones' screens,
+  `view_detail::screenGlyphs`):** the glass, its dark box, the glow and the CRT quad are laid out as before from
+  `wpntxt_scale` and the style; only the glyphs change. Through the CRT (the default), the text is drawn into the
+  screen's image at its size and shift, so what falls past the glass is cut off at its edge; the image cache keys on
+  the size and shift too (two guns with one text but another size don't share an image). CRT off (plain glyph quads)
+  the text is resized and moved the same but spills past the glass (as the plain path's glyphs already could).
+- **Defaults unchanged:** at 1, 0, 0 every expression reduces to the old one (the image's left/top and the glyphs'
+  size and places are the same numbers; not shot against an old build).
+- **Proof (`scratch/ammotext/`, flat, vrtesthall, the shotgun, reloading on: "8/8" over "17"):** `panel1.png` default,
+  Text Size 1.4 (cut off at the glass), 0.7, Right 0.15 Up 0.1. Two default runs: 0 pixels differ; every variant's
+  changed pixels lie inside the glass (bbox 1248..1493 x 493..589 of the glass's ~1240..1500 x 470..600), the frame and
+  housing identical. CRT off: `panel_crt0.png`. vr_pp_test 1: 63 passed, 0 failed; scenarios ammoscreen_glass and
+  shotgun_screen OK; checklist_tests_check: 83 passed, 0 failed.

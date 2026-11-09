@@ -39,8 +39,18 @@ enum class Align : int
 // instead of the screen's (an ammo screen's warning colours: vr_ammo_color_warn); its face stays the screen's.
 // `style` (a screen's): its weapon's look (vr_screenstyle.hpp: rounded glass, size, offset; null the default). Kept by
 // pointer till the frame is drawn: the table's entries.
+// `glyphs` (a screen's): its text alone resized and moved on the glass (weapons.txt's wpntxt_font, wpntxt_tx and
+// wpntxt_ty); the glass, its box and its glow stay as `scale` and the style make them. `size` times the font's size;
+// `shift` the text's centre moved right and up, in shares of the glass's width and height. Shown through the CRT's
+// image (vr_weapon_screen_crt), text past the glass is cut off at its edge; drawn plain (CRT off), it spills.
+struct Glyphs
+{
+    float size{1.f};
+    glm::vec2 shift{0.f};
+};
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
-    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* style = nullptr);
+    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* style = nullptr,
+    const Glyphs& glyphs = {});
 
 // A filled bar in an overlay text (the profiler's panel): on line `line` (0 the first), from character `column`, `cells`
 // characters long (fractions too), over a dim track `track` characters long.

@@ -152,9 +152,10 @@ const char* const onOffNames[] = {"off", "on", nullptr};
        !strcmp(name, "embed") || !strcmp(name, "fx_flash") || !strcmp(name, "fx_tracers"))
         return Kind::Choice;
     if(hasWord(name, "curl") || endsWith(name, "_open") || endsWith(name, "_across") || endsWith(name, "overlap") ||
-       endsWith(name, "_sticky") || endsWith(name, "_chance") || !strcmp(name, "w_com") || !strcmp(name, "w_spinalign"))
+       endsWith(name, "_sticky") || endsWith(name, "_chance") || !strcmp(name, "w_com") || !strcmp(name, "w_spinalign") ||
+       !strcmp(name, "wpntxt_tx") || !strcmp(name, "wpntxt_ty"))
         return Kind::Share;
-    if(!strcmp(name, "scale") || endsWith(name, "_size"))
+    if(!strcmp(name, "scale") || endsWith(name, "_size") || !strcmp(name, "wpntxt_font"))
         return Kind::Scale;
     if(endsWith(name, "_time"))
         return Kind::Seconds;
@@ -186,13 +187,13 @@ void rangeOf(const Kind kind, const char* name, float& lo, float& hi, float& ste
         }
         break;
     case Kind::Share:
-        lo = !strcmp(name, "w_com") || !strcmp(name, "w_spinalign") ? -1.f : 0.f;
+        lo = !strcmp(name, "w_com") || !strcmp(name, "w_spinalign") || startsWith(name, "wpntxt_t") ? -1.f : 0.f;
         hi = 1.f;
         step = 0.01f;
         break;
     case Kind::Scale:
         lo = 0.02f;
-        hi = 10.f;
+        hi = !strcmp(name, "wpntxt_font") ? 4.f : 10.f;
         step = 0.01f;
         break;
     case Kind::Spring:
