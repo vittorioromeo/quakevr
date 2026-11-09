@@ -4071,6 +4071,21 @@ QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle:
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_mantle_hands, "1", CVAR_ARCHIVE)       // flatscreen mantle: 1 each empty hand goes onto the ledge as it mantles, as a headset's hands hold it (both empty: both; a free hand on the other's gun lets go of it for the mantle; both holding weapons: none; vr_climb.cpp flatMantleHands); 0 the hands stay as they are
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
+// The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
+// gadget's screens in small 3D panels near the view's corners.
+QVR_CVAR(vr_flat_visor, "1", CVAR_ARCHIVE)              // flatscreen play's HUD: 1 the visor (health and armour top left, ammo top right, the log and bullet time low in the middle); 0 the status bar (hudstyle, vr_flat_hud)
+QVR_CVAR(vr_flat_visor_scale, "1", CVAR_ARCHIVE)        // the visor's panels' size (0.5..2; shrunk to fit a narrow screen)
+QVR_CVAR(vr_flat_visor_opacity, "0.55", CVAR_ARCHIVE)   // the panels' dark backing over the view (0 clear .. 1 solid; the values always opaque)
+QVR_CVAR(vr_flat_visor_crt, "0.6", CVAR_ARCHIVE)        // the panels' CRT look (scanlines, flicker, static: 0..2; the gadget's vr_gadget_crt)
+QVR_CVAR(vr_flat_visor_sway, "1", CVAR_ARCHIVE)         // the panels' sway: lagging a turn a fraction of a degree, bobbing with the walk (0 rigid .. 2); never moving standing still
+QVR_CVAR(vr_flat_visor_curve, "8", CVAR_ARCHIVE)        // degrees the panels turn in towards the eye, hinged at the screen's edge, like a curved visor (0 flat .. 40)
+QVR_CVAR(vr_flat_visor_frame, "1", CVAR_ARCHIVE)        // the visor's glass: a faint dark rim at the screen's edges and a reflection streak (0 none .. 3)
+QVR_CVAR(vr_flat_visor_damage, "1", CVAR_ARCHIVE)       // a hit glitches the panels for a moment, more for more damage (0 never .. 2)
+QVR_CVAR(vr_flat_visor_fog, "1", CVAR_ARCHIVE)          // under water the visor's edges fog up, clearing over vr_flat_visor_fog_clear seconds after surfacing (0 never .. 2)
+QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's fog takes to clear after surfacing (0.2..10)
+QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
+QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
+QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still

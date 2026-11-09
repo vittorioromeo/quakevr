@@ -95,6 +95,7 @@ layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own co
 layout(location = 18) uniform vec4 Frame; // Mode 4 as rounded glass (State::frame): corner radius, bevel (pixels), vignette, sheen
 layout(location = 19) uniform vec4 Glass; // and the glass's colour under the face (rgb), the digits' softness (a)
 layout(location = 20) uniform float Taper; // and its shape (State::taper): a trapezoid, its top this much of its bottom
+layout(location = 21) uniform float InkAlpha; // Mode 4 (State::inkAlpha): > 0 its face translucent, its lit strokes opaque, all times this
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
 #if MODE == 1
 layout(location = 17) uniform vec2 Band; // the falloffs drawn: above x, up to y (State::once's bands; else all)
@@ -373,6 +374,13 @@ vec4 screen()
         float sheen = smoothstep(0.30, 0.0, abs(uv.x * 0.8 - uv.y + 0.55)) * smoothstep(0.2, 0.8, uv.y);
         rgb += Frame.w * 0.035 * sheen * mix(vec3(1.0), hue, 0.4);
         rgb *= smoothstep(0.0, 1.0, -d); // (the edge's last pixel: into the frame's black, not a hard step)
+    }
+    if(InkAlpha > 0.0)
+    {
+        // The visor's panels (vr_visor.cpp): the dark face at the vertex alpha over the view, what is lit on it (the
+        // values, the icons, their glow) towards opaque by its brightness.
+        float ink = smoothstep(0.08, 0.4, max(rgb.r, max(rgb.g, rgb.b)));
+        return vec4(rgb, mix(color.a, 1.0, ink) * InkAlpha);
     }
     return vec4(rgb, color.a); // (opaque but for the tips' fading screens over the scene: text3d::queueOverlayScreen)
 }
@@ -1231,6 +1239,7 @@ void flatFovUniforms(bool on)
         GL_Uniform4fFunc(18, state.frame.x, state.frame.y, state.frame.z, state.frame.w);
         GL_Uniform4fFunc(19, state.glass.x, state.glass.y, state.glass.z, state.glass.w);
         GL_Uniform1fFunc(20, state.taper);
+        GL_Uniform1fFunc(21, state.inkAlpha);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
     if(state.shade == Shade::SoftEdge)

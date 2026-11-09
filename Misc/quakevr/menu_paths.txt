@@ -777,6 +777,7 @@ vr_show_weapon_text|1|Screens|Weapon Text|Advanced VR Options > Tips > Wrist Gad
 vr_weapon_screen|1|Screens|Weapon Ammo Screen|Advanced VR Options > Tips > Wrist Gadget Messages > Weapon Ammo Screen
 vr_weapon_screen_padding|1|Screens|Ammo Screen Margin|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen Margin
 vr_weapon_screen_crt|1|Screens|Ammo Screen CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen CRT Look
+vr_weapon_screen_style|1|Screens|Rounded Glass Ammo Screens|Advanced VR Options > Tips > Wrist Gadget Messages > Rounded Glass Ammo Screens
 vr_ammo_screen_text_white|1|Screens|White Ammo Screen Text|Advanced VR Options > Tips > Wrist Gadget Messages > White Ammo Screen Text
 vr_ammo_color_warn|1|Screens|Low Ammo Colours|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Colours
 vr_ammo_color_low|2|Screens|Low Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Hue
@@ -1339,6 +1340,19 @@ vr_flat_shove_damage|1|Locomotion|Shove Damage|Advanced VR Options > Movement > 
 vr_flat_shove_time|1|Locomotion|Shove Time|Advanced VR Options > Movement > Locomotion > Shove Time
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
+vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
+vr_flat_visor_scale|1|Locomotion|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor Panel Size
+vr_flat_visor_opacity|1|Locomotion|Visor Panel Backing|Advanced VR Options > Movement > Locomotion > Visor Panel Backing
+vr_flat_visor_crt|1|Locomotion|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor CRT Look
+vr_flat_visor_sway|1|Locomotion|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor Sway
+vr_flat_visor_curve|1|Locomotion|Visor Curve|Advanced VR Options > Movement > Locomotion > Visor Curve
+vr_flat_visor_frame|1|Locomotion|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor Glass
+vr_flat_visor_damage|1|Locomotion|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor Hit Glitch
+vr_flat_visor_fog|1|Locomotion|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor Fog Under Water
+vr_flat_visor_fog_clear|1|Locomotion|Visor Fog Clears In|Advanced VR Options > Movement > Locomotion > Visor Fog Clears In
+vr_flat_visor_low_health|1|Locomotion|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor Low Health
+vr_flat_visor_boot|1|Locomotion|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor Power On
+vr_flat_visor_log|1|Locomotion|Visor Messages|Advanced VR Options > Movement > Locomotion > Visor Messages
 vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
@@ -2328,6 +2342,15 @@ vr_exposure|1|Graphics - Post-processing|Exposure|Advanced VR Options > Graphics
 vr_grade|1|Graphics - Post-processing|Colour Grade|Advanced VR Options > Graphics > Post-processing > Colour Grade
 vr_grade_strength|1|Graphics - Post-processing|Grade Strength|Advanced VR Options > Graphics > Post-processing > Grade Strength
 vr_dither|1|Graphics - Post-processing|Dither|Advanced VR Options > Graphics > Post-processing > Dither
+vr_flat_bloom|1|Graphics - Post-processing|Flat: Bloom|Advanced VR Options > Graphics > Post-processing > Flat: Bloom
+vr_flat_grade|1|Graphics - Post-processing|Flat: Colour Grade|Advanced VR Options > Graphics > Post-processing > Flat: Colour Grade
+vr_flat_grade_exposure|1|Graphics - Post-processing|Flat: Exposure|Advanced VR Options > Graphics > Post-processing > Flat: Exposure
+vr_flat_grade_contrast|1|Graphics - Post-processing|Flat: Contrast|Advanced VR Options > Graphics > Post-processing > Flat: Contrast
+vr_flat_grade_shadows|1|Graphics - Post-processing|Flat: Shadows|Advanced VR Options > Graphics > Post-processing > Flat: Shadows
+vr_flat_grade_warmth|1|Graphics - Post-processing|Flat: Warmth|Advanced VR Options > Graphics > Post-processing > Flat: Warmth
+vr_flat_grade_saturation|1|Graphics - Post-processing|Flat: Saturation|Advanced VR Options > Graphics > Post-processing > Flat: Saturation
+vr_flat_vignette|1|Graphics - Post-processing|Flat: Vignette|Advanced VR Options > Graphics > Post-processing > Flat: Vignette
+vr_flat_vignette_size|1|Graphics - Post-processing|Flat: Vignette Size|Advanced VR Options > Graphics > Post-processing > Flat: Vignette Size
 |1|Graphics - Post-processing|Reset This Page|Advanced VR Options > Graphics > Post-processing > Reset This Page
 @page|1|Graphics - Models and Effects||Advanced VR Options > Graphics > Models and Effects
 vr_model_lighting|1|Graphics - Models and Effects|Model Lighting|Advanced VR Options > Graphics > Models and Effects > Model Lighting
@@ -4662,6 +4685,10 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
 |2|Debug - Reports|Flatscreen Status Bar Report|Advanced VR Options > Debug > Reports > Flatscreen Status Bar Report
+|2|Debug - Reports|Visor HUD Report|Advanced VR Options > Debug > Reports > Visor HUD Report
+|2|Debug - Reports|Visor: Hit Glitch|Advanced VR Options > Debug > Reports > Visor: Hit Glitch
+|2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
+|2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
@@ -4759,6 +4786,7 @@ vr_ao_cache|2|Debug - Reports|Keep AO Bakes on Disk|Advanced VR Options > Debug 
 |2|Debug - Reports|Grasp Spheres|Advanced VR Options > Debug > Reports > Grasp Spheres
 |2|Debug - Reports|Grip Frames|Advanced VR Options > Debug > Reports > Grip Frames
 |2|Debug - Reports|Weapon Anchors|Advanced VR Options > Debug > Reports > Weapon Anchors
+|2|Debug - Reports|Ammo Screen on Model|Advanced VR Options > Debug > Reports > Ammo Screen on Model
 |2|Debug - Reports|Sight Lines|Advanced VR Options > Debug > Reports > Sight Lines
 |2|Debug - Reports|Sight Check|Advanced VR Options > Debug > Reports > Sight Check
 |2|Debug - Reports|Wrist Gadget|Advanced VR Options > Debug > Reports > Wrist Gadget
@@ -5019,6 +5047,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armour Studio: Your Clone's Armour Test|Advanced VR Options > Debug > Tests > Armour Studio: Your Clone's Armour Test
 |2|Debug - Tests|Armour Tweaks: Data File Test|Advanced VR Options > Debug > Tests > Armour Tweaks: Data File Test
 |2|Debug - Tests|Armour Plates: Pop-through Check|Advanced VR Options > Debug > Tests > Armour Plates: Pop-through Check
+|2|Debug - Tests|Armour Plates: Broken Halves Check|Advanced VR Options > Debug > Tests > Armour Plates: Broken Halves Check
+|2|Debug - Tests|Armour Plates: Halves and Elbows Sheet|Advanced VR Options > Debug > Tests > Armour Plates: Halves and Elbows Sheet
 |2|Debug - Tests|Armour Plates: Generator Check|Advanced VR Options > Debug > Tests > Armour Plates: Generator Check
 |2|Debug - Tests|Death Knight's Gun and Casts|Advanced VR Options > Debug > Tests > Death Knight's Gun and Casts
 |2|Debug - Tests|Armed Humanoid Tuning|Advanced VR Options > Debug > Tests > Armed Humanoid Tuning

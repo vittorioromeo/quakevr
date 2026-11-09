@@ -828,6 +828,17 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Status Bar Report", "vr_flathud_report")
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),
+        command("Visor HUD Report", "vr_flat_visor_report")
+            .help("vr_flat_visor_report: the flatscreen visor HUD (vr_flat_visor): on or not, its sway, hit glitch, fog, "
+                  "low-health pulse and power-on sweep now, and where each panel was drawn on the screen. Its "
+                  "readings follow Gadget Screen Readings (low health, an empty hand)."),
+        command("Visor: Hit Glitch", "vr_flat_visor_fx damage 40")
+            .help("vr_flat_visor_fx damage 40: the visor's panels glitch as from a hit of 40, nothing hurt."),
+        command("Visor: Power On", "vr_flat_visor_fx boot")
+            .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
+        command("Visor: Fog Up", "vr_flat_visor_fx fog 2")
+            .help("vr_flat_visor_fx fog 2: the visor fogs up as under water for two seconds, then clears as after "
+                  "surfacing."),
         row(opt::vr_flatplay_debug),
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "

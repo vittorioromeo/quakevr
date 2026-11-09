@@ -42,6 +42,7 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_visor.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
 
@@ -701,6 +702,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     if(!drawingToCanvas)
     {
         text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
+        visor::renderPanels();   // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
         toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
         return;
     }
