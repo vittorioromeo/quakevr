@@ -1790,6 +1790,7 @@ void frame()
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
     flatleanpose::frame(); // vr_flatleanpose_test's next step, when one runs
     slidesound::frame(true); // its scrape (vr_slidesound.cpp)
+    flatxhair::frame(); // vr_flat_xhair_turntest's mouse (vr_flatxhair.cpp)
 }
 
 float trunkTwist()

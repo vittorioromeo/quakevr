@@ -4136,6 +4136,8 @@ QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round 
 QVR_CVAR(vr_flat_xhair_glow, "0.5", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
 QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
 QVR_CVAR(vr_flat_xhair_smooth, "0.03", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
+QVR_CVAR(vr_flat_xhair_reload_alpha, "0.35", CVAR_ARCHIVE) // a gun away on its reload trip (vr_flat_reload): its crosshair at this share of its opacity, as a gun the wall stops (0 hidden .. 1 as ever)
+QVR_CVAR(vr_flat_wall_shot, "1", CVAR_ARCHIVE)           // flatscreen play: 1 a gun a wall turned (vr_flat_wall_tilt, vr_flat_wall_slide) shoots from its muzzle the way it points, and the visor crosshair shows that hit; 0 its shots still go through the crosshair
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still

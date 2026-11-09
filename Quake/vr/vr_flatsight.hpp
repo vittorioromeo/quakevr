@@ -77,8 +77,21 @@ void noteDrawn(const hands::State& s);
 [[nodiscard]] float wallTilt(int h, glm::vec3* pivot = nullptr);
 
 // That turn in the world, for a view whose axes are `axes` (columns forward, right, up): flatplay::drawnOffset turns the
-// drawn hand by it round the pivot. The game's hand, and the shots, keep the crosshair's turn. Identity outside the mode.
+// drawn hand by it round the pivot. The game's hand keeps the crosshair's turn. Identity outside the mode.
 [[nodiscard]] glm::mat3 wallTurn(int h, const glm::mat3& axes);
+
+// vr_flat_wall_shot (his words 2026-11-09: "I would like the shots to actually go in the direction of the muzzle"): how much
+// of hand `h`'s shot leaves from the muzzle of its gun as the wall turned it (by that turn's angle: none at 0, all of it from
+// a few degrees), not from its start eased onto the crosshair's ray. 0 with the cvar off or outside the mode.
+[[nodiscard]] float wallShot(int h);
+
+// The shot's angles `angles` (the crosshair's, turned by the weapon's Shot Pitch and Yaw) turned as the wall turned the gun
+// (vr_client.cpp handMove: what the move sends). Unchanged with vr_flat_wall_shot 0, off a wall, outside the mode.
+[[nodiscard]] glm::vec3 wallShotAngles(int h, const glm::vec3& angles);
+
+// Hand `h`'s gun as the view last drew it: its muzzle and its angles (vr_flat_xhair_probe: where the drawn gun points against
+// where its shots go). False with no muzzle placed, outside the mode.
+[[nodiscard]] bool drawnGun(int h, glm::vec3& muzzle, glm::vec3& rot);
 
 // Whether hand `h`'s trigger is stopped: its gun is turned out of a wall past a few degrees and vr_flat_wall_block_fire is on
 // (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
