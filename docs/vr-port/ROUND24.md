@@ -6264,3 +6264,9 @@ and bob". Then: make it the default; a glitch at a hit, fog under water, low-hea
 - **Tests:** `Misc/quakevr/visor_test.sh <agent>` (visor_check.py; 12 checks: on by default, placement, still at rest,
   lag, settle, bob, hit, fog in and out, boot, off). `flathud_test.sh` now sets `vr_flat_visor 0` (it tests the status
   bar). Scenes: `flat_visor`, `flat_visor_hit`, `flat_visor_water`.
+- **Results:** visor_test 12/0; flathud 11/0 (status bar pinned); vr_pp_test 1: 62/0 flat, 63/0 VR; flathit 11/0,
+  flatlook 4/0, flatads 7/0; scenario_check 94 run, 1 failed (ad_lostsoul: what it placed gone after 3 s, not the
+  visor); checklist_tests_check 85/0. flatpose 17/4 (the nudged eye's and hipfire's shot-point checks: server traces,
+  not pictures; not shown to be the visor's). Proof (`scratch/visor/`): 16:9 start (the visor, the old status bar, low
+  health and empty, a hit, under water, surfaced, booting); 21:9 e1m1 and its low state; 4:3 with messages and the menu;
+  the sway strip; full-size 21:9 panels.
