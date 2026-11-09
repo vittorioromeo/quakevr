@@ -5674,6 +5674,47 @@ Tests: `vr_pp_test 1` 63/0 three runs in a row, and 63/0 in both contexts above 
 `vr_agarmor_test 1` 38/0, `vr_agarmor_test 7` 16/0, `vr_agarmor_bridge_check` 121/0. Other tests that send
 `vr_mock_camera` (or anything a step waits a few frames for) through `localcmd` have the same weakness under a script
 with queued waits; `localcmdfirst` is there for them.
+## The lightning gun's ammo screen housing (branch `agent/housing_light`, 2026-11-09)
+
+His mockup (kit `scratch/mockups/light_housing.webp`) and build spec: on the receiver's rear end face under the rear
+sight (the upright trapezoid x -2.7194, z 8.67..10.86, wider at the bottom), the screen in a shallow flat bronze bezel
+with chamfered corners, two round rivets on each side frame; below it the striped sloped face as before. Panel (today's
+next / this branch / the mockup, flat 4K, the fly camera behind and above; a close-up row under it):
+`scratch/hl/panel_light.png` in the regfix worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_light.py` (Blender, headless, on `v_light.blend`; exports itself and
+  saves; `-- --dry` builds and checks only; ends `housing_light: ok, ...`; on `housing_common.py` as the others, and in
+  MODELS_IN_BLENDER.md's housing table). Re-runnable: a second run keeps the same 68 vertices and 96 triangles in place,
+  and a fresh build on the .blend before the housing gives the same files (both checked: the .mdl and weapons.txt byte
+  for byte the same). The bezel: a flat
+  front ring, its outer walls and the opening's walls straight back to the end face, closed there by a ring facing into
+  the gun (culled: no fight with the face, a closed solid); the face is the back behind the glass. Four rivets: an
+  octagon on the bezel's front and a point one step out. 68 vertices, 96 triangles (the gun 844 -> 940).
+- **The grid** (v_light's bytes: x 0.1707, y 0.0734, z 0.0686): every size a whole number of steps. The spec, in glass
+  heights H, snapped: H 1.645 (12 z steps a half); window 1.605H wide (spec 1.64; 18 y steps a half), chamfer 0.216H
+  (0.22: 5 steps each way, 43 deg); frame 0.178H / 0.167H (0.18: 4 steps); proud 0.104H (0.12: one x step); glass 0.06H
+  behind the front (it's not a vertex: exact); rivets radius 0.086H (0.08: 2 steps), at 0.892H across (centred in the
+  frame: 20 y steps) and 0.333H up and down (0.32). The bezel spans the end face's full height, as in the mockup (its top
+  on the receiver's top edge, its bottom on the ledge). The script refuses a table whose opening or offset disagree with
+  the snapped window (0.3 font px, 0.01 units) and prints the matching entry.
+- **Table** (`vr_screenstyle.cpp` "light"): opening 25.37 x 15.81 font px, radius -6.82 (chamfer), size 0.68 (a font
+  pixel 0.05205 model units: "36/36" and "164" fit the window), offset {-0.0184, 0.002, -0.0677} (from weapons.txt's
+  place, model -2.964 -0.218 9.762, to the window's, -2.791 -0.172 9.767; 2.551 model units a world unit), box 0, the
+  shotgun's glass and tint. weapons.txt's wpntxt offsets and pitch unchanged (his config has no `_08` wpntxt lines).
+  `vr_debug_screen_where`: centre -2.7914 -0.1716 9.7665, up 0 0 1.
+- **v_light_plasma.mdl** shares the screen's place (slot 15, the same wpntxt values) but is its own model and .blend,
+  and its stem ("light_plasma") doesn't match "light": it keeps the default screen, no housing. Its own entry and a run
+  of this script on its .blend (MODEL/SLOT) if wanted.
+- **Skin** (no new texels, none fullbright): the bezel's front planar on the lit neck row of the upper body's metal
+  (357..369 x 56..59), its outer walls on the row above (55), the opening's walls on the dark row (53), the rivets on the
+  tubes' brass fitting (326, 23: its lit centre on the point).
+- **Checks:** export: anchors unchanged (wpntxt_av on triangle 777, 0.0000 off), sight line unchanged (-0.232 deg),
+  holes ok (open loops 6 -> 10: the rivets' bases, hidden; cracks 2 -> 1, see-through 0). The mag and magwell
+  (x 9.4..13.8) and the grip are far from the bezel (x -2.89..-3.06). Held at weapon frames 0, 3 and 6 (`vr_debug_weapon_frame`) the glass stays in
+  the bezel (`scratch/hl/frames_light.png`). vr_ammocolor_test 1 25/0 (needs `developer 1`: its lines are dprints),
+  `vr_pp_test 1` 63/0, flatreload_test.sh 26/0. Checklist scene `light_housing` (vrtesthall, the Thunderbolt in the main
+  hand, cells).
+- **Not verified:** the VR-mock view and the headset (flat shots only); the plasma variant.
 
 ## Ammo screen housings: one workflow for the three scripts (branch `agent/housing_unify`)
 
