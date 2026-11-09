@@ -38,6 +38,13 @@ enum class Source : int
 [[nodiscard]] bool armedMesh(edict_s* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build = nullptr);
 // The same by its entity number (the client's own code, outside the server's VM: the blood streams).
 [[nodiscard]] bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build = nullptr);
+// The same with its normals, not copied (hitmodel: a frame's traces ask for the same body hundreds of times, PERF_1102.md):
+// `pos` and `nor` (`count` of each) are good until the next armedMesh or armedMeshView call.
+[[nodiscard]] bool armedMeshView(edict_s* ent, const glm::vec3*& pos, const glm::vec3*& nor, za::SizeT& count, za::U32& build);
+
+// A new making's number for what is kept by armedMesh's `build` (the ragdolls' skinned vertices, ragdoll::skinnedView,
+// share the count: one number never names two makings).
+[[nodiscard]] za::U32 newBuild();
 
 [[nodiscard]] const char* sourceName(Source s);
 

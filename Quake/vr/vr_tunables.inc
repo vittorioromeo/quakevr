@@ -448,6 +448,7 @@ QVR_TUNABLE(vr_ragdoll_hand_rest, "6") // cm: the hand drawn on a held limb slid
 QVR_TUNABLE(vr_ragdoll_throw, "1") // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_TUNABLE(vr_ragdoll_blood, "1") // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
 QVR_TUNABLE(vr_ragdoll_sleep_skip, "1") // a ragdoll asleep and unchanged is not written again each step (box3d writeRagdoll: only its message time moves on); 0 written every step (the A/B and determinism check)
+QVR_TUNABLE(vr_hitmodel_skin_keep, "1") // the precise hits keep a ragdoll's and an armed humanoid's skinned body (and its hierarchy's bounds) while unchanged, not made or copied again for each trace (the same vertices bit for bit); 0 as before (the A/B check)
 QVR_TUNABLE(vr_ragdoll_smooth, "1") // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)
 QVR_TUNABLE(vr_ragdoll_held_local, "1") // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 QVR_TUNABLE(vr_ragdoll_active_headshot, "0.05") // the strength a headshot or a beheading leaves (an almost pure collapse)
