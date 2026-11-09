@@ -2366,6 +2366,7 @@ vr_exposure|1|Graphics - Post-processing|Exposure|Advanced VR Options > Graphics
 vr_grade|1|Graphics - Post-processing|Colour Grade|Advanced VR Options > Graphics > Post-processing > Colour Grade
 vr_grade_strength|1|Graphics - Post-processing|Grade Strength|Advanced VR Options > Graphics > Post-processing > Grade Strength
 vr_dither|1|Graphics - Post-processing|Dither|Advanced VR Options > Graphics > Post-processing > Dither
+vr_flat_tonemap|1|Graphics - Post-processing|Flat: Tone Mapping|Advanced VR Options > Graphics > Post-processing > Flat: Tone Mapping
 vr_flat_bloom|1|Graphics - Post-processing|Flat: Bloom|Advanced VR Options > Graphics > Post-processing > Flat: Bloom
 vr_flat_grade|1|Graphics - Post-processing|Flat: Colour Grade|Advanced VR Options > Graphics > Post-processing > Flat: Colour Grade
 vr_flat_grade_exposure|1|Graphics - Post-processing|Flat: Exposure|Advanced VR Options > Graphics > Post-processing > Flat: Exposure
@@ -4842,6 +4843,7 @@ vr_test_mic_level|2|Debug - Reports|Fake Microphone Level|Advanced VR Options > 
 |2|Debug - Reports|Menu Panel Back in Front|Advanced VR Options > Debug > Reports > Menu Panel Back in Front
 |2|Debug - Reports|Menu Panels|Advanced VR Options > Debug > Reports > Menu Panels
 |2|Debug - Reports|Open Another Menu Panel|Advanced VR Options > Debug > Reports > Open Another Menu Panel
+|2|Debug - Reports|Menu Rows by Mode|Advanced VR Options > Debug > Reports > Menu Rows by Mode
 |2|Debug - Reports|Menu Rows|Advanced VR Options > Debug > Reports > Menu Rows
 vr_menu_link_dryrun|2|Debug - Reports|Menu Links: Print, Do Not Open|Advanced VR Options > Debug > Reports > Menu Links: Print, Do Not Open
 |2|Debug - Reports|Check for Updates Now|Advanced VR Options > Debug > Reports > Check for Updates Now
