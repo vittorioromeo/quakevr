@@ -4599,6 +4599,7 @@ vr_gl_markers|2|Debug - Profiling and Memory|GL Debug Groups|Advanced VR Options
 |2|Debug - Profiling and Memory|GL Debug Groups Report|Advanced VR Options > Debug > Profiling and Memory > GL Debug Groups Report
 |2|Debug - Profiling and Memory|Tracy Build Info|Advanced VR Options > Debug > Profiling and Memory > Tracy Build Info
 |2|Debug - Profiling and Memory|World Fragment Counts|Advanced VR Options > Debug > Profiling and Memory > World Fragment Counts
+|2|Debug - Profiling and Memory|Model Fragment Counts|Advanced VR Options > Debug > Profiling and Memory > Model Fragment Counts
 |2|Debug - Profiling and Memory|Log Next 3 Seconds|Advanced VR Options > Debug > Profiling and Memory > Log Next 3 Seconds
 |2|Debug - Profiling and Memory|Print Report|Advanced VR Options > Debug > Profiling and Memory > Print Report
 |2|Debug - Profiling and Memory|Dump Profile|Advanced VR Options > Debug > Profiling and Memory > Dump Profile
@@ -4626,6 +4627,8 @@ vr_wounds_budget|2|Debug - Profiling and Memory|Wound Painting Budget|Advanced V
 vr_place_keep|2|Debug - Profiling and Memory|Keep Crates' and Rocks' Layouts|Advanced VR Options > Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts
 |2|Debug - Profiling and Memory|Model Set-up Stats|Advanced VR Options > Debug > Profiling and Memory > Model Set-up Stats
 vr_alias_cull_posed|2|Debug - Profiling and Memory|Cull Posed Models|Advanced VR Options > Debug > Profiling and Memory > Cull Posed Models
+vr_alias_player_first|2|Debug - Profiling and Memory|Your Models First|Advanced VR Options > Debug > Profiling and Memory > Your Models First
+vr_alias_prepass_own|2|Debug - Profiling and Memory|Own Models Pre-pass|Advanced VR Options > Debug > Profiling and Memory > Own Models Pre-pass
 |2|Debug - Profiling and Memory|Lazy OIT Clear Stats|Advanced VR Options > Debug > Profiling and Memory > Lazy OIT Clear Stats
 |2|Debug - Profiling and Memory|Model Cull Stats|Advanced VR Options > Debug > Profiling and Memory > Model Cull Stats
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > Profiling and Memory > Shadow Caster Set-up Shared
