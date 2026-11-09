@@ -475,12 +475,60 @@ vector vr_ppt_at0, vr_ppt_at1, vr_ppt_at2;
 
 void() VR_PPT_LookClean =
 {
+    entity h = find(world, classname, "vr_ppt_half");
+    while(h)
+    {
+        entity nx = find(h, classname, "vr_ppt_half");
+        remove(h);
+        h = nx;
+    }
     if(vr_ppt_g0) { remove(vr_ppt_g0); }
     if(vr_ppt_g1) { remove(vr_ppt_g1); }
     if(vr_ppt_g2) { remove(vr_ppt_g2); }
     vr_ppt_g0 = world;
     vr_ppt_g1 = world;
     vr_ppt_g2 = world;
+};
+
+// vr_pp_test 17: the broken halves (vr_agarmor_split) of a kind's every piece laid out ahead of you, still, in a 3 x 3 grid
+// (the cuirass top left, then each limb piece's left and right), each piece's two halves side by side; `back`: each turned
+// round. Their models as the engine names them for a body of `base` (VR_AgArmor_PrecacheOf's way). The halves made (0..18).
+float(entity p, string base, float back) VR_PPT_Halves =
+{
+    entity t = spawn();
+    t.model = base;
+    makevectors([0, p.angles_y, 0]);
+    float made = 0;
+    float cell = 0;
+    for(float i = 0; i < VR_AR_PIECES; i++)
+    {
+        if(i == VR_AR_HELMET)
+        {
+            continue;
+        }
+        vector at = p.origin + v_forward * 72 + v_right * (cell % 3 - 1) * 34 + v_up * (48 - floor(cell / 3) * 19);
+        cell = cell + 1;
+        for(float half = 0; half < 2; half++)
+        {
+            string m = limbmodel(t, QVR_ARMOR_HALF - (2 * i + half));
+            if(m == "")
+            {
+                continue;
+            }
+            precache_model(m);
+            entity h = spawn();
+            h.classname = "vr_ppt_half";
+            setmodel(h, m);
+            h.skin = 1;
+            h.movetype = MOVETYPE_NONE;
+            h.solid = SOLID_NOT;
+            h.angles = [0, p.angles_y + (back ? 0 : 180), 0];
+            setorigin(h, at + v_right * (half ? 1 : -1) * (i == 0 ? 8 : 5));
+            made = made + 1;
+        }
+    }
+    remove(t);
+    return made;
 };
 
 entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWearer =
@@ -492,7 +540,7 @@ entity(entity p, float kind, float type, float side, float ahead) VR_PPT_LookWea
 
 void(entity p) VR_PPT_Look =
 {
-    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : vr_ppt_on == 16 ? 3 : 12;
+    float n = vr_ppt_on == 10 ? 7 : vr_ppt_on == 12 ? 4 : vr_ppt_on == 16 ? 3 : vr_ppt_on == 17 ? 16 : 12;
     float k = vr_ppt_shot;
     // (they stand where they were put, whatever their AI wants: the same picture every run)
     if(vr_ppt_g0) { setorigin(vr_ppt_g0, [vr_ppt_at0_x, vr_ppt_at0_y, vr_ppt_g0.origin_z]); }
@@ -573,6 +621,30 @@ void(entity p) VR_PPT_Look =
             vr_ppt_at0 = vr_ppt_g0.origin;
             VR_PPT_To(4, 36);
             return;
+        }
+        else if(vr_ppt_on == 17)
+        {
+            // (the halves: the grunt's, the enforcer's, the knight's, the death knight's, each from the front and turned
+            // round (0-7); then the enforcer's and the grunt's elbows, the right and the left side on, at rest and bent 100
+            // degrees (vr_agarmor_bend, the rest pose): 8-15, yellow)
+            VR_PPT_Set(p, 0, 0);
+            localcmd("vr_mock_camera\n");
+            if(k < 8)
+            {
+                localcmd("vr_agarmor_bend 0\n");
+                string base = k < 2 ? "progs/vrgrunt.mdl" : k < 4 ? "progs/vrenforcer.mdl" : k < 6 ? "progs/vrknight.mdl" : "progs/vrhknight.mdl";
+                float made = VR_PPT_Halves(p, base, k % 2);
+                dprint(sprintf("ppshot: halves of %s: %g made\n", base, made));
+            }
+            else
+            {
+                float e = k - 8;
+                localcmd(e % 4 >= 2 ? "vr_agarmor_bend 100\n" : "vr_agarmor_bend 0\n");
+                vr_ppt_g0 = VR_PPT_LookWearer(p, e < 4 ? 3 : 0, 2, 0, 64);
+                localcmd("vr_mock_camera 0 1.0 -1.0 0 0\n");
+                vr_ppt_g0.angles_y = vectoyaw(p.origin - vr_ppt_g0.origin) + (e % 2 ? -90 : 90);
+                vr_ppt_g0.ideal_yaw = vr_ppt_g0.angles_y;
+            }
         }
         else if(vr_ppt_on == 15)
         {
@@ -695,7 +767,7 @@ void(entity p) VR_PPT_Look =
         {
             VR_PPT_LookClean();
             VR_PPT_Set(p, 0, 0);
-            localcmd("vr_mock_camera\n");
+            localcmd(vr_ppt_on == 17 ? "vr_mock_camera; vr_agarmor_bend 0\n" : "vr_mock_camera\n");
             bprint("ppshot: done\n");
             vr_ppt_on = 0;
         }
@@ -794,7 +866,7 @@ void() VR_PP_TestFrame =
             VR_PPT_Set(p, 3, ask == 5 ? 200 : ask == 6 ? 100 : 1);
             bprint(sprintf("pp: armour %g (Debug > Tests)\n", p.armorvalue));
         }
-        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14 || ask == 15 || ask == 16)
+        if(ask == 8 || ask == 9 || ask == 10 || ask == 11 || ask == 12 || ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17)
         {
             vr_ppt_on = ask;
             vr_ppt_shot = 0;
@@ -813,7 +885,7 @@ void() VR_PP_TestFrame =
     {
         VR_PPT_Live(p);
     }
-    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13 || vr_ppt_on == 15 || vr_ppt_on == 16)
+    else if(vr_ppt_on == 10 || vr_ppt_on == 11 || vr_ppt_on == 12 || vr_ppt_on == 13 || vr_ppt_on == 15 || vr_ppt_on == 16 || vr_ppt_on == 17)
     {
         VR_PPT_Look(p);
     }
