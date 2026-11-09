@@ -223,9 +223,9 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
     sha256::toHex(hash.finish(), hex);
 }
 
-// hashSource's, kept for the session by a quick hash of what it reads (the pixels, their size and format; an 8-bit
-// texture's palette).
-void sourceHash(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[65])
+// A quick hash of what hashSource reads (the pixels, their size and format; an 8-bit texture's palette): the session's
+// key for its result. Any thread for an RGBA image (an 8-bit one reads the palette: the main thread's).
+za::U64 sourceKey(const byte* data, enum srcformat fmt, int w, int h)
 {
     const size_t size = static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1);
     const int dims[3] = {static_cast<int>(fmt), w, h};
@@ -235,6 +235,14 @@ void sourceHash(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
     {
         key ^= ankerl::unordered_dense::detail::wyhash::hash(d_8to24table, sizeof(d_8to24table)) * 0xC2B2AE3D27D4EB4Full;
     }
+    return key;
+}
+
+// hashSource's, kept for the session by sourceKey (a map load's replacement images hashed on the prefetch's decode
+// tasks already: hashRgba, noteHash).
+void sourceHash(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[65])
+{
+    const za::U64 key = sourceKey(data, fmt, w, h);
     if(const auto it = session.sourceHashes.find(key); it != session.sourceHashes.end())
     {
         memcpy(hex, it->second.hex, sizeof(hex));
@@ -623,6 +631,22 @@ void init()
     Cmd_AddCommand("vr_pbr_test", test_f);
     Cmd_AddCommand("vr_pbr_audit", audit_f);
 }
+
+bool hashesWanted()
+{
+    return vr_pbr.value != 0.f && VR_NormalMaps(); // (VR_LoadNormalMap asks VR_PBRNormal only with normal maps on)
+}
+
+void hashRgba(const unsigned char* rgba, int w, int h, za::U64& key, char (&hex)[65])
+{
+    key = sourceKey(rgba, SRC_RGBA, w, h);
+    hashSource(rgba, SRC_RGBA, w, h, hex);
+}
+
+void noteHash(za::U64 key, const char (&hex)[65])
+{
+    memcpy(session.sourceHashes[key].hex, hex, sizeof(hex));
+}
 } // namespace qvr::pbr
 
 extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path, size_t size)
@@ -719,6 +743,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
     pbr::Use use{};
     use.base = base;
     pbr::sourceHash(data, fmt, base->source_width, base->source_height, use.hash);
+    VR_TimeAdd("    their content hashes (main thread)", Sys_DoubleTime() - t0); // load timing (vr_startup_times)
     pbr::Recipe r{};
     q_snprintf(r.generated, sizeof(r.generated), "textures/pbr/%.32s_norm", use.hash);
     // AD reuses many stock/mission-pack pixels, including installed diffuse replacements. They already
