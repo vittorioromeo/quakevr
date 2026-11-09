@@ -5769,6 +5769,19 @@ He: the shape is right, but the plate's texture doesn't match the gun's rear; it
   bytes differ only by its save data). `vr_pp_test 1` 63/0, checklist_tests_check.py 83/0.
 - **Not verified:** the headset (flat shots only).
 
+### The window's black ears (branch `agent/light_ears`, 2026-11-09)
+
+He (kit `scratch/mockups/light_ears.webp`): two black triangles poke out of the plate beside the window's top corners.
+**Cause:** the near-black backing box text3d draws behind every screen's glass (`layout`: a cuboid from 0.04 to 0.29
+units behind the glass). It was as wide as the glass's quad, which for tapered glass is the trapezoid's *bottom*
+(half 1.91 units). At the window's top the plate's slanted sides are only about 1.5 out, so the box's top corners
+reached past them and through the receiver's sloped top behind the face. **Fix** (`vr_text3d.cpp`): for tapered glass
+the box is as wide as the narrow top (half 1.39), which keeps it inside the opening at every height. The box is only a
+backing: the glass is opaque, and its discarded corners lie inside the plate. Untapered screens are unchanged. Panel
+(before / after from his angle, behind and above looking down the gun; each top corner's close-up):
+`scratch/le/panel_light_ears.png` in the regfix worktree. The model is untouched: the script's re-run gives the same
+.mdl (65ffdd627867). `vr_pp_test 1` 63/0.
+
 ## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
 
 (Replaced the same day: "The super nailgun's screen housing on top", below. The bezel on the rear face is gone.)
@@ -6057,3 +6070,53 @@ VR mock's eye, the hand pitched 30 down: the screen faces the eye; a low-impact 
   nailgun) and timed out at 400 s, as known; after merging next (its verdict fix) 25 passed, 0 failed. After the merge
   the script re-run in place writes the same files, runall OK, the glass where it was. Scene hint updated.
 - **Not verified:** the headset; the VR-mock shot is low-impact (small eyes).
+
+## The super shotgun's housing: the bevel's texels, round rivets (branch `agent/ssg_fix`, 2026-11-09)
+
+His screenshot (looking straight down at the breech top): "the textures of the bevel are very stretched", "the rivets
+seem to be elliptical rather than circular".
+
+- **Bevel** (`make_screen_housing_ssg.py`): the old bands mapped a whole ring (about 6 units round) across a 16 x 8
+  texel region: 2.7 texels a unit along it, 44 across the 0.18 rim. Now the top and both walls map into a copy (the
+  "plate", 27 x 27 texels at the patch's corner) of the sloped faces' own texels (their island 88-108 x 101-145
+  bottom-up), each point mapped as the face under it is, seen along the glass's out (`FaceMap`: the faces' 6
+  triangles; points off them carry the nearest one's map on, the copy clamps to the island's edge). Each wall quad is
+  unfolded from its top edge (its texels run on past the edge as if laid flat): the skirt outward, the inner wall into
+  the window. So the frame is the breech's metal at the breech's texel size (about 7 x 8.5 texels a unit), continuous
+  with it; the texels on the opening's edge are lit (2.0x: the top's inner edge and the inner wall's lip), those inside
+  the opening darker (0.55, the inner wall); the old 1.8x bezel top is gone. The patch grew to 50 x 32 texels (free
+  skin, all repainted each run); floor and rivet regions moved beside the plate. The .mdl gains 74 seam vertices.
+- **Rivets:** the old hexagon was two x steps long (0.454) but 0.36 across, its points snapped one by one (0.293
+  across): width/length 0.58 seen along the glass's out (the eye), 0.64 from straight above. The grid allows no more
+  sides at this size (three x levels), so it stays a hexagon, now as wide as it is long: its middle on a half y step,
+  the tips 6.5 y steps out (0.24), the side points 3.5 (0.13), so every point lands exactly on the grid. Width/length
+  0.94 from the eye, 1.05 from above (printed by the script). Its middle moved 0.04 outward (`RIVET_AT` 0.27 from the
+  bezel's outer edge, was 0.23) to keep a 0.018 gap to the bezel; still symmetrical, level with the window's middle.
+- Window, glass, depth, table entry unchanged (the script's opening check passes as before). A re-run writes the same
+  .mdl, open halves, normal maps and skin byte for byte (the compressed .blend's bytes differ only by its save data).
+- **Images** (flat 4K, vrtesthall, the fly camera straight down over the breech: the top, a close-up of the left rivet
+  and the bevel's side, one of the bevel's far side): `scratch/ssg/ssg_fix_before_after.png` in the flatwall worktree
+  (before above, after below).
+- **Tests:** `vr_pp_test 1` 63 passed, 0 failed; checklist_tests_check.py 83/0. Scene hint (`housing_ssg`) updated.
+- **Not verified:** the VR-mock shot (the low-impact mock's view doesn't reach the gun); the headset.
+## The shotgun's end face: two mismatched triangles (branch `agent/shot_tri`, 2026-11-09)
+
+His report: on the receiver's end face a large triangle (apex at the top, base along the bottom edge, the bezel inside
+it) has another texture, smoother with an orange band along the bottom.
+
+- **Cause (pre-existing, not the script):** the end face is two triangles, and id's skin paints them as two separate
+  islands that don't match: the upper one (along the top edge) blue-grey metal at s,t 487..499 x 92..105, the lower one
+  (along the bottom edge) brown with an orange band at 156..174 x 49..62, each squeezed into about a dozen texels. The
+  same in the v_shot.mdl before the source .blend (`252f7b677~1`) and in the .blend before any housing (`c91b135b6`);
+  the housing scripts never changed them. The bezel in the middle of the face made it obvious.
+- **Fix:** `make_screen_housing_shot.py` maps both triangles flat onto the steel plate (the bezel walls' skin) at
+  `FACE_TEXELS` 5.5 texels a unit, centred on the face: one paint, no seam, no stretch. (Mirroring the upper island onto
+  the lower triangle was tried first: it stretched a dozen texels into streaks.) The export re-made the upper triangle
+  (3 new vertices: its corners shared s,t with other triangles); the lower kept its place.
+- **Guard (`housing_common.py`, every housing script):** the UVs of every face not all housing are recorded before the
+  script runs (and again after the shotgun's deliberate face change); the script refuses if any changed, before and
+  after the export. Tested: one gun corner moved gives REFUSED. The five other scripts pass it with their exported
+  files unchanged. A .blend whose content (meshes, UVs, attributes, shape keys, properties) the run didn't change is
+  no longer saved, so a no-change re-run is byte-identical (Blender's saves of the same content differ in their bytes).
+- **Proof:** `scratch/depth/panel_tri.png` (worktree selfshot; before / after, behind the gun looking at the face).
+  Re-run: every file identical. vr_pp_test 1: 63 passed, 0 failed. checklist_tests_check: 83 passed, 0 failed.
