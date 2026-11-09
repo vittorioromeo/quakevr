@@ -276,6 +276,7 @@ void CL_SignonReply (void)
 
 	case 4:
 		cl.spawntime = cl.mtime[0];
+		Con_DPrintf ("Client signed on: %s\n", cl.mapname); // QVR: (changelevel_signon_test.sh waits on it)
 		SCR_EndLoadingPlaque ();		// allow normal screen updates
 		break;
 	}

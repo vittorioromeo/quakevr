@@ -513,6 +513,7 @@ void SV_SendServerinfo (client_t *client)
 
 	client->sendsignon = PRESPAWN_FLUSH;
 	client->spawned = false;		// need prespawn, spawn, etc
+	client->serverinfo_unsent = true; // QVR: until .message goes out (SV_SendClientMessages; SV_SignonReplyStale)
 
 	// QVR: the client clears its stats on svc_serverinfo (CL_ClearState), so forget what it was sent: a stat whose
 	// value carries across a changelevel (STAT_QVR_RELOADMODE, Immersive) was otherwise never sent again and read 0
@@ -1546,6 +1547,7 @@ void SV_SendClientMessages (void)
 				, &host_client->message) == -1)
 					SV_DropClient (true);	// if the message couldn't send, kick off
 				SZ_Clear (&host_client->message);
+				host_client->serverinfo_unsent = false; // QVR: (SV_SignonReplyStale)
 				host_client->last_message = realtime;
 				if (host_client->sendsignon == PRESPAWN_FLUSH)
 					host_client->sendsignon = PRESPAWN_DONE;
