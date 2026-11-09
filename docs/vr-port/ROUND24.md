@@ -5215,6 +5215,56 @@ Nothing published, tagged, uploaded or pushed.
   `RELEASE_TODO.md` rewritten for 1.1 (decisions, steps, known and accepted issues).
 - Not done: `Tools/fteqcc/fte32.patch` (his fork, his call).
 
+## Wounded enemies drip all the while; player gore parity (branch `agent/gore1109`, 2026-11-09)
+
+His words: enemy blood drips don't seem to work (too rare, end too soon); wounded enemies should drip constantly as you
+do. And gore parity: your arms, hands and body bleed as the enemies do, tweakable and toggleable.
+
+- **Why the drips didn't show:** `drips::bleed` forgot a wounded monster for good the first frame it was missing from
+  the server's message (`msgtime != cl.mtime[0]`: out of sight a moment); the rate was `1.2 * share lost` drops a
+  second (a grunt at half health: 0.6/s of 0.5-0.75 unit drops); a shotgun blast's first pellet set the "health
+  before" from the health after the whole blast (4 damage counted of 24: the share lost looked small); a corpse
+  stopped at once. (A test aid's blow dealt from a client frame never reached the client: the server datagram is
+  cleared at the start of its frame. The new test hurts through QC's `vr_test_hurt`, in the server's frame.)
+- **Now (vr_drips.cpp):** `vr_drips_blood_rate 3` times (`vr_drips_blood_min 0.3` + the rest times the share lost),
+  never stopping while the health is under `vr_drips_blood_health 1` of full; out of sight it waits (10 s, then
+  forgotten); the first frame's hits all add to the health before; drops `vr_drips_blood_size 1.25` times; each wound's
+  drops bound to its model as drawn (`bloodstream::anchorPoint/anchorNow`: the nearest vertex of the animated model,
+  the armed humanoid's mesh or the ragdoll, bound again from its last place when the body is drawn another way); its
+  corpse drips on `vr_drips_blood_ragdoll 20` s, tapering (a hit on the corpse starts it again; gone when gibbed or
+  removed). Tunables page: Wounded Drips: Rate / Barely Hurt / Below Health / Size / Corpse Time.
+- **Test:** `vr_drips_bleed_test` (`-Script "vr_scenario waterdrips;vr_drips_bleed_test" -QuitOn "drips_bleed_test:
+  [0-9]+ passed"`): the grunt shot from 30 to 7: 17/13/12/13/13/12 drops in the six 5 s windows, still bleeding at
+  30 s; the unhurt one dripped nothing; killed: 7 drops from its corpse in 2 s, stopped after the test's 4 s corpse
+  time. 5 passed, 0 failed. `vr_drips_test` 11 passed (unchanged).
+- **Your own gore (vr_playergore.cpp, new):** the spot the wounds paint on you (vr_wounds.cpp's strike on your capsules,
+  `selfshot::build`: torso, legs, each forearm, each hand; your own shot's exact point), handed over once the event is
+  painted (`ownStruck`, not a re-opened wound's paint), bound to its capsule (`Spot`: along its axis, its offset
+  across in the axis' frame, level with the view's yaw) and carried with it:
+  - streams (`vr_player_gore_streams`): `bloodstream::startOwn`, the enemies' streams (ribbons, spurts, pools, sound)
+    located on the spot each frame, its way out turning with the view; a shot, nail or blade at
+    `vr_player_gore_stream_chance 0.5`, `vr_player_gore_stream_time 0.6` of an enemy's duration, `vr_player_gore_stream_max 3`;
+  - drips (`vr_player_gore_drips`): your last four wounds drip the gore's drops at `vr_drips_blood_rate *
+    vr_player_gore_drip_rate 0.6 * (min + rest * health lost)`; washed off when healed to 100 or dead (as the paint);
+  - splash (`vr_player_gore_splash`): 6 * `vr_player_gore_splash_amount 1` drops out of the wound at the hit.
+  - View clear: nothing pours, splashes or drips within `vr_player_gore_eye_clear 0.35` m in front of the eyes or from
+    over them within 0.6 m (a stream pauses there, what fell falls on). No head capsule: a head hit paints nothing, so
+    nothing bleeds there. All of it off with `vr_gore 0` (streams also with `vr_gore_streams 0`).
+  - Settings: `vr_player_gore 1` (master), `vr_player_gore_streams/_drips/_splash 1` (Gore page, "Your Own Gore
+    (Experimental)"; on by default: his change of plan). New cvars: no config migration needed (sparse configs take
+    new defaults; fullConfigChanges only covers settings a 217 config held). The painted wounds (`vr_wounds`) and your
+    arms' own drips (`vr_body_blood`) are as before.
+- **Test:** `vr_player_gore_test` (`-Script "map e1m1;vr_player_gore_test" -QuitOn "player_gore_test: [0-9]+ passed"`):
+  in the headset it runs `vr_selfshot_test 1` (stream chance 1): 8 wounds bound, 8 streams opened (3 pouring), 23
+  splash drops; then hurt to 40: drips; a splash at the eyes or over them makes nothing; `vr_player_gore 0` nothing.
+  6 passed, 0 failed. Under `-flatscreenmode` (no self-shots there) it makes a nail's wound on each capsule drawn: 7
+  bound, 7 streams, 39 splash drops, drips: 6 passed. (Flat: the forearms sit about 14 units under the eyes and 8 out,
+  inside the clearance: they don't pour; the hands do.) Debug: `vr_player_gore_info`.
+- **Scenario:** `playergore` (vrtesthall, a grunt that shoots you, shotgun and nailgun, your own gore on):
+  `SCNRUN|playergore|OK`.
+- **Not verified:** how the streams look on your arms in the headset (the screenshots were low-impact, tiny); the
+  spot's frame ignores a forearm's roll (a wound on the inside of the wrist stays on the inside as the view turns, not
+  as the arm rolls).
 ## Armour halves' geometry; elbow leather patches (branch `agent/geo1109`, 2026-11-09)
 
 His notes: "some broken off pieces have messy geometry (long and thin spiky parts, missing faces)"; "the leather patch of

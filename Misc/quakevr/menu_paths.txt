@@ -361,6 +361,10 @@ vr_head_flies|1|Gore|Flies on Heads|Advanced VR Options > Gore > Flies on Heads
 vr_gib_speed_melee|2|Gore|Gib Speed: Melee|Advanced VR Options > Gore > Gib Speed: Melee
 vr_gib_speed_light|2|Gore|Gib Speed: Light Weapons|Advanced VR Options > Gore > Gib Speed: Light Weapons
 vr_gib_speed_heavy|1|Gore|Gib Speed: Explosives|Advanced VR Options > Gore > Gib Speed: Explosives
+vr_player_gore|1|Gore|Your Own Gore|Advanced VR Options > Gore > Your Own Gore
+vr_player_gore_streams|1|Gore|Your Blood Streams|Advanced VR Options > Gore > Your Blood Streams
+vr_player_gore_drips|1|Gore|Your Wounds Drip|Advanced VR Options > Gore > Your Wounds Drip
+vr_player_gore_splash|1|Gore|Your Hit Splashes|Advanced VR Options > Gore > Your Hit Splashes
 vr_gore_streams|1|Gore|Blood Streams|Advanced VR Options > Gore > Blood Streams
 vr_gore_streams_melee_blade|1|Gore|Melee Blade Chance|Advanced VR Options > Gore > Melee Blade Chance
 vr_gore_streams_thrown_blade|1|Gore|Thrown Blade Chance|Advanced VR Options > Gore > Thrown Blade Chance
@@ -4292,7 +4296,17 @@ vr_drips_max|2|Tunables|Water Drips: Most a Frame|Advanced VR Options > Debug > 
 vr_drips_view|2|Tunables|Water Drips: Your Own|Advanced VR Options > Debug > Tunables > Water Drips: Your Own
 vr_drips_fling|2|Tunables|Water Drips: Swing Throws|Advanced VR Options > Debug > Tunables > Water Drips: Swing Throws
 vr_drips_blood_rate|2|Tunables|Wounded Drips: Rate|Advanced VR Options > Debug > Tunables > Wounded Drips: Rate
+vr_drips_blood_min|2|Tunables|Wounded Drips: Barely Hurt|Advanced VR Options > Debug > Tunables > Wounded Drips: Barely Hurt
+vr_drips_blood_health|2|Tunables|Wounded Drips: Below Health|Advanced VR Options > Debug > Tunables > Wounded Drips: Below Health
+vr_drips_blood_size|2|Tunables|Wounded Drips: Size|Advanced VR Options > Debug > Tunables > Wounded Drips: Size
+vr_drips_blood_ragdoll|2|Tunables|Wounded Drips: Corpse Time|Advanced VR Options > Debug > Tunables > Wounded Drips: Corpse Time
 vr_drips_blood_hit|2|Tunables|Wounded Drips: After a Hit|Advanced VR Options > Debug > Tunables > Wounded Drips: After a Hit
+vr_player_gore_stream_chance|2|Tunables|Your Gore: Stream Chance|Advanced VR Options > Debug > Tunables > Your Gore: Stream Chance
+vr_player_gore_stream_time|2|Tunables|Your Gore: Stream Time|Advanced VR Options > Debug > Tunables > Your Gore: Stream Time
+vr_player_gore_stream_max|2|Tunables|Your Gore: Streams at Once|Advanced VR Options > Debug > Tunables > Your Gore: Streams at Once
+vr_player_gore_drip_rate|2|Tunables|Your Gore: Drip Rate|Advanced VR Options > Debug > Tunables > Your Gore: Drip Rate
+vr_player_gore_splash_amount|2|Tunables|Your Gore: Splash|Advanced VR Options > Debug > Tunables > Your Gore: Splash
+vr_player_gore_eye_clear|2|Tunables|Your Gore: Eye Clearance|Advanced VR Options > Debug > Tunables > Your Gore: Eye Clearance
 vr_drips_blood_marks|2|Tunables|Wounded Drips: Marks|Advanced VR Options > Debug > Tunables > Wounded Drips: Marks
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording

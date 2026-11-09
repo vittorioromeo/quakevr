@@ -1,0 +1,13 @@
+# playergore: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Your own gore: a grunt that shoots you, a shotgun and nailgun to shoot yourself with, your own gore on
+map vrtesthall
+start 150 -264 40 0
+cvar vr_player_gore 1
+cvar vr_player_gore_streams 1
+cvar vr_player_gore_drips 1
+cvar vr_player_gore_splash 1
+cvar vr_selfshot 1
+give "Shotgun" main
+give "Nailgun" off
+spawn "Grunt" 200 0
+hint Let the grunt shoot you a few times, then shoot your own off hand, forearm and thigh: blood pours from some of the wounds on your body, arms and hands (streams), drops splash out at each hit, and while you are hurt the wounds drip; nothing pours or drips with the hand at your face or raised over your eyes. Turn Your Own Gore off (Gore page): none of it.

@@ -2087,7 +2087,13 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
-QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded living monsters drip blood from where they were hit, the more the more hurt (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
+QVR_CVAR(vr_gore_wound_drips, "1", CVAR_ARCHIVE)       // wounded monsters drip blood from where they were hit all the while they are hurt, more the more hurt; their corpses a while (vr_drips.cpp; vr_drips_blood_*; none with vr_gore 0)
+// Your own gore as the enemies' (ROUND24.md, "Player gore parity"; experimental): your body, arms and hands bleed from where
+// you are hit (the wound events' points on them as drawn). None with vr_gore 0; none close to the eyes (vr_player_gore_eye_clear).
+QVR_CVAR(vr_player_gore, "1", CVAR_ARCHIVE)            // on (each its own below too)
+QVR_CVAR(vr_player_gore_streams, "1", CVAR_ARCHIVE)    // ... a shot, a nail or a blade may open a blood stream from the wound (vr_gore_streams' look; vr_player_gore_stream_*)
+QVR_CVAR(vr_player_gore_drips, "1", CVAR_ARCHIVE)      // ... your wounds drip blood from where you were hit while you are hurt, as a wounded enemy's (vr_player_gore_drip_rate)
+QVR_CVAR(vr_player_gore_splash, "1", CVAR_ARCHIVE)     // ... a hit splashes drops of blood out of the wound (vr_player_gore_splash_amount)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)
