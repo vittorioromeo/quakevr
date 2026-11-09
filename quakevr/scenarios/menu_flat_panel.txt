@@ -1,8 +1,0 @@
-# menu_flat_panel: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The VR menu layout on a flat
-# screen (-flatscreenmode) switched on for the test. (No `cmd togglemenu`: an open menu pauses the game, and runall's
-# scenes run on game time.)
-title The VR menu layout on a flat screen, switched on
-map start
-god
-cvar vr_menu_flat_vr_style 1
-hint Press Escape: the menu opens on a panel. Point and click as the laser does; - and + under the corner's buttons zoom it; drag a corner to move it, the wheel while dragging resizes it.

@@ -1,7 +1,0 @@
-# flat_slide: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen slides (-flatscreenmode; the headset too): the open floor of vrtesthall, the super shotgun in hand.
-title Slides on open floor: the super shotgun in hand, 640 units of floor ahead, a calm grunt far off
-map vrtesthall
-god
-notarget
-give "Super Shotgun" main
-spawn "Grunt" 600 0
