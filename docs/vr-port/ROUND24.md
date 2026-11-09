@@ -6829,3 +6829,74 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
 - **Test.** `flatxhair_test.sh` (31 checks): turn1/turn2 at 144 fps one and two guns (still, on the centre), flush and
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
+
+## Faster map loads (branch `agent/perf_load`, 2026-11-09)
+
+From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with
+265-358 ms on the main thread in no zone. Measured here on the QRP base (his `id1/textures` pack) with his
+`ironwail.cfg` (PBR, parallax, normal maps), `vr_startup_times` per load and a Tracy capture of start -> e1m1 -> e1m2.
+
+- **Where the world model's time went** (e1m2, a map new to the session, no-LTO, shared machine): 357 ms, of which the
+  textures' loop 330: **vr_pbr's content hash of every world texture 170 ms** (`pbr::sourceHash`: SHA-256 of each
+  replacement image, 128 of them, portable code at ~200 MB/s; the companion bundle is keyed by it, so every new texture
+  is hashed, and E1M1/E1M2 have no companions: all of it to find nothing), texture processing and upload 70 (460
+  uploads: CPU mip chains, glTexImage), the made normal maps' processing and upload ~45, the prefetch's finding and
+  reading 35-38 (1,421 file lookups, 13 ms), external pack maps 31 + attached 19, image decode waits and opens 35. The
+  BSP lumps themselves (vertexes to submodels) take under 1 ms together.
+- **Going back to a map** (e1m1 after e1m2): 187 of e1m1's 265 images decoded again on the main thread (266 ms): the
+  prefetch skipped them as "in vr_image_cache" (by name), then the load's own new images pushed them out of the 512 MB
+  LRU before the loop got to them.
+- **The item boxes** (b_*.bsp, 19 of them: the toolgun precaches them at every worldspawn, VR_Toolgun_Precache) cost
+  70-75 ms of every load ("entities spawned"): their textures loaded, processed and uploaded again each map (brush
+  models live on the hunk; Mod_ClearAll frees their textures). Not changed (see Left).
+
+Changes:
+1. **SHA-256 with the processor's SHA extensions** (vr_sha256.cpp, detected with CPUID at start; the portable blocks
+   otherwise): 4 MB in 1.6 ms against 9.5 (`vr_sha256_test`: the FIPS vectors, and both paths the same digest for every
+   length 0-300 bytes and 4 MB, 302/302). Used by vr_pbr's texture hashes and the Map Library's download check alike.
+   PBR's hashing in e1m2's load 170 -> 33 ms.
+2. **Decoded images a load is about to use kept** (vr_imgcache.cpp `VR_ImageCacheHasName`): the prefetch's question
+   marks the image used now, so this load's new images push out other maps' first. E1M1 after E1M2: images decoded
+   on the main thread 187 -> 0 (decode time 287 -> 35 ms).
+3. **Tracy zones for every step of a brush model's load** (gl_model.c `MOD_STEP`: the lumps, the textures' prefetch,
+   each texture's external maps found/attached, its normal map), so the world model has no unzoned time left (the
+   rest of the textures loop's self time is TexMgr's own zones' parents).
+4. **Benchmarks**: `load_session_qrp` and `load_session_qrp_flat` (qvrbench.py): `map start`, `changelevel e1m1`,
+   `changelevel e1m2`, `changelevel e1m1` on QRP, the frames after each.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3 runs, ms from the command to the first frame;
+`qvr-kit/benchresults/perfload_base` against `perfload_after`; baseline = origin/next's engine files):
+
+| load | VR before | VR after | flat before | flat after |
+|---|---|---|---|---|
+| `map start` (cold, the session's first) | 2046 | 1872 | 1974 | 1827 |
+| `changelevel e1m1` (new to the session) | 651 | 506 | 599 | 536 |
+| `changelevel e1m2` (new) | 649 | 503 | 636 | 503 |
+| `changelevel e1m1` (back) | 360 | 386 | 358 | 387 |
+| `load_changelevel` (no pack) e1m2 / e1m1 | 321 / 236 | 334 / 207 | | |
+
+The back-to-E1M1 row is within run-to-run noise (355-461 both ways): in this session the three maps' images fit the
+512 MB cache, so nothing was pushed out. Where the cache overflows (the console's `map e1m1; map e1m2; map e1m1` from
+a cold start, his settings, no-LTO): e1m1's second load 685 -> 360 ms, its world model 455 -> 165. The worst frame of
+the 90 after each load is unchanged (VR 13 ms, flat 3-6 ms here at 960x540). Target ~0.4 s warm: 0.50 now for a map
+new to the session; the item boxes' 70 ms (Left) would bring it to ~0.43.
+
+Tests: `vr_sha256_test` 13/13 (incl. SHA extensions against portable 302/302), `vr_pp_test 1` 63/0,
+`checklist_tests_check` 99/0. No screenshot diffs: nothing drawn changes (the hashes are bit-identical, the cache only
+keeps different images; the textures are the same files decoded the same way).
+
+After the load (Tracy, flat, 960x540): the changelevel loads' first frames are small here (server ticks 7-11 ms: the
+hit models' poses 2.6-6.5, Box3D's first sync 3.6-3.9, QC StartFrame 3.2; the first view's `lights` 3.7: 42 alias mesh
+uploads); the session's first map (cold) has the big one, 194 ms: the player's own models loaded at their first
+draw (`view body` 59, `view entities` 103 in all), the hub's text boards' first layout (`vr opaque (text3d)` 19 + 12 in
+the portal view), 260 alias mesh uploads (`lights` 17: the AO bakes' vertex buffers), the first portal view 42.
+No prewarm added (see Left): his 13-60 ms post-load frames at 3440x1441 are mostly the GPU-bound frame plus these.
+
+Left (proposals):
+- Keep the item boxes' textures across maps (b_*.bsp: the same files every map; ~70 ms a load): needs their
+  gltextures not freed by Mod_ClearAll and a reuse path in TexMgr_LoadImage by owner, name and source CRC (Ironwail
+  has one only for TEXPREF_OVERWRITE), and every per-texture VR table (normal maps, ext maps, PBR uses) kept with them.
+- vr_pbr's remaining hashes (33 ms) on the prefetch's decode tasks (the image's hash next to its pixels).
+- The world's made normal maps on jobs like the skins' (VR_SkinNormalsPost: one path for both).
+- First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
+  the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.

@@ -7,6 +7,15 @@
 
 #include <string.h>
 
+#if defined(_M_X64) || defined(__x86_64__)
+#include <immintrin.h>
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <cpuid.h>
+#endif
+#endif
+
 namespace qvr::sha256
 {
 namespace
@@ -65,6 +74,106 @@ void compress(za::U32 (&h)[8], const za::U8* block)
     h[7] += k;
 }
 
+#if defined(_M_X64) || defined(__x86_64__)
+#if defined(__clang__) || defined(__GNUC__)
+#define QVR_TARGET_SHA __attribute__((target("sha,sse4.1,ssse3")))
+#else
+#define QVR_TARGET_SHA
+#endif
+
+// Whether the processor has the SHA extensions (and SSSE3, SSE4.1, which the blocks below use too): Intel since Ice
+// Lake and Goldmont, AMD since Zen.
+[[nodiscard]] bool detectShaNi()
+{
+#ifdef _MSC_VER
+    int info[4] = {};
+    __cpuid(info, 0);
+    if(info[0] < 7)
+    {
+        return false;
+    }
+    __cpuid(info, 1);
+    const bool ssse3 = (info[2] & (1 << 9)) != 0, sse41 = (info[2] & (1 << 19)) != 0;
+    __cpuidex(info, 7, 0);
+    return ssse3 && sse41 && (info[1] & (1 << 29)) != 0;
+#else
+    unsigned a = 0, b = 0, c = 0, d = 0;
+    if(!__get_cpuid(1, &a, &b, &c, &d))
+    {
+        return false;
+    }
+    const bool ssse3 = (c & (1u << 9)) != 0, sse41 = (c & (1u << 19)) != 0;
+    if(!__get_cpuid_count(7, 0, &a, &b, &c, &d))
+    {
+        return false;
+    }
+    return ssse3 && sse41 && (b & (1u << 29)) != 0;
+#endif
+}
+
+const bool shaNiPresent = detectShaNi();
+bool shaNiOn = shaNiPresent; // (vr_sha256_test turns it off to compare the portable blocks)
+
+// `count` 64-byte blocks into the state with the SHA extensions (map loads: vr_pbr's content hash of every world
+// texture, 7-8 times the portable blocks' speed). The same rounds as compress(): four at a time, the state kept as
+// ABEF and CDGH.
+QVR_TARGET_SHA void compressShaNi(za::U32 (&h)[8], const za::U8* data, za::SizeT count)
+{
+    const __m128i swap = _mm_set_epi64x(0x0c0d0e0f08090a0bll, 0x0405060700010203ll); // big-endian words
+    __m128i tmp = _mm_shuffle_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i*>(&h[0])), 0xB1); // CDAB
+    __m128i state1 = _mm_shuffle_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i*>(&h[4])), 0x1B); // EFGH
+    __m128i state0 = _mm_alignr_epi8(tmp, state1, 8);    // ABEF
+    state1 = _mm_blend_epi16(state1, tmp, 0xF0);         // CDGH
+    for(; count; count--, data += 64)
+    {
+        const __m128i abef = state0, cdgh = state1;
+        __m128i w[4]; // the schedule's last 16 words, four at a time (w[i & 3]: words 4i to 4i + 3)
+        for(int i = 0; i < 16; i++)
+        {
+            if(i < 4)
+            {
+                w[i] = _mm_shuffle_epi8(_mm_loadu_si128(reinterpret_cast<const __m128i*>(data + i * 16)), swap);
+            }
+            else
+            {
+                // W[t] = s1(W[t-2]) + W[t-7] + s0(W[t-15]) + W[t-16]
+                const __m128i m = _mm_add_epi32(_mm_sha256msg1_epu32(w[i & 3], w[(i + 1) & 3]),
+                    _mm_alignr_epi8(w[(i + 3) & 3], w[(i + 2) & 3], 4));
+                w[i & 3] = _mm_sha256msg2_epu32(m, w[(i + 3) & 3]);
+            }
+            __m128i msg = _mm_add_epi32(w[i & 3], _mm_loadu_si128(reinterpret_cast<const __m128i*>(&roundK[i * 4])));
+            state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+            msg = _mm_shuffle_epi32(msg, 0x0E);
+            state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        }
+        state0 = _mm_add_epi32(state0, abef);
+        state1 = _mm_add_epi32(state1, cdgh);
+    }
+    tmp = _mm_shuffle_epi32(state0, 0x1B);        // FEBA
+    state1 = _mm_shuffle_epi32(state1, 0xB1);     // DCHG
+    state0 = _mm_blend_epi16(tmp, state1, 0xF0);  // DCBA
+    state1 = _mm_alignr_epi8(state1, tmp, 8);     // HGFE
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&h[0]), state0);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&h[4]), state1);
+}
+#endif
+
+// `count` 64-byte blocks into the state: the SHA extensions' when the processor has them, else compress().
+void compressBlocks(za::U32 (&h)[8], const za::U8* data, za::SizeT count)
+{
+#if defined(_M_X64) || defined(__x86_64__)
+    if(shaNiOn)
+    {
+        compressShaNi(h, data, count);
+        return;
+    }
+#endif
+    for(; count; count--, data += 64)
+    {
+        compress(h, data);
+    }
+}
+
 [[nodiscard]] int hexDigit(char c)
 {
     if(c >= '0' && c <= '9')
@@ -106,14 +215,14 @@ void Hasher::update(const void* data, za::SizeT n)
         {
             return;
         }
-        compress(h, block);
+        compressBlocks(h, block, 1);
         held = 0;
     }
-    while(n >= 64)
+    if(n >= 64)
     {
-        compress(h, p);
-        p += 64;
-        n -= 64;
+        compressBlocks(h, p, n / 64);
+        p += n / 64 * 64;
+        n %= 64;
     }
     if(n)
     {
@@ -137,11 +246,7 @@ Digest Hasher::finish()
     {
         tail[tailBytes - 1 - i] = static_cast<za::U8>(bits >> (i * 8));
     }
-    compress(h, tail);
-    if(tailBytes == 128)
-    {
-        compress(h, tail + 64);
-    }
+    compressBlocks(h, tail, tailBytes / 64);
     Digest d;
     for(int i = 0; i < 8; i++)
     {
@@ -264,6 +369,46 @@ void selfTest_f()
             Con_Printf("vr_sha256_test: \"%.20s\" x%d in pieces: wrong\n", v.text, v.repeat);
         }
     }
+#if defined(_M_X64) || defined(__x86_64__)
+    // The SHA extensions' blocks against the portable ones: pseudo-random data of every length to 300 bytes and 4 MB
+    // (a 1024 x 1024 texture), the same digests; and both speeds.
+    if(shaNiPresent)
+    {
+        za::Vector<za::U8> data;
+        data.resize(4u << 20);
+        za::U32 x = 0x9E3779B9u;
+        for(za::U8& b : data)
+        {
+            x = x * 1664525u + 1013904223u;
+            b = static_cast<za::U8>(x >> 24);
+        }
+        int same = 0, lengths = 0;
+        double niMs = 0.0, portableMs = 0.0;
+        for(za::SizeT len = 0; len <= 301; len++)
+        {
+            const za::SizeT n = len == 301 ? data.size() : len;
+            lengths++;
+            shaNiOn = true;
+            double t0 = Sys_DoubleTime();
+            const Digest a = of(data.data(), n);
+            niMs += (Sys_DoubleTime() - t0) * 1000.0;
+            shaNiOn = false;
+            t0 = Sys_DoubleTime();
+            const Digest b = of(data.data(), n);
+            portableMs += (Sys_DoubleTime() - t0) * 1000.0;
+            same += memcmp(a.bytes, b.bytes, sizeof(a.bytes)) == 0;
+        }
+        shaNiOn = true;
+        total++;
+        passed += same == lengths;
+        Con_Printf("vr_sha256_test: SHA extensions against the portable blocks: %d/%d lengths the same; %.2f against "
+                   "%.2f ms\n", same, lengths, niMs, portableMs);
+    }
+    else
+    {
+        Con_Printf("vr_sha256_test: no SHA extensions on this processor (the portable blocks)\n");
+    }
+#endif
     Con_Printf("vr_sha256_test: %d/%d vectors %s\n", passed, total, passed == total ? "match" : "FAILED");
 }
 
