@@ -5489,3 +5489,36 @@ this file once; the duplicate was "Release pass for 1.1", in twice: the second c
   moment (something switches when the crouch ratio reaches 1, or the server's crouch box drops a level then).
   flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
 - Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.
+
+### Ramp slide jitter (agent/flatramp, 2026-11-09)
+
+His report: sliding down E1M1's ramps, the flat body and the gun jitter. Three causes, all in the drawn body (the gun is
+posed off its shoulders, so it moved with them); the origin and the view were smooth.
+
+- **The slide's body share jumped** (vr_avatar_pitch.cpp `updateBodyPitch`): `BodyPitch::sliding` was the lean-back
+  angle over the slide's target, the target floored at 10 degrees. Down the spiral ramp the target sits at 6.4 (the neck
+  too high for the hips to reach the floor) and then, as the crouch lowers the neck past the trunk's reach, jumps to 23
+  in one frame (the `acos` near 1); the share went 0.62 -> 0.31 in a frame, the neck came 3.7 units forward under the
+  eye, the shoulders and the gun with it (the 3.4 jump flatfix1109b measured). Now the share is its own critically damped
+  spring on the angle's clock, to 1 while sliding and 0 after: for a target that holds still the same numbers (the spring
+  is linear), and it reaches 1 (it stopped at 0.64 under the 10-degree floor before).
+- **The crouched trunk near the squat floor** (vr_avatar.cpp `solveTorso`): lying down or sliding straightened the
+  trunk by mixing the pelvis's height towards the straight trunk's. Sliding, the crouch tilt was multiplied out, so the
+  trunk stood nearly straight when the pelvis met the squat floor, and its forward lean (the square root of what the
+  height leaves of the trunk) went 0.13 -> 1.73 in a frame (0.9 a frame of shoulder bend). Now the crouched trunk is
+  solved as standing crouched (its full tilt) and its lean is taken off by the share; the pelvis follows. Same at 0 and 1.
+- **Off a ramp's lip the slide pose dropped and came back**: met at slide speed from the level floor, the button ramp
+  under the bridge throws him off its lip for a third of a second (Quake's own move). `flatmove::sliding()` is false in
+  the air, so the body's lean back, the view's drop (slideShare) and the slide's turn eased out and in again: the view
+  rose 3.7 units over the body and fell 2.5 in a frame on landing. New `flatmove::slidePose()` (the slide on, the air
+  included) for those three and for the lean's lock-out; the slide's sound keeps `sliding()`.
+
+Test: `vr_flatslide_ramp_test [1]` now runs the spiral's first flight (down east) and the button ramp (down south, off
+the lip), and checks per run: slid, on the ground (the spiral), on the slope the view's and the origin's height bend at
+most 0.5 a frame, the whole slide the gun and the drawn body (main shoulder, pelvis via avatar::Follower; new
+`flatplay::traceBody / lastMainShoulder / lastPelvis`) from the view at most 0.5 on any axis. `flatramp_test.sh`
+**6/6** (was 2/3, the gun 3.28; now gun and body 0.36, the slide's start). `flatramp_test.sh <agent> -RealTime`: also
+6/6, but at the real clock (uncapped frames shorter than a tick) Quake's walk down the slope leaves the ground now and
+then: the origin bends 1.36, 4 frames off the ground, the view 0.13 (hidden); those two are printed and not counted at
+the real clock. Not covered: sliding up a ramp (a slide up 13 degrees ends at once, "slowed"); the spiral's second flight
+from its landing (the slide begins at the lip, in the air: gun bend 0.56 at the slide's start, left out of the test).

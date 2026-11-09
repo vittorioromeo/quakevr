@@ -358,13 +358,17 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     top -= UP * (crouchPose ? flatplay::proneNeckDrop() * bodyPitch.lying : 0.f);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
-    const float tilt =
-        glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight) * (1.f - lying);
-    float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
-    pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
-    pelvisZ = pelvisZ + (top0.z - torsoLen - pelvisZ) * lying; // (lying down: the straight trunk, its full length)
-    const float dz = top0.z - pelvisZ;
-    const float lean = dz < torsoLen ? za::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
+    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
+    float crouchedZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
+    crouchedZ = za::min(crouchedZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
+    // Lying down or sliding: the straight trunk, its full length, by its share -- the crouched trunk's lean forward taken
+    // off by it, not its pelvis's height. (Mixing the heights, a trunk nearly straight met the squat's floor where the slide
+    // took the crouch to it: the lean, the square root of what the height leaves of the trunk, grew from 0.1 to 1.7 units
+    // in a frame and the shoulders and the gun jumped with it, down e1m1's ramp.)
+    const float crouchedDz = top0.z - crouchedZ;
+    const float lean = (crouchedDz < torsoLen ? za::sqrt(torsoLen * torsoLen - crouchedDz * crouchedDz) : 0.f) * (1.f - lying);
+    const float dz = za::sqrt(za::max(0.f, torsoLen * torsoLen - lean * lean));
+    const float pelvisZ = top0.z - dz;
 
     // The torso sits vr_body_torso_back behind the neck (looking down shows the chest rather than
     // the top of the shoulders), the pelvis under it; the back leans forward from there.
