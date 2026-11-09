@@ -5188,6 +5188,15 @@ QVR_TOGGLE_BYNAME(vr_weapon_screen, "Weapon Ammo Screen",
 QVR_SLIDER_BYNAME(vr_weapon_screen_padding, "Ammo Screen Margin", 0.f, 2.f, 0.1f, "%.1f", ext(), nullptr)
 QVR_SLIDER_BYNAME(vr_weapon_screen_crt, "Ammo Screen CRT Look", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off).")
+QVR_SLIDER_BYNAME(vr_ammo_mag_scale, "Ammo Numbers Size", 0.3f, 1.f, 0.05f, "%.2fx", ext(0.1f, 4.f),
+    "With reloading on, the rounds in the magazine (and the total under them) as big as the gun's screen window "
+    "allows, for its largest numbers: 1 fills it, less shrinks them.")
+QVR_SLIDER_BYNAME(vr_ammo_total_scale, "Ammo Total Size", 0.3f, 1.f, 0.05f, "%.2fx", ext(0.1f, 4.f),
+    "With reloading on, the screen shows the rounds in the magazine big, and your total ammo under it: the total's "
+    "size, times the magazine number's.")
+QVR_SLIDER_BYNAME(vr_ammo_total_bright, "Ammo Total Brightness", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "The total's brightness under the magazine number: 1 as bright, 0 gone into the screen's face. Low and empty "
+    "colours dim the same way.")
 QVR_TOGGLE(vr_ammo_color_warn, "Low Ammo Colours",
     "A held gun's ammo numbers turn orange when less than a quarter of its magazine is left (Low Ammo "
     "Fraction), and red when it is empty (nothing loaded). With reloading off, the ammo it fires from "

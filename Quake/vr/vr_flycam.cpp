@@ -492,6 +492,26 @@ bool on()
     return cam.on;
 }
 
+bool lookAt(const glm::vec3& pos, const glm::vec3& target)
+{
+    if(!flatplay::active() || !levelUp())
+    {
+        return false;
+    }
+    if(!cam.on)
+    {
+        setCvar(true);
+        enter();
+    }
+    cam.pos = pos;
+    const glm::vec3 d = target - pos;
+    const float flat = glm::length(glm::vec2{d.x, d.y});
+    cam.turn = {za::clamp(glm::degrees(za::atan2(-d.z, za::max(flat, 0.0001f))), -pitchMost, pitchMost),
+        glm::degrees(za::atan2(d.y, d.x)), 0.f};
+    cam.vel = glm::vec3{0.f};
+    return true;
+}
+
 bool holds()
 {
     // Only a game this client's own server runs for him alone: a multiplayer server is not his to stop, and a demo or a

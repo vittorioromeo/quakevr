@@ -779,6 +779,9 @@ vr_weapon_screen_padding|1|Screens|Ammo Screen Margin|Advanced VR Options > Tips
 vr_weapon_screen_crt|1|Screens|Ammo Screen CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen CRT Look
 vr_weapon_screen_style|1|Screens|Rounded Glass Ammo Screens|Advanced VR Options > Tips > Wrist Gadget Messages > Rounded Glass Ammo Screens
 vr_ammo_screen_text_white|1|Screens|White Ammo Screen Text|Advanced VR Options > Tips > Wrist Gadget Messages > White Ammo Screen Text
+vr_ammo_mag_scale|1|Screens|Ammo Numbers Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Numbers Size
+vr_ammo_total_scale|1|Screens|Ammo Total Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Total Size
+vr_ammo_total_bright|1|Screens|Ammo Total Brightness|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Total Brightness
 vr_ammo_color_warn|1|Screens|Low Ammo Colours|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Colours
 vr_ammo_color_low|2|Screens|Low Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Hue
 vr_ammo_color_empty|1|Screens|Empty Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Empty Ammo Hue
@@ -4787,6 +4790,7 @@ vr_ao_cache|2|Debug - Reports|Keep AO Bakes on Disk|Advanced VR Options > Debug 
 |2|Debug - Reports|Grip Frames|Advanced VR Options > Debug > Reports > Grip Frames
 |2|Debug - Reports|Weapon Anchors|Advanced VR Options > Debug > Reports > Weapon Anchors
 |2|Debug - Reports|Ammo Screen on Model|Advanced VR Options > Debug > Reports > Ammo Screen on Model
+|2|Debug - Reports|Look at Ammo Screen|Advanced VR Options > Debug > Reports > Look at Ammo Screen
 |2|Debug - Reports|Sight Lines|Advanced VR Options > Debug > Reports > Sight Lines
 |2|Debug - Reports|Sight Check|Advanced VR Options > Debug > Reports > Sight Check
 |2|Debug - Reports|Wrist Gadget|Advanced VR Options > Debug > Reports > Wrist Gadget

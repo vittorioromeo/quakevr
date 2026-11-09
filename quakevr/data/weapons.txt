@@ -502,6 +502,7 @@ weapon 1
     wpntxt_yaw "-0.05"
     wpntxt_z "0.6"
     wpntxtmode "1"
+    wpntxt_ty "0.13"
     x "0.7"
     y "2.11"
     yaw "-0.75"

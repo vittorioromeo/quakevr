@@ -1010,6 +1010,7 @@ za::Vector<Item> pageDebugReports()
             .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),
         command("Weapon Anchors", "vr_anchor_where").help("vr_anchor_where: where the held weapons' anchors are this frame (muzzle, ammo button and screen, magazine and well); vr_anchor_info <model> <anchor> where one binds on its model."),
         command("Ammo Screen on Model", "vr_debug_screen_where 1").help("vr_debug_screen_where 1: the held gun's ammo screen prints where it is on its model, once (centre, right, up and a font pixel in model units): the numbers make_screen_housing_<gun>.py fits a housing to."),
+        command("Look at Ammo Screen", "vr_debug_screen_cam 120").help("vr_debug_screen_cam 120 (flatscreen play): the fly camera goes square in front of the held gun's ammo screen, 120 of its font pixels away, for a straight look at its text. F8 or vr_flat_flycam_toggle: back in your eyes."),
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn) and the hologram's messages up now."),
