@@ -210,6 +210,13 @@ Then design review P3, P6 part 2, P8, P9, P10 (`scratch/refactor/design_review.m
 
 ## 8. Big features
 
+### Dynamic spawns: pick ideas (the author, 2026-11-09)
+"Collect all your ideas regarding the dynamically spawning entities in a document, and add an item to the backlog to
+go through it and pick good ideas to implement." Go through docs/vr-port/DYNAMIC_SPAWNS.md with him and pick the ideas
+to implement (entities spawned by map style: gas canisters, wall-mounted weapons and shields, chandeliers, junction
+boxes, ...). The prerequisites (material table, status component, wall mounts, style detection) are built; the
+document's "Prerequisites available" section says how to use them.
+
 ### Multiplayer update (after 1.1; the author, 2026-10-18)
 Reference: https://github.com/ObeseCatLord/Quakespasm-VR (vkQuake-based VR port, GPL-2.0-or-later: code can be
 borrowed with its copyright headers kept and credit; per-file notices; its `Quake/ice` is QSS-M-derived with its own notices).
