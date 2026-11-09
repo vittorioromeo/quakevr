@@ -35,6 +35,7 @@ namespace
 za::FastNonCryptoRng rng{1u};
 za::U64 currentSeed = 1u;
 bool nextMapArmed = false;
+bool seededByClock = false; // (the last map load's seed: the clock's)
 za::U64 nextMapSeed = 0u;
 // The gameplay streams (Stream), each from derivedSeed(streamSalt + its index).
 constexpr za::U64 streamSalt = 0x5EED5EEDA11CE000ull;
@@ -150,6 +151,7 @@ extern "C" void VR_ServerRandomMapLoad(void)
     using namespace qvr::srvrandom;
     za::U64 seed = 0u;
     lastLoadArmed = nextMapArmed; // (the map's content seed too: chooseMapSeed)
+    seededByClock = false;
     if(nextMapArmed)
     {
         seed = nextMapSeed;
@@ -157,12 +159,18 @@ extern "C" void VR_ServerRandomMapLoad(void)
     }
     else if((seed = cvarSeed()) == 0u)
     {
+        seededByClock = true;
         // The clock's, kept to 32 bits so sv_random_seed can name it again (developer 1 prints it).
         const za::U64 t = static_cast<za::U64>(za::Clock::nowNanoseconds());
         seed = ((t ^ (t >> 32)) & 0xFFFFFFFFull) | 1u;
     }
     seedNow(seed);
     Con_DPrintf("server random seed %llu\n", static_cast<unsigned long long>(seed));
+}
+
+bool qvr::srvrandom::clockSeeded()
+{
+    return seededByClock;
 }
 
 // The server's rand(): 0..0x7fff, as the C library's (PF_random, sv_move.c).

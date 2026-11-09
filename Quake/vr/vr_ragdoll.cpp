@@ -13,6 +13,7 @@
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
 #include "vr_diskcache.hpp"
+#include "vr_drawnpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mdldequant.hpp"
@@ -3839,6 +3840,93 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
             (*normals)[static_cast<za::SizeT>(v)] = cut ? neck.rot * n : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * n : glm::vec3{0.f};
         }
     }
+    return true;
+}
+
+namespace
+{
+// skinnedView's makings, one an entity (its last): what made them and the vertices.
+struct SkinMemo
+{
+    int num{0};
+    const Rig* rig{nullptr};
+    const qmodel_t* model{nullptr};
+    int numVerts{0}, bodies{0};
+    uint32_t cut{0};
+    float scale{0.f};
+    za::Array<glm::quat, maxBones> rot{};
+    za::Array<glm::vec3, maxBones> pos{};
+    za::U32 build{0};
+    za::Vector<glm::vec3> verts, nors;
+    [[nodiscard]] bool same(const Published& p) const
+    {
+        // (bit for bit: a value that only compares equal, -0 and 0, is made again)
+        return rig == p.rig && model == p.rig->model && numVerts == p.rig->numVerts && bodies == p.bodies && cut == p.cut &&
+               !memcmp(&scale, &p.scale, sizeof(scale)) && !memcmp(rot.data(), p.rot.data(), sizeof(glm::quat) * maxBones) &&
+               !memcmp(pos.data(), p.pos.data(), sizeof(glm::vec3) * maxBones);
+    }
+};
+[[nodiscard]] za::SizeT heldBytes(const SkinMemo& x) // (vr_mem.hpp)
+{
+    return mem::heldBytes(x.verts) + mem::heldBytes(x.nors);
+}
+struct SkinMemos
+{
+    za::Vector<SkinMemo> memos;
+    auto members() { return mem::list(memos); }
+};
+mem::Cache<SkinMemos> skinMemos{"ragdoll skinned vertices", mem::MapChange | mem::ModelReload | mem::GameDirChange};
+constexpr za::SizeT maxSkinMemos = 256; // (past it: all begun again)
+} // namespace
+
+bool skinnedView(int num, const glm::vec3*& pos, const glm::vec3*& nor, za::SizeT& count, za::U32& build)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()) || !draw.byNum[static_cast<za::SizeT>(num)].rig)
+    {
+        return false;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    za::Vector<SkinMemo>& memos = skinMemos.memos;
+    SkinMemo* m = nullptr;
+    for(SkinMemo& x : memos)
+    {
+        if(x.num == num)
+        {
+            m = &x;
+            break;
+        }
+    }
+    if(!m || !m->same(p))
+    {
+        if(!m)
+        {
+            if(memos.size() >= maxSkinMemos)
+            {
+                memos.clear(); // (entities gone: begun again)
+            }
+            memos.pushBack(SkinMemo{});
+            m = &memos.back();
+            m->num = num;
+        }
+        if(!skinnedVertices(num, m->verts, &m->nors, false))
+        {
+            m->rig = nullptr; // (never the same as a ragdoll's)
+            return false;
+        }
+        m->rig = p.rig;
+        m->model = p.rig->model;
+        m->numVerts = p.rig->numVerts;
+        m->bodies = p.bodies;
+        m->cut = p.cut;
+        m->scale = p.scale;
+        m->rot = p.rot;
+        m->pos = p.pos;
+        m->build = drawnpose::newBuild();
+    }
+    pos = m->verts.data();
+    nor = m->nors.data();
+    count = za::min(m->verts.size(), m->nors.size());
+    build = m->build;
     return true;
 }
 
