@@ -257,25 +257,32 @@ def main(h):
     tree = bvhtree.BVHTree.FromPolygons([v.co for v in me.vertices], [list(p.vertices) for p in keep])
     v_bot = z_bot - cz
     gusset_corner = set()  # each gusset's front corner under the bezel (its face's dark end)
+    # Its outer face is flush with the bezel's side (his nail_gussets2.webp: from the enclosure's edge, not inset): the
+    # top follows the bezel's outline from the inner corner along the bottom edge and up the lower chamfer to the side
+    # edge's end, then the outer side goes straight down the side's plane to the shoulder.
     for g in (-1.0, 1.0):
-        u_c = g * (ow - co_u)
-        hit = tree.ray_cast(place(u_c, v_bot, x_face), Vector((0.0, 0.0, -1.0)))
+        u_c = g * (ow - co_u)  # the bottom edge's end (the chamfer's foot)
+        u_s = g * ow           # the bezel's side
+        hit = tree.ray_cast(place(u_s, v_bot, x_face), Vector((0.0, 0.0, -1.0)))
         if hit[0] is None or v_bot - (hit[0].z - cz) > 2.0:
-            h.fail("no shoulder under the bezel's lower corner at u %.2f" % u_c)
+            h.fail("no shoulder under the bezel's lower corner at u %.2f" % u_s)
         v_low = hit[0].z - cz - GUSSET_SINK
-        pts = [(g * GUSSET_IN, v_bot), (u_c, v_bot), (u_c, v_low)]
+        pts = [(g * GUSSET_IN, v_bot), (u_c, v_bot), (u_s, v_bot + co_v), (u_s, v_low)]
         h.say("gusset at u %+.3f: the shoulder %.3f under the bezel's bottom (hit at y %.3f z %.3f)"
-              % (u_c, v_bot - (hit[0].z - cz), hit[0].y, hit[0].z))
+              % (u_s, v_bot - (hit[0].z - cz), hit[0].y, hit[0].z))
         f = [add(place(u, v, x_front)) for u, v in pts]
         k = [add(place(u, v, x_in)) for u, v in pts]
-        mid = place(g * (GUSSET_IN + abs(u_c)) * 0.5, (2 * v_bot + v_low) / 3.0, x_face)
-        side = Vector((0.0, -g, 0.0))                       # (u right = model -Y)
-        slope = Vector((0.0, g, -1.0)).normalized()          # the underside: down and in
-        gusset_corner.add(f[1])
-        tris.append((f[0], f[1], f[2], "back", mid, "gusset"))
-        tris.append((k[0], k[1], k[2], "front", mid, "dark"))
-        for (i0, i1), want_n, mode in (((0, 1), Vector((0.0, 0.0, 1.0)), "dark"), ((1, 2), side, "edge"),
-                                       ((2, 0), slope, "dark")):
+        mid = place(g * (GUSSET_IN + abs(u_s)) * 0.5, (2 * v_bot + v_low) / 3.0, x_face)
+        up = Vector((0.0, 0.0, 1.0))
+        chamfer = Vector((0.0, g * co_v, co_u)).normalized()  # under the bezel's chamfer: up and in
+        side = Vector((0.0, -g, 0.0))                          # (u right = model -Y)
+        slope = Vector((0.0, g, -1.0)).normalized()             # the underside: down and in
+        gusset_corner.update((f[1], f[2]))
+        for a_, b_, c_ in ((0, 1, 3), (1, 2, 3)):  # (the face is concave at the chamfer's foot: two triangles)
+            tris.append((f[a_], f[b_], f[c_], "back", mid, "gusset"))
+            tris.append((k[a_], k[b_], k[c_], "front", mid, "dark"))
+        for (i0, i1), want_n, mode in (((0, 1), up, "dark"), ((1, 2), chamfer, "dark"), ((2, 3), side, "edge"),
+                                       ((3, 0), slope, "dark")):
             tris.append((f[i0], f[i1], k[i1], want_n, mid, mode))
             tris.append((f[i0], k[i1], k[i0], want_n, mid, mode))
     fasteners = [(su * fu, sv * fv) for su in (-1.0, 1.0) for sv in (1.0, -1.0)]

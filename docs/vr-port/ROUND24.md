@@ -5920,6 +5920,15 @@ Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about
   no-change re-run writes the .mdl, normal map and weapons.txt byte for byte. They fill the dark gaps under the
   bezel's corners; from above they are mostly hidden by the receiver, from the mockup's lower angle they read as
   brackets (`scratch/housing_nail/closeup_gussets.png`).
+- **Gussets flush with the bezel's sides (branch `agent/nail_gussets2`; his `kit/scratch/mockups/nail_gussets2.webp`:
+  they started inset, at the bottom edge's end, he wants them from the enclosure's edge):** each gusset's top now
+  follows the bezel's outline from its inner corner along the bottom edge and up the lower chamfer to the side edge's
+  end (u +-1.278), and its outer face goes straight down the side's plane to the shoulder (0.73 left, 0.65 right
+  under the bezel's bottom; the face is concave at the chamfer's foot, two triangles). 8 vertices, 12 triangles each;
+  the housing 124 vertices, 200 triangles (the gun 1388, slot 3's mask carried over), rebuilt from the pre-housing
+  .blend, .mdl and mask. Holes: open loops as before, 0 see-through, 0 cracks; frames 0.0000; a no-change re-run
+  writes the files byte for byte; vr_pp_test 1 63 passed, 0 failed. Before/after from his angle (behind and above):
+  `scratch/housing_nail/gussets2_before_after.png`, brightened corners `gussets2_closeup.png` (embed5 worktree).
 ## The flat VR menu's Quit dialog (branch `agent/flatquit`, 2026-11-09)
 
 His report: on a flat screen the VR menu layout's (`vr_menu_flat_vr_style 1`) Quit opened its question small, round the
