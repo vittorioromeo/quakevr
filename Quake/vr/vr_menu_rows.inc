@@ -6240,12 +6240,13 @@ QVR_TOGGLE(vr_flat_visor_autohide_log, "Hide Empty Log Panel",
 QVR_SLIDER(vr_flat_visor_log_width, "Log Panel Size", 0.3f, 2.f, 0.05f, "x%.2f", noExt,
     "The visor's message panel's width at the top, its text smaller or larger with it; never wider than fits between "
     "the top corners' panels (vr_flat_visor_log_width).")
-QVR_SLIDER(vr_flat_visor_log_out, "Log Panel Reach", 0.2f, 4.f, 0.05f, "x%.2f", noExt,
-    "How far the visor's message panel reaches down from the top edge: under 1 tucked against it, over 1 further down "
-    "(vr_flat_visor_log_out).")
-QVR_SLIDER(vr_flat_visor_side_out, "Side Panels Reach", 0.2f, 4.f, 0.05f, "x%.2f", noExt,
+QVR_SLIDER(vr_flat_visor_log_out, "Log Panel Reach", -4.f, 8.f, 0.05f, "x%.2f", noExt,
+    "How far the visor's message panel reaches down from the top edge: under 1 tucked against it, over 1 further down; "
+    "under 0 pulled up past the edge, sliding off the screen (vr_flat_visor_log_out).")
+QVR_SLIDER(vr_flat_visor_side_out, "Side Panels Reach", -4.f, 8.f, 0.05f, "x%.2f", noExt,
     "How far the visor's side panels (keys on the left, powerups on the right) reach in from the screen's edges: under "
-    "1 tucked against them, over 1 further in. They always meet the edges (vr_flat_visor_side_out).")
+    "1 tucked against them, over 1 further in; under 0 pulled back past the edges, sliding off the screen. Their "
+    "mounts always meet the edges (vr_flat_visor_side_out).")
 QVR_SLIDER(vr_flat_visor_depth_opacity, "Back Plate Opacity", 0.f, 2.f, 0.05f, "x%.2f", noExt,
     "How solid each panel's back plate is, times the Visor Panel Backing (never past solid) "
     "(vr_flat_visor_depth_opacity).")
@@ -6266,7 +6267,7 @@ QVR_SLIDER(vr_flat_visor_depth_bevel, "Back Plate Bevel", 0.f, 2.f, 0.1f, "%.1f"
     "(vr_flat_visor_depth_bevel).")
 QVR_SLIDER(vr_flat_visor_depth_bevel_width, "Back Plate Bevel Width", 0.5f, 12.f, 0.5f, "%.1f px", noExt,
     "How wide the back plates' bevel is, in pixels at 1080p (vr_flat_visor_depth_bevel_width).")
-QVR_SLIDER(vr_flat_visor_shake, "Visor Hit Shake", 0.f, 3.f, 0.1f, "%.1f", noExt,
+QVR_SLIDER(vr_flat_visor_shake, "Visor Hit Shake", 0.f, 6.f, 0.1f, "%.1f", noExt,
     "A hit shakes the visor, more for more damage; the back plates and the readings lag behind as with a turn. 0: "
     "never (vr_flat_visor_shake).")
 QVR_SLIDER(vr_flat_visor_shake_time, "Visor Hit Shake Time", 0.1f, 2.f, 0.05f, "%.2f s", noExt,

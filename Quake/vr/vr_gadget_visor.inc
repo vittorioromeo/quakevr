@@ -29,6 +29,11 @@ struct VisorState
     za::Array<gfx::Target, VisorPanelCount> targets{};
     za::Array<bool, VisorPanelCount> shown{};
     int logLines{0};
+    // Each panel's last drawing (its dry run's signature: gfx::draw2D::beginSignature), the texture it went into and how
+    // many times it was drawn (VisorImage::version): drawn again only when what it shows changed.
+    za::Array<unsigned long long, VisorPanelCount> signatures{};
+    za::Array<unsigned, VisorPanelCount> drawnInto{};
+    za::Array<unsigned, VisorPanelCount> versions{};
 };
 VisorState visor;
 
@@ -386,22 +391,38 @@ void visorRender(const VisorInput& in)
         const int w = static_cast<int>(visorSizes[p][0]), h = static_cast<int>(visorSizes[p][1]);
         gfx::Target& t = visor.targets[p];
         gfx::ensureTarget(t, w * visorTexels, h * visorTexels, true, "visor panel"); // mipmaps: for its text's glow
-        gfx::begin2D(t, w, h);
-        fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(h), visorBlack);
-        switch(p)
+        const auto contents = [&] {
+            fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(h), visorBlack);
+            switch(p)
+            {
+                case VisorVitals: visorVitals(r, pal, in.alarm); break;
+                case VisorStatus:
+                    visorBars(r, pal, static_cast<float>(w));
+                    visorAmmoGrid(r, pal);
+                    break;
+                case VisorLeftAmmo: visorHand(r, pal, true); break;
+                case VisorRightAmmo: visorHand(r, pal, false); break;
+                case VisorLog: visorLowLog(pal, in.log); break;
+                case VisorSideLeft: visorSideLeft(r, pal); break;
+                default: visorSideRight(r, pal); break;
+            }
+            visorBoot(static_cast<float>(w), static_cast<float>(h), in.boot[p], pal);
+        };
+        // What it would draw now, as a dry run: the same as last time into the same texture, nothing to do (its text,
+        // numbers and pictures change a few times a second at most; the GPU's fill and mipmaps were most of the visor's
+        // cost drawn every frame).
+        gfx::draw2D::beginSignature();
+        contents();
+        const unsigned long long signature = gfx::draw2D::endSignature();
+        if(visor.shown[p] && visor.signatures[p] == signature && visor.drawnInto[p] == t.texture && vr_flat_visor_cache.value != 0.f)
         {
-            case VisorVitals: visorVitals(r, pal, in.alarm); break;
-            case VisorStatus:
-                visorBars(r, pal, static_cast<float>(w));
-                visorAmmoGrid(r, pal);
-                break;
-            case VisorLeftAmmo: visorHand(r, pal, true); break;
-            case VisorRightAmmo: visorHand(r, pal, false); break;
-            case VisorLog: visorLowLog(pal, in.log); break;
-            case VisorSideLeft: visorSideLeft(r, pal); break;
-            default: visorSideRight(r, pal); break;
+            continue;
         }
-        visorBoot(static_cast<float>(w), static_cast<float>(h), in.boot[p], pal);
+        visor.signatures[p] = signature;
+        visor.drawnInto[p] = t.texture;
+        visor.versions[p]++;
+        gfx::begin2D(t, w, h);
+        contents();
         gfx::end2D();
         visor.shown[p] = true;
     }

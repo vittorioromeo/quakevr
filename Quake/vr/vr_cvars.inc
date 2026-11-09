@@ -858,9 +858,9 @@ QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space abo
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_flat_esc_game, "1", CVAR_ARCHIVE)    // with VR off, in a game: Escape in any menu is Back to game (closes it from any page, reopens there; vr_menuui.cpp VR_MenuKey); 0: Escape goes back a page, as Quake's
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
-QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
+QVR_CVAR(vr_menu_flat_scale, "0.954", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
 QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
-QVR_CVAR(vr_menu_flat_y, "0.5", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
+QVR_CVAR(vr_menu_flat_y, "0.499", CVAR_ARCHIVE)          // and down it (0 its top, 1 its bottom)
 QVR_CVAR(vr_menu_laser_hue, "-1", CVAR_ARCHIVE)        // that laser's colour: hue (degrees; 35 amber; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans and oranges (letters, pictures, sliders, panels) turned blood red by their hue alone, the Quake VR banner left as it is (vr_menubrand.cpp; gl_shaders.h's gui shader)
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
@@ -2282,7 +2282,7 @@ QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/g
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
 // Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
 QVR_CVAR(vr_flat_tonemap, "1", CVAR_ARCHIVE)           // flat-screen tone mapping: the window's scene in floats, its brightest rolled off by the eyes' curve (vr_flat_grade_exposure before it) instead of clipped; 0: Quake's clamp
-QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
+QVR_CVAR(vr_flat_bloom, "0.02", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
 QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
 QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)
 QVR_CVAR(vr_flat_grade_contrast, "1.05", CVAR_ARCHIVE) // ... an S curve's slope at mid grey, black and white kept (1 none)
@@ -4084,18 +4084,19 @@ QVR_CVAR(vr_flat_visor_scale, "1", CVAR_ARCHIVE)        // the visor's panels' s
 QVR_CVAR(vr_flat_visor_opacity, "0.55", CVAR_ARCHIVE)   // the panels' dark backing over the view (0 clear .. 1 solid; the values always opaque)
 QVR_CVAR(vr_flat_visor_crt, "0.6", CVAR_ARCHIVE)        // the panels' CRT look (scanlines, flicker, static: 0..2; the gadget's vr_gadget_crt)
 QVR_CVAR(vr_flat_visor_sway, "1", CVAR_ARCHIVE)         // the panels' sway: lagging a turn a fraction of a degree, bobbing with the walk (0 rigid .. 2); never moving standing still
-QVR_CVAR(vr_flat_visor_warp, "0.08", CVAR_ARCHIVE)     // the visor's lens: the mounts and their panels bowed round the middle like a curved glass (barrel), negative the other way (pincushion); the edges still met (-0.2 .. 0.2)
-QVR_CVAR(vr_flat_visor_zoom, "1", CVAR_ARCHIVE)        // the whole visor zoomed about the screen's middle before the lens: over 1 the panels further off the edges (less of their empty face seen), under 1 further in (0.85 .. 1.2; past about 1.08 the small side mounts slide off; a barrel lens pairs with a little over 1, a pincushion one with a little under)
+QVR_CVAR(vr_flat_visor_warp, "-0.08", CVAR_ARCHIVE)     // the visor's lens: the mounts and their panels bowed round the middle like a curved glass (barrel), negative the other way (pincushion); the edges still met (-0.2 .. 0.2)
+QVR_CVAR(vr_flat_visor_zoom, "0.94", CVAR_ARCHIVE)        // the whole visor zoomed about the screen's middle before the lens: over 1 the panels further off the edges (less of their empty face seen), under 1 further in (0.85 .. 1.2; past about 1.08 the small side mounts slide off; a barrel lens pairs with a little over 1, a pincushion one with a little under)
 QVR_CVAR(vr_flat_visor_depth, "1", CVAR_ARCHIVE)       // the panels' depth: a back plate a little behind each face that lags the sway, the contents a touch behind the glass (0 flat .. 3)
-QVR_CVAR(vr_flat_visor_bevel, "1", CVAR_ARCHIVE)       // the frames lit from above (brighter on top, darker below) with a thin inner highlight (0 flat .. 2)
-QVR_CVAR(vr_flat_visor_sheen, "1", CVAR_ARCHIVE)       // the glass's sheen down each face and a soft glint across its contents (0 none .. 3)
+QVR_CVAR(vr_flat_visor_bevel, "1.5", CVAR_ARCHIVE)       // the frames lit from above (brighter on top, darker below) with a thin inner highlight (0 flat .. 2)
+QVR_CVAR(vr_flat_visor_sheen, "0.5", CVAR_ARCHIVE)       // the glass's sheen down each face and a soft glint across its contents (0 none .. 3)
 QVR_CVAR(vr_flat_visor_glow_outer, "0.35", CVAR_ARCHIVE) // a glow outside each frame, in its colour (red with the low-health pulse) (0 none .. 2)
 QVR_CVAR(vr_flat_visor_glow_inner, "0.25", CVAR_ARCHIVE) // and inside it (0 none .. 2)
 QVR_CVAR(vr_flat_visor_glow_width, "8", CVAR_ARCHIVE)  // the glows' width, pixels at 1080p (scaled with the screen; 1 .. 60)
 QVR_CVAR(vr_flat_visor_edge, "2", CVAR_ARCHIVE)        // the frame line's thickness, pixels at 1080p (scaled with the screen; 0 none .. 8)
-QVR_CVAR(vr_flat_visor_scanlines, "0.12", CVAR_ARCHIVE) // moving scanlines over the panels (never the game's view), and a faint bright band rolling down them (0 none .. 1)
+QVR_CVAR(vr_flat_visor_scanlines, "0.65", CVAR_ARCHIVE) // moving scanlines over the panels (never the game's view), and a faint bright band rolling down them (0 none .. 1)
 QVR_CVAR(vr_flat_visor_scanline_speed, "6", CVAR_ARCHIVE) // how fast the scanlines drift, pixels a second at 1080p (0 still)
 QVR_CVAR(vr_flat_visor_ss, "2", CVAR_ARCHIVE)          // the visor drawn at this many times the screen's resolution and brought down (smooth edges: 1 .. 4; its frame lines are antialiased at 1 too)
+QVR_CVAR(vr_flat_visor_cache, "1", CVAR_NONE)         // debug: 1 the panels and the layer drawn again only when what they show changes; 0 every frame (Debug > Profiling: the cost of drawing them)
 QVR_CVAR(vr_flat_visor_panels, "127", CVAR_ARCHIVE)    // the visor's panels shown, a bit each: 1 health, 2 the bars and ammo grid, 4 the left hand, 8 the right hand, 16 the log, 32 the left side (keys), 64 the right side (powerups); 127 all
 QVR_CVAR(vr_flat_visor_frame, "1", CVAR_ARCHIVE)        // the visor's glass: a faint dark rim at the screen's edges and a reflection streak (0 none .. 3)
 QVR_CVAR(vr_flat_visor_damage, "1", CVAR_ARCHIVE)       // a hit glitches the panels for a moment, more for more damage (0 never .. 2)
@@ -4104,21 +4105,21 @@ QVR_CVAR(vr_flat_visor_fog_clear, "1.5", CVAR_ARCHIVE)  // seconds the visor's f
 QVR_CVAR(vr_flat_visor_low_health, "25", CVAR_ARCHIVE)  // health at or under which the health panel pulses red (faster and stronger at half of it; 0 never)
 QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels' power-on sweep at a spawn, a respawn and a new map (0: none)
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
-QVR_CVAR(vr_flat_visor_autohide_log, "0", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
+QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
-QVR_CVAR(vr_flat_visor_log_out, "1", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (0.2 .. 4; the edge still met)
-QVR_CVAR(vr_flat_visor_side_out, "1", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (0.2 .. 4; the edges still met)
-QVR_CVAR(vr_flat_visor_scanline_width, "3", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
+QVR_CVAR(vr_flat_visor_log_out, "0", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (-4 .. 8; under 0 pulled up past the edge, sliding off the screen; at 0 and over the edge still met)
+QVR_CVAR(vr_flat_visor_side_out, "0", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (-4 .. 8; under 0 pulled back past the edges, sliding off the screen; at 0 and over the edges still met)
+QVR_CVAR(vr_flat_visor_scanline_width, "4", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
 QVR_CVAR(vr_flat_visor_depth_opacity, "0.9", CVAR_ARCHIVE) // the back plate's opacity, times the panels' backing (vr_flat_visor_opacity) (0 .. 2, at most solid)
 QVR_CVAR(vr_flat_visor_depth_color, "", CVAR_ARCHIVE)   // the back plate's colour "r g b" (0 .. 1); empty: the face's own, darker (as shipped)
 QVR_CVAR(vr_flat_visor_depth_size, "0", CVAR_ARCHIVE)   // how far the back plate reaches past its face all round, pixels at 1080p (0 .. 60)
-QVR_CVAR(vr_flat_visor_depth_offset, "3", CVAR_ARCHIVE) // how far the back plate sits towards the screen's middle, pixels at 1080p times vr_flat_visor_depth (0 .. 20)
-QVR_CVAR(vr_flat_visor_depth_lag, "0.35", CVAR_ARCHIVE) // how much the back plate lags the sway and the shake, times vr_flat_visor_depth (0 moves with the face .. 1 still)
+QVR_CVAR(vr_flat_visor_depth_offset, "12", CVAR_ARCHIVE) // how far the back plate sits towards the screen's middle, pixels at 1080p times vr_flat_visor_depth (0 .. 20)
+QVR_CVAR(vr_flat_visor_depth_lag, "0.5", CVAR_ARCHIVE) // how much the back plate lags the sway and the shake, times vr_flat_visor_depth (0 moves with the face .. 1 still)
 QVR_CVAR(vr_flat_visor_depth_content_lag, "0.12", CVAR_ARCHIVE) // how much the readings lag the sway and the shake behind the glass, times vr_flat_visor_depth (0 .. 1)
 QVR_CVAR(vr_flat_visor_depth_bevel, "0.6", CVAR_ARCHIVE) // the back plate's bevel: its rim lit from above, shaded below, as the front frame (0 none .. 2)
 QVR_CVAR(vr_flat_visor_depth_bevel_width, "2", CVAR_ARCHIVE) // the back plate's bevel's width, pixels at 1080p (0.5 .. 12)
-QVR_CVAR(vr_flat_visor_shake, "1", CVAR_ARCHIVE)        // a hit shakes the visor, more for more damage, the back plate and the readings lagging as with a turn (0 never .. 3)
-QVR_CVAR(vr_flat_visor_shake_time, "0.35", CVAR_ARCHIVE) // seconds a hit's shake takes to settle (0.1 .. 2)
+QVR_CVAR(vr_flat_visor_shake, "4", CVAR_ARCHIVE)        // a hit shakes the visor, more for more damage, the back plate and the readings lagging as with a turn (0 never .. 6)
+QVR_CVAR(vr_flat_visor_shake_time, "0.5", CVAR_ARCHIVE) // seconds a hit's shake takes to settle (0.1 .. 2)
 QVR_CVAR(vr_flat_visor_no_bt_tint, "1", CVAR_ARCHIVE)   // the visor's panels keep their colours in bullet time (its drained, tinted look on the view around them alone); 0 tinted with the view
 QVR_CVAR(vr_flat_visor_glass_blur, "6", CVAR_ARCHIVE)   // frosted glass: the view behind each mount blurred this far, pixels at 1080p (0 none .. 40)
 QVR_CVAR(vr_flat_visor_glass_distort, "0.4", CVAR_ARCHIVE) // and bent: a ripple through the glass and its edges bending the view like a lens (0 none .. 3)
@@ -4131,11 +4132,11 @@ QVR_CVAR(vr_flat_xhair_style, "2", CVAR_ARCHIVE)        // 0 dot, 1 cross, 2 cro
 QVR_CVAR(vr_flat_xhair_size, "10", CVAR_ARCHIVE)        // how far its lines reach from the point (1..64; the circle's radius, the brackets' half width)
 QVR_CVAR(vr_flat_xhair_thickness, "2", CVAR_ARCHIVE)    // its lines' width (0.5..12)
 QVR_CVAR(vr_flat_xhair_gap, "4", CVAR_ARCHIVE)          // the cross's empty middle, from the point (0..48)
-QVR_CVAR(vr_flat_xhair_opacity, "0.9", CVAR_ARCHIVE)    // (0..1)
+QVR_CVAR(vr_flat_xhair_opacity, "0.75", CVAR_ARCHIVE)    // (0..1)
 QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round its lines, this wide (0 none .. 6)
-QVR_CVAR(vr_flat_xhair_glow, "0.5", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
+QVR_CVAR(vr_flat_xhair_glow, "0.25", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
 QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
-QVR_CVAR(vr_flat_xhair_smooth, "0.03", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
+QVR_CVAR(vr_flat_xhair_smooth, "0.1", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
 QVR_CVAR(vr_flat_xhair_reload_alpha, "0.35", CVAR_ARCHIVE) // a gun away on its reload trip (vr_flat_reload): its crosshair at this share of its opacity, as a gun the wall stops (0 hidden .. 1 as ever)
 QVR_CVAR(vr_flat_wall_shot, "1", CVAR_ARCHIVE)           // flatscreen play: 1 a gun a wall turned (vr_flat_wall_tilt, vr_flat_wall_slide) shoots from its muzzle the way it points, and the visor crosshair shows that hit; 0 its shots still go through the crosshair
 

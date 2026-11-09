@@ -96,13 +96,12 @@ struct Layer
         }
         else
         {
-            float lo = 0.f, hi = top;
-            for(int i = 0; i < 24; i++)
+            // Newton: f rises and is concave below r*, so from either side the steps land below the root and climb to
+            // it (a step at most to r*).
+            for(int i = 0; i < 6; i++)
             {
-                const float mid = (lo + hi) * 0.5f;
-                (f(mid) < len ? lo : hi) = mid;
+                r = za::clamp(r - (f(r) - len) / za::max(1e-4f, 1.f + k * (3.f * r * r - 1.f)), 0.f, top);
             }
-            r = (lo + hi) * 0.5f;
         }
     }
     return q * (r / len);
@@ -138,6 +137,14 @@ struct Layer
     return glm::vec2{m.anchor.x * L.w, m.anchor.y * L.h} + m.dir * local * L.unit + L.shift * parallax + nudge;
 }
 
+// A mount's gap to the edge for a reach `out` (vr_flat_visor_side_out, _log_out; virtual pixels): mountInset times it,
+// at least 1.5 at 0 and over; under 0 the contents pulled back past the edge, by mountInset a step (sliding off the
+// screen: allowed). Continuous through 0.
+[[nodiscard]] float reachInset(float out)
+{
+    return out >= 0.f ? za::max(1.5f, mountInset * out) : 1.5f + mountInset * out;
+}
+
 // Its contents' rectangle (local) and its mount's outline (local, from the far off-screen corner: a fan from its first
 // point covers it).
 struct Mount
@@ -169,9 +176,10 @@ struct Mount
         }
         case MountKind::Side:
         {
-            // (vr_flat_visor_side_out: the gap to the edge and the inner padding scaled, the chamfer clear of the contents)
-            const float inset = za::max(1.5f, mountInset * L.sideOut), pad = mountPad * L.sideOut;
-            const float cut = mountChamfer * za::min(1.f, L.sideOut);
+            // (vr_flat_visor_side_out: the gap to the edge and the inner padding scaled, the chamfer clear of the contents;
+            // under 0.2 the padding and the chamfer stay at 0.2's, only the gap goes on shrinking, then past the edge)
+            const float inset = reachInset(L.sideOut), pad = mountPad * za::max(0.2f, L.sideOut);
+            const float cut = mountChamfer * za::clamp(L.sideOut, 0.2f, 1.f);
             m.lo = {inset, -H * 0.5f};
             m.hi = {inset + W, H * 0.5f};
             const float R = m.hi.x + pad, T = H * 0.5f + mountPad;
@@ -185,8 +193,8 @@ struct Mount
         }
         case MountKind::Middle:
         {
-            // (vr_flat_visor_log_out: its gap to the edge scaled)
-            const float inset = za::max(1.5f, mountInset * L.logOut);
+            // (vr_flat_visor_log_out: its gap to the edge scaled; under 0 up past it)
+            const float inset = reachInset(L.logOut);
             m.lo = {-W * 0.5f, inset};
             m.hi = {W * 0.5f, inset + H};
             const float X = W * 0.5f + mountPad, T = m.hi.y + mountPad;
@@ -207,7 +215,7 @@ struct Mount
 // `logSize`: its image's (virtual pixels); `cornerReach`: the wider top corner mount's reach in from its side.
 [[nodiscard]] float logFit(const Layer& L, const glm::vec2& logSize, float cornerReach, float wanted)
 {
-    const float inset = za::max(1.5f, mountInset * L.logOut);
+    const float inset = za::max(0.f, reachInset(L.logOut)); // (pulled up past the edge: no wider than at the edge)
     const float room = L.w / L.unit * 0.5f - cornerReach - logGap - mountPad - (inset + mountPad) * trapSlope;
     const float most = room / za::max(1.f, logSize.x * 0.5f + logSize.y * trapSlope);
     return za::max(0.2f, za::min(wanted, most));
@@ -274,7 +282,12 @@ void ringOf(const Layer& L, int p, const Mount& m, float parallax, const glm::ve
     {
         const glm::vec2 a = localToPx(L, p, m.outline[i], parallax, nudge);
         const glm::vec2 b = localToPx(L, p, m.outline[(i + 1) % m.points], parallax, nudge);
-        const int pieces = za::clamp(static_cast<int>(glm::length(b - a) / 8.f), 1, 80);
+        // (a piece seen wholly past one of the view's edges, well clear of it, drawn straight: nothing of it is seen)
+        const glm::vec2 sa = shownPx(L, a), sb = shownPx(L, b);
+        constexpr float clear = 160.f;
+        const bool off = (sa.x < -clear && sb.x < -clear) || (sa.y < -clear && sb.y < -clear) ||
+                         (sa.x > L.w + clear && sb.x > L.w + clear) || (sa.y > L.h + clear && sb.y > L.h + clear);
+        const int pieces = off ? 1 : za::clamp(static_cast<int>(glm::length(b - a) / 8.f), 1, 80);
         for(int s = 0; s < pieces && r.n < 500; s++)
         {
             r.at[r.n++] = shownPx(L, glm::mix(a, b, static_cast<float>(s) / static_cast<float>(pieces)));

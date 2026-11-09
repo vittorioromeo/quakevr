@@ -2021,8 +2021,8 @@ QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the s
 QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
 QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
 QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
-QVR_TUNABLE(vr_flat_lean_angle, "15") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
-QVR_TUNABLE(vr_flat_lean_dist, "16") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
+QVR_TUNABLE(vr_flat_lean_angle, "20") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
+QVR_TUNABLE(vr_flat_lean_dist, "20") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
 QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot
 QVR_TUNABLE(vr_flat_lean_arms, "1") // the lean: how much of the upper body's turn the arms and guns take (0..1): 1 the eye, the arms and the guns move as one rigid body; 0 the arms only move with the eye, unturned
 QVR_TUNABLE(vr_flat_lean_arms_pivot, "0") // the lean: how far under the eye the upper body turns from (units, 0..120): its turn is the eye's sideways move's angle there, asin(move / pivot); 0 the view's lean roll (vr_flat_lean_angle), so the guns keep their place on the screen; vr_flat_lean_pivot's 30 turns them with the eye's own arc (32 degrees at a full lean)

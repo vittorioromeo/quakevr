@@ -359,6 +359,13 @@ void drawPicSized(float x, float y, int id, float w, float h, float natural, con
         gfx::draw2D::pic(x, y, picNames[id], w / natural);
         return;
     }
+    if(gfx::draw2D::signing()) // (a dry run: renderVisor's)
+    {
+        const float all[9] = {x, y, w, h, rgb.r, rgb.g, rgb.b, pal.shadow.r, pal.shadow.g + pal.shadow.b * 7.f};
+        gfx::draw2D::sign(all, sizeof(all));
+        gfx::draw2D::sign(&p, sizeof(p));
+        return;
+    }
     constexpr float o = 0.5f;
     static constexpr float offsets[4][2] = {{-o, 0.f}, {o, 0.f}, {0.f, -o}, {0.f, o}};
     const float shadow[3] = {pal.shadow.r, pal.shadow.g, pal.shadow.b};
@@ -1383,6 +1390,7 @@ VisorImage visorImage(int panel)
     out.texture = visor.targets[panel].texture;
     out.size = {visorSizes[panel][0], visorSizes[panel][1]};
     out.shown = visor.shown[panel] && out.texture != 0;
+    out.version = visor.versions[panel];
     return out;
 }
 

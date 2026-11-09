@@ -37,7 +37,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 FILTER = "STEP|MENUZOOM|menu_vr pos: text from|menu_vr pos: menu|menu_vr pos: dialog|vr_mock_mouse|vr_mock_key|vr_menu_zoom|MENUPANEL|MENUFLAT|exit=|TIMEOUT"
 
 flat = ";".join([
-    "vr_enabled 0", "wait5", "map start", "wait30", "vr_menu_flat_vr_style 1", "menu_main", "wait5",
+    "vr_enabled 0", "wait5", "map start", "wait30", "vr_menu_flat_vr_style 1", "vr_menu_flat_scale 0.9", "vr_menu_flat_y 0.5", "menu_main", "wait5",
     "echo STEP layout", "menu_vr pos", "vr_menu_zoom",
     "echo STEP click", "vr_mock_mouse settings click", "wait3", "menu_vr pos",
     "echo STEP zoomout", "vr_mock_mouse zoomout click", "wait3", "vr_menu_zoom",
@@ -173,7 +173,8 @@ if ok:
     dx, dy = mx - sx, my - sy
     check(abs(dx + 120) <= 1 and abs(dy + 60) <= 1 and moved[4], f"flat: corner drag moved the panel by {dx} {dy}")
     wx, wy, ww, wh = wheeled[3]
-    check(abs(wheeled[0] - round(0.9 / 1.1025, 3)) < 0.003, f"flat: wheel twice while dragging: size {wheeled[0]}")
+    # (after vr_menu_zoom reset flat: from vr_menu_flat_scale's default, 0.954)
+    check(abs(wheeled[0] - round(0.954 / 1.1025, 3)) < 0.003, f"flat: wheel twice while dragging: size {wheeled[0]}")
     # the bottom right corner stayed by the mouse: the mouse 7 px outside it (vr_mock_mouse corner), that gap scaled with
     # the panel
     mouse = (sx + sw + 7 - 120, sy + sh + 7 - 60)
