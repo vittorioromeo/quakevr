@@ -834,6 +834,12 @@ za::Vector<Item> pageDebugReports()
                   "readings follow Gadget Screen Readings (low health, an empty hand)."),
         command("Visor: Hit Glitch", "vr_flat_visor_fx damage 40")
             .help("vr_flat_visor_fx damage 40: the visor's panels glitch as from a hit of 40, nothing hurt."),
+        command("Visor: Real Hit Message", "vr_flat_visor_fx hit 30")
+            .help("vr_flat_visor_fx hit 30: the server sends you a damage message of 30 with no health taken (the shake and "
+                  "glitch come only from these, never from health going down by itself, as a megahealth's overheal does)."),
+        command("Visor: Cache On / Off", "toggle vr_flat_visor_cache")
+            .help("toggle vr_flat_visor_cache: 1 (the default) the visor's panels and layer drawn again only when what they show "
+                  "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
             .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
         command("Visor: Fog Up", "vr_flat_visor_fx fog 2")

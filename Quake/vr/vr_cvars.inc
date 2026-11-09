@@ -4096,6 +4096,7 @@ QVR_CVAR(vr_flat_visor_edge, "2", CVAR_ARCHIVE)        // the frame line's thick
 QVR_CVAR(vr_flat_visor_scanlines, "0.65", CVAR_ARCHIVE) // moving scanlines over the panels (never the game's view), and a faint bright band rolling down them (0 none .. 1)
 QVR_CVAR(vr_flat_visor_scanline_speed, "6", CVAR_ARCHIVE) // how fast the scanlines drift, pixels a second at 1080p (0 still)
 QVR_CVAR(vr_flat_visor_ss, "2", CVAR_ARCHIVE)          // the visor drawn at this many times the screen's resolution and brought down (smooth edges: 1 .. 4; its frame lines are antialiased at 1 too)
+QVR_CVAR(vr_flat_visor_cache, "1", CVAR_NONE)         // debug: 1 the panels and the layer drawn again only when what they show changes; 0 every frame (Debug > Profiling: the cost of drawing them)
 QVR_CVAR(vr_flat_visor_panels, "127", CVAR_ARCHIVE)    // the visor's panels shown, a bit each: 1 health, 2 the bars and ammo grid, 4 the left hand, 8 the right hand, 16 the log, 32 the left side (keys), 64 the right side (powerups); 127 all
 QVR_CVAR(vr_flat_visor_frame, "1", CVAR_ARCHIVE)        // the visor's glass: a faint dark rim at the screen's edges and a reflection streak (0 none .. 3)
 QVR_CVAR(vr_flat_visor_damage, "1", CVAR_ARCHIVE)       // a hit glitches the panels for a moment, more for more damage (0 never .. 2)

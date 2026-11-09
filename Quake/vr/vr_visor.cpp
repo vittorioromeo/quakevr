@@ -2,6 +2,7 @@
 
 #include "vr_visor.hpp"
 #include "vr_cvars.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_gadget.hpp"
@@ -314,6 +315,10 @@ void drawGlass(float aspect)
             for(int i = 0; i + 1 < gridX; i++)
             {
                 const gfx::Vertex a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+                if(a.color.a <= 0.f && b.color.a <= 0.f && c.color.a <= 0.f && d.color.a <= 0.f)
+                {
+                    continue; // (the glass's clear middle: nothing to blend)
+                }
                 tris[n++] = a, tris[n++] = b, tris[n++] = c, tris[n++] = a, tris[n++] = c, tris[n++] = d;
             }
         }
@@ -430,6 +435,13 @@ struct LayerPass
     // Where the layer went last (the bullet-time look leaves it alone: tintMask): the frame, the view in the target.
     int drawnFrame{-1};
     glm::vec4 drawnRect{0.f};
+    // The layer as last drawn (vr_flat_visor_cache): what it was drawn from (layerSignature; 0 never), and the view's
+    // rectangles it covers (each panel's, overlapping ones merged; view pixels, y down): all the passes after it work
+    // there alone. `box`: the panel being drawn's so far (clip space: drawList's vertices).
+    unsigned long long signature{0};
+    za::Array<glm::vec4, VisorPanelCount> boxes{};
+    int boxCount{0};
+    glm::vec4 box{0.f};
 };
 LayerPass layerPass;
 
@@ -453,6 +465,11 @@ GlassPass glassPass;
 
 void drawList(za::Vector<gfx::Vertex>& v, gfx::Blend blend, gfx::Shade shade = gfx::Shade::Color)
 {
+    glm::vec4& box = layerPass.box;
+    for(const gfx::Vertex& x : v)
+    {
+        box = {glm::min(glm::vec2{box.x, box.y}, glm::vec2{x.pos}), glm::max(glm::vec2{box.z, box.w}, glm::vec2{x.pos})};
+    }
     if(!v.empty())
     {
         gfx::draw({v.data(), v.size()}, glm::mat4{1.f}, {.shade = shade, .blend = blend, .depthTest = false, .depthWrite = false});
@@ -550,6 +567,7 @@ void drawPanels(int viewW, int viewH, float tx)
             continue;
         }
         const Mount m = mountOf(L, p, p == gadget::VisorLog ? img.size * L.logScale : img.size);
+        lp.box = {1e9f, 1e9f, -1e9f, -1e9f};
         // The vitals' mount pulses red at low health (its face, its line and its glows).
         const float alarm = p == gadget::VisorVitals ? state.alarm : 0.f;
         const glm::vec3 alarmFace{0.16f, 0.015f, 0.01f};
@@ -632,6 +650,97 @@ void drawPanels(int viewW, int viewH, float tx)
         }
         out.contact = edgeContact(L, p, m);
         out.drawn = true;
+        // Its rectangle on the view (clip space to pixels, y down; a pixel round it for the feathering), if any.
+        const glm::vec2 lo = toPx(L, {lp.box.x, lp.box.w}) - glm::vec2{2.f}, hi = toPx(L, {lp.box.z, lp.box.y}) + glm::vec2{2.f};
+        const glm::vec4 r{glm::max(lo, glm::vec2{0.f}), glm::min(hi, glm::vec2{L.w, L.h})};
+        if(r.z > r.x && r.w > r.y)
+        {
+            lp.boxes[lp.boxCount++] = r;
+        }
+    }
+    // Overlapping rectangles merged (a pixel composited twice would add the panels twice).
+    for(bool merged = true; merged;)
+    {
+        merged = false;
+        for(int i = 0; i < lp.boxCount && !merged; i++)
+        {
+            for(int j = i + 1; j < lp.boxCount && !merged; j++)
+            {
+                glm::vec4& a = lp.boxes[i];
+                const glm::vec4& b = lp.boxes[j];
+                if(a.x < b.z && b.x < a.z && a.y < b.w && b.y < a.w)
+                {
+                    a = {glm::min(glm::vec2{a.x, a.y}, glm::vec2{b.x, b.y}), glm::max(glm::vec2{a.z, a.w}, glm::vec2{b.z, b.w})};
+                    lp.boxes[j] = lp.boxes[--lp.boxCount];
+                    merged = true;
+                }
+            }
+        }
+    }
+}
+
+// The cvars drawPanels reads (the layer drawn again when one changes).
+const cvar_t* const layerCvars[] = {&vr_flat_visor_scale, &vr_flat_visor_warp, &vr_flat_visor_zoom, &vr_flat_visor_side_out,
+    &vr_flat_visor_log_out, &vr_flat_visor_log_width, &vr_flat_visor_crt, &vr_flat_visor_opacity, &vr_flat_visor_panels,
+    &vr_flat_visor_edge, &vr_flat_visor_depth, &vr_flat_visor_bevel, &vr_flat_visor_sheen, &vr_flat_visor_glow_outer,
+    &vr_flat_visor_glow_inner, &vr_flat_visor_glow_width, &vr_flat_visor_depth_opacity, &vr_flat_visor_depth_size,
+    &vr_flat_visor_depth_offset, &vr_flat_visor_depth_lag, &vr_flat_visor_depth_content_lag, &vr_flat_visor_depth_bevel,
+    &vr_flat_visor_depth_bevel_width};
+
+// What the layer is drawn from this frame: the view, its targets, the cvars, the sway, the fades, the effects, the colours
+// and each panel's image (its texture and how many times it was drawn). The same as last frame's: nothing to draw.
+[[nodiscard]] unsigned long long layerSignature(int w, int h, int ss, float tx, unsigned layerTex, unsigned maskTex)
+{
+    unsigned long long sig = diskcache::fnvStart;
+    const auto add = [&sig](const auto& v) { sig = diskcache::fnv(sig, &v, sizeof(v)); };
+    add(w), add(h), add(ss), add(tx), add(layerTex), add(maskTex), add(glassPass.on);
+    for(const cvar_t* c : layerCvars)
+    {
+        add(c->value);
+    }
+    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, std::strlen(vr_flat_visor_depth_color.string));
+    const State& s = state;
+    add(s.sway), add(s.fade), add(s.glitch), add(s.logFade), add(s.alarm), add(s.input.boot);
+    bool stutter = false;
+    for(const float b : s.input.boot)
+    {
+        stutter = stutter || b < 0.15f;
+    }
+    if(s.glitch > 0.f || stutter)
+    {
+        add(host_framecount); // (the glitch's flicker and the contents' tearing, the boot's stutter: every frame)
+    }
+    for(int p = 0; p < VisorPanelCount; p++)
+    {
+        const gadget::VisorImage img = gadget::visorImage(p);
+        add(img.texture), add(img.size), add(img.shown), add(img.version);
+    }
+    add(gadget::visorPhosphor()), add(gadget::visorColors()), add(gadget::textGlow());
+    return sig;
+}
+
+// Each of the layer's rectangles (layerPass.boxes) as a scissor in the framebuffer (the view at x, y from its bottom
+// left), `pad` pixels round it, then `draw` there.
+template <typename F>
+void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
+{
+    const LayerPass& lp = layerPass;
+    if(vr_flat_visor_cache.value == 0.f) // (debug: the whole view, as before the rectangles)
+    {
+        draw(x, y, w, h);
+        return;
+    }
+    for(int i = 0; i < lp.boxCount; i++)
+    {
+        const glm::vec4 b = lp.boxes[i];
+        const int x0 = za::max(0, static_cast<int>(std::floor(b.x * scale - pad)));
+        const int x1 = za::min(w, static_cast<int>(std::ceil(b.z * scale + pad)));
+        const int y0 = za::max(0, static_cast<int>(std::floor(b.y * scale - pad)));
+        const int y1 = za::min(h, static_cast<int>(std::ceil(b.w * scale + pad)));
+        if(x1 > x0 && y1 > y0)
+        {
+            draw(x + x0, y + (h - y1), x1 - x0, y1 - y0); // (y up)
+        }
     }
 }
 
@@ -671,19 +780,33 @@ void drawPanels(int viewW, int viewH, float tx)
 {
     GlassPass& gp = glassPass;
     const int hw = gp.sceneA.width, hh = gp.sceneA.height;
+    // Only round the mounts (the layer's rectangles: the glass is seen nowhere else), padded by as far as the passes reach
+    // and the bend samples (a pass reads its neighbours: what is wrong at the pad's edge never reaches the mounts).
+    const float radius = za::clamp(vr_flat_visor_glass_blur.value, 0.f, 40.f) * static_cast<float>(h) / 1080.f * 0.5f; // (half size)
+    const int passes = radius < 0.5f ? 0 : za::clamp(static_cast<int>(std::ceil(std::sqrt(2.f * radius))), 1, 6);
+    const float step = passes ? za::clamp(radius / (0.5f * static_cast<float>(passes * passes)), 0.5f, 3.f) : 0.f;
+    float reach = 4.f + za::clamp(vr_flat_visor_glass_distort.value, 0.f, 3.f) * static_cast<float>(h) / 1080.f * 6.f; // (the bend)
+    for(int i = 0; i < passes; i++)
+    {
+        reach += ((static_cast<float>(i) + 0.5f) * step + 1.f) * 1.5f;
+    }
+    const float half = static_cast<float>(hw) / static_cast<float>(w);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, framebuffer);
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, gp.sceneA.fbo);
-    GL_BlitFramebufferFunc(x, y, x + w, y + h, 0, 0, hw, hh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    const float radius = za::clamp(vr_flat_visor_glass_blur.value, 0.f, 40.f) * static_cast<float>(h) / 1080.f * 0.5f; // (half size)
-    if(radius < 0.5f)
+    eachBox(0, 0, hw, hh, half, reach, [&](int bx, int by, int bw, int bh) {
+        const float up = static_cast<float>(w) / static_cast<float>(hw);
+        GL_BlitFramebufferFunc(x + static_cast<int>(static_cast<float>(bx) * up), y + static_cast<int>(static_cast<float>(by) * up),
+            x + static_cast<int>(static_cast<float>(bx + bw) * up), y + static_cast<int>(static_cast<float>(by + bh) * up), bx, by,
+            bx + bw, by + bh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    });
+    if(passes == 0)
     {
         return gp.sceneA.tex;
     }
-    const int passes = za::clamp(static_cast<int>(std::ceil(std::sqrt(2.f * radius))), 1, 6);
-    const float step = za::clamp(radius / (0.5f * static_cast<float>(passes * passes)), 0.5f, 3.f);
     GL_UseProgram(gp.blur);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     glViewport(0, 0, hw, hh);
+    glEnable(GL_SCISSOR_TEST);
     gfx::RenderTarget* from = &gp.sceneA;
     gfx::RenderTarget* to = &gp.sceneB;
     for(int i = 0; i < passes; i++)
@@ -691,11 +814,15 @@ void drawPanels(int viewW, int viewH, float tx)
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, to->fbo);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, from->tex);
         GL_Uniform4fFunc(0, 1.f / static_cast<float>(hw), 1.f / static_cast<float>(hh), (static_cast<float>(i) + 0.5f) * step, 0.f);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        eachBox(0, 0, hw, hh, half, reach, [](int bx, int by, int bw, int bh) {
+            glScissor(bx, by, bw, bh);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        });
         gfx::RenderTarget* const was = from;
         from = to;
         to = was;
     }
+    glDisable(GL_SCISSOR_TEST);
     return from->tex;
 }
 
@@ -731,20 +858,28 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     GlassPass& gp = glassPass;
     gp.on = glassReady(w, h);
     gp.shapes.clear();
-    const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h) : 0u;
 
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, lp.target.fbo);
-    glViewport(0, 0, w * ss, h * ss);
-    glClearColor(0.f, 0.f, 0.f, 0.f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    drawPanels(w, h, ty * aspect);
-    if(gp.on)
+    // The panels' layer, drawn again only when what it is drawn from changed (standing still: never).
+    const unsigned long long signature = layerSignature(w, h, ss, ty * aspect, lp.target.tex, gp.on ? gp.mask.tex : 0u);
+    if(signature != lp.signature || vr_flat_visor_cache.value == 0.f)
     {
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, gp.mask.fbo);
-        glViewport(0, 0, gp.mask.width, gp.mask.height);
+        QVR_PROFILE("visor layer");
+        lp.signature = signature;
+        lp.boxCount = 0;
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, lp.target.fbo);
+        glViewport(0, 0, w * ss, h * ss);
+        glClearColor(0.f, 0.f, 0.f, 0.f);
         glClear(GL_COLOR_BUFFER_BIT);
-        drawList(gp.shapes, gfx::Blend::Premultiplied);
+        drawPanels(w, h, ty * aspect);
+        if(gp.on)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, gp.mask.fbo);
+            glViewport(0, 0, gp.mask.width, gp.mask.height);
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawList(gp.shapes, gfx::Blend::Premultiplied);
+        }
     }
+    const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h) : 0u;
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebuffer);
     glViewport(x, y, w, h);
@@ -773,7 +908,13 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     {
         GL_Uniform4fFunc(2, 0.f, 0.f, 0.f, 0.f);
     }
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    // Over the layer's rectangles alone (nothing of it elsewhere).
+    glEnable(GL_SCISSOR_TEST);
+    eachBox(x, y, w, h, 1.f, 0.f, [](int bx, int by, int bw, int bh) {
+        glScissor(bx, by, bw, bh);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    });
+    glDisable(GL_SCISSOR_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // (what GLS_BLEND_ALPHA expects)
     lp.drawnFrame = host_framecount;
     lp.drawnRect = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h)};

@@ -96,13 +96,12 @@ struct Layer
         }
         else
         {
-            float lo = 0.f, hi = top;
-            for(int i = 0; i < 24; i++)
+            // Newton: f rises and is concave below r*, so from either side the steps land below the root and climb to
+            // it (a step at most to r*).
+            for(int i = 0; i < 6; i++)
             {
-                const float mid = (lo + hi) * 0.5f;
-                (f(mid) < len ? lo : hi) = mid;
+                r = za::clamp(r - (f(r) - len) / za::max(1e-4f, 1.f + k * (3.f * r * r - 1.f)), 0.f, top);
             }
-            r = (lo + hi) * 0.5f;
         }
     }
     return q * (r / len);
@@ -283,7 +282,12 @@ void ringOf(const Layer& L, int p, const Mount& m, float parallax, const glm::ve
     {
         const glm::vec2 a = localToPx(L, p, m.outline[i], parallax, nudge);
         const glm::vec2 b = localToPx(L, p, m.outline[(i + 1) % m.points], parallax, nudge);
-        const int pieces = za::clamp(static_cast<int>(glm::length(b - a) / 8.f), 1, 80);
+        // (a piece seen wholly past one of the view's edges, well clear of it, drawn straight: nothing of it is seen)
+        const glm::vec2 sa = shownPx(L, a), sb = shownPx(L, b);
+        constexpr float clear = 160.f;
+        const bool off = (sa.x < -clear && sb.x < -clear) || (sa.y < -clear && sb.y < -clear) ||
+                         (sa.x > L.w + clear && sb.x > L.w + clear) || (sa.y > L.h + clear && sb.y > L.h + clear);
+        const int pieces = off ? 1 : za::clamp(static_cast<int>(glm::length(b - a) / 8.f), 1, 80);
         for(int s = 0; s < pieces && r.n < 500; s++)
         {
             r.at[r.n++] = shownPx(L, glm::mix(a, b, static_cast<float>(s) / static_cast<float>(pieces)));

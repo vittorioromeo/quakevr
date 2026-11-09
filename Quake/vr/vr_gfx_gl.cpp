@@ -5,6 +5,7 @@
 
 #include "vr_glutil.hpp"
 #include "vr_gfx.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_flatfov_glsl.h"
 #include "vr_flatplay.hpp"
 #include "vr_engine.hpp"
@@ -2305,14 +2306,54 @@ void end2D()
 namespace draw2D
 {
 
+// The dry run's signature (beginSignature): on, and the hash so far.
+struct Signature
+{
+    bool on{false};
+    unsigned long long hash{diskcache::fnvStart};
+};
+Signature signature;
+
+void beginSignature()
+{
+    signature = Signature{.on = true};
+}
+
+unsigned long long endSignature()
+{
+    signature.on = false;
+    return signature.hash;
+}
+
+bool signing()
+{
+    return signature.on;
+}
+
+void sign(const void* bytes, size_t size)
+{
+    signature.hash = diskcache::fnv(signature.hash, bytes, size);
+}
+
 void color(const glm::vec4& rgba)
 {
+    if(signature.on)
+    {
+        sign(&rgba, sizeof(rgba));
+        return;
+    }
     GL_SetCanvasColor(rgba.r, rgba.g, rgba.b, rgba.a);
 }
 
 void fill(float x, float y, float w, float h, const glm::vec3& rgb)
 {
     const float c[3] = {rgb.r, rgb.g, rgb.b};
+    if(signature.on)
+    {
+        const float all[8] = {1.f, x, y, w, h, c[0], c[1], c[2]};
+        sign(all, sizeof(all));
+        return;
+    }
     Draw_FillEx(x, y, w, h, c, 1.f);
 }
 
@@ -2320,17 +2361,39 @@ void pic(float x, float y, const char* wadName, float scale)
 {
     if(qpic_t* p = picNamed(wadName))
     {
+        if(signature.on)
+        {
+            const float all[4] = {2.f, x, y, scale};
+            sign(all, sizeof(all));
+            sign(&p, sizeof(p));
+            return;
+        }
         Draw_SubPic(x, y, p->width * scale, p->height * scale, p, 0.f, 0.f, 1.f, 1.f, rgb_white, 1.f);
     }
 }
 
 void text(float x, float y, float size, const char* str)
 {
+    if(signature.on)
+    {
+        const float all[4] = {3.f, x, y, size};
+        sign(all, sizeof(all));
+        sign(&char_texture, sizeof(char_texture)); // (the font: useBrightFont's, Menu > Fonts)
+        sign(str, strlen(str) + 1);
+        return;
+    }
     Draw_StringEx(x, y, size, str);
 }
 
 void picture(const Picture& p, float x, float y, float w, float h)
 {
+    if(signature.on)
+    {
+        const float all[5] = {4.f, x, y, w, h};
+        sign(all, sizeof(all));
+        sign(&p.texture, sizeof(p.texture));
+        return;
+    }
     Draw_TextureRect(x, y, w, h, static_cast<gltexture_t*>(p.texture), 1.f);
 }
 

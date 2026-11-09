@@ -6661,3 +6661,54 @@ Mouse Follows Lean): Quake's own code path, untouched. Test `vr_flatleanmouse_te
 by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolled up axis for up and down, 0.17-0.29
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
+
+
+## Flat-screen visor HUD, fifth pass: his defaults, reach past the edges, real hits only, nearly free (branch `agent/visor5`, 2026-11-09)
+
+- **His values as the defaults** (own commit, 41094b975): `vr_flat_visor_*` autohide_log 1, bevel 1.5, depth_lag 0.5,
+  depth_offset 12, log_out 0, scanline_width 4, scanlines 0.65, shake 4, shake_time 0.5, sheen 0.5, side_out 0, warp
+  -0.08, zoom 0.94; `vr_flat_xhair_*` glow 0.25, opacity 0.75, smooth 0.1; `vr_flat_bloom` 0.02; `vr_menu_flat_scale`
+  0.954, `_y` 0.499; tunables `vr_flat_lean_angle` 20, `vr_flat_lean_dist` 20 (tune_promote). The hit shake's range
+  0..3 -> 0..6 (his 4 was clamped to 3). Tests that measured at the old defaults set what they measure
+  (visor_test: autohide off at the start, its side/log phases against a mid value; menu_flat_panel_test from 0.9; the
+  crosshair's placement at smoothing 0.03; the lean facing a wall against leanRoom's own room: at 20 the gun's line
+  meets the test hall's wall trim one unit short on the right).
+- **Reach (`_log_out`, `_side_out`): -4 .. 8** (menu and clamp). `reachInset`: the gap mountInset x reach, at least
+  1.5 at 0 and over, under 0 continuing past the edge (continuous through 0); the side mounts' padding and chamfer stay
+  at 0.2's below it. Edge contact is only asked at 0 and over.
+- **The shake and glitch only on real hits:** they took health and armour going down, so a megahealth's overheal
+  ticking away (QC `item_megahealth_rot`: health - 1 a second) shook it. Now `VR_OnDamage` (the server's damage
+  message: T_Damage's dmg_take / dmg_save) -> `visor::onDamage(armor, blood)`. `vr_flat_visor_fx hit <n>`: a real
+  damage message with no health taken (sets the player's dmg_take; Debug menu "Visor: Real Hit Message").
+- **Cost:** the panels' seven textures were drawn (and mipmapped) every frame, and the layer (ss 2: 6880 x 2880 at
+  3440 x 1440) cleared and rebuilt with its CPU lens solve every frame, the composite and the glass blur over the whole
+  view. Now: (1) each panel is drawn as a dry run first (`gfx::draw2D::beginSignature`: draw2D's calls and
+  drawPicSized fold their arguments into a hash and draw nothing) and drawn for real only when that changed (a few
+  times a second at most: blinking, a powerup's seconds); (2) the layer is rebuilt only when its signature changes
+  (`layerSignature`: the view, its targets, drawPanels' cvars, the sway, fades, effects, colours, each panel image's
+  version; every frame while glitching or booting); (3) each panel's rectangle on the view (its vertices' bounds,
+  overlaps merged) limits the composite (scissored) and the glass's blit and Kawase passes (padded by their reach and
+  the bend); (4) the pincushion lens's inverse by Newton (it is concave below r*) instead of 24 bisections; outline
+  pieces wholly 160 px past an edge are not subdivided; the glass rim's clear middle quads are skipped.
+  `vr_flat_visor_cache 0` (debug, Debug menu "Visor: Cache On / Off"): the old way, every frame over the whole view.
+  Timings (ThinLTO, `--exclusive`, e1m1 start, 3440 x 1440, 400 frames, `vr_profile`; cpu / gpu ms):
+  | case | visor | visor panels | frame |
+  |---|---|---|---|
+  | before (no-LTO probe, shared run) | 1.25 / 1.17 | 0.01 / 0.68 | |
+  | cache 0 (every frame, whole view) | 0.64 / 0.38 | 0.02 / 0.44 | 4.24 / 2.23 |
+  | cache 1, standing | 0.07 / 0.05 | < 0.02 / < 0.02 | 2.01 / 1.49 |
+  | cache 1, turning steadily (+right) | 0.07 / 0.05 | < 0.02 / < 0.02 | |
+  | cache 1, walking (+forward) | 0.34 / 0.22 (layer 0.28 cpu) | < 0.02 / < 0.02 | 3.41 / 1.53 |
+  | visor off | | | 2.05 / 1.42 |
+  Walking, the bob moves the sway and the layer is rebuilt most frames.
+  Shared with VR: the dry-run signature is gfx::draw2D's (any 2D canvas can use it: the wrist gadget's screen, also
+  drawn every frame, could skip its redraws the same way); the hash is diskcache::fnv; the real-hit trigger is the
+  same VR_OnDamage hook the controllers' buzz, the drawn hands' knock and flathit use.
+  Left: a sway that moves every frame (walking, a hit's shake) rebuilds the layer; making that cheap means drawing the
+  layer without the sway and the lens (one layer per depth: plate, face, contents) and applying the sway, zoom and lens
+  per pixel in the composite (`lensSample` is the explicit forward map).
+- **Look:** cache 1 against cache 0 at rest, 3440 x 1440, scanlines off (they drift): 2 pixels over 8 of 255 outside
+  the view model's middle, none over 24 (frame-to-frame noise of the world alone is larger).
+- **Tests:** visor_test 28/0 (new: no hit from health 150 -> 120 by `give h`, a real hit message shakes it with no
+  health taken; `_side_out -2` and `_log_out -2` pull the mounts past the edges), flathud, flathit, flatxhair,
+  menu_flat_panel_test 28/0, flatlean 7/0, `vr_pp_test 1`.
