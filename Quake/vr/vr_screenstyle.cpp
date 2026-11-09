@@ -86,6 +86,26 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {24.f, 14.f}}},
+    // The nailgun: a bevelled bezel with two round fasteners each side on the receiver's rear, between the barrels, in
+    // front of the block with the red light (v_nail.blend, Misc/quakevr/make_screen_housing_nail.py reads `opening`,
+    // `radius`, `size` and `offset` from here to model it). As his mockup draws it: a wide window (2:1), its corners cut
+    // at 45 degrees, the digits at today's size; on the model's byte grid 1.627 x 0.814 model units (a font pixel 0.0372
+    // at wpntxt_scale 0.2), the cut 0.16. The offset (right, up, out; world units) centres the glass in the window,
+    // 0.065 behind the bezel's front.
+    {"nail",
+        {.radius = -4.4f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.0132f, -0.0024f, 0.0014f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {22.f, 11.f}}},
     // The super nailgun: a riveted bezel bridging the top of the receiver's rear opening, above the hand (v_nail2.blend,
     // Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and offset). His build spec,
     // in window heights h: the window 1.6h x 1h (h 28.56 font pixels), corners chamfered 0.25h; the glass 0.05h behind
