@@ -5751,6 +5751,24 @@ worktree.
 - **Not verified:** the VR-mock view and the headset (flat shots only). The fly camera's old place (`setpos` pitch 60,
   `-6 0.5 2 35 -20`) no longer shows the gun on today's next; pitch 20 and `-5 0 4 45 -8` do.
 
+### Third pass: the gun's own texture (branch `agent/housing_light3`, 2026-11-09)
+
+He: the shape is right, but the plate's texture doesn't match the gun's rear; it should look part of the gun. Panel
+(today on next / this branch / his mockup, then close-ups today / new / from the left / from the right):
+`scratch/hl2/panel_light3.png` in the selfshot worktree.
+
+- **Mapping** (`make_screen_housing_light.py`, shape unchanged): the plate's front and its outer walls take the end face's
+  own UVs. The script reads the face's triangles from the mesh, skipping the housing's, and interpolates each plate
+  vertex's texels from the triangle under it, looking along X. That is the woven bronze block (skin 347..380 x 25..31)
+  at the face's scale and orientation, continuous with the receiver's sloped top (rows 30..35). Its edges are the
+  block's darker rim. The walls carry the face's edge texels drawn straight back, so they meet the front and the
+  receiver without a seam. The window's walls stay on the dark recessed row (53) and the rivets on the brass fitting
+  (326, 23). The old flat "lit neck" patch (357..369 x 56..59) is gone. No new texels and no painting; the region has
+  no fullbright texels (checked: 300..400 x 0..60, none).
+- **Checks:** a re-run gives the same .mdl byte for byte (0 vertices moved, 80 triangles kept; the compressed .blend's
+  bytes differ only by its save data). `vr_pp_test 1` 63/0, checklist_tests_check.py 83/0.
+- **Not verified:** the headset (flat shots only).
+
 ## The super nailgun's screen housing (agent/housing_nail2, 2026-11-09)
 
 (Replaced the same day: "The super nailgun's screen housing on top", below. The bezel on the rear face is gone.)

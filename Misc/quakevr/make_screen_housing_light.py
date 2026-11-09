@@ -38,9 +38,11 @@
 #   from the two edges (RIVET_J: their heights in the face's height), a flat octagon and a point one X step out.
 # The model's X grid is coarse (0.171 units a step), Y 0.073, Z 0.069: every vertex is on the grid (the file's bytes),
 # so the sizes are whole steps (printed).
-# Texture, all from the gun's own skin (no fullbright texels): the plate's front planar on the lit neck of the upper
-# body's metal (357..369 x 56..59), its outer walls on the row above (55), the window's walls on the dark row (53: the
-# recessed details' brown-black), the rivets on the tubes' brass fitting (326, 23: its lit centre on the point).
+# Texture, all from the gun's own skin (no fullbright texels): the plate's front and its outer walls mapped as the end
+# face under them is (its own triangles' texels, seen along X: the woven bronze block 347..380 x 25..31 that runs on
+# into the receiver's sloped top), so the plate reads as one piece with the gun and its walls carry the face's edge
+# texels; the window's walls on the dark row (53: the recessed details' brown-black), the rivets on the tubes' brass
+# fitting (326, 23: its lit centre on the point).
 
 import math
 import os
@@ -74,10 +76,8 @@ GLASS_IN = 0.06      # the glass behind the plate's front, in window heights
 RIVET_R = 2          # the rivets' radius, y/z steps
 RIVET_J = (0.22, 0.59)  # their heights, in the face's height from its bottom
 RIVET_CLEAR = 0.03   # at least this far (units) inside the two edges
-# Skin places (texels).
-FRONT_PATCH = (357.5, 56.2, 369.5, 58.8)   # the plate's front, planar (the lit neck: brightest mid-top and bottom)
+# Skin places (texels): the window's walls (the plate's front and outer walls: face_uv in main).
 WALL_COLS = (357.5, 369.5)
-OUTER_ROWS = (55.3, 55.8)                   # the outer walls: front edge, back edge
 INNER_ROWS = (53.3, 53.8)                   # the window's walls (and the closing ring behind)
 RIVET_TEX = (326.5, 23.5, 1.2)              # the brass fitting's centre and the base ring's radius
 
@@ -263,17 +263,48 @@ def main(h):
     lo_u, hi_u = -fb * sy, fb * sy
     lo_v, hi_v = -fh * sz, fh * sz
 
+    # The end face's own triangles (not the housing's) and their texels: the plate's front and outer walls are mapped
+    # as the face is under them (seen along X), so the woven bronze continues across the plate and its walls carry
+    # the face's edge texels drawn back.
+    tag = me.attributes.get(hc.TAG)
+    uvl = me.uv_layers.active.data
+    face_tris = []
+    for p in me.polygons:
+        vs = [me.vertices[i] for i in p.vertices]
+        if len(vs) != 3 or any(abs(w.co.x - FACE_X) > 1e-3 or not FACE_Z[0] - 1e-3 <= w.co.z <= FACE_Z[1] + 1e-3
+                               for w in vs):
+            continue
+        if tag is not None and any(tag.data[i].value > 0 for i in p.vertices):
+            continue
+        face_tris.append([((w.co.y, w.co.z), (uvl[li].uv.x * sw, (1.0 - uvl[li].uv.y) * sh))
+                          for w, li in zip(vs, p.loop_indices)])
+    if not face_tris:
+        h.fail("the end face's triangles weren't found (x %.4f)" % FACE_X)
+
+    def face_uv(y, z):
+        best = None
+        for t in face_tris:
+            (a, ta), (b, tb), (c, tc) = t
+            den = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+            l0 = ((b[1] - c[1]) * (y - c[0]) + (c[0] - b[0]) * (z - c[1])) / den
+            l1 = ((c[1] - a[1]) * (y - c[0]) + (a[0] - c[0]) * (z - c[1])) / den
+            l2 = 1.0 - l0 - l1
+            out = -min(l0, l1, l2)
+            if best is None or out < best[0]:
+                best = (out, tuple(l0 * ta[k] + l1 * tb[k] + l2 * tc[k] for k in range(2)))
+        if best[0] > 1e-3:
+            h.fail("a plate vertex (y %.4f z %.4f) is off the end face" % (y, z))
+        return best[1]
+
     def tex(vi, mode, nrm):
         co = verts[vi]
         u, v = -(co.y - yc), co.z - zc
-        if mode == "front":
-            x0, y0, x1, y1 = FRONT_PATCH
-            return x0 + (u - lo_u) / (hi_u - lo_u) * (x1 - x0), y0 + (hi_v - v) / (hi_v - lo_v) * (y1 - y0)
-        if mode in ("outer", "inner"):
+        if mode in ("front", "outer"):
+            return face_uv(co.y, co.z)
+        if mode == "inner":
             along = (u - lo_u) / (hi_u - lo_u) if abs(nrm.z) >= abs(nrm.y) else (hi_v - v) / (hi_v - lo_v)
-            rows = OUTER_ROWS if mode == "outer" else INNER_ROWS
             return (WALL_COLS[0] + (WALL_COLS[1] - WALL_COLS[0]) * along,
-                    rows[0] if abs(co.x - x_front) < 1e-4 else rows[1])
+                    INNER_ROWS[0] if abs(co.x - x_front) < 1e-4 else INNER_ROWS[1])
         # rivet: the tip on the fitting's lit centre, the base ring round it
         for ru, rv in studs:
             du, dv = u - ru * sy, v - rv * sz
