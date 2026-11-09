@@ -33,10 +33,11 @@ struct Entry
 // entry here with `.housing = true`, the box 0 and the offset that seats the glass in the inset (ROUND24.md recipe).
 constexpr Entry table[] = {
     // The shotgun: the rounded bezel with four bolts on the receiver's end face (v_shot.blend, modelled by
-    // Misc/quakevr/make_screen_housing_shot.py from this entry's opening and radius). The glass upright (weapons.txt
-    // wpntxt_pitch 2) halfway down the opening: the offset (right, up, out; world units) moves it from weapons.txt's
-    // place (model 0.862 -0.068 2.582) to the opening's (1.066 -0.03 2.48; 2.029 model units a world unit), so a
-    // config's own wpntxt_x/y/z still land.
+    // Misc/quakevr/make_screen_housing_shot.py from this entry's opening, radius and out). The glass upright
+    // (weapons.txt wpntxt_pitch 2) a little way into the opening, between the bezel's front and the leaning end face:
+    // the offset (right, up, out; world units) moves it from weapons.txt's place (model 0.862 -0.068 2.582) to the
+    // opening's (1.177 -0.03 2.48, drawn 0.023 further in; 2.029 model units a world unit), so a config's own
+    // wpntxt_x/y/z still land.
     {"shot",
         {.radius = 3.f,
             .bevel = 2.f,
@@ -47,7 +48,7 @@ constexpr Entry table[] = {
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
             .size = 1.f,
-            .offset = {-0.0185f, -0.0505f, -0.1004f},
+            .offset = {-0.0185f, -0.0505f, -0.1555f},
             .box = 0.f,
             .housing = true,
             .opening = {11.f, 8.5f}}},
