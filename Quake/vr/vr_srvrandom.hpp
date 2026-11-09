@@ -19,6 +19,9 @@ void registerCommands();          // sv_random_info, vr_map_seed_info
 void chooseMapSeed(bool fromSave);   // VR_OnSpawnServerBeforeLoad: this map's, before anything spawns
 void restoreMapSeed(za::U32 seed);   // VR_OnLoadGame: the saved game's
 [[nodiscard]] za::U32 mapSeed();     // 0..0xFFFFFF (QC's floats hold it exactly)
+// This map's server stream seeded from the clock (sv_random_seed 0, no test's seed): its AI, gibs and ragdolls differ
+// run to run (vr_physics_hash says so: a determinism check needs sv_random_seed or vr_bench_seed).
+[[nodiscard]] bool clockSeeded();
 
 // The C++ gameplay draws (his rule: gameplay randomness comes from the server's seed, so multiplayer can sync it):
 // each its own stream, derived from the server's (derivedSeed) and restarted with it (seedNow: every map load), so a
