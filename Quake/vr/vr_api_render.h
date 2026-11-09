@@ -168,6 +168,7 @@ void VR_BarrelMaskBind (void); // the hot barrels' triangle masks bound for the 
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);
+void VR_PrewarmSkinMasks (void); // the load's prewarm: the masks' and glove layers' textures, before any view entity
 // R_FlushAliasInstances' surfaces in their order: a jointed hand's glove shell first (vr_handrig.cpp gloveShells: the
 // one vr_gloves wears, if any; over the hand, it hides its pixels before they are shaded), then the hand; the other
 // models' as they are.

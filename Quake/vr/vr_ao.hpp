@@ -39,6 +39,10 @@ void shutdown();
 // bound as the shaders' uniform block (binding 2). Always binds one (empty when off).
 void upload();
 
+// The load's last frame behind the loading screen (VR_SignonPrewarm): the bakes finished so far taken in, their models'
+// vertex buffers built again now, not in the first frame drawn (upload's: 17-35 ms after a cold load).
+void integrateFinished();
+
 // The background warm-up's (vr_warmup.cpp, a pool thread): a .mdl's bake made and written to the disk cache unless its
 // file is there, exactly as a load's would be: its poses in order (`verts`: numposes x numverts trivertx_t, 4 bytes
 // each), its triangles' vertices (`tris`: 3 a triangle, in the file's order), its scale and origin.

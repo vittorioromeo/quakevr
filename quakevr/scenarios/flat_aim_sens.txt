@@ -1,0 +1,7 @@
+# flat_aim_sens: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) ironsight look speed (vr_flat_aim_sens, vr_flat_aim_sens_match; Quake/vr/vr_flataimsens.cpp): vrtesthall's start, a shotgun in the main hand (vr_flat_aim_sens_test runs from e1m1 in its script).
+title Flat-screen aim sensitivity and match distance
+hint Play with -flatscreenmode. Aim down the sights and turn: at Aim Sensitivity 1 and Match Centre it feels as before. Set Aim Sensitivity Match to 1.78 (16:9 Edge): sighted turns get faster, a flick to the screen's edge lands the same sighted as at hipfire. Aim Sensitivity 0.5 halves the sighted speed; hipfire never changes. The menu's help shows the sighted speed for your fov.
+map vrtesthall
+god
+notarget
+give "Shotgun" main

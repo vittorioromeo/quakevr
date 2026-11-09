@@ -961,6 +961,13 @@ za::Vector<Item> pageDebugAutomation()
         command("Thread Pool Self-Test", "vr_jobs_test")
             .help("vr_jobs_test: the pool's checks (start and stop, every item once, the main thread helping, busy workers, "
                   "nested waits, the same results whatever the threads), a line each (under a second)."),
+        command("Particles on Threads Self-Test", "vr_particle_jobs_test")
+            .help("vr_particle_jobs_test (in a map): the particles about and a burst of each kind before you stepped 240 "
+                  "times on the main thread alone and split between the threads: PASS when every particle and drawn "
+                  "record is the same bit for bit each way (nothing in the game changes)."),
+        command("Physics Threads Determinism", "vr_physics_mtbench 300 300 chains")
+            .help("vr_physics_mtbench 300 300 chains: a physics world of its own (boxes and ragdoll-like jointed "
+                  "chains) stepped from the same start with 1, 2, 3, 4 ... threads: the same hash with every count."),
         command("Zancle Math Self-Test", "vr_zancle_math_test")
             .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
                   "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),

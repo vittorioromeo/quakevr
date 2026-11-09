@@ -136,6 +136,8 @@ typedef struct client_s
 	qboolean		dropasap;			// has been told to go to another level
 	enum sendsignon_e	sendsignon;			// only valid before spawned
 	int				signonidx;
+	qboolean		serverinfo_unsent;	// QVR: this level's svc_serverinfo is still in .message: a prespawn, spawn or
+										// begin read now was the client's reply to the level before (SV_SignonReplyStale)
 
 	double			last_message;		// reliable messages must be sent
 										// periodically

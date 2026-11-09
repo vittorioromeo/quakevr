@@ -2016,6 +2016,11 @@ void ao::init()
     Cmd_AddCommand("vr_ao_finish", finish_f);
 }
 
+void ao::integrateFinished()
+{
+    integrateBakes();
+}
+
 void ao::upload()
 {
     // (through a teleporter, vr_portals.cpp: the last frame's occluders, chosen round the eyes, not there)

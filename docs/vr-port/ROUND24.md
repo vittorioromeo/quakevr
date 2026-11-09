@@ -7129,6 +7129,39 @@ Left (proposals):
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
 
+## Flat ADS sensitivity: multiplier and match distance (branch `agent/ads_sens`, worktree `selfshot`, 2026-11-09)
+
+His words: "Please add a flat ADS multiplier plus ADS sensitivity setting with a match-distance option, with menu items
+under the flatscreen menu."
+
+- **Before:** in_sdl.c IN_FovScale scaled the mouse and gyro by tan(look/2) / tan(scr_fov/2) (look: VR_FlatLookFov, the
+  ironsight's narrowing in, the speed FOV out): a zoom-ratio ("centre", monitor distance 0) match. At fov 95 with
+  vr_flat_aim_fov 45 the sighted fov is 50 and the scale 0.4273. The stick's look was never slowed.
+- **Now** (Quake/vr/vr_flataimsens.cpp): IN_FovScale multiplies that ratio by VR_FlatAimSens, and the stick's look
+  (IN_JoyMove, the traditional look; not the flick stick) by VR_FlatAimStickScale. Both are exactly 1 outside flatscreen
+  play, unsighted, and (the mouse's) at the defaults, so a headset and default play are bit-for-bit as before.
+  - `vr_flat_aim_sens_match` (default 0): scale = atan(m * T(sighted)) / atan(m * T(hip)), T the tangent of the vertical
+    half-fov (Quake's 4:3 fov times the view's own fov_y/basefov ratio), m in half screen heights from the centre.
+    0 is the tangent ratio exactly (no atan taken). Presets in the menu: Centre, 0.75, 1.33 (the 4:3 edge, Battlefield's
+    uniform aiming coefficient), 1.78 (the 16:9 edge); 0..4 from the console.
+  - `vr_flat_aim_sens` (default 1, 0.05..5): times 1 + (sens - 1) * travel, the ironsight's travel (adsShare) as the
+    fov's narrowing uses.
+  - Decision: the match is in half screen heights (vertical), not widths, so the brief's preset names hold (1.33 is the
+    4:3 edge, 1.78 the 16:9 edge on any screen of that shape); in width units 1.78 would be past the edge.
+  - Decision: the stick's look is now slowed in the ironsight like the mouse (the brief: mouse, gyro and stick); before
+    it turned at the same speed sighted.
+- **Menu:** Locomotion > Desktop Screen Play: Aim Sensitivity (slider 0.10..2.00, past it 0.05..5) and Aim Sensitivity
+  Match (Centre / 0.75 / 1.33 / 1.78), under Right Click Ironsight; their help ends with the sighted speed now, e.g.
+  "sighted, 0.43x of hipfire's speed at fov 95 (the field of view 50 there)". Both flat-only (dimmed in a headset).
+  menu_paths.txt regenerated.
+- **Shared:** the sighted fov is flatsight's own (adsFovAt, the same adsFovFor the view narrows by), the travel is
+  adsShare; the mouse, gyro and stick share one scale (scaleFor). The headset has no ironsight zoom, so nothing there to
+  share.
+- **Test:** `vr_flat_aim_sens_test` (Misc/quakevr/flataimsens_test.sh; `flataimsens: N passed, M failed`): 200 mock
+  mouse counts per step, the turned degrees against hipfire's. fov 95: hip 1.0000; sighted match 0 0.4273 (the old
+  ratio, factor exactly 1); match 1.78 0.5745; sens 0.5 0.2136; hip with both set 1.0000. fov 75: sighted 36.31, match
+  1.78 sens 0.5 0.2587; match 0 0.4273. The stick's scale and the menu's readout agree with each. 7 passed, 0 failed.
+  `vr_flat_aim_sens_status` prints the scale now. Scene: `flat_aim_sens`.
 ## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
 
 Part 1's leftovers (above). Each a commit of its own; every output checked identical.
@@ -7256,3 +7289,88 @@ a scene placement, not the renderer).
 already pre-passed), gib instancing (gibs already batch by model), skipping your body's hidden parts in flat (it has
 its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
 proposal 1) is the big lever, his call.
+
+## The changelevel error and the cold first frame (branch `agent/first_frame`, 2026-11-09)
+
+Part 2's leftovers ("Faster map loads, part 2", Left).
+
+**The changelevel error** (`map e1m1; wait3; changelevel e1m2`: `Host_Error: Illegible server message 39`). 39 is
+svc_quakevr. The changelevel ran in the frames of the client's signon on e1m1, its `begin` (or `spawn`) for e1m1
+queued in cls.message; CL_SendCmd sent it after SV_SpawnServer, and the new level took it (Host_Begin_f checks
+nothing): the client was marked spawned and sent a datagram before its e1m2 serverinfo had gone out. Host_ClearMemory
+had cleared the client's state (protocol flags 0), so svc_quakevr was not Quake VR's to it (and the fast update before
+it was read with the wrong coordinate sizes). Vanilla Quake has the same race. Fix (host_cmd.c `SV_SignonReplyStale`,
+server.h `serverinfo_unsent`): a prespawn, spawn or begin read while the level's serverinfo is still in the client's
+.message (SV_SendServerinfo sets the flag, SV_SendClientMessages clears it as the message goes out) answers the level
+before and is ignored (developer 1 says so); the new serverinfo starts the signon again. A remote client's reply already
+on the wire is not covered (that needs a level id in the protocol). Test: `Misc/quakevr/changelevel_signon_test.sh
+<agent>` (in run_test_suite.py): one game, `map e1m1; wait<N>; changelevel e1m2` for N 0-6 and 10, each waiting for
+`Client signed on: e1m2` (a new developer print at signon 4): 10/10; with the check disabled it fails (the Host_Error).
+
+**The cold first frame.** Tracy (low-impact runs: times about twice the exclusive ones) named the first frame's work:
+`view body` was setupPlates making the body's armour shell (`<body>#armor`, agarmor::makeModel: 61 of its 69 ms);
+`view skin masks` the hand and body masks and the glove layers (5 textures: the prewarm's step found no view entity in
+the load, so it loaded nothing, and the glove layers are freed and read again every map); `lights` the AO bakes
+finished in the load taken in (ao::upload: each baked model's vertex buffer built again); in flat mode also every view
+model (prepareModels returned when vr_enabled 0, but flat draws the same hands, body and gear: md5 replacements 52 + 40).
+- `view::prepareModels` in flat too, and the body's armour shell made there (the body setupBody picks).
+- `VR_PrewarmSkinMasks` (the prewarm's step): the glove layers' per-map reload, then the masks (skin 0) and glove layers
+  by name; the first frame's VR_PrecacheSkinMasks finds them (one find-or-read helper for both).
+- `VR_SignonPrewarm` (CL_SignonReply 3: the next frame is still the loading screen's): `ao::integrateFinished`.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3; `benchresults/firstframe_after` against part 2's
+`perfload2_after`; ms):
+
+| load | VR first frame before | after | VR worst of the next 90, before | after | flat first before | after | flat worst before | after |
+|---|---|---|---|---|---|---|---|---|
+| `map start` (cold) | 140.7 | 63.7 | 37.4 | 34.8 | 200.2 | 65.9 | 7.4 | 5.8 |
+| `changelevel e1m1` | 6.3 | 3.2 | 15.8 | 4.5 | 6.9 | 2.8 | 5.4 | 4.3 |
+| `changelevel e1m2` | 9.2 | 4.0 | 13.6 | 5.1 | 9.9 | 4.4 | 7.0 | 7.3 |
+| `changelevel e1m1` (back) | 2.9 | 2.8 | 13.6 | 4.9 | 3.4 | 3.0 | 4.2 | 3.1 |
+
+The warm loads' worst frame after (VR 14-16 -> 5 ms) was the AO uploads too. The work moved into the load (the signon
+prewarm ~18 ms, the shell and masks in vr prewarm). Same visuals: the same models and textures, made earlier.
+Not reached cold (< 50 ms). Left (vr_profile, VR): `vr opaque (text3d)` ~30 ms (the boards' images and layout: their
+image draws could go in VR_SignonPrewarm, the world texts are in by then), the wrist gadget's `gadget screen` ~15 (its
+first draw), and the second frame's portal shadow maps (~30: the "worst after" column).
+Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0, changelevel_signon 10/0; scenario_check not run.
+Release-TracyFull builds.
+## Thread pool: Box3D, particles, gore (branch `agent/jobs_phys`, worktree `embed5`, 2026-11-09)
+
+His ask: "try out all the thread pool candidates ... without introducing indeterminism" (perf_1109.md: all 31 job
+threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` over the bench scenarios
+(`play_gore_fight_flat`, `play_gore_fight`: his settings, fixed 90 Hz clock, unpaced, 900 frames).
+
+- **Box3D was already on the pool** (vr_box3d.cpp: `b3WorldDef` workerCount / `enqueueStepTask` / `finishStepTask`,
+  ROUND21 "Box3D on the pool"), split only while 150 bodies or more are awake (`vr_box3d_threads_bodies`). The gore
+  fight has 25-125 awake (76-81 on average): one thread. Its step a frame (`vr_physics_steptime`, low-impact runs, so
+  relative): flat 0.121 ms (pairs 0.018, collide 0.028, solve 0.064), VR 0.154 (0.022 / 0.040 / 0.081); forced onto
+  4 threads (`vr_box3d_threads_bodies 0`) 0.159 and 0.199: slower, so the threshold stays. **Determinism:**
+  `vr_physics_mtbench <bodies> <steps> chains` (new: every third column a ragdoll's chain, capsules jointed with balls
+  and hinges, their limits, friction and springs, so the joints' solver is in the proof): 300 bodies, 300 steps, the
+  same hash `8cae5fb5e39bb51d` with 1, 2, 3, 4, 6, 8, 16 and 32 workers (boxes alone, 200: `eece2c3897006b67` at
+  every count). The game world itself can't be compared run to run (QC's random draws, the load's timing: agent
+  perf_fight2 looks at that), hence the bench world. Debug menu, Self-Tests and Benchmarks: Physics Threads Determinism.
+- **Particles on the pool** (vr_particles.cpp `simulate`, `fillInstances`; `vr_particle_threads` 1, Debug >
+  Particles: Particles on Threads). Each particle's motion and its instance record (its own slot: its index in the
+  pool) in chunks of 2048 on the game's threads; on the main thread after it, in the pool's order: the liquids' rise
+  (`water::surfaceRise` fills a cache: not thread-safe), the drops' rings, the dead taken out, the chunks' bounds merged,
+  and (only if a splash's lying ones are among them) the records closed up. No randomness in either pass (the rings'
+  random angle is drawn on the main thread, in order, as before). **Proof:** `vr_particle_jobs_test [count]` (Debug menu,
+  Self-Tests and Benchmarks: Particles on Threads Self-Test): the particles about plus a burst of every preset, 240 steps of 1/72 s
+  from the same start (particles, random sequence, time) on one thread, split in chunks of 2048 and in chunks of 64: a
+  hash of every particle and record after each step; PASS in vrfiringrange and over vrtesthall's pool (19k
+  particles, 12k lying seen: the liquid path), and with steady pools of 3k to 25k. Everything is put back after.
+  **Cost** (the same test's steady pools, exclusive, ms a step one thread / split): 3k 0.031 / 0.038, 6k 0.06 /
+  0.07, 9k 0.09 / 0.10, 12k 0.127 / 0.126-0.143, 18k 0.22 / 0.18-0.19, 25k 0.30-0.34 / 0.21-0.23. So it splits from
+  12288 particles: a saving of 0.03-0.1 ms in the biggest bursts only (his trace's max 25.9k; p50 1.7k, p95 5.4k:
+  untouched). The main thread's ordered pass (it reads every particle) is what is left. The lighting pass was already
+  split (`particle light`).
+- **Gore: not moved.** In the gore fight (2.5k particles on average) every gore zone is far under a job's dispatch
+  (20-40 us to wake a helper): `bloodstreams` 0.043 ms a frame (a handful of streams; traces, decals and sounds in
+  each), `wounds` 0.016, `decals on the world` 0.021 (its grid count 0.006), `gib trail` 0.001, `blood prints` 0.001;
+  dents and gib meshes have no measurable zone.
+- **Other per-entity work in the fight trace** (not done here): the flat hands' update three times a frame, model
+  posing, shadow casters' culling and ragdoll reads (agent perf_fight2), the armed grunts' prop think (QC, perf_fight2);
+  `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
+  visor's 1.26 ms CPU is the driver's, not ours to split.
