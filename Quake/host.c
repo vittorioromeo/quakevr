@@ -74,6 +74,17 @@ cvar_t	host_fixedtick_max = {"host_fixedtick_max", "8", CVAR_NONE}; // QVR: the 
 // 2026-11-09: 20-45 ms frames in fights). 0: all of it at once, as before.
 cvar_t	host_fixedtick_spread = {"host_fixedtick_spread", "1", CVAR_NONE};
 static double host_tickpace; // QVR: the frames' recent length in ticks (host_fixedtick_spread; 0 none yet)
+
+// QVR: host_stall <ms> (Debug menu): this frame sleeps that long, a hitch on demand (host_fixedtick_spread's check)
+static void Host_Stall_f (void)
+{
+	if (Cmd_Argc () < 2)
+	{
+		Con_Printf ("host_stall <ms>: this frame sleeps that long\n");
+		return;
+	}
+	Sys_Sleep ((unsigned long)CLAMP (0, Q_atoi (Cmd_Argv (1)), 1000));
+}
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "250", CVAR_ARCHIVE}; //johnfitz
@@ -576,6 +587,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_fixedtick_max); // QVR
 	Cvar_RegisterVariable (&host_fixedtick_spread); // QVR
 	Cmd_AddCommand ("host_tickstats", Host_TickStats_f); // QVR
+	Cmd_AddCommand ("host_stall", Host_Stall_f); // QVR
 
 	Cvar_RegisterVariable (&cl_nocsqc);	//spike
 	Cvar_RegisterVariable (&max_edicts); //johnfitz

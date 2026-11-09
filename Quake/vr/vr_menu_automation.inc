@@ -617,6 +617,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
         command("Ragdolls' Fastest Since Last", "vr_ragdoll_speeds").help("vr_ragdoll_speeds: each ragdoll's fastest since the last time you asked (its middle's, and any part's, in units/s), then forgotten: strike a body, then ask, to see how far the blow launched it."),
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
+        command("Stall One Frame (40 ms)", "host_tickstats reset; host_stall 40")
+            .help("host_stall <ms>: the next frame sleeps that long (a hitch on demand). With host_fixedtick_spread 1 the server's catch-up after it is spread over the frames after (host_tickstats: frames with 2/3 ticks, the spread count, game time against real time)."),
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
             .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
         command("Monsters' Drawn Motion", "vr_rig2_motion_test 300")
