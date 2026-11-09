@@ -24,6 +24,11 @@ for line in log.split("\n"):
         phases[phase].update(active=int(v[0]), sway=(v[1], v[2]), glitch=v[6], fog=v[7], underwater=int(v[8]),
                              boot=(v[11], v[12], v[13]))
         continue
+    m = re.match(r"visor: shake ([-\d.]+) \(([-\d.]+) ([-\d.]+)\) logfade ([-\d.]+) glass (\d)", line.strip())
+    if m and "shake" not in phases[phase]:
+        v = [float(x) for x in m.groups()]
+        phases[phase].update(shake=v[0], shakeoff=(v[1], v[2]), logfade=v[3], glass=int(v[4]))
+        continue
     m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) contact (\d) "
                  r"\(view (\d+) x (\d+)\)", line.strip())
     if m and m.group(1) not in phases[phase]["panels"]:
@@ -63,7 +68,7 @@ if inside:
     where = {"vitals": (cx(P["vitals"]) < 0.2 and cy(P["vitals"]) < 0.2), "status": (cx(P["status"]) > 0.8 and cy(P["status"]) < 0.2),
              "lefthand": (cx(P["lefthand"]) < 0.2 and cy(P["lefthand"]) > 0.8),
              "righthand": (cx(P["righthand"]) > 0.8 and cy(P["righthand"]) > 0.8),
-             "log": (abs(cx(P["log"]) - 0.5) < 0.01 and cy(P["log"]) > 0.85),
+             "log": (abs(cx(P["log"]) - 0.5) < 0.01 and cy(P["log"]) < 0.15),
              "sideleft": (cx(P["sideleft"]) < 0.1 and abs(cy(P["sideleft"]) - 0.5) < 0.02),
              "sideright": (cx(P["sideright"]) > 0.9 and abs(cy(P["sideright"]) - 0.5) < 0.02)}
     check(all(where.values()), f"rest: each panel in its place ({where})")
@@ -82,6 +87,10 @@ check(0.005 < walk <= 0.35, f"walk: the walk's bob moves them a little ({get('wa
 check(sway("still") == 0, f"still: standing again, still ({get('still', 'sway')})")
 check(get("hit", "glitch", 0) > 0.3 and get("hit later", "glitch", 1) == 0,
       f"hit: the glitch at once ({get('hit', 'glitch')}), gone half a second later ({get('hit later', 'glitch')})")
+check(get("hit", "shake", 0) > 0 and max(abs(x) for x in get("shaking", "shakeoff", (0, 0))) > 0.01
+      and get("hit later", "shake", 1) == 0 and get("hit later", "shakeoff", (1, 1)) == (0, 0),
+      f"hit: the visor shakes ({get('hit', 'shake')}, offset {get('shaking', 'shakeoff')}), still again half a second later")
+check(get("rest", "glass") == 1, "rest: the frosted glass on by default")
 check(get("water", "underwater") == 1 and get("water", "fog", 0) > 0.9,
       f"water: under water the visor fogs up ({get('water', 'fog')})")
 check(0 < get("surfaced", "fog", 0) < get("water", "fog", 0) and get("dry", "fog", 1) == 0,
@@ -89,5 +98,35 @@ check(0 < get("surfaced", "fog", 0) < get("water", "fog", 0) and get("dry", "fog
 b0, b1 = get("boot", "boot", (1, 1, 1)), get("booted", "boot", (0, 0, 0))
 check(min(b0) < 1 and min(b1) == 1, f"boot: the power-on sweep under way {b0}, then done {b1}")
 check(get("off", "active") == 0, "status: vr_flat_visor 0 turns it off (the status bar back)")
+
+def pan(p, name):
+    return phases.get(p, {"panels": {}})["panels"].get(name)
+
+
+def contact_all(p):
+    pn = phases.get(p, {"panels": {}})["panels"]
+    return len(pn) == 7 and all(v[7] == 1 for k, v in pn.items() if v[0] == 1)
+
+
+R0, Ri, Ro = pan("rest", "sideleft"), pan("side in", "sideleft"), pan("side out", "sideleft")
+Rr0, Rri, Rro = pan("rest", "sideright"), pan("side in", "sideright"), pan("side out", "sideright")
+ok = all((R0, Ri, Ro, Rr0, Rri, Rro)) and Ri[1] < R0[1] < Ro[1] and Rri[3] > Rr0[3] > Rro[3]
+check(ok and contact_all("side in") and contact_all("side out"),
+      f"side: vr_flat_visor_side_out 0.3 / 1 / 3 the side readings' inner edge at {Ri and Ri[1]} / {R0 and R0[1]} / {Ro and Ro[1]}, "
+      "mirrored on the right, the edges met")
+L0, Ls, Lb = pan("rest", "log"), pan("log small", "log"), pan("log big", "log")
+V, S = pan("rest", "vitals"), pan("rest", "status")
+clear = all((L0, V, S)) and L0[1] > V[3] and L0[3] < S[1]
+check(clear, f"log: at the top's middle, clear of the corners' readings ({L0}, vitals {V}, status {S})")
+wid = lambda q: q[3] - q[1]  # noqa: E731
+okl = all((L0, Ls, Lb)) and wid(Ls) < wid(L0) * 0.6 and Ls[2] > L0[2] and Lb[2] < L0[2] and wid(Lb) >= wid(L0)
+okl = okl and Lb[1] > V[3] and Lb[3] < S[1]
+check(okl and contact_all("log small") and contact_all("log big"),
+      f"log: _log_width 0.5 with _log_out 3 smaller and lower ({Ls}), 2 with 0.2 larger but fitted, nearer the edge ({Lb}), the edge met")
+H, B = pan("log hidden", "log"), pan("log back", "log")
+check(H is not None and H[0] == 0 and get("log hidden", "logfade", 1) == 0 and B is not None and B[0] == 1
+      and get("log back", "logfade", 0) > 0.5,
+      f"autohide: no lines, the log's mount gone ({get('log hidden', 'logfade')}); a message, back ({get('log back', 'logfade')})")
+
 print(f"visor_test: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

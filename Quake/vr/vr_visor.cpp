@@ -23,6 +23,7 @@
 #include <glm/gtc/constants.hpp>
 
 #include <cmath>
+#include <cstdio>
 
 namespace qvr::visor
 {
@@ -75,6 +76,12 @@ struct State
     float alarm{0.f};     // the health panel's pulse now
     int fxDamage{0};      // vr_flat_visor_fx's: a hit to take next frame
     float fxFogHold{0.f}; // seconds the fog is held up (vr_flat_visor_fx fog)
+    // A hit's shake (vr_flat_visor_shake): its strength at the hit, when (the clock), its wobble's phases.
+    float shakePeak{0.f};
+    float shakeAt{-100.f};
+    unsigned shakeSeed{0};
+    glm::vec2 shake{0.f}; // the offset now (degrees, in the sway)
+    float logFade{1.f};   // the low panel's (vr_flat_visor_autohide_log: 0 while it has no lines)
     za::Array<Panel, VisorPanelCount> panels{};
     gadget::VisorInput input;
 };
@@ -107,6 +114,31 @@ using geom::smoothstep;
     return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA;
 }
 
+// A hit's shake (vr_flat_visor_shake): its strength now, easing out over vr_flat_visor_shake_time seconds.
+[[nodiscard]] float shakeLeft(const State& s)
+{
+    const float t = (s.clock - s.shakeAt) / za::clamp(vr_flat_visor_shake_time.value, 0.1f, 2.f);
+    return t >= 0.f && t < 1.f ? s.shakePeak * (1.f - t) * (1.f - t) : 0.f;
+}
+
+// Its offset now (degrees): two wobbles a direction, a dozen or two a second, their phases the hit's own; at most 0.45
+// degrees at strength 1 (a big hit), never more than 1.2 (the panels' readings still read: the sway's own clamp after).
+[[nodiscard]] glm::vec2 shakeOffset(const State& s)
+{
+    const float k = shakeLeft(s);
+    if(k <= 0.f)
+    {
+        return glm::vec2{0.f};
+    }
+    const float t = s.clock - s.shakeAt, tau = 2.f * glm::pi<float>();
+    const auto phase = [&](unsigned i) { return tau * hash(s.shakeSeed + i * 0x9e3779b9u); };
+    const glm::vec2 wobble{0.75f * za::sin(tau * 12.5f * t + phase(1)) + 0.25f * za::sin(tau * 23.f * t + phase(2)),
+        0.75f * za::sin(tau * 10.5f * t + phase(3)) + 0.25f * za::sin(tau * 19.f * t + phase(4))};
+    const glm::vec2 out = wobble * (0.45f * k);
+    const float len = glm::length(out);
+    return len > 1.2f ? out * (1.2f / len) : out;
+}
+
 // Once a frame, with the view set up (R_RenderView): the clock, the sway and the effects.
 void update()
 {
@@ -136,6 +168,14 @@ void update()
     {
         const float peak = za::clamp(vr_flat_visor_damage.value, 0.f, 2.f) * za::clamp(0.3f + static_cast<float>(lost) / 40.f, 0.f, 1.f);
         s.glitch = za::max(s.glitch, za::min(peak, 0.85f));
+        // The shake: the stronger of this hit's and what is left of the last.
+        const float kick = za::clamp(vr_flat_visor_shake.value, 0.f, 3.f) * za::clamp(0.25f + static_cast<float>(lost) / 50.f, 0.f, 1.f);
+        if(kick > 0.f && kick >= shakeLeft(s))
+        {
+            s.shakePeak = kick;
+            s.shakeAt = s.clock;
+            s.shakeSeed = static_cast<unsigned>(host_framecount) * 2246822519u + static_cast<unsigned>(lost);
+        }
     }
     s.glitch = za::max(0.f, s.glitch - dt / 0.4f);
     s.lastWorld = cl.worldmodel;
@@ -210,7 +250,14 @@ void update()
     }
     s.bobPhase = za::fmod(s.bobPhase + dt * bobRate * za::max(speed / 320.f, 0.3f) * 2.f * glm::pi<float>(), 2.f * glm::pi<float>());
     const glm::vec2 bob = s.bobAmp * sway * glm::vec2{bobSide * za::sin(s.bobPhase), bobUp * za::sin(2.f * s.bobPhase)};
-    s.sway = s.lag + bob;
+    s.shake = shakeOffset(s);
+    s.sway = s.lag + bob + s.shake;
+
+    // The low panel fades away while it has no lines (the last frame's: the gadget draws them after the view), and back
+    // at once when a message arrives.
+    const bool logEmpty = gadget::visorLogLines() <= 0;
+    s.logFade = vr_flat_visor_autohide_log.value != 0.f && logEmpty ? za::max(0.f, s.logFade - dt / 0.5f)
+                                                                     : za::min(1.f, s.logFade + dt / 0.15f);
 
     // The power-on sweep: each panel in turn.
     const float boot = vr_flat_visor_boot.value;
@@ -293,7 +340,8 @@ void drawGlass(float aspect)
 #include "vr_visor_mounts.inc" // the mounts on the edges, the lens, the glass and metal look
 
 // The panels' layer (supersampled: vr_flat_visor_ss) and the pass that brings it down onto the view, with the moving
-// scanlines over the panels alone (vr_flat_visor_scanlines, _scanline_speed).
+// scanlines over the panels alone (vr_flat_visor_scanlines, _scanline_speed, _scanline_width) and the frosted glass
+// behind the mounts (vr_flat_visor_glass_*).
 constexpr const char* layerVs = R"(#version 430
 void main()
 {
@@ -302,11 +350,17 @@ void main()
 }
 )";
 // The view's pixel: the mean of its ss x ss layer texels (premultiplied); over what the panels cover, dark lines every
-// Scan.y pixels drifting by Scan.z, and a faint bright band rolling down at Scan.w.
+// Scan.y pixels drifting by Scan.z, and a faint bright band rolling down at Scan.w. Under it, where the mounts are
+// (Mask), the view behind blurred (Glass), bent by a ripple through the glass and towards the mounts' edges like a lens
+// rim, drained of colour and tinted.
 constexpr const char* layerFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Layer;
+layout(binding = 1) uniform sampler2D Glass;
+layout(binding = 2) uniform sampler2D Mask;
 layout(location = 0) uniform vec4 Rect; // the view's corner in the target, the supersampling, the view's height
 layout(location = 1) uniform vec4 Scan; // strength, period (pixels), drift (pixels), the band's height (pixels from the bottom)
+layout(location = 2) uniform vec4 GlassP; // on (0: no glass), its bend (pixels), its tint, its colour drained
+layout(location = 3) uniform vec4 GlassC; // the tint's colour, how far in from the mounts' edges they bend it (pixels)
 layout(location = 0) out vec4 Out;
 void main()
 {
@@ -325,7 +379,40 @@ void main()
         float band = exp(-d * d);
         c.rgb *= (1.0 - 0.6 * Scan.x * lines) * (1.0 + 1.2 * Scan.x * band);
     }
+    if (GlassP.x > 0.0)
+    {
+        vec2 size = vec2(textureSize(Layer, 0)) / float(ss);
+        vec2 uv = p / size;
+        float m = texture(Mask, uv).r;
+        if (m > 0.0)
+        {
+            vec2 e = vec2(GlassC.w) / size;
+            vec2 g = vec2(texture(Mask, uv + vec2(e.x, 0.0)).r - texture(Mask, uv - vec2(e.x, 0.0)).r,
+                texture(Mask, uv + vec2(0.0, e.y)).r - texture(Mask, uv - vec2(0.0, e.y)).r);
+            vec2 q = p * (1080.0 / Rect.w);
+            vec2 ripple = vec2(sin(q.y * 0.071 + 1.3 * sin(q.x * 0.023)), sin(q.x * 0.064 + 1.7 * sin(q.y * 0.029)));
+            vec3 b = texture(Glass, uv + GlassP.y * (2.0 * ripple - 8.0 * g) / size).rgb;
+            float luma = dot(b, vec3(0.299, 0.587, 0.114));
+            b = mix(b, vec3(luma), GlassP.w);
+            b = mix(b, luma * GlassC.rgb, GlassP.z);
+            c.rgb += (1.0 - c.a) * m * b;
+            c.a += (1.0 - c.a) * m;
+        }
+    }
     Out = c;
+}
+)";
+// The glass's blur: one Kawase pass, four bilinear taps P.z texels out diagonally (a texel: P.xy).
+constexpr const char* blurFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Src;
+layout(location = 0) uniform vec4 P;
+layout(location = 0) out vec4 Out;
+void main()
+{
+    vec2 uv = gl_FragCoord.xy * P.xy;
+    vec2 o = P.xy * P.z;
+    Out = 0.25 * (texture(Src, uv + o) + texture(Src, uv - o) + texture(Src, uv + vec2(o.x, -o.y)) +
+        texture(Src, uv + vec2(-o.x, o.y)));
 }
 )";
 
@@ -338,26 +425,54 @@ struct LayerPass
     za::Vector<gfx::Vertex> tris;
     za::Vector<gfx::Vertex> glows;
     Ring ring;
+    // Where the layer went last (the bullet-time look leaves it alone: tintMask): the frame, the view in the target.
+    int drawnFrame{-1};
+    glm::vec4 drawnRect{0.f};
 };
 LayerPass layerPass;
+
+// The frosted glass (vr_flat_visor_glass_*): the view at half its size, blurred back and forth between two targets, and
+// the mounts' shapes at that size (each its fade: the boot's, the autohide's, death's).
+struct GlassPass
+{
+    GLuint blur{0};
+    bool failed{false};
+    gfx::RenderTarget sceneA, sceneB;
+    gfx::RenderTarget mask;
+    za::Vector<gfx::Vertex> shapes; // this frame's (empty: no glass)
+    bool on{false};                 // this frame
+};
+GlassPass glassPass;
 
 [[nodiscard]] glm::vec4 premul(const glm::vec3& rgb, float a)
 {
     return {rgb * a, a};
 }
 
-void drawList(za::Vector<gfx::Vertex>& v, gfx::Blend blend)
+void drawList(za::Vector<gfx::Vertex>& v, gfx::Blend blend, gfx::Shade shade = gfx::Shade::Color)
 {
     if(!v.empty())
     {
-        gfx::draw({v.data(), v.size()}, glm::mat4{1.f},
-            {.shade = gfx::Shade::Color, .blend = blend, .depthTest = false, .depthWrite = false});
+        gfx::draw({v.data(), v.size()}, glm::mat4{1.f}, {.shade = shade, .blend = blend, .depthTest = false, .depthWrite = false});
     }
     v.clear();
 }
 
+// vr_flat_visor_depth_color: "r g b" (0..1), or the face's own darker (empty, or unreadable: false).
+[[nodiscard]] bool plateColour(glm::vec3& out)
+{
+    float r = 0.f, g = 0.f, b = 0.f;
+    if(std::sscanf(vr_flat_visor_depth_color.string, "%f %f %f", &r, &g, &b) != 3)
+    {
+        return false;
+    }
+    out = glm::clamp(glm::vec3{r, g, b}, glm::vec3{0.f}, glm::vec3{1.f});
+    return true;
+}
+
 // The mounts and their contents (vr_flat_visor_panels: which), the sway moving them all, zoomed and through the lens.
-// Into the layer (premultiplied): each panel's back plate, face, contents and glint, glows, frame and its highlight.
+// Into the layer (premultiplied): each panel's back plate and its bevel, face, contents, glint, glows, frame and its
+// highlight; the mounts' shapes for the glass (glassPass.shapes, when it is on).
 void drawPanels(int viewW, int viewH, float tx)
 {
     Layer L;
@@ -365,13 +480,22 @@ void drawPanels(int viewW, int viewH, float tx)
     L.h = static_cast<float>(viewH);
     L.px1080 = L.h / 1080.f;
     const float scale = za::clamp(vr_flat_visor_scale.value, 0.5f, 2.f);
-    // A virtual pixel: the vitals' 62 rows 11.5% of the view's height at scale 1; smaller where the bottom's three
-    // mounts (527 across with their gaps) or the top's two (318) would not fit across.
+    // A virtual pixel: the vitals' 62 rows 11.5% of the view's height at scale 1; smaller where a narrow screen would not
+    // fit the top corners' two mounts (318 across), nor the log's mount between them at about its size (527: then the
+    // log's own fit, logFit, shrinks it alone).
     L.unit = za::min(za::min(static_cast<float>(viewH) * 0.115f * scale / 62.f, L.w / 527.f), L.w / 318.f);
     L.k = za::clamp(vr_flat_visor_warp.value, -0.2f, 0.2f);
     L.zoom = za::clamp(vr_flat_visor_zoom.value, 0.85f, 1.2f);
     L.overhang = {0.3f * L.w / L.unit, 0.3f * L.h / L.unit}; // (past 1 + k and the sway at every aspect, zoomed to 0.85)
-    // The sway: degrees to pixels at this field of view, never more than most of the contents' inset.
+    L.sideOut = za::clamp(vr_flat_visor_side_out.value, 0.2f, 4.f);
+    L.logOut = za::clamp(vr_flat_visor_log_out.value, 0.2f, 4.f);
+    {
+        const glm::vec2 vitals = gadget::visorImage(gadget::VisorVitals).size, status = gadget::visorImage(gadget::VisorStatus).size;
+        const float cornerReach = mountInset + za::max(vitals.x, status.x) + mountPad;
+        L.logScale = logFit(L, gadget::visorImage(gadget::VisorLog).size, cornerReach, za::clamp(vr_flat_visor_log_width.value, 0.3f, 2.f));
+    }
+    // The sway (and a hit's shake in it): degrees to pixels at this field of view, never more than most of the contents'
+    // inset.
     const glm::vec2 sway{glm::tan(glm::radians(state.sway.x)), glm::tan(glm::radians(state.sway.y))};
     const float most = 0.8f * mountInset * L.unit;
     L.shift = glm::clamp(glm::vec2{sway.x, -sway.y} / tx * (L.w * 0.5f), glm::vec2{-most}, glm::vec2{most});
@@ -391,8 +515,19 @@ void drawPanels(int viewW, int viewH, float tx)
     const float glowOut = za::clamp(vr_flat_visor_glow_outer.value, 0.f, 2.f);
     const float glowIn = za::clamp(vr_flat_visor_glow_inner.value, 0.f, 2.f);
     const float glowWidth = za::clamp(vr_flat_visor_glow_width.value, 1.f, 60.f) * L.px1080;
+    // The back plate (vr_flat_visor_depth_*).
+    const float plateAlpha = za::min(1.f, opacity * za::clamp(vr_flat_visor_depth_opacity.value, 0.f, 2.f));
+    const float plateSize = za::clamp(vr_flat_visor_depth_size.value, 0.f, 60.f) * L.px1080;
+    const float plateOffset = za::clamp(vr_flat_visor_depth_offset.value, 0.f, 20.f) * L.px1080;
+    const float plateParallax = za::max(-1.f, 1.f - za::clamp(vr_flat_visor_depth_lag.value, 0.f, 1.f) * depth);
+    const float contentParallax = za::max(0.f, 1.f - za::clamp(vr_flat_visor_depth_content_lag.value, 0.f, 1.f) * depth);
+    const float plateBevel = za::clamp(vr_flat_visor_depth_bevel.value, 0.f, 2.f);
+    const float plateBevelWidth = za::clamp(vr_flat_visor_depth_bevel_width.value, 0.5f, 12.f) * L.px1080;
+    glm::vec3 plateOwn{0.f};
+    const bool plateOwnColour = plateColour(plateOwn);
     LayerPass& lp = layerPass;
     Ring& ring = lp.ring;
+    za::Vector<gfx::Vertex>* shapes = glassPass.on ? &glassPass.shapes : nullptr;
 
     for(int p = 0; p < VisorPanelCount; p++)
     {
@@ -405,44 +540,69 @@ void drawPanels(int viewW, int viewH, float tx)
         }
         const float b = state.input.boot[p];
         const float stutter = b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
-        const float fade = state.fade * flicker * stutter;
+        const float hide = p == gadget::VisorLog ? smoothstep(0.f, 1.f, state.logFade) : 1.f; // (vr_flat_visor_autohide_log)
+        const float fade = state.fade * flicker * stutter * hide;
         const float mountFade = fade * smoothstep(0.f, 0.2f, b);
         if(fade <= 0.f)
         {
             continue;
         }
-        const Mount m = mountOf(L, p, img.size);
+        const Mount m = mountOf(L, p, p == gadget::VisorLog ? img.size * L.logScale : img.size);
         // The vitals' mount pulses red at low health (its face, its line and its glows).
         const float alarm = p == gadget::VisorVitals ? state.alarm : 0.f;
-        const glm::vec3 faceRgb = glm::mix(colors.face, glm::vec3{0.16f, 0.015f, 0.01f}, za::clamp(alarm, 0.f, 1.f) * 0.85f);
+        const glm::vec3 alarmFace{0.16f, 0.015f, 0.01f};
+        const glm::vec3 faceRgb = glm::mix(colors.face, alarmFace, za::clamp(alarm, 0.f, 1.f) * 0.85f);
         const glm::vec3 lineRgb = glm::mix(colors.line, colors.warn, za::clamp(alarm * 1.5f, 0.f, 1.f));
-        // The contents' top and bottom as seen (the face's sheen runs down them).
-        const glm::vec2 c0 = shownPx(L, localToPx(L, p, m.lo)), c1 = shownPx(L, localToPx(L, p, m.hi));
-        const glm::vec2 topBottom{za::min(c0.y, c1.y), za::max(c0.y, c1.y)};
 
         // The back plate: a little behind (towards the view's middle, as a deeper thing seen from the eye) and lagging the
-        // sway, darker, a dim line round it.
+        // sway, darker (or its own colour), a dim line round it and its bevel lit from above.
         if(depth > 0.f)
         {
             const MountPlace& place = mountPlaces[p];
             const glm::vec2 toMiddle = glm::normalize(glm::vec2{0.5f - place.anchor.x, 0.5f - place.anchor.y} * glm::vec2{L.w, L.h});
-            ringOf(L, p, m, 1.f - 0.35f * depth, toMiddle * (3.f * depth * L.px1080), ring);
-            face(L, ring, premul(faceRgb * 0.55f, opacity * 0.9f * mountFade), topBottom, 0.f, lp.tris);
+            ringOf(L, p, m, plateParallax, toMiddle * (plateOffset * depth), ring);
+            grow(ring, plateSize);
+            const glm::vec3 plateRgb = plateOwnColour
+                                           ? glm::mix(plateOwn, alarmFace * 0.55f, za::clamp(alarm, 0.f, 1.f) * 0.85f)
+                                           : faceRgb * 0.55f;
+            face(L, ring, premul(plateRgb, plateAlpha * mountFade), glm::vec2{0.f, 1.f}, 0.f, lp.tris);
             line(L, ring, 0.f, za::max(1.f, edge * 0.75f), premul(lineRgb * 0.35f, 0.8f * mountFade), 0.f, lp.tris);
+            if(plateBevel > 0.f)
+            {
+                // Its rim inside the line: light on the faces turned up, shadow on those turned down.
+                const float in0 = -za::max(0.5f, edge * 0.375f), in1 = in0 - plateBevelWidth;
+                const glm::vec3 lit = glm::mix(plateRgb, glm::vec3{1.f}, 0.55f);
+                band(L, ring, in0, in1, premul(lit, 0.3f * plateBevel * mountFade), glm::vec4{0.f}, 1.f, lp.tris, true);
+                band(L, ring, in0, in1, premul(glm::vec3{0.f}, 0.35f * plateBevel * mountFade), glm::vec4{0.f}, -1.f, lp.tris, true);
+            }
             drawList(lp.tris, gfx::Blend::Premultiplied);
+            if(shapes)
+            {
+                face(L, ring, premul(glm::vec3{1.f}, mountFade), glm::vec2{0.f, 1.f}, 0.f, *shapes);
+            }
         }
 
-        // The face, its sheen.
+        // The face, its sheen down the whole of it as seen (its top to its bottom on the screen).
         ringOf(L, p, m, 1.f, glm::vec2{0.f}, ring);
-        face(L, ring, premul(faceRgb, opacity * mountFade), topBottom, sheen, lp.tris);
+        const glm::vec4 box = shownBox(L, ring);
+        face(L, ring, premul(faceRgb, opacity * mountFade), glm::vec2{box.y, box.w}, sheen, lp.tris);
         drawList(lp.tris, gfx::Blend::Premultiplied);
+        if(shapes)
+        {
+            face(L, ring, premul(glm::vec3{1.f}, mountFade), glm::vec2{0.f, 1.f}, 0.f, *shapes);
+        }
 
-        // The contents, a little behind the glass (lagging the sway a touch), the glass's glint over them.
+        // The contents, a little behind the glass (lagging the sway a touch), the glass's glint over the whole face.
         drawContents(L, p, m, img,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
                 .params = {time, crt, g, gadget::textGlow()}, .screen = {img.size.x, img.size.y, 0.5f}, .trueColor = true,
                 .inkAlpha = fade},
-            phosphor, 1.f - 0.12f * depth, sheen * mountFade, out.rect);
+            phosphor, contentParallax, out.rect);
+        if(sheen > 0.f)
+        {
+            glint(L, ring, box, sheen * mountFade, lp.glows);
+            drawList(lp.glows, gfx::Blend::Additive, gfx::Shade::SoftEdge);
+        }
 
         // The glows (added: premultiplied with no alpha), the frame lit from above and its inner highlight.
         const float half = edge * 0.5f;
@@ -484,6 +644,59 @@ void drawPanels(int viewW, int viewH, float tx)
     return !layerPass.failed;
 }
 
+// The glass's settings now: on (some blur or bend), and its program and targets ready for a w x h view.
+[[nodiscard]] bool glassReady(int w, int h)
+{
+    GlassPass& gp = glassPass;
+    if(vr_flat_visor_glass_blur.value <= 0.f && vr_flat_visor_glass_distort.value <= 0.f)
+    {
+        return false;
+    }
+    if(!gp.blur && !gp.failed)
+    {
+        gp.blur = gfx::glProgram(layerVs, blurFs, "vr visor glass blur");
+        gp.failed = !gp.blur;
+    }
+    const int hw = za::max(1, w / 2), hh = za::max(1, h / 2);
+    const gfx::RenderTargetFormat color{.internalFormat = GL_RGB10_A2};
+    return !gp.failed && gp.sceneA.ensure(hw, hh, color, "vr visor glass a") && gp.sceneB.ensure(hw, hh, color, "vr visor glass b") &&
+           gp.mask.ensure(hw, hh, gfx::RenderTargetFormat{.internalFormat = GL_R8}, "vr visor glass mask");
+}
+
+// The view behind the visor (`framebuffer` at x, y, w x h) at half its size, blurred by vr_flat_visor_glass_blur (pixels
+// at 1080p): Kawase passes at growing distances, as many as its square root wants (at most 6). The blurred copy's texture.
+[[nodiscard]] GLuint glassBlur(unsigned framebuffer, int x, int y, int w, int h)
+{
+    GlassPass& gp = glassPass;
+    const int hw = gp.sceneA.width, hh = gp.sceneA.height;
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, framebuffer);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, gp.sceneA.fbo);
+    GL_BlitFramebufferFunc(x, y, x + w, y + h, 0, 0, hw, hh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    const float radius = za::clamp(vr_flat_visor_glass_blur.value, 0.f, 40.f) * static_cast<float>(h) / 1080.f * 0.5f; // (half size)
+    if(radius < 0.5f)
+    {
+        return gp.sceneA.tex;
+    }
+    const int passes = za::clamp(static_cast<int>(std::ceil(std::sqrt(2.f * radius))), 1, 6);
+    const float step = za::clamp(radius / (0.5f * static_cast<float>(passes * passes)), 0.5f, 3.f);
+    GL_UseProgram(gp.blur);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    glViewport(0, 0, hw, hh);
+    gfx::RenderTarget* from = &gp.sceneA;
+    gfx::RenderTarget* to = &gp.sceneB;
+    for(int i = 0; i < passes; i++)
+    {
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, to->fbo);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, from->tex);
+        GL_Uniform4fFunc(0, 1.f / static_cast<float>(hw), 1.f / static_cast<float>(hh), (static_cast<float>(i) + 0.5f) * step, 0.f);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        gfx::RenderTarget* const was = from;
+        from = to;
+        to = was;
+    }
+    return from->tex;
+}
+
 void draw(unsigned framebuffer, int x, int y, int w, int h)
 {
     if(w < 16 || h < 16)
@@ -511,11 +724,25 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
         GL_EndGroup();
         return;
     }
+    // The frosted glass: the view behind blurred now (with the visor's rim and fog on it), the mounts' shapes with the
+    // panels.
+    GlassPass& gp = glassPass;
+    gp.on = glassReady(w, h);
+    gp.shapes.clear();
+    const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h) : 0u;
+
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, lp.target.fbo);
     glViewport(0, 0, w * ss, h * ss);
     glClearColor(0.f, 0.f, 0.f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT);
     drawPanels(w, h, ty * aspect);
+    if(gp.on)
+    {
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, gp.mask.fbo);
+        glViewport(0, 0, gp.mask.width, gp.mask.height);
+        glClear(GL_COLOR_BUFFER_BIT);
+        drawList(gp.shapes, gfx::Blend::Premultiplied);
+    }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebuffer);
     glViewport(x, y, w, h);
@@ -528,9 +755,26 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     const float drift = static_cast<float>(za::fmod(realtime * static_cast<double>(vr_flat_visor_scanline_speed.value) * px, 100000.0));
     const float bandY = static_cast<float>(h) * (1.f - static_cast<float>(za::fmod(realtime * 0.12, 1.0))); // (rolling down)
     GL_Uniform4fFunc(0, static_cast<float>(x), static_cast<float>(y), static_cast<float>(ss), static_cast<float>(h));
-    GL_Uniform4fFunc(1, scan, za::max(2.f, 3.f * px), drift, bandY);
+    GL_Uniform4fFunc(1, scan, za::max(2.f, za::clamp(vr_flat_visor_scanline_width.value, 1.5f, 16.f) * px), drift, bandY);
+    if(gp.on)
+    {
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, behind);
+        GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, gp.mask.tex);
+        // The tint: the screens' colour at its brightest component's 1 (the view's brightness kept).
+        const glm::vec3 tint{gadget::visorPhosphor()};
+        const glm::vec3 tintRgb = tint / za::max(1e-3f, za::max(tint.x, za::max(tint.y, tint.z)));
+        GL_Uniform4fFunc(2, 1.f, za::clamp(vr_flat_visor_glass_distort.value, 0.f, 3.f) * px,
+            za::clamp(vr_flat_visor_glass_tint.value, 0.f, 1.f), za::clamp(vr_flat_visor_glass_desat.value, 0.f, 1.f));
+        GL_Uniform4fFunc(3, tintRgb.x, tintRgb.y, tintRgb.z, 8.f * px);
+    }
+    else
+    {
+        GL_Uniform4fFunc(2, 0.f, 0.f, 0.f, 0.f);
+    }
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // (what GLS_BLEND_ALPHA expects)
+    lp.drawnFrame = host_framecount;
+    lp.drawnRect = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h)};
     GL_EndGroup();
 }
 
@@ -541,6 +785,8 @@ void report_f()
                "fade %.3f alarm %.3f boot %.2f %.2f %.2f; log lines %d\n",
         active() ? 1 : 0, host_framecount, s.sway.x, s.sway.y, s.lag.x, s.lag.y, s.bobAmp, s.glitch, s.fog,
         s.underwater ? 1 : 0, s.fade, s.alarm, s.input.boot[0], s.input.boot[3], s.input.boot[6], gadget::visorLogLines());
+    Con_Printf("visor: shake %.3f (%.3f %.3f) logfade %.3f glass %d\n", shakeLeft(s), s.shake.x, s.shake.y, s.logFade,
+        glassPass.on ? 1 : 0);
     constexpr const char* names[VisorPanelCount] = {"vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright"};
     for(int p = 0; p < VisorPanelCount; p++)
     {
@@ -584,6 +830,17 @@ bool active()
 bool logShown()
 {
     return active() && vr_flat_visor_log.value != 0.f;
+}
+
+unsigned tintMask(glm::vec4& rect)
+{
+    const LayerPass& lp = layerPass;
+    if(vr_flat_visor_no_bt_tint.value == 0.f || lp.drawnFrame != host_framecount || !lp.target.tex || !active())
+    {
+        return 0;
+    }
+    rect = lp.drawnRect;
+    return lp.target.tex;
 }
 
 void renderPanels()
