@@ -10,6 +10,7 @@
 #   hit       vr_flat_visor_fx damage 60: the glitch at once, gone 0.5 s later
 #   water     under the start map's pool: the fog up, the eye under water; surfaced: clearing, then clear
 #   boot      vr_flat_visor_fx boot: the sweep under way, then done
+#   lens      vr_flat_visor_warp -0.15 with vr_flat_visor_zoom 0.92, then 0.15 with 1.05: every mount still meets the edges
 #   status    the old status bar's room: vr_flat_visor 0 gives VR_VisorOn 0 (report: active 0)
 # The screenshots (scratch/visor_strip.png): rest, three turning, settled, two walking.
 # Prints PASS/FAIL lines and "visor_test: N passed, M failed"; exits 1 on a failure.
@@ -20,7 +21,7 @@ S=$WT/scratch
 mkdir -p "$S"
 LOG=$S/visor_test.log
 R="vr_flat_visor_report"
-SCRIPT="map e1m1; wait60; god; notarget; wait60; echo visor_test: rest; $R; screenshot; +right; wait4; echo visor_test: turn; $R; screenshot; wait4; screenshot; wait4; $R; screenshot; -right; wait36; echo visor_test: settle; $R; screenshot; +forward; wait30; echo visor_test: walk; $R; screenshot; wait9; $R; screenshot; -forward; wait90; echo visor_test: still; $R; vr_flat_visor_fx damage 60; wait1; echo visor_test: hit; $R; wait36; echo visor_test: hit later; $R; map start; wait60; setpos 536 1440 100; wait45; echo visor_test: water; $R; setpos 544 288 28; wait36; echo visor_test: surfaced; $R; wait144; echo visor_test: dry; $R; vr_flat_visor_fx boot; wait20; echo visor_test: boot; $R; wait60; echo visor_test: booted; $R; vr_flat_visor 0; wait3; echo visor_test: off; $R; echo visor_test: end"
+SCRIPT="map e1m1; wait60; god; notarget; wait60; echo visor_test: rest; $R; screenshot; +right; wait4; echo visor_test: turn; $R; screenshot; wait4; screenshot; wait4; $R; screenshot; -right; wait36; echo visor_test: settle; $R; screenshot; +forward; wait30; echo visor_test: walk; $R; screenshot; wait9; $R; screenshot; -forward; wait90; echo visor_test: still; $R; vr_flat_visor_fx damage 60; wait1; echo visor_test: hit; $R; wait36; echo visor_test: hit later; $R; map start; wait60; setpos 536 1440 100; wait45; echo visor_test: water; $R; setpos 544 288 28; wait36; echo visor_test: surfaced; $R; wait144; echo visor_test: dry; $R; vr_flat_visor_fx boot; wait20; echo visor_test: boot; $R; wait60; echo visor_test: booted; $R; vr_flat_visor_warp -0.15; vr_flat_visor_zoom 0.92; wait3; echo visor_test: pincushion; $R; vr_flat_visor_warp 0.15; vr_flat_visor_zoom 1.05; wait3; echo visor_test: barrel; $R; vr_flat_visor_warp 0.08; vr_flat_visor_zoom 1; vr_flat_visor 0; wait3; echo visor_test: off; $R; echo visor_test: end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Clean -Out "$S/visor_strip.png" -QuitOn "visor_test: end" \
     -Filter "^visor" -Script "$SCRIPT; toggleconsole; quit" > "$LOG" 2>&1
 python "$WT/Misc/quakevr/visor_check.py" "$LOG"

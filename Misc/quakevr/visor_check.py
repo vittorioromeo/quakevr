@@ -70,7 +70,7 @@ if inside:
     mirror = all(abs(P[a][1] + P[b][3] - P[a][5]) < 1.5 and abs(P[a][2] - P[b][2]) < 1.5
                  for a, b in (("lefthand", "righthand"), ("sideleft", "sideright")))
     check(mirror, "rest: left and right mirrored (the hands' panels, the side mounts)")
-for ph in ("rest", "turn", "walk"):
+for ph in ("rest", "turn", "walk", "pincushion", "barrel"):  # (the lens at -0.15 zoomed 0.92, and at 0.15 zoomed 1.05)
     pan = phases.get(ph, {"panels": {}})["panels"]
     check(len(pan) == 7 and all(v[7] == 1 for v in pan.values()),
           f"{ph}: every mount meets the screen's edges with no gap ({ {k: v[7] for k, v in pan.items()} })")

@@ -380,7 +380,8 @@ vec4 screen()
         // The visor's panels (vr_visor.cpp): the dark face at the vertex alpha over the view, what is lit on it (the
         // values, the icons, their glow) towards opaque by its brightness.
         float ink = smoothstep(0.08, 0.4, max(rgb.r, max(rgb.g, rgb.b)));
-        return vec4(rgb, mix(color.a, 1.0, ink) * InkAlpha);
+        float a = mix(color.a, 1.0, ink) * InkAlpha;
+        return vec4(rgb * a, a); // (premultiplied: drawn with Blend::Premultiplied)
     }
     return vec4(rgb, color.a); // (opaque but for the tips' fading screens over the scene: text3d::queueOverlayScreen)
 }
