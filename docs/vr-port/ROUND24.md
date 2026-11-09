@@ -6900,3 +6900,70 @@ Left (proposals):
 - The world's made normal maps on jobs like the skins' (VR_SkinNormalsPost: one path for both).
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
+
+## Model rendering's GPU cost: your models first, your hands and gun shaded once (branch `agent/model_gpu`, 2026-11-09)
+
+His question (perf_1109: `alias` 0.50 / 0.72 ms GPU average / fight, his own models 0.41 / 0.50 of it, the held gun
+0.28 / 0.36). Measured in the flat gore fight (`play_gore_fight_flat`) and E1M1 fight at his window (3440x1441,
+`-fsaa 4`, his whole config: `vid_fsaamode 1`, 4x per-sample shading), ThinLTO, exclusive, 900-frame bench windows.
+
+**The tool:** `vr_model_fragments [passes]` (Debug > Profiling and Memory > Model Fragment Counts): over the next 16
+opaque model passes, each part's GPU time, vertices, triangles, fragment shader runs and samples kept (the world's
+models, your own by VR_DRAW_* group, the world+brush pass), read at once (a stall). Nsight Graphics' GPU Trace export
+has no per-draw table for OpenGL (its KHR_debug groups export empty; perf_1109), so the per-part numbers are these
+pipeline-statistics queries and A/B timings.
+
+**The bottleneck: fragments, not vertices.** At 3440x1441 in the gore fight (a pass, before):
+
+| part | GPU ms | vertices | triangles | fragments shaded | samples kept |
+|---|---|---|---|---|---|
+| your hands (2) | 0.281 | 2.7 k | 2.5 k | 923 k | 487 k |
+| your body (5 models, own pre-pass) | 0.215 | 31 k | 30 k | 646 k | 1298 k (pre-pass + shading) |
+| held gun (2) | 0.309 | 1.8 k | 1.2 k | 1499 k | 1095 k |
+| world's models (112: monsters, gibs, corpses) | 0.759 | 222 k | 128 k | 2532 k | 5428 k (pre-pass + shading) |
+| world + brush | 1.540 | 15 k | 7 k | 11919 k | 32596 k |
+
+Your hands and gun are tiny meshes (under 3 k triangles: the dense models are the monsters' and your body's, all
+cheap to transform here) that cover a big share of the screen at 4 samples a pixel: the cost is the alias shader
+(PBR, normal maps, skin masks, wounds) run per sample, and run **twice over** on the hands (the glove's shell over the
+hand, the fingers over the palm: 1.9 fragments per kept sample) and 1.4 times on the gun's own parts, with no depth
+pre-pass for either (only your body and the world's models had one). And the world under them: drawn before them,
+its costly shading ran on every pixel they then covered (about 12% of the frame's world fragments in this view).
+The world's models are already pre-passed and fragment-bound too (2.5 M fragments for 128 k triangles): LODs would
+cut vertices that cost little; shadow maps are 0.08 ms of GPU (a CPU cost: perf_fight).
+
+**Changed** (both Debug > Profiling and Memory toggles, default on; off = before):
+- `vr_alias_player_first 1` ("Your Models First"): your own opaque models (hands, body, held, holstered, worn) drawn
+  before the world in each view (gl_rmain.c R_DrawEntitiesOnList; r_alias.c R_AliasDrawsFirst, vr_render.cpp
+  VR_AliasPlayerFirst), so the world's depth pre-pass and shading skip the pixels they cover. Opaque depth-tested
+  draws give the same picture in either order; discarded pixels (a morph, a gate) leave the depth for the world to
+  fill. Models with blended skin texels (TEXPREF_ALPHAPIXELS) or holey ones, the ghost hands, the mirror's image and
+  gear lying about stay after the world. Not in single-pass stereo's phases (the world is drawn in the multiview pass).
+  One path for flat and VR (each eye's view).
+- `vr_alias_prepass_own 1` ("Own Models Pre-pass"): your hands and held items join the existing per-batch depth
+  pre-pass (vr_render.cpp VR_AliasDepthPrepass; the same code as the body's), except while a gun morphs (its shader
+  discards the part not there yet, which a depth-only pass would not).
+
+**Results** (same scene, GPU ms per frame, averages of the bench windows):
+
+| | GPU `3D` | world+brush | alias | frame p50 |
+|---|---|---|---|---|
+| gore fight flat, before (2 reps) | 5.17, 4.99 | 2.07, 2.09 | 1.68, 1.60 | 8.57, 8.21 |
+| + your models first (2 reps) | 4.75, 4.71 | 1.84, 1.84 | 1.60, 1.59 | 8.10, 7.76 |
+| + own pre-pass (2 reps) | **4.31, 4.36** | 1.79, 1.81 | **1.23, 1.23** | 7.36, 7.53 |
+| E1M1 fight flat, own pre-pass on, models first off / on (2 reps) | 4.96, 4.94 / **4.72, 4.73** | 3.08 / 2.86 | 0.48 / 0.50 | |
+| gore fight VR mock (2048 eyes), models first off / on (1 rep) | 4.41 / 4.42 | 2.20 / 2.20 | 1.02 / 1.06 | |
+
+So **-0.75 ms GPU in the flat gore fight (15% of the 3D view)**, -0.22 ms in the E1M1 fight; per part (counts,
+full size): hands 0.281 -> 0.139 ms, held 0.309 -> 0.137, world+brush 1.540 -> 1.369, the world's models 0.759 ->
+0.706 (fewer behind your gun). VR: no change in the mock's view (your hands are a small share of an eye's view
+there); the pre-pass applies to VR's hands too. No CPU cost (the same draws; the pre-pass adds 5 k vertices).
+**Same picture:** screenshots of the same fixed-clock frame with both off / both on at 3440x1441: max difference 1
+of 255, 0 pixels over 8 (also at 960x540; a weapon switch's morph was not caught on screen: check one in play). Tests: flathud 11/0, `vr_pp_test 1` 63/0,
+checklist_tests_check 103/0, scenario_check 99 files 0 errors, 98 of 99 run (`flat_visor`: "Nailgun placed in a wall",
+a scene placement, not the renderer).
+
+**Not done** (measured too small here): LODs for distant monsters and gibs (vertex work is cheap; their fragments
+already pre-passed), gib instancing (gibs already batch by model), skipping your body's hidden parts in flat (it has
+its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
+proposal 1) is the big lever, his call.
