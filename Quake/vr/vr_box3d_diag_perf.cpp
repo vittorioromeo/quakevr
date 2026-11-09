@@ -138,15 +138,18 @@ void frametime_f()
     world->frameSamples.clear();
 }
 
-// vr_physics_mtbench [<bodies> [<steps>]]: Box3D on the pool, alone (ROUND21.md, "Box3D on the pool"). A world of its
+// vr_physics_mtbench [<bodies> [<steps> [chains]]]: Box3D on the pool, alone (ROUND21.md, "Box3D on the pool"). A world of its
 // own: a floor, `bodies` boxes (60 cm and 90 cm cubes: a small explosive box, a crate; 200) in leaning columns of 10 that
 // topple into a pile, stepped `steps` times (300) at 1/72 s with vr_box3d_substeps, from the same start with each worker
 // count (1, 2, 3, 4, 6, 8, 16 and all the pool's, as far as the pool goes): each count's step time, its awake bodies and
-// a hash of every body's place, turn and velocities after, which must be the same for every count.
+// a hash of every body's place, turn and velocities after, which must be the same for every count. `chains`: every third
+// column a ragdoll's chain instead (capsules jointed as the ragdolls' limbs: ball and hinge joints with limits, friction
+// and springs), so the joints' solver is in the proof too.
 void mtbench_f()
 {
     const int bodies = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 5000) : 200;
     const int steps = Cmd_Argc() > 2 ? CLAMP(1, Q_atoi(Cmd_Argv(2)), 100000) : 300;
+    const bool chains = Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(3), "chains");
     const int substeps = CLAMP(1, static_cast<int>(vr_box3d_substeps.value), 8);
     const int most = jobs::pool() ? za::min(jobs::workers() + 1, B3_MAX_WORKERS) : 1;
     za::Vector<int> counts;
@@ -185,6 +188,57 @@ void mtbench_f()
         for(int i = 0; i < bodies; i++)
         {
             const int column = i / 10, level = i % 10;
+            if(chains && column % 3 == 2)
+            {
+                // A ragdoll's limbs: capsules (16 cm thick, 56 cm long) on end, each jointed to the one under it as the
+                // ragdolls' are (a ball with cone and twist limits, or a hinge with its limits; joint friction and a
+                // spring), each a little further along x: the chain buckles and falls.
+                b3BodyDef body = b3DefaultBodyDef();
+                body.type = b3_dynamicBody;
+                body.position = b3Pos{static_cast<float>(column % side) * 2.5f + static_cast<float>(level) * 0.05f,
+                    static_cast<float>(column / side) * 2.5f, 0.3f + static_cast<float>(level) * 0.58f};
+                const b3BodyId b = b3CreateBody(id, &body);
+                const b3Capsule capsule{b3Vec3{0.f, 0.f, -0.2f}, b3Vec3{0.f, 0.f, 0.2f}, 0.08f};
+                b3CreateCapsuleShape(b, &shape, &capsule);
+                if(level > 0)
+                {
+                    const auto joint = [&](b3JointDef& base) {
+                        base.bodyIdA = made.back();
+                        base.bodyIdB = b;
+                        base.localFrameA = b3Transform{b3Vec3{0.025f, 0.f, 0.29f}, b3Quat_identity};
+                        base.localFrameB = b3Transform{b3Vec3{-0.025f, 0.f, -0.29f}, b3Quat_identity};
+                    };
+                    if(level % 2)
+                    {
+                        b3SphericalJointDef jd = b3DefaultSphericalJointDef();
+                        joint(jd.base);
+                        jd.enableConeLimit = true;
+                        jd.coneAngle = 0.8f;
+                        jd.enableTwistLimit = true;
+                        jd.lowerTwistAngle = -0.5f;
+                        jd.upperTwistAngle = 0.5f;
+                        jd.enableMotor = true;
+                        jd.maxMotorTorque = 0.5f;
+                        jd.enableSpring = true;
+                        jd.hertz = 2.f;
+                        jd.dampingRatio = 1.f;
+                        b3CreateSphericalJoint(id, &jd);
+                    }
+                    else
+                    {
+                        b3RevoluteJointDef jd = b3DefaultRevoluteJointDef();
+                        joint(jd.base);
+                        jd.enableLimit = true;
+                        jd.lowerAngle = -1.2f;
+                        jd.upperAngle = 0.2f;
+                        jd.enableMotor = true;
+                        jd.maxMotorTorque = 0.5f;
+                        b3CreateRevoluteJoint(id, &jd);
+                    }
+                }
+                made.pushBack(b);
+                continue;
+            }
             const bool big = column % 2 == 1;
             const float half = big ? 0.45f : 0.3f;
             b3BodyDef body = b3DefaultBodyDef();
