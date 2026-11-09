@@ -3578,6 +3578,9 @@ QVR_SLIDER_BYNAME(vr_flat_grade_saturation, "Flat: Saturation", 0.f, 2.f, 0.05f,
 QVR_SLIDER_BYNAME(vr_flat_vignette, "Flat: Vignette", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Flat-screen play: the screen's corners darkened (0 off). Not the headset's comfort vignette.")
 QVR_SLIDER_BYNAME(vr_flat_vignette_size, "Flat: Vignette Size", 0.05f, 1.f, 0.05f, "%.2f", ext(), "How far in from the corners it reaches.")
+QVR_TOGGLE_BYNAME(vr_flat_taa, "Flat: TAA",
+    "Flat-screen play: temporal anti-aliasing, as the headset's TAA: smooth edges and no shimmer on shiny or detailed "
+    "surfaces, for about the GPU time of MSAA on edges. Replaces Anti-aliasing (MSAA) on the window while on. Sharpened by TAA Sharpening.")
 
 // vr_menu_pages.inc: pageGraphicsModels
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",

@@ -1251,7 +1251,8 @@ extern "C" float VR_FlatNearPlane()
 
 extern "C" int VR_SceneSamples(int samples)
 {
-    return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : samples;
+    // (the window's: none under flat-screen play's TAA, vr_flat_taa)
+    return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : temporal::windowSamples(samples);
 }
 
 extern "C" unsigned VR_PostProcessTarget()

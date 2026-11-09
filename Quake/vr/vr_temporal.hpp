@@ -14,6 +14,12 @@ namespace qvr::temporal
 // The eyes' MSAA while temporal AA runs: none (the temporal filter replaces it).
 [[nodiscard]] float eyeFsaa(float fsaa);
 
+// Flat-screen play's window view takes the same TAA (vr_flat_taa; VR_FlatRenderView): wanted this frame, and the
+// window's scene samples (GL_CreateFrameBuffers, VR_SceneSamples, as the window's targets are made): 1 under it (the
+// temporal filter replaces MSAA).
+[[nodiscard]] bool flatWanted();
+[[nodiscard]] int windowSamples(int samples);
+
 // VR_RenderView: once a frame before anything is drawn (the frame's slots for the models' positions), with the eye
 // targets' framebuffers (the motion target is attached to them while the eyes collect).
 void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples);

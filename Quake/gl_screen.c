@@ -2264,7 +2264,7 @@ void SCR_UpdateScreen (void)
 
 	VR_ProfileBeginGPU ("3D"); // QVR: profile
 	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
-		V_RenderView ();
+		VR_FlatRenderView (); // QVR: V_RenderView, with flat-screen play's TAA (vr/vr_temporal.cpp)
 	VR_ProfileEnd (); // QVR
 
 	GL_BeginGroup ("2D");

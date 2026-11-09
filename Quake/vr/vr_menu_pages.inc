@@ -1793,6 +1793,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_flat_grade_saturation),
         row(opt::vr_flat_vignette),
         row(opt::vr_flat_vignette_size),
+        row(opt::vr_flat_taa),
     };
 }
 

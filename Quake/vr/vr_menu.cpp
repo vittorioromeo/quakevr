@@ -2907,7 +2907,7 @@ constexpr const char* vrOnlyCvars[] = {"vr_render_scale", "vr_dynres*", "vr_upsc
     "vr_gamma", "vr_contrast", "vr_bloom", "vr_tonemap", "vr_exposure", "vr_grade*", "vr_water_underwater",
     "vr_water_wobble"};
 constexpr const char* flatOnlyCvars[] = {"vr_flat_tonemap", "vr_flat_bloom", "vr_flat_grade*", "vr_flat_vignette*",
-    "vr_flat_visor*"};
+    "vr_flat_visor*", "vr_flat_taa"};
 
 [[nodiscard]] bool cvarNamed(const cvar_t* cvar, const char* pattern)
 {
