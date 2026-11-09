@@ -2266,7 +2266,7 @@ void SCR_UpdateScreen (void)
 	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
 	{
 		VR_WindowViewBegin (); // QVR: as the eyes' first (the shadow pass's set-ups shared)
-		V_RenderView ();
+		VR_FlatRenderView (); // QVR: V_RenderView, with flat-screen play's TAA (vr/vr_temporal.cpp)
 		VR_WindowViewEnd (); // QVR
 	}
 	VR_ProfileEnd (); // QVR

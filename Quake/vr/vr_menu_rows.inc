@@ -3250,6 +3250,12 @@ QVR_TOGGLE_BYNAME(vr_ammo_pouch_wobble_each, "Wobble Each Round",
 QVR_CYCLE_BYNAME(vid_fsaa, "Anti-aliasing",
     "Multisampling: smoother edges; thin lines such as the gaps between planks stop crawling as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more.",
     {0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"})
+QVR_CYCLE_BYNAME(vid_fsaamode, "Anti-aliasing Shading",
+    "How many of Anti-aliasing's samples each pixel shades (vid_fsaamode). Edges only (the default): polygon edges "
+    "smoothed for little GPU time. Full: every sample shaded, which also smooths shimmer inside surfaces, but costs up to "
+    "the samples' count times the shading (4x Full at 3440x1440: about 2.5 ms more a frame). 25% and 50%: a quarter or half "
+    "of the samples (with 4x, 25% is Edges only). Sheen Anti-Aliasing removes most shimmer for free.",
+    {0.f, "Edges only"}, {0.25f, "25%"}, {0.5f, "50%"}, {1.f, "Full"})
 QVR_CYCLE_BYNAME(vr_texture_smooth, "Smooth Textures",
     "Smooth filtering for high-resolution replacement textures, or for all textures.",
     {0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"})
@@ -3572,6 +3578,9 @@ QVR_SLIDER_BYNAME(vr_flat_grade_saturation, "Flat: Saturation", 0.f, 2.f, 0.05f,
 QVR_SLIDER_BYNAME(vr_flat_vignette, "Flat: Vignette", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Flat-screen play: the screen's corners darkened (0 off). Not the headset's comfort vignette.")
 QVR_SLIDER_BYNAME(vr_flat_vignette_size, "Flat: Vignette Size", 0.05f, 1.f, 0.05f, "%.2f", ext(), "How far in from the corners it reaches.")
+QVR_TOGGLE_BYNAME(vr_flat_taa, "Flat: TAA",
+    "Flat-screen play: temporal anti-aliasing, as the headset's TAA: smooth edges and no shimmer on shiny or detailed "
+    "surfaces, for about the GPU time of MSAA on edges. Replaces Anti-aliasing (MSAA) on the window while on. Sharpened by TAA Sharpening.")
 
 // vr_menu_pages.inc: pageGraphicsModels
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
@@ -5667,7 +5676,8 @@ QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
 QVR_CYCLE(vr_temporal_debug, "Show Motion Vectors",
     "vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
     "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "
-    "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away).",
+    "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away). "
+    "Flat-screen play: the window's, with Flat: TAA on.",
     {0.f, "Off"}, {1.f, "Vectors"}, {2.f, "Reactive Mask"}, {3.f, "Reprojection Test"})
 QVR_TOGGLE_BYNAME(vr_parallax_debug, "Show Parallax Depth",
     "vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "

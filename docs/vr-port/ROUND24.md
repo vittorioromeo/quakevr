@@ -6874,6 +6874,56 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
 
+## Antialiasing: flat TAA, fractional sample shading, specular AA (agent/flat_aa, worktree `selfshot`, 2026-11-09)
+
+His asks (perf_1109: `vid_fsaamode 1` costs ~2.5-2.8 ms GPU at 3440x1441): fractional sample shading in the menus,
+specular AA, alpha to coverage in flat, TAA for flat.
+
+- **Fractional sample shading.** `vid_fsaamode` goes straight to `glMinSampleShading` (gl_vidsdl.c `VID_FSAAMode_f`), so
+  fractions work: ceil(value x samples) samples shaded. Options > AA Mode now cycles Edges only / 25% / 50% / Full (menu.c);
+  new VR row Graphics > Image > "Anti-aliasing Shading" with the cost in its help. With 4x, 25% is 1 sample = Edges only
+  (same timings); it matters at 8x.
+- **Specular AA** already existed (`vr_specular_aa`, default 1, Graphics > Surfaces "Sheen Anti-Aliasing"): the lobe widened
+  by the normal map's mip spread and the screen-space normal derivatives (world, brush, alias, water; `r_framedata`, so flat
+  and VR alike). Nothing changed; its cost measured below (~0-0.15 ms).
+- **Alpha to coverage in flat**: `VR_AlphaToCoverage` asks `framebufs.scene.samples`, which in flat is the window's: on with
+  `vid_fsaa` > 1 in any `vid_fsaamode` (code check, not re-measured). Under flat TAA (no MSAA) fences are alpha-tested and
+  TAA smooths their edges.
+- **Flat TAA** (`vr_flat_taa`, default 0; Graphics > Post-processing > "Flat: TAA"). The eyes' code (vr_temporal.cpp) with the
+  window as a third view (`EyeState` index 2): same jitter (Halton 2,3), motion vectors (alias slots, brush matrices; the
+  hands and guns are world-space models with their own vectors), reactive mask, resolve (before the warp, the flat look's
+  bloom, tone curve and grade, as the eyes' are before theirs), resets (map, frame gap, jump > 40 u, turn > 25 deg) and
+  `vr_taa_sharpen`. The visor, crosshair and 2D are drawn after it (R_RenderView's order). Shared, not copied: `begin()`
+  serves `beginFrame` and `VR_FlatRenderView`; the resolve's size is its history's (`imageSize`, was the scene texture's:
+  the same for the eyes, and lets the window's view be the corner of its larger scene textures, r_scale's 1/N). Flat-only
+  parts: the window's targets made without MSAA while on (`VR_SceneSamples` -> `temporal::windowSamples`, remade on the
+  cvar's change), the scene forced into its own target (`GL_NeedsSceneEffects`) and copied by R_WarpScaleView. MSAA: ignored
+  while TAA is on (not combined). The menu needs no reset: a paused scene converges. A teleporter's offscreen view is never
+  collected now (`collecting()`: `VR_PortalDrawing`), eyes included: before, a portal view drawn inside an eye could take the
+  eye's resolve. `vr_temporal_debug` 1-3 and `vr_temporal_error` work on the flat view too (prints "flat").
+  Optional `vr_flat_render_scale` not done: `r_scale` (integer) already works under it.
+- **VR eyes unchanged**: VR mock eyeshots at e1m1 with `vr_taa 1` and `vr_taa 0`, this branch against next's code: identical
+  (max pixel difference 0, all four).
+- **Numbers** (LTO, `--exclusive`, his `ironwail.cfg` (phases' A_his.cfg) + the variant, `-fsaa 4 -flatscreenmode`, 3440x1441,
+  perf_fight's `play_*_fight_flat`, 900 frames; GPU `3D` avg ms / frame p50 ms; one run each):
+
+  | setting | e1m1 fight | gore fight |
+  |---|---|---|
+  | MSAA 4 Full (his), spec AA off | 5.67 / 8.36 | 5.55 / 9.55 |
+  | MSAA 4 Full + spec AA | 5.70 / 8.40 | 5.71 / 9.30 |
+  | MSAA 4 Edges, spec AA off | 2.79 / 5.51 | 2.93 / 6.29 |
+  | Edges + spec AA | 2.94 / 5.74 | 2.91 / 6.36 |
+  | 25% (= Edges at 4x) + spec AA | 2.79 / 5.47 | 2.89 / 6.19 |
+  | 50% + spec AA | 3.85 / 6.49 | 3.89 / 7.44 |
+  | Flat TAA (no MSAA), spec AA off | 2.88 / 6.51 | 2.93 / 6.68 |
+  | Flat TAA + spec AA | 2.91 / 6.55 | 2.90 / 6.62 |
+
+  TAA's GPU cost is about Edges' (+0.1 ms), but the frame (CPU-bound here) is ~0.4-1.0 ms longer: the motion-vector
+  bookkeeping on the CPU (per-model vertex slots, the draw buffers switched per batch). Not profiled further.
+- **Quality**: scratch shots `aa_crops.png` (Full, Edges, Edges + spec AA, 50%, TAA; a low-impact 960x540 run: indicative
+  only). TAA reprojection in flat: `vr_temporal_error` turning, 0.66 against 4.5 not reprojected (mean |luma|).
+- **Tests**: flathud 11/0, visor_test 24/0, flatxhair_test 31/0, vr_pp_test 1 VR 63/0, flat 62/0, flat with
+  `vr_flat_taa 1` 62/0, checklist_tests_check 101/0. Scene `flat_taa`.
 ## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
 
 His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
