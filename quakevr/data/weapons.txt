@@ -502,7 +502,8 @@ weapon 1
     wpntxt_yaw "-0.05"
     wpntxt_z "0.6"
     wpntxtmode "1"
-    wpntxt_ty "0.13"
+    wpntxt_font "0.8"
+    wpntxt_ty "0.01"
     x "0.7"
     y "2.11"
     yaw "-0.75"
@@ -679,6 +680,7 @@ weapon 2
     reload_port_y "0"
     reload_port_z "0"
     reload_port_radius "3.15"
+    wpntxt_font "0.7"
 }
 
 // slot 3: progs/v_nail.mdl (vr_wofs_*_04)
@@ -798,6 +800,7 @@ weapon 3
     reload_hold_curl_middle "0.75"
     reload_hold_curl_ring "0.8"
     reload_hold_curl_pinky "0.85"
+    wpntxt_font "0.85"
 }
 
 // slot 4: progs/v_nail2.mdl (vr_wofs_*_05)
@@ -900,6 +903,7 @@ weapon 4
     reload_hold_curl_middle "0.75"
     reload_hold_curl_ring "0.8"
     reload_hold_curl_pinky "0.85"
+    wpntxt_font "0.79"
 }
 
 // slot 5: progs/v_rock.mdl (vr_wofs_*_06)
@@ -1017,13 +1021,13 @@ weapon 6
     wpnbtn_z "1.3"
     wpnbtnmode "1"
     wpntxt_av "1.0721 2.5959 3.3086"
-    wpntxt_pitch "28"
+    wpntxt_pitch "51.26"
     wpntxt_roll "-0.5"
     wpntxt_scale "0.25"
-    wpntxt_x "-0.1"
+    wpntxt_x "-0.15"
     wpntxt_y "-1.05"
     wpntxt_yaw "0.0"
-    wpntxt_z "1.7"
+    wpntxt_z "1.65"
     wpntxtmode "1"
     x "10.1"
     y "7.3"
@@ -1054,7 +1058,7 @@ weapon 6
     w_heft "0.6" // rocket launcher
     w_hrecoil "1.5"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
-    fx_gfx_mask "879:n__3_HAAAg5nBAe4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgfAg7hBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "935:n__3_HAAAg5nBAe4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgfAg7hBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -1179,6 +1183,7 @@ weapon 7
     reload_hold_curl_middle "0.75"
     reload_hold_curl_ring "0.8"
     reload_hold_curl_pinky "0.85"
+    wpntxt_font "0.85"
 }
 
 // slot 8: progs/v_hammer.mdl (vr_wofs_*_09)
@@ -3603,6 +3608,7 @@ weapon 36
     fx_gfx_wisp_alpha "0.22"
     fx_gfx_wisp_barrels "1"
     fx_gfx_mask "802:________AAAAAAAAAAAAAAAAAAAAAAAAAA_DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8_PAAAAAAPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    wpntxt_font "0.8"
 }
 
 // slot 37: progs/v_flaregun.mdl (vr_wofs_*_38)
