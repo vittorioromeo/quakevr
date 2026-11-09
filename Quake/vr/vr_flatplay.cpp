@@ -171,6 +171,7 @@ struct FlatKeys
     bool keyProne{false};   // X (vr_flat_key_prone), last frame
     bool crouchWas{false};  // the crouch held (Left Ctrl or +flatcrouch), last frame: a press while lying down gets up to it
     bool prone{false};     // lying down asked for (vr_flat_key_prone, vr_prone_toggle): a toggle
+    bool riseWanted{false}; // asked to get up (the prone key, the crouch) where no crouched box fits: up once one does
     float proneRatio{0.f};  // lying down's share now: 0 up .. 1 down, eased over vr_prone_body_time (crouchShape)
     float proneLin{0.f};    // its ease's even progress
 
@@ -961,20 +962,60 @@ void pollKeys()
     return za::clamp(cl.viewheight + 24.f - eye, 0.f, 44.f);
 }
 
-// vr_prone_toggle and the prone key: lie down, or get up again (the server lets him up only where the lowest crouched
-// box fits: under a lower ceiling he stays down, his view held under it: pollKeysFlat's cap).
+// Getting up from lying down (the prone key, the crouch pressed): only where the lowest crouched box fits (the server's
+// own test for the rise, hull::localRiseFits). Under a lower ceiling (a 20-high vent) he stays lying, view, body and
+// box, and gets up by himself once he has crawled out to where it fits (pollKeysFlat). Until 2026-11-09 the client let
+// go of lying down at once and the server kept the lying box: the crouch held lifted his eyes 28 over his feet into the
+// vent's ceiling (no cap while the crouch key holds him down), where the teleporter over the vent is.
+void getUp(const char* why)
+{
+    if(!qvr::hull::localRiseFits())
+    {
+        keyState.riseWanted = true;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: no room to get up: still lying, up once it fits\n", why);
+        }
+        return;
+    }
+    keyState.prone = false;
+    keyState.riseWanted = false;
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s: get up\n", why);
+    }
+}
+
+// vr_prone_toggle and the prone key: lie down, or get up again (getUp: only where a crouched box fits). Pressed again
+// while a get-up waits for room, it takes the wish back: he stays lying.
 void toggleProne(const char* why)
 {
     if(vr_prone.value == 0.f || vr_crouch_hull.value == 0.f)
     {
         keyState.prone = false;
+        keyState.riseWanted = false;
         Con_Printf("flatplay: lying down is off (vr_prone, vr_crouch_hull)\n");
         return;
     }
-    keyState.prone = !keyState.prone;
+    if(keyState.prone && keyState.riseWanted)
+    {
+        keyState.riseWanted = false;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: stay lying\n", why);
+        }
+        return;
+    }
+    if(keyState.prone)
+    {
+        getUp(why);
+        return;
+    }
+    keyState.prone = true;
+    keyState.riseWanted = false;
     if(vr_flatplay_debug.value)
     {
-        Con_Printf("flatplay: %s: %s\n", why, keyState.prone ? "lie down" : "get up");
+        Con_Printf("flatplay: %s: lie down\n", why);
     }
 }
 
@@ -1178,13 +1219,14 @@ void pollKeysFlat()
     const bool crouchNow = ctrl || keyState.cmdHeld;
     if(crouchNow && !keyState.crouchWas && keyState.prone)
     {
-        keyState.prone = false;
-        if(vr_flatplay_debug.value)
-        {
-            Con_Printf("flatplay: crouch while lying down: up to a crouch\n");
-        }
+        getUp("crouch while lying down"); // (up to a crouch, where it fits)
     }
     keyState.crouchWas = crouchNow;
+    // A get-up that waited for room: up as soon as the lowest crouched box fits (crawled out of the vent).
+    if(keyState.prone && keyState.riseWanted && qvr::hull::localRiseFits())
+    {
+        getUp("room to get up");
+    }
     // Mouse 5 (vr_flat_key_shove): a shove.
     const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
     const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && keydown[shoveKey] != 0;
@@ -1216,6 +1258,7 @@ void pollKeysFlat()
     if(!(vr_prone.value != 0.f && vr_crouch_hull.value != 0.f) || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
         keyState.prone = false;
+        keyState.riseWanted = false;
     }
     if(dt > 0.0)
     {

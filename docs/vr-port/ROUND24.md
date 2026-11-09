@@ -5201,3 +5201,19 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
   pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
+
+## Flat fixes, round 2 (branch `agent/flatfix1109b`, worktree blendmodels, 2026-11-09)
+
+Brief `qvr-kit/scratch/brief_flatfix2.md`: the five items left over from `agent/flatfix1109`. (Its section was in
+this file once; the duplicate was "Release pass for 1.1", in twice: the second copy removed.)
+
+- **Prone in the 20-unit vent:** the server already kept the lying box where the lowest crouched box (36) does not fit,
+  but the client let go of lying down at once. The crouch pressed while lying lifted his eyes 28 over his feet (the
+  view's cap, `hull::localEyeCap`, says nothing while the crouch key holds him down): through the vent's 20-high top
+  to the teleporter in the wall over it. Now every way out of lying down in flat play (the prone key, `vr_prone_toggle`,
+  the crouch pressed) asks `hull::localRiseFits()` (the server's own rise test) first: no room, he stays lying (view,
+  body, box) and the get-up waits, done by itself once he has crawled out to where it fits; the prone key pressed again
+  while it waits takes the wish back (vr_flatplay.cpp `getUp`, `toggleProne`). Death and map changes still clear it.
+  Test `Misc/quakevr/prone_vent_test.sh` (new): **9 passed** (crouch and key in the vent: lying, x 624, eye 12; out:
+  up by itself; the wish taken back: still lying; the key in the open: up). Before the fix the crouch case read eye 28.
+  flatslide (incl. flatprone) 17/17.
