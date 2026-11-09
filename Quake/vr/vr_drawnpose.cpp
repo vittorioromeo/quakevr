@@ -87,7 +87,24 @@ struct ArmedMeshes
 mem::Cache<ArmedMeshes> armedMeshes{"drawn pose armed meshes", mem::MapChange | mem::ModelReload};
 constexpr za::SizeT maxMeshMemos = 256; // (past it: all begun again)
 za::U32 lastBuild = 0;                  // the memos' makings counted (never 0 again: a wrap skips it)
+// A body made with no key (rig2::liveKey: none): made here, the caller copies it or reads it until the next call.
+struct UnkeyedMesh
+{
+    za::Vector<glm::vec3> pos, nor;
+    auto members() { return mem::list(pos, nor); }
+};
+mem::Scratch<UnkeyedMesh> unkeyedMesh{"drawn pose unkeyed mesh"};
+
+// Entity num's body as armedMesh makes it: the memo's (made into it if not yet), else unkeyedMesh's. False: none.
+[[nodiscard]] bool armedVertices(int num, bool normals, const za::Vector<glm::vec3>*& pos, const za::Vector<glm::vec3>*& nor,
+    za::U32& build);
 } // namespace
+
+za::U32 newBuild()
+{
+    lastBuild = lastBuild + 1u == 0u ? 1u : lastBuild + 1u;
+    return lastBuild;
+}
 
 Source bone(edict_t* ent, int b, rigpose::Rigid& out, float& scale)
 {
@@ -125,10 +142,45 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
 
 bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build)
 {
+    const za::Vector<glm::vec3>* pos = nullptr;
+    const za::Vector<glm::vec3>* nor = nullptr;
+    za::U32 made = 0u;
+    const bool ok = armedVertices(num, normals != nullptr, pos, nor, made);
     if(build)
     {
-        *build = 0;
+        *build = made;
     }
+    if(!ok)
+    {
+        return false;
+    }
+    out = *pos;
+    if(normals)
+    {
+        *normals = *nor;
+    }
+    return true;
+}
+
+bool armedMeshView(edict_t* ent, const glm::vec3*& pos, const glm::vec3*& nor, za::SizeT& count, za::U32& build)
+{
+    const za::Vector<glm::vec3>* p = nullptr;
+    const za::Vector<glm::vec3>* n = nullptr;
+    if(!armedVertices(viewNum(ent), true, p, n, build))
+    {
+        return false;
+    }
+    pos = p->data();
+    nor = n->data();
+    count = za::min(p->size(), n->size());
+    return true;
+}
+
+namespace
+{
+bool armedVertices(int num, bool normals, const za::Vector<glm::vec3>*& pos, const za::Vector<glm::vec3>*& nor, za::U32& build)
+{
+    build = 0u;
     glm::mat4 m;
     // (its own .mdl: while a frame draws it, between rig2::swapModels and restoreModels, cl_entities[num].model is its
     // skinned copy, armsWanted on which says no: Show Disarm Volumes drew its hand's hull from its animation frame then,
@@ -150,20 +202,16 @@ bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* norma
         {
             if(memo.key == key && (!normals || memo.hasNormals))
             {
-                out = memo.pos;
-                if(normals)
-                {
-                    *normals = memo.nor;
-                }
-                if(build)
-                {
-                    *build = memo.build;
-                }
+                pos = &memo.pos;
+                nor = &memo.nor;
+                build = memo.build;
                 return true;
             }
         }
     }
-    if(!rig2::liveVertices(num, out, normals) || !livePlacement(num, m))
+    za::Vector<glm::vec3>& out = unkeyedMesh.pos;
+    za::Vector<glm::vec3>* const normalsOut = normals ? &unkeyedMesh.nor : nullptr;
+    if(!rig2::liveVertices(num, out, normalsOut) || !livePlacement(num, m))
     {
         return false;
     }
@@ -173,9 +221,9 @@ bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* norma
     {
         v = a * v + t;
     }
-    if(normals)
+    if(normalsOut)
     {
-        for(glm::vec3& n : *normals)
+        for(glm::vec3& n : *normalsOut)
         {
             const glm::vec3 w = a * n;
             const float len = glm::length(w);
@@ -201,20 +249,22 @@ bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* norma
         }
         memo->key = key;
         memo->pos = out;
-        memo->hasNormals = normals != nullptr;
+        memo->hasNormals = normals;
         if(normals)
         {
-            memo->nor = *normals;
+            memo->nor = unkeyedMesh.nor;
         }
-        lastBuild = lastBuild + 1u == 0u ? 1u : lastBuild + 1u;
-        memo->build = lastBuild;
-        if(build)
-        {
-            *build = lastBuild;
-        }
+        memo->build = newBuild();
+        build = memo->build;
+        pos = &memo->pos;
+        nor = &memo->nor;
+        return true;
     }
+    pos = &out;
+    nor = &unkeyedMesh.nor;
     return true;
 }
+} // namespace
 
 const char* sourceName(Source s)
 {

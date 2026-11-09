@@ -7,8 +7,11 @@
 // visor's zoom about the middle (vr_flat_visor_zoom) and its lens (vr_flat_visor_warp): a point seen at p (the view's
 // -1..1) shows what the layer has at q = p (1 + k (|p|^2 - 1)): k > 0 the edges show the layer beyond them, the middle
 // a touch magnified (barrel); k < 0 the other way (pincushion); the mounts run far enough past the edges for either.
-// Drawn by warping the vertices (q to p, solved along the ray), the faces' outlines and the contents' grids finely
-// subdivided. The panels read as lit glass in metal mounts: a back plate a little behind and below the face that lags
+// The outlines are laid out as seen (q to p, solved along the ray, finely subdivided: the frame lines and glows their
+// widths in the view's pixels), then every vertex taken back into the layer (lensSample, the explicit way) at rest
+// (no sway): each panel's depths (back plate, face, contents, what lies over them, the glass's shapes) drawn unwarped
+// into an atlas when what they show changes; the composite (vr_visor.cpp) applies the sway, each depth its own share,
+// the zoom and the lens per pixel. The panels read as lit glass in metal mounts: a back plate a little behind and below the face that lags
 // the sway (vr_flat_visor_depth; its _depth_* tweaks: opacity, colour, size, offset, lag, its own bevel), a frame lit
 // from above (vr_flat_visor_bevel) with an inner highlight, a sheen down each whole face and a glint across it, the
 // contents a little behind the glass (vr_flat_visor_sheen), glows outside and inside the frame (vr_flat_visor_glow_outer,
@@ -126,6 +129,28 @@ struct Layer
 [[nodiscard]] glm::vec3 clip(const Layer& L, const glm::vec2& viewPx)
 {
     return {toNdc(L, viewPx), 0.5f};
+}
+
+// And back: the layer pixel (at rest) a view pixel shows -- the composite's per-pixel map (vr_visor.cpp layerFs's
+// layerOf). Exact where the lens can be undone: below lensReach (k < 0: r*, past the screen's corners), everywhere for
+// k >= 0.
+[[nodiscard]] glm::vec2 unshownPx(const Layer& L, const glm::vec2& viewPx)
+{
+    const glm::vec2 mid{L.w * 0.5f, L.h * 0.5f};
+    return mid + (toPx(L, lensSample(toNdc(L, viewPx), L.k)) - mid) / L.zoom;
+}
+[[nodiscard]] float lensReach(float k)
+{
+    return k < 0.f ? std::sqrt((1.f - k) / (-3.f * k)) : 1e9f;
+}
+
+// The sway as layer pixels at the view's horizontal tan half-angle `tx` (degrees to pixels; never more than most of the
+// contents' inset).
+[[nodiscard]] glm::vec2 swayShift(const Layer& L, const glm::vec2& swayDeg, float tx)
+{
+    const glm::vec2 sway{glm::tan(glm::radians(swayDeg.x)), glm::tan(glm::radians(swayDeg.y))};
+    const float most = 0.8f * mountInset * L.unit;
+    return glm::clamp(glm::vec2{sway.x, -sway.y} / tx * (L.w * 0.5f), glm::vec2{-most}, glm::vec2{most});
 }
 
 // Panel `p`'s local point (virtual pixels: x, y into the screen from its anchor) as a layer pixel: the sway in it times
@@ -267,13 +292,27 @@ struct Mount
 }
 
 // The outline as drawn: subdivided every 8 layer pixels, through the zoom and the lens (view pixels), with each point's
-// outward normal (the mitred mean of its two pieces').
+// outward normal (the mitred mean of its two pieces'); each point's layer pixel (src) and where it was first seen (base:
+// grow moves `at`).
 struct Ring
 {
     za::Array<glm::vec2, 512> at{};
     za::Array<glm::vec2, 512> out{};
+    za::Array<glm::vec2, 512> src{};
+    za::Array<glm::vec2, 512> base{};
     int n{0};
 };
+
+// A point seen near ring point i (view pixels) as a vertex of the layer (clip space over the whole layer at rest): its
+// layer pixel, unshownPx; past lensReach (far off the screen, where the lens folds back) the ring point's own layer
+// pixel moved as far as the point is from it.
+[[nodiscard]] glm::vec3 layerAt(const Layer& L, const Ring& r, int i, const glm::vec2& seen)
+{
+    const glm::vec2 n = toNdc(L, seen);
+    const float reach = lensReach(L.k) - 1e-3f;
+    const glm::vec2 px = glm::dot(n, n) < reach * reach ? unshownPx(L, seen) : r.src[i] + (seen - r.base[i]);
+    return clip(L, px);
+}
 
 void ringOf(const Layer& L, int p, const Mount& m, float parallax, const glm::vec2& nudge, Ring& r)
 {
@@ -290,7 +329,9 @@ void ringOf(const Layer& L, int p, const Mount& m, float parallax, const glm::ve
         const int pieces = off ? 1 : za::clamp(static_cast<int>(glm::length(b - a) / 8.f), 1, 80);
         for(int s = 0; s < pieces && r.n < 500; s++)
         {
-            r.at[r.n++] = shownPx(L, glm::mix(a, b, static_cast<float>(s) / static_cast<float>(pieces)));
+            r.src[r.n] = glm::mix(a, b, static_cast<float>(s) / static_cast<float>(pieces));
+            r.at[r.n] = r.base[r.n] = shownPx(L, r.src[r.n]);
+            r.n++;
         }
     }
     // Its winding (view pixels, y down): the normals turned outwards.
@@ -343,10 +384,10 @@ void band(const Layer& L, const Ring& r, float off0, float off1, const glm::vec4
             return 1.f + shade * up;
         };
         const float li = lit(i), lj = lit(j);
-        const gfx::Vertex a0{clip(L, r.at[i] + r.out[i] * off0), {0.f, 0.f}, scaled(c0, li)};
-        const gfx::Vertex a1{clip(L, r.at[i] + r.out[i] * off1), {0.f, 0.f}, scaled(c1, li)};
-        const gfx::Vertex b0{clip(L, r.at[j] + r.out[j] * off0), {0.f, 0.f}, scaled(c0, lj)};
-        const gfx::Vertex b1{clip(L, r.at[j] + r.out[j] * off1), {0.f, 0.f}, scaled(c1, lj)};
+        const gfx::Vertex a0{layerAt(L, r, i, r.at[i] + r.out[i] * off0), {0.f, 0.f}, scaled(c0, li)};
+        const gfx::Vertex a1{layerAt(L, r, i, r.at[i] + r.out[i] * off1), {0.f, 0.f}, scaled(c1, li)};
+        const gfx::Vertex b0{layerAt(L, r, j, r.at[j] + r.out[j] * off0), {0.f, 0.f}, scaled(c0, lj)};
+        const gfx::Vertex b1{layerAt(L, r, j, r.at[j] + r.out[j] * off1), {0.f, 0.f}, scaled(c1, lj)};
         out.pushBack(a0);
         out.pushBack(b0);
         out.pushBack(b1);
@@ -400,12 +441,12 @@ void face(const Layer& L, const Ring& r, const glm::vec4& c, const glm::vec2& to
         const float t = glm::clamp((px.y - topBottom.x) / za::max(1.f, topBottom.y - topBottom.x), 0.f, 1.f);
         return glm::vec4{glm::vec3{c} * (1.f + sheen * 0.9f * (1.f - t)) + glm::vec3{0.025f * sheen * (1.f - t)} * c.a, c.a};
     };
-    const gfx::Vertex apex{clip(L, r.at[0]), {0.f, 0.f}, colour(r.at[0])};
+    const gfx::Vertex apex{layerAt(L, r, 0, r.at[0]), {0.f, 0.f}, colour(r.at[0])};
     for(int i = 1; i + 1 < r.n; i++)
     {
         out.pushBack(apex);
-        out.pushBack({clip(L, r.at[i]), {0.f, 0.f}, colour(r.at[i])});
-        out.pushBack({clip(L, r.at[i + 1]), {0.f, 0.f}, colour(r.at[i + 1])});
+        out.pushBack({layerAt(L, r, i, r.at[i]), {0.f, 0.f}, colour(r.at[i])});
+        out.pushBack({layerAt(L, r, i + 1, r.at[i + 1]), {0.f, 0.f}, colour(r.at[i + 1])});
     }
 }
 
@@ -415,55 +456,42 @@ void face(const Layer& L, const Ring& r, const glm::vec4& c, const glm::vec2& to
 void glint(const Layer& L, const Ring& r, const glm::vec4& box, float strength, za::Vector<gfx::Vertex>& out)
 {
     const glm::vec2 size{box.z - box.x, box.w - box.y};
-    const auto vertex = [&](const glm::vec2& px) {
-        const glm::vec2 t = (px - glm::vec2{box.x, box.y}) / size; // 0 the top left .. 1 the bottom right
-        return gfx::Vertex{clip(L, px), {0.f, ((t.x + t.y) * 0.5f - 0.3f) * 5.f}, glm::vec4{1.f, 1.f, 1.f, 0.05f * strength}};
+    const auto vertex = [&](int i) {
+        const glm::vec2 t = (r.at[i] - glm::vec2{box.x, box.y}) / size; // 0 the top left .. 1 the bottom right
+        return gfx::Vertex{layerAt(L, r, i, r.at[i]), {0.f, ((t.x + t.y) * 0.5f - 0.3f) * 5.f}, glm::vec4{1.f, 1.f, 1.f, 0.05f * strength}};
     };
-    const gfx::Vertex apex = vertex(r.at[0]);
+    const gfx::Vertex apex = vertex(0);
     for(int i = 1; i + 1 < r.n; i++)
     {
         out.pushBack(apex);
-        out.pushBack(vertex(r.at[i]));
-        out.pushBack(vertex(r.at[i + 1]));
+        out.pushBack(vertex(i));
+        out.pushBack(vertex(i + 1));
     }
 }
 
-// The contents: the panel's image over its rectangle as a grid through the zoom and the lens, as a small CRT, its face
-// clear (premultiplied out of Shade::Screen's inkAlpha). `rect`: where it landed (view pixels).
+// The contents: the panel's image over its rectangle in the layer (at rest: the lens is the composite's), as a small CRT,
+// its face clear (premultiplied out of Shade::Screen's inkAlpha), through `mvp` (the atlas's slot). `rect`: where it is
+// seen at rest (view pixels).
 void drawContents(const Layer& L, int p, const Mount& m, const gadget::VisorImage& img, const gfx::State& state,
-    const glm::vec4& phosphor, float parallax, glm::vec4& rect)
+    const glm::vec4& phosphor, const glm::mat4& mvp, glm::vec4& rect)
 {
     // The rectangle in layer pixels (the image never mirrored: its left at the screen's left).
-    const glm::vec2 a = localToPx(L, p, m.lo, parallax), b = localToPx(L, p, m.hi, parallax);
+    const glm::vec2 a = localToPx(L, p, m.lo), b = localToPx(L, p, m.hi);
     const glm::vec2 lo = glm::min(a, b), hi = glm::max(a, b);
-    constexpr int gx = 12, gy = 6;
-    za::Array<gfx::Vertex, (gx + 1) * (gy + 1)> grid{};
-    glm::vec2 drawnLo{1e9f}, drawnHi{-1e9f};
-    for(int j = 0; j <= gy; j++)
+    glm::vec2 seenLo{1e9f}, seenHi{-1e9f};
+    for(int j = 0; j <= 4; j++)
     {
-        for(int i = 0; i <= gx; i++)
+        for(int i = 0; i <= 8; i++)
         {
-            const glm::vec2 uv{static_cast<float>(i) / gx, static_cast<float>(j) / gy};
-            const glm::vec2 seen = shownPx(L, {glm::mix(lo.x, hi.x, uv.x), glm::mix(hi.y, lo.y, uv.y)}); // (v up the image)
-            grid[j * (gx + 1) + i] = {clip(L, seen), uv, phosphor};
-            drawnLo = glm::min(drawnLo, seen);
-            drawnHi = glm::max(drawnHi, seen);
+            const glm::vec2 seen = shownPx(L, glm::mix(lo, hi, glm::vec2{static_cast<float>(i) / 8.f, static_cast<float>(j) / 4.f}));
+            seenLo = glm::min(seenLo, seen);
+            seenHi = glm::max(seenHi, seen);
         }
     }
-    za::Array<gfx::Vertex, gx * gy * 6> tris{};
-    const auto quads = [&](auto vertex) {
-        int t = 0;
-        for(int j = 0; j < gy; j++)
-        {
-            for(int i = 0; i < gx; i++)
-            {
-                const gfx::Vertex v00 = vertex(i, j), v10 = vertex(i + 1, j), v11 = vertex(i + 1, j + 1), v01 = vertex(i, j + 1);
-                tris[t++] = v00, tris[t++] = v10, tris[t++] = v11, tris[t++] = v00, tris[t++] = v11, tris[t++] = v01;
-            }
-        }
-        return t;
+    const auto vertex = [&](float u, float v) { // (v up the image)
+        return gfx::Vertex{clip(L, {glm::mix(lo.x, hi.x, u), glm::mix(hi.y, lo.y, v)}), {u, v}, phosphor};
     };
-    const int count = quads([&](int i, int j) { return grid[j * (gx + 1) + i]; });
-    gfx::draw({tris.data(), static_cast<za::SizeT>(count)}, glm::mat4{1.f}, state, img.texture);
-    rect = {drawnLo, drawnHi};
+    const gfx::Vertex quad[6] = {vertex(0.f, 0.f), vertex(1.f, 0.f), vertex(1.f, 1.f), vertex(0.f, 0.f), vertex(1.f, 1.f), vertex(0.f, 1.f)};
+    gfx::draw(quad, mvp, state, img.texture);
+    rect = {seenLo, seenHi};
 }

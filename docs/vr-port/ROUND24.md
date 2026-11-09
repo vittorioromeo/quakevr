@@ -6706,6 +6706,58 @@ group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
   ms): the next target for cheaper fight ticks (QC). Not done here.
 - Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
   microseconds per entity: not worth a job's dispatch).
+
+## Big fights' CPU, part 2 (agent/perf_fight2, 2026-11-09)
+
+Same method as above (Release-Tracy ThinLTO, `vr_tracy_preset full`, his cfg, flat 3440x1441 fsaa 4, exclusive);
+scripts in the worktree's `scratch/pf` (F.sh, bt.sh, ab.sh/ab.py/fcmp.py for the A/B state checks, cmp.py).
+
+- **The flat hands' cost is the crosshair's lines, not the pose.** New zones (`hands: place flat`, `hands: flat pose`,
+  `flat pose: sight`, `flatsight: aim at point`, `flatsight: line stop`, ...; `hit model clip`, `hit model:
+  skinned/armed`): in the gore flat fight all of `hands` (0.86 ms a frame, 2.56 calls) was `flatsight::apply`, and in
+  it the crosshair's MOVE_HITMODEL lines (`lineStop`, 2.9 a pose, ~0.1 ms each): each long line meets ~33 bodies'
+  boxes, and each precise test re-skinned a ragdoll (`ragdoll::skinnedVertices` and the hierarchy's refit, every call)
+  or copied an armed humanoid's memo (its vertices and normals). The pose itself (shoulders, hands, walls, reload) is
+  ~0.01 ms. Everything the relatches recompute is view-dependent (the aim, the crosshair's point, the muzzle's line),
+  so "once a frame plus a cheap re-aim" would change the poses; made cheaper instead, bit for bit:
+  - **Precise hits keep skinned bodies** (`vr_hitmodel_skin_keep 1`, Ragdolls page "Keep Skinned Bodies"; 0 the old
+    path): a ragdoll's skinned vertices and normals are kept while its pose, cut, scale and rig are unchanged
+    (`ragdoll::skinnedView`, compared bit for bit), an armed humanoid's are read from drawnpose's memo, not copied
+    (`drawnpose::armedMeshView`); both carry a making number (`drawnpose::newBuild`), so the triangle hierarchy refit
+    to them is kept too. Every trace benefits (shots, nails, blows, the flat crosshair), VR too.
+  - **The crosshair's line traced once a pose** (flatsight `crossMemo`): aimAtPoint and the shot's point traced the
+    same line (same start and end, bit for bit) twice in one `apply`.
+  - Gore flat, ms a frame (calls): `hands` 0.861 -> 0.690 (skin keep) -> 0.612 (both); `flatsight: line stop` 7.46 ->
+    4.91 calls; `hit model clip` 0.54 -> 0.47 ms (250 -> 177 calls) after the keep (0.81 before it, its first zoned
+    capture); `vr frame setup` 0.261 -> 0.152. E1M1 fight (few bodies): `hands` 0.30, unchanged.
+  - Plain runs, keep 0 vs 1, two each alternated (exclusive, but the frame times swung ~1 ms between like runs, GPU
+    `3D` 2.3-3.5 ms in the same scenario: frame p50/p95/p99 inconclusive): VR combat_48 `server` CPU 1.79/1.84 -> 1.53/
+    1.48 ms a frame (crowd shots), VR play_gore_fight 1.51/1.48 -> 1.55/1.81 (noise), flat gore 1.04/1.02 -> 1.06/1.19.
+  - Proof: `vr_bench_statehash fields` (a hash per QC field over every edict) at four points of play_gore_fight_flat
+    (1500 frames, 8 ragdolls at the end): keep 0 vs keep 1 and vs the crosshair memo, every field the same (16104
+    hashes), ragdoll hashes the same. In VR (play_gore_fight, 900 frames) two keep-0 runs already differ in 125 fields,
+    all the melee history's (`mh_*`: hand speeds from the mock's real-clock tracking times) and `bat_why_v`; keep 0 vs 1
+    differs in 121, all of that family (one, `mh_hgrip[8]`, not among the control's 125), ragdoll hashes the same.
+    Tests: vr_pp_test 1 VR 63/0 and flat 62/0, flatpose 22/0, flatxhair 31/0, flathud 11/0, ragdoll_test exit 0,
+    checklist_tests_check 103/0, scenario_check 8 failed (all AD content missing from the kit's game folder), eval
+    full 162/171 with 14 PASS -> PASS differences of 0.1 in melee numbers (one stab 15.6 -> 54.4, still no decap). (Two fields differ between ANY two runs and are left out:
+    `vr_posetime` and QC `mh_ptime`, the hands' pose time, which is `vr_gametime` = realtime: it carries the process
+    start's clock even in fixed-frame runs. The melee reads only differences of it, but a replay compares it raw:
+    worth a fix of its own.)
+- **Armed grunts' prop think** (`VR_AG_PropThink`, QC detail, gore flat): 0.76 ms a frame inclusive with QC zones on
+  (their own cost roughly doubles QC time: `QC VM` 1.5 here vs 0.69 in his detail-0 trace), spread thin: self times
+  `VR_AGP_Pose` 5.5 us a call, `VR_AGS_Projectiles` 3.3 us (a findradius of 128 round each weapon every tick, for the
+  player's nails and rockets through it), `VR_AGPar_Frame` 3.5 us, `VR_AG_WeaponStruck` 1.9, `VR_AGP_ArmsGun` 1.9,
+  `VR_AGK_Mode` 1.2 (2 a prop), `VR_AGP_TurnPose` 1.6, `VR_AGK_Keys` 1.5, then many under 1 us. No single hot spot;
+  not changed here (budget). Next steps: skip `VR_AGS_Projectiles`' search when no player projectile is in flight (a
+  count kept by the projectiles' spawns), and move `VR_AGP_Pose`'s math to a builtin.
+- **Job pool: not used.** The candidates' whole cost a frame in the gore flat fight: `alias transform` 0.071 ms (380
+  set-ups), `dlight casters` 0.036 (4.4 lights), `shadow caster faces` 0.015, `ragdoll publish` 0.001-0.01: each under a
+  job dispatch and join's cost; nothing to gain, so no change (determinism untouched).
+- **Ragdoll hashes run to run** (perf_fight's open question): the blast script set no seed, so the server's random
+  stream (`sv_random_seed 0`) came from the clock: which grunts gib, how many parts (96-98). With `sv_random_seed 1` the
+  hashes are the same every run and with `vr_ragdoll_sleep_skip` 0 or 1 (5bb1e1bd693bc292, 04cd5a73109d1004,
+  c1e68802763cdaec). `vr_physics_hash` now says when the seed was the clock's (`srvrandom::clockSeeded`).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
@@ -6782,6 +6834,54 @@ Tests: Flat Speed FOV (test, status). Details: FLATPLAY.md, "The speed FOV".
 - **Tests:** visor_test 28/0 (new: no hit from health 150 -> 120 by `give h`, a real hit message shakes it with no
   health taken; `_side_out -2` and `_log_out -2` pull the mounts past the edges), flathud, flathit, flatxhair,
   menu_flat_panel_test 28/0, flatlean 7/0, `vr_pp_test 1`.
+## Flat-screen visor HUD, sixth pass: the lens, the zoom and the sway per pixel (branch `agent/visor6`, worktree `regfix`, 2026-11-09)
+
+Pass 5 left walking at 0.34 / 0.22 ms (cpu / gpu): the bob moved the sway every frame and the warped layer was rebuilt
+on the CPU (layer 0.28 ms). Now nothing the sway, zoom or lens touches is rebuilt:
+- **Per-depth atlas, unwarped and at rest.** Each panel is laid out as before (its outlines subdivided and seen through
+  the zoom and the lens, the frame lines and glows their widths in view pixels), then every vertex is taken back into the
+  layer by the explicit forward map (`unshownPx`: `lensSample`, then the zoom undone; past the lens's fold, k < 0 beyond
+  r*, far off the screen, the ring point's own layer pixel moved as far) and drawn into an atlas (8192 wide, shelf-packed,
+  grown only) as five slots per panel, each its box in the layer: the back plate, the face, the contents, what lies over
+  them (glint, glows, frame and its highlight) and the glass's shapes (r the plate's, g the face's). The contents are one
+  quad in the layer (the lens per pixel now: no 12 x 6 grid). The contents and over slots at `vr_flat_visor_ss` texels a
+  layer pixel, the flat fills and shapes at 1 (their edges lie under the lines; a quarter of the reads).
+- **The composite per pixel** (one scissored draw per panel shown): each view pixel's layer point (the lens and the zoom
+  undone, the same map), each slot read there less its own sway (plate: `_depth_lag`, contents: `_depth_content_lag`,
+  face and over: all of it), composited back to front, times the panel's fades (death, the log's autohide, the glitch's
+  flicker, the boot's stutter and sweep: uniforms now, no rebuild). At ss 2 one bilinear tap is the mean of the 2 x 2 texels
+  the pixel covers (pass 5's box); ceil(ss / 2)^2 taps above. Scanlines, the frosted glass's blur, ripple and tint as
+  before; the glass's bend from the shapes' gradient (both read at the face's sway: exact at rest).
+- **What is drawn again, when:** the whole atlas when the view's size, a layer cvar, the colours or a panel's size or
+  visibility change (`layerSignature`; not the view's angle any more: the new speed FOV changes it running); one panel's
+  slots when its mount's colours change (the low-health pulse); its contents' slot alone when its picture changes (the
+  stamina bar running, a reading) and every frame while a hit glitches (Shade::Screen's own tear, split and static,
+  exactly as before). Standing, turning and walking: nothing.
+- **Elsewhere:** the edge contact (report) is solved with the sway now, as the composite draws; bullet time's mask
+  (`tintMask`) is the composite's alpha drawn into a view-sized target only while bullet time's look is on; the glass's rim
+  and fog triangles kept while they stay the same.
+- **Cost** (ThinLTO, `--exclusive`, e1m1 start, 3440 x 1440, 400 frames, `vr_profile`; visor cpu / gpu ms):
+  | case | pass 5 | this pass |
+  |---|---|---|
+  | standing | 0.07 / 0.05 | 0.01 / 0.10 |
+  | turning (+right) | 0.07 / 0.05 | 0.01 / 0.09 |
+  | walking (+forward) | 0.34 / 0.22 (layer 0.28 cpu) | 0.01 / 0.10 (no rebuild) |
+  The CPU side is nearly free (the glass's rim triangles, rebuilt every frame in pass 5, were most of its 0.07). The GPU
+  side is flat at 0.09-0.10 whatever moves: over the 0.08 target. Neither the per-slot scale (a quarter of the reads) nor
+  skipping the empty parts of each box (shapes' b) moved it, so the reads are not what costs; not found yet (left: time
+  the composite alone with GL timers; one draw for all panels instead of seven scissored full-view triangles; the glass
+  passes over the per-panel boxes; re-measure pass 5 the same day: this machine's frame GPU read 1.5-1.9 ms in these runs
+  against pass 5's 1.49).
+- **Look:** against pass 5 at 3440 x 1440, scanlines off: at rest 0.21% of pixels over 8 of 255, 0.02% over 24, none over
+  64 (sub-pixel: the contents' lens exact instead of a 12 x 6 grid, top corners' readings about 0.3 px further out; the
+  side mounts' faces a few levels lighter in places: their sheen interpolated over the fans in the layer); walking the
+  same (0.27% / 0.03%); a hit's glitch the same (Shade::Screen's).
+- **Shared with VR:** the cached contents are the gadget's `draw2D` dry-run images (pass 5); the glitch is Shade::Screen's.
+  The wrist gadget's screen has no lens or sway to undo (the headset's optics are its lens): the per-pixel composite has
+  nothing to give it; its canvas could skip redraws by the same dry-run signature (pass 5's note), not done.
+- **Tests:** visor_test, flathud, flathit, flatxhair, `vr_pp_test 1`, checklist_tests_check: visor_test 28/0, flathud 11/0, flathit 11/0, flatxhair 31/0, `vr_pp_test 1` 63/0, flat_visor scene OK; checklist_tests_check 107/1 (the failure: a `[ ]` prefix on the checklist line "Flat-screen fights at 3440x1441" from next, not this branch); Release-TracyFull builds.
+- **flat_visor scene** on e1m1's start: scenario_check runs with Arcane Dimensions, whose own start.bsp put the start
+  spot and every spawn in a wall.
 ## Flat-screen lean: the arms turn with the torso (branch `agent/lean_pose`, worktree `flatwall`, 2026-11-09)
 
 His words: "While leaning, it feels like the gun poses are a bit unnatural, especially when dual wielding. The weapon that

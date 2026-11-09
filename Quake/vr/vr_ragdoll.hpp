@@ -216,6 +216,11 @@ void stumpLook(const entity_t* e, float out[4]);
 // `drawn`: as drawn this frame (between the steps, after the hands: the client's model collisions), else the latest step's
 // (the server's hits).
 bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals = nullptr, bool drawn = false);
+// The latest step's (drawn false) with its normals, kept while what makes them is unchanged (its pose, cut, scale, rig):
+// the server's hits ask for the same ragdoll many times a step (each shot, each nail, the flat crosshair's lines). `pos`
+// and `nor` (`count` of each) are good until the next call; `build`: their making (drawnpose::newBuild: the same
+// number, the same vertices), for what hitmodel keeps made from them (its triangle hierarchy's bounds).
+bool skinnedView(int num, const glm::vec3*& pos, const glm::vec3*& nor, za::SizeT& count, za::U32& build);
 
 // vr_drawn_motion_test <frames> [<entity> | nearest | held]: the drawn motion of the nearest ragdoll's parts, of a prop
 // (nearest: the loose prop nearest you; held: the one a hand carries) and of the hands over the next `frames` frames:
