@@ -67,6 +67,7 @@ float(float f) fabs = #43;
 
 float(string s) cvar = #45;                        // return cvar.value
 void(string s) localcmd = #46;                    // put string into local que
+void(string s) localcmdfirst = #0;                // QVR: ahead of the queue (a script's queued waits): vr_builtins.cpp
 entity(entity e) nextent = #47;                    // for looping through all ents
 void(vector o, vector d, float color, float count) particle = #48;// start a particle effect
 void() ChangeYaw = #49;                        // turn towards self.ideal_yaw

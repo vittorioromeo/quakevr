@@ -5649,3 +5649,28 @@ most 0.5 a frame, the whole slide the gun and the drawn body (main shoulder, pel
 then: the origin bends 1.36, 4 frames off the ground, the view 0.13 (hidden); those two are printed and not counted at
 the real clock. Not covered: sliding up a ramp (a slide up 13 degrees ends at once, "slowed"); the spiral's second flight
 from its landing (the slide begins at the lip, in the air: gun bend 0.56 at the slide's start, left out of the test).
+
+## vr_pp_test 1's two single failures (branch `agent/pptest`, 2026-11-10)
+
+Two different 62/1 runs of `map vrtesthall; vr_pp_test 1` were reported (one on agent/elbow3, one on next at 0eed92f65).
+Neither is a code regression: both commits, and next with elbow3, pass 63/0 on every plain run (9 runs on next, 3 at each
+commit, 4 more in parallel lanes on 2 shared CPUs with small mock eyes). Each failure comes from what the session held
+around the test, and each reproduces at will:
+
+- **"... and as the old rule has it (off by 23, 23)"**: god mode on when the test started (`map vrtesthall; wait30; god;
+  vr_pp_test 1` gives exactly 23, 23: T_Damage takes the armour's share before its god-mode check and then leaves the
+  health alone, so every hit but the one wholly absorbed is off). Test 15's sheet asks for `god; notarget` first; a
+  session that ran it, or `god`, before test 1 fails. Fix: test 1 takes FL_GODMODE and a Pentagram's
+  `invincible_finished` off when it starts (it says so: `pptest: god mode (1) and the Pentagram (0 s) off for the test`)
+  and gives them back at its end.
+- **"from outside: the helmet with the head (drawn 0)"**: the spectator camera (`vr_mock_camera`) went through
+  `localcmd`, which appends to the command buffer; a run script with `wait`s after `vr_pp_test 1` (`...; wait3000;
+  toggleconsole; quit` reproduces it) holds it back past the step's 4 frames, so the view is still the eyes'. Fix: a new
+  builtin `localcmdfirst(string)` (vr_builtins.cpp, `Cbuf_InsertText`: ahead of what the buffer holds, as the mock's
+  played buttons already do), used for the test's two camera commands. Two calls in one frame run the later first, so
+  one per step.
+
+Tests: `vr_pp_test 1` 63/0 three runs in a row, and 63/0 in both contexts above (god first; 3000 waits queued);
+`vr_agarmor_test 1` 38/0, `vr_agarmor_test 7` 16/0, `vr_agarmor_bridge_check` 121/0. Other tests that send
+`vr_mock_camera` (or anything a step waits a few frames for) through `localcmd` have the same weakness under a script
+with queued waits; `localcmdfirst` is there for them.
