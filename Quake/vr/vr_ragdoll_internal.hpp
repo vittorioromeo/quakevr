@@ -54,6 +54,7 @@ struct Published
     za::Array<glm::quat, maxBones> prevRot{};
     za::Array<glm::vec3, maxBones> prevPos{};
     double time{0.0}, prevTime{0.0};
+    bool still{false}; // republished (box3d: asleep): the step before is the same pose (copied once)
     // The local player's hands on its limbs at each step (bit 0 the off hand, 1 the main; their places as the client
     // had them then: vr_ragdoll_held_local).
     int heldBy{0}, prevHeldBy{0};
