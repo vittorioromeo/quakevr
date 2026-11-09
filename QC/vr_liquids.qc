@@ -148,6 +148,10 @@ void(entity e, float hurt) VR_Liquid_Monster =
     }
 
     float level = VR_Liquid_Level(e);
+    if(vr_liquid_type == CONTENT_WATER || vr_liquid_type == CONTENT_SLIME)
+    {
+        VR_Status_Soak(e, level); // (wet: the status component, vr_status.qc)
+    }
     float kind = vr_liquid_type;
     if(kind == CONTENT_WATER && level == 3 && hurt)
     {

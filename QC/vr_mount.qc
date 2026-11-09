@@ -21,6 +21,8 @@ void(entity e, void(entity xBy, vector xDir) xDetach) VR_Mount_Attach =
     e.vr_mount_detach = xDetach;
 };
 
+entity vr_mount_last_by; // what last struck a mounted thing off (the tests read it: vr_systems_test 15)
+
 // `e` off its mount by `xBy` along `xDir` (its detach called once).
 void(entity e, entity xBy, vector xDir) VR_Mount_Detach =
 {
@@ -29,6 +31,8 @@ void(entity e, entity xBy, vector xDir) VR_Mount_Detach =
         return;
     }
     e.vr_mount = 0;
+    vr_mount_last_by = xBy;
+    if(cvar_hget(cvarh_developer)) dprint(sprintf("mount: %s (%s) off by %s (%s)\n", e.classname, vtos(e.origin), xBy.classname, vtos(xBy.origin)));
     entity oself = self;
     self = e;
     self.vr_mount_detach(xBy, xDir);

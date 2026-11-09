@@ -54,9 +54,12 @@ float(entity e, float xImpact, float xDamage) VR_HitStagger_Chance =
 };
 
 // Whether a hit may unbalance `e` at all now.
+.float vr_hst_last_chance; // the chance its last hit rolled against (vr_systems_test 16)
+float vr_hst_impact; // VR_HitStagger_Throw's: a momentum hit (a prop's), by anything or nothing (a drop, a blast)
+
 float(entity e, entity xBy) VR_HitStagger_Can =
 {
-    if(!cvar_hget(cvarh_vr_hit_stagger) || !(xBy.flags & FL_CLIENT) || !(e.flags & FL_MONSTER) || e.health <= 0 ||
+    if(!cvar_hget(cvarh_vr_hit_stagger) || (!(xBy.flags & FL_CLIENT) && !vr_hst_impact) || !(e.flags & FL_MONSTER) || e.health <= 0 ||
        e.vr_knockdown || e.vr_corpse || e.vr_corpse_dying || time < e.vr_hst_next || e.solid == SOLID_BSP ||
        e.vr_parry_stagger_until > time || (VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored)))
     {
@@ -76,6 +79,7 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
         return 0;
     }
     float chance = VR_HitStagger_Chance(e, xImpact, xDamage);
+    e.vr_hst_last_chance = chance; // (the tests compare them: vr_systems_test 16)
     float roll = random();
     float loud = vr_hst_test || cvar_hget(cvarh_vr_knockdown_debug);
     if(roll >= chance)
@@ -159,5 +163,8 @@ float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamag
 {
     float momentum = max(0, xMass) * max(0, xSpeed) / max(1, VRMetersToUnits());
     float impact = momentum / max(1, cvar_hget(cvarh_vr_hit_stagger_throw_ref));
-    return VR_HitStagger_Try(e, xBy, xDir, impact, xDamage, sprintf("a throw (%.1f kg, %.0f kg m/s)", xMass, momentum));
+    vr_hst_impact = TRUE; // (its momentum, whoever moved it: a hand's throw, a drop, a blast; DYNAMIC_SPAWNS.md)
+    float r = VR_HitStagger_Try(e, xBy, xDir, impact, xDamage, sprintf("a throw (%.1f kg, %.0f kg m/s)", xMass, momentum));
+    vr_hst_impact = FALSE;
+    return r;
 };

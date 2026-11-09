@@ -211,6 +211,7 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 {
     za::Vector<Item> items{
         row(opt::vr_kdtrig_thrown_on),
+        row(opt::vr_kdtrig_flung),
     };
     kdTrigWeightRows(items);
     items.pushBack(open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Thrown)>))

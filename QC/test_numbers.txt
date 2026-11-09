@@ -405,6 +405,7 @@ vr_burn_test     17       vr_burning_test.qc               (VR_Burn_TestCrate)
 
 dispatch vr_systems_test QC/vr_systems_test.qc VR_SysTest_Frame ask
 vr_systems_test  1        vr_systems_test.qc               every entity's material answers (the material table's before/after proof)
+vr_systems_test  10-16    vr_systems_test.qc               the shared systems' scenes: fire spread, blast ignition, floor buttons, grunt-thrown disarm, the blast-corpse-torch-crate chain, dropped vs thrown crate
 
 vr_deadanim_test 1        vr_deadanim.qc                   (VR_DeadAnim_IsDead)
 vr_deadanim_test 2        vr_deadanim.qc                   (ragdollcanstagger)

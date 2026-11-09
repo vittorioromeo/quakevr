@@ -712,6 +712,8 @@ void(entity xFire, string xWhy) VR_Burn_Out =
 // An explosion (T_RadiusDamage: `xDamage` its radius's damage) by `xAttacker` sets what is flammable within
 // vr_burn_blast of its radius on fire, and in its sight: wood always (a crate, a piece); a body by
 // vr_burn_blast_flesh's chance (default 0: a rocket is not a flamethrower). Never an explosive box (metal).
+float vr_burn_blasted;      // things a blast set on fire (the tests count them: vr_systems_test 11)
+entity vr_burn_blast_last; // ... the last one
 void(entity e, entity xInflictor, entity xAttacker, float xDamage) VR_Burn_Blast =
 {
     float share = cvar_hget(cvarh_vr_burn_blast);
@@ -734,6 +736,8 @@ void(entity e, entity xInflictor, entity xAttacker, float xDamage) VR_Burn_Blast
         return;
     }
     dprint(sprintf("burning: %s set on fire by a blast %.0f units off\n", e.classname, vlen(mid - xInflictor.origin)));
+    vr_burn_blasted = vr_burn_blasted + 1;
+    vr_burn_blast_last = e;
     VR_Burn_Ignite(e, xAttacker, mid, mid - xInflictor.origin, VR_BURN_TOUCH);
 };
 
@@ -1000,7 +1004,7 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
         f.burn_dead = dead;
         f.burn_tick = time + VR_BURN_TICK;
         f.burn_spread_next = time + max(0.05, cvar_hget(cvarh_vr_burn_spread));
-        f.burn_catch_next = time + cvar_hget(cvarh_vr_burn_crate_spread);
+        f.burn_catch_next = time + (wood ? cvar_hget(cvarh_vr_burn_crate_spread) : 0.5); // (a body's: from its first half second)
         f.think = VR_Burn_Think;
         f.nextthink = time;
         f.burn_crackle_next = time + 0.3; // (the whoosh first)

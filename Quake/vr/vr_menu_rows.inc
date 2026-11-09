@@ -647,6 +647,10 @@ QVR_TOGGLE(vr_kdtrig_blast_on, "Explosions",
     "A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance). Needs Ragdoll Triggers and Knockdowns on.")
 
 // vr_menu_gameplay.inc: pageKdTrigThrown
+QVR_TOGGLE(vr_kdtrig_flung, "Flung Bodies",
+    "A body no hand holds, flung by anything (a blast, a fall, a kick), strikes living monsters (knocking them "
+    "over) and wall-mounted things (knocking them off) by its momentum, as a thrown one does. Off: only bodies "
+    "you throw or swing. Needs Thrown Bodies on.")
 QVR_TOGGLE(vr_kdtrig_thrown_on, "Thrown Bodies",
     "A body you throw (a corpse or a knocked-down enemy: let go of, or a two-hand throw) or swing in your "
     "hand into a living monster knocks it over the way the body goes, by their weights and the body's "

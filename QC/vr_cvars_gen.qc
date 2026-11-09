@@ -1966,6 +1966,7 @@ float cvarh_vr_worn_backpack_reserve;
 float cvarh_vr_worn_backpack_two_hand_mult;
 float cvarh_vr_worn_backpack_volume;
 float cvarh_vr_wornpack_test;
+float cvarh_vr_wounds_wet_time;
 
 void() VR_CVars_InitGenerated =
 {
@@ -3934,4 +3935,5 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_worn_backpack_two_hand_mult = VR_CVar_Make("vr_worn_backpack_two_hand_mult");
     cvarh_vr_worn_backpack_volume = VR_CVar_Make("vr_worn_backpack_volume");
     cvarh_vr_wornpack_test = VR_CVar_Make("vr_wornpack_test");
+    cvarh_vr_wounds_wet_time = VR_CVar_Make("vr_wounds_wet_time");
 }

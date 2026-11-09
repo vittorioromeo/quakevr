@@ -1239,6 +1239,14 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         return FALSE;
     }
     entity attacker = holder;
+    if(attacker == world && (self.owner.flags & FL_MONSTER) && self.owner.health > 0)
+    {
+        attacker = self.owner; // (a monster threw it: a grunt's thrown thing, its own credit for infighting)
+    }
+    if(attacker == world && self.vr_impulse_by != world && time < self.vr_impulse_t + VR_FLING_CREDIT)
+    {
+        attacker = self.vr_impulse_by; // (a blast flung it: its owner's, for kills and infighting)
+    }
     if(attacker == world && self.carry_letgo != world && time < self.carry_letgo_time + VR_FLING_CREDIT)
     {
         attacker = self.carry_letgo;
@@ -1282,7 +1290,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     entity struck = other;
     VR_Decap_Damage(other, self, attacker, dmg, pop);
     // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
-    if(struck.health > 0 && attacker != world)
+    if(struck.health > 0) // (whoever moved it, or nothing: a drop's momentum unbalances as a throw's)
     {
         VR_HitStagger_Throw(struck, attacker, flight, mass, xSpeed, dmg);
     }

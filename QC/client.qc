@@ -1617,6 +1617,8 @@ void() WaterMove =
         return;
     if(self.health < 0)
         return;
+    if(self.watertype == CONTENT_WATER || self.watertype == CONTENT_SLIME)
+        VR_Status_Soak(self, self.waterlevel); // VR: wet (the status component, vr_status.qc)
 
     if(self.waterlevel != 3)
     {

@@ -894,8 +894,11 @@ entity(entity e) VR_AG_Thrower = { return (e.owner.flags & (FL_CLIENT | FL_MONST
 // what was done to it); knocked out of its hand, it staggers on its feet for vr_agrunt_disarm_stagger s (the parry's
 // flinch, VR_Parry_InterruptFor; never a ragdoll: a fall drops what the other hand holds, VR_AG_FallDrop). `by` world
 // (the tools', the tests' own disarms): nothing.
+entity vr_ag_last_try_by; // who made the last try at a weapon (the tests read it: vr_systems_test 14)
+
 void(entity g, entity by, float outcome) VR_AG_DisarmTry =
 {
+    vr_ag_last_try_by = by;
     g.vr_ag_struck_at = time; // (lying: the blow's knock on its body is no fall's impact, VR_AG_FallImpact)
     if(!by || by == g || g.health <= 0)
     {

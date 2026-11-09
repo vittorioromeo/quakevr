@@ -3448,6 +3448,8 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
 };
 
 void(entity e, entity xInflictor, entity xAttacker, float xDamage) VR_Burn_Blast; // (vr_burning.qc)
+.entity vr_impulse_by; // who last flung it (a blast's attacker): credited for what it then hits (VR_Prop_Flung)
+.float vr_impulse_t;   // ... when
 
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
@@ -3473,6 +3475,8 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
         if(head != ignore)
         {
             VR_Burn_Blast(head, inflictor, attacker, damage); // VR: flammable things near it catch fire
+            head.vr_impulse_by = attacker; // VR: what it flings hits on its attacker's account
+            head.vr_impulse_t = time;
             if(head.takedamage)
             {
                 org = head.origin + (head.mins + head.maxs)*0.5;
