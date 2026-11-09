@@ -4141,6 +4141,30 @@ void checkLinks()
     showPage(PageMain);
     Con_Printf("menu links: %d links and %d search entries opened, %d failed\n", links, entries, failed);
 }
+
+// menu_vr pos under a dialog (M_Confirm's, the flat screen's Quit): its box as drawn, against the menu's area (the flat
+// VR menu panel's rect, or the window) and the menu canvas's scale: centred on it and at its scale (tests).
+void printDialogBox()
+{
+    float x0, y0, x1, y1, unit;
+    if(!M_DialogBox(&x0, &y0, &x1, &y1, &unit))
+    {
+        return;
+    }
+    Con_Printf("menu_vr pos: dialog box x %.0f..%.0f, y %.0f..%.0f (middle %.1f %.1f), %.2f px per unit\n", x0, x1, y0, y1,
+        (x0 + x1) * 0.5f, (y0 + y1) * 0.5f, unit);
+    if(VR_IsActive())
+    {
+        Con_Printf("menu_vr pos: dialog area: the headset's canvas\n");
+        return;
+    }
+    int ax = 0, ay = 0, aw = glwidth, ah = glheight;
+    const bool panel = VR_MenuFlatViewport(&ax, &ay, &aw, &ah) != 0;
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    Con_Printf("menu_vr pos: dialog area: %s %d %d %d x %d (middle %.1f %.1f), the menu's %.2f px per unit\n",
+        panel ? "the flat VR menu panel" : "the window", ax, ay, aw, ah, ax + aw * 0.5f, ay + ah * 0.5f, t.scale[0] * aw * 0.5f);
+}
 } // namespace
 
 void qvr::menu::init()
@@ -4283,6 +4307,7 @@ void qvr::menu::command_f()
             }
             Con_Printf("menu_vr pos: menu %d (%s)%s%s\n", static_cast<int>(m_state), name, corner,
                 key_dest == key_menu && m_state == m_singleplayer ? va(", row %d", m_singleplayer_cursor) : "");
+            printDialogBox();
             return;
         }
         const auto& list = items(ui().page);

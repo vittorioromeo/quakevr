@@ -1201,6 +1201,37 @@ static struct
 #define CONFIRM_YES	0
 #define CONFIRM_NO	1
 
+// QVR: where the dialog shown (M_Confirm's, the flat screen's Quit message) last drew its box, in the 2D pass's pixels
+// (Draw_CanvasToPixels: the window's, or the headset's canvas): menu_vr pos prints it (tests: centred on the menu, its scale).
+static struct
+{
+	float				x0, y0, x1, y1;	// the box's corners
+	float				unit;			// pixels per menu unit across
+	enum m_state_e		state;			// the dialog's (m_confirm, m_quit)
+} m_dialogbox;
+
+static void M_NoteDialogBox (int x, int y, int cols, int lines)
+{
+	float ux, uy;
+	Draw_CanvasToPixels ((float) x, (float) y, &m_dialogbox.x0, &m_dialogbox.y0);
+	Draw_CanvasToPixels ((float) (x + cols * 8 + 16), (float) (y + lines * 8 + 16), &m_dialogbox.x1, &m_dialogbox.y1);
+	Draw_CanvasToPixels ((float) (x + 1), (float) y, &ux, &uy);
+	m_dialogbox.unit = ux - m_dialogbox.x0;
+	m_dialogbox.state = m_state;
+}
+
+qboolean M_DialogBox (float *x0, float *y0, float *x1, float *y1, float *unit)
+{
+	if (key_dest != key_menu || (m_state != m_confirm && m_state != m_quit) || m_dialogbox.state != m_state)
+		return false;
+	*x0 = m_dialogbox.x0;
+	*y0 = m_dialogbox.y0;
+	*x1 = m_dialogbox.x1;
+	*y1 = m_dialogbox.y1;
+	*unit = m_dialogbox.unit;
+	return true;
+}
+
 typedef struct
 {
 	int x, y, cols, lines;	// the box (M_DrawTextBox's)
@@ -1342,6 +1373,7 @@ static void M_Confirm_Draw (void)
 	GL_SetCanvas (CANVAS_MENU);
 	M_Confirm_Layout (&l);
 	M_DrawTextBox (l.x, l.y, l.cols, l.lines);
+	M_NoteDialogBox (l.x, l.y, l.cols, l.lines);
 	for (s = confirmdlg.text, i = 0; i < l.textlines; i++)
 	{
 		char line[48];
@@ -6711,6 +6743,7 @@ void M_DrawQuitMessage (void)
 	}
 	boxlen = (boxlen + 1) & ~1;
 	M_DrawTextBox (160 - 4*(boxlen+2), 76, boxlen, 5);
+	M_NoteDialogBox (160 - 4*(boxlen+2), 76, boxlen, 5); // QVR
 
 	//now do the text
 	for (i = 0; i < 4; i++)
@@ -6720,12 +6753,19 @@ void M_DrawQuitMessage (void)
 
 void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 {
+	float sx, sy; // QVR
+
 	if (wasInMenus)
 	{
 		m_state = m_quit_prevstate;
 		m_recursiveDraw = true;
 		M_Draw ();
 		m_state = m_quit;
+		// QVR: the VR menu layout on a flat screen (vr_menu_flat_vr_style): the menu under it faded, as under M_Confirm's
+		// dialogs; M_Draw ends on the window's canvas (the panel's frame): back on the menu's, centred in the panel
+		if (VR_MenuCanvas (&sx, &sy))
+			Draw_FadeScreen (1.f);
+		GL_SetCanvas (CANVAS_MENU);
 	}
 
 	M_DrawQuitMessage ();
@@ -8648,7 +8688,7 @@ void M_Keydown (int key, qboolean repeat)
 		}
 	}
 
-	if (!bind_grab && m_state != m_confirm && VR_MenuKey (key, repeat)) // QVR: the corner's buttons (Back to game, Advanced VR, Levels); not under a dialog
+	if (!bind_grab && m_state != m_confirm && m_state != m_quit && VR_MenuKey (key, repeat)) // QVR: the corner's buttons (Back to game, Advanced VR, Levels); not under a dialog (Quit's: Escape back to the menu under it)
 		return;
 
 	switch (M_GetBaseState (m_state))
@@ -8789,7 +8829,7 @@ void M_Mousemove (int screenx, int screeny)
 		return;
 	}
 
-	if (m_state != m_confirm && VR_MenuMouseOnButtons (x, y)) // QVR: on a corner button: the menu's own selection stays (Back returns to it); not under a dialog
+	if (m_state != m_confirm && m_state != m_quit && VR_MenuMouseOnButtons (x, y)) // QVR: on a corner button: the menu's own selection stays (Back returns to it); not under a dialog
 		return;
 
 	switch (M_GetBaseState (m_state))
