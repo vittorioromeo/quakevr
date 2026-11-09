@@ -6662,6 +6662,48 @@ by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolle
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
 
+## Flat-screen lean: the arms turn with the torso (branch `agent/lean_pose`, worktree `flatwall`, 2026-11-09)
+
+His words: "While leaning, it feels like the gun poses are a bit unnatural, especially when dual wielding. The weapon that
+ends up being 'lower' seems way too low ... we rotate and move the arms at the same time as the torso so that everything
+gets rotated/tilted with the torso as a pivot. Then we ensure that the weapons are still aiming at the right spot."
+
+**What was wrong.** Two turns stacked. The pose's shoulders came off the body leant from its hips (`solveTorso`) with the
+hands off them unturned -- which already comes to about the eye's own swing round `vr_flat_lean_pivot` (32 degrees at a
+full lean: within 1.4-2 units of it) -- and then `drawnOffset` turned the drawn hands round the eye by the view's 15-degree
+roll on top. On the (rolled) screen the guns turned 32 degrees: dual shotguns leant right, the lower (main) gun went from
+(5.6, -9.0) units off the eye in the screen's frame to (1.2, -11.1) -- 2.1 down and 4.4 in -- and the upper one to (-7.8,
+-4.9), 4.1 up; in the world the lower gun stood 30.3 over the floor (36.8 upright, the eye 4.6 lower). The drawn guns were
+also off the pose's (the shots') by the roll's turn: 2.9 units for one shotgun.
+
+**Now** (`vr_flatplay.cpp` `leanRig`, `poseHands`): the hands are posed as he stands upright (the head back where the lean
+took it from, the body unleant: the shoulders, the clearances, the stance), then moved as one rigid body with the eye: the
+move that takes the upright eye to the leant one, turned about the level forward by the upper body's tilt, and each gun aims
+again from there (the crosshair's point). The tilt: `vr_flat_lean_arms_pivot` 0 (default), the view's own roll -- the guns
+hold their place on the screen while the room tilts; N > 0, the angle of the eye's sideways move N units under the eye
+(30, the eye's own arc: the brief's literal model, 32 degrees, the guns 17 degrees round on the screen -- tried first:
+the lower gun still went 1.5 down and 2.9 in on the screen, the picture plainly skewed; `scratch/lean_after.png`), times
+`vr_flat_lean_arms` (1; 0 carries them with the eye unturned). The guns roll `vr_flat_lean_gun_roll` (1) of the view's
+roll, in the pose (`aimRotAtCrosshair`, and flatsight's `aimAtPoint` keeps the rolled up), so the drawn hands no longer
+add the view's roll (`drawnOffset`'s pose frame carries it): drawn and pose agree. Rows: Debug > Tunables > Flatscreen,
+next to Lean Pivot (Lean Arms Follow, Lean Arms Pivot, Lean Gun Roll). The avatar's trunk still tilts from the hips (its
+shoulders are not where the rigid ones are; the arms reach the hands, and the drawn arm-hold did not clamp in the runs).
+
+| full lean, dual shotguns | lower gun, screen frame | upper gun, screen frame | lower gun over the floor |
+|---|---|---|---|
+| upright | (5.6, -9.0) | (-5.7, -9.0) | 36.8 |
+| before, right | (1.2, -11.1) | (-7.8, -4.9) | 30.3 |
+| now, right | (5.6, -9.3) | (-5.7, -9.3) | 31.0 |
+| before, left | (-1.4, -10.9) | (7.6, -4.7) | 30.3 |
+| now, left | (-5.8, -9.1) | (5.6, -9.2) | 31.0 |
+
+One shotgun leant right: before (-0.9, -7.0) on the screen (upright (3.4, -5.2)), now (3.3, -5.4).
+
+**Test** `vr_flatleanpose_test [main:off ...]` (`vr_flatleanpose.cpp`, in `flatslide_test.sh`): 32/0 -- for a shotgun alone,
+two shotguns, two nail pistols, two grunt's guns: leant full left and right, each gun's pose and drawn hand within 1 unit
+of the upright one moved rigidly (0.0-0.3 measured; before: 1.4-2.0 the pose, 1.5-2.9 drawn), firing, the shot 0.000
+degrees off the crosshair's point; 17 units off the nearer side wall leant into it (the eye stops at 7) and away, no gun
+stopped that fires upright there (0, as before). `flatsight::shotOff` and `flatplay::drawnHand` are the test's reads.
 ## Visor crosshair: jitter, reload, walls (agent/xhair2, 2026-11-09)
 
 His words: "partially fade crosshairs when reloading"; "The crosshair jitters quite a lot when moving the camera around
