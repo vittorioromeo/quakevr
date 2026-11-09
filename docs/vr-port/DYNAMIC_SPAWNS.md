@@ -79,6 +79,68 @@ The shared code the ideas need is already built; see "Prerequisites available" a
 - **Corpse loot:** armed humanoids drop their actual weapons and armour; any NPC can pick up dropped gear (the player
   is not special).
 
+## Systems ideas from the 2026-11-09 audit
+
+From the systems audit (duplication, wider use, synergies, missing systems). Status: **done** (built in
+`agent/systems1`, see "Prerequisites available"), **partly**, or **open**. Pick from these together with the spawn
+ideas above: most spawn ideas lean on one of them.
+
+### Ranked proposals
+
+| # | proposal | status |
+|---|---|---|
+| 1 | Momentum-based impacts for any fast rigid body (thrown, dropped or blast-flung bodies and props hurt, topple, knock torches, press buttons; credit the last impulse source) | see "Prerequisites available" |
+| 2 | Generalised fire spread and ignition (burning bodies ignite flammables, explosions ignite, one `VR_Burn_FromThing`) | see "Prerequisites available"; explosive-box cook-off **not wanted** (author, 2026-11-09: keep explosive boxes as they are) |
+| 3 | One material and property table | see "Prerequisites available" |
+| 4 | Server-side status component (wet, burning, shocked, bleeding, stunned) | see "Prerequisites available" |
+| 5 | Armour from the worn plates everywhere (buoyancy and material from `vr_ar_mask`); more wearers (ogres, AD plated monsters, zombies in mail); optional per-plate rule for the player | buoyancy/material: see "Prerequisites available"; more wearers and the player rule **open** |
+| 6 | Symmetric disarm, parry and clash through one held-line accessor `VR_HeldLine(e, hand)` (grunt vs grunt in infighting, optional rare player disarm) | **open** (only the thrown-thing disarm between grunts is in) |
+| 7 | NPCs use the world: grunts throw back grenades, pick up and throw props and torches, carry torches in the dark, kick burning crates | **open** |
+| 8 | One conduction function for every lightning source, plus wet and metal | see "Prerequisites available" |
+| 9 | Unified liquid tests and hazards (one breath model, one drowning for player and monsters) | tests: see "Prerequisites available"; one hazard/drowning path **open** |
+| 10 | Perception of smoke and world events (smoke blocks sight, monsters hear monster steps and fights, a burning ally alerts) | **open** |
+
+### Duplication still to merge (open)
+
+- Blood drips: `bodyblood`'s own drop simulation folded into `drips` as a hand/forearm source.
+- Footsteps: one "step event (entity, foot, speed)" sink for enemies and the player; floor material picks the sound;
+  bloody prints for anyone; noise for stealth.
+- Weapon lines, parry and clash: four line representations, two parry systems (see proposal 6).
+- Flat shove: pass reach and pad as parameters instead of mutating `vr_bash_*` globals.
+- Player hit geometry: a head capsule so headshots on the player paint wounds.
+- Dynamic lights: one light-source registry, server-visible for gameplay sources; rendering picks by budget, stealth
+  sums without it.
+
+### Wider use (open unless marked)
+
+- Armour on more kinds: ogres (helmet, pauldrons), AD's plated monsters' real plates, zombies in mail, the dummy.
+- Climbing for NPCs: grunts mantling low walls; active ragdolls catching ledges as they fall.
+- Disarming the player (a grunt's parry or tug, low chance, cvar-gated); grunts disarming each other; blasts knocking
+  weapons out of hands.
+- Throwing as an NPC attack (grenades back, torches, axes that stick, props).
+- Embedding for grunts' blades (stabs leaving blades in corpses or props; thrown axes sticking).
+- Hot blades for anyone (a knight passing through fire, a grunt's blade near a torch).
+- Torches carried by armed grunts in dark maps (light AI can use, a fire spreader).
+- Bloody footprints for monsters walking through pools; dragged ragdolls leaving smears.
+- Stealth noise from monster footsteps, burning crackle, falling bodies, armour clanking (`VR_Stealth_Noise`).
+- Enemy shove between monsters (out of a doorway, into hazards) and on props.
+- Floor and wall buttons pressed by monsters and objects: **done behind `vr_monsters_press_buttons` (default 0)**.
+
+### Missed synergies (open unless marked)
+
+- Fire and armour: burning scorches plates and skin.
+- Fire and ropes (needs world ropes, below).
+- Wet things resist ignition: the wet status exists now (see "Prerequisites available"), the rule is **open**.
+- Lightning ignites (the shock chars but never calls `VR_Burn_Ignite`).
+- Smoke blocks NPC sight.
+- AI notices a burning ally or a fire.
+- A thrown prop blocking an incoming melee line.
+
+### Missing systems (open)
+
+- World ropes and chains (hanging lamps, chandeliers, bridges) with Box3D joints; they burn and can be cut.
+- Destructible brush geometry beyond crates (planks, doors splintering), as "func_breakable as props".
+
 ## Shared building blocks
 
 1. Style detection per area from the surrounding textures, plus placement rules ("on a wall of tech texture, 64 units

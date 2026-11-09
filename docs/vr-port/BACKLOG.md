@@ -214,7 +214,8 @@ Then design review P3, P6 part 2, P8, P9, P10 (`scratch/refactor/design_review.m
 "Collect all your ideas regarding the dynamically spawning entities in a document, and add an item to the backlog to
 go through it and pick good ideas to implement." Go through docs/vr-port/DYNAMIC_SPAWNS.md with him and pick the ideas
 to implement (entities spawned by map style: gas canisters, wall-mounted weapons and shields, chandeliers, junction
-boxes, ...). The prerequisites (material table, status component, wall mounts, style detection) are built; the
+boxes, ...), together with its "Systems ideas from the 2026-11-09 audit" section (the systems audit's proposals not
+done yet, each marked done or open). The prerequisites (material table, status component, wall mounts, style detection) are built; the
 document's "Prerequisites available" section says how to use them.
 
 ### Multiplayer update (after 1.1; the author, 2026-10-18)
