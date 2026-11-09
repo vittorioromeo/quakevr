@@ -6,7 +6,7 @@
 // reserve); a nailgun in the off hand; then the option off (the screen's colour at empty and low). Each case waits for
 // the readout to show it (the engine's vr_ammo_color_seen / _seen2, kept while vr_ammo_color_debug is on: loaded *
 // 10000 + capacity * 10 + state) and checks its state: 0 the screen's colour, 1 low, 2 empty. Ends with
-// "ammocolor: N passed, M failed".
+// "ammocolor: N passed, M failed" (its lines broadcast: seen with developer 0).
 // vr_ammocolor_test 2: the eyeshot's scene: a shotgun at a fifth in the main hand (low), an empty nailgun in the off hand;
 // Cases 19..24: a shotgun holstered or lying, put there without ever being in a hand (as an enemy's drop): the warning
 // uses the weapon's own magazine size.
@@ -149,7 +149,7 @@ void() VR_ACT_Start =
     }
     if(g == 4 && vr_act_size <= 2)
     {
-        dprint("ammocolor: SKIP the Widowmaker (AD's upgrades are not on here)\n");
+        VR_Test_Print("ammocolor: SKIP the Widowmaker (AD's upgrades are not on here)\n");
         vr_act_case = vr_act_case + 3;
         if(vr_act_case >= VR_ACT_CASES) { VR_ACT_End(); return; }
         VR_ACT_Start();
@@ -171,7 +171,7 @@ void() VR_AmmoColor_TestFrame =
     {
         cvar_set("vr_ammocolor_test", "0");
         vr_act_player = VR_Player();
-        if(!vr_act_player) { dprint("ammocolor: no player\n"); return; }
+        if(!vr_act_player) { bprint("ammocolor: no player\n"); return; }
         if(req == 2)
         {
             VR_ACT_Give(cVR_MainHand, 0, 1);
@@ -185,7 +185,7 @@ void() VR_AmmoColor_TestFrame =
             dprint("ammocolor: scene: an empty nailgun in the main hand\n");
             return;
         }
-        VR_Test_Begin("ammocolor");
+        VR_Test_BeginFlags("ammocolor", VR_TEST_LOUD); // (broadcast: its verdict ends a run without developer 1)
         vr_act_warn = cvar_hget(cvarh_vr_ammo_color_warn);
         vr_act_debug = cvar_hget(cvarh_vr_ammo_color_debug);
         vr_act_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
@@ -215,7 +215,7 @@ void() VR_AmmoColor_TestFrame =
     {
         if(vr_act_frames > 90) // (a safety net: the readout shows a case within a few frames)
         {
-            dprint(sprintf("ammocolor: FAIL case %g (%s): timed out, the readout at %g\n", vr_act_case,
+            VR_Test_Print(sprintf("ammocolor: FAIL case %g (%s): timed out, the readout at %g\n", vr_act_case,
                 VR_ACT_Name(VR_ACT_Gun(vr_act_case)), seen));
             vr_test_fail = vr_test_fail + 1;
         }
@@ -229,7 +229,7 @@ void() VR_AmmoColor_TestFrame =
         float ok = state == vr_act_expect;
         string what = sprintf("case %g: %s, %s, %g of %g loaded", vr_act_case, VR_ACT_Name(VR_ACT_Gun(vr_act_case)),
             vr_act_mode == 1 ? "holstered" : vr_act_mode == 2 ? "lying" : vr_act_hand == cVR_OffHand ? "off hand" : "main hand", vr_act_loaded, vr_act_size);
-        dprint(sprintf("ammocolor: %s %s%s: state %g (want %g)\n", ok ? "PASS" : "FAIL", what,
+        VR_Test_Print(sprintf("ammocolor: %s %s%s: state %g (want %g)\n", ok ? "PASS" : "FAIL", what,
             cvar_hget(cvarh_vr_ammo_color_warn) ? "" : ", the option off", state, vr_act_expect));
         VR_Test_Count(ok);
     }
