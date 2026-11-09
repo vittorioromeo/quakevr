@@ -42,6 +42,7 @@
 #include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatspeedfov.hpp"
 #include "vr_flatsweep.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
@@ -1714,6 +1715,7 @@ void init()
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
+    flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -1731,6 +1733,7 @@ void frame()
     if(!frozen)
     {
         flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
+        flatspeedfov::frame(on); // the speed FOV's ease (vr_flat_speed_fov); gone at once when the mode is off
         flathit::frame();   // a hit's punch of the view: this frame's part of it into the aim, before the pose reads the look
     }
 

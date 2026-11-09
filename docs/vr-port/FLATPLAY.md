@@ -735,6 +735,24 @@ up out of the pose over `vr_flat_empty_take_time` (0.1 s; 0 at once, as before).
 pose: the hand leaves the rest for it and comes back after. Debug > Reports: Flatscreen Fly Camera: Look at Me
 (`vr_flat_flycam_place`) puts the fly camera in front of you to look at the pose.
 
+## The speed FOV
+
+`vr_flat_speed_fov 1` (Locomotion > Desktop Screen Play; `vr_flatspeedfov.cpp`): faster than a run along the floor the
+view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (320, the run), rises on a smoothstep to
+`vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400: a slide's start, the run plus its boost) and stays
+there above it; `vr_flat_slide_fov_bonus` (0) adds to it while sliding. It eases towards the speed's value with time
+constant `vr_flat_speed_fov_ease` (0.15 s) widening and `vr_flat_speed_fov_ease_out` (0.6 s) narrowing, so landing,
+stopping or hitting a wall never pops it. The speed is the client's (`cl.velocity`), so a slide and a bunny hop chain
+both get it, hosting or joined.
+
+It multiplies the field of view after the ironsight's narrowing (`flatsight::fov`, `VR_FlatAdsFov`): the ironsight wins,
+the widening scaled by one minus its travel (none while sighted). The visor crosshair projects with the frame's own
+view-projection and `vr_flat_model_fov` scales against `r_refdef.basefov`, so both follow it; the look's speed does not
+(`in_sdl.c IN_FovScale` reads `VR_FlatLookFov`, the field of view without the widening: a degree of mouse stays a degree
+of turn). In a headset nothing changes. `vr_flat_speed_fov_status` prints the speed and the multiplier;
+`vr_flat_speed_fov_test` (Debug > Tests; `Misc/quakevr/flatspeedfov_test.sh`) measures walk, run, slide and a bunny hop
+chain.
+
 ## The model FOV
 
 `vr_flat_model_fov` (0: off) draws the player's own models at their own field of view. It is looks only: see `flatplay::modelFov` in `vr_flatplay.hpp` and ROUND24.md for what follows it and what does not.

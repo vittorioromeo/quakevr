@@ -1369,6 +1369,13 @@ vr_flat_mantle_time|1|Locomotion|Mantle Window|Advanced VR Options > Movement > 
 vr_flat_mantle_grunt_delay|1|Locomotion|Mantle Grunt Delay|Advanced VR Options > Movement > Locomotion > Mantle Grunt Delay
 vr_flat_mantle_hands|1|Locomotion|Mantle Hands On The Ledge|Advanced VR Options > Movement > Locomotion > Mantle Hands On The Ledge
 vr_flat_slide|1|Locomotion|Slide|Advanced VR Options > Movement > Locomotion > Slide
+vr_flat_speed_fov|1|Locomotion|Speed FOV|Advanced VR Options > Movement > Locomotion > Speed FOV
+vr_flat_speed_fov_max|1|Locomotion|Speed FOV Most|Advanced VR Options > Movement > Locomotion > Speed FOV Most
+vr_flat_speed_fov_from|1|Locomotion|Speed FOV From Speed|Advanced VR Options > Movement > Locomotion > Speed FOV From Speed
+vr_flat_speed_fov_top|1|Locomotion|Speed FOV Full Speed|Advanced VR Options > Movement > Locomotion > Speed FOV Full Speed
+vr_flat_slide_fov_bonus|1|Locomotion|Speed FOV Slide Extra|Advanced VR Options > Movement > Locomotion > Speed FOV Slide Extra
+vr_flat_speed_fov_ease|1|Locomotion|Speed FOV Ease In|Advanced VR Options > Movement > Locomotion > Speed FOV Ease In
+vr_flat_speed_fov_ease_out|1|Locomotion|Speed FOV Ease Out|Advanced VR Options > Movement > Locomotion > Speed FOV Ease Out
 vr_flat_lean|1|Locomotion|Lean (Q / E)|Advanced VR Options > Movement > Locomotion > Lean (Q / E)
 vr_flat_lean_toggle|1|Locomotion|Lean Keys|Advanced VR Options > Movement > Locomotion > Lean Keys
 vr_flat_lean_mouse|1|Locomotion|Mouse Follows Lean|Advanced VR Options > Movement > Locomotion > Mouse Follows Lean
@@ -5126,6 +5133,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
+|2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
+|2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
 |2|Debug - Tests|Lying Body Test|Advanced VR Options > Debug > Tests > Lying Body Test
 |2|Debug - Tests|Lying Body Report|Advanced VR Options > Debug > Tests > Lying Body Report
 |2|Debug - Tests|Flat Lean Test|Advanced VR Options > Debug > Tests > Flat Lean Test
@@ -9351,4 +9360,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page

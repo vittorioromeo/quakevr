@@ -745,7 +745,8 @@ extern cvar_t scr_fov;
 
 static float IN_FovScale (void)
 {
-	return tan (DEG2RAD (r_refdef.basefov) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f);
+	// QVR: without flatscreen play's speed FOV (vr_flatspeedfov.cpp): a degree of mouse stays a degree of turn at any speed
+	return tan (DEG2RAD (VR_FlatLookFov (r_refdef.basefov)) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f);
 }
 
 void IN_MouseMotion(int dx, int dy)

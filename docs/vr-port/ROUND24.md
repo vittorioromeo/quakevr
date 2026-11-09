@@ -6661,3 +6661,30 @@ Mouse Follows Lean): Quake's own code path, untouched. Test `vr_flatleanmouse_te
 by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolled up axis for up and down, 0.17-0.29
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
+
+## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
+
+His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
+"make the FOV multiplier not only sliding-specific, but speed specific ... any speed above the run speed would increase
+the FOV gradually, up to a cap". `vr_flatspeedfov.cpp`: the multiplier is 1 up to `vr_flat_speed_fov_from` (320, the
+run), a smoothstep to `vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400), eased in over
+`vr_flat_speed_fov_ease` (0.15 s time constant) and out over `vr_flat_speed_fov_ease_out` (0.6 s);
+`vr_flat_slide_fov_bonus` (0) is an extra while sliding. Rows on Locomotion > Desktop Screen Play after Slide; Debug >
+Tests: Flat Speed FOV (test, status). Details: FLATPLAY.md, "The speed FOV".
+
+- **Why top 400:** measured in vrtesthall (fixed frames): walk 192 u/s, run 320, a level slide starts at 400 (run plus
+  the 80 boost) and loses 180 u/s a second, so it is over in about 1.5 s. With top 440 and a 0.25 s ease (the brief's
+  first numbers) a level slide only reached x1.023; top 400 and 0.15 s give x1.052 (94.7 at fov 90). A downhill slide
+  (to 560) and a bunny hop chain past 400 get the whole x1.1. A slide bonus of 0.04 takes a level slide to about x1.1
+  if he wants the slide itself to read stronger (left at 0: the brief's default).
+- **Composition:** after the ironsight's narrowing in `flatsight::fov`, the widening times one minus the ironsight's
+  travel (sighted: none). `IN_FovScale` reads `VR_FlatLookFov` (the field of view without the widening), so the mouse's
+  degrees per count do not change with speed. The visor crosshair projects with `r_matviewproj` (the frame's own) and
+  `vr_flat_model_fov` scales against `r_refdef.basefov`, so both follow the widening.
+- **Shared with VR:** the FOV goes through the existing `VR_FlatAdsFov` / `SCR_CalcRefdef` path (no second projection),
+  the ease and curve are `geom::approachExp` / `geom::smoothstep`, the slide state `flatmove::sliding()`. Nothing in the
+  headset path is a counterpart: a headset's field of view is the lenses'.
+- **Test** `vr_flat_speed_fov_test` (`Misc/quakevr/flatspeedfov_test.sh`): 7 of 7. Walk 192 / run 320: fov 90.000 of 90;
+  a slide 320 to 400 peaks at 94.72 (x1.052) and eases back in 3.1 s; a strafe-jump chain (landings 342 346 360 382 375
+  380 385 400) peaks at 98.15 (x1.091) and eases back in 4.1 s; the largest frame's step 0.80 degrees (0.99 of what the
+  ease allows at the slide's boost), 0.22 in the chain.
