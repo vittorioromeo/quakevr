@@ -10,6 +10,8 @@
 Flat-screen: fire a gun until its clip is empty: with Desktop Screen Play > Auto Reload off (the default) it stays empty until you press R; with it on it reloads by itself. Holding fire through a reload fires nothing until the gun is back. {test:flat_reload}
 Flat: a rifle-type gun with the off hand on its grip (rocket launcher), V punches with that hand: the fist lands on a knight right in front (and stops at a wall).
 Flat: the two-handed shove (mouse 5, both hands empty) reaches further out (Shove Hand Travel 64, slider up to 96): looks right, still knocks a grunt.
+- [ ] Broken armour halves are clean: shoot plates off grunts, enforcers and knights; each half is whole plates, closed, no thin spikes or see-through faces (agent/geo1109). Test: agarmor_tiers
+- [ ] Elbow leather (not fixed yet, diagnosis only): the enforcer's right and the grunt's left elbow; tell me what the holes look like (from behind? bent? which pose) (agent/geo1109). Test: agarmor_enforcer_elbow
 
 [2. VR: body, lying down and swimming]
 Smooth + Teleport (VR Settings > Comfort, Teleport and Turning > Teleport): the moving stick walks as before; push the turning stick forward to aim (blue/red arc from that hand, no turning, no walking meanwhile), let it go back to the middle to land standing still; pull it back to cancel; left/right still snap or smooth turn; jumping, crouching, sprinting, bullet time and the holsters as usual; in the air or hanging from a ledge the arc is red and nothing happens; with Swap Stick Functions the left stick aims {test:teleport_both}
