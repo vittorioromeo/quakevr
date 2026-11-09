@@ -4859,7 +4859,7 @@ void M_AdjustSliders (int dir)
 		Cbuf_AddText ("toggle vid_fsaamode\n");
 		break;
 	case OPT_RENDERSCALE:
-		Cvar_SetValueQuick (&r_scale, CLAMP (1, r_refdef.scale + dir, vid.maxscale));
+		Cvar_SetValueQuick (&r_scale, CLAMP (1, CLAMP (1, (int) r_scale.value, vid.maxscale) + dir, vid.maxscale)); // QVR: the cvar (the eyes' view is at scale 1)
 		break;
 	case OPT_ANISO:
 		VID_Menu_ChooseNextAnisotropy (-dir);
@@ -5495,8 +5495,11 @@ static void M_Options_DrawItem (int y, int item)
 		M_Print (x, y, vid_fsaamode.value ? "Full" : "Edges only");
 		break;
 	case OPT_RENDERSCALE:
-		r = (r_refdef.scale - 1) / (float) (vid.maxscale - 1);
-		M_DrawSlider (x, y, r, r_refdef.scale >= 2 ? va("1/%i", r_refdef.scale) : "Off");
+		{ // QVR: the cvar, not r_refdef.scale (1 in VR, where the eyes ignore r_scale)
+			int scale = CLAMP (1, (int) r_scale.value, vid.maxscale);
+			r = (scale - 1) / (float) (vid.maxscale - 1);
+			M_DrawSlider (x, y, r, scale >= 2 ? va("1/%i", scale) : "Off");
+		}
 		break;
 	case OPT_ANISO:
 		r = GetLogFraction (gl_texfilter.anisotropy, 1.f, gl_max_anisotropy);
@@ -5721,9 +5724,36 @@ static void M_Options_DrawFadeScreen (void)
 	Draw_PartialFadeScreen (glcanvas.left, glcanvas.right, y0, y1, 1.f);
 }
 
+// QVR: a row the headset does not use while a session runs (the graphics audit, 2026-11-09): dimmed, still changed
+// (the desktop's settings for flat play), the note under the list while selected says why. NULL: used in this mode.
+static const char *M_Options_ModeNote (int option)
+{
+	if (!VR_IsActive ())
+		return NULL;
+	switch (option)
+	{
+	case OPT_GAMMA:
+	case OPT_CONTRAST:
+	case OPT_FOV:
+	case OPT_FOVDISTORT:
+	case OPT_VSYNC:
+	case OPT_WATERWARP:
+		return "Flat screen only: no effect in VR";
+	case OPT_RENDERSCALE:
+		return "Flat screen only: VR uses VR Scaling";
+	case OPT_RESOLUTION:
+	case OPT_DISPLAYMODE:
+		return "In VR: the desktop window only";
+	default:
+		return NULL;
+	}
+}
+
 void M_Options_Draw (void)
 {
 	qboolean enabled, wasenabled, selected, isolated;
+	qboolean modedim, wasmodedim; // QVR: M_Options_ModeNote
+	const char *note; // QVR
 	int firstvis, numvis;
 	int i, x, y, cols;
 	int option;
@@ -5770,20 +5800,23 @@ void M_Options_Draw (void)
 	}
 
 	wasenabled = true;
+	wasmodedim = false;
 	M_List_GetVisibleRange (&optionsmenu.list, &firstvis, &numvis);
 	while (numvis-- > 0)
 	{
 		i = firstvis++;
 		option = optionsmenu.first_item + i;
 		enabled = M_Options_IsEnabled (i);
+		modedim = enabled && M_Options_ModeNote (option) != NULL; // QVR
 		selected = (i == optionsmenu.list.cursor);
 		isolated = (option == optionsmenu.preview.id && enabled);
 
-		if (enabled != wasenabled)
+		if (enabled != wasenabled || modedim != wasmodedim)
 		{
-			float val = enabled ? 1.f : 0.375f;
+			float val = !enabled ? 0.375f : modedim ? 0.6f : 1.f; // QVR: the other mode's row dimmed less than a disabled one
 			GL_SetCanvasColor (val, val, val, alpha);
 			wasenabled = enabled;
+			wasmodedim = modedim;
 		}
 
 		if (isolated)
@@ -5800,6 +5833,11 @@ void M_Options_Draw (void)
 
 		y += 8;
 	}
+
+	GL_SetCanvasColor (1.f, 1.f, 1.f, alpha); // QVR: the note at full brightness
+	note = M_Options_IsSelectable (optionsmenu.list.cursor) ? M_Options_ModeNote (M_Options_GetSelected ()) : NULL;
+	if (note) // QVR: why the selected row is dimmed, under the list (clear of its ellipsis bar)
+		M_Print ((320 - 8 * (int) strlen (note)) / 2, q_min (y + (M_List_GetOverflow (&optionsmenu.list) > 0 ? 12 : 4), m_top + m_height - 8), note);
 
 	GL_PopCanvasColor ();
 
