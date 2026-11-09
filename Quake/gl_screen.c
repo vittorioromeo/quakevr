@@ -2264,7 +2264,11 @@ void SCR_UpdateScreen (void)
 
 	VR_ProfileBeginGPU ("3D"); // QVR: profile
 	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
+	{
+		VR_WindowViewBegin (); // QVR: as the eyes' first (the shadow pass's set-ups shared)
 		V_RenderView ();
+		VR_WindowViewEnd (); // QVR
+	}
 	VR_ProfileEnd (); // QVR
 
 	GL_BeginGroup ("2D");

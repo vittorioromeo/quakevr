@@ -68,6 +68,23 @@ cvar_t	host_fixedtick = {"host_fixedtick", "1", CVAR_NONE};
 // beat between a 72.1 Hz headset and the 72 Hz tick: a tick every frame, none skipped).
 cvar_t	host_fixedtick_tolerance = {"host_fixedtick_tolerance", "0.001", CVAR_NONE};
 cvar_t	host_fixedtick_max = {"host_fixedtick_max", "8", CVAR_NONE}; // QVR: the most ticks a frame catches up on
+// QVR: a frame behind runs no more ticks than its recent frames' length holds (floor(1.5 x their mean length in ticks) +
+// 1: 1 a frame at 125 fps, 2 at 90 or 72 Hz), the rest carried to the frames after (none dropped short of
+// host_fixedtick_max): a slow frame's catch-up spread over the next frames rather than three ticks in one (perf
+// 2026-11-09: 20-45 ms frames in fights). 0: all of it at once, as before.
+cvar_t	host_fixedtick_spread = {"host_fixedtick_spread", "1", CVAR_NONE};
+static double host_tickpace; // QVR: the frames' recent length in ticks (host_fixedtick_spread; 0 none yet)
+
+// QVR: host_stall <ms> (Debug menu): this frame sleeps that long, a hitch on demand (host_fixedtick_spread's check)
+static void Host_Stall_f (void)
+{
+	if (Cmd_Argc () < 2)
+	{
+		Con_Printf ("host_stall <ms>: this frame sleeps that long\n");
+		return;
+	}
+	Sys_Sleep ((unsigned long)CLAMP (0, Q_atoi (Cmd_Argv (1)), 1000));
+}
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "250", CVAR_ARCHIVE}; //johnfitz
@@ -164,6 +181,7 @@ static struct
 	char	pattern[TICKSTATS_PATTERN + 1];
 	int		box3dsteps;
 	double	svtime;			// the server's clock (slow motion's ticks are shorter)
+	int		spread;			// frames that ran fewer ticks than were due (host_fixedtick_spread)
 } tickstats;
 
 static void Host_TickStatsReset (void)
@@ -236,6 +254,8 @@ static void Host_TickStats_f (void)
 		Con_Printf ("ticks: frames with 0/1/2/3/4+ ticks: %d %d %d %d %d; most frames in a row without one %d; between ticking frames %.2f-%.2f ms\n",
 			tickstats.perframe[0], tickstats.perframe[1], tickstats.perframe[2], tickstats.perframe[3], tickstats.perframe[4],
 			tickstats.maxgap, tickstats.wallmin < 1e8 ? tickstats.wallmin * 1000.0 : 0.0, tickstats.wallmax * 1000.0);
+		Con_Printf ("ticks: frames whose catch-up was spread over the next (host_fixedtick_spread %g): %d\n",
+			host_fixedtick_spread.value, tickstats.spread);
 		Con_Printf ("ticks: lengths (ms: count):");
 		for (i = 0; i <= TICKSTATS_BINS; i++)
 			if (tickstats.lengths[i])
@@ -255,19 +275,33 @@ static void Host_TickStats_f (void)
 Host_FixedTicks -- QVR: host_fixedtick's ticks for this frame: how many (*len seconds each), the rest of *accum carried
 ================
 */
-static int Host_FixedTicks (double *accum, double *len)
+static int Host_FixedTicks (double *accum, double *len, double frametime)
 {
 	const double interval = host_netinterval;
 	const double tol = CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
 	const int maxticks = CLAMP (1, (int)host_fixedtick_max.value, 64);
+	const double pace = CLAMP (0.0, frametime, 0.2) / interval;
 	double rest;
 	int n = (int)floor ((*accum + tol) / interval);
+	host_tickpace = host_tickpace > 0.0 ? host_tickpace + (pace - host_tickpace) * 0.1 : pace; // (about the last 10 frames)
 	if (n <= 0)
 		return 0;
 	if (n > maxticks) // far behind (a hitch): the rest is dropped, the game slows rather than stalling on catching up
 	{
 		n = maxticks;
 		*accum = n * interval;
+	}
+	if (host_fixedtick_spread.value)
+	{
+		const int most = (int)floor (host_tickpace * 1.5) + 1;
+		if (n > most) // behind: this frame's share, the rest carried (whole ticks: the time each is given unchanged)
+		{
+			n = most;
+			*len = interval;
+			*accum -= n * interval;
+			tickstats.spread++;
+			return n;
+		}
 	}
 	rest = *accum - n * interval;
 	if (fabs (rest) <= tol)
@@ -551,7 +585,9 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_fixedtick); // QVR
 	Cvar_RegisterVariable (&host_fixedtick_tolerance); // QVR
 	Cvar_RegisterVariable (&host_fixedtick_max); // QVR
+	Cvar_RegisterVariable (&host_fixedtick_spread); // QVR
 	Cmd_AddCommand ("host_tickstats", Host_TickStats_f); // QVR
+	Cmd_AddCommand ("host_stall", Host_Stall_f); // QVR
 
 	Cvar_RegisterVariable (&cl_nocsqc);	//spike
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
@@ -1567,7 +1603,7 @@ void _Host_Frame (double time)
 	qboolean ranserver = false;
 
 	time1 = Sys_DoubleTime ();
-	VR_ProfileFrame (); // QVR: ends the last frame's profile, begins this one's
+	VR_TRACY_DETAIL (1, "frame: profile begin", VR_ProfileFrame ()); // QVR: ends the last frame's profile, begins this one's
 
 	if (setjmp (host_abortserver) )
 	{
@@ -1585,7 +1621,7 @@ void _Host_Frame (double time)
 	Host_AdvanceTime (time);
 
 // run async procs
-	AsyncQueue_Drain (&async_queue);
+	VR_TRACY_DETAIL (1, "frame: async drain", AsyncQueue_Drain (&async_queue)); // QVR: (profiling builds: a zone)
 
 // get new key events
 	VR_ProfileBegin ("input"); // QVR: profile
@@ -1641,7 +1677,7 @@ void _Host_Frame (double time)
 		ticklen = host_rawframetime;
 	}
 	else if (host_fixedtick.value) // QVR
-		ticks = Host_FixedTicks (&accumtime, &ticklen);
+		ticks = Host_FixedTicks (&accumtime, &ticklen, time);
 	else if (accumtime >= (float)host_netinterval) // the old way (as when host_netinterval was a float)
 	{
 		ticks = 1;
@@ -1756,10 +1792,10 @@ void _Host_Frame (double time)
 		}
 	}
 
-	VR_HostFrameEnd (); // QVR: the motion recorder's row
+	VR_TRACY_DETAIL (1, "frame: end", VR_HostFrameEnd ()); // QVR: the motion recorder's row
 	VR_TimeFrameEnd (cls.signon == SIGNONS, cls.state != ca_connected && !sv.active); // QVR: start-up and load timing
 	host_framecount++;
-	VR_ProfileFrameEnd (); // QVR
+	VR_TRACY_DETAIL (1, "frame: profile end", VR_ProfileFrameEnd ()); // QVR
 }
 
 void Host_Frame (double time)
@@ -1769,7 +1805,7 @@ void Host_Frame (double time)
 	static int		timecount;
 	int		i, c, m;
 
-	LOG_Tick (); // QVR: the buffered console log out a second after its last write (console.c)
+	VR_TRACY_DETAIL (1, "frame: console log", LOG_Tick ()); // QVR: the buffered console log out a second after its last write (console.c)
 	if (!serverprofile.value)
 	{
 		_Host_Frame (time);

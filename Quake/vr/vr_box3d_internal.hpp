@@ -257,6 +257,18 @@ struct RagdollBodies
     float peakMiddle{0.f}, peakPart{0.f};
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its entity's yaw when it was made (the frames' bones turned by it)
     double born{0.0};
+    // What its last full publish wrote (writeRagdoll): a ragdoll whose every part sleeps and whose entity and pose are
+    // as written is not written again (only its message time moved on: ragdoll::republish).
+    struct Written
+    {
+        bool valid{false};
+        int count{0}, heldBy{0};
+        uint32_t cut{0};
+        float frame{0.f};
+        bool bleeds{false};
+        glm::vec3 origin{0.f}, mins{0.f}, maxs{0.f}, rootPos{0.f};
+        glm::quat rootRot{1.f, 0.f, 0.f, 0.f};
+    } written;
     // Its head cut off (cutHead; ROUND21.md, "Decapitation"): those bones (bits) have no body nor joint now; their
     // entries in `body` name the part they were cut from (the loops over the parts stay valid: those that add up or push
     // per part skip them, partCut). And the head as it was cut (ragdollCut): its middle, turn, launch and spin (world).

@@ -6662,6 +6662,50 @@ by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolle
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
 
+
+## Big fights' CPU (agent/perf_fight, 2026-11-09)
+
+From his flat trace of 2026-11-09 (qvr-kit/scratch/perf_1109.md). Measured with Tracy (Release-Tracy ThinLTO,
+`vr_tracy_preset full`, his settings, flat 3440x1441 fsaa 4, fixed 125 Hz game clock, unpaced, exclusive): ms a frame,
+before -> after. Scenarios: `play_gore_fight_flat`, `play_e1m1_fight_flat` (new, Misc/quakevr/bench/qvrbench.py,
+group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
+
+- **Sleeping ragdolls not written again** (`vr_ragdoll_sleep_skip 1`, box3d writeRagdoll): a ragdoll whose every part
+  sleeps, whose root body has not moved and whose entity (origin, box, frame, velocity, on-ground, cut, bleeding, held)
+  is as last written is skipped: no transforms, AABBs, SV_LinkEdict nor publish copy; `ragdoll::republish` only moves
+  its message time on (the step before set to the same pose once), so the next real publish lerps from it (no snap on
+  waking). Its slide check (noteBodySlide) is skipped too (it looked at awake parts only). ragdolls_32_settled
+  (29 ragdolls): `ragdoll publish` 0.013 -> 0.007, `box3d` 0.633 -> 0.515. **writeRagdoll itself is cheap** (0.8 us a
+  call awake, 14-16 calls a frame: 0.01 ms a frame), and so is everything else in `box3d publish bodies` in these
+  scenarios (0.08-0.12 ms a frame: prop writes 0.03-0.04, body slides 0.03-0.05); his trace's 1-2.7 ms per tick of
+  `box3d publish bodies` self time did not reproduce headless. Its parts now have zones (`box3d recoveries`, `box3d
+  body slide`, `box3d corpse write`, `box3d prop write`, `box3d prop slide`, `box3d ride standing`): his next capture
+  names it. Determinism: `vr_physics_hash ragdolls` of the same blast script differs run to run even with the skip off
+  (part counts 96-98: the scenario is not deterministic), so no A/B by hash; the skip writes nothing that differs
+  (every compared field exact) except the relink order of an unchanged edict.
+- **Server catch-up spread** (`host_fixedtick_spread 1`, host.c Host_FixedTicks). Quake's own loop gave a server frame
+  all the time built up once 1/72 s had passed (one long tick); Quake VR's fixed tick (`host_fixedtick 1`) runs as many
+  1/72 s ticks as the time holds, up to `host_fixedtick_max` 8, so a 30-40 ms frame was followed by a frame with 3
+  ticks (his hitches: 2.87 ticks at 3.2 ms). Now a frame runs at most floor(1.5 x the recent frames' length in ticks) +
+  1 (1 at 125 fps, 2 at 90 or 72 Hz, 4 at 30 fps), the rest carried to the next frames (each tick still 1/72 s; time
+  dropped only past `host_fixedtick_max` as before); `host_tickstats` counts the spread frames. Fixed-frame test runs
+  (one tick a frame) never reach the cap. Not measurable in the fixed-clock bench (no catch-up there): needs his play.
+  Frame-loop zones added for the hitches outside every zone: `frame: throttle`, `frame: unfocused sleep`,
+  `frame: minimized sleep`, `frame: console log` (LOG_Tick's file write), `frame: async drain`, `frame: profile
+  begin/end`, `frame: end` (all ~0.03 ms a frame here).
+- **The flat view shares the shadow pass's model set-ups** (gl_screen.c/vr_stereo.cpp `VR_WindowViewBegin/End`: the
+  flat screen's one view runs as the headset's first eye, `R_AliasEyeCacheBegin(1)`, the same code path): before, only
+  VR's first eye took the shadow pass's lerp and matrices; the flat view set every model up again. `vr_shadow_setup_share
+  2` in flat: 9458 set-ups checked, 0 differ. `alias transform` gore 0.096 -> 0.068, e1m1 fight 0.022 -> 0.015,
+  ragdolls 0.100 -> 0.082 / 0.113 -> 0.086. Posing was already once a frame elsewhere: the lights share one set-up a
+  pass (aliasdepthcache), VR's second eye takes the first's (vr_alias_eye_cache), the skinning matrices are made once a
+  frame (ragdoll::bonePoses, avatar posed.skin). What is left per light is the per-draw overhead (`alias shadow model`
+  ~1.2 us a draw on a hit).
+- **What grows per tick in fights** (gore flat, QC detail 1): `SV edict none` 1.47 ms a tick, of which the armed
+  humanoids' gun props' think `VR_AG_PropThink` 1.35 ms a tick (40 calls: `VR_AG_PlaceProp` + `VR_AGP_Pose` QC, 0.83
+  ms): the next target for cheaper fight ticks (QC). Not done here.
+- Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
+  microseconds per entity: not worth a job's dispatch).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
