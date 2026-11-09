@@ -5242,3 +5242,50 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
   pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
+
+## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
+
+His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and
+the "This hall selects HARD skill" trigger are start's), the super shotgun in hand. Scene `flat_look` (start 820 600 24
+96; `fov 95` as his) reproduces the view closely enough (his camera is a little further back-left); the hall's bridge is
+up or down depending on when the shot is taken, so the comparisons below take every variant in one run, one scene state.
+
+**What the existing settings did in flat (step 1).** Flat defaults vs every effect off-but-bloom/tonemap/grade
+(`vr_bloom 0; vr_tonemap 0; vr_grade 0`): mean difference 0.16/255, noise. Bloom, tone mapping, exposure and the
+colour grade run only for the eyes (`VR_PostProcessBloom`, `VR_PostProcessTone` return early for the window), so in
+flat they did nothing. Ultra preset + `vr_detail 1` + `vr_specular 0.5` vs defaults: 0.5/255: bump mapping, PBR,
+parallax and the AO are already on in the flat defaults (they are world/model shading, shared with the eyes). His own
+config (`gamma 0.95; contrast 1.2`, his relight values) is 7.7/255 off the defaults and slightly darker (luma 30.8 vs
+31.8); he had no effect off. The mockup's gap: brighter (luma 44 vs 32 at the spot), warmer highlights, glow round the
+torches and lava, darkened corners; its creases (pillar feet, under ledges) are not darker than ours, so no AO tuning
+and no screen-space AO. Its wet sheen on the floor and the sharper textures need assets: not attempted.
+
+**Added (step 2), `vr_flatlook.cpp`.** One pass after `R_WarpScaleView` in `R_RenderView` (so the HUD drawn after it is
+never graded), flatscreen play only (`flatplay::active()`, not an eye, not a teleporter's camera): the view's rectangle
+is blitted to an RGB10_A2 copy, the bloom chain runs on the copy (`bloom::applyFlat`, its own third chain, vr_bloom's
+threshold/size/weights), and a full-screen triangle writes it back with the glow added, graded and vignetted. The
+grade: exposure with the eyes' tone curve (`QvrTonemap`, knee 0.7) rolling off its top, shadows (black point raised =
+crushed, or lifted), an S curve about 0.45 with the ends kept, a split tone by luma (highlights amber, shadows blue),
+saturation. The window's post-process then dithers it into 8 bits as the eyes do (`vr_dither`). `GL_NeedsPostprocess`
+asks `VR_FlatLook()` so the window always has the composite target while it is on.
+
+Cvars (defaults = the proposed flat look): `vr_flat_bloom 0.1`, `vr_flat_grade 1`, `vr_flat_grade_exposure 1.25`,
+`vr_flat_grade_contrast 1.05`, `vr_flat_grade_shadows 0.1`, `vr_flat_grade_warmth 0.5`, `vr_flat_grade_saturation
+1.05`, `vr_flat_vignette 0.3`, `vr_flat_vignette_size 0.5`. Rows: VR Settings > Graphics, Post page, "Flat Screen"
+header. `vr_flatlook_info` prints the passes run. At the spot: luma 35.6 -> 42.8 (mockup 44.3), R/G/B 50/32/18 ->
+59/38/22 (mockup 64/38/24). Tuning notes: lifting the shadows a lot washes the hall out (luma sd stays high: the
+mockup is flatter overall); more saturation turns QRP's already orange hall red; bloom 0.2+ turns the torch into a
+white blob.
+
+**Cost (step 5)**, `vr_profile` GPU scopes, ThinLTO not rebuilt, low-impact runs while his game ran (the GPU shared:
+upper bounds): 1920x1080 0.21 ms a frame (bloom 0.11, copy + grade 0.10); 2560x1440 0.43 ms (bloom 0.25, copy +
+grade 0.18). Small, so the look is on by default in flat; take exclusive timings when his game is closed.
+
+**Tests.** `Misc/quakevr/flatlook_test.sh <agent>`: the mock headset, paused, eyeshots with the look's cvars off and
+at their extremes are the same (0 pixels off by more than 2) and no pass ran; in `-flatscreenmode` the pass runs and
+exposure 2 brightens the view (luma x1.8). `flatlook: 4 passed, 0 failed`. flatbt, flathud, hazepreset still pass.
+Scene `flat_look`: `SCNRUN|flat_look|OK`.
+
+Screenshots (worktree `scratch/`): `flatlook_step1.png` (defaults, defaults without bloom/tonemap/grade, his config,
+everything at best, the mockup, his original), `flatlook_compare.png` (the spot off/on, his config, the mockup; two E1M1
+spots off/on).
