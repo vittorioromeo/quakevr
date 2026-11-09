@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_drips.hpp"
+#include "vr_playergore.hpp"
 #include "vr_view_internal.hpp"
 #include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
 #include "vr_agarmor.hpp"
@@ -5381,4 +5382,5 @@ extern "C" void VR_SetupViewEntities()
     QVR_PROFILE("view wounds");
     wounds::frame();
     drips::frame(s.head); // water off the wet, blood off the wounded (vr_drips.cpp)
+    playergore::frame();  // your own wounds' drips (vr_player_gore; vr_playergore.cpp)
 }

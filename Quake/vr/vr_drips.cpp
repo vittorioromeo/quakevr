@@ -3,6 +3,7 @@
 #include "vr_drips.hpp"
 
 #include "vr_ambient.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gore.hpp"
@@ -72,15 +73,23 @@ struct Wet
 constexpr za::SizeT maxWet = 96;
 za::Vector<Wet> wets;
 
-// A wounded living monster: where it was hit, in its own turning frame (its yaw) from its origin.
+// A wounded monster (or its corpse, a while): where it was hit, in its own turning frame (its yaw) from its origin, and
+// bound to its model as drawn (bloodstream::anchorPoint: the vertex nearest, animated, armed or its ragdoll's) once it
+// first drips there.
 struct Bleeder
 {
     int num{0};
     float start{0.f}; // its health before its first hit seen (the local server's), 0 unknown
+    double firstHit{-1e9}; // cl.time of the first hit seen (the same frame's hits add to `start`)
     float burst{0.f}; // the hits' extra drops, fading
     float pending{0.f};
     double lastHit{-1e9};
+    double lastSeen{-1e9}; // cl.time it was last in the server's message (out of sight a while: forgotten)
+    double died{-1.0};     // cl.time its death was seen (a corpse drips on for vr_drips_blood_ragdoll), -1 alive
     glm::vec3 rel[4]{};
+    int vertex[4]{-2, -2, -2, -2}; // its model's vertex there as drawn (-2 not bound yet, -1 none)
+    int poseKind[4]{-1, -1, -1, -1};
+    glm::vec3 lastAt[4]{}; // where it last dripped from (bound afresh from there when the body is drawn another way)
     int count{0}, next{0};
     int drops{0};
 };
@@ -110,6 +119,7 @@ glm::vec3 eyes{0.f};
 // The test's overrides (vr_drips_test): the rates (0: the tunables'), its probes.
 float testRate = 0.f;
 float testBloodRate = 0.f;
+float testCorpseTime = 0.f; // (vr_drips_blood_ragdoll's, a tunable: a constant in a release build)
 entity_t probes[21]{};
 
 constexpr double inGrace = 0.3;    // s after the last look in the liquid it counts as still in it (none drip)
@@ -527,6 +537,33 @@ bool dry(Wet& w, float dt)
     return ed->v.health;
 }
 
+// Whether the local server's entity `num` is removed, or has no model (gibbed away); false when not the local server's.
+[[nodiscard]] bool goneOnServer(int num)
+{
+    if(!onServer(num))
+    {
+        return false;
+    }
+    progs::ServerVm serverVm;
+    const edict_t* ed = EDICT_NUM(num);
+    return ed->free || ed->v.model == 0;
+}
+
+// (The test's: QC's test aids (vr_test_hurt) aim at entity `num` alone; 0 the nearest again.)
+void testOnly(int num)
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    const progs::ServerVm vm;
+    if(const func_t fn = progs::findFunction("VR_TestOnly"))
+    {
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(onServer(num) ? num : 0));
+        PR_ExecuteProgram(fn);
+    }
+}
+
 // (The test's: a monster hurt without a blow.)
 void setHealth(int num, float health)
 {
@@ -535,6 +572,12 @@ void setHealth(int num, float health)
         progs::ServerVm serverVm;
         EDICT_NUM(num)->v.health = health;
     }
+}
+
+// How long a corpse drips on, s (vr_drips_blood_ragdoll; the test's).
+[[nodiscard]] float corpseSeconds()
+{
+    return testCorpseTime > 0.f ? testCorpseTime : za::clamp(vr_drips_blood_ragdoll.value, 0.f, 600.f);
 }
 
 [[nodiscard]] bool bloodOn()
@@ -549,27 +592,104 @@ void setHealth(int num, float health)
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
-// Dries out (heals: forgotten) or owes drops; false: forgotten.
+// Whether entity `num` is in the client's latest message (drawn now).
+[[nodiscard]] bool present(int num)
+{
+    return num > 0 && num < cl.num_entities && cl_entities[num].model && cl_entities[num].msgtime == cl.mtime[0];
+}
+
+// Heals (forgotten), stays away too long (forgotten), or owes drops; false: forgotten. A wounded living monster drips
+// all the while it is hurt, at vr_drips_blood_rate times (vr_drips_blood_min + the rest times the share of its health
+// lost), more after a hit; its corpse (a ragdoll) on for vr_drips_blood_ragdoll s, tapering.
 bool bleed(Bleeder& b, float dt)
 {
-    if(b.num <= 0 || b.num >= cl.num_entities || !cl_entities[b.num].model || cl_entities[b.num].msgtime != cl.mtime[0])
+    if(b.num <= 0 || b.num >= cl.num_entities)
     {
         return false;
     }
+    const bool here = present(b.num);
+    if(here)
+    {
+        b.lastSeen = cl.time;
+    }
+    else if(cl.time - b.lastSeen > 10.0)
+    {
+        return false; // (gone: removed, or out of sight a long while)
+    }
     const float health = healthOf(b.num);
-    if(health == 0.f || (health < 0.f && cl.time - b.lastHit > 30.0))
+    if(goneOnServer(b.num))
     {
-        return false; // dead (its corpse pools: the gore's) or long unknown
+        return false; // removed, or gibbed (its gibs bleed their own: the gore's)
     }
-    const float missing = health > 0.f && b.start > 0.f ? za::clamp(1.f - health / b.start, 0.f, 1.f) : 0.3f;
+    const float corpseTime = corpseSeconds();
+    if(health == 0.f && b.died < 0.0)
+    {
+        b.died = cl.time; // dead: its corpse drips on a while
+    }
     b.burst *= za::exp(-dt / 1.5f);
-    if(missing <= 0.f && b.burst < 0.02f)
+    float share;
+    if(b.died >= 0.0)
     {
-        return false; // healed
+        const float t = static_cast<float>(cl.time - za::max(b.died, b.lastHit));
+        if(t >= corpseTime)
+        {
+            return false;
+        }
+        share = 1.f - t / corpseTime; // (tapering)
     }
-    const float rate = (testBloodRate > 0.f ? testBloodRate : za::clamp(vr_drips_blood_rate.value, 0.f, 20.f)) * (missing + b.burst);
-    b.pending = za::min(b.pending + rate * dt * vrand::range(rng, 0.5f, 1.5f), 3.f);
+    else if(health < 0.f)
+    {
+        if(cl.time - b.lastHit > 30.0)
+        {
+            return false; // (health unknown: not the local server's)
+        }
+        share = 0.5f;
+    }
+    else
+    {
+        const float lost = b.start > 0.f ? za::clamp(1.f - health / b.start, 0.f, 1.f) : 0.f;
+        if(lost <= 0.f || 1.f - lost >= za::clamp(vr_drips_blood_health.value, 0.f, 1.f) + 1e-4f)
+        {
+            if(lost <= 0.f && b.burst < 0.02f)
+            {
+                return false; // healed
+            }
+            share = 0.f; // (not hurt enough to drip: the hit's burst alone)
+        }
+        else
+        {
+            const float least = za::clamp(vr_drips_blood_min.value, 0.f, 1.f);
+            share = least + (1.f - least) * lost;
+        }
+    }
+    const float rate = (testBloodRate > 0.f ? testBloodRate : za::clamp(vr_drips_blood_rate.value, 0.f, 20.f)) * (share + b.burst);
+    b.pending = here ? za::min(b.pending + rate * dt * vrand::range(rng, 0.5f, 1.5f), 3.f) : 0.f;
     return true;
+}
+
+// Where wound `i` of `b` drips from now: its vertex as drawn (bound the first time, and afresh when the body is drawn
+// another way: it died into a ragdoll); else its point in the yaw frame.
+[[nodiscard]] glm::vec3 woundNow(Bleeder& b, int i)
+{
+    const entity_t& e = cl_entities[b.num];
+    const glm::vec3 o{e.origin[0], e.origin[1], e.origin[2]};
+    glm::vec3 at;
+    if(b.vertex[i] >= 0 && bloodstream::anchorNow(b.num, b.vertex[i], b.poseKind[i], at))
+    {
+        b.lastAt[i] = at;
+        return at;
+    }
+    const bool rebind = b.vertex[i] >= 0; // (drawn another way now)
+    const glm::vec3 from = rebind ? b.lastAt[i] : o + turn(b.rel[i], e.angles[1]);
+    if(b.vertex[i] != -1 && bloodstream::anchorPoint(b.num, from, rebind ? 48.f : 24.f, b.vertex[i], b.poseKind[i]) &&
+        bloodstream::anchorNow(b.num, b.vertex[i], b.poseKind[i], at))
+    {
+        b.lastAt[i] = at;
+        return at;
+    }
+    b.vertex[i] = -1; // (none: its point in the yaw frame from now on)
+    b.lastAt[i] = from;
+    return from;
 }
 
 void dropBlood(Bleeder& b)
@@ -580,13 +700,14 @@ void dropBlood(Bleeder& b)
     if(b.count > 0)
     {
         const int i = za::min(b.count - 1, static_cast<int>(vrand::range(rng, 0.f, static_cast<float>(b.count))));
-        at = o + turn(b.rel[i], e.angles[1]) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), -1.5f};
+        at = woundNow(b, i) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), -1.5f};
     }
     else
     {
         at = o + glm::vec3{vrand::range(rng, -6.f, 6.f), vrand::range(rng, -6.f, 6.f), vrand::range(rng, 0.f, 16.f)};
     }
-    if(gore::dropFrom(0, at, vrand::range(rng, 0.5f, 0.75f), glm::vec4{gore::bloodColorAt(at), 1.f},
+    const float size = za::clamp(vr_drips_blood_size.value, 0.1f, 5.f);
+    if(gore::dropFrom(0, at, vrand::range(rng, 0.5f, 0.75f) * size, glm::vec4{gore::bloodColorAt(at), 1.f},
            za::clamp(vr_drips_blood_marks.value, 0.f, 1.f)))
     {
         counters.emitted[0]++;
@@ -632,13 +753,19 @@ struct Test
     int bloodLanded0{0}, bloodDrops0{0};
     double perfSum{0.0}, perfMax{0.0};
     int perfFrames{0}, perfDrops{0}, perfMostAFrame{0};
+    // vr_drips_bleed_test: the hurt grunt, the unhurt one, the drops in each 5 s window.
+    int other{0};
+    float otherHealth{0.f};
+    int winDrops[6]{};
+    int win{0};
+    int drops0{0};
 };
 
 Test test;
 double frameWorkSeconds = 0.0; // the last frame's work (the test's perf)
 int frameDrops = 0;
 
-constexpr const char* testName = "drips_test";
+const char* testName = "drips_test";
 constexpr glm::vec3 poolPoint{376.f, -264.f, -80.f}; // vrtesthall's pool (surface -9, 119 deep)
 constexpr glm::vec3 dryPoint{184.f, -264.f, 60.f};   // west of it (its edge x 224), over the floor
 
@@ -655,6 +782,11 @@ void testEnd()
     if(test.savedGore[0])
     {
         Cvar_Set("vr_gore", test.savedGore);
+    }
+    testCorpseTime = 0.f;
+    if(test.phase >= 20)
+    {
+        testOnly(0);
     }
     if(test.monster > 0 && test.savedHealth > 0.f && healthOf(test.monster) > 0.f)
     {
@@ -888,12 +1020,152 @@ void testStep()
             testEnd();
             return;
         }
+        case 20: // vr_drips_bleed_test: the scenario's grunts on dry floor; the nearest hit by a real blow to half health
+        {
+            if(cls.signon != SIGNONS || !cl.worldmodel || cl.viewentity <= 0 || !strstr(cl.worldmodel->name, "vrtesthall"))
+            {
+                return;
+            }
+            int best = 0, other = 0;
+            float bestD = 1e9f;
+            for(int i = 1; i < cl.num_entities; i++)
+            {
+                const entity_t& e = cl_entities[i];
+                if(healthOf(i) > 0.f && e.model && e.msgtime == cl.mtime[0] && drawnNum(i))
+                {
+                    const float d = glm::length(glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - eyes);
+                    if(d < bestD)
+                    {
+                        other = best;
+                        bestD = d;
+                        best = i;
+                    }
+                    else if(!other)
+                    {
+                        other = i;
+                    }
+                }
+            }
+            if(!best || !other)
+            {
+                return; // (waits for both grunts: the deadline gives up)
+            }
+            test.monster = best;
+            test.other = other;
+            test.otherHealth = healthOf(other);
+            // A shot of the player's, dealt in the server's frame (QC VR_TestHurt_Frame: its wound event goes out with
+            // that frame; one written from here would be cleared before it is sent).
+            test.savedHealth = healthOf(best);
+            testOnly(best);
+            Cvar_SetValue("vr_test_hurt", za::max(1.f, static_cast<float>(static_cast<int>(test.savedHealth * 0.6f))));
+            test.phase = 22;
+            return;
+        }
+        case 22: // the shot taken
+        {
+            const float h = healthOf(test.monster);
+            if(h >= test.savedHealth)
+            {
+                return;
+            }
+            q_snprintf(line, sizeof(line), "grunt %d shot: health %.0f -> %.0f (grunt %d unhurt)", test.monster,
+                static_cast<double>(test.savedHealth), static_cast<double>(h), test.other);
+            check(h > 0.f, line);
+            test.savedHealth = 0.f; // (not healed back at the end)
+            test.phase = 21;
+            test.t0 = now;
+            test.drops0 = 0;
+            return;
+        }
+        case 21: // 30 s, in 5 s windows: the hurt one drips in every one; the unhurt one never
+        {
+            const Bleeder* b = nullptr;
+            for(const Bleeder& x : bleeders)
+            {
+                b = x.num == test.monster ? &x : b;
+                if(x.num == test.other && healthOf(test.other) >= test.otherHealth && x.drops > 0)
+                {
+                    check(false, "the unhurt grunt (full health) drips blood");
+                    testEnd();
+                    return;
+                }
+            }
+            if(now - test.t0 < 5.0 * (test.win + 1))
+            {
+                return;
+            }
+            const int d = b ? b->drops : -1;
+            test.winDrops[test.win] = d < 0 ? 0 : d - test.drops0;
+            test.drops0 = d < 0 ? test.drops0 : d;
+            Con_Printf("%s: %2.0f s: health %.0f, %s, %d drops in 5 s\n", testName, 5.0 * (test.win + 1),
+                static_cast<double>(healthOf(test.monster)), b ? "bleeding" : "not bleeding", test.winDrops[test.win]);
+            if(++test.win < 6)
+            {
+                return;
+            }
+            int least = 1 << 30;
+            for(const int n : test.winDrops)
+            {
+                least = za::min(least, n);
+            }
+            q_snprintf(line, sizeof(line), "the hurt grunt still drips after 30 s (%s; at least %d drops in every 5 s)",
+                b ? "bleeding" : "forgotten", least);
+            check(b != nullptr && least >= 6, line);
+            q_snprintf(line, sizeof(line), "the unhurt grunt dripped nothing while at full health (now %.0f of %.0f)",
+                static_cast<double>(healthOf(test.other)), static_cast<double>(test.otherHealth));
+            check(true, line);
+            // Then killed: its corpse drips on (the test's corpse time, 4 s), then stops.
+            testCorpseTime = 4.f;
+            Cvar_SetValue("vr_test_hurt", healthOf(test.monster) + 5.f); // (a kill, not a gibbing)
+            test.phase = 23;
+            return;
+        }
+        case 23: // dead (the server's word)
+        {
+            if(healthOf(test.monster) != 0.f)
+            {
+                return;
+            }
+            const Bleeder* b = nullptr;
+            for(const Bleeder& x : bleeders)
+            {
+                b = x.num == test.monster ? &x : b;
+            }
+            test.drops0 = b ? b->drops : 0;
+            test.t0 = now;
+            test.phase = 24;
+            return;
+        }
+        case 24: // 2 s of its corpse dripping, then 3 s more: past the corpse time, forgotten
+        {
+            const Bleeder* b = nullptr;
+            for(const Bleeder& x : bleeders)
+            {
+                b = x.num == test.monster ? &x : b;
+            }
+            if(test.win < 7 && now - test.t0 >= 2.0)
+            {
+                q_snprintf(line, sizeof(line), "its corpse drips on: %d drops in 2 s", b ? b->drops - test.drops0 : 0);
+                check(b != nullptr && b->drops - test.drops0 >= 1, line);
+                test.win = 7;
+            }
+            if(now - test.t0 < 5.0)
+            {
+                return;
+            }
+            q_snprintf(line, sizeof(line), "its corpse stops dripping after the corpse time (4 s)%s",
+                b ? va(": still, died %.1f s ago, hit %.1f s ago", now - b->died, now - b->lastHit) : "");
+            check(b == nullptr, line);
+            testEnd();
+            return;
+        }
         default: return;
     }
 }
 
 void test_f()
 {
+    testName = "drips_test";
     test = Test{};
     test.phase = 1;
     test.deadline = cl.time + 60.0;
@@ -901,6 +1173,18 @@ void test_f()
     {
         test.deadline = 1e9; // (set again once the map is in: below)
     }
+    Con_Printf("%s: started\n", testName);
+}
+
+// vr_drips_bleed_test (vr_scenario waterdrips first): a grunt hit to half health drips blood all through 30 s; the other,
+// unhurt, none.
+void bleedTest_f()
+{
+    testName = "drips_bleed_test";
+    test = Test{};
+    test.phase = 20;
+    q_strlcpy(test.savedWetTime, vr_wounds_wet_time.string, sizeof(test.savedWetTime));
+    test.deadline = cl.worldmodel ? cl.time + 90.0 : 1e9;
     Con_Printf("%s: started\n", testName);
 }
 
@@ -997,7 +1281,7 @@ void frame(const glm::vec3& head)
     {
         if(test.deadline > 1e8 && cl.worldmodel)
         {
-            test.deadline = cl.time + 60.0;
+            test.deadline = cl.time + 90.0;
         }
         testStep();
     }
@@ -1128,9 +1412,9 @@ void onWound(int num, const glm::vec3& org, int amount, int kind)
         return;
     }
     const float health = healthOf(num);
-    if(health == 0.f)
+    if(health == 0.f && (!onServer(num) || goneOnServer(num) || corpseSeconds() <= 0.f))
     {
-        return; // (dead already)
+        return; // (gone; or a corpse, and corpses don't drip)
     }
     Bleeder* b = nullptr;
     for(Bleeder& x : bleeders)
@@ -1156,11 +1440,19 @@ void onWound(int num, const glm::vec3& org, int amount, int kind)
         bleeders.pushBack(Bleeder{});
         b = &bleeders.back();
         b->num = num;
-        b->start = health > 0.f ? health + static_cast<float>(amount) : 0.f;
+        b->start = health > 0.f ? health : 0.f;
+        b->firstHit = cl.time;
+        b->lastSeen = cl.time;
+        b->died = health == 0.f ? cl.time : -1.0;
+    }
+    if(b->firstHit == cl.time && health > 0.f)
+    {
+        b->start += static_cast<float>(amount); // (the first frame's hits: a shotgun blast's pellets each their own)
     }
     const entity_t& e = cl_entities[num];
     const glm::vec3 o{e.origin[0], e.origin[1], e.origin[2]};
     b->rel[b->next] = turn(org - o, -e.angles[1]);
+    b->vertex[b->next] = -2; // (bound as it first drips)
     b->next = (b->next + 1) % 4;
     b->count = za::min(b->count + 1, 4);
     b->lastHit = cl.time;
@@ -1215,6 +1507,7 @@ void registerCommands()
     Cmd_AddCommand("vr_drips_info", info_f);
     Cmd_AddCommand("vr_drips_soak", soak_f);
     Cmd_AddCommand("vr_drips_test", test_f);
+    Cmd_AddCommand("vr_drips_bleed_test", bleedTest_f);
 }
 
 } // namespace qvr::drips

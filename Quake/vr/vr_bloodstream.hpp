@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include "vr_playergore.hpp"
+
 #include <glm/glm.hpp>
 
 namespace qvr::bloodstream
@@ -44,6 +46,18 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
 // only for a word that never comes), past the caps' taking. It stops at stopBladeWound, or forget(blade): its removal.
 void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength);
 void stopBladeWound(int blade);
+
+// A point bound to a body as drawn (vr_drips.cpp's wounded): the vertex of entity `ent`'s model as drawn now (animated,
+// an armed humanoid's mesh, or its ragdoll: `kind`) nearest `at` within `reach`; false if none. anchorNow: where it is
+// drawn now; false if `ent` is gone or now drawn another way (bind it again then).
+[[nodiscard]] bool anchorPoint(int ent, const glm::vec3& at, float reach, int& vertex, int& kind);
+[[nodiscard]] bool anchorNow(int ent, int vertex, int kind, glm::vec3& at);
+
+// Your own stream (vr_player_gore_streams; vr_playergore.cpp): from `spot` on your drawn body, its surface facing `normal`,
+// the blow going `way`, `amount` its damage; vr_player_gore_stream_time of an enemy's time, vr_player_gore_stream_max at
+// once. False if none started (the streams off, the spot not drawn). ownStreams: yours pouring now.
+[[nodiscard]] bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::vec3& way, int amount);
+[[nodiscard]] int ownStreams();
 
 // How long the stream of the wound `blade` is in has been pouring, s; 0: none (the test's).
 [[nodiscard]] float bladeWoundAge(int blade);
