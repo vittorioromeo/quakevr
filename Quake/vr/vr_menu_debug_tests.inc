@@ -726,6 +726,11 @@ za::Vector<Item> pageDebugTests()
                   "a shot across the leant head), walks leant and upright, then leans into the nearer wall, away from it, "
                   "and facing it both ways (flatlean: lines, a verdict). It moves you with setpos (noclip on: noclip "
                   "again to walk)."),
+        command("Flat Lean Mouse Test", "vr_flatleanmouse_test")
+            .help("vr_flatleanmouse_test (-flatscreenmode only): leans right and left at set pitches and moves the mouse "
+                  "straight up, down and across: the middle of the screen moves along the tilted screen's axis; upright, "
+                  "and with Mouse Follows Lean off, the mouse is Quake's own (flatleanmouse: lines, a verdict). It turns "
+                  "your view."),
         command("Flat Prone Test", "vr_flatprone_test")
             .help("vr_flatprone_test (-flatscreenmode only, a gun held, room around): lies down and leans right (the "
                   "smaller lean, the body's roll), presses the crouch (up into a crouch, the gun without a jump), lies "

@@ -10,6 +10,8 @@
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
 #          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
 #          away from it, and facing a wall he stands against (either way), the eye goes all of vr_flat_lean_dist out.
+#          vr_flatleanmouse_test: leant (right and left, level and pitched) a pure up, down or across mouse move moves
+#          the middle of the screen along the rolled screen's axis; upright and with vr_flat_lean_mouse 0, Quake's own.
 #   prone  vr_flatprone_test in vrtesthall, the shotgun: lying down a full lean moves the eye vr_flat_lean_prone_dist
 #          and rolls the view and the body vr_flat_lean_prone_angle; the crouch pressed lying down gets up into the
 #          crouch (the gun without a jump); looking down lying down the gun lies flush on the floor (no shot, the
@@ -45,6 +47,11 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Time
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatlean.*FAIL"
 expect_verdict "$out" "flatlean" "lean: the eye and the roll, the hit box, the slower walk, the wall's clamp, away from and facing a wall"
+
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanmouse: [0-9]+ passed" -Timeout 120 -Filter "^flatleanmouse" \
+    -Script "$H; vr_flatleanmouse_test; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatleanmouse.*FAIL"
+expect_verdict "$out" "flatleanmouse" "lean: the mouse moves the view along the rolled screen; upright and vr_flat_lean_mouse 0 Quake's own"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Timeout 120 -Filter "^flatprone" \
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
