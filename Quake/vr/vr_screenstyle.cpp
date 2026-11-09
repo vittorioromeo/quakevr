@@ -46,6 +46,23 @@ constexpr Entry table[] = {
             .offset = {0.f, 0.f, 0.f},
             .box = 1.2f,
             .housing = true}},
+    // The super shotgun: a small window in a low bezel on the breech block's sloped top, under the rib's sight block, a
+    // rivet each side (v_shot2.blend, make_screen_housing_ssg.py reads `opening`, `radius` and `offset` from here to
+    // model it); the glass sunk a little into the gun, no box: the bezel frames it.
+    {"shot2",
+        {.radius = 0.f,
+            .bevel = 1.6f,
+            .vignette = 0.5f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.05f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.36f,
+            .offset = {-0.01f, -0.018f, -0.032f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {14.2f, 11.15f}}},
     // The nail pistol: a chunky bevelled housing on the slide's rear face, a rounded window over a grille
     // (v_nailpistol.blend, Misc/quakevr/make_screen_housing_nailpistol.py, which reads this entry's opening, radius and size
     // and weapons.txt's wpntxt_scale to model the window). The glass fills the window; no box (the window frames it).
