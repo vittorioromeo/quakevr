@@ -780,6 +780,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (1);
 	if (VR_AliasMirrored (ibuf.ent)) // QVR: mirroring flips the winding
 		state = (state & ~GLS_MASK_CULL) | GLS_CULL_FRONT;
+	if (VR_AliasTwoSided (ibuf.ent)) // QVR: the joints' leather, a sheet: its lap where the plates' rows cross seen from behind
+		state = (state & ~GLS_MASK_CULL) | GLS_CULL_NONE;
 	if (aliasnear & 2) // QVR: an eye inside a held item: its inside blocks the view (vr_nearclip_held 2)
 		state = (state & ~GLS_MASK_CULL) | GLS_CULL_NONE;
 	if (aliasnear & 1) // QVR: a held item nearer than the near plane is drawn at it, not cut (vr_nearclip_held)

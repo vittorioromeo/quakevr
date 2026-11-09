@@ -3643,7 +3643,8 @@ void headcam_f()
         // vr_pp_test 17's elbows, the head's cameras sat too high and far for them; ROUND24.md, "Elbow leather at rest")
         const int joint = elbow == 1 ? ElbowL : elbow == 2 ? ElbowR : -1;
         mid = s && joint >= 0 && s->bridges[joint].ok ? s->bridges[joint].pivot : mid;
-        n = s && joint >= 0 && !s->bridges[joint].ok ? 0 : n;
+        // (the pivot is one point: it was divided by the helmet's vertex count below, the camera put near the feet)
+        n = s && joint >= 0 ? (s->bridges[joint].ok ? 1 : 0) : n;
         if(n == 0)
         {
             Con_Printf("agarmor headcam: no %s with a helmet in view\n", wanted[k]);

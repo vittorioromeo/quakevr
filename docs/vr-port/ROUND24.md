@@ -5397,6 +5397,33 @@ their other elbows good.
   the inner side). The skin-out count also counts skin under the plates' lapping rows. vrbody is not in the bridge check's
   models. No before/after eyeshots yet: `vr_pp_test 17` now places the side shots off the elbow itself
   (`vr_agarmor_headcam view dist set drop elbow`, elbow 1 left / 2 right), but at 18 units they are too close; try 30.
+
+### Elbow leather, part 3 (2026-11-10 night, branch `agent/elbow3`)
+
+- **The enforcer's and the knight's elbows: the plates' rows cross.** A new developer line (`ends:`) shows the end rows'
+  planes: at the bind pose each is square to its bone, but straightened (axes 0 apart) they are 36-63 degrees apart, each
+  13-30 degrees off its own axis: the rows' corners are skinned across the joint (blended weights), so straightening from a
+  65-76 degree bind tilts them towards each other. On the inside of the enforcer's and the knight's elbows the forearm's
+  row then lies 1.3-1.6 units *behind* the upper arm's along the joint (his `bracer_r start -1.13` adds to it). A column of
+  leather between crossed rows runs back whatever is laid between (a plain ruled surface does too): those cells face in.
+- **Fix, three parts.** (1) The rings even along the curve (`evalBridge`'s `curveT`: each ring at its share of the curve's
+  length, not at the Hermite's own parameter, where they bunched at the forearm row while the rows' shapes were lerped
+  evenly). (2) The middle rings' turn onto the curve (`bridgeTangentTurn` 0.35) eased in with the bend
+  (`bridgeTurnBend` 0.7 rad): none straight, where the S's tilt drew the grunts' and the knees' columns back. (3) The
+  leather drawn from both sides (`VR_AliasTwoSided`, r_alias.c: models named `<model>#bridge`): where the rows cross (or
+  come within `bridgeRowsCrossed` 1 unit) the lap's cells are seen from behind; culled, they were the holes.
+- **Checks.** `vr_agarmor_bridge_check` (121/0, vrbody added: clean, 0 cells in, 0 skin out). The rest line straight is
+  now a verdict: no cell turned in outside the rows' lap (`crossedColumns`, cells marked `c` in the maps and counted
+  apart). The skin-out count leaves out skin within half a ring of either row (under the plates' lapping rows, counted
+  apart as "under the rows"). The sweep's info line counts the lap apart too.
+- **Numbers** (cells turned in outside the lap, both builds measured the same way; reference = before this branch):
+  straight 4 -> 0 (all joints), bind 7 -> 4, sweeps' worst summed 13 -> 5, no joint's sweep worse. Skin out straight 22
+  -> 30, mostly the death knight's elbows (3 -> 5, 5 -> 8 of 16-18; furthest 2.4 before and after): not fixed.
+- **Eyeshots** (`vr_pp_test 17`, shots 9-14): the elbow camera is 30 units off the elbow and shots 9-11 are straight
+  (`vr_agarmor_bend 0.01`; 0 was the game's own pose). `vr_agarmor_headcam`'s elbow camera divided the pivot by the
+  helmet's vertex count (it sat by the feet): fixed. Before / after: `scratch/elbows_before.png`, `scratch/elbows_after.png`.
+- **flatplay**: the main hand's axe case is its own run, read once after the blow (the read before made the knight flinch
+  out of reach): 48 dealt, flatplay 28/28.
 ## Flat-screen look (branch `agent/flatlook`, worktree flatwall, 2026-11-09)
 
 His screenshot and ChatGPT's "improved" mockup of it: start.bsp's HARD hall (not E1M1: the `skill2` "HARD" texture and

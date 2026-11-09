@@ -234,6 +234,16 @@ extern "C" int VR_AliasMirrored(const entity_t* e)
     return ve && ve->mirrored;
 }
 
+extern "C" int VR_AliasTwoSided(const entity_t* e)
+{
+    // ("<model>#bridge", vr_agarmor's joints' leather: where the plates' rows cross (the enforcer's and the knight's elbows
+    // straight) its columns run back and lap, their cells seen from behind; culled they were his holes, 2026-11-10)
+    constexpr const char* suffix = "#bridge";
+    constexpr size_t suffixLen = 7;
+    const size_t len = e && e->model ? strlen(e->model->name) : 0;
+    return len > suffixLen && !strcmp(e->model->name + len - suffixLen, suffix) ? 1 : 0;
+}
+
 extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
 {
     // (your body's light is kept as it is drawn in an eye, for the bare hands: drawn there whatever its box)
