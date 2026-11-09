@@ -1,0 +1,8 @@
+# shotgun_screen: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The shotgun in your main hand,
+# for a look at its ammo screen's housing on the receiver's end face (Misc/quakevr/make_screen_housing_shot.py).
+title The shotgun's ammo screen housing
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+hint Look at the shotgun's ammo screen from the front and from the side: the bezel stands out from the receiver's end face about half as far as before, the bolts flush with its front, the glass set just inside the opening.

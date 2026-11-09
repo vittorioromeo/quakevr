@@ -33,9 +33,13 @@
 #   walls going back into the gun; inside, the opening's walls go down one grid step to a dark back behind the glass;
 # - four bolts beside it on the end face (the face is a trapezoid, wider at the top: the top pair further out).
 # The model's X is coarse (the file's grid: 0.22 units a step), so every depth is a whole number of steps: the
-# bezel's front 2 steps in front of the end face's bottom edge (1 at its top: the face leans back 5.9 degrees), the
-# opening's back 1 step in, the bolts' heads 1 step proud of their bases. The glass is upright (weapons.txt pitch)
-# halfway down the opening (the table's offset), a little bigger than the walls there so no gap shows.
+# bezel's front DEPTH_STEPS in front of the end face's bottom edge (the face leans back 5.9 degrees: a step forward at
+# its top, so at 1 step the front clears it at the bezel's top by 0.036), the bevel's foot and the opening's back 1
+# step behind the front (at 1 step: on the bottom edge's step, behind the face over the opening: the face is the
+# opening's back there and the dark back is hidden), the bolts' heads 1 step proud of their bases (at most flush with
+# the front). The glass is upright (weapons.txt pitch) at the table's offset, between the bezel's front and the face
+# at the glass's top edge (the script refuses otherwise); the opening's walls slope in from the lip to WALL_GRIP inside
+# the glass at its depth, so no gap shows round it.
 # Texture, all from the gun's own skin: the bezel's profile mapped across the shaded metal tube strip (x 104..146, rows
 # 54..70) and its length along it, as if the tube were bent round the opening (darker at the bevel's foot, lit at the
 # lip, dark down the opening's walls and on its back); the walls into the gun on the blue-grey steel plate (52..78 x

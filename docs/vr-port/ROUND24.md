@@ -5702,3 +5702,27 @@ and nail pistol `LIP` 0.07 -> 0.09 -> 0.07: every vertex place and skin coordina
 split the other way (8 and 6 triangles) are re-made each way: they move to the end of the triangle list and leave
 16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
 grown box (and its weapons.txt offsets) when changed back, as every grown export does.
+
+## The shotgun's housing at half the depth (branch `agent/housing_shot_depth`, 2026-11-09)
+
+He wanted the bezel to stand out from the receiver's end face about half as far, his thinner frame kept (his
+61768b1fe: `FRAME` 0.10, `BEVEL` 0.12, `LIP` 0.2, merged from next).
+
+- **`DEPTH_STEPS`** (new, top of `make_screen_housing_shot.py`, default 1; 2 is the first housing's): the bezel's front
+  that many X grid steps (0.22 units) in front of the end face's bottom edge; the bevel's foot and the opening's back
+  one step behind the front (at 1: on the bottom edge's step), the bolts' heads a step proud of their bases, at most
+  flush with the front (at 1: flush). 149 vertices / 240 triangles as before: the vertices move in place.
+- **The leaning face** (5.9 degrees: its top edge a step forward, x 1.176 at z 3.546, measured on the .blend): at 1 step
+  the bezel's front is on the face's top edge's step, so the bezel's top clears the face by only 0.036 units and its
+  bevel rises out of the face (most of it shows at the bottom, a sliver at the top). Nothing is coplanar: the face
+  meets the front's plane only above the bezel. The opening's back (x 1.396) is behind the face over the whole opening,
+  so the face is its back there (the dark back hidden, kept so the topology is unchanged).
+- **The glass** has room only between the bezel's front (1.176) and the face at the glass's top edge (1.224): the
+  table's out -0.1004 -> **-0.1555** puts its drawn plane (the reported centre plus vr_text3d's 0.023 gap) at 1.200,
+  0.024 from each. The script now reads the out (one definition), refuses when the glass isn't between the front and
+  the face (printing the out that centres it) or the bezel's top doesn't clear the face, and slopes the opening's
+  walls so they are `WALL_GRIP` (0.25 px, replacing `WALL_IN`) inside the glass at its depth: 3.96 px in at the back
+  (behind the glass, unseen). `vr_debug_screen_where`: centre 1.1774 -0.0272 2.4799, up 0 0 1.
+- **Proof:** panel `scratch/depth/panel_depth.png` (top: front, next then this; bottom: a side angle), close-up of the
+  top edge `scratch/depth/closeup_depth.png` (worktree selfshot). A re-run writes the same .mdl, part and normal-map
+  files. vr_pp_test 1: 63 passed, 0 failed. Scene `shotgun_screen`.
