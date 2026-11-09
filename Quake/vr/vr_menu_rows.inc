@@ -6096,7 +6096,7 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
     "back. Off: no clips, every shot from your ammo (vr_flat_reload).")
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
-    "rounds for it. Off: only R reloads (vr_flat_autoreload).")
+    "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

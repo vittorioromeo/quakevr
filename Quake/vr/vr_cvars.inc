@@ -4018,7 +4018,7 @@ QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads 
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
-QVR_CVAR(vr_flat_autoreload, "1", CVAR_ARCHIVE)         // flat-screen play: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0: only R reloads
+QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE)         // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none

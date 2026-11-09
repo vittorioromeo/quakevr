@@ -12,8 +12,8 @@
 //     real motion of the hand, so the melee rules decide whether it lands (vr_flat_punch drives either hand's punch from
 //     the console);
 //   - 1 and 2 cycle the weapons collected, into the left and the right hand (QC weapons.qc, on the flag);
-//   - R reloads (vr_flat_key_reload), and an empty clip does by itself (vr_flat_autoreload): the gun's hand goes down to the
-//     nearest hip holster and back (vr_flatreload.cpp; QC vr_flatreload.qc), the flashlight is worn on the head (F
+//   - R reloads (vr_flat_key_reload), and an empty clip does by itself with vr_flat_autoreload on (off by default):
+//     the gun's hand goes down to the nearest hip holster and back (vr_flatreload.cpp; QC vr_flatreload.qc), the flashlight is worn on the head (F
 //     switches it off and on), and the body presses the buttons it walks into.
 //
 // The keys are read from the keyboard state, not from bindings, with one exception named below: Left Ctrl is the engine's

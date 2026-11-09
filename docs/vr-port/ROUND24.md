@@ -5174,6 +5174,7 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
   `vr_smoke_blow_check` 9 passed. `vr_scenario validate` 0 missing; `vr_menu_path_check maps/vrcalibration.map` 0
   missing; menu_paths.txt regenerated.
 - **Debug:** `vr_prone_crawl_debug` 2 prints each hand's lowest point every frame, 3 the gates too.
+
 ## Flat test fixes, Shove Hand Travel (branch `agent/flatfix1109`, worktree blendmodels, 2026-11-09)
 
 Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` existed already, merged: this branch is
