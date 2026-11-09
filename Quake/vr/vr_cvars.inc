@@ -856,6 +856,7 @@ QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel w
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
+QVR_CVAR(vr_menu_flat_esc_game, "1", CVAR_ARCHIVE)    // with VR off, in a game: Escape in any menu is Back to game (closes it from any page, reopens there; vr_menuui.cpp VR_MenuKey); 0: Escape goes back a page, as Quake's
 QVR_CVAR(vr_menu_flat_vr_style, "1", CVAR_ARCHIVE)     // on by default (his decision 2026-11-08); with VR off: the headset's menu layout on the window (vr_menuui.cpp, FlatPanel): a panel of the window's shape, the corner's column beside the menu, the desktop mouse as the laser; a corner dragged moves it, the wheel while dragging resizes it
 QVR_CVAR(vr_menu_flat_scale, "0.9", CVAR_ARCHIVE)      // that panel's size, a share of the window's (0.4 to 1): the zoom buttons (- and +) step it by 1.1
 QVR_CVAR(vr_menu_flat_x, "0.5", CVAR_ARCHIVE)          // that panel's middle across the window (0 its left edge, 1 its right)
@@ -4024,7 +4025,7 @@ QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads 
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
-QVR_CVAR(vr_flat_autoreload, "1", CVAR_ARCHIVE)         // flat-screen play: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0: only R reloads
+QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE)         // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none

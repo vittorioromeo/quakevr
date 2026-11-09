@@ -2210,6 +2210,8 @@ QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
     "At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_shortcuts, "Corner Buttons on a Flat Screen",
     "With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse.")
+QVR_TOGGLE_BYNAME(vr_menu_flat_esc_game, "Escape Returns to the Game",
+    "With VR off, in a game: Escape in any menu closes it and resumes, from whatever page (as Back to game does; the menu opens again on that page). Off: Escape goes back a page, as in Quake.")
 QVR_TOGGLE_BYNAME(vr_menu_flat_vr_style, "VR Menu Layout on a Flat Screen",
     "With VR off: the menus as the headset shows them, on a panel in the window: the corner's buttons in a column beside the menu, rows spaced out, modern sliders and switches; the mouse points and clicks as the laser does, the wheel scrolls lists. Press a corner of the panel and drag it to move it; turn the wheel while dragging to resize it. The - and + buttons under the corner's buttons zoom it too.")
 QVR_SLIDER_BYNAME(vr_menu_flat_scale, "Flat Menu Panel Size", 0.4f, 1.f, 0.05f, "%.2f", noExt,
@@ -6104,7 +6106,7 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
     "back. Off: no clips, every shot from your ammo (vr_flat_reload).")
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
-    "rounds for it. Off: only R reloads (vr_flat_autoreload).")
+    "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
