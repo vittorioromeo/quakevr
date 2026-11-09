@@ -1332,6 +1332,16 @@ vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_wall_block_fire|1|Locomotion|No Fire With Gun Raised|Advanced VR Options > Movement > Locomotion > No Fire With Gun Raised
+vr_flat_xhair|1|Locomotion|Visor Crosshair|Advanced VR Options > Movement > Locomotion > Visor Crosshair
+vr_flat_xhair_style|1|Locomotion|Visor Crosshair Style|Advanced VR Options > Movement > Locomotion > Visor Crosshair Style
+vr_flat_xhair_size|1|Locomotion|Visor Crosshair Size|Advanced VR Options > Movement > Locomotion > Visor Crosshair Size
+vr_flat_xhair_thickness|1|Locomotion|Visor Crosshair Thickness|Advanced VR Options > Movement > Locomotion > Visor Crosshair Thickness
+vr_flat_xhair_gap|1|Locomotion|Visor Crosshair Gap|Advanced VR Options > Movement > Locomotion > Visor Crosshair Gap
+vr_flat_xhair_opacity|1|Locomotion|Visor Crosshair Opacity|Advanced VR Options > Movement > Locomotion > Visor Crosshair Opacity
+vr_flat_xhair_outline|1|Locomotion|Visor Crosshair Outline|Advanced VR Options > Movement > Locomotion > Visor Crosshair Outline
+vr_flat_xhair_glow|1|Locomotion|Visor Crosshair Glow|Advanced VR Options > Movement > Locomotion > Visor Crosshair Glow
+vr_flat_xhair_snap|1|Locomotion|Visor Crosshair Centring|Advanced VR Options > Movement > Locomotion > Visor Crosshair Centring
+vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Smoothing
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
@@ -4691,6 +4701,9 @@ vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Option
 |2|Debug - Reports|Flatscreen Flick Test|Advanced VR Options > Debug > Reports > Flatscreen Flick Test
 |2|Debug - Reports|Flatscreen Shove|Advanced VR Options > Debug > Reports > Flatscreen Shove
 |2|Debug - Reports|Flatscreen Test Hit From The Right|Advanced VR Options > Debug > Reports > Flatscreen Test Hit From The Right
+|2|Debug - Reports|Flatscreen Crosshair Probe|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Probe
+|2|Debug - Reports|Flatscreen Guns Shoot Straight Ahead|Advanced VR Options > Debug > Reports > Flatscreen Guns Shoot Straight Ahead
+|2|Debug - Reports|Flatscreen Guns Back At The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Guns Back At The Crosshair
 |2|Debug - Reports|Flatscreen Hit Probe|Advanced VR Options > Debug > Reports > Flatscreen Hit Probe
 |2|Debug - Reports|Flatscreen Look At Yourself|Advanced VR Options > Debug > Reports > Flatscreen Look At Yourself
 |2|Debug - Reports|Flatscreen Back In His Eyes|Advanced VR Options > Debug > Reports > Flatscreen Back In His Eyes

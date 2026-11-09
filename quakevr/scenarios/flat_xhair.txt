@@ -1,0 +1,9 @@
+# flat_xhair: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) visor crosshair (vr_flat_xhair; docs/vr-port/FLATPLAY.md, "The visor crosshair"): e1m1's first hall facing its north wall, a shotgun in each hand.
+title Flat-screen visor crosshair: a shotgun in each hand, facing a wall
+hint Play with -flatscreenmode. The crosshair is green, in the visor's colours, a small cross with a dot, dead still in the middle: both guns aim at what it is on. Debug > Reports > Flatscreen Guns Shoot Straight Ahead, then walk up to the wall: it splits in two, one each side with a small mark on its side, each where its gun's pellets hit (fire both: the marks land on them); back away: one again, in the middle. Debug > Reports > Flatscreen Guns Back At The Crosshair when done. Try the styles under Desktop Screen Play > Visor Crosshair Style.
+map e1m1
+start 480 400 88 90
+god
+notarget
+give "Shotgun" main
+give "Shotgun" off

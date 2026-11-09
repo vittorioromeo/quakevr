@@ -1238,6 +1238,8 @@ static void SCR_DrawCrosshair (void)
 {
 	if (cl.intermission || CL_InCutscene () || !crosshair.value || scr_viewsize.value >= 130)
 		return;
+	if (VR_FlatXhairOn ()) // QVR: flatscreen play's visor crosshair instead (vr/vr_flatxhair.cpp)
+		return;
 
 	GL_SetCanvas (CANVAS_CROSSHAIR);
 	// QVR: the flatscreen ironsight's picture moved on the screen takes the crosshair with it (0 0 outside it).

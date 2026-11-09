@@ -6578,6 +6578,32 @@ regenerated.
   and drain; v4_sheen_c: sheen 0 and 3 over the whole mount; v4_scan_c: scanlines 0.6 at thickness 3 and 9;
   v4_layout_c: side_out 0.3 with log 0.6 / out 2.5, side_out 3 with log 1.6 / out 0.4; v4_shake: a hit of 60 every
   second frame; v4_bt_c: bullet time with the visor tinted (0) and not (1, the default)).
+## Flat-screen visor crosshair (agent/visor_xhair, 2026-11-09)
+
+His words: "a new flatscreen-only crosshair option that follows the visor's style and colour scheme, and displays the target
+location in screen space ... Most of the time, the crosshair should be centered ... But if the player is near an obstacle and
+the guns move a bit, the crosshair should point to the actual place where the shot will hit. Consider having two separate
+crosshairs if dual-wielding". FLATPLAY.md, "The visor crosshair", has the whole of it.
+
+- **How it decides.** Per gun: the shot's line exactly as sent to the server (the move's muzzle, shot angles and hand;
+  `VR_ShotBackPoint`'s back point; `FireBullets`' 2048 and trace flags), its stop projected with `r_matviewproj`. Within
+  `vr_flat_xhair_snap` (8 px at 1080) of the centre: the centre exactly (hysteresis 1.5x); else the projected point,
+  smoothed (`vr_flat_xhair_smooth` 0.03 s). Two guns: one crosshair within the snap of each other, two (side-marked) apart.
+- **Decisions.** A cvar of its own (`vr_flat_xhair`, 1), not a value of `crosshair`: Quake's `crosshair` defaults to 0, so a
+  value of it could not be the default; on, the 2D crosshair is not drawn. Drawn outside the visor's lens/zoom/sway (it must
+  sit on the true hit), after the visor in `R_RenderView` (one call in `gl_rmain.c`, nothing in the visor's files). No red at
+  low health: the visor's health panel and the screen's blood already say it, and a red crosshair reads as "on an enemy".
+  Antialiasing by edge coverage rather than the visor's supersampled layer (the shapes are few and analytic; the layer is
+  warped and the crosshair must not be). With no gun held a crosshair still shows at the centre (the hands, the grab, the
+  punch go there).
+- **Hooks** (all one line): `vr_client.cpp` buildMove (`flatxhair::noteMove`), `vr_weaponfx.cpp` parseTracer (`noteTracer`,
+  the probe's pellet ends), `gl_rmain.c` (`VR_DrawFlatCrosshair`), `gl_screen.c` SCR_DrawCrosshair (`VR_FlatXhairOn`),
+  `vr_flatplay.cpp` init.
+- **Proof** (`flatxhair_test.sh`, 23 checks, fast mode): open space, centred, pellets' mean 1.4 px (at 540 rows) from the drawn
+  crosshair; 48 units from a wall with `vr_flat_aim_point 0`, 45.7 px off the centre and the pellets 1.1 px from it (46.5 from
+  the centre); dual wielding there, two crosshairs 81 px either side, each gun's pellets 0.9 / 1.4 px from its own; aimed at the
+  point again, one on the centre; hidden with the menu; drawn with the visor off; the green pixels' centroid on the drawn
+  place in each screenshot; each of the eight styles draws and differs from the one before.
 ## Flat-screen: the mouse follows the lean's roll (branch `agent/lean_mouse`, 2026-11-09)
 
 His report: leant, moving the mouse straight up moved the view diagonally across the lean. Now `VR_FlatLookTurn`
