@@ -6662,6 +6662,82 @@ by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolle
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
 
+## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
+
+His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
+"make the FOV multiplier not only sliding-specific, but speed specific ... any speed above the run speed would increase
+the FOV gradually, up to a cap". `vr_flatspeedfov.cpp`: the multiplier is 1 up to `vr_flat_speed_fov_from` (320, the
+run), a smoothstep to `vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400), eased in over
+`vr_flat_speed_fov_ease` (0.15 s time constant) and out over `vr_flat_speed_fov_ease_out` (0.6 s);
+`vr_flat_slide_fov_bonus` (0) is an extra while sliding. Rows on Locomotion > Desktop Screen Play after Slide; Debug >
+Tests: Flat Speed FOV (test, status). Details: FLATPLAY.md, "The speed FOV".
+
+- **Why top 400:** measured in vrtesthall (fixed frames): walk 192 u/s, run 320, a level slide starts at 400 (run plus
+  the 80 boost) and loses 180 u/s a second, so it is over in about 1.5 s. With top 440 and a 0.25 s ease (the brief's
+  first numbers) a level slide only reached x1.023; top 400 and 0.15 s give x1.052 (94.7 at fov 90). A downhill slide
+  (to 560) and a bunny hop chain past 400 get the whole x1.1. A slide bonus of 0.04 takes a level slide to about x1.1
+  if he wants the slide itself to read stronger (left at 0: the brief's default).
+- **Composition:** after the ironsight's narrowing in `flatsight::fov`, the widening times one minus the ironsight's
+  travel (sighted: none). `IN_FovScale` reads `VR_FlatLookFov` (the field of view without the widening), so the mouse's
+  degrees per count do not change with speed. The visor crosshair projects with `r_matviewproj` (the frame's own) and
+  `vr_flat_model_fov` scales against `r_refdef.basefov`, so both follow the widening.
+- **Shared with VR:** the FOV goes through the existing `VR_FlatAdsFov` / `SCR_CalcRefdef` path (no second projection),
+  the ease and curve are `geom::approachExp` / `geom::smoothstep`, the slide state `flatmove::sliding()`. Nothing in the
+  headset path is a counterpart: a headset's field of view is the lenses'.
+- **Test** `vr_flat_speed_fov_test` (`Misc/quakevr/flatspeedfov_test.sh`): 7 of 7. Walk 192 / run 320: fov 90.000 of 90;
+  a slide 320 to 400 peaks at 94.72 (x1.052) and eases back in 3.1 s; a strafe-jump chain (landings 342 346 360 382 375
+  380 385 400) peaks at 98.15 (x1.091) and eases back in 4.1 s; the largest frame's step 0.80 degrees (0.99 of what the
+  ease allows at the slide's boost), 0.22 in the chain.
+
+## Flat-screen visor HUD, fifth pass: his defaults, reach past the edges, real hits only, nearly free (branch `agent/visor5`, 2026-11-09)
+
+- **His values as the defaults** (own commit, 41094b975): `vr_flat_visor_*` autohide_log 1, bevel 1.5, depth_lag 0.5,
+  depth_offset 12, log_out 0, scanline_width 4, scanlines 0.65, shake 4, shake_time 0.5, sheen 0.5, side_out 0, warp
+  -0.08, zoom 0.94; `vr_flat_xhair_*` glow 0.25, opacity 0.75, smooth 0.1; `vr_flat_bloom` 0.02; `vr_menu_flat_scale`
+  0.954, `_y` 0.499; tunables `vr_flat_lean_angle` 20, `vr_flat_lean_dist` 20 (tune_promote). The hit shake's range
+  0..3 -> 0..6 (his 4 was clamped to 3). Tests that measured at the old defaults set what they measure
+  (visor_test: autohide off at the start, its side/log phases against a mid value; menu_flat_panel_test from 0.9; the
+  crosshair's placement at smoothing 0.03; the lean facing a wall against leanRoom's own room: at 20 the gun's line
+  meets the test hall's wall trim one unit short on the right).
+- **Reach (`_log_out`, `_side_out`): -4 .. 8** (menu and clamp). `reachInset`: the gap mountInset x reach, at least
+  1.5 at 0 and over, under 0 continuing past the edge (continuous through 0); the side mounts' padding and chamfer stay
+  at 0.2's below it. Edge contact is only asked at 0 and over.
+- **The shake and glitch only on real hits:** they took health and armour going down, so a megahealth's overheal
+  ticking away (QC `item_megahealth_rot`: health - 1 a second) shook it. Now `VR_OnDamage` (the server's damage
+  message: T_Damage's dmg_take / dmg_save) -> `visor::onDamage(armor, blood)`. `vr_flat_visor_fx hit <n>`: a real
+  damage message with no health taken (sets the player's dmg_take; Debug menu "Visor: Real Hit Message").
+- **Cost:** the panels' seven textures were drawn (and mipmapped) every frame, and the layer (ss 2: 6880 x 2880 at
+  3440 x 1440) cleared and rebuilt with its CPU lens solve every frame, the composite and the glass blur over the whole
+  view. Now: (1) each panel is drawn as a dry run first (`gfx::draw2D::beginSignature`: draw2D's calls and
+  drawPicSized fold their arguments into a hash and draw nothing) and drawn for real only when that changed (a few
+  times a second at most: blinking, a powerup's seconds); (2) the layer is rebuilt only when its signature changes
+  (`layerSignature`: the view, its targets, drawPanels' cvars, the sway, fades, effects, colours, each panel image's
+  version; every frame while glitching or booting); (3) each panel's rectangle on the view (its vertices' bounds,
+  overlaps merged) limits the composite (scissored) and the glass's blit and Kawase passes (padded by their reach and
+  the bend); (4) the pincushion lens's inverse by Newton (it is concave below r*) instead of 24 bisections; outline
+  pieces wholly 160 px past an edge are not subdivided; the glass rim's clear middle quads are skipped.
+  `vr_flat_visor_cache 0` (debug, Debug menu "Visor: Cache On / Off"): the old way, every frame over the whole view.
+  Timings (ThinLTO, `--exclusive`, e1m1 start, 3440 x 1440, 400 frames, `vr_profile`; cpu / gpu ms):
+  | case | visor | visor panels | frame |
+  |---|---|---|---|
+  | before (no-LTO probe, shared run) | 1.25 / 1.17 | 0.01 / 0.68 | |
+  | cache 0 (every frame, whole view) | 0.64 / 0.38 | 0.02 / 0.44 | 4.24 / 2.23 |
+  | cache 1, standing | 0.07 / 0.05 | < 0.02 / < 0.02 | 2.01 / 1.49 |
+  | cache 1, turning steadily (+right) | 0.07 / 0.05 | < 0.02 / < 0.02 | |
+  | cache 1, walking (+forward) | 0.34 / 0.22 (layer 0.28 cpu) | < 0.02 / < 0.02 | 3.41 / 1.53 |
+  | visor off | | | 2.05 / 1.42 |
+  Walking, the bob moves the sway and the layer is rebuilt most frames.
+  Shared with VR: the dry-run signature is gfx::draw2D's (any 2D canvas can use it: the wrist gadget's screen, also
+  drawn every frame, could skip its redraws the same way); the hash is diskcache::fnv; the real-hit trigger is the
+  same VR_OnDamage hook the controllers' buzz, the drawn hands' knock and flathit use.
+  Left: a sway that moves every frame (walking, a hit's shake) rebuilds the layer; making that cheap means drawing the
+  layer without the sway and the lens (one layer per depth: plate, face, contents) and applying the sway, zoom and lens
+  per pixel in the composite (`lensSample` is the explicit forward map).
+- **Look:** cache 1 against cache 0 at rest, 3440 x 1440, scanlines off (they drift): 2 pixels over 8 of 255 outside
+  the view model's middle, none over 24 (frame-to-frame noise of the world alone is larger).
+- **Tests:** visor_test 28/0 (new: no hit from health 150 -> 120 by `give h`, a real hit message shakes it with no
+  health taken; `_side_out -2` and `_log_out -2` pull the mounts past the edges), flathud, flathit, flatxhair,
+  menu_flat_panel_test 28/0, flatlean 7/0, `vr_pp_test 1`.
 ## Flat-screen lean: the arms turn with the torso (branch `agent/lean_pose`, worktree `flatwall`, 2026-11-09)
 
 His words: "While leaning, it feels like the gun poses are a bit unnatural, especially when dual wielding. The weapon that
@@ -6804,3 +6880,73 @@ specular AA, alpha to coverage in flat, TAA for flat.
   only). TAA reprojection in flat: `vr_temporal_error` turning, 0.66 against 4.5 not reprojected (mean |luma|).
 - **Tests**: flathud 11/0, visor_test 24/0, flatxhair_test 31/0, vr_pp_test 1 VR 63/0, flat 62/0, flat with
   `vr_flat_taa 1` 62/0, checklist_tests_check 101/0. Scene `flat_taa`.
+## Faster map loads (branch `agent/perf_load`, 2026-11-09)
+
+From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with
+265-358 ms on the main thread in no zone. Measured here on the QRP base (his `id1/textures` pack) with his
+`ironwail.cfg` (PBR, parallax, normal maps), `vr_startup_times` per load and a Tracy capture of start -> e1m1 -> e1m2.
+
+- **Where the world model's time went** (e1m2, a map new to the session, no-LTO, shared machine): 357 ms, of which the
+  textures' loop 330: **vr_pbr's content hash of every world texture 170 ms** (`pbr::sourceHash`: SHA-256 of each
+  replacement image, 128 of them, portable code at ~200 MB/s; the companion bundle is keyed by it, so every new texture
+  is hashed, and E1M1/E1M2 have no companions: all of it to find nothing), texture processing and upload 70 (460
+  uploads: CPU mip chains, glTexImage), the made normal maps' processing and upload ~45, the prefetch's finding and
+  reading 35-38 (1,421 file lookups, 13 ms), external pack maps 31 + attached 19, image decode waits and opens 35. The
+  BSP lumps themselves (vertexes to submodels) take under 1 ms together.
+- **Going back to a map** (e1m1 after e1m2): 187 of e1m1's 265 images decoded again on the main thread (266 ms): the
+  prefetch skipped them as "in vr_image_cache" (by name), then the load's own new images pushed them out of the 512 MB
+  LRU before the loop got to them.
+- **The item boxes** (b_*.bsp, 19 of them: the toolgun precaches them at every worldspawn, VR_Toolgun_Precache) cost
+  70-75 ms of every load ("entities spawned"): their textures loaded, processed and uploaded again each map (brush
+  models live on the hunk; Mod_ClearAll frees their textures). Not changed (see Left).
+
+Changes:
+1. **SHA-256 with the processor's SHA extensions** (vr_sha256.cpp, detected with CPUID at start; the portable blocks
+   otherwise): 4 MB in 1.6 ms against 9.5 (`vr_sha256_test`: the FIPS vectors, and both paths the same digest for every
+   length 0-300 bytes and 4 MB, 302/302). Used by vr_pbr's texture hashes and the Map Library's download check alike.
+   PBR's hashing in e1m2's load 170 -> 33 ms.
+2. **Decoded images a load is about to use kept** (vr_imgcache.cpp `VR_ImageCacheHasName`): the prefetch's question
+   marks the image used now, so this load's new images push out other maps' first. E1M1 after E1M2: images decoded
+   on the main thread 187 -> 0 (decode time 287 -> 35 ms).
+3. **Tracy zones for every step of a brush model's load** (gl_model.c `MOD_STEP`: the lumps, the textures' prefetch,
+   each texture's external maps found/attached, its normal map), so the world model has no unzoned time left (the
+   rest of the textures loop's self time is TexMgr's own zones' parents).
+4. **Benchmarks**: `load_session_qrp` and `load_session_qrp_flat` (qvrbench.py): `map start`, `changelevel e1m1`,
+   `changelevel e1m2`, `changelevel e1m1` on QRP, the frames after each.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3 runs, ms from the command to the first frame;
+`qvr-kit/benchresults/perfload_base` against `perfload_after`; baseline = origin/next's engine files):
+
+| load | VR before | VR after | flat before | flat after |
+|---|---|---|---|---|
+| `map start` (cold, the session's first) | 2046 | 1872 | 1974 | 1827 |
+| `changelevel e1m1` (new to the session) | 651 | 506 | 599 | 536 |
+| `changelevel e1m2` (new) | 649 | 503 | 636 | 503 |
+| `changelevel e1m1` (back) | 360 | 386 | 358 | 387 |
+| `load_changelevel` (no pack) e1m2 / e1m1 | 321 / 236 | 334 / 207 | | |
+
+The back-to-E1M1 row is within run-to-run noise (355-461 both ways): in this session the three maps' images fit the
+512 MB cache, so nothing was pushed out. Where the cache overflows (the console's `map e1m1; map e1m2; map e1m1` from
+a cold start, his settings, no-LTO): e1m1's second load 685 -> 360 ms, its world model 455 -> 165. The worst frame of
+the 90 after each load is unchanged (VR 13 ms, flat 3-6 ms here at 960x540). Target ~0.4 s warm: 0.50 now for a map
+new to the session; the item boxes' 70 ms (Left) would bring it to ~0.43.
+
+Tests: `vr_sha256_test` 13/13 (incl. SHA extensions against portable 302/302), `vr_pp_test 1` 63/0,
+`checklist_tests_check` 99/0. No screenshot diffs: nothing drawn changes (the hashes are bit-identical, the cache only
+keeps different images; the textures are the same files decoded the same way).
+
+After the load (Tracy, flat, 960x540): the changelevel loads' first frames are small here (server ticks 7-11 ms: the
+hit models' poses 2.6-6.5, Box3D's first sync 3.6-3.9, QC StartFrame 3.2; the first view's `lights` 3.7: 42 alias mesh
+uploads); the session's first map (cold) has the big one, 194 ms: the player's own models loaded at their first
+draw (`view body` 59, `view entities` 103 in all), the hub's text boards' first layout (`vr opaque (text3d)` 19 + 12 in
+the portal view), 260 alias mesh uploads (`lights` 17: the AO bakes' vertex buffers), the first portal view 42.
+No prewarm added (see Left): his 13-60 ms post-load frames at 3440x1441 are mostly the GPU-bound frame plus these.
+
+Left (proposals):
+- Keep the item boxes' textures across maps (b_*.bsp: the same files every map; ~70 ms a load): needs their
+  gltextures not freed by Mod_ClearAll and a reuse path in TexMgr_LoadImage by owner, name and source CRC (Ironwail
+  has one only for TEXPREF_OVERWRITE), and every per-texture VR table (normal maps, ext maps, PBR uses) kept with them.
+- vr_pbr's remaining hashes (33 ms) on the prefetch's decode tasks (the image's hash next to its pixels).
+- The world's made normal maps on jobs like the skins' (VR_SkinNormalsPost: one path for both).
+- First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
+  the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.

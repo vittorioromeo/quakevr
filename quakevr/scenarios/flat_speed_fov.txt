@@ -1,0 +1,7 @@
+# flat_speed_fov: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) speed FOV (vr_flat_speed_fov; Quake/vr/vr_flatspeedfov.cpp): vrtesthall's start, open level ground ahead (vr_flat_speed_fov_test runs from here).
+title Flat-screen speed FOV: run, slide, bunny hop
+hint Play with -flatscreenmode. Run ahead: the view stays as it is. Crouch at speed to slide, and strafe-jump a few hops: the view widens smoothly with the speed and eases back as you slow or stop, no jump of it on landing. Aim down the sights at speed: the widening goes.
+map vrtesthall
+god
+notarget
+give "Shotgun" main

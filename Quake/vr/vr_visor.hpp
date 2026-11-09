@@ -34,6 +34,10 @@ namespace qvr::visor
 // or goes (the classic status bar's lines).
 void renderPanels();
 
+// A hit on him (VR_OnDamage: the server's damage message, its armor and blood): the visor's glitch and shake. Only a real
+// hit does it, never health going down by itself (a megahealth's overheal ticking away).
+void onDamage(int armor, int blood);
+
 // vr_flat_visor_report, vr_flat_visor_fx.
 void init();
 
