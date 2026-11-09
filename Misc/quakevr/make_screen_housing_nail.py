@@ -3,11 +3,17 @@
 # as part of the gun"; his mockup kit/scratch/mockups/nail_housing.webp: the screen in a bevelled bezel on the receiver's
 # rear, between the two hex barrels, standing on the receiver's top in front of the block with the red light).
 #
-# Usage: blender -b --factory-startup Misc/quakevr/src_models/blend/v_nail/v_nail.blend
-#            --python Misc/quakevr/make_screen_housing_nail.py -- [--dry] [--save other.blend]
+# Usage, from the repository root (the options after the separator: [--dry] [--save other.blend]):
+#   Git Bash:   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup \
+#                   Misc/quakevr/src_models/blend/v_nail/v_nail.blend \
+#                   --python Misc/quakevr/make_screen_housing_nail.py -- --dry
+#   PowerShell: & "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup `
+#                   Misc\quakevr\src_models\blend\v_nail\v_nail.blend `
+#                   --python Misc\quakevr\make_screen_housing_nail.py '--' --dry
 # Builds or moves the housing, exports the model as blend_export.py does (quakevr/progs) and saves the .blend (in place,
 # or as --save) as the export left it. `--dry` builds it in memory and prints the numbers and checks only. Ends with
-# "housing_nail: ok, ...".
+# "housing_nail: ok, ..." or "housing_nail: REFUSED: ..." (nothing written). It works like the other three housing
+# scripts (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo screen housings").
 #
 # One definition: the window's half size and its chamfer (`opening`, `radius` < 0, in font pixels) and the glass's
 # place (`offset`) are read from the "nail" entry of Quake/vr/vr_screenstyle.cpp, the table the engine shapes the glass
@@ -40,7 +46,6 @@
 import math
 import os
 import re
-import struct
 import sys
 
 import bmesh
@@ -49,6 +54,8 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+import housing_common as hc  # noqa: E402
 STEM = "nail"
 MODEL = "v_nail"
 SLOT = 3
@@ -95,24 +102,6 @@ FASTENER_HEAD = (246.0, 133.0)
 FASTENER_TIP = (246.0, 128.0)
 
 
-def read_style():
-    """The "nail" entry's opening (half width, half height), radius, size and offset (right, up, out)."""
-    src = open(os.path.join(ROOT, "Quake", "vr", "vr_screenstyle.cpp"), encoding="utf-8").read()
-    m = re.search(r'\{"%s",(.*?)\n\s*(?:\{"|\};)' % STEM, src, re.S)  # (up to the next entry or the table's end)
-    if not m:
-        raise SystemExit("%s: no \"%s\" entry in vr_screenstyle.cpp" % (TAG, STEM))
-    body = m.group(1)
-    num = r"(-?[0-9.]+)f?"
-    op = re.search(r"\.opening\s*=\s*\{\s*%s\s*,\s*%s\s*\}" % (num, num), body)
-    off = re.search(r"\.offset\s*=\s*\{\s*%s\s*,\s*%s\s*,\s*%s\s*\}" % (num, num, num), body)
-    rad = re.search(r"\.radius\s*=\s*" + num, body)
-    size = re.search(r"\.size\s*=\s*" + num, body)
-    if not (op and rad and off and size):
-        raise SystemExit("%s: the \"%s\" entry needs .radius, .size, .offset and .opening" % (TAG, STEM))
-    return ((float(op.group(1)), float(op.group(2))), float(rad.group(1)), float(size.group(1)),
-            tuple(float(off.group(i)) for i in (1, 2, 3)))
-
-
 def read_weapon():
     """weapons.txt's slot: wpntxt_av, wpntxt_x/y/z, wpntxt_scale and the pitch/yaw/roll (all 0: the glass upright)."""
     txt = open(os.path.join(ROOT, "quakevr", "data", "weapons.txt"), encoding="utf-8").read()
@@ -134,12 +123,6 @@ def read_weapon():
     return av, off, float(val("wpntxt_scale"))
 
 
-def grid():
-    """The model file's grid: origin and step per axis."""
-    d = open(os.path.join(ROOT, "quakevr", "progs", MODEL + ".mdl"), "rb").read()
-    return Vector(struct.unpack_from("<3f", d, 20)), Vector(struct.unpack_from("<3f", d, 8))
-
-
 def outline(hw, hh, cu, cv):
     """A chamfered rectangle's 8 points (corner cuts cu along u, cv along v), counter-clockwise from the right side's
     top: the same count and order for every size, so rings join point to point."""
@@ -147,16 +130,12 @@ def outline(hw, hh, cu, cv):
             (-hw, -hh + cv), (-hw + cu, -hh), (hw - cu, -hh), (hw, -hh + cv)]
 
 
-def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    dry = "--dry" in argv
-    save = argv[argv.index("--save") + 1] if "--save" in argv else bpy.data.filepath
-
-    (op_w, op_h), radius, size, offset = read_style()
+def main(h):
+    (op_w, op_h), radius, size, offset = h.style["opening"], h.style["radius"], h.style["size"], h.style["offset"]
     if radius >= 0.0:
-        raise SystemExit("%s: the \"%s\" entry's radius must be < 0 (a chamfer), not %g" % (TAG, STEM, radius))
+        h.fail("the \"%s\" entry's radius must be < 0 (a chamfer), not %g" % (STEM, radius))
     av, wofs, wscale = read_weapon()
-    org, stp = grid()
+    stp, org = (Vector(v) for v in h.grid)
     px = PX_PER_SCALE * wscale * size
 
     def sy(y):
@@ -197,7 +176,7 @@ def main():
     ow = sy(cy + fu + fr + SIDE_MARGIN * H) - cy
     oh = (z_top - z_bot) * 0.5
     if cy + ow > BLOCK_Y[1] + 1e-3 or cy - ow < BLOCK_Y[0] - 1e-3:
-        raise SystemExit("%s: the front (half width %.3f) is wider than the block" % (TAG, ow))
+        h.fail("the front (half width %.3f) is wider than the block" % ow)
     co_u, co_v = sy(cy + cu + (oh - hh) * 0.4142) - cy, sz(cz + cv + (oh - hh) * 0.4142) - cz
     band_u, band_v = stp.y, stp.z
 
@@ -321,62 +300,11 @@ def main():
         want = {"back": back_dir, "out": radial, "inback": back_dir - radial, "outback": radial + back_dir}[kind]
         return (i, j, k) if nrm.dot(want) >= 0.0 else (i, k, j)
 
-    def apply(me):
-        """Adds the housing or, when the mesh has one of this shape, moves it into place and maps it again."""
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        lay_house = bm.verts.layers.int.get("qvr_housing") or bm.verts.layers.int.new("qvr_housing")
-        lay_vert = bm.verts.layers.int.get("qvr_vert")
-        lay_tri = bm.faces.layers.int.get("qvr_tri")
-        lay_vid = bm.loops.layers.int.get("qvr_vid")
-        lay_uv = bm.loops.layers.uv.active
-        shapes = list(bm.verts.layers.shape.values())
-        old = [v for v in bm.verts if v[lay_house] == 1]
-        reuse = len(old) == len(verts)
-        if old and not reuse:
-            print("%s: the old housing has %d vertices, not %d: deleted, built anew" % (TAG, len(old), len(verts)))
-            bmesh.ops.delete(bm, geom=old, context='VERTS')
-            old = []
-        if reuse:
-            old.sort(key=lambda v: v.index)
-            for v, co in zip(old, verts):
-                v.co = co  # (the frames follow frame 0: the export carries the move into them)
-            oldset = set(old)
-            faces = [f for f in bm.faces if all(v in oldset for v in f.verts)]
-            if len(faces) != len(tris):
-                raise SystemExit("%s: the old housing has %d faces, not %d" % (TAG, len(faces), len(tris)))
-            lookup = {v: i for i, v in enumerate(old)}
-            mode_of = {frozenset(t[:3]): t[5] for t in tris}
-            for f in faces:
-                ids = [lookup[v] for v in f.verts]
-                mode = mode_of.get(frozenset(ids), "front")
-                for loop in f.loops:
-                    loop[lay_uv].uv = uv_at(*tex_of(lookup[loop.vert], mode, wraps(ids)))
-        else:
-            bv = []
-            for co in verts:
-                v = bm.verts.new(co)
-                v[lay_house] = 1
-                if lay_vert is not None:
-                    v[lay_vert] = -1
-                for sl in shapes:
-                    v[sl] = co
-                bv.append(v)
-            for t in tris:
-                i, j, k = oriented(t)
-                f = bm.faces.new((bv[i], bv[j], bv[k]))
-                f.material_index = 0
-                f.smooth = True
-                if lay_tri is not None:
-                    f[lay_tri] = -1
-                for loop in f.loops:
-                    if lay_vid is not None:
-                        loop[lay_vid] = -1
-                    loop[lay_uv].uv = uv_at(*tex_of(bv.index(loop.vert), t[5], wraps(t[:3])))
-        bm.to_mesh(me)
-        me.update()
-        bm.free()
-        return reuse
+    # The triangles as the helper takes them: wound as they should face, a UV per corner.
+    built = []
+    for t in tris:
+        i, j, k = oriented(t)
+        built.append((i, j, k, tuple(uv_at(*tex_of(v, t[5], wraps(t[:3]))) for v in (i, j, k))))
 
     # The glass: where weapons.txt and the table's offset put it, against the window's centre at the glass's depth.
     glass = av + wofs * K_WPN + Vector((-offset[2], -offset[0], offset[1])) * K_TAB
@@ -399,17 +327,16 @@ def main():
         "glass centre %.4f %.4f %.4f (want %.4f %.4f %.4f)" % (*glass, *want),
     ]
     for l in lines:
-        print("%s: %s" % (TAG, l))
+        h.say(l)
     if miss.length > 0.01:
-        msg = "%s: the glass is %.3f off the window: the table's offset should be {%.4ff, %.4ff, %.4ff}" % (
-            TAG, miss.length, *need)
-        if not dry:
-            raise SystemExit(msg)
-        print(msg)
+        msg = "the glass is %.3f off the window: the table's offset should be {%.4ff, %.4ff, %.4ff}" % (miss.length, *need)
+        if not h.dry:
+            h.fail(msg)
+        h.say(msg)
 
     # No fullbright texel under the housing's UVs (the skin's own colours, exactly palette fullbrights glow).
-    sys.path.insert(0, os.path.join(HERE, "blender", "addons"))
-    from quakevr_models import mdl_blender, qpal, source
+    _, mdl_blender = hc.addon()
+    from quakevr_models import qpal
     pix = list(img.pixels)
     glow = 0
     for t in tris:
@@ -420,45 +347,35 @@ def main():
                 rgb = tuple(int(round(c * 255)) for c in pix[o:o + 3])
                 glow += rgb in qpal.EXACT_FULLBRIGHT
     if glow:
-        raise SystemExit("%s: %d fullbright texels under the housing's UVs" % (TAG, glow))
+        h.fail("%d fullbright texels under the housing's UVs" % glow)
 
-    moved = apply(me)
-    if dry:
-        print("%s: --dry, %d vertices, %d triangles; not exported or saved" % (TAG, len(verts), len(tris)))
-        return
+    moved = h.apply(me, verts, built, smooth=True)
 
-    def export():
-        try:
-            written, _ = source.export(bpy.context, ROOT, None)
-        except source.SourceError as e:
-            raise SystemExit("%s: the export REFUSED:\n  %s" % (TAG, str(e).replace("\n", "\n  ")))
-        return len(written)
+    def frames():
+        """After the export: the .blend's frames as the file has them, and the housing checked to move as the block's
+        rear face does in every frame (the export carries a new vertex with its nearest old one)."""
+        mdl_blender.carry_frames(ob)
+        hs = me.attributes[hc.TAG]
+        flags = [0] * len(me.vertices)
+        hs.data.foreach_get("value", flags)
+        mine = [i for i, f in enumerate(flags) if f]
+        corners = [v.index for v in me.vertices if not flags[v.index] and abs(v.co.x - X_FACE) < 0.01
+                   and BLOCK_Z[0] - 0.01 < v.co.z < BLOCK_Z[1] + 0.01 and BLOCK_Y[0] - 0.01 < v.co.y < BLOCK_Y[1] + 0.01]
+        worst = 0.0
+        keys = me.shape_keys.key_blocks if me.shape_keys else []
+        for kb in keys[1:]:
+            ref = [kb.data[i].co - me.vertices[i].co for i in corners]
+            for i in mine:
+                d = kb.data[i].co - me.vertices[i].co
+                worst = max(worst, min((d - r).length for r in ref))
+        if worst > 1e-3:
+            h.fail("in some frame the housing leaves the block's face by %.4f" % worst)
+        h.say("frames: in %d frames the housing follows the block's face within %.4f" % (len(keys) - 1, worst))
 
-    files = export()
-    mdl_blender.carry_frames(ob)  # (the .blend's frames as the file has them)
-
-    # Every frame: the housing moves as the block's rear face does (the export carries a new vertex with its nearest
-    # old one).
-    hs = me.attributes["qvr_housing"]
-    flags = [0] * len(me.vertices)
-    hs.data.foreach_get("value", flags)
-    mine = [i for i, f in enumerate(flags) if f]
-    corners = [v.index for v in me.vertices if not flags[v.index] and abs(v.co.x - X_FACE) < 0.01
-               and BLOCK_Z[0] - 0.01 < v.co.z < BLOCK_Z[1] + 0.01 and BLOCK_Y[0] - 0.01 < v.co.y < BLOCK_Y[1] + 0.01]
-    worst = 0.0
-    keys = me.shape_keys.key_blocks if me.shape_keys else []
-    for kb in keys[1:]:
-        ref = [kb.data[i].co - me.vertices[i].co for i in corners]
-        for i in mine:
-            d = kb.data[i].co - me.vertices[i].co
-            worst = max(worst, min((d - r).length for r in ref))
-    bpy.context.preferences.filepaths.save_version = 0  # (no .blend1 beside it)
-    bpy.ops.wm.save_as_mainfile(filepath=save, compress=True)
-    print("%s: ok, %d vertices, %d triangles (%s; opening %.2f x %.2f px, radius %.2f; in %d frames the housing "
-          "follows the block's face within %.4f); exported %d files, saved %s"
-          % (TAG, len(verts), len(tris), "moved in place" if moved else "built", op_w, op_h, radius, len(keys) - 1,
-             worst, files, save))
+    h.finish("%d vertices, %d triangles (%s; opening %.2f x %.2f px, radius %.2f)"
+             % (len(verts), len(tris), "moved in place" if moved else "built", op_w, op_h, radius),
+             after_export=frames)
 
 
 if __name__ == "__main__":
-    main()
+    hc.Run(STEM, MODEL).main(main)

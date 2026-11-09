@@ -5702,3 +5702,41 @@ and nail pistol `LIP` 0.07 -> 0.09 -> 0.07: every vertex place and skin coordina
 split the other way (8 and 6 triangles) are re-made each way: they move to the end of the triangle list and leave
 16-24 unused vertices in the file. A change that grows the nail pistol's box (e.g. `X_BACK` further back) keeps the
 grown box (and its weapons.txt offsets) when changed back, as every grown export does.
+
+## The nailgun's ammo screen housing (branch `agent/housing_nail`, 2026-11-09)
+
+His mockup (`kit/scratch/mockups/nail_housing.webp`, he likes it) and its build spec in visible glass heights H: a
+square window with 0.20 corner cuts at 45 degrees, a bezel 0.18 each side standing 0.18 proud, the glass 0.08 behind
+its front, four round domed fasteners (radius 0.14) two each side, no grille or plate; materials from the gun's skin.
+Panel (today's next / this branch / the mockup, flat 4K, the fly camera at about the mockup's angle) and a close-up:
+`scratch/housing_nail/panel_nail.png`, `closeup_nail.png` in the embed5 worktree.
+
+- **Model:** `Misc/quakevr/make_screen_housing_nail.py` on `v_nail.blend`, through `housing_common.py` like the other
+  three (re-runnable in place, `-- --dry`, `-- --save`, exports and saves, "housing_nail: ok, ..."). On the receiver's
+  rear between the barrels, against the block with the red light (rear face x 0.997), standing on the receiver's top
+  (its bottom 0.02 under it) with one grid row of the block showing above: the front (1.63 x 1.02, chamfered corners),
+  a worn-edge band round it and walls into the block, the window's lip bevelling 45 degrees through the block's face
+  (the face is the window's back; the lip's end capped inside the block), four 8-sided fasteners. 109 vertices, 168
+  triangles (the gun 1188 -> 1356). Holes check: 5 new open loops (the fasteners' feet on the front, the walls' end
+  inside the block), 0 see-through, 0 cracks. The mag/magwell (x 6.9-8.8, z < 0) and the hands' points are far from it
+  (housing x 0.68-1.15, z 4.30-5.32).
+- **The grid (bytes: x 0.156, y 0.0465, z 0.0509; H = 0.712 model units):** window 0.697 x 0.712 (0.98 x 1.00 H),
+  corner cuts 0.163 / 0.153 (0.23 / 0.21 H, 47 degrees); proud one x step 0.156 (0.22 H: the nearest step; 0 is none);
+  the glass 0.057 behind the front (0.08 H, not a vertex: the table's offset); the frame 0.21 H top, 0.19 H bottom over
+  the receiver's top, the sides wider (0.25 H to the fasteners, as the mockup's ears); fasteners radius 0.0997
+  (0.14 H, each point snapped), heads one x step proud (0.156: taller than "slightly domed"; the only other choice is
+  flat). H itself is what fits between the receiver's top and the block's top with the spec's frame.
+- **One definition:** `vr_screenstyle.cpp` "nail" (`opening` 9.37 x 9.57 font px, `radius` -4.2: a chamfer, `size` 1,
+  `offset` {0.0132, -0.0296, 0.0057}, box 0, `housing` true; g_nail matches the stem too, as g_shot does) and
+  weapons.txt slot 3 (`wpntxt_scale` 0.2: a font pixel 0.0372; pitch/yaw/roll 0) give the window and the glass's
+  place; the script refuses (printing the offset that fits) when the glass is more than 0.01 off the window's centre
+  at its depth. `vr_debug_screen_where`: centre 0.8974 0.0333 4.8079 (want 0.8976 0.0335 4.8078). Measured: weapons.txt
+  wpntxt offsets 1.786 model units a unit, the table's 1.86.
+- **Skin (no new texels, no fullbright under any UV, checked by the script):** front the brown rusted metal at
+  300..324 x 163..177; the band and walls the worn rim along the framed panels' top (x 151..244, rows 80-83); the lip
+  from that rim to the panel's dark inside; fasteners a bronze-brown foot (404, 179) and silver heads (246, 128..135).
+- **Frames:** the housing follows the block's face in all 8 other frames (0.0000; the export carries each new vertex
+  with its nearest old one). The script checks it after every export.
+- **Decision:** the spec's square window, as the brief says, though the mockup's picture shows a wider one (about 2:1):
+  "24/24" then fits at about half today's digit size. Wider is one table change (`opening`) and a re-run.
+- **Not done:** a row for the nailgun in MODELS_IN_BLENDER.md's housing table (the brief kept that file out of scope).
