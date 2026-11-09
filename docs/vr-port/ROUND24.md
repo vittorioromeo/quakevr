@@ -5218,3 +5218,34 @@ this file once; the duplicate was "Release pass for 1.1", in twice: the second c
   Test `Misc/quakevr/prone_vent_test.sh` (new): **9 passed** (crouch and key in the vent: lying, x 624, eye 12; out:
   up by itself; the wish taken back: still lying; the key in the open: up). Before the fix the crouch case read eye 28.
   flatslide (incl. flatprone) 17/17.
+  (Follow-up: `setpos` turns noclip on, so the test now turns it off after each one: with it on the teleporter was
+  never touched. 9 passed again.)
+- **`vr_flat_autoreload` default 0** (his call): only R reloads. No migration row: the setting came after the sparse
+  configs (218), so a config holds it only if he set it; his own config untouched. Menu help and FLATPLAY.md say "off
+  by default"; flatreload's cases set it explicitly: **26 passed**.
+- **The nail pistol's empty reload assert:** not the nail pistol. R with nothing to reload printed both hands'
+  storage (a dprint, its arguments evaluated at any developer level), and the empty off hand's ammo id is AID_NONE,
+  which `VR_AmmoUtil_GetAmmoCountByAmmoId` asserts on (vr_ammoutil.qc:34). `VR_FlatReload_Storage` is 0 for a
+  weaponless hand or AID_NONE (vr_flatreload.qc). Test `Misc/quakevr/emptyreload_test.sh` (new): every weapon id
+  0..19 and 29..31 given, all ammo 0, fired 1.5 s, R twice, flat and VR mock: before 66 assertions (flat), now
+  **4 passed** (no assertion, all 23 weapons reached, both modes).
+- **ESC in the flat-screen menu:** `vr_menu_flat_esc_game` (1; Advanced VR Options > HUD and Menus > Menu, "Escape
+  Returns to the Game"): with VR off and a game running, Escape on any menu page is Back to game (closes it,
+  resumes, reopens on that page), in both the classic and the VR-style layout (vr_menuui.cpp `VR_MenuKey`). Not while
+  a drop-down is open or a slider or scrollbar is held (`menu::escapeLocal`), nor waiting for a key bind, nor without
+  a game (Quake's main menu then). 0: Escape goes back a page, as before. The headset is unchanged (its menu button
+  already was Back to game). Test `Misc/quakevr/flatmenu_esc_test.sh` (new): **9 passed** (main menu and Options
+  close in both layouts, togglemenu reopens Options, 0 goes back a page, the VR mock goes back a page).
+  menu_paths.txt regenerated (it also restores the autoreload row's second column: that is the menu detail level,
+  not the default; the autoreload commit had changed it by mistake).
+- **Ramp slide jitter (measured, NOT fixed):** `vr_flatslide_ramp_test [1]` (e1m1, the spiral room's 13-degree ramp,
+  x 896..1120 at y 2048) and `Misc/quakevr/flatramp_test.sh`: frame by frame down the ramp, the view's height, his
+  origin's and the drawn gun from the view (largest second difference, at most 0.5). His origin is smooth (on the
+  ground every frame, bend 0.001: no ground bounce in fast mode) and the view too (0.30, the drop easing in). The gun
+  is not: **it jumps 3.4 units forward from the view in one frame** at the slide's 16th frame, then eases back over
+  ten frames. It follows the crouch's ease: with `vr_flat_crouch_time 0.6` (default 0.25) it does not happen on the
+  ramp. The pose head equals the view (so it is the hand's offset), and neither `vr_flat_clear_stock 0` nor
+  `vr_flat_gun_collide 0` removes it. Next: print `targetOffset`'s terms and `handOnBody`'s limits per frame at that
+  moment (something switches when the crouch ratio reaches 1, or the server's crouch box drops a level then).
+  flatramp is a known FAIL until then. Not checked: real-time frame pacing (fast mode is one server tick a frame).
+- Tests: flatslide 17/17, flatreload 26/26, flatinput 19/19, flatmove 10/10, flatplay 27/28 (the known axe punch case; the hands-locked line 0.246 deg as before). The axe punch case (the knight flinch) not touched: budget.
