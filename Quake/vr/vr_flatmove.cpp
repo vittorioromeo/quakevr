@@ -208,12 +208,29 @@ struct RoughTest
     int jumpsBefore{0};
 };
 
+// vr_flatslide_ramp_test: a slide down e1m1's ramp, the view's and the gun's shake measured frame by frame.
+struct RampTest
+{
+    static constexpr int most = 160;
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    int frames{0};
+    bool verbose{false};
+    int n{0};                 // samples taken while sliding down the ramp
+    int air{0};               // of them, off the ground (Quake's flag)
+    float eye[most]{};        // the view's height, world
+    float feet[most]{};       // his origin's height
+    glm::vec3 gun[most]{};    // the drawn main hand from the view, world axes (his yaw stays put)
+};
+
 struct ClientState
 {
     Lean lean;
     SlideView slide;
     SlideTest slideTest;
     RoughTest roughTest;
+    RampTest rampTest;
     LeanTest leanTest;
     ProneTest proneTest;
     MantleTest mantleTest;
@@ -674,6 +691,147 @@ void roughTestFrame()
             Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
             t.tally.verdict(tag);
             t = RoughTest{};
+            break;
+    }
+}
+
+// The largest second difference of a run of samples: a line (even motion, or an even fall) gives 0, a shake its size.
+[[nodiscard]] float largestBend(const float* v, int n)
+{
+    float most = 0.f;
+    for(int i = 1; i + 1 < n; ++i)
+    {
+        most = za::max(most, za::abs(v[i + 1] - 2.f * v[i] + v[i - 1]));
+    }
+    return most;
+}
+
+// vr_flatslide_ramp_test (e1m1, his coordinates): placed at the top of the spiral room's ramp (x 896..1120 at y 2048,
+// 13 degrees down east), he runs east and crouches at speed; down the ramp, every frame: the view's height, his origin's,
+// and the drawn main hand from the view. Checks: the slide went down the ramp, on the ground throughout; the view's and
+// the origin's heights bend by at most rampBendMost a frame (a shake bends them by a unit or more), the gun from the
+// view by at most rampGunBendMost on any axis. `vr_flatslide_ramp_test 1` prints every frame.
+constexpr float rampBendMost = 0.5f; // (the crouch and slide drop easing in bend the view by 0.3: smooth; a bounce off the ramp bends it by a unit and more)
+constexpr float rampGunBendMost = 0.5f;
+
+void rampTestFrame()
+{
+    RampTest& t = client.rampTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const char* tag = "flatslide_ramp";
+    const double now = qcvm->time;
+    const Slide& s = server.slide[1];
+    const float speed = groundSpeed(pl);
+    const bool ground = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+        t.frames = 0;
+    };
+    char line[256];
+    if(inPhase > 6.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "timed out (step %d: x %.0f, speed %.0f, ground %d, sliding %d)", t.phase,
+            pl->v.origin[0], speed, ground ? 1 : 0, s.on ? 1 : 0);
+        testCheck(t.tally, tag, false, line);
+        next(99);
+        return;
+    }
+    switch(t.phase)
+    {
+        case 1: // place him at the ramp's top, the keys let go (not setpos: it turns noclip on)
+            Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
+            pl->v.origin[0] = 900.f;
+            pl->v.origin[1] = 2048.f;
+            pl->v.origin[2] = -150.f;
+            pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+            SV_LinkEdict(pl, false);
+            next(2);
+            break;
+        case 2: // settled: run east
+            cl.viewangles[YAW] = 0.f;
+            cl.viewangles[PITCH] = 0.f;
+            if(++t.frames > 10 && ground && !s.on && now > s.cooldownUntil)
+            {
+                Cbuf_InsertText("+forward\n");
+                next(3);
+            }
+            break;
+        case 3: // at speed: crouch
+            cl.viewangles[YAW] = 0.f;
+            if(ground && speed > 300.f && pl->v.origin[0] > 920.f)
+            {
+                Cbuf_InsertText("+flatcrouch\n");
+                next(4);
+            }
+            break;
+        case 4: // sliding down the ramp: a sample a frame, from the slide's 4th frame (its pose eased in by then or not,
+                // an ease is smooth) to the ramp's foot
+            cl.viewangles[YAW] = 0.f;
+            if(!s.on && t.frames == 0)
+            {
+                break;
+            }
+            if(++t.frames >= 4 && pl->v.origin[0] < 1100.f && t.n < RampTest::most && s.on)
+            {
+                const glm::vec3 eye = flatplay::lastViewOrigin();
+                const glm::vec3 gun = flatplay::lastMainHand() - eye;
+                t.eye[t.n] = eye.z;
+                t.feet[t.n] = pl->v.origin[2];
+                t.gun[t.n] = gun;
+                t.air += ground ? 0 : 1;
+                if(t.verbose)
+                {
+                    const glm::vec3 head = flatplay::lastPoseHead();
+                    const glm::vec3 fromHead = flatplay::lastMainHand() - head;
+                    Con_Printf("flatslide_ramp: frame %d x %.1f z %.2f vz %.1f ground %d speed %.0f eye %.2f gun %.2f %.2f %.2f "
+                               "head %.2f %.2f from it %.2f %.2f %.2f\n", t.n, pl->v.origin[0], pl->v.origin[2], pl->v.velocity[2],
+                        ground ? 1 : 0, speed, eye.z, gun.x, gun.y, gun.z, head.x - eye.x, head.z - eye.z, fromHead.x, fromHead.y,
+                        fromHead.z);
+                }
+                t.n++;
+            }
+            if(pl->v.origin[0] >= 1100.f || !s.on || t.n >= RampTest::most)
+            {
+                Cbuf_InsertText("-forward\n-flatcrouch\n");
+                const float eyeBend = largestBend(t.eye, t.n);
+                const float feetBend = largestBend(t.feet, t.n);
+                float gunBend = 0.f;
+                float axis[RampTest::most];
+                for(int a = 0; a < 3; ++a)
+                {
+                    for(int i = 0; i < t.n; ++i)
+                    {
+                        axis[i] = t.gun[i][a];
+                    }
+                    gunBend = za::max(gunBend, largestBend(axis, t.n));
+                }
+                const float drop = t.n > 1 ? t.feet[0] - t.feet[t.n - 1] : 0.f;
+                q_snprintf(line, sizeof(line), "down the ramp sliding: %d frames, %.0f units down, %d off the ground (%s)", t.n, drop, t.air,
+                    s.on ? "still sliding" : s.endWhy);
+                testCheck(t.tally, tag, t.n >= 15 && drop > 20.f && t.air == 0, line);
+                q_snprintf(line, sizeof(line), "the view's height bends at most %.3f a frame (at most %.2f), his origin's %.3f", eyeBend,
+                    rampBendMost, feetBend);
+                testCheck(t.tally, tag, t.n >= 15 && eyeBend <= rampBendMost && feetBend <= rampBendMost, line);
+                q_snprintf(line, sizeof(line), "the gun from the view bends at most %.3f a frame (at most %.2f)", gunBend, rampGunBendMost);
+                testCheck(t.tally, tag, t.n >= 15 && gunBend <= rampGunBendMost, line);
+                next(99);
+            }
+            break;
+        default:
+            Cbuf_InsertText("-forward\n-moveleft\n-moveright\n-flatcrouch\n");
+            t.tally.verdict(tag);
+            t = RampTest{};
             break;
     }
 }
@@ -1216,6 +1374,20 @@ void roughTest_f()
     client.roughTest.phaseAt = qcvm->time;
 }
 
+void rampTest_f()
+{
+    if(!flatplay::active() || !sv.active || q_strcasecmp(sv.name, "e1m1"))
+    {
+        Con_Printf("vr_flatslide_ramp_test [1: every frame]: flat-screen play (-flatscreenmode) in e1m1, a game you host\n");
+        return;
+    }
+    client.rampTest = RampTest{};
+    client.rampTest.phase = 1;
+    client.rampTest.verbose = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
+    progs::ServerVm vm;
+    client.rampTest.phaseAt = qcvm->time;
+}
+
 void leanTest_f()
 {
     if(!flatplay::active() || !sv.active)
@@ -1323,6 +1495,7 @@ void init()
     Cmd_AddCommand("vr_flatslide_selftest", slideSelftest_f);
     Cmd_AddCommand("vr_flatslide_test", slideTest_f);
     Cmd_AddCommand("vr_flatslide_rough_test", roughTest_f);
+    Cmd_AddCommand("vr_flatslide_ramp_test", rampTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
     Cmd_AddCommand("vr_flatprone_test", proneTest_f);
     Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
@@ -1341,6 +1514,7 @@ void frame(bool on)
     {
         slideTestFrame();
         roughTestFrame();
+        rampTestFrame();
         leanTestFrame();
         proneTestFrame();
         mantleTestFrame();

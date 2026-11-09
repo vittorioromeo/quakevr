@@ -225,6 +225,9 @@ struct CrouchTrace
 
 CrouchTrace crouchTrace;
 float traceHandZ{0.f}; // poseHands' main hand this frame, world z
+glm::vec3 traceHand{0.f};    // poseHands' main hand this frame, world (vr_flatslide_ramp_test)
+glm::vec3 traceHead{0.f};    // poseHands' head this frame, world (vr_flatslide_ramp_test)
+glm::vec3 traceViewOrg{0.f}; // VR_FlatViewDrop's view origin this frame, world (vr_flatslide_ramp_test)
 
 // Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
 // plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
@@ -1595,6 +1598,21 @@ float proneRatio()
     return active() ? keyState.proneRatio : 0.f;
 }
 
+glm::vec3 lastViewOrigin()
+{
+    return traceViewOrg;
+}
+
+glm::vec3 lastPoseHead()
+{
+    return traceHead;
+}
+
+glm::vec3 lastMainHand()
+{
+    return traceHand;
+}
+
 // Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
 float crouchRatio()
 {
@@ -2325,6 +2343,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
     flatreload::apply(s);
     traceHandZ = s.pos[HAND_MAIN].z;
+    traceHand = s.pos[HAND_MAIN];
+    traceHead = s.head;
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
@@ -2897,6 +2917,7 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
     qvr::flatplay::traceCrouch(vieworg[2]);
+    qvr::flatplay::traceViewOrg = {vieworg[0], vieworg[1], vieworg[2]};
 }
 
 // V_CalcRefdef, after VR_FlatViewDrop: dead, the view in the ragdoll's head as the headset's is (vr_death_view 2 or Vomit
