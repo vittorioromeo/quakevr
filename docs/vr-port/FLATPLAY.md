@@ -734,3 +734,39 @@ pose: the hand leaves the rest for it and comes back after. Debug > Reports: Fla
 Debug > Flatscreen Play: "Flatscreen Test Hit From The Right" (a made-up hit through the damage message) and "Flatscreen Hit
 Probe" (`vr_flat_hit_probe`). Tests: `bash Misc/quakevr/flathit_test.sh <agent>` (`vr_flat_hit_test` runs a test's commands
 at the next hit).
+
+## The visor crosshair
+
+`vr_flatxhair.cpp`; Desktop Screen Play > Visor Crosshair and the rows under it. His words (2026-11-09): a flatscreen-only
+crosshair "that follows the visor's style and colour scheme, and displays the target location in screen space".
+
+- **Where.** Each hand holding a gun (not the fist, not a weapon whose crosshair is forbidden: melee) has its shot traced as
+  the server will trace it: the muzzle, the shot's angles and the hand this frame's move sent (`buildMove`, noted by
+  `flatxhair::noteMove`), from behind the muzzle as QC's `VR_ShotBackPoint` (a wall between the hand and there: the hand),
+  2048 past the muzzle, stopping on the world, monsters' models, gibs and heads (`MOVE_HITMODEL`). Where it stops is
+  projected with the window view's own camera (`r_matviewproj`): the true place of the hit on the screen.
+- **Centred.** Within `vr_flat_xhair_snap` (8 pixels at 1080 rows) of the crosshair's centre (the screen's middle, or where
+  the ironsight's picture moved it) it is drawn exactly on the centre, and stays there until it is half as far again
+  (no flicker at the edge). Since the guns point at what the crosshair is on (`vr_flat_aim_point`), that is nearly always.
+- **Off the centre.** Past it, at the projected place, followed over `vr_flat_xhair_smooth` (0.03 s): no jitter, still on
+  the hit within a few frames. With the guns shooting straight ahead (`tune vr_flat_aim_point 0`, Debug > Reports >
+  Flatscreen Guns Shoot Straight Ahead) it moves to each gun's own hit near a wall.
+- **Two guns.** One crosshair while both places are within the snap of each other (or both on the centre); two when they part,
+  each with a short upright mark on its own hand's side. A gun the wall stops from firing (`vr_flat_wall_block_fire`) has
+  its crosshair dimmed.
+- **Look.** In the visor's colours (`gadget::visorColors`: the frame's green at full brightness, its dark face as the outline,
+  the frame's glow), antialiased by its own edge coverage (a one-pixel ramp across every edge). Drawn over the view right
+  after the visor (`VR_DrawFlatCrosshair`, `R_RenderView`) and outside its lens, zoom and sway, so it stays on the true point;
+  the menu and the console draw over it. The same with the visor off (`vr_flat_visor 0`).
+- **Styles.** `vr_flat_xhair_style`: 0 dot, 1 cross, 2 cross and dot (the default), 3 circle, 4 circle and dot, 5 T, 6 chevron,
+  7 corner brackets with a dot. `vr_flat_xhair_size` (10), `_thickness` (2), `_gap` (4): pixels at 1080 rows;
+  `_opacity` (0.9), `_outline` (1 pixel; 0 none), `_glow` (0.5; 0 none).
+- **Hidden** with the menu up, in an intermission or cutscene, dead, at viewsize 130, while the fly camera flies, and faded
+  with the ironsight as the old one was (`flatsight::crosshairFade`). `vr_flat_xhair 0` brings the classic crosshair back
+  (`crosshair`, whose own default 0 hides it); while it is on the classic one is not drawn, whatever `crosshair` is. A
+  headset's crosshair (`vr_crosshair`) is untouched.
+
+Debug > Reports: "Flatscreen Crosshair Probe" (`vr_flat_xhair_probe`: each gun's hit, its place, snapped or not, where it is
+drawn; and where the pellets fired since the last probe landed, from the server's own tracer lines, in pixels from the drawn
+crosshair and from the centre). Test: `bash Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N
+passed, M failed`).

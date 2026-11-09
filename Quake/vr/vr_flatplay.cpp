@@ -37,6 +37,7 @@
 #include "vr_deathview.hpp"
 #include "vr_flathud.hpp"
 #include "vr_flathit.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flycam.hpp"
@@ -1687,6 +1688,7 @@ void init()
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
+    flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }

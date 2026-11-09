@@ -857,6 +857,16 @@ za::Vector<Item> pageDebugReports()
             .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
                   "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "
                   "Tunables > Flatscreen > Hit Feedback."),
+        command("Flatscreen Crosshair Probe", "vr_flat_xhair_probe")
+            .help("vr_flat_xhair_probe: the visor crosshair (vr_flat_xhair): each gun's shot's hit, its place on the screen, "
+                  "whether it is on the centre and where it is drawn; and since the last probe, where your pellets landed "
+                  "against it (in pixels from the drawn crosshair and from the centre)."),
+        command("Flatscreen Guns Shoot Straight Ahead", "tune vr_flat_aim_point 0")
+            .help("tune vr_flat_aim_point 0: each gun shoots along the view from its own muzzle instead of at what the crosshair "
+                  "is on, so near a wall its shots land beside the middle: the visor crosshair follows them (two when dual "
+                  "wielding). Put it back with the next row: tunables are kept in tunables.cfg."),
+        command("Flatscreen Guns Back At The Crosshair", "tune_reset vr_flat_aim_point")
+            .help("tune_reset vr_flat_aim_point: the guns point at what the crosshair is on again (the default)."),
         command("Flatscreen Hit Probe", "vr_flat_hit_probe")
             .help("vr_flat_hit_probe: since the last one, the hands' knock before and after the ironsight's share, the "
                   "punch's largest (and before its share), what of it is in the aim now, and each mark's angle and opacity."),

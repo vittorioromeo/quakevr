@@ -175,6 +175,7 @@ const char *VR_RelightIndicator (float *fraction);
 float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on; basefov unchanged when it is off, and outside flatscreen play
 float VR_FlatCrosshairAlpha (void);	// the crosshair's opacity: 1, faded to 0 over the flatscreen ironsight's travel; 1 outside it
 void VR_FlatCrosshairShift (float* x, float* y);	// where the crosshair stands off the screen's centre: the flatscreen ironsight's picture moved (fractions of its height); 0 0 outside it
+int VR_FlatXhairOn (void);	// SCR_DrawCrosshair: 1 while flatscreen play's visor crosshair (vr_flat_xhair; vr_flatxhair.cpp) is the crosshair: the 2D one is not drawn
 
 // The flatscreen fly camera (vr_flycam.cpp, vr_flat_flycam): the view flown free while the player stands as he was.
 void VR_FlatFlycamView (float* vieworg, float* viewangles);	// V_CalcRefdef, last: his own eye remembered, then (on) the view put at the camera

@@ -4,6 +4,7 @@
 #include "vr_testkit.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_random.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_adcrossbow.hpp"
@@ -672,6 +673,10 @@ void parseTracer()
     }
 
     const bool own = hand <= 1 && ent == cl.viewentity;
+    if(own)
+    {
+        flatxhair::noteTracer(hand, to); // (vr_flat_xhair_probe: where his pellets land against the crosshair)
+    }
     const int slot = own ? weapons::heldSlot(hand) : -1;
     bool tracer = tracersOn(slot) && !(hand > 1 && !vr_tracers_enemies.value);
     if(tracer)

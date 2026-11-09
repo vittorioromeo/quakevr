@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_flycam.hpp"
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
@@ -552,6 +553,7 @@ void poseMove(VrMove& move)
     // player, who may walk round the weapon), their buttons as they were, no two-handed aim, no teleport and no attack:
     // no shot, blow, grab, holster or throw while the hands pose.
     poseMove(move);
+    flatxhair::noteMove(move); // (flatscreen play's crosshair traces each shot's line as sent: vr_flatxhair.cpp)
 
     return move;
 }

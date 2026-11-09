@@ -6125,6 +6125,30 @@ QVR_TOGGLE(vr_flat_wall_block_fire, "No Fire With Gun Raised",
     "Playing on the desktop screen (-flatscreenmode): right against a wall the gun is raised, muzzle up, out of it. "
     "On: a raised gun does not fire, a click does nothing (no shot, no ammo) until it comes back down. Off: it fires "
     "as it is, through the crosshair. Melee weapons always swing (vr_flat_wall_block_fire).")
+QVR_TOGGLE(vr_flat_xhair, "Visor Crosshair",
+    "Playing on the desktop screen (-flatscreenmode): the crosshair in the visor's colours, at the true place on the "
+    "screen each gun's shot will hit. Centred nearly always; near a wall or an edge, where the gun's line differs, it "
+    "moves to the real hit; dual wielding, one for each gun when they part. Off: the classic crosshair (vr_flat_xhair).")
+QVR_CYCLE(vr_flat_xhair_style, "Visor Crosshair Style", "The visor crosshair's shape (vr_flat_xhair_style).",
+    {0.f, "Dot"}, {1.f, "Cross"}, {2.f, "Cross And Dot"}, {3.f, "Circle"}, {4.f, "Circle And Dot"}, {5.f, "T"},
+    {6.f, "Chevron"}, {7.f, "Brackets"})
+QVR_SLIDER(vr_flat_xhair_size, "Visor Crosshair Size", 1.f, 64.f, 1.f, "%.0f px", noExt,
+    "How far its lines reach from the point, in pixels at 1080 rows: the circle's radius (vr_flat_xhair_size).")
+QVR_SLIDER(vr_flat_xhair_thickness, "Visor Crosshair Thickness", 0.5f, 12.f, 0.5f, "%.1f px", noExt,
+    "Its lines' width, in pixels at 1080 rows (vr_flat_xhair_thickness).")
+QVR_SLIDER(vr_flat_xhair_gap, "Visor Crosshair Gap", 0.f, 48.f, 1.f, "%.0f px", noExt,
+    "The cross's empty middle, from the point, in pixels at 1080 rows (vr_flat_xhair_gap).")
+QVR_SLIDER(vr_flat_xhair_opacity, "Visor Crosshair Opacity", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "(vr_flat_xhair_opacity)")
+QVR_SLIDER(vr_flat_xhair_outline, "Visor Crosshair Outline", 0.f, 6.f, 0.5f, "%.1f px", noExt,
+    "A dark outline round its lines, this wide; 0 none (vr_flat_xhair_outline).")
+QVR_SLIDER(vr_flat_xhair_glow, "Visor Crosshair Glow", 0.f, 2.f, 0.05f, "%.2f", noExt,
+    "The visor's glow round it; 0 none (vr_flat_xhair_glow).")
+QVR_SLIDER(vr_flat_xhair_snap, "Visor Crosshair Centring", 0.f, 200.f, 1.f, "%.0f px", noExt,
+    "A shot's point this near the screen's centre is drawn exactly on it, so the crosshair stays still; and two guns' "
+    "points this near each other share one crosshair (pixels at 1080 rows; vr_flat_xhair_snap).")
+QVR_SLIDER(vr_flat_xhair_smooth, "Visor Crosshair Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
+    "How long it takes to follow a point off the centre: no jitter, still truthful. 0: at once (vr_flat_xhair_smooth).")
 QVR_TOGGLE(vr_flat_reload, "Reloading",
     "Playing on the desktop screen (-flatscreenmode): on, every gun has its clip, filled from your ammo by the hip-holster "
     "reload: R (vr_flat_key_reload), or an empty clip with Auto Reload, takes the gun down to the nearest hip holster and "
