@@ -107,6 +107,11 @@ void noteModelFovBatch();
 [[nodiscard]] glm::vec3 lastViewOrigin();
 [[nodiscard]] glm::vec3 lastMainHand();
 [[nodiscard]] glm::vec3 lastPoseHead(); // (the head the hands were posed from)
+// The drawn body the same way: the main hand's shoulder (each frame) and the pelvis (while traceBody(true): it solves the
+// torso once more a frame).
+void traceBody(bool on);
+[[nodiscard]] glm::vec3 lastMainShoulder();
+[[nodiscard]] glm::vec3 lastPelvis();
 
 // The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
 // asked at Quake/cl_main.c's CL_AccumulateCmd, where the frame's looking has all landed in cl.viewangles (VR_FlatPitchClamp,

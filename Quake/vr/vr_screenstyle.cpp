@@ -63,6 +63,23 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {14.2f, 11.15f}}},
+    // The nail pistol: a chunky bevelled housing on the slide's rear face, a rounded window over a grille
+    // (v_nailpistol.blend, Misc/quakevr/make_screen_housing_nailpistol.py, which reads this entry's opening, radius and size
+    // and weapons.txt's wpntxt_scale to model the window). The glass fills the window; no box (the window frames it).
+    {"nailpistol",
+        {.radius = 4.f,
+            .bevel = 1.6f,
+            .vignette = 0.4f,
+            .sheen = 0.6f,
+            .soft = 0.55f,
+            .glass = 0.13f,
+            .tint = {0.9f, 1.f, 0.9f},
+            .crt = 0.4f,
+            .size = 1.f,
+            .offset = {0.f, 0.f, 0.f},
+            .box = 0.f,
+            .housing = true,
+            .opening = {24.f, 14.f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)

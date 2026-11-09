@@ -44,7 +44,6 @@ namespace detail
 {
 
 BodyPitch bodyPitch;
-
 // A critically damped spring towards `target` (the exact step: no overshoot, any dt): `angle` and its `rate` both
 // continuous, so a target that jumps (under water, out again, a ledge come close) starts and stops the turn smoothly.
 // `easeTime`: seconds to cover 95% of a step.
@@ -454,7 +453,7 @@ void updateBodyPitch(const hands::State& s, float dt)
     // Sliding (flat-screen play, vr_flatmove.cpp): the trunk leant back about the neck until the hips sit
     // vr_flat_slide_hip_floor over the floor (at most vr_flat_slide_body_angle), so the hips come forward under the lowered
     // eyes, the buttocks and the legs on the floor in front (solveLeg), only the trunk held up.
-    if(flatplay::active() && flatmove::sliding() && !swimming && !lying)
+    if(flatplay::active() && flatmove::slidePose() && !swimming && !lying)
     {
         const float drop = neckOverFloor - za::clamp(vr_flat_slide_hip_floor.value, 0.f, 12.f);
         p.target = -slidePitchTarget(vr_flat_slide_body_angle.value, drop, torso, vr_body_torso_back.value * m2w);
@@ -470,17 +469,21 @@ void updateBodyPitch(const hands::State& s, float dt)
         if(swimming || lying)
         {
             p.slidingFrom = 0.f;
+            p.slidingShare = p.slidingRate = 0.f;
         }
     }
     easePitch(p.angle, p.rate, p.target, p.easeTime, dt);
+    // (Sliding's share: its own spring, on the angle's clock -- BodyPitch::sliding.)
+    easePitch(p.slidingShare, p.slidingRate, p.source == PitchSource::Slide ? 1.f : 0.f, p.easeTime, dt);
     if(p.target == 0.f && za::abs(p.angle) < 0.01f && za::abs(p.rate) < 0.01f)
     {
         p.angle = p.rate = 0.f; // settled upright: exactly as without it
         p.lyingFrom = 0.f;
         p.slidingFrom = 0.f;
+        p.slidingShare = p.slidingRate = 0.f;
     }
     p.lying = p.lyingFrom * CLAMP(0.f, p.angle / p.lyingAngle, 1.f);
-    p.sliding = p.slidingFrom * CLAMP(0.f, -p.angle / p.slidingAngle, 1.f);
+    p.sliding = p.slidingFrom * CLAMP(0.f, p.slidingShare, 1.f);
 }
 
 } // namespace detail

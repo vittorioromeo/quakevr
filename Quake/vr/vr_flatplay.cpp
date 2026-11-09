@@ -228,6 +228,9 @@ float traceHandZ{0.f}; // poseHands' main hand this frame, world z
 glm::vec3 traceHand{0.f};    // poseHands' main hand this frame, world (vr_flatslide_ramp_test)
 glm::vec3 traceHead{0.f};    // poseHands' head this frame, world (vr_flatslide_ramp_test)
 glm::vec3 traceViewOrg{0.f}; // VR_FlatViewDrop's view origin this frame, world (vr_flatslide_ramp_test)
+bool traceBodyOn{false};     // the drawn body's points below wanted (vr_flatslide_ramp_test: the Follower's torso solve)
+glm::vec3 traceShoulder{0.f}; // poseHands' main shoulder this frame, world (the body's chest, solveTorso's)
+glm::vec3 tracePelvis{0.f};   // the body's pelvis this frame, world (only while traceBodyOn)
 
 // Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
 // plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
@@ -1613,6 +1616,21 @@ glm::vec3 lastMainHand()
     return traceHand;
 }
 
+void traceBody(bool on)
+{
+    traceBodyOn = on;
+}
+
+glm::vec3 lastMainShoulder()
+{
+    return traceShoulder;
+}
+
+glm::vec3 lastPelvis()
+{
+    return tracePelvis;
+}
+
 // Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
 float crouchRatio()
 {
@@ -2134,7 +2152,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // the chest turned back to the view (trunkTwist), at most vr_flat_slide_legs_twist off it.
     {
         SlideTurn& t = slideTurn;
-        const bool slide = flatmove::sliding();
+        const bool slide = flatmove::slidePose();
         if(dt > 0.0)
         {
             const float step = static_cast<float>(dt) / za::clamp(vr_flat_slide_turn_time.value, 0.02f, 1.f);
@@ -2345,6 +2363,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];
     traceHead = s.head;
+    traceShoulder = shoulder(s, HAND_MAIN);
+    if(traceBodyOn)
+    {
+        // (A point the standing pelvis carries, under the standing head: where the pelvis has taken it.)
+        const avatar::Follower body(s);
+        const float below = 0.8f * units::metresToUnits() * units::bodyScale();
+        tracePelvis = body(avatar::Part::Pelvis, avatar::standing(s).head - glm::vec3{0.f, 0.f, below});
+    }
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
