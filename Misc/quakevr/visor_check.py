@@ -28,6 +28,9 @@ for line in log.split("\n"):
     if m and "shake" not in phases[phase]:
         v = [float(x) for x in m.groups()]
         phases[phase].update(shake=v[0], shakeoff=(v[1], v[2]), logfade=v[3], glass=int(v[4]))
+        h = re.search(r"hits (\d+) health (-?\d+)", line)
+        if h:
+            phases[phase].update(hits=int(h.group(1)), health=int(h.group(2)))
         continue
     m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) contact (\d) "
                  r"\(view (\d+) x (\d+)\)", line.strip())
@@ -91,6 +94,13 @@ check(get("hit", "glitch", 0) > 0.3 and get("hit later", "glitch", 1) == 0,
 check(get("hit", "shake", 0) > 0 and max(abs(x) for x in get("shaking", "shakeoff", (0, 0))) > 0.01
       and get("hit later", "shake", 1) == 0 and get("hit later", "shakeoff", (1, 1)) == (0, 0),
       f"hit: the visor shakes ({get('hit', 'shake')}, offset {get('shaking', 'shakeoff')}), still again half a second later")
+h0, h1, h2, h3 = (get(p, "hits", -1) for p in ("hit later", "overheal", "health down", "real hit"))
+check(get("overheal", "health") == 150 and get("health down", "health") == 120 and h0 >= 1 and h0 == h1 == h2
+      and get("health down", "shake", 1) == 0 and get("health down", "glitch", 1) == 0,
+      f"no hit: health going down by itself (150 to {get('health down', 'health')}, as a megahealth's overheal ticks away) "
+      f"neither shakes nor glitches it (hits {h0} {h1} {h2}, shake {get('health down', 'shake')})")
+check(h3 == h2 + 1 and get("real hit", "shake", 0) > 0 and get("real hit", "health") == 100,
+      f"real hit: the server's damage message shakes it, no health taken (hits {h3}, shake {get('real hit', 'shake')})")
 check(get("rest", "glass") == 1, "rest: the frosted glass on by default")
 check(get("water", "underwater") == 1 and get("water", "fog", 0) > 0.9,
       f"water: under water the visor fogs up ({get('water', 'fog')})")
@@ -115,6 +125,9 @@ ok = all((R0, Ri, Ro, Rr0, Rri, Rro)) and Ri[1] < R0[1] < Ro[1] and Rri[3] > Rr0
 check(ok and contact_all("side in") and contact_all("side out"),
       f"side: vr_flat_visor_side_out 0.3 / 1 / 3 the side readings' inner edge at {Ri and Ri[1]} / {R0 and R0[1]} / {Ro and Ro[1]}, "
       "mirrored on the right, the edges met")
+Rb, Rrb = pan("side back", "sideleft"), pan("side back", "sideright")
+check(all((Rb, Rrb, Ri, Rri)) and Rb[3] < Ri[3] - 1 and Rrb[1] > Rri[1] + 1,
+      f"side: -2 pulls the side readings back past the edges (their inner edge at {Rb and Rb[3]}, {Ri and Ri[3]} at 0.3)")
 L0, Ls, Lb = pan("log mid", "log"), pan("log small", "log"), pan("log big", "log")
 V, S = pan("rest", "vitals"), pan("rest", "status")
 clear = all((L0, V, S)) and L0[1] > V[3] and L0[3] < S[1]
@@ -124,6 +137,9 @@ okl = all((L0, Ls, Lb)) and wid(Ls) < wid(L0) * 0.6 and Ls[2] > L0[2] and Lb[2] 
 okl = okl and Lb[1] > V[3] and Lb[3] < S[1]
 check(okl and contact_all("log small") and contact_all("log big"),
       f"log: _log_width 0.5 with _log_out 3 smaller and lower ({Ls}), 2 with 0.2 larger but fitted, nearer the edge ({Lb}), the edge met")
+Lu = pan("log up", "log")
+check(Lu is not None and Lb is not None and Lu[0] == 1 and Lu[4] < Lb[4] - 1,
+      f"log: _log_out -2 pulls it up past the edge (its bottom at {Lu and Lu[4]}, {Lb and Lb[4]} at 0.2)")
 H, B = pan("log hidden", "log"), pan("log back", "log")
 check(H is not None and H[0] == 0 and get("log hidden", "logfade", 1) == 0 and B is not None and B[0] == 1
       and get("log back", "logfade", 0) > 0.5,

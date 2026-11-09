@@ -4106,8 +4106,8 @@ QVR_CVAR(vr_flat_visor_boot, "0.8", CVAR_ARCHIVE)       // seconds of the panels
 QVR_CVAR(vr_flat_visor_log, "1", CVAR_ARCHIVE)          // the console's notify lines in the visor's low panel (its last three, short) instead of the screen's top left; 0 as before
 QVR_CVAR(vr_flat_visor_autohide_log, "1", CVAR_ARCHIVE) // 1: the visor's log panel (top middle) fades away while it has no lines and back when a message arrives; 0 always shown
 QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (top middle: its width, the text shrinking or growing with it; 0.3 .. 2, shrunk to fit between the top corners' panels)
-QVR_CVAR(vr_flat_visor_log_out, "0", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (0.2 .. 4; the edge still met)
-QVR_CVAR(vr_flat_visor_side_out, "0", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (0.2 .. 4; the edges still met)
+QVR_CVAR(vr_flat_visor_log_out, "0", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (-4 .. 8; under 0 pulled up past the edge, sliding off the screen; at 0 and over the edge still met)
+QVR_CVAR(vr_flat_visor_side_out, "0", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (-4 .. 8; under 0 pulled back past the edges, sliding off the screen; at 0 and over the edges still met)
 QVR_CVAR(vr_flat_visor_scanline_width, "4", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
 QVR_CVAR(vr_flat_visor_depth_opacity, "0.9", CVAR_ARCHIVE) // the back plate's opacity, times the panels' backing (vr_flat_visor_opacity) (0 .. 2, at most solid)
 QVR_CVAR(vr_flat_visor_depth_color, "", CVAR_ARCHIVE)   // the back plate's colour "r g b" (0 .. 1); empty: the face's own, darker (as shipped)
