@@ -4725,6 +4725,7 @@ constexpr float splitJag = 0.15f; // the zigzag's depth either side of the line:
 constexpr float splitTeeth = 3.f; // its teeth along the line
 constexpr int splitWhole = 2 * plateVerts; // a joined run of vertices at most this many goes whole to one side
 constexpr float splitShortest = 0.6f; // cut across its length only if it is at least this long for its width (else down it)
+constexpr float splitWeld = 1e-4f;    // vertices this close are one place (a seam's copies: one plate)
 
 [[nodiscard]] int splitAxisOf(int piece)
 {
@@ -4771,8 +4772,13 @@ int compareSplitUnits(const void* a, const void* b)
 // Piece `piece`'s triangles on half `half` (0, 1) of its split along `axis` (0 across its length, 1 down it): `out` each
 // one's first index into s.tris; `mid` that half's middle (rest space: its triangles' corners averaged). False: it has
 // fewer than two plates to share (no split).
+struct SplitInfo
+{
+    int runs{0}, big{0}, biggest{0}; // its plates (runs of vertices joined), those torn along their triangles, the most vertices in one
+};
+
 [[nodiscard]] bool splitHalf(const Shell& s, int piece, int axis, int half, za::Vector<int>& out, glm::vec3& mid,
-    glm::vec3* cutNormal = nullptr)
+    glm::vec3* cutNormal = nullptr, SplitInfo* stats = nullptr)
 {
     out.clear();
     glm::vec3 c{0.f};
@@ -4848,9 +4854,44 @@ int compareSplitUnits(const void* a, const void* b)
         at(parent, b) = a;
         at(parent, splitRoot(parent, d)) = a;
     }
+    // (and its copies in one place: a plate's face, bevels and rim are runs of their own, joined only at its seams' copies
+    // (their own texture places); split apart they fell open, a rim or a bevel alone a long thin sliver)
+    {
+        za::Vector<SplitUnit> byX;
+        for(int v = 0; v < numVerts; v++)
+        {
+            if(at(s.verts, v).piece == piece)
+            {
+                byX.pushBack(SplitUnit{at(s.verts, v).p.x, v, 0});
+            }
+        }
+        qsort(byX.data(), byX.size(), sizeof(SplitUnit), compareSplitUnits);
+        for(int i = 0; i < count(byX); i++)
+        {
+            for(int k = i + 1; k < count(byX) && at(byX, k).key - at(byX, i).key < splitWeld; k++)
+            {
+                const int u = at(byX, i).id, v = at(byX, k).id;
+                if(glm::length(at(s.verts, u).p - at(s.verts, v).p) < splitWeld)
+                {
+                    at(parent, splitRoot(parent, v)) = splitRoot(parent, u);
+                }
+            }
+        }
+    }
     for(int v = 0; v < numVerts; v++)
     {
         at(size, splitRoot(parent, v)) += at(s.verts, v).piece == piece ? 1 : 0;
+    }
+    if(stats)
+    {
+        *stats = SplitInfo{};
+        for(int v = 0; v < numVerts; v++)
+        {
+            const bool root = at(s.verts, v).piece == piece && splitRoot(parent, v) == v;
+            stats->runs += root ? 1 : 0;
+            stats->big += root && at(size, v) > splitWhole ? 1 : 0;
+            stats->biggest = root ? za::max(stats->biggest, at(size, v)) : stats->biggest;
+        }
     }
     // Each plate one unit (a big run: each of its triangles one), its key its middle's place across the zigzag line.
     za::Vector<int> unitOf(s.verts.size(), -1);
@@ -5605,8 +5646,259 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     return out;
 }
 
+namespace
+{
+// ---- vr_agarmor_split_check: every split half's geometry as its model has it (ROUND24.md, "Armour halves' geometry") ----
+// Each half model derivedFile makes, read back: its edges (by place, as quantised) each used twice and wound against each
+// other (closed, no face turned in), one island (its plates no further apart than splitCheckNear), no triangle (but those
+// no higher than its step, drawn as lines) thinner than splitCheckLeast (4 sqrt3 area over the squared edges summed: 1
+// equilateral) unless the whole plate has one as thin (a hero plate's long lip: within splitCheckSlack of the whole's
+// thinnest, as its own quantising moves it), none of its islands a thin strip (its second spread at least
+// splitCheckStrip of its first), and no plate torn along its triangles.
+constexpr float splitCheckNear = 0.6f;
+constexpr float splitCheckLeast = 0.05f;
+constexpr float splitCheckSlack = 0.5f;
+constexpr float splitCheckStrip = 0.2f;
+
+struct SplitStats
+{
+    int tris{0}, islands{0}, open{0}, flipped{0}, slivers{0}, flat{0};
+    float worstQ{1.f}, thinnest{1.f};
+    float worstLong{0.f}, worstArea{0.f}; // (the thinnest triangle's longest edge and its area)
+};
+
+[[nodiscard]] int readInt(const unsigned char* f, size_t at)
+{
+    int v = 0;
+    memcpy(&v, f + at, sizeof(v));
+    return v;
+}
+
+[[nodiscard]] bool measureModel(const unsigned char* f, size_t size, SplitStats& st)
+{
+    st = SplitStats{};
+    if(size < 84u)
+    {
+        return false;
+    }
+    glm::vec3 scale, lo;
+    memcpy(&scale, f + 8, sizeof(scale));
+    memcpy(&lo, f + 20, sizeof(lo));
+    const int numSkins = readInt(f, 48), w = readInt(f, 52), h = readInt(f, 56), numVerts = readInt(f, 60), numTris = readInt(f, 64);
+    const size_t trisAt = 84u + static_cast<size_t>(numSkins) * (4u + static_cast<size_t>(w) * static_cast<size_t>(h)) + static_cast<size_t>(numVerts) * 12u;
+    const size_t vertsAt = trisAt + static_cast<size_t>(numTris) * 16u + 28u;
+    if(numVerts <= 0 || numTris <= 0 || vertsAt + static_cast<size_t>(numVerts) * 4u > size)
+    {
+        return false;
+    }
+    // (welded by place: the quantised bytes)
+    za::Vector<int> weld(static_cast<za::SizeT>(numVerts), 0);
+    za::Vector<glm::vec3> p(static_cast<za::SizeT>(numVerts), glm::vec3{0.f});
+    for(int v = 0; v < numVerts; v++)
+    {
+        const unsigned char* b = f + vertsAt + static_cast<size_t>(v) * 4u;
+        at(p, v) = lo + scale * glm::vec3{static_cast<float>(b[0]), static_cast<float>(b[1]), static_cast<float>(b[2])};
+        at(weld, v) = v;
+        for(int u = 0; u < v; u++)
+        {
+            const unsigned char* c = f + vertsAt + static_cast<size_t>(u) * 4u;
+            if(at(weld, u) == u && c[0] == b[0] && c[1] == b[1] && c[2] == b[2])
+            {
+                at(weld, v) = u;
+                break;
+            }
+        }
+    }
+    EdgeMap uses, turn;
+    uses.init(numTris * 3);
+    turn.init(numTris * 3);
+    za::Vector<int> parent(static_cast<za::SizeT>(numVerts), 0);
+    for(int v = 0; v < numVerts; v++)
+    {
+        at(parent, v) = at(weld, v);
+    }
+    st.tris = numTris;
+    for(int t = 0; t < numTris; t++)
+    {
+        int idx[3];
+        for(int k = 0; k < 3; k++)
+        {
+            idx[k] = za::clamp(readInt(f, trisAt + static_cast<size_t>(t) * 16u + 4u + static_cast<size_t>(k) * 4u), 0, numVerts - 1);
+        }
+        const glm::vec3 a = at(p, idx[0]), b = at(p, idx[1]), c = at(p, idx[2]);
+        const float area = 0.5f * glm::length(glm::cross(b - a, c - a));
+        const float sq = glm::dot(b - a, b - a) + glm::dot(c - b, c - b) + glm::dot(a - c, a - c);
+        const float q = sq > 1e-12f ? 6.92820323f * area / sq : 0.f;
+        const float longest = sqrtf(za::max(glm::dot(b - a, b - a), za::max(glm::dot(c - b, c - b), glm::dot(a - c, a - c))));
+        // (flat: no higher than the model's step across its longest edge, drawn as a line: a bevel's lip the bytes flattened)
+        const bool flat = 2.f * area < longest * za::max(scale.x, za::max(scale.y, scale.z));
+        st.flat += flat ? 1 : 0;
+        st.slivers += !flat && q < splitCheckLeast ? 1 : 0;
+        if(!flat && q < st.worstQ)
+        {
+            st.worstQ = q;
+            st.worstArea = area;
+            st.worstLong = longest;
+        }
+        for(int k = 0; k < 3; k++)
+        {
+            const int e0 = at(weld, idx[k]), e1 = at(weld, idx[(k + 1) % 3]);
+            if(e0 == e1)
+            {
+                continue;
+            }
+            bool fresh = false;
+            int& n = uses.get(e0, e1, fresh);
+            n = fresh ? 1 : n + 1;
+            int& d = turn.get(e0, e1, fresh);
+            d = (fresh ? 0 : d) + (e0 < e1 ? 1 : -1);
+            const int r0 = splitRoot(parent, e0), r1 = splitRoot(parent, e1);
+            at(parent, r1) = r0;
+        }
+    }
+    for(za::SizeT i = 0; i < uses.keys.size(); i++)
+    {
+        if(uses.keys[i] == ~0ull)
+        {
+            continue;
+        }
+        st.open += (uses.vals[i] & 1) != 0 ? 1 : 0;
+        bool fresh = false;
+        const int e0 = static_cast<int>(uses.keys[i] & 0xffffffffull), e1 = static_cast<int>(uses.keys[i] >> 32u);
+        st.flipped += uses.vals[i] == 2 && turn.get(e0, e1, fresh) != 0 ? 1 : 0;
+    }
+    // Its islands: the runs its triangles join, joined again where they come within splitCheckNear.
+    for(int v = 0; v < numVerts; v++)
+    {
+        for(int u = 0; u < v; u++)
+        {
+            if(at(weld, u) == u && at(weld, v) == v && splitRoot(parent, u) != splitRoot(parent, v) &&
+               glm::length(at(p, u) - at(p, v)) < splitCheckNear)
+            {
+                at(parent, splitRoot(parent, v)) = splitRoot(parent, u);
+            }
+        }
+    }
+    for(int v = 0; v < numVerts; v++)
+    {
+        if(at(weld, v) != v || splitRoot(parent, v) != v)
+        {
+            continue;
+        }
+        st.islands++;
+        // (its spread: its vertices' covariance's two strongest ways)
+        glm::vec3 c{0.f};
+        int n = 0;
+        for(int u = 0; u < numVerts; u++)
+        {
+            const bool on = at(weld, u) == u && splitRoot(parent, u) == v;
+            c += on ? at(p, u) : glm::vec3{0.f};
+            n += on ? 1 : 0;
+        }
+        c /= static_cast<float>(za::max(n, 1));
+        glm::mat3 cov{0.f};
+        for(int u = 0; u < numVerts; u++)
+        {
+            const glm::vec3 d = at(weld, u) == u && splitRoot(parent, u) == v ? at(p, u) - c : glm::vec3{0.f};
+            cov += glm::outerProduct(d, d);
+        }
+        const glm::vec3 e1 = splitPrincipal(cov, glm::normalize(glm::vec3{0.3f, 0.5f, 1.f}));
+        const float l1 = glm::dot(e1, cov * e1);
+        const glm::mat3 rest2 = cov - l1 * glm::outerProduct(e1, e1);
+        const glm::vec3 e2 = splitPrincipal(rest2, geom::safeNormalize(glm::cross(e1, glm::vec3{0.3f, 1.f, 0.2f}), glm::vec3{0.f, 1.f, 0.f}));
+        const float l2 = glm::dot(e2, rest2 * e2);
+        st.thinnest = za::min(st.thinnest, l1 > 1e-8f ? sqrtf(za::max(l2, 0.f) / l1) : 0.f);
+    }
+    return true;
+}
+
+[[nodiscard]] bool measureNamed(const char* name, SplitStats& st)
+{
+    unsigned char* f = derivedFile(name, nullptr);
+    if(!f)
+    {
+        return false;
+    }
+    const bool ok = measureModel(f, static_cast<size_t>(com_filesize), st);
+    VR_HeapFree(f);
+    return ok;
+}
+
+constexpr const char* splitCheckModels[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl", "progs/vrknight.mdl", "progs/vrhknight.mdl", "progs/vrbody.mdl"};
+
+// vr_agarmor_split_check [model | all] [verbose]: each piece's two halves, split either way (vr_agarmor_split_<kind>'s 0 and
+// 1), as their models have them; ends on "agarmor split check: N passed, M failed".
+void splitCheck_f()
+{
+    const bool all = Cmd_Argc() < 2 || !q_strcasecmp(Cmd_Argv(1), "all");
+    const bool verbose = Cmd_Argc() > 2 && Q_atoi(Cmd_Argv(2)) != 0;
+    int passed = 0, failed = 0;
+    for(const char* m : splitCheckModels)
+    {
+        if(!all && q_strcasecmp(m, Cmd_Argv(1)))
+        {
+            continue;
+        }
+        const Shell* s = serverShell(m);
+        if(!s)
+        {
+            Con_Printf("agarmor split check: FAIL %s: no shell\n", m);
+            failed++;
+            continue;
+        }
+        for(int piece = 0; piece < NumPieces; piece++)
+        {
+            char name[MAX_QPATH];
+            q_snprintf(name, sizeof(name), "%s#plate%d", m, piece);
+            SplitStats whole;
+            if(piece == Helmet || !plateFrameOf(*s, piece).ok || !measureNamed(name, whole))
+            {
+                continue;
+            }
+            for(int axis = 0; axis < 2; axis++)
+            {
+                SplitStats h[2];
+                bool made = true;
+                for(int half = 0; half < 2; half++)
+                {
+                    q_snprintf(name, sizeof(name), "%s#plate%dh%ds%d", m, piece, half, axis);
+                    made = measureNamed(name, h[half]) && made;
+                }
+                SplitInfo info;
+                za::Vector<int> tris;
+                glm::vec3 mid;
+                (void)splitHalf(*s, piece, axis, 0, tris, mid, nullptr, &info);
+                bool ok = made && h[0].tris + h[1].tris == whole.tris && info.big == 0;
+                for(const SplitStats& x : h)
+                {
+                    ok = ok && x.open == 0 && x.flipped == 0 && x.islands == 1 && x.thinnest >= splitCheckStrip &&
+                         (x.worstQ >= splitCheckLeast || x.worstQ >= splitCheckSlack * whole.worstQ);
+                }
+                (ok ? passed : failed)++;
+                if(!ok || verbose)
+                {
+                    Con_Printf("agarmor split check: %s %s piece %d axis %d: whole %d tris (open %d, slivers %d, flat %d, islands %d, "
+                               "worst %.3f); plates %d, torn %d, most vertices %d\n",
+                        ok ? "PASS" : "FAIL", m, piece, axis, whole.tris, whole.open, whole.slivers, whole.flat, whole.islands, whole.worstQ,
+                        info.runs, info.big, info.biggest);
+                    for(int half = 0; half < 2; half++)
+                    {
+                        Con_Printf("agarmor split check:   half %d: %d tris, open %d, flipped %d, islands %d, slivers %d, flat %d, worst %.3f, "
+                                   "(%.2f long, area %.4f), thinnest %.2f\n",
+                            half, h[half].tris, h[half].open, h[half].flipped, h[half].islands, h[half].slivers, h[half].flat, h[half].worstQ,
+                            h[half].worstLong, h[half].worstArea, h[half].thinnest);
+                    }
+                }
+            }
+        }
+    }
+    qvr::testkit::verdict("agarmor split check", passed, failed);
+}
+} // namespace
+
 void init()
 {
+    Cmd_AddCommand("vr_agarmor_split_check", splitCheck_f);
     Cmd_AddCommand("vr_agarmor_info", info_f);
     Cmd_AddCommand("vr_player_plates_info", view::platesInfo_f);
     Cmd_AddCommand("vr_player_plates_model_check", view::platesModelCheck_f);

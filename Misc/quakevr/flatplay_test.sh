@@ -122,10 +122,13 @@ check $([ "$s4m" = "$s3m" ] && [ "$s4o" = "$s3o" ] && grep -q "does not strike w
 # one after it is. The free hand on a grip (the rocket launcher's: held, helpKind 1) lets go of it for its punch, hits what
 # stands in front of it, and takes the grip again after.
 log=$HERE/scratch/flatpunch2.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 152; wait15; vr_flat_punch main; wait10; vr_flat_punch main; wait10; vr_flat_punch main; wait5; vr_flatplay_status; wait50; vr_flat_punch main; wait5; vr_flatplay_status; wait50; impulse 160; wait60; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_flatplay_status; vr_test_hurt 1; wait3; vr_flat_punch off; wait27; vr_flatplay_status; vr_test_hurt 1; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "punches:|^  two hands:|test hurt:" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 152; wait15; vr_flat_punch main; wait10; vr_flat_punch main; wait10; vr_flat_punch main; wait5; vr_flatplay_status; wait50; vr_flat_punch main; wait5; vr_flatplay_status; wait50; impulse 160; wait60; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_flatplay_status; vr_flat_punch off; wait27; vr_flatplay_status; vr_test_hurt 1; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "punches:|^  two hands:|test hurt:" > "$log" 2>&1
 counts=$(grep -a "punches: the main hand" "$log" | grep -ao "main hand [0-9]*" | awk '{ print $3 + 0 }' | head -2 | tr '\n' ' ')
 hold=$(grep -a "^  two hands:" "$log" | grep -ao "on its grip\|where the mode" | tail -3 | sed 's/on its grip/grip/; s/where the mode/off/' | tr '\n' ' ')
-pgap=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
+# (One read, after the punch, against the 75 he starts with. A read just before it made him flinch out of the fist's way:
+# 0 at 24..48 units; and the old pass was the launcher's muzzle jerked into him as the hand let go, a made-up motion the
+# hand motion source gate (2026-11-07) rightly no longer lets strike. 2026-11-09.)
+pgap=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); print 75 - b[1]; exit } }')
 echo "  main punches after a press, two more while it runs, and a later one: $counts; the free hand on the launcher's grip: $hold(before, during and after its punch), its fist left the knight ${pgap:-0} units down ($log)"
 check $([ "$counts" = "1 2 " ] && echo 1 || echo 0) "flatscreen melee: presses while a punch runs are no new punch"
 check $([ "$hold" = "grip off grip " ] && echo 1 || echo 0) "flatscreen grip: the free hand lets go of the grip to punch and takes it again after"

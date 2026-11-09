@@ -5248,3 +5248,66 @@ modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
   50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
   vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
 - **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.
+## Armour halves' geometry; elbow leather patches (branch `agent/geo1109`, 2026-11-09)
+
+His notes: "some broken off pieces have messy geometry (long and thin spiky parts, missing faces)"; "the leather patch of
+the enforcer's right elbow ... shows holes compared to the left elbow"; "the grunt's ... left elbow has some holes or
+intersects with the arm".
+
+- **Halves' cause:** `splitHalf` (vr_agarmor.cpp) found a piece's plates as the runs of vertices its triangles join. A
+  plate's face, bevels and rim share no vertex index (each has its own copies at the seams, for their own texture
+  places), so they were separate "plates" and each went to whichever side its own middle fell: a half took a plate's
+  face without its rim (open: 16-60 edges a half), and rims and bevels alone (long thin strips) stuck out of the other.
+- **Fix:** the vertices in one place (within `splitWeld`, 1e-4) are joined too, so a plate (28 vertices) goes whole to
+  one side; no plate is torn along its triangles (none is bigger than `splitWhole` now). The seam follows plate edges as
+  designed. Nothing else changed (the line, its zigzag, the median, the halves' models).
+- **The check, `vr_agarmor_split_check [model|all] [1: every line]`** (Debug > Tests: Armour Plates: Broken Halves
+  Check): grunt, enforcer, knight, death knight and the player's vrbody, every piece but the helmet, split both ways
+  (axis 0 and 1), each half model as `derivedFile` makes it, read back: every edge (by its quantised place) used an even
+  number of times and wound against its twin (closed, no face turned in), one island (plates within 0.6 units joined),
+  no island a strip (second spread at least 0.2 of the first), no triangle thinner than 0.05 (4 sqrt3 area over the
+  squared edges) unless the whole plate has one as thin (hero plates' long lips; half its thinnest as slack for the
+  quantising), triangles thinner than the model's byte step are counted as flat (drawn as lines) and allowed, and no
+  plate torn. Before: **15 passed, 75 failed** (open edges in nearly every half); after: **90 passed, 0 failed**.
+- **Sheet, `vr_pp_test 17`** (Debug > Tests: Armour Plates: Halves and Elbows Sheet): each armed kind's halves laid out
+  still, front and turned round (8 shots), then a grunt's (left eye) and an enforcer's (right eye) elbows through
+  `vr_agarmor_headcam` and `vr_eyeshot 1`, from the right, the left and behind, at rest and `vr_agarmor_bend 100` (6
+  shots); ends on `ppshot: done`. Before/after: `scratch/geo_halves_before.png`, `scratch/geo_halves_after.png` in the
+  phases worktree (the spikes stand out on the death knight's and the grunt's cuirass halves before).
+- **Elbows (not fixed):** the leather at the elbows is the per-frame bridge (`vr_agarmor_bridge.cpp`), made from the
+  plates' end rows, so there is no stored patch to mirror. `vr_agarmor_bridge_check` (88/0 as before) gains an info
+  line per joint: the most cells of the leather facing in (against the way out from its rings' middle by more than
+  a 0.25 cosine) over the sweep, which cells, and the thinnest ring. Every joint of both kinds shows some (5-16 of 48),
+  in patches 1-3 columns wide over 2-4 rings near an end, the folds not the cause (the same with
+  `vr_agarmor_fold_depth 0`), and the enforcer's two elbows score alike (13 / 15), so it does not yet single out what
+  he sees. Next: the cells' axial order (a corner's z lerped from row to row can run behind the ring before it near
+  an end) against the eyeshots of `vr_pp_test 17`, then a fix in `evalBridge`.
+- **Tests:** `vr_agarmor_test 1` 38/0, `vr_agarmor_test 7` 16/0, `vr_pp_test 1` 63/0, `vr_agarmor_bridge_check`
+  88/0, `vr_agarmor_split_check` 90/0 (low-impact runs).
+## Flat test fixes, Shove Hand Travel (branch `agent/flatfix1109`, worktree blendmodels, 2026-11-09)
+
+Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` existed already, merged: this branch is
+`agent/flatfix1109`.)
+
+- **flatslide "a jump in the slide keeps its speed" (30 of 375):** the test, not the slide. Traced per frame: the jump
+  keeps 372 u/s for 6 moves, then vrtesthall's north wall (y 344) takes it all while vz falls on as a jump's (the 30
+  is the air move's after the wall). The check read 0.2 s into the air; it now reads 3 moves in, still rising
+  (vz > 150) (vr_flatmove.cpp slideTestFrame, case 5).
+- **flatslide "keys: R force-grabs":** R reloads (`vr_flat_key_reload`), mouse 4 is the grab (`vr_flat_key_grab`,
+  `_alt` empty). The keys case presses R and mouse 4: R prints a reload and no grab, mouse 4 a grab and no reload.
+- **flatplay "the free hand on a grip punches: the knight takes it":** neither part 2 nor the reload. Bisected
+  (first-parent of next, 11-06 to 11-08): it went at the flatinput merge (feb7b31b8, hand motion source gate). With
+  the gate off the 14 damage is `melee event: gun, hand 1, jab with the muzzle`: the launcher jerked into the knight
+  as the off hand let go, a made-up motion the gate rightly no longer lets strike. The fist itself never landed
+  because the case's `vr_test_hurt 1` read 3 frames before the punch made the knight flinch back out of its way
+  (0 at 24..48 units; without that read: `punch (straight) with the knuckles, 8.2 m/s`, 12 damage). The case now
+  reads once after the punch against his 75. Also in vr_twohand.cpp `aiming()`: a hotspot no longer counts while the
+  free hand punches (the 2H bit dropped at once for the game; the drawn hand still eases off), so QC never takes the
+  punching hand for the one steadying the gun (VR_Melee_Thing). Walls: flatinput wallpunch, unchanged.
+- **Shove Hand Travel:** `vr_flat_shove_anim_reach` clamp and slider 0..96 (were 0..40), default 14 -> 64 (his
+  value); the slider's help named itself for the reach, now `vr_flat_shove_reach`. At 64 both palms go out ahead
+  with the arms reaching (screenshot), the shove cases land (flatinput).
+- Known, not from this work: flatplay "+attack (LMB) punches with the axe in the main hand" (the same flinch read
+  pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
+- Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
+  the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).

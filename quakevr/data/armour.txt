@@ -278,6 +278,34 @@ kind "death_knight"
     }
 }
 
+kind "player"
+{
+    cuirass
+    {
+        end "0"
+    }
+    helmet
+    {
+        scale "1"
+        standoff "-0.5"
+    }
+    pauldron
+    {
+        rows "3"
+    }
+    bracer
+    {
+        standoff "0.32"
+        end "2.75"
+        taper_end "0.5"
+    }
+    thigh
+    {
+        start "-0.5"
+        taper_start "1.15"
+    }
+}
+
 kind "progs/vrbody_brawny.mdl"
 {
     cuirass
