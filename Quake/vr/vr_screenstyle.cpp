@@ -106,10 +106,12 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {22.f, 11.f}}},
-    // The super nailgun: a riveted bezel bridging the top of the receiver's rear opening, above the hand (v_nail2.blend,
-    // Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and offset). His build spec,
-    // in window heights h: the window 1.6h x 1h (h 28.56 font pixels), corners chamfered 0.25h; the glass 0.05h behind
-    // the bezel's front (the offset: from weapons.txt's place onto it, world units right/up/out). No box.
+    // The super nailgun: a riveted bezel in the sloped rear face of a raised block on the receiver's top, at its back
+    // end (v_nail2.blend, Misc/quakevr/make_screen_housing_nail2.py, which reads this entry's opening, radius and
+    // offset); the back of the gun round the hand is free. In window heights h: the window 1.6h x 1h (h 28.56 font
+    // pixels), corners chamfered 0.25h; the glass tilted with the face (weapons.txt wpntxt_pitch 39.5: 50 degrees from
+    // level), 0.05h behind the bezel's front (the offset: from weapons.txt's place onto it, world units right/up/out).
+    // No box.
     {"nail2",
         {.radius = -7.2f,
             .bevel = 1.6f,
@@ -120,18 +122,19 @@ constexpr Entry table[] = {
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
             .size = 1.f,
-            .offset = {0.f, -0.0023f, 0.0253f},
+            .offset = {0.0255f, -0.0002f, 0.0013f},
             .box = 0.f,
             .housing = true,
             .opening = {23.02f, 14.28f}}},
-    // The lightning gun: a flat bronze bezel with chamfered corners on the receiver's upright rear face under the rear
-    // sight, two rivets on each side frame (v_light.blend, Misc/quakevr/make_screen_housing_light.py reads `opening`,
-    // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 glass heights
-    // behind the bezel's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
-    // opening's (-2.791 -0.172 9.767; 2.551 model units a world unit). Smaller digits (size): two lines in the window.
+    // The lightning gun: a flat bronze plate over the receiver's whole upright rear face under the rear sight (its
+    // trapezoid), the window a trapezoid too (`taper`: its top 0.73 of its bottom), chamfered, sunk into the plate, two
+    // rivets each side between them (v_light.blend, Misc/quakevr/make_screen_housing_light.py reads `opening`, `taper`,
+    // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 window heights
+    // behind the plate's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
+    // window's (2.551 model units a world unit). Smaller digits (size): two lines fit the window's narrower top.
     // v_light_plasma.mdl (stem "light_plasma") has no housing: the default.
     {"light",
-        {.radius = -6.82f,
+        {.radius = -4.71f,
             .bevel = 1.6f,
             .vignette = 0.4f,
             .sheen = 0.6f,
@@ -139,11 +142,12 @@ constexpr Entry table[] = {
             .glass = 0.13f,
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
-            .size = 0.68f,
-            .offset = {-0.0184f, 0.002f, -0.0677f},
+            .size = 0.8f,
+            .offset = {-0.0184f, 0.002f, -0.0742f},
             .box = 0.f,
             .housing = true,
-            .opening = {25.37f, 15.81f}}},
+            .opening = {31.15f, 15.68f},
+            .taper = 0.7308f}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
