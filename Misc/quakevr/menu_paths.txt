@@ -1344,29 +1344,6 @@ vr_flat_shove_time|1|Locomotion|Shove Time|Advanced VR Options > Movement > Loco
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
 vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
-vr_flat_visor_scale|1|Locomotion|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor Panel Size
-vr_flat_visor_opacity|1|Locomotion|Visor Panel Backing|Advanced VR Options > Movement > Locomotion > Visor Panel Backing
-vr_flat_visor_crt|1|Locomotion|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor CRT Look
-vr_flat_visor_sway|1|Locomotion|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor Sway
-vr_flat_visor_warp|1|Locomotion|Visor Lens|Advanced VR Options > Movement > Locomotion > Visor Lens
-vr_flat_visor_zoom|1|Locomotion|Visor Zoom|Advanced VR Options > Movement > Locomotion > Visor Zoom
-vr_flat_visor_depth|1|Locomotion|Visor Depth|Advanced VR Options > Movement > Locomotion > Visor Depth
-vr_flat_visor_bevel|1|Locomotion|Visor Bevel|Advanced VR Options > Movement > Locomotion > Visor Bevel
-vr_flat_visor_sheen|1|Locomotion|Visor Sheen|Advanced VR Options > Movement > Locomotion > Visor Sheen
-vr_flat_visor_glow_outer|1|Locomotion|Visor Outer Glow|Advanced VR Options > Movement > Locomotion > Visor Outer Glow
-vr_flat_visor_glow_inner|1|Locomotion|Visor Inner Glow|Advanced VR Options > Movement > Locomotion > Visor Inner Glow
-vr_flat_visor_glow_width|1|Locomotion|Visor Glow Width|Advanced VR Options > Movement > Locomotion > Visor Glow Width
-vr_flat_visor_edge|1|Locomotion|Visor Edge Thickness|Advanced VR Options > Movement > Locomotion > Visor Edge Thickness
-vr_flat_visor_scanlines|1|Locomotion|Visor Scanlines|Advanced VR Options > Movement > Locomotion > Visor Scanlines
-vr_flat_visor_scanline_speed|1|Locomotion|Visor Scanline Speed|Advanced VR Options > Movement > Locomotion > Visor Scanline Speed
-vr_flat_visor_ss|1|Locomotion|Visor Supersampling|Advanced VR Options > Movement > Locomotion > Visor Supersampling
-vr_flat_visor_frame|1|Locomotion|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor Glass
-vr_flat_visor_damage|1|Locomotion|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor Hit Glitch
-vr_flat_visor_fog|1|Locomotion|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor Fog Under Water
-vr_flat_visor_fog_clear|1|Locomotion|Visor Fog Clears In|Advanced VR Options > Movement > Locomotion > Visor Fog Clears In
-vr_flat_visor_low_health|1|Locomotion|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor Low Health
-vr_flat_visor_boot|1|Locomotion|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor Power On
-vr_flat_visor_log|1|Locomotion|Visor Messages|Advanced VR Options > Movement > Locomotion > Visor Messages
 vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
@@ -7887,6 +7864,54 @@ vr_stealth_debug_meters_range|2|Stealth AI Tests|Meters Within|Advanced VR Optio
 vr_stealth_debug|2|Stealth AI Tests|Log|Advanced VR Options > Combat > Stealth AI > Tests > Log
 vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Options > Combat > Stealth AI > Tests > Force the Light on You
 |2|Stealth AI Tests|Reset This Page|Advanced VR Options > Combat > Stealth AI > Tests > Reset This Page
+@page|1|Visor HUD Look||Advanced VR Options > Movement > Locomotion > Visor HUD Look
+vr_flat_visor|1|Visor HUD Look|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor HUD
+vr_flat_visor_scale|1|Visor HUD Look|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Panel Size
+vr_flat_visor_opacity|1|Visor HUD Look|Visor Panel Backing|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Panel Backing
+vr_flat_visor_log|1|Visor HUD Look|Visor Messages|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Messages
+vr_flat_visor_autohide_log|1|Visor HUD Look|Hide Empty Log Panel|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Hide Empty Log Panel
+vr_flat_visor_log_width|1|Visor HUD Look|Log Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Size
+vr_flat_visor_log_out|1|Visor HUD Look|Log Panel Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Reach
+vr_flat_visor_side_out|1|Visor HUD Look|Side Panels Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Side Panels Reach
+vr_flat_visor_zoom|1|Visor HUD Look|Visor Zoom|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Zoom
+vr_flat_visor_warp|1|Visor HUD Look|Visor Lens|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Lens
+vr_flat_visor_sway|1|Visor HUD Look|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Sway
+vr_flat_visor_edge|1|Visor HUD Look|Visor Edge Thickness|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Edge Thickness
+vr_flat_visor_bevel|1|Visor HUD Look|Visor Bevel|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Bevel
+vr_flat_visor_sheen|1|Visor HUD Look|Visor Sheen|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Sheen
+vr_flat_visor_glow_outer|1|Visor HUD Look|Visor Outer Glow|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Outer Glow
+vr_flat_visor_glow_inner|1|Visor HUD Look|Visor Inner Glow|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Inner Glow
+vr_flat_visor_glow_width|1|Visor HUD Look|Visor Glow Width|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Glow Width
+vr_flat_visor_depth|1|Visor HUD Look|Visor Depth|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Depth
+vr_flat_visor_depth_opacity|1|Visor HUD Look|Back Plate Opacity|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Opacity
+vr_flat_visor_depth_size|1|Visor HUD Look|Back Plate Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Size
+vr_flat_visor_depth_offset|1|Visor HUD Look|Back Plate Offset|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Offset
+vr_flat_visor_depth_lag|1|Visor HUD Look|Back Plate Lag|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Lag
+vr_flat_visor_depth_content_lag|1|Visor HUD Look|Readings Lag|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Readings Lag
+vr_flat_visor_depth_bevel|1|Visor HUD Look|Back Plate Bevel|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Bevel
+vr_flat_visor_depth_bevel_width|1|Visor HUD Look|Back Plate Bevel Width|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Bevel Width
+|1|Visor HUD Look|Back Plate Colour: as Shipped|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Colour: as Shipped
+|1|Visor HUD Look|Back Plate Colour: Gunmetal|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Colour: Gunmetal
+|1|Visor HUD Look|Back Plate Colour: Black|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Back Plate Colour: Black
+vr_flat_visor_glass_blur|1|Visor HUD Look|Glass Blur|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Glass Blur
+vr_flat_visor_glass_distort|1|Visor HUD Look|Glass Distortion|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Glass Distortion
+vr_flat_visor_glass_tint|1|Visor HUD Look|Glass Tint|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Glass Tint
+vr_flat_visor_glass_desat|1|Visor HUD Look|Glass Colour Drained|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Glass Colour Drained
+vr_flat_visor_frame|1|Visor HUD Look|Visor Glass|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Glass
+vr_flat_visor_crt|1|Visor HUD Look|Visor CRT Look|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor CRT Look
+vr_flat_visor_scanlines|1|Visor HUD Look|Visor Scanlines|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanlines
+vr_flat_visor_scanline_speed|1|Visor HUD Look|Visor Scanline Speed|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanline Speed
+vr_flat_visor_scanline_width|1|Visor HUD Look|Visor Scanline Thickness|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanline Thickness
+vr_flat_visor_ss|1|Visor HUD Look|Visor Supersampling|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Supersampling
+vr_flat_visor_damage|1|Visor HUD Look|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Hit Glitch
+vr_flat_visor_shake|1|Visor HUD Look|Visor Hit Shake|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Hit Shake
+vr_flat_visor_shake_time|1|Visor HUD Look|Visor Hit Shake Time|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Hit Shake Time
+vr_flat_visor_no_bt_tint|1|Visor HUD Look|Visor Ignores Bullet Time Look|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Ignores Bullet Time Look
+vr_flat_visor_fog|1|Visor HUD Look|Visor Fog Under Water|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Fog Under Water
+vr_flat_visor_fog_clear|1|Visor HUD Look|Visor Fog Clears In|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Fog Clears In
+vr_flat_visor_low_health|1|Visor HUD Look|Visor Low Health|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Low Health
+vr_flat_visor_boot|1|Visor HUD Look|Visor Power On|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Power On
+|1|Visor HUD Look|Reset This Page|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Reset This Page
 @page|2|Gibs and Corpses - Corpse Damage and Health||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Corpse Damage and Health
 @page|2|Gibs and Corpses - Ragdolls||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings
 vr_ragdoll_start|2|Gibs and Corpses - Ragdolls|Go Limp At|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Go Limp At
@@ -9296,4 +9321,4 @@ vr_ragdoll_mummy_damping|2|Ragdolls - Mummy|Limb Damping|Advanced VR Options > C
 vr_ragdoll_mummy_blast|2|Ragdolls - Mummy|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Blast Throw
 vr_ragdoll_mummy_inherit|2|Ragdolls - Mummy|Death Motion Kept|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Death Motion Kept
 |2|Ragdolls - Mummy|All Global|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > All Global
-|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Page
+|2|Ragdolls - Mummy|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Mummy > Reset This Pagemenu paths: 6 found, 0 missing

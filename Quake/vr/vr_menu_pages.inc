@@ -177,8 +177,8 @@
         row(opt::vr_flat_visor_depth_bevel_width),
         command("Back Plate Colour: as Shipped", "vr_flat_visor_depth_color \"\"")
             .help("Each back plate in its panel's own colour, darker (vr_flat_visor_depth_color empty)."),
-        command("Back Plate Colour: Gunmetal", "vr_flat_visor_depth_color \"0.16 0.17 0.19\"")
-            .help("Each back plate a dark grey metal (vr_flat_visor_depth_color \"0.16 0.17 0.19\"; any \"r g b\" in the console)."),
+        command("Back Plate Colour: Gunmetal", "vr_flat_visor_depth_color \"0.34 0.36 0.4\"")
+            .help("Each back plate a dark grey metal (vr_flat_visor_depth_color \"0.34 0.36 0.4\"; any \"r g b\" in the console)."),
         command("Back Plate Colour: Black", "vr_flat_visor_depth_color \"0 0 0\"")
             .help("Each back plate black (vr_flat_visor_depth_color \"0 0 0\")."),
         header("Glass"),
