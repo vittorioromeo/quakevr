@@ -8,8 +8,17 @@
 namespace qvr::flatlook
 {
 
-// Whether the pass runs this frame: flatscreen play, and any of its parts on.
+// Whether the pass runs this frame: flatscreen play, and any of its parts on (the tone curve with a float scene).
 [[nodiscard]] bool active();
+
+// Flat-screen tone mapping (vr_flat_tonemap), as the eyes' vr_tonemap: with -flatscreenmode the window's scene targets
+// are float (GL_CreateFrameBuffers: `format` otherwise), the world writes above 1 (VR_SceneTone) and the pass rolls the
+// brightest off with the eyes' curve (QvrTonemap, its knee and white point) instead of clipping. The one curve: the
+// grade's exposure is applied in it.
+[[nodiscard]] unsigned windowSceneFormat(unsigned format);
+
+// Whether the window's targets are float and flatscreen play runs: what the world may write above 1 there.
+[[nodiscard]] bool floatScene();
 
 // The passes run so far (vr_flatlook_info; the tests check the eyes add none).
 [[nodiscard]] long long passes();

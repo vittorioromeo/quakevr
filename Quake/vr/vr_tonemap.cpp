@@ -24,13 +24,7 @@ namespace qvr::tonemap
 namespace
 {
 
-// The curve (QvrTonemap): unchanged up to the knee, 1 at the white point. Quake's brightest colours (fullbright
-// lamps, lit sky) are about 1 and most of a frame is under 0.6, so a knee of 0.8 leaves nearly all of it as tuned;
-// a white point of 4 (the brightest lightmaps doubled, coloured dynamic lights up to 4) keeps what they add apart.
-constexpr float knee = 0.8f;
-constexpr float white = 4.f;
-// What the world and models may write into the float scene (SceneTone.x): past the white point is white anyway.
-constexpr float sceneMax = 8.f;
+// The curve's knee, white point and the float scene's top: vr_tonemap.hpp (flat-screen tone mapping shares them).
 
 // The grades: quakevr/gfx/vr/grade_<name>.png (Misc/quakevr/make_grades.py), loaded when first used.
 struct Grade
@@ -207,7 +201,11 @@ using namespace qvr;
 
 extern "C" float VR_SceneTone(void)
 {
-    return stereo::isRenderingEye() && tonemap::active() ? tonemap::sceneMax : 1.f;
+    if(stereo::isRenderingEye())
+    {
+        return tonemap::active() ? tonemap::sceneMax : 1.f;
+    }
+    return flatlook::floatScene() ? tonemap::sceneMax : 1.f; // flat-screen tone mapping (vr_flat_tonemap)
 }
 
 extern "C" float VR_SceneDither(float dither)

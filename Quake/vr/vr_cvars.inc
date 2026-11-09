@@ -2281,6 +2281,7 @@ QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither i
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
 // Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
+QVR_CVAR(vr_flat_tonemap, "1", CVAR_ARCHIVE)           // flat-screen tone mapping: the window's scene in floats, its brightest rolled off by the eyes' curve (vr_flat_grade_exposure before it) instead of clipped; 0: Quake's clamp
 QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
 QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
 QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)
@@ -4061,6 +4062,7 @@ QVR_CVAR(vr_flat_flycam_accel, "1600", CVAR_ARCHIVE)    // the fly camera's acce
 QVR_CVAR(vr_flat_flycam_fast, "3", CVAR_ARCHIVE)        // the fly camera's speed with Shift held, times vr_flat_flycam_speed
 QVR_CVAR(vr_flat_lean, "1", CVAR_ARCHIVE)             // flatscreen play: Q / E lean the view, the weapon and the body sideways round a corner (vr_flat_lean_*); 0 off
 QVR_CVAR(vr_flat_lean_toggle, "0", CVAR_ARCHIVE)        // the lean keys: 0 lean while held; 1 a press leans, the next press of the same key (or the other's) stands straight
+QVR_CVAR(vr_flat_lean_mouse, "1", CVAR_ARCHIVE)         // flatscreen play: 1 the mouse (and the stick, the gyro) turn the view along the screen as it is rolled -- leant, strafing, hit -- straight up is up the tilted screen; 0 Quake's yaw and pitch, the roll ignored (vr_flatmove.cpp VR_FlatLookTurn)
 QVR_CVAR(vr_flat_slide, "1", CVAR_ARCHIVE)              // flatscreen play: crouching while running faster than vr_flat_slide_min slides (vr_flat_slide_*; vr_flatmove.cpp); 0 off
 QVR_CVAR(vr_flat_keys_own, "1", CVAR_ARCHIVE)           // flatscreen play: 1 the keys the mode reads itself (the leans, swap, grab, prone, bullet time, F, G, V) do only that while it runs, their binds left alone (an old config's E +moveup, 3 impulse 3); 0 their binds run too
 QVR_CVAR(vr_flat_death_vomit, "1", CVAR_ARCHIVE)        // flatscreen play, dying with the view in the ragdoll's head (vr_death_view 2): 1 Vomit Mode for that death whatever vr_death_view_vomit says (the cvar untouched; vr_deathview.cpp vomit()); 0 vr_death_view_vomit decides, as in the headset

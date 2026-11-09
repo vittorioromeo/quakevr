@@ -10,6 +10,7 @@
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flycam.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
@@ -46,6 +47,10 @@ constexpr float leanDistMost = 30.f;
 constexpr float leanAngleMost = 35.f;
 constexpr float leanGunAhead = 20.f;   // leanRoom: the weapon's place this far ahead of the eye, where it is open
 constexpr float leanAheadKeep = 2.f;   // and this far short of a wall ahead
+// VR_FlatLookTurn: looking near straight up or down, the yaw a rolled screen's up asks for grows as 1 / cos(pitch)
+// (round the pole a turn about the tilted screen's up is mostly a swing over the top); past about 75 degrees it is
+// held at 4 times, the move a little off the screen's axis there rather than a spin.
+constexpr float lookPoleCos = 0.25f;
 
 // ------------------------------------------------------------------------------------------------------------- server
 
@@ -228,8 +233,36 @@ struct RampTest
     glm::vec3 pelvis[most]{};   // the drawn body's pelvis from the view
 };
 
+// The view he last saw (VR_FlatViewLean, the end of the eye's own view in V_CalcRefdef): its angles with every roll on
+// them -- the lean's, cl_rollangle's strafe roll, a hit's kick -- the roll the look turns along (VR_FlatLookTurn).
+struct SeenView
+{
+    glm::vec3 angles{0.f};
+    float roll{0.f};       // 0: none to turn along (the chase camera, the fly camera, dead)
+    int count{0};          // views built (vr_flatleanmouse_test waits for the next)
+    int turns{0};          // looks turned along a roll (the test: none upright, none off)
+};
+
+// vr_flatleanmouse_test: a pure up and a pure right mouse move, leant and pitched, move a far point straight along the
+// rolled screen; upright, and with vr_flat_lean_mouse 0, as Quake always did.
+struct LeanMouseTest
+{
+    int phase{0};
+    double phaseAt{0.0};
+    testkit::Tally tally;
+    int step{0};             // which of leanMouseSteps
+    int seenAt{0};           // the view count once the move was taken
+    int turnsAt{0};          // SeenView::turns before the move
+    int turned{0};           // and the move's
+    glm::vec3 before{0.f};   // the seen angles before the move
+    glm::vec3 lookBefore{0.f}; // cl.viewangles before it
+    float cvarWas{1.f};
+};
+
 struct ClientState
 {
+    SeenView seen;
+    LeanMouseTest leanMouseTest;
     Lean lean;
     SlideView slide;
     SlideTest slideTest;
@@ -1083,6 +1116,148 @@ void leanTestFrame()
     }
 }
 
+struct LeanMouseStep
+{
+    int lean;        // -1 left, 0 upright, 1 right
+    float pitch;     // degrees, + down
+    int dx;          // the mouse's counts (+ right, + toward him: the view down)
+    int dy;
+    bool on;         // vr_flat_lean_mouse
+};
+
+constexpr LeanMouseStep leanMouseSteps[] = {
+    {1, 0.f, 0, -15, true},  // leant right, level: up
+    {1, 0.f, 15, 0, true},   // and right
+    {1, 40.f, 0, -15, true}, // looking down 40: up
+    {1, 40.f, 15, 0, true},
+    {-1, -30.f, 0, 15, true}, // leant left, looking up 30: down
+    {-1, -30.f, -15, 0, true}, // and left
+    {0, 20.f, 0, -15, true}, // upright: Quake's own (no turn along a roll), straight up
+    {0, 20.f, 15, 0, true},
+    {1, 0.f, 0, -15, false}, // leant, vr_flat_lean_mouse 0: Quake's own, at the lean's slant
+};
+
+// vr_flatleanmouse_test: leans to a full roll (or stands upright), looks at a set pitch, then feeds the mouse a pure up
+// (or down, left, right) move and checks a far point that was in the middle of the screen moved straight along the rolled
+// screen's axis (the view as drawn, before and after: V_CalcRefdef's angles); upright and with vr_flat_lean_mouse 0 the
+// look is Quake's own (no turn along a roll; off, the slant the lean gives).
+void leanMouseTestFrame()
+{
+    LeanMouseTest& t = client.leanMouseTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    const char* tag = "flatleanmouse";
+    const double now = vr_gametime;
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+    };
+    constexpr int stepCount = static_cast<int>(sizeof(leanMouseSteps) / sizeof(leanMouseSteps[0]));
+    char line[320];
+    if(inPhase > 6.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "timed out (step %d, phase %d)", t.step, t.phase);
+        testCheck(t.tally, tag, false, line);
+        next(99);
+    }
+    const LeanMouseStep& st = leanMouseSteps[za::min(t.step, stepCount - 1)];
+    switch(t.phase)
+    {
+        case 1: // the step's lean, pitch and setting; then two views built as they stand
+            client.lean.cmdL = st.lean < 0;
+            client.lean.cmdR = st.lean > 0;
+            Cvar_SetValueQuick(&vr_flat_lean_mouse, st.on ? 1.f : 0.f);
+            cl.viewangles[PITCH] = st.pitch;
+            if(client.lean.lin == static_cast<float>(st.lean) &&
+                za::abs(client.lean.roll - static_cast<float>(st.lean) * leanFullAngle()) < 1e-3f)
+            {
+                t.seenAt = client.seen.count;
+                next(2);
+            }
+            break;
+        case 2:
+            cl.viewangles[PITCH] = st.pitch;
+            if(client.seen.count >= t.seenAt + 2)
+            {
+                t.before = client.seen.angles;
+                t.lookBefore = glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+                t.turnsAt = client.seen.turns;
+                IN_MockMouseMotion(st.dx, st.dy);
+                next(3);
+            }
+            break;
+        case 3: // the move taken: then the view built from it
+            if(cl.viewangles[PITCH] != t.lookBefore.x || cl.viewangles[YAW] != t.lookBefore.y)
+            {
+                t.turned = client.seen.turns - t.turnsAt;
+                t.seenAt = client.seen.count;
+                next(4);
+            }
+            break;
+        case 4:
+            if(client.seen.count > t.seenAt)
+            {
+                const bool upDown = st.dx == 0;
+                const glm::vec3 now3 = client.seen.angles;
+                vec3_t a0{t.before.x, t.before.y, t.before.z};
+                vec3_t a1{now3.x, now3.y, now3.z};
+                vec3_t f0, r0, u0, f1, r1, u1;
+                AngleVectors(a0, f0, r0, u0);
+                AngleVectors(a1, f1, r1, u1);
+                // The far point that was in the middle of the screen, where it is now (screen x right, y up).
+                const float depth = DotProduct(f0, f1);
+                const float sx = DotProduct(f0, r1) / depth;
+                const float sy = DotProduct(f0, u1) / depth;
+                // The view's move is the point's the other way: its way on the screen, and how far it is off the axis.
+                const float wantX = upDown ? 0.f : (st.dx > 0 ? -1.f : 1.f);
+                const float wantY = upDown ? (st.dy < 0 ? -1.f : 1.f) : 0.f;
+                const float along = sx * wantX + sy * wantY;
+                const float across = upDown ? sx : sy;
+                const float off = glm::degrees(za::atan2(za::abs(across), za::max(along, 1e-9f)));
+                const float moved = glm::degrees(za::sqrt(sx * sx + sy * sy));
+                const int turned = t.turned;
+                const float yawMoved = cl.viewangles[YAW] - t.lookBefore.y;
+                const float pitchMoved = cl.viewangles[PITCH] - t.lookBefore.x;
+                q_snprintf(line, sizeof(line),
+                    "step %d: %s, pitch %.0f, roll %.1f, the mouse %s%s: the point moved %.2f deg, %.2f deg off the screen's %s (yaw %+.3f, pitch %+.3f)",
+                    t.step, st.lean > 0 ? "leant right" : st.lean < 0 ? "leant left" : "upright", st.pitch, t.before.z,
+                    upDown ? (st.dy < 0 ? "up" : "down") : (st.dx > 0 ? "right" : "left"),
+                    st.on ? "" : " (vr_flat_lean_mouse 0)", moved, off, upDown ? "up" : "across", yawMoved, pitchMoved);
+                bool ok = along > 0.f && moved > 0.2f;
+                if(st.lean != 0 && st.on)
+                {
+                    ok = ok && off < 0.5f && turned > 0;
+                }
+                else
+                {
+                    // Quake's own: no turn along a roll, the other angle untouched to the bit.
+                    ok = ok && turned == 0 && (upDown ? yawMoved == 0.f : pitchMoved == 0.f);
+                    if(st.lean != 0)
+                    {
+                        ok = ok && off > 5.f; // (the slant the lean gives the old way)
+                    }
+                    else
+                    {
+                        ok = ok && off < 0.5f;
+                    }
+                }
+                testCheck(t.tally, tag, ok, line);
+                t.step++;
+                next(t.step < stepCount ? 1 : 99);
+            }
+            break;
+        default:
+            client.lean.cmdL = client.lean.cmdR = false;
+            Cvar_SetValueQuick(&vr_flat_lean_mouse, t.cvarWas);
+            t.tally.verdict(tag);
+            t = LeanMouseTest{};
+            break;
+    }
+}
+
 // vr_flatprone_test (a weapon in the main hand, room around): lying down, a full lean right moves the eye
 // vr_flat_lean_prone_dist and rolls the view and the lying body vr_flat_lean_prone_angle; the crouch pressed lying down
 // gets up into the crouch, the gun's pose without a jump; lying down and looking down, the gun lies flush on the floor:
@@ -1481,6 +1656,19 @@ void leanTest_f()
     client.leanTest.phaseAt = vr_gametime;
 }
 
+void leanMouseTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatleanmouse_test: flat-screen play (-flatscreenmode) in a game you host\n");
+        return;
+    }
+    client.leanMouseTest = LeanMouseTest{};
+    client.leanMouseTest.cvarWas = vr_flat_lean_mouse.value;
+    client.leanMouseTest.phase = 1;
+    client.leanMouseTest.phaseAt = vr_gametime;
+}
+
 void proneTest_f()
 {
     if(!flatplay::active() || !sv.active)
@@ -1568,6 +1756,7 @@ void init()
     Cmd_AddCommand("vr_flatslide_rough_test", roughTest_f);
     Cmd_AddCommand("vr_flatslide_ramp_test", rampTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
+    Cmd_AddCommand("vr_flatleanmouse_test", leanMouseTest_f);
     Cmd_AddCommand("vr_flatprone_test", proneTest_f);
     Cmd_AddCommand("vr_flatmantle_test", mantleTest_f);
     Cmd_AddCommand("vr_flatmove_status", status_f);
@@ -1587,6 +1776,7 @@ void frame(bool on)
         roughTestFrame();
         rampTestFrame();
         leanTestFrame();
+        leanMouseTestFrame();
         proneTestFrame();
         mantleTestFrame();
     }
@@ -1835,6 +2025,8 @@ extern "C" void VR_FlatMoveScale(float* forwardmove, float* sidemove)
 
 extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
 {
+    flatmove::SeenView& seen = flatmove::client.seen;
+    seen.roll = 0.f;
     if(!flatplay::active() || chase_active.value)
     {
         return;
@@ -1844,4 +2036,34 @@ extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
     vieworg[1] += shift.y;
     vieworg[2] += shift.z;
     viewangles[ROLL] += flatmove::leanRoll();
+    // The roll he sees, every one on the view by here (the lean's, cl_rollangle's strafe roll, a hit's kick): the look
+    // turns along it (VR_FlatLookTurn). The strafe roll counts too -- the screen is as tilted by it, and it only turns
+    // the mouse's way with the screen, adding no motion of its own, so strafing straight is no less steady. Dead (the
+    // death view's own camera) or flying the fly camera (its own level view), none.
+    seen.angles = glm::vec3{viewangles[0], viewangles[1], viewangles[2]};
+    seen.count++;
+    seen.roll = cl.stats[STAT_HEALTH] > 0 && !flycam::on() ? viewangles[ROLL] : 0.f;
+}
+
+// The look's turn (degrees: `right` the view toward the screen's right, `down` toward its bottom) taken along the screen
+// as he sees it rolled: the move is the one Quake gives level -- across, the view's own sideways shift (yaw times the
+// pitch's cosine), up and down the pitch -- turned by the roll into the level frame, and back into yaw and pitch. Not
+// rolled, or vr_flat_lean_mouse 0: false, left as it was (Quake's own, to the bit).
+extern "C" int VR_FlatLookTurn(float* right, float* down)
+{
+    flatmove::SeenView& seen = flatmove::client.seen;
+    if(vr_flat_lean_mouse.value == 0.f || !flatplay::active() || seen.roll == 0.f || (*right == 0.f && *down == 0.f))
+    {
+        return 0;
+    }
+    const float r = glm::radians(seen.roll);
+    const float sr = za::sin(r);
+    const float cr = za::cos(r);
+    const float c = za::max(za::cos(glm::radians(cl.viewangles[PITCH])), flatmove::lookPoleCos);
+    const float mx = *right * c; // the move on the rolled screen
+    const float my = *down;
+    *right = (cr * mx - sr * my) / c; // + roll is the screen's top tilted right: its up is up and right on a level one
+    *down = sr * mx + cr * my;
+    seen.turns++;
+    return 1;
 }
