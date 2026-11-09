@@ -5683,8 +5683,10 @@ next / this branch / the mockup, flat 4K, the fly camera behind and above; a clo
 `scratch/hl/panel_light.png` in the regfix worktree.
 
 - **Model:** `Misc/quakevr/make_screen_housing_light.py` (Blender, headless, on `v_light.blend`; exports itself and
-  saves; `-- --dry` prints the design only; ends `housing_light: ok, ...`). Re-runnable as the shotgun's: a second run
-  moves the same 68 vertices in place (verified: the .mdl and weapons.txt byte for byte the same). The bezel: a flat
+  saves; `-- --dry` builds and checks only; ends `housing_light: ok, ...`; on `housing_common.py` as the others, and in
+  MODELS_IN_BLENDER.md's housing table). Re-runnable: a second run keeps the same 68 vertices and 96 triangles in place,
+  and a fresh build on the .blend before the housing gives the same files (both checked: the .mdl and weapons.txt byte
+  for byte the same). The bezel: a flat
   front ring, its outer walls and the opening's walls straight back to the end face, closed there by a ring facing into
   the gun (culled: no fight with the face, a closed solid); the face is the back behind the glass. Four rivets: an
   octagon on the bezel's front and a point one step out. 68 vertices, 96 triangles (the gun 844 -> 940).
