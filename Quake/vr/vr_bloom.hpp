@@ -18,6 +18,10 @@ namespace qvr::bloom
 // Makes the glow of the scene `sceneTex` (`width` x `height`) for this eye's post-processing.
 void apply(GLuint sceneTex, int width, int height);
 
+// Flatscreen play's window (vr_flatlook.cpp): the glow of `sceneTex` at `strength` (vr_bloom's other settings), in its
+// own chain; its texture (a quarter of the scene's size, the strength in it), 0 for none. The eyes' result is untouched.
+[[nodiscard]] GLuint applyFlat(GLuint sceneTex, int width, int height, float strength);
+
 // This eye's glow (a quarter of the scene's size), if there is one.
 [[nodiscard]] bool result(unsigned& texture);
 

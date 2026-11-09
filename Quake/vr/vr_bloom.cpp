@@ -25,14 +25,15 @@ using Target = gfx::RenderTarget;
 // much of the view glows, one texel (ROUND22.md, "Cheaper bloom": a thirty-second level once, its
 // weight now the sixteenth's).
 constexpr int levels = 3;
-// One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size.
+// One for the eyes, one for the window's spectator camera (vr_window.cpp), one for flatscreen play's window
+// (vr_flatlook.cpp): each keeps its size.
 struct Chain
 {
     Target down[levels];
     Target up[levels - 1];
     Target mean;
 };
-Chain chains[2];
+Chain chains[3];
 GLuint brightProgram = 0;
 GLuint downProgram = 0;
 GLuint upProgram = 0;
@@ -235,18 +236,13 @@ void scopeEnd()
     }
 }
 
-} // namespace
-
-void apply(GLuint sceneTex, int width, int height)
+// The chain's passes for sceneTex with `strength`: the glow (a quarter of the scene's size), 0 for none.
+[[nodiscard]] GLuint run(Chain& chain, GLuint sceneTex, int width, int height, float strength)
 {
-    QVR_GPU_PROFILE("bloom");
-    resultValid = false;
-    const float strength = vr_bloom.value;
     if(strength <= 0.f || width < 128 || height < 128 || !ensurePrograms())
     {
-        return;
+        return 0;
     }
-    Chain& chain = chains[stereo::isSpectator() ? 1 : 0];
     Target* const down = chain.down;
     Target* const up = chain.up;
     Target& mean = chain.mean;
@@ -256,12 +252,12 @@ void apply(GLuint sceneTex, int width, int height)
         const int h = za::max(1, height >> (2 + l));
         if(!ensure(down[l], w, h, "vr bloom down") || (l < levels - 1 && !ensure(up[l], w, h, "vr bloom up")))
         {
-            return;
+            return 0;
         }
     }
     if(!ensure(mean, 1, 1, "vr bloom mean"))
     {
-        return;
+        return 0;
     }
 
     detailScopes = vr_profile_detail.value >= 2.f;
@@ -302,9 +298,23 @@ void apply(GLuint sceneTex, int width, int height)
         scopeEnd();
     }
 
-    resultTex = up[0].tex;
-    resultValid = true;
     GL_EndGroup();
+    return up[0].tex;
+}
+
+} // namespace
+
+void apply(GLuint sceneTex, int width, int height)
+{
+    QVR_GPU_PROFILE("bloom");
+    resultTex = run(chains[stereo::isSpectator() ? 1 : 0], sceneTex, width, height, vr_bloom.value);
+    resultValid = resultTex != 0;
+}
+
+GLuint applyFlat(GLuint sceneTex, int width, int height, float strength)
+{
+    QVR_GPU_PROFILE("flat bloom");
+    return run(chains[2], sceneTex, width, height, strength);
 }
 
 bool result(unsigned& texture)

@@ -3544,6 +3544,22 @@ QVR_SLIDER_BYNAME(vr_grade_strength, "Grade Strength", 0.f, 1.f, 0.05f, "%.2f", 
 QVR_CYCLE_BYNAME(vr_dither, "Dither",
     "A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water).",
     {0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"})
+// vr_menu_pages.inc: pageGraphicsPost, "Flat Screen" (vr_flatlook.cpp; the headset never uses these)
+QVR_SLIDER_BYNAME(vr_flat_bloom, "Flat: Bloom", 0.f, 1.5f, 0.02f, "%.2f", ext(),
+    "Flat-screen play: glow around lamps, lava and flashes (0 off). Its threshold, size and weights are the Bloom rows'.")
+QVR_SLIDER_BYNAME(vr_flat_grade, "Flat: Colour Grade", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "Flat-screen play: how much of the colour grade below (0 off). The HUD is not graded.")
+QVR_SLIDER_BYNAME(vr_flat_grade_exposure, "Flat: Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before the grade's curve (1: unchanged).")
+QVR_SLIDER_BYNAME(vr_flat_grade_contrast, "Flat: Contrast", 0.5f, 2.f, 0.05f, "%.2f", ext(),
+    "An S curve: darker shade and brighter light, black and white kept (1: none).")
+QVR_SLIDER_BYNAME(vr_flat_grade_shadows, "Flat: Shadows", -1.f, 1.f, 0.05f, "%+.2f", ext(),
+    "The darkest parts: below 0 crushed to black, above 0 lifted towards grey.")
+QVR_SLIDER_BYNAME(vr_flat_grade_warmth, "Flat: Warmth", -1.f, 1.f, 0.05f, "%+.2f", ext(),
+    "Warm highlights and cool shadows (below 0 the other way round).")
+QVR_SLIDER_BYNAME(vr_flat_grade_saturation, "Flat: Saturation", 0.f, 2.f, 0.05f, "%.2f", ext(), "Colourfulness (1: unchanged, 0: grey).")
+QVR_SLIDER_BYNAME(vr_flat_vignette, "Flat: Vignette", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Flat-screen play: the screen's corners darkened (0 off). Not the headset's comfort vignette.")
+QVR_SLIDER_BYNAME(vr_flat_vignette_size, "Flat: Vignette Size", 0.05f, 1.f, 0.05f, "%.2f", ext(), "How far in from the corners it reaches.")
 
 // vr_menu_pages.inc: pageGraphicsModels
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",

@@ -2271,6 +2271,16 @@ QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the t
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
+// Flatscreen play's look (vr_flatlook.cpp; ROUND24.md, "Flat-screen look"): the window's 3D view only (not the HUD), never the eyes.
+QVR_CVAR(vr_flat_bloom, "0.1", CVAR_ARCHIVE)           // flat-screen: glow around lamps, lava and flashes: strength (vr_bloom's threshold, size and weights; 0 off)
+QVR_CVAR(vr_flat_grade, "1", CVAR_ARCHIVE)             // flat-screen colour grade: how much of it (0 off .. 1)
+QVR_CVAR(vr_flat_grade_exposure, "1.25", CVAR_ARCHIVE) // ... brightness before the curve (1 unchanged)
+QVR_CVAR(vr_flat_grade_contrast, "1.05", CVAR_ARCHIVE) // ... an S curve's slope at mid grey, black and white kept (1 none)
+QVR_CVAR(vr_flat_grade_shadows, "0.1", CVAR_ARCHIVE)   // ... the darkest parts: below 0 crushed to black, above 0 lifted (-1 .. 1)
+QVR_CVAR(vr_flat_grade_warmth, "0.5", CVAR_ARCHIVE)    // ... warm highlights and cool shadows (split tone; 0 none, below 0 the other way)
+QVR_CVAR(vr_flat_grade_saturation, "1.05", CVAR_ARCHIVE) // ... colourfulness (1 unchanged, 0 grey)
+QVR_CVAR(vr_flat_vignette, "0.3", CVAR_ARCHIVE)        // flat-screen vignette: the corners darkened by this much (0 off; not the headset's comfort vignette)
+QVR_CVAR(vr_flat_vignette_size, "0.5", CVAR_ARCHIVE)   // ... how far in from the corners it reaches (0.05 .. 1)
 // Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
