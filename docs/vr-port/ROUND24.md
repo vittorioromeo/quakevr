@@ -7129,6 +7129,39 @@ Left (proposals):
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
 
+## Flat ADS sensitivity: multiplier and match distance (branch `agent/ads_sens`, worktree `selfshot`, 2026-11-09)
+
+His words: "Please add a flat ADS multiplier plus ADS sensitivity setting with a match-distance option, with menu items
+under the flatscreen menu."
+
+- **Before:** in_sdl.c IN_FovScale scaled the mouse and gyro by tan(look/2) / tan(scr_fov/2) (look: VR_FlatLookFov, the
+  ironsight's narrowing in, the speed FOV out): a zoom-ratio ("centre", monitor distance 0) match. At fov 95 with
+  vr_flat_aim_fov 45 the sighted fov is 50 and the scale 0.4273. The stick's look was never slowed.
+- **Now** (Quake/vr/vr_flataimsens.cpp): IN_FovScale multiplies that ratio by VR_FlatAimSens, and the stick's look
+  (IN_JoyMove, the traditional look; not the flick stick) by VR_FlatAimStickScale. Both are exactly 1 outside flatscreen
+  play, unsighted, and (the mouse's) at the defaults, so a headset and default play are bit-for-bit as before.
+  - `vr_flat_aim_sens_match` (default 0): scale = atan(m * T(sighted)) / atan(m * T(hip)), T the tangent of the vertical
+    half-fov (Quake's 4:3 fov times the view's own fov_y/basefov ratio), m in half screen heights from the centre.
+    0 is the tangent ratio exactly (no atan taken). Presets in the menu: Centre, 0.75, 1.33 (the 4:3 edge, Battlefield's
+    uniform aiming coefficient), 1.78 (the 16:9 edge); 0..4 from the console.
+  - `vr_flat_aim_sens` (default 1, 0.05..5): times 1 + (sens - 1) * travel, the ironsight's travel (adsShare) as the
+    fov's narrowing uses.
+  - Decision: the match is in half screen heights (vertical), not widths, so the brief's preset names hold (1.33 is the
+    4:3 edge, 1.78 the 16:9 edge on any screen of that shape); in width units 1.78 would be past the edge.
+  - Decision: the stick's look is now slowed in the ironsight like the mouse (the brief: mouse, gyro and stick); before
+    it turned at the same speed sighted.
+- **Menu:** Locomotion > Desktop Screen Play: Aim Sensitivity (slider 0.10..2.00, past it 0.05..5) and Aim Sensitivity
+  Match (Centre / 0.75 / 1.33 / 1.78), under Right Click Ironsight; their help ends with the sighted speed now, e.g.
+  "sighted, 0.43x of hipfire's speed at fov 95 (the field of view 50 there)". Both flat-only (dimmed in a headset).
+  menu_paths.txt regenerated.
+- **Shared:** the sighted fov is flatsight's own (adsFovAt, the same adsFovFor the view narrows by), the travel is
+  adsShare; the mouse, gyro and stick share one scale (scaleFor). The headset has no ironsight zoom, so nothing there to
+  share.
+- **Test:** `vr_flat_aim_sens_test` (Misc/quakevr/flataimsens_test.sh; `flataimsens: N passed, M failed`): 200 mock
+  mouse counts per step, the turned degrees against hipfire's. fov 95: hip 1.0000; sighted match 0 0.4273 (the old
+  ratio, factor exactly 1); match 1.78 0.5745; sens 0.5 0.2136; hip with both set 1.0000. fov 75: sighted 36.31, match
+  1.78 sens 0.5 0.2587; match 0 0.4273. The stick's scale and the menu's readout agree with each. 7 passed, 0 failed.
+  `vr_flat_aim_sens_status` prints the scale now. Scene: `flat_aim_sens`.
 ## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
 
 Part 1's leftovers (above). Each a commit of its own; every output checked identical.

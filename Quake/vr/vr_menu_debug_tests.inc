@@ -720,6 +720,13 @@ za::Vector<Item> pageDebugTests()
         command("Flat Speed FOV Status", "vr_flat_speed_fov_status")
             .help("vr_flat_speed_fov_status: the speed along the floor, the speed FOV's multiplier now and the speed's "
                   "own, the field of view drawn."),
+        command("Flat Aim Sensitivity Test", "vr_flat_aim_sens_test")
+            .help("vr_flat_aim_sens_test (-flatscreenmode only, a gun with sights in one hand, standing still): sights in "
+                  "and out at fov 95 and 75 with Aim Sensitivity and its Match set and not, turns the mouse 200 counts each "
+                  "time and checks the degrees against hipfire's (flataimsens: lines, a verdict). Restores fov and both after."),
+        command("Flat Aim Sensitivity Status", "vr_flat_aim_sens_status")
+            .help("vr_flat_aim_sens_status: the ironsight's travel, the look's fov, the mouse's scale now and sighted at "
+                  "full travel, the stick's."),
         command("Lying Body Test", "vr_body_lie_test")
             .help("vr_body_lie_test (-flatscreenmode, open level ground ahead and behind, a long gun held): lies down (the hips "
                   "on the floor, straight legs, the gear with its bones), gets up, slides twice (no stance turn or bob, straight "

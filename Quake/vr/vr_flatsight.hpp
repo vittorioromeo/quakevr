@@ -156,6 +156,12 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).
 [[nodiscard]] float fov(float basefov);
 
+// The ironsight's field of view for a view of `base` with its travel all done (vr_flat_aim_fov, counted at
+// vr_flat_aim_fov_ref), and the view's own field of view fov() was last given (before the narrowing): what
+// vr_flataimsens.cpp measures the sighted look's speed against.
+[[nodiscard]] float adsFovAt(float base);
+[[nodiscard]] float hipFov();
+
 // vr_flatplay_status's line: the ironsight, and where the free hand is.
 void statusLine();
 
