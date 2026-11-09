@@ -679,11 +679,9 @@ void view::prepareWorldWeapons()
 
 void view::prepareModels()
 {
-    if(!vr_enabled.value) // (in VR, even before its session runs: the first map loads as it starts)
-    {
-        return;
-    }
-    // As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
+    // VR or not: the view's own entities are set up and drawn whenever the map is Quake VR's (hands::update, and
+    // VR_SetupViewEntities), flat mode (vr_enabled 0) too; it skipped them, and its first frame loaded them (90 ms, their
+    // md5 replacements too). As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
     za::Vector<const char*> names{handrig::modelName(), "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
     if(vr_body_mode.value >= 1.f)
     {
@@ -730,6 +728,20 @@ void view::prepareModels()
     for(const char* name : names)
     {
         (void)Mod_ForName(name, false);
+    }
+    // The body's armour shells ("<body>#armor", agarmor::playerArmorModel): setupPlates makes them as the body first shows,
+    // armour or not, and that was the first frame's `view body` (40-70 ms). The body setupBody draws: the bare forearms'
+    // with the jointed hands, as vr_body_bracers 0 asks.
+    if(vr_body_mode.value >= 1.f && vr_player_plates.value != 0.f)
+    {
+        const int build = avatar::bodyBuild();
+        qmodel_t* body = bareForearms() ? viewModel(bodyModelName(build, true)) : nullptr;
+        body = avatar::usable(body) ? body : viewModel(bodyModelName(build, false));
+        body = avatar::usable(body) ? body : viewModel("progs/vrbody.mdl");
+        if(avatar::usable(body))
+        {
+            (void)agarmor::playerArmorModel(body);
+        }
     }
 }
 

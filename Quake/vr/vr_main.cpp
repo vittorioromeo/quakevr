@@ -1963,7 +1963,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"smooth rigs", animsmooth::prepare},          // 6-27 ms a monster kind's first smooth draw
     {"env cube world", envmap::prepare},          // 2-12 ms the first frame
     {"gun anchors", view::prepareWorldWeapons},   // ~10 ms the first gun lying near
-    {"skin masks", VR_PrecacheSkinMasks},          // 4-9 ms the first frame (your hands' glove paint read again)
+    {"skin masks", VR_PrewarmSkinMasks},           // 17-75 ms the first frame (your hands' glove paint read again)
 };
 } // namespace
 
@@ -1990,6 +1990,16 @@ extern "C" void VR_NewMap()
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
     VR_TimeMark("VR_NewMap: GL object count");
+}
+
+// The client's signon 3 (the server's spawn data in: the world texts, the stats): its next frame is still the loading
+// screen's, the one after draws the world. What that first frame did on first use, done here instead: the models'
+// occlusion bakes finished in the load taken in (their vertex buffers built again: ao::upload's, 17-35 ms).
+extern "C" void VR_SignonPrewarm()
+{
+    QVR_PROFILE("vr signon prewarm");
+    ao::integrateFinished();
+    VR_TimeMark("signon prewarm: occlusion bakes taken in");
 }
 
 // vr_screenshot_frames <n> (Debug > Teleporters): a screenshot of each of the next n frames drawn, every one (a `wait`

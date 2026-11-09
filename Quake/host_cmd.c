@@ -3152,6 +3152,25 @@ static void Host_Pause_f (void)
 
 /*
 ==================
+SV_SignonReplyStale -- QVR
+
+A signon reply (prespawn, spawn, begin) read while this level's svc_serverinfo is still in the client's .message (not
+sent yet: SV_SendServerinfo, SV_SendClientMessages) answers the level before. A changelevel in the frames of the
+client's signon (`map e1m1; wait3; changelevel e1m2`) found its "begin" queued, the new level took it, the client was
+sent datagrams before it had the new serverinfo, and its cleared state read them as "Illegible server message 39"
+(svc_quakevr; ROUND24.md, "The changelevel error"). Ignored: the new serverinfo starts the client's signon again.
+==================
+*/
+static qboolean SV_SignonReplyStale (const char *cmd)
+{
+	if (!host_client->serverinfo_unsent)
+		return false;
+	Con_DPrintf ("%s from %s ignored: sent before the level's serverinfo\n", cmd, host_client->name);
+	return true;
+}
+
+/*
+==================
 Host_PreSpawn_f
 ==================
 */
@@ -3162,6 +3181,8 @@ static void Host_PreSpawn_f (void)
 		Con_Printf ("prespawn is not valid from the console\n");
 		return;
 	}
+	if (SV_SignonReplyStale ("prespawn")) // QVR
+		return;
 
 	if (host_client->spawned)
 	{
@@ -3189,6 +3210,8 @@ static void Host_Spawn_f (void)
 		Con_Printf ("spawn is not valid from the console\n");
 		return;
 	}
+	if (SV_SignonReplyStale ("spawn")) // QVR
+		return;
 
 	if (host_client->spawned)
 	{
@@ -3326,6 +3349,8 @@ static void Host_Begin_f (void)
 		Con_Printf ("begin is not valid from the console\n");
 		return;
 	}
+	if (SV_SignonReplyStale ("begin")) // QVR
+		return;
 
 	host_client->spawned = true;
 }

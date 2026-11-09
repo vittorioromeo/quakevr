@@ -7290,6 +7290,51 @@ already pre-passed), gib instancing (gibs already batch by model), skipping your
 its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
 proposal 1) is the big lever, his call.
 
+## The changelevel error and the cold first frame (branch `agent/first_frame`, 2026-11-09)
+
+Part 2's leftovers ("Faster map loads, part 2", Left).
+
+**The changelevel error** (`map e1m1; wait3; changelevel e1m2`: `Host_Error: Illegible server message 39`). 39 is
+svc_quakevr. The changelevel ran in the frames of the client's signon on e1m1, its `begin` (or `spawn`) for e1m1
+queued in cls.message; CL_SendCmd sent it after SV_SpawnServer, and the new level took it (Host_Begin_f checks
+nothing): the client was marked spawned and sent a datagram before its e1m2 serverinfo had gone out. Host_ClearMemory
+had cleared the client's state (protocol flags 0), so svc_quakevr was not Quake VR's to it (and the fast update before
+it was read with the wrong coordinate sizes). Vanilla Quake has the same race. Fix (host_cmd.c `SV_SignonReplyStale`,
+server.h `serverinfo_unsent`): a prespawn, spawn or begin read while the level's serverinfo is still in the client's
+.message (SV_SendServerinfo sets the flag, SV_SendClientMessages clears it as the message goes out) answers the level
+before and is ignored (developer 1 says so); the new serverinfo starts the signon again. A remote client's reply already
+on the wire is not covered (that needs a level id in the protocol). Test: `Misc/quakevr/changelevel_signon_test.sh
+<agent>` (in run_test_suite.py): one game, `map e1m1; wait<N>; changelevel e1m2` for N 0-6 and 10, each waiting for
+`Client signed on: e1m2` (a new developer print at signon 4): 10/10; with the check disabled it fails (the Host_Error).
+
+**The cold first frame.** Tracy (low-impact runs: times about twice the exclusive ones) named the first frame's work:
+`view body` was setupPlates making the body's armour shell (`<body>#armor`, agarmor::makeModel: 61 of its 69 ms);
+`view skin masks` the hand and body masks and the glove layers (5 textures: the prewarm's step found no view entity in
+the load, so it loaded nothing, and the glove layers are freed and read again every map); `lights` the AO bakes
+finished in the load taken in (ao::upload: each baked model's vertex buffer built again); in flat mode also every view
+model (prepareModels returned when vr_enabled 0, but flat draws the same hands, body and gear: md5 replacements 52 + 40).
+- `view::prepareModels` in flat too, and the body's armour shell made there (the body setupBody picks).
+- `VR_PrewarmSkinMasks` (the prewarm's step): the glove layers' per-map reload, then the masks (skin 0) and glove layers
+  by name; the first frame's VR_PrecacheSkinMasks finds them (one find-or-read helper for both).
+- `VR_SignonPrewarm` (CL_SignonReply 3: the next frame is still the loading screen's): `ao::integrateFinished`.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3; `benchresults/firstframe_after` against part 2's
+`perfload2_after`; ms):
+
+| load | VR first frame before | after | VR worst of the next 90, before | after | flat first before | after | flat worst before | after |
+|---|---|---|---|---|---|---|---|---|
+| `map start` (cold) | 140.7 | 63.7 | 37.4 | 34.8 | 200.2 | 65.9 | 7.4 | 5.8 |
+| `changelevel e1m1` | 6.3 | 3.2 | 15.8 | 4.5 | 6.9 | 2.8 | 5.4 | 4.3 |
+| `changelevel e1m2` | 9.2 | 4.0 | 13.6 | 5.1 | 9.9 | 4.4 | 7.0 | 7.3 |
+| `changelevel e1m1` (back) | 2.9 | 2.8 | 13.6 | 4.9 | 3.4 | 3.0 | 4.2 | 3.1 |
+
+The warm loads' worst frame after (VR 14-16 -> 5 ms) was the AO uploads too. The work moved into the load (the signon
+prewarm ~18 ms, the shell and masks in vr prewarm). Same visuals: the same models and textures, made earlier.
+Not reached cold (< 50 ms). Left (vr_profile, VR): `vr opaque (text3d)` ~30 ms (the boards' images and layout: their
+image draws could go in VR_SignonPrewarm, the world texts are in by then), the wrist gadget's `gadget screen` ~15 (its
+first draw), and the second frame's portal shadow maps (~30: the "worst after" column).
+Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0, changelevel_signon 10/0; scenario_check not run.
+Release-TracyFull builds.
 ## Thread pool: Box3D, particles, gore (branch `agent/jobs_phys`, worktree `embed5`, 2026-11-09)
 
 His ask: "try out all the thread pool candidates ... without introducing indeterminism" (perf_1109.md: all 31 job

@@ -33,6 +33,7 @@ KIT = qvrtest.KIT
 SUITE = [
     ("autopump", "autopump_test.sh", [], 1200, False),
     ("cellcord", "cellcord_test.sh", [], 1200, False),
+    ("changelevel_signon", "changelevel_signon_test.sh", [], 600, False),
     ("collectfx", "collectfx_test.sh", [], 1200, False),
     ("dead_gear", "dead_gear_test.sh", [], 1200, False),
     ("empty_melee", "empty_melee_test.sh", [], 1200, False),
