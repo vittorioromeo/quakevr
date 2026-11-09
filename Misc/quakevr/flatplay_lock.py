@@ -16,9 +16,12 @@ import sys
 
 text = open(sys.argv[1], encoding='utf-8', errors='replace').read()
 mode = sys.argv[2]
-rows = [[float(x) for x in m.groups()] for m in re.finditer(
-    r'flatview: t ([-\d.]+) local ([-\d.]+) ([-\d.]+) ([-\d.]+) yaw ([-\d.]+) pitch ([-\d.]+) view ([-\d.]+) ([-\d.]+) '
-    r'speed (\d+)', text)]
+# A row: t, the local place (3), yaw, pitch, the view's pitch and yaw, speed, roll. The weapon's yaw, pitch and roll are its
+# turn in the camera's own frame (vr_flatplay.cpp printDrawn): rigid in the view reads 0 change, the camera's strafing roll
+# (cl_rollangle) included. (Its angles less the camera's read 0.25 degrees of yaw strafing, the gun rigid: 2026-11-09.)
+rows = [[float(x) for x in g[:6] + g[7:] + g[6:7]] for g in (m.groups() for m in re.finditer(
+    r'flatview: t ([-\d.]+) local ([-\d.]+) ([-\d.]+) ([-\d.]+) yaw ([-\d.]+) pitch ([-\d.]+) roll ([-\d.]+) '
+    r'view ([-\d.]+) ([-\d.]+) speed (\d+)', text))]
 shots = [float(m.group(1)) for m in re.finditer(r'flatmove: .*shot off the view ([\d.]+)', text)]
 if len(rows) < 100:
     print('FAIL flatscreen %s: %d flatview lines (want 100 or more)' % (mode, len(rows)))
@@ -39,16 +42,18 @@ for p, r in zip(rows, rows[1:]):
 
 
 def worst(rs):
-    return (max(math.dist(r[1:4], ref[1:4]) for r in rs), max(abs(r[4] - ref[4]) for r in rs)) if rs else (-1, -1)
+    # (place off, yaw off, and the most of yaw, pitch and roll off: the locked case's rigidity)
+    return (max(math.dist(r[1:4], ref[1:4]) for r in rs), max(abs(r[4] - ref[4]) for r in rs),
+            max(max(abs(r[4] - ref[4]), abs(r[5] - ref[5]), abs(r[9] - ref[9])) for r in rs)) if rs else (-1, -1, -1)
 
 
 ws, wt = worst(strafe), worst(turn)
-say = 'strafing %d frames: %.3f units %.3f deg; turning %d frames: %.3f units %.3f deg' % (
-    len(strafe), ws[0], ws[1], len(turn), wt[0], wt[1])
+say = 'strafing %d frames: %.3f units %.3f deg (%.3f any axis); turning %d frames: %.3f units %.3f deg (%.3f any axis)' % (
+    len(strafe), ws[0], ws[1], ws[2], len(turn), wt[0], wt[1], wt[2])
 if not strafe or not turn or not after:
     print('FAIL flatscreen %s: a phase is missing (%s, %d after)' % (mode, say, len(after)))
 elif mode == 'locked':
-    ok = max(ws[0], wt[0]) <= 0.05 and max(ws[1], wt[1]) <= 0.05
+    ok = max(ws[0], wt[0]) <= 0.05 and max(ws[2], wt[2]) <= 0.05
     print('%s flatscreen hands locked to the view (sway, bob, turn lag 0): %s' % ('PASS' if ok else 'FAIL', say))
 else:
     settled = abs(after[min(len(after) - 1, 71)][4] - ref[4])
