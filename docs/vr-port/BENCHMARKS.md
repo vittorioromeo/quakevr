@@ -165,6 +165,7 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `gore_first_cuts` | gore | vrfiringrange | Each of 14 rigged kinds spawned (`impulse 241`) and slashed at a limb, twice round: marks `spawn<r>_<kind>`, `cut<r>_<kind>`: the first cut's hitch against the second's. |
 | `load_e1m1` | loading/core | (none) | `map e1m1` cold (nothing loaded before), again warm, then `restart`: each load by phase (see "Map loads"). |
 | `load_e1m1_qrp` | loading/textures | (none, QRP) | load_e1m1's cold and warm loads on the QRP base: replacement textures, their material maps. |
+| `load_session_qrp`, `load_session_qrp_flat` | loading/textures (+flat) | (none, QRP) | A play session's loads on QRP: `map start` (cold), `changelevel e1m1`, `changelevel e1m2` (each map new to the session: the warm loads of play), `changelevel e1m1` (back: its images in vr_image_cache), and the frames after each; `_flat` in flat mode. ROUND24.md "Faster map loads". |
 | `load_e4m7` | loading | (none) | `map e4m7` (id's biggest BSP, 1.5 MB) cold and warm. |
 | `load_hip1m1` | loading | (none) | `map hip1m1` from Quake's campaign (the campaign switch rebuilds the game folders), again, then `map e1m1` (the switch back). |
 | `load_changelevel` | loading | e1m1 | `changelevel e1m2` from E1M1 (the in-game path), then `changelevel e1m1`. Replaces `mapload_e1m2`. |
