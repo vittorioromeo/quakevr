@@ -1731,6 +1731,7 @@ QVR_CVAR(vr_recoil_2h_time, "0.725", CVAR_ARCHIVE)
 QVR_CVAR(vr_recoil_2h_haptic, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_draw_blend, "0", CVAR_NONE)         // debug: 1 each frame of a hand's weapon blend printed (vr_drawblend.cpp; Debug > Tests)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
+QVR_CVAR(vr_debug_screen_where, "0", CVAR_NONE)       // debug: set to 1, the main hand's ammo screen prints where it is on its model once (centre, right, up, a font pixel, in model units: make_screen_housing.py; Debug > Reports > Ammo Screen on Model)
 QVR_CVAR(vr_blender_path, "", CVAR_ARCHIVE)            // vr_edit_in_blender's Blender (its blender.exe); empty: the newest in Program Files/Blender Foundation (vr_blender.cpp)
 QVR_CVAR(vr_blender_link, "1", CVAR_NONE)             // developer: 1 the Blender add-on's Show in Game heard: quakevr/blender_request.txt read every half second, only `show <model>` and `reload <model>` run (vr_blender.cpp; Debug > Tests)
 QVR_CVAR(vr_model_watch, "1", CVAR_NONE)               // developer: 1 the loaded models' files watched on disk, a changed one read again as vr_model_reload reads it (vr_modelwatch.cpp; Blender's export on save; Debug > Tests)
@@ -3792,6 +3793,7 @@ QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_weapon_screen_crt, "1", CVAR_ARCHIVE)      // it looks like a small CRT, as the wrist gadget's (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
+QVR_CVAR(vr_weapon_screen_style, "1", CVAR_ARCHIVE)    // 1: rounded dark glass set in its frame (rounded corners, a vignette, an inner bevel, softer digits; per weapon: vr_screenstyle.cpp's table, the shotgun's in its modelled housing); 0: the old square screen
 QVR_CVAR(vr_ammo_screen_text_white, "1", CVAR_ARCHIVE) // the ammo screens' and the ammo pouch counter's text: 1 near-white (the wrist gadget's), 0 the screen's colour (between: a mix); their face and glow stay the screen's colour
 // A held gun's ammo screen warns (vr_view_weapon.cpp ammoWarning): its text turns vr_ammo_color_empty when no round is
 // loaded (the magazine, clip or chamber; with reloading off, the ammo it fires from) and vr_ammo_color_low when fewer than

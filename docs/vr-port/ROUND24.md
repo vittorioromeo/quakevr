@@ -5180,6 +5180,59 @@ vrteleporters_2026-11-08_16-59-04 and his message on blowing smoke.
 His words: enemy blood drips don't seem to work (too rare, end too soon); wounded enemies should drip constantly as you
 do. And gore parity: your arms, hands and body bleed as the enemies do, tweakable and toggleable.
 
+## Ammo screens as part of the gun (agent/ammoscreen, 2026-11-09; pilot: the shotgun)
+
+From his ChatGPT mockups (the shotgun's screen set in a bolted bezel on the end face, rounded green glass, soft digits,
+contact shadows). Done in this branch: the screen look and the texel AO bake. Not done (out of budget): the shotgun's
+modelled housing, the nail pistol / SSG screenshots, the checklist Test scene.
+
+- **Screen look (every weapon):** Shade::Screen draws an ammo screen as rounded glass when State::frame/glass are set
+  (vr_gfx_gl.cpp mode 4, uniforms 18/19): nothing outside the rounded corners (the darker box behind frames it), the
+  glass's own dark colour (the phosphor's, faint) under the face, a vignette, a thin dark inner bevel (darker at the
+  top, a faint highlight along the bottom), a soft reflection high on the left, the digits a little softer; the CRT
+  look and the outer glow are toned down. `vr_weapon_screen_style` (1; Screens > Weapons' Ammo Screens > Rounded Glass
+  Ammo Screens) 0: the old square screen.
+- **Per-weapon table:** `Quake/vr/vr_screenstyle.cpp` (`table[]`, by the model's stem: v_shot/g_shot are "shot"):
+  radius, bevel, vignette, sheen, softness, glass, tint, CRT share, size, offset (right/up/out units), box width,
+  housing. text3d::queue takes the style (vr_view_weapon.cpp held guns, vr_view.cpp holstered/world guns); the pouch
+  counter, tool gun and setup screens take the default.
+- **Round two (2026-11-09):** he could barely see round one's change. **The texel skin AO bake is reverted** (6025f34e2,
+  with its cvars and test): about 1/255 over vr_ao_models for ~2 s a map; not worth moving onto the worker. **The glass
+  restyled until it reads like his mockup** (side by side, 4K flat shots: `scratch/ammoscreen/panel_shot.png` in the
+  worktree): the shader now replaces the face in the glass (vr_gfx_gl.cpp mode 4, State::frame/glass): grey-green
+  near-black glass, lighter low in the middle; the digits pale green-white (the phosphor's hue half towards white),
+  softened by half a font pixel, with a halo kept inside the glass; an inset shadow under the top edge (the opening's
+  own shape moved up), a dark inner bevel all round with a thin pale lip catching the light, a vignette and a faint
+  diagonal sheen; the edge's last pixel fades into the frame. The outer glow quad (vr_screen_glow) is off for styled
+  screens: no green outline beyond the frame. The frame box is near black and 1.5x wider. Table: default radius 4, glass
+  0.13, crt 0.4, box 1.5; shot radius 4.5, box 1.2.
+- **Opening shapes:** `radius` > 0 rounds the corners, < 0 chamfers them; a style's `opening` (half size in font pixels)
+  fixes the glass's size and shape whatever its text (the text centred, the image made finer when the text needs more
+  room: text3d imageFit; images are matched by their size too), so that a housing's opening and the glass are one
+  shape. `vr_debug_screen_where 1` (Debug > Reports > Ammo Screen on Model) prints the held screen's centre, right, up
+  and font pixel in the model's units. Measured on v_shot: the offsets `wpntxt_x/y/z` are model +X/+Y/+Z at 1.948 model
+  units a unit (zero puts the glass on the anchor), a font pixel is 0.0710 model units, and pitch -2 tilts the glass
+  17.6 degrees from upright (the end face is 5.8 degrees; pitch 9.8 gives +7.8).
+- **Not done (budget):** the housings (shotgun bezel with four bolts, nail pistol housing with grille and sight posts,
+  SSG inset window with a rivet each side and a sight block), their table entries and three-panel images; the nail
+  pistol / SSG / VR-mock checks of the new look.
+- **Recipe for another gun's housing:** model the bezel and bolts on its `.blend` (the end face round its `av wpntxt_av`
+  anchor; its own UVs on the gun's metal, frame 0 and each shape key moved with the face), Ctrl+S exports; give it a
+  table entry with `.housing = true`, `.box` small or 0 and the `.offset` that sits the glass in the inset; check with
+  `vr_flat_flycam_place -2 3 -2 42 -10` at `fov 40` in `-flatscreenmode` (place now takes a yaw: 5th argument).
+- **Texel AO bake (`vr_skinao.cpp`):** on top of vr_ao_models' per-vertex bake (its rays, reach, near cut), each skin
+  texel a drawn triangle covers is rasterised in UV space (the vertex buffer's st: onseam halves as drawn), its point
+  and face normal cast the same 24 cosine rays against the model's own faces (each face's neighbours within reach
+  found first); shared texels (mirrored/reused skin) average their uses; uncovered texels take their neighbours' two
+  texels out. Applied as the 8-bit skin is expanded to colour (TexMgr_LoadImage8 -> VR_SkinAOApply, so palette and
+  gamma reloads keep it), fullbright texels (224..255) untouched. Cvars: `vr_ao_skin_weapons` (0 for now),
+  `vr_ao_skin_models` (0), `vr_ao_skin_strength` (1), `vr_ao_skin_radius` (1), `vr_ao_skin_debug`.
+  Result: it adds contact shading the vertex bake can't (the sight bridge's base, the rivets' rings): the shotgun's
+  texels round its 26 rivets average 0.613 visibility against 0.749 on like-facing faces away from them; on screen
+  the gain over vr_ao_models is modest (mean pixel change 1.3/255 on the gun's top). Cost: v_shot ~90-240 ms, a map's
+  50 weapon models ~2.1 s (low-impact run, no timing run) -- too slow at load, hence off by default. Next step: bake on
+  vr_ao.cpp's worker with its disk cache (the skin reloaded when the bake lands), then turn it on.
+- **Test:** `vr_skinao_test [model]` (deterministic bytes, rivets darker), ends `skinao_test: N passed, M failed`.
 - **Why the drips didn't show:** `drips::bleed` forgot a wounded monster for good the first frame it was missing from
   the server's message (`msgtime != cl.mtime[0]`: out of sight a moment); the rate was `1.2 * share lost` drops a
   second (a grunt at half health: 0.6/s of 0.5-0.75 unit drops); a shotgun blast's first pellet set the "health

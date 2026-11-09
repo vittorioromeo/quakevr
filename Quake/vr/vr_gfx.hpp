@@ -69,6 +69,10 @@ struct State
     glm::vec4 params{0.f}; // the shade's own settings (Shade::Screen's)
     glm::vec3 screen{240.f, 150.f, 0.5f}; // Shade::Screen's pixels across, down, and scanlines a pixel
     bool trueColor{false}; // Shade::Screen: the texture's own colours instead of its brightness in the vertex colour (the wrist gadget's)
+    // Shade::Screen as rounded glass (the ammo screens: vr_screenstyle.hpp): corner radius and inner bevel's width (in the
+    // virtual screen's pixels; outside the corners nothing is drawn), vignette, glass sheen. 0: the plain square screen.
+    glm::vec4 frame{0.f};
+    glm::vec4 glass{0.f}; // and the glass's own colour under the face (rgb) and the digits' softness (a, 0..1)
     // Soft (premultiplied blends): the opaque scene's distances along the view (vr_water.hpp's opaqueSceneDistances,
     // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
     // (0 to 1, smoothly). 0: not soft.

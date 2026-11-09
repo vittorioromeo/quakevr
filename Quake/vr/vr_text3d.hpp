@@ -17,6 +17,11 @@
 
 
 
+namespace qvr::screenstyle
+{
+struct Style;
+}
+
 namespace qvr::text3d
 {
 
@@ -32,8 +37,10 @@ enum class Align : int
 // text sits on a small screen (a bezel box with a lit face, in the wrist gadget's colours), as on
 // the weapons' ammo counters. `tint` (a screen's): its text in this colour (0..1, times the screen's brightness)
 // instead of the screen's (an ammo screen's warning colours: vr_ammo_color_warn); its face stays the screen's.
+// `style` (a screen's): its weapon's look (vr_screenstyle.hpp: rounded glass, size, offset; null the default). Kept by
+// pointer till the frame is drawn: the table's entries.
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
-    bool screen = false, const glm::vec3* tint = nullptr);
+    bool screen = false, const glm::vec3* tint = nullptr, const screenstyle::Style* style = nullptr);
 
 // A filled bar in an overlay text (the profiler's panel): on line `line` (0 the first), from character `column`, `cells`
 // characters long (fractions too), over a dim track `track` characters long.

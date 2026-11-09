@@ -65,6 +65,7 @@
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"
 #include "vr_text3d.hpp"
+#include "vr_screenstyle.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
