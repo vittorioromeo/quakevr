@@ -180,18 +180,41 @@ Built 2026-11-09 (branch `agent/systems1`). Use these instead of new classname c
 - **Test:** `vr_test_walltorch_shot 25` (a crate flung, not thrown, at a torch: knocked off), `26` (the same at a
   fifth of the speed: stays), `20` (a hand's throw: knocked off, as before).
 
-### Momentum, not "thrown by a hand" (partly built)
+### Momentum, not "thrown by a hand" (built)
 
-- Ragdolls: `vr_kdtrig_flung 1` (engine, vr_box3d_step.cpp callBodyHits): a body no hand holds, flung by anything,
-  strikes monsters (knockdowns: QC `VR_KdTrig_BodyHit`) and wall-mounted things by its momentum, as a thrown one.
-- Props: `VR_Prop_Flung` (vr_carry.qc) already hurt by speed and mass whatever moved them; a wall mount now detaches by
-  the same rule. **Open:** credit for blast-flung props (the explosion's attacker) and the stagger/knockdown of a
-  monster struck by a prop no hand threw (`VR_HitStagger_Can` wants a player attacker).
+- Ragdolls: `vr_kdtrig_flung 1` (Gameplay > Knockdowns, "Flung Bodies"; engine, vr_box3d_step.cpp callBodyHits): a
+  body no hand holds, flung by anything, strikes monsters (knockdowns: QC `VR_KdTrig_BodyHit`) and wall-mounted things
+  by its momentum, as a thrown one.
+- Props: `VR_Prop_Flung` (vr_carry.qc) hurts by speed and mass whatever moved the prop, and now unbalances the monster
+  it hits the same way whoever moved it (`VR_HitStagger_Throw` sets `vr_hst_impact`: no player needed). Credit: the
+  holder, the hand that let go, a monster that threw it, else the last blast's attacker (`.vr_impulse_by`,
+  `.vr_impulse_t`, set by `T_RadiusDamage`).
+- Tests: `vr_systems_test 16` (a dropped crate and one let go of by your hand roll the same stagger chance, 0.405),
+  `vr_systems_test 15` (a body flung into a wall torch knocks it off; the torch lights the crates),
+  `vr_test_walltorch_shot 25/26`.
 
-### Status component (open)
+### Status component (built: burning, wet, shocked, stunned)
 
-Planned: `VR_Status(e)` bits (burning from `.burn_fire`, wet mirroring vr_drips' rule, shocked from
-`.vr_shock_until`, stunned, bleeding) on every entity incl. the player. Not built in this round.
+- **What:** QC/vr_status.qc. `VR_Status(e)` gives `VR_STATUS_*` bits for any entity, the player included, server-side.
+  Burning is the fire's own `.burn_fire`; shocked is `.vr_shock_until`; stunned is a knockdown or a parry stagger;
+  wet is kept here (`.st_wet_t`, `.st_wet_level`) by the client drips' rule (soaked in water or slime, full for a
+  quarter of `vr_wounds_wet_time`, then fading). The player's `WaterMove` and the monsters' liquid look call
+  `VR_Status_Soak`; `VR_Status_Wet(e)` also looks itself. Nothing new is networked: the clients draw wetness as before.
+- **Use:** `VR_Status(e) & VR_STATUS_WET`, `VR_Status_Wet(e)` (0..1), `VR_Status_Ignite(e, by)`,
+  `VR_Status_Douse(e, why)` (through the fire's own code). Bleeding is a reserved bit, not wired.
+- **Test:** `vr_systems_test 13`.
+
+### Other rules built on these (2026-11-09 quick wins)
+
+- Fire spreads from anything burning to anything flammable it touches (`VR_Burn_CrateCatch`; flesh by
+  `vr_burn_flesh_catch` 0.25 each half second): `vr_systems_test 10`.
+- Explosions light flammable wood within `vr_burn_blast` (0.5) of their radius; bodies by `vr_burn_blast_flesh` (0):
+  `vr_systems_test 11`.
+- Floor buttons pressed by monsters and objects of `vr_monsters_press_buttons_mass` kg or more, only with
+  `vr_monsters_press_buttons 1` (default 0): `vr_systems_test 12`.
+- A grunt's thrown thing disarms another grunt, credited to the thrower: `vr_systems_test 14`.
+- Every monster's lightning (`VR_AI_Lightning`) conducts into water as the player's beam does (`VR_LGWater_Beam`):
+  `vr_waterzap_test 4` logs "lgwater: electrified".
 
 ### Style detection (open)
 
