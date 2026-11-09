@@ -6136,6 +6136,41 @@ QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
     "the status bar as Ironwail draws it (vr_flat_hud).")
+QVR_TOGGLE(vr_flat_visor, "Visor HUD",
+    "Playing on the desktop screen (-flatscreenmode): the HUD as a helmet's visor, the wrist gadget's screens in small "
+    "panels near the corners: health and armour top left, each hand's ammo, the keys and powerups top right, the "
+    "messages and bullet time's meter low in the middle. Off: the status bar (hudstyle, Desktop Status Bar) "
+    "(vr_flat_visor).")
+QVR_SLIDER(vr_flat_visor_scale, "Visor Panel Size", 0.5f, 2.f, 0.05f, "x%.2f", noExt,
+    "The visor's panels' size (shrunk to fit a narrow screen) (vr_flat_visor_scale).")
+QVR_SLIDER(vr_flat_visor_opacity, "Visor Panel Backing", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How dark the visor's panels are behind their values: 0 clear, 1 solid. The values are always opaque "
+    "(vr_flat_visor_opacity).")
+QVR_SLIDER(vr_flat_visor_crt, "Visor CRT Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "The visor's panels as small CRT screens, like the wrist gadget's: scanlines, a flicker, faint static "
+    "(vr_flat_visor_crt).")
+QVR_SLIDER(vr_flat_visor_sway, "Visor Sway", 0.f, 2.f, 0.1f, "x%.1f", noExt,
+    "The visor's panels lag a turn by a fraction of a degree and bob a little with the walk, like a helmet on your head. "
+    "0: rigid. Standing still they never move (vr_flat_visor_sway).")
+QVR_SLIDER(vr_flat_visor_curve, "Visor Curve", 0.f, 40.f, 1.f, "%.0f deg", noExt,
+    "How far the visor's corner panels turn in towards your eye, like a curved visor (vr_flat_visor_curve).")
+QVR_SLIDER(vr_flat_visor_frame, "Visor Glass", 0.f, 3.f, 0.1f, "%.1f", noExt,
+    "The visor's glass: a faint dark rim at the screen's edges and a reflection streak. 0: none (vr_flat_visor_frame).")
+QVR_SLIDER(vr_flat_visor_damage, "Visor Hit Glitch", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "A hit makes the visor's panels glitch for a moment, more for more damage. 0: never (vr_flat_visor_damage).")
+QVR_SLIDER(vr_flat_visor_fog, "Visor Fog Under Water", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "Under water the visor's edges fog up, clearing after you surface. 0: never (vr_flat_visor_fog).")
+QVR_SLIDER(vr_flat_visor_fog_clear, "Visor Fog Clears In", 0.2f, 10.f, 0.1f, "%.1f s", noExt,
+    "Seconds the visor's fog takes to clear after surfacing (vr_flat_visor_fog_clear).")
+QVR_SLIDER(vr_flat_visor_low_health, "Visor Low Health", 0.f, 100.f, 1.f, "%.0f", noExt,
+    "At or under this health the visor's health panel pulses red, faster and stronger at half of it. 0: never "
+    "(vr_flat_visor_low_health).")
+QVR_SLIDER(vr_flat_visor_boot, "Visor Power On", 0.f, 3.f, 0.1f, "%.1f s", noExt,
+    "At a spawn, a respawn and a new map the visor's panels power on with a sweep this long. 0: at once "
+    "(vr_flat_visor_boot).")
+QVR_TOGGLE(vr_flat_visor_log, "Visor Messages",
+    "The console's messages (pickups, a door's text) in the visor's low panel, its last three short lines, instead of "
+    "the screen's top left (vr_flat_visor_log).")
 QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
     "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
     "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")

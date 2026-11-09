@@ -537,7 +537,8 @@ static void SCR_CalcRefdef (void)
 	scale = CLAMP (1.0f, scr_sbarscale.value, (float)glwidth / 320.0f);
 	scale *= (float) vid.height / vid.guiheight;
 
-	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || hudstyle != HUD_CLASSIC || cl.qcvm.extfuncs.CSQC_DrawHud) //johnfitz -- scr_sbaralpha.value
+	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1 || hudstyle != HUD_CLASSIC || cl.qcvm.extfuncs.CSQC_DrawHud //johnfitz -- scr_sbaralpha.value
+		|| VR_VisorOn ()) // QVR: flatscreen play's visor HUD keeps no status bar's room (vr/vr_visor.cpp)
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;

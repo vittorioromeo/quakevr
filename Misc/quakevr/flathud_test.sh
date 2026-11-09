@@ -15,7 +15,7 @@ fail=0
 source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
 HERE=$(cd "$(dirname "$0")" && pwd -W)
-P="map e1m1; wait60; developer 1; god; notarget; hudstyle 1"
+P="map e1m1; wait60; developer 1; god; notarget; hudstyle 1; vr_flat_visor 0" # (the status bar: the visor is the default HUD, visor_test.sh)
 run() { local tag=$1 script=$2 filter=$3; shift 3
         bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Low "$@" -Script "$script; wait5; tune_reset; toggleconsole; quit" -Filter "$filter" > "$S/$tag.log" 2>&1; }
 hand() { grep -a "^flathud: $2 hand:" "$S/$1.log" | sed -n "$3p" | sed 's/.*weapon \([0-9]*\) shown \([01]\) count \([0-9-]*\).*/\1 \2 \3/'; }

@@ -1,0 +1,7 @@
+# flat_visor_water: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen visor HUD under water: the start map's pool (vr_flat_visor_fog, vr_flat_visor_fog_clear).
+title Flat-screen visor HUD: under water in the start map's pool
+hint Play with -flatscreenmode. You start under water: the visor's edges fog up a little, the middle and the panels clear. Swim up and climb out: the fog clears over a second or two.
+map start
+start 536 1440 100 90
+god
+notarget
