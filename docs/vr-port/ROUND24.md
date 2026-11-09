@@ -5914,3 +5914,24 @@ He wanted the bezel to stand out from the receiver's end face about half as far,
 - **Proof:** panel `scratch/depth/panel_depth.png` (top: front, next then this; bottom: a side angle), close-up of the
   top edge `scratch/depth/closeup_depth.png` (worktree selfshot). A re-run writes the same .mdl, part and normal-map
   files. vr_pp_test 1: 63 passed, 0 failed. Scene `shotgun_screen`.
+
+## Flat-screen hands "drifting" while strafing, locked to the view (branch `agent/flatlock`, 2026-11-09)
+
+- **Report:** flatplay_test.sh printed `FAIL flatscreen hands locked to the view (sway, bob, turn lag 0)`: 0.246 deg of
+  yaw strafing against a 0.05 bound, yet tallied 28/28: the lines from flatplay_lock.py set `fail` but never went
+  through `check`, so the verdict didn't count them.
+- **Cause: the measurement, not the hands.** The yaw was the drawn weapon's Euler yaw less the camera's. Strafing,
+  Quake's view roll (`cl_rollangle` 2, full at `cl_rollspeed` 200) rolls the camera 2 degrees, and the hands roll with it
+  (drawnOffset builds them on the camera's axes, roll included). A gun pitched 7 degrees off the view, rigid in a
+  2-degree-rolled frame, has Euler yaw sin(7)*2 = 0.24 degrees off the camera's. The reading followed the roll exactly
+  (0.176 at speed 144 = 1.44 degrees of roll), the weapon's place in the camera's frame stayed within 0.010 units, and
+  with `cl_rollangle 0` the same run read 0.000 degrees. On screen nothing moves: the gun turns with the picture. The
+  wall tilt/slide, the gun collision and the sway, bob and lag code paths made no difference (each tested off).
+- **Fix:** `flatview:` (vr_flatplay.cpp printDrawn) now prints the weapon's yaw, pitch and roll as its turn in the
+  camera's own frame (new `roll` field after `pitch`), so rigid reads 0 whatever the camera's roll. flatplay_lock.py
+  parses it, and the locked case gates the largest of yaw, pitch and roll (before: yaw only). flatgate_steps.py's regex
+  takes the new field. flatplay_test.sh sends each PASS/FAIL line from flatplay_lock.py through `check`, so it counts.
+  No game or drawing code changed: the hands look the same with any settings.
+- **Proof:** locked case before 0.246 deg strafing / 0.039 turning (FAIL, uncounted); after 0.000 / 0.000 yaw, 0.016
+  on any axis (the pitch's settling at the start), PASS. flatplay x3: 31 passed, 0 failed each (28 + the 3 lock
+  lines). flatreload 26/0, flatramp 1/0 (flatslide_ramp 6/0), flatgate 5/0, vr_pp_test 1 63/0.
