@@ -2077,6 +2077,37 @@ void R_DrawAliasModels (entity_t **ents, int count)
 
 /*
 =================
+R_AliasDrawsFirst -- QVR
+
+e is drawn before the world in the opaque pass (gl_rmain.c R_DrawEntitiesOnList, vr_alias_player_first): your own
+models (VR_AliasPlayerFirst), opaque and drawn opaque throughout. Any order of opaque, depth-tested draws gives the same
+picture; a skin with blended texels (TEXPREF_ALPHAPIXELS: R_FlushAliasInstances' transparent_state) would blend over the
+world not drawn yet, so such models (and the holey ones, to be safe) stay after it. Discarded pixels (a morph, the
+gates) leave the depth as it was: the world drawn after fills them.
+=================
+*/
+qboolean R_AliasDrawsFirst (entity_t *e)
+{
+	aliashdr_t *mainhdr, *hdr;
+	int skinnum, anim;
+	if (!e->model || e->model->type != mod_alias || !VR_AliasPlayerFirst (e))
+		return false;
+	if (!ENTALPHA_OPAQUE (e->alpha) || (e->model->flags & MF_HOLEY) || VR_AliasSolidGhost (e))
+		return false;
+	mainhdr = (aliashdr_t *)Mod_Extradata (e->model);
+	for (hdr = VR_AliasSurfaceFirst (e, mainhdr); hdr; hdr = VR_AliasSurfaceNext (e, mainhdr, hdr))
+	{
+		skinnum = e->skinnum;
+		if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+		for (anim = 0; anim < 4; anim++)
+			if (hdr->gltextures[skinnum][anim] && (hdr->gltextures[skinnum][anim]->flags & TEXPREF_ALPHAPIXELS))
+				return false;
+	}
+	return true;
+}
+
+/*
+=================
 R_DrawAliasModelsDepth -- QVR
 
 The shadow maps' casters (vr/vr_lighting.cpp): their depth only, so none of the per-instance lighting (the light

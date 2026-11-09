@@ -6926,6 +6926,90 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
 
+## Antialiasing: flat TAA, fractional sample shading, specular AA (agent/flat_aa, worktree `selfshot`, 2026-11-09)
+
+His asks (perf_1109: `vid_fsaamode 1` costs ~2.5-2.8 ms GPU at 3440x1441): fractional sample shading in the menus,
+specular AA, alpha to coverage in flat, TAA for flat.
+
+- **Fractional sample shading.** `vid_fsaamode` goes straight to `glMinSampleShading` (gl_vidsdl.c `VID_FSAAMode_f`), so
+  fractions work: ceil(value x samples) samples shaded. Options > AA Mode now cycles Edges only / 25% / 50% / Full (menu.c);
+  new VR row Graphics > Image > "Anti-aliasing Shading" with the cost in its help. With 4x, 25% is 1 sample = Edges only
+  (same timings); it matters at 8x.
+- **Specular AA** already existed (`vr_specular_aa`, default 1, Graphics > Surfaces "Sheen Anti-Aliasing"): the lobe widened
+  by the normal map's mip spread and the screen-space normal derivatives (world, brush, alias, water; `r_framedata`, so flat
+  and VR alike). Nothing changed; its cost measured below (~0-0.15 ms).
+- **Alpha to coverage in flat**: `VR_AlphaToCoverage` asks `framebufs.scene.samples`, which in flat is the window's: on with
+  `vid_fsaa` > 1 in any `vid_fsaamode` (code check, not re-measured). Under flat TAA (no MSAA) fences are alpha-tested and
+  TAA smooths their edges.
+- **Flat TAA** (`vr_flat_taa`, default 0; Graphics > Post-processing > "Flat: TAA"). The eyes' code (vr_temporal.cpp) with the
+  window as a third view (`EyeState` index 2): same jitter (Halton 2,3), motion vectors (alias slots, brush matrices; the
+  hands and guns are world-space models with their own vectors), reactive mask, resolve (before the warp, the flat look's
+  bloom, tone curve and grade, as the eyes' are before theirs), resets (map, frame gap, jump > 40 u, turn > 25 deg) and
+  `vr_taa_sharpen`. The visor, crosshair and 2D are drawn after it (R_RenderView's order). Shared, not copied: `begin()`
+  serves `beginFrame` and `VR_FlatRenderView`; the resolve's size is its history's (`imageSize`, was the scene texture's:
+  the same for the eyes, and lets the window's view be the corner of its larger scene textures, r_scale's 1/N). Flat-only
+  parts: the window's targets made without MSAA while on (`VR_SceneSamples` -> `temporal::windowSamples`, remade on the
+  cvar's change), the scene forced into its own target (`GL_NeedsSceneEffects`) and copied by R_WarpScaleView. MSAA: ignored
+  while TAA is on (not combined). The menu needs no reset: a paused scene converges. A teleporter's offscreen view is never
+  collected now (`collecting()`: `VR_PortalDrawing`), eyes included: before, a portal view drawn inside an eye could take the
+  eye's resolve. `vr_temporal_debug` 1-3 and `vr_temporal_error` work on the flat view too (prints "flat").
+  Optional `vr_flat_render_scale` not done: `r_scale` (integer) already works under it.
+- **VR eyes unchanged**: VR mock eyeshots at e1m1 with `vr_taa 1` and `vr_taa 0`, this branch against next's code: identical
+  (max pixel difference 0, all four).
+- **Numbers** (LTO, `--exclusive`, his `ironwail.cfg` (phases' A_his.cfg) + the variant, `-fsaa 4 -flatscreenmode`, 3440x1441,
+  perf_fight's `play_*_fight_flat`, 900 frames; GPU `3D` avg ms / frame p50 ms; one run each):
+
+  | setting | e1m1 fight | gore fight |
+  |---|---|---|
+  | MSAA 4 Full (his), spec AA off | 5.67 / 8.36 | 5.55 / 9.55 |
+  | MSAA 4 Full + spec AA | 5.70 / 8.40 | 5.71 / 9.30 |
+  | MSAA 4 Edges, spec AA off | 2.79 / 5.51 | 2.93 / 6.29 |
+  | Edges + spec AA | 2.94 / 5.74 | 2.91 / 6.36 |
+  | 25% (= Edges at 4x) + spec AA | 2.79 / 5.47 | 2.89 / 6.19 |
+  | 50% + spec AA | 3.85 / 6.49 | 3.89 / 7.44 |
+  | Flat TAA (no MSAA), spec AA off | 2.88 / 6.51 | 2.93 / 6.68 |
+  | Flat TAA + spec AA | 2.91 / 6.55 | 2.90 / 6.62 |
+
+  TAA's GPU cost is about Edges' (+0.1 ms), but the frame (CPU-bound here) is ~0.4-1.0 ms longer: the motion-vector
+  bookkeeping on the CPU (per-model vertex slots, the draw buffers switched per batch). Not profiled further.
+- **Quality**: scratch shots `aa_crops.png` (Full, Edges, Edges + spec AA, 50%, TAA; a low-impact 960x540 run: indicative
+  only). TAA reprojection in flat: `vr_temporal_error` turning, 0.66 against 4.5 not reprojected (mean |luma|).
+- **Tests**: flathud 11/0, visor_test 24/0, flatxhair_test 31/0, vr_pp_test 1 VR 63/0, flat 62/0, flat with
+  `vr_flat_taa 1` 62/0, checklist_tests_check 101/0. Scene `flat_taa`.
+## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
+
+His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
+the keycard ... the keycard must be collected and not brought to the door, it's a common mistake users make."
+
+- **How a key is collected.** In VR (vr_item_objects, the default) a key is never taken by touch or trigger: a hand
+  grips it and lets go of it at a holster (hip or shoulder: VR_Carry_HandFrame -> VR_PickupObj_Holster); a door only
+  checks the player's items, so a key carried in the hand does nothing there. Flat play: taken at once (E on an
+  object pickup: VR_Carry_AutoCollect's flat objects; the crate's card is a plain touch pickup there), so there is
+  nothing to teach and the tip never shows.
+- **The tip.** `t2_key_held` in room 6: "Don't carry it to the door: let go of it / at a holster first, to keep it."
+  On the card, with its cable, the moment a hand takes it (ANYANGLE, delay 0, range 173), once (tips_seen; the
+  tutorial resets its tips each start); gone as the card is kept (the entity freed: the engine's gone-entity rule).
+- **New mapper feature, shared.** func_vr_tip's GRABBED flag (16): waits until a hand takes what it follows (its
+  `target`: an item's targetname). vr_crate's new `contents_name` names what a crate holds (the card is made as the
+  crate breaks, so it had no name to follow). The hook is one call in VR_Carry_HandFrame after the auto-collect
+  (VR_Tips_Grabbed): the same carry path serves VR grips, force-grab catches and flat E, so flat needs no code of its
+  own (taken at once there, the hook never runs). A loaded game puts a let-out GRABBED tip back on its thing, or
+  leaves it waiting if the thing is gone.
+- **Engine (vr_tips.cpp).** A tip let out of its wait (TRIGGERED fired, GRABBED taken) is considered first and makes
+  the panel showing fade (0.4 s) for it: the crate's own "A keycard!" tip (fired as the crate breaks) used to hold the
+  screen for vr_tips_time while the player already held the card. This applies to every TRIGGERED tip (the rifle's,
+  the crate's): what just happened comes first. New dev prints: `"<a>" makes way for "<b>"`, `its entity gone, it fades`.
+- **Map.** vrtutorial_gen.py has the tip and the crate's key; the .map regenerated; the .bsp's entity lump replaced
+  with `bsp_set_entities.py --from-file` (no recompile: geometry, .lit and .lux untouched; the lump checked against
+  the .map, 353 entities, 0 differ). FGD: entities.fgd documents flags 8 and 16, quakevr.fgd regenerated.
+- **Test.** `vr_pickup_test 13` (vrtutorial; with `+grabmain` held): crate broken, card in the main hand, the tip let
+  out then and not before, on the card (`tips: "t2_key" makes way for "t2_key_held"`, `"t2_key_held" by entity N`),
+  kept at a holster, `its entity gone, it fades`; 8/0. Flat (`-flatscreenmode`): the crate's card is a touch pickup
+  there (its handtouch; no carry), taken at once, the tip never let out; 5/0. Scenario `tutorial_keycard_tip` (room
+  6, the crate ahead): validate 0 missing, runall OK. vr_pp_test 1 63/0, checklist_tests_check 101/0.
+- **Seen in the mock.** With the hand held low (the mock's standing pose) the panel sits below and right of the card,
+  out of the desktop view; held up in front (as one looks at a card) it shows beside it. The panel's placement is the
+  tips' usual one, unchanged.
 ## Faster map loads (branch `agent/perf_load`, 2026-11-09)
 
 From the 11-09 trace (qvr-kit/scratch/perf_1109.md): warm loads 0.71-0.76 s, the world model 437-511 ms of it with
@@ -6996,3 +7080,131 @@ Left (proposals):
 - The world's made normal maps on jobs like the skins' (VR_SkinNormalsPost: one path for both).
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
+
+## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
+
+Part 1's leftovers (above). Each a commit of its own; every output checked identical.
+
+1. **The item boxes kept across maps** (`vr_keep_item_boxes`, default 1, Debug > Profiling and Memory "Maps Keep the
+   Item Boxes"; vr_modelkeep.cpp). The 19 b_*.bsp the toolgun precaches every map (QC VR_Toolgun_Precache; the engine's
+   list mirrors it) are loaded once, right after Host_ClearMemory and before the map's own models
+   (Host_KeepMapModels, SV_SpawnServer), and host_hunklevel is raised over them: Mod_ClearAll leaves them
+   (VR_MapModelKept), so their hunk data, textures and normal maps stay, as alias models' do. Each map's
+   Host_ClearMemory compares a hash of the search paths (every folder and pak, in order) and of the files the boxes,
+   the palette and the colormap are found in (pak, offset, size, write time) with their load's (~2 ms); any change, a
+   slot emptied by a game switch (Mod_ResetAll), or the setting off, and host_hunklevel drops back to its start-up
+   mark: they are freed and loaded again. (Their load's own lookups were not reused as vr_modelkeep's alias models do:
+   ~420 a box, the replacement images that aren't there.) `vr_model_keep_info` prints their state. Checked: all 3,699
+   textures' `imagehash` sum the same with the setting on and off after `map start; changelevel e1m1`; the boxes
+   spawned in view, screenshots on/off differ as much as two runs of the same (79-96 pixels, peak 4-5: the run's own
+   noise).
+2. **vr_pbr's content hashes on the prefetch's decode tasks** (vr_imgprefetch.cpp, vr_pbr.cpp `hashRgba`/`noteHash`):
+   a texture's own replacement image (not its glow or a pack's map) is hashed (session key and SHA-256) on the task that
+   decodes it; the load notes the hash as it takes the image, in its order, and VR_PBRNormal's `sourceHash` finds it
+   (by its content key: an image changed between is hashed again on the main thread). The first map's main-thread
+   hashing (`vr_startup_times`, new line "their content hashes (main thread)") 30.8 -> 4.2 ms (prefetch off -> on; the
+   rest is the keys' wyhash and the 8-bit textures). Textures identical (imagehash sums, prefetch on and off).
+3. **The world's made normal maps on the load's jobs** (vr_normalmaps.cpp): VR_SkinNormalsPost takes a world
+   texture's shading-made map too (not an external pack's): TexMgr_ShadingToNormals runs on the job with its own
+   scratch (5 w h floats) and the islands copied as a skin's are, then the commit uploads it on the main thread, in
+   the order posted (the skins' path: one for both). Not kept in the disk cache (a skin's only). Small on QRP (the
+   first map's 56 made maps ~3 ms of making); the uploads stay on the main thread. `imagehash _vrnorm` (1,646 normal
+   maps on qbase, 1,661 on QRP) the same with vr_load_jobs 0 and 1.
+4. **The cold first frame: not done** (see Left). Its breakdown now (vr_profile 1, his cfg, QRP, mock VR, the first
+   frame of `map start` 155 ms): `view body` 42 ms (no child scope: the body's first setup), `vr opaque (text3d)` 31.5,
+   the portal 25 (its shadow maps 14.5), `view skin masks` 17.6 (despite the prewarm's step), `setup view/lights` 16.9
+   (the AO bakes' mesh uploads), 2D `gadget screen` 15.6; the next frame 32 ms.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3; `qvr-kit/benchresults/perfload2_base`
+(origin/next c91434287) against `perfload2_after` (this branch merged with origin/next a458b4ad4)):
+
+| load (ms, command to first frame) | VR before | VR after | VR after, boxes off | flat before | flat after | flat after, boxes off |
+|---|---|---|---|---|---|---|
+| `map start` (cold) | 1867 | 2011 | 1795 | 1779 | 1975 | 1824 |
+| `changelevel e1m1` (new) | 541 | 439 | 541 | 520 | 552 | 503 |
+| `changelevel e1m2` (new) | 513 | 429 | 567 | 509 | 554 | 518 |
+| `changelevel e1m1` (back) | 383 | 309 | 420 | 361 | 382 | 354 |
+| first frame of `map start` | 139 | 141 | | 185 | 200 | |
+
+("boxes off": the same exe with `vr_keep_item_boxes 0`, `perfload2_after_noboxes`.) VR: the new maps' loads ~100 ms
+shorter (541 -> 439, 513 -> 429; the base is the pre-merge origin/next, the boxes-off column the same exe). Flat: no
+clear change in these runs: the machine was noisy (flat after, e1m1 423 / 552 / 649 ms in its 3 runs; VR after-runs
+too, cold starts 1.8-2.6 s); the boxes' own load measured directly is 75-130 ms no-LTO (`vr_model_keep_info`), ~70 ms in
+part 1's trace. Not reached: ~0.4 s warm (0.43 VR), and the cold first frame (139 VR, 185 flat, unchanged: item 4). The
+worst of the 90 frames after each load unchanged (VR 13-16 ms; flat 3-7 ms at 960x540).
+Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0; scenario_check not run (budget).
+
+Left:
+- The cold first frame (item 4): a scope under `view body` to find what its first setup does (models are already
+  loaded by view::prepareModels; maybe the rig or the skinned body); the text boards' first layout in the load; the
+  skin masks step's coverage; the AO bakes' uploads in the load; the portal's first view.
+- The keys' wyhash of each prefetched image (~4 ms a new map) could go too if the take handed the key over with the
+  pixels.
+- `Host_Error: Illegible server message 39` after `map e1m1; wait3; changelevel e1m2` in a script (also with
+  vr_keep_item_boxes 0: not this branch's).
+## Model rendering's GPU cost: your models first, your hands and gun shaded once (branch `agent/model_gpu`, 2026-11-09)
+
+His question (perf_1109: `alias` 0.50 / 0.72 ms GPU average / fight, his own models 0.41 / 0.50 of it, the held gun
+0.28 / 0.36). Measured in the flat gore fight (`play_gore_fight_flat`) and E1M1 fight at his window (3440x1441,
+`-fsaa 4`, his whole config: `vid_fsaamode 1`, 4x per-sample shading), ThinLTO, exclusive, 900-frame bench windows.
+
+**The tool:** `vr_model_fragments [passes]` (Debug > Profiling and Memory > Model Fragment Counts): over the next 16
+opaque model passes, each part's GPU time, vertices, triangles, fragment shader runs and samples kept (the world's
+models, your own by VR_DRAW_* group, the world+brush pass), read at once (a stall). Nsight Graphics' GPU Trace export
+has no per-draw table for OpenGL (its KHR_debug groups export empty; perf_1109), so the per-part numbers are these
+pipeline-statistics queries and A/B timings.
+
+**The bottleneck: fragments, not vertices.** At 3440x1441 in the gore fight (a pass, before):
+
+| part | GPU ms | vertices | triangles | fragments shaded | samples kept |
+|---|---|---|---|---|---|
+| your hands (2) | 0.281 | 2.7 k | 2.5 k | 923 k | 487 k |
+| your body (5 models, own pre-pass) | 0.215 | 31 k | 30 k | 646 k | 1298 k (pre-pass + shading) |
+| held gun (2) | 0.309 | 1.8 k | 1.2 k | 1499 k | 1095 k |
+| world's models (112: monsters, gibs, corpses) | 0.759 | 222 k | 128 k | 2532 k | 5428 k (pre-pass + shading) |
+| world + brush | 1.540 | 15 k | 7 k | 11919 k | 32596 k |
+
+Your hands and gun are tiny meshes (under 3 k triangles: the dense models are the monsters' and your body's, all
+cheap to transform here) that cover a big share of the screen at 4 samples a pixel: the cost is the alias shader
+(PBR, normal maps, skin masks, wounds) run per sample, and run **twice over** on the hands (the glove's shell over the
+hand, the fingers over the palm: 1.9 fragments per kept sample) and 1.4 times on the gun's own parts, with no depth
+pre-pass for either (only your body and the world's models had one). And the world under them: drawn before them,
+its costly shading ran on every pixel they then covered (about 12% of the frame's world fragments in this view).
+The world's models are already pre-passed and fragment-bound too (2.5 M fragments for 128 k triangles): LODs would
+cut vertices that cost little; shadow maps are 0.08 ms of GPU (a CPU cost: perf_fight).
+
+**Changed** (both Debug > Profiling and Memory toggles, default on; off = before):
+- `vr_alias_player_first 1` ("Your Models First"): your own opaque models (hands, body, held, holstered, worn) drawn
+  before the world in each view (gl_rmain.c R_DrawEntitiesOnList; r_alias.c R_AliasDrawsFirst, vr_render.cpp
+  VR_AliasPlayerFirst), so the world's depth pre-pass and shading skip the pixels they cover. Opaque depth-tested
+  draws give the same picture in either order; discarded pixels (a morph, a gate) leave the depth for the world to
+  fill. Models with blended skin texels (TEXPREF_ALPHAPIXELS) or holey ones, the ghost hands, the mirror's image and
+  gear lying about stay after the world. Not in single-pass stereo's phases (the world is drawn in the multiview pass).
+  One path for flat and VR (each eye's view).
+- `vr_alias_prepass_own 1` ("Own Models Pre-pass"): your hands and held items join the existing per-batch depth
+  pre-pass (vr_render.cpp VR_AliasDepthPrepass; the same code as the body's), except while a gun morphs (its shader
+  discards the part not there yet, which a depth-only pass would not).
+
+**Results** (same scene, GPU ms per frame, averages of the bench windows):
+
+| | GPU `3D` | world+brush | alias | frame p50 |
+|---|---|---|---|---|
+| gore fight flat, before (2 reps) | 5.17, 4.99 | 2.07, 2.09 | 1.68, 1.60 | 8.57, 8.21 |
+| + your models first (2 reps) | 4.75, 4.71 | 1.84, 1.84 | 1.60, 1.59 | 8.10, 7.76 |
+| + own pre-pass (2 reps) | **4.31, 4.36** | 1.79, 1.81 | **1.23, 1.23** | 7.36, 7.53 |
+| E1M1 fight flat, own pre-pass on, models first off / on (2 reps) | 4.96, 4.94 / **4.72, 4.73** | 3.08 / 2.86 | 0.48 / 0.50 | |
+| gore fight VR mock (2048 eyes), models first off / on (1 rep) | 4.41 / 4.42 | 2.20 / 2.20 | 1.02 / 1.06 | |
+
+So **-0.75 ms GPU in the flat gore fight (15% of the 3D view)**, -0.22 ms in the E1M1 fight; per part (counts,
+full size): hands 0.281 -> 0.139 ms, held 0.309 -> 0.137, world+brush 1.540 -> 1.369, the world's models 0.759 ->
+0.706 (fewer behind your gun). VR: no change in the mock's view (your hands are a small share of an eye's view
+there); the pre-pass applies to VR's hands too. No CPU cost (the same draws; the pre-pass adds 5 k vertices).
+**Same picture:** screenshots of the same fixed-clock frame with both off / both on at 3440x1441: max difference 1
+of 255, 0 pixels over 8 (also at 960x540; a weapon switch's morph was not caught on screen: check one in play). Tests: flathud 11/0, `vr_pp_test 1` 63/0,
+checklist_tests_check 103/0, scenario_check 99 files 0 errors, 98 of 99 run (`flat_visor`: "Nailgun placed in a wall",
+a scene placement, not the renderer).
+
+**Not done** (measured too small here): LODs for distant monsters and gibs (vertex work is cheap; their fragments
+already pre-passed), gib instancing (gibs already batch by model), skipping your body's hidden parts in flat (it has
+its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
+proposal 1) is the big lever, his call.

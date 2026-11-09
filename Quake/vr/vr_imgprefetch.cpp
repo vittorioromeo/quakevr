@@ -20,6 +20,7 @@
 #include "vr_files.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_jobs.hpp"
+#include "vr_pbr.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -60,6 +61,11 @@ struct Item
     qvr::files::Identity file;
     long offset = 0;
     int length = 0;
+    // A texture's own image (not its glow nor a pack's map), with vr_pbr on: hashed on its task too, as VR_PBRNormal
+    // will (vr_pbr.cpp: its session key and content hash), noted for it as the load takes the image
+    bool pbrHash = false;
+    za::U64 hashKey = 0;
+    char hashHex[65]{};
 };
 
 za::AtomicMutex lock;
@@ -111,6 +117,10 @@ void decode(Item* it)
 {
     int w = 0, h = 0;
     unsigned char* px = Image_DecodeMemory(it->bytes.data(), static_cast<int>(it->bytes.size()), &w, &h);
+    if(px && it->pbrHash)
+    {
+        qvr::pbr::hashRgba(px, w, h, it->hashKey, it->hashHex);
+    }
     if(it->batch)
     {
         it->bytes = {}; // (matched by its file)
@@ -215,8 +225,9 @@ bool startupWaiting(const char* name)
 }
 
 // The image `base` (no extension) as Image_LoadImage would find it: true if it finds a file (png, tga, jpg, then pcx,
-// lmp). A png, tga or jpg not decoded before (vr_imgcache), nor already waiting, is read for the workers.
-bool batchFind(const char* base)
+// lmp). A png, tga or jpg not decoded before (vr_imgcache), nor already waiting, is read for the workers. `pbrHash`: a
+// texture's own image, hashed on its task too (Item).
+bool batchFind(const char* base, bool pbrHash = false)
 {
     if(!strncmp(base, "pbrmix/", 7))
     {
@@ -263,6 +274,7 @@ bool batchFind(const char* base)
                 it->name = path;
                 it->batch = true;
                 it->length = length;
+                it->pbrHash = pbrHash;
                 batchByName[it->name] = it.get();
                 batchLast.read++;
                 {
@@ -295,12 +307,12 @@ bool batchFind(const char* base)
 }
 
 // The first of `bases` found (its index), or -1.
-int batchFindFirst(std::initializer_list<const char*> bases)
+int batchFindFirst(std::initializer_list<const char*> bases, bool pbrHash = false)
 {
     int i = 0;
     for(const char* b : bases)
     {
-        if(batchFind(b))
+        if(batchFind(b, pbrHash))
         {
             return i;
         }
@@ -555,6 +567,10 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     }
     unsigned char* px = it->pixels;
     it->pixels = nullptr;
+    if(it->pbrHash)
+    {
+        qvr::pbr::noteHash(it->hashKey, it->hashHex); // (in the load's order: as it takes them)
+    }
     if(windowOpen && za::find(decoded.begin(), decoded.end(), it->name) == decoded.end())
     {
         decoded.pushBack(it->name); // (kept on the list: taken ahead, it took no time here)
@@ -599,6 +615,7 @@ extern "C" void VR_TexturePrefetchBegin(const char* mapname, const char* const* 
     batchOpen = true;
     active = true;
     batchTasks = za::clamp(qvr::jobs::workers(), 1, 8);
+    const bool pbrHash = qvr::pbr::hashesWanted();
     za::Vector<za::Vector<za::String>> groups;
     for(int i = 0; i < count; i++)
     {
@@ -608,13 +625,13 @@ extern "C" void VR_TexturePrefetchBegin(const char* mapname, const char* const* 
         {
             q_snprintf(a, sizeof(a), "textures/%s/#%s", mapname, name + 1);
             q_snprintf(b, sizeof(b), "textures/#%s", name + 1);
-            (void)batchFindFirst({a, b});
+            (void)batchFindFirst({a, b}, pbrHash);
         }
         else if(kinds[i] == 2)
         {
             q_snprintf(a, sizeof(a), "textures/%s/%s", mapname, name);
             q_snprintf(b, sizeof(b), "textures/%s", name);
-            const int found = batchFindFirst({a, b});
+            const int found = batchFindFirst({a, b}, pbrHash);
             if(found >= 0)
             {
                 char glow[MAX_OSPATH], luma[MAX_OSPATH];

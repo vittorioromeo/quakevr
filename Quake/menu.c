@@ -4856,7 +4856,13 @@ void M_AdjustSliders (int dir)
 		VID_Menu_ChooseNextAA (-dir);
 		break;
 	case OPT_FSAA_MODE:
-		Cbuf_AddText ("toggle vid_fsaamode\n");
+		{ // QVR: edges only, then a quarter, half or all of the samples shaded (glMinSampleShading)
+			const float modes[4] = {0.f, 0.25f, 0.5f, 1.f};
+			int i = 0;
+			while (i < 3 && vid_fsaamode.value > modes[i] + 0.01f)
+				i++;
+			Cvar_SetValueQuick (&vid_fsaamode, modes[(i + (dir > 0 ? 1 : 3)) & 3]);
+		}
 		break;
 	case OPT_RENDERSCALE:
 		Cvar_SetValueQuick (&r_scale, CLAMP (1, CLAMP (1, (int) r_scale.value, vid.maxscale) + dir, vid.maxscale)); // QVR: the cvar (the eyes' view is at scale 1)
@@ -5492,7 +5498,8 @@ static void M_Options_DrawItem (int y, int item)
 		M_DrawSlider (x, y, r, framebufs.scene.samples >= 2 ? va("%ix", framebufs.scene.samples) : "Off");
 		break;
 	case OPT_FSAA_MODE:
-		M_Print (x, y, vid_fsaamode.value ? "Full" : "Edges only");
+		M_Print (x, y, vid_fsaamode.value >= 1.f ? "Full (costly)" : vid_fsaamode.value >= 0.5f ? "50% of samples" : // QVR: fractions
+			vid_fsaamode.value > 0.f ? "25% of samples" : "Edges only");
 		break;
 	case OPT_RENDERSCALE:
 		{ // QVR: the cvar, not r_refdef.scale (1 in VR, where the eyes ignore r_scale)

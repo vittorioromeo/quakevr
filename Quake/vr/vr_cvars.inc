@@ -551,6 +551,14 @@ QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // into every view and face, as before; 2 as 1, each one culled skinned again on the CPU and checked to be wholly outside
 // (vr_alias_cull_stats prints the culls by model and any wrongly culled).
 QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Your Models First: 1 your own opaque models (hands, body, held, holstered, worn) drawn
+// before the world in each view, so that the world's depth pre-pass and costly shading skip the pixels they cover (the
+// same picture: opaque, depth-tested draws in either order; skins with blended texels and holey models stay after the
+// world: r_alias.c R_AliasDrawsFirst); 0 after the world's, as before (the A/B).
+QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
+// body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
+QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -1077,6 +1085,7 @@ QVR_CVAR(vr_memstats_log, "0", CVAR_NONE)      // seconds between rows of quakev
 QVR_CVAR(vr_memstats_glscan, "1", CVAR_NONE)       // the memory log's GL object count at each map load (vr_main.cpp countGlForLog): 1 the names glGen* hands out (no object, by the GL spec) not asked about (the same count, 5 ms), 0 every name asked up to 4096 past the last object (13 ms), 2 both, compared (printed)
 QVR_CVAR(vr_load_jobs, "1", CVAR_NONE)            // a map load's work on the job threads, joined where first needed (loadjobs 2026-11-07: the skins' normal maps made or read from the cache, uploaded before the first frame drawn; the held guns' convex pieces cut behind the first frames, vr_box3d_ragdoll.cpp prepareHeldGuns); 0: every step on the main thread as before, for comparing (the same textures: imagehash)
 QVR_CVAR(vr_texture_prefetch, "1", CVAR_ARCHIVE)   // a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker threads ahead of Mod_LoadTextures' uploads, which take them in order (vr_imgprefetch.cpp; the same pixels; vr_image_prefetch_info); 0: decoded on the main thread at each upload, as before
+QVR_CVAR(vr_keep_item_boxes, "1", CVAR_NONE) // every map keeps the item boxes' brush models (maps/b_*.bsp, the toolgun's: QC VR_Toolgun_Precache) and their textures from the last, while each file their load looked for is found the same (vr_modelkeep.cpp; vr_model_keep_info); 0: loaded again with each map (~70 ms a load)
 QVR_CVAR(vr_campaign_keep_models, "1", CVAR_ARCHIVE) // a campaign switch (id1 to a mission pack and back) keeps the alias models whose files are the same in its game folders (vr_modelkeep.cpp: each file its load looked for found the same again; vr_model_keep_info); 0: every model loaded again
 QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS counter floating just under the wrist gadget: 1 basic (frames a second, the CPU's and the GPU's milliseconds a frame: the memory log's busy_ms and gpu_eyes_ms, over half a second), 2 detailed (now, a quarter second's average, the last 5 s's least and most, frames that missed a refresh, 3 s graphs against the budget)
 QVR_CVAR(vr_lean_radius, "8", CVAR_ARCHIVE)          // units the head may lean from the middle of the player's box before the body follows (0: always above it)
@@ -2291,6 +2300,7 @@ QVR_CVAR(vr_flat_grade_warmth, "0.5", CVAR_ARCHIVE)    // ... warm highlights an
 QVR_CVAR(vr_flat_grade_saturation, "1.05", CVAR_ARCHIVE) // ... colourfulness (1 unchanged, 0 grey)
 QVR_CVAR(vr_flat_vignette, "0.3", CVAR_ARCHIVE)        // flat-screen vignette: the corners darkened by this much (0 off; not the headset's comfort vignette)
 QVR_CVAR(vr_flat_vignette_size, "0.5", CVAR_ARCHIVE)   // ... how far in from the corners it reaches (0.05 .. 1)
+QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal anti-aliasing: the eyes' TAA (vr_temporal.cpp; vr_taa_sharpen, vr_taa_blend) on the window's view; the window drops its MSAA (vid_fsaa) while on
 // Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
