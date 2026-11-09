@@ -89,10 +89,10 @@ constexpr Entry table[] = {
     // sight, two rivets on each side frame (v_light.blend, Misc/quakevr/make_screen_housing_light.py reads `opening`,
     // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 glass heights
     // behind the bezel's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
-    // opening's (-2.800 -0.172 9.767; 2.551 model units a world unit). Smaller digits (size): two lines in the window.
+    // opening's (-2.791 -0.172 9.767; 2.551 model units a world unit). Smaller digits (size): two lines in the window.
     // v_light_plasma.mdl (stem "light_plasma") has no housing: the default.
     {"light",
-        {.radius = -6.8f,
+        {.radius = -6.82f,
             .bevel = 1.6f,
             .vignette = 0.4f,
             .sheen = 0.6f,
@@ -101,10 +101,10 @@ constexpr Entry table[] = {
             .tint = {0.9f, 1.f, 0.9f},
             .crt = 0.4f,
             .size = 0.68f,
-            .offset = {-0.0184f, 0.002f, -0.0645f},
+            .offset = {-0.0184f, 0.002f, -0.0677f},
             .box = 0.f,
             .housing = true,
-            .opening = {24.f, 14.5f}}},
+            .opening = {25.37f, 15.81f}}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)

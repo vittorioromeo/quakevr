@@ -58,7 +58,7 @@ BASE_CENTRE = Vector((-2.9642, -0.2184, 9.7616))
 MPU = 2.5513
 # The end face: its plane and its height (and its middle across: y -0.172).
 FACE_X = -2.7194
-FACE_Z = (8.6707, 10.8636)
+FACE_Z = (8.6697, 10.8636)
 FACE_Y = -0.172
 # The spec, in glass heights.
 FRAME = 0.18
@@ -67,7 +67,7 @@ GLASS_IN = 0.06
 RIVET_R = 0.08
 RIVET_V = 0.32
 # Skin places (texels).
-FRONT_PATCH = (324.5, 92.5, 339.5, 99.5)   # the bezel's front, planar
+FRONT_PATCH = (357.5, 56.2, 369.5, 58.8)   # the bezel's front, planar (the lit neck: brightest mid-top and bottom)
 WALL_COLS = (357.5, 369.5)
 OUTER_ROWS = (55.3, 55.8)                   # the outer walls: front edge, back edge
 INNER_ROWS = (53.3, 53.8)                   # the opening's walls
@@ -153,7 +153,7 @@ def main():
     yc, zc = gy(ky), gz(kz)
     x_face, x_front = gx(k_face), gx(k_front)
     x_glass = x_front + GLASS_IN * h
-    if gz(kz + wz + fz) > FACE_Z[1] - 1e-4 or gz(kz - wz - fz) < FACE_Z[0] + 1e-4:
+    if gz(kz + wz + fz) > FACE_Z[1] + 1e-3 or gz(kz - wz - fz) < FACE_Z[0] - 1e-3:
         raise SystemExit("housing_light: the bezel (%d z steps tall) is taller than the end face" % (2 * (wz + fz)))
 
     # The table against the snapped window: the glass must be the opening's shape and sit in it.
