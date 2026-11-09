@@ -1,0 +1,6 @@
+# rag_tank: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The 2026-11-08 ragdoll and armed-humanoid fixes (ROUND24.md, "Ragdolls and armed humanoids, 11-08"); the automated check runs as a console command.
+title Back tanks beside the worn packs on armed humanoids (automated check, screenshot)
+map e1m1
+god
+notarget
+cmd vr_rag1108_test 2
