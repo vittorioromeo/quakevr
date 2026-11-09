@@ -77,6 +77,18 @@
 const char* itemHelp(const Item& item)
 {
     const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
+    if(otherModeItem(item))
+    {
+        // The other mode's setting (rowMode): why it is dimmed, first.
+        za::String& text = readouts.modeHelp;
+        text = rowMode(item) == Item::VrOnly ? "VR only: no effect on the flat screen." : "Flat-screen only: no effect in the headset.";
+        if(help && help[0])
+        {
+            text += " ";
+            text += help;
+        }
+        help = text.cStr();
+    }
     if(lockedItem(item) && !item.unavailable)
     {
         help = serverRuleHelp(item, help);
