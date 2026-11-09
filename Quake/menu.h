@@ -64,6 +64,7 @@ extern enum m_state_e m_return_state;
 void M_Confirm (const char *text, const char *yes, const char *no, float timeout, void (*action) (void));
 int M_Confirm_PrevState (void); // the menu under it
 qboolean M_Confirm_ButtonSpot (int which, float *x, float *y); // a button's middle (0 the action's, 1 Cancel), while it is up
+qboolean M_DialogBox (float *x0, float *y0, float *x1, float *y1, float *unit); // the dialog shown (M_Confirm's, Quit's): its box as last drawn, in the 2D pass's pixels, and its pixels per menu unit (menu_vr pos)
 
 extern qboolean m_entersound;
 

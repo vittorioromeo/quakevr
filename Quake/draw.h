@@ -67,6 +67,7 @@ void Draw_GetCanvasTransform (canvastype canvas, drawtransform_t *transform);
 void Draw_GetTransformBounds (const drawtransform_t *transform, float *left, float *top, float *right, float *bottom);
 
 void GL_SetCanvas (canvastype newcanvas); //johnfitz
+void Draw_CanvasToPixels (float x, float y, float *px, float *py); // QVR: a spot of the canvas in effect, in the 2D pass's pixels (tests)
 void GL_SetCanvasColor (float r, float g, float b, float a);
 void GL_PushCanvasColor (float r, float g, float b, float a);
 void GL_PopCanvasColor (void);

@@ -9,12 +9,14 @@ headless (ROUND24.md, "VR menu layout on a flat screen, zoom buttons").
     4. a corner dragged: the bottom right corner pressed, the mouse moved by -120 -60: the panel's middle moves as much;
        the wheel twice while held: smaller round the mouse (the corner still at the mouse); released: no longer dragging
     5. dragged far off the window: its middle stays on it (a corner on the window)
-    6. the keys still move the selection (vr_mock_key downarrow)
+    6. the dialogs: Quit's message and a confirmation (vr_test_confirm) centred on the panel at the menu's scale (menu_vr pos
+       dialog lines), Escape on Quit's back to the main menu; the keys still move the selection (vr_mock_key downarrow)
     7. screenshots at three sizes (0.9 middle, 0.55 off-centre, 1.0) -> scratch/flatmenu_flat.png
   VR run (the mock headset):
     8. the column and zoom buttons drawn (MENUZOOM buttons shown), vr_menu_scale 0.25 as shipped, the panel's size
     9. the laser on + and the trigger: vr_menu_scale 0.275, the panel 1.1 times as tall; on -: back to 0.25
-   10. vr_menu_zoom reset vr: 0.25; screenshots at 0.25, 0.2, 0.3 -> scratch/flatmenu_vr.png
+   10. vr_menu_zoom reset vr: 0.25; screenshots at 0.25, 0.2, 0.3 and Quit's -> scratch/flatmenu_vr.png; Quit still the headset's
+       dialog (M_Confirm)
 Waits are counted frames; each run ends on its "MENUFLAT done" line. Prints PASS/FAIL per check and
 "menu flat panel: N passed, M failed"; exits 1 on a failure.
 """
@@ -32,7 +34,7 @@ if not os.path.exists(BASH):
     BASH = "bash"
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-FILTER = "STEP|MENUZOOM|menu_vr pos: text from|menu_vr pos: menu|vr_mock_mouse|vr_mock_key|vr_menu_zoom|MENUPANEL|MENUFLAT|exit=|TIMEOUT"
+FILTER = "STEP|MENUZOOM|menu_vr pos: text from|menu_vr pos: menu|menu_vr pos: dialog|vr_mock_mouse|vr_mock_key|vr_menu_zoom|MENUPANEL|MENUFLAT|exit=|TIMEOUT"
 
 flat = ";".join([
     "vr_enabled 0", "wait5", "map start", "wait30", "vr_menu_flat_vr_style 1", "menu_main", "wait5",
@@ -46,6 +48,8 @@ flat = ";".join([
     "vr_menu_zoom", "vr_mock_mouse by 0 0", "vr_mock_mouse release", "wait2", "vr_menu_zoom",
     "echo STEP clamp", "vr_mock_mouse corner tl", "vr_mock_mouse press", "vr_mock_mouse by -5000 -5000", "vr_mock_mouse release",
     "wait2", "vr_menu_zoom",
+    "echo STEP dialogs", "vr_menu_zoom reset flat", "menu_main", "wait3", "menu_quit", "wait3", "menu_vr pos",
+    "vr_mock_key escape", "wait2", "menu_vr pos", "vr_test_confirm", "wait3", "menu_vr pos", "vr_mock_key escape", "wait2",
     "echo STEP keys", "vr_menu_zoom reset flat", "menu_main", "wait3", "menu_vr pos", "vr_mock_key downarrow", "wait2",
     "menu_vr pos", "vr_mock_key downarrow", "wait2", "menu_vr pos", "vr_mock_mouse settings click", "wait3",
     "echo STEP shots", "wait3", "screenshot", "wait2", "vr_menu_flat_scale 0.55", "vr_menu_flat_x 0.36", "vr_menu_flat_y 0.4",
@@ -64,7 +68,9 @@ vr = ";".join([
     "vr_mock_button main trigger 0", "wait3", "vr_mock_laser off", "wait3", "vr_menu_zoom", "vr_menu_panel",
     "echo STEP vrreset", "vr_menu_zoom in", "vr_menu_zoom reset vr", "vr_menu_zoom",
     "echo STEP vrshots", "vr_menu_scale 0.2", "wait3", "screenshot", "wait2", "vr_menu_scale 0.3", "wait3", "screenshot", "wait2",
-    "vr_menu_zoom reset vr", "echo MENUFLAT done", "toggleconsole", "quit"])
+    "vr_menu_zoom reset vr",
+    "echo STEP vrdialogs", "menu_main", "wait3", "menu_quit", "wait3", "menu_vr pos", "screenshot", "wait2", "vr_mock_key escape", "wait2",
+    "echo MENUFLAT done", "toggleconsole", "quit"])
 
 
 def run(script, out, extra):
@@ -183,8 +189,40 @@ if c:
     check(c[-1][1] == 0.0 and c[-1][2] == 0.0 and x + w > 0 and y + h > 0, f"flat: dragged off, a corner stays on: {c[-1][3]}")
 else:
     check(False, "flat: clamp step printed")
+# 6b: the dialogs over the flat panel (Quit's message, M_Confirm's) centred on it, at the menu's scale (ROUND24.md, "The
+# flat VR menu's Quit dialog")
+def dialogs(lines):
+    """[(box middle x, y, px per unit, area middle x, y, the menu's px per unit)] from the menu_vr pos dialog lines."""
+    out, box = [], None
+    for l in lines:
+        m = re.match(r"menu_vr pos: dialog box .*?\(middle ([\d.]+) ([\d.]+)\), ([\d.]+) px per unit", l)
+        if m:
+            box = [float(v) for v in m.groups()]
+        m = re.match(r"menu_vr pos: dialog area: .*?\(middle ([\d.]+) ([\d.]+)\), the menu's ([\d.]+) px per unit", l)
+        if m and box:
+            out.append(tuple(box + [float(v) for v in m.groups()]))
+            box = None
+    return out
+
+
+dl = after(fl, "dialogs")
+dg = dialogs(dl)
+menus = [l for l in dl if l.startswith("menu_vr pos: menu")]
+for i, what in enumerate(("Quit's message", "a confirmation (M_Confirm)")):
+    if i < len(dg):
+        bx, by, bu, ax, ay, au = dg[i]
+        # Quit's box is Quake's, 4 units below the middle (y 76..132 of 200)
+        check(abs(bx - ax) <= 2 and abs(by - ay) <= 8 * au and abs(bu - au) < 0.02,
+              f"flat: {what} centred on the panel at its scale: box {bx} {by} ({bu} px/unit), panel {ax} {ay} ({au})")
+    else:
+        check(False, f"flat: {what}: dialog box printed")
+check(len(menus) >= 2 and menus[0].startswith("menu_vr pos: menu 21") and menus[1].startswith("menu_vr pos: menu 1 "),
+      f"flat: Escape on Quit's message back to the main menu: {[m[13:30] for m in menus[:2]]}")
+vd = after(vl, "vrdialogs")
+check(any(l.startswith("menu_vr pos: menu 28") for l in vd) and any("dialog area: the headset's canvas" in l for l in vd),
+      "vr: Quit asks in the headset's dialog (M_Confirm), as before")
 # 6
-keys = [l for l in after(fl, "keys") if l.startswith("menu_vr pos: menu")]
+keys =[l for l in after(fl, "keys") if l.startswith("menu_vr pos: menu")]
 check(len(keys) == 3 and keys[0] != keys[1] != keys[2], f"flat: the arrow keys move the selection: {[k[13:60] for k in keys]}")
 cl = after(fl, "classic")
 cpos = next((l for l in cl if l.startswith("menu_vr pos: text from")), "")
