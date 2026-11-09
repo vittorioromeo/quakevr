@@ -5278,3 +5278,32 @@ Brief `qvr-kit/scratch/brief_flatfix.md`. (`agent/flatfix` and `agent/flatfix2` 
   pattern in its case, gaps 0,-3,0) and the hands-locked line (0.246 deg strafing).
 - Not done (budget): the coordinator's items 5-9 of 2026-11-09 (prone headroom in the vent, vr_flat_autoreload 0,
   the nail pistol's empty reload assert, the ramp slide jitter, ESC in the flat menu).
+
+## Elbow leather at rest (branch `agent/geo1109b`, 2026-11-09; diagnosis, not fixed)
+
+His answer: the holes show with the elbow straight, from any view; the enforcer's right elbow and the grunt's left are bad,
+their other elbows good.
+
+- **New measure** (`vr_agarmor_bridge_check`, an `(info)` line per joint, `restCheck` in vr_agarmor_bridge.cpp): the
+  leather in the rig's rest pose: cells facing in (cosine below -0.25 against the way out, as drawn: holes), which ones,
+  skin vertices of the two limb bones outside the tube between its end rings, the thinnest ring, the most twist.
+  `developer 1` adds each part's grid radii and axis at every ring and every bridge ring's corners (angle / reach / z).
+  Not a verdict yet: every joint scores some inward cells (5-14 of 48), the good sides too, so the count alone does not
+  separate them.
+- **What separates the bad sides: the forearm's first row (the bridge's lower end ring).** Its grid at ring 0:
+  - enforcer bracer_l: radii 5.37 4.60 4.73 6.14 4.79 5.02, axis (0.08, -0.60). Regular.
+  - enforcer bracer_r: radii 5.52 9.12 4.36 1.45 1.64 1.97, axis (1.21, -3.52). Lopsided, 3.5 units off. The bridge's
+    end ring seen from its own middle crosses itself: two corners at 2 and 14 degrees, one 0.72 from the middle, its z
+    spread 3.6-7.9 against 0.8-4.3 on the left.
+  - grunt bracer_l: 1.17 2.53 2.62 2.37 2.76 2.65 (one corner sunk) against bracer_r, mirrored, 1.84 1.67 2.62 2.37
+    1.81 2.65. They differ by more than 0.5, so `mirrorRadii` (Corners mode) keeps each side's own.
+  - The pauldrons' end rings are exact mirror images on both kinds (Shoulders mode), the bracers' are not.
+- **Likely cause:** `planGrid`'s whole-skin middle for a humanoid forearm (the second loop, `bodyExit` rays from the
+  previous middle). Near an elbow bent in the bind pose (the enforcer's gun arm) the slice crosses into the upper arm.
+  The middles also jump between rings (enforcer bracer_l ring 1 (1.61, 2.66), ring 2 (-0.02, -0.63)), so the plates'
+  rows carry that too. His enforcer `bracer_r start -1.13` moves that row further into the elbow.
+- **Next:** make the forearm's (and shin's) ring middles smooth along the limb (reject a ring whose middle jumps from
+  its neighbours'; ring 0 extrapolated from rings 1-2) and for the Corners mirror at the joint's row take the good side
+  where one side's radius sinks far under its mirror. Then make the rest measure a verdict (0 inward, 0 out) and add
+  eyeshots (`vr_pp_test 17`'s head cameras sit badly for elbows: they need a camera placed off the elbow itself).
+- Tried and dropped: easing the corners' axial place (smoothstep instead of lerp): no change in any count.
