@@ -678,6 +678,11 @@ void qvr::menu::reopen(int target)
     showPage(target); // its cursor, scroll and way back as they were
 }
 
+bool qvr::menu::escapeLocal()
+{
+    return m_state == m_vr && (ui().sliderGrab || ui().scrollGrab || dropDownItem() != nullptr);
+}
+
 bool qvr::menu::scroll(int rows)
 {
     if(m_state != m_vr || ui().sliderGrab || ui().scrollGrab)

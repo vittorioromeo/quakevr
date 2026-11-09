@@ -19,6 +19,7 @@
         row(opt::vr_menu_version),
         row(opt::vr_update_check),
         row(opt::vr_menu_flat_shortcuts),
+        row(opt::vr_menu_flat_esc_game),
         row(opt::vr_menu_flat_vr_style),
         row(opt::vr_menu_flat_scale),
         command("Reset Flat Menu Panel", "vr_menu_zoom reset flat")

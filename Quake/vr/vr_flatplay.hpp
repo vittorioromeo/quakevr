@@ -102,6 +102,11 @@ void noteModelFovBatch();
 [[nodiscard]] float crouchDrop();
 // Lying down's eased share (vr_flat_key_prone, vr_prone_toggle): 0 up .. 1 down; 0 outside the mode.
 [[nodiscard]] float proneRatio();
+// The last frame's view origin (V_CalcRefdef's, after the mode's drop and lean) and drawn main hand, world: the ramp
+// slide test's jitter measure (vr_flatmove.cpp vr_flatslide_ramp_test).
+[[nodiscard]] glm::vec3 lastViewOrigin();
+[[nodiscard]] glm::vec3 lastMainHand();
+[[nodiscard]] glm::vec3 lastPoseHead(); // (the head the hands were posed from)
 
 // The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
 // asked at Quake/cl_main.c's CL_AccumulateCmd, where the frame's looking has all landed in cl.viewangles (VR_FlatPitchClamp,

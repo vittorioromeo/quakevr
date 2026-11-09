@@ -11,6 +11,7 @@
 #include "vr_cvars.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_particles.hpp"
+#include "vr_playergore.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
@@ -1138,7 +1139,8 @@ bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const gl
 // A self-hit's wound (Event::precise: your own shot, vr_selfshot): at its point exactly, on the part it struck -- the
 // line from just before the point to a little past it, finely, no spread nor jitter nor the body's room-scale shift.
 // False when nothing drawn is there now (painted as any other hit then).
-bool strikePrecise(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+bool strikePrecise(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal,
+    int* partOut = nullptr)
 {
     int part = -1;
     constexpr float before = 2.f;
@@ -1151,8 +1153,22 @@ bool strikePrecise(za::Span<const Capsule> caps, const glm::vec3& org, const glm
         at = org; // (already inside where the line starts: it started inside, a muzzle pressed into you)
     }
     selfshot::notePreciseWound(glm::distance(at, org), part);
+    if(partOut)
+    {
+        *partOut = part;
+    }
     return true;
 }
+
+// The first point a wound on you struck (wound(): your body's target), for your own gore (vr_playergore.cpp: its stream,
+// drips and splash from where it is painted); handed over once its event is painted (apply).
+struct OwnStruck
+{
+    bool have{false};
+    glm::vec3 at{0.f}, normal{0.f}, way{0.f};
+    int part{-1};
+};
+OwnStruck ownStruck;
 
 // ----------------------------------------------------------------------------
 // A wound on one model.
@@ -1289,14 +1305,19 @@ void wound(const Target& t, const Event& ev)
         {
             // Your own shot: where it struck (strikePrecise). Else not struck where the jitter put it: a little nearer
             // the line's middle, a few times.
-            bool struck = ev.precise && strikePrecise(*t.capsules, org, way, at, n);
+            int part = -1;
+            bool struck = ev.precise && strikePrecise(*t.capsules, org, way, at, n, &part);
             for(int i = 0; i < 6 && !struck; i++)
             {
-                struck = strikeCapsules(*t.capsules, org + t.shift + (i ? glm::vec3{vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -8.f, 8.f)} : glm::vec3{0.f}), way, at, n);
+                struck = strikeCapsules(*t.capsules, org + t.shift + (i ? glm::vec3{vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -8.f, 8.f)} : glm::vec3{0.f}), way, at, n, -48.f, 48.f, 0.4f, &part);
             }
             if(!struck)
             {
                 return;
+            }
+            if(!ownStruck.have)
+            {
+                ownStruck = OwnStruck{true, at, n, way, part};
             }
             // (the capsules are round, the body flatter: reach in to its surface under the point, facing it)
             splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 6.f, 0.f, ws.run, what));
@@ -1549,10 +1570,16 @@ void apply(const Event& ev)
     }
     // The same draws for each (the player's body and hands: the same point, the same wound).
     const za::U32 seed = rng;
+    ownStruck.have = false;
     for(int i = 0; i < count; i++)
     {
         rng = seed;
         wound(targets[i], ev);
+    }
+    if(ev.num == cl.viewentity && ownStruck.have && !bloodOnly)
+    {
+        // Your own gore from where it was painted (vr_player_gore; a re-opened wound's paint is not a new hit).
+        playergore::onWound(ownStruck.at, ownStruck.normal, ownStruck.way, ownStruck.part, ev.kind, ev.amount);
     }
     static_cast<void>(vrand::xorshift01(rng));
     if(bloodOnly && !reopenSpread)

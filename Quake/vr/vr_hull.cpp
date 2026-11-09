@@ -5113,6 +5113,23 @@ int localProne()
     return proneOn() && proneNow[1] ? 1 : 0;
 }
 
+bool localRiseFits()
+{
+    if(!sv.active || !sv.worldmodel || svs.maxclients < 1 || !proneNow[1])
+    {
+        return true;
+    }
+    progs::ServerVm vm; // (asked from the client's frame: no VM is current)
+    edict_t* ent = progs::playerEdict();
+    if(!ent || ent->free)
+    {
+        return true;
+    }
+    float levels[maxCrouchLevels];
+    crouchLevels(sv.worldmodel, levels);
+    return boxFitsAt(ent, 1, levels[0]);
+}
+
 bool isFlat(const edict_t* ent)
 {
     const int num = clientNum(ent);
