@@ -9,9 +9,9 @@
 AGENT=${1:-blendmodels}
 QT_NAME=prone_vent
 source "$(dirname "$0")/qvrtest.sh"
-IN="setpos 624 -112 24 0 0 0"
-OUT="setpos 760 -112 24 0 0 0"
-S="map vrteleporters; wait60; god; notarget; setpos 480 -112 24 0 0 0; wait10; vr_prone_toggle; wait90; $IN; wait30"
+IN="setpos 624 -112 24 0 0 0; noclip"
+OUT="setpos 760 -112 24 0 0 0; noclip"
+S="map vrteleporters; wait60; god; notarget; setpos 480 -112 24 0 0 0; noclip; wait10; vr_prone_toggle; wait90; $IN; wait30"
 S="$S; +flatcrouch; wait60; echo PVT crouch; vr_prone_status; -flatcrouch; wait60; echo PVT crouchup; vr_prone_status"
 S="$S; $OUT; wait60; echo PVT out; vr_prone_status"
 S="$S; vr_prone_toggle; wait90; $IN; wait30; vr_prone_toggle; wait60; echo PVT key; vr_prone_status"
