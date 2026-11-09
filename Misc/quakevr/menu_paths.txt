@@ -4638,6 +4638,7 @@ vr_cache_warmup|2|Debug - Profiling and Memory|Cache Warm-up|Advanced VR Options
 |2|Debug - Profiling and Memory|Cache Info|Advanced VR Options > Debug > Profiling and Memory > Cache Info
 vr_probe_kinds|2|Debug - Profiling and Memory|Ready What Can Appear|Advanced VR Options > Debug > Profiling and Memory > Ready What Can Appear
 vr_probe_test_spawn|2|Debug - Profiling and Memory|Ready the Debug Spawner's|Advanced VR Options > Debug > Profiling and Memory > Ready the Debug Spawner's
+vr_keep_item_boxes|2|Debug - Profiling and Memory|Maps Keep the Item Boxes|Advanced VR Options > Debug > Profiling and Memory > Maps Keep the Item Boxes
 vr_campaign_keep_models|2|Debug - Profiling and Memory|Campaign Switch Keeps Models|Advanced VR Options > Debug > Profiling and Memory > Campaign Switch Keeps Models
 |2|Debug - Profiling and Memory|Kept Models Info|Advanced VR Options > Debug > Profiling and Memory > Kept Models Info
 |2|Debug - Profiling and Memory|Decoded Image Cache Info|Advanced VR Options > Debug > Profiling and Memory > Decoded Image Cache Info

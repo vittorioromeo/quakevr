@@ -7029,6 +7029,67 @@ Left (proposals):
 - First frame of the session: the player's view models loaded in the prewarm (view::prepareModels misses the body),
   the text boards laid out once in the load, the AO bakes' buffers uploaded in the load.
 
+## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
+
+Part 1's leftovers (above). Each a commit of its own; every output checked identical.
+
+1. **The item boxes kept across maps** (`vr_keep_item_boxes`, default 1, Debug > Profiling and Memory "Maps Keep the
+   Item Boxes"; vr_modelkeep.cpp). The 19 b_*.bsp the toolgun precaches every map (QC VR_Toolgun_Precache; the engine's
+   list mirrors it) are loaded once, right after Host_ClearMemory and before the map's own models
+   (Host_KeepMapModels, SV_SpawnServer), and host_hunklevel is raised over them: Mod_ClearAll leaves them
+   (VR_MapModelKept), so their hunk data, textures and normal maps stay, as alias models' do. Each map's
+   Host_ClearMemory compares a hash of the search paths (every folder and pak, in order) and of the files the boxes,
+   the palette and the colormap are found in (pak, offset, size, write time) with their load's (~2 ms); any change, a
+   slot emptied by a game switch (Mod_ResetAll), or the setting off, and host_hunklevel drops back to its start-up
+   mark: they are freed and loaded again. (Their load's own lookups were not reused as vr_modelkeep's alias models do:
+   ~420 a box, the replacement images that aren't there.) `vr_model_keep_info` prints their state. Checked: all 3,699
+   textures' `imagehash` sum the same with the setting on and off after `map start; changelevel e1m1`; the boxes
+   spawned in view, screenshots on/off differ as much as two runs of the same (79-96 pixels, peak 4-5: the run's own
+   noise).
+2. **vr_pbr's content hashes on the prefetch's decode tasks** (vr_imgprefetch.cpp, vr_pbr.cpp `hashRgba`/`noteHash`):
+   a texture's own replacement image (not its glow or a pack's map) is hashed (session key and SHA-256) on the task that
+   decodes it; the load notes the hash as it takes the image, in its order, and VR_PBRNormal's `sourceHash` finds it
+   (by its content key: an image changed between is hashed again on the main thread). The first map's main-thread
+   hashing (`vr_startup_times`, new line "their content hashes (main thread)") 30.8 -> 4.2 ms (prefetch off -> on; the
+   rest is the keys' wyhash and the 8-bit textures). Textures identical (imagehash sums, prefetch on and off).
+3. **The world's made normal maps on the load's jobs** (vr_normalmaps.cpp): VR_SkinNormalsPost takes a world
+   texture's shading-made map too (not an external pack's): TexMgr_ShadingToNormals runs on the job with its own
+   scratch (5 w h floats) and the islands copied as a skin's are, then the commit uploads it on the main thread, in
+   the order posted (the skins' path: one for both). Not kept in the disk cache (a skin's only). Small on QRP (the
+   first map's 56 made maps ~3 ms of making); the uploads stay on the main thread. `imagehash _vrnorm` (1,646 normal
+   maps on qbase, 1,661 on QRP) the same with vr_load_jobs 0 and 1.
+4. **The cold first frame: not done** (see Left). Its breakdown now (vr_profile 1, his cfg, QRP, mock VR, the first
+   frame of `map start` 155 ms): `view body` 42 ms (no child scope: the body's first setup), `vr opaque (text3d)` 31.5,
+   the portal 25 (its shadow maps 14.5), `view skin masks` 17.6 (despite the prewarm's step), `setup view/lights` 16.9
+   (the AO bakes' mesh uploads), 2D `gadget screen` 15.6; the next frame 32 ms.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3; `qvr-kit/benchresults/perfload2_base`
+(origin/next c91434287) against `perfload2_after` (this branch merged with origin/next a458b4ad4)):
+
+| load (ms, command to first frame) | VR before | VR after | VR after, boxes off | flat before | flat after | flat after, boxes off |
+|---|---|---|---|---|---|---|
+| `map start` (cold) | 1867 | 2011 | 1795 | 1779 | 1975 | 1824 |
+| `changelevel e1m1` (new) | 541 | 439 | 541 | 520 | 552 | 503 |
+| `changelevel e1m2` (new) | 513 | 429 | 567 | 509 | 554 | 518 |
+| `changelevel e1m1` (back) | 383 | 309 | 420 | 361 | 382 | 354 |
+| first frame of `map start` | 139 | 141 | | 185 | 200 | |
+
+("boxes off": the same exe with `vr_keep_item_boxes 0`, `perfload2_after_noboxes`.) VR: the new maps' loads ~100 ms
+shorter (541 -> 439, 513 -> 429; the base is the pre-merge origin/next, the boxes-off column the same exe). Flat: no
+clear change in these runs: the machine was noisy (flat after, e1m1 423 / 552 / 649 ms in its 3 runs; VR after-runs
+too, cold starts 1.8-2.6 s); the boxes' own load measured directly is 75-130 ms no-LTO (`vr_model_keep_info`), ~70 ms in
+part 1's trace. Not reached: ~0.4 s warm (0.43 VR), and the cold first frame (139 VR, 185 flat, unchanged: item 4). The
+worst of the 90 frames after each load unchanged (VR 13-16 ms; flat 3-7 ms at 960x540).
+Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0; scenario_check not run (budget).
+
+Left:
+- The cold first frame (item 4): a scope under `view body` to find what its first setup does (models are already
+  loaded by view::prepareModels; maybe the rig or the skinned body); the text boards' first layout in the load; the
+  skin masks step's coverage; the AO bakes' uploads in the load; the portal's first view.
+- The keys' wyhash of each prefetched image (~4 ms a new map) could go too if the take handed the key over with the
+  pixels.
+- `Host_Error: Illegible server message 39` after `map e1m1; wait3; changelevel e1m2` in a script (also with
+  vr_keep_item_boxes 0: not this branch's).
 ## Model rendering's GPU cost: your models first, your hands and gun shaded once (branch `agent/model_gpu`, 2026-11-09)
 
 His question (perf_1109: `alias` 0.50 / 0.72 ms GPU average / fight, his own models 0.41 / 0.50 of it, the held gun

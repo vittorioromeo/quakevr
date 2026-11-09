@@ -51,6 +51,7 @@ double		oldrealtime;			// last frame run
 int		host_framecount;
 
 int		host_hunklevel;
+static int	host_hunklevel_base; // QVR: host_hunklevel at start-up (host_hunklevel: also over the item boxes kept, Host_KeepMapModels)
 
 int		minimum_memory;
 
@@ -887,6 +888,8 @@ void Host_ClearMemory (void)
 	}
 
 	Con_DPrintf ("Clearing memory\n");
+	if (!VR_MapModelsCheck ()) // QVR: the item boxes kept across maps (Host_KeepMapModels) stay, else go with the rest
+		host_hunklevel = host_hunklevel_base;
 	Mod_ClearAll ();
 	Sky_ClearAll();
 	PR_ClearProgs(&sv.qcvm);
@@ -898,6 +901,19 @@ void Host_ClearMemory (void)
 	memset (&sv, 0, sizeof(sv));
 
 	CL_FreeState ();
+}
+
+/*
+================
+Host_KeepMapModels -- QVR: the item boxes' brush models (vr/vr_modelkeep.cpp VR_MapModelsLoad) loaded, if none are
+kept, right after Host_ClearMemory: host_hunklevel raised over them, so that every map's Host_ClearMemory keeps them
+(with their textures) until a file of theirs changes
+================
+*/
+void Host_KeepMapModels (void)
+{
+	if (VR_MapModelsLoad ())
+		host_hunklevel = Hunk_LowMark ();
 }
 
 
@@ -1926,6 +1942,7 @@ void Host_Init (void)
 
 	Hunk_AllocName (0, "-HOST_HUNKLEVEL-");
 	host_hunklevel = Hunk_LowMark ();
+	host_hunklevel_base = host_hunklevel; // QVR
 
 	host_initialized = true;
 	VR_TimeMark ("Host_Init end"); // QVR
