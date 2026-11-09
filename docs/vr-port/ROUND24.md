@@ -7062,3 +7062,130 @@ under the flatscreen menu."
   ratio, factor exactly 1); match 1.78 0.5745; sens 0.5 0.2136; hip with both set 1.0000. fov 75: sighted 36.31, match
   1.78 sens 0.5 0.2587; match 0 0.4273. The stick's scale and the menu's readout agree with each. 7 passed, 0 failed.
   `vr_flat_aim_sens_status` prints the scale now. Scene: `flat_aim_sens`.
+## Faster map loads, part 2 (branch `agent/perf_load2`, 2026-11-09)
+
+Part 1's leftovers (above). Each a commit of its own; every output checked identical.
+
+1. **The item boxes kept across maps** (`vr_keep_item_boxes`, default 1, Debug > Profiling and Memory "Maps Keep the
+   Item Boxes"; vr_modelkeep.cpp). The 19 b_*.bsp the toolgun precaches every map (QC VR_Toolgun_Precache; the engine's
+   list mirrors it) are loaded once, right after Host_ClearMemory and before the map's own models
+   (Host_KeepMapModels, SV_SpawnServer), and host_hunklevel is raised over them: Mod_ClearAll leaves them
+   (VR_MapModelKept), so their hunk data, textures and normal maps stay, as alias models' do. Each map's
+   Host_ClearMemory compares a hash of the search paths (every folder and pak, in order) and of the files the boxes,
+   the palette and the colormap are found in (pak, offset, size, write time) with their load's (~2 ms); any change, a
+   slot emptied by a game switch (Mod_ResetAll), or the setting off, and host_hunklevel drops back to its start-up
+   mark: they are freed and loaded again. (Their load's own lookups were not reused as vr_modelkeep's alias models do:
+   ~420 a box, the replacement images that aren't there.) `vr_model_keep_info` prints their state. Checked: all 3,699
+   textures' `imagehash` sum the same with the setting on and off after `map start; changelevel e1m1`; the boxes
+   spawned in view, screenshots on/off differ as much as two runs of the same (79-96 pixels, peak 4-5: the run's own
+   noise).
+2. **vr_pbr's content hashes on the prefetch's decode tasks** (vr_imgprefetch.cpp, vr_pbr.cpp `hashRgba`/`noteHash`):
+   a texture's own replacement image (not its glow or a pack's map) is hashed (session key and SHA-256) on the task that
+   decodes it; the load notes the hash as it takes the image, in its order, and VR_PBRNormal's `sourceHash` finds it
+   (by its content key: an image changed between is hashed again on the main thread). The first map's main-thread
+   hashing (`vr_startup_times`, new line "their content hashes (main thread)") 30.8 -> 4.2 ms (prefetch off -> on; the
+   rest is the keys' wyhash and the 8-bit textures). Textures identical (imagehash sums, prefetch on and off).
+3. **The world's made normal maps on the load's jobs** (vr_normalmaps.cpp): VR_SkinNormalsPost takes a world
+   texture's shading-made map too (not an external pack's): TexMgr_ShadingToNormals runs on the job with its own
+   scratch (5 w h floats) and the islands copied as a skin's are, then the commit uploads it on the main thread, in
+   the order posted (the skins' path: one for both). Not kept in the disk cache (a skin's only). Small on QRP (the
+   first map's 56 made maps ~3 ms of making); the uploads stay on the main thread. `imagehash _vrnorm` (1,646 normal
+   maps on qbase, 1,661 on QRP) the same with vr_load_jobs 0 and 1.
+4. **The cold first frame: not done** (see Left). Its breakdown now (vr_profile 1, his cfg, QRP, mock VR, the first
+   frame of `map start` 155 ms): `view body` 42 ms (no child scope: the body's first setup), `vr opaque (text3d)` 31.5,
+   the portal 25 (its shadow maps 14.5), `view skin masks` 17.6 (despite the prewarm's step), `setup view/lights` 16.9
+   (the AO bakes' mesh uploads), 2D `gadget screen` 15.6; the next frame 32 ms.
+
+Results (ThinLTO, exclusive, fast, his `ironwail.cfg`, medians of 3; `qvr-kit/benchresults/perfload2_base`
+(origin/next c91434287) against `perfload2_after` (this branch merged with origin/next a458b4ad4)):
+
+| load (ms, command to first frame) | VR before | VR after | VR after, boxes off | flat before | flat after | flat after, boxes off |
+|---|---|---|---|---|---|---|
+| `map start` (cold) | 1867 | 2011 | 1795 | 1779 | 1975 | 1824 |
+| `changelevel e1m1` (new) | 541 | 439 | 541 | 520 | 552 | 503 |
+| `changelevel e1m2` (new) | 513 | 429 | 567 | 509 | 554 | 518 |
+| `changelevel e1m1` (back) | 383 | 309 | 420 | 361 | 382 | 354 |
+| first frame of `map start` | 139 | 141 | | 185 | 200 | |
+
+("boxes off": the same exe with `vr_keep_item_boxes 0`, `perfload2_after_noboxes`.) VR: the new maps' loads ~100 ms
+shorter (541 -> 439, 513 -> 429; the base is the pre-merge origin/next, the boxes-off column the same exe). Flat: no
+clear change in these runs: the machine was noisy (flat after, e1m1 423 / 552 / 649 ms in its 3 runs; VR after-runs
+too, cold starts 1.8-2.6 s); the boxes' own load measured directly is 75-130 ms no-LTO (`vr_model_keep_info`), ~70 ms in
+part 1's trace. Not reached: ~0.4 s warm (0.43 VR), and the cold first frame (139 VR, 185 flat, unchanged: item 4). The
+worst of the 90 frames after each load unchanged (VR 13-16 ms; flat 3-7 ms at 960x540).
+Tests: `vr_pp_test 1` 63/0, `checklist_tests_check` 107/0; scenario_check not run (budget).
+
+Left:
+- The cold first frame (item 4): a scope under `view body` to find what its first setup does (models are already
+  loaded by view::prepareModels; maybe the rig or the skinned body); the text boards' first layout in the load; the
+  skin masks step's coverage; the AO bakes' uploads in the load; the portal's first view.
+- The keys' wyhash of each prefetched image (~4 ms a new map) could go too if the take handed the key over with the
+  pixels.
+- `Host_Error: Illegible server message 39` after `map e1m1; wait3; changelevel e1m2` in a script (also with
+  vr_keep_item_boxes 0: not this branch's).
+## Model rendering's GPU cost: your models first, your hands and gun shaded once (branch `agent/model_gpu`, 2026-11-09)
+
+His question (perf_1109: `alias` 0.50 / 0.72 ms GPU average / fight, his own models 0.41 / 0.50 of it, the held gun
+0.28 / 0.36). Measured in the flat gore fight (`play_gore_fight_flat`) and E1M1 fight at his window (3440x1441,
+`-fsaa 4`, his whole config: `vid_fsaamode 1`, 4x per-sample shading), ThinLTO, exclusive, 900-frame bench windows.
+
+**The tool:** `vr_model_fragments [passes]` (Debug > Profiling and Memory > Model Fragment Counts): over the next 16
+opaque model passes, each part's GPU time, vertices, triangles, fragment shader runs and samples kept (the world's
+models, your own by VR_DRAW_* group, the world+brush pass), read at once (a stall). Nsight Graphics' GPU Trace export
+has no per-draw table for OpenGL (its KHR_debug groups export empty; perf_1109), so the per-part numbers are these
+pipeline-statistics queries and A/B timings.
+
+**The bottleneck: fragments, not vertices.** At 3440x1441 in the gore fight (a pass, before):
+
+| part | GPU ms | vertices | triangles | fragments shaded | samples kept |
+|---|---|---|---|---|---|
+| your hands (2) | 0.281 | 2.7 k | 2.5 k | 923 k | 487 k |
+| your body (5 models, own pre-pass) | 0.215 | 31 k | 30 k | 646 k | 1298 k (pre-pass + shading) |
+| held gun (2) | 0.309 | 1.8 k | 1.2 k | 1499 k | 1095 k |
+| world's models (112: monsters, gibs, corpses) | 0.759 | 222 k | 128 k | 2532 k | 5428 k (pre-pass + shading) |
+| world + brush | 1.540 | 15 k | 7 k | 11919 k | 32596 k |
+
+Your hands and gun are tiny meshes (under 3 k triangles: the dense models are the monsters' and your body's, all
+cheap to transform here) that cover a big share of the screen at 4 samples a pixel: the cost is the alias shader
+(PBR, normal maps, skin masks, wounds) run per sample, and run **twice over** on the hands (the glove's shell over the
+hand, the fingers over the palm: 1.9 fragments per kept sample) and 1.4 times on the gun's own parts, with no depth
+pre-pass for either (only your body and the world's models had one). And the world under them: drawn before them,
+its costly shading ran on every pixel they then covered (about 12% of the frame's world fragments in this view).
+The world's models are already pre-passed and fragment-bound too (2.5 M fragments for 128 k triangles): LODs would
+cut vertices that cost little; shadow maps are 0.08 ms of GPU (a CPU cost: perf_fight).
+
+**Changed** (both Debug > Profiling and Memory toggles, default on; off = before):
+- `vr_alias_player_first 1` ("Your Models First"): your own opaque models (hands, body, held, holstered, worn) drawn
+  before the world in each view (gl_rmain.c R_DrawEntitiesOnList; r_alias.c R_AliasDrawsFirst, vr_render.cpp
+  VR_AliasPlayerFirst), so the world's depth pre-pass and shading skip the pixels they cover. Opaque depth-tested
+  draws give the same picture in either order; discarded pixels (a morph, a gate) leave the depth for the world to
+  fill. Models with blended skin texels (TEXPREF_ALPHAPIXELS) or holey ones, the ghost hands, the mirror's image and
+  gear lying about stay after the world. Not in single-pass stereo's phases (the world is drawn in the multiview pass).
+  One path for flat and VR (each eye's view).
+- `vr_alias_prepass_own 1` ("Own Models Pre-pass"): your hands and held items join the existing per-batch depth
+  pre-pass (vr_render.cpp VR_AliasDepthPrepass; the same code as the body's), except while a gun morphs (its shader
+  discards the part not there yet, which a depth-only pass would not).
+
+**Results** (same scene, GPU ms per frame, averages of the bench windows):
+
+| | GPU `3D` | world+brush | alias | frame p50 |
+|---|---|---|---|---|
+| gore fight flat, before (2 reps) | 5.17, 4.99 | 2.07, 2.09 | 1.68, 1.60 | 8.57, 8.21 |
+| + your models first (2 reps) | 4.75, 4.71 | 1.84, 1.84 | 1.60, 1.59 | 8.10, 7.76 |
+| + own pre-pass (2 reps) | **4.31, 4.36** | 1.79, 1.81 | **1.23, 1.23** | 7.36, 7.53 |
+| E1M1 fight flat, own pre-pass on, models first off / on (2 reps) | 4.96, 4.94 / **4.72, 4.73** | 3.08 / 2.86 | 0.48 / 0.50 | |
+| gore fight VR mock (2048 eyes), models first off / on (1 rep) | 4.41 / 4.42 | 2.20 / 2.20 | 1.02 / 1.06 | |
+
+So **-0.75 ms GPU in the flat gore fight (15% of the 3D view)**, -0.22 ms in the E1M1 fight; per part (counts,
+full size): hands 0.281 -> 0.139 ms, held 0.309 -> 0.137, world+brush 1.540 -> 1.369, the world's models 0.759 ->
+0.706 (fewer behind your gun). VR: no change in the mock's view (your hands are a small share of an eye's view
+there); the pre-pass applies to VR's hands too. No CPU cost (the same draws; the pre-pass adds 5 k vertices).
+**Same picture:** screenshots of the same fixed-clock frame with both off / both on at 3440x1441: max difference 1
+of 255, 0 pixels over 8 (also at 960x540; a weapon switch's morph was not caught on screen: check one in play). Tests: flathud 11/0, `vr_pp_test 1` 63/0,
+checklist_tests_check 103/0, scenario_check 99 files 0 errors, 98 of 99 run (`flat_visor`: "Nailgun placed in a wall",
+a scene placement, not the renderer).
+
+**Not done** (measured too small here): LODs for distant monsters and gibs (vertex work is cheap; their fragments
+already pre-passed), gib instancing (gibs already batch by model), skipping your body's hidden parts in flat (it has
+its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
+proposal 1) is the big lever, his call.

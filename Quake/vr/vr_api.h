@@ -415,6 +415,10 @@ void VR_ModelsKeepDecide (void);					// ... after: the alias models every lookup
 int VR_ModelKept (const struct qmodel_s *mod);			// nonzero: kept (Mod_ResetAll, Cache_FlushExcept, TexMgr_NewGame, GLMesh_DeleteVertexBuffers leave it)
 qboolean VR_ModelCacheKept (cache_user_t *c);			// Cache_FlushExcept's test: a kept model's cache entry
 void VR_ModelsKeepEnd (void);						// ... the switch done: none kept any more (their records stay)
+// Every map keeps the item boxes' brush models (maps/b_*.bsp) and their textures, under host_hunklevel (vr_modelkeep.cpp)
+int VR_MapModelsLoad (void);					// SV_SpawnServer, after Host_ClearMemory: none kept, they are loaded now; nonzero if any (the hunk's floor goes over them)
+int VR_MapModelsCheck (void);					// Host_ClearMemory, before Mod_ClearAll: nonzero if the kept ones stay (the game's search paths and their files the same); 0: forgotten
+int VR_MapModelKept (const struct qmodel_s *mod);			// Mod_ClearAll: nonzero for a kept one (left loaded, its textures too)
 int VR_SyntheticModel (struct qmodel_s *mod);				// Mod_LoadModel: a model made in memory from another ("<model>#rag": a ragdoll's skinned body, vr_ragdoll.cpp); nonzero if made
 int VR_RuntimeBrushModel (struct qmodel_s *mod);			// Mod_LoadModel: a runtime brush's model ("*qvrbrush/<id>", vr_brushes.cpp), made from its brush; nonzero if one
 void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's ragdolls drawn with their skinned models (vr_ragdoll.cpp)

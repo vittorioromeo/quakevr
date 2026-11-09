@@ -529,6 +529,7 @@ void R_DrawBrushModels_SkyLayers (entity_t **ents, int count);
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
+qboolean R_AliasDrawsFirst (entity_t *e); // QVR: drawn before the world in the opaque pass (vr_alias_player_first)
 void R_DrawSpriteModels (entity_t **ents, int count);
 void R_DrawBrushModels_ShowTris (entity_t **ents, int count);
 void R_DrawAliasModels_ShowTris (entity_t **ents, int count);
@@ -644,6 +645,7 @@ void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
+void R_ModelFragments_f (void); // QVR: vr_model_fragments (gl_rmain.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
 void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)
 void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); // QVR: the current eye's, from r_refdef

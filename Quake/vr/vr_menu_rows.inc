@@ -5975,6 +5975,14 @@ QVR_CYCLE(vr_alias_cull_posed, "Cull Posed Models",
     "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
     "(Checked: see Model Cull Stats). The same images either way.",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"})
+QVR_TOGGLE(vr_alias_player_first, "Your Models First",
+    "vr_alias_player_first: your own hands, body and what you hold or wear drawn before the world in each view, "
+    "so that the world's shading skips the pixels they cover (On), or after it (Off, as before). The same "
+    "images either way; see Model Fragment Counts.")
+QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
+    "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
+    "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
+    "fingers over the palm and a gun's own parts shaded once. The same images either way.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
@@ -6002,6 +6010,10 @@ QVR_CYCLE_BYNAME(vr_probe_test_spawn, "Ready the Debug Spawner's",
     "The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
     "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn).",
     {0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"})
+QVR_TOGGLE(vr_keep_item_boxes, "Maps Keep the Item Boxes",
+    "On: the item boxes' models (health, ammo, explosive boxes) and their textures are loaded once and kept from map "
+    "to map while the game's files stay the same, instead of being loaded again with every map (~70 ms a load; "
+    "vr_keep_item_boxes). The next map load.")
 QVR_TOGGLE(vr_campaign_keep_models, "Campaign Switch Keeps Models",
     "On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
     "its folders (each file their load looked for is found the same again), instead of loading every one "

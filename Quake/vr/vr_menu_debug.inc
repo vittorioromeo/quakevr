@@ -540,6 +540,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_world_fragments [passes]: over the next 16 opaque world passes, the pixels its depth pre-pass and its "
                   "shading run the shader on, and those the shading keeps, in the console (shaded/kept: the work spent on "
                   "hidden pixels; Parallax Depth Split on the Views page is the A/B)."),
+        command("Model Fragment Counts", "vr_model_fragments")
+            .help("vr_model_fragments [passes]: over the next 16 opaque model passes, each part's GPU time, vertices, "
+                  "triangles, fragments shaded and samples kept, in the console: the world's models (monsters, gibs, "
+                  "corpses) and your own by part (hands, body, held, ...)."),
         command("Log Next 3 Seconds", "vr_profile_gpu 1; vr_frame_log 270")
             .help("vr_frame_log <frames>: each frame's CPU time (its top scopes), GPU time (its top systems and the "
                   "particles') and the particles (live, within half a metre, how many views they cover, half size), in "
@@ -613,6 +617,8 @@ za::Vector<Item> pageDebugProfiling()
                   "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
                   "Set-up Shared)."),
         row(opt::vr_alias_cull_posed),
+        row(opt::vr_alias_player_first),
+        row(opt::vr_alias_prepass_own),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
@@ -654,10 +660,11 @@ za::Vector<Item> pageDebugProfiling()
                   "prepare), writes and checks; then the warm-up's progress."),
         row(opt::vr_probe_kinds),
         row(opt::vr_probe_test_spawn),
+        row(opt::vr_keep_item_boxes),
         row(opt::vr_campaign_keep_models),
         command("Kept Models Info", "vr_model_keep_info")
             .help("vr_model_keep_info: how many models the last campaign switch kept, of how many, and the time its check "
-                  "took (console)."),
+                  "took; the item boxes kept across maps, their loads and the last check (console)."),
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),

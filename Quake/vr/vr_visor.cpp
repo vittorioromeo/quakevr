@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 namespace qvr::visor
 {
