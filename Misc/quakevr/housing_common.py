@@ -13,6 +13,7 @@
 # .mdl unused: start from the .blend before the housing, in git history, to keep the file lean). A refusal ends the
 # run with "housing_<stem>: REFUSED: ..." (exit code 1), writing nothing.
 
+import hashlib
 import os
 import re
 import struct
@@ -83,9 +84,74 @@ class Run:
         self.exported = 0
         self.grid = mdl_grid(model)
 
+    def gun_uvs(self):
+        """The gun's own faces' UVs (every face not all housing): a sorted list, each face's (vertex, u, v) corners."""
+        me = bpy.data.objects[self.model].data
+        lay = me.attributes.get(TAG)
+        flags = [0] * len(me.vertices)
+        if lay is not None:
+            lay.data.foreach_get("value", flags)
+        uv = me.uv_layers.active.data
+        faces = []
+        for p in me.polygons:
+            if all(flags[i] > 0 for i in p.vertices):
+                continue
+            faces.append(tuple(sorted((me.loops[li].vertex_index, round(uv[li].uv[0], 6), round(uv[li].uv[1], 6))
+                                      for li in p.loop_indices)))
+        return sorted(faces)
+
+    @staticmethod
+    def fingerprint():
+        """A hash of what the scripts and the export change in the .blend (every mesh's vertices, edges, faces, UVs,
+        attributes and shape keys; the objects', meshes' and scenes' properties and the texts): a .blend whose hash
+        is the same is not saved again (Blender's saves of the same content differ in their bytes)."""
+        hsh = hashlib.md5()
+
+        def put(*vals):
+            hsh.update(repr(vals).encode())
+
+        for me in bpy.data.meshes:
+            put(me.name, [tuple(v.co) for v in me.vertices], [tuple(e.vertices) for e in me.edges],
+                [(tuple(p.vertices), p.material_index, p.use_smooth) for p in me.polygons])
+            for a in me.attributes:
+                try:
+                    vals = [tuple(d.vector) if hasattr(d, "vector") else tuple(d.color) if hasattr(d, "color")
+                            else d.value for d in a.data]
+                except (AttributeError, TypeError):
+                    vals = None
+                put(a.name, a.domain, a.data_type, vals)
+            for layer in me.uv_layers:
+                put(layer.name, [tuple(d.uv) for d in layer.data])
+            if me.shape_keys:
+                for kb in me.shape_keys.key_blocks:
+                    put(kb.name, [tuple(d.co) for d in kb.data])
+        for idb in list(bpy.data.objects) + list(bpy.data.meshes) + list(bpy.data.scenes):
+            put(idb.name, sorted((k, str(idb[k].to_dict() if hasattr(idb[k], "to_dict") else
+                                         list(idb[k]) if hasattr(idb[k], "__len__") and not isinstance(idb[k], str)
+                                         else idb[k])) for k in idb.keys()))
+        for ob in bpy.data.objects:
+            put(ob.name, [tuple(r) for r in ob.matrix_world])
+        for t in bpy.data.texts:
+            put(t.name, t.as_string())
+        return hsh.hexdigest()
+
+    def keep_uvs(self):
+        """From now on the gun's own faces' UVs must stay as they are (check_uvs): called before the script runs, and
+        again by a script after a change of its own to the gun's UVs (the shotgun's end face)."""
+        self.kept_uvs = self.gun_uvs()
+
+    def check_uvs(self, when):
+        """Refuses if any of the gun's own faces' UVs changed since keep_uvs (the housing re-mapping the gun's skin)."""
+        now = self.gun_uvs()
+        if now != self.kept_uvs:
+            self.fail("%s: the UVs of %d of the gun's own faces changed (only the housing's may): the .blend not "
+                      "saved" % (when, max(len(set(now) - set(self.kept_uvs)), 1)))
+
     def main(self, fn):
         """Runs the script's main: an error ends it as a refusal (Blender's own exit code is 0 after a traceback)."""
         try:
+            self.loaded = self.fingerprint()
+            self.keep_uvs()
             fn(self)
         except SystemExit:
             raise
@@ -213,6 +279,7 @@ class Run:
 
     def export(self, grow=False):
         """Writes the model's files as blend_export.py does (quakevr/progs, weapons.txt). Returns how many."""
+        self.check_uvs("before the export")
         if self.dry:
             return 0
         source, _ = addon()
@@ -232,11 +299,16 @@ class Run:
         the verdict line."""
         summary += "; %d vertices moved, %d triangles kept, %d made" % (self.moved_verts, self.kept, self.made)
         if self.dry:
+            self.check_uvs("the build")
             self.say("ok (--dry: nothing exported or saved), %s" % summary)
             return
         self.export(grow)
         if after_export is not None:
             after_export()
+        self.check_uvs("after the export")
+        if self.save == bpy.data.filepath and self.fingerprint() == self.loaded:
+            self.say("ok, %s; exported %d files, the .blend unchanged (not saved)" % (summary, self.exported))
+            return
         bpy.context.preferences.filepaths.save_version = 0  # (no .blend1 beside it)
         bpy.ops.wm.save_as_mainfile(filepath=self.save, compress=True)
         self.say("ok, %s; exported %d files, saved %s" % (summary, self.exported, self.save))
