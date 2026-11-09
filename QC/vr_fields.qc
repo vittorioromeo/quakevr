@@ -326,6 +326,7 @@ float vr_melee_begun_last;
 
 // The tutorial's scripting (vr_tutorial.qc; vr_crates.qc's contents)
 .string contents;      // vr_crate: what it holds (a classname; "none": nothing); func_vr_restock: what it puts
+.string contents_name; // vr_crate: the targetname given to what it holds (a GRABBED func_vr_tip's target)
 .float contentsflags;  // func_vr_restock: what it puts's spawnflags
 .entity vr_spawner;    // a monster a func_vr_spawner made: that spawner
 .float vr_cp_taken;    // info_vr_checkpoint: when it was taken (0: not yet)
@@ -333,4 +334,5 @@ float vr_melee_begun_last;
 .float vr_spawn_armed; // func_vr_spawner: its latest use's monsters not all dead yet (its target not fired)
 .entity vr_spawn_by;   // func_vr_spawner: who used it last (its target's activator)
 .float vr_spawn_seen;  // a monster a func_vr_spawner made: when it was last up or in the player's sight (VR_Spawner_Unstrand)
-.float tip_on;         // func_vr_tip (TRIGGERED): used: shown from now on
+.float tip_on;         // func_vr_tip (TRIGGERED, GRABBED): used (or its thing taken in a hand): shown from now on
+.float tip_grabbed;    // a thing a hand has taken: its GRABBED tips have been let out (VR_Tips_Grabbed: once)

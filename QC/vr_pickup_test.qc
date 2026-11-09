@@ -659,6 +659,145 @@ void() VR_ClassTest_SaveTake =
     VR_Test_Verdict();
 };
 
+// vr_pickup_test 13 (map vrtutorial): the keycard's tip. Its crate broken (its target fires the TRIGGERED t2_key), the
+// card it held (contents_name r6_key) put in the main hand: the GRABBED tip t2_key_held let out then, not before, and
+// on the card (the engine: `tips: "t2_key_held" by entity N`, after `"t2_key" makes way`); a screenshot; the card let
+// go of at a holster (VR_PickupObj_Holster): kept, gone, its tip with it (`its entity gone`); a screenshot. Flat play
+// (-flatscreenmode): the card taken at once (E: VR_Carry_AutoCollect; the crate's card is a touch pickup there, its
+// handtouch), the tip never let out. Ends on "keytip test:".
+float keytip_step;   // 0 idle; 1 the card to come; 2 held, its tip to be let out; 3 its tip up; 4 kept, its tip fading
+float keytip_frames; // frames in this step
+entity keytip_key;
+entity keytip_tip;
+
+void() VR_KeyTipTest_Start =
+{
+    VR_Test_BeginFlags("keytip test", VR_TEST_LOUD);
+    keytip_tip = find(world, tipname, "t2_key_held");
+    entity crate = find(world, contents_name, "r6_key");
+    if(keytip_tip == world || crate == world)
+    {
+        VR_Test_Check(FALSE, "the tutorial's keycard crate and its tip t2_key_held (map vrtutorial)");
+        VR_Test_Verdict();
+        return;
+    }
+    VR_Test_Check(!keytip_tip.tip_on, "its tip waits before the card is out");
+    viewmessage(self, "", 0); // (the welcome off the view: no tip shows while it is up)
+    vector at = crate.origin;
+    at_y = at_y - 96; // (south of it, facing it)
+    at_z = crate.absmin_z + 25;
+    setorigin(self, at);
+    self.angles = '0 90 0';
+    self.fixangle = TRUE;
+    T_Damage(crate, self, self, crate.health + 100);
+    keytip_step = 1;
+    keytip_frames = 0;
+};
+
+// Every server frame while it runs (self is the player).
+void() VR_KeyTipTest_Frame =
+{
+    if(!keytip_step)
+    {
+        return;
+    }
+    keytip_frames++;
+    if(keytip_frames > 360)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out in step %g", keytip_step));
+        VR_Test_Verdict();
+        keytip_step = 0;
+        return;
+    }
+    float flat = VR_FlatPlay(self);
+    if(keytip_step == 1)
+    {
+        keytip_key = find(world, targetname, "r6_key");
+        if(keytip_key == world)
+        {
+            return;
+        }
+        VR_Test_Check(keytip_key.classname == "item_key1", "the crate's card has its contents_name (r6_key)");
+        VR_Test_Check(!keytip_tip.tip_on, "the card lying out: its tip still waits");
+        if(flat && keytip_key.handtouch != VR_Carry_Handtouch)
+        {
+            // Flat play: not a thing for the hands to carry (no carry_use): walked over (its handtouch: the body's
+            // touch), it is taken.
+            dprint("keytip test: flat play: the card is taken by touch\n");
+            entity kself = self;
+            other = self;
+            self = keytip_key;
+            self.handtouch();
+            self = kself;
+            keytip_step = 2;
+            keytip_frames = 0;
+            return;
+        }
+        setorigin(keytip_key, VRGetHandPos(cVR_MainHand) - (keytip_key.mins + keytip_key.maxs) * 0.5);
+        VR_Carry_Start(self, cVR_MainHand, keytip_key);
+        keytip_step = 2;
+        keytip_frames = 0;
+        return;
+    }
+    if(keytip_step == 2 && flat)
+    {
+        if(keytip_key.model != string_null)
+        {
+            return;
+        }
+        VR_Test_Check(self.items & IT_KEY1, "flat play: the card taken at once (E or a touch)");
+        VR_Test_Check(!keytip_tip.tip_on, "flat play: its tip never let out");
+        VR_Test_Verdict();
+        keytip_step = 0;
+        return;
+    }
+    if(keytip_step == 2)
+    {
+        if(!keytip_tip.tip_on)
+        {
+            return;
+        }
+        VR_Test_Check(keytip_key.tip_grabbed && keytip_key.carry_player == self && keytip_frames <= 2,
+                      "held in the main hand: its tip let out at once");
+        keytip_step = 3;
+        keytip_frames = 0;
+        return;
+    }
+    if(keytip_step == 3)
+    {
+        // The crate's own tip (t2_key) fading out of its way (0.4 s), this one fading in (0.3 s), a little more.
+        if(keytip_frames == 60)
+        {
+            localcmd("screenshot\n");
+        }
+        if(keytip_frames < 66)
+        {
+            return;
+        }
+        VR_Test_Check(keytip_key.carry_player == self, "still held");
+        VR_PickupObj_Holster(cVR_MainHand, keytip_key);
+        VR_Test_Check(self.items & IT_KEY1, "let go of at a holster: kept");
+        VR_Test_Check(keytip_key.model == string_null, "the card gone (its tip with it)");
+        keytip_step = 4;
+        keytip_frames = 0;
+        return;
+    }
+    if(keytip_step == 4)
+    {
+        if(keytip_frames == 45) // (its panel faded: 0.4 s)
+        {
+            localcmd("screenshot\n");
+        }
+        if(keytip_frames < 50)
+        {
+            return;
+        }
+        VR_Test_Check(keytip_tip.tip_on, "its tip stays let out (shown once: tips_seen)");
+        VR_Test_Verdict();
+        keytip_step = 0;
+    }
+};
+
 void() VR_LMTest_Start; // (vr_load_models_test.qc: every weapon through a save and a load)
 void() VR_LMTest_Frame;
 
@@ -666,6 +805,17 @@ void() VR_LMTest_Frame;
 void() VR_PickupTest_Frame =
 {
     VR_LMTest_Frame(); // (its next step, once a load's first frames ran)
+    if(keytip_step)
+    {
+        entity kp = VR_Player();
+        entity kself = self;
+        self = kp;
+        if(kp != world)
+        {
+            VR_KeyTipTest_Frame();
+        }
+        self = kself;
+    }
     float ask = cvar_hget(cvarh_vr_pickup_test);
     if(!ask)
     {
@@ -726,6 +876,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 12)
     {
         VR_LMTest_Start();
+    }
+    else if(ask == 13)
+    {
+        VR_KeyTipTest_Start(); // (the tutorial's keycard tip; VR_KeyTipTest_Frame runs it on)
     }
     self = oself;
 };

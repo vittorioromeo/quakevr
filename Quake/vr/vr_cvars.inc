@@ -551,6 +551,14 @@ QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // into every view and face, as before; 2 as 1, each one culled skinned again on the CPU and checked to be wholly outside
 // (vr_alias_cull_stats prints the culls by model and any wrongly culled).
 QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Your Models First: 1 your own opaque models (hands, body, held, holstered, worn) drawn
+// before the world in each view, so that the world's depth pre-pass and costly shading skip the pixels they cover (the
+// same picture: opaque, depth-tested draws in either order; skins with blended texels and holey models stay after the
+// world: r_alias.c R_AliasDrawsFirst); 0 after the world's, as before (the A/B).
+QVR_CVAR(vr_alias_player_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Own Models Pre-pass: 1 your hands and what they hold drawn into the depth first (as your
+// body and the world's models are), then shaded once a pixel (not while a gun morphs); 0 shaded as drawn (the A/B).
+QVR_CVAR(vr_alias_prepass_own, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -2291,6 +2299,7 @@ QVR_CVAR(vr_flat_grade_warmth, "0.5", CVAR_ARCHIVE)    // ... warm highlights an
 QVR_CVAR(vr_flat_grade_saturation, "1.05", CVAR_ARCHIVE) // ... colourfulness (1 unchanged, 0 grey)
 QVR_CVAR(vr_flat_vignette, "0.3", CVAR_ARCHIVE)        // flat-screen vignette: the corners darkened by this much (0 off; not the headset's comfort vignette)
 QVR_CVAR(vr_flat_vignette_size, "0.5", CVAR_ARCHIVE)   // ... how far in from the corners it reaches (0.05 .. 1)
+QVR_CVAR(vr_flat_taa, "0", CVAR_ARCHIVE)               // flat-screen temporal anti-aliasing: the eyes' TAA (vr_temporal.cpp; vr_taa_sharpen, vr_taa_blend) on the window's view; the window drops its MSAA (vid_fsaa) while on
 // Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
 QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
 QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)

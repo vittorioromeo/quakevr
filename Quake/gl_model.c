@@ -647,6 +647,10 @@ static textype_t Mod_TextureTypeFromName (const char *texname)
 Mod_LoadTextures
 =================
 */
+// QVR: a step of a brush model's load in its own Tracy zone (profiling builds; ROUND24.md "Faster map loads": the
+// world model's 265-358 ms that had none)
+#define MOD_STEP(what, statement) do { VR_TRACY_SCOPE (what); statement; } while (0)
+
 static void Mod_LoadTextures (lump_t *l)
 {
 	int		i, j, pixels, num, maxanim, altmax;
@@ -708,7 +712,7 @@ static void Mod_LoadTextures (lump_t *l)
 			}
 		}
 		COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
-		VR_TexturePrefetchBegin (mapname, namelist, kinds, nummiptex);
+		MOD_STEP ("textures: prefetch begin", VR_TexturePrefetchBegin (mapname, namelist, kinds, nummiptex));
 		VR_HeapFree (kinds);
 		VR_HeapFree (namelist);
 		VR_HeapFree (names);
@@ -836,11 +840,11 @@ static void Mod_LoadTextures (lump_t *l)
 				if (data) //load external image
 				{
 					char filename2[MAX_OSPATH];
-					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, data, fmt, fwidth, fheight); // QVR: an external pack's maps fit it (vr/vr_extmaps.cpp)
+					int extmaps; MOD_STEP ("texture: external pack's maps found", extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, data, fmt, fwidth, fheight)); // QVR: an external pack's maps fit it (vr/vr_extmaps.cpp)
 					byte *pristine = VR_NormalMapSource (data, fmt, fwidth, fheight); // QVR: the upload mipmaps an RGBA image in place: the normal map needs it whole
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight,
 						fmt, data, filename, 0, TEXPREF_MIPMAP | extraflags );
-					VR_LoadNormalMap (tx->gltexture, filename, NULL, pristine, fmt, tx->width, NORMALMAP_HEIGHTS); // QVR
+					MOD_STEP ("texture: normal map (companion, authored or made)", VR_LoadNormalMap (tx->gltexture, filename, NULL, pristine, fmt, tx->width, NORMALMAP_HEIGHTS)); // QVR
 
 					//now try to load glow/luma image from the same place
 					Hunk_FreeToLowMark (mark);
@@ -857,12 +861,12 @@ static void Mod_LoadTextures (lump_t *l)
 							fmt, data, filename2, 0, TEXPREF_MIPMAP | extraflags );
 					Hunk_FreeToLowMark (mark);
 					if (extmaps) // QVR: its normal, specular and (if it has none) glow maps
-						VR_ExtMapsAttach (tx, loadmodel, tx->fullbright != NULL);
+						MOD_STEP ("texture: external pack's maps attached", VR_ExtMapsAttach (tx, loadmodel, tx->fullbright != NULL));
 				}
 				else //use the texture from the bsp file
 				{
 					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
-					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height); // QVR: before the normal map (vr_pbr asks whether the pack's is complete)
+					int extmaps; MOD_STEP ("texture: external pack's maps found", extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)); // QVR: before the normal map (vr_pbr asks whether the pack's is complete)
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
 					if (fullbrights)
@@ -892,18 +896,18 @@ static void Mod_LoadTextures (lump_t *l)
 					// name only with content companions on (vr_pbr; off: the made map alone, no lookups, as before)
 					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name); // QVR
 					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name); // QVR
-					VR_LoadNormalMap (tx->gltexture, VR_PBREnabled () ? filename : NULL, VR_PBREnabled () ? texturename : NULL,
+					MOD_STEP ("texture: normal map (companion, authored or made)", VR_LoadNormalMap (tx->gltexture, VR_PBREnabled () ? filename : NULL, VR_PBREnabled () ? texturename : NULL,
 						(byte *)(tx+1), SRC_INDEXED, tx->width,
-						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
+						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0));
 					if (extmaps) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
-						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
+						MOD_STEP ("texture: external pack's maps attached", VR_ExtMapsAttach (tx, loadmodel, fullbrights));
 				}
 				Hunk_FreeToLowMark (mark);
 			}
 		}
 		//johnfitz
 	}
-	VR_TexturePrefetchEnd (); // QVR
+	MOD_STEP ("textures: prefetch end", VR_TexturePrefetchEnd ()); // QVR
 
 	//johnfitz -- last 2 slots in array should be filled with dummy textures
 	loadmodel->textures[loadmodel->numtextures-2] = r_notexture_mip; //for lightmapped surfs
@@ -1004,7 +1008,7 @@ static void Mod_LoadTextures (lump_t *l)
 				tx2->alternate_anims = anims[0];
 		}
 	}
-	VR_AnimSurfaces (loadmodel); // QVR: an animation's frames drawn with one surface (vr/vr_extmaps.cpp)
+	MOD_STEP ("textures: anim surfaces", VR_AnimSurfaces (loadmodel)); // QVR: an animation's frames drawn with one surface (vr/vr_extmaps.cpp)
 }
 
 /*
@@ -2660,16 +2664,13 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 
 // load into heap
 
-	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
-	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
-	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]);
-	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
-	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
-	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
-	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
-	VR_ItemTextureClamp (loadmodel); // QVR: parallax on item boxes
-	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
+	MOD_STEP ("vertexes, edges, surfedges", Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]); Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2); Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]));
+	MOD_STEP ("textures", Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]));
+	MOD_STEP ("lighting", Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]));
+	MOD_STEP ("planes, texinfo", Mod_LoadPlanes (&header->lumps[LUMP_PLANES]); Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]));
+	MOD_STEP ("faces", Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2));
+	MOD_STEP ("item clamp", VR_ItemTextureClamp (loadmodel)); // QVR: parallax on item boxes
+	MOD_STEP ("marksurfaces", Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2));
 
 	if (mod->bspversion == BSPVERSION && external_vis.value && sv.modelname[0] && !q_strcasecmp(loadname, sv.name))
 	{
@@ -2694,19 +2695,15 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 		}
 	}
 
-	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
-	Mod_LoadLeafs (&header->lumps[LUMP_LEAFS], bsp2);
+	MOD_STEP ("visibility, leafs", Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]); Mod_LoadLeafs (&header->lumps[LUMP_LEAFS], bsp2));
 visdone:
-	Mod_LoadNodes (&header->lumps[LUMP_NODES], bsp2);
-	Mod_LoadClipnodes (&header->lumps[LUMP_CLIPNODES], bsp2);
-	Mod_LoadEntities (&header->lumps[LUMP_ENTITIES], &header->lumps[LUMP_MODELS]);
-	Mod_LoadSubmodels (&header->lumps[LUMP_MODELS]);
-
-	Mod_MakeHull0 ();
+	MOD_STEP ("nodes, clipnodes", Mod_LoadNodes (&header->lumps[LUMP_NODES], bsp2); Mod_LoadClipnodes (&header->lumps[LUMP_CLIPNODES], bsp2));
+	MOD_STEP ("entities", Mod_LoadEntities (&header->lumps[LUMP_ENTITIES], &header->lumps[LUMP_MODELS]));
+	MOD_STEP ("submodels, hull 0", Mod_LoadSubmodels (&header->lumps[LUMP_MODELS]); Mod_MakeHull0 ());
 
 	mod->numframes = 2;		// regular and alternate animation
 
-	Mod_CheckWaterVis ();
+	MOD_STEP ("water vis", Mod_CheckWaterVis ());
 
 //
 // set up the submodels (FIXME: this is confusing)
@@ -2716,7 +2713,7 @@ visdone:
 	else
 		mod->nummodelsurfaces = mod->numsurfaces;
 	mod->sortkey = (CRC_Block (mod->name, strlen(mod->name)) & MODSORT_MODELMASK) << MODSORT_FRAMEBITS;
-	Mod_FindUsedTextures (mod);
+	MOD_STEP ("used textures", Mod_FindUsedTextures (mod));
 
 	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
 	// we're looping through the submodels starting at 0.  Submodel 0 is the main model, so we don't have to

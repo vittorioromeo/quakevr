@@ -1232,6 +1232,7 @@ void resetHandMoves()
             .help("Off (Quake), Low, Medium, High (as shipped) and Ultra set the settings on the Graphics pages at once; My Settings sets yours back. Also on VR Settings."),
         header("Image"),
         row(opt::vid_fsaa),
+        row(opt::vid_fsaamode),
         row(opt::vr_texture_smooth),
         row(opt::gl_texture_anisotropy),
         row(opt::vr_alpha_coverage),
@@ -1799,6 +1800,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_flat_grade_saturation),
         row(opt::vr_flat_vignette),
         row(opt::vr_flat_vignette_size),
+        row(opt::vr_flat_taa),
     };
 }
 

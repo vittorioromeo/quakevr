@@ -100,6 +100,7 @@ entity(entity xPlayer, float xHand) VR_Carry_Held =
 float(entity t) VR_WallTorch_IsTorch; // (vr_walltorch.qc)
 float(entity e) VR_Reload_IsRound;    // (vr_reload.qc)
 float(entity e) VR_Grenade_Is;        // (vr_grenade.qc)
+void(entity xThing) VR_Tips_Grabbed;  // (vr_tips.qc)
 
 // The kind of the thing `t` (VR_HOLD_*; world: VR_HOLD_NONE).
 float(entity t) VR_Hand_KindOf =
@@ -1584,6 +1585,7 @@ void(float xHand) VR_Carry_HandFrame =
     {
         return;
     }
+    VR_Tips_Grabbed(box); // (still held: its GRABBED tips on it, once; the tutorial's keycard)
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))

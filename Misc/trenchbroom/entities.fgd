@@ -570,6 +570,8 @@ this tip. Try one with vr_tips_test <tipname>." [
 		1 : "Show every time" : 0 : "Not remembered: it shows again whenever he comes near. (The map's worldspawn Repeat map tips makes every tip in the map do this.)"
 		2 : "Wrist hologram" : 0 : "In the wrist gadget's hologram instead of the floating screen (the screen when there is no hologram)."
 		4 : "Ignore sight and view" : 0 : "Shown even out of the view angle or hidden behind the world."
+		8 : "Triggered" : 0 : "Not shown until its targetname is fired (a monster's death, a crate broken...); then it takes over from the tip showing."
+		16 : "When grabbed" : 0 : "Not shown until a hand takes what it follows (its target: an item's targetname, a vr_crate's contents_name); then on it at once, over the tip showing, and gone with it. Set Ignore sight and view and Delay 0 with it."
 	]
 ]
 

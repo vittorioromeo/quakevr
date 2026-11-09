@@ -29,6 +29,7 @@
 #include "vr_temporal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
@@ -243,7 +244,7 @@ void Resolve(ivec2 p, ivec2 size, vec2 texel)
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = textureSize(SceneColor, 0);
+    ivec2 size = imageSize(HistoryOut); // the view's size (the window's scene textures can be larger: its corner is the view)
     if (gl_LocalInvocationIndex == 0u)
     {
         sErr = 0u;
@@ -271,7 +272,7 @@ layout(binding = 3, r8) uniform writeonly image2D MaskOut;
 void main()
 {
     ivec2 p = ivec2(gl_GlobalInvocationID.xy);
-    if (any(greaterThanEqual(p, textureSize(Stencil, 0))))
+    if (any(greaterThanEqual(p, imageSize(MaskOut))))
         return;
     uint s = texelFetch(Stencil, p, 0).r;
     imageStore(MaskOut, p, vec4((s & 6u) != 0u ? 1.0 : 0.0));
@@ -325,6 +326,8 @@ struct Slot
 
 constexpr int slotTableSize = 4096; // a power of two
 constexpr int vertsPerHalf = 1 << 20;
+constexpr int flatView = 2;  // EyeState's index for flat-screen play's window view (vr_flat_taa), after the two eyes
+constexpr int statsViews = 3; // the views' error sums in the stats buffer (4 uints each)
 
 struct EyeState
 {
@@ -341,7 +344,8 @@ struct EyeState
 
 struct State
 {
-    bool frameActive{false};   // the eyes collect this frame
+    bool frameActive{false};   // the eyes (or the flat window's view) collect this frame
+    bool flat{false};          // this frame's view is flat-screen play's window (VR_FlatRenderView), not the eyes
     bool eyeActive{false};     // between beginEye and endEye, collecting
     bool resolvedEye{false};
     int eye{0};
@@ -355,7 +359,7 @@ struct State
     GLuint maskTex{0};         // R8
     GLuint displayTex{0};      // RGBA16F: the debug views
     int texWidth{0}, texHeight{0};
-    EyeState eyes[2];
+    EyeState eyes[3];          // the left eye, the right, the flat window's view (flatView)
     GLuint posBuffer{0};       // the alias models' vertices, two halves
     int posUsed{0};
     GLuint statsBuffer{0};
@@ -445,7 +449,18 @@ bool invert4(const float* m, float* out)
 
 [[nodiscard]] bool taaOn()
 {
-    return vr_taa.value != 0.f && vr_temporal_debug.value == 0.f;
+    return (state.flat ? vr_flat_taa.value : vr_taa.value) != 0.f && vr_temporal_debug.value == 0.f;
+}
+
+// Collecting the view being drawn: the eye's (not the spectator camera's), or the flat window's; never a teleporter's
+// offscreen view drawn for it (VR_PortalDrawing: no jitter, no motion, no resolve into the view's history).
+[[nodiscard]] bool collecting()
+{
+    if(!state.eyeActive || VR_PortalDrawing())
+    {
+        return false;
+    }
+    return state.flat ? !stereo::isRenderingEye() : stereo::isRenderingEye() && !stereo::isSpectator();
 }
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
@@ -567,7 +582,7 @@ void ensureBuffers()
         GL_ObjectLabelFunc(GL_BUFFER, state.posBuffer, -1, "taa model positions");
         GL_GenBuffersFunc(1, &state.statsBuffer);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
-        const std::uint32_t zero[8] = {};
+        const std::uint32_t zero[statsViews * 4] = {};
         GL_BufferDataFunc(GL_SHADER_STORAGE_BUFFER, sizeof(zero), zero, GL_DYNAMIC_READ);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
@@ -669,12 +684,31 @@ float eyeFsaa(float fsaa)
     return wanted() ? 0.f : fsaa;
 }
 
-void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples)
+bool flatWanted()
+{
+    return vr_flat_taa.value != 0.f && flatplay::active();
+}
+
+int windowSamples(int samples)
+{
+    if(state.flat) // the window's targets made anew: the motion target attached to the new scene framebuffer next frame
+    {
+        state.attachedScene = state.attachedComposite = state.attachedTex = 0;
+    }
+    return vr_flat_taa.value != 0.f && flatplay::flagGiven() ? 1 : samples;
+}
+
+namespace
+{
+
+// The frame's views (the eyes, or the flat window's): the targets, the jitter, the models' positions. `flat` the window.
+void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples, bool flat)
 {
     state.frameIndex++;
     state.sceneFbo = sceneFbo;
     state.compositeFbo = compositeFbo;
-    const bool want = wanted() && samples <= 1 && ensurePrograms();
+    state.flat = flat;
+    const bool want = (flat ? flatWanted() : wanted()) && samples <= 1 && width > 0 && height > 0 && ensurePrograms();
     if(!want)
     {
         if(state.frameActive || state.attachedTex)
@@ -725,11 +759,18 @@ void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height,
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 14, state.posBuffer, (cur ^ 1) * half, half);
     if(vr_temporal_debug.value == 3.f)
     {
-        const std::uint32_t zero[8] = {};
+        const std::uint32_t zero[statsViews * 4] = {};
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
         GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, sizeof(zero), zero);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
+}
+
+} // namespace
+
+void beginFrame(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int samples)
+{
+    begin(sceneFbo, compositeFbo, width, height, samples, false);
 }
 
 void beginEye(int eye)
@@ -748,6 +789,18 @@ void endEye()
 
 void registerCommands()
 {
+    // vr_flat_taa changed in flat-screen play: the window's targets made again, without MSAA under it (windowSamples)
+    Cvar_SetCallback(&vr_flat_taa,
+        [](cvar_t*)
+        {
+            const int samples = Q_nextPow2(static_cast<int>(q_max(1.f, vid_fsaa.value)));
+            if(host_initialized && flatplay::flagGiven() && framebufs.scene.fbo &&
+                q_min(windowSamples(samples), framebufs.max_samples) != framebufs.scene.samples)
+            {
+                GL_DeleteFrameBuffers();
+                GL_CreateFrameBuffers();
+            }
+        });
     Cmd_AddCommand("vr_temporal_error",
         []
         {
@@ -756,17 +809,17 @@ void registerCommands()
                 Con_Printf("vr_temporal_error: no data (vr_temporal_debug 3 in the headset first)\n");
                 return;
             }
-            std::uint32_t stats[8] = {};
+            std::uint32_t stats[statsViews * 4] = {};
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
             getBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-            for(int eye = 0; eye < 2; eye++)
+            for(int eye = state.flat ? flatView : 0; eye < (state.flat ? statsViews : 2); eye++)
             {
                 const std::uint32_t* s = stats + eye * 4;
                 const double n = s[2] > 0 ? static_cast<double>(s[2]) : 1.0;
                 Con_Printf("vr_temporal_error %s: reprojected %.3f, not reprojected %.3f (mean |luma| 0-255), %u pixels, "
                            "%.1f%% of the eye\n",
-                    eye == 0 ? "L" : "R", s[0] / (4.0 * n), s[1] / (4.0 * n), s[2],
+                    eye == 0 ? "L" : eye == 1 ? "R" : "flat", s[0] / (4.0 * n), s[1] / (4.0 * n), s[2],
                     100.0 * s[2] / q_max(1.0, static_cast<double>(state.width) * state.height));
             }
         });
@@ -788,7 +841,7 @@ using temporal::state;
 // vectors' block for the shaders (the previous frame's view-projection).
 extern "C" void VR_TemporalProjection(float proj[16], const float view[16])
 {
-    if(!state.eyeActive || !stereo::isRenderingEye() || stereo::isSpectator())
+    if(!temporal::collecting())
     {
         temporal::bindZeroBlock();
         return;
@@ -888,7 +941,7 @@ extern "C" void VR_TemporalMotionWrites(int on)
         return;
     }
     const GLuint bound = GL_BoundDrawFramebuffer();
-    if(want && bound != state.sceneFbo && bound != state.compositeFbo)
+    if(want && (!bound || (bound != state.sceneFbo && bound != state.compositeFbo))) // (the flat window has no composite's)
     {
         return;
     }
@@ -923,7 +976,7 @@ extern "C" void VR_TemporalReactive(int on)
 // R_RenderView, after the scene: the eye's temporal pass (TAA, or a debug view) into its scene colour.
 extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
 {
-    if(!state.eyeActive || state.resolvedEye || !stereo::isRenderingEye() || stereo::isSpectator())
+    if(state.resolvedEye || !temporal::collecting())
     {
         return;
     }
@@ -982,7 +1035,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
         GL_BindImageTextureFunc(0, e.history[next], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         GL_BindImageTextureFunc(1, e.depth[next], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
         GL_BindImageTextureFunc(2, state.displayTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 15, state.statsBuffer, 0, 32);
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 15, state.statsBuffer, 0, temporal::statsViews * 4 * 4);
         GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, inv);
         GL_UniformMatrix4fvFunc(1, 1, GL_FALSE, e.prevViewProj);
         GL_Uniform4fFunc(2, state.jitter[0] / static_cast<float>(state.width), state.jitter[1] / static_cast<float>(state.height),
@@ -1013,4 +1066,33 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
     e.havePrev = true;
     VectorCopy(e.origin, e.prevOrigin);
     VectorCopy(e.angles, e.prevAngles);
+}
+
+// SCR_UpdateScreen, no eyes drawn: the window's view, with flat-screen play's TAA (vr_flat_taa) the eyes' way: the same
+// jitter, motion vectors, reactive mask, resolve (before the warp, the flat look's bloom and tone curve) and sharpening,
+// as a third view (flatView) in the window's own scene target, the scene's corner the view (r_scale's 1/N). The visor,
+// the crosshair and the 2D are drawn after the resolve, never jittered or kept.
+extern "C" void VR_FlatRenderView()
+{
+    if(temporal::flatWanted() || state.flat) // (once more after it is turned off: the motion target detached)
+    {
+        const int scale = za::max(r_refdef.scale, 1);
+        temporal::begin(framebufs.scene.fbo, 0, r_refdef.vrect.width / scale, r_refdef.vrect.height / scale,
+            framebufs.scene.samples, true);
+        state.flat = state.frameActive;
+    }
+    if(!state.flat)
+    {
+        V_RenderView();
+        return;
+    }
+    temporal::beginEye(temporal::flatView);
+    V_RenderView();
+    temporal::endEye();
+}
+
+// GL_NeedsSceneEffects: the window's view drawn in the scene's own target while it collects (the resolve reads it).
+extern "C" int VR_FlatTaaActive()
+{
+    return state.flat && state.eyeActive ? 1 : 0;
 }

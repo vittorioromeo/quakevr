@@ -390,6 +390,16 @@ def scenarios():
     add("load_e1m1_qrp", ["loading", "textures"], "E1M1 loaded cold and warm on QRP (external textures, normal maps)",
         None, "load_e1m1's cold and warm loads on the QRP base: the replacement textures' and their material maps' share.",
         base="qrp", setup=LOADS, warm=30, body=loads_body([("cold", "map e1m1"), ("warm", "map e1m1")]), loads=2, frames=0)
+    for suffix, flat in (("", False), ("_flat", True)):
+        add(f"load_session_qrp{suffix}", ["loading", "textures"] + (["flat"] if flat else []),
+            "a session's first maps on QRP: the hub cold, then E1M1 and E1M2 by changelevel"
+            + (", flat" if flat else ""), None,
+            "`map start` (cold), `changelevel e1m1`, `changelevel e1m2`, `changelevel e1m1` (back: its images "
+            "decoded before, vr_image_cache): a play session's loads (each map new but the last) on the QRP base, and "
+            "the frames after each (the hub's portals in its first view)." + (" Flat mode (vr_enabled 0)." if flat else ""),
+            base="qrp", flat=flat, setup=LOADS, warm=30,
+            body=loads_body([("start", "map start"), ("e1m1", "changelevel e1m1"), ("e1m2", "changelevel e1m2"),
+                ("back", "changelevel e1m1")]), loads=4, frames=0)
     add("load_e4m7", ["loading"], "E4M7, id's biggest BSP, loaded cold and warm", None,
         "`map e4m7` cold, then again: the largest of id's maps (1.5 MB BSP).", setup=LOADS, warm=30,
         body=loads_body([("cold", "map e4m7"), ("warm", "map e4m7")]), loads=2, frames=0)
@@ -524,6 +534,16 @@ def scenarios():
         "more every 160 frames: nails' wounds, blood streams, flesh dents, decals, gibs, ragdolls and corpses piling up.",
         hostile=True, setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
         + gun(7), warm=30, body=gore_fight)
+    # (perf_1109, local only: the flat-screen fights of the author's 2026-11-09 trace)
+    add("play_e1m1_fight_flat", ["perf1109"], "play_e1m1_fight in flat mode", "e1m1",
+        "play_e1m1_fight on the flat screen: the view's shotgun at whatever is ahead.", header=["skill 2"], pos=E1M1_ROOM,
+        hostile=True, flat=True, setup=[f"vr_physics_spawn monster_dog 110 {l}" for l in (-60, 0, 60)]
+        + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 90)] + ["impulse 9", "wait", "impulse 4", "wait"],
+        warm=30, body=shoot_every(50))
+    add("play_gore_fight_flat", ["perf1109"], "play_gore_fight in flat mode", RANGE,
+        "play_gore_fight on the flat screen: the super nailgun at whatever is ahead.", hostile=True, flat=True,
+        setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
+        + ["impulse 9", "wait", "impulse 5", "wait"], warm=30, body=gore_fight)
     add("play_calibration_turn", ["profile"], "the calibration room: boards, walls, the head turning", "vrcalibration",
         "vrcalibration at its spawn, the head turned 90 degrees either way twice: its boards' text, wall buttons and props.",
         body=gate_turn, warm=60)
