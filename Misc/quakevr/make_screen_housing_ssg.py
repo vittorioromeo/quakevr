@@ -1,11 +1,23 @@
 # make_screen_housing_ssg.py -- the super shotgun's ammo screen housing, modelled on v_shot2.blend (ROUND24.md, "The super
-# shotgun's screen housing"). Run headless in Blender on the gun's source .blend from before the housing:
+# shotgun's screen housing").
 #
-#   blender -b <v_shot2.blend without the housing> --python Misc/quakevr/make_screen_housing_ssg.py -- --out <v_shot2.blend>
-#
-# then export it (blend_export.py) as any edit. It refuses a .blend that already has the housing (the object's
-# `qvr_housing` property): the .blend is the source from then on; this script is the record of how it was made and
-# makes it again from the .blend before it (git history) if the shape needs changing.
+# Usage, from the repository root (the options after the separator: [--dry] [--save other.blend] [--any]):
+#   Git Bash:   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup \
+#                   Misc/quakevr/src_models/blend/v_shot2/v_shot2.blend \
+#                   --python Misc/quakevr/make_screen_housing_ssg.py -- --dry
+#   PowerShell: & "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b --factory-startup `
+#                   Misc\quakevr\src_models\blend\v_shot2\v_shot2.blend `
+#                   --python Misc\quakevr\make_screen_housing_ssg.py '--' --dry
+#   (PowerShell eats a bare --: quote it. Leave out `-- --dry` to export and save.)
+# Builds or moves the housing, paints its skin patch, exports the model as blend_export.py does (quakevr/progs,
+# weapons.txt) and saves the .blend (in place, or as --save) as the export left it. Ends with "housing_shot2: ok, ..."
+# or "housing_shot2: REFUSED: ..." (exit code 1). --dry: builds and checks it, exports and saves nothing.
+# The three housing scripts work alike (housing_common.py; docs/vr-port/MODELS_IN_BLENDER.md, "Tweaking the ammo
+# screen housings"): run again on a .blend that has the housing (its vertices carry the point attribute `qvr_housing`;
+# a .blend from before the tag: the object's `qvr_housing` property and its new vertices), with the same shape (as
+# many vertices) its vertices are moved and re-mapped in place, so the model's file keeps its vertices; otherwise the
+# old housing is deleted and built anew (its old vertices then stay in the .mdl unused: start from the .blend before
+# the housing, in git history, to keep the file lean).
 #
 # What it adds, on the angled top of the breech block (the two sloped faces behind the rib's sight block):
 # - a low bezel round a small chamfered window: an inner wall from under the glass to the top, a flat top (its inner
@@ -18,25 +30,26 @@
 # grid is coarse along its length (0.227 units in x, 0.037 in y, 0.056 in z): the window's top and bottom edges land on
 # rows a quarter of a unit apart, so the script snaps the bezel to the grid itself, measures the opening the snapped
 # walls make at the glass's depth, and refuses unless the table's opening, chamfer and offset (right, up) match it
-# (printing the values that do). The glass's place and axes on the model with the table's offset 0 are measured in the
-# game (vr_debug_screen_where 1: GLASS0, RIGHT, UP, PIXEL below).
-# Texture: a new patch in free skin (texels 200-248 x 122-146 from the top): the gun's own metal (copied from the sloped
+# (printing the values that do; --any: build it anyway). The glass's place and axes on the model with the table's
+# offset 0 are measured in the game (vr_debug_screen_where 1: GLASS0, RIGHT, UP, PIXEL below).
+# Texture: a patch in free skin (texels 200-248 x 122-146 from the top): the gun's own metal (copied from the sloped
 # face's texels), lit on the bezel top's inner edge, darker on the walls, near black under the glass, darker rivet heads
-# with a lit edge.
+# with a lit edge. Painted again on every run (the skin's .png written only when that changes it).
 
 import math
 import os
-import re
-import struct
 import sys
 
 import bmesh
 import bpy
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-STYLE_CPP = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_screenstyle.cpp")
-MDL = os.path.join(HERE, "..", "..", "quakevr", "progs", "v_shot2.mdl")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import housing_common as hc  # noqa: E402
+
+STEM = "shot2"
+MODEL = "v_shot2"
 
 # Measured with vr_debug_screen_where 1 (weapons.txt slot 2's wpntxt offsets and pitch 66.5, the table's offset 0).
 GLASS0 = Vector((3.4724, -0.0296, 6.1556))
@@ -73,31 +86,7 @@ REGIONS = {  # x0, y0, x1, y1 within the patch
 METAL_SRC = (90, 118)  # a 16x16 block of the sloped face's own metal (its UVs: texels 88-108 x 108-145 bottom-up)
 SHADES = {"top": 1.8, "wall": 0.6, "skirt": 0.9, "floor": 0.0, "rivet": 0.7, "rivettop": 0.8}
 
-
-def style_entry():
-    src = open(STYLE_CPP, encoding="utf-8").read()
-    m = re.search(r'\{"shot2",\s*\{(.*?)\}\},', src, re.S)
-    if not m:
-        sys.exit("make_screen_housing_ssg: no \"shot2\" entry in vr_screenstyle.cpp")
-    body = m.group(1)
-
-    def num(name):
-        mm = re.search(r"\.%s\s*=\s*(-?[0-9.]+)f?" % name, body)
-        return float(mm.group(1)) if mm else 0.0
-
-    def vec(name, n):
-        mm = re.search(r"\.%s\s*=\s*\{([^}]*)\}" % name, body)
-        return [float(v.strip().rstrip("f")) for v in mm.group(1).split(",")] if mm else [0.0] * n
-
-    return num("radius"), vec("opening", 2), vec("offset", 3), num("size")
-
-
-def grid():
-    d = open(MDL, "rb").read(32)
-    return Vector(struct.unpack("<3f", d[8:20])), Vector(struct.unpack("<3f", d[20:32]))
-
-
-SCALE, ORIGIN = grid()
+SCALE, ORIGIN = (Vector(v) for v in hc.mdl_grid(MODEL))
 ROW = SCALE.x / UP.x  # one x step along UP
 
 
@@ -128,42 +117,28 @@ def region_uv(name, fx, fy):
 
 
 class Builder:
-    def __init__(self, bm):
-        self.bm = bm
-        self.uv = bm.loops.layers.uv.active
-        self.ivert = bm.verts.layers.int.get("qvr_vert")
-        self.icorner = bm.loops.layers.int.get("qvr_vid")
-        self.iface = bm.faces.layers.int.get("qvr_tri")
-        self.tris = 0
+    """The housing's vertices (positions, in the order made) and triangles (housing_common's (i, j, k, uvs))."""
+
+    def __init__(self):
+        self.co = []
+        self.tris = []
         self.bad = 0
 
     def verts(self, cos):
-        out = []
-        for co in cos:
-            v = self.bm.verts.new(co)
-            if self.ivert is not None:
-                v[self.ivert] = -1
-            out.append(v)
-        return out
+        self.co.extend(cos)
+        return list(range(len(self.co) - len(cos), len(self.co)))
 
     def tri(self, vs, uvs, want):
         """A triangle, turned so its normal is along `want` (counted bad if it is too thin or stands across it)."""
-        n = (vs[1].co - vs[0].co).cross(vs[2].co - vs[0].co)
+        p = [self.co[i] for i in vs]
+        n = (p[1] - p[0]).cross(p[2] - p[0])
         if n.dot(want) < 0:
             vs = [vs[0], vs[2], vs[1]]
             uvs = [uvs[0], uvs[2], uvs[1]]
         if n.length < 1e-6 or abs(n.normalized().dot(want.normalized())) < 0.05:
             self.bad += 1
-            print("housing: a bad triangle at %.2f %.2f %.2f" % tuple((vs[0].co + vs[1].co + vs[2].co) / 3))
-        f = self.bm.faces.new(vs)
-        if self.iface is not None:
-            f[self.iface] = -1
-        for loop, uv in zip(f.loops, uvs):
-            loop[self.uv].uv = uv
-            if self.icorner is not None:
-                loop[self.icorner] = -1
-        self.tris += 1
-        return f
+            print("housing: a bad triangle at %.2f %.2f %.2f" % tuple((p[0] + p[1] + p[2]) / 3))
+        self.tris.append((vs[0], vs[1], vs[2], tuple(uvs)))
 
     def band(self, inner, outer, region, want_fn):
         """Quads between two rings of equal length; want_fn(i) the outward direction of the i-th quad."""
@@ -176,7 +151,7 @@ class Builder:
                               region_uv(region, u0, 1))
             want = want_fn(i)
             # split along the shorter diagonal
-            if (a.co - c.co).length <= (b.co - d.co).length:
+            if (self.co[a] - self.co[c]).length <= (self.co[b] - self.co[d]).length:
                 self.tri([a, b, c], [ua, ub, uc], want)
                 self.tri([a, c, d], [ua, uc, ud], want)
             else:
@@ -189,7 +164,7 @@ class Builder:
         (ax, ha), (ay, hb) = axes
 
         def uv_of(v):
-            d = v.co - centre_co
+            d = self.co[v] - centre_co
             return region_uv(region, min(1, max(0, 0.5 + 0.5 * d.dot(ax) / ha)),
                              min(1, max(0, 0.5 + 0.5 * d.dot(ay) / hb)))
 
@@ -199,17 +174,11 @@ class Builder:
             self.tri([c, loop[i], loop[j]], [uv_of(c), uv_of(loop[i]), uv_of(loop[j])], want)
 
 
-def surface_z(ob, dg, x, y):
-    """The gun's top surface's height at (x, y)."""
-    ok, loc, nrm, _ = ob.ray_cast(Vector((x, y, 12.0)), Vector((0, 0, -1)), distance=20.0, depsgraph=dg)
-    if not ok:
-        sys.exit("make_screen_housing_ssg: no surface under %.2f %.2f" % (x, y))
-    return loc.z
-
-
 def paint(image):
+    """Paints the skin patch. Returns whether that changed the image."""
     w, h = image.size
-    px = list(image.pixels[:])
+    before = list(image.pixels[:])
+    px = list(before)
 
     def get(x, y):
         i = 4 * (y * w + x)
@@ -234,22 +203,18 @@ def paint(image):
                     rgb = [c * s for c in src]
                 put(PATCH[0] + x, PATCH[1] + y, rgb)
     image.pixels[:] = px
+    after = image.pixels[:]  # (as the image holds them)
+    return any(abs(a - b) > 1e-6 for a, b in zip(before, after))
 
 
-def main():
-    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    if "--out" not in args:
-        sys.exit("usage: blender -b <v_shot2.blend> --python make_screen_housing_ssg.py -- --out <v_shot2.blend>")
-    out = os.path.abspath(args[args.index("--out") + 1])
-
-    ob = bpy.data.objects["v_shot2"]
-    if "qvr_housing" in ob.keys():
-        sys.exit("make_screen_housing_ssg: %s already has the housing (%s)" % (bpy.data.filepath, ob["qvr_housing"]))
+def main(h):
+    ob = bpy.data.objects[MODEL]
+    me = ob.data
     global PIXEL
-    radius, opening, offset, size = style_entry()
+    radius, opening, offset, size = h.style["radius"], h.style["opening"], h.style["offset"], h.style["size"]
     PIXEL = PIXEL1 * size
     if opening[0] <= 0 or opening[1] <= 0 or radius > 0:
-        sys.exit("make_screen_housing_ssg: the \"shot2\" entry needs an opening, square or chamfered (radius <= 0)")
+        h.fail("the \"shot2\" entry needs an opening, square or chamfered (radius <= 0)")
     # The glass's place: at its depth (the table's out) and moved along its plane (the table's right and up).
     glass = GLASS0 + OUT * offset[2] * MODEL_PER_UNIT
     target = (opening[0] * PIXEL - TUCK, opening[1] * PIXEL - TUCK,
@@ -296,15 +261,34 @@ def main():
     off = (abs(want["opening"][0] - opening[0]) > 0.3 or abs(want["opening"][1] - opening[1]) > 0.3 or
            abs(want["radius"] - radius) > 0.6 or abs(want["offset"][0] - offset[0]) * MODEL_PER_UNIT > 0.3 * PIXEL or
            abs(want["offset"][1] - offset[1]) * MODEL_PER_UNIT > 0.3 * PIXEL)
-    if off and "--any" not in args:
-        sys.exit("make_screen_housing_ssg: the table's \"shot2\" entry doesn't match the modelled opening (above); "
-                 "set it and run again (--any: write anyway)")
+    if off and "--any" not in h.argv:
+        h.fail("the table's \"shot2\" entry doesn't match the modelled opening (the line above has the values that do); "
+               "set it and run again (--any: build it anyway)")
 
-    dg = bpy.context.evaluated_depsgraph_get()
-    me = ob.data
+    def legacy(bm):
+        """A housing made before the tag: the object's property, its vertices the ones the export hasn't numbered."""
+        lay = bm.verts.layers.int.get("qvr_vert")
+        if "qvr_housing" not in ob.keys() or lay is None:
+            return None
+        return sorted((v for v in bm.verts if v[lay] < 0), key=lambda v: v.index)
+
+    # The gun's surface without the housing (the rivets stand on it).
     bm = bmesh.new()
     bm.from_mesh(me)
-    bld = Builder(bm)
+    tag = bm.verts.layers.int.get(hc.TAG)
+    house = [v for v in bm.verts if v[tag] > 0] if tag is not None else (legacy(bm) or [])
+    bmesh.ops.delete(bm, geom=house, context='VERTS')
+    surface = BVHTree.FromBMesh(bm)
+    bm.free()
+
+    def surface_z(x, y):
+        """The gun's top surface's height at (x, y)."""
+        loc = surface.ray_cast(Vector((x, y, 12.0)), Vector((0, 0, -1)), 20.0)[0]
+        if loc is None:
+            h.fail("no surface under %.2f %.2f" % (x, y))
+        return loc.z
+
+    bld = Builder()
     floor_v, wall_v, top_v, skirt_v = (bld.verts(r) for r in (floor, wall_top, top_out, skirt))
 
     def radial(i, loop):
@@ -318,7 +302,7 @@ def main():
     bld.band(top_v, skirt_v, "skirt", lambda i: radial(i, top_out))
     bld.fan(floor_v, snap(centre - OUT * FLOOR), "floor", OUT, ((RIGHT, a), (UP, b)))
     bld.fan(skirt_v, snap(centre - OUT * SKIRT), "skirt", -OUT, ((RIGHT, a_out), (UP, b_out)))  # closed
-    bezel_tris = bld.tris
+    bezel_tris = len(bld.tris)
 
     # The rivets, one each side, level with the window's middle: a hexagon two x steps long, on the surface.
     sx = SCALE.x
@@ -329,11 +313,11 @@ def main():
         foot = [(xc + sx, yc - hy * 0.5), (xc + sx, yc + hy * 0.5), (xc, yc + hy),
                 (xc - sx, yc + hy * 0.5), (xc - sx, yc - hy * 0.5), (xc, yc - hy)]
 
-        def lift(h):
-            return [snap(Vector((x, y, surface_z(ob, dg, x, y) + h))) for x, y in foot]
+        def lift(dz):
+            return [snap(Vector((x, y, surface_z(x, y) + dz))) for x, y in foot]
 
         base, rim = bld.verts(lift(-0.06)), bld.verts(lift(SCALE.z * 1.5))
-        zc = surface_z(ob, dg, xc, yc)
+        zc = surface_z(xc, yc)
         apex = snap(Vector((xc, yc, zc + SCALE.z * 3.6)))
         bottom = snap(Vector((xc, yc, zc - 0.06)))
         up_n = Vector((-0.3, 0.0, 0.95))
@@ -348,24 +332,22 @@ def main():
         bld.fan(base, bottom, "rivet", -up_n, ((Vector((1, 0, 0)), sx), (Vector((0, 1, 0)), hy)))  # closed
         print("housing: rivet %+d at %.3f %.3f %.3f" % (side, xc, yc, zc))
 
-    bm.to_mesh(me)
-    bm.free()
-    me.update()
-    print("housing: %d triangles (bezel %d, rivets %d), %d bad" % (bld.tris, bezel_tris, bld.tris - bezel_tris, bld.bad))
-
-    # The skin patch, saved beside the new .blend.
-    image = bpy.data.images["v_shot2_skin0"]
-    image.pixels[0]  # (loads it)
-    paint(image)
-    png = os.path.join(os.path.dirname(out), "v_shot2_skin0.png")
-    image.filepath_raw = png
-    image.file_format = 'PNG'
-    image.save()
+    h.apply(me, bld.co, bld.tris, legacy=legacy)
     ob["qvr_housing"] = "ssg screen housing (make_screen_housing_ssg.py)"
-    bpy.ops.wm.save_as_mainfile(filepath=out, relative_remap=True)
-    image.filepath = "//v_shot2_skin0.png"
-    bpy.ops.wm.save_mainfile()
-    print("housing: wrote %s and %s" % (out, png))
+
+    # The skin patch: painted again; its .png written after the export when that changed it.
+    image = bpy.data.images[MODEL + "_skin0"]
+    image.pixels[0]  # (loads it)
+    painted = paint(image)
+
+    def save_skin():
+        if painted:
+            image.save()
+            print("  wrote %s" % bpy.path.abspath(image.filepath))
+
+    h.finish("%d vertices, %d triangles (bezel %d, rivets %d, %d bad; opening %.2f x %.2f px, radius %.2f); skin patch "
+             "%s" % (len(bld.co), len(bld.tris), bezel_tris, len(bld.tris) - bezel_tris, bld.bad, opening[0],
+                     opening[1], radius, "painted" if painted else "unchanged"), after_export=save_skin)
 
 
-main()
+hc.Run(STEM, MODEL).main(main)
