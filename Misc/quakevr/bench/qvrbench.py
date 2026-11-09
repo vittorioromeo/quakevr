@@ -534,6 +534,16 @@ def scenarios():
         "more every 160 frames: nails' wounds, blood streams, flesh dents, decals, gibs, ragdolls and corpses piling up.",
         hostile=True, setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
         + gun(7), warm=30, body=gore_fight)
+    # (perf_1109, local only: the flat-screen fights of the author's 2026-11-09 trace)
+    add("play_e1m1_fight_flat", ["perf1109"], "play_e1m1_fight in flat mode", "e1m1",
+        "play_e1m1_fight on the flat screen: the view's shotgun at whatever is ahead.", header=["skill 2"], pos=E1M1_ROOM,
+        hostile=True, flat=True, setup=[f"vr_physics_spawn monster_dog 110 {l}" for l in (-60, 0, 60)]
+        + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 90)] + ["impulse 9", "wait", "impulse 4", "wait"],
+        warm=30, body=shoot_every(50))
+    add("play_gore_fight_flat", ["perf1109"], "play_gore_fight in flat mode", RANGE,
+        "play_gore_fight on the flat screen: the super nailgun at whatever is ahead.", hostile=True, flat=True,
+        setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
+        + ["impulse 9", "wait", "impulse 5", "wait"], warm=30, body=gore_fight)
     add("play_calibration_turn", ["profile"], "the calibration room: boards, walls, the head turning", "vrcalibration",
         "vrcalibration at its spawn, the head turned 90 degrees either way twice: its boards' text, wall buttons and props.",
         body=gate_turn, warm=60)

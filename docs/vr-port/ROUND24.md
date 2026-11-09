@@ -6662,6 +6662,50 @@ by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolle
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
 
+
+## Big fights' CPU (agent/perf_fight, 2026-11-09)
+
+From his flat trace of 2026-11-09 (qvr-kit/scratch/perf_1109.md). Measured with Tracy (Release-Tracy ThinLTO,
+`vr_tracy_preset full`, his settings, flat 3440x1441 fsaa 4, fixed 125 Hz game clock, unpaced, exclusive): ms a frame,
+before -> after. Scenarios: `play_gore_fight_flat`, `play_e1m1_fight_flat` (new, Misc/quakevr/bench/qvrbench.py,
+group `perf1109`), `ragdolls_32_settled`, `ragdolls_32_active` (run flat too).
+
+- **Sleeping ragdolls not written again** (`vr_ragdoll_sleep_skip 1`, box3d writeRagdoll): a ragdoll whose every part
+  sleeps, whose root body has not moved and whose entity (origin, box, frame, velocity, on-ground, cut, bleeding, held)
+  is as last written is skipped: no transforms, AABBs, SV_LinkEdict nor publish copy; `ragdoll::republish` only moves
+  its message time on (the step before set to the same pose once), so the next real publish lerps from it (no snap on
+  waking). Its slide check (noteBodySlide) is skipped too (it looked at awake parts only). ragdolls_32_settled
+  (29 ragdolls): `ragdoll publish` 0.013 -> 0.007, `box3d` 0.633 -> 0.515. **writeRagdoll itself is cheap** (0.8 us a
+  call awake, 14-16 calls a frame: 0.01 ms a frame), and so is everything else in `box3d publish bodies` in these
+  scenarios (0.08-0.12 ms a frame: prop writes 0.03-0.04, body slides 0.03-0.05); his trace's 1-2.7 ms per tick of
+  `box3d publish bodies` self time did not reproduce headless. Its parts now have zones (`box3d recoveries`, `box3d
+  body slide`, `box3d corpse write`, `box3d prop write`, `box3d prop slide`, `box3d ride standing`): his next capture
+  names it. Determinism: `vr_physics_hash ragdolls` of the same blast script differs run to run even with the skip off
+  (part counts 96-98: the scenario is not deterministic), so no A/B by hash; the skip writes nothing that differs
+  (every compared field exact) except the relink order of an unchanged edict.
+- **Server catch-up spread** (`host_fixedtick_spread 1`, host.c Host_FixedTicks). Quake's own loop gave a server frame
+  all the time built up once 1/72 s had passed (one long tick); Quake VR's fixed tick (`host_fixedtick 1`) runs as many
+  1/72 s ticks as the time holds, up to `host_fixedtick_max` 8, so a 30-40 ms frame was followed by a frame with 3
+  ticks (his hitches: 2.87 ticks at 3.2 ms). Now a frame runs at most floor(1.5 x the recent frames' length in ticks) +
+  1 (1 at 125 fps, 2 at 90 or 72 Hz, 4 at 30 fps), the rest carried to the next frames (each tick still 1/72 s; time
+  dropped only past `host_fixedtick_max` as before); `host_tickstats` counts the spread frames. Fixed-frame test runs
+  (one tick a frame) never reach the cap. Not measurable in the fixed-clock bench (no catch-up there): needs his play.
+  Frame-loop zones added for the hitches outside every zone: `frame: throttle`, `frame: unfocused sleep`,
+  `frame: minimized sleep`, `frame: console log` (LOG_Tick's file write), `frame: async drain`, `frame: profile
+  begin/end`, `frame: end` (all ~0.03 ms a frame here).
+- **The flat view shares the shadow pass's model set-ups** (gl_screen.c/vr_stereo.cpp `VR_WindowViewBegin/End`: the
+  flat screen's one view runs as the headset's first eye, `R_AliasEyeCacheBegin(1)`, the same code path): before, only
+  VR's first eye took the shadow pass's lerp and matrices; the flat view set every model up again. `vr_shadow_setup_share
+  2` in flat: 9458 set-ups checked, 0 differ. `alias transform` gore 0.096 -> 0.068, e1m1 fight 0.022 -> 0.015,
+  ragdolls 0.100 -> 0.082 / 0.113 -> 0.086. Posing was already once a frame elsewhere: the lights share one set-up a
+  pass (aliasdepthcache), VR's second eye takes the first's (vr_alias_eye_cache), the skinning matrices are made once a
+  frame (ragdoll::bonePoses, avatar posed.skin). What is left per light is the per-draw overhead (`alias shadow model`
+  ~1.2 us a draw on a hit).
+- **What grows per tick in fights** (gore flat, QC detail 1): `SV edict none` 1.47 ms a tick, of which the armed
+  humanoids' gun props' think `VR_AG_PropThink` 1.35 ms a tick (40 calls: `VR_AG_PlaceProp` + `VR_AGP_Pose` QC, 0.83
+  ms): the next target for cheaper fight ticks (QC). Not done here.
+- Not done: the flat hands computed once a frame (item 4), job-pool use (the measured per-item work is a few
+  microseconds per entity: not worth a job's dispatch).
 ## Flat-screen speed FOV (branch `agent/speed_fov`, 2026-11-09)
 
 His words: "Can we add a FOV multiplier applied while sliding? Default maybe 1.1x. Make FOV transition smooth." and
@@ -6830,6 +6874,56 @@ shots to actually go in the direction of the muzzle in that case, and the dynami
   flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
   flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
 
+## Antialiasing: flat TAA, fractional sample shading, specular AA (agent/flat_aa, worktree `selfshot`, 2026-11-09)
+
+His asks (perf_1109: `vid_fsaamode 1` costs ~2.5-2.8 ms GPU at 3440x1441): fractional sample shading in the menus,
+specular AA, alpha to coverage in flat, TAA for flat.
+
+- **Fractional sample shading.** `vid_fsaamode` goes straight to `glMinSampleShading` (gl_vidsdl.c `VID_FSAAMode_f`), so
+  fractions work: ceil(value x samples) samples shaded. Options > AA Mode now cycles Edges only / 25% / 50% / Full (menu.c);
+  new VR row Graphics > Image > "Anti-aliasing Shading" with the cost in its help. With 4x, 25% is 1 sample = Edges only
+  (same timings); it matters at 8x.
+- **Specular AA** already existed (`vr_specular_aa`, default 1, Graphics > Surfaces "Sheen Anti-Aliasing"): the lobe widened
+  by the normal map's mip spread and the screen-space normal derivatives (world, brush, alias, water; `r_framedata`, so flat
+  and VR alike). Nothing changed; its cost measured below (~0-0.15 ms).
+- **Alpha to coverage in flat**: `VR_AlphaToCoverage` asks `framebufs.scene.samples`, which in flat is the window's: on with
+  `vid_fsaa` > 1 in any `vid_fsaamode` (code check, not re-measured). Under flat TAA (no MSAA) fences are alpha-tested and
+  TAA smooths their edges.
+- **Flat TAA** (`vr_flat_taa`, default 0; Graphics > Post-processing > "Flat: TAA"). The eyes' code (vr_temporal.cpp) with the
+  window as a third view (`EyeState` index 2): same jitter (Halton 2,3), motion vectors (alias slots, brush matrices; the
+  hands and guns are world-space models with their own vectors), reactive mask, resolve (before the warp, the flat look's
+  bloom, tone curve and grade, as the eyes' are before theirs), resets (map, frame gap, jump > 40 u, turn > 25 deg) and
+  `vr_taa_sharpen`. The visor, crosshair and 2D are drawn after it (R_RenderView's order). Shared, not copied: `begin()`
+  serves `beginFrame` and `VR_FlatRenderView`; the resolve's size is its history's (`imageSize`, was the scene texture's:
+  the same for the eyes, and lets the window's view be the corner of its larger scene textures, r_scale's 1/N). Flat-only
+  parts: the window's targets made without MSAA while on (`VR_SceneSamples` -> `temporal::windowSamples`, remade on the
+  cvar's change), the scene forced into its own target (`GL_NeedsSceneEffects`) and copied by R_WarpScaleView. MSAA: ignored
+  while TAA is on (not combined). The menu needs no reset: a paused scene converges. A teleporter's offscreen view is never
+  collected now (`collecting()`: `VR_PortalDrawing`), eyes included: before, a portal view drawn inside an eye could take the
+  eye's resolve. `vr_temporal_debug` 1-3 and `vr_temporal_error` work on the flat view too (prints "flat").
+  Optional `vr_flat_render_scale` not done: `r_scale` (integer) already works under it.
+- **VR eyes unchanged**: VR mock eyeshots at e1m1 with `vr_taa 1` and `vr_taa 0`, this branch against next's code: identical
+  (max pixel difference 0, all four).
+- **Numbers** (LTO, `--exclusive`, his `ironwail.cfg` (phases' A_his.cfg) + the variant, `-fsaa 4 -flatscreenmode`, 3440x1441,
+  perf_fight's `play_*_fight_flat`, 900 frames; GPU `3D` avg ms / frame p50 ms; one run each):
+
+  | setting | e1m1 fight | gore fight |
+  |---|---|---|
+  | MSAA 4 Full (his), spec AA off | 5.67 / 8.36 | 5.55 / 9.55 |
+  | MSAA 4 Full + spec AA | 5.70 / 8.40 | 5.71 / 9.30 |
+  | MSAA 4 Edges, spec AA off | 2.79 / 5.51 | 2.93 / 6.29 |
+  | Edges + spec AA | 2.94 / 5.74 | 2.91 / 6.36 |
+  | 25% (= Edges at 4x) + spec AA | 2.79 / 5.47 | 2.89 / 6.19 |
+  | 50% + spec AA | 3.85 / 6.49 | 3.89 / 7.44 |
+  | Flat TAA (no MSAA), spec AA off | 2.88 / 6.51 | 2.93 / 6.68 |
+  | Flat TAA + spec AA | 2.91 / 6.55 | 2.90 / 6.62 |
+
+  TAA's GPU cost is about Edges' (+0.1 ms), but the frame (CPU-bound here) is ~0.4-1.0 ms longer: the motion-vector
+  bookkeeping on the CPU (per-model vertex slots, the draw buffers switched per batch). Not profiled further.
+- **Quality**: scratch shots `aa_crops.png` (Full, Edges, Edges + spec AA, 50%, TAA; a low-impact 960x540 run: indicative
+  only). TAA reprojection in flat: `vr_temporal_error` turning, 0.66 against 4.5 not reprojected (mean |luma|).
+- **Tests**: flathud 11/0, visor_test 24/0, flatxhair_test 31/0, vr_pp_test 1 VR 63/0, flat 62/0, flat with
+  `vr_flat_taa 1` 62/0, checklist_tests_check 101/0. Scene `flat_taa`.
 ## Tutorial: a tip on the keycard (branch `agent/key_tip`, worktree `flatwall`, 2026-11-09)
 
 His words: "a floating tooltip attached to the keycard in the tutorial map that appears as soon as the player grabs
