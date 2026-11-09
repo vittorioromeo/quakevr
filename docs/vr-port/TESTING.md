@@ -130,7 +130,10 @@ moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` pres
 VR layout (`vr_menu_flat_vr_style 1`): `vr_mock_mouse window <x> <y> | by <dx> <dy> | corner tl|tr|bl|br | press |
 release | wheel up|down` drives the window's mouse (a corner dragged, the wheel while held);
 `Misc/quakevr/menu_flat_panel_test.py <agent>` runs it all, flat and VR (ROUND24.md, "VR menu layout on a flat
-screen"). `vid_unlock` before `vid_width`/`vid_restart` changes
+screen"). Under a dialog (M_Confirm's, the flat screen's Quit message) `menu_vr pos` also prints `dialog box x a..b,
+y c..d (middle mx my), u px per unit` (as drawn, in the window's pixels or the headset canvas's) and, flat, `dialog area:
+the flat VR menu panel | the window x y w x h (middle ..), the menu's u px per unit`: centred on it, at its scale
+(ROUND24.md, "The flat VR menu's Quit dialog"). `vid_unlock` before `vid_width`/`vid_restart` changes
 the kit's window size.
 Quicksave and Quickload (ROUND22.md, "Menu quicksave and quickload shortcuts") are below Back to Game in the top-left
 shortcuts. `vr_mock_laser quicksave|quickload` points at them; trigger clicks use the same `quick.sav` slot as the key
