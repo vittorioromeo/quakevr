@@ -146,6 +146,8 @@ struct Sight
     float offAsked{0.f};        // ... which the sight's place asks to be this (the bore under the sights, the travel's share)
     glm::vec3 muzzleLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each muzzle in its hand's frame (forward, right, up), as
     bool muzzleKnown[2]{false, false};                        // the view last placed it (notePlaced)
+    glm::vec3 drawnMuzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the muzzle as last drawn, and the drawn gun's angles
+    glm::vec3 drawnRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};    // (noteDrawn; drawnGun: vr_flat_xhair_probe's gun line)
     bool aimBlocked[2]{false, false};                         // something lies between the muzzle and what the crosshair is on (aimAtPoint)
     float sightAngle{0.f};      // the same offset as an angle, at the muzzle's own distance (degrees)
 
@@ -288,6 +290,7 @@ constexpr float tiltYawMax = 60.f;   // vr_flat_wall_tilt_yaw's range (degrees)
 constexpr float tiltRollMax = 90.f;  // vr_flat_wall_tilt_roll's range (degrees)
 constexpr float tiltBlocksFire = 5.f; // a gun turned more than this out of a wall does not fire (vr_flat_wall_block_fire; degrees)
 constexpr float tiltShortOfUp = 5.f; // the tilt leaves the muzzle at least this far short of straight up (degrees)
+constexpr float wallShotFull = 4.f;  // vr_flat_wall_shot: a gun turned this far by a wall shoots wholly from its own muzzle (degrees)
 constexpr float slideYawStep = 5.f;  // the level turn's search along a wall (slideFor): in steps this big (degrees), then halved
 constexpr int slideYawHalvings = 4;  // this many times
 constexpr float slideTimeMax = 1.f;  // vr_flat_wall_slide_time's range (seconds)
@@ -488,11 +491,26 @@ struct Sighted
     return shotFrom(org, dir, point, m, st.aimBlocked[h]);
 }
 
+[[nodiscard]] float wallShotShare(int h);
+[[nodiscard]] glm::mat3 wallShotTurn(int h, glm::vec3& shift);
+
 void keepMuzzle(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& point)
 {
     if(s.muzzleValid[h] && st.muzzleKnown[h])
     {
-        s.muzzle[h] = shotMuzzle(s, h, aim, point) - (s.pos[h] - s.placedFrom[h]);
+        glm::vec3 from = shotMuzzle(s, h, aim, point);
+        // A gun a wall turned (vr_flat_wall_shot): from its muzzle as drawn. muzzleNow is the steady gun's (the view puts the
+        // muzzle back off the drawn looks, the wall's turn among them: vr_view.cpp): turned as the drawn hand is (round the
+        // pivot: the turn about the hand, and the hand's shift), it is the drawn one.
+        const float w = wallShotShare(h);
+        if(w > 0.f)
+        {
+            glm::vec3 shift;
+            const glm::mat3 turn = wallShotTurn(h, shift);
+            const glm::vec3 turned = s.pos[h] + shift + turn * (muzzleNow(s, h) - s.pos[h]);
+            from += (turned - from) * w;
+        }
+        s.muzzle[h] = from - (s.pos[h] - s.placedFrom[h]);
     }
 }
 
@@ -651,6 +669,27 @@ bool adsApplies()
 [[nodiscard]] glm::mat3 drawnTurn(int h, const glm::mat3& axes)
 {
     return flatTurn(st.flatYaw[h]) * tiltTurn(h, axes, st.tilt[h], geom::smooth01(st.tiltOn[h]) * st.tiltShare[h]);
+}
+
+// vr_flat_wall_shot's share for hand `h` (flatsight::wallShot) and the turn its shot takes (the drawn one about a view
+// looking along `aim`; identity with the cvar off or no turn).
+float wallShotShare(int h)
+{
+    if(vr_flat_wall_shot.value == 0.f || !flatplay::active() || h < 0 || h >= HAND_COUNT)
+    {
+        return 0.f;
+    }
+    return geom::smooth01(za::clamp(st.tiltAngle[h] / wallShotFull, 0.f, 1.f));
+}
+
+glm::mat3 wallShotTurn(int h, glm::vec3& shift)
+{
+    shift = glm::vec3{0.f};
+    if(vr_flat_wall_shot.value == 0.f || !flatplay::active() || h < 0 || h >= HAND_COUNT || st.tiltAngle[h] == 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    return flatplay::drawnWallTurn(h, shift); // (as the gun was last drawn: the turn, and the hand's move round its pivot)
 }
 
 // The weapon in `h` with its hand at `at`, turned by `r` round the point it turns on (vr_flat_wall_tilt_pivot): where its
@@ -1823,6 +1862,9 @@ void noteDrawn(const hands::State& s)
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
+        // (The muzzle and the angles as drawn, the looks and the wall's turn in them: the view takes them off after this.)
+        st.drawnMuzzle[h] = s.muzzle[h];
+        st.drawnRot[h] = s.visualRot[h];
         glm::vec3 at{0.f};
         st.spot[h] = view::twoHandSpot(s, h, at);
         st.spotLocal[h] = glm::transpose(axesOf(s.visualRot[h])) * (at - s.pos[h]);
@@ -1945,6 +1987,33 @@ glm::mat3 wallTurn(int h, const glm::mat3& axes)
         return glm::mat3{1.f};
     }
     return drawnTurn(h, axes);
+}
+
+float wallShot(int h)
+{
+    return wallShotShare(h);
+}
+
+bool drawnGun(int h, glm::vec3& muzzle, glm::vec3& rot)
+{
+    if(!flatplay::active() || h < 0 || h >= HAND_COUNT || !st.muzzleKnown[h])
+    {
+        return false;
+    }
+    muzzle = st.drawnMuzzle[h];
+    rot = st.drawnRot[h];
+    return true;
+}
+
+glm::vec3 wallShotAngles(int h, const glm::vec3& angles)
+{
+    if(wallShotShare(h) <= 0.f)
+    {
+        return angles;
+    }
+    glm::vec3 shift;
+    const glm::mat3 r = wallShotTurn(h, shift) * axesOf(angles);
+    return hands::anglesFromVectors(r[0], r[2]);
 }
 
 bool wallBlocksFire(int h)

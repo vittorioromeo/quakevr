@@ -6661,3 +6661,53 @@ Mouse Follows Lean): Quake's own code path, untouched. Test `vr_flatleanmouse_te
 by `IN_MockMouseMotion`): 9 of 9, the screen's middle 0.00 degrees off the rolled up axis for up and down, 0.17-0.29
 across (the yaw's own swing, the same upright); off, 15.00 off (the old slant). Details: FLATPLAY.md, "The mouse while
 rolled".
+
+## Visor crosshair: jitter, reload, walls (agent/xhair2, 2026-11-09)
+
+His words: "partially fade crosshairs when reloading"; "The crosshair jitters quite a lot when moving the camera around
+fast ... the jitter is still present when dual wielding"; "When a weapon is repositioned/rotated due to collisions with
+geometry ... the shots still hit the center of the screen despite the muzzle being completely off-angle. I would like the
+shots to actually go in the direction of the muzzle in that case, and the dynamic crosshair to properly show the target."
+
+- **Jitter: the cause.** The crosshair traces the last move's shot line, and a move is made with each server tick (72 a
+  second: `host_netinterval` above 72 fps), while the camera it was projected with is each frame's. At 144 fps every other
+  frame drew the move's hit one frame behind the view: turning, the point swung off the centre and back each frame (a
+  sawtooth past the snap, so it flipped between snapped and not; two guns flipped merged and apart too). Not the hand
+  pose's smoothing nor the turn's lag: at 72 fps (one tick a frame) the same turn was already still.
+- **Fix.** The hit is projected with the camera of the frame its move was made in (`shotViewProj`): its place against the
+  view, which is where the gun's next shot goes (it turns with the view). No extra smoothing, no snap tied to the turn.
+- **Numbers** (`vr_flat_xhair_turntest 360 216 36`: the mock mouse at 360 deg/s, reversing every 0.5 s at 72 fps; pixels at
+  1080 rows; step = the shown crosshair's move from the frame before, off = the hit's distance off the centre):
+
+  | case | before: step RMS / max | before: off RMS / max | after: step RMS / max | after: off RMS / max |
+  |---|---|---|---|---|
+  | one gun, 72 fps | 0.00 / 0.0 | 0.35 / 0.5 | 0.00 / 0.0 | 0.35 / 0.5 |
+  | one gun, 144 fps | 3.97 / 9.2 | 22.2 / 31.8 (snapped 104/208) | 0.00 / 0.0 | 0.21 / 0.4 (208/208) |
+  | two guns, 72 fps | 0.00 / 0.0 | 0.34 / 0.6 | 0.00 / 0.0 | 0.34 / 0.6 |
+  | two guns, 144 fps | 15.6 / 17.6 | 22.2 / 31.7 (104/208) | 0.00 / 0.0 | 0.17 / 0.4 (208/208) |
+
+  Off the centre (near a wall, `vr_flat_aim_point 0`, 120 deg/s): 0.27 px RMS a frame at 165 fps, 1.4 at 72 (the hit
+  really moving over the wall as the view turns).
+- **Reload.** A gun on its reload trip (`flatreload::busy`): its crosshair held on the centre (the muzzle points at the hip's
+  floor) and dimmed to `vr_flat_xhair_reload_alpha` (0.35, Desktop Screen Play > Visor Crosshair While Reloading); the wall's
+  dimming and this one eased over ~0.06 s. Two guns as one crosshair: as bright as the brighter.
+- **Walls.** `vr_flat_wall_shot` (1; Desktop Screen Play > Shots Follow Gun At Walls): a gun the wall turned shoots from its
+  drawn muzzle along its drawn barrel. The view puts the muzzle back off every drawn look (the wall's turn too: `vr_view.cpp`),
+  so the shot's muzzle is the steady one turned by the drawn wall turn round the drawn hand's pivot
+  (`flatplay::drawnWallTurn`), and the move's shot angles get the same turn (`flatsight::wallShotAngles`, from `handMove`).
+  Its share goes by the turn's angle (all of it from 4 degrees), against the old start eased onto the crosshair's ray, so
+  it eases in and out with the turn. Flush on e1m1's wall (block fire off): shot and drawn barrel 0.0-0.1 degrees apart,
+  the crosshair 0.9 px from the barrel's hit, 142 px off the centre, the pellets 0.8 px from the crosshair drawn as they
+  landed; with the cvar 0, on the centre (1.8 px). Walking back off the wall the hit swings up the wall for ~12 frames
+  while the tilt eases out (the barrel's true line), then back on the centre.
+- **Decisions.** The share keys on the drawn turn only (a gun pushed straight back still aims at the point, so its shots
+  stay through the crosshair); `vr_flat_wall_block_fire` unchanged (a gun tilted up past 5 degrees still doesn't fire: the
+  shot-follows matters for small tilts, the level turn along a wall and with block fire off). The brief's other jitter
+  ideas (smoothing in angle space, a merged crosshair with common smoothing, snapping whenever the guns aim at the point)
+  were not needed once the cause was fixed.
+- **Tools.** Debug > Reports > Flatscreen Crosshair Turn Test (`vr_flat_xhair_turntest [deg/s] [frames] [each way] [1:
+  per frame]`); the probe now prints the drawn barrel's way against the shot's (`gun way`), the pellets against the
+  crosshair drawn as they landed (`fired from drawn then`), the wall share and the dimming.
+- **Test.** `flatxhair_test.sh` (31 checks): turn1/turn2 at 144 fps one and two guns (still, on the centre), flush and
+  flushold (the wall shot on and off), reload (held on the centre, dimmed). Also passed: flatpose 22/0, flatads 7/0,
+  flathud 11/0, visor_test 24/0, vr_pp_test 1 63/0, checklist_tests_check 99/0.
