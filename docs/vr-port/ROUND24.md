@@ -7095,3 +7095,43 @@ a scene placement, not the renderer).
 already pre-passed), gib instancing (gibs already batch by model), skipping your body's hidden parts in flat (it has
 its own pre-pass; 0.215 ms). The rest of the gun's cost is its shader per sample: `vid_fsaamode` below 1 (perf_1109
 proposal 1) is the big lever, his call.
+
+## Thread pool: Box3D, particles, gore (branch `agent/jobs_phys`, worktree `embed5`, 2026-11-09)
+
+His ask: "try out all the thread pool candidates ... without introducing indeterminism" (perf_1109.md: all 31 job
+threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` over the bench scenarios
+(`play_gore_fight_flat`, `play_gore_fight`: his settings, fixed 90 Hz clock, unpaced, 900 frames).
+
+- **Box3D was already on the pool** (vr_box3d.cpp: `b3WorldDef` workerCount / `enqueueStepTask` / `finishStepTask`,
+  ROUND21 "Box3D on the pool"), split only while 150 bodies or more are awake (`vr_box3d_threads_bodies`). The gore
+  fight has 25-125 awake (76-81 on average): one thread. Its step a frame (`vr_physics_steptime`, low-impact runs, so
+  relative): flat 0.121 ms (pairs 0.018, collide 0.028, solve 0.064), VR 0.154 (0.022 / 0.040 / 0.081); forced onto
+  4 threads (`vr_box3d_threads_bodies 0`) 0.159 and 0.199: slower, so the threshold stays. **Determinism:**
+  `vr_physics_mtbench <bodies> <steps> chains` (new: every third column a ragdoll's chain, capsules jointed with balls
+  and hinges, their limits, friction and springs, so the joints' solver is in the proof): 300 bodies, 300 steps, the
+  same hash `8cae5fb5e39bb51d` with 1, 2, 3, 4, 6, 8, 16 and 32 workers (boxes alone, 200: `eece2c3897006b67` at
+  every count). The game world itself can't be compared run to run (QC's random draws, the load's timing: agent
+  perf_fight2 looks at that), hence the bench world. Debug menu, Self-Tests and Benchmarks: Physics Threads Determinism.
+- **Particles on the pool** (vr_particles.cpp `simulate`, `fillInstances`; `vr_particle_threads` 1, Debug >
+  Particles: Particles on Threads). Each particle's motion and its instance record (its own slot: its index in the
+  pool) in chunks of 2048 on the game's threads; on the main thread after it, in the pool's order: the liquids' rise
+  (`water::surfaceRise` fills a cache: not thread-safe), the drops' rings, the dead taken out, the chunks' bounds merged,
+  and (only if a splash's lying ones are among them) the records closed up. No randomness in either pass (the rings'
+  random angle is drawn on the main thread, in order, as before). **Proof:** `vr_particle_jobs_test [count]` (Debug menu,
+  Self-Tests and Benchmarks: Particles on Threads Self-Test): the particles about plus a burst of every preset, 240 steps of 1/72 s
+  from the same start (particles, random sequence, time) on one thread, split in chunks of 2048 and in chunks of 64: a
+  hash of every particle and record after each step; PASS in vrfiringrange and over vrtesthall's pool (19k
+  particles, 12k lying seen: the liquid path), and with steady pools of 3k to 25k. Everything is put back after.
+  **Cost** (the same test's steady pools, exclusive, ms a step one thread / split): 3k 0.031 / 0.038, 6k 0.06 /
+  0.07, 9k 0.09 / 0.10, 12k 0.127 / 0.126-0.143, 18k 0.22 / 0.18-0.19, 25k 0.30-0.34 / 0.21-0.23. So it splits from
+  12288 particles: a saving of 0.03-0.1 ms in the biggest bursts only (his trace's max 25.9k; p50 1.7k, p95 5.4k:
+  untouched). The main thread's ordered pass (it reads every particle) is what is left. The lighting pass was already
+  split (`particle light`).
+- **Gore: not moved.** In the gore fight (2.5k particles on average) every gore zone is far under a job's dispatch
+  (20-40 us to wake a helper): `bloodstreams` 0.043 ms a frame (a handful of streams; traces, decals and sounds in
+  each), `wounds` 0.016, `decals on the world` 0.021 (its grid count 0.006), `gib trail` 0.001, `blood prints` 0.001;
+  dents and gib meshes have no measurable zone.
+- **Other per-entity work in the fight trace** (not done here): the flat hands' update three times a frame, model
+  posing, shadow casters' culling and ragdoll reads (agent perf_fight2), the armed grunts' prop think (QC, perf_fight2);
+  `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
+  visor's 1.26 ms CPU is the driver's, not ours to split.

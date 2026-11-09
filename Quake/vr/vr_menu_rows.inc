@@ -6038,6 +6038,9 @@ QVR_TOGGLE(vr_debug_particle_waste, "Count Wasted Particle Fill",
 QVR_TOGGLE(vr_particle_freeze, "Freeze Particles",
     "vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
     "frame.")
+QVR_TOGGLE(vr_particle_threads, "Particles on Threads",
+    "vr_particle_threads: with 12288 particles or more, their motion and drawn records are worked out on the game's "
+    "threads (the same results as on one); off: on the main thread alone, to compare.")
 QVR_TOGGLE(vr_particle_halfres_force, "Half-Res Particles Always",
     "vr_particle_halfres_force: the particles drawn at half resolution in every frame with some in view "
     "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "

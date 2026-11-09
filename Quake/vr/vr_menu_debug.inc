@@ -685,6 +685,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_particle_waste_report: since the last report, the particles' shaded fragments and the share that "
                   "were invisible or faint, by texture, for all of them and for the big ones (console)."),
         row(opt::vr_particle_freeze),
+        row(opt::vr_particle_threads),
         row(opt::vr_particle_halfres_force),
         row(opt::vr_particle_halfres_upsample),
         header("Server Tick"),
