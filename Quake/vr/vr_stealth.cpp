@@ -18,6 +18,7 @@
 #include "vr_text3d.hpp"
 
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <glm/glm.hpp>
 #include <string.h>

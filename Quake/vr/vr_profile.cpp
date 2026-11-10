@@ -32,6 +32,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <stdarg.h>
 #include <stdio.h>

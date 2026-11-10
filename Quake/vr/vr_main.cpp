@@ -92,7 +92,9 @@
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_twohand.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_main.hpp"
 #include "vr_doom.hpp"
 #include "vr_physics.hpp"
@@ -183,6 +185,8 @@
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_brushes.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -206,6 +210,8 @@
 #include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <stdarg.h>
 #include <stdlib.h>

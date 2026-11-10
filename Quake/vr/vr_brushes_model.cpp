@@ -3,6 +3,9 @@
 
 #include "vr_brushes_internal.hpp"
 #include "vr_geom.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::brushes
 {

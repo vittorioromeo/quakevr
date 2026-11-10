@@ -7,7 +7,6 @@
 
 #include "vr_audio.hpp"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"

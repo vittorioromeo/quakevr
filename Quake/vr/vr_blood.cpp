@@ -2,6 +2,7 @@
 #include "vr_blood.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_portals.hpp"
@@ -12,6 +13,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "vr_api.h"
 #include <glm/geometric.hpp>
 
 namespace qvr::blood

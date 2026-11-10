@@ -12,6 +12,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "vr_api.h"
 
 namespace qvr::jobs
 {

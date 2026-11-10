@@ -5,6 +5,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 struct cvar_s;
 

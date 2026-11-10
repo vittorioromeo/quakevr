@@ -9,6 +9,8 @@
 #include "vr_agarmor.hpp"
 #include "vr_held.hpp"
 #include "vr_foegrab.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <cstring>
 #include <utility>

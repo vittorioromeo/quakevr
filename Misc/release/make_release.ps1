@@ -764,7 +764,7 @@ if ($DryRun) {
     $seq = New-Object System.Collections.Generic.List[string]
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
-    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, check_release_qc.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
+    $seq.Add("build: out\release\$Version moved aside if there; qvr_checks (Tools/qvr_checks: statics, qc_precedence, release_qc), fgdgen.py --check; MSBuild ironwail.sln ReleaseLTO|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
@@ -837,13 +837,14 @@ if ($bumpPending) {
 
 # ------------------------------------------------------------------------------------------------------------------
 Step "Source checks (statics, QC precedence, FGD)"
-Invoke-Logged $python @("Misc\quakevr\check_statics.py") (Join-Path $logs "check_statics.log") | Out-Null
+# (Tools/qvr_checks: the checks' C++ tool, built first)
+Invoke-Logged $msbuild @("Tools\qvr_checks\qvr_checks.vcxproj", "-p:Configuration=Release", "-p:Platform=x64", "-m", "-v:m", "-nologo") (Join-Path $logs "msbuild_qvr_checks.log") | Out-Null
+$qvrChecks = Join-Path $root "build\qvr_checks\qvr_checks.exe"
+Invoke-Logged $qvrChecks @("statics") (Join-Path $logs "check_statics.log") | Out-Null
 Say "statics: ok"
-if (Test-Path (Join-Path $root "Misc\quakevr\check_qc_precedence.py")) {
-    Invoke-Logged $python @("Misc\quakevr\check_qc_precedence.py", "--fteqcc", $Fteqcc) (Join-Path $logs "check_qc_precedence.log") | Out-Null
-    Say "QC precedence: ok"
-}
-Invoke-Logged $python @("Misc\quakevr\check_release_qc.py", "--fteqcc", $Fteqcc) (Join-Path $logs "check_release_qc.log") | Out-Null
+Invoke-Logged $qvrChecks @("--fteqcc", $Fteqcc, "qc_precedence") (Join-Path $logs "check_qc_precedence.log") | Out-Null
+Say "QC precedence: ok"
+Invoke-Logged $qvrChecks @("--fteqcc", $Fteqcc, "release_qc") (Join-Path $logs "check_release_qc.log") | Out-Null
 Say "release QC (-DQVR_NO_TESTS): ok"
 Invoke-Logged $python @("Misc\trenchbroom\fgdgen.py", "--check") (Join-Path $logs "fgd_check.log") | Out-Null
 Say "FGD: ok"

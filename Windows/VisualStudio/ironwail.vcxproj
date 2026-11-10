@@ -391,6 +391,8 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
   <Import Project="quakevr.props" /><!-- QVR -->
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <!-- QVR: qvr_checks (the source checks; built before the QC step) -->
+    <Import Project="..\..\Tools\qvr_checks\qvr_checks.targets" Condition="Exists('..\..\Tools\qvr_checks\qvr_checks.targets')" />
   </ImportGroup>
   <!-- QVR: every engine build also compiles the QuakeC (QC/progs.src -> quakevr/progs.dat), so the game never runs new
        engine code with an old progs.dat. Skipped when progs.dat is newer than every QC source; skipped with a warning
@@ -408,10 +410,10 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <Warning Condition="!Exists('$(QvrQcCompiler)')" Text="QuakeC compiler not found at $(QvrQcCompiler): progs.dat not rebuilt (set QvrQcCompiler)" />
     <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(QvrQcDir)"
           Command="&quot;$(QvrQcCompiler)&quot; -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208" />
-    <!-- The 32-bit progs format (QC/defs.qc's fte32 pragma): a 16-bit progs.dat fails the build (skipped without Python). -->
-    <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(MSBuildProjectDirectory)\..\.."
-          Command="where python &gt;nul 2&gt;nul || exit /b 0&#xD;&#xA;python Misc\quakevr\check_progs_format.py quakevr\progs.dat" />
-    <!-- The release flavour's QC (-DQVR_NO_TESTS, to a work folder) compiles with no error or warning (~3 s; skipped without Python). -->
+    <!-- The 32-bit progs format (QC/defs.qc's fte32 pragma): a 16-bit progs.dat fails the build (qvr_checks.targets). -->
+    <Exec Condition="Exists('$(QvrQcCompiler)') and Exists('$(QvrChecksExe)')" WorkingDirectory="$(MSBuildProjectDirectory)\..\.."
+          Command="&quot;$(QvrChecksExe)&quot; progs_format quakevr\progs.dat" />
+    <!-- The release flavour's QC (-DQVR_NO_TESTS, to a work folder) compiles with no error or warning (~3 s). -->
     <!--   That check runs in the kit's build.sh, the ships and the release script (Misc/release/make_release.ps1), no
            longer here: it cost every QC edit in the IDE ~2 s. -->
   </Target>

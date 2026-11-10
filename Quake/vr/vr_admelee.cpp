@@ -7,6 +7,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <algorithm>
 #include <math.h>

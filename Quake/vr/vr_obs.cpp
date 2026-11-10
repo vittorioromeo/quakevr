@@ -23,6 +23,7 @@
 #include "vr_random.hpp"
 #include "vr_obs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_sha256.hpp"
 

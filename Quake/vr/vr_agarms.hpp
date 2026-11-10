@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

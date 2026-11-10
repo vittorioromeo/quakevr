@@ -171,7 +171,7 @@ QC `VR_Test_Begin/BeginFlags/Check/Verdict` (QC/vr_testutil.qc), C++ `testkit::T
 `qvrtest.py` is the scripts' one library: `KIT`, `tree(agent)`, `run`, `run_sh`, `lane()` / `lane_env` / `game_dir`,
 the mock-file builders (`hand`, `button`, `grip`, `waits`, `motion`) and the parser the runners use
 (`FAIL_LINE`, `counts`, `verdict_near`). Known-flaky tests: one list, `Misc/quakevr/test_flaky.txt` (run_test_suite.py
-`--allow-flaky` and the refactor baseline read it). check_canonical.py's `test-*` families fail the build on a new
+`--allow-flaky` and the refactor baseline read it). qvr_checks canonical's `test-*` families fail the build on a new
 hand-made tally, verdict line, `def verdict(`, spelt-out kit path or shell `check()` copy (today's sites are in its
 allowlist; migrate them when you touch a test, then `--tighten`).
 
@@ -180,7 +180,7 @@ allowlist; migrate them when you touch a test, then `--tighten`).
 The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,
 `vr_reload_test`, `vr_pickup_test`) have one registry: `QC/test_numbers.txt` (its header has the format). To add a
 test, **claim its number there** in the same commit as its dispatch branch: a number no line has (a block such as
-`vr_agrunt_test 50-59` belongs to its file). `python Misc/quakevr/check_test_numbers.py` (run by the kit's build.sh,
+`vr_agrunt_test 50-59` belongs to its file). `build/qvr_checks/qvr_checks.exe test_numbers` (run by the kit's build.sh,
 which fails on it) checks: no number claimed by two lines or taken by two dispatch branches (the second would be dead
 code: 74 and 84 clashed this way), every dispatched number and every Debug menu command's number registered, every
 registered number dispatched (`N*`: run by the dispatcher's fall-through). `--list` prints the dispatched numbers. A new

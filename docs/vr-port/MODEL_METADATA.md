@@ -83,7 +83,7 @@ from this task's commit. The clean executable SHA-256 is recorded in the validat
 - Fourteen stereo particle fixtures passed their existing reference/repeat-control comparisons,
   covering fire-related smoke, explosions, blood, sparks, dense particles and retro settings.
 - All seven hand-transfer outcomes matched the pre-refactor executable, including their movement tolerances.
-- The new metadata files pass `check_statics.py`. The whole-tree scan still reports the pre-existing
+- The new metadata files pass `qvr_checks statics`. The whole-tree scan still reports the pre-existing
   `vr_decals.cpp` test command's local `serial`; it was present in the baseline.
 
 Timings are regression samples, not a speedup claim. CPU/GPU timings varied substantially during

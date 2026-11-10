@@ -3,6 +3,7 @@
 #include "vr_pouchitems.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"

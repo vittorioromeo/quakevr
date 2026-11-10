@@ -10,7 +10,6 @@
 #include "vr_dents.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
-#include "vr_cvars.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"

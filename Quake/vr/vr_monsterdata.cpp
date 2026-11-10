@@ -2,13 +2,15 @@
 
 #include "vr_monsterdata.hpp"
 
-#include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
 #include "vr_slottable.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

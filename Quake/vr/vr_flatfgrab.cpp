@@ -19,6 +19,7 @@
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_fgfx.hpp"
 #include "vr_flashlight.hpp"

@@ -11,6 +11,7 @@
 #include "vr_main.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_glutil.hpp"
@@ -39,6 +40,8 @@
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <string.h>
 

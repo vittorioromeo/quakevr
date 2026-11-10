@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <string.h>
 

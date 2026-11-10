@@ -6,6 +6,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <float.h>
 #include <stdlib.h>

@@ -24,6 +24,7 @@
 #include "vr_hue.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
@@ -65,6 +66,7 @@
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

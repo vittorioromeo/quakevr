@@ -51,6 +51,8 @@
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 #include "vr_particles_internal.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <string.h>
 

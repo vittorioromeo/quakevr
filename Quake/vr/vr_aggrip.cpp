@@ -11,6 +11,7 @@
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 

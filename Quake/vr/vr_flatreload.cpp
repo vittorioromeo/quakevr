@@ -20,6 +20,7 @@
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_protocol.hpp"

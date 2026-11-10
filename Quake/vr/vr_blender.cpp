@@ -33,6 +33,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api_render.h"
 
 #include <ctype.h>
 #include <math.h>

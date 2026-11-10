@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <ctype.h>
 #include <stdarg.h>

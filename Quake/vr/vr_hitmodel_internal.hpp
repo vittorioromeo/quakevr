@@ -10,7 +10,6 @@
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
 #include "vr_api.h"
-#include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"

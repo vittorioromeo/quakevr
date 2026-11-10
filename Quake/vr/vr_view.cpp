@@ -32,6 +32,15 @@
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "vr_weaponvalues.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail

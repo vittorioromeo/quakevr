@@ -5,6 +5,7 @@
 #include "vr_avatar.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
@@ -25,6 +26,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "vr_zancle.hpp"
 
 namespace qvr::playergore

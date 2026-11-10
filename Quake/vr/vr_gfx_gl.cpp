@@ -30,6 +30,8 @@
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

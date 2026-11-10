@@ -27,6 +27,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_VR_API_H
 
 #ifdef __cplusplus
+#include "vr_engine.hpp" // the engine's types (quakedef.h) for a VR file that includes this before it
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -110,6 +114,7 @@ typedef struct
 	int longest_token;	// the longest argument
 	int max_argc;		// the most arguments in a command
 } cmdlimits_t;
+extern cmdlimits_t cmd_limits;	// cmd.c: the command system's high-water marks
 const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
 
 // Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).

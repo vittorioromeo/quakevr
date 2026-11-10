@@ -18,6 +18,7 @@
 #include "vr_client.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_held.hpp"
 #include "vr_shells.hpp"
@@ -43,6 +44,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

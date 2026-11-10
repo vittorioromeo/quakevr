@@ -7,6 +7,12 @@
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_testkit.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace view_detail
 {

@@ -4,6 +4,7 @@
 #include "vr_impacts.hpp"
 #include "vr_impact_shared.h"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_debris.hpp"
 #include "vr_engine.hpp"
 #include "vr_gunfx.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_api.h"
 
 #include <array>
 #include <stdlib.h>

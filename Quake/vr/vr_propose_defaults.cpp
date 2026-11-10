@@ -5,10 +5,12 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_menu.hpp"
-#include "vr_cvars.hpp"
+#include "vr_config.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

@@ -25,6 +25,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <cmath>
 #include <cstdio>

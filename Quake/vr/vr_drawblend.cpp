@@ -17,6 +17,7 @@
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_geom.hpp"
 #include "vr_view.hpp"
 #include "vr_view_internal.hpp"
@@ -26,6 +27,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
 
