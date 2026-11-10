@@ -399,6 +399,8 @@ void(float xHand) VR_FlatReload_HandFrame =
             VR_Reload_MagOutRelease(self, xHand, "flat-screen play: the reload"); // (the nail pistol's, still sliding out)
             VRSetEntWeaponFlags(self, xHand, f - QVR_WPNFLAG_NOMAG);
             VR_Reload_Sound(self, VRGetGunChannel(xHand), "vr/reload_mag_in.wav", 1);
+            dprint(sprintf("flat reload: %s hand: a new magazine seated (clip %g)\n", VR_FlatReload_HandName(xHand),
+                VRGetEntWeaponClip(self, xHand)));
         }
         if(main)
         {

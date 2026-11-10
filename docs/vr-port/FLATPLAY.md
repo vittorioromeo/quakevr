@@ -145,6 +145,27 @@ loaded from it, as a pickup comes (`VR_FlatReload_CycleOut` / `CycleIn`): the ha
 gun to the next (`VRCycleEntWeaponInst`), so its rounds were lost or loaded into the wrong gun. `vr_flat_reload 0`: no
 clips, every shot from the reserve, as before.
 
+**The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
+casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >
+Flatscreen > Reload's times:
+- `vr_flat_ssg_break` (1): the super shotgun fired empty breaks open `vr_flat_ssg_break_delay` (0.15 s) after the shot
+  (`VR_Reload_SsgBreak`: its spent shells thrown out; the clients draw it open, `ssgBreaks()`), only dry-clicks open
+  (`VR_Reload_SsgIsOpen`), and the reload snaps it shut `vr_flat_reload_close_delay` (0.1 s) after its rounds go in at
+  the hip (`VR_Reload_SsgClose`). The hip's reload no longer throws out shells of its own (`VRReloadWeapon`).
+- `vr_flat_mag_eject` (1): a magazine gun (`VR_Reload_UsesMag`) fired empty drops its magazine
+  `vr_flat_mag_eject_delay` (0.1 s) after its last round (`VR_Reload_EjectOut`, VR's eject button's: a round lying about,
+  pushed out at `vr_flat_mag_eject_speed`, 40 u/s; the nail pistol's slides out of its grip first), and the reload seats
+  a new one at the hip (QVR_WPNFLAG_NOMAG cleared, the magazine-in sound). R on a clip not yet empty keeps its magazine.
+- The magazines are always drawn in flat-screen play (`magazinesShown()` in `Quake/vr/vr_view.cpp`: the held guns',
+  the holsters', the guns lying about; full with `vr_flat_reload 0`). Its box is sent as in VR (where an ejected one
+  starts), but a flat hand never takes hold of it (`magazineHand`).
+- `vr_flat_revolver_eject` (1): the revolver's reload swings its cylinder out as the trip starts (`VR_Revolver_Open`),
+  its spent shells out (`VR_Revolver_Eject` with `vr_rv_keep_live`: the live ones stay in), and home
+  `vr_flat_reload_close_delay` after the rounds go in (`VR_Revolver_Close`).
+Anything still due when the hand gets to the hip (an empty gun reloaded at once) is thrown out there first. A trip
+cancelled leaves the super shotgun open (a gun brought back loaded is closed and has its magazine again); the revolver's
+cylinder swings home by itself. There is one flat reload mode (the hip trip); these apply to it.
+
 The status bars (every `hudstyle`, `vr_flat_hud` on and off; `VR_FlatHudClip`, `Quake/sbar.c`): a gun with a clip shows
 the clip in the big numbers and the reserve in small type beside them (the left hand's to their right, the right hand's
 and the classic bar's to their left). Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`,
@@ -815,6 +836,12 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
 - **Reloading.** A gun away on its reload trip (`flatreload::busy`) has its crosshair held on the centre (its muzzle points
   at the floor by the hip) and dimmed to `vr_flat_xhair_reload_alpha` (0.35) of its opacity, as a gun the wall stops is
   (0.35); both eased in and out over about 0.06 s.
+- **A shot's kick** (his words 2026-11-10). Each gun's drawn recoil (`weaponfx::recoilOffset`: its own Weapon Offsets >
+  Effects rise and kick, back to rest over its Recoil Time; a stream gun's shake too) pushes its crosshair's lines out
+  from the point, their length kept: `vr_flat_xhair_kick` (2) pixels at 1080 rows per degree of muzzle rise plus cm of
+  kick back, at most `vr_flat_xhair_kick_max` (24), followed over `vr_flat_xhair_kick_smooth` (0.04 s). The cross's gap
+  widens, the circle's radius and the brackets' box grow, the chevron drops; the dot alone has no lines to move. Two guns
+  on one crosshair spread it as the more kicked of the two. `vr_flat_xhair_probe` prints each hand's `kick` and `spread`.
 - **Centred.** Within `vr_flat_xhair_snap` (8 pixels at 1080 rows) of the crosshair's centre (the screen's middle, or where
   the ironsight's picture moved it) it is drawn exactly on the centre, and stays there until it is half as far again
   (no flicker at the edge). Since the guns point at what the crosshair is on (`vr_flat_aim_point`), that is nearly always.
