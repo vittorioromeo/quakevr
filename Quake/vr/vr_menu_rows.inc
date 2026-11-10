@@ -6185,7 +6185,15 @@ QVR_SLIDER(vr_flat_xhair_snap, "Visor Crosshair Centring", 0.f, 200.f, 1.f, "%.0
     "points this near each other share one crosshair (pixels at 1080 rows; vr_flat_xhair_snap).")
 QVR_SLIDER(vr_flat_xhair_smooth, "Visor Crosshair Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How long it takes to follow a point off the centre: no jitter, still truthful. 0: at once (vr_flat_xhair_smooth).")
-QVR_SLIDER(vr_flat_xhair_reload_alpha, "Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
+QVR_SLIDER(vr_flat_xhair_kick, "Visor Crosshair Kick", 0.f, 10.f, 0.25f, "%.2f", noExt,
+    "A shot's feedback: the crosshair's lines spread out from the point, keeping their length, as far as the gun's recoil "
+    "kicks it and back with it (pixels at 1080 rows per degree of muzzle rise and cm of kick back). Two guns on one "
+    "crosshair: the more kicked. 0: off (vr_flat_xhair_kick).")
+QVR_SLIDER(vr_flat_xhair_kick_max, "Visor Crosshair Kick Limit", 0.f, 64.f, 1.f, "%.0f px", noExt,
+    "The furthest a shot spreads the crosshair's lines, in pixels at 1080 rows (vr_flat_xhair_kick_max).")
+QVR_SLIDER(vr_flat_xhair_kick_smooth, "Visor Crosshair Kick Smoothing", 0.f, 0.3f, 0.01f, "%.2f s", noExt,
+    "How softly the spread follows the recoil; 0: exactly with it (vr_flat_xhair_kick_smooth).")
+QVR_SLIDER(vr_flat_xhair_reload_alpha,"Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A gun away reloading: its crosshair at this share of its opacity, as one the wall stops from firing; 0 hidden, "
     "1 as ever (vr_flat_xhair_reload_alpha).")
 QVR_TOGGLE(vr_flat_wall_shot, "Shots Follow Gun At Walls",

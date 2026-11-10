@@ -4157,6 +4157,9 @@ QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round 
 QVR_CVAR(vr_flat_xhair_glow, "0.25", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
 QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
 QVR_CVAR(vr_flat_xhair_smooth, "0.1", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
+QVR_CVAR(vr_flat_xhair_kick, "2", CVAR_ARCHIVE)          // a shot's feedback (his words 2026-11-10): the visor crosshair's lines pushed out from the point, their length kept, this many pixels at 1080 per degree of the gun's drawn muzzle rise and cm of its kick back (its recoil, in sync; 0 off .. 10); two merged crosshairs: the more kicked
+QVR_CVAR(vr_flat_xhair_kick_max, "24", CVAR_ARCHIVE)     // and no further than this (pixels at 1080; 0..64)
+QVR_CVAR(vr_flat_xhair_kick_smooth, "0.04", CVAR_ARCHIVE) // and smoothed over this (seconds; 0 the recoil as is .. 0.3)
 QVR_CVAR(vr_flat_xhair_reload_alpha, "0.35", CVAR_ARCHIVE) // a gun away on its reload trip (vr_flat_reload): its crosshair at this share of its opacity, as a gun the wall stops (0 hidden .. 1 as ever)
 QVR_CVAR(vr_flat_wall_shot, "1", CVAR_ARCHIVE)           // flatscreen play: 1 a gun a wall turned (vr_flat_wall_tilt, vr_flat_wall_slide) shoots from its muzzle the way it points, and the visor crosshair shows that hit; 0 its shots still go through the crosshair
 
