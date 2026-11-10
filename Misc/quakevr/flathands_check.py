@@ -54,24 +54,24 @@ ls = lines("drop")
 done("drop", ls)
 h = hud(ls)
 stance = [l for l in ls if l.startswith("  stance:")]
-check(len(stance) >= 1 and "going on it" in stance[0], "drop: the free hand on the nail gun's grip first (%s)" %
+check(len(stance) >= 1 and ("going on it" in stance[0] or "holding its grip" in stance[0]), "drop: the free hand on the rocket launcher's grip first (%s)" %
       (stance[0].split(",")[2].strip() if stance and len(stance[0].split(",")) > 2 else "?"))
 check(has(ls, r"No rockets for a grenade"), "drop: G with no rockets: no grenade, and says so")
-check(len(h) >= 3 and h[0][1] == h[1][1] != 0, "drop: G is no longer the drop: the gun still in the main hand after it (%s)" % h[:2])
+check(len(h) >= 3 and h[0][1] == h[1][1] != 0, "drop: G is no longer the drop: the gun still in the main hand after it (%s)" % (h[:2],))
 check(has(ls, r"flat drop: weapon \d+ out of hand 1") and not has(ls, r"handed off"),
       "drop: H drops the gun out of the main hand, never handed off to the grip hand")
-check(len(h) >= 3 and h[2] == (0, 0), "drop: both hands empty after H (%s)" % (h[2] if len(h) >= 3 else "?"))
+check(len(h) >= 3 and h[2] == (0, 0), "drop: both hands empty after H (%s)" % ((h[2] if len(h) >= 3 else "?"),))
 
 # gren2h
 ls = lines("gren2h")
 done("gren2h", ls)
-check(has(ls, r"flat grenade: G: the off hand goes for the pouch \(off the weapon's grip\)"),
-      "gren2h: G takes the off hand off the nail gun's grip")
+check(has(ls, r"flat grenade: G: the off hand goes for the pouch \(off the weapon.s grip\)"),
+      "gren2h: G takes the off hand off the rocket launcher's grip to the pouch")
 m = [re.search(r"has it \(([\d.]+) s\), (\d+) rockets left", l) for l in ls]
 m = [x for x in m if x]
 check(bool(m) and m[0].group(2) == "9" and abs(float(m[0].group(1)) - 0.3) < 0.03,
       "gren2h: the grenade in the hand as it reaches the pouch (0.3 s), a rocket gone (%s)" %
-      ((m[0].group(1), m[0].group(2)) if m else "none"))
+      (str((m[0].group(1), m[0].group(2))) if m else "none"))
 places = {}
 for l in ls:
     p = re.match(r"flatgren: off hand at (the pouch|held|overhead|the follow-through): ([-\d.]+) forward, ([-\d.]+) right, ([-\d.]+) up", l)
@@ -82,8 +82,8 @@ check(pouch is not None and pouch[0] < 0 and pouch[2] < -15,
       "gren2h: the drawn hand at the pouch: behind the eye and well below it, out of view (%s)" % (pouch,))
 check(held is not None and held[0] > 8 and held[1] < 0,
       "gren2h: back in view with the grenade: ahead of the eye, at the left (%s)" % (held,))
-check(over is not None and over[2] > -4 and (held is None or over[2] > held[2] + 8),
-      "gren2h: wound up: the hand up overhead, above where it held it (%s)" % (over,))
+check(over is not None and over[2] > 0 and (held is None or over[2] > held[2] + 5),
+      "gren2h: wound up: the hand raised above the eye, above where it held it (%s)" % (over,))
 check(has(ls, r"grenade: hand grenade armed \(flat: the fire button\)"), "gren2h: RMB arms it (the pin, its fuse)")
 check(has(ls, r"flat grenade: winding up"), "gren2h: RMB again winds up (two presses)")
 t = [re.search(r"thrown by the off hand after ([\d.]+) s wound up: (\d+) u/s", l) for l in ls]
@@ -92,9 +92,9 @@ if t:
     held_s, speed = float(t[0].group(1)), float(t[0].group(2))
     want = 350 + 550 * min(1.0, held_s / 1.0)
 check(bool(t) and abs(held_s - 0.69) < 0.05 and abs(speed - want) < 40,
-      "gren2h: let go, thrown as fast as it was wound up (%s)" % ((t[0].group(1), t[0].group(2)) if t else "none"))
+      "gren2h: let go, thrown as fast as it was wound up (%s)" % (str((t[0].group(1), t[0].group(2))) if t else "none"))
 stance = [l for l in ls if l.startswith("  stance:")]
-check(len(stance) >= 2 and "going on it" in stance[0] and "going on it" in stance[-1],
+check(len(stance) >= 2 and all(("going on it" in s or "holding its grip" in s) for s in (stance[0], stance[-1])),
       "gren2h: the off hand back on the gun's grip after the throw (%s)" % " | ".join(
           s.split(",")[2].strip() for s in stance if len(s.split(",")) > 2))
 check(has(ls, r"flatgren: phase 5 -> 0"), "gren2h: the follow-through ends")
@@ -107,7 +107,7 @@ check(has(ls, r"flat grenade: .*over \(put back in the pouch\)"), "grenempty: G 
 t = [re.search(r"thrown by the main hand after ([\d.]+) s wound up: (\d+) u/s", l) for l in ls]
 t = [x for x in t if x]
 check(bool(t) and abs(float(t[0].group(1)) - 0.42) < 0.05,
-      "grenempty: one press: held, it arms and winds up; let go, it is thrown (%s)" % ((t[0].group(1), t[0].group(2)) if t else "none"))
+      "grenempty: one press: held, it arms and winds up; let go, it is thrown (%s)" % (str((t[0].group(1), t[0].group(2))) if t else "none"))
 
 # grendual
 ls = lines("grendual")
@@ -134,7 +134,7 @@ for tag, two in (("swap1", False), ("swap2h", True), ("swapdual", False)):
 ls = lines("swapoff")
 done("swapoff", ls)
 h = hud(ls)
-check(len(h) >= 2 and h[1] == (h[0][1], h[0][0]) and not has(ls, r"flatswap: start"), "swapoff: no animation, the swap at once (%s)" % h[:2])
+check(len(h) >= 2 and h[1] == (h[0][1], h[0][0]) and not has(ls, r"flatswap: start"), "swapoff: no animation, the swap at once (%s)" % (h[:2],))
 
 print("flathands: %d passed, %d failed" % (passed, failed))
 sys.exit(1 if failed else 0)

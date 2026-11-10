@@ -269,7 +269,12 @@ void apply(hands::State& s)
     }
     else
     {
-        const glm::vec3 mid = (at[HAND_OFF] + at[HAND_MAIN]) * 0.5f + down;
+        // Between them across the body, as far forward and as high as the higher hand (the one with a weapon: an empty hand
+        // hangs below the view, and halfway down to it they met out of sight).
+        const glm::vec3& lo = sw.local[HAND_OFF];
+        const glm::vec3& hi = sw.local[HAND_MAIN];
+        const glm::vec3& top = lo.z > hi.z ? lo : hi;
+        const glm::vec3 mid = s.head + fwd * top.x + right * ((lo.y + hi.y) * 0.5f) + up * top.z + down;
         const glm::vec3 d = at[HAND_MAIN] - at[HAND_OFF];
         const glm::vec3 way = glm::length(d) > 0.01f ? glm::normalize(d) : right;
         meet[HAND_MAIN] = mid + way * (gap * 0.5f);

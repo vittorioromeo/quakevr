@@ -1885,15 +1885,15 @@ QVR_TUNABLE(vr_flat_grenade_fetch_fwd, "-0.2") // the pouch trip's place: in fro
 QVR_TUNABLE(vr_flat_grenade_fetch_out, "0.25") // out at its side
 QVR_TUNABLE(vr_flat_grenade_fetch_down, "0.9") // below the shoulder
 QVR_TUNABLE(vr_flat_grenade_fetch_pitch, "70") // the hand's pitch there (fingers down)
-QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.55") // the held grenade's place: forward along the look
-QVR_TUNABLE(vr_flat_grenade_hold_out, "0.3") // out at its side
-QVR_TUNABLE(vr_flat_grenade_hold_down, "0.3") // below the shoulder
+QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.85") // the held grenade's place: forward along the look
+QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
+QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.05") // below the shoulder (negative: above; in view at the screen's lower corner)
 QVR_TUNABLE(vr_flat_grenade_hold_pitch, "10") // its pitch against the look's
 QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
-QVR_TUNABLE(vr_flat_grenade_wind_fwd, "-0.25") // the overhead pose: forward of the shoulder (negative: behind), level with the body
-QVR_TUNABLE(vr_flat_grenade_wind_out, "0.2") // out at its side
-QVR_TUNABLE(vr_flat_grenade_wind_up, "0.45") // above the shoulder
-QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-60") // the hand's pitch there (negative: tipped back)
+QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.7") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
+QVR_TUNABLE(vr_flat_grenade_wind_out, "0.1") // out at its side
+QVR_TUNABLE(vr_flat_grenade_wind_up, "0.5") // above the shoulder
+QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
 QVR_TUNABLE(vr_flat_grenade_wind_full, "1") // seconds of wind-up for the hardest throw (0.1..5)
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
@@ -1901,7 +1901,7 @@ QVR_TUNABLE(vr_flat_grenade_throw_up, "10") // degrees above the crosshair the t
 QVR_TUNABLE(vr_flat_grenade_follow_time, "0.15") // seconds of the throw's follow-through (the arm out along the look)
 QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
 QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
-QVR_TUNABLE(vr_flat_grenade_follow_down, "0.1") // below the shoulder
+QVR_TUNABLE(vr_flat_grenade_follow_down, "-0.05") // below the shoulder
 QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
 QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
 

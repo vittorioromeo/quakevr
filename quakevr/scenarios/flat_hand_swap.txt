@@ -1,9 +1,9 @@
 # flat_hand_swap: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) hand swap animation (3: vr_flatswap.cpp; docs/vr-port/FLATPLAY.md, "The hand swap").
-title Flat-screen hand swap: a shotgun, then a nail gun held in both hands
-hint Play with -flatscreenmode. 3 with the shotgun in your right hand: both hands come together, the shotgun changes hands where they meet, and they go back. Take the nail gun (two hands): 3 takes the left hand off its grip to the right hand, the swap happens there, and the right hand goes onto the grip. With a gun in each hand they meet and swap too.
+title Flat-screen hand swap: a shotgun, then a rocket launcher held in both hands
+hint Play with -flatscreenmode. 3 with the shotgun in your right hand: both hands come together, the shotgun changes hands where they meet, and they go back. Take the rocket launcher (two hands): 3 takes the left hand off its grip to the right hand, the swap happens there, and the right hand goes onto the grip. With a gun in each hand they meet and swap too.
 map vrtesthall
 god
 notarget
 give "Shotgun" main
-spawn "Nailgun" 40 70
+spawn "Rocket Launcher" 40 70
 spawn "Super Nailgun" 40 -70
