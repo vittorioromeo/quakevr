@@ -81,14 +81,18 @@ copy "$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" "$(TargetDir)"
 copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
-       the intermediate folder so that a rebuild of one file re-optimises only what changed.
-       QvrNoLto=1 (msbuild -p:QvrNoLto=1: only the agents' quick builds, the kit's build.sh) leaves ThinLTO out, here and
-       in zancle.vcxproj and mimalloc.vcxproj, everything else the same: a one-file rebuild then relinks in seconds. Such a build says
-       "no-LTO" in its version and build info (QvrBuildVersion below), and the release script refuses it
-       (Misc/release/make_release.ps1). Switching between the two recompiles everything (the same folders). -->
+  <!-- ReleaseLTO (releases, timings, profiling) and Release-Tracy: ThinLTO (the ClangCL toolset ignores
+       WholeProgramOptimization and the MSVC linker's LTCG), its cache in the intermediate folder so that a rebuild of one
+       file re-optimises only what changed. Release, the everyday dev build (F5, the kit's build.sh), has the same
+       optimisation settings without ThinLTO: a one-file rebuild relinks in about a second instead of ~10. Each has its
+       own folders (Build-ironwail\x64\Release, ...\ReleaseLTO), so switching between them recompiles nothing.
+       Release-TracyFull has no ThinLTO in the engine's own files (as before; Zancle's are ThinLTO).
+       QvrNoLto=1 (msbuild -p:QvrNoLto=1) still leaves ThinLTO out of a ReleaseLTO or Release-Tracy build, here and in
+       zancle.vcxproj and mimalloc.vcxproj. A build without ThinLTO says "no-LTO" in its version and build info
+       (QvrBuildVersion below, except Debug), and the release script refuses it (Misc/release/make_release.ps1). -->
   <PropertyGroup>
-    <QvrLto>true</QvrLto>
+    <QvrLto>false</QvrLto>
+    <QvrLto Condition="'$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy'">true</QvrLto>
     <QvrLto Condition="'$(QvrNoLto)'=='1' or '$(QvrNoLto)'=='true'">false</QvrLto>
   </PropertyGroup>
   <!-- The VR module's precompiled header (Quake/vr/vr_pch.hpp): created by vr_pch.cpp, forced into every other Quake/vr
@@ -103,7 +107,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <IntDir>$(IntDir)nopch\</IntDir>
     <OutDir>$(OutDir)nopch\</OutDir>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -114,7 +118,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy') and '$(QvrLto)'=='true'">
+  <ItemDefinitionGroup Condition="'$(QvrLto)'=='true'">
     <ClCompile>
       <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -235,8 +239,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
     </Exec>
     <!-- The build number (QVR_BUILD_NUMBER: the commit count, always increasing; QVR_BUILD_INFO: "1.1.0-dev build 4321
-         (abc1234+dirty) 2026-10-17 14:05", the menus' bottom left corner and the console): 0 and "unknown" without
-         git. The date is the build's local time, to the minute: the header is rewritten only when its text changes. -->
+         (abc1234+dirty) 2026-10-17", the menus' bottom left corner and the console): 0 and "unknown" without git.
+         The date is the build's local date, no time of day: the header is rewritten only when its text changes, so a
+         build with nothing new recompiles and relinks nothing (with a clock it did, every minute). -->
     <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD 2&gt;nul"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildNumber" />
@@ -249,9 +254,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrBuildDirty>0</QvrBuildDirty>
       <QvrBuildDirty Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">1</QvrBuildDirty>
       <QvrBuildNumber Condition="'$(QvrGitExit)'!='0' or '$(QvrBuildNumber)'==''">0</QvrBuildNumber>
-      <QvrBuildDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd HH:mm'))</QvrBuildDate>
-      <!-- /p:QvrStableDate=1 (the agents' build.sh): no clock in the header, so a rebuild in a new minute doesn't
-           recompile vr_crash.cpp and relink the whole exe (~20 s with ThinLTO) when nothing else changed. -->
+      <QvrBuildDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd'))</QvrBuildDate>
+      <!-- /p:QvrStableDate=1 (the agents' build.sh): no date in the header at all, so not even a new day recompiles
+           vr_crash.cpp and relinks the exe when nothing else changed. -->
       <QvrBuildDate Condition="'$(QvrStableDate)'=='1'">dev</QvrBuildDate>
     </PropertyGroup>
     <PropertyGroup>
@@ -267,13 +272,14 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrBuildStamp Condition="'$(QvrGitExit)'=='0' and '$(QvrBuildDirty)'=='1'">$(QvrBuildHash)+dirty</QvrBuildStamp>
       <QvrBuildInfo Condition="'$(QvrGitExit)'=='0'">$(QvrVersionShown) build $(QvrBuildNumber) ($(QvrBuildStamp)) $(QvrBuildDate)</QvrBuildInfo>
       <QvrBuildInfo Condition="'$(QvrGitExit)'!='0'">$(QvrVersionShown) build 0 (unknown) $(QvrBuildDate)</QvrBuildInfo>
-      <!-- A QvrNoLto build (above) says so wherever the build is shown (the menus' corner, the console, crash reports),
-           so it is never mistaken for a release; QVR_BUILD_LTO: 1 for a ThinLTO build (Release, Release-Tracy), else 0
-           (make_release.ps1 checks it). -->
+      <!-- An optimised build without ThinLTO (Release, Release-TracyFull, or QvrNoLto above) says "no-LTO" wherever the
+           build is shown (the menus' corner, the console, crash reports), so it is never mistaken for a release or
+           timed as one; Debug doesn't (never fast anyway). QVR_BUILD_LTO: 1 for a ThinLTO build (ReleaseLTO,
+           Release-Tracy), else 0 (make_release.ps1 checks it). -->
       <QvrLtoFlag>0</QvrLtoFlag>
-      <QvrLtoFlag Condition="'$(QvrLto)'=='true' and ('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">1</QvrLtoFlag>
-      <QvrVersion Condition="'$(QvrLto)'!='true'">$(QvrVersion) no-LTO</QvrVersion>
-      <QvrBuildInfo Condition="'$(QvrLto)'!='true'">$(QvrBuildInfo) no-LTO</QvrBuildInfo>
+      <QvrLtoFlag Condition="'$(QvrLto)'=='true'">1</QvrLtoFlag>
+      <QvrVersion Condition="'$(QvrLto)'!='true' and '$(Configuration)'!='Debug'">$(QvrVersion) no-LTO</QvrVersion>
+      <QvrBuildInfo Condition="'$(QvrLto)'!='true' and '$(Configuration)'!='Debug'">$(QvrBuildInfo) no-LTO</QvrBuildInfo>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Overwrite="true" WriteOnlyWhenDifferent="true"

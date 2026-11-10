@@ -17,6 +17,10 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTO|x64">
+      <Configuration>ReleaseLTO</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Tracy|x64">
       <Configuration>Release-Tracy</Configuration>
       <Platform>x64</Platform>
@@ -43,7 +47,9 @@
   <PropertyGroup>
     <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
-    <QvrLto>true</QvrLto>
+    <!-- ThinLTO as quakevr.props: ReleaseLTO and Release-Tracy, unless QvrNoLto=1. -->
+    <QvrLto>false</QvrLto>
+    <QvrLto Condition="'$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy'">true</QvrLto>
     <QvrLto Condition="'$(QvrNoLto)'=='1' or '$(QvrNoLto)'=='true'">false</QvrLto>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -77,8 +83,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
   </ItemDefinitionGroup>
-  <!-- quakevr.props' Release settings (Release and Release-Tracy, as there), and its ThinLTO. -->
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy'">
+  <!-- quakevr.props' Release settings (Release, ReleaseLTO and Release-Tracy, as there), and its ThinLTO. -->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' or '$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy'">
     <ClCompile>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <StringPooling>true</StringPooling>
@@ -88,7 +94,7 @@
       <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy') and '$(QvrLto)'=='true'">
+  <ItemDefinitionGroup Condition="'$(QvrLto)'=='true'">
     <ClCompile>
       <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

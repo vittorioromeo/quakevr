@@ -1,4 +1,4 @@
-# Packages Quake VR into dist\QuakeVR (and dist\QuakeVR.zip): the engine from a Release x64
+# Packages Quake VR into dist\QuakeVR (and dist\QuakeVR.zip): the engine from a ReleaseLTO x64
 # build, its DLLs, and the quakevr game folder with freshly compiled progs (and the relighting
 # scripts in quakevr\tools; never the relit id maps). Copy the contents of
 # dist\QuakeVR into a Quake folder (the one with id1) and run QuakeVR.bat.
@@ -34,13 +34,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = if ($Root) { (Resolve-Path $Root).Path } else { Split-Path -Parent $PSScriptRoot }
-$bin = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\Release"
+# The ThinLTO build (ReleaseLTO; Release is the quicker-to-build dev configuration).
+$bin = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\ReleaseLTO"
 $dist = if ($Dist) { [System.IO.Path]::GetFullPath($Dist) } else { Join-Path $root "dist\QuakeVR" }
 
 if ($Build -and -not $DryRun) {
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
-    & $msbuild (Join-Path $root "Windows\VisualStudio\ironwail.sln") -p:Configuration=Release -p:Platform=x64 -m -v:m -nologo
+    & $msbuild (Join-Path $root "Windows\VisualStudio\ironwail.sln") -p:Configuration=ReleaseLTO -p:Platform=x64 -m -v:m -nologo
     if ($LASTEXITCODE -ne 0) { throw "build failed" }
 }
 

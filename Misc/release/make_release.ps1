@@ -849,16 +849,16 @@ Invoke-Logged $python @("Misc\trenchbroom\fgdgen.py", "--check") (Join-Path $log
 Say "FGD: ok"
 
 # ------------------------------------------------------------------------------------------------------------------
-Step "Engine and QuakeC (Release x64, $versionText)"
-$msbuildArgs = @("Windows\VisualStudio\ironwail.sln", "-p:Configuration=Release", "-p:Platform=x64", "-m", "-v:m", "-nologo",
+Step "Engine and QuakeC (ReleaseLTO x64, $versionText)"
+$msbuildArgs = @("Windows\VisualStudio\ironwail.sln", "-p:Configuration=ReleaseLTO", "-p:Platform=x64", "-m", "-v:m", "-nologo",
     "-p:QvrQcCompiler=$Fteqcc", "-p:QvrReleaseVersion=$Version", "-p:QvrNoLto=0")
 if ($Rebuild) { $msbuildArgs += "-t:Rebuild" }
 Invoke-Logged $msbuild $msbuildArgs (Join-Path $logs "msbuild.log") | Out-Null
-$exe = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\Release\ironwail.exe"
+$exe = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\ReleaseLTO\ironwail.exe"
 $built = Get-Item $exe
-# The exe must be a ThinLTO build (quakevr.props, QvrNoLto): the build's header says QVR_BUILD_LTO 1, and the exe holds
+# The exe must be a ThinLTO build (quakevr.props: the ReleaseLTO configuration, without QvrNoLto): the build's header says QVR_BUILD_LTO 1, and the exe holds
 # that header's build info and no "no-LTO" (a quick agent build's tag; an exe left by one is refused too).
-$buildVer = Join-Path $root "Windows\VisualStudio\Build-ironwail\x64\Release\qvr_buildver.h"
+$buildVer = Join-Path $root "Windows\VisualStudio\Build-ironwail\x64\ReleaseLTO\qvr_buildver.h"
 $buildVerText = if (Test-Path $buildVer) { Get-Content -Raw $buildVer } else { "" }
 if ($buildVerText -notmatch '#define QVR_BUILD_LTO 1') { throw "$buildVer does not say QVR_BUILD_LTO 1: not a ThinLTO build (QvrNoLto set?)" }
 $exeText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
