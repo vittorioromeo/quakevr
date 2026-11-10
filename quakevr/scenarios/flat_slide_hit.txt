@@ -1,9 +1,0 @@
-# flat_slide_hit: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides into a crate and a grunt in vrtesthall's open south-west (vr_flatslide_hit_test's lane, Quake/vr/vr_flatmove.cpp).
-title Flat-screen slide: into a crate and a grunt
-hint Play with -flatscreenmode. Run east and crouch at speed to slide into the crate straight ahead: it goes on and a little to the side. Then slide into the grunt to its left: it is knocked back or down like a shoulder charge.
-map vrtesthall
-start -580 -440 24 0
-god
-notarget
-spawn "Wooden Crate" 200 0
-spawn "Grunt" 200 120
