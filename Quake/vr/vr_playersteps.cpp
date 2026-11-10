@@ -24,6 +24,7 @@
 #include "vr_playersteps.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_physsound.hpp"
 #include "vr_random.hpp"
@@ -35,6 +36,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "vr_api.h"
 
 #include <glm/glm.hpp>
 

@@ -8,12 +8,13 @@
 #include "vr_bench.hpp"
 #include "vr_crtheap.h"
 #include "vr_diskcache.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN

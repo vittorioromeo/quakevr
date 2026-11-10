@@ -39,6 +39,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
@@ -61,6 +62,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::twohand

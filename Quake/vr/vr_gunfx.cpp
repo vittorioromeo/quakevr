@@ -5,6 +5,7 @@
 #include "vr_adguns.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_impacts.hpp"

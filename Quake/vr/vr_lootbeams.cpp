@@ -5,6 +5,7 @@
 #include "vr_client.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"

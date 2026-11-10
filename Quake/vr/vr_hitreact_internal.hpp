@@ -15,7 +15,6 @@
 #include "vr_aglegs.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 #include "vr_poselive.hpp"

@@ -14,6 +14,8 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

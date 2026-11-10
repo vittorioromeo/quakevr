@@ -77,6 +77,24 @@ The build systems take the new files by wildcard (vr.cmake and vr.mk glob `vr/*.
 includes `Quake\vr\*.cpp`), so none lists them. Test and bench registrations still in vr_main.cpp belong to modules not in
 this pass (modelcollide, selfcollide, modelmetadata, gore, decals, ...).
 
+## The cvar and tunable headers (what was vr_cvars.hpp; build speed, 2026-11-10)
+
+vr_cvars.hpp held every table and helper and was included by ~370 of ~570 objects, so an edit of vr_cvars.inc or
+vr_tunables.inc recompiled them all. Each part now has its header; a file includes the ones it uses:
+
+| Header | Holds | Includes the table |
+|---|---|---|
+| vr_cvars.hpp | the cvars by name (`extern cvar_t vr_x`), `vr_backend`, `recordingClean()`, `reloadModeBest()`, `weaponSlotCount` | vr_cvars.inc |
+| vr_tunables.hpp | the tuning constants by name (`TunableId`, `tunables[]` or the release's constexpr ones) | vr_tunables.inc |
+| vr_tunables_api.hpp | `Tunable`, `tunableValue`, `tunableFind`, `settingByName`, the Tunables page's API (`TunableRow`, `tunableSet`, ...) | none |
+| vr_monstervalues.hpp | the monsters' per-class values by name (`monsterValues[]`) | vr_monsterdata.inc |
+| vr_weaponvalues.hpp | the named per-weapon values (`weaponStandIns[]`) | vr_weapons.inc, vr_weaponvalues.inc |
+| vr_cvars_util.hpp | `cvars::forEach`, `cvars::Override`, `cvars::Snapshot` | none |
+| vr_config.hpp | `registerCvars`, `sameSettingValue`, `saveConfigNow`, `configFrame`, `standInTables`, `registerConfigDiag` | none |
+
+The engine hooks (vr_api.h, vr_api_render.h) left quakedef.h and vr_engine.hpp (so the PCHs) the same way: each
+Ironwail and VR file that calls or defines a hook includes them.
+
 ## vr_menu (the VR menu; pages as builder functions)
 
 vr_menu.cpp keeps the menu's machinery (page table, presets, navigation, rows, drawing, commands). Its page builders

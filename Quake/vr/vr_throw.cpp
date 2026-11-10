@@ -18,6 +18,7 @@
 
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"

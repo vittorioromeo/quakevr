@@ -12,6 +12,7 @@
 #include "vr_brushbake.hpp"
 #include "vr_brushlight.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_decals.hpp"
 #include "vr_files.hpp"
 #include "vr_held.hpp"
@@ -36,6 +37,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <stdio.h>
 #include <stdlib.h>

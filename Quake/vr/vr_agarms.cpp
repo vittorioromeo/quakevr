@@ -11,6 +11,7 @@
 #include "vr_agpose.hpp"
 #include "vr_poselive.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_portals.hpp"

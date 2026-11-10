@@ -13,6 +13,11 @@
 #include "vr_hands.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_units.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api_render.h"
 
 namespace box3d::detail
 {

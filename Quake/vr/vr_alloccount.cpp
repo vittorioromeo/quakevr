@@ -10,6 +10,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <new>
 #include <stdio.h>

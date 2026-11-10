@@ -25,6 +25,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::magholster

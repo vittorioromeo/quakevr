@@ -35,6 +35,7 @@
 #include "vr_avatar.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_client.hpp"
 #include "vr_deathview.hpp"
 #include "vr_flathud.hpp"
@@ -81,6 +82,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api_render.h"
 
 #include <math.h>
 

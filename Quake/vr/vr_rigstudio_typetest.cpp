@@ -17,6 +17,7 @@
 #include "thirdparty/imgui/imgui_internal.h"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <SDL.h>
 

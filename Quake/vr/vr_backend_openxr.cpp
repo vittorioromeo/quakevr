@@ -7,6 +7,10 @@
 // (docs/vr-port/PORTING.md).
 
 #include "vr_backend_openxr_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #ifdef QVR_HAVE_OPENXR
 

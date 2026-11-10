@@ -10,6 +10,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_main.hpp"
 #include "vr_audio.hpp"
 #include "vr_geom.hpp"

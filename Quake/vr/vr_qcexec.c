@@ -80,6 +80,7 @@ static QX_NOINLINE void QCExec_Builtin (dfunction_t *newf)
 #define QX_GOTO 1
 #define QX_FUNC QCExec_RunGoto
 #include "vr_qcexec_loop.inc"
+#include "vr_api.h"
 #undef QX_GOTO
 #undef QX_FUNC
 #endif

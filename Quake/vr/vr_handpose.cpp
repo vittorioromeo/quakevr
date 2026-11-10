@@ -26,6 +26,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
@@ -43,6 +44,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::handpose

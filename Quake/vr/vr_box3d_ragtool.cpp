@@ -8,6 +8,7 @@
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Array.hpp"
 
 #include <cstring>
 

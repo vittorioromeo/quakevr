@@ -2,10 +2,12 @@
 
 #include "vr_foveated.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_gfx.hpp"
 #include "vr_glutil.hpp"
 #include "vr_profile.hpp"
 #include "vr_upscale.hpp"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

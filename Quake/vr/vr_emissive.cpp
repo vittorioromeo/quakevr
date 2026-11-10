@@ -7,6 +7,7 @@
 #include "vr_main.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_hue.hpp"
 #include "vr_lighting.hpp"
 #include "vr_mem.hpp"
@@ -33,6 +34,8 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <string.h>
 

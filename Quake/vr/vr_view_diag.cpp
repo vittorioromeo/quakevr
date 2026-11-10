@@ -7,6 +7,11 @@
 #include "vr_geom.hpp"
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 

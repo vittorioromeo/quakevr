@@ -19,6 +19,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
 

@@ -13,7 +13,6 @@
 #include "vr_relight_tool.hpp"
 #include "vr_relight_vis.hpp"
 #include "vr_brushbake.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"

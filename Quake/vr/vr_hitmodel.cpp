@@ -8,6 +8,7 @@
 #include "vr_api.h"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_drawnpose.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_held.hpp"

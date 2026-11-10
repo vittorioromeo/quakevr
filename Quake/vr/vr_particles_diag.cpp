@@ -3,6 +3,8 @@
 
 #include "vr_ambient.hpp"
 #include "vr_particles_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::particles
 {

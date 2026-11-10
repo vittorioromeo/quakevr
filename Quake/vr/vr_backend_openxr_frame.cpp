@@ -3,6 +3,10 @@
 // made and their images.
 
 #include "vr_backend_openxr_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #ifdef QVR_HAVE_OPENXR
 

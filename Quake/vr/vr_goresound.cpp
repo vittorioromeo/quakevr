@@ -3,6 +3,7 @@
 #include "vr_goresound.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_gore.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 

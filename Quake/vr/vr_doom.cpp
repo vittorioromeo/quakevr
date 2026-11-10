@@ -4,6 +4,7 @@
 
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"
@@ -23,6 +24,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -31,6 +33,9 @@
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
 #endif
 #include <windows.h>
 #include <shellapi.h>

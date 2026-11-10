@@ -11,6 +11,7 @@
 #include "vr_adweapons.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_held.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
@@ -35,6 +36,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

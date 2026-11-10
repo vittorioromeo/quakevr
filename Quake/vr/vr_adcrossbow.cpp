@@ -4,6 +4,7 @@
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
@@ -16,6 +17,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api_render.h"
 
 #include <string.h>
 

@@ -13,6 +13,14 @@ code goes: [ARCHITECTURE.md](ARCHITECTURE.md).
 - `vr_engine.hpp` has only SDL's core headers (quakedef.h with `QVR_ENGINE_SDL_CORE`), and quakedef.h no longer pulls
   in windows.h: a file that calls SDL includes `SDL.h`, one that uses the Windows API includes `<windows.h>` (or
   declares the few functions it calls, as `vr_ao.cpp` does).
+- Include the narrowest header (the tables' headers are the hot ones: an edit of a table recompiles every file that
+  includes its header): a cvar by name `vr_cvars.hpp` (vr_cvars.inc), a tuning constant by name `vr_tunables.hpp`
+  (vr_tunables.inc), their type and functions only `vr_tunables_api.hpp`, the data tables' named values
+  `vr_monstervalues.hpp` / `vr_weaponvalues.hpp`, `cvars::Override/Snapshot/forEach` `vr_cvars_util.hpp`, the
+  settings' registration and config writer `vr_config.hpp`. The engine hooks: `vr_api.h` / `vr_api_render.h`, included
+  by the files that call or define a hook (no longer by quakedef.h or vr_engine.hpp, so not by every file).
+- A file that includes `<windows.h>` defines `WIN32_LEAN_AND_MEAN` and `NOMINMAX` before it (and includes the extra
+  Windows headers it needs, e.g. `<shellapi.h>`, `<mmsystem.h>`).
 - A shared header doesn't include a heavy header (windows.h, phonon.h, OpenXR, box3d) for one inline function: the
   function goes into the .cpp. A large file splits into parts with an `_internal.hpp` (`vr_view_internal.hpp`,
   `vr_menu_internal.hpp`: the old anonymous namespace a named `*_detail` one).
@@ -326,9 +334,9 @@ constants, and then its body calls the canonical one).
 | point contents, liquids | `worldtrace::contents(p)` (server), `clientContents(p)`, `liquidContents(p, client)`, `isLiquid(c, currents)`; each site keeps its own rule of what is liquid | vr_trace.hpp |
 | a server line trace | `worldtrace::serverLine(a, b)` (passes the world) / `serverLine(a, b, pass, type)` | vr_trace.hpp |
 | a controller buzz | `haptics::pulse(hand, seconds, amplitude, hz = 160)` (vr_disablehaptics and the hand's bounds inside) | vr_backend.hpp |
-| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars.hpp |
-| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars.hpp |
-| every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
+| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars_util.hpp |
+| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars_util.hpp |
+| every cvar | `cvars::forEach(fn)` | vr_cvars_util.hpp |
 | a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
 | a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |
 
@@ -364,7 +372,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
 | a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |
 | a client one-shot sound at a place / on the local player | `audio::playAt(sfx, at, volume, attenuation, entity = 0)`, `audio::playLocal(sfx, volume)` | `vr_audio.hpp` |
-| per-slot values from a data file (`quakevr/data/<x>.txt`; their `vr_<x>_<key>_NN` stand-ins): storage, names, a value's key | `DataTable<Key, Slots, Keys>` (`load`, `at`, `keyOf`, `find`, `set`, iteration); every table's stand-ins: `standInTables()` (vr_cvars.hpp) | `vr_slottable.hpp` |
+| per-slot values from a data file (`quakevr/data/<x>.txt`; their `vr_<x>_<key>_NN` stand-ins): storage, names, a value's key | `DataTable<Key, Slots, Keys>` (`load`, `at`, `keyOf`, `find`, `set`, iteration); every table's stand-ins: `standInTables()` (vr_config.hpp) | `vr_slottable.hpp` |
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
 | a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |

@@ -17,6 +17,7 @@
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatmove.hpp"
@@ -34,6 +35,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Math/Clamp.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 

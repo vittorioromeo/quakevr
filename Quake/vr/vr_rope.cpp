@@ -5,6 +5,7 @@
 #include "vr_geom.hpp"
 #include "vr_rope.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_lines.hpp"
@@ -27,6 +28,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 
 extern "C" float VR_BeamScale(qmodel_t* model); // vr_client.cpp

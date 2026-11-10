@@ -7,6 +7,14 @@
 #include "vr_flatsight.hpp"
 #include "vr_flycam.hpp"
 #include "vr_nailslide.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace view_detail
 {

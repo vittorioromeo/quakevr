@@ -2,6 +2,10 @@
 // and a brush's .map text written and read.
 
 #include "vr_brushes_internal.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "vr_api_render.h"
 
 namespace qvr::brushes
 {

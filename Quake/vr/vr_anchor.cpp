@@ -10,6 +10,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <stdlib.h>

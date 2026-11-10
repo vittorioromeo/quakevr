@@ -23,7 +23,6 @@
 #include "vr_progs.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_agpose.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_render.hpp"
 #include "vr_view.hpp"
@@ -41,6 +40,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

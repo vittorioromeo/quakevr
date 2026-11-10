@@ -7,6 +7,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 
 namespace

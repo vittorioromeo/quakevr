@@ -28,6 +28,11 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 
 namespace box3d::detail
 {

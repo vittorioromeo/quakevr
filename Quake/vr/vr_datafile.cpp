@@ -3,6 +3,9 @@
 #include "vr_slottable.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <stdlib.h>
 #include <string.h>

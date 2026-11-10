@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // snd_mem.c: sound caching
 
 #include "quakedef.h"
+#include "vr/vr_api.h"
 
 /*
 ================

@@ -22,12 +22,17 @@
 
 #include "vr_testbatch.hpp"
 #include "vr_backend.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 #include <string.h>

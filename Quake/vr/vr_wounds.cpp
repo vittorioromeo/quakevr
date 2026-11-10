@@ -9,6 +9,7 @@
 #include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_particles.hpp"
 #include "vr_playergore.hpp"
@@ -46,6 +47,8 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

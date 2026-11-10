@@ -5,6 +5,12 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_edictindex.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace box3d::detail
 {

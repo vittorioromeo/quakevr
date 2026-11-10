@@ -8,6 +8,7 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace qvr::audio::bench
 {

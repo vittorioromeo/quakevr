@@ -9,7 +9,6 @@
 #include "vr_ragactive.hpp"
 
 #include "vr_b3glm.hpp"
-#include "vr_cvars.hpp"
 #include "vr_geom.hpp"
 #include "vr_lines.hpp"
 #include "vr_ragpose.hpp"

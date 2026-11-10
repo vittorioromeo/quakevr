@@ -11,7 +11,7 @@
 // "vr_config_test dumpfull <name>" writes every archived setting (the full config's lines) for comparing builds.
 
 #include "vr_api.h"
-#include "vr_cvars.hpp"
+#include "vr_config.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_testkit.hpp"
@@ -20,6 +20,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
 
 #include <cstdio>

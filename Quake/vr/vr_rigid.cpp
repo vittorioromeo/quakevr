@@ -27,6 +27,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

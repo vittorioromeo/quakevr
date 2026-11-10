@@ -3,6 +3,7 @@
 #include "vr_gearlights.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_doom.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
@@ -21,6 +22,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "vr_geom.hpp"
 
 namespace qvr::gearlights

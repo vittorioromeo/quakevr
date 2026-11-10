@@ -18,6 +18,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api_render.h"
 
 #include <string.h>
 
