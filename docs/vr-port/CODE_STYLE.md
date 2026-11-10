@@ -138,7 +138,7 @@ state instead:
 
 `vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
 
-`Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
+`qvr_checks statics` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
 or `thread_local` in `Quake/vr` that is not `static constexpr`, of any type, in any function or lambda body (an
 `if(static bool once = false; !once)` too); class members and namespace-scope variables are not function-local. It
 reads the source's scopes (comments, strings and raw strings skipped), so it needs no compiler. A line that must stay
@@ -186,7 +186,7 @@ could be drawn in the multiview pass, even when it is not ported to it yet (deci
 - **Every new graphics program gets its multiview twin.** It is made in gl_shaders.c with `GL_CreateProgram` (its
   sources are kept and the twin is the same text compiled under `QVR_MULTIVIEW`: `GL_CreateShader`), not through
   `gfx::glProgram` / `gfx::linkProgram`, and its twin must build. `vr_multiview_check` builds every twin (run by
-  `Misc/quakevr/selfchecks_test.sh`); `check_canonical.py`'s `gl-program-no-twin` fails the build on a new program
+  `Misc/quakevr/selfchecks_test.sh`); `qvr_checks canonical`'s `gl-program-no-twin` fails the build on a new program
   made outside gl_shaders.c, unless its allowlist line says why it needs none (compute, a light's or a probe's view,
   per eye for good).
 - **A new pass says where it sits.** In `R_RenderScene` (gl_rmain.c) the multiview pass (`R_RenderStereoSingle`)
@@ -230,13 +230,13 @@ scratch vector across nested/reentrant calls or workers. `vr_alloc_test` checks 
 fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on the right of an assignment,
 `x = (a && b);`, since `x = a && b` (also `+=` and `self.f = a && b`) is `(x = a) && b`. Also `a && b ? c : d` is
 `a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
-`Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
+`qvr_checks qc_precedence` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
 expression that compiles differently under C's priorities; the repro that showed each case, `Misc/quakevr/qcrepro/repro.qc`, is in git history (commit `2f6ffb4ba`).
 
 Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `progs.src`) is wrapped whole in
 `#ifdef QVR_TESTS` ... `#endif` (the macro is defined in `QC/vr_macros.qc` unless fteqcc is given `-DQVR_NO_TESTS`, which
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
-wrap it. `Misc/quakevr/check_release_qc.py` (run by `QC/build.sh`, `QC/build.bat`, Visual Studio's QC step and the kit's
+wrap it. `qvr_checks release_qc` (run by `QC/build.sh`, `QC/build.bat`, Visual Studio's QC step and the kit's
 `build.sh`; ~3 s) fails on a `*_test.qc` not wholly inside the guard and on any error or warning of the `-DQVR_NO_TESTS`
 compile, which it writes to `build/qcrelease/` (`quakevr/progs.dat` is not touched).
 
@@ -297,7 +297,7 @@ promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <
 ## Canonical helpers
 
 One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
-`Misc/quakevr/check_canonical.py` (run by the kit's build.sh) fails the build on a new copy of the main families
+`qvr_checks canonical` (run by the kit's build.sh) fails the build on a new copy of the main families
 (ARCHITECTURE.md, "Checks the build runs"; today's left sites: `Misc/quakevr/canonical_allowlist.txt`).
 
 ### Geometry and math (`Quake/vr/vr_geom.hpp`, namespace `qvr::geom`)
@@ -395,12 +395,12 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   check line, counted), `VR_Test_Nest(tag, flags)` / `VR_Test_Unnest()` (a test run inside another: agtest's agshot).
   One spawner: `VR_Test_Spawn(player, kind, at, yaw)` (the dispenser's numbers; impulse 241's). The armed
   grunts' harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc) and the arena's `VR_AT_Check` count
-  on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
+  on that tally. A new test never keeps its own pass/fail globals or verdict line (qvr_checks canonical's test-*
   families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").
 - Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (`QC/vr_cvars.qc`, compiled right after defs.qc so every file
-  sees it), never `cvar("...")` (check_canonical.py's qc-cvar-by-name: only the allowlisted sites, names built at run
+  sees it), never `cvar("...")` (qvr_checks canonical's qc-cvar-by-name: only the allowlisted sites, names built at run
   time or tests' cvar tables put back by name; QC/ad, the import, keeps its own). Every handle is generated: write
-  `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, the global and its
+  `cvarh_<name>` and run `build/qvr_checks/qvr_checks.exe cvars_qc` (it writes `QC/vr_cvars_gen.qc`, the global and its
   make for every handle the QC's code uses and no other: each costs a global; `--check`
   fails a stale file or a name that is no cvar, tunable, weapon/monster/group value or engine cvar). Handles are made
   again at every load (their numbers are the session's); one the engine does not find prints `cvar_hmake: unknown
@@ -415,5 +415,5 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   `MGH_SQUADS` / `MGH_WAVES` (vr_mg_horde.qc); AD's weapon upgrades `AD_UPGRADES` (vr_ad_bridge.qc).
   A struct array with an initializer (`MG_poses`, these) is the form; a value a setting or a function decides stays a
   line of code before the table read. Each table costs a global per value: QC globals are near the id format's 64k.
-- Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
+- Builtins: a `= #0` prototype is bound by name; `qvr_checks builtins` (run by the kit's build.sh) fails the
   build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

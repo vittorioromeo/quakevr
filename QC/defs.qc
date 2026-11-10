@@ -1,6 +1,6 @@
 // progs.dat in the 32-bit format (FTE's extended version 7, statements and defs 32-bit: no 65,536-globals limit), the
 // same code as the 16-bit one: our FTEQCC's fte32 flag (Tools/fteqcc/README.md). Every build path compiles this file,
-// so it is set here rather than on each command line; Misc/quakevr/check_progs_format.py fails a build without it.
+// so it is set here rather than on each command line; qvr_checks progs_format fails a build without it.
 #pragma flag enable fte32
 
 #include "vr_macros.qc"

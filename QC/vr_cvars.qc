@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // CVar handles: `cvar_hget(cvarh_<name>)` reads a cvar or a tuning constant by handle (an index read; cvar("<name>")
-// looks the name up every call). Writing cvarh_<name> in the QC is its whole declaration: Misc/quakevr/gen_vr_cvars_qc.py
+// looks the name up every call). Writing cvarh_<name> in the QC is its whole declaration: qvr_checks cvars_qc (Tools/qvr_checks)
 // writes every used handle's global and its make into vr_cvars_gen.qc (run it after adding or removing a use; the
 // kit's build.sh fails while it is stale, or on a name that is no cvar or tunable). The handles are made when a map
 // loads (OnSpawnServerBeforeLoad, before any entity spawns; again after a save's globals are read: OnLoadGame).

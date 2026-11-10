@@ -45,10 +45,10 @@ physics, rendering or speed. Where both read a number, it lives in a shared head
 
 | channel | C++ side | QC side | rule |
 |---|---|---|---|
-| **builtins** (QC calls C++) | `vrBuiltins[]` in `vr_builtins.cpp` (the table) with the `PF_*` bodies in `vr_builtins_<group>.inc` (held, hitmodel, melee, nav, ragdoll) | `name = #0;` prototypes, mostly `QC/builtins.qc` | bound by name at load; `Misc/quakevr/check_builtins.py` fails the build on an unbound prototype or a dead entry |
+| **builtins** (QC calls C++) | `vrBuiltins[]` in `vr_builtins.cpp` (the table) with the `PF_*` bodies in `vr_builtins_<group>.inc` (held, hitmodel, melee, nav, ragdoll) | `name = #0;` prototypes, mostly `QC/builtins.qc` | bound by name at load; `qvr_checks builtins` fails the build on an unbound prototype or a dead entry |
 | **entity fields** (C++ reads/writes edicts) | `QVR_FIELD(name)` rows in `vr_fields.inc` -> `progs::fields().name`, `progs::handFields(hand)` | `.float name;` in `vr_sys_fields.qc` / `vr_fields.qc` | add the row; no `ED_FindFieldOffset("...")` for a fixed name |
 | **QC functions** (C++ calls QC) | `progs::Bindings` (resolved once a map: `progs::bindings().x`), `progs::callQc/qcFloat/qcText/qcVec`, `progs::findFunction` for rare calls | ordinary QC functions (`VR_Carry_Handtouch`, `VR_RagImpact_Hit`, ...) | never `findFunction("...")` per frame |
-| **cvars** | `QVR_CVAR(name, default, flags)` rows in `vr_cvars.inc`; read `vr_x.value` | handles `cvarh_<name>` generated into `QC/vr_cvars_gen.qc` by `Misc/quakevr/gen_vr_cvars_qc.py`; read `cvar_hget(cvarh_x)` | the build fails on a stale generated file or an unknown name; QC `cvar("...")` only at allowlisted sites (check_canonical.py qc-cvar-by-name) |
+| **cvars** | `QVR_CVAR(name, default, flags)` rows in `vr_cvars.inc`; read `vr_x.value` | handles `cvarh_<name>` generated into `QC/vr_cvars_gen.qc` by `qvr_checks cvars_qc (Tools/qvr_checks)`; read `cvar_hget(cvarh_x)` | the build fails on a stale generated file or an unknown name; QC `cvar("...")` only at allowlisted sites (qvr_checks canonical qc-cvar-by-name) |
 | **shared constants** | `vr_melee_shared.h`, `vr_weapon_ids.h`, `vr_agpose_shared.h` | `#include "../Quake/vr/<header>"` (vr_melee_params.qc, vr_defs.qc, vr_armedgrunt_defs.qc) | a number both sides use goes in one of these (or a new `*_shared.h`), never two literals |
 | **network** | `vr_protocol.hpp`; client writes hand poses and VR input with `VR_WriteMoveExtras` (vr_client.cpp), the server reads them in `VR_ReadMoveExtras` (vr_server.cpp); entity extras `VR_WriteEntityUpdate`, client messages `VR_ParseServerMessage` | fields the server fills from the move (hand pos/rot, ...) | the server's copy of the hands is what game rules use |
 | **engine constants** | server.h, world.h | defs.qc | MOVETYPE_*, SOLID_*, ...: same values, both Quake's |
@@ -94,7 +94,7 @@ server runs on the main thread ([SERVER_THREAD.md](SERVER_THREAD.md) is a shelve
 ## 5. Canonical helpers (the short list)
 
 One implementation each; the full tables with signatures are in CODE_STYLE.md, "Canonical helpers". The build's
-`check_canonical.py` (section 7) fails on a new copy of the families marked (g).
+`qvr_checks canonical` (section 7) fails on a new copy of the families marked (g).
 
 | need | use | where |
 |---|---|---|
@@ -130,7 +130,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   fine only when it bakes in that site's rule, and its body then calls the canonical one.
 - **A new general helper** goes into the canonical header of its family (math: vr_geom.hpp; engine access:
   vr_progs.hpp / vr_trace.hpp; strings: vr_strings.hpp; QC: vr_util.qc), with a line in CODE_STYLE.md's tables,
-  and (when copies are likely) a family in `Misc/quakevr/check_canonical.py`.
+  and (when copies are likely) a family in `qvr_checks canonical`.
 - **A feature** goes in its area's files (section 2). A new module: `vr_<name>.cpp/.hpp` in `qvr::<name>`; its
   diagnostics in `vr_<name>_diag.cpp`; a file nearing 3000 lines is split by its clusters (SOURCE_MAP.md's pattern).
 - **Engine hooks**: a `VR_*` function declared in `vr_api.h` (or `vr_api_render.h`), called from the Ironwail file
@@ -162,17 +162,21 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 
 ## 7. Checks the build runs (the kit's build.sh)
 
+The source checks are one C++ tool, `Tools/qvr_checks` (`build/qvr_checks/qvr_checks.exe <check>`; its README):
+`qvr_checks all` runs every one at once, and the kit's build.sh runs that alongside MSBuild. The Visual Studio build
+builds the tool before its QC step (progs format, release QC).
+
 | check | fails on |
 |---|---|
 | QC compile (fteqcc) | errors; the fteqcc self-test |
 | `Misc/trenchbroom/fgdgen.py --check` | a QC spawn function missing from quakevr.fgd (prints only) |
-| `Misc/quakevr/check_statics.py` | a mutable function-local static in Quake/vr |
-| `Misc/quakevr/check_test_numbers.py` | a test number claimed or dispatched twice, or not registered |
-| `Misc/quakevr/check_builtins.py` | a `#0` prototype with no builtin, a builtin with no prototype |
-| `Misc/quakevr/gen_vr_cvars_qc.py --check` | a stale `QC/vr_cvars_gen.qc` |
-| `Misc/quakevr/check_canonical.py` | a NEW copy of a canonical helper (families: `geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`, `player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`, `gl-program-no-twin`, ...): a file holding more sites than `Misc/quakevr/canonical_allowlist.txt` allows. `--list <family>` shows the sites; after migrating some, `--tighten` lowers the allowlist; a meant new site is a hand-written allowlist line with its reason |
-| `Misc/quakevr/check_qc_precedence.py` | QC that compiles differently under C's operator priorities |
-| `Misc/quakevr/check_release_qc.py` | the release flavour's QC (`-DQVR_NO_TESTS`): a `*_test.qc` outside its guard, or any compile error or warning |
+| `qvr_checks statics` | a mutable function-local static in Quake/vr |
+| `qvr_checks test_numbers` | a test number claimed or dispatched twice, or not registered |
+| `qvr_checks builtins` | a `#0` prototype with no builtin, a builtin with no prototype |
+| `qvr_checks cvars_qc --check` | a stale `QC/vr_cvars_gen.qc` |
+| `qvr_checks canonical` | a NEW copy of a canonical helper (families: `geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`, `player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`, `gl-program-no-twin`, ...): a file holding more sites than `Misc/quakevr/canonical_allowlist.txt` allows. `--list <family>` shows the sites; after migrating some, `--tighten` lowers the allowlist; a meant new site is a hand-written allowlist line with its reason |
+| `qvr_checks qc_precedence` | QC that compiles differently under C's operator priorities |
+| `qvr_checks release_qc` | the release flavour's QC (`-DQVR_NO_TESTS`): a `*_test.qc` outside its guard, or any compile error or warning |
 | MSBuild | errors; warnings are listed (keep 0) |
 
 ## 8. Tests and benches

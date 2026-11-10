@@ -720,7 +720,7 @@ Builtins:
   from `ad_builtins.qc` on. That is why AD stays last in progs.src.
 
 **Precedence patches.** There are 12 reviewed patches, in `PATCHES` in the script. They are the expressions
-`check_qc_precedence.py` flags, parenthesised the way fteqcc's QC priorities read them, so the behaviour stays AD's as
+`qvr_checks qc_precedence` flags, parenthesised the way fteqcc's QC priorities read them, so the behaviour stays AD's as
 shipped:
 
 - `x & FLAG == 0` is `(x & FLAG) == 0`;

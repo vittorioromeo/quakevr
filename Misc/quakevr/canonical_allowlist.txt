@@ -1,7 +1,7 @@
-# Allowed sites of the canonical-helper families (Misc/quakevr/check_canonical.py; the kit's build.sh runs it).
+# Allowed sites of the canonical-helper families (qvr_checks canonical; the kit's build.sh runs it).
 # Format: <family> <path> <count>  # reason. A file may hold at most <count> sites of that family.
 # Lower counts after migrating sites (`--tighten`); raise one only for a site that is meant, with its reason.
-# `--list <family>` shows every site. Families and what to use instead: check_canonical.py, FAMILIES.
+# `--list <family>` shows every site. Families and what to use instead: Tools/qvr_checks/canonical.cpp, families().
 
 # --- geom-vec: use geom::vec / geom::store (vr_geom.hpp)
 geom-vec Quake/vr/vr_geom.hpp 1  # canonical
@@ -98,7 +98,7 @@ player-edict Quake/vr/vr_toolgun_pick.inc 1  # guard differs (ROUND23 'player ed
 
 # --- cvar-by-name: use the cvar_t directly: vr_x.value
 
-# --- qc-cvar-by-name: use cvar_hget(cvarh_<name>) (QC/vr_cvars.qc; run Misc/quakevr/gen_vr_cvars_qc.py)
+# --- qc-cvar-by-name: use cvar_hget(cvarh_<name>) (QC/vr_cvars.qc; run qvr_checks cvars_qc (Tools/qvr_checks))
 qc-cvar-by-name QC/vr_ad_guns_defs.qc 1  # VR_ADGun_Value: vr_adgun_<gun>_<what>, 26 callers' names built at run time
 qc-cvar-by-name QC/vr_agarmor_test.qc 2  # the skill's vr_agarmor_skill<n>: read, cvar_set and put back by name
 qc-cvar-by-name QC/vr_arena_perks_test.qc 1  # its cvar table kept and put back by name (cvar_set)

@@ -30,7 +30,7 @@ A taken torch has one flame at its head. It follows the torch's direction, keeps
 
 ## Validation
 
-Release x64 and clean QuakeC builds; `Misc/quakevr/check_statics.py`; `git diff --check`.
+Release x64 and clean QuakeC builds; `qvr_checks statics`; `git diff --check`.
 
 Runtime diagnostics:
 
