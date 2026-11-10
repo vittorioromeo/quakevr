@@ -134,9 +134,24 @@ float(float dist) VR_NAV_Step =
     }
     float yaw = navsteer(self, g);
     if(yaw < 0) { return FALSE; }
+    float act = navlink(self);
     self.ideal_yaw = yaw;
     ChangeYaw();
+    if(act == 2) { return TRUE; } // (waiting for a lift, riding one, or falling off a ledge: standing)
     if(walkmove(yaw, dist)) { return TRUE; }
+    if(act == 1)
+    {
+        // A drop link: at the ledge, Quake's own fall (the floor pulled out from under it: FL_PARTIALGROUND lets the step
+        // hang over the edge), pushed on as it goes over so it lands clear of the wall below.
+        self.flags = self.flags | FL_PARTIALGROUND;
+        if(!walkmove(yaw, dist)) { return FALSE; }
+        if(!(self.flags & FL_ONGROUND))
+        {
+            makevectors('0 1 0' * yaw);
+            self.velocity = v_forward * cvar_hget(cvarh_vr_nav_drop_push);
+        }
+        return TRUE;
+    }
     // (Blocked: a little to either side first, as Quake's chase tries the diagonals; which side first at random.)
     float side = cvar_hget(cvarh_vr_nav_sidestep);
     if(side <= 0) { return FALSE; }

@@ -2393,3 +2393,14 @@ QVR_TUNABLE(vr_nav_lava_cost, "60") // ... under lava
 QVR_TUNABLE(vr_nav_movers, "0.25") // how often the floor under doors, lifts and trains is checked (seconds): blocked while one stands in the way
 QVR_TUNABLE(vr_nav_clearance, "1.41") // the navmesh kept this many times a monster's half width off walls and ledges (1.41: a square box's corner at any angle; 1: its side)
 QVR_TUNABLE(vr_nav_sidestep, "35") // a navmesh step toward the path's corner blocked (a prop, another monster): tried this many degrees to either side before Quake's chase takes over (0: not tried)
+QVR_TUNABLE(vr_nav_drop, "1") // 1: the navmesh has drop links (off a ledge to the floor below, found at its build): a walker takes one when it is clearly shorter, walking off the ledge and falling (the one place Quake's never-step-off-a-ledge rule is relaxed); 0: none
+QVR_TUNABLE(vr_nav_drop_max, "192") // the highest drop a walker of Quake's short height (56) takes (units; monsters take no fall damage)
+QVR_TUNABLE(vr_nav_drop_max_big, "256") // ... a tall walker's (ogre, shambler, vore: height 88)
+QVR_TUNABLE(vr_nav_drop_cost, "3") // a drop link's cost per unit of its length, a floor's being 1: a long drop is taken only when it is clearly shorter than walking round
+QVR_TUNABLE(vr_nav_drop_push, "100") // a walker stepping off a ledge on a drop link is pushed on at this speed (units/s), so it lands clear of the wall below
+QVR_TUNABLE(vr_nav_drop_time, "3") // a walker that has not gone over the ledge this long after reaching a drop link gives it up (seconds); its links are left alone for vr_nav_link_retry
+QVR_TUNABLE(vr_nav_lifts, "1") // 1: the navmesh has lift links (func_plat bottom to top and back, a func_train from one stop to the next): a walker waits for the lift, rides it and steps off at the other end; 0: none
+QVR_TUNABLE(vr_nav_lift_cost, "2") // a lift link's cost per unit of its length, a floor's being 1
+QVR_TUNABLE(vr_nav_lift_wait, "10") // a walker waiting this long for a lift to come to its level gives up (seconds); its links are left alone for vr_nav_link_retry
+QVR_TUNABLE(vr_nav_link_retry, "5") // a walker that gave up a drop or lift link plans without links this long (seconds)
+QVR_TUNABLE(vr_nav_plat_monsters, "1") // 1: a monster stepping on a lift's (func_plat's) trigger calls it as a player does (vr_nav 1; players unchanged); 0: Quake's, players only

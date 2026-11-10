@@ -8734,3 +8734,15 @@ passed; flatfg2h 9 passed.
   (0.5 s), then starts the take. Gadget: SET UP, RETAKE, END, HIDE.
 - **Test:** `vr_takes_test` (in `map start`): 21 passed, 0 failed (adds the voice note mark, session folder moves,
   session.json transcript, the trimmed timeline's order and markers, the snapshot, a retake as take 5).
+
+## Navmesh round 2: clip tops, drop links, lift links (branch `agent/navmesh2`, 2026-11-11)
+
+Design and numbers: docs/vr-port/NAVMESH.md section 10. Clip brushes' floor-like faces that lay against hull 1's solid
+were handed to the navmesh in Quake's box's centre space (28 or 56 high): moved to the brush's face (`hull::navSolids`);
+`vr_nav_toptest` checks the mesh over clip and entity tops. The class's job now makes its mesh and cache data on the
+pool (the join was 12-23 ms on ad_tears, now 0.1 ms); walkers spawned in play get their class built before they chase.
+Drop links (`vr_nav_drop*`) and lift/train links (`vr_nav_lifts`, `vr_nav_lift_*`, `vr_nav_link_retry`) as Detour
+off-mesh connections, followed by `followLink` with builtin `navlink` (QC `VR_NAV_Step`: stand, or walk off the ledge
+with `FL_PARTIALGROUND`); QC `plat_center_touch` lets monsters call lifts (`vr_nav_plat_monsters` 1). Scenes `nav_drop`
+(passes: `vr_nav_reachtest`), `nav_lift` (its knight spot is in a wall: to fix). Part 4 (crowds, smoothing, slots) not
+started.

@@ -65,7 +65,11 @@ void() plat_go_up =
 void() plat_center_touch =
 {
     if(other.classname != "player")
-        return;
+    {
+        // QVR: a monster calls the lift too, as a player does (vr_nav's lift links, docs/vr-port/NAVMESH.md).
+        if(!(other.flags & FL_MONSTER) || !cvar_hget(cvarh_vr_nav) || !cvar_hget(cvarh_vr_nav_plat_monsters))
+            return;
+    }
 
     if(other.health <= 0)
         return;

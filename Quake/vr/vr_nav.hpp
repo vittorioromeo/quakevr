@@ -22,6 +22,10 @@ void afterLoad();
 // feet, or -1 when the chase should stay Quake's (vr_nav 0, no navmesh for its size yet, off the mesh, no path, or the
 // goal in a straight line on the mesh).
 [[nodiscard]] float steer(edict_t* ent, edict_t* goal);
+// Builtin navlink(monster): what its last steer asks besides the yaw: 0 walk (walkmove), 1 walk off the ledge (a drop
+// link: where walkmove stops at the edge, the QC lets it step off and fall), 2 stand (waiting for a lift, riding one, or
+// in the air off a ledge).
+[[nodiscard]] int action(const edict_t* ent);
 
 // The view's debug draws (vr_nav_debug): the navmesh round `view`, and with 2 the monsters' paths.
 void debugDraw(const glm::vec3& view);

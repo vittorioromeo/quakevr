@@ -121,6 +121,13 @@ void PF_navsteer()
     G_FLOAT(OFS_RETURN) = qvr::nav::steer(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
 }
 
+// float navlink(entity monster): what its last navsteer asks besides the yaw: 0 walk, 1 walk off the ledge (a drop
+// link), 2 stand (waiting for or riding a lift, falling) (vr_nav.cpp nav::action).
+void PF_navlink()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(qvr::nav::action(G_EDICT(OFS_PARM0)));
+}
+
 // portal_ai_gateinfo(gate, what): 0 the gates' count (0: off), 1 the gate's flags, 2 its face (portals::aiGateFlags).
 void PF_portal_ai_gateinfo()
 {

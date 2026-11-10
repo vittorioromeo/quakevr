@@ -1,0 +1,11 @@
+# nav_lift: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A knight at the bottom of e1m1's big
+# lift waits for it, rides it up (it calls it: vr_nav_plat_monsters) and steps off to you at the top; links drawn
+# (vr_nav_debug 2: lift links magenta).
+title Navmesh: a knight rides the lift up to you
+map e1m1
+start 690 512 106 0
+god
+spawn "Knight" 180 0 -380
+cvar vr_nav 1
+cvar vr_nav_debug 2
+hint The knight below walks onto the lift, rides it up and comes for you (lift links magenta, its path yellow). With Navmesh: Lift Links off (Debug > Tunables, then reload) it stays below.
