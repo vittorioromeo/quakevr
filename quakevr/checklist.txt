@@ -26,6 +26,9 @@ Start the Armour Studio near an armed grunt, then leave the menu (or close the s
 Punch a grunt corpse's head over and over, then each arm and leg: the head pops off and each limb comes off in turn, and the body never bursts into gibs. {test:ragdoll_punch}
 Club a grunt corpse with a gun several times (flat screen: V): it is knocked about and bleeds but does not burst into gibs. {test:ragdoll_gunswing}
 Flat-screen: cut a grunt's head or arm off with the axe: the cut-off part flies off a little faster than in a headset (Cut-Off Parts: Fling Speed, 1.25x). {test:flat_fling}
+Flat-screen: with the super shotgun in the right hand, force-grab a brick: the left hand lets go of the fore-end for good, the shotgun stays one-handed, and the brick sits in the left fist up in the guard (not held out in front, not back on the fore-end). {test:flat_force_grab}
+Flat-screen: with a brick in a fist, press V: it swings the brick overhead and hurts what you hit; set Held Prop: Overhead Swing to 0 and V throws the fist's straight punch with it instead. {test:flat_force_grab}
+Flat-screen: force-grab a wall torch: in your hand it stands upright, flame up (Held Torch: Flame Up; 0 holds it as the grip took it). {test:systems_torch_knock}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

@@ -952,8 +952,11 @@ is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling
 Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).
 
 A pulled object's tumble settles back to how it lay over the flight's last `vr_forcegrab_settle` seconds (0.2), and it is caught
-at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand is held up in
-front (Debug > Tunables > Flatscreen > Held Props, `vr_flat_carry_*`), and drawn in the hand as drawn
+at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand sits in the
+fist in the empty hand's guard (`vr_flat_carry_pose 2`; 1 held up in front, Debug > Tunables > Flatscreen > Held Props,
+`vr_flat_carry_*`) and V or its fire button strikes with it: the overhead swing (`vr_flat_prop_melee 1`) or the fist's punch
+(0); V takes the prop's hand (`vr_flat_prop_v`). A torch held in one hand is turned flame up (`vr_flat_torch_upright`). A free
+hand holding anything never takes the other hand's gun's grip: that gun is held one-handed. The prop is drawn in the hand as drawn
 (`held::followDrawnHands`, `vr_flat_carry_drawn`): the view's sway, bob and turn's lag carry it with the hand, where before it
 was drawn at the game's hand and bobbed, lagged or led as the mouse turned. `vr_flat_fg_report` (Debug > Reports) prints each
 hand's step; `vr_flat_fg_press` presses the key. Test: `vr_flatitems_test 6` (palm first, no double grab); scene

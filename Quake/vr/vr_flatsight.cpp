@@ -552,7 +552,8 @@ void keepMuzzle(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& p
 // A hand with nothing in it: no weapon but the fist, no gun, prop or foe it carries.
 [[nodiscard]] bool emptyHand(int h)
 {
-    return (!weapons::heldModel(h) || weapons::heldSlot(h) == weapons::fistSlot()) && !twohand::carrying(h);
+    return (!weapons::heldModel(h) || weapons::heldSlot(h) == weapons::fistSlot()) && !twohand::carrying(h) &&
+           !flatplay::holdsThing(h); // (a prop, an item: the other hand's gun is held one-handed, his note 2026-11-10)
 }
 
 // Each gun pointed from its muzzle at what the crosshair is on (the comment at the top). The sight's muzzle stays where
@@ -1864,10 +1865,11 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
     // So do the shove (flatplay::shoving), the quick grenade (vr_flatgrenade.cpp), the hands' swap (vr_flatswap.cpp:
     // until it has happened) and E's force grab with it (vr_flatfgrab.cpp: off the grip smoothly, palm out, back after
-    // the pull). The same list as twohand's canGrab.
+    // the pull). The same list as twohand's canGrab. A free hand holding anything (a prop, an item, a torch: his note
+    // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
                     !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) && !flatswap::gripBlocked() &&
-                    !flatfgrab::busy(st.helping);
+                    !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping);
     QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));
