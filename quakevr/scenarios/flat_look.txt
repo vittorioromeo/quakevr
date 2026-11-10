@@ -1,8 +1,0 @@
-# flat_look: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) look: the start map's HARD hall with the super shotgun in hand, the view of his 2026-11-09 screenshot (docs/vr-port/ROUND24.md, "Flat-screen look").
-title Flat-screen look: start's HARD hall, lava-lit, the super shotgun in the right hand
-hint Play with -flatscreenmode. VR Settings > Graphics, Post, the Flat Screen rows (Bloom, Colour Grade and its Exposure, Contrast, Shadows, Warmth, Saturation, Vignette): the hall brighter, warm in the light and a touch cooler in the shade, the torches glowing, the screen's corners a little darker; each at 0 the old flat look. The HUD is never graded. In a headset nothing changes.
-map start
-start 820 600 24 96
-god
-notarget
-give "Super Shotgun" main
