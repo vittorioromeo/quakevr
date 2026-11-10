@@ -2093,6 +2093,7 @@ QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike 
 QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
 QVR_TUNABLE(vr_flat_melee_grip, "1") // flatscreen: a melee weapon held in two hands is held by its grip, the one lowest on the handle, never further up it or on the blade (0: the grip the free hand hangs nearest, the blade too, as before 2026-11-10)
+QVR_TUNABLE(vr_flat_melee_letgo, "1") // flatscreen: a melee weapon held in two hands lets the free hand off its grip eased, as a gun's (E's force grab, the shove, G, 3, a punch): 0 it jumps off, as before 2026-11-10
 QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
 QVR_TUNABLE(vr_flat_parry_up, "-3") // and this far above it (units; negative below)

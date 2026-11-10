@@ -8559,3 +8559,17 @@ wrote, and the tool read, ~1.7 GB of listing per compile.
   report the same 10 functions with the same files and lines, the control in neither.
 - Time (`qvr_checks all --times`, back to back): qc_precedence 9.95 s -> 3.36 s (about one compile). Work files: two
   13 MB progs + 2.6 MB .lno, emptied after use (was 2 x 1.7 GB).
+
+## Flat: two-handed melee lets go like a gun (branch `agent/fg2h`, 2026-11-10)
+
+His report: "when holding a melee weapon with two hands and force-grabbing, the off hand doesn't seem to detach first. It
+should animate like when holding a gun with two hands." Cause: the axe's, Mjolnir's and the super axe's two-handed grip (hs1, up
+the handle) is not ahead of the holding hand, so flatsight's `carryToGrip` never pins the free hand there; vr_twohand takes it only
+at a swing's end, while the pose leaves the hand hanging (not drawn on the handle), and every let-go skipped the gun's
+`gripT` ease. Fix (`vr_flatsight.cpp`, shared with the guns' path): such a hold is `keptGrip`: pinned while held, `gripT` 1, and
+from the let-go it falls at `gripEase` as a gun's, so E (`vr_flat_fg_detach_time`), the shove, G, 3 and a punch all start from the
+grip. `vr_flat_melee_letgo` (1; 0 the old way), Debug > Tunables. Probe: `vr_flat_fg_report` prints the drawn off hand's most
+per frame since the last report. Test `Misc/quakevr/flatfg2h_test.sh` (9 checks; `vr_flatitems_test 9`). Drawn off hand, most
+units a frame, launcher vs axe: E 2.41 / 1.62, shove 8.77 / 9.26, H 20.6 / 24.1 (the weapon dropped: no grip left, both go to the
+guard at once), G 3.79 / 2.73, 3 1.74 / 1.75. Seen, not changed: the shove's push moves the gun's free hand 25 units in a frame
+(game hand) from its grip, gun and melee alike.
