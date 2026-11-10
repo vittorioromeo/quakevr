@@ -1098,6 +1098,8 @@ vector vr_limb_wear_at;
 entity vr_limb_wear_ent;
 float vr_limb_wear_time;
 
+float vr_corpse_bodyscale; // a hand's blow on a corpse being dealt (VR_Corpse_Struck): its whole-body share times this (0: none)
+
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float vr_corpse_last_hit;    // the last hit's damage on a corpse's pool (the tests)
 float vr_corpse_last_gibbed; // and whether it gibbed it
@@ -1176,6 +1178,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     if(damage <= 0)
     {
         return TRUE;
+    }
+    // A hand's blow (VR_Corpse_Struck): on the whole body what it does the living, not its strike's (his notes 2026-11-10:
+    // punches at its head, a gun swung, an axe swung into it gibbed it whole).
+    if(vr_corpse_bodyscale > 0)
+    {
+        damage = damage * vr_corpse_bodyscale;
     }
 
     // Never gibbed (vr_corpse_nogib): it takes the hit (blood, small gibs, the engine's push) but loses no health.
@@ -1292,7 +1300,7 @@ float vr_melee_blunt; // (vr_melee.qc)
 // A hand's blow at `xSpeed` going `xDir` struck corpse `c` at `xAt` (self the player; VR_Corpse_StrikeFrame, the dents'
 // test): its corpse damage, wound and dent (VR_Corpse_Damage), the beheading cut instead, the torch's or the hot blade's
 // fire. `xBlunt`: struck with a pommel, a hilt, a handle's end (a blunt blow).
-float(float xHand, float xSpeed) VR_Corpse_BladeBlowDamage; // (weapons.qc)
+float(float xHand, float xSpeed, float xThing) VR_Corpse_BlowDamage; // (weapons.qc)
 void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR_Corpse_Struck =
 {
     if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
@@ -1314,16 +1322,15 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
         return;
     }
 
+    // Its strike on the piece it lands on (the head, a limb: VR_Limb_CorpseWear, which comes off at its own health) as ever;
+    // on the whole body, what the same blow does the living (vr_corpse_bodyscale, VR_Corpse_BlowDamage): a punch, a gun
+    // or a blade swung never gibs it whole as its strike damage did (his notes 2026-11-10).
     float dmg = VR_Gib_StrikeDamage(speed);
-    float thing = VR_Melee_Thing(self, xHand);
-    if(!xBlunt && (thing == VR_MTHING_SWORD || thing == VR_MTHING_AXE || thing == VR_MTHING_SAW))
-    {
-        dmg = VR_Corpse_BladeBlowDamage(xHand, speed); // (as the same blow on the living: weapons.qc)
-    }
-    else if(!VRIsHandWeaponless(self, xHand))
+    if(!VRIsHandWeaponless(self, xHand))
     {
         dmg = dmg * 1.5;
     }
+    vr_corpse_bodyscale = VR_Corpse_BlowDamage(xHand, speed, VR_Melee_Thing(self, xHand)) / max(0.01, dmg);
     VR_Teeth_CorpseBlow(c, xHand, at, dir, speed, dmg); // VR: a punch to its ragdoll's face knocks teeth out (vr_teeth.qc)
     VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
@@ -1337,6 +1344,7 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
     T_Damage(c, self, self, dmg);
     vr_melee_blunt = FALSE;
+    vr_corpse_bodyscale = 0;
     VR_Hit_End();
 
     // A lit torch sets it on fire (vr_burning.qc).
@@ -2894,6 +2902,35 @@ float(entity targ, vector to) VR_Parry_HandFor =
     return h;
 };
 
+// Flat-screen play's guard (his notes 2026-11-10: "In flat screen only, parrying should always parry any melee attack
+// coming from the front of the player (not sides or back), regardless of the direction. Directional parry and weapon
+// collision requirements should only be for VR."): the hand `p` holds its melee weapon up in the guard with (the right
+// mouse button: VR_FlatGuardHand), when the blow comes from within vr_flat_parry_cone degrees (all of it, centred on his
+// view's yaw) of where he looks (`to`: towards the attacker, level, unit); vr_parry_at its weapon's middle. -1: no
+// guard, or the blow from the side or behind (the headset's rules then, as ever: the guard's pose may still meet it).
+float vr_flatguard_parries; // the blows the flat guard parried so far (a "flatguard: parry N" line each: the tests)
+float(entity p, vector to) VR_Parry_FlatGuard =
+{
+    float h = VR_FlatGuardHand(p);
+    float cone = cvar_hget(cvarh_vr_flat_parry_cone);
+    if(h < 0 || cone <= 0 || VRIsHandWeaponless(p, h))
+    {
+        return -1;
+    }
+    float off = fabs(anglemod(vectoyaw(to) - p.v_viewangle_y + 180) - 180);
+    if(off > min(180, cone * 0.5))
+    {
+        dprint(sprintf("parry: flat guard: the blow from %g degrees off the view (the cone %g): not in front\n", rint(off), cone));
+        return -1;
+    }
+    entity was = self;
+    self = p;
+    vr_parry_at = VR_Parry_WeaponLine(p, h) ? (vr_parry_butt + vr_parry_end) * 0.5 : VRGetEntHandPos(p, h);
+    self = was;
+    dprint(sprintf("parry: flat guard: hand %g, the blow from %g degrees off the view\n", h, rint(off)));
+    return h;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
@@ -2932,6 +2969,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     float drp = vr_drp_release || vr_drp_forced || VR_DRP_Applies(attacker);
     float baked = drp && !attacker.vr_ag;
     vr_drp_cut = 0;
+    // Flat-screen play's guard: what comes from the front is parried, whatever its way (VR_Parry_FlatGuard); a blow with a
+    // line is then met as a directional parry met it (its damage through, its swing stopped), without its sparks' meeting.
+    float flatGuard = FALSE;
     if(drp && VR_DRP_Done(attacker) && !vr_drp_forced)
     {
         if(!baked)
@@ -2941,6 +2981,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         }
         hand = attacker.vr_drp_by;
         vr_parry_at = VRGetEntHandPos(targ, hand);
+    }
+    else if(!vr_parry_test_force && VR_Parry_FlatGuard(targ, to) >= 0)
+    {
+        flatGuard = TRUE;
+        hand = VR_FlatGuardHand(targ);
     }
     else if(drp)
     {
@@ -2988,7 +3033,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     vr_parry_welltimed = FALSE;
     if(hand >= 0 || armsCrossed)
     {
-        vr_parry_dir_timed = (drp && hand >= 0 && !armsCrossed) ? (baked ? attacker.vr_drp_timed : vr_drp_ag_timed) : -1;
+        vr_parry_dir_timed = (drp && !flatGuard && hand >= 0 && !armsCrossed) ? (baked ? attacker.vr_drp_timed : vr_drp_ag_timed) : -1;
         vr_parry_strength = VR_Parry_Strength(targ, hand, armsCrossed);
     }
     // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
@@ -3057,7 +3102,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         float cut = armsCrossed ? cvar_hget(cvarh_vr_parry_unarmed_reduction) : cvar_hget(cvarh_vr_parry_reduction);
         if(drp && hand >= 0)
         {
-            if(!baked)
+            if(!baked && !flatGuard)
             {
                 VR_DRP_Effects(targ, attacker, hand); // (its own meeting: sparks there, the clang)
             }
@@ -3104,7 +3149,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             sound(self, VRGetHandChannel(hand), "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
         }
-        if(drp)
+        if(drp && !flatGuard)
         {
             VR_DRP_Effects(targ, attacker, hand); // (the sparks where the two weapons met, the clang)
         }
@@ -3136,6 +3181,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint(twoHanded ? " (two hands)\n" : "\n");
         VR_Motion_Event("parry", VR_Motion_HandSub(hand), hand, damage, vr_parry_at, attacker, twoHanded ? "two hands" : "");
         vr_parried = 1;
+        if(flatGuard)
+        {
+            vr_flatguard_parries = vr_flatguard_parries + 1;
+            dprint(sprintf("flatguard: parry %g (%s)\n", vr_flatguard_parries, attacker.classname)); // (flatparry_test.sh)
+        }
         VR_AG_Parried(attacker, targ); // VR: an armed grunt's weapon may be knocked out of its hand (vr_armedgrunt_play.qc)
 
         // What the parry costs: with parry stamina on, the parry that empties it knocks the weapon away (one hand or

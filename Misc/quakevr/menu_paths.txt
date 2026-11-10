@@ -4096,7 +4096,24 @@ vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
 vr_flat_revolver_open_delay|2|Tunables|Reload: Revolver Swing-Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Swing-Out Delay
+vr_flat_revolver_eject_delay|2|Tunables|Reload: Revolver Shells Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Shells Out Delay
 vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
+vr_flat_ssg_open_pitch|2|Tunables|Super Shotgun Open: Pitch|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Pitch
+vr_flat_ssg_open_yaw|2|Tunables|Super Shotgun Open: Yaw|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Yaw
+vr_flat_ssg_open_roll|2|Tunables|Super Shotgun Open: Roll|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Roll
+vr_flat_ssg_open_fwd|2|Tunables|Super Shotgun Open: Forward|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Forward
+vr_flat_ssg_open_up|2|Tunables|Super Shotgun Open: Up|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Up
+vr_flat_ssg_open_out|2|Tunables|Super Shotgun Open: Out|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Out
+vr_flat_ssg_open_in_time|2|Tunables|Super Shotgun Open: In Time|Advanced VR Options > Debug > Tunables > Super Shotgun Open: In Time
+vr_flat_ssg_open_out_time|2|Tunables|Super Shotgun Open: Out Time|Advanced VR Options > Debug > Tunables > Super Shotgun Open: Out Time
+vr_flat_rv_open_pitch|2|Tunables|Revolver Open: Pitch|Advanced VR Options > Debug > Tunables > Revolver Open: Pitch
+vr_flat_rv_open_yaw|2|Tunables|Revolver Open: Yaw|Advanced VR Options > Debug > Tunables > Revolver Open: Yaw
+vr_flat_rv_open_roll|2|Tunables|Revolver Open: Roll|Advanced VR Options > Debug > Tunables > Revolver Open: Roll
+vr_flat_rv_open_fwd|2|Tunables|Revolver Open: Forward|Advanced VR Options > Debug > Tunables > Revolver Open: Forward
+vr_flat_rv_open_up|2|Tunables|Revolver Open: Up|Advanced VR Options > Debug > Tunables > Revolver Open: Up
+vr_flat_rv_open_out|2|Tunables|Revolver Open: Out|Advanced VR Options > Debug > Tunables > Revolver Open: Out
+vr_flat_rv_open_in_time|2|Tunables|Revolver Open: In Time|Advanced VR Options > Debug > Tunables > Revolver Open: In Time
+vr_flat_rv_open_out_time|2|Tunables|Revolver Open: Out Time|Advanced VR Options > Debug > Tunables > Revolver Open: Out Time
 vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
 vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
 vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
@@ -4115,10 +4132,16 @@ vr_flat_carry_pitch|2|Tunables|Held Prop: Pitch|Advanced VR Options > Debug > Tu
 vr_flat_carry_yaw|2|Tunables|Held Prop: Turn In|Advanced VR Options > Debug > Tunables > Held Prop: Turn In
 vr_flat_carry_roll|2|Tunables|Held Prop: Palm Up|Advanced VR Options > Debug > Tunables > Held Prop: Palm Up
 vr_flat_carry_drawn|2|Tunables|Held Prop: In The Drawn Hand|Advanced VR Options > Debug > Tunables > Held Prop: In The Drawn Hand
+vr_flat_prop_melee|2|Tunables|Held Prop: Overhead Swing|Advanced VR Options > Debug > Tunables > Held Prop: Overhead Swing
+vr_flat_prop_v|2|Tunables|Held Prop: V Strikes With It|Advanced VR Options > Debug > Tunables > Held Prop: V Strikes With It
+vr_flat_torch_upright|2|Tunables|Held Torch: Flame Up|Advanced VR Options > Debug > Tunables > Held Torch: Flame Up
 vr_flat_swap_in|2|Tunables|Swap: Meet Time|Advanced VR Options > Debug > Tunables > Swap: Meet Time
 vr_flat_swap_out|2|Tunables|Swap: Back Time|Advanced VR Options > Debug > Tunables > Swap: Back Time
 vr_flat_swap_gap|2|Tunables|Swap: Hands Apart|Advanced VR Options > Debug > Tunables > Swap: Hands Apart
 vr_flat_swap_down|2|Tunables|Swap: Meet Lower|Advanced VR Options > Debug > Tunables > Swap: Meet Lower
+vr_flat_swap_2h_release_time|2|Tunables|Swap 2H: Release Time|Advanced VR Options > Debug > Tunables > Swap 2H: Release Time
+vr_flat_swap_2h_pass_time|2|Tunables|Swap 2H: Pass Time|Advanced VR Options > Debug > Tunables > Swap 2H: Pass Time
+vr_flat_swap_2h_attach_time|2|Tunables|Swap 2H: Attach Time|Advanced VR Options > Debug > Tunables > Swap 2H: Attach Time
 vr_flat_grenade_fetch_time|2|Tunables|Grenade: Pouch Time|Advanced VR Options > Debug > Tunables > Grenade: Pouch Time
 vr_flat_grenade_up_time|2|Tunables|Grenade: Up Time|Advanced VR Options > Debug > Tunables > Grenade: Up Time
 vr_flat_grenade_fetch_fwd|2|Tunables|Grenade: Pouch Forward|Advanced VR Options > Debug > Tunables > Grenade: Pouch Forward
@@ -4215,6 +4238,7 @@ vr_flat_wall_block_ads|2|Tunables|Wall: No Ironsight Tilted|Advanced VR Options 
 vr_flat_prone_floor|2|Tunables|Prone: Gun Flush On Floor|Advanced VR Options > Debug > Tunables > Prone: Gun Flush On Floor
 vr_flat_prone_floor_margin|2|Tunables|Prone: Floor Margin|Advanced VR Options > Debug > Tunables > Prone: Floor Margin
 vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tunables > Prone: Eye Height
+vr_flat_prone_jump_stands|2|Tunables|Prone: Jump Stands Up|Advanced VR Options > Debug > Tunables > Prone: Jump Stands Up
 vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
@@ -4272,6 +4296,7 @@ vr_flat_parry_yaw|2|Tunables|Guard Yaw|Advanced VR Options > Debug > Tunables > 
 vr_flat_parry_roll|2|Tunables|Guard Roll|Advanced VR Options > Debug > Tunables > Guard Roll
 vr_flat_parry_in_time|2|Tunables|Guard In Time|Advanced VR Options > Debug > Tunables > Guard In Time
 vr_flat_parry_out_time|2|Tunables|Guard Out Time|Advanced VR Options > Debug > Tunables > Guard Out Time
+vr_flat_parry_cone|2|Tunables|Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Guard Parries From The Front
 vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
 vr_flat_model_fov_near|2|Tunables|Model FOV Full Up To|Advanced VR Options > Debug > Tunables > Model FOV Full Up To
 vr_flat_model_fov_far|2|Tunables|Model FOV None Past|Advanced VR Options > Debug > Tunables > Model FOV None Past
@@ -4390,6 +4415,7 @@ vr_flat_hitdir_width|2|Tunables|Hit Marks Thickness|Advanced VR Options > Debug 
 vr_flat_hitdir_arc|2|Tunables|Hit Marks Length|Advanced VR Options > Debug > Tunables > Hit Marks Length
 vr_flat_blood_health_size|2|Tunables|Low Health Blood Size|Advanced VR Options > Debug > Tunables > Low Health Blood Size
 vr_flat_blood_health_opacity|2|Tunables|Low Health Blood Opacity|Advanced VR Options > Debug > Tunables > Low Health Blood Opacity
+vr_flat_cutoff_fling_mult|2|Tunables|Cut-Off Parts: Fling Speed|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Fling Speed
 vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > Debug > Tunables > Thrown Sword: Least Speed
 vr_embed_sword_tip|2|Tunables|Thrown Sword: Point Length|Advanced VR Options > Debug > Tunables > Thrown Sword: Point Length
 vr_embed_sword_angle|2|Tunables|Thrown Sword: Most Off Its Line|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Off Its Line
@@ -4883,6 +4909,8 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Visor: Real Hit Message|Advanced VR Options > Debug > Reports > Visor: Real Hit Message
 |2|Debug - Reports|Visor: Cache On / Off|Advanced VR Options > Debug > Reports > Visor: Cache On / Off
 |2|Debug - Reports|Visor: Power On|Advanced VR Options > Debug > Reports > Visor: Power On
+|2|Debug - Reports|Visor: Centre Message|Advanced VR Options > Debug > Reports > Visor: Centre Message
+|2|Debug - Reports|Visor: Long Centre Message|Advanced VR Options > Debug > Reports > Visor: Long Centre Message
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
@@ -5317,6 +5345,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Blood at Point Blank|Advanced VR Options > Debug > Tests > Blood at Point Blank
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
+|2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
 |2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
@@ -8109,6 +8138,11 @@ vr_flat_visor_log|1|Visor HUD Look|Visor Messages|Advanced VR Options > Movement
 vr_flat_visor_autohide_log|1|Visor HUD Look|Hide Empty Log Panel|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Hide Empty Log Panel
 vr_flat_visor_log_width|1|Visor HUD Look|Log Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Size
 vr_flat_visor_log_out|1|Visor HUD Look|Log Panel Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Reach
+vr_flat_visor_centerprint|1|Visor HUD Look|Centre Messages in Visor|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Centre Messages in Visor
+vr_flat_visor_center_gap|1|Visor HUD Look|Centre Panel Gap|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Centre Panel Gap
+vr_flat_visor_center_width|1|Visor HUD Look|Centre Panel Width|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Centre Panel Width
+vr_flat_visor_center_pop|1|Visor HUD Look|Centre Panel Pop In|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Centre Panel Pop In
+vr_flat_visor_center_fade|1|Visor HUD Look|Centre Panel Fade Out|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Centre Panel Fade Out
 vr_flat_visor_side_out|1|Visor HUD Look|Side Panels Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Side Panels Reach
 vr_flat_visor_side_scale|1|Visor HUD Look|Side Panels Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Side Panels Size
 vr_flat_visor_zoom|1|Visor HUD Look|Visor Zoom|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Zoom
@@ -8896,6 +8930,7 @@ vr_armourstudio_tier|2|Armour Studio|Tier|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_turn|2|Armour Studio|Turn|Advanced VR Options > Debug > Tools > Armour Studio > Turn
 vr_armourstudio_ghost|2|Armour Studio|Body Ghost|Advanced VR Options > Debug > Tools > Armour Studio > Body Ghost
 vr_armourstudio_alone|2|Armour Studio|Wear the Part Alone|Advanced VR Options > Debug > Tools > Armour Studio > Wear the Part Alone
+vr_armourstudio_autoclose|2|Armour Studio|Close With the Menu or Window|Advanced VR Options > Debug > Tools > Armour Studio > Close With the Menu or Window
 vr_armourstudio_part|2|Armour Studio|Part|Advanced VR Options > Debug > Tools > Armour Studio > Part
 vr_armourstudio_side|2|Armour Studio|Side|Advanced VR Options > Debug > Tools > Armour Studio > Side
 vr_armourstudio_offset_x|2|Armour Studio|Forward|Advanced VR Options > Debug > Tools > Armour Studio > Forward

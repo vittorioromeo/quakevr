@@ -1,0 +1,7 @@
+# armourstudio_close: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ARMOUR_STUDIO.md)
+title Armour Studio closed: a sword grunt that must fight again once the studio is closed
+map vrtesthall
+god
+give "Knight's Sword" main
+spawnarmed monster_vr_grunt 13 0 160
+hint Open Debug > Tools > Armour Studio, press Start (the grunt freezes), then leave the menu (or close the studio's window): the grunt comes at you again and your blows hurt it.

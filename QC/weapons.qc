@@ -228,18 +228,25 @@ float(float xHand, float xBase) VRMeleeDmg =
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
-// A blade's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck): what the same blow does a live body
-// (VRMeleeDmg: its weapon's base, the strength its speed gives on the melee's curve, VR_MELEE_WEAKEST at vr_melee_speed to
-// 1 at twice it and at most VR_MELEE_STRONGEST, the weight's, Melee Damage, Quad). The corpses' strike damage
-// (VR_Gib_StrikeDamage, 1.5 times for anything held) is some 3 times that: one axe swing at 5 m/s dealt 50, a ragdoll's
-// whole-gib overkill (vr_corpse_gib_overkill), so a ragdoll gibbed where a live grunt would have taken the axe in (his note
-// 2026-11-10). Now it gibs whole only from a blow that would gib the living (a heavy Super Axe's hardest).
-float(float xHand, float xSpeed) VR_Corpse_BladeBlowDamage =
+// A hand's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck), struck with `xThing` (VR_MTHING_*):
+// what the same blow does a live body (VRMeleeDmg: its weapon's base, the strength its speed gives on the melee's curve,
+// VR_MELEE_WEAKEST at vr_melee_speed to 1 at twice it and at most VR_MELEE_STRONGEST, the weight's, Melee Damage, Quad).
+// The corpses' strike damage (VR_Gib_StrikeDamage, 1.5 times for anything held) was some 3 to 4 times that: one axe swing
+// at 5 m/s dealt 50, a punch at 7 m/s 48 (a live one's 12), a ragdoll's whole-gib overkill (vr_corpse_gib_overkill) is
+// 50 and a worn-out one gibs from 35 (vr_corpse_gib_hit_min), so a ragdoll gibbed where a live grunt would have taken the
+// axe in, or lost its head to the punches (his notes 2026-11-10; the flat V swing of a gun too). Now it gibs whole only from
+// a blow that would gib the living (a heavy Super Axe's hardest).
+float(float xHand, float xSpeed, float xThing) VR_Corpse_BlowDamage =
 {
     float wid = VRGetEntWeapon(self, xHand);
-    float base = 20 * cvar_hget(cvarh_vr_sword_damage_mult);
-    if(wid == WID_AXE) { base = cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand); }
+    float base = cvar_hget(cvarh_vr_dmg_gun_bash); // (a gun, anything else held swung)
+    if(xThing == VR_MTHING_FIST) { base = cvar_hget(cvarh_vr_dmg_fist); }
+    else if(xThing == VR_MTHING_SWORD) { base = 20 * cvar_hget(cvarh_vr_sword_damage_mult); }
+    else if(xThing == VR_MTHING_CROWBAR) { base = cvar_hget(cvarh_vr_crowbar_damage); }
+    else if(xThing == VR_MTHING_CLUB) { base = cvar_hget(cvarh_vr_walltorch_damage); }
+    else if(wid == WID_AXE) { base = cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand); }
     else if(wid == WID_SUPERAXE) { base = cvar_hget(cvarh_vr_dmg_superaxe); }
+    else if(wid == WID_MJOLNIR) { base = cvar_hget(cvarh_vr_dmg_mjolnir); }
     else if(wid == WID_CHAINSAW) { base = cvar_hget(cvarh_vr_dmg_chainsaw_swing); }
     base = base + VR_HotBlade_Extra(self, xHand);
     float need = max(0.1, cvar_hget(cvarh_vr_melee_speed));

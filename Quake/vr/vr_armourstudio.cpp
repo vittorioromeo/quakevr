@@ -82,6 +82,7 @@ struct State
     char statusText[256]{};
     char animText[160]{};
     bool playerShown{false}; // the player's kind shown last frame (playerArmour; its tier taken from yours as it first shows)
+    bool menuSeen{false};    // the VR menu has been open since it started (closing it then closes the studio: autoClose)
 };
 State st;
 
@@ -436,21 +437,52 @@ void start_f()
     if(!st.running)
     {
         st.freezeWas = vr_agrunt_freeze.value;
+        st.menuSeen = false;
     }
     st.running = true;
     Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f);
     freeSubject(); // (put there by keepSubject once you are in the level)
 }
 
-void close_f()
+void closeStudio(const char* why)
 {
     if(st.running)
     {
         Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
     }
     st.running = false;
+    st.menuSeen = false;
     freeSubject();
-    Con_Printf("armourstudio: closed\n");
+    Con_Printf("armourstudio: closed%s%s (the armed humanoids free again: vr_agrunt_freeze %g)\n", why[0] ? ": " : "", why,
+        vr_agrunt_freeze.value);
+}
+
+void close_f()
+{
+    closeStudio("");
+}
+
+// His note 2026-11-10: "After closing the armour studio it seems that armed humanoids do not recover their AI/damageability."
+// The studio holds every armed humanoid still (vr_agrunt_freeze) until its Close; its window's X or Escape, or the menu
+// closed, left it running, and them frozen. With vr_armourstudio_autoclose those close it too: the menu once it has been
+// open since the studio started (a script's studio, never in the menu, is left alone), the window by its own close
+// (vr_armourstudio_window.cpp).
+void autoClose()
+{
+    if(!st.running || vr_armourstudio_autoclose.value == 0.f)
+    {
+        st.menuSeen = st.menuSeen && st.running;
+        return;
+    }
+    const bool menuOpen = key_dest == key_menu && m_state != m_none;
+    if(menuOpen)
+    {
+        st.menuSeen = true;
+    }
+    else if(st.menuSeen && !windowOpen())
+    {
+        closeStudio("the menu closed (vr_armourstudio_autoclose)");
+    }
 }
 
 void save_f()
@@ -993,11 +1025,20 @@ bool running()
     return st.running;
 }
 
+void windowClosed()
+{
+    if(st.running && vr_armourstudio_autoclose.value != 0.f)
+    {
+        closeStudio("its window closed (vr_armourstudio_autoclose)");
+    }
+}
+
 void frame()
 {
     armourdata::frame();
     syncFields();
     keepSubject();
+    autoClose();
     notePlayerShown();
     testFrame();
 }

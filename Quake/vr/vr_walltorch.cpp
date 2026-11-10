@@ -848,6 +848,11 @@ bool walltorch::onWall(const entity_t& e)
     return e.model && e.model == stickModel && e.frame == wallFrame;
 }
 
+bool walltorch::isStick(const entity_t& e)
+{
+    return e.model && e.model == stickModel;
+}
+
 void walltorch::tiltTest()
 {
     for(int degrees : {0, 90, 180})

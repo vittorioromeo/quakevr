@@ -126,7 +126,7 @@ void() VR_E8_Step =
         return;
     }
     // ---- 6: an axe swung into a dead ragdoll (his note 2026-11-10: "still completely gibs it instead of embedding the axe"):
-    // it stays in, the ragdoll whole (its blow the living's: VR_Corpse_BladeBlowDamage)
+    // it stays in, the ragdoll whole (its blow the living's: VR_Corpse_BlowDamage)
     if(vr_et_case == 6)
     {
         if(vr_et_s == 0 && vr_e8_rag == 0)
