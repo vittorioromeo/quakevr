@@ -27,6 +27,7 @@
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_tracy.h"
 
 #include "vr_engine.hpp"
@@ -41,6 +42,7 @@
 #include "vr_flatxhair.hpp"
 #include "vr_flatleanpose.hpp"
 #include "vr_flatmove.hpp"
+#include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
@@ -106,7 +108,6 @@ struct FlatState
     int punchFrame[2]{-1, -1};   // the frame each hand's punch started (two hands punching at once)
     double punchAt[2]{-1e9, -1e9}; // per hand: the time its punch started (vr_gametime)
     bool punchOverhead[2]{false, false}; // per hand: that punch is a weapon's overhead swing (vr_flat_swing), not the fist's throw
-    double grabAt{-1e9};         // E: the time the reach started
     int grabs{0};                // vr_flatplay_status's counts
     int punches[2]{0, 0};        // and the punch's, per hand
     // The shove (vr_flat_key_shove, vr_flat_shove_now): the hand pushing, when its push started, whether the game has been
@@ -471,10 +472,6 @@ constexpr float punchFold = 6.f;     // where the chambered hand sits: this far 
                                      // swing's wrist is charged (vr_melee_wrist_speed 1.1 times VR_MELEE_WRIST_SWING 2.3).
 constexpr float punchWindBack = 7.f;   // and how much lower it sits there
 constexpr float punchLevel = 0.25f;    // the thrown fist's height, times where its hand rests at (0: level with its shoulder, 1: as it rests)
-
-// E's reach: the collecting (left) hand goes out towards what the view is on.
-constexpr float grabTime = 0.30f;
-constexpr float grabReach = 12.f;
 
 // Easing from one pose to the next (a weapon taken, a punch, a reach), in the view's frame.
 constexpr float handEase = 15.f;
@@ -1138,19 +1135,6 @@ void shoveFrame()
     Cbuf_InsertText(fs.shoveBoth ? "impulse 56\n" : fs.shoveHand == HAND_MAIN ? "impulse 54\n" : "impulse 53\n");
 }
 
-// E's reach with the collecting hand.
-[[nodiscard]] glm::vec3 grabOffset()
-{
-    const double t = vr_gametime - fs.grabAt;
-    if(t < 0.0 || t > grabTime)
-    {
-        return glm::vec3{0.f};
-    }
-    const float out = t < grabTime * 0.45f ? slide(t, 0.0, grabTime * 0.45f)
-                                           : 1.f - slide(t, grabTime * 0.45f, grabTime * 0.55f);
-    return {grabReach * out, 0.f, -2.f * out};
-}
-
 // How a hand must be turned for the weapon it holds to shoot along `aim`, whatever its Shot Pitch and Yaw (the drawn
 // gun and its muzzle follow the hand): the hand is aimed the other way by the same amount.
 [[nodiscard]] glm::vec3 aimRotAtCrosshair(const glm::vec3& aim, int h)
@@ -1202,10 +1186,10 @@ void pollKeys()
 
     if(grab && !fs.keyGrab)
     {
-        fs.grabAt = vr_gametime;
         fs.grabs++;
-        Cbuf_InsertText("impulse 46\n"); // QC vr_wpnforcegrab.qc: the force grab on what the view is pointed at
-                                          // (InsertText, not AddText: the grab is asked for now, not after what is already queued)
+        // The hand turns its palm out first, then the grab is asked for with it (vr_flatfgrab.cpp: QC
+        // vr_wpnforcegrab.qc, the force grab on what the view is pointed at).
+        flatfgrab::press();
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: force grab\n", vr_flat_key_grab.string);
@@ -1392,6 +1376,22 @@ void toolgunKeys()
 
 } // namespace
 
+void swapHands(const char* what)
+{
+    keyState.swaps++;
+    // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
+    // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
+    // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
+    if(!flatswap::press())
+    {
+        Cbuf_InsertText("impulse 48\n");
+    }
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s: swap hands\n", what);
+    }
+}
+
 // IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
 // (flatTg.adjust): the mouse is theirs, the view stays.
 extern "C" int VR_FlatToolgunMouse(int dx, int dy)
@@ -1400,7 +1400,7 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
     {
         return 0;
     }
-    if(toolgun::panel::flatMouse(dx, dy))
+    if(toolgun::panel::flatMouse(dx, dy) || flatholster::mouse(dx, dy)) // (the holster menu's cursor: vr_flatholster.cpp)
     {
         return 1;
     }
@@ -1417,6 +1417,10 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
 // Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
 extern "C" int VR_FlatToolgunEscape(void)
 {
+    if(flatholster::escape()) // (the holster menu: closed until its key is pressed again)
+    {
+        return 1;
+    }
     if(!toolgun::panel::flatShown())
     {
         return 0;
@@ -1477,18 +1481,7 @@ void pollKeysFlat()
     const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
     if(swap && !keyState.keySwap)
     {
-        keyState.swaps++;
-        // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
-        // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
-        // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
-        if(!flatswap::press())
-        {
-            Cbuf_InsertText("impulse 48\n");
-        }
-        if(vr_flatplay_debug.value)
-        {
-            Con_Printf("flatplay: %s: swap hands\n", vr_flat_key_swap.string);
-        }
+        swapHands(vr_flat_key_swap.string);
     }
     if(slow && !keyState.keyTime)
     {
@@ -1538,6 +1531,7 @@ void pollKeysFlat()
     fs.keyShove = shove;
     shoveFrame();
     toolgunKeys();
+    flatholster::frame(true); // the wheel's button: the holster menu (vr_flatholster.cpp)
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -1811,6 +1805,11 @@ FireRoute routeFire(bool lmb, bool rmb)
 {
     // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
+    // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
+    if(flatholster::open())
+    {
+        return FireRoute{};
+    }
     FireRoute r = routeButtons(lmb, rmb);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1864,7 +1863,9 @@ float fistShare(int h)
     {
         return 0.f;
     }
-    return punching(h) ? 1.f : za::clamp(fs.guard[h] * fs.hang[h], 0.f, 1.f);
+    // (Opened by E's grab as its palm turns out, and by a prop held up in it: flatfgrab.)
+    const float open = za::max(flatfgrab::openShare(h), flatfgrab::carryShare(h));
+    return (punching(h) ? 1.f : za::clamp(fs.guard[h] * fs.hang[h], 0.f, 1.f)) * (1.f - open);
 }
 
 glm::vec3 aimRotAt(const glm::vec3& angles, int h)
@@ -2000,6 +2001,8 @@ void init()
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
+    flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
+    flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
     flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
     flatswap::init(); // vr_flatswap_report (vr_flatswap.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
@@ -2068,6 +2071,8 @@ void frame()
         flatmove::frame(false);
         slidesound::frame(false);
         flatreload::frame(false);
+        flatholster::frame(false);
+        flatfgrab::frame(false);
         flatgrenade::frame(false);
         flatswap::frame(false);
         return;
@@ -2081,6 +2086,7 @@ void frame()
     pollKeys();
     pollKeysFlat();
     flatreload::frame(true); // R, and each hand's trip to the hip as the server says (vr_flatreload.cpp)
+    flatfgrab::frame(true);  // E's grab: each hand's palm turned out, the grab sent, held while it flies (vr_flatfgrab.cpp)
     flatgrenade::frame(true); // G, and the grenade's hand as the server says (vr_flatgrenade.cpp)
     flatswap::frame(true); // the hands' swap, sent as they meet (vr_flatswap.cpp)
     flatmove::frame(true); // the lean (Q / E) and the slide's pose (vr_flatmove.cpp)
@@ -2815,8 +2821,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     {
         // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
         // turn's lag) are the drawn hands' only (drawnOffset): the game's hands, and the shots, stay on the crosshair.
-        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds, aim.x) +
-            (h == HAND_OFF ? grabOffset() : glm::vec3{0.f});
+        // (E's grab poses its hand over all of this: flatfgrab::apply below.)
+        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds, aim.x);
         if(!fs.localSeen[h])
         {
             fs.local[h] = rest;
@@ -2884,7 +2890,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
-        const bool hangs = heldIn(h) < 0 && !punching(h) && !shoving(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
+        const bool hangs = heldIn(h) < 0 && !punching(h) && !shoving(h) && !flatfgrab::busy(h) &&
                            !(flatsight::adsHelper(h));
         // The rest's pose (vr_flat_empty_hand_pose): relaxed, the arm down the body, or fists up in a guard (2: the guard
         // with both hands empty), eased from one to the other as the other hand takes or lets go of a weapon.
@@ -2939,9 +2945,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
-    QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z));
+    // (E's reach is no longer an offset here: the grabbing hand's pose is flatfgrab's, below, and a hand on a grip lets go of it
+    // for its grab: flatfgrab::busy in vr_flatsight.cpp and vr_twohand.cpp.)
+    QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, glm::vec3{0.f}));
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
     QVR_TRACY_CALL("flat pose: reload", flatreload::apply(s));
+    // E's grab (its hand's palm turned to what it pulls) and a prop held up in a hand (vr_flatfgrab.cpp), over all of it.
+    QVR_TRACY_CALL("flat pose: force grab", flatfgrab::apply(s, aim));
     // The quick grenade's hand (vr_flatgrenade.cpp) and the hands' swap (vr_flatswap.cpp), over all of it.
     QVR_TRACY_CALL("flat pose: grenade", flatgrenade::apply(s));
     QVR_TRACY_CALL("flat pose: swap", flatswap::apply(s));

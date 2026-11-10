@@ -1,6 +1,7 @@
 // vr_flatxhair.cpp -- see vr_flatxhair.hpp.
 
 #include "vr_flatxhair.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
@@ -18,6 +19,8 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_trace.hpp"
+#include "vr_units.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -84,6 +87,8 @@ struct Aim
     bool blocked{false};  // its trigger is stopped (the wall)
     bool reloading{false}; // its gun is away on its reload trip (flatreload::busy)
     float dim{1.f};       // its opacity for those (eased)
+    float kick{0.f};      // its gun's drawn recoil now: muzzle rise (degrees) + kick back (cm) (weaponfx::recoilOffset)
+    float spread{0.f};    // its lines pushed out from the point for that (pixels, smoothed: vr_flat_xhair_kick)
     glm::vec3 hit{0.f};   // where its shot stops
     glm::vec2 raw{0.f};   // that, projected
     glm::vec2 drawn{0.f}; // where it is drawn (smoothed)
@@ -321,6 +326,14 @@ void update(int w, int h)
         // Dimmed while the wall stops it or it is away reloading, eased both ways (a gun that can't fire now).
         const float dimTo = za::min(a.blocked ? blockedDim : 1.f, a.reloading ? tune(vr_flat_xhair_reload_alpha, 0.f, 1.f) : 1.f);
         a.dim = a.had ? a.dim + (dimTo - a.dim) * (1.f - za::exp(-dt / dimEase)) : dimTo;
+        // A shot's feedback (his words 2026-11-10): the lines pushed out from the point, the same length, as far as the gun's
+        // drawn recoil kicks it now (its own Weapon Offsets > Effects rise and kick, back to rest in its Recoil Time), smoothed.
+        glm::vec3 kickPos{0.f}, kickAngles{0.f};
+        weaponfx::recoilOffset(k, glm::vec3{0.f}, kickPos, kickAngles);
+        a.kick = za::fabs(kickAngles.x) + glm::length(kickPos) * 100.f / units::metresToUnits();
+        const float spreadTo = za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
+        const float kickTau = tune(vr_flat_xhair_kick_smooth, 0.f, 0.3f);
+        a.spread = a.had && kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
         a.hit = shotHit(st.shot[k]);
         if(!project(a.hit, a.raw, st.shotViewProj))
         {
@@ -462,18 +475,21 @@ void ring(const glm::vec2& c, float r0, float r1, float grow, float ramp, const 
 }
 
 // The shape about `c` in one ink: grown by `grow` (the outline's), ramped by `ramp` (1 pixel; the glow's reach). `side`: -1
-// the left hand's mark, 1 the right's, 0 none.
-void shape(const glm::vec2& c, int style, float grow, float ramp, int side, const Ink& ink)
+// the left hand's mark, 1 the right's, 0 none. `spread`: the shot's feedback (Aim::spread, pixels): every line pushed that
+// much further out from the point, its length kept (the cross's gap widened, the circle's radius, the brackets' box, the
+// chevron dropped; the dot alone has no lines to move).
+void shape(const glm::vec2& c, int style, float grow, float ramp, int side, float spread, const Ink& ink)
 {
     const float px = st.view.y / 1080.f;
-    const float size = tune(vr_flat_xhair_size, 1.f, 64.f) * px;
+    const float size0 = tune(vr_flat_xhair_size, 1.f, 64.f) * px;
     const float thick = tune(vr_flat_xhair_thickness, 0.5f, 12.f) * px;
-    const float gap = za::min(tune(vr_flat_xhair_gap, 0.f, 48.f) * px, size * 0.9f);
+    const float gap = za::min(tune(vr_flat_xhair_gap, 0.f, 48.f) * px, size0 * 0.9f) + spread;
+    const float size = size0 + spread;
     const float dot = za::max(thick * 0.75f, 1.f);
     const auto arm = [&](const glm::vec2& way) { bar(c + way * gap, c + way * size, thick, grow, ramp, ink); };
     switch(style)
     {
-        case Dot: ring(c, 0.f, za::max(dot, size * 0.25f), grow, ramp, ink); break;
+        case Dot: ring(c, 0.f, za::max(dot, size0 * 0.25f), grow, ramp, ink); break;
         case Cross:
         case CrossDot:
             arm({1.f, 0.f});
@@ -504,14 +520,14 @@ void shape(const glm::vec2& c, int style, float grow, float ramp, int side, cons
             // A "^" whose tip is on the point, its legs down and out.
             const glm::vec2 left = glm::normalize(glm::vec2{-1.f, 1.2f}), right = glm::normalize(glm::vec2{1.f, 1.2f});
             const glm::vec2 tip = c + glm::vec2{0.f, gap * 0.5f};
-            bar(tip, tip + left * size, thick, grow, ramp, ink);
-            bar(tip, tip + right * size, thick, grow, ramp, ink);
+            bar(tip, tip + left * size0, thick, grow, ramp, ink);
+            bar(tip, tip + right * size0, thick, grow, ramp, ink);
             ring(c, 0.f, dot, grow, ramp, ink);
             break;
         }
         default: // Brackets: the four corners of a box `size` from the point, and the dot on it.
         {
-            const float l = size * 0.45f;
+            const float l = size0 * 0.45f;
             for(int sx = -1; sx <= 1; sx += 2)
             {
                 for(int sy = -1; sy <= 1; sy += 2)
@@ -528,8 +544,8 @@ void shape(const glm::vec2& c, int style, float grow, float ramp, int side, cons
     if(side != 0)
     {
         // Its hand's mark: a short upright line outside it on that side.
-        const float x = static_cast<float>(side) * (size + gap + thick * 2.f);
-        const float half = size * markLength * 0.5f;
+        const float x = static_cast<float>(side) * (size + gap - spread + thick * 2.f);
+        const float half = size0 * markLength * 0.5f;
         bar(c + glm::vec2{x, -half}, c + glm::vec2{x, half}, thick, grow, ramp, ink);
     }
 }
@@ -549,13 +565,14 @@ void drawLists()
 }
 
 // One crosshair at `c`: glow, outline, lines.
-void one(const glm::vec2& c, int side, float dim)
+void one(const glm::vec2& c, int side, float dim, float spread)
 {
     const gadget::VisorColors colors = gadget::visorColors();
     // The frame's green at full brightness (the visor's own line is a dim one, on a dark face).
     const float peak = za::max(za::max(colors.line.r, colors.line.g), za::max(colors.line.b, 1e-3f));
     const glm::vec3 lineRgb = glm::min(colors.line / peak, glm::vec3{1.f});
-    const float opacity = tune(vr_flat_xhair_opacity, 0.f, 1.f) * dim * flatsight::crosshairFade();
+    const float opacity = tune(vr_flat_xhair_opacity, 0.f, 1.f) * dim * flatsight::crosshairFade() *
+                          flatholster::crosshairAlpha(); // (faded out under the holster menu: vr_flatholster.cpp)
     if(opacity <= 0.f)
     {
         return;
@@ -566,14 +583,14 @@ void one(const glm::vec2& c, int side, float dim)
     const float outline = tune(vr_flat_xhair_outline, 0.f, 6.f) * px;
     if(glow > 0.f)
     {
-        shape(c, style, outline, glowWidth * px * za::max(glow, 0.5f), side, {lineRgb, 0.35f * glow * opacity, true});
+        shape(c, style, outline, glowWidth * px * za::max(glow, 0.5f), side, spread, {lineRgb, 0.35f * glow * opacity, true});
     }
     if(outline > 0.f)
     {
-        shape(c, style, outline, 1.f, side, {colors.face * 0.5f, 0.75f * opacity, false});
+        shape(c, style, outline, 1.f, side, spread, {colors.face * 0.5f, 0.75f * opacity, false});
     }
     drawLists(); // (the outline under the lines, whatever their order)
-    shape(c, style, 0.f, 1.f, side, {lineRgb, opacity, false});
+    shape(c, style, 0.f, 1.f, side, spread, {lineRgb, opacity, false});
     drawLists();
 }
 
@@ -588,22 +605,22 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     glViewport(x, y, w, h);
     if(l.shown && r.shown && !st.merged)
     {
-        one(l.drawn, -1, l.dim);
-        one(r.drawn, 1, r.dim);
+        one(l.drawn, -1, l.dim, l.spread);
+        one(r.drawn, 1, r.dim, r.spread);
     }
     else if(l.shown && r.shown)
     {
-        // (One for both: as bright as the brighter, the gun still able to fire.)
-        one(shownAt(HAND_MAIN), 0, za::max(l.dim, r.dim));
+        // (One for both: as bright as the brighter, the gun still able to fire; spread as the more kicked of the two.)
+        one(shownAt(HAND_MAIN), 0, za::max(l.dim, r.dim), za::max(l.spread, r.spread));
     }
     else if(l.shown || r.shown)
     {
         const Aim& a = l.shown ? l : r;
-        one(a.drawn, 0, a.dim);
+        one(a.drawn, 0, a.dim, a.spread);
     }
     else
     {
-        one(st.centre, 0, 1.f); // (no gun: where he looks, for the hands, the grab and the punch)
+        one(st.centre, 0, 1.f, 0.f); // (no gun: where he looks, for the hands, the grab and the punch)
     }
     st.drawnAny = true;
     GL_EndGroup();
@@ -632,6 +649,7 @@ void probe_f()
         Con_Printf("flatxhair: %s shown %d snapped %d blocked %d drawn %.1f %.1f off %.1f\n", name, a.shown ? 1 : 0,
             a.snapped ? 1 : 0, a.blocked ? 1 : 0, a.drawn.x, a.drawn.y, glm::distance(a.drawn, st.centre));
         Con_Printf("flatxhair: %s dim %.2f reload %d wall %.2f\n", name, a.dim, a.reloading ? 1 : 0, flatsight::wallShot(k));
+        Con_Printf("flatxhair: %s kick %.2f spread %.2f px\n", name, a.kick, a.spread);
         // The gun as drawn: where its barrel's line (the weapon's Shot Pitch and Yaw on its drawn angles) goes from its drawn
         // muzzle, against the shot's line as sent (degrees between the two ways; the barrel's hit on the view).
         glm::vec3 gunMuzzle{0.f}, gunRot{0.f};

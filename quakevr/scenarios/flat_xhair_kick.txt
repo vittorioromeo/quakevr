@@ -1,0 +1,8 @@
+# flat_xhair_kick: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the visor crosshair's lines spread with each shot's recoil (Quake/vr/vr_flatxhair.cpp, vr_flat_xhair_kick; flatxhair_test.sh kick).
+title Flat-screen: the crosshair kicks with each shot
+hint Play with -flatscreenmode and the Cross crosshair. Fire the shotgun, then the nailgun in the other hand: each shot pushes the crosshair's lines out from its centre (same length) and they ease back with the gun's recoil; with both guns on one crosshair it spreads as the harder kick. Locomotion > Desktop Screen Play: Visor Crosshair Kick, Kick Limit, Kick Smoothing.
+map vrtesthall
+god
+cvar vr_flat_xhair_style 1
+give "Shotgun" main
+give "Nailgun" off

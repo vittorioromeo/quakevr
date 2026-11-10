@@ -1,0 +1,9 @@
+# flat_revolver_eject: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the revolver's reload swings its cylinder out and throws out the spent shells (QC vr_flatreload.qc, vr_flat_revolver_eject; flatreload_test.sh revolver).
+title Flat-screen: the revolver ejects its spent shells
+hint Play with -flatscreenmode. Fire the heavy revolver a few times and press R: its cylinder swings out, the spent blue shells fall out (the live ones stay in), and it swings home once the new shells are in.
+map vrtesthall
+god
+cvar vr_flat_reload 1
+cvar vr_flat_revolver_eject 1
+give "Heavy Revolver" main
+spawn "Grunt" 360 0

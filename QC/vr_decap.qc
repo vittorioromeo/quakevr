@@ -192,9 +192,41 @@ float(entity e) VR_Decap_MeleeZone =
     return TRUE;
 };
 
+// Where a precise blade blow struck `e` for beheading's zone, on its model standing (hitmodel_rest): where the struck
+// point's own path (`xAt` going `xDir`, VR_DECAP_PATH_BACK behind it to VR_DECAP_PATH_ON on) crosses the model itself,
+// no thickness. A blow lands where its striking point, grown by its thickness and the melee tolerance, first touches the
+// model (VR_Melee_Sweep): a level cut at the neck touches the shoulders' top first, a chop at the shoulder or the chest
+// the same place, so the touch alone can't tell them apart (that once took a zone grown down to the chest, his note
+// 2026-11-10: "swing my axe at the enemy's chest, and it will cause a decapitation"). The blade's line goes on into the
+// neck in the first, into the shoulder or the chest in the others. A path that meets no flesh that near (a graze by the
+// thickness alone: a point skimming past the jaw meets the chest's top 11 units on; `xDir` none): the touch's point.
+// VR_DECAP_PATH_ON: the thickness and the tolerance (about 5) met at 45 degrees, and a little.
+float VR_DECAP_PATH_BACK = 12;
+float VR_DECAP_PATH_ON = 8;
+vector(entity e, vector xAt, vector xDir) VR_Decap_ZonePoint =
+{
+    vector d = normalize(xDir);
+    if(cvar_hget(cvarh_vr_decap_touch_point))
+    {
+        d = '0 0 0'; // (as before 2026-11-10: the A/B)
+    }
+    if(d != '0 0 0')
+    {
+        vector a = xAt - d * VR_DECAP_PATH_BACK;
+        vector b = xAt + d * VR_DECAP_PATH_ON;
+        float t = hitmodel_skin(e, a, b);
+        if(t >= 0)
+        {
+            return hitmodel_rest(e, a + (b - a) * t);
+        }
+    }
+    return hitmodel_rest(e, xAt);
+};
+
 // Whether a melee blow at `xAt` going `xDir` on `e` is at its head for beheading (a slash, the chainsaw's bar, a
 // corpse's head on its model standing): VR_Decap_OnHead's test against the melee's zone (VR_Decap_MeleeZone: grown, and
-// down the neck). Head pops and thrown axes keep the head zone itself (VR_Decap_OnHead).
+// down the neck), at the flesh the blow's path meets (VR_Decap_ZonePoint). Head pops and thrown axes keep the head zone
+// itself (VR_Decap_OnHead).
 float(entity e, vector xAt, vector xDir) VR_Decap_OnMeleeHead =
 {
     if(!VR_Decap_MeleeZone(e))
@@ -206,7 +238,7 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnMeleeHead =
     vector p;
     if(hitmodel_target(e))
     {
-        p = hitmodel_rest(e, xAt);
+        p = VR_Decap_ZonePoint(e, xAt, xDir);
         vector q = top;
         q_z = min(top_z, max(bottom_z, p_z));
         return vlen(p - q) < xHeadRadius;
@@ -494,7 +526,7 @@ float(entity targ, float xHand) VR_Decap_Judge =
     string zone = "zone none";
     if(VR_Decap_MeleeZone(targ))
     {
-        vector p = hitmodel_target(targ) ? hitmodel_rest(targ, at) : at;
+        vector p = hitmodel_target(targ) ? VR_Decap_ZonePoint(targ, at, b.mh_c_dir) : at;
         vector q = vr_decap_zone_top;
         q_z = min(vr_decap_zone_top_z, max(vr_decap_zone_bottom_z, p_z));
         zone = sprintf("zone %s %.1f/%.1f off %.1f below the head's middle", onZone ? "in" : "out", vlen(p - q),
@@ -949,11 +981,11 @@ float(entity e, float xHand, vector xAt) VR_Decap_HeadSaw =
         float on = ragdollhead(e, xAt, cvar_hget(cvarh_vr_decap_neck));
         if(on < 0)
         {
-            on = (hitmodel_target(e) && VR_Decap_OnMeleeHead(e, xAt, dir));
+            on = (hitmodel_target(e) && VR_Decap_OnMeleeHead(e, xAt, vel));
         }
         return (on && VR_Decap_Cut(e, self, vel, QVR_DECAP_SAW)) ? 2 : 0;
     }
-    if(!VR_Decap_OnMeleeHead(e, xAt, dir))
+    if(!VR_Decap_OnMeleeHead(e, xAt, hitmodel_target(e) ? vel : dir))
     {
         return 0;
     }
@@ -1307,8 +1339,10 @@ float vr_poptest_spread; // (VR_Decap_PopTest: the test shot with its weapon's s
 // from 24 units below the head zone's middle to 16 above it (2 apart), a striking point (3 units thick, the melee's
 // tolerance: hitmodel_segment) moves level towards its head's axis from 16 sides (96 units out); where it meets the
 // model, whether that is on the melee's zone (VR_Decap_OnMeleeHead: vr_decap_head_size, vr_decap_neck). `decapsweep:`
-// lines: each height's contacts on it, then in all.
-void(entity m) VR_Decap_Sweep =
+// lines: each height's contacts on it, then in all. Test 28 (Sweep the Head Zone, Chops): the same, the point coming
+// down at `xTilt` 45 degrees to that height on the axis (a diagonal chop: at the neck it beheads, at the shoulders and the
+// chest it doesn't).
+void(entity m, float xTilt) VR_Decap_Sweep =
 {
     VR_Decap_HeadZone(m);
     float up = xHeadUp;
@@ -1330,7 +1364,7 @@ void(entity m) VR_Decap_Sweep =
             dir_x = cos(a * (3.14159265 / 8));
             dir_y = sin(a * (3.14159265 / 8));
             vector end = axis + '0 0 1' * z;
-            vector start = end + dir * 96;
+            vector start = end + dir * (96 * cos(xTilt * (3.14159265 / 180))) + '0 0 96' * sin(xTilt * (3.14159265 / 180));
             float t = hitmodel_segment(m, start, end, 3, HITCLASS_MELEE);
             if(t <= 0)
             {
@@ -1346,8 +1380,8 @@ void(entity m) VR_Decap_Sweep =
         on = on + k;
         row = strcat(row, sprintf(" %g:%g/%g", z - up, k, n));
     }
-    bprint(sprintf("decapsweep: %s (head %g up, size %g, neck %g): height from the head's middle: on/contacts%s\n",
-        m.classname, up, cvar_hget(cvarh_vr_decap_head_size), cvar_hget(cvarh_vr_decap_neck), row));
+    bprint(sprintf("decapsweep: %s (head %g up, size %g, neck %g, down %g deg): height from the head's middle: on/contacts%s\n",
+        m.classname, up, cvar_hget(cvarh_vr_decap_head_size), cvar_hget(cvarh_vr_decap_neck), xTilt, row));
     bprint(sprintf("decapsweep: %s: %g of %g contacts on the zone\n", m.classname, on, contacts));
 };
 

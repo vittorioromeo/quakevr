@@ -2,6 +2,7 @@
 
 #include "vr_playergore.hpp"
 
+#include "vr_avatar.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
@@ -52,6 +53,8 @@ struct Counters
     int splashDrops{0}; // thrown
     int drips{0};       // fallen
     int eyeSkips{0};    // splashes and drips not made, too close to the eyes
+    int onSkin{0};      // wounds bound to the drawn body's skin (bindSkin)
+    float skinGap{0.f}; // the last one's: units from its capsule spot to the skin (how far the capsule's floated)
 };
 Counters counters;
 
@@ -75,6 +78,55 @@ float testChance = 0.f; // the test's stream chance (0: the tunable's)
         pose.caps = selfshot::build(own);
     }
     return pose.caps;
+}
+
+// The drawn body's mesh as posed (avatar::posedMesh), walked once a wound to bind its spot to the skin (kept: no allocations
+// once grown).
+struct SkinScratch
+{
+    za::Vector<glm::vec3> verts;
+    za::Vector<unsigned> tris;
+    za::Vector<unsigned char> parts;
+};
+SkinScratch skinScratch;
+
+// `out` (your capsule `part`'s spot of `at`, radius `r`) bound also to the drawn body's skin nearest `at`: a triangle of the
+// part's own (the torso and legs, or an arm and hand; not the head) within the capsule's radius and a little.
+void bindSkin(const glm::vec3& at, int part, float r, Spot& out)
+{
+    out.onSkin = false;
+    if(!avatar::posedMesh(skinScratch.verts, skinScratch.tris, skinScratch.parts))
+    {
+        return;
+    }
+    const unsigned char want = part == selfshot::PartTorso || part == selfshot::PartLegs ? 0 : 2;
+    float best = (r + 3.f) * (r + 3.f);
+    for(za::SizeT t = 0; t < skinScratch.parts.size(); t++)
+    {
+        if(skinScratch.parts[t] != want)
+        {
+            continue;
+        }
+        const unsigned* i = &skinScratch.tris[t * 3];
+        glm::vec3 bary;
+        const glm::vec3 p = geom::closestOnTriangle(at, skinScratch.verts[i[0]], skinScratch.verts[i[1]], skinScratch.verts[i[2]], &bary);
+        const glm::vec3 d = p - at;
+        const float dd = glm::dot(d, d);
+        if(dd < best)
+        {
+            best = dd;
+            out.onSkin = true;
+            out.vert[0] = i[0];
+            out.vert[1] = i[1];
+            out.vert[2] = i[2];
+            out.bary = bary;
+        }
+    }
+    if(out.onSkin)
+    {
+        counters.onSkin++;
+        counters.skinGap = glm::sqrt(best);
+    }
 }
 
 [[nodiscard]] const selfshot::Capsule* capsuleOf(int part)
@@ -332,6 +384,10 @@ void testStep()
             }
             q_snprintf(line, sizeof(line), "your wounds bound to your capsules as drawn: %d", counters.wounds - test.at0.wounds);
             check(counters.wounds - test.at0.wounds >= 3, line);
+            // (His 2026-11-10: the streams floated off the body. Bound to the drawn skin, they pour from it.)
+            q_snprintf(line, sizeof(line), "their blood on your drawn skin: %d of %d (the last %.1f units off its capsule's surface)",
+                counters.onSkin - test.at0.onSkin, counters.wounds - test.at0.wounds, static_cast<double>(counters.skinGap));
+            check(counters.onSkin - test.at0.onSkin >= 3, line);
             q_snprintf(line, sizeof(line), "blood streams from them (chance 1): %d opened, %d pouring after the third",
                 counters.streams - test.at0.streams, test.streamsAt);
             check(counters.streams - test.at0.streams >= 2 && test.streamsAt >= 1, line);
@@ -340,15 +396,19 @@ void testStep()
             q_snprintf(line, sizeof(line), "drips while hurt (health %d): %d drops in 3 s (%d spots, %d skipped by the eyes)",
                 cl.stats[STAT_HEALTH], counters.drips - test.at0.drips, woundCount, counters.eyeSkips);
             check(cl.stats[STAT_HEALTH] < 100 && counters.drips - test.at0.drips >= 2, line);
-            // The eyes kept clear: a splash at the eyes makes nothing; a hand low in front does.
+            // By the default (Eye Clearance 0, his 2026-11-10): a splash right at the eyes still makes drops. With a clearance
+            // set: nothing at the eyes or over them; a hand low in front does.
             const glm::vec3 eyes{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
             const float yaw = glm::radians(r_refdef.viewangles[YAW]);
             const glm::vec3 look{za::cos(yaw), za::sin(yaw), 0.f};
-            const int drops0 = counters.splashDrops;
+            const int dropsAt = counters.splashDrops;
             splash(eyes + look * (0.15f * mToU()), -look, look, 20);
-            splash(eyes + look * (0.3f * mToU()) + glm::vec3{0.f, 0.f, 0.2f * mToU()}, -look, look, 20);
-            q_snprintf(line, sizeof(line), "none at the eyes or over them (%d drops)", counters.splashDrops - drops0);
-            check(counters.splashDrops == drops0 && nearEyes(eyes) && !nearEyes(eyes + look * (0.3f * mToU()) - glm::vec3{0.f, 0.f, 0.6f * mToU()}), line);
+            q_snprintf(line, sizeof(line), "Eye Clearance %.2f: a splash at the eyes makes drops (%d)", static_cast<double>(vr_player_gore_eye_clear.value),
+                counters.splashDrops - dropsAt);
+            check(vr_player_gore_eye_clear.value > 0.f || (counters.splashDrops > dropsAt && !nearEyes(eyes)), line);
+            check(nearEyesBy(eyes, 0.35f) && nearEyesBy(eyes + look * (0.3f * mToU()) + glm::vec3{0.f, 0.f, 0.2f * mToU()}, 0.35f) &&
+                      !nearEyesBy(eyes + look * (0.3f * mToU()) - glm::vec3{0.f, 0.f, 0.6f * mToU()}, 0.35f),
+                "Eye Clearance 0.35: kept back at the eyes and over them, not a hand low in front");
             // Off: nothing more.
             char saved[32];
             q_strlcpy(saved, vr_player_gore.string, sizeof(saved));
@@ -430,6 +490,7 @@ bool bind(const glm::vec3& at, int part, Spot& out)
     out.part = part;
     out.along = along;
     out.offset = glm::vec3{o.x, o.y, 0.f};
+    bindSkin(at, part, c->r, out);
     return true;
 }
 
@@ -445,13 +506,27 @@ bool where(const Spot& spot, glm::vec3& at, glm::vec3& normal)
     const glm::vec3 d = side * spot.offset.x + across * spot.offset.y;
     at = c->a + (c->b - c->a) * spot.along + d * c->r;
     normal = geom::safeNormalize(d, across, 1e-4f);
+    glm::vec3 skin;
+    if(spot.onSkin && avatar::posedPoint(spot.vert, spot.bary, skin))
+    {
+        at = skin; // (on the drawn skin, moving with it; its way out the capsule's)
+    }
     return true;
 }
 
 bool nearEyes(const glm::vec3& p)
 {
+    return nearEyesBy(p, vr_player_gore_eye_clear.value);
+}
+
+bool nearEyesBy(const glm::vec3& p, float clearM)
+{
     const glm::vec3 eyes{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    const float clear = za::clamp(vr_player_gore_eye_clear.value, 0.f, 3.f) * mToU();
+    const float clear = za::clamp(clearM, 0.f, 3.f) * mToU();
+    if(clear <= 0.f)
+    {
+        return false; // (0, the default: none kept back, a hand at the face pours and splashes there too; his 2026-11-10)
+    }
     const float flat = glm::length(glm::vec2{p.x - eyes.x, p.y - eyes.y});
     // Close in front (a hand at the face), or over the eyes within arm's reach (a hand raised: its blood would rain past them).
     return (flat < clear && p.z > eyes.z - clear) || (flat < 0.6f * mToU() && p.z > eyes.z);

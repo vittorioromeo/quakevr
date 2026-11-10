@@ -6189,7 +6189,15 @@ QVR_SLIDER(vr_flat_xhair_snap, "Visor Crosshair Centring", 0.f, 200.f, 1.f, "%.0
     "points this near each other share one crosshair (pixels at 1080 rows; vr_flat_xhair_snap).")
 QVR_SLIDER(vr_flat_xhair_smooth, "Visor Crosshair Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How long it takes to follow a point off the centre: no jitter, still truthful. 0: at once (vr_flat_xhair_smooth).")
-QVR_SLIDER(vr_flat_xhair_reload_alpha, "Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
+QVR_SLIDER(vr_flat_xhair_kick, "Visor Crosshair Kick", 0.f, 10.f, 0.25f, "%.2f", noExt,
+    "A shot's feedback: the crosshair's lines spread out from the point, keeping their length, as far as the gun's recoil "
+    "kicks it and back with it (pixels at 1080 rows per degree of muzzle rise and cm of kick back). Two guns on one "
+    "crosshair: the more kicked. 0: off (vr_flat_xhair_kick).")
+QVR_SLIDER(vr_flat_xhair_kick_max, "Visor Crosshair Kick Limit", 0.f, 64.f, 1.f, "%.0f px", noExt,
+    "The furthest a shot spreads the crosshair's lines, in pixels at 1080 rows (vr_flat_xhair_kick_max).")
+QVR_SLIDER(vr_flat_xhair_kick_smooth, "Visor Crosshair Kick Smoothing", 0.f, 0.3f, 0.01f, "%.2f s", noExt,
+    "How softly the spread follows the recoil; 0: exactly with it (vr_flat_xhair_kick_smooth).")
+QVR_SLIDER(vr_flat_xhair_reload_alpha,"Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A gun away reloading: its crosshair at this share of its opacity, as one the wall stops from firing; 0 hidden, "
     "1 as ever (vr_flat_xhair_reload_alpha).")
 QVR_TOGGLE(vr_flat_wall_shot, "Shots Follow Gun At Walls",
@@ -6203,6 +6211,40 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
     "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
+QVR_TOGGLE(vr_flat_holsters, "Holsters",
+    "Playing on the desktop screen (-flatscreenmode): on (the default), you carry what a headset player does: six "
+    "holsters and your two hands. The number keys pick no weapon (3 swaps your hands); hold the mouse wheel's button for "
+    "the holster menu: time slows, and the mouse trades a holster's weapon with either hand, drops it, or swaps your "
+    "hands. A weapon you walk over goes into a free hand. Off: the number keys and the wheel cycle through every weapon "
+    "you collected, as before (vr_flat_holsters).")
+QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
+    "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
+    "(vr_flat_holster_menu_timescale).")
+QVR_SLIDER(vr_flat_holster_menu_blur, "Holster Menu Blur", 0.f, 20.f, 1.f, "%.0f px", noExt,
+    "How much the view blurs behind the holster menu (pixels at 1080p; 0 none) (vr_flat_holster_menu_blur).")
+QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
+QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
+    "The holster menu's height, a share of the screen's (vr_flat_holster_menu_size).")
+QVR_SLIDER(vr_flat_holster_menu_fade_time, "Holster Menu Fade Time", 0.f, 0.5f, 0.02f, "%.2f s", noExt,
+    "How long the holster menu takes to fade in and out (vr_flat_holster_menu_fade_time).")
+QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f, 3.f, 0.1f, "x%.1f", noExt,
+    "The holster menu's cursor speed: 1 moves it as the desktop's pointer moves (vr_flat_holster_menu_cursor_speed).")
+QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "The holster menu's screen as a small CRT, as the visor's panels: scanlines and flicker (0 none) "
+    "(vr_flat_holster_menu_crt).")
+QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
+    "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
+QVR_TOGGLE(vr_flat_ssg_break, "Super Shotgun Breaks Open",
+    "Playing on the desktop screen with Reloading on: the super shotgun fired empty breaks open by itself a moment "
+    "later, throwing out its spent shells, and won't fire until a reload snaps it shut (Tunables > Flatscreen > "
+    "Reload: its delay; vr_flat_ssg_break).")
+QVR_TOGGLE(vr_flat_mag_eject, "Ejects Empty Magazines",
+    "Playing on the desktop screen with Reloading on: a magazine gun (the nailguns, the thunderbolt, the nail pistol) "
+    "fired empty drops its magazine, which falls as VR's do; the reload seats a new one at the hip (vr_flat_mag_eject).")
+QVR_TOGGLE(vr_flat_revolver_eject, "Revolver Ejects Its Shells",
+    "Playing on the desktop screen with Reloading on: the revolver's reload swings its cylinder out, throws out the "
+    "spent shells, and swings it home once the new ones are in (vr_flat_revolver_eject).")
 QVR_TOGGLE(vr_flat_grenade, "Quick Grenade (G)",
     "Playing on the desktop screen: G (vr_flat_key_grenade) takes a grenade from the back pouch into a free hand (an empty "
     "one, your main hand first, else the hand on a weapon's grip), as the headset's pouch gives it: one of your rockets. "

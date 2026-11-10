@@ -228,6 +228,26 @@ float(float xHand, float xBase) VRMeleeDmg =
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
+// A blade's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck): what the same blow does a live body
+// (VRMeleeDmg: its weapon's base, the strength its speed gives on the melee's curve, VR_MELEE_WEAKEST at vr_melee_speed to
+// 1 at twice it and at most VR_MELEE_STRONGEST, the weight's, Melee Damage, Quad). The corpses' strike damage
+// (VR_Gib_StrikeDamage, 1.5 times for anything held) is some 3 times that: one axe swing at 5 m/s dealt 50, a ragdoll's
+// whole-gib overkill (vr_corpse_gib_overkill), so a ragdoll gibbed where a live grunt would have taken the axe in (his note
+// 2026-11-10). Now it gibs whole only from a blow that would gib the living (a heavy Super Axe's hardest).
+float(float xHand, float xSpeed) VR_Corpse_BladeBlowDamage =
+{
+    float wid = VRGetEntWeapon(self, xHand);
+    float base = 20 * cvar_hget(cvarh_vr_sword_damage_mult);
+    if(wid == WID_AXE) { base = cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand); }
+    else if(wid == WID_SUPERAXE) { base = cvar_hget(cvarh_vr_dmg_superaxe); }
+    else if(wid == WID_CHAINSAW) { base = cvar_hget(cvarh_vr_dmg_chainsaw_swing); }
+    base = base + VR_HotBlade_Extra(self, xHand);
+    float need = max(0.1, cvar_hget(cvarh_vr_melee_speed));
+    float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (xSpeed - need) / (need * (VR_MELEE_GOOD - 1));
+    s = min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s));
+    return base * s * VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+};
+
 float(float v) VRMeleeRange =
 {
     float mult;
@@ -4558,6 +4578,7 @@ void(float xHand) VR_Impulse_WeaponButton =
     else                                  { ToggleSecondaryAmmo(xHand); }
 };
 void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
+float() VR_FlatHolster_Impulses; // (vr_flatholster.qc: flatscreen play's holster menu, the weapon keys swallowed)
 
 // Flatscreen play's F7 (vr_flat_key_toolgun; impulse 49): the toolgun in the main (right) hand at once, and pressed
 // again what that hand held before (its weapon, flags and record: the magazine as it was). What it held is kept here
@@ -4609,6 +4630,13 @@ void() ImpulseCommands =
     }
 #endif
 
+    // Flat-screen holsters (vr_flatholster.qc): the holster menu's impulses (60 .. 79); and while the holsters are on, the
+    // weapon keys do nothing (what he carries is in his hands and holsters, never conjured from what was collected).
+    if(VR_FlatHolster_Impulses())
+    {
+        return;
+    }
+
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
     // the main hand; 170 + id in the off hand.
     // Impulse 149: weapon id vr_test_give_wid (any, past 19 too: the AD guns, the nail pistol, the flare gun, the
@@ -4644,12 +4672,14 @@ void() ImpulseCommands =
 
     // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
     // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
-    if(self.impulse == 46)
+    // (50 and 51: the off and the main hand, the one the client turned palm out first: vr_flatfgrab.cpp.)
+    if(self.impulse == 46 || self.impulse == 50 || self.impulse == 51)
     {
+        float fgWant = self.impulse == 50 ? cVR_OffHand : (self.impulse == 51 ? cVR_MainHand : -1);
         self.impulse = 0;
         if(VR_FlatPlay(self))
         {
-            VR_Forcegrab_FlatGrab();
+            VR_Forcegrab_FlatGrab(fgWant);
         }
         return;
     }

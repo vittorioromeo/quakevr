@@ -597,6 +597,9 @@ vector(entity e, vector p) hitmodel_rest = #0;
 // bones VR_REGION_ARM, legs VR_REGION_LEG, the head VR_REGION_HEAD, the torso VR_REGION_BODY); VR_REGION_NONE when e is
 // no target, its model has no rig, or the triangle is of no one part (PositionalPointRegion then decides by its place).
 float(entity e, vector p) hitmodel_part = #0;
+// Where along the segment a..b (0..1) it first crosses e's model itself as drawn: no tolerance, no thickness (where a
+// blade's line meets the flesh, not its grown shell: VR_Decap_ZonePoint); -1 none, or e is no target.
+float(entity e, vector a, vector b) hitmodel_skin = #0;
 // Shooting yourself (engine vr_selfshot.cpp; vr_selfshot.qc): the segment a..b (a sphere of `radius` swept along it)
 // against pl's own drawn body and hands (pl the listen server's own player in a headset, else nothing): how far along
 // it first meets a part not in `skip` (1 << QVR_SS_PART_*; 0: it starts inside), -1 none.

@@ -222,6 +222,18 @@ constexpr double grabStuckTime = 0.5;   // s: this long is let go of (behind a w
     return za::max(vr_embed_move_hertz.value * std::sqrt(za::max(vr_embed_hold_strength.value, 0.f)), 0.5f);
 }
 
+// A blade's hold's place of its wound from the hand turned `turn` now (bladeReach as it took hold, turned by vr_embed_move_turn
+// of the hand's turn since: a wrist pointing the sword up overhead takes the body on it up, not out in front; his 2026-11-10).
+[[nodiscard]] glm::vec3 bladeReachNow(const World::RagdollGrab& g, const glm::quat& turn)
+{
+    if(g.bladeReach == glm::vec3{0.f})
+    {
+        return g.bladeReach;
+    }
+    const glm::quat since = glm::normalize(turn * glm::inverse(g.bladeTurn));
+    return glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, since, za::clamp(vr_embed_move_turn.value, 0.f, 1.f)) * g.bladeReach;
+}
+
 [[nodiscard]] int grabIndex(int player, int hand)
 {
     for(int i = 0; i < static_cast<int>(world->ragdollGrabs.size()); i++)
@@ -406,7 +418,11 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     glm::vec3 at;
     glm::quat turn;
     handPose(player, g.hand, at, turn);
-    at += g.bladeReach; // (a blade's held at its wound: its anchor there)
+    if(g.bladeReach != glm::vec3{0.f})
+    {
+        g.bladeTurn = turn; // (a blade's held at its wound: its anchor there, turning with the hand from now)
+    }
+    at += g.bladeReach;
     if(fit)
     {
         const b3BodyId body = r.body[static_cast<za::SizeT>(g.part)];
@@ -1265,7 +1281,7 @@ void syncRagdollGrabs(float dt)
         glm::vec3 at;
         glm::quat turn;
         handPose(player, g.hand, at, turn);
-        at += g.bladeShift + g.bladeReach;
+        at += g.bladeShift + bladeReachNow(g, turn);
         const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
         if(B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
         {
