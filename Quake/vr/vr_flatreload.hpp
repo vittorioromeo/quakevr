@@ -22,4 +22,9 @@ void apply(hands::State& s);
 // ironsight waits, and the free hand lets go of its grip and hangs relaxed (vr_flatsight.cpp, vr_twohand.cpp).
 [[nodiscard]] bool busy(int h);
 
+// Hand `h`'s share of its open pose (0..1, eased; vr_flat_ssg_open_*, vr_flat_rv_open_*): its gun drawn broken open (the
+// super shotgun) or with its cylinder out (the revolver), turned and moved by apply. A drawn pose: the gun can't fire
+// open, and its crosshair is held on the centre and dimmed as a reloading gun's (vr_flatxhair.cpp).
+[[nodiscard]] float openShare(int h);
+
 } // namespace qvr::flatreload

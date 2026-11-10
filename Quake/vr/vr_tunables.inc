@@ -1538,7 +1538,7 @@ QVR_TUNABLE(vr_nailpistol_slide_delay, "0.175") // s from a magazine seated to i
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)
-QVR_TUNABLE(vr_revolver_cock_time, "0.05") // s from the pull to the shot: the hammer cocks and the cylinder turns a chamber, then the hammer falls (0: at once)
+QVR_TUNABLE(vr_revolver_cock_time, "0.10") // s from the pull to the shot: the hammer cocks and the cylinder turns a chamber, then the hammer falls (0: at once)
 QVR_TUNABLE(vr_revolver_spread, "0.15") // degrees its slugs stray at most from its aim
 QVR_TUNABLE(vr_dmg_lightning, "30") // the lightning gun: a bolt's (10 a second)
 QVR_TUNABLE(vr_dmg_proximity, "95") // Scourge of Armagon's proximity gun: a mine's blast
@@ -1877,7 +1877,24 @@ QVR_TUNABLE(vr_flat_ssg_break_delay, "0.15") // vr_flat_ssg_break: seconds after
 QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after the last round a magazine gun drops its empty magazine
 QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
 QVR_TUNABLE(vr_flat_revolver_open_delay, "0.15") // vr_flat_revolver_eject: seconds after the shot that empties it the revolver's cylinder swings out, its spent shells thrown out (his words 2026-11-10)
+QVR_TUNABLE(vr_flat_revolver_eject_delay, "0.1") // and seconds after its cylinder is fully out (the drawn swing, 0.14 s) its spent shells leave (his note 2026-11-10: not as it opens)
 QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
+QVR_TUNABLE(vr_flat_ssg_open_pitch, "-10") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_yaw, "12") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees it turns inward, towards the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_roll, "-15") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, degrees it rolls, its top inward (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_fwd, "0") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves forward along the body's way (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_up, "3") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_out, "-1") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_in_time, "0.2") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, seconds it takes into that pose (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_ssg_open_out_time, "0.2") // flat-screen play: the super shotgun broken open (fired empty, until the reload shuts it): the held gun's pose, seconds it takes back out of it, once shut (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_pitch, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees its muzzle tips down (negative: up) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_yaw, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees it turns inward, towards the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_roll, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, degrees it rolls, its top inward (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_fwd, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves forward along the body's way (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_up, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves up (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_out, "0") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, units it moves outward, away from the body's middle (the left hand's mirrored) (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_in_time, "0.2") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, seconds it takes into that pose (his words 2026-11-10; vr_flatreload.cpp)
+QVR_TUNABLE(vr_flat_rv_open_out_time, "0.2") // flat-screen play: the revolver's cylinder swung out (fired empty, or the reload's): the held gun's pose, seconds it takes back out of it, once shut (his words 2026-11-10; vr_flatreload.cpp)
 
 // Flatscreen > Force Grab (vr_flatfgrab.cpp; his note 2026-11-10)
 QVR_TUNABLE(vr_flat_fg_pose, "1") // E's hand turns its palm to the object and opens before the grab (0: the grab at once, no pose)
