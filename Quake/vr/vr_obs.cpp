@@ -26,6 +26,7 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_sha256.hpp"
+#include "vr_files.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -50,6 +51,7 @@ extern "C"
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -140,6 +142,8 @@ za::Atomic<bool> quit{false};
 za::Atomic<bool> wanted{false}; // a menu is open (attempts every retryMs)
 za::Atomic<bool> kick{false};   // try now (vr_obs_connect, a hint's row pressed)
 za::Atomic<int> toggles{0};     // ToggleRecords asked for
+za::Vector<za::String> outgoing; // other modules' requests (request()), as JSON, for the thread to send (handoff)
+za::Vector<za::String> incoming; // their answers and the Outputs events, as JSON, for the main thread (handoff)
 
 // ---------------------------------------------------------------- main thread
 
@@ -151,6 +155,21 @@ State printedState = State::Off;
 bool printedActive = false;
 double pressedAt = -10.0;
 char statusText[192];
+bool stay = false;                // stayConnected: a take session wants the connection (vr_takes.cpp)
+int nextRequestId = 1;            // request()'s ids ("qvt<id>")
+za::Vector<za::String> inbox;     // messages taken from the thread (or the mock's), not yet taken by takeMessage
+za::SizeT inboxRead = 0;
+
+// The mock (vr_obs_mock 1): OBS's recording and replay buffer pretended on the main thread, its files small dummies in
+// vr_obs_mock_dir (else <game dir>/obsmock), every request printed. The take tests' OBS (vr_takes_test).
+struct Mock
+{
+    bool recording{false};
+    bool replay{false};
+    za::U32 at{0};
+    int files{0};
+};
+Mock mockState;
 
 // ---------------------------------------------------------------- the thread's helpers
 
@@ -802,6 +821,18 @@ void handle()
     }
     bool changed = false;
     bool askAgain = false;
+    // Other modules' answers and the Outputs events they follow, to the main thread as they came (takeMessage).
+    {
+        const char* id = op == 7 ? JSON_FindString(d, "requestId") : nullptr;
+        const char* event = op == 5 ? JSON_FindString(d, "eventType") : nullptr;
+        if((id && !strncmp(id, "qvt", 3)) ||
+            (event && (!strcmp(event, "RecordStateChanged") || !strcmp(event, "ReplayBufferStateChanged") ||
+                          !strcmp(event, "ReplayBufferSaved"))))
+        {
+            za::LockGuard lock{handoff};
+            incoming.emplaceBack(za::String{conn.message.data()});
+        }
+    }
     if(op == 5)
     {
         const char* type = JSON_FindString(d, "eventType");
@@ -888,6 +919,18 @@ void serve(bool menuOpen)
     for(int t = toggles.exchangeSeqCst(0); t > 0; t--)
     {
         if(!ask("ToggleRecord"))
+        {
+            break;
+        }
+    }
+    za::Vector<za::String> sending;
+    {
+        za::LockGuard lock{handoff};
+        sending.swap(outgoing);
+    }
+    for(const za::String& json : sending)
+    {
+        if(!sendText(json.cStr()))
         {
             break;
         }
@@ -999,6 +1042,8 @@ void run()
 
 // ---------------------------------------------------------------- the main thread's
 
+void sendToggle(); // (the mock's or the thread's ToggleRecord)
+
 void startWorker()
 {
     if(running.loadSeqCst() || worker.joinable())
@@ -1107,8 +1152,8 @@ void toggle_f()
         kick.storeSeqCst(true);
         return;
     }
-    toggles.fetchAddSeqCst(1);
     Con_Printf("vr_obs_toggle: %s recording\n", mainStatus.active ? "stopping" : "starting");
+    sendToggle();
 }
 
 void connect_f()
@@ -1125,7 +1170,315 @@ void connect_f()
         mainConfig.host, mainConfig.port);
 }
 
+// ---------------------------------------------------------------- the mock (vr_obs_mock 1)
+
+[[nodiscard]] bool mockOn()
+{
+    return vr_obs.value != 0.f && vr_obs_mock.value != 0.f;
+}
+
+// Its state as the thread's would be: connected, the recording's state known.
+void mockStatus()
+{
+    Status& s = mainStatus;
+    s.state = State::Connected;
+    s.known = true;
+    s.active = mockState.recording;
+    s.paused = s.starting = s.stopping = false;
+    s.durationMs = 0;
+    s.at = mockState.at;
+    q_strlcpy(s.version, "mock", sizeof(s.version));
+}
+
+void mockPush(const za::String& json)
+{
+    inbox.emplaceBack(json);
+}
+
+void mockAnswer(const char* type, int id, bool ok, const char* comment, const char* data)
+{
+    char head[256];
+    q_snprintf(head, sizeof(head), "{\"op\":7,\"d\":{\"requestType\":\"%s\",\"requestId\":\"qvt%d\",\"requestStatus\":"
+                                   "{\"result\":%s,\"code\":%d%s%s%s}",
+        type, id, ok ? "true" : "false", ok ? 100 : 500, comment ? ",\"comment\":\"" : "", comment ? comment : "",
+        comment ? "\"" : "");
+    za::String json{head};
+    if(data)
+    {
+        json += ",\"responseData\":";
+        json += data;
+    }
+    json += "}}";
+    mockPush(json);
+}
+
+void mockEvent(const char* type, const za::String& data)
+{
+    za::String json{"{\"op\":5,\"d\":{\"eventType\":\""};
+    json += type;
+    json += "\",\"eventIntent\":64,\"eventData\":";
+    json += data;
+    json += "}}";
+    mockPush(json);
+}
+
+[[nodiscard]] za::String mockDir()
+{
+    const char* d = vr_obs_mock_dir.string;
+    za::String dir = d && d[0] ? za::String{d} : files::join(com_gamedir, "obsmock");
+    files::createDirectories(dir.cStr());
+    return files::generic(dir.toStringView());
+}
+
+// A dummy recording file, named as OBS names them ("2026-11-10 21-04-05.mkv"; a count first: a test's are seconds
+// apart at most).
+[[nodiscard]] za::String mockFile(const char* prefix)
+{
+    const za::String stamp = files::timestamp(time(nullptr), "%Y-%m-%d %H-%M-%S");
+    char name[128];
+    q_snprintf(name, sizeof(name), "%s%03d %s.mkv", prefix, ++mockState.files, stamp.cStr());
+    const za::String path = files::join(mockDir().toStringView(), name);
+    (void)files::writeText(path.cStr(), "Quake VR's OBS mock: a pretend recording\n");
+    return path;
+}
+
+void mockRecordState(bool active, const char* state, const za::String* path)
+{
+    za::String data{"{\"outputActive\":"};
+    data += active ? "true" : "false";
+    data += ",\"outputState\":\"";
+    data += state;
+    data += "\"";
+    if(path)
+    {
+        data += ",\"outputPath\":";
+        data += jsonString(path->toStringView());
+    }
+    data += "}";
+    mockEvent("RecordStateChanged", data);
+}
+
+void mockRequest(const char* type, int id, const char* data)
+{
+    Con_Printf("obs mock: %s%s%s\n", type, data ? " " : "", data ? data : "");
+    const auto startRecord = [&] {
+        if(mockState.recording)
+        {
+            mockAnswer(type, id, false, "the recording is already active", nullptr);
+            return;
+        }
+        mockState.recording = true;
+        mockState.at = SDL_GetTicks();
+        mockAnswer(type, id, true, nullptr, !strcmp(type, "ToggleRecord") ? "{\"outputActive\":true}" : nullptr);
+        mockRecordState(true, "OBS_WEBSOCKET_OUTPUT_STARTED", nullptr);
+    };
+    const auto stopRecord = [&] {
+        if(!mockState.recording)
+        {
+            mockAnswer(type, id, false, "the recording is not active", nullptr);
+            return;
+        }
+        mockState.recording = false;
+        const za::String path = mockFile("");
+        za::String answer{!strcmp(type, "ToggleRecord") ? "{\"outputActive\":false}" : "{\"outputPath\":"};
+        if(strcmp(type, "ToggleRecord"))
+        {
+            answer += jsonString(path.toStringView());
+            answer += "}";
+        }
+        mockAnswer(type, id, true, nullptr, answer.cStr());
+        mockRecordState(false, "OBS_WEBSOCKET_OUTPUT_STOPPED", &path);
+    };
+    if(!strcmp(type, "StartRecord"))
+    {
+        startRecord();
+    }
+    else if(!strcmp(type, "StopRecord"))
+    {
+        stopRecord();
+    }
+    else if(!strcmp(type, "ToggleRecord"))
+    {
+        mockState.recording ? stopRecord() : startRecord();
+    }
+    else if(!strcmp(type, "GetRecordDirectory"))
+    {
+        const za::String answer = za::String{"{\"recordDirectory\":"} + jsonString(mockDir().toStringView()) + "}";
+        mockAnswer(type, id, true, nullptr, answer.cStr());
+    }
+    else if(!strcmp(type, "GetVideoSettings"))
+    {
+        mockAnswer(type, id, true, nullptr,
+            "{\"fpsNumerator\":60,\"fpsDenominator\":1,\"baseWidth\":1920,\"baseHeight\":1080,\"outputWidth\":1920,"
+            "\"outputHeight\":1080}");
+    }
+    else if(!strcmp(type, "StartReplayBuffer") || !strcmp(type, "StopReplayBuffer"))
+    {
+        const bool on = !strcmp(type, "StartReplayBuffer");
+        if(mockState.replay == on)
+        {
+            mockAnswer(type, id, false, on ? "the replay buffer is already active" : "the replay buffer is not active", nullptr);
+            return;
+        }
+        mockState.replay = on;
+        mockAnswer(type, id, true, nullptr, nullptr);
+        mockEvent("ReplayBufferStateChanged", za::String{on ? "{\"outputActive\":true,\"outputState\":\"OBS_WEBSOCKET_OUTPUT_STARTED\"}"
+                                                            : "{\"outputActive\":false,\"outputState\":\"OBS_WEBSOCKET_OUTPUT_STOPPED\"}"});
+    }
+    else if(!strcmp(type, "GetReplayBufferStatus"))
+    {
+        mockAnswer(type, id, true, nullptr, mockState.replay ? "{\"outputActive\":true}" : "{\"outputActive\":false}");
+    }
+    else if(!strcmp(type, "SaveReplayBuffer"))
+    {
+        if(!mockState.replay)
+        {
+            mockAnswer(type, id, false, "the replay buffer is not active", nullptr);
+            return;
+        }
+        mockAnswer(type, id, true, nullptr, nullptr);
+        const za::String path = mockFile("Replay ");
+        mockEvent("ReplayBufferSaved", za::String{"{\"savedReplayPath\":"} + jsonString(path.toStringView()) + "}");
+    }
+    else if(!strcmp(type, "GetOutputSettings"))
+    {
+        mockAnswer(type, id, true, nullptr, "{\"outputSettings\":{\"max_time_sec\":20}}");
+    }
+    else if(!strcmp(type, "CreateRecordChapter"))
+    {
+        mockAnswer(type, id, mockState.recording, mockState.recording ? nullptr : "the recording is not active", nullptr);
+    }
+    else
+    {
+        mockAnswer(type, id, false, "the mock does not know this request", nullptr);
+    }
+}
+
+// The menus' row and vr_obs_toggle: OBS's ToggleRecord.
+void sendToggle()
+{
+    if(mockOn())
+    {
+        mockRequest("ToggleRecord", nextRequestId++, nullptr);
+        return;
+    }
+    toggles.fetchAddSeqCst(1);
+}
+
+// vr_obs_request <type> [<requestData JSON>]: any request, its answer printed by vr_takes' messages (tests, debugging).
+void request_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_obs_request <requestType> [<requestData as JSON>]\n");
+        return;
+    }
+    const int id = request(Cmd_Argv(1), Cmd_Argc() > 2 ? Cmd_Argv(2) : nullptr);
+    Con_Printf("vr_obs_request: %s %s\n", Cmd_Argv(1), id ? "sent" : "not sent (not connected)");
+}
+
 } // namespace
+
+// ---------------------------------------------------------------- requests of other modules
+
+bool ready()
+{
+    return mockOn() || (vr_obs.value != 0.f && connectedKnown());
+}
+
+bool mocked()
+{
+    return mockOn();
+}
+
+bool recording()
+{
+    return ready() && mainStatus.active;
+}
+
+void stayConnected(bool on)
+{
+    stay = on;
+}
+
+void connectNow()
+{
+    if(mockOn() || !vr_obs.value)
+    {
+        return;
+    }
+    syncConfig();
+    startWorker();
+    kick.storeSeqCst(true);
+}
+
+int request(const char* type, const char* data)
+{
+    if(!ready())
+    {
+        return 0;
+    }
+    const int id = nextRequestId++;
+    if(mockOn())
+    {
+        mockRequest(type, id, data);
+        return id;
+    }
+    char head[160];
+    q_snprintf(head, sizeof(head), "{\"op\":6,\"d\":{\"requestType\":\"%s\",\"requestId\":\"qvt%d\"", type, id);
+    za::String json{head};
+    if(data && data[0])
+    {
+        json += ",\"requestData\":";
+        json += data;
+    }
+    json += "}}";
+    Con_DPrintf("obs: request %s\n", json.cStr());
+    za::LockGuard lock{handoff};
+    outgoing.emplaceBack(static_cast<za::String&&>(json));
+    return id;
+}
+
+bool takeMessage(za::String& out)
+{
+    if(inboxRead >= inbox.size())
+    {
+        inbox.clear();
+        inboxRead = 0;
+        return false;
+    }
+    out = inbox[inboxRead++];
+    return true;
+}
+
+za::String jsonString(za::StringView text)
+{
+    za::String out{"\""};
+    for(const char c : text)
+    {
+        switch(c)
+        {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if(static_cast<unsigned char>(c) < 0x20)
+                {
+                    char u[8];
+                    q_snprintf(u, sizeof(u), "\\u%04x", static_cast<unsigned>(c));
+                    out += u;
+                }
+                else
+                {
+                    out += c;
+                }
+        }
+    }
+    out += "\"";
+    return out;
+}
 
 // ---------------------------------------------------------------- the API
 
@@ -1134,12 +1487,22 @@ void registerCommands()
     Cmd_AddCommand("vr_obs_status", status_f);
     Cmd_AddCommand("vr_obs_toggle", toggle_f);
     Cmd_AddCommand("vr_obs_connect", connect_f);
+    Cmd_AddCommand("vr_obs_request", request_f);
 }
 
 void poll()
 {
-    const bool menuOpen = key_dest == key_menu && m_state != m_none;
-    if(!vr_obs.value && !worker.joinable())
+    const bool menuOpen = (key_dest == key_menu && m_state != m_none) || stay;
+    if(mockOn())
+    {
+        mockStatus(); // (the thread, if any, keeps its own connection: not read meanwhile)
+    }
+    else if(mainStatus.version[0] == 'm' && !strcmp(mainStatus.version, "mock"))
+    {
+        mainStatus = Status{}; // (the mock turned off: the thread's state read again)
+        seenStatusSeq = -1;
+    }
+    if((!vr_obs.value && !worker.joinable()) || mockOn())
     {
         return; // (never started: nothing to tell it)
     }
@@ -1156,6 +1519,11 @@ void poll()
             seenStatusSeq = sharedStatusSeq;
             mainStatus = sharedStatus;
         }
+        for(za::String& m : incoming)
+        {
+            inbox.emplaceBack(static_cast<za::String&&>(m));
+        }
+        incoming.clear();
     }
     const Status& s = mainStatus;
     if(s.state != printedState || (connectedKnown() && s.active != printedActive))
@@ -1272,7 +1640,7 @@ bool press()
     qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     if(connectedKnown())
     {
-        toggles.fetchAddSeqCst(1);
+        sendToggle();
         Con_DPrintf("obs: the menu's row pressed: %s recording\n", mainStatus.active ? "stopping" : "starting");
     }
     else

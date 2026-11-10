@@ -4,6 +4,7 @@
 #include "vr_menu_internal.hpp"
 #include "vr_armourstudio.hpp"
 #include "vr_cvars.hpp"
+#include "vr_takes.hpp"
 #include "vr_tunables.hpp"
 
 namespace menu_detail

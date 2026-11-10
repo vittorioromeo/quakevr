@@ -25,6 +25,48 @@
         command("Connect to OBS Now", "vr_obs_connect")
             .help("vr_obs_connect: asks OBS now rather than at the next try (every 5 s while a menu is open); after "
                   "turning on OBS's WebSocket server or setting vr_obs_password."),
+        header("Takes and Clips"),
+        toggle("Takes", "vr_takes")
+            .help("vr_takes: each OBS recording is a take, renamed <date>_<scene>_t<NN>_<rating> in OBS's folder and rated "
+                  "Keep, Maybe or Reject after it (Reject moves it to rejected/: nothing is deleted). TRAILER.md, \"Takes and "
+                  "clips\"."),
+        info(qvr::takes::statusLine),
+        command("Start or Stop a Take", "vr_take").help("vr_take (F7): OBS's recording started, or stopped and the rating prompt shown."),
+        command("Clip That", "vr_clip")
+            .help("vr_clip (F8): OBS's replay buffer saved: its last seconds (OBS: Settings > Output > Replay Buffer, Maximum "
+                  "Replay Time), named as a take, rated clip."),
+        command("Keep", "vr_take_keep").help("vr_take_keep (keypad 1): the last take or clip kept."),
+        command("Maybe", "vr_take_maybe").help("vr_take_maybe (keypad 2): the last take or clip, maybe."),
+        command("Reject", "vr_take_reject").help("vr_take_reject (keypad 3): the last take or clip moved to rejected/."),
+        command("In Mark", "vr_take_in").help("vr_take_in (Home): an in mark at this moment of the take (and an OBS chapter)."),
+        command("Out Mark", "vr_take_out").help("vr_take_out (PgUp): an out mark at this moment of the take."),
+        command("Start Take Session", "vr_takes_session start")
+            .help("vr_takes_session start: OBS's connection kept, its replay buffer started (vr_clip), the wrist gadget's "
+                  "take buttons shown. The first take or clip starts one too."),
+        command("End Take Session", "vr_takes_session end").help("vr_takes_session end: the session's takes listed; the replay buffer stopped."),
+        toggle("Replay Buffer in a Session", "vr_takes_replay")
+            .help("vr_takes_replay: OBS's replay buffer kept running while a take session is open, for Clip That."),
+        toggle("Wrist Gadget Buttons", "vr_takes_gadget")
+            .help("vr_takes_gadget: while a take session is open the wrist gadget's screen shows TAKE, CLIP, IN, OUT, KEEP, "
+                  "MAYBE, REJECT (touch them), instead of the HUD. HIDE: the HUD again until the next take ends. The gadget "
+                  "is in the spectator camera's view: HIDE it for a clean shot."),
+        cycle("Mark Chord", "vr_takes_chord",
+            {{0.f, "Off"}, {1.f, "Left Grip + X (In) / Y (Out)"}, {2.f, "Right Grip + A (In) / B (Out)"}})
+            .help("vr_takes_chord: during a take, an in or out mark by controller: hold the grip, then press the lower (In) or "
+                  "upper (Out) button of that hand. Those presses don't reach the game. Only while a take runs."),
+        toggle("Recording Light and Prompt", "vr_takes_light")
+            .help("vr_takes_light: a small red light while a take runs, and the rating prompt after it. In the headset only "
+                  "(never the mirror or spectator camera, so OBS doesn't record it); flat: a small top-right corner line "
+                  "(which OBS does record: turn it off for clean shots)."),
+        slider("Light Size", "vr_takes_light_size", 0.5f, 3.f, 0.1f, "%.1fx"),
+        slider("Light Position: Right", "vr_takes_light_right", -0.6f, 0.6f, 0.01f, "%.2f").help("vr_takes_light_right: headset only."),
+        slider("Light Position: Up", "vr_takes_light_up", -0.5f, 0.5f, 0.01f, "%.2f").help("vr_takes_light_up: headset only."),
+        slider("Light Distance", "vr_takes_light_dist", 0.3f, 4.f, 0.1f, "%.1f m").help("vr_takes_light_dist: headset only."),
+        slider("Rating Prompt Time", "vr_takes_prompt_time", 0.f, 60.f, 1.f, "%.0f s"),
+        slider("Clip Length if Unknown", "vr_takes_clip_seconds", 5.f, 300.f, 5.f, "%.0f s")
+            .help("vr_takes_clip_seconds: a clip's length on the session's timeline when OBS doesn't say."),
+        slider("Wait for OBS", "vr_takes_connect_wait", 1.f, 30.f, 1.f, "%.0f s")
+            .help("vr_takes_connect_wait: a take or clip asked for before OBS is connected waits this long for it."),
         header("Steadying"),
         row(opt::vr_window_smooth),
         row(opt::vr_window_level),

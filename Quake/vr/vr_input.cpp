@@ -35,6 +35,7 @@
 #include "vr_progs.hpp"
 #include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_takes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
@@ -628,6 +629,7 @@ constexpr int bindingsVersion = 3;
 
 void checkBindings_f()
 {
+    takes::defaultKeys(); // the keyboard's take keys, once, where unbound (vr_takes_keys)
     if(vr_bindings_version.value >= bindingsVersion)
     {
         return;
@@ -1589,6 +1591,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     if(menuGestureButton(in, h, b.button, now))
     {
         logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
+        return;
+    }
+    // A take's in and out marks (vr_takes_chord: a grip held, then its hand's lower or upper button), during a take only.
+    if(takes::controllerButton(h, static_cast<int>(posingButton(b.button)), now))
+    {
+        logButton(h, b, now, b.key[h], "a take's mark (vr_takes_chord)");
         return;
     }
     // Holster Setup takes every button while it runs (vr_holstersetup.cpp): nothing reaches the game.

@@ -8559,3 +8559,42 @@ wrote, and the tool read, ~1.7 GB of listing per compile.
   report the same 10 functions with the same files and lines, the control in neither.
 - Time (`qvr_checks all --times`, back to back): qc_precedence 9.95 s -> 3.36 s (about one compile). Work files: two
   13 MB progs + 2.6 MB .lno, emptied after use (was 2 x 1.7 GB).
+
+## Takes and clips for trailers: takes, ratings, clip that, in/out marks (branch `agent/clips`, worktree `clips`, 2026-11-10)
+
+His words (2026-11-10): he records trailer and short clips with OBS, several takes a scene, starts too early, forgets to
+stop, then sifts long OBS files in DaVinci. He wants takes rated in the game (VR first, flat too), and a small, clean
+set of files at the end. TRAILER.md, "Takes and clips", is the user's guide.
+
+- **vr_obs.cpp: requests of other modules.** `obs::request(type, data)` sends any obs-websocket request on the
+  connection's thread; answers (requestId `qvt<n>`) and the Outputs events (RecordStateChanged, ReplayBufferStateChanged,
+  ReplayBufferSaved) come back raw to the main thread (`obs::takeMessage`). `obs::stayConnected` keeps the connection
+  while a take session is open (as an open menu does). `vr_obs_request <type> [json]` sends one by hand.
+- **The mock (`vr_obs_mock 1`).** No socket: the main thread answers StartRecord/StopRecord/ToggleRecord,
+  GetRecordDirectory, GetVideoSettings (60/1, 1920x1080), Start/Stop/Save/GetReplayBufferStatus, GetOutputSettings
+  (max_time_sec 20), CreateRecordChapter, each printed (`obs mock: ...`), with dummy files in `vr_obs_mock_dir`. The
+  menus' OBS row and `vr_obs_toggle` go through it too. (The existing obs_mock_server.py tests the socket itself.)
+- **vr_takes.cpp.** A take is whatever OBS records while `vr_takes` is on (event-driven: OBS's own hotkey too); its
+  times are the game's realtime from the "started" event. The file OBS reports (the event's outputPath, or StopRecord's)
+  is renamed `<date>_<scene>_t<NN>_<rating><ext>` at once (`unrated`), then on each rating; reject moves it to
+  `rejected/`. Never deleted, never overwritten (a `-2` suffix); a failed rename (OBS still closing) is tried every
+  0.5 s for 20 s. Numbers per scene and date continue past the files in the folder, `rejected/` and `session_*/`.
+  Clips: SaveReplayBuffer, then ReplayBufferSaved's path, rated `clip`; their length is OBS's Replay Buffer
+  max_time_sec (GetOutputSettings "Replay Buffer"), else `vr_takes_clip_seconds`.
+- **Light and prompt.** Headset: drawn in the eye's own UI pass only (`stereo::drawUi(..., headset)`: the swapchain
+  image), never the mirror's composite or the spectator camera, so OBS does not record it. Flat: `SCR_DrawTakes`, a
+  small top-right line (recorded: `vr_takes_light 0` for clean shots).
+- **Controls.** Console commands for all; keys set once where unbound (`vr_takes_keys`): F7 take, F8 clip, Home in,
+  PgUp out, keypad 1/2/3 keep/maybe/reject (his F11/F12 and every bound key left alone). VR: the wrist gadget's page
+  (TAKE/STOP, CLIP, IN, OUT, KEEP, MAYBE, REJECT, HIDE: touch buttons as Doom's) while a session is open; the in/out
+  chord `vr_takes_chord` 1: left grip held + X (in) / Y (out), 2: right grip + A / B; only during a take (both stick
+  clicks were taken: the menu gesture).
+- **Settings** (Graphics > Recording > Takes and Clips): vr_takes 1, vr_takes_replay 1, vr_takes_gadget 1,
+  vr_takes_chord 1, vr_takes_light 1, vr_takes_light_size 1, vr_takes_light_right -0.33, vr_takes_light_up 0.27,
+  vr_takes_light_dist 1.2, vr_takes_prompt_time 10, vr_takes_clip_seconds 30, vr_takes_connect_wait 5; vr_take_scene
+  (not saved), vr_obs_mock 0, vr_obs_mock_dir "".
+- **Test:** `vr_takes_test <folder>` (C++, one step a frame on conditions, the fixed clock): 14 passed, 0 failed -- the
+  t01_unrated name, in/out marks at 0.500 / 1.000 s, a 1.514 s take, two chapters asked, the prompt, keep, reject into
+  rejected/, the session's replay buffer, a clip t03_clip of 20 s, rated maybe, take 1 rated again by number, a new
+  session's take numbered t04 from the files. Eyeshot (`vr_eyeshot 3`): the red light and "REC start 0:00 [1]" upper
+  left in the eye; the prompt "T01: KEEP / MAYBE / REJECT?" after; the gadget page dumped (`vr_gadget_screen_dump`).
