@@ -328,6 +328,16 @@ vector(vector vel, vector flick, float mass, float hands) throwvelocity = #0;
 // the base damage's, over that factor, times `curvemult`, eased in); 3 (mass, hands, rate) a throw's spin rate (rad/s)
 // limited by its mass. VR_Thrown_*, VR_Throw_Spin.
 float(float what, float mass, ...) throwweight = #0;
+// The map's style round `p` (Quake/vr/vr_mapstyle.cpp; DYNAMIC_SPAWNS.md): VR_STYLE_* (0 unknown, 1 base, 2 medieval,
+// 3 runic, 4 water, 5 slime, 6 lava). For the dynamic spawns' placement rules; nothing reads it yet.
+float(vector p) mapstyle = #0;
+float VR_STYLE_UNKNOWN = 0;
+float VR_STYLE_BASE = 1;
+float VR_STYLE_MEDIEVAL = 2;
+float VR_STYLE_RUNIC = 3;
+float VR_STYLE_WATER = 4;
+float VR_STYLE_SLIME = 5;
+float VR_STYLE_LAVA = 6;
 // Rocks and bricks lying about (engine vr_debris.cpp; vr_debris.qc): placing them (after the map's entities: how
 // many), piece i's model, and putting piece i on an entity with its model set (its skin, size, turn, place on the floor
 // and box; its kind: 1 a rock, 2 a brick, 0 none).

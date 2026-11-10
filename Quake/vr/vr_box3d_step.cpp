@@ -9,6 +9,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_decals.hpp"
+#include "vr_material_shared.h"
 #include "vr_move.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
@@ -382,15 +383,30 @@ namespace
     }
 }
 
-// A body's own Float, times the liquid's: armour sinks (the knights, the death knights, the enforcers).
+// A body's own Float, times the liquid's: armour sinks. The kinds drawn in armour (the knights, the death knights, the
+// enforcers) by their kind; anyone wearing plates (QC .vr_ar_mask: an armoured grunt too) by the plates worn, the
+// material table's rate (vr_material_shared.h VR_MAT_PLATE_SINK); the lower of the two.
 [[nodiscard]] float ownFloat(const edict_t* ent)
 {
     const char* name = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's knights in plate sink as knights
+    float own = 1.f;
     if(!strcmp(name, "monster_knight") || !strcmp(name, "monster_hell_knight") || !strcmp(name, "monster_ranged_knight"))
     {
-        return 0.85f;
+        own = 0.85f;
     }
-    return !strcmp(name, "monster_enforcer") ? 0.92f : 1.f;
+    else if(!strcmp(name, "monster_enforcer"))
+    {
+        own = 0.92f;
+    }
+    const int maskField = fields().vr_ar_mask;
+    int plates = 0;
+    for(unsigned bits = maskField >= 0 ? static_cast<unsigned>(fieldFloat(const_cast<edict_t*>(ent), maskField)) : 0u; bits != 0u;
+        bits &= bits - 1u)
+    {
+        plates++;
+    }
+    return za::min(own, 1.f - za::min(static_cast<float>(VR_MAT_PLATE_SINK) * static_cast<float>(plates),
+                                     static_cast<float>(VR_MAT_PLATES_SINK_MOST)));
 }
 
 // A ragdoll's torso (its pelvis, its chest or spine): it floats more (the lungs) than its head and limbs.
@@ -1158,7 +1174,9 @@ void callRagImpacts()
 // holding hand swung lately: not only dragged), its whole body going at a quarter of vr_kdtrig_thrown_speed or more,
 // its parts' boxes meeting a living monster's box. (Ragdolls pass through living monsters' bodies in the physics: the
 // boxes are the contact.) Each pair once a frame, after the step; the QC judges it (the weights, the momentum, its
-// cooldown).
+// cooldown). vr_kdtrig_flung: a body no hand holds, flung by anything (a blast, a fall, a kick), strikes by the same
+// rule: its momentum, not who threw it. A wall-mounted thing (QC .vr_mount: a wall torch) is met too: its mount's
+// detach rule judges the strike (QC vr_mount.qc VR_Mount_BodyHit).
 struct BodyHit
 {
     int body{0};
@@ -1182,6 +1200,7 @@ void callBodyHits()
     }
     const double window = static_cast<double>(za::max(vr_kdtrig_thrown_window.value, 0.f));
     const float least = 0.25f * za::max(vr_kdtrig_thrown_speed.value, 1.f);
+    const int mountField = fields().vr_mount;
     za::Array<BodyHit, bodyHitsMost> hits{};
     int count = 0;
     for(RagdollBodies& r : world->ragdolls)
@@ -1195,7 +1214,8 @@ void callBodyHits()
         const bool held = za::findIf(world->ragdollGrabs.begin(), world->ragdollGrabs.end(),
                               [num](const World::RagdollGrab& g) { return g.num == num && g.player >= 1; }) !=
                           world->ragdollGrabs.end();
-        if(!thrown && !(held && !dragged(num)))
+        const bool flung = vr_kdtrig_flung.value != 0.f && !held;
+        if(!thrown && !flung && !(held && !dragged(num)))
         {
             continue;
         }
@@ -1239,8 +1259,13 @@ void callBodyHits()
         for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
         {
             edict_t* e = EDICT_NUM(n);
-            if(n == num || e->free || e->v.health <= 0.f || !(static_cast<int>(e->v.flags) & FL_MONSTER) ||
-                static_cast<int>(e->v.solid) == SOLID_NOT)
+            if(n == num || e->free)
+            {
+                continue;
+            }
+            const bool mounted = mountField >= 0 && fieldFloat(e, mountField) != 0.f;
+            if(!mounted && (e->v.health <= 0.f || !(static_cast<int>(e->v.flags) & FL_MONSTER) ||
+                               static_cast<int>(e->v.solid) == SOLID_NOT))
             {
                 continue;
             }

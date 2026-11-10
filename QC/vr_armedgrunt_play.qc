@@ -885,15 +885,20 @@ void() VR_AG_PlayPrecache =
 float vr_ag_tries; // disarm attempts (VR_AG_DisarmTry; the tests)
 
 // Who threw `e` (a weapon, a prop, a gib) at its weapon: its owner when a player (world: not known).
-entity(entity e) VR_AG_Thrower = { return (e.owner.flags & FL_CLIENT) ? e.owner : world; };
+// Who threw `e`: a player or a monster (a grunt's thrown thing disarms another grunt in infighting: the player is not
+// special; DYNAMIC_SPAWNS.md, the 2026-11-09 audit's quick wins).
+entity(entity e) VR_AG_Thrower = { return (e.owner.flags & (FL_CLIENT | FL_MONSTER)) ? e.owner : world; };
 
 // Every try at its weapon, whatever came of it (his notes 2026-11-01 18:03, 18:37: a shot or a parried strike on one
 // that hadn't seen you left it calm). It turns on whoever tried (VR_Provoke: you unseen or with notarget too, it knows
 // what was done to it); knocked out of its hand, it staggers on its feet for vr_agrunt_disarm_stagger s (the parry's
 // flinch, VR_Parry_InterruptFor; never a ragdoll: a fall drops what the other hand holds, VR_AG_FallDrop). `by` world
 // (the tools', the tests' own disarms): nothing.
+entity vr_ag_last_try_by; // who made the last try at a weapon (the tests read it: vr_systems_test 14)
+
 void(entity g, entity by, float outcome) VR_AG_DisarmTry =
 {
+    vr_ag_last_try_by = by;
     g.vr_ag_struck_at = time; // (lying: the blow's knock on its body is no fall's impact, VR_AG_FallImpact)
     if(!by || by == g || g.health <= 0)
     {
