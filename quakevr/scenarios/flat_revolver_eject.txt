@@ -1,0 +1,9 @@
+# flat_revolver_eject: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the revolver fired empty swings its cylinder out by itself and throws out its spent shells; the reload swings it home (QC vr_flatreload.qc, vr_flat_revolver_eject; flatreload_test.sh revempty, revolver).
+title Flat-screen: the revolver ejects its spent shells
+hint Play with -flatscreenmode. Fire all six shots of the heavy revolver: a moment after the last one its cylinder swings out and the spent blue shells fall out; the trigger only clicks. Press R: it reloads and the cylinder swings home. Fired only a few times, R swings it out, drops just the spent shells and swings it home. Tunables > Flatscreen > Reload: Revolver Swing-Out Delay, Close Delay.
+map vrtesthall
+god
+cvar vr_flat_reload 1
+cvar vr_flat_revolver_eject 1
+give "Heavy Revolver" main
+spawn "Grunt" 360 0
