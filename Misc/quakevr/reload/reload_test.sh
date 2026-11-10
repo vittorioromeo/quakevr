@@ -275,6 +275,11 @@ done
 PY=${PY:-py -3.13}
 SSGCHECKS="$(dirname "$0")/ssg_checks.py" # (by the script's own place: run from elsewhere the three checks on it read nothing and failed)
 check $($PY "$SSGCHECKS" ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight (the notch sight's inserts) is on the barrels part (it swings open with them), none on the frame"
+# The two parts closed round the hinge (the author's 2026-11-10 marks: missing faces, open barrels' end): seen from 26
+# ways at 10, 45 and 80 degrees open, the back of a triangle (a hole) at most 60 pixels a pose (hairlines; 8000-15000 before).
+om=$($PY "$SSGCHECKS" openmodel)
+echo "  $om"
+check $(echo "$om" | grep -oE "back [0-9]+" | awk '$2 > 60 {bad=1} END {print bad ? 0 : 1}') "the open super shotgun's two parts have no holes round the hinge (back faces seen at most 60 px a pose)"
 # The sights' colour: recoloured (the player's hue) on the super shotgun shut, fired, open and shut again, and on the
 # shotgun's auto pump's parts (its fore-end held back), as on the gun itself. Seen from above and behind (the gun held level):
 # since 2026-11 both guns' glowing inserts are on their sights' back faces (a side view sees none); at least 15 pixels.
