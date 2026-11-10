@@ -531,6 +531,16 @@ float(entity p, float xHand) VR_HandMotionTracked =
     return !(p.handsynth & (xHand == cVR_MainHand ? VR_HANDSYNTH_MAIN : VR_HANDSYNTH_OFF));
 };
 
+// Whether hand `xHand` of `p` moves as a button's action this move (the engine's handsource Action: flatscreen V's punch,
+// a weapon's overhead swing): asked for by a press, so its blow is deliberate (VR_Melee_Decide). (16 and 32 of .handsynth:
+// the hand's physics body lets bodies through, read by the engine's box3d.)
+float VR_HANDACTION_OFF = 4;
+float VR_HANDACTION_MAIN = 8;
+float(entity p, float xHand) VR_HandMotionAction =
+{
+    return (p.handsynth & (xHand == cVR_MainHand ? VR_HANDACTION_MAIN : VR_HANDACTION_OFF)) != 0;
+};
+
 float(entity ent) VRIsWeaponReloadingEnabled =
 {
     // Flatscreen play (-flatscreenmode): every gun reloads at the hip holsters (VR's Hip Holsters mode, whatever the

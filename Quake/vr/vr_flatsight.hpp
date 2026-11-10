@@ -117,6 +117,10 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
 [[nodiscard]] bool adsHelper(int h);
 
+// What the crosshair is on: the ray through the middle of the screen, stopped where a shot's would stop (monsters' models,
+// the world). The guns aim at it; flatplay's punch, swing and shove go for it (flatplay meleeAimPoint).
+[[nodiscard]] glm::vec3 crosshairHit(const hands::State& s, const glm::vec3& aim);
+
 // The stance (vr_flat_stance). How far the free hand `h` is drawn on the held long gun's two-handed hotspot, 0..1: the view
 // draws it there with the pose a helping hand has there (no grip: twohand::drawnTransition). 0 in a headset.
 [[nodiscard]] float lookShare(int h);

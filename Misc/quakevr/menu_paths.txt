@@ -1374,7 +1374,10 @@ vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movemen
 vr_flat_shove_push|1|Locomotion|Shove Strength|Advanced VR Options > Movement > Locomotion > Shove Strength
 vr_flat_shove_reach|1|Locomotion|Shove Reach|Advanced VR Options > Movement > Locomotion > Shove Reach
 vr_flat_shove_damage|1|Locomotion|Shove Damage|Advanced VR Options > Movement > Locomotion > Shove Damage
-vr_flat_shove_time|1|Locomotion|Shove Time|Advanced VR Options > Movement > Locomotion > Shove Time
+vr_flat_shove_wind_time|1|Locomotion|Shove Windup Time|Advanced VR Options > Movement > Locomotion > Shove Windup Time
+vr_flat_shove_push_time|1|Locomotion|Shove Push Time|Advanced VR Options > Movement > Locomotion > Shove Push Time
+vr_flat_shove_hold_time|1|Locomotion|Shove Hold Time|Advanced VR Options > Movement > Locomotion > Shove Hold Time
+vr_flat_shove_recover_time|1|Locomotion|Shove Recovery Time|Advanced VR Options > Movement > Locomotion > Shove Recovery Time
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
 vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
@@ -4213,10 +4216,8 @@ vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tun
 vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
-vr_flat_shove_wind_share|2|Tunables|Shove Windup Share|Advanced VR Options > Debug > Tunables > Shove Windup Share
-vr_flat_shove_push_share|2|Tunables|Shove Push Share|Advanced VR Options > Debug > Tunables > Shove Push Share
-vr_flat_shove_hold_share|2|Tunables|Shove Hold Share|Advanced VR Options > Debug > Tunables > Shove Hold Share
 vr_flat_shove_wind_back|2|Tunables|Shove Windup Back|Advanced VR Options > Debug > Tunables > Shove Windup Back
+vr_flat_shove_pass_bodies|2|Tunables|Shove Hands Pass Bodies|Advanced VR Options > Debug > Tunables > Shove Hands Pass Bodies
 vr_flat_shove_wind_up|2|Tunables|Shove Windup Up|Advanced VR Options > Debug > Tunables > Shove Windup Up
 vr_flat_shove_aim_up|2|Tunables|Shove Target Height|Advanced VR Options > Debug > Tunables > Shove Target Height
 vr_flat_shove_palm|2|Tunables|Shove Palms Out|Advanced VR Options > Debug > Tunables > Shove Palms Out
@@ -4240,10 +4241,21 @@ vr_flat_swing_back|2|Tunables|Swing Return Time|Advanced VR Options > Debug > Tu
 vr_flat_swing_raise_up|2|Tunables|Swing Top: Above Eye|Advanced VR Options > Debug > Tunables > Swing Top: Above Eye
 vr_flat_swing_raise_fwd|2|Tunables|Swing Top: Ahead|Advanced VR Options > Debug > Tunables > Swing Top: Ahead
 vr_flat_swing_raise_out|2|Tunables|Swing Top: Out|Advanced VR Options > Debug > Tunables > Swing Top: Out
-vr_flat_swing_wind_pitch|2|Tunables|Swing Top: Weapon Up|Advanced VR Options > Debug > Tunables > Swing Top: Weapon Up
+vr_flat_swing_raise_pitch|2|Tunables|Swing Top: Weapon Up|Advanced VR Options > Debug > Tunables > Swing Top: Weapon Up
+vr_flat_swing_raise_yaw|2|Tunables|Swing Top: Weapon Yaw|Advanced VR Options > Debug > Tunables > Swing Top: Weapon Yaw
+vr_flat_swing_raise_roll|2|Tunables|Swing Top: Weapon Roll|Advanced VR Options > Debug > Tunables > Swing Top: Weapon Roll
 vr_flat_swing_end_pitch|2|Tunables|Swing End: Weapon Down|Advanced VR Options > Debug > Tunables > Swing End: Weapon Down
 vr_flat_swing_end_pitch_melee|2|Tunables|Swing End: Melee Weapon Down|Advanced VR Options > Debug > Tunables > Swing End: Melee Weapon Down
 vr_flat_swing_end_down|2|Tunables|Swing End: Under Crosshair|Advanced VR Options > Debug > Tunables > Swing End: Under Crosshair
+vr_flat_swing_end_fwd|2|Tunables|Swing End: Ahead|Advanced VR Options > Debug > Tunables > Swing End: Ahead
+vr_flat_swing_end_out|2|Tunables|Swing End: Out|Advanced VR Options > Debug > Tunables > Swing End: Out
+vr_flat_swing_end_yaw|2|Tunables|Swing End: Weapon Yaw|Advanced VR Options > Debug > Tunables > Swing End: Weapon Yaw
+vr_flat_swing_end_roll|2|Tunables|Swing End: Weapon Roll|Advanced VR Options > Debug > Tunables > Swing End: Weapon Roll
+vr_flat_swing_end_yaw_melee|2|Tunables|Swing End: Melee Weapon Yaw|Advanced VR Options > Debug > Tunables > Swing End: Melee Weapon Yaw
+vr_flat_swing_end_roll_melee|2|Tunables|Swing End: Melee Weapon Roll|Advanced VR Options > Debug > Tunables > Swing End: Melee Weapon Roll
+vr_flat_melee_hold_yaw|2|Tunables|Melee Weapon Held: Yaw|Advanced VR Options > Debug > Tunables > Melee Weapon Held: Yaw
+vr_flat_melee_hold_roll|2|Tunables|Melee Weapon Held: Roll|Advanced VR Options > Debug > Tunables > Melee Weapon Held: Roll
+vr_flat_melee_aim_hit|2|Tunables|Melee Aims At Crosshair Hit|Advanced VR Options > Debug > Tunables > Melee Aims At Crosshair Hit
 vr_flat_swing_cam_up|2|Tunables|Swing View Tip Up|Advanced VR Options > Debug > Tunables > Swing View Tip Up
 vr_flat_swing_cam_down|2|Tunables|Swing View Tip Down|Advanced VR Options > Debug > Tunables > Swing View Tip Down
 vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug > Tunables > Swing Chest Back

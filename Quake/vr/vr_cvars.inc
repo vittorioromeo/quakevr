@@ -4059,7 +4059,10 @@ QVR_CVAR(vr_flat_shove_cooldown, "0.8", CVAR_ARCHIVE) // seconds after a shove b
 QVR_CVAR(vr_flat_shove_push, "1", CVAR_ARCHIVE)       // how hard it throws what it reaches back, times the headset's one-hand shove (vr_shove_push_onehand)
 QVR_CVAR(vr_flat_shove_damage, "1", CVAR_ARCHIVE)     // its damage, times the headset's one-hand shove's
 QVR_CVAR(vr_flat_shove_reach, "1.15", CVAR_ARCHIVE)   // how far ahead of the hand it reaches, times the headset shove's (VR_BASH_REACH; 1.15: his notes 2026-11-08, 15% more lenient)
-QVR_CVAR(vr_flat_shove_time, "0.4", CVAR_ARCHIVE)     // seconds the hand's push takes, out and back (the shove lands as the hand reaches its furthest, a third of the way in)
+QVR_CVAR(vr_flat_shove_wind_time, "0.14", CVAR_ARCHIVE) // seconds the shove's windup takes: the hands drawn back, the palms turning to the target (0..1; until 2026-11-10 a share of vr_flat_shove_time 0.4)
+QVR_CVAR(vr_flat_shove_push_time, "0.06", CVAR_ARCHIVE) // seconds the push out takes; the shove lands at its end (0.02..0.5)
+QVR_CVAR(vr_flat_shove_hold_time, "0.04", CVAR_ARCHIVE) // seconds the hands stay out after it (0..0.5)
+QVR_CVAR(vr_flat_shove_recover_time, "0.16", CVAR_ARCHIVE) // seconds the hands take back to where they were (0.05..1); the cooldown is at least the four together
 QVR_CVAR(vr_flat_shove_anim_reach, "64", CVAR_ARCHIVE) // units the hand pushes out ahead of where it rests (the animation only; 0..96; 64: his value 2026-11-08, was 14)
 QVR_CVAR(vr_handsource_gate, "1", CVAR_ARCHIVE)        // 1: hand motion the game makes up (the flat-screen look, a lean, the wall tilt: vr_handsource.cpp) triggers no gesture (a swing, a flick, a pry); 0: every motion does, as before (a test's comparison, a way back)
 QVR_CVAR(vr_handsource_force, "0", CVAR_NONE)         // test aid: 1 marks both hands' motion synthesized every frame (as the flat-screen pose's), in a headset too: no gesture may fire on it (vr_handsource.cpp; crawl_test.py)

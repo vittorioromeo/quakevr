@@ -10,7 +10,14 @@
 #      (pitch down, a roll);
 #   6. the axe's overhead swing: the hand over the eye, the weapon turned up past 60 degrees and down past 20, the view
 #      tipped back and then forward, and the knight 24 units ahead hurt by it (one read after it, against his 75);
-#   7. the shotgun's (V) overhead swing: the same arc.
+#   7. the shotgun's (V) overhead swing: the same arc;
+#   8. (round 2, 2026-11-10) the axe raised behind the head (vr_flat_swing_raise_fwd -12, his quick 0.075 s strike) still
+#      hurts a fresh knight as hard (it missed: the melee rules took the strike for a wave; a button's blow is deliberate);
+#   9. the swing's end on the crosshair's ray (vr_flat_melee_aim_hit: what the ray hits, clamped to the arm's reach): the
+#      axe's and the shotgun's hands under 1.5 units beside it (the shotgun's at the old point, vr_flat_melee_aim_hit 0,
+#      printed for comparison);
+#  10. a grunt 16 ahead shoved (the hands pass through it on their way back, vr_flat_shove_pass_bodies): read every few
+#      frames from the landing, it never comes back towards him and ends over 30 units further than it was.
 # Every wait is a blow's own frames at 72 a second (a shove 0.4 s: 29, and its 0.8 s cooldown: 58; a punch 0.6 s: 44; a
 # swing 0.79 s: 57) with some to spare; the run ends on the probe's own "flatmelee: done" line. Prints PASS/FAIL per
 # check; exits 1 on a failure. (The order is the hands': empty first, then the launcher, then a shotgun in each.)
@@ -27,7 +34,13 @@ S="$S; impulse 160; wait60; vr_flat_shove_now; wait65"
 S="$S; tune vr_flat_shove_both_always 1; vr_flat_shove_now; wait65; tune_reset vr_flat_shove_both_always"
 S="$S; impulse 154; wait20; impulse 174; wait20; vr_flat_shove_now; wait65"
 S="$S; impulse 152; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_flat_punch main; wait70; vr_test_hurt 1; wait5"
-S="$S; vr_test_kill 1; wait5; impulse 154; wait20; vr_flat_punch main v; wait70; vr_flat_melee_probe done; wait2; toggleconsole; quit"
+S="$S; vr_test_kill 1; wait5; impulse 154; wait20; vr_flat_punch main v; wait70"
+S="$S; tune vr_flat_melee_aim_hit 0; vr_flat_punch main v; wait70; tune_reset vr_flat_melee_aim_hit"
+S="$S; impulse 152; wait20; tune vr_flat_swing_raise_fwd -12; tune vr_flat_swing_strike 0.075; impulse 241; wait20; vr_flat_punch main; wait70; vr_test_hurt 1; wait5"
+S="$S; tune_reset vr_flat_swing_raise_fwd; tune_reset vr_flat_swing_strike"
+R="vr_test_hurt -1"
+S="$S; vr_test_kill 1; wait5; vr_test_spawn 0; vr_test_spawn_dist 16; impulse 241; wait30; vr_flat_shove_now; wait14; $R; wait6; $R; wait6; $R; wait6; $R; wait6; $R; wait10; $R; wait30; $R"
+S="$S; vr_flat_melee_probe done; wait2; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$S" -QuitOn "flatmelee: done" -Timeout 120 \
     -Filter "^flatmelee:|test hurt:|still out|vr_flat_punch:|flatplay: .*(shove|punch)" > "$log" 2>&1
 grep -a "flatmelee: \(main\|off\)\|flatplay: shove" "$log" | sed 's/^/  /'
@@ -49,5 +62,14 @@ done
 health=$(grep -a "test hurt:" "$log" | head -1 | grep -ao "health [0-9.]*" | awk '{ print $2 + 0 }')
 echo "  the knight after the axe's swing: ${health:-?} of 75 ($log)"
 check $(ok "${health:-75} < 75") "overhead swing, the axe: the knight in front is hurt"
+back=$(grep -a "test hurt:" "$log" | sed -n 2p | grep -ao "health [0-9.]*" | awk '{ print 75 - $2 }')
+echo "  the axe raised behind the head (raise_fwd -12, strike 0.075 s): ${back:-?} damage"
+check $(ok "${back:-0} >= 30") "overhead swing, the axe raised behind the head: it still lands (30 damage or more)"
+offAxe=$(pick 'main swing' 1 off); offGun=$(pick 'main swing' 2 off); offOld=$(pick 'main swing' 3 off)
+echo "  the hand beside the crosshair's ray at the strike's end: the axe ${offAxe:-?}, the shotgun ${offGun:-?} units (the shotgun at the old fixed point: ${offOld:-?})"
+check $(ok "${offAxe:-99} >= 0 && ${offAxe:-99} < 1.5 && ${offGun:-99} >= 0 && ${offGun:-99} < 1.5") "overhead swing: it ends on the crosshair's ray"
+ds=$(grep -a "test hurt: monster_army" "$log" | grep -ao "[0-9.]* u away" | awk '{ print $1 }' | tr '\n' ' ')
+echo "  the shoved grunt, from the landing on: $ds"
+check $(echo "$ds" | awk '{ ok = NF >= 6; for(i = 2; i <= NF; i++) if($i < $(i - 1) - 1) ok = 0; if($NF < $1 + 30) ok = 0; print ok }') "shove: the grunt is never pulled back by the hands' way back, and ends 30 further"
 verdict
 exit $fail

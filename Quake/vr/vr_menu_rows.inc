@@ -6421,9 +6421,16 @@ QVR_SLIDER(vr_flat_shove_reach, "Shove Reach", 0.5f, 3.f, 0.05f, "x%.2f", noExt,
 QVR_SLIDER(vr_flat_shove_damage, "Shove Damage", 0.f, 3.f, 0.05f, "x%.2f", noExt,
     "Playing on the desktop screen: how much damage a shove does, times the headset's one-hand shove "
     "(vr_flat_shove_damage). 0 shoves without hurting.")
-QVR_SLIDER(vr_flat_shove_time, "Shove Time", 0.1f, 1.5f, 0.05f, "%.2f s", noExt,
-    "Playing on the desktop screen: seconds the hand's push takes, out and back; the shove lands as the hand "
-    "reaches its furthest, a third of the way in (vr_flat_shove_time). The cooldown is at least this long.")
+QVR_SLIDER(vr_flat_shove_wind_time, "Shove Windup Time", 0.f, 1.f, 0.01f, "%.2f s", noExt,
+    "Playing on the desktop screen: seconds the shove's windup takes, the hands drawn back with the palms turning "
+    "to the target (vr_flat_shove_wind_time).")
+QVR_SLIDER(vr_flat_shove_push_time, "Shove Push Time", 0.02f, 0.5f, 0.01f, "%.2f s", noExt,
+    "Playing on the desktop screen: seconds the push out takes; the shove lands at its end (vr_flat_shove_push_time).")
+QVR_SLIDER(vr_flat_shove_hold_time, "Shove Hold Time", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
+    "Playing on the desktop screen: seconds the hands stay out after the push (vr_flat_shove_hold_time).")
+QVR_SLIDER(vr_flat_shove_recover_time, "Shove Recovery Time", 0.05f, 1.f, 0.01f, "%.2f s", noExt,
+    "Playing on the desktop screen: seconds the hands take to go back to where they were; they pass through what "
+    "they shoved on the way (vr_flat_shove_recover_time). The cooldown is at least the four times together.")
 QVR_SLIDER(vr_flat_shove_anim_reach, "Shove Hand Travel", 0.f, 96.f, 1.f, "%.0f u", noExt,
     "Playing on the desktop screen: how far the hand pushes out ahead of where it rests, in game units. The "
     "animation only: how far the shove reaches is Shove Reach (vr_flat_shove_reach).")
