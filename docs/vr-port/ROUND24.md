@@ -8123,6 +8123,36 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   now read against a new shot 7, the same moment at viewsize 120.
 - Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.
 
+## A popped limb's blood fountain very close, and the particle2 log (his notes 2026-11-10, items 9 and 11; branch `agent/near_particles`)
+
+Item 9: "if I shoot a limb and pop it while I'm very close to it, the blood particle waterfall will not appear until I
+move a little bit". **Not reproduced.**
+
+- **The waterfall** is the stump's fountain: `VR_Decap_FountainThink` (vr_decap.qc; limbs too, `vr_limb_bone` >= 0).
+  Every 0.05 s it sends a `particle2` BloodTrail burst at the stump, `ragdollcut(c, 4/5, bone)`. That goes out as a
+  broadcast (`sv.datagram`, no PVS), and the client spawns it with `particles::bloodTrail`. Nothing near the eye stops
+  it on that path.
+- **New `vr_flatblood_test 5`** (Debug > Tests > Blood Fountain of a Limb Popped Close; flat or headset). He crouches by
+  a settled corpse, his eye 30, 12 and 4 units across from a limb's point (15-24 over it), and keeps still. The limb
+  pops (vr_limb_test 24's blow on that corpse alone). Frames 6-36 after the pop (the pop's own burst before that)
+  measure the fountain's blood particles, made and drawn (`vr_blood_tally`, `_drawn`), with pictures at frames 8
+  and 24.
+  - **Variants:** `6` steps 3 units 4 frames after the pop (him moving, to compare). `7` pops the limb his way,
+    shotgun taps at it (each popped on the first tap).
+  - **Every case:** popped 1, its fountain there, 240-860 particles in those 30 frames. Drawn: all at 30 and 4 units,
+    53-87 % at 12 units. The rest are thrown up past his head, behind the eye's plane. That is the same with him still
+    and stepped, at his near fade/cull 0 and at the defaults, flat and headset.
+  - `vr_debug_net 1` shows no broadcast bytes left unsent.
+- **Not found in this harness:** the server sends the fountain, the client makes the particles, and they are where the
+  view draws them, from the first frames.
+- **Left for his repro:** a picture or a short demo of the moment (where his eye and the stump are) would tell. The
+  candidates are the flat off-hand arm and gun over the stump at his feet, which moving sways (the earlier
+  point-blank note's), or a pose the harness doesn't reach (standing right over a limb, or a live grunt's limb popped
+  by the killing shot).
+- **Item 11:** the developer-1 `particle2:` console line (vr_client.cpp `parseParticle2`) is removed.
+- Tests: flatblood 5 3/0 (flat, his near 0; headset), 7 3/0 (flat, defaults), 2 5/0. flatblood 1 26/2: its known flaky
+  corpse cases, the 60-unit reference against a gibbed corpse. `vr_pp_test 1` 63/0, `vr_player_gore_test` 8/0,
+  `vr_embed_test 31` 4/0, embed_blood_test.sh 16/0. Release-TracyFull builds.
 ## Visor: centre prints in a popup panel (branch `agent/visor_centerprint`, worktree `release`, 2026-11-10)
 
 His words: "make the 'centered messages' in flat screen appear as a rectangular popup panel in the visor, a little bit
