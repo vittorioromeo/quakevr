@@ -1,7 +1,0 @@
-# systems_chain: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vr_systems_test 15 sets its own stage: a grunt, a wall torch, two crates; the kill flings the body.
-title A body flung into a wall torch lights the crates
-map vrtesthall
-god
-notarget
-cmd developer 1
-cmd vr_systems_test 15

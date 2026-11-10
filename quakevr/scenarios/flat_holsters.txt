@@ -1,9 +1,0 @@
-# flat_holsters: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen holsters and the
-# holster menu (vr_flat_holsters; ROUND24.md, "Flat-screen holsters and the holster menu"): the test hall, the shotgun in
-# the right hand and the nailgun in the left. A flat line: start the game with -flatscreenmode.
-title Flat holsters: the holster menu
-map vrtesthall
-cvar vr_flat_holsters 1
-cmd impulse 154
-cmd impulse 176
-hint Hold the mouse wheel's button: time slows, the view blurs, the crosshair fades and the holster menu shows your six holsters on a figure and your two hands. Trade guns with L and R, drop one with the arrow, swap the hands; 1, 2 and 4 to 9 pick nothing.
