@@ -161,9 +161,13 @@ Flatscreen > Reload's times:
 - The magazines are always drawn in flat-screen play (`magazinesShown()` in `Quake/vr/vr_view.cpp`: the held guns',
   the holsters', the guns lying about; full with `vr_flat_reload 0`). Its box is sent as in VR (where an ejected one
   starts), but a flat hand never takes hold of it (`magazineHand`).
-- `vr_flat_revolver_eject` (1): the revolver's reload swings its cylinder out as the trip starts (`VR_Revolver_Open`),
-  its spent shells out (`VR_Revolver_Eject` with `vr_rv_keep_live`: the live ones stay in), and home
-  `vr_flat_reload_close_delay` after the rounds go in (`VR_Revolver_Close`).
+- `vr_flat_revolver_eject` (1): the revolver fired empty swings its cylinder out by itself
+  `vr_flat_revolver_open_delay` (0.15 s) after its last shot (`VR_Revolver_Open`), its six spent shells thrown out
+  (`VR_Revolver_Eject`), and stays out until the reload (its HandFrame no longer swings it home), a dry click a pull
+  (`VR_Revolver_Attack`, flat play only; in a headset a pull out does nothing, as before). A reload with live shells left
+  swings it out as the trip starts, only the spent ones out (`vr_rv_keep_live`). Either way it swings home
+  `vr_flat_reload_close_delay` after the rounds go in (`VR_Revolver_Close`); brought back loaded (a weapon cycle, a
+  pickup) it is home again quietly (`VR_Revolver_Home`).
 Anything still due when the hand gets to the hip (an empty gun reloaded at once) is thrown out there first. A trip
 cancelled leaves the super shotgun open (a gun brought back loaded is closed and has its magazine again); the revolver's
 cylinder swings home by itself. There is one flat reload mode (the hip trip); these apply to it.

@@ -4094,6 +4094,7 @@ vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug 
 vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR Options > Debug > Tunables > Reload: Super Shotgun Break Delay
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
+vr_flat_revolver_open_delay|2|Tunables|Reload: Revolver Swing-Out Delay|Advanced VR Options > Debug > Tunables > Reload: Revolver Swing-Out Delay
 vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
 vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
 vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time

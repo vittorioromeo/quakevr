@@ -47,13 +47,18 @@ VTWO="vr_mock_button main trigger 1; wait40; vr_mock_button main trigger 0; wait
 run vrhip "" "$BASE; vr_reload_mode 1; +grabmain; vr_mock_button main grip 1; wait2; $SG; $VTWO; $TWO; $REP; vr_mock_hand_to main holster 5; wait20; $REP"
 
 # The guns' own parts (his words 2026-11-10): the super shotgun (wid 5) fired empty breaks open after
-# vr_flat_ssg_break_delay, fires nothing open, and R shuts it; the nailgun (6) fired empty drops its magazine and R seats a
-# new one; the revolver (31) fired: R swings its cylinder out, its spent shells out (as many as fired), home with 6 live; and the
-# visor crosshair's kick (vr_flat_xhair_kick): none before a shot, spread just after, back to none.
+# vr_flat_ssg_break_delay, dry-clicks open (its second pull past the shot's cooldown, 150 frames on), and R shuts it; the
+# nailgun (6) fired empty drops its magazine and R seats a new one; the revolver (31) fired with shells left: R swings its
+# cylinder out, its spent shells out (as many as fired), home with 6 live; the revolver fired empty (revempty: six pulls,
+# vr_revolver_cooldown 0.3 s = 22 frames apart): its cylinder out by itself after vr_flat_revolver_open_delay, its 6
+# spent shells out, a dry click, R: home with 6 live; and the visor crosshair's kick (vr_flat_xhair_kick): none before a
+# shot, spread just after, back to none. (The first pull waits 30 frames after the weapon is given: its cooldown.)
 FILTER="^(flat ?reload|flathud: (left|right) hand|  stance|flatreload_test|reload: |a dry click|flatxhair: (main|off) kick)"
-run ssg "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 5; impulse 149; give s 50; wait5; +attack; wait3; -attack; wait72; +attack; wait3; -attack; wait10; $R; wait62"
+run ssg "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 5; impulse 149; give s 50; wait30; +attack; wait3; -attack; wait150; +attack; wait3; -attack; wait10; $R; wait62"
+PULL="+attack; wait3; -attack; wait30"
+run revempty "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait30; $PULL; $PULL; $PULL; $PULL; $PULL; $PULL; wait10; $PULL; $R; wait62"
 run mag "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 6; impulse 149; give n 200; wait5; +attack; wait500; -attack; wait20; $R; wait62"
-run revolver "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait5; +attack; wait5; -attack; wait60; +attack; wait5; -attack; wait60; $R; wait62"
+run revolver "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait30; +attack; wait5; -attack; wait60; +attack; wait5; -attack; wait60; $R; wait62"
 run kick "$FLAT" "$BASE; vr_flat_reload 0; vr_flat_xhair_style 1; $SG; wait10; vr_flat_xhair_probe; +attack; wait4; -attack; vr_flat_xhair_probe; wait90; vr_flat_xhair_probe"
 
 python "$HERE/flatreload_check.py" "$S"

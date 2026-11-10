@@ -149,7 +149,7 @@ else:
     check(False, "vrhip: the headset's holster reload reported")
 
 # The guns' own parts (his words 2026-11-10; vr_flatreload.qc).
-for run in ("ssg", "mag", "revolver", "kick"):
+for run in ("ssg", "mag", "revolver", "revempty", "kick"):
     check(ended(run), f"{run}: the run reached its last line")
 BREAK_DELAY = 0.15  # vr_flat_ssg_break_delay
 L = lines("ssg")
@@ -160,7 +160,7 @@ check(bool(brk) and brk[0].group(1) == "2" and brk[0].group(2) == "0" and brk[0]
       abs(float(brk[0].group(3)) - BREAK_DELAY) <= TOL,
       f"ssg: fired empty, it breaks open by itself {brk[0].group(3) if brk else '?'} s after the shot (vr_flat_ssg_break_delay "
       f"{BREAK_DELAY}), its 2 spent shells thrown out")
-# (Open, its trigger fires nothing; the dry click VR's open gun gives isn't heard in flat play yet: ROUND24.md.)
+check(any("a dry click: the super shotgun" in l for l in L), "ssg: open, the trigger only clicks")
 shut = [l for l in L if "closed by flat-screen play" in l]
 check(bool(shut) and shut[0].rstrip().endswith("2 loaded") and len(brk) == 1,
       f"ssg: R shuts it with 2 loaded ({shut[0].strip() if shut else 'not shut'}), broken open once")
@@ -181,6 +181,19 @@ fired = int(rst[0].group(5)) - int(rst[0].group(4)) if rst else -1
 check(bool(ej) and fired > 0 and int(ej[0].group(1)) == fired and ej[0].group(2) == "0",
       f"revolver: its spent shells out ({fired} fired), the live ones kept in ({ej[0].group(0) if ej else 'none'})")
 check(bool(home) and home[0].group(1) == "6", f"revolver: home again with 6 live ({home[0].group(0) if home else 'not home'})")
+# revempty: fired empty, its cylinder out by itself with its 6 spent shells, a dry click out, R: home with 6 live.
+L = lines("revempty")
+iout = [i for i, l in enumerate(L) if "swung out by flat-screen play: fired empty" in l]
+ej = [m for m in (re.search(r"its shells out by flat-screen play: fired empty: (\d+) spent, (\d+) live", l) for l in L) if m]
+click = [i for i, l in enumerate(L) if "a dry click: the revolver" in l]
+rst = all_of("revempty", START)
+home = [m for m in (re.search(r"swung home by flat-screen play: the reload.*, (\d+) live", l) for l in L) if m]
+check(len(iout) == 1 and not any("swung out by flat-screen play: the reload" in l for l in L),
+      "revempty: fired empty, its cylinder swings out by itself (once; not again for the reload)")
+check(bool(ej) and ej[0].group(1) == "6" and ej[0].group(2) == "0", f"revempty: its 6 spent shells out ({ej[0].group(0) if ej else 'none'})")
+check(bool(click) and bool(iout) and click[0] > iout[0], "revempty: out, the trigger only clicks")
+check(bool(rst) and rst[0].group(4) == "0" and bool(home) and home[0].group(1) == "6",
+      f"revempty: R from empty, home again with 6 live ({home[0].group(0) if home else 'not home'})")
 kicks = [float(m.group(1)) for m in (re.match(r"^flatxhair: main kick [\d.]+ spread ([\d.]+) px", l) for l in lines("kick")) if m]
 check(len(kicks) == 3 and kicks[0] == 0 and kicks[1] > 2 and kicks[2] < 0.5,
       f"kick: the crosshair spreads with the shot's recoil and settles back (spread {kicks} px)")

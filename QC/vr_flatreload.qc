@@ -22,8 +22,11 @@
 //     (vr_flat_mag_eject: VR_Reload_EjectOut, as VR's eject button, pushed out at vr_flat_mag_eject_speed; the nail pistol's
 //     slides out of its grip first); none in (QVR_WPNFLAG_NOMAG, the clients draw none) until the reload seats a new one at
 //     the hip. A clip not yet empty reloaded by R keeps its magazine (its rounds back into the reserve, as before);
-//   - the revolver's reload swings its cylinder out as the trip starts, its spent shells thrown out (the live ones stay in:
-//     vr_rv_keep_live), and home vr_flat_reload_close_delay after the rounds go in (vr_flat_revolver_eject).
+//   - the revolver fired empty swings its cylinder out by itself vr_flat_revolver_open_delay after its last shot, its spent
+//     shells thrown out (his words 2026-11-10: "the revolver cylinder to automatically get ejected when all shots were
+//     fired"), and only dry-clicks out; a reload with live rounds left swings it out as the trip starts, only the spent
+//     ones out (vr_rv_keep_live). Either way it swings home vr_flat_reload_close_delay after the rounds go in
+//     (vr_flat_revolver_eject).
 // Anything still due when the hand gets to the hip is done there first (an empty gun reloaded at once: R, Auto Reload).
 //
 // developer 1 prints each step ("flat reload: ...").
@@ -39,6 +42,9 @@ float vr_rv_keep_live;   // (VR_Revolver_Eject: only the spent shells out)
 void(float xHand, entity r, string xHow) VR_Revolver_Open; // (vr_revolver.qc)
 void(float xHand, entity r, string xHow) VR_Revolver_Close;
 void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject;
+float(entity r) VR_Revolver_IsOut;
+void(entity r) VR_Revolver_Home;
+float(entity r, float xState) VR_Revolver_Count;
 .float vr_flatrl_at0;    // the off hand's: when its trip started,
 .float vr_flatrl_at1;    // the main hand's
 .float vr_flatrl_done0;  // whether its rounds went in
@@ -122,8 +128,15 @@ float(float xHand) VR_FlatReload_MagEjects =
            !(VRGetEntWeaponFlags(self, xHand) & QVR_WPNFLAG_FOREGRIP_CARRIED) && VRIsWeaponReloadingEnabledFor(self, xHand);
 };
 
+// Whether the gun in `xHand` of self is the revolver whose cylinder swings out by itself (vr_flat_revolver_eject).
+float(float xHand) VR_FlatReload_RevolverOpens =
+{
+    return VR_FlatPlay(self) && cvar_hget(cvarh_vr_flat_revolver_eject) && VRGetEntWeapon(self, xHand) == WID_REVOLVER &&
+           VRGetEntWeaponInst(self, xHand) != world && VRIsWeaponReloadingEnabledFor(self, xHand);
+};
+
 // Whether the gun in `xHand` of self is fired empty with something to throw out: a closed super shotgun's spent shells,
-// a magazine gun's empty magazine (in, not already sliding out).
+// a magazine gun's empty magazine (in, not already sliding out), the revolver's spent shells (its cylinder home).
 float(float xHand) VR_FlatReload_EjectWanted =
 {
     if(VRIsHandWeaponless(self, xHand) || VRGetEntWeaponClip(self, xHand) > 0)
@@ -134,6 +147,11 @@ float(float xHand) VR_FlatReload_EjectWanted =
     if(VR_FlatReload_SsgBreaks(self, xHand))
     {
         return !(f & QVR_WPNFLAG_SSG_OPEN) && VR_Reload_SsgSpentOf(f) > 0;
+    }
+    if(VR_FlatReload_RevolverOpens(xHand))
+    {
+        entity r = VRGetEntWeaponInst(self, xHand);
+        return !VR_Revolver_IsOut(r) && VR_Revolver_Count(r, 2) > 0;
     }
     return VR_FlatReload_MagEjects(xHand) && !(f & QVR_WPNFLAG_NOMAG) && !(self.vr_mag_out & VR_FlatReload_Bit(xHand));
 };
@@ -164,6 +182,15 @@ void(float xHand, string xWhy) VR_FlatReload_EjectNow =
     if(VR_FlatReload_SsgBreaks(self, xHand))
     {
         VR_Reload_SsgBreak(self, xHand, how);
+    }
+    else if(VR_FlatReload_RevolverOpens(xHand))
+    {
+        // Its cylinder out, its spent shells out (VR's own: the casings, the sounds); it stays out until the reload.
+        entity r = VRGetEntWeaponInst(self, xHand);
+        VR_Revolver_Open(xHand, r, how);
+        vr_rv_keep_live = TRUE;
+        VR_Revolver_Eject(xHand, r, how, '0 0 0');
+        vr_rv_keep_live = FALSE;
     }
     else
     {
@@ -199,12 +226,24 @@ void(float xHand) VR_FlatReload_EjectFrame =
             {
                 VRSetEntWeaponFlags(self, xHand, VRGetEntWeaponFlags(self, xHand) - QVR_WPNFLAG_SSG_OPEN);
             }
+            if(VR_FlatReload_RevolverOpens(xHand) && VR_Revolver_IsOut(VRGetEntWeaponInst(self, xHand)))
+            {
+                VR_Revolver_Home(VRGetEntWeaponInst(self, xHand));
+            }
         }
         return;
     }
     if(!due)
     {
-        float wait = VR_FlatReload_SsgBreaks(self, xHand) ? cvar_hget(cvarh_vr_flat_ssg_break_delay) : cvar_hget(cvarh_vr_flat_mag_eject_delay);
+        float wait = cvar_hget(cvarh_vr_flat_mag_eject_delay);
+        if(VR_FlatReload_SsgBreaks(self, xHand))
+        {
+            wait = cvar_hget(cvarh_vr_flat_ssg_break_delay);
+        }
+        else if(VR_FlatReload_RevolverOpens(xHand))
+        {
+            wait = cvar_hget(cvarh_vr_flat_revolver_open_delay);
+        }
         due = time + max(0, wait);
         VR_FlatReload_SetDue(xHand, due);
     }
@@ -236,7 +275,7 @@ void(float xHand, string xWhy) VR_FlatReload_Shut =
     {
         VR_Reload_SsgClose(self, xHand, how);
     }
-    else if(w == WID_REVOLVER) // (swung out by this trip: VR_FlatReload_Start)
+    else if(w == WID_REVOLVER && VR_Revolver_IsOut(VRGetEntWeaponInst(self, xHand))) // (out for this trip)
     {
         VR_Revolver_Close(xHand, VRGetEntWeaponInst(self, xHand), how);
     }
@@ -265,13 +304,17 @@ void(float xHand, string xWhy) VR_FlatReload_Start =
     {
         shut = TRUE; // (VR_FlatReload_Shut: if it is open by then)
     }
-    else if(w == WID_REVOLVER && cvar_hget(cvarh_vr_flat_revolver_eject))
+    else if(VR_FlatReload_RevolverOpens(xHand))
     {
+        // (Swung out already when it was fired empty: as it is. Else, live rounds left: out now, its spent shells out.)
         entity r = VRGetEntWeaponInst(self, xHand);
-        VR_Revolver_Open(xHand, r, "flat-screen play: the reload");
-        vr_rv_keep_live = TRUE;
-        VR_Revolver_Eject(xHand, r, "flat-screen play: the reload", '0 0 0');
-        vr_rv_keep_live = FALSE;
+        if(!VR_Revolver_IsOut(r))
+        {
+            VR_Revolver_Open(xHand, r, "flat-screen play: the reload");
+            vr_rv_keep_live = TRUE;
+            VR_Revolver_Eject(xHand, r, "flat-screen play: the reload", '0 0 0');
+            vr_rv_keep_live = FALSE;
+        }
         shut = TRUE;
     }
     if(xHand == cVR_MainHand)
