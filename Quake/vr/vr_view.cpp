@@ -2189,6 +2189,7 @@ float setRevolverPart(view::ViewEntity& part, const view::ViewEntity& gun, const
         return 0.f;
     }
     const qmodel_t* last = part.lastModel;
+    const entity_t was = part.ent; // (its own frame blending, last frame's)
     part = gun;
     part.ent.model = m;
     part.ent.skinnum = skin;
@@ -2197,6 +2198,19 @@ float setRevolverPart(view::ViewEntity& part, const view::ViewEntity& gun, const
         part.ent.frame = keepFrame ? 0 : frame;
         part.ent.lerpflags |= LERP_RESETANIM;
         part.zeroBlend = 0.f;
+    }
+    else if(was.model == m)
+    {
+        // The hammer's frames blended by the part itself, from its own last frame: the gun drawn in its parts isn't drawn
+        // itself, so its blending never moves on, and copied each frame it put the hammer straight onto each new frame
+        // (his note 2026-11-10: "the hammer goes down instantly"). The renderer blends from here as for any model.
+        // (Its frame blending only: its place is the gun's this frame.)
+        part.ent.lerpstart = was.lerpstart;
+        part.ent.lerptime = was.lerptime;
+        part.ent.animlerpfinish = was.animlerpfinish;
+        part.ent.previouspose = was.previouspose;
+        part.ent.currentpose = was.currentpose;
+        part.ent.lerpflags &= ~LERP_RESETANIM;
     }
     part.lastModel = last;
     const glm::vec3 base{gun.ent.angles[0], gun.ent.angles[1], gun.ent.angles[2]};
@@ -2264,6 +2278,15 @@ void setupRevolverParts()
         const glm::vec3 cylAt = rvPivot + rvTurnX(rvCylInCrane, swing);
         const float turn = swing + st.cyl;
         setRevolverPart(entities.rvFrame[hand], gun, rvFrameModel, glm::vec3{0.f}, 0.f, 0, 0, true);
+        if(vr_reload_debug.value >= 3 && developer.value && entities.rvFrame[hand].ent.model)
+        {
+            // (Each frame: the hammer's frames as drawn, the two poses blended and how far, against the gun's own frame.)
+            const view::ViewEntity& fr = entities.rvFrame[hand];
+            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(fr.ent.model));
+            const anchor::DrawnPoses d = anchor::drawnPoses(fr.ent, hdr);
+            Con_Printf("revolver frames: t %.4f hand %d frame %d gun %d poses %d %d blend %.3f\n", vr_gametime, hand, fr.ent.frame,
+                gun.ent.frame, d.a, d.b, static_cast<double>(d.blend));
+        }
         float err = setRevolverPart(entities.rvCrane[hand], gun, rvCraneModel, rvPivot, swing, 0, 0, false);
         err = za::max(err, setRevolverPart(entities.rvCyl[hand], gun, rvCylModel, cylAt, turn, (bits & rvRodBit) ? 1 : 0, 0, false));
         int loaded = 0;
