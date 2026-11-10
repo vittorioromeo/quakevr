@@ -270,11 +270,14 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     }
     // As drawn by the last render, carried along with the hand since (hands::State::placedFrom: after a map load, a load
     // or a teleport the last render's muzzle is where the hand was, and the server's line from the hand to it crossed
-    // the map).
+    // the map). And turned with the play space: a snap turn (or the stick's) since the render turned the hand and the
+    // blade about the body, and the server's line from the hand to a muzzle left where the turn began put the gibs on a
+    // blade a frame off it, 48 cm on a 45-degree snap (vr_embed_probe_skewj). Flatscreen play's muzzle is already carried
+    // with the hand's turn (and aimed: vr_flatsight.cpp keepMuzzle sets it for this move).
     const glm::vec3 since = hs.pos[h] - hs.placedFrom[h];
     if(hs.muzzleValid[h])
     {
-        const glm::vec3 muzzle = hs.muzzle[h] + since;
+        const glm::vec3 muzzle = flatplay::active() ? hs.muzzle[h] + since : hands::carriedSincePlaced(hs, h, hs.muzzle[h]);
         glm::vec3 f, r, u;
         hands::angleVectors(hs.visualRot[h], f, r, u);
         const glm::vec3 d = muzzle - hs.pos[h];

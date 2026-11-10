@@ -13,10 +13,15 @@
 // the keys instead of the sticks, +right and +forward (case 1: a faster turn, +speed, for the snap turns), the drawn
 // gib against the blade as flat play draws it (its sway, bob and turn's lag: vr_held.cpp followDrawnHands).
 // Each case also checks vr_embed_probe_skewj: the most the gib's place in the server's hand moved frame to frame (a jitter).
+// With the headset (2026-11-10: the server's blade line went to the muzzle as the last render left it, carried with the
+// hand's move but not its turn, vr_client.cpp handMuzzle: 48 cm on a snap, 4.9 cm turning) at most VR_E9_JITTER_SNAP on the
+// snap turns, VR_E9_JITTER_TURN otherwise.
 // Ends `embed1108b: N passed, M failed`.
 
 float VR_E9_MOST = 0.5;  // cm: the most a drawn gib may be off its place on the drawn blade
-float VR_E9_JITTER = 0.1; // cm: the most its place in the server's hand may move from one frame to the next
+float VR_E9_JITTER = 0.1; // cm: the most its place in the server's hand may move from one frame to the next (flat)
+float VR_E9_JITTER_SNAP = 1; // cm: the same with the headset, on a 45-degree snap turn
+float VR_E9_JITTER_TURN = 0.5; // cm: and on a smooth turn or a move
 float VR_E9_HOLD = 0.75; // s of the stick held (54 frames)
 float vr_e9_snap;        // vr_snap_turn as the test began
 float vr_e9_flat;        // flat-screen play: the keys, not the sticks
@@ -156,9 +161,9 @@ void() VR_E9_Step =
         else
         {
             float did = vr_et_case == 2 ? moved > 32 : turned > 30;
-            // (Flat: the gib's place in the server's hand steady too. With the headset only printed: a stick turn moves it
-            // for a frame, up to the snap's whole turn: ROUND24.md, "Flat-screen: gibs on the blade".)
-            VR_Test_Check(did && n > 10 && off >= 0 && off <= VR_E9_MOST && (!vr_e9_flat || jit <= VR_E9_JITTER),
+            // (The gib's place in the server's hand steady too: ROUND24.md, "VR: gibs on a blade through a snap turn".)
+            float most = vr_e9_flat ? VR_E9_JITTER : (vr_et_case == 1 ? VR_E9_JITTER_SNAP : VR_E9_JITTER_TURN);
+            VR_Test_Check(did && n > 10 && off >= 0 && off <= VR_E9_MOST && jit <= most,
                 sprintf("case %g (%s): the drawn gib stays on the drawn blade %s", vr_et_case,
                 vr_et_case == 0 ? "smooth turn" : (vr_et_case == 1 ? "snap turns" : (vr_et_case == 2 ? "a move" : "a turn and a move")), what));
         }

@@ -1195,6 +1195,11 @@ glm::vec3 calibrationOffset(int hand)
     return hand >= 0 && hand < 2 ? calibratedOffset[hand] : glm::vec3{0.f};
 }
 
+glm::vec3 carriedSincePlaced(const State& s, int h, const glm::vec3& placed)
+{
+    return s.pos[h] + rotateYaw(placed - s.placedFrom[h], s.turnYaw - s.placedTurnYaw);
+}
+
 glm::vec3 palmPoint(const State& s, int hand)
 {
     return s.palmValid[hand] ? s.pos[hand] + redirect(s.palmLocal[hand], s.rot[hand]) : s.pos[hand];
