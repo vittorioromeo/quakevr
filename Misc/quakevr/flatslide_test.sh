@@ -3,9 +3,11 @@
 # "Leaning"; Quake/vr/vr_flatmove.cpp), headless. Prints PASS/FAIL lines and a verdict, exits 1 on a failure.
 #   slide  vr_flatslide_selftest (the slide's step on made-up floors: flat friction, downhill to the top speed, uphill
 #          to a stop), then vr_flatslide_test in vrtesthall: running, the crouch starts a slide (the boost), it lasts
-#          what its friction gives, ends in a crouch; slide again and jump: the speed kept in the air. Then
-#          vr_flatslide_rough_test: up vrtesthall's stairs and ramp, no step nor ramp ending it; A alone and D alone
-#          curve it, the view turned 10 degrees off its way.
+#          what its friction gives, ends in a crouch, the prone key mid-slide doing nothing, its stamina in all its
+#          parts; slide again and jump: the speed kept in the air, its first stamina part alone; too tired: no slide.
+#          Then vr_flatslide_rough_test: up vrtesthall's stairs and ramp, no step nor ramp ending it; A alone and D
+#          alone curve it, the view turned 10 degrees off its way. vr_flatslide_hit_test 0 and 1: a slide into a crate
+#          pushes it on and to the side; into a grunt knocks it (the slide's charge).
 #   lean   vr_flatlean_test in vrtesthall: a full lean right moves the eye vr_flat_lean_dist and rolls the view; a shot
 #          across the leant head out of his box meets him (and not with his box alone); walking leant is
 #          vr_flat_lean_speed of upright; leant into a wall at his side the eye stays vr_flat_lean_margin off it; leant
@@ -43,7 +45,14 @@ out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide: [0-9]+ passed" -Tim
     -Script "vr_flatslide_selftest; $H; +forward; vr_flatslide_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslide.*\(FAIL\|passed\)"
 expect_verdict "$out" "flatslide_selftest" "slide: the step on flat, downhill and uphill floors"
-expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a crouch, the jump keeps the speed"
+expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a crouch, no prone mid-slide, its stamina, the jump keeps the speed, too tired no slide"
+
+for HIT in 0 1; do
+    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_hit: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_hit" \
+        -Script "$H; vr_flatslide_hit_test $HIT; wait3000; toggleconsole; quit" 2>&1)
+    echo "$out" | grep -a "^flatslide_hit.*FAIL"
+    expect_verdict "$out" "flatslide_hit" "slide into $([ $HIT = 0 ] && echo "a crate: pushed on and aside" || echo "a grunt: knocked")"
+done
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_rough" \
     -Script "$H; vr_flatslide_rough_test; wait3000; toggleconsole; quit" 2>&1)

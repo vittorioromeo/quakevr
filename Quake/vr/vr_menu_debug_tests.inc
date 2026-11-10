@@ -711,8 +711,16 @@ za::Vector<Item> pageDebugTests()
                   "uphill to a stop (flatslide_selftest: lines, a verdict)."),
         command("Flat Slide: Run And Slide", "+forward; vr_flatslide_test")
             .help("vr_flatslide_test (-flatscreenmode only, open level ground ahead, cl_alwaysrun 1): runs you forward, "
-                  "crouches at full speed (a slide), lets go, slides again and jumps in it (flatslide: lines, a verdict). "
-                  "Let go of +forward after (-forward)."),
+                  "crouches at full speed (a slide; the prone key mid-slide does nothing, its stamina in parts), lets go, "
+                  "slides again and jumps in it (its first stamina part alone), then too tired crouches without a slide "
+                  "(flatslide: lines, a verdict). Let go of +forward after (-forward)."),
+        command("Flat Slide: Into A Crate", "vr_flatslide_hit_test 0")
+            .help("vr_flatslide_hit_test 0 (-flatscreenmode only, map vrtesthall): puts you in the hall's open south-west, a crate "
+                  "200 units ahead, runs and slides into it: it goes on and to the side (flatslide_hit: lines, a verdict)."),
+        command("Flat Slide: Into A Grunt", "vr_flatslide_hit_test 1")
+            .help("vr_flatslide_hit_test 1 (-flatscreenmode only, map vrtesthall; notarget): puts you in the hall's open south-west, a "
+                  "grunt 200 units ahead, runs and slides into it: the slide's charge knocks it down or back (flatslide_hit: "
+                  "lines, a verdict)."),
         command("Flat Speed FOV: Walk, Run, Slide, Hop", "vr_flat_speed_fov_test")
             .help("vr_flat_speed_fov_test (-flatscreenmode only, open level ground ahead): walks, runs (the view its own "
                   "field of view), slides (it widens), stands (it eases back), then strafe-jumps a bunny hop chain (it "

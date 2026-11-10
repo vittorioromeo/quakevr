@@ -172,6 +172,8 @@ struct LieTest
     float yawMax{0.f}, bendMax{0.f}, footMax{0.f};
     int bendAt{0};
     float bendPelvis{0.f};
+    float bentMin{1e9f}; // the leg with its knee bent up on purpose (vr_flat_slide_knee_bend, _knee_leg): its least bend
+
     float stanceBefore{0.f};
     // The slide's sound: slides started before, the scrape's level at the first and last frames of the full pose.
     int startsBefore{0};
@@ -357,6 +359,11 @@ void testFrame()
                     test.yawMax, test.stanceBefore);
                 check(test.bendMax < 16.f, "slide: the legs straighter (knee bend at most %.0f deg, under 16; 35 before; frame %d of %d, pelvis %.1f)",
                     test.bendMax, test.bendAt, test.slideFrames, test.bendPelvis);
+                if(vr_flat_slide_knee_bend.value >= 0.15f)
+                {
+                    check(test.bentMin > 30.f && test.bentMin < 150.f, "slide: the %s knee bent up (at least %.0f deg; 30..150 asked)",
+                        vr_flat_slide_knee_leg.value != 0.f ? "right" : "left", test.bentMin);
+                }
                 const float k = probe.body.m2w;
                 check(test.footMax < 0.16f * k, "slide: the feet on the floor (at most %.1f units over it)", test.footMax);
                 check(test.pelvisMax - test.pelvisMin < 1.f, "slide: no bob (the pelvis over the floor %.2f .. %.2f)", test.pelvisMin,
@@ -399,9 +406,16 @@ void testFrame()
                 test.eyeMin = za::min(test.eyeMin, eye);
                 test.eyeMax = za::max(test.eyeMax, eye);
                 test.yawMax = za::max(test.yawMax, za::abs(m.yawOff));
-                if(test.slideFrames >= 5 && za::max(m.bend[0], m.bend[1]) > test.bendMax) // (past the ease in)
+                // (The straight leg; the other's knee is bent up on purpose, his note 2026-11-10: vr_flat_slide_knee_bend.)
+                const int bentLeg = vr_flat_slide_knee_bend.value > 0.f ? (vr_flat_slide_knee_leg.value != 0.f ? 1 : 0) : -1;
+                const float straight = bentLeg == 0 ? m.bend[1] : bentLeg == 1 ? m.bend[0] : za::max(m.bend[0], m.bend[1]);
+                if(test.slideFrames >= 5 && bentLeg >= 0)
                 {
-                    test.bendMax = za::max(m.bend[0], m.bend[1]);
+                    test.bentMin = za::min(test.bentMin, m.bend[bentLeg]);
+                }
+                if(test.slideFrames >= 5 && straight > test.bendMax) // (past the ease in)
+                {
+                    test.bendMax = straight;
                     test.bendAt = test.slideFrames;
                     test.bendPelvis = m.pelvis;
                 }
