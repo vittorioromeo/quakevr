@@ -1,9 +1,0 @@
-# flat_slide_pose: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides on vrtesthall's open floor with two shotguns: the guns ride the eye as they sit crouched (docs/vr-port/ROUND24.md, "Flat slide: the arms ride the eye"; vr_flatslidepose_test, Quake/vr/vr_flatleanpose.cpp).
-title Flat-screen slide: the guns held as crouched
-hint Play with -flatscreenmode. Crouch still and note where the two shotguns sit, then run and crouch at speed to slide, looking ahead, a little down and a little up: the guns keep their crouched place on the screen, not pulled to the face or dropped low; then switch to one gun (2) and slide again.
-map vrtesthall
-start -580 -440 24 0
-god
-notarget
-give "Shotgun" main
-give "Shotgun" off
