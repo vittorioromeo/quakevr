@@ -142,6 +142,7 @@ struct GreyPics
     za::Array<za::Vector<byte>, PicCount> pic{};  // Draw_PicBytes() each (Draw_ReplacePic's)
     za::Array<za::Vector<byte>, PicCount> data{}; // its texels (palette indices, 255 transparent): kept while drawn
     za::Array<bool, PicCount> ok{};
+    za::Array<glm::vec3, PicCount> hue{};         // its own colour (the mean of its texels', brightest component 1): picHue
 };
 GreyPics greys;
 
@@ -179,6 +180,7 @@ void buildGreys()
         const int n = p->width * p->height;
         float lum[64 * 64];
         float top = 0.f;
+        glm::vec3 sum{0.f};
         for(int t = 0; t < n; t++)
         {
             const byte index = p->data[t];
@@ -186,11 +188,14 @@ void buildGreys()
             if(index != 255)
             {
                 const unsigned c = d_8to24table[index];
-                lum[t] = 0.2126f * static_cast<float>(c & 255) + 0.7152f * static_cast<float>((c >> 8) & 255) +
-                         0.0722f * static_cast<float>((c >> 16) & 255);
+                const glm::vec3 rgb{static_cast<float>(c & 255), static_cast<float>((c >> 8) & 255), static_cast<float>((c >> 16) & 255)};
+                lum[t] = 0.2126f * rgb.r + 0.7152f * rgb.g + 0.0722f * rgb.b;
                 top = za::max(top, lum[t]);
+                sum += rgb * lum[t]; // (the bright texels count most: the hue the picture reads as)
             }
         }
+        const float most = za::max(sum.r, za::max(sum.g, sum.b));
+        greys.hue[i] = most > 0.f ? sum / most : glm::vec3{1.f};
         za::Vector<byte>& d = greys.data[i];
         d.resize(static_cast<za::SizeT>(n));
         for(int t = 0; t < n; t++)
@@ -223,6 +228,12 @@ void buildGreys()
 [[nodiscard]] bool picOk(int id)
 {
     return id < PicAdArtifact || greyPic(id) != nullptr;
+}
+
+// Picture `id`'s own colour (its texels' mean, brightest component 1; white when it has none): a key's silver or gold.
+[[nodiscard]] glm::vec3 picHue(int id)
+{
+    return greyPic(id) ? greys.hue[id] : glm::vec3{1.f};
 }
 
 // The screen's font: the console's (gl_draw.c's char_texture, padded 10 x 10 cells), its white half's greys stretched
@@ -411,6 +422,9 @@ void number(float x, float y, int value, int digits, const glm::vec3& rgb, float
     numberRun(x + static_cast<float>(digits - length) * 24.f * scale, y, str, 24.f * scale, 24.f * scale, rgb, pal);
 }
 
+// The powerups in their pictures' order (PicPowerup + i).
+constexpr int powerupBits[4] = {IT_INVISIBILITY, IT_INVULNERABILITY, IT_SUIT, IT_QUAD};
+
 // What the screen shows: the client's state, or made-up readings (vr_gadget_test_state).
 struct Readout
 {
@@ -421,6 +435,7 @@ struct Readout
     int handType[2]{-1, -1}; // its ammo's picture (0 shells .. 3 cells), -1 none (a fist, a melee weapon)
     int pools[4]{0, 0, 0, 0};
     int items{0};
+    int powerSecs[4]{0, 0, 0, 0}; // each powerup's seconds left (powerupBits' order; 0: not held, or no time known)
     meleehud::State melee;
     bullettime::Meter time;
     const char* relight{nullptr}; // the maps being relit (relight::indicator), null when none are
@@ -459,6 +474,14 @@ struct Readout
     r.pools[2] = cl.stats[STAT_ROCKETS];
     r.pools[3] = cl.stats[STAT_CELLS];
     r.items = cl.items;
+    for(int i = 0; i < 4; i++)
+    {
+        // Quake's thirty seconds from the pickup (cl.item_gettime: the client's time the bit came on).
+        int bit = 0;
+        while((1 << bit) != powerupBits[i]) { bit++; }
+        const int secs = static_cast<int>(30.0 - (cl.time - static_cast<double>(cl.item_gettime[bit])) + 0.999);
+        r.powerSecs[i] = (r.items & powerupBits[i]) ? CLAMP(0, secs, 30) : 0;
+    }
     r.melee = meleehud::state();
     r.time = bullettime::meter();
     r.relight = relight::indicator();
@@ -521,6 +544,10 @@ struct Readout
             break;
         case 5: // every key, powerup and sigil; big numbers, a long name
             r.items |= IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD | static_cast<int>(0xF0000000u);
+            for(int i = 0; i < 4; i++)
+            {
+                r.powerSecs[i] = 27 - 5 * i; // (27, 22, 17, 12)
+            }
             r.health = 250;
             r.armor = 200;
             r.armorType = 2;
@@ -552,6 +579,28 @@ struct Readout
         default: break;
     }
     return r;
+}
+
+// AD support: Arcane Dimensions' readings as the wrist's AD page and the visor's side panels show them (one place).
+// Artifact i (STAT_QVR_ADHUD's bits 0-5)'s name and seconds left: 0 not held, 255 held for good (AD_HudSeconds).
+constexpr const char* adArtifactNames[6] = {"AEGIS", "AIR TANK", "BLASTBELT", "JUMPBOOTS", "SHARPSHOT", "PIERCER"};
+[[nodiscard]] int adArtifactSeconds(const Readout& r, int i)
+{
+    return (r.adHud & (1 << i)) ? (r.adArt[i / 3] >> (8 * (i % 3))) & 255 : 0;
+}
+// The debuffs (the page's order): poison and bleeding (the damage still to come), burning (its seconds); their ADHUD bits,
+// their amounts byte d of STAT_QVR_ADDEBUFF.
+constexpr const char* adDebuffNames[3] = {"POISON", "BLEEDING", "BURNING"};
+constexpr int adDebuffBits[3] = {128, 256, 64};
+[[nodiscard]] int adDebuffAmount(const Readout& r, int d)
+{
+    return (r.adHud & adDebuffBits[d]) ? (r.adDebuff >> (8 * d)) & 255 : 0;
+}
+// Custom key k (0 .. 3)'s picture (by its HUD skin: AD's skin 0 is adib_ckey1), -1 when not held or not loaded.
+[[nodiscard]] int adKeyPic(const Readout& r, int k)
+{
+    const int pic = PicAdKey + CLAMP(0, (r.adKeys >> (4 * k)) & 15, 13);
+    return (r.adHud & (512 << k)) && picOk(pic) ? pic : -1;
 }
 
 // The screen (240 x 150), on one grid, the most important at the top and biggest:
@@ -797,8 +846,8 @@ void infoRows(const Readout& r, const Palette& pal)
     }
     for(int k = 0; k < 4; k++)
     {
-        const int pic = PicAdKey + CLAMP(0, (r.adKeys >> (4 * k)) & 15, 13);
-        if((r.adHud & (512 << k)) && picOk(pic)) { add(pic, nullptr, pal.label); }
+        const int pic = adKeyPic(r, k);
+        if(pic >= 0) { add(pic, nullptr, pal.label); }
     }
     constexpr const char* debuffs[3] = {"BURN", "POISON", "BLEED"};
     for(int d = 0; d < 3; d++)
@@ -1415,6 +1464,11 @@ VisorColors visorColors()
 int visorLogLines()
 {
     return visor.logLines;
+}
+
+VisorSides visorSides()
+{
+    return visor.sides;
 }
 
 bool togglePage()

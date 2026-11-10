@@ -6367,6 +6367,12 @@ QVR_SLIDER(vr_flat_visor_side_out, "Side Panels Reach", -4.f, 8.f, 0.05f, "x%.2f
     "How far the visor's side panels (keys on the left, powerups on the right) reach in from the screen's edges: under "
     "1 tucked against them, over 1 further in; under 0 pulled back past the edges, sliding off the screen. Their "
     "mounts always meet the edges (vr_flat_visor_side_out).")
+QVR_SLIDER(vr_flat_visor_side_scale, "Side Panels Size", 0.5f, 2.f, 0.05f, "x%.2f", noExt,
+    "The visor's side panels' size (keys and sigils on the left; powerups, artifacts and debuffs on the right), times "
+    "the panels' own; they grow with the screen's height as the rest (vr_flat_visor_side_scale).")
+QVR_SLIDER(vr_flat_visor_ink_crt, "Visor Readings CRT", 0.f, 1.f, 0.05f, "x%.2f", noExt,
+    "The scanlines and CRT look on the visor's readings (text, digits, icons), times theirs on the panels' faces: under "
+    "1 the glyphs stay crisp under the lines; 1 the same as the faces (vr_flat_visor_ink_crt).")
 QVR_SLIDER(vr_flat_visor_depth_opacity, "Back Plate Opacity", 0.f, 2.f, 0.05f, "x%.2f", noExt,
     "How solid each panel's back plate is, times the Visor Panel Backing (never past solid) "
     "(vr_flat_visor_depth_opacity).")

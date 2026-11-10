@@ -32,6 +32,10 @@ for line in log.split("\n"):
         if h:
             phases[phase].update(hits=int(h.group(1)), health=int(h.group(2)))
         continue
+    m = re.match(r"visor: sides left (\d+) right (\d+) shown (\d+) scale ([-\d.]+)", line.strip())
+    if m and "sides" not in phases[phase]:
+        phases[phase]["sides"] = (int(m.group(1)), int(m.group(2)), int(m.group(3)), float(m.group(4)))
+        continue
     m = re.match(r"visor: panel (\w+) drawn (\d) rect ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) contact (\d) "
                  r"\(view (\d+) x (\d+)\)", line.strip())
     if m and m.group(1) not in phases[phase]["panels"]:
@@ -145,5 +149,18 @@ check(H is not None and H[0] == 0 and get("log hidden", "logfade", 1) == 0 and B
       and get("log back", "logfade", 0) > 0.5,
       f"autohide: no lines, the log's mount gone ({get('log hidden', 'logfade')}); a message, back ({get('log back', 'logfade')})")
 
+# The side panels (vr_gadget_visor.inc visorSideLeft / Right; the mounts' fill: vr_visor_mounts.inc sideEdgeSeen).
+SL, SR = pan("rest", "sideleft"), pan("rest", "sideright")
+check(SL is not None and SR is not None and SL[1] < 0.02 * SL[5] and SR[3] > 0.98 * SR[5],
+      f"sides: the readings fill the face from the screen's edges (left from {SL and SL[1]}, right to {SR and SR[3]} of {SL and SL[5]})")
+check(get("sides keys", "sides") == (6, 4, 4, 1.0),
+      f"sides: test state 5 two keys and four sigils at the left, four powerups full size at the right ({get('sides keys', 'sides')})")
+sa = get("sides ad", "sides", (0, 0, 0, 0.0))
+check(sa[:3] == (2, 9, 9) and 0.5 <= sa[3] < 0.9,
+      f"sides: test state 6 AD's two custom keys; six artifacts and three debuffs, all shown, shrunk to fit ({sa})")
+A, B = pan("sides ad", "sideleft"), pan("sides big", "sideleft")
+ratio = (B[4] - B[2]) / (A[4] - A[2]) if A and B and A[4] > A[2] else 0
+check(1.4 < ratio < 1.6 and contact_all("sides big") and B[1] < 0.02 * B[5],
+      f"sides: vr_flat_visor_side_scale 1.5 the side panels half as tall again ({ratio:.2f}), the edges met")
 print(f"visor_test: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

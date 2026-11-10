@@ -5311,6 +5311,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Items: Walk Over|Advanced VR Options > Debug > Tests > Flat Items: Walk Over
 |2|Debug - Tests|Flat Gate|Advanced VR Options > Debug > Tests > Flat Gate
 |2|Debug - Tests|Flat Move: Speed|Advanced VR Options > Debug > Tests > Flat Move: Speed
+|2|Debug - Tests|Blood at Point Blank|Advanced VR Options > Debug > Tests > Blood at Point Blank
+|2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
@@ -8104,6 +8106,7 @@ vr_flat_visor_autohide_log|1|Visor HUD Look|Hide Empty Log Panel|Advanced VR Opt
 vr_flat_visor_log_width|1|Visor HUD Look|Log Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Size
 vr_flat_visor_log_out|1|Visor HUD Look|Log Panel Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Log Panel Reach
 vr_flat_visor_side_out|1|Visor HUD Look|Side Panels Reach|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Side Panels Reach
+vr_flat_visor_side_scale|1|Visor HUD Look|Side Panels Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Side Panels Size
 vr_flat_visor_zoom|1|Visor HUD Look|Visor Zoom|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Zoom
 vr_flat_visor_warp|1|Visor HUD Look|Visor Lens|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Lens
 vr_flat_visor_sway|1|Visor HUD Look|Visor Sway|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Sway
@@ -8133,6 +8136,7 @@ vr_flat_visor_crt|1|Visor HUD Look|Visor CRT Look|Advanced VR Options > Movement
 vr_flat_visor_scanlines|1|Visor HUD Look|Visor Scanlines|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanlines
 vr_flat_visor_scanline_speed|1|Visor HUD Look|Visor Scanline Speed|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanline Speed
 vr_flat_visor_scanline_width|1|Visor HUD Look|Visor Scanline Thickness|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Scanline Thickness
+vr_flat_visor_ink_crt|1|Visor HUD Look|Visor Readings CRT|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Readings CRT
 vr_flat_visor_ss|1|Visor HUD Look|Visor Supersampling|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Supersampling
 vr_flat_visor_damage|1|Visor HUD Look|Visor Hit Glitch|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Hit Glitch
 vr_flat_visor_shake|1|Visor HUD Look|Visor Hit Shake|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Hit Shake

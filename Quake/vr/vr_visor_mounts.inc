@@ -60,6 +60,7 @@ struct Layer
     float px1080{1.f};
     glm::vec2 overhang{0.f}; // how far (virtual pixels) the mounts run past the edges, across and down
     float sideOut{1.f};      // the side mounts' reach in from the edges (vr_flat_visor_side_out)
+    float sideScale{1.f};    // and their size (vr_flat_visor_side_scale, shrunk to fit between the corners')
     float logScale{1.f};     // the top middle mount's size (vr_flat_visor_log_width, shrunk to fit between the corners')
     float logOut{1.f};       // and its gap to the top edge (vr_flat_visor_log_out)
 };
@@ -170,6 +171,23 @@ struct Layer
     return out >= 0.f ? za::max(1.5f, mountInset * out) : 1.5f + mountInset * out;
 }
 
+// A side mount's (panel `p`'s) screen edge as seen at rest: the local x (virtual pixels, + into the screen) the edge of
+// the view shows over its rows (`halfH` either side of its middle), the innermost; under 0 where the zoom and the lens
+// show the layer past its own edge (vr_flat_visor_zoom under 1, a pincushion lens).
+constexpr float sideSwayRoom = 0.8f * mountInset; // (the sway's most: swayShift)
+[[nodiscard]] float sideEdgeSeen(const Layer& L, int p, float halfH)
+{
+    const MountPlace& m = mountPlaces[p];
+    const glm::vec2 a{m.anchor.x * L.w, m.anchor.y * L.h};
+    float most = -1e9f;
+    for(int i = -2; i <= 2; i++)
+    {
+        const glm::vec2 screen{a.x, a.y + static_cast<float>(i) * 0.5f * halfH * L.unit * L.zoom};
+        most = za::max(most, (unshownPx(L, screen).x - a.x) * m.dir.x / L.unit);
+    }
+    return most;
+}
+
 // Its contents' rectangle (local) and its mount's outline (local, from the far off-screen corner: a fan from its first
 // point covers it).
 struct Mount
@@ -201,9 +219,12 @@ struct Mount
         }
         case MountKind::Side:
         {
-            // (vr_flat_visor_side_out: the gap to the edge and the inner padding scaled, the chamfer clear of the contents;
-            // under 0.2 the padding and the chamfer stay at 0.2's, only the gap goes on shrinking, then past the edge)
-            const float inset = reachInset(L.sideOut), pad = mountPad * za::max(0.2f, L.sideOut);
+            // The contents from the screen's edge as seen (the zoom and the lens show the layer past its own edge there:
+            // an empty strip of face otherwise), with room for the sway. (vr_flat_visor_side_out: the gap to the edge
+            // and the inner padding scaled, the chamfer clear of the contents; under 0.2 the padding and the chamfer stay
+            // at 0.2's, only the gap goes on shrinking, then past the edge.)
+            const float inset = sideEdgeSeen(L, p, H * 0.5f) + sideSwayRoom + reachInset(L.sideOut);
+            const float pad = mountPad * za::max(0.2f, L.sideOut);
             const float cut = mountChamfer * za::clamp(L.sideOut, 0.2f, 1.f);
             m.lo = {inset, -H * 0.5f};
             m.hi = {inset + W, H * 0.5f};

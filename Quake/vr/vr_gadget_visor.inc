@@ -18,8 +18,9 @@
 // sweeps down each panel, what is under it still dark.
 
 constexpr float visorSizes[VisorPanelCount][2] = {
-    {120.f, 62.f}, {128.f, 62.f}, {96.f, 36.f}, {96.f, 36.f}, {240.f, 28.f}, {30.f, 120.f}, {30.f, 120.f}};
+    {120.f, 62.f}, {128.f, 62.f}, {96.f, 36.f}, {96.f, 36.f}, {240.f, 28.f}, {64.f, 132.f}, {64.f, 132.f}};
 constexpr int visorTexels = 3; // texels a virtual pixel (crisp at the panels' size on a 1080p screen and over)
+constexpr int visorSideTexels = 4; // the side panels' (grown by vr_flat_visor_side_scale)
 constexpr int visorLogRows = 3;
 constexpr int visorLogColumns = 33; // 7-pixel characters across the low panel
 const glm::vec3 visorBlack{0.f};    // (the face: clear on the screen)
@@ -29,6 +30,7 @@ struct VisorState
     za::Array<gfx::Target, VisorPanelCount> targets{};
     za::Array<bool, VisorPanelCount> shown{};
     int logLines{0};
+    VisorSides sides; // (the side panels' layout: the report's)
     // Each panel's last drawing (its dry run's signature: gfx::draw2D::beginSignature), the texture it went into and how
     // many times it was drawn (VisorImage::version): drawn again only when what it shows changed.
     za::Array<unsigned long long, VisorPanelCount> signatures{};
@@ -271,115 +273,196 @@ void visorLowLog(const Palette& pal, bool logOn)
     }
 }
 
-// A side mount's column: icons (a key, a sigil; their own aspect, 12 high) or a line of text, each with a small line of
-// text under it (a powerup's seconds), from the top; as many as fit.
-struct VisorEntry
-{
-    int pic{-1};
-    char text[8]{};
-    char note[8]{};
-    glm::vec3 rgb{1.f};
-};
+// The side panels (vr_flat_visor_side_scale sizes their mounts): their contents inside this margin, centred in the panel,
+// shrunk together when they don't fit. The keys in their own colours (Quake's silver and gold; AD's by their icons'
+// own, picHue) mixed this much into the values' near-white (the screens' palette kept); the other icons in the labels'
+// colour (the digits beside them brighter), a missing sigil this dim.
+constexpr float sideMargin = 4.f;
+constexpr float sideOwnColour = 0.8f;
+constexpr float sideMissing = 0.35f;
+const glm::vec3 keySilver{0.78f, 0.84f, 0.95f}, keyGold{1.f, 0.8f, 0.3f};
 
-void visorColumn(const za::Array<VisorEntry, 16>& entries, int count, const Palette& pal)
+[[nodiscard]] glm::vec3 visorKeyColour(const glm::vec3& own, const Palette& pal)
 {
-    const float w = visorSizes[VisorSideLeft][0], h = visorSizes[VisorSideLeft][1];
-    float y = 5.f;
-    for(int i = 0; i < count; i++)
-    {
-        const VisorEntry& e = entries[i];
-        const float step = 14.f + (e.note[0] ? 8.f : 0.f);
-        if(y + step > h - 3.f)
-        {
-            break;
-        }
-        if(e.pic >= 0)
-        {
-            const qpic_t* p = greyPic(e.pic);
-            const float iw = p ? za::min(w - 6.f, 12.f * static_cast<float>(p->width) / za::max(1.f, static_cast<float>(p->height))) : 12.f;
-            drawPicSized(za::round((w - iw) * 0.5f), y, e.pic, iw, 12.f, p ? static_cast<float>(p->width) : 16.f, e.rgb, pal);
-        }
-        else
-        {
-            const float tw = static_cast<float>(strlen(e.text)) * 5.f;
-            drawText(za::round((w - tw) * 0.5f), y + 3.f, 5.f, e.text, e.rgb, pal);
-        }
-        if(e.note[0])
-        {
-            const float nw = static_cast<float>(strlen(e.note)) * 6.f;
-            drawText(za::round((w - nw) * 0.5f), y + 13.f, 6.f, e.note, e.rgb, pal);
-        }
-        y += step;
-    }
+    const float bright = za::max(pal.value.r, za::max(pal.value.g, pal.value.b));
+    return glm::min(glm::mix(pal.value, own * bright, sideOwnColour), glm::vec3{1.f});
 }
 
-// The left side mount: the keys, the sigils and AD's custom keys.
+// The left side panel, from the top: Quake's keys (big, side by side, silver and gold), the sigils once any is held (a
+// 2 x 2 grid of the four runes: held bright in their own colour, missing dim), AD's custom keys (a row each: its icon in
+// its own colour, "KEY" and its slot).
 void visorSideLeft(const Readout& r, const Palette& pal)
 {
-    za::Array<VisorEntry, 16> e{};
-    int n = 0;
-    const auto add = [&](int pic, const glm::vec3& rgb) {
-        if(n < 16) { e[n].pic = pic; e[n].rgb = rgb; n++; }
-    };
-    for(int k = 0; k < 2; k++)
-    {
-        if(r.items & (k == 0 ? IT_KEY1 : IT_KEY2)) { add(PicKey + k, pal.label); }
-    }
-    for(int s = 0; s < 4; s++)
-    {
-        if(r.items & static_cast<int>(1u << (28 + s))) { add(PicSigil + s, pal.label); }
-    }
+    const float W = visorSizes[VisorSideLeft][0], H = visorSizes[VisorSideLeft][1];
+    constexpr float keySize = 24.f, keyGap = 6.f, sigilW = 12.f, sigilH = 24.f, sigilGap = 6.f, adIconW = 26.f,
+                    adRow = 17.f, adText = 6.f, sectionGap = 8.f;
+    const int keyCount = ((r.items & IT_KEY1) ? 1 : 0) + ((r.items & IT_KEY2) ? 1 : 0);
+    const bool sigils = (static_cast<unsigned>(r.items) & 0xF0000000u) != 0u;
+    int adKeys[4]{}, adCount = 0;
     for(int k = 0; k < 4; k++)
     {
-        const int pic = PicAdKey + CLAMP(0, (r.adKeys >> (4 * k)) & 15, 13);
-        if((r.adHud & (512 << k)) && picOk(pic)) { add(pic, pal.label); }
+        if(adKeyPic(r, k) >= 0) { adKeys[adCount++] = k; }
     }
-    visorColumn(e, n, pal);
-}
-
-// The right side mount: the powerups with their seconds left (Quake's thirty from the pickup), AD's artifacts with
-// theirs, its debuffs (blinking).
-void visorSideRight(const Readout& r, const Palette& pal)
-{
-    za::Array<VisorEntry, 16> e{};
-    int n = 0;
-    const auto add = [&](int pic, const char* text, int secs, const glm::vec3& rgb) {
-        if(n >= 16) { return; }
-        e[n].pic = pic;
-        q_strlcpy(e[n].text, text ? text : "", sizeof(e[n].text));
-        if(secs > 0) { q_snprintf(e[n].note, sizeof(e[n].note), "%d", za::min(secs, 999)); }
-        e[n].rgb = rgb;
-        n++;
-    };
-    constexpr int powerups[4] = {IT_INVISIBILITY, IT_INVULNERABILITY, IT_SUIT, IT_QUAD};
+    int sigilCount = 0;
     for(int i = 0; i < 4; i++)
     {
-        if(!(r.items & powerups[i]))
+        sigilCount += (static_cast<unsigned>(r.items) & (1u << (28 + i))) != 0u ? 1 : 0;
+    }
+    visor.sides.left = keyCount + sigilCount + adCount;
+    const float heights[3] = {keyCount > 0 ? keySize : 0.f, sigils ? 2.f * sigilH + sigilGap : 0.f, adRow * static_cast<float>(adCount)};
+    float total = 0.f;
+    for(const float h : heights)
+    {
+        total += h > 0.f ? h + (total > 0.f ? sectionGap : 0.f) : 0.f;
+    }
+    if(total <= 0.f)
+    {
+        return;
+    }
+    const float s = za::min(1.f, (H - 2.f * sideMargin) / total), mid = W * 0.5f;
+    float y = za::round((H - total * s) * 0.5f);
+    if(keyCount > 0)
+    {
+        float x = mid - (static_cast<float>(keyCount) * keySize + static_cast<float>(keyCount - 1) * keyGap) * s * 0.5f;
+        for(int k = 0; k < 2; k++)
         {
-            continue;
+            if(r.items & (k == 0 ? IT_KEY1 : IT_KEY2))
+            {
+                drawPicSized(x, y, PicKey + k, keySize * s, keySize * s, 16.f, visorKeyColour(k == 0 ? keySilver : keyGold, pal), pal);
+                x += (keySize + keyGap) * s;
+            }
         }
-        int bit = 0;
-        while((1 << bit) != powerups[i]) { bit++; }
-        const int secs = static_cast<int>(30.0 - (cl.time - static_cast<double>(cl.item_gettime[bit])) + 0.999);
-        add(PicPowerup + i, nullptr, vr_gadget_test_state.value != 0.f ? 27 - 5 * i : CLAMP(0, secs, 30),
-            secs > 0 && secs <= 5 ? blinking(pal.warn) : pal.value);
+        y += (keySize + sectionGap) * s;
+    }
+    if(sigils)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            const bool held = (static_cast<unsigned>(r.items) & (1u << (28 + i))) != 0u;
+            const float x = mid + (i % 2 == 0 ? -sigilGap * 0.5f - sigilW : sigilGap * 0.5f) * s;
+            const float sy = y + static_cast<float>(i / 2) * (sigilH + sigilGap) * s;
+            drawPicSized(x, sy, PicSigil + i, sigilW * s, sigilH * s, 8.f,
+                held ? pal.label : pal.dim * sideMissing, pal);
+        }
+        y += (2.f * sigilH + sigilGap + sectionGap) * s;
+    }
+    for(int i = 0; i < adCount; i++)
+    {
+        const int k = adKeys[i], pic = adKeyPic(r, k);
+        const qpic_t* p = greyPic(pic);
+        const float aspect = p ? static_cast<float>(p->height) / za::max(1.f, static_cast<float>(p->width)) : 0.5f;
+        char label[8];
+        q_snprintf(label, sizeof(label), "KEY%d", k + 1);
+        const float rowW = adIconW + 3.f + adText * static_cast<float>(strlen(label));
+        const float x = mid - rowW * s * 0.5f, iconH = adIconW * aspect;
+        drawPicSized(x, y + (adRow - 2.f - iconH) * 0.5f * s, pic, adIconW * s, iconH * s, 16.f, visorKeyColour(picHue(pic), pal), pal);
+        drawText(x + (adIconW + 3.f) * s, y + (adRow - 2.f - adText) * 0.5f * s, adText * s, label, pal.value, pal);
+        y += adRow * s;
+    }
+}
+
+// The right side panel: a row each for the powerups held, AD's artifacts and its debuffs, from the top: the icon (its own
+// colour) or the debuff's name (red) at the left, the seconds left in big bold digits beside it at the right (counting
+// down; red and blinking in the last five; "--" an artifact held for good), a debuff's amount (the poison and bleeding
+// still to come, the burning's seconds). More rows than fit: shrunk together down to half size, then the last ones
+// left out and "+N" in the last row's place.
+void visorSideRight(const Readout& r, const Palette& pal)
+{
+    const float W = visorSizes[VisorSideRight][0], H = visorSizes[VisorSideRight][1];
+    constexpr float iconSize = 20.f, iconRow = 23.f, debuffRow = 18.f, digitW = 11.f, digitH = 17.f, debuffDigitW = 9.f,
+                    debuffDigitH = 14.f, debuffText = 7.f, smallest = 0.5f;
+    constexpr const char* debuffLabels[3] = {"POISON", "BLEED", "BURN"}; // (adDebuffNames' order)
+    struct Row
+    {
+        int pic{-1};   // the icon, or -1: a debuff (`debuff`)
+        int debuff{-1};
+        int secs{0};   // seconds left (a debuff's amount), 0 none known, 255 for good
+    };
+    za::Array<Row, 16> rows{};
+    int n = 0;
+    for(int i = 0; i < 4; i++)
+    {
+        if(r.items & powerupBits[i]) { rows[n++] = Row{PicPowerup + i, -1, r.powerSecs[i]}; }
     }
     for(int i = 0; i < 6; i++)
     {
-        if(!(r.adHud & (1 << i)))
-        {
-            continue;
-        }
-        const int secs = (r.adArt[i / 3] >> (8 * (i % 3))) & 255;
-        add(picOk(PicAdArtifact + i) ? PicAdArtifact + i : -1, "ART", secs > 0 && secs < 255 ? secs : 0,
-            secs > 0 && secs <= 5 ? blinking(pal.warn) : pal.value);
+        if(r.adHud & (1 << i)) { rows[n++] = Row{picOk(PicAdArtifact + i) ? PicAdArtifact + i : -1, -1, adArtifactSeconds(r, i)}; }
     }
-    constexpr const char* debuffs[3] = {"BURN", "POIS", "BLEED"};
     for(int d = 0; d < 3; d++)
     {
-        if(r.adHud & (64 << d)) { add(-1, debuffs[d], 0, blinking(pal.warn)); }
+        if(r.adHud & adDebuffBits[d]) { rows[n++] = Row{-1, d, adDebuffAmount(r, d)}; }
     }
-    visorColumn(e, n, pal);
+    const auto heightOf = [&](const Row& row) { return row.debuff >= 0 ? debuffRow : iconRow; };
+    const float room = H - 2.f * sideMargin;
+    float total = 0.f;
+    for(int i = 0; i < n; i++)
+    {
+        total += heightOf(rows[i]);
+    }
+    int shown = n;
+    while(shown > 1 && total * smallest > room) // (the last shown row then reads "+N")
+    {
+        total -= heightOf(rows[--shown]);
+    }
+    visor.sides.right = n;
+    visor.sides.rightShown = n == 0 ? 0 : shown;
+    visor.sides.rightScale = 1.f;
+    if(n == 0)
+    {
+        return;
+    }
+    const int hidden = n - shown;
+    const float s = za::clamp(room / total, smallest, 1.f);
+    visor.sides.rightScale = s;
+    float y = za::round((H - total * s) * 0.5f);
+    const float right = W - sideMargin;
+    for(int i = 0; i < shown; i++)
+    {
+        const Row& row = rows[i];
+        const float h = heightOf(row) * s;
+        if(hidden > 0 && i == shown - 1)
+        {
+            char more[8];
+            q_snprintf(more, sizeof(more), "+%d", za::min(hidden + 1, 99));
+            const float size = 8.f * s;
+            drawText(za::round(W * 0.5f - static_cast<float>(strlen(more)) * size * 0.5f), y + (h - size) * 0.5f, size, more, pal.label, pal);
+            break;
+        }
+        const bool ending = row.debuff < 0 && row.secs > 0 && row.secs <= 5;
+        const glm::vec3 timeColour = ending ? blinking(pal.warn) : pal.value;
+        char digits[8] = "";
+        if(row.secs == 255 && row.debuff < 0)
+        {
+            q_strlcpy(digits, "--", sizeof(digits));
+        }
+        else if(row.secs > 0)
+        {
+            q_snprintf(digits, sizeof(digits), "%d", za::min(row.secs, 254));
+        }
+        if(row.debuff >= 0)
+        {
+            // The name at the left (narrower when the amount would meet it), the amount at the right, both red.
+            const float dw = debuffDigitW * s, dh = debuffDigitH * s;
+            const float amountX = right - dw * static_cast<float>(strlen(digits));
+            const char* label = debuffLabels[row.debuff];
+            const float fits = (amountX - 2.f * s - sideMargin) / static_cast<float>(strlen(label));
+            const float size = za::min(debuffText * s, fits);
+            drawText(sideMargin, y + (h - size) * 0.5f, size, label, pal.warn, pal);
+            numberRun(amountX, y + (h - dh) * 0.5f, digits, dw, dh, pal.warn, pal);
+        }
+        else
+        {
+            const float is = iconSize * s;
+            if(row.pic >= 0)
+            {
+                drawPicSized(sideMargin, y + (h - is) * 0.5f, row.pic, is, is, 16.f, pal.label, pal);
+            }
+            const float dw = digitW * s, dh = digitH * s;
+            numberRun(right - dw * static_cast<float>(strlen(digits)), y + (h - dh) * 0.5f, digits, dw, dh,
+                row.secs == 255 ? pal.dim : timeColour, pal);
+        }
+        y += h;
+    }
 }
 
 void visorRender(const VisorInput& in)
@@ -390,7 +473,8 @@ void visorRender(const VisorInput& in)
     {
         const int w = static_cast<int>(visorSizes[p][0]), h = static_cast<int>(visorSizes[p][1]);
         gfx::Target& t = visor.targets[p];
-        gfx::ensureTarget(t, w * visorTexels, h * visorTexels, true, "visor panel"); // mipmaps: for its text's glow
+        const int texels = p == VisorSideLeft || p == VisorSideRight ? visorSideTexels : visorTexels;
+        gfx::ensureTarget(t, w * texels, h * texels, true, "visor panel"); // mipmaps: for its text's glow
         const auto contents = [&] {
             fill(0.f, 0.f, static_cast<float>(w), static_cast<float>(h), visorBlack);
             switch(p)
