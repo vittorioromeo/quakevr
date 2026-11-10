@@ -12,7 +12,9 @@
 //   60 + 3 * i + 1   holster i's weapon dropped to the ground
 //   60 + 3 * i + 2   holster i and the right hand (the main hand) trade what they hold
 //   78, 79           the left hand's, the right hand's weapon (or the prop it carries) dropped (VR_Forcegrab_FlatDropHand)
+//   81               DROP BOTH: both hands drop what they hold, the off hand's first (H's order, VR_Forcegrab_FlatDrop)
 //   48               the hands swapped (VR_FlatSwapHands: the same as 3)
+// (80 is vr_flatholster_test's, below.)
 // Holster i is the engine's STAT_QVR_HOLSTERWEAPON0 + i: holsterweapon i (VR_FlatHolster_Hotspot).
 
 float vr_flatholster_swaps;   // (the tests: what the menu did)
@@ -127,11 +129,20 @@ void(float hs) VR_FlatHolster_Drop =
 float() VR_FlatHolster_Impulses =
 {
     float imp = self.impulse;
-    if(imp >= 60 && imp <= 79 && VR_FlatPlay(self))
+    if(((imp >= 60 && imp <= 79) || imp == 81) && VR_FlatPlay(self))
     {
         self.impulse = 0;
         if(self.health <= 0)
         {
+            return TRUE;
+        }
+        if(imp == 81)
+        {
+            // Each hand's own drop, the off hand's first (a prop carried in both: let go of by the first).
+            float droppedOff = VR_Forcegrab_FlatDropHand(cVR_OffHand);
+            float droppedMain = VR_Forcegrab_FlatDropHand(cVR_MainHand);
+            vr_flatholster_drops += droppedOff + droppedMain;
+            dprint(sprintf("flat holsters: DROP BOTH: off hand %g, main hand %g\n", droppedOff, droppedMain));
             return TRUE;
         }
         if(imp == 78 || imp == 79)
