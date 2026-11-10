@@ -7888,12 +7888,18 @@ His notes 2026-11-10, items 1, 2 and 10 (flat-screen play; docs/vr-port/FLATPLAY
 - **Shared with VR:** the parry itself (QC `VR_Parry_Blocks`, `vr_dirparry.qc`, stamina, counters, staggers), the
   two-handed machinery (`vr_twohand.cpp`, `chooseGrip`), the hand turn helpers of the overhead swing (`turnedHand`,
   `blendAngles`). Flat-only: the guard's pose and its button (a headset's guard is the player's own hands).
-- **Tests:** `Misc/quakevr/flatparry_test.sh <agent>` (41 checks): per weapon hs1 and never the blade after two swings;
+- **Tests:** `Misc/quakevr/flatparry_test.sh <agent>` (42 checks): per weapon hs1 and never the blade after two swings;
   QC's probe (`impulse 249`) "no parry" at rest and "PARRIES" in the guard (5.0 off level, 80 off the attacker's line) for
   the axe, Mjolnir, the sword, the crowbar, the super axe, the chainsaw and an axe in the off hand; the guard reached in
-  0.139 s (in 0.15); back to share 0 after the release; a sword grunt's first blow parried in the guard (scene
-  `flat_parry`), a knight's chop parried in it and landing without it. (A grunt's sideways swing also meets the sword stood
-  up in the hold and is parried by it, as in a headset, so its unguarded case is not tested.)
+  0.139 s (in 0.15); back to share 0 after the release; a sword grunt's blows parried in the guard (scene `flat_parry`;
+  the run ends on the first parry), a knight's chop parried in it and landing without it. (A grunt's sideways swing also
+  meets the sword stood up in the hold and is parried by it, as in a headset, so its unguarded case is not tested.)
+- **The guard against a sword grunt** (4000 frames, the guard held, stamina off): 12 of 32 blows parried at the default
+  height (`_up` -3), 10 of 34 at -9, 9 of 27 at +3. The ones that land are swings whose way lies nearly along the level
+  guard (76 to 90 degrees off square, 15 to 23 units from it): the directional parry stops a blow only across its way, so a
+  still, level guard meets the chops and the diagonal cuts but not the flat slashes. A guard that turns to meet each swing
+  would be a new feature (an open question for him); the pose is all tunable.
+
 ## VR: gibs on a blade through a snap turn (branch `agent/vr_snapgib`, 2026-11-10)
 
 Found by `agent/flat_gibs` (above): with the headset, `vr_embed_probe_skewj` (cm a skewered gib's place in the server's
