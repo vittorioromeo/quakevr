@@ -8118,3 +8118,24 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   hand keeps its shotgun, whose pose moves after bullet time, so the old base (shot 3) saw the gun in the middle. It is
   now read against a new shot 7, the same moment at viewsize 120.
 - Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.
+
+## Flat-screen guard parries everything from the front; the counter's glow on the flat screen (his notes 2026-11-10, item 5; branch `agent/flat_parry2`)
+
+- His words: "In flat screen only, parrying should always parry any melee attack coming from the front of the player (not
+  sides or back), regardless of the direction. Directional parry and weapon collision requirements should only be for VR.
+  Additionally, the parry glow effect doesn't seem to play in flatscreen mode, please fix it."
+- The client says the guard is up in the move (`.handsynth` 64 the off hand, 128 the main: `handsource::guarding` from
+  `flatplay::poseHands` once the guard is half way in, the button still held; the U8 had those two bits free, so no
+  protocol change). QC `VR_FlatGuardHand` reads them (flat players only); `VR_Parry_FlatGuard` takes the blow when its
+  attacker is within `vr_flat_parry_cone` (new tunable, 120 degrees in all, Debug > Tunables > Flatscreen > Parry Guard;
+  0: the headset's rules) of the view's yaw, and `VR_Parry` then skips the directional parry and `VR_Parry_HandFor`'s
+  weapon line. A blow with a line is still cut as a directional parry cuts it and the armed one's swing still stops (its
+  flinch), but with the guard's sparks (`VR_DRP_Effects` needs the meeting point it no longer has). The headset is unchanged:
+  the bits are never set there, and `VR_FlatGuardHand` asks `VR_FlatPlay` too.
+- The glow: `meleehud::queue` (the counter's glow on the weapon, its embers) was called only from vr_stereo.cpp's eye
+  frame; now vr_view.cpp queues it for the flat frame beside the force grab's effects. A headset shows none while guarding
+  (only the counter window after a parry), so the flat screen neither.
+- Tests: `flatparry_test.sh` now 43 checks: the sword grunt in front, guard up: its first 6 blows all parried, none landed
+  (before: 12 of 32 parried, the flat slashes landing); turned away from it, guard up: its first blow lands ("179 degrees
+  off the view (the cone 120): not in front"); the knight's chop as before. The glow: after a parry the knight's sword in
+  the flat guard glows gold with embers (screenshots before/after the parry).

@@ -3107,6 +3107,12 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             stepParry(h, static_cast<float>(dt));
         }
         parryPose(s, h, shoulder(s, h) + nudge, eye, fwd, right, up, aim.y);
+        // Up (half way in and still asked for): the server parries any melee blow from in front with it, whatever its way
+        // (QC VR_Parry_FlatGuard, vr_flat_parry_cone; his notes 2026-11-10: the directional parry is the headset's).
+        if(fs.parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
+        {
+            handsource::guarding(h);
+        }
 
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
         // weapon turned up over the head and down through the strike (overheadSwing).

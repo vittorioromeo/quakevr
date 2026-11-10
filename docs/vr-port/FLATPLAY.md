@@ -1008,7 +1008,16 @@ super axe's leans forward), the hand is first rolled a quarter turn inwards and 
 line there. Nothing parries for it: the game's parry reads the pose, as a headset's guard held there (QC
 `VR_Parry_Blocks`, the directional parry of `vr_dirparry.qc`), so the blows it meets are parried with the stamina, the
 counter's window and the stagger as in VR, and the hold's upright weapon parries no more than it did (a knight's chop
-lands). Not while dual wielding (the button fires the off hand there). Debug > Tunables > Flatscreen > Parry Guard;
+lands). Not while dual wielding (the button fires the off hand there). Since his notes of 2026-11-10 (item 5: "In flat screen only, parrying should always parry any melee
+attack coming from the front of the player (not sides or back), regardless of the direction"), the guard held up (half way
+in and still asked for: the move's `.handsynth` 64 / 128, `handsource::guarding`) parries every melee blow whose attacker
+stands within `vr_flat_parry_cone` (120: the whole cone, centred on the view's yaw) of where he looks, whatever its way
+(QC `VR_Parry_FlatGuard`, before the directional parry in `VR_Parry`): no directional parry, no meeting of the weapons;
+a blow with a line stops as a directional parry would stop it (its damage through, the armed one's swing stopped), with
+the guard's sparks; stamina, the counter's window and the stagger as ever. From the sides and behind, the headset's rules
+(`not in front` in the developer log). The counter's glow and embers on the weapon after a parry (`vr_counter_glow`,
+vr_meleehud.cpp) now show on the flat screen too: they were queued only by the headset's frame; a headset shows none while
+guarding, so neither does the flat screen. Debug > Tunables > Flatscreen > Parry Guard;
 `vr_flatplay_status` prints a "parry guard:" line per hand holding a melee weapon, `vr_flatplay_debug 1` the time the
 guard was reached. Test: `Misc/quakevr/flatparry_test.sh <agent>` (the guard per weapon by QC's probe, `impulse 249`; a
 sword grunt's and a knight's first blow); scene `flat_parry`.
