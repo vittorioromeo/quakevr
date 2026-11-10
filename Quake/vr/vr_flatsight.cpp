@@ -267,6 +267,9 @@ constexpr float backIn = 80.f;       // how fast a weapon goes back from a wall 
 constexpr float backOut = 12.f;      // and comes out again as the wall clears: no jump
 constexpr float wallArmMax = 20.f;   // vr_flat_wall_arm_keep's range (units)
 constexpr float wallMarginMax = 24.f; // vr_flat_wall_margin's range (units)
+constexpr int swingStopPasses = 4;     // a swing's stop at a wall (pushBack): passes at most, each from where the last left it
+constexpr float swingStopSlack = 0.25f; // and done once no deeper than its bite and this (units)
+constexpr int swingStopHalvings = 8;   // then by the weapon's own depth, found in this many halvings
 // At a wall a gun turns muzzle up only (vr_flat_wall_tilt's pose; his choice, 2026-11-07: the left, right and down poses
 // of the third pass looked wrong); a melee weapon only goes back (flatplay::meleeIn). What the turn leaves in the wall,
 // the weapon goes further back for (pushBack's room, roomFor): past the fold and the stock's place, the arm into the
@@ -501,7 +504,10 @@ struct Sighted
 // A gun that aims at that point: a hand holding a weapon with a sight line, whose muzzle the view has placed.
 [[nodiscard]] bool aimsAtPoint(const hands::State& s, int h)
 {
-    return flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] && sightalign::alignable(h);
+    // (Not while it swings or shoves: the swing turns the weapon over the head and down, the shove palms out; aimed at
+    // the point, a gun swung with V stayed level all the way, 2026-11-10.)
+    return flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] && sightalign::alignable(h) &&
+           !flatplay::punching(h) && !flatplay::shoving(h);
 }
 
 // The muzzle the shot is handed (shotFrom).
@@ -1249,13 +1255,54 @@ void pushBack(hands::State& s, const glm::vec3& aim)
         st.swingStop[h] = 0.f;
         if(flatplay::punching(h) && vr_flat_hand_collide.value != 0.f)
         {
-            const Turned at = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
-            const glm::vec3 handNow = glm::transpose(view) * (s.pos[h] - org);
             // (A negative margin: that far into it, the swing's bite, as flatplay's handOffWall.)
             const float m = za::clamp(vr_flat_punch_wall_margin.value, -wallMarginMax, wallMarginMax);
-            st.swingStop[h] = za::max(0.f, handpose::gunBack(h, s.head, at.pos, at.rot, at.muzzle, view * way,
-                                               glm::distance(handNow, shoulder), za::max(0.f, m)) - za::max(0.f, -m));
-            s.pos[h] += view * way * st.swingStop[h];
+            // (Again from where that left it, while still deeper than the bite: met at a slant, one pass left the
+            // overhead swing's weapon up to 3 units in, 2026-11-10.)
+            for(int pass = 0; pass < swingStopPasses; pass++)
+            {
+                const Turned at = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
+                const glm::vec3 handNow = glm::transpose(view) * (s.pos[h] - org);
+                const float more = za::max(0.f, handpose::gunBack(h, s.head, at.pos, at.rot, at.muzzle, view * way,
+                                                     glm::distance(handNow, shoulder), za::max(0.f, m)) - za::max(0.f, -m));
+                s.pos[h] += view * way * more;
+                st.swingStop[h] += more;
+                if(more <= 0.f)
+                {
+                    break;
+                }
+                const Turned moved = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
+                if(handpose::gunDepth(h, s.head, moved.pos, moved.rot, moved.muzzle, 0.f, 0.f) <= za::max(0.f, -m) + swingStopSlack)
+                {
+                    break;
+                }
+            }
+            // Then by the weapon's own depth (gunDepth): the traces from the eye gunBack goes by found the overhead
+            // swing's weapon clear while it still stood up to 3 units in (measured 2026-11-10, 65 of 263 stopped frames
+            // past 1 unit). Halved down to the least further way back that leaves it no deeper than its bite.
+            const float bite = za::max(0.f, -m) + swingStopSlack;
+            const auto depthAt = [&](float b) {
+                const Turned t = turnedAt(s, h, s.pos[h] + view * way * b, glm::mat3{1.f});
+                return handpose::gunDepth(h, s.head, t.pos, t.rot, t.muzzle, 0.f, 0.f);
+            };
+            const glm::vec3 handLeft = glm::transpose(view) * (s.pos[h] - org);
+            const float room = glm::distance(handLeft, shoulder);
+            if(vr_flatplay_debug.value >= 2 && st.swingStop[h] > 0.f)
+            {
+                Con_Printf("flatwall: %s hand t %.3f depth %.2f, at the shoulder %.2f (room %.1f)\n", h == HAND_MAIN ? "main" : "off",
+                    vr_gametime, depthAt(0.f), depthAt(room), room);
+            }
+            if(st.swingStop[h] > 0.f && room > 0.f && depthAt(0.f) > bite && depthAt(room) <= bite)
+            {
+                float lo = 0.f, hi = room;
+                for(int i = 0; i < swingStopHalvings; i++)
+                {
+                    const float mid = 0.5f * (lo + hi);
+                    (depthAt(mid) > bite ? lo : hi) = mid;
+                }
+                s.pos[h] += view * way * hi;
+                st.swingStop[h] += hi;
+            }
             if(vr_flatplay_debug.value >= 2 && st.swingStop[h] > 0.f)
             {
                 const Turned now = turnedAt(s, h, s.pos[h], glm::mat3{1.f});

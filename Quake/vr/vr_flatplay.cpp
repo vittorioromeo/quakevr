@@ -837,7 +837,13 @@ constexpr float dualProneTurnMost = 45.f;
     const float aimLen = glm::length(toAim);
     const glm::vec3 end = root + (aimLen > 0.001f ? toAim / aimLen : fwd) * za::min(span, aimLen);
     const float upPitch = za::clamp(vr_flat_swing_wind_pitch.value, 0.f, 150.f);
+    // The strike turns the wrist to vr_flat_swing_end_pitch, whatever the hand holds: that is the blow. A melee
+    // weapon's haft stands up the hand, not along the aim as a gun's barrel does, so at that angle its head is still
+    // over the hand (seen 2026-11-10); it follows through to vr_flat_swing_end_pitch_melee over the hold after the
+    // strike. (Turned that far within the strike itself, the axe missed a knight 24 ahead at every angle past 50: the
+    // blow is the strike's, the follow-through only a look.)
     const float downPitch = za::clamp(vr_flat_swing_end_pitch.value, -30.f, 90.f);
+    const float followPitch = meleeIn(h) ? za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)) : downPitch;
     double k = t;
     if(k < w.wind)
     {
@@ -870,12 +876,12 @@ constexpr float dualProneTurnMost = 45.f;
     k -= w.strike;
     if(k < w.dwell)
     {
-        pitch = -downPitch;
+        pitch = -downPitch - (followPitch - downPitch) * slide(k, 0.0, w.dwell);
         return end;
     }
     k -= w.dwell;
     const float u = slide(k, 0.0, w.back);
-    pitch = -downPitch * (1.f - u);
+    pitch = -followPitch * (1.f - u);
     return end + (rest - end) * u;
 }
 
@@ -1112,7 +1118,8 @@ void startShove(const char* from)
     fs.shoves++;
     if(vr_flatplay_debug.value)
     {
-        Con_Printf("flatplay: shove (%s): %s\n", from, fs.shoveBoth ? "both hands" : h == HAND_MAIN ? "main hand" : "off hand");
+        Con_Printf("flatplay: shove (%s): %s (holding: off %d, main %d)\n", from,
+            fs.shoveBoth ? "both hands" : h == HAND_MAIN ? "main hand" : "off hand", heldWid(HAND_OFF), heldWid(HAND_MAIN));
     }
 }
 
@@ -2610,8 +2617,8 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
         {
             p.running[h] = false;
             p.lines++;
-            Con_Printf("flatmelee: %s %s: frames %d, over eye %.1f, weapon up %.0f down %.0f, palm %.2f fingers %.2f, view pitch "
-                       "%.2f..%.2f roll %.2f, both out %d\n",
+            // (Short: a console line wraps past its width, and the tests read it whole.)
+            Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d\n",
                 h == HAND_MAIN ? "main" : "off", p.shove[h] ? (fs.shoveBoth ? "shove both" : "shove") : fs.punchOverhead[h] ? "swing" : "punch",
                 p.frames[h], static_cast<double>(p.overEye[h]), static_cast<double>(p.up[h]), static_cast<double>(p.down[h]),
                 static_cast<double>(p.palm[h]), static_cast<double>(p.fingers[h]), static_cast<double>(p.pitchLo[h]),
@@ -2888,14 +2895,6 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
             s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
         }
-        // A shove turns the hand to its palm at the target, the fingers up (vr_flat_shove_palm; his notes 2026-11-10),
-        // a weapon in it turned with it (the two-handed shove of a weapon in each hand keeps them held). After the rest's
-        // hang, which eases out as the shove starts.
-        if(const float palm = shovePhase(h).palm * za::clamp(vr_flat_shove_palm.value, 0.f, 1.f); palm > 0.f)
-        {
-            const glm::vec3 at = aimPoint + up * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
-            s.rot[h] = blendAngles(s.rot[h], palmAt(h, at - (shoulder(s, h) + nudge), viewUp), palm);
-        }
         QVR_TRACY_CALL("flat pose: off wall", handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt)));
     }
 
@@ -2904,6 +2903,21 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     QVR_TRACY_CALL("flat pose: sight", flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z));
     // A reload's trip (vr_flatreload.cpp): the gun's hand to the hip holster and back, over all of the above.
     QVR_TRACY_CALL("flat pose: reload", flatreload::apply(s));
+    // A shove turns the hand to its palm at the target, the fingers up (vr_flat_shove_palm; his notes 2026-11-10), a
+    // weapon in it turned with it (the two-handed shove of a weapon in each hand keeps them held). Last, over the rest's
+    // hang (it eases out as the shove starts) and the gun's own aim at the crosshair's point (flatsight's: a gun's turn
+    // there undid the palms, measured 2026-11-10).
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(const float palm = shovePhase(h).palm * za::clamp(vr_flat_shove_palm.value, 0.f, 1.f); palm > 0.f)
+        {
+            glm::vec3 org, dir;
+            crosshairRay(s, aim, org, dir);
+            const glm::vec3 at = org + dir * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f) +
+                                 up * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
+            s.rot[h] = blendAngles(s.rot[h], palmAt(h, at - (shoulder(s, h) + nudge), viewUp), palm);
+        }
+    }
     probeMelee(s, aim, eye, viewUp);
     traceHandZ = s.pos[HAND_MAIN].z;
     traceHand = s.pos[HAND_MAIN];

@@ -7414,6 +7414,19 @@ Shove And Melee (`vr_tunables.inc`).
   `Misc/quakevr/flatmelee_test.sh <agent>` checks shoves (palms, both, dual, two-handed grip, always), one punch at a time,
   the punch tilt, both swings' arcs and the axe swing hurting a knight. `vr_flat_punch main v` is V's punch from the console.
   Scenarios `flat_shove`, `flat_swing`.
-- **Not run yet**: the author was playing in VR during this work (no game runs allowed), so flatmelee_test.sh,
-  flatplay_test.sh (the punches still hurt the knight; the axe now swings overhead), the wall depth with
-  `vr_flatplay_debug 2` and menu_paths.txt regeneration are owed.
+- **Runs (after his VR session)**: flatmelee_test.sh 9 passed, 0 failed (palms 0.97-0.99 and fingers 1.00 at full push
+  in every shove: the palm convention holds; the axe's swing leaves the knight 24 ahead at 41 of 75). flatplay_test.sh
+  31 passed: its axe reads waited 30 frames, before the overhead strike lands (0.46 s), now 45.
+- **Fixed on the runs**: the dual-wield shove's palms were undone by flatsight's aim of a gun at the crosshair's point,
+  so the palms go on last (after flatsight and the reload) and a punching or shoving hand is no longer aimed at the point
+  (`aimsAtPoint`: a gun swung with V stayed level). The axe's haft stands up the hand, so at the gun's 50 degrees its
+  head stayed over the hand; turning it further within the strike missed the knight at every angle past 50 (swept:
+  70-100 all 75 of 75), so the strike ends at `vr_flat_swing_end_pitch` 50 for everything and a melee weapon follows
+  through to `vr_flat_swing_end_pitch_melee` 100 over the hold after it (41 of 75 at every follow-through angle).
+- **Wall** (`vr_flatplay_debug 2`, e1m1's start walked into its west wall, the axe then V with the shotgun): the stop now
+  also halves down by the weapon's own depth (`gunDepth`) where gunBack's traces call it clear. The axe never stands
+  more than 1 unit in; the shotgun pressed flush against the wall stands up to 3.2 units in, every such frame with the
+  hand already folded to its shoulder (no room left to go back: 0 deep frames with room).
+- **Images**: `scratch/flatmelee_before.png` (the old behaviour through the new switches) and
+  `scratch/flatmelee_after.png`: the shove's windup and full push, a punch at its reach, the axe's top, mid-strike and
+  end.
