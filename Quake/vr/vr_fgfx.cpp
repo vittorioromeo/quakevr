@@ -4,6 +4,7 @@
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
@@ -177,7 +178,7 @@ void previewInMenu(const hands::State& s)
     }
     const int hand = 0; // the off hand (the main one points at the menu)
     const glm::vec3 fwd = hands::forward(s.rot[hand]);
-    const glm::vec3 palm = s.pos[hand] + fwd * 2.f;
+    const glm::vec3 palm = palmOrigin(s, hand);
     const float pulse = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 17.0));
     tendril(palm, palm + fwd * 28.f, pulse, 4242);
 }
@@ -249,7 +250,7 @@ void queue(const hands::State& s, bool flat)
         {
             continue;
         }
-        const glm::vec3 palm = s.pos[hand] + hands::forward(s.rot[hand]) * 2.f;
+        const glm::vec3 palm = palmOrigin(s, hand);
         // To where it is seen from the hand: through a teleporter, its image behind the gate's surface (the beam is drawn
         // over the scene, so it goes on into the gate to the thing seen there), not its place in the room beyond.
         const glm::vec3 to = portals::pullImageSeen(palm, centre(t.ent));
@@ -295,6 +296,40 @@ float entityGlow(const entity_t* e)
 glm::vec3 glowColor()
 {
     return tint(0.65f, 1.f);
+}
+
+bool handTarget(int hand, int& ent, int& state, glm::vec3& at)
+{
+    if(hand < 0 || hand > 1 || cls.state != ca_connected)
+    {
+        return false;
+    }
+    const Target t = target(hand == 1 ? protocol::STAT_QVR_FGMAIN : protocol::STAT_QVR_FGOFF);
+    if(t.state == None || !valid(t.ent))
+    {
+        return false;
+    }
+    ent = t.ent;
+    state = t.state;
+    at = centre(t.ent);
+    return true;
+}
+
+glm::vec3 palmOrigin(const hands::State& s, int hand)
+{
+    // The palm's middle (the empty jointed hand's, as drawn), moved vr_forcegrab_fx_along towards the fingers (the hand's
+    // forward, off the palm's normal) and vr_forcegrab_fx_out out of the palm (his VR note 2026-11-10: it began near the
+    // fingertips; the palm, or between it and the fingers on the palm's side, looks better).
+    const grip::HandFrame f = grip::handFrame(hand, hand == 0, true);
+    glm::vec3 n = glm::length(f.palmNormal) > 1e-3f ? glm::normalize(f.palmNormal) : glm::vec3{0.f, hand == 0 ? -1.f : 1.f, 0.f};
+    glm::vec3 along = glm::vec3{1.f, 0.f, 0.f} - n * n.x;
+    along = glm::length(along) > 1e-3f ? glm::normalize(along) : glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    const glm::mat3 axes{fwd, -right, up}; // the hand's frame: forward, left, up
+    const float a = za::clamp(vr_forcegrab_fx_along.value, -10.f, 10.f);
+    const float o = za::clamp(vr_forcegrab_fx_out.value, -10.f, 10.f);
+    return hands::palmPoint(s, hand) + axes * (along * a + n * o);
 }
 
 } // namespace qvr::fgfx

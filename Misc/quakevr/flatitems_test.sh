@@ -9,6 +9,7 @@
 #           a monster's backpack), a box of what he is full of is left lying; armour puts the plates on
 #   better  E on armour better than his: on him at once, nothing left in a hand, the plates on
 #   vrwalk  headset: walking over armour still leaves it lying (his rule unchanged)
+#   palm    E's palm turns out before the grab; two quick presses never send two objects at one hand (test 6)
 # Prints PASS/FAIL, exits 1 on a failure; ends with `flatitems_sh: N passed, M failed`.
 AGENT=${1:?agent}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -16,7 +17,9 @@ source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
 QT_NAME=flatitems_sh
 F="^flatitems:|^flatplates:|Assertion|ENGINE CRASH|Host_Error|^ff_done"
-P="map e1m1; wait60; developer 1; god; notarget"
+# (vr_flat_autoreload 1: since the flat reload, e1m1's shotgun starts with an empty clip and +attack only clicks; the shot
+# these cases fire is the point, not the reload.)
+P="map e1m1; wait60; developer 1; god; notarget; vr_flat_autoreload 1"
 run() # run <tag> <flat|vr> <script> <quit-on>
 {
     local extra=()
@@ -44,6 +47,11 @@ expect_verdict "$(cat "$S/fi_walk.log")" "flatitems" "each kind of pickup walked
 run fi_better flat "$P; vr_flatitems_test 3" "$V"
 grep -a "FAIL" "$S/fi_better.log" | cut -c1-140
 expect_verdict "$(cat "$S/fi_better.log")" "flatitems" "E on better armour"
+
+# E's palm first (vr_flatfgrab.cpp): the key flies only after the palm's turn, two quick presses never send two at one hand.
+run fi_palm flat "$P; vr_flatitems_test 6" "$V"
+grep -a "FAIL" "$S/fi_palm.log" | cut -c1-160
+expect_verdict "$(cat "$S/fi_palm.log")" "flatitems" "E: palm first, no double grab"
 
 # The headset's rule stands: armour stays until a hand takes it (the same walk: test 2 in a headset game; every armour and
 # key FAILs there by design, what is checked is that they are left).

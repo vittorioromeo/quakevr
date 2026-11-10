@@ -101,10 +101,11 @@ console.
 moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | `F7` | the toolgun in the right hand; again, gives back what that hand held (`impulse 49` → `VR_FlatToolgun_Toggle`; `vr_flat_key_toolgun`). With it held the left button is its trigger, mouse 3 opens its panel and `B` held is its X/A: see The toolgun below |
 | `F8` | the fly camera (below) |
-| `1` | cycles the **left** hand's weapon through the weapons collected |
-| `2` | cycles the **right** hand's weapon |
-| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
-| Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
+| Mouse 3 (the wheel's button) | held: the holster menu (Holsters, below; `vr_flat_holsters`) |
+| `1` | cycles the **left** hand's weapon through the weapons collected (with `vr_flat_holsters 0`; on, it does nothing) |
+| `2` | cycles the **right** hand's weapon (likewise) |
+| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was (`vr_flat_punch main v` from the console). With a weapon in the hand the punch is the **overhead swing** (`vr_flat_swing`, `overheadSwing`; 2026-11-10): the hand winds up over the head with the weapon turned up 90 degrees, waits a moment, and comes down round the shoulder to the crosshair, the wrist turning all the way until the weapon points down; the fist keeps its straight throw. One hand at a time (`vr_flat_punch_both 0`): the other hand punches only once the first draws back. A punch tips the view down into it and rolls it toward its side, and turns and leans the chest (`vr_flat_punch_cam_*`, `_torso_*`); the swing tips the view and chest back with the windup and forward with the strike (`vr_flat_swing_cam_*`, `_torso_*`). The view's tilt is the drawn view's only (`VR_FlatViewLean`): the aim and the shots stay. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after. Every number: Debug > Tunables > Flatscreen > Shove And Melee; `vr_flat_melee_probe` prints each blow's; test `Misc/quakevr/flatmelee_test.sh` |
+| Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). Since 2026-11-10 it winds up first (drawn back, the palm turning to the target, fingers up: `vr_flat_shove_wind_*`, `_palm*`), then pushes fast (`vr_flat_shove_push_share`; it lands at the push's end) at a point `vr_flat_shove_aim_up` over the crosshair's, with a quiet, lighter copy of the fist's swish (`vr_flat_shove_swish`, `_swish_pitch`). Both hands push when both are free, when each holds a weapon (kept held, palms out, as the armed humanoids shove: `vr_flat_shove_both_armed`), and always with `vr_flat_shove_both_always 1`. A free hand on a two-handed weapon's grip lets go of it to push (`flatplay::shoving`, as for a punch; it used to stay on the grip, so the shove never showed). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `H` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` -> `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one -- never handed to the other hand on its grip (his words 2026-11-10: the grip hand caught a dropped Enforcer's rifle as a prop) -- a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both. The key is `vr_flat_key_drop` (default `h`; `G` until 2026-11-10, then hard-coded: no saved bind to move) |
@@ -176,6 +177,36 @@ and the classic bar's to their left). Debug > Reports > Flatscreen Play: `vr_fla
 menu's Item Pickup Mode; for a player in the mode it counts as at least 1 â€” mode 1's collectable set, ammo and health
 (backpacks are mode 2's) â€” whatever he has saved, since there is no hand-to-hand step on the screen to confirm a pickup. The
 cvar itself is never written, so a headset player on the same save keeps what he set.
+
+**Holsters** (`vr_flat_holsters`, on by default; his words 2026-11-10: "for fairness with the VR gameplay ... only carry
+6 weapons of their choice in their holsters, plus 2 weapons in their hands maximum"). What he carries is the headset's:
+the six holsters (`holsterweapon0..5`, `QC/vr_wpnholster.qc`) and the two hands, nothing else. The weapon keys that
+picked a weapon from what was collected do nothing: `1`, `2`, `4`..`9` (their binds skipped: `VR_FlatKeyOwned`) and, in
+the game code, impulses 1..8, the cycle's 10, 12, 15, 16 and Quake's 225, 226 (`VR_FlatHolster_Impulses`,
+`QC/vr_flatholster.qc`); `3` swaps the hands as before. A weapon walked over goes into a free hand; with both hands full it
+stays where it lies (`weapon_touch`'s headset rule: a hand must be free). Off: the weapon keys and the wheel cycle as
+before.
+
+**The holster menu** (`Quake/vr/vr_flatholster.cpp`): held open by the wheel's button (`vr_flat_key_holster_menu`, default
+`mouse3`; `+flatholsters` / `-flatholsters` from the console; not while the toolgun is in the right hand, whose panel the
+same button opens). While it is open time runs at `vr_flat_holster_menu_timescale` (0.3: bullet time's slow-motion path,
+`timescale::wanted`, eased by `vr_timescale_ramp`), the view is blurred by the visor glass's own blur
+(`vr_flat_holster_menu_blur`, 6 px at 1080p; `visor::menuBlur`), the crosshair fades (`vr_flat_holster_menu_xhair_fade`),
+the mouse moves the menu's cursor and not the view (`VR_FlatToolgunMouse`; `vr_flat_holster_menu_cursor_speed`) and the
+left button clicks on it instead of firing (`flatplay::routeFire` routes nothing). Letting go of the button or Esc closes
+it (after Esc, until the button is pressed again). The menu is the wrist gadget's screen as the visor's panels are
+(`gadget::renderHolsterMenu`, `vr_gadget_holster.inc`: its palette, font, frames, CRT look `vr_flat_holster_menu_crt`, the
+mount's glow): the holsters on a rough figure on the left (shoulders high, the chest's in the middle, the hips low, his
+left on the left), each with its weapon's thumbnail (`toolgun::icons`, the model from its side), its name and [L] [DROP]
+[R]; the hands on the right, each with DROP, and SWAP between them. Its size `vr_flat_holster_menu_size` (0.62 of the
+window's height), its fade `vr_flat_holster_menu_fade_time` (0.12 s). A click sends an impulse (`QC/vr_flatholster.qc`):
+60 + 3i + 0/1/2 for holster i's L, DROP, R (`VR_FlatHolster_Swap`: the holster and that hand trade what they hold, each
+weapon with its record, through `VRDrawHolsterWeapon` and `VRPutWeaponInHolster`; a weapon too big for a holster is
+refused as in a headset; a hand carrying a prop keeps it; `VR_FlatHolster_Drop`: the weapon laid
+`vr_flat_holster_drop_ahead` units ahead, with its record), 78 and 79 the left and right hand's DROP
+(`VR_Forcegrab_FlatDropHand`), 48 SWAP (`VR_FlatSwapHands`, 3's). A button that would do nothing is dim and its click does
+nothing. Saves and level changes keep the holsters as in a headset (they are the same fields). Debug > Reports >
+Flatscreen Play: `vr_flat_holster_menu_dump`, hold and let go, `vr_flatholster_test` (`Misc/quakevr/flatholster_test.sh`).
 
 **Pickups: walked over, or taken with `E`.** A flat-screen player has no torso to let armour go over and no holster to reach
 for, so what those gestures take goes on by touch (`VR_PickupObj_Handtouch`, `QC/items.qc`: the headset's "walking over it
@@ -887,6 +918,26 @@ barrel's way against the shot's, the wall's share, the dimming). "Flatscreen Cro
 from frame to frame, RMS and most, and its hit's distance off the centre, pixels at 1080 rows). Test: `bash
 Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed, M failed`).
 
+## Force grab
+
+The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; `vr_flatfgrab.cpp`). The hand that will take it
+(the main one if it is free, else the off one, the game's own choice) first turns its open palm to what it pulls
+(`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
+(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
+main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
+palm's middle, moved `vr_forcegrab_fx_along` towards the fingers and `vr_forcegrab_fx_out` out of the palm, in the headset too;
+flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
+is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling something takes no second grab (QC
+`VR_Forcegrab_FlatFree`): a second press goes to the other hand, or does nothing. The pose: Debug > Tunables > Flatscreen > Force
+Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).
+
+A pulled object's tumble settles back to how it lay over the flight's last `vr_forcegrab_settle` seconds (0.2), and it is caught
+at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand is held up in
+front (Debug > Tunables > Flatscreen > Held Props, `vr_flat_carry_*`), and drawn in the hand as drawn
+(`held::followDrawnHands`, `vr_flat_carry_drawn`): the view's sway, bob and turn's lag carry it with the hand, where before it
+was drawn at the game's hand and bobbed, lagged or led as the mouse turned. `vr_flat_fg_report` (Debug > Reports) prints each
+hand's step; `vr_flat_fg_press` presses the key. Test: `vr_flatitems_test 6` (palm first, no double grab); scene
+`flat_force_grab`.
 ## The quick grenade
 
 His words (2026-11-10): G is a quick grenade key; not dual wielding, a free hand takes the back pouch's grenade -- an

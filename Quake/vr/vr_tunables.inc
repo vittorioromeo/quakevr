@@ -153,6 +153,7 @@ QVR_TUNABLE(vr_parry_muzzle_angle, "45") // degrees: a weapon whose far end (a g
 
 // Carrying and Throwing > Other
 QVR_TUNABLE(vr_forcegrab_miss_speed, "0.2") // share of its speed a missed object keeps
+QVR_TUNABLE(vr_forcegrab_settle, "0.2") // s: a pulled object's tumble settles back to how it lay over its flight's last this long (0: caught as the spin left it)
 QVR_TUNABLE(vr_forcegrabbable_ammo_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_health_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_return_time_deathmatch, "4")
@@ -375,6 +376,8 @@ QVR_TUNABLE(vr_crate_flaregun_max, "2") // most flare guns on crates in a map
 
 // Carrying and Throwing > Force Grab
 QVR_TUNABLE(vr_forcegrab_outline, "1") // the glow round what a hand's force grab points at (strength, 0 off)
+QVR_TUNABLE(vr_forcegrab_fx_along, "1") // units: the effect's start moved from the palm's middle towards the fingers (negative: towards the wrist)
+QVR_TUNABLE(vr_forcegrab_fx_out, "0.6") // units: and out of the palm's surface, on its side (negative: into the hand)
 QVR_TUNABLE(vr_forcegrab_distance, "200") // units objects can be pulled from,
 QVR_TUNABLE(vr_forcegrab_cone, "15") // degreesoff where the hand points
 QVR_TUNABLE(vr_forcegrab_flick_speed, "1.0") // m/s back or up the hand flicks to pull,
@@ -1875,6 +1878,27 @@ QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after 
 QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
 QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
 
+// Flatscreen > Force Grab (vr_flatfgrab.cpp; his note 2026-11-10)
+QVR_TUNABLE(vr_flat_fg_pose, "1") // E's hand turns its palm to the object and opens before the grab (0: the grab at once, no pose)
+QVR_TUNABLE(vr_flat_fg_turn_time, "0.12") // seconds the palm takes to turn out and the fingers to open, before the grab starts
+QVR_TUNABLE(vr_flat_fg_detach_time, "0.15") // seconds more for a hand on a held gun's two-handed grip to let go of it first
+QVR_TUNABLE(vr_flat_fg_release_time, "0.2") // seconds the hand takes back to its own pose once the object is caught or missed
+QVR_TUNABLE(vr_flat_fg_fwd, "0.8") // the grabbing hand: in front of its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_fg_out, "0.15") // out at its own side, a share of the arm's reach (away from a held gun)
+QVR_TUNABLE(vr_flat_fg_down, "-0.05") // below its shoulder, a share of the arm's reach (negative: above; on the screen's edge at 0.3 out, 0.1 down)
+QVR_TUNABLE(vr_flat_fg_palm_aim, "1") // how much the palm turns to the object (0: straight ahead along the view)
+QVR_TUNABLE(vr_flat_fg_finger_tilt, "20") // degrees the fingers lean out from straight up, about the palm's normal
+
+// Flatscreen > Held Props (vr_flatfgrab.cpp, vr_held.cpp; his note 2026-11-10)
+QVR_TUNABLE(vr_flat_carry_pose, "1") // a prop held in one hand is held up in front (0: the empty hand's pose, hung or the guard)
+QVR_TUNABLE(vr_flat_carry_time, "0.2") // seconds into and out of that pose
+QVR_TUNABLE(vr_flat_carry_fwd, "0.55") // the hand: in front of its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_out, "0.15") // out at its own side, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_down, "0.35") // below its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_pitch, "10") // degrees its fingers point down from the view's pitch
+QVR_TUNABLE(vr_flat_carry_yaw, "10") // degrees it turns in towards the middle (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_carry_roll, "45") // degrees it rolls its palm up (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_carry_drawn, "1") // a held prop drawn in its hand as drawn (the view's sway, bob, turn lag); 0: at the game's hand, as before
 // Flatscreen > Hand Swap (vr_flatswap.cpp; vr_flat_swap_anim)
 QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap is sent as they do)
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped
@@ -1984,6 +2008,41 @@ QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units ove
 QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
+QVR_TUNABLE(vr_flat_shove_wind_share, "0.35") // flatscreen shove: the share of its time the hands wind up in (drawn back, palms turning to the target) before the push
+QVR_TUNABLE(vr_flat_shove_push_share, "0.15") // and the share the push out takes (it lands at its end: fast, his notes 2026-11-10)
+QVR_TUNABLE(vr_flat_shove_hold_share, "0.1") // and the share held out before the hands come back
+QVR_TUNABLE(vr_flat_shove_wind_back, "8") // the windup: the hands drawn this far back (units)
+QVR_TUNABLE(vr_flat_shove_wind_up, "2") // and this far up (units)
+QVR_TUNABLE(vr_flat_shove_aim_up, "8") // the push goes for this far above the crosshair's point (units; his notes 2026-11-10: higher, like the fist)
+QVR_TUNABLE(vr_flat_shove_palm, "1") // how far the shoving hands turn to palms at the target, fingers up (0: kept as they were)
+QVR_TUNABLE(vr_flat_shove_palm_up, "80") // the shoving hand's fingers this far above level (degrees)
+QVR_TUNABLE(vr_flat_shove_palm_turn, "90") // and turned this far about the fingers so the palm faces the target (degrees; negative the other way)
+QVR_TUNABLE(vr_flat_shove_both_armed, "1") // a weapon in each hand: both hands shove, weapons held, palms out (the armed humanoids' shove; 0: the off hand alone)
+QVR_TUNABLE(vr_flat_shove_both_always, "0") // 1: every shove is the two-handed one, whatever the hands hold
+QVR_TUNABLE(vr_flat_shove_swish, "0.35") // the shove's whoosh: the fist's swish at this volume (0: none; QC VR_FlatShove)
+QVR_TUNABLE(vr_flat_shove_swish_pitch, "8") // and this many percent higher (a lighter sound)
+QVR_TUNABLE(vr_flat_punch_both, "0") // 1: both hands may punch at once (as before 2026-11-10); 0: a hand punches only once the other's punch draws back
+QVR_TUNABLE(vr_flat_punch_cam_pitch, "1.5") // a punch tips the view this far down into it at its reach (degrees; the view only, the aim stays)
+QVR_TUNABLE(vr_flat_punch_cam_roll, "1.5") // and rolls it this far toward the punching hand's side (degrees; negative the other way)
+QVR_TUNABLE(vr_flat_punch_torso_twist, "8") // and turns the chest this far, the punching shoulder forward (degrees)
+QVR_TUNABLE(vr_flat_punch_torso_lean, "4") // and leans the chest this far forward (degrees)
+QVR_TUNABLE(vr_flat_swing, "1") // a weapon's melee (V, or its fire button with a melee weapon) is the overhead swing; 0: thrown straight like the fist, as before
+QVR_TUNABLE(vr_flat_swing_wind, "0.26") // the overhead swing: seconds the windup takes, the hand up over the head, the weapon turned up
+QVR_TUNABLE(vr_flat_swing_top, "0.06") // seconds held at the top
+QVR_TUNABLE(vr_flat_swing_strike, "0.14") // seconds the strike takes, down to the crosshair
+QVR_TUNABLE(vr_flat_swing_dwell, "0.08") // seconds held at its end
+QVR_TUNABLE(vr_flat_swing_back, "0.25") // seconds back to the rest
+QVR_TUNABLE(vr_flat_swing_raise_up, "4") // the top of the windup: the hand this far above the eye (units)
+QVR_TUNABLE(vr_flat_swing_raise_fwd, "4") // and this far ahead of it (units)
+QVR_TUNABLE(vr_flat_swing_raise_out, "6") // and this far out at its own side (units)
+QVR_TUNABLE(vr_flat_swing_wind_pitch, "90") // the weapon turned up this far at the top (degrees from the aim)
+QVR_TUNABLE(vr_flat_swing_end_pitch, "50") // and down this far at the strike's end (degrees below the aim)
+QVR_TUNABLE(vr_flat_swing_end_pitch_melee, "100") // a melee weapon (its haft stands up the hand, not along the aim) follows through to this far down over the hold after the strike, its head below the hand (degrees; the blow is the strike at vr_flat_swing_end_pitch)
+QVR_TUNABLE(vr_flat_swing_end_down, "4") // the strike ends with the hand this far under the crosshair's line (units)
+QVR_TUNABLE(vr_flat_swing_cam_up, "1.5") // the view tips up this far with the windup (degrees; the view only, the aim stays)
+QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike (degrees)
+QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
+QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
@@ -2207,6 +2266,7 @@ QVR_TUNABLE(vr_embed_move_sword_force_deep, "1500") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "0.4") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_move_hertz, "24") // Hz: the stiffness of the hand's spring on the body (a limb grab's 8)
 QVR_TUNABLE(vr_embed_move_at_wound, "1") // 1: the spring holds the body at the wound (follows closely); 0: at a point out at the hand, as before 2026-11-08 (it hung and swung from there: some 70% of a lift)
+QVR_TUNABLE(vr_embed_move_turn, "1") // share of the hand's turn since it took hold that the wound's place (from the hand) turns with: 1 the blade's whole length swings with the wrist, a body on it lifted overhead with the sword pointing up goes up with it; 0 as before 2026-11-10 (kept level: it stayed out in front)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
 QVR_TUNABLE(vr_embed_brake, "25") // 1/s: running into a stab you hold, your speed along the blade into the body falls to Brake: Speed this fast (0: never; his note 2026-11-08)
@@ -2249,5 +2309,5 @@ QVR_TUNABLE(vr_player_gore_stream_time, "0.6") // ... how long it pours, times a
 QVR_TUNABLE(vr_player_gore_stream_max, "3") // ... streams on you at once (the weakest makes way)
 QVR_TUNABLE(vr_player_gore_drip_rate, "0.6") // ... your wounds' drips (vr_player_gore_drips), times an enemy's rate (vr_drips_blood_rate; your arms' own drips too: vr_body_blood)
 QVR_TUNABLE(vr_player_gore_splash_amount, "1") // ... drops a hit splashes out of the wound, times 6 (vr_player_gore_splash)
-QVR_TUNABLE(vr_player_gore_eye_clear, "0.35") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them
+QVR_TUNABLE(vr_player_gore_eye_clear, "0") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them (0, his 2026-11-10: none kept back, a hand at the face bleeds there too; it was 0.35)
 QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor

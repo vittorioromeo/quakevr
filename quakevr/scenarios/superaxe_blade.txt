@@ -1,0 +1,9 @@
+# superaxe_blade: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The Super Axe in the main hand, its melee blade shown, a grunt to hit
+map vrtesthall
+god
+notarget
+cvar vr_debug_melee_blades 1
+give "MG3 Super Axe" main
+spawn "Grunt" 110 0
+hint Swing the Super Axe's edge at the grunt: the white blow line ends at the middle of the blade's edge, chops and slashes land as the head (an embed if hard enough), a pommel strike only with the handle's end. Tune it in Debug > Views > Edit Blade Shape (Main Hand).

@@ -861,7 +861,23 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Force Grab Report", "vr_flat_fg_report")
+            .help("vr_flat_fg_report: each hand's force grab as drawn (turning its palm out, pulling, back), its pose's share, how "
+                  "open the hand is, the carry pose's share, the palm's angle off its object, what the server says it pulls, and E's "
+                  "presses, the grabs sent, the presses with no free hand and the second presses on a busy hand."),
+        command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
+            .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
+        command("Holster Menu Dump", "vr_flat_holster_menu_dump")
+            .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
+                  "hand holds, and each button's place, whether it does something now and its impulse."),
+        command("Holster Menu: Hold Open", "+flatholsters")
+            .help("+flatholsters: the holster menu held open as if the wheel's button were held (-flatholsters lets go)."),
+        command("Holster Menu: Let Go", "-flatholsters").help("-flatholsters: the holster menu let go (closes)."),
+        command("Holster Menu Test", "vr_flatholster_test")
+            .help("vr_flatholster_test: the holster menu driven by the mouse (needs the shotgun in the right hand and the "
+                  "nailgun in the left: Misc/quakevr/flatholster_test.sh sets it up): DROP, L, R, SWAP, the weapon keys, "
+                  "a hand's DROP, the time scale; ends \"flatholster_test: N passed, M failed\"."),
         command("Flatscreen Grenade Report", "vr_flatgrenade_report")
             .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
                   "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),
@@ -879,6 +895,10 @@ za::Vector<Item> pageDebugReports()
                   "hands' motion is the look's, not theirs (vr_handsource_debug shows it)."),
         command("Flatscreen Shove", "vr_flat_shove_now")
             .help("vr_flat_shove_now: the shove key's shove (mouse 5, vr_flat_key_shove), with its cooldown."),
+        command("Flatscreen Melee Probe", "vr_flat_melee_probe")
+            .help("vr_flat_melee_probe: from now on each punch, overhead weapon swing and shove prints its numbers to the "
+                  "console as it ends: the hand over the eye, the weapon turned up and down, the shove's palm and fingers, "
+                  "the view's tilt (`vr_flat_melee_probe 0` stops it)."),
         command("Flatscreen Test Hit From The Right", "vr_blood_test packet right")
             .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
                   "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "

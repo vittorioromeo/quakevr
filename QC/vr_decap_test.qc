@@ -530,9 +530,9 @@ void(float xTest) VR_Decap_Test =
         makevectors('0 1 0' * m.angles_y);
         at = m.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
     }
-    if(xTest == 19)
+    if(xTest == 19 || xTest == 28)
     {
-        VR_Decap_Sweep(m);
+        VR_Decap_Sweep(m, xTest == 28 ? 45 : 0);
         return;
     }
     if(xTest == 11)
@@ -640,7 +640,7 @@ void(float xTest) VR_Decap_Test =
     }
     else
     {
-        float thing = (xTest == 9 || xTest == 61) ? VR_MTHING_AXE : VR_MTHING_SWORD;
+        float thing = (xTest == 9 || xTest == 61 || xTest == 29) ? VR_MTHING_AXE : VR_MTHING_SWORD;
         float kind = VR_MKIND_SLASH;
         float f = 0.7;
         float along = 0;
@@ -650,13 +650,31 @@ void(float xTest) VR_Decap_Test =
         else if(xTest == 4) { what = "a slow slash"; speed = max(0.2, cvar_hget(cvarh_vr_decap_speed) * 0.5); }
         else if(xTest == 7) { what = "a slash at full health"; dmg = 10; }
         else if(xTest == 61) { what = "an axe's slash swept through the neck"; f = 0.85; }
+        else if(xTest == 29)
+        {
+            // His note 2026-11-10 ("swing my axe at the enemy's chest, and it will cause a decapitation"): a chop coming
+            // down at 45 degrees at the upper chest, 16 below the head's middle on its axis (its path meets the chest
+            // below the shoulders' top): it kills, it must not behead.
+            what = "an axe's chop swept into the upper chest";
+            f = 0.85;
+            at = at - '0 0 16';
+        }
         else { what = (xTest == 9) ? "an axe's slash" : "a sword's slash"; f = (xTest == 9) ? 0.85 : 0.7; }
         if(xTest != 7)
         {
             m.health = 1;
         }
         VR_Decap_TestBlow(at, thing, kind, f, along, speed);
-        if(xTest == 61)
+        if(xTest == 29)
+        {
+            entity cb = VR_Blow(cVR_MainHand);
+            vector down = normalize(cb.mh_c_dir + '0 0 -1');
+            cb.mh_c_dir = down;
+            cb.mh_vgrip = VR_Blow_ToPlaySpace(down) * speed;
+            cb.mh_vfar = cb.mh_vgrip;
+            cb.mh_vnear = cb.mh_vgrip;
+        }
+        if(xTest == 61 || xTest == 29)
         {
             // (As a hand's blow finds what it strikes: VR_Melee_Sweep. Its contact is the blow's.)
             float struck = VR_Decap_TestSweep(m, at);

@@ -67,6 +67,30 @@ Flat-screen: fire the super shotgun empty; a moment later it breaks open by itse
 Flat-screen: the nailgun and the nail pistol show their magazines in your hands; fire one empty and its magazine drops out and falls to the floor, and R seats a new one at the hip. {test:flat_mag_eject}
 Flat-screen: fire the heavy revolver a few times and press R; the cylinder swings out, the spent blue shells fall out while the live ones stay in, and it swings home once reloaded. {test:flat_revolver_eject}
 Flat-screen: fire the shotgun and the nailgun; the visor crosshair's lines spread out from its centre with each shot's recoil and ease back, keeping their length, and with both guns on one crosshair it spreads as the harder kick (Visor Crosshair Kick in Desktop Screen Play). {test:flat_xhair_kick}
+Stab a grunt deep with the sword, set Blade Hold Strength to x10 and lift it over your head with one hand, pointing the sword up: the body comes all the way up with the blade, along it too, and swings round with your wrist; at x1 it lags as before. {test:embed_stab}
+Get hurt with your hands near your face: your blood streams, splashes and drips still show right at your face (Your Gore: Eye Clearance now 0), and each stream starts on your drawn body or arm, moving with it, not floating off it. {test:playergore}
+Cut a limb or head off onto the blade, then punch it or strike it with the other hand's weapon: it bursts with a spray of blood right where it sat on the blade, not just small gibs; if the blood still doesn't show with the blade close to your face, lower Particle Fade Near Eyes and try again. {test:embed_stab}
+Swing and chop an axe or sword at a grunt's chest and shoulders: it dies without losing its head; a cut across the neck still beheads it, and the training dummy says "would behead" only for blows it calls a head hit.
+Swing the axe hard into a dead grunt's ragdoll: the axe stays in it (grab it back out) instead of the body bursting into gibs.
+Chop and slash with the Super Axe's blade: the blows land as the head (and stay in when hard enough), not as pommel strikes; the white blow line with Show Melee Blades ends at the middle of the blade's edge. {test:superaxe_blade}
+Flat-screen: press the force grab on a rock with both hands free: the right hand first turns its open palm to the rock, then the beam starts from the middle of that palm, not above the hand. {test:flat_force_grab}
+Flat-screen: holding the super shotgun with both hands, press the force grab: the left hand slides off the fore-end smoothly, moves out beside the gun with its palm to the target, then pulls; after the catch or a miss it goes back. {test:flat_force_grab}
+Flat-screen: press the force grab twice quickly on two things: never do both fly at the same hand; the second goes to the other hand if it is free, else nothing happens. {test:flat_force_grab}
+Flat-screen: a force-grabbed brick or rock is held up in front of you in an open hand, sitting upright as it lay, not hung at your side or in a fist. {test:flat_force_grab}
+Flat-screen: walk and turn the mouse fast holding a force-grabbed brick: it stays in the hand, no bobbing, no lagging behind or ahead of it. {test:flat_force_grab}
+In VR, force grab a brick or a gib: the beam starts from your palm, and the thing stops tumbling as it arrives and sits in the hand upright as it lay.
+Flat-screen: hold the mouse wheel's button: time slows to 0.3, the view blurs a little, the crosshair fades and the holster menu appears in the middle with the six holsters on a figure on the left and both hands on the right; let go or press Esc and everything comes back at once. {test:flat_holsters}
+Flat-screen: in the holster menu move the mouse: the cursor moves and the view stays still; L and R on a holster trade its gun with that hand (an empty hand draws it, an empty holster takes it), its arrow drops it at your feet, each hand's DROP drops what it holds, and SWAP swaps your hands as 3 does. {test:flat_holsters}
+Flat-screen: with the holsters on, 1, 2 and 4 to 9 and the mouse wheel pick no weapon, and with a gun in each hand a gun you walk over stays on the floor until you put one away. {test:flat_holsters}
+Flat-screen: shove with empty hands (Mouse 5): both hands draw back first, palms turn to the target with the fingers up, then push out fast a little above the crosshair. {test:flat_shove}
+Flat-screen: the shove plays a soft, lighter copy of the fist's whoosh as the hands push. {test:flat_shove}
+Flat-screen: with a gun in each hand the shove pushes with both hands, the guns kept in them and turned palms out, like the armed grunts' shove. {test:flat_shove}
+Flat-screen: holding the rocket launcher with both hands, the shove now plays: the left hand lets go of the grip, pushes and goes back to it. {test:flat_shove}
+Flat-screen: Debug > Tunables > Flatscreen > Shove And Melee > Always Two-Handed Shove 1 makes every shove two-handed, whatever you hold. {test:flat_shove}
+Flat-screen: LMB and RMB together with empty hands throw one punch, never two at once; each punch tips the view and chest a little into it, smoothly. {test:flat_swing}
+Flat-screen: swinging the axe (LMB) winds it up over your head turned up, then chops down to the crosshair with the wrist turning until the blade points down, the view tipping up then forward; the knight takes the hit. {test:flat_swing}
+Flat-screen: V with the shotgun or the sword swings it overhead the same way, and looks better than the old straight jab. {test:flat_swing}
+Flat-screen: swinging the axe or the shotgun (V) into a wall stops it at the surface; it never goes into the wall. {test:flat_swing}
 [2. VR: body, lying down and swimming]
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}

@@ -20,6 +20,11 @@
 
 #include "Zancle/Container/Vector.hpp"
 
+namespace qvr::hands
+{
+struct State;
+} // namespace qvr::hands
+
 namespace qvr::disarmhull
 {
 struct Hull;
@@ -101,6 +106,12 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles);
 // Client side, the view (modelcollide::beginView): the prop `hand` holds alone drawn moved by `push` from where the hand
 // has it this frame, with the hand (held out of a monster: vr_model_collide).
 void viewPush(int hand, const glm::vec3& push);
+
+// Client side, the view (vr_view.cpp; flatscreen play, vr_flat_carry_drawn): each prop held in one hand moved with its hand
+// from the hand it was placed on as the frame began (the game's, VR_RelinkHeld) onto `drawn`, the hand as the view draws it
+// now (made again from the view, with its sway, bob and turn's lag: his note 2026-11-10, a force-grabbed prop bobbed and
+// lagged or led the hand as the mouse turned). Before viewPush, which moves it on from there.
+void followDrawnHands(const hands::State& drawn);
 
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion
 // from both hands (throwing::estimateBothAt). `release`: the hand lets go now, of a prop held in both, or held in both

@@ -5020,6 +5020,12 @@ extern "C" void VR_SetupViewEntities()
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
     }
+    // Flatscreen play: a prop held in one hand drawn in that hand as drawn here (made again from this view, its sway, bob
+    // and turn's lag in it), not where the frame's start placed it (vr_held.cpp followDrawnHands; vr_flat_carry_drawn).
+    if(flatplay::active() && !stereo::isRenderingEye() && !posingNow && vr_flat_carry_drawn.value != 0.f)
+    {
+        held::followDrawnHands(s);
+    }
 
     // Held out of the models they are pushed into (vr_model_collide): the weapons, hands and arms drawn moved (not while
     // posing: the floating weapon stays where it floats).
@@ -5219,6 +5225,13 @@ extern "C" void VR_SetupViewEntities()
         adtank::setupView(s); // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
         magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
     }
+    // Flatscreen play: the force grab's glow, beam, tendril and trail, as in the headset (vr_fgfx.cpp), from the palms of the
+    // hands as drawn (their sway, bob and turn's lag in them: his note 2026-11-10, the effect began above the hand), before
+    // they are put back on the game's steady ones below.
+    if(flatplay::active() && !stereo::isRenderingEye())
+    {
+        fgfx::queue(s, true);
+    }
     if(!posingNow)
     {
         {
@@ -5384,7 +5397,6 @@ extern "C" void VR_SetupViewEntities()
     if(flatplay::active() && !stereo::isRenderingEye())
     {
         crosshair::queueFlat(s); // flatscreen play: the headset's crosshair (vr_crosshair), the weapons as just placed
-        fgfx::queue(s, true);    // and the force grab's glow, beam, tendril and trail, as in the headset (vr_fgfx.cpp)
     }
 
     {

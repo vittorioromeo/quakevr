@@ -1292,6 +1292,7 @@ float vr_melee_blunt; // (vr_melee.qc)
 // A hand's blow at `xSpeed` going `xDir` struck corpse `c` at `xAt` (self the player; VR_Corpse_StrikeFrame, the dents'
 // test): its corpse damage, wound and dent (VR_Corpse_Damage), the beheading cut instead, the torch's or the hot blade's
 // fire. `xBlunt`: struck with a pommel, a hilt, a handle's end (a blunt blow).
+float(float xHand, float xSpeed) VR_Corpse_BladeBlowDamage; // (weapons.qc)
 void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR_Corpse_Struck =
 {
     if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
@@ -1314,7 +1315,12 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     }
 
     float dmg = VR_Gib_StrikeDamage(speed);
-    if(!VRIsHandWeaponless(self, xHand))
+    float thing = VR_Melee_Thing(self, xHand);
+    if(!xBlunt && (thing == VR_MTHING_SWORD || thing == VR_MTHING_AXE || thing == VR_MTHING_SAW))
+    {
+        dmg = VR_Corpse_BladeBlowDamage(xHand, speed); // (as the same blow on the living: weapons.qc)
+    }
+    else if(!VRIsHandWeaponless(self, xHand))
     {
         dmg = dmg * 1.5;
     }

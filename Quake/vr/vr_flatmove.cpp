@@ -2485,12 +2485,17 @@ extern "C" int VR_FlatKeyOwned(int key)
     }
     for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_grab_alt, &vr_flat_key_reload,
             &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust,
-            &vr_flat_key_drop, &vr_flat_key_grenade})
+            &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_holster_menu})
     {
         if(c->string[0] && Key_StringToKeynum(c->string) == key)
         {
             return 1;
         }
+    }
+    // The holsters on (vr_flatholster.cpp): the number keys pick no weapon (3 is the swap's, above).
+    if(vr_flat_holsters.value != 0.f && key >= '0' && key <= '9')
+    {
+        return 1;
     }
     return key == 'f' || key == 'v' ? 1 : 0;
 }
@@ -2526,6 +2531,10 @@ extern "C" void VR_FlatViewLean(float* vieworg, float* viewangles)
     vieworg[1] += shift.y;
     vieworg[2] += shift.z;
     viewangles[ROLL] += flatmove::leanRoll();
+    // A blow's tilt (a punch into it, a weapon's overhead swing with its arc: flatplay::meleeViewTilt), the view's only.
+    const glm::vec3 blowTilt = flatplay::meleeViewTilt();
+    viewangles[PITCH] += blowTilt.x;
+    viewangles[ROLL] += blowTilt.z;
     // The roll he sees, every one on the view by here (the lean's, cl_rollangle's strafe roll, a hit's kick): the look
     // turns along it (VR_FlatLookTurn). The strafe roll counts too -- the screen is as tilted by it, and it only turns
     // the mouse's way with the screen, adding no motion of its own, so strafing straight is no less steady. Dead (the

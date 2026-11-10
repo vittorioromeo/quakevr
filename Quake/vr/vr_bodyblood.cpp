@@ -166,6 +166,10 @@ bool pickSpot(const Limb& l, Segment& segment, float& along)
 // Close under the eyes (a hand raised to the face): no drops there, to fall across the view.
 [[nodiscard]] bool nearEyes(const hands::State& s, const glm::vec3& p, float m2w)
 {
+    if(vr_player_gore_eye_clear.value <= 0.f)
+    {
+        return false; // (Your Gore: Eye Clearance 0, the default: drops at the face too)
+    }
     const glm::vec2 flat{p.x - s.head.x, p.y - s.head.y};
     return p.z > s.head.z - 0.3f * m2w && glm::length(flat) < 0.5f * m2w;
 }

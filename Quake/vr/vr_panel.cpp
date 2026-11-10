@@ -16,6 +16,7 @@
 #include "vr_deathview.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_highlights.hpp"
@@ -704,6 +705,7 @@ extern "C" void VR_End2D(void (*windowHud)())
         text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
         visor::renderPanels();   // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
         toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
+        flatholster::draw(); // (flatscreen play: the holster menu, its cursor on it: vr_flatholster.cpp)
         return;
     }
     drawingToCanvas = false;

@@ -7375,6 +7375,179 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
 
+## Flat shove, punch and overhead weapon swing (branch `agent/flat_melee`, worktree `phases`, 2026-11-10)
+
+His notes 1-6, 20, 21, 25, 26 (flat-screen melee). All numbers are tuning constants in Debug > Tunables > Flatscreen >
+Shove And Melee (`vr_tunables.inc`).
+
+- **Shove** (`vr_flatplay.cpp` `shoveTimes`/`shovePhase`/`shoveOffset`/`palmAt`): a windup (`vr_flat_shove_wind_share`
+  0.35 of `vr_flat_shove_time`, drawn back `_wind_back` 8 and up `_wind_up` 2), a fast push (`_push_share` 0.15: 0.06 s at
+  the defaults, was 0.13 s; the game's shove is sent at its end), a hold (`_hold_share` 0.1), the way back. The hand turns
+  to its palm at the target, fingers up (`_palm` 1, `_palm_up` 80, `_palm_turn` 90, mirrored per hand; slerped in over the
+  windup, after the rest's hang so the hang's easing doesn't fight it). The push aims `vr_flat_shove_aim_up` 8 over the
+  crosshair's point. Assumption to check in game: at roll 0 a hand's palm faces in towards the middle (as on a grip); if the
+  palms come out facing sideways or back, `_palm_turn` (signed) fixes it.
+- **Two-handed shoves**: both hands with both free (as before), with a weapon in each (`vr_flat_shove_both_armed` 1:
+  weapons kept, palms out, as the armed humanoids shove; their model frames could not be shared, the flat hands are posed
+  procedurally), and every shove with `vr_flat_shove_both_always` 1 (his experiment). QC impulse 56 for all of them.
+- **Bug 5** (a single weapon held in both hands never showed its shove): the free hand on the grip was put back on it by
+  flatsight's grip (`gripWanted`) and twohand's hold, which only let go for a punch. `flatplay::shoving` now lets go the
+  same way (vr_flatsight.cpp, vr_twohand.cpp).
+- **Shove sound** (QC `VR_FlatShove`): the fist's swish (knight/sword1, 2 in turn) at `vr_flat_shove_swish` 0.35,
+  `_swish_pitch` +8 %, landing or not.
+- **One punch at a time** (`vr_flat_punch_both` 0): a hand punches only once the other's punch draws back.
+- **Punch lean**: `meleeLean` tips the drawn view down `vr_flat_punch_cam_pitch` 1.5 and rolls it toward the hand's side
+  `_cam_roll` 1.5, turns the chest `_torso_twist` 8 (through `trunkTwist`) and leans it `_torso_lean` 4 (through
+  `chestPitch`), eased in to the reach, out with the draw-back. The view's tilt goes on in `VR_FlatViewLean`, after the
+  lean's roll: r_refdef only, so the aim, shots and pose stay put; the drawn hands follow the camera (drawnOffset) and the
+  crosshair dot projects the real aim. Roll sign: Quake's positive roll; flip `_cam_roll` if it reads backwards.
+- **Overhead swing** (`overheadSwing`, `vr_flat_swing` 1, any weapon in the hand: the fist keeps its throw): windup 0.26 s
+  to `_raise_up` 4 over the eye, `_raise_fwd` 4 ahead, `_raise_out` 6 out (in the arm's reach), weapon pitched up
+  `_wind_pitch` 90; top hold 0.06 s (keeps the windup out of the wiggle rule's 0.25 s window as far as it can); strike 0.14 s
+  round the shoulder (slerped direction, eased length) to what the arm reaches toward the crosshair point, `_end_down` 4
+  under it, the wrist turning gradually to `_end_pitch` 50 down; held 0.08 s, back 0.25 s. View and chest: back
+  `_cam_up` 1.5 / `_torso_up` 3 with the windup, forward `_cam_down` 2.5 / `_torso_down` 6 with the strike. The hit is the
+  game's own melee on the real hand motion, so it lands where the swept weapon meets the target.
+- **Bug 20** (a weapon's swing went into walls): flatsight's swing stop only ran for melee weapons (`meleeIn`), so V with a
+  gun was never stopped; it now runs for any held weapon's punch.
+- **Probe and test**: `vr_flat_melee_probe` (Debug > ... > Flatscreen Melee Probe) prints each blow's numbers;
+  `Misc/quakevr/flatmelee_test.sh <agent>` checks shoves (palms, both, dual, two-handed grip, always), one punch at a time,
+  the punch tilt, both swings' arcs and the axe swing hurting a knight. `vr_flat_punch main v` is V's punch from the console.
+  Scenarios `flat_shove`, `flat_swing`.
+- **Runs (after his VR session)**: flatmelee_test.sh 9 passed, 0 failed (palms 0.97-0.99 and fingers 1.00 at full push
+  in every shove: the palm convention holds; the axe's swing leaves the knight 24 ahead at 41 of 75). flatplay_test.sh
+  31 passed: its axe reads waited 30 frames, before the overhead strike lands (0.46 s), now 45.
+- **Fixed on the runs**: the dual-wield shove's palms were undone by flatsight's aim of a gun at the crosshair's point,
+  so the palms go on last (after flatsight and the reload) and a punching or shoving hand is no longer aimed at the point
+  (`aimsAtPoint`: a gun swung with V stayed level). The axe's haft stands up the hand, so at the gun's 50 degrees its
+  head stayed over the hand; turning it further within the strike missed the knight at every angle past 50 (swept:
+  70-100 all 75 of 75), so the strike ends at `vr_flat_swing_end_pitch` 50 for everything and a melee weapon follows
+  through to `vr_flat_swing_end_pitch_melee` 100 over the hold after it (41 of 75 at every follow-through angle).
+- **Wall** (`vr_flatplay_debug 2`, e1m1's start walked into its west wall, the axe then V with the shotgun): the stop now
+  also halves down by the weapon's own depth (`gunDepth`) where gunBack's traces call it clear. The axe never stands
+  more than 1 unit in; the shotgun pressed flush against the wall stands up to 3.2 units in, every such frame with the
+  hand already folded to its shoulder (no room left to go back: 0 deep frames with room).
+- **Images**: `scratch/flatmelee_before.png` (the old behaviour through the new switches) and
+  `scratch/flatmelee_after.png`: the shove's windup and full push, a punch at its reach, the axe's top, mid-strike and
+  end.
+## Flat-screen holsters and the holster menu (branch `agent/flat_holsters`, worktree `release`, 2026-11-10)
+
+His words (18): the holster system in flat-screen play too, on by default: six holsters and two hands, the number keys
+doing nothing but 3's swap, the wheel's button held for a visor-style menu (time at 0.30x, a blur, the crosshair faded,
+the mouse's cursor) with the holsters on a rough figure, [L] [DROP] [R] each, the hands with DROP and SWAP.
+
+- Shared with VR: the holsters themselves (fields, records, `VRDrawHolsterWeapon`, `VRPutWeaponInHolster`,
+  `VRHolsterRefused`, the hand drop `VR_Forcegrab_FlatDropHand`, the swap `VR_FlatSwapHands`), the pickup rule (a free
+  hand), bullet time's slow-motion path (`timescale::wanted`), the visor glass's blur passes (`glassBlur`, now with a
+  radius and a whole-view mode), the gadget's screen drawing (palette, text, `Shade::Screen`), the toolgun's thumbnails and
+  its flat cursor plumbing (`VR_FlatToolgunMouse`, `VR_FlatToolgunEscape`, `vr_flat_mouse_move to <button>`),
+  notectx's weapon names (now public). Flat-only: the menu's layout, hit-testing and impulses.
+- New: `vr_flat_holsters` 1, `vr_flat_key_holster_menu` mouse3, `vr_flat_holster_menu_timescale` 0.3, `_blur` 6,
+  `_xhair_fade` 1, `_size` 0.62, `_fade_time` 0.12, `_cursor_speed` 1, `_crt` 0.5, `vr_flat_holster_drop_ahead` 20 (rows
+  in Locomotion > Desktop Screen Play; the dump, hold and test in Debug > Reports > Flatscreen Play). Impulses 60..79
+  (QC `vr_flatholster.qc`), 80 the test's pickup.
+- Old flat tests that drive the weapon keys pin `vr_flat_holsters 0` (flatgate, flatplay, flatramp, flatreload, body_lie,
+  flatitems 5, the flat_taa scene).
+- Test: `Misc/quakevr/flatholster_test.sh` (`vr_flatholster_test`: the menu driven by mouse counts and clicks; DROP, L, R,
+  SWAP, the weapon keys, the full-hands pickup, a hand's DROP, the time scale restored): 10 passed, 0 failed, the
+  pickup left lying. SWAP is 3's own (`flatplay::swapHands`: agent/flat_hands' animated swap). The first picture showed
+  the guns' thumbnails as nothing (dark on the dark face): they sit on a lit plate, brightened; the text went from 5 to 6
+  pixels. The changed flat tests: flatgate 5/0, flatplay 31/0, flatramp 1/0, flatreload 26/0, the flat_taa scene loads with
+  the holsters off; flatitems 6/2 (cases 1 and 5 wait for the reserve's shells to drop on a shot, but flat play's reload
+  fires from the clip since 2026-11-08: with `vr_flat_reload 0` case 1 is 15/0) and body_lie 1/1 (the slide's "no bob"
+  check, agent/flat_slide2's new one): neither from the holsters.
+## Force grab: palm first, VFX from the palm, off the 2H grip, no double grab, held props (branch `agent/flat_forcegrab`, worktree `blendmodels`, 2026-11-10)
+
+His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
+
+- **Palm first** (`vr_flatfgrab.cpp`, new): E picks the hand on the client (main if free, else off: `held::handEmpty`, not
+  holding the torch, not on a grab, nothing flying to it), turns it out over `vr_flat_fg_turn_time` (palm to the object as
+  the server's preview has it, else the crosshair's far point; the palm's way is the jointed hand's measured one,
+  `grip::handFrame`), fingers opening (`flatplay::fistShare` scaled down), then sends `impulse 50/51` (QC
+  `VR_Forcegrab_FlatGrab(xWant)`); holds the pose, palm on the flying object (STAT state 3), until it lands or misses, then
+  eases back. The old 0.3 s forward "reach" offset on the off hand (`grabOffset`) is gone: it moved the off hand while QC
+  pulled to the main hand.
+- **VFX origin**: the beam, tendril and the menu preview start at `hands::palmPoint` (`fgfx::palmOrigin`) instead of 2 units
+  ahead of the hand's point: in VR too. Flat play queued them after the view had put the drawn hands back on the game's
+  steady ones, so the beam started off the drawn hand (its sway, bob, turn lag): now queued while the hands are as drawn.
+- **2H detach**: a hand on the grip (`twohand::drawnHelping`, the ironsight's or the stance's look hand) gets
+  `vr_flat_fg_detach_time` more; `flatfgrab::busy` lets go of the grip in `flatsight` (`gripWanted`, the look hand's fast ease)
+  and `twohand` (`canGrab`, `hotspotAims`), as the punch and the reload trip do; the pose sits out at the hand's own side
+  (`vr_flat_fg_out`), away from the gun.
+- **Double grab**: QC `VR_Forcegrab_FlatFree` (free and not pulling) for the grab and the preview; the client refuses a hand
+  on a grab. Before, `VR_HANDFREE_LOCKED` let a pulling hand take a second object.
+- **Held props**: a force-grabbed object's spin settles to how it lay over the flight's last `vr_forcegrab_settle` s and is
+  caught at that turn (VR too). Flat: a prop held alone gets a carry pose (`vr_flat_carry_*`; no guard fist), and is drawn
+  in the drawn hand (`held::followDrawnHands`, from `VR_SetupViewEntities` after the drawn offsets): it was placed in
+  `VR_RelinkHeld` from the hands of the move's latch, before the view's relatch and the drawn sway, bob and turn's lag, so it
+  bobbed and lagged or led the hand as the mouse turned.
+- **Test**: `vr_flatitems_test 6` (two keys; the first flies only after the turn, never two at one hand, it ends in the hand
+  it flew to). Scene `flat_force_grab`.
+- **Effect start, his VR note** ("the force grab origin is not the palm ... kind of like the fingertip"): measured with
+  `vr_flat_fg_report` in the VR mock, the palm's middle is 4.25 units behind and 2.5 below the hand's point, so the old start
+  (2 ahead) was about 6.7 units off the palm, out by the fingers. Now the palm's middle moved `vr_forcegrab_fx_along` (1 u)
+  towards the fingers and `vr_forcegrab_fx_out` (0.6 u) out of the palm's surface on its side (Debug > Tunables > Carrying and
+  Throwing > Force Grab): fx start -3.25 0.35 -2.49 (main hand, forward left up) against the palm's -4.25 -0.25 -2.49.
+- **Pose defaults**: `vr_flat_fg_out` 0.15 and `vr_flat_fg_down` -0.05 (0.3 / 0.1 put the open hand on the screen's bottom
+  left edge). `flatitems_test.sh` sets `vr_flat_autoreload 1`: since the flat reload landed, e1m1's shotgun starts with an
+  empty clip and cases 1 and 5 timed out waiting for a shot (not this branch: they pass with it).
+## Melee beheading judged where the blade meets the flesh (his notes 2026-11-10; agent vn1110_melee)
+
+His note: "I can basically swing my axe at the enemy's chest, and it will cause a decapitation". His own dummy lines
+showed it: `body (x1.00) - would behead (zone in 11.0/12.3 off 5.4 below the head's middle)` and `(9.1/12.3 off 7.0
+below)` (vrfiringrange 01-34-34): a blow positional damage called the body, judged on the head.
+
+- **Cause.** A precise blow lands where its striking point, grown by its thickness and the melee tolerance (about 5
+  units), first touches the model (`VR_Melee_Sweep`). Beheading judged that touch's place on the model standing, and
+  since a level cut at the neck first touches the shoulders' top, Decapitation 2 (ROUND21) grew the melee zone to make
+  necks land (Head Zone Size 1.25 then 1.15, Neck 6 then 3, over the head sphere's 3.5 margin): a 12.3-unit capsule on a
+  grunt that reached the shoulders and the top of the chest. A chop coming down at the shoulder or the chest touches the
+  same place as a neck cut, so no zone size could tell them apart. Not the skin cache (eval identical with
+  `vr_hitmodel_skin_keep 0`), not the withinBounds trace fix (the drifting stab identical with it reverted).
+- **Fix** (`QC/vr_decap.qc` `VR_Decap_ZonePoint`): the zone is judged where the struck point's own path (12 units
+  behind the touch to 8 on) crosses the model itself, no thickness (new builtin `hitmodel_skin`: `hitmodel::skinCrossing`
+  exposed). A neck cut's path goes on into the neck, a chop's into the shoulder or chest. A path that meets no flesh
+  that near (a graze by the thickness alone) keeps the touch's point. With the true flesh point the zone needs no
+  growing: **Head Zone Size 1.15 -> 1, Neck 3 -> 0** (`vr_decap_head_size`, `vr_decap_neck`): a blade beheads exactly
+  where positional damage says "head" (the one head rule), at the flesh it cut. `vr_decap_touch_point 1` (not archived):
+  the old touch point, the A/B. The chainsaw's bar on a precise target uses its motion for the path.
+- **Numbers.** Sweeps (`decap_test.sh sweep`; new test 28 = chops coming down at 45 degrees onto the head's axis), on
+  contacts per 16 sides, grunt: chops aimed at 16/18/20/22/24 below the head's middle (the shoulders, the chest) behead
+  14/10/6/3/1 before, 0/0/0/0/0 now; at 12/14 (the neck's base) 16/16 before, 15/10 now. Level cuts: 2/4/6/8/10 below
+  16/16/15/12/3 before, 15/13/12/7/5 now; 12 below 1 -> 0. Knight and ogre alike (the ogre's chops at 20-24 below
+  3-4/16 remain: his chest is that high). Eval full: 162/171 both, verdicts unchanged; decap/yes events 30 -> 24: five
+  lost were at 8.4-12.6 below the head's middle and 11.6-14.5 out (shoulder, top of the chest), one
+  (slash_diagonal_down_right 12-34-45) touched the jaw's side but its tip's path met the shoulder's top 12.6 below.
+- **Test** (`decap_test.sh chest`, new test 29): an axe's chop swept into a grunt's upper chest at health 1 kills
+  without beheading (before: beheaded); its slash through the neck (61) still beheads. On the motion recorder's dummy the
+  chop reads `body (x1.00) - would kill` (before: `... would behead (zone in 8.7/12.3 off 10.7 below ...)`), the neck
+  slash `head (x1.50) - would behead (zone in 5.4/10.7 ...)`.
+- **Eval drift re-examined** (stab_two_hands 12-36-34, 15.6 -> 54.4): not detection. The replay's two-handed stab's tip
+  is at head height (26-28 above the grunt's origin; its model's top is 25), the struck triangle a head one: the replay
+  doesn't steady the off hand's weapon as the take did (the eval's own note), so the stab goes higher than recorded.
+- If necks feel too hard now: Gore > Decapitation > Head Zone Size 1.1 (or Neck 2).
+- **An axe into a ragdoll embeds, not gibs** (his third note). A hand's blade blow on a corpse dealt the corpses' strike
+  damage (`VR_Gib_StrikeDamage`, 20 x min(3, speed / vr_melee_speed) x Melee Damage, x1.5 for anything held): some 3 times
+  the same blow on the living (70.2 for a 7 m/s axe swing), over the 50 that gibs a corpse whole in one hit
+  (`vr_corpse_gib_overkill`), so the body was gone before the blade could stay in (`VR_Embed_Try`: "the blow gibbed
+  it"). Now a sword's, an axe's or the chainsaw's (not a pommel's) blow on a corpse deals what it would deal the living
+  (`VR_Corpse_BladeBlowDamage`, weapons.qc: the weapon's base, the melee strength curve by the swing's speed, weight,
+  Melee Damage, Quad): 24.1 for that swing; it gibs whole only as hard a blow as would gib the living (a heavy Super
+  Axe's hardest). Fists and blunt weapons keep the old strike damage. Test: `vr_embed_test 28` case 6 (an axe swung
+  into a dead grunt's ragdoll, limb and head cuts off for the case): 16/0; on the old damage 14/2 (70.2, gibbed).
+- **The Super Axe's blow line ends at its edge** (his second note: most hits read as pommel strikes). Laid as the axe
+  (`fit_superaxe.py` frame, units up the handle from its end, out across it in the head's plane): its head spans 24-50
+  up; on one side a broad blade, its edge 10 out from 34 to 42 up; on the other a beak, 17 out at 39-43 up, curving off
+  the plane. Its Muzzle anchor (the blow line's far end) was on the handle's line at the head's middle (38.9 up, 0.3
+  out): the striking points ran up the handle about 10 units behind the edge, the handle's end met things first, and the
+  pommel's wait gave the blow to the pommel. The axe's line ends at its edge (37.2 up, 10.8 out, 5.2 across). Now the
+  Super Axe's anchor is its edge's middle vertex (419: 38.1 up, 10.1 out, 4.9 across, the same side as the axe's edge):
+  `muzzle_av "43.834 0.804 -16.945"` in slots 24 and 25 (weapons.txt). Its layout stays the axe kind's own (handle's end
+  0.25 behind the hand, the head's points at 0.75 and 1 of the line).
+- **His tweaks in VR** (Debug > Views > Edit Blade Shape (Main Hand), the Super Axe in the main hand): the red Tip at the
+  middle of the blade's edge; the teal Line Start where you want the line to begin (the hand by default); the purple
+  Blade Start down to where the head begins (about 0.6 of the line); the orange Handle Length so its point sits at the
+  handle's end; Head Box On for a box over the whole head (the beak too); Done prints the lines.
 ## Flat reloads: the guns' own parts, and the crosshair's kick (branch `agent/flat_reload2`, worktree `flatwall`, 2026-11-10)
 
 His items 11, 15, 16, 23 of 2026-11-10 (docs/vr-port/FLATPLAY.md, "Reloading" and "The visor crosshair").
@@ -7511,3 +7684,32 @@ are made before his first move): fresh `map e1m1` and `map start`, the shotgun d
 were the test's: it waited for the reserve to drop, and flat reload shoots from the clip (the cheat's loaded gun);
 `vr_flatitems_test` now counts shells plus the main hand's clip. `flatitems_test.sh` 8/0 (no autoreload needed),
 `flatreload_test.sh` 38/0.
+## Voice notes 2026-11-10: lifting through a blade, your gore (branch `agent/vn1110_gore`)
+
+- **Blade Hold Strength didn't lift (his "x10 and still extremely heavy"):** two caps no strength reached. (1) A live
+  ragdoll (staggering, down) never took the hand's way along the blade: that share went into the blade's slack (the drawn
+  hand stuck on the handle, the body left), at any strength; a lift with the blade angled lost 10-30 cm of it. Now, over
+  x1, a live ragdoll is carried along the blade as a dead one is, by a pull slower than the corpse tug times
+  (strength - 1); a dead one's tug times the strength (at x1 both as before: test 11 case 23 still has the blade come out
+  of a staggering body). (2) The wound's place from the hand was kept level in the world (`bladeReach`): a wrist pointing
+  the sword up overhead left the body out in front. It now turns with the hand (`vr_embed_move_turn`, Moving: Turns With
+  the Wrist, 1; 0 the old). Measured (`vr_embed_test 27`, new cases 42-45): x10 lifted 110 cm, staggering 99-100% and
+  dead 98-99% of the hand's way, axial loss 0 (was 10-30 cm); wrist turned up 50 degrees: the wound 13 degrees off its
+  place in the hand (37 with the turn off). Case 42: a strong stab at x1 by the default stagger, the hand still: held
+  4 s through it (it toppled). The real-hand slip on going active ragdoll did not reproduce with the mock.
+- **Your gore:** Your Gore: Eye Clearance (`vr_player_gore_eye_clear`) default 0.35 -> 0: nothing kept back (streams,
+  splashes, drips, and the hands' body blood drops, vr_bodyblood.cpp, which had its own fixed 0.5 m rule). Your wounds'
+  blood now pours from the drawn body's skin: the spot binds to the posed mesh's nearest triangle (avatar::posedMesh once
+  a wound; avatar::posedPoint skins three vertices a frame, sharing posedMesh's skinning), the capsule its fallback when
+  the body isn't posed. The player gore test: 9 of 9 bound to the skin, the capsule surface about 2 units off it.
+- **A skewered limb's burst blood (his "I see the small gibs, but not the blood particles"):** not stale (the skewer moves
+  it by setorigin), but VR_Gib_Burst put the blood at the gib's unturned box middle (absmin/absmax): a cut part's box lies
+  off its origin, so on a blade it was 1-3 units off a limb and 11 off a head (test 26). Now at VR_Gib_Middle, its box's
+  middle turned with it, where it rides (0.0 units off). The blood effects do reach the client there (developer 1:
+  `particle2:` lines, each with its distance from the eyes): blood 8, 8, 8, 8, 16 and the gore burst 10, at the limb, 1 m
+  off in the mock. A limb a few units off can't hide its blood, so the rest of his case is likely the near-eye particle
+  fade (Particle Fade Near Eyes 30 cm, Particles Hidden Nearer 10 cm: the burst sprays toward you from a blade held
+  close); left as it is (his comfort settings), to check in VR. `vr_embed_test 31` (`embedburst`): a limb on the sword
+  burst by the other hand's blow.
+- **Pre-existing:** tests 11, 7, 13, 24 fail 15/8/9/1 checks at origin/next here with the changes switched off (stabs not
+  sticking in the mock); with them on, 17/7/8/1, different checks each run.

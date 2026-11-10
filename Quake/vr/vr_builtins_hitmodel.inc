@@ -112,6 +112,18 @@ void PF_hitmodel_rest()
     r[2] = out.z;
 }
 
+// hitmodel_skin(e, a, b): where along the segment a..b (0..1) it first crosses e's model itself as drawn (no tolerance,
+// no thickness; not recorded as the last hit): where a blade's line meets the flesh, not its grown shell (QC
+// VR_Decap_ZonePoint). -1 none, or e is no target.
+void PF_hitmodel_skin()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* b = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) =
+        hitmodel::target(e) ? hitmodel::skinCrossing(e, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}) : -1.f;
+}
+
 // hitmodel_part(e, p): the body part (a VR_REGION_*) of the triangle of e's drawn model that p is on (hitmodel_rest's):
 // its rig's bones'; -1 (VR_REGION_NONE) when e is no target, has no rig, or the triangle is of no one part.
 void PF_hitmodel_part()
