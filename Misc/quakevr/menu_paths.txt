@@ -4395,6 +4395,7 @@ vr_flat_hitdir_width|2|Tunables|Hit Marks Thickness|Advanced VR Options > Debug 
 vr_flat_hitdir_arc|2|Tunables|Hit Marks Length|Advanced VR Options > Debug > Tunables > Hit Marks Length
 vr_flat_blood_health_size|2|Tunables|Low Health Blood Size|Advanced VR Options > Debug > Tunables > Low Health Blood Size
 vr_flat_blood_health_opacity|2|Tunables|Low Health Blood Opacity|Advanced VR Options > Debug > Tunables > Low Health Blood Opacity
+vr_flat_cutoff_fling_mult|2|Tunables|Cut-Off Parts: Fling Speed|Advanced VR Options > Debug > Tunables > Cut-Off Parts: Fling Speed
 vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > Debug > Tunables > Thrown Sword: Least Speed
 vr_embed_sword_tip|2|Tunables|Thrown Sword: Point Length|Advanced VR Options > Debug > Tunables > Thrown Sword: Point Length
 vr_embed_sword_angle|2|Tunables|Thrown Sword: Most Off Its Line|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Off Its Line

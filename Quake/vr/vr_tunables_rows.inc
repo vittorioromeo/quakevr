@@ -2205,6 +2205,8 @@ QVR_TUNABLE_SLIDER(vr_flat_hitdir_width, "Hit Marks Thickness", 0.002f, 0.1f, 0.
 QVR_TUNABLE_SLIDER(vr_flat_hitdir_arc, "Hit Marks Length", 5.f, 180.f, 5.f, "%.0f deg", 5.f, 180.f, "A mark's length round the crosshair (vr_flat_hitdir_arc).")
 QVR_TUNABLE_SLIDER(vr_flat_blood_health_size, "Low Health Blood Size", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Low on health, how far in from the screen's edges the beating blood reaches, on a flat screen (vr_flat_blood_health_size; the headset's is Low Health Size under the blood feedback settings; 0: none).")
 QVR_TUNABLE_SLIDER(vr_flat_blood_health_opacity, "Low Health Blood Opacity", 0.f, 0.8f, 0.05f, "%.2f", 0.f, 0.8f, "Low on health, the beating blood's strongest opacity on a flat screen (vr_flat_blood_health_opacity).")
+QVR_TUNABLE_GROUP("Flatscreen > Gore")
+QVR_TUNABLE_SLIDER(vr_flat_cutoff_fling_mult, "Cut-Off Parts: Fling Speed", 0.f, 3.f, 0.05f, "%.2fx", 0.f, 10.f, "On a flat screen, how fast a cut-off head or limb flies off, times the headset's (Gore > Decapitation > Head Speed and Head Thrown Up: the blade's share and the lift). 1: as in a headset.")
 
 QVR_TUNABLE_GROUP("Combat > Embedded Blades > Thrown")
 QVR_TUNABLE_SLIDER(vr_embed_sword_speed, "Thrown Sword: Least Speed", 0.5f, 10.f, 0.25f, "%.2f m/s", 0.f, 30.f, "How fast a thrown sword's tip must go into what it meets to stick. Slower: it bounces.")

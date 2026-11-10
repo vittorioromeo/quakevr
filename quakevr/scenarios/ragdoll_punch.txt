@@ -1,0 +1,8 @@
+# ragdoll_punch: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+# (vr_limb_test 41-45 punch a ragdoll's head and limbs off scripted: Misc/quakevr/ragdoll/limb_wear_test.sh)
+title Empty hands and a grunt corpse on the floor to punch
+map vrtesthall
+god
+notarget
+spawn "Grunt Corpse" 60 0
+hint Punch the corpse's head over and over: after a few punches the head pops off and the body stays whole. Then punch each arm and leg: each comes off in turn, and the body never bursts into gibs.

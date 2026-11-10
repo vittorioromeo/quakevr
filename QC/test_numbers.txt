@@ -530,6 +530,7 @@ vr_limb_test     29       vr_limbs_test.qc                 (VR_Limb_TestTarget)
 vr_limb_test     30-38    vr_limbs_test.qc                 (VR_Limb_WearTest)
 vr_limb_test     39       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
 vr_limb_test     40       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
+vr_limb_test     41-46    vr_limbs_test.qc                 (VR_Limb_WearTest: fists at a corpse's head and limb, corpse strike and swept blow; 45 every limb; 46 a gun swung)
 
 vr_melee_sweep_test 1*       vr_melee_sweep_test.qc           (the Debug menu runs it: the dispatcher's fall-through)
 vr_melee_sweep_test 2        vr_melee_sweep_test.qc           (VR_BladeDump)

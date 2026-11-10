@@ -1098,6 +1098,8 @@ vector vr_limb_wear_at;
 entity vr_limb_wear_ent;
 float vr_limb_wear_time;
 
+float vr_corpse_bodyscale; // a hand's blow on a corpse being dealt (VR_Corpse_Struck): its whole-body share times this (0: none)
+
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float vr_corpse_last_hit;    // the last hit's damage on a corpse's pool (the tests)
 float vr_corpse_last_gibbed; // and whether it gibbed it
@@ -1176,6 +1178,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     if(damage <= 0)
     {
         return TRUE;
+    }
+    // A hand's blow (VR_Corpse_Struck): on the whole body what it does the living, not its strike's (his notes 2026-11-10:
+    // punches at its head, a gun swung, an axe swung into it gibbed it whole).
+    if(vr_corpse_bodyscale > 0)
+    {
+        damage = damage * vr_corpse_bodyscale;
     }
 
     // Never gibbed (vr_corpse_nogib): it takes the hit (blood, small gibs, the engine's push) but loses no health.
@@ -1292,7 +1300,7 @@ float vr_melee_blunt; // (vr_melee.qc)
 // A hand's blow at `xSpeed` going `xDir` struck corpse `c` at `xAt` (self the player; VR_Corpse_StrikeFrame, the dents'
 // test): its corpse damage, wound and dent (VR_Corpse_Damage), the beheading cut instead, the torch's or the hot blade's
 // fire. `xBlunt`: struck with a pommel, a hilt, a handle's end (a blunt blow).
-float(float xHand, float xSpeed) VR_Corpse_BladeBlowDamage; // (weapons.qc)
+float(float xHand, float xSpeed, float xThing) VR_Corpse_BlowDamage; // (weapons.qc)
 void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR_Corpse_Struck =
 {
     if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
@@ -1314,16 +1322,15 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
         return;
     }
 
+    // Its strike on the piece it lands on (the head, a limb: VR_Limb_CorpseWear, which comes off at its own health) as ever;
+    // on the whole body, what the same blow does the living (vr_corpse_bodyscale, VR_Corpse_BlowDamage): a punch, a gun
+    // or a blade swung never gibs it whole as its strike damage did (his notes 2026-11-10).
     float dmg = VR_Gib_StrikeDamage(speed);
-    float thing = VR_Melee_Thing(self, xHand);
-    if(!xBlunt && (thing == VR_MTHING_SWORD || thing == VR_MTHING_AXE || thing == VR_MTHING_SAW))
-    {
-        dmg = VR_Corpse_BladeBlowDamage(xHand, speed); // (as the same blow on the living: weapons.qc)
-    }
-    else if(!VRIsHandWeaponless(self, xHand))
+    if(!VRIsHandWeaponless(self, xHand))
     {
         dmg = dmg * 1.5;
     }
+    vr_corpse_bodyscale = VR_Corpse_BlowDamage(xHand, speed, VR_Melee_Thing(self, xHand)) / max(0.01, dmg);
     VR_Teeth_CorpseBlow(c, xHand, at, dir, speed, dmg); // VR: a punch to its ragdoll's face knocks teeth out (vr_teeth.qc)
     VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
@@ -1337,6 +1344,7 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
     T_Damage(c, self, self, dmg);
     vr_melee_blunt = FALSE;
+    vr_corpse_bodyscale = 0;
     VR_Hit_End();
 
     // A lit torch sets it on fire (vr_burning.qc).

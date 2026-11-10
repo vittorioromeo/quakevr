@@ -8123,6 +8123,37 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   now read against a new shot 7, the same moment at viewsize 120.
 - Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.
 
+## Ragdolls: punches pop pieces, gun swings don't gib, flat fling (his notes 2026-11-10; agent gib_limbs)
+
+His notes: "Using fists on a ragdoll's head over and over causes the whole ragdoll to gib rather than the head just
+popping ... it should work for every limb"; "A quick melee attack with 'V' when holding a gun also seems to gib ragdolls
+too easily"; "a flatscreen-only multiplier for the cut-off limbs fling speed, defaulted to 1.25x the VR value".
+
+- **Cause (4, 6):** a hand's blow on a corpse (`VR_Corpse_Struck`, the hand's strike each frame it passes through one)
+  dealt the corpses' strike damage, `VR_Gib_StrikeDamage` (20 x min(3, speed / vr_melee_speed) x Melee Damage, x1.5 for
+  anything held): 3 to 4 times the same blow on the living (a punch at 7 m/s 48, a live one's 12; a shotgun swung at
+  9 m/s 92.8, a live one's 18.6). The pieces already wear on their own (`VR_Limb_CorpseWear`: the head and each limb come
+  off at their own health, the torso's share goes to the whole body), but the whole body gibs from one hit of 50
+  (`vr_corpse_gib_overkill`) or, worn out, of 35 (`vr_corpse_gib_hit_min`): any punch over 7.3 m/s or a few landing on the
+  neck or shoulders (the torso's share) gibbed it before the head came off; any hard gun swing (the flat V swing) gibbed
+  it at once.
+- **Fix:** the strike still wears the piece it lands on as before (the head off in 4 punches at 7 m/s), but its share on
+  the whole body is what the same blow does the living (`vr_corpse_bodyscale`, set by `VR_Corpse_Struck` around its
+  `T_Damage`; `VR_Corpse_BlowDamage`, weapons.qc, generalised from the blade-only one of the ragdoll embed fix: a fist's
+  vr_dmg_fist, a gun's vr_dmg_gun_bash, the crowbar's, a club's, Mjolnir's, the blades', on the melee strength curve by
+  the swing's speed, weight, Melee Damage, Quad). A punch, a gun swung, a blade swung never gib a ragdoll whole; a blow
+  that would gib the living still does (a heavy Super Axe's hardest), and explosions as ever. (The blade embed case 6 of
+  test 28 still passes: an axe into a ragdoll stays in.)
+- **Tests** (`Misc/quakevr/ragdoll/limb_wear_test.sh`, now 17): `vr_limb_test 41`/`42` fists at the head / a limb through
+  the corpse strike, `43`/`44` through the swept blow (T_Damage_VRMelee); `45` every limb then the head punched off in
+  turn (5 pieces in 20 punches at 7 m/s, the whole body's health untouched, never gibbed; the same before, with the
+  punches aimed at the pieces: the gibbing came from the body's share); `46` a shotgun swung 12 times at 9 m/s at the
+  torso: 18.6 on the body a swing, no gib (before: gibbed at the first, 92.8). Scenes `ragdoll_punch`, `ragdoll_gunswing`.
+- **7:** `vr_flat_cutoff_fling_mult` (1.25; Debug > Tunables > Flatscreen > Gore: Cut-Off Parts: Fling Speed): on a flat
+  screen a cut-off head's or limb's launch (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times it
+  (vr_box3d_ragparts.cpp cutLimb). (The Embedded Blades "Cut-Off Parts: Fling Speed" tunable is something else: how fast a
+  part riding a blade must go before a stop flings it off.) `Misc/quakevr/flat_fling_test.sh`: the same slash's cut head
+  126 u/s in a headset, 157 flat (x1.25). Scene `flat_fling`.
 ## Flat-screen guard parries everything from the front; the counter's glow on the flat screen (his notes 2026-11-10, item 5; branch `agent/flat_parry2`)
 
 - His words: "In flat screen only, parrying should always parry any melee attack coming from the front of the player (not
