@@ -119,6 +119,31 @@ mem::Scratch<WoundScratch> scratch{"wounds"};
 // while (a gibbed monster's gun and backpack come a moment after its burst) what lies within its reach takes it, once.
 constexpr int maxSplashes = 32;
 
+// A blow that leaves its blade in the body (QC VR_Embed_Try; his note 2026-11-10: "Embedded blades don't seem to get
+// bloody in the place that we're embedded in"): the hand lets go of the weapon in the frame its wound comes, so its blow's
+// blood found no blade in the hand, and the blade's part that went in took only what splashed onto it round the wound.
+// The blood is owed to the weapon (the hand's last weapon id) for a moment: once it shows as a world entity (the stuck
+// blade), the part that went in is painted, from the wound in along the blow (payOwedBlood), its weapon's wherever it goes.
+struct OwedBlood
+{
+    glm::vec3 at{0.f};  // the wound
+    glm::vec3 dir{0.f}; // the blow's way in (unit)
+    float k = 0.f;      // the blow's spatter strength
+    int weapon = 0;     // the weapon id (0: none owed)
+    int hand = 0;
+    double until = -1e9; // cl.time it is given up by (the blade never stayed in)
+};
+constexpr int maxOwed = 4;
+constexpr double owedFor = 0.5;   // seconds the blood waits for the blade to show stuck
+constexpr float owedDepth = 10.f; // units in from the wound that are painted (a stab's tip, an axe's edge)
+constexpr float owedStep = 2.5f;
+constexpr float owedRadius = 3.5f;
+OwedBlood owedBlood[maxOwed]{};
+int lastHandWeapon[2]{};       // each hand's last weapon id (gearFrame), kept a moment after the hand lets it go:
+double lastHandSeen[2]{-1e9, -1e9}; // the blow that put the blade in may come in after the hand is empty (cl.time)
+constexpr double handWeaponKept = 0.5;
+void payOwedBlood();
+
 } // namespace
 namespace detail
 {
@@ -136,6 +161,12 @@ void resetGear()
     gibsSeen.clear();
     spatteredNow.clear();
     splashes.clear();
+    for(OwedBlood& o : owedBlood)
+    {
+        o = OwedBlood{};
+    }
+    lastHandWeapon[0] = lastHandWeapon[1] = 0;
+    lastHandSeen[0] = lastHandSeen[1] = -1e9;
 }
 
 } // namespace
@@ -2272,6 +2303,23 @@ void show(int layer, entity_t* e)
     }
 }
 
+// Weapon `weapon`'s blood put on `e` before `e` is painted (its mask, if it has one, before gearFrame would put it there):
+// a weapon just come into the hand (a stuck blade pulled out, spurting as it comes; a bloody hand's grip print on it) got a
+// new mask of its own, which took the id and freed the one with what it carried (bindWeapon: the newer wins).
+void wearWeaponMask(entity_t* e, int weapon)
+{
+    if(const auto it = maskOfWeapon.find(weapon); weapon && it != maskOfWeapon.end())
+    {
+        show(it->second, e);
+    }
+}
+
+// The weapon id of what `hand` holds as drawn: its stat's, else (a weapon just taken, its stat not in yet) its last.
+[[nodiscard]] int heldWeaponId(int hand)
+{
+    return handWeapon(hand) ? handWeapon(hand) : lastHandWeapon[hand];
+}
+
 // Mask `layer` (a hand's weapon's, just painted) is weapon `weapon`'s.
 void bindWeapon(int layer, int weapon)
 {
@@ -2303,6 +2351,14 @@ void gearFrame()
         if(const view::ViewEntity* ve = view::heldWeapon(hand))
         {
             held[hand] = const_cast<entity_t*>(&ve->ent);
+        }
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(handWeapon(hand)) // (for the blows that come after: payOwedBlood)
+        {
+            lastHandWeapon[hand] = handWeapon(hand);
+            lastHandSeen[hand] = cl.time;
         }
     }
     entity_t* inHolster[protocol::numHolsters];
@@ -2469,6 +2525,10 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         if(!g || glm::distance(originOf(*g), at) > reach + za::max(modelRadius(g->model), 8.f))
         {
             continue;
+        }
+        if(const view::ViewEntity* ve = view::heldWeapon(hand); ve && &ve->ent == g)
+        {
+            wearWeaponMask(g, heldWeaponId(hand));
         }
         const int layer = acquire(g, false, true, true);
         if(layer < 0)
@@ -2797,6 +2857,23 @@ void spatterFrom(const Event& ev, int saw)
             {
                 armMarks(h, 1, 0.9f, 0.f, true);
             }
+        }
+        // A blade that may have stayed in: its blood owed to it (payOwedBlood).
+        const bool owes = !cut && vr_gore_gear.value && lastHandWeapon[hand] &&
+                          cl.time - lastHandSeen[hand] <= handWeaponKept && glm::length(ev.dir) > 0.5f;
+        if(vr_wounds_debug.value)
+        {
+            Con_Printf("wounds: blow by hand %d (weapon #%d, now #%d): blood owed %s\n", hand, lastHandWeapon[hand],
+                handWeapon(hand), owes ? "yes" : "no");
+        }
+        if(owes)
+        {
+            OwedBlood* slot = &owedBlood[0];
+            for(OwedBlood& o : owedBlood)
+            {
+                slot = !o.weapon || o.until < slot->until ? &o : slot;
+            }
+            *slot = OwedBlood{at, glm::normalize(ev.dir), k, lastHandWeapon[hand], hand, cl.time + owedFor};
         }
     }
     else
@@ -3296,6 +3373,7 @@ void frame()
     optionsChanged();
     spatteredNow.clear();
     gearFrame(); // (before checkEntities: a hand's weapon let go keeps its blood)
+    payOwedBlood(); // (a blade that stayed in: the blood of the blow that put it there)
     checkEntities();
     playerState();
     const auto t1 = Sys_DoubleTime();
@@ -3436,6 +3514,7 @@ Surface palmSurface; // (palmTouch's: a thing's triangles as drawn)
 // round, `strength` 0..1; its weapon's (`weapon`, 0 none) wherever it goes.
 bool paintPalm(entity_t* e, int weapon, const glm::vec3& at, float radius, float strength)
 {
+    wearWeaponMask(e, weapon);
     const int layer = acquire(e, false, true, true);
     if(layer < 0)
     {
@@ -3451,6 +3530,50 @@ bool paintPalm(entity_t* e, int weapon, const glm::vec3& at, float radius, float
     splats.pushBack(spatterSplat(at, radius * 1.4f, radius * (0.35f + 0.4f * s), radius, 0.35f + 0.5f * s, 0.8f));
     paint(layer, e, splats);
     return true;
+}
+
+// The blood a blow owes the blade that stayed in (spatterFrom's OwedBlood): its weapon shown as a world entity (the stuck
+// blade, its id the hand's before) while the hand no longer holds it takes it on the part that went in, from the wound
+// along the blow, owedDepth units. Given up after owedFor seconds (the blade came back out, or never stayed in).
+void payOwedBlood()
+{
+    for(OwedBlood& o : owedBlood)
+    {
+        if(!o.weapon)
+        {
+            continue;
+        }
+        if(cl.time > o.until)
+        {
+            if(vr_wounds_debug.value)
+            {
+                Con_Printf("wounds: weapon #%d's blow blood: no blade stayed in\n", o.weapon);
+            }
+            o.weapon = 0;
+            continue;
+        }
+        for(int num = cl.maxclients + 1; num < cl.num_entities; num++)
+        {
+            entity_t& e = cl_entities[num];
+            if(entityWeapon(num) != o.weapon || !e.model || e.model->type != mod_alias || e.msgtime < cl.mtime[0] - 0.001)
+            {
+                continue;
+            }
+            const float strength = za::clamp(0.3f + 0.25f * o.k, 0.3f, 1.f);
+            int painted = 0;
+            for(float s = 0.f; s <= owedDepth; s += owedStep)
+            {
+                painted += paintPalm(&e, o.weapon, o.at + o.dir * s, owedRadius, strength) ? 1 : 0;
+            }
+            if(vr_wounds_debug.value)
+            {
+                Con_Printf("wounds: weapon #%d's blow blood on the part that went in (entity %d, %s): %d of %d spots\n",
+                    o.weapon, num, e.model->name, painted, static_cast<int>(owedDepth / owedStep) + 1);
+            }
+            o.weapon = 0;
+            break;
+        }
+    }
 }
 } // namespace
 
@@ -3557,7 +3680,7 @@ bool gripPrint(int hand, const glm::vec3& at, float radius, float strength)
         return false;
     }
     const view::ViewEntity* ve = view::heldWeapon(hand);
-    const int weapon = ve && &ve->ent == g ? handWeapon(hand) : 0;
+    const int weapon = ve && &ve->ent == g ? heldWeaponId(hand) : 0;
     const bool painted = paintPalm(g, weapon, at, radius, strength);
     if(vr_bloodprints_debug.value)
     {
