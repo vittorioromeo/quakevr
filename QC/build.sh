@@ -28,7 +28,7 @@ if [ -z "$NO_RELEASE_QC_CHECK" ] && [ -n "$CHK" ]; then
     "$CHK" --tree .. --fteqcc "${FTEQCC:-fteqcc}" release_qc
 fi
 # No expression that reads differently under C's operator priorities (docs/vr-port/CODE_STYLE.md, QuakeC; qvr_checks
-# qc_precedence, ~10 s; NO_PREC_CHECK=1 skips it).
+# qc_precedence, ~4 s; NO_PREC_CHECK=1 skips it).
 if [ -z "$NO_PREC_CHECK" ] && [ -n "$CHK" ]; then
     "$CHK" --tree .. --fteqcc "${FTEQCC:-fteqcc}" qc_precedence
 fi
