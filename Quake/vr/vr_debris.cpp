@@ -8,6 +8,7 @@
 #include "vr_debris.hpp"
 
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_held.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
@@ -39,6 +40,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 #include <ctype.h>
 #include <string.h>

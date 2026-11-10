@@ -12,6 +12,7 @@
 #include "vr_tonemap.hpp" // QVR_TONE_GLSL and its knee and white point: the eyes' tone curve, used here too
 
 #include "Zancle/Math/Clamp.hpp"
+#include "vr_api_render.h"
 
 namespace qvr::flatlook
 {

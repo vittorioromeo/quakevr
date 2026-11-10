@@ -6,6 +6,7 @@
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_weaponvalues.hpp"
 #include "vr_slottable.hpp"
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
@@ -23,6 +24,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

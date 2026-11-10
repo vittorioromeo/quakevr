@@ -3,7 +3,6 @@
 // Split from vr_jobs_engine.cpp (a pure move).
 
 #include "vr_engine.hpp"
-#include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"

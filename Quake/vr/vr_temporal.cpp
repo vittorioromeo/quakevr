@@ -28,10 +28,12 @@
 #include "vr_glutil.hpp"
 #include "vr_temporal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

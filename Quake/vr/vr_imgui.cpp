@@ -6,6 +6,7 @@
 #include "thirdparty/imgui/imgui.h"
 #include "thirdparty/imgui/imgui_impl_opengl3.h"
 #include "thirdparty/imgui/imgui_impl_sdl2.h"
+#include "vr_api.h"
 
 #include <SDL.h>
 

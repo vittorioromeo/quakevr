@@ -1,7 +1,7 @@
 // vr_brainjiggle.cpp -- see vr_brainjiggle.hpp.
 
 #include "vr_brainjiggle.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
 
@@ -9,6 +9,8 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

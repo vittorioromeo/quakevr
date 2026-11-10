@@ -35,6 +35,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

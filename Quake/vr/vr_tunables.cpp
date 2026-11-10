@@ -19,8 +19,11 @@
 // constant: the QC reads them by name the same way in both builds).
 
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 namespace qvr
 {

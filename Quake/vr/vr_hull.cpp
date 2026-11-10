@@ -7,6 +7,7 @@
 #include "vr_diskcache.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_files.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_jobs.hpp"

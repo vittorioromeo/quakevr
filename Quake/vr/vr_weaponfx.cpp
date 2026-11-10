@@ -18,6 +18,7 @@
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gunsfx.hpp"
@@ -38,6 +39,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

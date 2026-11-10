@@ -6,7 +6,6 @@
 // functions and variables declared here and defined in the file that owns them.
 
 #include "vr_portals.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gfx.hpp"

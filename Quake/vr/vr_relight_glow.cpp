@@ -3,6 +3,11 @@
 // the glowing textures' images measured, and the lights written out.
 
 #include "vr_relight_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp

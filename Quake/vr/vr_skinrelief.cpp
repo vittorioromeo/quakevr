@@ -15,9 +15,11 @@
 
 #include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_jobs.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <initializer_list>
 #include <limits.h>

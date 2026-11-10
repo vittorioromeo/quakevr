@@ -7,6 +7,7 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_cvars.hpp"
 
 namespace qvr::progs
 {

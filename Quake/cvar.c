@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cvar.c -- dynamic variable tracking
 
 #include "quakedef.h"
+#include "vr/vr_api.h"
 
 // QVR: no fixed cvar count (was MAX_CVARS: 4096, then 8192 and 16384 as the weapons' and props' per-slot settings grew,
 // round 21; overflowing it was a Sys_Error at start). The list and the hash map grow as needed; the list is sorted by

@@ -8,6 +8,8 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <stdio.h>
 #include <string.h>

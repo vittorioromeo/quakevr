@@ -13,6 +13,13 @@
 #include "vr_move.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace box3d::detail
 {

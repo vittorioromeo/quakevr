@@ -20,6 +20,9 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

@@ -14,6 +14,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::meleehud

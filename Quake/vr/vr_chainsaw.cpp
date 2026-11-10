@@ -6,6 +6,7 @@
 #include "vr_handsource.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_gfx.hpp"
 #include "vr_grip.hpp"
@@ -32,6 +33,7 @@
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
 

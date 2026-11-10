@@ -3,6 +3,7 @@
 
 #include "vr_flatplay.hpp"
 #include "vr_menu_internal.hpp"
+#include "vr_cvars.hpp"
 
 namespace menu_detail
 {

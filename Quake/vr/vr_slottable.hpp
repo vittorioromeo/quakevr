@@ -14,6 +14,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api.h"
 
 namespace qvr
 {

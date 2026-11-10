@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <errno.h>
 #include "miniz.h"
 #include "unicode_translit.h"
+#include "vr/vr_api.h"
 
 static const char	*largv[MAX_NUM_ARGVS + 1];
 static char	argvdummy[] = " ";

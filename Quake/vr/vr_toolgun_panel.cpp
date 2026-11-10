@@ -43,6 +43,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <string.h>

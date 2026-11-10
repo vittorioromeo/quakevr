@@ -39,6 +39,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

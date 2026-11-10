@@ -6,6 +6,7 @@
 #include "vr_avatar.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_gadget.hpp"
 #include "vr_grasp.hpp"
@@ -38,6 +39,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::selfcollide

@@ -11,6 +11,11 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace box3d::detail
 {

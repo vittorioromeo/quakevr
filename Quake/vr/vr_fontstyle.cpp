@@ -26,6 +26,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <math.h>
 #include <string.h>

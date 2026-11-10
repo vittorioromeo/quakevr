@@ -3,6 +3,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_touch.hpp"
@@ -23,6 +24,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <cstdio>
 

@@ -2,6 +2,11 @@
 // (derived sounds; the layered ones: vr_sndlayer.cpp), the band-limit tables and the full-band resampler.
 
 #include "vr_audio_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 using namespace qvr;
 using namespace qvr::audio;

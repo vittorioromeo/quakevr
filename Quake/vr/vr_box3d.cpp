@@ -60,6 +60,13 @@
 #include "vr_edictindex.hpp"
 #include "vr_geom.hpp"
 #include "vr_trace.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace box3d::detail
 {

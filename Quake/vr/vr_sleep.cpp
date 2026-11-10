@@ -13,6 +13,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
 
 #include <windows.h>
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION

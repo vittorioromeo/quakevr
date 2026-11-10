@@ -6,6 +6,7 @@
 #include "vr_drawnpose.hpp"
 #include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_decals.hpp"
 #include "vr_dents.hpp"
 #include "vr_engine.hpp"

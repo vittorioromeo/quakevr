@@ -12,7 +12,6 @@
 #include "vr_alloccount.hpp"
 #include "vr_audiobench.hpp"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"

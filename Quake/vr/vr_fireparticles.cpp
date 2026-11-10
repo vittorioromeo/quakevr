@@ -2,12 +2,15 @@
 #include "vr_fireparticles.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_held.hpp"
 #include "vr_geom.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "vr_api.h"
 #include <string.h>
 
 namespace qvr::fireparticles

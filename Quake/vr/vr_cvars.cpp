@@ -1,6 +1,10 @@
 // vr_cvars.cpp -- Quake VR cvar definitions and registration.
 
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
+#include "vr_tunables_api.hpp"
+#include "vr_weaponvalues.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_agpose.hpp"
 #include "vr_bodycal.hpp"
@@ -19,7 +23,10 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <algorithm>
 

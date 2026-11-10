@@ -17,6 +17,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <glm/geometric.hpp>
 #include <glm/mat4x4.hpp>

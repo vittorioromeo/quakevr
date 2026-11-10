@@ -34,7 +34,6 @@
 #include "vr_mdldequant.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_jobs.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 
@@ -44,6 +43,8 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api_render.h"
 
 #include <string.h>
 

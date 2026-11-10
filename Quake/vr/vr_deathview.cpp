@@ -16,6 +16,7 @@
 
 #include "vr_comfortfade.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
@@ -28,6 +29,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 namespace qvr::deathview
 {

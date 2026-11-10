@@ -38,6 +38,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <SDL.h>
 

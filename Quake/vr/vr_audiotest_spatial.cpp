@@ -1,6 +1,8 @@
 // vr_audiotest_spatial.cpp -- vr_snd_test's circle, ild and clicks (see vr_audiotest.cpp).
 
 #include "vr_audiotest_internal.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::audio::testkit
 {

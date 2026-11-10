@@ -16,6 +16,7 @@
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
@@ -48,6 +49,7 @@
 
 #include <string.h>
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 namespace qvr::avatar
 {

@@ -12,6 +12,7 @@
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
@@ -30,6 +31,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 namespace qvr::bodytrack
 {

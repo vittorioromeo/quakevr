@@ -20,6 +20,11 @@
 //   all        each of them
 
 #include "vr_audiotest_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::audio
 {

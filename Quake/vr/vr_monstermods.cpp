@@ -24,6 +24,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

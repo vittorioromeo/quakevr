@@ -2,6 +2,8 @@
 // speed); what they share is in vr_menu_internal.hpp.
 
 #include "vr_menu_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
 
 namespace menu_detail
 {
