@@ -1221,7 +1221,9 @@ float(float xHand, entity g, float xPressed) VR_HandGrenade_Trigger =
     {
         return FALSE;
     }
-    if(xPressed && VR_HandGrenade_Unarmed(g) && cvar_hget(cvarh_vr_handgrenade_arm) != 1)
+    // (Flat-screen play: the fire button's press, its wind-up and its throw are the quick grenade's, whatever
+    // vr_handgrenade_arm says: vr_flatgrenade.qc VR_FlatGrenade_Frame.)
+    if(xPressed && VR_HandGrenade_Unarmed(g) && cvar_hget(cvarh_vr_handgrenade_arm) != 1 && !VR_FlatPlay(self))
     {
         VR_HandGrenade_Arm(g, xHand, "the pin pulled");
     }
