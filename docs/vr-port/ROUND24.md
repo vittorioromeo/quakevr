@@ -7889,9 +7889,21 @@ spawning if for example I stand really close to a ragdoll and shoot it."
   then at any range (one 30-unit shotgun shot 0), and the nailgun fired directly makes no nail in this harness.
 - **Config:** his `quakevr/ironwail.cfg` has no `vr_gore_mist_near` line: he plays at the default, 0. The tests' local
   `quakevr/ironwail.cfg.baseline` (untracked) still has `vr_gore_mist_near "40"`; the test's script sets 0.
-- **Open:** what he saw is not yet pinned down; the checklist line asks where he stood, what he aimed at, flat or headset.
-  Candidates left: a ragdoll at eye height (slumped against a wall, on a ledge) where the flat shot's start can pass the body,
-  the particle pool's cap after many gibs (`vr_limits`), and the blood decals (not counted).
+- **His repro** ("in the vrfiringrange map, I had killed a grunt, then I was crouching over his dead body and shooting it
+  with a shotgun"): `vr_flatblood_test 2` (case 12, the corpse's shotgun shot from 60, then cases 24-27) crouches (`+flatcrouch`)
+  over a settled corpse, his eye 20, 12, 6 and 3 units off the point level (pitch 52, 73, 81, 85 down; the eye 11-25 over
+  it), one tap of the shotgun each. Every pellet still hits the body (`vr_debug_shots`: 6 on it, 0 the world) and bleeds:
+  6-7 blood sent, 686-862 particles, all drawn (from 60: 6 sent, 650-720 particles on a plain hit; more when a pellet cuts a
+  limb or gibs, so the check is per pellet: every pellet's blood, at least 60 particles each). `vr_flatblood_test 3` takes a
+  picture 4 frames after each crouched shot: the spray is all over the view, the near drops big. What can hide part of it
+  there: the off hand's arm and the gun, drawn over the world, cover the lower half of the view right where the body lies at
+  his feet (occlusion, not a spawn gate). Still not reproduced as a drop.
+- **The test's earlier "startup hangs"** were the test running silently: `VR_Test_Begin` prints its lines only with
+  `developer 1`, and the run without it outlasted the 300 s timeout under the low-impact mode (the author's game up). Now
+  `VR_Test_BeginFlags(..., VR_TEST_LOUD)`; a shot is a one-frame tap (holding +attack until the ammo changed fired the
+  shotgun ten times a case).
+- **Open:** what he saw is not yet pinned down. Candidates left: the arm and gun over the hit at his feet (a picture from
+  him would tell), the particle pool's cap after many gibs (`vr_limits`), the blood decals (not counted).
 - Scene `flat_blood_pointblank`.
 ## VR: gibs on a blade through a snap turn (branch `agent/vr_snapgib`, 2026-11-10)
 

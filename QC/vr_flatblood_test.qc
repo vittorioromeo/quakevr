@@ -24,11 +24,22 @@ vector vr_fbt_last;
 vector vr_fbt_aim;    // the point he shoots at
 
 float VR_FBT_GIVEUP = 1080; // frames (15 s) a state may last: FAIL "timed out"
-float VR_FBT_CASES = 24;
+float VR_FBT_CASES = 28;
+float VR_FBT_CROUCH = 24; // cases 24-27: crouched over a corpse, the shotgun (his repro, 2026-11-10)
+float vr_fbt_quick;    // vr_flatblood_test 2: case 12, then the crouched ones
+float vr_fbt_ref_sg_corpse, vr_fbt_ref_sg_sent; // case 12's particles: the corpse's shotgun shot from 60, the crouched ones' measure
 
 float(float xCase) VR_FBT_Dist =
 {
     float d = xCase - floor(xCase / 4) * 4;
+    if(xCase >= VR_FBT_CROUCH)
+    {
+        // Crouched over it: his eye this far off the point level (0 is 3: straight down is past the look's limit).
+        if(d == 0) { return 20; }
+        if(d == 1) { return 12; }
+        if(d == 2) { return 6; }
+        return 3;
+    }
     if(d == 0) { return 60; }
     if(d == 1) { return 30; }
     if(d == 2) { return 12; }
@@ -46,7 +57,7 @@ float(float xCase) VR_FBT_Gun =
 string(float xCase) VR_FBT_Name =
 {
     float g = VR_FBT_Gun(xCase);
-    return sprintf("%s, %s, %g units", xCase < 12 ? "a live grunt" : "a corpse ragdoll",
+    return sprintf("%s, %s, %g units", xCase < 12 ? "a live grunt" : (xCase >= VR_FBT_CROUCH ? "crouched over a corpse ragdoll" : "a corpse ragdoll"),
         g == WID_SHOTGUN ? "shotgun" : (g == WID_SUPER_SHOTGUN ? "super shotgun" : "nailgun"), VR_FBT_Dist(xCase));
 };
 
@@ -58,7 +69,7 @@ void(float xS) VR_FBT_To =
 
 void() VR_FBT_Finish =
 {
-    localcmd(VR_FlatPlay(VR_Player()) ? "-attack\n" : "vr_mock_button main trigger 0\nvr_mock_hand_aim main off\nvr_mock_hand_to_absolute 0\n");
+    localcmd(VR_FlatPlay(VR_Player()) ? "-attack\n-flatcrouch\n" : "vr_mock_button main trigger 0\nvr_mock_hand_aim main off\nvr_mock_hand_to_absolute 0\n");
     if(vr_fbt_m != world)
     {
         remove(vr_fbt_m);
@@ -83,7 +94,7 @@ void(entity p, float xDist) VR_FBT_Stand =
     {
         mid = onBone;
     }
-    vector at = mid - vr_fbt_fw * (xDist + 16);
+    vector at = mid - vr_fbt_fw * (vr_fbt_case >= VR_FBT_CROUCH ? xDist : xDist + 16);
     at_z = vr_fbt_home_z;
     setorigin(p, at);
     p.velocity = '0 0 0';
@@ -102,13 +113,14 @@ void(entity p, float xDist) VR_FBT_Stand =
 
 void(entity p) VR_FBT_Begin =
 {
-    VR_Test_Begin("flatblood");
+    VR_Test_BeginFlags("flatblood", VR_TEST_LOUD);
     if(!VR_FlatPlay(p))
     {
         localcmd("vr_mock_hand_to_absolute 1\n");
     }
     vr_fbt_on = 1;
     vr_fbt_case = 0;
+    vr_fbt_quick = FALSE;
     vr_fbt_home = p.origin;
     makevectors('0 1 0' * p.v_angle_y);
     vr_fbt_fw = v_forward;
@@ -128,9 +140,14 @@ void() VR_FlatBloodTest_Frame =
             return;
         }
         cvar_set("vr_flatblood_test", "0");
-        if(ask == 1)
+        if(ask >= 1 && ask <= 3)
         {
             VR_FBT_Begin(p);
+            if(ask >= 2)
+            {
+                vr_fbt_case = 12; // (2: the corpse's shotgun shot from 60, then the crouched ones; 3: and a picture of
+                vr_fbt_quick = ask - 1; // each crouched shot's blood, 4 frames after it)
+            }
         }
         return;
     }
@@ -203,6 +220,11 @@ void() VR_FlatBloodTest_Frame =
     }
     if(vr_fbt_s == 3) // he stands there, the view on it; the hands settle onto the view (36 frames: the flat hand's lag)
     {
+        float crouch = vr_fbt_case >= VR_FBT_CROUCH;
+        if(crouch && vr_fbt_frames == 1)
+        {
+            localcmd("+flatcrouch\n"); // (Left Ctrl's hold, the console's way)
+        }
         VR_FBT_Stand(p, VR_FBT_Dist(vr_fbt_case));
         if(!corpse)
         {
@@ -221,7 +243,7 @@ void() VR_FlatBloodTest_Frame =
             localcmd(sprintf("vr_mock_hand_to main %v\nvr_mock_hand_aim main %v\n",
                 vr_fbt_aim - way * (VR_FBT_Dist(vr_fbt_case) + 16), vr_fbt_aim + way * 8000));
         }
-        if(vr_fbt_frames < 36)
+        if(vr_fbt_frames < (crouch ? 72 : 36)) // (crouched: the crouch's own travel too)
         {
             return;
         }
@@ -246,17 +268,21 @@ void() VR_FlatBloodTest_Frame =
         VR_FBT_To(5);
         return;
     }
-    if(vr_fbt_s == 4) // the shot: until the gun has fired, then a nail's flight and the client's frames (18 frames)
-    {
-        if(VRGetEntWeaponInst(p, cVR_MainHand).wi_clip + p.ammo_shells * 1000 + p.ammo_nails * 1000000 != vr_fbt_clip0) // (a round gone: the clip, or the ammo)
+    if(vr_fbt_s == 4) // the shot: a tap (one frame of +attack: one shot, the counts its own), then a nail's flight and
+    {                 // the client's frames (state 5's 18)
+        if(vr_fbt_frames >= 2)
         {
-            localcmd(VR_FlatPlay(p) ? "-attack\n" : "vr_mock_button main trigger 0\n");
+            localcmd("-attack\n");
             VR_FBT_To(5);
         }
         return;
     }
     if(vr_fbt_s == 5)
     {
+        if(vr_fbt_quick == 2 && vr_fbt_case >= VR_FBT_CROUCH && vr_fbt_frames == 4)
+        {
+            localcmd("screenshot\n");
+        }
         if(vr_fbt_frames < 18)
         {
             return;
@@ -269,7 +295,25 @@ void() VR_FlatBloodTest_Frame =
             vr_fbt_m.absmax));
         VR_Test_Print(sprintf(" blood sent %g, particles %g, drawn %g, its health %g\n", sent, made, drawn, vr_fbt_m.health));
         float d = VR_FBT_Dist(vr_fbt_case);
-        if(!VR_FlatPlay(p))
+        if(vr_fbt_case == 12)
+        {
+            vr_fbt_ref_sg_corpse = made;
+            vr_fbt_ref_sg_sent = sent;
+        }
+        if(vr_fbt_case >= VR_FBT_CROUCH)
+        {
+            localcmd("-flatcrouch\n");
+            VR_Test_Print(sprintf("flatblood: crouched: eye %.1f over the point, pitch %.0f\n", eye_z - vr_fbt_aim_z, p.v_angle_x));
+            if(VR_FlatPlay(p))
+            {
+                // (Every pellet's blood as from 60: 108-120 particles a pellet there, more when it cuts or gibs, so
+                // case 12's whole count is no steady measure.)
+                VR_Test_Check(sent >= vr_fbt_ref_sg_sent - 1 && made >= sent * 60 && drawn >= made * 0.9,
+                    sprintf("%s: it bleeds as from 60 (%g sent, %g particles, %g drawn; from 60: %g sent, %g particles)",
+                    VR_FBT_Name(vr_fbt_case), sent, made, drawn, vr_fbt_ref_sg_sent, vr_fbt_ref_sg_corpse));
+            }
+        }
+        else if(!VR_FlatPlay(p))
         {
             // (The headset: printed, not judged. The mock hand's aim is a few units off at 60 (a corpse's limb missed now
             // and then), and the nailgun fired this way makes no nail; the counts for comparing by eye.)
@@ -288,6 +332,10 @@ void() VR_FlatBloodTest_Frame =
                 sent, made, drawn, vr_fbt_ref_tally, vr_fbt_ref_drawn));
         }
         vr_fbt_case = vr_fbt_case + 1;
+        if(vr_fbt_quick && vr_fbt_case == 13)
+        {
+            vr_fbt_case = VR_FBT_CROUCH;
+        }
         VR_FBT_To(0);
         return;
     }

@@ -702,6 +702,9 @@ za::Vector<Item> pageDebugTests()
         command("Blood at Point Blank", "god; notarget; vr_flatblood_test 1")
             .help("vr_flatblood_test 1 (flat-screen or headset): a grunt, then a corpse, shot with the shotgun, super shotgun and "
                   "nailgun from 60, 30, 12 and 4 units: each shot's blood made and drawn, as at 60 (flatblood: lines)."),
+        command("Blood Crouched Over a Corpse", "god; notarget; vr_flatblood_test 2")
+            .help("vr_flatblood_test 2 (-flatscreenmode): crouched over a corpse, the shotgun down into it from 20, 12, 6 and 3 "
+                  "units: every pellet's blood as from 60 (flatblood: lines). 3: and a screenshot of each shot's blood."),
         command("Flat Ledges", "vr_flatmove_test 9")
             .help("vr_flatmove_test 9 (-flatscreenmode only, floating at the surface): the spots within 512 units where "
                   "Quake's jump out of the water lifts you, with the yaw that faces the ledge (flatmove: ledge lines)."),
