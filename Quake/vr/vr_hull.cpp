@@ -8,6 +8,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -5015,9 +5016,10 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
         c = levels[0];
     }
     // (Not in a flat-screen slide: his eyes, sent a frame behind, sit low and a stair's step up drops them under the
-    // limit for a frame -- it lay him down and ended the slide on the first step.)
+    // limit for a frame -- it lay him down and ended the slide on the first step. Nor off a ledge mid-slide: no lying
+    // down until the slide is over, his bug of 2026-11-10.)
     else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2 &&
-            !(flatscreen && VR_FlatSlideStepUp(const_cast<edict_t*>(ent))))
+            !(flatscreen && flatmove::slideOnServer(ent)))
     {
         prone = true;
         float levels[maxCrouchLevels];

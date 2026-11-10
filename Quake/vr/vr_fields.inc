@@ -246,6 +246,7 @@ QVR_FIELD(vr_stamina_time)
 QVR_FIELD(vr_stamina_said)
 QVR_FIELD(vr_heavy_move) // holding a very heavy melee weapon (the hammer, the mace: vr_melee.qc VR_HeavyMelee_Frame): the move speed's share (0 or 1: full)
 QVR_FIELD(vr_climb_drain) // 1 while a hang drains the pool (the gadget shows it: VR_Melee_Hud)
+QVR_FIELD(vr_sliding) // on a player: 1 while his flat-screen slide is on the ground (vr_flatmove.cpp): its charge into a monster (vr_kdtrig.qc VR_KdTrig_SlideCharge)
 QVR_FIELD(vr_climb_knockoff) // set by the QC: a blast or a shove knocks the player off its holds (vr_climb.cpp lets go, keeps the velocity)
 QVR_FIELD(vr_foegrab_hands) // set by the engine on a player: the hands holding an enemy (vr_foegrab.cpp), bit 1 the off hand, 2 the main: no melee blows from them
 QVR_FIELD(vr_hand_heldoff) // set by the QC on a player (VR_Hand_HeldOff): the hands drawn off their tracked place by what they hold, bit 1 the off hand, 2 the main (progs::handHeldOff)

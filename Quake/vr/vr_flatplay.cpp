@@ -1051,6 +1051,16 @@ void toggleProne(const char* why)
         getUp(why);
         return;
     }
+    // Not mid-slide (his bug of 2026-11-10: "it is currently possible to go prone during a slide"): the key does
+    // nothing until the slide is over (the server won't lay a sliding body down either: vr_hull.cpp).
+    if(flatmove::slidePose())
+    {
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: no lying down mid-slide\n", why);
+        }
+        return;
+    }
     keyState.prone = true;
     keyState.riseWanted = false;
     if(vr_flatplay_debug.value)
