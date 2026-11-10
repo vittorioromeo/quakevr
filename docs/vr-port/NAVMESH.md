@@ -1,59 +1,165 @@
 # Navmesh pathfinding for walking monsters (Recast/Detour)
 
-Decision log for the navmesh work (brief: arena enemies stuck on the tower stairs and the centerpiece's corners;
-Quake's `movetogoal` only heads at the goal, tries diagonals/random directions when blocked and never steps off
-ledges).
+Decision log and design of `Quake/vr/vr_nav.cpp` (brief 2026-11-10: arena enemies stuck in the tower stairs and the
+centerpiece's corners; Quake's `movetogoal` only heads at the goal, tries diagonals and random directions when
+blocked, and never steps off ledges).
 
-## Step 1: does Recast/Detour suit us? (2026-11-10) — yes
+## 1. Does Recast/Detour suit us? Yes (2026-11-10)
 
-Checked https://github.com/recastnavigation/recastnavigation (README and releases page):
+Checked https://github.com/recastnavigation/recastnavigation (README, releases):
 
-- License: zlib (License.txt). Compatible with our GPL engine and with shipping binaries; only the notice must stay
-  in the source copy.
-- Language/platform: plain C++98, no dependencies, builds with any C++ compiler (MSVC/clang-cl/gcc), so it fits our
-  clang-cl Windows build and the Linux/flatpak build alike.
-- Components we need: Recast (navmesh generation), Detour (runtime mesh, `findPath`, `findStraightPath`, poly
-  flags/areas, off-mesh connections). Maybe later: DetourCrowd (local avoidance), DetourTileCache (dynamic
-  obstacles). Not needed: RecastDemo, Tests, DebugUtils (our own debug draw is simpler than adapting its interface).
-- Maintenance: active (1,184 commits, open PRs, CI). Latest release **v1.6.0** (tag commit `6dc1667`).
-- Allocator hooks: `rcAllocSetCustom` / `dtAllocSetCustom` exist in the sources (RecastAlloc.h, DetourAlloc.h), so
-  mimalloc can be plugged in.
+- License: zlib (`License.txt`): fine for our GPL engine and shipped binaries; the notice stays with the source.
+- Plain C++98, no dependencies, any compiler: clang-cl on Windows and gcc/clang on Linux alike.
+- What we use: Recast (building) and Detour (runtime mesh, `findPath`, `findStraightPath`, polygon flags and areas).
+  Later maybe: DetourCrowd (local avoidance), DetourTileCache (dynamic obstacles). Unused: RecastDemo, Tests,
+  DebugUtils (our debug view draws with `vr_lines`).
+- Maintained: active (1,184 commits, CI, open PRs). Latest release **v1.6.0** (commit `6dc1667`).
 
-Verdict: suits our purposes.
+## 2. Import
 
-## Step 2: getting the source — blocked (worker can't download)
+- Source: GitHub's tag archive for v1.6.0 (1.3 MB, SHA-256
+  `8B50C62177249554B226514B307E6C529934A62B3926822777BF6ABB8906A155`; downloaded by the coordinator with the author's
+  approval: the worker rules forbid downloads), vendored under `Quake/vr/external/recastnavigation`: only `Recast/`
+  and `Detour/` (Include, Source; without `RecastLayers.cpp`, the tile cache's) and `License.txt`; its `README.md`
+  records the version and hash. Upstream's files unchanged.
+- Built from source as its own static library, always optimised (`/O2`, `NDEBUG`) in every configuration, Debug too;
+  only the runtime library follows the configuration (Debug's `/MDd`, as Zancle's project does, so the objects link
+  with the engine's); ThinLTO in ReleaseLTO / Release-Tracy / Release-TracyFull like the engine; warnings off for the
+  vendored code only; clang-cl.
+  - `Windows/VisualStudio/recast.vcxproj`, in `ironwail.sln`, referenced from `quakevr.props`: every configuration,
+    the kit's `build.sh` (builds the solution) and `make_release.ps1` (builds ReleaseLTO) get it.
+  - `Quake/vr/vr.cmake`: `qvr_recast` (CMake: the Linux and flatpak builds); `Quake/vr/vr.mk`: the Makefiles.
+  - Nothing to package (linked into the exe). Credits: `CREDITS.md`.
+- Allocations: Recast's and Detour's default allocator is `malloc`, which in this executable is already mimalloc (the C
+  heap override, `vr_crtheap.c`), so `rcAllocSetCustom` / `dtAllocSetCustom` are not used. The build allocates per tile
+  on the pool threads (mimalloc's thread-local heaps); steering allocates nothing once a monster's path vector grew.
 
-The worker rules forbid downloads, and no copy of the library exists on this machine (searched C: to G: for
-`DetourNavMesh.h`). Needed from the coordinator/author: the official tag archive
-`https://github.com/recastnavigation/recastnavigation/archive/refs/tags/v1.6.0.zip`, extracted under
-`C:/OHWorkspace/qvr-kit/external/recastnavigation-1.6.0` (like the tracy archives there). The worker then vendors only
-`Recast/` + `Detour/` (sources and headers) and `License.txt` into `Quake/vr/external/recastnavigation`, records the
-version and commit here.
+## 3. Building at map load
 
-## Plan (to carry out once the source is available)
+- **Input geometry: vr_hull's convex brushes** (coordinator's correction, 2026-11-10). `hull::navSolids` hands out the
+  brushes `vr_hull.cpp` already rebuilt from hull 0's solid leaves, plus the world's clip brushes it recovered from the
+  clipping hulls: no second reconstruction. Each brush's faces become triangles (`brushes::forEachPolygon`, the
+  runtime brushes' plane clipper) on the pool; a face is walkable when its normal's z is at least cos(`vr_nav_slope`)
+  (45.57 degrees: Quake's 0.7 floor rule).
+- **Solids filled.** Rasterising only a closed brush's faces leaves its inside open to Recast: a floor under a func_wall
+  or inside a clip brush stayed walkable (e1m1: 6,634 polygons, 3 of them inside clip brushes). Each brush is also
+  filled column by column (`fillSolids`: the column through the brush at each cell's middle as one solid span, merged
+  with its faces' spans so a walkable top keeps its area): e1m1 1,656 polygons, none inside a clip brush.
+- **Clip brushes** are real solids in that input, so they block paths (`vr_nav_cliptest`, below). Known approximation:
+  a recovered clip brush's floor and top faces sit at its box centres' height for Quake's 32 box (`hull::navSolids`),
+  so a mesh on top of a clip brush is a little off its true height; clip brushes are nearly always walls: left.
+- **Brush entities:** still ones (func_wall, func_episodegate, breakables: SOLID_BSP and not a mover) are solid where
+  they stand at load (turned ones are left out); func_illusionary and triggers (not SOLID_BSP) don't block. Movers
+  (func_door*, secret doors, func_plat, func_train, buttons, rotators, bobbers: by classname prefix) are left out of
+  the mesh: see 5.
+- **Size classes.** Monsters move with `vr_mhull` widths (their class's width at Quake's height 56 or 88:
+  `hull::moveSize`), so one navmesh per (radius, height) class present: the half width rounded up to
+  `vr_nav_radius_step` (4). id maps: 12 x 56 (grunt, knight, dog, zombie...), 16 x 56 (enforcer's 28 rounded up),
+  20 x 88 (ogre), 32 x 88 (shambler, vore). AD's monsters get their size from `moveSize` (their box when vr_hull's table
+  has no class for them). With `vr_mhull 0` `moveSize` gives Quake's hulls: 16 x 56 and 32 x 88. The classes of the
+  walkers spawned with the map are built at load; a size first met in play (the arena's waves, a triggered spawn) is
+  built on the pool then (`vr_nav_async` 1; that monster chases as Quake does until it is ready).
+- **Recast settings** (tunables, Debug > Tunables): voxel 4 x 2 units (`vr_nav_cell`, `vr_nav_cell_height`), climb 18
+  (`vr_nav_climb`), slope 45.57, the class's height, erosion its radius times `vr_nav_clearance` (1.41: a square box's
+  corner reaches that far at 45 degrees, so a path's corner never puts a box corner over a ledge, which
+  `SV_CheckBottom` refuses; at 1.0 monsters stalled at the stairs' sides). Watershed regions, 6-vertex polygons,
+  detail mesh.
+- **Tiles on the pool:** `vr_nav_tile` (64) voxels a side, each triangle and brush binned into the tiles its bounds
+  reach, the tiles built with `jobs::parallelFor` (site "nav tiles"), each class its own `jobs::async` job. Detour refs
+  keep 22 bits for tile and polygon: a vast map doubles the tile size until its tiles fit in 12 bits.
+- **Areas:** each polygon's by the contents over its middle: ground, water, slime, lava, with costs a unit
+  (`vr_nav_water_cost` 2, `vr_nav_slime_cost` 20, `vr_nav_lava_cost` 60): walkers avoid slime and lava unless there is no
+  other way. Sky is solid (vr_hull's rule).
 
-### Build integration
-- Own static-library vcxproj (like the box3d/zancle projects), clang-cl, /O2 and the same runtime library as the
-  game in every configuration (Debug too), warnings off for the vendored code only; added to the solution, to
-  build.sh-built trees, ReleaseLTO and the release packaging; CMakeLists.txt for the Linux/flatpak build.
+## 4. Disk cache
 
-### Input geometry: vr_hull's convex brushes (coordinator correction, 2026-11-10)
-- Monsters do not move with Quake's hull1/hull2 here: with `vr_mhull 1` (default) each monster class moves with a
-  compiled hull of its own width (`vr_mhull_<class>`, -1 = its box) and Quake's height (56 or 88). See HULLS.md,
-  "Monsters (round 3: their own widths against walls)", and `Quake/vr/vr_hull.cpp`.
-- Recast input = vr_hull's convex-brush rebuild of the world (it already recovers clip brushes from the clipping
-  hulls). Each brush is turned into triangles (clip a base winding by the brush planes, one face per plane) and
-  rasterised as a solid; Recast then erodes by each class's real radius. No second brush reconstruction is written.
-  This answers the clip-brush question: clip brushes are real solids in that rebuild.
-- One navmesh per (radius bucket, height) class present on the level: heights 56 / 88, radius quantised to buckets
-  (e.g. 12, 14, 20, 32 for the id classes: 24x56 grunt/knight/dog..., 28x56 enforcer, 40x88 ogre, 64x88 vore/shambler).
-  A new size seen in play (AD monsters) adds a class built on the pool, like `vr_hull_async`.
-- `vr_mhull 0`: Quake's two hull sizes (32x56, 64x88) as the two classes.
+`cache/navmesh` (`diskcache::Product::NavMesh`, `vr_nav_cache` 1; 0 off, 2 built anyway and compared). Key: a hash of
+the triangles (which hold the still brush entities and clip brushes), the settings and the class; the build folder
+from `navVersion` and Detour's `DT_NAVMESH_VERSION`. Written atomically (`diskcache::write`); read back through the
+framed file's checks (magic, layout version, length), our checksum of the payload (FNV-1a, the header's second number)
+and a bounds-checked parse: anything amiss counts as rejected and the mesh is built again.
 
-### Runtime
-- Built on the thread pool at map load, tiled (tiles in parallel); cached to disk (key: BSP hash + settings version
-  + class), atomic write, validated on load.
-- Doors: polys under a closed door flagged off; plats/trains: off-mesh links; survivable drops: one-way off-mesh links.
-- Chase: QC builtin for the next steering corner (findPath + findStraightPath, corridor per monster, staggered
-  repaths), stepped with Quake's movestep; fallback to `movetogoal` / `info_arena_nav`. `vr_nav 1` default.
-- Debug view `vr_nav_debug 1/2`.
+## 5. Doors, lifts, trains
+
+- **Doors** (secret doors too) are not in the mesh; the floor under them is. Every `vr_nav_movers` (0.25) s the
+  polygons under each mover's current box are flagged blocked (excluded by the query filter) while it stands between
+  the floor's step and a monster's head: a closed door blocks its doorway, an open one (raised, slid aside) doesn't.
+  Monsters can't open doors in Quake, so no route through a closed door is planned; once it opens, the next repath
+  goes through.
+- **Lifts (func_plat) and trains are not ridden yet.** Quake's plats only rise for players (`plat_center_touch`), so
+  riding needs QC changes besides navigation. Today a plat's body blocks the floor it stands on and the mesh has no
+  polygons on the plat, so no path uses a lift. How it should work: an off-mesh connection per plat from beside its
+  bottom position to beside its top (`pos1`/`pos2`), with a "lift" area; a monster whose next corner is such a link
+  walks on when the plat is at its end (else waits beside it), the plat's touch accepts it, it stands still while
+  carried and walks off at the far end. Trains the same, only where a train stops.
+- **Drops** are not in the mesh (walkers never step off ledges, `SV_movestep`): see 7.
+
+## 6. The chase
+
+QC `VR_AI_MoveToGoal` (ai_run's chase; ai_walk and the stealth walks pass too, but only a walker whose goal is its enemy
+goes on) first tries `VR_NAV_Step`: builtin `navsteer(self, goal)` (by name: vr_builtins_nav.inc) gives the yaw toward
+the next corner of the monster's path; the monster turns (`ChangeYaw`) and steps with Quake's own `walkmove`
+(collision, steps, ledges, animation unchanged); a blocked step tries `vr_nav_sidestep` (35) degrees to either side, then
+falls through. `navsteer` returns -1 and Quake's chase runs exactly as before (then the arena's `info_arena_nav` stairs
+helper and the prop detours) when: `vr_nav 0`, the monster flies or swims, no navmesh for its size yet, it or its goal
+is off the mesh, there is no path, or the goal is straight ahead on the mesh (the last corner is the goal: Quake's
+chase keeps its melee ranges and dodges).
+
+Engine side: `findNearestPoly` for both feet, `findPath` (256 polygons; a partial path toward an unreachable goal), the
+path kept per monster and found again when its polygon is not on it, every `vr_nav_repath` (0.6) s staggered by entity
+number (0.75x to 1.25x), or when the goal moved `vr_nav_repath_move` (64) from where the path led; `findStraightPath`
+along the rest of the path for the corners; a corner within `vr_nav_corner_reached` (8) counts as reached.
+Backpedalling, sidestepping, strafing, melee, retreat and the armed humanoids' own moves don't use `movetogoal`: same.
+
+## 7. Shortcomings and how to do better
+
+- **Crowds:** each monster plans alone; a pack takes one line through a door and bumps (the side step and Quake's chase
+  sort it out). DetourCrowd's local avoidance, or velocity obstacles along each path, would spread them.
+- **Flanking:** everyone takes the shortest path; goal slots round the player (a ring of points, or extra cost on
+  polygons already on another monster's path) would make them surround him and come from several sides.
+- **Jumping and drops:** off-mesh links for survivable drops (a max height, found by sampling the mesh's boundary
+  edges and tracing down) and for leaps (fiends, dogs), followed with a velocity instead of walkmove: the one place
+  that lifts Quake's never-step-off-a-ledge rule.
+- **Lifts and trains:** off-mesh links and the QC in 5.
+- **Dynamic obstacles:** props, gibs, ragdolls and other monsters are not in the mesh; the side step and the fallback
+  handle them locally. DetourTileCache obstacles (or a tile rebuilt on the pool) would let big props reroute paths.
+- **Smoothing:** corners are polygon vertices, so a path hugs the inside of a turn at the clearance; steering toward a
+  point a little past the corner along the next segment would round turns and look more natural.
+- **Flyers and swimmers** keep Quake's movement: a 3D grid of open space could give scrags and fish the same.
+- **Doors** are walls while closed; a monster could wait at one it saw the player open.
+
+## 8. Debug view and diagnostics
+
+- `vr_nav_debug 1` (Debug page: Show Navmesh): the navmesh round the view within `vr_nav_debug_range` (1200): polygons
+  by area (ground teal, water blue, slime green, lava orange, blocked by a mover red), edges darker, 2 units up,
+  depth tested (`lines::triangle`, `lines::sceneLine`), in VR and flat (the view's debug draws, vr_view.cpp). `2` adds
+  each monster's path (yellow, 6 units up) and its next corner (a white post). `vr_nav_debug_class`: which class (-1
+  the nearest walker's).
+- `vr_nav_info`: the input (brushes, clip brushes, triangles, movers), each class's mesh (tiles, polygons, KB, built or
+  read, ms), the steering counts. `vr_nav_cliptest`: no polygon inside a clip brush (verdict line). `vr_nav_rebuild`.
+- Checklist scenario `nav_arena`: walkers on the arena floor, you on the dais, paths drawn.
+
+## 9. Measurements (2026-11-10, no-LTO build, low-impact runs: indicative)
+
+| map | input | classes | build (each class, on the pool) | cache read |
+|---|---|---|---|---|
+| e1m1 | 1,238 brushes (30 clip), 15,017 triangles, gathered 1.1 ms | 12 x 56 | 53 ms (135 tiles, 1,592 polygons, 275 KB) | 0.6 ms |
+| e4m7 | 1,495 brushes (68 clip), 17,897 triangles, 1.3 ms | 16 x 56, 32 x 88, 12 x 56 | 320, 424, 520 ms (built together; 324 tiles each) | 0.7-0.8 ms each |
+| vrarena | 535 brushes (70 clip), 6,276 triangles, 0.8 ms | none at load; 12 x 56 and 20 x 88 in play | 20 x 88: 30 ms | - |
+
+No AD map in the test bases (ad_grendel: "Couldn't spawn server"), so the biggest-AD-map timing is still to do. Cache:
+a second load read every class (hits), a changed setting (`tune vr_nav_cell 5`) missed and built again; 0 rejected.
+`vr_nav_cliptest` on e1m1: 30 clip brushes, 1,592 polygons, none inside: passes.
+
+Arena stairs (`vr_arena_test 36`: one foe at a time from 8 floor places up to the dais' top and 8 down, a 25 s cap;
+"there" is the mean seconds to get within a blow of him, capped trials count 25):
+
+| vr_nav / vr_arena_nav | grunt up / down | knight | ogre | dog | capped of 64 |
+|---|---|---|---|---|---|
+| 0 / 0 (Quake's chase) | 14.9 / 23.4 | 13.3 / 21.3 | 20.5 / 23.8 | 13.8 / 17.3 | 29 |
+| 0 / 1 (the old default) | 6.2 / 9.4 | 4.2 / 6.3 | 9.9 / 14.7 | 2.4 / 3.2 | 2 |
+| 1 / 0 (navmesh alone) | 11.7 / 7.7 | 8.4 / 5.4 | 15.1 / 13.7 | 9.8 / 4.0 | 2 |
+| 1 / 1 (the new default) | 5.7 / 6.0 | 4.0 / 4.7 | 11.5 / 9.5 | 2.2 / 2.4 | 0 |
+
+(With `vr_arena_nav 0` the stealth AI's lost-target search also runs on the arena, which slows the navmesh-alone row:
+`VR_Stealth_Lose` is skipped on maps with arena nav points.)

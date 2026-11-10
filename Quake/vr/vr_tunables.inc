@@ -2389,3 +2389,5 @@ QVR_TUNABLE(vr_nav_water_cost, "2") // the paths' cost of a unit of floor under 
 QVR_TUNABLE(vr_nav_slime_cost, "20") // ... under slime
 QVR_TUNABLE(vr_nav_lava_cost, "60") // ... under lava
 QVR_TUNABLE(vr_nav_movers, "0.25") // how often the floor under doors, lifts and trains is checked (seconds): blocked while one stands in the way
+QVR_TUNABLE(vr_nav_clearance, "1.41") // the navmesh kept this many times a monster's half width off walls and ledges (1.41: a square box's corner at any angle; 1: its side)
+QVR_TUNABLE(vr_nav_sidestep, "35") // a navmesh step toward the path's corner blocked (a prop, another monster): tried this many degrees to either side before Quake's chase takes over (0: not tried)

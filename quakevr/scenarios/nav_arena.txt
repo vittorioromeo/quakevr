@@ -1,0 +1,13 @@
+# nav_arena: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Walkers on the arena's floor come up
+# the dais' stairs to you along their navmesh paths, drawn (vr_nav_debug 2).
+title Navmesh: walkers find the dais' stairs
+map vrarena
+start 0 0 137 0
+god
+spawn "Grunt" 600 200
+spawn "Knight" 600 -250
+spawn "Ogre" 450 450
+spawn "Rottweiler" 500 -500
+cvar vr_nav 1
+cvar vr_nav_debug 2
+hint Watch them come up the stairs: the navmesh is teal, each path yellow, its next corner a white post. Then try Monsters Find Their Way off.

@@ -136,7 +136,13 @@ float(float dist) VR_NAV_Step =
     if(yaw < 0) { return FALSE; }
     self.ideal_yaw = yaw;
     ChangeYaw();
-    return walkmove(yaw, dist);
+    if(walkmove(yaw, dist)) { return TRUE; }
+    // (Blocked: a little to either side first, as Quake's chase tries the diagonals; which side first at random.)
+    float side = cvar_hget(cvarh_vr_nav_sidestep);
+    if(side <= 0) { return FALSE; }
+    if(random() < 0.5) { side = 0 - side; }
+    if(walkmove(yaw + side, dist)) { return TRUE; }
+    return walkmove(yaw - side, dist);
 };
 
 void(float dist) VR_AI_MoveToGoal =

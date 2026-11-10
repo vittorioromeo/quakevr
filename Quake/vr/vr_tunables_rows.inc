@@ -2378,3 +2378,5 @@ QVR_TUNABLE_SLIDER(vr_nav_water_cost, "Navmesh: Water Cost", 1.0f, 20.0f, 0.5f, 
 QVR_TUNABLE_SLIDER(vr_nav_slime_cost, "Navmesh: Slime Cost", 1.0f, 100.0f, 1.0f, "%.0fx", 1.0f, 1000.0f, "The paths' cost of floor under slime.")
 QVR_TUNABLE_SLIDER(vr_nav_lava_cost, "Navmesh: Lava Cost", 1.0f, 200.0f, 1.0f, "%.0fx", 1.0f, 1000.0f, "The paths' cost of floor under lava.")
 QVR_TUNABLE_SLIDER(vr_nav_movers, "Navmesh: Doors and Lifts Check", 0.05f, 2.0f, 0.05f, "%.2f s", 0.05f, 10.0f, "How often the floor under doors, lifts and trains is checked: blocked while one stands in the way.")
+QVR_TUNABLE_SLIDER(vr_nav_clearance, "Navmesh: Clearance", 1.0f, 2.0f, 0.05f, "%.2fx", 0.5f, 4.0f, "The navmesh kept this many times a monster's half width off walls and ledges (1.41: a square box's corner at any angle).")
+QVR_TUNABLE_SLIDER(vr_nav_sidestep, "Navmesh: Blocked Step Angle", 0.0f, 90.0f, 5.0f, "%.0f deg", 0.0f, 90.0f, "A step toward the path's corner blocked: tried this many degrees to either side before Quake's chase takes over (0: not tried).")

@@ -302,14 +302,14 @@ void triangulate(const BrushSet& set, Geometry& g)
 
 struct Settings
 {
-    float cs, ch, climb, slope;
+    float cs, ch, climb, slope, clearance;
     int tile;
 };
 
 Settings settingsNow()
 {
     return Settings{za::max(vr_nav_cell.value, 0.5f), za::max(vr_nav_cell_height.value, 0.25f), za::max(vr_nav_climb.value, 0.f),
-        vr_nav_slope.value, za::max(static_cast<int>(vr_nav_tile.value), 8)};
+        vr_nav_slope.value, za::max(vr_nav_clearance.value, 0.f), za::max(static_cast<int>(vr_nav_tile.value), 8)};
 }
 
 unsigned char areaAt(const glm::vec3& q)
@@ -541,7 +541,9 @@ void buildClass(const Geometry& g, const Settings& s, NavClass& c)
     cfg.walkableSlopeAngle = s.slope;
     cfg.walkableHeight = static_cast<int>(za::ceil(c.height / s.ch));
     cfg.walkableClimb = static_cast<int>(za::floor(s.climb / s.ch));
-    cfg.walkableRadius = static_cast<int>(za::ceil(c.radius / s.cs));
+    // Kept off walls and ledges by the box's reach at any angle (a square's corner: radius times up to 1.41), so a
+    // path's corner never puts a box corner over a ledge (SV_CheckBottom) or into a slanted wall.
+    cfg.walkableRadius = static_cast<int>(za::ceil(c.radius * s.clearance / s.cs));
     cfg.maxEdgeLen = static_cast<int>(48.f / s.cs);
     cfg.maxSimplificationError = 1.3f;
     cfg.minRegionArea = static_cast<int>(rcSqr(24.f / s.cs));
@@ -637,7 +639,7 @@ za::String buildName()
 
 za::U64 keyOf(const Geometry& g, const Settings& s, const NavClass& c)
 {
-    const float v[] = {s.cs, s.ch, s.climb, s.slope, static_cast<float>(s.tile), c.radius, c.height};
+    const float v[] = {s.cs, s.ch, s.climb, s.slope, static_cast<float>(s.tile), c.radius, c.height, s.clearance};
     return diskcache::fnv(g.hash, v, sizeof(v));
 }
 
@@ -1082,6 +1084,7 @@ void afterLoad()
     {
         return;
     }
+    const progs::ServerVm vm; // (vr_nav_rebuild runs from the console)
     const auto t0 = za::Clock::nowNanoseconds();
     Geometry& g = state.geo;
     g = Geometry{};
@@ -1233,6 +1236,7 @@ void debugDraw(const glm::vec3& view)
     {
         return;
     }
+    const progs::ServerVm vm; // (the view's draws run with the client's VM current)
     // Which class: the setting's, else the nearest walker's.
     int cls = static_cast<int>(vr_nav_debug_class.value);
     if(cls < 0)
