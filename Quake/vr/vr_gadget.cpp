@@ -36,6 +36,7 @@
 #include "vr_weapon_ids.h"
 #include "vr_worldtext.hpp"
 #include "vr_hands.hpp"
+#include "vr_toolgun_icons.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
@@ -1061,6 +1062,7 @@ int imageDraws = 0; // the hologram's and the frame rate's images drawn so far (
 #include "vr_gadget_fps.inc"
 #include "vr_gadget_panel.inc" // panel boards: the arena's banners
 #include "vr_gadget_visor.inc" // the flat-screen visor's panels (vr_visor.cpp)
+#include "vr_gadget_holster.inc" // flatscreen play's holster menu (vr_flatholster.cpp)
 
 void messageTest_f();
 void gadgetInfo_f();
@@ -1378,6 +1380,11 @@ void renderVisor(const VisorInput& in)
     QVR_GPU_PROFILE("visor panels");
     const fontstyle::Use font{fontstyle::Surface::Gadget}; // (the gadget's font: Screens > Wrist Gadget Font)
     visorRender(in);
+}
+
+VisorImage renderHolsterMenu(const HolsterMenuView& view)
+{
+    return holsterMenuRender(view); // (vr_gadget_holster.inc)
 }
 
 VisorImage visorImage(int panel)

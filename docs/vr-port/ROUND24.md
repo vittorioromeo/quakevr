@@ -7375,6 +7375,32 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
 
+## Flat-screen holsters and the holster menu (branch `agent/flat_holsters`, worktree `release`, 2026-11-10)
+
+His words (18): the holster system in flat-screen play too, on by default: six holsters and two hands, the number keys
+doing nothing but 3's swap, the wheel's button held for a visor-style menu (time at 0.30x, a blur, the crosshair faded,
+the mouse's cursor) with the holsters on a rough figure, [L] [DROP] [R] each, the hands with DROP and SWAP.
+
+- Shared with VR: the holsters themselves (fields, records, `VRDrawHolsterWeapon`, `VRPutWeaponInHolster`,
+  `VRHolsterRefused`, the hand drop `VR_Forcegrab_FlatDropHand`, the swap `VR_FlatSwapHands`), the pickup rule (a free
+  hand), bullet time's slow-motion path (`timescale::wanted`), the visor glass's blur passes (`glassBlur`, now with a
+  radius and a whole-view mode), the gadget's screen drawing (palette, text, `Shade::Screen`), the toolgun's thumbnails and
+  its flat cursor plumbing (`VR_FlatToolgunMouse`, `VR_FlatToolgunEscape`, `vr_flat_mouse_move to <button>`),
+  notectx's weapon names (now public). Flat-only: the menu's layout, hit-testing and impulses.
+- New: `vr_flat_holsters` 1, `vr_flat_key_holster_menu` mouse3, `vr_flat_holster_menu_timescale` 0.3, `_blur` 6,
+  `_xhair_fade` 1, `_size` 0.62, `_fade_time` 0.12, `_cursor_speed` 1, `_crt` 0.5, `vr_flat_holster_drop_ahead` 20 (rows
+  in Locomotion > Desktop Screen Play; the dump, hold and test in Debug > Reports > Flatscreen Play). Impulses 60..79
+  (QC `vr_flatholster.qc`), 80 the test's pickup.
+- Old flat tests that drive the weapon keys pin `vr_flat_holsters 0` (flatgate, flatplay, flatramp, flatreload, body_lie,
+  flatitems 5, the flat_taa scene).
+- Test: `Misc/quakevr/flatholster_test.sh` (`vr_flatholster_test`: the menu driven by mouse counts and clicks; DROP, L, R,
+  SWAP, the weapon keys, the full-hands pickup, a hand's DROP, the time scale restored): 10 passed, 0 failed, the
+  pickup left lying. SWAP is 3's own (`flatplay::swapHands`: agent/flat_hands' animated swap). The first picture showed
+  the guns' thumbnails as nothing (dark on the dark face): they sit on a lit plate, brightened; the text went from 5 to 6
+  pixels. The changed flat tests: flatgate 5/0, flatplay 31/0, flatramp 1/0, flatreload 26/0, the flat_taa scene loads with
+  the holsters off; flatitems 6/2 (cases 1 and 5 wait for the reserve's shells to drop on a shot, but flat play's reload
+  fires from the clip since 2026-11-08: with `vr_flat_reload 0` case 1 is 15/0) and body_lie 1/1 (the slide's "no bob"
+  check, agent/flat_slide2's new one): neither from the holsters.
 ## Force grab: palm first, VFX from the palm, off the 2H grip, no double grab, held props (branch `agent/flat_forcegrab`, worktree `blendmodels`, 2026-11-10)
 
 His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".

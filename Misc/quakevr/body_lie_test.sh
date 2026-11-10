@@ -11,7 +11,7 @@
 AGENT=${1:-embed5}
 QT_NAME=bodylie
 source "$(dirname "$0")/qvrtest.sh"
-H="map vrtesthall; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; impulse 9; wait5; impulse 3; wait30"
+H="vr_flat_holsters 0; map vrtesthall; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; impulse 9; wait5; impulse 3; wait30"
 
 out=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -QuitOn "^body_lie_test: [0-9]+ passed" -Timeout 120 \
     -Filter "^body_lie_test: (PASS|FAIL|[0-9])" -Script "$H; vr_body_lie_test; wait5000; toggleconsole; quit" 2>&1)

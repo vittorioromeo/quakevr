@@ -24,6 +24,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menupaint.hpp"
@@ -1584,6 +1585,12 @@ void flatMouseMove_f()
     if(Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(1), "to"))
     {
         const char* name = Cmd_Args() + 3;
+        if(flatholster::open() && flatholster::countsTo(name, dx, dy)) // (the holster menu's buttons: vr_flat_holster_menu_dump)
+        {
+            const int taken = VR_FlatToolgunMouse(dx, dy);
+            Con_Printf("vr_flat_mouse_move: %d %d to \"%s\" on the holster menu, %s\n", dx, dy, name, taken ? "taken" : "the view's");
+            return;
+        }
         const Spot* found = nullptr;
         for(const Spot& spot : ps.spots)
         {

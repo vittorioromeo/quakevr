@@ -1352,6 +1352,15 @@ vr_flat_xhair_kick_smooth|1|Locomotion|Visor Crosshair Kick Smoothing|Advanced V
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_holsters|1|Locomotion|Holsters|Advanced VR Options > Movement > Locomotion > Holsters
+vr_flat_holster_menu_timescale|1|Locomotion|Holster Menu Time Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Time Speed
+vr_flat_holster_menu_blur|1|Locomotion|Holster Menu Blur|Advanced VR Options > Movement > Locomotion > Holster Menu Blur
+vr_flat_holster_menu_xhair_fade|1|Locomotion|Holster Menu Crosshair Fade|Advanced VR Options > Movement > Locomotion > Holster Menu Crosshair Fade
+vr_flat_holster_menu_size|1|Locomotion|Holster Menu Size|Advanced VR Options > Movement > Locomotion > Holster Menu Size
+vr_flat_holster_menu_fade_time|1|Locomotion|Holster Menu Fade Time|Advanced VR Options > Movement > Locomotion > Holster Menu Fade Time
+vr_flat_holster_menu_cursor_speed|1|Locomotion|Holster Menu Cursor Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Cursor Speed
+vr_flat_holster_menu_crt|1|Locomotion|Holster Menu Screen Look|Advanced VR Options > Movement > Locomotion > Holster Menu Screen Look
+vr_flat_holster_drop_ahead|1|Locomotion|Holster Drop Distance|Advanced VR Options > Movement > Locomotion > Holster Drop Distance
 vr_flat_ssg_break|1|Locomotion|Super Shotgun Breaks Open|Advanced VR Options > Movement > Locomotion > Super Shotgun Breaks Open
 vr_flat_mag_eject|1|Locomotion|Ejects Empty Magazines|Advanced VR Options > Movement > Locomotion > Ejects Empty Magazines
 vr_flat_revolver_eject|1|Locomotion|Revolver Ejects Its Shells|Advanced VR Options > Movement > Locomotion > Revolver Ejects Its Shells
@@ -4397,6 +4406,7 @@ vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced V
 vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
 vr_embed_move_hertz|2|Tunables|Moving: Stiffness|Advanced VR Options > Debug > Tunables > Moving: Stiffness
 vr_embed_move_at_wound|2|Tunables|Moving: Held At|Advanced VR Options > Debug > Tunables > Moving: Held At
+vr_embed_move_turn|2|Tunables|Moving: Turns With the Wrist|Advanced VR Options > Debug > Tunables > Moving: Turns With the Wrist
 vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
 vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
 vr_embed_brake|2|Tunables|Running Stab: Brake|Advanced VR Options > Debug > Tunables > Running Stab: Brake
@@ -4808,6 +4818,10 @@ vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > 
 |2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
 |2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+|2|Debug - Reports|Holster Menu Dump|Advanced VR Options > Debug > Reports > Holster Menu Dump
+|2|Debug - Reports|Holster Menu: Hold Open|Advanced VR Options > Debug > Reports > Holster Menu: Hold Open
+|2|Debug - Reports|Holster Menu: Let Go|Advanced VR Options > Debug > Reports > Holster Menu: Let Go
+|2|Debug - Reports|Holster Menu Test|Advanced VR Options > Debug > Reports > Holster Menu Test
 |2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
 vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print
 |2|Debug - Reports|Flatscreen Swap Report|Advanced VR Options > Debug > Reports > Flatscreen Swap Report
@@ -5852,6 +5866,7 @@ vr_smallgibs_trace|2|Debug - Automation & Self-Tests|Trace Small Gibs|Advanced V
 |2|Debug - Automation & Self-Tests|Shotgun at Its Head, Not Killing|Advanced VR Options > Debug > Automation & Self-Tests > Shotgun at Its Head, Not Killing
 |2|Debug - Automation & Self-Tests|Lightning at Its Body|Advanced VR Options > Debug > Automation & Self-Tests > Lightning at Its Body
 |2|Debug - Automation & Self-Tests|Sweep the Head Zone|Advanced VR Options > Debug > Automation & Self-Tests > Sweep the Head Zone
+|2|Debug - Automation & Self-Tests|Sweep the Head Zone, Chops|Advanced VR Options > Debug > Automation & Self-Tests > Sweep the Head Zone, Chops
 |2|Debug - Automation & Self-Tests|A Grunt Ahead|Advanced VR Options > Debug > Automation & Self-Tests > A Grunt Ahead
 |2|Debug - Automation & Self-Tests|A Grunt's Corpse Ahead|Advanced VR Options > Debug > Automation & Self-Tests > A Grunt's Corpse Ahead
 |2|Debug - Automation & Self-Tests|Spawn Its Limbs|Advanced VR Options > Debug > Automation & Self-Tests > Spawn Its Limbs

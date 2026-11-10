@@ -14,7 +14,7 @@ source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
 QT_NAME=flatgate_sh
 FLAT="-flatscreenmode"
-P="map vrteleporters; wait60; developer 1; god; notarget; r_norefresh 0; vr_mock_eye_size 256; impulse 2; wait10; impulse 2; wait20"
+P="vr_flat_holsters 0; map vrteleporters; wait60; developer 1; god; notarget; r_norefresh 0; vr_mock_eye_size 256; impulse 2; wait10; impulse 2; wait20"
 run() # run <tag> <script> <quit-on>
 {
     bash "$KIT/run.sh" "$AGENT" -Low -ExtraArgs "$FLAT" -Timeout 240 -QuitOn "$3" -Script "$2" \

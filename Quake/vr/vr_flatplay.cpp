@@ -27,6 +27,7 @@
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_tracy.h"
 
 #include "vr_engine.hpp"
@@ -1131,6 +1132,22 @@ void toolgunKeys()
 
 } // namespace
 
+void swapHands(const char* what)
+{
+    keyState.swaps++;
+    // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
+    // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
+    // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
+    if(!flatswap::press())
+    {
+        Cbuf_InsertText("impulse 48\n");
+    }
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s: swap hands\n", what);
+    }
+}
+
 // IN_MouseMotion: the toolgun panel's cursor while it is open on the screen, or the tool's adjust while B is held
 // (flatTg.adjust): the mouse is theirs, the view stays.
 extern "C" int VR_FlatToolgunMouse(int dx, int dy)
@@ -1139,7 +1156,7 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
     {
         return 0;
     }
-    if(toolgun::panel::flatMouse(dx, dy))
+    if(toolgun::panel::flatMouse(dx, dy) || flatholster::mouse(dx, dy)) // (the holster menu's cursor: vr_flatholster.cpp)
     {
         return 1;
     }
@@ -1156,6 +1173,10 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
 // Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
 extern "C" int VR_FlatToolgunEscape(void)
 {
+    if(flatholster::escape()) // (the holster menu: closed until its key is pressed again)
+    {
+        return 1;
+    }
     if(!toolgun::panel::flatShown())
     {
         return 0;
@@ -1216,18 +1237,7 @@ void pollKeysFlat()
     const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
     if(swap && !keyState.keySwap)
     {
-        keyState.swaps++;
-        // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
-        // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
-        // With vr_flat_swap_anim the hands meet first and the swap is sent as they do (vr_flatswap.cpp).
-        if(!flatswap::press())
-        {
-            Cbuf_InsertText("impulse 48\n");
-        }
-        if(vr_flatplay_debug.value)
-        {
-            Con_Printf("flatplay: %s: swap hands\n", vr_flat_key_swap.string);
-        }
+        swapHands(vr_flat_key_swap.string);
     }
     if(slow && !keyState.keyTime)
     {
@@ -1277,6 +1287,7 @@ void pollKeysFlat()
     fs.keyShove = shove;
     shoveFrame();
     toolgunKeys();
+    flatholster::frame(true); // the wheel's button: the holster menu (vr_flatholster.cpp)
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -1550,6 +1561,11 @@ FireRoute routeFire(bool lmb, bool rmb)
 {
     // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
+    // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
+    if(flatholster::open())
+    {
+        return FireRoute{};
+    }
     FireRoute r = routeButtons(lmb, rmb);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1735,6 +1751,7 @@ void init()
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
+    flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
     flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
     flatswap::init(); // vr_flatswap_report (vr_flatswap.cpp)
@@ -1804,6 +1821,7 @@ void frame()
         flatmove::frame(false);
         slidesound::frame(false);
         flatreload::frame(false);
+        flatholster::frame(false);
         flatfgrab::frame(false);
         flatgrenade::frame(false);
         flatswap::frame(false);

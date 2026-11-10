@@ -4086,6 +4086,16 @@ QVR_CVAR(vr_flat_toolgun_turn_scale, "0.4", CVAR_ARCHIVE) // vr_flat_key_toolgun
 QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's height on the window, a share of the window's (narrowed to fit its width)
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
+QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
+QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the key held for the holster menu (a bind name; "" none)
+QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
+QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu (pixels at 1080p, 0 none)
+QVR_CVAR(vr_flat_holster_menu_xhair_fade, "1", CVAR_ARCHIVE) // flatscreen play: how far the crosshair fades out while the holster menu is open (1 gone, 0 kept)
+QVR_CVAR(vr_flat_holster_menu_size, "0.62", CVAR_ARCHIVE) // flatscreen play: the holster menu's height, a share of the window's
+QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen play: seconds the holster menu takes to fade in or out (real time)
+QVR_CVAR(vr_flat_holster_menu_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the holster menu's cursor speed (1: as the desktop's pointer)
+QVR_CVAR(vr_flat_holster_menu_crt, "0.5", CVAR_ARCHIVE) // flatscreen play: the holster menu's screen's CRT look (scanlines, flicker; 0 none), as the visor's panels
+QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)
 QVR_CVAR(vr_flat_flycam, "0", CVAR_NONE)                // flatscreen play's fly camera (vr_flycam.cpp): 1 the view flies free (mouse looks, W A S D, Space up, Ctrl down, Shift faster) while you stand exactly as you were, nothing of yours moving; 0 back in your eyes. Not saved; a headset ignores it
 QVR_CVAR(vr_flat_flycam_pause, "1", CVAR_ARCHIVE)       // the fly camera: 1 the game is paused while it flies (single player, or a game this client's server runs alone); 0 the world runs on (you still stand still: no key reaches you). Multiplayer never pauses

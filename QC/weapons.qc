@@ -4578,6 +4578,7 @@ void(float xHand) VR_Impulse_WeaponButton =
     else                                  { ToggleSecondaryAmmo(xHand); }
 };
 void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
+float() VR_FlatHolster_Impulses; // (vr_flatholster.qc: flatscreen play's holster menu, the weapon keys swallowed)
 
 // Flatscreen play's F7 (vr_flat_key_toolgun; impulse 49): the toolgun in the main (right) hand at once, and pressed
 // again what that hand held before (its weapon, flags and record: the magazine as it was). What it held is kept here
@@ -4628,6 +4629,13 @@ void() ImpulseCommands =
         return;
     }
 #endif
+
+    // Flat-screen holsters (vr_flatholster.qc): the holster menu's impulses (60 .. 79); and while the holsters are on, the
+    // weapon keys do nothing (what he carries is in his hands and holsters, never conjured from what was collected).
+    if(VR_FlatHolster_Impulses())
+    {
+        return;
+    }
 
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
     // the main hand; 170 + id in the off hand.

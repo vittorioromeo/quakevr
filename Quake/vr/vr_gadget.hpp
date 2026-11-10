@@ -127,6 +127,46 @@ struct VisorColors
     glm::vec3 warn{0.f};
     glm::vec3 value{0.f};
 };
+// Flatscreen play's holster menu (vr_flatholster.cpp lays it out and hit-tests it): its image, drawn in the screens'
+// palette and font as the visor's panels are (vr_gadget_holster.inc), in `size` virtual pixels (rectangles: x, y, w, h).
+enum class MenuIcon : int
+{
+    None,
+    HandLeft,
+    HandRight,
+    Drop,
+    Swap
+};
+struct HolsterMenuSlot
+{
+    glm::vec4 rect{0.f};
+    const char* title{""}; // "LEFT SHOULDER"
+    const char* name{""};  // the weapon's name ("" empty)
+    const char* model{""}; // its model's file (its thumbnail; "" none)
+    bool hovered{false};
+};
+struct HolsterMenuButton
+{
+    glm::vec4 rect{0.f};
+    MenuIcon icon{MenuIcon::None};
+    const char* label{""};
+    bool hovered{false};
+    bool enabled{true};
+};
+struct HolsterMenuView
+{
+    glm::vec2 size{0.f};
+    const HolsterMenuSlot* slots{nullptr};
+    int slotCount{0};
+    const HolsterMenuButton* buttons{nullptr};
+    int buttonCount{0};
+    const glm::vec4* lines{nullptr}; // the figure's strokes (x0, y0, x1, y1)
+    int lineCount{0};
+    const char* header{""};
+    const char* footer{""};
+};
+[[nodiscard]] VisorImage renderHolsterMenu(const HolsterMenuView& view);
+
 void renderVisor(const VisorInput& in);
 [[nodiscard]] VisorImage visorImage(int panel);
 [[nodiscard]] glm::vec4 visorPhosphor(); // the screens' colour at full strength (Shade::Screen's static)

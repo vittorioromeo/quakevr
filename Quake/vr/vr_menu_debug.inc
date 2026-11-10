@@ -864,6 +864,16 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
+        command("Holster Menu Dump", "vr_flat_holster_menu_dump")
+            .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "
+                  "hand holds, and each button's place, whether it does something now and its impulse."),
+        command("Holster Menu: Hold Open", "+flatholsters")
+            .help("+flatholsters: the holster menu held open as if the wheel's button were held (-flatholsters lets go)."),
+        command("Holster Menu: Let Go", "-flatholsters").help("-flatholsters: the holster menu let go (closes)."),
+        command("Holster Menu Test", "vr_flatholster_test")
+            .help("vr_flatholster_test: the holster menu driven by the mouse (needs the shotgun in the right hand and the "
+                  "nailgun in the left: Misc/quakevr/flatholster_test.sh sets it up): DROP, L, R, SWAP, the weapon keys, "
+                  "a hand's DROP, the time scale; ends \"flatholster_test: N passed, M failed\"."),
         command("Flatscreen Grenade Report", "vr_flatgrenade_report")
             .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
                   "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),
