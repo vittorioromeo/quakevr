@@ -20,6 +20,9 @@ Flat-screen: with the visor on, centre messages (a locked door's, a secret's, a 
 Flat-screen: press 3 with the rocket launcher held in both hands: first the left hand lets go of the grip and comes to the empty-hand pose in front of you while the gun stays still, then the right hand passes the gun across to it, then the right hand takes the gun's two-hand grip. {test:flat_hand_swap}
 Crouch right next to a corpse and pop one of its limbs with the shotgun without moving: the stump's blood fountain pours from the first moment, as it does from a few steps away; if it still doesn't, take a screenshot right then. {test:flat_blood_pointblank}
 With developer 1, shooting things no longer fills the console with "particle2:" lines. {test:flat_blood_pointblank}
+Flat-screen: hold the right mouse button with a melee weapon facing a sword grunt: every one of its blows is parried, flat slashes too; turn your back to it and its blows land. {test:flat_parry}
+Flat-screen: after a parry your weapon glows gold with embers for the counter's window, as in the headset. {test:flat_parry}
+Start the Armour Studio near an armed grunt, then leave the menu (or close the studio's window): the grunt fights again and your blows hurt it. {test:armourstudio_close}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
