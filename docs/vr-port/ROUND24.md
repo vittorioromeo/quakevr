@@ -7410,11 +7410,28 @@ below)` (vrfiringrange 01-34-34): a blow positional damage called the body, judg
   is at head height (26-28 above the grunt's origin; its model's top is 25), the struck triangle a head one: the replay
   doesn't steady the off hand's weapon as the take did (the eval's own note), so the stab goes higher than recorded.
 - If necks feel too hard now: Gore > Decapitation > Head Zone Size 1.1 (or Neck 2).
-- Not done (budget): the Super Axe's blade data (measured below), axes embedding in ragdolls instead of gibbing them,
-  the dummy bloodying blades. Super Axe, laid as the axe (`fit_superaxe.py` frame, units up the handle from its end):
-  its head spans 24-52, its edge reaches 16.6 out at 36-44 up; its blow line ends on the handle's line at 38.9 up (its
-  Muzzle anchor), while the axe's ends at its edge (37.2 up, 10.8 out). The striking points sit inside the head's
-  middle, about 16 units behind the edge.
+- **An axe into a ragdoll embeds, not gibs** (his third note). A hand's blade blow on a corpse dealt the corpses' strike
+  damage (`VR_Gib_StrikeDamage`, 20 x min(3, speed / vr_melee_speed) x Melee Damage, x1.5 for anything held): some 3 times
+  the same blow on the living (70.2 for a 7 m/s axe swing), over the 50 that gibs a corpse whole in one hit
+  (`vr_corpse_gib_overkill`), so the body was gone before the blade could stay in (`VR_Embed_Try`: "the blow gibbed
+  it"). Now a sword's, an axe's or the chainsaw's (not a pommel's) blow on a corpse deals what it would deal the living
+  (`VR_Corpse_BladeBlowDamage`, weapons.qc: the weapon's base, the melee strength curve by the swing's speed, weight,
+  Melee Damage, Quad): 24.1 for that swing; it gibs whole only as hard a blow as would gib the living (a heavy Super
+  Axe's hardest). Fists and blunt weapons keep the old strike damage. Test: `vr_embed_test 28` case 6 (an axe swung
+  into a dead grunt's ragdoll, limb and head cuts off for the case): 16/0; on the old damage 14/2 (70.2, gibbed).
+- **The Super Axe's blow line ends at its edge** (his second note: most hits read as pommel strikes). Laid as the axe
+  (`fit_superaxe.py` frame, units up the handle from its end, out across it in the head's plane): its head spans 24-50
+  up; on one side a broad blade, its edge 10 out from 34 to 42 up; on the other a beak, 17 out at 39-43 up, curving off
+  the plane. Its Muzzle anchor (the blow line's far end) was on the handle's line at the head's middle (38.9 up, 0.3
+  out): the striking points ran up the handle about 10 units behind the edge, the handle's end met things first, and the
+  pommel's wait gave the blow to the pommel. The axe's line ends at its edge (37.2 up, 10.8 out, 5.2 across). Now the
+  Super Axe's anchor is its edge's middle vertex (419: 38.1 up, 10.1 out, 4.9 across, the same side as the axe's edge):
+  `muzzle_av "43.834 0.804 -16.945"` in slots 24 and 25 (weapons.txt). Its layout stays the axe kind's own (handle's end
+  0.25 behind the hand, the head's points at 0.75 and 1 of the line).
+- **His tweaks in VR** (Debug > Views > Edit Blade Shape (Main Hand), the Super Axe in the main hand): the red Tip at the
+  middle of the blade's edge; the teal Line Start where you want the line to begin (the hand by default); the purple
+  Blade Start down to where the head begins (about 0.6 of the line); the orange Handle Length so its point sits at the
+  handle's end; Head Box On for a box over the whole head (the beak too); Done prints the lines.
 ## Flat hands: the drop key, the quick grenade, the hand swap (agent/flat_hands, 2026-11-10)
 
 His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
