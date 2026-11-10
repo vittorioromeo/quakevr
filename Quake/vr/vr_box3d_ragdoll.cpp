@@ -111,6 +111,29 @@ namespace
     }
     return n;
 }
+
+// Killed (or dying) inside a blast's reach that went off within recentBlastTime (its damage + 40, T_RadiusDamage's): his
+// ragdoll at once, so the blast throws his body (createRagdoll's recentBlasts, its falloff) instead of his death animation
+// playing first and the body being made after the blast is over (vr_kill_blast_fling; the author, 2026-11-10: "Yes, fling
+// them"). A gibbed kill has no rig left to make; a corpse already a ragdoll is pushed by the blast as before, once.
+[[nodiscard]] bool blastKilled(const edict_t* ent)
+{
+    if(vr_kill_blast_fling.value == 0.f)
+    {
+        return false;
+    }
+    const glm::vec3 mid{(ent->v.absmin[0] + ent->v.absmax[0]) * 0.5f, (ent->v.absmin[1] + ent->v.absmax[1]) * 0.5f,
+        (ent->v.absmin[2] + ent->v.absmax[2]) * 0.5f};
+    for(const World::RecentBlast& rb : world->recentBlasts)
+    {
+        if(rb.damage > 0.f && qcvm->time - rb.time < recentBlastTime && glm::distance(mid, rb.at) < rb.damage + 40.f)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] bool wantsRagdoll(edict_t* ent, int num)
 {
     const bool knocked = knockedDown(ent);
@@ -146,7 +169,7 @@ namespace
                           fieldFloatOr(ent, fields().vr_limbcut, 0.f) != 0.f; // (a limb cut off: Limb gore)
     // (An active death: at once, from his first frame not solid, his death animation played by his body.)
     const bool limp = progress >= za::clamp(tune(ent, Tune::Start), 0.f, 1.f) || fieldFloatOr(ent, fields().vr_corpse, 0.f) >= 2.f ||
-                      (progress < 0.f && isCorpse(ent, num)) || headless || activeDeath(ent, num, progress);
+                      (progress < 0.f && isCorpse(ent, num)) || headless || activeDeath(ent, num, progress) || blastKilled(ent);
     return limp && vr_ragdoll_max.value >= 1.f;
 }
 
@@ -1164,14 +1187,8 @@ void createRagdollOverlaps(CreateWork& w, int num, Slot& s)
         part.body = r.body[static_cast<za::SizeT>(b)];
         noteCorpseInside(num, part);
     }
-    // A blast that has just killed him (or hit him as he died) throws him now.
-    for(const World::RecentBlast& rb : world->recentBlasts)
-    {
-        if(rb.damage > 0.f && qcvm->time - rb.time < recentBlastTime)
-        {
-            blastRagdoll(r, rb.at, rb.damage);
-        }
-    }
+    // (A blast that has just killed him throws him at the end of createRagdoll: after his active death has begun, so its
+    // muscles are weakened by it and its start doesn't take the throw back.)
 }
 
 void createRagdollStart(CreateWork& w, edict_t* ent, int num, Slot& s, bool now)
@@ -1339,6 +1356,14 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     createRagdollPack(r, ent, num, s); // (its worn backpack on its chest: vr_box3d_wornpack.cpp)
     createRagdollOverlaps(w, num, s);
     createRagdollStart(w, ent, num, s, now);
+    // A blast that has just killed him (or hit him as he died) throws him now (vr_kill_blast_fling makes him at once).
+    for(const World::RecentBlast& rb : world->recentBlasts)
+    {
+        if(rb.damage > 0.f && qcvm->time - rb.time < recentBlastTime)
+        {
+            blastRagdoll(*w.r, rb.at, rb.damage);
+        }
+    }
     return true;
 }
 

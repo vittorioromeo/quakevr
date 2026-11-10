@@ -138,7 +138,8 @@ float(entity e) VR_Hit_Armoured =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer" || c == "monster_ranged_knight" ||
-           (e.vr_ad_mon & VR_ADM_ARMOUR); // AD support: AD's monsters in plate (vr_ad_monsters.qc)
+           (e.vr_ad_mon & VR_ADM_ARMOUR) || // AD support: AD's monsters in plate (vr_ad_monsters.qc)
+           e.vr_ar_mask != 0; // anyone wearing plates (vr_agarmor.qc; an armoured grunt clangs)
 };
 
 // What `e` is made of, for its hits (VR_MAT_*): a wall torch, a grenade shots set off, metal (VR_Hit_Metal), wood
@@ -157,7 +158,7 @@ float(entity e) VR_MaterialOf =
 // Whether material `m` bleeds (flesh, armoured or not).
 float(float m) VR_Material_Fleshy =
 {
-    return m == VR_MAT_FLESH || m == VR_MAT_ARMOUR;
+    return VR_Mat_Is(m, VR_MATP_BLEEDS); // (the material table: flesh, armoured or not)
 };
 
 // A `xKind` (VR_HIT_*) hit's effect on `xTarg`, made of `m`, at `org`, going `dir`, `amount` hard: the table's row
@@ -177,12 +178,12 @@ void(float m, float xKind, entity xTarg, vector org, vector dir, float amount) V
             sound(xTarg, CHAN_AUTO, s, 0.8, ATTN_NORM);
         }
     }
-    if(m == VR_MAT_METAL && xKind != VR_HIT_SAW)
+    if(VR_Mat_Is(m, VR_MATP_SPARKS) && xKind != VR_HIT_SAW)
     {
         vr_metal_hits++;
         dprint(sprintf("hit: %s is metal: sparks at %v%s%s\n", xTarg.classname, org, s != "" ? ", sound " : "", s));
     }
-    else if(m == VR_MAT_WOOD)
+    else if(VR_Mat_Is(m, VR_MATP_SPLINTERS))
     {
         vr_splinters_sent++;
         dprint(sprintf("hit: %s is wood: splinters at %v\n", xTarg.classname, org));

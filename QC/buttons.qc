@@ -404,6 +404,33 @@ float(entity xThing) VR_Button_Thrown =
     return xThing.classname == "thrown_weapon" || xThing.vr_rigid || xThing.handtouch == VR_Carry_Handtouch;
 };
 
+// vr_monsters_press_buttons (default 0: id's maps are made for the player pressing them): a floor button stepped on by
+// a living monster, or landed on by an object heavy enough (vr_monsters_press_buttons_mass kg: the momentum/weight
+// rule, VR_Thrown_Mass), presses it as the player's foot does. TRUE: pressed.
+float(entity xThing) VR_Button_PressedBy =
+{
+    if(!cvar_hget(cvarh_vr_monsters_press_buttons) || (xThing.flags & FL_CLIENT) || self.state == STATE_UP ||
+       self.state == STATE_TOP || self.state == STATE_DISABLED)
+    {
+        return FALSE;
+    }
+    vector dir = normalize(self.movedir);
+    if(dir_z >= -0.7)
+    {
+        return FALSE; // (a wall button: a hand's, or a thing thrown at it: VR_Button_Thrown)
+    }
+    float monster = (xThing.flags & FL_MONSTER) && xThing.health > 0;
+    if(!monster && (!VR_Button_Thrown(xThing) || VR_Thrown_Mass(xThing) < cvar_hget(cvarh_vr_monsters_press_buttons_mass)))
+    {
+        return FALSE;
+    }
+    if(!MG_ButtonCanTouch(xThing)) return FALSE;
+    vr_button_how = sprintf("%s on it", xThing.classname);
+    self.enemy = xThing;
+    button_fire();
+    return TRUE;
+};
+
 // The touch of a button pressed by touch (not a shot one): a floor button stepped on (VR: as Quake's; a wall button
 // isn't pressed by the body, only by a hand), and anything thrown at it.
 void() button_touch_any =
@@ -419,6 +446,10 @@ void() button_touch_any =
             vr_button_how = "stepped on";
             button_touch();
         }
+        return;
+    }
+    if(VR_Button_PressedBy(other))
+    {
         return;
     }
     if(!cvar_hget(cvarh_vr_button_throw) || !VR_Button_Thrown(other))

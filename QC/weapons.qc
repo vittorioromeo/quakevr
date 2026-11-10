@@ -2783,10 +2783,6 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
 };
 
-float(float xContents) VR_LGWater_IsLiquid =
-{
-    return xContents <= CONTENT_WATER && xContents >= CONTENT_LAVA;
-};
 
 // VR: lightning into water electrifies its surface (vr_lg_water; ROUND24.md, "Lightning on water"): the arcs where a bolt
 // from `xFrom` to `xEnd` goes in (or comes out). Only the look: what the water does to those in it is the lightning gun's
@@ -2823,7 +2819,7 @@ void(vector xFrom, vector xEnd) VR_Lightning_Burn =
 
 void(vector xAt) VR_LGWater_ZapBelow =
 {
-    float inLiquid = VR_LGWater_IsLiquid(pointcontents(xAt));
+    float inLiquid = VR_Liquid_Is(pointcontents(xAt));
     VR_LGWater_Zap(xAt, xAt + (inLiquid ? '0 0 256' : '0 0 -64'));
 };
 
@@ -2835,22 +2831,6 @@ void(vector xAt) VR_LGWater_ZapBelow =
 // the water round the point it goes in (vr_lg_water_tick_damage, fading out the same way). The engine draws them
 // (watershock(); vr_shock.cpp).
 
-// Whether `e` is in a liquid: a player by its waterlevel (the feet in it), anything else by the bottom of its box or
-// its middle.
-float(entity e) VR_LGWater_InLiquid =
-{
-    if(e.flags & FL_CLIENT)
-    {
-        return e.waterlevel >= 1 && VR_LGWater_IsLiquid(e.watertype);
-    }
-    vector mid = (e.absmin + e.absmax) * 0.5;
-    if(VR_LGWater_IsLiquid(pointcontents(mid)))
-    {
-        return TRUE;
-    }
-    mid_z = e.absmin_z + 2;
-    return VR_LGWater_IsLiquid(pointcontents(mid));
-};
 
 // The shock through the water from `xAt`: what can be hurt, in a liquid, within `xRadius` of it (its middle) and not
 // behind a wall, takes `xDamage` at the middle fading out to nothing at the radius (vr_lg_water_falloff: the power of
@@ -2863,7 +2843,7 @@ float(vector xAt, float xDamage, float xRadius, entity xSkip) VR_LGWater_Spread 
     entity head = findradius(xAt, xRadius);
     while(head)
     {
-        if(head != xSkip && head.takedamage && VR_LGWater_InLiquid(head))
+        if(head != xSkip && head.takedamage && VR_Liquid_Touches(head))
         {
             vector mid = (head.absmin + head.absmax) * 0.5;
             float share = 1 - min(1, vlen(mid - xAt) / xRadius);
@@ -2910,7 +2890,7 @@ void() VR_LGWater_DropAll =
 float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt =
 {
     vector muzzle = xAt;
-    float handIn = VR_LGWater_IsLiquid(pointcontents(VRGetHandPos(xHand))) || VR_LGWater_IsLiquid(pointcontents(muzzle));
+    float handIn = VR_Liquid_Is(pointcontents(VRGetHandPos(xHand))) || VR_Liquid_Is(pointcontents(muzzle));
     float bodyIn = self.waterlevel > 1;
     if(!handIn && !bodyIn)
     {

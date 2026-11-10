@@ -465,6 +465,8 @@ float cvarh_vr_box3d_player_radius;
 float cvarh_vr_box3d_press_back;
 float cvarh_vr_box3d_weapon_arm_mass;
 float cvarh_vr_box3d_weapon_push;
+float cvarh_vr_burn_blast;
+float cvarh_vr_burn_blast_flesh;
 float cvarh_vr_burn_corpse_damage;
 float cvarh_vr_burn_corpse_time;
 float cvarh_vr_burn_corpses;
@@ -484,6 +486,7 @@ float cvarh_vr_burn_flame_small;
 float cvarh_vr_burn_flame_tilt;
 float cvarh_vr_burn_flames;
 float cvarh_vr_burn_flames_max;
+float cvarh_vr_burn_flesh_catch;
 float cvarh_vr_burn_lava;
 float cvarh_vr_burn_lava_bodies;
 float cvarh_vr_burn_lava_gib;
@@ -1342,6 +1345,8 @@ float cvarh_vr_mock_fast;
 float cvarh_vr_mock_hand_lift;
 float cvarh_vr_mock_hand_pull;
 float cvarh_vr_mock_turn_velocity;
+float cvarh_vr_monsters_press_buttons;
+float cvarh_vr_monsters_press_buttons_mass;
 float cvarh_vr_nail_scale;
 float cvarh_vr_nail_speed;
 float cvarh_vr_nail_test;
@@ -1825,6 +1830,7 @@ float cvarh_vr_strike_stamina_cost_2h;
 float cvarh_vr_strike_stamina_punch;
 float cvarh_vr_superaxe_burst_window;
 float cvarh_vr_sword_damage_mult;
+float cvarh_vr_systems_test;
 float cvarh_vr_teeth;
 float cvarh_vr_teeth_blunt;
 float cvarh_vr_teeth_hardness;
@@ -1968,6 +1974,7 @@ float cvarh_vr_worn_backpack_reserve;
 float cvarh_vr_worn_backpack_two_hand_mult;
 float cvarh_vr_worn_backpack_volume;
 float cvarh_vr_wornpack_test;
+float cvarh_vr_wounds_wet_time;
 
 void() VR_CVars_InitGenerated =
 {
@@ -2435,6 +2442,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_box3d_press_back = VR_CVar_Make("vr_box3d_press_back");
     cvarh_vr_box3d_weapon_arm_mass = VR_CVar_Make("vr_box3d_weapon_arm_mass");
     cvarh_vr_box3d_weapon_push = VR_CVar_Make("vr_box3d_weapon_push");
+    cvarh_vr_burn_blast = VR_CVar_Make("vr_burn_blast");
+    cvarh_vr_burn_blast_flesh = VR_CVar_Make("vr_burn_blast_flesh");
     cvarh_vr_burn_corpse_damage = VR_CVar_Make("vr_burn_corpse_damage");
     cvarh_vr_burn_corpse_time = VR_CVar_Make("vr_burn_corpse_time");
     cvarh_vr_burn_corpses = VR_CVar_Make("vr_burn_corpses");
@@ -2454,6 +2463,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_burn_flame_tilt = VR_CVar_Make("vr_burn_flame_tilt");
     cvarh_vr_burn_flames = VR_CVar_Make("vr_burn_flames");
     cvarh_vr_burn_flames_max = VR_CVar_Make("vr_burn_flames_max");
+    cvarh_vr_burn_flesh_catch = VR_CVar_Make("vr_burn_flesh_catch");
     cvarh_vr_burn_lava = VR_CVar_Make("vr_burn_lava");
     cvarh_vr_burn_lava_bodies = VR_CVar_Make("vr_burn_lava_bodies");
     cvarh_vr_burn_lava_gib = VR_CVar_Make("vr_burn_lava_gib");
@@ -3312,6 +3322,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_mock_hand_lift = VR_CVar_Make("vr_mock_hand_lift");
     cvarh_vr_mock_hand_pull = VR_CVar_Make("vr_mock_hand_pull");
     cvarh_vr_mock_turn_velocity = VR_CVar_Make("vr_mock_turn_velocity");
+    cvarh_vr_monsters_press_buttons = VR_CVar_Make("vr_monsters_press_buttons");
+    cvarh_vr_monsters_press_buttons_mass = VR_CVar_Make("vr_monsters_press_buttons_mass");
     cvarh_vr_nail_scale = VR_CVar_Make("vr_nail_scale");
     cvarh_vr_nail_speed = VR_CVar_Make("vr_nail_speed");
     cvarh_vr_nail_test = VR_CVar_Make("vr_nail_test");
@@ -3795,6 +3807,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_strike_stamina_punch = VR_CVar_Make("vr_strike_stamina_punch");
     cvarh_vr_superaxe_burst_window = VR_CVar_Make("vr_superaxe_burst_window");
     cvarh_vr_sword_damage_mult = VR_CVar_Make("vr_sword_damage_mult");
+    cvarh_vr_systems_test = VR_CVar_Make("vr_systems_test");
     cvarh_vr_teeth = VR_CVar_Make("vr_teeth");
     cvarh_vr_teeth_blunt = VR_CVar_Make("vr_teeth_blunt");
     cvarh_vr_teeth_hardness = VR_CVar_Make("vr_teeth_hardness");
@@ -3938,4 +3951,5 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_worn_backpack_two_hand_mult = VR_CVar_Make("vr_worn_backpack_two_hand_mult");
     cvarh_vr_worn_backpack_volume = VR_CVar_Make("vr_worn_backpack_volume");
     cvarh_vr_wornpack_test = VR_CVar_Make("vr_wornpack_test");
+    cvarh_vr_wounds_wet_time = VR_CVar_Make("vr_wounds_wet_time");
 }

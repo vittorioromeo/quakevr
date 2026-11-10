@@ -1672,7 +1672,7 @@ float(entity flame, float xStep) VR_ADGun_FlameDoused =
 {
     vector before = flame.oldorigin;
     flame.oldorigin = flame.origin;
-    if(flame.model != ad_SBURST_FLAME || !VR_Burn_InWater(flame.origin) || cvar_hget(cvarh_vr_burn_water_douse) <= 0)
+    if(flame.model != ad_SBURST_FLAME || !VR_Liquid_WetAt(flame.origin) || cvar_hget(cvarh_vr_burn_water_douse) <= 0)
     {
         return FALSE;
     }
@@ -1680,7 +1680,7 @@ float(entity flame, float xStep) VR_ADGun_FlameDoused =
     {
         before = flame.origin - flame.velocity * xStep;
     }
-    vector at = VR_Burn_InWater(before) ? flame.origin : VR_Burn_WaterSurface(before, flame.origin);
+    vector at = VR_Liquid_WetAt(before) ? flame.origin : VR_Burn_WaterSurface(before, flame.origin);
     VR_Burn_Doused(at, 2, flame);
     if(cvar_hget(cvarh_vr_debug_shots))
     {

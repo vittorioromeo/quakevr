@@ -1,0 +1,8 @@
+# systems_shambler_water: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrtesthall's pool: grunts in the water, a shambler on the shore.
+title A shambler's lightning into water
+map vrtesthall
+start 150 -264 40 0
+god
+spawn "Grunt" 150 0
+spawn "Grunt" 200 60
+spawn "Shambler" -120 0 0 180
