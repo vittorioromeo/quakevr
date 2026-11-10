@@ -1,8 +1,0 @@
-# agarmor_tiers: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Debug > Tests' armour grunts (vr_agarmor_test 2): three armed grunts ahead in full green, yellow and red.
-title Three armed grunts in full green, yellow and red armour (vr_agarmor_test 2)
-map vrtesthall
-god
-notarget
-give "Shotgun" main
-cmd impulse 9
-cmd vr_agarmor_test 2
