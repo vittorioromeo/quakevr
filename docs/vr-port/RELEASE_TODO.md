@@ -50,6 +50,34 @@ The one command and what it does: [RELEASING.md](RELEASING.md), "One command".
    Fix every `PROBLEM` line (VERSION is already 1.1.0: no `-Bump`).
 3. [ ] Release: the same without `-DryRun`.
 
+## After release: spread the word
+
+Where to announce the VR mod and its flat-screen counterpart (researched 2026-11-10). The audiences overlap: Quake
+fans, VR players, and retro-shooter ("boomer shooter") fans.
+
+- [ ] **A 60-90 s gameplay video first.** Emergent physics, gore and armed-grunt moments sell it better than feature
+  lists. Make a separate flat-screen pitch too ("Quake with physics, armed grunts, a visor HUD and dynamic gore, no
+  VR needed"), so it doesn't read as VR-only.
+- [ ] **Reddit:**
+  - Quake and retro shooters: r/quake (the core audience), r/boomershooters, r/retrogaming.
+  - PC VR: r/virtualreality, r/SteamVR, r/ValveIndex, r/OculusQuest and r/MetaQuestVR (say PC VR / Link clearly).
+  - VR game discovery: r/vrgaming, r/VRGames.
+  - The flat-screen version: r/FPS, r/pcgaming (strict self-promotion rules: a good trailer), r/patientgamers (a
+    discussion post, not an ad).
+- [ ] **Discord:** Flat2VR (the flat-to-VR mod community; probably the best single VR audience), Team Beef (Quest
+  ports: QuestZDoom, Quake ports), Quake Mapping (mappers; AD and custom maps), Arcane Dimensions and other map-pack
+  communities, Quake speedrunning and community servers, the Ironwail and Quakespasm source-port communities.
+- [ ] **Forums and sites:** func_msgboard (celephais.net), Quaddicted, InsideQC, Doomworld (its other-games area),
+  a ModDB mod page with news posts, an itch.io page with devlogs.
+- [ ] **Press and creators** (a short pitch, the trailer, the download link):
+  - VR news: UploadVR, Road to VR, MIXED (all take tips about notable mods).
+  - VR YouTubers who cover free mods and Flat2VR projects: Beardo Benjo, Gamertag VR, Dr Beardface.
+  - Retro-FPS YouTubers: Civvie 11, Dusk Dude; technical-retro creators for the deeper engine story.
+- [ ] **Social:** Bluesky, X and Mastodon with #ScreenshotSaturday, #QuakeVR, #boomershooter (short physics and gore
+  clips); Hacker News "Show HN" for the tech story (Ironwail fork, VR rendering, Box3D physics).
+- [ ] **Etiquette:** read each subreddit's self-promotion rules, post where you'll stay to answer comments, and space
+  the posts out rather than cross-posting the same day.
+
 ## Known and accepted for this release
 
 - **Multiplayer:** untested with the 1.1 systems; the menu shows a notice saying so.
