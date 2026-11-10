@@ -2066,6 +2066,16 @@ PLAYER BACKPACKS
 ===============================================================================
 */
 
+// Whether `e` (a backpack, or a monster about to drop one) holds more than none of any ammo kind.
+float(entity e) Backpack_HasAmmo =
+{
+    return e.ammo_shells > 0 || e.ammo_nails > 0 || e.ammo_rockets > 0 || e.ammo_cells > 0 || e.ammo_lava_nails > 0 ||
+           e.ammo_multi_rockets > 0 || e.ammo_plasma > 0;
+};
+
+float vr_backpack_empties;    // empty backpacks taken silently (the tests; BackpackTouch)
+float vr_backpack_last_empty; // the last BackpackTouch's was one
+
 void() BackpackTouch =
 {
     string s;
@@ -2086,6 +2096,28 @@ void() BackpackTouch =
     if((other == self.owner) && ((self.nextthink - time) > 119))
         return;
     //--ZOID
+
+    // QVR: nothing in it (his note 2026-11-10: a bare "You get" collecting a grunt's drop): taken without a word, a sound
+    // or a flash, and gone. Only what it holds more than none of counts (a negative amount, never made on purpose, took
+    // rounds away from him and printed as "-3 nails").
+    vr_backpack_last_empty = 0;
+    if(!Backpack_HasAmmo(self))
+    {
+        dprint(sprintf("backpack: an empty one taken silently (%s, worn pack state %g, a monster's drop %g, at %v)\n",
+            self.classname, self.vr_wp_state, self.vr_monster_drop > 0, self.origin));
+        vr_backpack_empties = vr_backpack_empties + 1;
+        vr_backpack_last_empty = 1;
+        remove(self);
+        self = other;
+        return;
+    }
+    self.ammo_shells = max(0, self.ammo_shells);
+    self.ammo_nails = max(0, self.ammo_nails);
+    self.ammo_rockets = max(0, self.ammo_rockets);
+    self.ammo_cells = max(0, self.ammo_cells);
+    self.ammo_lava_nails = max(0, self.ammo_lava_nails);
+    self.ammo_multi_rockets = max(0, self.ammo_multi_rockets);
+    self.ammo_plasma = max(0, self.ammo_plasma);
 
     VRItemPickupHaptic(other);
 
@@ -2213,10 +2245,9 @@ void() DropBackpack =
     {
         return; // VR: the firing range's training dummy killed as its enemy (vr_dummy.qc): no loot
     }
-    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
-    + self.ammo_lava_nails + self.ammo_multi_rockets + self.ammo_plasma))
+    if(!Backpack_HasAmmo(self))
     {
-        return;    // nothing in it
+        return;    // nothing in it (QVR: more than none of something: a sum of a negative and a positive was "something")
     }
 
     entity item = spawn();

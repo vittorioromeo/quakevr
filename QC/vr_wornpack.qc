@@ -103,8 +103,7 @@ void(entity pk, entity g) VR_WP_Stock =
     pk.ammo_plasma = pk.ammo_plasma + g.ammo_plasma;
     g.ammo_shells = g.ammo_nails = g.ammo_rockets = g.ammo_cells = 0;
     g.ammo_lava_nails = g.ammo_multi_rockets = g.ammo_plasma = 0;
-    if(!(pk.ammo_shells + pk.ammo_nails + pk.ammo_rockets + pk.ammo_cells + pk.ammo_lava_nails + pk.ammo_multi_rockets +
-         pk.ammo_plasma))
+    if(!Backpack_HasAmmo(pk))
     {
         VR_AM_Row(g.vr_ag_kind);
         VR_AmmoUtil_SetAmmoCountByAmmoId(pk, vr_am_loot_aid, vr_am_loot_n);
@@ -163,8 +162,7 @@ void(entity pk, string why) VR_WP_Off =
         {
             VR_WP_Lose(pk, g);
         }
-        else if(!(pk.ammo_shells + pk.ammo_nails + pk.ammo_rockets + pk.ammo_cells + pk.ammo_lava_nails +
-                  pk.ammo_multi_rockets + pk.ammo_plasma))
+        else if(!Backpack_HasAmmo(pk))
         {
             VR_WP_Stock(pk, g); // (dead, its loot not yet counted: SoldierDrop's not run, gibbed first)
         }
