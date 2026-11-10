@@ -1,8 +1,0 @@
-# flat_ramps: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides: E1M1's spiral room ramp, placed before it (the numbers of vr_flatslide_ramp_test, Quake/vr/vr_flatmove.cpp).
-title Flat-screen slide: E1M1's spiral room ramp
-hint Play with -flatscreenmode. Run east down the ramp and crouch at speed to slide: the view, the body and the gun go down smoothly, no jump of the gun a moment in, none on landing. The ramp under the bridge's buttons (down south at x -50, y 800) is the second one to try, off its lip.
-map e1m1
-start 900 2048 -150 0
-god
-notarget
-give "Shotgun" main

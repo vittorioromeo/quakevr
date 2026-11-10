@@ -1,4 +1,0 @@
-# autosave_e1m1: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A fresh e1m1, no god mode (the autosaves refuse cheats and danger).
-title e1m1 from the start, to play: autosaves as you go
-map e1m1
-hint Play on: autosaves come when you are safe, not with monsters on you or your health low. Main, pause and death menus: Load Autosave lists them newest first.
