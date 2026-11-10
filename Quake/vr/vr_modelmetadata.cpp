@@ -13,6 +13,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 namespace qvr::modelmeta
 {

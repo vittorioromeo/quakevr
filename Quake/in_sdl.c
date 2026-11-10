@@ -25,6 +25,7 @@ https://github.com/yquake2/yquake2/blob/master/src/client/input/sdl.c
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else

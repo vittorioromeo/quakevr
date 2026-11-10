@@ -8,6 +8,8 @@
 #include "vr_progs.hpp"
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace box3d::detail
 {

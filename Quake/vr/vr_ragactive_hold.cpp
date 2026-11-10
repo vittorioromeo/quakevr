@@ -3,6 +3,10 @@
 // vr_ragactive_internal.hpp.
 
 #include "vr_ragactive_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::ragactive
 {

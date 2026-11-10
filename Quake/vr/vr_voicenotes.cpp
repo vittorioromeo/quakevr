@@ -4,6 +4,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_gfxpresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
@@ -13,6 +14,7 @@
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

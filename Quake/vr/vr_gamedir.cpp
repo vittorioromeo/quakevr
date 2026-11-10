@@ -34,6 +34,9 @@
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "vr_api.h"
 
 #include <cstdio>
 #include <cstdint>

@@ -9,6 +9,9 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>

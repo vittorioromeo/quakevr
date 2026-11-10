@@ -39,6 +39,7 @@
 #include "vr_gunsfx.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"
@@ -70,6 +71,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 #include "vr_audio_internal.hpp"
+#include "vr_api.h"
 
 #include <emmintrin.h> // (SSE2: x64's baseline)
 #include <stdio.h>

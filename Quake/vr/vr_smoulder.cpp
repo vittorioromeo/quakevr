@@ -12,6 +12,7 @@
 #include "vr_shock.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <stdlib.h>
 #include <string.h>

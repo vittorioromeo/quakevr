@@ -13,6 +13,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
 #include "vr_weapon_ids.h"
@@ -21,6 +22,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::flick

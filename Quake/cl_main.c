@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "vr/vr_api.h"
 
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.

@@ -12,6 +12,7 @@
 #include "vr_bodyclone.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flail.hpp"
 #include "vr_gfx.hpp"
@@ -30,6 +31,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 namespace qvr::adtank
 {

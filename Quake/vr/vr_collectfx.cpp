@@ -32,6 +32,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

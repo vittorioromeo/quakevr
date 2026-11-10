@@ -45,6 +45,7 @@
 #include "vr_throw.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -60,6 +61,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 using namespace qvr;
 using namespace qvr::progs;

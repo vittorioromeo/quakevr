@@ -2,6 +2,7 @@
 
 #include "vr_grip.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"

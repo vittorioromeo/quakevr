@@ -3,7 +3,6 @@
 
 #include "vr_kickcancel.hpp"
 #include "vr_anchor.hpp"
-#include "vr_cvars.hpp"
 #include "vr_mdlbuild.hpp"
 #include "vr_mem.hpp"
 #include "vr_rigpose.hpp"
@@ -18,6 +17,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>

@@ -25,6 +25,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <math.h>
 #include <stddef.h>

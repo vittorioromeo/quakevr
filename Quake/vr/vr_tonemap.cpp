@@ -16,6 +16,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api_render.h"
 
 #include <stdio.h>
 

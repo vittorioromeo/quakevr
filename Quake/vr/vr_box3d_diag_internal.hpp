@@ -3,6 +3,7 @@
 // its command groups: vr_box3d_diag_piles.cpp, vr_box3d_diag_perf.cpp, vr_box3d_diag_ragdoll.cpp and
 // vr_box3d_diag_player.cpp. Internal: included by those alone.
 #include "vr_box3d_internal.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 namespace box3d::detail
 {

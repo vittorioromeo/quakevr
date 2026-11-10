@@ -11,7 +11,7 @@ A test script (Misc/quakevr/<dir>/x_test.py):
     t.check(ok, "what was checked")           # `judo: PASS what was checked` (or FAIL)
     return t.verdict()                        # `judo: N passed, M failed`; 1 when one failed (the exit status)
 
-The verdict grammar (every test, QC, C++, shell and Python; check_canonical.py's test-* families keep new code to it):
+The verdict grammar (every test, QC, C++, shell and Python; qvr_checks canonical's test-* families keep new code to it):
   `<name>: PASS <what>` / `<name>: FAIL <what>`  one line per check
   `<name>: N passed, M failed`                    the test's last line: the run ends on it (run.sh -QuitOn)
 QC: VR_Test_Begin/Check/Verdict (QC/vr_testutil.qc); C++: testkit::Tally (vr_testkit.hpp); shell: qvrtest.sh.

@@ -27,6 +27,7 @@
 #include <glm/glm.hpp>
 
 #include "vr_cvars.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 

@@ -5,6 +5,7 @@
 #include "vr_backend.hpp"
 
 #include "Zancle/String/String.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 namespace qvr
 {

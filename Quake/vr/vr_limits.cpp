@@ -18,6 +18,7 @@
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::limits

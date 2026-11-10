@@ -14,6 +14,7 @@
 #include "vr_upscale.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_main.hpp"
 
 #include "nis/NIS_Config.h"
@@ -27,6 +28,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 
 #ifndef GL_TEXTURE_FETCH_BARRIER_BIT

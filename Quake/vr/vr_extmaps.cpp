@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 
 #include "vr_mem.hpp"
@@ -12,7 +13,10 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <ctype.h>
 #include <math.h>

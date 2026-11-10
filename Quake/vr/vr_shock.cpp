@@ -16,6 +16,7 @@
 #include "vr_avatar.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_lines.hpp"
 #include "vr_backend.hpp"
 #include "vr_main.hpp"
@@ -32,6 +33,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

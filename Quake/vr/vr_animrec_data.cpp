@@ -8,8 +8,11 @@
 #include "vr_strings.hpp"
 
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <math.h>
 #include <stdio.h>

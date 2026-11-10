@@ -18,6 +18,7 @@
 #include "vr_stereo.hpp"
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>

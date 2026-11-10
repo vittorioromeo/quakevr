@@ -21,6 +21,7 @@
 #include "vr_engine.hpp"
 #include "vr_runlogs.hpp"
 #include "vr_xr_runtime.hpp"
+#include "vr_api.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -28,6 +29,12 @@
 #include <ctime>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #endif

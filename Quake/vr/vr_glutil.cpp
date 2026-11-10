@@ -1,6 +1,8 @@
 // vr_glutil.cpp -- the GL object helpers every effect's shaders and targets share (vr_glutil.hpp).
 
 #include "vr_glutil.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 namespace qvr::gfx
 {

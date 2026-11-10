@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Array.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

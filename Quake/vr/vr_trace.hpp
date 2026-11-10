@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Vocabulary/Optional.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::worldtrace

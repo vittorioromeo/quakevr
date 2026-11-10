@@ -63,7 +63,7 @@ PREFIX = "ad_"
 BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bridge.qc): never renamed
 # Reviewed edits to AD's source, applied before renaming: (file, exact text, replacement, why). Each must match once.
 #
-# The precedence patches (Misc/quakevr/check_qc_precedence.py): expressions that read differently under C priorities,
+# The precedence patches (qvr_checks qc_precedence): expressions that read differently under C priorities,
 # parenthesised as fteqcc's QC priorities (AD's own compile, and ours) read them, so behaviour stays AD's as shipped
 # (some look like AD bugs: kept, flagged "AD as shipped"). Each was verified to compile to the same instructions.
 P = "parenthesised as QC priorities read it (check_qc_precedence)"

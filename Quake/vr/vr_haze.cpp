@@ -25,6 +25,8 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

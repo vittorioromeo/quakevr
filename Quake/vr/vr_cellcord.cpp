@@ -5,6 +5,7 @@
 #include "vr_backend.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
@@ -16,6 +17,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::cellcord

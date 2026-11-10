@@ -2,6 +2,8 @@
 // build's speed); what they share is in vr_menu_internal.hpp.
 
 #include "vr_menu_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 
 namespace menu_detail
 {

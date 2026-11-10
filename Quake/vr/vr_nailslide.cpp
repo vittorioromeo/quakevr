@@ -5,6 +5,7 @@
 #include "vr_view_internal.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_anchor.hpp"
@@ -12,6 +13,8 @@
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 namespace qvr::nailslide
 {

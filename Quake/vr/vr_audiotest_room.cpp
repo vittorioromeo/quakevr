@@ -1,6 +1,11 @@
 // vr_audiotest_room.cpp -- vr_snd_test's occlusion, reverb, doppler, nearfield, distance and hands (see vr_audiotest.cpp).
 
 #include "vr_audiotest_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 extern "C" int VR_SndSpatialize(channel_t* ch);
 

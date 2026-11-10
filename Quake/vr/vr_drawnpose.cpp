@@ -8,6 +8,8 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <cstring>
 

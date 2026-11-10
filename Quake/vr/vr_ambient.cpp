@@ -4,6 +4,7 @@
 #include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_evict.hpp"
 #include <string.h>
@@ -25,6 +26,8 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api_render.h"
 
 
 using namespace qvr;

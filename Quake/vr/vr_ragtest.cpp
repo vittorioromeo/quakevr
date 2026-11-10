@@ -11,6 +11,8 @@
 
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_cvars_util.hpp"
+#include "vr_tunables.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_progs.hpp"
 #include "vr_geom.hpp"

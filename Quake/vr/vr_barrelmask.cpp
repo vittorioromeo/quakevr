@@ -2,7 +2,6 @@
 
 #include "vr_barrelmask.hpp"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -20,7 +19,9 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 

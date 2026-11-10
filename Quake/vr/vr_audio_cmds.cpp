@@ -2,6 +2,12 @@
 // vr_snd_dump, the burst and the vr_snd_bench run.
 
 #include "vr_audio_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::audio
 {

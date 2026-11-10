@@ -3,6 +3,10 @@
 // taken out, and the texture rules (relight_rules.txt) read and matched.
 
 #include "vr_relight_internal.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp

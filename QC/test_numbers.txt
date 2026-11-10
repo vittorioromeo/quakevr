@@ -1,5 +1,5 @@
 # test_numbers.txt -- the registry of the numbered test cvars' numbers (docs/vr-port/TESTING.md, "Test numbers").
-# Checked on every build (Misc/quakevr/check_test_numbers.py, run by the kit's build.sh): the build FAILS when two
+# Checked on every build (qvr_checks test_numbers, run by the kit's build.sh): the build FAILS when two
 # lines claim one number, two dispatch branches take one number, a dispatched number is missing here, a line here is
 # dispatched by nothing, or a Debug menu command runs a number not here.
 #

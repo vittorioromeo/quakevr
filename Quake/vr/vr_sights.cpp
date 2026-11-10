@@ -16,6 +16,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api_render.h"
 
 
 using namespace qvr;

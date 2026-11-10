@@ -56,6 +56,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
