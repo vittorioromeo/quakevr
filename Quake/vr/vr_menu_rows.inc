@@ -6234,6 +6234,12 @@ QVR_TOGGLE(vr_flat_holsters, "Holsters",
     "the holster menu: time slows, and the mouse trades a holster's weapon with either hand, drops it, or swaps your "
     "hands. A weapon you walk over goes into a free hand. Off: the number keys and the wheel cycle through every weapon "
     "you collected, as before (vr_flat_holsters).")
+QVR_CYCLE(vr_flat_holster_menu_mode, "Holster Menu Wheel Button",
+    "Release to Pick (the default): hold the mouse wheel's button, point at a button and let go: that button is used "
+    "(let go over nothing: the menu just closes; a left click while holding works too). Toggle: a press of the wheel's "
+    "button opens the menu, click the left button as often as you like, and the next press (or Esc) closes it "
+    "(vr_flat_holster_menu_mode).",
+    {0.f, "Release to Pick"}, {1.f, "Toggle"})
 QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
     "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
     "(vr_flat_holster_menu_timescale).")

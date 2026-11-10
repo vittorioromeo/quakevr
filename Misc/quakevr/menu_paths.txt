@@ -1353,6 +1353,7 @@ vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
 vr_flat_holsters|1|Locomotion|Holsters|Advanced VR Options > Movement > Locomotion > Holsters
+vr_flat_holster_menu_mode|1|Locomotion|Holster Menu Wheel Button|Advanced VR Options > Movement > Locomotion > Holster Menu Wheel Button
 vr_flat_holster_menu_timescale|1|Locomotion|Holster Menu Time Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Time Speed
 vr_flat_holster_menu_blur|1|Locomotion|Holster Menu Blur|Advanced VR Options > Movement > Locomotion > Holster Menu Blur
 vr_flat_holster_menu_xhair_fade|1|Locomotion|Holster Menu Crosshair Fade|Advanced VR Options > Movement > Locomotion > Holster Menu Crosshair Fade
