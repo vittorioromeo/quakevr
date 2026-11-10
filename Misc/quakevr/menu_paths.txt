@@ -1362,6 +1362,7 @@ vr_flat_holster_menu_fade_time|1|Locomotion|Holster Menu Fade Time|Advanced VR O
 vr_flat_holster_menu_cursor_speed|1|Locomotion|Holster Menu Cursor Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Cursor Speed
 vr_flat_holster_menu_crt|1|Locomotion|Holster Menu Screen Look|Advanced VR Options > Movement > Locomotion > Holster Menu Screen Look
 vr_flat_holster_drop_ahead|1|Locomotion|Holster Drop Distance|Advanced VR Options > Movement > Locomotion > Holster Drop Distance
+vr_flat_unload_volume|1|Locomotion|Unload Volume|Advanced VR Options > Movement > Locomotion > Unload Volume
 vr_flat_ssg_break|1|Locomotion|Super Shotgun Breaks Open|Advanced VR Options > Movement > Locomotion > Super Shotgun Breaks Open
 vr_flat_mag_eject|1|Locomotion|Ejects Empty Magazines|Advanced VR Options > Movement > Locomotion > Ejects Empty Magazines
 vr_flat_revolver_eject|1|Locomotion|Revolver Ejects Its Shells|Advanced VR Options > Movement > Locomotion > Revolver Ejects Its Shells
@@ -1592,6 +1593,7 @@ vr_mhull_shambler|2|Monster Hitbox|Shambler (64)|Advanced VR Options > Movement 
 vr_carry|1|Carrying|Carry Ammo and Health|Advanced VR Options > Carrying and Throwing > Carrying > Carry Ammo and Health
 vr_carry_take|1|Carrying|Take a Box|Advanced VR Options > Carrying and Throwing > Carrying > Take a Box
 vr_carry_autocollect|1|Carrying|Auto-Collect|Advanced VR Options > Carrying and Throwing > Carrying > Auto-Collect
+vr_forcegrab_pack_collect|1|Carrying|Force-Grabbed Packs|Advanced VR Options > Carrying and Throwing > Carrying > Force-Grabbed Packs
 vr_carry_full_cue|1|Carrying|Full Cue|Advanced VR Options > Carrying and Throwing > Carrying > Full Cue
 vr_collect_fx|1|Carrying|Put-Away Transition|Advanced VR Options > Carrying and Throwing > Carrying > Put-Away Transition
 vr_collect_fx_time|1|Carrying|Put-Away Time|Advanced VR Options > Carrying and Throwing > Carrying > Put-Away Time
@@ -4238,8 +4240,8 @@ vr_flat_wall_block_ads|2|Tunables|Wall: No Ironsight Tilted|Advanced VR Options 
 vr_flat_prone_floor|2|Tunables|Prone: Gun Flush On Floor|Advanced VR Options > Debug > Tunables > Prone: Gun Flush On Floor
 vr_flat_prone_floor_margin|2|Tunables|Prone: Floor Margin|Advanced VR Options > Debug > Tunables > Prone: Floor Margin
 vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tunables > Prone: Eye Height
-vr_flat_prone_jump_stands|2|Tunables|Prone: Jump Stands Up|Advanced VR Options > Debug > Tunables > Prone: Jump Stands Up
 vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
+vr_flat_prone_jump_stands|2|Tunables|Prone: Jump Stands Up|Advanced VR Options > Debug > Tunables > Prone: Jump Stands Up
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
 vr_flat_shove_wind_back|2|Tunables|Shove Windup Back|Advanced VR Options > Debug > Tunables > Shove Windup Back

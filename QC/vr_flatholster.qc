@@ -13,6 +13,7 @@
 //   60 + 3 * i + 2   holster i and the right hand (the main hand) trade what they hold
 //   78, 79           the left hand's, the right hand's weapon (or the prop it carries) dropped (VR_Forcegrab_FlatDropHand)
 //   81               DROP BOTH: both hands drop what they hold, the off hand's first (H's order, VR_Forcegrab_FlatDrop)
+//   82, 83           UNLOAD: the left hand's, the right hand's gun's live rounds back into the reserve (VR_FlatHolster_Unload)
 //   48               the hands swapped (VR_FlatSwapHands: the same as 3)
 // (80 is vr_flatholster_test's, below.)
 // Holster i is the engine's STAT_QVR_HOLSTERWEAPON0 + i: holsterweapon i (VR_FlatHolster_Hotspot).
@@ -123,17 +124,61 @@ void(float hs) VR_FlatHolster_Drop =
     dprint(sprintf("flat holsters: holster %g: weapon %g dropped\n", hs, wid));
 };
 
-// ImpulseCommands, first: the menu's impulses (60 .. 79) whenever he plays on the screen, and while the holsters are
+// UNLOAD (his words 2026-11-10: "add a per-hand 'unload button' that empties a gun's magazine (if applicable) and returns
+// the ammunition to the ammo storage"): the live rounds in the hand's gun (its magazine, the super shotgun's barrels, the
+// revolver's cylinder: its clip, VR_FlatReload_Unloadable) back into his reserve as a pickup would, up to its cap; what
+// doesn't fit stays in the gun (nothing is dropped on the floor). Spent shells stay where they are. A short sound
+// (vr_flat_unload_volume). Not while that hand reloads.
+float vr_flatholster_unloads; // (the tests: rounds unloaded so far)
+void(float xHand) VR_FlatHolster_Unload =
+{
+    float clip = VR_FlatReload_Unloadable(xHand);
+    if(clip <= 0 || VR_FlatReload_Busy(self, xHand))
+    {
+        dprint(sprintf("flat holsters: UNLOAD hand %g: nothing to unload (clip %g, reloading %g)\n", xHand, clip,
+            VR_FlatReload_Busy(self, xHand)));
+        return;
+    }
+    float wid = VRGetEntWeapon(self, xHand);
+    float n = VR_FlatReload_ClipBack(xHand, wid, VRGetEntWeaponFlags(self, xHand), TRUE);
+    if(n <= 0)
+    {
+        VR_Carry_FullCue(xHand, self); // (full up of that ammo: the rounds stay in the gun)
+        dprint(sprintf("flat holsters: UNLOAD hand %g: the reserve is full, %g rounds stay in weapon %g\n", xHand, clip, wid));
+        return;
+    }
+    if(VRGetEntWeaponClip(self, xHand) <= 0)
+    {
+        if(xHand == cVR_MainHand) { self.vr_flatrl_unl1 = wid; } else { self.vr_flatrl_unl0 = wid; } // (no auto reload of it)
+    }
+    VRHandStopFiring(self, xHand);
+    VR_Reload_AmmoChanged(self);
+    W_SetCurrentAmmoFor(xHand);
+    float vol = min(1, max(0, cvar_hget(cvarh_vr_flat_unload_volume)));
+    if(vol > 0)
+    {
+        sound(self, VRGetHandChannel(xHand), "vr/reload_pouch.wav", vol, ATTN_NORM);
+    }
+    vr_flatholster_unloads += n;
+    dprint(sprintf("flat holsters: UNLOAD hand %g: %g of %g rounds of weapon %g back into the reserve\n", xHand, n, clip, wid));
+};
+
+// ImpulseCommands, first: the menu's impulses (60 .. 79, 81 .. 83) whenever he plays on the screen, and while the holsters are
 // on, the weapon keys swallowed (1 .. 8, the cycle's 10, 12, 15, 16, Quake's 225, 226): no weapon comes from what was
 // collected. TRUE when the impulse was taken (cleared).
 float() VR_FlatHolster_Impulses =
 {
     float imp = self.impulse;
-    if(((imp >= 60 && imp <= 79) || imp == 81) && VR_FlatPlay(self))
+    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 83)) && VR_FlatPlay(self))
     {
         self.impulse = 0;
         if(self.health <= 0)
         {
+            return TRUE;
+        }
+        if(imp == 82 || imp == 83)
+        {
+            VR_FlatHolster_Unload(imp == 82 ? cVR_OffHand : cVR_MainHand);
             return TRUE;
         }
         if(imp == 81)

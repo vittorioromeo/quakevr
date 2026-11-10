@@ -736,6 +736,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.owner = xPlayer;
     xBox.carry_2h = FALSE;
     xBox.carry_autotried = FALSE; // (vr_carry_autocollect: tried once a carry)
+    xBox.carry_fgcaught = forcegrabCatching; // (vr_forcegrab_pack_collect: a force grab's catch)
     VR_Hand_Take(xPlayer, xHand, xBox);
 
     entity oldSelf = self;
@@ -1533,7 +1534,10 @@ float(float xHand, entity xBox) VR_Carry_AutoCollect =
     // ... and armour, a key, a rune, a suit: no torso to let go over, no holster to reach for on the screen, so what E takes
     // goes on at once too (armor_touch's own rules: not better than his, it stays in the hand, G lets it go).
     float flatObject = VR_FlatPlay(self) && xBox.model != string_null && xBox.vr_pickup_obj && xBox.vr_pickup_obj != QVR_PICKUPOBJ_WEAPON;
-    if(!mode || xBox.carry_autotried || xBox.carry_2h || (!flatObject && !VR_Carry_IsCollectable(xBox, mode >= 2)))
+    // ... and a backpack a force grab brought in, flat-screen or headset (vr_forcegrab_pack_collect; his words 2026-11-10:
+    // "When force-grabbing backpacks, they should be automatically collected"): as touching it would (BackpackTouch).
+    float packs = mode >= 2 || (xBox.carry_fgcaught && cvar_hget(cvarh_vr_forcegrab_pack_collect) != 0);
+    if(!mode || xBox.carry_autotried || xBox.carry_2h || (!flatObject && !VR_Carry_IsCollectable(xBox, packs)))
     {
         return FALSE;
     }

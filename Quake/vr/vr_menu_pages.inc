@@ -262,6 +262,7 @@
         row(opt::vr_flat_holster_menu_cursor_speed),
         row(opt::vr_flat_holster_menu_crt),
         row(opt::vr_flat_holster_drop_ahead),
+        row(opt::vr_flat_unload_volume),
         row(opt::vr_flat_ssg_break),
         row(opt::vr_flat_mag_eject),
         row(opt::vr_flat_revolver_eject),

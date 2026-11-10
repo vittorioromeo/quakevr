@@ -65,6 +65,12 @@ grip=$(grep -a "flatfgrab: off hand: idle" "$S/fi_prop.log" | head -1 | grep -c 
 fist=$(grep -a "flatfgrab: off prop:" "$S/fi_prop.log" | head -1 | grep -c "in fist 1, fist 1.00")
 check $([ "$grip$fist" = 11 ] && echo 1 || echo 0) "... the off hand came off the fore-end (from the grip: $grip) into the guard, its fist closed on the brick ($fist)"
 
+# Backpacks (his notes 2026-11-10, test 8): E on one takes it at once (vr_forcegrab_pack_collect); an empty one says nothing.
+run fi_packs flat "$P; vr_flatitems_test 8" "$V"
+grep -a "FAIL" "$S/fi_packs.log" | cut -c1-160
+expect_verdict "$(cat "$S/fi_packs.log")" "flatitems" "backpacks: force-grabbed taken at once, an empty one silent"
+check $(grep -aq "^You get *$" "$S/fi_packs.log" && echo 0 || echo 1) "... and no bare \"You get\" line"
+
 # The headset's rule stands: armour stays until a hand takes it (the same walk: test 2 in a headset game; every armour and
 # key FAILs there by design, what is checked is that they are left).
 run fi_vrwalk vr "$P; vr_body_interactions 0; vr_flatitems_test 2" "$V"

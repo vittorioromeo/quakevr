@@ -8393,3 +8393,27 @@ Timings (VS 2026 MSBuild, the solution, other workers building at the same time,
 
 Left: excluding imgui_demo.cpp (only full-rebuild CPU, no wall-clock gain), fteqcc in parallel with ClCompile, the
 PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
+
+## Backpacks and UNLOAD (agent/flatpack; his notes 2026-11-10)
+
+- Force-grabbed backpacks taken at once: a carry begun by a force grab's catch is marked (`.carry_fgcaught`), and
+  VR_Carry_AutoCollect counts a backpack as collectable for it (`vr_forcegrab_pack_collect`, default 1; Carrying >
+  Force-Grabbed Packs). One shared path: flat-screen play (its auto-collect is always at least mode 1) and a headset
+  (with Auto-Collect not Off). The pack's own BackpackTouch takes it: the same message, sound, flash and caps.
+- "You get" with nothing after it: BackpackTouch printed "You get " before looking at what the pack held, so a pack with
+  nothing more than none of anything printed the bare words (and a negative amount took rounds away, printed "-3 nails").
+  Not reproduced from a grunt's drop: every drop path checked (DropBackpack, VR_AG_SoldierDrop's loot fallback,
+  VR_WP_Stock, VR_WP_Off) gives a grunt's pack 5 shells when its reserves are spent, but their emptiness checks were sums,
+  which a negative amount on the monster could zero or fake. Now one helper, Backpack_HasAmmo (any amount more than 0),
+  is the check everywhere; BackpackTouch takes an empty pack silently (no message, sound or flash; a developer line
+  `backpack: an empty one taken silently (...)` names it, so a future one tells where it came from) and only positive
+  amounts. Arcane Dimensions' own backpack touch (ad_BackpackTouch) is untouched.
+- UNLOAD (holster menu, under each hand; impulses 82 left, 83 right): enabled by the flat HUD's clip rule
+  (VR_FlatHudClip, clip > 0). VR_FlatReload_ClipBack (shared with the weapon cycle's put-away) moves the live rounds into
+  the reserve up to its cap (VR_MaxAmmo); what doesn't fit stays in the gun (nothing dropped; full up: the pack-full
+  cue). The revolver's chambers follow its clip (VR_Revolver_Sync); spent shells are not in the clip. The unloaded gun
+  is not auto reloaded until R fills it or the hand takes another weapon (`.vr_flatrl_unl0/1`). Sound
+  vr/reload_pouch.wav at `vr_flat_unload_volume` (0.8; Desktop Screen Play > Unload Volume).
+- Tests: flatholster_test (24 passed: shells 17 -> 25, clip 8 -> 0, UNLOAD dim when empty, not reloaded),
+  `vr_flatitems_test 8` (4 passed: E on a 20-shell pack taken at once; an empty one silent; -3 shells 5 nails takes the
+  nails only). Scenes flat_backpacks, flat_unload.
