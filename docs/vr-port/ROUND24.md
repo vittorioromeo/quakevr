@@ -8448,6 +8448,38 @@ PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
 - Tests: flatholster_test (24 passed: shells 17 -> 25, clip 8 -> 0, UNLOAD dim when empty, not reloaded),
   `vr_flatitems_test 8` (4 passed: E on a 20-shell pack taken at once; an empty one silent; -3 shells 5 nails takes the
   nails only). Scenes flat_backpacks, flat_unload.
+## Super shotgun: the open gun's model cleaned up round the hinge (branch `agent/ssgmodel`, worktree `ssgmodel`, 2026-11-10)
+
+His marked screenshot of the open gun (six marks). All in `Misc/quakevr/make_ssg_open.py` (the cut the .blend's export
+runs: `vr_ssg_frame_on_v_shot2.mdl`, `vr_ssg_barrels_on_v_shot2.mdl` and their normal maps re-exported through
+Blender headless); `v_shot2.mdl` (the gun shut, firing) byte-identical. Shared by VR and flat (one model; the left hand
+is drawn mirrored).
+
+- **Hollow bores** (green): the barrels' back is one flat face at x 12.823 (every barrels' vertex just behind it moved
+  onto it) with two octagonal holes, short tubes behind them (2 model x steps, 0.45 deep: `BORE_STEPS`), dark walls
+  lighter at the mouth, a bottom: black, or a loaded chamber's brass head and primer (skins 1 and 2: these moved from
+  the face to the bores' bottoms).
+- **Flickering triangle** (blue): the rib's back face lay in the old cap's plane (z-fighting between the bores); it gives
+  way to the new face. The rear sight's back (its lit inserts) is kept and the face goes round under it (`ssg_checks.py
+  ring` still 2 lit triangles on the barrels, 0 on the frame).
+- **Awkward triangles** (magenta): the old cap was a fan from its middle over a non-planar, non-convex outline (its corners
+  a grid step back); now an ear-clipped flat face over the planar outline.
+- **Floating rivets** (red): the cut went triangle by triangle, so the two rivets by the hinge were split between the
+  parts; a small piece (under 1.2 units) across the cut now goes whole to the part its middle is on (both: the frame's
+  step).
+- **Missing faces, the hinge's slivers** (cyan): the step under the barrels (the water table) lost its top (its
+  triangles counted as tapers) and its front (counted as the barrels'); the tapers were dropped and their stubs left
+  open in front of the receiver behind a floating plate. Now the step keeps its top and gets a front face; the tapers are
+  cut flat at `BREECH_X` (11.914; a new vertex where each edge crosses, carried per pose) and closed by the standing
+  breech's face (the firing pins); an octagonal knuckle round the hinge pin (`KNUCKLE_R` 0.76, its bottom level with the
+  barrels' underside) fills the barrels' heel as they turn.
+- **The gap seen from above**: from above the receiver, the stubs, the step's top, the knuckle and the barrels' face now
+  follow on with nothing open between them. (Keeping the whole tapers on the frame up to the barrels' back closed it too,
+  but hid the chambers in the flat open pose: they stay cut at the old plate's place.)
+- Check: `ssg_checks.py openmodel` renders the open parts from 26 ways at 10, 45 and 80 degrees and counts pixels whose
+  nearest surface is a triangle's back (a hole): before 8254 / 14282 / 15044, after 25 / 22 / 21 (hairlines);
+  reload_test.sh section 7 gates it at 60 a pose.
+
 ## Shells thrown off the super shotgun and the revolver; the revolver's open pose; the super shotgun's shells once open (branch `agent/flateject`, worktree `flateject`, 2026-11-10)
 
 - **"They just sort of fall straight down"**: the cause was the shared face rule (`vr_shells.cpp` `awayFromFace`, VR and
