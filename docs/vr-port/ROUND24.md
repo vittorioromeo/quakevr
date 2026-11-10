@@ -7375,6 +7375,61 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
 
+## Flat shove, punch and overhead weapon swing (branch `agent/flat_melee`, worktree `phases`, 2026-11-10)
+
+His notes 1-6, 20, 21, 25, 26 (flat-screen melee). All numbers are tuning constants in Debug > Tunables > Flatscreen >
+Shove And Melee (`vr_tunables.inc`).
+
+- **Shove** (`vr_flatplay.cpp` `shoveTimes`/`shovePhase`/`shoveOffset`/`palmAt`): a windup (`vr_flat_shove_wind_share`
+  0.35 of `vr_flat_shove_time`, drawn back `_wind_back` 8 and up `_wind_up` 2), a fast push (`_push_share` 0.15: 0.06 s at
+  the defaults, was 0.13 s; the game's shove is sent at its end), a hold (`_hold_share` 0.1), the way back. The hand turns
+  to its palm at the target, fingers up (`_palm` 1, `_palm_up` 80, `_palm_turn` 90, mirrored per hand; slerped in over the
+  windup, after the rest's hang so the hang's easing doesn't fight it). The push aims `vr_flat_shove_aim_up` 8 over the
+  crosshair's point. Assumption to check in game: at roll 0 a hand's palm faces in towards the middle (as on a grip); if the
+  palms come out facing sideways or back, `_palm_turn` (signed) fixes it.
+- **Two-handed shoves**: both hands with both free (as before), with a weapon in each (`vr_flat_shove_both_armed` 1:
+  weapons kept, palms out, as the armed humanoids shove; their model frames could not be shared, the flat hands are posed
+  procedurally), and every shove with `vr_flat_shove_both_always` 1 (his experiment). QC impulse 56 for all of them.
+- **Bug 5** (a single weapon held in both hands never showed its shove): the free hand on the grip was put back on it by
+  flatsight's grip (`gripWanted`) and twohand's hold, which only let go for a punch. `flatplay::shoving` now lets go the
+  same way (vr_flatsight.cpp, vr_twohand.cpp).
+- **Shove sound** (QC `VR_FlatShove`): the fist's swish (knight/sword1, 2 in turn) at `vr_flat_shove_swish` 0.35,
+  `_swish_pitch` +8 %, landing or not.
+- **One punch at a time** (`vr_flat_punch_both` 0): a hand punches only once the other's punch draws back.
+- **Punch lean**: `meleeLean` tips the drawn view down `vr_flat_punch_cam_pitch` 1.5 and rolls it toward the hand's side
+  `_cam_roll` 1.5, turns the chest `_torso_twist` 8 (through `trunkTwist`) and leans it `_torso_lean` 4 (through
+  `chestPitch`), eased in to the reach, out with the draw-back. The view's tilt goes on in `VR_FlatViewLean`, after the
+  lean's roll: r_refdef only, so the aim, shots and pose stay put; the drawn hands follow the camera (drawnOffset) and the
+  crosshair dot projects the real aim. Roll sign: Quake's positive roll; flip `_cam_roll` if it reads backwards.
+- **Overhead swing** (`overheadSwing`, `vr_flat_swing` 1, any weapon in the hand: the fist keeps its throw): windup 0.26 s
+  to `_raise_up` 4 over the eye, `_raise_fwd` 4 ahead, `_raise_out` 6 out (in the arm's reach), weapon pitched up
+  `_wind_pitch` 90; top hold 0.06 s (keeps the windup out of the wiggle rule's 0.25 s window as far as it can); strike 0.14 s
+  round the shoulder (slerped direction, eased length) to what the arm reaches toward the crosshair point, `_end_down` 4
+  under it, the wrist turning gradually to `_end_pitch` 50 down; held 0.08 s, back 0.25 s. View and chest: back
+  `_cam_up` 1.5 / `_torso_up` 3 with the windup, forward `_cam_down` 2.5 / `_torso_down` 6 with the strike. The hit is the
+  game's own melee on the real hand motion, so it lands where the swept weapon meets the target.
+- **Bug 20** (a weapon's swing went into walls): flatsight's swing stop only ran for melee weapons (`meleeIn`), so V with a
+  gun was never stopped; it now runs for any held weapon's punch.
+- **Probe and test**: `vr_flat_melee_probe` (Debug > ... > Flatscreen Melee Probe) prints each blow's numbers;
+  `Misc/quakevr/flatmelee_test.sh <agent>` checks shoves (palms, both, dual, two-handed grip, always), one punch at a time,
+  the punch tilt, both swings' arcs and the axe swing hurting a knight. `vr_flat_punch main v` is V's punch from the console.
+  Scenarios `flat_shove`, `flat_swing`.
+- **Runs (after his VR session)**: flatmelee_test.sh 9 passed, 0 failed (palms 0.97-0.99 and fingers 1.00 at full push
+  in every shove: the palm convention holds; the axe's swing leaves the knight 24 ahead at 41 of 75). flatplay_test.sh
+  31 passed: its axe reads waited 30 frames, before the overhead strike lands (0.46 s), now 45.
+- **Fixed on the runs**: the dual-wield shove's palms were undone by flatsight's aim of a gun at the crosshair's point,
+  so the palms go on last (after flatsight and the reload) and a punching or shoving hand is no longer aimed at the point
+  (`aimsAtPoint`: a gun swung with V stayed level). The axe's haft stands up the hand, so at the gun's 50 degrees its
+  head stayed over the hand; turning it further within the strike missed the knight at every angle past 50 (swept:
+  70-100 all 75 of 75), so the strike ends at `vr_flat_swing_end_pitch` 50 for everything and a melee weapon follows
+  through to `vr_flat_swing_end_pitch_melee` 100 over the hold after it (41 of 75 at every follow-through angle).
+- **Wall** (`vr_flatplay_debug 2`, e1m1's start walked into its west wall, the axe then V with the shotgun): the stop now
+  also halves down by the weapon's own depth (`gunDepth`) where gunBack's traces call it clear. The axe never stands
+  more than 1 unit in; the shotgun pressed flush against the wall stands up to 3.2 units in, every such frame with the
+  hand already folded to its shoulder (no room left to go back: 0 deep frames with room).
+- **Images**: `scratch/flatmelee_before.png` (the old behaviour through the new switches) and
+  `scratch/flatmelee_after.png`: the shove's windup and full push, a punch at its reach, the axe's top, mid-strike and
+  end.
 ## Flat-screen holsters and the holster menu (branch `agent/flat_holsters`, worktree `release`, 2026-11-10)
 
 His words (18): the holster system in flat-screen play too, on by default: six holsters and two hands, the number keys
@@ -7577,6 +7632,58 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
   and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
   (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).
 
+## Standing up under a low ceiling (branch `agent/vn1110_ceiling`, worktree `lowceil`, 2026-11-10)
+
+His notes vrteleporters_2026-11-10_01-54-06 (crawling in the 20-high vent, getting up physically hits the teleporter
+above) and _01-54-40 (the same standing up in the 40-high tunnel); his answer for the view: the camera follows the head,
+the view fades dark and blurred while the head is in the ceiling, a message says to get back down.
+
+- **The hold (server, `vr_hull.cpp` `updateCrouch` -> `updateHold`).** After the box is chosen (unchanged: it already
+  kept a lying or crouched box where a taller one doesn't fit), a headset player with a lying or crouched box whose eyes
+  plus `vr_lowceil_margin` (2) reach past the box's top and meet the map's ceiling straight over the box's middle (a
+  point trace from 1 unit under the box's top: the world and brush models) is held: 1 lying ("Lie back down"), 2
+  crouched ("Crouch back down"). While held the reach adds `vr_lowceil_hysteresis` (3): in the vent he is caught at eyes
+  18 and freed under 15 (his own crawl in the replay: eyes about 10; the mock's 0.4 m lying head: 14.6); in the tunnel
+  caught at 38, freed under 35 (his crouch there: 27). A ceiling higher than the eyes is room: lying in the open propped
+  up on the elbows is never held. Never flat-screen (its view is held under the box by `localEyeCap`), noclip, standing.
+- **Held, nothing moves him.** `crouchSpeedMax` gives 0 (the stick: the ground's friction stops him), the arms' crawl
+  resets (`VR_AfterCrawlMove`), `VR_ClientRoomscaleMove` drops the step (the head stops past the lean's radius, as at a
+  wall), `VR_ClientTeleport` refuses. Jumping is left alone (lying already can't; a crouched jump in a 40 tunnel is 4
+  units). Never pushed or moved: the box stays where it is.
+- **The teleporter over the vent.** The body already met triggers only up to the lying box's top (`VR_HullTouchTop`);
+  the hands, which touch triggers anywhere, now touch nothing over the box's top while held (`hull::heldReachTop`). The
+  test's control (`vr_lowceil 0`, the hands raised into the wall) is taken by that teleporter: the check is real.
+- **The view (client, new `vr_lowceil.cpp`).** `hidden`: the eyes (plus the margin) behind the ceiling or a wall seen
+  from the same point in the box. While held and hidden the view eases (`vr_lowceil_fade` 0.2 s) to `vr_lowceil_dark`
+  (0.95) of black, the comfort fade's own black (`comfortfade::hold`, new: the darker of the timed fade and the held
+  one), and the underwater post-process's four-tap blur at `vr_lowceil_blur` (1: offset 0.004 of the eye's height, five
+  times the water's most; `water::viewWobble` takes the greater). The message is `text3d::queueOverlay` 0.6 m ahead
+  along the gaze (over the eye's image: not darkened). `vr_lowceil_message` turns it off. The client reads the local
+  server (`hull::localHold`, as `localEyeCap`): a client of another server is held but sees no fade or message.
+- **Shared with flat-screen:** the box code is the same; flat never reaches the hold (its view cannot rise into the
+  ceiling), so nothing else is mode-specific.
+- **Settings:** Movement > Player Hitbox > Low Ceilings (`vr_lowceil` 1, `_margin` 2, `_hysteresis` 3, `_fade` 0.2,
+  `_dark` 0.95, `_blur` 1, `_message` 1), a Low Ceiling Status button there and on the Debug page
+  (`vr_lowceil_status`). menu_paths.txt regenerated.
+- **Tests:** new `Misc/quakevr/lowceil_test.py` (vent and tunnel: held, kept box, no stick, no room-scale step, hands in
+  the wall not teleported, dark + blur + message, hysteresis, free again and moving; the control): 16 passed, 0 failed.
+  `prone_test.py` (its `ventout` now lies back down before crawling out, up again outside) 32/0; `prone_vent_test.sh`
+  (flat) 9/0; `crawl_test.py` 18/0; `teleporters/crouch_test.sh`'s `rise_walked_out` crouches again before walking out
+  (box 0 at x 934 outside). New scene `lowceil_vent` (prone_vent without its flat-screen hint); the tunnel line uses
+  `prone_tunnel`. Release-TracyFull builds.
+
+### Flat-screen: the starting shotgun's shells (same branch)
+
+Reported by other workers: flat e1m1's shotgun "starts empty"; `flatitems_test` cases 1 and 5 timed out waiting for the
+shot. On `next` the gun is not empty when drawn (the flat weapon cycle, 1/2, loads it from the reserve as it is taken:
+`VR_FlatReload_CycleIn`), but a new game lost 8 shells: `SetNewParms` loaded the holstered shotgun's own record from
+the shells (the headset's immersive start, `VR_Reload_ManualFor`), and the flat cycle never uses that record (it clones
+the hand's, `VRCycleEntWeaponInst`), so 25 shells became 9 in reserve + 8 in the clip. Fixed: no preload for a flat
+player (`VR_FlatReload_NewGameFlat`: `.vr_flatscreen`, else the engine's `vr_flatplay` in single player, since the parms
+are made before his first move): fresh `map e1m1` and `map start`, the shotgun drawn with 2: 17 + 8. The test timeouts
+were the test's: it waited for the reserve to drop, and flat reload shoots from the clip (the cheat's loaded gun);
+`vr_flatitems_test` now counts shells plus the main hand's clip. `flatitems_test.sh` 8/0 (no autoreload needed),
+`flatreload_test.sh` 38/0.
 ## Voice notes 2026-11-10: lifting through a blade, your gore (branch `agent/vn1110_gore`)
 
 - **Blade Hold Strength didn't lift (his "x10 and still extremely heavy"):** two caps no strength reached. (1) A live

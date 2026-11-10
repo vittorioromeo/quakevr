@@ -17,6 +17,8 @@ namespace
 
 double fadeStart{0.0}; // realtime it began (the eyes: wall-clock time) (black),
 double fadeEnd{0.0};   // ... and when it is gone
+float holdShare{0.f};  // a held darkness (0..1: hold), set each frame by its owner (vr_lowceil.cpp)
+bool shown{false};     // the black was set last frame (its share taken off at once when nothing asks for it)
 
 void fade_f()
 {
@@ -44,20 +46,35 @@ void start(const float seconds)
     Con_DPrintf("comfortfade: from black over %.2f s\n", fadeEnd - fadeStart);
 }
 
+void hold(const float share)
+{
+    holdShare = za::clamp(share, 0.f, 1.f);
+}
+
 void frame()
 {
-    if(fadeEnd <= 0.0)
-    {
-        return;
-    }
     cshift_t& shift = cl.cshifts[CSHIFT_BONUS];
-    if(realtime >= fadeEnd || realtime < fadeStart) // (over; or the clock went back)
+    float k = 0.f;
+    if(fadeEnd > 0.0 && (realtime >= fadeEnd || realtime < fadeStart)) // (over; or the clock went back)
     {
-        shift.percent = 0.f; // (the black's last share gone at once, not left to the bonus flash's slow decay)
-        clear();
+        fadeStart = 0.0;
+        fadeEnd = 0.0;
+    }
+    else if(fadeEnd > 0.0)
+    {
+        k = static_cast<float>(za::clamp((fadeEnd - realtime) / za::max(0.01, fadeEnd - fadeStart), 0.0, 1.0));
+    }
+    k = za::max(k, holdShare); // (the darker of the timed fade's and the held one)
+    if(k <= 0.f)
+    {
+        if(shown)
+        {
+            shift.percent = 0.f; // (the black's last share gone at once, not left to the bonus flash's slow decay)
+            shown = false;
+        }
         return;
     }
-    const float k = static_cast<float>(za::clamp((fadeEnd - realtime) / za::max(0.01, fadeEnd - fadeStart), 0.0, 1.0));
+    shown = true;
     shift.destcolor[0] = 0;
     shift.destcolor[1] = 0;
     shift.destcolor[2] = 0;
@@ -68,6 +85,7 @@ void clear()
 {
     fadeStart = 0.0;
     fadeEnd = 0.0;
+    holdShare = 0.f;
 }
 
 void registerCommands()

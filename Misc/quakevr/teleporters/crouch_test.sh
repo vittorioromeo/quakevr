@@ -6,7 +6,8 @@
 #   tunnel_*   walk east into the 40-high tunnel: standing stops at its mouth (x 552), crouched comes out (x > 688);
 #              with vr_crouch_hull 0 crouched stops too
 #   gap_*      the 48-high gap: standing stops, half crouched passes
-#   rise_*     crouched inside the tunnel, the head back up: the 36 box kept (standfits 0); walked out east: standing
+#   rise_*     crouched inside the tunnel, the head back up: the 36 box kept (standfits 0); walked out east (crouched
+#              again first: up in it, a low ceiling holds you where you are, vr_lowceil), up outside: standing
 #   gate_*     walk into the small teleporter (48x48) in the east wall: standing not carried, crouched carried (to the
 #              south wall's, west of the tunnel); gate_rise: crouched halfway into it (setpos), the head up: the
 #              tallest box the opening takes (44, standfits 0). (Not walked on: put straddling a gate by setpos, a
@@ -26,7 +27,7 @@ S+="vr_crouch_hull 1;"
 S+=$(walk gap_standing "$STAND" "480 -192 24 0 0 0")
 S+=$(walk gap_half "$HALF" "480 -192 24 0 0 0")
 S+="echo CASE rise_inside;$LOW;wait5;setpos 624 -320 24 0 0 0;wait5;noclip 0;wait5;$STAND;wait10;vr_crouch_status;"
-S+="echo CASE rise_walked_out;vr_mock_stick off 0 1;wait90;vr_mock_stick off 0 0;wait10;vr_crouch_status;"
+S+="echo CASE rise_walked_out;$LOW;wait5;vr_mock_stick off 0 1;wait90;vr_mock_stick off 0 0;$STAND;wait10;vr_crouch_status;"
 S+=$(walk gate_standing "$STAND" "1060 -304 24 0 0 0" 90)
 S+=$(walk gate_crouched "$LOW" "1060 -304 24 0 0 0" 90)
 S+="echo CASE gate_rise;$LOW;wait5;setpos 1100 -304 24 0 0 0;wait5;noclip 0;wait5;setpos 1149 -304 24 0 0 0;wait2;$STAND;wait5;vr_crouch_status;"

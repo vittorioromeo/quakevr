@@ -82,6 +82,18 @@ In VR, force grab a brick or a gib: the beam starts from your palm, and the thin
 Flat-screen: hold the mouse wheel's button: time slows to 0.3, the view blurs a little, the crosshair fades and the holster menu appears in the middle with the six holsters on a figure on the left and both hands on the right; let go or press Esc and everything comes back at once. {test:flat_holsters}
 Flat-screen: in the holster menu move the mouse: the cursor moves and the view stays still; L and R on a holster trade its gun with that hand (an empty hand draws it, an empty holster takes it), its arrow drops it at your feet, each hand's DROP drops what it holds, and SWAP swaps your hands as 3 does. {test:flat_holsters}
 Flat-screen: with the holsters on, 1, 2 and 4 to 9 and the mouse wheel pick no weapon, and with a gun in each hand a gun you walk over stays on the floor until you put one away. {test:flat_holsters}
+Flat-screen: shove with empty hands (Mouse 5): both hands draw back first, palms turn to the target with the fingers up, then push out fast a little above the crosshair. {test:flat_shove}
+Flat-screen: the shove plays a soft, lighter copy of the fist's whoosh as the hands push. {test:flat_shove}
+Flat-screen: with a gun in each hand the shove pushes with both hands, the guns kept in them and turned palms out, like the armed grunts' shove. {test:flat_shove}
+Flat-screen: holding the rocket launcher with both hands, the shove now plays: the left hand lets go of the grip, pushes and goes back to it. {test:flat_shove}
+Flat-screen: Debug > Tunables > Flatscreen > Shove And Melee > Always Two-Handed Shove 1 makes every shove two-handed, whatever you hold. {test:flat_shove}
+Flat-screen: LMB and RMB together with empty hands throw one punch, never two at once; each punch tips the view and chest a little into it, smoothly. {test:flat_swing}
+Flat-screen: swinging the axe (LMB) winds it up over your head turned up, then chops down to the crosshair with the wrist turning until the blade points down, the view tipping up then forward; the knight takes the hit. {test:flat_swing}
+Flat-screen: V with the shotgun or the sword swings it overhead the same way, and looks better than the old straight jab. {test:flat_swing}
+Flat-screen: swinging the axe or the shotgun (V) into a wall stops it at the surface; it never goes into the wall. {test:flat_swing}
+[2. VR: body, lying down and swimming] Lie down, crawl into the 20-high vent ahead and get up for real inside it: you stay lying and can't move (stick, arm crawl, a step in the room, teleport), the view goes nearly black and blurred and "Lie back down" shows in front of you, the teleporter in the wall above never takes you even with your hands up; lie back down and it all clears and you crawl on. {test:lowceil_vent}
+[2. VR: body, lying down and swimming] Crouch for real into the 40-high tunnel ahead and stand up inside it: you stay crouched and can't move, the view goes nearly black and blurred and "Crouch back down" shows; crouch again and it clears and you walk on. Is the darkness right, and does it let go at a comfortable height? {test:prone_tunnel}
+[Flat-screen] Flat-screen: start a new game (or map e1m1) and press 2 for the shotgun: it comes loaded (8) with 17 shells left, 25 in all, and fires at once.
 [2. VR: body, lying down and swimming]
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}

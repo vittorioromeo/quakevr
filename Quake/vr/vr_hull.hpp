@@ -98,6 +98,25 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 // box that does, else the one he has: the headset's checks); -1 standing, while his crouch key holds him down (that box
 // follows his own lowered eyes and is no ceiling to them), or no server here (no limit).
 [[nodiscard]] float localEyeCap();
+// Standing up under a low ceiling (vr_lowceil; updateCrouch): a headset player lying or crouched whose real head rises
+// into the ceiling over his box: 0 not, 1 lying (lie back down), 2 crouched (crouch back down). Held, he keeps his box
+// and stays where he is (crouchSpeedMax 0, the arms' crawl, VR_ClientRoomscaleMove, VR_ClientTeleport).
+[[nodiscard]] int heightHold(const edict_t* ent);
+// Held, the height in the world over which his hands touch nothing (his box's top: a teleporter in the wall over a vent);
+// 1e30 when not held.
+[[nodiscard]] float heldReachTop(const edict_t* ent);
+// The local player's (client 1 of this server; all 0 with no server here): the hold's kind, whether his eyes are past the
+// ceiling or a wall seen from his box (the view darkened: vr_lowceil.cpp), his eyes' height over his feet, the ceiling's
+// found (0: none) and his box's top.
+struct LocalHold
+{
+    int kind{0};
+    bool hidden{false};
+    float eye{0.f};
+    float ceiling{0.f};
+    float top{0.f};
+};
+[[nodiscard]] LocalHold localHold();
 // SV_AirMove (vr_crouch_speed): the stick's most speed `maxspeed` for a client crouched (his eyes from updateCrouch under
 // the tallest crouched box's top: down to vr_crouch_speed_scale of it 8 units under, never over 90% of the stealth AI's
 // footsteps' speed, vr_stealth_run_speed), eased in and out over 0.25 s (one call a server frame); as it is standing.

@@ -940,7 +940,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     // mode's own clock, never running in a headset. And at a wall, halfway into the wall state: flatsight::wallLetGo.)
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
                          held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding) &&
-                         !flatplay::punching(helping) && flatsight::wallLetGo(holding) < 0.5f &&
+                         !flatplay::punching(helping) && !flatplay::shoving(helping) && flatsight::wallLetGo(holding) < 0.5f &&
                          !flatreload::busy(holding) && // (flatscreen: the gun on its reload trip to the hip: vr_flatreload.cpp)
                          !flatgrenade::busy(helping) && !flatswap::gripBlocked() && // (the quick grenade, the hands' swap)
                          !flatfgrab::busy(helping); // (flatscreen: the free hand off the grip for E's force grab: vr_flatfgrab.cpp)
@@ -1168,7 +1168,8 @@ bool aiming()
     // gun (VR_Melee_Thing: no striking thing): the fist never landed, 2026-11-09.)
     const auto hotspotAims = [](int holding) {
         const int other = holding == HAND_MAIN ? HAND_OFF : HAND_MAIN;
-        return aimTransition[holding] >= 0.5f && !flatplay::punching(other) && !flatfgrab::busy(other);
+        return aimTransition[holding] >= 0.5f && !flatplay::punching(other) && !flatplay::shoving(other) &&
+               !flatfgrab::busy(other);
     };
     return hotspotAims(HAND_OFF) || hotspotAims(HAND_MAIN) || freeAims(HAND_OFF) || freeAims(HAND_MAIN);
 }

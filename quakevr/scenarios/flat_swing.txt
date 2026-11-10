@@ -1,0 +1,11 @@
+# flat_swing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) punches and the overhead weapon swing: one hand at a time, the view's and chest's tilt, the wall stop (docs/vr-port/FLATPLAY.md, the V row).
+title Flat-screen melee: an axe, a sword and a shotgun to swing overhead, knights to hit, a wall to swing into
+hint Play with -flatscreenmode. Empty hands: LMB and RMB together throw one punch, never two at once; each punch tips the view a little down and toward its side. Take the axe: LMB winds it up over your head (the view tips up), then chops down to the crosshair, the wrist turning until the blade points down (the view tips forward), and the knight takes the hit. The sword the same; V with the shotgun swings it overhead too. Face the wall and swing: the weapon stops at it, never goes in.
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Knight's Sword" 40 70
+spawn "Shotgun" 40 -70
+spawn "Knight" 140 30
+spawn "Knight" 140 -30

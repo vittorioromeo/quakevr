@@ -417,6 +417,10 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_hands),
         row(opt::vr_swim_debug),
         row(opt::vr_prone_crawl_debug),
+        command("Low Ceiling Status", "vr_lowceil_status")
+            .help("vr_lowceil_status: whether a low ceiling holds you where you are (1 lying, 2 crouched; vr_lowceil), "
+                  "whether your eyes are past it, the view's darkness and blur, the message, your eyes' height over your "
+                  "feet, the ceiling's and your box's. The test is Misc/quakevr/lowceil_test.py."),
         row(opt::vr_grapple_debug),
         row(opt::vr_debug_buttons),
         command("Restore Controller Bindings", "vr_bindings_reset")
@@ -891,6 +895,10 @@ za::Vector<Item> pageDebugReports()
                   "hands' motion is the look's, not theirs (vr_handsource_debug shows it)."),
         command("Flatscreen Shove", "vr_flat_shove_now")
             .help("vr_flat_shove_now: the shove key's shove (mouse 5, vr_flat_key_shove), with its cooldown."),
+        command("Flatscreen Melee Probe", "vr_flat_melee_probe")
+            .help("vr_flat_melee_probe: from now on each punch, overhead weapon swing and shove prints its numbers to the "
+                  "console as it ends: the hand over the eye, the weapon turned up and down, the shove's palm and fingers, "
+                  "the view's tilt (`vr_flat_melee_probe 0` stops it)."),
         command("Flatscreen Test Hit From The Right", "vr_blood_test packet right")
             .help("A made-up 20-point hit from your right, through the game's own damage message (no health lost): the "
                   "flatscreen punch, the mark round the crosshair, the hands' knock, the screen's blood. Tuned under "

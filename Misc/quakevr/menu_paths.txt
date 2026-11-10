@@ -1531,6 +1531,14 @@ vr_prone_crawl_friction|2|Player Hitbox|Arm Crawl Friction|Advanced VR Options >
 vr_prone_crawl_max_speed|2|Player Hitbox|Arm Crawl Top Speed|Advanced VR Options > Movement > Player Hitbox > Arm Crawl Top Speed
 vr_prone_crawl_haptic|2|Player Hitbox|Arm Crawl Haptics|Advanced VR Options > Movement > Player Hitbox > Arm Crawl Haptics
 |2|Player Hitbox|Lying Down Status|Advanced VR Options > Movement > Player Hitbox > Lying Down Status
+vr_lowceil|2|Player Hitbox|Hold Me Under Low Ceilings|Advanced VR Options > Movement > Player Hitbox > Hold Me Under Low Ceilings
+vr_lowceil_margin|2|Player Hitbox|Low Ceiling Margin|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Margin
+vr_lowceil_hysteresis|2|Player Hitbox|Low Ceiling Let Go|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Let Go
+vr_lowceil_fade|2|Player Hitbox|Low Ceiling Fade Time|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Fade Time
+vr_lowceil_dark|2|Player Hitbox|Low Ceiling Darkness|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Darkness
+vr_lowceil_blur|2|Player Hitbox|Low Ceiling Blur|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Blur
+vr_lowceil_message|2|Player Hitbox|Low Ceiling Message|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Message
+|2|Player Hitbox|Low Ceiling Status|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Status
 vr_box3d_player_radius|2|Player Hitbox|Prop Push Radius|Advanced VR Options > Movement > Player Hitbox > Prop Push Radius
 vr_box3d_player_stand|2|Player Hitbox|Stand on Boxes|Advanced VR Options > Movement > Player Hitbox > Stand on Boxes
 vr_box3d_player_slope|2|Player Hitbox|Steepest Face to Stand On|Advanced VR Options > Movement > Player Hitbox > Steepest Face to Stand On
@@ -4204,6 +4212,41 @@ vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tun
 vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
+vr_flat_shove_wind_share|2|Tunables|Shove Windup Share|Advanced VR Options > Debug > Tunables > Shove Windup Share
+vr_flat_shove_push_share|2|Tunables|Shove Push Share|Advanced VR Options > Debug > Tunables > Shove Push Share
+vr_flat_shove_hold_share|2|Tunables|Shove Hold Share|Advanced VR Options > Debug > Tunables > Shove Hold Share
+vr_flat_shove_wind_back|2|Tunables|Shove Windup Back|Advanced VR Options > Debug > Tunables > Shove Windup Back
+vr_flat_shove_wind_up|2|Tunables|Shove Windup Up|Advanced VR Options > Debug > Tunables > Shove Windup Up
+vr_flat_shove_aim_up|2|Tunables|Shove Target Height|Advanced VR Options > Debug > Tunables > Shove Target Height
+vr_flat_shove_palm|2|Tunables|Shove Palms Out|Advanced VR Options > Debug > Tunables > Shove Palms Out
+vr_flat_shove_palm_up|2|Tunables|Shove Fingers Up|Advanced VR Options > Debug > Tunables > Shove Fingers Up
+vr_flat_shove_palm_turn|2|Tunables|Shove Palm Turn|Advanced VR Options > Debug > Tunables > Shove Palm Turn
+vr_flat_shove_both_armed|2|Tunables|Dual-Wield Shove|Advanced VR Options > Debug > Tunables > Dual-Wield Shove
+vr_flat_shove_both_always|2|Tunables|Always Two-Handed Shove|Advanced VR Options > Debug > Tunables > Always Two-Handed Shove
+vr_flat_shove_swish|2|Tunables|Shove Whoosh Volume|Advanced VR Options > Debug > Tunables > Shove Whoosh Volume
+vr_flat_shove_swish_pitch|2|Tunables|Shove Whoosh Pitch|Advanced VR Options > Debug > Tunables > Shove Whoosh Pitch
+vr_flat_punch_both|2|Tunables|Punch With Both Hands At Once|Advanced VR Options > Debug > Tunables > Punch With Both Hands At Once
+vr_flat_punch_cam_pitch|2|Tunables|Punch View Tip|Advanced VR Options > Debug > Tunables > Punch View Tip
+vr_flat_punch_cam_roll|2|Tunables|Punch View Roll|Advanced VR Options > Debug > Tunables > Punch View Roll
+vr_flat_punch_torso_twist|2|Tunables|Punch Chest Turn|Advanced VR Options > Debug > Tunables > Punch Chest Turn
+vr_flat_punch_torso_lean|2|Tunables|Punch Chest Lean|Advanced VR Options > Debug > Tunables > Punch Chest Lean
+vr_flat_swing|2|Tunables|Overhead Weapon Swing|Advanced VR Options > Debug > Tunables > Overhead Weapon Swing
+vr_flat_swing_wind|2|Tunables|Swing Windup Time|Advanced VR Options > Debug > Tunables > Swing Windup Time
+vr_flat_swing_top|2|Tunables|Swing Top Hold|Advanced VR Options > Debug > Tunables > Swing Top Hold
+vr_flat_swing_strike|2|Tunables|Swing Strike Time|Advanced VR Options > Debug > Tunables > Swing Strike Time
+vr_flat_swing_dwell|2|Tunables|Swing End Hold|Advanced VR Options > Debug > Tunables > Swing End Hold
+vr_flat_swing_back|2|Tunables|Swing Return Time|Advanced VR Options > Debug > Tunables > Swing Return Time
+vr_flat_swing_raise_up|2|Tunables|Swing Top: Above Eye|Advanced VR Options > Debug > Tunables > Swing Top: Above Eye
+vr_flat_swing_raise_fwd|2|Tunables|Swing Top: Ahead|Advanced VR Options > Debug > Tunables > Swing Top: Ahead
+vr_flat_swing_raise_out|2|Tunables|Swing Top: Out|Advanced VR Options > Debug > Tunables > Swing Top: Out
+vr_flat_swing_wind_pitch|2|Tunables|Swing Top: Weapon Up|Advanced VR Options > Debug > Tunables > Swing Top: Weapon Up
+vr_flat_swing_end_pitch|2|Tunables|Swing End: Weapon Down|Advanced VR Options > Debug > Tunables > Swing End: Weapon Down
+vr_flat_swing_end_pitch_melee|2|Tunables|Swing End: Melee Weapon Down|Advanced VR Options > Debug > Tunables > Swing End: Melee Weapon Down
+vr_flat_swing_end_down|2|Tunables|Swing End: Under Crosshair|Advanced VR Options > Debug > Tunables > Swing End: Under Crosshair
+vr_flat_swing_cam_up|2|Tunables|Swing View Tip Up|Advanced VR Options > Debug > Tunables > Swing View Tip Up
+vr_flat_swing_cam_down|2|Tunables|Swing View Tip Down|Advanced VR Options > Debug > Tunables > Swing View Tip Down
+vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug > Tunables > Swing Chest Back
+vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
 vr_flat_model_fov_near|2|Tunables|Model FOV Full Up To|Advanced VR Options > Debug > Tunables > Model FOV Full Up To
 vr_flat_model_fov_far|2|Tunables|Model FOV None Past|Advanced VR Options > Debug > Tunables > Model FOV None Past
@@ -4625,6 +4668,7 @@ vr_climb_debug|2|Debug - Logging|Climbing|Advanced VR Options > Debug > Logging 
 vr_debug_hands|2|Debug - Logging|Hands|Advanced VR Options > Debug > Logging > Hands
 vr_swim_debug|2|Debug - Logging|Swim Strokes|Advanced VR Options > Debug > Logging > Swim Strokes
 vr_prone_crawl_debug|2|Debug - Logging|Arm Crawl Pulls|Advanced VR Options > Debug > Logging > Arm Crawl Pulls
+|2|Debug - Logging|Low Ceiling Status|Advanced VR Options > Debug > Logging > Low Ceiling Status
 vr_grapple_debug|2|Debug - Logging|Grappling Hook|Advanced VR Options > Debug > Logging > Grappling Hook
 vr_debug_buttons|2|Debug - Logging|Controller Buttons|Advanced VR Options > Debug > Logging > Controller Buttons
 |2|Debug - Logging|Restore Controller Bindings|Advanced VR Options > Debug > Logging > Restore Controller Bindings
@@ -4831,6 +4875,7 @@ vr_handsource_debug|2|Debug - Reports|Print Hand Motion Source|Advanced VR Optio
 vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Options > Debug > Reports > Force Hands Synthesized
 |2|Debug - Reports|Flatscreen Flick Test|Advanced VR Options > Debug > Reports > Flatscreen Flick Test
 |2|Debug - Reports|Flatscreen Shove|Advanced VR Options > Debug > Reports > Flatscreen Shove
+|2|Debug - Reports|Flatscreen Melee Probe|Advanced VR Options > Debug > Reports > Flatscreen Melee Probe
 |2|Debug - Reports|Flatscreen Test Hit From The Right|Advanced VR Options > Debug > Reports > Flatscreen Test Hit From The Right
 |2|Debug - Reports|Flatscreen Crosshair Probe|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Probe
 |2|Debug - Reports|Flatscreen Crosshair Turn Test|Advanced VR Options > Debug > Reports > Flatscreen Crosshair Turn Test

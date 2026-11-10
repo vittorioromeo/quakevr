@@ -1,0 +1,6 @@
+# lowceil_vent: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrteleporters' crouching room (east of the hub, docs/vr-port/HULLS.md): facing its 20-high vent, the teleporter in the wall over it (as prone_vent, without its flat-screen hint: the checklist line is the hint). Automated: Misc/quakevr/lowceil_test.py.
+title Getting up in the 20-high vent (VR), ahead of you
+map vrteleporters
+start 480 -112 24 0
+god
+notarget

@@ -8,6 +8,7 @@
 #include "vr_envmap.hpp"
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_lowceil.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_glutil.hpp"
@@ -2473,7 +2474,8 @@ glm::vec3 qvr::water::viewWobble()
 {
     const bool on = water::viewLiquid != 0;
     const float wobble = on ? za::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
-    const float blur = on ? za::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f;
+    // (and standing up under a low ceiling, the eyes past it: vr_lowceil.cpp's smear, the greater)
+    const float blur = za::max(on ? za::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f, lowceil::blur());
     return {static_cast<float>(cl.time), wobble, blur};
 }
 

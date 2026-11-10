@@ -1428,6 +1428,15 @@ void(float xHand, float xBoth) VR_FlatShove =
         VR_Melee_Event(sprintf("flat shove, hand %g, cooling down", xHand));
         return;
     }
+    // The air it moves (his notes 2026-11-10): the fist's swish, quieter and lighter (vr_flat_shove_swish, its volume;
+    // vr_flat_shove_swish_pitch, percent higher), landing or not.
+    float swv = clamp(cvar_hget(cvarh_vr_flat_shove_swish), 0, 1);
+    if(swv > 0)
+    {
+        vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+        VR_Swish_Play(vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav", VRGetHandChannel(xHand), swv,
+                      clamp(cvar_hget(cvarh_vr_flat_shove_swish_pitch), -30, 30));
+    }
     float m2u = VRMetersToUnits();
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
     if(xBoth)

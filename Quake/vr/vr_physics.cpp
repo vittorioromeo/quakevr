@@ -1022,6 +1022,11 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     {
         return 0;
     }
+    if(hull::heightHold(ent) != 0)
+    {
+        Con_DPrintf("teleport refused: standing up under a low ceiling (vr_lowceil)\n");
+        return 0;
+    }
 
     if(!SV_RunThink(ent))
     {
@@ -1094,7 +1099,9 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 
     // (Units per second of the world's time; the player's frame in its own time is longer: VR_PlayerMoveSpeedup.)
     const glm::vec3 move = vrMove->roomscaleMove / static_cast<float>(VR_PlayerMoveSpeedup());
-    if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y))
+    // (Standing up under a low ceiling, vr_lowceil: the body stays where it is, the head stopping past the lean's radius
+    // as at a wall.)
+    if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y) || hull::heightHold(ent) != 0)
     {
         VR_PortalClientCross(ent);
         return;
@@ -1355,7 +1362,10 @@ extern "C" int VR_TouchLinks(edict_t* ent)
 
         // (The body: lying down, only up to the lying box's top, VR_HullTouchTop: no trigger over a vent he crawls in.)
         const bool body = absBoxesOverlap(ent, target) && VR_HullTouchTop(ent) >= target->v.absmin[2];
-        if(body || (client && (handsReach(ent, target) || flatPickupUnderFeet(ent, target))))
+        // (The hands: standing up under a low ceiling, vr_lowceil, nothing over his box -- a teleporter in the wall over
+        // the vent his hands rise into as he gets up.)
+        const bool hands = handsReach(ent, target) && target->v.absmin[2] <= hull::heldReachTop(ent);
+        if(body || (client && (hands || flatPickupUnderFeet(ent, target))))
         {
             list[count++] = target;
         }
