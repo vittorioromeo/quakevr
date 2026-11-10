@@ -444,8 +444,10 @@ restored state still forces the head-worn torch lit.
 **The visor HUD (the default).** With `vr_flat_visor 1` (VR Settings > Locomotion, Desktop Screen Play > Visor HUD) the
 HUD is a helmet's visor instead of the status bar: the wrist gadget's screens in seven small panels, each in a mount
 running off the screen's edges (health and armour top left; bullet time, stamina and every ammo carried top right; each
-hand's ammo at its own bottom corner; the console's notify lines at the top's middle; keys and sigils on the left edge,
-powerups and AD's artifacts on the right), bowed by the visor's lens (vr_flat_visor_warp), a faint rim on the glass, a lag and bob of a fraction of a
+hand's ammo at its own bottom corner; the console's notify lines at the top's middle; keys (silver, gold), the sigils
+(a 2 x 2 grid) and AD's custom keys on the left edge; powerups, AD's artifacts and debuffs on the right, a row each with
+its seconds in big digits beside the icon; the side panels fill their faces from the screen's edges, sized by
+vr_flat_visor_side_scale; ROUND24.md, "Visor side panels"), bowed by the visor's lens (vr_flat_visor_warp), a faint rim on the glass, a lag and bob of a fraction of a
 degree, a glitch and a shake at a hit, fog under water, a red pulse at low health, a power-on sweep at a spawn, frosted
 glass behind the mounts (vr_flat_visor_glass_*) and its colours kept in bullet time; its settings on their own page,
 Desktop Screen Play > Visor HUD Look

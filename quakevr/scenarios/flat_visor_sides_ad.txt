@@ -1,0 +1,9 @@
+# flat_visor_sides_ad: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) visor's side panels in real play (no test readings): the quad (impulse 255), Arcane Dimensions' artifacts (vr_ad_test 10), a custom key (20), burning (14); docs/vr-port/ROUND24.md, "Visor side panels".
+title Flat-screen visor side panels in real play: the quad, AD's artifacts, a custom key, burning
+hint Play with -flatscreenmode. Right panel: the quad's seconds count down beside its icon and blink red in the last five; each Arcane Dimensions artifact a row with its own seconds ("--": held for good), burning a red row with its seconds. Left panel: the custom key in its own colour with KEY1 beside it.
+map e1m1
+notarget
+cmd impulse 255
+cmd vr_ad_test 10
+cmd vr_ad_test 20
+cmd vr_ad_test 14

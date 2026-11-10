@@ -4175,6 +4175,8 @@ QVR_CVAR(vr_flat_visor_log_width, "1", CVAR_ARCHIVE)   // the log panel's size (
 QVR_CVAR(vr_flat_visor_log_out, "0", CVAR_ARCHIVE)     // how far the log panel reaches down from the top edge: its gap to the edge times this (-4 .. 8; under 0 pulled up past the edge, sliding off the screen; at 0 and over the edge still met)
 QVR_CVAR(vr_flat_visor_side_out, "0", CVAR_ARCHIVE)     // how far the side mounts (keys left, powerups right) reach in from the screen's edges: their gap to the edge and their padding times this (-4 .. 8; under 0 pulled back past the edges, sliding off the screen; at 0 and over the edges still met)
 QVR_CVAR(vr_flat_visor_scanline_width, "4", CVAR_ARCHIVE) // the visor's scanlines' thickness (a dark line and its gap), pixels at 1080p (1.5 .. 16)
+QVR_CVAR(vr_flat_visor_side_scale, "1", CVAR_ARCHIVE)   // the side panels' size (keys left, powerups right), times the panels' own (0.5 .. 2; scaled with the screen's height as the rest)
+QVR_CVAR(vr_flat_visor_ink_crt, "0.3", CVAR_ARCHIVE)     // the scanlines and the CRT look on the panels' readings (the text, digits, icons), times theirs on the panels' faces: crisp glyphs (0 none .. 1 as on the faces)
 QVR_CVAR(vr_flat_visor_depth_opacity, "0.9", CVAR_ARCHIVE) // the back plate's opacity, times the panels' backing (vr_flat_visor_opacity) (0 .. 2, at most solid)
 QVR_CVAR(vr_flat_visor_depth_color, "", CVAR_ARCHIVE)   // the back plate's colour "r g b" (0 .. 1); empty: the face's own, darker (as shipped)
 QVR_CVAR(vr_flat_visor_depth_size, "0", CVAR_ARCHIVE)   // how far the back plate reaches past its face all round, pixels at 1080p (0 .. 60)

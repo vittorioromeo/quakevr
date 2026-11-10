@@ -172,6 +172,16 @@ void renderVisor(const VisorInput& in);
 [[nodiscard]] glm::vec4 visorPhosphor(); // the screens' colour at full strength (Shade::Screen's static)
 [[nodiscard]] VisorColors visorColors();
 [[nodiscard]] int visorLogLines();       // the notify lines the low panel shows
+// The side panels' layout as last drawn (vr_flat_visor_report, visor_test): the left's readings (keys, sigils held, AD's
+// custom keys), the right's rows (powerups, AD's artifacts and debuffs), how many shown (the rest "+N"), their size.
+struct VisorSides
+{
+    int left{0};
+    int right{0};
+    int rightShown{0};
+    float rightScale{1.f};
+};
+[[nodiscard]] VisorSides visorSides();
 
 // Draws the texture over the model's screen, in one phosphor colour and as a small CRT
 // (vr_gadget_crt: scanlines, a flicker, faint static and now and then a glitch), in each eye's

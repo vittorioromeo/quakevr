@@ -8035,6 +8035,48 @@ pull 5 frames after the give, inside the pickup's): with the pulls spaced out th
 the check is back. flatreload_test.sh: 44 passed, 0 failed (new run `revempty`: out by itself once, 6 spent, a dry click
 after, R from empty home with 6 live).
 
+## Visor side panels (branch `agent/visor_sides`, worktree `release`, 2026-11-10)
+
+His "Yes, redesign them" on the side panels' review (tiny icons and 7 px digits in a thin column hugging the inner edge,
+scanlines over the glyphs, AD readings looking wrong). `Quake/vr/vr_gadget_visor.inc` (visorSideLeft, visorSideRight),
+`vr_visor_mounts.inc` (sideEdgeSeen), `vr_visor.cpp` (the layer, the composite's ink).
+
+- **Fill and scale.** The panels were already scaled by the screen's height (the virtual pixel: 11.5% of it over 62);
+  what looked fixed was the empty face: the zoom (0.94) and the lens show the layer past its own edge, ~33 virtual pixels
+  of face beside the edge with the readings beyond. The side contents now start at the screen's edge as seen
+  (`sideEdgeSeen`: the local x the view's edge shows over the mount's rows) plus the sway's room (5.6) plus the reach
+  (`vr_flat_visor_side_out`, as before); the images 64 x 132 (were 30 x 120), 4 texels a virtual pixel;
+  `vr_flat_visor_side_scale` (1, 0.5 .. 2, Visor HUD Look > Side Panels Size) sizes the mounts, held clear of the corners'.
+  At 16:9 the mount reaches as far in as before; at 21:9 a little less (the face was wider there).
+- **Left.** Quake's keys 24 px virtual side by side in silver and gold; the sigils a 2 x 2 grid once any is held (missing
+  ones dim: the player sees which are left; none shown before the first); AD's custom keys a row each, its icon (AD's own
+  16 x 8 key picture) in its own colour (`picHue`: the picture's mean colour, made in `buildGreys`) and `KEY1..4` (the
+  slot: the keys' netnames are server strings). Sections centred, shrunk together if they would not fit.
+- **Right.** A row each: powerups, AD's artifacts, AD's debuffs. Icon (labels' colour) at the left, the seconds in the
+  status bar's bold digits at the right (11 x 17), red and blinking at 5 s and under; an artifact held for good `--`
+  (dim); a debuff its name (red) and its amount (poison, bleeding: damage still to come; burning: seconds). More rows
+  than fit: shrunk together down to half size, then the last ones dropped and "+N" in their place.
+- **Crisp readings.** `vr_flat_visor_ink_crt` (0.3, Visor HUD Look > Visor Readings CRT): the composite's scanlines over
+  the contents' ink (their alpha, per pixel) and the panel image's own CRT (Shade::Screen's k) times this; the faces keep
+  theirs. All seven panels' readings (the digits elsewhere were as blurred).
+- **AD readings (item 5).** Nothing was misread: the "0m" was AD's custom key icon itself (a key lying sideways, 16 x 8)
+  drawn grey at 12 px; the two artifacts with no timer were the Air Tank held for good (255: AD's -1) and the sixth
+  (Nail Piercer, 90) cut off; the debuffs were cut off too (the column stopped when out of room). Real AD play in e1m1
+  (`vr_ad_test 10, 20, 14`, AD's data mounted from the kit's `ad`): the quad 29, four artifacts held for good `--`,
+  the Sharp Shooter 29, burning 8 s, Arcane Key 1 (skin 2) — the same readings as the wrist's AD page.
+- **Shared with the wrist gadget** (note_reuse): `Readout.powerSecs` (the powerups' seconds, test state 5 27/22/17/12),
+  `adArtifactSeconds`/`adArtifactNames`, `adDebuffAmount`/`adDebuffNames`/`adDebuffBits`, `adKeyPic` — the AD page
+  (vr_ad_gadget.inc) and the gadget's info row now use them; the icons are the same grey pictures.
+- **Frame cost.** The panels still draw again only when what they show changes (the dry run's signature): a side panel
+  once a second while a timer runs, at the blink's rhythm in the last 5 s. The composite adds one alpha sum per tap.
+- **Tests.** visor_test 32/0 (4 new: the readings from the screen's edges, x0 8 of 960; test state 5 left 6 right 4 at
+  full size; state 6 left 2, right 9 rows all shown at 0.65; side scale 1.5 the panels 1.51x as tall, the edges met;
+  `vr_flat_visor_report` prints `visor: sides left N right N shown N scale S`). vr_pp_test 1: 62/0 flat, 63/0 VR.
+  flathud 9/2: the same two failures on origin/next without this branch (the emptied right hand's counter; vr_flat_hud 0's
+  layout) — not the visor's (that test runs with vr_flat_visor 0). checklist_tests_check 133/0. Scenes
+  `flat_visor_sides` (test readings 5) and `flat_visor_sides_ad` (real: the quad, AD's artifacts, a custom key,
+  burning): `vr_scenario runall` 2 run, 0 failed. Before/after: `scratch/visor_sides/compare_1920.png`,
+  `compare_3440.png` (state 5 left/right, state 6 left/right; top before), `after2_real.png`.
 ## Blood near the eye drawn as flat red squares (branch `agent/blood_squares`, worktree `selfshot`, 2026-11-10)
 
 His note on `vr_flatblood_test 3`'s picture: "the particles seem like red squares, they don't look textured".

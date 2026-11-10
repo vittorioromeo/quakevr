@@ -402,6 +402,7 @@ layout(location = 7) uniform vec4 SlotB;   // the contents', what lies over them
 layout(location = 8) uniform vec4 SlotC;   // the glass's shapes' (r the back plate, g the face), the contents' and over's texels a layer pixel (the rest: 1), 1: alpha only
 layout(location = 9) uniform vec4 ShiftA;  // the sway (layer pixels): the back plate's, the contents'
 layout(location = 10) uniform vec4 ShiftB; // the face's (and what lies over it), the mount's fade, the contents' fade
+layout(location = 11) uniform float InkScan; // the scanlines' strength over the contents' ink, times Scan.x (vr_flat_visor_ink_crt)
 layout(location = 0) out vec4 Out;
 vec2 layerOf(vec2 v)
 {
@@ -437,6 +438,7 @@ void main()
         discard; // (nothing of the panel can be here)
     int n = (int(SlotC.z) + 1) / 2;
     vec4 c = vec4(0.0);
+    float ink = 0.0; // (the contents' coverage: their glyphs keep most of their light under the scanlines)
     for (int j = 0; j < n; j++)
         for (int i = 0; i < n; i++)
         {
@@ -445,6 +447,7 @@ void main()
             vec4 f = slot(SlotA.zw, q - ShiftB.xy, 1.0) * ShiftB.z;
             s = f + (1.0 - f.a) * s;
             f = slot(SlotB.xy, q - ShiftA.zw, SlotC.z) * ShiftB.w;
+            ink += f.a;
             s = f + (1.0 - f.a) * s;
             f = slot(SlotB.zw, q - ShiftB.xy, SlotC.z) * ShiftB.z;
             c += f + (1.0 - f.a) * s;
@@ -460,7 +463,8 @@ void main()
         float lines = 0.5 + 0.5 * cos((p.y + Scan.z) * 6.2831853 / Scan.y);
         float d = (p.y - Scan.w) / (0.05 * Rect.w);
         float band = exp(-d * d);
-        c.rgb *= (1.0 - 0.6 * Scan.x * lines) * (1.0 + 1.2 * Scan.x * band);
+        float k = Scan.x * mix(1.0, InkScan, clamp(ink / float(n * n), 0.0, 1.0));
+        c.rgb *= (1.0 - 0.6 * k * lines) * (1.0 + 1.2 * k * band);
     }
     if (GlassP.x > 0.0)
     {
@@ -630,6 +634,10 @@ void useSlot(const PanelLayer& pl, int s)
     L.sideOut = za::clamp(vr_flat_visor_side_out.value, -4.f, 8.f);
     L.logOut = za::clamp(vr_flat_visor_log_out.value, -4.f, 8.f);
     const glm::vec2 vitals = gadget::visorImage(gadget::VisorVitals).size, status = gadget::visorImage(gadget::VisorStatus).size;
+    // The side mounts' size: vr_flat_visor_side_scale, no taller than leaves them clear of the corners' mounts (their
+    // contents, padding and struts: about 85 virtual pixels down from the top, up from the bottom).
+    const float sideH = za::max(1.f, gadget::visorImage(gadget::VisorSideLeft).size.y) + 2.f * mountPad;
+    L.sideScale = za::max(0.5f, za::min(za::clamp(vr_flat_visor_side_scale.value, 0.5f, 2.f), (L.h / L.unit - 170.f) / sideH));
     const float cornerReach = mountInset + za::max(vitals.x, status.x) + mountPad;
     L.logScale = logFit(L, gadget::visorImage(gadget::VisorLog).size, cornerReach, za::clamp(vr_flat_visor_log_width.value, 0.3f, 2.f));
     return L;
@@ -759,7 +767,8 @@ void drawPanel(int p, bool all)
     useSlot(pl, SlotContents);
     drawContents(L, p, pl.mount, img,
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-            .params = {time, crt, state.glitch, gadget::textGlow()}, .screen = {img.size.x, img.size.y, 0.5f}, .trueColor = true,
+            .params = {time, crt * za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f), state.glitch, gadget::textGlow()},
+            .screen = {img.size.x, img.size.y, 0.5f}, .trueColor = true,
             .inkAlpha = 1.f},
         phosphor, lp.mvp, out.rect);
     if(!all)
@@ -901,7 +910,8 @@ void drawPanel(int p, bool all)
         {
             continue;
         }
-        pl.mount = mountOf(L, p, p == gadget::VisorLog ? img.size * L.logScale : img.size);
+        const bool side = p == gadget::VisorSideLeft || p == gadget::VisorSideRight;
+        pl.mount = mountOf(L, p, p == gadget::VisorLog ? img.size * L.logScale : side ? img.size * L.sideScale : img.size);
         pl.hasPlate = depth > 0.f;
         if(pl.hasPlate)
         {
@@ -973,7 +983,7 @@ const cvar_t* const layerCvars[] = {&vr_flat_visor_scale, &vr_flat_visor_warp, &
     &vr_flat_visor_edge, &vr_flat_visor_depth, &vr_flat_visor_bevel, &vr_flat_visor_sheen, &vr_flat_visor_glow_outer,
     &vr_flat_visor_glow_inner, &vr_flat_visor_glow_width, &vr_flat_visor_depth_opacity, &vr_flat_visor_depth_size,
     &vr_flat_visor_depth_offset, &vr_flat_visor_depth_lag, &vr_flat_visor_depth_content_lag, &vr_flat_visor_depth_bevel,
-    &vr_flat_visor_depth_bevel_width};
+    &vr_flat_visor_depth_bevel_width, &vr_flat_visor_side_scale, &vr_flat_visor_ink_crt};
 
 // What the atlas is laid out and drawn from: the view, the cvars, the colours, which panels are shown and their sizes. Not
 // the sway, the fades nor the glitch (the composite's), nor what each panel shows (panelSignature). Changed: all of it
@@ -1276,6 +1286,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     const float bandY = static_cast<float>(h) * (1.f - static_cast<float>(za::fmod(realtime * 0.12, 1.0))); // (rolling down)
     GL_Uniform4fFunc(0, static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h));
     GL_Uniform4fFunc(1, scan, za::max(2.f, za::clamp(vr_flat_visor_scanline_width.value, 1.5f, 16.f) * px), drift, bandY);
+    GL_Uniform1fFunc(11, za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f));
     if(gp.on)
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, behind);
@@ -1318,6 +1329,8 @@ void report_f()
         s.underwater ? 1 : 0, s.fade, s.alarm, s.input.boot[0], s.input.boot[3], s.input.boot[6], gadget::visorLogLines());
     Con_Printf("visor: shake %.3f (%.3f %.3f) logfade %.3f glass %d hits %d health %d\n", shakeLeft(s), s.shake.x, s.shake.y,
         s.logFade, glassPass.on ? 1 : 0, s.hits, static_cast<int>(readHealth()));
+    const gadget::VisorSides sides = gadget::visorSides();
+    Con_Printf("visor: sides left %d right %d shown %d scale %.2f\n", sides.left, sides.right, sides.rightShown, sides.rightScale);
     constexpr const char* names[VisorPanelCount] = {"vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright"};
     // The edge contact with the sway now (the layer as last drawn, swayed as the composite does).
     Layer L = layerPass.L;

@@ -35,7 +35,6 @@ void adPage(const Readout& r, const Palette& pal)
 
     // The artifacts: each held one, its own time (-- for good).
     drawText(colX[0], sectionY, 8.f, "ARTIFACTS", pal.label, pal);
-    static constexpr const char* artifacts[6] = {"AEGIS", "AIR TANK", "BLASTBELT", "JUMPBOOTS", "SHARPSHOT", "PIERCER"};
     float y = sectionY + rowStep;
     int shown = 0;
     for(int i = 0; i < 6; i++)
@@ -44,12 +43,12 @@ void adPage(const Readout& r, const Palette& pal)
         {
             continue;
         }
-        const int secs = (r.adArt[i / 3] >> (8 * (i % 3))) & 255;
+        const int secs = adArtifactSeconds(r, i);
         if(picOk(PicAdArtifact + i))
         {
             drawPic(colX[0], y - 2.f, PicAdArtifact + i, 0.5f, pal.value, pal);
         }
-        drawText(colX[0] + 14.f, y, 8.f, artifacts[i], pal.value, pal);
+        drawText(colX[0] + 14.f, y, 8.f, adArtifactNames[i], pal.value, pal);
         char t[8] = "--";
         if(secs > 0 && secs < 255)
         {
@@ -71,8 +70,8 @@ void adPage(const Readout& r, const Palette& pal)
     bool anyKey = false;
     for(int k = 0; k < 4; k++)
     {
-        const int pic = PicAdKey + CLAMP(0, (r.adKeys >> (4 * k)) & 15, 13);
-        if((r.adHud & (512 << k)) && picOk(pic))
+        const int pic = adKeyPic(r, k);
+        if(pic >= 0)
         {
             drawPic(x, sectionY + rowStep - 1.f, pic, 1.f, pal.label, pal);
             x += (greyPic(pic) ? static_cast<float>(greyPic(pic)->width) : 16.f) + 3.f;
@@ -87,18 +86,16 @@ void adPage(const Readout& r, const Palette& pal)
     // The debuffs: the poison and the bleeding still to come (damage), the burning's seconds.
     const float debuffY = sectionY + rowStep * 2.5f;
     drawText(colX[1], debuffY, 8.f, "DEBUFFS", pal.label, pal);
-    static constexpr const char* debuffs[3] = {"POISON", "BLEEDING", "BURNING"};
-    static constexpr int bits[3] = {128, 256, 64};
     y = debuffY + rowStep;
     bool anyDebuff = false;
     for(int d = 0; d < 3; d++)
     {
-        if(!(r.adHud & bits[d]))
+        if(!(r.adHud & adDebuffBits[d]))
         {
             continue;
         }
-        const int amount = (r.adDebuff >> (8 * d)) & 255;
-        drawText(colX[1], y, 8.f, debuffs[d], blinking(pal.warn), pal);
+        const int amount = adDebuffAmount(r, d);
+        drawText(colX[1], y, 8.f, adDebuffNames[d], blinking(pal.warn), pal);
         char t[12] = "";
         if(amount > 0)
         {
