@@ -952,6 +952,7 @@ float cvarh_vr_flat_holsters;
 float cvarh_vr_flat_mag_eject;
 float cvarh_vr_flat_mag_eject_delay;
 float cvarh_vr_flat_mag_eject_speed;
+float cvarh_vr_flat_parry_cone;
 float cvarh_vr_flat_reload;
 float cvarh_vr_flat_reload_close_delay;
 float cvarh_vr_flat_reload_down;
@@ -2957,6 +2958,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_mag_eject = VR_CVar_Make("vr_flat_mag_eject");
     cvarh_vr_flat_mag_eject_delay = VR_CVar_Make("vr_flat_mag_eject_delay");
     cvarh_vr_flat_mag_eject_speed = VR_CVar_Make("vr_flat_mag_eject_speed");
+    cvarh_vr_flat_parry_cone = VR_CVar_Make("vr_flat_parry_cone");
     cvarh_vr_flat_reload = VR_CVar_Make("vr_flat_reload");
     cvarh_vr_flat_reload_close_delay = VR_CVar_Make("vr_flat_reload_close_delay");
     cvarh_vr_flat_reload_down = VR_CVar_Make("vr_flat_reload_down");

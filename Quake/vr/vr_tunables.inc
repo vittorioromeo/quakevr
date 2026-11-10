@@ -1925,6 +1925,9 @@ QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped
 QVR_TUNABLE(vr_flat_swap_gap, "3") // units apart they meet (a weapon in both hands: the free hand this far off the holding one)
 QVR_TUNABLE(vr_flat_swap_down, "2") // units below the middle of the two hands they meet (-16..16)
+QVR_TUNABLE(vr_flat_swap_2h_release_time, "0.2") // a weapon held in both hands: seconds the free hand takes off the grip to the empty hand's guard
+QVR_TUNABLE(vr_flat_swap_2h_pass_time, "0.25") // then the seconds the weapon takes across to it (the swap happens as it gets there)
+QVR_TUNABLE(vr_flat_swap_2h_attach_time, "0.25") // then the seconds the hands take to their places: the weapon to its hold, the other hand onto its grip
 
 // Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
 // shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).
@@ -2027,6 +2030,7 @@ QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into th
 QVR_TUNABLE(vr_flat_prone_floor_margin, "1") // the flush gun keeps this far off the floor (0..6 units)
 QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units over his feet (6..vr_prone_eye less 2; until 2026-11-08 vr_prone_eye less 4, the same 14): the view, and the gun's poses with it (lower, a gun looking down cannot clear the floor)
 QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
+QVR_TUNABLE(vr_flat_prone_jump_stands, "1") // flatscreen play, lying down: the jump key stands him up (the prone key's get-up: to a crouch or standing where it fits, as that key) and does not jump; a held jump does not jump on after it, only a fresh press does; 0 the jump key does what it does lying (the server's jump)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 QVR_TUNABLE(vr_flat_shove_wind_back, "8") // the windup: the hands drawn this far back (units)
@@ -2083,6 +2087,7 @@ QVR_TUNABLE(vr_flat_parry_yaw, "10") // and this far forward of straight across 
 QVR_TUNABLE(vr_flat_parry_roll, "0") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.15") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.2") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
@@ -2215,6 +2220,7 @@ QVR_TUNABLE(vr_flat_hitdir_width, "0.012") // a mark's thickness, a share of the
 QVR_TUNABLE(vr_flat_hitdir_arc, "40") // a mark's length round the crosshair (5..180 degrees)
 QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the screen's blood reaches (0..1; vr_blood_health_size in a headset)
 QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
+QVR_TUNABLE(vr_flat_cutoff_fling_mult, "1.25") // flat screen: a cut-off head's or limb's fling (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times this (his note 2026-11-10)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown

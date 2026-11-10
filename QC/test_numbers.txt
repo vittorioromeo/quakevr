@@ -530,6 +530,7 @@ vr_limb_test     29       vr_limbs_test.qc                 (VR_Limb_TestTarget)
 vr_limb_test     30-38    vr_limbs_test.qc                 (VR_Limb_WearTest)
 vr_limb_test     39       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
 vr_limb_test     40       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
+vr_limb_test     41-46    vr_limbs_test.qc                 (VR_Limb_WearTest: fists at a corpse's head and limb, corpse strike and swept blow; 45 every limb; 46 a gun swung)
 
 vr_melee_sweep_test 1*       vr_melee_sweep_test.qc           (the Debug menu runs it: the dispatcher's fall-through)
 vr_melee_sweep_test 2        vr_melee_sweep_test.qc           (VR_BladeDump)
@@ -715,3 +716,6 @@ vr_flatblood_test 1       vr_flatblood_test.qc             blood at point blank:
 vr_flatblood_test 2       vr_flatblood_test.qc             blood at point blank, his repro: crouched over a corpse, the shotgun down at it from 20/12/6/3 units (after the 60-unit corpse shot)
 vr_flatblood_test 3       vr_flatblood_test.qc             test aid: as 2, with a picture of each crouched shot's blood 4 frames after it
 vr_flatblood_test 4       vr_flatblood_test.qc             test aid: the grunt's shotgun shots at 60/30/12/4 units (flat or headset), a picture of each 4 frames after it (near drops textured, not flat squares)
+vr_flatblood_test 5       vr_flatblood_test.qc             his 11-10 note: crouched by a corpse 30/12/4 units off a limb, still, the limb pops: its fountain pours from the first frames (made and drawn), a picture of each
+vr_flatblood_test 6       vr_flatblood_test.qc             test aid: as 5, he steps 3 units 4 frames after each pop (the fountain compared with him still)
+vr_flatblood_test 7       vr_flatblood_test.qc             test aid: as 5, the limb popped by the shotgun (a tap a second at it, 8 at most), as he did
