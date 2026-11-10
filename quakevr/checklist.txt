@@ -29,6 +29,7 @@ Flat-screen: cut a grunt's head or arm off with the axe: the cut-off part flies 
 Flat-screen: with the super shotgun in the right hand, force-grab a brick: the left hand lets go of the fore-end for good, the shotgun stays one-handed, and the brick sits in the left fist up in the guard (not held out in front, not back on the fore-end). {test:flat_force_grab}
 Flat-screen: with a brick in a fist, press V: it swings the brick overhead and hurts what you hit; set Held Prop: Overhead Swing to 0 and V throws the fist's straight punch with it instead. {test:flat_force_grab}
 Flat-screen: force-grab a wall torch: in your hand it stands upright, flame up (Held Torch: Flame Up; 0 holds it as the grip took it). {test:systems_torch_knock}
+Start a new game (start or e1m1), on the screen or in the headset, and draw the shotgun from the right hip holster: it comes loaded 8 of 8 with 17 shells left and fires at once without a reload; after the next level it still holds what it had. {test:start_shotgun}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
