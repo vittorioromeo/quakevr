@@ -8560,6 +8560,94 @@ wrote, and the tool read, ~1.7 GB of listing per compile.
 - Time (`qvr_checks all --times`, back to back): qc_precedence 9.95 s -> 3.36 s (about one compile). Work files: two
   13 MB progs + 2.6 MB .lno, emptied after use (was 2 x 1.7 GB).
 
+## Survival Arena: every armed humanoid's weapon (branch `agent/arenaguns`)
+
+His question (2026-11-10): "Can arena enemies spawn with any weapons in randomized waves? I've never seen revolvers,
+enforcer rifles, AD weapons, etc..." -- then "Yes, add them". The weapon schedule (`QC/vr_arena.qc`, the table above
+`VR_ARENA_PickGun`) had 11 rows; it now has 34: every weapon an armed humanoid can be spawned with
+(`VR_AG_Decode`'s codes, the toolgun's Armed Humanoid list), each gated on its data as before (a row whose codes
+`VR_AG_Decode` refuses never comes: AD's only with AD's data, the Super Axe with Dawn of the Machine's, the Phantom
+Swordsman's sword with Rogue's).
+
+- **A row is a code, or a run of them** (`VR_ARENA_GunRowSet`: code, last code, wave, tier, share, peak, name).
+  AD's melee weapons are three runs (one of the run at random, `VR_ARENA_GunDeal`): the knights' swords (fury, death
+  knight, zombie knight, death guard), the hunter ogres' hammer and mace, the monster swords (Phantom Swordsman,
+  Dark Prince, justice knight, judicator). `VR_ARENA_GunRow(code)` finds a code's row.
+- **New shared code: `VR_AG_CODE_HKSWORD` 104** (`vr_armedgrunt.qc` `VR_AG_Decode`): the death knight's (hell
+  knight's) sword, `WID_SWORD` with `QVR_WPNFLAG_USE_SECONDARY_AMMO`, every campaign. It shows up in the toolgun's
+  Armed Humanoid list by itself (the engine asks every code 1..127). The map pools (`VR_AG_PickWeapon`) are unchanged.
+- **Tiers from the table**: `VR_ARENA_WeaponTier` reads a code's row (the kill score, the armour's "strong guns");
+  the bosses' `VR_ARENA_PickTierGun(tier, wave)` now draws from the table's rows of that tier this game has and this
+  wave has reached, by their shares (it was three fixed guns a tier).
+- **The trickle's peak** is per row: the classic guns keep 2 waves on 1 foe then 2 waves on 2; the new rows trickle
+  2 waves on 1 foe and then join the pool (`VR_ARENA_GunPoolFrom`: eligible + 2). Measured: with the new rows on the
+  old 4-wave trickle, Normal waves 8-10 and 15 (4 humanoids at the test's wave size) needed 5-6 carriers; the waves
+  were placed so a Normal wave always has the humanoids for every trickle due, base game and AD alike.
+- Not in it: the flare gun (already a grunt's side-arm, `vr_agrunt_flaregun`: two flares, then thrown away -- as a
+  main weapon it would leave its grunt with its fists after two shots), AD's death sergeant's flail (its head on its
+  chain is only a player's hand's), the grapple and the toolgun.
+
+| row | gun | tier | share | eligible (Normal) | on 1 foe | on 2 foes | in the pool | needs |
+|---|---|---|---|---|---|---|---|---|
+| 0-3 | shotgun, nail pistol, axe, crowbar (new) | 1 | .6/.3/.1/.1 | base | - | - | 3 | |
+| 4 | super shotgun | 2 | .5 | 3 | 3-4 | 5-6 | 7 | |
+| 5 | nailgun | 2 | .5 | 5 | 5-6 | 7-8 | 9 | |
+| 6 | **heavy revolver** | 2 | .5 | 6 | 6-7 | - | 8 | |
+| 7 | super nailgun | 2 | 1 | 7 | 7-8 | 9-10 | 11 | |
+| 8 | **burst rifle** (grunt's) | 2 | .6 | 8 | 8-9 | - | 10 | |
+| 9 | **knight's sword** | 1 | .3 | 9 | 9-10 | - | 11 | |
+| 10 | grenade launcher | 3 | 1 | 10 | 10-11 | 12-13 | 14 | |
+| 11 | **enforcer's laser rifle** | 2 | .6 | 11 | 11-12 | - | 13 | |
+| 12 | **defender's shotgun** | 2 | .5 | 11 | 11-12 | - | 13 | AD |
+| 13 | proximity gun | 3 | .5 | 12 | 12-13 | 14-15 | 16 | Armagon |
+| 14 | rocket launcher | 3 | 1 | 13 | 13-14 | 15-16 | 17 | |
+| 15 | **crossbow** (crossbow knight's) | 2 | .5 | 13 | 13-14 | - | 15 | AD |
+| 16 | lightning gun | 3 | 1 | 16 | 16-17 | 18-19 | 20 | |
+| 17 | **chainsaw** (ogre's) | 2 | .3 | 16 | 16-17 | - | 18 | |
+| 18 | **death knight's sword** | 2 | .3 | 16 | 16-17 | - | 18 | |
+| 19 | **Shadow Axe** | 2 | .3 | 17 | 17-18 | - | 19 | AD upgrades |
+| 20 | **Widowmaker** | 2 | .5 | 17 | 17-18 | - | 19 | AD upgrades |
+| 21 | **grenade soldier's launcher** | 3 | .5 | 17 | 17-18 | - | 19 | AD |
+| 22 | **plasma soldier's rifle** | 3 | .5 | 18 | 18-19 | - | 20 | AD |
+| 23 | laser cannon | 3 | 1 | 19 | 19-20 | 21-22 | 23 | Armagon |
+| 24 | **Mjolnir** | 2 | .3 | 19 | 19-20 | - | 21 | Armagon |
+| 25 | **AD knights' swords** (one of four) | 2 | .3 | 19 | 19-20 | - | 21 | AD |
+| 26 | **Super Axe** | 2 | .3 | 20 | 20-21 | - | 22 | Dawn of the Machine |
+| 27 | **rocket soldier's launcher** | 3 | .5 | 20 | 20-21 | - | 22 | AD |
+| 28 | **flamethrower** (pyro's) | 3 | .5 | 21 | 21-22 | - | 23 | AD |
+| 29 | **monster swords** (one of four) | 3 | .2 | 23 | 23-24 | - | 25 | Rogue / AD |
+| 30 | **hammer and mace** (one of two) | 3 | .3 | 24 | 24-25 | - | 26 | AD |
+| 31 | **centurion's plasma gun** | 3 | .5 | 24 | 24-25 | - | 26 | AD |
+| 32 | **poison sprayer** (fumigator's) | 3 | .5 | 25 | 25-26 | - | 27 | AD |
+| 33 | **Plasma Gun** | 3 | .5 | 26 | 26-27 | - | 28 | AD upgrades |
+
+Waves move with the difficulty as before (+3 Easy, -2 Hard, -4 Nightmare, never before 3).
+
+**Tests.** `vr_arena_test 12` (plans only, 24 seeds x 30 waves x 4 skills) now walks all 34 rows, counts each row's
+guns on its trickle waves and in the pool (`arena: t12 skill <s> row <i> <name> ... first seen <w> trickle <n> pool
+<n>`), and checks every row first comes at its table wave, no gun before it, every humanoid's gun is a row's, the
+trickle counts, and (Normal) no short wave: base game 166 passed, 0 failed (trickle waves 1200, short 0); with AD's
+data 166 passed (all 34 rows present, trickle waves 1824, short 0). Normal, 24 seeds, guns seen on the trickle / in
+the pool to wave 30 (AD run): revolver 48/40, burst rifle 48/43, knight's sword 48/19, laser rifle 48/45, defender
+48/40, crossbow 48/64, chainsaw 48/54, death knight's sword 48/35, Widowmaker 48/75, flamethrower 48/77, Plasma Gun
+48/25. New `vr_arena_test 40` (vrarena): for every code of every row this game has (41 with AD's data), an armed grunt
+holding it is felled ahead of the player; its drop is taken into the player's main hand (the hand touch) and must be
+that weapon (sword kinds and the death knight's flag kept); a gun must come loaded and fire with its trigger held:
+`41 codes tried, 41 taken and held`, 211 passed, 0 failed. Tests 1, 3 and 11 (vrtesthall, `vr_arena 1`) pass.
+Scene `arena_newguns` (vrarena): frozen grunts with the base game's new weapons.
+## Flat: two-handed melee lets go like a gun (branch `agent/fg2h`, 2026-11-10)
+
+His report: "when holding a melee weapon with two hands and force-grabbing, the off hand doesn't seem to detach first. It
+should animate like when holding a gun with two hands." Cause: the axe's, Mjolnir's and the super axe's two-handed grip (hs1, up
+the handle) is not ahead of the holding hand, so flatsight's `carryToGrip` never pins the free hand there; vr_twohand takes it only
+at a swing's end, while the pose leaves the hand hanging (not drawn on the handle), and every let-go skipped the gun's
+`gripT` ease. Fix (`vr_flatsight.cpp`, shared with the guns' path): such a hold is `keptGrip`: pinned while held, `gripT` 1, and
+from the let-go it falls at `gripEase` as a gun's, so E (`vr_flat_fg_detach_time`), the shove, G, 3 and a punch all start from the
+grip. `vr_flat_melee_letgo` (1; 0 the old way), Debug > Tunables. Probe: `vr_flat_fg_report` prints the drawn off hand's most
+per frame since the last report. Test `Misc/quakevr/flatfg2h_test.sh` (9 checks; `vr_flatitems_test 9`). Drawn off hand, most
+units a frame, launcher vs axe: E 2.41 / 1.62, shove 8.77 / 9.26, H 20.6 / 24.1 (the weapon dropped: no grip left, both go to the
+guard at once), G 3.79 / 2.73, 3 1.74 / 1.75. Seen, not changed: the shove's push moves the gun's free hand 25 units in a frame
+(game hand) from its grip, gun and melee alike.
 ## Takes and clips for trailers: takes, ratings, clip that, in/out marks (branch `agent/clips`, worktree `clips`, 2026-11-10)
 
 His words (2026-11-10): he records trailer and short clips with OBS, several takes a scene, starts too early, forgets to
@@ -8610,3 +8698,39 @@ are designed but not done. `vr_nav` 1 (Monster AI page), `vr_nav_debug` 1/2 (Deb
 `vr_nav_cliptest`; numbers are tunables (`vr_nav_*`). Arena stairs test (`vr_arena_test 36`): 0 of 64 capped with the new
 default, 2 with the old one, 29 with Quake's chase alone; e1m1 builds in 53 ms, e4m7's three classes in 0.3-0.5 s, a
 cached class reads in under 1 ms. Details, shortcomings and the next steps: `docs/vr-port/NAVMESH.md`.
+## Flat: the shove's fast smoothing (branch `agent/fg2h`, 2026-11-10)
+
+His answer to the shove's 25-unit frame: "Yes, please add some fast smoothing". Measured per frame (`vr_flatplay_debug 3`'s
+`flatfgrab: frame` lines): no discontinuity at the shove's start or end; the jump is the push itself (about 75 units in its
+0.06 s: 9, 23, 25, 17 units over four frames at 72 fps), from a gun's grip and a melee weapon's alike, so the grips' `gripT`
+ease (fg2h above) does not reach it. `smoothShove` (vr_flatplay.cpp, last over the pose, before the melee probe): each shoving hand's
+place, in the body's level frame off the head, follows the pose critically damped (SmoothDamp's form: speed eased as well as
+place; a plain exponential follow cut only 20%), 95% of a step in `vr_flat_shove_smooth` (0.08; 0 off; Debug > Tunables >
+Flatscreen), until it has caught up after the shove. The shove's clock, parts and landing are unchanged. Game hand's most a frame
+(off the head; `vr_flat_fg_report`'s new "game off hand" line), launcher / axe: 60 fps 29.8 / 30.0 -> 19.2 / 19.5; 144 fps
+13.1 / 13.1 -> 8.5 / 8.6 (0.06: 21 and 9.8). Drawn: 60 fps 11.0 / 11.8 -> 7.8 / 9.0; 144 fps 8.0 / 8.5 -> 5.8 / 6.3. A fast
+push can't move much less a frame without being slower. Test `Misc/quakevr/flatshovesmooth_test.sh` (6 passed); flatmelee 12
+passed; flatfg2h 9 passed.
+
+### Takes, second part: voice notes, the session's folder and timeline, scene snapshots and retakes
+
+- **Voice notes in a take.** voicenotes::start tells the takes its note's base path; the take keeps its time. At the
+  session's end the note's `<base>.transcript.txt` (transcribe_notes.py), its whitespace folded, is the marker's text
+  and session.json's `text` (null, and the marker named "Voice note N", before it is transcribed).
+- **The session's end** (`vr_takes_session end`, gadget END): keep and maybe files renamed into
+  `<OBS's folder>/session_<opened>/` (never over a file there); rejected/, unrated takes and clips stay (a decision:
+  the brief names keep and maybe; unrated ones are undecided, so left with OBS's files). session.json: all takes,
+  ratings, files, lengths, in/out, marks, notes. timeline.fcpxml (1.10): format from OBS's GetVideoSettings
+  (fpsNumerator/fpsDenominator, output size: the rate OBS records at; 60 assumed and flagged when unknown), one asset
+  per file (media-rep file:/// URL, percent-escaped), the spine keep then maybe, each trimmed to its first in and the
+  first out after it, markers for the marks and notes inside the trimmed range. A clip's length is OBS's
+  max_time_sec, capped by how long the buffer has run (a fresh buffer's clip is shorter).
+- **Validation:** DaVinci Resolve is installed but is a GUI app (not run unattended): `Misc/quakevr/fcpxml_check.py`
+  checks the file against the DTD's rules for every element and attribute it uses, the rational times on the frame
+  grid, gapless spine, clips within assets, markers within clips, files there: 113 passed, 0 failed on the test's
+  timeline. **The author should import one in Resolve** (File > Import > Timeline) to confirm.
+- **Snapshots and retakes:** `vr_take_setup` = `save take_<scene>`; `vr_take_retake` stops a running take, `load`s
+  it, waits until the load is seen (signon below SIGNONS) and the game runs again, then `vr_takes_retake_delay`
+  (0.5 s), then starts the take. Gadget: SET UP, RETAKE, END, HIDE.
+- **Test:** `vr_takes_test` (in `map start`): 21 passed, 0 failed (adds the voice note mark, session folder moves,
+  session.json transcript, the trimmed timeline's order and markers, the snapshot, a retake as take 5).

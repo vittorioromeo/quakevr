@@ -711,6 +711,9 @@ vr_takes|1|Recording|Takes|Advanced VR Options > Body and Display > Recording (W
 |1|Recording|Out Mark|Advanced VR Options > Body and Display > Recording (Window View) > Out Mark
 |1|Recording|Start Take Session|Advanced VR Options > Body and Display > Recording (Window View) > Start Take Session
 |1|Recording|End Take Session|Advanced VR Options > Body and Display > Recording (Window View) > End Take Session
+|1|Recording|Set Up Scene|Advanced VR Options > Body and Display > Recording (Window View) > Set Up Scene
+|1|Recording|Retake|Advanced VR Options > Body and Display > Recording (Window View) > Retake
+vr_takes_retake_delay|1|Recording|Retake Delay|Advanced VR Options > Body and Display > Recording (Window View) > Retake Delay
 vr_takes_replay|1|Recording|Replay Buffer in a Session|Advanced VR Options > Body and Display > Recording (Window View) > Replay Buffer in a Session
 vr_takes_gadget|1|Recording|Wrist Gadget Buttons|Advanced VR Options > Body and Display > Recording (Window View) > Wrist Gadget Buttons
 vr_takes_chord|1|Recording|Mark Chord|Advanced VR Options > Body and Display > Recording (Window View) > Mark Chord
@@ -4237,6 +4240,7 @@ vr_flat_punch_aim_dist|2|Tunables|Punch Target Distance|Advanced VR Options > De
 vr_flat_shove_both|2|Tunables|Two-Handed Shove|Advanced VR Options > Debug > Tunables > Two-Handed Shove
 vr_flat_shove_both_apart|2|Tunables|Two-Handed Shove Hands Apart|Advanced VR Options > Debug > Tunables > Two-Handed Shove Hands Apart
 vr_flat_shove_width|2|Tunables|Shove Width|Advanced VR Options > Debug > Tunables > Shove Width
+vr_flat_shove_smooth|2|Tunables|Shove Smoothing|Advanced VR Options > Debug > Tunables > Shove Smoothing
 vr_flat_shove_anim_speed|2|Tunables|Shove Animation Speed|Advanced VR Options > Debug > Tunables > Shove Animation Speed
 vr_flat_shove_main_fwd|2|Tunables|Shove Main Hand Forward|Advanced VR Options > Debug > Tunables > Shove Main Hand Forward
 vr_flat_shove_main_out|2|Tunables|Shove Main Hand Out|Advanced VR Options > Debug > Tunables > Shove Main Hand Out
@@ -4325,6 +4329,7 @@ vr_flat_swing_cam_down|2|Tunables|Swing View Tip Down|Advanced VR Options > Debu
 vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug > Tunables > Swing Chest Back
 vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_melee_grip|2|Tunables|Two-Handed Melee On The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee On The Grip
+vr_flat_melee_letgo|2|Tunables|Two-Handed Melee Eased Off The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee Eased Off The Grip
 vr_flat_parry|2|Tunables|Right Mouse Parries|Advanced VR Options > Debug > Tunables > Right Mouse Parries
 vr_flat_parry_fwd|2|Tunables|Guard Ahead|Advanced VR Options > Debug > Tunables > Guard Ahead
 vr_flat_parry_up|2|Tunables|Guard Up|Advanced VR Options > Debug > Tunables > Guard Up

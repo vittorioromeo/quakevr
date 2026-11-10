@@ -29,6 +29,7 @@
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_twohand.hpp"
+#include "vr_view.hpp"
 #include "vr_walltorch.hpp"
 
 #include "Zancle/Math/Acos.hpp"
@@ -75,6 +76,15 @@ struct GrabState
     float torchOff[2]{-1.f, -1.f}; // that torch's stick off upright as drawn, degrees, after the turn (-1: no torch; vr_flat_fg_report)
     double lastTime{-1e9};
     int presses{0}, sent{0}, refused{0}, doubled{0};
+    // The off hand as drawn, off the main hand as drawn (view::drawnHandPose), last frame, and its most in a frame since the
+    // last vr_flat_fg_report: a hand that jumps off a two-handed grip shows here (vr_flatitems_test 9).
+    glm::vec3 drawnRel{0.f};
+    bool drawnKnown{false};
+    float drawnStep{0.f};
+    // The same for the hand the game has (hands::current: the pose sent, the shove's and the grips' places), off the head.
+    glm::vec3 gameRel{0.f};
+    bool gameKnown{false};
+    float gameStep{0.f};
 };
 
 GrabState gs;
@@ -163,6 +173,9 @@ void report_f()
     }
     Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs.presses,
         gs.sent, gs.refused, gs.doubled);
+    Con_Printf("flatfgrab: drawn off hand: most %.2f units a frame off the main hand since the last report\n", gs.drawnStep);
+    Con_Printf("flatfgrab: game off hand: most %.2f units a frame off the head since the last report\n", gs.gameStep);
+    gs.drawnStep = gs.gameStep = 0.f;
     // Where the effect starts on each hand (fgfx::palmOrigin), in the hand's frame (forward, left, up), against the palm's
     // middle and the old start (2 units ahead of the hand's point): headset or flat.
     const hands::State& s = hands::current();
@@ -417,6 +430,30 @@ void frame(bool on)
         gs.refused = kept.refused;
         gs.doubled = kept.doubled;
         return;
+    }
+    {
+        glm::vec3 offPos, offRot, mainPos, mainRot;
+        if(view::drawnHandPose(HAND_OFF, offPos, offRot) && view::drawnHandPose(HAND_MAIN, mainPos, mainRot))
+        {
+            const glm::vec3 rel = offPos - mainPos;
+            gs.drawnStep = gs.drawnKnown ? za::max(gs.drawnStep, glm::distance(rel, gs.drawnRel)) : gs.drawnStep;
+            gs.drawnRel = rel;
+            gs.drawnKnown = true;
+        }
+        else
+        {
+            gs.drawnKnown = false;
+        }
+        const hands::State& hs = hands::current();
+        const glm::vec3 game = hs.pos[HAND_OFF] - hs.head;
+        const float step = gs.gameKnown ? glm::distance(game, gs.gameRel) : 0.f;
+        gs.gameStep = za::max(gs.gameStep, step);
+        if(vr_flatplay_debug.value >= 3.f)
+        {
+            Con_Printf("flatfgrab: frame: off hand moved %.2f (game, off the head), shoving %d\n", step, flatplay::shoving(HAND_OFF) ? 1 : 0);
+        }
+        gs.gameRel = game;
+        gs.gameKnown = hs.valid;
     }
     const double now = vr_gametime;
     for(int h = 0; h < HAND_COUNT; h++)

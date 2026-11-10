@@ -2005,6 +2005,7 @@ QVR_TUNABLE(vr_flat_punch_aim_dist, "96") // the point on the crosshair's ray th
 QVR_TUNABLE(vr_flat_shove_both, "1") // flatscreen: with both hands free the shove pushes with both, the headset's two-handed shove (QC VR_FlatShove; 0: one hand, as before)
 QVR_TUNABLE(vr_flat_shove_both_apart, "8") // both hands pushing: their places this far apart across the view at full push (units, 0..24)
 QVR_TUNABLE(vr_flat_shove_width, "1.15") // the shove's sweep is this much wider round its line than the headset's (its pad; with Shove Reach 1.15 his notes' 15% more lenient)
+QVR_TUNABLE(vr_flat_shove_smooth, "0.08") // flatscreen: the shoving hand's place smoothed, 95% of the way in this time (seconds; 0: off): its push moved it 25 units in a frame
 QVR_TUNABLE(vr_flat_shove_anim_speed, "1") // the shove plays this much faster than its times (Shove Windup / Push / Hold / Recovery Time; 0.25..4); it lands as the hand reaches out, and the cooldown is at least its time
 QVR_TUNABLE(vr_flat_shove_main_fwd, "0") // the main hand at full push: this much further forward (units)
 QVR_TUNABLE(vr_flat_shove_main_out, "0") // and out at its own side (units; negative: in towards the middle)
@@ -2093,6 +2094,7 @@ QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike 
 QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
 QVR_TUNABLE(vr_flat_melee_grip, "1") // flatscreen: a melee weapon held in two hands is held by its grip, the one lowest on the handle, never further up it or on the blade (0: the grip the free hand hangs nearest, the blade too, as before 2026-11-10)
+QVR_TUNABLE(vr_flat_melee_letgo, "1") // flatscreen: a melee weapon held in two hands lets the free hand off its grip eased, as a gun's (E's force grab, the shove, G, 3, a punch): 0 it jumps off, as before 2026-11-10
 QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
 QVR_TUNABLE(vr_flat_parry_up, "-3") // and this far above it (units; negative below)

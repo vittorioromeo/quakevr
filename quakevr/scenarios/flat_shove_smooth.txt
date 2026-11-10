@@ -1,0 +1,9 @@
+# flat_shove_smooth: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) shove smoothing (vr_flat_shove_smooth; docs/vr-port/FLATPLAY.md, the shove).
+title Flat-screen shove smoothing: a rocket launcher in the right hand, grunts to shove
+hint Play with -flatscreenmode. Hold the rocket launcher in both hands and shove a grunt: the left hand leaves the fore-end and pushes out fast but without a jump, and comes back smoothly. Try it with an axe held in both hands too (swing until the left hand takes the handle), and at a high and a low frame rate.
+map vrtesthall
+god
+notarget
+give "Rocket Launcher" main
+spawn "Grunt" 90 0
+spawn "Grunt" 110 60

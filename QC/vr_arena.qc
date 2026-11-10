@@ -518,121 +518,238 @@ float() VR_ARENA_Rand =
 // The wave's plan: who it sends, and the gun an armed humanoid holds
 // ---------------------------------------------------------------------------
 
-// What a wave monster is worth on the ladder (a classic monster's own tier, an armed humanoid's gun's tier).
+float(float xCode) VR_ARENA_GunRow;
+float(float i) VR_ARENA_GunTier;
+float(float i) VR_ARENA_GunShare;
+float(float i) VR_ARENA_GunOk;
+float(float i) VR_ARENA_GunEligible;
+float(float i) VR_ARENA_GunDeal;
+float AR_GUN_N = 34; // the weapon schedule's rows (below)
+
+// What a wave monster is worth on the ladder (a classic monster's own tier, an armed humanoid's gun's tier: its row's
+// in the weapon schedule below; a "weapon" code no row has, its fists among them: the first).
 float(float xKind, float xGun) VR_ARENA_WeaponTier =
 {
     if(xKind == AR_SP_OGRE || xKind == AR_SP_FIEND)    { return 2; }
     if(xKind == AR_SP_HKNIGHT)                         { return 3; }
-    if(xGun == WID_SUPER_SHOTGUN || xGun == WID_NAILGUN || xGun == WID_SUPER_NAILGUN) { return 2; }
-    if(xGun == WID_ROCKET_LAUNCHER || xGun == WID_GRENADE_LAUNCHER || xGun == WID_LIGHTNING ||
-       xGun == WID_PROXIMITY_GUN || xGun == WID_LASER_CANNON) { return 3; }
-    return 1; // (its fists, the shotgun, the nail pistol, the axe)
+    float i = VR_ARENA_GunRow(xGun);
+    return i >= 0 ? VR_ARENA_GunTier(i) : 1;
 }
 
-float(float xTier) VR_ARENA_PickTierGun =
+// A boss's gun of tier `xTier`: one of the schedule's rows of that tier this game has and this wave has reached (the
+// bottom rungs from the first armed wave), by their pool shares. None: the shotgun.
+float(float xTier, float xWave) VR_ARENA_PickTierGun =
 {
-    float r = VR_ARENA_Rand();
-
-    if(xTier == 3)
+    float i;
+    float sum = 0;
+    for(i = 0; i < AR_GUN_N; i++)
     {
-        if(r < 0.34) { return WID_ROCKET_LAUNCHER; }
-        if(r < 0.67) { return WID_LIGHTNING; }
-        return WID_GRENADE_LAUNCHER;
+        if(VR_ARENA_GunTier(i) == xTier && xWave >= VR_ARENA_GunEligible(i) && VR_ARENA_GunOk(i)) { sum = sum + VR_ARENA_GunShare(i); }
     }
-    if(xTier == 2)
+    float r = VR_ARENA_Rand() * sum;
+    for(i = 0; i < AR_GUN_N; i++)
     {
-        if(r < 0.40) { return WID_SUPER_SHOTGUN; }
-        if(r < 0.75) { return WID_NAILGUN; }
-        return WID_SUPER_NAILGUN;
+        if(VR_ARENA_GunTier(i) != xTier || xWave < VR_ARENA_GunEligible(i) || !VR_ARENA_GunOk(i)) { continue; }
+        float w = VR_ARENA_GunShare(i);
+        if(r < w) { return VR_ARENA_GunDeal(i); }
+        r = r - w;
     }
-    if(r < 0.50) { return WID_SHOTGUN; }
-    if(r < 0.90) { return WID_NAILPISTOL; }
-    return WID_AXE;
+    return WID_SHOTGUN;
 }
 
 // A humanoid boss's gun (an enforcer boss, before the classic bosses): its own pick, from the tiers this wave has
-// reached (the tiers arrive earlier the harder the skill) -- not the weapon schedule below.
+// reached (the tiers arrive earlier the harder the skill) -- not the weapon schedule's trickle or pool.
 float(float xWave) VR_ARENA_PickBossGun =
 {
     float r = VR_ARENA_Rand();
-    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER3) && r < 0.25) { return VR_ARENA_PickTierGun(3); }
-    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER2) && r < 0.60) { return VR_ARENA_PickTierGun(2); }
-    return VR_ARENA_PickTierGun(1);
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER3) && r < 0.25) { return VR_ARENA_PickTierGun(3, xWave); }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER2) && r < 0.60) { return VR_ARENA_PickTierGun(2, xWave); }
+    return VR_ARENA_PickTierGun(1, xWave);
 }
 
 // ---------------------------------------------------------------------------
 // The weapon schedule: each gun of the ladder becomes eligible at its own wave (Normal's, moved by the difficulty
-// as every gate: VR_ARENA_WaveAdj) and comes in as a trickle -- AR_GUN_STEP waves on 1 foe a wave, AR_GUN_STEP waves
-// on 2 (VR_ARENA_GunCarriers, dealt over the wave's humanoids by VR_ARENA_PlanTrickle) -- then joins the wave's pool
-// (VR_ARENA_PickGun). In the pool a newcomer starts rare and ramps up over AR_GUN_STEP * 2 waves, holds
-// AR_GUN_PRIME waves, then fades by AR_GUN_FADE a wave to AR_GUN_FLOOR, so the older guns thin out as the waves go.
-// The bottom rungs (shotgun, nail pistol, axe) are the pool from the first armed wave, no trickle. Bosses keep their
-// own pick (VR_ARENA_PickBossGun). The table (Normal; ROUND23 "Survival Arena: the polish"):
-//   row gun               eligible  on 1 foe  on 2 foes  in the pool
-//    0  shotgun             base        -        -          3
-//    1  nail pistol         base        -        -          3   (wave 2's own plan brings the first)
-//    2  axe                 base        -        -          3   (rare)
-//    3  super shotgun         3       3-4      5-6          7
-//    4  nailgun               5       5-6      7-8          9
-//    5  super nailgun         7       7-8      9-10        11
-//    6  grenade launcher     10     10-11     12-13        14
-//    7  proximity gun        12     12-13     14-15        16   (Scourge of Armagon's: only with its data)
-//    8  rocket launcher      13     13-14     15-16        17
-//    9  lightning gun        16     16-17     18-19        20
-//   10  laser cannon         19     19-20     21-22        23   (Scourge of Armagon's: only with its data)
+// as every gate: VR_ARENA_WaveAdj) and comes in as a trickle -- AR_GUN_STEP waves on 1 foe a wave, then (the classic
+// guns, peak 2) AR_GUN_STEP waves on 2 (VR_ARENA_GunCarriers, dealt over the wave's humanoids by
+// VR_ARENA_PlanTrickle; the rest's trickle is its first step alone, so a Normal wave always has the humanoids for
+// every trickle due: the arena test 12) -- then joins the wave's pool (VR_ARENA_PickGun). In the pool a newcomer starts rare and ramps up over AR_GUN_STEP * 2
+// waves, holds AR_GUN_PRIME waves, then fades by AR_GUN_FADE a wave to AR_GUN_FLOOR, so the older guns thin out as
+// the waves go. The bottom rungs (shotgun, nail pistol, axe, crowbar) are the pool from the first armed wave, no
+// trickle. Bosses keep their own pick (VR_ARENA_PickBossGun: by tier, from the rows below). A row is a "weapon" code
+// an armed humanoid is spawned with (VR_AG_Decode: a weapon id, an AD upgrade's, a sword's kind), or a run of them
+// (AD's melee weapons: one of the run at random, VR_ARENA_GunDeal); a row comes only where VR_AG_Decode says this
+// game has it (the packs' and AD's with their data). Its tier is its worth (the kill score, the bosses' pick).
+// The table (Normal; ROUND23 "Survival Arena: the polish", ROUND24 "Survival Arena: every armed humanoid's weapon"):
+//   row gun                         tier share  eligible  on 1 foe  on 2 foes  in the pool  needs
+//    0  shotgun                      1   0.6      base          -          -         3
+//    1  nail pistol                  1   0.3      base          -          -         3     (wave 2's own plan brings the first)
+//    2  axe                          1   0.1      base          -          -         3     (rare)
+//    3  crowbar                      1   0.1      base          -          -         3     (rare)
+//    4  super shotgun                2   0.5         3        3-4        5-6         7
+//    5  nailgun                      2   0.5         5        5-6        7-8         9
+//    6  heavy revolver               2   0.5         6        6-7          -         8
+//    7  super nailgun                2   1           7        7-8       9-10        11
+//    8  burst rifle                  2   0.6         8        8-9          -        10
+//    9  knight's sword               1   0.3         9       9-10          -        11
+//   10  grenade launcher             3   1          10      10-11      12-13        14
+//   11  enforcer's laser rifle       2   0.6        11      11-12          -        13
+//   12  defender's shotgun           2   0.5        11      11-12          -        13     AD
+//   13  proximity gun                3   0.5        12      12-13      14-15        16     Scourge of Armagon's
+//   14  rocket launcher              3   1          13      13-14      15-16        17
+//   15  crossbow                     2   0.5        13      13-14          -        15     AD (the crossbow knight's)
+//   16  lightning gun                3   1          16      16-17      18-19        20
+//   17  chainsaw                     2   0.3        16      16-17          -        18     (the ogre's)
+//   18  death knight's sword         2   0.3        16      16-17          -        18     (the hell knight's)
+//   19  Shadow Axe                   2   0.3        17      17-18          -        19     AD (where its upgrades play)
+//   20  Widowmaker                   2   0.5        17      17-18          -        19     AD (where its upgrades play)
+//   21  grenade soldier's launcher   3   0.5        17      17-18          -        19     AD
+//   22  plasma soldier's rifle       3   0.5        18      18-19          -        20     AD
+//   23  laser cannon                 3   1          19      19-20      21-22        23     Scourge of Armagon's
+//   24  Mjolnir                      2   0.3        19      19-20          -        21     Scourge of Armagon's
+//   25  AD knights' swords           2   0.3        19      19-20          -        21     AD (1)
+//   26  Super Axe                    2   0.3        20      20-21          -        22     Dawn of the Machine's
+//   27  rocket soldier's launcher    3   0.5        20      20-21          -        22     AD
+//   28  flamethrower                 3   0.5        21      21-22          -        23     AD (the pyro's)
+//   29  monster swords               3   0.2        23      23-24          -        25     Rogue's data, AD (2)
+//   30  hammer and mace              3   0.3        24      24-25          -        26     AD (the hunter ogres')
+//   31  centurion's plasma gun       3   0.5        24      24-25          -        26     AD
+//   32  poison sprayer               3   0.5        25      25-26          -        27     AD (the fumigator's)
+//   33  Plasma Gun                   3   0.5        26      26-27          -        28     AD (where its upgrades play)
+// (1) one of the fury's, death knight's, zombie knight's and death guard's swords, at random
+// (2) the Phantom Swordsman's (with Rogue's data), AD's Dark Prince's, justice knight's and judicator's
+// Not in it: the flare gun (a grunt's side-arm already, vr_agrunt_flaregun: two flares, then thrown away), AD's
+// death sergeant's flail (its head on its chain is only a player's hand's: VR_AG_CODE_ADMELEE), the grapple and the
+// toolgun (no armed humanoid's).
 // ---------------------------------------------------------------------------
 
-float AR_GUN_N     = 11;   // the table's rows
 float AR_GUN_FIRST = 3;    // the schedule deals no carriers before this wave (waves 1 and 2 are their own plans)
 float AR_GUN_BASE  = 3;    // the bottom rungs' pool counts its age from this wave
-float AR_GUN_STEP  = 2;    // waves at each trickle step (1 carrier, then 2)
+float AR_GUN_STEP  = 2;    // waves at each trickle step (1 carrier, then its peak)
 float AR_GUN_RAMP0 = 0.35; // a newcomer's pool weight on its first pool wave, times its share
 float AR_GUN_PRIME = 6;    // waves in the pool before it starts to fade
 float AR_GUN_FADE  = 0.08; // and how much it fades a wave after that
 float AR_GUN_FLOOR = 0.2;  // never under this (a veteran gun still turns up)
 
-float(float i) VR_ARENA_GunWid =
+// A row's entry (VR_ARENA_GunRowSet: into these).
+float ar_gr_lo;     // its "weapon" code (VR_AG_Decode's), the first of its run
+float ar_gr_hi;     // the last of its run (ar_gr_lo: a row of one)
+float ar_gr_from;   // the wave it becomes eligible at, at Normal (0: a bottom rung, the pool's from the first armed wave)
+float ar_gr_tier;   // its tier (1..3)
+float ar_gr_share;  // its share of the pool at its full weight (the bottom rungs split one share as the early waves did)
+float ar_gr_peak;   // its trickle's second step: on this many foes a wave (2 the classic guns; 0 none, the rest)
+string ar_gr_name;  // its name (the tests, the log)
+
+void(float c, float from, float tier, float share, float peak, string name) VR_ARENA_GunRowIs =
 {
-    if(i == 0) { return WID_SHOTGUN; }
-    if(i == 1) { return WID_NAILPISTOL; }
-    if(i == 2) { return WID_AXE; }
-    if(i == 3) { return WID_SUPER_SHOTGUN; }
-    if(i == 4) { return WID_NAILGUN; }
-    if(i == 5) { return WID_SUPER_NAILGUN; }
-    if(i == 6) { return WID_GRENADE_LAUNCHER; }
-    if(i == 7) { return WID_PROXIMITY_GUN; }
-    if(i == 8) { return WID_ROCKET_LAUNCHER; }
-    if(i == 9) { return WID_LIGHTNING; }
-    return WID_LASER_CANNON;
+    ar_gr_lo = c;
+    ar_gr_hi = c;
+    ar_gr_from = from;
+    ar_gr_tier = tier;
+    ar_gr_share = share;
+    ar_gr_peak = peak;
+    ar_gr_name = name;
 }
 
-// The wave a row becomes eligible at, at Normal (0: a bottom rung, the pool's from the first armed wave).
-float(float i) VR_ARENA_GunFrom =
+void(float i) VR_ARENA_GunRowSet =
 {
-    if(i <= 2) { return 0; }
-    if(i == 3) { return 3; }
-    if(i == 4) { return 5; }
-    if(i == 5) { return 7; }
-    if(i == 6) { return 10; }
-    if(i == 7) { return 12; }
-    if(i == 8) { return 13; }
-    if(i == 9) { return 16; }
-    return 19;
+    if(i == 0)       { VR_ARENA_GunRowIs(WID_SHOTGUN, 0, 1, 0.6, 2, "shotgun"); }
+    else if(i == 1)  { VR_ARENA_GunRowIs(WID_NAILPISTOL, 0, 1, 0.3, 2, "nail pistol"); }
+    else if(i == 2)  { VR_ARENA_GunRowIs(WID_AXE, 0, 1, 0.1, 2, "axe"); }
+    else if(i == 3)  { VR_ARENA_GunRowIs(WID_CROWBAR, 0, 1, 0.1, 2, "crowbar"); }
+    else if(i == 4)  { VR_ARENA_GunRowIs(WID_SUPER_SHOTGUN, 3, 2, 0.5, 2, "super shotgun"); }
+    else if(i == 5)  { VR_ARENA_GunRowIs(WID_NAILGUN, 5, 2, 0.5, 2, "nailgun"); }
+    else if(i == 6)  { VR_ARENA_GunRowIs(WID_REVOLVER, 6, 2, 0.5, 0, "heavy revolver"); }
+    else if(i == 7)  { VR_ARENA_GunRowIs(WID_SUPER_NAILGUN, 7, 2, 1, 2, "super nailgun"); }
+    else if(i == 8)  { VR_ARENA_GunRowIs(WID_GRUNTGUN, 8, 2, 0.6, 0, "burst rifle"); }
+    else if(i == 9)  { VR_ARENA_GunRowIs(WID_SWORD, 9, 1, 0.3, 0, "knight's sword"); }
+    else if(i == 10) { VR_ARENA_GunRowIs(WID_GRENADE_LAUNCHER, 10, 3, 1, 2, "grenade launcher"); }
+    else if(i == 11) { VR_ARENA_GunRowIs(WID_ENFRIFLE, 11, 2, 0.6, 0, "enforcer's laser rifle"); }
+    else if(i == 12) { VR_ARENA_GunRowIs(WID_ADDEFENDER, 11, 2, 0.5, 0, "defender's shotgun"); }
+    else if(i == 13) { VR_ARENA_GunRowIs(WID_PROXIMITY_GUN, 12, 3, 0.5, 2, "proximity gun"); }
+    else if(i == 14) { VR_ARENA_GunRowIs(WID_ROCKET_LAUNCHER, 13, 3, 1, 2, "rocket launcher"); }
+    else if(i == 15) { VR_ARENA_GunRowIs(WID_ADCROSSBOW, 13, 2, 0.5, 0, "crossbow"); }
+    else if(i == 16) { VR_ARENA_GunRowIs(WID_LIGHTNING, 16, 3, 1, 2, "lightning gun"); }
+    else if(i == 17) { VR_ARENA_GunRowIs(WID_CHAINSAW, 16, 2, 0.3, 0, "chainsaw"); }
+    else if(i == 18) { VR_ARENA_GunRowIs(VR_AG_CODE_HKSWORD, 16, 2, 0.3, 0, "death knight's sword"); }
+    else if(i == 19) { VR_ARENA_GunRowIs(VR_AG_CODE_SHADOWAXE, 17, 2, 0.3, 0, "Shadow Axe"); }
+    else if(i == 20) { VR_ARENA_GunRowIs(VR_AG_CODE_WIDOWMAKER, 17, 2, 0.5, 0, "Widowmaker"); }
+    else if(i == 21) { VR_ARENA_GunRowIs(WID_ADGRENADE, 17, 3, 0.5, 0, "grenade soldier's launcher"); }
+    else if(i == 22) { VR_ARENA_GunRowIs(WID_ADPLASMA, 18, 3, 0.5, 0, "plasma soldier's rifle"); }
+    else if(i == 23) { VR_ARENA_GunRowIs(WID_LASER_CANNON, 19, 3, 1, 2, "laser cannon"); }
+    else if(i == 24) { VR_ARENA_GunRowIs(WID_MJOLNIR, 19, 2, 0.3, 0, "Mjolnir"); }
+    else if(i == 25)
+    {
+        VR_ARENA_GunRowIs(VR_AG_CODE_ADMELEE + VR_ADMELEE_FURY, 19, 2, 0.3, 0, "AD knights' swords");
+        ar_gr_hi = VR_AG_CODE_ADMELEE + VR_ADMELEE_DGUARD;
+    }
+    else if(i == 26) { VR_ARENA_GunRowIs(WID_SUPERAXE, 20, 2, 0.3, 0, "Super Axe"); }
+    else if(i == 27) { VR_ARENA_GunRowIs(WID_ADROCKET, 20, 3, 0.5, 0, "rocket soldier's launcher"); }
+    else if(i == 28) { VR_ARENA_GunRowIs(WID_ADPYRO, 21, 3, 0.5, 0, "flamethrower"); }
+    else if(i == 29)
+    {
+        VR_ARENA_GunRowIs(VR_AG_CODE_ADMELEE + VR_ADMELEE_PHANTOM, 23, 3, 0.2, 0, "monster swords");
+        ar_gr_hi = VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE;
+    }
+    else if(i == 30)
+    {
+        VR_ARENA_GunRowIs(VR_AG_CODE_ADMELEE + VR_ADMELEE_HAMMER, 24, 3, 0.3, 0, "hammer and mace");
+        ar_gr_hi = VR_AG_CODE_ADMELEE + VR_ADMELEE_MACE;
+    }
+    else if(i == 31) { VR_ARENA_GunRowIs(WID_ADCENTURION, 24, 3, 0.5, 0, "centurion's plasma gun"); }
+    else if(i == 32) { VR_ARENA_GunRowIs(WID_ADFUMIGATOR, 25, 3, 0.5, 0, "poison sprayer"); }
+    else             { VR_ARENA_GunRowIs(VR_AG_CODE_PLASMAGUN, 26, 3, 0.5, 0, "Plasma Gun"); }
 }
 
-// A row's share of the pool at its full weight (the bottom rungs split one share as the early waves always did).
-float(float i) VR_ARENA_GunShare =
+// A row's code (the first of its run), the wave it is eligible from at Normal, its tier, share and name.
+float(float i) VR_ARENA_GunWid = { VR_ARENA_GunRowSet(i); return ar_gr_lo; }
+float(float i) VR_ARENA_GunFrom = { VR_ARENA_GunRowSet(i); return ar_gr_from; }
+float(float i) VR_ARENA_GunTier = { VR_ARENA_GunRowSet(i); return ar_gr_tier; }
+float(float i) VR_ARENA_GunShare = { VR_ARENA_GunRowSet(i); return ar_gr_share; }
+string(float i) VR_ARENA_GunName = { VR_ARENA_GunRowSet(i); return ar_gr_name; }
+
+// The row a "weapon" code is in (-1: none, its fists among them).
+float(float xCode) VR_ARENA_GunRow =
 {
-    if(i == 0) { return 0.6; }
-    if(i == 1) { return 0.3; }
-    if(i == 2) { return 0.1; }
-    if(i == 3 || i == 4) { return 0.5; }
-    if(i == 7) { return 0.5; }
-    return 1;
+    for(float i = 0; i < AR_GUN_N; i++)
+    {
+        VR_ARENA_GunRowSet(i);
+        if(xCode >= ar_gr_lo && xCode <= ar_gr_hi) { return i; }
+    }
+    return -1;
 }
 
-// A row this game can arm a humanoid with (the mission packs' guns only with their data: VR_AG_Usable).
-float(float i) VR_ARENA_GunOk = { return VR_AG_Usable(VR_ARENA_GunWid(i)); }
+// A row this game can arm a humanoid with: any code of its run VR_AG_Decode says it has (the packs' and AD's guns
+// only with their data).
+float(float i) VR_ARENA_GunOk =
+{
+    VR_ARENA_GunRowSet(i);
+    float hi = ar_gr_hi;
+    for(float c = ar_gr_lo; c <= hi; c++)
+    {
+        if(VR_AG_Decode(c)) { return TRUE; }
+    }
+    return FALSE;
+}
+
+// The code a humanoid is given of row `i`: its own, or one of its run's this game has, at random (the wave stream).
+float(float i) VR_ARENA_GunDeal =
+{
+    VR_ARENA_GunRowSet(i);
+    float lo = ar_gr_lo;
+    float hi = ar_gr_hi;
+    if(lo == hi) { return lo; }
+    float n = 0;
+    float c;
+    for(c = lo; c <= hi; c++) { if(VR_AG_Decode(c)) { n = n + 1; } }
+    float k = min(n - 1, floor(VR_ARENA_Rand() * n));
+    for(c = lo; c <= hi; c++)
+    {
+        if(!VR_AG_Decode(c)) { continue; }
+        if(k <= 0) { return c; }
+        k = k - 1;
+    }
+    return lo;
+}
 
 // The wave a row is eligible from, as this difficulty counts it (never before the schedule's first wave).
 float(float i) VR_ARENA_GunEligible =
@@ -642,11 +759,12 @@ float(float i) VR_ARENA_GunEligible =
     return max(AR_GUN_FIRST, VR_ARENA_WaveAdj(from));
 }
 
-// The wave a row joins the pool at: a bottom rung at once, a newcomer after its two trickle steps.
+// The wave a row joins the pool at: a bottom rung at once, a newcomer after its trickle's steps (one: its peak 0).
 float(float i) VR_ARENA_GunPoolFrom =
 {
     if(VR_ARENA_GunFrom(i) <= 0) { return AR_GUN_FIRST; }
-    return VR_ARENA_GunEligible(i) + 2 * AR_GUN_STEP;
+    VR_ARENA_GunRowSet(i);
+    return VR_ARENA_GunEligible(i) + (ar_gr_peak > 0 ? 2 : 1) * AR_GUN_STEP;
 }
 
 // How many of this wave's humanoids carry a row's gun on its trickle (0: not eligible yet, or in the pool now).
@@ -656,7 +774,7 @@ float(float i, float xWave) VR_ARENA_GunCarriers =
     float d = xWave - VR_ARENA_GunEligible(i);
     if(d < 0) { return 0; }
     if(d < AR_GUN_STEP) { return 1; }
-    if(d < 2 * AR_GUN_STEP) { return 2; }
+    if(d < 2 * AR_GUN_STEP) { VR_ARENA_GunRowSet(i); return ar_gr_peak; }
     return 0;
 }
 
@@ -683,7 +801,7 @@ float(float xWave) VR_ARENA_PickGun =
     for(i = 0; i < AR_GUN_N; i++)
     {
         float w = VR_ARENA_GunWeight(i, xWave);
-        if(w > 0 && r < w) { return VR_ARENA_GunWid(i); }
+        if(w > 0 && r < w) { return VR_ARENA_GunDeal(i); }
         r = r - w;
     }
     return WID_SHOTGUN; // (the sum's own rounding)
@@ -1057,7 +1175,7 @@ void(float xWave) VR_ARENA_PlanTrickle =
                 if(pick <= 0) { break; }
                 pick = pick - 1;
             }
-            float wid = VR_ARENA_GunWid(i);
+            float wid = VR_ARENA_GunDeal(i); // (a run's row: one of its codes)
             ar_plan_gun[j] = wid;
             ar_plan_tier[j] = VR_ARENA_WeaponTier(ar_plan_kind[j], wid);
             ar_plan_dealt[j] = 1;
