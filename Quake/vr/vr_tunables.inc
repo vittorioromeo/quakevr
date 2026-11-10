@@ -2058,6 +2058,17 @@ QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the s
 QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
 QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
 QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
+QVR_TUNABLE(vr_flat_slide_stamina, "15") // the slide: stamina it costs (0..100; the parry stamina's pool, the visor's STAM), in vr_flat_slide_stamina_parts parts; with less than one part left a crouch at speed is no slide; 0 free
+QVR_TUNABLE(vr_flat_slide_stamina_parts, "3") // the slide: its stamina is taken in this many equal parts (1..6), the first as it starts, the rest vr_flat_slide_stamina_step s apart; a part not yet due when it ends isn't charged
+QVR_TUNABLE(vr_flat_slide_stamina_step, "0.2") // the slide: seconds between its stamina's parts (0..1; 0: all as it starts)
+QVR_TUNABLE(vr_flat_slide_charge, "1") // the slide: sliding into a monster at vr_flat_slide_charge_speed or faster knocks it as a shoulder charge does (QC VR_KdTrig_SlideCharge: the Shoulder Charges' knock by weight and their chance); 0 off
+QVR_TUNABLE(vr_flat_slide_charge_speed, "250") // the slide's charge: the least speed (units/s) it knocks a monster at (100..600); the knock grows with the speed over it
+QVR_TUNABLE(vr_flat_slide_charge_stamina, "0") // the slide's charge: stamina one that connects costs on top of the slide's (0..100; the shoulder charge's own is vr_kdtrig_tackle_stamina)
+QVR_TUNABLE(vr_flat_slide_prop_push, "1") // the slide: a prop slid into is pushed on at this share of the slide's speed (0..2), shared by his weight and its own (vr_box3d_player_mass); 0: the walk's shove
+QVR_TUNABLE(vr_flat_slide_prop_side, "20") // the slide: degrees off the slide's way a prop slid into goes, to the side it is off his line (0..60)
+QVR_TUNABLE(vr_flat_slide_foot_roll, "20") // the slide's pose: degrees both feet roll to the right about the slide's way (-60..60; negative: to the left)
+QVR_TUNABLE(vr_flat_slide_knee_bend, "0.25") // the slide's pose: one leg's foot drawn in this share of the leg's length, its knee bent up (0..0.6; 0: both legs out alike)
+QVR_TUNABLE(vr_flat_slide_knee_leg, "0") // the slide's pose: which leg's knee is bent up (0 the left, 1 the right)
 QVR_TUNABLE(vr_flat_lean_angle, "20") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
 QVR_TUNABLE(vr_flat_lean_dist, "20") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
 QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot

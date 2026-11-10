@@ -77,6 +77,11 @@ A burning grunt next to a wooden crate sets it alight; a burning crate next to a
 A blast next to wooden crates sets the near crate on fire, not the far one, and not the grunt in the blast. {test:systems_blast_fire}
 Let the shambler fire its lightning into the pool while grunts stand in the water: the grunts take the shock as with your lightning gun. {test:systems_shambler_water}
 Kill a few grunts with rockets and grenades: their bodies fly from the blast at once instead of playing a death animation first; gibbed ones still gib, and bodies already lying are pushed once. {test:systems_chain}
+Flat-screen: Slide a few times and watch the visor's STAM bar: each slide takes 15 in three steps (as it starts, then 0.2 s and 0.4 s later), a slide a wall stops at once takes only the first, and with the bar empty crouching at speed is just a crouch. {test:flat_slide_stamina}
+Flat-screen: Slide into the grunt at full speed: it is knocked back or down as by a shoulder charge and you bounce off it. {test:flat_slide_hit}
+Flat-screen: Slide into the wooden crate: it is shoved on ahead and a little to the side, further the faster you slide. {test:flat_slide_hit}
+Flat-screen: Look down mid-slide: the feet roll a little to the right and the left knee is bent up; Slide Foot Roll, Slide Knee Bend and Slide Bent Knee Leg in Debug > Tunables > Flatscreen > Slide change it. {test:flat_slide_stamina}
+Flat-screen: Press the prone key (X) mid-slide: nothing happens and the slide goes on; once it has ended X lies you down as before. {test:flat_slide_stamina}
 [2. Performance]
 After a level change (a slipgate or an exit) the new map appears without a stutter in its first seconds; the very first map after starting the game has a shorter hitch than before
 

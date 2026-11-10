@@ -4234,6 +4234,17 @@ vr_flat_slide_legs|2|Tunables|Slide Legs Follow Slide|Advanced VR Options > Debu
 vr_flat_slide_legs_twist|2|Tunables|Slide Legs Most Twist|Advanced VR Options > Debug > Tunables > Slide Legs Most Twist
 vr_flat_slide_bob|2|Tunables|Slide Walk Bob|Advanced VR Options > Debug > Tunables > Slide Walk Bob
 vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > Tunables > Slide Sound Volume
+vr_flat_slide_stamina|2|Tunables|Slide Stamina Cost|Advanced VR Options > Debug > Tunables > Slide Stamina Cost
+vr_flat_slide_stamina_parts|2|Tunables|Slide Stamina Parts|Advanced VR Options > Debug > Tunables > Slide Stamina Parts
+vr_flat_slide_stamina_step|2|Tunables|Slide Stamina Step|Advanced VR Options > Debug > Tunables > Slide Stamina Step
+vr_flat_slide_charge|2|Tunables|Slide Charge|Advanced VR Options > Debug > Tunables > Slide Charge
+vr_flat_slide_charge_speed|2|Tunables|Slide Charge Least Speed|Advanced VR Options > Debug > Tunables > Slide Charge Least Speed
+vr_flat_slide_charge_stamina|2|Tunables|Slide Charge Stamina|Advanced VR Options > Debug > Tunables > Slide Charge Stamina
+vr_flat_slide_prop_push|2|Tunables|Slide Prop Push|Advanced VR Options > Debug > Tunables > Slide Prop Push
+vr_flat_slide_prop_side|2|Tunables|Slide Prop Side Angle|Advanced VR Options > Debug > Tunables > Slide Prop Side Angle
+vr_flat_slide_foot_roll|2|Tunables|Slide Foot Roll|Advanced VR Options > Debug > Tunables > Slide Foot Roll
+vr_flat_slide_knee_bend|2|Tunables|Slide Knee Bend|Advanced VR Options > Debug > Tunables > Slide Knee Bend
+vr_flat_slide_knee_leg|2|Tunables|Slide Bent Knee Leg|Advanced VR Options > Debug > Tunables > Slide Bent Knee Leg
 vr_flat_lean_angle|2|Tunables|Lean Roll|Advanced VR Options > Debug > Tunables > Lean Roll
 vr_flat_lean_dist|2|Tunables|Lean Distance|Advanced VR Options > Debug > Tunables > Lean Distance
 vr_flat_lean_pivot|2|Tunables|Lean Pivot|Advanced VR Options > Debug > Tunables > Lean Pivot
@@ -5188,6 +5199,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
+|2|Debug - Tests|Flat Slide: Into A Crate|Advanced VR Options > Debug > Tests > Flat Slide: Into A Crate
+|2|Debug - Tests|Flat Slide: Into A Grunt|Advanced VR Options > Debug > Tests > Flat Slide: Into A Grunt
 |2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
 |2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
 |2|Debug - Tests|Flat Aim Sensitivity Test|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Test
