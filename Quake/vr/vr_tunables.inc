@@ -1870,6 +1870,10 @@ QVR_TUNABLE(vr_flat_reload_down, "0.3") // the flat-screen reload (vr_flatreload
 QVR_TUNABLE(vr_flat_reload_hold, "0.2") // seconds it stays there
 QVR_TUNABLE(vr_flat_reload_up, "0.3") // seconds it takes back to its pose (it fires again after it)
 QVR_TUNABLE(vr_flat_reload_angle, "90") // degrees the gun turns muzzle-down at the holster (0..150)
+QVR_TUNABLE(vr_flat_ssg_break_delay, "0.15") // vr_flat_ssg_break: seconds after the shot that empties it the super shotgun breaks open, its shells thrown out (his words 2026-11-10: "a tiny customizable delay")
+QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after the last round a magazine gun drops its empty magazine
+QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
+QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
 
 // Flatscreen > Hand Swap (vr_flatswap.cpp; vr_flat_swap_anim)
 QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap is sent as they do)
