@@ -1,7 +1,0 @@
-# flat_drop: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) drop key: H (vr_flat_key_drop), a weapon held in both hands never handed to the grip hand (QC VR_Forcegrab_FlatDropHand).
-title Flat-screen drop: a rocket launcher held in both hands
-hint Play with -flatscreenmode. H drops the rocket launcher: it falls, and the left hand on its grip stays empty (it no longer catches it as a prop). G no longer drops anything (it is the quick grenade).
-map vrtesthall
-god
-notarget
-give "Rocket Launcher" main
