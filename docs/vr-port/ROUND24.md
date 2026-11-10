@@ -7498,3 +7498,16 @@ the view fades dark and blurred while the head is in the ceiling, a message says
   (flat) 9/0; `crawl_test.py` 18/0; `teleporters/crouch_test.sh`'s `rise_walked_out` crouches again before walking out
   (box 0 at x 934 outside). New scene `lowceil_vent` (prone_vent without its flat-screen hint); the tunnel line uses
   `prone_tunnel`. Release-TracyFull builds.
+
+### Flat-screen: the starting shotgun's shells (same branch)
+
+Reported by other workers: flat e1m1's shotgun "starts empty"; `flatitems_test` cases 1 and 5 timed out waiting for the
+shot. On `next` the gun is not empty when drawn (the flat weapon cycle, 1/2, loads it from the reserve as it is taken:
+`VR_FlatReload_CycleIn`), but a new game lost 8 shells: `SetNewParms` loaded the holstered shotgun's own record from
+the shells (the headset's immersive start, `VR_Reload_ManualFor`), and the flat cycle never uses that record (it clones
+the hand's, `VRCycleEntWeaponInst`), so 25 shells became 9 in reserve + 8 in the clip. Fixed: no preload for a flat
+player (`VR_FlatReload_NewGameFlat`: `.vr_flatscreen`, else the engine's `vr_flatplay` in single player, since the parms
+are made before his first move): fresh `map e1m1` and `map start`, the shotgun drawn with 2: 17 + 8. The test timeouts
+were the test's: it waited for the reserve to drop, and flat reload shoots from the clip (the cheat's loaded gun);
+`vr_flatitems_test` now counts shells plus the main hand's clip. `flatitems_test.sh` 8/0 (no autoreload needed),
+`flatreload_test.sh` 38/0.

@@ -965,6 +965,7 @@ float cvarh_vr_flatgate_test;
 float cvarh_vr_flatitems_test;
 float cvarh_vr_flatkeys_test;
 float cvarh_vr_flatmove_test;
+float cvarh_vr_flatplay;
 float cvarh_vr_foegrab_by_mass;
 float cvarh_vr_foegrab_lift_time;
 float cvarh_vr_foegrab_lift_up;
@@ -2952,6 +2953,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flatitems_test = VR_CVar_Make("vr_flatitems_test");
     cvarh_vr_flatkeys_test = VR_CVar_Make("vr_flatkeys_test");
     cvarh_vr_flatmove_test = VR_CVar_Make("vr_flatmove_test");
+    cvarh_vr_flatplay = VR_CVar_Make("vr_flatplay");
     cvarh_vr_foegrab_by_mass = VR_CVar_Make("vr_foegrab_by_mass");
     cvarh_vr_foegrab_lift_time = VR_CVar_Make("vr_foegrab_lift_time");
     cvarh_vr_foegrab_lift_up = VR_CVar_Make("vr_foegrab_lift_up");

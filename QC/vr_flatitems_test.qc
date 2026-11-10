@@ -19,7 +19,7 @@ float vr_ffx_s;     // its state
 float vr_ffx_case;  // which pickup
 float vr_ffx_t0;    // when the state began (a stuck test: FAIL "timed out")
 float vr_ffx_wait;  // frames left before the state goes on (the word to the engine, the console's +attack)
-float vr_ffx_ammo;  // shells before the shot
+float vr_ffx_ammo;  // shells before the shot, the main hand's clip with them (flat reload: a shot takes its clip's)
 vector vr_ffx_from; // where the walk starts
 entity vr_ffx_item; // the pickup of this case
 
@@ -154,6 +154,13 @@ vector(entity p) VR_FFX_Ahead =
     return v_forward;
 };
 
+// The shells he has, his main hand's clip with them: a shot takes one from the clip (the starting shotgun comes loaded,
+// flat-screen play too; before 2026-11-10 it was empty and the shot was the empty clip's reload from the shells).
+float(entity p) VR_FFX_Rounds =
+{
+    return p.ammo_shells + VRGetEntWeaponClip(p, cVR_MainHand);
+};
+
 // ---- 1: held in the off hand, the shotgun fired.
 void(entity p) VR_FFX_Hold =
 {
@@ -215,7 +222,7 @@ void(entity p) VR_FFX_Hold =
         if(vr_ffx_item.model == string_null || VR_Carry_Held(p, cVR_OffHand) == vr_ffx_item)
         {
             dprint(sprintf("flatitems: %s %s\n", vr_ffx_item.classname, vr_ffx_item.model == string_null ? "taken at once" : "in the off hand"));
-            vr_ffx_ammo = p.ammo_shells;
+            vr_ffx_ammo = VR_FFX_Rounds(p);
             if(vr_ffx_on == 5)
             {
                 VR_FFX_To(10, 0); // (the shotgun after it, as he would: 2 cycles the right hand)
@@ -229,7 +236,7 @@ void(entity p) VR_FFX_Hold =
     if(vr_ffx_s == 11)
     {
         VR_Test_Check(p.currentammo == AID_SHELLS, sprintf("give n 40: the main hand's ammo id stays shells (%g)", p.currentammo));
-        vr_ffx_ammo = p.ammo_shells;
+        vr_ffx_ammo = VR_FFX_Rounds(p);
         localcmd("+attack\n");
         VR_FFX_To(5, 0);
         return;
@@ -249,11 +256,11 @@ void(entity p) VR_FFX_Hold =
     }
     if(vr_ffx_s == 5) // the shot
     {
-        if(p.ammo_shells < vr_ffx_ammo)
+        if(VR_FFX_Rounds(p) < vr_ffx_ammo)
         {
             localcmd("-attack\n");
-            VR_Test_Check(TRUE, sprintf("%s: the shot goes with it %s (shells %g to %g)", vr_ffx_item.classname,
-                vr_ffx_item.model == string_null ? "taken" : "held", vr_ffx_ammo, p.ammo_shells));
+            VR_Test_Check(TRUE, sprintf("%s: the shot goes with it %s (shells and clip %g to %g)", vr_ffx_item.classname,
+                vr_ffx_item.model == string_null ? "taken" : "held", vr_ffx_ammo, VR_FFX_Rounds(p)));
             VR_FFX_To(6, 4);
         }
         return;
