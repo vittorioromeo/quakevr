@@ -70,6 +70,12 @@ struct Slide
     const char* endWhy{""};  // why the last one ended (the tests, vr_flatmove_status)
     float lastZ{0.f};        // his height at the last move (a step up's rise)
     float startSpeed{0.f};
+    // The slide's stamina (vr_flat_slide_stamina, in vr_flat_slide_stamina_parts parts vr_flat_slide_stamina_step s
+    // apart: the first as it starts; one not yet due when it ends isn't charged).
+    double startedAt{0.0};
+    int partsPaid{0};
+    float staminaPaid{0.f};  // this slide's stamina so far (the tests, vr_flatmove_status)
+    int tiredRefusals{0};    // slides not started for want of the first part (the tests)
 };
 
 struct ServerState
@@ -110,6 +116,40 @@ bool leanHitOff = false; // vr_flatlean_test: the same shot with his box alone
         return glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
     }
     return glm::vec3{0.f, 0.f, 1.f};
+}
+
+// The slide's stamina (his note 2026-11-10: "1/3 as soon as the slide starts, 1/3 0.2s later, 1/3 0.4s later. This is
+// to prevent slides that get accidentally interrupted by small geometry from costing too much"): the same pool as
+// parries, shoves and the shoulder charge (the visor's STAM: QC VR_Stamina_Effort), only while that pool is used
+// (VR_Stamina_On). A part's cost, 0 when the slide is free.
+[[nodiscard]] int slideStaminaParts()
+{
+    return static_cast<int>(za::clamp(vr_flat_slide_stamina_parts.value, 1.f, 6.f));
+}
+
+[[nodiscard]] float slideStaminaPart()
+{
+    const float cost = za::clamp(vr_flat_slide_stamina.value, 0.f, 100.f);
+    return cost > 0.f && progs::staminaOn() ? cost / static_cast<float>(slideStaminaParts()) : 0.f;
+}
+
+// Each move of a slide: the parts now due (the first as it starts: partsPaid 0).
+void paySlideStamina(edict_t* ent, Slide& s, double now)
+{
+    const float part = slideStaminaPart();
+    const double step = static_cast<double>(za::clamp(vr_flat_slide_stamina_step.value, 0.f, 1.f));
+    while(s.on && part > 0.f && s.partsPaid < slideStaminaParts() &&
+          now - s.startedAt + 1e-6 >= step * static_cast<double>(s.partsPaid))
+    {
+        const float paid = part * progs::staminaEffort(ent, part, "a slide");
+        s.staminaPaid += paid;
+        s.partsPaid++;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatmove: slide stamina part %d of %d: %.1f (%.1f in all, %.1f left)\n", s.partsPaid,
+                slideStaminaParts(), paid, s.staminaPaid, progs::staminaLeft(ent));
+        }
+    }
 }
 
 void endSlide(Slide& s, double now)
@@ -158,6 +198,22 @@ struct SlideTest
     float jumpSpeed{0.f};
     bool seenSlide{false};
     double slideAt{0.0};
+    bool proneTried{false}; // the prone key pressed mid-slide (it must do nothing)
+    int startsWas{0};       // the tired crouch: slides and refusals before it
+    int refusalsWas{0};
+};
+
+// vr_flatslide_hit_test <0|1>: a slide into a crate (0) or a grunt (1) in vrtesthall's open south-west.
+struct SlideHitTest
+{
+    int phase{0};
+    int which{0};
+    double phaseAt{0.0};
+    int frames{0};
+    testkit::Tally tally;
+    int target{0};          // the crate's or the grunt's edict number
+    glm::vec3 from{0.f};    // its place before
+    int startsWas{0};
 };
 
 struct LeanTest
@@ -285,6 +341,7 @@ struct ClientState
     Lean lean;
     SlideView slide;
     SlideTest slideTest;
+    SlideHitTest slideHitTest;
     RoughTest roughTest;
     RampTest rampTest;
     LeanTest leanTest;
@@ -540,8 +597,27 @@ void slideTestFrame()
                 t.seenSlide = true;
                 t.slideAt = now;
             }
+            if(t.seenSlide && s.on && !t.proneTried && now - t.slideAt > 0.1)
+            {
+                t.proneTried = true; // (the prone key mid-slide: nothing, his bug of 2026-11-10)
+                Cbuf_InsertText("vr_prone_toggle\n");
+            }
             if(t.seenSlide && !s.on)
             {
+                {
+                    char pl1[200];
+                    q_snprintf(pl1, sizeof(pl1), "the prone key mid-slide does nothing (tried %d; lying %d, lie share %.2f, ended by %s)",
+                        t.proneTried ? 1 : 0, hull::isProne(pl) ? 1 : 0, flatplay::proneRatio(), s.endWhy);
+                    testCheck(t.tally, tag, t.proneTried && !hull::isProne(pl) && flatplay::proneRatio() < 0.01f &&
+                        !strcmp(s.endWhy, "slowed"), pl1);
+                    // Its stamina: all its parts (a slide of more than their steps), the cost in all.
+                    const float part = slideStaminaPart();
+                    const int parts = slideStaminaParts();
+                    q_snprintf(pl1, sizeof(pl1), "a whole slide's stamina: %.1f in %d parts (%.1f in %d asked)", s.staminaPaid,
+                        s.partsPaid, part * static_cast<float>(parts), parts);
+                    testCheck(t.tally, tag, part > 0.f && s.partsPaid == parts &&
+                        za::abs(s.staminaPaid - part * static_cast<float>(parts)) < 0.05f, pl1);
+                }
                 const float secs = static_cast<float>(now - t.slideAt);
                 const glm::vec3 at{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]};
                 const float dist = glm::length(glm::vec2{at - t.from});
@@ -589,13 +665,169 @@ void slideTestFrame()
                 testCheck(t.tally, tag, speed > 0.9f * t.jumpSpeed && t.jumpSpeed > 300.f, line);
                 q_snprintf(line, sizeof(line), "the jump ended the slide (sliding %d)", s.on ? 1 : 0);
                 testCheck(t.tally, tag, !s.on, line);
-                Cbuf_InsertText("-jump\n-flatcrouch\n");
+                // Cut short before its second part was due: its first part alone.
+                q_snprintf(line, sizeof(line), "a slide a jump cut short at 0.15 s pays its first part alone: %.1f in %d parts",
+                    s.staminaPaid, s.partsPaid);
+                testCheck(t.tally, tag, s.partsPaid == 1 && za::abs(s.staminaPaid - slideStaminaPart()) < 0.05f, line);
+                Cbuf_InsertText("-jump\n-flatcrouch\nvr_stamina_set 0.02\n");
+                next(6);
+            }
+            break;
+        case 6: // too tired (2 stamina of 100, a part 5): running again, crouch
+            if(!s.on && ground && speed > 300.f && now > s.cooldownUntil && !hull::flatCrouchHeld(pl) && inPhase > 0.2)
+            {
+                t.startsWas = s.starts;
+                t.refusalsWas = s.tiredRefusals;
+                Cbuf_InsertText("+flatcrouch\n");
+                next(7);
+            }
+            break;
+        case 7: // a plain crouch: no slide
+            if(inPhase > 0.3)
+            {
+                char line[200];
+                q_snprintf(line, sizeof(line), "too tired for its first part (%.1f left): no slide (slides %d -> %d, refused %d -> %d)",
+                    progs::staminaLeft(pl), t.startsWas, s.starts, t.refusalsWas, s.tiredRefusals);
+                testCheck(t.tally, tag, s.starts == t.startsWas && s.tiredRefusals > t.refusalsWas && !s.on, line);
+                Cbuf_InsertText("-flatcrouch\nvr_stamina_set 1\n");
                 next(99);
             }
             break;
         default:
             t.tally.verdict(tag);
             t = SlideTest{};
+            break;
+    }
+}
+
+// vr_flatslide_hit_test <0|1>: placed in vrtesthall's open south-west facing east, a crate (0: vr_physics_spawn vr_crate)
+// or a grunt (1: vr_kdtrig_test 20) 200 units ahead; he runs, crouches at speed and slides into it. 0: the crate goes on
+// at least 24 units ahead and off to the side (vr_flat_slide_prop_push, _side); 1: the grunt is knocked down or back
+// 16 units and more (the slide's charge: QC VR_KdTrig_SlideCharge). Then the verdict.
+void slideHitTestFrame()
+{
+    SlideHitTest& t = client.slideHitTest;
+    if(t.phase == 0)
+    {
+        return;
+    }
+    progs::ServerVm vm;
+    edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        return;
+    }
+    const char* tag = "flatslide_hit";
+    const double now = qcvm->time;
+    const Slide& s = server.slide[1];
+    const float speed = groundSpeed(pl);
+    const bool ground = (static_cast<int>(pl->v.flags) & FL_ONGROUND) != 0;
+    const double inPhase = now - t.phaseAt;
+    const auto next = [&](int phase) {
+        t.phase = phase;
+        t.phaseAt = now;
+        t.frames = 0;
+    };
+    constexpr float startX = -580.f, laneY = -440.f, crouchX = -520.f, aheadX = -380.f;
+    char line[256];
+    if(inPhase > 6.0 && t.phase != 99)
+    {
+        q_snprintf(line, sizeof(line), "timed out (step %d: speed %.0f, ground %d, sliding %d, slides %d)", t.phase, speed,
+            ground ? 1 : 0, s.on ? 1 : 0, s.starts);
+        testCheck(t.tally, tag, false, line);
+        Cbuf_InsertText("-forward\n-flatcrouch\n");
+        next(99);
+    }
+    switch(t.phase)
+    {
+        case 1: // place him (not setpos: it turns noclip on)
+            Cbuf_InsertText("-forward\n-flatcrouch\n");
+            pl->v.origin[0] = startX;
+            pl->v.origin[1] = laneY;
+            pl->v.origin[2] = 24.f;
+            pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+            SV_LinkEdict(pl, false);
+            cl.viewangles[YAW] = 0.f;
+            cl.viewangles[PITCH] = 0.f;
+            next(2);
+            break;
+        case 2: // settled: the target ahead
+            cl.viewangles[YAW] = 0.f;
+            if(++t.frames > 10 && ground)
+            {
+                q_snprintf(line, sizeof(line),
+                    t.which == 0 ? "vr_physics_spawn vr_crate %.0f\n"
+                                 : "vr_kdtrig_test_x %.0f; vr_kdtrig_test_y %.0f; vr_kdtrig_test_z 24; vr_kdtrig_test 20\n",
+                    t.which == 0 ? aheadX - pl->v.origin[0] : aheadX, laneY);
+                Cbuf_InsertText(line);
+                next(3);
+            }
+            break;
+        case 3: // it stands (half a second: the crate settles on the floor), found: run
+            cl.viewangles[YAW] = 0.f;
+            if(++t.frames == 36)
+            {
+                const char* cls = t.which == 0 ? "vr_crate" : "monster_army";
+                float best = 96.f;
+                progs::forEachEdict(1, [&](edict_t* e) {
+                    const float d = glm::length(glm::vec2{e->v.origin[0] - aheadX, e->v.origin[1] - laneY});
+                    if(!strcmp(PR_GetString(e->v.classname), cls) && d < best)
+                    {
+                        best = d;
+                        t.target = NUM_FOR_EDICT(e);
+                    }
+                });
+                if(!t.target)
+                {
+                    q_snprintf(line, sizeof(line), "no %s 200 units ahead", cls);
+                    testCheck(t.tally, tag, false, line);
+                    next(99);
+                    break;
+                }
+                const edict_t* e = EDICT_NUM(t.target);
+                t.from = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+                t.startsWas = s.starts;
+                Cbuf_InsertText("+forward\n");
+                next(4);
+            }
+            break;
+        case 4: // at speed, past the mark: crouch
+            cl.viewangles[YAW] = 0.f;
+            if(ground && speed > 300.f && pl->v.origin[0] > crouchX)
+            {
+                Cbuf_InsertText("+flatcrouch\n");
+                next(5);
+            }
+            break;
+        case 5: // the slide met it; a second for it to go (its push, its fall)
+            cl.viewangles[YAW] = 0.f;
+            if(++t.frames == 72 + 72)
+            {
+                edict_t* e = EDICT_NUM(t.target);
+                const glm::vec3 at{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+                const glm::vec3 moved = at - t.from;
+                q_snprintf(line, sizeof(line), "slid (slides %d -> %d)", t.startsWas, s.starts);
+                testCheck(t.tally, tag, s.starts > t.startsWas, line);
+                if(t.which == 0)
+                {
+                    q_snprintf(line, sizeof(line), "the crate slid into goes on %.1f units and %.1f to the side (24 and 2 asked)",
+                        moved.x, moved.y);
+                    testCheck(t.tally, tag, !e->free && moved.x >= 24.f && za::abs(moved.y) >= 2.f, line);
+                }
+                else
+                {
+                    const float down = progs::fieldFloatOr(e, progs::fields().vr_knockdown, 0.f);
+                    q_snprintf(line, sizeof(line), "the grunt slid into is knocked (down %.0f, back %.1f units; down or 16 back asked)",
+                        down, moved.x);
+                    testCheck(t.tally, tag, !e->free && (down > 0.f || moved.x >= 16.f), line);
+                }
+                Cbuf_InsertText("-forward\n-flatcrouch\n");
+                next(99);
+            }
+            break;
+        default:
+            t.tally.verdict(tag);
+            t = SlideHitTest{};
             break;
     }
 }
@@ -1768,6 +2000,20 @@ void slideTest_f()
     client.slideTest.phaseAt = qcvm->time;
 }
 
+void slideHitTest_f()
+{
+    if(!flatplay::active() || !sv.active)
+    {
+        Con_Printf("vr_flatslide_hit_test: flat-screen play (-flatscreenmode) in a game you host\n");
+        return;
+    }
+    client.slideHitTest = SlideHitTest{};
+    client.slideHitTest.phase = 1;
+    client.slideHitTest.which = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0 ? 1 : 0;
+    progs::ServerVm vm;
+    client.slideHitTest.phaseAt = qcvm->time;
+}
+
 void roughTest_f()
 {
     if(!flatplay::active() || !sv.active)
@@ -1889,7 +2135,8 @@ void status_f()
     if(sv.active)
     {
         const Slide& s = server.slide[1];
-        Con_Printf(", server: slides %d, last from %.0f u/s", s.starts, s.startSpeed);
+        Con_Printf(", server: slides %d, last from %.0f u/s, its stamina %.1f in %d parts, %d refused tired", s.starts,
+            s.startSpeed, s.staminaPaid, s.partsPaid, s.tiredRefusals);
     }
     Con_Printf("\n");
 }
@@ -1953,6 +2200,7 @@ void init()
     Cmd_AddCommand("-flatleanright", leanRightUp_f);
     Cmd_AddCommand("vr_flatslide_selftest", slideSelftest_f);
     Cmd_AddCommand("vr_flatslide_test", slideTest_f);
+    Cmd_AddCommand("vr_flatslide_hit_test", slideHitTest_f); // (0 a crate, 1 a grunt)
     Cmd_AddCommand("vr_flatslide_rough_test", roughTest_f);
     Cmd_AddCommand("vr_flatslide_ramp_test", rampTest_f);
     Cmd_AddCommand("vr_flatlean_test", leanTest_f);
@@ -1974,6 +2222,7 @@ void frame(bool on)
     if(on)
     {
         slideTestFrame();
+        slideHitTestFrame();
         roughTestFrame();
         rampTestFrame();
         leanTestFrame();
@@ -2003,6 +2252,12 @@ float leanShare()
 float proneLeanRoll()
 {
     return flatplay::active() ? client.lean.roll * flatplay::proneRatio() : 0.f;
+}
+
+bool slideOnServer(const edict_t* ent)
+{
+    const int num = clientSlot(ent);
+    return num >= 0 && slideOn() && server.slide[num].on;
 }
 
 bool slidePose()
@@ -2048,20 +2303,12 @@ float slideDrop()
 
 using namespace qvr;
 
-extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir, float wishspeed, float* velocity)
+namespace
 {
-    const int num = flatmove::clientSlot(ent);
-    if(num < 0)
-    {
-        return 0;
-    }
-    flatmove::Slide& s = flatmove::server.slide[num];
-    const double now = qcvm->time;
-    if(now < s.lastTime)
-    {
-        s = flatmove::Slide{}; // a new map (the clock starts again)
-    }
-    s.lastTime = now;
+
+int slideMove(edict_t* ent, flatmove::Slide& s, double now, int onground, const float* wishdir, float wishspeed,
+    float* velocity)
+{
     const bool held = hull::flatCrouchHeld(ent);
     const bool pressed = held && !s.held;
     // On the ground: Quake's flag, or the floor right under him and not going up (moving fast, the flag is off every
@@ -2114,10 +2361,26 @@ extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir
         {
             return 0;
         }
+        // Too tired for its first part: no slide, a plain crouch (the decision of 2026-11-10: not a weaker slide; the
+        // tired run is slower already, vr_stamina_speed).
+        const float part = flatmove::slideStaminaPart();
+        if(part > 0.f && progs::staminaLeft(ent) + 1e-3f < part)
+        {
+            s.tiredRefusals++;
+            if(vr_flatplay_debug.value)
+            {
+                Con_Printf("flatmove: no slide: %.1f stamina left, its first part is %.1f\n", progs::staminaLeft(ent), part);
+            }
+            return 0;
+        }
         s.on = true;
         s.starts++;
         s.groundSteps = s.airSteps = 0;
         s.startSpeed = speed;
+        s.startedAt = now;
+        s.partsPaid = 0;
+        s.staminaPaid = 0.f;
+        flatmove::paySlideStamina(ent, s, now);
         const float top = za::clamp(vr_flat_slide_max.value, 200.f, 1000.f);
         const float boosted = za::max(speed, za::min(speed + za::clamp(vr_flat_slide_boost.value, 0.f, 200.f), top));
         velocity[0] *= boosted / speed;
@@ -2145,6 +2408,30 @@ extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir
         flatmove::endSlide(s, now); // into the crouch: the walk's friction from the next move
     }
     return 1;
+}
+
+} // namespace
+
+extern "C" int VR_FlatSlideMove(edict_t* ent, int onground, const float* wishdir, float wishspeed, float* velocity)
+{
+    const int num = flatmove::clientSlot(ent);
+    if(num < 0)
+    {
+        return 0;
+    }
+    flatmove::Slide& s = flatmove::server.slide[num];
+    const double now = qcvm->time;
+    if(now < s.lastTime)
+    {
+        s = flatmove::Slide{}; // a new map (the clock starts again)
+    }
+    s.lastTime = now;
+    const int out = slideMove(ent, s, now, onground, wishdir, wishspeed, velocity);
+    // The stamina's later parts as they fall due (in the air too: the same slide), and QC's word of the slide on the
+    // ground (.vr_sliding: its charge into a monster, vr_kdtrig.qc VR_KdTrig_SlideCharge).
+    flatmove::paySlideStamina(ent, s, now);
+    progs::setFieldFloat(ent, progs::fields().vr_sliding, s.on && !s.airborne ? 1.f : 0.f);
+    return out;
 }
 
 extern "C" int VR_FlatSlideStepUp(edict_t* ent)

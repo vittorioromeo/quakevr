@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_flatmove.hpp"
 #include "vr_geom.hpp"
 
 namespace box3d::detail
@@ -225,13 +226,17 @@ void shoveBumped(float dt)
         // frame: what he has is what this frame's move gave him, less the ground's friction), up to all of it.
         const float full = za::max(0.5f * sv_accelerate.value * sv_maxspeed.value * dt, 1.f);
         const float u = za::max(vr_box3d_player_push_speed.value, 0.1f) * za::min(b.speed / full, 1.f);
-        const float target = u * share * mp / (share * mp + mb); // (his shove's mass and its own)
+        // A slide's (flat-screen play; his note 2026-11-10: "Sliding into props should push them forward and a bit to the
+        // side"): his whole body meeting it at his slide's speed, vr_flat_slide_prop_push of it shared by the two
+        // masses (his whole weight: a light box flies on, a heavy one barely goes), not a walk's friction-held shove.
+        const float slideU = b.slide ? b.speed / world->m2u * za::clamp(vr_flat_slide_prop_push.value, 0.f, 2.f) : 0.f;
+        const float target = b.slide ? slideU * mp / (mp + mb) : u * share * mp / (share * mp + mb); // (his mass and its own)
         const float along = glm::dot(glmv(b3Body_GetLinearVelocity(body)), b.dir);
         if(target <= along)
         {
             continue;
         }
-        const float impulse = za::min(mb * (target - along), share * mp * g * dt); // N s
+        const float impulse = b.slide ? mb * (target - along) : za::min(mb * (target - along), share * mp * g * dt); // N s
         // (Low, a quarter of its height up, under its centre: the floor's friction, at its bottom, doesn't tip a tall box
         // over as pushed at its centre it did.)
         edict_t* ent = EDICT_NUM(b.num);
@@ -874,10 +879,24 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
         return;
     }
     dir = glm::normalize(dir);
-    const float speed = ent->v.velocity[0] * dir.x + ent->v.velocity[1] * dir.y;
+    float speed = ent->v.velocity[0] * dir.x + ent->v.velocity[1] * dir.y;
     if(speed < 1.f)
     {
         return;
+    }
+    // Sliding (flat-screen play): pushed on along his slide's way, turned vr_flat_slide_prop_side degrees to the side its
+    // middle is off his line (dead ahead: to his right), at his level speed (shoveBumped).
+    const glm::vec3 level{ent->v.velocity[0], ent->v.velocity[1], 0.f};
+    const bool slide = qvr::flatmove::slideOnServer(ent) && vr_flat_slide_prop_push.value > 0.f && glm::length(level) > 1.f;
+    if(slide)
+    {
+        const glm::vec3 run = glm::normalize(level);
+        const glm::vec3 off{0.5f * (other->v.absmin[0] + other->v.absmax[0]) - ent->v.origin[0],
+            0.5f * (other->v.absmin[1] + other->v.absmax[1]) - ent->v.origin[1], 0.f};
+        const float side = run.x * off.y - run.y * off.x > 0.f ? 1.f : -1.f; // (+: to his left)
+        const float a = side * glm::radians(za::clamp(vr_flat_slide_prop_side.value, 0.f, 60.f));
+        dir = glm::vec3{run.x * za::cos(a) - run.y * za::sin(a), run.x * za::sin(a) + run.y * za::cos(a), 0.f};
+        speed = glm::length(level);
     }
     for(World::Bump& b : world->bumps)
     {
@@ -887,11 +906,16 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
             {
                 b.dir = dir;
                 b.speed = speed;
+                b.slide = slide;
             }
             return;
         }
     }
-    world->bumps.pushBack({num, g, dir, speed});
+    world->bumps.pushBack({num, g, dir, speed, slide});
+    if(slide && vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: player %d slides into %d at %.0f u/s\n", num, g, speed);
+    }
 }
 
 // A prop wedged in the level (its box still in it 2 units inside its surface: Box3D can't push it out, of the level nor
