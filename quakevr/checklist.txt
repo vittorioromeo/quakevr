@@ -23,6 +23,9 @@ With developer 1, shooting things no longer fills the console with "particle2:" 
 Flat-screen: hold the right mouse button with a melee weapon facing a sword grunt: every one of its blows is parried, flat slashes too; turn your back to it and its blows land. {test:flat_parry}
 Flat-screen: after a parry your weapon glows gold with embers for the counter's window, as in the headset. {test:flat_parry}
 Start the Armour Studio near an armed grunt, then leave the menu (or close the studio's window): the grunt fights again and your blows hurt it. {test:armourstudio_close}
+Punch a grunt corpse's head over and over, then each arm and leg: the head pops off and each limb comes off in turn, and the body never bursts into gibs. {test:ragdoll_punch}
+Club a grunt corpse with a gun several times (flat screen: V): it is knocked about and bleeds but does not burst into gibs. {test:ragdoll_gunswing}
+Flat-screen: cut a grunt's head or arm off with the axe: the cut-off part flies off a little faster than in a headset (Cut-Off Parts: Fling Speed, 1.25x). {test:flat_fling}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
