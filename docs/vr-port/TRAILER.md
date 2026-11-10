@@ -214,18 +214,48 @@ keeps them). VR: the gadget's IN / OUT, or the chord (`vr_takes_chord`): hold th
 (out); 2: the right grip with A / B. Those presses never reach the game, and only during a take. `vr_take_list`
 prints the session's takes with their marks.
 
+### Voice notes
+
+A voice note (off hand at the mouth, hold Y: VOICENOTES.md) during a take keeps its time in the take. Transcribe the
+notes before ending the session (`python Misc/quakevr/transcribe_notes.py`): the session's end reads each note's
+`<note>.transcript.txt` and puts its text on the timeline's marker and in session.json (the note's name when there is
+no transcript yet).
+
+### Scene snapshots and retakes
+
+`vr_take_setup` (gadget SET UP; Graphics > Recording > Set Up Scene) saves this moment as the scene's snapshot: a
+savegame `take_<scene>.sav` in the game folder (the map, the toolgun's props and every entity, where you stand).
+`vr_take_retake` (gadget RETAKE) stops a running take, loads the snapshot and starts a new take by itself once the game
+runs again (`vr_takes_retake_delay` s later, 0.5).
+
 ### The session
 
 `vr_takes_session start` (Graphics > Recording > Start Take Session; the first take or clip opens one too) keeps OBS's
 connection and its replay buffer on, and shows the take buttons on the wrist gadget's screen in place of the HUD
-(`vr_takes_gadget`; touch them as Doom's). The gadget is in the spectator camera's view: its HIDE button brings the HUD
-back until the next take ends. `vr_takes_session end` lists the session and stops the replay buffer.
+(`vr_takes_gadget`; touch them as Doom's): TAKE/STOP, CLIP, IN, OUT; KEEP, MAYBE, REJECT; SET UP, RETAKE, END, HIDE.
+The gadget is in the spectator camera's view: HIDE brings the HUD back until the next take ends.
+
+`vr_takes_session end` (gadget END) writes `<OBS's folder>/session_<when it opened>/`:
+
+- the **keep** and **maybe** files, moved there (rejected/ and the unrated takes and clips stay where they are);
+- **session.json**: every take and clip (rejected ones too), its rating, file, length, in and out, marks and voice
+  notes (time, file, transcript);
+- **timeline.fcpxml** (FCPXML 1.10): in Resolve, File > Import > Timeline, pick it: the keep takes in the order shot,
+  each trimmed to its in and out marks (the whole take without), then the maybe ones; the in marks and voice notes
+  inside a clip as markers. Its frame rate and size are OBS's output settings (GetVideoSettings: what OBS records at);
+  if OBS never said, 60 fps is assumed and session.json says so (`fps_from_obs`).
+
+`python Misc/quakevr/fcpxml_check.py <timeline.fcpxml> [--files]` checks a timeline against FCPXML 1.9/1.10's rules
+for what it uses (nesting and attributes as the DTD has them, ids and refs, times on the frame grid, clips without gaps
+and within their files, markers within their clips) and that the files are there.
 
 ### Tests
 
 `vr_obs_mock 1` answers every OBS request in the game (no OBS: each request printed, dummy recording files in
-`vr_obs_mock_dir`). `vr_takes_test <folder>` runs takes, marks, ratings, a clip and the numbering against it
-(`run.sh <tree> -Script "vr_takes_test <folder>" -QuitOn "vr_takes_test: \d+ passed"`).
+`vr_obs_mock_dir`). `vr_takes_test <folder>` (in a map: its retake needs one) runs takes, marks, a voice note,
+ratings, a clip, the numbering, the session's folder, session.json, the timeline and a retake against it, and prints
+the timeline's path for fcpxml_check.py (`run.sh <tree> -Script "map start;wait60;vr_takes_test <folder>" -QuitOn
+"vr_takes_test: \d+ passed"`).
 
 ## Notes
 

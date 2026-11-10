@@ -1495,6 +1495,9 @@ outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget
 
 Arena messages on the wrist (ROUND24.md "Survival Arena: its messages on the wrist gadget"): `developer 1;map vrarena;
 wait5;god;vr_arena_test 39` with `-QuitOn "arena: test [0-9]+ over"` (`panelboard_read` what 4..8: the hologram's arena block).
+Arena weapon schedule (ROUND24.md "Survival Arena: every armed humanoid's weapon"): `developer 1;map vrarena;wait5;god;
+vr_arena_test 12` (the table over seeded plans) and `vr_arena_test 40` (each row's drop taken and fired), `-QuitOn
+"arena: test [0-9]+ over"`; with AD's paks in the agent's base every AD row is checked too.
 Arena banners (panel boards, ROUND24.md "Arena banners: the gadget's layout"): `map vrarena; vr_arena_test 38` with
 `-QuitOn "test 38 over"`: each board's text from the server's list, and the pixels of the image drawn from it on the client
 (`panelboard_read`) in the tile that moved and only there: countdown, perk choice, fight, foes' bar, time, score, off (image

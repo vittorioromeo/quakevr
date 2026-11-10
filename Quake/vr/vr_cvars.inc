@@ -362,7 +362,8 @@ QVR_CVAR(vr_takes_prompt_time, "10", CVAR_ARCHIVE)     // seconds the rating pro
 QVR_CVAR(vr_takes_gadget, "1", CVAR_ARCHIVE)           // 1: the wrist gadget's screen shows the takes' touch buttons while a take session is open (vr_takes_session); 0: never
 QVR_CVAR(vr_takes_chord, "1", CVAR_ARCHIVE)            // in/out marks by controller during a take: 1 both thumbsticks clicked (in, then out); 2 off-hand stick click while the off grip is held; 0 off
 QVR_CVAR(vr_takes_clip_seconds, "30", CVAR_ARCHIVE)    // a clip's length on the timeline when OBS does not say (its Replay Buffer's Maximum Replay Time)
-QVR_CVAR(vr_takes_connect_wait, "5", CVAR_ARCHIVE)     // seconds an action waits for OBS's connection (a take asked for before it is connected)
+QVR_CVAR(vr_takes_retake_delay, "0.5", CVAR_ARCHIVE)  // seconds after a retake's snapshot is loaded before its take starts (the view settled)
+QVR_CVAR(vr_takes_connect_wait, "5", CVAR_ARCHIVE)    // seconds an action waits for OBS's connection (a take asked for before it is connected)
 QVR_CVAR(vr_takes_keys, "0", CVAR_ARCHIVE)             // the take keys' version set (F7 take, F8 clip, Home in, PgUp out, keypad 1/2/3 keep/maybe/reject): set once where unbound
 // Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion"): the whole simulation slowed (the server, the client's time,
 // VR's own simulations on vr_gametime); the headset's view in real time; the hands follow their controllers slowed.
