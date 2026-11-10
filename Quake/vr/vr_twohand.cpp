@@ -366,7 +366,9 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
     float bladeDist = 1e9f;
-    if(bladeAt > 0.f && length > 8.f)
+    // (Flatscreen play: never the blade. A melee weapon's two-handed hold is on its grip there (vr_flat_melee_grip; his notes
+    // 2026-11-10: it took the blade, the "sword" spot); the view chooses that grip, vr_view_weapon.cpp's chooseGrip.)
+    if(bladeAt > 0.f && length > 8.f && !(flatplay::active() && vr_flat_melee_grip.value != 0.f))
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         bladeDist =

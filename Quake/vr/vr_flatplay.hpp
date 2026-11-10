@@ -70,6 +70,14 @@ struct FireRoute
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
 [[nodiscard]] bool meleeIn(int h);
 
+// meleeIn less the chainsaw: a melee weapon swung by a handle (the axe, mjolnir, a sword, the crowbar, the super axe, AD's
+// blades): its two-handed grip is the lowest on that handle (vr_view_weapon.cpp's chooseGrip).
+[[nodiscard]] bool swungMelee(int h);
+
+// The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
+// `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
+[[nodiscard]] float parryShare(int h);
+
 // How hand `h` must be turned for the weapon it holds to shoot along the forward of `angles`, whatever its Shot Pitch and
 // Yaw (the drawn gun and its muzzle follow the hand). A hand holding nothing: `angles`.
 [[nodiscard]] glm::vec3 aimRotAt(const glm::vec3& angles, int h);

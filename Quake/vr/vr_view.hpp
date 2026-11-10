@@ -346,6 +346,10 @@ enum class HandPart : unsigned char
 // (A tracked hand takes the one nearest it instead: chooseGrip.)
 [[nodiscard]] int twoHandSpot(const hands::State& s, int hand, glm::vec3& at);
 
+// The grip hotspot the other hand takes on `hand`'s weapon (chooseGrip, as of the last frame drawn), and its type
+// (weapons::HotspotType as an int); -1: none.
+[[nodiscard]] int chosenGripSpot(int hand, int& type);
+
 // Where `hand` was drawn this or last frame, and how turned; false: it wasn't.
 [[nodiscard]] bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot);
 
