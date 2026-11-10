@@ -426,7 +426,7 @@ void CL_SendMove (const usercmd_t *cmd)
 			bits |= 1;
 		in_attack.state &= ~2;
 
-		if (in_jump.state & 3)
+		if (VR_MoveJump (in_jump.state)) // QVR: flatscreen play, lying down: the jump press stands him up instead
 			bits |= 2;
 		in_jump.state &= ~2;
 
