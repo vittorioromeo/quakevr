@@ -8481,3 +8481,26 @@ Left: vr_cvars.inc is used by ~330 files, so one header can't do better. The nex
 names-only declaration header written only when the names change (a default's edit, most of tune_promote's and many
 merges, would then recompile vr_cvars.cpp / vr_tunables.cpp alone), or splitting vr_cvars.inc per subsystem: both
 change the generators' inputs (the checks' lane), so not done here.
+
+## QC precedence check: compares progs.dat, not asm listings (branch `agent/qcprec2`, worktree `qcprec2`, 2026-11-10)
+
+Vittorio asked why the precedence check is slow ("Yes, do it"): it compiled the QC twice with `-Fwasm` and fteqcc
+wrote, and the tool read, ~1.7 GB of listing per compile.
+
+- `Tools/qvr_checks/qc_compiles.cpp`: both compiles (QC priorities, `-Fcpriority`; still in parallel) now write only
+  `progs.dat`, plus `progs.lno` (fteqcc writes it, each statement's source line, when the file names are kept:
+  `-Ono-filenames` after `-O3`; no warning). The tool reads both progs (FTE 32-bit: statements, functions, globaldefs)
+  and compares each function's statements, operands written by what they are, not where (the two compiles number
+  globals and immediates independently): return/parm globals by offset, locals and local temporaries by their offset
+  in the function's locals, named globals by name, anything else (immediates; shared temporaries, always 0) by value
+  (a string immediate by its text, a vector's three words); jump operands raw. The line is the first differing
+  statement's (`.lno`), the file the function's own (`s_file`): no more guessing the file from the QC sources.
+- Message format unchanged except the function's name: the progs has no signature, so `visible: QC/ai.qc:12`, not
+  `float(entity) visible: ...` (sorted by name).
+- Same verdicts: the current tree passes; with injected bugs (assignment `x = a && b`, a field's `self.f = a || b`,
+  `a && b ? c : d` in an assignment and a return, `a || b && c` in a return and an `if`, `!a == b`, `a & b == c`,
+  a constant-folded `6 & 2 == 2`, a three-statement function with the bug on its last line, and a parenthesised
+  control) in an early file (vr_util.qc: every later global shifts) and a late one (ai.qc), the old exe and the new
+  report the same 10 functions with the same files and lines, the control in neither.
+- Time (`qvr_checks all --times`, back to back): qc_precedence 9.95 s -> 3.36 s (about one compile). Work files: two
+  13 MB progs + 2.6 MB .lno, emptied after use (was 2 x 1.7 GB).

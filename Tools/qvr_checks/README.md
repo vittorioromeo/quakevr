@@ -26,8 +26,8 @@ qvr_checks [--tree DIR] [--fteqcc PATH] <check> [arguments]      (--tree: the re
 ```
 
 `all --qchash H` skips the precedence check when `scratch/.qc_precedence_pass` holds H (the kit's `qc_hash.py`) and
-writes it on a pass. Work files: `build/qcrelease/`, `build/qcprec/` (the precedence check's ~1.7 GB listings are
-emptied after each run).
+writes it on a pass. Work files: `build/qcrelease/`, `build/qcprec/` (the precedence check's two progs.dat and
+progs.lno, ~16 MB each, are emptied after each run).
 
 Not Windows: the tool uses Win32 for processes and file mapping. `progs_format.sh` is the progs-format check in
 plain sh (the flatpak, `QC/build.sh` elsewhere).
