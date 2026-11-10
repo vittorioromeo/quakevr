@@ -37,7 +37,9 @@ cp "$D/script.cfg" "$GAME/id1/qvrbench.cfg"
 [ -n "$SETTINGS" ] && cp "$SETTINGS" "$GAME/id1/qvrbench_settings.cfg"
 printf 'vr_backend mock\nsv_autosave 0\nvr_mock_fast 1\nexec qvrbench.cfg\n' > "$GAME/id1/autoexec.cfg"
 : > "$GAME/qconsole.log"
-EXE=$WT/Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe
+# Profiles want the ThinLTO build (ReleaseLTO) when the tree has one; else the Release (dev, no-LTO) exe.
+EXE=$WT/Windows/VisualStudio/Build-ironwail/bin/x64/ReleaseLTO/ironwail.exe
+[ -f "$EXE" ] || EXE=$WT/Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe
 EXEW=$(cygpath -w "$EXE"); GAMEW=$(cygpath -w "$GAME"); DW=$(cygpath -w "$D")
 export QVR_NO_ERROR_DIALOG=1 QVR_TEST_BACKGROUND=1 QVR_TEST_HIDDEN=1
 ARGS=(-basedir "$GAMEW" -game hipnotic -game rogue -game quakevr -foreignconfigs -condebug -window -width 960 -height 540 -nosound)
