@@ -613,13 +613,20 @@ void testStep()
         if(wait(c.holster[0] == WID_NAILGUN && c.hand[0] == WID_FIST, "h0 L: the left hand's nailgun into the left shoulder"))
         {
             result(true, "h0 L: the left hand's nailgun into the left shoulder");
-            Cbuf_AddText("screenshot\n"); // (the menu with a holster full)
-            press("h0 r");
             next();
         }
         break;
     case 4:
-        if(wait(c.holster[0] == WID_SHOTGUN && c.hand[1] == WID_NAILGUN, "h0 R: the shoulder's nailgun and the right hand's shotgun traded"))
+        // The menu with a holster full, still for a moment (its thumbnails made, a few a frame): its picture, then h0 R.
+        if(test.frames == 20)
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        if(test.frames == 40)
+        {
+            press("h0 r");
+        }
+        if(test.frames > 40 && wait(c.holster[0] == WID_SHOTGUN && c.hand[1] == WID_NAILGUN, "h0 R: the shoulder's nailgun and the right hand's shotgun traded"))
         {
             result(true, "h0 R: the shoulder's nailgun and the right hand's shotgun traded");
             press("swap");

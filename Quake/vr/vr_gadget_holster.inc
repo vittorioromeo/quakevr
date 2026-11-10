@@ -103,16 +103,25 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
     fill(r.x + 1.f, r.y + 1.f, 1.f, 3.f, pal.value);
     fill(r.x + r.z - 4.f, r.y + r.w - 2.f, 3.f, 1.f, pal.value);
     fill(r.x + r.z - 2.f, r.y + r.w - 4.f, 1.f, 3.f, pal.value);
-    holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, 5.f, s.title, pal.label, pal);
-    const float picSize = za::min(r.z - 8.f, r.w - 20.f);
+    holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, 6.f, s.title, pal.label, pal);
+    const float picSize = za::min(r.z - 8.f, r.w - 22.f);
     if(!empty && s.model[0] && picSize > 4.f)
     {
         if(const gfx::Picture* pic = toolgun::icons::get(s.model, 0, true))
         {
-            gfx::draw2D::picture(*pic, r.x + (r.z - picSize) * 0.5f, r.y + 9.f, picSize, picSize);
+            // On a lit plate, brightened: Quake's dark guns on the dark face read as nothing (Shade::Screen's inkAlpha
+            // leaves the dark clear).
+            const float px = r.x + (r.z - picSize) * 0.5f, py = r.y + 11.f;
+            fill(px, py + picSize * 0.2f, picSize, picSize * 0.6f, pal.label * 0.45f);
+            gfx::draw2D::color(glm::vec4{1.8f, 1.8f, 1.8f, 1.f});
+            gfx::draw2D::picture(*pic, px, py, picSize, picSize);
+            gfx::draw2D::color(glm::vec4{1.f});
         }
     }
-    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 8.f, 5.f, empty ? "- EMPTY -" : s.name, empty ? pal.dim : pal.value, pal);
+    // The name as large as fits (6 pixels a character at most).
+    const char* name = empty ? "- EMPTY -" : s.name;
+    const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<size_t>(strlen(name), 1)));
+    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 3.f - size, size, name, empty ? pal.dim : pal.value, pal);
 }
 
 void holsterButton(const HolsterMenuButton& b, const Palette& pal)
@@ -126,7 +135,7 @@ void holsterButton(const HolsterMenuButton& b, const Palette& pal)
     holsterIcon(b.icon, iconX, r.y + r.w * 0.5f, ink);
     if(labelled)
     {
-        drawText(iconX + 7.f, r.y + r.w * 0.5f - 2.5f, 5.f, b.label, ink, pal);
+        drawText(iconX + 7.f, r.y + r.w * 0.5f - 3.f, 6.f, b.label, ink, pal);
     }
 }
 
@@ -145,7 +154,7 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     gfx::begin2D(t, w, h);
     fill(0.f, 0.f, v.size.x, v.size.y, visorBlack);
     holsterOutline({1.f, 1.f, v.size.x - 2.f, v.size.y - 2.f}, pal.line * 0.6f);
-    drawText(6.f, 4.f, 7.f, v.header, pal.label, pal);
+    drawText(6.f, 4.f, 8.f, v.header, pal.label, pal);
     fill(6.f, 13.f, v.size.x - 12.f, 1.f, pal.line * 0.5f);
     for(int i = 0; i < v.lineCount; i++)
     {
@@ -159,7 +168,7 @@ VisorImage holsterMenuRender(const HolsterMenuView& v)
     {
         holsterButton(v.buttons[i], pal);
     }
-    holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 5.f, v.footer, pal.dim * 1.6f, pal);
+    holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 6.f, v.footer, pal.dim * 1.6f, pal);
     gfx::end2D();
     out.texture = t.texture;
     out.size = v.size;
