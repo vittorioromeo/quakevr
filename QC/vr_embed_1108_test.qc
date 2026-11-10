@@ -7,12 +7,16 @@
 // 3  a blade left in a body (17:09): a force grab finds it from in front, through its own host.
 // 4  a blade's strike on a dead ragdoll (17:07): its wound where it struck, not from its box's middle.
 // 5  a shot across a gib skewered on the blade in the hand (17:10): it hits it, off the blade.
+// 6  an axe swung into a dead ragdoll (2026-11-10): it stays in, the ragdoll not gibbed.
 // Ends `embed1108: N passed, M failed`.
 
 float vr_e8_v;     // a number kept across states
 vector vr_e8_at;
 float vr_e8_brake; // Running Stab: Brake as the test began
 entity vr_e8_g;    // case 5's gib
+float vr_e8_rag;   // case 6's step: 1 the grunt killed, 2 the ragdoll struck
+float vr_e8_limbs; // and the settings it turns off meanwhile
+float vr_e8_decap;
 
 void() VR_E8_Begin =
 {
@@ -119,7 +123,57 @@ void() VR_E8_Step =
         }
         return;
     }
-    if(vr_et_case > 5)
+    // ---- 6: an axe swung into a dead ragdoll (his note 2026-11-10: "still completely gibs it instead of embedding the axe"):
+    // it stays in, the ragdoll whole (its blow the living's: VR_Corpse_BladeBlowDamage)
+    if(vr_et_case == 6)
+    {
+        if(vr_et_s == 0 && vr_e8_rag == 0)
+        {
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            vr_et_m = VR_ET_Grunt(44);
+            vr_e8_rag = 1;
+            // (Limb and head cuts off for it: a ragdoll's random pose may put an arm or the neck under the blade, and a
+            // cut goes through, rightly unstuck; this case is the gib or the stick.)
+            vr_e8_limbs = cvar_hget(cvarh_vr_limbs_corpses);
+            vr_e8_decap = cvar_hget(cvarh_vr_decap_corpses);
+            cvar_set("vr_limbs_corpses", "0");
+            cvar_set("vr_decap_corpses", "0");
+            vr_et_t0 = time;
+            return;
+        }
+        if(vr_et_s == 0 && vr_e8_rag == 1)
+        {
+            if(vr_et_m.health > 0 && t > 0.1)
+            {
+                vr_et_m.health = 1;
+                T_Damage(vr_et_m, p, p, 2);
+                vr_et_t0 = time;
+            }
+            else if(vr_et_m.health <= 0 && t > 2.5)
+            {
+                VR_Test_Check(isragdoll(vr_et_m) && !vr_et_m.vr_gib, "case 6: the grunt lies dead, a ragdoll");
+                vr_ee_target = vr_et_m;
+                vr_eh_down = 1;
+                vr_e8_rag = 2;
+                vr_corpse_last_hit = -1;
+            }
+            return;
+        }
+        if(VR_EH_Blow(WID_AXE, 7, 0, TRUE, t))
+        {
+            VR_Test_Check(!vr_et_m.vr_gib && vr_et_m.model != string_null, sprintf("an axe swung into it doesn't gib it (its blow %.1f on its corpse health, overkill %g)", vr_corpse_last_hit, cvar_hget(cvarh_vr_corpse_gib_overkill)));
+            VR_Test_Check(VR_EH_Blade() != world, "the axe stays in it, held");
+            vr_ee_target = world;
+            vr_eh_down = 0;
+            vr_e8_rag = 0;
+            cvar_set("vr_limbs_corpses", ftos(vr_e8_limbs));
+            cvar_set("vr_decap_corpses", ftos(vr_e8_decap));
+            VR_E8_Next();
+        }
+        return;
+    }
+    if(vr_et_case > 6)
     {
         VR_Test_Verdict();
         vr_et_on = 0;
