@@ -1416,6 +1416,7 @@ float cvarh_vr_parry_tool_heavy;
 float cvarh_vr_parry_tool_weapon;
 float cvarh_vr_parry_unarmed;
 float cvarh_vr_parry_unarmed_reduction;
+float cvarh_vr_particle_near_cull;
 float cvarh_vr_pickup_float_grace_swat;
 float cvarh_vr_pickup_float_grace_time;
 float cvarh_vr_pickup_prop_models;
@@ -3396,6 +3397,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_parry_tool_weapon = VR_CVar_Make("vr_parry_tool_weapon");
     cvarh_vr_parry_unarmed = VR_CVar_Make("vr_parry_unarmed");
     cvarh_vr_parry_unarmed_reduction = VR_CVar_Make("vr_parry_unarmed_reduction");
+    cvarh_vr_particle_near_cull = VR_CVar_Make("vr_particle_near_cull");
     cvarh_vr_pickup_float_grace_swat = VR_CVar_Make("vr_pickup_float_grace_swat");
     cvarh_vr_pickup_float_grace_time = VR_CVar_Make("vr_pickup_float_grace_time");
     cvarh_vr_pickup_prop_models = VR_CVar_Make("vr_pickup_prop_models");

@@ -7448,8 +7448,14 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
   blood now pours from the drawn body's skin: the spot binds to the posed mesh's nearest triangle (avatar::posedMesh once
   a wound; avatar::posedPoint skins three vertices a frame, sharing posedMesh's skinning), the capsule its fallback when
   the body isn't posed. The player gore test: 9 of 9 bound to the skin, the capsule surface about 2 units off it.
-- **Not done:** the skewered limb's burst blood (lead: VR_Gib_Burst's origin is the gib's absmin/absmax, which may be
-  stale for a gib driven by the skewer's think without a relink; no near-eye cull of particles was found). Release-TracyFull
-  build not made.
+- **A skewered limb's burst blood (his "I see the small gibs, but not the blood particles"):** not stale (the skewer moves
+  it by setorigin), but VR_Gib_Burst put the blood at the gib's unturned box middle (absmin/absmax): a cut part's box lies
+  off its origin, so on a blade it was 1-3 units off a limb and 11 off a head (test 26). Now at VR_Gib_Middle, its box's
+  middle turned with it, where it rides (0.0 units off). The blood effects do reach the client there (developer 1:
+  `particle2:` lines, each with its distance from the eyes): blood 8, 8, 8, 8, 16 and the gore burst 10, at the limb, 1 m
+  off in the mock. A limb a few units off can't hide its blood, so the rest of his case is likely the near-eye particle
+  fade (Particle Fade Near Eyes 30 cm, Particles Hidden Nearer 10 cm: the burst sprays toward you from a blade held
+  close); left as it is (his comfort settings), to check in VR. `vr_embed_test 31` (`embedburst`): a limb on the sword
+  burst by the other hand's blow.
 - **Pre-existing:** tests 11, 7, 13, 24 fail 15/8/9/1 checks at origin/next here with the changes switched off (stabs not
   sticking in the mock); with them on, 17/7/8/1, different checks each run.

@@ -2831,6 +2831,67 @@ vector(float xBack) VR_ETS_OnLine =
 };
 
 // A head as a gibbing throws it (ThrowHead: its .gorging for life; 1.5 of a gib's health).
+// vr_embed_test 31 (his note vrtesthall_2026-11-10_02-13-13: a skewered limb punched off the blade, "I see the small gibs, but I
+// don't see the blood particles"): a limb on the sword in the main hand, the other hand's blow bursts it: its blood bursts where
+// it is on the blade (developer 1: each blood effect's `particle2:` line, how near the eyes). Ends `embedburst: N passed, M failed`.
+void() VR_ETB_Step =
+{
+    entity p = self;
+    entity g = vr_ets_r;
+    float t = time - vr_et_t0;
+    if(vr_et_s == 0)
+    {
+        cvar_set("vr_embed", "1");
+        localcmd("+grabmain\n");
+        VR_ET_To(10);
+    }
+    else if(vr_et_s == 10 && VR_HandGrabUtil_IsHandGrabbing(p, cVR_MainHand))
+    {
+        VR_EH_Give(WID_SWORD, 0);
+        VR_Blow(cVR_MainHand).mh_far = '0 0 0';
+        VR_ET_To(1);
+    }
+    else if(vr_et_s == 1 && VR_Blow(cVR_MainHand).mh_far != '0 0 0')
+    {
+        makevectors(p.v_angle);
+        vr_ets_r = VR_ETS_Gib(p, VR_ETS_OnLine(0));
+        vr_ets_r.vr_prop_mass = 12.4; // (a soldier's leg)
+        VR_ET_To(2);
+    }
+    else if(vr_et_s == 2 && g.takedamage)
+    {
+        VR_ETS_PutOn(g, 0);
+        VR_ETS_Blow(p, g, VR_MKIND_STAB, 6);
+        VR_Test_Check(g.vr_gib && g.vr_skewer_p == p, "the limb on the blade");
+        VR_ET_To(3);
+    }
+    else if(vr_et_s == 3 && t > 0.3) // (riding the blade a while: the hand's moves carry it)
+    {
+        makevectors(p.v_angle);
+        vector at = VR_Gib_Middle(g);
+        vector unturned = (g.absmin + g.absmax) * 0.5;
+        makevectors(p.v_angle);
+        vr_gib_burst_at = '0 0 0';
+        VR_Gib_Blow(cVR_OffHand, g, 12, at, v_right);
+        float cmF = 0.01 * VRMetersToUnits();
+        vector eyes = p.origin + p.view_ofs;
+        VR_Test_Print(sprintf("%s: burst at %v, the limb's middle as drawn %v (its box's unturned %v), %.0f cm from the eyes\n", vr_test_tag, vr_gib_burst_at, at,
+            unturned, vlen(vr_gib_burst_at - eyes) / cmF));
+        VR_Test_Check(vr_gib_burst_at != '0 0 0' && !g.vr_gib, "the other hand's blow bursts it");
+        VR_Test_Check(vlen(vr_gib_burst_at - at) < 3, sprintf("its blood bursts at the limb as drawn on the blade (%.1f units off; its unturned box's middle %.1f)",
+            vlen(vr_gib_burst_at - at), vlen(unturned - at)));
+        VR_Test_Check(vlen(vr_gib_burst_at - eyes) / cmF > max(0, cvar_hget(cvarh_vr_particle_near_cull)) + 5,
+            sprintf("further than the particles hidden near the eyes (%.0f cm, Particles Hidden Nearer %.0f)", vlen(vr_gib_burst_at - eyes) / cmF, cvar_hget(cvarh_vr_particle_near_cull)));
+        VR_ET_To(4);
+    }
+    else if(vr_et_s == 4 && t > 0.2) // (the effects' messages out and drawn)
+    {
+        localcmd("-grabmain\n");
+        VR_Test_Verdict();
+        vr_et_on = 0;
+    }
+};
+
 entity(entity p, vector xAt) VR_ETS_Head =
 {
     entity g = VR_ETS_Gib(p, xAt);
@@ -4023,6 +4084,11 @@ void() VR_LA_Step =
         VR_Test_Check(vlen(hm) > 20 * cm && vlen(gm - hm) < 1.5, sprintf("it rides the blade: the hand went %.1f units, the %s %.1f, %.2f apart", vlen(hm), what, vlen(gm), vlen(gm - hm)));
         VR_Test_Check(fabs(p.vr_skewer_load_main_x - VR_Skewer_Mass(g)) < 0.01 && p.vr_skewer_load_main_x > 0,
             sprintf("its weight in the hand: %.2f kg (its %.2f)", p.vr_skewer_load_main_x, VR_Skewer_Mass(g)));
+        // (His note 2026-11-10: a limb on the blade burst, its blood unseen. A burst's blood goes to VR_Gib_Middle: where it rides, not
+        // its unturned box's middle, which a cut part's box off its origin puts elsewhere.)
+        vector unturned = (g.absmin + g.absmax) * 0.5;
+        VR_Test_Check(vlen(VR_Gib_Middle(g) - g.vr_skewer_c) < 2, sprintf("case %g: a burst's blood would come where it rides (%.1f units off; its unturned box's middle %.1f; %.0f cm from the eyes)",
+            vr_et_case, vlen(VR_Gib_Middle(g) - g.vr_skewer_c), vlen(unturned - g.vr_skewer_c), vlen(g.vr_skewer_c - (p.origin + p.view_ofs)) / cm));
         vr_la_h0 = VRGetHandPos(cVR_MainHand);
         if(vr_et_case <= 1)
         {
@@ -4131,6 +4197,12 @@ void() VR_Embed_TestFrame =
             VR_Test_BeginFlags("embedskewer", VR_TEST_LOUD);
             cvar_set("vr_embed_probe", "reset");
             vr_et_on = 21;
+            VR_ET_To(0);
+        }
+        if(ask == 31)
+        {
+            VR_Test_BeginFlags("embedburst", VR_TEST_LOUD);
+            vr_et_on = 31;
             VR_ET_To(0);
         }
         if(ask == 22)
@@ -4290,6 +4362,20 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_ET_NextCase();
         }
         VR_ET_Step();
+    }
+    else if(vr_et_on == 31)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            localcmd("-grabmain\n");
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+        else
+        {
+            VR_ETB_Step();
+        }
     }
     else if(vr_et_on == 21)
     {
