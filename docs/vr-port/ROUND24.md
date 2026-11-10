@@ -7430,6 +7430,29 @@ Shove And Melee (`vr_tunables.inc`).
 - **Images**: `scratch/flatmelee_before.png` (the old behaviour through the new switches) and
   `scratch/flatmelee_after.png`: the shove's windup and full push, a punch at its reach, the axe's top, mid-strike and
   end.
+## Flat hands: the drop key, the quick grenade, the hand swap (agent/flat_hands, 2026-11-10)
+
+His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
+
+- **12, the drop catching the gun as a prop.** `VR_Forcegrab_FlatDropHand` tried `VRTryHandOff` first: with a weapon held
+  in both hands (the Enforcer's rifle, the nail gun) the off hand on its grip was handed the weapon, carried by its
+  fore-end (`QVR_WPNFLAG_FOREGRIP_CARRIED`, drawn hanging like a prop). The drop key now always drops (`DropWeaponInHand`);
+  "sometimes" was when two-handed aiming was on (or within 0.1 s of it).
+- **13, drop on H.** `vr_flat_key_drop` (default `h`), `vr_flat_key_grenade` (default `g`), both in the keys the mode owns
+  (`VR_FlatKeyOwned`) and the Desktop Keys row's list. G was hard-coded (`keydown['g']`), so no saved bind existed to
+  migrate; his `ironwail.cfg` binds neither G nor H.
+- **14, the quick grenade.** FLATPLAY.md, "The quick grenade". Shared with the headset: the pouch grenade
+  (`VR_HandGrenade_Take`, `_Arm`, `_Ammo*`), the carry and its throw (`VR_Carry_Start`, `VR_Carry_Loose`, `VR_Carry_Throw`,
+  `VR_Throw_Inherit`, `VR_Grenade_Released`). Flat-only: the hand choice, the phases, the explicit throw velocity (no
+  tracked hand to measure: the speed from the wind-up's length) and the drawn poses. Decision: the fire button's two
+  steps (arm, then a press held winds up) are the default, `vr_flat_grenade_arm_mode 0` makes it one press (his words read
+  either way; two presses lets a grenade be cooked). The throw assist (`VRThrowAssist`) is not used: the crosshair aims.
+- **17, the hand swap.** FLATPLAY.md, "The hand swap": client-side timing, the game's swap unchanged.
+- Files: `QC/vr_flatgrenade.qc`, `Quake/vr/vr_flatgrenade.cpp`, `vr_flatswap.cpp`; hooks in `vr_flatplay.cpp` (keys,
+  `routeFire`, punches), `vr_flatsight.cpp`, `vr_twohand.cpp`; `STAT_QVR_FLATGREN`; tunables Flatscreen > Hand Swap and
+  > Quick Grenade; rows on Desktop Screen Play; Debug > Reports: the grenade's and the swap's reports and prints.
+  Test: `Misc/quakevr/flathands_test.sh` + `flathands_check.py`; scenarios `flat_drop`, `flat_quick_grenade`,
+  `flat_hand_swap`.
 ## Flat slide: stamina, charge, prop push, pose, no prone (branch `agent/flat_slide2`, worktree `embed5`, 2026-11-10)
 
 His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", has the whole of it).

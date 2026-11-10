@@ -1349,6 +1349,9 @@ vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options 
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_grenade|1|Locomotion|Quick Grenade (G)|Advanced VR Options > Movement > Locomotion > Quick Grenade (G)
+vr_flat_grenade_arm_mode|1|Locomotion|Quick Grenade Fire Button|Advanced VR Options > Movement > Locomotion > Quick Grenade Fire Button
+vr_flat_swap_anim|1|Locomotion|Hand Swap Animation|Advanced VR Options > Movement > Locomotion > Hand Swap Animation
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
 vr_flat_shove|1|Locomotion|Shove Key (Mouse 5)|Advanced VR Options > Movement > Locomotion > Shove Key (Mouse 5)
 vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movement > Locomotion > Shove Cooldown
@@ -4058,6 +4061,35 @@ vr_flat_reload_down|2|Tunables|Reload: Down Time|Advanced VR Options > Debug > T
 vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > Tunables > Reload: Hold Time
 vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
 vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug > Tunables > Reload: Muzzle Down
+vr_flat_swap_in|2|Tunables|Swap: Meet Time|Advanced VR Options > Debug > Tunables > Swap: Meet Time
+vr_flat_swap_out|2|Tunables|Swap: Back Time|Advanced VR Options > Debug > Tunables > Swap: Back Time
+vr_flat_swap_gap|2|Tunables|Swap: Hands Apart|Advanced VR Options > Debug > Tunables > Swap: Hands Apart
+vr_flat_swap_down|2|Tunables|Swap: Meet Lower|Advanced VR Options > Debug > Tunables > Swap: Meet Lower
+vr_flat_grenade_fetch_time|2|Tunables|Grenade: Pouch Time|Advanced VR Options > Debug > Tunables > Grenade: Pouch Time
+vr_flat_grenade_up_time|2|Tunables|Grenade: Up Time|Advanced VR Options > Debug > Tunables > Grenade: Up Time
+vr_flat_grenade_fetch_fwd|2|Tunables|Grenade: Pouch Forward|Advanced VR Options > Debug > Tunables > Grenade: Pouch Forward
+vr_flat_grenade_fetch_out|2|Tunables|Grenade: Pouch Out|Advanced VR Options > Debug > Tunables > Grenade: Pouch Out
+vr_flat_grenade_fetch_down|2|Tunables|Grenade: Pouch Down|Advanced VR Options > Debug > Tunables > Grenade: Pouch Down
+vr_flat_grenade_fetch_pitch|2|Tunables|Grenade: Pouch Pitch|Advanced VR Options > Debug > Tunables > Grenade: Pouch Pitch
+vr_flat_grenade_hold_fwd|2|Tunables|Grenade: Hold Forward|Advanced VR Options > Debug > Tunables > Grenade: Hold Forward
+vr_flat_grenade_hold_out|2|Tunables|Grenade: Hold Out|Advanced VR Options > Debug > Tunables > Grenade: Hold Out
+vr_flat_grenade_hold_down|2|Tunables|Grenade: Hold Down|Advanced VR Options > Debug > Tunables > Grenade: Hold Down
+vr_flat_grenade_hold_pitch|2|Tunables|Grenade: Hold Pitch|Advanced VR Options > Debug > Tunables > Grenade: Hold Pitch
+vr_flat_grenade_wind_time|2|Tunables|Grenade: Wind-Up Time|Advanced VR Options > Debug > Tunables > Grenade: Wind-Up Time
+vr_flat_grenade_wind_fwd|2|Tunables|Grenade: Overhead Forward|Advanced VR Options > Debug > Tunables > Grenade: Overhead Forward
+vr_flat_grenade_wind_out|2|Tunables|Grenade: Overhead Out|Advanced VR Options > Debug > Tunables > Grenade: Overhead Out
+vr_flat_grenade_wind_up|2|Tunables|Grenade: Overhead Up|Advanced VR Options > Debug > Tunables > Grenade: Overhead Up
+vr_flat_grenade_wind_pitch|2|Tunables|Grenade: Overhead Pitch|Advanced VR Options > Debug > Tunables > Grenade: Overhead Pitch
+vr_flat_grenade_wind_full|2|Tunables|Grenade: Full Wind-Up|Advanced VR Options > Debug > Tunables > Grenade: Full Wind-Up
+vr_flat_grenade_speed_min|2|Tunables|Grenade: Throw Speed Min|Advanced VR Options > Debug > Tunables > Grenade: Throw Speed Min
+vr_flat_grenade_speed_max|2|Tunables|Grenade: Throw Speed Max|Advanced VR Options > Debug > Tunables > Grenade: Throw Speed Max
+vr_flat_grenade_throw_up|2|Tunables|Grenade: Throw Above Aim|Advanced VR Options > Debug > Tunables > Grenade: Throw Above Aim
+vr_flat_grenade_follow_time|2|Tunables|Grenade: Follow-Through Time|Advanced VR Options > Debug > Tunables > Grenade: Follow-Through Time
+vr_flat_grenade_follow_fwd|2|Tunables|Grenade: Follow Forward|Advanced VR Options > Debug > Tunables > Grenade: Follow Forward
+vr_flat_grenade_follow_out|2|Tunables|Grenade: Follow Out|Advanced VR Options > Debug > Tunables > Grenade: Follow Out
+vr_flat_grenade_follow_down|2|Tunables|Grenade: Follow Down|Advanced VR Options > Debug > Tunables > Grenade: Follow Down
+vr_flat_grenade_follow_pitch|2|Tunables|Grenade: Follow Pitch|Advanced VR Options > Debug > Tunables > Grenade: Follow Pitch
+vr_flat_grenade_back_time|2|Tunables|Grenade: Back Time|Advanced VR Options > Debug > Tunables > Grenade: Back Time
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
@@ -4778,6 +4810,10 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+|2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
+vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print
+|2|Debug - Reports|Flatscreen Swap Report|Advanced VR Options > Debug > Reports > Flatscreen Swap Report
+vr_flat_swap_debug|2|Debug - Reports|Flatscreen Swap Print|Advanced VR Options > Debug > Reports > Flatscreen Swap Print
 vr_flat_reload_pose|2|Debug - Reports|Flatscreen: Hold Gun At Hip|Advanced VR Options > Debug > Reports > Flatscreen: Hold Gun At Hip
 vr_handsource_debug|2|Debug - Reports|Print Hand Motion Source|Advanced VR Options > Debug > Reports > Print Hand Motion Source
 vr_handsource_force|2|Debug - Reports|Force Hands Synthesized|Advanced VR Options > Debug > Reports > Force Hands Synthesized

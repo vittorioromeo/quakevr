@@ -100,6 +100,7 @@ void(float xHand, float xAid) updateAmmoCounter =
 
 float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
 void() VR_FlatReload_Key;
+void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
@@ -4660,7 +4661,7 @@ void() ImpulseCommands =
         return;
     }
 
-    // Flatscreen play (-flatscreenmode): G drops what a hand holds, the main hand's first (vr_flatplay.cpp reads the key
+    // Flatscreen play (-flatscreenmode): H (vr_flat_key_drop) drops what a hand holds, the main hand's first (vr_flatplay.cpp reads the key
     // and sends the impulse; vr_wpnforcegrab.qc does it). Nobody else's impulse: it stays unused in a headset game.
     if(self.impulse == 47 && VR_FlatPlay(self))
     {
@@ -4685,6 +4686,15 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_FlatReload_Key();
+        return;
+    }
+
+    // Flatscreen play: G takes a grenade from the back pouch into a free hand (vr_flatgrenade.cpp reads the key,
+    // vr_flat_key_grenade; vr_flatgrenade.qc). Nobody else's impulse.
+    if(self.impulse == 57 && VR_FlatPlay(self))
+    {
+        self.impulse = 0;
+        VR_FlatGrenade_Key();
         return;
     }
 

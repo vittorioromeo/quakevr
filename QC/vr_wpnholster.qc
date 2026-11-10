@@ -88,6 +88,7 @@ void(float xHolster, float v) setHolsterWeaponFlags =
 }
 
 void(float xHand) VR_FlatReload_HandFrame; // (vr_flatreload.qc)
+void() VR_FlatGrenade_Frame; // (vr_flatgrenade.qc)
 
 float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 {
@@ -1457,7 +1458,7 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
 // Flatscreen play's Q (impulse 48, vr_flatplay.cpp; his words 2026-11-05: "a button to swap left/right hand contents"):
 // what the two hands hold changes hands, each weapon with its record (its magazine, its id) and its next shot's time; a
 // weapon in one hand goes to the empty other. A hand carrying a thing (a box, a prop: VR_Carry_Held) keeps it, and then
-// nothing is swapped (a carried thing is G's to let go). Prints "flat swap:" (developer 1).
+// nothing is swapped (a carried thing is the drop key's (H) to let go). Prints "flat swap:" (developer 1).
 void(entity ent) VR_FlatSwapHands =
 {
     if(VR_Carry_Held(ent, cVR_MainHand) != world || VR_Carry_Held(ent, cVR_OffHand) != world)
@@ -1752,6 +1753,7 @@ void() W_Frame =
     VR_Reload_HandFrame(cVR_OffHand);
     VR_FlatReload_HandFrame(cVR_MainHand); // flat-screen play's reload: R, the empty clip, the trip to the hip (vr_flatreload.qc)
     VR_FlatReload_HandFrame(cVR_OffHand);
+    VR_FlatGrenade_Frame(); // flat-screen play's quick grenade: G, the pouch, the arming, the wind-up and the throw (vr_flatgrenade.qc)
 
     UpdateHolsterHover(self);
 
