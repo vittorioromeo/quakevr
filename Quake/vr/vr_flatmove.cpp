@@ -2484,14 +2484,15 @@ extern "C" int VR_FlatKeyOwned(int key)
         return 0;
     }
     for(const cvar_t* c : {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_grab_alt, &vr_flat_key_reload,
-            &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust})
+            &vr_flat_key_prone, &vr_flat_key_bullettime, &vr_flat_key_flycam, &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust,
+            &vr_flat_key_drop, &vr_flat_key_grenade})
     {
         if(c->string[0] && Key_StringToKeynum(c->string) == key)
         {
             return 1;
         }
     }
-    return key == 'f' || key == 'g' || key == 'v' ? 1 : 0;
+    return key == 'f' || key == 'v' ? 1 : 0;
 }
 
 extern "C" void VR_FlatMoveScale(float* forwardmove, float* sidemove)

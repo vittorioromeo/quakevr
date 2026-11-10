@@ -59,6 +59,10 @@ Flat-screen: Slide into the grunt at full speed: it is knocked back or down as b
 Flat-screen: Slide into the wooden crate: it is shoved on ahead and a little to the side, further the faster you slide. {test:flat_slide_hit}
 Flat-screen: Look down mid-slide: the feet roll a little to the right and the left knee is bent up; Slide Foot Roll, Slide Knee Bend and Slide Bent Knee Leg in Debug > Tunables > Flatscreen > Slide change it. {test:flat_slide_stamina}
 Flat-screen: Press the prone key (X) mid-slide: nothing happens and the slide goes on; once it has ended X lies you down as before. {test:flat_slide_stamina}
+Flat-screen: with a rocket launcher held in both hands press H: the gun falls and the left hand on its grip stays empty, it no longer catches the gun as a prop; G no longer drops anything. {test:flat_drop}
+Flat-screen: press G with a rocket launcher in both hands: the left hand leaves the grip, goes down to the pouch and comes back up holding an unarmed grenade (one rocket gone); G again before arming puts it back. {test:flat_quick_grenade}
+Flat-screen: with the quick grenade held, its fire button arms it (pin, fizz), the next press held raises the hand overhead and letting go throws it at the crosshair, further the longer you held; the left hand goes back onto the gun's grip after. {test:flat_quick_grenade}
+Flat-screen: press 3 with one gun or a gun in each hand: both hands come together, the weapons change hands where they meet, and they go back; with a gun held in both hands the free hand comes off the grip to the gun's hand, the swap happens there, and the other hand takes the grip. {test:flat_hand_swap}
 [2. VR: body, lying down and swimming]
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}
