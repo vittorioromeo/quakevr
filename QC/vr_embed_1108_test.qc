@@ -8,6 +8,8 @@
 // 4  a blade's strike on a dead ragdoll (17:07): its wound where it struck, not from its box's middle.
 // 5  a shot across a gib skewered on the blade in the hand (17:10): it hits it, off the blade.
 // 6  an axe swung into a dead ragdoll (2026-11-10): it stays in, the ragdoll not gibbed.
+// 7-10 an axe swung and a sword's stab that stay in the training dummy, then in a grunt, pulled out: their blood (the
+//    client's: Misc/quakevr/embed_blood_test.sh judges it).
 // Ends `embed1108: N passed, M failed`.
 
 float vr_e8_v;     // a number kept across states
@@ -173,7 +175,100 @@ void() VR_E8_Step =
         }
         return;
     }
-    if(vr_et_case > 6)
+    // ---- 7-10: a blow that stays in, pulled out (his note 2026-11-10: "if I stab the dummy with the axe, then the axe
+    // doesn't get bloody at all on the blade"): 7 an axe swung into the training dummy, 8 a sword's stab into it, 9 and 10
+    // the same into a grunt. The blood is the client's (vr_wounds.cpp): `embedblood:` marks and vr_gore_hands_info's gear
+    // lines, stuck and back in the hand, for the script (Misc/quakevr/embed_blood_test.sh) to judge.
+    if(vr_et_case >= 7 && vr_et_case <= 10)
+    {
+        float dummy = vr_et_case <= 8;
+        float wid = (vr_et_case == 7 || vr_et_case == 9) ? WID_AXE : WID_SWORD;
+        if(vr_et_s == 0 && vr_e8_rag == 0)
+        {
+            setorigin(p, vr_eh_home);
+            p.velocity = '0 0 0';
+            localcmd("vr_wounds_debug 1\n");
+            entity g = VR_ET_Grunt(wid == WID_AXE ? 44 : 54);
+            if(dummy)
+            {
+                entity d = spawn();
+                d.classname = "monster_army"; // (as the map's: the dummy stands as a grunt)
+                setorigin(d, g.origin);
+                d.angles = g.angles;
+                remove(g);
+                entity os = self;
+                self = d;
+                vr_dummy();
+                self = os;
+                g = d;
+            }
+            else
+            {
+                g.health = 500;
+            }
+            vr_et_m = g;
+            vr_e8_rag = 1;
+            vr_et_t0 = time;
+            return;
+        }
+        if(vr_et_s == 0 && vr_e8_rag == 1)
+        {
+            if(t > 0.6)
+            {
+                vr_ee_target = vr_et_m;
+                vr_e8_rag = 2;
+            }
+            return;
+        }
+        if(vr_et_s < 10)
+        {
+            if(!dummy && vr_et_m.health > 0)
+            {
+                vr_et_m.nextthink = time + 0.5; // (stands still for the blow)
+                vr_et_m.velocity = '0 0 0';
+            }
+            if(VR_EH_Blow(wid, wid == WID_AXE ? 7 : 6, 0, wid == WID_AXE, t))
+            {
+                VR_Test_Check(VR_EH_Blade() != world, sprintf("case %g: the %s stays in the %s", vr_et_case,
+                    wid == WID_AXE ? "axe swung" : "sword's stab", dummy ? "dummy" : "grunt"));
+                VR_ET_To(10);
+            }
+            return;
+        }
+        if(vr_et_s == 10 && t > 0.2) // (before the stuck blade's own bleeding adds to it)
+        {
+            localcmd(sprintf("echo embedblood: %g stuck\nvr_gore_hands_info\n", vr_et_case));
+            if(w != world)
+            {
+                VR_EH_HandTo(VRGetHandPos(cVR_MainHand) - w.vr_stick_dir * 50, 1.6);
+            }
+            VR_ET_To(11);
+        }
+        else if(vr_et_s == 11 && ((w == world && VRGetEntWeapon(p, cVR_MainHand) == wid) || t > 4))
+        {
+            VR_Test_Check(w == world && VRGetEntWeapon(p, cVR_MainHand) == wid, "pulled out: back in the hand");
+            VR_ET_To(12);
+        }
+        else if(vr_et_s == 12 && t > 0.5)
+        {
+            // (Asked while the hand still holds it: the next case empties the hand.)
+            localcmd(sprintf("echo embedblood: %g in hand\nvr_gore_hands_info\nvr_wounds_debug 0\n", vr_et_case));
+            VR_ET_To(13);
+        }
+        else if(vr_et_s == 13 && t > 0.3)
+        {
+            vr_ee_target = world;
+            vr_e8_rag = 0;
+            if(dummy)
+            {
+                remove(vr_et_m); // (the dummy: not a grunt the cases clean up)
+                vr_et_m = world;
+            }
+            VR_E8_Next();
+        }
+        return;
+    }
+    if(vr_et_case > 10)
     {
         VR_Test_Verdict();
         vr_et_on = 0;

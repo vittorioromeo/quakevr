@@ -7713,3 +7713,32 @@ were the test's: it waited for the reserve to drop, and flat reload shoots from 
   burst by the other hand's blow.
 - **Pre-existing:** tests 11, 7, 13, 24 fail 15/8/9/1 checks at origin/next here with the changes switched off (stabs not
   sticking in the mock); with them on, 17/7/8/1, different checks each run.
+
+## Blades left in a body keep their blood (his note 2026-11-10; agent vn1110_dummyblood)
+
+His notes: "Embedded blades don't seem to get bloody in the place that we're embedded in ... if I stab the dummy with the
+axe, then the axe doesn't get bloody at all on the blade", then "it was an issue with the dummy specifically, the axe
+seems to get bloody in other situations".
+
+- **Probe** (`vr_embed_test 28` cases 7-10, `vr_gore_hands_info` read stuck and back in the hand): on origin/next the
+  stuck blade does take blood (the splash onto what lies near the wound, then its own bleeding hits), but only round the
+  wound, and pulled out it kept little of it: axe in the dummy 238 texels stuck, 86 in the hand; sword in the dummy 133 ->
+  97; sword in a grunt 253 -> 115 (an axe in a grunt kept it, 94 -> 98: whichever came first). The guess (the hand empties
+  in the frame the wound comes, so the blow's spatter finds no blade in it) held too: the blow's blood never reached the
+  part that went in.
+- **Why the blood was lost:** a weapon's blood is one mask keyed by its id (`maskOfWeapon`; `gearFrame` puts it on whatever
+  shows the id). Back in the hand, before `gearFrame` moved its mask over, something painted the held weapon (the pull-out's
+  spurt through `paintOnYou`, a bloody hand's grip print through `gripPrint`/`paintPalm`): that made the view weapon a new
+  mask, bound it to the id, and `bindWeapon` freed the older one ("the newer wins") with everything it carried. The
+  hand's stat often still says no weapon that frame.
+- **Fix** (`Quake/vr/vr_wounds.cpp`): `wearWeaponMask` puts the weapon's existing mask on what is about to be painted
+  (`paintOnYou`'s held weapon, `paintPalm`), and `heldWeaponId` takes the hand's last weapon id while its stat isn't in yet.
+  The embedding blow's blood is owed to the blade (`OwedBlood`: the wound, the blow's way, the hand's last weapon id, for
+  0.5 s; the hand's id kept 0.5 s after it lets go, `lastHandSeen`, as the blow can come in after the hand is empty):
+  once the weapon shows as a world entity (the stuck blade) `payOwedBlood` paints its part that went in, from the wound 10
+  units in along the blow (5 spots, 3.5 units). A blow whose blade never stayed in gives it up.
+- **Test** (`bash Misc/quakevr/embed_blood_test.sh <agent>`, `embedblood:`): for an axe swung and a sword's stab into the
+  dummy and a grunt, the blow's blood on the part that went in, blood stuck, blood in the hand, and the hand keeping at least
+  0.8 of it: 16/0 (axe/dummy 856 -> 963, sword/dummy 210 -> 422, axe/grunt 1347 -> 1377, sword/grunt 496 -> 626). Before:
+  the part-that-went-in checks and three keep checks fail. `embed1108` 24/0 (case 6, an axe into a ragdoll, fails now and
+  then: the ragdoll's random pose).
