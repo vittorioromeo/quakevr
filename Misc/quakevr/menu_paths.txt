@@ -711,6 +711,9 @@ vr_takes|1|Recording|Takes|Advanced VR Options > Body and Display > Recording (W
 |1|Recording|Out Mark|Advanced VR Options > Body and Display > Recording (Window View) > Out Mark
 |1|Recording|Start Take Session|Advanced VR Options > Body and Display > Recording (Window View) > Start Take Session
 |1|Recording|End Take Session|Advanced VR Options > Body and Display > Recording (Window View) > End Take Session
+|1|Recording|Set Up Scene|Advanced VR Options > Body and Display > Recording (Window View) > Set Up Scene
+|1|Recording|Retake|Advanced VR Options > Body and Display > Recording (Window View) > Retake
+vr_takes_retake_delay|1|Recording|Retake Delay|Advanced VR Options > Body and Display > Recording (Window View) > Retake Delay
 vr_takes_replay|1|Recording|Replay Buffer in a Session|Advanced VR Options > Body and Display > Recording (Window View) > Replay Buffer in a Session
 vr_takes_gadget|1|Recording|Wrist Gadget Buttons|Advanced VR Options > Body and Display > Recording (Window View) > Wrist Gadget Buttons
 vr_takes_chord|1|Recording|Mark Chord|Advanced VR Options > Body and Display > Recording (Window View) > Mark Chord

@@ -1,6 +1,6 @@
 # takes: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Takes and clips through OBS (vr_takes.cpp; TRAILER.md, "Takes and clips"): a take session open, its buttons on the wrist gadget.
 title Takes and clips: take, rate, clip, marks
-hint With OBS running (WebSocket and Replay Buffer on): TAKE on the wrist gadget (or F7), act, STOP, then KEEP / MAYBE / REJECT. Hold the left grip and press X / Y for in / out marks. CLIP (F8) saves the last seconds. Check OBS's folder.
+hint With OBS running (WebSocket and Replay Buffer on): TAKE on the wrist gadget (or F7), act, STOP, then KEEP / MAYBE / REJECT. Hold the left grip and press X / Y for in / out marks. CLIP (F8) saves the last seconds. SET UP, then RETAKE, replays the scene with a new take. END writes session_<date>/ with the timeline. Check OBS's folder.
 map vrtesthall
 god
 notarget
