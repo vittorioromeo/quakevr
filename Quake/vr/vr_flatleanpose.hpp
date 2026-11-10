@@ -4,6 +4,9 @@
 // whether it fires and how far its shot is off the crosshair's point. Checks: leant, each gun is where the upright pose
 // turned rigidly with the upper body round the lean's pivot puts it (vr_flat_lean_arms), fires, and its shot goes through
 // the crosshair; at the wall, no gun's trigger stopped that was free upright there.
+// Also vr_flatslidepose_test [x y z yaw] [keep] [shots] [level] [main:off ...] (ROUND24.md, "Flat slide: the arms ride the
+// eye"): each pair crouched still, then sliding (its start, middle and end), level, 20 down and 20 up: mid-slide and at its
+// end each gun where the crouched one is on the screen (pose and drawn), its roll kept, firing through the crosshair's point.
 
 #pragma once
 
