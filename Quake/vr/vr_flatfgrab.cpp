@@ -28,6 +28,7 @@
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_twohand.hpp"
+#include "vr_walltorch.hpp"
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -69,6 +70,8 @@ struct GrabState
 {
     Grab grab[2];
     float carry[2]{0.f, 0.f}; // the carry pose's share, before its ease
+    float upright[2]{0.f, 0.f}; // a held torch's turn flame up, its share before its ease (vr_flat_torch_upright)
+    float torchOff[2]{-1.f, -1.f}; // that torch's stick off upright as drawn, degrees, after the turn (-1: no torch; vr_flat_fg_report)
     double lastTime{-1e9};
     int presses{0}, sent{0}, refused{0}, doubled{0};
 };
@@ -97,6 +100,8 @@ GrabState gs;
     glm::vec3 at{0.f};
     return fgfx::handTarget(h, ent, state, at) && state == 3;
 }
+
+[[nodiscard]] bool torchIn(int h); // (below)
 
 // Whether hand `h` can take E's grab now: empty (as the game's VRIsHandEmpty: no weapon, nothing carried), not holding the
 // torch, not on a grab of its own, and nothing still flying to it.
@@ -147,9 +152,10 @@ void report_f()
         glm::vec3 at{0.f};
         const bool known = fgfx::handTarget(h, ent, state, at);
         Con_Printf("flatfgrab: %s hand: %s, share %.2f, open %.2f, carry %.2f, palm off %.1f deg, %s, server %d state %d, "
-                   "empty %d\n",
+                   "empty %d, fist prop %d fist %.2f, torch %d upright %.2f off %.1f deg\n",
             handName(h), phaseName(g.phase), g.share, openShare(h), carryShare(h), g.palmOff, g.detached ? "from the grip" : "free",
-            known ? ent : 0, known ? state : 0, held::handEmpty(h) ? 1 : 0);
+            known ? ent : 0, known ? state : 0, held::handEmpty(h) ? 1 : 0, flatplay::propInFist(h) ? 1 : 0, flatplay::fistShare(h),
+            torchIn(h) ? 1 : 0, geom::smooth01(gs.upright[h]), gs.torchOff[h]);
     }
     Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs.presses,
         gs.sent, gs.refused, gs.doubled);
@@ -289,6 +295,45 @@ void carryPose(hands::State& s, int h, const glm::vec3& aim)
     blendTo(s, h, pos, glm::mat3{f, -r, u}, k);
 }
 
+// The wall torch (our stick, vr_walltorch.cpp) drawn in `h` alone.
+[[nodiscard]] bool torchIn(int h)
+{
+    const int ent = held::heldEntity(h);
+    return ent > 0 && ent < cl.num_entities && held::heldEntity(1 - h) != ent && walltorch::isStick(cl_entities[ent]);
+}
+
+// A torch held in one hand turned flame up (vr_flat_torch_upright; his note 2026-11-10: flatscreen only): the hand turned
+// the short way round until the stick it holds (its place in the hand: held::placeInHand; the stick's +x is its head, QC
+// VR_WallTorch_Take) stands upright, by the eased share. The hand's own turn is what the game places the torch from, so the torch turns with it.
+// gs.torchOff: how far off upright the stick is after it (vr_flat_fg_report, the tests).
+void uprightPose(hands::State& s, int h)
+{
+    gs.torchOff[h] = -1.f;
+    glm::vec3 origin{0.f}, other{0.f};
+    glm::mat3 axes{1.f};
+    bool both = false;
+    if(!torchIn(h) || held::placeInHand(h, origin, axes, both, other) == 0 || both)
+    {
+        return;
+    }
+    const glm::mat3 hand = held::axesFromAngles(&s.rot[h].x, true);
+    const glm::vec3 stick = glm::normalize(hand * axes[0]);
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    const float k = geom::smooth01(gs.upright[h]);
+    glm::vec3 now = stick;
+    if(k > 0.f)
+    {
+        glm::vec3 axis = glm::cross(stick, up);
+        const float angle = za::acos(za::clamp(glm::dot(stick, up), -1.f, 1.f));
+        axis = glm::length(axis) > 1e-4f ? glm::normalize(axis) : hand[0]; // (head straight down: over the hand's forward)
+        const glm::quat turn = glm::angleAxis(angle * k, axis);
+        const glm::mat3 m = glm::mat3_cast(turn) * hand;
+        s.rot[h] = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
+        now = glm::normalize(glm::mat3_cast(turn) * stick);
+    }
+    gs.torchOff[h] = glm::degrees(za::acos(za::clamp(glm::dot(now, up), -1.f, 1.f)));
+}
+
 } // namespace
 
 void init()
@@ -420,12 +465,17 @@ void frame(bool on)
         default: g.share = 0.f; break;
         }
 
-        // The carry pose: a prop in this hand alone (not a weapon, not one held in both), eased in and out.
+        // The carry pose held up in front (vr_flat_carry_pose 1): a prop in this hand alone (not a weapon, not one held in
+        // both), eased in and out. (2, the default: the prop in the fist, in the guard: flatplay's empty hand's pose.)
         const int ent = held::heldEntity(h);
-        const bool carrying = vr_flat_carry_pose.value != 0.f && ent != 0 && flatplay::heldIn(h) < 0 &&
+        const bool carrying = za::round(flatplay::poseNum(vr_flat_carry_pose)) == 1.f && ent != 0 && flatplay::heldIn(h) < 0 &&
                               held::heldEntity(h == HAND_MAIN ? HAND_OFF : HAND_MAIN) != ent;
         const float ease = static_cast<float>(dt) / za::max(0.02f, vr_flat_carry_time.value);
         gs.carry[h] = za::clamp(gs.carry[h] + (carrying ? ease : -ease), 0.f, 1.f);
+        // A torch held in one hand turned flame up (vr_flat_torch_upright), not while it strikes or reaches.
+        const bool upright = vr_flat_torch_upright.value != 0.f && torchIn(h) && !flatplay::punching(h) &&
+                             !flatplay::shoving(h) && g.phase != Phase::Turn && g.phase != Phase::Pull;
+        gs.upright[h] = za::clamp(gs.upright[h] + (upright ? ease : -ease), 0.f, 1.f);
     }
 }
 
@@ -439,6 +489,7 @@ void apply(hands::State& s, const glm::vec3& aim)
     {
         carryPose(s, h, aim);
         grabPose(s, h, aim);
+        uprightPose(s, h);
     }
 }
 

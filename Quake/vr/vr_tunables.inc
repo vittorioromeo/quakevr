@@ -1891,7 +1891,7 @@ QVR_TUNABLE(vr_flat_fg_palm_aim, "1") // how much the palm turns to the object (
 QVR_TUNABLE(vr_flat_fg_finger_tilt, "20") // degrees the fingers lean out from straight up, about the palm's normal
 
 // Flatscreen > Held Props (vr_flatfgrab.cpp, vr_held.cpp; his note 2026-11-10)
-QVR_TUNABLE(vr_flat_carry_pose, "1") // a prop held in one hand is held up in front (0: the empty hand's pose, hung or the guard)
+QVR_TUNABLE(vr_flat_carry_pose, "2") // a prop held in one hand: 2 in the fist, in the guard (strikes with V / its fire button); 1 held up in front; 0 the empty hand's pose, hung or the guard
 QVR_TUNABLE(vr_flat_carry_time, "0.2") // seconds into and out of that pose
 QVR_TUNABLE(vr_flat_carry_fwd, "0.55") // the hand: in front of its shoulder, a share of the arm's reach
 QVR_TUNABLE(vr_flat_carry_out, "0.15") // out at its own side, a share of the arm's reach
@@ -1900,6 +1900,9 @@ QVR_TUNABLE(vr_flat_carry_pitch, "10") // degrees its fingers point down from th
 QVR_TUNABLE(vr_flat_carry_yaw, "10") // degrees it turns in towards the middle (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_carry_roll, "45") // degrees it rolls its palm up (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_carry_drawn, "1") // a held prop drawn in its hand as drawn (the view's sway, bob, turn lag); 0: at the game's hand, as before
+QVR_TUNABLE(vr_flat_prop_melee, "1") // a prop held in the fist strikes with the overhead swing (as a weapon); 0: the fist's punch
+QVR_TUNABLE(vr_flat_prop_v, "1") // V strikes with the hand holding a prop (the main hand's first); 0: V is always the main hand's
+QVR_TUNABLE(vr_flat_torch_upright, "1") // a torch held in one hand is turned flame up (the hand turns with it); 0: as the grip took it
 // Flatscreen > Hand Swap (vr_flatswap.cpp; vr_flat_swap_anim)
 QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap is sent as they do)
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped

@@ -594,6 +594,212 @@ void(entity p) VR_FFX_Pictures =
     }
 };
 
+// ---- 7: a prop force-grabbed beside a two-handed gun (his notes 2026-11-10, vr_flatfgrab.cpp, vr_flatplay.cpp): the
+// shotgun in the main hand, its fore-end in the off hand. E on a brick: the off hand lets go of the fore-end for good
+// (no two-handed aim, the hand out at its side, in the guard: `vr_flat_fg_report` says "fist prop 1", the script reads
+// it), V strikes with the brick (vr_flat_prop_v): the overhead swing over the head (vr_flat_prop_melee 1), then the
+// fist's punch below it (0), each hurting a grunt in front. H drops it; E on a wall torch lying on its side: with
+// vr_flat_torch_upright 0 it is held as the grip took it, with 1 it is turned flame up.
+float vr_ffx_gruntHp;  // the grunt's health before the blow
+float vr_ffx_top;      // the highest the off hand went over the eye in the blow
+float vr_ffx_frames;   // frames counted in a state
+float vr_ffx_twoHand;  // frames the gun was aimed two-handed with the brick in the off hand
+float vr_ffx_d0;       // the torch off upright with vr_flat_torch_upright 0
+vector vr_ffx_rel;     // the off hand off the main hand, on the fore-end
+float vr_ffx_swingTop; // the overhead swing's vr_ffx_top
+entity vr_ffx_grunt;
+
+// How far the stick of torch `t` is off upright, degrees (its +x its head; an alias model's pitch is inverted).
+float(entity t) VR_FFX_TorchOff =
+{
+    vector a = t.angles;
+    a_x = -a_x;
+    makevectors(a);
+    vector up = vectoangles(v_forward); // (its pitch: 90 straight up)
+    return 90 - up_x;
+};
+
+void(entity p, float xMelee) VR_FFX_Blow =
+{
+    if(vr_ffx_grunt == world)
+    {
+        entity oldself = self;
+        vr_ffx_grunt = spawn();
+        makevectors('0 1 0' * p.v_angle_y);
+        setorigin(vr_ffx_grunt, p.origin + v_forward * 36);
+        vr_ffx_grunt.angles_y = p.v_angle_y + 180;
+        self = vr_ffx_grunt;
+        monster_army();
+        self = oldself;
+    }
+    makevectors('0 1 0' * p.v_angle_y);
+    setorigin(vr_ffx_grunt, p.origin + v_forward * 36); // (back where it stood: a blow knocks it back)
+    vr_ffx_grunt.velocity = '0 0 0';
+    vr_ffx_grunt.health = 1000;
+    vr_ffx_gruntHp = vr_ffx_grunt.health;
+    vr_ffx_top = -1000;
+    vr_ffx_frames = 0;
+    localcmd(sprintf("vr_flat_prop_melee %g\nvr_flat_punch v\n", xMelee));
+};
+
+void(entity p) VR_FFX_PropFist =
+{
+    entity held = VR_Carry_Held(p, cVR_OffHand);
+    if(vr_ffx_s == 0) // the shotgun in the main hand, the off hand free, the view level
+    {
+        localcmd("impulse 154\n");
+        localcmd(sprintf("setpos %g %g %g 0 %g 0\n", p.origin_x, p.origin_y, p.origin_z, p.v_angle_y));
+        vr_ffx_grunt = world;
+        VR_FFX_To(1, 72); // (a second: the off hand onto the fore-end, eased)
+        return;
+    }
+    if(vr_ffx_s == 1)
+    {
+        // (Whether the off hand was on the fore-end: `vr_flat_fg_report`'s "from the grip", the script reads it.)
+        vr_ffx_rel = VRGetEntHandPos(p, cVR_OffHand) - VRGetEntHandPos(p, cVR_MainHand);
+        entity oldself = self;
+        vr_ffx_item = spawn();
+        setorigin(vr_ffx_item, p.origin + VR_FFX_Ahead(p) * 64);
+        vr_ffx_item.model = "progs/vr_brick1.mdl";
+        self = vr_ffx_item;
+        vr_debris_piece();
+        self = oldself;
+        VR_FFX_LookAt(p, vr_ffx_item);
+        VR_FFX_To(2, 2);
+        return;
+    }
+    if(vr_ffx_s == 2)
+    {
+        localcmd("vr_flat_fg_press\n");
+        VR_FFX_To(3, 0);
+        return;
+    }
+    if(vr_ffx_s == 3) // caught
+    {
+        if(held == vr_ffx_item)
+        {
+            vr_ffx_twoHand = 0;
+            vr_ffx_frames = 0;
+            VR_FFX_To(4, 0);
+        }
+        return;
+    }
+    if(vr_ffx_s == 4) // a second in the off hand: never two-handed; then where it ended
+    {
+        vr_ffx_twoHand = vr_ffx_twoHand + (VRGet2HAiming(p) ? 1 : 0);
+        vr_ffx_frames = vr_ffx_frames + 1;
+        if(vr_ffx_frames >= 72)
+        {
+            float d1 = vlen(VRGetEntHandPos(p, cVR_OffHand) - VRGetEntHandPos(p, cVR_MainHand) - vr_ffx_rel);
+            VR_Test_Check(vr_ffx_twoHand == 0, sprintf("the brick in the off hand: the shotgun one-handed (%g frames two-handed)", vr_ffx_twoHand));
+            VR_Test_Check(d1 > 8, sprintf("... the off hand off the fore-end: %g units from where it held it", d1));
+            localcmd("vr_flat_fg_report\nscreenshot\n");
+            VR_FFX_To(5, 4);
+        }
+        return;
+    }
+    if(vr_ffx_s == 5 || vr_ffx_s == 7) // V: the overhead swing (5), the fist's punch (7)
+    {
+        VR_FFX_Blow(p, vr_ffx_s == 5);
+        VR_FFX_To(vr_ffx_s + 1, 0);
+        return;
+    }
+    if(vr_ffx_s == 6 || vr_ffx_s == 8) // the blow: watched until it hurts the grunt, then until the hand is back
+    {
+        vr_ffx_frames = vr_ffx_frames + 1;
+        vector hp = VRGetEntHandPos(p, cVR_OffHand);
+        vector ep = VRGetHeadPos(p);
+        vr_ffx_top = max(vr_ffx_top, hp_z - ep_z);
+        float hurt = vr_ffx_grunt.health < vr_ffx_gruntHp;
+        if(vr_ffx_frames >= 72) // (a second: the swing is 0.79 s, the punch 0.6, with their ways back)
+        {
+            string how = vr_ffx_s == 6 ? "the overhead swing" : "the fist's punch";
+            VR_Test_Check(hurt, sprintf("V with the brick in the off hand, %s: the grunt hurt (%g)", how, vr_ffx_gruntHp - vr_ffx_grunt.health));
+            if(vr_ffx_s == 6)
+            {
+                VR_Test_Check(vr_ffx_top > 0, sprintf("... the hand up over the eye (%g units over it)", vr_ffx_top));
+                vr_ffx_swingTop = vr_ffx_top;
+            }
+            else
+            {
+                VR_Test_Check(vr_ffx_top < vr_ffx_swingTop - 6, sprintf("... the hand well under the swing's top (%g units over the eye, the swing %g)", vr_ffx_top, vr_ffx_swingTop));
+            }
+            VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == vr_ffx_item, "... the brick still in the off hand");
+            VR_FFX_To(vr_ffx_s + 1, 36); // (the hand settled in the guard again)
+        }
+        return;
+    }
+    if(vr_ffx_s == 9) // H drops it; a wall torch on its side where he looks
+    {
+        localcmd("impulse 47\nvr_flat_torch_upright 0\n");
+        remove(vr_ffx_grunt);
+        vr_ffx_grunt = world;
+        // (Made live, as the toolgun makes one: vr_spawn_live.)
+        entity oldself = self;
+        vr_ffx_item2 = spawn();
+        setorigin(vr_ffx_item2, p.origin + VR_FFX_Ahead(p) * 64 + '0 0 40');
+        self = vr_ffx_item2;
+        float oldLive = vr_spawn_live;
+        vr_spawn_live = 1;
+        light_torch_small_walltorch();
+        vr_spawn_live = oldLive;
+        self = oldself;
+        VR_Test_Check(vr_ffx_item2.model == "progs/vrtorch.mdl", sprintf("a wall torch made (%s)", vr_ffx_item2.model));
+        if(vr_ffx_item2.model != "progs/vrtorch.mdl")
+        {
+            VR_FFX_To(20, 0);
+            return;
+        }
+        VR_FFX_To(10, 10);
+        return;
+    }
+    if(vr_ffx_s == 10)
+    {
+        VR_FFX_LookAt(p, vr_ffx_item2);
+        vr_ffx_item2.angles = '0 90 0'; // (on its side)
+        VR_FFX_To(11, 2);
+        return;
+    }
+    if(vr_ffx_s == 11)
+    {
+        localcmd("vr_flat_fg_press\n");
+        VR_FFX_To(12, 0);
+        return;
+    }
+    if(vr_ffx_s == 12)
+    {
+        if(held == vr_ffx_item2 || vr_ffx_item2.carry_player == p)
+        {
+            VR_FFX_To(13, 72);
+        }
+        return;
+    }
+    if(vr_ffx_s == 13)
+    {
+        vr_ffx_d0 = VR_FFX_TorchOff(vr_ffx_item2);
+        dprint(sprintf("flatitems: torch in the off hand, upright off: %g deg off upright\n", vr_ffx_d0));
+        localcmd("vr_flat_fg_report\nscreenshot\nvr_flat_torch_upright 1\n");
+        VR_FFX_To(14, 72);
+        return;
+    }
+    if(vr_ffx_s == 14)
+    {
+        float off = VR_FFX_TorchOff(vr_ffx_item2);
+        dprint(sprintf("flatitems: torch in the off hand, upright on: %g deg off upright\n", off));
+        VR_Test_Check(off < 15, sprintf("the torch in the off hand stands flame up: %g deg off upright (%g with vr_flat_torch_upright 0)", off, vr_ffx_d0));
+        localcmd("vr_flat_fg_report\nscreenshot\n");
+        VR_FFX_To(20, 4);
+        return;
+    }
+    if(vr_ffx_s == 20)
+    {
+        VR_Test_Verdict();
+        vr_ffx_on = 0;
+        cvar_set("vr_flatitems_test", "0");
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -636,6 +842,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 3) { VR_FFX_Better(p); }
     if(ask == 4) { VR_FFX_Pictures(p); }
     if(ask == 6) { VR_FFX_PalmFirst(p); }
+    if(ask == 7) { VR_FFX_PropFist(p); }
 };
 
 #endif

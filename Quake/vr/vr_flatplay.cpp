@@ -44,6 +44,7 @@
 #include "vr_flatmove.hpp"
 #include "vr_flatfgrab.hpp"
 #include "vr_flatgrenade.hpp"
+#include "vr_held.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_flycam.hpp"
@@ -778,7 +779,7 @@ constexpr float dualProneTurnMost = 45.f;
     const float span = za::max(4.f, armSpan());
     // A free hand beside a gun hangs low: its punch is measured from where a guard stands, not thrown at the floor.
     const float guardReach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
-    const bool guards = heldIn(h) < 0 && heldIn(1 - h) >= 0;
+    const bool guards = heldIn(h) < 0 && heldIn(1 - h) >= 0 && !propInFist(h); // (a prop's fist is in its guard already)
     const glm::vec2 plane = guards ? glm::vec2{guardFwd * guardReach, -guardDown * guardReach} : glm::vec2{rest.x, rest.z}; // the punch's plane: the view's forward, its up and down
     const float r0 = za::max(0.5f, glm::length(plane));
     const float wound_share = za::min(r0, punchFold) / r0;                     // folded along its own line, to punchFold out
@@ -1103,7 +1104,8 @@ void startPunch(int h, const char* from)
     }
     fs.punchAt[h] = vr_gametime;
     fs.punchFrame[h] = host_framecount;
-    fs.punchOverhead[h] = vr_flat_swing.value != 0.f && heldIn(h) >= 0;
+    // (A prop in the fist: the overhead swing as a weapon's, vr_flat_prop_melee; 0 the fist's punch.)
+    fs.punchOverhead[h] = heldIn(h) >= 0 ? vr_flat_swing.value != 0.f : propInFist(h) && vr_flat_prop_melee.value != 0.f;
     fs.punches[h]++;
     if(vr_flatplay_debug.value)
     {
@@ -1308,6 +1310,13 @@ void shoveFrame()
     return rot;
 }
 
+// The hand V punches with: the main hand, as it has always been; a prop in a fist is what V strikes with (the main hand's
+// first: vr_flat_prop_v), so a prop in the off hand beside a gun can be swung (the right button aims that gun).
+[[nodiscard]] int vKeyHand()
+{
+    return vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF) ? HAND_OFF : HAND_MAIN;
+}
+
 // The keys, read from the keyboard state (Ctrl's bind is the one exception, named at the top of the file), and E and V
 // only while the game has the keyboard (the console takes it). The hands' fire buttons come from the same source the
 // game's fire uses (vr_client.cpp's attacking: its +attack / +offhandattack state, which is what the mouse buttons drive),
@@ -1338,9 +1347,10 @@ void pollKeys()
             Con_Printf("flatplay: %s: force grab\n", vr_flat_key_grab.string);
         }
     }
-    if(v && !fs.keyV && !flatgrenade::busy(HAND_MAIN))
+    const int vHand = vKeyHand();
+    if(v && !fs.keyV && !flatgrenade::busy(vHand))
     {
-        startPunch(HAND_MAIN, "V"); // as it has always been: V punches with the main hand
+        startPunch(vHand, "V");
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1906,6 +1916,32 @@ int heldIn(int h)
 {
     const int slot = weapons::heldSlot(h);
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
+}
+
+namespace
+{
+
+// The entity `h` carries (the server's: STAT_QVR_CARRYMAIN / _CARRYOFF), 0 none.
+[[nodiscard]] int carriedBy(int h)
+{
+    return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
+}
+
+} // namespace
+
+bool holdsThing(int h)
+{
+    return h >= 0 && h < HAND_COUNT && (carriedBy(h) != 0 || held::heldEntity(h) != 0);
+}
+
+bool propInFist(int h)
+{
+    if(h < 0 || h >= HAND_COUNT || za::round(poseNum(vr_flat_carry_pose)) != 2.f || heldIn(h) >= 0)
+    {
+        return false;
+    }
+    const int ent = carriedBy(h) != 0 ? carriedBy(h) : held::heldEntity(h);
+    return ent != 0 && carriedBy(1 - h) != ent && held::heldEntity(1 - h) != ent; // (not one held in both hands)
 }
 
 int loneWeaponHand()
@@ -3070,7 +3106,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             const glm::vec3 at = aimPoint - (shoulder(s, h) + nudge);
             target = {glm::dot(at, fwd), glm::dot(at, right), glm::dot(at, up)};
         }
-        const glm::vec3 swing = punchSwing(h, restOld, target) - restOld + shoveOffset(h, target - restOld);
+        // (A prop in the fist punches from the guard it is held in, off the shoulder as the target is: the guard's pose
+        // below puts the hand there, the punch's way on top of it.)
+        const glm::vec3 punchRest = propInFist(h) ? glm::vec3{poseNum(vr_flat_guard_fwd), sideOf * poseNum(vr_flat_guard_out),
+                                                        -poseNum(vr_flat_guard_down)} *
+                                                        armSpan()
+                                                  : restOld;
+        const glm::vec3 swing = punchSwing(h, punchRest, target) - punchRest + shoveOffset(h, target - restOld);
         const glm::vec3 off = onBody ? fs.local[h] + swing : fs.local[h] - fromAnchor + swing;
         if(onBody)
         {
@@ -3109,22 +3151,31 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         parryPose(s, h, shoulder(s, h) + nudge, eye, fwd, right, up, aim.y);
 
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
-        // weapon turned up over the head and down through the strike (overheadSwing).
-        if(fs.punchOverhead[h] && punching(h))
-        {
+        // weapon turned up over the head and down through the strike (overheadSwing). (A prop's in the fist: below, from
+        // the guard it is held in, which stays its rest all through.)
+        const bool overhead = fs.punchOverhead[h] && punching(h);
+        const bool propSwing = overhead && heldIn(h) < 0;
+        const auto swingOverhead = [&] {
             glm::vec3 turn{0.f};
             s.pos[h] = overheadSwing(h, shoulder(s, h) + nudge, s.pos[h], eye, aimPoint, fwd, right, up, turn);
             s.rot[h] = turnedHand(s.rot[h], turn, sideOf);
+        };
+        if(overhead && !propSwing)
+        {
+            swingOverhead();
         }
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
-        const bool hangs = heldIn(h) < 0 && !punching(h) && !shoving(h) && !flatfgrab::busy(h) &&
+        // (A prop in the fist stays in its guard through its blows: they are measured from it.)
+        const bool hangs = heldIn(h) < 0 && (!punching(h) || propSwing || propInFist(h)) && !shoving(h) && !flatfgrab::busy(h) &&
                            !(flatsight::adsHelper(h));
         // The rest's pose (vr_flat_empty_hand_pose): relaxed, the arm down the body, or fists up in a guard (2: the guard
         // with both hands empty), eased from one to the other as the other hand takes or lets go of a weapon.
+        // (A prop in the fist is always in the guard, whatever the rest's pose: propInFist, vr_flat_carry_pose 2.)
         const int restPose = static_cast<int>(za::round(poseNum(vr_flat_empty_hand_pose)));
-        const bool guardWanted = restPose == 1 || (restPose == 2 && !mainHolds && !offHolds);
+        const bool propFist = propInFist(h);
+        const bool guardWanted = propFist || restPose == 1 || (restPose == 2 && !mainHolds && !offHolds);
         const float takeTime = poseNum(vr_flat_empty_take_time);
         if(heldIn(h) >= 0 && (restPose < 0 || takeTime <= 0.f))
         {
@@ -3150,7 +3201,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
             glm::vec3 at = off;
             float pitchTo = hangPitch, rollTo = 0.f;
-            if(restPose >= 0)
+            if(restPose >= 0 || propFist)
             {
                 // (Shares of the arm's reach off the shoulder, level with the body; the punch's or shove's swing on top.)
                 const float span = armSpan(), g = fs.guard[h];
@@ -3168,6 +3219,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             s.pos[h] += (level - s.pos[h]) * fs.hang[h];
             s.rot[h].x += (pitchTo - s.rot[h].x) * fs.hang[h];
             s.rot[h].z += (rollTo - s.rot[h].z) * fs.hang[h];
+        }
+        if(propSwing)
+        {
+            swingOverhead(); // (a prop in the fist: from the guard, back to it)
         }
         QVR_TRACY_CALL("flat pose: off wall", handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt)));
     }
@@ -3705,6 +3760,15 @@ void punch_f()
         return;
     }
     const char* arg = Cmd_Argc() >= 2 ? Cmd_Argv(1) : "main";
+    if(!q_strcasecmp(arg, "v"))
+    {
+        // (`vr_flat_punch v`: the V key's press, its hand as V picks it: vKeyHand.)
+        if(!flatgrenade::busy(vKeyHand()))
+        {
+            startPunch(vKeyHand(), "V (vr_flat_punch v)");
+        }
+        return;
+    }
     const bool mainHand = !q_strcasecmp(arg, "main") || !q_strcasecmp(arg, "right");
     const bool offHand = !q_strcasecmp(arg, "off") || !q_strcasecmp(arg, "offhand") || !q_strcasecmp(arg, "left");
     if(!mainHand && !offHand)
