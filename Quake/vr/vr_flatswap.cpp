@@ -5,11 +5,16 @@
 //
 // The game swaps (QC vr_wpnholster.qc VR_FlatSwapHands, impulse 48), as before; this file only times it and draws the hands.
 // The key's press (vr_flat_key_swap) starts the trip: over vr_flat_swap_in seconds the hands go to their meeting point --
-// each half of vr_flat_swap_gap off the middle of the two, vr_flat_swap_down below it; a weapon held in both hands: the
-// free hand off its grip to vr_flat_swap_gap off the hand holding the weapon, which stays -- and the swap is sent as they
+// each half of vr_flat_swap_gap off the middle of the two, vr_flat_swap_down below it -- and the swap is sent as they
 // meet. Once the hands' weapons have changed (the server's answer), each hand turned the way the other was (the weapon
-// keeps its turn as it changes hands), they ease back over vr_flat_swap_out to their own poses: the free hand onto the
-// weapon's grip again (vr_flatsight.cpp, vr_twohand.cpp), a weapon in the hand that took it.
+// keeps its turn as it changes hands), they ease back over vr_flat_swap_out to their own poses.
+//
+// A weapon held in both hands goes in three steps (his words 2026-11-10, later: "The off-hand should be released first
+// and go to the regular 'empty hand in front' pose, then the weapon should be passed to that empty hand, and then the new
+// off-hand should be attached"; apply2h): the free hand off the grip to the empty hand's guard
+// (vr_flat_swap_2h_release_time), the weapon brought across to it and the swap sent there (_pass_time), then the hand that
+// took it to its hold and the hand that let go onto the gun's two-hand grip (_attach_time; vr_flatsight.cpp,
+// vr_twohand.cpp: the grip is blocked until the swap has happened, gripBlocked).
 //
 // The places are kept in the body's level frame off the head (taken on the first pose after the press), so a turn of the
 // view carries the hands with it. The fire buttons do nothing while it runs (flatplay::routeFire). vr_flat_swap_anim 0:
@@ -61,6 +66,13 @@ struct Swap
     glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // and its angles, the yaw against the view's
     float share{0.f};        // the last pose's share of the way to the meeting point (the report)
     bool meetPrinted{false}; // (vr_flat_swap_debug) the meeting point's line printed
+    // A weapon held in both hands (his words 2026-11-10: "The off-hand should be released first and go to the regular
+    // 'empty hand in front' pose, then the weapon should be passed to that empty hand, and then the new off-hand should
+    // be attached"): each hand where the pass left it (in the level frame off the head, the yaw against the view's), and
+    // whether the release's end was printed (vr_flat_swap_debug).
+    glm::vec3 passLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 passRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool releasePrinted{false};
     int presses{0};
     int swaps{0};
 };
@@ -87,6 +99,33 @@ Swap sw;
     return h == HAND_MAIN ? "main" : "off";
 }
 
+[[nodiscard]] float releaseTime()
+{
+    return za::clamp(vr_flat_swap_2h_release_time.value, 0.02f, 2.f);
+}
+
+[[nodiscard]] float passTime()
+{
+    return za::clamp(vr_flat_swap_2h_pass_time.value, 0.02f, 2.f);
+}
+
+[[nodiscard]] float attachTime()
+{
+    return za::clamp(vr_flat_swap_2h_attach_time.value, 0.02f, 2.f);
+}
+
+// When the swap is sent after the press (the hands meet; held in both hands: the release, then the pass), and how long
+// the way back takes once it has happened (held in both hands: the new free hand's way onto the grip).
+[[nodiscard]] float sendTime()
+{
+    return sw.twoHand ? releaseTime() + passTime() : inTime();
+}
+
+[[nodiscard]] float backTime()
+{
+    return sw.twoHand ? attachTime() : outTime();
+}
+
 // The trip's share now: up to the meeting point, held there until the swap arrives, back.
 [[nodiscard]] float shareNow()
 {
@@ -96,9 +135,9 @@ Swap sw;
     }
     if(!sw.seen)
     {
-        return geom::smooth01(static_cast<float>(vr_gametime - sw.startAt) / inTime());
+        return geom::smooth01(static_cast<float>(vr_gametime - sw.startAt) / sendTime());
     }
-    return 1.f - geom::smooth01(static_cast<float>(vr_gametime - sw.peakAt) / outTime());
+    return 1.f - geom::smooth01(static_cast<float>(vr_gametime - sw.peakAt) / backTime());
 }
 
 // A new swap's state, the counts kept.
@@ -166,7 +205,7 @@ bool press()
     if(vr_flat_swap_debug.value)
     {
         Con_Printf("flatswap: start (%s; off %d, main %d)\n",
-            sw.twoHand ? "a weapon in both hands: the free hand to it" : "the hands to each other", wo, wm);
+            sw.twoHand ? "a weapon in both hands: release, pass, attach" : "the hands to each other", wo, wm);
     }
     return true;
 }
@@ -187,7 +226,7 @@ void frame(bool on)
         return;
     }
     const double now = vr_gametime;
-    if(!sw.sent && now - sw.startAt >= static_cast<double>(inTime()) - 1e-4)
+    if(!sw.sent && now - sw.startAt >= static_cast<double>(sendTime()) - 1e-4)
     {
         sw.sent = true;
         sw.sentAt = now;
@@ -214,7 +253,7 @@ void frame(bool on)
             }
         }
     }
-    if(sw.seen && now - sw.peakAt >= static_cast<double>(outTime()))
+    if(sw.seen && now - sw.peakAt >= static_cast<double>(backTime()))
     {
         sw.running = false;
         sw.share = 0.f;
@@ -224,6 +263,93 @@ void frame(bool on)
         }
     }
 }
+
+namespace
+{
+
+// `h`'s turn towards `want` (Quake angles) by `a`.
+void turnTo(hands::State& s, int h, const glm::vec3& want, float a)
+{
+    s.rot[h].x += geom::yawDelta(want.x, s.rot[h].x) * a;
+    s.rot[h].y += geom::yawDelta(want.y, s.rot[h].y) * a;
+    s.rot[h].z += geom::yawDelta(want.z, s.rot[h].z) * a;
+}
+
+// A weapon held in both hands, in three steps. The release (vr_flat_swap_2h_release_time): the free hand off the grip to
+// the empty hand's guard in front of him (vr_flat_guard_*: the pose an empty hand stands in, off its shoulder in shares of
+// the arm's reach). The pass (vr_flat_swap_2h_pass_time): the hand holding the weapon brings it across to that hand,
+// vr_flat_swap_gap off it, and the swap is sent as it gets there. The attach (vr_flat_swap_2h_attach_time): once swapped,
+// the hand that took it eases to its own hold, the gun turned as it was passed, and the hand that let go of it onto the
+// gun's two-hand grip (flatsight's pin: the grip is free again from the swap on, gripBlocked).
+void apply2h(hands::State& s, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float yaw)
+{
+    const int H = sw.holder, F = 1 - H;
+    const double t = vr_gametime - sw.startAt;
+    const auto toLocal = [&](const glm::vec3& p) {
+        const glm::vec3 d = p - s.head;
+        return glm::vec3{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
+    };
+    const auto toWorld = [&](const glm::vec3& l) { return s.head + fwd * l.x + right * l.y + up * l.z; };
+    if(sw.seen)
+    {
+        // The attach: from where the pass left them, each turned as the other was then, to its own pose.
+        const float a = 1.f - geom::smooth01(static_cast<float>(vr_gametime - sw.peakAt) / attachTime());
+        sw.share = a;
+        for(int h : {HAND_OFF, HAND_MAIN})
+        {
+            s.pos[h] += (toWorld(sw.passLocal[h]) - s.pos[h]) * a;
+            const glm::vec3& r = sw.passRot[1 - h];
+            turnTo(s, h, {r.x, r.y + yaw, r.z}, a);
+        }
+        return;
+    }
+
+    // The empty hand's guard for the free hand, off its shoulder (as flatplay's rest pose places it).
+    const float span = flatplay::armReach();
+    const float side = F == HAND_OFF ? -1.f : 1.f;
+    const glm::vec3 guard = flatplay::shoulderOf(s, F) +
+                            (fwd * vr_flat_guard_fwd.value + right * (side * vr_flat_guard_out.value) - up * vr_flat_guard_down.value) * span;
+    const glm::vec3 guardRot{za::clamp(vr_flat_guard_pitch.value, -90.f, 90.f), yaw, side * vr_flat_guard_roll.value};
+    const float release = geom::smooth01(static_cast<float>(t) / releaseTime());
+    const float pass = sw.sent ? 1.f : geom::smooth01(static_cast<float>(t - releaseTime()) / passTime());
+    sw.share = 0.5f * (release + pass);
+
+    // The weapon's hand stays as it held the gun at the press while the other lets go (its own pose turns the gun the
+    // moment the grip is gone: a one-handed hold), then brings it across.
+    s.pos[H] = toWorld(sw.local[H]);
+    s.rot[H] = {sw.rot[H].x, sw.rot[H].y + yaw, sw.rot[H].z};
+    s.pos[F] += (guard - s.pos[F]) * release;
+    turnTo(s, F, guardRot, release);
+    if(pass > 0.f)
+    {
+        const float gap = za::clamp(vr_flat_swap_gap.value, 0.f, 16.f);
+        const glm::vec3 d = s.pos[H] - guard;
+        const glm::vec3 way = glm::length(d) > 0.01f ? glm::normalize(d) : (H == HAND_MAIN ? right : -right);
+        s.pos[H] += (guard + way * gap - s.pos[H]) * pass;
+    }
+    if(vr_flat_swap_debug.value && release >= 1.f && !sw.releasePrinted)
+    {
+        sw.releasePrinted = true;
+        const glm::vec3 heldAt = toWorld(sw.local[H]);
+        Con_Printf("flatswap: 2h: released (%.2f s): the %s hand %.1f units from the empty hand's guard, %.1f from the %s hand "
+                   "(moved %.1f since the press)\n", t, handName(F), glm::distance(s.pos[F], guard), glm::distance(s.pos[F], s.pos[H]),
+            handName(H), glm::distance(s.pos[H], heldAt));
+    }
+    // (Every frame until the swap arrives: where the attach starts from.)
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        sw.passLocal[h] = toLocal(s.pos[h]);
+        sw.passRot[h] = {s.rot[h].x, geom::yawDelta(s.rot[h].y, yaw), s.rot[h].z};
+    }
+    if(vr_flat_swap_debug.value && sw.sent && !sw.meetPrinted)
+    {
+        sw.meetPrinted = true;
+        Con_Printf("flatswap: met: the hands %.1f units apart (the pass), the %s hand %.1f from the guard\n",
+            glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]), handName(F), glm::distance(s.pos[F], guard));
+    }
+}
+
+} // namespace
 
 void apply(hands::State& s)
 {
@@ -244,6 +370,11 @@ void apply(hands::State& s)
         }
         sw.captured = true;
     }
+    if(sw.twoHand)
+    {
+        apply2h(s, fwd, right, up, yaw);
+        return;
+    }
     const float a = shareNow();
     sw.share = a;
     if(a <= 0.f)
@@ -258,16 +389,6 @@ void apply(hands::State& s)
     const float gap = za::clamp(vr_flat_swap_gap.value, 0.f, 16.f);
     const glm::vec3 down = up * -za::clamp(vr_flat_swap_down.value, -16.f, 16.f);
     glm::vec3 meet[2];
-    if(sw.twoHand)
-    {
-        // The free hand off its grip to the hand holding the weapon, which stays where it is.
-        const int H = sw.holder, F = 1 - H;
-        const glm::vec3 d = at[F] - at[H];
-        const glm::vec3 way = glm::length(d) > 0.01f ? glm::normalize(d) : (F == HAND_OFF ? -right : right);
-        meet[H] = at[H];
-        meet[F] = at[H] + way * gap + down;
-    }
-    else
     {
         // Between them across the body, as far forward and as high as the higher hand (the one with a weapon: an empty hand
         // hangs below the view, and halfway down to it they met out of sight).

@@ -5,3 +5,4 @@ god
 notarget
 give "Shotgun" main
 spawn "Grunt" 300 0
+hint Lie down (X), then press Space: you stand up (crouch or standing, as X does) and do not jump; keep Space held, still no jump; let go and press again, you jump. Under the vent in vrteleporters (prone_vent) Space leaves you lying like X does. Option: Debug > Tunables > Prone: Jump Stands Up. Automated: Misc/quakevr/flatslide_test.sh (prone), prone_vent_test.sh.

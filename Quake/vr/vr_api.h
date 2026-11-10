@@ -184,6 +184,7 @@ int VR_FlatXhairOn (void);	// SCR_DrawCrosshair: 1 while flatscreen play's visor
 // The flatscreen fly camera (vr_flycam.cpp, vr_flat_flycam): the view flown free while the player stands as he was.
 void VR_FlatFlycamView (float* vieworg, float* viewangles);	// V_CalcRefdef, last: his own eye remembered, then (on) the view put at the camera
 void VR_FlatFlycamLook (const float* before, float* angles);	// CL_AccumulateCmd: (on) the frame's look turns the camera, and his angles go back to `before`
+int VR_MoveJump (int jumpstate);	// CL_SendMove's jump bit: in_jump.state in, the bit out (flatscreen play, lying down: the jump press stands him up and no jump is sent: flatplay::jumpBit)
 int VR_FlatFlycamOwnsInput (void);	// CL_SendMove: nonzero while the camera has the keys (no buttons, no impulse sent)
 
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).
@@ -553,6 +554,7 @@ void VR_NotifyLogInfo (void);						// vr_notify_info: prints the wrist gadget's 
 // Screen (gl_screen.c).
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
 int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
+int VR_CenterPrintOnVisor (const char *text, float alpha);	// SCR_CheckDrawCenterString: nonzero when flatscreen play's visor shows it in its popup (vr_visor.cpp)
 
 // Sound (cl_parse.c).
 int VR_GameSound (int entnum, struct sfx_s *sfx);		// CL_ParseStartSoundPacket: nonzero when the wrist gadget plays it instead (its notification)

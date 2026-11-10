@@ -854,6 +854,12 @@ za::Vector<Item> pageDebugReports()
                   "changes, over the mounts' rectangles alone; 0 every frame over the whole view, as before (vr_profile: the cost)."),
         command("Visor: Power On", "vr_flat_visor_fx boot")
             .help("vr_flat_visor_fx boot: the visor's panels power on again with their sweep, as at a spawn."),
+        command("Visor: Centre Message", "vr_flat_visor_fx center \"You need the gold key\"")
+            .help("vr_flat_visor_fx center <text>: a centre print as the game's (\\n a new line), in the visor's centre "
+                  "message panel (vr_flat_visor_centerprint) or over the view."),
+        command("Visor: Long Centre Message", "vr_flat_visor_fx center long")
+            .help("vr_flat_visor_fx center long: a long centre print of several lines, wrapped to the centre message "
+                  "panel's width (vr_flat_visor_center_width)."),
         command("Visor: Fog Up", "vr_flat_visor_fx fog 2")
             .help("vr_flat_visor_fx fog 2: the visor fogs up as under water for two seconds, then clears as after "
                   "surfacing."),

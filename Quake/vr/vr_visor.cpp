@@ -88,6 +88,18 @@ struct State
     unsigned shakeSeed{0};
     glm::vec2 shake{0.f}; // the offset now (degrees, in the sway)
     float logFade{1.f};   // the low panel's (vr_flat_visor_autohide_log: 0 while it has no lines)
+    // The centre print's popup (vr_flat_visor_centerprint): the frame the 2D pass last left the game's centre print to it
+    // (VR_CenterPrintOnVisor: Quake's own timing, scr_centertime, decides which), Quake's fade then, the popup's fade now,
+    // when it last popped in (the clock: a new text), how many times, its text.
+    struct CenterPrint
+    {
+        int claimed{-100};
+        float alpha{0.f};
+        float fade{0.f};
+        float popAt{-100.f};
+        int pops{0};
+        za::Array<char, 1024> text{};
+    } center;
     za::Array<Panel, VisorPanelCount> panels{};
     gadget::VisorInput input;
 };
@@ -143,6 +155,13 @@ using geom::smoothstep;
     const glm::vec2 out = wobble * (0.45f * k);
     const float len = glm::length(out);
     return len > 1.2f ? out * (1.2f / len) : out;
+}
+
+// The centre print's popup's pop in (0 .. 1: done; vr_flat_visor_center_pop seconds from a new text).
+[[nodiscard]] float centerPop()
+{
+    const float popTime = za::clamp(vr_flat_visor_center_pop.value, 0.f, 1.f);
+    return popTime > 0.f ? za::clamp((state.clock - state.center.popAt) / popTime, 0.f, 1.f) : 1.f;
 }
 
 // Once a frame, with the view set up (R_RenderView): the clock, the sway and the effects.
@@ -272,6 +291,25 @@ void update()
     }
     s.input.alarm = s.alarm;
     s.input.log = vr_flat_visor_log.value != 0.f;
+
+    // The centre print's popup: up (vr_flat_visor_center_pop) while the 2D pass leaves the centre print to it (Quake's
+    // own fade, con_notifyfade, followed), down (vr_flat_visor_center_fade) once it stops (its time up, the console or the
+    // menu up, paused); a new text pops in again (the scale, centerPop, and the power-on scan).
+    State::CenterPrint& c = s.center;
+    const bool claimed = c.claimed >= host_framecount - 1;
+    const float popTime = za::clamp(vr_flat_visor_center_pop.value, 0.f, 1.f);
+    const float fadeTime = za::clamp(vr_flat_visor_center_fade.value, 0.f, 1.f);
+    const float target = claimed ? za::clamp(c.alpha, 0.f, 1.f) : 0.f;
+    if(target > c.fade)
+    {
+        c.fade = popTime > 0.f ? za::min(target, c.fade + dt / popTime) : target;
+    }
+    else
+    {
+        c.fade = claimed || fadeTime <= 0.f ? target : za::max(target, c.fade - dt / fadeTime);
+    }
+    s.input.boot[gadget::VisorCenter] = za::min(s.input.boot[gadget::VisorCenter], centerPop());
+    s.input.center = c.fade > 0.f ? c.text.data() : "";
 }
 
 // The glass's rim and fog triangles as last built (drawGlass).
@@ -403,13 +441,15 @@ layout(location = 8) uniform vec4 SlotC;   // the glass's shapes' (r the back pl
 layout(location = 9) uniform vec4 ShiftA;  // the sway (layer pixels): the back plate's, the contents'
 layout(location = 10) uniform vec4 ShiftB; // the face's (and what lies over it), the mount's fade, the contents' fade
 layout(location = 11) uniform float InkScan; // the scanlines' strength over the contents' ink, times Scan.x (vr_flat_visor_ink_crt)
+layout(location = 12) uniform vec4 Pop;      // the panel grown from its middle (layer pixels: x, y) by 1 / z (the centre print's pop in; 1 the rest)
 layout(location = 0) out vec4 Out;
 vec2 layerOf(vec2 v)
 {
     vec2 n = vec2(v.x / Lens.x * 2.0 - 1.0, 1.0 - v.y / Lens.y * 2.0);
     n *= 1.0 + Lens.z * (dot(n, n) - 1.0);
     vec2 mid = 0.5 * Lens.xy;
-    return mid + (vec2((n.x + 1.0) * mid.x, (1.0 - n.y) * mid.y) - mid) / Lens.w;
+    vec2 q = mid + (vec2((n.x + 1.0) * mid.x, (1.0 - n.y) * mid.y) - mid) / Lens.w;
+    return Pop.xy + (q - Pop.xy) * Pop.z;
 }
 vec4 slot(vec2 corner, vec2 q, float scale)
 {
@@ -639,7 +679,12 @@ void useSlot(const PanelLayer& pl, int s)
     const float sideH = za::max(1.f, gadget::visorImage(gadget::VisorSideLeft).size.y) + 2.f * mountPad;
     L.sideScale = za::max(0.5f, za::min(za::clamp(vr_flat_visor_side_scale.value, 0.5f, 2.f), (L.h / L.unit - 170.f) / sideH));
     const float cornerReach = mountInset + za::max(vitals.x, status.x) + mountPad;
-    L.logScale = logFit(L, gadget::visorImage(gadget::VisorLog).size, cornerReach, za::clamp(vr_flat_visor_log_width.value, 0.3f, 2.f));
+    const glm::vec2 logSize = gadget::visorImage(gadget::VisorLog).size;
+    L.logScale = logFit(L, logSize, cornerReach, za::clamp(vr_flat_visor_log_width.value, 0.3f, 2.f));
+    // The centre print's popup: under where the log's mount ends (hidden or not), no wider than the view.
+    L.centerTop = logBottom(L, logSize) + mountPad + za::clamp(vr_flat_visor_center_gap.value, -20.f, 80.f);
+    const float centerW = gadget::visorImage(gadget::VisorCenter).size.x + 2.f * mountPad;
+    L.centerScale = za::clamp((L.w / L.unit - 2.f * mountInset) / za::max(1.f, centerW), 0.3f, 1.f);
     return L;
 }
 
@@ -651,7 +696,9 @@ void useSlot(const PanelLayer& pl, int s)
     const float flicker = g > 0.f ? 1.f - 0.45f * g * hash(static_cast<unsigned>(host_framecount) * 2654435761u) : 1.f;
     const float b = state.input.boot[p];
     const float stutter = b < 0.15f && hash(static_cast<unsigned>(host_framecount) * 7u + static_cast<unsigned>(p)) < 0.4f ? 0.35f : 1.f;
-    const float hide = p == gadget::VisorLog ? smoothstep(0.f, 1.f, state.logFade) : 1.f; // (vr_flat_visor_autohide_log)
+    const float hide = p == gadget::VisorLog      ? smoothstep(0.f, 1.f, state.logFade) // (vr_flat_visor_autohide_log)
+                       : p == gadget::VisorCenter ? smoothstep(0.f, 1.f, state.center.fade)
+                                                  : 1.f;
     const float fade = state.fade * flicker * stutter * hide;
     return {fade, fade * smoothstep(0.f, 0.2f, b)};
 }
@@ -906,12 +953,14 @@ void drawPanel(int p, bool all)
         PanelLayer& pl = lp.panels[p];
         pl.built = false;
         const gadget::VisorImage img = gadget::visorImage(p);
-        if(!(shownMask & (1 << p)) || !img.shown || img.size.y <= 0.f)
+        const bool masked = p != gadget::VisorCenter && !(shownMask & (1 << p)); // (the centre print's: vr_flat_visor_centerprint)
+        if(masked || !img.shown || img.size.y <= 0.f)
         {
             continue;
         }
         const bool side = p == gadget::VisorSideLeft || p == gadget::VisorSideRight;
-        pl.mount = mountOf(L, p, p == gadget::VisorLog ? img.size * L.logScale : side ? img.size * L.sideScale : img.size);
+        const float scale = p == gadget::VisorLog ? L.logScale : side ? L.sideScale : p == gadget::VisorCenter ? L.centerScale : 1.f;
+        pl.mount = mountOf(L, p, img.size * scale);
         pl.hasPlate = depth > 0.f;
         if(pl.hasPlate)
         {
@@ -983,7 +1032,7 @@ const cvar_t* const layerCvars[] = {&vr_flat_visor_scale, &vr_flat_visor_warp, &
     &vr_flat_visor_edge, &vr_flat_visor_depth, &vr_flat_visor_bevel, &vr_flat_visor_sheen, &vr_flat_visor_glow_outer,
     &vr_flat_visor_glow_inner, &vr_flat_visor_glow_width, &vr_flat_visor_depth_opacity, &vr_flat_visor_depth_size,
     &vr_flat_visor_depth_offset, &vr_flat_visor_depth_lag, &vr_flat_visor_depth_content_lag, &vr_flat_visor_depth_bevel,
-    &vr_flat_visor_depth_bevel_width, &vr_flat_visor_side_scale, &vr_flat_visor_ink_crt};
+    &vr_flat_visor_depth_bevel_width, &vr_flat_visor_side_scale, &vr_flat_visor_ink_crt, &vr_flat_visor_center_gap};
 
 // What the atlas is laid out and drawn from: the view, the cvars, the colours, which panels are shown and their sizes. Not
 // the sway, the fades nor the glitch (the composite's), nor what each panel shows (panelSignature). Changed: all of it
@@ -1160,6 +1209,10 @@ void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanel
         GL_Uniform4fFunc(8, corner(SlotShapes).x, corner(SlotShapes).y, static_cast<float>(lp.ss), alphaOnly ? 1.f : 0.f);
         GL_Uniform4fFunc(9, plate.x, plate.y, contents.x, contents.y);
         GL_Uniform4fFunc(10, shift.x, shift.y, fades[p].y, fades[p].x);
+        // The centre print's pop in: from 85% of its size (eased out) about its middle, swayed with its face.
+        const float grow = p == gadget::VisorCenter ? 1.f - 0.15f * (1.f - smoothstep(0.f, 1.f, centerPop())) : 1.f;
+        const glm::vec2 middle = (localToPx(lp.L, p, pl.mount.lo) + localToPx(lp.L, p, pl.mount.hi)) * 0.5f + shift;
+        GL_Uniform4fFunc(12, middle.x, middle.y, 1.f / grow, 0.f);
         if(vr_flat_visor_cache.value == 0.f) // (debug: the whole view)
         {
             glScissor(x, y, w, h);
@@ -1331,7 +1384,10 @@ void report_f()
         s.logFade, glassPass.on ? 1 : 0, s.hits, static_cast<int>(readHealth()));
     const gadget::VisorSides sides = gadget::visorSides();
     Con_Printf("visor: sides left %d right %d shown %d scale %.2f\n", sides.left, sides.right, sides.rightShown, sides.rightScale);
-    constexpr const char* names[VisorPanelCount] = {"vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright"};
+    const glm::vec2 centerSize = gadget::visorImage(gadget::VisorCenter).size;
+    Con_Printf("visor: center fade %.3f pop %.2f pops %d size %.0f %.0f scale %.2f claimed %d\n", s.center.fade, centerPop(),
+        s.center.pops, centerSize.x, centerSize.y, layerPass.L.centerScale, s.center.claimed >= host_framecount - 1 ? 1 : 0);
+    constexpr const char* names[VisorPanelCount] = {"vitals", "status", "lefthand", "righthand", "log", "sideleft", "sideright", "center"};
     // The edge contact with the sway now (the layer as last drawn, swayed as the composite does).
     Layer L = layerPass.L;
     L.shift = swayShift(L, s.sway, layerPass.tx);
@@ -1370,11 +1426,30 @@ void fx_f()
     {
         state.fxFogHold = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 0.f, 30.f) : 1.f;
     }
+    else if(!q_strcasecmp(what, "center"))
+    {
+        // A centre print as the game's (SCR_CenterPrint: Quake's timing; the popup's or over the view), "\n" a new line.
+        const char* from = Cmd_Argc() > 2 ? Cmd_Argv(2) : "";
+        if(!q_strcasecmp(from, "long"))
+        {
+            from = "The Visor\\n\\nA centre message as long as a mod's tutorial text, its lines wrapped to the panel's "
+                   "width (vr_flat_visor_center_width) so that it never runs off the screen.\\nA last short line.";
+        }
+        za::Array<char, 1024> text{};
+        za::SizeT n = 0;
+        for(const char* c = from; *c && n + 1 < text.size(); c++)
+        {
+            const bool newline = c[0] == '\\' && c[1] == 'n';
+            text[n++] = newline ? '\n' : *c;
+            c += newline ? 1 : 0;
+        }
+        SCR_CenterPrint(text.data());
+    }
     else
     {
-        Con_Printf("vr_flat_visor_fx damage [amount] | hit [amount] | boot | fog [seconds]: the visor's hit glitch (hit: a real "
-                   "damage message from the server, no health taken), its power-on sweep, its "
-                   "fog held up that long (then clearing)\n");
+        Con_Printf("vr_flat_visor_fx damage [amount] | hit [amount] | boot | fog [seconds] | center <text>|long: the visor's hit "
+                   "glitch (hit: a real damage message from the server, no health taken), its power-on sweep, its "
+                   "fog held up that long (then clearing), a centre print as the game's (\\n a new line)\n");
     }
 }
 
@@ -1433,6 +1508,27 @@ using namespace qvr;
 extern "C" int VR_VisorOn(void)
 {
     return visor::active() ? 1 : 0;
+}
+
+// SCR_CheckDrawCenterString, the game's centre print (`text`, Quake's fade `alpha`) due to be drawn this frame: nonzero
+// when the visor's popup shows it instead (vr_flat_visor_centerprint; never the intermission's nor the finale's text).
+// A text other than the one shown (or with the popup gone) pops in anew.
+extern "C" int VR_CenterPrintOnVisor(const char* text, float alpha)
+{
+    if(!text || vr_flat_visor_centerprint.value == 0.f || cl.intermission || !visor::active())
+    {
+        return 0;
+    }
+    auto& c = visor::state.center;
+    if(c.fade <= 0.f || std::strncmp(c.text.data(), text, c.text.size() - 1) != 0)
+    {
+        q_strlcpy(c.text.data(), text, c.text.size());
+        c.popAt = visor::state.clock;
+        c.pops++;
+    }
+    c.claimed = host_framecount;
+    c.alpha = alpha;
+    return 1;
 }
 
 // R_RenderView, after the window's view and its look: the visor over it, into `framebuffer` at (x, y, w, h); the window's
