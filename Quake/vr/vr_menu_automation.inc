@@ -870,6 +870,9 @@ za::Vector<Item> pageDebugAutomation()
         command("Rocket at Its Head", "vr_decap_test 57").help("vr_decap_test 57: the same with a rocket."),
         command("Grenade at Its Head", "vr_decap_test 58").help("vr_decap_test 58: the same with a grenade."),
         command("Give Quad Damage", "impulse 255").help("impulse 255: Quad Damage for 30 s (the tests above: every head kill pops)."),
+        header("Systems Tests (developer 1)"),
+        command("Dump Every Entity's Material", "developer 1; vr_systems_test 1")
+            .help("vr_systems_test 1: the console: every entity's material and what fire and hits make of it (the material table, DYNAMIC_SPAWNS.md)."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "

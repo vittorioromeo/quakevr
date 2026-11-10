@@ -1,0 +1,7 @@
+# systems_blast_fire: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vr_systems_test 11: two crates and a grunt round a blast.
+title A blast lights the crates near it
+map vrtesthall
+god
+notarget
+cmd developer 1
+cmd vr_systems_test 11

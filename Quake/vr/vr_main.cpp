@@ -17,6 +17,7 @@
 #include "vr_armourdata.hpp"
 #include "vr_armourstudio.hpp"
 #include "vr_adcrossbow.hpp"
+#include "vr_mapstyle.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_slidesound.hpp"
@@ -2136,6 +2137,7 @@ extern "C" void VR_Init()
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
     adcrossbow::registerCommands(); // AD support: vr_adgun_crossbow_info (vr_adcrossbow.cpp)
+    mapstyle::registerCommands(); // vr_mapstyle, vr_mapstyle_dump: a map's style per area (vr_mapstyle.cpp)
     adweapons::registerCommands();  // AD support: vr_ad_widowmaker_spin_info (vr_adweapons.cpp)
     Cmd_AddCommand("vr_admelee_models", admelee::info_f); // AD support: the AD melee weapons' models (vr_admelee.cpp)
     Cmd_AddCommand("vr_flail_info", box3d::flailInfo_f); // AD support: the death sergeant's flail's head (vr_box3d_flail.cpp)

@@ -1260,7 +1260,13 @@ QVR_CVAR(vr_burn_water_douse, "1", CVAR_ARCHIVE)       // 1: water and slime put
 QVR_CVAR(vr_burn_self, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
 QVR_CVAR(vr_burn_self_time, "0.6", CVAR_ARCHIVE)         // s a held torch's flame must stay on you before you catch fire (haptic warnings till then)
 QVR_CVAR(vr_burn_drop, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): a torch held upside down whose flame stays on the hand holding it for vr_burn_drop_time is dropped (a burn on the hand)
-QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns (and how far its flames sit off its surface); 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame; 13 sets you on fire (a hit at your chest), 14 prints how far your flames sit off your body (Debug)
+QVR_CVAR(vr_burn_flesh_catch, "0.25", CVAR_ARCHIVE)     // fire spreads from anything burning to the flammable things it touches (QC VR_Burn_CrateCatch, each half second): wood always, flesh (bodies, the player too) by this chance
+QVR_CVAR(vr_burn_blast, "0.5", CVAR_ARCHIVE)            // explosions set flammable things on fire within this share of their radius (QC VR_Burn_Blast; 0 off)
+QVR_CVAR(vr_burn_blast_flesh, "0", CVAR_ARCHIVE)        // ... a body's chance to catch from a blast (0: only wood; a rocket is not a flamethrower)
+QVR_CVAR(vr_monsters_press_buttons, "0", CVAR_ARCHIVE)  // floor buttons pressed by living monsters stepping on them and by heavy objects landing on them (QC VR_Button_PressedBy; 0: the player only, as id's maps expect)
+QVR_CVAR(vr_monsters_press_buttons_mass, "20", CVAR_ARCHIVE) // ... kg: the least weight of an object that presses one
+QVR_CVAR(vr_systems_test, "0", CVAR_NONE)              // the shared systems' tests and dumps (QC vr_systems_test.qc: 1 every entity's material answers; Debug > Systems Tests)
+QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                 // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns (and how far its flames sit off its surface); 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame; 13 sets you on fire (a hit at your chest), 14 prints how far your flames sit off your body (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 // Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,
@@ -2928,6 +2934,7 @@ QVR_CVAR(vr_kdtrig_blast_on, "1", CVAR_ARCHIVE)                     // Explosion
 // topple, up to Stagger Class times it only staggers back, heavier stands. A thrown body's strike: its momentum over
 // the monster's (Weight's at Speed); toppling's chance in full from a strike of 1, less below it to none at Least Strike.
 QVR_CVAR(vr_kdtrig_thrown_on, "1", CVAR_ARCHIVE)          // Thrown Bodies: on
+QVR_CVAR(vr_kdtrig_flung, "1", CVAR_ARCHIVE)             // Flung Bodies: a body no hand holds, flung by anything (a blast, a fall), strikes monsters and wall-mounted things by its momentum as a thrown one does (0: only thrown or swung ones)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance, 0 off (the training dummy judges them, for the motion takes, also off) (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
 QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run at the least speed before it counts (a run-up: a sprint begun beside the monster doesn't; dips under 0.25 s and jumps keep it; 0 none) (his 0.5, 1.5 before vr_cfg_version 189)
 QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
@@ -3486,6 +3493,7 @@ QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds
 QVR_CVAR(vr_push, "0.6", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
+QVR_CVAR(vr_kill_blast_fling, "1", CVAR_ARCHIVE)        // a blast that kills a monster throws its body at once (its ragdoll made as it dies, the blast's push and falloff on it), not after its death animation (0: as before)
 QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters burn in slime/lava and drown underwater (QC vr_liquids.qc)
 QVR_CVAR(vr_knockdown_wiggle, "1.5", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables (0.7 before config 89)
 QVR_CVAR(vr_knockdown_wiggle_frequency, "1.5", CVAR_ARCHIVE) // struggling frequency, Hz (1.2 before config 89)

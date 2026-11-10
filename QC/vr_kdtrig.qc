@@ -744,6 +744,11 @@ float(float i, entity m, entity by, float xMass, vector dir, float xStrike, stri
 // m's weight at vr_kdtrig_thrown_speed.
 void(entity m, entity body, float xMass, vector xVel) VR_KdTrig_BodyHit =
 {
+    if(m.vr_mount)
+    {
+        VR_Mount_BodyHit(m, body, xMass, xVel); // (a wall-mounted thing: its mount's detach rule, vr_mount.qc)
+        return;
+    }
     if(m == body || m.health <= 0 || m.vr_knockdown || !(m.flags & FL_MONSTER))
     {
         return;

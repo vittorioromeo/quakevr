@@ -1334,11 +1334,7 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     VR_Hit_End();
 
     // A lit torch sets it on fire (vr_burning.qc).
-    entity t = VR_Carry_Held(self, xHand);
-    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
-    {
-        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
-    }
+    VR_Burn_FromThing(c, VR_Carry_Held(self, xHand), self, at, dir);
     // So does an incandescent blade (vr_hotblade.qc).
     VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
 };
@@ -1502,16 +1498,7 @@ void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
 void(entity m, float xDrop) VR_Shove_Landed =
 {
     // At its feet (its origin, the middle of its box, is above shallow slime: e1m1's burned nothing).
-    float contents = pointcontents(m.origin + '0 0 1' * (m.mins_z + 1));
-    float dmg = 0;
-    if(contents == CONTENT_LAVA)
-    {
-        dmg = 100;
-    }
-    else if(contents == CONTENT_SLIME)
-    {
-        dmg = 30;
-    }
+    float dmg = VR_Liquid_LandDamage(VR_Liquid_AtFeet(m)); // (vr_liquids.qc)
     // (The drop's own damage is any landing's now: the engine's VR_Monster_Fall, from its speed.)
     if(xDrop > 24 || dmg > 0)
     {
@@ -3447,6 +3434,10 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
     self = oldSelf;
 };
 
+void(entity e, entity xInflictor, entity xAttacker, float xDamage) VR_Burn_Blast; // (vr_burning.qc)
+.entity vr_impulse_by; // who last flung it (a blast's attacker): credited for what it then hits (VR_Prop_Flung)
+.float vr_impulse_t;   // ... when
+
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
     VR_ExplosionRumble(inflictor.origin, damage);
@@ -3470,6 +3461,9 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
     {
         if(head != ignore)
         {
+            VR_Burn_Blast(head, inflictor, attacker, damage); // VR: flammable things near it catch fire
+            head.vr_impulse_by = attacker; // VR: what it flings hits on its attacker's account
+            head.vr_impulse_t = time;
             if(head.takedamage)
             {
                 org = head.origin + (head.mins + head.maxs)*0.5;
