@@ -5327,6 +5327,7 @@ extern "C" void VR_SetupViewEntities()
     {
         s.placedFrom[hand] = s.pos[hand]; // the hands the muzzles and ports were placed on (hands::State::placedFrom)
     }
+    s.placedTurnYaw = s.turnYaw;
     flatsight::notePlaced(s); // (flatscreen play: the muzzles in their hands' frames)
 
     // The ring of shadows fades the hands and weapons too (as the old engine did); the gadget

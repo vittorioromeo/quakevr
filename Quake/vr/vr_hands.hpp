@@ -117,6 +117,10 @@ struct State
     // origin), a load or a teleport they were left far behind, and the server's line from the hand to its muzzle crossed
     // the map, pressing a button on the way (ROUND21.md, "A far button pressed at a map load").
     glm::vec3 placedFrom[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // And the play space's turn then (turnYaw): carriedSincePlaced carries a muzzle with the stick's turn since too (a snap
+    // turn's 45 degrees: the server's blade line, and the gibs it places on it, from the hand turned). Not the wrist's own
+    // turn: the blade line keeps following the swing as it always has (melee).
+    float placedTurnYaw{0.f};
 
     // Where the other hand grips each weapon in the "fixed" two-handed display mode (a
     // foregrip vertex of the weapon model), placed with the muzzles.
@@ -232,5 +236,8 @@ void angleVectors(
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
 [[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
 [[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // Quake angles' axes (forward, left, up)
+// A point the view placed on hand `h` at the end of its render (State::placedFrom, placedTurnYaw: the muzzle), carried
+// onto the hand as it is now: its move and the play space's turn since.
+[[nodiscard]] glm::vec3 carriedSincePlaced(const State& s, int h, const glm::vec3& placed);
 
 } // namespace qvr::hands
