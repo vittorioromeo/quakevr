@@ -339,7 +339,7 @@ engine telling it the slide by `.vr_sliding`): the same hit (`VR_KdTrig_ChargeHi
 the Shoulder Charges' chance, its cry), the strike its speed over that least, `vr_flat_slide_charge_stamina` (0) on top
 of the slide's. A prop slid into (`VR_PlayerBumps`, `shoveBumped`) is pushed on at `vr_flat_slide_prop_push` (1) of his
 speed shared by his and its masses, turned `vr_flat_slide_prop_side` (20) degrees to the side its middle is off his
-line. The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
+line. Lying down, the jump key stands him up (`vr_flat_prone_jump_stands` 1; `flatplay::jumpBit`, hooked in `CL_SendMove` by `VR_MoveJump`): the prone key's get-up (a low ceiling keeps him lying, as the key does) and no jump, the press swallowed until the key is let go (a held jump never jumps on after it; a fresh press does). The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
 (`hull::updateCrouch`, `flatmove::slideOnServer`). All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
 Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`, `vr_flatslide_hit_test 0|1`), `bash
 Misc/quakevr/body_lie_test.sh <agent>` (`vr_body_lie_test`: the slid and lying body).
