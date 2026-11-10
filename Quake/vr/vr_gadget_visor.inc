@@ -21,7 +21,15 @@
 // sweeps down each panel, what is under it still dark.
 
 constexpr float visorSizes[VisorPanelCount][2] = {
-    {120.f, 62.f}, {128.f, 62.f}, {96.f, 36.f}, {96.f, 36.f}, {240.f, 28.f}, {64.f, 132.f}, {64.f, 132.f}};
+    {120.f, 62.f}, {128.f, 62.f}, {96.f, 36.f}, {96.f, 36.f}, {240.f, 28.f}, {64.f, 132.f}, {64.f, 132.f},
+    {0.f, 0.f}}; // (the centre print's: its text's, visorCenterLayout)
+// The centre print's popup: Quake's 8-pixel characters (its own canvas's), a row each line, this margin round them; at
+// most this many rows (the rest left out: a message that long is the finale's, shown over the view).
+constexpr float visorCenterChar = 8.f;
+constexpr float visorCenterRow = 10.f;
+constexpr float visorCenterMarginX = 8.f;
+constexpr float visorCenterMarginY = 5.f;
+constexpr int visorCenterRows = 14;
 constexpr int visorTexels = 3; // texels a virtual pixel (crisp at the panels' size on a 1080p screen and over)
 constexpr int visorSideTexels = 4; // the side panels' (grown by vr_flat_visor_side_scale)
 constexpr int visorLogRows = 3;
@@ -39,16 +47,18 @@ struct VisorState
     za::Array<unsigned long long, VisorPanelCount> signatures{};
     za::Array<unsigned, VisorPanelCount> drawnInto{};
     za::Array<unsigned, VisorPanelCount> versions{};
+    glm::vec2 centerSize{0.f}; // the centre print's popup as last laid out (virtual pixels; 0: none)
 };
 VisorState visor;
 
-// The low panel's lines (the console's notify lines, wrapped), kept from frame to frame.
+// The low panel's lines (the console's notify lines, wrapped), kept from frame to frame; the centre print's.
 struct VisorScratch
 {
     Lines wrapped;
     za::Vector<za::Pair<za::SizeT, float>> picked; // wrapped's line, its alpha
     NotifyLine line;
-    auto members() { return qvr::mem::list(wrapped, picked, line); }
+    Lines center;
+    auto members() { return qvr::mem::list(wrapped, picked, line, center); }
 };
 mem::Scratch<VisorScratch> visorScratch{"visor"};
 
@@ -468,13 +478,78 @@ void visorSideRight(const Readout& r, const Palette& pal)
     }
 }
 
+// The centre print's lines (Quake's own breaks; each wrapped to vr_flat_visor_center_width; the blank lines before and
+// after its text, there to move it on Quake's screen, left out) and the popup's size for them (0: nothing to show).
+glm::vec2 visorCenterLayout(const char* text)
+{
+    VisorScratch& s = visorScratch;
+    Lines& out = s.center;
+    out.clear();
+    const float widest = CLAMP(120.f, vr_flat_visor_center_width.value, 600.f);
+    const int columns = za::max(8, static_cast<int>((widest - 2.f * visorCenterMarginX) / visorCenterChar));
+    za::StringView rest{text ? text : ""};
+    while(rest.startsWith('\n'))
+    {
+        rest.removePrefix(1);
+    }
+    while(rest.endsWith('\n') || rest.endsWith(' '))
+    {
+        rest.removeSuffix(1);
+    }
+    while(!rest.empty() && static_cast<int>(out.size()) < visorCenterRows)
+    {
+        const za::SizeT nl = rest.find('\n');
+        const za::StringView line = rest.substrByPosLen(0, nl == za::StringView::nPos ? rest.size() : nl);
+        if(line.empty())
+        {
+            (void)out.add(); // (a blank line between two: kept)
+        }
+        else
+        {
+            wrap(line, out, columns);
+        }
+        rest.removePrefix(nl == za::StringView::nPos ? rest.size() : nl + 1);
+    }
+    const za::SizeT rows = za::min(out.size(), static_cast<za::SizeT>(visorCenterRows));
+    za::SizeT most = 0;
+    for(za::SizeT i = 0; i < rows; i++)
+    {
+        most = za::max(most, out[i].size());
+    }
+    if(most == 0)
+    {
+        return glm::vec2{0.f};
+    }
+    return {static_cast<float>(most) * visorCenterChar + 2.f * visorCenterMarginX,
+        static_cast<float>(rows) * visorCenterRow - (visorCenterRow - visorCenterChar) + 2.f * visorCenterMarginY};
+}
+
+// The centre print: each line centred, as Quake's, in the values' colour.
+void visorCenter(const Palette& pal, float w)
+{
+    VisorScratch& s = visorScratch;
+    const Lines& lines = s.center;
+    for(za::SizeT i = 0; i < za::min(lines.size(), static_cast<za::SizeT>(visorCenterRows)); i++)
+    {
+        const float x = za::floor((w - static_cast<float>(lines[i].size()) * visorCenterChar) * 0.5f);
+        drawText(x, visorCenterMarginY + static_cast<float>(i) * visorCenterRow, visorCenterChar, lines[i].cStr(), pal.value, pal);
+    }
+}
+
 void visorRender(const VisorInput& in)
 {
     const Palette pal = palette();
     const Readout r = readout();
+    visor.centerSize = visorCenterLayout(in.center);
     for(int p = 0; p < VisorPanelCount; p++)
     {
-        const int w = static_cast<int>(visorSizes[p][0]), h = static_cast<int>(visorSizes[p][1]);
+        const glm::vec2 size = p == VisorCenter ? visor.centerSize : glm::vec2{visorSizes[p][0], visorSizes[p][1]};
+        const int w = static_cast<int>(size.x), h = static_cast<int>(size.y);
+        if(w <= 0 || h <= 0)
+        {
+            visor.shown[p] = false; // (the centre print's popup with nothing to show)
+            continue;
+        }
         gfx::Target& t = visor.targets[p];
         const int texels = p == VisorSideLeft || p == VisorSideRight ? visorSideTexels : visorTexels;
         gfx::ensureTarget(t, w * texels, h * texels, true, "visor panel"); // mipmaps: for its text's glow
@@ -491,7 +566,8 @@ void visorRender(const VisorInput& in)
                 case VisorRightAmmo: visorHand(r, pal, false); break;
                 case VisorLog: visorLowLog(pal, in.log); break;
                 case VisorSideLeft: visorSideLeft(r, pal); break;
-                default: visorSideRight(r, pal); break;
+                case VisorSideRight: visorSideRight(r, pal); break;
+                default: visorCenter(pal, static_cast<float>(w)); break;
             }
             visorBoot(static_cast<float>(w), static_cast<float>(h), in.boot[p], pal);
         };

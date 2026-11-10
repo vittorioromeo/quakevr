@@ -8119,6 +8119,39 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   now read against a new shot 7, the same moment at viewsize 120.
 - Tests: flathud 11/0, visor_test 32/0, flatitems 9/0, `vr_pp_test 1` 63/0; Release-TracyFull builds.
 
+## Visor: centre prints in a popup panel (branch `agent/visor_centerprint`, worktree `release`, 2026-11-10)
+
+His words: "make the 'centered messages' in flat screen appear as a rectangular popup panel in the visor, a little bit
+below where the top-center panel would end at".
+
+- **What:** with the visor on (flat), `SCR_CheckDrawCenterString` hands the game's centre print to the visor
+  (`VR_CenterPrintOnVisor`, after the wrist hologram's check) instead of drawing it. Quake's own rules still decide
+  when one is due: `scr_centertime` (and the notify fade, `con_notifyfade`, followed: `SCR_CenterPrintFade`, now shared
+  by both), hidden with the console or a menu up and while paused, the menu's centre-print preview drawn as before.
+  The intermission's and the finale's text (`cl.intermission`: the visor is off there anyway) stay full screen as
+  today, typed out letter by letter. The tips (vr_tips.cpp) still wait on `SCR_CenterPrintShowing`.
+- **The panel:** an eighth visor panel, `gadget::VisorCenter` (vr_gadget_visor.inc `visorCenterLayout` /
+  `visorCenter`): Quake's lines (its own breaks; the blank lines before and after dropped), each wrapped (the log's
+  `wrap`) to `vr_flat_visor_center_width` virtual pixels, 8-pixel characters centred as Quake's, at most 14 rows; its
+  image sized to the text. Mounted by the visor's own code (vr_visor_mounts.inc `MountKind::Popup`: a closed
+  chamfered rectangle) with the same face, frame, bevel, glows, back plate, glass, sway, lens and the readings' ink
+  (`vr_flat_visor_ink_crt`): nothing drawn for it alone. It sits centred, its frame `vr_flat_visor_center_gap` under
+  where the log's mount ends (`logBottom`: from `_log_out`, `_log_width`; the same whether the log is shown or
+  autohidden), shrunk only if the view is narrower than it. Not in `vr_flat_visor_panels`' mask (127 saved in configs).
+- **Pop and fade:** a new text (or one after the popup had gone) pops in over `vr_flat_visor_center_pop` s: fading
+  up, growing from 85% (the composite's new `Pop` uniform: the layer point scaled about the panel's middle) and the
+  panels' power-on scan down its image; the same text again (a locked door touched again) just stays. Out over
+  `vr_flat_visor_center_fade` s once Quake stops handing it over; a different message replaces it and pops again.
+- **Cvars (Visor HUD Look):** `vr_flat_visor_centerprint` 1, `_center_gap` 6, `_center_width` 320, `_center_pop` 0.2,
+  `_center_fade` 0.3. Debug > Visor: Centre Message / Long Centre Message (`vr_flat_visor_fx center <text>|long`,
+  `\n` a new line: through `SCR_CenterPrint`, so with Quake's timing). Report: `visor: center fade .. pop .. pops ..
+  size .. scale .. claimed ..` and `panel center`.
+- **Tests:** visor_test 37/0 (new: centred just under the log's mount, a long one replacing it taller with the same
+  top, the log hidden and the popup unmoved and still up 65 frames on, gone 105 frames on at `scr_centertime 1`,
+  `_centerprint 0` left to the view); flathud 11/0; `vr_pp_test 1` 62/0 flat, 63/0 VR; checklist_tests_check 139/0;
+  Release-TracyFull builds. Shots (1920x1080, 3440x1440): gold key, secret, long, long with the log hidden, and off.
+- **Shared:** the mounts, rings, atlas, composite, glass and lens are the visor's own; the text is the gadget's font and
+  `wrap`; the timing is Quake's. Nothing flat-only copied from VR (the wrist hologram is its VR counterpart, untouched).
 ## Flat: the open guns' pose, the revolver's hammer and its shells' timing (branch `agent/flat_ssg_pose`, worktree `flatwall`, 2026-11-10)
 
 - **The open pose** (his words: "smoothly adjust the pitch/yaw/roll of the gun at the same time to give it a more
