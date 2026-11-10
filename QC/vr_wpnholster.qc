@@ -1457,7 +1457,7 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
 // Flatscreen play's Q (impulse 48, vr_flatplay.cpp; his words 2026-11-05: "a button to swap left/right hand contents"):
 // what the two hands hold changes hands, each weapon with its record (its magazine, its id) and its next shot's time; a
 // weapon in one hand goes to the empty other. A hand carrying a thing (a box, a prop: VR_Carry_Held) keeps it, and then
-// nothing is swapped (a carried thing is G's to let go). Prints "flat swap:" (developer 1).
+// nothing is swapped (a carried thing is the drop key's (H) to let go). Prints "flat swap:" (developer 1).
 void(entity ent) VR_FlatSwapHands =
 {
     if(VR_Carry_Held(ent, cVR_MainHand) != world || VR_Carry_Held(ent, cVR_OffHand) != world)

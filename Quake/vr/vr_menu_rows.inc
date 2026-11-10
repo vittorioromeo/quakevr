@@ -6429,7 +6429,7 @@ QVR_TOGGLE(vr_flat_lean_mouse, "Mouse Follows Lean",
     "on the mouse is straight up on the screen. Off: Quake's way, the mouse turns and pitches as if level, so leant it "
     "moves the view at a slant (vr_flat_lean_mouse).")
 QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
-    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
+    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, H, G, V) do only "
     "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
     "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flat_flycam, "Fly Camera (F8)",

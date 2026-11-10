@@ -171,7 +171,7 @@ struct FlatKeys
 {
     bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
     bool keyFlash{false};   // F, last frame
-    bool keyDrop{false};    // G, last frame
+    bool keyDrop{false};    // H (vr_flat_key_drop), last frame
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
@@ -189,7 +189,7 @@ struct FlatKeys
 
     int crouches{0};        // vr_flatplay_status's counts: a crouch hold started
     int toggles{0};         // F: the flashlight switched
-    int drops{0};           // G: impulse 47 sent (QC drops what the hand holds)
+    int drops{0};           // H: impulse 47 sent (QC drops what the hand holds)
     int swaps{0};           // Q: impulse 48 sent (QC swaps what the hands hold)
     int times{0};           // Z: bullet time asked to start or stop
 };
@@ -983,7 +983,7 @@ void pollKeys()
     fs.keyFire[HAND_MAIN] = fire[HAND_MAIN];
 }
 
-// Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, G drops what a hand
+// Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, H drops what a hand
 // holds. Read from the keyboard state like E and V, and only while the game has the keys. (+flatcrouch / -flatcrouch hold
 // the crouch the same way, for the console and the mode's own Ctrl bind: CtrlBind above.)
 // Lying down's drop of the eyes (vr_prone): from Quake's standing eyes (cl.viewheight over the origin, 24 over the feet)
@@ -1176,7 +1176,10 @@ void pollKeysFlat()
     const bool inGame = key_dest == key_game;
     const bool ctrl = inGame && keydown[K_CTRL] != 0;
     const bool flash = inGame && keydown['f'] != 0;
-    const bool drop = inGame && keydown['g'] != 0;
+    // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
+    // grenade now, vr_flatgrenade.cpp).
+    const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
+    const bool drop = inGame && dropKey > 0 && dropKey < MAX_KEYS && keydown[dropKey] != 0;
 
     if(ctrl && !keyState.keyCtrl)
     {
@@ -1207,10 +1210,10 @@ void pollKeysFlat()
         Cbuf_InsertText("impulse 47\n");
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: G: drop\n");
+            Con_Printf("flatplay: %s: drop\n", vr_flat_key_drop.string);
         }
     }
-    // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and G.
+    // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and H.
     const int swapKey = Key_StringToKeynum(vr_flat_key_swap.string);
     const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
     const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && keydown[swapKey] != 0;
@@ -1218,7 +1221,7 @@ void pollKeysFlat()
     if(swap && !keyState.keySwap)
     {
         keyState.swaps++;
-        // The same InsertText as F and G: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
+        // The same InsertText as F and H: the swap travels as the impulse the game code reads (QC weapons.qc, 48 ->
         // vr_wpnholster.qc VR_FlatSwapHands), so `impulse 48` on the console swaps the same.
         Cbuf_InsertText("impulse 48\n");
         if(vr_flatplay_debug.value)
@@ -1751,7 +1754,7 @@ void frame()
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
                    "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
-                   "switches the flashlight, G drops what a hand holds, Q swaps the hands, Z starts bullet time, R reloads. With one weapon "
+                   "switches the flashlight, H drops what a hand holds, G takes a grenade, 3 swaps the hands, Z starts bullet time, R reloads. With one weapon "
                    "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
                    "the mode is doing.\n");
     }
