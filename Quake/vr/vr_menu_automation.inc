@@ -767,6 +767,9 @@ za::Vector<Item> pageDebugAutomation()
         command("Sweep the Head Zone", "vr_decap_test 19")
             .help("vr_decap_test 19: blows moved level at the nearest live monster's head from 16 sides, at heights 24 units below "
                   "its head's middle to 16 above: how many meet the melee's beheading zone at each (decapsweep: in the console)."),
+        command("Sweep the Head Zone, Chops", "vr_decap_test 28")
+            .help("vr_decap_test 28: as Sweep the Head Zone, the blows coming down at 45 degrees onto each height of its head's "
+                  "axis (diagonal chops): at the neck they behead, at the shoulders and the chest they shouldn't."),
         header("Limb Gore Tests (limbtest: ... in the console; developer 1: limbs: ...)"),
         command("A Grunt Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241").help("A grunt 96 units ahead, for the tests below."),
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; vr_test_spawn_dead 1; impulse 241; vr_test_spawn_dead 0")

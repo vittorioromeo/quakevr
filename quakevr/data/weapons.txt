@@ -2434,7 +2434,7 @@ weapon 24
     hand_z "0"
     hide_hand "0.0"
     id "owned/mg3/progs/v_hammer.mdl"
-    muzzle_av "36.5794 -3.2639 -9.0483"
+    muzzle_av "43.834 0.804 -16.945"
     muzzle_x "-0.071"
     muzzle_y "0.21"
     muzzle_z "-0.82"
@@ -2495,9 +2495,12 @@ weapon 24
     // vr_mg3_weapons.qc): MG3's own model read from the owned pack in place, its arm taken away and the axe laid as Quake VR's
     // axe lies (vr_monstermods.cpp superAxePoses; Misc/quakevr/fit_superaxe.py), so held as the axe is: the axe's settings,
     // with Offset moved by 0.66 * (the axe's scale_origin - the Super Axe's: -3.5777 -2.9313 -4.5756) and its hotspots' points
-    // by the opposite (a hotspot's point is k * p + (1 - k) * scale_origin); its muzzle (the melee line's far end) on the
-    // handle's line at the middle of its head, 38 units up the handle (the head is 27 to 49 up it, the axe's 25 to 37); a
-    // heavier, more head-heavy weight. The glow's anchors are its own keys (never inherited): the same mesh, the same point
+    // by the opposite (a hotspot's point is k * p + (1 - k) * scale_origin); its muzzle (the melee line's far end) at the
+    // middle of its blade's edge, as the axe's is at its edge (2026-11-10, his note: most hits read as pommel strikes): the
+    // edge's vertex 419, 38 units up the handle and 10 out on the blade's side (the head is 24 to 50 up it; the edge 34 to
+    // 42 up, 10 out; the far side a beak, 17 out at 39 to 43 up), where the axe's is 37 up and 11 out. It was on the
+    // handle's line at the head's middle: the striking points ran up the handle, 10 units behind the edge, and the handle's
+    // end met things first. A heavier, more head-heavy weight. The glow's anchors are its own keys (never inherited): the same mesh, the same point
     // (vr_anchor_nearest).
     torch_clip "0"
     w_heft "0" // MG3 hammer
@@ -2549,7 +2552,7 @@ weapon 25
     hand_z "0.0"
     hide_hand "0.0"
     id "owned/mg3/progs/v_hammer_glow.mdl"
-    muzzle_av "36.5794 -3.2639 -9.0483"
+    muzzle_av "43.834 0.804 -16.945"
     muzzle_x "0.0"
     muzzle_y "0.0"
     muzzle_z "0.0"

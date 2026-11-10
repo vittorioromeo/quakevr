@@ -30,11 +30,17 @@ enum class Effect : int
 
 // A point on one of your capsules (selfshot::Part), carried with it as drawn: how far along its axis, and its offset
 // from the axis in the axis' frame (turning with your view's yaw), as a share of its radius.
+// Also, where the drawn body is posed (vr_avatar.cpp), the body's own skinned surface nearest it: three vertices and the
+// point's barycentrics on them, so its blood pours from the drawn skin as it moves (his 2026-11-10: the capsule's surface
+// floated off the flatter body), not from the capsule.
 struct Spot
 {
     int part{-1};
     float along{0.f};
     glm::vec3 offset{0.f};
+    bool onSkin{false};
+    unsigned vert[3]{0u, 0u, 0u};
+    glm::vec3 bary{1.f, 0.f, 0.f};
 };
 
 // `at` on your capsule `part` as drawn now: its spot. False if that part is not drawn.
@@ -45,6 +51,8 @@ struct Spot
 
 // Too close to the eyes for blood to pour, splash or drip from (vr_player_gore_eye_clear): close in front, or over them.
 [[nodiscard]] bool nearEyes(const glm::vec3& p);
+// ... by a clearance of `clearM` metres (0: nothing is; the test's).
+[[nodiscard]] bool nearEyesBy(const glm::vec3& p, float clearM);
 
 // A wound on you struck (vr_wounds.cpp, as it is painted): at `at` (normal `n`) on capsule `part`, the blow going `way`,
 // wound kind `kind` (QVR_WOUND_*), `amount` its damage. Its stream, drips and splash.

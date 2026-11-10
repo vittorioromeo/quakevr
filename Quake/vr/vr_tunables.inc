@@ -2231,6 +2231,7 @@ QVR_TUNABLE(vr_embed_move_sword_force_deep, "1500") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_move_give, "0.4") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
 QVR_TUNABLE(vr_embed_move_hertz, "24") // Hz: the stiffness of the hand's spring on the body (a limb grab's 8)
 QVR_TUNABLE(vr_embed_move_at_wound, "1") // 1: the spring holds the body at the wound (follows closely); 0: at a point out at the hand, as before 2026-11-08 (it hung and swung from there: some 70% of a lift)
+QVR_TUNABLE(vr_embed_move_turn, "1") // share of the hand's turn since it took hold that the wound's place (from the hand) turns with: 1 the blade's whole length swings with the wrist, a body on it lifted overhead with the sword pointing up goes up with it; 0 as before 2026-11-10 (kept level: it stayed out in front)
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
 QVR_TUNABLE(vr_embed_brake, "25") // 1/s: running into a stab you hold, your speed along the blade into the body falls to Brake: Speed this fast (0: never; his note 2026-11-08)
@@ -2273,5 +2274,5 @@ QVR_TUNABLE(vr_player_gore_stream_time, "0.6") // ... how long it pours, times a
 QVR_TUNABLE(vr_player_gore_stream_max, "3") // ... streams on you at once (the weakest makes way)
 QVR_TUNABLE(vr_player_gore_drip_rate, "0.6") // ... your wounds' drips (vr_player_gore_drips), times an enemy's rate (vr_drips_blood_rate; your arms' own drips too: vr_body_blood)
 QVR_TUNABLE(vr_player_gore_splash_amount, "1") // ... drops a hit splashes out of the wound, times 6 (vr_player_gore_splash)
-QVR_TUNABLE(vr_player_gore_eye_clear, "0.35") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them
+QVR_TUNABLE(vr_player_gore_eye_clear, "0") // ... metres: no stream pours, no drop splashes or drips this close to the eyes, nor from over them (0, his 2026-11-10: none kept back, a hand at the face bleeds there too; it was 0.35)
 QVR_TUNABLE(vr_drips_blood_marks, "0.25") // ... the chance a drop leaves a mark on the floor

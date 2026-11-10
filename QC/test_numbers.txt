@@ -59,7 +59,8 @@ vr_embed_test    23       vr_embed_test.qc                 a closed fist held st
 vr_embed_test    24       vr_embed_test.qc                 his 11-05 notes: axe tug (distance, force, shake), eased out, leeway, no ghost, 2H hotspot, arm stretch, lift, handle freed
 vr_embed_test    25       vr_embed_test.qc                 his 11-06 notes: the axe tugged out eased in the drawn hand (one move), a beheading or limb-cutting axe blow leaves no blade in empty space
 vr_embed_test    26       vr_embed_test.qc                 a head or limb an axe swing cuts off stays on the axe (live, corpse): rides it, weighs, flung off by a stop, tugged off by the other hand
-vr_embed_test    27       vr_embed_test.qc                 how closely a body follows a hand on a stuck blade (test 11's cases 35-41 alone): staggering and dead, deep sword and axe, swung, lifted, pulled
+vr_embed_test    27       vr_embed_test.qc                 how closely a body follows a hand on a stuck blade (test 11's cases 35-41 alone): staggering and dead, deep sword and axe, swung, lifted, pulled; 42 the grip through its stagger, 43-45 Blade Hold Strength x10 lifted overhead (the wrist turning up)
+vr_embed_test    31       vr_embed_test.qc                 a limb on the blade burst by the other hand's blow: its blood where it is, past the particles hidden near the eyes
 vr_embed_test    28       vr_embed_1108_test.qc            his 11-08 notes: a stab that kills stays in the falling body, running on into a stab brakes you, a force grab through its own host
 vr_embed_test    29       vr_embed_1108b_test.qc           a gib skewered on the sword stays on the drawn blade through stick turns (smooth, snap) and moves
 vr_embed_test    30       vr_embed_1108b_test.qc           blades in wooden crates and barrels: stab and swing stay in, drag not lift, let go, ride, pull out, broken, off
@@ -435,6 +436,8 @@ vr_decap_test    12-18    vr_decap_test.qc                 (VR_Decap_TestBlastDa
 vr_decap_test    19       vr_decap_test.qc                 (VR_Decap_Sweep)
 vr_decap_test    20-22    vr_decap_test.qc                 (VR_Decap_TestShot)
 vr_decap_test    23-27    vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    28       vr_decap_test.qc                 (VR_Decap_Sweep: chops)
+vr_decap_test    29       vr_decap_test.qc                 (an axe's chop into the upper chest: kills, no head off)
 vr_decap_test    30       vr_decap_test.qc                 (VR_Button_Thrown)
 vr_decap_test    31       vr_decap_test.qc                 (gremlin_flip8)
 vr_decap_test    32       vr_decap_test.qc                 (VR_Gore_Print)
