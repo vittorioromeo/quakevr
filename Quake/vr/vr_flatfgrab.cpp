@@ -153,6 +153,25 @@ void report_f()
     }
     Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs.presses,
         gs.sent, gs.refused, gs.doubled);
+    // Where the effect starts on each hand (fgfx::palmOrigin), in the hand's frame (forward, left, up), against the palm's
+    // middle and the old start (2 units ahead of the hand's point): headset or flat.
+    const hands::State& s = hands::current();
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[h], f, r, u);
+        const auto local = [&](const glm::vec3& p) {
+            const glm::vec3 d = p - s.pos[h];
+            return glm::vec3{glm::dot(d, f), -glm::dot(d, r), glm::dot(d, u)};
+        };
+        const glm::vec3 palm = local(hands::palmPoint(s, h));
+        const glm::vec3 fx = local(fgfx::palmOrigin(s, h));
+        const grip::HandFrame hf = grip::handFrame(h, h == HAND_OFF, true);
+        Con_Printf("flatfgrab: %s hand fx start (fwd left up) %.2f %.2f %.2f; palm middle %.2f %.2f %.2f (known %d, measured %d, "
+                   "normal %.2f %.2f %.2f); old start 2 0 0\n",
+            handName(h), fx.x, fx.y, fx.z, palm.x, palm.y, palm.z, s.palmValid[h] ? 1 : 0, hf.measured ? 1 : 0, hf.palmNormal.x,
+            hf.palmNormal.y, hf.palmNormal.z);
+    }
 }
 
 void press_f()

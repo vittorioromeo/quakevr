@@ -851,7 +851,8 @@ The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; 
 (`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
 (`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
 main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
-palm, in the headset too; flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
+palm's middle, moved `vr_forcegrab_fx_along` towards the fingers and `vr_forcegrab_fx_out` out of the palm, in the headset too;
+flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
 is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling something takes no second grab (QC
 `VR_Forcegrab_FlatFree`): a second press goes to the other hand, or does nothing. The pose: Debug > Tunables > Flatscreen > Force
 Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).

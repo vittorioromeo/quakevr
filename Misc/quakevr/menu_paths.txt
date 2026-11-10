@@ -2560,6 +2560,7 @@ vr_ragimpact_crush_mass|2|Tunables|Ragimpact Crush Mass|Advanced VR Options > De
 vr_decap_pop_projectile|2|Tunables|Decap Pop Projectile|Advanced VR Options > Debug > Tunables > Decap Pop Projectile
 vr_parry_muzzle_angle|2|Tunables|Parry Muzzle Angle|Advanced VR Options > Debug > Tunables > Parry Muzzle Angle
 vr_forcegrab_miss_speed|2|Tunables|Forcegrab Miss Speed|Advanced VR Options > Debug > Tunables > Forcegrab Miss Speed
+vr_forcegrab_settle|2|Tunables|Force Grab: Settle Time|Advanced VR Options > Debug > Tunables > Force Grab: Settle Time
 vr_forcegrabbable_ammo_boxes|2|Tunables|Forcegrabbable Ammo Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Ammo Boxes
 vr_forcegrabbable_health_boxes|2|Tunables|Forcegrabbable Health Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Health Boxes
 vr_forcegrabbable_return_time_deathmatch|2|Tunables|Forcegrabbable Return Time Deathmatch|Advanced VR Options > Debug > Tunables > Forcegrabbable Return Time Deathmatch
@@ -2750,6 +2751,8 @@ vr_crate_crowbar_max|2|Tunables|Most Crowbars|Advanced VR Options > Debug > Tuna
 vr_crate_flaregun|2|Tunables|Flare Gun on Crates|Advanced VR Options > Debug > Tunables > Flare Gun on Crates
 vr_crate_flaregun_max|2|Tunables|Most Flare Guns|Advanced VR Options > Debug > Tunables > Most Flare Guns
 vr_forcegrab_outline|2|Tunables|Outline|Advanced VR Options > Debug > Tunables > Outline
+vr_forcegrab_fx_along|2|Tunables|Effect Start: Towards Fingers|Advanced VR Options > Debug > Tunables > Effect Start: Towards Fingers
+vr_forcegrab_fx_out|2|Tunables|Effect Start: Off The Palm|Advanced VR Options > Debug > Tunables > Effect Start: Off The Palm
 vr_forcegrab_distance|2|Tunables|Distance|Advanced VR Options > Debug > Tunables > Distance
 vr_forcegrab_cone|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_forcegrab_flick_speed|2|Tunables|Flick Speed|Advanced VR Options > Debug > Tunables > Flick Speed
@@ -2817,6 +2820,7 @@ vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug >
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
+vr_hitmodel_skin_keep|2|Tunables|Keep Skinned Bodies|Advanced VR Options > Debug > Tunables > Keep Skinned Bodies
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
 vr_ragdoll_held_local|2|Tunables|Held Limbs Follow the Hand|Advanced VR Options > Debug > Tunables > Held Limbs Follow the Hand
 vr_ragdoll_active_headshot|2|Tunables|Headshot Strength|Advanced VR Options > Debug > Tunables > Headshot Strength
@@ -4057,6 +4061,24 @@ vr_flat_reload_down|2|Tunables|Reload: Down Time|Advanced VR Options > Debug > T
 vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > Tunables > Reload: Hold Time
 vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
 vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug > Tunables > Reload: Muzzle Down
+vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
+vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
+vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
+vr_flat_fg_release_time|2|Tunables|Force Grab: Back Time|Advanced VR Options > Debug > Tunables > Force Grab: Back Time
+vr_flat_fg_fwd|2|Tunables|Force Grab: Hand Forward|Advanced VR Options > Debug > Tunables > Force Grab: Hand Forward
+vr_flat_fg_out|2|Tunables|Force Grab: Hand Out|Advanced VR Options > Debug > Tunables > Force Grab: Hand Out
+vr_flat_fg_down|2|Tunables|Force Grab: Hand Down|Advanced VR Options > Debug > Tunables > Force Grab: Hand Down
+vr_flat_fg_palm_aim|2|Tunables|Force Grab: Palm At Object|Advanced VR Options > Debug > Tunables > Force Grab: Palm At Object
+vr_flat_fg_finger_tilt|2|Tunables|Force Grab: Finger Lean|Advanced VR Options > Debug > Tunables > Force Grab: Finger Lean
+vr_flat_carry_pose|2|Tunables|Held Prop: Carry Pose|Advanced VR Options > Debug > Tunables > Held Prop: Carry Pose
+vr_flat_carry_time|2|Tunables|Held Prop: Pose Time|Advanced VR Options > Debug > Tunables > Held Prop: Pose Time
+vr_flat_carry_fwd|2|Tunables|Held Prop: Hand Forward|Advanced VR Options > Debug > Tunables > Held Prop: Hand Forward
+vr_flat_carry_out|2|Tunables|Held Prop: Hand Out|Advanced VR Options > Debug > Tunables > Held Prop: Hand Out
+vr_flat_carry_down|2|Tunables|Held Prop: Hand Down|Advanced VR Options > Debug > Tunables > Held Prop: Hand Down
+vr_flat_carry_pitch|2|Tunables|Held Prop: Pitch|Advanced VR Options > Debug > Tunables > Held Prop: Pitch
+vr_flat_carry_yaw|2|Tunables|Held Prop: Turn In|Advanced VR Options > Debug > Tunables > Held Prop: Turn In
+vr_flat_carry_roll|2|Tunables|Held Prop: Palm Up|Advanced VR Options > Debug > Tunables > Held Prop: Palm Up
+vr_flat_carry_drawn|2|Tunables|Held Prop: In The Drawn Hand|Advanced VR Options > Debug > Tunables > Held Prop: In The Drawn Hand
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
@@ -4660,6 +4682,7 @@ vr_particle_saturate_opacity|2|Debug - Profiling and Memory|Opaque At|Advanced V
 vr_debug_particle_waste|2|Debug - Profiling and Memory|Count Wasted Particle Fill|Advanced VR Options > Debug > Profiling and Memory > Count Wasted Particle Fill
 |2|Debug - Profiling and Memory|Particle Fill Waste Report|Advanced VR Options > Debug > Profiling and Memory > Particle Fill Waste Report
 vr_particle_freeze|2|Debug - Profiling and Memory|Freeze Particles|Advanced VR Options > Debug > Profiling and Memory > Freeze Particles
+vr_particle_threads|2|Debug - Profiling and Memory|Particles on Threads|Advanced VR Options > Debug > Profiling and Memory > Particles on Threads
 vr_particle_halfres_force|2|Debug - Profiling and Memory|Half-Res Particles Always|Advanced VR Options > Debug > Profiling and Memory > Half-Res Particles Always
 vr_particle_halfres_upsample|2|Debug - Profiling and Memory|Half-Res Blend|Advanced VR Options > Debug > Profiling and Memory > Half-Res Blend
 host_fixedtick|2|Debug - Profiling and Memory|Fixed 72 Hz Server Tick|Advanced VR Options > Debug > Profiling and Memory > Fixed 72 Hz Server Tick
@@ -4729,6 +4752,8 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
+|2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
+|2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
 vr_flat_reload_pose|2|Debug - Reports|Flatscreen: Hold Gun At Hip|Advanced VR Options > Debug > Reports > Flatscreen: Hold Gun At Hip
 vr_handsource_debug|2|Debug - Reports|Print Hand Motion Source|Advanced VR Options > Debug > Reports > Print Hand Motion Source
@@ -5834,6 +5859,7 @@ vr_decap_poptest_dist|2|Debug - Automation & Self-Tests|Test Range|Advanced VR O
 |2|Debug - Automation & Self-Tests|Rocket at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Rocket at Its Head
 |2|Debug - Automation & Self-Tests|Grenade at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Grenade at Its Head
 |2|Debug - Automation & Self-Tests|Give Quad Damage|Advanced VR Options > Debug > Automation & Self-Tests > Give Quad Damage
+|2|Debug - Automation & Self-Tests|Dump Every Entity's Material|Advanced VR Options > Debug > Automation & Self-Tests > Dump Every Entity's Material
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Torch's Blow)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Torch's Blow)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Lava Nail)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Lava Nail)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Touch)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Touch)
@@ -5877,6 +5903,8 @@ vr_walltorch_debug|2|Debug - Automation & Self-Tests|Torch Flames to Console|Adv
 |2|Debug - Automation & Self-Tests|QuakeC Loop Bench|Advanced VR Options > Debug > Automation & Self-Tests > QuakeC Loop Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Split Bench|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Split Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Self-Test
+|2|Debug - Automation & Self-Tests|Particles on Threads Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Particles on Threads Self-Test
+|2|Debug - Automation & Self-Tests|Physics Threads Determinism|Advanced VR Options > Debug > Automation & Self-Tests > Physics Threads Determinism
 |2|Debug - Automation & Self-Tests|Zancle Math Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Zancle Math Self-Test
 |2|Debug - Automation & Self-Tests|SHA-256 Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > SHA-256 Self-Test
 |2|Debug - Automation & Self-Tests|Grasp Bench|Advanced VR Options > Debug > Automation & Self-Tests > Grasp Bench
@@ -6165,6 +6193,7 @@ vr_kdtrig_blast_on|1|Ragdoll Triggers - Explosions|Explosions|Advanced VR Option
 |1|Ragdoll Triggers - Explosions|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Explosions > Reset This Page
 @page|1|Ragdoll Triggers - Thrown Bodies||Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies
 vr_kdtrig_thrown_on|1|Ragdoll Triggers - Thrown Bodies|Thrown Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Thrown Bodies
+vr_kdtrig_flung|1|Ragdoll Triggers - Thrown Bodies|Flung Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Flung Bodies
 |1|Ragdoll Triggers - Thrown Bodies|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Reset This Page
 @page|1|Ragdoll Triggers - Shoulder Charges||Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges
 vr_kdtrig_tackle|1|Ragdoll Triggers - Shoulder Charges|Chance|Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges > Chance

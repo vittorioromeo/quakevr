@@ -4,6 +4,7 @@
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
@@ -316,7 +317,19 @@ bool handTarget(int hand, int& ent, int& state, glm::vec3& at)
 
 glm::vec3 palmOrigin(const hands::State& s, int hand)
 {
-    return hands::palmPoint(s, hand);
+    // The palm's middle (the empty jointed hand's, as drawn), moved vr_forcegrab_fx_along towards the fingers (the hand's
+    // forward, off the palm's normal) and vr_forcegrab_fx_out out of the palm (his VR note 2026-11-10: it began near the
+    // fingertips; the palm, or between it and the fingers on the palm's side, looks better).
+    const grip::HandFrame f = grip::handFrame(hand, hand == 0, true);
+    glm::vec3 n = glm::length(f.palmNormal) > 1e-3f ? glm::normalize(f.palmNormal) : glm::vec3{0.f, hand == 0 ? -1.f : 1.f, 0.f};
+    glm::vec3 along = glm::vec3{1.f, 0.f, 0.f} - n * n.x;
+    along = glm::length(along) > 1e-3f ? glm::normalize(along) : glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    const glm::mat3 axes{fwd, -right, up}; // the hand's frame: forward, left, up
+    const float a = za::clamp(vr_forcegrab_fx_along.value, -10.f, 10.f);
+    const float o = za::clamp(vr_forcegrab_fx_out.value, -10.f, 10.f);
+    return hands::palmPoint(s, hand) + axes * (along * a + n * o);
 }
 
 } // namespace qvr::fgfx

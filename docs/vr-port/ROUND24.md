@@ -7401,4 +7401,12 @@ His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
   `VR_RelinkHeld` from the hands of the move's latch, before the view's relatch and the drawn sway, bob and turn's lag, so it
   bobbed and lagged or led the hand as the mouse turned.
 - **Test**: `vr_flatitems_test 6` (two keys; the first flies only after the turn, never two at one hand, it ends in the hand
-  it flew to). Scene `flat_force_grab`. Owed: the runs (Vittorio was in VR while this was written).
+  it flew to). Scene `flat_force_grab`.
+- **Effect start, his VR note** ("the force grab origin is not the palm ... kind of like the fingertip"): measured with
+  `vr_flat_fg_report` in the VR mock, the palm's middle is 4.25 units behind and 2.5 below the hand's point, so the old start
+  (2 ahead) was about 6.7 units off the palm, out by the fingers. Now the palm's middle moved `vr_forcegrab_fx_along` (1 u)
+  towards the fingers and `vr_forcegrab_fx_out` (0.6 u) out of the palm's surface on its side (Debug > Tunables > Carrying and
+  Throwing > Force Grab): fx start -3.25 0.35 -2.49 (main hand, forward left up) against the palm's -4.25 -0.25 -2.49.
+- **Pose defaults**: `vr_flat_fg_out` 0.15 and `vr_flat_fg_down` -0.05 (0.3 / 0.1 put the open hand on the screen's bottom
+  left edge). `flatitems_test.sh` sets `vr_flat_autoreload 1`: since the flat reload landed, e1m1's shotgun starts with an
+  empty clip and cases 1 and 5 timed out waiting for a shot (not this branch: they pass with it).

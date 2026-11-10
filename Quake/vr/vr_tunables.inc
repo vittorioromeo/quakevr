@@ -376,6 +376,8 @@ QVR_TUNABLE(vr_crate_flaregun_max, "2") // most flare guns on crates in a map
 
 // Carrying and Throwing > Force Grab
 QVR_TUNABLE(vr_forcegrab_outline, "1") // the glow round what a hand's force grab points at (strength, 0 off)
+QVR_TUNABLE(vr_forcegrab_fx_along, "1") // units: the effect's start moved from the palm's middle towards the fingers (negative: towards the wrist)
+QVR_TUNABLE(vr_forcegrab_fx_out, "0.6") // units: and out of the palm's surface, on its side (negative: into the hand)
 QVR_TUNABLE(vr_forcegrab_distance, "200") // units objects can be pulled from,
 QVR_TUNABLE(vr_forcegrab_cone, "15") // degreesoff where the hand points
 QVR_TUNABLE(vr_forcegrab_flick_speed, "1.0") // m/s back or up the hand flicks to pull,
@@ -1877,9 +1879,9 @@ QVR_TUNABLE(vr_flat_fg_pose, "1") // E's hand turns its palm to the object and o
 QVR_TUNABLE(vr_flat_fg_turn_time, "0.12") // seconds the palm takes to turn out and the fingers to open, before the grab starts
 QVR_TUNABLE(vr_flat_fg_detach_time, "0.15") // seconds more for a hand on a held gun's two-handed grip to let go of it first
 QVR_TUNABLE(vr_flat_fg_release_time, "0.2") // seconds the hand takes back to its own pose once the object is caught or missed
-QVR_TUNABLE(vr_flat_fg_fwd, "0.75") // the grabbing hand: in front of its shoulder, a share of the arm's reach
-QVR_TUNABLE(vr_flat_fg_out, "0.3") // out at its own side, a share of the arm's reach (away from a held gun)
-QVR_TUNABLE(vr_flat_fg_down, "0.1") // below its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_fg_fwd, "0.8") // the grabbing hand: in front of its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_fg_out, "0.15") // out at its own side, a share of the arm's reach (away from a held gun)
+QVR_TUNABLE(vr_flat_fg_down, "-0.05") // below its shoulder, a share of the arm's reach (negative: above; on the screen's edge at 0.3 out, 0.1 down)
 QVR_TUNABLE(vr_flat_fg_palm_aim, "1") // how much the palm turns to the object (0: straight ahead along the view)
 QVR_TUNABLE(vr_flat_fg_finger_tilt, "20") // degrees the fingers lean out from straight up, about the palm's normal
 

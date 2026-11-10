@@ -379,6 +379,8 @@ QVR_TUNABLE_SLIDER(vr_crate_flaregun_max, "Most Flare Guns", 0.0f, 4.0f, 1.0f, "
 
 QVR_TUNABLE_GROUP("Carrying and Throwing > Force Grab")
 QVR_TUNABLE_SLIDER(vr_forcegrab_outline, "Outline", 0.0f, 2.0f, 0.1f, "%.1f", 0.0f, 10.0f, "The soft glow round the object a hand points at (0 off).")
+QVR_TUNABLE_SLIDER(vr_forcegrab_fx_along, "Effect Start: Towards Fingers", -4.f, 6.f, 0.25f, "%.2f u", -10.f, 10.f, "The force grab's beam and tendril start this far from the middle of the palm towards the fingers; negative towards the wrist (vr_forcegrab_fx_along).")
+QVR_TUNABLE_SLIDER(vr_forcegrab_fx_out, "Effect Start: Off The Palm", -2.f, 4.f, 0.1f, "%.1f u", -10.f, 10.f, "And this far out of the palm's surface, on the palm's side (vr_forcegrab_fx_out).")
 QVR_TUNABLE_SLIDER(vr_forcegrab_distance, "Distance", 100.0f, 1500.0f, 25.0f, "%.0f", 100.0f, 4000.0f, "units objects can be pulled from,")
 QVR_TUNABLE_SLIDER(vr_forcegrab_cone, "Aim Cone", 3.0f, 45.0f, 1.0f, "%.0f deg", 3.0f, 213.0f, "How far off where the hand points an object may be.")
 QVR_TUNABLE_SLIDER(vr_forcegrab_flick_speed, "Flick Speed", 0.3f, 3.0f, 0.1f, "%.1f m/s", 0.3f, 13.8f, "How fast the hand moves back or up to pull.")
