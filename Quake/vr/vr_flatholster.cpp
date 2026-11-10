@@ -65,6 +65,9 @@ constexpr glm::vec4 figure[] = {{121.f, 20.f, 135.f, 20.f}, {135.f, 20.f, 135.f,
 
 constexpr glm::vec4 handRect[2] = {{262.f, 40.f, 88.f, 100.f}, {384.f, 40.f, 88.f, 100.f}}; // the left hand's, the right's
 constexpr glm::vec4 swapRect{354.f, 76.f, 26.f, 26.f};
+// DROP BOTH: under the hands' DROPs, in the middle between them (his words 2026-11-10: "add a 'drop both' button under
+// the hands at the center").
+constexpr glm::vec4 dropBothRect{317.f, 162.f, 100.f, 14.f};
 
 enum class Act : int
 {
@@ -72,6 +75,7 @@ enum class Act : int
     HolsterDrop,  // holster `index` to the ground (61 + 3i)
     HolsterRight, // holster `index` <-> the right hand (62 + 3i)
     HandDrop,     // hand `index` (0 the left, 1 the right) drops (78, 79)
+    DropBoth,     // both hands drop, the off hand first (81)
     Swap          // the hands swap (48: 3's)
 };
 struct Button
@@ -81,15 +85,18 @@ struct Button
     glm::vec4 rect;
     char name[16];
 };
-constexpr int buttonCount = holsterCount * 3 + 3;
+constexpr int buttonCount = holsterCount * 3 + 4;
 
 struct State
 {
-    bool open{false};      // the key held (or +flatholsters), this frame
+    bool open{false};      // open this frame (vr_flat_holster_menu_mode 0: the key held; 1: toggled on)
     float fade{0.f};       // 0 closed .. 1 open
     double lastTime{-1.0}; // realtime at the last frame
-    bool escLatch{false};  // Esc closed it: shut until the key is let go
+    bool escLatch{false};  // Esc closed it: shut until the key is let go (mode 0)
     bool cmdHeld{false};   // +flatholsters
+    bool keyWas{false};    // the key (or +flatholsters) down, last frame
+    bool toggled{false};   // mode 1: a press opened it, the next one closes it
+    bool lmbClicked{false}; // mode 0: the left button clicked during this hold (then letting go only closes)
     bool lmb{false};       // the left button, last frame
     glm::vec2 cursor{panelW * 0.5f, panelH * 0.5f};
     float scale{2.f};      // window pixels a panel pixel, as last drawn
@@ -160,6 +167,7 @@ void layOut()
     }
     add(Act::HandDrop, 0, {handRect[0].x, handRect[0].y + handRect[0].w + 4.f, handRect[0].z, 14.f}, "left drop");
     add(Act::HandDrop, 1, {handRect[1].x, handRect[1].y + handRect[1].w + 4.f, handRect[1].z, 14.f}, "right drop");
+    add(Act::DropBoth, 0, dropBothRect, "both drop");
     add(Act::Swap, 0, swapRect, "swap");
 }
 
@@ -178,6 +186,7 @@ void layOut()
     case Act::HolsterRight: return (c.holster[b.index] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[1];
     case Act::HolsterDrop: return c.holster[b.index] != WID_FIST;
     case Act::HandDrop: return handHas(b.index);
+    case Act::DropBoth: return handHas(0) || handHas(1);
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
     }
     return false;
@@ -191,6 +200,7 @@ void layOut()
     case Act::HolsterDrop: return 61 + 3 * b.index;
     case Act::HolsterRight: return 62 + 3 * b.index;
     case Act::HandDrop: return b.index == 0 ? 78 : 79;
+    case Act::DropBoth: return 81;
     case Act::Swap: return 48;
     }
     return 0;
@@ -243,6 +253,12 @@ void click()
     return key > 0 && key < MAX_KEYS && keydown[key] != 0;
 }
 
+// vr_flat_holster_menu_mode 1: a press opens it, clicks, the next press closes it; 0: held, let go on a button.
+[[nodiscard]] bool toggleMode()
+{
+    return vr_flat_holster_menu_mode.value != 0.f;
+}
+
 // vr_flatholster_test's run (below), stepped by frame().
 void testStep();
 
@@ -254,15 +270,35 @@ void frame(bool on)
     const float dt = st.lastTime >= 0.0 ? za::clamp(static_cast<float>(now - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = now;
     const bool held = keyHeld() || st.cmdHeld;
+    const bool pressed = held && !st.keyWas, letGo = !held && st.keyWas;
+    st.keyWas = held;
     if(!held)
     {
         st.escLatch = false;
     }
-    const bool want = on && vr_flat_holsters.value != 0.f && key_dest == key_game && cls.signon == SIGNONS &&
-                      cl.stats[STAT_HEALTH] > 0 && !cl.intermission && toolgun::heldHand() != HAND_MAIN && held && !st.escLatch;
+    const bool can = on && vr_flat_holsters.value != 0.f && key_dest == key_game && cls.signon == SIGNONS &&
+                     cl.stats[STAT_HEALTH] > 0 && !cl.intermission && toolgun::heldHand() != HAND_MAIN;
+    // vr_flat_holster_menu_mode (his words 2026-11-10): 0 open while held, and letting go clicks the button under the
+    // cursor ("so that I can quickly hover what I want and release the mouse wheel"; over nothing, or after a left click
+    // in this hold, it only closes); 1 a press opens it, the left button clicks as often as wanted, the next press closes.
+    const bool toggle = toggleMode();
+    if(!toggle || !can)
+    {
+        st.toggled = false;
+    }
+    else if(pressed)
+    {
+        st.toggled = !st.toggled;
+    }
+    if(!toggle && letGo && st.open && !st.lmbClicked)
+    {
+        click();
+    }
+    const bool want = can && (toggle ? st.toggled : held && !st.escLatch);
     if(want && !st.open)
     {
         st.cursor = {panelW * 0.5f, panelH * 0.5f}; // (each time in the middle: between the holsters and the hands)
+        st.lmbClicked = false;
         Con_DPrintf("flat holsters: the menu opens\n");
     }
     else if(!want && st.open)
@@ -283,6 +319,7 @@ void frame(bool on)
     if(st.open && lmb && !st.lmb)
     {
         click();
+        st.lmbClicked = true;
     }
     st.lmb = lmb;
     testStep();
@@ -334,6 +371,7 @@ bool escape()
     }
     st.open = false;
     st.escLatch = true;
+    st.toggled = false;
     Con_DPrintf("flat holsters: the menu closes (Esc)\n");
     return true;
 }
@@ -416,6 +454,7 @@ void draw()
         case Act::HolsterRight: g.icon = gadget::MenuIcon::HandRight; g.label = "R"; break;
         case Act::HolsterDrop: g.icon = gadget::MenuIcon::Drop; break;
         case Act::HandDrop: g.icon = gadget::MenuIcon::Drop; g.label = "DROP"; break;
+        case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
         }
     }
@@ -428,7 +467,8 @@ void draw()
     v.lines = lines.data();
     v.lineCount = nl;
     v.header = "HOLSTERS";
-    v.footer = "L / R: trade with that hand    DROP: to the ground    SWAP: the hands (3)";
+    v.footer = toggleMode() ? "Click   wheel / Esc: close   L/R: trade with that hand   DROP: to the ground"
+                            : "Point, let go of the wheel   L/R: trade with that hand   DROP: to the ground";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     if(!img.shown)
     {
@@ -516,6 +556,8 @@ struct Test
     int frames{0};
     testkit::Tally tally;
     int holster{0};
+    int clicks{0};     // st.clicks before a step
+    float mode{0.f};   // vr_flat_holster_menu_mode before the test (put back at its end)
 };
 Test test;
 constexpr int giveUp = 400;
@@ -539,6 +581,13 @@ void press(const char* name)
     }
     (void)mouse(dx, dy);
     click();
+}
+
+// The cursor brought onto panel point `p` by the mouse's counts (no click).
+void pointAt(const glm::vec2& p)
+{
+    const float k = za::max(st.scale, 0.1f) / za::max(vr_flat_holster_menu_cursor_speed.value, 0.01f);
+    (void)mouse(static_cast<int>(za::round((p.x - st.cursor.x) * k)), static_cast<int>(za::round((p.y - st.cursor.y) * k)));
 }
 
 void next()
@@ -655,19 +704,159 @@ void testStep()
         if(test.frames >= 30)
         {
             result(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN, "2, 4 and the wheel's cycle change nothing");
-            press("left drop");
+            Cbuf_AddText("impulse 47\n"); // H (vr_flat_key_drop's impulse)
             next();
         }
         break;
     case 8:
-        if(wait(c.hand[0] == WID_FIST, "the left hand's DROP"))
+        if(wait(c.hand[0] == WID_FIST, "H: the off (left) hand's nailgun dropped first"))
         {
-            result(true, "the left hand's DROP");
-            st.cmdHeld = false;
+            result(c.hand[1] == WID_SHOTGUN, "H: the off (left) hand's nailgun dropped first, the right's shotgun kept");
+            Cbuf_AddText("impulse 47\n");
             next();
         }
         break;
     case 9:
+        if(wait(c.hand[1] == WID_FIST, "H again: then the main (right) hand's shotgun"))
+        {
+            result(true, "H again: then the main (right) hand's shotgun");
+            const int was = st.clicks;
+            press("both drop");
+            result(st.clicks == was, "DROP BOTH dim (does nothing) with both hands empty");
+            Cbuf_AddText("impulse 154; wait; impulse 176\n"); // (the script's guns again: the shotgun right, the nailgun left)
+            next();
+        }
+        break;
+    case 10:
+        if(wait(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN, "both hands full again"))
+        {
+            press("left drop");
+            next();
+        }
+        break;
+    case 11:
+        if(wait(c.hand[0] == WID_FIST, "the left hand's DROP"))
+        {
+            result(c.hand[1] == WID_SHOTGUN, "the left hand's DROP");
+            Cbuf_AddText("impulse 176\n");
+            next();
+        }
+        break;
+    case 12:
+        if(wait(c.hand[0] == WID_NAILGUN, "the nailgun in the left hand again"))
+        {
+            press("both drop");
+            next();
+        }
+        break;
+    case 13:
+        if(wait(c.hand[0] == WID_FIST && c.hand[1] == WID_FIST, "DROP BOTH: both hands empty"))
+        {
+            result(true, "DROP BOTH: both hands empty");
+            Cbuf_AddText("impulse 154\n");
+            next();
+        }
+        break;
+    // vr_flat_holster_menu_mode 0 (the test's): letting go of the key clicks the button under the cursor.
+    case 14:
+        if(wait(c.hand[1] == WID_SHOTGUN, "the shotgun in the right hand again"))
+        {
+            pointAt({240.f, 124.f}); // (the right chest's slot: no button)
+            test.clicks = st.clicks;
+            st.cmdHeld = false;
+            next();
+        }
+        break;
+    case 15:
+        if(wait(!st.open, "let go over no button: closed"))
+        {
+            result(st.clicks == test.clicks && c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "let go over no button: just closed");
+            st.cmdHeld = true;
+            next();
+        }
+        break;
+    case 16:
+        if(wait(st.open, "held again: open"))
+        {
+            int dx = 0, dy = 0;
+            if(countsTo("h1 r", dx, dy))
+            {
+                (void)mouse(dx, dy); // (only pointed at: no click)
+            }
+            st.cmdHeld = false;
+            next();
+        }
+        break;
+    case 17:
+        if(wait(c.holster[1] == WID_SHOTGUN && c.hand[1] == WID_FIST, "let go over h1 R: the right hand's shotgun into the right shoulder"))
+        {
+            result(!st.open, "let go over h1 R: the right hand's shotgun into the right shoulder, the menu closed");
+            Cvar_SetValueQuick(&vr_flat_holster_menu_mode, 1.f);
+            st.cmdHeld = true; // (a press: it opens)
+            next();
+        }
+        break;
+    // vr_flat_holster_menu_mode 1: a press opens it, as many clicks as wanted, the next press closes it.
+    case 18:
+        st.cmdHeld = false;
+        if(test.frames >= 5 && wait(st.open, "toggle: a press opens it"))
+        {
+            result(true, "toggle: a press opens it, letting go keeps it open");
+            press("h1 r");
+            next();
+        }
+        break;
+    case 19:
+        if(wait(c.hand[1] == WID_SHOTGUN && c.holster[1] == WID_FIST, "toggle: click 1 (h1 R)"))
+        {
+            result(st.open, "toggle: click 1 (h1 R: the shotgun drawn), still open");
+            press("swap");
+            next();
+        }
+        break;
+    case 20:
+        if(wait(c.hand[0] == WID_SHOTGUN && c.hand[1] == WID_FIST, "toggle: click 2 (SWAP)"))
+        {
+            result(st.open, "toggle: click 2 (SWAP), still open");
+            press("left drop");
+            next();
+        }
+        break;
+    case 21:
+        if(wait(c.hand[0] == WID_FIST, "toggle: click 3 (the left hand's DROP)"))
+        {
+            result(st.open, "toggle: click 3 (the left hand's DROP), still open");
+            st.cmdHeld = true; // (the next press)
+            next();
+        }
+        break;
+    case 22:
+        st.cmdHeld = false; // (let go a few frames before the press that opens it again)
+        if(test.frames >= 3 && wait(!st.open, "toggle: the next press closes it"))
+        {
+            result(true, "toggle: the next press closes it");
+            st.cmdHeld = true;
+            next();
+        }
+        break;
+    case 23:
+        st.cmdHeld = false;
+        if(wait(st.open, "toggle: opened again"))
+        {
+            (void)escape();
+            next();
+        }
+        break;
+    case 24:
+        // (Counted frames: it must stay shut, not open again on the next frame.)
+        if(test.frames >= 10)
+        {
+            result(!st.open && !st.toggled, "toggle: Esc closes it");
+            Cvar_SetValueQuick(&vr_flat_holster_menu_mode, test.mode);
+            next();
+        }
+        break;
+    case 25:
         if(wait(!shown() && timescale::current() >= 1.f, "the menu closed, time back at 1"))
         {
             result(true, "the menu closed, time back at 1");
@@ -685,6 +874,8 @@ void test_f()
 {
     test = Test{};
     test.step = 0;
+    test.mode = vr_flat_holster_menu_mode.value;
+    Cvar_SetValueQuick(&vr_flat_holster_menu_mode, 0.f);
     Con_Printf("flatholster_test: started\n");
 }
 

@@ -2124,7 +2124,8 @@ QVR_SLIDER(vr_gore_mist_speed, "Mist Drift", 0.f, 3.f, 0.1f, "%.1fx", ext(), "Ho
 QVR_SLIDER(vr_gore_mist_rise, "Mist Rise", -20.f, 20.f, 1.f, "%.0f u/s", ext(-100.f, 100.f), "How fast they rise (negative: sink).")
 QVR_SLIDER(vr_gore_mist_dark, "Mist Darkness", 0.f, 1.f, 0.05f, "%.2f", noExt, "How dark their red is (0 bright, 1 nearly black).")
 QVR_SLIDER(vr_gore_mist_near, "Mist Clear of Eyes", 0.f, 128.f, 4.f, "%.0f u", ext(0.f, 512.f),
-    "No mist closer to your eyes than this: your own bleeding is not in your face.")
+    "No mist made closer to your eyes than this (0: always made; how near the eyes particles are drawn: Particle Fade Near "
+    "Eyes and Particles Hidden Nearer).")
 QVR_SLIDER(vr_water_blood, "Blood in Water", 0.f, 2.f, 0.1f, "%.1fx", noExt,
     "Blood spreads on water and slime as dark red clouds where something bleeds into it, a hit, a gib, a corpse, a wounded body or you wading (0 none). Under water, sprays and streams of blood slow into slowly sinking clouds.")
 QVR_SLIDER(vr_water_blood_time, "Blood in Water Lifetime", 2.f, 120.f, 2.f, "%.0f s", noExt, "How long a cloud of blood on the water takes to fade.")
@@ -6234,6 +6235,12 @@ QVR_TOGGLE(vr_flat_holsters, "Holsters",
     "the holster menu: time slows, and the mouse trades a holster's weapon with either hand, drops it, or swaps your "
     "hands. A weapon you walk over goes into a free hand. Off: the number keys and the wheel cycle through every weapon "
     "you collected, as before (vr_flat_holsters).")
+QVR_CYCLE(vr_flat_holster_menu_mode, "Holster Menu Wheel Button",
+    "Release to Pick (the default): hold the mouse wheel's button, point at a button and let go: that button is used "
+    "(let go over nothing: the menu just closes; a left click while holding works too). Toggle: a press of the wheel's "
+    "button opens the menu, click the left button as often as you like, and the next press (or Esc) closes it "
+    "(vr_flat_holster_menu_mode).",
+    {0.f, "Release to Pick"}, {1.f, "Toggle"})
 QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
     "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
     "(vr_flat_holster_menu_timescale).")

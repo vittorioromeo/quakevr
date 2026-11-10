@@ -1,0 +1,10 @@
+# flat_skewer_gibs: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): heads, limbs and gibs on the axe drawn on the blade as drawn (vr_held.cpp followDrawnHands; vr_embed_test 29 in flat), and blood made right at the camera (vr_gore_mist_near 0). ROUND24.md, "Flat-screen: gibs on the blade, blood at the camera".
+title Flat-screen gibs on the axe, blood at the camera: an axe, grunts close by
+hint Play with -flatscreenmode. Cut a grunt's head off with the axe: it stays on the blade. Walk and turn the mouse fast: it stays on the axe, no bob, lag, lead or jitter. Hit them up close: the blood and its mist come right at the camera (with Particle Fade Near Eyes and Particles Hidden Nearer at 0, drawn there too).
+map vrtesthall
+god
+give "Axe" main
+cvar vr_gore_mist_near 0
+spawn "Grunt" 80 0
+spawn "Grunt" 110 50
+spawn "Grunt" 110 -50

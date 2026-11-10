@@ -1198,6 +1198,7 @@ QVR_CVAR(vr_embed_probe_wstep, "0", CVAR_NONE)         // cm the most the drawn 
 QVR_CVAR(vr_embed_probe_eased, "0", CVAR_NONE)         // frames a weapon was drawn easing off a blade
 QVR_CVAR(vr_embed_probe_skew, "-1", CVAR_NONE)         // vr_embed_test 29 (set -1 to start): cm the most a gib on a blade in the hand was drawn off its place on the drawn blade
 QVR_CVAR(vr_embed_probe_skewn, "0", CVAR_NONE)         // and the frames it was measured in
+QVR_CVAR(vr_embed_probe_skewj, "0", CVAR_NONE)         // and cm the most its place in the server's hand moved from one frame to the next (a jitter: 0 riding the blade)
 QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
@@ -1545,7 +1546,7 @@ QVR_CVAR(vr_gore_mist_grow, "1", CVAR_ARCHIVE)        // how fast they spread as
 QVR_CVAR(vr_gore_mist_speed, "1", CVAR_ARCHIVE)       // how fast they drift along the blow and apart
 QVR_CVAR(vr_gore_mist_rise, "-2", CVAR_ARCHIVE)       // units/s they rise (negative: sink)
 QVR_CVAR(vr_gore_mist_dark, "0.4", CVAR_ARCHIVE)      // how dark their red is (0 bright, 1 nearly black)
-QVR_CVAR(vr_gore_mist_near, "40", CVAR_ARCHIVE)       // none closer to the eyes than this many units (your own bleeding not in your face)
+QVR_CVAR(vr_gore_mist_near, "0", CVAR_ARCHIVE)        // none made closer to the eyes than this many units (0, the default since 2026-11-10: always made, his note "I would like them to always spawn"; 40 was 1.5 m: no mist from a blow in arm's reach). Drawn near the eyes: vr_particle_near_fade, _near_cull
 QVR_CVAR(vr_corpse_dying, "1", CVAR_ARCHIVE)          // a monster dying takes a corpse's damage during its death animation (QC combat.qc: gibbed by it, never killed again)
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_debug_climb_feet, "0", CVAR_NONE)         // 1 print each foothold the climbing feet find (climbfoot), 2 also each frame's feet (climbfeet), 3 draw them
@@ -4071,7 +4072,7 @@ QVR_CVAR(vr_flat_key_grab, "mouse4", CVAR_ARCHIVE)      // the key that force-gr
 QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 what the grab key (mouse 4) would take now glows with the force grab's outline, as an open hand's aim shows it in the headset (QC VR_Forcegrab_FlatPreview); 0 no preview
 QVR_CVAR(vr_flat_key_grab_alt, "", CVAR_ARCHIVE)        // a second key that force-grabs the same, by its bind name; "" none (R until 2026-11-08: R reloads now, vr_flat_key_reload)
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
-QVR_CVAR(vr_flat_key_drop, "h", CVAR_ARCHIVE)           // the key that lets go of what a hand holds (impulse 47, QC VR_Forcegrab_FlatDrop: the main hand first), by its bind name; "" none (G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up")
+QVR_CVAR(vr_flat_key_drop, "h", CVAR_ARCHIVE)           // the key that lets go of what a hand holds (impulse 47, QC VR_Forcegrab_FlatDrop: the off hand first, his words 2026-11-10), by its bind name; "" none (G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up")
 QVR_CVAR(vr_flat_key_grenade, "g", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
 QVR_CVAR(vr_flat_grenade, "1", CVAR_ARCHIVE)            // flat-screen play: 1 the quick grenade key (vr_flat_key_grenade) takes a grenade from the pouch; 0 it does nothing
 QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE)   // the quick grenade's fire button: 1 a press arms it (its fuse runs), the next press held winds up the throw and its release throws; 0 one press: it arms, held winds up, let go throws
@@ -4097,7 +4098,8 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
-QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the key held for the holster menu (a bind name; "" none)
+QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
+QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
 QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu (pixels at 1080p, 0 none)
 QVR_CVAR(vr_flat_holster_menu_xhair_fade, "1", CVAR_ARCHIVE) // flatscreen play: how far the crosshair fades out while the holster menu is open (1 gone, 0 kept)

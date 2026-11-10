@@ -2160,9 +2160,37 @@ struct SkewerDrawn
 constexpr int skewerDrawnMost = 16;
 SkewerDrawn skewerDrawn[skewerDrawnMost];
 int skewerDrawnCount = 0;
+// (vr_embed_probe_skewj: last frame's, to see how much a gib's place in the hand moves frame to frame: a jitter)
+SkewerDrawn skewerDrawnBefore[skewerDrawnMost];
+int skewerDrawnBeforeCount = 0;
+
+// vr_embed_probe_skewj: the most the gib's place in the server's hand moved since the frame before (it rides the blade
+// rigidly, so 0 but for a slide along it: anything else is the server placing it from a hand other than the one it reports).
+void skewerJitterProbe(const SkewerDrawn& d)
+{
+    if(!vr_embed_probe.string[0])
+    {
+        return;
+    }
+    for(int k = 0; k < skewerDrawnBeforeCount; k++)
+    {
+        const SkewerDrawn& b = skewerDrawnBefore[k];
+        if(b.ent == d.ent && b.hand == d.hand)
+        {
+            const float moved = glm::distance(b.pos, d.pos) / units::metresToUnits() * 100.f;
+            Cvar_SetValueQuick(&vr_embed_probe_skewj, za::fmax(vr_embed_probe_skewj.value, moved));
+            return;
+        }
+    }
+}
 
 void skewerFrame(const hands::State& s)
 {
+    skewerDrawnBeforeCount = skewerDrawnCount;
+    for(int k = 0; k < skewerDrawnCount; k++)
+    {
+        skewerDrawnBefore[k] = skewerDrawn[k];
+    }
     skewerDrawnCount = 0;
     using namespace progs;
     const FieldOffsets& f = fields();
@@ -2222,6 +2250,7 @@ void skewerFrame(const hands::State& s)
         d.hand = h;
         d.pos = glm::transpose(serverHand[h]) * (geom::vec(ed->v.origin) - serverPos[h]);
         d.rot = glm::transpose(serverHand[h]) * held::axesFromAngles(ed->v.angles, false);
+        skewerJitterProbe(d);
         if(vr_carry_local.value)
         {
             place(e, drawnPos[h] + drawnAxes[h] * d.pos, drawnAxes[h] * d.rot, true);
@@ -2884,6 +2913,22 @@ void followDrawnHands(const hands::State& drawn)
         hd.lastPos = drawn.pos[h] + turn * (hd.basePos - hd.baseHandPos);
         hd.lastRot = turn * hd.baseRot;
         place(cl_entities[hd.ent], hd.lastPos, hd.lastRot, true); // (from the base each time: a frame drawn twice, the same)
+    }
+    // The gibs, heads and limbs on a blade in the hand (skewerFrame), the same way: their place in the server's hand put on
+    // the hand as drawn now, on the drawn blade (his note 2026-11-10, item 8: they bobbed, lagged and led the axe).
+    if(!vr_carry_local.value)
+    {
+        return;
+    }
+    for(int k = 0; k < skewerDrawnCount; k++)
+    {
+        const SkewerDrawn& d = skewerDrawn[k];
+        if(d.ent <= 0 || d.ent >= cl.num_entities || !cl_entities[d.ent].model)
+        {
+            continue;
+        }
+        const glm::mat3 axes = held::axesFromAngles(&drawn.rot[d.hand][0], true);
+        place(cl_entities[d.ent], drawn.pos[d.hand] + axes * d.pos, axes * d.rot, true);
     }
 }
 

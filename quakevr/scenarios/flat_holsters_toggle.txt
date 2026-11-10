@@ -1,0 +1,10 @@
+# flat_holsters_toggle: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The flat-screen holster
+# menu in its toggle mode (vr_flat_holster_menu_mode 1; ROUND24.md, "Flat holster menu round 2"): the test hall, the
+# shotgun in the right hand and the nailgun in the left. A flat line: start the game with -flatscreenmode.
+title Flat holsters: the holster menu as a toggle
+map vrtesthall
+cvar vr_flat_holsters 1
+cvar vr_flat_holster_menu_mode 1
+cmd impulse 154
+cmd impulse 176
+hint Press the mouse wheel's button once: the holster menu opens and stays open. Click L, R, DROP, SWAP and DROP BOTH with the left button as many times as you like; the next wheel press, or Esc, closes it.

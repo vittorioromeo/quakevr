@@ -6,7 +6,10 @@
 #   driven by the mouse's counts and the left button's click: time at vr_flat_holster_menu_timescale; every holster emptied
 #   by its DROP; h0 L, h0 R (a holster trading with either hand); SWAP; h0 R into the empty hand; with both hands full the
 #   weapon keys (2, 4, the wheel's cycle) change nothing and a super shotgun walked over is left lying (QC's line,
-#   "flatholster pickup: ... left lying"); the left hand's DROP; let go: the menu closed and time back at 1. A screenshot
+#   "flatholster pickup: ... left lying"); H (impulse 47) drops the off (left) hand's gun first, then the main hand's;
+#   DROP BOTH dim with both hands empty; the left hand's DROP; DROP BOTH empties both hands; vr_flat_holster_menu_mode 0:
+#   let go over no button just closes, let go over h1 R clicks it; mode 1 (toggle): a press opens it, three clicks with
+#   it still open, the next press closes it, Esc closes it; at the end the menu closed and time back at 1. A screenshot
 #   of the menu with the nailgun in the left shoulder holster (-Out).
 AGENT=${1:?agent}
 KIT=C:/OHWorkspace/qvr-kit
