@@ -1,0 +1,11 @@
+# vr_skewer_snap: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Headset: gibs, heads and limbs on a blade stay on it through a snap turn and a stick turn (vr_client.cpp handMuzzle: the server's blade line carried with the play space's turn; vr_embed_test 29). ROUND24.md, "VR: gibs on a blade through a snap turn".
+title Gibs on the blade through a snap turn: a sword, grunts close by
+hint Stab a grunt or cut its head off with the sword so it stays on the blade. Snap turn (45 degrees) and turn with the stick: it stays on the blade in the same frame, no jump or flicker.
+map vrtesthall
+god
+give "Knight's Sword" main
+cvar vr_snap_turn 45
+cvar vr_gore_mist_near 0
+spawn "Grunt" 80 0
+spawn "Grunt" 110 50
+spawn "Grunt" 110 -50

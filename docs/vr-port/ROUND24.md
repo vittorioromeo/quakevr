@@ -5650,6 +5650,39 @@ then: the origin bends 1.36, 4 frames off the ground, the view 0.13 (hidden); th
 the real clock. Not covered: sliding up a ramp (a slide up 13 degrees ends at once, "slowed"); the spiral's second flight
 from its landing (the slide begins at the lip, in the air: gun bend 0.56 at the slide's start, left out of the test).
 
+### Slide jitter (agent/slide_jitter, 2026-11-10)
+
+His report: sliding, "a little bit of jitter in the player IK / arms / weapons". Measured with `vr_flatslide_ramp_test 1`
+(now also prints, per frame, the drawn main hand with its looks, the skinned body's main shoulder, elbow, knee and ankle,
+all from the view, and the view off the pose's head), on the two ramps and a new level-floor run (north of the button
+ramp), at several frame clocks (`vr_fixed_frames_rate`, `vr_fixed_frames_jitter`: deterministic uneven frames) and the
+real clock. Jitter = rms of each frame's offset from its neighbours' line in time (cm, 3.81 a unit).
+
+- **Cause: the arm's hold took a frame-old shoulder.** flatplay::drawnOffset puts a drawn hand the arm can't reach back
+  on a line from the shoulder, and took that shoulder from the body as last drawn (avatar::skeleton): a frame old, so
+  behind by the frame's move. Sliding at ~400 u/s, the frame's move is 3.3 units at 120 fps, 5.5 at 72, 14 in a 35 ms
+  hitch; the slide's leant-back body leaves the hand within ~2 units of its reach, so the hold pulled the gun (and the
+  elbow after it) in by a frame-time-dependent amount: jitter. At an even 360 fps (1.1 units) it did not fire; at his
+  `host_maxfps 120`, at 72, and in any long frame it did.
+- **Fix:** the last posed body is carried by the head's move since (avatar::skeletonUnder: the Skeleton now records the
+  head it was posed under; flatplay::drawnSkeleton carries it to this frame's s.head plus bodyRide, the head this frame's
+  body is posed under). Used by the arm's hold and by flatsight's helping hand (armShare, off the body pose), the two
+  things placed before this frame's body is posed. Nothing about the slide's move changed.
+- **Numbers, drawn main hand from the view, rms / max cm (spiral ramp, button ramp, level floor):** 72 fps even: before
+  0.35/0.41/0.28 (holds every run), after 0.27/0.31/0.20, no holds. 120 fps (10% frame jitter): before 0.61/0.25/0.17
+  (max 1.95), after 0.14/0.13/0.13 (max 0.70). 100 fps (45% jitter): before 5.8/3.9/3.5 (max 12.6), after 0.40/0.36/0.32.
+  40 fps (45%): before 16.6/10.4/20.0, after 0.6/0.6/0.45. The real clock with long frames (his game running beside):
+  level floor before 3.05 (max 18), after 0.05-0.10, no holds. 360 fps even or jittered: unchanged (0.09-0.18; the hold
+  never fired). The pose's own points (gun, shoulder, pelvis) were never noisy: 0.03 cm rms at 360 fps.
+- **Not changed (measured, small):** the skinned shoulder and knee from the view at 360 fps with 45% frame jitter, 0.14-0.23
+  and 0.16-0.38 cm rms (the legs' ease of the slide pose); the view sits up to 2.5 units over the pose's head for the
+  slide's first ~0.15 s (smooth). On the level floor the pose's pelvis turns round from its settle at the slide's start
+  (0.52 a frame at 72 fps, one kink): said, not counted in the level run.
+
+Test: `vr_flatslide_ramp_test` gains the level-floor run and, per run, "the arm's hold pulled the drawn gun in 0 times
+sliding" (with the drawn hand's jitter printed). `flatramp_test.sh` 12/12 (before the fix the new check fails at 72 fps:
+holds in every run). Checklist scene `{test:flat_slide_jitter}` (vrtesthall's open floor, a shotgun in hand).
+
 ## vr_pp_test 1's two single failures (branch `agent/pptest`, 2026-11-10)
 
 Two different 62/1 runs of `map vrtesthall; vr_pp_test 1` were reported (one on agent/elbow3, one on next at 0eed92f65).
@@ -7860,3 +7893,32 @@ spawning if for example I stand really close to a ragdoll and shoot it."
   Candidates left: a ragdoll at eye height (slumped against a wall, on a ledge) where the flat shot's start can pass the body,
   the particle pool's cap after many gibs (`vr_limits`), and the blood decals (not counted).
 - Scene `flat_blood_pointblank`.
+## VR: gibs on a blade through a snap turn (branch `agent/vr_snapgib`, 2026-11-10)
+
+Found by `agent/flat_gibs` (above): with the headset, `vr_embed_probe_skewj` (cm a skewered gib's place in the server's
+hand moved frame to frame) was 48 cm on a 45-degree snap turn and 4.9 cm on a stick turn. Vittorio: "Please fix that."
+
+- **Cause:** not the drawing. The server places a skewered gib on the blade's line from the hand to its muzzle (QC
+  `VR_Skewer_Place` -> `VR_Melee_Line`: `.muzzlepos`), and the move's muzzle is the one the last render placed, carried
+  along by the hand's move since (`vr_client.cpp` `handMuzzle`, `hands::State::placedFrom`) but not by the play space's
+  turn. A snap turn between the render and the move turned the hand (`.handpos`/`.handrot`, current) but left the muzzle
+  where the turn began: for that frame the server's blade pointed 45 degrees off and the gib went there; the client's
+  `skewerFrame` puts the gib's place in the server's hand onto the drawn hand, so the drawn gib jumped off the blade for a
+  frame. Walking was fine (the move was carried); the stick turn was off by one frame's turn.
+- **Fix:** `hands::State::placedTurnYaw` (the play space's `turnYaw` when the view placed the muzzles, set beside
+  `placedFrom` in vr_view.cpp) and `hands::carriedSincePlaced` (vr_hands.cpp): the muzzle carried by the hand's move and
+  turned about the hand by the play space's turn since. `handMuzzle` uses it with the headset. Only the play space's turn,
+  not the whole hand's rotation: carrying the wrist's own turn too (tried first) changed how the blade line follows a
+  swing by a frame, and `vr_embed_test 27` case 45 (a wrist turning up 50 degrees with a body on the blade) went from
+  12-14 to 15-20 degrees off (its limit 20); melee untouched this way. It also fixes a gun's muzzle on a snap's frame
+  (the server's shot origin was the pre-turn muzzle for that frame).
+- **Shared / not:** one helper for the carry; flat play keeps its own (`vr_flatsight.cpp` `keepMuzzle`/`muzzleNow` carry
+  the muzzle with the hand's whole turn and aim it; `handMuzzle` keeps the plain move for it, as before), so flat is
+  unchanged. `held::followDrawnHands` was not needed in VR: the drawn hand there is the tracked one, and the skewered gibs
+  were already drawn on it (`skewerFrame`); the error was in the server's place.
+- **Test** `vr_embed_test 29` now checks the jitter with the headset too: at most 1 cm on the snap case, 0.5 cm otherwise
+  (flat 0.1 as before). Headset: 10/0, jitter 0.006 (smooth), 0.006 (snap), 0.000 (move), 0.005 cm (both); before 4.9 cm
+  turning and 48 cm on the snap. Flat: 10/0, 0.003 cm. Embed tests 26 31/0, 27 36/0 (case 45: 13 degrees), 28 24/0,
+  31 4/0; `vr_pp_test 1` 63/0; eval.sh no fails. Scene `vr_skewer_snap` (a sword, three grunts, snap turn 45).
+- Left alone: the loading port and the magazine box are carried the same translation-only way (`move.loadPort`,
+  `magBox`); a loose round or a magazine near the port on a snap's frame is a frame off. Not seen in play.
