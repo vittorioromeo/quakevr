@@ -27,6 +27,7 @@
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_tracy.h"
 
 #include "vr_engine.hpp"
@@ -1143,7 +1144,7 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
     {
         return 0;
     }
-    if(toolgun::panel::flatMouse(dx, dy))
+    if(toolgun::panel::flatMouse(dx, dy) || flatholster::mouse(dx, dy)) // (the holster menu's cursor: vr_flatholster.cpp)
     {
         return 1;
     }
@@ -1160,6 +1161,10 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
 // Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
 extern "C" int VR_FlatToolgunEscape(void)
 {
+    if(flatholster::escape()) // (the holster menu: closed until its key is pressed again)
+    {
+        return 1;
+    }
     if(!toolgun::panel::flatShown())
     {
         return 0;
@@ -1274,6 +1279,7 @@ void pollKeysFlat()
     fs.keyShove = shove;
     shoveFrame();
     toolgunKeys();
+    flatholster::frame(true); // the wheel's button: the holster menu (vr_flatholster.cpp)
 
     // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
     // `lin` goes at an even speed; the share everything reads (`ratio`: the view, his head and box, the body, the arms,
@@ -1539,6 +1545,11 @@ FireRoute routeFire(bool lmb, bool rmb)
 {
     // A gun turned up out of a wall does not fire (vr_flat_wall_block_fire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
+    // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
+    if(flatholster::open())
+    {
+        return FireRoute{};
+    }
     FireRoute r = routeButtons(lmb, rmb);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1717,6 +1728,7 @@ void init()
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
     flathud::init();   // vr_flathud_report (vr_flathud.cpp)
     flatreload::init(); // vr_flatreload_report (vr_flatreload.cpp)
+    flatholster::init(); // +flatholsters, vr_flat_holster_menu_dump, vr_flatholster_test (vr_flatholster.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
@@ -1783,6 +1795,7 @@ void frame()
         flatmove::frame(false);
         slidesound::frame(false);
         flatreload::frame(false);
+        flatholster::frame(false);
         return;
     }
 

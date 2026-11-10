@@ -6203,6 +6203,30 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
     "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
+QVR_TOGGLE(vr_flat_holsters, "Holsters",
+    "Playing on the desktop screen (-flatscreenmode): on (the default), you carry what a headset player does: six "
+    "holsters and your two hands. The number keys pick no weapon (3 swaps your hands); hold the mouse wheel's button for "
+    "the holster menu: time slows, and the mouse trades a holster's weapon with either hand, drops it, or swaps your "
+    "hands. A weapon you walk over goes into a free hand. Off: the number keys and the wheel cycle through every weapon "
+    "you collected, as before (vr_flat_holsters).")
+QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
+    "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
+    "(vr_flat_holster_menu_timescale).")
+QVR_SLIDER(vr_flat_holster_menu_blur, "Holster Menu Blur", 0.f, 20.f, 1.f, "%.0f px", noExt,
+    "How much the view blurs behind the holster menu (pixels at 1080p; 0 none) (vr_flat_holster_menu_blur).")
+QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
+QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
+    "The holster menu's height, a share of the screen's (vr_flat_holster_menu_size).")
+QVR_SLIDER(vr_flat_holster_menu_fade_time, "Holster Menu Fade Time", 0.f, 0.5f, 0.02f, "%.2f s", noExt,
+    "How long the holster menu takes to fade in and out (vr_flat_holster_menu_fade_time).")
+QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f, 3.f, 0.1f, "x%.1f", noExt,
+    "The holster menu's cursor speed: 1 moves it as the desktop's pointer moves (vr_flat_holster_menu_cursor_speed).")
+QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
+    "The holster menu's screen as a small CRT, as the visor's panels: scanlines and flicker (0 none) "
+    "(vr_flat_holster_menu_crt).")
+QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
+    "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

@@ -29,6 +29,8 @@ namespace qvr::notectx
 namespace
 {
 
+} // namespace
+
 // The QC's weapon ids (QC vr_defs.qc WID_*), named.
 constexpr const char* weaponNames[] = {"fists", "grapple", "axe", "Mjolnir", "shotgun", "super shotgun", "nailgun",
     "super nailgun", "grenade launcher", "proximity gun", "rocket launcher", "lightning gun", "laser cannon", "sword",
@@ -41,6 +43,9 @@ static_assert(za::getArraySize(weaponNames) == WID_LAST + 1, "a name for each we
 {
     return wid >= 0 && wid < static_cast<int>(za::getArraySize(weaponNames)) ? weaponNames[wid] : "?";
 }
+
+namespace
+{
 
 constexpr float nearbyMetres = 5.f;
 

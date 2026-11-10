@@ -7374,3 +7374,25 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   posing, shadow casters' culling and ragdoll reads (agent perf_fight2), the armed grunts' prop think (QC, perf_fight2);
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
+
+## Flat-screen holsters and the holster menu (branch `agent/flat_holsters`, worktree `release`, 2026-11-10)
+
+His words (18): the holster system in flat-screen play too, on by default: six holsters and two hands, the number keys
+doing nothing but 3's swap, the wheel's button held for a visor-style menu (time at 0.30x, a blur, the crosshair faded,
+the mouse's cursor) with the holsters on a rough figure, [L] [DROP] [R] each, the hands with DROP and SWAP.
+
+- Shared with VR: the holsters themselves (fields, records, `VRDrawHolsterWeapon`, `VRPutWeaponInHolster`,
+  `VRHolsterRefused`, the hand drop `VR_Forcegrab_FlatDropHand`, the swap `VR_FlatSwapHands`), the pickup rule (a free
+  hand), bullet time's slow-motion path (`timescale::wanted`), the visor glass's blur passes (`glassBlur`, now with a
+  radius and a whole-view mode), the gadget's screen drawing (palette, text, `Shade::Screen`), the toolgun's thumbnails and
+  its flat cursor plumbing (`VR_FlatToolgunMouse`, `VR_FlatToolgunEscape`, `vr_flat_mouse_move to <button>`),
+  notectx's weapon names (now public). Flat-only: the menu's layout, hit-testing and impulses.
+- New: `vr_flat_holsters` 1, `vr_flat_key_holster_menu` mouse3, `vr_flat_holster_menu_timescale` 0.3, `_blur` 6,
+  `_xhair_fade` 1, `_size` 0.62, `_fade_time` 0.12, `_cursor_speed` 1, `_crt` 0.5, `vr_flat_holster_drop_ahead` 20 (rows
+  in Locomotion > Desktop Screen Play; the dump, hold and test in Debug > Reports > Flatscreen Play). Impulses 60..79
+  (QC `vr_flatholster.qc`), 80 the test's pickup.
+- Old flat tests that drive the weapon keys pin `vr_flat_holsters 0` (flatgate, flatplay, flatramp, flatreload, body_lie,
+  flatitems 5, the flat_taa scene).
+- Test: `Misc/quakevr/flatholster_test.sh` (`vr_flatholster_test`: the menu driven by mouse counts and clicks; DROP, L, R,
+  SWAP, the weapon keys, the full-hands pickup, a hand's DROP, the time scale restored). Not run yet (he was playing in
+  VR when this was written): owed with the menu's screenshot and `menu_paths.txt`.

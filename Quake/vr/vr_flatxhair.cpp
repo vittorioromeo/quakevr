@@ -1,6 +1,7 @@
 // vr_flatxhair.cpp -- see vr_flatxhair.hpp.
 
 #include "vr_flatxhair.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
@@ -555,7 +556,8 @@ void one(const glm::vec2& c, int side, float dim)
     // The frame's green at full brightness (the visor's own line is a dim one, on a dark face).
     const float peak = za::max(za::max(colors.line.r, colors.line.g), za::max(colors.line.b, 1e-3f));
     const glm::vec3 lineRgb = glm::min(colors.line / peak, glm::vec3{1.f});
-    const float opacity = tune(vr_flat_xhair_opacity, 0.f, 1.f) * dim * flatsight::crosshairFade();
+    const float opacity = tune(vr_flat_xhair_opacity, 0.f, 1.f) * dim * flatsight::crosshairFade() *
+                          flatholster::crosshairAlpha(); // (faded out under the holster menu: vr_flatholster.cpp)
     if(opacity <= 0.f)
     {
         return;

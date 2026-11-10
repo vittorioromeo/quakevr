@@ -101,8 +101,9 @@ console.
 moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | `F7` | the toolgun in the right hand; again, gives back what that hand held (`impulse 49` → `VR_FlatToolgun_Toggle`; `vr_flat_key_toolgun`). With it held the left button is its trigger, mouse 3 opens its panel and `B` held is its X/A: see The toolgun below |
 | `F8` | the fly camera (below) |
-| `1` | cycles the **left** hand's weapon through the weapons collected |
-| `2` | cycles the **right** hand's weapon |
+| Mouse 3 (the wheel's button) | held: the holster menu (Holsters, below; `vr_flat_holsters`) |
+| `1` | cycles the **left** hand's weapon through the weapons collected (with `vr_flat_holsters 0`; on, it does nothing) |
+| `2` | cycles the **right** hand's weapon (likewise) |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
 | Mouse 5 | a shove: an open hand pushed out in front of you, the headset's one-hand shove (`vr_flat_key_shove`, `vr_flat_shove_*`; QC `VR_FlatShove`). The view's own motion of the hands never swings, flicks or pries anything (ROUND24.md, "Hand motion source"). |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
@@ -154,6 +155,36 @@ and the classic bar's to their left). Debug > Reports > Flatscreen Play: `vr_fla
 menu's Item Pickup Mode; for a player in the mode it counts as at least 1 â€” mode 1's collectable set, ammo and health
 (backpacks are mode 2's) â€” whatever he has saved, since there is no hand-to-hand step on the screen to confirm a pickup. The
 cvar itself is never written, so a headset player on the same save keeps what he set.
+
+**Holsters** (`vr_flat_holsters`, on by default; his words 2026-11-10: "for fairness with the VR gameplay ... only carry
+6 weapons of their choice in their holsters, plus 2 weapons in their hands maximum"). What he carries is the headset's:
+the six holsters (`holsterweapon0..5`, `QC/vr_wpnholster.qc`) and the two hands, nothing else. The weapon keys that
+picked a weapon from what was collected do nothing: `1`, `2`, `4`..`9` (their binds skipped: `VR_FlatKeyOwned`) and, in
+the game code, impulses 1..8, the cycle's 10, 12, 15, 16 and Quake's 225, 226 (`VR_FlatHolster_Impulses`,
+`QC/vr_flatholster.qc`); `3` swaps the hands as before. A weapon walked over goes into a free hand; with both hands full it
+stays where it lies (`weapon_touch`'s headset rule: a hand must be free). Off: the weapon keys and the wheel cycle as
+before.
+
+**The holster menu** (`Quake/vr/vr_flatholster.cpp`): held open by the wheel's button (`vr_flat_key_holster_menu`, default
+`mouse3`; `+flatholsters` / `-flatholsters` from the console; not while the toolgun is in the right hand, whose panel the
+same button opens). While it is open time runs at `vr_flat_holster_menu_timescale` (0.3: bullet time's slow-motion path,
+`timescale::wanted`, eased by `vr_timescale_ramp`), the view is blurred by the visor glass's own blur
+(`vr_flat_holster_menu_blur`, 6 px at 1080p; `visor::menuBlur`), the crosshair fades (`vr_flat_holster_menu_xhair_fade`),
+the mouse moves the menu's cursor and not the view (`VR_FlatToolgunMouse`; `vr_flat_holster_menu_cursor_speed`) and the
+left button clicks on it instead of firing (`flatplay::routeFire` routes nothing). Letting go of the button or Esc closes
+it (after Esc, until the button is pressed again). The menu is the wrist gadget's screen as the visor's panels are
+(`gadget::renderHolsterMenu`, `vr_gadget_holster.inc`: its palette, font, frames, CRT look `vr_flat_holster_menu_crt`, the
+mount's glow): the holsters on a rough figure on the left (shoulders high, the chest's in the middle, the hips low, his
+left on the left), each with its weapon's thumbnail (`toolgun::icons`, the model from its side), its name and [L] [DROP]
+[R]; the hands on the right, each with DROP, and SWAP between them. Its size `vr_flat_holster_menu_size` (0.62 of the
+window's height), its fade `vr_flat_holster_menu_fade_time` (0.12 s). A click sends an impulse (`QC/vr_flatholster.qc`):
+60 + 3i + 0/1/2 for holster i's L, DROP, R (`VR_FlatHolster_Swap`: the holster and that hand trade what they hold, each
+weapon with its record, through `VRDrawHolsterWeapon` and `VRPutWeaponInHolster`; a weapon too big for a holster is
+refused as in a headset; a hand carrying a prop keeps it; `VR_FlatHolster_Drop`: the weapon laid
+`vr_flat_holster_drop_ahead` units ahead, with its record), 78 and 79 the left and right hand's DROP
+(`VR_Forcegrab_FlatDropHand`), 48 SWAP (`VR_FlatSwapHands`, 3's). A button that would do nothing is dim and its click does
+nothing. Saves and level changes keep the holsters as in a headset (they are the same fields). Debug > Reports >
+Flatscreen Play: `vr_flat_holster_menu_dump`, hold and let go, `vr_flatholster_test` (`Misc/quakevr/flatholster_test.sh`).
 
 **Pickups: walked over, or taken with `E`.** A flat-screen player has no torso to let armour go over and no holster to reach
 for, so what those gestures take goes on by touch (`VR_PickupObj_Handtouch`, `QC/items.qc`: the headset's "walking over it

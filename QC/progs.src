@@ -118,6 +118,8 @@ weapons.qc
 vr_wpnholster.qc
 // Flat-screen play's reload (R, the empty clip): after vr_wpnholster.qc's VRTryReloadWeapon.
 vr_flatreload.qc
+// Flat-screen play's holsters (the holster menu's impulses): after vr_wpnholster.qc and vr_wpnforcegrab.qc.
+vr_flatholster.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc

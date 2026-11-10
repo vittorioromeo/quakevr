@@ -243,6 +243,7 @@ void(entity p) VR_FFX_Hold =
             VR_FFX_To(11, 4);
             return;
         }
+        cvar_set("vr_flat_holsters", "0"); // (2's cycle, as he played: the holsters off, vr_flatholster.qc)
         p.impulse = 2;
         vr_ffx_wait = 4;
         return;

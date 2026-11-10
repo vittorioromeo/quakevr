@@ -11,7 +11,7 @@ QT_NAME=flatramp
 source "$(dirname "$0")/qvrtest.sh"
 out=$(bash $KIT/run.sh $AGENT $REAL -ExtraArgs "-flatscreenmode" -QuitOn "^flatslide_ramp: [0-9]+ passed" -Timeout 120 \
     -Filter "^flatslide_ramp: (PASS|FAIL|[0-9])" \
-    -Script "map e1m1; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; impulse 2; wait20; vr_flatslide_ramp_test; wait9000; toggleconsole; quit" 2>&1)
+    -Script "vr_flat_holsters 0; map e1m1; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; impulse 2; wait20; vr_flatslide_ramp_test; wait9000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslide_ramp: .*\(FAIL\|passed\)"
 expect_verdict "$out" "flatslide_ramp" "slides down e1m1's ramps: the view, the gun and the body without a shake"
 verdict; exit $fail

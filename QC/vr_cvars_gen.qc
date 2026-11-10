@@ -933,6 +933,8 @@ float cvarh_vr_flaregun_speed;
 float cvarh_vr_flaregun_volume;
 float cvarh_vr_flat_autoreload;
 float cvarh_vr_flat_grab_preview;
+float cvarh_vr_flat_holster_drop_ahead;
+float cvarh_vr_flat_holsters;
 float cvarh_vr_flat_reload;
 float cvarh_vr_flat_reload_down;
 float cvarh_vr_flat_reload_hold;
@@ -2902,6 +2904,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flaregun_volume = VR_CVar_Make("vr_flaregun_volume");
     cvarh_vr_flat_autoreload = VR_CVar_Make("vr_flat_autoreload");
     cvarh_vr_flat_grab_preview = VR_CVar_Make("vr_flat_grab_preview");
+    cvarh_vr_flat_holster_drop_ahead = VR_CVar_Make("vr_flat_holster_drop_ahead");
+    cvarh_vr_flat_holsters = VR_CVar_Make("vr_flat_holsters");
     cvarh_vr_flat_reload = VR_CVar_Make("vr_flat_reload");
     cvarh_vr_flat_reload_down = VR_CVar_Make("vr_flat_reload_down");
     cvarh_vr_flat_reload_hold = VR_CVar_Make("vr_flat_reload_hold");

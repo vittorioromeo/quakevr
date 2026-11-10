@@ -1,0 +1,169 @@
+// vr_gadget_holster.inc -- part of vr_gadget.cpp: flatscreen play's holster menu's image (vr_gadget.hpp
+// renderHolsterMenu; vr_flatholster.cpp lays it out, hit-tests it and shows it in the screen's middle). Drawn by the
+// screens' own code as the visor's panels are (its palette, drawText, the black face Shade::Screen's inkAlpha leaves
+// clear), with each weapon's thumbnail (vr_toolgun_icons.cpp: its model drawn from its side) in its own colours.
+//
+//   LEFT SHOULDER   (o)   RIGHT SHOULDER        LEFT HAND   <=>   RIGHT HAND
+//   [gun] [L][v][R]  |    [gun] [L][v][R]       [  gun  ]  [SWAP]  [  gun  ]
+//      LEFT CHEST  -[ ]-  RIGHT CHEST            [ DROP ]          [ DROP ]
+//      LEFT HIP     / \   RIGHT HIP
+
+struct HolsterMenuState
+{
+    gfx::Target target;
+    unsigned version{0};
+};
+HolsterMenuState holsterMenu;
+
+// A rectangle's outline, a pixel wide.
+void holsterOutline(const glm::vec4& r, const glm::vec3& c)
+{
+    fill(r.x, r.y, r.z, 1.f, c);
+    fill(r.x, r.y + r.w - 1.f, r.z, 1.f, c);
+    fill(r.x, r.y, 1.f, r.w, c);
+    fill(r.x + r.z - 1.f, r.y, 1.f, r.w, c);
+}
+
+// A stroke of the figure, as squares along it (a pixel's steps).
+void holsterStroke(const glm::vec4& l, const glm::vec3& c)
+{
+    const float dx = l.z - l.x, dy = l.w - l.y;
+    const int steps = za::max(1, static_cast<int>(za::max(za::abs(dx), za::abs(dy)) * 2.f));
+    for(int i = 0; i <= steps; i++)
+    {
+        const float t = static_cast<float>(i) / static_cast<float>(steps);
+        fill(l.x + dx * t - 0.5f, l.y + dy * t - 0.5f, 1.f, 1.f, c);
+    }
+}
+
+// A button's icon, its middle at cx, cy, about 11 pixels tall.
+void holsterIcon(MenuIcon icon, float cx, float cy, const glm::vec3& c)
+{
+    switch(icon)
+    {
+    case MenuIcon::HandLeft:
+    case MenuIcon::HandRight:
+    {
+        // A palm, four fingers up, the thumb out at its side (the left hand's to the right: its back seen).
+        const float thumbX = icon == MenuIcon::HandLeft ? cx + 3.f : cx - 5.f;
+        fill(cx - 3.f, cy - 1.f, 6.f, 5.f, c);
+        for(int f = 0; f < 4; f++)
+        {
+            fill(cx - 3.f + static_cast<float>(f) * 1.5f, cy - 5.f + (f == 0 || f == 3 ? 1.f : 0.f), 1.f, 4.f, c);
+        }
+        fill(thumbX, cy, 2.f, 1.f, c);
+        fill(icon == MenuIcon::HandLeft ? thumbX + 1.f : thumbX, cy - 1.f, 1.f, 1.f, c);
+        fill(cx - 2.f, cy + 4.f, 4.f, 1.5f, c); // (the wrist)
+        break;
+    }
+    case MenuIcon::Drop:
+    {
+        // An arrow pointing down onto the ground.
+        fill(cx - 1.f, cy - 5.f, 2.f, 5.f, c);
+        for(int r = 0; r < 4; r++)
+        {
+            const float half = 3.5f - static_cast<float>(r);
+            fill(cx - half, cy + static_cast<float>(r), half * 2.f, 1.f, c);
+        }
+        fill(cx - 4.5f, cy + 5.f, 9.f, 1.f, c);
+        break;
+    }
+    case MenuIcon::Swap:
+    {
+        // Two arrows: the upper to the right, the lower to the left.
+        fill(cx - 5.f, cy - 3.f, 8.f, 1.f, c);
+        fill(cx - 5.f, cy + 3.f, 8.f, 1.f, c);
+        fill(cx - 3.f, cy + 3.f, 8.f, 1.f, c);
+        for(int r = 0; r < 3; r++)
+        {
+            const float h = 5.f - static_cast<float>(r) * 2.f;
+            fill(cx + 3.f + static_cast<float>(r), cy - 3.f - h * 0.5f + 0.5f, 1.f, h, c);
+            fill(cx - 4.f - static_cast<float>(r), cy + 3.f - h * 0.5f + 0.5f, 1.f, h, c);
+        }
+        break;
+    }
+    default: break;
+    }
+}
+
+// Text `size` pixels a character, its middle at cx.
+void holsterTextMid(float cx, float y, float size, const char* s, const glm::vec3& c, const Palette& pal)
+{
+    drawText(cx - static_cast<float>(strlen(s)) * size * 0.5f, y, size, s, c, pal);
+}
+
+void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
+{
+    const glm::vec4& r = s.rect;
+    const bool empty = !s.name[0];
+    fill(r.x, r.y, r.z, r.w, s.hovered ? pal.line * 0.22f : pal.dim * 0.12f);
+    holsterOutline(r, s.hovered ? pal.value : pal.line);
+    // The corners' ticks (the gadget's frames).
+    fill(r.x + 1.f, r.y + 1.f, 3.f, 1.f, pal.value);
+    fill(r.x + 1.f, r.y + 1.f, 1.f, 3.f, pal.value);
+    fill(r.x + r.z - 4.f, r.y + r.w - 2.f, 3.f, 1.f, pal.value);
+    fill(r.x + r.z - 2.f, r.y + r.w - 4.f, 1.f, 3.f, pal.value);
+    holsterTextMid(r.x + r.z * 0.5f, r.y + 3.f, 5.f, s.title, pal.label, pal);
+    const float picSize = za::min(r.z - 8.f, r.w - 20.f);
+    if(!empty && s.model[0] && picSize > 4.f)
+    {
+        if(const gfx::Picture* pic = toolgun::icons::get(s.model, 0, true))
+        {
+            gfx::draw2D::picture(*pic, r.x + (r.z - picSize) * 0.5f, r.y + 9.f, picSize, picSize);
+        }
+    }
+    holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 8.f, 5.f, empty ? "- EMPTY -" : s.name, empty ? pal.dim : pal.value, pal);
+}
+
+void holsterButton(const HolsterMenuButton& b, const Palette& pal)
+{
+    const glm::vec4& r = b.rect;
+    const glm::vec3 ink = !b.enabled ? pal.dim * 0.6f : b.hovered ? glm::min(pal.value * 1.25f, glm::vec3{1.f}) : pal.value;
+    fill(r.x, r.y, r.z, r.w, b.hovered && b.enabled ? pal.line * 0.45f : pal.dim * 0.1f);
+    holsterOutline(r, b.enabled ? (b.hovered ? pal.value : pal.line) : pal.dim * 0.5f);
+    const bool labelled = b.label[0] != 0;
+    const float iconX = labelled ? r.x + 8.f : r.x + r.z * 0.5f;
+    holsterIcon(b.icon, iconX, r.y + r.w * 0.5f, ink);
+    if(labelled)
+    {
+        drawText(iconX + 7.f, r.y + r.w * 0.5f - 2.5f, 5.f, b.label, ink, pal);
+    }
+}
+
+VisorImage holsterMenuRender(const HolsterMenuView& v)
+{
+    VisorImage out;
+    const int w = static_cast<int>(v.size.x), h = static_cast<int>(v.size.y);
+    if(w <= 0 || h <= 0)
+    {
+        return out;
+    }
+    const Palette pal = palette();
+    toolgun::icons::makePending(2);
+    gfx::Target& t = holsterMenu.target;
+    gfx::ensureTarget(t, w * visorTexels, h * visorTexels, true, "holster menu"); // mipmaps: for its text's glow
+    gfx::begin2D(t, w, h);
+    fill(0.f, 0.f, v.size.x, v.size.y, visorBlack);
+    holsterOutline({1.f, 1.f, v.size.x - 2.f, v.size.y - 2.f}, pal.line * 0.6f);
+    drawText(6.f, 4.f, 7.f, v.header, pal.label, pal);
+    fill(6.f, 13.f, v.size.x - 12.f, 1.f, pal.line * 0.5f);
+    for(int i = 0; i < v.lineCount; i++)
+    {
+        holsterStroke(v.lines[i], pal.line * 0.8f);
+    }
+    for(int i = 0; i < v.slotCount; i++)
+    {
+        holsterSlot(v.slots[i], pal);
+    }
+    for(int i = 0; i < v.buttonCount; i++)
+    {
+        holsterButton(v.buttons[i], pal);
+    }
+    holsterTextMid(v.size.x * 0.5f, v.size.y - 9.f, 5.f, v.footer, pal.dim * 1.6f, pal);
+    gfx::end2D();
+    out.texture = t.texture;
+    out.size = v.size;
+    out.shown = t.texture != 0;
+    out.version = ++holsterMenu.version;
+    return out;
+}

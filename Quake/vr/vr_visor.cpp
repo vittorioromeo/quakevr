@@ -6,6 +6,7 @@
 #include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatholster.hpp"
 #include "vr_gadget.hpp"
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
@@ -1039,13 +1040,21 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
 }
 
 // The glass's settings now: on (some blur or bend), and its program and targets ready for a w x h view.
+[[nodiscard]] bool glassTargets(int w, int h);
+
 [[nodiscard]] bool glassReady(int w, int h)
 {
-    GlassPass& gp = glassPass;
     if(vr_flat_visor_glass_blur.value <= 0.f && vr_flat_visor_glass_distort.value <= 0.f)
     {
         return false;
     }
+    return glassTargets(w, h);
+}
+
+// The glass's blur program and its two half-size targets for a w x h view (the glass's, and the holster menu's blur).
+[[nodiscard]] bool glassTargets(int w, int h)
+{
+    GlassPass& gp = glassPass;
     if(!gp.blur && !gp.failed)
     {
         gp.blur = gfx::glProgram(layerVs, blurFs, "vr visor glass blur");
@@ -1058,13 +1067,24 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
 
 // The view behind the visor (`framebuffer` at x, y, w x h) at half its size, blurred by vr_flat_visor_glass_blur (pixels
 // at 1080p): Kawase passes at growing distances, as many as its square root wants (at most 6). The blurred copy's texture.
-[[nodiscard]] GLuint glassBlur(unsigned framebuffer, int x, int y, int w, int h)
+[[nodiscard]] GLuint glassBlur(unsigned framebuffer, int x, int y, int w, int h, float blurPx, bool whole)
 {
     GlassPass& gp = glassPass;
     const int hw = gp.sceneA.width, hh = gp.sceneA.height;
     // Only round the mounts (the layer's rectangles: the glass is seen nowhere else), padded by as far as the passes reach
     // and the bend samples (a pass reads its neighbours: what is wrong at the pad's edge never reaches the mounts).
-    const float radius = za::clamp(vr_flat_visor_glass_blur.value, 0.f, 40.f) * static_cast<float>(h) / 1080.f * 0.5f; // (half size)
+    const float radius = za::clamp(blurPx, 0.f, 40.f) * static_cast<float>(h) / 1080.f * 0.5f; // (half size)
+    // (The whole view: the holster menu's blur, menuBlur.)
+    const auto boxes = [&](int bx0, int by0, int bw0, int bh0, float scale, float pad, auto&& fn) {
+        if(whole)
+        {
+            fn(bx0, by0, bw0, bh0);
+        }
+        else
+        {
+            eachBox(bx0, by0, bw0, bh0, scale, pad, fn);
+        }
+    };
     const int passes = radius < 0.5f ? 0 : za::clamp(static_cast<int>(std::ceil(std::sqrt(2.f * radius))), 1, 6);
     const float step = passes ? za::clamp(radius / (0.5f * static_cast<float>(passes * passes)), 0.5f, 3.f) : 0.f;
     float reach = 4.f + za::clamp(vr_flat_visor_glass_distort.value, 0.f, 3.f) * static_cast<float>(h) / 1080.f * 6.f; // (the bend)
@@ -1075,7 +1095,7 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
     const float half = static_cast<float>(hw) / static_cast<float>(w);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, framebuffer);
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, gp.sceneA.fbo);
-    eachBox(0, 0, hw, hh, half, reach, [&](int bx, int by, int bw, int bh) {
+    boxes(0, 0, hw, hh, half, reach, [&](int bx, int by, int bw, int bh) {
         const float up = static_cast<float>(w) / static_cast<float>(hw);
         GL_BlitFramebufferFunc(x + static_cast<int>(static_cast<float>(bx) * up), y + static_cast<int>(static_cast<float>(by) * up),
             x + static_cast<int>(static_cast<float>(bx + bw) * up), y + static_cast<int>(static_cast<float>(by + bh) * up), bx, by,
@@ -1096,7 +1116,7 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, to->fbo);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, from->tex);
         GL_Uniform4fFunc(0, 1.f / static_cast<float>(hw), 1.f / static_cast<float>(hh), (static_cast<float>(i) + 0.5f) * step, 0.f);
-        eachBox(0, 0, hw, hh, half, reach, [](int bx, int by, int bw, int bh) {
+        boxes(0, 0, hw, hh, half, reach, [](int bx, int by, int bw, int bh) {
             glScissor(bx, by, bw, bh);
             glDrawArrays(GL_TRIANGLES, 0, 3);
         });
@@ -1142,6 +1162,31 @@ void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanel
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
     glDisable(GL_SCISSOR_TEST);
+}
+
+// Flatscreen play's holster menu (vr_flatholster.cpp blurRadius): the whole view blurred as the glass blurs what is behind
+// the mounts (glassBlur's passes, at the menu's radius), put back over it.
+void menuBlur(unsigned framebuffer, int x, int y, int w, int h)
+{
+    const float radius = flatholster::blurRadius();
+    if(radius <= 0.f || w < 16 || h < 16)
+    {
+        return;
+    }
+    if(!glassTargets(w, h))
+    {
+        return;
+    }
+    GlassPass& gp = glassPass;
+    const int hw = gp.sceneA.width, hh = gp.sceneA.height;
+    QVR_GPU_PROFILE("holster menu blur");
+    const GLuint tex = glassBlur(framebuffer, x, y, w, h, radius, true);
+    const gfx::RenderTarget& out = tex == gp.sceneA.tex ? gp.sceneA : gp.sceneB;
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, out.fbo);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, framebuffer);
+    GL_BlitFramebufferFunc(0, 0, hw, hh, x, y, x + w, y + h, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebuffer);
+    glViewport(x, y, w, h);
 }
 
 void draw(unsigned framebuffer, int x, int y, int w, int h)
@@ -1217,7 +1262,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
         const float most = glm::length(shift) * za::max(1.f, za::max(za::abs(lp.plateParallax), lp.contentParallax));
         lp.swayPad = most > 0.f ? most * 1.6f + 1.f : 0.f;
     }
-    const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h) : 0u;
+    const GLuint behind = gp.on ? glassBlur(framebuffer, x, y, w, h, vr_flat_visor_glass_blur.value, false) : 0u;
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, framebuffer);
     glViewport(x, y, w, h);
@@ -1381,7 +1426,12 @@ extern "C" int VR_VisorOn(void)
 // own view only (never an eye's, nor a teleporter's offscreen camera).
 extern "C" void VR_DrawVisor(unsigned framebuffer, int x, int y, int w, int h)
 {
-    if(!visor::active() || stereo::isRenderingEye() || VR_PortalDrawing())
+    if(stereo::isRenderingEye() || VR_PortalDrawing())
+    {
+        return;
+    }
+    visor::menuBlur(framebuffer, x, y, w, h); // (the holster menu's: vr_flatholster.cpp)
+    if(!visor::active())
     {
         return;
     }

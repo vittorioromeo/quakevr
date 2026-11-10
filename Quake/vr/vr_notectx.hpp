@@ -24,6 +24,9 @@ struct cvar_s;
 namespace qvr::notectx
 {
 
+// The QC's weapon id `wid` named ("shotgun", "nail pistol"; "?" none such): the holster menu shows them too (vr_flatholster.cpp).
+[[nodiscard]] const char* weaponName(int wid);
+
 void frame(); // once a host frame (voicenotes::frame): the frame time ring
 
 // The checklist's Test button ran `scenario` ("" : none): named in the notes that follow.
