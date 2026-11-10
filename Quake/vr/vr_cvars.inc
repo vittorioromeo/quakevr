@@ -1546,7 +1546,7 @@ QVR_CVAR(vr_gore_mist_grow, "1", CVAR_ARCHIVE)        // how fast they spread as
 QVR_CVAR(vr_gore_mist_speed, "1", CVAR_ARCHIVE)       // how fast they drift along the blow and apart
 QVR_CVAR(vr_gore_mist_rise, "-2", CVAR_ARCHIVE)       // units/s they rise (negative: sink)
 QVR_CVAR(vr_gore_mist_dark, "0.4", CVAR_ARCHIVE)      // how dark their red is (0 bright, 1 nearly black)
-QVR_CVAR(vr_gore_mist_near, "40", CVAR_ARCHIVE)       // none closer to the eyes than this many units (your own bleeding not in your face)
+QVR_CVAR(vr_gore_mist_near, "0", CVAR_ARCHIVE)        // none made closer to the eyes than this many units (0, the default since 2026-11-10: always made, his note "I would like them to always spawn"; 40 was 1.5 m: no mist from a blow in arm's reach). Drawn near the eyes: vr_particle_near_fade, _near_cull
 QVR_CVAR(vr_corpse_dying, "1", CVAR_ARCHIVE)          // a monster dying takes a corpse's damage during its death animation (QC combat.qc: gibbed by it, never killed again)
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_debug_climb_feet, "0", CVAR_NONE)         // 1 print each foothold the climbing feet find (climbfoot), 2 also each frame's feet (climbfeet), 3 draw them

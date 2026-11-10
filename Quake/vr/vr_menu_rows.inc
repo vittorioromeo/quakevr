@@ -2124,7 +2124,8 @@ QVR_SLIDER(vr_gore_mist_speed, "Mist Drift", 0.f, 3.f, 0.1f, "%.1fx", ext(), "Ho
 QVR_SLIDER(vr_gore_mist_rise, "Mist Rise", -20.f, 20.f, 1.f, "%.0f u/s", ext(-100.f, 100.f), "How fast they rise (negative: sink).")
 QVR_SLIDER(vr_gore_mist_dark, "Mist Darkness", 0.f, 1.f, 0.05f, "%.2f", noExt, "How dark their red is (0 bright, 1 nearly black).")
 QVR_SLIDER(vr_gore_mist_near, "Mist Clear of Eyes", 0.f, 128.f, 4.f, "%.0f u", ext(0.f, 512.f),
-    "No mist closer to your eyes than this: your own bleeding is not in your face.")
+    "No mist made closer to your eyes than this (0: always made; how near the eyes particles are drawn: Particle Fade Near "
+    "Eyes and Particles Hidden Nearer).")
 QVR_SLIDER(vr_water_blood, "Blood in Water", 0.f, 2.f, 0.1f, "%.1fx", noExt,
     "Blood spreads on water and slime as dark red clouds where something bleeds into it, a hit, a gib, a corpse, a wounded body or you wading (0 none). Under water, sprays and streams of blood slow into slowly sinking clouds.")
 QVR_SLIDER(vr_water_blood_time, "Blood in Water Lifetime", 2.f, 120.f, 2.f, "%.0f s", noExt, "How long a cloud of blood on the water takes to fade.")
