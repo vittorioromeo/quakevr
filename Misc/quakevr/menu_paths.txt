@@ -1346,9 +1346,15 @@ vr_flat_xhair_outline|1|Locomotion|Visor Crosshair Outline|Advanced VR Options >
 vr_flat_xhair_glow|1|Locomotion|Visor Crosshair Glow|Advanced VR Options > Movement > Locomotion > Visor Crosshair Glow
 vr_flat_xhair_snap|1|Locomotion|Visor Crosshair Centring|Advanced VR Options > Movement > Locomotion > Visor Crosshair Centring
 vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Smoothing
+vr_flat_xhair_kick|1|Locomotion|Visor Crosshair Kick|Advanced VR Options > Movement > Locomotion > Visor Crosshair Kick
+vr_flat_xhair_kick_max|1|Locomotion|Visor Crosshair Kick Limit|Advanced VR Options > Movement > Locomotion > Visor Crosshair Kick Limit
+vr_flat_xhair_kick_smooth|1|Locomotion|Visor Crosshair Kick Smoothing|Advanced VR Options > Movement > Locomotion > Visor Crosshair Kick Smoothing
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_ssg_break|1|Locomotion|Super Shotgun Breaks Open|Advanced VR Options > Movement > Locomotion > Super Shotgun Breaks Open
+vr_flat_mag_eject|1|Locomotion|Ejects Empty Magazines|Advanced VR Options > Movement > Locomotion > Ejects Empty Magazines
+vr_flat_revolver_eject|1|Locomotion|Revolver Ejects Its Shells|Advanced VR Options > Movement > Locomotion > Revolver Ejects Its Shells
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
 vr_flat_shove|1|Locomotion|Shove Key (Mouse 5)|Advanced VR Options > Movement > Locomotion > Shove Key (Mouse 5)
 vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movement > Locomotion > Shove Cooldown
@@ -2817,6 +2823,7 @@ vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug >
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
+vr_hitmodel_skin_keep|2|Tunables|Keep Skinned Bodies|Advanced VR Options > Debug > Tunables > Keep Skinned Bodies
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
 vr_ragdoll_held_local|2|Tunables|Held Limbs Follow the Hand|Advanced VR Options > Debug > Tunables > Held Limbs Follow the Hand
 vr_ragdoll_active_headshot|2|Tunables|Headshot Strength|Advanced VR Options > Debug > Tunables > Headshot Strength
@@ -4057,6 +4064,10 @@ vr_flat_reload_down|2|Tunables|Reload: Down Time|Advanced VR Options > Debug > T
 vr_flat_reload_hold|2|Tunables|Reload: Hold Time|Advanced VR Options > Debug > Tunables > Reload: Hold Time
 vr_flat_reload_up|2|Tunables|Reload: Up Time|Advanced VR Options > Debug > Tunables > Reload: Up Time
 vr_flat_reload_angle|2|Tunables|Reload: Muzzle Down|Advanced VR Options > Debug > Tunables > Reload: Muzzle Down
+vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR Options > Debug > Tunables > Reload: Super Shotgun Break Delay
+vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
+vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
+vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
@@ -4660,6 +4671,7 @@ vr_particle_saturate_opacity|2|Debug - Profiling and Memory|Opaque At|Advanced V
 vr_debug_particle_waste|2|Debug - Profiling and Memory|Count Wasted Particle Fill|Advanced VR Options > Debug > Profiling and Memory > Count Wasted Particle Fill
 |2|Debug - Profiling and Memory|Particle Fill Waste Report|Advanced VR Options > Debug > Profiling and Memory > Particle Fill Waste Report
 vr_particle_freeze|2|Debug - Profiling and Memory|Freeze Particles|Advanced VR Options > Debug > Profiling and Memory > Freeze Particles
+vr_particle_threads|2|Debug - Profiling and Memory|Particles on Threads|Advanced VR Options > Debug > Profiling and Memory > Particles on Threads
 vr_particle_halfres_force|2|Debug - Profiling and Memory|Half-Res Particles Always|Advanced VR Options > Debug > Profiling and Memory > Half-Res Particles Always
 vr_particle_halfres_upsample|2|Debug - Profiling and Memory|Half-Res Blend|Advanced VR Options > Debug > Profiling and Memory > Half-Res Blend
 host_fixedtick|2|Debug - Profiling and Memory|Fixed 72 Hz Server Tick|Advanced VR Options > Debug > Profiling and Memory > Fixed 72 Hz Server Tick
@@ -5834,6 +5846,7 @@ vr_decap_poptest_dist|2|Debug - Automation & Self-Tests|Test Range|Advanced VR O
 |2|Debug - Automation & Self-Tests|Rocket at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Rocket at Its Head
 |2|Debug - Automation & Self-Tests|Grenade at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Grenade at Its Head
 |2|Debug - Automation & Self-Tests|Give Quad Damage|Advanced VR Options > Debug > Automation & Self-Tests > Give Quad Damage
+|2|Debug - Automation & Self-Tests|Dump Every Entity's Material|Advanced VR Options > Debug > Automation & Self-Tests > Dump Every Entity's Material
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Torch's Blow)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Torch's Blow)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Lava Nail)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Lava Nail)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Touch)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Touch)
@@ -5877,6 +5890,8 @@ vr_walltorch_debug|2|Debug - Automation & Self-Tests|Torch Flames to Console|Adv
 |2|Debug - Automation & Self-Tests|QuakeC Loop Bench|Advanced VR Options > Debug > Automation & Self-Tests > QuakeC Loop Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Split Bench|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Split Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Self-Test
+|2|Debug - Automation & Self-Tests|Particles on Threads Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Particles on Threads Self-Test
+|2|Debug - Automation & Self-Tests|Physics Threads Determinism|Advanced VR Options > Debug > Automation & Self-Tests > Physics Threads Determinism
 |2|Debug - Automation & Self-Tests|Zancle Math Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Zancle Math Self-Test
 |2|Debug - Automation & Self-Tests|SHA-256 Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > SHA-256 Self-Test
 |2|Debug - Automation & Self-Tests|Grasp Bench|Advanced VR Options > Debug > Automation & Self-Tests > Grasp Bench
@@ -6165,6 +6180,7 @@ vr_kdtrig_blast_on|1|Ragdoll Triggers - Explosions|Explosions|Advanced VR Option
 |1|Ragdoll Triggers - Explosions|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Explosions > Reset This Page
 @page|1|Ragdoll Triggers - Thrown Bodies||Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies
 vr_kdtrig_thrown_on|1|Ragdoll Triggers - Thrown Bodies|Thrown Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Thrown Bodies
+vr_kdtrig_flung|1|Ragdoll Triggers - Thrown Bodies|Flung Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Flung Bodies
 |1|Ragdoll Triggers - Thrown Bodies|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Reset This Page
 @page|1|Ragdoll Triggers - Shoulder Charges||Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges
 vr_kdtrig_tackle|1|Ragdoll Triggers - Shoulder Charges|Chance|Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges > Chance

@@ -7397,4 +7397,10 @@ His items 11, 15, 16, 23 of 2026-11-10 (docs/vr-port/FLATPLAY.md, "Reloading" an
 - "Basic vs full" reload modes: flat-screen play has one reload (the hip trip, `vr_flat_reload 1`); all of this applies
   to it. `vr_flat_reload 0` (no clips): magazines drawn full, nothing breaks open or drops.
 - Tests: `flatreload_test.sh` runs `ssg`, `mag`, `revolver`, `kick` (flatreload_check.py); scenes `flat_ssg_break`,
-  `flat_mag_eject`, `flat_revolver_eject`, `flat_xhair_kick`.
+  `flat_mag_eject`, `flat_revolver_eject`, `flat_xhair_kick`. flatreload 38/0 (the break 0.15 s after the shot, 2 spent
+  out, shut with 2 loaded; one magazine dropped, a new one seated; the revolver's spent shells out as many as fired, home
+  with 6 live; the crosshair's spread 0 -> 7.8 px -> 0), flatxhair 31/0, flatpose 21/1 (the ADS pose check's control
+  shot: `vr_test_spawn 5` spawned a grunt, not a knight, and the shot missed it; random, unrelated: a rerun with
+  `vr_flat_xhair_kick 0` spawned the knight and hit).
+- Open: the open super shotgun fires nothing in flat play but its dry click (`VR_Reload_SsgIsOpen` in `W_AttackImpl`)
+  isn't heard: the trigger's press doesn't reach `W_AttackImpl` there (not found yet).
