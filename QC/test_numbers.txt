@@ -713,3 +713,4 @@ vr_flatmove_test 9        vr_flatmove_test.qc              flat-screen test aid:
 vr_flatblood_test 1       vr_flatblood_test.qc             blood at point blank: a grunt and a corpse shot with the shotgun, super shotgun, nailgun at 60/30/12/4 units, its particles made and drawn
 vr_flatblood_test 2       vr_flatblood_test.qc             blood at point blank, his repro: crouched over a corpse, the shotgun down at it from 20/12/6/3 units (after the 60-unit corpse shot)
 vr_flatblood_test 3       vr_flatblood_test.qc             test aid: as 2, with a picture of each crouched shot's blood 4 frames after it
+vr_flatblood_test 4       vr_flatblood_test.qc             test aid: the grunt's shotgun shots at 60/30/12/4 units (flat or headset), a picture of each 4 frames after it (near drops textured, not flat squares)

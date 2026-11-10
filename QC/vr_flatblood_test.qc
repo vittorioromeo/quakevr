@@ -9,6 +9,8 @@
 // the client's blood particles made and made where the view draws them (vr_blood_tally, vr_blood_tally_drawn, every
 // emitter's). A shot at point blank makes blood as the 60-unit one does: at least a third of its particles (pellets and
 // the wounds' spurts vary), all of them where the view draws them as at 60. Ends `flatblood: N passed, M failed`.
+// `vr_flatblood_test 4` (test aid): the live grunt's shotgun shots alone (60, 30, 12, 4 units), a picture of each 4 frames
+// after it (the blood near the eye: textured drops, not flat squares; vr_particle_retro_min_blocks).
 
 float vr_fbt_on;      // the running test
 float vr_fbt_s;       // the state
@@ -26,7 +28,7 @@ vector vr_fbt_aim;    // the point he shoots at
 float VR_FBT_GIVEUP = 1080; // frames (15 s) a state may last: FAIL "timed out"
 float VR_FBT_CASES = 28;
 float VR_FBT_CROUCH = 24; // cases 24-27: crouched over a corpse, the shotgun (his repro, 2026-11-10)
-float vr_fbt_quick;    // vr_flatblood_test 2: case 12, then the crouched ones
+float vr_fbt_quick;    // vr_flatblood_test 2: case 12, then the crouched ones (3: with pictures); 4: cases 0-3, pictures
 float vr_fbt_ref_sg_corpse, vr_fbt_ref_sg_sent; // case 12's particles: the corpse's shotgun shot from 60, the crouched ones' measure
 
 float(float xCase) VR_FBT_Dist =
@@ -140,10 +142,14 @@ void() VR_FlatBloodTest_Frame =
             return;
         }
         cvar_set("vr_flatblood_test", "0");
-        if(ask >= 1 && ask <= 3)
+        if(ask >= 1 && ask <= 4)
         {
             VR_FBT_Begin(p);
-            if(ask >= 2)
+            if(ask == 4)
+            {
+                vr_fbt_quick = 3; // (4: the grunt's shotgun shots, a picture of each)
+            }
+            else if(ask >= 2)
             {
                 vr_fbt_case = 12; // (2: the corpse's shotgun shot from 60, then the crouched ones; 3: and a picture of
                 vr_fbt_quick = ask - 1; // each crouched shot's blood, 4 frames after it)
@@ -279,7 +285,7 @@ void() VR_FlatBloodTest_Frame =
     }
     if(vr_fbt_s == 5)
     {
-        if(vr_fbt_quick == 2 && vr_fbt_case >= VR_FBT_CROUCH && vr_fbt_frames == 4)
+        if(((vr_fbt_quick == 2 && vr_fbt_case >= VR_FBT_CROUCH) || vr_fbt_quick == 3) && vr_fbt_frames == 4)
         {
             localcmd("screenshot\n");
         }
@@ -332,7 +338,11 @@ void() VR_FlatBloodTest_Frame =
                 sent, made, drawn, vr_fbt_ref_tally, vr_fbt_ref_drawn));
         }
         vr_fbt_case = vr_fbt_case + 1;
-        if(vr_fbt_quick && vr_fbt_case == 13)
+        if(vr_fbt_quick == 3 && vr_fbt_case == 4)
+        {
+            vr_fbt_case = VR_FBT_CASES; // (4: the grunt's shotgun shots alone)
+        }
+        if(vr_fbt_quick && vr_fbt_quick != 3 && vr_fbt_case == 13)
         {
             vr_fbt_case = VR_FBT_CROUCH;
         }

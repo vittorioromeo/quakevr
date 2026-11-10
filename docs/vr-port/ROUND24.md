@@ -8030,3 +8030,35 @@ scanlines over the glyphs, AD readings looking wrong). `Quake/vr/vr_gadget_visor
   `flat_visor_sides` (test readings 5) and `flat_visor_sides_ad` (real: the quad, AD's artifacts, a custom key,
   burning): `vr_scenario runall` 2 run, 0 failed. Before/after: `scratch/visor_sides/compare_1920.png`,
   `compare_3440.png` (state 5 left/right, state 6 left/right; top before), `after2_real.png`.
+## Blood near the eye drawn as flat red squares (branch `agent/blood_squares`, worktree `selfshot`, 2026-11-10)
+
+His note on `vr_flatblood_test 3`'s picture: "the particles seem like red squares, they don't look textured".
+
+- **Cause: retro textures on the particles, not Quake's own particle path.** With `r_particles 0` the squares stay;
+  with `vr_retro_particles 0` they are round drops. Retro particles (Retro Textures > Particles) are cut into blocks in
+  world units (`vr_retro_particles_block`, 0.25 units by default), each block its centre texel. A blood drop smaller than
+  a block across is one block: a flat red square (turned with the drop's spin). Far off it is a dot, as Quake's own; near
+  the eye the same square fills 30-60 pixels. Any small particle had it (sparks, specks), blood just shows it most.
+- **Quake's own path never draws blood with `vr_particles 1`:** every r_part.c emitter (`R_RunParticleEffect`, which
+  takes TE_BLOOD and QC `particle()`, `R_ParticleExplosion`/`2`, `R_BlobExplosion`, `R_LavaSplash`,
+  `R_TeleportSplash`) and the trails (`CL_RocketTrail` -> `VR_EntityTrail`) hand off to Quake VR's particles first.
+  `R_EntityParticles` (EF_BRIGHTFIELD) is the one left, and it is not blood. Its "squares" are the retro look of
+  `vr_particles 0`, and that is intended.
+- **Fix: new `vr_particle_retro_min_blocks` (default 6; Graphics > Models and Effects > Retro Particle Detail, 0-16):**
+  at least this many blocks across a particle's texture cell, whatever its size in the world. A drop keeps its shape
+  (a small blocky blob, its transparent margin transparent); particles bigger than 6 blocks in world units are as
+  before. The count is per particle and fixed for its life, so the blocks don't crawl as it nears. 0: the old look.
+  Shared by flat and headset: one fragment-shader step in the retro particle variants (vr_gfx_gl.cpp, `PARTICLE_PLAIN`'s
+  `MinBlocks`, the cell's size `particleCell` from the vertex shader). The grid is clamped after `RetroBegin` /
+  `RetroBeginParticle`, so the reference, fast, centre-near, half-size and trimmed variants all take it.
+- **Pitfall:** uniform location 94 looked free in vr_gfx_gl.cpp, but `QVR_FLATFOV_GFX_GLSL` (vr_flatfov_glsl.h) takes 94-96.
+  The clash linked without a warning and every retro particle vanished. MinBlocks is at 97.
+- **Test aid `vr_flatblood_test 4`** (Debug > Tests > Blood Near the Eye: Pictures; flat or headset): the live grunt's
+  shotgun shots at 60, 30, 12 and 4 units, a picture of each 4 frames after the shot. Flat at 4 units: before, about a
+  dozen flat squares 15-40 px; after, blocky drop shapes and spray. Same at 60 units. Headset mock (low-impact run, small
+  eyes): the same difference, smaller.
+- Tests: `vr_flatblood_test 2` 5/0, `vr_pp_test 1` 63/0, `vr_player_gore_test` 8/0, `checklist_tests_check` 133/0.
+  `vr_flatblood_test 1` 25/3 here, and 24/4 with `vr_retro_particles 0` (no retro program drawn at all, so not this
+  change). Its corpse cases are flaky: the 60-unit super shotgun shot sometimes gibs the corpse (11-12k particles,
+  against which the 30/4-unit shots' 1-4k fail "a third"), and the nailgun misses a lying corpse at 12/4 (0 sent).
+- Scene `flat_blood_pointblank` (hint: the near drops are blobs, not squares).
