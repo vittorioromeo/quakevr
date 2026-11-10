@@ -67,7 +67,7 @@
 float vr_at_case;        // 0 idle; 1 .. 14 running
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[34];    // the cvars the tests set, put back at the end
+float vr_at_keep[35];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -118,9 +118,10 @@ vr_at_cvar VR_AT_CVARS[] =
     { "vr_arena_xray_left", "2" },
     { "vr_arena_xray_distance", "600" },
     { "vr_arena_banners", "1" },  // (test 38: the banners)
-    { "vr_arena_wrist", "1" }     // (test 39: the messages on the wrist)
+    { "vr_arena_wrist", "1" },    // (test 39: the messages on the wrist)
+    { "vr_agrunt_flaregun", "" }  // (test 40: its grunts hold the one weapon they were given)
 };
-float VR_AT_NCVARS = 34;
+float VR_AT_NCVARS = 35;
 
 void() VR_AT_Save =
 {
@@ -4355,6 +4356,185 @@ void() VR_AT39_Frame =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 40 (vrarena): the weapon schedule's weapons in the player's hands (ROUND24.md, "Survival Arena: every armed
+// humanoid's weapon"). For each code of each row this game has (VR_ARENA_GunOk; a run's every code), an armed grunt
+// holding it is spawned the way the director spawns one and felled ahead of the player; the weapon it drops is taken
+// into the player's empty main hand (its hand touch, as a grab: VR_ClassTest_Take) and must be that weapon (an AD
+// sword's kind, the death knight's sword's flag kept); a gun must come loaded and fire, its trigger held (W_Attack a
+// frame: the spun-up ones, the nailguns and the Widowmaker, take a few). Verdict
+// `arena: test 40 over: N passed, M failed`.
+// ---------------------------------------------------------------------------
+
+void(entity w) VR_ClassTest_Take;         // (vr_pickup_test.qc: self, a player, takes `w` into its main hand)
+
+float vr_at40_row;    // the row being tried
+float vr_at40_code;   // its code being tried (0: none yet)
+float vr_at40_cases;  // the codes tried
+float vr_at40_taken;  // ... whose drop the player took and held
+entity vr_at40_g;     // its grunt
+float vr_at40_at;     // when it was spawned, then when it fell
+vector vr_at40_org;   // where
+float vr_at40_clip;   // the gun taken: its rounds then
+
+// The next code to try (FALSE: none left): the row's next code this game has, else the next row's first.
+float() VR_AT40_Next =
+{
+    float r = vr_at40_row;
+    float c = vr_at40_code + 1;
+    while(r < AR_GUN_N)
+    {
+        VR_ARENA_GunRowSet(r);
+        if(c < ar_gr_lo) { c = ar_gr_lo; }
+        float hi = ar_gr_hi;
+        for(; c <= hi; c++)
+        {
+            if(VR_AG_Decode(c)) { vr_at40_row = r; vr_at40_code = c; return TRUE; }
+        }
+        r = r + 1;
+        c = 0;
+    }
+    return FALSE;
+}
+
+// The weapons lying about (thrown_weapon props), cleared before each case: the one found after is its grunt's.
+void() VR_AT40_ClearDrops =
+{
+    entity e = find(world, classname, "thrown_weapon");
+    while(e)
+    {
+        entity nx = find(e, classname, "thrown_weapon");
+        remove(e);
+        e = nx;
+    }
+}
+
+void() VR_AT40_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 40 needs the arena running (vrarena)"); VR_AT_End(); return; }
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "test 40 needs a player"); VR_AT_End(); return; }
+    cvar_set("vr_agrunt_flaregun", "0"); // (no flare gun drawn as a second weapon: the drop is the given one)
+    p.flags = p.flags | FL_NOTARGET;
+    vr_at40_row = 0;
+    vr_at40_code = 0;
+    vr_at40_cases = 0;
+    vr_at40_taken = 0;
+    vr_at_step = 0;
+    vr_at_until = time + 240;
+}
+
+void() VR_AT40_Frame =
+{
+    entity p = VR_PlayerAlive();
+    if(!p) { VR_AT_Check(FALSE, "the player died"); VR_AT_End(); return; }
+    entity keep = self;
+    string name;
+
+    if(vr_at_step == 0)
+    {
+        if(!VR_AT40_Next())
+        {
+            dprint(sprintf("arena: t40 %g codes tried, %g taken and held\n", vr_at40_cases, vr_at40_taken));
+            VR_AT_Check(vr_at40_cases > 0 && vr_at40_taken == vr_at40_cases,
+                        sprintf("every weapon of the schedule a foe drops is the player's to take (%g of %g)",
+                                vr_at40_taken, vr_at40_cases));
+            p.flags = p.flags - (p.flags & FL_NOTARGET);
+            VR_AT_End();
+            return;
+        }
+        vr_at40_cases = vr_at40_cases + 1;
+        VR_AT40_ClearDrops();
+        VR_AG_Decode(vr_at40_code);
+        float wid = vr_ag_dec_wid;
+        makevectors([0, p.angles_y, 0]);
+        entity g = spawn();
+        self = g;
+        g.classname = "monster_army";
+        setorigin(g, p.origin + v_forward * 112 + '0 0 8');
+        g.angles = [0, p.angles_y + 180, 0];
+        g.weapon = vr_at40_code;
+        vr_ar_hold_roll = 1; // (as VR_ARENA_SpawnMonster spawns a wave's humanoid: its plan's weapon held)
+        monster_vr_grunt();
+        vr_ar_hold_roll = 0;
+        self = keep;
+        name = VR_ARENA_GunName(vr_at40_row);
+        dprint(sprintf("arena: t40 row %g (%s) code %g: grunt holds %g (%s)\n", vr_at40_row, name, vr_at40_code,
+                       g.vr_ag_wid, g.vr_ag_prop ? "a prop in its hand" : "nothing"));
+        VR_AT_Check(g.vr_ag_wid == wid && g.vr_ag_prop != world,
+                    sprintf("%s (code %g): a grunt given it holds it", name, vr_at40_code));
+        vr_at40_g = g;
+        vr_at40_at = time;
+        vr_at_step = 2;
+        return;
+    }
+
+    if(vr_at_step == 2) // (felled once it has started: a monster takes no damage before its first think)
+    {
+        entity f = vr_at40_g;
+        if(f.takedamage == DAMAGE_NO && time < vr_at40_at + 2) { return; }
+        vr_at40_org = f.origin;
+        T_Damage(f, p, p, f.health + 20);
+        if(f.health > 0 && time < vr_at40_at + 2) { return; } // (a blow it shrugged off: again next frame)
+        VR_AT_Check(f.health <= 0, sprintf("%s (code %g): its grunt felled (health %g)", VR_ARENA_GunName(vr_at40_row),
+                                           vr_at40_code, f.health));
+        vr_at40_at = time;
+        vr_at_step = 1;
+        return;
+    }
+
+    name = VR_ARENA_GunName(vr_at40_row);
+    if(vr_at_step == 3) // (a gun: its trigger held a frame at a time until it fires, as a hand holds it)
+    {
+        self = p;
+        W_Attack();
+        self = keep;
+        float now = VRGetEntWeaponClip(p, cVR_MainHand);
+        if(now >= vr_at40_clip && time < vr_at40_at + 1.5) { return; }
+        dprint(sprintf("arena: t40 %s: fired, %g -> %g rounds\n", name, vr_at40_clip, now));
+        VR_AT_Check(now < vr_at40_clip, sprintf("%s fires in the player's hand (%g -> %g rounds)", name, vr_at40_clip, now));
+        if(now < vr_at40_clip) { vr_at40_taken = vr_at40_taken + 1; }
+        VRSetEntWeapon(p, cVR_MainHand, WID_FIST);
+        vr_at_step = 0;
+        return;
+    }
+
+    // Its weapon on the floor near where it fell (it may take a few frames to come down out of its hand).
+    VR_AG_Decode(vr_at40_code);
+    float want = vr_ag_dec_wid;
+    float wantFlags = vr_ag_dec_flags;
+    entity w = world;
+    for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        if((e.weapon == want) && (vlen(e.origin - vr_at40_org) < 320)) { w = e; }
+    }
+    if(!w && time < vr_at40_at + 2) { return; }
+    vr_at_step = 0;
+    VR_AT_Check(w != world, sprintf("%s (code %g): dropped, it lies on the floor", name, vr_at40_code));
+    if(!w) { return; }
+
+    self = p;
+    VR_ClassTest_Take(w);
+    self = keep;
+    float held = VRGetEntWeapon(p, cVR_MainHand);
+    float flags = VRGetEntWeaponFlags(p, cVR_MainHand);
+    float kindMask = QVR_WPNFLAG_SWORD_KIND | QVR_WPNFLAG_USE_SECONDARY_AMMO;
+    float ok = ((held == want) && ((want != WID_SWORD) || ((flags & kindMask) == (wantFlags & kindMask))));
+    VR_AT_Check(ok, sprintf("%s (code %g): taken, the main hand holds it (weapon %g flags %g)", name, vr_at40_code, held, flags));
+    float cls = VR_AG_Class(want);
+    if(ok && (cls != VR_AG_CLASS_MELEE) && (cls != VR_AG_CLASS_FISTS))
+    {
+        vr_at40_clip = VRGetEntWeaponClip(p, cVR_MainHand);
+        dprint(sprintf("arena: t40 %s: taken with %g rounds in it\n", name, vr_at40_clip));
+        VR_AT_Check(vr_at40_clip > 0, sprintf("%s: it comes loaded (%g)", name, vr_at40_clip));
+        p.attack_finished = 0;
+        vr_at40_at = time;
+        vr_at_step = 3;
+        return;
+    }
+    if(ok) { vr_at40_taken = vr_at40_taken + 1; }
+    VRSetEntWeapon(p, cVR_MainHand, WID_FIST);
+}
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar_hget(cvarh_vr_arena_test);
@@ -4411,6 +4591,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 37) { VR_AT37_Begin(); return; }
         if(c == 38) { VR_AT38_Begin(); return; }
         if(c == 39) { VR_AT39_Begin(); return; }
+        if(c == 40) { VR_AT40_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -4450,5 +4631,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 37) { VR_AT37_Frame(); return; }
     if(vr_at_case == 38) { VR_AT38_Frame(); return; }
     if(vr_at_case == 39) { VR_AT39_Frame(); return; }
+    if(vr_at_case == 40) { VR_AT40_Frame(); return; }
 }
 #endif
