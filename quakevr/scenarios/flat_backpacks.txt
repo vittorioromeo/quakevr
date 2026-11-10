@@ -1,0 +1,11 @@
+# flat_backpacks: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Backpacks (his notes 2026-11-10):
+# a force-grabbed one taken at once (vr_forcegrab_pack_collect), an empty one taken without a bare "You get".
+title Backpacks: armed grunts to kill, their packs to force-grab and walk over
+hint Kill the grunts. Force-grab a backpack (the grab key, or a force grab in a headset): it flies into your hand and is taken at once, with its "You get ..." line and sound, nothing left in the hand. Walk over the others: every pickup line names what you got, never a bare "You get".
+map vrtesthall
+god
+notarget
+give "Super Shotgun" main
+spawn "Armed Grunt: Shotgun" 260 60
+spawn "Armed Grunt: Shotgun" 260 -60
+spawn "Armed Enforcer: Axe" 320 0

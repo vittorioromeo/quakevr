@@ -49,6 +49,7 @@
         row(opt::vr_carry),
         row(opt::vr_carry_take),
         row(opt::vr_carry_autocollect),
+        row(opt::vr_forcegrab_pack_collect),
         row(opt::vr_carry_full_cue),
         row(opt::vr_collect_fx),
         row(opt::vr_collect_fx_time),

@@ -3302,8 +3302,7 @@ float() VR_AG_SoldierDrop =
     }
     self.vr_ag_pocket_wid = 0;
     self.vr_ag_pocket_n = 0;
-    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + self.ammo_lava_nails +
-         self.ammo_multi_rockets + self.ammo_plasma))
+    if(!Backpack_HasAmmo(self))
     {
         // None of a real ammo kind (fists, melee weapons, single-use guns, all spent): its monster's own loot (a grunt's
         // 5 shells, an enforcer's 5 cells).

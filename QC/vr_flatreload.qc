@@ -32,6 +32,8 @@
 // developer 1 prints each step ("flat reload: ...").
 
 .float vr_flatrl;        // the hands on the trip (1 off, 2 main: STAT_QVR_FLATRELOAD)
+.float vr_flatrl_unl0;   // the off hand's gun (its weapon id) emptied by the holster menu's UNLOAD: not auto reloaded
+.float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
 .float vr_flatrl_due0;   // the off hand's gun fired empty: when it breaks open or drops its magazine (0 nothing due),
 .float vr_flatrl_due1;   // the main hand's
 .entity vr_flatrl_duei0; // and the gun's record it is for
@@ -440,20 +442,55 @@ void() VR_FlatReload_Key =
 // `xWeaponFlags`) of `xHand` away: its clip's rounds go back into the reserve (the hand's magazine record is carried to the
 // next gun, VRCycleEntWeaponInst, so they'd be lost, or loaded into the wrong gun). A trip under way is cancelled by the
 // change (VR_FlatReload_HandFrame).
+float(float xHand, float xWeapon, float xWeaponFlags, float xCapped) VR_FlatReload_ClipBack;
+
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut =
 {
     if(!VR_FlatPlay(self) || xWeapon == WID_FIST || !VRIsWeaponReloadingEnabledForInst(self, xWeapon, VRGetEntWeaponInst(self, xHand)))
     {
         return;
     }
-    float clip = VRGetEntWeaponClip(self, xHand);
-    if(clip > 0)
-    {
-        VR_AmmoUtil_AddAmmoCountByAmmoId(self, WeaponIdToAmmoId(xWeapon, xWeaponFlags), clip);
-        VRSetEntWeaponClip(self, xHand, 0);
-    }
+    float clip = VR_FlatReload_ClipBack(xHand, xWeapon, xWeaponFlags, FALSE);
     dprint(sprintf("flat reload: %s hand put weapon %g away: %g rounds back into the reserve\n", VR_FlatReload_HandName(xHand),
         xWeapon, clip));
+};
+
+// What the holster menu's UNLOAD (impulses 82, 83; vr_flatholster.qc) can take out of the gun in `xHand` of self: the live
+// rounds in its clip (the magazine, the barrels' live shells, the cylinder's: its clip, the revolver's chambers follow it,
+// VR_Revolver_Sync), 0 for a gun with no clip of a real ammo kind (a single-use gun, the chainsaw's fuel, a melee weapon).
+// Spent shells are not in the clip.
+float(float xHand) VR_FlatReload_Unloadable =
+{
+    if(!VR_FlatPlay(self) || VRIsHandWeaponless(self, xHand) || !VRIsWeaponReloadingEnabledFor(self, xHand) ||
+       VR_ClipSizeIn(self, xHand) <= 0 || WeaponIdToAmmoId(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand)) == AID_NONE)
+    {
+        return 0;
+    }
+    return max(0, VRGetEntWeaponClip(self, xHand));
+};
+
+// The clip of `xHand` (weapon `xWeapon`, flags `xWeaponFlags`) back into self's reserve (the weapon cycle's put-away, the
+// holster menu's UNLOAD); `xCapped`: only what fits under the reserve's cap (VR_MaxAmmo, as a pickup's), the rest left in the
+// clip. The rounds moved.
+float(float xHand, float xWeapon, float xWeaponFlags, float xCapped) VR_FlatReload_ClipBack =
+{
+    float clip = VRGetEntWeaponClip(self, xHand);
+    float aid = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
+    if(clip <= 0 || aid == AID_NONE)
+    {
+        return 0;
+    }
+    float n = clip;
+    if(xCapped)
+    {
+        n = max(0, min(clip, VR_MaxAmmo(self, aid) - VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
+    }
+    if(n > 0)
+    {
+        VR_AmmoUtil_AddAmmoCountByAmmoId(self, aid, n);
+        VRSetEntWeaponClip(self, xHand, clip - n);
+    }
+    return n;
 };
 
 // And the gun it takes comes loaded from the reserve, as a pickup does (items.qc): no trip for a weapon switch.
@@ -482,9 +519,16 @@ void(float xHand) VR_FlatReload_HandFrame =
         VR_FlatReload_RvEjectFrame(xHand, FALSE);
         VR_FlatReload_EjectFrame(xHand);
     }
+    // (Unloaded by the holster menu's UNLOAD: no auto reload of that gun until R fills it or the hand takes another.)
+    float unl = xHand == cVR_MainHand ? self.vr_flatrl_unl1 : self.vr_flatrl_unl0;
+    if(unl && (VRGetEntWeapon(self, xHand) != unl || VRGetEntWeaponClip(self, xHand) > 0))
+    {
+        unl = 0;
+        if(xHand == cVR_MainHand) { self.vr_flatrl_unl1 = 0; } else { self.vr_flatrl_unl0 = 0; }
+    }
     if(!VR_FlatReload_Busy(self, xHand))
     {
-        if(cvar_hget(cvarh_vr_flat_autoreload) && !VRIsHandWeaponless(self, xHand) && VRGetEntWeaponClip(self, xHand) <= 0 &&
+        if(cvar_hget(cvarh_vr_flat_autoreload) && !unl && !VRIsHandWeaponless(self, xHand) && VRGetEntWeaponClip(self, xHand) <= 0 &&
            VR_FlatReload_Can(xHand))
         {
             VR_FlatReload_Start(xHand, "auto: the clip is empty");

@@ -16,6 +16,8 @@
 //   flies only after the palm's turn, never two at one hand, the first ends in the hand it flew to.
 // `vr_flatitems_test 7`: a brick force-grabbed beside the shotgun: the gun one-handed, the brick in the off hand's guard,
 //   V's overhead swing and the fist's punch with it each hurt a grunt; a wall torch caught turned flame up.
+// `vr_flatitems_test 8`: E on a backpack: taken at once (vr_forcegrab_pack_collect); an empty backpack touched: taken without
+//   a word; one with a negative amount: only what is more than none.
 // Ends `flatitems: N passed, M failed`.
 
 float vr_ffx_on;    // the running test's number
@@ -815,6 +817,73 @@ void(entity p) VR_FFX_PropFist =
     }
 };
 
+// ---- 8: backpacks (his notes 2026-11-10). A monster's backpack (20 shells) where he looks, E (impulse 46): the force grab
+// brings it in and it is taken at once (vr_forcegrab_pack_collect), nothing left in a hand. Then an empty one touched:
+// taken without a word (no bare "You get"), his ammo as it was; and one with a negative amount: only the positive taken.
+float vr_ffx_shells0;
+void(entity p) VR_FFX_Packs =
+{
+    if(vr_ffx_s == 0)
+    {
+        VR_FFX_MakeBare(p);
+        vr_ffx_item = VR_FFX_SpawnKind(19, p.origin + VR_FFX_Ahead(p) * 96);
+        VR_FFX_To(1, 0);
+        return;
+    }
+    if(vr_ffx_s == 1)
+    {
+        VR_FFX_LookAt(p, vr_ffx_item);
+        vr_ffx_shells0 = p.ammo_shells;
+        p.impulse = 46;
+        VR_FFX_To(2, 0);
+        return;
+    }
+    if(vr_ffx_s == 2)
+    {
+        if(vr_ffx_item.model == string_null || VR_Carry_Held(p, cVR_OffHand) == vr_ffx_item || VR_Carry_Held(p, cVR_MainHand) == vr_ffx_item)
+        {
+            VR_FFX_To(3, 2);
+        }
+        return;
+    }
+    if(vr_ffx_s == 3)
+    {
+        VR_Test_Check(vr_ffx_item.model == string_null && p.ammo_shells == min(vr_ffx_shells0 + 20, VR_MaxAmmo(p, AID_SHELLS)),
+            sprintf("E on a backpack: the force grab's catch takes it at once (shells %g to %g)", vr_ffx_shells0, p.ammo_shells));
+        VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == world && VR_Carry_Held(p, cVR_MainHand) == world, "... and nothing is left in a hand");
+        // An empty one, and one with a negative amount, touched as walking into it touches it.
+        entity oself = self;
+        for(float k = 0; k < 2; k++)
+        {
+            entity pk = spawn();
+            setorigin(pk, p.origin + VR_FFX_Ahead(p) * 64);
+            Backpack_Setup(pk, 0.75);
+            if(k == 1) { pk.ammo_shells = -3; pk.ammo_nails = 5; }
+            float sh = p.ammo_shells, na = p.ammo_nails;
+            other = p;
+            self = pk;
+            BackpackTouch();
+            self = oself;
+            if(k == 0)
+            {
+                VR_Test_Check(vr_backpack_last_empty && pk.model == string_null && p.ammo_shells == sh && p.ammo_nails == na,
+                    sprintf("an empty backpack: taken silently (silent %g, gone %g, shells %g to %g)", vr_backpack_last_empty,
+                    pk.model == string_null, sh, p.ammo_shells));
+            }
+            else
+            {
+                VR_Test_Check(!vr_backpack_last_empty && p.ammo_shells == sh && p.ammo_nails == min(na + 5, VR_MaxAmmo(p, AID_NAILS)),
+                    sprintf("a backpack of -3 shells and 5 nails: only the nails (shells %g to %g, nails %g to %g)", sh,
+                    p.ammo_shells, na, p.ammo_nails));
+            }
+        }
+        VR_Test_Verdict();
+        vr_ffx_on = 0;
+        cvar_set("vr_flatitems_test", "0");
+        return;
+    }
+};
+
 void() VR_FlatItemsTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatitems_test);
@@ -858,6 +927,7 @@ void() VR_FlatItemsTest_Frame =
     if(ask == 4) { VR_FFX_Pictures(p); }
     if(ask == 6) { VR_FFX_PalmFirst(p); }
     if(ask == 7) { VR_FFX_PropFist(p); }
+    if(ask == 8) { VR_FFX_Packs(p); }
 };
 
 #endif

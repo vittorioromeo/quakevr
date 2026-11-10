@@ -3909,6 +3909,10 @@ QVR_CYCLE(vr_carry_autocollect, "Auto-Collect",
     "An ammo or health box (and a backpack) is taken the moment a hand grips it or a force grab brings it "
     "in, seen shrinking into the hand. Full up of it: the full cue, and it stays in the hand.",
     {0.f, "Off"}, {1.f, "Ammo and Health"}, {2.f, "And Backpacks"})
+QVR_TOGGLE(vr_forcegrab_pack_collect, "Force-Grabbed Packs",
+    "A backpack a force grab brings into your hand is taken at once, as walking into it would (its ammo, "
+    "message and sound). Off: it stays in the hand, to put away at a holster. In a headset not with "
+    "Auto-Collect Off.")
 QVR_TOGGLE(vr_carry_full_cue, "Full Cue",
     "A box put away (or taken at once) while you are full up of it: a dull knock and a tick in the hand, "
     "so it is not taken for a miss of the holster. It drops there.")
@@ -6261,6 +6265,9 @@ QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f,
     "(vr_flat_holster_menu_crt).")
 QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
     "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
+QVR_SLIDER(vr_flat_unload_volume, "Unload Volume", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How loud the holster menu's UNLOAD is: a hand's gun's live rounds going back into your ammo "
+    "(vr_flat_unload_volume; 0 silent).")
 QVR_TOGGLE(vr_flat_ssg_break, "Super Shotgun Breaks Open",
     "Playing on the desktop screen with Reloading on: the super shotgun fired empty breaks open by itself a moment "
     "later, throwing out its spent shells, and won't fire until a reload snaps it shut (Tunables > Flatscreen > "

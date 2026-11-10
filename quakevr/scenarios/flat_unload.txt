@@ -1,0 +1,10 @@
+# flat_unload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The holster menu's UNLOAD under each hand
+# (vr_flatholster.qc VR_FlatHolster_Unload; vr_flat_unload_volume).
+title Flat-screen holster menu: UNLOAD a hand's gun
+hint Play with -flatscreenmode. Hold the weapon wheel's button: under each hand is UNLOAD, lit while that hand's gun has rounds in it. Click the right hand's UNLOAD: a short sound, the clip in the corner reads 0 and the shells in storage go up by as many; the gun is not reloaded by itself. Fire: a dry click. R reloads it. Try the left hand's nailgun too, and the super shotgun with one barrel fired: only the live shell comes back.
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Nailgun" off
+spawn "Super Shotgun" 80 0

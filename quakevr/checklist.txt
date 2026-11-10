@@ -39,6 +39,9 @@ Fire the super shotgun and the heavy revolver empty and open them: their spent s
 Flat-screen: fire the heavy revolver empty: while its cylinder is out the gun eases up, turns in and rolls to show the cylinder, and eases back after R. {test:flat_revolver_eject}
 Flat-screen: fire the super shotgun empty: its shells leave only once it is fully broken open and in its open pose, not as it starts to open. {test:flat_ssg_break}
 Break the super shotgun open in either hand (flat: fire it empty; VR: break it yourself) and look at it from your view, from above and close at the hinge: the two bores are hollow tubes you can see into, nothing flickers between them, the breech face's corners are clean, the rivets by the hinge stay on the frame, no faces are missing, the barrels pivot on a round knuckle and the two parts meet with no gap even from above; shut, it looks as before. {test:flat_ssg_break}
+Force-grab a dead grunt's backpack: it flies into your hand and is taken at once, with its "You get ..." line and sound, nothing left in the hand (Force-Grabbed Packs in Carrying; in a headset only with Auto-Collect not Off). {test:flat_backpacks}
+Collect grunts' backpacks by walking over them and by force grab: every pickup line names what you got, never a bare "You get". {test:flat_backpacks}
+Flat-screen: in the holster menu, UNLOAD under each hand is lit while that hand's gun has rounds in it; clicking it plays a short sound, empties the clip into your ammo storage (only what fits; spent shells stay) and the gun is not auto-reloaded until you press R. {test:flat_unload}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}

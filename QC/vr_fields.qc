@@ -94,6 +94,7 @@ float VR_HANDFREE_GUNGRIP = 8; // busy on your own gun alone takes it (its fore-
 .float vr_carry_items;   // the hands carrying a thing to put away (vr_carry.qc VR_Carry_ItemsFrame: bit 0 the off hand, 1 the main; STAT_QVR_CARRYITEM)
 .float vr_carry_fullcue; // on a player: no full cue again before then (VR_Carry_FullCue)
 .float carry_autotried;  // on a box: vr_carry_autocollect tried it this carry (VR_Carry_AutoCollect)
+.float carry_fgcaught;   // on a box: this carry began with a force grab's catch (vr_forcegrab_pack_collect)
 
 // ----------------------------------------------------------------------------
 // Force-grabbing fields

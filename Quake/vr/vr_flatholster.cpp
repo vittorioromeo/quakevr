@@ -30,6 +30,7 @@
 extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
 extern "C" kbutton_t in_attack;                     // cl_input.c: +attack (the left mouse button)
+extern "C" int VR_FlatHudClip(int left, int* clip, int* clipSize); // vr_flathud.cpp
 
 namespace qvr::flatholster
 {
@@ -68,6 +69,9 @@ constexpr glm::vec4 swapRect{354.f, 76.f, 26.f, 26.f};
 // DROP BOTH: under the hands' DROPs, in the middle between them (his words 2026-11-10: "add a 'drop both' button under
 // the hands at the center").
 constexpr glm::vec4 dropBothRect{317.f, 162.f, 100.f, 14.f};
+// UNLOAD under each hand, below DROP BOTH (his words 2026-11-10: "add a per-hand 'unload button' that empties a gun's
+// magazine (if applicable) and returns the ammunition to the ammo storage").
+constexpr float unloadY = 180.f;
 
 enum class Act : int
 {
@@ -76,7 +80,8 @@ enum class Act : int
     HolsterRight, // holster `index` <-> the right hand (62 + 3i)
     HandDrop,     // hand `index` (0 the left, 1 the right) drops (78, 79)
     DropBoth,     // both hands drop, the off hand first (81)
-    Swap          // the hands swap (48: 3's)
+    Swap,         // the hands swap (48: 3's)
+    Unload        // hand `index`'s gun's live rounds back into the reserve (82, 83)
 };
 struct Button
 {
@@ -85,7 +90,7 @@ struct Button
     glm::vec4 rect;
     char name[16];
 };
-constexpr int buttonCount = holsterCount * 3 + 4;
+constexpr int buttonCount = holsterCount * 3 + 6;
 
 struct State
 {
@@ -115,6 +120,7 @@ struct Contents
     int hand[2]{};      // weapon ids, the left (off) and the right (main)
     int handModel[2]{}; // model indices
     int carry[2]{};     // the entity each carries (a box, a prop), 0 none
+    int clip[2]{};      // the live rounds in each hand's gun's clip (the flat HUD's clip: VR_FlatHudClip), 0 none or no clip
 };
 
 [[nodiscard]] Contents contents()
@@ -131,6 +137,15 @@ struct Contents
     c.handModel[1] = cl.stats[STAT_WEAPON];
     c.carry[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
     c.carry[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+    for(int h = 0; h < 2; h++)
+    {
+        int clip = 0, size = 0;
+        // (The HUD's rule for a gun with a clip, not one whose clip is its only ammo: VR_FlatHudClip's `left` 0 the main hand.)
+        if(c.hand[h] != WID_FIST && VR_FlatHudClip(h == 0 ? 1 : 0, &clip, &size))
+        {
+            c.clip[h] = clip;
+        }
+    }
     return c;
 }
 
@@ -169,6 +184,8 @@ void layOut()
     add(Act::HandDrop, 1, {handRect[1].x, handRect[1].y + handRect[1].w + 4.f, handRect[1].z, 14.f}, "right drop");
     add(Act::DropBoth, 0, dropBothRect, "both drop");
     add(Act::Swap, 0, swapRect, "swap");
+    add(Act::Unload, 0, {handRect[0].x, unloadY, handRect[0].z, 14.f}, "left unload");
+    add(Act::Unload, 1, {handRect[1].x, unloadY, handRect[1].z, 14.f}, "right unload");
 }
 
 [[nodiscard]] bool inside(const glm::vec4& r, const glm::vec2& p)
@@ -188,6 +205,7 @@ void layOut()
     case Act::HandDrop: return handHas(b.index);
     case Act::DropBoth: return handHas(0) || handHas(1);
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
+    case Act::Unload: return c.clip[b.index] > 0;
     }
     return false;
 }
@@ -202,6 +220,7 @@ void layOut()
     case Act::HandDrop: return b.index == 0 ? 78 : 79;
     case Act::DropBoth: return 81;
     case Act::Swap: return 48;
+    case Act::Unload: return b.index == 0 ? 82 : 83;
     }
     return 0;
 }
@@ -456,6 +475,7 @@ void draw()
         case Act::HandDrop: g.icon = gadget::MenuIcon::Drop; g.label = "DROP"; break;
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
+        case Act::Unload: g.icon = gadget::MenuIcon::None; g.label = "UNLOAD"; break;
         }
     }
     gadget::HolsterMenuView v;
@@ -558,6 +578,8 @@ struct Test
     int holster{0};
     int clicks{0};     // st.clicks before a step
     float mode{0.f};   // vr_flat_holster_menu_mode before the test (put back at its end)
+    int shells{0};     // the shells before the right hand's UNLOAD
+    int clip{0};       // ... and the shotgun's clip
 };
 Test test;
 constexpr int giveUp = 400;
@@ -728,16 +750,36 @@ void testStep()
         }
         break;
     case 10:
-        if(wait(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN, "both hands full again"))
+        // (Loaded as a pickup loads them: VR_FlatReload_CycleIn's clip.)
+        if(wait(c.hand[1] == WID_SHOTGUN && c.hand[0] == WID_NAILGUN && c.clip[1] > 0 && c.clip[0] > 0, "both hands full again, loaded"))
         {
-            press("left drop");
+            // UNLOAD (82, 83): the right hand's shotgun's shells back into the reserve, then the left hand's DROP.
+            test.shells = cl.stats[STAT_SHELLS];
+            test.clip = c.clip[1];
+            press("right unload");
             next();
         }
         break;
     case 11:
-        if(wait(c.hand[0] == WID_FIST, "the left hand's DROP"))
+        // (Two phases, one impulse a frame: the UNLOAD's result, then the left hand's DROP.)
+        if(test.clip > 0)
         {
-            result(c.hand[1] == WID_SHOTGUN, "the left hand's DROP");
+            if(wait(c.clip[1] == 0, "the right hand's UNLOAD"))
+            {
+                Con_Printf("flatholster_test: UNLOAD: shells %d -> %d, the shotgun's clip %d -> %d\n", test.shells,
+                    cl.stats[STAT_SHELLS], test.clip, c.clip[1]);
+                result(cl.stats[STAT_SHELLS] == test.shells + test.clip, "UNLOAD: the shotgun's shells back into the reserve");
+                const int was = st.clicks;
+                press("right unload");
+                result(st.clicks == was, "UNLOAD dim (does nothing) with the clip empty");
+                test.clip = 0;
+                test.frames = 0;
+                press("left drop");
+            }
+        }
+        else if(wait(c.hand[0] == WID_FIST, "the left hand's DROP"))
+        {
+            result(c.hand[1] == WID_SHOTGUN && c.clip[1] == 0, "the left hand's DROP (the unloaded shotgun not reloaded)");
             Cbuf_AddText("impulse 176\n");
             next();
         }

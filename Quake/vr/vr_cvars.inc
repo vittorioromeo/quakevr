@@ -2818,6 +2818,7 @@ QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws'
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
 QVR_CVAR(vr_carry_autocollect, "0", CVAR_ARCHIVE)     // an ammo or health box taken in a hand (a grip, a force grab's catch) is taken at once, drawn shrinking into the hand (full up: the "full" cue, still held); 2 a backpack too; 0 off
+QVR_CVAR(vr_forcegrab_pack_collect, "1", CVAR_ARCHIVE) // a backpack a force grab brings into the hand is taken at once, as touching it would (flatscreen play and headset; not with vr_carry_autocollect 0 in a headset); 0 held, to put away
 QVR_CVAR(vr_carry_full_cue, "1", CVAR_ARCHIVE)        // a box put away at a holster or pouch (or taken at once: vr_carry_autocollect) while you are full up of it: a "full" knock and a haptic tick (it drops there); 0 silent
 QVR_CVAR(vr_collect_fx, "1", CVAR_ARCHIVE)            // what a hand puts away at a holster or pouch (a box, a key, a power-up, a round, a grenade) is drawn shrinking into it (visual only: vr_collectfx.cpp)
 QVR_CVAR(vr_collect_fx_time, "0.25", CVAR_ARCHIVE)     // with it: seconds it takes to go in (game time: slowed in bullet time)
@@ -4113,6 +4114,7 @@ QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen pla
 QVR_CVAR(vr_flat_holster_menu_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the holster menu's cursor speed (1: as the desktop's pointer)
 QVR_CVAR(vr_flat_holster_menu_crt, "0.5", CVAR_ARCHIVE) // flatscreen play: the holster menu's screen's CRT look (scanlines, flicker; 0 none), as the visor's panels
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
+QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)
 QVR_CVAR(vr_flat_flycam, "0", CVAR_NONE)                // flatscreen play's fly camera (vr_flycam.cpp): 1 the view flies free (mouse looks, W A S D, Space up, Ctrl down, Shift faster) while you stand exactly as you were, nothing of yours moving; 0 back in your eyes. Not saved; a headset ignores it
 QVR_CVAR(vr_flat_flycam_pause, "1", CVAR_ARCHIVE)       // the fly camera: 1 the game is paused while it flies (single player, or a game this client's server runs alone); 0 the world runs on (you still stand still: no key reaches you). Multiplayer never pauses
