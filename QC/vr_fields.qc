@@ -122,6 +122,7 @@ float cVR_Forcegrab_AfterFoe = 0.5; // s: that moment (a judo throw's follow-thr
 .float fg_gravity;  // of its arc
 .float fg_movetype; // as it was before
 .vector fg_origin;  // where it was before it flew (it fitted there)
+.vector fg_angles;  // and its turn: how it lay, what its spin settles back to as it arrives (vr_forcegrab_settle)
 .float fg_solid;
 .void() fg_think;
 

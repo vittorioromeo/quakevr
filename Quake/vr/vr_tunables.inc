@@ -153,6 +153,7 @@ QVR_TUNABLE(vr_parry_muzzle_angle, "45") // degrees: a weapon whose far end (a g
 
 // Carrying and Throwing > Other
 QVR_TUNABLE(vr_forcegrab_miss_speed, "0.2") // share of its speed a missed object keeps
+QVR_TUNABLE(vr_forcegrab_settle, "0.2") // s: a pulled object's tumble settles back to how it lay over its flight's last this long (0: caught as the spin left it)
 QVR_TUNABLE(vr_forcegrabbable_ammo_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_health_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_return_time_deathmatch, "4")
@@ -375,6 +376,8 @@ QVR_TUNABLE(vr_crate_flaregun_max, "2") // most flare guns on crates in a map
 
 // Carrying and Throwing > Force Grab
 QVR_TUNABLE(vr_forcegrab_outline, "1") // the glow round what a hand's force grab points at (strength, 0 off)
+QVR_TUNABLE(vr_forcegrab_fx_along, "1") // units: the effect's start moved from the palm's middle towards the fingers (negative: towards the wrist)
+QVR_TUNABLE(vr_forcegrab_fx_out, "0.6") // units: and out of the palm's surface, on its side (negative: into the hand)
 QVR_TUNABLE(vr_forcegrab_distance, "200") // units objects can be pulled from,
 QVR_TUNABLE(vr_forcegrab_cone, "15") // degreesoff where the hand points
 QVR_TUNABLE(vr_forcegrab_flick_speed, "1.0") // m/s back or up the hand flicks to pull,
@@ -1875,6 +1878,27 @@ QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after 
 QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
 QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
 
+// Flatscreen > Force Grab (vr_flatfgrab.cpp; his note 2026-11-10)
+QVR_TUNABLE(vr_flat_fg_pose, "1") // E's hand turns its palm to the object and opens before the grab (0: the grab at once, no pose)
+QVR_TUNABLE(vr_flat_fg_turn_time, "0.12") // seconds the palm takes to turn out and the fingers to open, before the grab starts
+QVR_TUNABLE(vr_flat_fg_detach_time, "0.15") // seconds more for a hand on a held gun's two-handed grip to let go of it first
+QVR_TUNABLE(vr_flat_fg_release_time, "0.2") // seconds the hand takes back to its own pose once the object is caught or missed
+QVR_TUNABLE(vr_flat_fg_fwd, "0.8") // the grabbing hand: in front of its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_fg_out, "0.15") // out at its own side, a share of the arm's reach (away from a held gun)
+QVR_TUNABLE(vr_flat_fg_down, "-0.05") // below its shoulder, a share of the arm's reach (negative: above; on the screen's edge at 0.3 out, 0.1 down)
+QVR_TUNABLE(vr_flat_fg_palm_aim, "1") // how much the palm turns to the object (0: straight ahead along the view)
+QVR_TUNABLE(vr_flat_fg_finger_tilt, "20") // degrees the fingers lean out from straight up, about the palm's normal
+
+// Flatscreen > Held Props (vr_flatfgrab.cpp, vr_held.cpp; his note 2026-11-10)
+QVR_TUNABLE(vr_flat_carry_pose, "1") // a prop held in one hand is held up in front (0: the empty hand's pose, hung or the guard)
+QVR_TUNABLE(vr_flat_carry_time, "0.2") // seconds into and out of that pose
+QVR_TUNABLE(vr_flat_carry_fwd, "0.55") // the hand: in front of its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_out, "0.15") // out at its own side, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_down, "0.35") // below its shoulder, a share of the arm's reach
+QVR_TUNABLE(vr_flat_carry_pitch, "10") // degrees its fingers point down from the view's pitch
+QVR_TUNABLE(vr_flat_carry_yaw, "10") // degrees it turns in towards the middle (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_carry_roll, "45") // degrees it rolls its palm up (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_carry_drawn, "1") // a held prop drawn in its hand as drawn (the view's sway, bob, turn lag); 0: at the game's hand, as before
 // Flatscreen > Hand Swap (vr_flatswap.cpp; vr_flat_swap_anim)
 QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap is sent as they do)
 QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped

@@ -2569,6 +2569,7 @@ vr_ragimpact_crush_mass|2|Tunables|Ragimpact Crush Mass|Advanced VR Options > De
 vr_decap_pop_projectile|2|Tunables|Decap Pop Projectile|Advanced VR Options > Debug > Tunables > Decap Pop Projectile
 vr_parry_muzzle_angle|2|Tunables|Parry Muzzle Angle|Advanced VR Options > Debug > Tunables > Parry Muzzle Angle
 vr_forcegrab_miss_speed|2|Tunables|Forcegrab Miss Speed|Advanced VR Options > Debug > Tunables > Forcegrab Miss Speed
+vr_forcegrab_settle|2|Tunables|Force Grab: Settle Time|Advanced VR Options > Debug > Tunables > Force Grab: Settle Time
 vr_forcegrabbable_ammo_boxes|2|Tunables|Forcegrabbable Ammo Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Ammo Boxes
 vr_forcegrabbable_health_boxes|2|Tunables|Forcegrabbable Health Boxes|Advanced VR Options > Debug > Tunables > Forcegrabbable Health Boxes
 vr_forcegrabbable_return_time_deathmatch|2|Tunables|Forcegrabbable Return Time Deathmatch|Advanced VR Options > Debug > Tunables > Forcegrabbable Return Time Deathmatch
@@ -2759,6 +2760,8 @@ vr_crate_crowbar_max|2|Tunables|Most Crowbars|Advanced VR Options > Debug > Tuna
 vr_crate_flaregun|2|Tunables|Flare Gun on Crates|Advanced VR Options > Debug > Tunables > Flare Gun on Crates
 vr_crate_flaregun_max|2|Tunables|Most Flare Guns|Advanced VR Options > Debug > Tunables > Most Flare Guns
 vr_forcegrab_outline|2|Tunables|Outline|Advanced VR Options > Debug > Tunables > Outline
+vr_forcegrab_fx_along|2|Tunables|Effect Start: Towards Fingers|Advanced VR Options > Debug > Tunables > Effect Start: Towards Fingers
+vr_forcegrab_fx_out|2|Tunables|Effect Start: Off The Palm|Advanced VR Options > Debug > Tunables > Effect Start: Off The Palm
 vr_forcegrab_distance|2|Tunables|Distance|Advanced VR Options > Debug > Tunables > Distance
 vr_forcegrab_cone|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_forcegrab_flick_speed|2|Tunables|Flick Speed|Advanced VR Options > Debug > Tunables > Flick Speed
@@ -4071,6 +4074,24 @@ vr_flat_ssg_break_delay|2|Tunables|Reload: Super Shotgun Break Delay|Advanced VR
 vr_flat_mag_eject_delay|2|Tunables|Reload: Magazine Eject Delay|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Delay
 vr_flat_mag_eject_speed|2|Tunables|Reload: Magazine Eject Speed|Advanced VR Options > Debug > Tunables > Reload: Magazine Eject Speed
 vr_flat_reload_close_delay|2|Tunables|Reload: Close Delay|Advanced VR Options > Debug > Tunables > Reload: Close Delay
+vr_flat_fg_pose|2|Tunables|Force Grab: Palm Out First|Advanced VR Options > Debug > Tunables > Force Grab: Palm Out First
+vr_flat_fg_turn_time|2|Tunables|Force Grab: Turn Time|Advanced VR Options > Debug > Tunables > Force Grab: Turn Time
+vr_flat_fg_detach_time|2|Tunables|Force Grab: Off The Grip Time|Advanced VR Options > Debug > Tunables > Force Grab: Off The Grip Time
+vr_flat_fg_release_time|2|Tunables|Force Grab: Back Time|Advanced VR Options > Debug > Tunables > Force Grab: Back Time
+vr_flat_fg_fwd|2|Tunables|Force Grab: Hand Forward|Advanced VR Options > Debug > Tunables > Force Grab: Hand Forward
+vr_flat_fg_out|2|Tunables|Force Grab: Hand Out|Advanced VR Options > Debug > Tunables > Force Grab: Hand Out
+vr_flat_fg_down|2|Tunables|Force Grab: Hand Down|Advanced VR Options > Debug > Tunables > Force Grab: Hand Down
+vr_flat_fg_palm_aim|2|Tunables|Force Grab: Palm At Object|Advanced VR Options > Debug > Tunables > Force Grab: Palm At Object
+vr_flat_fg_finger_tilt|2|Tunables|Force Grab: Finger Lean|Advanced VR Options > Debug > Tunables > Force Grab: Finger Lean
+vr_flat_carry_pose|2|Tunables|Held Prop: Carry Pose|Advanced VR Options > Debug > Tunables > Held Prop: Carry Pose
+vr_flat_carry_time|2|Tunables|Held Prop: Pose Time|Advanced VR Options > Debug > Tunables > Held Prop: Pose Time
+vr_flat_carry_fwd|2|Tunables|Held Prop: Hand Forward|Advanced VR Options > Debug > Tunables > Held Prop: Hand Forward
+vr_flat_carry_out|2|Tunables|Held Prop: Hand Out|Advanced VR Options > Debug > Tunables > Held Prop: Hand Out
+vr_flat_carry_down|2|Tunables|Held Prop: Hand Down|Advanced VR Options > Debug > Tunables > Held Prop: Hand Down
+vr_flat_carry_pitch|2|Tunables|Held Prop: Pitch|Advanced VR Options > Debug > Tunables > Held Prop: Pitch
+vr_flat_carry_yaw|2|Tunables|Held Prop: Turn In|Advanced VR Options > Debug > Tunables > Held Prop: Turn In
+vr_flat_carry_roll|2|Tunables|Held Prop: Palm Up|Advanced VR Options > Debug > Tunables > Held Prop: Palm Up
+vr_flat_carry_drawn|2|Tunables|Held Prop: In The Drawn Hand|Advanced VR Options > Debug > Tunables > Held Prop: In The Drawn Hand
 vr_flat_swap_in|2|Tunables|Swap: Meet Time|Advanced VR Options > Debug > Tunables > Swap: Meet Time
 vr_flat_swap_out|2|Tunables|Swap: Back Time|Advanced VR Options > Debug > Tunables > Swap: Back Time
 vr_flat_swap_gap|2|Tunables|Swap: Hands Apart|Advanced VR Options > Debug > Tunables > Swap: Hands Apart
@@ -4784,6 +4805,8 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 |2|Debug - Reports|Visor: Fog Up|Advanced VR Options > Debug > Reports > Visor: Fog Up
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
+|2|Debug - Reports|Flatscreen Force Grab Report|Advanced VR Options > Debug > Reports > Flatscreen Force Grab Report
+|2|Debug - Reports|Flatscreen Force Grab: Press E|Advanced VR Options > Debug > Reports > Flatscreen Force Grab: Press E
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
 |2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
 vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print

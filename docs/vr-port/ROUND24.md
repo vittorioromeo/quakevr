@@ -7375,6 +7375,41 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
 
+## Force grab: palm first, VFX from the palm, off the 2H grip, no double grab, held props (branch `agent/flat_forcegrab`, worktree `blendmodels`, 2026-11-10)
+
+His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
+
+- **Palm first** (`vr_flatfgrab.cpp`, new): E picks the hand on the client (main if free, else off: `held::handEmpty`, not
+  holding the torch, not on a grab, nothing flying to it), turns it out over `vr_flat_fg_turn_time` (palm to the object as
+  the server's preview has it, else the crosshair's far point; the palm's way is the jointed hand's measured one,
+  `grip::handFrame`), fingers opening (`flatplay::fistShare` scaled down), then sends `impulse 50/51` (QC
+  `VR_Forcegrab_FlatGrab(xWant)`); holds the pose, palm on the flying object (STAT state 3), until it lands or misses, then
+  eases back. The old 0.3 s forward "reach" offset on the off hand (`grabOffset`) is gone: it moved the off hand while QC
+  pulled to the main hand.
+- **VFX origin**: the beam, tendril and the menu preview start at `hands::palmPoint` (`fgfx::palmOrigin`) instead of 2 units
+  ahead of the hand's point: in VR too. Flat play queued them after the view had put the drawn hands back on the game's
+  steady ones, so the beam started off the drawn hand (its sway, bob, turn lag): now queued while the hands are as drawn.
+- **2H detach**: a hand on the grip (`twohand::drawnHelping`, the ironsight's or the stance's look hand) gets
+  `vr_flat_fg_detach_time` more; `flatfgrab::busy` lets go of the grip in `flatsight` (`gripWanted`, the look hand's fast ease)
+  and `twohand` (`canGrab`, `hotspotAims`), as the punch and the reload trip do; the pose sits out at the hand's own side
+  (`vr_flat_fg_out`), away from the gun.
+- **Double grab**: QC `VR_Forcegrab_FlatFree` (free and not pulling) for the grab and the preview; the client refuses a hand
+  on a grab. Before, `VR_HANDFREE_LOCKED` let a pulling hand take a second object.
+- **Held props**: a force-grabbed object's spin settles to how it lay over the flight's last `vr_forcegrab_settle` s and is
+  caught at that turn (VR too). Flat: a prop held alone gets a carry pose (`vr_flat_carry_*`; no guard fist), and is drawn
+  in the drawn hand (`held::followDrawnHands`, from `VR_SetupViewEntities` after the drawn offsets): it was placed in
+  `VR_RelinkHeld` from the hands of the move's latch, before the view's relatch and the drawn sway, bob and turn's lag, so it
+  bobbed and lagged or led the hand as the mouse turned.
+- **Test**: `vr_flatitems_test 6` (two keys; the first flies only after the turn, never two at one hand, it ends in the hand
+  it flew to). Scene `flat_force_grab`.
+- **Effect start, his VR note** ("the force grab origin is not the palm ... kind of like the fingertip"): measured with
+  `vr_flat_fg_report` in the VR mock, the palm's middle is 4.25 units behind and 2.5 below the hand's point, so the old start
+  (2 ahead) was about 6.7 units off the palm, out by the fingers. Now the palm's middle moved `vr_forcegrab_fx_along` (1 u)
+  towards the fingers and `vr_forcegrab_fx_out` (0.6 u) out of the palm's surface on its side (Debug > Tunables > Carrying and
+  Throwing > Force Grab): fx start -3.25 0.35 -2.49 (main hand, forward left up) against the palm's -4.25 -0.25 -2.49.
+- **Pose defaults**: `vr_flat_fg_out` 0.15 and `vr_flat_fg_down` -0.05 (0.3 / 0.1 put the open hand on the screen's bottom
+  left edge). `flatitems_test.sh` sets `vr_flat_autoreload 1`: since the flat reload landed, e1m1's shotgun starts with an
+  empty clip and cases 1 and 5 timed out waiting for a shot (not this branch: they pass with it).
 ## Melee beheading judged where the blade meets the flesh (his notes 2026-11-10; agent vn1110_melee)
 
 His note: "I can basically swing my axe at the enemy's chest, and it will cause a decapitation". His own dummy lines

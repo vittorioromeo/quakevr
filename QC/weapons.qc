@@ -4664,12 +4664,14 @@ void() ImpulseCommands =
 
     // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
     // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
-    if(self.impulse == 46)
+    // (50 and 51: the off and the main hand, the one the client turned palm out first: vr_flatfgrab.cpp.)
+    if(self.impulse == 46 || self.impulse == 50 || self.impulse == 51)
     {
+        float fgWant = self.impulse == 50 ? cVR_OffHand : (self.impulse == 51 ? cVR_MainHand : -1);
         self.impulse = 0;
         if(VR_FlatPlay(self))
         {
-            VR_Forcegrab_FlatGrab();
+            VR_Forcegrab_FlatGrab(fgWant);
         }
         return;
     }
