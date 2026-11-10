@@ -929,6 +929,100 @@ float(entity a, entity b) VR_KdTrig_BoxGap =
     return sqrt(gx * gx + gy * gy);
 };
 
+// The living monster `self` (a player) running `speed` along level unit `run` meets (world: none): his body within this
+// frame's run and vr_kdtrig_tackle_contact units of its body as the two meet in the engine (bodygap), the monster ahead
+// within VR_KDT_CHARGE_CONE of the run, at his height; the nearest. (The shoulder charge's and the slide's.)
+entity(vector run, float speed) VR_KdTrig_ChargeFind =
+{
+    float reach = max(0, cvar_hget(cvarh_vr_kdtrig_tackle_contact)) + speed * max(frametime, 0.01);
+    entity best = world;
+    float bestD = 100000;
+    for(entity e = findradius(self.origin + run * reach, reach + 96); e; e = e.chain)
+    {
+        if(e == self || !(e.flags & FL_MONSTER) || e.health <= 0 || e.solid == SOLID_NOT || e.vr_knockdown)
+        {
+            continue;
+        }
+        vector to = e.origin - self.origin;
+        to_z = 0;
+        if(to * run < vlen(to) * VR_KDT_CHARGE_CONE || self.absmin_z > e.absmax_z || self.absmax_z < e.absmin_z)
+        {
+            continue;
+        }
+        if(bodygap(self, e) > reach)
+        {
+            continue;
+        }
+        float d = vlen(e.origin - self.origin);
+        if(d < bestD)
+        {
+            bestD = d;
+            best = e;
+        }
+    }
+    return best;
+};
+
+// The slide's charge (flat-screen play's slide, vr_flat_slide_charge; his note 2026-11-10: "Sliding directly into an
+// enemy with enough speed should behave like a shoulder charge ragdoll trigger"): sliding on the ground (the engine's
+// .vr_sliding: vr_flatmove.cpp) at vr_flat_slide_charge_speed or faster, his body meeting a living monster's
+// (VR_KdTrig_ChargeFind) is a shoulder charge without its pose, run-up or standing tall: the same hit
+// (VR_KdTrig_ChargeHit: his bounce, the thud, its knock by weight and the Shoulder Charges' chance, its cry), the strike
+// the speed over that least, its stamina vr_flat_slide_charge_stamina (the slide paid its own). The same cooldown. The
+// slide's speed is remembered for VR_KDT_CHARGE_GRACE s: blocked by the monster, his speed (and the slide) are gone the
+// next frame. TRUE: it connected (VR_KdTrig_Tackle does nothing more this frame).
+.float vr_sliding;          // a player's: 1 while his flat-screen slide is on the ground (the engine sets it each move)
+.float vr_kdt_slide_fast;   // a player's: when he last slid at the slide charge's least speed,
+.float vr_kdt_slide_speed;  // that speed (u/s)
+.vector vr_kdt_slide_run;   // and its level way
+float vr_kdt_charge_slide;  // (VR_KdTrig_ChargeStamina: the hit is a slide's)
+float() VR_KdTrig_SlideCharge =
+{
+    if(!cvar_hget(cvarh_vr_flat_slide_charge) || self.health <= 0)
+    {
+        return FALSE;
+    }
+    vector run = self.velocity;
+    run_z = 0;
+    float speed = vlen(run);
+    float least = max(1, cvar_hget(cvarh_vr_flat_slide_charge_speed));
+    if(self.vr_sliding && speed >= least)
+    {
+        self.vr_kdt_slide_fast = time;
+        self.vr_kdt_slide_speed = speed;
+        self.vr_kdt_slide_run = run * (1 / speed);
+    }
+    if(!self.vr_kdt_slide_fast || time - self.vr_kdt_slide_fast > VR_KDT_CHARGE_GRACE || time < self.vr_kdt_tackle_next)
+    {
+        return FALSE;
+    }
+    run = self.vr_kdt_slide_run;
+    speed = self.vr_kdt_slide_speed;
+    entity best = VR_KdTrig_ChargeFind(run, speed);
+    if(!best)
+    {
+        return FALSE;
+    }
+    float dummy = VR_IsDummy(best);
+    if(!dummy && (cvar_hget(cvarh_vr_kdtrig_tackle) <= 0 || !cvar_hget(cvarh_vr_kdtrig)))
+    {
+        return FALSE;
+    }
+    string how = sprintf("sliding %.0f u/s (%.0f the least)", speed, least);
+    VR_Motion_Event("slidecharge", "", -1, speed, (best.absmin + best.absmax) * 0.5, best, how);
+    self.vr_kdt_tackle_next = time + max(0, cvar_hget(cvarh_vr_kdtrig_tackle_cooldown));
+    self.vr_kdt_charge_since = 0;
+    self.vr_kdt_slide_fast = 0; // (one knock a slide's meeting)
+    if(cvar_hget(cvarh_vr_kdtrig_debug))
+    {
+        dprint(sprintf("kdtrig: slide charge on %s: %s\n", best.classname, how));
+    }
+    vr_kdt_charge_slide = TRUE;
+    VR_KdTrig_ChargeHit(best, run, speed, least, how, dummy);
+    vr_kdt_charge_slide = FALSE;
+    return TRUE;
+};
+
 // PlayerVRMelee's, after the bash (client.qc; self the player): on the ground, running at vr_kdtrig_tackle_speed of
 // sv_maxspeed or faster the way he looks for vr_kdtrig_tackle_runup s or more (a run-up), standing tall (his head at
 // vr_kdtrig_tackle_stand of his height or more), in the charge's pose held vr_kdtrig_tackle_hold s, his body meeting a
@@ -939,6 +1033,10 @@ float(entity a, entity b) VR_KdTrig_BoxGap =
 // with the Tackles off too: the event and the bounce, it stands.
 void() VR_KdTrig_Tackle =
 {
+    if(VR_KdTrig_SlideCharge())
+    {
+        return;
+    }
     vector run = self.velocity;
     run_z = 0;
     float speed = vlen(run);
@@ -1006,32 +1104,7 @@ void() VR_KdTrig_Tackle =
     // with the defaults), the monster ahead within VR_KDT_CHARGE_CONE of the run, at his height. Blocked by it, his speed
     // is gone next frame: the grace's run. Was QC's boxes: it connected with a lot of space left even at contact 0
     // (author's notes 2026-10-22).
-    float reach = max(0, cvar_hget(cvarh_vr_kdtrig_tackle_contact)) + speed * max(frametime, 0.01);
-    entity best = world;
-    float bestD = 100000;
-    for(entity e = findradius(self.origin + run * reach, reach + 96); e; e = e.chain)
-    {
-        if(e == self || !(e.flags & FL_MONSTER) || e.health <= 0 || e.solid == SOLID_NOT || e.vr_knockdown)
-        {
-            continue;
-        }
-        vector to = e.origin - self.origin;
-        to_z = 0;
-        if(to * run < vlen(to) * VR_KDT_CHARGE_CONE || self.absmin_z > e.absmax_z || self.absmax_z < e.absmin_z)
-        {
-            continue;
-        }
-        if(bodygap(self, e) > reach)
-        {
-            continue;
-        }
-        float d = vlen(e.origin - self.origin);
-        if(d < bestD)
-        {
-            bestD = d;
-            best = e;
-        }
-    }
+    entity best = VR_KdTrig_ChargeFind(run, speed);
     if(!best)
     {
         return;
@@ -1100,8 +1173,13 @@ void() VR_KdTrig_ChargeStamina =
 {
     if(VR_Stamina_On())
     {
-        float cost = cvar_hget(cvarh_vr_kdtrig_tackle_stamina);
-        VR_Stamina_Effort(cost, "a shoulder charge");
+        // (A slide's charge: its own cost on top of the slide's, vr_flat_slide_charge_stamina, 0 by default.)
+        float cost = cvar_hget(vr_kdt_charge_slide ? cvarh_vr_flat_slide_charge_stamina : cvarh_vr_kdtrig_tackle_stamina);
+        if(vr_kdt_charge_slide && cost <= 0)
+        {
+            return;
+        }
+        VR_Stamina_Effort(cost, vr_kdt_charge_slide ? "a slide's charge" : "a shoulder charge");
         dprint(sprintf("kdtrig: the charge cost %g stamina, %g left\n", cost, rint(VR_Stamina_Left(self))));
     }
 };

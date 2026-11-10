@@ -1,0 +1,7 @@
+# flat_slide_stamina: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides on vrtesthall's open floor: their stamina, the pose, no prone mid-slide (vr_flatslide_test's checks, Quake/vr/vr_flatmove.cpp).
+title Flat-screen slide: stamina, pose, no prone mid-slide
+hint Play with -flatscreenmode. Run and crouch at speed to slide: the visor's STAM bar drops in three steps; with it empty a crouch is no slide. Look down mid-slide at the legs. Press X mid-slide: nothing.
+map vrtesthall
+start -580 -440 24 0
+god
+notarget

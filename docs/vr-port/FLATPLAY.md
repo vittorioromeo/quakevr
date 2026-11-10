@@ -284,9 +284,24 @@ the two-handed stance's torso turn goes in `vr_flat_slide_turn_time` (0.12 s); w
 and legs point the slide's way and the chest turns back to the view, at most `vr_flat_slide_legs_twist` (70) degrees;
 `vr_flat_slide_bob` (0) of the walk's bob stays (the view's, the hands', the body's ride). Its sound
 (`vr_slidesound.cpp`, `Misc/quakevr/make_slide_sounds.py`): a scuff as it starts, a scrape following the speed that
-fades as it slows and stops when it ends, `vr_flat_slide_sound` (0.6) loud. All of it is in Debug > Tunables >
-Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
-Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`), `bash
+fades as it slows and stops when it ends, `vr_flat_slide_sound` (0.6) loud. The pose is a little untidy on purpose:
+both feet roll `vr_flat_slide_foot_roll` (20) degrees to the right about the slide's way, and one leg
+(`vr_flat_slide_knee_leg`: 0 the left) has its foot drawn in `vr_flat_slide_knee_bend` (0.25) of its length, the knee
+bent up.
+
+A slide costs stamina from the parry stamina's pool (the visor's STAM): `vr_flat_slide_stamina` (15) in
+`vr_flat_slide_stamina_parts` (3) equal parts, the first as it starts, the rest `vr_flat_slide_stamina_step` (0.2 s)
+apart (`paySlideStamina`, through QC's `VR_Stamina_Effort`); a slide cut short by a bump or a jump pays only the parts
+already due. With less than one part left a crouch at speed is a plain crouch (no weaker slide: the tired run is
+slower already). Only while the pool is used (`VR_Stamina_On`). Sliding into a monster at `vr_flat_slide_charge_speed`
+(250 u/s) or faster is a shoulder charge without its pose (`vr_flat_slide_charge` 1; QC `VR_KdTrig_SlideCharge`, the
+engine telling it the slide by `.vr_sliding`): the same hit (`VR_KdTrig_ChargeHit`: his bounce, its knock by weight and
+the Shoulder Charges' chance, its cry), the strike its speed over that least, `vr_flat_slide_charge_stamina` (0) on top
+of the slide's. A prop slid into (`VR_PlayerBumps`, `shoveBumped`) is pushed on at `vr_flat_slide_prop_push` (1) of his
+speed shared by his and its masses, turned `vr_flat_slide_prop_side` (20) degrees to the side its middle is off his
+line. The prone key does nothing mid-slide (`toggleProne`), and the server never lays a sliding body down
+(`hull::updateCrouch`, `flatmove::slideOnServer`). All of it is in Debug > Tunables > Flatscreen > Slide; `vr_flat_slide 0` (Desktop Screen Play > Slide) turns it off. Tests: `bash
+Misc/quakevr/flatslide_test.sh <agent>` (`vr_flatslide_selftest`, `vr_flatslide_test`, `vr_flatslide_hit_test 0|1`), `bash
 Misc/quakevr/body_lie_test.sh <agent>` (`vr_body_lie_test`: the slid and lying body).
 
 **Leaning.** Q and E (Prey's, Rainbow Six Siege's) lean the view, the weapon and the body sideways round a corner:

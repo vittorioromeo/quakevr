@@ -2817,6 +2817,7 @@ vr_ragdoll_hand_rest|2|Tunables|Palm Rests on Limb|Advanced VR Options > Debug >
 vr_ragdoll_throw|2|Tunables|Throw|Advanced VR Options > Debug > Tunables > Throw
 vr_ragdoll_blood|2|Tunables|Blood Trails|Advanced VR Options > Debug > Tunables > Blood Trails
 vr_ragdoll_sleep_skip|2|Tunables|Skip Sleeping|Advanced VR Options > Debug > Tunables > Skip Sleeping
+vr_hitmodel_skin_keep|2|Tunables|Keep Skinned Bodies|Advanced VR Options > Debug > Tunables > Keep Skinned Bodies
 vr_ragdoll_smooth|2|Tunables|Smooth Motion|Advanced VR Options > Debug > Tunables > Smooth Motion
 vr_ragdoll_held_local|2|Tunables|Held Limbs Follow the Hand|Advanced VR Options > Debug > Tunables > Held Limbs Follow the Hand
 vr_ragdoll_active_headshot|2|Tunables|Headshot Strength|Advanced VR Options > Debug > Tunables > Headshot Strength
@@ -4198,6 +4199,17 @@ vr_flat_slide_legs|2|Tunables|Slide Legs Follow Slide|Advanced VR Options > Debu
 vr_flat_slide_legs_twist|2|Tunables|Slide Legs Most Twist|Advanced VR Options > Debug > Tunables > Slide Legs Most Twist
 vr_flat_slide_bob|2|Tunables|Slide Walk Bob|Advanced VR Options > Debug > Tunables > Slide Walk Bob
 vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > Tunables > Slide Sound Volume
+vr_flat_slide_stamina|2|Tunables|Slide Stamina Cost|Advanced VR Options > Debug > Tunables > Slide Stamina Cost
+vr_flat_slide_stamina_parts|2|Tunables|Slide Stamina Parts|Advanced VR Options > Debug > Tunables > Slide Stamina Parts
+vr_flat_slide_stamina_step|2|Tunables|Slide Stamina Step|Advanced VR Options > Debug > Tunables > Slide Stamina Step
+vr_flat_slide_charge|2|Tunables|Slide Charge|Advanced VR Options > Debug > Tunables > Slide Charge
+vr_flat_slide_charge_speed|2|Tunables|Slide Charge Least Speed|Advanced VR Options > Debug > Tunables > Slide Charge Least Speed
+vr_flat_slide_charge_stamina|2|Tunables|Slide Charge Stamina|Advanced VR Options > Debug > Tunables > Slide Charge Stamina
+vr_flat_slide_prop_push|2|Tunables|Slide Prop Push|Advanced VR Options > Debug > Tunables > Slide Prop Push
+vr_flat_slide_prop_side|2|Tunables|Slide Prop Side Angle|Advanced VR Options > Debug > Tunables > Slide Prop Side Angle
+vr_flat_slide_foot_roll|2|Tunables|Slide Foot Roll|Advanced VR Options > Debug > Tunables > Slide Foot Roll
+vr_flat_slide_knee_bend|2|Tunables|Slide Knee Bend|Advanced VR Options > Debug > Tunables > Slide Knee Bend
+vr_flat_slide_knee_leg|2|Tunables|Slide Bent Knee Leg|Advanced VR Options > Debug > Tunables > Slide Bent Knee Leg
 vr_flat_lean_angle|2|Tunables|Lean Roll|Advanced VR Options > Debug > Tunables > Lean Roll
 vr_flat_lean_dist|2|Tunables|Lean Distance|Advanced VR Options > Debug > Tunables > Lean Distance
 vr_flat_lean_pivot|2|Tunables|Lean Pivot|Advanced VR Options > Debug > Tunables > Lean Pivot
@@ -4660,6 +4672,7 @@ vr_particle_saturate_opacity|2|Debug - Profiling and Memory|Opaque At|Advanced V
 vr_debug_particle_waste|2|Debug - Profiling and Memory|Count Wasted Particle Fill|Advanced VR Options > Debug > Profiling and Memory > Count Wasted Particle Fill
 |2|Debug - Profiling and Memory|Particle Fill Waste Report|Advanced VR Options > Debug > Profiling and Memory > Particle Fill Waste Report
 vr_particle_freeze|2|Debug - Profiling and Memory|Freeze Particles|Advanced VR Options > Debug > Profiling and Memory > Freeze Particles
+vr_particle_threads|2|Debug - Profiling and Memory|Particles on Threads|Advanced VR Options > Debug > Profiling and Memory > Particles on Threads
 vr_particle_halfres_force|2|Debug - Profiling and Memory|Half-Res Particles Always|Advanced VR Options > Debug > Profiling and Memory > Half-Res Particles Always
 vr_particle_halfres_upsample|2|Debug - Profiling and Memory|Half-Res Blend|Advanced VR Options > Debug > Profiling and Memory > Half-Res Blend
 host_fixedtick|2|Debug - Profiling and Memory|Fixed 72 Hz Server Tick|Advanced VR Options > Debug > Profiling and Memory > Fixed 72 Hz Server Tick
@@ -5150,6 +5163,8 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
 |2|Debug - Tests|Flat Slide: Run And Slide|Advanced VR Options > Debug > Tests > Flat Slide: Run And Slide
+|2|Debug - Tests|Flat Slide: Into A Crate|Advanced VR Options > Debug > Tests > Flat Slide: Into A Crate
+|2|Debug - Tests|Flat Slide: Into A Grunt|Advanced VR Options > Debug > Tests > Flat Slide: Into A Grunt
 |2|Debug - Tests|Flat Speed FOV: Walk, Run, Slide, Hop|Advanced VR Options > Debug > Tests > Flat Speed FOV: Walk, Run, Slide, Hop
 |2|Debug - Tests|Flat Speed FOV Status|Advanced VR Options > Debug > Tests > Flat Speed FOV Status
 |2|Debug - Tests|Flat Aim Sensitivity Test|Advanced VR Options > Debug > Tests > Flat Aim Sensitivity Test
@@ -5834,6 +5849,7 @@ vr_decap_poptest_dist|2|Debug - Automation & Self-Tests|Test Range|Advanced VR O
 |2|Debug - Automation & Self-Tests|Rocket at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Rocket at Its Head
 |2|Debug - Automation & Self-Tests|Grenade at Its Head|Advanced VR Options > Debug > Automation & Self-Tests > Grenade at Its Head
 |2|Debug - Automation & Self-Tests|Give Quad Damage|Advanced VR Options > Debug > Automation & Self-Tests > Give Quad Damage
+|2|Debug - Automation & Self-Tests|Dump Every Entity's Material|Advanced VR Options > Debug > Automation & Self-Tests > Dump Every Entity's Material
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Torch's Blow)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Torch's Blow)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Lava Nail)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Lava Nail)
 |2|Debug - Automation & Self-Tests|Set It on Fire (a Touch)|Advanced VR Options > Debug > Automation & Self-Tests > Set It on Fire (a Touch)
@@ -5877,6 +5893,8 @@ vr_walltorch_debug|2|Debug - Automation & Self-Tests|Torch Flames to Console|Adv
 |2|Debug - Automation & Self-Tests|QuakeC Loop Bench|Advanced VR Options > Debug > Automation & Self-Tests > QuakeC Loop Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Split Bench|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Split Bench
 |2|Debug - Automation & Self-Tests|Thread Pool Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Thread Pool Self-Test
+|2|Debug - Automation & Self-Tests|Particles on Threads Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Particles on Threads Self-Test
+|2|Debug - Automation & Self-Tests|Physics Threads Determinism|Advanced VR Options > Debug > Automation & Self-Tests > Physics Threads Determinism
 |2|Debug - Automation & Self-Tests|Zancle Math Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > Zancle Math Self-Test
 |2|Debug - Automation & Self-Tests|SHA-256 Self-Test|Advanced VR Options > Debug > Automation & Self-Tests > SHA-256 Self-Test
 |2|Debug - Automation & Self-Tests|Grasp Bench|Advanced VR Options > Debug > Automation & Self-Tests > Grasp Bench
@@ -6165,6 +6183,7 @@ vr_kdtrig_blast_on|1|Ragdoll Triggers - Explosions|Explosions|Advanced VR Option
 |1|Ragdoll Triggers - Explosions|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Explosions > Reset This Page
 @page|1|Ragdoll Triggers - Thrown Bodies||Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies
 vr_kdtrig_thrown_on|1|Ragdoll Triggers - Thrown Bodies|Thrown Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Thrown Bodies
+vr_kdtrig_flung|1|Ragdoll Triggers - Thrown Bodies|Flung Bodies|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Flung Bodies
 |1|Ragdoll Triggers - Thrown Bodies|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies > Reset This Page
 @page|1|Ragdoll Triggers - Shoulder Charges||Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges
 vr_kdtrig_tackle|1|Ragdoll Triggers - Shoulder Charges|Chance|Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges > Chance

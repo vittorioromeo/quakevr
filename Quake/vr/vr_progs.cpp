@@ -274,6 +274,32 @@ float staminaMax() { return za::max(1.f, askQc(bindings().Stamina_Max, nullptr))
 
 float staminaLeft(edict_t* p) { return za::clamp(askQc(bindings().Stamina_Left, p), 0.f, staminaMax()); }
 
+bool staminaOn() { return askQc(bindings().Stamina_On, nullptr) != 0.f; }
+
+float staminaEffort(edict_t* p, float cost, const char* what)
+{
+    const func_t fn = bindings().Stamina_Effort;
+    if(!fn || !p)
+    {
+        return 1.f;
+    }
+    const int self = pr_global_struct->self;
+    const float parm0 = G_FLOAT(OFS_PARM0);
+    const int parm1 = G_INT(OFS_PARM1);
+    const float ret[3]{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)};
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(p);
+    G_FLOAT(OFS_PARM0) = cost;
+    G_INT(OFS_PARM1) = PR_SetEngineString(what);
+    PR_ExecuteProgram(fn);
+    const float out = G_FLOAT(OFS_RETURN);
+    pr_global_struct->self = self;
+    G_FLOAT(OFS_PARM0) = parm0;
+    G_INT(OFS_PARM1) = parm1;
+    G_FLOAT(OFS_RETURN) = ret[0], G_FLOAT(OFS_RETURN + 1) = ret[1], G_FLOAT(OFS_RETURN + 2) = ret[2];
+    return za::clamp(out, 0.f, 1.f);
+}
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;
@@ -409,6 +435,8 @@ extern "C" void VR_OnProgsLoaded()
         b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
         b.Stamina_Max = findFunction("VR_Stamina_Max");
         b.Stamina_Left = findFunction("VR_Stamina_Left");
+        b.Stamina_On = findFunction("VR_Stamina_On");
+        b.Stamina_Effort = findFunction("VR_Stamina_Effort");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");
