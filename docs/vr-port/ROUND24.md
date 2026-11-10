@@ -7929,3 +7929,18 @@ hand moved frame to frame) was 48 cm on a 45-degree snap turn and 4.9 cm on a st
   31 4/0; `vr_pp_test 1` 63/0; eval.sh no fails. Scene `vr_skewer_snap` (a sword, three grunts, snap turn 45).
 - Left alone: the loading port and the magazine box are carried the same translation-only way (`move.loadPort`,
   `magBox`); a loose round or a magazine near the port on a snap's frame is a frame off. Not seen in play.
+
+## Flat revolver: the cylinder swings out fired empty (branch `agent/flat_revolver_eject`, worktree `flatwall`, 2026-11-10)
+
+His follow-up: "I had requested the revolver cylinder to automatically get ejected when all shots were fired in
+flatscreen, but that doesn't seem to happen. Cylinder should close itself during reload." The revolver joins the super
+shotgun's path in `QC/vr_flatreload.qc` (`VR_FlatReload_RevolverOpens`, `EjectWanted`/`EjectNow`): fired empty, its
+cylinder swings out `vr_flat_revolver_open_delay` (0.15 s, Tunables > Flatscreen > Reload) after the last shot, its six
+spent shells out (`VR_Revolver_Open`, `VR_Revolver_Eject`), a dry click a pull in flat play (`VR_Revolver_Attack`); its
+HandFrame keeps it out until the reload, which swings it home `vr_flat_reload_close_delay` after the rounds go in. A
+reload with live shells left is as before. New `VR_Revolver_IsOut` / `VR_Revolver_Home` (vr_revolver.qc).
+
+The "dry click gap" of the last round was the test's: the second pull came inside the shot's cooldown (and the first
+pull 5 frames after the give, inside the pickup's): with the pulls spaced out the super shotgun's dry click is heard, so
+the check is back. flatreload_test.sh: 44 passed, 0 failed (new run `revempty`: out by itself once, 6 spent, a dry click
+after, R from empty home with 6 live).
