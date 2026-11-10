@@ -1,9 +1,0 @@
-# teleport_both: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrtesthall's open floor, 640 units
-# free ahead, with Teleport on Smooth + Teleport (vr_teleport_enabled 2; ROUND24.md "Teleport and smooth locomotion together").
-title Smooth + Teleport on vrtesthall's open floor
-map vrtesthall
-start 0 -288 25 90
-god
-notarget
-cvar vr_teleport_enabled 2
-hint Walk with the moving stick. Push the turning stick forward to aim, let go to land; pull back to cancel. Turn left and right, jump, crouch, sprint: no stray teleports, and you land standing still.

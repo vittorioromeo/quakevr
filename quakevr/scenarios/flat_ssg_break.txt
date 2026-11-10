@@ -1,0 +1,9 @@
+# flat_ssg_break: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the super shotgun breaks open by itself after its empty shot and shuts in the reload (QC vr_flatreload.qc, vr_flat_ssg_break; flatreload_test.sh ssg).
+title Flat-screen: the super shotgun breaks open after its shot
+hint Play with -flatscreenmode. Fire the super shotgun: a moment later it breaks open and throws out its two spent shells, and the trigger only clicks. Press R: on the way to the hip it takes its shells and snaps shut. Tunables > Flatscreen > Reload: Super Shotgun Break Delay, Close Delay.
+map vrtesthall
+god
+cvar vr_flat_reload 1
+cvar vr_flat_ssg_break 1
+give "Super Shotgun" main
+spawn "Grunt" 360 0

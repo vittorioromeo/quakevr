@@ -1,6 +1,0 @@
-# self_shot: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Shooting yourself (VR): a shotgun and a revolver in hand, no god.
-title Shooting yourself: a shotgun and a heavy revolver in hand (no god)
-map vrtesthall
-give "Shotgun" main
-give "Heavy Revolver" off
-cmd impulse 9

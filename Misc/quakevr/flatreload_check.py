@@ -148,5 +148,42 @@ if len(h) >= 2:
 else:
     check(False, "vrhip: the headset's holster reload reported")
 
+# The guns' own parts (his words 2026-11-10; vr_flatreload.qc).
+for run in ("ssg", "mag", "revolver", "kick"):
+    check(ended(run), f"{run}: the run reached its last line")
+BREAK_DELAY = 0.15  # vr_flat_ssg_break_delay
+L = lines("ssg")
+# (The console wraps the long line: "after its last shot" may be on the next one.)
+brk = [re.search(r"broken open by flat-screen play: fired empty: (\d+) spent and (\d+) live thrown out(?:, ([\d.]+) s)?", l) for l in L]
+brk = [m for m in brk if m]
+check(bool(brk) and brk[0].group(1) == "2" and brk[0].group(2) == "0" and brk[0].group(3) is not None and
+      abs(float(brk[0].group(3)) - BREAK_DELAY) <= TOL,
+      f"ssg: fired empty, it breaks open by itself {brk[0].group(3) if brk else '?'} s after the shot (vr_flat_ssg_break_delay "
+      f"{BREAK_DELAY}), its 2 spent shells thrown out")
+# (Open, its trigger fires nothing; the dry click VR's open gun gives isn't heard in flat play yet: ROUND24.md.)
+shut = [l for l in L if "closed by flat-screen play" in l]
+check(bool(shut) and shut[0].rstrip().endswith("2 loaded") and len(brk) == 1,
+      f"ssg: R shuts it with 2 loaded ({shut[0].strip() if shut else 'not shut'}), broken open once")
+L = lines("mag")
+out = [l for l in L if re.search(r"out of the gun \(hand \d+, flat-screen play: fired empty\)", l)]
+seat = [l for l in L if "a new magazine seated" in l]
+check(len(out) == 1, f"mag: fired empty, the nailgun drops its magazine ({len(out)} dropped)")
+check(bool(seat) and not seat[0].rstrip().endswith("(clip 0)"), "mag: R seats a new one with its rounds")
+L = lines("revolver")
+sw = [l for l in L if "swung out by flat-screen play: the reload" in l]
+ej = [re.search(r"its shells out by flat-screen play: the reload: (\d+) spent, (\d+) live", l) for l in L]
+ej = [m for m in ej if m]
+home = [re.search(r"swung home by flat-screen play: the reload.*, (\d+) live", l) for l in L]
+home = [m for m in home if m]
+check(len(sw) == 1, "revolver: R swings the cylinder out")
+rst = all_of("revolver", START)
+fired = int(rst[0].group(5)) - int(rst[0].group(4)) if rst else -1
+check(bool(ej) and fired > 0 and int(ej[0].group(1)) == fired and ej[0].group(2) == "0",
+      f"revolver: its spent shells out ({fired} fired), the live ones kept in ({ej[0].group(0) if ej else 'none'})")
+check(bool(home) and home[0].group(1) == "6", f"revolver: home again with 6 live ({home[0].group(0) if home else 'not home'})")
+kicks = [float(m.group(1)) for m in (re.match(r"^flatxhair: main kick [\d.]+ spread ([\d.]+) px", l) for l in lines("kick")) if m]
+check(len(kicks) == 3 and kicks[0] == 0 and kicks[1] > 2 and kicks[2] < 0.5,
+      f"kick: the crosshair spreads with the shot's recoil and settles back (spread {kicks} px)")
+
 print(f"flatreload: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
