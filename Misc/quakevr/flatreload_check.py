@@ -149,7 +149,7 @@ else:
     check(False, "vrhip: the headset's holster reload reported")
 
 # The guns' own parts (his words 2026-11-10; vr_flatreload.qc).
-for run in ("ssg", "mag", "revolver", "revempty", "kick"):
+for run in ("ssg", "mag", "revolver", "revempty", "ssgpose", "hammer", "kick"):
     check(ended(run), f"{run}: the run reached its last line")
 BREAK_DELAY = 0.15  # vr_flat_ssg_break_delay
 L = lines("ssg")
@@ -171,7 +171,7 @@ check(len(out) == 1, f"mag: fired empty, the nailgun drops its magazine ({len(ou
 check(bool(seat) and not seat[0].rstrip().endswith("(clip 0)"), "mag: R seats a new one with its rounds")
 L = lines("revolver")
 sw = [l for l in L if "swung out by flat-screen play: the reload" in l]
-ej = [re.search(r"its shells out by flat-screen play: the reload: (\d+) spent, (\d+) live", l) for l in L]
+ej = [re.search(r"its shells out by flat-screen play: swung out: (\d+) spent, (\d+) live", l) for l in L]
 ej = [m for m in ej if m]
 home = [re.search(r"swung home by flat-screen play: the reload.*, (\d+) live", l) for l in L]
 home = [m for m in home if m]
@@ -184,7 +184,7 @@ check(bool(home) and home[0].group(1) == "6", f"revolver: home again with 6 live
 # revempty: fired empty, its cylinder out by itself with its 6 spent shells, a dry click out, R: home with 6 live.
 L = lines("revempty")
 iout = [i for i, l in enumerate(L) if "swung out by flat-screen play: fired empty" in l]
-ej = [m for m in (re.search(r"its shells out by flat-screen play: fired empty: (\d+) spent, (\d+) live", l) for l in L) if m]
+ej = [m for m in (re.search(r"its shells out by flat-screen play: swung out: (\d+) spent, (\d+) live", l) for l in L) if m]
 click = [i for i, l in enumerate(L) if "a dry click: the revolver" in l]
 rst = all_of("revempty", START)
 home = [m for m in (re.search(r"swung home by flat-screen play: the reload.*, (\d+) live", l) for l in L) if m]
@@ -194,6 +194,35 @@ check(bool(ej) and ej[0].group(1) == "6" and ej[0].group(2) == "0", f"revempty: 
 check(bool(click) and bool(iout) and click[0] > iout[0], "revempty: out, the trigger only clicks")
 check(bool(rst) and rst[0].group(4) == "0" and bool(home) and home[0].group(1) == "6",
       f"revempty: R from empty, home again with 6 live ({home[0].group(0) if home else 'not home'})")
+SWING, EJECT_DELAY = 0.1357, 0.1  # the drawn swing out (vr_view.cpp), vr_flat_revolver_eject_delay
+for run in ("revempty", "revolver"):
+    late = [float(m.group(1)) for m in (re.search(r"the revolver's shells out ([\d.]+) s after it swung out", l) for l in lines(run)) if m]
+    check(bool(late) and late[0] >= SWING + EJECT_DELAY - TOL,
+          f"{run}: its shells leave once the cylinder is fully out, {late[0] if late else '?'} s after it swung out "
+          f"(the swing {SWING} + vr_flat_revolver_eject_delay {EJECT_DELAY})")
+# ssgpose: both hands into the open pose in vr_flat_ssg_open_in_time, mirrored, out again after R.
+IN_TIME = OUT_TIME = 0.2
+L = lines("ssgpose")
+reach = {m.group(1): float(m.group(2)) for m in (re.match(r"^flatreload: (main|off) hand in its open pose \(([\d.]+) s\)", l) for l in L) if m}
+back = {m.group(1): float(m.group(2)) for m in (re.match(r"^flatreload: (main|off) hand out of its open pose \(([\d.]+) s\)", l) for l in L) if m}
+check(len(reach) == 2 and all(abs(t - IN_TIME) <= TOL for t in reach.values()),
+      f"ssgpose: both hands in the open pose in vr_flat_ssg_open_in_time {IN_TIME} s ({reach})")
+check(len(back) == 2 and all(abs(t - OUT_TIME) <= TOL for t in back.values()),
+      f"ssgpose: R shuts them, the pose eased out in vr_flat_ssg_open_out_time {OUT_TIME} s ({back})")
+POSE = re.compile(r"^flatreload: (main|off) hand: open (\d) kind (\d) share ([\d.]+), turned ([-\d.]+) ([-\d.]+) ([-\d.]+), moved ([-\d.]+) ([-\d.]+) ([-\d.]+)")
+poses = [m.groups() for m in (POSE.match(l) for l in L) if m]
+opened = {g[0]: [float(x) for x in g[4:]] for g in poses[2:4]} if len(poses) >= 6 else {}
+check(len(opened) == 2 and opened["main"][0] == opened["off"][0] and opened["main"][1] == -opened["off"][1] and
+      opened["main"][2] == -opened["off"][2] and opened["main"][3:] == opened["off"][3:] and any(opened["main"]),
+      f"ssgpose: open, the off hand's yaw and roll mirror the main's, its pitch and moves the same ({opened})")
+check(len(poses) >= 6 and all(float(g[3]) == 0 for g in poses[4:6]), "ssgpose: shut again after R, no pose left")
+# hammer: after each pull the drawn hammer's blend climbs over several frames to each new frame (never straight onto it).
+HAM = re.compile(r"^revolver frames: t ([\d.]+) hand 1 frame (\d) gun \d poses (\d) (\d) blend ([\d.]+)")
+ham = [m.groups() for m in (HAM.match(l) for l in lines("hammer")) if m]
+mid = [g for g in ham if g[2] != g[3] and 0 < float(g[4]) < 1]
+check(len(ham) > 20 and len(mid) >= 8, f"hammer: the hammer's frames blended over the frames after each pull ({len(mid)} part-way of {len(ham)}; 2 pulls, ADS the second)")
+full = [g for g in ham if g[1] == "2" and g[2] == "1" and g[3] == "1" and float(g[4]) == 1.0]
+check(len(full) >= 2, f"hammer: each pull's hammer reaches the full cock (poses 1 1 blend 1.000) before it falls ({len(full)} of 2 pulls)")
 kicks = [float(m.group(1)) for m in (re.match(r"^flatxhair: main kick [\d.]+ spread ([\d.]+) px", l) for l in lines("kick")) if m]
 check(len(kicks) == 3 and kicks[0] == 0 and kicks[1] > 2 and kicks[2] < 0.5,
       f"kick: the crosshair spreads with the shot's recoil and settles back (spread {kicks} px)")

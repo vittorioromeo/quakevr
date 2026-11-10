@@ -39,6 +39,15 @@
 .float vr_flatrl_shut0;  // the off hand's trip opened its gun (the super shotgun, the revolver's cylinder): shut it after
 .float vr_flatrl_shut1;  // the rounds go in
 float vr_rv_keep_live;   // (VR_Revolver_Eject: only the spent shells out)
+.float vr_flatrl_rvej0;  // the off hand's revolver swung out: when its shells go (0 none: VR_FlatReload_RvEjectFrame),
+.float vr_flatrl_rvej1;  // the main hand's
+.float vr_flatrl_rvat0;  // and when it swung out
+.float vr_flatrl_rvat1;
+.entity vr_flatrl_rvi0;  // and the gun's record
+.entity vr_flatrl_rvi1;
+// The drawn cylinder's swing out (Quake/vr/vr_view.cpp: rvSwingOut 95 degrees at rvSwingOutSpeed 700 a second): its shells
+// leave once it is fully out (his note 2026-11-10: "The cylinder should be fully open before the shells are ejected").
+float VR_FLATRL_RV_SWING_TIME = 0.1357;
 void(float xHand, entity r, string xHow) VR_Revolver_Open; // (vr_revolver.qc)
 void(float xHand, entity r, string xHow) VR_Revolver_Close;
 void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject;
@@ -170,6 +179,58 @@ void(float xHand, float xDue) VR_FlatReload_SetDue =
     }
 };
 
+// The revolver in `xHand` of self swings its cylinder out (`xHow`, for the log); its spent shells leave once it is fully
+// out and vr_flat_revolver_eject_delay after (VR_FlatReload_RvEjectFrame).
+void(float xHand, string xHow) VR_FlatReload_RvOpen =
+{
+    entity r = VRGetEntWeaponInst(self, xHand);
+    VR_Revolver_Open(xHand, r, xHow);
+    float at = time + VR_FLATRL_RV_SWING_TIME + max(0, cvar_hget(cvarh_vr_flat_revolver_eject_delay));
+    if(xHand == cVR_MainHand)
+    {
+        self.vr_flatrl_rvej1 = at;
+        self.vr_flatrl_rvat1 = time;
+        self.vr_flatrl_rvi1 = r;
+    }
+    else
+    {
+        self.vr_flatrl_rvej0 = at;
+        self.vr_flatrl_rvat0 = time;
+        self.vr_flatrl_rvi0 = r;
+    }
+};
+
+// Each frame (`xNow`: the hand at the hip, its rounds about to go in: now whatever the time): the swung-out revolver's
+// spent shells out when their time comes (only the spent: the live ones stay in), if it is the same gun, still out.
+void(float xHand, float xNow) VR_FlatReload_RvEjectFrame =
+{
+    float main = xHand == cVR_MainHand;
+    float at = main ? self.vr_flatrl_rvej1 : self.vr_flatrl_rvej0;
+    if(!at || (!xNow && time < at - 0.001))
+    {
+        return;
+    }
+    entity r = main ? self.vr_flatrl_rvi1 : self.vr_flatrl_rvi0;
+    float since = time - (main ? self.vr_flatrl_rvat1 : self.vr_flatrl_rvat0);
+    if(main)
+    {
+        self.vr_flatrl_rvej1 = 0;
+    }
+    else
+    {
+        self.vr_flatrl_rvej0 = 0;
+    }
+    if(r == world || VRGetEntWeaponInst(self, xHand) != r || !VR_Revolver_IsOut(r))
+    {
+        return;
+    }
+    vr_rv_keep_live = TRUE;
+    VR_Revolver_Eject(xHand, r, "flat-screen play: swung out", '0 0 0');
+    vr_rv_keep_live = FALSE;
+    dprint(sprintf("flat reload: %s hand: the revolver's shells out %.3f s after it swung out\n", VR_FlatReload_HandName(xHand),
+        since));
+};
+
 // Throws it out now (VR_FlatReload_EjectWanted): the super shotgun broken open, the magazine let out.
 void(float xHand, string xWhy) VR_FlatReload_EjectNow =
 {
@@ -186,11 +247,7 @@ void(float xHand, string xWhy) VR_FlatReload_EjectNow =
     else if(VR_FlatReload_RevolverOpens(xHand))
     {
         // Its cylinder out, its spent shells out (VR's own: the casings, the sounds); it stays out until the reload.
-        entity r = VRGetEntWeaponInst(self, xHand);
-        VR_Revolver_Open(xHand, r, how);
-        vr_rv_keep_live = TRUE;
-        VR_Revolver_Eject(xHand, r, how, '0 0 0');
-        vr_rv_keep_live = FALSE;
+        VR_FlatReload_RvOpen(xHand, how);
     }
     else
     {
@@ -310,10 +367,7 @@ void(float xHand, string xWhy) VR_FlatReload_Start =
         entity r = VRGetEntWeaponInst(self, xHand);
         if(!VR_Revolver_IsOut(r))
         {
-            VR_Revolver_Open(xHand, r, "flat-screen play: the reload");
-            vr_rv_keep_live = TRUE;
-            VR_Revolver_Eject(xHand, r, "flat-screen play: the reload", '0 0 0');
-            vr_rv_keep_live = FALSE;
+            VR_FlatReload_RvOpen(xHand, "flat-screen play: the reload");
         }
         shut = TRUE;
     }
@@ -415,6 +469,7 @@ void(float xHand) VR_FlatReload_HandFrame =
 {
     if(VR_FlatPlay(self))
     {
+        VR_FlatReload_RvEjectFrame(xHand, FALSE);
         VR_FlatReload_EjectFrame(xHand);
     }
     if(!VR_FlatReload_Busy(self, xHand))
@@ -446,6 +501,7 @@ void(float xHand) VR_FlatReload_HandFrame =
         // At the hip: what the empty gun still had to throw out goes first (its delay not up yet), then the rounds go in,
         // as VR's hip holster puts them in (VRTryReloadWeapon, its sounds and haptics), a new magazine seated with them.
         VR_FlatReload_EjectNow(xHand, "fired empty, reloading");
+        VR_FlatReload_RvEjectFrame(xHand, TRUE);
         vr_flatreload_go = TRUE;
         VRTryReloadWeapon(self, xHand, VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand));
         vr_flatreload_go = FALSE;

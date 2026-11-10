@@ -1,8 +1,0 @@
-# flat_visor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) visor HUD (vr_flat_visor; docs/vr-port/ROUND24.md, "Flat-screen visor HUD"): e1m1's start (not the start map: Arcane Dimensions has its own, and scenario_check runs with it), the super shotgun in the right hand.
-title Flat-screen visor HUD: e1m1's start, the super shotgun in the right hand
-hint Play with -flatscreenmode. As the test starts the visor powers on: a bright line sweeps down each panel. Every panel sits in a mount running off the screen's edges, in the wrist gadget's colours: health and armour top left; bullet time, stamina and every ammo carried top right; each hand's ammo at its own bottom corner (the left hand's bottom left: empty now, the mount still there); messages at the top's middle; keys and sigils on the left edge, powerups on the right. Pick up the nail gun beside you for the left hand. Turn hard and walk: the panels lag a hair and bob a little, never hard to read; stand still: they do not move. The world behind each panel is frosted (blurred, a slight ripple); Desktop Screen Play > Visor HUD Look has the panels' size and reach, the back plates' depth, bevel and colour, the glass and the effects. Visor HUD off: the status bar back.
-map e1m1
-god
-notarget
-give "Super Shotgun" main
-spawn "Nailgun" 48 24

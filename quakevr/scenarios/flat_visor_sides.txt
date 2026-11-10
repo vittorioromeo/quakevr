@@ -1,7 +1,0 @@
-# flat_visor_sides: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) visor's side panels (vr_gadget_visor.inc visorSideLeft / Right; docs/vr-port/ROUND24.md, "Visor side panels"): e1m1's start with the gadget's test readings 5 (both keys, the four sigils, the four powerups and their seconds).
-title Flat-screen visor side panels: both keys, four sigils, four powerups (test readings)
-hint Play with -flatscreenmode. The side panels fill their faces from the screen's edges. Left: the silver and gold keys big side by side, the four sigils as a 2 x 2 grid under them. Right: each powerup's icon with its seconds in big bold digits beside it (27, 22, 17, 12: made-up readings). The digits stay crisp under the scanlines. Desktop Screen Play > Visor HUD Look: Side Panels Size grows or shrinks both; Visor Readings CRT puts the scanlines back on the readings.
-map e1m1
-god
-notarget
-cvar vr_gadget_test_state 5
