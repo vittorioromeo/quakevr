@@ -1948,6 +1948,16 @@ void notePlaced(const hands::State& s)
     }
 }
 
+bool muzzleInHand(int h, glm::vec3& out)
+{
+    if(h < 0 || h >= HAND_COUNT || !st.muzzleKnown[h] || glm::length(st.muzzleLocal[h]) < 1.f)
+    {
+        return false;
+    }
+    out = st.muzzleLocal[h];
+    return true;
+}
+
 void noteDrawn(const hands::State& s)
 {
     if(!flatplay::active())
@@ -2306,6 +2316,15 @@ void statusLine()
             st.pinned ? "on its grip hotspot" : "where the mode's pose puts it (no grip there a second hand can take)",
             twohand::helping(st.helping) ? "held" : "not held", twohand::helpKind(st.helping),
             twohand::transition(st.holding));
+        if(flatplay::meleeIn(st.holding))
+        {
+            // The melee weapon's two-handed grip: the hotspot the free hand takes (chooseGrip: the one lowest on the
+            // handle), and whether it holds it there or on the blade (never, flatscreen).
+            int type = 0;
+            const int spot = view::chosenGripSpot(st.holding, type);
+            Con_Printf("  melee grip: hs%d (type %d), the free hand %s\n", spot + 1, type,
+                !twohand::helping(st.helping) ? "not on it" : twohand::bladeGrip(st.holding) ? "on the blade" : "on that grip");
+        }
         if(st.pinned)
         {
             // The measures vr_twohand takes the hold on, read at the frame's pose: the free hand off the hotspot (less

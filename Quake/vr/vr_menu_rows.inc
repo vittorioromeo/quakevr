@@ -6267,8 +6267,9 @@ QVR_TOGGLE(vr_flat_mag_eject, "Ejects Empty Magazines",
     "Playing on the desktop screen with Reloading on: a magazine gun (the nailguns, the thunderbolt, the nail pistol) "
     "fired empty drops its magazine, which falls as VR's do; the reload seats a new one at the hip (vr_flat_mag_eject).")
 QVR_TOGGLE(vr_flat_revolver_eject, "Revolver Ejects Its Shells",
-    "Playing on the desktop screen with Reloading on: the revolver's reload swings its cylinder out, throws out the "
-    "spent shells, and swings it home once the new ones are in (vr_flat_revolver_eject).")
+    "Playing on the desktop screen with Reloading on: the revolver fired empty swings its cylinder out a moment later "
+    "and throws out the spent shells (the trigger only clicks); a reload with shells left swings it out as it starts. "
+    "It swings home once the new ones are in (vr_flat_revolver_eject).")
 QVR_TOGGLE(vr_flat_grenade, "Quick Grenade (G)",
     "Playing on the desktop screen: G (vr_flat_key_grenade) takes a grenade from the back pouch into a free hand (an empty "
     "one, your main hand first, else the hand on a weapon's grip), as the headset's pouch gives it: one of your rockets. "

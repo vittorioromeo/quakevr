@@ -7905,6 +7905,44 @@ spawning if for example I stand really close to a ragdoll and shoot it."
 - **Open:** what he saw is not yet pinned down. Candidates left: the arm and gun over the hit at his feet (a picture from
   him would tell), the particle pool's cap after many gibs (`vr_limits`), the blood decals (not counted).
 - Scene `flat_blood_pointblank`.
+## Flat-screen: the two-handed melee grip, and the right mouse button's parry guard (his notes 2026-11-10, items 2 and 3; branch `agent/flat_parry`)
+
+- **Item 2, "the two-handed melee holding spot seems to default to the 'sword' hotspot, not the 'grip' one."** Two ways a
+  flat free hand could end up off the grip: the view's `chooseGrip` gives the free hand the Grip hotspot it *hangs nearest*
+  (the axe, Mjolnir and the super axe have two, hs1 just above the holding hand and hs2 up the haft by the head), and
+  `vr_twohand`'s sword path (2h mode Sword: the swords, the crowbar, AD's blades) takes the Blade hotspot (the half-sword
+  grip) whenever the free hand comes within 6 units of the blade, a flat hand being always closed. Now, with
+  `vr_flat_melee_grip 1` (Debug > Tunables > Flatscreen > Shove And Melee), a melee weapon swung by a handle
+  (`flatplay::swungMelee`: `meleeIn` less the chainsaw, whose two handles are neither) always gets the Grip hotspot lowest
+  on its handle (least far along the line from the holding hand to the tip), and the sword path never takes the blade on
+  the flat screen. The headset's choice is unchanged. In the headless runs (default pose, swings, looks of 60 down to 30
+  up, crouched) the old rule happened to pick hs1 too, so the cases he met are those the probe did not hit (a hand hanging
+  nearer hs2 or the blade); the rule now holds for every pose. `vr_flatplay_status` prints "melee grip: hs1 (type 1), the
+  free hand on that grip".
+- **Item 3, the parry guard.** RMB with one melee weapon (where a gun's ironsight is: `flatplay::routeFire`'s `rmbAims`)
+  raises it into a guard: `flatplay::parryPose` over the hold in `poseHands`, a linear share stepped once a frame
+  (`vr_flat_parry_in_time` 0.15 s, `_out_time` 0.2 s) eased by smoothstep. The hand goes to `vr_flat_parry_fwd`/`_up`/`_out`
+  (14, -3, 6 units off the eye, inside the arm's reach); the weapon's own line (`flatsight::muzzleInHand`: its tip in the
+  hand's frame as the view placed it) is laid level across the view, its tip `_yaw` 10 degrees forward and `_pitch` 5 up,
+  rolled `_roll` 0 about the line (a quarter roll inwards first, then the least turn: every weapon the same line, the super
+  axe's forward-leaning haft too; a fixed turn of the hand left it 39 degrees off the attacker's line, inside the muzzle
+  rule's 45, no parry). Nothing parry-specific was added to the game: QC's parry and directional parry read the pose, as
+  a headset's guard there. Not while the hand swings (a press swings out of it), reloads or swaps; not dual wielding.
+- **Shared with VR:** the parry itself (QC `VR_Parry_Blocks`, `vr_dirparry.qc`, stamina, counters, staggers), the
+  two-handed machinery (`vr_twohand.cpp`, `chooseGrip`), the hand turn helpers of the overhead swing (`turnedHand`,
+  `blendAngles`). Flat-only: the guard's pose and its button (a headset's guard is the player's own hands).
+- **Tests:** `Misc/quakevr/flatparry_test.sh <agent>` (42 checks): per weapon hs1 and never the blade after two swings;
+  QC's probe (`impulse 249`) "no parry" at rest and "PARRIES" in the guard (5.0 off level, 80 off the attacker's line) for
+  the axe, Mjolnir, the sword, the crowbar, the super axe, the chainsaw and an axe in the off hand; the guard reached in
+  0.139 s (in 0.15); back to share 0 after the release; a sword grunt's blows parried in the guard (scene `flat_parry`;
+  the run ends on the first parry), a knight's chop parried in it and landing without it. (A grunt's sideways swing also
+  meets the sword stood up in the hold and is parried by it, as in a headset, so its unguarded case is not tested.)
+- **The guard against a sword grunt** (4000 frames, the guard held, stamina off): 12 of 32 blows parried at the default
+  height (`_up` -3), 10 of 34 at -9, 9 of 27 at +3. The ones that land are swings whose way lies nearly along the level
+  guard (76 to 90 degrees off square, 15 to 23 units from it): the directional parry stops a blow only across its way, so a
+  still, level guard meets the chops and the diagonal cuts but not the flat slashes. A guard that turns to meet each swing
+  would be a new feature (an open question for him); the pose is all tunable.
+
 ## VR: gibs on a blade through a snap turn (branch `agent/vr_snapgib`, 2026-11-10)
 
 Found by `agent/flat_gibs` (above): with the headset, `vr_embed_probe_skewj` (cm a skewered gib's place in the server's
@@ -7934,3 +7972,18 @@ hand moved frame to frame) was 48 cm on a 45-degree snap turn and 4.9 cm on a st
   31 4/0; `vr_pp_test 1` 63/0; eval.sh no fails. Scene `vr_skewer_snap` (a sword, three grunts, snap turn 45).
 - Left alone: the loading port and the magazine box are carried the same translation-only way (`move.loadPort`,
   `magBox`); a loose round or a magazine near the port on a snap's frame is a frame off. Not seen in play.
+
+## Flat revolver: the cylinder swings out fired empty (branch `agent/flat_revolver_eject`, worktree `flatwall`, 2026-11-10)
+
+His follow-up: "I had requested the revolver cylinder to automatically get ejected when all shots were fired in
+flatscreen, but that doesn't seem to happen. Cylinder should close itself during reload." The revolver joins the super
+shotgun's path in `QC/vr_flatreload.qc` (`VR_FlatReload_RevolverOpens`, `EjectWanted`/`EjectNow`): fired empty, its
+cylinder swings out `vr_flat_revolver_open_delay` (0.15 s, Tunables > Flatscreen > Reload) after the last shot, its six
+spent shells out (`VR_Revolver_Open`, `VR_Revolver_Eject`), a dry click a pull in flat play (`VR_Revolver_Attack`); its
+HandFrame keeps it out until the reload, which swings it home `vr_flat_reload_close_delay` after the rounds go in. A
+reload with live shells left is as before. New `VR_Revolver_IsOut` / `VR_Revolver_Home` (vr_revolver.qc).
+
+The "dry click gap" of the last round was the test's: the second pull came inside the shot's cooldown (and the first
+pull 5 frames after the give, inside the pickup's): with the pulls spaced out the super shotgun's dry click is heard, so
+the check is back. flatreload_test.sh: 44 passed, 0 failed (new run `revempty`: out by itself once, 6 spent, a dry click
+after, R from empty home with 6 live).

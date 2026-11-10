@@ -462,6 +462,15 @@ void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_Revolver_
     }
     if(rec.wi_rv_open)
     {
+        // (Flat-screen play's, swung out by itself fired empty, vr_flatreload.qc: the hammer falls on nothing, a dry
+        // click a pull, as the open super shotgun's.)
+        if(VR_FlatPlay(self))
+        {
+            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            *xOutAttackFinished = time + 0.5;
+            VR_Reload_Log(sprintf("a dry click: the revolver (hand %g) is open", xHand));
+            return;
+        }
         VR_Reload_Log("the revolver's cylinder is out: it doesn't fire");
         return;
     }
@@ -499,6 +508,20 @@ void(float xHand, entity r, string xHow) VR_Revolver_Open =
     vr_rv_opened++;
     vr_rv_lasthow = xHow;
     VR_Reload_Log(sprintf("the revolver (hand %g) swung out by %s: %s", xHand, xHow, VR_Revolver_Desc(r)));
+};
+
+// Whether the cylinder of the revolver of record `r` is swung out (vr_flatreload.qc, before this).
+float(entity r) VR_Revolver_IsOut =
+{
+    return r != world && r.wi_rv_open;
+};
+
+// It swings home quietly (no longer loaded by hand, gone from the hand, brought back loaded: drawn shut).
+void(entity r) VR_Revolver_Home =
+{
+    r.wi_rv_open = 0;
+    r.wi_rv_spin = 0;
+    r.wi_rv_ofs = 0;
 };
 
 // And home: it fires again (what its chambers hold).
@@ -1027,9 +1050,11 @@ void(float xHand) VR_Revolver_HandFrame =
     {
         VR_Revolver_ReloadFrame(xHand, h, r);
     }
-    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand))
+    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand) &&
+            !(VR_FlatReload_RevolverOpens(xHand) && VRGetEntWeaponClip(self, xHand) <= 0))
     {
-        r.wi_rv_open = 0; // (no longer loaded by hand: home; flat-screen play's reload swings it out for its trip)
+        // (No longer loaded by hand: home. Flat-screen play's swings out fired empty, until the reload, and for its trip.)
+        VR_Revolver_Home(r);
     }
     VR_Revolver_SpinStep(r);
     // The hammer and the trigger: cocked (1) until it falls, then the trigger held back (2), let go (0).

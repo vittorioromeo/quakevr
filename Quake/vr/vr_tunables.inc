@@ -1876,6 +1876,7 @@ QVR_TUNABLE(vr_flat_reload_angle, "90") // degrees the gun turns muzzle-down at 
 QVR_TUNABLE(vr_flat_ssg_break_delay, "0.15") // vr_flat_ssg_break: seconds after the shot that empties it the super shotgun breaks open, its shells thrown out (his words 2026-11-10: "a tiny customizable delay")
 QVR_TUNABLE(vr_flat_mag_eject_delay, "0.1") // vr_flat_mag_eject: seconds after the last round a magazine gun drops its empty magazine
 QVR_TUNABLE(vr_flat_mag_eject_speed, "40") // and its push out of the well (units a second, on the hand's velocity; VR's eject button's 40)
+QVR_TUNABLE(vr_flat_revolver_open_delay, "0.15") // vr_flat_revolver_eject: seconds after the shot that empties it the revolver's cylinder swings out, its spent shells thrown out (his words 2026-11-10)
 QVR_TUNABLE(vr_flat_reload_close_delay, "0.1") // seconds after the rounds go in at the hip the super shotgun snaps shut and the revolver's cylinder swings home (within the trip)
 
 // Flatscreen > Force Grab (vr_flatfgrab.cpp; his note 2026-11-10)
@@ -2052,6 +2053,16 @@ QVR_TUNABLE(vr_flat_swing_cam_up, "1.5") // the view tips up this far with the w
 QVR_TUNABLE(vr_flat_swing_cam_down, "2.5") // and down this far with the strike (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_up, "3") // the chest leans back this far with the windup (degrees)
 QVR_TUNABLE(vr_flat_swing_torso_down, "6") // and forward this far with the strike (degrees)
+QVR_TUNABLE(vr_flat_melee_grip, "1") // flatscreen: a melee weapon held in two hands is held by its grip, the one lowest on the handle, never further up it or on the blade (0: the grip the free hand hangs nearest, the blade too, as before 2026-11-10)
+QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
+QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
+QVR_TUNABLE(vr_flat_parry_up, "-3") // and this far above it (units; negative below)
+QVR_TUNABLE(vr_flat_parry_out, "6") // and this far out at its own side (units; negative inwards)
+QVR_TUNABLE(vr_flat_parry_pitch, "5") // the weapon's tip this far up off level (degrees; negative down)
+QVR_TUNABLE(vr_flat_parry_yaw, "10") // and this far forward of straight across the view (degrees; negative back towards you; past 45 it points at what it parries and no longer does)
+QVR_TUNABLE(vr_flat_parry_roll, "0") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
+QVR_TUNABLE(vr_flat_parry_in_time, "0.15") // seconds into the guard from the hold (0: at once)
+QVR_TUNABLE(vr_flat_parry_out_time, "0.2") // seconds back to the hold when the button is let go (0: at once)
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
