@@ -8386,3 +8386,41 @@ compile.
   evaluator; 2.2 s, run in parallel so it costs no wall time); `Tools/fteqcc/test_fteqcc.py` still runs only when the
   compiler changes. Linux/macOS: the tool is Win32-only; `progs_format.sh` keeps the flatpak's and QC/build.sh's
   progs-format check, the other QC checks run on Windows only (as the flatpak already said).
+## Build: Release without ThinLTO, ReleaseLTO, day-only build date, no second ship build (branch `agent/buildcfg`, worktree `buildcfg`, 2026-11-10)
+
+Vittorio's build-speed feedback (items 3, 5, 6, 7 of the build report `qvr-kit/scratch/buildprof_1110.md`).
+
+- **Configurations.** `Release` is now the everyday dev build: the same optimisation flags, no ThinLTO (a one-file edit
+  relinks in about a second instead of ~10). The new `ReleaseLTO` is the old Release (ThinLTO, its `lto.cache`), in
+  every project of the solution (ironwail, zancle, mimalloc, qvr_doom) and the solution's configurations. Each has its
+  own folders (`Build-ironwail/x64/ReleaseLTO`, `bin/x64/ReleaseLTO`), so switching recompiles nothing. `QvrNoLto=1`
+  still drops ThinLTO from ReleaseLTO and Release-Tracy (which keeps ThinLTO). `Release-TracyFull` builds as before
+  (the engine's files without ThinLTO, Zancle's with it). `QVR_BUILD_LTO` is 1 exactly for ThinLTO builds; the
+  "no-LTO" tag is on every optimised build without ThinLTO (Release, Release-TracyFull, QvrNoLto), not on Debug.
+  `make_release.ps1`, `Windows/package-quakevr.ps1` and `Misc/quakevr/bench/qvrprof.sh` use ReleaseLTO (qvrprof falls
+  back to Release when a tree has no ReleaseLTO exe); the kit's `run.sh --exclusive` / `--lto` and `bench.sh` run the
+  ReleaseLTO exe where the tree has one (run.sh warns when it is older than the Release exe).
+- **Build date** (`quakevr.props`, QvrBuildVersion): the day only, no hour or minute, so a no-change build in a new
+  minute recompiles and relinks nothing. `QvrStableDate=1` still writes "dev".
+- **IDE QC build**: the vcxproj no longer runs `check_release_qc.py` (build.sh, the ships and the release script still
+  do). A new target writes tracking logs (`ironwail.tlog/QvrCompileQC.*.1u.tlog`, CustomBuildStep's format) naming
+  the QC sources as inputs and `progs.dat` as output, so Visual Studio's fast up-to-date check runs MSBuild after a
+  QC-only edit. Checked with MSBuild (touch `QC/weapons.qc`, build the solution: progs.dat rewritten); the IDE's own
+  check could not be run here.
+- **Ships** (kit): `ship_any.sh` records what the tree built (`scratch/ship_stamp.sh record`: the HEAD tree's hash
+  without `quakevr/checklist.txt`, the exe's and progs.dat's mtimes; only when the tree has no local changes), and
+  `ship_next.sh` skips `build.sh integ` when integ's merge has exactly those sources and the tree's exe is still that
+  build; the smoke run then uses the tree's exe. Otherwise (next moved, a menu_paths regen commit, a rebuild in the
+  tree) it builds integ as before.
+
+Timings (VS 2026 MSBuild, the solution, other workers building at the same time, so noisy):
+
+| his loop | before (report) | after |
+|---|---|---|
+| one .cpp edit, Release | 12.4 s (ThinLTO link 9.8) | 4.9 s |
+| QC-only edit | 16.4 s (QC + release check + clock relink) | 6.5-6.8 s |
+| no change, new minute | 11.7 s | 1.3-2.5 s |
+| full rebuild | 51 s ThinLTO | Release ~35 s idle (101 s measured under load); ReleaseLTO 115 s under load |
+
+Left: excluding imgui_demo.cpp (only full-rebuild CPU, no wall-clock gain), fteqcc in parallel with ClCompile, the
+PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).

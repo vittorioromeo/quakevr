@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Zancle (Quake/vr/external/zancle/README.md): the modules the Quake VR code uses and what they need, as a static
      library linked into ironwail (quakevr.props). Its own project for its own settings: C++23; in Release optimised
-     without Zancle's asserts (NDEBUG), ThinLTO as the engine; in Debug by the switch QVR_ZANCLE_DEBUG (as CMake's
+     without Zancle's asserts (NDEBUG), ThinLTO as the engine (ReleaseLTO); in Debug by the switch QVR_ZANCLE_DEBUG (as CMake's
      option and the Makefiles' variable of that name): true, built as the engine's Debug (unoptimised, _DEBUG, Zancle's
      asserts on: a failure calls vr_zancle.cpp's handler, as in the engine's files); false, optimised without its
      asserts as in Release. Pass /p:QVR_ZANCLE_DEBUG=false (or true) to MSBuild to choose. clang-cl, as the whole engine
@@ -14,6 +14,10 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseLTO|x64">
+      <Configuration>ReleaseLTO</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Tracy|x64">
@@ -88,13 +92,14 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull')">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull')">
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
-  <!-- ThinLTO as the engine, except in its QvrNoLto=1 quick builds (quakevr.props). -->
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull') and '$(QvrNoLto)'!='1' and '$(QvrNoLto)'!='true'">
+  <!-- ThinLTO as the engine (quakevr.props: ReleaseLTO and Release-Tracy; Release, the dev build, has none), except with
+       QvrNoLto=1. Release-TracyFull keeps the ThinLTO it always had here (the engine's own files have none there). -->
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='ReleaseLTO' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull') and '$(QvrNoLto)'!='1' and '$(QvrNoLto)'!='true'">
     <ClCompile>
       <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
