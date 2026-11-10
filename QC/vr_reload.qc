@@ -196,10 +196,14 @@ float(entity p, float xHand) VR_Reload_ManualInHand =
     return !VR_FlatPlay(p) && VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 };
 
-// Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand).
+// Whether the gun in `xHand` of `p` breaks open after its shots in flat-screen play (vr_flatreload.qc, vr_flat_ssg_break).
+float(entity p, float xHand) VR_FlatReload_SsgBreaks;
+
+// Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand; flat-screen
+// play: a reload closes it).
 float(entity p, float xHand) VR_Reload_SsgIsOpen =
 {
-    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(p, xHand) &&
+    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && (VR_Reload_ManualInHand(p, xHand) || VR_FlatReload_SsgBreaks(p, xHand)) &&
            (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_SSG_OPEN) && !AD_WidowmakerIn(p, xHand);
 };
 
@@ -216,10 +220,10 @@ float(float xFlags) VR_Reload_SsgSpentOf =
 };
 
 // The super shotgun in `xHand` of self fired `xCount` barrels (W_FireSuperShotgun, W_FireShotgun): with immersive
-// reloading their shells stay in, spent (thrown out as it is broken open).
+// reloading their shells stay in, spent (thrown out as it is broken open; flat-screen play: by itself, vr_flatreload.qc).
 void(float xHand, float xCount) VR_Reload_SsgFired =
 {
-    if(!VR_Reload_SsgBreaks(self, xHand))
+    if(!VR_Reload_SsgBreaks(self, xHand) && !VR_FlatReload_SsgBreaks(self, xHand))
     {
         return;
     }
@@ -1056,6 +1060,22 @@ void(entity p, float xHand, string xHow) VR_Reload_MagOutStart =
     }
 };
 
+// The magazine of the gun in `xHand` of `p` let out (its eject button; flat-screen play's empty gun, vr_flatreload.qc): out
+// of its well, falling with the hand's own speed and a push of `xPush` (units/s) the way the well faces (the nailgun's and
+// the thunderbolt's down under the gun, the super nailgun's out of its side and a little down; never up). The nail
+// pistol's slides out of the grip first, then pops on out (the way the grip points: its own vr_nailpistol_mag_eject_*).
+void(entity p, float xHand, float xPush, string xHow) VR_Reload_EjectOut =
+{
+    if(VRGetEntWeapon(p, xHand) == WID_NAILPISTOL)
+    {
+        VR_Reload_MagOutStart(p, xHand, xHow);
+        return;
+    }
+    vector out = VR_Reload_MagOutWay(p, xHand);
+    out_z = min(-0.35, out_z);
+    VR_Reload_Eject(p, xHand, VRGetEntHandVel(p, xHand) * VRMetersToUnits() + normalize(out) * xPush, -1, xHow);
+};
+
 // Every frame, self: those whose time has come go free; so do those whose gun has left the hand or whose player has died.
 void() VR_Reload_MagOutFrame =
 {
@@ -1747,20 +1767,7 @@ void(float xHand) VR_Reload_MagFrame =
     }
     if(sec && !secWas && cvar_hget(cvarh_vr_reload_eject_button) && VR_Reload_MagIn(self, xHand))
     {
-        // Out of its well, falling with the hand's own speed and a little push the way the well faces (the nailgun's and
-        // the thunderbolt's down under the gun, the super nailgun's out of its side and a little down; never up). The
-        // nail pistol's slides out of the grip first, then pops on out (the way the grip points).
-        if(VRGetEntWeapon(self, xHand) == WID_NAILPISTOL)
-        {
-            VR_Reload_MagOutStart(self, xHand, "the button");
-        }
-        else
-        {
-            vector out = VR_Reload_MagOutWay(self, xHand);
-            out_z = min(-0.35, out_z);
-            VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() + normalize(out) * 40, -1,
-                "the button");
-        }
+        VR_Reload_EjectOut(self, xHand, 40, "the button");
     }
     VR_Reload_HitFrame(xHand);
 
