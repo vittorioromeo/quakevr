@@ -187,6 +187,7 @@ struct FlatKeys
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
     bool keyProne{false};   // X (vr_flat_key_prone), last frame
+    bool jumpSwallow{false}; // the jump press that stood him up (vr_flat_prone_jump_stands): no jump until the key is let go
     bool crouchWas{false};  // the crouch held (Left Ctrl or +flatcrouch), last frame: a press while lying down gets up to it
     bool prone{false};     // lying down asked for (vr_flat_key_prone, vr_prone_toggle): a toggle
     bool riseWanted{false}; // asked to get up (the prone key, the crouch) where no crouched box fits: up once one does
@@ -1943,6 +1944,39 @@ namespace
 }
 
 } // namespace
+
+// The jump bit of the move (CL_SendMove, VR_MoveJump): the jump key's state in (bit 1 held, bit 2 a fresh press, as
+// cl_input.c keeps it), the bit sent out. Lying down (or still rising from it), a fresh press is the prone key's get-up
+// (getUp: where it fits; under a low ceiling he stays lying, the wish kept) and no jump; the press is swallowed until the
+// key is let go, so a held jump does not jump on once he stands: only a fresh press does (vr_flat_prone_jump_stands).
+int jumpBit(int state)
+{
+    const bool held = (state & 1) != 0;
+    const bool fresh = (state & 2) != 0;
+    if(!active() || vr_flat_prone_jump_stands.value == 0.f)
+    {
+        keyState.jumpSwallow = false;
+        return (state & 3) != 0 ? 1 : 0;
+    }
+    if(fresh)
+    {
+        keyState.jumpSwallow = false; // a new press
+        if(keyState.prone || keyState.proneRatio > 0.f)
+        {
+            if(keyState.prone)
+            {
+                getUp("jump while lying down");
+            }
+            keyState.jumpSwallow = true;
+        }
+    }
+    if(keyState.jumpSwallow)
+    {
+        keyState.jumpSwallow = held;
+        return 0;
+    }
+    return (state & 3) != 0 ? 1 : 0;
+}
 
 FireRoute routeFire(bool lmb, bool rmb)
 {

@@ -4215,6 +4215,7 @@ vr_flat_wall_block_ads|2|Tunables|Wall: No Ironsight Tilted|Advanced VR Options 
 vr_flat_prone_floor|2|Tunables|Prone: Gun Flush On Floor|Advanced VR Options > Debug > Tunables > Prone: Gun Flush On Floor
 vr_flat_prone_floor_margin|2|Tunables|Prone: Floor Margin|Advanced VR Options > Debug > Tunables > Prone: Floor Margin
 vr_flat_prone_eye|2|Tunables|Prone: Eye Height|Advanced VR Options > Debug > Tunables > Prone: Eye Height
+vr_flat_prone_jump_stands|2|Tunables|Prone: Jump Stands Up|Advanced VR Options > Debug > Tunables > Prone: Jump Stands Up
 vr_flat_prone_neck_drop|2|Tunables|Prone: Body Under the Eye|Advanced VR Options > Debug > Tunables > Prone: Body Under the Eye
 vr_flat_flashlight_hide|2|Tunables|Hide Torch Model|Advanced VR Options > Debug > Tunables > Hide Torch Model
 vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
