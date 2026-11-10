@@ -3164,8 +3164,9 @@ QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb'
 QVR_CVAR(vr_decap, "1", CVAR_ARCHIVE)                 // decapitation (QC vr_decap.qc): a killing slash at the head of a monster with a ragdoll cuts its head off (its ragdoll headless, a blood fountain, the head flies)
 QVR_CVAR(vr_decap_speed, "3.5", CVAR_ARCHIVE)           // m/s the blade's struck point must move at (across the blade: a slash, not a stab) to behead
 QVR_CVAR(vr_decap_slash_angle, "45", CVAR_ARCHIVE)   // degrees: the blade's struck point must move at least this far off its line to behead (nearer it: a stab); was 60
-QVR_CVAR(vr_decap_head_size, "1.15", CVAR_ARCHIVE)   // melee beheading only (a slash, the chainsaw, a corpse's head): the head zone's radius times this (shots and thrown axes keep the head zone)
-QVR_CVAR(vr_decap_neck, "3", CVAR_ARCHIVE)           // units: and the zone drawn down this far below the head's middle (a capsule: the neck); a ragdoll's neck reach at least this
+QVR_CVAR(vr_decap_head_size, "1", CVAR_ARCHIVE)      // melee beheading only (a slash, the chainsaw, a corpse's head): the head zone's radius times this (shots and thrown axes keep the head zone); was 1.15 (2026-11-10: judged where the blade meets the flesh, VR_Decap_ZonePoint)
+QVR_CVAR(vr_decap_touch_point, "0", CVAR_NONE)       // A/B (tests): 1 judges a precise blade blow's beheading zone at the point its grown edge first touched, as before 2026-11-10, not where its path meets the flesh (QC VR_Decap_ZonePoint)
+QVR_CVAR(vr_decap_neck, "0", CVAR_ARCHIVE)           // units: and the zone drawn down this far below the head's middle (a capsule: the neck); a ragdoll's neck reach at least this; was 3 (2026-11-10)
 QVR_CVAR(vr_decap_pop_body_speed, "0.2", CVAR_ARCHIVE) // a head pop: the headless ragdoll's knock (the shot's, the frame's) times this; its own motion kept (vr_decap_own_motion)
 QVR_CVAR(vr_decap_head_speed, "0.5", CVAR_ARCHIVE)    // share of the blade's velocity the cut head flies off with (and its spin from the swing)
 QVR_CVAR(vr_decap_head_lift, "120", CVAR_ARCHIVE)     // units/s the cut head is thrown up besides

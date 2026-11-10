@@ -7374,3 +7374,44 @@ threads together ran ~0.1 ms a frame in his fights). Measured with `vr_profile` 
   posing, shadow casters' culling and ragdoll reads (agent perf_fight2), the armed grunts' prop think (QC, perf_fight2);
   `particle light: lightmap pass` stays on the main thread (R_LightPoint's globals and the traces' shared budget); the
   visor's 1.26 ms CPU is the driver's, not ours to split.
+
+## Melee beheading judged where the blade meets the flesh (his notes 2026-11-10; agent vn1110_melee)
+
+His note: "I can basically swing my axe at the enemy's chest, and it will cause a decapitation". His own dummy lines
+showed it: `body (x1.00) - would behead (zone in 11.0/12.3 off 5.4 below the head's middle)` and `(9.1/12.3 off 7.0
+below)` (vrfiringrange 01-34-34): a blow positional damage called the body, judged on the head.
+
+- **Cause.** A precise blow lands where its striking point, grown by its thickness and the melee tolerance (about 5
+  units), first touches the model (`VR_Melee_Sweep`). Beheading judged that touch's place on the model standing, and
+  since a level cut at the neck first touches the shoulders' top, Decapitation 2 (ROUND21) grew the melee zone to make
+  necks land (Head Zone Size 1.25 then 1.15, Neck 6 then 3, over the head sphere's 3.5 margin): a 12.3-unit capsule on a
+  grunt that reached the shoulders and the top of the chest. A chop coming down at the shoulder or the chest touches the
+  same place as a neck cut, so no zone size could tell them apart. Not the skin cache (eval identical with
+  `vr_hitmodel_skin_keep 0`), not the withinBounds trace fix (the drifting stab identical with it reverted).
+- **Fix** (`QC/vr_decap.qc` `VR_Decap_ZonePoint`): the zone is judged where the struck point's own path (12 units
+  behind the touch to 8 on) crosses the model itself, no thickness (new builtin `hitmodel_skin`: `hitmodel::skinCrossing`
+  exposed). A neck cut's path goes on into the neck, a chop's into the shoulder or chest. A path that meets no flesh
+  that near (a graze by the thickness alone) keeps the touch's point. With the true flesh point the zone needs no
+  growing: **Head Zone Size 1.15 -> 1, Neck 3 -> 0** (`vr_decap_head_size`, `vr_decap_neck`): a blade beheads exactly
+  where positional damage says "head" (the one head rule), at the flesh it cut. `vr_decap_touch_point 1` (not archived):
+  the old touch point, the A/B. The chainsaw's bar on a precise target uses its motion for the path.
+- **Numbers.** Sweeps (`decap_test.sh sweep`; new test 28 = chops coming down at 45 degrees onto the head's axis), on
+  contacts per 16 sides, grunt: chops aimed at 16/18/20/22/24 below the head's middle (the shoulders, the chest) behead
+  14/10/6/3/1 before, 0/0/0/0/0 now; at 12/14 (the neck's base) 16/16 before, 15/10 now. Level cuts: 2/4/6/8/10 below
+  16/16/15/12/3 before, 15/13/12/7/5 now; 12 below 1 -> 0. Knight and ogre alike (the ogre's chops at 20-24 below
+  3-4/16 remain: his chest is that high). Eval full: 162/171 both, verdicts unchanged; decap/yes events 30 -> 24: five
+  lost were at 8.4-12.6 below the head's middle and 11.6-14.5 out (shoulder, top of the chest), one
+  (slash_diagonal_down_right 12-34-45) touched the jaw's side but its tip's path met the shoulder's top 12.6 below.
+- **Test** (`decap_test.sh chest`, new test 29): an axe's chop swept into a grunt's upper chest at health 1 kills
+  without beheading (before: beheaded); its slash through the neck (61) still beheads. On the motion recorder's dummy the
+  chop reads `body (x1.00) - would kill` (before: `... would behead (zone in 8.7/12.3 off 10.7 below ...)`), the neck
+  slash `head (x1.50) - would behead (zone in 5.4/10.7 ...)`.
+- **Eval drift re-examined** (stab_two_hands 12-36-34, 15.6 -> 54.4): not detection. The replay's two-handed stab's tip
+  is at head height (26-28 above the grunt's origin; its model's top is 25), the struck triangle a head one: the replay
+  doesn't steady the off hand's weapon as the take did (the eval's own note), so the stab goes higher than recorded.
+- If necks feel too hard now: Gore > Decapitation > Head Zone Size 1.1 (or Neck 2).
+- Not done (budget): the Super Axe's blade data (measured below), axes embedding in ragdolls instead of gibbing them,
+  the dummy bloodying blades. Super Axe, laid as the axe (`fit_superaxe.py` frame, units up the handle from its end):
+  its head spans 24-52, its edge reaches 16.6 out at 36-44 up; its blow line ends on the handle's line at 38.9 up (its
+  Muzzle anchor), while the axe's ends at its edge (37.2 up, 10.8 out). The striking points sit inside the head's
+  middle, about 16 units behind the edge.

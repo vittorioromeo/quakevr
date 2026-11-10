@@ -435,6 +435,8 @@ vr_decap_test    12-18    vr_decap_test.qc                 (VR_Decap_TestBlastDa
 vr_decap_test    19       vr_decap_test.qc                 (VR_Decap_Sweep)
 vr_decap_test    20-22    vr_decap_test.qc                 (VR_Decap_TestShot)
 vr_decap_test    23-27    vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    28       vr_decap_test.qc                 (VR_Decap_Sweep: chops)
+vr_decap_test    29       vr_decap_test.qc                 (an axe's chop into the upper chest: kills, no head off)
 vr_decap_test    30       vr_decap_test.qc                 (VR_Button_Thrown)
 vr_decap_test    31       vr_decap_test.qc                 (gremlin_flip8)
 vr_decap_test    32       vr_decap_test.qc                 (VR_Gore_Print)
