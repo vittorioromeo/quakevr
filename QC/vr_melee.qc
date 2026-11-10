@@ -635,6 +635,15 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         deliberate = TRUE;
     }
+    // A button's blow (flatscreen V's punch or a weapon's overhead swing: VR_HandMotionAction): asked for, not a real
+    // arm's motion to tell from a wave, so neither its run-up, its wrist nor a wiggle is asked of it; its speed still is.
+    // (The swing's windup is the player's to pose, vr_flat_swing_raise_*: raised behind the head, its strike came from
+    // behind the eye and its wrist's 0.12 s still held the top's hold: the axe missed, 2026-11-10.)
+    float pressed = VR_HandMotionAction(self, xHand);
+    if(pressed)
+    {
+        deliberate = TRUE;
+    }
     float how = VR_MHOW_OTHER;
     if(b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST)
     {
@@ -664,7 +673,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         return FALSE;
     }
     // And the hand itself moved, not only turned in place (a wiggle flicks the grip and the tip fast).
-    if(!bodyDriven && !VR_Melee_WristMoved(b, how))
+    if(!bodyDriven && !pressed && !VR_Melee_WristMoved(b, how))
     {
         return FALSE;
     }
@@ -688,7 +697,8 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     if(cvar_hget(cvarh_developer) >= 2)
     {
-        dprint(deliberate ? sprintf("melee debug: a blow (heavy two-handed, deliberate: arc %.2f m)\n", heavyArc) : "melee debug: a blow\n");
+        dprint(pressed ? "melee debug: a blow (a button's: deliberate)\n"
+               : deliberate ? sprintf("melee debug: a blow (heavy two-handed, deliberate: arc %.2f m)\n", heavyArc) : "melee debug: a blow\n");
     }
 
     // The strength: the speed over the least. A sword's cut or stab measured at its tip (VR_MELEE_TIP_*), not the

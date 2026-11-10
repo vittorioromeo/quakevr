@@ -1677,6 +1677,11 @@ void recoilProbe_f()
 
 } // namespace
 
+glm::vec3 crosshairHit(const hands::State& s, const glm::vec3& aim)
+{
+    return crosshairPoint(s, aim);
+}
+
 static void check_f();
 
 void init()

@@ -895,6 +895,16 @@ void makeReach(
         return true;
     }
     const Slot& s = world->slots[num];
+    // A hand whose body lets bodies through this move (.handsynth 16 the off hand, 32 the main: the engine's
+    // handsource::passBodies, the flatscreen shove's hands from its landing on): no ragdoll or corpse. Coming back from the
+    // push, the hands met the body they had just shoved and dragged it back with them (his notes 2026-11-10).
+    if(s.kind == Kind::Corpse || (s.kind != Kind::Prop && ragdollOf(num) != nullptr))
+    {
+        const int pass = fields().handsynth;
+        const bool main = player < static_cast<int>(world->hands.size()) && &hb == &world->hands[player][1];
+        return pass >= 0 && player >= 1 && player <= svs.maxclients &&
+               (static_cast<int>(fieldFloat(EDICT_NUM(player), pass)) & (main ? 32 : 16)) != 0;
+    }
     if(s.kind != Kind::Prop)
     {
         return false;

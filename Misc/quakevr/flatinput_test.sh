@@ -57,7 +57,7 @@ run punch "$FLAT" "$BASE; $GRUNT; vr_handsource_debug 1; vr_flat_punch main; wai
 check $([ "$(grep -a "^melee event:" "$S/punch.log" | grep -ac "m/s")" -ge 1 ] && echo 1 || echo 0) "punch: V's punch lands a blow on the grunt"
 check $(grep -aq "^handsource: main hand action (punch)" "$S/punch.log" && echo 1 || echo 0) "punch: the punch is marked an action"
 
-# The shove: lands as the hand reaches out (a third of vr_flat_shove_time 0.4 s); again at once: the cooldown (0.8 s);
+# The shove: lands as the hand reaches out (vr_flat_shove_wind_time + _push_time, 0.2 s); again at once: the cooldown (0.8 s);
 # again after it (60 frames: 0.83 s), at a second grunt 96 units to the left (he steps there: the first, thrown back about
 # 20 units, stays at the edge of the shove's reach, and whether it counts too varied with the hands' rest pose): it lands
 # on that one alone. Each wait is the shove's own timing.

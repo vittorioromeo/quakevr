@@ -7430,6 +7430,42 @@ Shove And Melee (`vr_tunables.inc`).
 - **Images**: `scratch/flatmelee_before.png` (the old behaviour through the new switches) and
   `scratch/flatmelee_after.png`: the shove's windup and full push, a punch at its reach, the axe's top, mid-strike and
   end.
+## Flat melee and shove, round 2 (branch `agent/flat_melee2`, worktree `phases`, 2026-11-10)
+
+His notes 3, 4, 6, 7, 9 (flat-screen melee, after round 1 above).
+
+- **Tunables (3)**: the swing's top `vr_flat_swing_raise_{fwd,up,out}` (now -24..24) and `_raise_pitch` (was
+  `vr_flat_swing_wind_pitch`, 90), `_raise_yaw`, `_raise_roll`; its end `vr_flat_swing_end_{fwd,out}` (with `_end_down` 4,
+  kept: his tunables.cfg has it at 8), `_end_pitch` 50, `_end_yaw`, `_end_roll`; a melee weapon's follow-through
+  `_end_pitch_melee` 100 and, added on, `_end_yaw_melee`, `_end_roll_melee`. Every new one 0 (today's look). Yaw and roll
+  are mirrored per hand (positive: out to its own side), applied by `turnedHand` (pitch about the hand's right, yaw about
+  its up, roll about its forward), which replaces `pitchedUp`. A melee weapon held (`meleeIn`) is always turned by
+  `vr_flat_melee_hold_yaw` / `_hold_roll` (0), the swing turning from there. Rows in Debug > Tunables > Flatscreen.
+- **The raise behind the head missed (4)**: with his 0.075 s strike, `vr_flat_swing_raise_fwd` -8 did 10 damage to the
+  test knight and -12 none (4: 62). `developer 2` showed the blow at 17 m/s turned down silently: the melee rules' wrist
+  test (`meleewristspeed` over 0.12 s, 2.5 m/s for a swing) still held the top's hold, 1.37 m/s. Those rules (run-up,
+  wrist, wiggle) tell a real arm's blow from a wave; a button's blow is asked for. The engine now sends the hands whose
+  motion is an Action (`handsource::moveBits` 4/8) and QC `VR_Melee_Decide` takes such a blow as deliberate
+  (`VR_HandMotionAction`): its speed still decides it and its strength. After: -8 62, -12 61, -20 28 damage (shared with
+  VR: the same melee code, one more flag; a headset's hands are never Action).
+- **Shove times (6)**: `vr_flat_shove_wind_time` 0.14, `_push_time` 0.06, `_hold_time` 0.04, `_recover_time` 0.16 (cvars, Locomotion >
+  Desktop Screen Play) replace `vr_flat_shove_time` 0.4 and the three `_share` tunables at their look;
+  `vr_flat_shove_anim_speed` still scales them all. (His ironwail.cfg had `vr_flat_shove_time` 0.5 with wind 0.4 / hold
+  0.15: in the new terms 0.2 / 0.075 / 0.075 / 0.15, not promoted: he didn't ask.)
+- **The shove's hands dragging the body back (7)**: not reproduced here (vrtesthall, a grunt 16-32 ahead, his shove
+  numbers, guns or empty hands, knocked down or staggered: it always flew 80-240 away, with at most one reach contact).
+  The conservative fix: on the hands' way back (from the end of the hold to 0.15 s after the shove), their reach bodies
+  pass through ragdolls and corpses (`vr_flat_shove_pass_bodies` 1; the move's .handsynth 16/32 from
+  `handsource::passBodies`, read by box3d `reachSkips`). Not from the landing: out at full push the hands still push
+  it on. Test aid: `vr_test_hurt -1` reads the nearest monster's level distance without hurting it.
+- **Aim (9)**: `meleeAimPoint`: the punch and the swing go for what the crosshair's ray hits (`flatsight::crosshairHit`,
+  the guns' point), no further along the ray than the arm reaches from the shoulder; the shove for the hit point or
+  `vr_flat_punch_aim_dist`, nearer (its hands travel `vr_flat_shove_anim_reach`). `vr_flat_melee_aim_hit` 0: the old
+  fixed point. The probe's new `off`: the hand beside the ray at the blow's end: the shotgun's swing 3.6 units before,
+  0.0 after (the axe 0.0).
+- **Tests**: `flatmelee_test.sh` 12 passed (new: the raised-behind axe 57 damage, the swing on the ray, the shoved grunt
+  16 -> 127 never pulled back); flatplay_test 31 passed; flathands, flatitems, flatinput (below).
+
 ## Flat-screen holsters and the holster menu (branch `agent/flat_holsters`, worktree `release`, 2026-11-10)
 
 His words (18): the holster system in flat-screen play too, on by default: six holsters and two hands, the number keys

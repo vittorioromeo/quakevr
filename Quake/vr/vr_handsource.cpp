@@ -22,6 +22,9 @@ struct HandMark
 HandMark marks[HAND_COUNT];
 HandMark printed[HAND_COUNT];
 
+// This frame's hands whose physics bodies let bodies through (passBodies).
+bool passing[HAND_COUNT];
+
 [[nodiscard]] bool validHand(int h)
 {
     return h >= 0 && h < HAND_COUNT;
@@ -40,6 +43,7 @@ void beginFrame(bool tracked)
                 marks[h].why, gestures(h) ? "" : ": no gestures");
         }
         printed[h] = marks[h];
+        passing[h] = false;
         marks[h] = tracked ? HandMark{Source::Tracked, "controller"} : HandMark{Source::Synthesized, "flat-screen pose"};
         if(vr_handsource_force.value != 0.f)
         {
@@ -82,7 +86,31 @@ za::U8 moveBits()
     {
         bits |= 2; // VR_HANDSYNTH_MAIN
     }
+    if(source(HAND_OFF) == Source::Action)
+    {
+        bits |= 4; // VR_HANDACTION_OFF
+    }
+    if(source(HAND_MAIN) == Source::Action)
+    {
+        bits |= 8; // VR_HANDACTION_MAIN
+    }
+    if(passing[HAND_OFF])
+    {
+        bits |= 16; // VR_HANDPASS_OFF
+    }
+    if(passing[HAND_MAIN])
+    {
+        bits |= 32; // VR_HANDPASS_MAIN
+    }
     return bits;
+}
+
+void passBodies(int h)
+{
+    if(validHand(h))
+    {
+        passing[h] = true;
+    }
 }
 
 const char* name(Source s)

@@ -802,19 +802,44 @@ constexpr float dualProneTurnMost = 45.f;
     return punchPoint(thrown, rest, slide(t, punchWind + punchStrike + punchDwell, punchBack));
 }
 
-// A weapon's overhead swing (vr_flat_swing; his notes 2026-11-10, replacing the fist's straight throw for anything held):
-// the hand goes up over the head (vr_flat_swing_raise_*: off the eye) with the weapon turned up (vr_flat_swing_wind_pitch),
-// waits a moment there, and comes down round the shoulder to what the crosshair is on (`at`, under it by
-// vr_flat_swing_end_down, at what the arm reaches), the wrist turning all the way through until the weapon points down
-// (vr_flat_swing_end_pitch); held, then back to `rest`, where the hand is posed without it. World places; `root` the
-// shoulder, `fwd`, `right`, `up` the frame the hands are placed in. `pitch`: how far the weapon is turned up off the aim
-// (degrees; negative down). The blow is the game's to find, as the fist's: the hand's motion is a real one (an action,
-// vr_handsource.hpp), and what the weapon's far end sweeps through on the way down is what it hits. The windup eases into
-// its top and waits there, so the strike is not read as a blow that wiggled back and forth (VR_MELEE_WIGGLE_TIME).
-[[nodiscard]] glm::vec3 overheadSwing(int h, const glm::vec3& root, const glm::vec3& rest, const glm::vec3& eye, const glm::vec3& at,
-    const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float& pitch)
+// What the punch, the swing and the shove go for, from shoulder `root` (his notes 2026-11-10: the swing a bit off centre):
+// what the crosshair's ray hits, as the guns aim (flatsight::crosshairHit; vr_flat_melee_aim_hit), no further along the
+// ray than the arm reaches from `root` (`armReach`: a punch or a swing, so the blow ends on the ray rather than beside it)
+// or than vr_flat_punch_aim_dist (the shove's push, whose hands travel vr_flat_shove_anim_reach whatever the arm). 0:
+// vr_flat_punch_aim_dist along the ray, as before.
+[[nodiscard]] glm::vec3 meleeAimPoint(const hands::State& s, const glm::vec3& aim, const glm::vec3& root, bool armReach)
 {
-    pitch = 0.f;
+    glm::vec3 org, dir;
+    crosshairRay(s, aim, org, dir);
+    const float fixed = za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f);
+    if(vr_flat_melee_aim_hit.value == 0.f)
+    {
+        return org + dir * fixed;
+    }
+    const float hit = glm::dot(flatsight::crosshairHit(s, aim) - org, dir);
+    // (The furthest point along the ray the arm reaches: |org + dir d - root| = its span.)
+    const glm::vec3 w = org - root;
+    const float b = glm::dot(w, dir), span = za::max(4.f, armSpan());
+    const float disc = b * b - (glm::dot(w, w) - span * span);
+    const float reach = armReach && disc > 0.f ? -b + za::sqrt(disc) : fixed;
+    return org + dir * za::clamp(za::min(hit, reach), 8.f, 96.f);
+}
+
+// A weapon's overhead swing (vr_flat_swing; his notes 2026-11-10, replacing the fist's straight throw for anything held):
+// the hand goes up over the head (vr_flat_swing_raise_fwd / _up / _out: off the eye) with the weapon turned up
+// (vr_flat_swing_raise_pitch, and _raise_yaw / _raise_roll), waits a moment there, and comes down round the shoulder to
+// what the crosshair is on (`at`, under it by vr_flat_swing_end_down, ahead by _end_fwd, out by _end_out, at what the arm
+// reaches), the wrist turning all the way through until the weapon points down (vr_flat_swing_end_pitch, and _end_yaw /
+// _end_roll); held, then back to `rest`, where the hand is posed without it. World places; `root` the shoulder, `fwd`,
+// `right`, `up` the frame the hands are placed in. `turn`: how far the weapon is turned off its pose (degrees: up, out
+// to its side, rolled; turnedHand). The blow is the game's to find, as the fist's: the hand's motion is a real one (an
+// action, vr_handsource.hpp), and what the weapon's far end sweeps through on the way down is what it hits; asked for by
+// a press, the melee rules take it as a deliberate blow whatever the windup (QC VR_HandMotionAction). The windup eases
+// into its top and waits there.
+[[nodiscard]] glm::vec3 overheadSwing(int h, const glm::vec3& root, const glm::vec3& rest, const glm::vec3& eye, const glm::vec3& at,
+    const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, glm::vec3& turn)
+{
+    turn = glm::vec3{0.f};
     const double t = vr_gametime - fs.punchAt[h];
     if(!fs.punchOverhead[h] || t < 0.0 || t > punchLen(h))
     {
@@ -828,39 +853,46 @@ constexpr float dualProneTurnMost = 45.f;
         const float len = glm::length(d);
         return len > most && len > 0.001f ? root + d * (most / len) : p;
     };
-    const glm::vec3 top = inReach(eye + up * za::clamp(vr_flat_swing_raise_up.value, -12.f, 24.f) +
-                                      fwd * za::clamp(vr_flat_swing_raise_fwd.value, -12.f, 24.f) +
-                                      right * (side * za::clamp(vr_flat_swing_raise_out.value, -12.f, 24.f)),
+    const auto offset = [](const Tunable& t) { return za::clamp(t.value, -24.f, 24.f); };
+    const auto angle = [](const Tunable& t, float most) { return za::clamp(t.value, -most, most); };
+    const glm::vec3 top = inReach(eye + up * offset(vr_flat_swing_raise_up) + fwd * offset(vr_flat_swing_raise_fwd) +
+                                      right * (side * offset(vr_flat_swing_raise_out)),
         span * 0.98f);
-    const glm::vec3 toAim = at - up * za::clamp(vr_flat_swing_end_down.value, -12.f, 24.f) - root;
+    const glm::vec3 toAim = at - up * offset(vr_flat_swing_end_down) + fwd * offset(vr_flat_swing_end_fwd) +
+                            right * (side * offset(vr_flat_swing_end_out)) - root;
     const float aimLen = glm::length(toAim);
     const glm::vec3 end = root + (aimLen > 0.001f ? toAim / aimLen : fwd) * za::min(span, aimLen);
-    const float upPitch = za::clamp(vr_flat_swing_wind_pitch.value, 0.f, 150.f);
+    const glm::vec3 upTurn{za::clamp(vr_flat_swing_raise_pitch.value, 0.f, 150.f), angle(vr_flat_swing_raise_yaw, 90.f),
+        angle(vr_flat_swing_raise_roll, 90.f)};
     // The strike turns the wrist to vr_flat_swing_end_pitch, whatever the hand holds: that is the blow. A melee
     // weapon's haft stands up the hand, not along the aim as a gun's barrel does, so at that angle its head is still
     // over the hand (seen 2026-11-10); it follows through to vr_flat_swing_end_pitch_melee over the hold after the
-    // strike. (Turned that far within the strike itself, the axe missed a knight 24 ahead at every angle past 50: the
-    // blow is the strike's, the follow-through only a look.)
+    // strike, turned on by _end_yaw_melee and rolled by _end_roll_melee. (Turned that far within the strike itself, the
+    // axe missed a knight 24 ahead at every angle past 50: the blow is the strike's, the follow-through only a look.)
     const float downPitch = za::clamp(vr_flat_swing_end_pitch.value, -30.f, 90.f);
-    const float followPitch = meleeIn(h) ? za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)) : downPitch;
+    const glm::vec3 downTurn{-downPitch, angle(vr_flat_swing_end_yaw, 90.f), angle(vr_flat_swing_end_roll, 90.f)};
+    const glm::vec3 followTurn = meleeIn(h) ? glm::vec3{-za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)),
+                                                  downTurn.y + angle(vr_flat_swing_end_yaw_melee, 90.f),
+                                                  downTurn.z + angle(vr_flat_swing_end_roll_melee, 90.f)}
+                                            : downTurn;
     double k = t;
     if(k < w.wind)
     {
         const float u = slide(k, 0.0, w.wind);
-        pitch = upPitch * u;
+        turn = upTurn * u;
         return rest + (top - rest) * u;
     }
     k -= w.wind;
     if(k < w.top)
     {
-        pitch = upPitch;
+        turn = upTurn;
         return top;
     }
     k -= w.top;
     if(k < w.strike)
     {
         const float u = slide(k, 0.0, w.strike);
-        pitch = upPitch + (-downPitch - upPitch) * u;
+        turn = upTurn + (downTurn - upTurn) * u;
         // Round the shoulder: the way out of it turned from the top's to the end's, its length eased between.
         const glm::vec3 a = top - root, b = end - root;
         const float la = glm::length(a), lb = glm::length(b);
@@ -875,26 +907,30 @@ constexpr float dualProneTurnMost = 45.f;
     k -= w.strike;
     if(k < w.dwell)
     {
-        pitch = -downPitch - (followPitch - downPitch) * slide(k, 0.0, w.dwell);
+        turn = downTurn + (followTurn - downTurn) * slide(k, 0.0, w.dwell);
         return end;
     }
     k -= w.dwell;
     const float u = slide(k, 0.0, w.back);
-    pitch = -followPitch * (1.f - u);
+    turn = followTurn * (1.f - u);
     return end + (rest - end) * u;
 }
 
-// Hand angles `rot` turned up by `deg` about the hand's own right (negative: down).
-[[nodiscard]] glm::vec3 pitchedUp(const glm::vec3& rot, float deg)
+// Hand angles `rot` turned by `turn` (degrees): up by its x about the hand's own right (negative: down), then out to the
+// hand's own side by its y about its up (`side`: 1 the main hand, -1 the off hand: mirrored), then rolled by its z about
+// its forward, the top out to its own side.
+[[nodiscard]] glm::vec3 turnedHand(const glm::vec3& rot, const glm::vec3& turn, float side)
 {
-    if(deg == 0.f)
+    if(turn == glm::vec3{0.f})
     {
         return rot;
     }
     glm::vec3 f, r, u;
     hands::angleVectors(rot, f, r, u);
-    const float a = glm::radians(deg);
-    return hands::anglesFromVectors(f * za::cos(a) + u * za::sin(a), u * za::cos(a) - f * za::sin(a));
+    const float p = glm::radians(turn.x), y = glm::radians(turn.y * side), z = glm::radians(turn.z * side);
+    const glm::vec3 f1 = f * za::cos(p) + u * za::sin(p), u1 = u * za::cos(p) - f * za::sin(p);
+    const glm::vec3 f2 = f1 * za::cos(y) + r * za::sin(y), r2 = r * za::cos(y) - f1 * za::sin(y);
+    return hands::anglesFromVectors(f2, u1 * za::cos(z) + r2 * za::sin(z));
 }
 
 // A shoving hand's angles: the palm to `toTarget`, the fingers up (vr_flat_shove_palm_up above level; vr_flat_shove_palm_turn
@@ -977,21 +1013,16 @@ void startPunch(int h, const char* from)
     }
 }
 
-// The shove's push, out a third of it and back, in vr_flat_shove_time over vr_flat_shove_anim_speed (seconds).
-[[nodiscard]] float shoveTotal()
-{
-    return za::fmax(0.1f, vr_flat_shove_time.value) / za::clamp(vr_flat_shove_anim_speed.value, 0.25f, 4.f);
-}
-
 // Whether `h` pushes in the shove (the one hand, or both).
 [[nodiscard]] bool inShove(int h)
 {
     return h == fs.shoveHand || fs.shoveBoth;
 }
 
-// The shove's parts (his notes 2026-11-10: a windup like the fist's, then a fast push): seconds of its windup (the hands
-// drawn back, the palms turning to the target), its push out (it lands at its end), its hold out; the rest comes back.
-// vr_flat_shove_*_share of the shove's time, scaled down together should they come to more than 0.95 of it.
+// The shove's parts (his notes 2026-11-10: a windup like the fist's, then a fast push; each part its own time): seconds of
+// its windup (the hands drawn back, the palms turning to the target), its push out (it lands at its end), its hold out,
+// and the hands' way back to where they were (vr_flat_shove_<wind|push|hold|recover>_time; until 2026-11-10 shares of
+// vr_flat_shove_time 0.4, the same look), all played vr_flat_shove_anim_speed times faster.
 struct ShoveTimes
 {
     float wind, push, hold, back;
@@ -999,16 +1030,16 @@ struct ShoveTimes
 
 [[nodiscard]] ShoveTimes shoveTimes()
 {
-    const float total = shoveTotal();
-    float wind = za::clamp(vr_flat_shove_wind_share.value, 0.f, 0.6f);
-    float push = za::clamp(vr_flat_shove_push_share.value, 0.05f, 0.5f);
-    float hold = za::clamp(vr_flat_shove_hold_share.value, 0.f, 0.4f);
-    const float sum = wind + push + hold;
-    const float fit = sum > 0.95f ? 0.95f / sum : 1.f;
-    wind *= fit * total;
-    push *= fit * total;
-    hold *= fit * total;
-    return {wind, push, hold, total - wind - push - hold};
+    const float k = 1.f / za::clamp(vr_flat_shove_anim_speed.value, 0.25f, 4.f);
+    return {za::clamp(vr_flat_shove_wind_time.value, 0.f, 1.f) * k, za::clamp(vr_flat_shove_push_time.value, 0.02f, 0.5f) * k,
+        za::clamp(vr_flat_shove_hold_time.value, 0.f, 0.5f) * k, za::clamp(vr_flat_shove_recover_time.value, 0.05f, 1.f) * k};
+}
+
+// The whole shove (seconds).
+[[nodiscard]] float shoveTotal()
+{
+    const ShoveTimes w = shoveTimes();
+    return w.wind + w.push + w.hold + w.back;
 }
 
 // Where `h` is in the shove: its windup (0 .. 1 .. 0), its push out (0 .. 1 .. 0), and its palm's turn (0 .. 1 .. 0).
@@ -1044,6 +1075,19 @@ struct ShovePhase
     }
     const float u = 1.f - slide(t, w.wind + w.push + w.hold, w.back);
     return {0.f, u, u};
+}
+
+// Whether `h`'s physics body lets ragdolls and corpses through (vr_flat_shove_pass_bodies): while its hands go back
+// after the shove, and shovePassGrace after (the body it pushed may still lie in the hand at rest). Coming back, the
+// hands met the body they had just shoved and dragged it back with them (his notes 2026-11-10). Not before: out at full
+// push they still push it on (measured: passing from the landing on, a grunt shoved from 16 units ended 5 units nearer).
+constexpr float shovePassGrace = 0.15f;
+[[nodiscard]] bool shovePassesBodies(int h)
+{
+    const ShoveTimes w = shoveTimes();
+    const double t = vr_gametime - fs.shoveAt;
+    return vr_flat_shove_pass_bodies.value != 0.f && inShove(h) && fs.shoveSent && t >= w.wind + w.push + w.hold &&
+           t <= shoveTotal() + shovePassGrace;
 }
 
 [[nodiscard]] bool shovingNow(int h)
@@ -2605,6 +2649,7 @@ struct MeleeProbe
     float pitchLo[2]{0.f, 0.f};
     float pitchHi[2]{0.f, 0.f};
     float roll[2]{0.f, 0.f};
+    float off[2]{-1.f, -1.f}; // a punch's or swing's hand at its end (its held reach): how far beside the crosshair's ray (units)
     bool overlap[2]{false, false};
     int lines{0};
 };
@@ -2619,11 +2664,10 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
     }
     glm::vec3 org, dir;
     crosshairRay(s, aim, org, dir);
-    const glm::vec3 aimPoint = org + dir * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f) +
-                               viewUp * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
     const glm::vec3 tilt = meleeViewTilt();
     for(int h = 0; h < HAND_COUNT; h++)
     {
+        const glm::vec3 aimPoint = meleeAimPoint(s, aim, shoulder(s, h), !shoving(h)) + viewUp * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
         const bool acting = punching(h) || shoving(h);
         if(acting && !p.running[h])
         {
@@ -2636,6 +2680,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.palm[h] = p.fingers[h] = -1.f;
             p.pitchLo[h] = p.pitchHi[h] = p.roll[h] = 0.f;
             p.overlap[h] = false;
+            p.off[h] = -1.f;
         }
         if(p.running[h] && acting)
         {
@@ -2653,6 +2698,22 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                 p.palm[h] = za::max(p.palm[h], glm::length(to) > 0.001f ? glm::dot(palmNormal, glm::normalize(to)) : 0.f);
                 p.fingers[h] = za::max(p.fingers[h], glm::dot(f, viewUp));
             }
+            // (At the blow's end, held: beside the ray, its up and down left out. The swing's end is under the ray by
+            // vr_flat_swing_end_down, and the fist's keeps near its own height.)
+            if(!p.shove[h] && punching(h))
+            {
+                const double t = vr_gametime - fs.punchAt[h];
+                const SwingTimes w = swingTimes();
+                const double from = fs.punchOverhead[h] ? w.wind + w.top + w.strike : punchWind + punchStrike;
+                const double to = from + (fs.punchOverhead[h] ? w.dwell : punchDwell);
+                if(t >= from && t <= to)
+                {
+                    glm::vec3 d = s.pos[h] - org;
+                    d -= dir * glm::dot(d, dir);
+                    d -= viewUp * glm::dot(d, viewUp);
+                    p.off[h] = za::max(p.off[h], glm::length(d));
+                }
+            }
             p.pitchLo[h] = za::min(p.pitchLo[h], tilt.x);
             p.pitchHi[h] = za::max(p.pitchHi[h], tilt.x);
             p.roll[h] = za::fabs(tilt.z) > za::fabs(p.roll[h]) ? tilt.z : p.roll[h];
@@ -2663,11 +2724,11 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.running[h] = false;
             p.lines++;
             // (Short: a console line wraps past its width, and the tests read it whole.)
-            Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d\n",
+            Con_Printf("flatmelee: %s %s: n %d eye %.1f up %.0f dn %.0f palm %.2f fing %.2f vp %.2f %.2f roll %.2f both %d off %.1f\n",
                 h == HAND_MAIN ? "main" : "off", p.shove[h] ? (fs.shoveBoth ? "shove both" : "shove") : fs.punchOverhead[h] ? "swing" : "punch",
                 p.frames[h], static_cast<double>(p.overEye[h]), static_cast<double>(p.up[h]), static_cast<double>(p.down[h]),
                 static_cast<double>(p.palm[h]), static_cast<double>(p.fingers[h]), static_cast<double>(p.pitchLo[h]),
-                static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0);
+                static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0, static_cast<double>(p.off[h]));
         }
     }
 }
@@ -2845,14 +2906,16 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         {
             handsource::mark(h, handsource::Source::Action, "punch");
         }
+        if(shovePassesBodies(h))
+        {
+            handsource::passBodies(h); // (the shove's hands on their way back: vr_flat_shove_pass_bodies)
+        }
         // What the crosshair is on, off this shoulder in the frame the hands are placed in: the punch and the shove go there.
         glm::vec3 target{0.f};
         glm::vec3 aimPoint{0.f}; // (and that point itself)
         if(punching(h) || shoving(h))
         {
-            glm::vec3 org, dir;
-            crosshairRay(s, aim, org, dir);
-            aimPoint = org + dir * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f);
+            aimPoint = meleeAimPoint(s, aim, shoulder(s, h) + nudge, punching(h));
             const glm::vec3 at = aimPoint - (shoulder(s, h) + nudge);
             target = {glm::dot(at, fwd), glm::dot(at, right), glm::dot(at, up)};
         }
@@ -2878,14 +2941,22 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // (Leaning, the hand's turn rolled vr_flat_lean_gun_roll of the view's lean roll: aimed again from where the turn took it.)
         s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunLeanRoll()}, h);
         s.rot[h].z += vr_fakevr_handroll.value;
+        // A melee weapon is always held turned out (vr_flat_melee_hold_yaw) and rolled (_hold_roll; his notes 2026-11-10);
+        // its swing turns from there.
+        if(meleeIn(h))
+        {
+            s.rot[h] = turnedHand(s.rot[h], {0.f, za::clamp(vr_flat_melee_hold_yaw.value, -90.f, 90.f),
+                                                za::clamp(vr_flat_melee_hold_roll.value, -90.f, 90.f)},
+                sideOf);
+        }
 
         // A weapon's overhead swing (vr_flat_swing): its own way round the shoulder from where the hand is posed, the
         // weapon turned up over the head and down through the strike (overheadSwing).
         if(fs.punchOverhead[h] && punching(h))
         {
-            float pitch = 0.f;
-            s.pos[h] = overheadSwing(h, shoulder(s, h) + nudge, s.pos[h], eye, aimPoint, fwd, right, up, pitch);
-            s.rot[h] = pitchedUp(s.rot[h], pitch);
+            glm::vec3 turn{0.f};
+            s.pos[h] = overheadSwing(h, shoulder(s, h) + nudge, s.pos[h], eye, aimPoint, fwd, right, up, turn);
+            s.rot[h] = turnedHand(s.rot[h], turn, sideOf);
         }
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
@@ -2963,10 +3034,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     {
         if(const float palm = shovePhase(h).palm * za::clamp(vr_flat_shove_palm.value, 0.f, 1.f); palm > 0.f)
         {
-            glm::vec3 org, dir;
-            crosshairRay(s, aim, org, dir);
-            const glm::vec3 at = org + dir * za::clamp(vr_flat_punch_aim_dist.value, 8.f, 96.f) +
-                                 up * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
+            const glm::vec3 at = meleeAimPoint(s, aim, shoulder(s, h) + nudge, false) + up * za::clamp(vr_flat_shove_aim_up.value, -24.f, 24.f);
             s.rot[h] = blendAngles(s.rot[h], palmAt(h, at - (shoulder(s, h) + nudge), viewUp), palm);
         }
     }

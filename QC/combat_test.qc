@@ -84,11 +84,12 @@ void() VR_TestKill_Frame =
 
 // Test aid `vr_test_hurt <damage>` (console; earned bullet time's test, Misc/quakevr/bullettime_earn_test.sh): the live
 // monster nearest the player takes <damage> from a shot of his, its health as it is (a kill when it is enough). Prints
-// `test hurt:` with its health before and after.
+// `test hurt:` with its health before and after, and its level distance from him. A negative <damage>: only read
+// (no damage; the shove's recovery check).
 void() VR_TestHurt_Frame =
 {
     float dmg = cvar_hget(cvarh_vr_test_hurt);
-    if(dmg <= 0)
+    if(dmg == 0)
     {
         return;
     }
@@ -113,8 +114,15 @@ void() VR_TestHurt_Frame =
         return;
     }
     float before = best.health;
-    VR_Hit_End();
-    T_Damage(best, pl, pl, dmg);
-    dprint(sprintf("test hurt: %s %g damage, health %g -> %g\n", best.classname, dmg, before, best.health));
+    if(dmg > 0)
+    {
+        VR_Hit_End();
+        T_Damage(best, pl, pl, dmg);
+    }
+    // (And how far from him it is, level: flatmelee_test.sh's shoved grunt.)
+    vector away = best.origin - pl.origin;
+    away_z = 0;
+    dprint(sprintf("test hurt: %s %g damage, health %g -> %g, %.1f u away\n", best.classname, dmg, before, best.health,
+        vlen(away)));
 };
 #endif
