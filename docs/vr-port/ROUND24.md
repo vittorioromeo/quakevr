@@ -7828,3 +7828,35 @@ His notes 2026-11-10, items 1, 2 and 10 (flat-screen play; docs/vr-port/FLATPLAY
   empty hands, then emptying both; mode 0 let go over nothing just closes, let go over h1 R clicks it; mode 1 opens on a
   press, three clicks with it open, closes on the next press, Esc closes). flathands 43/0, flatkeys 37/0, flatitems 9/0.
   Scenes: `flat_holsters_pick`, `flat_holsters_toggle`.
+
+## Flat-screen: blood at point blank (his note 2026-11-10; branch `agent/flat_blood2`)
+
+His note: "Even setting both vr_particle_near_fade and vr_particle_near_cull to 0 still results in some blood particles not
+spawning if for example I stand really close to a ragdoll and shoot it."
+
+- **Measured, not reproduced.** New `vr_flatblood_test 1` (QC/vr_flatblood_test.qc; Debug > Tests > Blood at Point Blank):
+  a live grunt (aimed at its chest) and a settled corpse ragdoll (aimed at a point on its root bone's surface: a ragdoll's
+  box middle can lie between its limbs and a shot there misses it) shot with the shotgun, super shotgun and nailgun from
+  60, 30, 12 and 4 units (eye level distance less 16), a fresh target each, through the real flat path (+attack, the view
+  turned onto it, 36 frames for the flat hand to settle). Per shot: the impacts' blood the game sent (`vr_blood_sent`), and
+  the client's blood particles made and made where the view draws them (new `vr_blood_tally`, `vr_blood_tally_drawn`: every
+  blood emitter, `particles::blood`, `bloodTrail`, `bloodMist`, `bloodDrip`, `bloodSpecks`, `bloodDroplet`, counted as made,
+  drawn = ahead of the eye past `vr_nearclip` and outside `vr_particle_near_cull`). Flat (fade and cull 0, mist near 0):
+  24/0. Every shot at 4/12/30 sent its pellets' blood (6 shotgun, 14 super shotgun, 1 nail) and made as many particles as
+  at 60 (grunt shotgun 975 at 60, 1026 at 4; super shotgun 2348 / 2309; corpse shotgun 719 / 736); drawn 94-100 % of made
+  at 4 units (the rest made behind the eye's plane, the spray's spread round a hit 10-20 units off the eye).
+- **The suspects checked:** no spawn gate near the eye in the particles (`spawn`, `blood`, `mist`: only `vr_gore_mist_near`,
+  default 0 since agent/flat_gibs), in the client's particle message (vr_client.cpp) or the wounds. At point blank the flat
+  shot's start eases onto the crosshair ray (vr_flatsight.cpp `shotFrom`) and the pellets still hit (vr_debug_shots: all on
+  the grunt / corpse at 4 units, none on the world); the start-inside rule (FireBulletsImpl `xStartHits`, the hit model's
+  `startInside`) holds. Not checked: particles hidden behind the gun's view model.
+- **Headset, compared** (the same test without -flatscreenmode: the mock hand placed the same distance off, the gun's own
+  shot from it; printed, not judged): the grunt bleeds the same at 4 as at 60 (shotgun 971 / 1023, super shotgun 2284 /
+  2138); the corpse too at 4 (shotgun 2724, super shotgun 3922) but the mock hand's aim misses a lying corpse's limb now and
+  then at any range (one 30-unit shotgun shot 0), and the nailgun fired directly makes no nail in this harness.
+- **Config:** his `quakevr/ironwail.cfg` has no `vr_gore_mist_near` line: he plays at the default, 0. The tests' local
+  `quakevr/ironwail.cfg.baseline` (untracked) still has `vr_gore_mist_near "40"`; the test's script sets 0.
+- **Open:** what he saw is not yet pinned down; the checklist line asks where he stood, what he aimed at, flat or headset.
+  Candidates left: a ragdoll at eye height (slumped against a wall, on a ledge) where the flat shot's start can pass the body,
+  the particle pool's cap after many gibs (`vr_limits`), and the blood decals (not counted).
+- Scene `flat_blood_pointblank`.

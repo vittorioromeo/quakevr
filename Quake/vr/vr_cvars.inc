@@ -1998,6 +1998,8 @@ QVR_CVAR(vr_particle_threads, "1", CVAR_NONE) // the particles' motion and recor
 QVR_CVAR(vr_particle_trim, "0", CVAR_ARCHIVE) // opt-in conservative transparent-margin geometry; 0: full quads
 QVR_CVAR(vr_particle_near_fade, "30", CVAR_ARCHIVE) // cm from the eye at which particles start fading out (to nothing at vr_particle_near_cull; 0: no fade)
 QVR_CVAR(vr_particle_near_cull, "10", CVAR_ARCHIVE) // cm: particles nearer the eye than this are not drawn (0: all drawn)
+QVR_CVAR(vr_blood_tally, "0", CVAR_NONE)           // diagnostics (written by the game): blood particles made so far, every emitter's (impact blood, mist, trails, the gore's drips, specks, droplets); vr_flatblood_test reads it
+QVR_CVAR(vr_blood_tally_drawn, "0", CVAR_NONE)     // diagnostics (written by the game): of those, the ones made where the view draws them (ahead of the eye past vr_nearclip, not inside vr_particle_near_cull)
 QVR_CVAR(vr_particle_max_screen, "0.15", CVAR_ARCHIVE) // the largest a particle is drawn, as a fraction of the view's height across: a larger one shrunk round its centre (0: no cap)
 QVR_CVAR(vr_debug_particle_waste, "0", CVAR_NONE) // debug: count the particles' shaded fragments that show nothing (vr_particle_waste_report); slows the draw
 QVR_CVAR(vr_debug_particle_waste_alpha, "0.02", CVAR_NONE) // debug: a fragment fainter than this (its largest premultiplied channel) counts as nearly transparent
@@ -2184,6 +2186,7 @@ QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                // the QC fires n bullet
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends the drop (impulse 47; H, vr_flat_key_drop) and reports whether the main hand is empty
 QVR_CVAR(vr_flatitems_test, "0", CVAR_NONE)              // -flatscreenmode only: pickups held and walked over, through the real paths (vr_flatitems_test.qc; Debug > Tests > Flat Items)
 QVR_CVAR(vr_flatgate_test, "0", CVAR_NONE)               // -flatscreenmode only: a walk through a teleporter on vrteleporters: the view goes on as it was (vr_flatgate_test.qc; Debug > Tests > Flat Gate)
+QVR_CVAR(vr_flatblood_test, "0", CVAR_NONE)              // 1: blood at point blank: a grunt and a corpse shot at 60, 30, 12, 4 units with three guns, the blood made and drawn (vr_flatblood_test.qc; Debug > Tests > Blood at Point Blank); ends "flatblood: N passed, M failed"
 QVR_CVAR(vr_flatmove_test, "0", CVAR_NONE)               // -flatscreenmode only: 1 top speed, 2 a swim, 3 out of the water, 9 ledges (vr_flatmove_test.qc; Debug > Tests > Flat Move)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
