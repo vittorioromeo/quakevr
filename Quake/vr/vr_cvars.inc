@@ -56,7 +56,14 @@ QVR_CVAR(vr_prone_hip_floor, "3.5", CVAR_ARCHIVE)      // ... units the hips (th
 QVR_CVAR(vr_prone_leg_reach, "0.997", CVAR_ARCHIVE)    // ... lying down, the legs reach this share of their length from the hip to the feet on the floor behind (0.85 .. 1; 1: dead straight)
 QVR_CVAR(vr_prone_foot_lift, "2.5", CVAR_ARCHIVE)      // ... lying down, the ankles this many units over the floor, the shins and feet resting on it rather than sunk into it (0 .. 6; 0 until 2026-11-08, his note: the feet and lower legs overlapped the floor)
 QVR_CVAR(vr_prone_elbow_out, "1", CVAR_ARCHIVE)        // ... lying down, the elbows flare out to the sides and down to the floor instead of where the turned chest's own pole takes them (up past the head aiming down the sights: his note 2026-11-08), this share (0 .. 1)
-QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)         // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
+QVR_CVAR(vr_lowceil, "1", CVAR_ARCHIVE)                // VR, lying down or crouched: getting up for real where the ceiling over your box leaves no room (a vent, a low tunnel) keeps your box as it is and holds you where you are (no stick, crawl, room-scale step or teleport; your hands touch nothing over your box), the view dark and blurred while your eyes are past the ceiling, a message says to get back down; back down, it clears (his notes 2026-11-10). 0: off (the box still kept)
+QVR_CVAR(vr_lowceil_margin, "2", CVAR_ARCHIVE)         // ... units under the ceiling your eyes may come before it holds you (0-16)
+QVR_CVAR(vr_lowceil_hysteresis, "3", CVAR_ARCHIVE)     // ... units further under that your eyes go back before it lets you go (0-16; in the 20-high vent: held from 18, free under 15)
+QVR_CVAR(vr_lowceil_fade, "0.2", CVAR_ARCHIVE)         // ... seconds the view takes to darken and to clear again (0-2; 0: at once)
+QVR_CVAR(vr_lowceil_dark, "0.95", CVAR_ARCHIVE)        // ... how dark the view goes (0-1): nearly black, the room past the ceiling barely seen
+QVR_CVAR(vr_lowceil_blur, "1", CVAR_ARCHIVE)           // ... how blurred (0-4; 0 none)
+QVR_CVAR(vr_lowceil_message, "1", CVAR_ARCHIVE)        // ... the message in front of your eyes ("Lie back down", "Crouch back down"); 0 none
+QVR_CVAR(vr_flat_key_prone, "x", CVAR_ARCHIVE)        // flat-screen: the key that lies down and gets up again (a toggle: vr_prone_toggle), by its bind name; "" none
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)

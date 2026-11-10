@@ -8,7 +8,10 @@ namespace qvr::comfortfade
 {
 // The view black now, back in over `seconds` (0 or less: nothing).
 void start(float seconds);
-// Once a frame (the view setup): the black left of a fade.
+// A held darkness, 0..1 (standing up under a low ceiling: vr_lowceil.cpp), set every frame before frame(): the view as
+// dark as it or a fade asks, the darker.
+void hold(float share);
+// Once a frame (the view setup): the black left of a fade, or the held one.
 void frame();
 // No fade (a new map, a disconnect).
 void clear();

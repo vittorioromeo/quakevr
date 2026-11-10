@@ -7429,3 +7429,43 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
   side; the grunt slid into at 253 u/s went down). `vr_body_lie_test`'s "legs straighter" now measures the straight leg
   and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
   (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).
+
+## Standing up under a low ceiling (branch `agent/vn1110_ceiling`, worktree `lowceil`, 2026-11-10)
+
+His notes vrteleporters_2026-11-10_01-54-06 (crawling in the 20-high vent, getting up physically hits the teleporter
+above) and _01-54-40 (the same standing up in the 40-high tunnel); his answer for the view: the camera follows the head,
+the view fades dark and blurred while the head is in the ceiling, a message says to get back down.
+
+- **The hold (server, `vr_hull.cpp` `updateCrouch` -> `updateHold`).** After the box is chosen (unchanged: it already
+  kept a lying or crouched box where a taller one doesn't fit), a headset player with a lying or crouched box whose eyes
+  plus `vr_lowceil_margin` (2) reach past the box's top and meet the map's ceiling straight over the box's middle (a
+  point trace from 1 unit under the box's top: the world and brush models) is held: 1 lying ("Lie back down"), 2
+  crouched ("Crouch back down"). While held the reach adds `vr_lowceil_hysteresis` (3): in the vent he is caught at eyes
+  18 and freed under 15 (his own crawl in the replay: eyes about 10; the mock's 0.4 m lying head: 14.6); in the tunnel
+  caught at 38, freed under 35 (his crouch there: 27). A ceiling higher than the eyes is room: lying in the open propped
+  up on the elbows is never held. Never flat-screen (its view is held under the box by `localEyeCap`), noclip, standing.
+- **Held, nothing moves him.** `crouchSpeedMax` gives 0 (the stick: the ground's friction stops him), the arms' crawl
+  resets (`VR_AfterCrawlMove`), `VR_ClientRoomscaleMove` drops the step (the head stops past the lean's radius, as at a
+  wall), `VR_ClientTeleport` refuses. Jumping is left alone (lying already can't; a crouched jump in a 40 tunnel is 4
+  units). Never pushed or moved: the box stays where it is.
+- **The teleporter over the vent.** The body already met triggers only up to the lying box's top (`VR_HullTouchTop`);
+  the hands, which touch triggers anywhere, now touch nothing over the box's top while held (`hull::heldReachTop`). The
+  test's control (`vr_lowceil 0`, the hands raised into the wall) is taken by that teleporter: the check is real.
+- **The view (client, new `vr_lowceil.cpp`).** `hidden`: the eyes (plus the margin) behind the ceiling or a wall seen
+  from the same point in the box. While held and hidden the view eases (`vr_lowceil_fade` 0.2 s) to `vr_lowceil_dark`
+  (0.95) of black, the comfort fade's own black (`comfortfade::hold`, new: the darker of the timed fade and the held
+  one), and the underwater post-process's four-tap blur at `vr_lowceil_blur` (1: offset 0.004 of the eye's height, five
+  times the water's most; `water::viewWobble` takes the greater). The message is `text3d::queueOverlay` 0.6 m ahead
+  along the gaze (over the eye's image: not darkened). `vr_lowceil_message` turns it off. The client reads the local
+  server (`hull::localHold`, as `localEyeCap`): a client of another server is held but sees no fade or message.
+- **Shared with flat-screen:** the box code is the same; flat never reaches the hold (its view cannot rise into the
+  ceiling), so nothing else is mode-specific.
+- **Settings:** Movement > Player Hitbox > Low Ceilings (`vr_lowceil` 1, `_margin` 2, `_hysteresis` 3, `_fade` 0.2,
+  `_dark` 0.95, `_blur` 1, `_message` 1), a Low Ceiling Status button there and on the Debug page
+  (`vr_lowceil_status`). menu_paths.txt regenerated.
+- **Tests:** new `Misc/quakevr/lowceil_test.py` (vent and tunnel: held, kept box, no stick, no room-scale step, hands in
+  the wall not teleported, dark + blur + message, hysteresis, free again and moving; the control): 16 passed, 0 failed.
+  `prone_test.py` (its `ventout` now lies back down before crawling out, up again outside) 32/0; `prone_vent_test.sh`
+  (flat) 9/0; `crawl_test.py` 18/0; `teleporters/crouch_test.sh`'s `rise_walked_out` crouches again before walking out
+  (box 0 at x 934 outside). New scene `lowceil_vent` (prone_vent without its flat-screen hint); the tunnel line uses
+  `prone_tunnel`. Release-TracyFull builds.

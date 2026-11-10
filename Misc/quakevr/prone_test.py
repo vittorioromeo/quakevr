@@ -75,7 +75,9 @@ VR = ";".join(START + [
     "vr_mock_stick off 0 1", "wait110", "vr_mock_stick off 0 0", "wait5", "echo prone step ventin", ST,
     "vr_mock_hand head", "wait5", "echo prone step ventrise", ST,
     "vr_prone 0", "wait5", "echo prone step ventoff", ST, "vr_prone 1",
-    "vr_mock_stick off 0 1", "wait140", "vr_mock_stick off 0 0", "wait5", "echo prone step ventout", ST,
+    # (back down to crawl out: up in the vent holds him where he is, vr_lowceil; lowceil_test.py), up again once out
+    "vr_mock_hand head 0 0.4 0", "wait5",
+    "vr_mock_stick off 0 1", "wait140", "vr_mock_stick off 0 0", "vr_mock_hand head", "wait5", "echo prone step ventout", ST,
     "echo prone done", "toggleconsole", "quit"])
 
 FLAT = ";".join(START + [

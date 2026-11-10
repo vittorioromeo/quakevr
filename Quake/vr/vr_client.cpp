@@ -52,6 +52,7 @@
 #include "vr_stealth.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"
+#include "vr_lowceil.hpp"
 #include "vr_deathview.hpp"
 #include "vr_teleport.hpp"
 #include "vr_testbatch.hpp"
@@ -828,6 +829,7 @@ void init()
     shock::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
+    lowceil::registerCommands();
     blood::registerCommands();
     deathview::registerCommands();
     weaponfx::registerCommands();
@@ -977,6 +979,7 @@ extern "C" void VR_OnClientClearState()
     shock::clear();
     smoulder::clear();
     comfortfade::clear();
+    lowceil::clear();
     blood::clear();
     deathview::clear();
     weaponfx::clear();

@@ -1215,7 +1215,7 @@ extern "C" void VR_AfterCrawlMove(edict_t* ent, float forwardmove, float sidemov
     Crawler& c = crawlers[client];
     const VrMove* move = crawlMove(ent);
     const double now = qcvm->time;
-    if(!move || !hull::isProne(ent))
+    if(!move || !hull::isProne(ent) || hull::heightHold(ent) != 0) // (held under a low ceiling: no crawl, vr_lowceil)
     {
         c = {};
         return;

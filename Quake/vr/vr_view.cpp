@@ -5188,6 +5188,7 @@ extern "C" void VR_SetupViewEntities()
         dripBlood(s);
         shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
         smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
+        lowceil::frame(s); // standing up under a low ceiling: the view dark, the message (vr_lowceil)
         comfortfade::frame(); // the view back from black after a scripted teleport (vr_comfortfade)
     }
     {

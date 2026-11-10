@@ -3236,6 +3236,17 @@ bool crouchFlatHeld[crouchSlots]{};
 // box he gets up into -- and the crawl's slowing share (eased like the crouch's); cleared at each map's load.
 bool proneNow[crouchSlots]{};
 float proneSlowShare[crouchSlots]{};
+// Standing up under a low ceiling (vr_lowceil; ROUND24.md, "Standing up under a low ceiling"): per client, whether a
+// headset player's real head asks for more room over him than there is where he lies or crouches (his eyes within
+// vr_lowceil_margin of the ceiling over his box, or past it): 0 no, 1 lying (lie back down), 2 crouched (crouch back
+// down); and whether his eyes are past that ceiling seen from his box (the view darkened: vr_lowceil.cpp), the
+// ceiling's height over his feet (0: none found) and his eyes' (the status). Held, he keeps his box (updateCrouch's own
+// test) and stays where he is: the stick (crouchSpeedMax), the arms' crawl, the room-scale step and the teleport move
+// him nowhere, and his hands touch nothing over his box (heldReachTop). Cleared at each map's load.
+int holdKind[crouchSlots]{};
+bool holdHidden[crouchSlots]{};
+float holdCeiling[crouchSlots]{};
+float holdEye[crouchSlots]{};
 // localEyeCap: how far under his crouched box's top a flat-screen player's view stops rising -- the gap his eyes have
 // fully crouched under the lowest box (28 of 36 at the defaults), and more than Quake's near plane (4), so the view
 // never reaches into the ceiling over the box.
@@ -4549,6 +4560,10 @@ void beforeLoad()
         crouchFlatHeld[i] = false;
         proneNow[i] = false;
         proneSlowShare[i] = 0.f;
+        holdKind[i] = 0;
+        holdHidden[i] = false;
+        holdCeiling[i] = 0.f;
+        holdEye[i] = 0.f;
     }
     qmodel_t* world = sv.worldmodel;
     if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
@@ -4975,7 +4990,11 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
-void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
+namespace
+{
+
+// updateCrouch's box: the client's crouched or lying box from his head (or his flat-screen crouch key).
+void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
 {
     const int num = clientNum(ent);
     if(num < 1 || num >= crouchSlots)
@@ -5089,6 +5108,96 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     }
 }
 
+// updateCrouch's hold (vr_lowceil; heightHold): after the box, a headset player lying or crouched whose eyes, with
+// vr_lowceil_margin over them (and vr_lowceil_hysteresis more while held: he must get back down a little further than
+// where it caught him), reach past his box's top and meet the map's ceiling over it -- the line straight up from just
+// under his box's top at its middle (the room his box would rise into) -- is held. A ceiling over the box's top is room
+// for his eyes up to it, wherever his box is kept low (lying in the open, propped up on his elbows: no hold). Hidden:
+// his eyes behind that ceiling or a wall from his box (the line from the same point to them, with the margin over them).
+// Never a flat-screen player (his view is held under his box's top: localEyeCap) nor one noclipping or standing.
+void updateHold(edict_t* ent, const glm::vec3& head)
+{
+    const int num = clientNum(ent);
+    if(num < 1 || num >= crouchSlots)
+    {
+        return;
+    }
+    int& hold = holdKind[num];
+    const float top = crouchTopNum(num);
+    const float feet = ent->v.origin[2] + ent->v.mins[2];
+    holdEye[num] = (ent->free || head == glm::vec3{0.f}) ? 0.f : head.z - feet;
+    if(vr_lowceil.value == 0.f || !crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f} ||
+        crouchFlat[num] || top <= 0.f || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP)
+    {
+        hold = 0;
+        holdHidden[num] = false;
+        holdCeiling[num] = 0.f;
+        return;
+    }
+    const float eye = head.z - feet;
+    const float margin = za::clamp(vr_lowceil_margin.value, 0.f, 16.f);
+    const float reach = eye + margin + (hold != 0 ? za::clamp(vr_lowceil_hysteresis.value, 0.f, 16.f) : 0.f);
+    holdHidden[num] = false;
+    holdCeiling[num] = 0.f;
+    if(reach <= top)
+    {
+        hold = 0; // (within his box: room there, the box fitting)
+        return;
+    }
+    vec3_t from{ent->v.origin[0], ent->v.origin[1], feet + top - 1.f};
+    vec3_t up{from[0], from[1], feet + reach};
+    const trace_t ceiling = SV_Move(from, vec3_origin, vec3_origin, up, MOVE_NOMONSTERS, ent);
+    if(!ceiling.startsolid && !ceiling.allsolid && ceiling.fraction >= 1.f)
+    {
+        hold = 0;
+        return;
+    }
+    holdCeiling[num] = ceiling.endpos[2] - feet;
+    hold = proneNow[num] ? 1 : 2;
+    vec3_t eyes{head.x, head.y, head.z + margin};
+    const trace_t sight = SV_Move(from, vec3_origin, vec3_origin, eyes, MOVE_NOMONSTERS, ent);
+    holdHidden[num] = sight.startsolid || sight.allsolid || sight.fraction < 1.f;
+}
+
+} // namespace
+
+void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
+{
+    updateCrouchBox(ent, head, flatscreenCrouch);
+    updateHold(ent, head);
+}
+
+int heightHold(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    return num >= 1 && num < crouchSlots ? holdKind[num] : 0;
+}
+
+float heldReachTop(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    if(num < 1 || num >= crouchSlots || holdKind[num] == 0)
+    {
+        return 1e30f; // (not held: no limit)
+    }
+    return ent->v.origin[2] + ent->v.mins[2] + crouchTopNum(num);
+}
+
+LocalHold localHold()
+{
+    LocalHold out{};
+    if(!sv.active || !sv.worldmodel || svs.maxclients < 1)
+    {
+        return out;
+    }
+    out.kind = holdKind[1];
+    out.hidden = holdHidden[1];
+    out.eye = holdEye[1];
+    out.ceiling = holdCeiling[1];
+    out.top = crouchTopNum(1);
+    return out;
+}
+
 bool isCrouched(const edict_t* ent)
 {
     return crouchTop(ent) > 0.f;
@@ -5165,6 +5274,10 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
     if(num < 1 || num >= crouchSlots || !sv.worldmodel)
     {
         return maxspeed;
+    }
+    if(holdKind[num] != 0)
+    {
+        return 0.f; // standing up under a low ceiling: held where he is (vr_lowceil), the ground's friction stops him
     }
     // The share his eyes ask for: none over the tallest crouched box's top, all crouchSpeedBand units under it.
     // A flat-screen player's: all while his crouch key holds him down or his box is kept crouched under a low ceiling

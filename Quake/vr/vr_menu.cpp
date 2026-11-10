@@ -891,6 +891,17 @@ za::Vector<Item> pageHitbox()
         command("Lying Down Status", "vr_prone_status")
             .help("Prints whether you lie down, your box's height, your eyes' height over your feet against the limit, "
                   "your speed, and whether a crouch would fit (you could get up)."),
+        header("Low Ceilings"),
+        row(opt::vr_lowceil),
+        row(opt::vr_lowceil_margin),
+        row(opt::vr_lowceil_hysteresis),
+        row(opt::vr_lowceil_fade),
+        row(opt::vr_lowceil_dark),
+        row(opt::vr_lowceil_blur),
+        row(opt::vr_lowceil_message),
+        command("Low Ceiling Status", "vr_lowceil_status")
+            .help("Prints whether a low ceiling holds you (1 lying, 2 crouched), whether your eyes are past it, the "
+                  "view's darkness and blur, your eyes' height over your feet, the ceiling's and your box's."),
         row(opt::vr_box3d_player_radius),
         header("Standing on Props"),
         row(opt::vr_box3d_player_stand),

@@ -1516,6 +1516,14 @@ vr_prone_crawl_friction|2|Player Hitbox|Arm Crawl Friction|Advanced VR Options >
 vr_prone_crawl_max_speed|2|Player Hitbox|Arm Crawl Top Speed|Advanced VR Options > Movement > Player Hitbox > Arm Crawl Top Speed
 vr_prone_crawl_haptic|2|Player Hitbox|Arm Crawl Haptics|Advanced VR Options > Movement > Player Hitbox > Arm Crawl Haptics
 |2|Player Hitbox|Lying Down Status|Advanced VR Options > Movement > Player Hitbox > Lying Down Status
+vr_lowceil|2|Player Hitbox|Hold Me Under Low Ceilings|Advanced VR Options > Movement > Player Hitbox > Hold Me Under Low Ceilings
+vr_lowceil_margin|2|Player Hitbox|Low Ceiling Margin|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Margin
+vr_lowceil_hysteresis|2|Player Hitbox|Low Ceiling Let Go|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Let Go
+vr_lowceil_fade|2|Player Hitbox|Low Ceiling Fade Time|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Fade Time
+vr_lowceil_dark|2|Player Hitbox|Low Ceiling Darkness|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Darkness
+vr_lowceil_blur|2|Player Hitbox|Low Ceiling Blur|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Blur
+vr_lowceil_message|2|Player Hitbox|Low Ceiling Message|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Message
+|2|Player Hitbox|Low Ceiling Status|Advanced VR Options > Movement > Player Hitbox > Low Ceiling Status
 vr_box3d_player_radius|2|Player Hitbox|Prop Push Radius|Advanced VR Options > Movement > Player Hitbox > Prop Push Radius
 vr_box3d_player_stand|2|Player Hitbox|Stand on Boxes|Advanced VR Options > Movement > Player Hitbox > Stand on Boxes
 vr_box3d_player_slope|2|Player Hitbox|Steepest Face to Stand On|Advanced VR Options > Movement > Player Hitbox > Steepest Face to Stand On
@@ -4584,6 +4592,7 @@ vr_climb_debug|2|Debug - Logging|Climbing|Advanced VR Options > Debug > Logging 
 vr_debug_hands|2|Debug - Logging|Hands|Advanced VR Options > Debug > Logging > Hands
 vr_swim_debug|2|Debug - Logging|Swim Strokes|Advanced VR Options > Debug > Logging > Swim Strokes
 vr_prone_crawl_debug|2|Debug - Logging|Arm Crawl Pulls|Advanced VR Options > Debug > Logging > Arm Crawl Pulls
+|2|Debug - Logging|Low Ceiling Status|Advanced VR Options > Debug > Logging > Low Ceiling Status
 vr_grapple_debug|2|Debug - Logging|Grappling Hook|Advanced VR Options > Debug > Logging > Grappling Hook
 vr_debug_buttons|2|Debug - Logging|Controller Buttons|Advanced VR Options > Debug > Logging > Controller Buttons
 |2|Debug - Logging|Restore Controller Bindings|Advanced VR Options > Debug > Logging > Restore Controller Bindings

@@ -5374,6 +5374,23 @@ QVR_SLIDER(vr_prone_crawl_max_speed, "Arm Crawl Top Speed", 20.f, 400.f, 10.f, "
 QVR_SLIDER(vr_prone_crawl_haptic, "Arm Crawl Haptics", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A short pulse in the hand as it plants on the floor for a pull, with its palm's slap: this strong (0 none) "
     "(vr_prone_crawl_haptic).")
+QVR_TOGGLE(vr_lowceil, "Hold Me Under Low Ceilings",
+    "Lying in a vent or crouched in a low tunnel, getting up for real where there's no room keeps your box as it is "
+    "and holds you still (no stick, crawl, room-scale step or teleport) until you get back down; the view darkens and "
+    "blurs while your eyes are past the ceiling, and a message says to lie or crouch back down (vr_lowceil).")
+QVR_SLIDER(vr_lowceil_margin, "Low Ceiling Margin", 0.f, 16.f, 1.f, "%.0f units", noExt,
+    "How close under the ceiling your eyes may come before it holds you (vr_lowceil_margin).")
+QVR_SLIDER(vr_lowceil_hysteresis, "Low Ceiling Let Go", 0.f, 16.f, 1.f, "%.0f units", noExt,
+    "How much further back down your eyes go before it lets you move again: wider, a bobbing head doesn't flicker "
+    "between held and free (vr_lowceil_hysteresis).")
+QVR_SLIDER(vr_lowceil_fade, "Low Ceiling Fade Time", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "How long the view takes to darken as your eyes go past the ceiling, and to clear again (vr_lowceil_fade).")
+QVR_SLIDER(vr_lowceil_dark, "Low Ceiling Darkness", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How dark the view goes while your eyes are past the ceiling (vr_lowceil_dark).")
+QVR_SLIDER(vr_lowceil_blur, "Low Ceiling Blur", 0.f, 4.f, 0.25f, "%.2f", noExt,
+    "How blurred the view goes while your eyes are past the ceiling (vr_lowceil_blur).")
+QVR_TOGGLE(vr_lowceil_message, "Low Ceiling Message",
+    "The message in front of your eyes while it holds you: Lie back down, or Crouch back down (vr_lowceil_message).")
 QVR_SLIDER(vr_box3d_player_radius, "Prop Push Radius", 5.f, 40.f, 1.f, "%.0f cm", noExt,
     "Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
     "not by your box (vr_box3d_player_radius).")
