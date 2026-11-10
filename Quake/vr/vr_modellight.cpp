@@ -12,6 +12,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api_render.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -8,7 +8,6 @@
 #include "vr_box3d.hpp"
 #include "vr_brushbake.hpp"
 #include "vr_brushlight.hpp"
-#include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_files.hpp"
 #include "vr_held.hpp"

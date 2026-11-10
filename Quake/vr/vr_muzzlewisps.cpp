@@ -3,6 +3,7 @@
 #include "vr_ambient.hpp"
 #include "vr_muzzlewisps.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 #include "vr_portals.hpp"

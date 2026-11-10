@@ -26,6 +26,7 @@
 #include "snd_codec.h"
 #include "snd_codeci.h"
 #include "bgmusic.h"
+#include "vr/vr_api.h"
 
 #define MUSIC_DIRNAME	"music"
 

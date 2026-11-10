@@ -136,6 +136,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
@@ -170,6 +171,7 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

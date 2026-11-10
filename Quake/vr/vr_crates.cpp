@@ -8,6 +8,7 @@
 
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_debris.hpp"
 #include "vr_held.hpp"
 #include "vr_mem.hpp"

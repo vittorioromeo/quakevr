@@ -12,6 +12,7 @@
 #include "vr_angvel.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Fabs.hpp"

@@ -10,6 +10,9 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace box3d::detail
 {

@@ -5,6 +5,8 @@
 
 #include "vr_fontstyle.hpp"
 #include "vr_menu_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_weaponvalues.hpp"
 
 namespace menu_detail
 {

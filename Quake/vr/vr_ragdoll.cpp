@@ -7,6 +7,7 @@
 #include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_hitreact.hpp"
@@ -36,6 +37,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <cstring>
 

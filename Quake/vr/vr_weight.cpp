@@ -25,6 +25,7 @@
 #include "vr_box3d.hpp"
 #include "vr_progs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_flashlight.hpp"
@@ -53,6 +54,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
 

@@ -34,6 +34,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 extern "C" void VR_FoeGrabPreThink(edict_t* ent); // SV_Physics_Client, after VR_ClimbPreThink
 

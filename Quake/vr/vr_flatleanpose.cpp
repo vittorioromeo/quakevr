@@ -4,7 +4,7 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatmove.hpp"
 #include "vr_flatplay.hpp"

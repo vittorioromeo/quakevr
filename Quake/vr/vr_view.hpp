@@ -10,6 +10,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::view
 {

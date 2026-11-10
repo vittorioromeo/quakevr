@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"

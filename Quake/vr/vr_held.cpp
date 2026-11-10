@@ -7,6 +7,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_painknock.hpp"
@@ -40,6 +41,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

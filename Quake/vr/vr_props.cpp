@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_slottable.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
@@ -20,6 +21,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 #include <string.h>

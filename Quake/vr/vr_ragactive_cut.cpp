@@ -2,6 +2,10 @@
 // balance beat on one leg, the crawl. Moved out of vr_ragactive.cpp; what they share is vr_ragactive_internal.hpp.
 
 #include "vr_ragactive_internal.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::ragactive
 {

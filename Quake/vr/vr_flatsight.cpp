@@ -62,6 +62,7 @@
 #include "vr_api.h"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN / HAND_COUNT
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_engine.hpp"

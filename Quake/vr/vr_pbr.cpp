@@ -2,11 +2,15 @@
 #include "vr_pbr.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_sha256.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.h"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 #include <cstring>
 #include <initializer_list>
 

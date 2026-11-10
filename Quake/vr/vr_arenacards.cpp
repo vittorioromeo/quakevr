@@ -16,7 +16,7 @@
 
 #include "vr_api.h"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_main.hpp"

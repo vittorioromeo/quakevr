@@ -8,6 +8,9 @@
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <stdlib.h>

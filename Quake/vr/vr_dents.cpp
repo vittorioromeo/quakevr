@@ -14,6 +14,8 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 

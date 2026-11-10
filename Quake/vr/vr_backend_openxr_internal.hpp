@@ -6,6 +6,7 @@
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_api.h"
 
 #ifdef QVR_HAVE_OPENXR
 
@@ -32,6 +33,12 @@
 #endif
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 

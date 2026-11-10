@@ -3,6 +3,7 @@
 // vr_menu_pages_body.cpp; physics: vr_menu_pages_physics.cpp.
 
 #include "vr_menu_internal.hpp"
+#include "vr_cvars.hpp"
 
 namespace menu_detail
 {

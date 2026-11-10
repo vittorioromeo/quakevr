@@ -5,6 +5,7 @@
 
 #include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -16,6 +17,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>

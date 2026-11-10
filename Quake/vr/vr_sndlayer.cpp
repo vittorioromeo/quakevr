@@ -14,6 +14,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

@@ -22,6 +22,7 @@
 
 #include "vr_particles.hpp"
 #include "vr_permdecals.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <glm/glm.hpp>
 

@@ -39,6 +39,8 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "vr_api.h"
 
 
 using namespace qvr;

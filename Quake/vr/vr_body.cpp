@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
@@ -22,6 +23,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/quaternion.hpp>
 

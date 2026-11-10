@@ -3,7 +3,7 @@
 #include "vr_slidesound.hpp"
 
 #include "vr_client.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatmove.hpp"
 

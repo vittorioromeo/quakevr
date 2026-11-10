@@ -30,6 +30,7 @@
 #include "vr_random.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flick.hpp"
 #include "vr_gore.hpp"
 #include "vr_handpose.hpp"
@@ -82,6 +83,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

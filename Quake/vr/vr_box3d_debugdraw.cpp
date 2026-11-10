@@ -4,6 +4,8 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_cvars.hpp"
+#include "Zancle/Container/Array.hpp"
 
 namespace qvr::box3d
 {

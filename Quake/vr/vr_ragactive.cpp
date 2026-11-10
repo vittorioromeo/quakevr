@@ -5,6 +5,7 @@
 
 #include "vr_b3glm.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_geom.hpp"
 #include "vr_lines.hpp"
 #include "vr_ragpose.hpp"
@@ -17,6 +18,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <cstring>
 

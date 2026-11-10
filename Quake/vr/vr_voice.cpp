@@ -39,6 +39,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <string.h>

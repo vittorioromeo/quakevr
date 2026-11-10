@@ -57,6 +57,7 @@
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_tips.hpp"
 #include "vr_gadget.hpp"
 #include "vr_worldtext.hpp"
@@ -82,6 +83,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 
 namespace qvr::progs

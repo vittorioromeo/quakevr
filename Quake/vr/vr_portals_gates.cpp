@@ -3,6 +3,11 @@
 
 #include "vr_portals_internal.hpp"
 #include "vr_testkit.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_api.h"
 
 using namespace qvr;
 

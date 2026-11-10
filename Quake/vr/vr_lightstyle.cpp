@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
+#include "vr_api_render.h"
 
 #include <math.h>
 

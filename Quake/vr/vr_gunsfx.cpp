@@ -21,6 +21,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

@@ -10,6 +10,7 @@
 #include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables_api.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
@@ -23,6 +24,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 #include <stdio.h>
 #include <string.h>

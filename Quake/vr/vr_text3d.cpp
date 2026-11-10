@@ -38,6 +38,8 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 
 namespace qvr::text3d

@@ -10,6 +10,7 @@
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 

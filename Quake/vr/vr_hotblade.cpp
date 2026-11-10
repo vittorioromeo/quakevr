@@ -8,6 +8,7 @@
 #include "vr_client.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_emissive.hpp"
 #include "vr_gunfx.hpp"
 #include "vr_modelmetadata.hpp"
@@ -24,6 +25,7 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

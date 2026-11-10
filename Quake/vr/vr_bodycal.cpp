@@ -3,6 +3,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_avatar.hpp"
 #include "vr_bodytrack.hpp"
+#include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
 #include "vr_hands.hpp"

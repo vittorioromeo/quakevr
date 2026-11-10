@@ -2,11 +2,14 @@
 
 #include "vr_mgroups.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_progs.hpp"
 #include "vr_slottable.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_api.h"
 
 #include <cmath>
 #include <cstdlib>

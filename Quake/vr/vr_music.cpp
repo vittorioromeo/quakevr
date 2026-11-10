@@ -13,6 +13,7 @@
 // is, so svc_cdtrack, the serverinfo and a saved game carry it unchanged.
 
 #include "vr_engine.hpp"
+#include "vr_api.h"
 
 #include <cstdio>
 #include <cstring>

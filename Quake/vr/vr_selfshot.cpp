@@ -11,6 +11,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 namespace qvr::selfshot
 {

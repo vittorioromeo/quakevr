@@ -30,6 +30,8 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
 
 #include <SDL.h>
 

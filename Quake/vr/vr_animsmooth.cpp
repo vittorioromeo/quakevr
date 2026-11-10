@@ -39,6 +39,7 @@
 #include "vr_jobs.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
@@ -55,6 +56,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_api_render.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

@@ -12,6 +12,11 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 
 #include <cstdio>
 #include <cstdlib>
