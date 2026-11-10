@@ -8139,3 +8139,14 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
   and `vr_flat_revolver_eject_delay` (0.1 s) after (`VR_FlatReload_RvOpen` / `RvEjectFrame`).
 - Tests: flatreload_test.sh adds `ssgpose` (both hands in in 0.2 s, mirrored, out again after R) and `hammer` (the blend
   part-way over the frames after each pull, the second in ADS), and the shells' timing on `revempty` and `revolver`.
+
+## Revolver: the hammer cocks fully before it falls (branch `agent/rv_cock`, worktree `phases`, 2026-11-10)
+
+- `vr_revolver_cock_time` 0.05 -> 0.10 s (Quake/vr/vr_tunables.inc; shared by VR and flat). The renderer's blend takes 0.1 s
+  from frame to frame, so 0.05 s left the hammer 42% cocked (probe `vr_reload_debug 3`: blend 0.417 on poses 0 1) and the
+  fall snapped from there. At 0.10 s the 72 Hz server tick makes the fall come 8 ticks (0.111 s) after the pull: the probe
+  ends the cock on poses 1 1 blend 1.000 before the fall, at any frame rate (the blend runs on time, so 120 and 360 fps
+  only add rows). 0.09 s would round to 7 ticks (0.097 s): a 3% snap.
+- The fire delay grows from 0.056 s (4 ticks) to 0.111 s (8 ticks): +0.055 s. The rate of fire is unchanged:
+  `vr_revolver_cooldown` (0.3 s) counts from the pull, not from the fall.
+- Test: flatreload_test.sh `hammer` run / flatreload_check.py: each pull's hammer reaches blend 1.000 on the cocked pose.
