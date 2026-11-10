@@ -454,12 +454,13 @@ float(float xHand) VR_Forcegrab_FlatDropHand =
     return TRUE;
 };
 
-// One press, one thing: the main hand first, then the off hand (his words 2026-11-02: "main hand first, off hand second").
-// What a hand holds as its own work — a grapple, a foe grabbed, a ragdoll's limb held — is not dropped by it; the
-// flashlight worn on the head (flat play wears it: vr_flashlight.cpp's head mode) is F's, not G's.
+// One press, one thing: the off hand first, then the main hand (his words 2026-11-10: "Make it so that the 'H' button
+// drops the object held in the non-dominant hand first."; the main hand first until then). What a hand holds as its own
+// work — a grapple, a foe grabbed, a ragdoll's limb held — is not dropped by it; the flashlight worn on the head (flat
+// play wears it: vr_flashlight.cpp's head mode) is F's, not H's.
 void() VR_Forcegrab_FlatDrop =
 {
-    if(!VR_Forcegrab_FlatDropHand(cVR_MainHand) && !VR_Forcegrab_FlatDropHand(cVR_OffHand))
+    if(!VR_Forcegrab_FlatDropHand(cVR_OffHand) && !VR_Forcegrab_FlatDropHand(cVR_MainHand))
     {
         dprint("flat drop: neither hand holds anything\n");
     }

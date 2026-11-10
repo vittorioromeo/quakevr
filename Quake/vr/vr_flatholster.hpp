@@ -6,8 +6,10 @@
 // While the wheel's button (vr_flat_key_holster_menu) is held: time at vr_flat_holster_menu_timescale (bullet time's slow
 // motion path: timescale::wanted), the view blurred (the visor's glass blur: visor::menuBlur), the crosshair faded, the
 // mouse the menu's cursor (the view stays). The six holsters on a figure on the left, each with its weapon's thumbnail and
-// [L] [DROP] [R]; the two hands on the right with a DROP each and SWAP between them (3's swap). A click sends the game
-// code an impulse (QC vr_flatholster.qc); release or Esc closes it. The weapon keys do nothing while the holsters are on.
+// [L] [DROP] [R]; the two hands on the right with a DROP each, SWAP between them (3's swap) and DROP BOTH under them. A
+// click sends the game code an impulse (QC vr_flatholster.qc). vr_flat_holster_menu_mode 0: letting go of the key clicks
+// the button under the cursor (and closes it); 1: a press opens it, left clicks, the next press closes it. Esc closes it
+// either way. The weapon keys do nothing while the holsters are on.
 
 #pragma once
 

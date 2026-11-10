@@ -7772,3 +7772,23 @@ seems to get bloody in other situations".
     (shrinks, never hides). Flat's view uses the same eye (`r_refdef.vieworg`) and a near plane of `vr_nearclip` 0.1
     units: no flat-only gate. With fade and cull 0 a spray 30 cm ahead draws there.
 - **Scene** `flat_skewer_gibs` (an axe, three grunts close by, `vr_gore_mist_near 0` for the scene).
+## Flat holster menu round 2: DROP BOTH, release to pick, toggle, H's order (branch `agent/flat_holsters2`, 2026-11-10)
+
+His notes 2026-11-10, items 1, 2 and 10 (flat-screen play; docs/vr-port/FLATPLAY.md, "Holsters").
+
+- **DROP BOTH** ("add a 'drop both' button under the hands at the center"): `Quake/vr/vr_flatholster.cpp` `Act::DropBoth`,
+  a button under the two hands' DROPs in the middle (`dropBothRect`), dim when both hands hold nothing. It sends impulse
+  81 (`QC/vr_flatholster.qc`), which runs each hand's `VR_Forcegrab_FlatDropHand` (the same drop as H and the hands'
+  DROPs), the off hand's first; a prop carried in both hands is let go of by the first.
+- **The wheel's button** (`vr_flat_holster_menu_mode`, row "Holster Menu Wheel Button" in Advanced VR Options > Movement >
+  Locomotion): 0 Release to Pick (default): open while held; letting go clicks the button under the cursor; over no
+  button it only closes. 1 Toggle: a press opens it, the left button clicks as often as wanted, the next press or Esc
+  closes it. The old hold + left click is kept inside mode 0 rather than removed: a left click while held still clicks,
+  and after one, letting go only closes (no second click on release). Same `click()` for all three ways.
+  The footer line says how the current mode works.
+- **H's order** ("drops the object held in the non-dominant hand first"): `VR_Forcegrab_FlatDrop` (`QC/vr_wpnforcegrab.qc`)
+  tries the off hand first, then the main hand.
+- **Test**: `bash Misc/quakevr/flatholster_test.sh <agent>`: 22/0 (new: H off hand first, then main; DROP BOTH dim with
+  empty hands, then emptying both; mode 0 let go over nothing just closes, let go over h1 R clicks it; mode 1 opens on a
+  press, three clicks with it open, closes on the next press, Esc closes). flathands 43/0, flatkeys 37/0, flatitems 9/0.
+  Scenes: `flat_holsters_pick`, `flat_holsters_toggle`.

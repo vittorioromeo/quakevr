@@ -246,6 +246,7 @@
         row(opt::vr_flat_reload),
         row(opt::vr_flat_autoreload),
         row(opt::vr_flat_holsters),
+        row(opt::vr_flat_holster_menu_mode),
         row(opt::vr_flat_holster_menu_timescale),
         row(opt::vr_flat_holster_menu_blur),
         row(opt::vr_flat_holster_menu_xhair_fade),
