@@ -59,6 +59,16 @@ PULL="+attack; wait3; -attack; wait30"
 run revempty "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait30; $PULL; $PULL; $PULL; $PULL; $PULL; $PULL; wait10; $PULL; $R; wait62"
 run mag "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 6; impulse 149; give n 200; wait5; +attack; wait500; -attack; wait20; $R; wait62"
 run revolver "$FLAT" "$BASE; vr_reload_debug 1; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait30; +attack; wait5; -attack; wait60; +attack; wait5; -attack; wait60; $R; wait62"
+# ssgpose: a super shotgun in each hand (impulse 175 the off, 155 the main) fired empty: each eases into its open pose
+# over vr_flat_ssg_open_in_time (vr_flatreload_report: the turn and move it adds, the left hand's yaw, roll and outward
+# move mirrored), R (both reload) shuts them and the pose eases out over _out_time; hammer: the revolver's hammer frames
+# as drawn each frame after a pull (vr_reload_debug 3: the blend climbs over several frames, never straight to the new
+# frame; ADS too, vr_flat_aim 1).
+SSGPOSE_REP="vr_flatreload_report; wait2"
+run ssgpose "$FLAT" "$BASE; vr_flat_autoreload 0; impulse 175; wait5; impulse 155; give s 50; wait40; $SSGPOSE_REP; +attack; +offhandattack; wait3; -attack; -offhandattack; wait45; $SSGPOSE_REP; $R; wait90; $SSGPOSE_REP"
+FILTER="^(revolver frames: .* hand 1 |flatreload_test)"
+run hammer "$FLAT" "$BASE; vr_flat_autoreload 0; vr_test_give_wid 31; impulse 149; give s 50; wait40; vr_reload_debug 3; +attack; wait12; -attack; wait20; vr_flat_aim 1; wait40; +attack; wait12; -attack; wait20; vr_reload_debug 0"
+FILTER="^(flat ?reload|flathud: (left|right) hand|  stance|flatreload_test|reload: |a dry click|flatxhair: (main|off) kick)"
 run kick "$FLAT" "$BASE; vr_flat_reload 0; vr_flat_xhair_style 1; $SG; wait10; vr_flat_xhair_probe; +attack; wait4; -attack; vr_flat_xhair_probe; wait90; vr_flat_xhair_probe"
 
 python "$HERE/flatreload_check.py" "$S"

@@ -25,7 +25,9 @@
 #include "vr_protocol.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
@@ -50,9 +52,23 @@ struct Trip
     float pitch{0.f};
 };
 
+// Each hand's gun drawn open (his words 2026-11-10: "When the super shotgun is broken open in flatscreen automatically,
+// can you also smoothly adjust the pitch/yaw/roll of the gun at the same time to give it a more natural pose?"): the
+// super shotgun broken open (its weapon flag) or the revolver's cylinder out (its stat), as the server says.
+struct OpenPose
+{
+    float amount{0.f};   // the share of the open pose, before its ease
+    int kind{0};         // 0 none yet, 1 the super shotgun's tunables, 2 the revolver's (kept while it eases out)
+    bool open{false};    // last frame
+    double since{-1e9};  // when it opened or shut (vr_gametime)
+    glm::vec3 rot{0.f};  // what it added last frame (the report: pitch, yaw, roll)
+    glm::vec3 move{0.f}; // and its move (forward, up, outward)
+};
+
 struct ReloadState
 {
     Trip trip[2];
+    OpenPose openPose[2];
     bool keyDown{false};   // R, last frame
     int presses{0};
     double lastTime{-1e9};
@@ -90,6 +106,39 @@ ReloadState rs;
     return h == HAND_MAIN ? "main" : "off";
 }
 
+constexpr int weaponFlagSsgOpen = 32; // QC's QVR_WPNFLAG_SSG_OPEN (vr_defs.qc)
+constexpr int rvOpenBit = 4096;       // STAT_QVR_REVOLVER's cylinder swung out (QC vr_revolver.qc .vr_rv_hud)
+constexpr int rvHeldBit = 131072;     // and a revolver in that hand
+
+// What hand `h`'s gun is drawn open as now (0 shut, 1 the super shotgun broken open, 2 the revolver's cylinder out).
+[[nodiscard]] int openKind(int h)
+{
+    const bool main = h == HAND_MAIN;
+    const int rv = cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
+    if((rv & rvHeldBit) && (rv & rvOpenBit))
+    {
+        return 2;
+    }
+    const int flags = cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    return (flags & weaponFlagSsgOpen) ? 1 : 0;
+}
+
+struct OpenTune
+{
+    float pitch, yaw, roll, fwd, up, out, in, back;
+};
+
+[[nodiscard]] OpenTune openTune(int kind)
+{
+    if(kind == 2)
+    {
+        return {vr_flat_rv_open_pitch.value, vr_flat_rv_open_yaw.value, vr_flat_rv_open_roll.value, vr_flat_rv_open_fwd.value,
+            vr_flat_rv_open_up.value, vr_flat_rv_open_out.value, vr_flat_rv_open_in_time.value, vr_flat_rv_open_out_time.value};
+    }
+    return {vr_flat_ssg_open_pitch.value, vr_flat_ssg_open_yaw.value, vr_flat_ssg_open_roll.value, vr_flat_ssg_open_fwd.value,
+        vr_flat_ssg_open_up.value, vr_flat_ssg_open_out.value, vr_flat_ssg_open_in_time.value, vr_flat_ssg_open_out_time.value};
+}
+
 void report_f()
 {
     const int bits = cl.stats[protocol::STAT_QVR_FLATRELOAD];
@@ -99,6 +148,9 @@ void report_f()
         Con_Printf("flatreload: %s hand: server %d, share %.2f, hip %s, %.1f units from it, pitch %.1f, hotspot %d; R presses %d\n",
             handName(h), (bits >> h) & 1, share(h), t.hip == body::LeftHip ? "left" : "right", t.hipGap, t.pitch,
             hands::current().hotspot[h], rs.presses);
+        const OpenPose& o = rs.openPose[h];
+        Con_Printf("flatreload: %s hand: open %d kind %d share %.2f, turned %.1f %.1f %.1f, moved %.1f %.1f %.1f\n", handName(h),
+            o.open ? 1 : 0, o.kind, geom::smooth01(o.amount), o.rot.x, o.rot.y, o.rot.z, o.move.x, o.move.y, o.move.z);
     }
 }
 
@@ -108,6 +160,8 @@ void init()
 {
     Cmd_AddCommand("vr_flatreload_report", report_f);
 }
+
+void openFrame(float dt); // (below)
 
 void frame(bool on)
 {
@@ -119,6 +173,7 @@ void frame(bool on)
         rs = ReloadState{};
         return;
     }
+    openFrame(static_cast<float>(dt));
 
     // R: the game reloads every hand whose gun can take rounds (QC VR_FlatReload_Key).
     const int k = vr_flat_key_reload.string[0] ? Key_StringToKeynum(vr_flat_key_reload.string) : -1;
@@ -184,8 +239,73 @@ void frame(bool on)
     }
 }
 
+// Each frame (from frame): each hand's open pose eased in over its In Time while the server says the gun is open, out
+// over its Out Time once it is shut.
+void openFrame(float dt)
+{
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        OpenPose& o = rs.openPose[h];
+        const int kind = openKind(h);
+        const bool open = kind != 0;
+        if(open)
+        {
+            o.kind = kind;
+        }
+        if(open != o.open)
+        {
+            o.open = open;
+            o.since = vr_gametime;
+            if(vr_flat_reload_debug.value)
+            {
+                Con_Printf("flatreload: %s hand: the gun %s\n", handName(h), open ? "opens" : "shuts");
+            }
+        }
+        if(o.kind == 0)
+        {
+            continue;
+        }
+        const OpenTune t = openTune(o.kind);
+        const float before = o.amount;
+        o.amount = open ? za::min(1.f, o.amount + dt / za::max(0.02f, t.in))
+                        : za::max(0.f, o.amount - dt / za::max(0.02f, t.back));
+        if(vr_flat_reload_debug.value)
+        {
+            if(o.amount >= 1.f && before < 1.f)
+            {
+                Con_Printf("flatreload: %s hand in its open pose (%.2f s)\n", handName(h), vr_gametime - o.since);
+            }
+            if(o.amount <= 0.f && before > 0.f)
+            {
+                Con_Printf("flatreload: %s hand out of its open pose (%.2f s)\n", handName(h), vr_gametime - o.since);
+            }
+        }
+    }
+}
+
 void apply(hands::State& s)
 {
+    // The open gun's pose first (the trip to the hip, below, goes on from it): turned and moved in the body's frame, the
+    // yaw, roll and outward move mirrored for the left hand (the off hand).
+    for(int h : {HAND_OFF, HAND_MAIN})
+    {
+        OpenPose& o = rs.openPose[h];
+        const float a = geom::smooth01(o.amount);
+        o.rot = o.move = glm::vec3{0.f};
+        if(a <= 0.f || o.kind == 0)
+        {
+            continue;
+        }
+        const OpenTune t = openTune(o.kind);
+        const float side = h == HAND_MAIN ? 1.f : -1.f; // (yaw grows to the left: the right hand turns in by +yaw)
+        o.rot = glm::vec3{t.pitch, side * t.yaw, side * t.roll} * a;
+        o.move = glm::vec3{t.fwd, t.up, t.out} * a;
+        const float yaw = glm::radians(s.bodyYaw);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+        const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
+        s.rot[h] += o.rot;
+        s.pos[h] += fwd * o.move.x + glm::vec3{0.f, 0.f, o.move.y} + right * (side * o.move.z);
+    }
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         Trip& t = rs.trip[h];
@@ -217,6 +337,11 @@ void apply(hands::State& s)
 bool busy(int h)
 {
     return h >= 0 && h < 2 && (rs.trip[h].bit || rs.trip[h].amount > 0.f);
+}
+
+float openShare(int h)
+{
+    return h >= 0 && h < 2 ? geom::smooth01(rs.openPose[h].amount) : 0.f;
 }
 
 } // namespace qvr::flatreload
