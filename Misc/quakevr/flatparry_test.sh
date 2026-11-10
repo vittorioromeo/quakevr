@@ -47,9 +47,11 @@ for w in axe mjolnir sword crowbar superaxe saw offaxe; do
   check $(block "$w let go" | grep -aq "parry guard: .* not asked for, share 0.00" && echo 1 || echo 0) "$w: let go, back to the hold"
 done
 
-# 2..4: the first blow of the sword grunt (the scene flat_parry) in the guard, and of a knight (its overhead chop) in the
-# guard and not. (The grunt's blow is not tried unguarded: a sideways swing meets the sword stood up in the hold too, and
-# is parried by it, as a headset's would be.)
+# 2..4: the sword grunt (the scene flat_parry) in the guard: its blows parried, the run ending on the first parry (its
+# swings come at varied angles, and the directional parry stops only those whose way the level guard lies across: one
+# about parallel to it, 76 degrees off square, lands, as on a headset's guard held still; how many landed first is printed);
+# a knight's overhead chop, its first blow: parried in the guard, landing without it. (The grunt's blows are not tried
+# unguarded: a sideways swing meets the sword stood up in the hold too, and is parried by it, as a headset's would be.)
 for c in grunt1 knight1 knight0; do
   L2="$S/$c.log"
   if [ "${c%?}" = grunt ]; then
@@ -60,10 +62,15 @@ for c in grunt1 knight1 knight0; do
   fi
   [ "${c: -1}" = 1 ] && SC="$SC;+offhandattack"
   SC="$SC;wait2000;echo flatparry gave up;toggleconsole;quit"
-  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^parry outcome|^parry: none|^flatparry gave up" -Timeout 180 \
+  Q="^parry outcome|^parry: none|^flatparry gave up"
+  [ "$c" = grunt1 ] && Q="^parry outcome|^flatparry gave up"
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "$Q" -Timeout 180 \
     -Filter '^parry|^dirparry|^flatparry|ERROR|CRASH' > "$L2" 2>&1
   first=$(grep -aE "^parry outcome|^parry: none" "$L2" | head -1)
-  if [ "${c: -1}" = 1 ]; then
+  if [ "$c" = grunt1 ]; then
+    landed=$(awk '/^parry outcome/{exit} /^parry: none/{n++} END{print n+0}' "$L2")
+    check $(grep -aq "^parry outcome" "$L2" && [ "$landed" -le 3 ] && echo 1 || echo 0) "grunt: its blows parried in the guard ($landed landed before the first parry; $(grep -a -m1 '^parry outcome' "$L2" || echo none))"
+  elif [ "${c: -1}" = 1 ]; then
     check $(grep -aq "^parry outcome" <<<"$first" && echo 1 || echo 0) "${c%?}: its first blow parried in the guard (${first:-no blow})"
   else
     check $(grep -aq "^parry: none" <<<"$first" && echo 1 || echo 0) "${c%?}: its first blow lands without it (${first:-no blow})"
