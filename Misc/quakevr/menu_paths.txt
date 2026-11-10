@@ -4276,6 +4276,7 @@ vr_flat_parry_yaw|2|Tunables|Guard Yaw|Advanced VR Options > Debug > Tunables > 
 vr_flat_parry_roll|2|Tunables|Guard Roll|Advanced VR Options > Debug > Tunables > Guard Roll
 vr_flat_parry_in_time|2|Tunables|Guard In Time|Advanced VR Options > Debug > Tunables > Guard In Time
 vr_flat_parry_out_time|2|Tunables|Guard Out Time|Advanced VR Options > Debug > Tunables > Guard Out Time
+vr_flat_parry_cone|2|Tunables|Guard Parries From The Front|Advanced VR Options > Debug > Tunables > Guard Parries From The Front
 vr_flat_model_fov|2|Tunables|Model FOV|Advanced VR Options > Debug > Tunables > Model FOV
 vr_flat_model_fov_near|2|Tunables|Model FOV Full Up To|Advanced VR Options > Debug > Tunables > Model FOV Full Up To
 vr_flat_model_fov_far|2|Tunables|Model FOV None Past|Advanced VR Options > Debug > Tunables > Model FOV None Past
@@ -8908,6 +8909,7 @@ vr_armourstudio_tier|2|Armour Studio|Tier|Advanced VR Options > Debug > Tools > 
 vr_armourstudio_turn|2|Armour Studio|Turn|Advanced VR Options > Debug > Tools > Armour Studio > Turn
 vr_armourstudio_ghost|2|Armour Studio|Body Ghost|Advanced VR Options > Debug > Tools > Armour Studio > Body Ghost
 vr_armourstudio_alone|2|Armour Studio|Wear the Part Alone|Advanced VR Options > Debug > Tools > Armour Studio > Wear the Part Alone
+vr_armourstudio_autoclose|2|Armour Studio|Close With the Menu or Window|Advanced VR Options > Debug > Tools > Armour Studio > Close With the Menu or Window
 vr_armourstudio_part|2|Armour Studio|Part|Advanced VR Options > Debug > Tools > Armour Studio > Part
 vr_armourstudio_side|2|Armour Studio|Side|Advanced VR Options > Debug > Tools > Armour Studio > Side
 vr_armourstudio_offset_x|2|Armour Studio|Forward|Advanced VR Options > Debug > Tools > Armour Studio > Forward

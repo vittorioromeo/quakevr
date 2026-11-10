@@ -1182,6 +1182,9 @@ za::Vector<Item> pageArmourStudio()
             .help("vr_armourstudio_ghost: how opaque the subject's body is drawn (1 as it is), the plates whole."),
         toggle("Wear the Part Alone", vr_armourstudio_alone)
             .help("vr_armourstudio_alone: the subject wears only the part picked (both sides), the rest of its armour off."),
+        toggle("Close With the Menu or Window", vr_armourstudio_autoclose)
+            .help("vr_armourstudio_autoclose: leaving the menu, or closing the studio's window, closes the studio too: its subject "
+                  "removed, the armed humanoids free to move and be hurt again. Off: it runs until Close."),
         header("Part"),
         cycle("Part", vr_armourstudio_part,
             {{0.f, "Cuirass"}, {1.f, "Helmet"}, {2.f, "Pauldrons (Upper Arms)"}, {3.f, "Bracers (Forearms)"}, {4.f, "Thighs"},

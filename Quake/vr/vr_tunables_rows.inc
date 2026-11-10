@@ -2077,6 +2077,7 @@ QVR_TUNABLE_SLIDER(vr_flat_parry_yaw, "Guard Yaw", -89.f, 89.f, 5.f, "%.0f deg",
 QVR_TUNABLE_SLIDER(vr_flat_parry_roll, "Guard Roll", -180.f, 180.f, 5.f, "%.0f deg", -180.f, 180.f, "Flatscreen: and the weapon rolled this far about its own line, its edge from forward towards up (vr_flat_parry_roll).")
 QVR_TUNABLE_SLIDER(vr_flat_parry_in_time, "Guard In Time", 0.f, 2.f, 0.01f, "%.2f s", 0.f, 2.f, "Flatscreen: seconds into the guard from the hold; 0 at once (vr_flat_parry_in_time).")
 QVR_TUNABLE_SLIDER(vr_flat_parry_out_time, "Guard Out Time", 0.f, 2.f, 0.01f, "%.2f s", 0.f, 2.f, "Flatscreen: seconds back to the hold when the button is let go; 0 at once (vr_flat_parry_out_time).")
+QVR_TUNABLE_SLIDER(vr_flat_parry_cone, "Guard Parries From The Front", 0.f, 360.f, 5.f, "%.0f deg", 0.f, 360.f, "Flatscreen: in the guard, any melee blow from within this many degrees of where you look (the whole cone, centred on the view) is parried, whatever its way; the headset keeps the directional parry. 0: the headset's rules (vr_flat_parry_cone).")
 QVR_TUNABLE_GROUP("Flatscreen > Model FOV")
 QVR_TUNABLE_SLIDER(vr_flat_model_fov, "Model FOV", 0.f, 150.f, 1.f, "%.0f", 0.f, 170.f, "The field of view your own body, hands and weapons are drawn at, in the same terms as fov; the world keeps its own. Looks only. 0: off (vr_flat_model_fov).")
 QVR_TUNABLE_SLIDER(vr_flat_model_fov_near, "Model FOV Full Up To", 0.f, 100.f, 1.f, "%.0f units", 0.f, 200.f, "The model FOV applies in full up to this far from the eye (vr_flat_model_fov_near).")

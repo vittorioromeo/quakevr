@@ -2084,6 +2084,7 @@ QVR_TUNABLE(vr_flat_parry_yaw, "10") // and this far forward of straight across 
 QVR_TUNABLE(vr_flat_parry_roll, "0") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.15") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.2") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Model FOV
 QVR_TUNABLE(vr_flat_model_fov, "0") // the player's own models and what leaves them drawn at this field of view, in the same terms as fov (0: off, as the world's; flatplay::modelFov). Looks only
