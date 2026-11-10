@@ -1,0 +1,27 @@
+# arena_newguns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ROUND24.md, "Survival Arena: every armed humanoid's weapon")
+title Survival Arena: frozen grunts holding the weapons the waves gained (revolver, rifles, swords, chainsaw, hammers)
+map vrarena
+start 0 0 120 45
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_dual_chance 0
+cvar vr_agrunt_flaregun 0
+# Heavy revolver
+spawnarmed monster_vr_grunt 31 0 170 -192
+# Burst rifle
+spawnarmed monster_vr_grunt 15 0 170 -144
+# Enforcer's laser rifle
+spawnarmed monster_vr_grunt 16 0 170 -96
+# Knight's sword
+spawnarmed monster_vr_grunt 13 0 170 -48
+# Death knight's sword
+spawnarmed monster_vr_grunt 104 0 170 0
+# Chainsaw
+spawnarmed monster_vr_grunt 14 0 170 48
+# Crowbar
+spawnarmed monster_vr_grunt 17 0 170 96
+# Mjolnir
+spawnarmed monster_vr_grunt 3 0 170 144
+# Super Axe
+spawnarmed monster_vr_grunt 18 0 170 192

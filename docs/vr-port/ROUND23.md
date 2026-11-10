@@ -133,6 +133,9 @@ player by `VR_ARENA_HuntPlayer` (any other start leaves `takedamage 0`). The ski
 | lightning gun | 16 | 16-17 | 18-19 | 20 |
 | laser cannon (Armagon data) | 19 | 19-20 | 21-22 | 23 |
 
+Since ROUND24.md "Survival Arena: every armed humanoid's weapon" the table has 34 rows (every armed humanoid's weapon,
+the revolver, the rifles, the swords, the chainsaw and AD's weapons among them): that section has the current table.
+
 **Settings** (engine cvars; menu Combat > Survival Arena, with sub-pages The Waves, Armour, Cleanup):
 
 | cvar | default | meaning |

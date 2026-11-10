@@ -652,6 +652,7 @@ float(float dt, float firing) VR_AG_WalkFire =
 float VR_AG_CODE_SHADOWAXE = 101;
 float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
+float VR_AG_CODE_HKSWORD = 104;  // the death knight's (hell knight's) sword: the knight's sword with its secondary flag
 float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
                                 // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
@@ -670,6 +671,12 @@ float(float code) VR_AG_Decode =
         vr_ag_dec_wid = code == VR_AG_CODE_SHADOWAXE ? WID_AXE : code == VR_AG_CODE_WIDOWMAKER ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
         vr_ag_dec_up = AD_UpgradeFor(vr_ag_dec_wid);
         return vr_ad_data && VR_AD_FeatureScope(AD_UpgradeScope()); // (elsewhere a plain one: not this)
+    }
+    if(code == VR_AG_CODE_HKSWORD)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (weapon_hknight_sword's: the player's own, every campaign)
+        return TRUE;
     }
     if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)
     {
@@ -3349,7 +3356,8 @@ An armed grunt (experimental): a grunt holding one of your weapons. "weapon": it
 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; with Arcane Dimensions' data 20 AD rocket launcher, 21 AD
 grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer,
 28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace, 118 Dark Prince's
-sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; -1 its fists; 0 or unset: one from
+sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; any campaign 104 the death knight's
+sword (13 with its secondary flag); -1 its fists; 0 or unset: one from
 the pool). "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second weapon in its left hand (both
 one-handed: 2 axe, 13 sword, 17 crowbar, 101 Shadow Axe, 111..114 and 117..120 AD's swords; else one weapon).
 */
