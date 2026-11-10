@@ -7382,7 +7382,7 @@ His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
 - **Palm first** (`vr_flatfgrab.cpp`, new): E picks the hand on the client (main if free, else off: `held::handEmpty`, not
   holding the torch, not on a grab, nothing flying to it), turns it out over `vr_flat_fg_turn_time` (palm to the object as
   the server's preview has it, else the crosshair's far point; the palm's way is the jointed hand's measured one,
-  `grip::handFrame`), fingers opening (`flatplay::fistShare` scaled down), then sends `impulse 57/58` (QC
+  `grip::handFrame`), fingers opening (`flatplay::fistShare` scaled down), then sends `impulse 50/51` (QC
   `VR_Forcegrab_FlatGrab(xWant)`); holds the pose, palm on the flying object (STAT state 3), until it lands or misses, then
   eases back. The old 0.3 s forward "reach" offset on the off hand (`grabOffset`) is gone: it moved the off hand while QC
   pulled to the main hand.

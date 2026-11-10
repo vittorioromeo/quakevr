@@ -849,7 +849,7 @@ Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed
 The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; `vr_flatfgrab.cpp`). The hand that will take it
 (the main one if it is free, else the off one, the game's own choice) first turns its open palm to what it pulls
 (`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
-(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 57` the off hand, `58` the
+(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
 main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
 palm, in the headset too; flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
 is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling something takes no second grab (QC

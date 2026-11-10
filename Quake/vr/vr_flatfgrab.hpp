@@ -4,7 +4,7 @@
 // E (vr_flat_key_grab) no longer pulls at once. The hand that will take it (the main one if it is free, else the off one,
 // as the game chooses) first turns its palm to what it will pull and opens its fingers (vr_flat_fg_turn_time); a hand on a
 // held gun's two-handed grip lets go of it first, smoothly, and comes away from the gun (vr_flat_fg_detach_time more).
-// Then the grab is asked for, with that hand (impulse 57 the off hand, 58 the main), and the effect starts from its palm
+// Then the grab is asked for, with that hand (impulse 50 the off hand, 51 the main), and the effect starts from its palm
 // (vr_fgfx.cpp). The hand holds the pose, its palm on the object, while the object flies to it; caught or missed, it eases
 // back to its own pose (vr_flat_fg_release_time). A hand pulling something takes no second grab until the first is over
 // (his note 2026-11-10: two quick presses sent two objects at one hand); the next press goes to the other hand if it is free.

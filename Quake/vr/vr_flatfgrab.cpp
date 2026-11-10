@@ -2,7 +2,7 @@
 //
 // Each hand's grab goes Idle -> Turn -> Pull -> Back -> Idle on the game clock (vr_gametime: the same steps whatever the
 // frame rate). Turn: the share of the palm pose rises over vr_flat_fg_turn_time (and vr_flat_fg_detach_time more for a
-// hand on a gun's grip), the fingers open with it; at its end the grab is asked for (impulse 57 / 58). Pull: the pose
+// hand on a gun's grip), the fingers open with it; at its end the grab is asked for (impulse 50 / 51). Pull: the pose
 // held, the palm turned to the object as the server reports it (STAT_QVR_FGMAIN / _FGOFF: flying, state 3) until it stops
 // flying (caught or missed), the hand holds something, or the server never sent it flying (nothing to take: pullGrace).
 // Back: the share falls over vr_flat_fg_release_time.
@@ -119,7 +119,7 @@ void send(int h)
     g.at = vr_gametime;
     g.sawFlight = false;
     gs.sent++;
-    Cbuf_InsertText(h == HAND_OFF ? "impulse 57\n" : "impulse 58\n"); // QC weapons.qc: VR_Forcegrab_FlatGrab with that hand
+    Cbuf_InsertText(h == HAND_OFF ? "impulse 50\n" : "impulse 51\n"); // QC weapons.qc: VR_Forcegrab_FlatGrab with that hand
     if(vr_flatplay_debug.value)
     {
         Con_Printf("flatfgrab: %s hand: palm out, grab sent\n", handName(h));

@@ -357,8 +357,8 @@ float(float xHand) VR_Forcegrab_FlatFree =
 // Flatscreen play (-flatscreenmode): E. What the view is pointed at, taken with the free hand: the same search, the
 // same flight and the same catch as a force grab in VR, only asked for by a key instead of an open hand held out and
 // flicked (vr_flatplay.cpp sends impulse 46; weapons.qc answers it). With both hands full there is no hand to collect
-// with, and E does nothing. `xWant`: the hand the client turned palm out for it (vr_flatfgrab.cpp: impulse 57 the off
-// hand, 58 the main), taken when it is still free; -1 (impulse 46) or not free: the rule below.
+// with, and E does nothing. `xWant`: the hand the client turned palm out for it (vr_flatfgrab.cpp: impulse 50 the off
+// hand, 51 the main), taken when it is still free; -1 (impulse 46) or not free: the rule below.
 void(float xWant) VR_Forcegrab_FlatGrab =
 {
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0)
