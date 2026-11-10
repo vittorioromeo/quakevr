@@ -1,0 +1,8 @@
+# flat_seated: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) play with Position: Seated set: it stands all the same (Misc/quakevr/flatseated_test.sh).
+title Flat-screen: standing with Position: Seated set
+hint Play with -flatscreenmode. Position: Seated is set for this test: you still stand at full height, Ctrl crouches, lying down lies down, and the holsters and pouches sit where they do standing.
+map vrtesthall
+god
+notarget
+cvar vr_bodycal_seated 1
+give "Shotgun" main

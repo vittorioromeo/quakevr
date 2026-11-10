@@ -23,7 +23,10 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 
 #include <glm/glm.hpp>
 
@@ -468,11 +471,14 @@ void testFrame()
                     test.legsOffMax);
                 check(test.chestOffMax < 8.f, "slide, the view turned 40: the chest turns back to the view (at most %.1f deg off it)",
                     test.chestOffMax);
-                // (His note 2026-11-08: turning, the body's rotation stepped, not smoothed.)
+                // (His note 2026-11-08: turning, the body's rotation stepped, not smoothed.) Eased, a frame's step is a share
+                // of the whole turn (the spring's fastest frame: 0.16 of it at 72 fps and 0.15 s; a step, all of it), so the
+                // limit scales with how far they went (100 off the slide's way is past vr_flat_slide_back_start: the legs
+                // come back towards the view, a longer turn than the twist's most alone).
                 const float smooth = vr_flat_slide_turn_smooth.value;
-                check(test.turn2Frames >= 10 && test.hipWent > 20.f && (smooth <= 0.f || test.hipStepMax < 6.f),
+                check(test.turn2Frames >= 10 && test.hipWent > 20.f && (smooth <= 0.f || test.hipStepMax < 0.25f * test.hipWent),
                     "slide, the view turned 60 more: the hips follow, eased (they went %.1f deg in %d frames, at most %.1f in one; "
-                    "under 6 eased over %.2f s)", test.hipWent, test.turn2Frames, test.hipStepMax, smooth);
+                    "under a quarter of it eased over %.2f s)", test.hipWent, test.turn2Frames, test.hipStepMax, smooth);
                 Cbuf_InsertText("-flatcrouch\n");
                 next(99);
                 break;
@@ -504,7 +510,7 @@ void testFrame()
                 {
                     test.turned2 = true;
                     test.hipYawFrom = test.hipYawLast = hipYaw;
-                    cl.viewangles[YAW] += 60.f; // (100 off the slide's way: 30 past vr_flat_slide_legs_twist's 70)
+                    cl.viewangles[YAW] += 60.f; // (100 off the slide's way: past vr_flat_slide_legs_twist's 70)
                 }
             }
             break;
@@ -529,6 +535,267 @@ void report_f()
         bodyPitch.angle, hull::localProne(), flatmove::sliding() ? 1 : 0);
 }
 
+// vr_body_slideback_test: flat-screen slides away from the view (his note 2026-11-10: "Sliding backwards or diagonally
+// backwards while looking ahead looks a bit jittery/funky -- the legs should still stay in front"). Each case runs from
+// the test's start spot with its keys, slides, and measures every frame of the full pose: the hips' yaw off the view, its
+// flips from one side to the other, its largest step in a frame, and the legs (the feet off the pelvis, in the view's
+// frame): their yaw off the view and their largest step in a frame. Straight back and diagonally back: the legs stay out
+// in front (within vr_flat_slide_back_full's fade); sideways, the legs still turn the slide's way. Run it at any
+// vr_fixed_frames_rate (the tests: 120). "shot": a screenshot of each of the first two, looking down. Prints
+// "flatslideback: N passed, M failed".
+struct SlideBackCase
+{
+    const char* name;
+    const char* keys; // the movement keys held (the +commands, without the sign)
+    float velOff;     // the slide's way off the view, degrees (+ left; Quake's back and side keys: 120, cl_backspeed under cl_sidespeed)
+    bool legsFront;   // the legs stay in front (true) or turn the slide's way (sideways)
+};
+constexpr SlideBackCase slideBackCases[] = {
+    {"back", "back", 180.f, true},
+    {"back-left", "back;+moveleft", 120.f, true},
+    {"back-right", "back;+moveright", -120.f, true},
+    {"left", "moveleft", 90.f, false},
+};
+constexpr float SLIDEBACK_WOBBLE = 4.f; // degrees
+constexpr int SLIDEBACK_CASES = static_cast<int>(sizeof(slideBackCases) / sizeof(slideBackCases[0]));
+
+struct SlideBackTest
+{
+    int phase{0}; // 0 off, 1 placed (settling), 2 running, 3 sliding, 99 the verdict
+    int at{0};    // the case
+    double phaseAt{0.0};
+    glm::vec3 start{0.f};
+    float startYaw{0.f};
+    float viewYaw{0.f}; // the case's view, before the hand's wobble on the mouse
+    bool shot{false};   // "shot": a screenshot 50 frames into the full pose straight back and back-left, looking down
+    testkit::Tally tally;
+    int frames{0}, flips{0};
+    float offMax{0.f}, offLast{0.f}, hipLast{0.f}, hipStepMax{0.f};
+    float legOffMax{0.f}, legLast[2]{}, legStepMax{0.f};
+    glm::vec3 kneeLast[2]{};
+    float kneeStepMax{0.f};
+    glm::vec2 velOffSum{0.f}; // the slide's way off the view, summed as unit vectors (straight back is +-180)
+};
+SlideBackTest sb;
+
+void sbNext(int phase)
+{
+    sb.phase = phase;
+    sb.phaseAt = vr_gametime;
+}
+
+void sbKeys(const SlideBackCase& c, bool down)
+{
+    char line[96];
+    q_snprintf(line, sizeof(line), down ? "+%s\n" : "-%s\n", c.keys);
+    // ("back;+moveleft": the second key's own sign flipped too.)
+    for(char* p = line + 1; *p; p++)
+    {
+        if(*p == '+' && !down)
+        {
+            *p = '-';
+        }
+    }
+    Cbuf_InsertText(line);
+}
+
+void sbPlace()
+{
+    const SlideBackCase& c = slideBackCases[sb.at];
+    // The view turned so that the slide heads the way the test started facing (open floor from the start spot).
+    // (Not setpos: it turns noclip on.)
+    if(edict_t* pl = progs::localPlayer())
+    {
+        progs::ServerVm vm;
+        pl->v.origin[0] = sb.start.x;
+        pl->v.origin[1] = sb.start.y;
+        pl->v.origin[2] = sb.start.z;
+        pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+        SV_LinkEdict(pl, false);
+    }
+    cl.viewangles[YAW] = sb.startYaw - c.velOff;
+    const int keep = sb.at;
+    const glm::vec3 start = sb.start;
+    const float startYaw = sb.startYaw;
+    testkit::Tally tally = sb.tally;
+    const bool shot = sb.shot;
+    sb = SlideBackTest{};
+    sb.at = keep;
+    sb.start = start;
+    sb.startYaw = startYaw;
+    sb.tally = tally;
+    sb.shot = shot;
+    sb.viewYaw = cl.viewangles[YAW];
+    cl.viewangles[PITCH] = shot ? 30.f : 0.f;
+    sbNext(1);
+}
+
+void sbCheck(bool ok, const char* fmt, ...)
+{
+    char line[320];
+    va_list args;
+    va_start(args, fmt);
+    q_vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+    if(ok)
+    {
+        Con_Printf("flatslideback: PASS %s\n", line);
+    }
+    sb.tally.check(ok, "flatslideback", line);
+}
+
+void slideBackFrame()
+{
+    if(sb.phase == 0)
+    {
+        return;
+    }
+    const edict_t* pl = progs::localPlayer();
+    if(!pl || !flatplay::active())
+    {
+        sbCheck(false, "a flat-screen game you host is needed");
+        sbNext(99);
+    }
+    const SlideBackCase& c = slideBackCases[sb.at < SLIDEBACK_CASES ? sb.at : 0];
+    const double in = vr_gametime - sb.phaseAt;
+    if(in > 10.0 && sb.phase != 99)
+    {
+        sbCheck(false, "%s: timed out in step %d (sliding %.2f)", c.name, sb.phase, bodyPitch.sliding);
+        sbKeys(c, false);
+        Cbuf_InsertText("-flatcrouch\n");
+        sbNext(99);
+    }
+    const float speed = pl ? glm::length(glm::vec2{pl->v.velocity[0], pl->v.velocity[1]}) : 0.f;
+    switch(sb.phase)
+    {
+        case 1: // placed: standing still, out of any slide and its cooldown
+            if(in > 0.8 && speed < 20.f && !flatmove::sliding() && bodyPitch.sliding < 0.01f)
+            {
+                sbKeys(c, true);
+                sbNext(2);
+            }
+            break;
+        case 2: // running up to speed
+            if(in > 0.6 && speed > vr_flat_slide_min.value + 40.f && (static_cast<int>(pl->v.flags) & FL_ONGROUND))
+            {
+                Cbuf_InsertText("+flatcrouch\n");
+                sbNext(3);
+            }
+            break;
+        case 3: // sliding: every frame of the full pose
+        {
+            // A hand on the mouse is never still: the view wobbles a few degrees (straight back, across the slide's way).
+            cl.viewangles[YAW] = sb.viewYaw + SLIDEBACK_WOBBLE * za::sin(static_cast<float>(in) * 2.f * glm::pi<float>() * 1.3f);
+            if(!flatmove::sliding() && in > 0.3)
+            {
+                sbKeys(c, false);
+                Cbuf_InsertText("-flatcrouch\n");
+                const float velOff = glm::degrees(za::atan2(sb.velOffSum.y, sb.velOffSum.x));
+                Con_Printf("flatslideback: %s: %d frames, the slide %.0f deg off the view; hips off the view at most %.1f deg, "
+                           "%d flips, step %.2f deg/frame; legs off the view at most %.1f deg, step %.2f deg/frame, knees "
+                           "%.2f units/frame\n",
+                    c.name, sb.frames, velOff, sb.offMax, sb.flips, sb.hipStepMax, sb.legOffMax, sb.legStepMax,
+                    sb.kneeStepMax);
+                sbCheck(sb.frames >= 20, "%s: %d frames in the full pose", c.name, sb.frames);
+                sbCheck(za::abs(geom::yawDelta(velOff, c.velOff)) < 15.f, "%s: the slide went %.0f deg off the view (%.0f wanted)",
+                    c.name, velOff, c.velOff);
+                if(c.legsFront)
+                {
+                    sbCheck(sb.offMax < 10.f, "%s: the hips face the view (at most %.1f deg off it)", c.name, sb.offMax);
+                    sbCheck(sb.legOffMax < 25.f, "%s: the legs out in front (at most %.1f deg off the view)", c.name, sb.legOffMax);
+                }
+                else
+                {
+                    sbCheck(sb.offMax > 45.f, "%s: the hips still turn the slide's way (%.1f deg off the view)", c.name, sb.offMax);
+                }
+                sbCheck(sb.flips == 0, "%s: the hips never flip side (%d flips)", c.name, sb.flips);
+                sbCheck(sb.hipStepMax < 2.f && sb.legStepMax < 2.f && sb.kneeStepMax < 1.f,
+                    "%s: no jitter (a frame's step at most: hips %.2f deg, legs %.2f deg, knees %.2f units)", c.name,
+                    sb.hipStepMax, sb.legStepMax, sb.kneeStepMax);
+                sb.at++;
+                if(sb.at < SLIDEBACK_CASES)
+                {
+                    sbPlace();
+                }
+                else
+                {
+                    sbNext(99);
+                }
+                break;
+            }
+            if(bodyPitch.sliding < 0.995f || in < 0.3)
+            {
+                break;
+            }
+            const Body& b = probe.body;
+            const float view = cl.viewangles[YAW];
+            const float hip = geom::yawOf(b.fwd);
+            const float off = geom::yawDelta(hip, view);
+            const glm::vec3 pelvis = b.bones[Pelvis].pos;
+            float leg[2];
+            glm::vec3 knee[2];
+            for(int side = 0; side < 2; side++)
+            {
+                const int thigh = side == 0 ? ThighL : ThighR;
+                leg[side] = geom::yawDelta(geom::yawOf(b.bones[thigh + 2].pos - pelvis), view);
+                knee[side] = b.bones[thigh + 1].pos - pelvis;
+            }
+            if(sb.frames > 0)
+            {
+                if((off > 5.f && sb.offLast < -5.f) || (off < -5.f && sb.offLast > 5.f))
+                {
+                    sb.flips++;
+                }
+                sb.hipStepMax = za::max(sb.hipStepMax, za::abs(geom::yawDelta(hip, sb.hipLast)));
+                for(int side = 0; side < 2; side++)
+                {
+                    sb.legStepMax = za::max(sb.legStepMax, za::abs(geom::yawDelta(leg[side], sb.legLast[side])));
+                    sb.kneeStepMax = za::max(sb.kneeStepMax, glm::distance(knee[side], sb.kneeLast[side]));
+                }
+            }
+            sb.offMax = za::max(sb.offMax, za::abs(off));
+            sb.legOffMax = za::max(sb.legOffMax, za::max(za::abs(leg[0]), za::abs(leg[1])));
+            sb.offLast = off;
+            sb.hipLast = hip;
+            for(int side = 0; side < 2; side++)
+            {
+                sb.legLast[side] = leg[side];
+                sb.kneeLast[side] = knee[side];
+            }
+            const float velOff = glm::radians(geom::yawDelta(geom::yawOf(glm::vec3{pl->v.velocity[0], pl->v.velocity[1], 0.f}), view));
+            sb.velOffSum += glm::vec2{za::cos(velOff), za::sin(velOff)};
+            sb.frames++;
+            if(sb.shot && sb.frames == 50 && sb.at < 2)
+            {
+                Cbuf_InsertText("screenshot\n");
+            }
+            break;
+        }
+        default:
+            sb.tally.verdict("flatslideback");
+            sb = SlideBackTest{};
+            probe.armed = test.phase != 0;
+            break;
+    }
+}
+
+void slideBackTest_f()
+{
+    const edict_t* pl = progs::localPlayer();
+    if(!pl)
+    {
+        Con_Printf("flatslideback: a game you host is needed\n");
+        return;
+    }
+    sb = SlideBackTest{};
+    sb.shot = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "shot");
+    sb.start = glm::vec3{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]};
+    sb.startYaw = cl.viewangles[YAW];
+    Con_Printf("flatslideback: from %.0f %.0f %.0f, the slides heading yaw %.0f\n", sb.start.x, sb.start.y, sb.start.z, sb.startYaw);
+    probe.armed = true;
+    sbPlace();
+}
+
 // vr_body_lie_test [vr]: flat-screen play's lying down and slides; "vr": the headset's lying down (the mock's head).
 void test_f()
 {
@@ -551,12 +818,14 @@ void captureLieProbe(const Body& b, const hands::State& s)
     probe.eye = s.head;
     probe.frames++;
     testFrame();
+    slideBackFrame();
 }
 
 void initLie()
 {
     Cmd_AddCommand("vr_body_lie_report", report_f);
     Cmd_AddCommand("vr_body_lie_test", test_f);
+    Cmd_AddCommand("vr_body_slideback_test", slideBackTest_f);
 }
 
 } // namespace qvr::avatar::detail

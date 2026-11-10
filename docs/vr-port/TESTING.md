@@ -592,7 +592,8 @@ a two-handed gun's free hand hanging for it, weapon switches and Q mid-trip, and
 
 `bash Misc/quakevr/flatmove_test.sh <agent>`: the flat-screen crouch's slowing against the headset's, Quake's swimming by look
 and jump in e1m4's deep water, and the water jump out of the start map's pool (`vr_flatmove_test`; FLATPLAY.md, "Swimming").
-`bash Misc/quakevr/flatslide_test.sh <agent>`: the flat-screen slide (its step's self-test, a run's slide, the jump out of it) and lean (the eye and the roll, the hit box, the slower walk, the wall's clamp, the sights leant, the keys Q / E / 3 / R and the old binds they skip); FLATPLAY.md, "Sliding" and "Leaning".
+`bash Misc/quakevr/flatslide_test.sh <agent>`: the flat-screen slide (its step's self-test, a run's slide, the jump out of it) and lean (the eye and the roll, the hit box, the slower walk, the wall's clamp, the sights leant, the keys Q / E / 3 / R and the old binds they skip, slides back and diagonally back at 120 fps keeping the legs in front: `vr_body_slideback_test`); FLATPLAY.md, "Sliding" and "Leaning".
+`bash Misc/quakevr/flatseated_test.sh <agent>`: flat-screen play stands with Position: Seated set (the same eye height, crouch, lying down, legs and holsters as Standing); SEATED.md.
 `bash Misc/quakevr/flatcrouch_test.sh <agent>`: the flat-screen crouch eases both ways, the eye and the held weapon's hand
 never stepping more in a frame than the ease allows (`vr_flat_crouch_trace`), the full drop and back, and Gun Down Crouched
 moving the crouched hand (FLATPLAY.md, "The crouch's ease").

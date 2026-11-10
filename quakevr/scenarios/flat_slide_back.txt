@@ -1,0 +1,9 @@
+# flat_slide_back: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) slides away from the view (vr_body_slideback_test, Quake/vr/vr_avatar_lie.cpp): open floor behind you.
+title Flat-screen: sliding backwards and diagonally backwards
+hint Play with -flatscreenmode. Run backwards (S, then S with A or D) and crouch at speed to slide, looking ahead and down at your legs: they stay out in front, no twisting from side to side and no jitter. Sliding sideways (A or D alone) the legs still turn the slide's way.
+map vrtesthall
+start 0 -288 25 -90
+god
+notarget
+cvar vr_flat_slide_stamina 0
+give "Shotgun" main

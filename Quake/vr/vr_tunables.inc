@@ -2165,6 +2165,8 @@ QVR_TUNABLE(vr_flat_slide_leg_reach, "0.993") // the slide: the legs out in fron
 QVR_TUNABLE(vr_flat_slide_turn_time, "0.12") // the slide: seconds the two-handed stance's turn of the torso takes to go (and come back after): sliding, the trunk faces the view or the slide's way
 QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the slide's way, the chest turned back to the view (at most vr_flat_slide_legs_twist); 0: the whole body faces the view
 QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
+QVR_TUNABLE(vr_flat_slide_back_start, "90") // the slide: its way this many degrees off the view or more, the legs start coming back to the view (0..180)
+QVR_TUNABLE(vr_flat_slide_back_full, "120") // the slide: its way this many degrees off the view or more (back, diagonally back), the legs stay out in front of the view (vr_flat_slide_back_start..180)
 QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
 QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
 QVR_TUNABLE(vr_flat_slide_stamina, "15") // the slide: stamina it costs (0..100; the parry stamina's pool, the visor's STAM), in vr_flat_slide_stamina_parts parts; with less than one part left a crouch at speed is no slide; 0 free

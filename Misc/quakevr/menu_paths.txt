@@ -4364,6 +4364,8 @@ vr_flat_slide_leg_reach|2|Tunables|Slide Leg Reach|Advanced VR Options > Debug >
 vr_flat_slide_turn_time|2|Tunables|Slide Stance Turn Time|Advanced VR Options > Debug > Tunables > Slide Stance Turn Time
 vr_flat_slide_legs|2|Tunables|Slide Legs Follow Slide|Advanced VR Options > Debug > Tunables > Slide Legs Follow Slide
 vr_flat_slide_legs_twist|2|Tunables|Slide Legs Most Twist|Advanced VR Options > Debug > Tunables > Slide Legs Most Twist
+vr_flat_slide_back_start|2|Tunables|Slide Back Legs Start|Advanced VR Options > Debug > Tunables > Slide Back Legs Start
+vr_flat_slide_back_full|2|Tunables|Slide Back Legs Full|Advanced VR Options > Debug > Tunables > Slide Back Legs Full
 vr_flat_slide_bob|2|Tunables|Slide Walk Bob|Advanced VR Options > Debug > Tunables > Slide Walk Bob
 vr_flat_slide_sound|2|Tunables|Slide Sound Volume|Advanced VR Options > Debug > Tunables > Slide Sound Volume
 vr_flat_slide_stamina|2|Tunables|Slide Stamina Cost|Advanced VR Options > Debug > Tunables > Slide Stamina Cost

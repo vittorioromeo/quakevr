@@ -17,7 +17,7 @@ struct TrackingState;
 namespace qvr::seated
 {
 
-// Seated play is on (vr_bodycal_seated).
+// Seated play is on (vr_bodycal_seated); never in flatscreen play, which always stands (the setting stays the headset's).
 [[nodiscard]] bool active();
 
 // Your eyes' height sitting, metres: vr_seated_height, or 0.74 of the standing height while it isn't measured.
