@@ -73,6 +73,12 @@ Cut a limb or head off onto the blade, then punch it or strike it with the other
 Swing and chop an axe or sword at a grunt's chest and shoulders: it dies without losing its head; a cut across the neck still beheads it, and the training dummy says "would behead" only for blows it calls a head hit.
 Swing the axe hard into a dead grunt's ragdoll: the axe stays in it (grab it back out) instead of the body bursting into gibs.
 Chop and slash with the Super Axe's blade: the blows land as the head (and stay in when hard enough), not as pommel strikes; the white blow line with Show Melee Blades ends at the middle of the blade's edge. {test:superaxe_blade}
+Flat-screen: press the force grab on a rock with both hands free: the right hand first turns its open palm to the rock, then the beam starts from the middle of that palm, not above the hand. {test:flat_force_grab}
+Flat-screen: holding the super shotgun with both hands, press the force grab: the left hand slides off the fore-end smoothly, moves out beside the gun with its palm to the target, then pulls; after the catch or a miss it goes back. {test:flat_force_grab}
+Flat-screen: press the force grab twice quickly on two things: never do both fly at the same hand; the second goes to the other hand if it is free, else nothing happens. {test:flat_force_grab}
+Flat-screen: a force-grabbed brick or rock is held up in front of you in an open hand, sitting upright as it lay, not hung at your side or in a fist. {test:flat_force_grab}
+Flat-screen: walk and turn the mouse fast holding a force-grabbed brick: it stays in the hand, no bobbing, no lagging behind or ahead of it. {test:flat_force_grab}
+In VR, force grab a brick or a gib: the beam starts from your palm, and the thing stops tumbling as it arrives and sits in the hand upright as it lay.
 [2. VR: body, lying down and swimming]
 Lie down and crawl with your arms: a hand only drags you when its knuckles are on the floor (a hand a few cm up swims no more; Arm Crawl Floor Height 1, steps of 0.25, 0 allowed) {test:prone_floor}
 Crawl hand pose: with Empty Hand Crawls When = Closed (default) an open empty hand resting or sliding on the floor does nothing, a fist (grip or trigger) drags you; Open and Either do as named; the shotgun hand always drags {test:prone_floor}
