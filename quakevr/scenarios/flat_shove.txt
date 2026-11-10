@@ -1,0 +1,11 @@
+# flat_shove: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) shove: the windup, the palms, the two-handed and dual-wield shoves, the whoosh (docs/vr-port/FLATPLAY.md, the Mouse 5 row).
+title Flat-screen shove: grunts to shove with empty hands, a gun in each hand, and a two-handed gun
+hint Play with -flatscreenmode. Mouse 5 with empty hands: both hands draw back, palms turn to the grunt with the fingers up, then push fast, a little above the crosshair, with a soft whoosh. Take the shotgun and the nail gun (one in each hand): both hands shove, guns kept in them, turned palms out. Drop one and take the rocket launcher: the left hand lets go of its grip and shoves. Tunables > Flatscreen > Shove And Melee: Always Two-Handed Shove 1 makes every shove two-handed.
+map vrtesthall
+god
+notarget
+spawn "Shotgun" 40 70
+spawn "Nailgun" 40 -70
+spawn "Rocket Launcher" 80 0
+spawn "Grunt" 120 30
+spawn "Grunt" 120 -30

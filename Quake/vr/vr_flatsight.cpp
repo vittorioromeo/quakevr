@@ -1241,12 +1241,13 @@ void pushBack(hands::State& s, const glm::vec3& aim)
             s.grip2H[h] += moved;
             s.pos[st.helping] += moved * st.pinShare;
         }
-        // A melee weapon's swing (flatplay's punch) stops at the surface (his notes 2026-11-08: it went through walls and
-        // props): back along the way to its shoulder at once, no ease, as far as keeps its points vr_flat_punch_wall_margin
-        // off them, so the blow still meets the wall (QC's wall blows) and goes no further. An empty hand's punch:
-        // flatplay's handOffWall.
+        // A weapon's swing (flatplay's punch: the overhead swing, vr_flat_swing) stops at the surface (his notes
+        // 2026-11-08: it went through walls and props): back along the way to its shoulder at once, no ease, as far as
+        // keeps its points vr_flat_punch_wall_margin off them, so the blow still meets the wall (QC's wall blows) and goes
+        // no further. Any weapon, a gun's too (his notes 2026-11-10: a melee strike with a weapon went into the wall; a gun
+        // swung with V was not stopped at all). An empty hand's punch: flatplay's handOffWall.
         st.swingStop[h] = 0.f;
-        if(flatplay::punching(h) && flatplay::meleeIn(h) && vr_flat_hand_collide.value != 0.f)
+        if(flatplay::punching(h) && vr_flat_hand_collide.value != 0.f)
         {
             const Turned at = turnedAt(s, h, s.pos[h], glm::mat3{1.f});
             const glm::vec3 handNow = glm::transpose(view) * (s.pos[h] - org);
@@ -1598,7 +1599,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
         st.lookFar = soft >= 1.f;
     }
     const bool reaching = st.helping == HAND_OFF && glm::length(reach) > 0.f; // E: a force grab reaches out with it
-    st.lookFast = longGun && (reaching || flatplay::punching(st.helping));
+    st.lookFast = longGun && (reaching || flatplay::punching(st.helping) || flatplay::shoving(st.helping));
     st.lookWanted = st.stanceWanted && !carry && !st.lookFar && !st.lookFast;
     if(st.lookWanted)
     {
@@ -1804,7 +1805,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
-    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding);
+    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) && !flatreload::busy(st.holding);
     QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));

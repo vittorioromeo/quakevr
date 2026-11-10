@@ -51,6 +51,13 @@ struct FireRoute
 // Whether this hand's punch is running (its clock: flatplay's own, so never in a headset). The free hand on a grip lets go
 // of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
 [[nodiscard]] bool punching(int h);
+// Whether this hand pushes in a shove running now (its windup, push and way back; vr_flat_key_shove). The free hand on a
+// grip lets go of it for as long, as for a punch.
+[[nodiscard]] bool shoving(int h);
+// The drawn view's tilt from a blow (degrees: pitch down, 0, roll): a punch tips it into the punch, a weapon's overhead
+// swing back with the windup and forward with the strike (vr_flat_punch_cam_*, vr_flat_swing_cam_*). The view only: the
+// aim and the shots stay (VR_FlatViewLean adds it). 0 outside the mode.
+[[nodiscard]] glm::vec3 meleeViewTilt();
 // How far empty hand `h`'s fingers close into a fist (0 open .. 1): its rest's share of the guard
 // (vr_flat_empty_hand_pose), and all the way while it punches.
 [[nodiscard]] float fistShare(int h);
@@ -215,13 +222,17 @@ void printMove(const hands::State& s);
 // vr_flatplay_status: what the mode is, and its pose.
 void status_f();
 
-// vr_flat_punch [main|off]: a hand's punch from the console, for the tests (V is a key and cannot be driven from a
+// vr_flat_punch [main|off] [v]: a hand's punch from the console, for the tests (V is a key and cannot be driven from a
 // script; the fire buttons can, through +attack and +offhandattack). Only while the mode runs, and only with a weapon a
-// swing strikes with.
+// swing strikes with; `v` as V's punch, whatever the hand holds (a gun's overhead swing).
 void punch_f();
 
 // vr_flat_shove_now: the shove key's shove from the console (vr_flat_key_shove's; the tests' button).
 void shoveNow_f();
+
+// vr_flat_melee_probe [1|0|done]: each punch's, overhead swing's and shove's numbers, a "flatmelee:" line as each ends
+// (the hand over the eye, the weapon up and down, the shove's palm and fingers, the view's tilt); `done` the tests' end.
+void meleeProbe_f();
 
 // vr_flat_flick_test [frames] [degrees]: the view flicked hard, as the tests' mouse ("flatflick: done" at its end).
 void flickTest_f();
