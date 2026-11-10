@@ -8150,3 +8150,37 @@ His note on `vr_flatblood_test 3`'s picture: "the particles seem like red square
 - The fire delay grows from 0.056 s (4 ticks) to 0.111 s (8 ticks): +0.055 s. The rate of fire is unchanged:
   `vr_revolver_cooldown` (0.3 s) counts from the pull, not from the fall.
 - Test: flatreload_test.sh `hammer` run / flatreload_check.py: each pull's hammer reaches blend 1.000 on the cocked pose.
+
+## Flat: force-grabbed props in the fist, struck with; torches upright; the 2H grip let go while the free hand holds anything (branch `agent/flat_fgprops`, worktree `blendmodels`, 2026-11-10)
+
+His notes: a prop pulled with the force grab should sit in the hand as the fists do and strike with them (the swing
+by default, an option for the punch), a torch should come up flame up; and a prop caught by the off hand beside a
+two-handed gun must not go back to the gun's hotspot with it: the gun goes one-handed, as when dual wielding.
+
+- **The fist's guard** (`vr_flat_carry_pose` 1 -> **2**; 1 is the old held-up pose, 0 the empty hand's): a prop in one hand
+  alone (`flatplay::propInFist`) takes the empty hand's guard pose (`vr_flat_guard_*`) whatever `vr_flat_empty_hand_pose`
+  says, the fingers closed on it (`fistShare` 1.00). It stays in the guard through its blows: they are measured from it.
+- **Its blows**: V or its fire button. `vr_flat_prop_melee` 1 (default) the weapons' overhead swing (`overheadSwing`,
+  applied after the guard's pose, so it goes from the guard and back to it), 0 the fist's straight punch (`punchSwing`
+  from the guard; `guards` off for it). `vr_flat_prop_v` 1: V strikes with the prop's hand (the main hand's first), so a
+  prop in the off hand beside a gun can be swung (the right button aims that gun). `vr_flat_punch v` presses V from the
+  console. The game's melee already takes a carried prop as what strikes (`VR_Melee_Thing` FIST or a torch's CLUB, with
+  `VR_Carry_PunchMult`): no QC change. Measured (test 7): the swing hurts a grunt 36 units ahead (200), the punch a fresh
+  one 28 units ahead (200; at 36 it falls short, as the empty fist's does: flatmelee's knight is 24 units ahead), 9 of 9
+  runs. (The punch's "no damage" was the test's: the grunt the swing had hit turned on him and moved, so the punch met it
+  at whatever place and speed: 2 of 9 hit. Each blow now gets a fresh grunt standing still.)
+- **The torch upright** (`vr_flat_torch_upright` 1): a torch held in one hand (`walltorch::isStick`; its stick is the
+  model's +x, QC `VR_WallTorch_Take`) has its hand turned the short way round until the stick stands up
+  (`flatfgrab` `uprightPose`, from `held::placeInHand`), eased with `vr_flat_carry_time`, not while it strikes or
+  reaches. Test 7: caught lying on its side, 20 deg off upright with 0, 1 deg with 1 (`vr_flat_fg_report`: 0.0). (A
+  torch the test made with no classname was caught but never held: `VR_WallTorch_OnWall` reads the classname, so the
+  launch didn't take it off its wall and the catch's handtouch was the wall's, which wants a fresh grip. The map's and
+  the toolgun's torches have it; the test now sets it.)
+- **The 2H grip** (`flatplay::holdsThing`: the server's carry stat or a drawn held entity): flatsight `gripWanted` and
+  `emptyHand` (no stance: the gun's one-handed pose), twohand `hotspotAims`. twohand `canGrab` already refused through
+  `held::handEmpty`; the drawn hand went back to the hotspot through flatsight alone. Test 7: 0 frames two-handed after
+  the catch, the off hand 26.5 units off where it held the fore-end, in the guard.
+- Shared with VR: the guard pose, `startPunch` / `overheadSwing`, the game's melee rules. Flat-only: the torch's turn
+  (asked for flatscreen only) and the poses themselves.
+- Test: `vr_flatitems_test 7` (flatitems_test.sh `prop`), `vr_flat_fg_report` now prints `fist prop`, `fist`, `torch`,
+  `upright` and the stick's `off`.

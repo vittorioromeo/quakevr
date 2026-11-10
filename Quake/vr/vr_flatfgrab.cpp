@@ -152,10 +152,13 @@ void report_f()
         glm::vec3 at{0.f};
         const bool known = fgfx::handTarget(h, ent, state, at);
         Con_Printf("flatfgrab: %s hand: %s, share %.2f, open %.2f, carry %.2f, palm off %.1f deg, %s, server %d state %d, "
-                   "empty %d, fist prop %d fist %.2f, torch %d upright %.2f off %.1f deg\n",
+                   "empty %d\n",
             handName(h), phaseName(g.phase), g.share, openShare(h), carryShare(h), g.palmOff, g.detached ? "from the grip" : "free",
-            known ? ent : 0, known ? state : 0, held::handEmpty(h) ? 1 : 0, flatplay::propInFist(h) ? 1 : 0, flatplay::fistShare(h),
-            torchIn(h) ? 1 : 0, geom::smooth01(gs.upright[h]), gs.torchOff[h]);
+            known ? ent : 0, known ? state : 0, held::handEmpty(h) ? 1 : 0);
+        // (Its own short line, the console's width: the tests read it whole.)
+        Con_Printf("flatfgrab: %s prop: in fist %d, fist %.2f, torch %d, upright %.2f, off %.1f deg\n", handName(h),
+            flatplay::propInFist(h) ? 1 : 0, flatplay::fistShare(h), torchIn(h) ? 1 : 0, geom::smooth01(gs.upright[h]),
+            gs.torchOff[h]);
     }
     Con_Printf("flatfgrab: presses %d, sent %d, refused %d (no free hand), second presses on a busy hand %d\n", gs.presses,
         gs.sent, gs.refused, gs.doubled);

@@ -14,6 +14,8 @@
 //   before and after (`flatplates: before`, `flatplates: after`).
 // `vr_flatitems_test 6`: E's palm first (vr_flatfgrab.cpp): two keys where he looks, E pressed twice a frame apart: the first
 //   flies only after the palm's turn, never two at one hand, the first ends in the hand it flew to.
+// `vr_flatitems_test 7`: a brick force-grabbed beside the shotgun: the gun one-handed, the brick in the off hand's guard,
+//   V's overhead swing and the fist's punch with it each hurt a grunt; a wall torch caught turned flame up.
 // Ends `flatitems: N passed, M failed`.
 
 float vr_ffx_on;    // the running test's number
@@ -607,6 +609,7 @@ float vr_ffx_twoHand;  // frames the gun was aimed two-handed with the brick in 
 float vr_ffx_d0;       // the torch off upright with vr_flat_torch_upright 0
 vector vr_ffx_rel;     // the off hand off the main hand, on the fore-end
 float vr_ffx_swingTop; // the overhead swing's vr_ffx_top
+float vr_ffx_near;     // the nearest the off hand came to the grunt's box in the blow
 entity vr_ffx_grunt;
 
 // How far the stick of torch `t` is off upright, degrees (its +x its head; an alias model's pitch is inverted).
@@ -621,23 +624,24 @@ float(entity t) VR_FFX_TorchOff =
 
 void(entity p, float xMelee) VR_FFX_Blow =
 {
-    if(vr_ffx_grunt == world)
+    // A fresh grunt for each blow, standing still (one already hit turns on him and moves: the next blow's a lottery).
+    // The punch's nearer: it reaches less than the swing.
+    if(vr_ffx_grunt != world)
     {
-        entity oldself = self;
-        vr_ffx_grunt = spawn();
-        makevectors('0 1 0' * p.v_angle_y);
-        setorigin(vr_ffx_grunt, p.origin + v_forward * 36);
-        vr_ffx_grunt.angles_y = p.v_angle_y + 180;
-        self = vr_ffx_grunt;
-        monster_army();
-        self = oldself;
+        remove(vr_ffx_grunt);
     }
+    entity oldself = self;
+    vr_ffx_grunt = spawn();
     makevectors('0 1 0' * p.v_angle_y);
-    setorigin(vr_ffx_grunt, p.origin + v_forward * 36); // (back where it stood: a blow knocks it back)
-    vr_ffx_grunt.velocity = '0 0 0';
+    setorigin(vr_ffx_grunt, p.origin + v_forward * (xMelee ? 36 : 28));
+    vr_ffx_grunt.angles_y = p.v_angle_y + 180;
+    self = vr_ffx_grunt;
+    monster_army();
+    self = oldself;
     vr_ffx_grunt.health = 1000;
     vr_ffx_gruntHp = vr_ffx_grunt.health;
     vr_ffx_top = -1000;
+    vr_ffx_near = 1000;
     vr_ffx_frames = 0;
     localcmd(sprintf("vr_flat_prop_melee %g\nvr_flat_punch v\n", xMelee));
 };
@@ -707,13 +711,23 @@ void(entity p) VR_FFX_PropFist =
     if(vr_ffx_s == 6 || vr_ffx_s == 8) // the blow: watched until it hurts the grunt, then until the hand is back
     {
         vr_ffx_frames = vr_ffx_frames + 1;
+        if(vr_ffx_s == 6 && vr_ffx_frames == 22)
+        {
+            localcmd("screenshot\n"); // (the swing at its top, to look at)
+        }
         vector hp = VRGetEntHandPos(p, cVR_OffHand);
         vector ep = VRGetHeadPos(p);
         vr_ffx_top = max(vr_ffx_top, hp_z - ep_z);
+        vector gap = '0 0 0';
+        gap_x = max(0, max(vr_ffx_grunt.absmin_x - hp_x, hp_x - vr_ffx_grunt.absmax_x));
+        gap_y = max(0, max(vr_ffx_grunt.absmin_y - hp_y, hp_y - vr_ffx_grunt.absmax_y));
+        gap_z = max(0, max(vr_ffx_grunt.absmin_z - hp_z, hp_z - vr_ffx_grunt.absmax_z));
+        vr_ffx_near = min(vr_ffx_near, vlen(gap));
         float hurt = vr_ffx_grunt.health < vr_ffx_gruntHp;
         if(vr_ffx_frames >= 72) // (a second: the swing is 0.79 s, the punch 0.6, with their ways back)
         {
             string how = vr_ffx_s == 6 ? "the overhead swing" : "the fist's punch";
+            dprint(sprintf("flatitems: %s: the off hand came %g units from the grunt's box\n", how, vr_ffx_near));
             VR_Test_Check(hurt, sprintf("V with the brick in the off hand, %s: the grunt hurt (%g)", how, vr_ffx_gruntHp - vr_ffx_grunt.health));
             if(vr_ffx_s == 6)
             {
@@ -722,7 +736,7 @@ void(entity p) VR_FFX_PropFist =
             }
             else
             {
-                VR_Test_Check(vr_ffx_top < vr_ffx_swingTop - 6, sprintf("... the hand well under the swing's top (%g units over the eye, the swing %g)", vr_ffx_top, vr_ffx_swingTop));
+                VR_Test_Check(vr_ffx_top < 0, sprintf("... thrown straight, the hand under the eye all the way (%g units over it; the swing %g)", vr_ffx_top, vr_ffx_swingTop));
             }
             VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == vr_ffx_item, "... the brick still in the off hand");
             VR_FFX_To(vr_ffx_s + 1, 36); // (the hand settled in the guard again)
@@ -738,6 +752,7 @@ void(entity p) VR_FFX_PropFist =
         entity oldself = self;
         vr_ffx_item2 = spawn();
         setorigin(vr_ffx_item2, p.origin + VR_FFX_Ahead(p) * 64 + '0 0 40');
+        vr_ffx_item2.classname = "light_torch_small_walltorch"; // (as the map's, the toolgun's: what makes it a torch, VR_WallTorch_IsTorch)
         self = vr_ffx_item2;
         float oldLive = vr_spawn_live;
         vr_spawn_live = 1;
