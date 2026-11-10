@@ -14,7 +14,8 @@
 #   grendual  a gun in each hand: G does nothing (no free hand)
 #   swap1     a shotgun in the main hand: 3 brings the hands together, swaps at the meeting point, the shotgun in the off
 #             hand after, the hands back
-#   swap2h    the rocket launcher in both hands: 3 takes the free hand off the grip to the gun, swaps, the gun in the off hand
+#   swap2h    the rocket launcher in both hands: 3 first takes the free hand off the grip to the empty hand's guard, then the gun
+#             across to it (the swap there), then the other hand onto its grip: the gun in the off hand, the main on the grip
 #   swapdual  a gun in each hand: they meet and swap
 #   swapoff   vr_flat_swap_anim 0: the swap at once, no animation
 AGENT=${1:?agent}
@@ -39,7 +40,7 @@ run gren2h "$BASE; give r 10; $NAIL2H; $REP; $G; wait50; vr_flatgrenade_report; 
 run grenempty "$BASE; give r 10; vr_flat_grenade_arm_mode 0; $G; wait50; $G; wait30; vr_flatgrenade_report; $G; wait50; +attack; wait30; -attack; wait40; vr_flatgrenade_report; wait200"
 run grendual "$BASE; give r 10; impulse 154; wait5; impulse 176; wait20; $REP; $G; wait30; vr_flatgrenade_report; $REP"
 run swap1 "$BASE; impulse 154; wait20; $REP; $SW; wait30; $REP; vr_flatswap_report"
-run swap2h "$BASE; $NAIL2H; $REP; $SW; wait30; $REP; wait90; vr_flatplay_status; vr_flatswap_report"
+run swap2h "$BASE; $NAIL2H; $REP; $SW; wait70; $REP; wait90; vr_flatplay_status; vr_flatswap_report"
 run swapdual "$BASE; impulse 154; wait5; impulse 176; wait20; $REP; $SW; wait30; $REP; vr_flatswap_report"
 run swapoff "$BASE; vr_flat_swap_anim 0; impulse 154; wait20; $REP; $SW; wait4; $REP; vr_flatswap_report"
 

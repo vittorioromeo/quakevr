@@ -10,13 +10,15 @@
 #   better  E on armour better than his: on him at once, nothing left in a hand, the plates on
 #   vrwalk  headset: walking over armour still leaves it lying (his rule unchanged)
 #   palm    E's palm turns out before the grab; two quick presses never send two objects at one hand (test 6)
+#   prop    a brick force-grabbed beside the shotgun: one-handed gun, the brick in the guard, V swings and punches with it, a
+#           torch turned flame up (test 7)
 # Prints PASS/FAIL, exits 1 on a failure; ends with `flatitems_sh: N passed, M failed`.
 AGENT=${1:?agent}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 source "$(dirname "$0")/qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
 QT_NAME=flatitems_sh
-F="^flatitems:|^flatplates:|Assertion|ENGINE CRASH|Host_Error|^ff_done"
+F="^flatitems:|^flatplates:|^flatfgrab: (off|main) (hand: idle|prop:)|Assertion|ENGINE CRASH|Host_Error|^ff_done"
 # (vr_flat_autoreload 1: since the flat reload, e1m1's shotgun starts with an empty clip and +attack only clicks; the shot
 # these cases fire is the point, not the reload.)
 P="map e1m1; wait60; developer 1; god; notarget; vr_flat_autoreload 1"
@@ -52,6 +54,16 @@ expect_verdict "$(cat "$S/fi_better.log")" "flatitems" "E on better armour"
 run fi_palm flat "$P; vr_flatitems_test 6" "$V"
 grep -a "FAIL" "$S/fi_palm.log" | cut -c1-160
 expect_verdict "$(cat "$S/fi_palm.log")" "flatitems" "E: palm first, no double grab"
+
+# A prop force-grabbed beside the two-handed shotgun (vr_flatfgrab.cpp, vr_flatplay.cpp; his notes 2026-11-10, test 7): the
+# off hand leaves the fore-end for good, the brick in its fist in the guard, V's swing and punch with it hurt a grunt, a
+# torch turned flame up. The report (vr_flat_fg_report) after the catch: the off hand came from the grip, fist prop, fist 1.
+run fi_prop flat "$P; vr_flatitems_test 7" "$V"
+grep -a "FAIL\|torch in the off hand\|came .* units" "$S/fi_prop.log" | cut -c1-160
+expect_verdict "$(cat "$S/fi_prop.log")" "flatitems" "a prop in the fist beside the shotgun, its blows, the torch upright"
+grip=$(grep -a "flatfgrab: off hand: idle" "$S/fi_prop.log" | head -1 | grep -c "from the grip")
+fist=$(grep -a "flatfgrab: off prop:" "$S/fi_prop.log" | head -1 | grep -c "in fist 1, fist 1.00")
+check $([ "$grip$fist" = 11 ] && echo 1 || echo 0) "... the off hand came off the fore-end (from the grip: $grip) into the guard, its fist closed on the brick ($fist)"
 
 # The headset's rule stands: armour stays until a hand takes it (the same walk: test 2 in a headset game; every armour and
 # key FAILs there by design, what is checked is that they are left).

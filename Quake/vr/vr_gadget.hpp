@@ -92,9 +92,10 @@ void tapFeedback(bool activation);
 void useBrightFont(bool on);
 
 // The flat-screen visor's panels (vr_visor.cpp; vr_gadget_visor.inc): the HUD in the screen's own palette, font, numbers
-// and icons (and its made-up readings, vr_gadget_test_state) in seven small images, drawn at the end of the 2D pass
+// and icons (and its made-up readings, vr_gadget_test_state) in eight small images, drawn at the end of the 2D pass
 // (renderVisor) on a black face (Shade::Screen's inkAlpha leaves it clear: the mount behind is the face) and shown by
-// vr_visor.cpp inside mounts on the screen's edges. Kept here so that a headset's visor could take the same images later.
+// vr_visor.cpp inside mounts on the screen's edges (and the centre print's popup under the log's). Kept here so that a
+// headset's visor could take the same images later.
 enum VisorPanel : int
 {
     VisorVitals,     // health and armour (top left)
@@ -104,13 +105,15 @@ enum VisorPanel : int
     VisorLog,        // the console's notify lines (low in the middle)
     VisorSideLeft,   // keys, sigils, AD's custom keys (the left edge's middle)
     VisorSideRight,  // powerups with their seconds, AD's artifacts and debuffs (the right edge's middle)
+    VisorCenter,     // the game's centre print (a popup under the log's mount; sized to its text: vr_flat_visor_centerprint)
     VisorPanelCount
 };
 struct VisorInput
 {
-    float boot[VisorPanelCount]{1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f}; // each panel's power-on sweep (0 .. 1: done)
-    float alarm{0.f};                                                // the health panel's low-health pulse now (0 .. 1)
-    bool log{false};                                                 // the notify lines in the low panel (vr_flat_visor_log)
+    float boot[VisorPanelCount]{1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f}; // each panel's power-on sweep (0 .. 1: done)
+    float alarm{0.f};                                                     // the health panel's low-health pulse now (0 .. 1)
+    bool log{false};                                                      // the notify lines in the low panel (vr_flat_visor_log)
+    const char* center{""}; // the centre print the popup shows ("" none: not drawn; Quake's lines, wrapped to fit)
 };
 struct VisorImage
 {

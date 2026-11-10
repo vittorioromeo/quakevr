@@ -2833,7 +2833,7 @@ vector(float xBack) VR_ETS_OnLine =
 // A head as a gibbing throws it (ThrowHead: its .gorging for life; 1.5 of a gib's health).
 // vr_embed_test 31 (his note vrtesthall_2026-11-10_02-13-13: a skewered limb punched off the blade, "I see the small gibs, but I
 // don't see the blood particles"): a limb on the sword in the main hand, the other hand's blow bursts it: its blood bursts where
-// it is on the blade (developer 1: each blood effect's `particle2:` line, how near the eyes). Ends `embedburst: N passed, M failed`.
+// it is on the blade. Ends `embedburst: N passed, M failed`.
 void() VR_ETB_Step =
 {
     entity p = self;

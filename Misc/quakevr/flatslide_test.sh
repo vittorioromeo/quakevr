@@ -85,7 +85,7 @@ expect_verdict "$out" "flatleanmouse" "lean: the mouse moves the view along the 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Timeout 120 -Filter "^flatprone" \
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatprone.*FAIL"
-expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor"
+expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor, the jump key stands up (no jump, held or not)"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanpose: [0-9]+ passed" -Timeout 300 -Filter "^flatleanpose: (FAIL|[0-9]+ passed)" \
     -Script "$H; vr_flatleanpose_test; wait30000; toggleconsole; quit" 2>&1)

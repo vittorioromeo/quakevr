@@ -34,6 +34,9 @@ namespace qvr::walltorch
 // Client: whether `e` is a wall torch on its wall drawn as our stick (its light is the wall torch's, as id's is).
 [[nodiscard]] bool onWall(const entity_t& e);
 
+// Client: whether `e` is drawn as our stick: a wall torch, on its wall or taken (its long axis the model's +x, its head that way).
+[[nodiscard]] bool isStick(const entity_t& e);
+
 // The game directory changed: the models' slots are reused.
 void onGameDirChanged();
 // The map's load (VR_NewMap's prewarm): the flame's model made now if the map has torches (drawn from the first frame:

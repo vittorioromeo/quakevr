@@ -1205,11 +1205,67 @@ void() VR_Reload_TestPouchCatch =
     VR_Reload_TestPouchCatchNext();
 };
 
+// startgun_test (Misc/quakevr/startgun_test.sh): a new game's shotgun, its own magazine full in the right hip holster
+// (holster 3) and drawn from there loaded, in a headset and on the screen alike (2026-11-10: on the screen it was drawn
+// empty, its 8 rounds left in the reserve). One part a step, each with its verdict line (a map change clears the tally):
+//   45  the new game: the holster's shotgun 8 of 8, 17 shells in the reserve, both hands empty
+//   46  drawn into the main hand: 8 of 8, the holster empty, the reserve as it was
+//   47  one shot fired: 7 of 8, the reserve as it was (no reload took from it)
+//   48  after a level change: the main hand's shotgun 7 of 8, the reserve 25 (Quake's top-up)
+void(float xStep) VR_Reload_TestStartGun =
+{
+    entity p = self;
+    float full = WeaponIdToBaseClipSize(WID_SHOTGUN);
+    float reserve = 25 - full;
+    VR_Test_BeginFlags("startgun", VR_TEST_LOUD);
+    float hw = getHolsterWeapon(QVR_HS_RIGHT_HIP_HOLSTER);
+    entity hinst = VRGetEntHolsterWeaponInst(p, QVR_HS_RIGHT_HIP_HOLSTER);
+    float hclip = hinst ? hinst.wi_clip : -1;
+    float mw = VRGetEntWeapon(p, cVR_MainHand);
+    float mclip = VRGetEntWeaponClip(p, cVR_MainHand);
+    VR_Test_Print(sprintf("startgun: step %g: flat %g holsters %g; ", xStep, VR_FlatPlay(p), cvar_hget(cvarh_vr_flat_holsters)));
+    VR_Test_Print(sprintf("holster 3 weapon %g clip %g; main hand weapon %g clip %g; off hand weapon %g; shells %g\n", hw, hclip,
+        mw, mclip, VRGetEntWeapon(p, cVR_OffHand), p.ammo_shells));
+    if(xStep == 45)
+    {
+        VR_Test_Check(hw == WID_SHOTGUN, "the right hip holster holds the shotgun");
+        VR_Test_Check(hclip == full, sprintf("its own magazine is full: %g of %g", hclip, full));
+        VR_Test_Check(p.ammo_shells == reserve, sprintf("the reserve holds the rest: %g shells (%g)", p.ammo_shells, reserve));
+        VR_Test_Check(VRIsHandWeaponless(p, cVR_MainHand) && VRIsHandWeaponless(p, cVR_OffHand), "both hands empty");
+        VR_Test_VerdictPart("newgame:");
+    }
+    else if(xStep == 46)
+    {
+        VR_Test_Check(mw == WID_SHOTGUN, "the main hand drew the shotgun");
+        VR_Test_Check(mclip == full, sprintf("drawn loaded: %g of %g", mclip, full));
+        VR_Test_Check(hw == WID_FIST, "the holster is empty");
+        VR_Test_Check(p.ammo_shells == reserve, sprintf("the reserve as it was: %g shells", p.ammo_shells));
+        VR_Test_VerdictPart("drawn:");
+    }
+    else if(xStep == 47)
+    {
+        VR_Test_Check(mw == WID_SHOTGUN && mclip == full - 1, sprintf("one shot fired from the magazine: %g of %g", mclip, full));
+        VR_Test_Check(p.ammo_shells == reserve, sprintf("the reserve as it was: %g shells", p.ammo_shells));
+        VR_Test_VerdictPart("fired:");
+    }
+    else
+    {
+        VR_Test_Check(mw == WID_SHOTGUN && mclip == full - 1, sprintf("the level change kept the magazine: %g of %g", mclip, full));
+        // (Quake's SetChangeParms tops the reserve up to 25 shells at a level change; the magazine is the gun's own.)
+        VR_Test_Check(p.ammo_shells == 25, sprintf("the reserve topped up to 25 as Quake's: %g shells", p.ammo_shells));
+        VR_Test_VerdictPart("changelevel:");
+    }
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
     entity r = VR_Carry_Held(self, cVR_MainHand);
-    if(step == 44)
+    if(step >= 45 && step <= 48)
+    {
+        VR_Reload_TestStartGun(step);
+    }
+    else if(step == 44)
     {
         VR_Reload_TestPouchCatch();
     }

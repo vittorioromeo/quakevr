@@ -1,0 +1,6 @@
+# start_shotgun: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A new game's shotgun, its own magazine full in the right hip holster (SetNewParms, client.qc; Misc/quakevr/startgun_test.sh), in a headset and in flat-screen play with its holsters (vr_flat_holsters).
+title A new game's shotgun: drawn from the right hip, loaded
+hint A new game on e1m1. Draw the shotgun from the right hip holster (flat-screen: hold the holster menu's button, the right hip into the right hand): it comes loaded, 8 of 8, 17 shells left, and fires at once without a reload.
+map e1m1
+god
+notarget

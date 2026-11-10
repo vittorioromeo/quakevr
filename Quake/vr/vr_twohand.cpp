@@ -1170,8 +1170,10 @@ bool aiming()
     // gun (VR_Melee_Thing: no striking thing): the fist never landed, 2026-11-09.)
     const auto hotspotAims = [](int holding) {
         const int other = holding == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+        // (Nor a free hand that holds something, a prop, an item: the gun is one-handed, flatplay::holdsThing; canGrab's
+        // held::handEmpty already says so for the hold itself.)
         return aimTransition[holding] >= 0.5f && !flatplay::punching(other) && !flatplay::shoving(other) &&
-               !flatfgrab::busy(other);
+               !flatfgrab::busy(other) && !(flatplay::active() && flatplay::holdsThing(other));
     };
     return hotspotAims(HAND_OFF) || hotspotAims(HAND_MAIN) || freeAims(HAND_OFF) || freeAims(HAND_MAIN);
 }

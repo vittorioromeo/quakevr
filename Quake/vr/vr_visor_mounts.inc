@@ -2,7 +2,8 @@
 //
 // Each panel sits in a mount: a flat dark translucent face with a frame line in the screens' green, whose outer sides run
 // off the screen's edges (the corners' mounts with an angled strut back to the side, the top middle one (the log) a
-// trapezoid widening into the top edge, the side ones narrowing towards the middle), laid out on a flat layer in the view's
+// trapezoid widening into the top edge, the side ones narrowing towards the middle; the centre print's popup the one
+// closed panel, under the log's), laid out on a flat layer in the view's
 // pixels, left and right exactly mirrored. The sway moves the whole layer (the helmet). Then the layer goes through the
 // visor's zoom about the middle (vr_flat_visor_zoom) and its lens (vr_flat_visor_warp): a point seen at p (the view's
 // -1..1) shows what the layer has at q = p (1 + k (|p|^2 - 1)): k > 0 the edges show the layer beyond them, the middle
@@ -31,6 +32,7 @@ enum class MountKind
     Corner, // a corner's: the contents at (inset, inset) from the corner, a strut back to the side
     Side,   // the middle of a side: the contents centred on the anchor's y
     Middle, // the middle of the top (or bottom) edge: the contents centred on the anchor's x
+    Popup,  // a closed panel off the edges: the contents centred on the anchor's x, Layer::centerTop down from it
 };
 struct MountPlace
 {
@@ -46,6 +48,7 @@ constexpr MountPlace mountPlaces[VisorPanelCount] = {
     {{0.5f, 0.f}, {1.f, 1.f}, MountKind::Middle},  // the log: the top's middle (vr_flat_visor_log_width, _log_out)
     {{0.f, 0.5f}, {1.f, 1.f}, MountKind::Side},    // keys and sigils: the left side's middle
     {{1.f, 0.5f}, {-1.f, 1.f}, MountKind::Side},   // powerups: the right side's middle
+    {{0.5f, 0.f}, {1.f, 1.f}, MountKind::Popup},   // the centre print: under the log's mount (vr_flat_visor_center_gap)
 };
 
 // The layer for this frame: the view's size, the virtual pixel's size in pixels, the sway (pixels), the lens's strength,
@@ -63,6 +66,8 @@ struct Layer
     float sideScale{1.f};    // and their size (vr_flat_visor_side_scale, shrunk to fit between the corners')
     float logScale{1.f};     // the top middle mount's size (vr_flat_visor_log_width, shrunk to fit between the corners')
     float logOut{1.f};       // and its gap to the top edge (vr_flat_visor_log_out)
+    float centerTop{0.f};    // the centre print's popup: its contents' top (virtual pixels down from the top edge)
+    float centerScale{1.f};  // and its size (1, shrunk to fit the view's width)
 };
 
 // The lens: the layer's point a screen point shows (both in the view's -1..1, y up), and back (solved along the ray: the
@@ -252,8 +257,30 @@ struct Mount
             add(X + (T + ey) * trapSlope, -ey);
             break;
         }
+        case MountKind::Popup:
+        {
+            // A rectangle, every corner cut (convex: the face's fan from its first point covers it).
+            m.lo = {-W * 0.5f, L.centerTop};
+            m.hi = {W * 0.5f, L.centerTop + H};
+            const float X = W * 0.5f + mountPad, T = m.lo.y - mountPad, B = m.hi.y + mountPad;
+            add(-X, T + c);
+            add(-X + c, T);
+            add(X - c, T);
+            add(X, T + c);
+            add(X, B - c);
+            add(X - c, B);
+            add(-X + c, B);
+            add(-X, B - c);
+            break;
+        }
     }
     return m;
+}
+
+// Where the log's mount ends (its frame's bottom: virtual pixels down from the top edge), shown or hidden.
+[[nodiscard]] float logBottom(const Layer& L, const glm::vec2& logSize)
+{
+    return reachInset(L.logOut) + logSize.y * L.logScale + mountPad;
 }
 
 // The top middle mount's size: vr_flat_visor_log_width, no larger than leaves it `logGap` clear of the top corners' mounts
@@ -297,6 +324,7 @@ struct Mount
         case MountKind::Corner: pts = {a, a + glm::vec2{place.dir.x * span.x, 0.f}, a + glm::vec2{0.f, place.dir.y * span.y}}; break;
         case MountKind::Side: pts = {a, a + glm::vec2{0.f, span.y}, a - glm::vec2{0.f, span.y}}; break;
         case MountKind::Middle: pts = {a, a + glm::vec2{span.x, 0.f}, a - glm::vec2{span.x, 0.f}}; break;
+        case MountKind::Popup: return true; // (off the edges: nothing to meet)
     }
     const glm::vec2 mid{L.w * 0.5f, L.h * 0.5f};
     for(const glm::vec2& screen : pts)

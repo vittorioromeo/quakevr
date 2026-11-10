@@ -279,7 +279,7 @@ void(float xTest) VR_Limb_Test =
         }
         return;
     }
-    if(xTest >= 30 && xTest <= 38)
+    if((xTest >= 30 && xTest <= 38) || (xTest >= 41 && xTest <= 46))
     {
         VR_Limb_WearTest(xTest);
         return;

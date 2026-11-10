@@ -38,6 +38,16 @@ void swapHands(const char* what);
 // The weapon `h` holds, as its settings' slot; -1 for an empty hand.
 [[nodiscard]] int heldIn(int h);
 
+// Whether `h` holds anything that is not a weapon: a prop, an item, a torch (STAT_QVR_CARRYMAIN / _CARRYOFF, or drawn in
+// it: held::heldEntity). Such a hand is not free to steady the other hand's gun: that gun is held one-handed (his note
+// 2026-11-10; vr_flatsight.cpp, vr_twohand.cpp).
+[[nodiscard]] bool holdsThing(int h);
+
+// Whether `h` holds a prop in its fist (vr_flat_carry_pose 2): a prop in this hand alone, no weapon. The hand is posed as
+// the empty hand's guard, the prop in the fist, and V or its fire button strikes with it (vr_flat_prop_melee: the
+// overhead swing, or the fist's punch); the game's melee takes the prop as what strikes (QC vr_carry.qc).
+[[nodiscard]] bool propInFist(int h);
+
 // The hand holding the only weapon held (heldIn), whichever hand that is; -1 with a weapon in each hand or in neither.
 [[nodiscard]] int loneWeaponHand();
 
@@ -52,6 +62,9 @@ struct FireRoute
     bool rmbAims{false}; // the right button is the ironsight's (one weapon held)
 };
 [[nodiscard]] FireRoute routeFire(bool lmb, bool rmb);
+// The move's jump bit from the jump key's state (bit 1 held, bit 2 fresh): lying down, a fresh press stands him up as the
+// prone key does and sends no jump, nor does the held key after it (vr_flat_prone_jump_stands).
+[[nodiscard]] int jumpBit(int state);
 
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.
