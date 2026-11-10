@@ -184,6 +184,7 @@ int VR_FlatXhairOn (void);	// SCR_DrawCrosshair: 1 while flatscreen play's visor
 // The flatscreen fly camera (vr_flycam.cpp, vr_flat_flycam): the view flown free while the player stands as he was.
 void VR_FlatFlycamView (float* vieworg, float* viewangles);	// V_CalcRefdef, last: his own eye remembered, then (on) the view put at the camera
 void VR_FlatFlycamLook (const float* before, float* angles);	// CL_AccumulateCmd: (on) the frame's look turns the camera, and his angles go back to `before`
+int VR_MoveJump (int jumpstate);	// CL_SendMove's jump bit: in_jump.state in, the bit out (flatscreen play, lying down: the jump press stands him up and no jump is sent: flatplay::jumpBit)
 int VR_FlatFlycamOwnsInput (void);	// CL_SendMove: nonzero while the camera has the keys (no buttons, no impulse sent)
 
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).

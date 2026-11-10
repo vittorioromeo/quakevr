@@ -2007,6 +2007,7 @@ QVR_TUNABLE(vr_flat_prone_floor, "1") // lying down, a gun that would go into th
 QVR_TUNABLE(vr_flat_prone_floor_margin, "1") // the flush gun keeps this far off the floor (0..6 units)
 QVR_TUNABLE(vr_flat_prone_eye, "14") // lying down, his eyes this many units over his feet (6..vr_prone_eye less 2; until 2026-11-08 vr_prone_eye less 4, the same 14): the view, and the gun's poses with it (lower, a gun looking down cannot clear the floor)
 QVR_TUNABLE(vr_flat_prone_neck_drop, "4.5") // lying down, the drawn trunk hangs from this many units further under the eye (0..10; the head is not drawn): the body turns until its hips rest on the floor, so the chest lies lower, almost on it (his note 2026-11-08: the torso too high; 0 before)
+QVR_TUNABLE(vr_flat_prone_jump_stands, "1") // flatscreen play, lying down: the jump key stands him up (the prone key's get-up: to a crouch or standing where it fits, as that key) and does not jump; a held jump does not jump on after it, only a fresh press does; 0 the jump key does what it does lying (the server's jump)
 QVR_TUNABLE(vr_flat_flashlight_hide, "1") // flatscreen play: the torch's model is not drawn (its light still is)
 QVR_TUNABLE(vr_flat_support_out, "3") // the same free hand: how far out at its own side (-30..30; 6 off the old anchor)
 QVR_TUNABLE(vr_flat_shove_wind_back, "8") // the windup: the hands drawn this far back (units)
