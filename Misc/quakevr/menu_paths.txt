@@ -4331,6 +4331,8 @@ vr_flat_slide_turn_smooth|2|Tunables|Slide Turn Smoothing|Advanced VR Options > 
 vr_flat_gun_ahead_slide|2|Tunables|Gun Forward Slide|Advanced VR Options > Debug > Tunables > Gun Forward Slide
 vr_flat_gun_down_slide|2|Tunables|Gun Down Slide|Advanced VR Options > Debug > Tunables > Gun Down Slide
 vr_flat_gun_out_slide|2|Tunables|Gun Out Slide|Advanced VR Options > Debug > Tunables > Gun Out Slide
+vr_flat_slide_arms|2|Tunables|Slide Arms Ride The Eye|Advanced VR Options > Debug > Tunables > Slide Arms Ride The Eye
+vr_flat_slide_gun_roll|2|Tunables|Gun Roll Slide|Advanced VR Options > Debug > Tunables > Gun Roll Slide
 vr_flat_slide_neck_back|2|Tunables|Slide Neck Back|Advanced VR Options > Debug > Tunables > Slide Neck Back
 vr_flat_slide_body_time|2|Tunables|Slide Pose Time|Advanced VR Options > Debug > Tunables > Slide Pose Time
 vr_flat_slide_leg_reach|2|Tunables|Slide Leg Reach|Advanced VR Options > Debug > Tunables > Slide Leg Reach

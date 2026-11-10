@@ -2947,20 +2947,47 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     // Leaning: the hands are posed as he stands upright (`upright`: the head back where the lean took it from, the body
     // unleant) and turned with the upper body (leanRig).
     QVR_TRACY_SCOPE(zoneFlatPoseRig, "flat pose: rig");
-    const LeanRig rig = leanRig(s, aim.y);
+    LeanRig rig = leanRig(s, aim.y);
+    const bool leaning = rig.on;
+    const bool onBody = bodyPose();
+    // Sliding: the same (vr_flat_slide_arms), the arms posed as he crouches -- at the crouch's eye, the slide's lean back and
+    // its neck back taken out of the body they stand on (avatar::SlideOff), the stance's turn the slide eases out of the trunk
+    // given back -- then moved down with the eye by the slide's drop (vr_flat_slide_drop), no turn; the guns aim from there as
+    // ever. Before it (2026-11-10) the shoulders came off the leant-back trunk: two guns 6 units nearer the eye and 2 higher,
+    // the shotgun 2 higher, Gun Down / Out Slide's 6 and 2 putting them back down: the guns jammed at the face, low. (Posed
+    // at the slide's lower eye instead, the crouched trunk tilts further forward: the guns 3 higher and 4 further out.)
+    // (Whenever the body has any of the slide in it: easing out after the slide too.)
+    const bool unslide = onBody && vr_flat_slide_arms.value != 0.f && avatar::slideIn();
+    const float slid = unslide ? geom::smooth01(slideTurn.lin) : 0.f;
+    if(unslide && !rig.on)
+    {
+        rig.on = true;
+        rig.eye = s.head;
+    }
+    if(unslide)
+    {
+        rig.shift.z -= flatmove::slideDrop();
+    }
     hands::State unleant;
     if(rig.on)
     {
         unleant = s;
         unleant.head -= rig.shift;
         unleant.headHeight -= rig.shift.z / units::metresToUnits();
+    }
+    if(leaning)
+    {
         unleant.lean = glm::vec3{0.f};
         unleant.leanHold = 0.f;
     }
-    const hands::State& upright = rig.on ? unleant : s;
+    if(unslide)
+    {
+        unleant.bodyYaw += flatsight::stanceYaw() * slid;
+    }
+    const hands::State& upright = rig.on || unslide ? unleant : s;
+    avatar::SlideOff slideOff(unslide); // (to the hands' loop's end: slideOff.end())
 
     // The arms' joints as the body stands this frame: the chest's share and the crouch in them, the stance's turn just made.
-    const bool onBody = bodyPose();
     fs.shouldersKnown = onBody;
     glm::vec3 roots[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // upright
     if(onBody)
@@ -3063,7 +3090,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
                        up * swing.z;
         }
         // (Leaning, the hand's turn rolled vr_flat_lean_gun_roll of the view's lean roll: aimed again from where the turn took it.)
-        s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunLeanRoll()}, h);
+        s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunRoll(h)}, h);
         s.rot[h].z += vr_fakevr_handroll.value;
         // A melee weapon is always held turned out (vr_flat_melee_hold_yaw) and rolled (_hold_roll; his notes 2026-11-10);
         // its swing turns from there.
@@ -3144,6 +3171,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
         QVR_TRACY_CALL("flat pose: off wall", handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt)));
     }
+    slideOff.end(); // (the sights, the reload, the grabs and the traces below: the body as it is drawn)
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
     // empty hand so a force grab still reaches out with it.
@@ -3406,9 +3434,15 @@ glm::vec3 drawnHand(int h)
     return feel.drawnAt[h];
 }
 
-float gunLeanRoll()
+float gunRoll(int h)
 {
-    return active() ? flatmove::leanRoll() * za::clamp(vr_flat_lean_gun_roll.value, 0.f, 1.f) : 0.f;
+    if(!active())
+    {
+        return 0.f;
+    }
+    // (The slide's: + rolls the top to the right, the main hand's side.)
+    const float slide = flatmove::slideShare() * za::clamp(vr_flat_slide_gun_roll.value, -45.f, 45.f) * (h == HAND_OFF ? -1.f : 1.f);
+    return flatmove::leanRoll() * za::clamp(vr_flat_lean_gun_roll.value, 0.f, 1.f) + slide;
 }
 
 glm::vec3 shoulderOf(const hands::State& s, int h)

@@ -565,8 +565,6 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
     }
     glm::vec3 org, dir, viewFwd, viewRight, viewUp;
     flatplay::crosshairRay(s, aim, org, dir);
-    // (Leaning, the gun's up rolled as the pose rolls it: flatplay::gunLeanRoll.)
-    hands::angleVectors(aim + glm::vec3{0.f, 0.f, flatplay::gunLeanRoll()}, viewFwd, viewRight, viewUp);
     const glm::vec3 point = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -574,6 +572,8 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
         {
             continue;
         }
+        // (Leaning or sliding, the gun's up rolled as the pose rolls it: flatplay::gunRoll.)
+        hands::angleVectors(aim + glm::vec3{0.f, 0.f, flatplay::gunRoll(h)}, viewFwd, viewRight, viewUp);
         // In the sight the muzzle stays on the drawn gun's (st.sightMuzzle, the same travel); else it goes where the hand's
         // turn takes it.
         const bool onSight = h == st.holding && st.adsT > 0.f;

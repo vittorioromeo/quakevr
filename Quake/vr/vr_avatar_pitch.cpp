@@ -488,4 +488,34 @@ void updateBodyPitch(const hands::State& s, float dt)
 
 } // namespace detail
 
+// (The slide's lean back is a negative angle; lying down's and swimming's are positive and stay.)
+SlideOff::SlideOff(bool want)
+{
+    using detail::bodyPitch;
+    on = want && bodyPitch.slidingFrom > 0.f;
+    if(!on)
+    {
+        return;
+    }
+    sliding = bodyPitch.sliding;
+    angle = bodyPitch.angle;
+    bodyPitch.sliding = 0.f;
+    bodyPitch.angle = za::max(bodyPitch.angle, 0.f);
+}
+
+void SlideOff::end()
+{
+    if(on)
+    {
+        detail::bodyPitch.sliding = sliding;
+        detail::bodyPitch.angle = angle;
+        on = false;
+    }
+}
+
+bool slideIn()
+{
+    return detail::bodyPitch.slidingFrom > 0.f;
+}
+
 } // namespace qvr::avatar

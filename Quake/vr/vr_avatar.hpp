@@ -37,6 +37,23 @@ struct Torso
 // Where each arm's shoulder joint stands from the head alone, before a hand lifts it (usable before the hands are placed: the
 // flatscreen pose stands the hands on these). out[side]: 0 the off hand's, 1 the main hand's, as Skeleton::shoulder.
 void restShoulders(const hands::State& s, glm::vec3 out[2]);
+// For its scope, the body solved (torso, restShoulders) without flat-screen play's slide in it -- the trunk's lean back about
+// the neck, the neck back -- as he crouches at the same eye: the slide's arms posed as crouched, riding the eye
+// (flatplay::poseHands, vr_flat_slide_arms; ROUND24.md, "Flat slide: the arms ride the eye"). `on` false: nothing.
+struct SlideOff
+{
+    explicit SlideOff(bool on);
+    ~SlideOff() { end(); }
+    void end(); // the slide back in, before the scope's end
+    SlideOff(const SlideOff&) = delete;
+    SlideOff& operator=(const SlideOff&) = delete;
+
+    bool on{false};
+    float sliding{0.f};
+    float angle{0.f};
+};
+// Any of the slide in the body's pose now (sliding, or easing out of it).
+[[nodiscard]] bool slideIn();
 
 // The crouched pose's share (vr_body_crouch_*; ROUND21.md, "Crouched pose"): vr_body_crouch_pose_strength times the
 // crouch's depth (0 standing, 1 the pelvis at squatting height; vr_body_crouch_preview, 0..1, instead) to the power
