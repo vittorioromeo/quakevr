@@ -822,7 +822,20 @@ float() VR_Embed_HoldThink =
     // body, along the blade too, and doesn't slide it out: a corpse skewered on a sword is lifted, one on an axe dragged; a body that won't
     // come, the hand slips off it, the blade staying in. His decision 2026-11-05, "like the axe".)
     float corpseTug = cvar_hget(e.vr_stick_embed == AXESTICK_POINT ? cvarh_vr_embed_hold_corpse_tug_sword : cvarh_vr_embed_hold_corpse_tug_axe);
-    float carry = h.health <= 0 && corpseTug > 0 && e.vr_hold_tugv < corpseTug;
+    // (Blade Hold Strength over x1, the blade grips harder: a dead body's tug that much faster, and a living one's ragdoll, staggering
+    // or down, is carried as a dead one by a pull slower than the tug times what is over x1 (at x1, none: a staggering body stays as
+    // the blade comes out, test 11 case 23). Without, a lift's share along the blade never moved it, at any strength: his x10 "still
+    // extremely heavy", 2026-11-10.)
+    float gripBy = max(0, cvar_hget(cvarh_vr_embed_hold_strength));
+    if(h.health > 0)
+    {
+        corpseTug = (h.vr_knockdown && VR_Embed_Skewer(h) > 0) ? corpseTug * max(0, gripBy - 1) : 0;
+    }
+    else
+    {
+        corpseTug = corpseTug * max(1, gripBy);
+    }
+    float carry = corpseTug > 0 && e.vr_hold_tugv < corpseTug;
     float tugged = (h.health <= 0 && !carry) ? (moved3 - walk) * dir : 0;
     float stepAlong = moved3 * dir - tugged;
     float woundAlong = wound * dir;

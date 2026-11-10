@@ -7458,3 +7458,33 @@ His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", ha
   side; the grunt slid into at 253 u/s went down). `vr_body_lie_test`'s "legs straighter" now measures the straight leg
   and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
   (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).
+
+## Voice notes 2026-11-10: lifting through a blade, your gore (branch `agent/vn1110_gore`)
+
+- **Blade Hold Strength didn't lift (his "x10 and still extremely heavy"):** two caps no strength reached. (1) A live
+  ragdoll (staggering, down) never took the hand's way along the blade: that share went into the blade's slack (the drawn
+  hand stuck on the handle, the body left), at any strength; a lift with the blade angled lost 10-30 cm of it. Now, over
+  x1, a live ragdoll is carried along the blade as a dead one is, by a pull slower than the corpse tug times
+  (strength - 1); a dead one's tug times the strength (at x1 both as before: test 11 case 23 still has the blade come out
+  of a staggering body). (2) The wound's place from the hand was kept level in the world (`bladeReach`): a wrist pointing
+  the sword up overhead left the body out in front. It now turns with the hand (`vr_embed_move_turn`, Moving: Turns With
+  the Wrist, 1; 0 the old). Measured (`vr_embed_test 27`, new cases 42-45): x10 lifted 110 cm, staggering 99-100% and
+  dead 98-99% of the hand's way, axial loss 0 (was 10-30 cm); wrist turned up 50 degrees: the wound 13 degrees off its
+  place in the hand (37 with the turn off). Case 42: a strong stab at x1 by the default stagger, the hand still: held
+  4 s through it (it toppled). The real-hand slip on going active ragdoll did not reproduce with the mock.
+- **Your gore:** Your Gore: Eye Clearance (`vr_player_gore_eye_clear`) default 0.35 -> 0: nothing kept back (streams,
+  splashes, drips, and the hands' body blood drops, vr_bodyblood.cpp, which had its own fixed 0.5 m rule). Your wounds'
+  blood now pours from the drawn body's skin: the spot binds to the posed mesh's nearest triangle (avatar::posedMesh once
+  a wound; avatar::posedPoint skins three vertices a frame, sharing posedMesh's skinning), the capsule its fallback when
+  the body isn't posed. The player gore test: 9 of 9 bound to the skin, the capsule surface about 2 units off it.
+- **A skewered limb's burst blood (his "I see the small gibs, but not the blood particles"):** not stale (the skewer moves
+  it by setorigin), but VR_Gib_Burst put the blood at the gib's unturned box middle (absmin/absmax): a cut part's box lies
+  off its origin, so on a blade it was 1-3 units off a limb and 11 off a head (test 26). Now at VR_Gib_Middle, its box's
+  middle turned with it, where it rides (0.0 units off). The blood effects do reach the client there (developer 1:
+  `particle2:` lines, each with its distance from the eyes): blood 8, 8, 8, 8, 16 and the gore burst 10, at the limb, 1 m
+  off in the mock. A limb a few units off can't hide its blood, so the rest of his case is likely the near-eye particle
+  fade (Particle Fade Near Eyes 30 cm, Particles Hidden Nearer 10 cm: the burst sprays toward you from a blade held
+  close); left as it is (his comfort settings), to check in VR. `vr_embed_test 31` (`embedburst`): a limb on the sword
+  burst by the other hand's blow.
+- **Pre-existing:** tests 11, 7, 13, 24 fail 15/8/9/1 checks at origin/next here with the changes switched off (stabs not
+  sticking in the mock); with them on, 17/7/8/1, different checks each run.

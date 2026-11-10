@@ -1823,6 +1823,70 @@ bool skeleton(Skeleton& out)
     return true;
 }
 
+namespace
+{
+// Vertex `v` of the posed body skinned as the shader does (model units, before the entity's origin and scale).
+[[nodiscard]] glm::vec3 skinnedVertex(const iqmvert_t& v)
+{
+    glm::vec3 p{0.f};
+    for(int w = 0; w < 4; w++)
+    {
+        if(v.weight[w] == 0)
+        {
+            continue;
+        }
+        const float* m = &posed.skin[v.idx[w] * 12];
+        const float share = static_cast<float>(v.weight[w]) / 255.f;
+        for(int row = 0; row < 3; row++)
+        {
+            p[row] += share * (m[row * 4] * v.xyz[0] + m[row * 4 + 1] * v.xyz[1] + m[row * 4 + 2] * v.xyz[2] + m[row * 4 + 3]);
+        }
+    }
+    return p;
+}
+} // namespace
+
+bool posedPoint(const unsigned vert[3], const glm::vec3& bary, glm::vec3& at)
+{
+    if(!posed.ent || !posed.ent->model || posed.ent->model->type != mod_alias)
+    {
+        return false;
+    }
+    const ModelInfo* const info = infoOf(posed.ent->model);
+    if(!info || !info->usable)
+    {
+        return false;
+    }
+    glm::vec3 p{0.f};
+    int found = 0;
+    unsigned base = 0;
+    for(const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(posed.ent->model)); hdr && found < 3;
+        hdr = Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))
+    {
+        if(hdr->poseverttype != aliashdr_t::PV_IQM)
+        {
+            continue;
+        }
+        const unsigned count = static_cast<unsigned>(hdr->numverts_vbo);
+        const auto* v = reinterpret_cast<const iqmvert_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+        for(int k = 0; k < 3; k++)
+        {
+            if(vert[k] >= base && vert[k] < base + count)
+            {
+                p += bary[k] * skinnedVertex(v[vert[k] - base]);
+                found++;
+            }
+        }
+        base += count;
+    }
+    if(found < 3)
+    {
+        return false;
+    }
+    at = geom::vec(posed.ent->origin) + p * posed.scale;
+    return true;
+}
+
 bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts)
 {
     verts.clear();
@@ -1859,23 +1923,12 @@ bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vec
         za::Vector<unsigned char> vertPart;
         for(int i = 0; i < hdr->numverts_vbo; i++)
         {
-            glm::vec3 p{0.f};
             int weightOf[3]{0, 0, 0};
             for(int w = 0; w < 4; w++)
             {
-                if(v[i].weight[w] == 0)
-                {
-                    continue;
-                }
-                const float* m = &posed.skin[v[i].idx[w] * 12];
-                const float share = static_cast<float>(v[i].weight[w]) / 255.f;
-                for(int row = 0; row < 3; row++)
-                {
-                    p[row] += share * (m[row * 4] * v[i].xyz[0] + m[row * 4 + 1] * v[i].xyz[1] + m[row * 4 + 2] * v[i].xyz[2] + m[row * 4 + 3]);
-                }
                 weightOf[partOfBone[v[i].idx[w]]] += v[i].weight[w];
             }
-            verts.pushBack(origin + p * posed.scale);
+            verts.pushBack(origin + skinnedVertex(v[i]) * posed.scale);
             vertPart.pushBack(weightOf[1] >= 127 ? 1 : weightOf[2] >= 127 ? 2 : 0);
         }
         for(int i = 0; i + 2 < hdr->numindexes; i += 3)

@@ -233,6 +233,9 @@ struct Skeleton
 // test (vr_flat_sweep): the vertices, three indices a triangle, and per triangle its part: 0 the torso and legs, 1 the neck and
 // head, 2 an arm or hand. Costs a walk of the whole mesh. False when the body is not posed.
 [[nodiscard]] bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vector<unsigned char>& parts);
+// A point on the drawn body as posed now: vertices `vert` (numbered as posedMesh numbers them) skinned and blended by `bary`
+// (world units): three vertices' walk, not the mesh's, for your own wounds' blood (vr_playergore.cpp). False when not posed.
+[[nodiscard]] bool posedPoint(const unsigned vert[3], const glm::vec3& bary, glm::vec3& at);
 
 // Not drawn this frame.
 void hide();
