@@ -521,14 +521,30 @@ void(float xHand, entity r, string xHow) VR_Revolver_Close =
 // vr_shells.cpp, out of the cylinder as drawn), the live ones as shells lying about to take again. `xPush`: the hand's
 // velocity (m/s) that threw them out (VR_Revolver_Push; they go that way at that speed x vr_revolver_eject_impulse),
 // '0 0 0' when something else let them drop.
+// With vr_rv_keep_live set (flat-screen play's reload, vr_flatreload.qc: the rounds go in at the hip as any gun's), only
+// the spent ones leave; the live ones stay in their chambers (its clip as it was).
 vector vr_rv_ej_vel; // (the last live shell's velocity, units a second: the tests)
+// (vr_rv_keep_live: vr_flatreload.qc, before this)
 void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject =
 {
     entity h = VR_Revolver_Hand(self, xHand);
     float spent = VR_Revolver_Count(r, 2);
-    float live = VR_Revolver_Count(r, 1);
-    r.wi_rv = 0;
-    VRSetEntWeaponClip(self, xHand, 0);
+    float live = vr_rv_keep_live ? 0 : VR_Revolver_Count(r, 1);
+    if(vr_rv_keep_live)
+    {
+        for(float c = 0; c < RV_CHAMBERS; c++)
+        {
+            if(VR_Revolver_Chamber(r, c) == 2)
+            {
+                VR_Revolver_SetChamber(r, c, 0);
+            }
+        }
+    }
+    else
+    {
+        r.wi_rv = 0;
+        VRSetEntWeaponClip(self, xHand, 0);
+    }
     VR_Reload_AmmoChanged(self);
     h.rvh_rod = time + 0.35;
     VR_RV_Sound(self, CHAN_AUTO, "vr/reload_ssg_eject.wav", 0.9, 115);
@@ -1011,9 +1027,9 @@ void(float xHand) VR_Revolver_HandFrame =
     {
         VR_Revolver_ReloadFrame(xHand, h, r);
     }
-    else if(r.wi_rv_open)
+    else if(r.wi_rv_open && !VR_FlatReload_Busy(self, xHand))
     {
-        r.wi_rv_open = 0; // (no longer loaded by hand: home)
+        r.wi_rv_open = 0; // (no longer loaded by hand: home; flat-screen play's reload swings it out for its trip)
     }
     VR_Revolver_SpinStep(r);
     // The hammer and the trigger: cocked (1) until it falls, then the trigger held back (2), let go (0).

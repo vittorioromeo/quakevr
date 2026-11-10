@@ -7410,6 +7410,35 @@ His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
 - **Pose defaults**: `vr_flat_fg_out` 0.15 and `vr_flat_fg_down` -0.05 (0.3 / 0.1 put the open hand on the screen's bottom
   left edge). `flatitems_test.sh` sets `vr_flat_autoreload 1`: since the flat reload landed, e1m1's shotgun starts with an
   empty clip and cases 1 and 5 timed out waiting for a shot (not this branch: they pass with it).
+## Flat reloads: the guns' own parts, and the crosshair's kick (branch `agent/flat_reload2`, worktree `flatwall`, 2026-11-10)
+
+His items 11, 15, 16, 23 of 2026-11-10 (docs/vr-port/FLATPLAY.md, "Reloading" and "The visor crosshair").
+
+- **The super shotgun breaks open after its empty shot** (`vr_flat_ssg_break` 1, `vr_flat_ssg_break_delay` 0.15 s): the
+  flat path goes through VR's own `VR_Reload_SsgFired` (its spent shells kept in the barrels), `VR_Reload_SsgBreak`
+  (thrown out as casings), `VR_Reload_SsgIsOpen` (the dry click) and `VR_Reload_SsgClose`; the clients' `ssgBreaks()`
+  draws it open in flat play. The reload shuts it `vr_flat_reload_close_delay` (0.1 s) after its rounds at the hip; the
+  hip's own SSG casings (`VRReloadWeapon`) are skipped for it, so the shells are thrown out once. A live shell left in
+  (short of ammo) keeps it closed: it breaks only when fired empty.
+- **Magazines shown and dropped** (`vr_flat_mag_eject` 1, `_delay` 0.1 s, `_speed` 40): `magazinesShown()` (vr_view.cpp)
+  replaces the mode-3 gates for drawing magazines (held, holstered, lying) and their sliding and boxes; the empty gun's
+  eject is VR's eject button's, now `VR_Reload_EjectOut` (shared). A flat hand never gets the magazine hotspot
+  (`magazineHand`), so the flat two-handed holds are unchanged. A magazine round lying about is VR's (its caps).
+- **The revolver's reload** (`vr_flat_revolver_eject` 1): `VR_Revolver_Open`, `VR_Revolver_Eject` (new `vr_rv_keep_live`:
+  only the spent ones out) and `VR_Revolver_Close` around the hip trip; its HandFrame no longer swings a flat player's
+  cylinder home while his trip is under way.
+- **The crosshair's kick** (`vr_flat_xhair_kick` 2 px per degree + cm, `_max` 24 px, `_smooth` 0.04 s): from
+  `weaponfx::recoilOffset` (the drawn recoil itself, so in sync and per weapon); merged crosshairs take the larger.
+- "Basic vs full" reload modes: flat-screen play has one reload (the hip trip, `vr_flat_reload 1`); all of this applies
+  to it. `vr_flat_reload 0` (no clips): magazines drawn full, nothing breaks open or drops.
+- Tests: `flatreload_test.sh` runs `ssg`, `mag`, `revolver`, `kick` (flatreload_check.py); scenes `flat_ssg_break`,
+  `flat_mag_eject`, `flat_revolver_eject`, `flat_xhair_kick`. flatreload 38/0 (the break 0.15 s after the shot, 2 spent
+  out, shut with 2 loaded; one magazine dropped, a new one seated; the revolver's spent shells out as many as fired, home
+  with 6 live; the crosshair's spread 0 -> 7.8 px -> 0), flatxhair 31/0, flatpose 21/1 (the ADS pose check's control
+  shot: `vr_test_spawn 5` spawned a grunt, not a knight, and the shot missed it; random, unrelated: a rerun with
+  `vr_flat_xhair_kick 0` spawned the knight and hit).
+- Open: the open super shotgun fires nothing in flat play but its dry click (`VR_Reload_SsgIsOpen` in `W_AttackImpl`)
+  isn't heard: the trigger's press doesn't reach `W_AttackImpl` there (not found yet).
 ## Flat hands: the drop key, the quick grenade, the hand swap (agent/flat_hands, 2026-11-10)
 
 His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).

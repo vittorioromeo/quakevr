@@ -798,7 +798,7 @@ void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t
     magSlideStep(hand, model);
     // (One sliding out: its box still sent, slid with it, for where the server lets it go; no grip nor collision on it.)
     const bool sliding = magSlidingOut(hand);
-    const MagMount* mount = !floating && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && (!(flags & weaponFlagNoMag) || sliding)
+    const MagMount* mount = !floating && magazinesShown() && (!(flags & weaponFlagNoMag) || sliding)
                                 ? magMountFor(model)
                                 : nullptr;
     MagShape shape;
@@ -858,7 +858,9 @@ void magazineHand(hands::State& s, int hand, bool carried)
 {
     const int other = 1 - hand;
     bool on = false;
-    if(s.magBoxValid[hand] && !magSlidingOut(hand) && held::handEmpty(other) && !twohand::carrying(other) && !flashlight::holds(other))
+    // (Never a flat-screen hand's: his magazines are drawn and ejected, not held: vr_flatreload.qc.)
+    if(s.magBoxValid[hand] && !magSlidingOut(hand) && held::handEmpty(other) && !twohand::carrying(other) &&
+       !flashlight::holds(other) && !flatplay::active())
     {
         // (As tracked: the drawn hand and gun are held out of each other, vr_body_collide.)
         const float d = boxDistance(s.magBox[hand], s.pos[other] - selfcollide::drawnOffset(other) + selfcollide::drawnOffset(hand));

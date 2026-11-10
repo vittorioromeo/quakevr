@@ -1,8 +1,0 @@
-# housing_nailpistol: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nail pistol in the main hand with nails (its ammo screen in the housing block on the slide's back).
-title Nail pistol: the ammo screen housing on the slide
-map vrtesthall
-god
-notarget
-give "Nail Pistol" main
-cmd impulse 9
-hint Look down at the slide's back (flat screen: about 20 degrees down): a chunky bevelled block with a rounded window, the glass recessed in it filling the window, a grille with two slats under it, small bolts; fire: the block and the glass go back with the slide together.

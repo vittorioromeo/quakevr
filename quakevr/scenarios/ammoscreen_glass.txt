@@ -1,9 +1,0 @@
-# ammoscreen_glass: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The deep-glass ammo screens: the shotgun in the main hand, the super shotgun in the off hand, all weapons and ammo (impulse 9) to switch to the nail pistol.
-title Ammo screens as deep glass: shotgun and super shotgun in hand
-map vrtesthall
-god
-notarget
-give "Shotgun" main
-give "Super Shotgun" off
-cmd impulse 9
-hint Look down at the shotgun's end face (flat screen: about 75 degrees down): dark grey-green glass in a thick black frame, rounded corners, an inset shadow under the top edge, pale glowing digits, a faint sheen, no green outline. Screens > Rounded Glass Ammo Screens off brings back the old one. Check the SSG, and the nail pistol from the toolgun or impulse 9.

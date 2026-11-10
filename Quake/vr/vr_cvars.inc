@@ -4070,7 +4070,10 @@ QVR_CVAR(vr_flat_swap_debug, "0", CVAR_NONE)            // 1: the hand swap's an
 QVR_CVAR(vr_flat_reload, "1", CVAR_ARCHIVE)             // flat-screen play reloads: every gun has its clip, filled from the ammo by the hip-holster reload (VR's Reloading: Hip Holsters), started by R or vr_flat_autoreload; 0: no clips, every shot from the ammo (as before 2026-11-08)
 QVR_CVAR(vr_flat_reload_debug, "0", CVAR_NONE)         // 1: the flat-screen reload's drawn trip printed step by step (flatreload: ...; vr_flatreload.cpp)
 QVR_CVAR(vr_flat_reload_pose, "-1", CVAR_NONE)         // test aid: 0..1 holds the main hand that far on the way to its hip holster, muzzle down, with no reload (-1 off): a hand at the holster that must not reload
-QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE)         // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
+QVR_CVAR(vr_flat_ssg_break, "1", CVAR_ARCHIVE)          // flat-screen play with clips (vr_flat_reload): the super shotgun fired empty breaks open by itself (vr_flat_ssg_break_delay later), its spent shells thrown out, and can't fire until a reload closes it (his words 2026-11-10); 0: as before (its shells out at the hip)
+QVR_CVAR(vr_flat_mag_eject, "1", CVAR_ARCHIVE)          // the same: a magazine gun (nailgun, super nailgun, thunderbolt, nail pistol) fired empty drops its magazine (VR's physical one, vr_flat_mag_eject_delay later); the reload seats a new one at the hip
+QVR_CVAR(vr_flat_revolver_eject, "1", CVAR_ARCHIVE)     // the same: the revolver's reload swings its cylinder out as it starts, its spent shells thrown out, and home after the rounds go in (vr_flat_reload_close_delay)
+QVR_CVAR(vr_flat_autoreload, "0", CVAR_ARCHIVE)        // flat-screen play: 1: a gun whose clip is empty reloads by itself (when its ammo has rounds); 0 (default since 2026-11-09, his call): only R reloads
 QVR_CVAR(vr_flat_key_lean_left, "q", CVAR_ARCHIVE)      // the key that leans left (vr_flat_lean; vr_flatmove.cpp), by its bind name; "" none
 QVR_CVAR(vr_flat_key_lean_right, "e", CVAR_ARCHIVE)     // the key that leans right, by its bind name; "" none
 QVR_CVAR(vr_flat_key_flycam, "F8", CVAR_ARCHIVE)        // the key that turns the fly camera on and off (vr_flat_flycam_toggle; vr_flycam.cpp), by its bind name; "" none
@@ -4172,6 +4175,9 @@ QVR_CVAR(vr_flat_xhair_outline, "1", CVAR_ARCHIVE)      // a dark outline round 
 QVR_CVAR(vr_flat_xhair_glow, "0.25", CVAR_ARCHIVE)       // the visor's glow round it (0 none .. 2)
 QVR_CVAR(vr_flat_xhair_snap, "8", CVAR_ARCHIVE)         // a shot's point this near the centre is drawn exactly on it (0..200); two guns' points this near each other share one crosshair
 QVR_CVAR(vr_flat_xhair_smooth, "0.1", CVAR_ARCHIVE)    // seconds it takes to follow a point off the centre (no jitter; 0 at once .. 0.5)
+QVR_CVAR(vr_flat_xhair_kick, "2", CVAR_ARCHIVE)          // a shot's feedback (his words 2026-11-10): the visor crosshair's lines pushed out from the point, their length kept, this many pixels at 1080 per degree of the gun's drawn muzzle rise and cm of its kick back (its recoil, in sync; 0 off .. 10); two merged crosshairs: the more kicked
+QVR_CVAR(vr_flat_xhair_kick_max, "24", CVAR_ARCHIVE)     // and no further than this (pixels at 1080; 0..64)
+QVR_CVAR(vr_flat_xhair_kick_smooth, "0.04", CVAR_ARCHIVE) // and smoothed over this (seconds; 0 the recoil as is .. 0.3)
 QVR_CVAR(vr_flat_xhair_reload_alpha, "0.35", CVAR_ARCHIVE) // a gun away on its reload trip (vr_flat_reload): its crosshair at this share of its opacity, as a gun the wall stops (0 hidden .. 1 as ever)
 QVR_CVAR(vr_flat_wall_shot, "1", CVAR_ARCHIVE)           // flatscreen play: 1 a gun a wall turned (vr_flat_wall_tilt, vr_flat_wall_slide) shoots from its muzzle the way it points, and the visor crosshair shows that hit; 0 its shots still go through the crosshair
 
