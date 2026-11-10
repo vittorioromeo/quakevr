@@ -249,6 +249,7 @@ glm::vec3 traceViewOrg{0.f}; // VR_FlatViewDrop's view origin this frame, world 
 bool traceBodyOn{false};     // the drawn body's points below wanted (vr_flatslide_ramp_test: the Follower's torso solve)
 glm::vec3 traceShoulder{0.f}; // poseHands' main shoulder this frame, world (the body's chest, solveTorso's)
 glm::vec3 tracePelvis{0.f};   // the body's pelvis this frame, world (only while traceBodyOn)
+int traceArmHolds{0};         // drawn hands the arm's hold pulled in so far (drawnOffset; the slide jitter measure)
 
 // Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
 // plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
@@ -2097,6 +2098,16 @@ glm::vec3 lastPelvis()
     return tracePelvis;
 }
 
+glm::vec3 lastDrawnMainHand()
+{
+    return feel.drawnAt[HAND_MAIN];
+}
+
+int armHolds()
+{
+    return traceArmHolds;
+}
+
 // Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
 float crouchRatio()
 {
@@ -2363,6 +2374,11 @@ glm::vec3 bodyRide(const hands::State& s)
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const glm::vec3 cam = flycam::eyeOrg(); // (his own eye, not the fly camera's)
     return (cam - (s.head + camShiftWorld(aim))) * rideShare() + fwdBob(flycam::eyeAngles());
+}
+
+bool drawnSkeleton(const hands::State& s, avatar::Skeleton& out)
+{
+    return avatar::skeletonUnder(s.head + bodyRide(s), out);
 }
 
 glm::vec3 levelHang(const hands::State& s, int h)
@@ -3305,18 +3321,20 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float hold = za::clamp(vr_flat_arm_hold.value, 0.f, 2.f);
     if(hold > 0.f)
     {
-        // (The body as last drawn: a frame old. A jump of the player, a teleporter, a respawn, leaves that shoulder in the
-        // old place for the frame the jump arrives in: the arm there would hold the gun in the room he just left, a blink
-        // of the gun off the screen at every gate. The pose's own shoulder, that frame.)
+        // (The body as last drawn, a frame old, carried with the head's move since (drawnSkeleton): taken where it was
+        // drawn, the shoulder lagged by the frame's move, a slide's 400 u/s times a frame time that varies: the gun and the
+        // arm jittered sliding, 3 cm rms at the real clock (his report 2026-11-10; ROUND24.md "Slide jitter"). Still, a pose
+        // far off the drawn one -- a respawn -- takes the pose's own shoulder, that frame.)
         avatar::Skeleton k;
         const glm::vec3 poseRoot = shoulder(s, h);
-        const glm::vec3 root = avatar::skeleton(k) && glm::distance(k.shoulder[h], poseRoot) < bodyJumpedOver ? k.shoulder[h] : poseRoot;
+        const glm::vec3 root = drawnSkeleton(s, k) && glm::distance(k.shoulder[h], poseRoot) < bodyJumpedOver ? k.shoulder[h] : poseRoot;
         const float span = armSpan() * hold;
         const glm::vec3 reachOut = drawn - root;
         const float d = glm::length(reachOut);
         if(span > 0.f && d > span)
         {
             drawn = root + reachOut * (span / d);
+            traceArmHolds++;
         }
     }
 

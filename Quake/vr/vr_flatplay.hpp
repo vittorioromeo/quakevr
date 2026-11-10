@@ -16,6 +16,11 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
+namespace qvr::avatar
+{
+struct Skeleton;
+}
+
 namespace qvr::flatplay
 {
 
@@ -131,6 +136,10 @@ void noteModelFovBatch();
 void traceBody(bool on);
 [[nodiscard]] glm::vec3 lastMainShoulder();
 [[nodiscard]] glm::vec3 lastPelvis();
+// The main hand as last drawn (drawnOffset: the pose's hand with the looks and the arm's hold), world, and how many drawn
+// hands the arm's hold has pulled in so far (the slide jitter measure).
+[[nodiscard]] glm::vec3 lastDrawnMainHand();
+[[nodiscard]] int armHolds();
 
 // The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
 // asked at Quake/cl_main.c's CL_AccumulateCmd, where the frame's looking has all landed in cl.viewangles (VR_FlatPitchClamp,
@@ -179,6 +188,9 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // by vr_flat_body_bob (all of it sighted), which the drawn hands ride too (drawnOffset), so body, arms and hands move as one. 0 outside
 // the mode, off the body pose, and when the drawn view isn't his own eyes.
 [[nodiscard]] glm::vec3 bodyRide(const hands::State& s);
+// The drawn body as last posed, carried to where this frame's will stand (the head it is posed under: s.head with bodyRide;
+// avatar::skeletonUnder): for what is placed before this frame's body is posed. False when the body is not posed.
+[[nodiscard]] bool drawnSkeleton(const hands::State& s, avatar::Skeleton& out);
 // The hands stand on the body (vr_flat_body_pose), in the mode.
 [[nodiscard]] bool onBody();
 // How far the chest's share of this look carries his head and neck (vr_flat_eye_lean). In the eye's place already: solveTorso's head.
