@@ -2,13 +2,9 @@
 #include "common.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <map>
-#include <regex>
 #include <thread>
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 
 namespace qvrc
 {
@@ -209,180 +205,208 @@ int checkReleaseQc(const Ctx& ctx, const Args&, Out& out)
 namespace
 {
 
-// A read-only view of a whole file.
-struct Mapped
-{
-    HANDLE file = INVALID_HANDLE_VALUE;
-    HANDLE map = nullptr;
-    const char* data = nullptr;
-    size_t size = 0;
+// The id opcodes (all the `standard` target emits; FTEQCC's own opcodes are compared by number like the rest).
+constexpr uint32_t opIf = 49;
+constexpr uint32_t opIfNot = 50;
+constexpr uint32_t opGoto = 61;
+constexpr uint32_t reservedOfs = 28; // OFS_NULL, OFS_RETURN, OFS_PARM0..7: fixed
 
-    explicit Mapped(const fs::path& p)
-    {
-        file = CreateFileW(p.wstring().c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                           FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-        if(file == INVALID_HANDLE_VALUE)
-        {
-            return;
-        }
-        LARGE_INTEGER sz{};
-        GetFileSizeEx(file, &sz);
-        size = static_cast<size_t>(sz.QuadPart);
-        if(size == 0)
-        {
-            return;
-        }
-        map = CreateFileMappingW(file, nullptr, PAGE_READONLY, 0, 0, nullptr);
-        if(map)
-        {
-            data = static_cast<const char*>(MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0));
-        }
-    }
-    ~Mapped()
-    {
-        if(data)
-        {
-            UnmapViewOfFile(data);
-        }
-        if(map)
-        {
-            CloseHandle(map);
-        }
-        if(file != INVALID_HANDLE_VALUE)
-        {
-            CloseHandle(file);
-        }
-    }
-    Mapped(const Mapped&) = delete;
-    Mapped& operator=(const Mapped&) = delete;
-};
-
-struct Instr
+// A jump's operand (IF / IFNOT: b, GOTO: a) is a statement count, not a global.
+bool jumpOperand(uint32_t op, int which)
 {
-    int line;
-    std::string text;
-};
-using Listing = std::map<std::string, std::vector<Instr>>;
-
-// One instruction line: its trailing /*N*/ line number off, and every temp_N / locked_N renamed `tmp` (temporaries are
-// numbered per function and may be allocated differently: they compare by role, not number).
-Instr parseInstr(std::string_view l)
-{
-    Instr in{0, {}};
-    // \s*/\*(\d+)\*/\s*$
-    std::string_view s = l;
-    while(!s.empty() && isSpace(s.back()))
-    {
-        s.remove_suffix(1);
-    }
-    if(endsWith(s, "*/"))
-    {
-        const size_t open = s.rfind("/*");
-        if(open != std::string_view::npos && open + 2 < s.size() - 2)
-        {
-            const auto num = s.substr(open + 2, s.size() - 2 - (open + 2));
-            if(std::all_of(num.begin(), num.end(), isDigit))
-            {
-                in.line = std::stoi(std::string(num));
-                s = s.substr(0, open);
-            }
-        }
-    }
-    s = trim(s);
-    std::string& o = in.text;
-    o.reserve(s.size());
-    for(size_t i = 0; i < s.size();)
-    {
-        // \b(?:temp|locked)_\d+\b
-        bool replaced = false;
-        if(wordStart(s, i))
-        {
-            for(std::string_view w : {"temp_", "locked_"})
-            {
-                if(s.substr(i, w.size()) == w)
-                {
-                    size_t e = i + w.size();
-                    while(e < s.size() && isDigit(s[e]))
-                    {
-                        ++e;
-                    }
-                    if(e > i + w.size() && wordEnd(s, e))
-                    {
-                        o += "tmp";
-                        i = e;
-                        replaced = true;
-                    }
-                    break;
-                }
-            }
-        }
-        if(!replaced)
-        {
-            o += s[i++];
-        }
-    }
-    return in;
+    return ((op == opIf || op == opIfNot) && which == 1) || (op == opGoto && which == 0);
 }
 
-// qc.asm -> {function: [(line, instruction)]}. The file is huge (about 1.7 GB: each function first lists every
-// temporary of the progs, `local ...` lines, then its instructions, tab-indented): mapped, and each function's locals
-// skipped by a search for its first instruction line, so only the instructions are decoded.
-Listing parseAsm(const fs::path& asmPath)
+// A vector operand (3 globals): MUL_V, ADD_V, SUB_V, EQ_V, NE_V (a, b); MUL_VF, STORE_V, STOREP_V, NOT_V (a); MUL_FV (b).
+bool vectorOperand(uint32_t op, int which)
 {
-    Listing funcs;
-    Mapped mm(asmPath);
-    if(!mm.data)
+    switch(op)
     {
-        return funcs;
+        case 2:
+        case 7:
+        case 9:
+        case 11:
+        case 16: return which <= 1;
+        case 4:
+        case 32:
+        case 38:
+        case 45: return which == 0;
+        case 3: return which == 1;
+        default: return false;
     }
-    const std::string_view all(mm.data, mm.size);
-    size_t pos = 0;
-    while(true)
+}
+
+// A string operand: EQ_S, NE_S (a, b); STORE_S, STOREP_S, NOT_S (a).
+bool stringOperand(uint32_t op, int which)
+{
+    switch(op)
     {
-        const size_t h = all.find(" = asm\n", pos);
-        if(h == std::string_view::npos)
+        case 12:
+        case 17: return which <= 1;
+        case 33:
+        case 39:
+        case 46: return which == 0;
+        default: return false;
+    }
+}
+
+// One function's statements, each as text that is the same in both compiles unless the code differs, and their source
+// lines.
+struct Func
+{
+    std::string file; // relative to the repository's root
+    std::vector<std::string> text;
+    std::vector<int> lines;
+};
+using Bodies = std::map<std::string, Func>;
+
+uint32_t u32At(std::string_view d, size_t ofs)
+{
+    uint32_t v = 0;
+    std::memcpy(&v, d.data() + ofs, 4);
+    return v;
+}
+
+// dir/progs.dat (FTE's 32-bit format) and dir/progs.lno (fteqcc's statement lines) -> {function: statements}; an error
+// message, or empty.
+//
+// The two compiles number globals, immediates and temporaries independently (a function that differs can shift those of
+// every later one), so a statement's operands are written by what they are, not where: a fixed global (return, parms)
+// by its offset, a local or local temporary by its offset in the function's locals, a named global by its name, any
+// other global (an immediate; a shared temporary, always 0) by its value: a string's text, a vector's three words.
+std::string readProgs(const fs::path& dir, const fs::path& tree, Bodies& funcs)
+{
+    const std::string d = readRaw(dir / "progs.dat");
+    const std::string lno = readRaw(dir / "progs.lno");
+    ProgsHeader hdr;
+    bool isProgs = false;
+    const std::string fmt = progsFormat(d, hdr, isProgs);
+    if(!isProgs || fmt != "fte32")
+    {
+        return "progs.dat isn't the 32-bit format: " + fmt;
+    }
+    const auto u = [&](int i) { return static_cast<size_t>(static_cast<uint32_t>(hdr.h[i])); };
+    const size_t ofsSt = u(2), numSt = u(3), ofsGd = u(4), numGd = u(5), ofsFn = u(8), numFn = u(9), ofsStr = u(10),
+                 numStr = u(11), ofsGl = u(12), numGl = u(13);
+    for(const auto [ofs, size] : {std::pair{ofsSt, numSt * 16}, {ofsGd, numGd * 12}, {ofsFn, numFn * 36},
+                                  {ofsStr, numStr}, {ofsGl, numGl * 4}})
+    {
+        if(ofs > d.size() || size > d.size() - ofs)
         {
-            break;
+            return "progs.dat is truncated";
         }
-        const size_t nl = h == 0 ? std::string_view::npos : all.rfind('\n', h - 1);
-        const size_t start = nl == std::string_view::npos ? 0 : nl + 1;
-        std::string_view name = all.substr(start, h - start);
-        while(!name.empty() && name.back() == '\r')
+    }
+    // progs.lno: "LNOF", version 1, numglobaldefs, numglobals, numfielddefs, numstatements, then a line per statement.
+    if(lno.size() < 24 + numSt * 4 || lno.compare(0, 4, "LNOF") != 0 || u32At(lno, 4) != 1 || u32At(lno, 20) != numSt)
+    {
+        return "progs.lno is missing or doesn't match progs.dat";
+    }
+    const auto str = [&](uint32_t o) -> std::string_view {
+        if(o >= numStr)
         {
-            name.remove_suffix(1);
+            return {};
         }
-        const size_t end = all.find("\n}", h);
-        if(end == std::string_view::npos)
+        const char* p = d.data() + ofsStr + o;
+        return {p, strnlen(p, numStr - o)};
+    };
+    const auto global = [&](uint32_t v) { return u32At(d, ofsGl + size_t{v} * 4); };
+    // A global's name (several defs can share one: `origin`, `origin_x`; the least).
+    std::vector<std::string_view> names(numGl);
+    for(size_t i = 0; i < numGd; ++i)
+    {
+        const uint32_t ofs = u32At(d, ofsGd + i * 12 + 4);
+        const std::string_view n = str(u32At(d, ofsGd + i * 12 + 8));
+        if(ofs < numGl && !n.empty() && (names[ofs].empty() || n < names[ofs]))
         {
-            break;
+            names[ofs] = n;
         }
-        std::vector<Instr> body;
-        const size_t first = all.substr(0, end).find("\n\t", h);
-        if(first != std::string_view::npos)
+    }
+    // The functions with code, by their first statement: each runs to the next one's.
+    std::vector<std::pair<uint32_t, size_t>> order;
+    for(size_t i = 0; i < numFn; ++i)
+    {
+        const auto first = static_cast<int32_t>(u32At(d, ofsFn + i * 36));
+        if(first > 0 && static_cast<size_t>(first) < numSt)
         {
-            for(auto l : splitLines(all.substr(first + 1, end - (first + 1))))
+            order.emplace_back(static_cast<uint32_t>(first), i);
+        }
+    }
+    std::sort(order.begin(), order.end());
+    for(size_t f = 0; f < order.size(); ++f)
+    {
+        const size_t fn = ofsFn + order[f].second * 36;
+        const uint32_t first = order[f].first;
+        const uint32_t end = f + 1 < order.size() ? order[f + 1].first : static_cast<uint32_t>(numSt);
+        const uint32_t parmStart = u32At(d, fn + 4);
+        const uint32_t locals = u32At(d, fn + 8);
+        std::string name(str(u32At(d, fn + 16)));
+        for(int k = 2; funcs.contains(name); ++k)
+        {
+            name = std::format("{}#{}", str(u32At(d, fn + 16)), k);
+        }
+        Func& out = funcs[name];
+        const std::string_view file = str(u32At(d, fn + 20));
+        out.file = file.empty() ? "?" : relPosix((dir / fs::path(file)).lexically_normal(), tree);
+        out.text.reserve(end - first);
+        out.lines.reserve(end - first);
+        for(uint32_t s = first; s < end; ++s)
+        {
+            const size_t st = ofsSt + size_t{s} * 16;
+            const uint32_t op = u32At(d, st);
+            std::string t = std::to_string(op);
+            for(int w = 0; w < 3; ++w)
             {
-                if(!l.empty() && l[0] == '\t')
+                const uint32_t v = u32At(d, st + 4 + static_cast<size_t>(w) * 4);
+                t += ' ';
+                if(jumpOperand(op, w))
                 {
-                    body.push_back(parseInstr(l));
+                    t += std::to_string(static_cast<int32_t>(v));
+                }
+                else if(v < reservedOfs)
+                {
+                    t += std::format("r{}", v);
+                }
+                else if(v >= parmStart && v - parmStart < locals)
+                {
+                    t += std::format("l{}", v - parmStart);
+                }
+                else if(v >= numGl)
+                {
+                    t += std::format("?{}", v);
+                }
+                else if(!names[v].empty())
+                {
+                    t += names[v];
+                }
+                else if(stringOperand(op, w))
+                {
+                    t += std::format("\"{}\"", str(global(v)));
+                }
+                else if(vectorOperand(op, w) && v + 2 < numGl)
+                {
+                    t += std::format("={:x},{:x},{:x}", global(v), global(v + 1), global(v + 2));
+                }
+                else
+                {
+                    t += std::format("={:x}", global(v));
                 }
             }
+            out.text.push_back(std::move(t));
+            out.lines.push_back(static_cast<int>(u32At(lno, 24 + size_t{s} * 4)));
         }
-        funcs[std::string(name)] = std::move(body);
-        pos = end + 2;
     }
-    return funcs;
+    return {};
 }
 
 struct CompileResult
 {
-    Listing funcs;
+    Bodies funcs;
     std::string error; // empty: compiled
 };
 
-// Compiles QC/progs.src into work/sub with the asm listing; parses it, then empties it (it is about 1.7 GB).
-CompileResult compileAsm(const Ctx& ctx, const fs::path& fteqcc, const fs::path& work, const std::string& sub,
-                         const std::vector<std::string>& extra)
+// Compiles QC/progs.src into work/sub (progs.dat and its progs.lno) and reads them, then empties them.
+CompileResult compileProgs(const Ctx& ctx, const fs::path& fteqcc, const fs::path& work, const std::string& sub,
+                           const std::vector<std::string>& extra)
 {
     CompileResult res;
     const fs::path out = work / sub;
@@ -391,19 +415,23 @@ CompileResult compileAsm(const Ctx& ctx, const fs::path& fteqcc, const fs::path&
         res.error = "cannot write " + (out / "progs.src").generic_string();
         return res;
     }
-    const fs::path asmPath = out / "qc.asm";
+    const fs::path files[] = {out / "progs.dat", out / "progs.lno"};
     std::error_code ec;
-    if(fs::is_regular_file(asmPath, ec))
+    for(const auto& f : files)
     {
-        writeRaw(asmPath, ""); // (a failed compile must not pass on the last run's listing)
+        if(fs::is_regular_file(f, ec))
+        {
+            writeRaw(f, ""); // (a failed compile must not pass on the last run's output)
+        }
     }
     std::vector<std::string> cmd = {fteqcc.string()};
     cmd.insert(cmd.end(), qcFlags.begin(), qcFlags.end());
-    cmd.emplace_back("-Fwasm");
+    // (after -O3, which strips the file names: with them fteqcc writes progs.lno, each statement's source line)
+    cmd.emplace_back("-Ono-filenames");
     cmd.insert(cmd.end(), extra.begin(), extra.end());
     cmd.insert(cmd.end(), {"-srcfile", "progs.src"});
     const ProcResult r = runProcess(cmd, out, false);
-    if(r.rc != 0 || r.out.find("ERROR") != std::string::npos || !fs::is_regular_file(asmPath, ec))
+    if(r.rc != 0 || r.out.find("ERROR") != std::string::npos)
     {
         const auto ls = splitLines(r.out);
         std::string tail;
@@ -415,63 +443,19 @@ CompileResult compileAsm(const Ctx& ctx, const fs::path& fteqcc, const fs::path&
         }
         res.error = std::format("check_qc_precedence: the compile failed ({}):\n{}", sub, tail);
     }
-    else
+    else if(const std::string e = readProgs(out, ctx.tree, res.funcs); !e.empty())
     {
-        res.funcs = parseAsm(asmPath);
+        res.error = std::format("check_qc_precedence: {}/{}", sub, e);
     }
-    // The listing and the progs are only this check's: emptied, so the work folder stays small.
-    writeRaw(asmPath, "");
-    if(fs::is_regular_file(out / "progs.dat", ec))
+    // The progs are only this check's: emptied, so the work folder stays small.
+    for(const auto& f : files)
     {
-        writeRaw(out / "progs.dat", "");
+        if(fs::is_regular_file(f, ec))
+        {
+            writeRaw(f, "");
+        }
     }
     return res;
-}
-
-// The QC file that defines `func` (its name as qc.asm prints it: `float(entity) Name`) and has line `line`.
-std::string sourceFile(const Ctx& ctx, const std::vector<std::pair<fs::path, std::string>>& qcFiles,
-                       const std::string& func, int line)
-{
-    std::string name = func.substr(func.rfind(')') == std::string::npos ? 0 : func.rfind(')') + 1);
-    name = std::string(trim(name));
-    for(const auto& [path, text] : qcFiles)
-    {
-        // ^[^/\n]*\)\s*NAME\s*=  (re.M)
-        bool defines = false;
-        for(size_t i = 0; !defines && (i = text.find(name, i)) != std::string::npos; ++i)
-        {
-            size_t p = skipSpace(text, i + name.size());
-            if(p >= text.size() || text[p] != '=')
-            {
-                continue;
-            }
-            // back from the name: spaces, then `)`, with no '/' or newline before it on the line
-            size_t b = i;
-            while(b > 0 && isSpace(text[b - 1]))
-            {
-                --b;
-            }
-            if(b == 0 || text[b - 1] != ')')
-            {
-                continue;
-            }
-            // (`\s*` may cross newlines: the `)` line is the one checked for a '/')
-            size_t ls = b - 1;
-            bool slash = false;
-            while(ls > 0 && text[ls - 1] != '\n')
-            {
-                slash |= text[ls - 1] == '/';
-                --ls;
-            }
-            // ([^/\n]* is greedy: any `)` on that line with no '/' before it would do; this `)` is the last one)
-            defines = !slash;
-        }
-        if(defines && static_cast<int>(std::count(text.begin(), text.end(), '\n')) >= line - 1)
-        {
-            return relPosix(path, ctx.tree);
-        }
-    }
-    return "?";
 }
 
 } // namespace
@@ -489,11 +473,12 @@ std::string sourceFile(const Ctx& ctx, const std::vector<std::pair<fs::path, std
 // Comparisons against arithmetic (`time - last < 0.2`) are as in C.
 //
 // The check compiles the progs twice at once, with QC priorities (the build's) and with C priorities (-Fcpriority),
-// and compares each function's instructions. A function that differs holds an expression that depends on the
-// priorities: parenthesise it (or use a temporary) so it reads the same both ways.
+// and compares each function's statements (readProgs: operands by what they are, so the two compiles' numbering of
+// globals and immediates doesn't count). A function that differs holds an expression that depends on the priorities:
+// parenthesise it (or use a temporary) so it reads the same both ways. Its first differing statement gives the line.
 //
 // The compiler: --fteqcc, else $FTEQCC, else C:/OHWorkspace/quakevr/QC/fteqcc64.exe, else fteqcc64/fteqcc on PATH.
-// Work files go to build/qcprec/ (git-ignored); the listings are emptied after use. QC/ and quakevr/progs.dat are not
+// Work files go to build/qcprec/ (git-ignored); the progs are emptied after use. QC/ and quakevr/progs.dat are not
 // touched.
 int checkQcPrecedence(const Ctx& ctx, const Args&, Out& out)
 {
@@ -507,8 +492,8 @@ int checkQcPrecedence(const Ctx& ctx, const Args&, Out& out)
     CompileResult qcPrio;
     CompileResult cPrio;
     {
-        std::thread c([&] { cPrio = compileAsm(ctx, fteqcc, work, "c", {"-Fcpriority"}); });
-        qcPrio = compileAsm(ctx, fteqcc, work, "qc", {});
+        std::thread c([&] { cPrio = compileProgs(ctx, fteqcc, work, "c", {"-Fcpriority"}); });
+        qcPrio = compileProgs(ctx, fteqcc, work, "qc", {});
         c.join();
     }
     for(const auto* r : {&qcPrio, &cPrio})
@@ -519,58 +504,41 @@ int checkQcPrecedence(const Ctx& ctx, const Args&, Out& out)
             return 1;
         }
     }
-    std::vector<std::pair<std::string, int>> found;
+    struct Found
+    {
+        const std::string* name;
+        const std::string* file;
+        int line;
+    };
+    std::vector<Found> found;
     for(const auto& [name, body] : qcPrio.funcs)
     {
         const auto o = cPrio.funcs.find(name);
-        if(o == cPrio.funcs.end())
+        if(o == cPrio.funcs.end() || body.text == o->second.text)
         {
             continue;
         }
-        const auto& other = o->second;
-        bool same = body.size() == other.size();
-        for(size_t k = 0; same && k < body.size(); ++k)
-        {
-            same = body[k].text == other[k].text;
-        }
-        if(same)
-        {
-            continue;
-        }
-        // The first differing instruction's source line.
-        const size_t common = std::min(body.size(), other.size());
-        long long k = static_cast<long long>(common) - 1;
+        // The first differing statement's source line (one body a prefix of the other: its last common one).
+        const auto& other = o->second.text;
+        const size_t common = std::min(body.text.size(), other.size());
+        size_t k = common == 0 ? body.text.size() - 1 : common - 1;
         for(size_t j = 0; j < common; ++j)
         {
-            if(body[j].text != other[j].text)
+            if(body.text[j] != other[j])
             {
-                k = static_cast<long long>(j);
+                k = j;
                 break;
             }
         }
-        int line = 0;
-        if(!body.empty())
-        {
-            // (Python's body[-1] when k is -1)
-            line = body[k < 0 ? body.size() - 1 : static_cast<size_t>(k)].line;
-        }
-        found.emplace_back(name, line);
+        found.push_back({&name, &body.file, body.text.empty() ? 0 : body.lines[k]});
     }
     if(!found.empty())
     {
-        std::vector<fs::path> qcPaths = listFiles(ctx.tree / "QC", {".qc"}, true);
-        sortPaths(qcPaths);
-        std::vector<std::pair<fs::path, std::string>> qcFiles;
-        for(const auto& p : qcPaths)
-        {
-            qcFiles.emplace_back(p, readText(p));
-        }
         out.line("QC expressions that read differently under C priorities (parenthesise them; "
                  "docs/vr-port/CODE_STYLE.md, QuakeC):");
-        std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-        for(const auto& [name, line] : found)
+        for(const auto& f : found)
         {
-            out.line("  {}: {}:{}", name, sourceFile(ctx, qcFiles, name, line), line);
+            out.line("  {}: {}:{}", *f.name, *f.file, f.line);
         }
         return 1;
     }
