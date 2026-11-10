@@ -8,7 +8,10 @@
 #include "vr_bodytrack.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
+#include "vr_hull.hpp"
+#include "vr_progs.hpp"
 #include "vr_main.hpp"
 #include "vr_setup.hpp"
 #include "vr_units.hpp"
@@ -89,6 +92,13 @@ void status_f()
     Con_Printf("seated: %s, standing eyes %.3f m, seated eyes %.3f m%s, lift %.3f m, crouch toggle %s (%.2f)\n",
         active() ? "on" : "off", units::eyeHeight(), eyeHeight(), vr_seated_height.value > 0.3f ? "" : " (estimated)",
         lift(), crouch.on ? "on" : "off", crouch.eased);
+    if(edict_t* pl = progs::localPlayer())
+    {
+        // The server's side (a game you host): QC's .vr_stand, the crouched box, lying down (flat play: always standing).
+        Con_Printf("seated: server stand %.2f, crouched %d, prone %d, view height %.1f\n",
+            progs::fieldFloatOr(pl, progs::fields().vr_stand, -1.f), hull::isCrouched(pl) ? 1 : 0, hull::localProne(),
+            pl->v.view_ofs[2]);
+    }
     const hands::State& s = hands::current();
     if(!s.valid)
     {
@@ -135,7 +145,9 @@ void status_f()
 
 bool active()
 {
-    return vr_bodycal_seated.value != 0.f;
+    // Flatscreen play is always standing (his 2026-11-10 feedback: "Flatscreen should ignore the 'seated position' value
+    // for VR settings and always assume we are in standing position"): the setting stays his headset play's.
+    return vr_bodycal_seated.value != 0.f && !flatplay::active();
 }
 
 float eyeHeight()

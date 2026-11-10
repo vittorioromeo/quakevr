@@ -3,6 +3,9 @@
 Seated play is on with **Position: Seated** (`vr_bodycal_seated`). It is the first row of VR Calibration and Body
 Calibration, and also **VR Settings > Height and Hand Calibration > Seated Play**. The code is in `Quake/vr/vr_seated.cpp`.
 Standing play doesn't change: with Position: Standing every new path is skipped or adds zero.
+Flat-screen play (`-flatscreenmode`) always stands: `seated::active()` is false there whatever the setting, which stays
+the headset's (the holsters' and pouches' standing layout, the legs' fit, QC's `.vr_stand` lowered by the crouch key;
+`Misc/quakevr/flatseated_test.sh`).
 
 ## What seated mode does
 
