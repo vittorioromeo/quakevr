@@ -19,6 +19,8 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_flatreload.hpp"
 #include "vr_flick.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
@@ -38,6 +40,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -57,6 +60,18 @@ enum Flags : int
 {
     FlagFlick = 1, // a flick reload: flung by the spinning weapon
     FlagPushed = 2, // thrown out by the hand's push (the heavy revolver's: QC VR_Revolver_Push): on with the port's velocity
+    FlagAfterOpen = 4, // the super shotgun broken open (flat-screen play, QC QVR_EJECT_AFTER_OPEN): the QC's delay counts from
+                       // when it is drawn fully open, its barrels down and its open pose eased in (his words 2026-11-10)
+};
+
+// The tunable ejections (his words 2026-11-10: "make the shells ejected from the SSG and revolver cylinder fly off away
+// from the ejection sites"): a weapon's speed, way out (in the gun's frame: back, up and outward, away from the body's
+// middle, mirrored with the model in the off hand), random spread (a share of the speed) and tumble.
+enum class Tune : int
+{
+    Table, // the table's own
+    Ssg,   // vr_shells_ssg_*
+    Rv,    // vr_shells_rv_*
 };
 
 // A weapon's ejection ports, in its model's space (as its frames' vertices: +x forward, +y left,
@@ -77,13 +92,14 @@ struct Weapon
     float smoke;  // puff at the port,
     int sparks;   // and sparks
     const char* anchor;
+    Tune tune{Tune::Table}; // speed, way out, spread and spin from the tunables (`dir`'s sideways split per port kept)
 };
 
 constexpr Weapon weaponTable[] = {
     {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
         "14.372 -1.7654 6.1451"},
     {modelmeta::Id::VShot2, 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
-        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, "11.6867 1.5246 7.4443"},
+        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, "11.6867 1.5246 7.4443", Tune::Ssg},
     // AD support: the Widowmaker's ejection slot (vr_adweapons.cpp widowmakerParts), on the receiver's outer side (-y),
     // opposite its shell port: out sideways and up, onto the ground (as the shotgun's).
     {modelmeta::Id::AdVrWidowmaker, 1, {{7.25f, -3.9f, 7.7f}}, {{-0.25f, -1.f, 0.6f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
@@ -91,8 +107,34 @@ constexpr Weapon weaponTable[] = {
     // The heavy revolver (QC vr_revolver.qc): its spent shells drop out of the back of its swung-out cylinder (eject:
     // out of its chambers as drawn), slowly, back along the bore.
     {modelmeta::Id::VRevolver, 1, {{3.4f, 0.f, 5.608f}}, {{-1.f, 0.f, 0.f}}, 0.5f, {0.f, 1.f, 0.f}, 4.f, 0.6f, 0,
-        "3.4 0 5.608"},
+        "3.4 0 5.608", Tune::Rv},
 };
+
+// A weapon's ejection as tuned now: its way out (model space, not normalized: `split` the port's own sideways share),
+// speed (m/s), spread (a share of it) and spin (rad/s).
+struct Ejection
+{
+    glm::vec3 dir;
+    float speed;
+    float spread;
+    float spin;
+};
+
+[[nodiscard]] Ejection ejectionFor(const Weapon& w, int port)
+{
+    const float split = w.dir[port].y; // (the super shotgun's chambers: each a little to its own side)
+    switch(w.tune)
+    {
+        case Tune::Ssg:
+            return {glm::vec3{-vr_shells_ssg_back.value, split - vr_shells_ssg_out.value, vr_shells_ssg_up.value},
+                za::max(0.f, vr_shells_ssg_speed.value), za::clamp(vr_shells_ssg_spread.value, 0.f, 1.f), vr_shells_ssg_spin.value};
+        case Tune::Rv:
+            return {glm::vec3{-vr_shells_rv_back.value, split - vr_shells_rv_out.value, vr_shells_rv_up.value},
+                za::max(0.f, vr_shells_rv_speed.value), za::clamp(vr_shells_rv_spread.value, 0.f, 1.f), vr_shells_rv_spin.value};
+        case Tune::Table: break;
+    }
+    return {w.dir[port], w.speed, 0.15f, w.spin};
+}
 
 // The casings' models and skins (the QC's `kind`: QVR_CASING_SHOTGUNSHELL 0 the red shotgun shell, QVR_CASING_SLUG 1
 // the heavy revolver's blue slug, make_shell.py's skin 1).
@@ -119,6 +161,8 @@ constexpr float trailTime = 1.2f; // seconds it trails smoke for
 // in front of the player. They wait for it at most this long (the spin takes a third of a second).
 constexpr float flickEjectAngle = 255.f;
 constexpr double flickEjectWait = 0.6;
+// A broken-open super shotgun's casings wait for it to be drawn fully open at most this long (FlagAfterOpen).
+constexpr double afterOpenWait = 2.5;
 
 struct Shell
 {
@@ -148,6 +192,7 @@ struct Pending
     int flags;
     double time;    // when it goes (the QC's delay),
     double created; // when the QC said so (the shot: the shotgun's auto pump stroke it waits for)
+    double opened{-1.0}; // FlagAfterOpen: when the gun was drawn fully open (the QC's delay counts from it)
 };
 
 // Each hand's ejection port as last seen, for its speed.
@@ -314,8 +359,11 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
 }
 
 // Never at the face: a casing starting within an arm's length of the head does not fly towards it
-// (it goes away from it at least a little, along the ground), and does not rise to the eyes.
-[[nodiscard]] glm::vec3 awayFromFace(const glm::vec3& pos, glm::vec3 vel)
+// (it goes away from it at least a little, along the ground), and does not rise to the eyes. The speed it had towards
+// the face is turned sideways past it (vr_shells_face_deflect of it: a gun's breech facing the eyes, the super shotgun
+// broken open in front of them or the revolver's cylinder, throws its shells off to the side instead of dropping them
+// straight down; his words 2026-11-10): to the side it already goes to, else the side of the look the gun is on.
+[[nodiscard]] glm::vec3 awayFromFace(const glm::vec3& pos, glm::vec3 vel, int hand)
 {
     const hands::State& hs = hands::current();
     if(!hs.valid)
@@ -336,9 +384,51 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     if(towards > wanted)
     {
         vel -= toHead * (towards - wanted);
+        if(const float deflect = za::clamp(vr_shells_face_deflect.value, 0.f, 1.f); deflect > 0.f)
+        {
+            // The side: a strong sideways throw's own (half the speed towards the face or more: a side port); else the
+            // side of the look the gun is on (not the scatter's: a shell from the right hand's gun never crosses the
+            // view); centred (in the sights), the throw's own side, else the hand's.
+            glm::vec3 side{-toHead.y, toHead.x, 0.f}; // (horizontal, across the line to the head)
+            const float across = glm::dot(vel - player, side);
+            const glm::vec3 look = hands::forward({0.f, hs.headAngles.y, 0.f});
+            const glm::vec3 right{look.y, -look.x, 0.f};
+            const float off = glm::dot(pos - hs.head, right);
+            const float toRight = glm::dot(side, right) >= 0.f ? 1.f : -1.f; // (`side` to the look's right: +1)
+            float sign = 0.f;
+            if(za::fabs(across) >= 0.5f * (towards - wanted))
+            {
+                sign = across > 0.f ? 1.f : -1.f;
+            }
+            else if(za::fabs(off) > 1.f)
+            {
+                sign = (off > 0.f ? 1.f : -1.f) * toRight;
+            }
+            else if(za::fabs(across) > 0.05f * upm)
+            {
+                sign = across > 0.f ? 1.f : -1.f;
+            }
+            else
+            {
+                sign = (hand == HAND_MAIN ? 1.f : -1.f) * toRight;
+            }
+            vel += side * (sign * deflect * (towards - wanted));
+        }
     }
-    // Its highest point at least 15 cm under the eyes.
+    // Its highest point at least 15 cm under the eyes, unless it is clear of the face by then (vr_shells_face_clear metres
+    // to the side or ahead of the head, level: thrown off past it, it may rise; never back towards the head, so it only
+    // gets further from it on the way).
     const float g = gravity();
+    if(vel.z > 0.f && g > 0.f)
+    {
+        const float peak = vel.z / g;
+        const glm::vec3 at = pos + (vel - player) * peak;
+        const float clear = za::max(0.f, vr_shells_face_clear.value) * upm;
+        if(glm::length(glm::vec3{at.x - hs.head.x, at.y - hs.head.y, 0.f}) >= clear)
+        {
+            return vel;
+        }
+    }
     const float room = hs.head.z - 0.15f * upm - pos.z;
     const float maxUp = room > 0.f ? za::sqrt(2.f * g * room) : 0.f;
     vel.z = za::min(vel.z, maxUp);
@@ -372,14 +462,18 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
     if(vr_debug_weaponfx.value)
     {
         Con_Printf("shells eject hand %d kind %d skin %d x%d t %.3f%s\n", p.hand, p.kind, kindSkins[p.kind], p.count, cl.time,
-            pumped ? va(" (auto pump back at %.3f)", rear) : va(" (due %.3f)", p.time));
+            pumped                       ? va(" (auto pump back at %.3f)", rear)
+            : (p.flags & FlagAfterOpen) ? va(" (%.3f s after the break, %.3f s after it was drawn open)", cl.time - p.created,
+                                               cl.time - p.opened)
+                                         : va(" (due %.3f)", p.time));
     }
 
     for(int i = 0; i < p.count; i++)
     {
         const int port = i % w->ports;
         glm::vec3 at = w->port[port] + shift;
-        glm::vec3 portDir = w->dir[port];
+        const Ejection ej = ejectionFor(*w, port);
+        glm::vec3 portDir = ej.dir;
         if(const float open = w->model == modelmeta::Id::VShot2 ? view::ssgOpenAngle(p.hand) : 0.f; open > 0.f)
         {
             // The super shotgun broken open (immersive reloading): out of its chambers as they are drawn, turned down
@@ -426,8 +520,8 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         }
         else
         {
-            const float speed = w->speed * upm * vrand::range(rng, 0.8f, 1.2f);
-            const glm::vec3 scatter = onSphere() * (speed * 0.15f);
+            const float speed = ej.speed * upm * vrand::range(rng, 0.8f, 1.2f);
+            const glm::vec3 scatter = onSphere() * (speed * ej.spread);
             const float carried = (p.flags & FlagPushed) ? vr_revolver_eject_impulse.value : 0.9f;
             s.vel = dir * speed + scatter + tracks[p.hand].vel * carried;
             if(vr_debug_weaponfx.value && (p.flags & FlagPushed))
@@ -443,12 +537,28 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
                 s.vel += back * 0.4f;
             }
         }
-        s.vel = awayFromFace(pos, s.vel);
+        const glm::vec3 before = s.vel;
+        s.vel = awayFromFace(pos, s.vel, p.hand);
+        if(vr_debug_weaponfx.value)
+        {
+            // (In the look's frame, relative to the player's own movement: forward, right, up, m/s; and the gun's.)
+            const hands::State& hs = hands::current();
+            const glm::vec3 look = hands::forward({0.f, hs.headAngles.y, 0.f});
+            const glm::vec3 right{look.y, -look.x, 0.f};
+            const glm::vec3 rel = s.vel - geom::vec(cl.velocity);
+            const glm::vec3 was = before - geom::vec(cl.velocity);
+            Con_Printf("shells velocity hand %d: forward %.2f right %.2f up %.2f m/s (before the face's rule %.2f %.2f %.2f)\n",
+                p.hand, glm::dot(rel, look) / upm, glm::dot(rel, right) / upm, rel.z / upm, glm::dot(was, look) / upm,
+                glm::dot(was, right) / upm, was.z / upm);
+            Con_Printf("shells from the eyes hand %d: %.2f m forward %.2f right %.2f down, the gun at %.2f m/s\n", p.hand,
+                glm::dot(pos - hs.head, look) / upm, glm::dot(pos - hs.head, right) / upm, (hs.head.z - pos.z) / upm,
+                glm::length(tracks[p.hand].vel) / upm);
+        }
 
         // Lying in the chamber: its open end forward, the weapon's up its up.
         s.rot = glm::quat_cast(glm::mat3{fwd, left, up});
         const glm::vec3 spinAxis = worldDir(ve, at, w->spinAxis);
-        s.angVel = spinAxis * (w->spin * vrand::range(rng, 0.75f, 1.25f)) + onSphere() * vrand::range(rng, 1.f, 4.f);
+        s.angVel = spinAxis * (ej.spin * vrand::range(rng, 0.75f, 1.25f)) + onSphere() * vrand::range(rng, 1.f, 4.f);
         if(flick)
         {
             s.angVel += onSphere() * vrand::range(rng, 12.f, 22.f);
@@ -784,13 +894,35 @@ void frame(const view::ViewEntity (&weapons)[2])
     for(za::SizeT i = 0; i < pending.size();)
     {
         // A flick's casings wait for the spin to turn the barrels down.
-        const Pending& pe = pending[i];
+        Pending& pe = pending[i];
         const float spun = (pe.flags & FlagFlick) ? flick::spinAngle(pe.hand) : -1.f;
         const bool waitSpin = spun >= 0.f && spun < flickEjectAngle && cl.time < pe.time + flickEjectWait;
+        // The broken-open super shotgun's wait for it to be drawn fully open: its barrels down (vr_reload_ssg_open_angle)
+        // and, in flat-screen play, its open pose eased in; then the QC's delay. (Not the super shotgun in the hand any
+        // more, or stuck: at once, at most afterOpenWait after the break.)
+        if((pe.flags & FlagAfterOpen) && pe.opened < 0.0)
+        {
+            const view::ViewEntity& ve = weapons[pe.hand];
+            const Weapon* w = ve.visible ? weaponFor(ve.ent.model) : nullptr;
+            const float target = za::clamp(vr_reload_ssg_open_angle.value, 0.f, 80.f);
+            const bool barrels = view::ssgOpenAngle(pe.hand) >= target - 0.01f;
+            const bool posed = !flatplay::active() || flatreload::openShare(pe.hand) >= 0.999f;
+            if(!w || w->model != modelmeta::Id::VShot2 || (barrels && posed) || cl.time >= pe.created + afterOpenWait)
+            {
+                pe.opened = cl.time;
+                if(vr_debug_weaponfx.value)
+                {
+                    Con_Printf("shells: hand %d drawn open %.3f s after the break (barrels %.1f of %.1f deg, pose %.2f)\n", pe.hand,
+                        cl.time - pe.created, view::ssgOpenAngle(pe.hand), target, flatreload::openShare(pe.hand));
+                }
+            }
+        }
         // The shotgun's waits for its auto pump's stroke to reach the back instead of the QC's delay.
         double rear = 0.0;
         float backSpeed = 0.f;
-        const double due = pumpedEject(weapons, pe, rear, backSpeed) ? rear : pe.time;
+        const double due = (pe.flags & FlagAfterOpen) ? (pe.opened < 0.0 ? cl.time + 1.0 : pe.opened + (pe.time - pe.created))
+                           : pumpedEject(weapons, pe, rear, backSpeed) ? rear
+                                                                       : pe.time;
         if(cl.time >= due && !waitSpin)
         {
             if(vr_shells.value)

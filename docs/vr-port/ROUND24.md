@@ -8425,6 +8425,29 @@ Timings (VS 2026 MSBuild, the solution, other workers building at the same time,
 Left: excluding imgui_demo.cpp (only full-rebuild CPU, no wall-clock gain), fteqcc in parallel with ClCompile, the
 PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
 
+## Shells thrown off the super shotgun and the revolver; the revolver's open pose; the super shotgun's shells once open (branch `agent/flateject`, worktree `flateject`, 2026-11-10)
+
+- **"They just sort of fall straight down"**: the cause was the shared face rule (`vr_shells.cpp` `awayFromFace`, VR and
+  flat alike): a casing starting within an arm's length of the head lost all its speed towards the face (left with
+  0.3 m/s away) and could not rise above 15 cm under the eyes. The super shotgun's breech and the revolver's cylinder
+  face the eyes, so their shells (1.6 and 0.5 m/s, back) were left with ~0.3 m/s and no rise: measured 0.3 m/s forward,
+  under 0.6 sideways, 0 up. Now the speed towards the face is turned sideways past it (`vr_shells_face_deflect` 1: to
+  the side it already goes, else the side of the look the gun is on), and a casing clear of the face by its highest
+  point (`vr_shells_face_clear` 0.3 m, level) may rise. The two guns' ejections are tunables (Debug > Tunables >
+  Weapons > Immersion): `vr_shells_ssg_{speed,back,up,out,spread,spin}` 2.4 m/s, 1, 0.5, 0.3, 0.15, 12 rad/s (turned
+  with the barrels as drawn; each chamber still a little to its own side) and `vr_shells_rv_*` 1.3 m/s, 1, 0.6, 0.25,
+  0.12, 8 (back along the cylinder's axis); both on the gun's own velocity, as before. Measured (flat): the super
+  shotgun's ~2.0 m/s outward and 2.2 up, the revolver's 1-2.7 outward. VR had the same problem (the same code): it gets
+  the same fix; a VR push on the revolver still adds the hand's velocity.
+- **The revolver's open pose**: the pose itself was already there (`vr_flat_rv_open_*`, agent/flat_ssg_pose, all 0);
+  its defaults are now pitch -15 (muzzle up), yaw 15 in, roll -30 (the swung-out cylinder's face to the view), up 3,
+  out -1, in/out 0.2 s; over ADS as the super shotgun's.
+- **The super shotgun's shells once it is open**: flat-screen play's break sends its casings with QVR_EJECT_AFTER_OPEN
+  (`vr_ssg_eject_after_open` around VR_Reload_SsgBreak): the client waits for the barrels drawn fully down and the open
+  pose eased in, then `vr_flat_ssg_eject_delay` (0.05 s): out 0.26 s after the break (0.21 open + 0.05) instead of
+  0.08 s. VR's break keeps its 0.08 s. Its eject sound still plays at the break (server side).
+- Tests: `Misc/quakevr/flateject_test.sh` (ssg, ssgold, rv, rvold, vr; flateject_check.py: 15 checks); scenario
+  `shell_eject`.
 ## Build speed: the hot headers split (hdrsplit, 2026-11-10)
 
 vr_cvars.hpp held every table (cvars, tunables, monster and weapon values) and helper, and vr_api.h /

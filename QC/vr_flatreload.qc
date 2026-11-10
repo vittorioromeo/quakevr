@@ -250,7 +250,9 @@ void(float xHand, string xWhy) VR_FlatReload_EjectNow =
     string how = strcat("flat-screen play: ", xWhy);
     if(VR_FlatReload_SsgBreaks(self, xHand))
     {
+        vr_ssg_eject_after_open = TRUE; // (its shells out once it is drawn fully open: vr_flat_ssg_eject_delay)
         VR_Reload_SsgBreak(self, xHand, how);
+        vr_ssg_eject_after_open = FALSE;
     }
     else if(VR_FlatReload_RevolverOpens(xHand))
     {
