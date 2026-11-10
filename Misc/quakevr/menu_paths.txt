@@ -701,6 +701,27 @@ vr_mirror_hz|1|Recording|Window Frame Rate|Advanced VR Options > Body and Displa
 vr_obs|1|Recording|OBS Recording Control|Advanced VR Options > Body and Display > Recording (Window View) > OBS Recording Control
 |1|Recording|Start or Stop Recording|Advanced VR Options > Body and Display > Recording (Window View) > Start or Stop Recording
 |1|Recording|Connect to OBS Now|Advanced VR Options > Body and Display > Recording (Window View) > Connect to OBS Now
+vr_takes|1|Recording|Takes|Advanced VR Options > Body and Display > Recording (Window View) > Takes
+|1|Recording|Start or Stop a Take|Advanced VR Options > Body and Display > Recording (Window View) > Start or Stop a Take
+|1|Recording|Clip That|Advanced VR Options > Body and Display > Recording (Window View) > Clip That
+|1|Recording|Keep|Advanced VR Options > Body and Display > Recording (Window View) > Keep
+|1|Recording|Maybe|Advanced VR Options > Body and Display > Recording (Window View) > Maybe
+|1|Recording|Reject|Advanced VR Options > Body and Display > Recording (Window View) > Reject
+|1|Recording|In Mark|Advanced VR Options > Body and Display > Recording (Window View) > In Mark
+|1|Recording|Out Mark|Advanced VR Options > Body and Display > Recording (Window View) > Out Mark
+|1|Recording|Start Take Session|Advanced VR Options > Body and Display > Recording (Window View) > Start Take Session
+|1|Recording|End Take Session|Advanced VR Options > Body and Display > Recording (Window View) > End Take Session
+vr_takes_replay|1|Recording|Replay Buffer in a Session|Advanced VR Options > Body and Display > Recording (Window View) > Replay Buffer in a Session
+vr_takes_gadget|1|Recording|Wrist Gadget Buttons|Advanced VR Options > Body and Display > Recording (Window View) > Wrist Gadget Buttons
+vr_takes_chord|1|Recording|Mark Chord|Advanced VR Options > Body and Display > Recording (Window View) > Mark Chord
+vr_takes_light|1|Recording|Recording Light and Prompt|Advanced VR Options > Body and Display > Recording (Window View) > Recording Light and Prompt
+vr_takes_light_size|1|Recording|Light Size|Advanced VR Options > Body and Display > Recording (Window View) > Light Size
+vr_takes_light_right|1|Recording|Light Position: Right|Advanced VR Options > Body and Display > Recording (Window View) > Light Position: Right
+vr_takes_light_up|1|Recording|Light Position: Up|Advanced VR Options > Body and Display > Recording (Window View) > Light Position: Up
+vr_takes_light_dist|1|Recording|Light Distance|Advanced VR Options > Body and Display > Recording (Window View) > Light Distance
+vr_takes_prompt_time|1|Recording|Rating Prompt Time|Advanced VR Options > Body and Display > Recording (Window View) > Rating Prompt Time
+vr_takes_clip_seconds|1|Recording|Clip Length if Unknown|Advanced VR Options > Body and Display > Recording (Window View) > Clip Length if Unknown
+vr_takes_connect_wait|1|Recording|Wait for OBS|Advanced VR Options > Body and Display > Recording (Window View) > Wait for OBS
 vr_window_smooth|1|Recording|Smoothing|Advanced VR Options > Body and Display > Recording (Window View) > Smoothing
 vr_window_level|1|Recording|Level Horizon|Advanced VR Options > Body and Display > Recording (Window View) > Level Horizon
 vr_window_zoom|1|Recording|Zoom|Advanced VR Options > Body and Display > Recording (Window View) > Zoom

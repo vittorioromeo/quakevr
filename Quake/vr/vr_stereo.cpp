@@ -36,6 +36,7 @@
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
+#include "vr_takes.hpp"
 #include "vr_temporal.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
@@ -475,8 +476,9 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
 // The UI in an eye, into `fbo` (width x height): the lasers, the HUD panel or the menu (with its pointer), the wrist
 // gadget's log. Not depth tested: over whatever the fbo holds. Without `headText`, not the head-locked text (centre
 // prints, notify lines): the spectator camera's and the mirror's choice (vr_spectator_hide_hud_text,
-// vr_mirror_hide_hud_text), for recording.
-void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true)
+// vr_mirror_hide_hud_text), for recording. `headset`: the headset's own eye (not the mirror's copy nor the spectator
+// camera): the takes' recording light and rating prompt (vr_takes.cpp), never in what OBS records.
+void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true, bool headset = false)
 {
     QVR_GPU_PROFILE("ui");
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
@@ -484,6 +486,10 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool
     lines::drawInEye(viewOrigin);
     panel::drawInEye(hands::current(), headText);
     text3d::drawOverlay();
+    if(headset)
+    {
+        takes::drawInEye(hands::current());
+    }
 }
 
 // Whether the window mirrors this eye (mirrorToWindow).
@@ -1104,7 +1110,7 @@ extern "C" int VR_RenderView()
         panel::noteEyeImage(static_cast<float>(imageHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
         {
             QVR_TRACY_SCOPE(zoneUi, "eye: UI");
-            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean()); // (recording mode: no head text)
+            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean(), true); // (recording mode: no head text)
         }
         if(shotUi)
         {
