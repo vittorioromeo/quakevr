@@ -6221,6 +6221,21 @@ QVR_TOGGLE(vr_flat_mag_eject, "Ejects Empty Magazines",
 QVR_TOGGLE(vr_flat_revolver_eject, "Revolver Ejects Its Shells",
     "Playing on the desktop screen with Reloading on: the revolver's reload swings its cylinder out, throws out the "
     "spent shells, and swings it home once the new ones are in (vr_flat_revolver_eject).")
+QVR_TOGGLE(vr_flat_grenade, "Quick Grenade (G)",
+    "Playing on the desktop screen: G (vr_flat_key_grenade) takes a grenade from the back pouch into a free hand (an empty "
+    "one, your main hand first, else the hand on a weapon's grip), as the headset's pouch gives it: one of your rockets. "
+    "Its hand's fire button (left mouse the main hand, right the off hand) arms it; held, it winds up an overhead throw; let "
+    "go, it throws along the crosshair, harder the longer it was wound up. G again puts an unarmed one back. Not while "
+    "dual wielding (vr_flat_grenade). Its poses and times: Debug > Tunables > Quick Grenade.")
+QVR_CYCLE(vr_flat_grenade_arm_mode, "Quick Grenade Fire Button",
+    "Two Presses: the first press of the grenade hand's fire button arms it (its fuse runs: you can cook it), the next "
+    "press, held, winds up the throw and its release throws. One Press: the press arms it, holding winds up and letting go "
+    "throws (vr_flat_grenade_arm_mode).",
+    {0.f, "One Press"}, {1.f, "Two Presses"})
+QVR_TOGGLE(vr_flat_swap_anim, "Hand Swap Animation",
+    "Playing on the desktop screen: the swap key (3) brings the hands together, swaps what they hold and takes them back "
+    "-- a weapon held in both hands: the free hand comes off its grip to the other. Off: the swap at once "
+    "(vr_flat_swap_anim). Its times: Debug > Tunables > Hand Swap.")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "
@@ -6451,7 +6466,7 @@ QVR_TOGGLE(vr_flat_lean_mouse, "Mouse Follows Lean",
     "on the mouse is straight up on the screen. Off: Quake's way, the mouse turns and pitches as if level, so leant it "
     "moves the view at a slant (vr_flat_lean_mouse).")
 QVR_TOGGLE(vr_flat_keys_own, "Desktop Keys Only Do Theirs",
-    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, G, V) do only "
+    "Playing on the desktop screen (-flatscreenmode): the keys the mode reads itself (Q, E, 3, R, X, Z, F, H, G, V) do only "
     "that, whatever an old config binds to them (E +moveup, 3 the third weapon). Off: their binds run as well "
     "(vr_flat_keys_own).")
 QVR_TOGGLE(vr_flat_flycam, "Fly Camera (F8)",
@@ -6470,6 +6485,12 @@ QVR_SLIDER(vr_flat_flycam_fast, "Fly Camera Shift Speed", 1.f, 10.f, 0.5f, "x%.1
 QVR_TOGGLE(vr_flat_reload_debug, "Flatscreen Reload Print",
     "vr_flat_reload_debug: the flat-screen reload's drawn trip printed step by step (R, the trip's start, the hand at the hip "
     "with its distance and pitch, the hand back); with developer 1 the game's own steps too (flat reload: ...).")
+QVR_TOGGLE(vr_flat_grenade_debug, "Flatscreen Grenade Print",
+    "vr_flat_grenade_debug: the quick grenade's drawn hand printed step by step (G, each phase the game sends); with "
+    "developer 1 the game's own steps too (flat grenade: the hand chosen, taken, armed, wound up, thrown and how fast).")
+QVR_TOGGLE(vr_flat_swap_debug, "Flatscreen Swap Print",
+    "vr_flat_swap_debug: the hand swap's animation printed step by step (its start, the hands meeting and the swap sent, "
+    "the swap seen, back).")
 QVR_CYCLE(vr_flat_reload_pose, "Flatscreen: Hold Gun At Hip",
     "vr_flat_reload_pose (test aid): the main hand held at its hip holster, muzzle down, as a reload's trip takes it, with no "
     "reload: look around and walk to check that a holster the hand is at reloads nothing (only R and the empty clip do).",

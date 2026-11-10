@@ -1,8 +1,0 @@
-# housing_shot: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The shotgun in the main hand with shells (its ammo screen in the bezel on the receiver's back).
-title Shotgun: the ammo screen housing on the receiver
-map vrtesthall
-god
-notarget
-give "Shotgun" main
-cmd impulse 9
-hint Look at the receiver's back: the screen sits in a rounded, bevelled metal bezel with four bolts, the glass set in it with no gap or square corner past the bezel, upright and flush. Fire a few shots: the bezel stays on the gun through the recoil.
