@@ -147,6 +147,27 @@ loaded from it, as a pickup comes (`VR_FlatReload_CycleOut` / `CycleIn`): the ha
 gun to the next (`VRCycleEntWeaponInst`), so its rounds were lost or loaded into the wrong gun. `vr_flat_reload 0`: no
 clips, every shot from the reserve, as before.
 
+**The guns' own parts** (his words 2026-11-10; `QC/vr_flatreload.qc`, VR's immersive functions reused: the same sounds,
+casings and physical magazines, with their caps on rounds lying about). Desktop Screen Play's toggles, Tunables >
+Flatscreen > Reload's times:
+- `vr_flat_ssg_break` (1): the super shotgun fired empty breaks open `vr_flat_ssg_break_delay` (0.15 s) after the shot
+  (`VR_Reload_SsgBreak`: its spent shells thrown out; the clients draw it open, `ssgBreaks()`), only dry-clicks open
+  (`VR_Reload_SsgIsOpen`), and the reload snaps it shut `vr_flat_reload_close_delay` (0.1 s) after its rounds go in at
+  the hip (`VR_Reload_SsgClose`). The hip's reload no longer throws out shells of its own (`VRReloadWeapon`).
+- `vr_flat_mag_eject` (1): a magazine gun (`VR_Reload_UsesMag`) fired empty drops its magazine
+  `vr_flat_mag_eject_delay` (0.1 s) after its last round (`VR_Reload_EjectOut`, VR's eject button's: a round lying about,
+  pushed out at `vr_flat_mag_eject_speed`, 40 u/s; the nail pistol's slides out of its grip first), and the reload seats
+  a new one at the hip (QVR_WPNFLAG_NOMAG cleared, the magazine-in sound). R on a clip not yet empty keeps its magazine.
+- The magazines are always drawn in flat-screen play (`magazinesShown()` in `Quake/vr/vr_view.cpp`: the held guns',
+  the holsters', the guns lying about; full with `vr_flat_reload 0`). Its box is sent as in VR (where an ejected one
+  starts), but a flat hand never takes hold of it (`magazineHand`).
+- `vr_flat_revolver_eject` (1): the revolver's reload swings its cylinder out as the trip starts (`VR_Revolver_Open`),
+  its spent shells out (`VR_Revolver_Eject` with `vr_rv_keep_live`: the live ones stay in), and home
+  `vr_flat_reload_close_delay` after the rounds go in (`VR_Revolver_Close`).
+Anything still due when the hand gets to the hip (an empty gun reloaded at once) is thrown out there first. A trip
+cancelled leaves the super shotgun open (a gun brought back loaded is closed and has its magazine again); the revolver's
+cylinder swings home by itself. There is one flat reload mode (the hip trip); these apply to it.
+
 The status bars (every `hudstyle`, `vr_flat_hud` on and off; `VR_FlatHudClip`, `Quake/sbar.c`): a gun with a clip shows
 the clip in the big numbers and the reserve in small type beside them (the left hand's to their right, the right hand's
 and the classic bar's to their left). Debug > Reports > Flatscreen Play: `vr_flatreload_report`, `vr_flat_reload_debug`,
@@ -862,6 +883,12 @@ crosshair "that follows the visor's style and colour scheme, and displays the ta
 - **Reloading.** A gun away on its reload trip (`flatreload::busy`) has its crosshair held on the centre (its muzzle points
   at the floor by the hip) and dimmed to `vr_flat_xhair_reload_alpha` (0.35) of its opacity, as a gun the wall stops is
   (0.35); both eased in and out over about 0.06 s.
+- **A shot's kick** (his words 2026-11-10). Each gun's drawn recoil (`weaponfx::recoilOffset`: its own Weapon Offsets >
+  Effects rise and kick, back to rest over its Recoil Time; a stream gun's shake too) pushes its crosshair's lines out
+  from the point, their length kept: `vr_flat_xhair_kick` (2) pixels at 1080 rows per degree of muzzle rise plus cm of
+  kick back, at most `vr_flat_xhair_kick_max` (24), followed over `vr_flat_xhair_kick_smooth` (0.04 s). The cross's gap
+  widens, the circle's radius and the brackets' box grow, the chevron drops; the dot alone has no lines to move. Two guns
+  on one crosshair spread it as the more kicked of the two. `vr_flat_xhair_probe` prints each hand's `kick` and `spread`.
 - **Centred.** Within `vr_flat_xhair_snap` (8 pixels at 1080 rows) of the crosshair's centre (the screen's middle, or where
   the ironsight's picture moved it) it is drawn exactly on the centre, and stays there until it is half as far again
   (no flicker at the edge). Since the guns point at what the crosshair is on (`vr_flat_aim_point`), that is nearly always.
@@ -891,6 +918,26 @@ barrel's way against the shot's, the wall's share, the dimming). "Flatscreen Cro
 from frame to frame, RMS and most, and its hit's distance off the centre, pixels at 1080 rows). Test: `bash
 Misc/quakevr/flatxhair_test.sh <agent>` (one e1m1 run; `flatxhair_test: N passed, M failed`).
 
+## Force grab
+
+The grab key (`vr_flat_key_grab`) no longer pulls at once (his note 2026-11-10; `vr_flatfgrab.cpp`). The hand that will take it
+(the main one if it is free, else the off one, the game's own choice) first turns its open palm to what it pulls
+(`vr_flat_fg_turn_time`, 0.12 s); a hand on a held gun's two-handed grip lets go of it first and comes out beside the gun
+(`vr_flat_fg_detach_time`, 0.15 s more). Then the client asks for the grab with that hand (`impulse 50` the off hand, `51` the
+main; `46` still lets the game choose), and the beam and tendril start from the palm (`fgfx::palmOrigin`: the jointed hand's
+palm's middle, moved `vr_forcegrab_fx_along` towards the fingers and `vr_forcegrab_fx_out` out of the palm, in the headset too;
+flat play draws them from the hands as drawn). The pose holds, the palm on the flying object, until it
+is caught or missed, then eases back (`vr_flat_fg_release_time`). A hand pulling something takes no second grab (QC
+`VR_Forcegrab_FlatFree`): a second press goes to the other hand, or does nothing. The pose: Debug > Tunables > Flatscreen > Force
+Grab (`vr_flat_fg_*`; `vr_flat_fg_pose 0` the old instant grab).
+
+A pulled object's tumble settles back to how it lay over the flight's last `vr_forcegrab_settle` seconds (0.2), and it is caught
+at that turn, so its grip places it as a hand closing on it there would (headset too). A prop held in one hand is held up in
+front (Debug > Tunables > Flatscreen > Held Props, `vr_flat_carry_*`), and drawn in the hand as drawn
+(`held::followDrawnHands`, `vr_flat_carry_drawn`): the view's sway, bob and turn's lag carry it with the hand, where before it
+was drawn at the game's hand and bobbed, lagged or led as the mouse turned. `vr_flat_fg_report` (Debug > Reports) prints each
+hand's step; `vr_flat_fg_press` presses the key. Test: `vr_flatitems_test 6` (palm first, no double grab); scene
+`flat_force_grab`.
 ## The quick grenade
 
 His words (2026-11-10): G is a quick grenade key; not dual wielding, a free hand takes the back pouch's grenade -- an

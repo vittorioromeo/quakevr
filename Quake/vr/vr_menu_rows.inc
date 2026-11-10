@@ -6189,7 +6189,15 @@ QVR_SLIDER(vr_flat_xhair_snap, "Visor Crosshair Centring", 0.f, 200.f, 1.f, "%.0
     "points this near each other share one crosshair (pixels at 1080 rows; vr_flat_xhair_snap).")
 QVR_SLIDER(vr_flat_xhair_smooth, "Visor Crosshair Smoothing", 0.f, 0.5f, 0.01f, "%.2f s", noExt,
     "How long it takes to follow a point off the centre: no jitter, still truthful. 0: at once (vr_flat_xhair_smooth).")
-QVR_SLIDER(vr_flat_xhair_reload_alpha, "Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
+QVR_SLIDER(vr_flat_xhair_kick, "Visor Crosshair Kick", 0.f, 10.f, 0.25f, "%.2f", noExt,
+    "A shot's feedback: the crosshair's lines spread out from the point, keeping their length, as far as the gun's recoil "
+    "kicks it and back with it (pixels at 1080 rows per degree of muzzle rise and cm of kick back). Two guns on one "
+    "crosshair: the more kicked. 0: off (vr_flat_xhair_kick).")
+QVR_SLIDER(vr_flat_xhair_kick_max, "Visor Crosshair Kick Limit", 0.f, 64.f, 1.f, "%.0f px", noExt,
+    "The furthest a shot spreads the crosshair's lines, in pixels at 1080 rows (vr_flat_xhair_kick_max).")
+QVR_SLIDER(vr_flat_xhair_kick_smooth, "Visor Crosshair Kick Smoothing", 0.f, 0.3f, 0.01f, "%.2f s", noExt,
+    "How softly the spread follows the recoil; 0: exactly with it (vr_flat_xhair_kick_smooth).")
+QVR_SLIDER(vr_flat_xhair_reload_alpha,"Visor Crosshair While Reloading", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A gun away reloading: its crosshair at this share of its opacity, as one the wall stops from firing; 0 hidden, "
     "1 as ever (vr_flat_xhair_reload_alpha).")
 QVR_TOGGLE(vr_flat_wall_shot, "Shots Follow Gun At Walls",
@@ -6227,6 +6235,16 @@ QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f,
     "(vr_flat_holster_menu_crt).")
 QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
     "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
+QVR_TOGGLE(vr_flat_ssg_break, "Super Shotgun Breaks Open",
+    "Playing on the desktop screen with Reloading on: the super shotgun fired empty breaks open by itself a moment "
+    "later, throwing out its spent shells, and won't fire until a reload snaps it shut (Tunables > Flatscreen > "
+    "Reload: its delay; vr_flat_ssg_break).")
+QVR_TOGGLE(vr_flat_mag_eject, "Ejects Empty Magazines",
+    "Playing on the desktop screen with Reloading on: a magazine gun (the nailguns, the thunderbolt, the nail pistol) "
+    "fired empty drops its magazine, which falls as VR's do; the reload seats a new one at the hip (vr_flat_mag_eject).")
+QVR_TOGGLE(vr_flat_revolver_eject, "Revolver Ejects Its Shells",
+    "Playing on the desktop screen with Reloading on: the revolver's reload swings its cylinder out, throws out the "
+    "spent shells, and swings it home once the new ones are in (vr_flat_revolver_eject).")
 QVR_TOGGLE(vr_flat_grenade, "Quick Grenade (G)",
     "Playing on the desktop screen: G (vr_flat_key_grenade) takes a grenade from the back pouch into a free hand (an empty "
     "one, your main hand first, else the hand on a weapon's grip), as the headset's pouch gives it: one of your rockets. "

@@ -1681,6 +1681,13 @@ struct Held
     glm::quat fromRot{1.f, 0.f, 0.f, 0.f};
     glm::vec3 fromOffset{0.f};
     glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
+    // Flatscreen play (followDrawnHands): the hand it was placed on this frame (the game's, shaken: holdFrame) and where
+    // the frame's placing left it (after the meet and the wall), what the view moves onto the hand as drawn.
+    glm::vec3 baseHandPos{0.f};
+    glm::mat3 baseHandAxes{1.f};
+    glm::vec3 basePos{0.f};
+    glm::mat3 baseRot{1.f};
+    bool baseSet{false};
 };
 
 struct Easing
@@ -2094,6 +2101,8 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     shakeAngles += painAngles;
     const glm::vec3 shakenRot = s.rot[h] + shakeAngles;
     const glm::mat3 drawnAxes = held::axesFromAngles(&shakenRot[0], true);
+    hd.baseHandPos = s.pos[h] + shakePos;
+    hd.baseHandAxes = drawnAxes;
     hd.lastPos = s.pos[h] + shakePos + drawnAxes * hd.pos;
     hd.lastRot = drawnAxes * hd.rot;
     if(hd.fromSince >= 0.0)
@@ -2856,6 +2865,28 @@ void viewPush(int hand, const glm::vec3& push)
     place(cl_entities[hd.ent], hd.lastPos + push, hd.lastRot); // (again in a frame drawn twice: the same)
 }
 
+void followDrawnHands(const hands::State& drawn)
+{
+    if(!drawn.valid)
+    {
+        return;
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        Held& hd = holding[h];
+        if(!hd.baseSet || !hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+        {
+            continue;
+        }
+        // The hand it was placed on (the frame's start, the game's) to the hand as drawn now: one rigid move of both.
+        const glm::mat3 to = held::axesFromAngles(&drawn.rot[h][0], true);
+        const glm::mat3 turn = to * glm::transpose(hd.baseHandAxes);
+        hd.lastPos = drawn.pos[h] + turn * (hd.basePos - hd.baseHandPos);
+        hd.lastRot = turn * hd.baseRot;
+        place(cl_entities[hd.ent], hd.lastPos, hd.lastRot, true); // (from the base each time: a frame drawn twice, the same)
+    }
+}
+
 bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
 {
     if(hand < 0 || hand > 1)
@@ -3060,6 +3091,12 @@ extern "C" void VR_RelinkHeld(void)
         for(Easing& ea : easing)
         {
             easeFrame(ea);
+        }
+        for(Held& hd : holding)
+        {
+            hd.baseSet = hd.drawn && hd.ent != both.ent;
+            hd.basePos = hd.lastPos;
+            hd.baseRot = hd.lastRot;
         }
         trace(s);
         drawnFrom = s;

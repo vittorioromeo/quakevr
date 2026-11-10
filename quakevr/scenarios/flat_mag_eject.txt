@@ -1,0 +1,9 @@
+# flat_mag_eject: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): magazines drawn on the guns and dropped when empty (QC vr_flatreload.qc, vr_flat_mag_eject; Quake/vr/vr_view.cpp magazinesShown; flatreload_test.sh mag).
+title Flat-screen: magazines shown and dropped empty
+hint Play with -flatscreenmode. The nailgun in your right hand and the nail pistol in your left both show their magazines. Fire one until it's empty: its magazine drops out and falls to the floor, and the gun has none until R seats a new one at the hip.
+map vrtesthall
+god
+cvar vr_flat_reload 1
+cvar vr_flat_mag_eject 1
+give "Nailgun" main
+give "Nail Pistol" off

@@ -1003,6 +1003,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelanchorpoint", PF_modelanchorpoint},
     {"hitmodel_rest", PF_hitmodel_rest},
     {"hitmodel_part", PF_hitmodel_part},
+    {"hitmodel_skin", PF_hitmodel_skin},
     {"selfhit_segment", selfshot::PF_selfhit_segment},
     {"selfhit_info", selfshot::PF_selfhit_info},
     {"selfhit_point", selfshot::PF_selfhit_point},

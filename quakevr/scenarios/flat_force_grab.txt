@@ -1,0 +1,13 @@
+# flat_force_grab: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) force grab: the palm turned out first, the effect from the palm, the off hand off a two-handed gun's grip, no second grab on a busy hand, held props in the drawn hand (docs/vr-port/FLATPLAY.md, "Force grab").
+title Flat-screen force grab: a super shotgun in the right hand, rocks, bricks and ammo boxes to pull
+hint Play with -flatscreenmode. Look at a rock and press the grab key: the left hand comes off the shotgun's fore-end, moves out beside the gun, turns its open palm to the rock, and only then does the beam start, from the middle of that palm. Press it twice quickly on two things: they never both fly at the same hand. With the shotgun dropped (G), grab a brick with the right hand: it is held up in front of you, not hung at your side; walk and turn the mouse fast: the brick stays in the hand, no bobbing, no lagging or leading it.
+map vrtesthall
+god
+notarget
+give "Super Shotgun" main
+spawn "Rock" 120 30
+spawn "Brick" 120 -30
+spawn "Rock" 160 0
+spawn "Brick" 200 50
+spawn "Shells" 140 -70
+spawn "Rockets" 140 70

@@ -857,6 +857,12 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Force Grab Report", "vr_flat_fg_report")
+            .help("vr_flat_fg_report: each hand's force grab as drawn (turning its palm out, pulling, back), its pose's share, how "
+                  "open the hand is, the carry pose's share, the palm's angle off its object, what the server says it pulls, and E's "
+                  "presses, the grabs sent, the presses with no free hand and the second presses on a busy hand."),
+        command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
+            .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
         command("Holster Menu Dump", "vr_flat_holster_menu_dump")
             .help("vr_flat_holster_menu_dump: the holster menu's state (open, its cursor, the time scale), what each holster and "

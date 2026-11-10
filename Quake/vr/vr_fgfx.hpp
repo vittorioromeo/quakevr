@@ -23,4 +23,12 @@ void queue(const hands::State& s, bool flat = false);
 // The glow's colour (the force grab's hue: vr_forcegrab_hue, by default vr_player_hue).
 [[nodiscard]] glm::vec3 glowColor();
 
+// Hand `hand`'s (0 off, 1 main) force grab as the server sends it: its object's entity, its state (1 aimed at, 2 locked
+// on, 3 flying to the hand) and the point it is taken by (its middle as drawn; a weapon its handle). False: none.
+[[nodiscard]] bool handTarget(int hand, int& ent, int& state, glm::vec3& at);
+
+// Where the effects start from on hand `hand`: its palm (hands::palmPoint, the empty jointed hand's), not a point ahead of
+// the hand's own (his note 2026-11-10: the effect began above the hand).
+[[nodiscard]] glm::vec3 palmOrigin(const hands::State& s, int hand);
+
 } // namespace qvr::fgfx

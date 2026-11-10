@@ -292,6 +292,10 @@ struct MagShapeCache
 inline mem::Cache<MagShapeCache> magShapeCache{"magazine shapes", mem::GameDirChange | mem::ModelReload};
 [[nodiscard]] float boxDistance(const glm::vec3 (&box)[4], const glm::vec3& p);
 [[nodiscard]] const MagMount* magMountFor(const qmodel_t* gun);
+// Whether the guns' magazines are drawn on them (a gun without its magazine in: none, QVR_WPNFLAG_NOMAG): immersive
+// reloading (the server's mode as it applies, STAT_QVR_RELOADMODE 3), or flat-screen play whatever its reload (his words
+// 2026-11-10: "Gun magazines should always be shown in flatscreen mode"; vr_flatreload.qc ejects them, empty).
+[[nodiscard]] bool magazinesShown();
 [[nodiscard]] glm::vec3 magShapeCentre(const MagMount& mount); // its box's middle (the round's origin as it comes out)
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
 

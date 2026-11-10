@@ -275,7 +275,7 @@ void magSlideStep(int hand, const qmodel_t* gun)
     const bool noMag = (cl.stats[main ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2] & weaponFlagNoMag) != 0;
     const int uid = cl.stats[main ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2];
     const bool out = (cl.stats[protocol::STAT_QVR_MAGOUT] & (main ? 2 : 1)) != 0;
-    const MagMount* const mount = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 ? magMountFor(gun) : nullptr;
+    const MagMount* const mount = magazinesShown() ? magMountFor(gun) : nullptr;
     const bool sameGun = st.uid == uid && st.gun == gun;
     const float seat = !mount ? 0.f : mount->kind == 3 ? vr_nailpistol_mag_seat_time.value : vr_reload_mag_seat_time.value;
     if(out && mount)
@@ -323,6 +323,11 @@ void magSlideStep(int hand, const qmodel_t* gun)
         }
     }
     return nullptr;
+}
+
+bool magazinesShown()
+{
+    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 || flatplay::active();
 }
 
 namespace
@@ -389,7 +394,8 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
 
 [[nodiscard]] bool ssgBreaks()
 {
-    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f;
+    // (Flat-screen play: vr_flatreload.qc breaks it open after its shot, vr_flat_ssg_break.)
+    return (cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f) || flatplay::active();
 }
 
 // A point (or a direction) of the super shotgun's model turned down `deg` degrees about its hinge, as its barrels are.
@@ -2360,11 +2366,14 @@ void magSlideProbe()
 // and again with the rest.
 void setupHeldMagazines()
 {
-    const bool on = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
+    const bool on = magazinesShown();
     for(int hand = 0; hand < 2; hand++)
     {
         const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-        const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+        // (No clips at all, flat-screen play's Reloading off: drawn full.)
+        const int clip = cl.stats[protocol::STAT_QVR_RELOADMODE] == 0
+                             ? 2
+                             : cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
         const view::ViewEntity& gun = entities.weapon[hand];
         magSlideStep(hand, gun.ent.model);
         const MagMount* const mount = magMountFor(gun.ent.model);
@@ -2380,7 +2389,7 @@ void setupHeldMagazines()
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 void setupMagazines()
 {
-    const bool on = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
+    const bool on = magazinesShown();
     if(on && vr_reload_show_ports.value)
     {
         for(int hand = 0; hand < 2; hand++)
@@ -5011,6 +5020,12 @@ extern "C" void VR_SetupViewEntities()
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
     }
+    // Flatscreen play: a prop held in one hand drawn in that hand as drawn here (made again from this view, its sway, bob
+    // and turn's lag in it), not where the frame's start placed it (vr_held.cpp followDrawnHands; vr_flat_carry_drawn).
+    if(flatplay::active() && !stereo::isRenderingEye() && !posingNow && vr_flat_carry_drawn.value != 0.f)
+    {
+        held::followDrawnHands(s);
+    }
 
     // Held out of the models they are pushed into (vr_model_collide): the weapons, hands and arms drawn moved (not while
     // posing: the floating weapon stays where it floats).
@@ -5209,6 +5224,13 @@ extern "C" void VR_SetupViewEntities()
         adtank::setupView(s); // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
         magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
     }
+    // Flatscreen play: the force grab's glow, beam, tendril and trail, as in the headset (vr_fgfx.cpp), from the palms of the
+    // hands as drawn (their sway, bob and turn's lag in them: his note 2026-11-10, the effect began above the hand), before
+    // they are put back on the game's steady ones below.
+    if(flatplay::active() && !stereo::isRenderingEye())
+    {
+        fgfx::queue(s, true);
+    }
     if(!posingNow)
     {
         {
@@ -5374,7 +5396,6 @@ extern "C" void VR_SetupViewEntities()
     if(flatplay::active() && !stereo::isRenderingEye())
     {
         crosshair::queueFlat(s); // flatscreen play: the headset's crosshair (vr_crosshair), the weapons as just placed
-        fgfx::queue(s, true);    // and the force grab's glow, beam, tendril and trail, as in the headset (vr_fgfx.cpp)
     }
 
     {

@@ -502,6 +502,9 @@ weapon 1
     wpntxt_yaw "-0.05"
     wpntxt_z "0.6"
     wpntxtmode "1"
+    hs1_pitch "6.18424"
+    hs1_roll "3.85966"
+    hs1_yaw "-8.95707"
     wpntxt_font "0.8"
     wpntxt_ty "0.01"
     x "0.7"
@@ -517,9 +520,9 @@ weapon 1
     fgr_bias_middle "0.52"
     // Round 21: the two-handed grips as hotspots, worked out from the round-20 keys' defaults.
     hs1_type "1"
-    hs1_x "9.66"
-    hs1_y "-0.67"
-    hs1_z "-2.8964"
+    hs1_x "10.42792"
+    hs1_y "-0.797272"
+    hs1_z "-2.981335"
     hs2_type "3"
     hs2_x "-3.5"
     hs2_y "-1.7"
@@ -1021,7 +1024,7 @@ weapon 6
     wpnbtn_z "1.3"
     wpnbtnmode "1"
     wpntxt_av "1.0721 2.5959 3.3086"
-    wpntxt_pitch "51.26"
+    wpntxt_pitch "40"
     wpntxt_roll "-0.5"
     wpntxt_scale "0.25"
     wpntxt_x "-0.15"
@@ -1032,7 +1035,7 @@ weapon 6
     x "10.1"
     y "7.3"
     yaw "0"
-    z "5.7"
+    z "6.3"
     hs1_type "1"
     hs1_x "1.955872"
     hs1_y "-5.255043"
@@ -2431,7 +2434,7 @@ weapon 24
     hand_z "0"
     hide_hand "0.0"
     id "owned/mg3/progs/v_hammer.mdl"
-    muzzle_av "36.5794 -3.2639 -9.0483"
+    muzzle_av "43.834 0.804 -16.945"
     muzzle_x "-0.071"
     muzzle_y "0.21"
     muzzle_z "-0.82"
@@ -2492,9 +2495,12 @@ weapon 24
     // vr_mg3_weapons.qc): MG3's own model read from the owned pack in place, its arm taken away and the axe laid as Quake VR's
     // axe lies (vr_monstermods.cpp superAxePoses; Misc/quakevr/fit_superaxe.py), so held as the axe is: the axe's settings,
     // with Offset moved by 0.66 * (the axe's scale_origin - the Super Axe's: -3.5777 -2.9313 -4.5756) and its hotspots' points
-    // by the opposite (a hotspot's point is k * p + (1 - k) * scale_origin); its muzzle (the melee line's far end) on the
-    // handle's line at the middle of its head, 38 units up the handle (the head is 27 to 49 up it, the axe's 25 to 37); a
-    // heavier, more head-heavy weight. The glow's anchors are its own keys (never inherited): the same mesh, the same point
+    // by the opposite (a hotspot's point is k * p + (1 - k) * scale_origin); its muzzle (the melee line's far end) at the
+    // middle of its blade's edge, as the axe's is at its edge (2026-11-10, his note: most hits read as pommel strikes): the
+    // edge's vertex 419, 38 units up the handle and 10 out on the blade's side (the head is 24 to 50 up it; the edge 34 to
+    // 42 up, 10 out; the far side a beak, 17 out at 39 to 43 up), where the axe's is 37 up and 11 out. It was on the
+    // handle's line at the head's middle: the striking points ran up the handle, 10 units behind the edge, and the handle's
+    // end met things first. A heavier, more head-heavy weight. The glow's anchors are its own keys (never inherited): the same mesh, the same point
     // (vr_anchor_nearest).
     torch_clip "0"
     w_heft "0" // MG3 hammer
@@ -2546,7 +2552,7 @@ weapon 25
     hand_z "0.0"
     hide_hand "0.0"
     id "owned/mg3/progs/v_hammer_glow.mdl"
-    muzzle_av "36.5794 -3.2639 -9.0483"
+    muzzle_av "43.834 0.804 -16.945"
     muzzle_x "0.0"
     muzzle_y "0.0"
     muzzle_z "0.0"
@@ -3737,7 +3743,7 @@ weapon 38
     muzzle_x "0.0"
     muzzle_y "0.0"
     muzzle_z "0.0"
-    pitch "-6.782" // (72: was -6.85)
+    pitch "-6.45" // (72: was -6.85)
     roll "0" // (72: was 0.0)
     scale "0.45"
     wpnbtn_av "2.6 1.6 4.4"
@@ -3758,11 +3764,15 @@ weapon 38
     wpntxt_z "0"
     wpntxtmode "0"
     x "0.16323" // (72: was -0.18)
-    y "1.3" // (72: was 0.57)
+    y "1.29" // (72: was 0.57)
     yaw "-0.076681" // (72: was 0.0)
-    z "-0.34" // (72: was -1.05)
+    z "-0.22" // (72: was -1.05)
     // vr_wofs_version 72 (his config of 2026-10-27): hotspot 1 a cup, was off; Two-Handed Allowed, No Stock; its grip
     // pose his (Pitch, Roll, Yaw, Offset X..Z above).
+    fgr_bias_middle "-0.07"
+    fgr_bias_pinky "-0.05"
+    fgr_bias_ring "0.026"
+    fgr_bias_thumb "-0.77"
     hs1_type "3"
     hs1_x "-3.181793"
     hs1_y "-1.014572"
