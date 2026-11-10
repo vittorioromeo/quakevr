@@ -8,6 +8,7 @@
 
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_geom.hpp"
 #include "vr_imgui.hpp"
 #include "vr_progs.hpp"
@@ -28,6 +29,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 #include <SDL.h>
 

@@ -23,6 +23,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
+#include "vr_api_render.h"
 
 namespace qvr::brushlight
 {

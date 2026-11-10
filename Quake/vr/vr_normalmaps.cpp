@@ -15,6 +15,8 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <limits.h>
 #include <stdlib.h>

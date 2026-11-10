@@ -23,13 +23,13 @@
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
 #include "vr_findradius.hpp"
-#include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

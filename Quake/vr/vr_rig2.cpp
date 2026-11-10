@@ -5,7 +5,6 @@
 #include "vr_rig2.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_mdldequant.hpp"

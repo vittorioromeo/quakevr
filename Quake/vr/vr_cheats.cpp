@@ -22,6 +22,7 @@
 #include "vr_server.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

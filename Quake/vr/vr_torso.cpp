@@ -13,7 +13,7 @@
 #include "vr_torso.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_units.hpp"
 #include "vr_geom.hpp"
 
@@ -23,6 +23,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "vr_api.h"
 
 namespace qvr::torso
 {

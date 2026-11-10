@@ -39,6 +39,7 @@
 
 #include "vr_checklist.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
@@ -68,6 +69,9 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <string.h>
 

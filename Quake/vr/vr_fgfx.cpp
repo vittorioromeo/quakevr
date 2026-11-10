@@ -3,6 +3,7 @@
 #include "vr_fgfx.hpp"
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
@@ -24,6 +25,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api_render.h"
 
 
 namespace qvr::fgfx

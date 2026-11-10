@@ -21,6 +21,7 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #if defined(__has_include)
 #if __has_include("qvr_buildver.h")
 #include "qvr_buildver.h"
+#include "vr_api.h"
 #endif
 #endif
 #ifndef QVR_VERSION

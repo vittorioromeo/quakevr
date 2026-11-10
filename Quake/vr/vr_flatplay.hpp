@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "vr_cvars.hpp"
+#include "vr_tunables_api.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 

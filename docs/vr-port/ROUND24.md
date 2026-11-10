@@ -8393,3 +8393,37 @@ Timings (VS 2026 MSBuild, the solution, other workers building at the same time,
 
 Left: excluding imgui_demo.cpp (only full-rebuild CPU, no wall-clock gain), fteqcc in parallel with ClCompile, the
 PostBuildEvent DLL copies (0.06 s) and QvrBuildVersion's four git calls (0.3 s).
+
+## Build speed: the hot headers split (hdrsplit, 2026-11-10)
+
+vr_cvars.hpp held every table (cvars, tunables, monster and weapon values) and helper, and vr_api.h /
+vr_api_render.h came with quakedef.h and vr_engine.hpp (so both PCHs): an edit of any of them recompiled 371-504 of
+~570 objects. Now (SOURCE_MAP.md, "The cvar and tunable headers"):
+
+- vr_cvars.hpp: the cvars by name only. vr_tunables.hpp (the constants by name; vr_tunables.inc),
+  vr_tunables_api.hpp (Tunable, tunableFind, the Tunables page's API; no table), vr_monstervalues.hpp,
+  vr_weaponvalues.hpp, vr_cvars_util.hpp (cvars::Override/Snapshot/forEach), vr_config.hpp (registerCvars, the config's
+  writer, standInTables). Each file includes what it uses (a script over the symbols, then the compiler). weaponSlotCount
+  stays in vr_cvars.hpp: gen_vr_cvars_qc reads it there.
+- vr_api.h / vr_api_render.h: included by the 52 engine files and ~240 VR files that call or define a hook; they
+  include vr_engine.hpp themselves in C++ (self-contained). `cmd_limits`'s extern moved into vr_api.h.
+- WIN32_LEAN_AND_MEAN + NOMINMAX before every Quake/vr `<windows.h>` (7 files lacked one or both; the two Ironwail
+  files left as upstream has them).
+- The no-PCH build (check_nopch.sh) had rotted (za::clamp, ankerl, ZA_FLOAT_MAX, za::exchange used without their
+  includes): fixed, it passes.
+
+Objects recompiled after touching each (Release no-LTO, VS 2022 MSBuild; times are wall clock with other workers
+building, so noisy):
+
+| touched | before | after |
+|---|---|---|
+| vr_tunables.inc | 371 (52 s) | 169 (53 s) |
+| vr_cvars.inc | 372 (60 s) | 357 |
+| vr_api.h | 504 (82 s) | 291 (49 s) |
+| vr_api_render.h | 504 (87 s) | 98 (36 s) |
+| vr_menu_internal.hpp | 8 | 8 (left: its 8 includers use most of what it includes) |
+
+Left: vr_cvars.inc is used by ~330 files, so one header can't do better. The next step would be a generated
+names-only declaration header written only when the names change (a default's edit, most of tune_promote's and many
+merges, would then recompile vr_cvars.cpp / vr_tunables.cpp alone), or splitting vr_cvars.inc per subsystem: both
+change the generators' inputs (the checks' lane), so not done here.

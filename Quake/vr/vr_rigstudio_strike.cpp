@@ -37,6 +37,7 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

@@ -46,6 +46,7 @@
 #include "vr_visor.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
+#include "vr_api_render.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 

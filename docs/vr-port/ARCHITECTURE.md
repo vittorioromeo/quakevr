@@ -107,7 +107,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 | edicts by number, loops, nearest | `progs::edictAt`, `forEachEdict`, `nearestBy` | vr_progs.hpp |
 | entity fields (g: no string lookups) | `progs::fields().x`, `progs::handFields(hand)` | vr_fields.inc, vr_progs.hpp |
 | controller buzz (g) | `haptics::pulse(hand, seconds, amplitude, hz)` | vr_backend.hpp |
-| cvars for a scope / saved and restored | `cvars::Override`, `cvars::Snapshot`; read `vr_x.value` (g: no `Cvar_VariableValue("vr_...")`) | vr_cvars.hpp |
+| cvars for a scope / saved and restored | `cvars::Override`, `cvars::Snapshot`; read `vr_x.value` (g: no `Cvar_VariableValue("vr_...")`) | vr_cvars_util.hpp, vr_cvars.hpp |
 | random floats (g: no `rnd` wrapper) | `vrand::range(rng, lo, hi)`, `vrand::xorshift*`, `vrand::lcg*`; server determinism: `srvrandom` | vr_random.hpp, vr_srvrandom.hpp |
 | strings, quantiles, LE bytes, MDL normals (g) | `strings::startsWith/endsWith/lower/trim/appendf`, `vrstats::quantileSorted`, `bytes::View`, `mdlbuild::nearestNormal` | vr_strings.hpp, vr_stats.hpp, vr_bytes.hpp, vr_mdlbuild.hpp |
 | files | `files::readText`, `writeText`, `forLines`, `join` | vr_files.hpp |
@@ -134,7 +134,11 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 - **A feature** goes in its area's files (section 2). A new module: `vr_<name>.cpp/.hpp` in `qvr::<name>`; its
   diagnostics in `vr_<name>_diag.cpp`; a file nearing 3000 lines is split by its clusters (SOURCE_MAP.md's pattern).
 - **Engine hooks**: a `VR_*` function declared in `vr_api.h` (or `vr_api_render.h`), called from the Ironwail file
-  with a `// QVR` comment; keep Ironwail edits to the call (IRONWAIL_DIFF.md).
+  with a `// QVR` comment; keep Ironwail edits to the call (IRONWAIL_DIFF.md). Neither is in quakedef.h or
+  vr_engine.hpp: the Ironwail file includes `"vr/vr_api.h"` after quakedef.h, the VR file that defines or calls the
+  hook `"vr_api.h"` (an edit of vr_api.h recompiles those alone).
+- **Headers by what a file reads** (SOURCE_MAP.md, "The cvar and tunable headers"): `vr_cvars.hpp` for a cvar,
+  `vr_tunables.hpp` for a tuning constant, and so on; the tables' headers are the hot ones.
 - **Per frame / per map / per client reset**: a call in `VR_BeginFrame`'s list, a `prewarmSteps` row, a call in
   `VR_OnClientClearState`. A new view entity: an `Entities` member (vr_view_internal.hpp).
 - **Game rules** in QC unless they need the headset, physics or speed; a number both sides use goes in a shared `.h`.

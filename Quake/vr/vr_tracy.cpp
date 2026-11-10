@@ -1,6 +1,7 @@
 // Tracy v0.14.1 bridge. CPU nesting is per-thread; GL bookkeeping belongs to the main thread.
 // Explicit ends also allow Host_Error/Host_EndGame to unwind before longjmp recovery.
 #include "vr_tracy.h"
+#include "vr_api.h"
 #ifdef QVR_TRACY
 #include "vr_engine.hpp"
 #include "external/tracy/tracy/TracyC.h"

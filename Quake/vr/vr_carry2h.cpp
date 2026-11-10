@@ -5,6 +5,7 @@
 #include "vr_testkit.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
@@ -24,6 +25,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 
 namespace qvr::carry2h

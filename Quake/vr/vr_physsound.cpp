@@ -25,6 +25,7 @@
 #include "vr_geom.hpp"
 #include "vr_physsound.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_debris.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -41,6 +42,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -2,6 +2,7 @@
 
 #include "vr_fatigue.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_progs.hpp"
@@ -17,6 +18,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/constants.hpp>
 

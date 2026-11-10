@@ -20,6 +20,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_api.h"
 
 #include <cstdarg>
 #include <cstdio>

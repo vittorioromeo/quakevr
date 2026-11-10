@@ -12,7 +12,7 @@
 // cache holds more than vr_image_cache_mb (0: none kept). Main thread only (Image_LoadImage allocates on the hunk).
 
 #include "vr_imgcache.hpp"
-#include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
@@ -23,6 +23,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "vr_api.h"
 
 #include <string.h>
 

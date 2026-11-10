@@ -5,6 +5,7 @@
 #include "vr_decals.hpp"
 #include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
@@ -40,6 +41,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 

@@ -10,7 +10,7 @@
 #include "vr_brushes.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_api.h"
-#include "vr_cvars.hpp"
+#include "vr_monstervalues.hpp"
 #include "vr_files.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"

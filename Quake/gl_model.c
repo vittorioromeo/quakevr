@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
+#include "vr/vr_api.h"
+#include "vr/vr_api_render.h"
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 

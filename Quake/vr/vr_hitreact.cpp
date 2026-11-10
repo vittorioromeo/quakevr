@@ -13,6 +13,7 @@
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 #include "vr_poselive.hpp"
@@ -43,6 +44,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "vr_api.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

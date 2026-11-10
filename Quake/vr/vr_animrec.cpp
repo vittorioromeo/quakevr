@@ -25,6 +25,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 
 #include <math.h>
 #include <stdio.h>

@@ -38,7 +38,7 @@
 #include "vr_bodyblood.hpp"
 #include "vr_bloodprints.hpp"
 #include "vr_box3d.hpp"
-#include "vr_cvars.hpp"
+#include "vr_weaponvalues.hpp"
 #include "vr_emissive.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_hands.hpp"

@@ -9,6 +9,7 @@
 #include "vr_trace.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_disarmhull.hpp"
 #include "vr_engine.hpp"
 #include "vr_grab.hpp"
@@ -45,8 +46,10 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Base/Limits.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_api.h"
 
 #include <stdlib.h>
 #include <string.h>

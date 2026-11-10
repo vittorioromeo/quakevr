@@ -13,7 +13,7 @@
 // on the search path only while the package is played (mountActive, from vr_gamedir.cpp).
 
 #include "vr_mapinstall.hpp"
-#include "vr_cvars.hpp" // vr_maps_cache_mb: the download cache's cap
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_api.h" // VR_FileCacheForget: the engine's directory listings, told that files appeared
 #include "vr_files.hpp"
@@ -38,6 +38,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include "miniz.h" // (the engine's C header, which guards itself for C++)
 

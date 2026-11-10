@@ -1,13 +1,14 @@
 // vr_ribbons.cpp -- see vr_ribbons.hpp.
 
 #include "vr_ribbons.hpp"
-#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_profile.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 namespace qvr::ribbons
 {

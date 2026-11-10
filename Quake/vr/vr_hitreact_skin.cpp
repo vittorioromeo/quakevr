@@ -4,6 +4,9 @@
 #include "vr_hitreact_internal.hpp"
 #include "vr_weaponstudio.hpp" // (its hold preview: the arms solve's notes, read-only)
 #include "vr_tracy.h"
+#include "vr_cvars.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace hitreact_detail
 {

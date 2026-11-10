@@ -34,6 +34,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api_render.h"
 
 #include <glm/geometric.hpp>
 #include <glm/gtc/constants.hpp>

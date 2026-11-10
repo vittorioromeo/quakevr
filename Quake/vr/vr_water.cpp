@@ -8,6 +8,7 @@
 #include "vr_envmap.hpp"
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_lowceil.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -48,6 +49,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
