@@ -4451,7 +4451,9 @@ void() VR_AT40_Frame =
         entity g = spawn();
         self = g;
         g.classname = "monster_army";
-        setorigin(g, p.origin + v_forward * 112 + '0 0 8');
+        // (a place of its own: five along an arc ahead, so it never comes in on the bodies of the cases before)
+        float slot = vr_at40_cases - 5 * floor(vr_at40_cases / 5) - 2;
+        setorigin(g, p.origin + v_forward * 128 + v_right * (56 * slot) + '0 0 8');
         g.angles = [0, p.angles_y + 180, 0];
         g.weapon = vr_at40_code;
         vr_ar_hold_roll = 1; // (as VR_ARENA_SpawnMonster spawns a wave's humanoid: its plan's weapon held)
