@@ -1349,6 +1349,15 @@ vr_flat_xhair_smooth|1|Locomotion|Visor Crosshair Smoothing|Advanced VR Options 
 vr_flat_xhair_reload_alpha|1|Locomotion|Visor Crosshair While Reloading|Advanced VR Options > Movement > Locomotion > Visor Crosshair While Reloading
 vr_flat_reload|1|Locomotion|Reloading|Advanced VR Options > Movement > Locomotion > Reloading
 vr_flat_autoreload|1|Locomotion|Auto Reload|Advanced VR Options > Movement > Locomotion > Auto Reload
+vr_flat_holsters|1|Locomotion|Holsters|Advanced VR Options > Movement > Locomotion > Holsters
+vr_flat_holster_menu_timescale|1|Locomotion|Holster Menu Time Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Time Speed
+vr_flat_holster_menu_blur|1|Locomotion|Holster Menu Blur|Advanced VR Options > Movement > Locomotion > Holster Menu Blur
+vr_flat_holster_menu_xhair_fade|1|Locomotion|Holster Menu Crosshair Fade|Advanced VR Options > Movement > Locomotion > Holster Menu Crosshair Fade
+vr_flat_holster_menu_size|1|Locomotion|Holster Menu Size|Advanced VR Options > Movement > Locomotion > Holster Menu Size
+vr_flat_holster_menu_fade_time|1|Locomotion|Holster Menu Fade Time|Advanced VR Options > Movement > Locomotion > Holster Menu Fade Time
+vr_flat_holster_menu_cursor_speed|1|Locomotion|Holster Menu Cursor Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Cursor Speed
+vr_flat_holster_menu_crt|1|Locomotion|Holster Menu Screen Look|Advanced VR Options > Movement > Locomotion > Holster Menu Screen Look
+vr_flat_holster_drop_ahead|1|Locomotion|Holster Drop Distance|Advanced VR Options > Movement > Locomotion > Holster Drop Distance
 vr_flat_grenade|1|Locomotion|Quick Grenade (G)|Advanced VR Options > Movement > Locomotion > Quick Grenade (G)
 vr_flat_grenade_arm_mode|1|Locomotion|Quick Grenade Fire Button|Advanced VR Options > Movement > Locomotion > Quick Grenade Fire Button
 vr_flat_swap_anim|1|Locomotion|Hand Swap Animation|Advanced VR Options > Movement > Locomotion > Hand Swap Animation
@@ -4775,6 +4784,10 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
 |2|Debug - Reports|Flatscreen Reload Report|Advanced VR Options > Debug > Reports > Flatscreen Reload Report
 vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Options > Debug > Reports > Flatscreen Reload Print
+|2|Debug - Reports|Holster Menu Dump|Advanced VR Options > Debug > Reports > Holster Menu Dump
+|2|Debug - Reports|Holster Menu: Hold Open|Advanced VR Options > Debug > Reports > Holster Menu: Hold Open
+|2|Debug - Reports|Holster Menu: Let Go|Advanced VR Options > Debug > Reports > Holster Menu: Let Go
+|2|Debug - Reports|Holster Menu Test|Advanced VR Options > Debug > Reports > Holster Menu Test
 |2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
 vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print
 |2|Debug - Reports|Flatscreen Swap Report|Advanced VR Options > Debug > Reports > Flatscreen Swap Report
