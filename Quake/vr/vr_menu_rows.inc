@@ -3628,6 +3628,8 @@ QVR_SLIDER_BYNAME(vr_particle_near_cull, "Particles Hidden Nearer", 0.f, 50.f, 1
     "Particles nearer your eyes than this are not drawn at all (0: all drawn).")
 QVR_SLIDER_BYNAME(vr_particle_max_screen, "Largest Particle", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit.")
+QVR_SLIDER_BYNAME(vr_particle_retro_min_blocks, "Retro Particle Detail", 0.f, 16.f, 1.f, "%.0f blocks", noExt,
+    "With retro particles (Retro Textures > Particles), at least this many blocks across each particle's texture: small drops and sparks keep their shape instead of turning into one flat square, big near your eyes. 0: blocks in world units alone.")
 QVR_TOGGLE_BYNAME(vr_particle_halfres, "Half-Res Heavy Particles",
     "When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer.")
 QVR_TOGGLE_BYNAME(vr_particle_trim, "Trim Particle Margins",

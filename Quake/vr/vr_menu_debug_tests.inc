@@ -699,6 +699,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_flatmove_test 1 (-flatscreenmode only): run, or run crouched (Left Ctrl), and it prints your top level "
                   "speed once it has settled (flatmove: speed line). 2: how far half a second of swimming took you; 3: "
                   "waits until you climb out of the water onto dry ground, and whether the water jump lifted you."),
+        command("Blood at Point Blank", "god; notarget; vr_flatblood_test 1")
+            .help("vr_flatblood_test 1 (flat-screen or headset): a grunt, then a corpse, shot with the shotgun, super shotgun and "
+                  "nailgun from 60, 30, 12 and 4 units: each shot's blood made and drawn, as at 60 (flatblood: lines)."),
+        command("Blood Crouched Over a Corpse", "god; notarget; vr_flatblood_test 2")
+            .help("vr_flatblood_test 2 (-flatscreenmode): crouched over a corpse, the shotgun down into it from 20, 12, 6 and 3 "
+                  "units: every pellet's blood as from 60 (flatblood: lines). 3: and a screenshot of each shot's blood."),
+        command("Blood Near the Eye: Pictures", "god; notarget; vr_flatblood_test 4")
+            .help("vr_flatblood_test 4 (flat-screen or headset): a grunt shot with the shotgun from 60, 30, 12 and 4 units, a "
+                  "screenshot of each shot's blood: the drops near the eye keep their shape (Retro Particle Detail), no flat squares."),
         command("Flat Ledges", "vr_flatmove_test 9")
             .help("vr_flatmove_test 9 (-flatscreenmode only, floating at the surface): the spots within 512 units where "
                   "Quake's jump out of the water lifts you, with the yaw that faces the ledge (flatmove: ledge lines)."),

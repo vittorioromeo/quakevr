@@ -7909,6 +7909,49 @@ His notes 2026-11-10, items 1, 2 and 10 (flat-screen play; docs/vr-port/FLATPLAY
   press, three clicks with it open, closes on the next press, Esc closes). flathands 43/0, flatkeys 37/0, flatitems 9/0.
   Scenes: `flat_holsters_pick`, `flat_holsters_toggle`.
 
+## Flat-screen: blood at point blank (his note 2026-11-10; branch `agent/flat_blood2`)
+
+His note: "Even setting both vr_particle_near_fade and vr_particle_near_cull to 0 still results in some blood particles not
+spawning if for example I stand really close to a ragdoll and shoot it."
+
+- **Measured, not reproduced.** New `vr_flatblood_test 1` (QC/vr_flatblood_test.qc; Debug > Tests > Blood at Point Blank):
+  a live grunt (aimed at its chest) and a settled corpse ragdoll (aimed at a point on its root bone's surface: a ragdoll's
+  box middle can lie between its limbs and a shot there misses it) shot with the shotgun, super shotgun and nailgun from
+  60, 30, 12 and 4 units (eye level distance less 16), a fresh target each, through the real flat path (+attack, the view
+  turned onto it, 36 frames for the flat hand to settle). Per shot: the impacts' blood the game sent (`vr_blood_sent`), and
+  the client's blood particles made and made where the view draws them (new `vr_blood_tally`, `vr_blood_tally_drawn`: every
+  blood emitter, `particles::blood`, `bloodTrail`, `bloodMist`, `bloodDrip`, `bloodSpecks`, `bloodDroplet`, counted as made,
+  drawn = ahead of the eye past `vr_nearclip` and outside `vr_particle_near_cull`). Flat (fade and cull 0, mist near 0):
+  24/0. Every shot at 4/12/30 sent its pellets' blood (6 shotgun, 14 super shotgun, 1 nail) and made as many particles as
+  at 60 (grunt shotgun 975 at 60, 1026 at 4; super shotgun 2348 / 2309; corpse shotgun 719 / 736); drawn 94-100 % of made
+  at 4 units (the rest made behind the eye's plane, the spray's spread round a hit 10-20 units off the eye).
+- **The suspects checked:** no spawn gate near the eye in the particles (`spawn`, `blood`, `mist`: only `vr_gore_mist_near`,
+  default 0 since agent/flat_gibs), in the client's particle message (vr_client.cpp) or the wounds. At point blank the flat
+  shot's start eases onto the crosshair ray (vr_flatsight.cpp `shotFrom`) and the pellets still hit (vr_debug_shots: all on
+  the grunt / corpse at 4 units, none on the world); the start-inside rule (FireBulletsImpl `xStartHits`, the hit model's
+  `startInside`) holds. Not checked: particles hidden behind the gun's view model.
+- **Headset, compared** (the same test without -flatscreenmode: the mock hand placed the same distance off, the gun's own
+  shot from it; printed, not judged): the grunt bleeds the same at 4 as at 60 (shotgun 971 / 1023, super shotgun 2284 /
+  2138); the corpse too at 4 (shotgun 2724, super shotgun 3922) but the mock hand's aim misses a lying corpse's limb now and
+  then at any range (one 30-unit shotgun shot 0), and the nailgun fired directly makes no nail in this harness.
+- **Config:** his `quakevr/ironwail.cfg` has no `vr_gore_mist_near` line: he plays at the default, 0. The tests' local
+  `quakevr/ironwail.cfg.baseline` (untracked) still has `vr_gore_mist_near "40"`; the test's script sets 0.
+- **His repro** ("in the vrfiringrange map, I had killed a grunt, then I was crouching over his dead body and shooting it
+  with a shotgun"): `vr_flatblood_test 2` (case 12, the corpse's shotgun shot from 60, then cases 24-27) crouches (`+flatcrouch`)
+  over a settled corpse, his eye 20, 12, 6 and 3 units off the point level (pitch 52, 73, 81, 85 down; the eye 11-25 over
+  it), one tap of the shotgun each. Every pellet still hits the body (`vr_debug_shots`: 6 on it, 0 the world) and bleeds:
+  6-7 blood sent, 686-862 particles, all drawn (from 60: 6 sent, 650-720 particles on a plain hit; more when a pellet cuts a
+  limb or gibs, so the check is per pellet: every pellet's blood, at least 60 particles each). `vr_flatblood_test 3` takes a
+  picture 4 frames after each crouched shot: the spray is all over the view, the near drops big. What can hide part of it
+  there: the off hand's arm and the gun, drawn over the world, cover the lower half of the view right where the body lies at
+  his feet (occlusion, not a spawn gate). Still not reproduced as a drop.
+- **The test's earlier "startup hangs"** were the test running silently: `VR_Test_Begin` prints its lines only with
+  `developer 1`, and the run without it outlasted the 300 s timeout under the low-impact mode (the author's game up). Now
+  `VR_Test_BeginFlags(..., VR_TEST_LOUD)`; a shot is a one-frame tap (holding +attack until the ammo changed fired the
+  shotgun ten times a case).
+- **Open:** what he saw is not yet pinned down. Candidates left: the arm and gun over the hit at his feet (a picture from
+  him would tell), the particle pool's cap after many gibs (`vr_limits`), the blood decals (not counted).
+- Scene `flat_blood_pointblank`.
 ## Flat-screen: the two-handed melee grip, and the right mouse button's parry guard (his notes 2026-11-10, items 2 and 3; branch `agent/flat_parry`)
 
 - **Item 2, "the two-handed melee holding spot seems to default to the 'sword' hotspot, not the 'grip' one."** Two ways a
@@ -7991,3 +8034,36 @@ The "dry click gap" of the last round was the test's: the second pull came insid
 pull 5 frames after the give, inside the pickup's): with the pulls spaced out the super shotgun's dry click is heard, so
 the check is back. flatreload_test.sh: 44 passed, 0 failed (new run `revempty`: out by itself once, 6 spent, a dry click
 after, R from empty home with 6 live).
+
+## Blood near the eye drawn as flat red squares (branch `agent/blood_squares`, worktree `selfshot`, 2026-11-10)
+
+His note on `vr_flatblood_test 3`'s picture: "the particles seem like red squares, they don't look textured".
+
+- **Cause: retro textures on the particles, not Quake's own particle path.** With `r_particles 0` the squares stay;
+  with `vr_retro_particles 0` they are round drops. Retro particles (Retro Textures > Particles) are cut into blocks in
+  world units (`vr_retro_particles_block`, 0.25 units by default), each block its centre texel. A blood drop smaller than
+  a block across is one block: a flat red square (turned with the drop's spin). Far off it is a dot, as Quake's own; near
+  the eye the same square fills 30-60 pixels. Any small particle had it (sparks, specks), blood just shows it most.
+- **Quake's own path never draws blood with `vr_particles 1`:** every r_part.c emitter (`R_RunParticleEffect`, which
+  takes TE_BLOOD and QC `particle()`, `R_ParticleExplosion`/`2`, `R_BlobExplosion`, `R_LavaSplash`,
+  `R_TeleportSplash`) and the trails (`CL_RocketTrail` -> `VR_EntityTrail`) hand off to Quake VR's particles first.
+  `R_EntityParticles` (EF_BRIGHTFIELD) is the one left, and it is not blood. Its "squares" are the retro look of
+  `vr_particles 0`, and that is intended.
+- **Fix: new `vr_particle_retro_min_blocks` (default 6; Graphics > Models and Effects > Retro Particle Detail, 0-16):**
+  at least this many blocks across a particle's texture cell, whatever its size in the world. A drop keeps its shape
+  (a small blocky blob, its transparent margin transparent); particles bigger than 6 blocks in world units are as
+  before. The count is per particle and fixed for its life, so the blocks don't crawl as it nears. 0: the old look.
+  Shared by flat and headset: one fragment-shader step in the retro particle variants (vr_gfx_gl.cpp, `PARTICLE_PLAIN`'s
+  `MinBlocks`, the cell's size `particleCell` from the vertex shader). The grid is clamped after `RetroBegin` /
+  `RetroBeginParticle`, so the reference, fast, centre-near, half-size and trimmed variants all take it.
+- **Pitfall:** uniform location 94 looked free in vr_gfx_gl.cpp, but `QVR_FLATFOV_GFX_GLSL` (vr_flatfov_glsl.h) takes 94-96.
+  The clash linked without a warning and every retro particle vanished. MinBlocks is at 97.
+- **Test aid `vr_flatblood_test 4`** (Debug > Tests > Blood Near the Eye: Pictures; flat or headset): the live grunt's
+  shotgun shots at 60, 30, 12 and 4 units, a picture of each 4 frames after the shot. Flat at 4 units: before, about a
+  dozen flat squares 15-40 px; after, blocky drop shapes and spray. Same at 60 units. Headset mock (low-impact run, small
+  eyes): the same difference, smaller.
+- Tests: `vr_flatblood_test 2` 5/0, `vr_pp_test 1` 63/0, `vr_player_gore_test` 8/0, `checklist_tests_check` 133/0.
+  `vr_flatblood_test 1` 25/3 here, and 24/4 with `vr_retro_particles 0` (no retro program drawn at all, so not this
+  change). Its corpse cases are flaky: the 60-unit super shotgun shot sometimes gibs the corpse (11-12k particles,
+  against which the 30/4-unit shots' 1-4k fail "a third"), and the nailgun misses a lying corpse at 12/4 (0 sent).
+- Scene `flat_blood_pointblank` (hint: the near drops are blobs, not squares).
