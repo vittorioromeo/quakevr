@@ -1,7 +1,0 @@
-# flat_menu_quit: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the VR menu layout's dialogs (docs/vr-port/ROUND24.md, "The flat VR menu's Quit dialog"). The scene does not open the menu (an open menu pauses the game).
-title Flat-screen: the VR menu layout's Quit and New Game questions
-hint Play with -flatscreenmode. Press Escape, choose Quit: the question sits in the middle of the menu panel at the menu's size, the menu dimmed under it; Escape goes back to the main menu. Single Player > New Game asks in the middle too.
-map start
-god
-notarget
-cvar vr_menu_flat_vr_style 1
