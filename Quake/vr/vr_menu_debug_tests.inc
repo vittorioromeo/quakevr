@@ -708,6 +708,9 @@ za::Vector<Item> pageDebugTests()
         command("Blood Near the Eye: Pictures", "god; notarget; vr_flatblood_test 4")
             .help("vr_flatblood_test 4 (flat-screen or headset): a grunt shot with the shotgun from 60, 30, 12 and 4 units, a "
                   "screenshot of each shot's blood: the drops near the eye keep their shape (Retro Particle Detail), no flat squares."),
+        command("Blood Fountain of a Limb Popped Close", "god; notarget; vr_flatblood_test 5")
+            .help("vr_flatblood_test 5 (flat-screen or headset): crouched by a corpse 30, 12 and 4 units off a limb, keeping "
+                  "still, the limb pops: its stump's fountain pours from the first frames (flatblood: lines; a screenshot of each)."),
         command("Flat Ledges", "vr_flatmove_test 9")
             .help("vr_flatmove_test 9 (-flatscreenmode only, floating at the surface): the spots within 512 units where "
                   "Quake's jump out of the water lifts you, with the yaw that faces the ledge (flatmove: ledge lines)."),

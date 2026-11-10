@@ -5317,6 +5317,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Blood at Point Blank|Advanced VR Options > Debug > Tests > Blood at Point Blank
 |2|Debug - Tests|Blood Crouched Over a Corpse|Advanced VR Options > Debug > Tests > Blood Crouched Over a Corpse
 |2|Debug - Tests|Blood Near the Eye: Pictures|Advanced VR Options > Debug > Tests > Blood Near the Eye: Pictures
+|2|Debug - Tests|Blood Fountain of a Limb Popped Close|Advanced VR Options > Debug > Tests > Blood Fountain of a Limb Popped Close
 |2|Debug - Tests|Flat Ledges|Advanced VR Options > Debug > Tests > Flat Ledges
 |2|Debug - Tests|Flat Crouch Trace|Advanced VR Options > Debug > Tests > Flat Crouch Trace
 |2|Debug - Tests|Flat Slide: Self-Test|Advanced VR Options > Debug > Tests > Flat Slide: Self-Test
