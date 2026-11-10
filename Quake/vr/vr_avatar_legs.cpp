@@ -597,7 +597,11 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     if(sliding > 1e-3f)
     {
         // vr_flat_slide_leg_reach of the leg from the hip to the foot on the floor (his note 2026-11-08: straighter).
-        const float reach = (a + l) * CLAMP(0.85f, vr_flat_slide_leg_reach.value, 1.f);
+        // One leg's knee bent up (vr_flat_slide_knee_leg's, its foot drawn in vr_flat_slide_knee_bend of the leg's
+        // length: his note 2026-11-10, "a bit too tidy/perfect ... slightly bend one of the knees up").
+        const bool bent = side == (vr_flat_slide_knee_leg.value != 0.f ? 1 : 0);
+        const float drawIn = bent ? CLAMP(0.f, vr_flat_slide_knee_bend.value, 0.6f) : 0.f;
+        const float reach = (a + l) * (CLAMP(0.85f, vr_flat_slide_leg_reach.value, 1.f) - drawIn);
         const float spread = 0.06f * (a + l);
         const float dz = CLAMP(0.f, t.pos.z - footZ, reach);
         const float along = za::sqrt(za::max(0.f, reach * reach - dz * dz - spread * spread));
@@ -640,8 +644,12 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     if(sliding > 1e-3f)
     {
         // Sliding: the toes up and ahead, the soles forward (feet first).
+        // Then both rolled vr_flat_slide_foot_roll degrees to the right about the slide's way (his note 2026-11-10: "roll
+        // the feet a bit to the right"; + about the body's forward tips the toes from up toward his right).
         const glm::mat3 pointed = basis(safeNormalize(shinDir + UP * 0.9f, UP), bend);
-        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), sliding));
+        const glm::mat3 rolled =
+            glm::mat3_cast(glm::angleAxis(glm::radians(CLAMP(-60.f, vr_flat_slide_foot_roll.value, 60.f)), b.fwd)) * pointed;
+        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(rolled), sliding));
     }
     if(lying > 1e-3f)
     {

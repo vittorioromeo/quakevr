@@ -51,6 +51,9 @@ void frame(bool on);
 // lip of e1m1's button ramp, a third of a second in the air, the view rose 3.7 units over the body and fell on landing,
 // the gun and the body with it). sliding() is the slide on the ground (its sound, the tests).
 [[nodiscard]] bool slidePose();
+// The server's word: player `ent`'s slide is on (off a ledge mid-slide too); false for anyone else (vr_hull.cpp: no lying down mid-slide; vr_box3d_standing.cpp: a prop slid into).
+[[nodiscard]] bool slideOnServer(const edict_t* ent);
+
 // How much further down the slide puts his eyes now (units; flatplay::crouchDrop adds it).
 [[nodiscard]] float slideDrop();
 // How far behind the eye the slide's leant-back trunk hangs from (units: vr_flat_slide_neck_back; the avatar takes it by

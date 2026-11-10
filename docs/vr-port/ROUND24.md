@@ -7410,3 +7410,57 @@ His notes 19 and 24 (2026-11-10). Details in FLATPLAY.md, "Force grab".
 - **Pose defaults**: `vr_flat_fg_out` 0.15 and `vr_flat_fg_down` -0.05 (0.3 / 0.1 put the open hand on the screen's bottom
   left edge). `flatitems_test.sh` sets `vr_flat_autoreload 1`: since the flat reload landed, e1m1's shotgun starts with an
   empty clip and cases 1 and 5 timed out waiting for a shot (not this branch: they pass with it).
+## Flat hands: the drop key, the quick grenade, the hand swap (agent/flat_hands, 2026-11-10)
+
+His items 12, 13, 14, 17 (flat-screen feedback of 2026-11-10).
+
+- **12, the drop catching the gun as a prop.** `VR_Forcegrab_FlatDropHand` tried `VRTryHandOff` first: with a weapon held
+  in both hands (the Enforcer's rifle, the nail gun) the off hand on its grip was handed the weapon, carried by its
+  fore-end (`QVR_WPNFLAG_FOREGRIP_CARRIED`, drawn hanging like a prop). The drop key now always drops (`DropWeaponInHand`);
+  "sometimes" was when two-handed aiming was on (or within 0.1 s of it).
+- **13, drop on H.** `vr_flat_key_drop` (default `h`), `vr_flat_key_grenade` (default `g`), both in the keys the mode owns
+  (`VR_FlatKeyOwned`) and the Desktop Keys row's list. G was hard-coded (`keydown['g']`), so no saved bind existed to
+  migrate; his `ironwail.cfg` binds neither G nor H.
+- **14, the quick grenade.** FLATPLAY.md, "The quick grenade". Shared with the headset: the pouch grenade
+  (`VR_HandGrenade_Take`, `_Arm`, `_Ammo*`), the carry and its throw (`VR_Carry_Start`, `VR_Carry_Loose`, `VR_Carry_Throw`,
+  `VR_Throw_Inherit`, `VR_Grenade_Released`). Flat-only: the hand choice, the phases, the explicit throw velocity (no
+  tracked hand to measure: the speed from the wind-up's length) and the drawn poses. Decision: the fire button's two
+  steps (arm, then a press held winds up) are the default, `vr_flat_grenade_arm_mode 0` makes it one press (his words read
+  either way; two presses lets a grenade be cooked). The throw assist (`VRThrowAssist`) is not used: the crosshair aims.
+- **17, the hand swap.** FLATPLAY.md, "The hand swap": client-side timing, the game's swap unchanged.
+- Files: `QC/vr_flatgrenade.qc`, `Quake/vr/vr_flatgrenade.cpp`, `vr_flatswap.cpp`; hooks in `vr_flatplay.cpp` (keys,
+  `routeFire`, punches), `vr_flatsight.cpp`, `vr_twohand.cpp`; `STAT_QVR_FLATGREN`; tunables Flatscreen > Hand Swap and
+  > Quick Grenade; rows on Desktop Screen Play; Debug > Reports: the grenade's and the swap's reports and prints.
+  Test: `Misc/quakevr/flathands_test.sh` + `flathands_check.py`; scenarios `flat_drop`, `flat_quick_grenade`,
+  `flat_hand_swap`.
+## Flat slide: stamina, charge, prop push, pose, no prone (branch `agent/flat_slide2`, worktree `embed5`, 2026-11-10)
+
+His feedback of 2026-11-10, items 7, 8, 9, 10 and 22 (FLATPLAY.md, "Sliding", has the whole of it).
+
+- **Stamina (7).** `vr_flat_slide_stamina` 15, `vr_flat_slide_stamina_parts` 3, `vr_flat_slide_stamina_step` 0.2 s:
+  the first part as the slide starts, the next as each falls due while it is on (in the air too: the same slide), none
+  after it ends. Paid through QC's `VR_Stamina_Effort` (new `progs::staminaEffort`, `progs::staminaOn`), so the visor's
+  STAM bar, the tiring breath and the pool's rest-before-coming-back all behave as for a shove. Low stamina: decided
+  no slide below the first part (a plain crouch), not a weaker slide; the tired run (`vr_stamina_speed`) already slows
+  him. `vr_flatmove_status` shows the last slide's paid stamina and the refusals.
+- **Charge (8).** QC `VR_KdTrig_SlideCharge`, first in `VR_KdTrig_Tackle`: the engine sets `.vr_sliding` each move
+  (`VR_FlatSlideMove`); at `vr_flat_slide_charge_speed` (250) or more the contact search the shoulder charge uses (now
+  `VR_KdTrig_ChargeFind`) and then `VR_KdTrig_ChargeHit` as is (bounce, thud, knock by weight via `VR_KdTrig_Bump`, the
+  Shoulder Charges' chance and switch, the cry). The speed is remembered for the charge's 0.25 s grace (his slide stops
+  dead at the monster). The charge's own stamina is replaced by `vr_flat_slide_charge_stamina` (0): the slide paid. The
+  momentum-hit path of `agent/systems1` is not in `next`, so this does not use it.
+- **Props (9).** `VR_PlayerBumps` marks a sliding player's bump; `shoveBumped` then pushes the prop to
+  `vr_flat_slide_prop_push` (1) of his level speed shared by his mass (`vr_box3d_player_mass`) and its own, without the
+  walk's friction-limited force cap, along his slide's way turned `vr_flat_slide_prop_side` (20) degrees to the side
+  its middle is off his line (dead ahead: right).
+- **Pose (10).** `vr_flat_slide_foot_roll` (20 deg, right; about the body's forward), `vr_flat_slide_knee_bend` (0.25 of
+  the leg drawn in, its knee up) on `vr_flat_slide_knee_leg` (0 left).
+- **No prone mid-slide (22).** `toggleProne` ignores the key while `flatmove::slidePose()`; the server's lie-down check
+  (`vr_hull.cpp`) now skips any slide that is on (`flatmove::slideOnServer`), in the air too, not only one on the ground.
+- **Tests.** `vr_flatslide_test` gained: the prone key 0.1 s into the slide does nothing (it ends "slowed"); a whole
+  slide pays all parts; the jump-cut slide pays its first alone; at 2 stamina a crouch at speed is no slide. New
+  `vr_flatslide_hit_test 0|1` (crate, grunt in vrtesthall's south-west lane). Both in `flatslide_test.sh` and Debug >
+  Tests. Results: `flatslide_test.sh` 23 passed, 0 failed (flatslide 9/0; the crate went on 62.8 units and 23.2 to the
+  side; the grunt slid into at 253 u/s went down). `vr_body_lie_test`'s "legs straighter" now measures the straight leg
+  and checks the bent one (30..150 deg) instead. Its "slide: no bob (the pelvis 2.69 .. 4.50)" fails on origin/next
+  (2e84384d4) as well: not this branch's, left alone. Scenarios `flat_slide_hit`, `flat_slide_stamina` validate (SCNOK).

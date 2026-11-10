@@ -89,6 +89,8 @@ struct Bindings
     func_t Knockdown_MakeRoom{0};
     func_t Stamina_Max{0};  // the stamina pool's size and what a player has left (QC vr_melee.qc: staminaMax, staminaLeft)
     func_t Stamina_Left{0};
+    func_t Stamina_On{0};     // (staminaOn, staminaEffort: VR_Stamina_On, VR_Stamina_Effort)
+    func_t Stamina_Effort{0};
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {
@@ -344,6 +346,12 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 // the server's VM; the caller's self, parameters and return are kept (a builtin's code may ask).
 [[nodiscard]] float staminaMax();
 [[nodiscard]] float staminaLeft(edict_t* p);
+// Whether the pool is used at all (VR_Stamina_On: parries, shoves, blows or climbing spend it); false without the QC's.
+[[nodiscard]] bool staminaOn();
+// An effort of `p`'s costing `cost` (VR_Stamina_Effort, as a shove's or a blow's: it spends what it can, the rest comes
+// back from now, the tiring breath as it goes low; `what` names it in the trace): the share of the cost paid, 0..1 (1
+// without the QC's). The caller's self, parameters and return are kept.
+float staminaEffort(edict_t* p, float cost, const char* what);
 
 // A QC global vector's value, by its name, from the loaded progs (the current VM's): false, `out` untouched, when there
 // is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).

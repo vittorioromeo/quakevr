@@ -864,6 +864,14 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Force Grab: Press E", "vr_flat_fg_press")
             .help("vr_flat_fg_press: E's force grab, as the key presses it (the palm turns out first, then the grab)."),
         row(opt::vr_flat_reload_debug),
+        command("Flatscreen Grenade Report", "vr_flatgrenade_report")
+            .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
+                  "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),
+        row(opt::vr_flat_grenade_debug),
+        command("Flatscreen Swap Report", "vr_flatswap_report")
+            .help("vr_flatswap_report: the hand swap's animation (running, which kind, sent, seen, its share) and the swap "
+                  "key's presses."),
+        row(opt::vr_flat_swap_debug),
         row(opt::vr_flat_reload_pose),
         row(opt::vr_handsource_debug),
         row(opt::vr_handsource_force),

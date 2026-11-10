@@ -1895,6 +1895,39 @@ QVR_TUNABLE(vr_flat_carry_pitch, "10") // degrees its fingers point down from th
 QVR_TUNABLE(vr_flat_carry_yaw, "10") // degrees it turns in towards the middle (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_carry_roll, "45") // degrees it rolls its palm up (mirrored for the left hand)
 QVR_TUNABLE(vr_flat_carry_drawn, "1") // a held prop drawn in its hand as drawn (the view's sway, bob, turn lag); 0: at the game's hand, as before
+// Flatscreen > Hand Swap (vr_flatswap.cpp; vr_flat_swap_anim)
+QVR_TUNABLE(vr_flat_swap_in, "0.15") // seconds the hands take to meet (the swap is sent as they do)
+QVR_TUNABLE(vr_flat_swap_out, "0.2") // seconds they take back to their poses once swapped
+QVR_TUNABLE(vr_flat_swap_gap, "3") // units apart they meet (a weapon in both hands: the free hand this far off the holding one)
+QVR_TUNABLE(vr_flat_swap_down, "2") // units below the middle of the two hands they meet (-16..16)
+
+// Flatscreen > Quick Grenade (vr_flatgrenade.cpp, QC vr_flatgrenade.qc; vr_flat_key_grenade). Places off the hand's
+// shoulder as shares of the arm's reach: forward, out at the hand's own side, down (or up); angles Quake's (pitch down +).
+QVR_TUNABLE(vr_flat_grenade_fetch_time, "0.3") // seconds the hand takes back to the pouch (the grenade is taken as it gets there)
+QVR_TUNABLE(vr_flat_grenade_up_time, "0.3") // seconds it takes back into view with the grenade
+QVR_TUNABLE(vr_flat_grenade_fetch_fwd, "-0.2") // the pouch trip's place: in front of the shoulder (negative: behind), level with the body
+QVR_TUNABLE(vr_flat_grenade_fetch_out, "0.25") // out at its side
+QVR_TUNABLE(vr_flat_grenade_fetch_down, "0.9") // below the shoulder
+QVR_TUNABLE(vr_flat_grenade_fetch_pitch, "70") // the hand's pitch there (fingers down)
+QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.85") // the held grenade's place: forward along the look
+QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
+QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.05") // below the shoulder (negative: above; in view at the screen's lower corner)
+QVR_TUNABLE(vr_flat_grenade_hold_pitch, "10") // its pitch against the look's
+QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
+QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.7") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
+QVR_TUNABLE(vr_flat_grenade_wind_out, "0.1") // out at its side
+QVR_TUNABLE(vr_flat_grenade_wind_up, "0.5") // above the shoulder
+QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
+QVR_TUNABLE(vr_flat_grenade_wind_full, "1") // seconds of wind-up for the hardest throw (0.1..5)
+QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
+QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
+QVR_TUNABLE(vr_flat_grenade_throw_up, "10") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_grenade_follow_time, "0.15") // seconds of the throw's follow-through (the arm out along the look)
+QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
+QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
+QVR_TUNABLE(vr_flat_grenade_follow_down, "-0.05") // below the shoulder
+QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
+QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
@@ -2048,6 +2081,17 @@ QVR_TUNABLE(vr_flat_slide_legs, "1") // the slide: the hips and legs point the s
 QVR_TUNABLE(vr_flat_slide_legs_twist, "70") // the slide: the most degrees the hips and legs turn off the view to the slide's way (0..90)
 QVR_TUNABLE(vr_flat_slide_bob, "0") // the slide: this share of the walk's bob stays (the view's, the hands', the body's; 0..1); 0: none, the feet stay on the floor
 QVR_TUNABLE(vr_flat_slide_sound, "0.6") // the slide: the scrape's volume (0..1): a scuff as it starts, a scrape that follows the speed and fades as it slows; 0 silent
+QVR_TUNABLE(vr_flat_slide_stamina, "15") // the slide: stamina it costs (0..100; the parry stamina's pool, the visor's STAM), in vr_flat_slide_stamina_parts parts; with less than one part left a crouch at speed is no slide; 0 free
+QVR_TUNABLE(vr_flat_slide_stamina_parts, "3") // the slide: its stamina is taken in this many equal parts (1..6), the first as it starts, the rest vr_flat_slide_stamina_step s apart; a part not yet due when it ends isn't charged
+QVR_TUNABLE(vr_flat_slide_stamina_step, "0.2") // the slide: seconds between its stamina's parts (0..1; 0: all as it starts)
+QVR_TUNABLE(vr_flat_slide_charge, "1") // the slide: sliding into a monster at vr_flat_slide_charge_speed or faster knocks it as a shoulder charge does (QC VR_KdTrig_SlideCharge: the Shoulder Charges' knock by weight and their chance); 0 off
+QVR_TUNABLE(vr_flat_slide_charge_speed, "250") // the slide's charge: the least speed (units/s) it knocks a monster at (100..600); the knock grows with the speed over it
+QVR_TUNABLE(vr_flat_slide_charge_stamina, "0") // the slide's charge: stamina one that connects costs on top of the slide's (0..100; the shoulder charge's own is vr_kdtrig_tackle_stamina)
+QVR_TUNABLE(vr_flat_slide_prop_push, "1") // the slide: a prop slid into is pushed on at this share of the slide's speed (0..2), shared by his weight and its own (vr_box3d_player_mass); 0: the walk's shove
+QVR_TUNABLE(vr_flat_slide_prop_side, "20") // the slide: degrees off the slide's way a prop slid into goes, to the side it is off his line (0..60)
+QVR_TUNABLE(vr_flat_slide_foot_roll, "20") // the slide's pose: degrees both feet roll to the right about the slide's way (-60..60; negative: to the left)
+QVR_TUNABLE(vr_flat_slide_knee_bend, "0.25") // the slide's pose: one leg's foot drawn in this share of the leg's length, its knee bent up (0..0.6; 0: both legs out alike)
+QVR_TUNABLE(vr_flat_slide_knee_leg, "0") // the slide's pose: which leg's knee is bent up (0 the left, 1 the right)
 QVR_TUNABLE(vr_flat_lean_angle, "20") // the lean (Q / E, vr_flat_lean): degrees the view and the held weapon roll at a full lean (0..35)
 QVR_TUNABLE(vr_flat_lean_dist, "20") // the lean: how far the eye moves sideways at a full lean (units, 0..30); the body tilts from the hips to follow it
 QVR_TUNABLE(vr_flat_lean_pivot, "30") // the lean: the eye's distance from the point it swings round (units): it goes down as it goes out, sqrt(pivot^2 - dist^2) short of the pivot
