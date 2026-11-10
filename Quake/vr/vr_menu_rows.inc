@@ -6207,6 +6207,16 @@ QVR_TOGGLE(vr_flat_reload, "Reloading",
 QVR_TOGGLE(vr_flat_autoreload, "Auto Reload",
     "Playing on the desktop screen with Reloading on: a gun whose clip runs empty reloads by itself, if your ammo has "
     "rounds for it. Off (the default): only R reloads (vr_flat_autoreload).")
+QVR_TOGGLE(vr_flat_ssg_break, "Super Shotgun Breaks Open",
+    "Playing on the desktop screen with Reloading on: the super shotgun fired empty breaks open by itself a moment "
+    "later, throwing out its spent shells, and won't fire until a reload snaps it shut (Tunables > Flatscreen > "
+    "Reload: its delay; vr_flat_ssg_break).")
+QVR_TOGGLE(vr_flat_mag_eject, "Ejects Empty Magazines",
+    "Playing on the desktop screen with Reloading on: a magazine gun (the nailguns, the thunderbolt, the nail pistol) "
+    "fired empty drops its magazine, which falls as VR's do; the reload seats a new one at the hip (vr_flat_mag_eject).")
+QVR_TOGGLE(vr_flat_revolver_eject, "Revolver Ejects Its Shells",
+    "Playing on the desktop screen with Reloading on: the revolver's reload swings its cylinder out, throws out the "
+    "spent shells, and swings it home once the new ones are in (vr_flat_revolver_eject).")
 QVR_TOGGLE(vr_flat_hud, "Desktop Status Bar",
     "Playing on the desktop screen (-flatscreenmode) with the modern status bar (hudstyle 1): the portrait and health in "
     "the middle over the ammo bar, bullet time's meter over them, and each hand's ammo at its own bottom corner. Off: "

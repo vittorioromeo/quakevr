@@ -1129,8 +1129,9 @@ VRReloadWeapon =
     VRSetEntWeaponClip(entPlayer, xHand, clip + clampedMissingAmmo);
 
     // The super shotgun, broken open, throws out its spent shells: flung by a flick reload
-    // (vr_shells.cpp).
-    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0 && !AD_WidowmakerIn(entPlayer, xHand)) // (the Widowmaker's go as it fires)
+    // (vr_shells.cpp). (Not a flat-screen player's that breaks open by itself: thrown out then, vr_flatreload.qc.)
+    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0 && !AD_WidowmakerIn(entPlayer, xHand) && // (the Widowmaker's go as it fires)
+       !VR_FlatReload_SsgBreaks(entPlayer, xHand))
     {
         entity oself = self;
         self = entPlayer;
