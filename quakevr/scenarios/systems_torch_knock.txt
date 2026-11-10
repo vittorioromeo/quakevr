@@ -1,0 +1,7 @@
+# systems_torch_knock: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A wall torch and a crate ahead (the wall mount's momentum rule, QC/vr_mount.qc).
+title A crate kicked or dropped into a wall torch
+map vrtesthall
+god
+notarget
+spawn "Wall Torch" 96 0 40
+spawn "Wooden Crate" 40 -60

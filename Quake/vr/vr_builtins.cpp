@@ -32,6 +32,7 @@
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_mapstyle.hpp"
 #include "vr_selfshot.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_motion.hpp"
@@ -863,6 +864,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weightleniency", PF_weightleniency},
     {"throwvelocity", PF_throwvelocity},
     {"throwweight", PF_throwweight},
+    {"mapstyle", mapstyle::builtin},
     {"debrisplan", PF_debrisplan},
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},

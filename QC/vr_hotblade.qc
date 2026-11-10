@@ -136,7 +136,7 @@ void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector x
     }
     dprint(sprintf("hotblade: a thrown weapon %g struck %s (%s): set on fire\n", xThing.weapon, xTarg.classname,
         xAlive ? "alive" : "a corpse"));
-    VR_Burn_Ignite(xTarg, xBy != world ? xBy : xThing, xAt, xDir, VR_BURN_BLOW);
+    VR_Burn_FromThing(xTarg, xThing, xBy != world ? xBy : xThing, xAt, xDir);
 };
 
 // The fire point `p` is in (VR_WallTorch_FireAt's: lava, a flame, a lit torch), "" none.
