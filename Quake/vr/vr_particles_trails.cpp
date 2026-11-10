@@ -472,7 +472,8 @@ lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
 // The gore's blood mist (vr_gore_mist*; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist"): with every
 // blood effect (a hit, a cut, a gib bursting: whatever bleeds), a few large, faint clouds of blood hanging in the air,
 // spreading and drifting along the blow as they fade. A bleed's several blood effects in one place in one frame (a gib
-// bursting sends eight) make one bleed's clouds. None close to the eyes (vr_gore_mist_near): the player's own bleeding
+// bursting sends eight) make one bleed's clouds. Optionally none close to the eyes (vr_gore_mist_near; 0, the default: made
+// at the camera too, his note 2026-11-10, the drawing's near fade his choice): the player's own bleeding
 // is not in his face.
 glm::vec3 lastMistOrg{0.f}; // the last clouds' place and time
 double lastMistTime = -1.0;

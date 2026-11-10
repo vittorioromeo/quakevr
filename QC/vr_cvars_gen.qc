@@ -819,6 +819,7 @@ float cvarh_vr_embed_probe_gibctl;
 float cvarh_vr_embed_probe_grip;
 float cvarh_vr_embed_probe_on;
 float cvarh_vr_embed_probe_skew;
+float cvarh_vr_embed_probe_skewj;
 float cvarh_vr_embed_probe_skewn;
 float cvarh_vr_embed_probe_spot;
 float cvarh_vr_embed_probe_step;
@@ -2816,6 +2817,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_embed_probe_grip = VR_CVar_Make("vr_embed_probe_grip");
     cvarh_vr_embed_probe_on = VR_CVar_Make("vr_embed_probe_on");
     cvarh_vr_embed_probe_skew = VR_CVar_Make("vr_embed_probe_skew");
+    cvarh_vr_embed_probe_skewj = VR_CVar_Make("vr_embed_probe_skewj");
     cvarh_vr_embed_probe_skewn = VR_CVar_Make("vr_embed_probe_skewn");
     cvarh_vr_embed_probe_spot = VR_CVar_Make("vr_embed_probe_spot");
     cvarh_vr_embed_probe_step = VR_CVar_Make("vr_embed_probe_step");
