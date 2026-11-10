@@ -269,6 +269,7 @@ vr_reload_test   41       vr_reload_test.qc                (VR_Reload_TestMagNai
 vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNailsLying)
 vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
 vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
+vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)

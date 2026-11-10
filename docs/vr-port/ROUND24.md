@@ -7804,6 +7804,23 @@ are made before his first move): fresh `map e1m1` and `map start`, the shotgun d
 were the test's: it waited for the reserve to drop, and flat reload shoots from the clip (the cheat's loaded gun);
 `vr_flatitems_test` now counts shells plus the main hand's clip. `flatitems_test.sh` 8/0 (no autoreload needed),
 `flatreload_test.sh` 38/0.
+
+### Flat-screen: the starting shotgun drawn from the hip was empty (branch `agent/shotgun_load`)
+
+His words 2026-11-10: "Shotgun still is unloaded after a new game starts and I grab it from the hip ... make sure that
+the magazine of the shotgun itself is loaded." Cause: the fix above skipped the preload for every flat-screen game, but
+flat-screen play's holsters (`vr_flat_holsters`, on by default since the same day) swallow 1/2 and draw the holstered
+gun's own record (`VR_FlatHolster_Swap` -> `VRDrawHolsterWeapon`), which then held 0 of 8 (25 shells in the reserve).
+VR was not affected (its new game kept the preload: 8 of 8, 17 shells). Fixed at the source: `SetNewParms` loads the
+holstered shotgun's own magazine (parm36) for every new game except flat-screen play with its holsters off, the only
+mode that never draws from the holsters (`VR_FlatReload_NewGameCycles`, was `_NewGameFlat`). A level change keeps the
+gun's magazine (parm31/parm33..38, unchanged; Quake's SetChangeParms tops the reserve up to 25 shells as ever).
+Left as is: switching `vr_flat_holsters` mid-game doesn't move rounds (a game started with it off draws an empty
+holstered shotgun once it is turned on: R loads it; one started with it on hides the holster's 8 from the cycle).
+Test: `Misc/quakevr/startgun_test.sh` (QC `vr_reload_test 45-48`): new game on e1m1 and on start, flat (holster menu
+impulse 71) and the VR mock (hand at the right hip, grip): drawn 8 of 8 with 17 shells, one shot 7 of 8 and the reserve
+untouched, a level change keeps 7 (reserve 25). Before: flat 0 of 8 drawn, 25 reserve; after: 16/16 checks pass.
+Scene `start_shotgun`.
 ## Voice notes 2026-11-10: lifting through a blade, your gore (branch `agent/vn1110_gore`)
 
 - **Blade Hold Strength didn't lift (his "x10 and still extremely heavy"):** two caps no strength reached. (1) A live
