@@ -219,7 +219,7 @@ void() OnLoadGame =
     }
 }
 
-float() VR_FlatReload_NewGameFlat; // (vr_flatreload.qc)
+float() VR_FlatReload_NewGameCycles; // (vr_flatreload.qc)
 
 void() SetNewParms =
 {
@@ -311,11 +311,13 @@ void() SetNewParms =
     parm37 = 0;
     parm38 = 0;
     // Immersive reloading (vr_reload.qc): the shotgun you start with (in the right hip holster) comes loaded from your
-    // shells, as a map's pickup does; after that its magazine is loaded by hand from the ammo pouch. (The holsters'
-    // reload filled it as it was first drawn.) Not flat-screen play's: its weapon cycle (1, 2) takes a gun into the hand's
-    // own record and loads it from the reserve then (VRCycleEntWeaponInst, VR_FlatReload_CycleIn), so the rounds loaded
-    // here stayed in the holster's record, never seen: a new game's 25 shells were 9 and 8 in the clip (2026-11-10).
-    if(VR_Reload_ManualFor(parm14) && !VR_FlatReload_NewGameFlat())
+    // shells, as a map's pickup does: the holstered gun's own magazine (its record, parm36), drawn from the hip full, in
+    // a headset and in flat-screen play with its holsters (vr_flat_holsters, the default); after that it is loaded by
+    // hand from the ammo pouch (flat: R at the hip). Not flat-screen play's weapon cycle (its holsters off): 1 and 2 take a
+    // gun into the hand's own record and load it from the reserve then (VRCycleEntWeaponInst, VR_FlatReload_CycleIn),
+    // so rounds loaded here would stay in a holster never drawn from: a new game's 25 shells were 9 and 8 in the clip.
+    // (Until 2026-11-10 that exception took in every flat-screen game, the holsters' too: the gun was drawn empty.)
+    if(VR_Reload_ManualFor(parm14) && !VR_FlatReload_NewGameCycles())
     {
         parm36 = min(WeaponIdToBaseClipSize(parm14), parm4);
         parm4 = parm4 - parm36;

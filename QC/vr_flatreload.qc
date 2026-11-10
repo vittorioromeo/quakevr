@@ -71,12 +71,20 @@ string(float xHand) VR_FlatReload_HandName =
     return xHand == cVR_MainHand ? "main" : "off";
 };
 
-// SetNewParms (client.qc): whether a new game's player plays flat-screen (his starting shotgun then left unloaded in its
-// holster: his weapon cycle loads it from the reserve as he takes it). He isn't known to yet when his first parms are
-// made (.vr_flatscreen comes with his moves): self if he is, else the local game's mode (vr_flatplay, set by the engine;
-// single player only, where his is the only client).
-float() VR_FlatReload_NewGameFlat =
+// SetNewParms (client.qc): whether a new game's player takes his weapons by the flat-screen weapon cycle, not from his
+// holsters: flat-screen play with its holsters off (vr_flat_holsters 0: 1 and 2 cycle what he collected, each gun taken
+// loaded from the reserve, VR_FlatReload_CycleIn; the holster menu closed). His starting shotgun is then left unloaded
+// in its holster, which he never draws from (its rounds would be hidden there). With the holsters on (the default) he
+// draws it from the hip as a headset does, so its own magazine comes full (2026-11-10: it was drawn empty, the preload
+// skipped for every flat-screen game). He isn't known to yet when his first parms are made (.vr_flatscreen comes with
+// his moves): self if he is, else the local game's mode (vr_flatplay, set by the engine; single player only, where his
+// is the only client).
+float() VR_FlatReload_NewGameCycles =
 {
+    if(cvar_hget(cvarh_vr_flat_holsters) != 0)
+    {
+        return FALSE;
+    }
     if(self.classname == "player" && VR_FlatPlay(self))
     {
         return TRUE;
