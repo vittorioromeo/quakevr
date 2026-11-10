@@ -133,6 +133,10 @@ layout(location = 9) uniform int RetroSet; // retro textures' set (vr_retro.h; 0
 #endif
 #ifdef PARTICLE_PLAIN
 flat in float particlePlain; // (the particles' vertex shader: 1, never through retro textures)
+flat in vec2 particleCell;   // its cell's size in the atlas (UVs)
+// vr_particle_retro_min_blocks: at least this many retro blocks across a particle's texture (0: the world-unit grid
+// alone). A drop smaller than a block was one flat square, big and untextured near the eye.
+layout(location = 97) uniform float MinBlocks; // (94-96: QVR_FLATFOV_GFX_GLSL's)
 #endif
 #ifdef PARTICLE_RETRO_GRID
 flat in vec3 particleGridScale;
@@ -474,6 +478,16 @@ void main()
     RetroBegin(float(RetroSet), vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));
 #endif
 #ifdef PARTICLE_PLAIN
+    if(Retro > 0 && MinBlocks > 0.0)
+    {
+        // Small particles keep their texture's shape: the grid no coarser than MinBlocks across their cell (fixed for
+        // the particle's life, so it does not crawl as it nears).
+        RetroGrid = max(RetroGrid, MinBlocks / max(particleCell, vec2(1e-6)));
+#ifndef PARTICLE_RETRO_CENTRE_NEAR
+        vec2 w = (abs(duvdx) + abs(duvdy)) * RetroGrid;
+        RetroFar = RetroP0.z > 0.0 ? smoothstep(0.5 * RetroP0.z, RetroP0.z, sqrt(w.x * w.y)) : 0.0;
+#endif
+    }
     if(particlePlain > 0.5)
         Retro = 0;
 #endif
@@ -611,6 +625,7 @@ flat out vec3 particleGridScale;
 #endif
 #ifdef PARTICLE_PLAIN
 flat out float particlePlain; // 1: its texture read smoothly, never through retro textures (the shore's spray)
+flat out vec2 particleCell;   // its cell's size in the atlas (UVs): MinBlocks' blocks across it at least
 #endif
 // The six corners (two triangles): down left, up left, up right, down left, up right, down right.
 const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
@@ -623,6 +638,7 @@ void main()
     Particle p = particles[index];
 #ifdef PARTICLE_PLAIN
     particlePlain = p.flags.w;
+    particleCell = abs(p.uv.zw - p.uv.xy);
 #endif
     int corner = gl_VertexID % 6;
     vec3 org = p.orgHalf.xyz;
@@ -1796,6 +1812,18 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
         const float block = retro > 0 ? retro::particleTrimBlock(retro) : 0.f;
         GL_Uniform2fFunc(14, block >= 0.f ? 1.f : 0.f, block);
         GL_Uniform4fvFunc(20, 16, &particleSupport[0][0]);
+    }
+    bool retroVariant = false; // (particleProgramFor's retro variants: PARTICLE_PLAIN's MinBlocks)
+    for(const auto& row : particleProgram)
+    {
+        for(const int v : {1, 3, 4, 5, 6, 9, 10})
+        {
+            retroVariant |= row[v] != 0 && program == row[v];
+        }
+    }
+    if(retroVariant)
+    {
+        GL_Uniform1fFunc(97, za::clamp(vr_particle_retro_min_blocks.value, 0.f, 64.f));
     }
     bindRetro(retro);
     if(texture)
