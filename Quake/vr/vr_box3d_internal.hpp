@@ -693,6 +693,8 @@ struct World
         int num{0};
         glm::vec3 dir{0.f};     // horizontal, into the prop
         float speed{0.f};       // units/s, his speed into it
+        bool slide{false};      // his flat-screen slide met it: pushed on (dir: his slide's way turned off to its side,
+                                // speed: his level speed; shoveBumped, vr_flat_slide_prop_push)
     };
     za::Vector<Bump> bumps;
     ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)

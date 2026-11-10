@@ -53,7 +53,9 @@
 // None of it runs outside flatscreen play: every entry point says so, and a headset run is untouched.
 
 #include "vr_flatsight.hpp"
+#include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
+#include "vr_flatswap.hpp"
 #include "vr_flatspeedfov.hpp"
 
 #include "vr_api.h"
@@ -1517,8 +1519,9 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // A gun held with the other hand free and a hotspot for it: a long gun's stance, or a pistol's (both hands in front of him). Not
     // dual wielding (the other hand holds), not a melee weapon (no sight line: aimsAtPoint), not a gun with no hotspot: one hand.
     // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
+    // (Nor while the free hand is away with the quick grenade, vr_flatgrenade.cpp: the gun is held one-handed till it is back.)
     const bool twoHandGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding);
+                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping);
     const bool pistol = twoHandGun && glm::length(st.muzzleLocal[st.holding]) < longGunMuzzle;
     const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
     st.armHip = st.armSight = 0.f;
@@ -1804,7 +1807,9 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.
-    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding);
+    // So do the quick grenade (vr_flatgrenade.cpp) and the hands' swap (vr_flatswap.cpp: until it has happened).
+    st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatreload::busy(st.holding) &&
+                    !flatgrenade::busy(st.helping) && !flatswap::gripBlocked();
     QVR_TRACY_CALL("flatsight: pin to grip", pinToGrip(s, reach, carryToGrip));
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));

@@ -1,6 +1,0 @@
-# tutorial_keycard_tip: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The tutorial's keycard
-# tip (ROUND24.md, "Tutorial: a tip on the keycard"): room 6, the key's crate ahead (punch it open).
-title The tutorial's keycard: a tip on it as you grab it
-map vrtutorial
-start 5216 1248 -119 90
-hint Punch the crate open and grip the keycard: a tip on it (with its cable) says to let go of it at a holster, not carry it to the door. Let go of it at your hip or shoulder: kept, the tip gone. Grab it and drop it on the floor first: the tip stays with it.
