@@ -59,9 +59,11 @@ vr_grenade.qc
 vr_reload.qc
 vr_reload_test.qc
 vr_debris.qc
+vr_material.qc
 vr_crates.qc
 vr_crates_test.qc
 vr_smallgibs.qc
+vr_mount.qc
 vr_walltorch.qc
 vr_walltorch_test.qc
 vr_mg_defs.qc
@@ -151,12 +153,15 @@ vr_hitreact.qc
 vr_hitreact_test.qc
 vr_burning.qc
 vr_burning_test.qc
+vr_systems_test.qc
 // The flare gun (after vr_burning.qc: its flares set things on fire).
 vr_flaregun.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
 vr_hotblade.qc
 vr_hotblade_test.qc
 vr_shock.qc
+// The status component (after vr_liquids.qc, vr_burning.qc, vr_shock.qc: it reads their state).
+vr_status.qc
 vr_shock_test.qc
 vr_waterzap_test.qc
 vr_shockarcs_test.qc

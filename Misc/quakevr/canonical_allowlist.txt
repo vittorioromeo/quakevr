@@ -197,6 +197,7 @@ qc-material-ladder QC/vr_ad_enemyguns_test.qc 1  # left: a predicate for a rule,
 qc-material-ladder QC/vr_carry.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/vr_crates.qc 7  # the predicates themselves and VR_MaterialOf; the blunt layer's metal exit; a thrown crate's splinters
 qc-material-ladder QC/vr_melee_bash.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
+qc-material-ladder QC/vr_systems_test.qc 2  # the material dump (vr_systems_test 1): prints each predicate's answer, the before/after proof
 qc-material-ladder QC/vr_mg_world_test.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/vr_wpnholster.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/weapons.qc 3  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)

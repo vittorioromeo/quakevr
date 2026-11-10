@@ -379,7 +379,7 @@ void() VR_Burn_TestFrame =
     entity e = findradius(p.origin, 1024);
     while(e)
     {
-        float cand = (e.flags & FL_MONSTER) || VR_Burn_Wood(e) || VR_Burn_Metal(e);
+        float cand = (e.flags & FL_MONSTER) || VR_Burn_Wood(e) || VR_Prop_Metal(e);
         vector emid = (e.absmin + e.absmax) * 0.5; // (an explosive box's origin is its corner)
         if(e != p && cand && e.modelindex && vlen(emid - p.origin) < bestd)
         {
@@ -409,7 +409,7 @@ void() VR_Burn_TestFrame =
     if(!VR_Burn_Can(best))
     {
         dprint(sprintf("burning: test %g: %s can't burn (health %g)\n", ask,
-                       VR_Burn_Metal(best) ? "an explosive box (metal)" : best.classname, best.health));
+                       VR_Prop_Metal(best) ? "an explosive box (metal)" : best.classname, best.health));
         return;
     }
     vector mid = (best.absmin + best.absmax) * 0.5;

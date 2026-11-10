@@ -73,6 +73,7 @@ void(vector from, vector dir, float reach, float type, float damage) VR_AI_Light
     {
         VR_AI_Beam(type, from, finish, 0);
         LightningDamage(from, finish + (type == TE_LIGHTNING2 ? normalize(dir) * 4 : VEC_ORIGIN), self, damage);
+        VR_LGWater_Beam(from, finish); // (into a liquid it conducts as the player's beam does: one conduction for all)
     }
 };
 

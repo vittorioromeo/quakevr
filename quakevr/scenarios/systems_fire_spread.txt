@@ -1,0 +1,7 @@
+# systems_fire_spread: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vr_systems_test 10: a burning grunt by a crate, then a burning crate by a grunt.
+title Fire spreads from bodies to crates and back
+map vrtesthall
+god
+notarget
+cmd developer 1
+cmd vr_systems_test 10

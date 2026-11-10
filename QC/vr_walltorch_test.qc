@@ -65,7 +65,7 @@ void() VR_WallTorch_TestShot =
         dprint(sprintf("walltorch grip result: detached=%g held=%g\n", t.wt_state != 0, t.carry_player == self));
         return;
     }
-    if(kind >= VR_WALLTORCH_TEST_BOLT)
+    if(kind >= VR_WALLTORCH_TEST_BOLT && kind != 25 && kind != 26) // (25, 26: a prop flung, below)
     {
         if(kind == VR_WALLTORCH_TEST_BOLT)
         {
@@ -108,11 +108,13 @@ void() VR_WallTorch_TestShot =
         dir_x = -to_y;
         dir_y = to_x;
         dir_z = 0;
-        float speed = cvar_hget(cvarh_vr_test_fling_speed) * VRMetersToUnits();
+        // 25: the same prop flung, not thrown (no hand's throw: dropped, or a blast's): the mount's momentum rule
+        // (vr_mount.qc) knocks the torch off all the same; 26: flung at a fifth of the speed: it stays on its wall.
+        float speed = cvar_hget(cvarh_vr_test_fling_speed) * VRMetersToUnits() * (kind == 26 ? 0.2 : 1);
         p.owner = world;
         p.carry_player = world;
         p.carry_letgo = world;
-        p.throwhit = QVR_THROWHIT_NEVER_HIT; // (a throw, not a prop resting where it fell)
+        p.throwhit = (kind == 25 || kind == 26) ? QVR_THROWHIT_HIT : QVR_THROWHIT_NEVER_HIT; // (20: a throw, not a prop resting where it fell)
         p.vr_fling_hit = 0;
         p.fg_state = 0;
         p.flags = p.flags - (p.flags & FL_ONGROUND);
