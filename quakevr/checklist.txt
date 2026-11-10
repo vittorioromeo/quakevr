@@ -51,6 +51,7 @@ Takes: record a voice note during a take, shoot a few takes with in/out marks, r
 Takes: press SET UP on the gadget, move and knock a few props about, then RETAKE; the scene comes back as it was set up and a new take starts by itself. {test:takes}
 Survival Arena from wave 6 on (Normal): grunts and enforcers now come with the heavy revolver, the burst rifle, the enforcer's laser rifle, the knight's and death knight's swords, the chainsaw, Mjolnir and the Super Axe, each first on one foe at its own wave and then in the mix; their drops are yours to pick up and fire. {test:arena_newguns}
 Survival Arena with Arcane Dimensions' data: from wave 11 (Normal) the waves also bring AD's soldiers' guns (defender's shotgun, crossbow, grenade and rocket launchers, plasma rifle, flamethrower, centurion's plasma gun, poison sprayer), the Widowmaker, Shadow Axe and Plasma Gun, and AD's swords, hammer and mace.
+Flat-screen: shove a grunt with a gun held in both hands, then with an axe held in both hands: the free hand pushes out fast but no longer jumps a long way in a frame, at high and low frame rates, and the shove still lands when it did. {test:flat_shove_smooth}
 
 [2. VR: melee and embedded blades]
 Hit a grunt with the axe right in front of you: the blood and its red mist come right at the camera, not only further off (your config still has Mist Clear of Eyes at 40: set vr_gore_mist_near 0; Particle Fade Near Eyes and Particles Hidden Nearer at 0 draw it at the eyes too). {test:flat_skewer_gibs}
